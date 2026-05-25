@@ -39,19 +39,18 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Planning branch: `v18-bearing-30-slice-plan`
+- Current branch: `v18-continuum-slices-66-75`
 - Base branch: `main`
-- Current `origin/main`: `91130391`
-- Latest merged PR: #104, v18 migration command, scratch history,
-  finalization safety, command reports, and public-release blockers
+- Current `origin/main`: `d379eb81`
+- Latest merged PR: #105, v18 release runway planning
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0213-v18-replan-after-command-cli`
-- Current work: realistic v18 release planning for the next thirty slices,
-  beginning with production-runtime scratch replay and ending with a v18
-  public-release go/no-go.
-- Cleanup checkpoint: local `main` has been fast-forwarded to `origin/main`
-  after PR #104 merged; this planning branch starts from that merge commit.
+  `0244-v18-backlog-reconciliation`
+- Current work: backlog reconciliation after the v18 release-candidate
+  evidence packet, with the next goalpost narrowed to public release-prep
+  gates and residual-risk decisions.
+- Cleanup checkpoint: this branch is ahead of `origin/main` with the v18
+  release-candidate evidence and backlog-reconciliation work.
 
 The current v18 graph-model posture is:
 
@@ -382,6 +381,11 @@ and wet-run fixture harnessing.
 - Continuum/WARP Optic release claims now have generated contract evidence for
   runtime-boundary graph-model migration, but native Continuum witnesshood is
   still not claimed.
+- The v17 backlog lane is no longer an active release plan, but its remaining
+  notes still need item-level archive, rehome, or explicit pull decisions.
+- End-to-end graph streaming reads and writes are now named as a `v20.0.0`
+  goal. V18 must keep public docs honest and avoid claiming full graph
+  streaming.
 
 ## Where We Are Heading
 
@@ -395,6 +399,11 @@ canonical wet-run report to zero public-read mismatches, guarded live
 finalization, tied graph-model migration to generated runtime-boundary
 contracts, and added the first `warp-ttd` generated-family smoke. The next
 goalpost is release-prep hardening rather than new feature expansion.
+
+Slice 96 reconciled the backlog ledger with that evidence. The next practical
+goalpost is a release-prep branch that runs the full gate set, freezes package
+and release notes, and decides whether remaining raw content/property storage
+retirement blocks the public tag or ships as explicit residual risk.
 
 ### Next Thirty-Slice Checklist
 
@@ -508,6 +517,10 @@ goalpost is release-prep hardening rather than new feature expansion.
   `CoordinateFactExport.ts` regains raw content/property spelling.
 - The v18 release-candidate evidence packet now names candidate scope,
   inspectable evidence, go/no-go gates, public-tag gates, and residual risks.
+- The backlog ledger now reflects the release-candidate evidence: v18
+  implementation blockers are distinguished from public-release gates, v17 is
+  marked as shipped residual work, and end-to-end graph streaming reads and
+  writes have an explicit `v20.0.0` backlog home.
 
 ### User Stories
 
@@ -739,3 +752,5 @@ and concrete checks live in `docs/invariants/`.
 - [x] 93. Reduce legacy content/property raw-boundary debt by one class.
 - [x] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [x] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
+- [x] 96. Reconcile the v18 backlog after release-candidate evidence:
+  [0244](design/0244-v18-backlog-reconciliation/v18-backlog-reconciliation.md).

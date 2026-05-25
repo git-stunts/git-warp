@@ -16,6 +16,7 @@ Primary design references:
 
 Current promoted items:
 
+- `PERF_end-to-end-graph-streaming`
 - `PROTO_playback-head-alignment`
 - `PROTO_strand-collapse-optic-for-causal-slicing`
 
@@ -23,5 +24,7 @@ Rule:
 
 - `v20` is where slice-first runtime behavior becomes ordinary execution
   instead of doctrine-only language
+- end-to-end graph streaming reads and writes are a `v20` runtime-realization
+  goal, not a `v18` graph-substrate release claim
 - keep distributed/plural semantics that still require a settled slice-first
   runtime in `v21.0.0/`

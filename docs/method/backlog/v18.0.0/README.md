@@ -55,8 +55,11 @@ LAYER 1 (behavioral convergence):
   [x] PROTO_legacy-props-as-projection
 
 LAYER 2 (migration and proof):
-  [~] INFRA_graph-model-migration-tool
-  [~] TRUST_genesis-replay-equivalence
+  [x] INFRA_graph-model-migration-tool
+  [x] TRUST_genesis-replay-equivalence
+
+LAYER 3 (public release):
+  [~] RELEASE_v18-public-release-blockers
 ```
 
 ## Practical rule
@@ -74,42 +77,32 @@ graph model. Change the envelope only if replay honesty requires it.
 
 ## Current Evidence
 
-After v18 slice 49, the migration path is intentionally still
-non-destructive but now has persisted-history evidence:
+After v18 slice 95, the migration path has release-candidate evidence:
 
-- dry-run request JSON can be decoded at the infrastructure boundary;
-- the dry-run CLI can emit deterministic manifest output and refuses
-  apply/write verbs;
-- genesis equivalence has runtime-backed proof, mismatch, and divergence
-  report nouns;
-- compact fixtures cover node, edge, content, removal, multi-writer, and
-  divergent-property cases;
-- v17 golden graph-history fixtures now precede write-capable migration work,
-  because compact fixtures do not prove the persisted Git object/ref layout;
-- the first v17 golden fixture restores real `refs/warp/*` writer refs from a
-  Git bundle and validates manifest heads, patch counts, and visible fact
-  families;
-- restored source inventory collection now reads real writer refs and patch
-  commit trailers into migration-domain source inventory;
-- operation lowering now creates write-ready migration operation facts from
-  successful dry-run plans without writing history;
-- scratch writing now creates deterministic operation commits under explicit
-  `refs/warp-migration-scratch/*` refs and refuses live graph refs;
-- scratch equivalence now gates promotion on proof success, first-divergence
-  reporting, and required patch-boundary evidence;
-- finalization safety now requires explicit confirmation, archive ref
-  selection, scratch output evidence, a passed equivalence gate, and a matching
-  live-ref expected head before any live lineage promotion can be implemented;
-- archive-preserving finalization now creates archive refs and advances live
-  refs only through expected-head `git update-ref` calls;
-- command wiring now runs planning, lowering, scratch writing, equivalence,
-  and optional finalization in order while keeping finalization off by default;
-- finalization now also requires runtime conformance evidence tied to the
-  exact scratch ref and head, making the remaining real-runtime replay provider
-  an explicit release blocker instead of an implicit assumption;
-- raw content/property compatibility boundaries are now enumerated by an
-  executable closeout audit so new raw boundaries require deliberate review.
-- public-release blockers are now explicit in
-  [`RELEASE_v18-public-release-blockers.md`](RELEASE_v18-public-release-blockers.md),
-  including production-runtime replay, live finalization CLI design, wet-run
-  fixture harnessing, Continuum contract tie-back, and operator release notes.
+- dry-run planning, source inventory, operation lowering, scratch writing,
+  equivalence gating, and optional finalization are wired as command stages;
+- a restored v17 golden fixture can be migrated through scratch history and
+  opened through the production graph runtime during the wet run;
+- canonical wet-run public-read equivalence now reaches zero mismatches with
+  explicit patch-boundary evidence;
+- CLI finalization is guarded behind a reviewed JSON confirmation artifact
+  and blocks stale live refs, existing archive refs, failed equivalence, failed
+  runtime replay, and mismatched confirmation evidence;
+- generated Continuum/WARP Optic contract evidence is ingested from local
+  generated artifacts and includes a `warp-ttd` generated-family smoke;
+- the closeout audit enumerates remaining raw content/property compatibility
+  boundaries and has a retired-boundary ratchet for the coordinate fact export
+  cut;
+- release-candidate evidence now names candidate scope, go/no-go gates,
+  public-tag gates, and residual risks.
+
+The remaining public v18 work is release hygiene and residual-risk review:
+
+- full local release-prep gates and GitHub CI on the final release branch;
+- package/version/tag work for the public release;
+- operator release notes that distinguish graph-model convergence from later
+  Continuum admission shells;
+- an explicit decision on remaining raw content/property storage retirement
+  risk;
+- an explicit non-claim that v18 does not provide end-to-end graph streaming
+  reads and writes.

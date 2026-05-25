@@ -25,6 +25,21 @@ payload-bearing graph object.
 - the migration path from legacy content props is deterministic and
   verified
 
+## Progress
+
+V18 slices 21 through 25 introduced runtime-backed content payload nouns,
+content attachment projection, public content reads through projection, and
+typed content write intents before compatibility-property lowering.
+
+Later migration slices made content attachment evidence part of the canonical
+wet-run equivalence path and aligned fixture content attachment evidence with
+runtime content object ids.
+
+This item remains partially open because content persistence still has named
+legacy `_content*` compatibility boundaries. V18 release notes must either
+accept that residual risk explicitly or a final retirement slice must remove
+the remaining storage dependency before public release.
+
 ## Starting points
 
 - `docs/specs/CONTENT_ATTACHMENT.md`

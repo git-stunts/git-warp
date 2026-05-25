@@ -18,32 +18,42 @@ migration safety than the repository can prove.
 ## Done looks like
 
 - scratch output is opened through the production graph runtime, not only
-  operation-history readback
+  operation-history readback;
 - live-ref finalization from the CLI has its own confirmation design,
-  drift checks, archive evidence, and report output
+  drift checks, archive evidence, and report output;
 - the v17 golden graph fixture has a wet-run migration path that restores the
   fixture, writes scratch history, runs equivalence, and captures the operator
-  report
+  report;
 - Continuum/WARP Optic contract evidence is tied back to generated artifacts,
-  not only handwritten compatibility prose
+  not only handwritten compatibility prose;
 - release notes clearly distinguish v18 graph-model convergence from later
-  Continuum admission shells
+  Continuum admission shells;
+- public release gates are run on the release branch before tagging.
 
-## Current blockers
+## Completed Release-Candidate Evidence
 
-| Blocker | Why it blocks public release | Evidence now |
-|---------|------------------------------|--------------|
-| Production-runtime scratch replay | Operation-history readback proves the scratch commits are parseable, but not that the normal graph runtime can open the migrated history. | `GraphModelMigrationScratchRuntimeConformanceProvider` is intentionally operation-derived. |
-| Live finalization CLI design | The command can finalize through the API, but the shell wrapper correctly refuses live-ref finalization flags until operator confirmation semantics are designed. | `GraphModelMigrationCommandCli` rejects `--finalize` and related flags. |
-| Wet-run fixture harness | The v17 fixture and scratch writer exist separately; the release gate needs one reproducible wet run that restores the fixture and executes the wrapper. | Fixture restore, source inventory, scratch writer, command wrapper, and report formatter exist. |
-| Continuum contract tie-back | v18 is aimed at WARP Optic compatibility, so release claims need generated contract evidence from Wesley/Continuum artifacts. | Earlier slices recorded readiness and source facts, but graph-model migration work is still mostly git-warp-local. |
-| Operator release notes | Users need plain release guidance on what v18 migrates, what it does not migrate, and why Echo and git-warp remain sibling participants. | BEARING has the doctrine; release notes are not yet cut. |
+| Evidence | Status |
+|----------|--------|
+| Production-runtime scratch replay | Complete for the canonical v17 wet-run path. |
+| Live finalization CLI confirmation | Complete behind reviewed JSON confirmation. |
+| Wet-run fixture harness | Complete for the canonical v17 fixture and zero-mismatch report. |
+| Continuum contract tie-back | Complete for generated runtime-boundary fixtures and `warp-ttd` smoke. |
+| Release-candidate evidence packet | Complete with public-tag gates and residual risks. |
+
+## Current Public-Release Blockers
+
+| Blocker | Why it still blocks public release | Required evidence |
+|---------|------------------------------------|-------------------|
+| Final release-prep gates | Release-candidate evidence is not a public tag. | `npm run release:preflight`, local required gates, and GitHub CI pass on the final release branch. |
+| Package, version, and tag work | The package line is still `17.0.1`. | `package.json`, `jsr.json` if applicable, changelog, tag, and publish artifacts agree. |
+| Residual raw content/property risk | v18 still carries named legacy compatibility boundaries. | Release notes either accept the residual risk explicitly or a final retirement slice removes the blocker. |
+| Operator release notes | Users need exact migration and finalization guidance. | Public notes explain dry run, scratch writing, guarded finalization, archives, rollback posture, and non-goals. |
+| Streaming overclaim guard | v18 has stream foundations but not end-to-end graph streaming. | Public docs state that full graph streaming reads and writes are a v20 goal, not a v18 claim. |
 
 ## Next pull candidates
 
-- Design and implement production-runtime scratch replay conformance.
-- Design live-ref finalization CLI confirmation and report behavior.
-- Add a fixture wet-run command or documented harness around the current
-  restore plus command CLI path.
-- Attach generated Continuum/WARP Optic contract evidence to the v18 release
-  gate.
+- Run the final release-prep gate set on a release branch.
+- Decide whether remaining raw content/property storage retirement blocks
+  public v18 or becomes explicitly accepted residual risk.
+- Freeze public release notes and migration operator docs.
+- Cut package/version/tag changes only after the gates pass.

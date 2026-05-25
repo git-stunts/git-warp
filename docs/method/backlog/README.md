@@ -15,27 +15,28 @@ workspace." Until that drift is fixed, repo-truth parsing of
 ## Snapshot
 
 Current repo truth for live backlog notes, excluding backlog meta docs
-such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
+such as `README.md`, `SCORECARD.md`, `WORKLOADS.md`, and
+`RELEASE_TRIAGE.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 490 |
+| Live backlog items | 487 |
 | Root backlog items | 33 |
 | `asap/` | 0 |
 | `bad-code/` | 244 |
 | `cool-ideas/` | 108 |
 | `inbox/` | 5 |
-| `up-next/` | 37 |
+| `up-next/` | 36 |
 | `v17.0.0/` | 38 |
-| `v18.0.0/` | 8 |
+| `v18.0.0/` | 5 |
 | `v19.0.0/` | 11 |
-| `v20.0.0/` | 2 |
+| `v20.0.0/` | 3 |
 | `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 490 |
+| Items with YAML frontmatter | 487 |
 | Items without YAML frontmatter | 0 |
-| Items with explicit `id` | 490 |
-| Items declaring dependency fields | 490 |
-| Items with explicit `feature` | 485 |
+| Items with explicit `id` | 487 |
+| Items declaring dependency fields | 487 |
+| Items with explicit `feature` | 482 |
 | Distinct explicit feature values | 17 |
 | `bad-code/` items with explicit `release_home` | 244 |
 | Items with non-empty explicit dependency edges | 59 |
@@ -126,7 +127,7 @@ lanes.
 | `B0` | `inbox/` | Raw capture. No commitment, no scheduling, no downstream guarantees. | Triage only. |
 | `B1` | backlog root | Unlaned maintenance and reference work. Needs classification or direct pull before it should block committed work. | `B0` or direct human pull. |
 | `B2` | `bad-code/` | Foundational debt and invariant repair. This lane can legitimately block release or execution work. | `B0`, `B1`, or lower-level debt in `B2`. |
-| `B3` | `v17.0.0/` | Current committed release work. Explicit per-note edges win here. | `B2`, same-band work, or explicit edges. |
+| `B3` | `v17.0.0/` | Shipped release residual work. Explicit per-note edges win here, but notes must be rehomed before blocking later majors. | `B2`, same-band work, or explicit edges. |
 | `B4` | `v18.0.0/`, `up-next/` | Next-major graph-model work plus unslotted near-term feature overflow after the active release. | `B2`, `B3`, or explicit same-band edges. |
 | `B5` | `v19.0.0/` | Doctrine/runtime follow-through after the substrate cut. | `B2`, `B3`, `B4`, or explicit same-band edges. |
 | `B6` | `v20.0.0/`, `v21.0.0/`, `cool-ideas/` | Far-horizon slice-first/runtime and distributed/plural follow-through plus speculative orbit. | Promotion into another lane or completion of lower numbered bands. |
@@ -138,7 +139,7 @@ lanes.
 | `inbox/` | `B0` | Anything here is blocked on triage, not implementation. |
 | backlog root | `B1` | These notes are real work, but still need lane assignment or an explicit pull decision. When `feature:` is present, treat that as the subsystem home while release-home remains undecided. |
 | `bad-code/` | `B2` | Invariant debt can block `v17.0.0`, `v18.0.0`, and `up-next`. |
-| `v17.0.0/` | `B3` | This is the active release graph for TypeScript migration and streaming ORSets. |
+| `v17.0.0/` | `B3` | This is shipped release residual work after `v17.0.0` and `v17.0.1`; rehome notes before treating them as blockers. |
 | `v18.0.0/` | `B4` | This is the next-major graph-model convergence lane. |
 | `up-next/` | `B4` | Feature-overflow queue behind the active release and next-major graph-model work unless explicitly promoted into a numbered lane. |
 | `v19.0.0/` | `B5` | Doctrine, observer, and admission convergence after the substrate cut. |
@@ -165,9 +166,9 @@ justifies a stronger sequencing rule.
 
 Current explicit-graph totals:
 
-- `490` notes define an `id`
-- `490` notes declare `blocks` and `blocked_by` fields
-- `485` notes currently declare an explicit `feature`
+- `487` notes define an `id`
+- `487` notes declare `blocks` and `blocked_by` fields
+- `482` notes currently declare an explicit `feature`
 - `244` `bad-code/` notes currently declare an explicit `release_home`
 - `59` notes currently name at least one non-empty upstream or
   downstream edge
@@ -257,25 +258,29 @@ Invariant counts:
 
 | Legend | Count |
 |--------|------:|
+| `ARCH` | 1 |
 | `BND` | 9 |
 | `CAST` | 9 |
 | `DX` | 1 |
 | `HEX` | 19 |
+| `IDX` | 1 |
+| `MAT` | 1 |
 | `MODEL` | 22 |
 | `OWN` | 32 |
 | `PORT` | 12 |
+| `PROV` | 1 |
+| `SLUDGE` | 2 |
 | `SPEC` | 119 |
 | `SUB` | 15 |
 
-### `v17.0.0/` — `B3` Active Release Graph
+### `v17.0.0/` — `B3` Shipped Release Residual Work
 
 Dependency posture:
 
 - explicit frontmatter edges override lane inheritance
-- release notes may be blocked by `bad-code/` debt when they touch the
-  same invariant or subsystem
-- this lane is intentionally limited to TypeScript migration,
-  streaming ORSets, and current-substrate modernization
+- `v17.0.0` and `v17.0.1` have shipped
+- notes in this lane need archive, rehome, or explicit pull decisions before
+  they block later release work
 
 Canonical lane readme:
 
@@ -316,7 +321,8 @@ Prefix counts:
 | Prefix | Count |
 |--------|------:|
 | `INFRA` | 1 |
-| `PROTO` | 6 |
+| `PROTO` | 2 |
+| `RELEASE` | 1 |
 | `TRUST` | 1 |
 
 ### `v19.0.0/` — `B5` Doctrine And Runtime Convergence
@@ -356,6 +362,7 @@ Prefix counts:
 
 | Prefix | Count |
 |--------|------:|
+| `PERF` | 1 |
 | `PROTO` | 2 |
 
 ### `v21.0.0/` — `B6` Distributed And Plural Runtime Follow-Through
@@ -401,7 +408,7 @@ Prefix counts:
 | `INFRA` | 2 |
 | `NDNM` | 4 |
 | `PERF` | 4 |
-| `PROTO` | 14 |
+| `PROTO` | 13 |
 | `TRUST` | 1 |
 | `VIZ` | 1 |
 
@@ -436,8 +443,8 @@ today, but it also makes the cleanup sequence clear:
 
 1. Normalize frontmatter on `inbox/`, backlog-root notes, and any new
    release-lane promotions.
-2. Keep `v17.0.0/` and `v18.0.0/` as the most explicit hand-authored
-   dependency graphs.
+2. Keep `v18.0.0/` as the most explicit hand-authored dependency graph and
+   triage `v17.0.0/` residual notes before they block later work.
 3. Add `id` fields to `bad-code/` in invariant bundles instead of one
    giant sweep.
 4. Promote `up-next/` notes into numbered release lanes as soon as they name
