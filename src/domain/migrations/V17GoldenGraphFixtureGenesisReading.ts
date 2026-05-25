@@ -83,7 +83,10 @@ function compatibilityProjectionFor(fact: V17GoldenGraphFixtureVisibleFact): Pro
 function legacyPropertyKeyFor(factKey: string): string {
   const separator = factKey.lastIndexOf(':');
   if (separator <= 0 || separator === factKey.length - 1) {
-    throw new WarpError('property fixture fact key must use owner:property format', 'E_VALIDATION');
+    throw new WarpError(
+      'property fixture fact key must contain at least one colon not at the boundaries; colons are allowed in owner segment',
+      'E_VALIDATION',
+    );
   }
   return `${factKey.slice(0, separator)}\0${factKey.slice(separator + 1)}`;
 }

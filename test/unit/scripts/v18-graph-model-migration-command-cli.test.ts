@@ -15,6 +15,7 @@ import { runMigrationGit }
 import {
   V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
 } from '../../../src/domain/migrations/GraphModelMigrationFinalizationConfirmation.ts';
+import { gitOk } from './migrationTestEnvironment.ts';
 
 const FIXTURE_MANIFEST = 'fixtures/v17/graph-model-golden/manifest.json';
 const SCRATCH_REF = 'refs/warp-migration-scratch/v17-golden-graph/cli';
@@ -103,8 +104,8 @@ describe('v18 graph-model migration command CLI', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('finalization: completed');
     expect(result.stdout).toContain('archivePreserved: yes');
-    expect(await gitText(restoreResult.repositoryPath, ['rev-parse', ARCHIVE_REF])).toBe(ALICE_HEAD);
-    expect(await gitText(restoreResult.repositoryPath, ['rev-parse', LIVE_REF])).toBe(scratchHead);
+    expect(await gitOk(restoreResult.repositoryPath, ['rev-parse', ARCHIVE_REF])).toBe(ALICE_HEAD);
+    expect(await gitOk(restoreResult.repositoryPath, ['rev-parse', LIVE_REF])).toBe(scratchHead);
   });
 
   it('blocks finalization when the reviewed live ref head drifts', async () => {
@@ -141,7 +142,7 @@ describe('v18 graph-model migration command CLI', () => {
     expect(result.stdout).toContain('finalization: blocked');
     expect(result.stdout).toContain('E_STALE_LIVE_REF_EXPECTATION');
     expect(await refExists(restoreResult.repositoryPath, REVIEWED_ARCHIVE_REF)).toBe(false);
-    expect(await gitText(restoreResult.repositoryPath, ['rev-parse', REVIEWED_LIVE_REF])).toBe(BOB_HEAD);
+    expect(await gitOk(restoreResult.repositoryPath, ['rev-parse', REVIEWED_LIVE_REF])).toBe(BOB_HEAD);
   });
 
   it('blocks finalization when the archive ref already exists', async () => {
@@ -177,7 +178,7 @@ describe('v18 graph-model migration command CLI', () => {
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain('finalization: blocked');
     expect(result.stdout).toContain('E_ARCHIVE_REF_EXISTS');
-    expect(await gitText(restoreResult.repositoryPath, ['rev-parse', REVIEWED_LIVE_REF])).toBe(ALICE_HEAD);
+    expect(await gitOk(restoreResult.repositoryPath, ['rev-parse', REVIEWED_LIVE_REF])).toBe(ALICE_HEAD);
   });
 
   it('blocks finalization when the reviewed runtime witness differs from observed replay', async () => {
@@ -212,7 +213,7 @@ describe('v18 graph-model migration command CLI', () => {
     expect(result.stdout).toContain('E_FINALIZATION_REVIEW_MISMATCH');
     expect(result.stdout).toContain('runtimeConformance');
     expect(await refExists(restoreResult.repositoryPath, ARCHIVE_REF)).toBe(false);
-    expect(await gitText(restoreResult.repositoryPath, ['rev-parse', LIVE_REF])).toBe(ALICE_HEAD);
+    expect(await gitOk(restoreResult.repositoryPath, ['rev-parse', LIVE_REF])).toBe(ALICE_HEAD);
   });
 
 });
@@ -334,17 +335,6 @@ function reportValue(report: string, label: string): string {
     throw new Error(`report line ${label} is missing`);
   }
   return line.slice(`${label}: `.length);
-}
-
-async function gitText(repositoryPath: string, args: readonly string[]): Promise<string> {
-  const result = await runMigrationGit(repositoryPath, args, null);
-  expect(result.ok()).toBe(true);
-  return result.stdout.trim();
-}
-
-async function gitOk(repositoryPath: string, args: readonly string[]): Promise<void> {
-  const result = await runMigrationGit(repositoryPath, args, null);
-  expect(result.ok()).toBe(true);
 }
 
 async function refExists(repositoryPath: string, refName: string): Promise<boolean> {

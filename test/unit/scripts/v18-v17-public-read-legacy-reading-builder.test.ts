@@ -1,7 +1,5 @@
-import { mkdtemp } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
-import { describe, expect, it } from 'vitest';
+import { resolve } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   buildV17RestoredPublicReadLegacyReading,
@@ -9,12 +7,16 @@ import {
 import {
   restoreV17GoldenGraphFixture,
 } from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureRestore.ts';
-import { runMigrationGit }
-  from '../../../scripts/v18.0.0/migrations/graph-model/GitMigrationCommandRunner.ts';
+import { gitOk, MigrationTestDirectories } from './migrationTestEnvironment.ts';
 
 const FIXTURE_MANIFEST_PATH = resolve('fixtures/v17/graph-model-golden/manifest.json');
+const temporaryDirectories = new MigrationTestDirectories();
 
 describe('v18 v17 public-read legacy reading builder', () => {
+  afterEach(async () => {
+    await temporaryDirectories.cleanup();
+  });
+
   it('builds legacy equivalence facts from a verified restored v17 fixture', async () => {
     const restoreResult = await restoredFixture('git-warp-v17-public-read-');
 
@@ -77,15 +79,9 @@ describe('v18 v17 public-read legacy reading builder', () => {
 });
 
 async function restoredFixture(prefix: string): Promise<Awaited<ReturnType<typeof restoreV17GoldenGraphFixture>>> {
-  const targetDirectory = await mkdtemp(join(tmpdir(), prefix));
+  const targetDirectory = await temporaryDirectories.create(prefix);
   return await restoreV17GoldenGraphFixture({
     manifestPath: FIXTURE_MANIFEST_PATH,
     targetDirectory,
   });
-}
-
-async function gitOk(repositoryPath: string, args: readonly string[]): Promise<string> {
-  const result = await runMigrationGit(repositoryPath, args, null, { deterministicIdentity: true });
-  expect(result.ok()).toBe(true);
-  return result.stdout.trim();
 }

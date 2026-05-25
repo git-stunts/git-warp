@@ -9,13 +9,12 @@ import { buildGraphModelMigrationScratchReading }
   from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationScratchReadingBuilder.ts';
 import { writeGraphModelMigrationScratchHistory }
   from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationScratchWriter.ts';
-import { runMigrationGit }
-  from '../../../scripts/v18.0.0/migrations/graph-model/GitMigrationCommandRunner.ts';
 import GraphModelMigrationBasis from '../../../src/domain/migrations/GraphModelMigrationBasis.ts';
 import GraphModelMigrationLoweredOperation
   from '../../../src/domain/migrations/GraphModelMigrationLoweredOperation.ts';
 import GraphModelMigrationLoweredPatchPlan
   from '../../../src/domain/migrations/GraphModelMigrationLoweredPatchPlan.ts';
+import { gitOk } from './migrationTestEnvironment.ts';
 
 const execFileAsync = promisify(execFile);
 const SCRATCH_REF = 'refs/warp-migration-scratch/v17-golden-graph/migration';
@@ -107,14 +106,4 @@ async function writeScratchPayload(repositoryPath: string, payload: string): Pro
     `100644 blob ${blobOid}\tmigration-operation.txt\n`,
   );
   return await gitOk(repositoryPath, ['commit-tree', treeOid], 'bad scratch payload\n');
-}
-
-async function gitOk(
-  repositoryPath: string,
-  args: readonly string[],
-  input: string,
-): Promise<string> {
-  const result = await runMigrationGit(repositoryPath, args, input, { deterministicIdentity: true });
-  expect(result.ok()).toBe(true);
-  return result.stdout.trim();
 }

@@ -1,7 +1,6 @@
-import { copyFile, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   buildV17GoldenFixturePropertyMappings,
@@ -16,8 +15,6 @@ import { formatV17GoldenGraphFixtureWetRunReport }
 import {
   restoreV17GoldenGraphFixture,
 } from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureRestore.ts';
-import { runMigrationGit }
-  from '../../../scripts/v18.0.0/migrations/graph-model/GitMigrationCommandRunner.ts';
 import {
   GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_PASSED,
 } from '../../../src/domain/migrations/GraphModelMigrationRuntimeReplayResult.ts';
@@ -30,12 +27,18 @@ import V17GoldenGraphFixtureManifest, {
   V17GoldenRemovalFact,
   V17GoldenGraphFixtureWriterChain,
 } from '../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+import { gitOk, MigrationTestDirectories } from './migrationTestEnvironment.ts';
 
 const FIXTURE_MANIFEST_PATH = resolve('fixtures/v17/graph-model-golden/manifest.json');
+const temporaryDirectories = new MigrationTestDirectories();
 
 describe('v18 v17 fixture wet-run harness', () => {
+  afterEach(async () => {
+    await temporaryDirectories.cleanup();
+  });
+
   it('restores the fixture and exercises the scratch migration path without finalization', async () => {
-    const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-'));
+    const targetDirectory = await temporaryDirectories.create('git-warp-v17-wet-run-');
 
     const result = await runV17GoldenGraphFixtureWetRun({
       manifestPath: FIXTURE_MANIFEST_PATH,
@@ -59,7 +62,7 @@ describe('v18 v17 fixture wet-run harness', () => {
   });
 
   it('represents removed-node and multi-writer fixture coverage in migrated readings', async () => {
-    const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-gap-'));
+    const targetDirectory = await temporaryDirectories.create('git-warp-v17-wet-run-gap-');
 
     const result = await runV17GoldenGraphFixtureWetRun({
       manifestPath: FIXTURE_MANIFEST_PATH,
@@ -74,7 +77,7 @@ describe('v18 v17 fixture wet-run harness', () => {
   });
 
   it('proves the canonical wet-run has zero public-read mismatches', async () => {
-    const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-zero-'));
+    const targetDirectory = await temporaryDirectories.create('git-warp-v17-wet-run-zero-');
 
     const result = await runV17GoldenGraphFixtureWetRun({
       manifestPath: FIXTURE_MANIFEST_PATH,
@@ -89,8 +92,8 @@ describe('v18 v17 fixture wet-run harness', () => {
   });
 
   it('formats deterministic wet-run operator evidence without temp paths', async () => {
-    const firstTarget = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-report-a-'));
-    const secondTarget = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-report-b-'));
+    const firstTarget = await temporaryDirectories.create('git-warp-v17-wet-run-report-a-');
+    const secondTarget = await temporaryDirectories.create('git-warp-v17-wet-run-report-b-');
 
     const first = formatV17GoldenGraphFixtureWetRunReport(await runV17GoldenGraphFixtureWetRun({
       manifestPath: FIXTURE_MANIFEST_PATH,
@@ -117,7 +120,7 @@ describe('v18 v17 fixture wet-run harness', () => {
   });
 
   it('detects restored source ref drift before future finalization', async () => {
-    const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-drift-'));
+    const targetDirectory = await temporaryDirectories.create('git-warp-v17-wet-run-drift-');
     const restoreResult = await restoreV17GoldenGraphFixture({
       manifestPath: FIXTURE_MANIFEST_PATH,
       targetDirectory,
@@ -144,7 +147,7 @@ describe('v18 v17 fixture wet-run harness', () => {
   });
 
   it('rejects empty harness paths before restore work', async () => {
-    const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-invalid-'));
+    const targetDirectory = await temporaryDirectories.create('git-warp-v17-wet-run-invalid-');
 
     await expect(runV17GoldenGraphFixtureWetRun({
       manifestPath: '',
@@ -157,7 +160,7 @@ describe('v18 v17 fixture wet-run harness', () => {
   });
 
   it('fails closed when a fixture property fact cannot be mapped', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-bad-property-'));
+    const directory = await temporaryDirectories.create('git-warp-v17-wet-run-bad-property-');
     const manifestPath = await fixtureVariant(directory, (raw) => raw.replace(
       '"key": "node:alpha:title"',
       '"key": "title"',
@@ -170,7 +173,7 @@ describe('v18 v17 fixture wet-run harness', () => {
   });
 
   it('fails closed when a fixture edge fact lowers to an invalid scratch target', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-bad-edge-'));
+    const directory = await temporaryDirectories.create('git-warp-v17-wet-run-bad-edge-');
     const manifestPath = await fixtureVariant(directory, (raw) => raw.replace(
       '"key": "node:alpha->node:beta:relates"',
       '"key": "edge-without-target-shape"',
@@ -244,12 +247,6 @@ async function fixtureVariant(
     'utf8',
   );
   return manifestPath;
-}
-
-async function gitOk(repositoryPath: string, args: readonly string[]): Promise<string> {
-  const result = await runMigrationGit(repositoryPath, args, null, { deterministicIdentity: true });
-  expect(result.ok()).toBe(true);
-  return result.stdout.trim();
 }
 
 function writerChain(): V17GoldenGraphFixtureWriterChain {

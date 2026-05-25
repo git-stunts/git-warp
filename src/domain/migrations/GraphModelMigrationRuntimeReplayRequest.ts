@@ -1,4 +1,5 @@
 import GraphModelMigrationScratchRef from './GraphModelMigrationScratchRef.ts';
+import { requireGraphModelMigrationNonEmptyString } from './GraphModelMigrationRequiredString.ts';
 import WarpError from '../errors/WarpError.ts';
 
 export type GraphModelMigrationRuntimeReplayRequestFields = {
@@ -17,10 +18,10 @@ export default class GraphModelMigrationRuntimeReplayRequest {
 
   constructor(fields: GraphModelMigrationRuntimeReplayRequestFields) {
     const checkedFields = requireFields(fields);
-    this.graphId = requireNonEmptyString(checkedFields.graphId, 'graphId');
-    this.writerId = requireNonEmptyString(checkedFields.writerId, 'writerId');
+    this.graphId = requireGraphModelMigrationNonEmptyString(checkedFields.graphId, 'graphId');
+    this.writerId = requireGraphModelMigrationNonEmptyString(checkedFields.writerId, 'writerId');
     this.scratchRef = requireScratchRef(checkedFields.scratchRef);
-    this.scratchHead = requireNonEmptyString(checkedFields.scratchHead, 'scratchHead');
+    this.scratchHead = requireGraphModelMigrationNonEmptyString(checkedFields.scratchHead, 'scratchHead');
     Object.freeze(this);
   }
 }
@@ -42,11 +43,4 @@ function requireScratchRef(scratchRef: GraphModelMigrationScratchRef): GraphMode
     throw new WarpError('scratchRef must be a GraphModelMigrationScratchRef', 'E_VALIDATION');
   }
   return scratchRef;
-}
-
-function requireNonEmptyString(value: string, name: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
-  }
-  return value;
 }

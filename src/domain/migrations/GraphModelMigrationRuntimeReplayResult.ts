@@ -1,5 +1,6 @@
 import GraphModelMigrationNotice from './GraphModelMigrationNotice.ts';
 import GraphModelMigrationRuntimeReplayRequest from './GraphModelMigrationRuntimeReplayRequest.ts';
+import { requireGraphModelMigrationNonEmptyString } from './GraphModelMigrationRequiredString.ts';
 import WarpError from '../errors/WarpError.ts';
 
 export const GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_PASSED = 'passed';
@@ -29,7 +30,7 @@ export default class GraphModelMigrationRuntimeReplayResult {
     const checkedFields = requireFields(fields);
     this.request = requireRequest(checkedFields.request);
     this.status = requireStatus(checkedFields.status);
-    this.witness = requireNonEmptyString(checkedFields.witness, 'witness');
+    this.witness = requireGraphModelMigrationNonEmptyString(checkedFields.witness, 'witness');
     this.replayedOperationCount = requireNonNegativeSafeInteger(
       checkedFields.replayedOperationCount,
       'replayedOperationCount',
@@ -74,13 +75,6 @@ function requireStatus(status: GraphModelMigrationRuntimeReplayStatus): GraphMod
     throw new WarpError('runtime replay status is unsupported', 'E_VALIDATION');
   }
   return status;
-}
-
-function requireNonEmptyString(value: string, name: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
-  }
-  return value;
 }
 
 function requireNonNegativeSafeInteger(value: number, name: string): number {

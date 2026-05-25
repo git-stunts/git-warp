@@ -64,7 +64,7 @@ describe('V17GoldenGraphFixtureGenesisReading', () => {
     expect(() => builder.build(manifestWithBaseVisibleFacts()))
       .toThrow(/unsupported v17 fixture visible fact kind/);
     expect(() => builder.build(manifestWithBadPropertyKey()))
-      .toThrow(/owner:property/);
+      .toThrow(/at least one colon not at the boundaries/);
     expect(() => builder.build(manifestWithoutWriterChains()))
       .toThrow(/writer chain evidence/);
   });
