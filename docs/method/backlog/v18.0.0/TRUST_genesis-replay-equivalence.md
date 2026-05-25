@@ -45,10 +45,9 @@ Slice 50 added the first promotion gate over that proof vocabulary:
 - otherwise-equivalent readings still block promotion when visible facts lack
   patch-boundary evidence.
 
-This is now a gate vocabulary, but not yet the complete ship gate. The
-remaining trust work is to construct legacy and scratch readings from real
-Git history and replace test-supplied runtime conformance evidence with a real
-runtime replay provider.
+This became the gate vocabulary for the migration command. Later slices built
+legacy and scratch readings from real fixture history, added runtime
+conformance evidence, and used the proof result as a finalization precondition.
 
 Slice 56 added a pure reading builder for the v17 golden fixture manifest. It
 is a bridge from persisted fixture metadata to equivalence facts, but it is
@@ -61,6 +60,20 @@ operation-derived rather than normal runtime replay.
 Slices 59 through 61 added operation-history readback conformance and command
 coverage proving that readable scratch output still cannot finalize when the
 legacy and scratch readings diverge.
+
+Slices 66 through 95 closed the release-candidate trust loop:
+
+- production-runtime scratch replay participates in the wet-run gate;
+- restored legacy and scratch public-read readings reach zero canonical
+  mismatches;
+- finalization requires equivalence, runtime replay, live-ref expectation,
+  archive target, and matching confirmation evidence;
+- generated Continuum contract fixtures and the first `warp-ttd`
+  generated-family smoke are recorded as translated-substrate evidence.
+
+Remaining public-release trust work is to rerun the full gate set on the final
+release branch and decide how to describe residual raw content/property
+compatibility risk.
 
 ## Starting points
 

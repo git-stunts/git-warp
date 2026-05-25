@@ -45,7 +45,7 @@ V18 slices 36 through 45 completed the non-destructive foundation:
   real source inventory collection, so migration work proves against restored
   Git objects and refs instead of compact in-memory proof cases alone.
 
-Remaining migration-tool work is intentionally ordered as:
+Migration-tool work through slice 65 was intentionally ordered as:
 
 - slice 46: create v17 golden graph-history fixtures and restore checks
   (complete);
@@ -76,6 +76,29 @@ Remaining migration-tool work is intentionally ordered as:
   (complete).
 - slice 65: replan with command-CLI evidence in hand and set the next
   production-runtime replay goalpost (complete).
+
+Slices 66 through 95 converted that command-CLI evidence into
+release-candidate evidence:
+
+- production-runtime scratch replay conformance exists for the canonical
+  restored v17 wet-run path;
+- restored legacy and scratch public-read builders participate in the wet-run
+  equivalence gate;
+- the wet-run harness captures deterministic operator reports and drift
+  checks;
+- canonical public-read equivalence reaches zero mismatches;
+- CLI finalization is enabled only behind reviewed JSON confirmation that
+  matches observed runtime evidence;
+- stale live refs and pre-existing archive refs block finalization with
+  structured reports;
+- generated Continuum runtime-boundary fixtures and a `warp-ttd`
+  generated-family smoke are recorded as release evidence;
+- a release-candidate packet now names the remaining public-tag gates and
+  residual risks.
+
+The migration tool is no longer blocked on the earlier scratch replay,
+finalization design, wet-run harness, or generated-contract tie-back items.
+The remaining v18 work is public-release hygiene and residual-risk review.
 
 ## Starting points
 

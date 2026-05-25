@@ -7,7 +7,6 @@ const DESIGN_DOC = 'docs/design/0203-v18-content-property-closeout-audit/v18-con
 const EXPECTED_RAW_COMPATIBILITY_FILES = Object.freeze([
   'src/domain/graph/LegacyContentPropertyKeys.ts',
   'src/domain/services/ContentAttachmentProjection.ts',
-  'src/domain/services/CoordinateFactExport.ts',
   'src/domain/services/ImmutableSnapshot.ts',
   'src/domain/services/JoinReducer.ts',
   'src/domain/services/KeyCodec.ts',
@@ -33,6 +32,10 @@ const EXPECTED_RAW_COMPATIBILITY_FILES = Object.freeze([
   'src/domain/types/ops/propHelpers.ts',
 ]);
 
+const RETIRED_RAW_COMPATIBILITY_FILES = Object.freeze([
+  'src/domain/services/CoordinateFactExport.ts',
+]);
+
 describe('v18 content/property closeout audit', () => {
   it('keeps raw compatibility boundaries explicit and reviewed', async () => {
     const matches = await findRawCompatibilityFiles('src/domain');
@@ -45,6 +48,15 @@ describe('v18 content/property closeout audit', () => {
 
     for (const file of EXPECTED_RAW_COMPATIBILITY_FILES) {
       expect(doc).toContain(file);
+    }
+  });
+
+  it('keeps retired raw compatibility boundaries retired', async () => {
+    const doc = await readFile(DESIGN_DOC, 'utf8');
+
+    for (const file of RETIRED_RAW_COMPATIBILITY_FILES) {
+      expect(RAW_COMPATIBILITY_PATTERN.test(await readFile(file, 'utf8'))).toBe(false);
+      expect(doc).toContain(`- \`${file}\` retired`);
     }
   });
 });

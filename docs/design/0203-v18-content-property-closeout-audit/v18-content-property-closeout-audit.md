@@ -66,7 +66,6 @@ The current audited files are:
 
 - `src/domain/graph/LegacyContentPropertyKeys.ts`
 - `src/domain/services/ContentAttachmentProjection.ts`
-- `src/domain/services/CoordinateFactExport.ts`
 - `src/domain/services/ImmutableSnapshot.ts`
 - `src/domain/services/JoinReducer.ts`
 - `src/domain/services/KeyCodec.ts`
@@ -91,14 +90,22 @@ The current audited files are:
 - `src/domain/types/ops/PropSet.ts`
 - `src/domain/types/ops/propHelpers.ts`
 
+## Retired Raw Compatibility Files
+
+Retired files must stay retired:
+
+- `src/domain/services/CoordinateFactExport.ts` retired in slice 93 after
+  transfer operation spelling moved behind constants owned by
+  `src/domain/services/transfer/transferOps.ts`.
+
 ## Classification
 
 These files fall into bounded categories:
 
 - Legacy content compatibility key ownership:
   `LegacyContentPropertyKeys`, `ContentAttachmentProjection`.
-- Fact export and coordinate comparison over existing operation shapes:
-  `CoordinateFactExport`, `CoordinateComparison`.
+- Coordinate comparison over existing operation shapes:
+  `CoordinateComparison`.
 - Runtime mutation and compatibility operation execution:
   `JoinReducer`, `OpStrategies`, `OpStrategy`, `PatchBuilder`,
   `PatchCommitter`, `StrandPatchService`, `transferOps`, and the op helper

@@ -14,6 +14,10 @@ const wesleyManifestPath = fileURLToPath(
   new URL('../../../fixtures/continuum/receipt-family-wesley-realization-manifest.json', import.meta.url),
 );
 
+const runtimeBoundaryFixturePath = fileURLToPath(
+  new URL('../../../fixtures/continuum/runtime-boundary-family-generated-artifact.json', import.meta.url),
+);
+
 const fixtureContext: ContinuumArtifactJsonLoadContext = {
   familyId: 'receipt-family',
   authority: 'generated-fixture',
@@ -38,6 +42,15 @@ const fixtureAsArtifactContext: ContinuumArtifactJsonLoadContext = {
   familyId: 'receipt-family',
   authority: 'generated-artifact',
   sourceSchemaPath: '~/git/continuum/schemas/continuum-receipt-family.graphql',
+};
+
+const runtimeBoundaryFixtureContext: ContinuumArtifactJsonLoadContext = {
+  familyId: 'runtime-boundary-family',
+  authority: 'generated-fixture',
+  sourceSchemaPath: '~/git/continuum/schemas/continuum-runtime-boundary-family.graphql',
+  witnessScope: 'runtime-boundary-family',
+  artifactDigest: 'sha256:runtime-boundary-fixture',
+  targets: ['continuum-fixture', 'warp-ttd'],
 };
 
 const artifactAsFixtureContext: ContinuumArtifactJsonLoadContext = {
@@ -333,6 +346,17 @@ describe('ContinuumArtifactJsonFileAdapter', () => {
     expect(descriptor.hasGeneratedAuthority()).toBe(true);
     expect(descriptor.artifactDigest).toBe('sha256:receipt-fixture');
     expect(descriptor.witnessScope).toBe('receipt-family');
+  });
+
+  it('loads runtime-boundary-generated fixture descriptors for graph-model evidence', async () => {
+    const adapter = new ContinuumArtifactJsonFileAdapter();
+    const descriptor = await adapter.loadFile(runtimeBoundaryFixturePath, runtimeBoundaryFixtureContext);
+
+    expect(descriptor.familyId.toString()).toBe('runtime-boundary-family');
+    expect(descriptor.sourceSchemaPath).toBe('~/git/continuum/schemas/continuum-runtime-boundary-family.graphql');
+    expect(descriptor.hasTarget('continuum-fixture')).toBe(true);
+    expect(descriptor.hasTarget('warp-ttd')).toBe(true);
+    expect(descriptor.witnessScope).toBe('runtime-boundary-family');
   });
 
   it('loads Wesley realization manifest descriptors without local descriptor fields', async () => {

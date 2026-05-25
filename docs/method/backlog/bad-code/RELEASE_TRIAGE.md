@@ -13,7 +13,7 @@ After the first metadata cleanup pass:
 
 | Release Home | Count | Read |
 |--------------|------:|------|
-| `v17.0.0` | 195 | Current-engine cleanup bucket. Includes runtime-deletion fallout and stale-card rechecks. |
+| `v17.0.0` | 195 | Shipped-release residual bucket. Includes runtime-deletion fallout and stale-card rechecks that need archive, rehome, or explicit pull decisions. |
 | `v18.0.0` | 14 | Graph-substrate cards promoted out of generic v17 cleanup. |
 | `v19.0.0` | 13 | Observer/admission/runtime-doctrine cleanup. |
 | `v20.0.0` | 15 | Slice-first read, index, traversal, and materialization-cost work. |
@@ -35,8 +35,10 @@ Use the release theme, not the filename prefix, as the slotting rule:
 
 ## `v17.0.0` Fit
 
-The current `v17.0.0` bad-code population is mostly legitimate because
-v17 is the cleanup release that makes the current engine packageable:
+The current `v17.0.0` bad-code population was mostly legitimate while v17 was
+the cleanup release that made the current engine packageable. Because
+`v17.0.0` and the `v17.0.1` release repair have shipped, this population is
+now residual rather than an active release gate:
 
 - `api-capabilities`
 - `runtime-boundaries`
@@ -47,7 +49,7 @@ v17 is the cleanup release that makes the current engine packageable:
 - current `materialization-query-index`
 - docs/DX debt needed for a credible v17 package
 
-Cards pulled forward from `v20.0.0+` for recheck during the current
+Cards pulled forward from `v20.0.0+` for recheck during the old
 `WarpRuntime` death line:
 
 - `CAST_callInternalRuntimeMethod-escape-hatch`
@@ -56,10 +58,11 @@ Cards pulled forward from `v20.0.0+` for recheck during the current
 - `OWN_warpruntime-delegation-dry`
 - `PORT_worldline-encapsulation`
 
-Why: these are not future merge/observer-geometry work. They are
-symptoms of the old synchronous `WarpRuntime` center of gravity. If
-`WarpRuntime` deletion removes the smell, graveyard them. If it does
-not, keep them in v17 because they block the honest core/API boundary.
+Why: these were not future merge/observer-geometry work. They were symptoms of
+the old synchronous `WarpRuntime` center of gravity. Recheck them before using
+them as blockers: if later runtime work removed the smell, archive the card;
+if the smell survived, rehome it to the release that now owns the affected
+boundary.
 
 Other v17 recheck candidates:
 

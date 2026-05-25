@@ -115,7 +115,9 @@ describe('v18 graph-model migration command', () => {
       `liveRef: ${LIVE_REF}`,
       `archiveRef: ${ARCHIVE_REF}`,
       `previousLiveHead: ${repository.liveHead}`,
+      `archiveHead: ${repository.liveHead}`,
       `finalizedLiveHead: ${result.scratchWriteResult?.scratchHead}`,
+      'archivePreserved: yes',
     ].join('\n'));
   });
 
@@ -156,6 +158,12 @@ describe('v18 graph-model migration command', () => {
     ].join('\n'));
     expect(report).toContain([
       'finalization: blocked',
+      `liveRef: ${LIVE_REF}`,
+      `archiveRef: ${ARCHIVE_REF}`,
+      'previousLiveHead: (none)',
+      'archiveHead: (none)',
+      'finalizedLiveHead: (none)',
+      'archivePreserved: no',
       'fatalErrors:',
       '- E_EQUIVALENCE_GATE_NOT_PASSED: migration finalization requires a passed scratch equivalence gate',
     ].join('\n'));

@@ -1,5 +1,9 @@
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import WarpError from '../errors/WarpError.ts';
+import {
+  TRANSFER_OP_ATTACH_EDGE_CONTENT,
+  TRANSFER_OP_ATTACH_NODE_CONTENT,
+} from './transfer/transferOps.ts';
 
 /**
  * Returns true if the value is null or undefined.
@@ -108,7 +112,7 @@ function requireNonEmptyString(value: unknown, label: string): string { // nosem
 }
 
 /**
- * Serializes an attach_node_content operation to its fact form.
+ * Serializes a node content attach operation to its fact form.
  */
 function serializeNodeContentOp(op: VisibleStateTransferOperationV1): VisibleStateTransferOperationFactV1 {
   return {
@@ -121,7 +125,7 @@ function serializeNodeContentOp(op: VisibleStateTransferOperationV1): VisibleSta
 }
 
 /**
- * Serializes an attach_edge_content operation to its fact form.
+ * Serializes an edge content attach operation to its fact form.
  */
 function serializeEdgeContentOp(op: VisibleStateTransferOperationV1): VisibleStateTransferOperationFactV1 {
   return {
@@ -140,9 +144,9 @@ function serializeEdgeContentOp(op: VisibleStateTransferOperationV1): VisibleSta
  */
 function serializeSingleTransferOp(op: VisibleStateTransferOperationV1): VisibleStateTransferOperationFactV1 {
   switch (op.op) {
-    case 'attach_node_content':
+    case TRANSFER_OP_ATTACH_NODE_CONTENT:
       return serializeNodeContentOp(op);
-    case 'attach_edge_content':
+    case TRANSFER_OP_ATTACH_EDGE_CONTENT:
       return serializeEdgeContentOp(op);
     default:
       return { ...op };

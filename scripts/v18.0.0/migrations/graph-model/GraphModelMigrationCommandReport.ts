@@ -66,18 +66,32 @@ function finalizationLines(result: GraphModelMigrationCommandResult): readonly s
   if (result.finalizationResult === null) {
     return Object.freeze(['finalization: skipped']);
   }
+  const evidence = finalizationEvidenceLines(result);
   if (result.finalizationResult.fatalErrors.length > 0) {
     return Object.freeze([
       `finalization: ${result.finalizationResult.status}`,
+      ...evidence,
       ...fatalNoticeLines(result.finalizationResult.fatalErrors),
     ]);
   }
   return Object.freeze([
     `finalization: ${result.finalizationResult.status}`,
-    `liveRef: ${result.finalizationResult.liveRefName}`,
-    `archiveRef: ${displayNullable(result.finalizationResult.archiveRefName)}`,
-    `previousLiveHead: ${displayNullable(result.finalizationResult.previousLiveHead)}`,
-    `finalizedLiveHead: ${displayNullable(result.finalizationResult.finalizedLiveHead)}`,
+    ...evidence,
+  ]);
+}
+
+function finalizationEvidenceLines(result: GraphModelMigrationCommandResult): readonly string[] {
+  const finalization = result.finalizationResult;
+  if (finalization === null) {
+    return Object.freeze([]);
+  }
+  return Object.freeze([
+    `liveRef: ${finalization.liveRefName}`,
+    `archiveRef: ${displayNullable(finalization.archiveRefName)}`,
+    `previousLiveHead: ${displayNullable(finalization.previousLiveHead)}`,
+    `archiveHead: ${displayNullable(finalization.previousLiveHead)}`,
+    `finalizedLiveHead: ${displayNullable(finalization.finalizedLiveHead)}`,
+    `archivePreserved: ${finalization.previousLiveHead === null ? 'no' : 'yes'}`,
   ]);
 }
 

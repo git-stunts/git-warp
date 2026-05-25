@@ -25,6 +25,11 @@
       "description": "Alice creates the primary node lifecycle subject."
     },
     {
+      "kind": "node",
+      "key": "node:beta",
+      "description": "Bob creates the stable edge endpoint subject."
+    },
+    {
       "kind": "edge",
       "key": "node:alpha->node:beta:relates",
       "description": "Alice creates a stable edge identity with label evidence."
@@ -33,6 +38,11 @@
       "kind": "property",
       "key": "node:alpha:title",
       "description": "Alice and Bob cover legacy node property compatibility."
+    },
+    {
+      "kind": "property",
+      "key": "node:alpha->node:beta:relates:weight",
+      "description": "Alice and Bob cover legacy edge property compatibility."
     },
     {
       "kind": "content",

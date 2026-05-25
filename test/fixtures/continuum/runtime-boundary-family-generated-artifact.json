@@ -1,0 +1,77 @@
+{
+  "objectTypes": [
+    "ReadingEnvelope",
+    "WitnessedSuffix",
+    "AdmissionOutcome",
+    "RuntimeBoundaryEvidence"
+  ],
+  "enumTypes": [
+    "AdmissionOutcomeKind",
+    "BoundaryEvidenceKind"
+  ],
+  "ops": [
+    {
+      "name": "readingEnvelopes",
+      "resultType": "ReadingEnvelope"
+    },
+    {
+      "name": "witnessedSuffixes",
+      "resultType": "WitnessedSuffix"
+    },
+    {
+      "name": "admissionOutcomes",
+      "resultType": "AdmissionOutcome"
+    }
+  ],
+  "invariants": [
+    "reading_envelope_names_basis",
+    "witnessed_suffix_names_source_and_tip",
+    "admission_outcome_names_import_decision"
+  ],
+  "footprints": [
+    {
+      "opName": "readingEnvelopes",
+      "reads": [
+        "ReadingEnvelope"
+      ],
+      "writes": [],
+      "creates": [],
+      "deletes": []
+    },
+    {
+      "opName": "witnessedSuffixes",
+      "reads": [
+        "WitnessedSuffix"
+      ],
+      "writes": [],
+      "creates": [],
+      "deletes": []
+    },
+    {
+      "opName": "admissionOutcomes",
+      "reads": [
+        "AdmissionOutcome"
+      ],
+      "writes": [],
+      "creates": [],
+      "deletes": []
+    }
+  ],
+  "types": {
+    "ReadingEnvelope": [
+      "graphId",
+      "basisId",
+      "factCount"
+    ],
+    "WitnessedSuffix": [
+      "sourceRef",
+      "tip",
+      "patchCount"
+    ],
+    "AdmissionOutcome": [
+      "kind",
+      "sourceRef",
+      "targetRef"
+    ]
+  }
+}

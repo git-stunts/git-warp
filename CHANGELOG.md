@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 release-candidate evidence now records guarded CLI finalization,
+  zero-mismatch wet-run proof, runtime-boundary Continuum contract conformance,
+  `warp-ttd` generated-family smoke evidence, the retired raw-boundary
+  ratchet, remaining public-tag gates, and residual risks.
 - V18 migration evidence now includes a deterministic v17 golden graph-history
   fixture bundle, runtime-backed fixture manifest nouns, a manifest JSON
   adapter, and a restore validator that checks real `refs/warp/*` writer heads
@@ -184,6 +188,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 release-candidate review follow-up now rejects empty production-runtime
+  replay repository paths, rejects empty scratch replay target fields with
+  structured invalid-target evidence, and reports confirmation JSON parse
+  failures with confirmation-specific context.
+- V18 release-candidate review follow-up now preserves structured
+  invalid-target replay evidence for malformed edge-property scratch owners,
+  classifies v17 fixture property owners from declared edge facts, and splits
+  migration script collaborators under the repository file-size cap.
+- V18 release-candidate review follow-up now binds reviewed finalization JSON
+  to runtime witness evidence, normalizes semantic finalization request
+  validation as adapter errors, adds edge-property coverage to the canonical
+  wet-run proof, and narrows production-runtime replay wording to the proven
+  scratch-operation replay path.
 - V18 graph-model migration review follow-up now preserves parent Git command
   environment variables under deterministic identities, validates scratch and
   finalization boundaries before Git work, rejects malformed scratch payload

@@ -28,6 +28,8 @@ import GraphModelMigrationRuntimeConformanceResult
 import GraphModelMigrationScratchWriteResult
   from '../../../../src/domain/migrations/GraphModelMigrationScratchWriteResult.ts';
 import { finalizeGraphModelMigration } from './GraphModelMigrationFinalizer.ts';
+import { reviewedGraphModelMigrationFinalizationSafetyResult }
+  from './GraphModelMigrationFinalizationReview.ts';
 import { writeGraphModelMigrationScratchHistory } from './GraphModelMigrationScratchWriter.ts';
 import { runMigrationGit } from './GitMigrationCommandRunner.ts';
 
@@ -48,6 +50,7 @@ export type GraphModelMigrationCommandFinalizationOptions = {
   readonly archiveRefName: string;
   readonly confirmation: GraphModelMigrationFinalizationConfirmation | null;
   readonly runtimeConformance: GraphModelMigrationRuntimeConformanceProvider | null;
+  readonly reviewedRequest?: GraphModelMigrationFinalizationRequest | null;
 };
 
 export type GraphModelMigrationCommandOptions = {
@@ -171,21 +174,23 @@ async function runFinalization(options: {
     '--hash',
     options.finalization.liveRefName,
   ]);
-  const safetyResult = new GraphModelMigrationFinalizationSafety().evaluate(
-    new GraphModelMigrationFinalizationRequest({
-      liveRefName: options.finalization.liveRefName,
-      expectedLiveHead: options.finalization.expectedLiveHead,
-      observedLiveHead,
-      scratchRef: options.scratchWriteResult.scratchRef,
-      scratchHead: options.scratchWriteResult.scratchHead,
-      archiveRefName: options.finalization.archiveRefName,
-      confirmation: options.finalization.confirmation,
-      gateResult: options.gateResult,
-      runtimeConformance: await runtimeConformanceFromProvider(
-        options.finalization.runtimeConformance,
-        options.scratchWriteResult,
-      ),
-    }),
+  const request = new GraphModelMigrationFinalizationRequest({
+    liveRefName: options.finalization.liveRefName,
+    expectedLiveHead: options.finalization.expectedLiveHead,
+    observedLiveHead,
+    scratchRef: options.scratchWriteResult.scratchRef,
+    scratchHead: options.scratchWriteResult.scratchHead,
+    archiveRefName: options.finalization.archiveRefName,
+    confirmation: options.finalization.confirmation,
+    gateResult: options.gateResult,
+    runtimeConformance: await runtimeConformanceFromProvider(
+      options.finalization.runtimeConformance,
+      options.scratchWriteResult,
+    ),
+  });
+  const safetyResult = reviewedGraphModelMigrationFinalizationSafetyResult(
+    new GraphModelMigrationFinalizationSafety().evaluate(request),
+    options.finalization.reviewedRequest ?? null,
   );
   return await finalizeGraphModelMigration({
     repositoryPath: options.repositoryPath,

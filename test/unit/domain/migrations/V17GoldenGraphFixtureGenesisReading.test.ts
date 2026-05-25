@@ -32,7 +32,9 @@ describe('V17GoldenGraphFixtureGenesisReading', () => {
       'content-attachment\0node:alpha:_content\0payload.oid',
       'edge\0node:alpha->node:beta:relates\0visibility',
       'node\0node:alpha\0visibility',
+      'node\0node:beta\0visibility',
       'node\0node:removed\0visibility',
+      'property\0node:alpha->node:beta:relates:weight\0value',
       'property\0node:alpha:title\0value',
       'property\0writers:alice+bob\0coverage',
     ]);
@@ -40,10 +42,16 @@ describe('V17GoldenGraphFixtureGenesisReading', () => {
       'alice',
       'bob',
       'bob',
+      'alice',
+      'bob',
       'bob',
       'alice',
       'alice',
     ]);
+    expect(reading.facts.find((fact) => fact.factKey === 'node:alpha->node:beta:relates:weight')?.value)
+      .toBe('migration-source:node:alpha->node:beta:relates\0weight');
+    expect(reading.facts.find((fact) => fact.factKey === 'node:alpha:title')?.value)
+      .toBe('migration-source:node:alpha\0title');
   });
 
   it('rejects malformed genesis reading inputs through domain errors', () => {
@@ -55,6 +63,8 @@ describe('V17GoldenGraphFixtureGenesisReading', () => {
     }).toThrow(/manifest/);
     expect(() => builder.build(manifestWithBaseVisibleFacts()))
       .toThrow(/unsupported v17 fixture visible fact kind/);
+    expect(() => builder.build(manifestWithBadPropertyKey()))
+      .toThrow(/at least one colon not at the boundaries/);
     expect(() => builder.build(manifestWithoutWriterChains()))
       .toThrow(/writer chain evidence/);
   });
@@ -81,6 +91,25 @@ function manifestWithoutWriterChains(): V17GoldenGraphFixtureManifest {
     bundlePath: 'v17-golden-graph.bundle',
     writerChains: [],
     visibleFacts: typedVisibleFacts(),
+  });
+}
+
+function manifestWithBadPropertyKey(): V17GoldenGraphFixtureManifest {
+  return new V17GoldenGraphFixtureManifest({
+    fixtureId: 'fixture:bad-property',
+    graphId: 'v17-golden-graph',
+    sourceVersion: '17.0.1',
+    generator: 'unit-test',
+    bundlePath: 'v17-golden-graph.bundle',
+    writerChains: [writerChain()],
+    visibleFacts: Object.freeze([
+      new V17GoldenNodeFact({ key: 'node:alpha', description: 'node' }),
+      new V17GoldenEdgeFact({ key: 'edge:alpha-beta', description: 'edge' }),
+      new V17GoldenPropertyFact({ key: 'title', description: 'title' }),
+      new V17GoldenContentFact({ key: 'node:alpha:_content', description: 'content' }),
+      new V17GoldenRemovalFact({ key: 'node:removed', description: 'removed' }),
+      new V17GoldenMultiWriterFact({ key: 'writers:alice+bob', description: 'multi' }),
+    ]),
   });
 }
 
