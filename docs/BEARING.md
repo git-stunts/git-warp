@@ -44,8 +44,9 @@ Current branch state at this boundary:
 - Current `origin/main`: `023c7d75`
 - Latest merged PR: #106, v18 release-candidate evidence and review cleanup
 - Latest released package line: `17.0.1`
+- Release-prep package metadata: `18.0.0`, not tagged or published yet
 - Latest completed implementation cycle:
-  `0244-v18-backlog-reconciliation`
+  `0249-v18-version-tag-readiness`
 - Current work: release-prep hardening for `v18.0.0`, with the next goalpost
   narrowed to gate evidence, package metadata, public operator notes, and a
   residual raw content/property storage decision.
@@ -155,7 +156,8 @@ The current v18 graph-model posture is:
   finalization only through a reviewed JSON request that matches observed
   runtime evidence.
 - V18 release-candidate blockers are now explicit: full release-prep gates,
-  GitHub CI, package/versioning work, and residual raw content/property risk.
+  GitHub CI, post-merge tag/publish work, and the accepted residual raw
+  content/property risk.
 
 That is useful progress, not a finish line. The repo now has migration safety,
 wet-run proof, guarded finalization, generated Continuum contract tie-back,
@@ -428,7 +430,8 @@ retirement blocks the public tag or ships as explicit residual risk.
   [0247](design/0247-v18-residual-raw-storage-risk-decision/v18-residual-raw-storage-risk-decision.md).
 - [x] 100. Freeze public operator release notes and non-goals:
   [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
-- [ ] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`.
+- [x] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`:
+  [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
 - [ ] 102. Replan from final release-prep evidence before PR review.
 
 ### Next Thirty-Slice Checklist
@@ -790,5 +793,6 @@ and concrete checks live in `docs/invariants/`.
   [0247](design/0247-v18-residual-raw-storage-risk-decision/v18-residual-raw-storage-risk-decision.md).
 - [x] 100. Freeze public operator release notes and non-goals:
   [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
-- [ ] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`.
+- [x] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`:
+  [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
 - [ ] 102. Replan from final release-prep evidence before PR review.
