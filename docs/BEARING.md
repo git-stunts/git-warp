@@ -456,7 +456,8 @@ resumes after the finalization path is guarded and reviewable.
   [0240](design/0240-v18-generated-contract-evidence-replan/v18-generated-contract-evidence-replan.md).
 - [x] 93. Reduce legacy content/property raw-boundary debt by one class:
   [0241](design/0241-v18-coordinate-fact-export-raw-boundary-retirement/v18-coordinate-fact-export-raw-boundary-retirement.md).
-- [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
+- [x] 94. Tighten the closeout audit to forbid the retired raw-boundary class:
+  [0242](design/0242-v18-content-property-retirement-ratchet/v18-content-property-retirement-ratchet.md).
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
 
 ### Slice 82 Evidence
@@ -504,6 +505,8 @@ resumes after the finalization path is guarded and reviewable.
 - `CoordinateFactExport` no longer owns raw content operation spelling; the
   spelling now lives behind transfer operation constants in the already-audited
   transfer boundary.
+- The closeout audit now has a retired-boundary ratchet that fails if
+  `CoordinateFactExport.ts` regains raw content/property spelling.
 
 ### User Stories
 
@@ -733,5 +736,5 @@ and concrete checks live in `docs/invariants/`.
 - [x] 91. Add a `warp-ttd` contract smoke over generated-family facts.
 - [x] 92. Replan with generated contract evidence in hand.
 - [x] 93. Reduce legacy content/property raw-boundary debt by one class.
-- [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
+- [x] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.

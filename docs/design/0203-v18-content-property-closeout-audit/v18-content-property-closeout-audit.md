@@ -90,6 +90,14 @@ The current audited files are:
 - `src/domain/types/ops/PropSet.ts`
 - `src/domain/types/ops/propHelpers.ts`
 
+## Retired Raw Compatibility Files
+
+Retired files must stay retired:
+
+- `src/domain/services/CoordinateFactExport.ts` retired in slice 93 after
+  transfer operation spelling moved behind constants owned by
+  `src/domain/services/transfer/transferOps.ts`.
+
 ## Classification
 
 These files fall into bounded categories:
