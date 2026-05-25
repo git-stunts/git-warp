@@ -261,6 +261,7 @@ function commandExitCode(result: Awaited<ReturnType<typeof runGraphModelMigratio
     && !result.scratchWriteResult.hasFatalErrors()
     && result.gateResult !== null
     && result.gateResult.allowsPromotion()
+    && (result.finalizationResult === null || result.finalizationResult.finalized())
   ) {
     return 0;
   }

@@ -21,6 +21,9 @@ const SCRATCH_REF = 'refs/warp-migration-scratch/v17-golden-graph/cli';
 const LIVE_REF = 'refs/warp/v17-golden-graph/writers/alice';
 const ARCHIVE_REF = 'refs/warp-migration-archive/v17-golden-graph/cli/alice';
 const ALICE_HEAD = '417fe95095a6feae3042c36505065bbd7b3d2a67';
+const BOB_HEAD = 'd7c3a05b3894d5c3c151e03dd972b6bd6c341b0c';
+const REVIEWED_LIVE_REF = 'refs/warp/v17-golden-graph/live';
+const REVIEWED_ARCHIVE_REF = 'refs/warp-migration-archive/v17-golden-graph/cli/live';
 
 describe('v18 graph-model migration command CLI', () => {
   it('prints usage when help is requested', async () => {
@@ -70,25 +73,7 @@ describe('v18 graph-model migration command CLI', () => {
   });
 
   it('finalizes live refs only when the reviewed request matches command evidence', async () => {
-    const previewDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-preview-'));
-    const preview = await restoreV17GoldenGraphFixture({
-      manifestPath: FIXTURE_MANIFEST,
-      targetDirectory: join(previewDirectory, 'repo'),
-    });
-    const previewRequestPath = join(previewDirectory, 'request.json');
-    await writeFile(previewRequestPath, canonicalRequestJson(), 'utf8');
-    const previewResult = await runGraphModelMigrationCommandCli([
-      '--repo',
-      preview.repositoryPath,
-      '--request',
-      previewRequestPath,
-      '--legacy-fixture-manifest',
-      FIXTURE_MANIFEST,
-      '--scratch-ref',
-      SCRATCH_REF,
-    ]);
-    expect(previewResult.exitCode).toBe(0);
-    const scratchHead = reportValue(previewResult.stdout, 'scratchHead');
+    const scratchHead = await previewScratchHead();
 
     const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-finalize-'));
     const restoreResult = await restoreV17GoldenGraphFixture({
@@ -118,6 +103,79 @@ describe('v18 graph-model migration command CLI', () => {
     expect(result.stdout).toContain('archivePreserved: yes');
     expect(await gitText(restoreResult.repositoryPath, ['rev-parse', ARCHIVE_REF])).toBe(ALICE_HEAD);
     expect(await gitText(restoreResult.repositoryPath, ['rev-parse', LIVE_REF])).toBe(scratchHead);
+  });
+
+  it('blocks finalization when the reviewed live ref head drifts', async () => {
+    const scratchHead = await previewScratchHead();
+    const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-drift-'));
+    const restoreResult = await restoreV17GoldenGraphFixture({
+      manifestPath: FIXTURE_MANIFEST,
+      targetDirectory: join(directory, 'repo'),
+    });
+    await gitOk(restoreResult.repositoryPath, ['update-ref', REVIEWED_LIVE_REF, ALICE_HEAD]);
+    await gitOk(restoreResult.repositoryPath, ['update-ref', REVIEWED_LIVE_REF, BOB_HEAD, ALICE_HEAD]);
+    const requestPath = join(directory, 'request.json');
+    const finalizationPath = join(directory, 'finalization.json');
+    await writeFile(requestPath, canonicalRequestJson(), 'utf8');
+    await writeFile(finalizationPath, finalizationRequestJson(scratchHead, {
+      liveRefName: REVIEWED_LIVE_REF,
+      archiveRefName: REVIEWED_ARCHIVE_REF,
+    }), 'utf8');
+
+    const result = await runGraphModelMigrationCommandCli([
+      '--repo',
+      restoreResult.repositoryPath,
+      '--request',
+      requestPath,
+      '--legacy-fixture-manifest',
+      FIXTURE_MANIFEST,
+      '--scratch-ref',
+      SCRATCH_REF,
+      '--finalization-request',
+      finalizationPath,
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('finalization: blocked');
+    expect(result.stdout).toContain('E_STALE_LIVE_REF_EXPECTATION');
+    expect(await refExists(restoreResult.repositoryPath, REVIEWED_ARCHIVE_REF)).toBe(false);
+    expect(await gitText(restoreResult.repositoryPath, ['rev-parse', REVIEWED_LIVE_REF])).toBe(BOB_HEAD);
+  });
+
+  it('blocks finalization when the archive ref already exists', async () => {
+    const scratchHead = await previewScratchHead();
+    const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-archive-'));
+    const restoreResult = await restoreV17GoldenGraphFixture({
+      manifestPath: FIXTURE_MANIFEST,
+      targetDirectory: join(directory, 'repo'),
+    });
+    await gitOk(restoreResult.repositoryPath, ['update-ref', REVIEWED_LIVE_REF, ALICE_HEAD]);
+    await gitOk(restoreResult.repositoryPath, ['update-ref', REVIEWED_ARCHIVE_REF, ALICE_HEAD]);
+    const requestPath = join(directory, 'request.json');
+    const finalizationPath = join(directory, 'finalization.json');
+    await writeFile(requestPath, canonicalRequestJson(), 'utf8');
+    await writeFile(finalizationPath, finalizationRequestJson(scratchHead, {
+      liveRefName: REVIEWED_LIVE_REF,
+      archiveRefName: REVIEWED_ARCHIVE_REF,
+    }), 'utf8');
+
+    const result = await runGraphModelMigrationCommandCli([
+      '--repo',
+      restoreResult.repositoryPath,
+      '--request',
+      requestPath,
+      '--legacy-fixture-manifest',
+      FIXTURE_MANIFEST,
+      '--scratch-ref',
+      SCRATCH_REF,
+      '--finalization-request',
+      finalizationPath,
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('finalization: blocked');
+    expect(result.stdout).toContain('E_ARCHIVE_REF_EXISTS');
+    expect(await gitText(restoreResult.repositoryPath, ['rev-parse', REVIEWED_LIVE_REF])).toBe(ALICE_HEAD);
   });
 });
 
@@ -162,14 +220,22 @@ function canonicalRequestJson(): string {
 `;
 }
 
-function finalizationRequestJson(scratchHead: string): string {
+type FinalizationRequestOptions = {
+  readonly liveRefName?: string;
+  readonly archiveRefName?: string;
+};
+
+function finalizationRequestJson(
+  scratchHead: string,
+  options: FinalizationRequestOptions = {},
+): string {
   return JSON.stringify({
-    liveRefName: LIVE_REF,
+    liveRefName: options.liveRefName ?? LIVE_REF,
     expectedLiveHead: ALICE_HEAD,
     observedLiveHead: ALICE_HEAD,
     scratchRefName: SCRATCH_REF,
     scratchHead,
-    archiveRefName: ARCHIVE_REF,
+    archiveRefName: options.archiveRefName ?? ARCHIVE_REF,
     confirmationToken: V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
     equivalence: {
       legacyBasis: {
@@ -194,6 +260,28 @@ function finalizationRequestJson(scratchHead: string): string {
   });
 }
 
+async function previewScratchHead(): Promise<string> {
+  const previewDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-preview-'));
+  const preview = await restoreV17GoldenGraphFixture({
+    manifestPath: FIXTURE_MANIFEST,
+    targetDirectory: join(previewDirectory, 'repo'),
+  });
+  const previewRequestPath = join(previewDirectory, 'request.json');
+  await writeFile(previewRequestPath, canonicalRequestJson(), 'utf8');
+  const previewResult = await runGraphModelMigrationCommandCli([
+    '--repo',
+    preview.repositoryPath,
+    '--request',
+    previewRequestPath,
+    '--legacy-fixture-manifest',
+    FIXTURE_MANIFEST,
+    '--scratch-ref',
+    SCRATCH_REF,
+  ]);
+  expect(previewResult.exitCode).toBe(0);
+  return reportValue(previewResult.stdout, 'scratchHead');
+}
+
 function reportValue(report: string, label: string): string {
   const line = report.split('\n').find((candidate) => candidate.startsWith(`${label}: `));
   if (line === undefined) {
@@ -206,4 +294,18 @@ async function gitText(repositoryPath: string, args: readonly string[]): Promise
   const result = await runMigrationGit(repositoryPath, args, null);
   expect(result.ok()).toBe(true);
   return result.stdout.trim();
+}
+
+async function gitOk(repositoryPath: string, args: readonly string[]): Promise<void> {
+  const result = await runMigrationGit(repositoryPath, args, null);
+  expect(result.ok()).toBe(true);
+}
+
+async function refExists(repositoryPath: string, refName: string): Promise<boolean> {
+  const result = await runMigrationGit(
+    repositoryPath,
+    ['show-ref', '--verify', '--hash', refName],
+    null,
+  );
+  return result.ok();
 }
