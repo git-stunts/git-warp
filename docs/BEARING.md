@@ -132,7 +132,8 @@ The current v18 graph-model posture is:
 - Finalization now also requires post-migration runtime conformance evidence
   tied to the exact scratch ref and scratch head.
 - The remaining raw content/property compatibility files are now listed in an
-  executable closeout audit.
+  executable closeout audit, and the next release slices are scoped to retiring
+  one boundary plus ratcheting that audit.
 - Legacy fixture manifests can now be projected into genesis-equivalence
   readings with deterministic patch-boundary evidence.
 - Scratch migration operation commits can now be projected into
@@ -451,7 +452,8 @@ resumes after the finalization path is guarded and reviewable.
   [0238](design/0238-v18-graph-model-contract-conformance/v18-graph-model-contract-conformance.md).
 - [x] 91. Add a `warp-ttd` contract smoke over generated-family facts:
   [0239](design/0239-v18-warp-ttd-generated-family-smoke/v18-warp-ttd-generated-family-smoke.md).
-- [ ] 92. Replan with generated contract evidence in hand.
+- [x] 92. Replan with generated contract evidence in hand:
+  [0240](design/0240-v18-generated-contract-evidence-replan/v18-generated-contract-evidence-replan.md).
 - [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
 - [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
@@ -480,6 +482,9 @@ resumes after the finalization path is guarded and reviewable.
   blocked finalization attempts.
 - CLI finalization is now enabled behind a reviewed JSON request; the command
   blocks finalization if the artifact differs from observed evidence.
+- Generated runtime-boundary contract evidence now has a fixture ingestion
+  path, graph-model conformance checks, and a `warp-ttd` generated-family
+  smoke that preserves translated-substrate honesty.
 - CLI finalization tests now prove stale live refs and pre-existing archive refs
   return blocked reports and non-zero exit codes.
 - Generated contract inventory evidence now names local Continuum schemas,
@@ -492,6 +497,9 @@ resumes after the finalization path is guarded and reviewable.
 - The first `warp-ttd` generated-family smoke now converts passed conformance
   into a `PRESENT` translated-substrate fact and failed conformance into an
   `OBSTRUCTED` fact with failed check names.
+- Evidence-backed replanning now narrows the release runway to one raw
+  content/property boundary retirement, closeout audit tightening, and a v18
+  release-candidate packet.
 
 ### User Stories
 
@@ -719,7 +727,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 89. Add generated Continuum contract fixture ingestion.
 - [x] 90. Add graph-model conformance checks against generated contracts.
 - [x] 91. Add a `warp-ttd` contract smoke over generated-family facts.
-- [ ] 92. Replan with generated contract evidence in hand.
+- [x] 92. Replan with generated contract evidence in hand.
 - [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
 - [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
