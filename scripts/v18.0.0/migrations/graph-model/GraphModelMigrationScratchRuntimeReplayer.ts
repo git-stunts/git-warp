@@ -8,9 +8,7 @@ import GraphModelMigrationRuntimeReplayRequest
   from '../../../../src/domain/migrations/GraphModelMigrationRuntimeReplayRequest.ts';
 import {
   CONTENT_MIME_PROPERTY_KEY,
-  CONTENT_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
-  decodeLegacyEdgePropNode,
   isLegacyEdgePropNode,
 } from '../../../../src/domain/services/KeyCodec.ts';
 import type SnapshotWarpState
@@ -24,7 +22,6 @@ import {
 } from './GraphModelMigrationScratchReadingBuilder.ts';
 import {
   GraphModelMigrationScratchRuntimeReplayerError,
-  GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_INVALID_OPERATION_TARGET,
   GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_HEAD_CHANGED,
   GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_REF_UNREADABLE,
 } from './GraphModelMigrationScratchRuntimeReplayErrors.ts';
@@ -34,10 +31,12 @@ import {
   requireGraphModelMigrationRuntimeReplayRequest,
   requireGraphModelMigrationRuntimeReplayString,
 } from './GraphModelMigrationScratchRuntimeReplayValidation.ts';
-
-const PROPERTY_TARGET_PREFIX = 'property-target-key:length-prefixed-v1:';
-const CONTENT_ATTACHMENT_PREFIX = 'content-attachment:';
-const NODE_CONTENT_SUFFIX = `:${CONTENT_PROPERTY_KEY}`;
+import {
+  decodeGraphModelMigrationScratchEdgePropertyOwner,
+  parseGraphModelMigrationScratchEdgeTarget,
+  parseGraphModelMigrationScratchNodeContentTarget,
+  parseGraphModelMigrationScratchPropertyTarget,
+} from './GraphModelMigrationScratchRuntimeReplayTargets.ts';
 
 export {
   GraphModelMigrationScratchRuntimeReplayerError,
@@ -144,15 +143,15 @@ async function applyOperations(
     patch.addNode(operation.targetKey);
   }
   for (const operation of sortedOperations(operations, 'edge-record')) {
-    const edge = parseEdgeTarget(operation.targetKey);
+    const edge = parseGraphModelMigrationScratchEdgeTarget(operation.targetKey);
     patch.addEdge(edge.from, edge.to, edge.label);
   }
   for (const operation of sortedOperations(operations, 'property')) {
-    const property = parsePropertyTarget(operation.targetKey);
+    const property = parseGraphModelMigrationScratchPropertyTarget(operation.targetKey);
     applyPropertyOperation(patch, property, `migration-source:${operation.sourceKey}`);
   }
   for (const operation of sortedOperations(operations, 'content-attachment')) {
-    const nodeId = parseNodeContentTarget(operation.targetKey);
+    const nodeId = parseGraphModelMigrationScratchNodeContentTarget(operation.targetKey);
     await patch.attachContent(
       nodeId,
       `migration-source:${operation.sourceKey}`,
@@ -188,20 +187,8 @@ function applyPropertyOperation(
     patch.setProperty(property.ownerId, property.propertyKey, value);
     return;
   }
-  const edge = decodeEdgePropertyOwner(property.ownerId);
+  const edge = decodeGraphModelMigrationScratchEdgePropertyOwner(property.ownerId);
   patch.setEdgeProperty(edge.from, edge.to, edge.label, property.propertyKey, value);
-}
-
-function decodeEdgePropertyOwner(ownerId: string): {
-  readonly from: string;
-  readonly to: string;
-  readonly label: string;
-} {
-  try {
-    return decodeLegacyEdgePropNode(ownerId);
-  } catch {
-    throw invalidTarget('edge property owner target is malformed');
-  }
 }
 
 function sortedOperations(
@@ -213,100 +200,6 @@ function sortedOperations(
     .sort((left, right) => compareStrings(left.targetKey, right.targetKey)));
 }
 
-function parseEdgeTarget(targetKey: string): { readonly from: string; readonly to: string; readonly label: string } {
-  const arrowIndex = targetKey.indexOf('->');
-  const labelIndex = targetKey.lastIndexOf(':');
-  if (arrowIndex <= 0 || labelIndex <= arrowIndex + 2 || labelIndex === targetKey.length - 1) {
-    throw invalidTarget(`edge target ${targetKey} must use from->to:label format`);
-  }
-  return Object.freeze({
-    from: targetKey.slice(0, arrowIndex),
-    to: targetKey.slice(arrowIndex + 2, labelIndex),
-    label: targetKey.slice(labelIndex + 1),
-  });
-}
-
-function parsePropertyTarget(targetKey: string): {
-  readonly ownerId: string;
-  readonly propertyKey: string;
-} {
-  if (!targetKey.startsWith(PROPERTY_TARGET_PREFIX)) {
-    throw invalidTarget(`property target ${targetKey} must use length-prefixed target format`);
-  }
-  let cursor = PROPERTY_TARGET_PREFIX.length;
-  const ownerLength = readLength(targetKey, cursor);
-  cursor = ownerLength.nextCursor;
-  const ownerId = readSizedField(targetKey, cursor, ownerLength.value, 'ownerId', true);
-  cursor = ownerId.nextCursor;
-  const propertyLength = readLength(targetKey, cursor);
-  cursor = propertyLength.nextCursor;
-  const propertyKey = readSizedField(targetKey, cursor, propertyLength.value, 'propertyKey', false);
-  if (propertyKey.nextCursor !== targetKey.length) {
-    throw invalidTarget('property target has trailing data');
-  }
-  return Object.freeze({
-    ownerId: requireNonEmptyTargetField(ownerId.value, 'ownerId'),
-    propertyKey: requireNonEmptyTargetField(propertyKey.value, 'propertyKey'),
-  });
-}
-
-function readLength(text: string, cursor: number): { readonly value: number; readonly nextCursor: number } {
-  const separator = text.indexOf(':', cursor);
-  if (separator <= cursor) {
-    throw invalidTarget('length-prefixed field is malformed');
-  }
-  const raw = text.slice(cursor, separator);
-  if (!/^[0-9]+$/u.test(raw)) {
-    throw invalidTarget('length-prefixed field length is invalid');
-  }
-  return Object.freeze({ value: Number(raw), nextCursor: separator + 1 });
-}
-
-function readSizedField(
-  text: string,
-  cursor: number,
-  length: number,
-  label: string,
-  separatorRequired: boolean,
-): { readonly value: string; readonly nextCursor: number } {
-  const value = text.slice(cursor, cursor + length);
-  if (value.length !== length) {
-    throw invalidTarget(`${label} field is truncated`);
-  }
-  const nextCursor = cursor + length;
-  if (!separatorRequired) {
-    return Object.freeze({ value, nextCursor });
-  }
-  if (text[nextCursor] !== ':') {
-    throw invalidTarget(`${label} field is missing separator`);
-  }
-  return Object.freeze({ value, nextCursor: nextCursor + 1 });
-}
-
-function parseNodeContentTarget(targetKey: string): string {
-  if (!targetKey.startsWith(CONTENT_ATTACHMENT_PREFIX) || !targetKey.endsWith(NODE_CONTENT_SUFFIX)) {
-    throw invalidTarget(`content target ${targetKey} must identify a node ${CONTENT_PROPERTY_KEY} attachment`);
-  }
-  const legacyKey = targetKey.slice(CONTENT_ATTACHMENT_PREFIX.length);
-  return requireNonEmptyTargetField(
-    legacyKey.slice(0, legacyKey.length - NODE_CONTENT_SUFFIX.length),
-    'content ownerId',
-  );
-}
-
-function requireNonEmptyTargetField(value: string, label: string): string {
-  if (value.length === 0) {
-    throw invalidTarget(`${label} field must not be empty`);
-  }
-  return value;
-}
-
-function invalidTarget(message: string): GraphModelMigrationScratchRuntimeReplayerError {
-  return new GraphModelMigrationScratchRuntimeReplayerError(
-    GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_INVALID_OPERATION_TARGET,
-    message,
-  );
-}
 
 export function isGraphModelMigrationContentMetadataProperty(propertyKey: string): boolean {
   return propertyKey === CONTENT_MIME_PROPERTY_KEY || propertyKey === CONTENT_SIZE_PROPERTY_KEY;
