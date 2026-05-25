@@ -36,9 +36,9 @@ wet-run equivalence path and aligned fixture content attachment evidence with
 runtime content object ids.
 
 This item remains partially open because content persistence still has named
-legacy `_content*` compatibility boundaries. V18 release notes must either
-accept that residual risk explicitly or a final retirement slice must remove
-the remaining storage dependency before public release.
+legacy `_content*` compatibility boundaries. Slice 99 accepts that remaining
+storage dependency as explicit v18 residual risk. Total storage-plane
+retirement remains future work; the v18 public release must not claim it.
 
 ## Starting points
 
