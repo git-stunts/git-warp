@@ -4,29 +4,16 @@ This document provides an exhaustive, end-to-end technical explanation of the `@
 
 ## Table of Contents
 
-```text
-git-warp Overview ......................................... 27
-Domain Dictionary ......................................... 50
-The Big Idea .............................................. 101
-The Source of Truth ....................................... 115
-  In Git Objects .......................................... 118
-  In Git Refs ............................................. 124
-  In Memory ............................................... 130
-Core Concepts ............................................. 136
-  Bootstrapping vs Runtime ................................ 138
-  Entry Point: From Package Import To openWarpGraph() ..... 144
-  Hexagonal Architecture .................................. 176
-  Public API Surface ...................................... 207
-Core Workflows: The Golden Paths .......................... 248
-  Writing to the Graph .................................... 250
-  Reading from the Graph .................................. 256
-  Distributed Operations .................................. 262
-Design and Implementation ................................. 268
-  Architectural Trade-offs ................................ 270
-  How To Read The Codebase Next ........................... 284
-  A Look Inside a git-warp Repository ..................... 310
-Summary ................................................... 333
-```
+- [`git-warp` Overview](#git-warp-overview)
+- [Domain Dictionary](#domain-dictionary)
+- [The Big Idea](#the-big-idea)
+- [The Source of Truth](#the-source-of-truth)
+- [Core Concepts](#core-concepts)
+- [Core Workflows: The Golden Paths](#core-workflows-the-golden-paths)
+- [Architectural Trade-offs](#architectural-trade-offs)
+- [How To Read The Codebase Next](#how-to-read-the-codebase-next)
+- [A Look Inside a `git-warp` Repository](#a-look-inside-a-git-warp-repository)
+- [Summary](#summary)
 
 ## `git-warp` Overview
 
@@ -112,7 +99,9 @@ This approach has several key advantages. First, it allows for **multi-writer, c
 In `git-warp`, the source of truth is not a single database file, but rather the collection of objects and refs in the underlying Git repository. This is a fundamental concept that underpins the entire system.
 
 ### In Git Objects
-The immutable history of the graph is stored in Git's object database. 
+
+The immutable history of the graph is stored in Git's object database.
+
 - **Patch Commits**: Each change to the graph is stored as a Git commit. The commit message contains metadata, and the patch payload itself is often stored in a separate blob.
 - **Content Blobs**: Binary content attached to nodes or edges is stored in Git blobs, referenced by the graph data.
 
@@ -208,44 +197,55 @@ The `WarpGraph` object returned by `openWarpGraph` is a frozen capability bag. I
 classDiagram
     class WarpGraph {
         <<interface>>
-        +info: GraphInfo
-        +patches: CommitmentSurface
+        +graphName: string
+        +writerId: string
+        +commitment: CommitmentSurface
         +folding: FoldingSurface
-        +query: RevelationSurface
+        +revelation: RevelationSurface
         +governance: GovernanceSurface
+        +query: QueryCapability
+        +patches: PatchCapability
+        +sync: SyncCapability
+        +strands: StrandCapability
+        +checkpoint: CheckpointCapability
+        +provenance: ProvenanceCapability
+        +comparison: ComparisonCapability
+        +subscriptions: SubscriptionCapability
     }
 
     class CommitmentSurface {
         <<interface>>
-        +createPatch() PatchBuilder
-        +patch() Promise~string~
+        +patches: PatchCapability
+        +strands: StrandCapability
+        +comparison: ComparisonCapability
     }
 
     class FoldingSurface {
         <<interface>>
-        +join() WarpState
-        +reduce() WarpState
+        +checkpoint: CheckpointCapability
     }
 
     class RevelationSurface {
         <<interface>>
-        +hasNode() Promise~bool~
-        +getNodeProps() Promise~object~
-        +worldline() Worldline
-        +observer() Observer
+        +query: QueryCapability
+        +subscriptions: SubscriptionCapability
+        +provenance: ProvenanceCapability
     }
 
     class GovernanceSurface {
         <<interface>>
-        +syncWith() Promise~SyncWithResult~
-        +createCheckpoint() Promise~string~
+        +sync: SyncCapability
     }
 
-    WarpGraph o-- CommitmentSurface
-    WarpGraph o-- FoldingSurface
-    WarpGraph o-- RevelationSurface
-    WarpGraph o-- GovernanceSurface
+    WarpGraph o-- CommitmentSurface : commitment
+    WarpGraph o-- FoldingSurface : folding
+    WarpGraph o-- RevelationSurface : revelation
+    WarpGraph o-- GovernanceSurface : governance
 ```
+
+The architectural surfaces are the primary shape. The flat aliases
+(`graph.query`, `graph.patches`, `graph.sync`, and related capabilities) exist
+for ergonomic access to the same underlying capability namespaces.
 
 ## Core Workflows: The Golden Paths
 
@@ -285,7 +285,7 @@ Your goal is to use `git-warp` to build an application. You should focus on the 
 ### For the Data Analyst / Auditor
 Your goal is to understand the history of the data and verify its integrity.
 1.  **Understand the Commit Structure**: Look at the "A Look Inside a `git-warp` Repository" section to see how patches are stored in Git.
-2.  **Learn about Provenance**: Read "Golden Path 9" to understand how `git-warp` enables you to trace data lineage.
+2.  **Learn about Provenance**: Read the provenance entry in the Domain Dictionary and inspect the patch trailers in the repository example to see how `git-warp` enables data-lineage tracing.
 3.  **Explore the `JoinReducer`**: The tests in `test/unit/domain/services/JoinReducer.test.ts` will show you how the final state is derived from the history.
 
 ### For the Core Contributor
@@ -296,46 +296,44 @@ Your goal is to understand the internals of `git-warp` to fix bugs or add new fe
 
 ## A Look Inside a `git-warp` Repository
 
-The concepts of writer refs and patch commits can feel abstract. To make them more concrete, we can examine the `git-warp` repository itself, which uses its own technology to store internal data.
+The concepts of writer refs and patch commits can feel abstract. A fixture-style example makes the storage shape concrete without depending on one developer workstation's local refs.
 
-By running `git for-each-ref refs/warp/`, we can see the `git-warp` graphs stored within the repository:
+Running `git for-each-ref refs/warp/` in a repository that stores graph data might produce output shaped like this:
 
 ```text
-ac5882317de52fd207b6035cb9e5a98543b965ab commit refs/warp/demo/writers/alice
-c8f867b97e797ddf629c5ad209ce8f8841b0ad58 commit refs/warp/demo/writers/writer-1
-6cbc8bf6dce4be512174c1ffe51b8a5e94e3907b commit refs/warp/graft-ast/checkpoints/head
-fecdb406087402fcc0e464ef1aaebfa57fe9c14f commit refs/warp/graft-ast/writers/graft
-a44156c0870f3aca2002c563b58693fd841c4e1d commit refs/warp/think/writers/local.jamess-macbook-pro-2.local.cli
+1111111111111111111111111111111111111111 commit refs/warp/example-graph/writers/alice
+2222222222222222222222222222222222222222 commit refs/warp/example-graph/writers/bob
+3333333333333333333333333333333333333333 commit refs/warp/example-graph/checkpoints/head
 ```
 
-This reveals several internal graphs, but the most interesting is `graft-ast`. This graph is used to store the Abstract Syntax Tree (AST) of a project. Let's look at the history of the `graft` writer in this graph:
+This reveals the per-writer heads and optional checkpoint head for a graph. Looking at the history of one writer head shows that each patch is represented by a structured commit:
 
 ```text
-$ git log -n 1 refs/warp/graft-ast/writers/graft
+$ git log -n 1 refs/warp/example-graph/writers/alice
 
-commit fecdb406087402fcc0e464ef1aaebfa57fe9c14f
-Author: James Ross <james@Jamess-MacBook-Pro-2.local>
+commit 1111111111111111111111111111111111111111
+Author: Example Operator <operator@example.invalid>
 Date:   Mon May 25 08:19:53 2026 -0700
 
     warp:patch
-    
+
     eg-kind: patch
-    eg-graph: graft-ast
-    eg-writer: graft
+    eg-graph: example-graph
+    eg-writer: alice
     eg-lamport: 224
-    eg-patch-oid: 9ef88aaeca1bb42aa8414ce55ade63210f5b5bc3
+    eg-patch-oid: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
     eg-schema: 2
 ```
 
 This log output shows a single patch commit. The commit message is highly structured, using trailers to store metadata:
--   `eg-graph`: The name of the graph (`graft-ast`).
--   `eg-writer`: The ID of the writer (`graft`).
+-   `eg-graph`: The name of the graph (`example-graph`).
+-   `eg-writer`: The ID of the writer (`alice`).
 -   `eg-lamport`: The Lamport timestamp of the patch.
 -   `eg-patch-oid`: The SHA of a Git blob that contains the actual patch payload.
 
-The commit itself is just a metadata container. The actual operations are in the blob with SHA `9ef88aaeca1bb42aa8414ce55ade63210f5b5bc3`. If we inspect the type of this object:
+The commit itself is just a metadata container. The actual operations are in the blob with SHA `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`. If we inspect the type of this object:
 ```console
-$ git cat-file -t 9ef88aaeca1bb42aa8414ce55ade63210f5b5bc3
+$ git cat-file -t aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 blob
 ```
 This confirms it's a blob. The content of this blob is a binary CBOR-encoded representation of the patch operations.
