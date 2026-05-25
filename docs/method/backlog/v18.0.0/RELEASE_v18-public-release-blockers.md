@@ -42,12 +42,13 @@ migration safety than the repository can prove.
 | Residual raw content/property decision | Accepted as explicit v18 residual risk with an executable audit ratchet. |
 | Operator release notes | Complete in `docs/releases/v18.0.0/README.md`. |
 | Version metadata | Root package, private workspaces, lockfile, JSR metadata, and changelog now point at `18.0.0`. |
+| Local release preflight | `npm run release:preflight` passes for `18.0.0` metadata on the release-prep branch. |
 
 ## Current Public-Release Blockers
 
 | Blocker | Why it still blocks public release | Required evidence |
 |---------|------------------------------------|-------------------|
-| Final release-prep gates | Release-candidate evidence is not a public tag. | `npm run release:preflight`, local required gates, and GitHub CI pass on the final release branch. |
+| GitHub CI and PR review | Local preflight is green, but release evidence is not a merged public branch. | PR review resolves all comments and GitHub CI is green on the final branch tip. |
 | Post-merge tag and publish work | Package metadata now points at `18.0.0`, but the tag and publish artifacts must be cut from merged `main`. | Signed or annotated tag, pushed tag, npm pack/publish evidence, and JSR publish evidence agree on `18.0.0`. |
 | Streaming overclaim guard | Release notes now state the non-claim, but CI/PR review must still preserve it. | Public docs state that full graph streaming reads and writes are a v20 goal, not a v18 claim. |
 
@@ -65,6 +66,7 @@ remaining raw compatibility files and fails on unreviewed boundary drift.
 
 ## Next pull candidates
 
-- Run the final release-prep gate set on a release branch.
+- Open the release-prep PR and preserve the local preflight evidence through
+  review.
 - Cut the public tag and publish artifacts only after this branch merges and
   the final gates pass on `main`.

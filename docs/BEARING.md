@@ -46,10 +46,10 @@ Current branch state at this boundary:
 - Latest released package line: `17.0.1`
 - Release-prep package metadata: `18.0.0`, not tagged or published yet
 - Latest completed implementation cycle:
-  `0249-v18-version-tag-readiness`
-- Current work: release-prep hardening for `v18.0.0`, with the next goalpost
-  narrowed to gate evidence, package metadata, public operator notes, and a
-  residual raw content/property storage decision.
+  `0250-v18-final-release-prep-replan`
+- Current work: release-prep PR review for `v18.0.0`; local release preflight
+  is green for `18.0.0` metadata, and the remaining public-release gates are
+  PR review, GitHub CI, merge to `main`, tag, and publish.
 - Cleanup checkpoint: PR #106 is merged to `main`; this branch starts from that
   merge and must not widen the v18 promise while preparing the public tag.
 
@@ -155,14 +155,15 @@ The current v18 graph-model posture is:
   command-owned readings, emits the command report, and permits live-ref
   finalization only through a reviewed JSON request that matches observed
   runtime evidence.
-- V18 release-candidate blockers are now explicit: full release-prep gates,
-  GitHub CI, post-merge tag/publish work, and the accepted residual raw
-  content/property risk.
+- V18 release-candidate blockers are now explicit: GitHub CI, PR review,
+  post-merge tag/publish work, and the accepted residual raw content/property
+  risk.
 
 That is useful progress, not a finish line. The repo now has migration safety,
 wet-run proof, guarded finalization, generated Continuum contract tie-back,
-and a release-candidate packet. Public v18 still needs full release-prep
-gates, CI, package/tag work, and explicit residual-risk review.
+release-candidate docs, `18.0.0` package metadata, and a green local release
+preflight. Public v18 still needs PR review, GitHub CI, merge to `main`, tag,
+and publish.
 
 ## What Just Shipped
 
@@ -432,7 +433,8 @@ retirement blocks the public tag or ships as explicit residual risk.
   [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
 - [x] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`:
   [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
-- [ ] 102. Replan from final release-prep evidence before PR review.
+- [x] 102. Replan from final release-prep evidence before PR review:
+  [0250](design/0250-v18-final-release-prep-replan/v18-final-release-prep-replan.md).
 
 ### Next Thirty-Slice Checklist
 
@@ -795,4 +797,5 @@ and concrete checks live in `docs/invariants/`.
   [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
 - [x] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`:
   [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
-- [ ] 102. Replan from final release-prep evidence before PR review.
+- [x] 102. Replan from final release-prep evidence before PR review:
+  [0250](design/0250-v18-final-release-prep-replan/v18-final-release-prep-replan.md).
