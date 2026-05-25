@@ -452,7 +452,7 @@ retirement blocks the public tag or ships as explicit residual risk.
   [0234](design/0234-v18-guarded-cli-finalization/v18-guarded-cli-finalization.md).
 - [x] 87. Add live-ref drift and existing-archive finalization tests:
   [0235](design/0235-v18-finalization-drift-and-archive-tests/v18-finalization-drift-and-archive-tests.md).
-- [x] 88. Inventory current Wesley/Continuum generated graph contracts:
+- [x] 88. Inventory current Wesley/Continuum generated-graph contracts:
   [0236](design/0236-v18-generated-contract-inventory/v18-generated-contract-inventory.md).
 - [x] 89. Add generated Continuum contract fixture ingestion:
   [0237](design/0237-v18-runtime-boundary-fixture-ingestion/v18-runtime-boundary-fixture-ingestion.md).
@@ -501,7 +501,7 @@ retirement blocks the public tag or ships as explicit residual risk.
   return blocked reports and non-zero exit codes.
 - Generated contract inventory evidence now names local Continuum schemas,
   Wesley contract-design sources, and `warp-ttd` generated-family intake files.
-- A runtime-boundary generated fixture is now admitted through the Continuum
+- A runtime-boundary-generated fixture is now admitted through the Continuum
   artifact JSON adapter with `continuum-fixture` and `warp-ttd` targets.
 - Graph-model contract conformance now requires the runtime-boundary family,
   schema, generated authority, `continuum-fixture` target, `warp-ttd` target,
@@ -747,7 +747,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 85. Add finalization report sections and archive evidence output.
 - [x] 86. Enable guarded CLI finalization behind explicit confirmation.
 - [x] 87. Add live-ref drift and existing-archive finalization tests.
-- [x] 88. Inventory current Wesley/Continuum generated graph contracts.
+- [x] 88. Inventory current Wesley/Continuum generated-graph contracts.
 - [x] 89. Add generated Continuum contract fixture ingestion.
 - [x] 90. Add graph-model conformance checks against generated contracts.
 - [x] 91. Add a `warp-ttd` contract smoke over generated-family facts.

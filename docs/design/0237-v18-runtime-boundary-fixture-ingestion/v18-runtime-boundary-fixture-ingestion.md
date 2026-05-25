@@ -34,7 +34,7 @@ and consumer-smoke slices can reuse the same admitted evidence.
 
 ## Acceptance Criteria
 
-- The runtime-boundary generated fixture is checked into the fixture directory.
+- The runtime-boundary-generated fixture is checked into the fixture directory.
 - The artifact adapter loads it with `runtime-boundary-family`.
 - The descriptor has generated authority.
 - The descriptor includes both `continuum-fixture` and `warp-ttd` targets.
