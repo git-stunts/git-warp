@@ -39,18 +39,19 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Current branch: `v18-continuum-slices-66-75`
+- Current branch: `v18-release-prep-slices-97-102`
 - Base branch: `main`
-- Current `origin/main`: `d379eb81`
-- Latest merged PR: #105, v18 release runway planning
+- Current `origin/main`: `023c7d75`
+- Latest merged PR: #106, v18 release-candidate evidence and review cleanup
 - Latest released package line: `17.0.1`
+- Release-prep package metadata: `18.0.0`, not tagged or published yet
 - Latest completed implementation cycle:
-  `0244-v18-backlog-reconciliation`
-- Current work: backlog reconciliation after the v18 release-candidate
-  evidence packet, with the next goalpost narrowed to public release-prep
-  gates and residual-risk decisions.
-- Cleanup checkpoint: this branch is ahead of `origin/main` with the v18
-  release-candidate evidence and backlog-reconciliation work.
+  `0250-v18-final-release-prep-replan`
+- Current work: release-prep PR review for `v18.0.0`; local release preflight
+  is green for `18.0.0` metadata, and the remaining public-release gates are
+  PR review, GitHub CI, merge to `main`, tag, and publish.
+- Cleanup checkpoint: PR #106 is merged to `main`; this branch starts from that
+  merge and must not widen the v18 promise while preparing the public tag.
 
 The current v18 graph-model posture is:
 
@@ -154,13 +155,15 @@ The current v18 graph-model posture is:
   command-owned readings, emits the command report, and permits live-ref
   finalization only through a reviewed JSON request that matches observed
   runtime evidence.
-- V18 release-candidate blockers are now explicit: full release-prep gates,
-  GitHub CI, package/versioning work, and residual raw content/property risk.
+- V18 release-candidate blockers are now explicit: GitHub CI, PR review,
+  post-merge tag/publish work, and the accepted residual raw content/property
+  risk.
 
 That is useful progress, not a finish line. The repo now has migration safety,
 wet-run proof, guarded finalization, generated Continuum contract tie-back,
-and a release-candidate packet. Public v18 still needs full release-prep
-gates, CI, package/tag work, and explicit residual-risk review.
+release-candidate docs, `18.0.0` package metadata, and a green local release
+preflight. Public v18 still needs PR review, GitHub CI, merge to `main`, tag,
+and publish.
 
 ## What Just Shipped
 
@@ -214,6 +217,18 @@ PR #102 landed v18 slices 36 through 40:
 - dry-run state migration planner;
 - ordered migration history input;
 - migration manifest serialization.
+
+PR #106 landed v18 slices 66 through 96:
+
+- production-runtime scratch replay and public-read wet-run proof;
+- guarded CLI finalization behind reviewed JSON confirmation;
+- generated Continuum runtime-boundary contract conformance and `warp-ttd`
+  smoke evidence;
+- raw content/property retired-boundary ratchet;
+- release-candidate evidence packet;
+- backlog reconciliation after the release-candidate evidence;
+- review follow-up that tightened runtime replay validation, finalization JSON
+  evidence binding, fixture coverage, and migration script structure.
 
 Slice 36 is complete on this branch. The migration manifest root now exists
 as a frozen domain noun, with runtime-backed basis, mapping, warning, and
@@ -405,6 +420,21 @@ Slice 96 reconciled the backlog ledger with that evidence. The next practical
 goalpost is a release-prep branch that runs the full gate set, freezes package
 and release notes, and decides whether remaining raw content/property storage
 retirement blocks the public tag or ships as explicit residual risk.
+
+### Release-Prep Checklist
+
+- [x] 97. Establish the v18 release-prep baseline:
+  [0245](design/0245-v18-release-prep-baseline/v18-release-prep-baseline.md).
+- [x] 98. Run the release-prep gate baseline and record the evidence:
+  [0246](design/0246-v18-release-gate-baseline/v18-release-gate-baseline.md).
+- [x] 99. Decide residual raw content/property storage risk:
+  [0247](design/0247-v18-residual-raw-storage-risk-decision/v18-residual-raw-storage-risk-decision.md).
+- [x] 100. Freeze public operator release notes and non-goals:
+  [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
+- [x] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`:
+  [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
+- [x] 102. Replan from final release-prep evidence before PR review:
+  [0250](design/0250-v18-final-release-prep-replan/v18-final-release-prep-replan.md).
 
 ### Next Thirty-Slice Checklist
 
@@ -757,3 +787,15 @@ and concrete checks live in `docs/invariants/`.
 - [x] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
 - [x] 96. Reconcile the v18 backlog after release-candidate evidence:
   [0244](design/0244-v18-backlog-reconciliation/v18-backlog-reconciliation.md).
+- [x] 97. Establish the v18 release-prep baseline:
+  [0245](design/0245-v18-release-prep-baseline/v18-release-prep-baseline.md).
+- [x] 98. Run the release-prep gate baseline and record the evidence:
+  [0246](design/0246-v18-release-gate-baseline/v18-release-gate-baseline.md).
+- [x] 99. Decide residual raw content/property storage risk:
+  [0247](design/0247-v18-residual-raw-storage-risk-decision/v18-residual-raw-storage-risk-decision.md).
+- [x] 100. Freeze public operator release notes and non-goals:
+  [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
+- [x] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`:
+  [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
+- [x] 102. Replan from final release-prep evidence before PR review:
+  [0250](design/0250-v18-final-release-prep-replan/v18-final-release-prep-replan.md).

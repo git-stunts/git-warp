@@ -102,7 +102,7 @@ The remaining public v18 work is release hygiene and residual-risk review:
 - package/version/tag work for the public release;
 - operator release notes that distinguish graph-model convergence from later
   Continuum admission shells;
-- an explicit decision on remaining raw content/property storage retirement
-  risk;
+- explicit release notes that accept remaining raw content/property storage
+  compatibility as residual v18 risk;
 - an explicit non-claim that v18 does not provide end-to-end graph streaming
   reads and writes.

@@ -39,21 +39,34 @@ migration safety than the repository can prove.
 | Wet-run fixture harness | Complete for the canonical v17 fixture and zero-mismatch report. |
 | Continuum contract tie-back | Complete for generated runtime-boundary fixtures and `warp-ttd` smoke. |
 | Release-candidate evidence packet | Complete with public-tag gates and residual risks. |
+| Residual raw content/property decision | Accepted as explicit v18 residual risk with an executable audit ratchet. |
+| Operator release notes | Complete in `docs/releases/v18.0.0/README.md`. |
+| Version metadata | Root package, private workspaces, lockfile, JSR metadata, and changelog now point at `18.0.0`. |
+| Local release preflight | `npm run release:preflight` passes for `18.0.0` metadata on the release-prep branch. |
 
 ## Current Public-Release Blockers
 
 | Blocker | Why it still blocks public release | Required evidence |
 |---------|------------------------------------|-------------------|
-| Final release-prep gates | Release-candidate evidence is not a public tag. | `npm run release:preflight`, local required gates, and GitHub CI pass on the final release branch. |
-| Package, version, and tag work | The package line is still `17.0.1`. | `package.json`, `jsr.json` if applicable, changelog, tag, and publish artifacts agree. |
-| Residual raw content/property risk | v18 still carries named legacy compatibility boundaries. | Release notes either accept the residual risk explicitly or a final retirement slice removes the blocker. |
-| Operator release notes | Users need exact migration and finalization guidance. | Public notes explain dry run, scratch writing, guarded finalization, archives, rollback posture, and non-goals. |
-| Streaming overclaim guard | v18 has stream foundations but not end-to-end graph streaming. | Public docs state that full graph streaming reads and writes are a v20 goal, not a v18 claim. |
+| GitHub CI and PR review | Local preflight is green, but release evidence is not a merged public branch. | PR review resolves all comments and GitHub CI is green on the final branch tip. |
+| Post-merge tag and publish work | Package metadata now points at `18.0.0`, but the tag and publish artifacts must be cut from merged `main`. | Signed or annotated tag, pushed tag, npm pack/publish evidence, and JSR publish evidence agree on `18.0.0`. |
+| Streaming overclaim guard | Release notes now state the non-claim, but CI/PR review must still preserve it. | Public docs state that full graph streaming reads and writes are a v20 goal, not a v18 claim. |
+
+## Accepted Residual Risk
+
+`v18.0.0` ships with named raw content/property compatibility boundaries still
+present. This is accepted residual risk, not hidden completeness debt. The
+release promise is graph-model convergence and migration proof, not total
+storage-plane retirement.
+
+The guard is executable:
+`test/unit/scripts/v18-content-property-closeout-audit.test.ts` lists the
+remaining raw compatibility files and fails on unreviewed boundary drift.
+`CoordinateFactExport.ts` is retired and must stay retired.
 
 ## Next pull candidates
 
-- Run the final release-prep gate set on a release branch.
-- Decide whether remaining raw content/property storage retirement blocks
-  public v18 or becomes explicitly accepted residual risk.
-- Freeze public release notes and migration operator docs.
-- Cut package/version/tag changes only after the gates pass.
+- Open the release-prep PR and preserve the local preflight evidence through
+  review.
+- Cut the public tag and publish artifacts only after this branch merges and
+  the final gates pass on `main`.
