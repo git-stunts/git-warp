@@ -44,6 +44,14 @@ operational instead of decorative:
 - `v20` owns operational slice-first runtime realization
 - `v21` owns plural/distributed semantics such as common-basis braid and fuller admission reality
 
+## Post-v18 entry condition
+
+The v18 release-prep PR has merged to `main`, but the public `v18.0.0` tag and
+publish work should complete before v19 implementation widens the runtime
+promise. Planning may continue on a branch as long as it preserves the
+distinction between translated v18 git-warp evidence and native Continuum
+witnesshood.
+
 ## Practical rule
 
 Do not drag these doctrine and protocol tasks back into `v18.0.0`

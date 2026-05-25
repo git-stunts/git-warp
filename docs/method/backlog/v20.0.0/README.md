@@ -26,5 +26,7 @@ Rule:
   instead of doctrine-only language
 - end-to-end graph streaming reads and writes are a `v20` runtime-realization
   goal, not a `v18` graph-substrate release claim
+- v19 must settle bounded support, causal-index, and support-fragment
+  contracts before v20 can honestly claim end-to-end graph streaming
 - keep distributed/plural semantics that still require a settled slice-first
   runtime in `v21.0.0/`
