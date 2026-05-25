@@ -449,7 +449,8 @@ resumes after the finalization path is guarded and reviewable.
   [0237](design/0237-v18-runtime-boundary-fixture-ingestion/v18-runtime-boundary-fixture-ingestion.md).
 - [x] 90. Add graph-model conformance checks against generated contracts:
   [0238](design/0238-v18-graph-model-contract-conformance/v18-graph-model-contract-conformance.md).
-- [ ] 91. Add a `warp-ttd` contract smoke over generated-family facts.
+- [x] 91. Add a `warp-ttd` contract smoke over generated-family facts:
+  [0239](design/0239-v18-warp-ttd-generated-family-smoke/v18-warp-ttd-generated-family-smoke.md).
 - [ ] 92. Replan with generated contract evidence in hand.
 - [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
 - [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
@@ -488,6 +489,9 @@ resumes after the finalization path is guarded and reviewable.
 - Graph-model contract conformance now requires the runtime-boundary family,
   schema, generated authority, `continuum-fixture` target, `warp-ttd` target,
   and full v17 visible fact-family coverage.
+- The first `warp-ttd` generated-family smoke now converts passed conformance
+  into a `PRESENT` translated-substrate fact and failed conformance into an
+  `OBSTRUCTED` fact with failed check names.
 
 ### User Stories
 
@@ -714,7 +718,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 88. Inventory current Wesley/Continuum generated graph contracts.
 - [x] 89. Add generated Continuum contract fixture ingestion.
 - [x] 90. Add graph-model conformance checks against generated contracts.
-- [ ] 91. Add a `warp-ttd` contract smoke over generated-family facts.
+- [x] 91. Add a `warp-ttd` contract smoke over generated-family facts.
 - [ ] 92. Replan with generated contract evidence in hand.
 - [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
 - [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
