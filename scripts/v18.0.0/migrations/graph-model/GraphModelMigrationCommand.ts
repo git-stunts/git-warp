@@ -263,12 +263,14 @@ function equivalenceSummaryKey(request: GraphModelMigrationFinalizationRequest):
     return null;
   }
   const summary = gateResult.proofResult.summary;
-  return [
+  return evidenceKey([
     summary.basis.toKey(),
     summary.legacyFactCount,
     summary.migratedFactCount,
     summary.mismatchCount,
-  ].join('\0');
+    gateResult.allowsPromotion() ? 'passed' : 'blocked',
+    noticeListKey(gateResult.fatalErrors),
+  ]);
 }
 
 function runtimeConformanceKey(request: GraphModelMigrationFinalizationRequest): string | null {
@@ -276,11 +278,28 @@ function runtimeConformanceKey(request: GraphModelMigrationFinalizationRequest):
   if (runtimeConformance === null) {
     return null;
   }
-  return [
+  return evidenceKey([
     runtimeConformance.scratchRef.refName,
     runtimeConformance.scratchHead,
     runtimeConformance.status,
-  ].join('\0');
+    runtimeConformance.witness,
+    noticeListKey(runtimeConformance.fatalErrors),
+  ]);
+}
+
+function noticeListKey(notices: readonly GraphModelMigrationNotice[]): string {
+  return evidenceKey(notices.map((notice) => evidenceKey([
+    notice.kind,
+    notice.code,
+    notice.message,
+  ])));
+}
+
+function evidenceKey(parts: readonly (string | number)[]): string {
+  return parts.map((part) => {
+    const text = String(part);
+    return `${text.length}:${text}`;
+  }).join('');
 }
 
 function runtimeConformanceFromProvider(

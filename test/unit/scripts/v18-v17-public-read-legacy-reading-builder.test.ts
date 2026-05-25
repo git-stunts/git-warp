@@ -30,6 +30,7 @@ describe('v18 v17 public-read legacy reading builder', () => {
       'node:node:alpha:visibility',
       'node:node:beta:visibility',
       'node:node:removed:visibility',
+      'property:node:alpha->node:beta:relates:weight:value',
       'property:node:alpha:title:value',
       'property:writers:alice+bob:coverage',
     ]);
@@ -38,8 +39,9 @@ describe('v18 v17 public-read legacy reading builder', () => {
       'bob',
       'bob',
       'alice',
-      'alice',
       'bob',
+      'bob',
+      'alice',
       'alice',
     ]);
     expect(reading.facts.find((fact) => fact.factKey === 'node:alpha:_content')?.value)

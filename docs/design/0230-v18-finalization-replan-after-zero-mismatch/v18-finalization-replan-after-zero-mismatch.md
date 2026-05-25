@@ -21,10 +21,10 @@ finalization, using the zero-mismatch canonical wet-run as evidence.
 ## Evidence In Hand
 
 - The v17 golden fixture restores into an isolated Git repository.
-- The migration command writes five scratch operations for the canonical
+- The migration command writes six scratch operations for the canonical
   fixture.
-- The production runtime replays all five scratch operations.
-- Legacy and migrated public-read evidence both contain seven facts.
+- The production runtime replays all six scratch operations.
+- Legacy and migrated public-read evidence both contain eight facts.
 - The canonical equivalence proof reports zero public-read mismatches.
 - The wet-run report is deterministic and includes drift-check evidence before
   any live ref can move.

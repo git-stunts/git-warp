@@ -7,6 +7,7 @@ import GraphModelMigrationFinalizationRequest
   from '../../../../src/domain/migrations/GraphModelMigrationFinalizationRequest.ts';
 import GraphModelMigrationFinalizationSafety
   from '../../../../src/domain/migrations/GraphModelMigrationFinalizationSafety.ts';
+import AdapterValidationError from '../../../../src/domain/errors/AdapterValidationError.ts';
 import {
   parseGraphModelMigrationFinalizationConfirmation,
   parseGraphModelMigrationFinalizationRequest,
@@ -41,6 +42,7 @@ type EquivalenceOverrides = {
 
 type RuntimeReplayOverrides = {
   readonly status?: FixtureJsonValue;
+  readonly witness?: FixtureJsonValue;
   readonly fatalErrors?: FixtureJsonValue;
   readonly extraRuntimeReplay?: boolean;
 };
@@ -101,7 +103,34 @@ describe('GraphModelMigrationFinalizationRequestJsonAdapter', () => {
   it('rejects finalization requests that do not prove zero mismatches', () => {
     expect(() => parseGraphModelMigrationFinalizationRequest(requestJson({
       equivalence: equivalenceJson({ mismatchCount: 1 }),
+    }))).toThrow(AdapterValidationError);
+    expect(() => parseGraphModelMigrationFinalizationRequest(requestJson({
+      equivalence: equivalenceJson({ mismatchCount: 1 }),
     }))).toThrow(/zero mismatches/);
+  });
+
+  it('wraps semantic runtime replay contradictions as adapter validation errors', () => {
+    const failedWithoutFatalErrors = requestJson({
+      runtimeReplay: runtimeReplayJson({ status: 'failed' }),
+    });
+    const passedWithFatalErrors = requestJson({
+      runtimeReplay: runtimeReplayJson({
+        fatalErrors: [{
+          kind: 'fatal',
+          code: 'E_RUNTIME_REPLAY_FAILED',
+          message: 'runtime replay failed',
+        }],
+      }),
+    });
+
+    expect(() => parseGraphModelMigrationFinalizationRequest(failedWithoutFatalErrors))
+      .toThrow(AdapterValidationError);
+    expect(() => parseGraphModelMigrationFinalizationRequest(failedWithoutFatalErrors))
+      .toThrow(/failed runtime conformance must contain fatal errors/);
+    expect(() => parseGraphModelMigrationFinalizationRequest(passedWithFatalErrors))
+      .toThrow(AdapterValidationError);
+    expect(() => parseGraphModelMigrationFinalizationRequest(passedWithFatalErrors))
+      .toThrow(/passed runtime conformance must not contain fatal errors/);
   });
 
   it('rejects malformed confirmation JSON', () => {
@@ -149,7 +178,7 @@ function runtimeReplayJson(overrides: RuntimeReplayOverrides = {}) {
     scratchRefName: 'refs/warp-migration-scratch/v17-golden-graph/wet-run',
     scratchHead: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
     status: overrides.status ?? 'passed',
-    witness: 'git-warp-v18-production-runtime-scratch-replay-v1 operations=5',
+    witness: overrides.witness ?? 'git-warp-v18-production-runtime-scratch-replay-v1 operations=5',
     fatalErrors: overrides.fatalErrors ?? [],
     ...(overrides.extraRuntimeReplay === true ? { extra: true } : {}),
   };

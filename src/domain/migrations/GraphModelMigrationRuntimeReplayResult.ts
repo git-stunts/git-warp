@@ -17,7 +17,7 @@ export type GraphModelMigrationRuntimeReplayResultFields = {
   readonly fatalErrors: readonly GraphModelMigrationNotice[];
 };
 
-/** Result of opening migrated scratch output through normal graph runtime. */
+/** Result of replaying migrated scratch operations through normal graph runtime. */
 export default class GraphModelMigrationRuntimeReplayResult {
   readonly request: GraphModelMigrationRuntimeReplayRequest;
   readonly status: GraphModelMigrationRuntimeReplayStatus;
@@ -39,7 +39,7 @@ export default class GraphModelMigrationRuntimeReplayResult {
     Object.freeze(this);
   }
 
-  /** Returns true when scratch output was materialized by the production runtime. */
+  /** Returns true when scratch operations were materialized by the production runtime. */
   allowsFinalization(): boolean {
     return this.status === GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_PASSED;
   }

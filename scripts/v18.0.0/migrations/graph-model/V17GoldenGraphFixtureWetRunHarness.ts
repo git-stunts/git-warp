@@ -36,6 +36,11 @@ import V17GoldenGraphFixtureManifest, {
   V17GoldenRemovalFact,
 } from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
 import {
+  decodeLegacyEdgePropNode,
+  encodeLegacyEdgePropNode,
+  isLegacyEdgePropNode,
+} from '../../../../src/domain/services/KeyCodec.ts';
+import {
   GraphModelMigrationCommandResult,
   runGraphModelMigrationCommand,
 } from './GraphModelMigrationCommand.ts';
@@ -245,8 +250,33 @@ function propertyMappingFromFact(fact: V17GoldenPropertyFact): GraphModelMigrati
   return new GraphModelMigrationPropertyMapping({
     legacyOwnerId: ownerId,
     legacyPropertyKey: propertyKey,
-    targetOwnerId: ownerId,
+    targetOwnerId: targetPropertyOwnerId(ownerId),
     targetPropertyKey: propertyKey,
+  });
+}
+
+function targetPropertyOwnerId(ownerId: string): string {
+  const edge = parsePublicEdgeFactKey(ownerId);
+  if (edge === null) {
+    return ownerId;
+  }
+  return encodeLegacyEdgePropNode(edge.from, edge.to, edge.label);
+}
+
+function parsePublicEdgeFactKey(ownerId: string): {
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+} | null {
+  const arrowIndex = ownerId.indexOf('->');
+  const labelIndex = ownerId.lastIndexOf(':');
+  if (arrowIndex <= 0 || labelIndex <= arrowIndex + 2 || labelIndex === ownerId.length - 1) {
+    return null;
+  }
+  return Object.freeze({
+    from: ownerId.slice(0, arrowIndex),
+    to: ownerId.slice(arrowIndex + 2, labelIndex),
+    label: ownerId.slice(labelIndex + 1),
   });
 }
 
@@ -332,6 +362,10 @@ function publicContentFactKey(targetKey: string): string {
 
 function publicPropertyFactKey(targetKey: string): string {
   const decoded = decodePropertyTargetKey(targetKey);
+  if (isLegacyEdgePropNode(decoded.ownerId)) {
+    const edge = decodeLegacyEdgePropNode(decoded.ownerId);
+    return `${edge.from}->${edge.to}:${edge.label}:${decoded.propertyKey}`;
+  }
   return `${decoded.ownerId}:${decoded.propertyKey}`;
 }
 

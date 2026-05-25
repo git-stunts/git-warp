@@ -43,7 +43,14 @@ describe('v18 production runtime scratch replay provider', () => {
       scratchRefName: SCRATCH_REF,
       patchPlan: patchPlan([
         operation('node-record', 'node:alpha', 'node:alpha'),
+        operation('node-record', 'node:beta', 'node:beta'),
+        operation('edge-record', 'edge:alpha-beta', 'node:alpha->node:beta:relates'),
         operation('property', 'node:alpha:title', propertyTarget('node:alpha', 'title')),
+        operation(
+          'property',
+          'node:alpha->node:beta:relates\0weight',
+          propertyTarget(edgePropertyOwner('node:alpha', 'node:beta', 'relates'), 'weight'),
+        ),
       ]),
     });
 
@@ -54,8 +61,8 @@ describe('v18 production runtime scratch replay provider', () => {
 
     expect(result.status).toBe(GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_PASSED);
     expect(result.allowsFinalization()).toBe(true);
-    expect(result.replayedOperationCount).toBe(2);
-    expect(result.witness).toBe('git-warp-v18-production-runtime-scratch-replay-v1 operations=2');
+    expect(result.replayedOperationCount).toBe(5);
+    expect(result.witness).toBe('git-warp-v18-production-runtime-scratch-replay-v1 operations=5');
   });
 
   it('maps production-runtime replay into finalization conformance evidence', async () => {
@@ -171,6 +178,10 @@ function propertyTarget(ownerId: string, propertyKey: string): string {
     propertyKey.length,
     propertyKey,
   ].join(':');
+}
+
+function edgePropertyOwner(from: string, to: string, label: string): string {
+  return `\x01${from}\0${to}\0${label}`;
 }
 
 async function writeBadScratchCommit(repositoryPath: string): Promise<string> {

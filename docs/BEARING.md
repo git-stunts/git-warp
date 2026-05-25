@@ -371,9 +371,10 @@ and wet-run fixture harnessing.
 - Temporal replay still extracts node snapshots from the raw legacy property
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
-- The v18 migration tool now opens migrated scratch history through the
-  production graph runtime during wet runs, but public release still needs the
-  full release-prep gate set on the eventual release branch.
+- The v18 migration tool now replays migrated scratch operations through the
+  production graph runtime write/materialization path during wet runs, but
+  public release still needs the full release-prep gate set on the eventual
+  release branch.
 - Legacy readings from the v17 golden fixture now have restored public-read
   construction, but broader non-fixture replay coverage remains future work.
 - The command wrapper can finalize through a reviewed JSON request, but the
@@ -472,11 +473,12 @@ retirement blocks the public tag or ships as explicit residual risk.
 
 - Production-runtime scratch replay is green through the shared replay core.
 - Restored-v17 and scratch public-read builders both exist and are tested.
-- The wet-run harness restores the canonical v17 fixture, writes five scratch
-  operations, replays all five through the production runtime, formats a
+- The wet-run harness restores the canonical v17 fixture, writes six scratch
+  operations, replays all six through the production runtime, formats a
   deterministic report, and records a passed source-ref drift check.
-- The canonical public-read equivalence gate now observes seven legacy facts,
-  seven migrated facts, zero mismatches, and explicit boundary evidence.
+- The canonical public-read equivalence gate now observes eight legacy facts,
+  eight migrated facts, zero mismatches, and explicit boundary evidence,
+  including edge-property coverage.
 - A dedicated zero-mismatch regression proves the command summary and wet-run
   report stay free of public-read divergence.
 - Live finalization remains intentionally paused until explicit confirmation
@@ -525,8 +527,9 @@ retirement blocks the public tag or ships as explicit residual risk.
 ### User Stories
 
 - As a migration operator, I can restore a v17 graph fixture, write migrated
-  scratch history, open that scratch history through the normal production
-  runtime, and receive deterministic proof before any live ref can move.
+  scratch history, replay its operations through the normal production runtime
+  write/materialization path, and receive deterministic proof before any live
+  ref can move.
 - As a release reviewer, I can inspect one wet-run report that includes source
   basis, scratch basis, archive target, equivalence result, runtime replay
   result, drift checks, and finalization eligibility.
@@ -545,9 +548,9 @@ retirement blocks the public tag or ships as explicit residual risk.
 
 ### Acceptance Criteria
 
-- Production-runtime conformance opens migrated scratch history through the
-  same graph-runtime path normal users rely on, not only operation-history
-  readback.
+- Production-runtime conformance replays migrated scratch operations through
+  the same graph-runtime write/materialization path normal users rely on, not
+  only operation-history readback.
 - Wet-run migration restores the v17 golden fixture into an isolated Git
   repository, writes scratch history, builds legacy and scratch readings,
   runs equivalence, runs production-runtime conformance, and leaves live

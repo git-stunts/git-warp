@@ -10,6 +10,8 @@ import {
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
+  decodeLegacyEdgePropNode,
+  isLegacyEdgePropNode,
 } from '../../../../src/domain/services/KeyCodec.ts';
 import type SnapshotWarpState
   from '../../../../src/domain/services/snapshot/SnapshotWarpState.ts';
@@ -131,7 +133,7 @@ async function applyOperations(
   }
   for (const operation of sortedOperations(operations, 'property')) {
     const property = parsePropertyTarget(operation.targetKey);
-    patch.setProperty(property.ownerId, property.propertyKey, `migration-source:${operation.sourceKey}`);
+    applyPropertyOperation(patch, property, `migration-source:${operation.sourceKey}`);
   }
   for (const operation of sortedOperations(operations, 'content-attachment')) {
     const nodeId = parseNodeContentTarget(operation.targetKey);
@@ -147,9 +149,32 @@ type RuntimePatch = {
   addNode(nodeId: string): RuntimePatch;
   addEdge(from: string, to: string, label: string): RuntimePatch;
   setProperty(nodeId: string, key: string, value: string): RuntimePatch;
+  setEdgeProperty(
+    from: string,
+    to: string,
+    label: string,
+    key: string,
+    value: string,
+  ): RuntimePatch;
   attachContent(nodeId: string, content: string, metadata: { readonly mime: string }): Promise<RuntimePatch>;
   commit(): Promise<string>;
 };
+
+function applyPropertyOperation(
+  patch: RuntimePatch,
+  property: {
+    readonly ownerId: string;
+    readonly propertyKey: string;
+  },
+  value: string,
+): void {
+  if (!isLegacyEdgePropNode(property.ownerId)) {
+    patch.setProperty(property.ownerId, property.propertyKey, value);
+    return;
+  }
+  const edge = decodeLegacyEdgePropNode(property.ownerId);
+  patch.setEdgeProperty(edge.from, edge.to, edge.label, property.propertyKey, value);
+}
 
 function sortedOperations(
   operations: readonly GraphModelMigrationScratchOperationRecord[],

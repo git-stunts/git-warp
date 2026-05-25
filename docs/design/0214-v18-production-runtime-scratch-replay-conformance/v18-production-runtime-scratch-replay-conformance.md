@@ -15,16 +15,17 @@ bearing_task: 66
 
 ## Hill
 
-Define the conformance boundary that proves migrated scratch history through
-the normal graph runtime instead of only proving that scratch operation commits
-can be parsed.
+Define the conformance boundary that proves migrated scratch operations can
+drive the normal graph runtime write/materialization path instead of only
+proving that scratch operation commits can be parsed.
 
 ## Current Evidence
 
 The operation-history provider reads `refs/warp-migration-scratch/*` commits
 and projects them into genesis-equivalence facts. That is useful, but it is not
-the same as opening migrated graph state through the production runtime. Public
-release claims need the latter.
+the same as replaying migrated graph operations through the production
+runtime. Public release claims need the latter and must not imply the scratch
+ref format is itself a native production graph-history format.
 
 ## Design
 
@@ -44,7 +45,7 @@ repository.
 
 ## User Story
 
-As a migration operator, I can see proof that scratch migration output opens
+As a migration operator, I can see proof that scratch migration output replays
 through normal git-warp graph runtime behavior before I consider live-ref
 promotion.
 
@@ -72,6 +73,6 @@ promotion.
 
 ## Closeout
 
-This design splits "scratch history can be parsed" from "scratch history can be
-opened through git-warp's normal runtime." Slices 67 and 68 implement the
-request/result nouns and provider.
+This design splits "scratch history can be parsed" from "scratch operations can
+drive git-warp's normal runtime." Slices 67 and 68 implement the request/result
+nouns and provider.

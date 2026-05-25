@@ -40,6 +40,11 @@
       "description": "Alice and Bob cover legacy node property compatibility."
     },
     {
+      "kind": "property",
+      "key": "node:alpha->node:beta:relates:weight",
+      "description": "Alice and Bob cover legacy edge property compatibility."
+    },
+    {
       "kind": "content",
       "key": "node:alpha:_content",
       "description": "Content attachment compatibility uses legacy _content facts."

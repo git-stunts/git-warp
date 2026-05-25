@@ -20,6 +20,7 @@ import GraphModelMigrationRuntimeConformanceResult, {
 import GraphModelMigrationScratchRef
   from '../../domain/migrations/GraphModelMigrationScratchRef.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
+import WarpError from '../../domain/errors/WarpError.ts';
 import type { JsonObject } from './JsonObject.ts';
 
 const REQUEST_KEYS = Object.freeze([
@@ -55,10 +56,12 @@ const NOTICE_KEYS = Object.freeze(['kind', 'code', 'message']);
 export function parseGraphModelMigrationFinalizationConfirmation(
   raw: string,
 ): GraphModelMigrationFinalizationConfirmation {
-  const envelope = requireJsonObject(parseJson(raw), 'finalizationConfirmation');
-  rejectUnknownKeys(envelope, CONFIRMATION_KEYS, 'finalizationConfirmation');
-  return new GraphModelMigrationFinalizationConfirmation({
-    token: readRequiredString(envelope, 'finalizationConfirmation.confirmationToken', 'confirmationToken'),
+  return parseDomainValue('finalization confirmation', () => {
+    const envelope = requireJsonObject(parseJson(raw), 'finalizationConfirmation');
+    rejectUnknownKeys(envelope, CONFIRMATION_KEYS, 'finalizationConfirmation');
+    return new GraphModelMigrationFinalizationConfirmation({
+      token: readRequiredString(envelope, 'finalizationConfirmation.confirmationToken', 'confirmationToken'),
+    });
   });
 }
 
@@ -66,7 +69,24 @@ export function parseGraphModelMigrationFinalizationConfirmation(
 export function parseGraphModelMigrationFinalizationRequest(
   raw: string,
 ): GraphModelMigrationFinalizationRequest {
-  return requestFromJson(parseJson(raw));
+  return parseDomainValue('finalization request', () => requestFromJson(parseJson(raw)));
+}
+
+function parseDomainValue<T>(label: string, parser: () => T): T {
+  try {
+    return parser();
+  } catch (error) {
+    if (error instanceof AdapterValidationError) {
+      throw error;
+    }
+    if (error instanceof WarpError) {
+      throw new AdapterValidationError(
+        `Graph model migration ${label} is invalid: ${error.message}`,
+        { context: { causeCode: error.code, causeMessage: error.message } },
+      );
+    }
+    throw error;
+  }
 }
 
 function requestFromJson(value: unknown): GraphModelMigrationFinalizationRequest {

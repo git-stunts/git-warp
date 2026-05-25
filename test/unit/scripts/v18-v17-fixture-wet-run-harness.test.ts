@@ -40,10 +40,10 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(result.commandResult.dryRunPlan.hasFatalErrors()).toBe(false);
     expect(result.commandResult.loweringResult.hasFatalErrors()).toBe(false);
     expect(result.commandResult.scratchWriteResult?.hasFatalErrors()).toBe(false);
-    expect(result.commandResult.scratchWriteResult?.writtenPatches.length).toBe(5);
+    expect(result.commandResult.scratchWriteResult?.writtenPatches.length).toBe(6);
     expect(result.commandResult.finalizationResult).toBeNull();
     expect(result.runtimeReplayResult?.status).toBe(GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_PASSED);
-    expect(result.runtimeReplayResult?.replayedOperationCount).toBe(5);
+    expect(result.runtimeReplayResult?.replayedOperationCount).toBe(6);
     expect(result.driftCheckResult.status).toBe(V17_WET_RUN_DRIFT_CHECK_PASSED);
     expect(result.driftCheckResult.checkedRefCount).toBe(2);
   });
@@ -57,8 +57,8 @@ describe('v18 v17 fixture wet-run harness', () => {
     });
 
     expect(result.commandResult.gateResult?.allowsPromotion()).toBe(true);
-    expect(result.commandResult.gateResult?.proofResult.summary.legacyFactCount).toBe(7);
-    expect(result.commandResult.gateResult?.proofResult.summary.migratedFactCount).toBe(7);
+    expect(result.commandResult.gateResult?.proofResult.summary.legacyFactCount).toBe(8);
+    expect(result.commandResult.gateResult?.proofResult.summary.migratedFactCount).toBe(8);
     expect(result.commandResult.gateResult?.proofResult.summary.mismatchCount).toBe(0);
     expect(result.commandResult.gateResult?.fatalErrors).toEqual([]);
   });
@@ -101,7 +101,7 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(first).not.toContain('- missing node node:removed visibility');
     expect(first).not.toContain('- missing property writers:alice+bob coverage');
     expect(first).toContain('runtimeReplay: passed');
-    expect(first).toContain('runtimeReplayOperations: 5');
+    expect(first).toContain('runtimeReplayOperations: 6');
     expect(first).toContain('driftCheck: passed');
     expect(first).toContain('driftCheckedRefs: 2');
   });

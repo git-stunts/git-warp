@@ -36,5 +36,5 @@ Regeneration must preserve deterministic commit inputs:
   - `refs/warp/v17-golden-graph/writers/bob`.
 
 After regeneration, update `manifest.json` with the new writer heads and keep
-the visible fact coverage over edge endpoint nodes, edge, property, content,
-removal, and multi-writer cases.
+the visible fact coverage over edge endpoint nodes, edge, node property, edge
+property, content, removal, and multi-writer cases.

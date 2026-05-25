@@ -36,8 +36,8 @@ from passing facts without provenance.
 
 ## Acceptance Criteria
 
-- The wet-run migrated reading contains seven facts, matching the legacy
-  reading's seven facts.
+- The wet-run migrated reading contains eight facts, matching the legacy
+  reading's eight facts.
 - Removed-node fixture coverage is represented as a node visibility fact with
   value `removed`.
 - Multi-writer fixture coverage is represented as a property coverage fact.
@@ -49,5 +49,5 @@ from passing facts without provenance.
 ## Test Plan
 
 The wet-run harness test restores the canonical fixture, writes scratch history,
-builds legacy and migrated readings, and asserts seven legacy facts, seven
+builds legacy and migrated readings, and asserts eight legacy facts, eight
 migrated facts, zero mismatches, and no boundary fatal errors.

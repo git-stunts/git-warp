@@ -156,7 +156,7 @@ export function parseGraphModelMigrationCommandCliArgs(
     }
     if (arg !== undefined && FINALIZATION_FLAGS.has(arg)) {
       throw new GraphModelMigrationCommandCliArgumentError(
-        'finalization is not supported by this CLI wrapper yet',
+        'direct finalization flags are not supported; use --finalization-request <path>',
       );
     }
     throw new GraphModelMigrationCommandCliArgumentError(`Unknown argument: ${arg ?? ''}`);

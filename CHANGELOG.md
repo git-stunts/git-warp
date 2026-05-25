@@ -188,6 +188,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 release-candidate review follow-up now binds reviewed finalization JSON
+  to runtime witness evidence, normalizes semantic finalization request
+  validation as adapter errors, adds edge-property coverage to the canonical
+  wet-run proof, and narrows production-runtime replay wording to the proven
+  scratch-operation replay path.
 - V18 graph-model migration review follow-up now preserves parent Git command
   environment variables under deterministic identities, validates scratch and
   finalization boundaries before Git work, rejects malformed scratch payload

@@ -9,7 +9,9 @@ import GraphModelMigrationScratchWriteResult
 import {
   CONTENT_PROPERTY_KEY,
   decodeEdgeKey,
+  decodeEdgePropKey,
   decodePropKey,
+  encodeEdgeKey,
   isEdgePropKey,
 } from '../../../../src/domain/services/KeyCodec.ts';
 import type { SnapshotPropValue }
@@ -91,6 +93,28 @@ function publicFactsFromSnapshot(state: SnapshotWarpState): readonly GenesisEqui
   }
   for (const entry of sortedPropertyEntries(state.prop)) {
     if (isEdgePropKey(entry.encodedKey)) {
+      const property = decodeEdgePropKey(entry.encodedKey);
+      if (!visibleEdgeExists(state, property)) {
+        continue;
+      }
+      if (property.propKey === CONTENT_PROPERTY_KEY) {
+        facts.push(publicFact(
+          'content-attachment',
+          publicEdgePropertyFactKey(property, property.propKey),
+          'payload.oid',
+          requireScalarPublicValue(entry.value),
+        ));
+        continue;
+      }
+      if (isGraphModelMigrationContentMetadataProperty(property.propKey)) {
+        continue;
+      }
+      facts.push(publicFact(
+        'property',
+        publicEdgePropertyFactKey(property, property.propKey),
+        'value',
+        requireScalarPublicValue(entry.value),
+      ));
       continue;
     }
     const property = decodePropKey(entry.encodedKey);
@@ -144,6 +168,27 @@ function publicEdgeFactKey(edge: {
 
 function publicPropertyFactKey(ownerId: string, propertyKey: string): string {
   return `${ownerId}:${propertyKey}`;
+}
+
+function publicEdgePropertyFactKey(edge: {
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+}, propertyKey: string): string {
+  return publicPropertyFactKey(publicEdgeFactKey(edge), propertyKey);
+}
+
+function visibleEdgeExists(
+  state: SnapshotWarpState,
+  edge: {
+    readonly from: string;
+    readonly to: string;
+    readonly label: string;
+  },
+): boolean {
+  return state.edgeAlive.contains(encodeEdgeKey(edge.from, edge.to, edge.label))
+    && state.nodeAlive.contains(edge.from)
+    && state.nodeAlive.contains(edge.to);
 }
 
 function sortedStrings(values: readonly string[]): readonly string[] {

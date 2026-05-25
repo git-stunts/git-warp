@@ -37,7 +37,9 @@ describe('v18 graph-model migration command CLI', () => {
 
   it('refuses legacy finalization flags in favor of request artifacts', () => {
     expect(() => parseGraphModelMigrationCommandCliArgs(['--finalize']))
-      .toThrow(/finalization is not supported/);
+      .toThrow(/direct finalization flags are not supported/);
+    expect(() => parseGraphModelMigrationCommandCliArgs(['--finalize']))
+      .toThrow(/--finalization-request <path>/);
   });
 
   it('writes scratch history and emits a deterministic command report', async () => {
@@ -177,6 +179,42 @@ describe('v18 graph-model migration command CLI', () => {
     expect(result.stdout).toContain('E_ARCHIVE_REF_EXISTS');
     expect(await gitText(restoreResult.repositoryPath, ['rev-parse', REVIEWED_LIVE_REF])).toBe(ALICE_HEAD);
   });
+
+  it('blocks finalization when the reviewed runtime witness differs from observed replay', async () => {
+    const scratchHead = await previewScratchHead();
+    const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-witness-'));
+    const restoreResult = await restoreV17GoldenGraphFixture({
+      manifestPath: FIXTURE_MANIFEST,
+      targetDirectory: join(directory, 'repo'),
+    });
+    const requestPath = join(directory, 'request.json');
+    const finalizationPath = join(directory, 'finalization.json');
+    await writeFile(requestPath, canonicalRequestJson(), 'utf8');
+    await writeFile(finalizationPath, finalizationRequestJson(scratchHead, {
+      runtimeWitness: 'tampered-runtime-witness',
+    }), 'utf8');
+
+    const result = await runGraphModelMigrationCommandCli([
+      '--repo',
+      restoreResult.repositoryPath,
+      '--request',
+      requestPath,
+      '--legacy-fixture-manifest',
+      FIXTURE_MANIFEST,
+      '--scratch-ref',
+      SCRATCH_REF,
+      '--finalization-request',
+      finalizationPath,
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('finalization: blocked');
+    expect(result.stdout).toContain('E_FINALIZATION_REVIEW_MISMATCH');
+    expect(result.stdout).toContain('runtimeConformance');
+    expect(await refExists(restoreResult.repositoryPath, ARCHIVE_REF)).toBe(false);
+    expect(await gitText(restoreResult.repositoryPath, ['rev-parse', LIVE_REF])).toBe(ALICE_HEAD);
+  });
+
 });
 
 function canonicalRequestJson(): string {
@@ -214,6 +252,12 @@ function canonicalRequestJson(): string {
       "legacyPropertyKey": "title",
       "targetOwnerId": "node:alpha",
       "targetPropertyKey": "title"
+    },
+    {
+      "legacyOwnerId": "node:alpha->node:beta:relates",
+      "legacyPropertyKey": "weight",
+      "targetOwnerId": "\\u0001node:alpha\\u0000node:beta\\u0000relates",
+      "targetPropertyKey": "weight"
     }
   ]
 }
@@ -223,6 +267,7 @@ function canonicalRequestJson(): string {
 type FinalizationRequestOptions = {
   readonly liveRefName?: string;
   readonly archiveRefName?: string;
+  readonly runtimeWitness?: string;
 };
 
 function finalizationRequestJson(
@@ -246,15 +291,16 @@ function finalizationRequestJson(
         graphId: 'v17-golden-graph',
         basisId: 'basis:source:v18-dry-run',
       },
-      legacyFactCount: 7,
-      migratedFactCount: 7,
+      legacyFactCount: 8,
+      migratedFactCount: 8,
       mismatchCount: 0,
     },
     runtimeReplay: {
       scratchRefName: SCRATCH_REF,
       scratchHead,
       status: 'passed',
-      witness: 'reviewed-in-cli-test',
+      witness: options.runtimeWitness
+        ?? 'git-warp-v18-production-runtime-scratch-replay-v1 operations=6',
       fatalErrors: [],
     },
   });
