@@ -232,13 +232,25 @@ function dryRunRequestForManifest(
         legacyEdgeId: fact.key,
         targetEdgeId: fact.key,
       })),
-    propertyMappings: manifest.visibleFacts
-      .filter((fact) => fact instanceof V17GoldenPropertyFact)
-      .map(propertyMappingFromFact),
+    propertyMappings: buildV17GoldenFixturePropertyMappings(manifest),
   });
 }
 
-function propertyMappingFromFact(fact: V17GoldenPropertyFact): GraphModelMigrationPropertyMapping {
+/** Builds fixture property mappings against declared edge facts instead of owner string shape. */
+export function buildV17GoldenFixturePropertyMappings(
+  manifest: V17GoldenGraphFixtureManifest,
+): readonly GraphModelMigrationPropertyMapping[] {
+  const checkedManifest = requireManifest(manifest);
+  const edgeFactKeys = declaredEdgeFactKeys(checkedManifest.visibleFacts);
+  return Object.freeze(checkedManifest.visibleFacts
+    .filter((fact) => fact instanceof V17GoldenPropertyFact)
+    .map((fact) => propertyMappingFromFact(fact, edgeFactKeys)));
+}
+
+function propertyMappingFromFact(
+  fact: V17GoldenPropertyFact,
+  edgeFactKeys: ReadonlySet<string>,
+): GraphModelMigrationPropertyMapping {
   const separator = fact.key.lastIndexOf(':');
   if (separator <= 0 || separator === fact.key.length - 1) {
     throw new V17GoldenGraphFixtureWetRunHarnessError(
@@ -250,15 +262,26 @@ function propertyMappingFromFact(fact: V17GoldenPropertyFact): GraphModelMigrati
   return new GraphModelMigrationPropertyMapping({
     legacyOwnerId: ownerId,
     legacyPropertyKey: propertyKey,
-    targetOwnerId: targetPropertyOwnerId(ownerId),
+    targetOwnerId: targetPropertyOwnerId(ownerId, edgeFactKeys),
     targetPropertyKey: propertyKey,
   });
 }
 
-function targetPropertyOwnerId(ownerId: string): string {
+function declaredEdgeFactKeys(facts: readonly V17GoldenGraphFixtureVisibleFact[]): ReadonlySet<string> {
+  return new Set(facts
+    .filter((fact) => fact instanceof V17GoldenEdgeFact)
+    .map((fact) => fact.key));
+}
+
+function targetPropertyOwnerId(ownerId: string, edgeFactKeys: ReadonlySet<string>): string {
+  if (!edgeFactKeys.has(ownerId)) {
+    return ownerId;
+  }
   const edge = parsePublicEdgeFactKey(ownerId);
   if (edge === null) {
-    return ownerId;
+    throw new V17GoldenGraphFixtureWetRunHarnessError(
+      `declared edge property owner ${ownerId} must use from->to:label format`,
+    );
   }
   return encodeLegacyEdgePropNode(edge.from, edge.to, edge.label);
 }

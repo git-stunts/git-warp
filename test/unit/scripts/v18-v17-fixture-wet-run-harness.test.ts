@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildV17GoldenFixturePropertyMappings,
   checkV17GoldenGraphFixtureWetRunDrift,
   runV17GoldenGraphFixtureWetRun,
   V17_WET_RUN_DRIFT_CHECK_FAILED,
@@ -20,6 +21,15 @@ import { runMigrationGit }
 import {
   GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_PASSED,
 } from '../../../src/domain/migrations/GraphModelMigrationRuntimeReplayResult.ts';
+import V17GoldenGraphFixtureManifest, {
+  V17GoldenContentFact,
+  V17GoldenEdgeFact,
+  V17GoldenMultiWriterFact,
+  V17GoldenNodeFact,
+  V17GoldenPropertyFact,
+  V17GoldenRemovalFact,
+  V17GoldenGraphFixtureWriterChain,
+} from '../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
 
 const FIXTURE_MANIFEST_PATH = resolve('fixtures/v17/graph-model-golden/manifest.json');
 
@@ -171,6 +181,52 @@ describe('v18 v17 fixture wet-run harness', () => {
       targetDirectory: join(directory, 'target'),
     })).rejects.toThrow(/from->to:label/);
   });
+
+  it('uses declared edge facts instead of delimiter shape for fixture property owners', () => {
+    const mappings = buildV17GoldenFixturePropertyMappings(new V17GoldenGraphFixtureManifest({
+      fixtureId: 'delimiter-shaped-node-owner',
+      graphId: 'v17-golden-graph',
+      sourceVersion: '17.0.1',
+      generator: 'unit fixture',
+      bundlePath: 'fixture.bundle',
+      writerChains: [writerChain()],
+      visibleFacts: [
+        new V17GoldenNodeFact({
+          key: 'node:looks->like:edge',
+          description: 'node owner that looks like an edge key',
+        }),
+        new V17GoldenEdgeFact({
+          key: 'node:alpha->node:beta:relates',
+          description: 'declared edge owner',
+        }),
+        new V17GoldenPropertyFact({
+          key: 'node:looks->like:edge:title',
+          description: 'node property using delimiter-shaped owner',
+        }),
+        new V17GoldenPropertyFact({
+          key: 'node:alpha->node:beta:relates:weight',
+          description: 'declared edge property',
+        }),
+        new V17GoldenContentFact({
+          key: 'node:looks->like:edge:_content',
+          description: 'content coverage',
+        }),
+        new V17GoldenRemovalFact({
+          key: 'node:removed',
+          description: 'removal coverage',
+        }),
+        new V17GoldenMultiWriterFact({
+          key: 'writers:alice+bob',
+          description: 'writer coverage',
+        }),
+      ],
+    }));
+
+    expect(targetOwnerFor(mappings, 'node:looks->like:edge')).toBe('node:looks->like:edge');
+    expect(targetOwnerFor(mappings, 'node:alpha->node:beta:relates')).toBe(
+      '\x01node:alpha\0node:beta\0relates',
+    );
+  });
 });
 
 async function fixtureVariant(
@@ -194,4 +250,24 @@ async function gitOk(repositoryPath: string, args: readonly string[]): Promise<s
   const result = await runMigrationGit(repositoryPath, args, null, { deterministicIdentity: true });
   expect(result.ok()).toBe(true);
   return result.stdout.trim();
+}
+
+function writerChain(): V17GoldenGraphFixtureWriterChain {
+  return new V17GoldenGraphFixtureWriterChain({
+    writerId: 'alice',
+    refName: 'refs/warp/v17-golden-graph/writers/alice',
+    expectedHead: '0123456789abcdef0123456789abcdef01234567',
+    patchCount: 1,
+  });
+}
+
+function targetOwnerFor(
+  mappings: ReturnType<typeof buildV17GoldenFixturePropertyMappings>,
+  legacyOwnerId: string,
+): string {
+  const mapping = mappings.find((candidate) => candidate.legacyOwnerId === legacyOwnerId);
+  if (mapping === undefined) {
+    throw new Error(`missing mapping for ${legacyOwnerId}`);
+  }
+  return mapping.targetOwnerId;
 }
