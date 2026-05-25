@@ -41,7 +41,7 @@ review can show exactly which generated-contract proof is missing.
 
 ## Acceptance Criteria
 
-- Runtime-boundary generated fixtures pass conformance against the canonical
+- Runtime-boundary-generated fixtures pass conformance against the canonical
   v17 graph-model manifest.
 - Receipt-family descriptors fail as graph-model runtime-boundary evidence.
 - The result exposes deterministic evidence lines and failed check names.

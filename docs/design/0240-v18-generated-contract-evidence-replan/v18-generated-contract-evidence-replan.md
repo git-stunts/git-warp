@@ -22,7 +22,7 @@ executable in git-warp.
 
 Generated contract evidence is no longer only a prose inventory:
 
-- the runtime-boundary generated fixture is admitted through the Continuum
+- the runtime-boundary-generated fixture is admitted through the Continuum
   artifact JSON adapter;
 - graph-model contract conformance ties that descriptor to the canonical v17
   graph-model fixture;

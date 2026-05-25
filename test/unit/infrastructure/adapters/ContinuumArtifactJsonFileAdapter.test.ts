@@ -348,7 +348,7 @@ describe('ContinuumArtifactJsonFileAdapter', () => {
     expect(descriptor.witnessScope).toBe('receipt-family');
   });
 
-  it('loads runtime-boundary generated fixture descriptors for graph-model evidence', async () => {
+  it('loads runtime-boundary-generated fixture descriptors for graph-model evidence', async () => {
     const adapter = new ContinuumArtifactJsonFileAdapter();
     const descriptor = await adapter.loadFile(runtimeBoundaryFixturePath, runtimeBoundaryFixtureContext);
 
