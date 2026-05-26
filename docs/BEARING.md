@@ -145,7 +145,7 @@ Current 20-slice API checklist:
 - [x] 121: Materialize API deprecation/classification.
 - [x] 122: Public surface tests.
 - [x] 123: README rewrite.
-- [ ] 124: Readings & Optics rewrite.
+- [x] 124: Readings & Optics rewrite.
 - [ ] 125: API reference rewrite.
 - [ ] 126: CLI diagnostic wording.
 - [ ] 127: Error and runtime docs sweep.
