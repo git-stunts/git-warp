@@ -139,7 +139,7 @@ lanes.
 | `inbox/` | `B0` | Anything here is blocked on triage, not implementation. |
 | backlog root | `B1` | These notes are real work, but still need lane assignment or an explicit pull decision. When `feature:` is present, treat that as the subsystem home while release-home remains undecided. |
 | `bad-code/` | `B2` | Invariant debt can block `v17.0.0`, `v18.0.0`, and `up-next`. |
-| `v17.0.0/` | `B3` | This is shipped release residual work after `v17.0.0` and `v17.0.1`; rehome notes before treating them as blockers. |
+| `v17.0.0/` | `B3` | This is shipped release residual work after the public `v17.0.0` package/tag line and source-recorded `17.0.1` repair work; rehome notes before treating them as blockers. |
 | `v18.0.0/` | `B4` | This is the next-major graph-model convergence lane. |
 | `up-next/` | `B4` | Feature-overflow queue behind the active release and next-major graph-model work unless explicitly promoted into a numbered lane. |
 | `v19.0.0/` | `B5` | Doctrine, observer, and admission convergence after the substrate cut. |
@@ -278,7 +278,8 @@ Invariant counts:
 Dependency posture:
 
 - explicit frontmatter edges override lane inheritance
-- `v17.0.0` and `v17.0.1` have shipped
+- public `v17.0.0` has shipped; `17.0.1` repair work is recorded in source
+  docs/changelog without public npm/tag evidence
 - notes in this lane need archive, rehome, or explicit pull decisions before
   they block later release work
 

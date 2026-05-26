@@ -27,9 +27,10 @@ Continuum remains translated git-warp evidence.
 
 ## Where Are We
 
-`git-warp` has shipped `v17.0.0` and the `v17.0.1` release repair. The
-active major direction is `v18.0.0`: Continuum/WARP Optic compatibility for
-git-warp as an independent Continuum participant.
+`git-warp` has a public `v17.0.0` package/tag line, with `v17.0.1` repair
+work recorded in source docs but not present as public package/tag evidence.
+The active major direction is `v18.0.0`: Continuum/WARP Optic compatibility
+for git-warp as an independent Continuum participant.
 
 The long-term compatibility target is the WARP Optic shape described in
 `~/git/blog/aion-paper-07/dist/aion-paper-07.txt`, plus the Continuum
@@ -39,19 +40,25 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Current branch: `v18-release-prep-slices-97-102`
+- Current branch: `v18-release-prep-slices-103-112`
 - Base branch: `main`
-- Current `origin/main`: `023c7d75`
-- Latest merged PR: #106, v18 release-candidate evidence and review cleanup
-- Latest released package line: `17.0.1`
-- Release-prep package metadata: `18.0.0`, not tagged or published yet
+- Current `origin/main`: `fdcb5da9`
+- Latest merged PR: #107, v18 release-prep metadata and final gates
+- Latest released package line: `17.0.0` until the `v18.0.0` tag and publish
+  complete
+- Latest recorded repair entry: `17.0.1` exists in source docs/changelog
+  without public npm/tag evidence
+- Release-prep package metadata: `18.0.0`, merged to `main`, not tagged or
+  published yet
 - Latest completed implementation cycle:
-  `0250-v18-final-release-prep-replan`
-- Current work: release-prep PR review for `v18.0.0`; local release preflight
-  is green for `18.0.0` metadata, and the remaining public-release gates are
-  PR review, GitHub CI, merge to `main`, tag, and publish.
-- Cleanup checkpoint: PR #106 is merged to `main`; this branch starts from that
-  merge and must not widen the v18 promise while preparing the public tag.
+  `0260-next-goalpost-replan-after-v18-merge`
+- Current work: post-merge release handoff and next-goalpost planning. PR
+  review, GitHub CI, and merge are complete for the release-prep branch. The
+  remaining public-release operation is to tag and publish `v18.0.0` from
+  aligned `main`.
+- Cleanup checkpoint: PR #107 is merged to `main`; this branch starts from
+  that merge and must not widen the v18 promise while setting the next
+  engineering goalpost.
 
 The current v18 graph-model posture is:
 
@@ -155,15 +162,16 @@ The current v18 graph-model posture is:
   command-owned readings, emits the command report, and permits live-ref
   finalization only through a reviewed JSON request that matches observed
   runtime evidence.
-- V18 release-candidate blockers are now explicit: GitHub CI, PR review,
-  post-merge tag/publish work, and the accepted residual raw content/property
-  risk.
+- V18 release-candidate blockers are now narrowed: PR review, GitHub CI, and
+  merge are complete; post-merge tag/publish work remains, with accepted
+  residual raw content/property risk and the full-graph-streaming non-claim
+  preserved.
 
 That is useful progress, not a finish line. The repo now has migration safety,
 wet-run proof, guarded finalization, generated Continuum contract tie-back,
-release-candidate docs, `18.0.0` package metadata, and a green local release
-preflight. Public v18 still needs PR review, GitHub CI, merge to `main`, tag,
-and publish.
+release-candidate docs, `18.0.0` package metadata on `main`, a green local
+release preflight from the release-prep branch, and green GitHub CI on PR
+#107. Public v18 still needs tag and publish work from aligned `main`.
 
 ## What Just Shipped
 
@@ -229,6 +237,16 @@ PR #106 landed v18 slices 66 through 96:
 - backlog reconciliation after the release-candidate evidence;
 - review follow-up that tightened runtime replay validation, finalization JSON
   evidence binding, fixture coverage, and migration script structure.
+
+PR #107 landed v18 slices 97 through 102:
+
+- release-prep baseline and gate evidence;
+- residual raw content/property storage risk decision;
+- public operator release notes and v18 non-goals;
+- `18.0.0` package, JSR, lockfile, workspace, changelog, and release-policy
+  metadata alignment;
+- final release-prep replan before PR review;
+- technical teardown publication and review follow-up.
 
 Slice 36 is complete on this branch. The migration manifest root now exists
 as a frozen domain noun, with runtime-backed basis, mapping, warning, and
@@ -387,13 +405,14 @@ and wet-run fixture harnessing.
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
 - The v18 migration tool now replays migrated scratch operations through the
-  production graph runtime write/materialization path during wet runs, but
-  public release still needs the full release-prep gate set on the eventual
-  release branch.
+  production graph runtime write/materialization path during wet runs, and the
+  release-prep PR has merged. Public release now needs tag and publish
+  evidence from aligned `main`.
 - Legacy readings from the v17 golden fixture now have restored public-read
   construction, but broader non-fixture replay coverage remains future work.
 - The command wrapper can finalize through a reviewed JSON request, but the
-  public tag still needs CI and release-preflight validation.
+  public tag still needs aligned-main release preflight, tag evidence, and
+  registry publish evidence.
 - Continuum/WARP Optic release claims now have generated contract evidence for
   runtime-boundary graph-model migration, but native Continuum witnesshood is
   still not claimed.
@@ -405,21 +424,17 @@ and wet-run fixture harnessing.
 
 ## Where We Are Heading
 
-The remaining runway is no longer a five-slice tail. The next realistic plan
-is thirty slices. Some slices may collapse when evidence is in hand, but the
-release plan should assume the proof work is hard until it is proven easy.
+The release-prep branch has merged. The next move is no longer adding v18
+features. It is one of three explicitly separated actions:
 
-The first thirty slices converted operation-derived confidence into
-production-runtime confidence, restored the v17 golden fixture, drove the
-canonical wet-run report to zero public-read mismatches, guarded live
-finalization, tied graph-model migration to generated runtime-boundary
-contracts, and added the first `warp-ttd` generated-family smoke. The next
-goalpost is release-prep hardening rather than new feature expansion.
+1. cut and publish `v18.0.0` from aligned `main`;
+2. retire one more raw content/property compatibility boundary;
+3. start the v19 observer/admission witnesshood runway.
 
-Slice 96 reconciled the backlog ledger with that evidence. The next practical
-goalpost is a release-prep branch that runs the full gate set, freezes package
-and release notes, and decides whether remaining raw content/property storage
-retirement blocks the public tag or ships as explicit residual risk.
+Those should not be blended. Tag/publish is release operation. Storage
+retirement is substrate-debt reduction. V19 starts a new semantic runway.
+
+Slices 103 through 112 record that split and keep the next goalpost honest.
 
 ### Release-Prep Checklist
 
@@ -435,6 +450,29 @@ retirement blocks the public tag or ships as explicit residual risk.
   [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
 - [x] 102. Replan from final release-prep evidence before PR review:
   [0250](design/0250-v18-final-release-prep-replan/v18-final-release-prep-replan.md).
+
+### Post-Merge Goalpost Checklist
+
+- [x] 103. Record the v18 post-merge release handoff:
+  [0251](design/0251-v18-post-merge-release-handoff/v18-post-merge-release-handoff.md).
+- [x] 104. Define the v18 tag and publish gate:
+  [0252](design/0252-v18-tag-publish-gate/v18-tag-publish-gate.md).
+- [x] 105. Define the v18 release evidence archive:
+  [0253](design/0253-v18-release-evidence-archive/v18-release-evidence-archive.md).
+- [x] 106. Frame the post-v18 storage retirement decision:
+  [0254](design/0254-post-v18-storage-retirement-decision/post-v18-storage-retirement-decision.md).
+- [x] 107. Frame the v19 native Continuum witnesshood runway:
+  [0255](design/0255-v19-native-continuum-witnesshood-runway/v19-native-continuum-witnesshood-runway.md).
+- [x] 108. Scope end-to-end graph streaming reads and writes to v20:
+  [0256](design/0256-v20-streaming-reads-writes-scope/v20-streaming-reads-writes-scope.md).
+- [x] 109. Define the post-v18 public doc honesty audit:
+  [0257](design/0257-post-v18-public-doc-honesty-audit/post-v18-public-doc-honesty-audit.md).
+- [x] 110. Define the next residual boundary retirement decision:
+  [0258](design/0258-v18-residual-boundary-next-retirement/v18-residual-boundary-next-retirement.md).
+- [x] 111. Plan backlog lane cleanup after v18:
+  [0259](design/0259-backlog-lane-cleanup-after-v18/backlog-lane-cleanup-after-v18.md).
+- [x] 112. Replan the next goalpost after the v18 release-prep merge:
+  [0260](design/0260-next-goalpost-replan-after-v18-merge/next-goalpost-replan-after-v18-merge.md).
 
 ### Next Thirty-Slice Checklist
 
@@ -799,3 +837,23 @@ and concrete checks live in `docs/invariants/`.
   [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
 - [x] 102. Replan from final release-prep evidence before PR review:
   [0250](design/0250-v18-final-release-prep-replan/v18-final-release-prep-replan.md).
+- [x] 103. Record the v18 post-merge release handoff:
+  [0251](design/0251-v18-post-merge-release-handoff/v18-post-merge-release-handoff.md).
+- [x] 104. Define the v18 tag and publish gate:
+  [0252](design/0252-v18-tag-publish-gate/v18-tag-publish-gate.md).
+- [x] 105. Define the v18 release evidence archive:
+  [0253](design/0253-v18-release-evidence-archive/v18-release-evidence-archive.md).
+- [x] 106. Frame the post-v18 storage retirement decision:
+  [0254](design/0254-post-v18-storage-retirement-decision/post-v18-storage-retirement-decision.md).
+- [x] 107. Frame the v19 native Continuum witnesshood runway:
+  [0255](design/0255-v19-native-continuum-witnesshood-runway/v19-native-continuum-witnesshood-runway.md).
+- [x] 108. Scope end-to-end graph streaming reads and writes to v20:
+  [0256](design/0256-v20-streaming-reads-writes-scope/v20-streaming-reads-writes-scope.md).
+- [x] 109. Define the post-v18 public doc honesty audit:
+  [0257](design/0257-post-v18-public-doc-honesty-audit/post-v18-public-doc-honesty-audit.md).
+- [x] 110. Define the next residual boundary retirement decision:
+  [0258](design/0258-v18-residual-boundary-next-retirement/v18-residual-boundary-next-retirement.md).
+- [x] 111. Plan backlog lane cleanup after v18:
+  [0259](design/0259-backlog-lane-cleanup-after-v18/backlog-lane-cleanup-after-v18.md).
+- [x] 112. Replan the next goalpost after the v18 release-prep merge:
+  [0260](design/0260-next-goalpost-replan-after-v18-merge/next-goalpost-replan-after-v18-merge.md).

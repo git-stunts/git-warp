@@ -4,9 +4,9 @@
 > See METHOD for the current process.
 > Completed items remain in `docs/ROADMAP/COMPLETED.md`. This file is kept for reference only.
 
-> **Current release on `main`:** v17.0.1
+> **Current public package/tag release:** v17.0.0
 > **Next intended release:** v18.0.0
-> **Last reconciled:** 2026-05-22 (v17.0.1 patch. Recursive tree OID reads use one path-preserving Git command; v17.0.0 release delivered readings/worldlines, TypeScript source, and the generated npm type surface.)
+> **Last reconciled:** 2026-05-22 (v17.0.1 repair work is recorded in source docs/changelog without public npm/tag evidence. Recursive tree OID reads use one path-preserving Git command; v17.0.0 release delivered readings/worldlines, TypeScript source, and the generated npm type surface.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](ROADMAP/COMPLETED.md)
 
 ---

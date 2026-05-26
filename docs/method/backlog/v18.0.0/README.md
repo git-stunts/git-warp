@@ -77,7 +77,8 @@ graph model. Change the envelope only if replay honesty requires it.
 
 ## Current Evidence
 
-After v18 slice 95, the migration path has release-candidate evidence:
+After PR #107 merged, the migration path has release-candidate evidence on
+`main`:
 
 - dry-run planning, source inventory, operation lowering, scratch writing,
   equivalence gating, and optional finalization are wired as command stages;
@@ -94,15 +95,15 @@ After v18 slice 95, the migration path has release-candidate evidence:
   boundaries and has a retired-boundary ratchet for the coordinate fact export
   cut;
 - release-candidate evidence now names candidate scope, go/no-go gates,
-  public-tag gates, and residual risks.
+  public-tag gates, and residual risks;
+- `18.0.0` package, JSR, workspace, lockfile, changelog, release notes, and
+  technical teardown updates are merged to `main`.
 
-The remaining public v18 work is release hygiene and residual-risk review:
+The remaining public v18 work is release operation:
 
-- full local release-prep gates and GitHub CI on the final release branch;
-- package/version/tag work for the public release;
-- operator release notes that distinguish graph-model convergence from later
-  Continuum admission shells;
-- explicit release notes that accept remaining raw content/property storage
-  compatibility as residual v18 risk;
-- an explicit non-claim that v18 does not provide end-to-end graph streaming
-  reads and writes.
+- align local `main` with `origin/main`;
+- rerun release preflight from `main`;
+- tag `v18.0.0` from the merged release commit;
+- publish npm and JSR artifacts from the release path;
+- preserve the explicit non-claim that v18 does not provide end-to-end graph
+  streaming reads and writes.
