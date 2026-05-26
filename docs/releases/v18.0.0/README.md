@@ -12,6 +12,12 @@ different runtime.
 
 This release adds:
 
+- a Worldline-first public application entry point with `openWarpWorldline()`,
+  `WarpWorldline`, `WarpWorldlineOpenOptions`, and
+  `WarpWorldlinePatchBuild`;
+- docs and migration guidance that classify `openWarpGraph()`, `WarpApp`,
+  `WarpCore`, and materialize-named methods as compatibility, diagnostic,
+  migration, or substrate tooling surfaces instead of first-use app APIs;
 - runtime-backed graph-model records for nodes, edges, attachments, content,
   node properties, and edge properties;
 - projection-backed compatibility reads for legacy content and property state;
