@@ -187,6 +187,7 @@ import SyncSecret from './src/domain/services/sync/SyncSecret.ts';
 import ContentAttachmentProjection from './src/domain/services/ContentAttachmentProjection.ts';
 import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
+import WarpWorldline from './src/domain/WarpWorldline.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
@@ -202,6 +203,10 @@ import SnapshotWarpState from './src/domain/services/snapshot/SnapshotWarpState.
 import type { PropValue } from './src/domain/types/PropValue.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
 import type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
+import type {
+  WarpWorldlineOpenOptions,
+  WarpWorldlinePatchBuild,
+} from './src/domain/WarpWorldline.ts';
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
@@ -346,6 +351,9 @@ export {
   // Multi-writer graph — admission architecture entry point
   openWarpGraph,
 
+  // Worldline-first public handle
+  WarpWorldline,
+
   // Multi-writer graph support (legacy — prefer openWarpGraph)
   WarpApp,
   WarpCore,
@@ -463,6 +471,8 @@ export type {
   PropValue,
   SnapshotPropValue,
   SyncRateLimitConfig,
+  WarpWorldlineOpenOptions,
+  WarpWorldlinePatchBuild,
   ContinuumArtifactAuthorityValue,
   ContinuumArtifactDescriptorFields,
   ContinuumEvidenceClaimFields,
