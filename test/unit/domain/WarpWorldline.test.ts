@@ -150,6 +150,63 @@ describe('WarpWorldline', () => {
     await expect(handle.live().hasNode('user:bob')).resolves.toBe(false);
   });
 
+  it('reads live and historical worldline state through the same public handle', async () => {
+    const handle = await openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events',
+      writerId: 'agent-1',
+    });
+
+    await handle.commit((patch) => {
+      patch.addNode('user:alice');
+    });
+    await handle.commit((patch) => {
+      patch.addNode('user:bob');
+    });
+
+    await expect(handle.live().hasNode('user:bob')).resolves.toBe(true);
+
+    const historical = await handle.seek({ source: { kind: 'live', ceiling: 1 } });
+    await expect(historical.hasNode('user:alice')).resolves.toBe(true);
+    await expect(historical.hasNode('user:bob')).resolves.toBe(false);
+  });
+
+  it('pins observer reads to a historical worldline source', async () => {
+    const handle = await openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events',
+      writerId: 'agent-1',
+    });
+
+    await handle.commit((patch) => {
+      patch.addNode('user:alice');
+    });
+    await handle.commit((patch) => {
+      patch.addNode('internal:secret');
+    });
+
+    const historical = await handle.seek({ source: { kind: 'live', ceiling: 1 } });
+    const users = await historical.observer('users', { match: 'user:*' });
+
+    await expect(users.hasNode('user:alice')).resolves.toBe(true);
+    await expect(users.hasNode('internal:secret')).resolves.toBe(false);
+  });
+
+  it('exposes the bounded optic handle while preserving current basis limits', async () => {
+    const handle = await openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events',
+      writerId: 'agent-1',
+    });
+
+    const optic = handle.optic();
+
+    expect(optic.node('user:alice')).toBeDefined();
+    await expect(optic.node('user:alice').read()).rejects.toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+    });
+  });
+
   it('rejects empty open identities before returning a handle', async () => {
     await expect(openWarpWorldline({
       persistence: new InMemoryGraphAdapter(),
