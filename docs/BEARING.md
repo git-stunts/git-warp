@@ -29,6 +29,21 @@ Continuum-shaped values are not automatically Continuum-native witnesses.
 Until native witnesshood is proven, git-warp evidence that is shaped for
 Continuum remains translated git-warp evidence.
 
+## Worldline/Optic Public API Posture
+
+The next 20-slice branch is a product-value pivot for v18:
+
+- Worldlines and optics should become the first-use public API story.
+- `openWarpGraph()`, `WarpApp.open()`, `WarpCore.open()`, and public
+  materialize-first methods should remain compatible but become legacy,
+  compatibility, or diagnostic surfaces.
+- The implementation should wrap existing runtime seams where possible. Do not
+  mix this branch with storage retirement, native Continuum witnesshood, or
+  end-to-end graph streaming claims.
+
+The controlling plan is
+[0261-worldline-optic-public-api-deprecation-prd](design/0261-worldline-optic-public-api-deprecation-prd/worldline-optic-public-api-deprecation-prd.md).
+
 ## Where Are We
 
 The repo has crossed the v18 implementation and release-prep boundary.
@@ -94,17 +109,21 @@ tag, npm, and JSR evidence exist.
 
 The next work should stay split into distinct modes:
 
-1. **Release operation**: cut and publish `v18.0.0` from aligned `main`.
-2. **Substrate debt**: retire one more raw content/property compatibility
+1. **Public API product pivot**: make Worldlines and Optics the v18 first-use
+   story while deprecating graph/materialize-first public paths.
+2. **Release operation**: cut and publish `v18.0.0` from aligned `main`.
+3. **Substrate debt**: retire one more raw content/property compatibility
    boundary and ratchet the closeout audit.
-3. **v19 runway**: start native Continuum witnesshood work without backdating a
+4. **v19 runway**: start native Continuum witnesshood work without backdating a
    stronger v18 claim.
-4. **v20 runway**: design end-to-end graph streaming reads and writes without
+5. **v20 runway**: design end-to-end graph streaming reads and writes without
    assuming full-graph materialization.
 
 Do not blend these into one ambiguous branch.
 
 ## Live Checklist
+
+Release-operation work still pending outside this branch:
 
 - [ ] Cut the signed `v18.0.0` tag from the release commit after explicit
   release approval.
@@ -112,11 +131,29 @@ Do not blend these into one ambiguous branch.
 - [ ] Publish npm and JSR artifacts from the release path.
 - [ ] Record the release evidence archive: tag SHA, preflight result, npm
   version evidence, JSR version evidence, and any audit note.
-- [ ] Run the post-v18 public-doc honesty audit.
-- [ ] Pick the next implementation mode: storage retirement, v19 witnesshood,
-  or v20 streaming design.
-- [ ] Update `BEARING` at the next cycle boundary with only live state and
-  unresolved tensions.
+
+Current 20-slice API checklist:
+
+- [x] 113: PRD and BEARING pivot.
+- [ ] 114: Public surface inventory.
+- [ ] 115: API naming and dependency contract.
+- [ ] 116: Runtime-backed public types.
+- [ ] 117: Entrypoint wrapper.
+- [ ] 118: Commit path.
+- [ ] 119: Read, observer, and optic path.
+- [ ] 120: Legacy graph API deprecation.
+- [ ] 121: Materialize API deprecation/classification.
+- [ ] 122: Public surface tests.
+- [ ] 123: README rewrite.
+- [ ] 124: Readings & Optics rewrite.
+- [ ] 125: API reference rewrite.
+- [ ] 126: CLI diagnostic wording.
+- [ ] 127: Error and runtime docs sweep.
+- [ ] 128: Migration guide.
+- [ ] 129: Non-functional guards.
+- [ ] 130: Package surface audit.
+- [ ] 131: Changelog and release story.
+- [ ] 132: Drift check and go/no-go.
 
 ## Invariants
 
