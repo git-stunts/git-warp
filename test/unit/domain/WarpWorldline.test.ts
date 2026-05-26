@@ -229,6 +229,29 @@ describe('WarpWorldline', () => {
     });
   });
 
+  it('rejects blank writer identity before returning a handle', async () => {
+    await expect(openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events',
+      writerId: '   ',
+    })).rejects.toMatchObject({
+      code: 'E_WARP_WORLDLINE_IDENTITY',
+      context: { field: 'writerId' },
+    });
+  });
+
+  it('reports malformed JavaScript writer identity as WarpError', async () => {
+    await expect(openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events',
+      // @ts-expect-error exercising runtime validation for JavaScript callers
+      writerId: 42,
+    })).rejects.toMatchObject({
+      code: 'E_WARP_WORLDLINE_IDENTITY',
+      context: { field: 'writerId' },
+    });
+  });
+
   it('freezes the worldline-first public handle without materialize escapes', () => {
     const handle = createHandle();
 

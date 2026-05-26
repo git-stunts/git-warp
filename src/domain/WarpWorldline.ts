@@ -105,8 +105,8 @@ export async function openWarpWorldline(
   });
 }
 
-function assertNonEmpty(value: string, field: string): void {
-  if (value.length === 0) {
+function assertNonEmpty(value: string | null | undefined, field: string): void {
+  if (typeof value !== 'string' || value.trim().length === 0) {
     throw new WarpError(
       'WarpWorldline requires non-empty identity fields',
       'E_WARP_WORLDLINE_IDENTITY',
