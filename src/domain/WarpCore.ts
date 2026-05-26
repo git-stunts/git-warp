@@ -18,6 +18,10 @@ import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
  * materialization, provenance, comparison, and other low-level mechanics.
  * It now adopts an explicit structural core product rather than linking
  * itself onto the `WarpRuntime` prototype.
+ *
+ * @deprecated For application workflows, use openWarpWorldline(). WarpCore
+ * remains supported for substrate tooling, diagnostics, replay, and
+ * compatibility with existing graph-first integrations.
  */
 export default class WarpCore {
   declare readonly graphName: WarpCoreRuntimeSurface['graphName'];

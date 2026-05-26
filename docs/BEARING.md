@@ -141,7 +141,7 @@ Current 20-slice API checklist:
 - [x] 117: Entrypoint wrapper.
 - [x] 118: Commit path.
 - [x] 119: Read, observer, and optic path.
-- [ ] 120: Legacy graph API deprecation.
+- [x] 120: Legacy graph API deprecation.
 - [ ] 121: Materialize API deprecation/classification.
 - [ ] 122: Public surface tests.
 - [ ] 123: README rewrite.
