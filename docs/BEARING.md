@@ -135,7 +135,7 @@ Release-operation work still pending outside this branch:
 Current 20-slice API checklist:
 
 - [x] 113: PRD and BEARING pivot.
-- [ ] 114: Public surface inventory.
+- [x] 114: Public surface inventory.
 - [ ] 115: API naming and dependency contract.
 - [ ] 116: Runtime-backed public types.
 - [ ] 117: Entrypoint wrapper.
