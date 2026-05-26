@@ -1494,8 +1494,8 @@ git warp query --match 'user:*' --outgoing manages     # Query nodes
 git warp path --from user:alice --to user:bob --dir out # Find path
 git warp history --writer alice                         # Patch history
 git warp check                                         # Health/GC status
-git warp materialize                                   # Materialize all graphs
-git warp materialize --graph my-graph                  # Single graph
+git warp materialize                                   # Diagnostic replay/checkpoint
+git warp materialize --graph my-graph                  # One graph diagnostic replay
 git warp seek --tick 3                                 # Time-travel to tick 3
 git warp seek --latest                                 # Return to present
 git warp debug coordinate                              # Resolved observation coordinate
@@ -1914,7 +1914,8 @@ If no path exists:
 
 #### materialize --view
 
-Shows materialization progress with writer contributions and graph statistics.
+Shows diagnostic replay and checkpoint progress with writer contributions and
+graph statistics.
 
 ```bash
 git warp --view materialize                # All graphs
