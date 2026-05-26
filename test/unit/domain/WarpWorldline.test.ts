@@ -218,6 +218,17 @@ describe('WarpWorldline', () => {
     });
   });
 
+  it('rejects empty writer identity before returning a handle', async () => {
+    await expect(openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events',
+      writerId: '',
+    })).rejects.toMatchObject({
+      code: 'E_WARP_WORLDLINE_IDENTITY',
+      context: { field: 'writerId' },
+    });
+  });
+
   it('freezes the worldline-first public handle without materialize escapes', () => {
     const handle = createHandle();
 
@@ -272,6 +283,16 @@ describe('WarpWorldline', () => {
         source: { kind: 'live' },
       },
     ]);
+  });
+
+  it('rejects named observer creation without aperture config', async () => {
+    const handle = createHandle();
+    // @ts-expect-error exercising runtime validation for JavaScript callers
+    const missingConfig = handle.observer('public-users', undefined);
+
+    await expect(missingConfig).rejects.toMatchObject({
+      code: 'E_WARP_WORLDLINE_OBSERVER_CONFIG',
+    });
   });
 
   it('preserves bounded optic failure semantics from the live worldline', () => {
