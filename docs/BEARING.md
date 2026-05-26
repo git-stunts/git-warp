@@ -149,7 +149,7 @@ Current 20-slice API checklist:
 - [x] 125: API reference rewrite.
 - [x] 126: CLI diagnostic wording.
 - [x] 127: Error and runtime docs sweep.
-- [ ] 128: Migration guide.
+- [x] 128: Migration guide.
 - [ ] 129: Non-functional guards.
 - [ ] 130: Package surface audit.
 - [ ] 131: Changelog and release story.

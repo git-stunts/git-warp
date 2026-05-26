@@ -122,7 +122,7 @@ your source tree. Sync happens through normal `git push` / `git fetch`.
 - **[Guide](docs/GUIDE.md)** — patterns for apps, agents, and tools
 - **[API Reference](docs/API_REFERENCE.md)** — exhaustive public API
 - **[Architecture](docs/ARCHITECTURE.md)** — hexagonal layers and admission kernel
-- **[Migration Guide](docs/migrations/v17.0.0.md)** — upgrading from v16
+- **[Migration Guide](docs/migrations/v18.0.0.md)** — Worldline-first v18 API migration
 - **[CLI Guide](docs/CLI_GUIDE.md)** — terminal workflows
 - **[Vision](docs/VISION.md)** — repo doctrine
 - **[Specs](docs/specs/)** — normative protocol and format specifications

@@ -18,6 +18,8 @@ when you need that level of detail.
   Builder guide: common app patterns with Worldlines, observers, and strands.
 - [API Reference](API_REFERENCE.md)
   Exhaustive API, appendices, flags, and examples without the narrative.
+- [v18 Migration Guide](migrations/v18.0.0.md)
+  Worldline-first API migration from graph/materialize-first app code.
 - [Advanced Guide](ADVANCED_GUIDE.md)
   Architect guide: substrate internals, replay, trust, and performance.
 - [CLI Guide](CLI_GUIDE.md)
