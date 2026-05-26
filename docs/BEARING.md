@@ -153,7 +153,7 @@ Current 20-slice API checklist:
 - [x] 129: Non-functional guards.
 - [x] 130: Package surface audit.
 - [x] 131: Changelog and release story.
-- [ ] 132: Drift check and go/no-go.
+- [x] 132: Drift check and go/no-go.
 
 ## Invariants
 
