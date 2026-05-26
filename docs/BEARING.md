@@ -1,6 +1,10 @@
 # BEARING
 
-Updated at cycle boundaries and before the final commit of each v18 slice.
+Updated at cycle boundaries. Keep this file as a live signpost, not a
+warehouse for completed slice history.
+
+Completed v18 slice history through slice 112 was rotated to
+[0146-bearing-v18-completed-rotation](method/retro/0146-bearing-v18-completed-rotation/bearing-v18-completed-rotation.md).
 
 Scope note:
 
@@ -27,370 +31,42 @@ Continuum remains translated git-warp evidence.
 
 ## Where Are We
 
-`git-warp` has a public `v17.0.0` package/tag line, with `v17.0.1` repair
-work recorded in source docs but not present as public package/tag evidence.
-The active major direction is `v18.0.0`: Continuum/WARP Optic compatibility
-for git-warp as an independent Continuum participant.
+The repo has crossed the v18 implementation and release-prep boundary.
+`18.0.0` package metadata, JSR metadata, changelog, release notes, migration
+evidence, generated-contract evidence, and post-v18 planning docs are merged to
+`main`.
 
-The long-term compatibility target is the WARP Optic shape described in
-`~/git/blog/aion-paper-07/dist/aion-paper-07.txt`, plus the Continuum
-contract families authored in `~/git/continuum/schemas/` and compiled by
-Wesley. `warp-ttd` should eventually consume generated-family facts instead
-of handwritten adapter folklore.
+Current release facts:
 
-Current branch state at this boundary:
-
-- Current branch: `v18-release-prep-slices-103-112`
-- Base branch: `main`
-- Current `origin/main`: `fdcb5da9`
-- Latest merged PR: #107, v18 release-prep metadata and final gates
-- Latest released package line: `17.0.0` until the `v18.0.0` tag and publish
-  complete
+- Latest merged PR: #108, post-v18 release handoff and next-goalpost planning.
+- Current release commit on `main`: `59beefed`.
+- Package metadata: `18.0.0` in `package.json` and `jsr.json`.
+- Public package/tag line: still `17.0.0` until the `v18.0.0` tag and registry
+  publishes complete.
 - Latest recorded repair entry: `17.0.1` exists in source docs/changelog
-  without public npm/tag evidence
-- Release-prep package metadata: `18.0.0`, merged to `main`, not tagged or
-  published yet
-- Latest completed implementation cycle:
-  `0260-next-goalpost-replan-after-v18-merge`
-- Current work: post-merge release handoff and next-goalpost planning. PR
-  review, GitHub CI, and merge are complete for the release-prep branch. The
-  remaining public-release operation is to tag and publish `v18.0.0` from
-  aligned `main`.
-- Cleanup checkpoint: PR #107 is merged to `main`; this branch starts from
-  that merge and must not widen the v18 promise while setting the next
-  engineering goalpost.
+  without public npm/tag evidence.
+- Release preflight from aligned `main` has passed for `v18.0.0`.
+- No `v18.0.0` tag is present at the release commit yet.
 
-The current v18 graph-model posture is:
+Current v18 implementation posture:
 
-- Runtime-backed node records exist.
-- Runtime-backed edge records exist.
-- Generic attachment records exist.
-- Graph-op algebra projection exists.
-- Typed content payload nouns exist.
-- Content attachment projection exists.
-- Public content reads use the content projection.
-- Content writes construct typed intent before lowering to legacy `_content*`
-  compatibility properties.
-- Runtime-backed legacy property projection nouns exist.
-- Node and edge property projections exist.
-- Public query property reads use projection-backed compatibility records.
-- State-reader property and content views use projection-backed compatibility
-  records.
-- Generic node and edge property writes construct runtime-backed write intents
-  before lowering to legacy compatibility operations.
-- Graph-op algebra projection emits typed content and property operation
-  nouns, not raw property-map entries.
-- Query read-model node props, translation-cost property-key accounting, and
-  public property counts use property projection nouns.
-- Runtime-backed graph-model migration manifest nouns exist for dry-run
-  planning, including source/target basis, node, edge, property, content
-  mapping entries, warnings, and fatal planning failures.
-- Runtime-backed migration source inventory nouns exist for adapter-collected
-  graph identity, optional source basis, writer chains, patch descriptors,
-  state snapshot references, content/blob sources, warnings, and fatal
-  collection errors.
-- A pure dry-run graph-model migration planner exists. It consumes source
-  inventory, returns result values for incomplete inputs, emits a migration
-  manifest and planned graph-operation facts, and still writes no graph
-  history.
-- Ordered migration history input nouns exist for writer segments, patch
-  identity, per-writer patch sequence, per-patch operation indexes, and
-  frontier evidence needed by later genesis equivalence work.
-- Manifest JSON serialization exists as an infrastructure adapter boundary.
-  Domain migration nouns still do not parse or stringify JSON.
-- A non-destructive migration dry-run CLI exists under
-  `scripts/v18.0.0/migrations/graph-model/`. It accepts explicit request JSON,
-  emits deterministic manifest output, and refuses apply/write verbs.
-- Genesis equivalence proof nouns exist for basis pairs, visible reading
-  facts, patch boundary evidence, structured mismatches, proof summaries, and
-  success/failure result values.
-- First equivalence fixtures exist for node lifecycle, edge lifecycle, content
-  attachment metadata, removed-node visibility, multi-writer ordering, and one
-  intentional divergent property case.
-- A genesis divergence reporter exists and turns proof failures into
-  structured first-divergence reports.
-- A v17 golden graph-history fixture design now precedes real source
-  inventory collection so migration work can prove against restored persisted
-  Git data, not only compact in-memory proof cases.
-- A first v17 golden graph-history fixture bundle and manifest now restore
-  real `refs/warp/*` writer refs into an isolated repository and validate
-  writer heads, patch counts, and visible fact-family coverage.
-- A read-only restored source inventory collector now discovers real writer
-  refs, decodes patch commit trailers, records writer chains and patch
-  descriptors, derives a deterministic source basis, and fails closed with
-  structured migration notices.
-- Pure migration operation lowering now turns successful dry-run plans into
-  runtime-backed write-ready operation facts while refusing fatal dry-run plans.
-- An explicit scratch migration writer now writes lowered operation facts only
-  under `refs/warp-migration-scratch/*`, rejects live graph refs, and advances
-  scratch refs with expected-head `git update-ref` calls.
-- A scratch equivalence gate now compares legacy and scratch genesis readings,
-  reports first divergence, and blocks promotion when proof fails or visible
-  facts lack patch-boundary evidence.
-- Finalization safety is now modeled as pure domain evidence: explicit
-  confirmation, passed equivalence gate, archive ref target, scratch output,
-  and live-ref expected-head match are required before live refs can move.
-- Archive-preserving finalization now exists as an adapter-layer Git updater:
-  it refuses failed safety results, rejects live-ref drift, creates an archive
-  ref for old lineage, and advances the live ref with expected-head CAS.
-- Command-level migration wiring now runs dry-run planning, lowering, scratch
-  writing, equivalence gating, and optional finalization in order, with
-  finalization absent by default.
-- Finalization now also requires post-migration runtime conformance evidence
-  tied to the exact scratch ref and scratch head.
-- The remaining raw content/property compatibility files are now listed in an
-  executable closeout audit, and the next release slices are scoped to retiring
-  one boundary plus ratcheting that audit.
-- Legacy fixture manifests can now be projected into genesis-equivalence
-  readings with deterministic patch-boundary evidence.
-- Scratch migration operation commits can now be projected into
-  genesis-equivalence readings with scratch commit boundary evidence.
-- The migration command can now construct equivalence readings through command
-  reading providers after scratch writing.
-- Scratch migration runtime conformance now has an adapter-level provider that
-  verifies the scratch ref still points at the expected head and reads
-  operation commits back into genesis evidence.
-- Command finalization is now covered with command-owned legacy/scratch reading
-  providers plus scratch operation readback conformance, not only supplied test
-  proof values.
-- Provider-built scratch readings now have a divergence regression proving
-  finalization remains blocked when scratch history is readable but not
-  equivalent.
-- The migration command now has deterministic operator report formatting for
-  planning, scratch, equivalence, and finalization evidence.
-- A migration command CLI wrapper now writes scratch history, builds
-  command-owned readings, emits the command report, and permits live-ref
-  finalization only through a reviewed JSON request that matches observed
-  runtime evidence.
-- V18 release-candidate blockers are now narrowed: PR review, GitHub CI, and
-  merge are complete; post-merge tag/publish work remains, with accepted
-  residual raw content/property risk and the full-graph-streaming non-claim
-  preserved.
+- Runtime-backed node, edge, attachment, content, and property projection nouns
+  exist over the legacy storage plane.
+- Graph-op algebra projection emits typed graph operation nouns rather than raw
+  property-map entries.
+- Graph-model migration now has dry-run planning, source inventory, operation
+  lowering, scratch writing, equivalence gating, runtime conformance, guarded
+  finalization, and deterministic operator reports.
+- The v17 golden graph-history fixture can be restored, migrated through
+  scratch history, replayed through the production runtime, and proven against
+  public-read equivalence with zero canonical mismatches.
+- Generated Continuum/WARP Optic contract evidence is ingested for the
+  runtime-boundary family, and the `warp-ttd` generated-family smoke exists.
+- Release-candidate evidence accepts the residual raw content/property storage
+  risk and preserves the non-claim that v18 has end-to-end graph streaming.
 
-That is useful progress, not a finish line. The repo now has migration safety,
-wet-run proof, guarded finalization, generated Continuum contract tie-back,
-release-candidate docs, `18.0.0` package metadata on `main`, a green local
-release preflight from the release-prep branch, and green GitHub CI on PR
-#107. Public v18 still needs tag and publish work from aligned `main`.
-
-## What Just Shipped
-
-PR #97 landed v18 slices 21 through 25:
-
-- post-slice-20 content-cutover runway;
-- runtime-backed content attachment payload nouns;
-- content attachment projection over legacy `_content*` compatibility state;
-- public content reads routed through typed content projection;
-- typed content write intent before compatibility-property lowering;
-- same-patch metadata lineage repair for content projection.
-
-PRs #94 through #96 had already landed the earlier v18 evidence posture,
-generated-family readiness, runtime-boundary source facts, node and edge
-records, generic attachment substrate, and graph-op algebra groundwork.
-
-PR #98 landed the detailed design documents for slices 26 through 45 and
-reset this bearing around the property-projection, migration dry-run, and
-genesis-equivalence runway.
-
-PR #99 landed v18 slices 26 through 30:
-
-- post-slice-25 property-projection runway;
-- runtime-backed legacy node and edge property key/value nouns;
-- node property projection over visible `WarpState` facts;
-- edge property projection over visible `WarpState` facts;
-- query node properties, edge properties, and edge-list property payloads
-  routed through projection-backed compatibility records;
-- review follow-up preserving tolerant misses, targeted projection reads,
-  malformed-record skipping, shared legacy content keys, and plain-object
-  property carrier guards.
-
-PR #101 landed v18 slices 31 through 35:
-
-- state-reader node, edge, and content property views route through typed
-  projections;
-- runtime-backed node and edge property write intent nouns exist;
-- `PatchBuilder` generic property writes lower through those intents while
-  preserving the existing patch wire shape;
-- graph-op algebra projection emits typed content and property operation
-  nouns;
-- closeout routed the remaining live read-model property views through
-  projections and documented the remaining raw legacy-property boundaries.
-- review follow-up hardened CI action pinning, property-value recursion and
-  prototype guards, and hostile `SnapshotWarpState` hydration boundaries.
-
-PR #102 landed v18 slices 36 through 40:
-
-- graph-model migration manifest nouns;
-- migration source inventory;
-- dry-run state migration planner;
-- ordered migration history input;
-- migration manifest serialization.
-
-PR #106 landed v18 slices 66 through 96:
-
-- production-runtime scratch replay and public-read wet-run proof;
-- guarded CLI finalization behind reviewed JSON confirmation;
-- generated Continuum runtime-boundary contract conformance and `warp-ttd`
-  smoke evidence;
-- raw content/property retired-boundary ratchet;
-- release-candidate evidence packet;
-- backlog reconciliation after the release-candidate evidence;
-- review follow-up that tightened runtime replay validation, finalization JSON
-  evidence binding, fixture coverage, and migration script structure.
-
-PR #107 landed v18 slices 97 through 102:
-
-- release-prep baseline and gate evidence;
-- residual raw content/property storage risk decision;
-- public operator release notes and v18 non-goals;
-- `18.0.0` package, JSR, lockfile, workspace, changelog, and release-policy
-  metadata alignment;
-- final release-prep replan before PR review;
-- technical teardown publication and review follow-up.
-
-Slice 36 is complete on this branch. The migration manifest root now exists
-as a frozen domain noun, with runtime-backed basis, mapping, warning, and
-fatal-error entries. It does not serialize, read Git, or write graph history.
-
-Slice 37 is complete on this branch. The migration source inventory now
-separates adapter-collected facts from planner input, rejects duplicate or
-inconsistent patch facts, records missing source basis as a fatal collection
-condition, and still performs no Git I/O.
-
-Slice 38 is complete on this branch. The dry-run planner consumes migration
-source inventory and planned mapping inputs, emits a manifest plus planned
-operation facts for complete input, and fails closed as a value when source
-inventory or required content sources are incomplete.
-
-Slice 39 is complete on this branch. Ordered history input now preserves
-writer, patch, operation, and frontier boundaries as frozen migration-domain
-values so future equivalence checks can report exact divergence locations.
-
-Slice 40 is complete on this branch. Manifest JSON serialization now
-round-trips through an infrastructure adapter with deterministic output,
-field-specific parse errors, and domain construction enforcing duplicate
-mapping invariants.
-
-This branch starts PR D, v18 slices 41 through 45:
-
-- migration dry-run CLI;
-- genesis equivalence proof nouns;
-- genesis equivalence fixtures;
-- genesis divergence reporter;
-- evidence-backed replan.
-
-Slice 41 is complete on this branch. The dry-run CLI now accepts an explicit
-request JSON artifact, decodes source facts at the infrastructure boundary,
-calls the pure dry-run planner, writes only an optional deterministic manifest
-artifact, reports summary counts, and refuses destructive apply/write verbs.
-
-Slice 42 is complete on this branch. Genesis equivalence now has
-runtime-backed comparison basis, reading fact, boundary evidence, mismatch,
-summary, and success/failure result nouns. The proof comparer returns
-structured expected failures instead of throwing for non-equivalent readings.
-
-Slice 43 is complete on this branch. The first deterministic equivalence
-fixtures now cover node lifecycle, edge lifecycle, content attachment metadata,
-removed-node visibility, multi-writer non-coordinated ordering, and one
-intentional divergent property case.
-
-Slice 44 is complete on this branch. Genesis divergence reporting now selects
-the first deterministic proof mismatch and exposes mismatch kind, graph fact
-identity, field path, optional writer/patch/operation boundary evidence, and
-bounded value summaries as structured report fields.
-
-Slice 45 is complete on this branch. Evidence-backed replanning inspected
-remaining raw legacy-property boundaries, migration-domain coverage, dry-run
-CLI coverage, and equivalence proof fixtures, then created design docs for
-slices 47 through 51 and inserted the v17 golden graph-history fixture as the
-new slice 46.
-
-Slice 46 is complete on this branch. A deterministic v17 golden graph-history
-fixture now exists as a Git bundle plus manifest. The restore helper initializes
-an explicit target repository, fetches the fixture refs, verifies writer heads
-and patch counts, and keeps Docker optional instead of making it the fixture
-artifact of record.
-
-Slice 47 is complete on this branch. The source inventory collector reads
-restored writer refs from Git, decodes patch trailers through the adapter
-codec boundary, records writer chains and patch descriptors, derives a source
-basis from restored heads, and produces fatal inventory notices when source
-refs are absent or malformed.
-
-Slice 48 is complete on this branch. Operation lowering now consumes
-successful dry-run plans, emits source/target-basis patch plans with sorted
-lowered operation facts, and keeps graph-history writes out of the domain
-lowering step.
-
-Slice 49 is complete on this branch. Scratch migration writing now requires an
-explicit scratch ref, rejects live `refs/warp/*` targets before writing,
-creates deterministic per-operation commits, and appends with CAS-shaped
-`git update-ref` calls.
-
-Slice 50 is complete on this branch. Scratch equivalence gating now wraps the
-genesis proof and divergence reporter into a promotion decision, with explicit
-blocking for missing patch-boundary evidence even when visible readings match.
-
-Slice 51 is complete on this branch. Finalization safety now exists as a pure
-precondition gate: no confirmation, failed equivalence, missing archive target,
-missing scratch output, or stale live-ref expectation can pass into a future
-live-ref update step.
-
-Slice 52 is complete on this branch. Finalization implementation now archives
-the old live head under `refs/warp-migration-archive/*` and advances the live
-ref to the scratch head with `git update-ref <live> <scratch> <old>`, while
-blocking failed safety, existing archive refs, and live-ref drift.
-
-Slice 53 is complete on this branch. The command runner now wires the v18
-migration stages in order and only calls finalization when explicit
-finalization options are supplied and the equivalence gate passes.
-
-Slice 54 is complete on this branch. Finalization safety now rejects promotion
-without runtime conformance evidence for the exact scratch ref/head, which
-keeps supplied equivalence readings from masquerading as runtime readability.
-
-Slice 55 is complete on this branch. The content/property closeout audit now
-enumerates every current `src/domain` file that still touches raw legacy
-content/property compatibility patterns and fails if that set drifts without
-review.
-
-Slice 56 is complete on this branch. The v17 golden fixture manifest can now
-be projected into genesis-equivalence readings with deterministic
-patch-boundary evidence.
-
-Slice 57 is complete on this branch. Scratch migration operation commits can
-now be read back from Git and projected into genesis-equivalence facts with
-scratch commit boundary evidence.
-
-Slice 58 is complete on this branch. The migration command can now construct
-legacy and scratch readings through providers after scratch writing.
-
-Slice 59 is complete on this branch. Scratch runtime conformance now has an
-adapter-level operation-history readback provider tied to the expected scratch
-ref and head.
-
-Slice 60 is complete on this branch. Command finalization is covered with
-command-owned reading providers plus scratch operation readback conformance.
-
-Slice 61 is complete on this branch. Provider-built scratch readings now have
-a divergence regression proving finalization remains blocked when scratch
-history is readable but not equivalent.
-
-Slice 62 is complete on this branch. The command now has deterministic
-operator report formatting for planning, scratch, equivalence, and
-finalization evidence.
-
-Slice 63 is complete on this branch. A non-finalizing migration command CLI
-wrapper writes scratch history, builds command-owned readings, emits the
-command report, and refuses live-ref finalization flags.
-
-Slice 64 is complete on this branch. V18 public-release blockers are explicit:
-production-runtime scratch replay, live finalization CLI design, wet-run
-fixture harnessing, generated Continuum contract tie-back, and release notes.
-
-Slice 65 is complete on this branch. Evidence-backed replanning moves the next
-goalpost from scratch operation readback to production-runtime scratch replay
-and wet-run fixture harnessing.
+That is useful progress, not a finish line. Public v18 is not published until
+tag, npm, and JSR evidence exist.
 
 ## What Feels Wrong
 
@@ -399,269 +75,46 @@ and wet-run fixture harnessing.
   complete.
 - The source audit still finds raw property-map dependencies in named
   compatibility, serialization, replay, reducer/op-strategy, visible-scope,
-  logical-index, and migration-source boundaries. The closeout audit pattern is
-  `decodePropKey|decodeEdgePropKey|state\\.prop|_content` over `src/domain`.
+  logical-index, and migration-source boundaries.
 - Temporal replay still extracts node snapshots from the raw legacy property
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
-- The v18 migration tool now replays migrated scratch operations through the
-  production graph runtime write/materialization path during wet runs, and the
-  release-prep PR has merged. Public release now needs tag and publish
-  evidence from aligned `main`.
-- Legacy readings from the v17 golden fixture now have restored public-read
-  construction, but broader non-fixture replay coverage remains future work.
-- The command wrapper can finalize through a reviewed JSON request, but the
-  public tag still needs aligned-main release preflight, tag evidence, and
-  registry publish evidence.
-- Continuum/WARP Optic release claims now have generated contract evidence for
-  runtime-boundary graph-model migration, but native Continuum witnesshood is
-  still not claimed.
+- Broader non-fixture replay coverage remains future work, even though the v17
+  golden fixture wet run is now green.
+- Native Continuum witnesshood is still not claimed. Current v18 evidence is
+  translated git-warp evidence shaped for Continuum.
 - The v17 backlog lane is no longer an active release plan, but its remaining
   notes still need item-level archive, rehome, or explicit pull decisions.
-- End-to-end graph streaming reads and writes are now named as a `v20.0.0`
-  goal. V18 must keep public docs honest and avoid claiming full graph
-  streaming.
+- End-to-end graph streaming reads and writes are a `v20.0.0` goal. V18 must
+  keep public docs honest and avoid claiming full graph streaming.
 
 ## Where We Are Heading
 
-The release-prep branch has merged. The next move is no longer adding v18
-features. It is one of three explicitly separated actions:
+The next work should stay split into distinct modes:
 
-1. cut and publish `v18.0.0` from aligned `main`;
-2. retire one more raw content/property compatibility boundary;
-3. start the v19 observer/admission witnesshood runway.
+1. **Release operation**: cut and publish `v18.0.0` from aligned `main`.
+2. **Substrate debt**: retire one more raw content/property compatibility
+   boundary and ratchet the closeout audit.
+3. **v19 runway**: start native Continuum witnesshood work without backdating a
+   stronger v18 claim.
+4. **v20 runway**: design end-to-end graph streaming reads and writes without
+   assuming full-graph materialization.
 
-Those should not be blended. Tag/publish is release operation. Storage
-retirement is substrate-debt reduction. V19 starts a new semantic runway.
+Do not blend these into one ambiguous branch.
 
-Slices 103 through 112 record that split and keep the next goalpost honest.
+## Live Checklist
 
-### Release-Prep Checklist
-
-- [x] 97. Establish the v18 release-prep baseline:
-  [0245](design/0245-v18-release-prep-baseline/v18-release-prep-baseline.md).
-- [x] 98. Run the release-prep gate baseline and record the evidence:
-  [0246](design/0246-v18-release-gate-baseline/v18-release-gate-baseline.md).
-- [x] 99. Decide residual raw content/property storage risk:
-  [0247](design/0247-v18-residual-raw-storage-risk-decision/v18-residual-raw-storage-risk-decision.md).
-- [x] 100. Freeze public operator release notes and non-goals:
-  [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
-- [x] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`:
-  [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
-- [x] 102. Replan from final release-prep evidence before PR review:
-  [0250](design/0250-v18-final-release-prep-replan/v18-final-release-prep-replan.md).
-
-### Post-Merge Goalpost Checklist
-
-- [x] 103. Record the v18 post-merge release handoff:
-  [0251](design/0251-v18-post-merge-release-handoff/v18-post-merge-release-handoff.md).
-- [x] 104. Define the v18 tag and publish gate:
-  [0252](design/0252-v18-tag-publish-gate/v18-tag-publish-gate.md).
-- [x] 105. Define the v18 release evidence archive:
-  [0253](design/0253-v18-release-evidence-archive/v18-release-evidence-archive.md).
-- [x] 106. Frame the post-v18 storage retirement decision:
-  [0254](design/0254-post-v18-storage-retirement-decision/post-v18-storage-retirement-decision.md).
-- [x] 107. Frame the v19 native Continuum witnesshood runway:
-  [0255](design/0255-v19-native-continuum-witnesshood-runway/v19-native-continuum-witnesshood-runway.md).
-- [x] 108. Scope end-to-end graph streaming reads and writes to v20:
-  [0256](design/0256-v20-streaming-reads-writes-scope/v20-streaming-reads-writes-scope.md).
-- [x] 109. Define the post-v18 public doc honesty audit:
-  [0257](design/0257-post-v18-public-doc-honesty-audit/post-v18-public-doc-honesty-audit.md).
-- [x] 110. Define the next residual boundary retirement decision:
-  [0258](design/0258-v18-residual-boundary-next-retirement/v18-residual-boundary-next-retirement.md).
-- [x] 111. Plan backlog lane cleanup after v18:
-  [0259](design/0259-backlog-lane-cleanup-after-v18/backlog-lane-cleanup-after-v18.md).
-- [x] 112. Replan the next goalpost after the v18 release-prep merge:
-  [0260](design/0260-next-goalpost-replan-after-v18-merge/next-goalpost-replan-after-v18-merge.md).
-
-### Next Thirty-Slice Checklist
-
-- [x] 66. Design production-runtime scratch replay conformance:
-  [0214](design/0214-v18-production-runtime-scratch-replay-conformance/v18-production-runtime-scratch-replay-conformance.md).
-- [x] 67. Add runtime scratch replay request and result nouns:
-  [0215](design/0215-v18-runtime-scratch-replay-nouns/v18-runtime-scratch-replay-nouns.md).
-- [x] 68. Implement the production-runtime scratch replay provider:
-  [0216](design/0216-v18-production-runtime-scratch-replay-provider/v18-production-runtime-scratch-replay-provider.md).
-- [x] 69. Add restored-v17 public-read legacy reading construction:
-  [0217](design/0217-v18-v17-public-read-legacy-reading/v18-v17-public-read-legacy-reading.md).
-- [x] 70. Add scratch public-read reading construction:
-  [0218](design/0218-v18-scratch-public-read-reading/v18-scratch-public-read-reading.md).
-- [x] 71. Add the v17 fixture wet-run migration harness:
-  [0219](design/0219-v18-v17-fixture-wet-run-harness/v18-v17-fixture-wet-run-harness.md).
-- [x] 72. Capture deterministic wet-run operator reports:
-  [0220](design/0220-v18-wet-run-operator-report/v18-wet-run-operator-report.md).
-- [x] 73. Add wet-run failure fixtures for divergence and malformed history:
-  [0221](design/0221-v18-wet-run-failure-fixtures/v18-wet-run-failure-fixtures.md).
-- [x] 74. Add pre-finalization drift checks to the wet-run harness:
-  [0222](design/0222-v18-wet-run-drift-checks/v18-wet-run-drift-checks.md).
-- [x] 75. Replan with production-runtime replay evidence in hand:
-  [0223](design/0223-v18-production-replay-drift-checkup/v18-production-replay-drift-checkup.md).
-- [x] 76. Classify the five canonical wet-run public-read mismatches:
-  [0224](design/0224-v18-wet-run-mismatch-classification/v18-wet-run-mismatch-classification.md).
-- [x] 77. Align fixture property values with public-read migration semantics:
-  [0225](design/0225-v18-fixture-property-equivalence-values/v18-fixture-property-equivalence-values.md).
-- [x] 78. Align fixture content attachment evidence with runtime content OIDs:
-  [0226](design/0226-v18-fixture-content-runtime-oids/v18-fixture-content-runtime-oids.md).
-- [x] 79. Add edge-endpoint node coverage or document the fixture edge model:
-  [0227](design/0227-v18-fixture-edge-endpoint-coverage/v18-fixture-edge-endpoint-coverage.md).
-- [x] 80. Represent removed-node and multi-writer facts in migrated readings:
-  [0228](design/0228-v18-fixture-lifecycle-and-writer-coverage/v18-fixture-lifecycle-and-writer-coverage.md).
-- [x] 81. Drive the canonical wet-run mismatch count to zero:
-  [0229](design/0229-v18-zero-mismatch-wet-run-proof/v18-zero-mismatch-wet-run-proof.md).
-- [x] 82. Replan finalization with zero-mismatch wet-run evidence:
-  [0230](design/0230-v18-finalization-replan-after-zero-mismatch/v18-finalization-replan-after-zero-mismatch.md).
-- [x] 83. Design live finalization CLI confirmation and reporting:
-  [0231](design/0231-v18-live-finalization-cli-confirmation/v18-live-finalization-cli-confirmation.md).
-- [x] 84. Add finalization request JSON and confirmation adapters:
-  [0232](design/0232-v18-finalization-request-json-adapters/v18-finalization-request-json-adapters.md).
-- [x] 85. Add finalization report sections and archive evidence output:
-  [0233](design/0233-v18-finalization-report-archive-evidence/v18-finalization-report-archive-evidence.md).
-- [x] 86. Enable guarded CLI finalization behind explicit confirmation:
-  [0234](design/0234-v18-guarded-cli-finalization/v18-guarded-cli-finalization.md).
-- [x] 87. Add live-ref drift and existing-archive finalization tests:
-  [0235](design/0235-v18-finalization-drift-and-archive-tests/v18-finalization-drift-and-archive-tests.md).
-- [x] 88. Inventory current Wesley/Continuum generated-graph contracts:
-  [0236](design/0236-v18-generated-contract-inventory/v18-generated-contract-inventory.md).
-- [x] 89. Add generated Continuum contract fixture ingestion:
-  [0237](design/0237-v18-runtime-boundary-fixture-ingestion/v18-runtime-boundary-fixture-ingestion.md).
-- [x] 90. Add graph-model conformance checks against generated contracts:
-  [0238](design/0238-v18-graph-model-contract-conformance/v18-graph-model-contract-conformance.md).
-- [x] 91. Add a `warp-ttd` contract smoke over generated-family facts:
-  [0239](design/0239-v18-warp-ttd-generated-family-smoke/v18-warp-ttd-generated-family-smoke.md).
-- [x] 92. Replan with generated contract evidence in hand:
-  [0240](design/0240-v18-generated-contract-evidence-replan/v18-generated-contract-evidence-replan.md).
-- [x] 93. Reduce legacy content/property raw-boundary debt by one class:
-  [0241](design/0241-v18-coordinate-fact-export-raw-boundary-retirement/v18-coordinate-fact-export-raw-boundary-retirement.md).
-- [x] 94. Tighten the closeout audit to forbid the retired raw-boundary class:
-  [0242](design/0242-v18-content-property-retirement-ratchet/v18-content-property-retirement-ratchet.md).
-- [x] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence:
-  [0243](design/0243-v18-release-candidate-evidence/v18-release-candidate-evidence.md).
-
-### Slice 82 Evidence
-
-- Production-runtime scratch replay is green through the shared replay core.
-- Restored-v17 and scratch public-read builders both exist and are tested.
-- The wet-run harness restores the canonical v17 fixture, writes six scratch
-  operations, replays all six through the production runtime, formats a
-  deterministic report, and records a passed source-ref drift check.
-- The canonical public-read equivalence gate now observes eight legacy facts,
-  eight migrated facts, zero mismatches, and explicit boundary evidence,
-  including edge-property coverage.
-- A dedicated zero-mismatch regression proves the command summary and wet-run
-  report stay free of public-read divergence.
-- Live finalization remains intentionally paused until explicit confirmation
-  and operator reporting are designed and wired.
-- The roadmap has pivoted from wet-run equivalence closure to guarded live
-  finalization, then generated Continuum/WARP Optic contract evidence.
-- The live finalization CLI design now requires a JSON confirmation artifact
-  that binds live head, scratch head, archive ref, equivalence, and runtime
-  replay evidence before any live ref may move.
-- Finalization request and confirmation JSON now parse into runtime-backed
-  finalization safety nouns with unknown-field rejection.
-- Command finalization reports now include archive evidence for completed and
-  blocked finalization attempts.
-- CLI finalization is now enabled behind a reviewed JSON request; the command
-  blocks finalization if the artifact differs from observed evidence.
-- Generated runtime-boundary contract evidence now has a fixture ingestion
-  path, graph-model conformance checks, and a `warp-ttd` generated-family
-  smoke that preserves translated-substrate honesty.
-- CLI finalization tests now prove stale live refs and pre-existing archive refs
-  return blocked reports and non-zero exit codes.
-- Generated contract inventory evidence now names local Continuum schemas,
-  Wesley contract-design sources, and `warp-ttd` generated-family intake files.
-- A runtime-boundary-generated fixture is now admitted through the Continuum
-  artifact JSON adapter with `continuum-fixture` and `warp-ttd` targets.
-- Graph-model contract conformance now requires the runtime-boundary family,
-  schema, generated authority, `continuum-fixture` target, `warp-ttd` target,
-  and full v17 visible fact-family coverage.
-- The first `warp-ttd` generated-family smoke now converts passed conformance
-  into a `PRESENT` translated-substrate fact and failed conformance into an
-  `OBSTRUCTED` fact with failed check names.
-- Evidence-backed replanning now narrows the release runway to one raw
-  content/property boundary retirement, closeout audit tightening, and a v18
-  release-candidate packet.
-- `CoordinateFactExport` no longer owns raw content operation spelling; the
-  spelling now lives behind transfer operation constants in the already-audited
-  transfer boundary.
-- The closeout audit now has a retired-boundary ratchet that fails if
-  `CoordinateFactExport.ts` regains raw content/property spelling.
-- The v18 release-candidate evidence packet now names candidate scope,
-  inspectable evidence, go/no-go gates, public-tag gates, and residual risks.
-- The backlog ledger now reflects the release-candidate evidence: v18
-  implementation blockers are distinguished from public-release gates, v17 is
-  marked as shipped residual work, and end-to-end graph streaming reads and
-  writes have an explicit `v20.0.0` backlog home.
-
-### User Stories
-
-- As a migration operator, I can restore a v17 graph fixture, write migrated
-  scratch history, replay its operations through the normal production runtime
-  write/materialization path, and receive deterministic proof before any live
-  ref can move.
-- As a release reviewer, I can inspect one wet-run report that includes source
-  basis, scratch basis, archive target, equivalence result, runtime replay
-  result, drift checks, and finalization eligibility.
-- As a cautious operator, I can only finalize from the CLI by supplying an
-  explicit confirmation artifact that names the live ref, expected live head,
-  scratch ref, scratch head, archive ref, and proof identifiers.
-- As a Continuum integrator, I can see generated Wesley/Continuum contract
-  artifacts admitted as evidence, not as handwritten compatibility claims.
-- As a `warp-ttd` consumer, I can run at least one generated-family smoke that
-  consumes git-warp facts without relying on private adapter folklore.
-- As a maintainer, I can keep legacy property/content compatibility boundaries
-  visible, shrinking, and guarded by executable audits while v18 moves toward
-  public release.
-- As a release manager, I can decide whether to ship v18 from a single
-  go/no-go packet containing CI, wet-run, contract, docs, and risk evidence.
-
-### Acceptance Criteria
-
-- Production-runtime conformance replays migrated scratch operations through
-  the same graph-runtime write/materialization path normal users rely on, not
-  only operation-history readback.
-- Wet-run migration restores the v17 golden fixture into an isolated Git
-  repository, writes scratch history, builds legacy and scratch readings,
-  runs equivalence, runs production-runtime conformance, and leaves live
-  `refs/warp/*` refs untouched unless finalization is explicitly requested.
-- CLI finalization is refused unless the confirmation artifact exactly matches
-  the observed live head, scratch head, archive ref, equivalence proof, and
-  runtime conformance evidence.
-- Archive-preserving finalization remains compare-and-swap only: stale live
-  refs, existing archive refs, failed equivalence, failed runtime replay, or
-  missing confirmation produce structured failure reports.
-- Continuum/WARP Optic release claims cite generated contract artifacts from
-  Wesley/Continuum inputs and name any gaps as release notes, not hidden
-  assumptions.
-- Content and property compatibility debt moves monotonically downward: every
-  newly retired raw boundary tightens the audit and every surviving boundary
-  has an explicit reason.
-- The v18 release candidate is not cut until local gates, CI, wet-run harness,
-  generated-contract checks, operator docs, and release notes are green.
-
-### Test Plans
-
-- Unit-test every new domain noun and adapter parser with malformed-envelope,
-  wrong-ref, stale-head, missing-proof, duplicate-archive, and failed-replay
-  cases.
-- Add integration tests on temporary Git repositories for fixture restore,
-  source inventory, scratch writing, production-runtime replay, wet-run report
-  capture, and non-finalizing safety.
-- Add CLI tests that prove finalization flags are rejected without explicit
-  confirmation and accepted only when the confirmation artifact matches the
-  observed runtime evidence.
-- Add failure fixtures for divergent scratch history, missing patch-boundary
-  evidence, malformed v17 history, stale live refs, and pre-existing archive
-  refs.
-- Add generated-contract fixture tests that compare git-warp graph-model facts
-  with Wesley/Continuum generated contract shapes and run the first
-  `warp-ttd` smoke when the local fixture is available.
-- Keep the closeout audit executable and ratcheting: each retired raw
-  content/property boundary must reduce the allowlist or make the remaining
-  exception narrower.
-- Before a v18 release candidate, run `npm run test:local`,
-  `npm run test:coverage`, `npm run lint`, `npm run typecheck`,
-  `npm run lint:md`, `npm run lint:sludge`, `npm run lint:semgrep`, the
-  wet-run harness, and the generated-contract smoke.
+- [ ] Cut the signed `v18.0.0` tag from the release commit after explicit
+  release approval.
+- [ ] Push the `v18.0.0` tag.
+- [ ] Publish npm and JSR artifacts from the release path.
+- [ ] Record the release evidence archive: tag SHA, preflight result, npm
+  version evidence, JSR version evidence, and any audit note.
+- [ ] Run the post-v18 public-doc honesty audit.
+- [ ] Pick the next implementation mode: storage retirement, v19 witnesshood,
+  or v20 streaming design.
+- [ ] Update `BEARING` at the next cycle boundary with only live state and
+  unresolved tensions.
 
 ## Invariants
 
@@ -685,175 +138,3 @@ and concrete checks live in `docs/invariants/`.
 13. **TRAVERSAL-TRUTH**: streams carry traversal; ports carry truth.
 14. **NO-SCALARIZATION**: observer comparison is multi-dimensional.
 15. **SUFFIX-TRANSPORT**: sync transports suffixes from tips.
-
-## Running Task List
-
-- [x] 1. Sync and clean the v18 runway.
-- [x] 2. Create the v18 Continuum compatibility charter.
-- [x] 3. Build the cross-repo contract matrix.
-- [x] 4. Define git-warp's WARP Optic realization map.
-- [x] 5. Add the generated-artifact ingestion path.
-- [x] 6. Make evidence posture explicit.
-- [x] 7. Prove the patch commit visibility contract.
-- [x] 8. Prove same-writer CAS conflict posture.
-- [x] 9. Project receipt-family source facts.
-- [x] 10. Add the first `warp-ttd` receipt-family smoke.
-- [x] 11. Re-plan with evidence from the first ten slices.
-- [x] 12. Inventory generated-family readiness.
-- [x] 13. Name the tick patch and receipt witness ladder.
-- [x] 14. Project runtime-boundary reading-envelope source facts.
-- [x] 15. Project runtime-boundary witnessed-suffix source facts.
-- [x] 16. Reset the graph-model substrate runway.
-- [x] 17. Add runtime-backed node records.
-- [x] 18. Add runtime-backed edge records.
-- [x] 19. Add the generic attachment-plane substrate.
-- [x] 20. Add graph-op algebra projection.
-- [x] 21. Reset the content-cutover runway after graph-op algebra.
-- [x] 22. Add runtime-backed content attachment payload nouns.
-- [x] 23. Add content attachment projection.
-- [x] 24. Route public content reads through content projection.
-- [x] 25. Route content writes through typed write intent.
-- [x] 26. Reset the post-25 property projection runway:
-  [0174](design/0174-v18-post-25-property-projection-runway/v18-post-25-property-projection-runway.md).
-- [x] 27. Add legacy property projection nouns:
-  [0175](design/0175-v18-legacy-property-projection-nouns/v18-legacy-property-projection-nouns.md).
-- [x] 28. Add node property projection:
-  [0176](design/0176-v18-node-property-projection/v18-node-property-projection.md).
-- [x] 29. Add edge property projection:
-  [0177](design/0177-v18-edge-property-projection/v18-edge-property-projection.md).
-- [x] 30. Route query property reads through projection:
-  [0178](design/0178-v18-query-property-projection-reads/v18-query-property-projection-reads.md).
-- [x] 31. Route state-reader property views through projection:
-  [0179](design/0179-v18-state-reader-property-projection/v18-state-reader-property-projection.md).
-- [x] 32. Add property write intent nouns:
-  [0180](design/0180-v18-property-write-intent-nouns/v18-property-write-intent-nouns.md).
-- [x] 33. Route PatchBuilder property writes through intent lowering:
-  [0181](design/0181-v18-patchbuilder-property-intent-lowering/v18-patchbuilder-property-intent-lowering.md).
-- [x] 34. Cut graph-op algebra over to property projections:
-  [0182](design/0182-v18-graph-op-projection-property-cutover/v18-graph-op-projection-property-cutover.md).
-- [x] 35. Close out legacy-property projection with evidence:
-  [0183](design/0183-v18-property-projection-closeout/v18-property-projection-closeout.md).
-- [x] 36. Add graph-model migration manifest nouns:
-  [0184](design/0184-v18-graph-model-migration-manifest/v18-graph-model-migration-manifest.md).
-- [x] 37. Add migration source inventory:
-  [0185](design/0185-v18-migration-source-inventory/v18-migration-source-inventory.md).
-- [x] 38. Add the dry-run state migration planner:
-  [0186](design/0186-v18-dry-run-state-migration-planner/v18-dry-run-state-migration-planner.md).
-- [x] 39. Add ordered migration history input:
-  [0187](design/0187-v18-migration-history-input/v18-migration-history-input.md).
-- [x] 40. Add migration manifest serialization:
-  [0188](design/0188-v18-migration-manifest-serialization/v18-migration-manifest-serialization.md).
-- [x] 41. Add the migration dry-run CLI:
-  [0189](design/0189-v18-migration-dry-run-cli/v18-migration-dry-run-cli.md).
-- [x] 42. Add genesis equivalence proof nouns:
-  [0190](design/0190-v18-genesis-equivalence-nouns/v18-genesis-equivalence-nouns.md).
-- [x] 43. Add genesis equivalence fixtures:
-  [0191](design/0191-v18-genesis-equivalence-fixtures/v18-genesis-equivalence-fixtures.md).
-- [x] 44. Add the genesis divergence reporter:
-  [0192](design/0192-v18-genesis-divergence-reporter/v18-genesis-divergence-reporter.md).
-- [x] 45. Re-plan with migration evidence in hand:
-  [0193](design/0193-v18-replan-with-migration-evidence/v18-replan-with-migration-evidence.md).
-- [x] 46. Add v17 golden graph-history fixtures:
-  [0199](design/0199-v18-v17-golden-graph-fixtures/v18-v17-golden-graph-fixtures.md).
-- [x] 47. Add real source inventory collection:
-  [0194](design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md).
-- [x] 48. Add migration operation lowering:
-  [0195](design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md).
-- [x] 49. Add the scratch migration writer:
-  [0196](design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md).
-- [x] 50. Add the scratch equivalence gate:
-  [0197](design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md).
-- [x] 51. Design migration finalization safety:
-  [0198](design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md).
-- [x] 52. Implement archive-preserving migration finalization:
-  [0200](design/0200-v18-migration-finalization-implementation/v18-migration-finalization-implementation.md).
-- [x] 53. Wire the end-to-end migration command:
-  [0201](design/0201-v18-migration-command-wiring/v18-migration-command-wiring.md).
-- [x] 54. Prove post-migration runtime conformance:
-  [0202](design/0202-v18-post-migration-runtime-conformance/v18-post-migration-runtime-conformance.md).
-- [x] 55. Close the content/property migration audit:
-  [0203](design/0203-v18-content-property-closeout-audit/v18-content-property-closeout-audit.md).
-- [x] 56. Construct legacy fixture genesis readings:
-  [0204](design/0204-v18-legacy-fixture-reading-construction/v18-legacy-fixture-reading-construction.md).
-- [x] 57. Construct scratch operation genesis readings:
-  [0205](design/0205-v18-scratch-operation-reading-construction/v18-scratch-operation-reading-construction.md).
-- [x] 58. Add command reading providers:
-  [0206](design/0206-v18-command-reading-providers/v18-command-reading-providers.md).
-- [x] 59. Add a scratch runtime conformance provider:
-  [0207](design/0207-v18-scratch-runtime-conformance-provider/v18-scratch-runtime-conformance-provider.md).
-- [x] 60. Prove command finalization with providers:
-  [0208](design/0208-v18-command-provider-finalization/v18-command-provider-finalization.md).
-- [x] 61. Add provider-built divergence coverage:
-  [0209](design/0209-v18-provider-divergence-coverage/v18-provider-divergence-coverage.md).
-- [x] 62. Add migration command report output:
-  [0210](design/0210-v18-migration-command-report/v18-migration-command-report.md).
-- [x] 63. Add a migration command CLI wrapper:
-  [0211](design/0211-v18-migration-command-cli-wrapper/v18-migration-command-cli-wrapper.md).
-- [x] 64. Record v18 public release blockers:
-  [0212](design/0212-v18-public-release-blockers/v18-public-release-blockers.md).
-- [x] 65. Replan after the command CLI:
-  [0213](design/0213-v18-replan-after-command-cli/v18-replan-after-command-cli.md).
-- [x] 66. Design production-runtime scratch replay conformance.
-- [x] 67. Add runtime scratch replay request and result nouns.
-- [x] 68. Implement the production-runtime scratch replay provider.
-- [x] 69. Add restored-v17 public-read legacy reading construction.
-- [x] 70. Add scratch public-read reading construction.
-- [x] 71. Add the v17 fixture wet-run migration harness.
-- [x] 72. Capture deterministic wet-run operator reports.
-- [x] 73. Add wet-run failure fixtures for divergence and malformed history.
-- [x] 74. Add pre-finalization drift checks to the wet-run harness.
-- [x] 75. Replan with production-runtime replay evidence in hand.
-- [x] 76. Classify the five canonical wet-run public-read mismatches.
-- [x] 77. Align fixture property values with public-read migration semantics.
-- [x] 78. Align fixture content attachment evidence with runtime content OIDs.
-- [x] 79. Add edge-endpoint node coverage or document the fixture edge model.
-- [x] 80. Represent removed-node and multi-writer facts in migrated readings.
-- [x] 81. Drive the canonical wet-run mismatch count to zero.
-- [x] 82. Replan finalization with zero-mismatch wet-run evidence.
-- [x] 83. Design live finalization CLI confirmation and reporting.
-- [x] 84. Add finalization request JSON and confirmation adapters.
-- [x] 85. Add finalization report sections and archive evidence output.
-- [x] 86. Enable guarded CLI finalization behind explicit confirmation.
-- [x] 87. Add live-ref drift and existing-archive finalization tests.
-- [x] 88. Inventory current Wesley/Continuum generated-graph contracts.
-- [x] 89. Add generated Continuum contract fixture ingestion.
-- [x] 90. Add graph-model conformance checks against generated contracts.
-- [x] 91. Add a `warp-ttd` contract smoke over generated-family facts.
-- [x] 92. Replan with generated contract evidence in hand.
-- [x] 93. Reduce legacy content/property raw-boundary debt by one class.
-- [x] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
-- [x] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
-- [x] 96. Reconcile the v18 backlog after release-candidate evidence:
-  [0244](design/0244-v18-backlog-reconciliation/v18-backlog-reconciliation.md).
-- [x] 97. Establish the v18 release-prep baseline:
-  [0245](design/0245-v18-release-prep-baseline/v18-release-prep-baseline.md).
-- [x] 98. Run the release-prep gate baseline and record the evidence:
-  [0246](design/0246-v18-release-gate-baseline/v18-release-gate-baseline.md).
-- [x] 99. Decide residual raw content/property storage risk:
-  [0247](design/0247-v18-residual-raw-storage-risk-decision/v18-residual-raw-storage-risk-decision.md).
-- [x] 100. Freeze public operator release notes and non-goals:
-  [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
-- [x] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`:
-  [0249](design/0249-v18-version-tag-readiness/v18-version-tag-readiness.md).
-- [x] 102. Replan from final release-prep evidence before PR review:
-  [0250](design/0250-v18-final-release-prep-replan/v18-final-release-prep-replan.md).
-- [x] 103. Record the v18 post-merge release handoff:
-  [0251](design/0251-v18-post-merge-release-handoff/v18-post-merge-release-handoff.md).
-- [x] 104. Define the v18 tag and publish gate:
-  [0252](design/0252-v18-tag-publish-gate/v18-tag-publish-gate.md).
-- [x] 105. Define the v18 release evidence archive:
-  [0253](design/0253-v18-release-evidence-archive/v18-release-evidence-archive.md).
-- [x] 106. Frame the post-v18 storage retirement decision:
-  [0254](design/0254-post-v18-storage-retirement-decision/post-v18-storage-retirement-decision.md).
-- [x] 107. Frame the v19 native Continuum witnesshood runway:
-  [0255](design/0255-v19-native-continuum-witnesshood-runway/v19-native-continuum-witnesshood-runway.md).
-- [x] 108. Scope end-to-end graph streaming reads and writes to v20:
-  [0256](design/0256-v20-streaming-reads-writes-scope/v20-streaming-reads-writes-scope.md).
-- [x] 109. Define the post-v18 public doc honesty audit:
-  [0257](design/0257-post-v18-public-doc-honesty-audit/post-v18-public-doc-honesty-audit.md).
-- [x] 110. Define the next residual boundary retirement decision:
-  [0258](design/0258-v18-residual-boundary-next-retirement/v18-residual-boundary-next-retirement.md).
-- [x] 111. Plan backlog lane cleanup after v18:
-  [0259](design/0259-backlog-lane-cleanup-after-v18/backlog-lane-cleanup-after-v18.md).
-- [x] 112. Replan the next goalpost after the v18 release-prep merge:
-  [0260](design/0260-next-goalpost-replan-after-v18-merge/next-goalpost-replan-after-v18-merge.md).
