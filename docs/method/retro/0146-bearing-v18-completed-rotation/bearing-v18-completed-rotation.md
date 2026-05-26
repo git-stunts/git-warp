@@ -4,9 +4,9 @@
 
 `docs/BEARING.md` was reduced from a completed-slice ledger back into a live
 repo signpost. Completed v18 implementation, release-prep, and post-merge
-planning history through slice 112 now lives in the design docs, changelog,
-backlog lane summaries, PR history, and this rotation note instead of staying
-inline in BEARING.
+planning history through slice 112 is summarized in this rotation note, with
+full evidence distributed across design docs, changelog, backlog lane
+summaries, and PR history instead of staying inline in BEARING.
 
 ## What Moved Out
 
