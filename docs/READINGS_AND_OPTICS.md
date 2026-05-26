@@ -6,7 +6,7 @@ on top of `git-warp` and need to choose the right public read surface.
 The v18 first-use path is:
 
 ```text
-openWarpWorldline() -> worldline.commit() -> worldline.live(), worldline.seek(), observer(), optic()
+openWarpWorldline() -> worldline.commit() -> worldline.live(), worldline.seek(), worldline.observer(), worldline.optic()
 ```
 
 Application code should write claims through `WarpWorldline.commit()` and read

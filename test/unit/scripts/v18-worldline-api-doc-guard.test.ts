@@ -14,6 +14,7 @@ const docsIndex = readDoc('docs/README.md');
 const gettingStarted = readDoc('docs/GETTING_STARTED.md');
 const guide = readDoc('docs/GUIDE.md');
 const apiReference = readDoc('docs/API_REFERENCE.md');
+const readingsAndOptics = readDoc('docs/READINGS_AND_OPTICS.md');
 const migrationGuide = readDoc('docs/migrations/v18.0.0.md');
 
 const firstUseDocs = [
@@ -54,5 +55,14 @@ describe('v18 Worldline-first documentation guard', () => {
     expect(migrationGuide).toContain('diagnostic replay, migration evidence, and tooling');
     expect(rootReadme).toContain('compatibility, diagnostics');
     expect(apiReference).toContain('Diagnostic replay/checkpoint');
+  });
+
+  it('keeps the readings and optics path receiver-qualified', () => {
+    expect(readingsAndOptics).toContain(
+      'openWarpWorldline() -> worldline.commit() -> worldline.live(), worldline.seek(), worldline.observer(), worldline.optic()',
+    );
+    expect(readingsAndOptics).not.toContain(
+      'openWarpWorldline() -> worldline.commit() -> worldline.live(), worldline.seek(), observer(), optic()',
+    );
   });
 });
