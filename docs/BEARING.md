@@ -144,7 +144,7 @@ Current 20-slice API checklist:
 - [x] 120: Legacy graph API deprecation.
 - [x] 121: Materialize API deprecation/classification.
 - [x] 122: Public surface tests.
-- [ ] 123: README rewrite.
+- [x] 123: README rewrite.
 - [ ] 124: Readings & Optics rewrite.
 - [ ] 125: API reference rewrite.
 - [ ] 126: CLI diagnostic wording.
