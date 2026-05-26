@@ -7,7 +7,7 @@
  */
 import WarpError from './errors/WarpError.ts';
 
-import type { WarpGraphDeps } from './WarpGraph.ts';
+import { openWarpGraph, type WarpGraphDeps } from './WarpGraph.ts';
 import type { Aperture } from './types/Aperture.ts';
 import type { PatchBuilder } from './services/PatchBuilder.ts';
 import type Worldline from './services/Worldline.ts';
@@ -84,6 +84,25 @@ export default class WarpWorldline {
   optic(): WorldlineOptic {
     return this.live().optic();
   }
+}
+
+export async function openWarpWorldline(
+  options: WarpWorldlineOpenOptions,
+): Promise<WarpWorldline> {
+  assertNonEmpty(options.worldlineName, 'worldlineName');
+  assertNonEmpty(options.writerId, 'writerId');
+  const { worldlineName, ...graphOptions } = options;
+  const graph = await openWarpGraph({
+    ...graphOptions,
+    graphName: worldlineName,
+  });
+
+  return new WarpWorldline({
+    worldlineName,
+    writerId: graph.writerId,
+    commitPatch: async (build) => await graph.patches.patch(build),
+    createWorldline: (worldlineOptions) => graph.query.worldline(worldlineOptions),
+  });
 }
 
 function assertNonEmpty(value: string, field: string): void {

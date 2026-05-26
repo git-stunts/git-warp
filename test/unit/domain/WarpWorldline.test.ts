@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { openWarpWorldline } from '../../../index.ts';
+import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain/WarpWorldline.ts';
 import Worldline from '../../../src/domain/services/Worldline.ts';
 import Observer, { type ObserverBacking } from '../../../src/domain/services/query/Observer.ts';
@@ -103,6 +105,46 @@ function createHandle(
 }
 
 describe('WarpWorldline', () => {
+  it('opens a frozen worldline handle over the current graph runtime', async () => {
+    const handle = await openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events',
+      writerId: 'agent-1',
+    });
+
+    expect(handle).toBeInstanceOf(WarpWorldline);
+    expect(Object.isFrozen(handle)).toBe(true);
+    expect(handle.worldlineName).toBe('events');
+    expect(handle.writerId).toBe('agent-1');
+    expect('graphName' in handle).toBe(false);
+    expect('materialize' in handle).toBe(false);
+  });
+
+  it('commits through the open helper and reads through the live worldline', async () => {
+    const handle = await openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events',
+      writerId: 'agent-1',
+    });
+
+    await handle.commit((patch) => {
+      patch.addNode('user:alice');
+    });
+
+    await expect(handle.live().hasNode('user:alice')).resolves.toBe(true);
+  });
+
+  it('rejects empty open identities before returning a handle', async () => {
+    await expect(openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: '',
+      writerId: 'agent-1',
+    })).rejects.toMatchObject({
+      code: 'E_WARP_WORLDLINE_IDENTITY',
+      context: { field: 'worldlineName' },
+    });
+  });
+
   it('freezes the worldline-first public handle without materialize escapes', () => {
     const handle = createHandle();
 

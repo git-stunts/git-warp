@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import * as api from '../../index.ts';
 
 describe('public runtime exports', () => {
-  it('exports the Worldline-first handle before the open helper slice', () => {
+  it('exports the Worldline-first open helper and handle', () => {
+    expect(api.openWarpWorldline).toBeDefined();
     expect(api.WarpWorldline).toBeDefined();
-    expect('openWarpWorldline' in api).toBe(false);
   });
 
   it('does not export the retired browser viewer service', () => {

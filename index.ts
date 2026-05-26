@@ -187,7 +187,7 @@ import SyncSecret from './src/domain/services/sync/SyncSecret.ts';
 import ContentAttachmentProjection from './src/domain/services/ContentAttachmentProjection.ts';
 import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
-import WarpWorldline from './src/domain/WarpWorldline.ts';
+import WarpWorldline, { openWarpWorldline } from './src/domain/WarpWorldline.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
@@ -352,6 +352,7 @@ export {
   openWarpGraph,
 
   // Worldline-first public handle
+  openWarpWorldline,
   WarpWorldline,
 
   // Multi-writer graph support (legacy — prefer openWarpGraph)
