@@ -3,7 +3,7 @@
 Updated at cycle boundaries. Keep this file as a live signpost, not a
 warehouse for completed slice history.
 
-Completed v18 slice history through slice 112 was rotated to
+Completed v18 slice history through slice 112 is summarized in
 [0146-bearing-v18-completed-rotation](method/retro/0146-bearing-v18-completed-rotation/bearing-v18-completed-rotation.md).
 
 Scope note:
@@ -38,15 +38,17 @@ evidence, generated-contract evidence, and post-v18 planning docs are merged to
 
 Current release facts:
 
-- Latest merged PR: #108, post-v18 release handoff and next-goalpost planning.
-- Current release commit on `main`: `59beefed`.
+- Latest v18 release-prep merge: PR #108, post-v18 release handoff and
+  next-goalpost planning, at `59beefed`.
 - Package metadata: `18.0.0` in `package.json` and `jsr.json`.
 - Public package/tag line: still `17.0.0` until the `v18.0.0` tag and registry
   publishes complete.
 - Latest recorded repair entry: `17.0.1` exists in source docs/changelog
   without public npm/tag evidence.
-- Release preflight from aligned `main` has passed for `v18.0.0`.
-- No `v18.0.0` tag is present at the release commit yet.
+- Last recorded release preflight passed from aligned `main` at `59beefed`.
+- If `main` moves after `59beefed` before tagging, rerun release preflight from
+  the exact commit that will receive the `v18.0.0` tag.
+- No `v18.0.0` tag or registry publish evidence is recorded yet.
 
 Current v18 implementation posture:
 

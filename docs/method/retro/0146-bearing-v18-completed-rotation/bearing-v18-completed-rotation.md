@@ -10,7 +10,7 @@ inline in BEARING.
 
 ## What Moved Out
 
-The following completed material was removed from BEARING:
+The following completed material was summarized out of BEARING:
 
 - historical PR summaries for v18 PRs #94 through #108;
 - per-slice completion prose for slices 36 through 65;
@@ -86,10 +86,11 @@ V18 post-merge planning completed slices 103 through 112:
 
 ## Current Live State After Rotation
 
-After PR #108 merged, `main` points at `59beefed`. `package.json` and
-`jsr.json` both say `18.0.0`, and release preflight has passed from aligned
-`main`. The public release is still not complete because no `v18.0.0` tag,
-npm publish evidence, or JSR publish evidence has been recorded yet.
+At the rotation point after PR #108 merged, `main` pointed at `59beefed`.
+`package.json` and `jsr.json` both said `18.0.0`, and release preflight had
+passed from aligned `main` at that commit. The public release was still not
+complete because no `v18.0.0` tag, npm publish evidence, or JSR publish
+evidence had been recorded yet.
 
 ## Follow-Up
 
