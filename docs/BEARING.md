@@ -151,7 +151,7 @@ Current 20-slice API checklist:
 - [x] 127: Error and runtime docs sweep.
 - [x] 128: Migration guide.
 - [x] 129: Non-functional guards.
-- [ ] 130: Package surface audit.
+- [x] 130: Package surface audit.
 - [ ] 131: Changelog and release story.
 - [ ] 132: Drift check and go/no-go.
 
