@@ -143,7 +143,7 @@ Current 20-slice API checklist:
 - [x] 119: Read, observer, and optic path.
 - [x] 120: Legacy graph API deprecation.
 - [x] 121: Materialize API deprecation/classification.
-- [ ] 122: Public surface tests.
+- [x] 122: Public surface tests.
 - [ ] 123: README rewrite.
 - [ ] 124: Readings & Optics rewrite.
 - [ ] 125: API reference rewrite.
