@@ -157,7 +157,7 @@ const externalView = await audit.observer('external-review', externalAperture);
 // externalView is an Observer handle scoped by the aperture above
 ```
 
-## Sync the graph through Git
+## Sync the worldline through Git
 
 In the common case, your graph travels with Git. The part people miss is that WARP refs are not always covered by default branch refspecs, so show them explicitly while you are learning:
 

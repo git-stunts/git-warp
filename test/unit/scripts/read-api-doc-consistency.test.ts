@@ -19,10 +19,10 @@ const advancedGuide = readDoc('docs/ADVANCED_GUIDE.md');
 
 describe('public read API docs stay aligned with observer geometry', () => {
   it('teaches worldline-first pinned read examples in the learning and builder docs', () => {
-    expect(gettingStarted).toMatch(/worldline\([\s\S]*?worldline\.query\(/);
-    expect(gettingStarted).toMatch(/worldline\([\s\S]*?\.observer\(/);
-    expect(guide).toMatch(/worldline\([\s\S]*?worldline\.query\(/);
-    expect(guide).toMatch(/worldline\([\s\S]*?\.observer\(/);
+    expect(gettingStarted).toMatch(/audit\.live\(\)[\s\S]*?worldline\.query\(/);
+    expect(gettingStarted).toMatch(/audit\.observer\(/);
+    expect(guide).toMatch(/team\.live\(\)[\s\S]*?worldline\.query\(/);
+    expect(guide).toContain('const view = await worldline.observer');
     expect(advancedGuide).toContain('## Strands and braids');
   });
 
@@ -46,11 +46,12 @@ describe('public read API docs stay aligned with observer geometry', () => {
   });
 
   it('keeps the legacy WarpCore/WarpApp nouns out of the public read-surface docs', () => {
-    // v17: WarpGraph is the official interface returned by openWarpGraph().
-    // WarpCore and WarpApp are legacy nouns that should not appear in
-    // the primary learning path.
-    expect(gettingStarted).not.toContain('WarpCore');
-    expect(gettingStarted).not.toContain('WarpApp');
-    expect(guide).not.toContain('WarpCore');
+    // v18 may name legacy facades in compatibility notes, but the primary
+    // learning path must not teach those facades as normal app entrypoints.
+    expect(gettingStarted).not.toContain('WarpApp.open({');
+    expect(gettingStarted).not.toContain('WarpCore.open({');
+    expect(guide).not.toContain('WarpApp.open({');
+    expect(guide).not.toContain('WarpCore.open({');
+    expect(guide).not.toContain('open with `WarpApp`');
   });
 });
