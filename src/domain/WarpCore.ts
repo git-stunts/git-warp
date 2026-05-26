@@ -59,10 +59,15 @@ export default class WarpCore {
   declare readonly discoverWriters: WarpCoreRuntimeSurface['discoverWriters'];
   declare readonly discoverTicks: WarpCoreRuntimeSurface['discoverTicks'];
   declare readonly join: WarpCoreRuntimeSurface['join'];
+  /** @deprecated For application reads, use openWarpWorldline().live(), seek(), or observer reads. */
   declare readonly materialize: WarpCoreRuntimeSurface['materialize'];
+  /** @deprecated For application coordinate reads, use worldline seek/read handles. */
   declare readonly materializeCoordinate: WarpCoreRuntimeSurface['materializeCoordinate'];
+  /** @deprecated For application checkpoint reads, use historical worldline reads. */
   declare readonly materializeAt: WarpCoreRuntimeSurface['materializeAt'];
+  /** Diagnostic/substrate index verification; not an application read path. */
   declare readonly verifyIndex: WarpCoreRuntimeSurface['verifyIndex'];
+  /** Diagnostic/substrate cache invalidation; not an application read path. */
   declare readonly invalidateIndex: WarpCoreRuntimeSurface['invalidateIndex'];
   declare readonly getFrontier: WarpCoreRuntimeSurface['getFrontier'];
   declare readonly hasFrontierChanged: WarpCoreRuntimeSurface['hasFrontierChanged'];
@@ -78,6 +83,7 @@ export default class WarpCore {
   declare readonly getStrand: WarpCoreRuntimeSurface['getStrand'];
   declare readonly listStrands: WarpCoreRuntimeSurface['listStrands'];
   declare readonly dropStrand: WarpCoreRuntimeSurface['dropStrand'];
+  /** Diagnostic/speculative-lane snapshot inspection; not a first-use application read path. */
   declare readonly materializeStrand: WarpCoreRuntimeSurface['materializeStrand'];
   declare readonly getStrandPatches: WarpCoreRuntimeSurface['getStrandPatches'];
   declare readonly patchesForStrand: WarpCoreRuntimeSurface['patchesForStrand'];
@@ -93,6 +99,7 @@ export default class WarpCore {
   declare readonly runGC: WarpCoreRuntimeSurface['runGC'];
   declare readonly getGCMetrics: WarpCoreRuntimeSurface['getGCMetrics'];
   declare readonly patchesFor: WarpCoreRuntimeSurface['patchesFor'];
+  /** Diagnostic/provenance slice inspection; not a first-use application read path. */
   declare readonly materializeSlice: WarpCoreRuntimeSurface['materializeSlice'];
   declare readonly loadPatchBySha: WarpCoreRuntimeSurface['loadPatchBySha'];
   declare readonly buildPatchDivergence: WarpCoreRuntimeSurface['buildPatchDivergence'];

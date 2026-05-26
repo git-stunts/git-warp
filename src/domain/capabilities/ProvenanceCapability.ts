@@ -8,7 +8,7 @@ import type Patch from '../types/Patch.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
 import type { TickReceipt } from '../types/TickReceipt.ts';
 
-/** Result of materializeSlice(). */
+/** Diagnostic result of materializeSlice(). */
 export type SliceResult = {
   state: WarpState;
   patchCount: number;
@@ -17,6 +17,7 @@ export type SliceResult = {
 
 export default abstract class ProvenanceCapability {
   abstract patchesFor(_entityId: string): Promise<string[]>;
+  /** Diagnostic/provenance slice inspection; not a first-use application read path. */
   abstract materializeSlice(
     _nodeId: string,
     _options?: { receipts?: boolean },

@@ -68,6 +68,7 @@ export type SyncWithOptions = {
   }) => void;
   auth?: { secret: SyncSecret; keyId?: string };
   trust?: SyncTrustOptions;
+  /** Compatibility convenience: materialize after sync for legacy callers. */
   materialize?: boolean;
 };
 

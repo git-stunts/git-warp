@@ -37,6 +37,7 @@ export default abstract class StrandCapability {
   abstract listStrands(): Promise<StrandDescriptor[]>;
   abstract dropStrand(_strandId: string): Promise<boolean>;
 
+  /** Diagnostic/speculative-lane snapshot inspection; not a first-use application read path. */
   abstract materializeStrand(_strandId: string, _options: { receipts: true; ceiling?: number | null }): Promise<StrandMaterializeWithReceipts>;
   abstract materializeStrand(_strandId: string, _options?: { receipts?: false; ceiling?: number | null }): Promise<SnapshotWarpState>;
 
