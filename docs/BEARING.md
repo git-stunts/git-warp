@@ -146,7 +146,7 @@ Current 20-slice API checklist:
 - [x] 122: Public surface tests.
 - [x] 123: README rewrite.
 - [x] 124: Readings & Optics rewrite.
-- [ ] 125: API reference rewrite.
+- [x] 125: API reference rewrite.
 - [ ] 126: CLI diagnostic wording.
 - [ ] 127: Error and runtime docs sweep.
 - [ ] 128: Migration guide.
