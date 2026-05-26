@@ -139,7 +139,7 @@ Current 20-slice API checklist:
 - [x] 115: API naming and dependency contract.
 - [x] 116: Runtime-backed public types.
 - [x] 117: Entrypoint wrapper.
-- [ ] 118: Commit path.
+- [x] 118: Commit path.
 - [ ] 119: Read, observer, and optic path.
 - [ ] 120: Legacy graph API deprecation.
 - [ ] 121: Materialize API deprecation/classification.

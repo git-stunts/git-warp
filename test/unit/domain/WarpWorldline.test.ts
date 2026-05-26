@@ -127,11 +127,27 @@ describe('WarpWorldline', () => {
       writerId: 'agent-1',
     });
 
-    await handle.commit((patch) => {
+    const sha = await handle.commit((patch) => {
       patch.addNode('user:alice');
     });
 
+    expect(sha.length).toBeGreaterThan(0);
     await expect(handle.live().hasNode('user:alice')).resolves.toBe(true);
+  });
+
+  it('does not persist a partial patch when the commit callback fails', async () => {
+    const handle = await openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events',
+      writerId: 'agent-1',
+    });
+
+    await expect(handle.commit((patch) => {
+      patch.addNode('user:bob');
+      throw new Error('abort worldline commit');
+    })).rejects.toThrow('abort worldline commit');
+
+    await expect(handle.live().hasNode('user:bob')).resolves.toBe(false);
   });
 
   it('rejects empty open identities before returning a handle', async () => {
