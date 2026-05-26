@@ -40,5 +40,5 @@ The audit should focus on claims that can mislead users:
 
 - `rg -n "Recursive Witnessed Admission over Git|cold runtime|cold substrate"`
 - `rg -n "streaming|witnesshood|18.0.0|17.0.1" README.md docs`
-- `npx markdownlint` on edited docs.
+- `npm run lint:md` on edited docs.
 - Link check public documentation paths.
