@@ -158,22 +158,37 @@ Release-operation work is paused behind Optics:
 - [ ] Record the release evidence archive: tag SHA, preflight result, npm
   version evidence, JSR version evidence, and any audit note.
 
-Current Optics closeout checklist:
+Current Optics closeout 20-slice checklist:
 
-- [ ] Public `openWarpWorldline(...).optic().node(id).read()` success test over
-  real checkpoint-tail indexed evidence.
-- [ ] Public `openWarpWorldline(...).optic().node(id).prop(key).read()` success
-  test over real checkpoint-tail indexed evidence.
-- [ ] No-materialization proof on Optics success and failure paths.
-- [ ] Public docs show how the checkpoint-tail indexed basis is created or
-  verified before the first optic read.
-- [ ] Recovery docs cover `E_OPTIC_NO_BOUNDED_BASIS`,
-  `E_OPTIC_TAIL_BUDGET_EXCEEDED`, and read-identity failures.
-- [ ] Consumer type tests prove the documented public optic chain without
-  internal path imports.
-- [ ] Package-surface decision recorded for optic/result nouns.
+- [ ] 133: Decide the Worldline-first optic basis setup API and receipt
+  contract.
+- [ ] 134: Decide package exports versus opaque return types for optic/result
+  nouns.
+- [ ] 135: Bridge the checkpoint-tail fixture to the public
+  `openWarpWorldline(...)` path.
+- [ ] 136: Add RED coverage for `prepareOpticBasis()` or the approved
+  equivalent.
+- [ ] 137: Implement the smallest Worldline-first basis setup path.
+- [ ] 138: Add RED coverage for public node optic success with a materialization
+  trap.
+- [ ] 139: Make public node optic success pass through bounded evidence.
+- [ ] 140: Add RED coverage for public property optic success.
+- [ ] 141: Make public property optic success pass, including live tail
+  evidence.
+- [ ] 142: Lock missing node and missing property result semantics.
+- [ ] 143: Document and test `E_OPTIC_NO_BOUNDED_BASIS` recovery.
+- [ ] 144: Document and test `E_OPTIC_TAIL_BUDGET_EXCEEDED` recovery.
+- [ ] 145: Document and test `E_OPTIC_READ_IDENTITY` recovery.
+- [ ] 146: Decide and test blank node id and property key behavior.
+- [ ] 147: Add consumer type tests for documented optic setup and reads.
+- [ ] 148: Align root exports, package surface, and docs with the export
+  decision.
+- [ ] 149: Close API docs for setup, success, recovery, and bounded scope.
+- [ ] 150: Close release docs, changelog, BEARING, and backlog status.
+- [ ] 151: Run full verification for the Optics release gate.
+- [ ] 152: Drift-check the implementation against the PRD and open the PR.
 
-Current 20-slice API checklist:
+Completed Worldline-first API pivot checklist:
 
 - [x] 113: PRD and BEARING pivot.
 - [x] 114: Public surface inventory.

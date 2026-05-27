@@ -21,10 +21,19 @@ and package-surface contract.
 
 Shipping with only an exposed narrow handle and a common
 `E_OPTIC_NO_BOUNDED_BASIS` failure path would make Optics feel like a promise
-that users cannot exercise.
+that users cannot exercise. Shipping a setup path that requires first-use
+application developers to reopen the deprecated graph-first API would also
+undercut the v18 Worldline-first story.
+
+The design now carries a 20-slice PRD and test plan for closing this release
+gate. The default product target is a Worldline-first basis setup path such as
+`worldline.prepareOpticBasis()`, followed by successful public node and property
+optic reads.
 
 ## Done Looks Like
 
+- A Worldline-first public basis setup path exists, is documented, and does not
+  require first-use users to open `openWarpGraph(...)`.
 - `openWarpWorldline(...).optic().node(id).read()` succeeds in a public-path
   fixture with real checkpoint-tail indexed evidence.
 - `openWarpWorldline(...).optic().node(id).prop(key).read()` succeeds in the
@@ -39,6 +48,8 @@ that users cannot exercise.
   importing internal paths.
 - The package-surface decision is explicit: optic/result nouns are either
   exported public types or intentionally opaque chain-return values.
+- `docs/BEARING.md` tracks slices 133 through 152 until the PRD, tests, docs,
+  and release gate evidence are complete.
 
 ## Release Rule
 
