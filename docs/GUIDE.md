@@ -16,44 +16,50 @@ Use it when you are writing an app, an agent workflow, or a local-first tool on 
 
 The most important thing to understand is state before methods.
 
-- `openWarpGraph()` returns a frozen capability bag — the root you build on.
-- Capabilities are organized into namespaces: `graph.patches`, `graph.query`, `graph.strands`, etc.
-- A `Worldline` is a pinned read coordinate.
+- `openWarpWorldline()` returns the first-use handle for application workflows.
+- A `Worldline` is an admitted causal lane and a pinned read coordinate.
 - An `Aperture` defines what is visible.
 - An `Observer` is a filtered read-only view through that aperture.
 - A `Strand` is a speculative write lane branched from an observation.
+- `openWarpGraph()` returns the lower-level capability bag for diagnostics,
+  migration, sync, provenance, checkpoints, and speculative-strand controls.
 
 If you understand those nouns, the rest of the API becomes much easier to reason about.
 
-> **Backward compatibility:** the legacy `open()` entry points still work
-> but are deprecated and will be removed in v18. New code should use
-> `openWarpGraph()`.
+> **Advanced compatibility:** `openWarpGraph()`, `WarpApp.open()`, and
+> `WarpCore.open()` remain supported for lower-level diagnostics,
+> compatibility, migrations, and substrate tooling. New application code should
+> start with `openWarpWorldline()`.
 
-## Open a graph
+## Open a worldline
 
 ```typescript
-import { openWarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
+import {
+  GitGraphAdapter,
+  openWarpGraph,
+  openWarpWorldline,
+} from '@git-stunts/git-warp';
 import GitPlumbing from '@git-stunts/plumbing';
 
 const plumbing = new GitPlumbing({ cwd: './team-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
-const graph = await openWarpGraph({
+const team = await openWarpWorldline({
   persistence,
-  graphName: 'team',
+  worldlineName: 'team',
   writerId: 'alice',
 });
-// graph is the frozen capability bag for this graph
+// team is the frozen Worldline-first handle for this admitted lane
 ```
 
 ## Common write patterns
 
 ### Pattern 1: direct patch
 
-Use `graph.patches.patch(...)` for normal live writes.
+Use `worldline.commit(...)` for normal live writes.
 
 ```typescript
-const patchSha = await graph.patches.patch((p) => {
+const patchSha = await team.commit((p) => {
   p.addNode('task:auth')
     .setProperty('task:auth', 'title', 'Implement OAuth2')
     .setProperty('task:auth', 'status', 'in-progress');
@@ -61,11 +67,25 @@ const patchSha = await graph.patches.patch((p) => {
 // patchSha = 'abc123...'
 ```
 
-This commits one atomic WARP patch after the callback finishes. It updates `refs/warp/<graph>/writers/<writerId>`. It does not touch your normal Git worktree or create a source-tree commit on the current branch.
+This commits one atomic WARP patch after the callback finishes. It updates
+`refs/warp/<graph>/writers/<writerId>`. It does not touch your normal Git
+worktree or create a source-tree commit on the current branch.
+
+The remaining write patterns use the lower-level graph capability bag because
+they need writer sessions or speculative lanes:
+
+```typescript
+const graph = await openWarpGraph({
+  persistence,
+  graphName: 'team',
+  writerId: 'alice',
+});
+```
 
 ### Pattern 2: explicit writer session
 
-Use the writer API when you want a multi-step session before committing.
+Use the lower-level graph writer API when you intentionally want a multi-step
+session before committing.
 
 ```typescript
 const writer = await graph.patches.writer();
@@ -114,7 +134,7 @@ For the deeper substrate story behind strands, braids, and transfer planning, us
 Start from a worldline when you want stable application reads.
 
 ```typescript
-const worldline = graph.query.worldline();
+const worldline = team.live();
 
 const task = await worldline.getNodeProps('task:auth');
 // { title: 'Implement OAuth2', status: 'in-progress' }
@@ -145,7 +165,7 @@ const users = await view.query().match('user:*').run();
 Pin an explicit coordinate when you need to ask what the graph looked like earlier.
 
 ```typescript
-const historical = graph.query.worldline({
+const historical = await team.seek({
   source: {
     kind: 'coordinate',
     frontier: { alice: 'patch-tip-sha' },
@@ -304,7 +324,8 @@ Use this pattern when you need to explain a lost race or build higher-level conf
 
 Reach for individual capability namespaces when you intentionally need:
 
-- `graph.query` — live and pinned reads through worldlines, observers, traversal, and query builders
+- `graph.query` — compatibility and diagnostic reads through worldlines,
+  observers, traversal, and query builders
 - `graph.provenance` — provenance and patch inspection, backward-cone tracing
 - `graph.comparison` — coordinate comparison and transfer planning
 - `graph.checkpoint` — checkpoint creation, GC metrics

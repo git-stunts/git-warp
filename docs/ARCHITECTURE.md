@@ -12,8 +12,8 @@ If you are learning the product for the first time, start with:
 
 ```text
 ┌──────────────────────────────────────────────────┐
-│                  openWarpGraph()                  │
-│  commitment / folding / revelation / governance   │
+│       openWarpWorldline() / openWarpGraph()       │
+│  app worldline handle / advanced capability bag   │
 ├──────────┬───────────┬───────────┬───────────────┤
 │  Query   │  Patch    │ Materialize│    Sync      │
 │Controller│Controller │ Controller │  Controller  │
@@ -58,8 +58,10 @@ The system decomposes into three moments:
 - **Folding** — re-expresses admitted history (checkpoints, materialization)
 - **Revelation** — exposes truth under bounded rights (queries, observers)
 
-`openWarpGraph()` returns a frozen capability bag organized by these
-moments, plus governance (sync) for distributed admission.
+`openWarpWorldline()` gives application code the first-use handle over one
+named admitted causal lane. `openWarpGraph()` returns the advanced frozen
+capability bag organized by these moments, plus governance (sync) for
+distributed admission.
 
 ### Systems-Style TypeScript (SSTS)
 
@@ -77,9 +79,24 @@ Full standard: `docs/SYSTEMS_STYLE_TYPESCRIPT.md`
 
 ## Public API surface
 
+### `openWarpWorldline()` (v18+)
+
+The recommended application entry point. Returns a frozen Worldline-first
+handle:
+
+```text
+const team = await openWarpWorldline({ persistence, worldlineName, writerId });
+
+team.commit(...)       // commitment: write one atomic patch
+team.live()            // revelation: current admitted worldline
+team.seek(...)         // revelation: pinned coordinate read
+team.observer(...)     // revelation: bounded aperture
+team.optic()           // revelation: bounded optic question
+```
+
 ### `openWarpGraph()` (v17+)
 
-The recommended entry point. Returns a frozen capability bag:
+The advanced entry point. Returns a frozen capability bag:
 
 ```text
 const graph = await openWarpGraph({ persistence, graphName, writerId });
@@ -97,10 +114,10 @@ graph.subscriptions.*  // revelation: reactive state
 
 ### `WarpApp` / `WarpCore` (legacy, v16 compat)
 
-Still exported for backward compatibility. Both delegate to the same
-internal engine. `WarpApp` is the product surface; `WarpCore` is the
-plumbing surface. Both will be removed when `openWarpGraph()` consumer
-migration is complete.
+Still exported for backward compatibility and advanced tooling. Both delegate
+to the same internal engine. New application code should prefer
+`openWarpWorldline()`, and lower-level tooling should prefer `openWarpGraph()`
+unless it deliberately needs the legacy facade shape.
 
 ## Internal engine
 

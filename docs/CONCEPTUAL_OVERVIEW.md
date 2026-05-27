@@ -20,7 +20,13 @@ This is where it gets interesting. Multiple people (or machines, or processes) c
 
 Each writer maintains their own independent chain of **patches** — atomic batches of operations like "add this node, set this property, create this edge." These patches are stored as Git commits under refs like `refs/warp/myGraph/writers/alice`.
 
-When you want to read the graph, you **materialize** — which means replaying all patches from all writers and merging them into a single consistent view. The merge uses CRDTs (Conflict-free Replicated Data Types), which are mathematical structures that guarantee deterministic convergence regardless of what order the patches arrive in.
+When you want to read the graph, application code opens a **Worldline** and asks
+that worldline a bounded question. Internally, the runtime may replay visible
+patches, use checkpoints, or use cached derived state, but the public product
+shape is "read through a worldline," not "materialize a whole graph yourself."
+The merge uses CRDTs (Conflict-free Replicated Data Types), which are
+mathematical structures that guarantee deterministic convergence regardless of
+what order the patches arrive in.
 
 The specific CRDT rules are:
 
@@ -36,10 +42,12 @@ Since the data lives in Git, syncing can be as simple as `git push` and `git pul
 
 ## Querying
 
-Once materialized, you get a fluent query builder:
+Once you have a live or pinned worldline, you get a fluent query builder:
 
 ```javascript
-graph.query()
+const worldline = events.live();
+
+worldline.query()
   .match('user:*')
   .where({ role: 'admin' })
   .outgoing('manages', { depth: [1, 3] })
@@ -51,7 +59,10 @@ There's also full graph traversal — BFS, DFS, shortest path (bidirectional BFS
 
 ## Checkpoints and Performance
 
-Materialization replays every patch, which gets expensive as the graph grows. **Checkpoints** snapshot the current state so future materializations only replay patches created after the checkpoint. You can configure auto-checkpointing (e.g., every 500 patches) and it handles this transparently.
+Replay cost grows with history. **Checkpoints** snapshot derived state so future
+runtime reads only replay patches created after the checkpoint. You can
+configure auto-checkpointing (e.g., every 500 patches) and the runtime handles
+this transparently.
 
 For large graphs, there's a **bitmap index** system using Roaring bitmaps that enables O(1) neighbor lookups instead of scanning. The index is sharded by SHA prefix for lazy loading — cold start is near-zero memory, and a full index for a million nodes runs about 150–200 MB.
 

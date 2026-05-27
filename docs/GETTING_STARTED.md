@@ -3,11 +3,11 @@
 Use this guide when you want your first successful `git-warp` flow:
 
 1. install the package
-2. open a graph
+2. open a worldline
 3. write a first patch
 4. read current state
 5. pin a historical view
-6. sync the graph through Git refs
+6. sync the worldline history through Git refs
 
 If you already know you want broader builder patterns, jump to the [Guide](GUIDE.md). If you want the public read model first, jump to [Readings And Optics](READINGS_AND_OPTICS.md). If you want substrate internals, trust, replay, or performance details, jump to the [Advanced Guide](ADVANCED_GUIDE.md).
 
@@ -17,37 +17,40 @@ If you already know you want broader builder patterns, jump to the [Guide](GUIDE
 npm install @git-stunts/git-warp @git-stunts/plumbing
 ```
 
-## Open a graph
+## Open a worldline
 
-This walkthrough uses a collaborative security audit graph. History matters here because the team will revise findings over time and later inspect earlier states.
+This walkthrough uses a collaborative security audit worldline. History matters
+here because the team will revise findings over time and later inspect earlier
+states.
 
 ```typescript
-import { openWarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
+import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
 import GitPlumbing from '@git-stunts/plumbing';
 
 const plumbing = new GitPlumbing({ cwd: './security-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
-const graph = await openWarpGraph({
+const audit = await openWarpWorldline({
   persistence,
-  graphName: 'security-audit',
+  worldlineName: 'security-audit',
   writerId: 'local',
 });
-// graph is a frozen capability bag over the graph named "security-audit"
+// audit is a frozen Worldline-first handle over "security-audit"
 ```
 
 Use a unique `writerId` per machine or clone in real deployments. The tutorial
 uses `local` to keep the example readable, but production graphs should use a
 stable unique id such as a hostname, device id, or UUID.
 
-> **Backward compatibility:** the legacy `open()` entry points still work
-> but are deprecated and will be removed in v18. New code should use
-> `openWarpGraph()`.
+> **Advanced compatibility:** `openWarpGraph()`, `WarpApp.open()`, and
+> `WarpCore.open()` remain supported for lower-level diagnostics,
+> compatibility, migrations, and substrate tooling. New application code should
+> start with `openWarpWorldline()`.
 
 ## Write the first patch
 
 ```typescript
-const patch1 = await graph.patches.patch((p) => {
+const patch1 = await audit.commit((p) => {
   p.addNode('service:auth')
     .setProperty('service:auth', 'name', 'Auth service')
     .addNode('finding:oauth-state-mismatch')
@@ -59,7 +62,9 @@ const patch1 = await graph.patches.patch((p) => {
 // patch1 = 'abc123...'  // patch commit SHA
 ```
 
-`graph.patches.patch(...)` commits once after the callback finishes. It writes one WARP patch commit under `refs/warp/security-audit/writers/local`; it does not create a normal source-tree commit on your checked-out branch.
+`audit.commit(...)` commits once after the callback finishes. It writes one WARP
+patch commit under `refs/warp/security-audit/writers/local`; it does not create
+a normal source-tree commit on your checked-out branch.
 
 ## See where the graph lives
 
@@ -78,7 +83,7 @@ That is the core trick: graph history is stored in Git without taking over norma
 ## Write a second patch
 
 ```typescript
-const patch2 = await graph.patches.patch((p) => {
+const patch2 = await audit.commit((p) => {
   p.setProperty('finding:oauth-state-mismatch', 'severity', 'high')
     .setProperty('finding:oauth-state-mismatch', 'status', 'triaged');
 });
@@ -90,8 +95,8 @@ Now the live graph says the finding is triaged, but the earlier state still exis
 ## Read current state
 
 ```typescript
-// Create a live read handle over current graph history
-const worldline = graph.query.worldline();
+// Create a live read handle over current worldline history
+const worldline = audit.live();
 
 const finding = await worldline.getNodeProps('finding:oauth-state-mismatch');
 // { title: 'OAuth state mismatch', severity: 'high', status: 'triaged' }
@@ -124,7 +129,7 @@ const path = await worldline.traverse.shortestPath('finding:oauth-state-mismatch
 Because WARP state is history-aware, you can pin a historical coordinate and read what the graph looked like before the second patch landed.
 
 ```typescript
-const beforeTriage = graph.query.worldline({
+const beforeTriage = await audit.seek({
   source: {
     kind: 'coordinate',
     frontier: { local: patch2 },
@@ -148,11 +153,11 @@ const externalAperture = {
   redact: ['exploitSteps', 'internalNotes'],
 };
 
-const externalView = await worldline.observer('external-review', externalAperture);
+const externalView = await audit.observer('external-review', externalAperture);
 // externalView is an Observer handle scoped by the aperture above
 ```
 
-## Sync the graph through Git
+## Sync the worldline through Git
 
 In the common case, your graph travels with Git. The part people miss is that WARP refs are not always covered by default branch refspecs, so show them explicitly while you are learning:
 
@@ -170,15 +175,15 @@ In a real repo, you will usually automate that with Git config or team tooling s
 
 - writes become WARP patch commits under `refs/warp/...`
 - source-tree history and graph history stay separate
-- `graph.patches` creates and commits patches
-- `graph.query` provides live worldlines, observers, traversal, and direct reads
+- `WarpWorldline.commit()` creates and commits patches
+- `WarpWorldline.live()` provides live reads, traversal, and query builders
 - historical reads are pinned by coordinate, not reconstructed in app code
 - Git transports the graph, but you may need explicit WARP refspecs
 
 ## Next steps
 
 - [Readings And Optics](READINGS_AND_OPTICS.md): public read contract, live and pinned readings, observers, and optics
-- [Guide](GUIDE.md): builder patterns for `openWarpGraph()`, worldlines, observers, and strands
+- [Guide](GUIDE.md): builder patterns for Worldlines, observers, and strands
 - [API Reference](API_REFERENCE.md): exhaustive API and examples
 - [Advanced Guide](ADVANCED_GUIDE.md): substrate internals, trust, replay, and performance
 - [CLI Guide](CLI_GUIDE.md): operator workflows from the terminal

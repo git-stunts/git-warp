@@ -10,15 +10,18 @@ const gettingStarted = readFileSync(
 describe('Getting Started doc shape', () => {
   it('covers the five-minute happy path from install to sync', () => {
     expect(gettingStarted).toContain('## Install');
-    expect(gettingStarted).toContain('## Open a graph');
+    expect(gettingStarted).toContain('## Open a worldline');
     expect(gettingStarted).toContain('## Write the first patch');
     expect(gettingStarted).toContain('## Read current state');
     expect(gettingStarted).toContain('## Read earlier history');
-    expect(gettingStarted).toContain('## Sync the graph through Git');
+    expect(gettingStarted).toContain('## Sync the worldline through Git');
   });
 
   it('uses a history-sensitive example and shows result shapes', () => {
-    expect(gettingStarted).toContain('collaborative security audit graph');
+    expect(gettingStarted).toContain('collaborative security audit worldline');
+    expect(gettingStarted).toContain('openWarpWorldline');
+    expect(gettingStarted).toContain('worldlineName: \'security-audit\'');
+    expect(gettingStarted).toContain('const patch1 = await audit.commit');
     expect(gettingStarted).toContain('refs/warp/security-audit/writers/local');
     expect(gettingStarted).toContain("// patch1 = 'abc123...'");
     expect(gettingStarted).toContain("// patch2 = 'def456...'");

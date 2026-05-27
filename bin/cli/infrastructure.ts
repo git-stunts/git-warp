@@ -98,14 +98,14 @@ Commands:
                        --lamport-ceiling <n>  Apply an additional ceiling to the source strand
                        --into-lamport-ceiling <n>
                                               Apply an additional ceiling to the target side
-                     materialize <id>   Materialize the pinned coordinate
+                    materialize <id>   Inspect a pinned strand replay
                        --receipts             Include tick receipts
                      drop <id>          Delete a strand descriptor
   verify-audit     Verify audit receipt chain integrity
   verify-index     Verify bitmap index integrity by sampling
   reindex          Force full index rebuild
   trust            Evaluate writer trust from signed evidence
-  materialize      Materialize and checkpoint all graphs
+  materialize      Diagnostic replay/checkpoint for graph state
   seek             Time-travel: step through graph history by Lamport tick
   patch            Decode and inspect raw patches
   tree             ASCII tree traversal from root nodes

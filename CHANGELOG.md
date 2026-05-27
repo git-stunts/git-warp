@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 public API now includes `openWarpWorldline()`, a frozen `WarpWorldline`
+  handle, `WarpWorldlineOpenOptions`, and `WarpWorldlinePatchBuild` so
+  application callers can commit patches and read live, historical, observer,
+  and optic views without reaching for graph/materialize-first surfaces.
+- V18 public docs now lead with the Worldline-first application path across the
+  README, Getting Started, Guide, Readings & Optics, API Reference, CLI Guide,
+  Architecture, Advanced Guide, Conceptual Overview, and the new v18 migration
+  guide.
+- V18 package-surface guards now verify that npm, JSR, the root barrel,
+  consumer typecheck, registry metadata, and docs all expose the
+  Worldline-first API while keeping graph/materialize surfaces classified as
+  compatibility, diagnostic, migration, or substrate tooling.
 - V18 release-candidate evidence now records guarded CLI finalization,
   zero-mismatch wet-run proof, runtime-boundary Continuum contract conformance,
   `warp-ttd` generated-family smoke evidence, the retired raw-boundary

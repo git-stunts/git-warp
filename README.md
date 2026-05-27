@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts%2Fgit-warp)
 
-`git-warp` commits truth, folds truth, and reveals truth under law.
+`git-warp` commits truth and reveals truth through bounded worldlines.
 
 It stores causal graph history in Git objects and refs. Writes are
 admitted through patches. Reads happen through worldlines, strands,
@@ -16,27 +16,25 @@ are part of the model.
 ## Quick start
 
 ```typescript
-import { openWarpGraph } from '@git-stunts/git-warp';
+import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
 import GitPlumbing from '@git-stunts/plumbing';
-import { GitGraphAdapter } from '@git-stunts/git-warp';
 
 const plumbing = new GitPlumbing({ cwd: '.' });
 const persistence = new GitGraphAdapter({ plumbing });
 
-const graph = await openWarpGraph({
+const events = await openWarpWorldline({
   persistence,
-  graphName: 'events',
+  worldlineName: 'events',
   writerId: 'agent-1',
 });
 
 // Commit: admit a claim into shared causal reality
-const patch = await graph.patches.createPatch();
-patch.addNode('user:alice').setProperty('user:alice', 'role', 'admin');
-await patch.commit();
+await events.commit((patch) => {
+  patch.addNode('user:alice').setProperty('user:alice', 'role', 'admin');
+});
 
 // Reveal: read the admitted truth through a live worldline
-const worldline = graph.query.worldline();
-const props = await worldline.getNodeProps('user:alice');
+const props = await events.live().getNodeProps('user:alice');
 ```
 
 ## What git-warp is
@@ -47,15 +45,30 @@ for Recursive Provenance.
 - **Offline-first** — writers work independently, converge later
 - **Multi-writer** — each writer owns its own ref, no coordination
 - **Append-only** — history is never rewritten
-- **Deterministic** — same patches, any order, same materialized state
+- **Deterministic** — same patches, any order, same visible state
 - **Provenance-complete** — every value traces to exactly one producing patch
 - **Speculative** — strands are causal lanes for counterfactual work
 - **Observable** — worldlines, observers, and apertures shape what you see
 
 ## The admission architecture
 
-`openWarpGraph()` returns a frozen capability bag organized around
-three architectural moments:
+The product-facing surface starts with `openWarpWorldline()`. A worldline is a
+named admitted causal lane with one writer identity and a small public handle:
+
+| Handle method | Moment | What it does |
+|---------------|--------|--------------|
+| `commit()` | Commitment | Admits a patch into the named worldline |
+| `live()` | Revelation | Reads the latest visible state |
+| `seek()` | Historical revelation | Reads a bounded historical coordinate |
+| `observer()` | Bounded revelation | Creates an observer through an aperture |
+| `optic()` | Bounded optic work | Starts optic-shaped reads over the worldline |
+
+Advanced tooling can still open the lower-level capability bag with
+`openWarpGraph()`. That surface is supported for compatibility, diagnostics,
+substrate operations, and migration evidence. New application code should prefer
+Worldlines and Optics unless it is deliberately working on those lower layers.
+
+`openWarpGraph()` is organized around four architectural moments:
 
 | Moment | Capabilities | What it does |
 |--------|-------------|--------------|
@@ -109,7 +122,7 @@ your source tree. Sync happens through normal `git push` / `git fetch`.
 - **[Guide](docs/GUIDE.md)** — patterns for apps, agents, and tools
 - **[API Reference](docs/API_REFERENCE.md)** — exhaustive public API
 - **[Architecture](docs/ARCHITECTURE.md)** — hexagonal layers and admission kernel
-- **[Migration Guide](docs/migrations/v17.0.0.md)** — upgrading from v16
+- **[Migration Guide](docs/migrations/v18.0.0.md)** — Worldline-first v18 API migration
 - **[CLI Guide](docs/CLI_GUIDE.md)** — terminal workflows
 - **[Vision](docs/VISION.md)** — repo doctrine
 - **[Specs](docs/specs/)** — normative protocol and format specifications

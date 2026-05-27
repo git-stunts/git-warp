@@ -10,10 +10,12 @@ const guide = readFileSync(
 describe('Guide builder-shape', () => {
   it('starts with the state model before diving into methods', () => {
     expect(guide).toContain('## Mental model');
-    expect(guide).toContain('A `Worldline` is a pinned read coordinate.');
+    expect(guide).toContain('`openWarpWorldline()` returns the first-use handle');
+    expect(guide).toContain('A `Worldline` is an admitted causal lane and a pinned read coordinate.');
     expect(guide).toContain('An `Aperture` defines what is visible.');
     expect(guide).toContain('An `Observer` is a filtered read-only view through that aperture.');
     expect(guide).toContain('A `Strand` is a speculative write lane');
+    expect(guide).toContain('`openWarpGraph()` returns the lower-level capability bag');
   });
 
   it('organizes the main API around common write and read patterns', () => {

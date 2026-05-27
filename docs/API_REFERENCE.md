@@ -12,6 +12,12 @@ Use it when you already understand the mental model and want the full method, fl
 
 The rest of this file intentionally stays dense and comprehensive.
 
+For new application code, start with `openWarpWorldline()`. It returns the
+small Worldline-first handle for committing patches and reading live, historical,
+observer, or optic views. Use `openWarpGraph()` when you intentionally need the
+lower-level compatibility, diagnostic, migration, sync, checkpoint, provenance,
+or speculative-strand capability bag.
+
 ## When to Use git-warp
 
 - **Multiple processes or machines** writing to the same graph
@@ -43,11 +49,11 @@ The domain layer has no direct Node.js built-in imports. Runtime-specific adapte
 | Browser | `WebCryptoAdapter` | N/A |
 
 ```typescript
-import { openWarpGraph, WebCryptoAdapter } from '@git-stunts/git-warp';
+import { openWarpWorldline, WebCryptoAdapter } from '@git-stunts/git-warp';
 
-const graph = await openWarpGraph({
+const events = await openWarpWorldline({
   persistence,
-  graphName: 'demo',
+  worldlineName: 'demo',
   writerId: 'writer-1',
   crypto: new WebCryptoAdapter(),  // uses globalThis.crypto.subtle
 });
@@ -57,9 +63,113 @@ If no crypto adapter is provided, checksum computation gracefully returns `null`
 
 ---
 
+## openWarpWorldline()
+
+`openWarpWorldline()` is the first-use public entry point for application
+workflows. It opens a named admitted causal lane, wires it through the existing
+graph substrate, and returns a frozen `WarpWorldline` handle.
+
+```typescript
+import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
+import GitPlumbing from '@git-stunts/plumbing';
+
+const plumbing = new GitPlumbing({ cwd: './my-repo' });
+const persistence = new GitGraphAdapter({ plumbing });
+
+const todos = await openWarpWorldline({
+  persistence,
+  worldlineName: 'todos',
+  writerId: 'local',
+});
+```
+
+### WarpWorldlineOpenOptions
+
+`WarpWorldlineOpenOptions` accepts the same substrate ports as `WarpGraphDeps`,
+but the identity field is `worldlineName` instead of `graphName`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `persistence` | `CorePersistence` | Yes | Git storage adapter |
+| `worldlineName` | `string` | Yes | Admitted worldline identity |
+| `writerId` | `string` | Yes | Writer identity |
+| `trust` | `{ mode?: 'off' \| 'log-only' \| 'enforce'; pin?: string \| null }` | No | Trust verification |
+| `gcPolicy` | `GCPolicyConfig` | No | Garbage collection thresholds |
+| `checkpointPolicy` | `{ every: number }` | No | Auto-checkpoint interval |
+| `onDeleteWithData` | `'reject' \| 'cascade' \| 'warn'` | No | Node delete behavior |
+| `autoMaterialize` | `boolean` | No | Legacy cached-read compatibility flag |
+| `crypto` | `CryptoPort` | No | Crypto adapter |
+| `codec` | `CodecPort` | No | Serialization adapter |
+| `clock` | `ClockPort` | No | Clock adapter |
+| `audit` | `boolean` | No | Enable audit receipts |
+| `logger` | `LoggerPort` | No | Logger adapter |
+| `effectPipeline` | `EffectPipeline` | No | Effect processing pipeline |
+| `effectSinks` | `EffectSinkPort[]` | No | Effect output sinks |
+| `externalizationPolicy` | `ExternalizationPolicy` | No | Content externalization rules |
+| `seekCache` | `SeekCachePort` | No | Seek cache accelerator |
+| `blobStorage` | `BlobStoragePort` | No | Blob storage accelerator |
+| `patchBlobStorage` | `BlobStoragePort` | No | Patch blob storage |
+| `patchJournal` | `PatchJournalPort \| null` | No | Patch journal |
+| `checkpointStore` | `CheckpointStorePort \| null` | No | Checkpoint store |
+| `indexStore` | `IndexStorePort \| null` | No | Index store |
+| `adjacencyCacheSize` | `number` | No | Adjacency cache size |
+
+`graphName` is intentionally not accepted by `WarpWorldlineOpenOptions`.
+Compatibility callers that need graph-named substrate access should use
+`openWarpGraph()`.
+
+### WarpWorldline interface
+
+| Member | Type | Description |
+|---|---|---|
+| `worldlineName` | `string` | Named admitted causal lane |
+| `writerId` | `string` | Writer identity used for commits |
+| `commit(build)` | `(build: WarpWorldlinePatchBuild) => Promise<string>` | Commits one atomic patch |
+| `live()` | `() => Worldline` | Returns the live worldline read handle |
+| `seek(options?)` | `(options?: WorldlineOptions) => Promise<Worldline>` | Returns a pinned worldline read handle |
+| `observer(config)` | `(config: Aperture) => Promise<Observer>` | Opens an aperture over the live worldline |
+| `observer(name, config)` | `(name: string, config: Aperture) => Promise<Observer>` | Opens a named aperture |
+| `optic()` | `() => WorldlineOptic` | Opens a bounded optic over the live worldline |
+
+The handle intentionally does not expose `graphName`, `materialize()`,
+`checkpoint`, `provenance`, `sync`, `strands`, or raw core access.
+
+### WarpWorldlinePatchBuild
+
+`WarpWorldlinePatchBuild` is the callback shape used by `commit()`:
+
+```typescript
+type WarpWorldlinePatchBuild = (
+  patch: PatchBuilder,
+) => void | Promise<void>;
+```
+
+Example:
+
+```typescript
+await todos.commit((patch) => {
+  patch.addNode('todo:1')
+    .setProperty('todo:1', 'title', 'Buy groceries')
+    .setProperty('todo:1', 'done', false)
+    .addEdge('todo:1', 'list:shopping', 'belongs-to');
+});
+
+const props = await todos.live().getNodeProps('todo:1');
+```
+
+---
+
 ## openWarpGraph()
 
-`openWarpGraph()` is the public entry point — the composition root for the admission architecture. It accepts typed ports for persistence, governing policy, witness infrastructure, and revelation regime, wires controllers, and returns a frozen `WarpGraph` capability bag.
+`openWarpGraph()` is the advanced composition root for the admission
+architecture. It accepts typed ports for persistence, governing policy, witness
+infrastructure, and revelation regime, wires controllers, and returns a frozen
+`WarpGraph` capability bag.
+
+For new application workflows, prefer `openWarpWorldline()`. Use
+`openWarpGraph()` when you need compatibility access to graph capability
+namespaces, substrate diagnostics, provenance, checkpoint, sync, migration, or
+speculative-strand controls.
 
 ```typescript
 import { openWarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
@@ -135,10 +245,14 @@ The flat aliases (`graph.patches`) and the moment-scoped accessors (`graph.commi
 
 ### @deprecated WarpApp / WarpCore
 
-`WarpApp.open()` and `WarpCore.open()` remain exported for backward compatibility. They return the legacy facade objects. **Both are deprecated and will be removed in v18.**
+`WarpApp.open()` and `WarpCore.open()` remain exported for backward
+compatibility and advanced substrate work. They return the legacy facade
+objects. Both are deprecated for new application workflows.
 
 To migrate:
-- Replace `WarpApp.open(deps)` or `WarpCore.open(deps)` with `openWarpGraph(deps)`.
+- Replace app-facing `WarpApp.open(deps)` or `WarpCore.open(deps)` calls with
+  `openWarpWorldline({ ...deps, worldlineName })`.
+- Use `openWarpGraph(deps)` only where you need the lower-level capability bag.
 - Replace `app.patch(...)` with `graph.patches.patch(...)`.
 - Replace `app.worldline()` with `graph.query.worldline()`.
 - Replace `app.createStrand(...)` with `graph.strands.createStrand(...)`.
@@ -153,22 +267,22 @@ To migrate:
 ## Quick Start
 
 ```typescript
-import { openWarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
+import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
 import GitPlumbing from '@git-stunts/plumbing';
 
 // 1. Point at a Git repo
 const plumbing = new GitPlumbing({ cwd: './my-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
-// 2. Open a graph
-const graph = await openWarpGraph({
+// 2. Open a worldline
+const todos = await openWarpWorldline({
   persistence,
-  graphName: 'todos',
+  worldlineName: 'todos',
   writerId: 'local',
 });
 
 // 3. Write some data
-await graph.patches.patch((p) => {
+await todos.commit((p) => {
   p.addNode('list:shopping')
     .addNode('todo:1')
     .setProperty('todo:1', 'title', 'Buy groceries')
@@ -176,18 +290,18 @@ await graph.patches.patch((p) => {
     .addEdge('todo:1', 'list:shopping', 'belongs-to');
 });
 
-// 4. Create a pinned read handle
-const worldline = graph.query.worldline();
+// 4. Create a live read handle
+const live = todos.live();
 
 // 5. Read, query, and traverse through that worldline
-const props = await worldline.getNodeProps('todo:1');
+const props = await live.getNodeProps('todo:1');
 // { title: 'Buy groceries', done: false }
 
-const todos = await worldline.query()
+const openTodos = await live.query()
   .match('todo:*')
   .run();
 
-const path = await worldline.traverse.shortestPath('todo:1', 'list:shopping', {
+const path = await live.traverse.shortestPath('todo:1', 'list:shopping', {
   dir: 'out',
 });
 ```
@@ -240,12 +354,26 @@ flowchart TB
 
 ## Writing Data
 
-All writes go through **patches** — atomic batches of graph operations. A patch can contain any combination of node adds/removes, edge adds/removes, and property sets. Each patch becomes a single Git commit.
+All writes go through **patches** — atomic batches of graph operations. A patch
+can contain any combination of node adds/removes, edge adds/removes, and
+property sets. Each patch becomes a single Git commit.
+
+For application code, prefer the worldline handle:
+
+```typescript
+await todos.commit((patch) => {
+  patch.addNode('user:alice').setProperty('user:alice', 'role', 'admin');
+});
+```
+
+For compatibility and substrate tooling, the graph capability bag exposes the
+lower-level patch namespace.
 
 There are three main ways to write:
 
 | API | Do you call `commit()` yourself? | What gets committed? |
 |---|---|---|
+| `worldline.commit(build)` | No | One atomic WARP patch on the named worldline |
 | `graph.patches.patch(build)` | No | One atomic WARP patch after the callback finishes |
 | `graph.patches.createPatch()` | Yes | One atomic WARP patch when you call `commit()` |
 | `writer.beginPatch()` | Yes | One atomic WARP patch when you call `commit()` |
@@ -371,7 +499,8 @@ const writer = await graph.patches.writer('machine-a');
 
 ## Reading Data
 
-For application-facing reads, start from `graph.query.worldline()`.
+For application-facing reads, start from `WarpWorldline.live()` or
+`WarpWorldline.seek()`.
 
 `Worldline` pins the read source and gives you stable direct reads, query, and
 traversal without forcing application code to preload the whole visible graph
@@ -380,7 +509,7 @@ or manage replay details itself.
 ### Product Reads
 
 ```typescript
-const worldline = graph.query.worldline();
+const worldline = todos.live();
 
 await worldline.hasNode('user:alice');      // true
 await worldline.getNodes();                 // ['user:alice', 'user:bob']
@@ -411,9 +540,11 @@ const publicUsers = await worldline.observer('public-users', publicUserLens);
 ### Readings And Optics
 
 Use `graph.query`, `graph.query.worldline()`, and observers for public
-read paths. These surfaces express the read as a bounded revelation over
-causal history instead of asking callers to fold the graph into a public
-state object first.
+read paths when you are already inside the lower-level graph capability bag.
+For new application code, use `openWarpWorldline()` and the `WarpWorldline`
+methods above. Both surfaces express the read as a bounded revelation over
+causal history instead of asking callers to fold the graph into a public state
+object first.
 
 For the narrative version of this model, see [Readings And Optics](READINGS_AND_OPTICS.md).
 
@@ -1363,8 +1494,8 @@ git warp query --match 'user:*' --outgoing manages     # Query nodes
 git warp path --from user:alice --to user:bob --dir out # Find path
 git warp history --writer alice                         # Patch history
 git warp check                                         # Health/GC status
-git warp materialize                                   # Materialize all graphs
-git warp materialize --graph my-graph                  # Single graph
+git warp materialize                                   # Diagnostic replay/checkpoint
+git warp materialize --graph my-graph                  # One graph diagnostic replay
 git warp seek --tick 3                                 # Time-travel to tick 3
 git warp seek --latest                                 # Return to present
 git warp debug coordinate                              # Resolved observation coordinate
@@ -1783,7 +1914,8 @@ If no path exists:
 
 #### materialize --view
 
-Shows materialization progress with writer contributions and graph statistics.
+Shows diagnostic replay and checkpoint progress with writer contributions and
+graph statistics.
 
 ```bash
 git warp --view materialize                # All graphs

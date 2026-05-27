@@ -77,7 +77,9 @@ git warp tree task:review --repo ./team-repo --edge depends-on --prop status
 git warp history --repo ./team-repo --node task:auth
 ```
 
-These commands are state-level operator tools. They are appropriate for scripts, dashboards, and debugging.
+These commands are state-level operator tools. They are appropriate for scripts,
+dashboards, and debugging. Application code should use Worldline and Optic APIs
+instead of shelling out to the CLI.
 
 If you want to treat the CLI as a scriptable data source, JSON output works well with `jq`:
 
@@ -131,13 +133,15 @@ git warp patch list --repo ./team-repo --limit 10
 git warp patch show <patch-sha> --repo ./team-repo
 ```
 
-For explicit whole-state replay:
+For explicit diagnostic whole-state replay:
 
 ```bash
 git warp materialize --repo ./team-repo
 ```
 
-Treat `materialize` as advanced substrate inspection, not the normal application read path.
+Treat `materialize` as advanced substrate inspection, not the normal application
+read path. The normal product read path is a live or pinned Worldline, observer,
+or bounded optic.
 
 ## Workflow 5: speculative lanes
 
@@ -154,7 +158,11 @@ git warp strand transfer-plan review-auth --repo ./team-repo --into live
 git warp strand drop review-auth --repo ./team-repo
 ```
 
-Use strands for durable speculative coordinates. Use `seek` for temporary cursor movement.
+`strand materialize` inspects a pinned speculative coordinate. It is not the
+normal product read path for admitted worldline truth.
+
+Use strands for durable speculative coordinates. Use `seek` for temporary cursor
+movement.
 
 ## Workflow 6: trust and maintenance
 

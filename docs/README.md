@@ -15,9 +15,11 @@ when you need that level of detail.
 - [Readings And Optics](READINGS_AND_OPTICS.md)
   Public read model: live worldlines, pinned readings, observers, and bounded optics.
 - [Guide](GUIDE.md)
-  Builder guide: common app patterns with `openWarpGraph()`, worldlines, observers, and strands.
+  Builder guide: common app patterns with Worldlines, observers, and strands.
 - [API Reference](API_REFERENCE.md)
   Exhaustive API, appendices, flags, and examples without the narrative.
+- [v18 Migration Guide](migrations/v18.0.0.md)
+  Worldline-first API migration from graph/materialize-first app code.
 - [Advanced Guide](ADVANCED_GUIDE.md)
   Architect guide: substrate internals, replay, trust, and performance.
 - [CLI Guide](CLI_GUIDE.md)
@@ -30,7 +32,7 @@ when you need that level of detail.
 - [Getting Started](GETTING_STARTED.md)
   The first successful end-to-end path.
 - [Readings And Optics](READINGS_AND_OPTICS.md)
-  The public v17 read contract and vocabulary.
+  The public v18 read contract and vocabulary.
 - [Guide](GUIDE.md)
   Day-to-day builder workflows.
 - [API Reference](API_REFERENCE.md)

@@ -50,9 +50,11 @@ import WarpAppDefault, {
   WriterError,
   checkAborted,
   createTimeoutSignal,
+  openWarpWorldline,
   openWarpGraph,
   WarpApp,
   WarpCore,
+  WarpWorldline,
   Worldline,
   WorldlineSelector,
   LiveSelector,
@@ -124,6 +126,8 @@ import WarpAppDefault, {
   type PropValue,
   type SnapshotPropValue,
   type SyncRateLimitConfig,
+  type WarpWorldlineOpenOptions,
+  type WarpWorldlinePatchBuild,
 } from '../../index.ts';
 
 import {
@@ -195,6 +199,7 @@ const exportedRuntimeSurface = [
   StrandError,
   WormholeError,
   WriterError,
+  WarpWorldline,
   openWarpGraph,
   WarpApp,
   WarpCore,
@@ -227,6 +232,7 @@ const exportedRuntimeSurface = [
 const exportedFunctionSurface = [
   checkAborted,
   createTimeoutSignal,
+  openWarpWorldline,
   computeTranslationCost,
   createNodeAdd,
   createNodeTombstone,
@@ -311,6 +317,31 @@ void graphName;
 void writerId;
 void graphBagName;
 void graphBagWriter;
+
+const worldlineOptions: WarpWorldlineOpenOptions = {
+  persistence,
+  worldlineName: 'consumer-worldline',
+  writerId: 'writer-worldline',
+  logger,
+  crypto,
+  seekCache,
+  trust: { mode: 'off' },
+};
+const warpWorldline: WarpWorldline = await openWarpWorldline(worldlineOptions);
+const worldlinePatchBuild: WarpWorldlinePatchBuild = (patch) => {
+  patch.addNode('worldline-node');
+};
+const worldlinePatchSha: string = await warpWorldline.commit(worldlinePatchBuild);
+const worldlineLive: Worldline = warpWorldline.live();
+const worldlineHistorical: Worldline = await warpWorldline.seek({
+  source: { kind: 'live', ceiling: 1 },
+});
+const worldlineObserver: Observer = await warpWorldline.observer({ match: '*' });
+
+void worldlinePatchSha;
+void worldlineLive;
+void worldlineHistorical;
+void worldlineObserver;
 
 const materialized: SnapshotWarpState = await graph.materialize();
 const materializedWithReceipts: { state: SnapshotWarpState; receipts: readonly ReturnType<typeof createTickReceipt>[] } =
@@ -519,6 +550,26 @@ const badGraphBagNestedMaterialize = graphBag.materialize.materialize;
 // @ts-expect-error query readings do not expose materialization.
 const badGraphBagQueryMaterialize = graphBag.query.materialize;
 
+const badWorldlineGraphAlias: WarpWorldlineOpenOptions = {
+  persistence,
+  worldlineName: 'consumer-worldline',
+  writerId: 'writer-worldline',
+  // @ts-expect-error WarpWorldline open options do not accept graphName.
+  graphName: 'legacy-graph',
+};
+
+// @ts-expect-error WarpWorldline open options require worldlineName.
+const badWorldlineMissingName: WarpWorldlineOpenOptions = {
+  persistence,
+  writerId: 'writer-worldline',
+};
+
+// @ts-expect-error WarpWorldline does not expose materialization.
+const badWarpWorldlineMaterialize = warpWorldline.materialize;
+
+// @ts-expect-error WarpWorldline does not expose graphName.
+const badWarpWorldlineGraphName = warpWorldline.graphName;
+
 // @ts-expect-error sync auth secrets must be explicit SyncSecret values.
 await graph.syncWith(serverUrl, { auth: { secret: 'shared-secret', keyId: 'default' } });
 
@@ -540,5 +591,9 @@ createNodeAdd(42);
 void badGraphBagMaterialize;
 void badGraphBagNestedMaterialize;
 void badGraphBagQueryMaterialize;
+void badWorldlineGraphAlias;
+void badWorldlineMissingName;
+void badWarpWorldlineMaterialize;
+void badWarpWorldlineGraphName;
 void badMaterialized;
 void badHasNode;

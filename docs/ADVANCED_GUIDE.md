@@ -10,17 +10,19 @@ Use it when you need to understand why `git-warp` is safe, how replay works, wha
 
 ## Public roots and boundaries
 
-`git-warp` exposes two public roots:
+`git-warp` exposes three public roots with different audiences:
 
-- `WarpApp` for application code and agent workflows
-- `WarpCore` for replay, provenance, materialization, inspection, and tooling plumbing
+- `openWarpWorldline()` for application code and agent workflows
+- `openWarpGraph()` for compatibility, diagnostics, sync, checkpoint,
+  provenance, migration, and speculative-strand capability namespaces
+- `WarpApp` / `WarpCore` for legacy facade compatibility and substrate tooling
 
 The normal path is:
 
-1. open with `WarpApp`
-2. write with patches
-3. read through `worldline()` and `observer(...)`
-4. use `app.core()` only when you intentionally need substrate-level work
+1. open with `openWarpWorldline()`
+2. write with `WarpWorldline.commit(...)`
+3. read through `live()`, `seek(...)`, `observer(...)`, and `optic()`
+4. use `openWarpGraph()` only when you intentionally need substrate-level work
 
 Inspection APIs are legitimate. The thing to avoid is exporting their results into a second app-local graph engine or reimplementing traversal/query semantics above the substrate.
 
@@ -139,7 +141,10 @@ The important boundary is:
 - a strand is not a governance engine
 - a strand is a durable coordinate plus an overlay patch log
 
-That is why strands belong in the advanced tier. Most builders use `WarpApp` plus `Worldline` first. Reach for strands when you need review lanes, comparison, transfer planning, or other explicit speculative workflows.
+That is why strands belong in the advanced tier. Most builders use
+`openWarpWorldline()` first. Reach for `openWarpGraph()` and strands when you
+need review lanes, comparison, transfer planning, or other explicit speculative
+workflows.
 
 ## Coordinate fact export
 

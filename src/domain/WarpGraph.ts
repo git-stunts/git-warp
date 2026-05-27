@@ -10,7 +10,7 @@
  *   Folding    — admitted history is re-expressed in boundary-equivalent form
  *   Revelation — admitted history is exposed under bounded rights
  *
- * `openWarpGraph()` is the composition root. It accepts the governing
+ * `openWarpGraph()` is the advanced composition root. It accepts the governing
  * policy, witness infrastructure, and revelation regime as typed ports,
  * wires controllers, and returns a frozen capability bag organized by
  * architectural moment.
@@ -172,10 +172,14 @@ export interface WarpGraphDeps {
 /**
  * Opens a WARP multi-writer graph and returns a frozen capability bag.
  *
- * This is the single public entry point — the composition root for
- * the admission architecture. It accepts the governing policy, witness
- * infrastructure, and revelation regime as typed ports, wires
- * controllers, and returns a frozen WarpGraph.
+ * This remains the advanced composition root for the admission architecture.
+ * Application workflows should prefer openWarpWorldline(), which opens the
+ * named causal worldline and keeps materialization and graph-wide diagnostics
+ * off the first-use surface.
+ *
+ * @deprecated For application workflows, use openWarpWorldline(). This
+ * advanced capability bag remains supported for compatibility, tooling, and
+ * substrate diagnostics.
  *
  * @example
  * ```ts

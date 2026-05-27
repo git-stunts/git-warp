@@ -7,27 +7,9 @@
  * inheriting content-addressing, cryptographic integrity, and
  * distributed replication.
  *
- * @example
- * ```ts
- * import GitPlumbing from "@git-stunts/plumbing";
- * import WarpApp from "@git-stunts/git-warp";
- * import { GitGraphAdapter } from "@git-stunts/git-warp";
- *
- * const plumbing = new GitPlumbing({ cwd: "." });
- * const persistence = new GitGraphAdapter({ plumbing });
- *
- * const app = await WarpApp.open({
- *   persistence,
- *   graphName: "myGraph",
- *   writerId: "writer-1",
- * });
- *
- * const patch = await app.createPatch();
- * patch.addNode("user:alice").setProperty("user:alice", "name", "Alice");
- * await patch.commit();
- * const worldline = app.worldline();
- * const node = await worldline.getNodeProps("user:alice");
- * ```
+ * First-use application code should open a named worldline with
+ * `openWarpWorldline()`. `WarpApp`, `WarpCore`, and `openWarpGraph()` remain
+ * supported compatibility and diagnostic surfaces for graph-first code.
  */
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.ts';
@@ -187,6 +169,7 @@ import SyncSecret from './src/domain/services/sync/SyncSecret.ts';
 import ContentAttachmentProjection from './src/domain/services/ContentAttachmentProjection.ts';
 import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
+import WarpWorldline, { openWarpWorldline } from './src/domain/WarpWorldline.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
@@ -202,6 +185,10 @@ import SnapshotWarpState from './src/domain/services/snapshot/SnapshotWarpState.
 import type { PropValue } from './src/domain/types/PropValue.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
 import type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
+import type {
+  WarpWorldlineOpenOptions,
+  WarpWorldlinePatchBuild,
+} from './src/domain/WarpWorldline.ts';
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
@@ -343,10 +330,14 @@ export {
   checkAborted,
   createTimeoutSignal,
 
-  // Multi-writer graph — admission architecture entry point
+  // Multi-writer graph — advanced compatibility composition root
   openWarpGraph,
 
-  // Multi-writer graph support (legacy — prefer openWarpGraph)
+  // Worldline-first public handle
+  openWarpWorldline,
+  WarpWorldline,
+
+  // Multi-writer graph support (legacy/diagnostic — prefer openWarpWorldline)
   WarpApp,
   WarpCore,
   Worldline,
@@ -463,6 +454,8 @@ export type {
   PropValue,
   SnapshotPropValue,
   SyncRateLimitConfig,
+  WarpWorldlineOpenOptions,
+  WarpWorldlinePatchBuild,
   ContinuumArtifactAuthorityValue,
   ContinuumArtifactDescriptorFields,
   ContinuumEvidenceClaimFields,
@@ -487,5 +480,5 @@ export type {
   ContinuumFamilyIdValue,
 };
 
-// WarpApp is the primary product-facing API for v15.
+// WarpApp remains the compatibility default export for v15-era consumers.
 export default WarpApp;

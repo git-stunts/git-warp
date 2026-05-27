@@ -90,11 +90,16 @@ function requireAppSurface(core: WarpCore, code: string): AppSurface {
 }
 
 /**
- * Curated product-facing WARP surface.
+ * Legacy curated WARP application surface.
  *
- * `WarpApp` is the default entrypoint for application builders, agentic CLI
- * usage, and other flows that should prefer worldlines, lenses, observers,
- * strands, and explicit sync over whole-state replay mechanics.
+ * `WarpApp` remains supported for compatibility with existing application
+ * builders and agentic CLI usage. New application code should open a named
+ * worldline with openWarpWorldline() and keep substrate access out of the
+ * first-use path.
+ *
+ * @deprecated For new application workflows, use openWarpWorldline(). WarpApp
+ * remains supported as a compatibility facade while graph-first APIs migrate
+ * to worldline/optic-first docs.
  */
 export default class WarpApp {
   private readonly _core: WarpCore;

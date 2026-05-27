@@ -22,11 +22,11 @@ describe('warpgraph factory closeout', () => {
     expect(existsSync(factoryNotePath)).toBe(false);
   });
 
-  it('keeps openWarpGraph as the public v17 API', () => {
+  it('keeps openWarpGraph as the advanced compatibility composition root', () => {
     expect(barrel).toContain('openWarpGraph,');
-    expect(barrel).toContain('admission architecture entry point');
-    expect(readme).toContain("import { openWarpGraph } from '@git-stunts/git-warp';");
-    expect(readme).toContain('`openWarpGraph()` returns a frozen capability bag');
+    expect(barrel).toContain('First-use application code should open a named worldline');
+    expect(readme).toContain("import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';");
+    expect(readme).toContain('`openWarpGraph()`. That surface is supported for compatibility');
   });
 
   it('removes completed factory work from the workload inventory', () => {
