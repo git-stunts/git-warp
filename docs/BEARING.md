@@ -38,7 +38,8 @@ path is product-complete enough to exercise, document, and recover.
 
 - Worldlines are now the first-use public API story.
 - Optics remain a v18 release blocker until the public path has a real success
-  setup and not just a fail-closed foundation handle.
+  setup, pinned coordinate semantics, and not just a fail-closed foundation
+  handle.
 - `openWarpGraph()`, `WarpApp.open()`, `WarpCore.open()`, and public
   materialize-first methods should remain compatible but become legacy,
   compatibility, or diagnostic surfaces.
@@ -90,9 +91,9 @@ Current v18 implementation posture:
 - Generated Continuum/WARP Optic contract evidence is ingested for the
   runtime-boundary family, and the `warp-ttd` generated-family smoke exists.
 - Worldline-first application entry is merged, but the public Optics story is
-  not release-complete yet: the exposed `events.optic()` path needs a
-  documented checkpoint-tail basis setup, success-path tests, recovery docs,
-  and consumer type evidence.
+  not release-complete yet: the exposed `events.optic()` path needs a pinned
+  coordinate, documented checkpoint-tail basis setup, success-path tests,
+  recovery docs, and consumer type evidence.
 - Release-candidate evidence accepts the residual raw content/property storage
   risk and preserves the non-claim that v18 has end-to-end graph streaming.
 
@@ -116,8 +117,10 @@ Optics closeout, tag, npm, and JSR evidence exist.
   translated git-warp evidence shaped for Continuum.
 - `events.optic()` is visible in the public Worldline-first API, but a normal
   first-use developer can still hit `E_OPTIC_NO_BOUNDED_BASIS` without a clear
-  public setup path for the checkpoint-tail indexed basis. That is acceptable
-  foundation behavior but not acceptable as a headline release promise.
+  public setup path for the checkpoint-tail indexed basis. Also, multiple live
+  optic reads are not a coherent read set unless they are pinned to a
+  coordinate. That is acceptable foundation behavior but not acceptable as a
+  headline release promise.
 - The v17 backlog lane is no longer an active release plan, but its remaining
   notes still need item-level archive, rehome, or explicit pull decisions.
 - End-to-end graph streaming reads and writes are a `v20.0.0` goal. V18 must
@@ -131,8 +134,9 @@ The next work should stay split into distinct modes:
    story while deprecating graph/materialize-first public paths. Worldlines are
    done; Optics closeout is now the active release blocker.
 2. **Optics public API closeout**: prove public success paths for node and
-   property optics through `openWarpWorldline(...)`, document basis setup and
-   recovery, and lock the package/consumer type surface.
+   property optics through `openWarpWorldline(...).coordinate().optic()`,
+   document basis setup and recovery, and lock the package/consumer type
+   surface.
 3. **Release operation**: cut and publish `v18.0.0` from aligned `main` only
    after Optics closeout.
 4. **Substrate debt**: retire one more raw content/property compatibility
@@ -158,35 +162,39 @@ Release-operation work is paused behind Optics:
 - [ ] Record the release evidence archive: tag SHA, preflight result, npm
   version evidence, JSR version evidence, and any audit note.
 
-Current Optics closeout 20-slice checklist:
+Current coordinate Optics closeout 20-slice checklist:
 
-- [ ] 133: Decide the Worldline-first optic basis setup API and receipt
-  contract.
-- [ ] 134: Decide package exports versus opaque return types for optic/result
-  nouns.
+- [ ] 133: Decide the Worldline-first coordinate and optic basis setup APIs and
+  receipt contracts.
+- [ ] 134: Decide package exports versus opaque return types for coordinate,
+  optic/result nouns.
 - [ ] 135: Bridge the checkpoint-tail fixture to the public
   `openWarpWorldline(...)` path.
 - [ ] 136: Add RED coverage for `prepareOpticBasis()` or the approved
   equivalent.
 - [ ] 137: Implement the smallest Worldline-first basis setup path.
-- [ ] 138: Add RED coverage for public node optic success with a materialization
-  trap.
-- [ ] 139: Make public node optic success pass through bounded evidence.
-- [ ] 140: Add RED coverage for public property optic success.
-- [ ] 141: Make public property optic success pass, including live tail
+- [ ] 138: Add RED coverage for `coordinate()` or the approved equivalent.
+- [ ] 139: Implement the smallest Worldline-first coordinate capture path.
+- [ ] 140: Add RED coverage for public coordinate node optic success with a
+  materialization trap.
+- [ ] 141: Make public coordinate node optic success pass through bounded
   evidence.
-- [ ] 142: Lock missing node and missing property result semantics.
-- [ ] 143: Document and test `E_OPTIC_NO_BOUNDED_BASIS` recovery.
-- [ ] 144: Document and test `E_OPTIC_TAIL_BUDGET_EXCEEDED` recovery.
-- [ ] 145: Document and test `E_OPTIC_READ_IDENTITY` recovery.
-- [ ] 146: Decide and test blank node id and property key behavior.
-- [ ] 147: Add consumer type tests for documented optic setup and reads.
-- [ ] 148: Align root exports, package surface, and docs with the export
+- [ ] 142: Add RED coverage for public coordinate property optic success.
+- [ ] 143: Make public coordinate property optic success pass, including live tail
+  evidence.
+- [ ] 144: Prove one coordinate stays coherent while the live worldline
+  advances.
+- [ ] 145: Lock missing node and missing property result semantics.
+- [ ] 146: Document and test `E_OPTIC_NO_BOUNDED_BASIS` recovery.
+- [ ] 147: Document and test `E_OPTIC_TAIL_BUDGET_EXCEEDED` and
+  `E_OPTIC_READ_IDENTITY` recovery.
+- [ ] 148: Decide and test blank node id and property key behavior.
+- [ ] 149: Add consumer type tests for documented coordinate setup and reads.
+- [ ] 150: Align root exports, package surface, and docs with the export
   decision.
-- [ ] 149: Close API docs for setup, success, recovery, and bounded scope.
-- [ ] 150: Close release docs, changelog, BEARING, and backlog status.
-- [ ] 151: Run full verification for the Optics release gate.
-- [ ] 152: Drift-check the implementation against the PRD and open the PR.
+- [ ] 151: Close API and release docs for setup, coordinate capture, success,
+  recovery, and bounded scope.
+- [ ] 152: Run full verification, drift-check against the PRD, and open the PR.
 
 Completed Worldline-first API pivot checklist:
 
