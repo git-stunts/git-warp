@@ -129,10 +129,27 @@ Compatibility callers that need graph-named substrate access should use
 | `seek(options?)` | `(options?: WorldlineOptions) => Promise<Worldline>` | Returns a pinned worldline read handle |
 | `observer(config)` | `(config: Aperture) => Promise<Observer>` | Opens an aperture over the live worldline |
 | `observer(name, config)` | `(name: string, config: Aperture) => Promise<Observer>` | Opens a named aperture |
-| `optic()` | `() => WorldlineOptic` | Opens a bounded optic over the live worldline |
+| `prepareOpticBasis()` | `() => Promise<WarpWorldlineOpticBasis>` | Creates the checkpoint-tail basis used by coordinate Optics |
+| `coordinate()` | `() => Promise<WarpWorldlineCoordinate>` | Captures a stable coordinate for coherent optic reads |
+| `optic()` | `() => WorldlineOptic` | Opens a one-off bounded optic over the live worldline |
 
 The handle intentionally does not expose `graphName`, `materialize()`,
 `checkpoint`, `provenance`, `sync`, `strands`, or raw core access.
+
+`prepareOpticBasis()` may perform runtime folding internally to create the
+checkpoint-tail evidence. That folding is not exposed as an application read
+API. For coherent Optics, capture a coordinate after preparing the basis:
+
+```typescript
+await todos.prepareOpticBasis();
+const coordinate = await todos.coordinate();
+
+const done = await coordinate
+  .optic()
+  .node('todo:1')
+  .prop('done')
+  .read();
+```
 
 ### WarpWorldlinePatchBuild
 
@@ -579,6 +596,33 @@ For reads that need an explicit causal view, use a worldline or observer:
 const worldline = graph.query.worldline();
 const props = await worldline.getNodeProps('user:alice');
 ```
+
+For Optics that must keep multiple awaited reads coherent, use the
+Worldline-first coordinate path:
+
+```typescript
+const users = await openWarpWorldline({
+  persistence,
+  worldlineName: 'users',
+  writerId: 'local',
+});
+
+await users.prepareOpticBasis();
+const coordinate = await users.coordinate();
+
+const role = await coordinate.optic().node('user:alice').prop('role').read();
+```
+
+The coordinate pins the checkpoint-tail basis and writer frontier used by the
+optic. If the live worldline advances between two reads, reads through the
+captured coordinate still describe the captured position.
+
+Node optic absence returns `alive: false`. Property optic absence returns
+`exists: false` and `value: undefined`. Blank node ids and blank property keys
+use the same absence shapes. Evidence failures remain explicit errors:
+`E_OPTIC_NO_BOUNDED_BASIS` means the basis is missing or unsupported,
+`E_OPTIC_TAIL_BUDGET_EXCEEDED` means the bounded tail exceeded the read budget,
+and `E_OPTIC_READ_IDENTITY` means the evidence identity could not be built.
 
 ### Eager Read Cache Updates
 

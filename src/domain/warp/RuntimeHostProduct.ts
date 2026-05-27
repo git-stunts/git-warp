@@ -175,6 +175,8 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   _buildViewFromResult(result: RuntimeHostBuildViewResult): void;
   _loadLatestCheckpoint(): Promise<LoadedCheckpoint | null>;
   _loadPatchesSince(checkpoint: RuntimeHostCheckpointFrontier): Promise<RuntimeHostPatchEntry[]>;
+  _readCheckpointSha(): Promise<string | null>;
+  _loadPatchChainFromSha(tipSha: string, stopAtSha?: string | null): Promise<RuntimeHostPatchEntry[]>;
   _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<RuntimeHostPatchEntry[]>;
   _ensureFreshState(): Promise<void>;
   _maybeRunGC(state: WarpState): void;

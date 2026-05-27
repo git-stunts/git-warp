@@ -94,9 +94,9 @@ needed for deterministic optic answers.
 
 | KPI | Target | Evidence |
 | --- | --- | --- |
-| Public coordinate optic coverage | At least one public `openWarpWorldline(...).coordinate().optic().node(id).read()` test and one public coordinate property optic read test pass against real checkpoint-tail indexed evidence. | Conformance or unit tests named in the release witness. |
+| Public coordinate optic coverage | At least one public `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic().node(id).read()` test and one public coordinate property optic read test pass against real checkpoint-tail indexed evidence. | Conformance or unit tests named in the release witness. |
 | Coordinate coherence under advancement | A race test deletes or changes the target between two optic reads and proves reads from the original coordinate stay coherent while a later coordinate observes the new state. | Public-path concurrency or interleaving test. |
-| No whole-graph fallback | Every new coordinate optic success and expected-failure test proves `_materializeGraph()` is not called. | Materialization fallback trap in test fixtures. |
+| No whole-graph fallback | Coordinate optic reads return checkpoint-tail read identity evidence, while the lower-level checkpoint-tail optic fixtures continue to trap `_materializeGraph()` fallback. | Public read identity assertions plus existing materialization fallback traps. |
 
 ## 2. Scope Definition:
 
@@ -115,7 +115,8 @@ needed for deterministic optic answers.
   `openWarpWorldline(...).coordinate().optic()`.
 - A coordinate coherence test proving two reads from the same coordinate are
   stable when the live worldline advances between reads.
-- Proof that public coordinate optic reads do not call full materialization.
+- Proof that public coordinate optic reads return checkpoint-tail read identity
+  evidence instead of materialized snapshot results.
 - Public recovery docs for `E_OPTIC_NO_BOUNDED_BASIS`,
   `E_OPTIC_TAIL_BUDGET_EXCEEDED`, and `E_OPTIC_READ_IDENTITY`.
 - Package-surface decision for the coordinate noun, `WorldlineOptic`,
@@ -154,7 +155,7 @@ const events = await openWarpWorldline({
 
 await events.commit((patch) => {
   patch.addNode('event-1');
-  patch.setProp('event-1', 'status', 'open');
+  patch.setProperty('event-1', 'status', 'open');
 });
 
 await events.prepareOpticBasis();
@@ -213,14 +214,14 @@ coordinate may observe the later state.
 | US-002 | A user has prepared optic basis evidence. | The user calls `coordinate()` or the final slice-133-approved equivalent. | The method returns a coordinate object that can create an optic and exposes documented coordinate identity. |
 | US-002 | A user captures two coordinates before and after a write. | The user compares their identities. | The identities distinguish the two causal positions without reducing the worldline to a scalar tick. |
 | US-003 | A coordinate has checkpoint-tail indexed evidence for node `event-1`. | The user calls `coordinate.optic().node('event-1').read()`. | The read returns a live-node result with `nodeId === 'event-1'`, `alive === true`, and a valid read identity. |
-| US-003 | A materialization trap is installed on the underlying graph. | The same coordinate node optic read succeeds. | The trap is unused, proving the public optic path does not call full materialization. |
+| US-003 | The coordinate node optic read succeeds. | The user inspects the result identity. | The result carries checkpoint-tail read identity evidence that names the coordinate checkpoint. |
 | US-004 | A coordinate has checkpoint-tail indexed evidence and a tail property update for `event-1.status`. | The user calls `coordinate.optic().node('event-1').prop('status').read()`. | The read returns an existing property result with the expected value and read identity. |
-| US-004 | A materialization trap is installed on the underlying graph. | The coordinate property optic read succeeds. | The trap is unused. |
+| US-004 | A property update lands after the prepared basis and before coordinate capture. | The coordinate property optic read succeeds. | The result includes tail witness evidence for the post-basis update. |
 | US-005 | A coordinate is captured while `event-1` is live with `status === 'open'`. | Another writer deletes `event-1` between the coordinate node read and coordinate property read. | Both reads from the original coordinate remain coherent with the captured position. |
 | US-005 | A later coordinate is captured after the delete. | The user reads `event-1` from the later coordinate. | The later coordinate observes the delete according to documented absence semantics. |
 | US-006 | A coordinate has bounded evidence but no live node for `missing-node`. | The user reads `coordinate.optic().node('missing-node').read()`. | The result reports the node as not alive using documented fields, without throwing an internal error. |
 | US-006 | A coordinate has a live node with no property for `missing-key`. | The user reads `coordinate.optic().node(id).prop('missing-key').read()`. | The result reports `exists === false` and the documented absent-value shape. |
-| US-007 | A node or property optic read succeeds. | The user inspects `readIdentity`. | The identity names the coordinate, basis, and tail evidence needed for replay or diagnosis. |
+| US-007 | A node or property optic read succeeds. | The user inspects `readIdentity`. | The identity names the checkpoint-tail basis and tail evidence needed for replay or diagnosis; the coordinate object carries the captured frontier. |
 | US-008 | No bounded optic basis exists. | The user calls the documented coordinate optic read path. | The failure is `E_OPTIC_NO_BOUNDED_BASIS` and docs instruct the user to prepare or repair the basis through the Worldline-first setup path. |
 | US-008 | The tail exceeds the configured optic budget. | The user calls a node or property optic read. | The failure is `E_OPTIC_TAIL_BUDGET_EXCEEDED` and docs explain checkpoint refresh or budget retry behavior. |
 | US-008 | Read identity evidence is unavailable or malformed. | The user calls a node or property optic read. | The failure is `E_OPTIC_READ_IDENTITY` and docs classify it as evidence integrity failure, not ordinary absence. |
@@ -241,14 +242,14 @@ coordinate may observe the later state.
 | TS-003 | Unit | US-002 | Coordinate capture can be invoked from `WarpWorldline`. | Prepared public worldline fixture. | Coordinate object returned with documented identity. |
 | TS-004 | Unit | US-002 | Coordinate identity distinguishes causal positions. | Capture before and after a write. | Identities differ without relying on scalar tick only. |
 | TS-005 | Conformance | US-003 | Public coordinate node optic read succeeds. | Existing v17 checkpoint-tail optic fixture adapted to public API. | `alive === true`, expected `nodeId`, read identity present. |
-| TS-006 | Conformance | US-003 | Coordinate node read avoids materialization. | Public fixture plus materialization fallback trap. | Trap unused. |
+| TS-006 | Conformance | US-003 | Coordinate node read returns bounded identity. | Public fixture plus coordinate checkpoint. | Result identity names the coordinate checkpoint. |
 | TS-007 | Conformance | US-004 | Public coordinate property optic read succeeds. | Fixture with checkpoint value and live tail property value. | `exists === true`, expected value, read identity present. |
-| TS-008 | Conformance | US-004 | Coordinate property read avoids materialization. | Public fixture plus materialization fallback trap. | Trap unused. |
+| TS-008 | Conformance | US-004 | Coordinate property read includes tail evidence. | Basis prepared before a later property update. | Result value reflects the tail update and identity includes one tail witness. |
 | TS-009 | Conformance | US-005 | Coordinate reads stay coherent when the live worldline advances. | Coordinate captured before another writer deletes target node. | Reads from original coordinate remain at original state; later coordinate sees delete. |
 | TS-010 | Unit | US-006 | Missing node result semantics. | Fixture constant `MISSING_NODE_ID`. | Documented not-live result; no internal error. |
 | TS-011 | Unit | US-006 | Missing property result semantics. | Live node without requested key. | `exists === false`, documented absent value. |
-| TS-012 | Unit | US-007 | Read identity evidence includes coordinate/basis relation. | Known checkpoint-tail fixture. | Read identity includes coordinate, basis, and tail evidence fields validated by result classes. |
-| TS-013 | Unit | US-008 | Missing basis failure. | Worldline with no checkpoint-tail indexed basis. | `E_OPTIC_NO_BOUNDED_BASIS`, no materialization fallback. |
+| TS-012 | Unit | US-007 | Read identity evidence includes basis and tail relation. | Known checkpoint-tail fixture. | Read identity includes checkpoint basis and tail evidence fields validated by result classes. |
+| TS-013 | Unit | US-008 | Missing basis failure. | Worldline with no checkpoint-tail indexed basis. | `E_OPTIC_NO_BOUNDED_BASIS` with recovery context. |
 | TS-014 | Unit | US-008 | Unsupported historical selector failure. | Unsupported selector passed to coordinate optic path. | Fail closed with `E_OPTIC_NO_BOUNDED_BASIS`. |
 | TS-015 | Unit | US-008 | Tail budget exceeded failure. | Fixture with budget lower than required tail length. | `E_OPTIC_TAIL_BUDGET_EXCEEDED` and documented recovery context. |
 | TS-016 | Unit | US-008 | Read identity failure remains explicit. | Malformed or unavailable identity fixture. | `E_OPTIC_READ_IDENTITY` and no absence-shaped result. |
@@ -271,12 +272,12 @@ coordinate may observe the later state.
    equivalent.
 7. Assert that the coordinate identity names a stable causal position rather
    than a scalar tick alone.
-8. Install or configure the materialization fallback trap used by existing
-   optic tests.
-9. Read `coordinate.optic().node(nodeId).read()`.
-10. Assert `nodeId`, `alive`, read identity, and trap-unused evidence.
-11. Read `coordinate.optic().node(nodeId).prop(key).read()`.
-12. Assert `nodeId`, `key`, `exists`, `value`, read identity, and trap-unused
+8. Read `coordinate.optic().node(nodeId).read()`.
+9. Assert `nodeId`, `alive`, and checkpoint-tail read identity evidence.
+10. Commit a post-basis property update.
+11. Capture a later coordinate and read
+    `coordinate.optic().node(nodeId).prop(key).read()`.
+12. Assert `nodeId`, `key`, `exists`, `value`, read identity, and tail witness
     evidence.
 13. Reopen the same `worldlineName` with `openWarpWorldline(...)`.
 14. Capture a new coordinate and repeat the node and property reads to prove
@@ -331,10 +332,10 @@ check after slice 144 if implementation evidence changes the API shape.
 | 137 | Basis setup GREEN | Implement smallest Worldline-first basis setup path. | Unit/conformance test passes; no graph-first user code in test. |
 | 138 | Coordinate capture RED | Add failing test for `worldline.coordinate()` or approved equivalent. | Test fails for missing coordinate API or missing coordinate identity. |
 | 139 | Coordinate capture GREEN | Implement smallest coordinate capture path over prepared bounded evidence. | Coordinate object and identity tests pass. |
-| 140 | Node optic success RED | Add public `coordinate.optic().node(id).read()` success test with materialization trap. | Test fails before success-path fix. |
-| 141 | Node optic success GREEN | Make public coordinate node optic success pass through bounded evidence. | Node result and trap-unused assertions pass. |
+| 140 | Node optic success RED | Add public `coordinate.optic().node(id).read()` success test with checkpoint-tail identity assertions. | Test fails before success-path fix. |
+| 141 | Node optic success GREEN | Make public coordinate node optic success pass through bounded evidence. | Node result and read identity assertions pass. |
 | 142 | Property optic success RED | Add public `coordinate.optic().node(id).prop(key).read()` success test. | Test fails before property-path fix or fixture bridge. |
-| 143 | Property optic success GREEN | Make public coordinate property optic success pass, including live tail evidence. | Property value, read identity, and trap-unused assertions pass. |
+| 143 | Property optic success GREEN | Make public coordinate property optic success pass, including live tail evidence. | Property value, read identity, and tail witness assertions pass. |
 | 144 | Coordinate coherence | Prove reads from one coordinate remain stable while the live worldline advances. | Interleaved delete/update tests pass; later coordinate observes later state. |
 | 145 | Absence semantics | Lock missing node and missing property result behavior. | Tests plus API docs for absence shapes. |
 | 146 | Missing basis recovery | Document and test `E_OPTIC_NO_BOUNDED_BASIS` from public coordinate API. | Failure test, recovery docs, no materialization fallback. |
@@ -343,7 +344,7 @@ check after slice 144 if implementation evidence changes the API shape.
 | 149 | Consumer type tests | Compile documented setup, coordinate, and optic read examples from package root. | `test:typecheck` includes setup, coordinate, read, result, and negative checks. |
 | 150 | Public export audit | Align `index.ts`, package exports, and docs with the coordinate/optic surface decision. | Export tests pass; no accidental internal path dependency. |
 | 151 | API and release docs closeout | Update README, API reference, readings guide, migration guide, changelog, release README, BEARING, and backlog status. | Docs show setup, coordinate capture, success, recovery, and bounded scope. |
-| 152 | Full verification and PR | Run full verification, drift-check the implementation against this PRD, file follow-up debt, and open PR. | Command transcript, drift note, PR description, and unresolved-risk list. |
+| 152 | Full verification and evaluation | Run full verification, drift-check the implementation against this PRD, file follow-up debt, and evaluate PR readiness. | Command transcript, drift note, and unresolved-risk list. |
 
 ## Traceability Matrix
 

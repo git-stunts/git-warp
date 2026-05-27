@@ -55,7 +55,7 @@ prove.
 
 | Blocker | Why it still blocks public release | Required evidence |
 |---------|------------------------------------|-------------------|
-| Optics public API closeout | Optics are part of the v18 public value proposition. The current Worldline-first API exposes `events.optic()`, but release is not honest until the first-use path has successful public tests, basis setup docs, recovery docs, and package-surface evidence. | `API_optics-public-api-closeout` complete with public `openWarpWorldline(...).optic()` success tests, no-materialization proof, consumer type coverage, and docs for setup/recovery. |
+| Optics public API closeout merge | Optics are part of the v18 public value proposition. The closeout branch now carries the coordinate implementation and docs, but public release still waits until that evidence is reviewed and merged to `main`. | Merged `API_optics-public-api-closeout` with public `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()` success tests, checkpoint-tail evidence proof, consumer type coverage, and docs for setup/recovery. |
 | Post-merge tag and publish work | Package metadata now points at `18.0.0` on merged `main`, but the tag and publish artifacts do not exist yet. This waits behind Optics closeout. | Signed or annotated tag, pushed tag, npm pack/publish evidence, and JSR publish evidence agree on `18.0.0`. |
 
 ## Public-Release Watch Items
@@ -79,6 +79,6 @@ remaining raw compatibility files and fails on unreviewed boundary drift.
 
 ## Next pull candidates
 
-- Complete `API_optics-public-api-closeout`.
-- After Optics are release-complete, rerun release preflight from aligned
-  `main`, then cut and publish the public tag.
+- Merge `API_optics-public-api-closeout`.
+- After Optics are merged, rerun release preflight from aligned `main`, then
+  cut and publish the public tag.

@@ -19,11 +19,16 @@ class CoordinateSelector extends WorldlineSelector {
 
   /** Lamport ceiling for time-travel. */
   readonly ceiling: number | null;
+  readonly checkpointSha: string | null;
 
   /**
    * Creates a CoordinateSelector.
    */
-  constructor(frontier: Map<string, string> | Record<string, string>, ceiling?: number | null) {
+  constructor(
+    frontier: Map<string, string> | Record<string, string>,
+    ceiling?: number | null,
+    checkpointSha?: string | null,
+  ) {
     super();
 
     if (frontier === null || frontier === undefined || typeof frontier !== 'object') {
@@ -35,6 +40,7 @@ class CoordinateSelector extends WorldlineSelector {
       : new Map(Object.entries(frontier));
 
     this.ceiling = validateCeiling(ceiling);
+    this.checkpointSha = validateCheckpointSha(checkpointSha);
     Object.freeze(this);
   }
 
@@ -49,17 +55,39 @@ class CoordinateSelector extends WorldlineSelector {
    * Deep-clone this selector, copying the frontier.
    */
   override clone(): CoordinateSelector {
-    return new CoordinateSelector(new Map(this.#frontier), this.ceiling);
+    return new CoordinateSelector(new Map(this.#frontier), this.ceiling, this.checkpointSha);
   }
 
   /**
    * Convert to a plain DTO for the public API.
    */
-  override toDTO(): { kind: 'coordinate'; frontier: Map<string, string>; ceiling: number | null } {
-    return { kind: 'coordinate', frontier: new Map(this.#frontier), ceiling: this.ceiling };
+  override toDTO(): {
+    kind: 'coordinate';
+    frontier: Map<string, string>;
+    ceiling: number | null;
+    checkpointSha?: string;
+  } {
+    return {
+      kind: 'coordinate',
+      frontier: new Map(this.#frontier),
+      ceiling: this.ceiling,
+      ...(this.checkpointSha !== null ? { checkpointSha: this.checkpointSha } : {}),
+    };
   }
 }
 
 WorldlineSelector._register('coordinate', CoordinateSelector);
+
+function validateCheckpointSha(checkpointSha: string | null | undefined): string | null {
+  if (checkpointSha === undefined || checkpointSha === null) {
+    return null;
+  }
+  if (typeof checkpointSha !== 'string' || checkpointSha.length === 0) {
+    throw new QueryError('checkpointSha must be a non-empty string when provided', {
+      code: 'E_SELECTOR_INVALID',
+    });
+  }
+  return checkpointSha;
+}
 
 export default CoordinateSelector;

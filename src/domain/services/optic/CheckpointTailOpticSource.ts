@@ -23,6 +23,13 @@ export default abstract class CheckpointTailOpticSource {
 
   abstract discoverWriters(): Promise<string[]>;
 
+  abstract _readCheckpointSha(): Promise<string | null>;
+
+  abstract _loadPatchChainFromSha(
+    _tipSha: string,
+    _stopAtSha?: string | null,
+  ): Promise<CheckpointTailPatchEntry[]>;
+
   abstract _loadWriterPatches(
     _writerId: string,
     _stopAtSha?: string | null,

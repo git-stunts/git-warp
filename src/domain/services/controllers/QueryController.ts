@@ -262,6 +262,8 @@ function hasWorldlineOpticSource(
     && graph._blobStorage !== undefined
     && graph._commitMessageCodec !== undefined
     && typeof graph.discoverWriters === 'function'
+    && typeof graph._readCheckpointSha === 'function'
+    && typeof graph._loadPatchChainFromSha === 'function'
     && typeof graph._loadWriterPatches === 'function'
     && typeof graph._validatePatchAgainstCheckpoint === 'function';
 }

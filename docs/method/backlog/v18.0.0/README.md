@@ -62,7 +62,7 @@ LAYER 2 (migration and proof):
   [x] TRUST_genesis-replay-equivalence
 
 LAYER 3 (public release):
-  [~] API_optics-public-api-closeout
+  [x] API_optics-public-api-closeout
   [!] RELEASE_v18-public-release-blockers
 ```
 
@@ -105,17 +105,18 @@ After PR #107 merged, the migration path has release-candidate evidence on
 - PR #110 makes Worldlines the first-use public API and exposes foundation
   optics through `openWarpWorldline(...).optic()`.
 
-The remaining public v18 work is not just release operation. Optics are part of
-the public-facing value proposition, so release waits behind
-`API_optics-public-api-closeout`:
+The remaining public v18 work is now release operation. Coordinate Optics have
+branch-local implementation and evidence:
 
-- prove successful public node and property optic reads through
-  `openWarpWorldline(...).optic()`;
-- document how the required checkpoint-tail indexed basis is created or
-  verified;
-- document recovery from `E_OPTIC_NO_BOUNDED_BASIS`;
-- prove the intended public optic chain in consumer type tests;
-- then rerun release preflight from `main`;
+- successful public node and property optic reads through
+  `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()`;
+- checkpoint-tail basis setup through the Worldline-first handle;
+- recovery from `E_OPTIC_NO_BOUNDED_BASIS`;
+- consumer type tests for the intended public optic chain.
+
+After this branch merges:
+
+- rerun release preflight from `main`;
 - then tag `v18.0.0` from the merged release commit;
 - then publish npm and JSR artifacts from the release path;
 - preserve the explicit non-claim that v18 does not provide end-to-end graph

@@ -208,6 +208,10 @@ export default class CheckpointController {
     return checkpointSha;
   }
 
+  async _readCheckpointSha(): Promise<string | null> {
+    return await this._host._persistence.readRef(buildCheckpointRef(this._host._graphName));
+  }
+
   private _requireCheckpointReadingState(): WarpState {
     const h = this._host;
     if (h._cachedState !== null && !h._stateDirty) {

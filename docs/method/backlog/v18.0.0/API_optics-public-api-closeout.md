@@ -8,6 +8,9 @@ feature: graph-model-substrate
 
 # Optics public API closeout
 
+Status: branch-local complete. Merge and release evidence still live under
+`RELEASE_v18-public-release-blockers`.
+
 ## Design
 
 [0265 v18 Optics public API closeout](../../../design/0265-v18-optics-public-api-closeout/v18-optics-public-api-closeout.md)

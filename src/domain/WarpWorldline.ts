@@ -6,8 +6,12 @@
  * on WarpCore/openWarpGraph compatibility surfaces.
  */
 import WarpError from './errors/WarpError.ts';
+import QueryError from './errors/QueryError.ts';
 
-import { openWarpGraph, type WarpGraphDeps } from './WarpGraph.ts';
+import { type WarpGraphDeps } from './WarpGraph.ts';
+import WarpWorldlineCoordinate from './WarpWorldlineCoordinate.ts';
+import WarpWorldlineOpticBasis from './WarpWorldlineOpticBasis.ts';
+import { openRuntimeHostProduct } from './warp/RuntimeHostProduct.ts';
 import type { Aperture } from './types/Aperture.ts';
 import type { PatchBuilder } from './services/PatchBuilder.ts';
 import type Worldline from './services/Worldline.ts';
@@ -26,12 +30,18 @@ export type WarpWorldlinePatchBuild = (
 
 type CommitPatch = (build: WarpWorldlinePatchBuild) => Promise<string>;
 type CreateWorldline = (options?: WorldlineOptions) => Worldline;
+type PrepareOpticBasis = () => Promise<WarpWorldlineOpticBasis>;
+type GetFrontier = () => Promise<Map<string, string>>;
+type ReadOpticBasis = () => WarpWorldlineOpticBasis | null;
 
 type WarpWorldlineConstructionOptions = {
   readonly worldlineName: string;
   readonly writerId: string;
   readonly commitPatch: CommitPatch;
   readonly createWorldline: CreateWorldline;
+  readonly prepareOpticBasis?: PrepareOpticBasis;
+  readonly getFrontier?: GetFrontier;
+  readonly readOpticBasis?: ReadOpticBasis;
 };
 
 export default class WarpWorldline {
@@ -39,6 +49,9 @@ export default class WarpWorldline {
   readonly writerId: string;
   private readonly _commitPatch: CommitPatch;
   private readonly _createWorldline: CreateWorldline;
+  private readonly _prepareOpticBasis: PrepareOpticBasis | null;
+  private readonly _getFrontier: GetFrontier | null;
+  private readonly _readOpticBasis: ReadOpticBasis | null;
 
   constructor(options: WarpWorldlineConstructionOptions) {
     assertNonEmpty(options.worldlineName, 'worldlineName');
@@ -47,6 +60,9 @@ export default class WarpWorldline {
     this.writerId = options.writerId;
     this._commitPatch = options.commitPatch;
     this._createWorldline = options.createWorldline;
+    this._prepareOpticBasis = options.prepareOpticBasis ?? null;
+    this._getFrontier = options.getFrontier ?? null;
+    this._readOpticBasis = options.readOpticBasis ?? null;
     Object.freeze(this);
   }
 
@@ -84,6 +100,41 @@ export default class WarpWorldline {
   optic(): WorldlineOptic {
     return this.live().optic();
   }
+
+  async prepareOpticBasis(): Promise<WarpWorldlineOpticBasis> {
+    if (this._prepareOpticBasis === null) {
+      throw new WarpError(
+        'WarpWorldline was not opened with optic basis preparation support',
+        'E_WARP_WORLDLINE_OPTIC_BASIS_UNAVAILABLE',
+      );
+    }
+    return await this._prepareOpticBasis();
+  }
+
+  async coordinate(): Promise<WarpWorldlineCoordinate> {
+    if (this._getFrontier === null || this._readOpticBasis === null) {
+      throw new WarpError(
+        'WarpWorldline was not opened with coordinate support',
+        'E_WARP_WORLDLINE_COORDINATE_UNAVAILABLE',
+      );
+    }
+    const basis = this._readOpticBasis();
+    if (basis === null) {
+      throw new QueryError('worldline coordinate requires a prepared checkpoint-tail optic basis', {
+        code: 'E_OPTIC_NO_BOUNDED_BASIS',
+        context: {
+          graphName: this.worldlineName,
+          reason: 'missing-prepared-worldline-coordinate-basis',
+        },
+      });
+    }
+    return new WarpWorldlineCoordinate({
+      worldlineName: this.worldlineName,
+      checkpointSha: basis.checkpointSha,
+      frontier: await this._getFrontier(),
+      createWorldline: this._createWorldline,
+    });
+  }
 }
 
 export async function openWarpWorldline(
@@ -92,16 +143,27 @@ export async function openWarpWorldline(
   assertNonEmpty(options.worldlineName, 'worldlineName');
   assertNonEmpty(options.writerId, 'writerId');
   const { worldlineName, ...graphOptions } = options;
-  const graph = await openWarpGraph({
+  const graph = await openRuntimeHostProduct({
     ...graphOptions,
     graphName: worldlineName,
   });
+  let preparedOpticBasis: WarpWorldlineOpticBasis | null = null;
 
   return new WarpWorldline({
     worldlineName,
     writerId: graph.writerId,
-    commitPatch: async (build) => await graph.patches.patch(build),
-    createWorldline: (worldlineOptions) => graph.query.worldline(worldlineOptions),
+    commitPatch: async (build) => await graph.patch(build),
+    createWorldline: (worldlineOptions) => graph.worldline(worldlineOptions),
+    prepareOpticBasis: async () => {
+      await graph.materialize();
+      preparedOpticBasis = new WarpWorldlineOpticBasis({
+        worldlineName,
+        checkpointSha: await graph.createCheckpoint(),
+      });
+      return preparedOpticBasis;
+    },
+    getFrontier: async () => await graph.getFrontier(),
+    readOpticBasis: () => preparedOpticBasis,
   });
 }
 

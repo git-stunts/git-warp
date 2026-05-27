@@ -37,9 +37,10 @@ truth: Optics are part of the v18 public-facing value proposition, so exposing
 path is product-complete enough to exercise, document, and recover.
 
 - Worldlines are now the first-use public API story.
-- Optics remain a v18 release blocker until the public path has a real success
-  setup, pinned coordinate semantics, and not just a fail-closed foundation
-  handle.
+- Coordinate-backed Optics are implemented on this branch through
+  `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()`. Public v18
+  still waits for this branch to pass review, merge, release preflight, tag, and
+  publish evidence.
 - `openWarpGraph()`, `WarpApp.open()`, `WarpCore.open()`, and public
   materialize-first methods should remain compatible but become legacy,
   compatibility, or diagnostic surfaces.
@@ -73,8 +74,8 @@ Current release facts:
 - If `main` moves after `7711bc0a` before tagging, rerun release preflight from
   the exact commit that will receive the `v18.0.0` tag.
 - No `v18.0.0` tag or registry publish evidence is recorded yet.
-- `v18.0.0` is intentionally delayed until `API_optics-public-api-closeout` is
-  complete.
+- `v18.0.0` is intentionally delayed until `API_optics-public-api-closeout`
+  merges and release operation evidence exists.
 
 Current v18 implementation posture:
 
@@ -90,10 +91,9 @@ Current v18 implementation posture:
   public-read equivalence with zero canonical mismatches.
 - Generated Continuum/WARP Optic contract evidence is ingested for the
   runtime-boundary family, and the `warp-ttd` generated-family smoke exists.
-- Worldline-first application entry is merged, but the public Optics story is
-  not release-complete yet: the exposed `events.optic()` path needs a pinned
-  coordinate, documented checkpoint-tail basis setup, success-path tests,
-  recovery docs, and consumer type evidence.
+- Worldline-first application entry is merged. On this branch, the public
+  Optics story now has pinned coordinates, documented checkpoint-tail basis
+  setup, success-path tests, recovery docs, and consumer type evidence.
 - Release-candidate evidence accepts the residual raw content/property storage
   risk and preserves the non-claim that v18 has end-to-end graph streaming.
 
@@ -115,12 +115,10 @@ Optics closeout, tag, npm, and JSR evidence exist.
   golden fixture wet run is now green.
 - Native Continuum witnesshood is still not claimed. Current v18 evidence is
   translated git-warp evidence shaped for Continuum.
-- `events.optic()` is visible in the public Worldline-first API, but a normal
-  first-use developer can still hit `E_OPTIC_NO_BOUNDED_BASIS` without a clear
-  public setup path for the checkpoint-tail indexed basis. Also, multiple live
-  optic reads are not a coherent read set unless they are pinned to a
-  coordinate. That is acceptable foundation behavior but not acceptable as a
-  headline release promise.
+- `events.optic()` remains visible as a one-off live convenience. The coherent
+  multi-read story is now `prepareOpticBasis()`, `coordinate()`, and
+  `coordinate.optic()`. Review should check that all docs keep that distinction
+  sharp.
 - The v17 backlog lane is no longer an active release plan, but its remaining
   notes still need item-level archive, rehome, or explicit pull decisions.
 - End-to-end graph streaming reads and writes are a `v20.0.0` goal. V18 must
@@ -132,7 +130,7 @@ The next work should stay split into distinct modes:
 
 1. **Public API product pivot**: make Worldlines and Optics the v18 first-use
    story while deprecating graph/materialize-first public paths. Worldlines are
-   done; Optics closeout is now the active release blocker.
+   done; coordinate Optics are branch-local complete and awaiting review.
 2. **Optics public API closeout**: prove public success paths for node and
    property optics through `openWarpWorldline(...).coordinate().optic()`,
    document basis setup and recovery, and lock the package/consumer type
@@ -150,9 +148,11 @@ Do not blend these into one ambiguous branch.
 
 ## Live Checklist
 
-Release-operation work is paused behind Optics:
+Release-operation work is paused behind Optics merge and release evidence:
 
-- [ ] Complete `API_optics-public-api-closeout`.
+- [x] Complete `API_optics-public-api-closeout` branch-local implementation,
+  tests, and docs.
+- [ ] Merge `API_optics-public-api-closeout` to `main`.
 - [ ] Rerun `npm run release:preflight` from aligned `main` after Optics
   closeout lands.
 - [ ] Cut the signed or annotated `v18.0.0` tag from the release commit after
@@ -162,39 +162,40 @@ Release-operation work is paused behind Optics:
 - [ ] Record the release evidence archive: tag SHA, preflight result, npm
   version evidence, JSR version evidence, and any audit note.
 
-Current coordinate Optics closeout 20-slice checklist:
+Completed coordinate Optics closeout 20-slice checklist:
 
-- [ ] 133: Decide the Worldline-first coordinate and optic basis setup APIs and
+- [x] 133: Decide the Worldline-first coordinate and optic basis setup APIs and
   receipt contracts.
-- [ ] 134: Decide package exports versus opaque return types for coordinate,
+- [x] 134: Decide package exports versus opaque return types for coordinate,
   optic/result nouns.
-- [ ] 135: Bridge the checkpoint-tail fixture to the public
+- [x] 135: Bridge the checkpoint-tail fixture to the public
   `openWarpWorldline(...)` path.
-- [ ] 136: Add RED coverage for `prepareOpticBasis()` or the approved
+- [x] 136: Add RED coverage for `prepareOpticBasis()` or the approved
   equivalent.
-- [ ] 137: Implement the smallest Worldline-first basis setup path.
-- [ ] 138: Add RED coverage for `coordinate()` or the approved equivalent.
-- [ ] 139: Implement the smallest Worldline-first coordinate capture path.
-- [ ] 140: Add RED coverage for public coordinate node optic success with a
-  materialization trap.
-- [ ] 141: Make public coordinate node optic success pass through bounded
+- [x] 137: Implement the smallest Worldline-first basis setup path.
+- [x] 138: Add RED coverage for `coordinate()` or the approved equivalent.
+- [x] 139: Implement the smallest Worldline-first coordinate capture path.
+- [x] 140: Add RED coverage for public coordinate node optic success with
+  checkpoint-tail identity assertions.
+- [x] 141: Make public coordinate node optic success pass through bounded
   evidence.
-- [ ] 142: Add RED coverage for public coordinate property optic success.
-- [ ] 143: Make public coordinate property optic success pass, including live tail
+- [x] 142: Add RED coverage for public coordinate property optic success.
+- [x] 143: Make public coordinate property optic success pass, including live tail
   evidence.
-- [ ] 144: Prove one coordinate stays coherent while the live worldline
+- [x] 144: Prove one coordinate stays coherent while the live worldline
   advances.
-- [ ] 145: Lock missing node and missing property result semantics.
-- [ ] 146: Document and test `E_OPTIC_NO_BOUNDED_BASIS` recovery.
-- [ ] 147: Document and test `E_OPTIC_TAIL_BUDGET_EXCEEDED` and
+- [x] 145: Lock missing node and missing property result semantics.
+- [x] 146: Document and test `E_OPTIC_NO_BOUNDED_BASIS` recovery.
+- [x] 147: Document and test `E_OPTIC_TAIL_BUDGET_EXCEEDED` and
   `E_OPTIC_READ_IDENTITY` recovery.
-- [ ] 148: Decide and test blank node id and property key behavior.
-- [ ] 149: Add consumer type tests for documented coordinate setup and reads.
-- [ ] 150: Align root exports, package surface, and docs with the export
+- [x] 148: Decide and test blank node id and property key behavior.
+- [x] 149: Add consumer type tests for documented coordinate setup and reads.
+- [x] 150: Align root exports, package surface, and docs with the export
   decision.
-- [ ] 151: Close API and release docs for setup, coordinate capture, success,
+- [x] 151: Close API and release docs for setup, coordinate capture, success,
   recovery, and bounded scope.
-- [ ] 152: Run full verification, drift-check against the PRD, and open the PR.
+- [x] 152: Run full verification, drift-check against the PRD, and evaluate PR
+  readiness.
 
 Completed Worldline-first API pivot checklist:
 

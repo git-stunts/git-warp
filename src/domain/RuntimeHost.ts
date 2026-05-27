@@ -591,6 +591,7 @@ export default class RuntimeHost {
   }
 
   createCheckpoint: CheckpointController['createCheckpoint'] = (...args) => this._checkpointController.createCheckpoint(...args);
+  _readCheckpointSha: CheckpointController['_readCheckpointSha'] = (...args) => this._checkpointController._readCheckpointSha(...args);
   syncCoverage: CheckpointController['syncCoverage'] = (...args) => this._checkpointController.syncCoverage(...args);
   _loadLatestCheckpoint: CheckpointController['_loadLatestCheckpoint'] = (...args) => this._checkpointController._loadLatestCheckpoint(...args);
   _loadPatchesSince: CheckpointController['_loadPatchesSince'] = (...args) => this._checkpointController._loadPatchesSince(...args);

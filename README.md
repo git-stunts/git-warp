@@ -61,7 +61,18 @@ named admitted causal lane with one writer identity and a small public handle:
 | `live()` | Revelation | Reads the latest visible state |
 | `seek()` | Historical revelation | Reads a bounded historical coordinate |
 | `observer()` | Bounded revelation | Creates an observer through an aperture |
-| `optic()` | Bounded optic work | Starts optic-shaped reads over the worldline |
+| `prepareOpticBasis()` | Folding | Creates the checkpoint-tail evidence needed by coordinate Optics |
+| `coordinate()` | Revelation | Captures a stable coordinate for coherent optic reads |
+| `optic()` | Bounded optic work | Starts one-off live optic-shaped reads over the worldline |
+
+For coherent Optics, prepare the bounded basis, capture a coordinate, and read
+through that coordinate:
+
+```typescript
+await events.prepareOpticBasis();
+const coordinate = await events.coordinate();
+const role = await coordinate.optic().node('user:alice').prop('role').read();
+```
 
 Advanced tooling can still open the lower-level capability bag with
 `openWarpGraph()`. That surface is supported for compatibility, diagnostics,
@@ -82,6 +93,7 @@ Worldlines and Optics unless it is deliberately working on those lower layers.
 | Term | Meaning |
 |------|---------|
 | **Worldline** | Canonical admitted causal lane. The shared truth others may rely on. |
+| **Coordinate** | Stable causal read position used by coherent Optics. |
 | **Strand** | Speculative causal lane with fork provenance. Private until admitted. |
 | **Braid** | Plural composition over a family of lanes. Not itself a lane. |
 | **Observer** | Filtered read-only projection through an aperture. |
