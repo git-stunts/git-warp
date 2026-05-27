@@ -20,7 +20,7 @@ such as `README.md`, `SCORECARD.md`, `WORKLOADS.md`, and
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 487 |
+| Live backlog items | 488 |
 | Root backlog items | 33 |
 | `asap/` | 0 |
 | `bad-code/` | 244 |
@@ -28,18 +28,18 @@ such as `README.md`, `SCORECARD.md`, `WORKLOADS.md`, and
 | `inbox/` | 5 |
 | `up-next/` | 36 |
 | `v17.0.0/` | 38 |
-| `v18.0.0/` | 5 |
+| `v18.0.0/` | 6 |
 | `v19.0.0/` | 11 |
 | `v20.0.0/` | 3 |
 | `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 487 |
+| Items with YAML frontmatter | 488 |
 | Items without YAML frontmatter | 0 |
-| Items with explicit `id` | 487 |
-| Items declaring dependency fields | 487 |
-| Items with explicit `feature` | 482 |
+| Items with explicit `id` | 488 |
+| Items declaring dependency fields | 488 |
+| Items with explicit `feature` | 483 |
 | Distinct explicit feature values | 17 |
 | `bad-code/` items with explicit `release_home` | 244 |
-| Items with non-empty explicit dependency edges | 59 |
+| Items with non-empty explicit dependency edges | 60 |
 
 ## Dependency Law
 
@@ -321,6 +321,7 @@ Prefix counts:
 
 | Prefix | Count |
 |--------|------:|
+| `API` | 1 |
 | `INFRA` | 1 |
 | `PROTO` | 2 |
 | `RELEASE` | 1 |

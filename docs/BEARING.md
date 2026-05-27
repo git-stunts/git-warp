@@ -31,18 +31,25 @@ Continuum remains translated git-warp evidence.
 
 ## Worldline/Optic Public API Posture
 
-The next 20-slice branch is a product-value pivot for v18:
+The Worldline-first public API pivot has landed, but it uncovered a release
+truth: Optics are part of the v18 public-facing value proposition, so exposing
+`events.optic()` is not enough. V18 must not ship until the Optics first-use
+path is product-complete enough to exercise, document, and recover.
 
-- Worldlines and optics should become the first-use public API story.
+- Worldlines are now the first-use public API story.
+- Optics remain a v18 release blocker until the public path has a real success
+  setup and not just a fail-closed foundation handle.
 - `openWarpGraph()`, `WarpApp.open()`, `WarpCore.open()`, and public
   materialize-first methods should remain compatible but become legacy,
   compatibility, or diagnostic surfaces.
-- The implementation should wrap existing runtime seams where possible. Do not
-  mix this branch with storage retirement, native Continuum witnesshood, or
-  end-to-end graph streaming claims.
+- The next branch should stay scoped to Optics public API closeout. Do not mix
+  it with storage retirement, native Continuum witnesshood, or end-to-end graph
+  streaming claims.
 
-The controlling plan is
+The completed pivot plan is
 [0261-worldline-optic-public-api-deprecation-prd](design/0261-worldline-optic-public-api-deprecation-prd/worldline-optic-public-api-deprecation-prd.md).
+The active release-blocking closeout plan is
+[0265-v18-optics-public-api-closeout](design/0265-v18-optics-public-api-closeout/v18-optics-public-api-closeout.md).
 
 ## Where Are We
 
@@ -53,17 +60,20 @@ evidence, generated-contract evidence, and post-v18 planning docs are merged to
 
 Current release facts:
 
-- Latest v18 release-prep merge: PR #108, post-v18 release handoff and
-  next-goalpost planning, at `59beefed`.
+- Latest v18 release-prep merge: PR #110, Worldline-first public API, at
+  `7711bc0a`.
 - Package metadata: `18.0.0` in `package.json` and `jsr.json`.
 - Public package/tag line: still `17.0.0` until the `v18.0.0` tag and registry
   publishes complete.
 - Latest recorded repair entry: `17.0.1` exists in source docs/changelog
   without public npm/tag evidence.
-- Last recorded release preflight passed from aligned `main` at `59beefed`.
-- If `main` moves after `59beefed` before tagging, rerun release preflight from
+- Last recorded release preflight predates the Worldline-first merge. Rerun
+  release preflight only after Optics public API closeout lands.
+- If `main` moves after `7711bc0a` before tagging, rerun release preflight from
   the exact commit that will receive the `v18.0.0` tag.
 - No `v18.0.0` tag or registry publish evidence is recorded yet.
+- `v18.0.0` is intentionally delayed until `API_optics-public-api-closeout` is
+  complete.
 
 Current v18 implementation posture:
 
@@ -79,11 +89,15 @@ Current v18 implementation posture:
   public-read equivalence with zero canonical mismatches.
 - Generated Continuum/WARP Optic contract evidence is ingested for the
   runtime-boundary family, and the `warp-ttd` generated-family smoke exists.
+- Worldline-first application entry is merged, but the public Optics story is
+  not release-complete yet: the exposed `events.optic()` path needs a
+  documented checkpoint-tail basis setup, success-path tests, recovery docs,
+  and consumer type evidence.
 - Release-candidate evidence accepts the residual raw content/property storage
   risk and preserves the non-claim that v18 has end-to-end graph streaming.
 
 That is useful progress, not a finish line. Public v18 is not published until
-tag, npm, and JSR evidence exist.
+Optics closeout, tag, npm, and JSR evidence exist.
 
 ## What Feels Wrong
 
@@ -100,6 +114,10 @@ tag, npm, and JSR evidence exist.
   golden fixture wet run is now green.
 - Native Continuum witnesshood is still not claimed. Current v18 evidence is
   translated git-warp evidence shaped for Continuum.
+- `events.optic()` is visible in the public Worldline-first API, but a normal
+  first-use developer can still hit `E_OPTIC_NO_BOUNDED_BASIS` without a clear
+  public setup path for the checkpoint-tail indexed basis. That is acceptable
+  foundation behavior but not acceptable as a headline release promise.
 - The v17 backlog lane is no longer an active release plan, but its remaining
   notes still need item-level archive, rehome, or explicit pull decisions.
 - End-to-end graph streaming reads and writes are a `v20.0.0` goal. V18 must
@@ -110,27 +128,50 @@ tag, npm, and JSR evidence exist.
 The next work should stay split into distinct modes:
 
 1. **Public API product pivot**: make Worldlines and Optics the v18 first-use
-   story while deprecating graph/materialize-first public paths.
-2. **Release operation**: cut and publish `v18.0.0` from aligned `main`.
-3. **Substrate debt**: retire one more raw content/property compatibility
+   story while deprecating graph/materialize-first public paths. Worldlines are
+   done; Optics closeout is now the active release blocker.
+2. **Optics public API closeout**: prove public success paths for node and
+   property optics through `openWarpWorldline(...)`, document basis setup and
+   recovery, and lock the package/consumer type surface.
+3. **Release operation**: cut and publish `v18.0.0` from aligned `main` only
+   after Optics closeout.
+4. **Substrate debt**: retire one more raw content/property compatibility
    boundary and ratchet the closeout audit.
-4. **v19 runway**: start native Continuum witnesshood work without backdating a
+5. **v19 runway**: start native Continuum witnesshood work without backdating a
    stronger v18 claim.
-5. **v20 runway**: design end-to-end graph streaming reads and writes without
+6. **v20 runway**: design end-to-end graph streaming reads and writes without
    assuming full-graph materialization.
 
 Do not blend these into one ambiguous branch.
 
 ## Live Checklist
 
-Release-operation work still pending outside this branch:
+Release-operation work is paused behind Optics:
 
-- [ ] Cut the signed `v18.0.0` tag from the release commit after explicit
-  release approval.
+- [ ] Complete `API_optics-public-api-closeout`.
+- [ ] Rerun `npm run release:preflight` from aligned `main` after Optics
+  closeout lands.
+- [ ] Cut the signed or annotated `v18.0.0` tag from the release commit after
+  explicit release approval.
 - [ ] Push the `v18.0.0` tag.
 - [ ] Publish npm and JSR artifacts from the release path.
 - [ ] Record the release evidence archive: tag SHA, preflight result, npm
   version evidence, JSR version evidence, and any audit note.
+
+Current Optics closeout checklist:
+
+- [ ] Public `openWarpWorldline(...).optic().node(id).read()` success test over
+  real checkpoint-tail indexed evidence.
+- [ ] Public `openWarpWorldline(...).optic().node(id).prop(key).read()` success
+  test over real checkpoint-tail indexed evidence.
+- [ ] No-materialization proof on Optics success and failure paths.
+- [ ] Public docs show how the checkpoint-tail indexed basis is created or
+  verified before the first optic read.
+- [ ] Recovery docs cover `E_OPTIC_NO_BOUNDED_BASIS`,
+  `E_OPTIC_TAIL_BUDGET_EXCEEDED`, and read-identity failures.
+- [ ] Consumer type tests prove the documented public optic chain without
+  internal path imports.
+- [ ] Package-surface decision recorded for optic/result nouns.
 
 Current 20-slice API checklist:
 

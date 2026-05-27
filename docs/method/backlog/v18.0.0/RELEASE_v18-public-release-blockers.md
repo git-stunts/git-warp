@@ -1,6 +1,7 @@
 ---
 id: RELEASE_v18-public-release-blockers
 blocked_by:
+  - API_optics-public-api-closeout
   - INFRA_graph-model-migration-tool
   - TRUST_genesis-replay-equivalence
 blocks: []
@@ -13,7 +14,8 @@ feature: graph-model-substrate
 
 The v18 migration path now has enough operator surface area that the release
 line needs explicit blockers. A public release must not imply stronger
-migration safety than the repository can prove.
+migration safety or stronger Optics product readiness than the repository can
+prove.
 
 ## Done looks like
 
@@ -28,6 +30,9 @@ migration safety than the repository can prove.
   not only handwritten compatibility prose;
 - release notes clearly distinguish v18 graph-model convergence from later
   Continuum admission shells;
+- Optics are public-facing enough to be usable: the Worldline-first public path
+  has successful node and property optic reads, failure recovery guidance, and
+  consumer type evidence;
 - public release gates are run on the release branch before tagging.
 
 ## Completed Release-Candidate Evidence
@@ -44,12 +49,14 @@ migration safety than the repository can prove.
 | Version metadata | Root package, private workspaces, lockfile, JSR metadata, and changelog now point at `18.0.0`. |
 | Local release preflight | `npm run release:preflight` passes for `18.0.0` metadata on the release-prep branch. |
 | PR review, GitHub CI, and merge | Complete in PR #107. |
+| Worldline-first API pivot | Complete in PR #110, but Optics need the public closeout gate below before release. |
 
 ## Current Public-Release Blockers
 
 | Blocker | Why it still blocks public release | Required evidence |
 |---------|------------------------------------|-------------------|
-| Post-merge tag and publish work | Package metadata now points at `18.0.0` on merged `main`, but the tag and publish artifacts do not exist yet. | Signed or annotated tag, pushed tag, npm pack/publish evidence, and JSR publish evidence agree on `18.0.0`. |
+| Optics public API closeout | Optics are part of the v18 public value proposition. The current Worldline-first API exposes `events.optic()`, but release is not honest until the first-use path has successful public tests, basis setup docs, recovery docs, and package-surface evidence. | `API_optics-public-api-closeout` complete with public `openWarpWorldline(...).optic()` success tests, no-materialization proof, consumer type coverage, and docs for setup/recovery. |
+| Post-merge tag and publish work | Package metadata now points at `18.0.0` on merged `main`, but the tag and publish artifacts do not exist yet. This waits behind Optics closeout. | Signed or annotated tag, pushed tag, npm pack/publish evidence, and JSR publish evidence agree on `18.0.0`. |
 
 ## Public-Release Watch Items
 
@@ -72,7 +79,6 @@ remaining raw compatibility files and fails on unreviewed boundary drift.
 
 ## Next pull candidates
 
-- Cut the public tag and publish artifacts only from aligned `main`.
-- Decide whether the next implementation branch retires one raw
-  content/property boundary or starts the v19 observer/admission witnesshood
-  runway.
+- Complete `API_optics-public-api-closeout`.
+- After Optics are release-complete, rerun release preflight from aligned
+  `main`, then cut and publish the public tag.

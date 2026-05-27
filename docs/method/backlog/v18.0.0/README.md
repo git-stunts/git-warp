@@ -19,6 +19,8 @@ This release cuts the graph layer toward the shared two-plane model:
 - a graph-op algebra aligned with the substrate nouns
 - a one-time migration that rewrites causal history into the new graph
   model and proves replay equivalence from genesis
+- a Worldline-first public API whose Optics story is usable, not merely
+  exposed
 
 ## In scope
 
@@ -28,6 +30,7 @@ This release cuts the graph layer toward the shared two-plane model:
 - property-bag reads reduced to projection helpers
 - graph-model migration tooling
 - replay-from-genesis verification
+- public Optics closeout for the Worldline-first first-use API
 
 ## Explicitly out of scope
 
@@ -59,7 +62,8 @@ LAYER 2 (migration and proof):
   [x] TRUST_genesis-replay-equivalence
 
 LAYER 3 (public release):
-  [~] RELEASE_v18-public-release-blockers
+  [~] API_optics-public-api-closeout
+  [!] RELEASE_v18-public-release-blockers
 ```
 
 ## Practical rule
@@ -98,12 +102,21 @@ After PR #107 merged, the migration path has release-candidate evidence on
   public-tag gates, and residual risks;
 - `18.0.0` package, JSR, workspace, lockfile, changelog, release notes, and
   technical teardown updates are merged to `main`.
+- PR #110 makes Worldlines the first-use public API and exposes foundation
+  optics through `openWarpWorldline(...).optic()`.
 
-The remaining public v18 work is release operation:
+The remaining public v18 work is not just release operation. Optics are part of
+the public-facing value proposition, so release waits behind
+`API_optics-public-api-closeout`:
 
-- align local `main` with `origin/main`;
-- rerun release preflight from `main`;
-- tag `v18.0.0` from the merged release commit;
-- publish npm and JSR artifacts from the release path;
+- prove successful public node and property optic reads through
+  `openWarpWorldline(...).optic()`;
+- document how the required checkpoint-tail indexed basis is created or
+  verified;
+- document recovery from `E_OPTIC_NO_BOUNDED_BASIS`;
+- prove the intended public optic chain in consumer type tests;
+- then rerun release preflight from `main`;
+- then tag `v18.0.0` from the merged release commit;
+- then publish npm and JSR artifacts from the release path;
 - preserve the explicit non-claim that v18 does not provide end-to-end graph
   streaming reads and writes.
