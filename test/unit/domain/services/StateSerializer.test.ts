@@ -15,8 +15,10 @@ import {
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
+import type { NodePropertyEntry } from '../../../../src/domain/services/state/WarpState.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
+import type { PropValue } from '../../../../src/domain/types/PropValue.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 function createInlineValue(value: unknown) { return { type: 'inline', value }; }
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -195,40 +197,39 @@ describe('StateSerializer', () => {
   });
 
   describe('propVisibleV5', () => {
-    it('returns true when node visible and prop exists', () => {
+    function makeOrphanEntry(nodeId: string, key: string): NodePropertyEntry {
+      const propValue: PropValue = 'orphan';
+      return {
+        encodedKey: encodePropKey(nodeId, key),
+        nodeId,
+        key,
+        register: lwwSet(new EventId(1, 'test', 'abcd1234', 0), propValue),
+      };
+    }
+
+    it('returns true when node is visible', () => {
       const state = buildStateV5({
         nodes: [{ nodeId: 'a' }],
         props: [{ nodeId: 'a', key: 'name', value: createInlineValue('Alice') }],
       });
-
-      const propKey = encodePropKey('a', 'name');
-      expect(propVisibleV5(state, propKey)).toBe(true);
+      const entries = [...state.nodeProperties()];
+      expect(entries.length).toBeGreaterThan(0);
+      expect(propVisibleV5(state, entries[0]!)).toBe(true);
     });
 
-    it('returns false when node tombstoned', () => {
+    it('returns false when node is tombstoned', () => {
       const state = buildStateV5({
         nodes: [{ nodeId: 'a', alive: false }],
         props: [{ nodeId: 'a', key: 'name', value: createInlineValue('Alice') }],
       });
-
-      const propKey = encodePropKey('a', 'name');
-      expect(propVisibleV5(state, propKey)).toBe(false);
+      const entries = [...state.nodeProperties()];
+      expect(entries.length).toBeGreaterThan(0);
+      expect(propVisibleV5(state, entries[0]!)).toBe(false);
     });
 
-    it('returns false when prop does not exist', () => {
-      const state = buildStateV5({
-        nodes: [{ nodeId: 'a' }],
-      });
-
-      const propKey = encodePropKey('a', 'name');
-      expect(propVisibleV5(state, propKey)).toBe(false);
-    });
-
-    it('returns false when node unknown', () => {
+    it('returns false when node is unknown', () => {
       const state = createEmptyState();
-
-      const propKey = encodePropKey('a', 'name');
-      expect(propVisibleV5(state, propKey)).toBe(false);
+      expect(propVisibleV5(state, makeOrphanEntry('a', 'name'))).toBe(false);
     });
   });
 

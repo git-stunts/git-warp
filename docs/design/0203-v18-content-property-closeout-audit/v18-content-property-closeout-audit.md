@@ -74,8 +74,6 @@ The current audited files are:
 - `src/domain/services/PatchBuilder.ts`
 - `src/domain/services/PatchBuilderValidation.ts`
 - `src/domain/services/PatchCommitter.ts`
-- `src/domain/services/TemporalQuery.ts`
-- `src/domain/services/VisibleStateScope.ts`
 - `src/domain/services/index/LogicalIndexBuildService.ts`
 - `src/domain/services/state/CheckpointSerializer.ts`
 - `src/domain/services/state/StateDiff.ts`
@@ -97,6 +95,10 @@ Retired files must stay retired:
 - `src/domain/services/CoordinateFactExport.ts` retired in slice 93 after
   transfer operation spelling moved behind constants owned by
   `src/domain/services/transfer/transferOps.ts`.
+- `src/domain/services/TemporalQuery.ts` retired after migrating to
+  `state.nodeProperties()` and `state.edgeProperties()` typed iterators.
+- `src/domain/services/VisibleStateScope.ts` retired after migrating to
+  `state.nodeProperties()` and `state.edgeProperties()` typed iterators.
 
 ## Classification
 

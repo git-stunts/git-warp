@@ -4,8 +4,8 @@ import {
   decodeEdgePropKey,
   isEdgePropKey,
   EDGE_PROP_PREFIX,
-  encodePropKey,
-} from '../../../../src/domain/services/JoinReducer.ts';
+} from '../../../../src/domain/services/KeyCodec.ts';
+import { encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 
 describe('EdgePropKey', () => {
   describe('round-trip', () => {
