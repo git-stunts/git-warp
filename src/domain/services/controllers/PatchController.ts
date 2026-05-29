@@ -433,11 +433,13 @@ export default class PatchController {
     const afterFrontierSize = mergedState.observedFrontier.size;
 
     let propsChanged = 0;
-    for (const [key, reg] of mergedState.prop) {
-      const oldReg = h._cachedState.prop.get(key);
-      if (!oldReg || oldReg.value !== reg.value) {
-        propsChanged++;
-      }
+    for (const entry of mergedState.nodeProperties()) {
+      const oldReg = h._cachedState.getEncodedProp(entry.encodedKey);
+      if (!oldReg || oldReg.value !== entry.register.value) { propsChanged++; }
+    }
+    for (const entry of mergedState.edgeProperties()) {
+      const oldReg = h._cachedState.getEncodedProp(entry.encodedKey);
+      if (!oldReg || oldReg.value !== entry.register.value) { propsChanged++; }
     }
 
     const receipt: JoinReceipt = {

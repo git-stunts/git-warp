@@ -17,11 +17,8 @@ const RAW_COMPATIBILITY_PATTERN = /decodePropKey|decodeEdgePropKey|state\.prop|(
 const DESIGN_DOC = 'docs/design/0203-v18-content-property-closeout-audit/v18-content-property-closeout-audit.md';
 const EXPECTED_RAW_COMPATIBILITY_FILES = Object.freeze([
   'src/domain/graph/LegacyContentPropertyKeys.ts',
-  'src/domain/services/ContentAttachmentProjection.ts',
   'src/domain/services/ImmutableSnapshot.ts',
   'src/domain/services/KeyCodec.ts',
-  'src/domain/services/OpStrategies.ts',
-  'src/domain/services/OpStrategy.ts',
   'src/domain/services/PatchBuilderValidation.ts',
   'src/domain/services/PatchCommitter.ts',
   'src/domain/services/index/LogicalIndexBuildService.ts',
@@ -31,16 +28,19 @@ const EXPECTED_RAW_COMPATIBILITY_FILES = Object.freeze([
   'src/domain/services/state/WarpState.ts',
   'src/domain/services/state/checkpointHelpers.ts',
   'src/domain/services/strand/StrandPatchService.ts',
-  'src/domain/types/ops/EdgePropSet.ts',
-  'src/domain/types/ops/NodePropSet.ts',
-  'src/domain/types/ops/PropSet.ts',
-  'src/domain/types/ops/propHelpers.ts',
 ]);
 
 const RETIRED_RAW_COMPATIBILITY_FILES = Object.freeze([
   'src/domain/services/CoordinateFactExport.ts',
+  'src/domain/services/ContentAttachmentProjection.ts',
+  'src/domain/services/OpStrategies.ts',
+  'src/domain/services/OpStrategy.ts',
   'src/domain/services/TemporalQuery.ts',
   'src/domain/services/VisibleStateScope.ts',
+  'src/domain/types/ops/EdgePropSet.ts',
+  'src/domain/types/ops/NodePropSet.ts',
+  'src/domain/types/ops/PropSet.ts',
+  'src/domain/types/ops/propHelpers.ts',
 ]);
 
 describe('v18 content/property closeout audit', () => {

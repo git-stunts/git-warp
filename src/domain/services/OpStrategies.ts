@@ -180,7 +180,7 @@ class NodePropSetStrategy extends OpStrategy {
     });
   }
   outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
-    return ReceiptBuilder.propSetOutcome(state.prop, { node: op.node as string, key: op.key as string }, eventId);
+    return ReceiptBuilder.propSetOutcome(state, { node: op.node as string, key: op.key as string }, eventId);
   }
   snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return OpStrategy._snapshotProp(state, encodePropKey(op.node as string, op.key as string));
@@ -214,7 +214,7 @@ class EdgePropSetStrategy extends OpStrategy {
   }
   outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     return ReceiptBuilder.edgePropSetOutcome(
-      state.prop,
+      state,
       { from: op.from as string, to: op.to as string, label: op.label as string, key: op.key as string },
       eventId,
     );
@@ -260,7 +260,7 @@ class PropSetStrategy extends OpStrategy {
     });
   }
   outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
-    return ReceiptBuilder.propSetOutcome(state.prop, { node: op.node as string, key: op.key as string }, eventId);
+    return ReceiptBuilder.propSetOutcome(state, { node: op.node as string, key: op.key as string }, eventId);
   }
   snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return OpStrategy._snapshotProp(state, encodePropKey(op.node as string, op.key as string));

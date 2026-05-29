@@ -65,12 +65,9 @@ in this design document.
 The current audited files are:
 
 - `src/domain/graph/LegacyContentPropertyKeys.ts`
-- `src/domain/services/ContentAttachmentProjection.ts`
 - `src/domain/services/ImmutableSnapshot.ts`
 - `src/domain/services/JoinReducer.ts`
 - `src/domain/services/KeyCodec.ts`
-- `src/domain/services/OpStrategies.ts`
-- `src/domain/services/OpStrategy.ts`
 - `src/domain/services/PatchBuilder.ts`
 - `src/domain/services/PatchBuilderValidation.ts`
 - `src/domain/services/PatchCommitter.ts`
@@ -95,10 +92,24 @@ Retired files must stay retired:
 - `src/domain/services/CoordinateFactExport.ts` retired in slice 93 after
   transfer operation spelling moved behind constants owned by
   `src/domain/services/transfer/transferOps.ts`.
+- `src/domain/services/ContentAttachmentProjection.ts` retired after migrating
+  to `state.getNodeProp()` and `state.getEdgeProp()` point-access methods.
+- `src/domain/services/OpStrategies.ts` retired after migrating `ReceiptBuilder`
+  calls to accept `WarpState` directly.
+- `src/domain/services/OpStrategy.ts` retired after migrating to
+  `state.mutatePropLWW()`, `state.getEncodedProp()`.
 - `src/domain/services/TemporalQuery.ts` retired after migrating to
   `state.nodeProperties()` and `state.edgeProperties()` typed iterators.
 - `src/domain/services/VisibleStateScope.ts` retired after migrating to
   `state.nodeProperties()` and `state.edgeProperties()` typed iterators.
+- `src/domain/types/ops/EdgePropSet.ts` retired after migrating `ReceiptBuilder`
+  calls to accept `WarpState` directly.
+- `src/domain/types/ops/NodePropSet.ts` retired after migrating `ReceiptBuilder`
+  calls to accept `WarpState` directly.
+- `src/domain/types/ops/PropSet.ts` retired after migrating `ReceiptBuilder`
+  calls to accept `WarpState` directly.
+- `src/domain/types/ops/propHelpers.ts` retired after migrating to
+  `state.mutatePropLWW()`, `state.getEncodedProp()`.
 
 ## Classification
 

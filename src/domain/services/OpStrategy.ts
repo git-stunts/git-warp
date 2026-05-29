@@ -1,4 +1,3 @@
-import { lwwSet, lwwMax } from '../crdt/LWW.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
 import type OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import type { EventId } from '../utils/EventId.ts';
@@ -46,16 +45,12 @@ export default abstract class OpStrategy {
       readonly value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     },
   ): void {
-    const current = state.prop.get(mutation.propKey);
-    const winner = lwwMax(current, lwwSet(mutation.eventId, mutation.value as PropValue));
-    if (winner !== null) {
-      state.prop.set(mutation.propKey, winner);
-    }
+    state.mutatePropLWW(mutation.propKey, mutation.eventId, mutation.value as PropValue);
   }
 
   /** Shared pre-op snapshot for property strategies. */
   protected static _snapshotProp(state: WarpState, propKey: string): SnapshotBeforeOp {
-    const reg = state.prop.get(propKey);
+    const reg = state.getEncodedProp(propKey);
     return { prevPropValue: reg !== undefined ? reg.value : undefined, propKey };
   }
 
@@ -69,7 +64,7 @@ export default abstract class OpStrategy {
       readonly before: SnapshotBeforeOp;
     },
   ): void {
-    const reg = change.before.propKey !== undefined ? state.prop.get(change.before.propKey) : undefined;
+    const reg = change.before.propKey !== undefined ? state.getEncodedProp(change.before.propKey) : undefined;
     const newVal = reg !== undefined ? reg.value : undefined;
     if (newVal !== change.before.prevPropValue) {
       diff.propsChanged.push({
