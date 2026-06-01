@@ -1,7 +1,7 @@
 ---
-title: "Unify seek cache and checkpoints"
-cycle: "0034-unify-seek-cache-and-checkpoints"
-design_doc: "docs/design/0034-unify-seek-cache-and-checkpoints.md"
+title: 'Unify seek cache and checkpoints'
+cycle: '0034-unify-seek-cache-and-checkpoints'
+design_doc: 'docs/design/0034-unify-seek-cache-and-checkpoints.md'
 outcome: hill-met
 drift_check: yes
 ---
@@ -113,14 +113,14 @@ Key witness commits:
 
 ### Agent
 
-1. *Does materialization now use one live snapshot resolver path?*
+1. _Does materialization now use one live snapshot resolver path?_
    Yes.
-2. *Does checkpoint creation now mean pin/publish rather than second
-   artifact invention?*
+2. _Does checkpoint creation now mean pin/publish rather than second
+   artifact invention?_
    Yes.
-3. *Is stable checkpoint discoverability preserved on the unified path?*
+3. _Is stable checkpoint discoverability preserved on the unified path?_
    Yes.
-4. *Does legacy snapshot import remain outside live runtime code?*
+4. _Does legacy snapshot import remain outside live runtime code?_
    Yes.
 
 ### Human
@@ -158,7 +158,7 @@ Backlog and release planning were updated to reflect the landed work:
 
 - PROTO_materialize-integration.md
   no longer lists `DESIGN_0034_unify-seek-cache-and-checkpoints` as a blocker
-- [WORKLOADS.md](../../backlog/WORKLOADS.md)
+- [WORKLOADS.md](../../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md)
   now removes `0034` from `WL-38` and reduces the count accordingly
 - [docs/releases/v17.0.0/README.md](../../../releases/v17.0.0/README.md)
   now marks `DESIGN_0034_unify-seek-cache-and-checkpoints` done

@@ -1,7 +1,7 @@
 ---
-title: "Remaining WARP drift release slotting"
-cycle: "0037-remaining-warp-drift-release-slotting"
-design_doc: "docs/design/0037-remaining-warp-drift-release-slotting.md"
+title: 'Remaining WARP drift release slotting'
+cycle: '0037-remaining-warp-drift-release-slotting'
+design_doc: 'docs/design/0037-remaining-warp-drift-release-slotting.md'
 outcome: hill-met
 drift_check: yes
 ---
@@ -50,7 +50,7 @@ planning surface.
 
 ### The `v19` lane now says where its responsibility ends
 
-[docs/method/backlog/v19.0.0/README.md](../../backlog/v19.0.0/README.md)
+[docs/method/backlog/v19.0.0/README.md](../../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v19.0.0/README.md)
 now includes a `Release handoff` section so the lane itself records:
 
 - what `v19` owns
@@ -76,13 +76,13 @@ Key witness commits:
 
 ### Agent
 
-1. *Can I tell which unresolved drift items are `v19`, `v20`, and `v21`
-   work?*
+1. _Can I tell which unresolved drift items are `v19`, `v20`, and `v21`
+   work?_
    Yes.
-2. *Does the split preserve the `v18` / `v19` release law?*
+2. _Does the split preserve the `v18` / `v19` release law?_
    Yes.
-3. *Does the repo now have one explicit answer to “what remains after the
-   observer/read-side ladder?”*
+3. _Does the repo now have one explicit answer to “what remains after the
+   observer/read-side ladder?”_
    Yes.
 
 ### Human

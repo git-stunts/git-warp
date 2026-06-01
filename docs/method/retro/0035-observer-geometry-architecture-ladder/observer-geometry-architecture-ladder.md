@@ -1,7 +1,7 @@
 ---
-title: "Observer geometry architecture ladder"
-cycle: "0035-observer-geometry-architecture-ladder"
-design_doc: "docs/design/0035-observer-geometry-architecture-ladder.md"
+title: 'Observer geometry architecture ladder'
+cycle: '0035-observer-geometry-architecture-ladder'
+design_doc: 'docs/design/0035-observer-geometry-architecture-ladder.md'
 outcome: hill-met
 drift_check: yes
 ---
@@ -85,7 +85,7 @@ It also records an important design law:
 ### The ladder became backlog, not folklore
 
 This cycle promoted four previously speculative notes into
-[`docs/method/backlog/v19.0.0/`](../../backlog/v19.0.0/README.md):
+[`docs/method/backlog/v19.0.0/`](../../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v19.0.0/README.md):
 
 - `PROTO_bounded-support-rules-for-query-surfaces`
 - `PROTO_causal-indexes-for-sliced-queries`
@@ -126,13 +126,13 @@ Key witness commits:
 
 ### Agent
 
-1. *Can the repo now point to one canonical meaning for core read/runtime
-   nouns?*
+1. _Can the repo now point to one canonical meaning for core read/runtime
+   nouns?_
    Yes.
-2. *Can a contributor explain the intended read flow without defaulting to
-   whole-graph materialization?*
+2. _Can a contributor explain the intended read flow without defaulting to
+   whole-graph materialization?_
    Yes.
-3. *Can the promoted backlog now be read as a real implementation ladder?*
+3. _Can the promoted backlog now be read as a real implementation ladder?_
    Yes.
 
 ### Human

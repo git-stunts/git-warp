@@ -34,51 +34,51 @@ This PULL designs that repair before touching implementation.
 
 ### `src/domain/services/provenance/BTR.ts`
 
-| Lines | Evidence | Classification |
-|---:|---|---|
-| 20-21 | Imports `CodecPort` and `defaultCodec` into domain-side BTR code | Boundary leakage |
-| 31-39 | `BTRFields` is a structural field bag rather than a runtime-backed domain constructor input | Anonymous bag model |
-| 41-42 | `PatchEntryJSON = Record<string, ...>` pretends to model provenance | Anonymous bag model / wire leakage |
-| 46-64 | `BTR` stores public primitive fields, including `P: readonly PatchEntryJSON[]` | Domain/wire concept mixing |
-| 72-82 | `BTR.serialize()` owns CBOR/wire encoding via `codec.encode(...)` | Boundary leakage |
-| 89-97 | `BTR.deserialize()` owns wire decoding and casts decoded data to `BTRFields` | Boundary leakage / cast theater |
+|   Lines | Evidence                                                                                        | Classification                     |
+| ------: | ----------------------------------------------------------------------------------------------- | ---------------------------------- |
+|   20-21 | Imports `CodecPort` and `defaultCodec` into domain-side BTR code                                | Boundary leakage                   |
+|   31-39 | `BTRFields` is a structural field bag rather than a runtime-backed domain constructor input     | Anonymous bag model                |
+|   41-42 | `PatchEntryJSON = Record<string, ...>` pretends to model provenance                             | Anonymous bag model / wire leakage |
+|   46-64 | `BTR` stores public primitive fields, including `P: readonly PatchEntryJSON[]`                  | Domain/wire concept mixing         |
+|   72-82 | `BTR.serialize()` owns CBOR/wire encoding via `codec.encode(...)`                               | Boundary leakage                   |
+|   89-97 | `BTR.deserialize()` owns wire decoding and casts decoded data to `BTRFields`                    | Boundary leakage / cast theater    |
 | 115-128 | `findMissingField()` and `validateBTRStructure()` inspect generic records and double-cast a BTR | Anonymous bag model / cast theater |
 
 ### `src/domain/services/provenance/btrOperations.ts`
 
-| Lines | Evidence | Classification |
-|---:|---|---|
-| 11-14 | Imports `CryptoPort`, `CodecPort`, and `defaultCodec` into domain-side provenance operations | Boundary leakage / orchestration in domain |
-| 28-31 | `CryptoDeps` carries `codec?: CodecPort` beside crypto | Boundary leakage |
-| 35-49 | `computeHmac(fields: { ... })` accepts an anonymous object bag and signs `codec.encode(fields)` | Canonical byte violation |
-| 73-82 | `createBTR()` receives crypto/codec options directly in domain-side service code | Orchestration in domain |
-| 93-96 | State hash and full-state serialization are codec-dependent inside BTR creation | Boundary leakage |
-| 97-101 | `payload.toJSON() as unknown as readonly PatchEntryJSON[]` bridges domain provenance to wire payload shape | Cast theater / wire leakage |
-| 138-142 | HMAC verification recomputes expected tag from object fields | Canonical byte violation |
-| 184-191 | `replayBTR()` accepts codec deps and calls `ProvenancePayload.fromJSON(btr.P as unknown as PatchEntry[])` | Boundary leakage / cast theater |
+|   Lines | Evidence                                                                                                   | Classification                             |
+| ------: | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+|   11-14 | Imports `CryptoPort`, `CodecPort`, and `defaultCodec` into domain-side provenance operations               | Boundary leakage / orchestration in domain |
+|   28-31 | `CryptoDeps` carries `codec?: CodecPort` beside crypto                                                     | Boundary leakage                           |
+|   35-49 | `computeHmac(fields: { ... })` accepts an anonymous object bag and signs `codec.encode(fields)`            | Canonical byte violation                   |
+|   73-82 | `createBTR()` receives crypto/codec options directly in domain-side service code                           | Orchestration in domain                    |
+|   93-96 | State hash and full-state serialization are codec-dependent inside BTR creation                            | Boundary leakage                           |
+|  97-101 | `payload.toJSON() as unknown as readonly PatchEntryJSON[]` bridges domain provenance to wire payload shape | Cast theater / wire leakage                |
+| 138-142 | HMAC verification recomputes expected tag from object fields                                               | Canonical byte violation                   |
+| 184-191 | `replayBTR()` accepts codec deps and calls `ProvenancePayload.fromJSON(btr.P as unknown as PatchEntry[])`  | Boundary leakage / cast theater            |
 
 ### `src/domain/services/provenance/ProvenancePayload.ts`
 
-| Lines | Evidence | Classification |
-|---:|---|---|
-| 14-17 | `PatchEntry` is an interface, not a runtime-backed value | Model gap |
-| 19-31 | `ProvenancePayload` freezes an array but validates only `Array.isArray` | Runtime-invariant gap |
+| Lines | Evidence                                                                                 | Classification                           |
+| ----: | ---------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 14-17 | `PatchEntry` is an interface, not a runtime-backed value                                 | Model gap                                |
+| 19-31 | `ProvenancePayload` freezes an array but validates only `Array.isArray`                  | Runtime-invariant gap                    |
 | 53-58 | `replay()` depends on `reduceV5([...this.#patches])` and casts the result to `WarpState` | Existing model/cast debt adjacent to BTR |
-| 73-78 | Domain API exposes `toJSON()` and `fromJSON(...)` names | Wire-language leakage |
+| 73-78 | Domain API exposes `toJSON()` and `fromJSON(...)` names                                  | Wire-language leakage                    |
 
 ### `src/ports/CryptoPort.ts`
 
-| Lines | Evidence | Classification |
-|---:|---|---|
-| 9-21 | `CryptoPort` is a generic crypto capability over `string | Uint8Array` for hash/HMAC inputs | Reusable byte-oriented port |
+| Lines | Evidence                                                 | Classification                   |
+| ----: | -------------------------------------------------------- | -------------------------------- | --------------------------- |
+|  9-21 | `CryptoPort` is a generic crypto capability over `string | Uint8Array` for hash/HMAC inputs | Reusable byte-oriented port |
 
 This supports keeping `CryptoPort` generic. BTR-specific values should
 not leak into the crypto port.
 
 ### `src/ports/CodecPort.ts`
 
-| Lines | Evidence | Classification |
-|---:|---|---|
+| Lines | Evidence                                                                                | Classification                         |
+| ----: | --------------------------------------------------------------------------------------- | -------------------------------------- |
 | 27-32 | `CodecPort` is a generic structured-codec capability with generic `encode` and `decode` | Too broad for BTR signing canonicality |
 
 `CodecPort` can be an implementation dependency of a BTR codec adapter,
@@ -948,17 +948,16 @@ Closeout links:
 - Retrospective:
   [docs/method/retros/0099-btr-provenance-codec-boundary-repair.md](../method/retros/0099-btr-provenance-codec-boundary-repair.md)
 - Bad-code follow-up:
-  [docs/method/backlog/bad-code/PROV_btr-wire-dto-locality-guard.md](../method/backlog/bad-code/PROV_btr-wire-dto-locality-guard.md)
+  [PROV_btr-wire-dto-locality-guard](https://github.com/git-stunts/git-warp/issues/253)
 - Cool-idea follow-up:
-  [docs/method/backlog/cool-ideas/PROTO_continuum-contract-alignment-for-btr-and-receipts.md](../method/backlog/cool-ideas/PROTO_continuum-contract-alignment-for-btr-and-receipts.md)
+  [PROTO_continuum-contract-alignment-for-btr-and-receipts](https://github.com/git-stunts/git-warp/issues/468)
 
 Cycle-end confirmations:
 
 - BTR/provenance boundary repair is complete for 0099.
 - BTR stayed a git-warp-local tick-scale retained shell.
 - No Continuum `Receipt`, `Witness`, `SuffixShell`, `ImportOutcome`,
-  `SettlementResult`, or generic `Hologram` work was smuggled into
-  0099.
+  `SettlementResult`, or generic `Hologram` work was smuggled into 0099.
 - `btrProvenanceBoundary.test.ts` passes.
 - `btrSigningBytesOwnership.test.ts` passes.
 - `sludgeAtlas.test.ts` passes.

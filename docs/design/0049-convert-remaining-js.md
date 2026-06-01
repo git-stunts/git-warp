@@ -1,6 +1,6 @@
 ---
-title: "Convert remaining JavaScript in bounded TypeScript batches"
-cycle: "0049-convert-remaining-js"
+title: 'Convert remaining JavaScript in bounded TypeScript batches'
+cycle: '0049-convert-remaining-js'
 ---
 
 # Convert Remaining JavaScript
@@ -131,32 +131,32 @@ The premise check is backed by:
 - `find src bin scripts -type f -name '*.js'`
 - `find . -path './.git' -prune -o -path './node_modules' -prune -o -path './.claude' -prune -o -type f -name '*.js' -print`
 - [README.md](../releases/v17.0.0/README.md)
-- [WORKLOADS.md](../method/backlog/WORKLOADS.md)
+- [WORKLOADS.md](../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md)
 
 ### Agent
 
-1. *Can I explain why `TS_convert-remaining-js` was a stale premise rather than
-   a real execution slice?*
+1. _Can I explain why `TS_convert-remaining-js` was a stale premise rather than
+   a real execution slice?_
    Yes. The active tree already has no live `.js` files under `src/`, `bin/`,
    or `scripts/`, so the pulled backlog note no longer described repo truth.
 
-2. *Can I point to the evidence that `src/`, `bin/`, and `scripts/` no longer
-   contain live `.js` files?*
+2. _Can I point to the evidence that `src/`, `bin/`, and `scripts/` no longer
+   contain live `.js` files?_
    Yes. Direct `find` output shows zero matching files under those paths.
 
-3. *Can I identify the next honest non-TS cleanup slice after deleting the
-   stale notes?*
+3. _Can I identify the next honest non-TS cleanup slice after deleting the
+   stale notes?_
    Yes. The remaining live note is `TS_eliminate-remaining-js-and-dts`.
 
 ### Human
 
-1. *Is it clear why this cycle closed early instead of inventing fake migration
-   work?*
+1. _Is it clear why this cycle closed early instead of inventing fake migration
+   work?_
    Yes. The repo already satisfies the premise the cycle would have been trying
    to prove.
 
-2. *Is it clear which remaining note is the real non-TS tail after the stale
-   cards are removed?*
+2. _Is it clear which remaining note is the real non-TS tail after the stale
+   cards are removed?_
    Yes. The real tail is no longer JS conversion; it is config and `.d.ts`
    elimination.
 

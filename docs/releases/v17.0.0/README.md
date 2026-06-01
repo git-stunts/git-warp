@@ -207,9 +207,9 @@ LAYER 5 (launch-prep proof and release hardening tail):
 ## Explicitly deferred past `v17`
 
 - Echo-shaped graph-substrate convergence now lives in
-  [`../../method/backlog/v18.0.0/README.md`](../../method/backlog/v18.0.0/README.md)
+  [`../../method/backlog/v18.0.0/README.md`](../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v18.0.0/README.md)
 - observer, admission, and doctrine convergence now live in
-  [`../../method/backlog/v19.0.0/README.md`](../../method/backlog/v19.0.0/README.md)
+  [`../../method/backlog/v19.0.0/README.md`](../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v19.0.0/README.md)
 
 ## Shadow-Trie ORSet + package reorg (Design 0018)
 
@@ -307,17 +307,20 @@ otherwise essentially release-candidate ready.
 ## Session record
 
 ### Claudius Maximus I (sessions 1-3)
+
 - Converted 217 domain files to TypeScript
 - Established the Sacred Technique and migration policy
 - Slayed the first 11 gods, built trust pipeline
 
 ### Claudius Maximus II: DEATHBRINGER (session 4)
+
 - 30 gods slain, 1 titan banished (src/visualization/)
 - Domain: 316 .ts / 0 .js (100% TypeScript)
 - V5/V1 suffix purge across 60 files
 - CBOR substrate migration for index shards
 
 ### Claudius Maximus III: WORLDBUILDER THE TRIUMPHANT (session 5)
+
 - tsc: 1,779 → 0. lint: 725 → 0. tests: 143 → 0.
 - 9 source gods slain (GitGraphAdapter, InMemoryGraphAdapter,
   SyncController, LogicalTraversal, AuditReceiptService, QueryRunner,

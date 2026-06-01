@@ -201,7 +201,7 @@ The reconciliation work should tighten both together.
 ## Backlog capture status
 
 This audit has now been captured as tracked doctrine follow-through in
-[`docs/method/backlog/v19.0.0/`](../method/backlog/v19.0.0/README.md).
+[`docs/method/backlog/v19.0.0/`](../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v19.0.0/README.md).
 
 The canonical noun and runtime-planning surfaces for this drift now live in:
 
@@ -210,16 +210,16 @@ The canonical noun and runtime-planning surfaces for this drift now live in:
 - [release-horizon-v20-v21](../design/release-horizon-v20-v21.md)
 
 The graph-substrate convergence cut intentionally lives in
-[`docs/method/backlog/v18.0.0/`](../method/backlog/v18.0.0/README.md)
+[`docs/method/backlog/v18.0.0/`](../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v18.0.0/README.md)
 so the repo can separate "make the graph shape honest" from "finish
 observer, admission, and strand doctrine convergence."
 
 The concrete backlog items derived from this audit are:
 
-- [HYGIENE_warp-doctrine-runtime-alignment](../method/backlog/v19.0.0/HYGIENE_warp-doctrine-runtime-alignment.md)
-- [PROTO_live-holographic-strands](../method/backlog/v19.0.0/PROTO_live-holographic-strands.md)
-- [PROTO_observer-plan-reading-envelopes](../method/backlog/v19.0.0/PROTO_observer-plan-reading-envelopes.md)
-- [PROTO_witnessed-suffix-admission-shells](../method/backlog/v19.0.0/PROTO_witnessed-suffix-admission-shells.md)
+- [HYGIENE_warp-doctrine-runtime-alignment](https://github.com/git-stunts/git-warp/issues/556)
+- [PROTO_live-holographic-strands](https://github.com/git-stunts/git-warp/issues/560)
+- [PROTO_observer-plan-reading-envelopes](https://github.com/git-stunts/git-warp/issues/561)
+- [PROTO_witnessed-suffix-admission-shells](https://github.com/git-stunts/git-warp/issues/564)
 
 This audit should remain the ledger for doctrine/runtime drift. The
 backlog items own the implementation work.
