@@ -104,7 +104,7 @@ function validateCheckpointSha(checkpointSha: string | null | undefined): string
   if (checkpointSha === undefined || checkpointSha === null) {
     return null;
   }
-  if (typeof checkpointSha !== 'string' || checkpointSha.length === 0) {
+  if (typeof checkpointSha !== 'string' || checkpointSha.trim().length === 0) {
     throw new QueryError('checkpointSha must be a non-empty string when provided', {
       code: 'E_SELECTOR_INVALID',
     });

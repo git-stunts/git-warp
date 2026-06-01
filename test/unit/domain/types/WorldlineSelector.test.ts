@@ -153,6 +153,10 @@ describe('CoordinateSelector', () => {
     expect(() => new CoordinateSelector(new Map(), -1)).toThrow(QueryError);
   });
 
+  it('rejects blank checkpointSha', () => {
+    expect(() => new CoordinateSelector(new Map(), null, '   ')).toThrow(QueryError);
+  });
+
   it('is frozen', () => {
     const sel = new CoordinateSelector(new Map([['a', 'b']]));
     expect(Object.isFrozen(sel)).toBe(true);
