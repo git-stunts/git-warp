@@ -23,6 +23,8 @@ export default class WarpWorldlineCoordinate {
   private readonly _createWorldline: (options?: WorldlineOptions) => Worldline;
 
   constructor(options: WarpWorldlineCoordinateOptions) {
+    assertFrontier(options.frontier);
+    assertWorldlineFactory(options.createWorldline);
     assertNonEmpty(options.worldlineName, 'worldlineName');
     assertNonEmpty(options.checkpointSha, 'checkpointSha');
     this.worldlineName = options.worldlineName;
@@ -50,7 +52,7 @@ export default class WarpWorldlineCoordinate {
 }
 
 function freezeFrontier(
-  frontier: Map<string, string>,
+  frontier: Map<string, string>
 ): readonly WarpWorldlineCoordinateFrontierEntry[] {
   return Object.freeze(
     [...frontier.entries()]
@@ -59,16 +61,36 @@ function freezeFrontier(
         assertNonEmpty(writerId, 'writerId');
         assertNonEmpty(patchSha, 'patchSha');
         return Object.freeze({ writerId, patchSha });
-      }),
+      })
   );
 }
 
+function assertFrontier(frontier: Map<string, string>): void {
+  if (!(frontier instanceof Map)) {
+    throw new WarpError(
+      'WarpWorldline coordinate requires a frontier Map',
+      'E_WARP_WORLDLINE_COORDINATE',
+      { context: { field: 'frontier' } }
+    );
+  }
+}
+
+function assertWorldlineFactory(createWorldline: (options?: WorldlineOptions) => Worldline): void {
+  if (typeof createWorldline !== 'function') {
+    throw new WarpError(
+      'WarpWorldline coordinate requires a worldline factory',
+      'E_WARP_WORLDLINE_COORDINATE',
+      { context: { field: 'createWorldline' } }
+    );
+  }
+}
+
 function assertNonEmpty(value: string, field: string): void {
-  if (typeof value !== 'string' || value.length === 0) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
     throw new WarpError(
       'WarpWorldline coordinate requires non-empty identity fields',
       'E_WARP_WORLDLINE_COORDINATE',
-      { context: { field } },
+      { context: { field } }
     );
   }
 }
