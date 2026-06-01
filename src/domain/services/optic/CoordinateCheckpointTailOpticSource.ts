@@ -26,6 +26,8 @@ export default class CoordinateCheckpointTailOpticSource extends CheckpointTailO
 
   constructor(options: CoordinateCheckpointTailOpticSourceOptions) {
     super();
+    assertSource(options.source);
+    assertFrontier(options.frontier);
     this.graphName = options.source.graphName;
     this._persistence = options.source._persistence;
     this._codec = options.source._codec;
@@ -48,14 +50,14 @@ export default class CoordinateCheckpointTailOpticSource extends CheckpointTailO
 
   async _loadPatchChainFromSha(
     tipSha: string,
-    stopAtSha: string | null = null,
+    stopAtSha: string | null = null
   ): Promise<CheckpointTailPatchEntry[]> {
     return await this._source._loadPatchChainFromSha(tipSha, stopAtSha);
   }
 
   async _loadWriterPatches(
     writerId: string,
-    stopAtSha: string | null = null,
+    stopAtSha: string | null = null
   ): Promise<CheckpointTailPatchEntry[]> {
     const coordinateTipSha = this._frontier.get(writerId);
     if (coordinateTipSha === undefined || coordinateTipSha === stopAtSha) {
@@ -67,7 +69,7 @@ export default class CoordinateCheckpointTailOpticSource extends CheckpointTailO
   async _validatePatchAgainstCheckpoint(
     writerId: string,
     incomingSha: string,
-    checkpoint: CheckpointTailCheckpointFrontier | null | undefined,
+    checkpoint: CheckpointTailCheckpointFrontier | null | undefined
   ): Promise<void> {
     await this._source._validatePatchAgainstCheckpoint(writerId, incomingSha, checkpoint);
   }
@@ -76,7 +78,7 @@ export default class CoordinateCheckpointTailOpticSource extends CheckpointTailO
 function copyFrontier(frontier: Map<string, string>): Map<string, string> {
   const copy = new Map<string, string>();
   for (const [writerId, patchSha] of [...frontier.entries()].sort(([left], [right]) =>
-    left.localeCompare(right),
+    left.localeCompare(right)
   )) {
     assertNonEmpty(writerId, 'writerId');
     assertNonEmpty(patchSha, 'patchSha');
@@ -85,12 +87,32 @@ function copyFrontier(frontier: Map<string, string>): Map<string, string> {
   return copy;
 }
 
+function assertSource(source: CheckpointTailOpticSource): void {
+  if (!(source instanceof CheckpointTailOpticSource)) {
+    throw new WarpError(
+      'Coordinate checkpoint-tail optic source requires a checkpoint-tail source',
+      'E_COORDINATE_CHECKPOINT_TAIL_OPTIC_SOURCE',
+      { context: { field: 'source' } }
+    );
+  }
+}
+
+function assertFrontier(frontier: Map<string, string>): void {
+  if (!(frontier instanceof Map)) {
+    throw new WarpError(
+      'Coordinate checkpoint-tail optic source requires a frontier Map',
+      'E_COORDINATE_CHECKPOINT_TAIL_OPTIC_SOURCE',
+      { context: { field: 'frontier' } }
+    );
+  }
+}
+
 function assertNonEmpty(value: string, field: string): void {
-  if (value.length === 0) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
     throw new WarpError(
       'Coordinate checkpoint-tail optic source requires non-empty identity fields',
       'E_COORDINATE_CHECKPOINT_TAIL_OPTIC_SOURCE',
-      { context: { field } },
+      { context: { field } }
     );
   }
 }
