@@ -1,6 +1,7 @@
 ---
 id: API_optics-public-api-closeout
-blocked_by: []
+blocked_by:
+  - API_no-full-materialization-first-use-optics
 blocks:
   - RELEASE_v18-public-release-blockers
 feature: graph-model-substrate
@@ -8,8 +9,8 @@ feature: graph-model-substrate
 
 # Optics public API closeout
 
-Status: branch-local complete. Merge and release evidence still live under
-`RELEASE_v18-public-release-blockers`.
+Status: branch-local implementation evidence exists, but the release-complete
+claim is superseded by `API_no-full-materialization-first-use-optics`.
 
 ## Design
 
@@ -34,6 +35,11 @@ as `worldline.prepareOpticBasis()` and a pinned coordinate capture path such as
 `worldline.coordinate()`, followed by coherent public node and property optic
 reads through `coordinate.optic()`.
 
+The implementation has since exposed a sharper release blocker:
+`prepareOpticBasis()` currently creates that basis by calling
+`graph.materialize()` before checkpoint creation. That is useful branch-local
+API evidence, but it is not an honest bounded first-use Optics path.
+
 ## Done Looks Like
 
 - A Worldline-first public basis setup path exists, is documented, and does not
@@ -48,6 +54,9 @@ reads through `coordinate.optic()`.
   between awaited reads.
 - Success and failure tests prove optic reads do not fall back to whole-graph
   materialization.
+- Basis setup itself does not perform full graph materialization on the
+  documented first-use path, or v18 explicitly refuses any bounded large-graph
+  claim.
 - Docs show how the bounded checkpoint-tail basis is created or verified before
   the first coordinate optic read.
 - Docs explain `E_OPTIC_NO_BOUNDED_BASIS`, `E_OPTIC_TAIL_BUDGET_EXCEEDED`, and
@@ -61,5 +70,6 @@ reads through `coordinate.optic()`.
 
 ## Release Rule
 
-`v18.0.0` is blocked until this card is complete. Tagging and registry publish
-work must wait behind this gate.
+`v18.0.0` is blocked until this card and
+`API_no-full-materialization-first-use-optics` are complete. Tagging and
+registry publish work must wait behind both gates.

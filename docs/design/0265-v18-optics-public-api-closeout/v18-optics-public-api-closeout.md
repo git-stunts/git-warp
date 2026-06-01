@@ -1,7 +1,7 @@
 ---
 cycle: 0265
 task_id: API_optics-public-api-closeout
-status: Complete
+status: Blocked
 sponsors:
   human: James
   agent: Codex
@@ -9,9 +9,27 @@ started_at: 2026-05-26
 release_home: v18.0.0
 backlog:
   - docs/method/backlog/v18.0.0/API_optics-public-api-closeout.md
+  - docs/method/backlog/v18.0.0/API_no-full-materialization-first-use-optics.md
 ---
 
 # v18 Optics Public API Closeout
+
+## Release Honesty Update
+
+The coordinate Optics implementation slices below are branch-local evidence,
+not release-complete proof. The current public basis setup path calls
+`graph.materialize()` before `graph.createCheckpoint()`, so v18 is blocked by
+`API_no-full-materialization-first-use-optics` unless the release claim is
+narrowed enough that nobody can read it as bounded large-graph safety.
+
+Keep the two gates separate:
+
+- V18 honesty gate: documented first-use application paths avoid full graph
+  materialization, or the release explicitly refuses bounded large-graph claims.
+- Large-graph product gate: memory pools, streaming basis construction,
+  sharded fact resolvers, cursorized reads and sync, bounded content lookup,
+  capability reporting, operator tooling, and conformance over graphs larger
+  than the configured pool.
 
 ## Pull
 

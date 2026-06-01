@@ -31,6 +31,7 @@ This release cuts the graph layer toward the shared two-plane model:
 - graph-model migration tooling
 - replay-from-genesis verification
 - public Optics closeout for the Worldline-first first-use API
+- the v18 honesty gate for first-use Optics setup and bounded-claim wording
 
 ## Explicitly out of scope
 
@@ -40,6 +41,10 @@ This release cuts the graph layer toward the shared two-plane model:
 - live holographic strand semantics
 - replacing the `git-warp` causal envelope unless the migration proof
   forces it
+- arbitrary graph size under bounded memory
+- the full memory-pool, streaming-basis, cursorized-read/sync,
+  fact-resolver-write, bounded-content-lookup, capability-reporting, and
+  operator-doctor platform
 
 Those doctrine and protocol surfaces live in
 [`../v19.0.0/README.md`](../v19.0.0/README.md).
@@ -62,7 +67,8 @@ LAYER 2 (migration and proof):
   [x] TRUST_genesis-replay-equivalence
 
 LAYER 3 (public release):
-  [x] API_optics-public-api-closeout
+  [!] API_no-full-materialization-first-use-optics
+  [~] API_optics-public-api-closeout
   [!] RELEASE_v18-public-release-blockers
 ```
 
@@ -101,12 +107,12 @@ After PR #107 merged, the migration path has release-candidate evidence on
 - release-candidate evidence now names candidate scope, go/no-go gates,
   public-tag gates, and residual risks;
 - `18.0.0` package, JSR, workspace, lockfile, changelog, release notes, and
-  technical teardown updates are merged to `main`.
+  technical teardown updates are merged to `main`;
 - PR #110 makes Worldlines the first-use public API and exposes foundation
   optics through `openWarpWorldline(...).optic()`.
 
-The remaining public v18 work is now release operation. Coordinate Optics have
-branch-local implementation and evidence:
+The remaining public v18 work is not merely release operation anymore.
+Coordinate Optics have branch-local implementation evidence:
 
 - successful public node and property optic reads through
   `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()`;
@@ -114,10 +120,18 @@ branch-local implementation and evidence:
 - recovery from `E_OPTIC_NO_BOUNDED_BASIS`;
 - consumer type tests for the intended public optic chain.
 
+That evidence is blocked for release honesty because the current
+`prepareOpticBasis()` setup path calls `graph.materialize()` before
+`graph.createCheckpoint()`. V18 must either remove that full-materialization
+dependency from the documented first-use Optics path or narrow the release claim
+so nobody can confuse v18 with bounded large-graph safety.
+
 After this branch merges:
 
-- rerun release preflight from `main`;
+- rerun release preflight from `main` only after the Optics closeout and
+  no-full-materialization honesty gate merge;
 - then tag `v18.0.0` from the merged release commit;
 - then publish npm and JSR artifacts from the release path;
-- preserve the explicit non-claim that v18 does not provide end-to-end graph
-  streaming reads and writes.
+- preserve the explicit non-claim that v18 does not provide arbitrary graph
+  size, bounded-memory operation, or end-to-end graph streaming reads and
+  writes.

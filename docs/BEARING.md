@@ -38,15 +38,27 @@ path is product-complete enough to exercise, document, and recover.
 
 - Worldlines are now the first-use public API story.
 - Coordinate-backed Optics are implemented on this branch through
-  `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()`. Public v18
-  still waits for this branch to pass review, merge, release preflight, tag, and
-  publish evidence.
+  `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()`, but that
+  evidence is no longer release-complete. The current first-use setup path
+  calls `graph.materialize()` before `graph.createCheckpoint()`, so it violates
+  the bounded Optics story unless the release claim is narrowed.
+- V18 now has an honesty gate: every documented first-use application path must
+  avoid full graph materialization, or the release must explicitly refuse any
+  bounded large-graph claim.
+- The large-graph product gate is separate. Memory pools, streaming basis
+  construction, sharded fact resolvers, cursorized reads and sync, bounded
+  content lookup, capability reporting, doctor tooling, and legacy poison pills
+  are required before git-warp can claim arbitrary graph size under bounded
+  memory, but they are not all v18 blockers unless v18 claims that outcome.
 - `openWarpGraph()`, `WarpApp.open()`, `WarpCore.open()`, and public
   materialize-first methods should remain compatible but become legacy,
   compatibility, or diagnostic surfaces.
-- The next branch should stay scoped to Optics public API closeout. Do not mix
-  it with storage retirement, native Continuum witnesshood, or end-to-end graph
-  streaming claims.
+- Current exact-read shapes such as `live().getNodeProps(id)` are not banned as
+  concepts. Their current full-state providers are transitional until exact
+  reads are backed by bounded shard or fact resolvers.
+- The next branch should stay scoped to the v18 honesty gate. Do not mix it
+  with storage retirement, native Continuum witnesshood, or the broader
+  bounded-memory platform.
 
 The completed pivot plan is
 [0261-worldline-optic-public-api-deprecation-prd](design/0261-worldline-optic-public-api-deprecation-prd/worldline-optic-public-api-deprecation-prd.md).
@@ -75,7 +87,8 @@ Current release facts:
   the exact commit that will receive the `v18.0.0` tag.
 - No `v18.0.0` tag or registry publish evidence is recorded yet.
 - `v18.0.0` is intentionally delayed until `API_optics-public-api-closeout`
-  merges and release operation evidence exists.
+  and `API_no-full-materialization-first-use-optics` merge with release
+  operation evidence.
 
 Current v18 implementation posture:
 
@@ -91,14 +104,17 @@ Current v18 implementation posture:
   public-read equivalence with zero canonical mismatches.
 - Generated Continuum/WARP Optic contract evidence is ingested for the
   runtime-boundary family, and the `warp-ttd` generated-family smoke exists.
-- Worldline-first application entry is merged. On this branch, the public
-  Optics story now has pinned coordinates, documented checkpoint-tail basis
-  setup, success-path tests, recovery docs, and consumer type evidence.
+- Worldline-first application entry is merged. On this branch, coordinate
+  Optics have pinned coordinates, checkpoint-tail identity assertions,
+  success-path tests, recovery docs, and consumer type evidence, but the basis
+  setup path still materializes the full graph. That makes the old
+  "branch-local complete" label too strong for a public v18 release gate.
 - Release-candidate evidence accepts the residual raw content/property storage
   risk and preserves the non-claim that v18 has end-to-end graph streaming.
 
 That is useful progress, not a finish line. Public v18 is not published until
-Optics closeout, tag, npm, and JSR evidence exist.
+Optics closeout, the no-full-materialization first-use gate, tag, npm, and JSR
+evidence exist.
 
 ## What Feels Wrong
 
@@ -119,11 +135,23 @@ Optics closeout, tag, npm, and JSR evidence exist.
   multi-read story is now `prepareOpticBasis()`, `coordinate()`, and
   `coordinate.optic()`. Review should check that all docs keep that distinction
   sharp.
+- `prepareOpticBasis()` currently creates its basis by calling
+  `graph.materialize()` and then `graph.createCheckpoint()`. That is a release
+  blocker for any first-use Optics story that sounds bounded.
+- Several public surfaces are still full-residency or full-result by shape:
+  `materialize()`, `getStateSnapshot()`, `getNodes()`, `getEdges()`, naked
+  `toArray()`-style reads, and sync responses that accumulate arrays. They
+  remain compatibility, diagnostic, transitional, or later-product work unless a
+  bounded provider and limit contract exist.
+- Content bytes can stream, but content-reference lookup still depends on the
+  graph state path. Do not call content streaming large-graph-safe until lookup
+  is bounded too.
 - The shipped v17 residual backlog lane is archived under
   `docs/archive/backlog/v17.0.0-residual-backlog/`; archived notes need an
   explicit rehome or pull decision before they can block later work.
-- End-to-end graph streaming reads and writes are a `v20.0.0` goal. V18 must
-  keep public docs honest and avoid claiming full graph streaming.
+- End-to-end bounded-memory graph reads, writes, content lookup, and sync are a
+  later product gate. V18 must keep public docs honest and avoid claiming full
+  graph streaming or arbitrary graph size.
 
 ## Where We Are Heading
 
@@ -131,19 +159,26 @@ The next work should stay split into distinct modes:
 
 1. **Public API product pivot**: make Worldlines and Optics the v18 first-use
    story while deprecating graph/materialize-first public paths. Worldlines are
-   done; coordinate Optics are branch-local complete and awaiting review.
-2. **Optics public API closeout**: prove public success paths for node and
+   done; coordinate Optics exist but are blocked on the honesty gate below.
+2. **V18 honesty gate**: classify public APIs by cost, add first-use
+   materialization tripwires, remove full materialization from
+   `prepareOpticBasis()` or narrow the public claim, and keep first-use docs on
+   bounded, streaming, or cursor surfaces only.
+3. **Optics public API closeout**: prove public success paths for node and
    property optics through `openWarpWorldline(...).coordinate().optic()`,
    document basis setup and recovery, and lock the package/consumer type
-   surface.
-3. **Release operation**: cut and publish `v18.0.0` from aligned `main` only
-   after Optics closeout.
-4. **Substrate debt**: retire one more raw content/property compatibility
+   surface without implying large-graph safety that is not implemented.
+4. **Release operation**: cut and publish `v18.0.0` from aligned `main` only
+   after Optics closeout and the honesty gate.
+5. **Substrate debt**: retire one more raw content/property compatibility
    boundary and ratchet the closeout audit.
-5. **v19 runway**: start native Continuum witnesshood work without backdating a
+6. **v19 runway**: start native Continuum witnesshood work without backdating a
    stronger v18 claim.
-6. **v20 runway**: design end-to-end graph streaming reads and writes without
-   assuming full-graph materialization.
+7. **Large-graph product gate**: add memory budgets, streaming patch and basis
+   substrates, sharded fact indexes, fact-resolver writes, cursorized public
+   reads and sync, bounded content lookup, capability reporting, operator
+   doctor tooling, and bounded-mode legacy rejection before claiming arbitrary
+   graph size.
 
 Do not blend these into one ambiguous branch.
 
@@ -151,8 +186,13 @@ Do not blend these into one ambiguous branch.
 
 Release-operation work is paused behind Optics merge and release evidence:
 
-- [x] Complete `API_optics-public-api-closeout` branch-local implementation,
-  tests, and docs.
+- [~] Keep `API_optics-public-api-closeout` as branch-local implementation
+  evidence, not a release-complete claim, until the first-use basis setup path
+  stops materializing or the public claim is narrowed.
+- [ ] Complete `API_no-full-materialization-first-use-optics`.
+- [ ] Add tripwire evidence for documented first-use Optics paths.
+- [ ] Update first-use docs and public API labels so bounded, streaming,
+  cursor, transitional, diagnostic, offline, and legacy surfaces are explicit.
 - [ ] Merge `API_optics-public-api-closeout` to `main`.
 - [ ] Rerun `npm run release:preflight` from aligned `main` after Optics
   closeout lands.
@@ -163,7 +203,8 @@ Release-operation work is paused behind Optics merge and release evidence:
 - [ ] Record the release evidence archive: tag SHA, preflight result, npm
   version evidence, JSR version evidence, and any audit note.
 
-Completed coordinate Optics closeout 20-slice checklist:
+Branch-local coordinate Optics implementation checklist, now superseded for
+release honesty by `API_no-full-materialization-first-use-optics`:
 
 - [x] 133: Decide the Worldline-first coordinate and optic basis setup APIs and
   receipt contracts.
