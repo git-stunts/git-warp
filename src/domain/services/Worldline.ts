@@ -11,16 +11,17 @@ import QueryError from '../errors/QueryError.ts';
 import CoordinateCheckpointTailOpticSource from './optic/CoordinateCheckpointTailOpticSource.ts';
 import WorldlineOptic from './optic/WorldlineOptic.ts';
 import type CheckpointTailOpticSource from './optic/CheckpointTailOpticSource.ts';
-import type {
-  QueryReadModel,
-  QueryReadModelProvider,
-} from './query/QueryReadModelProvider.ts';
+import type { QueryReadModel, QueryReadModelProvider } from './query/QueryReadModelProvider.ts';
 
 type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
 type VisibleEdge = Awaited<ReturnType<Observer['getEdges']>>[number];
 type WorldlineObserverFactory = {
   observer(config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
-  observer(name: string, config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
+  observer(
+    name: string,
+    config: Aperture,
+    options?: { source: WorldlineSource }
+  ): Promise<Observer>;
 };
 
 function toSelector(source?: WorldlineSelector | WorldlineSource | null): WorldlineSelector {
@@ -104,7 +105,7 @@ export default class Worldline {
         graph: this._graph,
         source: options?.source ?? this._source,
         opticSource: this._opticSource,
-      }),
+      })
     );
   }
 
@@ -133,7 +134,7 @@ export default class Worldline {
         }),
       });
     }
-    throw new QueryError('v17 foundation optics support live worldlines only', {
+    throw new QueryError('v17 foundation optics support live and coordinate worldlines only', {
       code: 'E_OPTIC_NO_BOUNDED_BASIS',
       context: { selector: this._source.constructor.name },
     });
@@ -141,11 +142,7 @@ export default class Worldline {
 
   async _delegateObserver(): Promise<Observer> {
     if (this._delegateObserverPromise === null) {
-      this._delegateObserverPromise = this._graph
-        .observer(
-          { match: '*' },
-          { source: this.source },
-        );
+      this._delegateObserverPromise = this._graph.observer({ match: '*' }, { source: this.source });
     }
     return await this._delegateObserverPromise;
   }
