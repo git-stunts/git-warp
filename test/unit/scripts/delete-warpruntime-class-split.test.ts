@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const classDeleteNotePath = join(
   process.cwd(),
-  'docs/method/graveyard/v17.0.0-residual-backlog/API_delete-warpruntime-class.md',
+  'docs/archive/backlog/v17.0.0-residual-backlog/API_delete-warpruntime-class.md',
 );
 const runtimeHostSource = readFileSync(
   join(process.cwd(), 'src/domain/RuntimeHost.ts'),

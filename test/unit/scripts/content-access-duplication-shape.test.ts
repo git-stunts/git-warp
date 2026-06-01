@@ -18,7 +18,7 @@ describe('content-access duplication closeout', () => {
   });
 
   it('makes capability migration own the deferred content accessor surface', () => {
-    const migrateNote = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/API_migrate-consumers-to-capabilities.md');
+    const migrateNote = readRepoFile('docs/archive/backlog/v17.0.0-residual-backlog/API_migrate-consumers-to-capabilities.md');
 
     expect(migrateNote).toContain('NodeContent');
     expect(migrateNote).toContain('EdgeContent');
@@ -26,6 +26,6 @@ describe('content-access duplication closeout', () => {
   });
 
   it('removes the stale live sludge note from the v17 lane', () => {
-    expect(existsSync(`${repoRoot}docs/method/graveyard/v17.0.0-residual-backlog/SLUDGE_content-access-duplication.md`)).toBe(false);
+    expect(existsSync(`${repoRoot}docs/archive/backlog/v17.0.0-residual-backlog/SLUDGE_content-access-duplication.md`)).toBe(false);
   });
 });

@@ -46,5 +46,5 @@ blocked_by:
 
 - `docs/method/backlog/v19.0.0/PROTO_WESLEY_receipt-envelope-boundary.md`
 - `docs/method/backlog/up-next/PROTO_controller-capability-interfaces.md`
-- `docs/method/graveyard/v17.0.0-residual-backlog/GOD_materialize-controller.md`
-- `docs/method/graveyard/v17.0.0-residual-backlog/GOD_query-controller.md`
+- `docs/archive/backlog/v17.0.0-residual-backlog/GOD_materialize-controller.md`
+- `docs/archive/backlog/v17.0.0-residual-backlog/GOD_query-controller.md`

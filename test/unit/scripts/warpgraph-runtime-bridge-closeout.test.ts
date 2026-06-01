@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const bridgeNotePath = join(
   process.cwd(),
-  'docs/method/graveyard/v17.0.0-residual-backlog/API_warpgraph-runtime-bridge.md',
+  'docs/archive/backlog/v17.0.0-residual-backlog/API_warpgraph-runtime-bridge.md',
 );
 const warpGraphSource = readFileSync(
   join(process.cwd(), 'src/domain/WarpGraph.ts'),

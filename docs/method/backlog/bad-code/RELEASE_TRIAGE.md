@@ -8,7 +8,7 @@ metadata. This document is the human triage layer to use before future
 metadata cleanup passes.
 
 The shipped `v17.0.0` residual backlog lane is archived under
-`docs/method/graveyard/v17.0.0-residual-backlog/`. Entries with
+`docs/archive/backlog/v17.0.0-residual-backlog/`. Entries with
 `release_home: v17.0.0` below are historical debt slotting, not a live
 v17 release lane.
 

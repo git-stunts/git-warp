@@ -7,7 +7,7 @@ cards as live agent work. That made the active backlog look as if v17
 still had release-lane items.
 
 The historical partition is archived at
-[../graveyard/backlog-workloads-v17-era.md](../graveyard/backlog-workloads-v17-era.md).
+[../../archive/backlog/backlog-workloads-v17-era.md](../../archive/backlog/backlog-workloads-v17-era.md).
 
 Until a fresh workload partition is generated from the current backlog,
 use [README.md](README.md) as the live dependency map and staff work from

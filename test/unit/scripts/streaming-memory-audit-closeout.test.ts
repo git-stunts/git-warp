@@ -10,7 +10,7 @@ function readRepoFile(relativePath: string): string {
 
 describe('streaming memory audit closeout', () => {
   it('removes the stale v17 streaming-memory audit card', () => {
-    expect(existsSync(`${repoRoot}docs/method/graveyard/v17.0.0-residual-backlog/CORE_streaming-memory-audit.md`)).toBe(false);
+    expect(existsSync(`${repoRoot}docs/archive/backlog/v17.0.0-residual-backlog/CORE_streaming-memory-audit.md`)).toBe(false);
   });
 
   it('ratchets the shipped unbounded blob-read fix', () => {

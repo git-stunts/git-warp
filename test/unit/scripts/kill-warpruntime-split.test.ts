@@ -4,14 +4,14 @@ import { join } from 'node:path';
 
 const runtimeKillNotePath = join(
   process.cwd(),
-  'docs/method/graveyard/v17.0.0-residual-backlog/API_kill-warpruntime.md',
+  'docs/archive/backlog/v17.0.0-residual-backlog/API_kill-warpruntime.md',
 );
 const runtimeKillCycle = readFileSync(
   join(process.cwd(), 'docs/design/0084-close-warpruntime-umbrella.md'),
   'utf8',
 );
 const publishPipelineNote = readFileSync(
-  join(process.cwd(), 'docs/method/graveyard/v17.0.0-residual-backlog/TS_publish-pipeline.md'),
+  join(process.cwd(), 'docs/archive/backlog/v17.0.0-residual-backlog/TS_publish-pipeline.md'),
   'utf8',
 );
 const releaseLedger = readFileSync(

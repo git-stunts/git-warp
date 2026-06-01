@@ -41,7 +41,7 @@ such as `README.md`, `SCORECARD.md`, `WORKLOADS.md`, and
 | Items with explicit `feature` | 445 |
 | Distinct explicit feature values | 17 |
 | `bad-code/` items with explicit `release_home` | 244 |
-| Items with non-empty explicit dependency edges | 39 |
+| Items with non-empty explicit dependency edges | 37 |
 
 ## Dependency Law
 
@@ -145,7 +145,7 @@ before treating them as blockers for a later major.
 | `inbox/` | `B0` | Anything here is blocked on triage, not implementation. |
 | backlog root | `B1` | These notes are real work, but still need lane assignment or an explicit pull decision. When `feature:` is present, treat that as the subsystem home while release-home remains undecided. |
 | `bad-code/` | `B2` | Invariant debt can block `v18.0.0`, `up-next`, or later lanes when the note touches the same invariant. |
-| archived `v17.0.0/` | `B3` | The shipped residual lane is archived at `docs/method/graveyard/v17.0.0-residual-backlog/`; it is not live backlog. |
+| archived `v17.0.0/` | `B3` | The shipped residual lane is archived at `docs/archive/backlog/v17.0.0-residual-backlog/`; it is not live backlog. |
 | `v18.0.0/` | `B4` | This is the next-major graph-model convergence lane. |
 | `up-next/` | `B4` | Feature-overflow queue behind the active release and next-major graph-model work unless explicitly promoted into a numbered lane. |
 | `v19.0.0/` | `B5` | Doctrine, observer, and admission convergence after the substrate cut. |
@@ -176,7 +176,7 @@ Current explicit-graph totals:
 - `450` notes declare `blocks` and `blocked_by` fields
 - `445` notes currently declare an explicit `feature`
 - `244` `bad-code/` notes currently declare an explicit `release_home`
-- `39` notes currently name at least one non-empty upstream or
+- `37` notes currently name at least one non-empty upstream or
   downstream edge
 
 Most notes still rely on empty dependency arrays plus lane inheritance.
@@ -285,7 +285,7 @@ Dependency posture:
 
 - no live backlog notes live in `B3`
 - the shipped residual lane is preserved at
-  [../graveyard/v17.0.0-residual-backlog/README.md](../graveyard/v17.0.0-residual-backlog/README.md)
+  [../../archive/backlog/v17.0.0-residual-backlog/README.md](../../archive/backlog/v17.0.0-residual-backlog/README.md)
 - the historical release ledger remains at
   [../../releases/v17.0.0/README.md](../../releases/v17.0.0/README.md)
 - archived notes must be rehomed into an active lane before they can block

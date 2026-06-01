@@ -1,8 +1,7 @@
 ---
 id: INFRA_policy-as-port-streaming-resilience
 blocked_by: []
-blocks:
-  - INFRA_git-cas-adapter-parity
+blocks: []
 feature: runtime-boundaries
 ---
 
@@ -42,6 +41,8 @@ depends on the port, not on Alfred directly.
 - CAS compare-and-swap failures must not be retried.
 - Stream policies must be tested with partial consumption, thrown iterators,
   cancellation, and slow consumers.
+- The old v17 `INFRA_git-cas-adapter-parity` successor is complete and
+  archived; this card stands on the current git-cas adapter surface.
 
 ## Acceptance Criteria
 

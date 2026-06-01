@@ -21,12 +21,12 @@ describe('incremental-index-updater closeout', () => {
   it('removes the stale live note and dead workload item', () => {
     const workloads = readRepoFile('docs/method/backlog/WORKLOADS.md');
 
-    expect(existsSync(`${repoRoot}docs/method/graveyard/v17.0.0-residual-backlog/GOD_incremental-index-updater.md`)).toBe(false);
+    expect(existsSync(`${repoRoot}docs/archive/backlog/v17.0.0-residual-backlog/GOD_incremental-index-updater.md`)).toBe(false);
     expect(workloads).not.toContain('GOD_incremental-index-updater');
   });
 
   it('drops the dead god from downstream blocker lists', () => {
-    const apiMigrate = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/API_migrate-consumers-to-capabilities.md');
+    const apiMigrate = readRepoFile('docs/archive/backlog/v17.0.0-residual-backlog/API_migrate-consumers-to-capabilities.md');
     const sharedProviderCycle = readRepoFile('docs/design/0085-close-shared-provider-interfaces.md');
 
     expect(apiMigrate).not.toContain('GOD_incremental-index-updater');
@@ -35,8 +35,8 @@ describe('incremental-index-updater closeout', () => {
   });
 
   it('re-homes the historical wave and scorecard residue to the real remaining owners', () => {
-    const wave = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/TS_wave-09-gods-and-monsters.md');
-    const scorecard = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/SCORECARD.md');
+    const wave = readRepoFile('docs/archive/backlog/v17.0.0-residual-backlog/TS_wave-09-gods-and-monsters.md');
+    const scorecard = readRepoFile('docs/archive/backlog/v17.0.0-residual-backlog/SCORECARD.md');
 
     expect(wave).toContain('IncrementalIndexUpdater.ts | 495');
     expect(wave).toContain('remaining boundary/model cleanup lives elsewhere');

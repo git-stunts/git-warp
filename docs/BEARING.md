@@ -120,7 +120,7 @@ Optics closeout, tag, npm, and JSR evidence exist.
   `coordinate.optic()`. Review should check that all docs keep that distinction
   sharp.
 - The shipped v17 residual backlog lane is archived under
-  `docs/method/graveyard/v17.0.0-residual-backlog/`; archived notes need an
+  `docs/archive/backlog/v17.0.0-residual-backlog/`; archived notes need an
   explicit rehome or pull decision before they can block later work.
 - End-to-end graph streaming reads and writes are a `v20.0.0` goal. V18 must
   keep public docs honest and avoid claiming full graph streaming.
