@@ -131,9 +131,10 @@ describe('VisibleStateScope', () => {
     state.edgeAlive.add(deadEdgeKey, deadDot);
     state.edgeAlive.remove(new Set([encodeDot(deadDot)]));
 
-    state.prop.set(
+    state.mutatePropLWW(
       encodeEdgePropKey('task:1', 'comparison-artifact:cmp-1', 'stale', 'via'),
-      lwwSet(new EventId(99, 'alice', 'abc1299', 0), 'obsolete'),
+      new EventId(99, 'alice', 'abc1299', 0),
+      'obsolete',
     );
     state.edgeBirthEvent.set(deadEdgeKey, new EventId(99, 'alice', 'abc1299', 0));
 

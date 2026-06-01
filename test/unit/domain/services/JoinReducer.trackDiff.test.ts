@@ -306,7 +306,7 @@ describe('JoinReducer diff tracking', () => {
       // Pre-populate: property n1.color = 'red' at lamport=1
       const propKey = encodePropKey('n1', 'color');
       const oldEventId = new EventId(1, 'w1', 'aaa00000', 0);
-      state.prop.set(propKey, { eventId: oldEventId, value: 'red' });
+      state.mutatePropLWW(propKey, oldEventId, 'red');
 
       // New patch with higher lamport overwrites
       const patch = makePatch({
@@ -326,7 +326,7 @@ describe('JoinReducer diff tracking', () => {
       // Pre-populate: property n1.color = 'red' at lamport=10
       const propKey = encodePropKey('n1', 'color');
       const highEventId = new EventId(10, 'w1', 'fff00000', 0);
-      state.prop.set(propKey, { eventId: highEventId, value: 'red' });
+      state.mutatePropLWW(propKey, highEventId, 'red');
 
       // New patch with lower lamport — should be superseded
       const patch = makePatch({
@@ -338,7 +338,7 @@ describe('JoinReducer diff tracking', () => {
 
       expect(diff.propsChanged).toEqual([]);
       // Value stays 'red'
-      expect(lwwValue(state.prop.get(propKey))).toBe('red');
+      expect(lwwValue(state.getEncodedProp(propKey))).toBe('red');
     });
   });
 
@@ -444,7 +444,7 @@ describe('JoinReducer diff tracking', () => {
       // Returns state directly, NOT wrapped in { state, diff }
       expect(result.nodeAlive).toBeDefined();
       expect(result.edgeAlive).toBeDefined();
-      expect(result.prop).toBeDefined();
+      expect(result.propSize()).toBeGreaterThanOrEqual(0);
       expect(result.observedFrontier).toBeDefined();
       expect(result).not.toHaveProperty('diff');
       expect(result.nodeAlive.contains('n1')).toBe(true);
@@ -466,7 +466,7 @@ describe('JoinReducer diff tracking', () => {
       expect(result).toHaveProperty('diff');
       expect(result.state.nodeAlive).toBeDefined();
       expect(result.state.edgeAlive).toBeDefined();
-      expect(result.state.prop).toBeInstanceOf(Map);
+      expect(result.state.propSize()).toBeGreaterThanOrEqual(0);
       expect(result.state.observedFrontier).toBeInstanceOf(VersionVector);
       expect(result.diff.nodesAdded).toEqual(['x']);
       expect(result.diff.nodesRemoved).toEqual([]);
@@ -493,7 +493,7 @@ describe('JoinReducer diff tracking', () => {
       initial.nodeAlive.add('n1', Dot.create('w1', 1));
       const propKey = encodePropKey('n1', 'color');
       const oldEventId = new EventId(1, 'w1', 'a0a00001', 0);
-      initial.prop.set(propKey, { eventId: oldEventId, value: 'red' });
+      initial.mutatePropLWW(propKey, oldEventId, 'red');
 
       const patches = [
         {

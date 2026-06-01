@@ -4,10 +4,7 @@ import WarpState from './state/WarpState.ts';
 import { normalizeRawOp } from './OpNormalizer.ts';
 import {
   decodeEdgeKey,
-  decodeEdgePropKey,
-  decodePropKey,
   encodeEdgeKey,
-  isEdgePropKey,
 } from './KeyCodec.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
@@ -227,19 +224,15 @@ function collectScopedProps(
   scopedEdgeKeys: Set<string>,
 ): Map<string, LWWRegister<PropValue>> {
   const scopedProps = new Map<string, LWWRegister<PropValue>>();
-  for (const [propKey, register] of state.prop.entries()) {
-    if (isEdgePropKey(propKey)) {
-      const edgeProp = decodeEdgePropKey(propKey);
-      const edgeKey = encodeEdgeKey(edgeProp.from, edgeProp.to, edgeProp.label);
-      if (scopedEdgeKeys.has(edgeKey)) {
-        scopedProps.set(propKey, register);
-      }
-      continue;
+  for (const entry of state.nodeProperties()) {
+    if (scopedNodeIds.has(entry.nodeId)) {
+      scopedProps.set(entry.encodedKey, entry.register);
     }
-
-    const { nodeId } = decodePropKey(propKey);
-    if (scopedNodeIds.has(nodeId)) {
-      scopedProps.set(propKey, register);
+  }
+  for (const entry of state.edgeProperties()) {
+    const edgeKey = encodeEdgeKey(entry.from, entry.to, entry.label);
+    if (scopedEdgeKeys.has(edgeKey)) {
+      scopedProps.set(entry.encodedKey, entry.register);
     }
   }
   return scopedProps;

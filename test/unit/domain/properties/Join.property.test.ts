@@ -168,12 +168,12 @@ function statesEqual(a, b) {
   }
 
   // Compare prop Maps (LWW registers)
-  if (a.prop.size !== b.prop.size) {
+  if (a.propSize() !== b.propSize()) {
     return false;
   }
 
-  for (const [key, regA] of a.prop) {
-    const regB = b.prop.get(key);
+  for (const [key, regA] of a.allPropEntries()) {
+    const regB = b.getEncodedProp(key);
     if (!regB) return false;
     if (JSON.stringify(regA) !== JSON.stringify(regB)) return false;
   }
@@ -366,8 +366,8 @@ describe('JoinReducer property tests', () => {
           }
 
           // All props from a should be in joined (or superseded by higher eventId)
-          for (const [key] of a.prop) {
-            const regJoined = joined.prop.get(key);
+          for (const [key] of a.allPropEntries()) {
+            const regJoined = joined.getEncodedProp(key);
             if (!regJoined) {
               return false;
             }

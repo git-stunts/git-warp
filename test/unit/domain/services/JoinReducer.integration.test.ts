@@ -553,12 +553,12 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
 
     // Visible node's prop should exist
     const visiblePropKey = encodePropKey('visible', 'key');
-    expect(v5State.prop.has(visiblePropKey)).toBe(true);
-    expect(lwwValue(v5State.prop.get(visiblePropKey))).toEqual(createInlineValue('visible-value'));
+    expect(v5State.hasProp(visiblePropKey)).toBe(true);
+    expect(lwwValue(v5State.getEncodedProp(visiblePropKey))).toEqual(createInlineValue('visible-value'));
 
     // Deleted node's prop should NOT exist
     const deletedPropKey = encodePropKey('deleted', 'key');
-    expect(v5State.prop.has(deletedPropKey)).toBe(false);
+    expect(v5State.hasProp(deletedPropKey)).toBe(false);
   });
 
   it('complex migration: add-remove-add cycle preserves final state', () => {
@@ -600,7 +600,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
 
     // Prop should be preserved
     const propKey = encodePropKey('cycle-node', 'state');
-    expect(lwwValue(v5State.prop.get(propKey))).toEqual(createInlineValue('resurrected'));
+    expect(lwwValue(v5State.getEncodedProp(propKey))).toEqual(createInlineValue('resurrected'));
   });
 });
 
@@ -1037,8 +1037,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
 
     // Bob's value wins (higher lamport)
     const propKey = encodePropKey('target', 'value');
-    expect(lwwValue(resultA.prop.get(propKey))).toEqual(createInlineValue('bob-value'));
-    expect(lwwValue(resultB.prop.get(propKey))).toEqual(createInlineValue('bob-value'));
+    expect(lwwValue(resultA.getEncodedProp(propKey))).toEqual(createInlineValue('bob-value'));
+    expect(lwwValue(resultB.getEncodedProp(propKey))).toEqual(createInlineValue('bob-value'));
   });
 
   it('diamond with add/remove conflicts produces identical hash', async () => {
@@ -1271,8 +1271,8 @@ describe('Additional WARP v5 Integration Tests', () => {
       const propKey = encodePropKey('x', 'color');
 
       // B wins (higher lamport)
-      expect(lwwValue(stateAB.prop.get(propKey))).toEqual(createInlineValue('blue'));
-      expect(lwwValue(stateBA.prop.get(propKey))).toEqual(createInlineValue('blue'));
+      expect(lwwValue(stateAB.getEncodedProp(propKey))).toEqual(createInlineValue('blue'));
+      expect(lwwValue(stateBA.getEncodedProp(propKey))).toEqual(createInlineValue('blue'));
 
       // Same hash
       expect(await computeStateHash(stateAB, { crypto })).toBe(await computeStateHash(stateBA, { crypto }));
@@ -1306,7 +1306,7 @@ describe('Additional WARP v5 Integration Tests', () => {
       const propKey = encodePropKey('x', 'val');
 
       // B > A lexicographically, so B wins
-      expect(lwwValue(state.prop.get(propKey))).toEqual(createInlineValue('B-value'));
+      expect(lwwValue(state.getEncodedProp(propKey))).toEqual(createInlineValue('B-value'));
     });
   });
 

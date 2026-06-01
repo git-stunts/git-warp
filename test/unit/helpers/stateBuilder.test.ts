@@ -20,8 +20,8 @@ describe('StateBuilder', () => {
     expect(state.nodeAlive.contains('node:a')).toBe(true);
     expect(state.nodeAlive.contains('node:b')).toBe(true);
     expect(state.edgeAlive.contains(encodeEdgeKey('node:a', 'node:b', 'knows'))).toBe(true);
-    expect(state.prop.get(encodePropKey('node:a', 'name'))?.value).toBe('Alice');
-    expect(state.prop.get(encodeEdgePropKey('node:a', 'node:b', 'knows', 'weight'))?.value).toBe(9);
+    expect(state.getEncodedProp(encodePropKey('node:a', 'name'))?.value).toBe('Alice');
+    expect(state.getEncodedProp(encodeEdgePropKey('node:a', 'node:b', 'knows', 'weight'))?.value).toBe(9);
     expect(state.observedFrontier.get('w1')).toBe(3);
     expect(state.edgeBirthEvent.get(encodeEdgeKey('node:a', 'node:b', 'knows'))?.lamport).toBe(5);
   });

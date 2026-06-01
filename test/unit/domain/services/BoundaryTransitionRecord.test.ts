@@ -392,7 +392,7 @@ describe('BoundaryTransitionRecord', () => {
       expect(state.edgeAlive.contains(edgeKey)).toBe(true);
 
       const propKey = encodePropKey('node-a', 'name');
-      expect(lwwValue(state.prop.get(propKey))).toEqual(createInlineValue('Alice'));
+      expect(lwwValue(state.getEncodedProp(propKey))).toEqual(createInlineValue('Alice'));
     });
 
     it('produces h_out that matches BTR', async () => {

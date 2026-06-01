@@ -148,7 +148,7 @@ describe("JoinReducer session-backed path", () => {
       expect(await result.session.edgeContains("node:1\x00node:2\x00knows")).toBe(
         true,
       );
-      expect(result.prop.get("node:1\x00name")?.value).toBe("Alice");
+      expect(result.getEncodedProp("node:1\x00name")?.value).toBe("Alice");
       expect(Object.fromEntries(result.observedFrontier)).toEqual({ alice: 1 });
       expect(result.edgeBirthEvent.size).toBe(1);
       expect(store.hasBeenWrittenTo()).toBe(false);
@@ -201,8 +201,8 @@ describe("JoinReducer session-backed path", () => {
       expect(Object.fromEntries(sessionResult.frame.observedFrontier)).toEqual(
         Object.fromEntries(syncResult.state.observedFrontier),
       );
-      expect(sessionResult.frame.prop.get("node:1\x00name")?.value).toBe(
-        syncResult.state.prop.get("node:1\x00name")?.value,
+      expect(sessionResult.frame.getEncodedProp("node:1\x00name")?.value).toBe(
+        syncResult.state.getEncodedProp("node:1\x00name")?.value,
       );
     });
 
@@ -263,7 +263,7 @@ describe("JoinReducer session-backed path", () => {
 
       expect(await result.session.nodeContains("node:1")).toBe(false);
       expect(await result.session.edgeContains("edge:1")).toBe(false);
-      expect(result.prop.size).toBe(0);
+      expect(result.propSize()).toBe(0);
       expect(Object.fromEntries(result.observedFrontier)).toEqual({});
       expect(result.edgeBirthEvent.size).toBe(0);
       expect(store.hasBeenWrittenTo()).toBe(false);
@@ -348,8 +348,8 @@ describe("JoinReducer session-backed path", () => {
 
       expect(await merged.session.nodeContains("node:left")).toBe(true);
       expect(await merged.session.nodeContains("node:right")).toBe(true);
-      expect(merged.prop.has("node:left\x00name")).toBe(true);
-      expect(merged.prop.has("node:right\x00name")).toBe(true);
+      expect(merged.hasProp("node:left\x00name")).toBe(true);
+      expect(merged.hasProp("node:right\x00name")).toBe(true);
       expect(Object.fromEntries(merged.observedFrontier)).toEqual({
         alice: 1,
         bob: 1,

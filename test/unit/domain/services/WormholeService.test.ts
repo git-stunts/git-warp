@@ -436,7 +436,7 @@ describe('WormholeService', () => {
 
       // Verify property
       const propKey = encodePropKey('node-a', 'name');
-      expect(lwwValue(state.prop.get(propKey))).toEqual(createInlineValue('Alice'));
+      expect(lwwValue(state.getEncodedProp(propKey))).toEqual(createInlineValue('Alice'));
     });
 
     it('replays wormhole from initial state', async () => {
@@ -819,8 +819,8 @@ describe('WormholeService', () => {
           fullResult.nodeAlive.contains(`node-${i}`)
         );
         const propKey = encodePropKey(`node-${i}`, 'index');
-        expect(lwwValue(wormholeResult.prop.get(propKey))).toEqual(
-          lwwValue(fullResult.prop.get(propKey))
+        expect(lwwValue(wormholeResult.getEncodedProp(propKey))).toEqual(
+          lwwValue(fullResult.getEncodedProp(propKey))
         );
       }
     });
@@ -958,9 +958,9 @@ describe('WormholeService', () => {
       expect(state.nodeAlive.contains('b')).toBe(true);
       expect(state.edgeAlive.contains(encodeEdgeKey('a', 'b', 'link1'))).toBe(true);
       expect(state.edgeAlive.contains(encodeEdgeKey('b', 'a', 'link2'))).toBe(true);
-      expect(lwwValue(state.prop.get(encodePropKey('a', 'x')))).toEqual(createInlineValue(1));
-      expect(lwwValue(state.prop.get(encodePropKey('a', 'y')))).toEqual(createInlineValue(2));
-      expect(lwwValue(state.prop.get(encodePropKey('b', 'z')))).toEqual(createInlineValue(3));
+      expect(lwwValue(state.getEncodedProp(encodePropKey('a', 'x')))).toEqual(createInlineValue(1));
+      expect(lwwValue(state.getEncodedProp(encodePropKey('a', 'y')))).toEqual(createInlineValue(2));
+      expect(lwwValue(state.getEncodedProp(encodePropKey('b', 'z')))).toEqual(createInlineValue(3));
     });
   });
 });

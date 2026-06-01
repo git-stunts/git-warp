@@ -78,6 +78,18 @@ export class ReducerSessionFrame {
     this.edgeBirthEvent = fields.edgeBirthEvent;
     Object.freeze(this);
   }
+
+  propSize(): number {
+    return this.prop.size;
+  }
+
+  hasProp(encodedKey: string): boolean {
+    return this.prop.has(encodedKey);
+  }
+
+  getEncodedProp(encodedKey: string): LWWRegister<ReducerPropValue> | undefined {
+    return this.prop.get(encodedKey);
+  }
 }
 
 export async function applyFastInSession(

@@ -102,7 +102,7 @@ export default class LogicalIndexBuildService {
       aliveNodes,
       aliveNodeSet,
       visibleEdges,
-      prop: state.prop,
+      prop: new Map(state.allPropEntries()),
     });
     return { indexBuilder, propBuilder };
   }

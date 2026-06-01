@@ -44,7 +44,7 @@ export function edgeVisible(state: WarpState, edgeKey: string): boolean {
 /**
  * Checks if a property is visible.
  * Property is visible if the owning node is visible.
- * Callers obtain entries from state.nodeProperties() — prop existence is implied.
+ * Callers obtain entries from WarpState property iterators — prop existence is implied.
  */
 export function propVisibleV5(state: WarpState, entry: NodePropertyEntry): boolean {
   return nodeVisibleV5(state, entry.nodeId);
@@ -88,7 +88,7 @@ export function projectState(state: WarpState): StateProjection {
   });
 
   const visibleProps: Array<{ node: string; key: string; value: PropValue }> = [];
-  for (const entry of WarpStateClass.nodePropertiesFromMap(state.prop)) {
+  for (const entry of WarpStateClass.nodePropertiesFromState(state)) {
     if (nodeVisibleV5(state, entry.nodeId)) {
       visibleProps.push({ node: entry.nodeId, key: entry.key, value: entry.register.value });
     }

@@ -25,11 +25,11 @@ describe('QueryReads property projection routing', () => {
     addLiveNode(state, 'node:1', 1);
     addLiveNode(state, 'node:2', 2);
     addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
-    state.prop.set(encodePropKey('node:1', 'status'), register(4, 'ready'));
-    state.prop.set(encodePropKey('node:1', '_content'), register(5, 'abc123'));
-    state.prop.set('node:1\0bad\0extra', register(6, 'ignored'));
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(7, 3));
-    state.prop.set(`${EDGE_PROP_PREFIX}node:1\0node:2\0rel\0bad\0extra`, register(8, 'ignored'));
+    state.mutatePropRegisterLWW(encodePropKey('node:1', 'status'), register(4, 'ready'));
+    state.mutatePropRegisterLWW(encodePropKey('node:1', '_content'), register(5, 'abc123'));
+    state.mutatePropRegisterLWW('node:1\0bad\0extra', register(6, 'ignored'));
+    state.mutatePropRegisterLWW(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(7, 3));
+    state.mutatePropRegisterLWW(`${EDGE_PROP_PREFIX}node:1\0node:2\0rel\0bad\0extra`, register(8, 'ignored'));
 
     const host = hostForState(state);
 

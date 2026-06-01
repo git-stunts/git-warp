@@ -52,7 +52,7 @@ export default class EdgePropertyProjection {
   static fromState(state: WarpState): readonly VisibleEdgePropertyRecord[] {
     const checkedState = requireWarpState(state);
     const records: VisibleEdgePropertyRecord[] = [];
-    for (const [encodedKey, register] of checkedState.prop) {
+    for (const [encodedKey, register] of checkedState.allPropEntries()) {
       const record = edgePropertyRecordForRegister(checkedState, encodedKey, register);
       if (record !== null) {
         records.push(record);
@@ -84,7 +84,7 @@ export default class EdgePropertyProjection {
     const checkedOwner = requireEdgeRecord(owner);
     const records: VisibleEdgePropertyRecord[] = [];
     const ownerKeyPrefix = edgePropertyKeyPrefix(checkedOwner);
-    for (const [encodedKey, register] of checkedState.prop) {
+    for (const [encodedKey, register] of checkedState.allPropEntries()) {
       if (!encodedKey.startsWith(ownerKeyPrefix)) {
         continue;
       }

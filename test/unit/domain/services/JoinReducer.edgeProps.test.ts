@@ -4,13 +4,13 @@ import {
   encodeEdgeKey,
   encodePropKey,
   encodeEdgePropKey,
-  decodeEdgePropKey,
   isEdgePropKey,
   EDGE_PROP_PREFIX,
   applyOpV2,
   joinStates,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
+import { decodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';

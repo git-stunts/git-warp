@@ -45,7 +45,7 @@ function buildStateV5({ nodes = [] as any[], edges = [] as any[], props = [] as 
   // Add props with LWW registers
   for (const { nodeId, key, value, eventId } of props) {
     const propKey = encodePropKey(nodeId, key);
-    state.prop.set(propKey, lwwSet(eventId ?? mockEventId(), value));
+    state.mutatePropLWW(propKey, eventId ?? mockEventId(), value);
   }
 
   // Add tombstones (encoded dots)
@@ -63,7 +63,7 @@ describe('CheckpointSerializer', () => {
 
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.edgeAlive.entries.size).toBe(0);
-      expect(restored.prop.size).toBe(0);
+      expect(restored.propSize()).toBe(0);
       expect(restored.observedFrontier.size).toBe(0);
       expect(restored.edgeBirthEvent.size).toBe(0);
     });
@@ -73,7 +73,7 @@ describe('CheckpointSerializer', () => {
 
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.edgeAlive.entries.size).toBe(0);
-      expect(restored.prop.size).toBe(0);
+      expect(restored.propSize()).toBe(0);
       expect(restored.observedFrontier.size).toBe(0);
       expect(restored.edgeBirthEvent.size).toBe(0);
     });
@@ -85,7 +85,7 @@ describe('CheckpointSerializer', () => {
 
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.edgeAlive.entries.size).toBe(0);
-      expect(restored.prop.size).toBe(0);
+      expect(restored.propSize()).toBe(0);
       expect(restored.observedFrontier.size).toBe(0);
       expect(restored.edgeBirthEvent.size).toBe(0);
     });
@@ -105,7 +105,7 @@ describe('CheckpointSerializer', () => {
       expect(restored.nodeAlive.tombstones.size).toBe(0);
       expect(restored.edgeAlive.entries.size).toBe(0);
       expect(restored.edgeAlive.tombstones.size).toBe(0);
-      expect(restored.prop.size).toBe(0);
+      expect(restored.propSize()).toBe(0);
       expect(restored.observedFrontier.size).toBe(0);
     });
 
@@ -166,9 +166,9 @@ describe('CheckpointSerializer', () => {
 
       // Check props
       const propKey = encodePropKey('a', 'name');
-      expect(restored.prop.has(propKey)).toBe(true);
+      expect(restored.hasProp(propKey)).toBe(true);
 
-      const register = (restored.prop.get(propKey) as any);
+      const register = (restored.getEncodedProp(propKey) as any);
       expect(register.value).toBe('Alice');
       expect(register.eventId.lamport).toBe(5);
       expect(register.eventId.writerId).toBe('alice');
@@ -283,9 +283,9 @@ describe('CheckpointSerializer', () => {
       expect(restored.edgeAlive.entries.size).toBe(2);
 
       // Verify props
-      expect(restored.prop.size).toBe(2);
-      expect((restored.prop.get(encodePropKey('n1', 'name')) as any).value).toBe('Node One');
-      expect((restored.prop.get(encodePropKey('n2', 'count')) as any).value).toBe(42);
+      expect(restored.propSize()).toBe(2);
+      expect((restored.getEncodedProp(encodePropKey('n1', 'name')) as any).value).toBe('Node One');
+      expect((restored.getEncodedProp(encodePropKey('n2', 'count')) as any).value).toBe(42);
 
       // Verify tombstones
       expect(restored.nodeAlive.tombstones.size).toBe(2);
@@ -497,7 +497,7 @@ describe('CheckpointSerializer', () => {
       // Verify state structure is preserved
       expect(restored.nodeAlive.entries.size).toBe(3);
       expect(restored.edgeAlive.entries.size).toBe(2);
-      expect(restored.prop.size).toBe(2);
+      expect(restored.propSize()).toBe(2);
       expect(restored.observedFrontier.get('w1')).toBe(3);
       expect(restored.observedFrontier.get('w2')).toBe(2);
     });

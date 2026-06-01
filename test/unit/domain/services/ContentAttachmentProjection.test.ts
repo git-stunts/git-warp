@@ -26,17 +26,11 @@ describe('ContentAttachmentProjection', () => {
     state.edgeAlive.add(encodeEdgeKey('doc:1', 'doc:2', 'links'), Dot.create('writer-a', 3));
     const nodeEvent = event(4);
     const edgeEvent = event(5);
-    state.prop.set(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), { eventId: nodeEvent, value: 'node-oid' });
-    state.prop.set(encodePropKey('doc:1', CONTENT_MIME_PROPERTY_KEY), { eventId: nodeEvent, value: 'text/markdown' });
-    state.prop.set(encodePropKey('doc:1', CONTENT_SIZE_PROPERTY_KEY), { eventId: nodeEvent, value: 42 });
-    state.prop.set(encodeEdgePropKey('doc:1', 'doc:2', 'links', CONTENT_PROPERTY_KEY), {
-      eventId: edgeEvent,
-      value: 'edge-oid',
-    });
-    state.prop.set(encodeEdgePropKey('doc:1', 'doc:2', 'links', CONTENT_SIZE_PROPERTY_KEY), {
-      eventId: edgeEvent,
-      value: 7,
-    });
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), nodeEvent, 'node-oid');
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_MIME_PROPERTY_KEY), nodeEvent, 'text/markdown');
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_SIZE_PROPERTY_KEY), nodeEvent, 42);
+    state.mutatePropLWW(encodeEdgePropKey('doc:1', 'doc:2', 'links', CONTENT_PROPERTY_KEY), edgeEvent, 'edge-oid');
+    state.mutatePropLWW(encodeEdgePropKey('doc:1', 'doc:2', 'links', CONTENT_SIZE_PROPERTY_KEY), edgeEvent, 7);
 
     const records = ContentAttachmentProjection.fromState(state);
 
@@ -55,11 +49,8 @@ describe('ContentAttachmentProjection', () => {
     state.edgeAlive.add(encodeEdgeKey('doc:1', 'doc:2', 'links'), Dot.create('writer-a', 3));
     const nodeEvent = event(4);
     const edgeEvent = event(5);
-    state.prop.set(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), { eventId: nodeEvent, value: 'node-oid' });
-    state.prop.set(encodeEdgePropKey('doc:1', 'doc:2', 'links', CONTENT_PROPERTY_KEY), {
-      eventId: edgeEvent,
-      value: 'edge-oid',
-    });
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), nodeEvent, 'node-oid');
+    state.mutatePropLWW(encodeEdgePropKey('doc:1', 'doc:2', 'links', CONTENT_PROPERTY_KEY), edgeEvent, 'edge-oid');
 
     expect(describeContent(ContentAttachmentProjection.forNode(state, 'doc:1')))
       .toBe('node:doc:1:node-oid:null:null');
@@ -76,18 +67,9 @@ describe('ContentAttachmentProjection', () => {
   it('ignores stale metadata from earlier content lineages', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('doc:1', Dot.create('writer-a', 1));
-    state.prop.set(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), {
-      eventId: event(3),
-      value: 'current-oid',
-    });
-    state.prop.set(encodePropKey('doc:1', CONTENT_MIME_PROPERTY_KEY), {
-      eventId: event(2),
-      value: 'text/plain',
-    });
-    state.prop.set(encodePropKey('doc:1', CONTENT_SIZE_PROPERTY_KEY), {
-      eventId: event(2),
-      value: 100,
-    });
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), event(3), 'current-oid');
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_MIME_PROPERTY_KEY), event(2), 'text/plain');
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_SIZE_PROPERTY_KEY), event(2), 100);
 
     expect(ContentAttachmentProjection.fromState(state).map(describeContent)).toEqual([
       'node:doc:1:current-oid:null:null',
@@ -97,18 +79,9 @@ describe('ContentAttachmentProjection', () => {
   it('keeps metadata from the same patch lineage with different operation indexes', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('doc:1', Dot.create('writer-a', 1));
-    state.prop.set(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), {
-      eventId: event(2, 0),
-      value: 'same-patch-oid',
-    });
-    state.prop.set(encodePropKey('doc:1', CONTENT_MIME_PROPERTY_KEY), {
-      eventId: event(2, 1),
-      value: 'text/plain',
-    });
-    state.prop.set(encodePropKey('doc:1', CONTENT_SIZE_PROPERTY_KEY), {
-      eventId: event(2, 2),
-      value: 14,
-    });
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), event(2, 0), 'same-patch-oid');
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_MIME_PROPERTY_KEY), event(2, 1), 'text/plain');
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_SIZE_PROPERTY_KEY), event(2, 2), 14);
 
     expect(ContentAttachmentProjection.fromState(state).map(describeContent)).toEqual([
       'node:doc:1:same-patch-oid:text/plain:14',
@@ -120,9 +93,9 @@ describe('ContentAttachmentProjection', () => {
     state.nodeAlive.add('doc:1', Dot.create('writer-a', 1));
     state.nodeAlive.add('doc:2', Dot.create('writer-a', 2));
     state.nodeAlive.add('doc:3', Dot.create('writer-a', 3));
-    state.prop.set(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), { eventId: event(2), value: 123 });
-    state.prop.set(encodePropKey('doc:2', CONTENT_PROPERTY_KEY), { eventId: event(3), value: '' });
-    state.prop.set(encodePropKey('doc:3', CONTENT_PROPERTY_KEY), { eventId: event(4), value: 'bad\0oid' });
+    state.mutatePropLWW(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), event(2), 123);
+    state.mutatePropLWW(encodePropKey('doc:2', CONTENT_PROPERTY_KEY), event(3), '');
+    state.mutatePropLWW(encodePropKey('doc:3', CONTENT_PROPERTY_KEY), event(4), 'bad\0oid');
 
     expect(ContentAttachmentProjection.fromState(state)).toEqual([]);
   });

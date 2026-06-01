@@ -18,13 +18,13 @@ describe('NodePropertyProjection', () => {
     state.nodeAlive.add('node:2', Dot.create('writer', 2));
     state.nodeAlive.add('removed', Dot.create('writer', 3));
     state.nodeAlive.remove(state.nodeAlive.getDots('removed'));
-    state.prop.set(encodePropKey('node:1', 'status'), register(1, 'ready'));
-    state.prop.set(encodePropKey('node:1', '_content'), register(2, 'abc123'));
-    state.prop.set(encodePropKey('node:2', 'status'), register(3, 'waiting'));
-    state.prop.set(encodePropKey('removed', 'status'), register(4, 'gone'));
-    state.prop.set(encodePropKey('missing', 'status'), register(5, 'orphan'));
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
-    state.prop.set('node:1\0bad\0extra', register(7, 'ignored'));
+    setPropFromReg(state, encodePropKey('node:1', 'status'), register(1, 'ready'));
+    setPropFromReg(state, encodePropKey('node:1', '_content'), register(2, 'abc123'));
+    setPropFromReg(state, encodePropKey('node:2', 'status'), register(3, 'waiting'));
+    setPropFromReg(state, encodePropKey('removed', 'status'), register(4, 'gone'));
+    setPropFromReg(state, encodePropKey('missing', 'status'), register(5, 'orphan'));
+    setPropFromReg(state, encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
+    setPropFromReg(state, 'node:1\0bad\0extra', register(7, 'ignored'));
 
     const records = NodePropertyProjection.fromState(state);
 
@@ -45,8 +45,8 @@ describe('NodePropertyProjection', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('node:1', Dot.create('writer', 1));
     state.nodeAlive.add('node:2', Dot.create('writer', 2));
-    state.prop.set(encodePropKey('node:1', 'status'), register(1, 'ready'));
-    state.prop.set(encodePropKey('node:2', 'status'), register(2, 'waiting'));
+    setPropFromReg(state, encodePropKey('node:1', 'status'), register(1, 'ready'));
+    setPropFromReg(state, encodePropKey('node:2', 'status'), register(2, 'waiting'));
 
     const records = NodePropertyProjection.forNode(state, 'node:2');
 
@@ -64,7 +64,7 @@ describe('NodePropertyProjection', () => {
   it('keeps malformed public node targets as empty projection reads', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('node:1', Dot.create('writer', 1));
-    state.prop.set(encodePropKey('node:1', 'status'), register(1, 'ready'));
+    setPropFromReg(state, encodePropKey('node:1', 'status'), register(1, 'ready'));
 
     expect(NodePropertyProjection.forNode(state, '')).toEqual([]);
     expect(NodePropertyProjection.forNode(state, 'bad\0node')).toEqual([]);
@@ -75,10 +75,10 @@ describe('NodePropertyProjection', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('node:1', Dot.create('writer', 1));
     state.nodeAlive.add('node:2', Dot.create('writer', 2));
-    state.prop.set(encodePropKey('node:1', 'status'), register(1, 'ready'));
+    setPropFromReg(state, encodePropKey('node:1', 'status'), register(1, 'ready'));
     const invalidRegister = LWWRegister.set(new EventId(1, 'writer', 'abcd', 2), new InvalidPropertyCarrier());
     // @ts-expect-error exercising corrupt non-target state isolation
-    state.prop.set(encodePropKey('node:2', 'bad'), invalidRegister);
+    state.mutatePropLWW(encodePropKey('node:2', 'bad'), invalidRegister.eventId, invalidRegister.value);
 
     const records = NodePropertyProjection.forNode(state, 'node:1');
 
@@ -91,6 +91,10 @@ describe('NodePropertyProjection', () => {
     ]);
   });
 });
+
+function setPropFromReg(state: WarpState, key: string, reg: LWWRegister<string | number>): void {
+  state.mutatePropLWW(key, reg.eventId, reg.value);
+}
 
 function register(opIndex: number, value: string | number): LWWRegister<string | number> {
   return LWWRegister.set(new EventId(1, 'writer', 'abcd', opIndex), value);

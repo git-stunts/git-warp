@@ -180,7 +180,7 @@ export async function createCheckpointEnvelope({
   }
 
   const treeEntries = await collectContentAnchorEntries(
-    checkpointState.prop,
+    checkpointState.allPropEntries(),
     persistence.readObjectType?.bind(persistence),
   );
   treeEntries.push(

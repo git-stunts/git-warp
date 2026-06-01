@@ -106,12 +106,12 @@ describe('immutable snapshot builder contract', () => {
     const state = WarpState.empty();
     const key = 'node-a:name';
     state.nodeAlive.add('node-a', new Dot('writer-a', 1));
-    state.prop.set(key, LWWRegister.set(testEvent(1, 'aaaa'), 'blue'));
+    state.mutatePropLWW(key, testEvent(1, 'aaaa'), 'blue');
 
     const snapshot = createImmutableWarpStateSnapshot(state);
 
     state.nodeAlive.add('node-b', new Dot('writer-a', 2));
-    state.prop.set(key, LWWRegister.set(testEvent(2, 'bbbb'), 'red'));
+    state.mutatePropLWW(key, testEvent(2, 'bbbb'), 'red');
 
     expect(snapshot).not.toBe(state);
     expect(snapshot.nodeAlive.contains('node-a')).toBe(true);

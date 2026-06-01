@@ -39,6 +39,10 @@ export type EdgePropertyEntry = {
   readonly register: LWWRegister<PropValue>;
 };
 
+export type WarpStatePropertyRegisterSource = {
+  readonly prop: Map<string, LWWRegister<PropValue>>;
+};
+
 /**
  * The CRDT materialized state for a WARP graph.
  *
@@ -49,7 +53,7 @@ export type EdgePropertyEntry = {
 export default class WarpState {
   nodeAlive: ORSet;
   edgeAlive: ORSet;
-  prop: Map<string, LWWRegister<PropValue>>;
+  private prop: Map<string, LWWRegister<PropValue>>;
   observedFrontier: VersionVector;
   /** EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility). */
   edgeBirthEvent: Map<string, EventId>;
@@ -100,6 +104,16 @@ export default class WarpState {
     return this.getNodeRecord(nodeId) !== null;
   }
 
+  /** Returns the total number of stored property registers (node + edge). */
+  propSize(): number {
+    return this.prop.size;
+  }
+
+  /** Returns true when the given encoded prop key has a stored register. */
+  hasProp(encodedKey: string): boolean {
+    return this.prop.has(encodedKey);
+  }
+
   /** Returns true when the given node has a stored property register for the key. */
   hasNodeProp(nodeId: string, key: string): boolean {
     return this.prop.has(encodePropKey(nodeId, key));
@@ -127,6 +141,15 @@ export default class WarpState {
   mutatePropLWW(encodedKey: string, eventId: EventId, value: PropValue): void {
     const current = this.prop.get(encodedKey);
     const winner = lwwMax(current, lwwSet(eventId, value));
+    if (winner !== null) {
+      this.prop.set(encodedKey, winner);
+    }
+  }
+
+  /** LWW-max write for callers that already hold a validated property register. */
+  mutatePropRegisterLWW(encodedKey: string, register: LWWRegister<PropValue>): void {
+    const current = this.prop.get(encodedKey);
+    const winner = lwwMax(current, register);
     if (winner !== null) {
       this.prop.set(encodedKey, winner);
     }
@@ -162,6 +185,68 @@ export default class WarpState {
         const decoded = decodePropKey(encodedKey);
         yield { encodedKey, nodeId: decoded.nodeId, key: decoded.propKey, register };
       }
+    }
+  }
+
+  /**
+   * Yields node property entries from either a live WarpState or a structural
+   * state snapshot whose prop map has not been hydrated into WarpState yet.
+   */
+  static *nodePropertiesFromState(state: WarpState | WarpStatePropertyRegisterSource): Generator<NodePropertyEntry> {
+    for (const [encodedKey, register] of WarpState.allPropEntriesFromState(state)) {
+      if (!isEdgePropKey(encodedKey)) {
+        const decoded = decodePropKey(encodedKey);
+        yield { encodedKey, nodeId: decoded.nodeId, key: decoded.propKey, register };
+      }
+    }
+  }
+
+  /**
+   * Yields edge property entries from a raw prop map.
+   * Use when a prop map is available but WarpState is not (e.g. stream sessions).
+   */
+  static *edgePropertiesFromMap(prop: Map<string, LWWRegister<PropValue>>): Generator<EdgePropertyEntry> {
+    for (const [encodedKey, register] of prop) {
+      if (isEdgePropKey(encodedKey)) {
+        const decoded = decodeEdgePropKey(encodedKey);
+        yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
+      }
+    }
+  }
+
+  /**
+   * Yields edge property entries from either a live WarpState or a structural
+   * state snapshot whose prop map has not been hydrated into WarpState yet.
+   */
+  static *edgePropertiesFromState(state: WarpState | WarpStatePropertyRegisterSource): Generator<EdgePropertyEntry> {
+    for (const [encodedKey, register] of WarpState.allPropEntriesFromState(state)) {
+      if (isEdgePropKey(encodedKey)) {
+        const decoded = decodeEdgePropKey(encodedKey);
+        yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
+      }
+    }
+  }
+
+  /** Yields all prop entries (node + edge) with their encoded keys, for checkpoint serialization. */
+  *allPropEntries(): Generator<[string, LWWRegister<PropValue>]> {
+    for (const [key, register] of this.prop) {
+      yield [key, register];
+    }
+  }
+
+  /**
+   * Yields all prop entries from either a live WarpState or a structural state
+   * snapshot whose prop map has not been hydrated into WarpState yet.
+   */
+  static *allPropEntriesFromState(state: WarpState | WarpStatePropertyRegisterSource): Generator<[string, LWWRegister<PropValue>]> {
+    if (state instanceof WarpState) {
+      for (const [key, register] of state.prop) {
+        yield [key, register];
+      }
+      return;
+    }
+    for (const [key, register] of state.prop) {
+      yield [key, register];
     }
   }
 

@@ -79,7 +79,7 @@ function buildStateV5({ nodes = [] as any[], edges = [] as any[], props = [] as 
   // Add props using LWW (same as v4)
   for (const { nodeId, key, value, eventId } of props) {
     const propKey = encodePropKey(nodeId, key);
-    state.prop.set(propKey, lwwSet(eventId ?? mockEventId(), value));
+    state.mutatePropLWW(propKey, eventId ?? mockEventId(), value);
   }
 
   return state;
@@ -408,25 +408,30 @@ describe('StateSerializer', () => {
       });
 
       state.edgeBirthEvent.set(encodeEdgeKey('a', 'c', 'rel'), edgeBirth);
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', 'since'),
-        lwwSet(mockEventId(3, 'alice', 'eeeeeeee', 0), 2026),
+        mockEventId(3, 'alice', 'eeeeeeee', 0),
+        2026,
       );
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', CONTENT_PROPERTY_KEY),
-        lwwSet(edgeContentEvent, 'oid:edge'),
+        edgeContentEvent,
+        'oid:edge',
       );
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', CONTENT_MIME_PROPERTY_KEY),
-        lwwSet(mockEventId(5, 'alice', 'dddddddd', 1), 'application/json'),
+        mockEventId(5, 'alice', 'dddddddd', 1),
+        'application/json',
       );
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', CONTENT_SIZE_PROPERTY_KEY),
-        lwwSet(mockEventId(5, 'alice', 'dddddddd', 2), 7),
+        mockEventId(5, 'alice', 'dddddddd', 2),
+        7,
       );
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', 'stale'),
-        lwwSet(mockEventId(1, 'alice', 'aaaaaaaa', 0), 'ignore-me'),
+        mockEventId(1, 'alice', 'aaaaaaaa', 0),
+        'ignore-me',
       );
 
       const reader = createStateReader(state);
@@ -632,9 +637,10 @@ describe('StateSerializer', () => {
           { nodeId: 'd', key: 'kind', value: 'legacy' },
         ],
       });
-      left.prop.set(
+      left.mutatePropLWW(
         encodeEdgePropKey('a', 'b', 'knows', 'weight'),
-        lwwSet(mockEventId(2), 1),
+        mockEventId(2),
+        1,
       );
 
       const right = buildStateV5({
@@ -648,13 +654,15 @@ describe('StateSerializer', () => {
           { nodeId: 'c', key: 'kind', value: 'new' },
         ],
       });
-      right.prop.set(
+      right.mutatePropLWW(
         encodeEdgePropKey('a', 'b', 'knows', 'weight'),
-        lwwSet(mockEventId(3), 2),
+        mockEventId(3),
+        2,
       );
-      right.prop.set(
+      right.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'follows', 'rank'),
-        lwwSet(mockEventId(4), 1),
+        mockEventId(4),
+        1,
       );
 
       const comparison = compareVisibleState(left, right, { targetId: 'a' });

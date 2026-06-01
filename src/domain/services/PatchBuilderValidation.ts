@@ -8,6 +8,7 @@
 import { FIELD_SEPARATOR, EDGE_PROP_PREFIX } from './KeyCodec.ts';
 import PatchError from '../errors/PatchError.ts';
 import type { WarpState } from './JoinReducer.ts';
+import WarpStateClass from './state/WarpState.ts';
 
 /**
  * Inspects materialized state for edges and properties attached to a node.
@@ -29,7 +30,7 @@ export function findAttachedData(
   }
 
   const propPrefix = `${nodeId}\0`;
-  for (const key of state.prop.keys()) {
+  for (const [key] of WarpStateClass.allPropEntriesFromState(state)) {
     if (key.startsWith(propPrefix)) {
       props.push(key);
     }

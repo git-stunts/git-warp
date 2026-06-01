@@ -1,10 +1,7 @@
-import type { LWWRegister } from "../../crdt/LWW.ts";
 import ORSet from "../../crdt/ORSet.ts";
 import VersionVector from "../../crdt/VersionVector.ts";
 import { Dot } from "../../crdt/Dot.ts";
 import type StateSession from "../../orset/session/StateSession.ts";
-import type { PropValue } from "../../types/PropValue.ts";
-import type { EventId } from "../../utils/EventId.ts";
 import type { PatchDiff } from "../../types/PatchDiff.ts";
 import type { TickReceipt } from "../../types/TickReceipt.ts";
 import WarpStateClass from "../state/WarpState.ts";
@@ -80,17 +77,9 @@ export async function reduceSessionBackedState(args: {
   }
 }
 
-type SeedState = {
-  readonly nodeAlive: ORSet;
-  readonly edgeAlive: ORSet;
-  readonly prop: Map<string, LWWRegister<PropValue>>;
-  readonly observedFrontier: VersionVector;
-  readonly edgeBirthEvent: Map<string, EventId>;
-};
-
 async function openReducerSessionFrame(
   openStateSession: MaterializeSessionOpener,
-  baseState?: SeedState,
+  baseState?: WarpStateClass,
 ): Promise<ReducerSessionFrame> {
   const session = await openStateSession({
     nodeAliveRootOid: null,
@@ -112,7 +101,7 @@ async function openReducerSessionFrame(
 
   return new ReducerSessionFrame({
     session,
-    prop: new Map(baseState?.prop ?? []),
+    prop: new Map(baseState?.allPropEntries() ?? []),
     observedFrontier: baseState?.observedFrontier.clone() ?? VersionVector.empty(),
     edgeBirthEvent: new Map(baseState?.edgeBirthEvent ?? []),
   });

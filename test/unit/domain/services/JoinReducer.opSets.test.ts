@@ -130,7 +130,7 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
       applyOpV2(state, { type: 'NodePropSet', node: 'x', key: 'color', value: 'blue' }, propEid);
 
       // Property was set — check the prop map
-      expect(state.prop.has(encodePropKey('x', 'color'))).toBe(true);
+      expect(state.hasProp(encodePropKey('x', 'color'))).toBe(true);
     });
 
     it('applies EdgePropSet', () => {
@@ -144,7 +144,7 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
       applyOpV2(state, { type: 'EdgePropSet', from: 'a', to: 'b', label: 'rel', key: 'weight', value: 0.5 }, propEid);
 
       // Edge property was set — check the prop map
-      expect(state.prop.has(encodeEdgePropKey('a', 'b', 'rel', 'weight'))).toBe(true);
+      expect(state.hasProp(encodeEdgePropKey('a', 'b', 'rel', 'weight'))).toBe(true);
     });
   });
 });

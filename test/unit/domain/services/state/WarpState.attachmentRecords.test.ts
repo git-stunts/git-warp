@@ -16,8 +16,8 @@ describe('WarpState attachment records', () => {
     state.nodeAlive.add('node:a', Dot.create('writer-a', 1));
     state.nodeAlive.add('node:b', Dot.create('writer-a', 2));
     state.edgeAlive.add(encodeEdgeKey('node:a', 'node:b', 'knows'), Dot.create('writer-a', 3));
-    state.prop.set(encodePropKey('node:a', 'title'), { eventId: event(4), value: 'A' });
-    state.prop.set(encodeEdgePropKey('node:a', 'node:b', 'knows', 'weight'), { eventId: event(5), value: 7 });
+    state.mutatePropRegisterLWW(encodePropKey('node:a', 'title'), { eventId: event(4), value: 'A' });
+    state.mutatePropRegisterLWW(encodeEdgePropKey('node:a', 'node:b', 'knows', 'weight'), { eventId: event(5), value: 7 });
 
     const records = state.attachmentRecords();
 
@@ -33,10 +33,10 @@ describe('WarpState attachment records', () => {
   it('filters attachments whose skeleton owner is not visible', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('node:a', Dot.create('writer-a', 1));
-    state.prop.set(encodePropKey('node:missing', 'title'), { eventId: event(2), value: 'missing' });
-    state.prop.set(encodePropKey('node:a', 'title'), { eventId: event(3), value: 'A' });
+    state.mutatePropRegisterLWW(encodePropKey('node:missing', 'title'), { eventId: event(2), value: 'missing' });
+    state.mutatePropRegisterLWW(encodePropKey('node:a', 'title'), { eventId: event(3), value: 'A' });
     state.edgeAlive.add(encodeEdgeKey('node:a', 'node:missing', 'mentions'), Dot.create('writer-a', 2));
-    state.prop.set(encodeEdgePropKey('node:a', 'node:missing', 'mentions', 'weight'), {
+    state.mutatePropRegisterLWW(encodeEdgePropKey('node:a', 'node:missing', 'mentions', 'weight'), {
       eventId: event(4),
       value: 9,
     });
@@ -51,11 +51,11 @@ describe('WarpState attachment records', () => {
     const edgeKey = encodeEdgeKey('node:a', 'node:b', 'knows');
     state.edgeAlive.add(edgeKey, Dot.create('writer-a', 3));
     state.edgeBirthEvent.set(edgeKey, new EventId(2, 'writer-a', PATCH_SHA, 0));
-    state.prop.set(encodeEdgePropKey('node:a', 'node:b', 'knows', 'stale'), {
+    state.mutatePropRegisterLWW(encodeEdgePropKey('node:a', 'node:b', 'knows', 'stale'), {
       eventId: new EventId(1, 'writer-a', PATCH_SHA, 0),
       value: 'old',
     });
-    state.prop.set(encodeEdgePropKey('node:a', 'node:b', 'knows', 'fresh'), {
+    state.mutatePropRegisterLWW(encodeEdgePropKey('node:a', 'node:b', 'knows', 'fresh'), {
       eventId: new EventId(3, 'writer-a', PATCH_SHA, 0),
       value: 'new',
     });

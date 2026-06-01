@@ -26,7 +26,7 @@ export default class NodePropertyProjection {
   static fromState(state: WarpState): readonly VisibleNodePropertyRecord[] {
     const checkedState = requireWarpState(state);
     const records: VisibleNodePropertyRecord[] = [];
-    for (const [encodedKey, register] of checkedState.prop) {
+    for (const [encodedKey, register] of checkedState.allPropEntries()) {
       const record = nodePropertyRecordForRegister(checkedState, encodedKey, register);
       if (record !== null) {
         records.push(record);
@@ -55,7 +55,7 @@ export default class NodePropertyProjection {
     const checkedOwner = requireNodeRecord(owner);
     const records: VisibleNodePropertyRecord[] = [];
     const ownerKeyPrefix = encodePropKey(checkedOwner.id.toString(), '');
-    for (const [encodedKey, register] of checkedState.prop) {
+    for (const [encodedKey, register] of checkedState.allPropEntries()) {
       if (!encodedKey.startsWith(ownerKeyPrefix)) {
         continue;
       }

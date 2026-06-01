@@ -27,21 +27,12 @@ describe('GraphOpAlgebraProjection', () => {
     state.nodeAlive.add('node:a', Dot.create('writer-a', 1));
     state.nodeAlive.add('node:b', Dot.create('writer-a', 2));
     state.edgeAlive.add(encodeEdgeKey('node:a', 'node:b', 'knows'), Dot.create('writer-a', 3));
-    state.prop.set(encodePropKey('node:a', 'title'), { eventId: event(4), value: 'A' });
-    state.prop.set(encodePropKey('node:a', CONTENT_PROPERTY_KEY), { eventId: event(5), value: 'oid-a' });
-    state.prop.set(encodePropKey('node:a', CONTENT_MIME_PROPERTY_KEY), {
-      eventId: event(5),
-      value: 'text/plain',
-    });
-    state.prop.set(encodePropKey('node:a', CONTENT_SIZE_PROPERTY_KEY), { eventId: event(5), value: 12 });
-    state.prop.set(encodeEdgePropKey('node:a', 'node:b', 'knows', 'weight'), {
-      eventId: event(6),
-      value: 7,
-    });
-    state.prop.set(`${EDGE_PROP_PREFIX}node:a\0node:b\0knows\0bad\0extra`, {
-      eventId: event(7),
-      value: 'ignored',
-    });
+    state.mutatePropLWW(encodePropKey('node:a', 'title'), event(4), 'A');
+    state.mutatePropLWW(encodePropKey('node:a', CONTENT_PROPERTY_KEY), event(5), 'oid-a');
+    state.mutatePropLWW(encodePropKey('node:a', CONTENT_MIME_PROPERTY_KEY), event(5), 'text/plain');
+    state.mutatePropLWW(encodePropKey('node:a', CONTENT_SIZE_PROPERTY_KEY), event(5), 12);
+    state.mutatePropLWW(encodeEdgePropKey('node:a', 'node:b', 'knows', 'weight'), event(6), 7);
+    state.mutatePropLWW(`${EDGE_PROP_PREFIX}node:a\0node:b\0knows\0bad\0extra`, event(7), 'ignored');
 
     const algebra = GraphOpAlgebraProjection.fromState(state);
 
@@ -64,7 +55,7 @@ describe('GraphOpAlgebraProjection', () => {
   it('does not expose legacy property ops or raw attachments as the graph substrate contract', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('node:a', Dot.create('writer-a', 1));
-    state.prop.set(encodePropKey('node:a', 'title'), { eventId: event(2), value: 'A' });
+    state.mutatePropLWW(encodePropKey('node:a', 'title'), event(2), 'A');
 
     const typeNames = GraphOpAlgebraProjection.fromState(state)
       .operations

@@ -346,7 +346,7 @@ describe('CheckpointService', () => {
       v5State.nodeAlive.add('node1', dot);
       v5State.nodeAlive.add('node2', dot);
       v5State.edgeAlive.add(encodeEdgeKeyV5('node1', 'node2', 'link'), dot);
-      v5State.prop.set(encodePropKeyV5('node1', 'name'), {
+      v5State.mutatePropRegisterLWW(encodePropKeyV5('node1', 'name'), {
         eventId: { lamport: 1, writerId: 'w', patchSha: makeOid('abc'), opIndex: 0 },
         value: { type: 'inline', value: 'test' },
       });
@@ -616,7 +616,7 @@ describe('CheckpointService', () => {
         state.nodeAlive.add('node1', dot);
         state.nodeAlive.add('node2', dot);
         state.edgeAlive.add(encodeEdgeKeyV5('node1', 'node2', 'link'), dot);
-        state.prop.set(encodePropKeyV5('node1', 'name'), {
+        state.mutatePropRegisterLWW(encodePropKeyV5('node1', 'name'), {
           eventId: { lamport: 1, writerId: 'w', patchSha: makeOid('abc'), opIndex: 0 },
           value: { type: 'inline', value: 'Test' },
         });
@@ -659,7 +659,7 @@ describe('CheckpointService', () => {
         v5State.nodeAlive.add('x', dot);
         v5State.nodeAlive.add('y', dot);
         v5State.edgeAlive.add(encodeEdgeKeyV5('x', 'y', 'conn'), dot);
-        v5State.prop.set(encodePropKeyV5('x', 'val'), {
+        v5State.mutatePropRegisterLWW(encodePropKeyV5('x', 'val'), {
           eventId: { lamport: 1, writerId: 'w', patchSha: makeOid('p'), opIndex: 0 },
           value: { type: 'inline', value: 'hello' },
         });
@@ -697,7 +697,7 @@ describe('CheckpointService', () => {
         state.nodeAlive.add('a', dot);
         state.nodeAlive.add('b', dot);
         state.edgeAlive.add(encodeEdgeKeyV5('a', 'b', 'rel'), dot);
-        state.prop.set(encodePropKeyV5('a', 'color'), {
+        state.mutatePropRegisterLWW(encodePropKeyV5('a', 'color'), {
           eventId: { lamport: 1, writerId: 'w', patchSha: makeOid('p'), opIndex: 0 },
           value: { type: 'inline', value: 'red' },
         });
@@ -775,8 +775,8 @@ describe('CheckpointService', () => {
 
         // Verify props
         const propKey = encodePropKeyV5('a', 'color');
-        expect(loaded.state.prop.has(propKey)).toBe(true);
-        expect(loaded.state.prop.get(propKey).value).toEqual({ type: 'inline', value: 'red' });
+        expect(loaded.state.hasProp(propKey)).toBe(true);
+        expect(loaded.state.getEncodedProp(propKey).value).toEqual({ type: 'inline', value: 'red' });
 
         // Verify appliedVV
         expect(loaded.appliedVV.get('writer1')).toBe(1);
@@ -814,10 +814,10 @@ describe('CheckpointService', () => {
         // Verify props are in LWW map
         const prop1Key = encodePropKeyV5('n1', 'x');
         const prop2Key = encodePropKeyV5('n2', 'y');
-        expect(state.prop.has(prop1Key)).toBe(true);
-        expect(state.prop.has(prop2Key)).toBe(true);
-        expect((state.prop.get(prop1Key as any))!.value).toEqual({ type: 'inline', value: 1 });
-        expect((state.prop.get(prop2Key as any))!.value).toEqual({ type: 'inline', value: 2 });
+        expect(state.hasProp(prop1Key)).toBe(true);
+        expect(state.hasProp(prop2Key)).toBe(true);
+        expect((state.getEncodedProp(prop1Key as any))!.value).toEqual({ type: 'inline', value: 1 });
+        expect((state.getEncodedProp(prop2Key as any))!.value).toEqual({ type: 'inline', value: 2 });
 
         // Verify observedFrontier exists
         expect(state.observedFrontier).toBeDefined();
@@ -834,7 +834,7 @@ describe('CheckpointService', () => {
 
         expect(state.nodeAlive.elements()).toHaveLength(0);
         expect(state.edgeAlive.elements()).toHaveLength(0);
-        expect(state.prop.size).toBe(0);
+        expect(state.propSize()).toBe(0);
       });
     });
   });
@@ -863,7 +863,7 @@ describe('CheckpointService', () => {
         state.nodeAlive.add('n1', dot1);
         state.nodeAlive.add('n2', dot2);
         state.edgeAlive.add(encodeEdgeKeyV5('n1', 'n2', 'link'), Dot.create('alice', 3));
-        state.prop.set(encodePropKeyV5('n1', 'name'), {
+        state.mutatePropRegisterLWW(encodePropKeyV5('n1', 'name'), {
           eventId: { lamport: 1, writerId: 'alice', patchSha: makeOid('p1'), opIndex: 0 },
           value: { type: 'inline', value: 'Node1' },
         });
@@ -986,19 +986,19 @@ describe('CheckpointService', () => {
         const sharedOid = makeOid('contenta');
         const edgeOid = makeOid('contentb');
 
-        state.prop.set(encodePropKeyV5('n1', CONTENT_PROPERTY_KEY), {
+        state.mutatePropRegisterLWW(encodePropKeyV5('n1', CONTENT_PROPERTY_KEY), {
           eventId: { lamport: 1, writerId: 'alice', patchSha: makeOid('patch1'), opIndex: 0 },
           value: sharedOid,
         });
-        state.prop.set(encodePropKeyV5('n2', CONTENT_PROPERTY_KEY), {
+        state.mutatePropRegisterLWW(encodePropKeyV5('n2', CONTENT_PROPERTY_KEY), {
           eventId: { lamport: 2, writerId: 'alice', patchSha: makeOid('patch2'), opIndex: 0 },
           value: sharedOid,
         });
-        state.prop.set(encodeEdgePropKey('n1', 'n2', 'link', CONTENT_PROPERTY_KEY), {
+        state.mutatePropRegisterLWW(encodeEdgePropKey('n1', 'n2', 'link', CONTENT_PROPERTY_KEY), {
           eventId: { lamport: 3, writerId: 'alice', patchSha: makeOid('patch3'), opIndex: 0 },
           value: edgeOid,
         });
-        state.prop.set(encodePropKeyV5('n1', 'label'), {
+        state.mutatePropRegisterLWW(encodePropKeyV5('n1', 'label'), {
           eventId: { lamport: 4, writerId: 'alice', patchSha: makeOid('patch4'), opIndex: 0 },
           value: 'ignore-me',
         });
@@ -1038,7 +1038,7 @@ describe('CheckpointService', () => {
           const nodeId = `n${i}`;
           state.nodeAlive.add(nodeId, Dot.create('alice', i + 1));
           const contentOid = makeSequentialOid(i);
-          state.prop.set(encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY), {
+          state.mutatePropRegisterLWW(encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY), {
             eventId: {
               lamport: i + 1,
               writerId: 'alice',
@@ -1049,12 +1049,12 @@ describe('CheckpointService', () => {
           });
         }
 
-        state.prop.set(encodePropKeyV5('n0', 'name'), {
+        state.mutatePropRegisterLWW(encodePropKeyV5('n0', 'name'), {
           eventId: { lamport: 301, writerId: 'alice', patchSha: makeOid('patchname'), opIndex: 0 },
           value: 'not-content',
         });
         state.edgeAlive.add(encodeEdgeKeyV5('n0', 'n1', 'dup'), Dot.create('alice', 301));
-        state.prop.set(encodeEdgePropKey('n0', 'n1', 'dup', CONTENT_PROPERTY_KEY), {
+        state.mutatePropRegisterLWW(encodeEdgePropKey('n0', 'n1', 'dup', CONTENT_PROPERTY_KEY), {
           eventId: { lamport: 302, writerId: 'alice', patchSha: makeOid('patchdup'), opIndex: 0 },
           value: makeSequentialOid(0),
         });
@@ -1087,7 +1087,7 @@ describe('CheckpointService', () => {
           const nodeId = `high-${i}`;
           state.nodeAlive.add(nodeId, Dot.create('alice', i + 1));
           const contentOid = makeSequentialOid(300 + i);
-          state.prop.set(encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY), {
+          state.mutatePropRegisterLWW(encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY), {
             eventId: {
               lamport: i + 1,
               writerId: 'alice',
@@ -1102,7 +1102,7 @@ describe('CheckpointService', () => {
           const nodeId = `low-${i}`;
           state.nodeAlive.add(nodeId, Dot.create('alice', 400 + i));
           const contentOid = makeSequentialOid(i);
-          state.prop.set(encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY), {
+          state.mutatePropRegisterLWW(encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY), {
             eventId: {
               lamport: 400 + i,
               writerId: 'alice',
@@ -1142,7 +1142,7 @@ describe('CheckpointService', () => {
         originalState.nodeAlive.add('x', dot1);
         originalState.nodeAlive.add('y', dot2);
         originalState.edgeAlive.add(encodeEdgeKeyV5('x', 'y', 'conn'), Dot.create('alice', 3));
-        originalState.prop.set(encodePropKeyV5('x', 'val'), {
+        originalState.mutatePropRegisterLWW(encodePropKeyV5('x', 'val'), {
           eventId: { lamport: 5, writerId: 'alice', patchSha: makeOid('p'), opIndex: 0 },
           value: { type: 'inline', value: 42 },
         });
@@ -1249,7 +1249,7 @@ describe('CheckpointService', () => {
         state.edgeAlive.add(encodeEdgeKeyV5('n1', 'n2', 'follows'), Dot.create('alice', 3));
         state.edgeAlive.add(encodeEdgeKeyV5('n2', 'n3', 'knows'), Dot.create('bob', 2));
 
-        state.prop.set(encodePropKeyV5('n1', 'name'), {
+        state.mutatePropRegisterLWW(encodePropKeyV5('n1', 'name'), {
           eventId: { lamport: 10, writerId: 'alice', patchSha: makeOid('p1'), opIndex: 0 },
           value: { type: 'inline', value: 'Alice' },
         });
@@ -1339,8 +1339,8 @@ describe('CheckpointService', () => {
 
         // Verify props
         const propKey = encodePropKeyV5('n1', 'name');
-        expect(loaded.state.prop.has(propKey)).toBe(true);
-        expect(loaded.state.prop.get(propKey).value).toEqual({ type: 'inline', value: 'Alice' });
+        expect(loaded.state.hasProp(propKey)).toBe(true);
+        expect(loaded.state.getEncodedProp(propKey).value).toEqual({ type: 'inline', value: 'Alice' });
 
         // Verify frontier
         expect(loaded.frontier.get('alice')).toBe(makeOid('sha1'));

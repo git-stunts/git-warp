@@ -82,7 +82,7 @@ describe('Op class instances through JoinReducer', () => {
       applyOpV2(state, op, eid(0));
 
       const propKey = 'user:alice\x00name';
-      const reg = state.prop.get(propKey);
+      const reg = state.getEncodedProp(propKey);
       expect(reg).toBeDefined();
       expect(reg?.value).toBe('Alice');
     });
@@ -94,7 +94,7 @@ describe('Op class instances through JoinReducer', () => {
       applyOpV2(state, op, eid(0));
 
       const propKey = 'user:alice\x00name';
-      const reg = state.prop.get(propKey);
+      const reg = state.getEncodedProp(propKey);
       expect(reg).toBeDefined();
       expect(reg?.value).toBe('Alice');
     });
@@ -131,7 +131,7 @@ describe('Op class instances through JoinReducer', () => {
       expect(state.nodeAlive.contains('n1')).toBe(true);
       expect(state.nodeAlive.contains('n2')).toBe(true);
       expect(state.edgeAlive.contains('n1\x00n2\x00rel')).toBe(true);
-      expect(state.prop.get('n1\x00name')?.value).toBe('Node One');
+      expect(state.getEncodedProp('n1\x00name')?.value).toBe('Node One');
     });
   });
 
