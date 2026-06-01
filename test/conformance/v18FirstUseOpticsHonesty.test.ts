@@ -5,26 +5,81 @@ import { openWarpWorldline } from '../../index.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import type CommitMessageCodecPort from '../../src/ports/CommitMessageCodecPort.ts';
+import type { CommitNodeOptions, CommitNodeWithTreeOptions } from '../../src/ports/CommitPort.ts';
 
 const NODE_ID = 'event:honesty';
 const PROPERTY_KEY = 'status';
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
-class ForbiddenFullResidencyBlobReadError extends Error {
-  constructor(oid: string) {
-    super(`first-use Optics path attempted full-residency checkpoint state read: ${oid}`);
+class ForbiddenFirstUseOpticsOperationError extends Error {
+  constructor(operation: string) {
+    super(`first-use Optics path attempted forbidden full-residency operation: ${operation}`);
   }
 }
 
 class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
+  private readonly _forbiddenPatchBlobOids = new Set<string>();
   private readonly _forbiddenStateBlobOids = new Set<string>();
-  private readonly _forbiddenReads: string[] = [];
+  private readonly _forbiddenOperations: string[] = [];
+  private _forbidWrites = false;
 
-  async forbidCheckpointStateReads(
-    checkpointSha: string,
-    commitMessageCodec: CommitMessageCodecPort,
-  ): Promise<void> {
-    const checkpointMessage = commitMessageCodec.decodeCheckpoint(await this.showNode(checkpointSha));
+  async forbidFullResidencyOperations(options: {
+    readonly checkpointSha: string;
+    readonly patchSha: string;
+    readonly commitMessageCodec: CommitMessageCodecPort;
+  }): Promise<void> {
+    const patchMessage = options.commitMessageCodec.decodePatch(await this.showNode(options.patchSha));
+    this._forbiddenPatchBlobOids.add(patchMessage.patchOid);
+    await this._forbidCheckpointStateBlobReads(options);
+    this._forbidWrites = true;
+  }
+
+  override async readBlob(oid: string): Promise<Uint8Array> {
+    if (this._forbiddenStateBlobOids.has(oid)) {
+      this._recordForbiddenOperation(`checkpoint-state-blob-read:${oid}`);
+    }
+    if (this._forbiddenPatchBlobOids.has(oid)) {
+      this._recordForbiddenOperation(`patch-blob-read:${oid}`);
+    }
+    return await super.readBlob(oid);
+  }
+
+  override async writeBlob(content: Uint8Array | string): Promise<string> {
+    this._forbidWriteOperation('writeBlob');
+    return await super.writeBlob(content);
+  }
+
+  override async writeTree(entries: string[]): Promise<string> {
+    this._forbidWriteOperation('writeTree');
+    return await super.writeTree(entries);
+  }
+
+  override async commitNode(options: CommitNodeOptions): Promise<string> {
+    this._forbidWriteOperation('commitNode');
+    return await super.commitNode(options);
+  }
+
+  override async commitNodeWithTree(options: CommitNodeWithTreeOptions): Promise<string> {
+    this._forbidWriteOperation('commitNodeWithTree');
+    return await super.commitNodeWithTree(options);
+  }
+
+  override async updateRef(ref: string, oid: string): Promise<void> {
+    this._forbidWriteOperation(`updateRef:${ref}`);
+    await super.updateRef(ref, oid);
+  }
+
+  forbiddenOperations(): readonly string[] {
+    return this._forbiddenOperations;
+  }
+
+  private async _forbidCheckpointStateBlobReads(options: {
+    readonly checkpointSha: string;
+    readonly commitMessageCodec: CommitMessageCodecPort;
+  }): Promise<void> {
+    const checkpointMessage = options.commitMessageCodec.decodeCheckpoint(
+      await this.showNode(options.checkpointSha),
+    );
     const rootTreeOids = await this.readTreeOids(checkpointMessage.indexOid);
     const stateTreeOid = rootTreeOids['state'];
     if (stateTreeOid === undefined) {
@@ -36,16 +91,15 @@ class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
     }
   }
 
-  override async readBlob(oid: string): Promise<Uint8Array> {
-    if (this._forbiddenStateBlobOids.has(oid)) {
-      this._forbiddenReads.push(oid);
-      throw new ForbiddenFullResidencyBlobReadError(oid);
+  private _forbidWriteOperation(operation: string): void {
+    if (this._forbidWrites) {
+      this._recordForbiddenOperation(operation);
     }
-    return await super.readBlob(oid);
   }
 
-  forbiddenReads(): readonly string[] {
-    return this._forbiddenReads;
+  private _recordForbiddenOperation(operation: string): never {
+    this._forbiddenOperations.push(operation);
+    throw new ForbiddenFirstUseOpticsOperationError(operation);
   }
 }
 
@@ -64,14 +118,14 @@ function prepareOpticBasisImplementation(): string {
 }
 
 describe('v18 first-use Optics honesty gate', () => {
-  it('verifies an existing checkpoint-tail basis without reading checkpoint state blobs', async () => {
+  it('verifies an existing checkpoint-tail basis without full-residency operations', async () => {
     const persistence = new FirstUseOpticsTrapAdapter();
     const runtime = await openRuntimeHostProduct({
       persistence,
       graphName: 'v18-first-use-optics-honesty',
       writerId: 'app',
     });
-    await runtime.patch((patch) => {
+    const patchSha = await runtime.patch((patch) => {
       patch.addNode(NODE_ID);
       patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
     });
@@ -83,7 +137,11 @@ describe('v18 first-use Optics honesty gate', () => {
       worldlineName: 'v18-first-use-optics-honesty',
       writerId: 'app',
     });
-    await persistence.forbidCheckpointStateReads(checkpointSha, runtime._commitMessageCodec);
+    await persistence.forbidFullResidencyOperations({
+      checkpointSha,
+      patchSha,
+      commitMessageCodec: runtime._commitMessageCodec,
+    });
 
     const basis = await events.prepareOpticBasis();
     const coordinate = await events.coordinate();
@@ -92,20 +150,22 @@ describe('v18 first-use Optics honesty gate', () => {
     expect(basis.checkpointSha).toBe(checkpointSha);
     expect(coordinate.checkpointSha).toBe(checkpointSha);
     expect(node).toMatchObject({ nodeId: NODE_ID, alive: true });
-    expect(persistence.forbiddenReads()).toEqual([]);
+    expect(persistence.forbiddenOperations()).toEqual([]);
   });
 
   it('keeps prepareOpticBasis source off known full-residency helpers', () => {
     const implementation = prepareOpticBasisImplementation();
+    const verifier = readRepoFile('src/domain/services/optic/CheckpointTailBasisVerifier.ts');
+    const checkedSources = `${implementation}\n${verifier}`;
 
-    expect(implementation).not.toMatch(/\bmaterialize\s*\(/u);
-    expect(implementation).not.toContain('_materializeGraph');
-    expect(implementation).not.toContain('_setMaterializedState');
-    expect(implementation).not.toContain('createCheckpoint');
-    expect(implementation).not.toContain('getStateSnapshot');
-    expect(implementation).not.toContain('getNodes');
-    expect(implementation).not.toContain('getEdges');
-    expect(implementation).not.toContain('observer(');
-    expect(implementation).not.toContain('cloneState');
+    expect(checkedSources).not.toMatch(/\bmaterialize\s*\(/u);
+    expect(checkedSources).not.toContain('_materializeGraph');
+    expect(checkedSources).not.toContain('_setMaterializedState');
+    expect(checkedSources).not.toContain('createCheckpoint');
+    expect(checkedSources).not.toContain('getStateSnapshot');
+    expect(checkedSources).not.toContain('getNodes');
+    expect(checkedSources).not.toContain('getEdges');
+    expect(checkedSources).not.toContain('observer(');
+    expect(checkedSources).not.toContain('cloneState');
   });
 });

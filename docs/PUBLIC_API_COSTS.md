@@ -20,15 +20,16 @@ The machine-readable inventory is
 
 ## Current Gate Truth
 
-`worldline.prepareOpticBasis()` is now classified as `bounded` only in the
-gate-1 sense: it verifies existing checkpoint-tail read-basis evidence and
-fails closed when that evidence is missing. It does not build a basis by
-materializing the graph.
+`worldline.prepareOpticBasis()` is now classified as `transitional`: it verifies
+existing checkpoint-tail read-basis evidence and fails closed when that evidence
+is missing without building a basis by materializing the graph. It is not yet a
+large-graph bounded-memory claim because setup still lacks an explicit memory
+budget contract.
 
-`coordinate.optic()` reads are bounded against checkpoint-tail shard facts and
-bounded tail witnesses. They still reject unsupported basis shapes, excessive
+`coordinate.optic()` reads are also `transitional`. They use checkpoint-tail
+shard facts and tail witnesses and reject unsupported basis shapes, excessive
 tails, and read-identity failures instead of falling back to full graph
-materialization.
+materialization, but the basis/tail providers are not memory-budgeted yet.
 
 Most ordinary public reads are still `transitional`. Their API shape is useful,
 but the current provider may still come from cached full state or full-result

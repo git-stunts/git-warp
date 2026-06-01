@@ -18,7 +18,8 @@ This release adds:
 - coordinate-backed Optics through `prepareOpticBasis()`, `coordinate()`, and
   `coordinate.optic()` so users can run coherent public node and property optic
   reads without opening graph/materialize-first APIs, with setup verifying
-  existing bounded basis evidence instead of materializing the full graph;
+  existing checkpoint-tail basis evidence instead of materializing the full
+  graph;
 - docs and migration guidance that classify `openWarpGraph()`, `WarpApp`,
   `WarpCore`, and materialize-named methods as compatibility, diagnostic,
   migration, or substrate tooling surfaces instead of first-use app APIs;

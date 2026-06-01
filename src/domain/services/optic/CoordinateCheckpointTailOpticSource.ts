@@ -102,12 +102,10 @@ function hasSourceIdentity(source: CheckpointTailOpticSource): boolean {
 }
 
 function hasSourcePorts(source: CheckpointTailOpticSource): boolean {
-  const ports = [
-    source._persistence,
-    source._codec,
-    source._commitMessageCodec,
-  ] as const;
-  return ports.every((port) => port !== null && port !== undefined);
+  return hasPersistencePort(source._persistence)
+    && hasCodecPort(source._codec)
+    && hasOptionalBlobStoragePort(source._blobStorage)
+    && hasCommitMessageCodecPort(source._commitMessageCodec);
 }
 
 function hasSourceMethods(source: CheckpointTailOpticSource): boolean {
@@ -117,6 +115,45 @@ function hasSourceMethods(source: CheckpointTailOpticSource): boolean {
     typeof source._loadPatchChainFromSha === 'function',
     typeof source._loadWriterPatches === 'function',
     typeof source._validatePatchAgainstCheckpoint === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
+}
+
+function hasPersistencePort(persistence: CorePersistence): boolean {
+  const methodChecks = [
+    typeof persistence.showNode === 'function',
+    typeof persistence.getNodeInfo === 'function',
+    typeof persistence.readBlob === 'function',
+    typeof persistence.readTreeOids === 'function',
+    typeof persistence.readRef === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
+}
+
+function hasCodecPort(codec: CodecPort): boolean {
+  const methodChecks = [
+    typeof codec.encode === 'function',
+    typeof codec.decode === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
+}
+
+function hasOptionalBlobStoragePort(blobStorage: BlobStoragePort | null): boolean {
+  if (blobStorage === null) {
+    return true;
+  }
+  const methodChecks = [
+    typeof blobStorage.retrieve === 'function',
+    typeof blobStorage.retrieveStream === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
+}
+
+function hasCommitMessageCodecPort(commitMessageCodec: CommitMessageCodecPort): boolean {
+  const methodChecks = [
+    typeof commitMessageCodec.decodeCheckpoint === 'function',
+    typeof commitMessageCodec.decodePatch === 'function',
+    typeof commitMessageCodec.detectKind === 'function',
   ] as const;
   return methodChecks.every((methodExists) => methodExists);
 }

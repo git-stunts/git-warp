@@ -17,7 +17,7 @@ import type { PatchBuilder } from './services/PatchBuilder.ts';
 import type Worldline from './services/Worldline.ts';
 import type Observer from './services/query/Observer.ts';
 import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
-import CheckpointTailBasisLoader from './services/optic/CheckpointTailBasisLoader.ts';
+import CheckpointTailBasisVerifier from './services/optic/CheckpointTailBasisVerifier.ts';
 import type { WorldlineOptions } from './capabilities/QueryCapability.ts';
 
 export type WarpWorldlineOpenOptions = Omit<WarpGraphDeps, 'graphName'> & {
@@ -156,7 +156,7 @@ export async function openWarpWorldline(
     commitPatch: async (build) => await graph.patch(build),
     createWorldline: (worldlineOptions) => graph.worldline(worldlineOptions),
     prepareOpticBasis: async () => {
-      const basis = await new CheckpointTailBasisLoader({ source: graph }).load();
+      const basis = await new CheckpointTailBasisVerifier({ source: graph }).verify();
       preparedOpticBasis = new WarpWorldlineOpticBasis({
         worldlineName,
         checkpointSha: basis.checkpointSha,

@@ -46,6 +46,42 @@ class TestCheckpointTailOpticSource extends CheckpointTailOpticSource {
   }
 }
 
+class MalformedPersistenceSource extends TestCheckpointTailOpticSource {
+  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
+  override readonly _persistence: CorePersistence = {
+    showNode: () => Promise.resolve('checkpoint'),
+  };
+}
+
+class MalformedBlobStorageSource extends TestCheckpointTailOpticSource {
+  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
+  override readonly _blobStorage: BlobStoragePort | null = {
+    store: () => Promise.resolve('storage-oid'),
+  };
+}
+
+class MalformedCodecSource extends TestCheckpointTailOpticSource {
+  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
+  override readonly _codec: CodecPort = {
+    encode: () => new Uint8Array(),
+  };
+}
+
+class MalformedCommitMessageCodecSource extends TestCheckpointTailOpticSource {
+  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
+  override readonly _commitMessageCodec: CommitMessageCodecPort = {
+    decodeCheckpoint: () => ({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: 'state',
+      frontierOid: 'frontier',
+      indexOid: 'index',
+      schema: 5,
+      checkpointVersion: null,
+    }),
+  };
+}
+
 describe('CoordinateCheckpointTailOpticSource', () => {
   it('rejects malformed constructor frontier before copying entries', () => {
     expect(
@@ -87,5 +123,25 @@ describe('CoordinateCheckpointTailOpticSource', () => {
           frontier: new Map([['writer-1', '   ']]),
         })
     ).toThrow('Coordinate checkpoint-tail optic source requires non-empty identity fields');
+  });
+
+  it('rejects malformed source ports at the constructor boundary', () => {
+    const sources = [
+      new MalformedPersistenceSource(),
+      new MalformedBlobStorageSource(),
+      new MalformedCodecSource(),
+      new MalformedCommitMessageCodecSource(),
+    ] as const;
+
+    for (const source of sources) {
+      expect(
+        () =>
+          new CoordinateCheckpointTailOpticSource({
+            source,
+            checkpointSha: 'checkpoint-sha',
+            frontier: new Map([['writer-1', 'patch-sha']]),
+          })
+      ).toThrow('Coordinate checkpoint-tail optic source requires a checkpoint-tail source');
+    }
   });
 });

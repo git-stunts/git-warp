@@ -101,21 +101,26 @@ describe('public API cost inventory', () => {
     }
   });
 
-  it('allows first-use docs only for bounded, streaming, or cursor rows', () => {
+  it('keeps first-use eligibility aligned with cost labels', () => {
     const rows = inventoryRows();
     for (const row of rows) {
       if (row.firstUseDocs === 'yes') {
         expect(['bounded', 'streaming', 'cursor']).toContain(row.label);
       }
+      if (row.firstUseDocs === 'caveat') {
+        expect(row.label).toBe('transitional');
+      }
+      expect(['yes', 'caveat', 'no']).toContain(row.firstUseDocs);
     }
   });
 
   it('states the gate-1 Optics setup truth', () => {
     const rows = inventoryRows();
     const prepare = findApi(rows, 'worldline.prepareOpticBasis()');
-    expect(prepare.label).toBe('bounded');
+    expect(prepare.label).toBe('transitional');
+    expect(prepare.firstUseDocs).toBe('caveat');
     expect(prepare.provider).toContain('basis verifier');
-    expect(prepare.notes).toContain('fails closed');
+    expect(prepare.notes).toContain('memory-budgeted verification waits for gate 2');
 
     const materialize = findApi(rows, 'graph.materialize()');
     expect(materialize.label).toBe('diagnostic');
@@ -131,9 +136,13 @@ describe('public API cost inventory', () => {
 
     expect(readme).toContain('PUBLIC_API_COSTS.md');
     expect(docsIndex).toContain('PUBLIC_API_COSTS.md');
-    expect(apiReference).toContain('does not create that basis by materializing the full graph');
+    expect(apiReference).toContain('Full-result reads such as `getNodes()` and `getEdges()` are diagnostic/offline');
+    expect(apiReference).not.toContain("await worldline.getNodes();                 // ['user:alice', 'user:bob']");
+    expect(apiReference).toContain('create that basis by materializing the full graph');
     expect(readings).toContain('does not create that evidence by materializing the full graph');
-    expect(migration).toContain('does not materialize the full graph to manufacture a basis');
+    expect(migration).toContain('not materialize the full graph to manufacture a basis');
+    expect(readme).toContain('providers are still `transitional`');
+    expect(readings).toContain('current providers are `transitional`');
 
     expect(readme).not.toContain('Creates the checkpoint-tail evidence');
     expect(apiReference).not.toContain('may perform runtime folding internally');

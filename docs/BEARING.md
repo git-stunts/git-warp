@@ -37,11 +37,10 @@ truth: Optics are part of the v18 public-facing value proposition, so exposing
 path is product-complete enough to exercise, document, and recover.
 
 - Worldlines are now the first-use public API story.
-- Coordinate-backed Optics are implemented on this branch through
-  `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()`, but that
-  evidence is no longer release-complete. The current first-use setup path
-  calls `graph.materialize()` before `graph.createCheckpoint()`, so it violates
-  the bounded Optics story.
+- Coordinate-backed Optics are implemented through `prepareOpticBasis()`,
+  `coordinate()`, and `coordinate.optic()`. PR #574 removes the direct
+  `prepareOpticBasis()` materialization/checkpoint-creation footgun, but this
+  evidence is still not release-complete until the bounded-memory gate passes.
 - V18 now has two release gates. The honesty gate requires every documented
   first-use application path to avoid full graph materialization. The
   bounded-memory large-graph gate requires normal public reads, writes, content
@@ -187,8 +186,8 @@ The next work should stay split into distinct modes:
    done; coordinate Optics exist but are blocked on both gates below.
 2. **V18 honesty gate**: classify public APIs by cost, add first-use
    materialization tripwires, remove full materialization from
-   `prepareOpticBasis()`, and keep first-use docs on bounded, streaming, or
-   cursor surfaces only.
+   `prepareOpticBasis()`, and keep first-use docs honest about transitional
+   surfaces until the bounded-memory gate lands.
 3. **V18 bounded-memory large-graph gate**: add the memory budget, streaming
    patch and basis substrates, sharded fact indexes, fact-resolver writes,
    cursorized public reads and sync, bounded content lookup, capability
@@ -227,7 +226,7 @@ Release-operation work is paused behind Optics merge and release evidence:
 - [x] Add public API cost inventory:
   [PUBLIC_API_COSTS.md](PUBLIC_API_COSTS.md).
 - [x] Add first-use Optics materialization tripwire evidence.
-- [x] Change `prepareOpticBasis()` to verify existing bounded basis evidence or
+- [x] Change `prepareOpticBasis()` to verify existing checkpoint-tail basis evidence or
   fail closed.
 - [ ] Complete [#546](https://github.com/git-stunts/git-warp/issues/546)
   `API_no-full-materialization-first-use-optics`.
