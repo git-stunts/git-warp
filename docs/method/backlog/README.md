@@ -1,448 +1,63 @@
 # backlog
 
-This README is the canonical dependency map for the repo-visible
-backlog.
+GitHub Issues are now the live Method work tracker for this repository.
 
-The previous parallel-agent workload partition is retired in
-[WORKLOADS.md](WORKLOADS.md) because it still scheduled shipped v17
-residual work. Regenerate it from this dependency map before using it
-for staffing.
+This directory is retained as a migration signpost only. The former filesystem
+backlog cards were imported into GitHub Issues on 2026-06-01 and then archived
+under:
 
-It exists because the METHOD MCP surface is currently inconsistent on
-this repo: `method_doctor` recognizes the workspace and returns
-diagnostics, while `method_status` and
-`method_backlog_dependencies` reject the same path as "not a METHOD
-workspace." Until that drift is fixed, repo-truth parsing of
-`docs/method/backlog/**/*.md` is the authoritative planning surface.
+- [github-issue-migration-2026-06-01](../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog)
 
-## Snapshot
+The machine-readable migration evidence is:
 
-Current repo truth for live backlog notes, excluding backlog meta docs
-such as `README.md`, `SCORECARD.md`, `WORKLOADS.md`, and
-`RELEASE_TRIAGE.md`:
+- [github-issue-migration-2026-06-01.json](../github-issue-migration-2026-06-01.json)
+
+## Current Tracker
+
+Use GitHub Issues for live work:
+
+- [all open issues](https://github.com/git-stunts/git-warp/issues)
+- [v18 lane](https://github.com/git-stunts/git-warp/issues?q=is%3Aissue%20is%3Aopen%20label%3Alane%3Av18.0.0)
+- [bad-code lane](https://github.com/git-stunts/git-warp/issues?q=is%3Aissue%20is%3Aopen%20label%3Alane%3Abad-code)
+- [inbox lane](https://github.com/git-stunts/git-warp/issues?q=is%3Aissue%20is%3Aopen%20label%3Alane%3Ainbox)
+
+## Migration Summary
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 459 |
-| Root backlog items | 34 |
-| `asap/` | 0 |
-| `bad-code/` | 244 |
-| `cool-ideas/` | 108 |
-| `inbox/` | 5 |
-| `up-next/` | 43 |
-| `v18.0.0/` | 7 |
-| `v19.0.0/` | 11 |
-| `v20.0.0/` | 3 |
-| `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 459 |
-| Items without YAML frontmatter | 0 |
-| Items with explicit `id` | 459 |
-| Items declaring dependency fields | 459 |
-| Items with explicit `feature` | 454 |
-| Distinct explicit feature values | 17 |
-| `bad-code/` items with explicit `release_home` | 244 |
-| Items with non-empty explicit dependency edges | 42 |
-
-## Dependency Law
-
-Every live note now declares:
-
-- `id`
-- `blocked_by`
-- `blocks`
-
-That makes the graph repo-inspectable without special-casing lanes that
-still lack frontmatter.
-
-Every live note outside `inbox/` now also declares:
-
-- `feature`
-
-That field names the subsystem home of the task. It does not replace
-release-lane sequencing; it clarifies it.
-
-`bad-code/` notes also declare:
-
-- `release_home`
-
-That field answers which release is expected to absorb, retire, or
-otherwise burn down the debt note. The note stays in `bad-code/`; the
-release home is a second planning axis, not a lane move.
-
-Lane inheritance still matters, but in a narrower way:
-
-- **Explicit graph edges** win when a note names real upstream or downstream
-  work.
-- **Lane inheritance** supplies the default sequencing when a note's
-  dependency arrays are empty.
-
-### Feature Tags
-
-`feature` is for subsystem identity, not release planning.
-
-- **Lane** answers: "When should this ship?"
-- **Feature** answers: "What body of work does this belong to?"
-
-The current cleanup pass stamps `feature:` onto:
-
-- backlog root notes
-- `bad-code/` notes
-- `cool-ideas/` notes
-- `up-next/` notes
-- all numbered release-lane notes in `v18.0.0/` and `v19.0.0/`
-- selected numbered-lane trunk notes in later lanes where cross-feature
-  seams are already real
-- `inbox/` remains intentionally unscoped until triage or promotion
-
-That gives the repo enough structure to build stronger internal chains
-inside a feature before inventing broad cross-feature blockers.
-
-### Feature-First Sequencing Rule
-
-When a note has a `feature:` home:
-
-1. Build the feature's internal spine first.
-2. Prefer trunk-to-trunk dependencies over leaf-to-leaf chatter.
-3. Add cross-feature edges only where one feature produces an artifact
-   another feature cannot honestly proceed without.
-4. Keep `blocked_by` / `blocks` as the source of truth. The feature graph
-   is derived from task edges, not duplicated in separate metadata.
-
-### Debt Release Homes
-
-`bad-code/` stays a debt ledger, not a release lane.
-
-- **Lane** still answers where the note lives.
-- **Feature** answers which subsystem owns the smell.
-- **Release home** answers which release is supposed to make the note
-  disappear.
-
-Use `release_home` to answer "what debt must this release actually
-burn down?" without dumping debt notes wholesale into numbered release
-lanes.
-
-`release_home: v17.0.0` on bad-code notes is now historical debt
-metadata, not a live v17 release lane. Rehome or archive those debt
-notes through [bad-code/RELEASE_TRIAGE.md](bad-code/RELEASE_TRIAGE.md)
-before treating them as blockers for a later major.
-
-### Dependency Bands
-
-| Band | Scope | Meaning | May Be Blocked By |
-|------|-------|---------|-------------------|
-| `B0` | `inbox/` | Raw capture. No commitment, no scheduling, no downstream guarantees. | Triage only. |
-| `B1` | backlog root | Unlaned maintenance and reference work. Needs classification or direct pull before it should block committed work. | `B0` or direct human pull. |
-| `B2` | `bad-code/` | Foundational debt and invariant repair. This lane can legitimately block release or execution work. | `B0`, `B1`, or lower-level debt in `B2`. |
-| `B3` | archived `v17.0.0/` | Retired shipped-release residual lane. No live backlog notes live here. | Explicit rehome or pull decision only. |
-| `B4` | `v18.0.0/`, `up-next/` | Next-major graph-model work plus unslotted near-term feature overflow after the active release. | `B2` or explicit same-band edges. |
-| `B5` | `v19.0.0/` | Doctrine/runtime follow-through after the substrate cut. | `B2`, `B4`, or explicit same-band edges. |
-| `B6` | `v20.0.0/`, `v21.0.0/`, `cool-ideas/` | Far-horizon slice-first/runtime and distributed/plural follow-through plus speculative orbit. | Promotion into another lane or completion of lower numbered bands. |
-
-### Lane Contracts
-
-| Lane | Band | Contract |
-|------|------|----------|
-| `inbox/` | `B0` | Anything here is blocked on triage, not implementation. |
-| backlog root | `B1` | These notes are real work, but still need lane assignment or an explicit pull decision. When `feature:` is present, treat that as the subsystem home while release-home remains undecided. |
-| `bad-code/` | `B2` | Invariant debt can block `v18.0.0`, `up-next`, or later lanes when the note touches the same invariant. |
-| archived `v17.0.0/` | `B3` | The shipped residual lane is archived at `docs/archive/backlog/v17.0.0-residual-backlog/`; it is not live backlog. |
-| `v18.0.0/` | `B4` | This is the next-major graph-model convergence lane. |
-| `up-next/` | `B4` | Feature-overflow queue behind the active release and next-major graph-model work unless explicitly promoted into a numbered lane. |
-| `v19.0.0/` | `B5` | Doctrine, observer, and admission convergence after the substrate cut. |
-| `v20.0.0/` | `B6` | Slice-first runtime realization after `v19.0.0/` hardens the noun and support law. |
-| `v21.0.0/` | `B6` | Common-basis, braid, and fuller distributed observer geometry after `v20.0.0/`. |
-| `cool-ideas/` | `B6` | Never blocks committed lanes until moved into a committed lane. |
-| `asap/` | dormant | Presently unused. Do not treat it as a scheduling source while numbered release lanes are active. |
-
-### Interpretation Rule
-
-For any note whose `blocked_by` list is empty:
-
-1. Inherit the dependency band of its lane.
-2. Treat lower-numbered bands as eligible prerequisites.
-3. Treat higher-numbered bands as downstream or non-blocking.
-4. If a note is promoted into a new lane, it inherits the new lane's
-   band immediately.
-
-This gives every live note a dependency posture today while still
-allowing note-local edges to override band inheritance when the text
-justifies a stronger sequencing rule.
-
-## Explicit Graph Already In Files
-
-Current explicit-graph totals:
-
-- `459` notes define an `id`
-- `459` notes declare `blocks` and `blocked_by` fields
-- `454` notes currently declare an explicit `feature`
-- `244` `bad-code/` notes currently declare an explicit `release_home`
-- `42` notes currently name at least one non-empty upstream or
-  downstream edge
-
-Most notes still rely on empty dependency arrays plus lane inheritance.
-That is intentional: the cleanup pass made every note explicit, then
-started feature-first spine wiring without inventing fake blockers where
-the note text does not justify them.
-
-## Lane Inventory And Inherited Dependencies
-
-The sections below assign every live backlog note to a dependency band.
-For notes without explicit edges, the lane contract is the dependency
-map.
-
-### `inbox/` — `B0` Intake
-
-Dependency posture:
-
-- blocked on triage only
-- does not block committed work yet
-
-Items:
-
-- [DX_bearing-md.md](inbox/DX_bearing-md.md)
-- [DX_method-cli-tooling.md](inbox/DX_method-cli-tooling.md)
-- [DX_method-mcp-workspace-detection-drift.md](inbox/DX_method-mcp-workspace-detection-drift.md)
-- [DX_method-v2-upgrade.md](inbox/DX_method-v2-upgrade.md)
-- [DX_witness-directory-convention.md](inbox/DX_witness-directory-convention.md)
-
-### backlog root — `B1` Unlaned Maintenance And Reference Work
-
-Dependency posture:
-
-- blocked on classification or direct pull
-- should not block committed delivery lanes until promoted
-
-Items:
-
-- [DX_api-examples-review-checklist.md](DX_api-examples-review-checklist.md)
-- [DX_archived-doc-status-guardrail.md](DX_archived-doc-status-guardrail.md)
-- [DX_batch-review-fix-commits.md](DX_batch-review-fix-commits.md)
-- [DX_browser-guide.md](DX_browser-guide.md)
-- [DX_consumer-test-type-import-coverage.md](DX_consumer-test-type-import-coverage.md)
-- [DX_contributor-review-hygiene-guide.md](DX_contributor-review-hygiene-guide.md)
-- [DX_deno-smoke-test.md](DX_deno-smoke-test.md)
-- [DX_docs-consistency-preflight.md](DX_docs-consistency-preflight.md)
-- [DX_docs-version-sync-precommit.md](DX_docs-version-sync-precommit.md)
-- [DX_jsr-publish-deno-panic.md](DX_jsr-publish-deno-panic.md)
-- [DX_pr-ready-merge-cli.md](DX_pr-ready-merge-cli.md)
-- [DX_public-api-catalog-playground.md](DX_public-api-catalog-playground.md)
-- [DX_pure-typescript-example-app.md](DX_pure-typescript-example-app.md)
-- [DX_readonly-receipts-docs.md](DX_readonly-receipts-docs.md)
-- [DX_readme-install-section.md](DX_readme-install-section.md)
-- [DX_review-bot-warning-policy.md](DX_review-bot-warning-policy.md)
-- [DX_rfc-field-count-drift-detector.md](DX_rfc-field-count-drift-detector.md)
-- [DX_security-sync-docs.md](DX_security-sync-docs.md)
-- [DX_test-file-wildcard-ratchet.md](DX_test-file-wildcard-ratchet.md)
-- [DX_typed-custom-zod-helper.md](DX_typed-custom-zod-helper.md)
-- [DX_vitest-runtime-excludes.md](DX_vitest-runtime-excludes.md)
-- [DX_warpgraph-constructor-lifecycle-docs.md](DX_warpgraph-constructor-lifecycle-docs.md)
-- [DX_warpgraph-invisible-api-docs.md](DX_warpgraph-invisible-api-docs.md)
-- [PERF_benchmark-budgets-ci-gate.md](PERF_benchmark-budgets-ci-gate.md)
-- [PERF_out-of-core-materialization.md](PERF_out-of-core-materialization.md)
-- [PERF_recursive-tree-path-benchmark.md](PERF_recursive-tree-path-benchmark.md)
-- [TRUST_keystore-prevalidated-cache.md](TRUST_keystore-prevalidated-cache.md)
-- [TRUST_property-based-fuzz-test.md](TRUST_property-based-fuzz-test.md)
-- [TRUST_record-round-trip-snapshot.md](TRUST_record-round-trip-snapshot.md)
-- [TRUST_schema-discriminated-union.md](TRUST_schema-discriminated-union.md)
-- [TRUST_unsigned-record-edge-cases.md](TRUST_unsigned-record-edge-cases.md)
-- [VIZ_mermaid-diagram-content-checklist.md](VIZ_mermaid-diagram-content-checklist.md)
-- [VIZ_mermaid-invisible-link-fragility.md](VIZ_mermaid-invisible-link-fragility.md)
-- [VIZ_mermaid-rendering-smoke-test.md](VIZ_mermaid-rendering-smoke-test.md)
-
-### `bad-code/` — `B2` Foundational Debt
-
-Dependency posture:
-
-- may legitimately block `v18.0.0/`, `up-next/`, and later release lanes
-- should be treated as prerequisite work when a release note touches the
-  same invariant
-
-Canonical grouped inventory:
-
-- [bad-code/README.md](bad-code/README.md)
-
-Invariant counts:
-
-| Legend | Count |
-|--------|------:|
-| `ARCH` | 1 |
-| `BND` | 9 |
-| `CAST` | 9 |
-| `DX` | 1 |
-| `HEX` | 19 |
-| `IDX` | 1 |
-| `MAT` | 1 |
-| `MODEL` | 22 |
-| `OWN` | 32 |
-| `PORT` | 12 |
-| `PROV` | 1 |
-| `SLUDGE` | 2 |
-| `SPEC` | 119 |
-| `SUB` | 15 |
-
-### Archived `v17.0.0/` — `B3`
-
-Dependency posture:
-
-- no live backlog notes live in `B3`
-- the shipped residual lane is preserved at
-  [../../archive/backlog/v17.0.0-residual-backlog/README.md](../../archive/backlog/v17.0.0-residual-backlog/README.md)
-- the historical release ledger remains at
-  [../../releases/v17.0.0/README.md](../../releases/v17.0.0/README.md)
-- archived notes must be rehomed into an active lane before they can block
-  `v18.0.0` or later work
-
-### `v18.0.0/` — `B4` Graph-Model Convergence
-
-Dependency posture:
-
-- downstream of active bad-code invariant debt and explicit graph-model
-  blockers
-- explicit frontmatter edges carry the actual substrate cut order
-- this lane is the Continuum-compatible graph-model cut pressure-tested against
-  Echo, not full repo parity or runtime hierarchy
-
-Canonical lane readme:
-
-- [v18.0.0/README.md](v18.0.0/README.md)
-
-Prefix counts:
-
-| Prefix | Count |
-|--------|------:|
-| `API` | 2 |
-| `INFRA` | 1 |
-| `PROTO` | 2 |
-| `RELEASE` | 1 |
-| `TRUST` | 1 |
-
-### `v19.0.0/` — `B5` Doctrine And Runtime Convergence
-
-Dependency posture:
-
-- follows the substrate cut in `v18.0.0/`
-- holds observer, admission, strand, and teaching-contract work that
-  should not muddy the substrate migration
-
-Canonical lane readme:
-
-- [v19.0.0/README.md](v19.0.0/README.md)
-
-Prefix counts:
-
-| Prefix | Count |
-|--------|------:|
-| `API` | 1 |
-| `HYGIENE` | 2 |
-| `PROTO` | 8 |
-
-### `v20.0.0/` — `B6` Slice-First Runtime Realization
-
-Dependency posture:
-
-- downstream of `v19.0.0/`
-- use this lane only for notes that already name `v20` as their release home
-- keep broader speculative work in `up-next/` or `cool-ideas/` until it stops
-  hand-waving
-
-Canonical lane readme:
-
-- [v20.0.0/README.md](v20.0.0/README.md)
-
-Prefix counts:
-
-| Prefix | Count |
-|--------|------:|
-| `PERF` | 1 |
-| `PROTO` | 2 |
-
-### `v21.0.0/` — `B6` Distributed And Plural Runtime Follow-Through
-
-Dependency posture:
-
-- downstream of `v20.0.0/`
-- holds notes that already name `v21` as their release home
-- use explicit edges only when the notes themselves defend them
-
-Canonical lane readme:
-
-- [v21.0.0/README.md](v21.0.0/README.md)
-
-Prefix counts:
-
-| Prefix | Count |
-|--------|------:|
-| `PROTO` | 4 |
-
-### `asap/` — dormant
-
-Dependency posture:
-
-- no live items
-- keep empty unless a human explicitly wants a temporary pull lane
-
-### `up-next/` — `B4` Near-Term Queue
-
-Dependency posture:
-
-- queue for notes that still need an explicit release home
-- can be promoted into numbered release lanes once a note stops hand-waving
-- can still be unblocked by `bad-code/` paydown or selective promotion into
-  `v18.0.0/` through `v21.0.0/`
-
-Prefix counts:
-
-| Prefix | Count |
-|--------|------:|
-| `CC` | 1 |
-| `CLI` | 1 |
-| `DX` | 10 |
-| `INFRA` | 7 |
-| `MCP` | 1 |
-| `NDNM` | 4 |
-| `PERF` | 4 |
-| `PROTO` | 13 |
-| `TRUST` | 1 |
-| `VIZ` | 1 |
-
-### `cool-ideas/` — `B6` Speculative Orbit
-
-Dependency posture:
-
-- does not block committed work by default
-- blocked on promotion into another lane before it becomes a real
-  prerequisite
-
-Prefix counts:
-
-| Prefix | Count |
-|--------|------:|
-| `ARCH` | 1 |
-| `COOL` | 8 |
-| `CORE` | 1 |
-| `DX` | 44 |
-| `IDEA` | 6 |
-| `INFRA` | 1 |
-| `PERF` | 8 |
-| `PROTO` | 27 |
-| `THEORY` | 1 |
-| `TRUST` | 3 |
-| `VIZ` | 8 |
-
-## Next Metadata Moves
-
-The dependency map above is enough to reason across the full backlog
-today, but it also makes the cleanup sequence clear:
-
-1. Normalize frontmatter on `inbox/`, backlog-root notes, and any new
-   release-lane promotions.
-2. Keep `v18.0.0/` as the most explicit hand-authored dependency graph.
-   Archived v17 residual notes need an explicit rehome or pull decision before
-   they block later work.
-3. Add `id` fields to `bad-code/` in invariant bundles instead of one
-   giant sweep.
-4. Promote `up-next/` notes into numbered release lanes as soon as they name
-   a real release home, then add explicit edges only when the note itself
-   justifies them.
-5. Leave `cool-ideas/` mostly lane-inherited until promotion to avoid
-   graph theater.
+| Backlog cards imported as GitHub Issues | 460 |
+| GitHub Issues created in migration | 460 |
+| Existing source-path issues skipped | 0 |
+| Support labels ensured | 65 |
+| Archived backlog files | 467 |
+
+Every migrated issue body contains:
+
+- `Source backlog: ...`
+- `Archived source: ...`
+- the original lane;
+- original id, legend, feature, release home, and dependency metadata when
+  present;
+- the original backlog card body.
+
+## Lane Labels
+
+Cards were labeled according to the document lane they came from:
+
+- `lane:backlog-root`
+- `lane:bad-code`
+- `lane:cool-ideas`
+- `lane:inbox`
+- `lane:up-next`
+- `lane:v18.0.0`
+- `lane:v19.0.0`
+- `lane:v20.0.0`
+- `lane:v21.0.0`
+
+Numbered release lanes also received `lane:release`.
+
+## Rule
+
+Do not add new live work cards under `docs/method/backlog/**`. Capture new work
+as GitHub Issues and link issue URLs from design docs, witnesses, retros, and
+release evidence.

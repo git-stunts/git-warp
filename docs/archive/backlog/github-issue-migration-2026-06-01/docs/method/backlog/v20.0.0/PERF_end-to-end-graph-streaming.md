@@ -14,10 +14,15 @@ blocks: []
 
 Primary release home: `v20.0.0`.
 
-`v19.0.0` defines the observer, support, index, and cost contracts required
-to make streaming claims honest. `v20.0.0` is where those contracts become
-ordinary runtime behavior for graph reads, graph writes, traversal,
-migration, and large result surfaces.
+This card is superseded for normal public-path bounded-memory release work by
+`PERF_bounded-memory-large-graph-product-gate` in `v18.0.0`. It remains the
+later runway for broader slice-first runtime realization after the v18 gate is
+met.
+
+`v19.0.0` defines observer, support, index, and cost contracts that are broader
+than the v18 public-path gate. `v20.0.0` is where those contracts become
+ordinary runtime behavior for deeper traversal, migration, playback, and large
+result surfaces beyond the v18 release conformance.
 
 `v21.0.0` extends the same discipline into witnessed suffix admission, braid
 collapse, local-site merge, and distributed/plural semantics.
@@ -44,8 +49,9 @@ runtime proves it from storage boundary through public API.
 
 ## Desired End State
 
-Ordinary graph reads and writes can operate without assuming the whole graph
-or the whole patch set fits in memory.
+Broader slice-first runtime work can operate without assuming the whole graph
+or the whole patch set fits in memory. Normal public-path reads, writes,
+content lookup, and sync are v18 gate work.
 
 The target includes:
 
@@ -65,7 +71,7 @@ The target includes:
 
 ## Non-Goals
 
-- Do not make `v18.0.0` claim full graph streaming.
+- Do not duplicate the v18 bounded-memory public-path gate.
 - Do not pretend every graph question is local or bounded.
 - Do not ban global questions; make their residency strategy explicit.
 - Do not call an API streaming when it only streams the final array after
@@ -75,8 +81,8 @@ The target includes:
 
 ## Acceptance Criteria
 
-- At least one ordinary local read path proves bounded memory from storage
-  boundary to public API.
+- V18 bounded-memory public-path conformance exists and this item builds on it
+  rather than replacing it.
 - At least one large graph result path exposes a stream, page, or cursor API
   and proves it does not materialize the result set first.
 - Materialization can consume streamed patch input for at least one support
@@ -98,5 +104,5 @@ The target includes:
   buffered fallback disclosure.
 - Add materialization tests that feed patch facts as an async iterable and
   verify the reducer path does not pre-collect the input.
-- Add docs shape tests that prevent `v18.0.0` release notes from claiming
-  full graph streaming.
+- Add docs shape tests that distinguish the v18 bounded public-path gate from
+  the broader v20 slice-first runtime work.

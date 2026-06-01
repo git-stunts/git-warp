@@ -3,6 +3,7 @@ id: API_no-full-materialization-first-use-optics
 blocked_by: []
 blocks:
   - API_optics-public-api-closeout
+  - PERF_bounded-memory-large-graph-product-gate
   - RELEASE_v18-public-release-blockers
 feature: graph-model-substrate
 ---
@@ -19,11 +20,9 @@ basis receipt. That makes the setup path full-residency even though the Optics
 story says bounded reads reject unbounded bases instead of falling back to a
 whole-graph fold.
 
-The large-graph product gate is real, but it is separate. V18 does not need to
-deliver the whole bounded-memory platform unless it claims arbitrary graph size
-under bounded memory. V18 does need to avoid teaching newcomers that a
-bounded-looking Optics path is safe when setup still materializes the full
-graph.
+The large-graph product gate is also a v18 blocker. This card is the narrower
+first-use Optics gate: it stops the most visible public setup path from hiding
+full residency before the broader bounded-memory platform is finished.
 
 ## Done Looks Like
 
@@ -31,8 +30,8 @@ graph.
   documented first-use path.
 - Basis setup either verifies an existing bounded checkpoint-tail or read basis
   and succeeds, or fails closed with `E_OPTIC_NO_BOUNDED_BASIS`.
-- If v18 does not stream-build a basis yet, the docs say so directly and avoid
-  claiming bounded large-graph safety for basis construction.
+- If this card lands before the streaming basis builder, setup fails closed when
+  no bounded basis exists rather than falling back to materialization.
 - Tripwire tests cover documented first-use Optics setup and fail if it calls
   `materialize()`, `_materializeGraph()`, full snapshot creation, full
   node/edge array construction, or observer snapshot cloning.
@@ -44,8 +43,8 @@ graph.
 - Materialize-first APIs remain compatible, but they are labeled diagnostic,
   offline, legacy, or transitional and kept out of first-use application
   examples.
-- Release notes keep the v18 claim narrow: graph-model convergence plus
-  Worldline/Optics honesty, not arbitrary graph size under bounded memory.
+- Release notes describe this gate as one prerequisite for the v18
+  bounded-memory claim, not as the entire large-graph product gate.
 
 ## Non-Goals
 
@@ -57,8 +56,8 @@ graph.
   operator doctor mode.
 - Rejecting every legacy full-residency API at runtime.
 
-Those are required before a later release can claim arbitrary graph size under
-bounded memory, but they are not all v18 gates unless v18 makes that claim.
+Those are covered by `PERF_bounded-memory-large-graph-product-gate`, which is
+also a v18 blocker.
 
 ## Starting Points
 

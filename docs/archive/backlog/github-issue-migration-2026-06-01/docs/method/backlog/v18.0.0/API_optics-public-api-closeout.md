@@ -55,8 +55,7 @@ API evidence, but it is not an honest bounded first-use Optics path.
 - Success and failure tests prove optic reads do not fall back to whole-graph
   materialization.
 - Basis setup itself does not perform full graph materialization on the
-  documented first-use path, or v18 explicitly refuses any bounded large-graph
-  claim.
+  documented first-use path.
 - Docs show how the bounded checkpoint-tail basis is created or verified before
   the first coordinate optic read.
 - Docs explain `E_OPTIC_NO_BOUNDED_BASIS`, `E_OPTIC_TAIL_BUDGET_EXCEEDED`, and
@@ -71,5 +70,6 @@ API evidence, but it is not an honest bounded first-use Optics path.
 ## Release Rule
 
 `v18.0.0` is blocked until this card and
-`API_no-full-materialization-first-use-optics` are complete. Tagging and
-registry publish work must wait behind both gates.
+`API_no-full-materialization-first-use-optics` are complete. The release is also
+blocked by `PERF_bounded-memory-large-graph-product-gate`. Tagging and registry
+publish work must wait behind all three gates.

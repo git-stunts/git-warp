@@ -13,6 +13,17 @@ admitted through patches. Reads happen through worldlines, strands,
 and observers. Provenance, replay, and explicit historical coordinates
 are part of the model.
 
+## Release status
+
+The `v18.0.0` source line is not public release evidence yet. It is blocked
+until first-use Optics setup avoids full graph materialization and normal public
+reads, writes, content lookup, and sync pass bounded-memory conformance against
+a graph larger than git-warp's configured memory pool.
+
+Live work is tracked in
+[GitHub Issues](https://github.com/git-stunts/git-warp/issues). Repository
+design docs, witnesses, retros, and archived backlog cards are evidence.
+
 ## Quick start
 
 ```typescript

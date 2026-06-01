@@ -107,10 +107,25 @@ The runtime is not finished just because the doctrine is clearer.
 
 The current major-version ladder is:
 
-- `v18.0.0`: make the graph substrate honest
-- `v19.0.0`: make observer/runtime doctrine honest
-- `v20.0.0`: make slice-first read execution ordinary runtime behavior
+- `v18.0.0`: make the graph substrate honest, including bounded-memory normal
+  public reads, writes, content lookup, and sync
+- `v19.0.0`: make observer/runtime doctrine honest beyond the v18 bounded
+  public-path gate
+- `v20.0.0`: make broader slice-first read execution ordinary runtime behavior
 - `v21.0.0`: make distributed/plural admission semantics runtime-real
+
+V18 is blocked by two gates:
+
+- first-use Optics setup must not call full graph materialization;
+- git-warp must prove normal public API use against a graph larger than its
+  configured memory budget.
+
+## Work tracking
+
+GitHub Issues are the live Method tracker. Repository docs remain evidence:
+design docs explain planned work, migration maps preserve provenance, and
+archived backlog cards are historical source material rather than an active
+planning lane.
 
 The canonical articulation of that ladder lives in:
 

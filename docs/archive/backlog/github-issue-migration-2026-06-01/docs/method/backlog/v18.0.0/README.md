@@ -32,6 +32,8 @@ This release cuts the graph layer toward the shared two-plane model:
 - replay-from-genesis verification
 - public Optics closeout for the Worldline-first first-use API
 - the v18 honesty gate for first-use Optics setup and bounded-claim wording
+- the bounded-memory large-graph product gate for normal public reads, writes,
+  content lookup, and sync
 
 ## Explicitly out of scope
 
@@ -41,10 +43,6 @@ This release cuts the graph layer toward the shared two-plane model:
 - live holographic strand semantics
 - replacing the `git-warp` causal envelope unless the migration proof
   forces it
-- arbitrary graph size under bounded memory
-- the full memory-pool, streaming-basis, cursorized-read/sync,
-  fact-resolver-write, bounded-content-lookup, capability-reporting, and
-  operator-doctor platform
 
 Those doctrine and protocol surfaces live in
 [`../v19.0.0/README.md`](../v19.0.0/README.md).
@@ -68,6 +66,7 @@ LAYER 2 (migration and proof):
 
 LAYER 3 (public release):
   [!] API_no-full-materialization-first-use-optics
+  [!] PERF_bounded-memory-large-graph-product-gate
   [~] API_optics-public-api-closeout
   [!] RELEASE_v18-public-release-blockers
 ```
@@ -122,16 +121,19 @@ Coordinate Optics have branch-local implementation evidence:
 
 That evidence is blocked for release honesty because the current
 `prepareOpticBasis()` setup path calls `graph.materialize()` before
-`graph.createCheckpoint()`. V18 must either remove that full-materialization
-dependency from the documented first-use Optics path or narrow the release claim
-so nobody can confuse v18 with bounded large-graph safety.
+`graph.createCheckpoint()`. V18 must remove that full-materialization dependency
+from the documented first-use Optics path.
+
+V18 is also blocked by the bounded-memory large-graph product gate. Normal
+public reads, writes, content lookup, and sync must run under an explicit
+git-warp memory budget against a graph larger than that budget.
 
 After this branch merges:
 
-- rerun release preflight from `main` only after the Optics closeout and
-  no-full-materialization honesty gate merge;
+- rerun release preflight from `main` only after the Optics closeout,
+  no-full-materialization honesty gate, and bounded-memory large-graph gate
+  merge;
 - then tag `v18.0.0` from the merged release commit;
 - then publish npm and JSR artifacts from the release path;
-- preserve the explicit non-claim that v18 does not provide arbitrary graph
-  size, bounded-memory operation, or end-to-end graph streaming reads and
-  writes.
+- preserve the evidence that v18's bounded-memory claim is limited to the
+  public paths proven by the large-graph-over-small-pool conformance gate.

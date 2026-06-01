@@ -2,14 +2,19 @@
 cycle: 0265
 task_id: API_optics-public-api-closeout
 status: Blocked
+github_issue_url: https://github.com/git-stunts/git-warp/issues/547
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-26
 release_home: v18.0.0
 backlog:
-  - docs/method/backlog/v18.0.0/API_optics-public-api-closeout.md
-  - docs/method/backlog/v18.0.0/API_no-full-materialization-first-use-optics.md
+  - docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v18.0.0/API_optics-public-api-closeout.md
+  - docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v18.0.0/API_no-full-materialization-first-use-optics.md
+issues:
+  - https://github.com/git-stunts/git-warp/issues/547
+  - https://github.com/git-stunts/git-warp/issues/546
+  - https://github.com/git-stunts/git-warp/issues/549
 ---
 
 # v18 Optics Public API Closeout
@@ -19,17 +24,17 @@ backlog:
 The coordinate Optics implementation slices below are branch-local evidence,
 not release-complete proof. The current public basis setup path calls
 `graph.materialize()` before `graph.createCheckpoint()`, so v18 is blocked by
-`API_no-full-materialization-first-use-optics` unless the release claim is
-narrowed enough that nobody can read it as bounded large-graph safety.
+`API_no-full-materialization-first-use-optics`.
 
-Keep the two gates separate:
+Keep the two v18 gates separate and blocking:
 
 - V18 honesty gate: documented first-use application paths avoid full graph
-  materialization, or the release explicitly refuses bounded large-graph claims.
+  materialization.
 - Large-graph product gate: memory pools, streaming basis construction,
   sharded fact resolvers, cursorized reads and sync, bounded content lookup,
   capability reporting, operator tooling, and conformance over graphs larger
-  than the configured pool.
+  than the configured pool. This is tracked by
+  `PERF_bounded-memory-large-graph-product-gate`.
 
 ## Pull
 

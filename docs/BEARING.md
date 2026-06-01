@@ -41,29 +41,47 @@ path is product-complete enough to exercise, document, and recover.
   `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()`, but that
   evidence is no longer release-complete. The current first-use setup path
   calls `graph.materialize()` before `graph.createCheckpoint()`, so it violates
-  the bounded Optics story unless the release claim is narrowed.
-- V18 now has an honesty gate: every documented first-use application path must
-  avoid full graph materialization, or the release must explicitly refuse any
-  bounded large-graph claim.
-- The large-graph product gate is separate. Memory pools, streaming basis
-  construction, sharded fact resolvers, cursorized reads and sync, bounded
-  content lookup, capability reporting, doctor tooling, and legacy poison pills
-  are required before git-warp can claim arbitrary graph size under bounded
-  memory, but they are not all v18 blockers unless v18 claims that outcome.
+  the bounded Optics story.
+- V18 now has two release gates. The honesty gate requires every documented
+  first-use application path to avoid full graph materialization. The
+  bounded-memory large-graph gate requires normal public reads, writes, content
+  lookup, and sync to operate under an explicit git-warp memory budget against a
+  graph larger than that budget.
+- Memory pools, streaming basis construction, sharded fact resolvers,
+  cursorized reads and sync, bounded content lookup, capability reporting,
+  doctor tooling, and bounded-mode legacy rejection are v18 blockers.
 - `openWarpGraph()`, `WarpApp.open()`, `WarpCore.open()`, and public
   materialize-first methods should remain compatible but become legacy,
   compatibility, or diagnostic surfaces.
 - Current exact-read shapes such as `live().getNodeProps(id)` are not banned as
   concepts. Their current full-state providers are transitional until exact
   reads are backed by bounded shard or fact resolvers.
-- The next branch should stay scoped to the v18 honesty gate. Do not mix it
-  with storage retirement, native Continuum witnesshood, or the broader
-  bounded-memory platform.
+- The next work should stay scoped to the two v18 gates. Do not mix it with
+  native Continuum witnesshood, Echo scheduler parity, or distributed braid
+  semantics.
 
 The completed pivot plan is
 [0261-worldline-optic-public-api-deprecation-prd](design/0261-worldline-optic-public-api-deprecation-prd/worldline-optic-public-api-deprecation-prd.md).
 The active release-blocking closeout plan is
 [0265-v18-optics-public-api-closeout](design/0265-v18-optics-public-api-closeout/v18-optics-public-api-closeout.md).
+The two new gate designs are
+[0266-v18-no-full-materialization-first-use-optics](design/0266-v18-no-full-materialization-first-use-optics/v18-no-full-materialization-first-use-optics.md)
+and
+[0267-v18-bounded-memory-large-graph-product-gate](design/0267-v18-bounded-memory-large-graph-product-gate/v18-bounded-memory-large-graph-product-gate.md).
+
+## Method Tracker Posture
+
+GitHub Issues are now the live Method tracker for this repo. The filesystem
+backlog cards were migrated on 2026-06-01, labeled by source lane, and archived
+as evidence. The migration map is
+[github-issue-migration-2026-06-01.json](method/github-issue-migration-2026-06-01.json).
+
+Current release-blocking issues:
+
+- [#546 No full materialization in first-use Optics](https://github.com/git-stunts/git-warp/issues/546)
+- [#549 Bounded-memory large-graph product gate](https://github.com/git-stunts/git-warp/issues/549)
+- [#547 Optics public API closeout](https://github.com/git-stunts/git-warp/issues/547)
+- [#552 v18 public release blockers](https://github.com/git-stunts/git-warp/issues/552)
 
 ## Where Are We
 
@@ -86,9 +104,10 @@ Current release facts:
 - If `main` moves after `7711bc0a` before tagging, rerun release preflight from
   the exact commit that will receive the `v18.0.0` tag.
 - No `v18.0.0` tag or registry publish evidence is recorded yet.
-- `v18.0.0` is intentionally delayed until `API_optics-public-api-closeout`
-  and `API_no-full-materialization-first-use-optics` merge with release
-  operation evidence.
+- `v18.0.0` is intentionally delayed until `API_optics-public-api-closeout`,
+  `API_no-full-materialization-first-use-optics`, and
+  `PERF_bounded-memory-large-graph-product-gate` close in GitHub Issues with
+  release operation evidence.
 
 Current v18 implementation posture:
 
@@ -110,11 +129,12 @@ Current v18 implementation posture:
   setup path still materializes the full graph. That makes the old
   "branch-local complete" label too strong for a public v18 release gate.
 - Release-candidate evidence accepts the residual raw content/property storage
-  risk and preserves the non-claim that v18 has end-to-end graph streaming.
+  risk, but the previous "no streaming claim" escape hatch is no longer enough:
+  v18 is blocked on bounded-memory conformance for normal public paths.
 
 That is useful progress, not a finish line. Public v18 is not published until
-Optics closeout, the no-full-materialization first-use gate, tag, npm, and JSR
-evidence exist.
+Optics closeout, the no-full-materialization first-use gate, the bounded-memory
+large-graph gate, tag, npm, and JSR evidence exist.
 
 ## What Feels Wrong
 
@@ -141,17 +161,17 @@ evidence exist.
 - Several public surfaces are still full-residency or full-result by shape:
   `materialize()`, `getStateSnapshot()`, `getNodes()`, `getEdges()`, naked
   `toArray()`-style reads, and sync responses that accumulate arrays. They
-  remain compatibility, diagnostic, transitional, or later-product work unless a
-  bounded provider and limit contract exist.
+  remain compatibility, diagnostic, or transitional until bounded providers and
+  limit contracts exist.
 - Content bytes can stream, but content-reference lookup still depends on the
   graph state path. Do not call content streaming large-graph-safe until lookup
   is bounded too.
-- The shipped v17 residual backlog lane is archived under
-  `docs/archive/backlog/v17.0.0-residual-backlog/`; archived notes need an
-  explicit rehome or pull decision before they can block later work.
+- The live backlog has moved to GitHub Issues. Historical backlog cards are
+  archived under `docs/archive/backlog/`; archived notes need a GitHub issue or
+  explicit pull decision before they can block later work.
 - End-to-end bounded-memory graph reads, writes, content lookup, and sync are a
-  later product gate. V18 must keep public docs honest and avoid claiming full
-  graph streaming or arbitrary graph size.
+  v18 release gate. V18 must not ship until the normal public path is proven
+  against a graph larger than git-warp's configured memory pool.
 
 ## Where We Are Heading
 
@@ -159,26 +179,26 @@ The next work should stay split into distinct modes:
 
 1. **Public API product pivot**: make Worldlines and Optics the v18 first-use
    story while deprecating graph/materialize-first public paths. Worldlines are
-   done; coordinate Optics exist but are blocked on the honesty gate below.
+   done; coordinate Optics exist but are blocked on both gates below.
 2. **V18 honesty gate**: classify public APIs by cost, add first-use
    materialization tripwires, remove full materialization from
-   `prepareOpticBasis()` or narrow the public claim, and keep first-use docs on
-   bounded, streaming, or cursor surfaces only.
-3. **Optics public API closeout**: prove public success paths for node and
+   `prepareOpticBasis()`, and keep first-use docs on bounded, streaming, or
+   cursor surfaces only.
+3. **V18 bounded-memory large-graph gate**: add the memory budget, streaming
+   patch and basis substrates, sharded fact indexes, fact-resolver writes,
+   cursorized public reads and sync, bounded content lookup, capability
+   reporting, operator doctor tooling, and bounded-mode legacy rejection needed
+   for large-graph-over-small-pool conformance.
+4. **Optics public API closeout**: prove public success paths for node and
    property optics through `openWarpWorldline(...).coordinate().optic()`,
    document basis setup and recovery, and lock the package/consumer type
-   surface without implying large-graph safety that is not implemented.
-4. **Release operation**: cut and publish `v18.0.0` from aligned `main` only
-   after Optics closeout and the honesty gate.
-5. **Substrate debt**: retire one more raw content/property compatibility
+   surface against the bounded-memory evidence.
+5. **Release operation**: cut and publish `v18.0.0` from aligned `main` only
+   after Optics closeout and both gates.
+6. **Substrate debt**: retire one more raw content/property compatibility
    boundary and ratchet the closeout audit.
-6. **v19 runway**: start native Continuum witnesshood work without backdating a
+7. **v19 runway**: start native Continuum witnesshood work without backdating a
    stronger v18 claim.
-7. **Large-graph product gate**: add memory budgets, streaming patch and basis
-   substrates, sharded fact indexes, fact-resolver writes, cursorized public
-   reads and sync, bounded content lookup, capability reporting, operator
-   doctor tooling, and bounded-mode legacy rejection before claiming arbitrary
-   graph size.
 
 Do not blend these into one ambiguous branch.
 
@@ -188,12 +208,17 @@ Release-operation work is paused behind Optics merge and release evidence:
 
 - [~] Keep `API_optics-public-api-closeout` as branch-local implementation
   evidence, not a release-complete claim, until the first-use basis setup path
-  stops materializing or the public claim is narrowed.
-- [ ] Complete `API_no-full-materialization-first-use-optics`.
+  stops materializing and the bounded-memory gate passes.
+- [ ] Complete [#546](https://github.com/git-stunts/git-warp/issues/546)
+  `API_no-full-materialization-first-use-optics`.
+- [ ] Complete [#549](https://github.com/git-stunts/git-warp/issues/549)
+  `PERF_bounded-memory-large-graph-product-gate`.
 - [ ] Add tripwire evidence for documented first-use Optics paths.
+- [ ] Add large-graph-over-small-pool conformance evidence.
 - [ ] Update first-use docs and public API labels so bounded, streaming,
   cursor, transitional, diagnostic, offline, and legacy surfaces are explicit.
-- [ ] Merge `API_optics-public-api-closeout` to `main`.
+- [ ] Complete [#547](https://github.com/git-stunts/git-warp/issues/547)
+  `API_optics-public-api-closeout` and merge to `main`.
 - [ ] Rerun `npm run release:preflight` from aligned `main` after Optics
   closeout lands.
 - [ ] Cut the signed or annotated `v18.0.0` tag from the release commit after
