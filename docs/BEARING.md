@@ -119,8 +119,9 @@ Optics closeout, tag, npm, and JSR evidence exist.
   multi-read story is now `prepareOpticBasis()`, `coordinate()`, and
   `coordinate.optic()`. Review should check that all docs keep that distinction
   sharp.
-- The v17 backlog lane is no longer an active release plan, but its remaining
-  notes still need item-level archive, rehome, or explicit pull decisions.
+- The shipped v17 residual backlog lane is archived under
+  `docs/method/graveyard/v17.0.0-residual-backlog/`; archived notes need an
+  explicit rehome or pull decision before they can block later work.
 - End-to-end graph streaming reads and writes are a `v20.0.0` goal. V18 must
   keep public docs honest and avoid claiming full graph streaming.
 

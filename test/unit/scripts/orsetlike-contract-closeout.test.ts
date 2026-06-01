@@ -29,7 +29,7 @@ describe('ORSetLike contract closeout', () => {
   it('removes the invalid live v17 card', () => {
     expect(existsSync(join(
       repoRoot,
-      'docs/method/backlog/v17.0.0/PROTO_orsetlike-contract.md',
+      'docs/method/graveyard/v17.0.0-residual-backlog/PROTO_orsetlike-contract.md',
     ))).toBe(false);
   });
 
@@ -42,7 +42,7 @@ describe('ORSetLike contract closeout', () => {
   });
 
   it('removes ORSetLike as a live extraction dependency', () => {
-    const extraction = readRepoFile('docs/method/backlog/v17.0.0/INFRA_extract-warp-orset-package-post-publish.md');
+    const extraction = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/INFRA_extract-warp-orset-package-post-publish.md');
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
     const workloads = readRepoFile('docs/method/backlog/WORKLOADS.md');
 

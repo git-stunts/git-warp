@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const factoryNotePath = join(
   process.cwd(),
-  'docs/method/backlog/v17.0.0/API_warpgraph-factory.md',
+  'docs/method/graveyard/v17.0.0-residual-backlog/API_warpgraph-factory.md',
 );
 const barrel = readFileSync(join(process.cwd(), 'index.ts'), 'utf8');
 const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf8');

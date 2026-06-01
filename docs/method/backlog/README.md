@@ -3,7 +3,10 @@
 This README is the canonical dependency map for the repo-visible
 backlog.
 
-Parallel agent staffing lives in [WORKLOADS.md](WORKLOADS.md).
+The previous parallel-agent workload partition is retired in
+[WORKLOADS.md](WORKLOADS.md) because it still scheduled shipped v17
+residual work. Regenerate it from this dependency map before using it
+for staffing.
 
 It exists because the METHOD MCP surface is currently inconsistent on
 this repo: `method_doctor` recognizes the workspace and returns
@@ -20,26 +23,25 @@ such as `README.md`, `SCORECARD.md`, `WORKLOADS.md`, and
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 488 |
+| Live backlog items | 450 |
 | Root backlog items | 33 |
 | `asap/` | 0 |
 | `bad-code/` | 244 |
 | `cool-ideas/` | 108 |
 | `inbox/` | 5 |
 | `up-next/` | 36 |
-| `v17.0.0/` | 38 |
 | `v18.0.0/` | 6 |
 | `v19.0.0/` | 11 |
 | `v20.0.0/` | 3 |
 | `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 488 |
+| Items with YAML frontmatter | 450 |
 | Items without YAML frontmatter | 0 |
-| Items with explicit `id` | 488 |
-| Items declaring dependency fields | 488 |
-| Items with explicit `feature` | 483 |
+| Items with explicit `id` | 450 |
+| Items declaring dependency fields | 450 |
+| Items with explicit `feature` | 445 |
 | Distinct explicit feature values | 17 |
 | `bad-code/` items with explicit `release_home` | 244 |
-| Items with non-empty explicit dependency edges | 60 |
+| Items with non-empty explicit dependency edges | 39 |
 
 ## Dependency Law
 
@@ -87,8 +89,7 @@ The current cleanup pass stamps `feature:` onto:
 - `bad-code/` notes
 - `cool-ideas/` notes
 - `up-next/` notes
-- all numbered release-lane notes in `v17.0.0/`, `v18.0.0/`, and
-  `v19.0.0/`
+- all numbered release-lane notes in `v18.0.0/` and `v19.0.0/`
 - selected numbered-lane trunk notes in later lanes where cross-feature
   seams are already real
 - `inbox/` remains intentionally unscoped until triage or promotion
@@ -120,6 +121,11 @@ Use `release_home` to answer "what debt must this release actually
 burn down?" without dumping debt notes wholesale into numbered release
 lanes.
 
+`release_home: v17.0.0` on bad-code notes is now historical debt
+metadata, not a live v17 release lane. Rehome or archive those debt
+notes through [bad-code/RELEASE_TRIAGE.md](bad-code/RELEASE_TRIAGE.md)
+before treating them as blockers for a later major.
+
 ### Dependency Bands
 
 | Band | Scope | Meaning | May Be Blocked By |
@@ -127,9 +133,9 @@ lanes.
 | `B0` | `inbox/` | Raw capture. No commitment, no scheduling, no downstream guarantees. | Triage only. |
 | `B1` | backlog root | Unlaned maintenance and reference work. Needs classification or direct pull before it should block committed work. | `B0` or direct human pull. |
 | `B2` | `bad-code/` | Foundational debt and invariant repair. This lane can legitimately block release or execution work. | `B0`, `B1`, or lower-level debt in `B2`. |
-| `B3` | `v17.0.0/` | Shipped release residual work. Explicit per-note edges win here, but notes must be rehomed before blocking later majors. | `B2`, same-band work, or explicit edges. |
-| `B4` | `v18.0.0/`, `up-next/` | Next-major graph-model work plus unslotted near-term feature overflow after the active release. | `B2`, `B3`, or explicit same-band edges. |
-| `B5` | `v19.0.0/` | Doctrine/runtime follow-through after the substrate cut. | `B2`, `B3`, `B4`, or explicit same-band edges. |
+| `B3` | archived `v17.0.0/` | Retired shipped-release residual lane. No live backlog notes live here. | Explicit rehome or pull decision only. |
+| `B4` | `v18.0.0/`, `up-next/` | Next-major graph-model work plus unslotted near-term feature overflow after the active release. | `B2` or explicit same-band edges. |
+| `B5` | `v19.0.0/` | Doctrine/runtime follow-through after the substrate cut. | `B2`, `B4`, or explicit same-band edges. |
 | `B6` | `v20.0.0/`, `v21.0.0/`, `cool-ideas/` | Far-horizon slice-first/runtime and distributed/plural follow-through plus speculative orbit. | Promotion into another lane or completion of lower numbered bands. |
 
 ### Lane Contracts
@@ -138,8 +144,8 @@ lanes.
 |------|------|----------|
 | `inbox/` | `B0` | Anything here is blocked on triage, not implementation. |
 | backlog root | `B1` | These notes are real work, but still need lane assignment or an explicit pull decision. When `feature:` is present, treat that as the subsystem home while release-home remains undecided. |
-| `bad-code/` | `B2` | Invariant debt can block `v17.0.0`, `v18.0.0`, and `up-next`. |
-| `v17.0.0/` | `B3` | This is shipped release residual work after the public `v17.0.0` package/tag line and source-recorded `17.0.1` repair work; rehome notes before treating them as blockers. |
+| `bad-code/` | `B2` | Invariant debt can block `v18.0.0`, `up-next`, or later lanes when the note touches the same invariant. |
+| archived `v17.0.0/` | `B3` | The shipped residual lane is archived at `docs/method/graveyard/v17.0.0-residual-backlog/`; it is not live backlog. |
 | `v18.0.0/` | `B4` | This is the next-major graph-model convergence lane. |
 | `up-next/` | `B4` | Feature-overflow queue behind the active release and next-major graph-model work unless explicitly promoted into a numbered lane. |
 | `v19.0.0/` | `B5` | Doctrine, observer, and admission convergence after the substrate cut. |
@@ -166,11 +172,11 @@ justifies a stronger sequencing rule.
 
 Current explicit-graph totals:
 
-- `487` notes define an `id`
-- `487` notes declare `blocks` and `blocked_by` fields
-- `482` notes currently declare an explicit `feature`
+- `450` notes define an `id`
+- `450` notes declare `blocks` and `blocked_by` fields
+- `445` notes currently declare an explicit `feature`
 - `244` `bad-code/` notes currently declare an explicit `release_home`
-- `59` notes currently name at least one non-empty upstream or
+- `39` notes currently name at least one non-empty upstream or
   downstream edge
 
 Most notes still rely on empty dependency arrays plus lane inheritance.
@@ -246,7 +252,7 @@ Items:
 
 Dependency posture:
 
-- may legitimately block `v17.0.0/`, `v18.0.0/`, and `up-next/`
+- may legitimately block `v18.0.0/`, `up-next/`, and later release lanes
 - should be treated as prerequisite work when a release note touches the
   same invariant
 
@@ -273,42 +279,24 @@ Invariant counts:
 | `SPEC` | 119 |
 | `SUB` | 15 |
 
-### `v17.0.0/` — `B3` Shipped Release Residual Work
+### Archived `v17.0.0/` — `B3`
 
 Dependency posture:
 
-- explicit frontmatter edges override lane inheritance
-- public `v17.0.0` has shipped; `17.0.1` repair work is recorded in source
-  docs/changelog without public npm/tag evidence
-- notes in this lane need archive, rehome, or explicit pull decisions before
-  they block later release work
-
-Canonical lane readme:
-
-- [v17.0.0/README.md](v17.0.0/README.md)
-- Historical release ledger:
+- no live backlog notes live in `B3`
+- the shipped residual lane is preserved at
+  [../graveyard/v17.0.0-residual-backlog/README.md](../graveyard/v17.0.0-residual-backlog/README.md)
+- the historical release ledger remains at
   [../../releases/v17.0.0/README.md](../../releases/v17.0.0/README.md)
-
-Prefix counts:
-
-| Prefix | Count |
-|--------|------:|
-| `API` | 2 |
-| `CLI` | 2 |
-| `DX` | 7 |
-| `GOD` | 3 |
-| `INFRA` | 7 |
-| `MCP` | 1 |
-| `PORT` | 1 |
-| `PROTO` | 3 |
-| `SLUDGE` | 1 |
-| `TS` | 11 |
+- archived notes must be rehomed into an active lane before they can block
+  `v18.0.0` or later work
 
 ### `v18.0.0/` — `B4` Graph-Model Convergence
 
 Dependency posture:
 
-- downstream of `v17.0.0/`
+- downstream of active bad-code invariant debt and explicit graph-model
+  blockers
 - explicit frontmatter edges carry the actual substrate cut order
 - this lane is the Continuum-compatible graph-model cut pressure-tested against
   Echo, not full repo parity or runtime hierarchy
@@ -398,8 +386,8 @@ Dependency posture:
 
 - queue for notes that still need an explicit release home
 - can be promoted into numbered release lanes once a note stops hand-waving
-- can still be unblocked by `bad-code/` paydown, `v17.0.0/` completion, or
-  selective promotion into `v18.0.0/` through `v21.0.0/`
+- can still be unblocked by `bad-code/` paydown or selective promotion into
+  `v18.0.0/` through `v21.0.0/`
 
 Prefix counts:
 
@@ -445,8 +433,9 @@ today, but it also makes the cleanup sequence clear:
 
 1. Normalize frontmatter on `inbox/`, backlog-root notes, and any new
    release-lane promotions.
-2. Keep `v18.0.0/` as the most explicit hand-authored dependency graph and
-   triage `v17.0.0/` residual notes before they block later work.
+2. Keep `v18.0.0/` as the most explicit hand-authored dependency graph.
+   Archived v17 residual notes need an explicit rehome or pull decision before
+   they block later work.
 3. Add `id` fields to `bad-code/` in invariant bundles instead of one
    giant sweep.
 4. Promote `up-next/` notes into numbered release lanes as soon as they name

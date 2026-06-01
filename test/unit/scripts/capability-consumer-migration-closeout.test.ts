@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const migrationNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/API_migrate-consumers-to-capabilities.md'),
+  join(process.cwd(), 'docs/method/graveyard/v17.0.0-residual-backlog/API_migrate-consumers-to-capabilities.md'),
   'utf8',
 );
 const runtimeKillCycle = readFileSync(

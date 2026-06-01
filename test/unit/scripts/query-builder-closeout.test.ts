@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const queryBuilderNotePath = join(
   process.cwd(),
-  'docs/method/backlog/v17.0.0/GOD_query-builder.md',
+  'docs/method/graveyard/v17.0.0-residual-backlog/GOD_query-builder.md',
 );
 const workloads = readFileSync(
   join(process.cwd(), 'docs/method/backlog/WORKLOADS.md'),

@@ -13,7 +13,7 @@ describe('uniform git-cas closeout', () => {
   it('removes the stale live v17 card', () => {
     expect(existsSync(join(
       repoRoot,
-      'docs/method/backlog/v17.0.0/INFRA_uniform-git-cas.md',
+      'docs/method/graveyard/v17.0.0-residual-backlog/INFRA_uniform-git-cas.md',
     ))).toBe(false);
   });
 
@@ -69,7 +69,7 @@ describe('uniform git-cas closeout', () => {
     const packageJson = readRepoFile('package.json');
     const design = readRepoFile('docs/design/0092-close-uniform-git-cas.md');
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
-    const upgradeTool = readRepoFile('docs/method/backlog/v17.0.0/INFRA_substrate-upgrade-tool.md');
+    const upgradeTool = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/INFRA_substrate-upgrade-tool.md');
     const upgradeEntrypoint = readRepoFile('scripts/upgrade-v16-to-v17.ts');
     const migrationHelper = readRepoFile('scripts/migrations/v17.0.0/migrate.ts');
 
@@ -87,13 +87,17 @@ describe('uniform git-cas closeout', () => {
   });
 
   it('tracks broader adapter parity as a split successor', () => {
-    const backlogReadme = readRepoFile('docs/method/backlog/WORKLOADS.md');
+    const workloads = readRepoFile('docs/method/backlog/WORKLOADS.md');
+    const archivedWorkloads = readRepoFile(
+      'docs/method/graveyard/backlog-workloads-v17-era.md',
+    );
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
-    const successor = readRepoFile('docs/method/backlog/v17.0.0/INFRA_git-cas-adapter-parity.md');
+    const successor = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/INFRA_git-cas-adapter-parity.md');
 
-    expect(backlogReadme).not.toContain('INFRA_uniform-git-cas');
-    expect(backlogReadme).not.toContain('INFRA_unify-persistence-on-git-cas');
-    expect(backlogReadme).toContain('INFRA_git-cas-adapter-parity');
+    expect(workloads).not.toContain('INFRA_uniform-git-cas');
+    expect(workloads).not.toContain('INFRA_unify-persistence-on-git-cas');
+    expect(workloads).not.toContain('INFRA_git-cas-adapter-parity');
+    expect(archivedWorkloads).toContain('INFRA_git-cas-adapter-parity');
     expect(releaseLedger).toContain('INFRA_unify-persistence-on-git-cas');
     expect(releaseLedger).toContain('[x] INFRA_git-cas-adapter-parity');
     expect(successor).toContain('GitPersistenceAdapter.readBlobStream()');

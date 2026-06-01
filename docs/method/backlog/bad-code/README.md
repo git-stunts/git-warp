@@ -28,6 +28,10 @@ Release-fit triage is tracked in
 [RELEASE_TRIAGE.md](RELEASE_TRIAGE.md). Use that note before rewriting
 card metadata or promoting bad-code into a release lane.
 
+`v17.0.0` in this table is historical release-home metadata, not a live
+`v17.0.0/` backlog lane. The shipped v17 residual lane is archived under
+`docs/method/graveyard/v17.0.0-residual-backlog/`.
+
 | Release Home | Count |
 |--------------|------:|
 | `v17.0.0` | 195 |

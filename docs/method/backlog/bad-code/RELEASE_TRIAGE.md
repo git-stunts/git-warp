@@ -7,6 +7,11 @@ The card-level `release_home` field is still the machine-readable
 metadata. This document is the human triage layer to use before future
 metadata cleanup passes.
 
+The shipped `v17.0.0` residual backlog lane is archived under
+`docs/method/graveyard/v17.0.0-residual-backlog/`. Entries with
+`release_home: v17.0.0` below are historical debt slotting, not a live
+v17 release lane.
+
 ## Current Metadata Snapshot
 
 After the first metadata cleanup pass:
@@ -201,9 +206,9 @@ The first metadata pass did this:
    or a recheck decision. The `+` bucket is no longer useful.
 2. Moved `SUB_querybuilder-match-full-scan` from `v19.0.0` to
    `v20.0.0`.
-3. Pulled the direct `WarpRuntime`/Worldline escape-hatch cards forward
-   into v17 or graveyard them if the current runtime-deletion line
-   already removed the smell.
+3. Marked direct `WarpRuntime`/Worldline escape-hatch cards for v17-era
+   recheck or graveyard if the runtime-deletion line already removed
+   the smell.
 4. Promoted only graph-model cards into v18. Do not move generic
    typedef cleanup there just because v18 has room.
 5. Recomputed bad-code release counts from frontmatter and updated
@@ -215,8 +220,10 @@ Do not burn the bad-code lane linearly.
 
 Use feature/release overlap:
 
-1. During the v17 burndown, pay down or graveyard bad-code cards that
-   sit in the files already touched by the active v17 task.
+1. For cards still marked `release_home: v17.0.0`, recheck the current
+   code path before treating them as blockers. Archive cards whose smell
+   disappeared; rehome surviving debt to the release that now owns the
+   affected boundary.
 2. At the v18 pull, move only the graph-model candidates listed
    above into the v18 lane and leave unrelated cleanup behind.
 3. At the v19 pull, resolve admission/trust/audit cards as part of the

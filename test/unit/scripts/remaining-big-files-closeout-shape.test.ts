@@ -24,12 +24,12 @@ describe('remaining-big-files closeout', () => {
   it('removes the stale live note and dead workload item', () => {
     const workloads = readRepoFile('docs/method/backlog/WORKLOADS.md');
 
-    expect(existsSync(`${repoRoot}docs/method/backlog/v17.0.0/GOD_remaining-big-files.md`)).toBe(false);
+    expect(existsSync(`${repoRoot}docs/method/graveyard/v17.0.0-residual-backlog/GOD_remaining-big-files.md`)).toBe(false);
     expect(workloads).not.toContain('GOD_remaining-big-files');
   });
 
   it('drops the dead god from downstream blocker lists', () => {
-    const apiMigrate = readRepoFile('docs/method/backlog/v17.0.0/API_migrate-consumers-to-capabilities.md');
+    const apiMigrate = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/API_migrate-consumers-to-capabilities.md');
     const sharedProviderCycle = readRepoFile('docs/design/0085-close-shared-provider-interfaces.md');
 
     expect(apiMigrate).not.toContain('GOD_remaining-big-files');
@@ -38,8 +38,8 @@ describe('remaining-big-files closeout', () => {
   });
 
   it('updates the historical wave and scorecard surfaces to current repo truth', () => {
-    const wave = readRepoFile('docs/method/backlog/v17.0.0/TS_wave-09-gods-and-monsters.md');
-    const scorecard = readRepoFile('docs/method/backlog/v17.0.0/SCORECARD.md');
+    const wave = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/TS_wave-09-gods-and-monsters.md');
+    const scorecard = readRepoFile('docs/method/graveyard/v17.0.0-residual-backlog/SCORECARD.md');
 
     expect(wave).toContain('VisibleStateComparison.ts | 172');
     expect(wave).toContain('AuditVerifierService.ts | 136');
