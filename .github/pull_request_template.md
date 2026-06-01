@@ -2,6 +2,10 @@
 
 <!-- 1-3 bullet points describing the change -->
 
+## Issue
+
+<!-- Required: reference at least one same-repository GitHub Issue, e.g. Fixes #123 or Refs #123. Pull request references do not satisfy this gate. -->
+
 ## Test plan
 
 <!-- How was this tested? -->

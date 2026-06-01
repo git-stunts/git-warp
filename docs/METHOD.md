@@ -89,11 +89,11 @@ Deeper than that, it is not a signpost.
 METHOD expects a few bounded repo-level signposts. They summarize the
 state of the repo; they do not create commitments.
 
-| Signpost | Role |
-|----------|------|
-| `README.md` | The operating doctrine and filesystem shape. |
+| Signpost          | Role                                                                     |
+| ----------------- | ------------------------------------------------------------------------ |
+| `README.md`       | The operating doctrine and filesystem shape.                             |
 | `docs/BEARING.md` | Current direction, last shipped cycle, and tensions at cycle boundaries. |
-| `docs/VISION.md` | A bounded executive synthesis grounded in repo-visible sources. |
+| `docs/VISION.md`  | A bounded executive synthesis grounded in repo-visible sources.          |
 
 Generated signposts should carry generation metadata and a source
 manifest. Unless they say otherwise explicitly, they are making
@@ -116,15 +116,15 @@ issue body or comments when origin or timing matters.
 
 ### Lanes
 
-| Label | Purpose |
-|------|---------|
-| `lane:inbox` | Unprocessed intake. |
-| `lane:asap` | Pull into a cycle soon. |
-| `lane:up-next` | Next in line. |
-| `lane:cool-ideas` | Not committed work. |
-| `lane:bad-code` | Debt, rot, or structural risk. |
-| `lane:backlog-root` | Migrated unlaned work that needs classification. |
-| `lane:v18.0.0` and similar | Release-scoped work for the named lane. |
+| Label                      | Purpose                                          |
+| -------------------------- | ------------------------------------------------ |
+| `lane:inbox`               | Unprocessed intake.                              |
+| `lane:asap`                | Pull into a cycle soon.                          |
+| `lane:up-next`             | Next in line.                                    |
+| `lane:cool-ideas`          | Not committed work.                              |
+| `lane:bad-code`            | Debt, rot, or structural risk.                   |
+| `lane:backlog-root`        | Migrated unlaned work that needs classification. |
+| `lane:v18.0.0` and similar | Release-scoped work for the named lane.          |
 
 Numbered release lanes may also use release milestones or a broad
 `lane:release` label, but the exact source lane label remains useful for
@@ -156,6 +156,13 @@ GitHub issue -> docs/design/<cycle>/<task>.md
 
 The issue is labeled `work-in-progress` and linked from the design doc. Work
 does not silently fall back into the queue.
+
+### Pull Requests
+
+Every pull request must reference at least one same-repository GitHub Issue in
+its title or body. References to pull requests do not count. The accepted forms
+are `#123`, `GH-123`, `git-stunts/git-warp#123`, and
+`https://github.com/git-stunts/git-warp/issues/123`.
 
 ### Commitment
 
@@ -250,7 +257,6 @@ in one sentence, the cycle is too big. Split it.
    from `docs/design/<cycle>/`. You are now committed.
 
 1. **Design** - write a design doc. Required sections:
-
    - Sponsor human
    - Sponsor agent
    - Hill (one sentence)
@@ -281,7 +287,6 @@ in one sentence, the cycle is too big. Split it.
    too.
 
 5. **Close** - write the retro and witness packet on the branch.
-
    - Drift check (mandatory). Undocumented drift is the only true
      failure mode.
    - New debt to GitHub Issues labeled `lane:bad-code`.
@@ -430,10 +435,10 @@ pull time. Coordination is reading the filesystem. That is enough.
 
 ## Naming
 
-| Convention | Example | When |
-|------------|---------|------|
-| `ALL_CAPS.md` | `VISION.md`, `BEARING.md` | Signpost - root or `docs/` |
-| `lowercase.md` | `doctrine.md` | Everything else |
-| `<LEGEND>_<name>.md` | `CC_raw-error-purge.md` | Backlog with legend |
-| `<name>.md` | `debt-trailer-codec.md` | Backlog without legend |
-| `<cycle>/` | `0010-strand-speculation/` | Cycle directory |
+| Convention           | Example                    | When                       |
+| -------------------- | -------------------------- | -------------------------- |
+| `ALL_CAPS.md`        | `VISION.md`, `BEARING.md`  | Signpost - root or `docs/` |
+| `lowercase.md`       | `doctrine.md`              | Everything else            |
+| `<LEGEND>_<name>.md` | `CC_raw-error-purge.md`    | Backlog with legend        |
+| `<name>.md`          | `debt-trailer-codec.md`    | Backlog without legend     |
+| `<cycle>/`           | `0010-strand-speculation/` | Cycle directory            |
