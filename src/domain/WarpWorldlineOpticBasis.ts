@@ -20,11 +20,11 @@ export default class WarpWorldlineOpticBasis {
 }
 
 function assertNonEmpty(value: string, field: string): void {
-  if (typeof value !== 'string' || value.length === 0) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
     throw new WarpError(
       'WarpWorldline optic basis requires non-empty identity fields',
       'E_WARP_WORLDLINE_OPTIC_BASIS',
-      { context: { field } },
+      { context: { field } }
     );
   }
 }
