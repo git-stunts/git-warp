@@ -23,25 +23,25 @@ such as `README.md`, `SCORECARD.md`, `WORKLOADS.md`, and
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 450 |
-| Root backlog items | 33 |
+| Live backlog items | 458 |
+| Root backlog items | 34 |
 | `asap/` | 0 |
 | `bad-code/` | 244 |
 | `cool-ideas/` | 108 |
 | `inbox/` | 5 |
-| `up-next/` | 36 |
+| `up-next/` | 43 |
 | `v18.0.0/` | 6 |
 | `v19.0.0/` | 11 |
 | `v20.0.0/` | 3 |
 | `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 450 |
+| Items with YAML frontmatter | 458 |
 | Items without YAML frontmatter | 0 |
-| Items with explicit `id` | 450 |
-| Items declaring dependency fields | 450 |
-| Items with explicit `feature` | 445 |
+| Items with explicit `id` | 458 |
+| Items declaring dependency fields | 458 |
+| Items with explicit `feature` | 453 |
 | Distinct explicit feature values | 17 |
 | `bad-code/` items with explicit `release_home` | 244 |
-| Items with non-empty explicit dependency edges | 37 |
+| Items with non-empty explicit dependency edges | 41 |
 
 ## Dependency Law
 
@@ -172,11 +172,11 @@ justifies a stronger sequencing rule.
 
 Current explicit-graph totals:
 
-- `450` notes define an `id`
-- `450` notes declare `blocks` and `blocked_by` fields
-- `445` notes currently declare an explicit `feature`
+- `458` notes define an `id`
+- `458` notes declare `blocks` and `blocked_by` fields
+- `453` notes currently declare an explicit `feature`
 - `244` `bad-code/` notes currently declare an explicit `release_home`
-- `37` notes currently name at least one non-empty upstream or
+- `41` notes currently name at least one non-empty upstream or
   downstream edge
 
 Most notes still rely on empty dependency arrays plus lane inheritance.
@@ -227,6 +227,7 @@ Items:
 - [DX_pr-ready-merge-cli.md](DX_pr-ready-merge-cli.md)
 - [DX_public-api-catalog-playground.md](DX_public-api-catalog-playground.md)
 - [DX_pure-typescript-example-app.md](DX_pure-typescript-example-app.md)
+- [DX_readonly-receipts-docs.md](DX_readonly-receipts-docs.md)
 - [DX_readme-install-section.md](DX_readme-install-section.md)
 - [DX_review-bot-warning-policy.md](DX_review-bot-warning-policy.md)
 - [DX_rfc-field-count-drift-detector.md](DX_rfc-field-count-drift-detector.md)
@@ -394,8 +395,10 @@ Prefix counts:
 | Prefix | Count |
 |--------|------:|
 | `CC` | 1 |
+| `CLI` | 1 |
 | `DX` | 10 |
-| `INFRA` | 2 |
+| `INFRA` | 7 |
+| `MCP` | 1 |
 | `NDNM` | 4 |
 | `PERF` | 4 |
 | `PROTO` | 13 |

@@ -19,6 +19,10 @@ completed-source cards, deferred future possibilities, and stale v17 launch
 tails. Treat each note as source material that needs a current read before
 reuse.
 
+The current triage is recorded in [TRIAGE.md](TRIAGE.md). It lists the archived
+cards that were rehomed into active backlog successors and the cards that remain
+archive-only.
+
 ## Scope
 
 `v17.0.0` is limited to:
