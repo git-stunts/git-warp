@@ -27,17 +27,19 @@ class CoordinateSelector extends WorldlineSelector {
   constructor(
     frontier: Map<string, string> | Record<string, string>,
     ceiling?: number | null,
-    checkpointSha?: string | null,
+    checkpointSha?: string | null
   ) {
     super();
 
     if (frontier === null || frontier === undefined || typeof frontier !== 'object') {
-      throw new QueryError('frontier must be a Map or plain object', { code: 'E_SELECTOR_INVALID' });
+      throw new QueryError('frontier must be a Map or plain object', {
+        code: 'E_SELECTOR_INVALID',
+      });
     }
 
-    this.#frontier = frontier instanceof Map
-      ? new Map(frontier)
-      : new Map(Object.entries(frontier));
+    this.#frontier = copyFrontier(
+      frontier instanceof Map ? frontier : new Map(Object.entries(frontier))
+    );
 
     this.ceiling = validateCeiling(ceiling);
     this.checkpointSha = validateCheckpointSha(checkpointSha);
@@ -77,6 +79,26 @@ class CoordinateSelector extends WorldlineSelector {
 }
 
 WorldlineSelector._register('coordinate', CoordinateSelector);
+
+function copyFrontier(frontier: Map<string, string>): Map<string, string> {
+  const copy = new Map<string, string>();
+
+  for (const [writerId, patchSha] of frontier) {
+    validateFrontierIdentity(writerId, 'frontier writerId');
+    validateFrontierIdentity(patchSha, 'frontier patchSha');
+    copy.set(writerId, patchSha);
+  }
+
+  return copy;
+}
+
+function validateFrontierIdentity(value: string, field: string): void {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new QueryError(`${field} must be a non-empty string`, {
+      code: 'E_SELECTOR_INVALID',
+    });
+  }
+}
 
 function validateCheckpointSha(checkpointSha: string | null | undefined): string | null {
   if (checkpointSha === undefined || checkpointSha === null) {

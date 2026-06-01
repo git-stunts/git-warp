@@ -43,7 +43,7 @@ describe('LiveSelector', () => {
   });
 
   it('rejects string ceiling', () => {
-    expect(() => new LiveSelector(('42' as any))).toThrow(QueryError);
+    expect(() => new LiveSelector('42' as any)).toThrow(QueryError);
   });
 
   it('is frozen', () => {
@@ -90,7 +90,10 @@ describe('CoordinateSelector', () => {
   });
 
   it('accepts Map frontier', () => {
-    const frontier = new Map([['alice', 'abc'], ['bob', 'def']]);
+    const frontier = new Map([
+      ['alice', 'abc'],
+      ['bob', 'def'],
+    ]);
     const sel = new CoordinateSelector(frontier);
     expect(sel.frontier).toEqual(frontier);
   });
@@ -123,11 +126,27 @@ describe('CoordinateSelector', () => {
   });
 
   it('rejects null frontier', () => {
-    expect(() => new CoordinateSelector((null as any))).toThrow(QueryError);
+    expect(() => new CoordinateSelector(null as any)).toThrow(QueryError);
   });
 
   it('rejects non-object frontier', () => {
-    expect(() => new CoordinateSelector(('bad' as any))).toThrow(QueryError);
+    expect(() => new CoordinateSelector('bad' as any)).toThrow(QueryError);
+  });
+
+  it('rejects malformed frontier entries', () => {
+    expect(() => new CoordinateSelector(new Map([['', 'patch-sha']]))).toThrow(QueryError);
+    expect(() => new CoordinateSelector(new Map([['writer-1', '   ']]))).toThrow(QueryError);
+    expect(
+      () =>
+        new CoordinateSelector({
+          '   ': 'patch-sha',
+        })
+    ).toThrow(QueryError);
+    expect(
+      () =>
+        // @ts-expect-error exercising runtime validation for JavaScript callers
+        new CoordinateSelector(new Map([['writer-1', 42]]))
+    ).toThrow(QueryError);
   });
 
   it('rejects negative ceiling', () => {
@@ -212,11 +231,11 @@ describe('StrandSelector', () => {
   });
 
   it('rejects non-string strandId', () => {
-    expect(() => new StrandSelector((123 as any))).toThrow(QueryError);
+    expect(() => new StrandSelector(123 as any)).toThrow(QueryError);
   });
 
   it('rejects null strandId', () => {
-    expect(() => new StrandSelector((null as any))).toThrow(QueryError);
+    expect(() => new StrandSelector(null as any)).toThrow(QueryError);
   });
 
   it('rejects negative ceiling', () => {
@@ -256,14 +275,14 @@ describe('WorldlineSelector.from()', () => {
   it('converts { kind: "live" } to LiveSelector', () => {
     const sel = WorldlineSelector.from({ kind: 'live' });
     expect(sel).toBeInstanceOf(LiveSelector);
-    const live = (sel);
+    const live = sel;
     expect((live as any).ceiling).toBe(null);
   });
 
   it('converts { kind: "live", ceiling: 42 } to LiveSelector', () => {
     const sel = WorldlineSelector.from({ kind: 'live', ceiling: 42 });
     expect(sel).toBeInstanceOf(LiveSelector);
-    const live = (sel);
+    const live = sel;
     expect((live as any).ceiling).toBe(42);
   });
 
@@ -274,7 +293,7 @@ describe('WorldlineSelector.from()', () => {
       ceiling: null,
     });
     expect(sel).toBeInstanceOf(CoordinateSelector);
-    const coord = (sel);
+    const coord = sel;
     expect((coord as any).frontier.get('alice')).toBe('abc');
   });
 
@@ -284,7 +303,7 @@ describe('WorldlineSelector.from()', () => {
       frontier: { alice: 'abc' },
     });
     expect(sel).toBeInstanceOf(CoordinateSelector);
-    const coord = (sel);
+    const coord = sel;
     expect((coord as any).frontier).toBeInstanceOf(Map);
   });
 
@@ -295,7 +314,7 @@ describe('WorldlineSelector.from()', () => {
       ceiling: 10,
     });
     expect(sel).toBeInstanceOf(StrandSelector);
-    const strand = (sel);
+    const strand = sel;
     expect((strand as any).strandId).toBe('strand-abc');
     expect((strand as any).ceiling).toBe(10);
   });
@@ -303,7 +322,7 @@ describe('WorldlineSelector.from()', () => {
   it('converts null to LiveSelector', () => {
     const sel = WorldlineSelector.from(null);
     expect(sel).toBeInstanceOf(LiveSelector);
-    const live = (sel);
+    const live = sel;
     expect((live as any).ceiling).toBe(null);
   });
 
@@ -321,7 +340,7 @@ describe('WorldlineSelector.from()', () => {
     expect(Object.isFrozen(sel)).toBe(true);
     const result = WorldlineSelector.from(sel);
     expect(result).toBe(sel);
-    const live = (result);
+    const live = result;
     expect((live as any).ceiling).toBe(42);
   });
 
