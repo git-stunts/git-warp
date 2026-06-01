@@ -5,7 +5,6 @@
  * @module domain/types/ops/propHelpers
  */
 
-import { lwwSet, lwwMax } from '../../crdt/LWW.ts';
 import type { EventId } from '../../utils/EventId.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type { PatchDiff } from '../PatchDiff.ts';
@@ -19,16 +18,12 @@ export function mutateProp(
   eventId: EventId,
   value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): void {
-  const current = state.prop.get(propKey);
-  const winner = lwwMax(current, lwwSet(eventId, value as PropValue));
-  if (winner !== null) {
-    state.prop.set(propKey, winner);
-  }
+  state.mutatePropLWW(propKey, eventId, value as PropValue);
 }
 
 /** Pre-op snapshot for a property register. */
 export function snapshotProp(state: WarpState, propKey: string): SnapshotBeforeOp {
-  const reg = state.prop.get(propKey);
+  const reg = state.getEncodedProp(propKey);
   return { prevPropValue: reg !== undefined ? reg.value : undefined, propKey };
 }
 
@@ -40,7 +35,7 @@ export function accumulatePropDiff(
   key: string,
   before: SnapshotBeforeOp,
 ): void {
-  const reg = before.propKey !== undefined ? state.prop.get(before.propKey) : undefined;
+  const reg = before.propKey !== undefined ? state.getEncodedProp(before.propKey) : undefined;
   const newVal = reg !== undefined ? reg.value : undefined;
   if (newVal !== before.prevPropValue) {
     diff.propsChanged.push({

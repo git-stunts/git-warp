@@ -40,7 +40,7 @@ export default class NodePropSet extends Op<'NodePropSet'> {
   }
 
   outcome(state: WarpState, eventId: EventId): OpOutcomeResult {
-    return ReceiptBuilder.propSetOutcome(state.prop, { node: this.node, key: this.key }, eventId);
+    return ReceiptBuilder.propSetOutcome(state, { node: this.node, key: this.key }, eventId);
   }
 
   snapshot(state: WarpState): SnapshotBeforeOp {

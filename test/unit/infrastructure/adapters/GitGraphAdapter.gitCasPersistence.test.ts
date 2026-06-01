@@ -130,7 +130,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
     const recursiveTreeReader = readRepoFile('src/infrastructure/adapters/GitRecursiveTreeOidReaderAdapter.ts');
     const successorCard = join(
       repoRoot,
-      'docs/method/backlog/v17.0.0/INFRA_git-cas-adapter-parity.md',
+      'docs/archive/backlog/v17.0.0-residual-backlog/INFRA_git-cas-adapter-parity.md',
     );
 
     expect(adapter).toContain("import { GitPersistenceAdapter } from '@git-stunts/git-cas'");

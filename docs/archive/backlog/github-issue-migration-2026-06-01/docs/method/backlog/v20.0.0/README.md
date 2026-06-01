@@ -24,9 +24,11 @@ Rule:
 
 - `v20` is where slice-first runtime behavior becomes ordinary execution
   instead of doctrine-only language
-- end-to-end graph streaming reads and writes are a `v20` runtime-realization
-  goal, not a `v18` graph-substrate release claim
-- v19 must settle bounded support, causal-index, and support-fragment
-  contracts before v20 can honestly claim end-to-end graph streaming
+- v18 now owns the bounded-memory product gate for normal public reads, writes,
+  content lookup, and sync
+- `v20` keeps the broader slice-first runtime realization work that remains
+  after the v18 public-path gate
+- v19 must settle observer/runtime doctrine that is not required to prove the
+  v18 bounded public paths
 - keep distributed/plural semantics that still require a settled slice-first
   runtime in `v21.0.0/`

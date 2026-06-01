@@ -1,6 +1,5 @@
 import type { CheckpointCommitMessage } from '../../../ports/CommitMessageCodecPort.ts';
 import QueryError from '../../errors/QueryError.ts';
-import { buildCheckpointRef } from '../../utils/RefLayout.ts';
 import { textDecode, textEncode } from '../../utils/bytes.ts';
 import { deserializeFrontier } from '../Frontier.ts';
 import { partitionShardOids } from '../MaterializedViewHelpers.ts';
@@ -58,8 +57,7 @@ export default class CheckpointTailBasisLoader {
   }
 
   private async _readCheckpointSha(): Promise<string> {
-    const checkpointRef = buildCheckpointRef(this._source.graphName);
-    const checkpointSha = await this._source._persistence.readRef(checkpointRef);
+    const checkpointSha = await this._source._readCheckpointSha();
     if (checkpointSha === null) {
       throwNoBoundedBasis(this._source.graphName, 'missing-checkpoint');
     }

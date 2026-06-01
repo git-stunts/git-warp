@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Coordinate-backed Optics now expose the public v18 success path:
+  `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()` let
+  Worldline-first callers run coherent node and property optic reads from a
+  stable coordinate while keeping `openWarpGraph()` and materialize-first APIs
+  out of first-use application code.
+
 ## [18.0.0] — 2026-05-25
 
 ### Added

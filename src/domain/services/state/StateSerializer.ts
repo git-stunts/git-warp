@@ -1,9 +1,10 @@
 import defaultCodec from '../../utils/defaultCodec.ts';
 import defaultCrypto from '../../utils/defaultCrypto.ts';
-import { decodeEdgeKey, decodePropKey } from '../KeyCodec.ts';
+import { decodeEdgeKey } from '../KeyCodec.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type { WarpState } from '../JoinReducer.ts';
+import WarpStateClass, { type NodePropertyEntry } from './WarpState.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /**
@@ -42,12 +43,11 @@ export function edgeVisible(state: WarpState, edgeKey: string): boolean {
 
 /**
  * Checks if a property is visible.
- * Property is visible if: node is visible AND prop exists.
+ * Property is visible if the owning node is visible.
+ * Callers obtain entries from WarpState property iterators — prop existence is implied.
  */
-export function propVisibleV5(state: WarpState, propKey: string): boolean {
-  const { nodeId } = decodePropKey(propKey);
-  if (!nodeVisibleV5(state, nodeId)) { return false; }
-  return state.prop.has(propKey);
+export function propVisibleV5(state: WarpState, entry: NodePropertyEntry): boolean {
+  return nodeVisibleV5(state, entry.nodeId);
 }
 
 // ============================================================================
@@ -88,10 +88,9 @@ export function projectState(state: WarpState): StateProjection {
   });
 
   const visibleProps: Array<{ node: string; key: string; value: PropValue }> = [];
-  for (const [propKey, register] of state.prop) {
-    const { nodeId, propKey: key } = decodePropKey(propKey);
-    if (nodeVisibleV5(state, nodeId)) {
-      visibleProps.push({ node: nodeId, key, value: register.value });
+  for (const entry of WarpStateClass.nodePropertiesFromState(state)) {
+    if (nodeVisibleV5(state, entry.nodeId)) {
+      visibleProps.push({ node: entry.nodeId, key: entry.key, value: entry.register.value });
     }
   }
   visibleProps.sort((a, b) => {

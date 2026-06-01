@@ -211,8 +211,8 @@ That is not a law of physics. It is a good operating default until real measurem
 
 Current design backlog:
 
-- [Out-of-core materialization](method/backlog/PERF_out-of-core-materialization.md)
-- [Streaming graph traversal](method/backlog/cool-ideas/PERF_streaming-graph-traversal.md)
+- [Out-of-core materialization](https://github.com/git-stunts/git-warp/issues/136)
+- [Streaming graph traversal](https://github.com/git-stunts/git-warp/issues/457)
 
 ## Where next
 

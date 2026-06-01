@@ -23,6 +23,7 @@ no_progress = true
 exclude_path = [
   "node_modules",
   "examples",
+  "docs/archive",
   "ROADMAP.md",
   "CHANGELOG.md",
 ]

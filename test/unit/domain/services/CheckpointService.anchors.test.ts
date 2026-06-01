@@ -134,11 +134,11 @@ describe('CheckpointService content anchors', () => {
     persistence.setObjectType(legacyBlobOid, 'blob');
     persistence.setObjectType(casTreeOid, 'tree');
 
-    state.prop.set(encodePropKeyV5('legacy', CONTENT_PROPERTY_KEY), {
+    state.mutatePropRegisterLWW(encodePropKeyV5('legacy', CONTENT_PROPERTY_KEY), {
       eventId: { lamport: 1, writerId: 'alice', patchSha: makeOid('patch1'), opIndex: 0 },
       value: legacyBlobOid,
     });
-    state.prop.set(encodePropKeyV5('cas', CONTENT_PROPERTY_KEY), {
+    state.mutatePropRegisterLWW(encodePropKeyV5('cas', CONTENT_PROPERTY_KEY), {
       eventId: { lamport: 2, writerId: 'alice', patchSha: makeOid('patch2'), opIndex: 0 },
       value: casTreeOid,
     });

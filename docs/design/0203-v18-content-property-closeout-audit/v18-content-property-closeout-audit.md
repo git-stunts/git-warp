@@ -65,30 +65,12 @@ in this design document.
 The current audited files are:
 
 - `src/domain/graph/LegacyContentPropertyKeys.ts`
-- `src/domain/services/ContentAttachmentProjection.ts`
-- `src/domain/services/ImmutableSnapshot.ts`
-- `src/domain/services/JoinReducer.ts`
 - `src/domain/services/KeyCodec.ts`
-- `src/domain/services/OpStrategies.ts`
-- `src/domain/services/OpStrategy.ts`
-- `src/domain/services/PatchBuilder.ts`
-- `src/domain/services/PatchBuilderValidation.ts`
 - `src/domain/services/PatchCommitter.ts`
-- `src/domain/services/TemporalQuery.ts`
-- `src/domain/services/VisibleStateScope.ts`
-- `src/domain/services/index/LogicalIndexBuildService.ts`
-- `src/domain/services/state/CheckpointSerializer.ts`
 - `src/domain/services/state/StateDiff.ts`
-- `src/domain/services/state/StateSerializer.ts`
 - `src/domain/services/state/WarpState.ts`
 - `src/domain/services/state/checkpointHelpers.ts`
 - `src/domain/services/strand/StrandPatchService.ts`
-- `src/domain/services/transfer/transferOps.ts`
-- `src/domain/types/CoordinateComparison.ts`
-- `src/domain/types/ops/EdgePropSet.ts`
-- `src/domain/types/ops/NodePropSet.ts`
-- `src/domain/types/ops/PropSet.ts`
-- `src/domain/types/ops/propHelpers.ts`
 
 ## Retired Raw Compatibility Files
 
@@ -97,23 +79,45 @@ Retired files must stay retired:
 - `src/domain/services/CoordinateFactExport.ts` retired in slice 93 after
   transfer operation spelling moved behind constants owned by
   `src/domain/services/transfer/transferOps.ts`.
+- `src/domain/services/ContentAttachmentProjection.ts` retired after migrating
+  to `state.getNodeProp()` and `state.getEdgeProp()` point-access methods.
+- `src/domain/services/ImmutableSnapshot.ts` retired after migrating snapshot
+  construction to `state.allPropEntries()`.
+- `src/domain/services/OpStrategies.ts` retired after migrating `ReceiptBuilder`
+  calls to accept `WarpState` directly.
+- `src/domain/services/OpStrategy.ts` retired after migrating to
+  `state.mutatePropLWW()`, `state.getEncodedProp()`.
+- `src/domain/services/PatchBuilderValidation.ts` retired after migrating
+  attached-data scanning to `WarpState.allPropEntriesFromState()`.
+- `src/domain/services/TemporalQuery.ts` retired after migrating to
+  `WarpState.nodePropertiesFromState()` typed iterators.
+- `src/domain/services/VisibleStateScope.ts` retired after migrating to
+  `state.nodeProperties()` and `state.edgeProperties()` typed iterators.
+- `src/domain/services/index/LogicalIndexBuildService.ts` retired after
+  migrating snapshot construction to `state.allPropEntries()`.
+- `src/domain/services/state/CheckpointSerializer.ts` retired after migrating
+  checkpoint serialization to `WarpState.allPropEntriesFromState()`.
+- `src/domain/services/state/StateSerializer.ts` retired after migrating
+  visible projection to `WarpState.nodePropertiesFromState()`.
+- `src/domain/types/ops/EdgePropSet.ts` retired after migrating `ReceiptBuilder`
+  calls to accept `WarpState` directly.
+- `src/domain/types/ops/NodePropSet.ts` retired after migrating `ReceiptBuilder`
+  calls to accept `WarpState` directly.
+- `src/domain/types/ops/PropSet.ts` retired after migrating `ReceiptBuilder`
+  calls to accept `WarpState` directly.
+- `src/domain/types/ops/propHelpers.ts` retired after migrating to
+  `state.mutatePropLWW()`, `state.getEncodedProp()`.
 
 ## Classification
 
 These files fall into bounded categories:
 
 - Legacy content compatibility key ownership:
-  `LegacyContentPropertyKeys`, `ContentAttachmentProjection`.
-- Coordinate comparison over existing operation shapes:
-  `CoordinateComparison`.
+  `LegacyContentPropertyKeys`.
 - Runtime mutation and compatibility operation execution:
-  `JoinReducer`, `OpStrategies`, `OpStrategy`, `PatchBuilder`,
-  `PatchCommitter`, `StrandPatchService`, `transferOps`, and the op helper
-  classes.
+  `PatchCommitter` and `StrandPatchService`.
 - Guard, replay, serialization, snapshot, scope, and index boundaries:
-  `PatchBuilderValidation`, `TemporalQuery`, `ImmutableSnapshot`,
-  `VisibleStateScope`, `LogicalIndexBuildService`, `CheckpointSerializer`,
-  `StateDiff`, `StateSerializer`, `WarpState`, and `checkpointHelpers`.
+  `StateDiff`, `WarpState`, and `checkpointHelpers`.
 - Codec ownership: `KeyCodec`.
 
 ## Non-Goals

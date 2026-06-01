@@ -345,7 +345,7 @@ describe('CheckpointService edge cases', () => {
       expect(loaded.schema).toBe(CURRENT_CHECKPOINT_SCHEMA);
       expect(loaded.state.nodeAlive.elements()).toHaveLength(0);
       expect(loaded.state.edgeAlive.elements()).toHaveLength(0);
-      expect(loaded.state.prop.size).toBe(0);
+      expect(loaded.state.propSize()).toBe(0);
       expect(loaded.frontier.size).toBe(0);
     });
   });
@@ -359,7 +359,7 @@ describe('CheckpointService edge cases', () => {
       const state = deserializeFullState((null as any));
       expect(state.nodeAlive.elements()).toHaveLength(0);
       expect(state.edgeAlive.elements()).toHaveLength(0);
-      expect(state.prop.size).toBe(0);
+      expect(state.propSize()).toBe(0);
     });
 
     it('returns empty state for undefined buffer', () => {
@@ -557,8 +557,8 @@ describe('CheckpointService edge cases', () => {
 
       expect(state.nodeAlive.contains('solo')).toBe(true);
       const propKey = encodePropKeyV5('solo', 'name');
-      expect(state.prop.has(propKey)).toBe(true);
-      expect((state.prop.get(propKey as any))!.value).toBe('alone');
+      expect(state.hasProp(propKey)).toBe(true);
+      expect((state.getEncodedProp(propKey as any))!.value).toBe('alone');
     });
 
     it('uses synthetic dot for all elements (shared identity)', () => {

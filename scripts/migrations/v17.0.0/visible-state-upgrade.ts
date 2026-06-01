@@ -64,7 +64,7 @@ function upgradeVisibleProps(legacyState: LegacyVisibleState, currentState: Warp
     const nodeId = propKey.slice(0, idx);
     const nodeReg = legacyState.nodeAlive.get(nodeId);
     if (nodeReg?.value === true) {
-      currentState.prop.set(propKey, reg);
+      currentState.mutatePropLWW(propKey, reg.eventId, reg.value);
     }
   }
 }

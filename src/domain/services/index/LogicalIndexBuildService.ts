@@ -9,11 +9,11 @@
 
 import LogicalBitmapIndexBuilder from './LogicalBitmapIndexBuilder.ts';
 import PropertyIndexBuilder from './PropertyIndexBuilder.ts';
-import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.ts';
+import { decodeEdgeKey } from '../KeyCodec.ts';
 import WarpStream from '../../stream/WarpStream.ts';
 import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
 import IndexError from '../../errors/IndexError.ts';
-import type WarpState from '../state/WarpState.ts';
+import WarpState from '../state/WarpState.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -102,7 +102,7 @@ export default class LogicalIndexBuildService {
       aliveNodes,
       aliveNodeSet,
       visibleEdges,
-      prop: state.prop,
+      prop: new Map(state.allPropEntries()),
     });
     return { indexBuilder, propBuilder };
   }
@@ -171,17 +171,9 @@ export default class LogicalIndexBuildService {
       args.indexBuilder.addEdge(edge.from, edge.to, edge.label);
     }
 
-    for (const [propKey, register] of args.prop) {
-      if (isEdgePropKey(propKey)) {
-        continue;
-      }
-      const decodedProp = decodePropKey(propKey);
-      if (args.aliveNodeSet.has(decodedProp.nodeId)) {
-        args.propBuilder.addProperty(
-          decodedProp.nodeId,
-          decodedProp.propKey,
-          register.value,
-        );
+    for (const entry of WarpState.nodePropertiesFromMap(args.prop)) {
+      if (args.aliveNodeSet.has(entry.nodeId)) {
+        args.propBuilder.addProperty(entry.nodeId, entry.key, entry.register.value);
       }
     }
   }

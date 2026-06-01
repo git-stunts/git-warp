@@ -120,7 +120,7 @@ function assertStatesEqual(a, b, label = '') {
     `${prefix}prop keys`,
   ).toEqual([...b.prop.keys()].sort());
   for (const [key, reg] of a.prop) {
-    const otherReg = b.prop.get(key);
+    const otherReg = b.getEncodedProp(key);
     if (otherReg === undefined) {
       expect.unreachable(`${prefix}prop['${key}'] missing in second state`);
     }
@@ -398,6 +398,6 @@ describe('cross-path state equivalence', () => {
     // Verify the state is sane: n1 alive, n2 tombstoned, edge alive, props set
     expect(s1.nodeAlive.contains('n1')).toBe(true);
     expect(s1.nodeAlive.contains('n2')).toBe(false);
-    expect(lwwValue(s1.prop.get('n1\0name'))).toBe('Node1');
+    expect(lwwValue(s1.getEncodedProp('n1\0name'))).toBe('Node1');
   });
 });

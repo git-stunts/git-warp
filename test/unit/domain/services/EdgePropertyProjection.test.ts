@@ -21,14 +21,14 @@ describe('EdgePropertyProjection', () => {
     addLiveEdge(state, 'node:1', 'node:2', 'rel', 4);
     addLiveEdge(state, 'node:3', 'node:2', 'rel', 5);
     addRemovedEdge(state, 'node:2', 'node:3', 'rel', 6);
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(7, 3));
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', '_content.size'), register(8, 42));
-    state.prop.set(encodeEdgePropKey('node:3', 'node:2', 'rel', 'weight'), register(9, 7));
-    state.prop.set(encodeEdgePropKey('node:2', 'node:3', 'rel', 'weight'), register(10, 11));
-    state.prop.set(encodeEdgePropKey('missing', 'node:2', 'rel', 'weight'), register(11, 13));
-    state.prop.set(encodePropKey('node:1', 'status'), register(12, 'ignored'));
-    state.prop.set(`${EDGE_PROP_PREFIX}node:1\0node:2\0rel\0bad\0extra`, register(13, 'ignored'));
-    state.prop.set(`${EDGE_PROP_PREFIX}${EDGE_PROP_PREFIX}reserved\0node:2\0rel\0bad`, register(14, 'ignored'));
+    setPropFromReg(state, encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(7, 3));
+    setPropFromReg(state, encodeEdgePropKey('node:1', 'node:2', 'rel', '_content.size'), register(8, 42));
+    setPropFromReg(state, encodeEdgePropKey('node:3', 'node:2', 'rel', 'weight'), register(9, 7));
+    setPropFromReg(state, encodeEdgePropKey('node:2', 'node:3', 'rel', 'weight'), register(10, 11));
+    setPropFromReg(state, encodeEdgePropKey('missing', 'node:2', 'rel', 'weight'), register(11, 13));
+    setPropFromReg(state, encodePropKey('node:1', 'status'), register(12, 'ignored'));
+    setPropFromReg(state, `${EDGE_PROP_PREFIX}node:1\0node:2\0rel\0bad\0extra`, register(13, 'ignored'));
+    setPropFromReg(state, `${EDGE_PROP_PREFIX}${EDGE_PROP_PREFIX}reserved\0node:2\0rel\0bad`, register(14, 'ignored'));
 
     const records = EdgePropertyProjection.fromState(state);
 
@@ -52,8 +52,8 @@ describe('EdgePropertyProjection', () => {
     addLiveNode(state, 'node:1', 1);
     addLiveNode(state, 'node:2', 2);
     addLiveEdge(state, 'node:1', 'node:2', 'rel', 5);
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'stale'), register(4, 'old'));
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'fresh'), register(6, 'new'));
+    setPropFromReg(state, encodeEdgePropKey('node:1', 'node:2', 'rel', 'stale'), register(4, 'old'));
+    setPropFromReg(state, encodeEdgePropKey('node:1', 'node:2', 'rel', 'fresh'), register(6, 'new'));
 
     const records = EdgePropertyProjection.forEdge(state, {
       from: 'node:1',
@@ -80,7 +80,7 @@ describe('EdgePropertyProjection', () => {
     addLiveNode(state, 'node:1', 1);
     addLiveNode(state, 'node:2', 2);
     addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(4, 3));
+    setPropFromReg(state, encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(4, 3));
 
     expect(EdgePropertyProjection.forEdge(state, {
       from: '',
@@ -111,10 +111,10 @@ describe('EdgePropertyProjection', () => {
     addLiveNode(state, 'node:3', 3);
     addLiveEdge(state, 'node:1', 'node:2', 'rel', 4);
     addLiveEdge(state, 'node:2', 'node:3', 'rel', 5);
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
+    setPropFromReg(state, encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
     const invalidRegister = LWWRegister.set(event(7), new InvalidPropertyCarrier());
     // @ts-expect-error exercising corrupt non-target state isolation
-    state.prop.set(encodeEdgePropKey('node:2', 'node:3', 'rel', 'bad'), invalidRegister);
+    state.mutatePropLWW(encodeEdgePropKey('node:2', 'node:3', 'rel', 'bad'), invalidRegister.eventId, invalidRegister.value);
 
     const records = EdgePropertyProjection.forEdge(state, {
       from: 'node:1',
@@ -161,6 +161,10 @@ function addRemovedEdge(
   state.edgeAlive.add(edgeKey, Dot.create('writer', counter));
   state.edgeBirthEvent.set(edgeKey, event(counter));
   state.edgeAlive.remove(state.edgeAlive.getDots(edgeKey));
+}
+
+function setPropFromReg(state: WarpState, key: string, reg: LWWRegister<string | number>): void {
+  state.mutatePropLWW(key, reg.eventId, reg.value);
 }
 
 function register(opIndex: number, value: string | number): LWWRegister<string | number> {

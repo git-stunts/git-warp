@@ -5,7 +5,6 @@ import {
   encodeEdgePropKey,
   decodeEdgeKey,
   encodePropKey,
-  decodePropKey,
   EDGE_PROP_PREFIX,
   applyOpV2,
   join,
@@ -16,6 +15,7 @@ import {
   reduceV5 as _reduceV5,
   cloneState,
 } from '../../../../src/domain/services/JoinReducer.ts';
+import { decodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
@@ -50,11 +50,11 @@ describe('JoinReducer', () => {
       expect(state.nodeAlive.entries).toBeInstanceOf(Map);
       expect(state.nodeAlive.tombstones).toBeInstanceOf(Set);
       expect(state.edgeAlive).toBeDefined();
-      expect(state.prop).toBeInstanceOf(Map);
+      expect(state.propSize()).toBeGreaterThanOrEqual(0);
       expect(state.observedFrontier).toBeInstanceOf(VersionVector);
       expect(state.nodeAlive.entries.size).toBe(0);
       expect(state.edgeAlive.entries.size).toBe(0);
-      expect(state.prop.size).toBe(0);
+      expect(state.propSize()).toBe(0);
       expect(state.observedFrontier.size).toBe(0);
     });
 
@@ -62,9 +62,9 @@ describe('JoinReducer', () => {
       const state1 = createEmptyState();
       const state2 = createEmptyState();
 
-      state1.prop.set('key', { eventId: ({} as any), value: 'test' });
+      state1.mutatePropLWW('key', ({} as any), 'test');
 
-      expect(state2.prop.size).toBe(0);
+      expect(state2.propSize()).toBe(0);
     });
   });
 
@@ -207,7 +207,7 @@ describe('JoinReducer', () => {
         applyOpV2(state, op, eventId);
 
         const propKey = encodePropKey('x', 'name');
-        expect(lwwValue(state.prop.get(propKey))).toEqual(value);
+        expect(lwwValue(state.getEncodedProp(propKey))).toEqual(value);
       });
 
       it('overwrites property if EventId is greater', () => {
@@ -221,7 +221,7 @@ describe('JoinReducer', () => {
         applyOpV2(state, new PropSet('x', 'name', value2), eventId2);
 
         const propKey = encodePropKey('x', 'name');
-        expect(lwwValue(state.prop.get(propKey))).toEqual(value2);
+        expect(lwwValue(state.getEncodedProp(propKey))).toEqual(value2);
       });
 
       it('keeps older property if EventId is lower', () => {
@@ -235,7 +235,7 @@ describe('JoinReducer', () => {
         applyOpV2(state, new PropSet('x', 'name', value2), eventId2);
 
         const propKey = encodePropKey('x', 'name');
-        expect(lwwValue(state.prop.get(propKey))).toEqual(value1);
+        expect(lwwValue(state.getEncodedProp(propKey))).toEqual(value1);
       });
 
       it('normalizes legacy edge-property PropSet before the canonical apply path', () => {
@@ -251,7 +251,7 @@ describe('JoinReducer', () => {
         }, eventId);
 
         const propKey = encodeEdgePropKey('a', 'b', 'rel', 'weight');
-        expect(lwwValue(state.prop.get(propKey))).toEqual(value);
+        expect(lwwValue(state.getEncodedProp(propKey))).toEqual(value);
       });
     });
   });
@@ -427,7 +427,7 @@ describe('JoinReducer', () => {
       ]);
 
       const propKey = encodePropKey('x', 'name');
-      expect(lwwValue(state.prop.get(propKey))).toEqual(createInlineValue('B-value'));
+      expect(lwwValue(state.getEncodedProp(propKey))).toEqual(createInlineValue('B-value'));
     });
 
     it('with same lamport, writerId is used as tiebreaker', () => {
@@ -450,7 +450,7 @@ describe('JoinReducer', () => {
 
       // B wins because 'B' > 'A' lexicographically
       const propKey = encodePropKey('x', 'name');
-      expect(lwwValue(state.prop.get(propKey))).toEqual(createInlineValue('B-value'));
+      expect(lwwValue(state.getEncodedProp(propKey))).toEqual(createInlineValue('B-value'));
     });
 
     it('property LWW is independent of node ORSet operations', () => {
@@ -481,7 +481,7 @@ describe('JoinReducer', () => {
 
       // But property should still have its value
       const propKey = encodePropKey('x', 'name');
-      expect(lwwValue(state.prop.get(propKey))).toEqual(createInlineValue('test'));
+      expect(lwwValue(state.getEncodedProp(propKey))).toEqual(createInlineValue('test'));
     });
   });
 
@@ -515,10 +515,10 @@ describe('JoinReducer', () => {
       expect(joined.nodeAlive.contains('y')).toBe(true);
 
       // Should have both properties
-      expect(lwwValue(joined.prop.get(encodePropKey('x', 'name')))).toEqual(
+      expect(lwwValue(joined.getEncodedProp(encodePropKey('x', 'name')))).toEqual(
         createInlineValue('A-name')
       );
-      expect(lwwValue(joined.prop.get(encodePropKey('y', 'name')))).toEqual(
+      expect(lwwValue(joined.getEncodedProp(encodePropKey('y', 'name')))).toEqual(
         createInlineValue('B-name')
       );
     });
@@ -542,7 +542,7 @@ describe('JoinReducer', () => {
       const joined = joinStates(stateA, stateB);
 
       // B wins because higher lamport
-      expect(lwwValue(joined.prop.get(encodePropKey('x', 'name')))).toEqual(
+      expect(lwwValue(joined.getEncodedProp(encodePropKey('x', 'name')))).toEqual(
         createInlineValue('B-value')
       );
     });
@@ -597,7 +597,7 @@ describe('JoinReducer', () => {
       const plainState = {
         nodeAlive: state.nodeAlive,
         edgeAlive: state.edgeAlive,
-        prop: state.prop,
+        prop: new Map(state.allPropEntries()),
         observedFrontier: state.observedFrontier,
         edgeBirthEvent: state.edgeBirthEvent,
       };
@@ -608,7 +608,7 @@ describe('JoinReducer', () => {
       expect(cloned.nodeAlive.contains('x')).toBe(true);
       expect(cloned.nodeAlive.contains('z')).toBe(true);
       expect(state.nodeAlive.contains('z')).toBe(false);
-      expect(cloned.prop.get(encodePropKey('x', 'name'))?.value).toEqual(createInlineValue('Alice'));
+      expect(cloned.getEncodedProp(encodePropKey('x', 'name'))?.value).toEqual(createInlineValue('Alice'));
     });
   });
 
@@ -618,7 +618,7 @@ describe('JoinReducer', () => {
 
       expect(state.nodeAlive.entries.size).toBe(0);
       expect(state.edgeAlive.entries.size).toBe(0);
-      expect(state.prop.size).toBe(0);
+      expect(state.propSize()).toBe(0);
     });
 
     it('applies patches with initial state', () => {

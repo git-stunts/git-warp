@@ -55,6 +55,8 @@ import WarpAppDefault, {
   WarpApp,
   WarpCore,
   WarpWorldline,
+  WarpWorldlineCoordinate,
+  WarpWorldlineOpticBasis,
   Worldline,
   WorldlineSelector,
   LiveSelector,
@@ -128,6 +130,7 @@ import WarpAppDefault, {
   type SyncRateLimitConfig,
   type WarpWorldlineOpenOptions,
   type WarpWorldlinePatchBuild,
+  type WarpWorldlineCoordinateFrontierEntry,
 } from '../../index.ts';
 
 import {
@@ -219,6 +222,8 @@ const exportedRuntimeSurface = [
   SnapshotORSet,
   SnapshotVersionVector,
   SnapshotWarpState,
+  WarpWorldlineCoordinate,
+  WarpWorldlineOpticBasis,
   ProvenancePayload,
   BTR,
   EffectSinkPort,
@@ -332,13 +337,24 @@ const worldlinePatchBuild: WarpWorldlinePatchBuild = (patch) => {
   patch.addNode('worldline-node');
 };
 const worldlinePatchSha: string = await warpWorldline.commit(worldlinePatchBuild);
+const worldlineOpticBasis: WarpWorldlineOpticBasis = await warpWorldline.prepareOpticBasis();
+const worldlineCoordinate: WarpWorldlineCoordinate = await warpWorldline.coordinate();
 const worldlineLive: Worldline = warpWorldline.live();
 const worldlineHistorical: Worldline = await warpWorldline.seek({
   source: { kind: 'live', ceiling: 1 },
 });
 const worldlineObserver: Observer = await warpWorldline.observer({ match: '*' });
+const coordinateFrontierEntries: readonly WarpWorldlineCoordinateFrontierEntry[] =
+  worldlineCoordinate.frontierEntries;
+const coordinateSource = worldlineCoordinate.source();
+const coordinateOpticNode = await worldlineCoordinate.optic().node('worldline-node').read();
+const coordinateOpticAlive: boolean = coordinateOpticNode.alive;
 
 void worldlinePatchSha;
+void worldlineOpticBasis;
+void coordinateFrontierEntries;
+void coordinateSource;
+void coordinateOpticAlive;
 void worldlineLive;
 void worldlineHistorical;
 void worldlineObserver;

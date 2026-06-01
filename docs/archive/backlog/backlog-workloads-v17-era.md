@@ -1,6 +1,16 @@
-# backlog workloads
+# Archived backlog workloads
 
-This document partitions the entire live backlog into **MECE**
+This is a historical v17-era workload partition.
+
+It is archived because it still schedules shipped `v17.0.0` residual
+cards as live agent work. Do not use it for current staffing without
+regenerating it from `docs/method/backlog/README.md`.
+
+Original text follows.
+
+---
+
+This document partitions the former live backlog into **MECE**
 workloads that can be handed to agents as ownership units.
 
 Counts in this document refer to live backlog notes only and exclude

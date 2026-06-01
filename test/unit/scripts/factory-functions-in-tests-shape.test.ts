@@ -18,16 +18,22 @@ describe('factory-functions-in-tests closeout', () => {
   });
 
   it('removes the stale live sludge note and dead workload row', () => {
-    const workloads = readRepoFile('docs/method/backlog/WORKLOADS.md');
+    const workloads = readRepoFile(
+      'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md'
+    );
 
-    expect(existsSync(`${repoRoot}docs/method/backlog/v17.0.0/SLUDGE_factory-functions-in-tests.md`)).toBe(false);
+    expect(
+      existsSync(
+        `${repoRoot}docs/archive/backlog/v17.0.0-residual-backlog/SLUDGE_factory-functions-in-tests.md`
+      )
+    ).toBe(false);
     expect(workloads).not.toContain('WL-35-v17-hygiene-sludge-seed');
     expect(workloads).not.toContain('SLUDGE_factory-functions-in-tests');
   });
 
   it('stops the latest hygiene retro from pointing at the dead workload', () => {
     const retro = readRepoFile(
-      'docs/method/retro/0054-type-import-and-template-expression-purge/type-import-and-template-expression-purge.md',
+      'docs/method/retro/0054-type-import-and-template-expression-purge/type-import-and-template-expression-purge.md'
     );
 
     expect(retro).not.toContain('WL-35-v17-hygiene-sludge-seed');

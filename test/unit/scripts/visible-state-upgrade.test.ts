@@ -217,7 +217,7 @@ describe('visible-state upgrade helper', () => {
 
         expect(currentState.nodeAlive.elements()).toHaveLength(0);
         expect(currentState.edgeAlive.elements()).toHaveLength(0);
-        expect(currentState.prop.size).toBe(0);
+        expect(currentState.propSize()).toBe(0);
         expect(currentState.observedFrontier.size).toBe(0);
       });
     });
@@ -415,11 +415,11 @@ describe('visible-state upgrade helper', () => {
 
         const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(currentState.prop.size).toBe(2);
-        expect(lwwValue(currentState.prop.get(encodePropKey('node-a', 'name')))).toEqual(
+        expect(currentState.propSize()).toBe(2);
+        expect(lwwValue(currentState.getEncodedProp(encodePropKey('node-a', 'name')))).toEqual(
           createInlineValue('Alice')
         );
-        expect(lwwValue(currentState.prop.get(encodePropKey('node-a', 'age')))).toEqual(
+        expect(lwwValue(currentState.getEncodedProp(encodePropKey('node-a', 'age')))).toEqual(
           createInlineValue(30)
         );
       });
@@ -435,7 +435,7 @@ describe('visible-state upgrade helper', () => {
 
         const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(currentState.prop.size).toBe(0);
+        expect(currentState.propSize()).toBe(0);
       });
 
       it('migrates props selectively based on node visibility', () => {
@@ -453,11 +453,11 @@ describe('visible-state upgrade helper', () => {
 
         const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(currentState.prop.size).toBe(1);
-        expect(lwwValue(currentState.prop.get(encodePropKey('visible-node', 'name')))).toEqual(
+        expect(currentState.propSize()).toBe(1);
+        expect(lwwValue(currentState.getEncodedProp(encodePropKey('visible-node', 'name')))).toEqual(
           createInlineValue('Visible')
         );
-        expect(currentState.prop.has(encodePropKey('deleted-node', 'name'))).toBe(false);
+        expect(currentState.hasProp(encodePropKey('deleted-node', 'name'))).toBe(false);
       });
 
       it('handles props for nodes with no entry in nodeAlive map (dangling)', () => {
@@ -466,14 +466,14 @@ describe('visible-state upgrade helper', () => {
         const eventId = new EventId(1, 'test-writer', 'abcd1234', 0);
         legacyState.prop.set(
           encodePropKey('orphan-node', 'name'),
-          lwwSet(eventId, createInlineValue('Orphan'))
+          lwwSet(eventId, createInlineValue('Orphan')),
         );
 
         const migrationWriterId = 'migration-writer';
         const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
         // Orphan props should not be migrated
-        expect(currentState.prop.size).toBe(0);
+        expect(currentState.propSize()).toBe(0);
       });
     });
 
@@ -607,7 +607,7 @@ describe('visible-state upgrade helper', () => {
 
         // The prop register should preserve its eventId and value
         const v4PropReg = legacyState.prop.get(encodePropKey('node-a', 'name'));
-        const v5PropReg = currentState.prop.get(encodePropKey('node-a', 'name'));
+        const v5PropReg = currentState.getEncodedProp(encodePropKey('node-a', 'name'));
 
         expect(v5PropReg).toEqual(v4PropReg);
       });
@@ -725,8 +725,8 @@ describe('visible-state upgrade helper', () => {
         // Verify props from v4 are preserved
         const alicePropKey = encodePropKeyV5('user:alice', 'name');
         const bobPropKey = encodePropKeyV5('user:bob', 'name');
-        expect(lwwValue(finalState.prop.get(alicePropKey))).toEqual(createInlineValue('Alice'));
-        expect(lwwValue(finalState.prop.get(bobPropKey))).toEqual(createInlineValue('Bob'));
+        expect(lwwValue(finalState.getEncodedProp(alicePropKey))).toEqual(createInlineValue('Alice'));
+        expect(lwwValue(finalState.getEncodedProp(bobPropKey))).toEqual(createInlineValue('Bob'));
 
         // Step 5: Verify new current data is present
         expect(nodeVisibleV5(finalState, 'user:charlie')).toBe(true);
@@ -735,7 +735,7 @@ describe('visible-state upgrade helper', () => {
 
         // Verify Charlie's prop
         const charliePropKey = encodePropKeyV5('user:charlie', 'name');
-        expect(lwwValue(finalState.prop.get(charliePropKey))).toEqual(createInlineValue('Charlie'));
+        expect(lwwValue(finalState.getEncodedProp(charliePropKey))).toEqual(createInlineValue('Charlie'));
       });
 
       it('permutation invariance holds for current patches applied after migration', async () => {

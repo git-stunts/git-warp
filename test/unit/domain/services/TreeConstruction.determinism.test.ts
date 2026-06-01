@@ -155,10 +155,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     : createRng(shuffleSeed).shuffle(propItems);
 
   for (const item of orderedItems) {
-    state.prop.set((item as any).key, {
-      eventId: (item as any).eventId,
-      value: ((item as any).value as any),
-    });
+    state.mutatePropLWW((item as any).key, (item as any).eventId, (item as any).value);
   }
 
   const checkpointSha = await createCheckpointEnvelope({

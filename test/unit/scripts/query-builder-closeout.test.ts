@@ -4,16 +4,16 @@ import { describe, expect, it } from 'vitest';
 
 const queryBuilderNotePath = join(
   process.cwd(),
-  'docs/method/backlog/v17.0.0/GOD_query-builder.md',
+  'docs/archive/backlog/v17.0.0-residual-backlog/GOD_query-builder.md'
 );
 const workloads = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/WORKLOADS.md'),
-  'utf8',
+  join(
+    process.cwd(),
+    'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md'
+  ),
+  'utf8'
 );
-const releaseLedger = readFileSync(
-  join(process.cwd(), 'docs/releases/v17.0.0/README.md'),
-  'utf8',
-);
+const releaseLedger = readFileSync(join(process.cwd(), 'docs/releases/v17.0.0/README.md'), 'utf8');
 
 describe('query builder closeout', () => {
   it('removes the stale live card', () => {

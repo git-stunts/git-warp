@@ -27,10 +27,11 @@ function sourceFilesUnder(directoryPath: string): readonly string[] {
 
 describe('ORSetLike contract closeout', () => {
   it('removes the invalid live v17 card', () => {
-    expect(existsSync(join(
-      repoRoot,
-      'docs/method/backlog/v17.0.0/PROTO_orsetlike-contract.md',
-    ))).toBe(false);
+    expect(
+      existsSync(
+        join(repoRoot, 'docs/archive/backlog/v17.0.0-residual-backlog/PROTO_orsetlike-contract.md')
+      )
+    ).toBe(false);
   });
 
   it('keeps source free of the rejected ORSetLike abstraction', () => {
@@ -42,9 +43,13 @@ describe('ORSetLike contract closeout', () => {
   });
 
   it('removes ORSetLike as a live extraction dependency', () => {
-    const extraction = readRepoFile('docs/method/backlog/v17.0.0/INFRA_extract-warp-orset-package-post-publish.md');
+    const extraction = readRepoFile(
+      'docs/archive/backlog/v17.0.0-residual-backlog/INFRA_extract-warp-orset-package-post-publish.md'
+    );
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
-    const workloads = readRepoFile('docs/method/backlog/WORKLOADS.md');
+    const workloads = readRepoFile(
+      'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md'
+    );
 
     expect(extraction).not.toContain('PROTO_orsetlike-contract');
     expect(extraction).toContain('concrete `ORSet`');

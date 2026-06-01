@@ -4,17 +4,17 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const backlogReadme = readFileSync(`${repoRoot}docs/method/backlog/README.md`, 'utf8');
-const badCodeReadme = readFileSync(`${repoRoot}docs/method/backlog/bad-code/README.md`, 'utf8');
-const badCodeReleaseTriage = readFileSync(
-  `${repoRoot}docs/method/backlog/bad-code/RELEASE_TRIAGE.md`,
-  'utf8',
-);
+const archivedBacklogRoot =
+  'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/';
+const badCodeRoot = `${archivedBacklogRoot}bad-code/`;
+const badCodeReadme = readFileSync(`${repoRoot}${badCodeRoot}README.md`, 'utf8');
+const badCodeReleaseTriage = readFileSync(`${repoRoot}${badCodeRoot}RELEASE_TRIAGE.md`, 'utf8');
 
-const badCodePaths = readdirSync(`${repoRoot}docs/method/backlog/bad-code/`)
+const badCodePaths = readdirSync(`${repoRoot}${badCodeRoot}`)
   .filter((name) => name.endsWith('.md'))
   .filter((name) => name !== 'README.md')
   .filter((name) => name !== 'RELEASE_TRIAGE.md')
-  .map((name) => `docs/method/backlog/bad-code/${name}`);
+  .map((name) => `${badCodeRoot}${name}`);
 
 const expectedReleaseHomes = new Set(['v17.0.0', 'v18.0.0', 'v19.0.0', 'v20.0.0', 'v21.0.0']);
 
@@ -56,7 +56,7 @@ function countReleaseHomes(): Map<string, number> {
 describe('bad-code release homes', () => {
   it('requires every bad-code note to declare release_home', () => {
     const missingReleaseHome = badCodePaths.filter(
-      (path) => !readFrontmatter(path).includes('\nrelease_home: '),
+      (path) => !readFrontmatter(path).includes('\nrelease_home: ')
     );
 
     expect(missingReleaseHome).toEqual([]);
@@ -83,15 +83,14 @@ describe('bad-code release homes', () => {
   });
 
   it('documents the debt release-home law in the backlog readmes', () => {
-    expect(backlogReadme).toContain('`bad-code/` notes also declare:');
-    expect(backlogReadme).toContain('- `release_home`');
-    expect(backlogReadme).toContain('Use `release_home` to answer');
+    expect(backlogReadme).toContain('GitHub Issues are now the live Method work tracker');
+    expect(backlogReadme).toContain('bad-code lane');
 
     expect(badCodeReadme).toContain('## Release Homes');
     expect(badCodeReadme).toContain('`bad-code/` remains the debt ledger');
     expect(badCodeReleaseTriage).toContain('## Current Metadata Snapshot');
     expect(badCodeReleaseTriage).toContain(
-      'There should be no remaining `release_home: v20.0.0+` values.',
+      'There should be no remaining `release_home: v20.0.0+` values.'
     );
 
     for (const [releaseHome, count] of countReleaseHomes()) {

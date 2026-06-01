@@ -1,0 +1,144 @@
+name: PR Issue Reference
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  require-issue-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a same-repository issue reference
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const https = require('node:https');
+
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const token = process.env.GITHUB_TOKEN;
+          const pr = event.pull_request;
+          const repository = event.repository.full_name;
+          const [owner, repo] = repository.split('/');
+          const text = `${pr.title ?? ''}\n${pr.body ?? ''}`;
+
+          const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const numbers = new Set();
+
+          const addNumber = (value) => {
+            const number = Number(value);
+            if (Number.isSafeInteger(number) && number > 0) {
+              numbers.add(number);
+            }
+          };
+
+          for (const match of text.matchAll(/(^|[^\w/-])#([1-9]\d*)\b/g)) {
+            addNumber(match[2]);
+          }
+
+          for (const match of text.matchAll(/\bGH-([1-9]\d*)\b/gi)) {
+            addNumber(match[1]);
+          }
+
+          const sameRepo = escapeRegExp(repository);
+          for (const match of text.matchAll(new RegExp(`\\b${sameRepo}#([1-9]\\d*)\\b`, 'gi'))) {
+            addNumber(match[1]);
+          }
+
+          for (const match of text.matchAll(
+            new RegExp(`https://github\\.com/${sameRepo}/issues/([1-9]\\d*)\\b`, 'gi'),
+          )) {
+            addNumber(match[1]);
+          }
+
+          numbers.delete(Number(pr.number));
+
+          const requestIssue = (number) =>
+            new Promise((resolve, reject) => {
+              const request = https.request(
+                {
+                  hostname: 'api.github.com',
+                  method: 'GET',
+                  path: `/repos/${owner}/${repo}/issues/${number}`,
+                  headers: {
+                    Accept: 'application/vnd.github+json',
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'git-warp-pr-issue-reference-guard',
+                    'X-GitHub-Api-Version': '2022-11-28',
+                  },
+                },
+                (response) => {
+                  let body = '';
+                  response.setEncoding('utf8');
+                  response.on('data', (chunk) => {
+                    body += chunk;
+                  });
+                  response.on('end', () => {
+                    if (response.statusCode === 404) {
+                      resolve({ kind: 'missing', number });
+                      return;
+                    }
+                    if (response.statusCode !== 200) {
+                      reject(
+                        new Error(`GitHub API returned ${response.statusCode} for #${number}: ${body}`),
+                      );
+                      return;
+                    }
+                    const issue = JSON.parse(body);
+                    if (issue.pull_request !== undefined) {
+                      resolve({ kind: 'pull-request', number, title: issue.title });
+                      return;
+                    }
+                    resolve({ kind: 'issue', number, title: issue.title });
+                  });
+                },
+              );
+              request.on('error', reject);
+              request.end();
+            });
+
+          async function main() {
+            const candidates = [...numbers].sort((left, right) => left - right);
+            if (candidates.length === 0) {
+              console.error('This PR must reference at least one same-repository GitHub Issue.');
+              console.error(`Accepted forms: #123, GH-123, ${repository}#123, or https://github.com/${repository}/issues/123.`);
+              process.exit(1);
+            }
+
+            for (const number of candidates) {
+              const result = await requestIssue(number);
+              if (result.kind === 'issue') {
+                console.log(`Found issue reference #${result.number}: ${result.title}`);
+                process.exit(0);
+              }
+              if (result.kind === 'pull-request') {
+                console.log(`Ignoring #${result.number}: it is a pull request, not an issue.`);
+                continue;
+              }
+              console.log(`Ignoring #${result.number}: no such same-repository issue exists.`);
+            }
+
+            console.error('This PR references numbers, but none resolve to a same-repository GitHub Issue.');
+            console.error('References to pull requests do not satisfy this gate.');
+            process.exit(1);
+          }
+
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE

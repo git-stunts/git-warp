@@ -260,7 +260,7 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'name');
-        after.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
+        after.mutatePropLWW(propKey, makeEventId(1), 'Alice');
 
         const diff = diffStates(before, after);
 
@@ -281,7 +281,7 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'name');
-        before.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
+        before.mutatePropLWW(propKey, makeEventId(1), 'Alice');
 
         const diff = diffStates(before, after);
 
@@ -301,8 +301,8 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'name');
-        before.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
-        after.prop.set(propKey, lwwSet(makeEventId(2), 'Alicia'));
+        before.mutatePropLWW(propKey, makeEventId(1), 'Alice');
+        after.mutatePropLWW(propKey, makeEventId(2), 'Alicia');
 
         const diff = diffStates(before, after);
 
@@ -323,8 +323,8 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'name');
-        before.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
-        after.prop.set(propKey, lwwSet(makeEventId(2), 'Alice'));
+        before.mutatePropLWW(propKey, makeEventId(1), 'Alice');
+        after.mutatePropLWW(propKey, makeEventId(2), 'Alice');
 
         const diff = diffStates(before, after);
 
@@ -337,8 +337,8 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
-        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25 }));
-        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 26 }));
+        before.mutatePropLWW(propKey, makeEventId(1), { age: 25 });
+        after.mutatePropLWW(propKey, makeEventId(2), { age: 26 });
 
         const diff = diffStates(before, after);
 
@@ -352,8 +352,8 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
-        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25, tags: ['a', 'b'] }));
-        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 25, tags: ['a', 'b'] }));
+        before.mutatePropLWW(propKey, makeEventId(1), { age: 25, tags: ['a', 'b'] });
+        after.mutatePropLWW(propKey, makeEventId(2), { age: 25, tags: ['a', 'b'] });
 
         const diff = diffStates(before, after);
 
@@ -365,8 +365,8 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'tags');
-        before.prop.set(propKey, lwwSet(makeEventId(1), ['a', 'b']));
-        after.prop.set(propKey, lwwSet(makeEventId(2), ['a', 'c']));
+        before.mutatePropLWW(propKey, makeEventId(1), ['a', 'b']);
+        after.mutatePropLWW(propKey, makeEventId(2), ['a', 'c']);
 
         const diff = diffStates(before, after);
 
@@ -380,8 +380,8 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
-        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25 }));
-        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 25, city: 'SF' }));
+        before.mutatePropLWW(propKey, makeEventId(1), { age: 25 });
+        after.mutatePropLWW(propKey, makeEventId(2), { age: 25, city: 'SF' });
 
         const diff = diffStates(before, after);
 
@@ -394,8 +394,8 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
-        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25, city: 'SF' }));
-        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 25, role: 'admin' }));
+        before.mutatePropLWW(propKey, makeEventId(1), { age: 25, city: 'SF' });
+        after.mutatePropLWW(propKey, makeEventId(2), { age: 25, role: 'admin' });
 
         const diff = diffStates(before, after);
 
@@ -409,8 +409,8 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
-        before.prop.set(propKey, lwwSet(makeEventId(1), ['a', 'b']));
-        after.prop.set(propKey, lwwSet(makeEventId(2), { 0: 'a', 1: 'b' }));
+        before.mutatePropLWW(propKey, makeEventId(1), ['a', 'b']);
+        after.mutatePropLWW(propKey, makeEventId(2), { 0: 'a', 1: 'b' });
 
         const diff = diffStates(before, after);
 
@@ -421,9 +421,9 @@ describe('StateDiff', () => {
         const before = createEmptyState();
         const after = createEmptyState();
 
-        after.prop.set(encodePropKey('z', 'name'), lwwSet(makeEventId(1), 'Z'));
-        after.prop.set(encodePropKey('a', 'name'), lwwSet(makeEventId(2), 'A'));
-        after.prop.set(encodePropKey('a', 'age'), lwwSet(makeEventId(3), 25));
+        after.mutatePropLWW(encodePropKey('z', 'name'), makeEventId(1), 'Z');
+        after.mutatePropLWW(encodePropKey('a', 'name'), makeEventId(2), 'A');
+        after.mutatePropLWW(encodePropKey('a', 'age'), makeEventId(3), 25);
 
         const diff = diffStates(before, after);
 
@@ -439,8 +439,8 @@ describe('StateDiff', () => {
         const after = createEmptyState();
 
         const edgePropKey = encodeEdgePropKey('a', 'b', 'link', 'weight');
-        before.prop.set(edgePropKey, lwwSet(makeEventId(1), 1));
-        after.prop.set(edgePropKey, lwwSet(makeEventId(2), 2));
+        before.mutatePropLWW(edgePropKey, makeEventId(1), 1);
+        after.mutatePropLWW(edgePropKey, makeEventId(2), 2);
 
         const diff = diffStates(before, after);
 
@@ -458,7 +458,7 @@ describe('StateDiff', () => {
           createEdgeAddOp('user:alice', 'user:alice', 'self', 'w1', 2),
         ], 'w1');
 
-        after.prop.set(encodePropKey('user:alice', 'name'), lwwSet(makeEventId(1), 'Alice'));
+        after.mutatePropLWW(encodePropKey('user:alice', 'name'), makeEventId(1), 'Alice');
 
         const diff = diffStates(null, after);
 
@@ -479,7 +479,7 @@ describe('StateDiff', () => {
           createNodeAddOp('user:alice', 'w1', 1),
         ], 'w1');
 
-        state.prop.set(encodePropKey('user:alice', 'name'), lwwSet(makeEventId(1), 'Alice'));
+        state.mutatePropLWW(encodePropKey('user:alice', 'name'), makeEventId(1), 'Alice');
 
         const diff = diffStates(state, state);
 

@@ -6,11 +6,13 @@ on top of `git-warp` and need to choose the right public read surface.
 The v18 first-use path is:
 
 ```text
-openWarpWorldline() -> worldline.commit() -> worldline.live(), worldline.seek(), worldline.observer(), worldline.optic()
+openWarpWorldline() -> worldline.commit() -> worldline.live(), worldline.seek(), worldline.observer()
+openWarpWorldline() -> worldline.prepareOpticBasis() -> worldline.coordinate() -> coordinate.optic()
 ```
 
 Application code should write claims through `WarpWorldline.commit()` and read
-admitted truth through live or pinned worldlines, observers, and bounded optics.
+admitted truth through live or pinned worldlines, observers, and coordinate
+Optics.
 `openWarpGraph()` remains supported for compatibility, migration evidence,
 diagnostics, and substrate tooling, but it is no longer the surface new
 application code should reach for first.
@@ -19,6 +21,11 @@ application code should reach for first.
 
 A **reading** is a read basis over causal history. It answers "from which
 worldline, coordinate, strand, or aperture am I allowed to see?"
+
+A **coordinate** is the public stable read position for coherent Optics. It
+captures a checkpoint-tail basis plus a worldline frontier. If the live
+worldline advances after the coordinate is captured, reads through that
+coordinate keep answering from the captured position.
 
 An **optic** is the bounded question asked over a reading. It answers "which
 node, edge, neighbor set, traversal, or query result do I want?"
@@ -84,6 +91,20 @@ const taskBeforeReview = await beforeReview.getNodeProps('task:auth');
 Pinned readings keep historical inspection in the read model. Application code
 does not reconstruct old state by replaying patches itself.
 
+For coordinate Optics, capture the coordinate from the `WarpWorldline` handle
+after preparing the bounded basis:
+
+```typescript
+await events.prepareOpticBasis();
+const coordinate = await events.coordinate();
+
+const status = await coordinate
+  .optic()
+  .node('task:auth')
+  .prop('status')
+  .read();
+```
+
 ## Observer Reading
 
 Use an observer when a consumer should see only part of a worldline.
@@ -103,11 +124,14 @@ tenant scoping, or role-specific views.
 
 ## Optic Reading
 
-Use an optic when the product needs a bounded, named question over a live
-worldline and the substrate has a checkpoint-tail basis available.
+Use an optic when the product needs a bounded, named question over a captured
+coordinate.
 
 ```typescript
-const status = await events
+await events.prepareOpticBasis();
+const coordinate = await events.coordinate();
+
+const status = await coordinate
   .optic()
   .node('task:auth')
   .prop('status')
@@ -116,8 +140,27 @@ const status = await events
 
 Foundation optics are deliberately narrower than general reads. They reject
 unbounded or unsupported bases instead of silently falling back to a whole-graph
-fold. If an optic reports that no bounded basis is available, use a worldline or
-observer read, or create the operational checkpoint evidence the optic needs.
+fold. If coordinate capture or an optic reports `E_OPTIC_NO_BOUNDED_BASIS`, call
+`prepareOpticBasis()` before capturing the coordinate, repair the operational
+checkpoint evidence, or use a live worldline or observer read when you do not
+need Optic identity.
+
+`events.optic()` remains a convenience for one-off live optic reads when a
+bounded basis already exists. It is not the coherent multi-read boundary. If two
+awaited reads must describe the same causal position, use one captured
+coordinate for both reads.
+
+Coordinate Optics report ordinary absence as data, not as an exception:
+
+- a missing or blank node id reads as `{ nodeId, alive: false, readIdentity }`;
+- a missing or blank property key reads as
+  `{ nodeId, key, exists: false, value: undefined, readIdentity }`.
+
+Evidence failures are different. `E_OPTIC_TAIL_BUDGET_EXCEEDED` means the
+bounded tail is longer than the configured read budget, so refresh the
+checkpoint basis or retry with an intentional larger budget when that surface is
+available. `E_OPTIC_READ_IDENTITY` means the evidence envelope itself is invalid
+and should be treated as an integrity failure, not a missing value.
 
 ## Strand Reading
 
@@ -192,7 +235,9 @@ first-use read path for application code.
 | Read a filtered view | `worldline.observer(...)` |
 | Traverse visible structure | `worldline.live().traverse` |
 | Query visible structure | `worldline.live().query()` |
-| Ask a bounded optic question | `worldline.optic()` |
+| Prepare coordinate Optics | `worldline.prepareOpticBasis()` |
+| Capture a coherent optic coordinate | `worldline.coordinate()` |
+| Ask a bounded optic question | `coordinate.optic()` |
 | Inspect provenance | `graph.provenance` |
 | Create an operational snapshot | `graph.checkpoint` |
 | Explore speculative work | `graph.strands` |

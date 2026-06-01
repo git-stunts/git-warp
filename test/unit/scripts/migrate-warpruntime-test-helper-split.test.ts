@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const closeoutNotePath = join(
   process.cwd(),
-  'docs/method/backlog/v17.0.0/DX_migrate-tests-and-seed-helpers-off-warpruntime.md',
+  'docs/archive/backlog/v17.0.0-residual-backlog/DX_migrate-tests-and-seed-helpers-off-warpruntime.md',
 );
 const closeoutCycle = readFileSync(
   join(process.cwd(), 'docs/design/0082-close-warpruntime-test-helper-migration.md'),

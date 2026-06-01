@@ -49,17 +49,17 @@ The source card said:
 
 ### `src/domain/services/ImmutableSnapshot.ts`
 
-| Lines | Evidence | Classification |
-|---:|---|---|
-| 33-60 | `createReadonlyCollectionProxy<T>(...)` returns a proxy as arbitrary `T` | Generic preservation lie |
-| 66-76 | `cloneImmutableMap<T>(...)` returns `proxy as T` | Generic preservation lie |
-| 82-89 | `cloneImmutableSet<T>(...)` returns `proxy as T` | Generic preservation lie |
-| 95-101 | `cloneImmutableArray<T>(...)` returns `Object.freeze(cloned) as T` | Generic preservation lie |
-| 107-125 | `cloneImmutableObject<T>(value: object, ...)` copies descriptors with `Object.create` | Runtime identity lie |
-| 125 | `Object.freeze(cloned) as unknown as T` is the 0096 cast blocker | Cast theater |
-| 131-152 | `cloneImmutableObjectValue<T extends object>(...)` dispatches only one known domain type, then falls back to arbitrary object cloning | Source model gap |
-| 158-175 | `cloneImmutableValue<T>(value: T, ...)` and `createImmutableValue<T>(value: T): T` promise arbitrary preservation | Public API lie |
-| 181-182 | `createImmutableWarpState(state): WarpState` delegates to generic `createImmutableValue` instead of a WarpState-specific builder | Missing snapshot builder |
+|   Lines | Evidence                                                                                                                              | Classification           |
+| ------: | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+|   33-60 | `createReadonlyCollectionProxy<T>(...)` returns a proxy as arbitrary `T`                                                              | Generic preservation lie |
+|   66-76 | `cloneImmutableMap<T>(...)` returns `proxy as T`                                                                                      | Generic preservation lie |
+|   82-89 | `cloneImmutableSet<T>(...)` returns `proxy as T`                                                                                      | Generic preservation lie |
+|  95-101 | `cloneImmutableArray<T>(...)` returns `Object.freeze(cloned) as T`                                                                    | Generic preservation lie |
+| 107-125 | `cloneImmutableObject<T>(value: object, ...)` copies descriptors with `Object.create`                                                 | Runtime identity lie     |
+|     125 | `Object.freeze(cloned) as unknown as T` is the 0096 cast blocker                                                                      | Cast theater             |
+| 131-152 | `cloneImmutableObjectValue<T extends object>(...)` dispatches only one known domain type, then falls back to arbitrary object cloning | Source model gap         |
+| 158-175 | `cloneImmutableValue<T>(value: T, ...)` and `createImmutableValue<T>(value: T): T` promise arbitrary preservation                     | Public API lie           |
+| 181-182 | `createImmutableWarpState(state): WarpState` delegates to generic `createImmutableValue` instead of a WarpState-specific builder      | Missing snapshot builder |
 
 ### Current Call Sites
 
@@ -223,7 +223,7 @@ should fail while `ImmutableSnapshot.ts` still contains:
 - `as unknown as T`;
 - `createImmutableValue<T>(value: T): T`;
 - generic helper returns such as `proxy as T` or `Object.freeze(...) as
-  T`;
+T`;
 - fallback cloning for arbitrary objects after known types are checked.
 
 Add behavioral RED coverage for unsupported sources:
@@ -266,7 +266,7 @@ Expected failure:
 - The source assertions fail because `ImmutableSnapshot.ts` still
   contains generic object cloning, descriptor-copy allocation,
   `as unknown as T`, `createImmutableValue<T>(value: T): T`, `proxy as
-  T`, `Object.freeze(cloned) as T`, and an arbitrary-object fallback.
+T`, `Object.freeze(cloned) as T`, and an arbitrary-object fallback.
 - The unsupported-source behavior fails because the current
   `createImmutableValue(...)` path attempts to clone and freeze an
   arbitrary constructor-guarded class instance instead of rejecting it as
@@ -654,7 +654,7 @@ Closeout links:
 - Retrospective:
   [docs/method/retros/0100-immutable-snapshot-builder-domain-model.md](../method/retros/0100-immutable-snapshot-builder-domain-model.md)
 - Release-note follow-up:
-  [docs/method/backlog/v17.0.0/API_readonly-receipts-release-note.md](../method/backlog/v17.0.0/API_readonly-receipts-release-note.md)
+  [docs/method/backlog/v17.0.0/API_readonly-receipts-release-note.md](../archive/backlog/v17.0.0-residual-backlog/API_readonly-receipts-release-note.md)
 
 Cycle-end confirmations:
 

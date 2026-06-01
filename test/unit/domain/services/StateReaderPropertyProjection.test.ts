@@ -36,10 +36,10 @@ describe('StateReader property projection routing', () => {
     addLiveNode(state, 'node:1', 1);
     addLiveNode(state, 'node:2', 2);
     addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
-    state.prop.set(encodePropKey('node:1', 'status'), register(4, 'ready'));
-    state.prop.set('node:1\0bad\0extra', register(5, 'ignored'));
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
-    state.prop.set(`${EDGE_PROP_PREFIX}node:1\0node:2\0rel\0bad\0extra`, register(7, 'ignored'));
+    setPropFromReg(state,encodePropKey('node:1', 'status'), register(4, 'ready'));
+    setPropFromReg(state,'node:1\0bad\0extra', register(5, 'ignored'));
+    setPropFromReg(state,encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
+    setPropFromReg(state,`${EDGE_PROP_PREFIX}node:1\0node:2\0rel\0bad\0extra`, register(7, 'ignored'));
 
     const reader = createStateReader(state);
     const host = hostForState(state);
@@ -65,12 +65,12 @@ describe('StateReader property projection routing', () => {
     addLiveNode(state, 'node:1', 1);
     addLiveNode(state, 'node:2', 2);
     addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
-    state.prop.set(encodePropKey('node:1', CONTENT_PROPERTY_KEY), register(4, 'node-oid'));
-    state.prop.set(encodePropKey('node:1', CONTENT_MIME_PROPERTY_KEY), register(5, 'ignored/old'));
-    state.prop.set(encodePropKey('node:1', CONTENT_SIZE_PROPERTY_KEY), register(4, 512));
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_PROPERTY_KEY), register(6, 'edge-oid'));
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_MIME_PROPERTY_KEY), register(6, 'text/plain'));
-    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_SIZE_PROPERTY_KEY), register(7, 999));
+    setPropFromReg(state,encodePropKey('node:1', CONTENT_PROPERTY_KEY), register(4, 'node-oid'));
+    setPropFromReg(state,encodePropKey('node:1', CONTENT_MIME_PROPERTY_KEY), register(5, 'ignored/old'));
+    setPropFromReg(state,encodePropKey('node:1', CONTENT_SIZE_PROPERTY_KEY), register(4, 512));
+    setPropFromReg(state,encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_PROPERTY_KEY), register(6, 'edge-oid'));
+    setPropFromReg(state,encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_MIME_PROPERTY_KEY), register(6, 'text/plain'));
+    setPropFromReg(state,encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_SIZE_PROPERTY_KEY), register(7, 999));
 
     const reader = createStateReader(state);
 
@@ -158,12 +158,12 @@ function stateWithProjectionFacts(): WarpState {
   addLiveNode(state, 'node:1', 1);
   addLiveNode(state, 'node:2', 2);
   addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
-  state.prop.set(encodePropKey('node:1', 'status'), register(4, 'ready'));
-  state.prop.set(encodePropKey('node:1', CONTENT_PROPERTY_KEY), register(5, 'node-oid'));
-  state.prop.set(encodePropKey('node:1', CONTENT_SIZE_PROPERTY_KEY), register(5, 512));
-  state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
-  state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_PROPERTY_KEY), register(7, 'edge-oid'));
-  state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_MIME_PROPERTY_KEY), register(7, 'text/plain'));
+  setPropFromReg(state,encodePropKey('node:1', 'status'), register(4, 'ready'));
+  setPropFromReg(state,encodePropKey('node:1', CONTENT_PROPERTY_KEY), register(5, 'node-oid'));
+  setPropFromReg(state,encodePropKey('node:1', CONTENT_SIZE_PROPERTY_KEY), register(5, 512));
+  setPropFromReg(state,encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
+  setPropFromReg(state,encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_PROPERTY_KEY), register(7, 'edge-oid'));
+  setPropFromReg(state,encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_MIME_PROPERTY_KEY), register(7, 'text/plain'));
   return state;
 }
 
@@ -206,6 +206,10 @@ function addLiveEdge(
   const edgeKey = encodeEdgeKey(from, to, label);
   state.edgeAlive.add(edgeKey, Dot.create('writer', counter));
   state.edgeBirthEvent.set(edgeKey, event(counter));
+}
+
+function setPropFromReg(state: WarpState, key: string, reg: LWWRegister<PropValue>): void {
+  state.mutatePropLWW(key, reg.eventId, reg.value);
 }
 
 function register(opIndex: number, value: PropValue): LWWRegister<PropValue> {

@@ -4,18 +4,18 @@ import { describe, expect, it } from 'vitest';
 
 const capabilityNotePath = join(
   process.cwd(),
-  'docs/method/backlog/v17.0.0/API_capability-interfaces.md',
+  'docs/archive/backlog/v17.0.0-residual-backlog/API_capability-interfaces.md',
 );
 const factoryCycle = readFileSync(
   join(process.cwd(), 'docs/design/0089-close-warpgraph-factory.md'),
   'utf8',
 );
 const queryControllerNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/GOD_query-controller.md'),
+  join(process.cwd(), 'docs/archive/backlog/v17.0.0-residual-backlog/GOD_query-controller.md'),
   'utf8',
 );
 const strandServiceNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/GOD_strand-service.md'),
+  join(process.cwd(), 'docs/archive/backlog/v17.0.0-residual-backlog/GOD_strand-service.md'),
   'utf8',
 );
 const releaseLedger = readFileSync(

@@ -5,6 +5,8 @@ describe('public runtime exports', () => {
   it('exports the Worldline-first open helper and handle', () => {
     expect(api.openWarpWorldline).toBeDefined();
     expect(api.WarpWorldline).toBeDefined();
+    expect(api.WarpWorldlineCoordinate).toBeDefined();
+    expect(api.WarpWorldlineOpticBasis).toBeDefined();
   });
 
   it('does not export the retired browser viewer service', () => {

@@ -59,10 +59,16 @@ describe('v18 Worldline-first documentation guard', () => {
 
   it('keeps the readings and optics path receiver-qualified', () => {
     expect(readingsAndOptics).toContain(
-      'openWarpWorldline() -> worldline.commit() -> worldline.live(), worldline.seek(), worldline.observer(), worldline.optic()',
+      'openWarpWorldline() -> worldline.commit() -> worldline.live(), worldline.seek(), worldline.observer()',
+    );
+    expect(readingsAndOptics).toContain(
+      'openWarpWorldline() -> worldline.prepareOpticBasis() -> worldline.coordinate() -> coordinate.optic()',
     );
     expect(readingsAndOptics).not.toContain(
       'openWarpWorldline() -> worldline.commit() -> worldline.live(), worldline.seek(), observer(), optic()',
+    );
+    expect(readingsAndOptics).not.toContain(
+      'openWarpWorldline() -> worldline.prepareOpticBasis() -> coordinate() -> optic()',
     );
   });
 });

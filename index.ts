@@ -170,6 +170,8 @@ import ContentAttachmentProjection from './src/domain/services/ContentAttachment
 import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import WarpWorldline, { openWarpWorldline } from './src/domain/WarpWorldline.ts';
+import WarpWorldlineCoordinate from './src/domain/WarpWorldlineCoordinate.ts';
+import WarpWorldlineOpticBasis from './src/domain/WarpWorldlineOpticBasis.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
@@ -189,6 +191,7 @@ import type {
   WarpWorldlineOpenOptions,
   WarpWorldlinePatchBuild,
 } from './src/domain/WarpWorldline.ts';
+import type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
@@ -336,6 +339,8 @@ export {
   // Worldline-first public handle
   openWarpWorldline,
   WarpWorldline,
+  WarpWorldlineCoordinate,
+  WarpWorldlineOpticBasis,
 
   // Multi-writer graph support (legacy/diagnostic — prefer openWarpWorldline)
   WarpApp,
@@ -456,6 +461,7 @@ export type {
   SyncRateLimitConfig,
   WarpWorldlineOpenOptions,
   WarpWorldlinePatchBuild,
+  WarpWorldlineCoordinateFrontierEntry,
   ContinuumArtifactAuthorityValue,
   ContinuumArtifactDescriptorFields,
   ContinuumEvidenceClaimFields,

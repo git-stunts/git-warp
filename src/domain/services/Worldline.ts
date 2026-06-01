@@ -8,18 +8,20 @@ import type Observer from './query/Observer.ts';
 import LogicalTraversal from './query/LogicalTraversal.ts';
 import QueryBuilder from './query/QueryBuilder.ts';
 import QueryError from '../errors/QueryError.ts';
+import CoordinateCheckpointTailOpticSource from './optic/CoordinateCheckpointTailOpticSource.ts';
 import WorldlineOptic from './optic/WorldlineOptic.ts';
 import type CheckpointTailOpticSource from './optic/CheckpointTailOpticSource.ts';
-import type {
-  QueryReadModel,
-  QueryReadModelProvider,
-} from './query/QueryReadModelProvider.ts';
+import type { QueryReadModel, QueryReadModelProvider } from './query/QueryReadModelProvider.ts';
 
 type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
 type VisibleEdge = Awaited<ReturnType<Observer['getEdges']>>[number];
 type WorldlineObserverFactory = {
   observer(config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
-  observer(name: string, config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
+  observer(
+    name: string,
+    config: Aperture,
+    options?: { source: WorldlineSource }
+  ): Promise<Observer>;
 };
 
 function toSelector(source?: WorldlineSelector | WorldlineSource | null): WorldlineSelector {
@@ -38,7 +40,7 @@ function toSelector(source?: WorldlineSelector | WorldlineSource | null): Worldl
   }
 
   if (sourceKind === 'coordinate') {
-    return new CoordinateSelector(source.frontier, source.ceiling);
+    return new CoordinateSelector(source.frontier, source.ceiling, source.checkpointSha);
   }
 
   if (sourceKind === 'strand') {
@@ -103,7 +105,7 @@ export default class Worldline {
         graph: this._graph,
         source: options?.source ?? this._source,
         opticSource: this._opticSource,
-      }),
+      })
     );
   }
 
@@ -114,22 +116,33 @@ export default class Worldline {
         context: { reason: 'missing-optic-source' },
       });
     }
-    if (!(this._source instanceof LiveSelector)) {
-      throw new QueryError('v17 foundation optics support live worldlines only', {
-        code: 'E_OPTIC_NO_BOUNDED_BASIS',
-        context: { selector: this._source.constructor.name },
+    if (this._source instanceof LiveSelector) {
+      return new WorldlineOptic({ source: this._opticSource });
+    }
+    if (this._source instanceof CoordinateSelector) {
+      if (this._source.checkpointSha === null) {
+        throw new QueryError('coordinate optic requires a checkpoint-tail bounded basis source', {
+          code: 'E_OPTIC_NO_BOUNDED_BASIS',
+          context: { reason: 'coordinate-without-optic-basis' },
+        });
+      }
+      return new WorldlineOptic({
+        source: new CoordinateCheckpointTailOpticSource({
+          source: this._opticSource,
+          checkpointSha: this._source.checkpointSha,
+          frontier: this._source.frontier,
+        }),
       });
     }
-    return new WorldlineOptic({ source: this._opticSource });
+    throw new QueryError('v17 foundation optics support live and coordinate worldlines only', {
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: { selector: this._source.constructor.name },
+    });
   }
 
   async _delegateObserver(): Promise<Observer> {
     if (this._delegateObserverPromise === null) {
-      this._delegateObserverPromise = this._graph
-        .observer(
-          { match: '*' },
-          { source: this.source },
-        );
+      this._delegateObserverPromise = this._graph.observer({ match: '*' }, { source: this.source });
     }
     return await this._delegateObserverPromise;
   }

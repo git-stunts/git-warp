@@ -15,8 +15,10 @@ import {
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
+import type { NodePropertyEntry } from '../../../../src/domain/services/state/WarpState.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
+import type { PropValue } from '../../../../src/domain/types/PropValue.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 function createInlineValue(value: unknown) { return { type: 'inline', value }; }
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -77,7 +79,7 @@ function buildStateV5({ nodes = [] as any[], edges = [] as any[], props = [] as 
   // Add props using LWW (same as v4)
   for (const { nodeId, key, value, eventId } of props) {
     const propKey = encodePropKey(nodeId, key);
-    state.prop.set(propKey, lwwSet(eventId ?? mockEventId(), value));
+    state.mutatePropLWW(propKey, eventId ?? mockEventId(), value);
   }
 
   return state;
@@ -195,40 +197,39 @@ describe('StateSerializer', () => {
   });
 
   describe('propVisibleV5', () => {
-    it('returns true when node visible and prop exists', () => {
+    function makeOrphanEntry(nodeId: string, key: string): NodePropertyEntry {
+      const propValue: PropValue = 'orphan';
+      return {
+        encodedKey: encodePropKey(nodeId, key),
+        nodeId,
+        key,
+        register: lwwSet(new EventId(1, 'test', 'abcd1234', 0), propValue),
+      };
+    }
+
+    it('returns true when node is visible', () => {
       const state = buildStateV5({
         nodes: [{ nodeId: 'a' }],
         props: [{ nodeId: 'a', key: 'name', value: createInlineValue('Alice') }],
       });
-
-      const propKey = encodePropKey('a', 'name');
-      expect(propVisibleV5(state, propKey)).toBe(true);
+      const entries = [...state.nodeProperties()];
+      expect(entries.length).toBeGreaterThan(0);
+      expect(propVisibleV5(state, entries[0]!)).toBe(true);
     });
 
-    it('returns false when node tombstoned', () => {
+    it('returns false when node is tombstoned', () => {
       const state = buildStateV5({
         nodes: [{ nodeId: 'a', alive: false }],
         props: [{ nodeId: 'a', key: 'name', value: createInlineValue('Alice') }],
       });
-
-      const propKey = encodePropKey('a', 'name');
-      expect(propVisibleV5(state, propKey)).toBe(false);
+      const entries = [...state.nodeProperties()];
+      expect(entries.length).toBeGreaterThan(0);
+      expect(propVisibleV5(state, entries[0]!)).toBe(false);
     });
 
-    it('returns false when prop does not exist', () => {
-      const state = buildStateV5({
-        nodes: [{ nodeId: 'a' }],
-      });
-
-      const propKey = encodePropKey('a', 'name');
-      expect(propVisibleV5(state, propKey)).toBe(false);
-    });
-
-    it('returns false when node unknown', () => {
+    it('returns false when node is unknown', () => {
       const state = createEmptyState();
-
-      const propKey = encodePropKey('a', 'name');
-      expect(propVisibleV5(state, propKey)).toBe(false);
+      expect(propVisibleV5(state, makeOrphanEntry('a', 'name'))).toBe(false);
     });
   });
 
@@ -407,25 +408,30 @@ describe('StateSerializer', () => {
       });
 
       state.edgeBirthEvent.set(encodeEdgeKey('a', 'c', 'rel'), edgeBirth);
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', 'since'),
-        lwwSet(mockEventId(3, 'alice', 'eeeeeeee', 0), 2026),
+        mockEventId(3, 'alice', 'eeeeeeee', 0),
+        2026,
       );
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', CONTENT_PROPERTY_KEY),
-        lwwSet(edgeContentEvent, 'oid:edge'),
+        edgeContentEvent,
+        'oid:edge',
       );
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', CONTENT_MIME_PROPERTY_KEY),
-        lwwSet(mockEventId(5, 'alice', 'dddddddd', 1), 'application/json'),
+        mockEventId(5, 'alice', 'dddddddd', 1),
+        'application/json',
       );
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', CONTENT_SIZE_PROPERTY_KEY),
-        lwwSet(mockEventId(5, 'alice', 'dddddddd', 2), 7),
+        mockEventId(5, 'alice', 'dddddddd', 2),
+        7,
       );
-      state.prop.set(
+      state.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'rel', 'stale'),
-        lwwSet(mockEventId(1, 'alice', 'aaaaaaaa', 0), 'ignore-me'),
+        mockEventId(1, 'alice', 'aaaaaaaa', 0),
+        'ignore-me',
       );
 
       const reader = createStateReader(state);
@@ -631,9 +637,10 @@ describe('StateSerializer', () => {
           { nodeId: 'd', key: 'kind', value: 'legacy' },
         ],
       });
-      left.prop.set(
+      left.mutatePropLWW(
         encodeEdgePropKey('a', 'b', 'knows', 'weight'),
-        lwwSet(mockEventId(2), 1),
+        mockEventId(2),
+        1,
       );
 
       const right = buildStateV5({
@@ -647,13 +654,15 @@ describe('StateSerializer', () => {
           { nodeId: 'c', key: 'kind', value: 'new' },
         ],
       });
-      right.prop.set(
+      right.mutatePropLWW(
         encodeEdgePropKey('a', 'b', 'knows', 'weight'),
-        lwwSet(mockEventId(3), 2),
+        mockEventId(3),
+        2,
       );
-      right.prop.set(
+      right.mutatePropLWW(
         encodeEdgePropKey('a', 'c', 'follows', 'rank'),
-        lwwSet(mockEventId(4), 1),
+        mockEventId(4),
+        1,
       );
 
       const comparison = compareVisibleState(left, right, { targetId: 'a' });

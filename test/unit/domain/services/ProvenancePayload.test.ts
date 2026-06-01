@@ -277,8 +277,8 @@ describe('ProvenancePayload', () => {
 
         // Both should have same properties
         const propKey = encodePropKey('node-a', 'name');
-        expect(lwwValue(stateLeft.prop.get(propKey))).toEqual(
-          lwwValue(stateRight.prop.get(propKey))
+        expect(lwwValue(stateLeft.getEncodedProp(propKey))).toEqual(
+          lwwValue(stateRight.getEncodedProp(propKey))
         );
       });
 
@@ -305,7 +305,7 @@ describe('ProvenancePayload', () => {
 
       expect(state.nodeAlive.entries.size).toBe(0);
       expect(state.edgeAlive.entries.size).toBe(0);
-      expect(state.prop.size).toBe(0);
+      expect(state.propSize()).toBe(0);
     });
 
     it('materializes single patch correctly', () => {
@@ -333,7 +333,7 @@ describe('ProvenancePayload', () => {
 
       // Check property
       const propKey = encodePropKey('node-a', 'name');
-      expect(lwwValue(state.prop.get(propKey))).toEqual(createInlineValue('Alice'));
+      expect(lwwValue(state.getEncodedProp(propKey))).toEqual(createInlineValue('Alice'));
     });
 
     it('produces same state as full materialization', () => {
@@ -363,8 +363,8 @@ describe('ProvenancePayload', () => {
 
       // Compare properties
       const propKey = encodePropKey('node-a', 'name');
-      expect(lwwValue(payloadState.prop.get(propKey))).toEqual(
-        lwwValue(directState.prop.get(propKey))
+      expect(lwwValue(payloadState.getEncodedProp(propKey))).toEqual(
+        lwwValue(directState.getEncodedProp(propKey))
       );
     });
 
@@ -693,11 +693,11 @@ describe('ProvenancePayload', () => {
         );
 
         // Verify same properties
-        expect(lwwValue(splitState.prop.get(encodePropKey('x', 'val')))).toEqual(
-          lwwValue(fullState.prop.get(encodePropKey('x', 'val')))
+        expect(lwwValue(splitState.getEncodedProp(encodePropKey('x', 'val')))).toEqual(
+          lwwValue(fullState.getEncodedProp(encodePropKey('x', 'val')))
         );
-        expect(lwwValue(splitState.prop.get(encodePropKey('y', 'val')))).toEqual(
-          lwwValue(fullState.prop.get(encodePropKey('y', 'val')))
+        expect(lwwValue(splitState.getEncodedProp(encodePropKey('y', 'val')))).toEqual(
+          lwwValue(fullState.getEncodedProp(encodePropKey('y', 'val')))
         );
       }
     });
@@ -750,7 +750,7 @@ describe('ProvenancePayload', () => {
 
       // Property should be C's value (highest lamport)
       const propKey = encodePropKey('shared', 'author');
-      expect(lwwValue(state.prop.get(propKey))).toEqual(createInlineValue('C'));
+      expect(lwwValue(state.getEncodedProp(propKey))).toEqual(createInlineValue('C'));
     });
 
     it('handles add-remove-readd cycle correctly', () => {

@@ -165,8 +165,8 @@ describe('WarpCore.materializeSlice() (HG/SLICE/1)', () => {
       // Check properties are set correctly
       const namePropKey = encodePropKey('user:alice', 'name');
       const emailPropKey = encodePropKey('user:alice', 'email');
-      expect(lwwValue(slice.state.prop.get(namePropKey))).toBe('Alice');
-      expect(lwwValue(slice.state.prop.get(emailPropKey))).toBe('alice@example.com');
+      expect(lwwValue(slice.state.getEncodedProp(namePropKey))).toBe('Alice');
+      expect(lwwValue(slice.state.getEncodedProp(emailPropKey))).toBe('alice@example.com');
     });
   });
 
@@ -406,7 +406,7 @@ describe('WarpCore.materializeSlice() (HG/SLICE/1)', () => {
       expect(slice.state.nodeAlive.contains('shared')).toBe(true);
 
       const propKey = encodePropKey('shared', 'owner');
-      expect(lwwValue(slice.state.prop.get(propKey))).toBe('bob');
+      expect(lwwValue(slice.state.getEncodedProp(propKey))).toBe('bob');
     });
   });
 
@@ -490,8 +490,8 @@ describe('WarpCore.materializeSlice() (HG/SLICE/1)', () => {
 
       // Property should have the final value (300) in both cases
       const propKey = encodePropKey('target', 'value');
-      expect(lwwValue(slice.state.prop.get(propKey))).toBe(lwwValue(fullState.prop.get(propKey)));
-      expect(lwwValue(slice.state.prop.get(propKey))).toBe(300);
+      expect(lwwValue(slice.state.getEncodedProp(propKey))).toBe(lwwValue(fullState.prop.get(propKey)));
+      expect(lwwValue(slice.state.getEncodedProp(propKey))).toBe(300);
     });
   });
 

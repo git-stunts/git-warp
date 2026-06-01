@@ -1,6 +1,6 @@
 ---
-title: "Observer geometry architecture ladder"
-cycle: "0035-observer-geometry-architecture-ladder"
+title: 'Observer geometry architecture ladder'
+cycle: '0035-observer-geometry-architecture-ladder'
 ---
 
 # Observer Geometry Architecture Ladder
@@ -282,11 +282,11 @@ Success criteria:
 
 The immediate ladder items are:
 
-- [HYGIENE_warp-doctrine-runtime-alignment](../method/backlog/v19.0.0/HYGIENE_warp-doctrine-runtime-alignment.md)
-- [PROTO_bounded-support-rules-for-query-surfaces](../method/backlog/v19.0.0/PROTO_bounded-support-rules-for-query-surfaces.md)
-- [PROTO_causal-indexes-for-sliced-queries](../method/backlog/v19.0.0/PROTO_causal-indexes-for-sliced-queries.md)
-- [PROTO_support-scoped-fragment-materialization](../method/backlog/v19.0.0/PROTO_support-scoped-fragment-materialization.md)
-- [PROTO_tick-range-graph-diff-api](../method/backlog/v19.0.0/PROTO_tick-range-graph-diff-api.md)
+- [HYGIENE_warp-doctrine-runtime-alignment](https://github.com/git-stunts/git-warp/issues/556)
+- [PROTO_bounded-support-rules-for-query-surfaces](https://github.com/git-stunts/git-warp/issues/558)
+- [PROTO_causal-indexes-for-sliced-queries](https://github.com/git-stunts/git-warp/issues/559)
+- [PROTO_support-scoped-fragment-materialization](https://github.com/git-stunts/git-warp/issues/562)
+- [PROTO_tick-range-graph-diff-api](https://github.com/git-stunts/git-warp/issues/563)
 
 These should be read as a ladder, not as disconnected ideas.
 

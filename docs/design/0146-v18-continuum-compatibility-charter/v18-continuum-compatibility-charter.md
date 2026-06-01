@@ -37,8 +37,8 @@ participant without collapsing it into Echo, Wesley, or `warp-ttd`.
 - `~/git/warp-ttd/docs/BEARING.md`
 - [VISION.md](../../VISION.md)
 - [BEARING.md](../../BEARING.md)
-- [backlog/WORKLOADS.md](../../method/backlog/WORKLOADS.md)
-- [backlog/v18.0.0/README.md](../../method/backlog/v18.0.0/README.md)
+- [backlog/WORKLOADS.md](../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md)
+- [backlog/v18.0.0/README.md](../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v18.0.0/README.md)
 
 ## Compatibility Law
 
@@ -124,14 +124,14 @@ The v18 opening campaign is on track when:
 
 - [x] `BEARING.md` tracks the running v18 task list.
 - [x] A cross-repo contract matrix names each family, generated artifact, local
-  source fact, consumer, and missing witness.
+      source fact, consumer, and missing witness.
 - [x] A WARP Optic realization map exists for `git-warp`.
 - [x] The repo can ingest at least one generated Continuum family artifact or
-  generated fixture.
+      generated fixture.
 - [x] A guard prevents generated-family local mirrors from becoming hidden
-  authority.
+      authority.
 - [ ] The first receipt-family projection reaches `warp-ttd` without adapter
-  folklore.
+      folklore.
 
 ## SSJS Scorecard
 

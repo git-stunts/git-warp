@@ -28,7 +28,7 @@ type SnapshotPropValueObject = { readonly [key: string]: SnapshotPropValue };
 class ReadonlySnapshotPropMap extends Map<string, LWWRegister<SnapshotPropValue>> {
   #sealed = false;
 
-  constructor(source: Map<string, LWWRegister<PropValue>>) {
+  constructor(source: Iterable<readonly [string, LWWRegister<PropValue>]>) {
     super();
     for (const [key, value] of source) {
       super.set(key, createLwwRegisterSnapshot(value));
@@ -111,7 +111,7 @@ function createUnsupportedSnapshotSourceError(expected: string): WarpError {
 }
 
 function createReadonlyPropMap(
-  source: Map<string, LWWRegister<PropValue>>,
+  source: Iterable<readonly [string, LWWRegister<PropValue>]>,
 ): ReadonlyMap<string, LWWRegister<SnapshotPropValue>> {
   const snapshot = new ReadonlySnapshotPropMap(source);
   Object.freeze(snapshot);
@@ -186,7 +186,7 @@ export function createSnapshotWarpState(state: WarpState): SnapshotWarpState {
   return new SnapshotWarpState({
     nodeAlive: createSnapshotORSet(state.nodeAlive),
     edgeAlive: createSnapshotORSet(state.edgeAlive),
-    prop: createReadonlyPropMap(state.prop),
+    prop: createReadonlyPropMap(state.allPropEntries()),
     observedFrontier: createSnapshotVersionVector(state.observedFrontier),
     edgeBirthEvent: createReadonlyEventMap(state.edgeBirthEvent),
   });

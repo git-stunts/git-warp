@@ -15,6 +15,9 @@ This release adds:
 - a Worldline-first public application entry point with `openWarpWorldline()`,
   `WarpWorldline`, `WarpWorldlineOpenOptions`, and
   `WarpWorldlinePatchBuild`;
+- coordinate-backed Optics through `prepareOpticBasis()`, `coordinate()`, and
+  `coordinate.optic()` so users can run coherent public node and property optic
+  reads without opening graph/materialize-first APIs;
 - docs and migration guidance that classify `openWarpGraph()`, `WarpApp`,
   `WarpCore`, and materialize-named methods as compatibility, diagnostic,
   migration, or substrate tooling surfaces instead of first-use app APIs;

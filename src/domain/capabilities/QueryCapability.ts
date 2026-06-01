@@ -30,7 +30,12 @@ export type QueryPropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
 /** Source selector for worldline/observer pinning. */
 export type WorldlineSource =
   | { kind: 'live'; ceiling?: number | null }
-  | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null }
+  | {
+      kind: 'coordinate';
+      frontier: Map<string, string> | Record<string, string>;
+      ceiling?: number | null;
+      checkpointSha?: string;
+    }
   | { kind: 'strand'; strandId: string; ceiling?: number | null };
 
 /** Options for worldline creation. */

@@ -8,7 +8,9 @@ function readDoc(relativePath: string): string {
 
 const ladder = readDoc('docs/design/0035-observer-geometry-architecture-ladder.md');
 const horizon = readDoc('docs/design/release-horizon-v20-v21.md');
-const v19Lane = readDoc('docs/method/backlog/v19.0.0/README.md');
+const v19Lane = readDoc(
+  'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v19.0.0/README.md'
+);
 
 describe('Observer geometry architecture ladder docs', () => {
   it('defines the ideal architecture and the missing runtime nouns', () => {

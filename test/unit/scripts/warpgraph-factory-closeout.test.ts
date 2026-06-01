@@ -4,17 +4,17 @@ import { describe, expect, it } from 'vitest';
 
 const factoryNotePath = join(
   process.cwd(),
-  'docs/method/backlog/v17.0.0/API_warpgraph-factory.md',
+  'docs/archive/backlog/v17.0.0-residual-backlog/API_warpgraph-factory.md'
 );
 const barrel = readFileSync(join(process.cwd(), 'index.ts'), 'utf8');
 const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf8');
-const releaseLedger = readFileSync(
-  join(process.cwd(), 'docs/releases/v17.0.0/README.md'),
-  'utf8',
-);
+const releaseLedger = readFileSync(join(process.cwd(), 'docs/releases/v17.0.0/README.md'), 'utf8');
 const workloads = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/WORKLOADS.md'),
-  'utf8',
+  join(
+    process.cwd(),
+    'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md'
+  ),
+  'utf8'
 );
 
 describe('warpgraph factory closeout', () => {
@@ -25,7 +25,9 @@ describe('warpgraph factory closeout', () => {
   it('keeps openWarpGraph as the advanced compatibility composition root', () => {
     expect(barrel).toContain('openWarpGraph,');
     expect(barrel).toContain('First-use application code should open a named worldline');
-    expect(readme).toContain("import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';");
+    expect(readme).toContain(
+      "import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';"
+    );
     expect(readme).toContain('`openWarpGraph()`. That surface is supported for compatibility');
   });
 
@@ -38,7 +40,9 @@ describe('warpgraph factory closeout', () => {
     expect(releaseLedger).toContain('[x] API_warpgraph-factory');
     expect(releaseLedger).toContain('cycle 0089 retired stale live card');
     expect(releaseLedger).toContain('runtime/composition-root residue');
-    expect(releaseLedger).not.toContain('The remaining\n                                          work is the `openWarpGraph()`');
+    expect(releaseLedger).not.toContain(
+      'The remaining\n                                          work is the `openWarpGraph()`'
+    );
     expect(releaseLedger).not.toContain('`WarpRuntime` composition-root residue');
   });
 });

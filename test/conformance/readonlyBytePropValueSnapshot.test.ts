@@ -14,7 +14,7 @@ describe('readonly byte PropValue snapshot contract', () => {
     const key = 'node-a:bytes';
     const sourceBytes = new Uint8Array([1, 2, 3]);
     const state = WarpState.empty();
-    state.prop.set(key, LWWRegister.set(testEvent(1, 'aaaa'), sourceBytes));
+    state.mutatePropLWW(key, testEvent(1, 'aaaa'), sourceBytes);
 
     const snapshot = createImmutableWarpStateSnapshot(state);
     const snapshotValue = snapshot.prop.get(key)?.value;

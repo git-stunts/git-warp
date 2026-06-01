@@ -4,20 +4,17 @@ import { describe, expect, it } from 'vitest';
 
 const bridgeNotePath = join(
   process.cwd(),
-  'docs/method/backlog/v17.0.0/API_warpgraph-runtime-bridge.md',
+  'docs/archive/backlog/v17.0.0-residual-backlog/API_warpgraph-runtime-bridge.md'
 );
-const warpGraphSource = readFileSync(
-  join(process.cwd(), 'src/domain/WarpGraph.ts'),
-  'utf8',
-);
+const warpGraphSource = readFileSync(join(process.cwd(), 'src/domain/WarpGraph.ts'), 'utf8');
 const workloads = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/WORKLOADS.md'),
-  'utf8',
+  join(
+    process.cwd(),
+    'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md'
+  ),
+  'utf8'
 );
-const releaseLedger = readFileSync(
-  join(process.cwd(), 'docs/releases/v17.0.0/README.md'),
-  'utf8',
-);
+const releaseLedger = readFileSync(join(process.cwd(), 'docs/releases/v17.0.0/README.md'), 'utf8');
 
 describe('warpgraph runtime bridge closeout', () => {
   it('removes the stale live card', () => {

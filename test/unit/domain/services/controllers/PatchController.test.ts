@@ -1147,15 +1147,15 @@ describe('PatchController', () => {
 
     it('counts property additions and value changes in the join receipt', () => {
       const localState = createStateWithNode('n1');
-      localState.prop.set('n1:name', ({ value: 'Alice' } as any));
+      localState.mutatePropRegisterLWW('n1:name', ({ value: 'Alice' } as any));
       host['_cachedState'] = localState;
       host['_versionVector'] = localState.observedFrontier.clone();
 
       const remoteState = WarpState.empty();
       const merged = WarpState.empty();
       merged.nodeAlive.add('n1', Dot.create('alice', 1));
-      merged.prop.set('n1:name', ({ value: 'Bob' } as any));
-      merged.prop.set('n1:title', ({ value: 'Engineer' } as any));
+      merged.mutatePropRegisterLWW('n1:name', ({ value: 'Bob' } as any));
+      merged.mutatePropRegisterLWW('n1:title', ({ value: 'Engineer' } as any));
       merged.observedFrontier.increment('alice');
       joinStatesMock.mockReturnValue(merged);
 

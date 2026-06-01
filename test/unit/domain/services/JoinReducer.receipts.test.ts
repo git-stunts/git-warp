@@ -312,7 +312,7 @@ describe('JoinReducer receipts', () => {
       // Pre-set a property at lamport 1
       const key = encodePropKey('n1', 'name');
       const existingEventId = new EventId(1, 'w1', 'aaaa1111', 0);
-      state.prop.set(key, lwwSet(existingEventId, 'OldName'));
+      state.mutatePropLWW(key, existingEventId, 'OldName');
 
       const patch = makePatch({
         writer: 'w1',
@@ -328,7 +328,7 @@ describe('JoinReducer receipts', () => {
       const key = encodePropKey('n1', 'name');
       // Pre-set at lamport 10
       const existingEventId = new EventId(10, 'w1', 'aaaa1111', 0);
-      state.prop.set(key, lwwSet(existingEventId, 'Winner'));
+      state.mutatePropLWW(key, existingEventId, 'Winner');
 
       const patch = makePatch({
         writer: 'w2',
@@ -347,7 +347,7 @@ describe('JoinReducer receipts', () => {
       const key = encodePropKey('n1', 'name');
       // Pre-set with exact same EventId (same lamport, writer, sha, opIndex)
       const existingEventId = new EventId(1, 'w1', 'abcd1234', 0);
-      state.prop.set(key, lwwSet(existingEventId, 'Value'));
+      state.mutatePropLWW(key, existingEventId, 'Value');
 
       const patch = makePatch({
         writer: 'w1',
@@ -583,7 +583,7 @@ describe('JoinReducer receipts', () => {
 
       // Final state: bob's color wins
       const key = encodePropKey('n1', 'color');
-      expect(state.prop.get(key).value).toBe('blue');
+      expect(state.getEncodedProp(key).value).toBe('blue');
     });
 
     it('superseded prop shows reason with winner info', () => {

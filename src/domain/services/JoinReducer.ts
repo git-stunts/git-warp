@@ -45,9 +45,9 @@ export { OP_STRATEGIES } from './OpStrategies.ts';
 export type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 export {
   encodeEdgeKey, decodeEdgeKey,
-  encodePropKey, decodePropKey,
+  encodePropKey,
   EDGE_PROP_PREFIX,
-  encodeEdgePropKey, isEdgePropKey, decodeEdgePropKey,
+  encodeEdgePropKey, isEdgePropKey,
 } from './KeyCodec.ts';
 export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.ts';
 

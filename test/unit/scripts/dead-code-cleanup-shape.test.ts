@@ -18,7 +18,7 @@ describe('dead-code cleanup closeout', () => {
   });
 
   it('makes the fake-model purge note own the live blocker explicitly', () => {
-    const owningNote = readRepoFile('docs/method/backlog/v17.0.0/PROTO_purge-fake-models.md');
+    const owningNote = readRepoFile('docs/archive/backlog/v17.0.0-residual-backlog/PROTO_purge-fake-models.md');
 
     expect(owningNote).toContain('ConflictCandidateCollector');
     expect(owningNote).toContain('ConflictOpAnchor');
@@ -26,6 +26,6 @@ describe('dead-code cleanup closeout', () => {
   });
 
   it('removes the duplicate dead-code card from the live v17 lane', () => {
-    expect(existsSync(`${repoRoot}docs/method/backlog/v17.0.0/SLUDGE_dead-code-cleanup.md`)).toBe(false);
+    expect(existsSync(`${repoRoot}docs/archive/backlog/v17.0.0-residual-backlog/SLUDGE_dead-code-cleanup.md`)).toBe(false);
   });
 });

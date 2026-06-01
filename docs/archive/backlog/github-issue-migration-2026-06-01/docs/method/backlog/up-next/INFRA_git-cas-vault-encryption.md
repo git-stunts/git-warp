@@ -1,7 +1,6 @@
 ---
 id: INFRA_git-cas-vault-encryption
-blocked_by:
-  - INFRA_git-cas-adapter-parity
+blocked_by: []
 blocks: []
 feature: runtime-boundaries
 ---
@@ -30,6 +29,8 @@ them from an approved vault/key source.
 - Use git-cas v6 current schemes only: `whole`, `framed`, or `convergent`.
 - Surface `LEGACY_SCHEME` with migration guidance when old encrypted CAS
   manifests are encountered.
+- Stand on the current git-cas adapter surface; the old v17
+  `INFRA_git-cas-adapter-parity` successor is complete and archived.
 - Update `GUIDE.md` or `ADVANCED_GUIDE.md` in the same slice that introduces
   the feature. The docs must explain vault setup, recovery, rotation, and the
   confidentiality/deduplication tradeoff of convergent encryption.

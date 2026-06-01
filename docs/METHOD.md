@@ -1,6 +1,6 @@
 # METHOD
 
-A backlog, a loop, and honest bookkeeping.
+Issues, a loop, and honest bookkeeping.
 
 ## Principles
 
@@ -18,12 +18,14 @@ design, say so in the design doc.
 agent-mediated, say what is agent-generated, why it exists, what
 evidence it relies on, and what action it expects next.
 
-**The filesystem is the database.** A directory is a priority. A
-filename is an identity. Moving a file is a decision. `ls` is the
-query.
+**GitHub Issues are the live work tracker.** A label is a lane, a
+milestone is release scope, and repository files are durable evidence.
+Legacy filesystem backlog cards are migration evidence, not the new
+authority model.
 
-**Process should be calm.** No sprints. No velocity. No burndown. A
-backlog tiered by judgment, and a loop for doing it well.
+**Process should be calm.** No sprints. No velocity. No burndown. Issues are
+tiered by judgment through labels, and the loop stays small enough to finish
+well.
 
 ### Design constraints
 
@@ -60,14 +62,11 @@ Witnesses are not victory photos. They are rerunnable proof.
 
 ```text
 docs/
+  BEARING.md                        current direction signpost
+  VISION.md                         north-star signpost
+  METHOD.md                         local Method doctrine signpost
   method/
-    backlog/
-      inbox/                        raw ideas, anyone, anytime
-      asap/                         do this now
-      up-next/                      do this soon
-      cool-ideas/                   experiments, wild thoughts
-      bad-code/                     tech debt
-      *.md                          everything else
+    backlog/                        legacy/migration-only backlog cards
     legends/                        named domains
     retro/<cycle>/<task>.md         retrospectives
     graveyard/                      rejected ideas
@@ -90,11 +89,11 @@ Deeper than that, it is not a signpost.
 METHOD expects a few bounded repo-level signposts. They summarize the
 state of the repo; they do not create commitments.
 
-| Signpost | Role |
-|----------|------|
-| `README.md` | The operating doctrine and filesystem shape. |
+| Signpost          | Role                                                                     |
+| ----------------- | ------------------------------------------------------------------------ |
+| `README.md`       | The operating doctrine and filesystem shape.                             |
 | `docs/BEARING.md` | Current direction, last shipped cycle, and tensions at cycle boundaries. |
-| `docs/VISION.md` | A bounded executive synthesis grounded in repo-visible sources. |
+| `docs/VISION.md`  | A bounded executive synthesis grounded in repo-visible sources.          |
 
 Generated signposts should carry generation metadata and a source
 manifest. Unless they say otherwise explicitly, they are making
@@ -102,53 +101,68 @@ artifact-history claims, not semantic-provenance claims.
 
 ---
 
-## Backlog
+## Work Tracker
 
-Markdown files. Each describes work worth doing. The filesystem is
-the index.
+GitHub Issues are the live tracker. Repository docs are the evidence ledger.
+Issue labels carry Method scheduling state so community contributors can see
+and discuss work without cloning the repository or reading local backlog
+folders.
 
 ### Inbox
 
-Anyone - human or agent - drops ideas in at any time. A sentence is
-enough. No legend, no scope, no ceremony. Capture it. Keep moving.
-The inbox is processed during maintenance.
+Anyone - human, agent, or community contributor - captures raw ideas as
+GitHub Issues with `lane:inbox`. A sentence is enough. Add provenance in the
+issue body or comments when origin or timing matters.
 
 ### Lanes
 
-| Lane | Purpose |
-|------|---------|
-| `inbox/` | Unprocessed. |
-| `asap/` | Pull into a cycle soon. |
-| `up-next/` | Next in line. |
-| `cool-ideas/` | Not commitments. |
-| `bad-code/` | It works, but it bothers you. |
+| Label                      | Purpose                                          |
+| -------------------------- | ------------------------------------------------ |
+| `lane:inbox`               | Unprocessed intake.                              |
+| `lane:asap`                | Pull into a cycle soon.                          |
+| `lane:up-next`             | Next in line.                                    |
+| `lane:cool-ideas`          | Not committed work.                              |
+| `lane:bad-code`            | Debt, rot, or structural risk.                   |
+| `lane:backlog-root`        | Migrated unlaned work that needs classification. |
+| `lane:v18.0.0` and similar | Release-scoped work for the named lane.          |
 
-Anything else sits in the backlog root.
+Numbered release lanes may also use release milestones or a broad
+`lane:release` label, but the exact source lane label remains useful for
+migration provenance.
 
 ### Naming
 
-Legend prefix if applicable. No numeric IDs.
+Issue titles are workflow identity. Keep them short, readable, and branch-safe.
+Avoid issue numbers in branch names; active work branches derive from title
+slugs.
 
 ```text
-PROTO_strand-lifecycle.md
-HEX_raw-git-bypass.md
-MODEL_patch-v2-validation.md
-debt-trailer-codec-dts.md
+legend:PROTO
+legend:HEX
+legend:MODEL
+legend:DX
 ```
 
-Historical prefixes may survive in older backlog identities. New
-backlog notes should prefer the current legend family for the lane they
-live in.
+Historical filesystem filenames may survive in archive paths and issue body
+provenance. New work starts as a GitHub Issue.
 
 ### Promoting
 
-When a backlog item is pulled into a cycle, it becomes a design doc:
+When an issue is pulled into a cycle, it becomes a design doc:
 
 ```text
-backlog/asap/CC_strand-service-decomposition.md -> design/<cycle>/strand-service-decomposition.md
+GitHub issue -> docs/design/<cycle>/<task>.md
 ```
 
-The backlog file is removed. Work does not live in two places.
+The issue is labeled `work-in-progress` and linked from the design doc. Work
+does not silently fall back into the queue.
+
+### Pull Requests
+
+Every pull request must reference at least one same-repository GitHub Issue in
+its title or body. References to pull requests do not count. The accepted forms
+are `#123`, `GH-123`, `git-stunts/git-warp#123`, and
+`https://github.com/git-stunts/git-warp/issues/123`.
 
 ### Commitment
 
@@ -157,17 +171,24 @@ agent) in the design doc. It does not go back.
 
 - **Finish** - hill met.
 - **Pivot** - end early, write the retro. Remaining work re-enters
-  the backlog as a new item with fresh scope.
+  GitHub Issues as a fresh issue with scoped context.
 
 ### Maintenance
 
 End of cycle:
 
-- Process inbox. Promote, flesh out, or bury.
+- Process `lane:inbox`. Promote, flesh out, or close with a disposition.
 - Re-prioritize. What you learned changes what matters.
 - Clean up. Merge duplicates, kill the dead.
 
 Do not reorganize mid-cycle.
+
+### Legacy Filesystem Backlog
+
+`docs/method/backlog/**` is now a migration surface. Existing cards should be
+imported into GitHub Issues with source-file provenance and then archived so
+there is one live tracker. Archived cards remain evidence, not a parallel
+planning database.
 
 ### Cycle types
 
@@ -175,8 +196,8 @@ Same loop regardless:
 
 - **Feature** - design, test, build, ship.
 - **Design** - the deliverable is docs, not code.
-- **Debt** - pull from `bad-code/`. The hill is "this no longer
-  bothers us."
+- **Debt** - pull from issues labeled `lane:bad-code`. The hill is
+  "this no longer bothers us."
 
 ---
 
@@ -187,9 +208,9 @@ timelines - they are reference frames, not milestones. A legend never
 starts or finishes. It describes what it covers, who cares, what
 success looks like, and how you know.
 
-A legend code prefixes backlog filenames so that `ls` reveals domain
-load at a glance. Legends live in `docs/method/legends/` as standalone
-documents.
+A legend label or historical filename prefix names the domain so tracker and
+archive views remain searchable. Legends live in `docs/method/legends/` as
+standalone documents.
 
 The current legends in this repo are:
 
@@ -198,7 +219,7 @@ The current legends in this repo are:
   `HYGIENE`, `INFRA`, `PERF`, `PROTO`, `SLUDGE`, `TRUST`, `TS`,
   `TUI`, and `VIZ`.
 - **Invariant legends** — debt grouped by the law it violates. These
-  are the canonical legends for `docs/method/backlog/bad-code/`:
+  are the canonical legend labels for `lane:bad-code` issues:
   - `HEX` — hex boundary honesty
   - `BND` — boundary decode and validation honesty
   - `MODEL` — runtime-backed model honesty
@@ -210,8 +231,8 @@ The current legends in this repo are:
 
 Historical umbrella prefixes such as `CC` and `NDNM` remain in older
 filenames and retros, but they are legacy identities rather than the
-preferred current taxonomy. `docs/method/backlog/bad-code/README.md`
-is the canonical index for the new invariant grouping.
+preferred current taxonomy. Archived backlog indexes may preserve older
+groupings, but GitHub labels are the live grouping surface.
 
 Not every METHOD repo needs these exact legends. Legends are local to
 the repo and should reflect the domains that actually organize its
@@ -232,11 +253,10 @@ in one sentence, the cycle is too big. Split it.
 
 ### The loop
 
-0. **Pull** - choose from the backlog. Move it into
-   `docs/design/<cycle>/`. You are now committed.
+0. **Pull** - choose a GitHub Issue, mark it `work-in-progress`, and link it
+   from `docs/design/<cycle>/`. You are now committed.
 
 1. **Design** - write a design doc. Required sections:
-
    - Sponsor human
    - Sponsor agent
    - Hill (one sentence)
@@ -267,12 +287,11 @@ in one sentence, the cycle is too big. Split it.
    too.
 
 5. **Close** - write the retro and witness packet on the branch.
-
    - Drift check (mandatory). Undocumented drift is the only true
      failure mode.
-   - New debt to `bad-code/`.
-   - Cool ideas to `cool-ideas/`.
-   - Backlog maintenance.
+   - New debt to GitHub Issues labeled `lane:bad-code`.
+   - Cool ideas to GitHub Issues labeled `lane:cool-ideas`.
+   - Issue maintenance.
 
    Closing the cycle packet does not mean `main` has accepted it yet.
 
@@ -295,7 +314,7 @@ Both sponsors must say yes. When they disagree:
    the human does not, or vice versa?
 2. If the gap is scoping - the hill was met but the answer is
    unsatisfying - the cycle is **partial**. Merge what is honest.
-   Write the retro. File a new backlog item for the remainder.
+   Write the retro. File a new GitHub Issue for the remainder.
 3. If the gap is correctness - one sponsor believes the work is
    wrong - do not merge it. Return to RED or GREEN. If the work is
    abandoned instead of fixed, close the cycle as **not met** and write
@@ -324,14 +343,14 @@ METHOD is designed for a solo developer working with an agent. It
 scales to a team without adding meetings, roles, or synchronization
 ceremonies. The mechanism is passive legibility.
 
-### The filesystem is the coordination layer
+### GitHub Issues and repo evidence are the coordination layer
 
 If you can answer these questions by reading the repo, you do not need
 a standup:
 
 - What is everyone working on? -> open design docs
 - What is committed? -> each design doc names its sponsors and hill
-- What is next? -> `ls docs/method/backlog/asap/`
+- What is next? -> GitHub Issues labeled `lane:asap`
 - What failed and why? -> `ls docs/method/retro/`
 - What did we decide not to do? -> `ls docs/method/graveyard/`
 
@@ -347,11 +366,11 @@ cycle boundaries - not mid-cycle. It answers three questions:
    plain English).
 2. **What just shipped?** - last completed cycle, one line.
 3. **What feels wrong?** - known tensions, open questions, gut
-   feelings that do not yet have backlog items.
+   feelings that do not yet have GitHub Issues.
 
 `BEARING.md` is a signpost, not a status report. It summarizes
-direction; it does not create commitments, replace backlog items, or
-record decisions that belong in design docs, retros, or the backlog.
+direction; it does not create commitments, replace GitHub Issues, or
+record decisions that belong in design docs, retros, or issue discussion.
 It is updated during ship sync after merge. On a solo project, that is
 usually you. On a team, it is whoever merges last or owns the ship
 sync. No scheduling, no rotation, no process.
@@ -360,19 +379,18 @@ If the bearing drifts without anyone noticing, that is the signal to
 talk - not a meeting, just a conversation. The drift itself is the
 agenda.
 
-### Conflict at the backlog
+### Conflict in the tracker
 
-Two people pulling conflicting work from `asap/` is a design-doc
-problem, not a process problem. Active design docs are visible through
-the repo itself. If your hill contradicts an active cycle's hill, you
-should see it at step 1. Resolve it there or file it as a tension in
-`docs/BEARING.md`.
+Two people pulling conflicting `lane:asap` issues is a design-doc problem, not
+a process problem. Active design docs are visible through the repo itself. If
+your hill contradicts an active cycle's hill, you should see it at step 1.
+Resolve it there or file it as a tension in `docs/BEARING.md`.
 
 ### What this does not add
 
 No standups. No syncs. No status emails. No sprint planning. No retro
-meetings. The retro is a document, not a ceremony. The repo is the
-single source of truth. Read it.
+meetings. The retro is a document, not a ceremony. GitHub Issues are the live
+tracker; the repo is the evidence ledger. Read both when context matters.
 
 ---
 
@@ -387,21 +405,22 @@ to resurrect something, you must address the note.
 ## Flow
 
 ```text
-idea -> inbox/ -> cool-ideas/ -> up-next/ -> asap/
-  -> design/<cycle>/  (committed)
+idea -> lane:inbox -> lane:cool-ideas -> lane:up-next -> lane:asap
+  -> design/<cycle>/  (committed issue)
   -> RED -> GREEN -> playback (witness)
   -> retro/<cycle>/   (cycle packet closed)
   -> PR -> main
   -> ship sync (BEARING / CHANGELOG / release when meaningful)
       - or ->
-  -> graveyard/
+  -> closed issue / graveyard evidence
 ```
 
 ---
 
 ## What this system does not have
 
-No milestones. No velocity. No ticket numbers. No required meetings.
+No velocity. No required meetings. Milestones may carry release scope, but they
+do not replace labels, design docs, or release evidence.
 
 METHOD is not a GitHub workflow, a pull-request cockpit, or a
 forge-specific review protocol. It can live inside repos that use those
@@ -416,10 +435,10 @@ pull time. Coordination is reading the filesystem. That is enough.
 
 ## Naming
 
-| Convention | Example | When |
-|------------|---------|------|
-| `ALL_CAPS.md` | `VISION.md`, `BEARING.md` | Signpost - root or `docs/` |
-| `lowercase.md` | `doctrine.md` | Everything else |
-| `<LEGEND>_<name>.md` | `CC_raw-error-purge.md` | Backlog with legend |
-| `<name>.md` | `debt-trailer-codec.md` | Backlog without legend |
-| `<cycle>/` | `0010-strand-speculation/` | Cycle directory |
+| Convention           | Example                    | When                       |
+| -------------------- | -------------------------- | -------------------------- |
+| `ALL_CAPS.md`        | `VISION.md`, `BEARING.md`  | Signpost - root or `docs/` |
+| `lowercase.md`       | `doctrine.md`              | Everything else            |
+| `<LEGEND>_<name>.md` | `CC_raw-error-purge.md`    | Backlog with legend        |
+| `<name>.md`          | `debt-trailer-codec.md`    | Backlog without legend     |
+| `<cycle>/`           | `0010-strand-speculation/` | Cycle directory            |

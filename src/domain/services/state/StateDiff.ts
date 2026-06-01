@@ -11,6 +11,8 @@
 import { lwwValue, type LWWRegister } from '../../crdt/LWW.ts';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.ts';
 import type { WarpState } from '../JoinReducer.ts';
+import type { PropValue } from '../../types/PropValue.ts';
+import WarpStateClass from './WarpState.ts';
 
 export interface EdgeChange {
   from: string;
@@ -140,8 +142,10 @@ function diffProps(
 ): { propsSet: PropSet[]; propsRemoved: PropRemoved[] } {
   const propsSet: PropSet[] = [];
   const propsRemoved: PropRemoved[] = [];
-  const beforeProps: Map<string, unknown> = before ? (before.prop as Map<string, unknown>) : new Map<string, unknown>(); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const afterProps: Map<string, unknown> = after.prop; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const beforeProps = before
+    ? new Map<string, LWWRegister<PropValue>>(WarpStateClass.allPropEntriesFromState(before))
+    : new Map<string, LWWRegister<PropValue>>();
+  const afterProps = new Map<string, LWWRegister<PropValue>>(WarpStateClass.allPropEntriesFromState(after));
   const allPropKeys = new Set([...beforeProps.keys(), ...afterProps.keys()]);
 
   for (const key of allPropKeys) {
@@ -153,8 +157,8 @@ function diffProps(
 }
 
 interface PropAccumCtx {
-  beforeProps: Map<string, unknown>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  afterProps: Map<string, unknown>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  beforeProps: Map<string, LWWRegister<PropValue>>;
+  afterProps: Map<string, LWWRegister<PropValue>>;
   propsSet: PropSet[];
   propsRemoved: PropRemoved[];
 }
@@ -171,18 +175,18 @@ function accumulatePropChange(key: string, ctx: PropAccumCtx): void {
 
 function classifyPropChange(
   key: string,
-  beforeProps: Map<string, unknown>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  afterProps: Map<string, unknown>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  beforeProps: Map<string, LWWRegister<PropValue>>,
+  afterProps: Map<string, LWWRegister<PropValue>>,
 ): PropSet | PropRemoved | undefined {
   const beforeReg = beforeProps.get(key);
   const afterReg = afterProps.get(key);
   const { nodeId, propKey } = decodePropKey(key);
 
   if (afterReg !== undefined && beforeReg === undefined) {
-    return { key, nodeId, propKey, oldValue: undefined, newValue: lwwValue(afterReg as LWWRegister<unknown>) }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    return { key, nodeId, propKey, oldValue: undefined, newValue: lwwValue(afterReg) };
   }
   if (afterReg === undefined && beforeReg !== undefined) {
-    return { key, nodeId, propKey, oldValue: lwwValue(beforeReg as LWWRegister<unknown>) }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    return { key, nodeId, propKey, oldValue: lwwValue(beforeReg) };
   }
   return classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg });
 }
@@ -191,13 +195,13 @@ function classifyPropUpdate(opts: {
   key: string;
   nodeId: string;
   propKey: string;
-  beforeReg: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  afterReg: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  beforeReg: LWWRegister<PropValue> | undefined;
+  afterReg: LWWRegister<PropValue> | undefined;
 }): PropSet | undefined {
   const { key, nodeId, propKey, beforeReg, afterReg } = opts;
   if (afterReg === undefined) { return undefined; }
-  const beforeValue = lwwValue(beforeReg as LWWRegister<unknown>); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const afterValue = lwwValue(afterReg as LWWRegister<unknown>); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const beforeValue = lwwValue(beforeReg);
+  const afterValue = lwwValue(afterReg);
   if (!deepEqual(beforeValue, afterValue)) {
     return { key, nodeId, propKey, oldValue: beforeValue, newValue: afterValue };
   }

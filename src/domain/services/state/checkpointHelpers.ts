@@ -151,7 +151,7 @@ export function mergeSortedUniqueStrings(existing: string[], incoming: string[])
  * must anchor them as tree entries.
  */
 export async function collectContentAnchorEntries(
-  propMap: Map<string, { eventId: unknown; value: unknown }>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  propMap: Iterable<readonly [string, { readonly value: unknown }]>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   readObjectType: ContentAnchorObjectTypeReader = defaultContentAnchorObjectType,
 ): Promise<string[]> {
   let sortedOids: string[] = [];

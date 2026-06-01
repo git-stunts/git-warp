@@ -10,7 +10,11 @@ function readRepoFile(relativePath: string): string {
 
 describe('streaming memory audit closeout', () => {
   it('removes the stale v17 streaming-memory audit card', () => {
-    expect(existsSync(`${repoRoot}docs/method/backlog/v17.0.0/CORE_streaming-memory-audit.md`)).toBe(false);
+    expect(
+      existsSync(
+        `${repoRoot}docs/archive/backlog/v17.0.0-residual-backlog/CORE_streaming-memory-audit.md`
+      )
+    ).toBe(false);
   });
 
   it('ratchets the shipped unbounded blob-read fix', () => {
@@ -26,10 +30,16 @@ describe('streaming memory audit closeout', () => {
   });
 
   it('keeps broader out-of-core work live outside the v17 crash-fix card', () => {
-    const outOfCore = readRepoFile('docs/method/backlog/PERF_out-of-core-materialization.md');
-    const streamReadMigration = readRepoFile('docs/method/backlog/up-next/PERF_stream-read-migration.md');
+    const outOfCore = readRepoFile(
+      'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/PERF_out-of-core-materialization.md'
+    );
+    const streamReadMigration = readRepoFile(
+      'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/up-next/PERF_stream-read-migration.md'
+    );
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
-    const workloads = readRepoFile('docs/method/backlog/WORKLOADS.md');
+    const workloads = readRepoFile(
+      'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md'
+    );
 
     expect(outOfCore).toContain('Out-of-core materialization and streaming reads');
     expect(outOfCore).toContain('the full visible graph may not fit in process memory');

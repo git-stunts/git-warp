@@ -27,8 +27,7 @@
  */
 
 import { createEmptyState, cloneState, join as joinPatch } from './JoinReducer.ts';
-import { decodePropKey } from './KeyCodec.ts';
-import type WarpState from './state/WarpState.ts';
+import WarpState from './state/WarpState.ts';
 import type Patch from '../types/Patch.ts';
 
 /**
@@ -105,11 +104,9 @@ function extractNodeSnapshot(state: WarpState, nodeId: string): NodeSnapshot {
   const props: Record<string, unknown> = {}; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
   if (exists) {
-    const prefix = `${nodeId}\0`;
-    for (const [propKey, register] of state.prop) {
-      if (propKey.startsWith(prefix)) {
-        const decoded = decodePropKey(propKey);
-        props[decoded.propKey] = unwrapValue(register.value);
+    for (const entry of WarpState.nodePropertiesFromState(state)) {
+      if (entry.nodeId === nodeId) {
+        props[entry.key] = unwrapValue(entry.register.value);
       }
     }
   }

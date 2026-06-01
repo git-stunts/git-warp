@@ -182,7 +182,7 @@ describe('LogicalIndexBuildService', () => {
     });
 
     const edgePropKey = encodeEdgePropKey('A', 'B', 'knows', 'weight');
-    state.prop.set(edgePropKey, ({ value: 99 } as any));
+    state.mutatePropLWW(edgePropKey, ({ lamport: 1, writerId: 'w', patchSha: 'abcd', opIndex: 0 } as any), 99);
 
     const service = new LogicalIndexBuildService();
     const { stream } = service.buildStream(state);

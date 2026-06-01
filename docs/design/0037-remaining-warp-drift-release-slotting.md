@@ -1,6 +1,6 @@
 ---
-title: "Remaining WARP drift release slotting"
-cycle: "0037-remaining-warp-drift-release-slotting"
+title: 'Remaining WARP drift release slotting'
+cycle: '0037-remaining-warp-drift-release-slotting'
 ---
 
 # Remaining WARP Drift Release Slotting
@@ -35,7 +35,7 @@ This cycle exists to sort that honestly.
 - [docs/GLOSSARY.md](../GLOSSARY.md)
 - [0035-observer-geometry-architecture-ladder.md](./0035-observer-geometry-architecture-ladder.md)
 - [release-horizon-v20-v21.md](./release-horizon-v20-v21.md)
-- [docs/method/backlog/v19.0.0/README.md](../method/backlog/v19.0.0/README.md)
+- [docs/method/backlog/v19.0.0/README.md](../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v19.0.0/README.md)
 
 ## Hill
 
@@ -153,13 +153,13 @@ just about local read execution.
 
 ## Slotting matrix
 
-| Drift area | Release home | Why |
-|-----------|--------------|-----|
-| Observer surface still snapshot/materialize/filter | `v19` | This is the most immediate doctrine/runtime lie and must be corrected before later runtime scaling work. |
-| Public noun split only partially realized in code | `v19` | Same reason: the repo needs the right noun and API boundary before deeper realization work. |
-| Slice-first runtime realization and fragment reuse | `v20` | This is the operational execution follow-through once the doctrine and surfaces exist. |
-| Strand semantics centered on frozen pinned base | `v20` to `v21` | `v19` should name and expose the right seam; the heavier basis-relative runtime realization belongs later. |
-| Braiding as pinned-base equality | `v21` | This is plural/common-basis math and should not be collapsed into observer/runtime cleanup. |
+| Drift area                                                 | Release home   | Why                                                                                                             |
+| ---------------------------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
+| Observer surface still snapshot/materialize/filter         | `v19`          | This is the most immediate doctrine/runtime lie and must be corrected before later runtime scaling work.        |
+| Public noun split only partially realized in code          | `v19`          | Same reason: the repo needs the right noun and API boundary before deeper realization work.                     |
+| Slice-first runtime realization and fragment reuse         | `v20`          | This is the operational execution follow-through once the doctrine and surfaces exist.                          |
+| Strand semantics centered on frozen pinned base            | `v20` to `v21` | `v19` should name and expose the right seam; the heavier basis-relative runtime realization belongs later.      |
+| Braiding as pinned-base equality                           | `v21`          | This is plural/common-basis math and should not be collapsed into observer/runtime cleanup.                     |
 | Sync as frontier + patches rather than witnessed admission | `v19` to `v21` | `v19` should introduce the correct semantic shell; fuller distributed import reality likely extends into `v21`. |
 
 ## Practical release rules
@@ -264,7 +264,7 @@ The witness for this cycle is the alignment across four surfaces:
   note as part of the relevant design context
 - [release-horizon-v20-v21.md](./release-horizon-v20-v21.md) now states the
   explicit `v20` / `v21` slotting rule
-- [docs/method/backlog/v19.0.0/README.md](../method/backlog/v19.0.0/README.md)
+- [docs/method/backlog/v19.0.0/README.md](../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v19.0.0/README.md)
   now records the `v19` / `v20` / `v21` release handoff
 
 Ratchet test:

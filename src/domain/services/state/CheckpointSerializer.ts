@@ -44,7 +44,7 @@ export function serializeFullState(
   const c = codec ?? defaultCodec;
   const nodeAliveObj = state.nodeAlive.serialize();
   const edgeAliveObj = state.edgeAlive.serialize();
-  const propArray = serializePropsArray(state.prop);
+  const propArray = serializePropsArray(WarpState.allPropEntriesFromState(state));
   const observedFrontierObj = VersionVector.serialize(state.observedFrontier);
   const edgeBirthArray = serializeEdgeBirthArray(state.edgeBirthEvent);
 
@@ -58,9 +58,9 @@ export function serializeFullState(
   });
 }
 
-function serializePropsArray(propMap: Map<string, LWWRegister<PropValue>>): Array<[string, unknown]> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<PropValue>]>): Array<[string, unknown]> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const propArray: Array<[string, unknown]> = []; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  for (const [key, register] of propMap) {
+  for (const [key, register] of propEntries) {
     propArray.push([key, serializeLWWRegister(register)]);
   }
   propArray.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
@@ -136,7 +136,7 @@ export function serializeCheckpointStateEnvelope(
   return {
     nodeAlive: c.encode(state.nodeAlive.serialize()),
     edgeAlive: c.encode(state.edgeAlive.serialize()),
-    prop: c.encode(serializePropsArray(state.prop)),
+    prop: c.encode(serializePropsArray(WarpState.allPropEntriesFromState(state))),
     observedFrontier: c.encode(VersionVector.serialize(state.observedFrontier)),
     edgeBirthEvent: c.encode(serializeEdgeBirthArray(state.edgeBirthEvent)),
   };

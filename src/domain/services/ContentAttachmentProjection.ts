@@ -11,8 +11,6 @@ import {
   CONTENT_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
   encodeEdgeKey,
-  encodeEdgePropKey,
-  encodePropKey,
 } from './KeyCodec.ts';
 import { compareEventIds, type EventId } from '../utils/EventId.ts';
 import WarpState from './state/WarpState.ts';
@@ -91,14 +89,14 @@ function requireWarpState(state: WarpState): WarpState {
 /** Builds a typed content attachment record for a visible node owner. */
 function contentRecordForNode(state: WarpState, owner: NodeRecord): ContentAttachmentRecord | null {
   const nodeId = owner.id.toString();
-  const content = state.prop.get(encodePropKey(nodeId, CONTENT_PROPERTY_KEY));
+  const content = state.getNodeProp(nodeId, CONTENT_PROPERTY_KEY);
   if (!isProjectableContentRegister(content)) {
     return null;
   }
   return contentRecordFromRegisters(owner, {
     content,
-    mime: state.prop.get(encodePropKey(nodeId, CONTENT_MIME_PROPERTY_KEY)) ?? null,
-    size: state.prop.get(encodePropKey(nodeId, CONTENT_SIZE_PROPERTY_KEY)) ?? null,
+    mime: state.getNodeProp(nodeId, CONTENT_MIME_PROPERTY_KEY) ?? null,
+    size: state.getNodeProp(nodeId, CONTENT_SIZE_PROPERTY_KEY) ?? null,
   });
 }
 
@@ -110,7 +108,7 @@ function contentRecordForEdge(state: WarpState, owner: EdgeRecord): ContentAttac
   const edgeKey = encodeEdgeKey(from, to, label);
   const birthEvent = state.edgeBirthEvent.get(edgeKey);
   const content = visibleEdgeRegister(
-    state.prop.get(encodeEdgePropKey(from, to, label, CONTENT_PROPERTY_KEY)),
+    state.getEdgeProp(from, to, label, CONTENT_PROPERTY_KEY),
     birthEvent,
   );
   if (!isProjectableContentRegister(content)) {
@@ -118,14 +116,8 @@ function contentRecordForEdge(state: WarpState, owner: EdgeRecord): ContentAttac
   }
   return contentRecordFromRegisters(owner, {
     content,
-    mime: visibleEdgeRegister(
-      state.prop.get(encodeEdgePropKey(from, to, label, CONTENT_MIME_PROPERTY_KEY)),
-      birthEvent,
-    ),
-    size: visibleEdgeRegister(
-      state.prop.get(encodeEdgePropKey(from, to, label, CONTENT_SIZE_PROPERTY_KEY)),
-      birthEvent,
-    ),
+    mime: visibleEdgeRegister(state.getEdgeProp(from, to, label, CONTENT_MIME_PROPERTY_KEY), birthEvent),
+    size: visibleEdgeRegister(state.getEdgeProp(from, to, label, CONTENT_SIZE_PROPERTY_KEY), birthEvent),
   });
 }
 

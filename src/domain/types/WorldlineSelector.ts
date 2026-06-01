@@ -101,7 +101,7 @@ function fromPlainObject(raw: { kind: string; [key: string]: unknown } | null | 
     return new (Ctor as new (ceiling: unknown) => WorldlineSelector)(value['ceiling']); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
   if (kind === 'coordinate') {
-    return new (Ctor as new (frontier: unknown, ceiling: unknown) => WorldlineSelector)(value['frontier'], value['ceiling']); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    return new (Ctor as new (frontier: unknown, ceiling: unknown, checkpointSha: unknown) => WorldlineSelector)(value['frontier'], value['ceiling'], value['checkpointSha']); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
   return new (Ctor as new (strandId: unknown, ceiling: unknown) => WorldlineSelector)(value['strandId'], value['ceiling']); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }

@@ -49,7 +49,7 @@ export default class EdgePropSet extends Op<'EdgePropSet'> {
 
   outcome(state: WarpState, eventId: EventId): OpOutcomeResult {
     return ReceiptBuilder.edgePropSetOutcome(
-      state.prop,
+      state,
       { from: this.from, to: this.to, label: this.label, key: this.key },
       eventId,
     );

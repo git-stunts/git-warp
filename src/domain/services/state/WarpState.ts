@@ -9,7 +9,7 @@
 
 import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
-import { lwwMax, type LWWRegister } from '../../crdt/LWW.ts';
+import { lwwMax, lwwSet, type LWWRegister } from '../../crdt/LWW.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 import AttachmentKey from '../../graph/AttachmentKey.ts';
 import AttachmentRecord from '../../graph/AttachmentRecord.ts';
@@ -18,8 +18,30 @@ import EdgeId from '../../graph/EdgeId.ts';
 import EdgeRecord from '../../graph/EdgeRecord.ts';
 import NodeId from '../../graph/NodeId.ts';
 import NodeRecord from '../../graph/NodeRecord.ts';
-import { decodeEdgeKey, decodeEdgePropKey, decodePropKey, encodeEdgeKey, isEdgePropKey } from '../KeyCodec.ts';
+import { decodeEdgeKey, decodeEdgePropKey, decodePropKey, encodeEdgeKey, encodeEdgePropKey, encodePropKey, isEdgePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
+
+/** Decoded node property entry yielded by WarpState.nodeProperties(). */
+export type NodePropertyEntry = {
+  readonly encodedKey: string;
+  readonly nodeId: string;
+  readonly key: string;
+  readonly register: LWWRegister<PropValue>;
+};
+
+/** Decoded edge property entry yielded by WarpState.edgeProperties(). */
+export type EdgePropertyEntry = {
+  readonly encodedKey: string;
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+  readonly key: string;
+  readonly register: LWWRegister<PropValue>;
+};
+
+export type WarpStatePropertyRegisterSource = {
+  readonly prop: Map<string, LWWRegister<PropValue>>;
+};
 
 /**
  * The CRDT materialized state for a WARP graph.
@@ -31,7 +53,7 @@ import type { PropValue } from '../../types/PropValue.ts';
 export default class WarpState {
   nodeAlive: ORSet;
   edgeAlive: ORSet;
-  prop: Map<string, LWWRegister<PropValue>>;
+  private prop: Map<string, LWWRegister<PropValue>>;
   observedFrontier: VersionVector;
   /** EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility). */
   edgeBirthEvent: Map<string, EventId>;
@@ -80,6 +102,152 @@ export default class WarpState {
   /** Returns true when the given node id has a live graph node record. */
   hasNodeRecord(nodeId: string | NodeId): boolean {
     return this.getNodeRecord(nodeId) !== null;
+  }
+
+  /** Returns the total number of stored property registers (node + edge). */
+  propSize(): number {
+    return this.prop.size;
+  }
+
+  /** Returns true when the given encoded prop key has a stored register. */
+  hasProp(encodedKey: string): boolean {
+    return this.prop.has(encodedKey);
+  }
+
+  /** Returns true when the given node has a stored property register for the key. */
+  hasNodeProp(nodeId: string, key: string): boolean {
+    return this.prop.has(encodePropKey(nodeId, key));
+  }
+
+  /** Returns the property register for a node property, or undefined if absent. */
+  getNodeProp(nodeId: string, key: string): LWWRegister<PropValue> | undefined {
+    return this.prop.get(encodePropKey(nodeId, key));
+  }
+
+  /** Returns the property register for an edge property, or undefined if absent. */
+  getEdgeProp(from: string, to: string, label: string, key: string): LWWRegister<PropValue> | undefined {
+    return this.prop.get(encodeEdgePropKey(from, to, label, key));
+  }
+
+  /** Returns the property register for an already-encoded key, or undefined if absent. */
+  getEncodedProp(encodedKey: string): LWWRegister<PropValue> | undefined {
+    return this.prop.get(encodedKey);
+  }
+
+  /**
+   * LWW-max write: updates the register for an already-encoded key if the
+   * incoming event wins the last-writer-wins comparison.
+   */
+  mutatePropLWW(encodedKey: string, eventId: EventId, value: PropValue): void {
+    const current = this.prop.get(encodedKey);
+    const winner = lwwMax(current, lwwSet(eventId, value));
+    if (winner !== null) {
+      this.prop.set(encodedKey, winner);
+    }
+  }
+
+  /** LWW-max write for callers that already hold a validated property register. */
+  mutatePropRegisterLWW(encodedKey: string, register: LWWRegister<PropValue>): void {
+    const current = this.prop.get(encodedKey);
+    const winner = lwwMax(current, register);
+    if (winner !== null) {
+      this.prop.set(encodedKey, winner);
+    }
+  }
+
+  /** Yields every node property register with decoded identity. */
+  *nodeProperties(): Generator<NodePropertyEntry> {
+    for (const [encodedKey, register] of this.prop) {
+      if (!isEdgePropKey(encodedKey)) {
+        const decoded = decodePropKey(encodedKey);
+        yield { encodedKey, nodeId: decoded.nodeId, key: decoded.propKey, register };
+      }
+    }
+  }
+
+  /** Yields every edge property register with decoded identity. */
+  *edgeProperties(): Generator<EdgePropertyEntry> {
+    for (const [encodedKey, register] of this.prop) {
+      if (isEdgePropKey(encodedKey)) {
+        const decoded = decodeEdgePropKey(encodedKey);
+        yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
+      }
+    }
+  }
+
+  /**
+   * Yields node property entries from a raw prop map.
+   * Use when a prop map is available but WarpState is not (e.g. stream sessions).
+   */
+  static *nodePropertiesFromMap(prop: Map<string, LWWRegister<PropValue>>): Generator<NodePropertyEntry> {
+    for (const [encodedKey, register] of prop) {
+      if (!isEdgePropKey(encodedKey)) {
+        const decoded = decodePropKey(encodedKey);
+        yield { encodedKey, nodeId: decoded.nodeId, key: decoded.propKey, register };
+      }
+    }
+  }
+
+  /**
+   * Yields node property entries from either a live WarpState or a structural
+   * state snapshot whose prop map has not been hydrated into WarpState yet.
+   */
+  static *nodePropertiesFromState(state: WarpState | WarpStatePropertyRegisterSource): Generator<NodePropertyEntry> {
+    for (const [encodedKey, register] of WarpState.allPropEntriesFromState(state)) {
+      if (!isEdgePropKey(encodedKey)) {
+        const decoded = decodePropKey(encodedKey);
+        yield { encodedKey, nodeId: decoded.nodeId, key: decoded.propKey, register };
+      }
+    }
+  }
+
+  /**
+   * Yields edge property entries from a raw prop map.
+   * Use when a prop map is available but WarpState is not (e.g. stream sessions).
+   */
+  static *edgePropertiesFromMap(prop: Map<string, LWWRegister<PropValue>>): Generator<EdgePropertyEntry> {
+    for (const [encodedKey, register] of prop) {
+      if (isEdgePropKey(encodedKey)) {
+        const decoded = decodeEdgePropKey(encodedKey);
+        yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
+      }
+    }
+  }
+
+  /**
+   * Yields edge property entries from either a live WarpState or a structural
+   * state snapshot whose prop map has not been hydrated into WarpState yet.
+   */
+  static *edgePropertiesFromState(state: WarpState | WarpStatePropertyRegisterSource): Generator<EdgePropertyEntry> {
+    for (const [encodedKey, register] of WarpState.allPropEntriesFromState(state)) {
+      if (isEdgePropKey(encodedKey)) {
+        const decoded = decodeEdgePropKey(encodedKey);
+        yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
+      }
+    }
+  }
+
+  /** Yields all prop entries (node + edge) with their encoded keys, for checkpoint serialization. */
+  *allPropEntries(): Generator<[string, LWWRegister<PropValue>]> {
+    for (const [key, register] of this.prop) {
+      yield [key, register];
+    }
+  }
+
+  /**
+   * Yields all prop entries from either a live WarpState or a structural state
+   * snapshot whose prop map has not been hydrated into WarpState yet.
+   */
+  static *allPropEntriesFromState(state: WarpState | WarpStatePropertyRegisterSource): Generator<[string, LWWRegister<PropValue>]> {
+    if (state instanceof WarpState) {
+      for (const [key, register] of state.prop) {
+        yield [key, register];
+      }
+      return;
+    }
+    for (const [key, register] of state.prop) {
+      yield [key, register];
+    }
   }
 
   /** Returns visible graph edges as deterministic runtime-backed records. */

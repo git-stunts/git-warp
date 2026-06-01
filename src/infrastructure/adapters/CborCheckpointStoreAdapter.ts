@@ -173,7 +173,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       version: 'full-v5',
       nodeAlive: state.nodeAlive.serialize(),
       edgeAlive: state.edgeAlive.serialize(),
-      prop: _serializePropsArray(state.prop),
+      prop: _serializePropsArray(state.allPropEntries()),
       observedFrontier: VersionVector.serialize(state.observedFrontier),
       edgeBirthEvent: _serializeEdgeBirthArray(state.edgeBirthEvent),
     });
@@ -243,9 +243,9 @@ interface DecodedFullState {
 
 // ── Private Helpers ───────────────────────────────────────────────────
 
-function _serializePropsArray(propMap: Map<string, LWWRegister<unknown>>): Array<[string, unknown]> {
+function _serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<unknown>]>): Array<[string, unknown]> {
   const arr: Array<[string, unknown]> = [];
-  for (const [key, register] of propMap) {
+  for (const [key, register] of propEntries) {
     arr.push([key, _serializeLWWRegister(register)]);
   }
   arr.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
