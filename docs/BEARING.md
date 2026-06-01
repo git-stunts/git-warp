@@ -68,6 +68,8 @@ The two new gate designs are
 [0266-v18-no-full-materialization-first-use-optics](design/0266-v18-no-full-materialization-first-use-optics/v18-no-full-materialization-first-use-optics.md)
 and
 [0267-v18-bounded-memory-large-graph-product-gate](design/0267-v18-bounded-memory-large-graph-product-gate/v18-bounded-memory-large-graph-product-gate.md).
+Gate 1 active branch evidence is
+[0269-v18-gate-1-optics-honesty](design/0269-v18-gate-1-optics-honesty/v18-gate-1-optics-honesty.md).
 
 ## Method Tracker Posture
 
@@ -92,16 +94,17 @@ evidence, generated-contract evidence, and post-v18 planning docs are merged to
 
 Current release facts:
 
-- Latest v18 release-prep merge: PR #110, Worldline-first public API, at
-  `7711bc0a`.
+- Latest v18 release-prep merge: PR #111, coordinate Optics closeout, Method
+  tracker migration, and PR issue-reference enforcement, at `a02e202c`.
 - Package metadata: `18.0.0` in `package.json` and `jsr.json`.
 - Public package/tag line: still `17.0.0` until the `v18.0.0` tag and registry
   publishes complete.
 - Latest recorded repair entry: `17.0.1` exists in source docs/changelog
   without public npm/tag evidence.
-- Last recorded release preflight predates the Worldline-first merge. Rerun
+- Last recorded release preflight predates the Worldline-first and Method
+  tracker merges. Rerun
   release preflight only after Optics public API closeout lands.
-- If `main` moves after `7711bc0a` before tagging, rerun release preflight from
+- If `main` moves after `a02e202c` before tagging, rerun release preflight from
   the exact commit that will receive the `v18.0.0` tag.
 - No `v18.0.0` tag or registry publish evidence is recorded yet.
 - `v18.0.0` is intentionally delayed until `API_optics-public-api-closeout`,
@@ -123,11 +126,13 @@ Current v18 implementation posture:
   public-read equivalence with zero canonical mismatches.
 - Generated Continuum/WARP Optic contract evidence is ingested for the
   runtime-boundary family, and the `warp-ttd` generated-family smoke exists.
-- Worldline-first application entry is merged. On this branch, coordinate
-  Optics have pinned coordinates, checkpoint-tail identity assertions,
-  success-path tests, recovery docs, and consumer type evidence, but the basis
-  setup path still materializes the full graph. That makes the old
-  "branch-local complete" label too strong for a public v18 release gate.
+- Worldline-first application entry is merged. Coordinate Optics have pinned
+  coordinates, checkpoint-tail identity assertions, success-path tests,
+  recovery docs, and consumer type evidence.
+- On the gate 1 branch, `prepareOpticBasis()` verifies existing
+  checkpoint-tail basis evidence and fails closed with
+  `E_OPTIC_NO_BOUNDED_BASIS` when that evidence is missing. It no longer
+  creates a basis by calling full materialization.
 - Release-candidate evidence accepts the residual raw content/property storage
   risk, but the previous "no streaming claim" escape hatch is no longer enough:
   v18 is blocked on bounded-memory conformance for normal public paths.
@@ -155,9 +160,9 @@ large-graph gate, tag, npm, and JSR evidence exist.
   multi-read story is now `prepareOpticBasis()`, `coordinate()`, and
   `coordinate.optic()`. Review should check that all docs keep that distinction
   sharp.
-- `prepareOpticBasis()` currently creates its basis by calling
-  `graph.materialize()` and then `graph.createCheckpoint()`. That is a release
-  blocker for any first-use Optics story that sounds bounded.
+- Gate 1 removes the direct `prepareOpticBasis()` materialization footgun, but
+  it does not build the bounded-memory platform. Basis construction, normal
+  public reads, writes, content lookup, and sync still wait for gate 2.
 - Several public surfaces are still full-residency or full-result by shape:
   `materialize()`, `getStateSnapshot()`, `getNodes()`, `getEdges()`, naked
   `toArray()`-style reads, and sync responses that accumulate arrays. They
@@ -209,6 +214,21 @@ Release-operation work is paused behind Optics merge and release evidence:
 - [~] Keep `API_optics-public-api-closeout` as branch-local implementation
   evidence, not a release-complete claim, until the first-use basis setup path
   stops materializing and the bounded-memory gate passes.
+- [~] Complete gate 1 branch evidence for
+  [#546](https://github.com/git-stunts/git-warp/issues/546):
+  tracker cleanup, public API cost inventory, first-use tripwires, docs guards,
+  and fail-closed `prepareOpticBasis()` verification.
+- [x] Reconcile migrated/completed tracker issues after PR #111:
+  [#572](https://github.com/git-stunts/git-warp/issues/572),
+  [#573](https://github.com/git-stunts/git-warp/issues/573),
+  [#548](https://github.com/git-stunts/git-warp/issues/548),
+  [#551](https://github.com/git-stunts/git-warp/issues/551), and
+  [#553](https://github.com/git-stunts/git-warp/issues/553).
+- [x] Add public API cost inventory:
+  [PUBLIC_API_COSTS.md](PUBLIC_API_COSTS.md).
+- [x] Add first-use Optics materialization tripwire evidence.
+- [x] Change `prepareOpticBasis()` to verify existing bounded basis evidence or
+  fail closed.
 - [ ] Complete [#546](https://github.com/git-stunts/git-warp/issues/546)
   `API_no-full-materialization-first-use-optics`.
 - [ ] Complete [#549](https://github.com/git-stunts/git-warp/issues/549)

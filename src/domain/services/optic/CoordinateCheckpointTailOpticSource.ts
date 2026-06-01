@@ -88,13 +88,37 @@ function copyFrontier(frontier: Map<string, string>): Map<string, string> {
 }
 
 function assertSource(source: CheckpointTailOpticSource): void {
-  if (!(source instanceof CheckpointTailOpticSource)) {
+  if (!hasSourceIdentity(source) || !hasSourcePorts(source) || !hasSourceMethods(source)) {
     throw new WarpError(
       'Coordinate checkpoint-tail optic source requires a checkpoint-tail source',
       'E_COORDINATE_CHECKPOINT_TAIL_OPTIC_SOURCE',
       { context: { field: 'source' } }
     );
   }
+}
+
+function hasSourceIdentity(source: CheckpointTailOpticSource): boolean {
+  return typeof source.graphName === 'string' && source.graphName.trim().length > 0;
+}
+
+function hasSourcePorts(source: CheckpointTailOpticSource): boolean {
+  const ports = [
+    source._persistence,
+    source._codec,
+    source._commitMessageCodec,
+  ] as const;
+  return ports.every((port) => port !== null && port !== undefined);
+}
+
+function hasSourceMethods(source: CheckpointTailOpticSource): boolean {
+  const methodChecks = [
+    typeof source.discoverWriters === 'function',
+    typeof source._readCheckpointSha === 'function',
+    typeof source._loadPatchChainFromSha === 'function',
+    typeof source._loadWriterPatches === 'function',
+    typeof source._validatePatchAgainstCheckpoint === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
 }
 
 function assertFrontier(frontier: Map<string, string>): void {

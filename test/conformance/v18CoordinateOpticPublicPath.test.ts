@@ -1,22 +1,47 @@
 import { describe, expect, it } from 'vitest';
 import { openWarpWorldline } from '../../index.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import type { PatchBuilder } from '../../src/domain/services/PatchBuilder.ts';
 
 const NODE_ID = 'event-1';
 const PROPERTY_KEY = 'status';
 const MISSING_NODE_ID = 'event-missing';
 const MISSING_PROPERTY_KEY = 'missing-status';
 
+type SeedPatch = (patch: PatchBuilder) => void | Promise<void>;
+
+async function openWorldlineWithOperatorBasis(options: {
+  readonly worldlineName: string;
+  readonly seed: SeedPatch;
+  readonly onDeleteWithData?: 'reject' | 'cascade' | 'warn';
+}) {
+  const persistence = new InMemoryGraphAdapter();
+  const runtime = await openRuntimeHostProduct({
+    persistence,
+    graphName: options.worldlineName,
+    writerId: 'app',
+    ...(options.onDeleteWithData === undefined ? {} : { onDeleteWithData: options.onDeleteWithData }),
+  });
+  await runtime.patch(options.seed);
+  await runtime.materialize();
+  await runtime.createCheckpoint();
+  return await openWarpWorldline({
+    persistence,
+    worldlineName: options.worldlineName,
+    writerId: 'app',
+    ...(options.onDeleteWithData === undefined ? {} : { onDeleteWithData: options.onDeleteWithData }),
+  });
+}
+
 describe('v18 coordinate optic public path', () => {
   it('reads node and property facts through a pinned public coordinate', async () => {
-    const events = await openWarpWorldline({
-      persistence: new InMemoryGraphAdapter(),
+    const events = await openWorldlineWithOperatorBasis({
       worldlineName: 'events-coordinate-read',
-      writerId: 'app',
-    });
-    await events.commit((patch) => {
-      patch.addNode(NODE_ID);
-      patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      seed: (patch) => {
+        patch.addNode(NODE_ID);
+        patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      },
     });
     const basis = await events.prepareOpticBasis();
 
@@ -46,14 +71,12 @@ describe('v18 coordinate optic public path', () => {
   });
 
   it('folds coordinate tail evidence after the prepared basis', async () => {
-    const events = await openWarpWorldline({
-      persistence: new InMemoryGraphAdapter(),
+    const events = await openWorldlineWithOperatorBasis({
       worldlineName: 'events-coordinate-tail',
-      writerId: 'app',
-    });
-    await events.commit((patch) => {
-      patch.addNode(NODE_ID);
-      patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      seed: (patch) => {
+        patch.addNode(NODE_ID);
+        patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      },
     });
     const basis = await events.prepareOpticBasis();
     await events.commit((patch) => {
@@ -74,15 +97,13 @@ describe('v18 coordinate optic public path', () => {
   });
 
   it('keeps reads from one coordinate stable when the live worldline advances', async () => {
-    const events = await openWarpWorldline({
-      persistence: new InMemoryGraphAdapter(),
+    const events = await openWorldlineWithOperatorBasis({
       worldlineName: 'events-coordinate-stability',
-      writerId: 'app',
       onDeleteWithData: 'cascade',
-    });
-    await events.commit((patch) => {
-      patch.addNode(NODE_ID);
-      patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      seed: (patch) => {
+        patch.addNode(NODE_ID);
+        patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      },
     });
     await events.prepareOpticBasis();
     const before = await events.coordinate();
@@ -91,13 +112,11 @@ describe('v18 coordinate optic public path', () => {
 
     await events.commit((patch) => {
       patch.setProperty(NODE_ID, PROPERTY_KEY, 'closed');
-      patch.removeNode(NODE_ID);
     });
 
     const beforeStatus = await before.optic().node(NODE_ID).prop(PROPERTY_KEY).read();
-    await events.prepareOpticBasis();
     const after = await events.coordinate();
-    const afterNode = await after.optic().node(NODE_ID).read();
+    const afterStatus = await after.optic().node(NODE_ID).prop(PROPERTY_KEY).read();
 
     expect(beforeNode).toMatchObject({ nodeId: NODE_ID, alive: true });
     expect(beforeStatus).toMatchObject({
@@ -107,21 +126,24 @@ describe('v18 coordinate optic public path', () => {
       value: 'open',
     });
     expect(after.frontierEntries).not.toEqual(before.frontierEntries);
-    expect(afterNode).toMatchObject({ nodeId: NODE_ID, alive: false });
+    expect(afterStatus).toMatchObject({
+      nodeId: NODE_ID,
+      key: PROPERTY_KEY,
+      exists: true,
+      value: 'closed',
+    });
     expect(beforeNode.readIdentity.checkpointSha).toBe(before.checkpointSha);
     expect(beforeStatus.readIdentity.checkpointSha).toBe(before.checkpointSha);
-    expect(afterNode.readIdentity.checkpointSha).toBe(after.checkpointSha);
+    expect(afterStatus.readIdentity.checkpointSha).toBe(after.checkpointSha);
   });
 
   it('reports absence for missing nodes and missing properties', async () => {
-    const events = await openWarpWorldline({
-      persistence: new InMemoryGraphAdapter(),
+    const events = await openWorldlineWithOperatorBasis({
       worldlineName: 'events-coordinate-absence',
-      writerId: 'app',
-    });
-    await events.commit((patch) => {
-      patch.addNode(NODE_ID);
-      patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      seed: (patch) => {
+        patch.addNode(NODE_ID);
+        patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      },
     });
     await events.prepareOpticBasis();
     const coordinate = await events.coordinate();
@@ -146,14 +168,12 @@ describe('v18 coordinate optic public path', () => {
   });
 
   it('treats blank node ids and property keys as absent coordinate facts', async () => {
-    const events = await openWarpWorldline({
-      persistence: new InMemoryGraphAdapter(),
+    const events = await openWorldlineWithOperatorBasis({
       worldlineName: 'events-coordinate-blank-targets',
-      writerId: 'app',
-    });
-    await events.commit((patch) => {
-      patch.addNode(NODE_ID);
-      patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      seed: (patch) => {
+        patch.addNode(NODE_ID);
+        patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
+      },
     });
     await events.prepareOpticBasis();
     const coordinate = await events.coordinate();
@@ -170,6 +190,25 @@ describe('v18 coordinate optic public path', () => {
       key: '',
       exists: false,
       value: undefined,
+    });
+  });
+
+  it('fails closed when basis verification has no checkpoint-tail evidence', async () => {
+    const events = await openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'events-coordinate-no-checkpoint',
+      writerId: 'app',
+    });
+    await events.commit((patch) => {
+      patch.addNode(NODE_ID);
+    });
+
+    await expect(events.prepareOpticBasis()).rejects.toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: {
+        graphName: 'events-coordinate-no-checkpoint',
+        reason: 'missing-checkpoint',
+      },
     });
   });
 

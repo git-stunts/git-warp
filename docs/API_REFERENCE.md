@@ -129,16 +129,18 @@ Compatibility callers that need graph-named substrate access should use
 | `seek(options?)` | `(options?: WorldlineOptions) => Promise<Worldline>` | Returns a pinned worldline read handle |
 | `observer(config)` | `(config: Aperture) => Promise<Observer>` | Opens an aperture over the live worldline |
 | `observer(name, config)` | `(name: string, config: Aperture) => Promise<Observer>` | Opens a named aperture |
-| `prepareOpticBasis()` | `() => Promise<WarpWorldlineOpticBasis>` | Creates the checkpoint-tail basis used by coordinate Optics |
+| `prepareOpticBasis()` | `() => Promise<WarpWorldlineOpticBasis>` | Verifies the checkpoint-tail basis used by coordinate Optics |
 | `coordinate()` | `() => Promise<WarpWorldlineCoordinate>` | Captures a stable coordinate for coherent optic reads |
 | `optic()` | `() => WorldlineOptic` | Opens a one-off bounded optic over the live worldline |
 
 The handle intentionally does not expose `graphName`, `materialize()`,
 `checkpoint`, `provenance`, `sync`, `strands`, or raw core access.
 
-`prepareOpticBasis()` may perform runtime folding internally to create the
-checkpoint-tail evidence. That folding is not exposed as an application read
-API. For coherent Optics, capture a coordinate after preparing the basis:
+`prepareOpticBasis()` verifies existing bounded checkpoint-tail evidence. It
+does not create that basis by materializing the full graph. If no bounded basis
+exists, it fails closed with `E_OPTIC_NO_BOUNDED_BASIS`; gate 2 owns bounded
+basis construction. For coherent Optics, capture a coordinate after verifying
+the basis:
 
 ```typescript
 await todos.prepareOpticBasis();

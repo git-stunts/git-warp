@@ -28,7 +28,9 @@ describe('v18 release story shape', () => {
 
   it('keeps the residual-risk and non-goal story visible', () => {
     expect(releaseNotes).toContain('total raw content/property storage retirement');
-    expect(releaseNotes).toContain('end-to-end graph streaming reads and writes');
-    expect(releaseNotes).toContain('Full graph streaming reads and writes are explicitly a `v20.0.0` goal.');
+    expect(releaseNotes).toContain('bounded-memory large-graph product gate');
+    expect(releaseNotes).toContain(
+      'normal public reads, writes, content lookup, and sync pass the',
+    );
   });
 });

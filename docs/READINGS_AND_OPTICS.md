@@ -92,7 +92,7 @@ Pinned readings keep historical inspection in the read model. Application code
 does not reconstruct old state by replaying patches itself.
 
 For coordinate Optics, capture the coordinate from the `WarpWorldline` handle
-after preparing the bounded basis:
+after verifying the bounded basis:
 
 ```typescript
 await events.prepareOpticBasis();
@@ -140,10 +140,12 @@ const status = await coordinate
 
 Foundation optics are deliberately narrower than general reads. They reject
 unbounded or unsupported bases instead of silently falling back to a whole-graph
-fold. If coordinate capture or an optic reports `E_OPTIC_NO_BOUNDED_BASIS`, call
-`prepareOpticBasis()` before capturing the coordinate, repair the operational
-checkpoint evidence, or use a live worldline or observer read when you do not
-need Optic identity.
+fold. `prepareOpticBasis()` verifies existing checkpoint-tail basis evidence; it
+does not create that evidence by materializing the full graph. If basis
+verification, coordinate capture, or an optic reports
+`E_OPTIC_NO_BOUNDED_BASIS`, repair or build the bounded basis through operator
+tooling, or use a live worldline or observer read when you do not need Optic
+identity.
 
 `events.optic()` remains a convenience for one-off live optic reads when a
 bounded basis already exists. It is not the coherent multi-read boundary. If two
@@ -195,13 +197,9 @@ into a second graph.
 ## Checkpoint-Backed Readings
 
 Checkpoints are operational artifacts that make replay cheaper and release state
-easier to validate. They do not change the public app read path.
-
-```typescript
-await graph.checkpoint.createCheckpoint();
-
-const nodes = await events.live().getNodes();
-```
+easier to validate. They do not change the public app read path, and first-use
+application docs should not teach checkpoint creation as a way to fold a large
+graph into memory.
 
 If a checkpoint exists, the substrate may use it behind the read basis. The
 caller still names the reading or optic it wants.

@@ -17,7 +17,8 @@ This release adds:
   `WarpWorldlinePatchBuild`;
 - coordinate-backed Optics through `prepareOpticBasis()`, `coordinate()`, and
   `coordinate.optic()` so users can run coherent public node and property optic
-  reads without opening graph/materialize-first APIs;
+  reads without opening graph/materialize-first APIs, with setup verifying
+  existing bounded basis evidence instead of materializing the full graph;
 - docs and migration guidance that classify `openWarpGraph()`, `WarpApp`,
   `WarpCore`, and materialize-named methods as compatibility, diagnostic,
   migration, or substrate tooling surfaces instead of first-use app APIs;
@@ -144,11 +145,14 @@ raw-boundary classes from returning silently.
 - Echo runtime parity;
 - a full Continuum admission shell;
 - total raw content/property storage retirement;
-- end-to-end graph streaming reads and writes;
+- release of the bounded-memory large-graph product gate before its conformance
+  witness lands;
 - v20 observer/support/index execution semantics;
 - v21 distributed braid or plural-admission semantics.
 
-Full graph streaming reads and writes are explicitly a `v20.0.0` goal.
+Broader slice-first read execution remains a later-major runway, but v18 itself
+is blocked until normal public reads, writes, content lookup, and sync pass the
+bounded-memory large-graph product gate.
 
 ## Release Gates
 
