@@ -72,4 +72,13 @@ describe('backlog feature scope', () => {
     );
     expect(backlogReadme).toContain('as GitHub Issues and link issue URLs');
   });
+
+  it('documents the migrated issue metadata table shape', () => {
+    const backlogReadme = readFileSync(`${backlogRoot}README.md`, 'utf8');
+
+    expect(backlogReadme).toContain('Markdown provenance table');
+    expect(backlogReadme).toContain('`| Field | Value |`');
+    expect(backlogReadme).toContain('`| Source backlog |');
+    expect(backlogReadme).not.toContain('`Source backlog: ...`');
+  });
 });

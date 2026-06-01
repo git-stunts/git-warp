@@ -23,18 +23,19 @@ Use GitHub Issues for live work:
 
 ## Migration Summary
 
-| Metric | Count |
-|--------|------:|
-| Backlog cards imported as GitHub Issues | 460 |
-| GitHub Issues created in migration | 460 |
-| Existing source-path issues skipped | 0 |
-| Support labels ensured | 65 |
-| Archived backlog files | 467 |
+| Metric                                  | Count |
+| --------------------------------------- | ----: |
+| Backlog cards imported as GitHub Issues |   460 |
+| GitHub Issues created in migration      |   460 |
+| Existing source-path issues skipped     |     0 |
+| Support labels ensured                  |    65 |
+| Archived backlog files                  |   467 |
 
-Every migrated issue body contains:
+Every migrated issue body contains a Markdown provenance table:
 
-- `Source backlog: ...`
-- `Archived source: ...`
+- `| Field | Value |`
+- `| Source backlog | ... |`
+- `| Archived source | ... |`
 - the original lane;
 - original id, legend, feature, release home, and dependency metadata when
   present;
