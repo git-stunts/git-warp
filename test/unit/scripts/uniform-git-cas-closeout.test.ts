@@ -11,10 +11,11 @@ function readRepoFile(relativePath: string): string {
 
 describe('uniform git-cas closeout', () => {
   it('removes the stale live v17 card', () => {
-    expect(existsSync(join(
-      repoRoot,
-      'docs/archive/backlog/v17.0.0-residual-backlog/INFRA_uniform-git-cas.md',
-    ))).toBe(false);
+    expect(
+      existsSync(
+        join(repoRoot, 'docs/archive/backlog/v17.0.0-residual-backlog/INFRA_uniform-git-cas.md')
+      )
+    ).toBe(false);
   });
 
   it('ratchets GitGraphAdapter as the Git-backed runtime CAS provider', () => {
@@ -31,23 +32,35 @@ describe('uniform git-cas closeout', () => {
     const runtimeHelpers = readRepoFile('src/domain/runtimeHelpers.ts');
 
     expect(runtimeHelpers).toContain('return await persistence.createRuntimeBlobStorage()');
-    expect(runtimeBoot).toContain('const resolvedBlobStorage = await resolveBlobStorage(blobStorage, persistence)');
-    expect(runtimeBoot).toContain('...(patchWriteStorage.strategy === \'git-cas\' ? { blobStorage: resolvedBlobStorage } : {})');
+    expect(runtimeBoot).toContain(
+      'const resolvedBlobStorage = await resolveBlobStorage(blobStorage, persistence)'
+    );
+    expect(runtimeBoot).toContain(
+      "...(patchWriteStorage.strategy === 'git-cas' ? { blobStorage: resolvedBlobStorage } : {})"
+    );
     expect(runtimeBoot).toContain('blobStorage: resolvedBlobStorage');
-    expect(runtimeBoot).toContain('const resolvedIndexStore = await resolveIndexStore(indexStore, {');
+    expect(runtimeBoot).toContain(
+      'const resolvedIndexStore = await resolveIndexStore(indexStore, {'
+    );
   });
 
   it('ratchets checkpoint and index payloads through CAS payload pointers', () => {
-    const checkpointStore = readRepoFile('src/infrastructure/adapters/CborCheckpointStoreAdapter.ts');
+    const checkpointStore = readRepoFile(
+      'src/infrastructure/adapters/CborCheckpointStoreAdapter.ts'
+    );
     const indexStore = readRepoFile('src/infrastructure/adapters/CborIndexStoreAdapter.ts');
     const pointer = readRepoFile('src/infrastructure/adapters/CasPayloadPointer.ts');
 
     expect(checkpointStore).toContain('writePayloadBlob({');
     expect(checkpointStore).toContain('readPayloadBlob(this._blobPort, this._blobStorage');
     expect(indexStore).toContain('writePayloadBlob({');
-    expect(indexStore).toContain('readPayloadBlob(adapter._blobPort, adapter._blobStorage, blobOid)');
+    expect(indexStore).toContain(
+      'readPayloadBlob(adapter._blobPort, adapter._blobStorage, blobOid)'
+    );
     expect(pointer).toContain('const storageOid = await blobStorage.store(bytes, options)');
-    expect(pointer).toContain('return await blobPort.writeBlob(encodeCasPayloadPointer(storageOid))');
+    expect(pointer).toContain(
+      'return await blobPort.writeBlob(encodeCasPayloadPointer(storageOid))'
+    );
     expect(pointer).toContain('return await blobStorage.retrieve(storageOid)');
   });
 
@@ -69,15 +82,21 @@ describe('uniform git-cas closeout', () => {
     const packageJson = readRepoFile('package.json');
     const design = readRepoFile('docs/design/0092-close-uniform-git-cas.md');
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
-    const upgradeTool = readRepoFile('docs/archive/backlog/v17.0.0-residual-backlog/INFRA_substrate-upgrade-tool.md');
+    const upgradeTool = readRepoFile(
+      'docs/archive/backlog/v17.0.0-residual-backlog/INFRA_substrate-upgrade-tool.md'
+    );
     const upgradeEntrypoint = readRepoFile('scripts/upgrade-v16-to-v17.ts');
     const migrationHelper = readRepoFile('scripts/migrations/v17.0.0/migrate.ts');
 
-    expect(packageJson).toContain('"upgrade": "npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js"');
+    expect(packageJson).toContain(
+      '"upgrade": "npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js"'
+    );
     expect(packageJson).toContain('"dist"');
     expect(design).not.toContain('legacy raw blobs may still be read');
     expect(releaseLedger).not.toContain('legacy raw reads');
-    expect(releaseLedger).toContain('Old raw\n                                      substrate readers belong to `npm run\n                                      upgrade`');
+    expect(releaseLedger).toContain(
+      'Old raw\n                                      substrate readers belong to `npm run\n                                      upgrade`'
+    );
     expect(upgradeTool).toContain('The package-level command is:');
     expect(upgradeTool).toContain('npm run upgrade -- --graph <name>');
     expect(upgradeTool).toContain('Mainline cleanup requirement');
@@ -87,12 +106,14 @@ describe('uniform git-cas closeout', () => {
   });
 
   it('tracks broader adapter parity as a split successor', () => {
-    const workloads = readRepoFile('docs/method/backlog/WORKLOADS.md');
-    const archivedWorkloads = readRepoFile(
-      'docs/archive/backlog/backlog-workloads-v17-era.md',
+    const workloads = readRepoFile(
+      'docs/archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md'
     );
+    const archivedWorkloads = readRepoFile('docs/archive/backlog/backlog-workloads-v17-era.md');
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
-    const successor = readRepoFile('docs/archive/backlog/v17.0.0-residual-backlog/INFRA_git-cas-adapter-parity.md');
+    const successor = readRepoFile(
+      'docs/archive/backlog/v17.0.0-residual-backlog/INFRA_git-cas-adapter-parity.md'
+    );
 
     expect(workloads).not.toContain('INFRA_uniform-git-cas');
     expect(workloads).not.toContain('INFRA_unify-persistence-on-git-cas');
