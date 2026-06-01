@@ -1,7 +1,7 @@
 ---
 cycle: 0265
 task_id: API_optics-public-api-closeout
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
