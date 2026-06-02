@@ -6,6 +6,9 @@ import CheckpointTailOpticSource, {
   type CheckpointTailCheckpointFrontier,
   type CheckpointTailPatchEntry,
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
+import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
@@ -13,10 +16,10 @@ import type { CorePersistence } from '../../../../../src/domain/types/WarpPersis
 
 class TestCheckpointTailOpticSource extends CheckpointTailOpticSource {
   readonly graphName = 'events';
-  declare readonly _persistence: CorePersistence;
-  declare readonly _codec: CodecPort;
+  readonly _persistence: CorePersistence = new InMemoryGraphAdapter();
+  readonly _codec: CodecPort = defaultCodec;
   readonly _blobStorage: BlobStoragePort | null = null;
-  declare readonly _commitMessageCodec: CommitMessageCodecPort;
+  readonly _commitMessageCodec: CommitMessageCodecPort = DEFAULT_COMMIT_MESSAGE_CODEC;
 
   discoverWriters(): Promise<string[]> {
     return Promise.resolve([]);
@@ -41,6 +44,42 @@ class TestCheckpointTailOpticSource extends CheckpointTailOpticSource {
   ): Promise<void> {
     return Promise.resolve();
   }
+}
+
+class MalformedPersistenceSource extends TestCheckpointTailOpticSource {
+  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
+  override readonly _persistence: CorePersistence = {
+    showNode: () => Promise.resolve('checkpoint'),
+  };
+}
+
+class MalformedBlobStorageSource extends TestCheckpointTailOpticSource {
+  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
+  override readonly _blobStorage: BlobStoragePort | null = {
+    store: () => Promise.resolve('storage-oid'),
+  };
+}
+
+class MalformedCodecSource extends TestCheckpointTailOpticSource {
+  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
+  override readonly _codec: CodecPort = {
+    encode: () => new Uint8Array(),
+  };
+}
+
+class MalformedCommitMessageCodecSource extends TestCheckpointTailOpticSource {
+  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
+  override readonly _commitMessageCodec: CommitMessageCodecPort = {
+    decodeCheckpoint: () => ({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: 'state',
+      frontierOid: 'frontier',
+      indexOid: 'index',
+      schema: 5,
+      checkpointVersion: null,
+    }),
+  };
 }
 
 describe('CoordinateCheckpointTailOpticSource', () => {
@@ -84,5 +123,25 @@ describe('CoordinateCheckpointTailOpticSource', () => {
           frontier: new Map([['writer-1', '   ']]),
         })
     ).toThrow('Coordinate checkpoint-tail optic source requires non-empty identity fields');
+  });
+
+  it('rejects malformed source ports at the constructor boundary', () => {
+    const sources = [
+      new MalformedPersistenceSource(),
+      new MalformedBlobStorageSource(),
+      new MalformedCodecSource(),
+      new MalformedCommitMessageCodecSource(),
+    ] as const;
+
+    for (const source of sources) {
+      expect(
+        () =>
+          new CoordinateCheckpointTailOpticSource({
+            source,
+            checkpointSha: 'checkpoint-sha',
+            frontier: new Map([['writer-1', 'patch-sha']]),
+          })
+      ).toThrow('Coordinate checkpoint-tail optic source requires a checkpoint-tail source');
+    }
   });
 });

@@ -129,16 +129,18 @@ Compatibility callers that need graph-named substrate access should use
 | `seek(options?)` | `(options?: WorldlineOptions) => Promise<Worldline>` | Returns a pinned worldline read handle |
 | `observer(config)` | `(config: Aperture) => Promise<Observer>` | Opens an aperture over the live worldline |
 | `observer(name, config)` | `(name: string, config: Aperture) => Promise<Observer>` | Opens a named aperture |
-| `prepareOpticBasis()` | `() => Promise<WarpWorldlineOpticBasis>` | Creates the checkpoint-tail basis used by coordinate Optics |
+| `prepareOpticBasis()` | `() => Promise<WarpWorldlineOpticBasis>` | Verifies the checkpoint-tail basis used by coordinate Optics |
 | `coordinate()` | `() => Promise<WarpWorldlineCoordinate>` | Captures a stable coordinate for coherent optic reads |
 | `optic()` | `() => WorldlineOptic` | Opens a one-off bounded optic over the live worldline |
 
 The handle intentionally does not expose `graphName`, `materialize()`,
 `checkpoint`, `provenance`, `sync`, `strands`, or raw core access.
 
-`prepareOpticBasis()` may perform runtime folding internally to create the
-checkpoint-tail evidence. That folding is not exposed as an application read
-API. For coherent Optics, capture a coordinate after preparing the basis:
+`prepareOpticBasis()` verifies existing checkpoint-tail evidence. It does not
+create that basis by materializing the full graph. If no basis exists, it fails
+closed with `E_OPTIC_NO_BOUNDED_BASIS`; gate 2 owns memory-budgeted basis
+construction. For coherent Optics, capture a coordinate after verifying the
+basis:
 
 ```typescript
 await todos.prepareOpticBasis();
@@ -529,7 +531,6 @@ or manage replay details itself.
 const worldline = todos.live();
 
 await worldline.hasNode('user:alice');      // true
-await worldline.getNodes();                 // ['user:alice', 'user:bob']
 await worldline.getNodeProps('user:alice'); // { name: 'Alice' }
 
 const admins = await worldline.query()
@@ -541,6 +542,12 @@ const path = await worldline.traverse.shortestPath('user:alice', 'user:bob', {
   dir: 'out',
 });
 ```
+
+These exact-read and query shapes are the preferred application surface, but
+their current providers are `transitional` until the bounded-memory gate lands.
+Full-result reads such as `getNodes()` and `getEdges()` are diagnostic/offline
+surfaces, not first-use product-read examples. See
+[PUBLIC API COSTS](PUBLIC_API_COSTS.md).
 
 When you need a filtered or redacted aperture, define a lens and create an
 observer on top of the worldline:
@@ -615,7 +622,9 @@ const role = await coordinate.optic().node('user:alice').prop('role').read();
 
 The coordinate pins the checkpoint-tail basis and writer frontier used by the
 optic. If the live worldline advances between two reads, reads through the
-captured coordinate still describe the captured position.
+captured coordinate still describe the captured position. Coordinate Optics avoid
+full graph materialization, but remain `transitional` until memory-budgeted
+basis and tail providers land.
 
 Node optic absence returns `alive: false`. Property optic absence returns
 `exists: false` and `value: undefined`. Blank node ids and blank property keys

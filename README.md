@@ -23,6 +23,8 @@ a graph larger than git-warp's configured memory pool.
 Live work is tracked in
 [GitHub Issues](https://github.com/git-stunts/git-warp/issues). Repository
 design docs, witnesses, retros, and archived backlog cards are evidence.
+Current public API cost labels are in
+[PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md).
 
 ## Quick start
 
@@ -48,6 +50,11 @@ await events.commit((patch) => {
 const props = await events.live().getNodeProps('user:alice');
 ```
 
+Live exact reads are first-use friendly API shapes, but their current v18
+providers are still `transitional` until the bounded-memory gate lands. See
+[PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md) before treating any read path as
+large-graph safe.
+
 ## What git-warp is
 
 `git-warp` is a Git-native implementation of WARP: Worldline Algebra
@@ -72,12 +79,15 @@ named admitted causal lane with one writer identity and a small public handle:
 | `live()` | Revelation | Reads the latest visible state |
 | `seek()` | Historical revelation | Reads a bounded historical coordinate |
 | `observer()` | Bounded revelation | Creates an observer through an aperture |
-| `prepareOpticBasis()` | Folding | Creates the checkpoint-tail evidence needed by coordinate Optics |
+| `prepareOpticBasis()` | Folding | Verifies the checkpoint-tail evidence needed by coordinate Optics |
 | `coordinate()` | Revelation | Captures a stable coordinate for coherent optic reads |
 | `optic()` | Bounded optic work | Starts one-off live optic-shaped reads over the worldline |
 
-For coherent Optics, prepare the bounded basis, capture a coordinate, and read
-through that coordinate:
+For coherent Optics, verify the checkpoint-tail basis, capture a coordinate, and read
+through that coordinate. If no checkpoint-tail basis exists yet,
+`prepareOpticBasis()` fails closed with `E_OPTIC_NO_BOUNDED_BASIS` instead of
+materializing the whole graph. This path is still `transitional` until gate 2
+adds memory-budgeted basis and tail providers:
 
 ```typescript
 await events.prepareOpticBasis();

@@ -18,6 +18,9 @@ when you need that level of detail.
   Builder guide: common app patterns with Worldlines, observers, and strands.
 - [API Reference](API_REFERENCE.md)
   Exhaustive API, appendices, flags, and examples without the narrative.
+- [Public API Costs](PUBLIC_API_COSTS.md)
+  Current cost labels for first-use, transitional, diagnostic, offline, and
+  legacy public surfaces.
 - [v18 Migration Guide](migrations/v18.0.0.md)
   Worldline-first API migration from graph/materialize-first app code.
 - [Advanced Guide](ADVANCED_GUIDE.md)
@@ -37,6 +40,8 @@ when you need that level of detail.
   Day-to-day builder workflows.
 - [API Reference](API_REFERENCE.md)
   Exhaustive surface for methods, flags, appendices, and errors.
+- [Public API Costs](PUBLIC_API_COSTS.md)
+  Current provider-cost truth for public API surfaces.
 - [Advanced Guide](ADVANCED_GUIDE.md)
   Advanced substrate and tooling topics.
 - [Conceptual Overview](CONCEPTUAL_OVERVIEW.md)

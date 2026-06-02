@@ -94,6 +94,11 @@ Now the live graph says the finding is triaged, but the earlier state still exis
 
 ## Read current state
 
+The live read shapes below are the normal application surface, but their current
+providers are `transitional` until the bounded-memory gate lands. See
+[Public API Costs](PUBLIC_API_COSTS.md) before treating them as large-graph
+safe.
+
 ```typescript
 // Create a live read handle over current worldline history
 const worldline = audit.live();

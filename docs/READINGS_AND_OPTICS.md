@@ -17,6 +17,11 @@ Optics.
 diagnostics, and substrate tooling, but it is no longer the surface new
 application code should reach for first.
 
+Current v18 read shapes are cost-labeled in
+[PUBLIC API COSTS](PUBLIC_API_COSTS.md). Live exact reads, queries, observers,
+coordinate capture, and coordinate Optics are first-use friendly shapes, but
+their current providers are `transitional` until the bounded-memory gate lands.
+
 ## Core Contract
 
 A **reading** is a read basis over causal history. It answers "from which
@@ -92,7 +97,7 @@ Pinned readings keep historical inspection in the read model. Application code
 does not reconstruct old state by replaying patches itself.
 
 For coordinate Optics, capture the coordinate from the `WarpWorldline` handle
-after preparing the bounded basis:
+after verifying the checkpoint-tail basis:
 
 ```typescript
 await events.prepareOpticBasis();
@@ -140,13 +145,19 @@ const status = await coordinate
 
 Foundation optics are deliberately narrower than general reads. They reject
 unbounded or unsupported bases instead of silently falling back to a whole-graph
-fold. If coordinate capture or an optic reports `E_OPTIC_NO_BOUNDED_BASIS`, call
-`prepareOpticBasis()` before capturing the coordinate, repair the operational
-checkpoint evidence, or use a live worldline or observer read when you do not
-need Optic identity.
+fold. `prepareOpticBasis()` verifies existing checkpoint-tail basis evidence; it
+does not create that evidence by materializing the full graph. If basis
+verification, coordinate capture, or an optic reports
+`E_OPTIC_NO_BOUNDED_BASIS`, repair or build the checkpoint-tail basis through operator
+tooling, or use a live worldline or observer read when you do not need Optic
+identity.
+
+Coordinate Optics avoid full graph materialization, but remain `transitional`
+until gate 2 adds memory-budgeted basis verification, frontier capture, and tail
+providers.
 
 `events.optic()` remains a convenience for one-off live optic reads when a
-bounded basis already exists. It is not the coherent multi-read boundary. If two
+checkpoint-tail basis already exists. It is not the coherent multi-read boundary. If two
 awaited reads must describe the same causal position, use one captured
 coordinate for both reads.
 
@@ -195,13 +206,9 @@ into a second graph.
 ## Checkpoint-Backed Readings
 
 Checkpoints are operational artifacts that make replay cheaper and release state
-easier to validate. They do not change the public app read path.
-
-```typescript
-await graph.checkpoint.createCheckpoint();
-
-const nodes = await events.live().getNodes();
-```
+easier to validate. They do not change the public app read path, and first-use
+application docs should not teach checkpoint creation as a way to fold a large
+graph into memory.
 
 If a checkpoint exists, the substrate may use it behind the read basis. The
 caller still names the reading or optic it wants.

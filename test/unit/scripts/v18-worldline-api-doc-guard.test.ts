@@ -46,7 +46,8 @@ describe('v18 Worldline-first documentation guard', () => {
     expect(migrationGuide).toContain('v18 does not claim');
     expect(migrationGuide).toContain('full retirement of legacy content/property storage');
     expect(migrationGuide).toContain('native Continuum witnesshood');
-    expect(migrationGuide).toContain('end-to-end graph streaming reads and writes');
+    expect(migrationGuide).toContain('broader slice-first read execution');
+    expect(migrationGuide).toContain('large-graph product gate');
     expect(migrationGuide).toContain('zero use of materialization inside the runtime');
   });
 

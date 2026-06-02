@@ -88,13 +88,74 @@ function copyFrontier(frontier: Map<string, string>): Map<string, string> {
 }
 
 function assertSource(source: CheckpointTailOpticSource): void {
-  if (!(source instanceof CheckpointTailOpticSource)) {
+  if (!hasSourceIdentity(source) || !hasSourcePorts(source) || !hasSourceMethods(source)) {
     throw new WarpError(
       'Coordinate checkpoint-tail optic source requires a checkpoint-tail source',
       'E_COORDINATE_CHECKPOINT_TAIL_OPTIC_SOURCE',
       { context: { field: 'source' } }
     );
   }
+}
+
+function hasSourceIdentity(source: CheckpointTailOpticSource): boolean {
+  return typeof source.graphName === 'string' && source.graphName.trim().length > 0;
+}
+
+function hasSourcePorts(source: CheckpointTailOpticSource): boolean {
+  return hasPersistencePort(source._persistence)
+    && hasCodecPort(source._codec)
+    && hasOptionalBlobStoragePort(source._blobStorage)
+    && hasCommitMessageCodecPort(source._commitMessageCodec);
+}
+
+function hasSourceMethods(source: CheckpointTailOpticSource): boolean {
+  const methodChecks = [
+    typeof source.discoverWriters === 'function',
+    typeof source._readCheckpointSha === 'function',
+    typeof source._loadPatchChainFromSha === 'function',
+    typeof source._loadWriterPatches === 'function',
+    typeof source._validatePatchAgainstCheckpoint === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
+}
+
+function hasPersistencePort(persistence: CorePersistence): boolean {
+  const methodChecks = [
+    typeof persistence.showNode === 'function',
+    typeof persistence.getNodeInfo === 'function',
+    typeof persistence.readBlob === 'function',
+    typeof persistence.readTreeOids === 'function',
+    typeof persistence.readRef === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
+}
+
+function hasCodecPort(codec: CodecPort): boolean {
+  const methodChecks = [
+    typeof codec.encode === 'function',
+    typeof codec.decode === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
+}
+
+function hasOptionalBlobStoragePort(blobStorage: BlobStoragePort | null): boolean {
+  if (blobStorage === null) {
+    return true;
+  }
+  const methodChecks = [
+    typeof blobStorage.retrieve === 'function',
+    typeof blobStorage.retrieveStream === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
+}
+
+function hasCommitMessageCodecPort(commitMessageCodec: CommitMessageCodecPort): boolean {
+  const methodChecks = [
+    typeof commitMessageCodec.decodeCheckpoint === 'function',
+    typeof commitMessageCodec.decodePatch === 'function',
+    typeof commitMessageCodec.detectKind === 'function',
+  ] as const;
+  return methodChecks.every((methodExists) => methodExists);
 }
 
 function assertFrontier(frontier: Map<string, string>): void {

@@ -129,6 +129,11 @@ For the deeper substrate story behind strands, braids, and transfer planning, us
 
 ## Common read patterns
 
+The patterns in this section are the preferred application API shapes. Their
+current providers are `transitional` until the bounded-memory gate lands; use
+[Public API Costs](PUBLIC_API_COSTS.md) for the current cost label before
+treating a read path as large-graph safe.
+
 ### Pattern 1: the live view
 
 Start from a worldline when you want stable application reads.
