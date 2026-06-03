@@ -169,38 +169,6 @@ export interface WarpGraphDeps {
 // Factory
 // ---------------------------------------------------------------------------
 
-/**
- * Opens a WARP multi-writer graph and returns a frozen capability bag.
- *
- * This remains the advanced composition root for the admission architecture.
- * Application workflows should prefer openWarpWorldline(), which opens the
- * named causal worldline and keeps materialization and graph-wide diagnostics
- * off the first-use surface.
- *
- * @deprecated For application workflows, use openWarpWorldline(). This
- * advanced capability bag remains supported for compatibility, tooling, and
- * substrate diagnostics.
- *
- * @example
- * ```ts
- * import { openWarpGraph } from '@git-stunts/git-warp';
- *
- * const graph = await openWarpGraph({
- *   persistence,
- *   graphName: 'events',
- *   writerId: 'node-1',
- *   trust: { mode: 'enforce' },
- * });
- *
- * // Commitment: create a patch
- * const patch = await graph.patches.createPatch();
- * patch.addNode('user:alice');
- * await patch.commit();
- *
- * // Revelation: read through the bounded query surface
- * const props = await graph.query.getNodeProps('user:alice');
- * ```
- */
 type SyncCapabilitySurface = Pick<
   SyncCapability,
   'getFrontier' |
@@ -373,6 +341,16 @@ function bindSubscriptionCapability(runtime: WarpGraphRuntimeSurface): Subscript
   });
 }
 
+/**
+ * Opens a WARP multi-writer graph compatibility capability bag.
+ *
+ * Application workflows should use openWarpWorldline(), which opens a named
+ * causal worldline and keeps reads on explicit worldline, coordinate, observer,
+ * or optic bases instead of graph-wide materialization.
+ *
+ * @deprecated For application workflows, use openWarpWorldline(). This advanced
+ * compatibility bag remains supported for tooling and substrate diagnostics.
+ */
 export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
   const runtime = await openWarpGraphRuntime(deps);
 
