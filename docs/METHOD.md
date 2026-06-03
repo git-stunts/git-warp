@@ -38,10 +38,11 @@ must stand on its own.
 Designs must name the linear reading model and reduced-complexity
 experience, not assume the default operator.
 
-**Localization is not translation after the fact.** Wording, wrapping,
-formatting, and directionality are design constraints from the start.
-Prefer logical `start`/`end` thinking over hardcoded left/right
-assumptions.
+**Visible text is a contract.** git-warp does not currently have
+localization support, so designs must not invent locale-catalog or
+translation-completeness gates. When visible CLI, TUI, docs, report, or error
+text changes, the design names the strings, accessibility implications,
+machine-readable equivalent output, and directionality assumptions.
 
 ### Quality gates
 
@@ -70,6 +71,7 @@ docs/
     legends/                        named domains
     retro/<cycle>/<task>.md         retrospectives
     graveyard/                      rejected ideas
+    design-doc-template.md          standard design doc shape
     guide.md                        operator advice and non-doctrinal practice notes
     process.md                      how cycles run
     release.md                      how releases work
@@ -154,8 +156,10 @@ When an issue is pulled into a cycle, it becomes a design doc:
 GitHub issue -> docs/design/<cycle>/<task>.md
 ```
 
-The issue is labeled `work-in-progress` and linked from the design doc. Work
-does not silently fall back into the queue.
+The issue is labeled `work-in-progress` and linked from the design doc. New
+cycle design docs follow
+[design-doc-template.md](method/design-doc-template.md). Work does not silently
+fall back into the queue.
 
 ### Pull Requests
 

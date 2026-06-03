@@ -5,19 +5,26 @@ the quick-reference for operating a cycle.
 
 ## Starting a cycle
 
-1. Pick work from a lane (`asap/` first, then `up-next/`).
+1. Pick work from GitHub Issues. Prefer `lane:asap`, then `lane:up-next`, then
+   the release lane when release-scoped work is active.
 2. Create `docs/design/<NNNN-slug>/` with the next sequential
    number.
-3. Move the backlog file into the cycle directory as the design doc.
-   Flesh it out: sponsor human, sponsor agent, hill, playback
-   questions, accessibility/localization/agent-inspectability postures,
-   non-goals.
-4. You are now committed.
+3. Create the design doc from
+   [design-doc-template.md](design-doc-template.md). At minimum, name the
+   linked issue, sponsors, hill, current truth, problem, scope, non-goals,
+   proof surface, tests to write first, acceptance criteria, validation plan,
+   playback/witness, tracker disposition, and retrospective.
+4. If visible CLI, TUI, docs, report, or error text changes, name the changed
+   strings and directionality assumptions. Do not invent localization gates;
+   git-warp does not currently have localization support.
+5. You are now committed.
 
 ## During a cycle
 
-- RED: write failing tests from playback questions.
+- RED: write failing tests from the proof surface.
 - GREEN: make them pass.
+- Design-doc assertions, inventory tests, and docs guards can support the
+  evidence ledger, but they cannot be the only proof for implementation work.
 - Do not reorganize the backlog mid-cycle.
 
 ## Ending a cycle
