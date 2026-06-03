@@ -69,6 +69,14 @@ function decodeProps(tree, shardKey) {
   return map;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
+}
+
+function isPropEntry(value: unknown): value is [string, Record<string, unknown>] {
+  return Array.isArray(value) && typeof value[0] === 'string' && isRecord(value[1]);
+}
+
 describe('IncrementalIndexUpdater', () => {
   describe('NodeAdd', () => {
     it('adds node to correct meta shard and sets alive bit', () => {
@@ -703,6 +711,54 @@ describe('IncrementalIndexUpdater', () => {
 
       expect(aProps['name']).toBe('Alice');
       expect(Reflect.get(Object.getPrototypeOf(aProps), 'polluted')).toBeUndefined();
+      expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+    });
+
+    it('writes loaded prop bags only after null-prototype normalization', () => {
+      const state = buildState({
+        nodes: ['A'],
+        edges: [],
+        props: [{ nodeId: 'A', key: 'name', value: 'Alice' }],
+      });
+      const tree1 = buildTree(state);
+      const shardKey = computeShardKey('A');
+      tree1[`props_${shardKey}.cbor`] = defaultCodec.encode([['A', { name: 'Alice' }]]).slice();
+      const capturedPropBags: Array<Record<string, unknown>> = [];
+      const codec = {
+        encode<TEncoded>(data: TEncoded): Uint8Array {
+          if (Array.isArray(data) && data.every(isPropEntry)) {
+            for (const [, props] of data) {
+              capturedPropBags.push(props);
+            }
+          }
+          return defaultCodec.encode(data).slice();
+        },
+        decode<TDecoded>(bytes: Uint8Array): TDecoded {
+          return defaultCodec.decode<TDecoded>(bytes);
+        },
+      };
+      const diff = {
+        nodesAdded: [],
+        nodesRemoved: [],
+        edgesAdded: [],
+        edgesRemoved: [],
+        propsChanged: [{ nodeId: 'A', key: '__proto__', value: { polluted: true }, prevValue: undefined }],
+      };
+
+      const updater = new IncrementalIndexUpdater({ codec });
+      updater.computeDirtyShards({
+        diff,
+        state,
+        loadShard: (path) => tree1[path],
+      });
+
+      expect(capturedPropBags).toHaveLength(1);
+      const [capturedPropBag] = capturedPropBags;
+      if (capturedPropBag === undefined) {
+        throw new Error('expected one captured prop bag');
+      }
+      expect(Object.getPrototypeOf(capturedPropBag)).toBe(null);
+      expect(capturedPropBag['name']).toBe('Alice');
       expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
     });
   });
