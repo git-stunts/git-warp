@@ -1,13 +1,17 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+import jsrJson from '../../../jsr.json' with { type: 'json' };
+import packageJson from '../../../package.json' with { type: 'json' };
+import tsconfig from '../../../tsconfig.json' with { type: 'json' };
+import srcConfig from '../../../tsconfig.src.json' with { type: 'json' };
+import testConfig from '../../../tsconfig.test.json' with { type: 'json' };
+import { shouldAutoUpdateCoverageRatchet } from '../../../scripts/coverage-ratchet.ts';
+import vitestConfig from '../../../vitest.config.ts';
 
-function readRepoFile(relativePath: string): string {
-  return readFileSync(`${repoRoot}${relativePath}`, 'utf8');
-}
+const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
 function trackedNonTypeScriptTail(): string[] {
   const output = execFileSync('git', ['ls-files', '-z', '--', '*.js', '*.d.ts'], {
@@ -39,31 +43,28 @@ describe('non-TS tail shape', () => {
   });
 
   it('keeps the sha1sync export honest without a standalone declaration file', () => {
-    const packageJson = readRepoFile('package.json');
-    const jsrJson = readRepoFile('jsr.json');
-
-    expect(packageJson).toContain('"./sha1sync"');
-    expect(packageJson).toContain('"types": "./dist/src/infrastructure/adapters/sha1sync.d.ts"');
-    expect(packageJson).toContain('"import": "./dist/src/infrastructure/adapters/sha1sync.js"');
-    expect(packageJson).not.toContain('"sha1sync.d.ts"');
-    expect(jsrJson).toContain('"./sha1sync": "./src/infrastructure/adapters/sha1sync.ts"');
-    expect(jsrJson).not.toContain('"sha1sync.d.ts"');
+    expect(packageJson.exports['./sha1sync']).toEqual({
+      types: './dist/src/infrastructure/adapters/sha1sync.d.ts',
+      import: './dist/src/infrastructure/adapters/sha1sync.js',
+      default: './dist/src/infrastructure/adapters/sha1sync.js',
+    });
+    expect(jsrJson.exports['./sha1sync']).toBe('./src/infrastructure/adapters/sha1sync.ts');
+    expect(trackedNonTypeScriptTail()).not.toContain('src/infrastructure/adapters/sha1sync.d.ts');
   });
 
-  it('removes the stale .js glob assumptions from vitest and tsconfig', () => {
-    const vitestConfig = readRepoFile('vitest.config.ts');
-    const tsconfig = readRepoFile('tsconfig.json');
-    const srcConfig = readRepoFile('tsconfig.src.json');
-    const testConfig = readRepoFile('tsconfig.test.json');
-
-    expect(vitestConfig).toContain("from './scripts/coverage-ratchet.ts'");
-    expect(vitestConfig).not.toContain('.benchmark.js');
-    expect(vitestConfig).not.toContain("src/**/*.js");
-    expect(tsconfig).not.toContain('"src/**/*.js"');
-    expect(tsconfig).not.toContain('"bin/**/*.js"');
-    expect(tsconfig).not.toContain('"scripts/**/*.js"');
-    expect(tsconfig).not.toContain('"test/**/*.js"');
-    expect(srcConfig).not.toContain('"src/**/*.js"');
-    expect(testConfig).not.toContain('"src/**/*.js"');
+  it('keeps the coverage ratchet hook and removes stale .js glob assumptions from vitest and tsconfig', () => {
+    expect(vitestConfig.test?.coverage?.thresholds?.autoUpdate).toBe(shouldAutoUpdateCoverageRatchet());
+    expect(shouldAutoUpdateCoverageRatchet({ GIT_WARP_UPDATE_COVERAGE_RATCHET: '1' })).toBe(true);
+    expect(shouldAutoUpdateCoverageRatchet({ GIT_WARP_UPDATE_COVERAGE_RATCHET: '0' })).toBe(false);
+    expect(vitestConfig.test?.include).toEqual([
+      '**/*.{test,spec}.?(c|m)[jt]s?(x)',
+      '**/benchmark/*.benchmark.ts',
+    ]);
+    expect(tsconfig.include).not.toContain('src/**/*.js');
+    expect(tsconfig.include).not.toContain('bin/**/*.js');
+    expect(tsconfig.include).not.toContain('scripts/**/*.js');
+    expect(tsconfig.include).not.toContain('test/**/*.js');
+    expect(srcConfig.include).not.toContain('src/**/*.js');
+    expect(testConfig.include).not.toContain('src/**/*.js');
   });
 });
