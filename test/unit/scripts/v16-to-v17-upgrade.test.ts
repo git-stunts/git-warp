@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import packageJson from '../../../package.json' with { type: 'json' };
+import publishTsconfig from '../../../tsconfig.publish.json' with { type: 'json' };
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { createFrontier } from '../../../src/domain/services/Frontier.ts';
 import { createCheckpointEnvelope } from '../../../src/domain/services/state/checkpointCreate.ts';
@@ -12,14 +12,17 @@ import {
   upgradeV16ToV17,
 } from '../../../scripts/upgrade-v16-to-v17.ts';
 
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
-
-function readRepoFile(relativePath: string): string {
-  return readFileSync(`${repoRoot}${relativePath}`, 'utf8');
-}
-
 function oid(hex: string): string {
   return hex.repeat(40).slice(0, 40);
+}
+
+function upgradeCommandEntrypoint(): string {
+  const command = packageJson.scripts.upgrade;
+  const [, nodeCommand] = command.split(' && ');
+  if (nodeCommand === undefined || !nodeCommand.startsWith('node ')) {
+    throw new Error(`Unexpected upgrade command shape: ${command}`);
+  }
+  return nodeCommand.slice('node '.length);
 }
 
 describe('v16 to v17 top-level upgrade utility', () => {
@@ -97,10 +100,8 @@ describe('v16 to v17 top-level upgrade utility', () => {
   });
 
   it('wires npm run upgrade through the top-level operator script', () => {
-    const pkg = readRepoFile('package.json');
-    const publishConfig = readRepoFile('tsconfig.publish.json');
-
-    expect(pkg).toContain('node dist/scripts/upgrade-v16-to-v17.js');
-    expect(publishConfig).toContain('"scripts/**/*.ts"');
+    expect(upgradeCommandEntrypoint()).toBe('dist/scripts/upgrade-v16-to-v17.js');
+    expect(publishTsconfig.include).toContain('scripts/**/*.ts');
+    expect(packageJson.files).toContain('dist');
   });
 });

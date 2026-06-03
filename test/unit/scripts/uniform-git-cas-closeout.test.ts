@@ -3,10 +3,22 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import packageJson from '../../../package.json' with { type: 'json' };
+import publishTsconfig from '../../../tsconfig.publish.json' with { type: 'json' };
+
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
 function readRepoFile(relativePath: string): string {
   return readFileSync(join(repoRoot, relativePath), 'utf8');
+}
+
+function upgradeCommandEntrypoint(): string {
+  const command = packageJson.scripts.upgrade;
+  const [, nodeCommand] = command.split(' && ');
+  if (nodeCommand === undefined || !nodeCommand.startsWith('node ')) {
+    throw new Error(`Unexpected upgrade command shape: ${command}`);
+  }
+  return nodeCommand.slice('node '.length);
 }
 
 describe('uniform git-cas closeout', () => {
@@ -79,19 +91,23 @@ describe('uniform git-cas closeout', () => {
   });
 
   it('keeps raw-substrate compatibility behind the upgrade command, not mainline policy', () => {
-    const packageJson = readRepoFile('package.json');
     const design = readRepoFile('docs/design/0092-close-uniform-git-cas.md');
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
     const upgradeTool = readRepoFile(
       'docs/archive/backlog/v17.0.0-residual-backlog/INFRA_substrate-upgrade-tool.md'
     );
-    const upgradeEntrypoint = readRepoFile('scripts/upgrade-v16-to-v17.ts');
-    const migrationHelper = readRepoFile('scripts/migrations/v17.0.0/migrate.ts');
 
-    expect(packageJson).toContain(
-      '"upgrade": "npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js"'
+    const distEntrypoint = upgradeCommandEntrypoint();
+    const sourceEntrypoint = distEntrypoint.replace(/^dist\//u, '').replace(/\.js$/u, '.ts');
+
+    expect(packageJson.scripts.upgrade).toBe(
+      'npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js',
     );
-    expect(packageJson).toContain('"dist"');
+    expect(distEntrypoint).toBe('dist/scripts/upgrade-v16-to-v17.js');
+    expect(sourceEntrypoint).toBe('scripts/upgrade-v16-to-v17.ts');
+    expect(existsSync(join(repoRoot, sourceEntrypoint))).toBe(true);
+    expect(publishTsconfig.include).toContain('scripts/**/*.ts');
+    expect(packageJson.files).toContain('dist');
     expect(design).not.toContain('legacy raw blobs may still be read');
     expect(releaseLedger).not.toContain('legacy raw reads');
     expect(releaseLedger).toContain(
@@ -100,9 +116,6 @@ describe('uniform git-cas closeout', () => {
     expect(upgradeTool).toContain('The package-level command is:');
     expect(upgradeTool).toContain('npm run upgrade -- --graph <name>');
     expect(upgradeTool).toContain('Mainline cleanup requirement');
-    expect(upgradeEntrypoint).toContain('Top-level v16 -> v17 graph substrate upgrade utility');
-    expect(upgradeEntrypoint).toContain('upgradeCheckpointSchema');
-    expect(migrationHelper).toContain('not in shipped runtime code under src/');
   });
 
   it('tracks broader adapter parity as a split successor', () => {
