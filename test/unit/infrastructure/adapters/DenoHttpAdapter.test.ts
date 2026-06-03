@@ -347,8 +347,8 @@ describe('DenoHttpAdapter', () => {
 
       await new Promise((r) => setTimeout(r, 0));
 
-      // If we get here without an unhandled rejection, the test passes
-      expect(true).toBe(true);
+      expect(mockServer.shutdown).toHaveBeenCalledTimes(1);
+      expect(server.address()).toBeNull();
     });
 
     it('nullifies state.server after shutdown rejection', async () => {
