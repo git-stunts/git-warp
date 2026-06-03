@@ -98,6 +98,10 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - This repo stores graph data as Git commits; rewriting history can destroy user data.
 - At the end of each turn, stage only the specific files written in that turn. Do not use `git add -A` by default.
 - If you wrote files in the turn, commit them in that turn. Do not leave your own edits staged but uncommitted.
+- Cycle-start draft pull requests are allowed and expected. After the design
+  doc commit is pushed, open a draft PR that references the issue, label the
+  issue `work-in-progress`, and keep the PR draft until the cycle is ready for
+  review.
 
 ## Process
 

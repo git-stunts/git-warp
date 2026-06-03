@@ -168,6 +168,13 @@ its title or body. References to pull requests do not count. The accepted forms
 are `#123`, `GH-123`, `git-stunts/git-warp#123`, and
 `https://github.com/git-stunts/git-warp/issues/123`.
 
+Cycle-start pull requests are draft PRs. After the design doc commit is pushed,
+open a draft PR that references the issue, label the issue
+`work-in-progress`, and link the PR from the issue. Draft means the cycle is
+owned and inspectable, not ready to merge. Move the PR out of draft only when
+the cycle has playback, acceptance evidence, and closeout material ready for
+review.
+
 ### Commitment
 
 Pull it and you own it - "you" meaning the named sponsors (human and
@@ -257,28 +264,45 @@ in one sentence, the cycle is too big. Split it.
 
 ### The loop
 
-0. **Pull** - choose a GitHub Issue, mark it `work-in-progress`, and link it
-   from `docs/design/<cycle>/`. You are now committed.
+0. **Open the cycle branch** - choose or create a GitHub Issue, fetch, sync to
+   the merge target branch, and check out a new cycle branch. The merge target
+   is almost always `origin/main`. Use normal fast-forward or merge flow only:
+   never rebase and never force. Branch names come from the issue or cycle slug
+   and never use a `codex` prefix.
 
 1. **Design** - write a design doc. Required sections:
+   - Linked issue
    - Sponsor human
    - Sponsor agent
-   - Hill (one sentence)
-   - Playback questions - yes/no, both perspectives. Write them first.
-   - Accessibility / assistive reading posture
-   - Localization / directionality posture
-   - Agent inspectability / explainability posture
+   - Hill
+   - Current truth
+   - Problem
+   - Scope
    - Non-goals
+   - Proof surface
+   - Tests to write first
+   - Acceptance criteria
+   - Validation plan
+   - Playback / witness
+   - Tracker disposition
+   - Retrospective
 
-   If a posture is not relevant, say so explicitly. Silence is not a
-   position.
+   Use [design-doc-template.md](method/design-doc-template.md). If a conditional
+   posture is not relevant, say so explicitly. Silence is not a position.
 
-2. **RED** - write failing tests. Playback questions become specs.
+2. **Commit and open the cycle PR** - stage the design doc and any cycle-start
+   signpost change, commit, push the branch, open a draft pull request that
+   references the issue, label the issue `work-in-progress`, and link the PR
+   from the issue. The draft PR is the public cycle workspace; it becomes ready
+   for review only after playback, acceptance evidence, and closeout material
+   exist.
+
+3. **RED** - write failing tests. The proof surface becomes the spec.
    Default to agent surface first.
 
-3. **GREEN** - make them pass.
+4. **GREEN** - make them pass.
 
-4. **Playback** - produce a witness. The agent answers agent
+5. **Playback** - produce a witness. The agent answers agent
    questions. The human answers user questions. Write it down.
 
    The **witness** is the concrete artifact - test output, transcript,
@@ -290,7 +314,7 @@ in one sentence, the cycle is too big. Split it.
    localization, or agent-facing explainability, witness those paths
    too.
 
-5. **Close** - write the retro and witness packet on the branch.
+6. **Close** - write the retro and witness packet on the branch.
    - Drift check (mandatory). Undocumented drift is the only true
      failure mode.
    - New debt to GitHub Issues labeled `lane:bad-code`.
@@ -299,10 +323,10 @@ in one sentence, the cycle is too big. Split it.
 
    Closing the cycle packet does not mean `main` has accepted it yet.
 
-6. **PR / review** - review the full cycle packet until merge or
-   rejection.
+7. **PR / review** - continue review in the already-open cycle PR until merge
+   or rejection.
 
-7. **Ship sync on `main`** - after merge, update repo-level ship
+8. **Ship sync on `main`** - after merge, update repo-level ship
    surfaces such as `docs/BEARING.md`, `CHANGELOG.md`, and release
    notes when the cycle changes them.
 
@@ -410,10 +434,12 @@ to resurrect something, you must address the note.
 
 ```text
 idea -> lane:inbox -> lane:cool-ideas -> lane:up-next -> lane:asap
+  -> issue + synced merge target + cycle branch
   -> design/<cycle>/  (committed issue)
+  -> draft work-in-progress PR
   -> RED -> GREEN -> playback (witness)
   -> retro/<cycle>/   (cycle packet closed)
-  -> PR -> main
+  -> review -> main
   -> ship sync (BEARING / CHANGELOG / release when meaningful)
       - or ->
   -> closed issue / graveyard evidence
