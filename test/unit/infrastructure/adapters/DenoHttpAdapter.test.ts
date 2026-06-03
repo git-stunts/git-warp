@@ -1,50 +1,118 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from 'vitest';
+import HttpServerPort, { type HttpRequest, type HttpResponse } from '../../../../src/ports/HttpServerPort.ts';
+
+type InstalledDenoRuntime = typeof globalThis.Deno;
+type DenoServe = NonNullable<InstalledDenoRuntime>['serve'];
+type DenoServeOptionsForTest = Parameters<DenoServe>[0];
+type DenoRequestHandler = Parameters<DenoServe>[1];
+type DenoHttpAdapterConstructor = typeof import('../../../../src/infrastructure/adapters/DenoHttpAdapter.ts').default;
+type AdapterHandler = (request: HttpRequest) => Promise<HttpResponse>;
+type TestDenoRuntime = { readonly serve: DenoServe };
+type RequestBodyStream = NonNullable<Request['body']>;
+type MockDenoServer = Omit<ReturnType<DenoServe>, 'shutdown'> & {
+  readonly shutdown: MockedFunction<() => Promise<void>>;
+};
+
+function expectCaptured<T>(value: T | null, label: string): T {
+  if (value === null) {
+    throw new Error(`Expected ${label} to be captured`);
+  }
+  return value;
+}
+
+function installDenoRuntime(runtime: TestDenoRuntime): InstalledDenoRuntime {
+  const previous = globalThis.Deno;
+  Object.defineProperty(globalThis, 'Deno', {
+    configurable: true,
+    writable: true,
+    value: runtime,
+  });
+  return previous;
+}
+
+function restoreDenoRuntime(runtime: InstalledDenoRuntime): void {
+  if (runtime === undefined) {
+    Reflect.deleteProperty(globalThis, 'Deno');
+    return;
+  }
+  Object.defineProperty(globalThis, 'Deno', {
+    configurable: true,
+    writable: true,
+    value: runtime,
+  });
+}
+
+function firstRequestFrom(handler: MockedFunction<AdapterHandler>): HttpRequest {
+  const [request] = expectCaptured(handler.mock.calls[0] ?? null, 'request handler call');
+  return request;
+}
+
+class StreamingLimitRequest extends Request {
+  private readonly streamBody: RequestBodyStream;
+  private readonly arrayBufferProbe: () => void;
+
+  constructor(streamBody: RequestBodyStream, arrayBufferProbe: () => void) {
+    super('http://localhost:3000/stream', { method: 'POST' });
+    this.streamBody = streamBody;
+    this.arrayBufferProbe = arrayBufferProbe;
+  }
+
+  override get body(): RequestBodyStream {
+    return this.streamBody;
+  }
+
+  override arrayBuffer(): Promise<ArrayBuffer> {
+    this.arrayBufferProbe();
+    return Promise.resolve(new ArrayBuffer(0));
+  }
+}
 
 /**
  * Creates a mock Deno.serve() that captures the handler and options,
  * and returns a controllable mock server object.
  */
 function createMockDenoServe() {
-    let capturedHandler = (null) as any;
-    let capturedOptions = (null) as any;
+  let capturedHandler: DenoRequestHandler | null = null;
+  let capturedOptions: DenoServeOptionsForTest | null = null;
 
-  const mockServer = {
+  const mockServer: MockDenoServer = {
     addr: { hostname: '127.0.0.1', port: 8080, transport: 'tcp' },
     shutdown: vi.fn(() => Promise.resolve()),
-    finished: Promise.resolve(),
   };
 
-  const serve = vi.fn((options, handler) => {
+  const serve = vi.fn((options: DenoServeOptionsForTest, handler: DenoRequestHandler) => {
     capturedOptions = options;
     capturedHandler = handler;
     if (options.onListen) {
       options.onListen();
     }
     return mockServer;
-  });
+  }) as MockedFunction<DenoServe>;
 
-  return { serve, mockServer, getCapturedHandler: () => capturedHandler, getCapturedOptions: () => capturedOptions };
+  return {
+    serve,
+    mockServer,
+    getCapturedHandler: () => expectCaptured(capturedHandler, 'Deno request handler'),
+    getCapturedOptions: () => expectCaptured(capturedOptions, 'Deno serve options'),
+  };
 }
 
 describe('DenoHttpAdapter', () => {
-    let originalDeno;
-    let mockServe;
-    let mockServer;
-    let getCapturedHandler;
-    let getCapturedOptions;
-    let DenoHttpAdapter;
+  let originalDeno: InstalledDenoRuntime;
+  let mockServe: MockedFunction<DenoServe>;
+  let mockServer: MockDenoServer;
+  let getCapturedHandler: () => DenoRequestHandler;
+  let getCapturedOptions: () => DenoServeOptionsForTest;
+  let DenoHttpAdapter: DenoHttpAdapterConstructor;
 
   beforeEach(async () => {
-    originalDeno = (globalThis).Deno;
-
     const mock = createMockDenoServe();
     mockServe = mock.serve;
     mockServer = mock.mockServer;
     getCapturedHandler = mock.getCapturedHandler;
     getCapturedOptions = mock.getCapturedOptions;
 
-    (globalThis as any).Deno = { serve: mockServe };
+    originalDeno = installDenoRuntime({ serve: mockServe });
 
     // Dynamic import to pick up the globalThis.Deno we just set
     const mod = await import('../../../../src/infrastructure/adapters/DenoHttpAdapter.ts');
@@ -52,11 +120,7 @@ describe('DenoHttpAdapter', () => {
   });
 
   afterEach(() => {
-    if (originalDeno === undefined) {
-      delete (globalThis as any).Deno;
-    } else {
-      (globalThis).Deno = originalDeno;
-    }
+    restoreDenoRuntime(originalDeno);
   });
 
   describe('constructor', () => {
@@ -80,7 +144,7 @@ describe('DenoHttpAdapter', () => {
   describe('createServer', () => {
     it('returns an object with listen, close, and address', () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
 
       expect(typeof server.listen).toBe('function');
       expect(typeof server.close).toBe('function');
@@ -91,7 +155,7 @@ describe('DenoHttpAdapter', () => {
   describe('listen', () => {
     it('calls Deno.serve with correct port', () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       const cb = vi.fn();
 
       server.listen(3000, cb);
@@ -104,7 +168,7 @@ describe('DenoHttpAdapter', () => {
 
     it('calls Deno.serve with hostname when provided', () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       const cb = vi.fn();
 
       server.listen(3000, '0.0.0.0', cb);
@@ -118,7 +182,7 @@ describe('DenoHttpAdapter', () => {
 
     it('does not set hostname when host is a function (callback)', () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       const cb = vi.fn();
 
       server.listen(4000, cb);
@@ -131,12 +195,12 @@ describe('DenoHttpAdapter', () => {
 
     it('passes error to callback when Deno.serve throws', () => {
       const error = new Error('bind failed');
-      (globalThis).Deno.serve = vi.fn(() => {
+      mockServe.mockImplementationOnce(() => {
         throw error;
       });
 
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       const cb = vi.fn();
 
       server.listen(3000, cb);
@@ -146,19 +210,19 @@ describe('DenoHttpAdapter', () => {
 
     it('works without a callback', () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
 
       expect(() => server.listen(3000)).not.toThrow();
     });
 
     it('throws when Deno.serve fails without callback', () => {
       const error = new Error('bind failed');
-      (globalThis).Deno.serve = vi.fn(() => {
+      mockServe.mockImplementationOnce(() => {
         throw error;
       });
 
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
 
       expect(() => server.listen(3000)).toThrow(error);
     });
@@ -166,7 +230,7 @@ describe('DenoHttpAdapter', () => {
 
   describe('Request/Response bridging', () => {
     it('converts Deno Request to plain object and Response back', async () => {
-      const handler = vi.fn(() => ({
+      const handler = vi.fn(async () => ({
         status: 200,
         headers: { 'Content-Type': 'application/json' },
         body: '{"ok":true}',
@@ -185,13 +249,13 @@ describe('DenoHttpAdapter', () => {
       const response = await denoHandler(request);
 
       expect(handler).toHaveBeenCalledTimes(1);
-      const arg = (handler as any).mock.calls[0]![0];
-      expect(arg!.method).toBe('POST');
-      expect(arg!.url).toBe('/api/test?q=1');
-      expect(arg!.headers['content-type']).toBe('text/plain');
-      expect(arg!.headers['x-custom']).toBe('value');
-      expect(arg!.body).toBeInstanceOf(Uint8Array);
-      expect(new TextDecoder().decode(arg!.body)).toBe('hello body');
+      const arg = firstRequestFrom(handler);
+      expect(arg.method).toBe('POST');
+      expect(arg.url).toBe('/api/test?q=1');
+      expect(arg.headers['content-type']).toBe('text/plain');
+      expect(arg.headers['x-custom']).toBe('value');
+      expect(arg.body).toBeInstanceOf(Uint8Array);
+      expect(new TextDecoder().decode(arg.body)).toBe('hello body');
 
       expect(response).toBeInstanceOf(Response);
       expect(response.status).toBe(200);
@@ -201,7 +265,7 @@ describe('DenoHttpAdapter', () => {
     });
 
     it('sets body to undefined for empty-body requests', async () => {
-      const handler = vi.fn(() => ({ status: 204 }));
+      const handler = vi.fn(async () => ({ status: 204 }));
       const adapter = new DenoHttpAdapter();
       const server = adapter.createServer(handler);
       server.listen(3000);
@@ -213,12 +277,12 @@ describe('DenoHttpAdapter', () => {
 
       await denoHandler(request);
 
-      const arg = (handler as any).mock.calls[0]![0];
-      expect(arg!.body).toBeUndefined();
+      const arg = firstRequestFrom(handler);
+      expect(arg.body).toBeUndefined();
     });
 
     it('defaults status to 200 when handler omits it', async () => {
-      const handler = vi.fn(() => ({}));
+      const handler = vi.fn(async () => ({}));
       const adapter = new DenoHttpAdapter();
       const server = adapter.createServer(handler);
       server.listen(3000);
@@ -235,7 +299,7 @@ describe('DenoHttpAdapter', () => {
   describe('error handling', () => {
     it('returns 500 when handler throws', async () => {
       const logger = { error: vi.fn() };
-      const handler = vi.fn(() => {
+      const handler = vi.fn(async () => {
         throw new Error('boom');
       });
       const adapter = new DenoHttpAdapter({ logger });
@@ -256,7 +320,7 @@ describe('DenoHttpAdapter', () => {
     it('logs the error via logger', async () => {
       const logger = { error: vi.fn() };
       const err = new Error('kaboom');
-      const handler = vi.fn(() => {
+      const handler = vi.fn(async () => {
         throw err;
       });
       const adapter = new DenoHttpAdapter({ logger });
@@ -272,7 +336,9 @@ describe('DenoHttpAdapter', () => {
     });
 
     it('returns 500 when handler returns rejected promise', async () => {
-      const handler = vi.fn(() => Promise.reject(new Error('async boom')));
+      const handler = vi.fn(async () => {
+        throw new Error('async boom');
+      });
       const adapter = new DenoHttpAdapter();
       const server = adapter.createServer(handler);
       server.listen(3000);
@@ -289,7 +355,7 @@ describe('DenoHttpAdapter', () => {
   describe('close', () => {
     it('calls server.shutdown()', async () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       server.listen(3000);
 
       const cb = vi.fn();
@@ -307,7 +373,7 @@ describe('DenoHttpAdapter', () => {
       mockServer.shutdown.mockReturnValue(Promise.reject(shutdownError));
 
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       server.listen(3000);
 
       const cb = vi.fn();
@@ -320,7 +386,7 @@ describe('DenoHttpAdapter', () => {
 
     it('calls callback immediately if server was never started', () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       const cb = vi.fn();
 
       server.close(cb);
@@ -330,7 +396,7 @@ describe('DenoHttpAdapter', () => {
 
     it('works without a callback when server was never started', () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
 
       expect(() => server.close()).not.toThrow();
     });
@@ -339,7 +405,7 @@ describe('DenoHttpAdapter', () => {
       mockServer.shutdown.mockReturnValue(Promise.reject(new Error('shutdown boom')));
 
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       server.listen(3000);
 
       // close() without a callback — must not produce an unhandled rejection
@@ -355,7 +421,7 @@ describe('DenoHttpAdapter', () => {
       mockServer.shutdown.mockReturnValue(Promise.reject(new Error('shutdown failed')));
 
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       server.listen(3000);
 
       const cb = vi.fn();
@@ -371,7 +437,7 @@ describe('DenoHttpAdapter', () => {
 
   describe('body size enforcement', () => {
     it('rejects request with Content-Length exceeding MAX_BODY_BYTES', async () => {
-      const handler = vi.fn(() => ({ status: 200 }));
+      const handler = vi.fn(async () => ({ status: 200 }));
       const adapter = new DenoHttpAdapter();
       const server = adapter.createServer(handler);
       server.listen(3000);
@@ -390,7 +456,7 @@ describe('DenoHttpAdapter', () => {
     });
 
     it('uses streaming to enforce body limit without calling arrayBuffer', async () => {
-      const handler = vi.fn(() => ({ status: 200 }));
+      const handler = vi.fn(async () => ({ status: 200 }));
       const adapter = new DenoHttpAdapter();
       const server = adapter.createServer(handler);
       server.listen(3000);
@@ -400,25 +466,19 @@ describe('DenoHttpAdapter', () => {
       // Create a ReadableStream that exceeds 10MB
       const chunkSize = 1024 * 1024; // 1MB
       let chunksDelivered = 0;
-      const stream = new ReadableStream({
+      const stream = new ReadableStream<Uint8Array<ArrayBuffer>>({
         pull(controller) {
           if (chunksDelivered >= 11) {
             controller.close();
             return;
           }
-          controller.enqueue(new Uint8Array(chunkSize));
+          controller.enqueue(new Uint8Array(new ArrayBuffer(chunkSize)));
           chunksDelivered++;
         },
       });
 
       const arrayBufferSpy = vi.fn();
-      const request = {
-        method: 'POST',
-        url: 'http://localhost:3000/stream',
-        headers: new Headers(),
-        body: stream,
-        arrayBuffer: arrayBufferSpy,
-      };
+      const request = new StreamingLimitRequest(stream, arrayBufferSpy);
 
       const response = await denoHandler(request);
 
@@ -432,14 +492,14 @@ describe('DenoHttpAdapter', () => {
   describe('address', () => {
     it('returns null before listen is called', () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
 
       expect(server.address()).toBeNull();
     });
 
     it('returns address info after listen', () => {
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       server.listen(8080);
 
       const addr = server.address();
@@ -454,10 +514,13 @@ describe('DenoHttpAdapter', () => {
       mockServer.addr = { hostname: '::1', port: 8080, transport: 'tcp' };
 
       const adapter = new DenoHttpAdapter();
-      const server = adapter.createServer(() => ({ status: 200 }));
+      const server = adapter.createServer(async () => ({ status: 200 }));
       server.listen(8080);
 
       const addr = server.address();
+      if (addr === null) {
+        throw new Error('expected server address after listen');
+      }
       expect(addr.family).toBe('IPv6');
       expect(addr.address).toBe('::1');
     });
