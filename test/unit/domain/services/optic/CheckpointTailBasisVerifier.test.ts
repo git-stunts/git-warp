@@ -8,8 +8,10 @@ import CheckpointTailOpticSource, {
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
 import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
 import type TreeEntryLimit from '../../../../../src/domain/tree/TreeEntryLimit.ts';
+import TreeEntryMissing from '../../../../../src/domain/tree/TreeEntryMissing.ts';
 import type TreeEntryPath from '../../../../../src/domain/tree/TreeEntryPath.ts';
 import type TreeEntryPrefixBatch from '../../../../../src/domain/tree/TreeEntryPrefixBatch.ts';
+import GitGraphAdapter from '../../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
@@ -20,6 +22,7 @@ import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
 import type { TreeEntryProbeResult } from '../../../../../src/ports/TreeEntryProbePort.ts';
+import { createGitRepo } from '../../../../helpers/warpGraphTestUtils.ts';
 
 const GRAPH_NAME = 'checkpoint-tail-basis-verifier';
 const FRONTIER_OID = '1'.repeat(40);
@@ -60,6 +63,40 @@ class ProbeFixtureAdapter extends InMemoryGraphAdapter {
   ): Promise<TreeEntryPrefixBatch> {
     this.prefixProbePaths.push(prefix.value);
     return await super.readTreeEntryPrefix(treeOid, prefix, limit);
+  }
+}
+
+class GitPrefixFallbackProbeAdapter extends GitGraphAdapter {
+  readonly readTreeOidsCalls: string[] = [];
+  readonly exactProbePaths: string[] = [];
+  readonly prefixProbePaths: string[] = [];
+  readonly prefixProbeEntryPaths: string[] = [];
+
+  override async readTreeOids(treeOid: string): Promise<Record<string, string>> {
+    this.readTreeOidsCalls.push(treeOid);
+    throw new ForbiddenTreeMapReadError(treeOid);
+  }
+
+  override async readTreeEntryOid(
+    treeOid: string,
+    path: TreeEntryPath,
+  ): Promise<TreeEntryProbeResult> {
+    this.exactProbePaths.push(path.value);
+    if (path.value === 'index') {
+      return new TreeEntryMissing(path);
+    }
+    return await super.readTreeEntryOid(treeOid, path);
+  }
+
+  override async readTreeEntryPrefix(
+    treeOid: string,
+    prefix: TreeEntryPath,
+    limit: TreeEntryLimit,
+  ): Promise<TreeEntryPrefixBatch> {
+    this.prefixProbePaths.push(prefix.value);
+    const batch = await super.readTreeEntryPrefix(treeOid, prefix, limit);
+    this.prefixProbeEntryPaths.push(...batch.entries.map((entry) => entry.path.value));
+    return batch;
   }
 }
 
@@ -173,6 +210,49 @@ describe('CheckpointTailBasisVerifier', () => {
     expect(fixture.persistence.readTreeOidsCalls).toEqual([]);
     expect(fixture.persistence.exactProbePaths).toEqual(['frontier.cbor', 'index']);
     expect(fixture.persistence.prefixProbePaths).toEqual(['index/']);
+  });
+
+  it('accepts bounded prefix evidence through Git-backed tree-entry probes', async () => {
+    const repo = await createGitRepo('checkpoint-tail-basis-prefix-fallback');
+    try {
+      const persistence = new GitPrefixFallbackProbeAdapter({ plumbing: repo.plumbing });
+      const frontierOid = await persistence.writeBlob('frontier');
+      const shardOid = await persistence.writeBlob('index-shard');
+      const indexTreeOid = await persistence.writeTree([
+        `100644 blob ${shardOid}\tshard-000.cbor`,
+      ]);
+      const checkpointIndexOid = await persistence.writeTree([
+        `100644 blob ${frontierOid}\tfrontier.cbor`,
+        `040000 tree ${indexTreeOid}\tindex`,
+      ]);
+      const checkpointSha = await persistence.commitNodeWithTree({
+        treeOid: persistence.emptyTree,
+        parents: [],
+        message: encodeCheckpointMessage({
+          graph: GRAPH_NAME,
+          stateHash: STATE_HASH,
+          frontierOid: CHECKPOINT_FRONTIER_OID,
+          indexOid: checkpointIndexOid,
+          schema: CURRENT_CHECKPOINT_SCHEMA,
+        }),
+      });
+      const source = new TestCheckpointTailOpticSource({
+        persistence,
+        checkpointSha,
+      });
+
+      const verification = await new CheckpointTailBasisVerifier({
+        source,
+      }).verify();
+
+      expect(verification.checkpointSha).toBe(checkpointSha);
+      expect(persistence.readTreeOidsCalls).toEqual([]);
+      expect(persistence.exactProbePaths).toEqual(['frontier.cbor', 'index']);
+      expect(persistence.prefixProbePaths).toEqual(['index/']);
+      expect(persistence.prefixProbeEntryPaths).toEqual(['index/shard-000.cbor']);
+    } finally {
+      await repo.cleanup();
+    }
   });
 
   it('proves a large checkpoint tree through only requested basis evidence probes', async () => {
