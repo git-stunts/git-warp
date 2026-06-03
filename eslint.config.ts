@@ -363,31 +363,18 @@ export default tseslint.config(
   {
     files: [
       "src/domain/WarpGraph.ts",
-      "src/domain/services/controllers/QueryController.ts",
-      "src/domain/services/controllers/SubscriptionController.ts",
-      "src/domain/services/controllers/ProvenanceController.ts",
-      "src/domain/services/controllers/ForkController.ts",
       "src/domain/services/controllers/PatchController.ts",
       "src/domain/services/controllers/PatchDiscovery.ts",
-      "src/domain/services/controllers/CheckpointController.ts",
       "src/domain/services/controllers/MaterializeController.ts",
-      "src/domain/services/dag/CommitDagTraversalService.ts",
       "src/domain/services/state/checkpointHelpers.ts",
       "src/domain/services/state/checkpointCreate.ts",
       "src/domain/services/state/checkpointLoad.ts",
-      "src/domain/services/query/QueryBuilder.ts",
       "src/domain/services/codec/WarpMessageCodec.ts",
       "src/domain/services/codec/PatchMessageCodec.ts",
       "src/domain/services/codec/CheckpointMessageCodec.ts",
       "src/domain/services/codec/AnchorMessageCodec.ts",
       "src/domain/services/codec/MessageSchemaDetector.ts",
-      "src/domain/services/controllers/SyncController.ts",
       "src/domain/services/controllers/syncHelpers.ts",
-      "src/domain/services/controllers/SyncServerLauncher.ts",
-      "src/domain/services/sync/syncPatchLoader.ts",
-      "src/domain/services/sync/syncDelta.ts",
-      "src/domain/services/sync/syncRequestResponse.ts",
-      "src/domain/services/query/LogicalTraversal.ts",
       // Domain services — algorithm-heavy
       "src/domain/services/BisectService.ts",
       "src/domain/services/Frontier.ts",
@@ -485,7 +472,6 @@ export default tseslint.config(
       "src/infrastructure/adapters/gitErrorClassification.ts",
       "src/infrastructure/adapters/inMemoryHashing.ts",
       // CLI
-      "bin/warp-graph.ts",
       "bin/warp-graph.ts",
       "bin/cli/infrastructure.ts",
       "bin/cli/shared.ts",
@@ -726,7 +712,7 @@ export default tseslint.config(
 
   // ── JoinReducer: the algorithm from hell ───────────────────────────────────
   {
-    files: ["src/domain/services/JoinReducer.ts", "src/domain/services/JoinReducer.ts"],
+    files: ["src/domain/services/JoinReducer.ts"],
     rules: {
       "complexity": ["error", 35],
       "max-lines-per-function": ["error", 200],
