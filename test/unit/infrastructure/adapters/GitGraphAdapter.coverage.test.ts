@@ -374,6 +374,16 @@ describe('GitGraphAdapter coverage', () => {
         expect(result.path.value).toBe('index');
       }
     });
+
+    it('validates tree OID before exact entry plumbing', async () => {
+      await expect(adapter.readTreeEntryOid(
+        'bad!',
+        new TreeEntryPath('frontier.cbor'),
+      )).rejects.toThrow(/Invalid OID format/);
+
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
+    });
   });
 
   describe('readTreeEntryPrefix()', () => {
@@ -436,6 +446,17 @@ describe('GitGraphAdapter coverage', () => {
       )).rejects.toMatchObject({
         code: 'E_TREE_PARSE_ERROR',
       });
+    });
+
+    it('validates tree OID before prefix entry plumbing', async () => {
+      await expect(adapter.readTreeEntryPrefix(
+        'bad!',
+        new TreeEntryPath('index/'),
+        new TreeEntryLimit(1),
+      )).rejects.toThrow(/Invalid OID format/);
+
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
     });
   });
 
