@@ -5,20 +5,12 @@ import { describe, expect, it } from 'vitest';
 
 import packageJson from '../../../package.json' with { type: 'json' };
 import publishTsconfig from '../../../tsconfig.publish.json' with { type: 'json' };
+import { parseUpgradeCommandEntrypoint } from '../../helpers/parseUpgradeCommandEntrypoint.ts';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
 function readRepoFile(relativePath: string): string {
   return readFileSync(join(repoRoot, relativePath), 'utf8');
-}
-
-function upgradeCommandEntrypoint(): string {
-  const command = packageJson.scripts.upgrade;
-  const [, nodeCommand] = command.split(' && ');
-  if (nodeCommand === undefined || !nodeCommand.startsWith('node ')) {
-    throw new Error(`Unexpected upgrade command shape: ${command}`);
-  }
-  return nodeCommand.slice('node '.length);
 }
 
 describe('uniform git-cas closeout', () => {
@@ -97,7 +89,7 @@ describe('uniform git-cas closeout', () => {
       'docs/archive/backlog/v17.0.0-residual-backlog/INFRA_substrate-upgrade-tool.md'
     );
 
-    const distEntrypoint = upgradeCommandEntrypoint();
+    const distEntrypoint = parseUpgradeCommandEntrypoint(packageJson.scripts.upgrade);
     const sourceEntrypoint = distEntrypoint.replace(/^dist\//u, '').replace(/\.js$/u, '.ts');
 
     expect(packageJson.scripts.upgrade).toBe(
