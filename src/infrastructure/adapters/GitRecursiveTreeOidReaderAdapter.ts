@@ -134,7 +134,11 @@ function parseTreeEntryPrefixOutput(
   limit: TreeEntryLimit,
 ): TreeEntryPrefixBatch {
   const entries: TreeEntryFound[] = [];
-  for (const entry of parseTreeEntryOutput(output)) {
+  for (const record of treeEntryRecords(output)) {
+    if (record.length === 0) {
+      continue;
+    }
+    const entry = parseRecursiveTreeEntry(record);
     entries.push(new TreeEntryFound({
       path: new TreeEntryPath(entry.path),
       oid: entry.oid,
@@ -148,13 +152,26 @@ function parseTreeEntryPrefixOutput(
 
 function parseTreeEntryOutput(output: string): RecursiveTreeEntry[] {
   const entries: RecursiveTreeEntry[] = [];
-  for (const record of output.split(LS_TREE_RECORD_SEPARATOR)) {
+  for (const record of treeEntryRecords(output)) {
     if (record.length === 0) {
       continue;
     }
     entries.push(parseRecursiveTreeEntry(record));
   }
   return entries;
+}
+
+function* treeEntryRecords(output: string): Generator<string> {
+  let start = 0;
+  while (start <= output.length) {
+    const separator = output.indexOf(LS_TREE_RECORD_SEPARATOR, start);
+    if (separator === -1) {
+      yield output.slice(start);
+      return;
+    }
+    yield output.slice(start, separator);
+    start = separator + LS_TREE_RECORD_SEPARATOR.length;
+  }
 }
 
 function parseRecursiveTreeEntry(record: string): RecursiveTreeEntry {

@@ -135,6 +135,8 @@ Current v18 implementation posture:
   checkpoint-tail basis evidence and fails closed with
   `E_OPTIC_NO_BOUNDED_BASIS` when that evidence is missing. It no longer
   creates a basis by calling full materialization.
+- PERF-0270 adds `prepareOpticBasis()` evidence that verifies checkpoint-tail
+  basis through bounded tree-entry probes instead of full tree OID maps.
 - Release-candidate evidence accepts the residual raw content/property storage
   risk, but the previous "no streaming claim" escape hatch is no longer enough:
   v18 is blocked on bounded-memory conformance for normal public paths.
@@ -236,6 +238,9 @@ Release-operation work is paused behind Optics merge and release evidence:
   [0270-v18-bounded-tree-entry-basis-probes](design/0270-v18-bounded-tree-entry-basis-probes/v18-bounded-tree-entry-basis-probes.md):
   remove the residual full tree-map dependency from checkpoint-tail basis
   verification.
+- [x] Add bounded tree-entry probe evidence for checkpoint-tail basis setup in
+  PR #579:
+  [0270-v18-bounded-tree-entry-basis-probes](design/0270-v18-bounded-tree-entry-basis-probes/v18-bounded-tree-entry-basis-probes.md).
 - [ ] Complete [#549](https://github.com/git-stunts/git-warp/issues/549)
   `PERF_bounded-memory-large-graph-product-gate`.
 - [ ] Add tripwire evidence for documented first-use Optics paths.

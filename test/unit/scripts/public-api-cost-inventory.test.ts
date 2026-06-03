@@ -114,13 +114,14 @@ describe('public API cost inventory', () => {
     }
   });
 
-  it('states the gate-1 Optics setup truth', () => {
+  it('states the bounded-probe Optics setup truth', () => {
     const rows = inventoryRows();
     const prepare = findApi(rows, 'worldline.prepareOpticBasis()');
     expect(prepare.label).toBe('transitional');
     expect(prepare.firstUseDocs).toBe('caveat');
-    expect(prepare.provider).toContain('basis verifier');
-    expect(prepare.notes).toContain('memory-budgeted verification waits for gate 2');
+    expect(prepare.provider).toContain('bounded tree-entry probes');
+    expect(prepare.notes).toContain('broader memory-budgeted product gate remains open');
+    expect(prepare.issue).toBe('https://github.com/git-stunts/git-warp/issues/549');
 
     const materialize = findApi(rows, 'graph.materialize()');
     expect(materialize.label).toBe('diagnostic');

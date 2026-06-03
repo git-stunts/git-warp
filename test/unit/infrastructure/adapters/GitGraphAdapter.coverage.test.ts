@@ -399,6 +399,25 @@ describe('GitGraphAdapter coverage', () => {
       });
       expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
     });
+
+    it('stops parsing prefix evidence when the runtime limit is reached', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      const firstOid = 'beef' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue(
+        `100644 blob ${firstOid}\tindex/first.cbor\0` +
+        'malformed-after-limit\0'
+      );
+
+      const result = await adapter.readTreeEntryPrefix(
+        treeOid,
+        new TreeEntryPath('index/'),
+        new TreeEntryLimit(1),
+      );
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0]?.oid).toBe(firstOid);
+      expect(result.entries[0]?.path.value).toBe('index/first.cbor');
+    });
   });
 
   describe('readObjectType()', () => {

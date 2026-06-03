@@ -442,23 +442,23 @@ have its own proof.
 
 Behavior tests required:
 
-- [ ] `CheckpointTailBasisVerifier` verifies required basis evidence when
+- [x] `CheckpointTailBasisVerifier` verifies required basis evidence when
   `readTreeOids(...)` is forbidden and bounded probes are available.
-- [ ] `CheckpointTailBasisVerifier` fails closed for missing `frontier.cbor`
+- [x] `CheckpointTailBasisVerifier` fails closed for missing `frontier.cbor`
   through the probe path.
-- [ ] `CheckpointTailBasisVerifier` fails closed for missing index evidence
+- [x] `CheckpointTailBasisVerifier` fails closed for missing index evidence
   through the probe path.
-- [ ] In-memory adapter probe tests prove exact path lookup does not build a
+- [x] In-memory adapter probe tests prove exact path lookup does not build a
   full result map.
-- [ ] Git adapter probe tests prove exact path and bounded prefix behavior
+- [x] Git adapter probe tests prove exact path and bounded prefix behavior
   parse only requested evidence.
-- [ ] First-use Optics conformance rejects `readTreeOids(...)` on setup.
-- [ ] Large-tree fixture proves verification reads only requested entries.
+- [x] First-use Optics conformance rejects `readTreeOids(...)` on setup.
+- [x] Large-tree fixture proves verification reads only requested entries.
 
 Documentation/process tests, only if relevant:
 
-- [ ] cost inventory guard updates if `worldline.prepareOpticBasis()`
-  classification changes.
+- [x] Cost inventory row updated without changing
+  `worldline.prepareOpticBasis()` classification.
 
 Rule: documentation tests cannot be the only proof for implementation work.
 
@@ -466,21 +466,21 @@ Rule: documentation tests cannot be the only proof for implementation work.
 
 The work is done when:
 
-- [ ] Behavior tests prove `prepareOpticBasis()` no longer depends on full tree
+- [x] Behavior tests prove `prepareOpticBasis()` no longer depends on full tree
   maps.
-- [ ] Runtime probe results prove exact path and bounded prefix evidence without
+- [x] Runtime probe results prove exact path and bounded prefix evidence without
   `Record<string, string>` full-map return values.
-- [ ] Missing-basis behavior still returns named `E_OPTIC_NO_BOUNDED_BASIS`
+- [x] Missing-basis behavior still returns named `E_OPTIC_NO_BOUNDED_BASIS`
   failures.
-- [ ] Git-backed and in-memory adapters implement the new contract honestly.
-- [ ] Large-tree-over-small-evidence fixture proves the verifier reads only
+- [x] Git-backed and in-memory adapters implement the new contract honestly.
+- [x] Large-tree-over-small-evidence fixture proves the verifier reads only
   requested entries.
-- [ ] #575 can close or be narrowed to a later residual that is no longer about
+- [x] #575 can close or be narrowed to a later residual that is no longer about
   checkpoint-tail basis verification.
-- [ ] #577 can close as implemented or be converted into a broader bounded tree
+- [x] #577 can close as implemented or be converted into a broader bounded tree
   cursor follow-up.
-- [ ] Issue and PR are linked correctly.
-- [ ] CI and local validation are green.
+- [x] Issue and PR are linked correctly.
+- [x] Local validation is green. GitHub CI is tracked on PR #579.
 
 ## Validation Plan
 
@@ -547,8 +547,8 @@ Do not hide future work in prose. If it matters, it gets an issue.
 | Issue | Role | Expected disposition |
 | --- | --- | --- |
 | #549 | parent release gate | leave open; update with cycle evidence |
-| #575 | bad-code pressure | close or narrow after verifier no longer reads full tree maps |
-| #577 | candidate shape | close as implemented or convert to broader bounded cursor follow-up |
+| #575 | bad-code pressure | close via PR #579 after verifier no longer reads full tree maps |
+| #577 | candidate shape | close via PR #579 as implemented; broader bounded cursor work remains under #549 |
 | #547 | downstream Optics closeout | leave open until #549 evidence supports release-complete Optics |
 | #552 | release umbrella | leave open until #549, #547, preflight, tag, npm, and JSR evidence land |
 | #576 | docs/API caveat debt | leave open; revisit after bounded read providers land |
@@ -571,11 +571,25 @@ Fill this in after implementation.
 
 What changed from the design:
 
-- Not started.
+- `TreeEntryProbePort` landed as a focused port instead of changing
+  `TreePort.readTreeOids(...)`.
+- The verifier uses exact `frontier.cbor` and `index` tree-entry probes, with a
+  bounded `index/` prefix fallback.
+- `worldline.prepareOpticBasis()` stayed `transitional` in the cost inventory
+  because #549 still owns normal public reads, writes, content lookup, sync,
+  and end-to-end memory-budget conformance.
 
 What the tests proved:
 
-- Not started.
+- `CheckpointTailBasisVerifier` succeeds when `readTreeOids(...)` is forbidden
+  and tree-entry probes are available.
+- Missing frontier and missing index evidence still fail closed with
+  `E_OPTIC_NO_BOUNDED_BASIS`.
+- In-memory and Git-backed adapters expose runtime-backed exact and bounded
+  prefix probe results without a full-map return contract.
+- First-use Optics setup rejects accidental `readTreeOids(...)` use.
+- A large checkpoint tree with 4,096 unrelated state entries is verified by
+  probing only `frontier.cbor` and `index`.
 
 What remains open:
 
@@ -584,4 +598,4 @@ What remains open:
 
 PR:
 
-- Not opened.
+- https://github.com/git-stunts/git-warp/pull/579

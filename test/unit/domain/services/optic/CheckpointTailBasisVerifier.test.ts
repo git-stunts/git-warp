@@ -27,6 +27,7 @@ const INDEX_TREE_OID = '2'.repeat(40);
 const INDEX_SHARD_OID = '3'.repeat(40);
 const STATE_HASH = '4'.repeat(64);
 const CHECKPOINT_FRONTIER_OID = '5'.repeat(40);
+const LARGE_TREE_UNRELATED_ENTRY_COUNT = 4096;
 
 class ForbiddenTreeMapReadError extends Error {
   constructor(treeOid: string) {
@@ -173,6 +174,26 @@ describe('CheckpointTailBasisVerifier', () => {
     expect(fixture.persistence.exactProbePaths).toEqual(['frontier.cbor', 'index']);
     expect(fixture.persistence.prefixProbePaths).toEqual(['index/']);
   });
+
+  it('proves a large checkpoint tree through only requested basis evidence probes', async () => {
+    const unrelatedEntries = largeUnrelatedTreeEntries();
+    const fixture = await createFixture([
+      `100644 blob ${FRONTIER_OID}\tfrontier.cbor`,
+      `040000 tree ${INDEX_TREE_OID}\tindex`,
+      ...unrelatedEntries,
+    ]);
+
+    const verification = await new CheckpointTailBasisVerifier({
+      source: fixture.source,
+    }).verify();
+
+    expect(verification.checkpointSha).toBe(fixture.checkpointSha);
+    expect(unrelatedEntries).toHaveLength(LARGE_TREE_UNRELATED_ENTRY_COUNT);
+    expect(fixture.persistence.readTreeOidsCalls).toEqual([]);
+    expect(fixture.persistence.exactProbePaths).toEqual(['frontier.cbor', 'index']);
+    expect(fixture.persistence.prefixProbePaths).toEqual([]);
+    expect(fixture.persistence.exactProbePaths).not.toContain('state/shard-0000.cbor');
+  });
 });
 
 async function createFixture(indexTreeEntries: readonly string[]): Promise<{
@@ -198,4 +219,20 @@ async function createFixture(indexTreeEntries: readonly string[]): Promise<{
     checkpointSha,
   });
   return Object.freeze({ persistence, source, checkpointSha });
+}
+
+function largeUnrelatedTreeEntries(): string[] {
+  const entries: string[] = [];
+  for (let index = 0; index < LARGE_TREE_UNRELATED_ENTRY_COUNT; index += 1) {
+    entries.push(`100644 blob ${fixtureOid(index)}\tstate/shard-${fixtureShardIndex(index)}.cbor`);
+  }
+  return entries;
+}
+
+function fixtureOid(index: number): string {
+  return (index + 6).toString(16).padStart(40, '0');
+}
+
+function fixtureShardIndex(index: number): string {
+  return String(index).padStart(4, '0');
 }
