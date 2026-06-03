@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
+import TreeEntryFound from '../../../../src/domain/tree/TreeEntryFound.ts';
+import TreeEntryLimit from '../../../../src/domain/tree/TreeEntryLimit.ts';
+import TreeEntryMissing from '../../../../src/domain/tree/TreeEntryMissing.ts';
+import TreeEntryPath from '../../../../src/domain/tree/TreeEntryPath.ts';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.ts';
 import { describeAdapterConformance } from './AdapterConformance.ts';
@@ -332,6 +336,68 @@ describe('GitGraphAdapter coverage', () => {
           code: PersistenceError.E_MISSING_OBJECT,
           message: `Missing Git object: ${treeOid}`,
         });
+    });
+  });
+
+  describe('readTreeEntryOid()', () => {
+    it('reads a single exact tree entry without recursive tree-map flags', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      const frontierOid = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+      mockPlumbing.execute.mockResolvedValue(
+        `100644 blob ${frontierOid}\tfrontier.cbor\0`
+      );
+
+      const result = await adapter.readTreeEntryOid(
+        treeOid,
+        new TreeEntryPath('frontier.cbor'),
+      );
+
+      expect(result).toBeInstanceOf(TreeEntryFound);
+      if (result instanceof TreeEntryFound) {
+        expect(result.oid).toBe(frontierOid);
+        expect(result.path.value).toBe('frontier.cbor');
+      }
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['ls-tree', '-z', treeOid, '--', 'frontier.cbor'],
+      });
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
+    });
+
+    it('returns a runtime-backed missing result for absent exact entries', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue('');
+
+      const result = await adapter.readTreeEntryOid(treeOid, new TreeEntryPath('index'));
+
+      expect(result).toBeInstanceOf(TreeEntryMissing);
+      if (result instanceof TreeEntryMissing) {
+        expect(result.path.value).toBe('index');
+      }
+    });
+  });
+
+  describe('readTreeEntryPrefix()', () => {
+    it('reads bounded subtree evidence with a normalized prefix path', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      const indexTreeOid = 'beef' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue(
+        `040000 tree ${indexTreeOid}\tindex\0`
+      );
+
+      const result = await adapter.readTreeEntryPrefix(
+        treeOid,
+        new TreeEntryPath('index/'),
+        new TreeEntryLimit(1),
+      );
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0]).toBeInstanceOf(TreeEntryFound);
+      expect(result.entries[0]?.oid).toBe(indexTreeOid);
+      expect(result.entries[0]?.path.value).toBe('index');
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['ls-tree', '-z', treeOid, '--', 'index'],
+      });
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
     });
   });
 

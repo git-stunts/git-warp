@@ -11,6 +11,12 @@ import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
+import TreeEntryFound from '../../domain/tree/TreeEntryFound.ts';
+import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
+import TreeEntryMissing from '../../domain/tree/TreeEntryMissing.ts';
+import TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
+import TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
+import type { TreeEntryProbeResult } from '../../ports/TreeEntryProbePort.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
   type HashFn,
@@ -90,6 +96,47 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return result;
   }
 
+  async readTreeEntryOid(treeOid: string, path: TreeEntryPath): Promise<TreeEntryProbeResult> {
+    validateOid(treeOid);
+    if (treeOid === EMPTY_TREE_OID) {
+      return new TreeEntryMissing(path);
+    }
+    const entries = this._requireTreeEntries(treeOid);
+    for (const entry of entries) {
+      if (entry.path === path.value) {
+        return new TreeEntryFound({ path, oid: entry.oid });
+      }
+    }
+    return new TreeEntryMissing(path);
+  }
+
+  async readTreeEntryPrefix(
+    treeOid: string,
+    prefix: TreeEntryPath,
+    limit: TreeEntryLimit,
+  ): Promise<TreeEntryPrefixBatch> {
+    validateOid(treeOid);
+    if (treeOid === EMPTY_TREE_OID) {
+      return new TreeEntryPrefixBatch({ prefix, limit, entries: [] });
+    }
+    const entries = this._requireTreeEntries(treeOid);
+    const matches: TreeEntryFound[] = [];
+    const normalizedPrefix = prefix.withoutTrailingSlash();
+    const childPrefix = `${normalizedPrefix.value}/`;
+    for (const entry of entries) {
+      if (entry.path === normalizedPrefix.value || entry.path.startsWith(childPrefix)) {
+        matches.push(new TreeEntryFound({
+          path: new TreeEntryPath(entry.path),
+          oid: entry.oid,
+        }));
+      }
+      if (matches.length >= limit.value) {
+        break;
+      }
+    }
+    return new TreeEntryPrefixBatch({ prefix, limit, entries: matches });
+  }
+
   async readTree(treeOid: string): Promise<Record<string, Uint8Array>> {
     const oids = await this.readTreeOids(treeOid);
     const files: Record<string, Uint8Array> = {};
@@ -97,6 +144,14 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
       files[path] = await this.readBlob(oid);
     }
     return files;
+  }
+
+  private _requireTreeEntries(treeOid: string): TreeEntry[] {
+    const entries = this._trees.get(treeOid);
+    if (entries === undefined) {
+      throw new PersistenceError(`Tree not found: ${treeOid}`, PersistenceError.E_MISSING_OBJECT);
+    }
+    return entries;
   }
 
   // -- BlobPort -------------------------------------------------------------

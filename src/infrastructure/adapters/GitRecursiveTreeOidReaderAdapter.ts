@@ -1,5 +1,11 @@
 import { retry, type RetryOptions } from '@git-stunts/alfred';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
+import TreeEntryFound from '../../domain/tree/TreeEntryFound.ts';
+import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
+import TreeEntryMissing from '../../domain/tree/TreeEntryMissing.ts';
+import TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
+import TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
+import type { TreeEntryProbeResult } from '../../ports/TreeEntryProbePort.ts';
 import { validateOid } from './adapterValidation.ts';
 import {
   type GitPlumbing,
@@ -50,6 +56,41 @@ export default class GitRecursiveTreeOidReaderAdapter {
       throw wrapGitError(toGitError(raw), { oid: treeOid });
     }
   }
+
+  async readTreeEntryOid(treeOid: string, path: TreeEntryPath): Promise<TreeEntryProbeResult> {
+    validateOid(treeOid);
+    try {
+      const output = await retry(
+        () => this._plumbing.execute({
+          args: ['ls-tree', '-z', treeOid, '--', path.value],
+        }),
+        this._retryOptions,
+      );
+      return parseTreeEntryProbeOutput(output, path);
+    } catch (raw) {
+      throw wrapGitError(toGitError(raw), { oid: treeOid });
+    }
+  }
+
+  async readTreeEntryPrefix(
+    treeOid: string,
+    prefix: TreeEntryPath,
+    limit: TreeEntryLimit,
+  ): Promise<TreeEntryPrefixBatch> {
+    validateOid(treeOid);
+    const normalizedPrefix = prefix.withoutTrailingSlash();
+    try {
+      const output = await retry(
+        () => this._plumbing.execute({
+          args: ['ls-tree', '-z', treeOid, '--', normalizedPrefix.value],
+        }),
+        this._retryOptions,
+      );
+      return parseTreeEntryPrefixOutput(output, prefix, limit);
+    } catch (raw) {
+      throw wrapGitError(toGitError(raw), { oid: treeOid });
+    }
+  }
 }
 
 function parseRecursiveTreeOidOutput(output: string): Record<string, string> {
@@ -64,6 +105,56 @@ function parseRecursiveTreeOidOutput(output: string): Record<string, string> {
     }
   }
   return Object.fromEntries(oids);
+}
+
+function parseTreeEntryProbeOutput(
+  output: string,
+  requestedPath: TreeEntryPath,
+): TreeEntryProbeResult {
+  const entries = parseTreeEntryOutput(output);
+  if (entries.length === 0) {
+    return new TreeEntryMissing(requestedPath);
+  }
+  if (entries.length > 1) {
+    throw malformedTreeEntry(output);
+  }
+  const entry = entries[0];
+  if (entry === undefined) {
+    return new TreeEntryMissing(requestedPath);
+  }
+  return new TreeEntryFound({
+    path: new TreeEntryPath(entry.path),
+    oid: entry.oid,
+  });
+}
+
+function parseTreeEntryPrefixOutput(
+  output: string,
+  prefix: TreeEntryPath,
+  limit: TreeEntryLimit,
+): TreeEntryPrefixBatch {
+  const entries: TreeEntryFound[] = [];
+  for (const entry of parseTreeEntryOutput(output)) {
+    entries.push(new TreeEntryFound({
+      path: new TreeEntryPath(entry.path),
+      oid: entry.oid,
+    }));
+    if (entries.length >= limit.value) {
+      break;
+    }
+  }
+  return new TreeEntryPrefixBatch({ prefix, limit, entries });
+}
+
+function parseTreeEntryOutput(output: string): RecursiveTreeEntry[] {
+  const entries: RecursiveTreeEntry[] = [];
+  for (const record of output.split(LS_TREE_RECORD_SEPARATOR)) {
+    if (record.length === 0) {
+      continue;
+    }
+    entries.push(parseRecursiveTreeEntry(record));
+  }
+  return entries;
 }
 
 function parseRecursiveTreeEntry(record: string): RecursiveTreeEntry {

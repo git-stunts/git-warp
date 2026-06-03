@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest';
+import TreeEntryFound from '../../../../src/domain/tree/TreeEntryFound.ts';
+import TreeEntryLimit from '../../../../src/domain/tree/TreeEntryLimit.ts';
+import TreeEntryMissing from '../../../../src/domain/tree/TreeEntryMissing.ts';
+import TreeEntryPath from '../../../../src/domain/tree/TreeEntryPath.ts';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { describeAdapterConformance } from './AdapterConformance.ts';
+
+class TreeOidMapForbiddenAdapter extends InMemoryGraphAdapter {
+  override async readTreeOids(treeOid: string): Promise<Record<string, string>> {
+    throw new Error(`readTreeOids is forbidden in this test: ${treeOid}`);
+  }
+}
 
 // ── Conformance suite ───────────────────────────────────────────────────
 
@@ -76,6 +86,56 @@ describe('InMemoryGraphAdapter specifics', () => {
     const adapter = new InMemoryGraphAdapter();
     await expect(adapter.readTreeOids('abcd' + '0'.repeat(36)))
       .rejects.toThrow(/Tree not found/);
+  });
+
+  it('readTreeEntryOid finds one path without reading the full tree OID map', async () => {
+    const adapter = new TreeOidMapForbiddenAdapter();
+    const wantedOid = 'abcd' + '0'.repeat(36);
+    const treeOid = await adapter.writeTree([
+      `100644 blob ${wantedOid}\tfrontier.cbor`,
+      `100644 blob ${'beef' + '0'.repeat(36)}\tother.cbor`,
+    ]);
+
+    const result = await adapter.readTreeEntryOid(treeOid, new TreeEntryPath('frontier.cbor'));
+
+    expect(result).toBeInstanceOf(TreeEntryFound);
+    if (result instanceof TreeEntryFound) {
+      expect(result.oid).toBe(wantedOid);
+      expect(result.path.value).toBe('frontier.cbor');
+    }
+  });
+
+  it('readTreeEntryOid returns a runtime-backed missing result', async () => {
+    const adapter = new TreeOidMapForbiddenAdapter();
+    const treeOid = await adapter.writeTree([
+      `100644 blob ${'abcd' + '0'.repeat(36)}\tfrontier.cbor`,
+    ]);
+
+    const result = await adapter.readTreeEntryOid(treeOid, new TreeEntryPath('index'));
+
+    expect(result).toBeInstanceOf(TreeEntryMissing);
+    if (result instanceof TreeEntryMissing) {
+      expect(result.path.value).toBe('index');
+    }
+  });
+
+  it('readTreeEntryPrefix returns at most the requested evidence limit', async () => {
+    const adapter = new TreeOidMapForbiddenAdapter();
+    const treeOid = await adapter.writeTree([
+      `100644 blob ${'aaaa' + '0'.repeat(36)}\tindex/a.cbor`,
+      `100644 blob ${'bbbb' + '0'.repeat(36)}\tindex/b.cbor`,
+      `100644 blob ${'cccc' + '0'.repeat(36)}\tstate/c.cbor`,
+    ]);
+
+    const result = await adapter.readTreeEntryPrefix(
+      treeOid,
+      new TreeEntryPath('index/'),
+      new TreeEntryLimit(1),
+    );
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.hasEntries()).toBe(true);
+    expect(result.entries[0]?.path.value).toBe('index/a.cbor');
   });
 
   it('countNodes throws for missing ref', async () => {
