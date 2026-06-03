@@ -35,7 +35,7 @@ class WarpGraphMockPersistence {
   readonly writeBlob = vi.fn();
   readonly writeTree = vi.fn();
   readonly readBlob = vi.fn();
-  readonly readTreeOids = vi.fn().mockResolvedValue({});
+  readonly readTreeOids = vi.fn(async (_treeOid: string): Promise<Record<string, string>> => ({}));
   readonly commitNode = vi.fn();
   readonly commitNodeWithTree = vi.fn();
   readonly updateRef = vi.fn(async (ref: string, sha: string) => {

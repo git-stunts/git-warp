@@ -21,7 +21,7 @@ export interface MockPersistence {
   readBlob: Mock;
   writeBlob: Mock;
   readTree: Mock;
-  readTreeOids: Mock;
+  readTreeOids: Mock<(treeOid: string) => Promise<Record<string, string>>>;
   writeTree: Mock;
   commitNode: Mock;
   commitNodeWithTree: Mock;
@@ -62,7 +62,7 @@ export function createMockPersistence(overrides: Partial<MockPersistence> = {}):
     readBlob: vi.fn().mockResolvedValue(new Uint8Array(0)),
     writeBlob: vi.fn().mockResolvedValue(MOCK_OID),
     readTree: vi.fn().mockResolvedValue({}),
-    readTreeOids: vi.fn().mockResolvedValue({}),
+    readTreeOids: vi.fn(async (_treeOid: string): Promise<Record<string, string>> => ({})),
     writeTree: vi.fn().mockResolvedValue(MOCK_OID),
     commitNode: vi.fn().mockResolvedValue(MOCK_OID),
     commitNodeWithTree: vi.fn().mockResolvedValue(MOCK_OID),
