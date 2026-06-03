@@ -705,6 +705,56 @@ describe('IncrementalIndexUpdater', () => {
       expect(Reflect.get(Object.getPrototypeOf(aProps), 'polluted')).toBeUndefined();
       expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
     });
+
+    it('writes loaded prop bags only after null-prototype normalization', () => {
+      const state = buildState({
+        nodes: ['A'],
+        edges: [],
+        props: [{ nodeId: 'A', key: 'name', value: 'Alice' }],
+      });
+      const tree1 = buildTree(state);
+      const shardKey = computeShardKey('A');
+      tree1[`props_${shardKey}.cbor`] = defaultCodec.encode([['A', { name: 'Alice' }]]).slice();
+      const capturedPropBags: object[] = [];
+      const codec = {
+        encode<TEncoded>(data: TEncoded): Uint8Array {
+          if (Array.isArray(data)) {
+            for (const entry of data) {
+              if (Array.isArray(entry) && typeof entry[0] === 'string' && typeof entry[1] === 'object' && entry[1] !== null) {
+                capturedPropBags.push(entry[1]);
+              }
+            }
+          }
+          return defaultCodec.encode(data).slice();
+        },
+        decode<TDecoded>(bytes: Uint8Array): TDecoded {
+          return defaultCodec.decode<TDecoded>(bytes);
+        },
+      };
+      const diff = {
+        nodesAdded: [],
+        nodesRemoved: [],
+        edgesAdded: [],
+        edgesRemoved: [],
+        propsChanged: [{ nodeId: 'A', key: '__proto__', value: { polluted: true }, prevValue: undefined }],
+      };
+
+      const updater = new IncrementalIndexUpdater({ codec });
+      updater.computeDirtyShards({
+        diff,
+        state,
+        loadShard: (path) => tree1[path],
+      });
+
+      expect(capturedPropBags).toHaveLength(1);
+      const [capturedPropBag] = capturedPropBags;
+      if (capturedPropBag === undefined) {
+        throw new Error('expected one captured prop bag');
+      }
+      expect(Object.getPrototypeOf(capturedPropBag)).toBe(null);
+      expect(Reflect.get(capturedPropBag, 'name')).toBe('Alice');
+      expect(Reflect.get({}, 'polluted')).toBeUndefined();
+    });
   });
 
   describe('empty diff', () => {

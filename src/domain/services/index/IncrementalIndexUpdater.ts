@@ -244,10 +244,6 @@ export default class IncrementalIndexUpdater {
         const fresh: Record<string, unknown> = createNullProto(); // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
         nodeProps = fresh;
         shard.set(prop.nodeId, fresh);
-      } else if (Object.getPrototypeOf(nodeProps) !== null) {
-        const safeProps = mergeIntoNullProto(nodeProps);
-        shard.set(prop.nodeId, safeProps);
-        nodeProps = safeProps;
       }
       nodeProps[prop.key] = prop.value;
     }
