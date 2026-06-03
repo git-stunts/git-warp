@@ -14,21 +14,26 @@ describe('repository standard docs', () => {
       {
         rootPath: 'CODE_OF_CONDUCT.md',
         githubPath: '.github/CODE_OF_CONDUCT.md',
+        heading: 'Code of Conduct',
       },
       {
         rootPath: 'CONTRIBUTING.md',
         githubPath: '.github/CONTRIBUTING.md',
+        heading: 'Contributing',
       },
       {
         rootPath: 'SECURITY.md',
         githubPath: '.github/SECURITY.md',
+        heading: 'Security',
       },
     ];
 
     for (const pointer of pointers) {
       expect(existsSync(`${repoRoot}${pointer.rootPath}`)).toBe(true);
       expect(existsSync(`${repoRoot}${pointer.githubPath}`)).toBe(true);
-      expect(readRepoFile(pointer.rootPath)).toContain(`[${pointer.githubPath}](${pointer.githubPath})`);
+      const rootPointer = readRepoFile(pointer.rootPath);
+      expect(rootPointer).toContain(`[${pointer.githubPath}](${pointer.githubPath})`);
+      expect(rootPointer).toContain(`# ${pointer.heading}\n\n`);
     }
   });
 });
