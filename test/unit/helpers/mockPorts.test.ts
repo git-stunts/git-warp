@@ -14,4 +14,15 @@ describe('mockPorts createMockPersistence', () => {
     await expect(persistence.compareAndSwapRef(ref, nextOid, null)).rejects.toThrow('CAS mismatch');
     await expect(persistence.readRef(ref)).resolves.toBe(currentOid);
   });
+
+  it('types readTreeOids as a tree object id to object-map contract', async () => {
+    const persistence = createMockPersistence();
+    const readTreeOids: (treeOid: string) => Promise<Record<string, string>> =
+      persistence.readTreeOids;
+
+    const treeOids = await readTreeOids('tree-oid');
+
+    expect(treeOids).toEqual({});
+    expect(Array.isArray(treeOids)).toBe(false);
+  });
 });
