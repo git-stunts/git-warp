@@ -19,8 +19,7 @@
 import SeekCachePort, { type SeekCacheEntry, type SeekCacheSetOptions } from '../../ports/SeekCachePort.ts';
 import { buildSeekCacheRef } from '../../domain/utils/RefLayout.ts';
 import { createLazyCas } from './lazyCasInit.ts';
-import { loadGitCasConstructors } from './gitCasModule.ts';
-import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
+import { createCdcCasStore } from './CasStoreFactory.ts';
 import CacheError from '../../domain/errors/CacheError.ts';
 import { textEncode, textDecode, concatBytes } from '../../domain/utils/bytes.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
@@ -33,14 +32,6 @@ interface CasStore {
   store(opts: { source: Readable; slug: string; filename: string; encryptionKey?: Uint8Array }): Promise<unknown>;
   createTree(opts: { manifest: unknown }): Promise<string>;
 }
-
-type CasCodecInstance = object;
-type CasStoreOptions = {
-  plumbing: unknown;
-  codec: CasCodecInstance;
-  chunking: { strategy: string };
-  observability?: unknown;
-};
 
 interface CachePersistence {
   readRef(ref: string): Promise<string | null>;
@@ -115,20 +106,10 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   }
 
   private async _initCas(): Promise<CasStore> {
-    const { ContentAddressableStore, CborCodecCtor } = await loadGitCasConstructors<
-      CasStoreOptions,
-      CasStore,
-      CasCodecInstance
-    >();
-    const opts: CasStoreOptions = {
+    return await createCdcCasStore<CasStore>({
       plumbing: this._plumbing,
-      codec: new CborCodecCtor(),
-      chunking: { strategy: 'cdc' },
-    };
-    if (this._logger !== null && this._logger !== undefined) {
-      opts.observability = new LoggerObservabilityBridge(this._logger);
-    }
-    return new ContentAddressableStore(opts);
+      logger: this._logger,
+    });
   }
 
   // ---------------------------------------------------------------------------
