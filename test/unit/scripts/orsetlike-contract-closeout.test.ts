@@ -2,6 +2,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
+
+import ORSet from '../../../src/domain/crdt/ORSet.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
@@ -25,6 +29,28 @@ function sourceFilesUnder(directoryPath: string): readonly string[] {
   return files;
 }
 
+function rejectedOrSetLikeIdentifiers(filePath: string): readonly string[] {
+  const sourceText = readFileSync(filePath, 'utf8');
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const identifiers: string[] = [];
+
+  function visit(node: ts.Node): void {
+    if (ts.isIdentifier(node) && node.text === 'ORSetLike') {
+      identifiers.push(filePath.replace(`${repoRoot}/`, ''));
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return identifiers;
+}
+
 describe('ORSetLike contract closeout', () => {
   it('removes the invalid live v17 card', () => {
     expect(
@@ -34,12 +60,22 @@ describe('ORSetLike contract closeout', () => {
     ).toBe(false);
   });
 
-  it('keeps source free of the rejected ORSetLike abstraction', () => {
-    const sourceText = sourceFilesUnder(join(repoRoot, 'src'))
-      .map((filePath) => readFileSync(filePath, 'utf8'))
-      .join('\n');
+  it('keeps source free of the rejected ORSetLike abstraction identifier', () => {
+    const violations = sourceFilesUnder(join(repoRoot, 'src'))
+      .flatMap((filePath) => rejectedOrSetLikeIdentifiers(filePath));
 
-    expect(sourceText).not.toContain('ORSetLike');
+    expect(violations).toEqual([]);
+  });
+
+  it('proves concrete ORSet owns the synchronous observed-remove behavior', () => {
+    const set = ORSet.empty();
+    set.add('node-a', Dot.create('writer-a', 1));
+
+    expect(set.contains('node-a')).toBe(true);
+
+    set.remove(set.getDots('node-a'));
+
+    expect(set.contains('node-a')).toBe(false);
   });
 
   it('removes ORSetLike as a live extraction dependency', () => {
