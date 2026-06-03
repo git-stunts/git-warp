@@ -8,6 +8,7 @@ import packageJson from '../../../package.json' with { type: 'json' };
 import tsconfig from '../../../tsconfig.json' with { type: 'json' };
 import srcConfig from '../../../tsconfig.src.json' with { type: 'json' };
 import testConfig from '../../../tsconfig.test.json' with { type: 'json' };
+import { shouldAutoUpdateCoverageRatchet } from '../../../scripts/coverage-ratchet.ts';
 import vitestConfig from '../../../vitest.config.ts';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
@@ -51,7 +52,10 @@ describe('non-TS tail shape', () => {
     expect(trackedNonTypeScriptTail()).not.toContain('src/infrastructure/adapters/sha1sync.d.ts');
   });
 
-  it('removes the stale .js glob assumptions from vitest and tsconfig', () => {
+  it('keeps the coverage ratchet hook and removes stale .js glob assumptions from vitest and tsconfig', () => {
+    expect(vitestConfig.test?.coverage?.thresholds?.autoUpdate).toBe(shouldAutoUpdateCoverageRatchet());
+    expect(shouldAutoUpdateCoverageRatchet({ GIT_WARP_UPDATE_COVERAGE_RATCHET: '1' })).toBe(true);
+    expect(shouldAutoUpdateCoverageRatchet({ GIT_WARP_UPDATE_COVERAGE_RATCHET: '0' })).toBe(false);
     expect(vitestConfig.test?.include).toEqual([
       '**/*.{test,spec}.?(c|m)[jt]s?(x)',
       '**/benchmark/*.benchmark.ts',
