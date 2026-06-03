@@ -1,16 +1,8 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { describe, it, expect } from "vitest";
 
 import type TrieStorePort from "../../../../../src/domain/orset/trie/TrieStorePort.ts";
 import type { TrieBranchEntries } from "../../../../../src/domain/orset/trie/TrieBranchEntries.ts";
 import TrieStoreError from "../../../../../src/domain/errors/TrieStoreError.ts";
-
-const TRIE_STORE_PORT_SOURCE_URL = new URL(
-  "../../../../../src/domain/orset/trie/TrieStorePort.ts",
-  import.meta.url,
-);
 
 /**
  * Minimal in-memory test double for TrieStorePort.
@@ -94,25 +86,18 @@ function canonicalizeBranchForTest(children: TrieBranchEntries): Uint8Array {
 
 describe("TrieStorePort", () => {
   describe("shape", () => {
-    it("is declared as a TypeScript interface (type-only at runtime)", () => {
-      // Read the source file directly: the port must be declared as
-      // an `export default interface`. An interface erases at
-      // runtime, which is the whole point of this check — no class
-      // scaffolding, no abstract base, just a contract.
-      const source = readFileSync(
-        fileURLToPath(TRIE_STORE_PORT_SOURCE_URL),
-        "utf8",
-      );
-      expect(source).toMatch(/export default interface TrieStorePort\b/);
-      expect(source).not.toMatch(/export default (abstract )?class TrieStorePort\b/);
-    });
-
     it("accepts a concrete implementation without value-level inheritance", () => {
       const store: TrieStorePort = new InMemoryTrieStore();
       expect(typeof store.readLeaf).toBe("function");
       expect(typeof store.readBranch).toBe("function");
       expect(typeof store.writeLeaf).toBe("function");
       expect(typeof store.writeBranch).toBe("function");
+    });
+
+    it("erases the port contract from the runtime module", async () => {
+      const module = await import("../../../../../src/domain/orset/trie/TrieStorePort.ts");
+
+      expect(Object.hasOwn(module, "default")).toBe(false);
     });
   });
 
