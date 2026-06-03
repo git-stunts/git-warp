@@ -79,10 +79,14 @@ as evidence. The migration map is
 
 Current release-blocking issues:
 
-- [#546 No full materialization in first-use Optics](https://github.com/git-stunts/git-warp/issues/546)
 - [#549 Bounded-memory large-graph product gate](https://github.com/git-stunts/git-warp/issues/549)
 - [#547 Optics public API closeout](https://github.com/git-stunts/git-warp/issues/547)
 - [#552 v18 public release blockers](https://github.com/git-stunts/git-warp/issues/552)
+
+Completed gate evidence:
+
+- [#546 No full materialization in first-use Optics](https://github.com/git-stunts/git-warp/issues/546)
+  closed on 2026-06-02 through PR #574.
 
 ## Where Are We
 
@@ -93,8 +97,8 @@ evidence, generated-contract evidence, and post-v18 planning docs are merged to
 
 Current release facts:
 
-- Latest v18 release-prep merge: PR #111, coordinate Optics closeout, Method
-  tracker migration, and PR issue-reference enforcement, at `a02e202c`.
+- Latest v18 release-prep merge: PR #574, Gate 1 Optics honesty, at
+  `5e081cca`.
 - Package metadata: `18.0.0` in `package.json` and `jsr.json`.
 - Public package/tag line: still `17.0.0` until the `v18.0.0` tag and registry
   publishes complete.
@@ -103,13 +107,12 @@ Current release facts:
 - Last recorded release preflight predates the Worldline-first and Method
   tracker merges. Rerun
   release preflight only after Optics public API closeout lands.
-- If `main` moves after `a02e202c` before tagging, rerun release preflight from
+- If `main` moves after `5e081cca` before tagging, rerun release preflight from
   the exact commit that will receive the `v18.0.0` tag.
 - No `v18.0.0` tag or registry publish evidence is recorded yet.
 - `v18.0.0` is intentionally delayed until `API_optics-public-api-closeout`,
-  `API_no-full-materialization-first-use-optics`, and
-  `PERF_bounded-memory-large-graph-product-gate` close in GitHub Issues with
-  release operation evidence.
+  `PERF_bounded-memory-large-graph-product-gate`, and release operation
+  evidence close in GitHub Issues.
 
 Current v18 implementation posture:
 
@@ -128,17 +131,19 @@ Current v18 implementation posture:
 - Worldline-first application entry is merged. Coordinate Optics have pinned
   coordinates, checkpoint-tail identity assertions, success-path tests,
   recovery docs, and consumer type evidence.
-- On the gate 1 branch, `prepareOpticBasis()` verifies existing
+- On `main`, `prepareOpticBasis()` verifies existing
   checkpoint-tail basis evidence and fails closed with
   `E_OPTIC_NO_BOUNDED_BASIS` when that evidence is missing. It no longer
   creates a basis by calling full materialization.
+- PERF-0270 adds `prepareOpticBasis()` evidence that verifies checkpoint-tail
+  basis through bounded tree-entry probes instead of full tree OID maps.
 - Release-candidate evidence accepts the residual raw content/property storage
   risk, but the previous "no streaming claim" escape hatch is no longer enough:
   v18 is blocked on bounded-memory conformance for normal public paths.
 
 That is useful progress, not a finish line. Public v18 is not published until
-Optics closeout, the no-full-materialization first-use gate, the bounded-memory
-large-graph gate, tag, npm, and JSR evidence exist.
+Optics closeout, the bounded-memory large-graph gate, tag, npm, and JSR evidence
+exist.
 
 ## What Feels Wrong
 
@@ -213,7 +218,7 @@ Release-operation work is paused behind Optics merge and release evidence:
 - [~] Keep `API_optics-public-api-closeout` as branch-local implementation
   evidence, not a release-complete claim, until the first-use basis setup path
   stops materializing and the bounded-memory gate passes.
-- [~] Complete gate 1 branch evidence for
+- [x] Complete gate 1 branch evidence for
   [#546](https://github.com/git-stunts/git-warp/issues/546):
   tracker cleanup, public API cost inventory, first-use tripwires, docs guards,
   and fail-closed `prepareOpticBasis()` verification.
@@ -228,8 +233,14 @@ Release-operation work is paused behind Optics merge and release evidence:
 - [x] Add first-use Optics materialization tripwire evidence.
 - [x] Change `prepareOpticBasis()` to verify existing checkpoint-tail basis evidence or
   fail closed.
-- [ ] Complete [#546](https://github.com/git-stunts/git-warp/issues/546)
-  `API_no-full-materialization-first-use-optics`.
+- [~] Start [#549](https://github.com/git-stunts/git-warp/issues/549)
+  `PERF_bounded-memory-large-graph-product-gate` with
+  [0270-v18-bounded-tree-entry-basis-probes](design/0270-v18-bounded-tree-entry-basis-probes/v18-bounded-tree-entry-basis-probes.md):
+  remove the residual full tree-map dependency from checkpoint-tail basis
+  verification.
+- [x] Add bounded tree-entry probe evidence for checkpoint-tail basis setup in
+  PR #579:
+  [0270-v18-bounded-tree-entry-basis-probes](design/0270-v18-bounded-tree-entry-basis-probes/v18-bounded-tree-entry-basis-probes.md).
 - [ ] Complete [#549](https://github.com/git-stunts/git-warp/issues/549)
   `PERF_bounded-memory-large-graph-product-gate`.
 - [ ] Add tripwire evidence for documented first-use Optics paths.

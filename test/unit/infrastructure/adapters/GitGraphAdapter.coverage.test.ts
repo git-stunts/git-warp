@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
+import TreeEntryFound from '../../../../src/domain/tree/TreeEntryFound.ts';
+import TreeEntryLimit from '../../../../src/domain/tree/TreeEntryLimit.ts';
+import TreeEntryMissing from '../../../../src/domain/tree/TreeEntryMissing.ts';
+import TreeEntryPath from '../../../../src/domain/tree/TreeEntryPath.ts';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.ts';
 import { describeAdapterConformance } from './AdapterConformance.ts';
@@ -332,6 +336,127 @@ describe('GitGraphAdapter coverage', () => {
           code: PersistenceError.E_MISSING_OBJECT,
           message: `Missing Git object: ${treeOid}`,
         });
+    });
+  });
+
+  describe('readTreeEntryOid()', () => {
+    it('reads a single exact tree entry without recursive tree-map flags', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      const frontierOid = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+      mockPlumbing.execute.mockResolvedValue(
+        `100644 blob ${frontierOid}\tfrontier.cbor\0`
+      );
+
+      const result = await adapter.readTreeEntryOid(
+        treeOid,
+        new TreeEntryPath('frontier.cbor'),
+      );
+
+      expect(result).toBeInstanceOf(TreeEntryFound);
+      if (result instanceof TreeEntryFound) {
+        expect(result.oid).toBe(frontierOid);
+        expect(result.path.value).toBe('frontier.cbor');
+      }
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['ls-tree', '-z', treeOid, '--', 'frontier.cbor'],
+      });
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
+    });
+
+    it('returns a runtime-backed missing result for absent exact entries', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue('');
+
+      const result = await adapter.readTreeEntryOid(treeOid, new TreeEntryPath('index'));
+
+      expect(result).toBeInstanceOf(TreeEntryMissing);
+      if (result instanceof TreeEntryMissing) {
+        expect(result.path.value).toBe('index');
+      }
+    });
+
+    it('validates tree OID before exact entry plumbing', async () => {
+      await expect(adapter.readTreeEntryOid(
+        'bad!',
+        new TreeEntryPath('frontier.cbor'),
+      )).rejects.toThrow(/Invalid OID format/);
+
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('readTreeEntryPrefix()', () => {
+    it('reads bounded child prefix evidence through streaming plumbing', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      const firstShardOid = 'beef' + '0'.repeat(36);
+      mockPlumbing.execute.mockRejectedValue(new Error('full-buffer execute is forbidden for prefix probes'));
+      mockPlumbing.executeStream.mockResolvedValue(
+        streamFromText(`100644 blob ${firstShardOid}\tindex/first.cbor\0`)
+      );
+
+      const result = await adapter.readTreeEntryPrefix(
+        treeOid,
+        new TreeEntryPath('index/'),
+        new TreeEntryLimit(1),
+      );
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0]).toBeInstanceOf(TreeEntryFound);
+      expect(result.entries[0]?.oid).toBe(firstShardOid);
+      expect(result.entries[0]?.path.value).toBe('index/first.cbor');
+      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
+        args: ['ls-tree', '-z', treeOid, '--', 'index/'],
+      });
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
+    });
+
+    it('stops reading prefix stream chunks when the runtime limit is reached', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      const firstOid = 'beef' + '0'.repeat(36);
+      const stream = {
+        async *[Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
+          yield Buffer.from(`100644 blob ${firstOid}\tindex/first.cbor\0`);
+          throw new Error('prefix probe read past the requested limit');
+        },
+      };
+      mockPlumbing.executeStream.mockResolvedValue(stream);
+
+      const result = await adapter.readTreeEntryPrefix(
+        treeOid,
+        new TreeEntryPath('index/'),
+        new TreeEntryLimit(1),
+      );
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0]?.oid).toBe(firstOid);
+      expect(result.entries[0]?.path.value).toBe('index/first.cbor');
+    });
+
+    it('rejects malformed OIDs from prefix plumbing output', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      mockPlumbing.executeStream.mockResolvedValue(
+        streamFromText('100644 blob not-a-valid-oid\tindex/first.cbor\0')
+      );
+
+      await expect(adapter.readTreeEntryPrefix(
+        treeOid,
+        new TreeEntryPath('index/'),
+        new TreeEntryLimit(1),
+      )).rejects.toMatchObject({
+        code: 'E_TREE_PARSE_ERROR',
+      });
+    });
+
+    it('validates tree OID before prefix entry plumbing', async () => {
+      await expect(adapter.readTreeEntryPrefix(
+        'bad!',
+        new TreeEntryPath('index/'),
+        new TreeEntryLimit(1),
+      )).rejects.toThrow(/Invalid OID format/);
+
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
     });
   });
 

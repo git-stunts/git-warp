@@ -11,6 +11,12 @@ import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
+import TreeEntryFound from '../../domain/tree/TreeEntryFound.ts';
+import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
+import TreeEntryMissing from '../../domain/tree/TreeEntryMissing.ts';
+import TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
+import TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
+import type { TreeEntryProbeResult } from '../../ports/TreeEntryProbePort.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
   type HashFn,
@@ -40,6 +46,26 @@ interface InMemoryAdapterOptions {
   readonly hash?: HashFn;
 }
 
+function treeEntryIndex(entries: readonly TreeEntry[]): Map<string, TreeEntry> {
+  const index = new Map<string, TreeEntry>();
+  for (const entry of entries) {
+    index.set(entry.path, entry);
+  }
+  return index;
+}
+
+function compareTreeEntryFoundPath(left: TreeEntryFound, right: TreeEntryFound): number {
+  const leftPath = left.path.value;
+  const rightPath = right.path.value;
+  if (leftPath < rightPath) {
+    return -1;
+  }
+  if (leftPath > rightPath) {
+    return 1;
+  }
+  return 0;
+}
+
 export default class InMemoryGraphAdapter extends GraphPersistencePort {
   private readonly _author: string;
   private readonly _clock: { now(): number };
@@ -48,6 +74,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   private readonly _commits = new Map<string, CommitRecord>();
   private readonly _blobs = new Map<string, Uint8Array>();
   private readonly _trees = new Map<string, TreeEntry[]>();
+  private readonly _treeEntryIndexes = new Map<string, Map<string, TreeEntry>>();
   private readonly _refs = new Map<string, string>();
   private readonly _config = new Map<string, string>();
 
@@ -71,6 +98,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     const parsed = entries.map(line => parseMktreeEntry(line));
     const oid = hashTree(this._hash, parsed);
     this._trees.set(oid, parsed);
+    this._treeEntryIndexes.set(oid, treeEntryIndex(parsed));
     return oid;
   }
 
@@ -90,6 +118,43 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return result;
   }
 
+  async readTreeEntryOid(treeOid: string, path: TreeEntryPath): Promise<TreeEntryProbeResult> {
+    validateOid(treeOid);
+    if (treeOid === EMPTY_TREE_OID) {
+      return new TreeEntryMissing(path);
+    }
+    const entry = this._requireTreeEntryIndex(treeOid).get(path.value);
+    if (entry !== undefined) {
+      return new TreeEntryFound({ path, oid: entry.oid });
+    }
+    return new TreeEntryMissing(path);
+  }
+
+  async readTreeEntryPrefix(
+    treeOid: string,
+    prefix: TreeEntryPath,
+    limit: TreeEntryLimit,
+  ): Promise<TreeEntryPrefixBatch> {
+    validateOid(treeOid);
+    if (treeOid === EMPTY_TREE_OID) {
+      return new TreeEntryPrefixBatch({ prefix, limit, entries: [] });
+    }
+    const entries = this._requireTreeEntries(treeOid);
+    const matches: TreeEntryFound[] = [];
+    const normalizedPrefix = prefix.withoutTrailingSlash();
+    const childPrefix = `${normalizedPrefix.value}/`;
+    for (const entry of entries) {
+      if (entry.path.startsWith(childPrefix)) {
+        matches.push(new TreeEntryFound({
+          path: new TreeEntryPath(entry.path),
+          oid: entry.oid,
+        }));
+      }
+    }
+    matches.sort(compareTreeEntryFoundPath);
+    return new TreeEntryPrefixBatch({ prefix, limit, entries: matches.slice(0, limit.value) });
+  }
+
   async readTree(treeOid: string): Promise<Record<string, Uint8Array>> {
     const oids = await this.readTreeOids(treeOid);
     const files: Record<string, Uint8Array> = {};
@@ -97,6 +162,22 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
       files[path] = await this.readBlob(oid);
     }
     return files;
+  }
+
+  private _requireTreeEntries(treeOid: string): TreeEntry[] {
+    const entries = this._trees.get(treeOid);
+    if (entries === undefined) {
+      throw new PersistenceError(`Tree not found: ${treeOid}`, PersistenceError.E_MISSING_OBJECT);
+    }
+    return entries;
+  }
+
+  private _requireTreeEntryIndex(treeOid: string): Map<string, TreeEntry> {
+    const entryIndex = this._treeEntryIndexes.get(treeOid);
+    if (entryIndex === undefined) {
+      throw new PersistenceError(`Tree not found: ${treeOid}`, PersistenceError.E_MISSING_OBJECT);
+    }
+    return entryIndex;
   }
 
   // -- BlobPort -------------------------------------------------------------

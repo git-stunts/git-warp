@@ -1,14 +1,20 @@
 import type { CheckpointCommitMessage } from '../../../ports/CommitMessageCodecPort.ts';
+import TreeEntryFound from '../../tree/TreeEntryFound.ts';
+import TreeEntryLimit from '../../tree/TreeEntryLimit.ts';
+import TreeEntryPath from '../../tree/TreeEntryPath.ts';
+import type TreeEntryProbePort from '../../../ports/TreeEntryProbePort.ts';
 import QueryError from '../../errors/QueryError.ts';
-import {
-  isCurrentCheckpointSchema,
-  partitionTreeOids,
-} from '../state/checkpointHelpers.ts';
+import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 
 export type CheckpointTailBasisVerification = {
   readonly checkpointSha: string;
 };
+
+const FRONTIER_ENTRY_PATH = new TreeEntryPath('frontier.cbor');
+const INDEX_SUBTREE_PATH = new TreeEntryPath('index');
+const INDEX_SHARD_PREFIX = new TreeEntryPath('index/');
+const INDEX_SHARD_EVIDENCE_LIMIT = new TreeEntryLimit(1);
 
 export default class CheckpointTailBasisVerifier {
   private readonly _source: CheckpointTailOpticSource;
@@ -48,15 +54,50 @@ export default class CheckpointTailBasisVerifier {
   private async _verifyCheckpointTree(
     checkpointMessage: CheckpointCommitMessage,
   ): Promise<void> {
-    const rawTreeOids = await this._source._persistence.readTreeOids(checkpointMessage.indexOid);
-    const { treeOids, indexShardOids } = partitionTreeOids(rawTreeOids);
-    if (treeOids['frontier.cbor'] === undefined) {
+    const treeEntryProbe = this._treeEntryProbePort();
+    const frontierEntry = await treeEntryProbe.readTreeEntryOid(
+      checkpointMessage.indexOid,
+      FRONTIER_ENTRY_PATH,
+    );
+    if (!(frontierEntry instanceof TreeEntryFound)) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-missing-frontier');
     }
-    if (treeOids['index'] === undefined && Object.keys(indexShardOids).length === 0) {
+    const indexEntry = await treeEntryProbe.readTreeEntryOid(
+      checkpointMessage.indexOid,
+      INDEX_SUBTREE_PATH,
+    );
+    if (indexEntry instanceof TreeEntryFound) {
+      return;
+    }
+    const indexShardEvidence = await treeEntryProbe.readTreeEntryPrefix(
+      checkpointMessage.indexOid,
+      INDEX_SHARD_PREFIX,
+      INDEX_SHARD_EVIDENCE_LIMIT,
+    );
+    if (!indexShardEvidence.hasEntries()) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-missing-index-shards');
     }
   }
+
+  private _treeEntryProbePort(): TreeEntryProbePort {
+    if (!hasTreeEntryProbePort(this._source._persistence)) {
+      throwNoBoundedBasis(this._source.graphName, 'tree-entry-probe-unavailable');
+    }
+    return this._source._persistence;
+  }
+}
+
+type CheckpointTailPersistence = CheckpointTailOpticSource['_persistence'];
+
+function hasTreeEntryProbePort(
+  persistence: CheckpointTailPersistence,
+): persistence is CheckpointTailPersistence & TreeEntryProbePort {
+  return (
+    'readTreeEntryOid' in persistence &&
+    typeof persistence.readTreeEntryOid === 'function' &&
+    'readTreeEntryPrefix' in persistence &&
+    typeof persistence.readTreeEntryPrefix === 'function'
+  );
 }
 
 function throwNoBoundedBasis(graphName: string, reason: string): never {

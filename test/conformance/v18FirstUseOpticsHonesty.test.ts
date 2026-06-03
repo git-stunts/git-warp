@@ -22,6 +22,7 @@ class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
   private readonly _forbiddenStateBlobOids = new Set<string>();
   private readonly _forbiddenOperations: string[] = [];
   private _forbidWrites = false;
+  private _forbidTreeOidMapReads = false;
 
   async forbidFullResidencyOperations(options: {
     readonly checkpointSha: string;
@@ -34,6 +35,14 @@ class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
     this._forbidWrites = true;
   }
 
+  forbidTreeOidMapReads(): void {
+    this._forbidTreeOidMapReads = true;
+  }
+
+  allowTreeOidMapReads(): void {
+    this._forbidTreeOidMapReads = false;
+  }
+
   override async readBlob(oid: string): Promise<Uint8Array> {
     if (this._forbiddenStateBlobOids.has(oid)) {
       this._recordForbiddenOperation(`checkpoint-state-blob-read:${oid}`);
@@ -42,6 +51,13 @@ class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
       this._recordForbiddenOperation(`patch-blob-read:${oid}`);
     }
     return await super.readBlob(oid);
+  }
+
+  override async readTreeOids(treeOid: string): Promise<Record<string, string>> {
+    if (this._forbidTreeOidMapReads) {
+      this._recordForbiddenOperation(`readTreeOids:${treeOid}`);
+    }
+    return await super.readTreeOids(treeOid);
   }
 
   override async writeBlob(content: Uint8Array | string): Promise<string> {
@@ -143,7 +159,9 @@ describe('v18 first-use Optics honesty gate', () => {
       commitMessageCodec: runtime._commitMessageCodec,
     });
 
+    persistence.forbidTreeOidMapReads();
     const basis = await events.prepareOpticBasis();
+    persistence.allowTreeOidMapReads();
     const coordinate = await events.coordinate();
     const node = await coordinate.optic().node(NODE_ID).read();
 
@@ -167,5 +185,6 @@ describe('v18 first-use Optics honesty gate', () => {
     expect(checkedSources).not.toContain('getEdges');
     expect(checkedSources).not.toContain('observer(');
     expect(checkedSources).not.toContain('cloneState');
+    expect(checkedSources).not.toContain('readTreeOids');
   });
 });

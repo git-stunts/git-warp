@@ -12,6 +12,10 @@ import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type TrieStorePort from '../../domain/orset/trie/TrieStorePort.ts';
+import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
+import type TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
+import type TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
+import type { TreeEntryProbeResult } from '../../ports/TreeEntryProbePort.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
@@ -302,6 +306,18 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     } catch (raw) {
       throw wrapGitError(toGitError(raw), { oid: treeOid });
     }
+  }
+
+  async readTreeEntryOid(treeOid: string, path: TreeEntryPath): Promise<TreeEntryProbeResult> {
+    return await this._recursiveTreeOidReader.readTreeEntryOid(treeOid, path);
+  }
+
+  async readTreeEntryPrefix(
+    treeOid: string,
+    prefix: TreeEntryPath,
+    limit: TreeEntryLimit,
+  ): Promise<TreeEntryPrefixBatch> {
+    return await this._recursiveTreeOidReader.readTreeEntryPrefix(treeOid, prefix, limit);
   }
 
   async readBlob(oid: string): Promise<Uint8Array> {
