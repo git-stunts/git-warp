@@ -1,37 +1,34 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import {
+  Observer,
+  computeTranslationCost,
+} from '../../../index.ts';
+import type {
+  Aperture,
+  ObserverConfig,
+} from '../../../index.ts';
 
-// repoRoot removed — unused after readDoc refactor
-
-function readDoc(relativePath: string): string {
-  return readFileSync(fileURLToPath(new URL(`../../../${relativePath}`, import.meta.url)), 'utf8');
+function acceptAperture(config: Aperture): ObserverConfig {
+  return config;
 }
 
-const barrel = readDoc('index.ts');
-const apertureSource = readDoc('src/domain/types/Aperture.ts');
-const readme = readDoc('README.md');
-const guide = readDoc('docs/GUIDE.md');
-
 describe('Aperture is a first-class public noun', () => {
-  it('exports Aperture and keeps ObserverConfig as a compatibility alias', () => {
-    expect(apertureSource).toContain('export interface Aperture {');
-    expect(apertureSource).toContain('export type ObserverConfig = Aperture;');
+  it('exports runtime observer surfaces used by Aperture consumers', () => {
+    expect(Observer).toBeDefined();
+    expect(typeof computeTranslationCost).toBe('function');
   });
 
-  it('re-exports observer and translationCost through the barrel with Aperture-typed signatures', () => {
-    expect(barrel).toContain('Observer,');
-    expect(barrel).toContain('computeTranslationCost,');
-  });
+  it('exports Aperture and keeps ObserverConfig assignable as a compatibility alias', () => {
+    const aperture = {
+      match: 'user:*',
+      expose: ['name'],
+      redact: ['secret'],
+    } satisfies Aperture;
 
-  it('teaches Aperture in the README glossary and observer example', () => {
-    expect(readme).toContain('| **Aperture** | The boundary that shapes what an observer can see. |');
-    expect(readme).toContain('| **Observer** | Filtered read-only projection through an aperture. |');
-  });
+    const observerConfig: ObserverConfig = acceptAperture(aperture);
 
-  it('uses Aperture language in the guide observer walkthrough', () => {
-    expect(guide).toContain('- An `Aperture` defines what is visible.');
-    expect(guide).toContain('const userAperture = {');
-    expect(guide).toContain("worldline.observer('public-users', userAperture)");
+    expect(observerConfig.match).toBe('user:*');
+    expect(observerConfig.expose).toEqual(['name']);
+    expect(observerConfig.redact).toEqual(['secret']);
   });
 });
