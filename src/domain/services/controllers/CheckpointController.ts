@@ -455,7 +455,13 @@ export default class CheckpointController {
           { reasons },
         );
       }
-    } catch {
+    } catch (err) {
+      if (h._logger) {
+        h._logger.warn(
+          'Auto-GC failed; materialize will continue.',
+          { error: err instanceof Error ? err.message : String(err) },
+        );
+      }
       // GC failure never breaks materialize
     }
   }
