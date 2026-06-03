@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import HttpServerPort_ from '../../../src/ports/HttpServerPort.ts';
+import HttpServerPort, {
+  type HttpRequest,
+  type HttpServerHandle,
+} from '../../../src/ports/HttpServerPort.ts';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.ts';
-
-const HttpServerPort = (HttpServerPort_) as any;
 
 describe('HttpServerPort', () => {
   it('abstract methods are not callable on base prototype', () => {
@@ -12,10 +13,10 @@ describe('HttpServerPort', () => {
 
 describe('NodeHttpAdapter', () => {
   const adapter = new NodeHttpAdapter();
-    let server;
+  let server: HttpServerHandle | null = null;
 
   afterEach(() => {
-    if (server) {
+    if (server !== null) {
       server.close();
       server = null;
     }
@@ -36,23 +37,39 @@ describe('NodeHttpAdapter', () => {
   });
 
   it('handles a basic request/response cycle', async () => {
-    server = adapter.createServer(async (/** @type {any} */ req) => ({
-      status: 200,
+    server = adapter.createServer(async (req: HttpRequest) => ({
+      status: 201,
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ method: req.method, url: req.url }),
+      body: [
+        req.method,
+        req.url,
+        req.headers['content-type'],
+        req.body === undefined ? '' : new TextDecoder().decode(req.body),
+      ].join('|'),
     }));
 
-    await new Promise((resolve) => {
-      server.listen(0, function () {
-        // 'this' is the underlying Node server inside the listen callback
-        // We need a different approach to get the port
-        resolve(null);
+    await new Promise<void>((resolve, reject) => {
+      server?.listen(0, '127.0.0.1', (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve();
       });
     });
 
-    // The simple wrapper doesn't expose address(), so we test start/stop
-    // Full request/response testing would require exposing the port
-    expect(server.listen).toBeDefined();
-    expect(server.close).toBeDefined();
+    const address = server.address();
+    if (address === null) {
+      throw new Error('expected server address after listen');
+    }
+    const response = await fetch(`http://${address.address}:${address.port}/nodes/A?verbose=1`, {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+      body: 'hello',
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get('content-type')).toBe('application/json');
+    expect(await response.text()).toBe('POST|/nodes/A?verbose=1|text/plain|hello');
   });
 });
