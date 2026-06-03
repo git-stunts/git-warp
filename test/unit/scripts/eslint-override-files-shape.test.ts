@@ -42,9 +42,12 @@ function collectFilesArrays(source: string): string[][] {
       && ts.isArrayLiteralExpression(node.initializer)
     ) {
       filesArrays.push(
-        node.initializer.elements
-          .filter(ts.isStringLiteral)
-          .map((element) => element.text),
+        node.initializer.elements.map((element) => {
+          if (!ts.isStringLiteral(element)) {
+            throw new Error('Unsupported nonliteral files entry in eslint.config.ts');
+          }
+          return element.text;
+        }),
       );
     }
     ts.forEachChild(node, visit);
@@ -54,7 +57,13 @@ function collectFilesArrays(source: string): string[][] {
   return filesArrays;
 }
 
-describe('ESLint relaxed complexity shape', () => {
+describe('ESLint override files shape', () => {
+  it('rejects nonliteral files entries instead of silently skipping them', () => {
+    expect(() => collectFilesArrays('export default [{ files: [dynamicPattern] }];')).toThrow(
+      'Unsupported nonliteral files entry in eslint.config.ts',
+    );
+  });
+
   it('does not list the same file twice inside one override block', () => {
     const source = readFileSync(eslintConfigPath, 'utf8');
     const duplicateEntries = collectFilesArrays(source)
