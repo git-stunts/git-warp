@@ -141,10 +141,54 @@ describe('WarpCore auto-GC after materialize (GK/GC/1)', () => {
     await graph.materialize();
 
     // Create a broken state that will cause GC to throw
-    const badState = ({ nodeAlive: null, edgeAlive: null } as any);
+    const badState = createHighTombstoneState();
+    Object.defineProperty(badState, 'nodeAlive', { value: null });
+    Object.defineProperty(badState, 'edgeAlive', { value: null });
 
     // Should not throw despite internal error
     expect(() => (graph)._maybeRunGC(badState)).not.toThrow();
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Auto-GC failed; materialize will continue.',
+      expect.objectContaining({ error: expect.any(String) }),
+    );
+  });
+
+  it('GC throws a null-prototype value → materialize still succeeds', async () => {
+    const logger = createMockLogger();
+    const graph = await openRuntimeHostProduct({
+      persistence,
+      graphName: 'test',
+      writerId: 'writer-1',
+      logger,
+      gcPolicy: {
+        enabled: true,
+        tombstoneRatioThreshold: 0.01,
+        minPatchesSinceCompaction: 0,
+        maxTicksSinceCompaction: 0,
+        entryCountThreshold: 0,
+      },
+    });
+
+    const badState = createHighTombstoneState();
+    Object.defineProperty(badState, 'nodeAlive', {
+      value: {
+        countEntries() {
+          throw Object.create(null);
+        },
+        countTombstones() {
+          return 0;
+        },
+        countLiveDots() {
+          return 0;
+        },
+      },
+    });
+
+    expect(() => (graph)._maybeRunGC(badState)).not.toThrow();
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Auto-GC failed; materialize will continue.',
+      expect.objectContaining({ error: 'non-Error thrown value' }),
+    );
   });
 
   it('_lastGCLamport and _patchesSinceGC reset after GC', async () => {
@@ -172,12 +216,13 @@ describe('WarpCore auto-GC after materialize (GK/GC/1)', () => {
     expect((graph)._lastGCLamport).toBeGreaterThanOrEqual(0);
   });
 
-  it('no logger provided → no crash', async () => {
+  it('no logger provided → enabled GC still executes', async () => {
     const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
       gcPolicy: {
+        enabled: true,
         tombstoneRatioThreshold: 0.01,
         minPatchesSinceCompaction: 0,
         maxTicksSinceCompaction: 0,
@@ -186,8 +231,10 @@ describe('WarpCore auto-GC after materialize (GK/GC/1)', () => {
     });
 
     await graph.materialize();
+    (graph)._patchesSinceGC = 999;
 
-    // No logger → should still work without crashing
-    expect(() => (graph)._maybeRunGC(createHighTombstoneState())).not.toThrow();
+    (graph)._maybeRunGC(createHighTombstoneState());
+
+    expect((graph)._patchesSinceGC).toBe(0);
   });
 });
