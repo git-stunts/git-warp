@@ -12,6 +12,7 @@ function readText(relativePath: string): string {
 const packageJson = readText('package.json');
 const jsrJson = readText('jsr.json');
 const indexSource = readText('index.ts');
+const moduleDoc = indexSource.slice(0, indexSource.indexOf("import GitGraphAdapter"));
 
 describe('v18 package surface audit', () => {
   it('positions the registry package around the Worldline-first API', () => {
@@ -36,6 +37,16 @@ describe('v18 package surface audit', () => {
     expect(indexSource).toContain('WarpWorldline,');
     expect(indexSource).toContain('WarpWorldlineOpenOptions,');
     expect(indexSource).toContain('WarpWorldlinePatchBuild,');
+  });
+
+  it('keeps package hover docs on the Worldline-first example', () => {
+    expect(moduleDoc).toContain('@example');
+    expect(moduleDoc).toContain('openWarpWorldline');
+    expect(moduleDoc).toContain("events.commit((patch) =>");
+    expect(moduleDoc).toContain('events.live().getNodeProps');
+    expect(moduleDoc).not.toContain('WarpApp.open(');
+    expect(moduleDoc).not.toContain('app.createPatch(');
+    expect(moduleDoc).not.toContain('app.materialize(');
   });
 
   it('keeps default export compatibility explicit', () => {
