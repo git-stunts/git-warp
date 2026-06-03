@@ -69,14 +69,6 @@ function decodeProps(tree, shardKey) {
   return map;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object';
-}
-
-function isPropEntry(value: unknown): value is [string, Record<string, unknown>] {
-  return Array.isArray(value) && typeof value[0] === 'string' && isRecord(value[1]);
-}
-
 describe('IncrementalIndexUpdater', () => {
   describe('NodeAdd', () => {
     it('adds node to correct meta shard and sets alive bit', () => {
@@ -723,12 +715,14 @@ describe('IncrementalIndexUpdater', () => {
       const tree1 = buildTree(state);
       const shardKey = computeShardKey('A');
       tree1[`props_${shardKey}.cbor`] = defaultCodec.encode([['A', { name: 'Alice' }]]).slice();
-      const capturedPropBags: Array<Record<string, unknown>> = [];
+      const capturedPropBags: object[] = [];
       const codec = {
         encode<TEncoded>(data: TEncoded): Uint8Array {
-          if (Array.isArray(data) && data.every(isPropEntry)) {
-            for (const [, props] of data) {
-              capturedPropBags.push(props);
+          if (Array.isArray(data)) {
+            for (const entry of data) {
+              if (Array.isArray(entry) && typeof entry[0] === 'string' && typeof entry[1] === 'object' && entry[1] !== null) {
+                capturedPropBags.push(entry[1]);
+              }
             }
           }
           return defaultCodec.encode(data).slice();
@@ -758,8 +752,8 @@ describe('IncrementalIndexUpdater', () => {
         throw new Error('expected one captured prop bag');
       }
       expect(Object.getPrototypeOf(capturedPropBag)).toBe(null);
-      expect(capturedPropBag['name']).toBe('Alice');
-      expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+      expect(Reflect.get(capturedPropBag, 'name')).toBe('Alice');
+      expect(Reflect.get({}, 'polluted')).toBeUndefined();
     });
   });
 
