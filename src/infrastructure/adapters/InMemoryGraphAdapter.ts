@@ -54,6 +54,18 @@ function treeEntryIndex(entries: readonly TreeEntry[]): Map<string, TreeEntry> {
   return index;
 }
 
+function compareTreeEntryFoundPath(left: TreeEntryFound, right: TreeEntryFound): number {
+  const leftPath = left.path.value;
+  const rightPath = right.path.value;
+  if (leftPath < rightPath) {
+    return -1;
+  }
+  if (leftPath > rightPath) {
+    return 1;
+  }
+  return 0;
+}
+
 export default class InMemoryGraphAdapter extends GraphPersistencePort {
   private readonly _author: string;
   private readonly _clock: { now(): number };
@@ -138,11 +150,9 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
           oid: entry.oid,
         }));
       }
-      if (matches.length >= limit.value) {
-        break;
-      }
     }
-    return new TreeEntryPrefixBatch({ prefix, limit, entries: matches });
+    matches.sort(compareTreeEntryFoundPath);
+    return new TreeEntryPrefixBatch({ prefix, limit, entries: matches.slice(0, limit.value) });
   }
 
   async readTree(treeOid: string): Promise<Record<string, Uint8Array>> {

@@ -143,6 +143,25 @@ describe('InMemoryGraphAdapter specifics', () => {
     expect(result.entries[0]?.path.value).toBe('index/a.cbor');
   });
 
+  it('readTreeEntryPrefix applies the evidence limit after deterministic path ordering', async () => {
+    const adapter = new TreeOidMapForbiddenAdapter();
+    const treeOid = await adapter.writeTree([
+      `100644 blob ${'bbbb' + '0'.repeat(36)}\tindex/b.cbor`,
+      `100644 blob ${'aaaa' + '0'.repeat(36)}\tindex/a.cbor`,
+      `100644 blob ${'cccc' + '0'.repeat(36)}\tstate/c.cbor`,
+    ]);
+
+    const result = await adapter.readTreeEntryPrefix(
+      treeOid,
+      new TreeEntryPath('index/'),
+      new TreeEntryLimit(1),
+    );
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]?.path.value).toBe('index/a.cbor');
+    expect(result.entries[0]?.oid).toBe('aaaa' + '0'.repeat(36));
+  });
+
   it('countNodes throws for missing ref', async () => {
     const adapter = new InMemoryGraphAdapter();
     await expect(adapter.countNodes('refs/warp/missing'))
