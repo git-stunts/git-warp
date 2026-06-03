@@ -13,6 +13,16 @@ const packageJson = readText('package.json');
 const jsrJson = readText('jsr.json');
 const indexSource = readText('index.ts');
 
+function packageModuleDoc(): string {
+  const terminator = indexSource.indexOf('*/');
+  if (terminator === -1) {
+    throw new Error('index.ts is missing its package module JSDoc block');
+  }
+  return indexSource.slice(0, terminator + '*/'.length);
+}
+
+const moduleDoc = packageModuleDoc();
+
 describe('v18 package surface audit', () => {
   it('positions the registry package around the Worldline-first API', () => {
     expect(packageJson).toContain(
@@ -36,6 +46,16 @@ describe('v18 package surface audit', () => {
     expect(indexSource).toContain('WarpWorldline,');
     expect(indexSource).toContain('WarpWorldlineOpenOptions,');
     expect(indexSource).toContain('WarpWorldlinePatchBuild,');
+  });
+
+  it('keeps package hover docs on the Worldline-first example', () => {
+    expect(moduleDoc).toContain('@example');
+    expect(moduleDoc).toContain('openWarpWorldline');
+    expect(moduleDoc).toContain("events.commit((patch) =>");
+    expect(moduleDoc).toContain('events.live().getNodeProps');
+    expect(moduleDoc).not.toContain('WarpApp.open(');
+    expect(moduleDoc).not.toContain('app.createPatch(');
+    expect(moduleDoc).not.toContain('app.materialize(');
   });
 
   it('keeps default export compatibility explicit', () => {

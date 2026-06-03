@@ -10,6 +10,28 @@
  * First-use application code should open a named worldline with
  * `openWarpWorldline()`. `WarpApp`, `WarpCore`, and `openWarpGraph()` remain
  * supported compatibility and diagnostic surfaces for graph-first code.
+ *
+ * @example
+ * ```typescript
+ * import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
+ * import GitPlumbing from '@git-stunts/plumbing';
+ *
+ * const persistence = new GitGraphAdapter({
+ *   plumbing: new GitPlumbing({ cwd: '.' }),
+ * });
+ *
+ * const events = await openWarpWorldline({
+ *   persistence,
+ *   worldlineName: 'events',
+ *   writerId: 'agent-1',
+ * });
+ *
+ * await events.commit((patch) => {
+ *   patch.addNode('user:alice');
+ * });
+ *
+ * const props = await events.live().getNodeProps('user:alice');
+ * ```
  */
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.ts';
