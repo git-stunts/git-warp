@@ -12,7 +12,16 @@ function readText(relativePath: string): string {
 const packageJson = readText('package.json');
 const jsrJson = readText('jsr.json');
 const indexSource = readText('index.ts');
-const moduleDoc = indexSource.slice(0, indexSource.indexOf("import GitGraphAdapter"));
+
+function packageModuleDoc(): string {
+  const terminator = indexSource.indexOf('*/');
+  if (terminator === -1) {
+    throw new Error('index.ts is missing its package module JSDoc block');
+  }
+  return indexSource.slice(0, terminator + '*/'.length);
+}
+
+const moduleDoc = packageModuleDoc();
 
 describe('v18 package surface audit', () => {
   it('positions the registry package around the Worldline-first API', () => {
