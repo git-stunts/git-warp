@@ -47,9 +47,10 @@ describe('NodeHttpAdapter', () => {
         req.body === undefined ? '' : new TextDecoder().decode(req.body),
       ].join('|'),
     }));
+    const activeServer = server;
 
     await new Promise<void>((resolve, reject) => {
-      server?.listen(0, '127.0.0.1', (err) => {
+      activeServer.listen(0, '127.0.0.1', (err) => {
         if (err) {
           reject(err);
           return;
@@ -58,7 +59,7 @@ describe('NodeHttpAdapter', () => {
       });
     });
 
-    const address = server.address();
+    const address = activeServer.address();
     if (address === null) {
       throw new Error('expected server address after listen');
     }
