@@ -15,7 +15,7 @@ describe('mockPorts createMockPersistence', () => {
     await expect(persistence.readRef(ref)).resolves.toBe(currentOid);
   });
 
-  it('types readTreeOids as a tree path to object-map contract', async () => {
+  it('types readTreeOids as a tree object id to object-map contract', async () => {
     const persistence = createMockPersistence();
     const readTreeOids: (treeOid: string) => Promise<Record<string, string>> =
       persistence.readTreeOids;
