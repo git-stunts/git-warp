@@ -32,8 +32,9 @@ describe('NodeHttpAdapter', () => {
       headers: { 'content-type': 'text/plain' },
       body: 'ok',
     }));
+    const activeServer = server;
 
-    await new Promise((resolve) => server.listen(0, resolve));
+    await new Promise((resolve) => activeServer.listen(0, resolve));
   });
 
   it('handles a basic request/response cycle', async () => {
