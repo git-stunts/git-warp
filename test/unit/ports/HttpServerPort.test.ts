@@ -15,11 +15,36 @@ describe('NodeHttpAdapter', () => {
   const adapter = new NodeHttpAdapter();
   let server: HttpServerHandle | null = null;
 
-  afterEach(() => {
+  async function closeActiveServer(): Promise<void> {
     if (server !== null) {
-      server.close();
+      const activeServer = server;
       server = null;
+      await new Promise<void>((resolve, reject) => {
+        activeServer.close((err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          resolve();
+        });
+      });
     }
+  }
+
+  async function listenOnLoopback(activeServer: HttpServerHandle): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      activeServer.listen(0, '127.0.0.1', (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+
+  afterEach(async () => {
+    await closeActiveServer();
   });
 
   it('is an instance of HttpServerPort', () => {
@@ -34,7 +59,9 @@ describe('NodeHttpAdapter', () => {
     }));
     const activeServer = server;
 
-    await new Promise((resolve) => activeServer.listen(0, resolve));
+    await listenOnLoopback(activeServer);
+
+    expect(activeServer.address()).not.toBeNull();
   });
 
   it('handles a basic request/response cycle', async () => {
@@ -50,15 +77,7 @@ describe('NodeHttpAdapter', () => {
     }));
     const activeServer = server;
 
-    await new Promise<void>((resolve, reject) => {
-      activeServer.listen(0, '127.0.0.1', (err) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve();
-      });
-    });
+    await listenOnLoopback(activeServer);
 
     const address = activeServer.address();
     if (address === null) {
