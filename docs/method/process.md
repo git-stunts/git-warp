@@ -46,8 +46,10 @@ the quick-reference for operating a cycle.
    - New debt to `bad-code/`.
    - Cool ideas to `cool-ideas/`.
    - Backlog maintenance.
-3. **PR / review** — continue review in the already-open cycle PR until merge
-   or rejection.
+3. **PR / review** — when playback, acceptance evidence, closeout material, and
+   validation show the branch is ready to merge into `main`, move the PR out of
+   draft and continue review in the already-open cycle PR until merge or
+   rejection.
 4. **Ship sync on `main`** — after merge, update `docs/BEARING.md`,
    `CHANGELOG.md`, and release notes when the cycle changes them.
    Only when externally meaningful behavior changed. See

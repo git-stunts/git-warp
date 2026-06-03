@@ -377,11 +377,12 @@ describe('GitGraphAdapter coverage', () => {
   });
 
   describe('readTreeEntryPrefix()', () => {
-    it('reads bounded subtree evidence with a normalized prefix path', async () => {
+    it('reads bounded child prefix evidence through streaming plumbing', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      const indexTreeOid = 'beef' + '0'.repeat(36);
-      mockPlumbing.execute.mockResolvedValue(
-        `040000 tree ${indexTreeOid}\tindex\0`
+      const firstShardOid = 'beef' + '0'.repeat(36);
+      mockPlumbing.execute.mockRejectedValue(new Error('full-buffer execute is forbidden for prefix probes'));
+      mockPlumbing.executeStream.mockResolvedValue(
+        streamFromText(`100644 blob ${firstShardOid}\tindex/first.cbor\0`)
       );
 
       const result = await adapter.readTreeEntryPrefix(
@@ -392,21 +393,24 @@ describe('GitGraphAdapter coverage', () => {
 
       expect(result.entries).toHaveLength(1);
       expect(result.entries[0]).toBeInstanceOf(TreeEntryFound);
-      expect(result.entries[0]?.oid).toBe(indexTreeOid);
-      expect(result.entries[0]?.path.value).toBe('index');
-      expect(mockPlumbing.execute).toHaveBeenCalledWith({
-        args: ['ls-tree', '-z', treeOid, '--', 'index'],
+      expect(result.entries[0]?.oid).toBe(firstShardOid);
+      expect(result.entries[0]?.path.value).toBe('index/first.cbor');
+      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
+        args: ['ls-tree', '-z', treeOid, '--', 'index/'],
       });
-      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
     });
 
-    it('stops parsing prefix evidence when the runtime limit is reached', async () => {
+    it('stops reading prefix stream chunks when the runtime limit is reached', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
       const firstOid = 'beef' + '0'.repeat(36);
-      mockPlumbing.execute.mockResolvedValue(
-        `100644 blob ${firstOid}\tindex/first.cbor\0` +
-        'malformed-after-limit\0'
-      );
+      const stream = {
+        async *[Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
+          yield Buffer.from(`100644 blob ${firstOid}\tindex/first.cbor\0`);
+          throw new Error('prefix probe read past the requested limit');
+        },
+      };
+      mockPlumbing.executeStream.mockResolvedValue(stream);
 
       const result = await adapter.readTreeEntryPrefix(
         treeOid,
@@ -417,6 +421,21 @@ describe('GitGraphAdapter coverage', () => {
       expect(result.entries).toHaveLength(1);
       expect(result.entries[0]?.oid).toBe(firstOid);
       expect(result.entries[0]?.path.value).toBe('index/first.cbor');
+    });
+
+    it('rejects malformed OIDs from prefix plumbing output', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      mockPlumbing.executeStream.mockResolvedValue(
+        streamFromText('100644 blob not-a-valid-oid\tindex/first.cbor\0')
+      );
+
+      await expect(adapter.readTreeEntryPrefix(
+        treeOid,
+        new TreeEntryPath('index/'),
+        new TreeEntryLimit(1),
+      )).rejects.toMatchObject({
+        code: 'E_TREE_PARSE_ERROR',
+      });
     });
   });
 

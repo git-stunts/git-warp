@@ -122,8 +122,8 @@ This cycle includes:
 - `CheckpointTailBasisVerifier` migration from full tree maps to the new
   bounded evidence contract;
 - tests that fail if the first-use Optics setup path calls `readTreeOids(...)`;
-- a large-tree fixture that proves the verifier reads only requested evidence
-  entries;
+- a large-tree fixture that proves the verifier requests only the required
+  evidence probes and never calls the full tree-map surface;
 - cost inventory and issue disposition updates when the implementation changes
   classification.
 
@@ -222,7 +222,7 @@ flowchart LR
 | `worldline.prepareOpticBasis()` tree evidence | transitional full tree OID map | targeted or bounded tree-entry probes | exact path probes plus prefix limit of one when needed | `E_OPTIC_NO_BOUNDED_BASIS` for missing basis |
 | `TreePort.readTreeOids(...)` | diagnostic/legacy full map | unchanged legacy surface | none | existing persistence errors |
 | Git adapter tree probe | unavailable | exact path or bounded prefix plumbing | one path or explicit prefix limit | missing entry result or wrapped Git error |
-| In-memory adapter tree probe | unavailable | direct lookup without building full result map | one path or explicit prefix limit | missing entry result or persistence error |
+| In-memory adapter tree probe | unavailable | exact path-indexed lookup or bounded child-prefix result without building a full result map | one path or explicit prefix limit | missing entry result or persistence error |
 
 This cycle may keep `worldline.prepareOpticBasis()` classified as
 `transitional` because the broader memory budget and basis/tail providers are
@@ -252,7 +252,9 @@ Replay/convergence tests:
 
 - current coordinate Optics public-path tests must continue to pass;
 - new verifier tests prove missing or unsupported evidence fails closed;
-- large-tree fixture proves evidence verification reads only requested entries.
+- large-tree fixture proves evidence verification requests only the required
+  evidence probes, while adapter tests prove exact lookup avoids full-map
+  construction.
 
 ## Git Substrate Impact
 
@@ -335,7 +337,7 @@ An agent can inspect the result without scraping pixels or prose by checking:
 - the focused tree-entry probe port and runtime-backed result classes;
 - the `CheckpointTailBasisVerifier` call graph;
 - tripwire tests that fail on `readTreeOids(...)` setup-path use;
-- large-tree fixture read counters;
+- large-tree fixture probe-path witness;
 - public API cost inventory rows for `worldline.prepareOpticBasis()` and
   coordinate Optics.
 
@@ -450,10 +452,11 @@ Behavior tests required:
   through the probe path.
 - [x] In-memory adapter probe tests prove exact path lookup does not build a
   full result map.
-- [x] Git adapter probe tests prove exact path and bounded prefix behavior
-  parse only requested evidence.
+- [x] Git adapter probe tests prove exact path and bounded prefix behavior use
+  the requested pathspecs and stop at the runtime limit.
 - [x] First-use Optics conformance rejects `readTreeOids(...)` on setup.
-- [x] Large-tree fixture proves verification reads only requested entries.
+- [x] Large-tree fixture proves verification requests only required evidence
+  probes.
 
 Documentation/process tests, only if relevant:
 
@@ -473,8 +476,8 @@ The work is done when:
 - [x] Missing-basis behavior still returns named `E_OPTIC_NO_BOUNDED_BASIS`
   failures.
 - [x] Git-backed and in-memory adapters implement the new contract honestly.
-- [x] Large-tree-over-small-evidence fixture proves the verifier reads only
-  requested entries.
+- [x] Large-tree-over-small-evidence fixture proves the verifier requests only
+  required evidence probes and does not call the full tree-map surface.
 - [x] #575 can close or be narrowed to a later residual that is no longer about
   checkpoint-tail basis verification.
 - [x] #577 can close as implemented or be converted into a broader bounded tree
@@ -526,7 +529,8 @@ Known risks:
 
 Mitigations:
 
-- Add adapter-level tests with read counters or forbidden operation traps.
+- Add adapter-level tests with streaming-limit traps or forbidden operation
+  traps.
 - Keep `readTreeOids(...)` forbidden in the first-use setup fixture.
 - Make prefix probe limits runtime-backed and mandatory.
 
@@ -587,9 +591,10 @@ What the tests proved:
   `E_OPTIC_NO_BOUNDED_BASIS`.
 - In-memory and Git-backed adapters expose runtime-backed exact and bounded
   prefix probe results without a full-map return contract.
+- Git prefix probes stream child-prefix output and stop at the runtime limit.
 - First-use Optics setup rejects accidental `readTreeOids(...)` use.
 - A large checkpoint tree with 4,096 unrelated state entries is verified by
-  probing only `frontier.cbor` and `index`.
+  requesting only `frontier.cbor` and `index`.
 
 What remains open:
 

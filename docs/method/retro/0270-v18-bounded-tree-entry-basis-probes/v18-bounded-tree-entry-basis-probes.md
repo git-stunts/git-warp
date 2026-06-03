@@ -19,6 +19,9 @@ conformance remain the v18 bounded-memory gate.
 - Added `TreeEntryProbePort` as a focused probe port rather than changing the
   legacy `readTreeOids(...)` full-map contract.
 - Implemented probe behavior in the in-memory and Git-backed adapters.
+- Tightened prefix behavior so prefix probes return child entries only, and Git
+  prefix probes stream until the runtime limit instead of buffering a full
+  command output string first.
 - Moved `CheckpointTailBasisVerifier` from `readTreeOids(...)` to exact
   `frontier.cbor` and `index` probes, with bounded `index/` prefix evidence
   fallback.
@@ -58,9 +61,10 @@ IRONCLAD M9 — all gates passed. Push authorized.
 - Missing frontier and missing index evidence still fail closed with
   `E_OPTIC_NO_BOUNDED_BASIS`.
 - First-use Optics setup fails if it calls `readTreeOids(...)`.
-- Git prefix parsing stops when the runtime limit is reached.
-- A checkpoint tree with 4,096 unrelated entries is verified by probing only
-  `frontier.cbor` and `index`.
+- Git prefix probing streams child-prefix evidence and stops when the runtime
+  limit is reached.
+- A checkpoint tree with 4,096 unrelated entries is verified by requesting only
+  `frontier.cbor` and `index` evidence probes.
 
 ## Remaining Work
 

@@ -172,8 +172,8 @@ Cycle-start pull requests are draft PRs. After the design doc commit is pushed,
 open a draft PR that references the issue, label the issue
 `work-in-progress`, and link the PR from the issue. Draft means the cycle is
 owned and inspectable, not ready to merge. Move the PR out of draft only when
-the cycle has playback, acceptance evidence, and closeout material ready for
-review.
+the cycle has playback, acceptance evidence, closeout material, and validation
+showing the branch is ready to merge into `main`.
 
 ### Commitment
 
@@ -294,8 +294,8 @@ in one sentence, the cycle is too big. Split it.
    signpost change, commit, push the branch, open a draft pull request that
    references the issue, label the issue `work-in-progress`, and link the PR
    from the issue. The draft PR is the public cycle workspace; it becomes ready
-   for review only after playback, acceptance evidence, and closeout material
-   exist.
+   for merge review only after playback, acceptance evidence, closeout
+   material, and validation show the branch is ready to merge into `main`.
 
 3. **RED** - write failing tests. The proof surface becomes the spec.
    Default to agent surface first.
@@ -323,8 +323,10 @@ in one sentence, the cycle is too big. Split it.
 
    Closing the cycle packet does not mean `main` has accepted it yet.
 
-7. **PR / review** - continue review in the already-open cycle PR until merge
-   or rejection.
+7. **PR / review** - when playback, acceptance evidence, closeout material, and
+   validation show the branch is ready to merge into `main`, move the PR out of
+   draft and continue review in the already-open cycle PR until merge or
+   rejection.
 
 8. **Ship sync on `main`** - after merge, update repo-level ship
    surfaces such as `docs/BEARING.md`, `CHANGELOG.md`, and release

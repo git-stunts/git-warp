@@ -92,8 +92,12 @@ describe('InMemoryGraphAdapter specifics', () => {
     const adapter = new TreeOidMapForbiddenAdapter();
     const wantedOid = 'abcd' + '0'.repeat(36);
     const treeOid = await adapter.writeTree([
-      `100644 blob ${wantedOid}\tfrontier.cbor`,
       `100644 blob ${'beef' + '0'.repeat(36)}\tother.cbor`,
+      ...Array.from({ length: 128 }, (_, index) => {
+        const oid = (index + 1).toString(16).padStart(40, '0');
+        return `100644 blob ${oid}\tstate/shard-${String(index).padStart(3, '0')}.cbor`;
+      }),
+      `100644 blob ${wantedOid}\tfrontier.cbor`,
     ]);
 
     const result = await adapter.readTreeEntryOid(treeOid, new TreeEntryPath('frontier.cbor'));
@@ -122,6 +126,7 @@ describe('InMemoryGraphAdapter specifics', () => {
   it('readTreeEntryPrefix returns at most the requested evidence limit', async () => {
     const adapter = new TreeOidMapForbiddenAdapter();
     const treeOid = await adapter.writeTree([
+      `040000 tree ${'dddd' + '0'.repeat(36)}\tindex`,
       `100644 blob ${'aaaa' + '0'.repeat(36)}\tindex/a.cbor`,
       `100644 blob ${'bbbb' + '0'.repeat(36)}\tindex/b.cbor`,
       `100644 blob ${'cccc' + '0'.repeat(36)}\tstate/c.cbor`,

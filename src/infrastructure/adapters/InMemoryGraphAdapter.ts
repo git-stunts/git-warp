@@ -46,6 +46,14 @@ interface InMemoryAdapterOptions {
   readonly hash?: HashFn;
 }
 
+function treeEntryIndex(entries: readonly TreeEntry[]): Map<string, TreeEntry> {
+  const index = new Map<string, TreeEntry>();
+  for (const entry of entries) {
+    index.set(entry.path, entry);
+  }
+  return index;
+}
+
 export default class InMemoryGraphAdapter extends GraphPersistencePort {
   private readonly _author: string;
   private readonly _clock: { now(): number };
@@ -54,6 +62,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   private readonly _commits = new Map<string, CommitRecord>();
   private readonly _blobs = new Map<string, Uint8Array>();
   private readonly _trees = new Map<string, TreeEntry[]>();
+  private readonly _treeEntryIndexes = new Map<string, Map<string, TreeEntry>>();
   private readonly _refs = new Map<string, string>();
   private readonly _config = new Map<string, string>();
 
@@ -77,6 +86,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     const parsed = entries.map(line => parseMktreeEntry(line));
     const oid = hashTree(this._hash, parsed);
     this._trees.set(oid, parsed);
+    this._treeEntryIndexes.set(oid, treeEntryIndex(parsed));
     return oid;
   }
 
@@ -101,11 +111,9 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     if (treeOid === EMPTY_TREE_OID) {
       return new TreeEntryMissing(path);
     }
-    const entries = this._requireTreeEntries(treeOid);
-    for (const entry of entries) {
-      if (entry.path === path.value) {
-        return new TreeEntryFound({ path, oid: entry.oid });
-      }
+    const entry = this._requireTreeEntryIndex(treeOid).get(path.value);
+    if (entry !== undefined) {
+      return new TreeEntryFound({ path, oid: entry.oid });
     }
     return new TreeEntryMissing(path);
   }
@@ -124,7 +132,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     const normalizedPrefix = prefix.withoutTrailingSlash();
     const childPrefix = `${normalizedPrefix.value}/`;
     for (const entry of entries) {
-      if (entry.path === normalizedPrefix.value || entry.path.startsWith(childPrefix)) {
+      if (entry.path.startsWith(childPrefix)) {
         matches.push(new TreeEntryFound({
           path: new TreeEntryPath(entry.path),
           oid: entry.oid,
@@ -152,6 +160,14 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
       throw new PersistenceError(`Tree not found: ${treeOid}`, PersistenceError.E_MISSING_OBJECT);
     }
     return entries;
+  }
+
+  private _requireTreeEntryIndex(treeOid: string): Map<string, TreeEntry> {
+    const entryIndex = this._treeEntryIndexes.get(treeOid);
+    if (entryIndex === undefined) {
+      throw new PersistenceError(`Tree not found: ${treeOid}`, PersistenceError.E_MISSING_OBJECT);
+    }
+    return entryIndex;
   }
 
   // -- BlobPort -------------------------------------------------------------
