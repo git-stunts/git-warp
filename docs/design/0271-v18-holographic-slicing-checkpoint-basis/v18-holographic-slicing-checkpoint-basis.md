@@ -5,7 +5,7 @@ task_id: "v18-holographic-slicing-checkpoint-basis"
 legend: "PROTO"
 release_home: "v18.0.0"
 issue: "https://github.com/git-stunts/git-warp/issues/626"
-status: "active"
+status: "landed"
 base_commit: "39646e65d0819f8a8f336709ff50bce0609e506c"
 owners:
   - "@git-stunts"
@@ -861,17 +861,22 @@ Tracked existing issues:
 - https://github.com/git-stunts/git-warp/issues/549
 - https://github.com/git-stunts/git-warp/issues/552
 - https://github.com/git-stunts/git-warp/issues/613
+- https://github.com/git-stunts/git-warp/issues/628
+- https://github.com/git-stunts/git-warp/issues/629
+- https://github.com/git-stunts/git-warp/issues/630
+- https://github.com/git-stunts/git-warp/issues/631
+- https://github.com/git-stunts/git-warp/issues/632
+- https://github.com/git-stunts/git-warp/issues/633
+- https://github.com/git-stunts/git-warp/issues/634
+- https://github.com/git-stunts/git-warp/issues/635
 
-Before implementation begins, split #626 into child issues for the
-implementation slices above or explicitly mark #626 as the parent issue for the
-first implementation PR.
+#626 was closed after design landing. The implementation slices are now child
+issues #628 through #635 and are slotted into the v18.0.0 roadmap gate.
 
 ## Tracker Disposition
 
-Issue #626 is the active design tracker. It should stay `work-in-progress`
-until this design doc lands. After the doc lands, keep #626 open if it remains
-the parent implementation issue, or close it with a comment listing child
-issues that own the runtime slices.
+Issue #626 was the active design tracker and is now closed as completed. The
+runtime implementation work is tracked by #628 through #635.
 
 ## Done Does Not Mean
 
@@ -888,20 +893,23 @@ the repo and linked to the tracker.
 
 ## Retrospective
 
-Fill this in after implementation.
+This design landed in PR #627. The implementation work remains open.
 
 What changed from the design:
 
-- ...
+- The implementation slices were split into child GitHub Issues #628 through
+  #635 instead of keeping #626 as an umbrella implementation issue.
 
 What the tests proved:
 
-- ...
+- Design and roadmap markdown shape stayed valid.
+- The release-policy guard still finds the roadmap release-state header.
+- The roadmap row count reconciles with the open issue count.
 
 What remains open:
 
-- ...
+- #628 through #635 own the runtime implementation slices.
 
 PR:
 
-- ...
+- https://github.com/git-stunts/git-warp/pull/627
