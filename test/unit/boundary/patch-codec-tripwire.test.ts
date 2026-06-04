@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import ts from 'typescript';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..', '..', '..');
@@ -40,21 +41,103 @@ const CHECKPOINT_FILES = [
   'src/domain/services/state/checkpointLoad.ts',
 ];
 
-/**
- * Forbidden patterns in domain files that handle patch persistence.
- * Each pattern indicates bytes leaking into the domain layer.
- */
-const FORBIDDEN_PATTERNS = [
-  { pattern: /import\s+.*defaultCodec/, label: 'imports defaultCodec' },
-  { pattern: /from\s+['"].*defaultCodec/, label: 'imports from defaultCodec module' },
-  { pattern: /['"]cbor-x['"]/, label: 'imports cbor-x directly' },
-  { pattern: /this\._codec\.encode\(/, label: 'calls this._codec.encode()' },
-  { pattern: /this\._codec\.decode\(/, label: 'calls this._codec.decode()' },
-  { pattern: /codec\.encode\(/, label: 'calls codec.encode()' },
-  { pattern: /codec\.decode\(/, label: 'calls codec.decode()' },
-  { pattern: /codecOpt\.encode\(/, label: 'calls codecOpt.encode()' },
-  { pattern: /codecOpt\.decode\(/, label: 'calls codecOpt.decode()' },
-];
+const CODEC_RECEIVER_NAMES = new Set(['_codec', 'codec', 'codecOpt']);
+
+type CodecBoundaryViolation = {
+  readonly label: string;
+  readonly evidence: string;
+};
+
+function collectCodecBoundaryViolations(sourcePath: string, sourceText: string): readonly CodecBoundaryViolation[] {
+  const sourceFile = ts.createSourceFile(
+    sourcePath,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const violations: CodecBoundaryViolation[] = [];
+
+  function visit(node: ts.Node): void {
+    if (ts.isImportDeclaration(node)) {
+      collectImportViolation(node, sourceText, violations);
+    }
+    if (ts.isCallExpression(node)) {
+      collectCodecCallViolation(node, sourceText, violations);
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return violations;
+}
+
+function collectImportViolation(
+  node: ts.ImportDeclaration,
+  sourceText: string,
+  violations: CodecBoundaryViolation[],
+): void {
+  if (!ts.isStringLiteral(node.moduleSpecifier)) {
+    return;
+  }
+  const modulePath = node.moduleSpecifier.text;
+  const defaultImportName = node.importClause?.name?.text;
+  if (defaultImportName === 'defaultCodec') {
+    violations.push({
+      label: 'imports defaultCodec',
+      evidence: sourceText.slice(node.getStart(), node.getEnd()),
+    });
+  }
+  if (modulePath.includes('defaultCodec')) {
+    violations.push({
+      label: 'imports from defaultCodec module',
+      evidence: modulePath,
+    });
+  }
+  if (modulePath === 'cbor-x') {
+    violations.push({
+      label: 'imports cbor-x directly',
+      evidence: modulePath,
+    });
+  }
+}
+
+function collectCodecCallViolation(
+  node: ts.CallExpression,
+  sourceText: string,
+  violations: CodecBoundaryViolation[],
+): void {
+  if (!ts.isPropertyAccessExpression(node.expression)) {
+    return;
+  }
+  const methodName = node.expression.name.text;
+  if (methodName !== 'encode' && methodName !== 'decode') {
+    return;
+  }
+  const receiver = node.expression.expression;
+  const receiverName = codecReceiverName(receiver);
+  if (receiverName === null) {
+    return;
+  }
+  violations.push({
+    label: `calls ${receiverName}.${methodName}()`,
+    evidence: sourceText.slice(node.expression.getStart(), node.expression.getEnd()),
+  });
+}
+
+function codecReceiverName(node: ts.Expression): string | null {
+  if (ts.isIdentifier(node) && CODEC_RECEIVER_NAMES.has(node.text)) {
+    return node.text;
+  }
+  if (
+    ts.isPropertyAccessExpression(node)
+    && node.name.text === '_codec'
+    && node.expression.kind === ts.SyntaxKind.ThisKeyword
+  ) {
+    return 'this._codec';
+  }
+  return null;
+}
 
 /**
  * Runs tripwire checks on a list of files.
@@ -68,15 +151,13 @@ function tripwireSuite(suiteName, files) {
         const absPath = resolve(ROOT, relPath);
         const source = readFileSync(absPath, 'utf-8');
 
-        for (const { pattern, label } of FORBIDDEN_PATTERNS) {
-          it(`must not contain: ${label}`, () => {
-            const matches = source.match(pattern);
-            expect(
-              matches,
-              `${relPath} violates P5: ${label}\nMatch: ${matches?.[0]}`,
-            ).toBeNull();
-          });
-        }
+        it('must not import codecs or call codec encode/decode', () => {
+          const violations = collectCodecBoundaryViolations(relPath, source);
+          expect(
+            violations,
+            `${relPath} violates P5 codec boundary policy`,
+          ).toEqual([]);
+        });
       });
     }
   });
