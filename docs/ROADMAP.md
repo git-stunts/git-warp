@@ -12,7 +12,7 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 
 | Metric | Count |
 | --- | ---: |
-| Open GitHub issues indexed | 408 |
+| Open GitHub issues indexed | 409 |
 | `lane:bad-code` maintenance issues | 214 |
 | `lane:cool-ideas` enhancement issues | 95 |
 | `lane:release` issues | 22 |
@@ -32,7 +32,7 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 
 | Release Slot | Count | Planning Intent |
 | --- | ---: | --- |
-| v18.0.0 | 4 | Ship only after first-use Optics, bounded-memory public paths, content cutover truth, and release operation evidence are coherent. |
+| v18.0.0 | 5 | Ship only after first-use Optics, bounded-memory public paths, content cutover truth, holographic slicing posture, and release operation evidence are coherent. |
 | v18.0.1 | 50 | Repair public docs, examples, release tooling, and review guardrails that make the v18 line usable without expanding the runtime ontology. |
 | v18.0.2 | 50 | Finish the remaining release-tooling spillover, then start the testing-quality cleanup wave with behavior-backed proofs instead of brittle text checks. |
 | v18.0.3 | 50 | Continue static-text and fixture-quality paydown while keeping the release train small enough to review as one coherent patch wave. |
@@ -63,7 +63,7 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 | lane:release | 22 |
 | lane:v19.0.0 | 11 |
 | lane:inbox | 4 |
-| lane:v18.0.0 | 4 |
+| lane:v18.0.0 | 5 |
 | lane:v21.0.0 | 4 |
 | lane:v20.0.0 | 3 |
 
@@ -72,7 +72,7 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 | Label | Count |
 | --- | ---: |
 | type:maintenance | 214 |
-| type:enhancement | 193 |
+| type:enhancement | 194 |
 
 ### Release Home Labels
 
@@ -96,7 +96,7 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 | feature:sync-trust-security | 30 |
 | feature:observer-admission-runtime | 27 |
 | feature:tooling-release | 27 |
-| feature:materialization-query-index | 26 |
+| feature:materialization-query-index | 27 |
 | feature:trie-state-storage | 16 |
 | feature:graph-model-substrate | 4 |
 | feature:btr-provenance-boundary | 1 |
@@ -111,7 +111,7 @@ Each issue appears once in the proposed release tables below. `Status` is derive
 
 ### v18.0.0 - Public Release Gate
 
-Ship only after first-use Optics, bounded-memory public paths, content cutover truth, and release operation evidence are coherent.
+Ship only after first-use Optics, bounded-memory public paths, content cutover truth, holographic slicing posture, and release operation evidence are coherent.
 
 | Issue | Title | Status | Type | Lane | Feature | Release Home | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -119,6 +119,7 @@ Ship only after first-use Optics, bounded-memory public paths, content cutover t
 | [#549](https://github.com/git-stunts/git-warp/issues/549) | Bounded-memory large-graph product gate | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
 | [#550](https://github.com/git-stunts/git-warp/issues/550) | Content attachment-plane cutover | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, release |
 | [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
+| [#626](https://github.com/git-stunts/git-warp/issues/626) | PROTO-0271 - Holographic slicing and streaming checkpoint basis | Work in progress | enhancement | v18.0.0 | materialization-query-index | - | wip |
 
 ### v18.0.1 - Public Docs And Release Tooling Repair
 
