@@ -15,8 +15,7 @@
 import BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import { createLazyCas } from './lazyCasInit.ts';
-import { loadGitCasConstructors } from './gitCasModule.ts';
-import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
+import { createCdcCasStore } from './CasStoreFactory.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import { Readable } from 'node:stream';
 
@@ -31,14 +30,6 @@ interface CasStore {
   store(opts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array }): Promise<CasManifest>;
   createTree(opts: { manifest: CasManifest }): Promise<string>;
 }
-
-type CasCodecInstance = object;
-type CasStoreOptions = {
-  plumbing: unknown;
-  codec: CasCodecInstance;
-  chunking: { strategy: string };
-  observability?: unknown;
-};
 
 export interface BlobPersistence {
   readBlob(oid: string): Promise<Uint8Array | null | undefined>;
@@ -100,20 +91,10 @@ export default class CasBlobAdapter extends BlobStoragePort {
   }
 
   private async _initCas(): Promise<CasStore> {
-    const { ContentAddressableStore, CborCodecCtor } = await loadGitCasConstructors<
-      CasStoreOptions,
-      CasStore,
-      CasCodecInstance
-    >();
-    const opts: CasStoreOptions = {
+    return await createCdcCasStore<CasStore>({
       plumbing: this._plumbing,
-      codec: new CborCodecCtor(),
-      chunking: { strategy: 'cdc' },
-    };
-    if (this._logger) {
-      opts.observability = new LoggerObservabilityBridge(this._logger);
-    }
-    return new ContentAddressableStore(opts);
+      logger: this._logger,
+    });
   }
 
   override async store(content: Uint8Array | string, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string> {
