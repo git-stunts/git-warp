@@ -94,16 +94,17 @@ team.observer(...)     // revelation: bounded aperture
 team.optic()           // revelation: bounded optic question
 ```
 
-### `openWarpGraph()` (v17+)
+### `openWarpGraph()` (compatibility and diagnostics)
 
-The advanced entry point. Returns a frozen capability bag:
+The advanced compatibility entry point. Returns a frozen capability bag for
+tooling, diagnostics, and graph-first integrations that intentionally need the
+lower-level surface:
 
 ```text
 const graph = await openWarpGraph({ persistence, graphName, writerId });
 
 graph.query.*          // revelation: read state
 graph.patches.*        // commitment: write patches
-graph.materialize.*    // folding: frontier-relative state
 graph.sync.*           // governance: distributed sync
 graph.strands.*        // commitment: speculative lanes
 graph.checkpoint.*     // folding: history folding
@@ -114,10 +115,9 @@ graph.subscriptions.*  // revelation: reactive state
 
 ### `WarpApp` / `WarpCore` (legacy, v16 compat)
 
-Still exported for backward compatibility and advanced tooling. Both delegate
-to the same internal engine. New application code should prefer
-`openWarpWorldline()`, and lower-level tooling should prefer `openWarpGraph()`
-unless it deliberately needs the legacy facade shape.
+Still exported for backward compatibility and advanced tooling. New application
+code should prefer `openWarpWorldline()`, and lower-level tooling should prefer
+`openWarpGraph()` unless it deliberately needs the legacy facade shape.
 
 ## Internal engine
 
