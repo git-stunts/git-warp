@@ -17,7 +17,7 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 
 | Metric | Count |
 | --- | ---: |
-| Open GitHub issues indexed | 409 |
+| Open GitHub issues indexed | 416 |
 | `lane:bad-code` maintenance issues | 214 |
 | `lane:cool-ideas` enhancement issues | 95 |
 | `lane:release` issues | 22 |
@@ -37,7 +37,7 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 
 | Release Slot | Count | Planning Intent |
 | --- | ---: | --- |
-| v18.0.0 | 5 | Ship only after first-use Optics, bounded-memory public paths, content cutover truth, holographic slicing posture, and release operation evidence are coherent. |
+| v18.0.0 | 12 | Ship only after first-use Optics, bounded-memory public paths, content cutover truth, holographic slicing posture, and release operation evidence are coherent. |
 | v18.0.1 | 50 | Repair public docs, examples, release tooling, and review guardrails that make the v18 line usable without expanding the runtime ontology. |
 | v18.0.2 | 50 | Finish the remaining release-tooling spillover, then start the testing-quality cleanup wave with behavior-backed proofs instead of brittle text checks. |
 | v18.0.3 | 50 | Continue static-text and fixture-quality paydown while keeping the release train small enough to review as one coherent patch wave. |
@@ -66,9 +66,9 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 | lane:up-next | 42 |
 | lane:backlog-root | 30 |
 | lane:release | 22 |
+| lane:v18.0.0 | 12 |
 | lane:v19.0.0 | 11 |
 | lane:inbox | 4 |
-| lane:v18.0.0 | 5 |
 | lane:v21.0.0 | 4 |
 | lane:v20.0.0 | 3 |
 
@@ -77,7 +77,7 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 | Label | Count |
 | --- | ---: |
 | type:maintenance | 214 |
-| type:enhancement | 194 |
+| type:enhancement | 201 |
 
 ### Release Home Labels
 
@@ -98,10 +98,10 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 | feature:runtime-boundaries | 36 |
 | feature:api-capabilities | 35 |
 | feature:docs-dx | 34 |
+| feature:materialization-query-index | 34 |
 | feature:sync-trust-security | 30 |
 | feature:observer-admission-runtime | 27 |
 | feature:tooling-release | 27 |
-| feature:materialization-query-index | 27 |
 | feature:trie-state-storage | 16 |
 | feature:graph-model-substrate | 4 |
 | feature:btr-provenance-boundary | 1 |
@@ -124,7 +124,14 @@ Ship only after first-use Optics, bounded-memory public paths, content cutover t
 | [#549](https://github.com/git-stunts/git-warp/issues/549) | Bounded-memory large-graph product gate | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
 | [#550](https://github.com/git-stunts/git-warp/issues/550) | Content attachment-plane cutover | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, release |
 | [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
-| [#626](https://github.com/git-stunts/git-warp/issues/626) | PROTO-0271 - Holographic slicing and streaming checkpoint basis | Work in progress | enhancement | v18.0.0 | materialization-query-index | - | wip |
+| [#628](https://github.com/git-stunts/git-warp/issues/628) | PROTO-0271A - Materialization boundary guard | Open | enhancement | v18.0.0 | materialization-query-index | - | - |
+| [#629](https://github.com/git-stunts/git-warp/issues/629) | PROTO-0271B - Checkpoint basis manifest contract | Open | enhancement | v18.0.0 | materialization-query-index | - | - |
+| [#630](https://github.com/git-stunts/git-warp/issues/630) | PROTO-0271C - Streaming checkpoint basis builder | Open | enhancement | v18.0.0 | materialization-query-index | - | - |
+| [#631](https://github.com/git-stunts/git-warp/issues/631) | PROTO-0271D - Checkpoint patch-to-fact stream | Open | enhancement | v18.0.0 | materialization-query-index | - | - |
+| [#632](https://github.com/git-stunts/git-warp/issues/632) | PROTO-0271E - Node and property optics on streamed basis | Open | enhancement | v18.0.0 | materialization-query-index | - | - |
+| [#633](https://github.com/git-stunts/git-warp/issues/633) | PROTO-0271F - NeighborhoodOptic adjacency slices | Open | enhancement | v18.0.0 | materialization-query-index | - | - |
+| [#634](https://github.com/git-stunts/git-warp/issues/634) | PROTO-0271G - TraversalOptic cursorized traversal | Open | enhancement | v18.0.0 | materialization-query-index | - | - |
+| [#635](https://github.com/git-stunts/git-warp/issues/635) | PROTO-0271H - Holographic CLI/operator witness playback | Open | enhancement | v18.0.0 | materialization-query-index | - | - |
 
 ### v18.0.1 - Public Docs And Release Tooling Repair
 
@@ -646,8 +653,8 @@ Issues without enough signal for a release slot. They stay visible here until la
 
 | Check | Count |
 | --- | ---: |
-| Open issues pulled from GitHub | 409 |
-| Issues assigned to roadmap tables | 409 |
+| Open issues pulled from GitHub | 416 |
+| Issues assigned to roadmap tables | 416 |
 | Largest release slot | 50 |
 | Release slots over 50 issues | 0 |
 | Unassigned gap | 0 |
