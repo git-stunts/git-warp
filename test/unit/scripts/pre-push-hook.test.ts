@@ -55,6 +55,7 @@ function runPrePushHook(options: { quick?: boolean; failCommand?: string | null;
   const npmBin = join(binDir, 'npm');
   const npmLog = join(binDir, 'npm.log');
   const lycheeLog = join(binDir, 'lychee.log');
+  const eventLog = join(binDir, 'events.log');
   const linkcheckBin = join(binDir, 'warp-linkcheck-stub');
 
   writeExecutable(
@@ -67,6 +68,7 @@ function runPrePushHook(options: { quick?: boolean; failCommand?: string | null;
       '  cmd="$2"',
       'fi',
       "printf '%s\\n' \"$cmd\" >> \"$WARP_NPM_LOG\"",
+      "printf 'npm:%s\\n' \"$cmd\" >> \"$WARP_EVENT_LOG\"",
       'if [ "${WARP_FAIL_NPM_CMD:-}" = "$cmd" ]; then',
       '  echo "stub npm failing for $cmd" >&2',
       '  exit 1',
@@ -83,6 +85,7 @@ function runPrePushHook(options: { quick?: boolean; failCommand?: string | null;
         '#!/bin/sh',
         'set -eu',
         "printf '%s\\n' \"$*\" >> \"$WARP_LYCHEE_LOG\"",
+        "printf 'linkcheck:%s\\n' \"$*\" >> \"$WARP_EVENT_LOG\"",
         'exit 0',
         '',
       ].join('\n')
@@ -95,6 +98,7 @@ function runPrePushHook(options: { quick?: boolean; failCommand?: string | null;
     WARP_LYCHEE_LOG: lycheeLog,
     WARP_NPM_BIN: npmBin,
     WARP_NPM_LAUNCHER: 'sh',
+    WARP_EVENT_LOG: eventLog,
     WARP_LINKCHECK_BIN: linkcheckBin,
     WARP_LINKCHECK_LAUNCHER: 'sh',
   };
@@ -123,14 +127,26 @@ function runPrePushHook(options: { quick?: boolean; failCommand?: string | null;
     output: `${result.stdout}${result.stderr}`,
     commands: readLog(npmLog),
     lycheeCalls: readLog(lycheeLog),
+    events: readLog(eventLog),
   };
 }
 
 describe('scripts/hooks/pre-push', () => {
-  it('keeps the checked-in header aligned with the runtime gate layout', () => {
-    const source = readFileSync(hookPath, 'utf8');
+  it('runs the optional link check before the blocking npm gates', () => {
+    const result = runPrePushHook({ quick: true });
 
-    expect(source).toContain('# Six blocking gates + one advisory gate in parallel, then unit tests.');
+    expect(result.status).toBe(0);
+    expect(result.events[0]).toBe('linkcheck:--config .lychee.toml **/*.md');
+    expect(result.events.slice(1).sort()).toEqual([
+      'npm:lint',
+      'npm:lint:md',
+      'npm:lint:md:code',
+      'npm:typecheck:consumer',
+      'npm:typecheck:policy',
+      'npm:typecheck:src',
+      'npm:typecheck:surface',
+      'npm:typecheck:test',
+    ]);
   });
 
   it('skips Gate 8 in quick mode without running unit tests', () => {
