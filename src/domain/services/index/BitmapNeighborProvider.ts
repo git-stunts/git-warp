@@ -92,7 +92,10 @@ export default class BitmapNeighborProvider extends NeighborProviderPort {
       const id = await this._reader.lookupId(nodeId);
       return id !== undefined;
     }
-    return false;
+    throw new IndexError(
+      'BitmapNeighborProvider readiness check passed without an active backend',
+      { code: 'E_NEIGHBOR_PROVIDER_INVALID_BACKEND' },
+    );
   }
 
   override get latencyClass(): 'async-local' {

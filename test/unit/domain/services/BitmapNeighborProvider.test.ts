@@ -108,6 +108,15 @@ describe('BitmapNeighborProvider', () => {
     );
   });
 
+  it('throws an explicit invariant error when readiness passes without a backend', async () => {
+    const empty = new BitmapNeighborProvider({});
+    Object.defineProperty(empty, '_assertReady', { value: () => undefined });
+
+    await expect(empty.hasNode('node:a')).rejects.toMatchObject({
+      code: 'E_NEIGHBOR_PROVIDER_INVALID_BACKEND',
+    });
+  });
+
   describe('logical index mode', () => {
         let logicalIndex;
         let logicalProvider;
