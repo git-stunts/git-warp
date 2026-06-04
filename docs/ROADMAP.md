@@ -2,6 +2,11 @@
 
 Last reconciled: 2026-06-04
 
+**Current public package/tag release:** v17.0.0
+**Next intended release:** v18.0.0
+
+v17.0.1 repair work is recorded in source docs/changelog without public npm/tag evidence.
+
 GitHub Issues are the live Method tracker. This roadmap is an issue-indexed planning view over the current open issue set, not a second backlog. If this document and GitHub disagree, GitHub wins and this document should be regenerated or corrected.
 
 The major-version ladder follows VISION: v18 makes the graph substrate honest, v19 makes observer/runtime doctrine honest, v20 makes slice-first streaming execution ordinary, and v21 makes distributed/plural admission semantics runtime-real.
@@ -641,8 +646,8 @@ Issues without enough signal for a release slot. They stay visible here until la
 
 | Check | Count |
 | --- | ---: |
-| Open issues pulled from GitHub | 408 |
-| Issues assigned to roadmap tables | 408 |
+| Open issues pulled from GitHub | 409 |
+| Issues assigned to roadmap tables | 409 |
 | Largest release slot | 50 |
 | Release slots over 50 issues | 0 |
 | Unassigned gap | 0 |
