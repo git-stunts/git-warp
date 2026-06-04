@@ -1,1402 +1,639 @@
-# ROADMAP — @git-stunts/git-warp
-
-> **MIGRATED:** All incomplete items have been migrated to `docs/method/backlog/`.
-> See METHOD for the current process.
-> Completed items remain in `docs/ROADMAP/COMPLETED.md`. This file is kept for reference only.
-
-> **Current public package/tag release:** v17.0.0
-> **Next intended release:** v18.0.0
-> **Last reconciled:** 2026-05-22 (v17.0.1 repair work is recorded in source docs/changelog without public npm/tag evidence. Recursive tree OID reads use one path-preserving Git command; v17.0.0 release delivered readings/worldlines, TypeScript source, and the generated npm type surface.)
-> **Completed milestones:** [docs/ROADMAP/COMPLETED.md](ROADMAP/COMPLETED.md)
-
----
-
-## Quality Bar (Mandatory)
-
-- branch coverage threshold (not vanity 100%)
-- mutation testing for verifier-critical logic
-- invariant/property tests for chain semantics
-- chaos tests for delayed commits / racey interleavings where applicable
-- CI matrix across supported Node + Git versions
-
----
-
-## Milestone 10 — SENTINEL (remaining)
-
-**Theme:** Trust hardening + sync safety + correctness
-**Triage date:** 2026-02-17
-
-> T1–T3 completed — see [COMPLETED.md](ROADMAP/COMPLETED.md#milestone-10--sentinel-completed-tasks).
-
-### M10.T4 — Causality Bisect Spec
-
-- **Status:** `DONE` (spec existed; implementation completed in M11)
-
-**Items:**
-
-- **B2 (spec only)** ✅ (CAUSALITY BISECT) — Spec committed at `docs/specs/BISECT_V1.md`. Full implementation shipped in M11/v13.0.0.
-
-**M10 Gate:** Signed ingress enforced end-to-end; trust E2E receipts green; B63 GC isolation verified under concurrent writes; B64 sync payload validation green; B65 divergence logging verified; B2 spec committed with test vectors.
-
----
-
-## Milestone 13 — SCALPEL II (remaining)
-
-**Theme:** Edge property encoding — internal canonicalization + governed wire-format migration
-**Triage date:** 2026-02-28
-
-> T1–T2 completed — see [COMPLETED.md](ROADMAP/COMPLETED.md#milestone-13--scalpel-ii-completed-tasks).
-
-### M13.T3 — Persisted Wire-Format Migration (ADR 2)
-
-- **Status:** `DEFERRED` — governed by ADR 3 readiness gates
-- **Size:** XL | **Risk:** HIGH
-- **Depends on:** ADR 3 Gate 1 satisfaction
-
-**Remaining B116 scope:**
-
-- **B116** (S2: EXPLICIT EDGEPROPSET OP — wire-format half) — Promote `EdgePropSet` to persisted raw op type (schema version 4). Graph capability ratchet. Mixed v3+v4 materialization. Read-path accepts both legacy and new format. Sync emits raw `EdgePropSet` only after graph capability cutover. **Blocked on:** ADR 3 Gate 1 (historical audit, observability, capability design, rollout playbook).
-
-**ADR 3 Gate 1 prerequisites (not yet met):**
-
-- [ ] Historical identifier audit complete
-- [ ] Observability plan exists
-- [ ] Graph capability design approved
-- [ ] Rollout playbook exists
-- [ ] ADR 2 tripwire tests written (beyond current wire gate tests)
-
-**M13 Gate (wire-format cutover — deferred):** Mixed-schema materialization deterministic. `WarpGraph.noCoordination.test.js` passes with v3+v4 writers. No regression in existing patch replay. Full test suite green. ADR 3 Gate 1 and Gate 2 both satisfied.
-
----
-
-## Milestone 14 — HYGIENE ⚠️ TOP PRIORITY
-
-**Theme:** Test quality, DRY extraction, SOLID quick-wins
-**Objective:** Fix every actionable finding from the HEX_AUDIT (hexagonal architecture, SOLID, DRY, test brittleness audit). Harden test determinism, extract duplicated infrastructure code, and clean up low-hanging SOLID violations. Larger decompositions (WarpGraph god object, JoinReducer split) are scoped as design-only items — implementation deferred until an RFC is filed.
-**Triage date:** 2026-03-02
-**Audit source:** `docs/archive/audits/HEX_AUDIT.convo.txt`
-
-### Audit Summary
-
-- **Hexagonal architecture** — CLEAN (no violations)
-- **Port/adapter contracts** — CLEAN (all 14 ports fully implemented)
-- **SOLID** — 7 SRP, 3 OCP, 1 LSP, 1 ISP, 1 DIP findings
-- **DRY** — 10 patterns, ~300–400 duplicated lines
-- **Test quality** — 4 critical, 2 high, 6 medium, 1 low-medium finding
-
-### M14.T1 — Test Hardening (Critical + High)
-
-- **Status:** `DONE`
-- **Size:** M | **Risk:** LOW
-- **Depends on:** —
-
-**Items:**
-
-- **B130** ✅ (PRIVATE-FIELD TEST ACCESS) — Replaced `_idToShaCache` access in `BitmapIndexReader.test.js` with public `shardOids`/`loadedShards` assertions. Replaced `_snapshotState` in `PatchBuilderV2.snapshot.test.js` with spy call-count assertions. Replaced `_cachedState` in `WarpGraph.timing.test.js` with `await graph.materialize()`. `_syncController` mocking retained (B142 territory).
-- **B131** ✅ (FAKE TIMER LIFECYCLE) — Moved `vi.useFakeTimers()` from `beforeAll` to `beforeEach` and `vi.useRealTimers()` into `afterEach` in `WarpGraph.watch.test.js`. `clock.now.mock.calls.length` assertion in `WarpGraph.timing.test.js:71` left as-is (already idiomatic).
-
-### M14.T2 — Test Determinism (Medium)
-
-- **Status:** `DONE`
-- **Size:** S | **Risk:** LOW
-- **Depends on:** —
-
-**Items:**
-
-- **B132** ✅ (SEED NON-DETERMINISTIC TESTS) — Replaced `Math.random()` with seeded RNG (Mulberry32, `0xDEADBEEF`) in `benchmarkUtils.js` and `ReducerV5.benchmark.js`. Added `seed: 42` to all 8 `fc.assert()` calls in `Join.property.test.js`. Replaced random delays in `GitGraphAdapter.stress.test.js` with deterministic values. Documented `crypto.randomUUID()` in `SyncAuthService.test.js` as intentional.
-- **B133** ✅ (GLOBAL STATE POLLUTION) — Added comments documenting intentional `globalThis.Buffer` mutation in `noBufferGlobal.test.js` (already safely scoped in try/finally). `WarpGraph.watch.test.js` fake-timer leak fixed by B131.
-
-### M14.T3 — DRY: Message Codec Template (~200 lines)
-
-- **Status:** `DONE`
-- **Size:** M | **Risk:** MEDIUM
-- **Depends on:** —
-
-**Items:**
-
-- **B134** ✅ (CODEC TRAILER TEMPLATE) — Created `src/domain/services/TrailerValidation.js` with `requireTrailer()`, `parsePositiveIntTrailer()`, `validateKindDiscriminator()`. Refactored all 4 codec decoders (Anchor, Audit, Checkpoint, Patch) to use shared helpers. Error messages byte-for-byte identical. Net -18 lines.
-- **B138** ✅ (SHARED POSITIVE INTEGER VALIDATION) — Absorbed into B134 via `parsePositiveIntTrailer()` helper.
-
-### M14.T4 — DRY: HTTP Adapter Extraction (~120 lines)
-
-- **Status:** `DONE`
-- **Size:** M | **Risk:** MEDIUM
-- **Depends on:** —
-
-**Items:**
-
-- **B135** ✅ (HTTP STREAM + ERROR HELPERS) — Created `src/infrastructure/adapters/httpAdapterUtils.js` with `MAX_BODY_BYTES`, `readStreamBody()`, and `noopLogger`. All 3 HTTP adapters import from shared module. Net -29 lines.
-
-### M14.T5 — DRY: Small Extractions Batch
-
-- **Status:** `DONE` (B136 done; B137, B139 deferred; B138 absorbed into T3)
-- **Size:** S | **Risk:** LOW
-- **Depends on:** —
-
-**Items:**
-
-- **B136** ✅ (SHARED `computeChecksum`) — Created `src/domain/utils/checksumUtils.js`. Both `BitmapIndexBuilder.js` and `StreamingBitmapIndexBuilder.js` import from shared module.
-- **B137** (SHARED FRONTIER SERIALIZATION) — DEFERRED. The two implementations differ in I/O model (sync in-memory vs async blob storage). Extraction adds complexity, not value.
-- **B138** ✅ — Absorbed into M14.T3/B134 via `parsePositiveIntTrailer()`.
-- **B139** (SHARED LAMPORT INCREMENT) — DEFERRED. Only 2 sites, semantically distinct contexts — no DRY gain.
-
-### M14.T6 — SOLID Quick Wins
-
-- **Status:** `DONE` (B140, B141 done; B142 deferred)
-- **Size:** S | **Risk:** LOW
-- **Depends on:** —
-
-**Items:**
-
-- **B140** ✅ (REMOVE DEPRECATED CLOCK ALIASES) — Deleted `PerformanceClockAdapter.js` and `GlobalClockAdapter.js`. Removed from `index.js`, `index.d.ts`, `type-surface.m8.json`, and export tests. Breaking change ships under `[Unreleased]`.
-- **B141** ✅ (BITMAPNEIGHBORPROVIDER LAZY VALIDATION) — Moved constructor throw to `_assertReady()` guard at top of `getNeighbors()` and `hasNode()`. Constructor now accepts empty `{}` for lazy init.
-- **B142** (ERROR MESSAGE STRING MATCHING) — DEFERRED. 296 instances require per-assertion human judgment. Too large for one session.
-
-### M14.T7 — SOLID Design Sketches (no implementation)
-
-- **Status:** `DONE`
-- **Size:** S | **Risk:** LOW
-- **Depends on:** —
-
-Design-only items. RFCs filed — implementation deferred to future milestones.
-
-**Items:**
-
-- **B143** ✅ (WARPGRAPH DECOMPOSITION RFC) — `docs/design/warpgraph-decomposition.md`. Three-phase extraction: SubscriptionManager → ProvenanceManager → CacheCoordinator. Reduces WarpGraph from 38 slots to 29 (24 own + 5 delegated).
-- **B144** ✅ (JOINREDUCER SPLIT RFC) — `docs/design/joinreducer-split.md`. Four-module extraction: WarpStateFactory, OpValidator, ReceiptBuilder, DiffCalculator. JoinReducer shrinks from 1096 to ~350 LOC core + re-exports.
-- **B145** ✅ (GRAPHPERSISTENCEPORT NARROWING RFC) — `docs/design/persistence-port-narrowing.md`. Phase 1: JSDoc narrowing to focused port intersections. Phase 2: Remove ConfigPort from composite (23 → 21 methods). Implementation order: B145 → B144 → B143.
-
-**M14 Gate:** All private-field test access eliminated. Fake timers properly scoped. All property tests seeded. Codec trailer template extracted. HTTP stream helpers extracted. Small DRY extractions landed. Deprecated aliases removed. `WarpGraph.noCoordination.test.js` passes. Full test suite green. Lint clean.
-
----
-
-## Milestone 11 — COMPASS II ✅ COMPLETE (v13.0.0)
-
-Archived to [COMPLETED.md](ROADMAP/COMPLETED.md#milestone-11--compass-ii).
-
----
-
-## Standalone Lane (Ongoing)
-
-26 active standalone items sorted into priority tiers. Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
-
-> Completed standalone items archived in [COMPLETED.md](ROADMAP/COMPLETED.md#standalone-lane--completed-items).
-
-### P0 — Quick Wins (unblock other work, trivial effort)
-
-All P0 items are complete on `v15`:
-
-- **B154** — `transitiveReduction()` no longer builds the redundant adjacency copy.
-- **B97** — runtime exports and type-surface manifest drift reconciled.
-- **B81** — `attachContent()` / `attachEdgeContent()` now guard against orphan blob writes.
-
-### P1 — Correctness & Test Infrastructure
-
-P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, B48 closed the lingering constructor-default optionality trap, B80 removed the checkpoint content-anchor OID accumulator, and B99 added seeded tree-construction determinism fuzzing for patch and checkpoint trees. B165, B166, and B167 are complete; B19 + B22 landed as the canonical determinism property pack.
-
-| ID   | Item                                                                                                                                                                                                                                                                                                                                                                       | Effort |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| B165 | ✅ **WARPSERVESERVICE `listen()` DEFERRED STATE MUTATION** — `listen()` now defers `_server` assignment and subscription registration until bind succeeds; on failure, cleans up subscriptions. `_onConnection` catch now sends generic `"Internal error"` instead of raw `err.message`. **File:** `src/domain/services/WarpServeService.js`                               | S      |
-| B166 | ✅ **ADAPTER CLEANUP CONTRACTS** — `NodeWsAdapter` now cleans up partial startup state, resets internal handles on shutdown, and closes idempotently. **File:** `src/infrastructure/adapters/NodeWsAdapter.js`                                                                                                                                                             | M      |
-| B167 | ✅ **SERVE TEST COVERAGE GAPS** — Added tests for: listen-failure cleanup (leaked subscriptions), double-listen guard, error sanitization (no internal detail leakage), `attachContent`/`attachEdgeContent` smoke tests through mutation pipeline. **File:** `test/unit/domain/services/WarpServeService.test.js`                                                          | S      |
-| B36  | ✅ **FLUENT STATE BUILDER FOR TESTS** — Added `createStateBuilder()` and adopted it in the state-heavy graph/GC/snapshot suites, replacing the manual OR-Set/LWW seeding patterns that had started to sprawl across tests.                                                                                                                                                 | M      |
-| B37  | ✅ **SHARED MOCK PERSISTENCE FIXTURE** — Consolidated the TrustRecordService suites onto `test/helpers/trustTestUtils.js`, removing the duplicated in-memory ref/blob/tree/commit mocks and codec stubs.                                                                                                                                                                   | S      |
-| B48  | ✅ **ESLINT BAN `= {}` CONSTRUCTOR DEFAULTS WITH REQUIRED PARAMS** — Added a repo-wide rule banning `constructor({ ... } = {})` in source files and normalized the remaining constructors to explicit option-bag destructuring inside the constructor body, so JSDoc and strict type checking no longer infer accidental optionality.                                      | S      |
-| B80  | ✅ **CHECKPOINTSERVICE CONTENT BLOB UNBOUNDED MEMORY** — `createV5()` now folds content blob OIDs into sorted anchor entries in batches instead of building one monolithic `Set` before tree serialization. Coverage now includes dedupe, deterministic anchor ordering, and load-path indifference for `_content_*` anchors.                                              | M      |
-| B99  | ✅ **DETERMINISM FUZZER FOR TREE CONSTRUCTION** — Added seeded property tests proving stable tree OIDs when `PatchBuilderV2` content anchor order is permuted internally and when `CheckpointService.createV5()` sees the same content properties in different insertion orders. From B-FEAT-2. **File:** `test/unit/domain/services/TreeConstruction.determinism.test.js` | M      |
-| B19  | ✅ **CANONICAL SERIALIZATION PROPERTY TESTS** — Seeded `fast-check` coverage now verifies `canonicalStringify()` idempotency and determinism.                                                                                                                                                                                                                              | S      |
-| B22  | ✅ **CANONICAL PARSE DETERMINISM TEST** — Repeated `TrustRecordSchema.parse()` canonicalization is now property-tested for stable output.                                                                                                                                                                                                                                  | S      |
-
-### P1b — TSC Zero Campaign Drift Audit ⚠️ HIGH PRIORITY
-
-The TSC zero campaign (PR #73) eliminated 1,707 type errors but introduced process drift that must be audited before the next release.
-
-| ID   | Item                                                                                                                                                                                                                                                                                                                                                                                              | Effort |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| B171 | **TSC CAMPAIGN AGENT-AUTHORED CODE AUDIT** — 27 files were merged via `checkout --theirs` during worktree conflict resolution without line-by-line review. Tests pass, but test coverage does not guarantee absence of subtle semantic drift (e.g. changed fallback values, widened types, reordered logic). Audit every agent-authored file diff against the pre-campaign baseline. Revert anything suspicious. | L      |
-| B172 | **RESTORE `dot-notation` VIA `@typescript-eslint/dot-notation`** — ESLint `dot-notation` was disabled globally to resolve conflict with `noPropertyAccessFromIndexSignature`. The proper fix is switching to `@typescript-eslint/dot-notation` which respects the tsconfig flag. This restores lint coverage for actual dot-notation misuse while allowing bracket access on index signatures. | S      |
-| B173 | **EFFECTSINKPORT BREAKING CHANGE HYGIENE** — `EffectSinkPort.deliver()` return type was widened from `DeliveryObservation` to `DeliveryObservation \| DeliveryObservation[]` in `index.d.ts`. This is a breaking API surface change that shipped without a `BREAKING CHANGE` commit footer. Assess downstream impact and decide: (a) revert the widening and fix MultiplexSink to unwrap, or (b) accept it and document as a breaking change for the next major version. | S      |
-| B174 | **`@git-stunts/trailer-codec` TYPE DECLARATIONS** — `getCodec()` in `MessageCodecInternal.js` returns an untyped `TrailerCodec`, forcing 6+ downstream files to cast through `unknown` intermediary. Root fix: add `index.d.ts` to the `@git-stunts/trailer-codec` package upstream. | M      |
-
-### P2 — CI & Tooling (one batch PR)
-
-`B83`, `B85`, `B57`, `B86`, `B87`, and `B168` are now merged on `main`. PR #69 also landed the issue-45 content metadata API and closed the last open GitHub issue. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall, and the hook's gate labels/quick-mode messaging now have dedicated regression coverage. The tracked backlog now stands at 26 standalone items after adding the native-vs-WASM roaring benchmark slice, and remaining P2 work still starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
-
-| ID   | Item                                                                                                                                                                                                                                                                                                                                 | Depends on | Effort |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------ |
-| B83  | ✅ **DEDUP CI `type-firewall` AND `lint` JOBS** — Folded the duplicate `lint` job into `type-firewall` and carried forward the advisory runtime `npm audit` step there, leaving one authoritative lint/type gate in CI. **File:** `.github/workflows/ci.yml`                                                                         | —          | S      |
-| B85  | ✅ **TYPE-ONLY EXPORT MANIFEST SECTION** — Added explicit `typeExports` to `type-surface.m8.json` and taught `check-dts-surface` to fail on misplaced or duplicate entries across `exports` and `typeExports`, so type-only declaration drift is validated directly instead of inferred from `kind`.                                 | B97 (P0)   | S      |
-| B57  | ✅ **AUTO-VALIDATE `type-surface.m8.json` AGAINST `index.d.ts`** — `typecheck:surface` now runs in CI, release preflight, and the local `scripts/hooks/pre-push` firewall, so declaration-surface drift is blocked before push instead of only after CI starts.                                                                                               | B97, B85   | M      |
-| B86  | ✅ **MARKDOWNLINT CI GATE** — Added `npm run lint:md` with focused `MD040` enforcement and wired it into `.github/workflows/ci.yml`, so fenced code blocks in Markdown must declare a language before CI passes.                                                                                                                                                | —          | S      |
-| B87  | ✅ **CODE SAMPLE LINTER** — Added `scripts/lint-markdown-code-samples.js` plus `npm run lint:md:code`, which extracts fenced JavaScript/TypeScript samples from Markdown and syntax-checks them with file/line diagnostics. Wired into `.github/workflows/ci.yml` and the local `scripts/hooks/pre-push` firewall, with explicit failures for malformed mixed-marker fences and unterminated JS/TS blocks. | —          | M      |
-| B88  | **MERMAID RENDERING SMOKE TEST** — parse all ` ```mermaid ` blocks with `@mermaid-js/mermaid-cli` in CI. From B-DIAG-2. **File:** `.github/workflows/ci.yml` or `scripts/`                                                                                                                                                           | —          | S      |
-| B119 | **`scripts/pr-ready` MERGE-READINESS CLI** — single tool aggregating unresolved review threads, pending/failed checks, CodeRabbit status/cooldown, and human-review count into one deterministic verdict. From BACKLOG 2026-02-27/28.                                                                                                | —          | M      |
-| B123 | **BENCHMARK BUDGETS + CI REGRESSION GATE** — define perf thresholds for eager post-commit and materialize hash cost; fail CI on agreed regression. From BACKLOG 2026-02-27.                                                                                                                                                          | —          | L      |
-| B128 | **DOCS CONSISTENCY PREFLIGHT** — automated pass in `release:preflight` verifying changelog/readme/guide updates for behavior changes in hot paths (materialize, checkpoint, sync). From BACKLOG 2026-02-28.                                                                                                                          | —          | S      |
-| B12  | **DOCS-VERSION-SYNC PRE-COMMIT CHECK** — grep version literals in .md files against `package.json`                                                                                                                                                                                                                                   | —          | S      |
-| B43  | **VITEST EXPLICIT RUNTIME EXCLUDES** — prevent accidental local runs of Docker-only suites                                                                                                                                                                                                                                           | —          | S      |
-### P3 — Type Safety & Surface
-
-No hard dependencies. Pick up opportunistically after P2.
-
-| ID  | Item                                                                                                                                                                                                                                                                    | Effort |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| B95 | ✅ **NAMESPACE EXPORT SUPPORT** — `check-dts-surface` now handles namespace declarations in `.d.ts` parsing.                                                                                                                                                            | S      |
-| B96 | **CONSUMER TEST TYPE-ONLY IMPORT COVERAGE** — exercise all exported types beyond just declaring variables. Types like `OpOutcome`, `TraversalDirection`, `LogLevelValue` aren't tested at all. From B-TYPE-1. **File:** `test/type-check/consumer.ts`                   | M      |
-| B98 | **TEST-FILE WILDCARD RATCHET** — `ts-policy-check.js` excludes test files entirely. Add separate ratchet with higher threshold or document exclusion as intentional. From B-TYPE-3. **File:** `scripts/ts-policy-check.js`                                              | S      |
-| B54 | **`typedCustom()` ZOD HELPER** — `z.custom()` without a generic yields `unknown` in JS; a JSDoc-friendly wrapper (or `@typedef`-based pattern) would eliminate verbose `/** @type {z.ZodType<T>} */ (z.custom(...))` casts across HttpSyncServer and future Zod schemas | S      |
-| B49 | ✅ **TIGHTEN `checkDeclarations` INLINE COMMENT STRIPPING** — `ts-policy-check` now strips inline declaration comments before checking for `any`, closing the false-positive gap.                                                                                       | XS     |
-| B28 | **PURE TYPESCRIPT EXAMPLE APP** — CI compile-only stub (`tsc --noEmit` on minimal TS consumer).                                                                                                                                                                         | M      |
-
-### P4 — Large-Graph Performance (forward-looking)
-
-`v15` completed the first five large-graph items in order: **B154 → B153 → B149 + B150 → B151**. The only remaining P4 item is the broader streaming traversal surface (`B152`).
-
-| ID   | Item                                                                                                                                                                                                                                                  | Depends on | Effort |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------ |
-| B153 | ✅ **`topologicalSort` LIGHTWEIGHT MODE** — discovery no longer retains full adjacency when callers do not request it.                                                                                                                                | M          |
-| B149 | ✅ **LARGE-GRAPH `levels()` — TWO-PASS STREAMING** — `levels()` now re-fetches neighbors during the DP pass instead of pinning topo adjacency.                                                                                                        | M          |
-| B150 | ✅ **LARGE-GRAPH `transitiveReduction()` — ON-DEMAND NEIGHBOR FETCH** — reduction now fetches successors on demand and avoids the duplicate adjacency structures.                                                                                     | M          |
-| B151 | ✅ **LARGE-GRAPH `transitiveClosure()` — STREAMING OUTPUT** — `transitiveClosureStream()` now yields `{ from, to }` lazily; the array-returning closure API collects from the stream for compatibility.                                               | M          |
-| B152 | **ASYNC GENERATOR TRAVERSAL API** — streaming variants of the remaining GraphTraversal algorithms (`bfsStream()`, `dfsStream()`, etc.) returning `AsyncGenerator` instead of collected arrays. Array-returning methods become sugar over `collect()`. | —          | L      |
-| B170 | **NATIVE VS WASM ROARING BENCHMARK PACK** — design hot-path workload simulations from actual bitmap usage in `BitmapIndexBuilder`, `LogicalBitmapIndexBuilder`, `StreamingBitmapIndexBuilder`, `BitmapIndexReader`, and `IncrementalIndexUpdater`; benchmark native `roaring` under heavy-load scenarios, rerun the same workloads with `roaring-wasm`, and publish a decision memo with throughput/latency deltas and operational recommendations. | —          | M      |
-
-### P5 — Features & Visualization
-
-| ID   | Item                                                                                                                                                                                                                                                                                                                                                                                                     | Effort |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| B155 | **`levels()` AS LIGHTWEIGHT `--view` LAYOUT** — `levels()` is exactly the Y-axis assignment a layered DAG layout needs. For simple DAGs, `levels()` + left-to-right X sweep could produce clean layouts without the 2.5MB ELK import. Offer `--view --layout=levels` as an instant rendering mode, reserving ELK for complex graphs. **Files:** `src/visualization/layouts/`, `bin/cli/commands/view.js` | M      |
-| B156 | **STRUCTURAL DIFF VIA TRANSITIVE REDUCTION** — compute `transitiveReduction(stateA)` vs `transitiveReduction(stateB)` to produce a compact structural diff that strips implied edges and shows only "load-bearing" changes. Natural fit for H1 (Time-Travel Delta Engine) as `warp diff --mode=structural`.                                                                                              | L      |
-| B157 | ✅ **BROWSER COMPATIBILITY (Phase 1-3)** — Make `InMemoryGraphAdapter` and `defaultCrypto` browser-safe by lazy-loading `node:crypto`/`node:stream`. New `sha1sync` utility for browser content addressing. New `browser.js` entry point and `./browser`+`./sha1sync` package exports.                                                                                                                   | M      |
-
-### P6 — Documentation & Process
-
-Low urgency. Fold into PRs that already touch related files.
-
-| ID   | Item                                                                                                                                                                                                                                                                          | Effort |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| B34  | **DOCS: SECURITY_SYNC.md** — extract threat model from JSDoc into operator doc                                                                                                                                                                                                | M      |
-| B35  | **DOCS: README INSTALL SECTION** — Quick Install with Docker + native paths                                                                                                                                                                                                   | S      |
-| B76  | **WARPGRAPH INVISIBLE API SURFACE DOCS** — add `// API Surface` block listing all 40+ dynamically wired methods with source module. Consider generating as build step. From B-AUDIT-4 (STANK). **File:** `src/domain/WarpGraph.js:451-478`                                    | M      |
-| B79  | **WARPGRAPH CONSTRUCTOR LIFECYCLE DOCS** — document cache invalidation strategy for 25 instance variables: which operations dirty which caches, which flush them. From B-AUDIT-16 (TSK TSK). **File:** `src/domain/WarpGraph.js:69-198`. **Depends on:** B143 RFC (exists)    | M      |
-| B102 | **API EXAMPLES REVIEW CHECKLIST** — add to `CONTRIBUTING.md`: each `createPatch()`/`commit()` uses own builder, async methods `await`ed, examples copy-pasteable. From B-DOC-3.                                                                                               | S      |
-| B103 | **BATCH REVIEW FIX COMMITS** — batch all review fixes into one commit before re-requesting CodeRabbit. Reduces duplicate findings across incremental pushes. From B-DX-2.                                                                                                     | XS     |
-| B104 | **MERMAID DIAGRAM CONTENT CHECKLIST** — for diagram migrations: count annotations in source/target, verify edge labels survive, check complexity annotations preserved. From B-DIAG-1.                                                                                        | XS     |
-| B129 | **CONTRIBUTOR REVIEW-LOOP HYGIENE GUIDE** — add section to `CONTRIBUTING.md` covering commit sizing, CodeRabbit cooldown strategy, and when to request bot review. From BACKLOG 2026-02-27.                                                                                   | S      |
-| B147 | **RFC FIELD COUNT DRIFT DETECTOR** — script that counts WarpGraph instance fields (grep `this._` in constructor) and warns if design RFC field counts diverge. Prevents stale numbers in `warpgraph-decomposition.md`. From B145 PR review. **Depends on:** B143 RFC (exists) | S      |
-| B169 | **ARCHIVED DOC STATUS GUARDRAIL** — add a docs checklist or automated check preventing time-sensitive branch-state wording such as `pending merge` from landing in archive/history docs like `docs/ROADMAP/COMPLETED.md`. From PR #66 review follow-up.                                | XS     |
-
-### P7 — git-cas Modernization
-
-Upgrade from `@git-stunts/git-cas` v3.0.0 to v5.3.0 and leverage new capabilities. Currently git-warp uses git-cas for the seek cache (`CasSeekCacheAdapter`) and blob attachments (`CasBlobAdapter`). The v4.x/v5.x releases add ObservabilityPort, streaming restore, CDC chunking (98.4% chunk reuse on edits), envelope encryption (DEK/KEK), key rotation, memory restore guards, and constructor validation.
-
-| ID   | Item                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Effort |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| B158 | ✅ **UPGRADE `@git-stunts/git-cas` TO v5** — bumped `^3.0.0` → `^5.3.0`. 4928 tests pass, zero regressions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | S      |
-| B159 | ✅ **CDC CHUNKING FOR SEEK CACHE** — `CasSeekCacheAdapter._initCas()` now constructs CAS with `chunking: { strategy: 'cdc' }`. ~98% chunk reuse on incremental snapshots.                                                                                                                                                                                                                                                                                                                                                                                                   | S      |
-| B160 | ✅ **BLOB ATTACHMENTS VIA CAS** — New `BlobStoragePort` + `CasBlobAdapter` provide a hexagonal abstraction for content blob storage. `PatchBuilderV2.attachContent()`/`attachEdgeContent()` use CAS (chunked, CDC-deduped, optionally encrypted) when `blobStorage` is injected; fall back to raw `persistence.writeBlob()` without it. `getContent()`/`getEdgeContent()` retrieve via `blobStorage.retrieve()` with automatic fallback to raw Git blobs for pre-CAS content. Wired through `WarpGraph`, `Writer`, and all patch creation paths. 16 new tests (4909 total). | M      |
-| B161 | ✅ **ENCRYPTED SEEK CACHE** — `CasSeekCacheAdapter` now accepts optional `encryptionKey` constructor param. When set, all `store()` and `restore()` calls pass the key to git-cas for AES-256-GCM encryption/decryption. 6 new tests (52 total).                                                                                                                                                                                                                                                                                                                            | S      |
-| B162 | ✅ **OBSERVABILITY ALIGNMENT** — new `LoggerObservabilityBridge` adapter translates git-cas `ObservabilityPort` calls (metric, log, span) into git-warp `LoggerPort` calls. `CasSeekCacheAdapter` accepts optional `logger` param; when provided, CAS operations surface through git-warp's structured logging. 7 new bridge tests + 2 adapter tests.                                                                                                                                                                                                                       | M      |
-| B163 | ✅ **STREAMING RESTORE FOR LARGE STATES** — `CasSeekCacheAdapter.get()` now prefers `cas.restoreStream()` (git-cas v4+) for I/O pipelining, accumulating chunks via async iterator. Falls back to `cas.restore()` for older git-cas. 2 new tests (58 total).                                                                                                                                                                                                                                                                                                                | M      |
-| B164 | ✅ **GRAPH ENCRYPTION AT REST** — New `patchBlobStorage` option on `WarpGraph.open()`. When a `BlobStoragePort` (e.g. `CasBlobAdapter` with encryption key) is injected, patch CBOR is written/read via CAS instead of raw Git blobs. `eg-encrypted: true` trailer marks encrypted commits. All 6 read sites + write path threaded. `EncryptionError` thrown when reading encrypted patches without key. Mixed encrypted/plain patches supported via backward-compatible fallback. 14 new tests (4969 total).                                                               | L      |
-
-### Uncategorized / Platform
-
-| ID   | Item                                                                                                                                                                                                                                                                        | Effort |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| B53  | **FIX JSR PUBLISH DRY-RUN DENO PANIC** — Deno 2.6.7 `deno_ast` panics on overlapping text changes from duplicate `roaring` import rewrites; either pin Deno version, vendor the import, or file upstream issue and add workaround. Promote if JSR publish becomes imminent. | M      |
-| B127 | **DENO SMOKE TEST** — `npm run test:deno:smoke` for fast local pre-push confidence without full Docker matrix. From BACKLOG 2026-02-25.                                                                                                                                     | S      |
-
----
-
-## Deferred (With Triggers)
-
-Items parked with explicit conditions for promotion.
-
-| ID       | Item                                                                                                          | Trigger                                                                             |
-| -------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| B4       | **WARP UI VISUALIZER**                                                                                        | Promote when RFC filed with scoped UX goals                                         |
-| B7       | **DOCTOR: PROPERTY-BASED FUZZ TEST**                                                                          | Promote when doctor check count exceeds 8                                           |
-| B16      | **`unsignedRecordForId` EDGE-CASE TESTS**                                                                     | Promote if canonical format changes                                                 |
-| B20      | **TRUST RECORD ROUND-TRIP SNAPSHOT TEST**                                                                     | Promote if trust record schema changes                                              |
-| B21      | **TRUST SCHEMA DISCRIMINATED UNION**                                                                          | Promote if superRefine causes a bug or blocks a feature                             |
-| B27      | **`TrustKeyStore` PRE-VALIDATED KEY CACHE**                                                                   | Promote when `verifySignature` appears in any p95 flame graph above 5% of call time |
-| ~~B100~~ | ✅ ~~**MAP vs RECORD ASYMMETRY**~~ — `getNodeProps()` now returns `Record<string, unknown>`. Done in v13.0.0. | ~~Promote with next major version RFC~~                                             |
-| B101     | **MERMAID `~~~` INVISIBLE-LINK FRAGILITY** — undocumented Mermaid feature for positioning. From B-DIAG-3.     | Promote if Mermaid renderer update breaks `~~~` positioning                         |
-
----
-
-## Rejected (see GRAVEYARD.md)
-
-B5, B6, B13, B17, B18, B25, B45 — rejected 2026-02-17 with cause recorded in `GRAVEYARD.md`.
-
----
-
-## Execution Order
-
-### Milestones (all complete)
-
-1. **M10 SENTINEL** — Trust + sync safety + correctness — **DONE**
-2. **M12 SCALPEL** — STANK audit cleanup (minus edge prop encoding) — **DONE**
-3. **M13 SCALPEL II** — Edge property canonicalization — **DONE** (internal; wire-format deferred by ADR 3)
-4. **M11 COMPASS II** — Developer experience — ✅ **DONE** (v13.0.0), archived
-5. **M14 HYGIENE** — Test quality, DRY extraction, SOLID quick-wins — **DONE**
-
-### Standalone Execution Waves
-
-Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
-
-#### Wave 1: Correctness (P1 finish)
-
-Complete on `v15`: **B80** and **B99**.
-
-#### Wave 2: CI & Tooling (P2, one batch PR)
-
-3. **B88, B119, B123, B128, B12, B43**
-
-Internal chain: **B97 already resolved** → B85 → B57. That chain is complete on `main`, and B168 is merged as the hook-message drift follow-up from the B87 review cycle. B123 remains the largest remaining item and may need to split out.
-
-#### Wave 3: Type Surface (P3)
-
-4. **B96, B98, B54** — batch or cherry-pick
-5. **B28** — TypeScript example app
-
-#### Wave 4: Large-Graph (P4)
-
-6. **B152** — full async generator API (B151 prerequisite is complete)
-
-#### Wave 5: Features + Docs (P5 + P6)
-
-7. **B155** — levels() as --view layout
-8. **B156** — structural diff (if H1 is in play)
-9. Docs/process items (B34, B35, B76, B79, B102–B104, B129, B147, B169) folded into related PRs
-
-#### Wave 6: git-cas Modernization (P7)
-
-10. **B158** — upgrade `@git-stunts/git-cas` to v5 (unblocks all P7 items)
-11. **B159** — CDC chunking for seek cache (quick win after B158)
-12. **B161** — encrypted seek cache
-13. **B160** — blob attachments via CAS
-14. **B162** — observability alignment
-15. **B163** — streaming restore for large states
-16. **B164** — graph encryption at rest (largest, last)
-
-### Dependency Chains
-
-```text
-B97 (done) ──→ B85 (done) ──→ B57 (done)
-               manifest        auto-validate
-
-B151 (done) ──→ B152 (P4)   closure streaming → full async generator API
-
-B36 (done) ──→ (improves velocity for determinism and future tests)
-
-B158 (P7) ──→ B159 (P7)   CDC seek cache
-          ├──→ B160 (P7)   blob attachments
-          ├──→ B161 (P7)   encrypted seek cache
-          ├──→ B162 (P7)   observability alignment
-          ├──→ B163 (P7)   streaming restore
-          └──→ B164 (P7)   graph encryption at rest
-```
-
----
-
-## Inventory
-
-### By Status
-
-| Status                | Count                             | IDs                                                                                                                                                                                 |
-| --------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Milestone (M10)**   | 7                                 | B1, B2(spec), B39, B40, B63, B64, B65                                                                                                                                               |
-| **Milestone (M11)**   | 3                                 | B2(impl), B3, B11                                                                                                                                                                   |
-| **Milestone (M12)**   | 18                                | B66, B67, B70, B73, B75, B105–B115, B117, B118                                                                                                                                      |
-| **Milestone (M13)**   | 1                                 | B116 (internal: DONE; wire-format: DEFERRED)                                                                                                                                        |
-| **Milestone (M14)**   | 16                                | B130–B145                                                                                                                                                                           |
-| **Standalone**        | 30                                | B12, B28, B34–B35, B43, B53, B54, B76, B79, B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156, B169–B174                                                      |
-| **Standalone (done)** | 62                                | B19, B22, B26, B36–B37, B44, B46, B47, B48–B52, B55, B57, B71, B72, B77, B78, B80–B87, B89–B95, B97, B99–B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B168 |
-| **Deferred**          | 7                                 | B4, B7, B16, B20, B21, B27, B101                                                                                                                                                    |
-| **Rejected**          | 7                                 | B5, B6, B13, B17, B18, B25, B45                                                                                                                                                     |
-| **Total tracked**     | **146** total; 62 standalone done |                                                                                                                                                                                     |
-
-### STANK.md Cross-Reference
-
-| STANK ID | Severity | B#   | Disposition                                                       |
-| -------- | -------- | ---- | ----------------------------------------------------------------- |
-| C1       | CRIT     | B105 | M12.T1                                                            |
-| C2       | CRIT     | B106 | M12.T1                                                            |
-| C3       | CRIT     | B109 | M12.T3                                                            |
-| C4       | CRIT     | —    | FIXED (M10)                                                       |
-| C5       | CRIT     | B110 | M12.T3                                                            |
-| C6       | CRIT     | —    | FIXED (M10)                                                       |
-| C7       | CRIT     | B111 | M12.T3                                                            |
-| C8       | CRIT     | B112 | M12.T3                                                            |
-| S1       | STANK    | B108 | M12.T2                                                            |
-| S2       | STANK    | B116 | M13 (internal: DONE via ADR 1; wire-format: DEFERRED via ADR 2/3) |
-| S3       | STANK    | B107 | M12.T1                                                            |
-| S4       | STANK    | B72  | FIXED (M10)                                                       |
-| S5       | STANK    | B66  | FIXED (M12.T4)                                                    |
-| S6       | STANK    | B113 | FIXED (M12.T4)                                                    |
-| S7       | STANK    | B114 | M12.T5                                                            |
-| S8       | STANK    | B115 | M12.T5                                                            |
-| S9       | STANK    | —    | FIXED (M10)                                                       |
-| J1       | JANK     | B68  | FIXED (M10)                                                       |
-| J2       | JANK     | B69  | FIXED (M10)                                                       |
-| J3       | JANK     | B117 | M12.T8                                                            |
-| J4       | JANK     | B117 | M12.T8                                                            |
-| J5       | JANK     | —    | FIXED (M10)                                                       |
-| J6       | JANK     | B117 | M12.T8                                                            |
-| J7       | JANK     | B117 | M12.T8                                                            |
-| J8       | JANK     | —    | FIXED (M10)                                                       |
-| J9       | JANK     | B117 | M12.T8                                                            |
-| J10      | JANK     | B117 | M12.T8                                                            |
-| J11      | JANK     | —    | FIXED (M10)                                                       |
-| J12      | JANK     | B117 | M12.T8                                                            |
-| J13      | JANK     | B117 | M12.T8                                                            |
-| J14      | JANK     | B117 | M12.T8                                                            |
-| J15      | JANK     | B117 | M12.T8                                                            |
-| J16      | JANK     | B117 | M12.T8                                                            |
-| J17      | JANK     | B117 | M12.T8                                                            |
-| J18      | JANK     | B117 | M12.T8                                                            |
-| J19      | JANK     | B117 | M12.T8                                                            |
-| T1       | TSK TSK  | B67  | M12.T9                                                            |
-| T2       | TSK TSK  | B73  | M12.T9                                                            |
-| T3–T8    | TSK TSK  | B118 | M12.T9                                                            |
-| T9       | TSK TSK  | B75  | M12.T9                                                            |
-| T10–T31  | TSK TSK  | B118 | M12.T9                                                            |
-| T32      | TSK TSK  | B74  | M12.T9                                                            |
-| T33–T38  | TSK TSK  | B118 | M12.T9                                                            |
-
-### B-Number Cross-Reference (Backlog → Roadmap)
-
-| Backlog ID           | B#   | Disposition              |
-| -------------------- | ---- | ------------------------ |
-| B-AUDIT-1 (CRIT)     | B63  | M10                      |
-| B-AUDIT-2 (CRIT)     | B66  | M12                      |
-| B-AUDIT-3 (STANK)    | B67  | M12                      |
-| B-AUDIT-4 (STANK)    | B76  | Standalone Near-Term     |
-| B-AUDIT-5 (STANK)    | B68  | M12 (DONE)               |
-| B-AUDIT-6 (JANK)     | B69  | M12 (DONE)               |
-| B-AUDIT-7 (JANK)     | B64  | M10                      |
-| B-AUDIT-8 (JANK)     | B75  | M12.T9                   |
-| B-AUDIT-9 (JANK)     | B71  | Standalone Immediate     |
-| B-AUDIT-10 (JANK)    | B80  | Standalone (DONE)        |
-| B-AUDIT-11 (JANK)    | B65  | M10                      |
-| B-AUDIT-12 (TSK TSK) | B72  | Standalone (DONE)        |
-| B-AUDIT-13 (TSK TSK) | B77  | Standalone Near-Term     |
-| B-AUDIT-14 (TSK TSK) | B73  | M12.T9                   |
-| B-AUDIT-15 (TSK TSK) | B78  | Standalone Near-Term     |
-| B-AUDIT-16 (TSK TSK) | B79  | Standalone Near-Term     |
-| B-AUDIT-17 (TSK TSK) | B74  | M12.T9                   |
-| B-CI-1               | B83  | Standalone (DONE)        |
-| B-CI-2               | B84  | CI & Tooling Pack        |
-| B-CI-3               | B85  | Standalone (DONE)        |
-| B-SURF-1             | B91  | Surface Validator Pack   |
-| B-SURF-2             | B92  | Surface Validator Pack   |
-| B-SURF-3             | B93  | Surface Validator Pack   |
-| B-SURF-4             | B94  | Surface Validator Pack   |
-| B-SURF-5             | B95  | Surface Validator Pack   |
-| B-TYPE-1             | B96  | Type Surface Pack        |
-| B-TYPE-2             | B97  | Type Surface Pack        |
-| B-TYPE-3             | B98  | Type Surface Pack        |
-| B-FEAT-2             | B99  | Standalone (DONE)        |
-| B-FEAT-3             | B100 | Deferred                 |
-| B-DOC-1              | B86  | CI & Tooling Pack        |
-| B-DOC-2              | B87  | CI & Tooling Pack        |
-| B-DOC-3              | B102 | Process                  |
-| B-CODE-1             | B70  | M12.T7                   |
-| B-CODE-2             | B81  | Standalone Near-Term     |
-| B-DX-1               | B82  | Standalone Near-Term     |
-| B-DX-2               | B103 | Process                  |
-| B-DIAG-1             | B104 | Process                  |
-| B-DIAG-2             | B88  | CI & Tooling Pack        |
-| B-DIAG-3             | B101 | Deferred                 |
-| B-REL-1              | B89  | CI & Tooling Pack (DONE) |
-| B-REL-2              | B90  | CI & Tooling Pack (DONE) |
-
----
-
-## Final Command
-
-Every milestone has a hard gate. No milestone blurs into the next.
-All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
-
-The active roadmap is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
-
-Rejected items live in `docs/method/graveyard/`. Resurrections must address the rejection note.
-Promotable pre-design intake lives in `docs/method/backlog/` with lane organization.
-This file remains the committed milestone/release inventory.
-
----
-
-## Strategic Addendum — Post-M12 Acceleration + Risk Hardening (2026-02-27)
-
-## Appendix — 2026-02-27 Vision Concepts + Concern Battle Plans
-
-Exploratory concepts captured during PR hardening. These are intentionally fully scoped so they can be promoted into numbered backlog items without re-discovery work.
-
-### Vision 1 — Index Health Snapshots (Fast Integrity Checks)
-
-**Vision:** Add per-shard health receipts (cardinality, checksum, label-bucket coverage) so index integrity checks can short-circuit to O(changed-shards) instead of full graph/index scans.
-
-**Mini-Battle Plan:**
-
-1. Define a deterministic `index-health.cbor` schema keyed by shard path and include rolling checksums over shard payload bytes.
-2. Emit health receipts in `LogicalIndexBuildService` and persist alongside index tree/checkpoint metadata.
-3. Extend `verify-index` with `--fast` mode: validate health receipts first, then deep-scan only mismatched/unknown shards.
-4. Add `--explain` output listing which shards failed and why (checksum drift, cardinality mismatch, missing bucket).
-
-**Mitigations:**
-
-- Keep health receipts advisory; never treat them as authoritative correctness proof.
-- On missing/corrupt receipt, fall back to full verification automatically.
-- Gate by feature flag until stability is proven in CI and real repos.
-
-**Defensive Tests:**
-
-- Determinism test: same logical state must produce byte-identical health receipts across repeated builds.
-- Tamper test: mutate one shard blob; `verify-index --fast` must flag exact shard mismatch.
-- Backward compatibility test: repos without receipts must still pass full verification path.
-
-### Vision 2 — Adaptive Query Planner (Provider Selection by Cost)
-
-**Vision:** Auto-select traversal/query provider (adjacency vs bitmap) per operation using lightweight selectivity and graph-density heuristics, while preserving deterministic result ordering.
-
-**Mini-Battle Plan:**
-
-1. Introduce a tiny planner cost model (estimated fanout, label filter selectivity, alive-node coverage).
-2. Instrument providers with telemetry counters (`calls`, `rows_scanned`, `cache_hits`) behind debug hooks.
-3. Add planner decisions to trace output (`query().explain()` and CLI `--explain-plan`).
-4. Ship as opt-in (`planner: "adaptive"`) before making default.
-
-**Mitigations:**
-
-- Hard fallback to current deterministic provider path on planner uncertainty/error.
-- Hysteresis thresholds to avoid plan thrashing across near-equal costs.
-- Keep planner pure (no side effects) and independently testable.
-
-**Defensive Tests:**
-
-- Equivalence tests: same query result sets and ordering across forced-adjacency, forced-bitmap, adaptive.
-- Stability tests: repeated runs on same state choose same plan unless stats change.
-- Performance regression guard: synthetic sparse/dense fixtures verify adaptive path avoids worst-case scans.
-
-### Vision 3 — Incremental Trust Anomaly Stream
-
-**Vision:** Emit structured anomaly events for sync/trust pipelines (unexpected frontier jumps, writer churn spikes, trust degradation, repeated divergence) to improve operator observability.
-
-**Mini-Battle Plan:**
-
-1. Define anomaly event schema (`type`, `writer`, `frontierDelta`, `severity`, `evidence`).
-2. Emit from `SyncController` and trust evaluators with low-cost local buffering.
-3. Add CLI surface (`git warp check --anomalies`) and optional NDJSON sink for automation.
-4. Add configurable suppression windows and dedupe keys to prevent alert floods.
-
-**Mitigations:**
-
-- Start in warn-only mode; no behavior change to sync/apply decisions.
-- Scope anomaly generation to already-computed values to avoid materialization overhead.
-- Explicitly document non-security vs security-signal semantics.
-
-**Defensive Tests:**
-
-- Replay fixtures that intentionally diverge then recover; assert anomaly sequence and severity transitions.
-- Dedupe tests: repeated identical incidents produce one event per suppression window.
-- Contract tests for NDJSON/event shape stability.
-
-### Vision 4 — Checkpoint Explainability Mode
-
-**Vision:** Attach compact human-readable checkpoint summaries (delta counts, hot labels, shard churn, top writers) to improve operational debugging and incident forensics.
-
-**Mini-Battle Plan:**
-
-1. Add optional `checkpoint-summary.cbor` artifact with bounded fields and deterministic ordering.
-2. Extend `createCheckpoint()` and CLI checkpoint commands to emit/show summaries.
-3. Add `git warp history --checkpoint-summary` and `git warp info --checkpoint-diff`.
-4. Keep summary generation off critical path via optional flag and cached intermediate stats.
-
-**Mitigations:**
-
-- Never couple replay correctness to summary presence/format.
-- Enforce strict size budget to prevent summary bloat.
-- Redact sensitive values by default (counts and IDs only).
-
-**Defensive Tests:**
-
-- Determinism tests: same input state/history yields identical summary bytes.
-- Size-limit tests: large graphs still keep summary under budget.
-- Compatibility tests: loading checkpoints ignores missing/unknown summary versions.
-
-### Vision 5 — Determinism Audit Command
-
-**Vision:** Add a first-class determinism auditor that replays equivalent patch sets under shuffled permutations and verifies stable outputs (state hash, index shard OIDs, optional property shard OIDs).
-
-**Mini-Battle Plan:**
-
-1. Implement `git warp audit-determinism` with configurable permutations and seed.
-2. Compare canonical output vectors (`stateHash`, `indexTreeOid`, shard hashes) and emit counterexample traces on mismatch.
-3. Integrate with CI for nightly determinism sweeps on curated fixtures.
-4. Add bounded quick mode for pre-push smoke checks.
-
-**Mitigations:**
-
-- Cap runtime by permutation budget and graph size.
-- Skip expensive dimensions unless requested (`--deep-index`).
-- Preserve reproducibility by always printing seed and permutation order.
-
-**Defensive Tests:**
-
-- Positive tests: known deterministic fixtures pass across random seeds.
-- Negative tests: injected nondeterministic fixture must fail and emit reproducible counterexample.
-- CLI snapshot tests for machine-readable output format.
-
-## Concern 1 — Validation Hot-Path Overhead (`JoinReducer`)
-
-**Concern:** `applyWithDiff`/`applyWithReceipt` validate ops before calling `applyOpV2`, which also validates, causing duplicated checks in internal loops.
-
-**Mini-Battle Plan:**
-
-1. Add internal `applyOpV2Validated` (or `applyOpV2(..., { skipValidate: true })`) for trusted internal paths only.
-2. Keep public `applyOpV2` behavior unchanged (always validates).
-3. Document boundary where pre-validation is required.
-
-**Mitigations:**
-
-- Use explicit internal-only function naming to avoid accidental misuse.
-- Add invariant comments in callers showing where validation already occurred.
-- Keep one canonical validation implementation to avoid drift.
-
-**Defensive Tests:**
-
-- Unit tests proving public `applyOpV2` still rejects malformed ops.
-- Internal-path tests proving no behavior change vs current logic on valid ops.
-- Micro-benchmark guard for diff/receipt loops showing measurable validation overhead reduction.
-
-## Concern 2 — GC Error Triage Blind Spot (`GCPolicy.executeGC`)
-
-**Concern:** Compaction catch path currently omits underlying exception detail, reducing observability during production triage.
-
-**Mini-Battle Plan:**
-
-1. Capture caught error (`catch (err)`) and include sanitized `originalError` (+ optional stack in debug mode) in `WarpError.context`.
-2. Preserve existing `phase` + `partialCompaction` fields.
-3. Ensure loggers redact noisy/secret payloads if stack capture enabled.
-
-**Mitigations:**
-
-- Keep stack inclusion behind debug flag to avoid log bloat.
-- Normalize non-Error throws with `String(err)`.
-- Maintain stable error code (`E_GC_COMPACT_FAILED`) for compatibility.
-
-**Defensive Tests:**
-
-- Throwing mock for node/edge compaction paths; assert context includes phase + originalError.
-- Non-Error throw test (`throw 42`) still reports human-readable cause.
-- Snapshot tests for error serialization shape.
-
-## Concern 3 — Stale Review-Thread Triage Friction
-
-**Concern:** Automated review comments on older commits generate manual overhead and risk unnecessary code churn.
-
-**Mini-Battle Plan:**
-
-1. Build `scripts/pr-review-triage.sh` to summarize unresolved/outdated threads and comment-to-HEAD drift.
-2. Add maintainer docs with a strict stale-thread handling workflow.
-3. Add optional CI artifact posting thread status summary to PR checks.
-
-**Mitigations:**
-
-- Require evidence references (file+line+test output) before resolving stale threads.
-- Keep script read-only by default; no automated thread resolution.
-- Fail-safe: when uncertainty exists, request clarification instead of auto-resolve.
-
-**Defensive Tests:**
-
-- Script fixture tests on mocked GraphQL payloads (resolved/outdated mixes).
-- Golden output tests for deterministic summary formatting.
-- Smoke test ensuring script exits non-zero on API/auth failures.
-
-## Concern 4 — Documentation Drift: `ROADMAP.md` vs Backlog
-
-The roles are now split explicitly:
-
-- `ROADMAP.md` owns committed milestone/release inventory
-- `docs/method/backlog/` owns promotable pre-design items (lane-organized)
-- `docs/design/` owns active cycle design docs
-
-Backlog items should be promoted into `docs/design/` before tests and
-implementation begin.
-
-## Appendix — Horizon Visions and Defensive Campaigns (2026-02-27)
-
-This section appends forward-looking concepts and risk controls discovered while implementing B114/B115.
-These are intentionally detailed, but remain unnumbered candidates until explicitly promoted into milestone inventory.
-
-### Innovation Concept I1 — Incremental Canonical State Hashing
-
-**Vision**
-Eliminate full canonical sort/serialize/hash on every clean-cache write. Move from O(V+E+P) hash recompute to O(changed-entities) incremental hash maintenance, while preserving deterministic state hash parity with `computeStateHashV5()`.
-
-**Why this matters**
-Diff-aware eager post-commit reduced index rebuild cost, but hash recomputation can still dominate large state commits. This is now the next hot-path bottleneck.
-
-**Mini battle plan**
-
-1. Add a feature-gated `StateHashAccumulator` service with deterministic per-collection digests (`nodes`, `edges`, `props`) and a final root digest composition.
-2. Extend patch-apply/reducer output to emit hash-relevant delta facts in stable sorted form.
-3. Thread optional accumulator updates through `_onPatchCommitted` and `_setMaterializedState`.
-4. On divergence, cache miss, or migration boundaries, fall back to full `computeStateHashV5()` and re-seed accumulator.
-5. Ship shadow mode first: compute both hashes and assert equality in tests and optionally in debug logs.
-
-**Mitigations**
-
-- Keep full-hash fallback always available and default-enabled under a kill switch.
-- Scope rollout to non-audit mode first, then widen after parity confidence is proven.
-- Persist no new on-disk format until parity and determinism are validated over replay fixtures.
-
-**Defensive tests**
-
-- Determinism property test: randomized patch order producing equivalent state yields identical incremental hash.
-- Differential test: for every patch fixture, `incrementalHash === computeStateHashV5(fullState)`.
-- Replay/resume test: checkpoint load + incremental updates produce same hash as cold materialize.
-- Kill-switch test: disabling accumulator always forces full-hash behavior.
-- Corruption test: injected accumulator mismatch triggers full recompute + warning.
-
-### Innovation Concept I2 — Memoized Ancestry Cache Across Materialize/Sync Cycles
-
-**Vision**
-Introduce a bounded, frontier-aware ancestry memoization layer so repeated `_isAncestor()` checks within the same frontier epoch become O(1) lookups, reducing repeated DAG walks in sync and checkpoint replay flows.
-
-**Why this matters**
-B115 removes per-patch validation overhead, but ancestry checks still occur in multiple call paths and can recur under repeated sync exchanges.
-
-**Mini battle plan**
-
-1. Add `AncestryCache` keyed by `(writerId, ancestorSha, descendantSha, frontierFingerprint)`.
-2. Wire cache lookup into `_relationToCheckpointHead` and sync divergence pre-check paths.
-3. Add LRU + epoch invalidation on frontier movement.
-4. Emit cache metrics (`hits`, `misses`, `evictions`) in debug observability hooks.
-5. Add an emergency bypass option to disable cache for diagnostics.
-
-**Mitigations**
-
-- Tie cache validity to frontier fingerprint to prevent stale ancestry answers.
-- Never cache errors from storage-layer failures.
-- Use strict memory cap and eviction policy to avoid unbounded growth.
-
-**Defensive tests**
-
-- Correctness test: cached answers match uncached `_isAncestor()` over randomized chains/forks.
-- Invalidation test: frontier update invalidates stale entries.
-- Stress test: large writer set with churn remains within configured memory bounds.
-- Failure-path test: transient `getNodeInfo` errors do not poison cache.
-
-### Innovation Concept I3 — Audit-Mode Diff Synthesis
-
-**Vision**
-Retain audit receipts and still unlock incremental index updates by synthesizing `PatchDiff` from applied outcomes when audit mode is enabled.
-
-**Why this matters**
-Current audit path uses `diff: null`, which is safe but forfeits B114 hot-path gains for audit-enabled deployments.
-
-**Mini battle plan**
-
-1. Define a deterministic adapter from receipt outcomes to `PatchDiff` (or a subset sufficient for index updates).
-2. Implement `applyWithReceiptAndDiff` or companion translator utility.
-3. Gate rollout behind an audit-performance flag.
-4. Validate parity by comparing synthesized diff effects against full rebuild results.
-5. Expand to default-on after burn-in.
-
-**Mitigations**
-
-- If translation ambiguity exists, fall back to `diff: null` for that patch.
-- Keep audit commit semantics unchanged; performance optimization must be side-effect free.
-- Add structured warning when synthesis is skipped.
-
-**Defensive tests**
-
-- Equivalence test: audit-mode synthesized diff path produces identical logical index/query answers as full rebuild.
-- Partial-diff fallback test: unsupported receipt shapes trigger safe full rebuild.
-- Regression test: audit receipt persistence remains byte-for-byte compatible.
-
-### Innovation Concept I4 — Performance Budget Guardrails in CI
-
-**Vision**
-Turn hot-path performance expectations into enforceable, trend-aware CI checks to prevent accidental regressions in materialize, eager commit, and ancestry validation.
-
-**Why this matters**
-Performance fixes are vulnerable to silent regressions without explicit budgets and telemetry snapshots.
-
-**Mini battle plan**
-
-1. Add benchmark harness with stable fixture generator and repeat-run median reporting.
-2. Capture baseline medians in repository-managed budget files.
-3. Add CI job that flags regressions above tolerance thresholds.
-4. Add local dev command to run quick smoke benchmarks before push.
-5. Publish historical trend artifact per PR for review.
-
-**Mitigations**
-
-- Use percentile/median thresholds to reduce flakiness.
-- Separate noisy micro-benchmarks from deterministic scenario benchmarks.
-- Allow explicit, reviewed budget updates when justified.
-
-**Defensive tests**
-
-- Harness self-test: fixture generation is deterministic.
-- Budget parser test: malformed budget files fail loudly.
-- CI integration test: intentional slowdown fixture triggers regression failure.
-
-### Innovation Concept I5 — `warp doctor` Integrity and Performance Diagnostics
-
-**Vision**
-Provide a first-class diagnostics command that reports health and readiness: frontier consistency, checkpoint integrity, index staleness, ancestry anomalies, and GC/checkpoint recommendations.
-
-**Why this matters**
-Operators need fast, explainable diagnosis before data repair, performance tuning, or migration decisions.
-
-**Mini battle plan**
-
-1. Define command contract and structured output schema (`--json` + human mode).
-2. Implement read-only checks for refs/frontier/checkpoint/index shard metadata.
-3. Add actionable recommendations with explicit confidence levels.
-4. Add remediation pointers (`runGC`, `createCheckpoint`, `materialize`) without mutating by default.
-5. Add machine-consumable exit codes for CI/preflight integration.
-
-**Mitigations**
-
-- Keep default mode non-destructive.
-- Mark uncertain checks as warnings, not hard failures.
-- Include command runtime budget to avoid pathological scans by default.
-
-**Defensive tests**
-
-- Golden-output tests for both human and JSON modes.
-- Corruption fixture tests (missing blobs, mismatched shard frontier) emit expected findings.
-- Exit-code contract tests for clean/warn/fail states.
-
-### Innovation Concept I6 — Frontier-Aware Query Result Cache
-
-**Vision**
-Cache expensive read/query results keyed by frontier fingerprint + query signature + observer projection, with strict invalidation rules to preserve correctness.
-
-**Why this matters**
-Read-heavy workloads repeatedly recompute equivalent traversals even when frontier is unchanged.
-
-**Mini battle plan**
-
-1. Introduce cache interface and canonical query signature generation.
-2. Bind cache entries to frontier fingerprint and observer config hash.
-3. Integrate with query builder execution path as optional optimization layer.
-4. Add metrics and hit-rate instrumentation.
-5. Roll out to specific query families first (neighbors/path/property-heavy).
-
-**Mitigations**
-
-- Hard invalidate on any frontier movement.
-- Include projection/redaction config in key to avoid cross-view leakage.
-- Cap memory and provide TTL plus LRU eviction.
-
-**Defensive tests**
-
-- Correctness test: cached and uncached query outputs match across varied projections.
-- Invalidation test: commit advances frontier and invalidates stale entries.
-- Isolation test: different observer configs never share cached results.
-- Memory test: eviction policy bounds retained entries.
-
-### Concern Hardening C1 — Schema 4 Checkpoint Ancestry Validation Gap
-
-**Concern**
-`_validatePatchAgainstCheckpoint()` currently gates only schema 2/3 checkpoints, while schema 4 checkpoints are used in replay paths. This can unintentionally bypass ancestry validation for schema 4.
-
-**Mitigation vision**
-Unify checkpoint ancestry semantics across all active checkpoint schema versions (2/3/4), with explicit compatibility handling for future versions.
-
-**Mini battle plan**
-
-1. Update `_validatePatchAgainstCheckpoint` gate to include schema 4.
-2. Add explicit comment and helper (`isCheckpointSchemaWithFrontier`) to avoid future drift.
-3. Add coverage for schema 4 acceptance/rejection branches.
-4. Add one migration-compatibility test to ensure schema 2/3 behavior remains unchanged.
-
-**Defensive tests**
-
-- Schema 4 `ahead` case passes.
-- Schema 4 `same` and `behind` cases reject with backfill error.
-- Schema 4 `diverged` case rejects with fork error.
-- Mixed-schema replay fixture verifies no behavior regression.
-
-### Concern Hardening C2 — Remaining Full-Hash Hot Path Cost
-
-**Concern**
-Even with diff-aware view updates, `_setMaterializedState()` computes canonical state hash from full state each call, preserving O(V+E+P) work on eager writes.
-
-**Mitigation vision**
-Stage incremental hash support with strict parity checks and safe rollback to full recomputation.
-
-**Mini battle plan**
-
-1. Instrument and log current hash cost distribution under representative fixtures.
-2. Land incremental hash accumulator behind feature flag.
-3. Run shadow parity in CI and local stress tests.
-4. Flip default only after parity and performance gates hold across multiple releases.
-
-**Defensive tests**
-
-- Benchmark regression tests around hash-heavy workloads.
-- Differential hash parity tests across random patch streams.
-- Feature-flag toggling tests proving behavior equivalence.
-
-### Concern Hardening C3 — Tip-Only Validation Assumes Chain Integrity
-
-**Concern**
-B115 validates ancestry once at writer tip. This is valid under linear chain assumptions, but chain-order integrity should be asserted defensively to catch storage anomalies/corruption.
-
-**Mitigation vision**
-Preserve tip-only performance while adding optional integrity assertions that verify contiguous parent linkage for loaded writer patch ranges.
-
-**Mini battle plan**
-
-1. Add optional integrity checker (`assertContiguousWriterChain`) for debug/preflight modes.
-2. Run integrity assertion in targeted contexts: checkpoint replay and `warp doctor`.
-3. Decide runtime default: off in hot path, on in diagnostics/CI corruption suites.
-4. Emit actionable diagnostics when chain discontinuity is detected.
-
-**Defensive tests**
-
-- Positive chain test: contiguous range passes with zero warnings.
-- Discontinuity test: injected parent mismatch throws/flags deterministic error.
-- Missing commit metadata test: checker fails closed with explicit reason.
-- Performance test: integrity checker remains disabled in default hot path.
-
-### Suggested Sequencing (If Promoted)
-
-1. Start with concern hardening C1 (low effort, high correctness leverage).
-2. Implement I4 (performance guardrails) before deeper performance refactors.
-3. Land I2 ancestry cache and C3 integrity diagnostics in parallel tracks.
-4. Proceed with I1 incremental hash and then I3 audit diff synthesis.
-5. Add I5 (`warp doctor`) and I6 query caching once observability and guardrails are in place.
-
----
-
-## Horizon Appendix — Post-Cooldown Concept + Concern Pack (2026-02-27)
-
-This appendix is intentionally additive and non-disruptive to current milestone accounting.
-These entries are drafted as fully-fleshed candidates for prioritization after review cooldown.
-
-### Concept Vision Pack
-
-#### H1 — Time-Travel Delta Engine (`warp diff --ceiling A --ceiling B`)
-
-**Vision:**
-Turn seek/materialize ceilings into a first-class forensic primitive. Users should be able to ask, "what changed between causal horizons A and B?" and get deterministic node/edge/property deltas, optional provenance attribution, and machine-readable output for automation.
-
-**Mini battle plan:**
-
-1. Contract phase:
-
-- Define CLI UX: `warp diff --ceiling <a> --ceiling <b> [--json|--ndjson] [--summary|--full]`.
-- Define output schema: `{addedNodes, removedNodes, addedEdges, removedEdges, changedProps}` with stable ordering.
-- Define ceiling semantics for edge cases: `A==B`, `A=0`, missing writers, pinned frontiers.
-
-2. MVP phase:
-
-- Reuse existing materialization path with two state snapshots and deterministic diffing.
-- Add fast path for `A==B` and zero delta.
-- Return compact summary by default; full payload via explicit flag.
-
-3. Hardening phase:
-
-- Integrate optional provenance slices (`--with-provenance`) for changed items.
-- Add guardrails for large output (`--max-items`, truncation marker).
-- Add performance budget checks in CI for medium-sized graphs.
-
-**Defensive tests:**
-
-- Property test: `diff(A, A)` is always empty.
-- Consistency test: `apply(diff(A,B), stateA) == stateB` for supported operations.
-- Determinism test: repeated diff calls produce byte-identical JSON after canonical sort.
-- Multi-writer edge test: concurrent add/remove/prop updates respect CRDT semantics.
-
-**Primary risks:**
-
-- Memory pressure from dual-state materialization on large graphs.
-- User confusion between structural and semantic/provenance diff modes.
-
----
-
-#### H2 — Trust-Aware Query Mode
-
-**Vision:**
-Make trust policy operational at query time, not just verification time. Users can choose whether traversal/query results include all data, only trusted-writer data, or annotated data with trust confidence.
-
-**Mini battle plan:**
-
-1. Contract phase:
-
-- Define modes: `--trust-mode off|annotate|enforce`.
-- Define filtering semantics: writer-level inclusion/exclusion and fallback behavior when trust is degraded.
-- Define payload shape for annotations (`writerId`, `trustStatus`, `reasonCode`).
-
-2. MVP phase:
-
-- Evaluate trust once per query request, cache per-request assessment.
-- Apply writer-based filtering in traversal/query result assembly.
-- Emit warnings when mode is `annotate` and untrusted contributors are present.
-
-3. Hardening phase:
-
-- Add explicit degraded state handling (`trust chain unreadable` != `not configured`).
-- Add policy knobs for mixed-trust graphs.
-- Add metrics for trust-filter impact (dropped results, affected subgraphs).
-
-**Defensive tests:**
-
-- Contract tests for each mode and failure state (configured, not_configured, degraded/error).
-- Regression tests ensuring `off` mode behavior matches current baseline exactly.
-- Security test: enforce mode must never leak untrusted-writer artifacts.
-- Snapshot tests for annotated output payload.
-
-**Primary risks:**
-
-- Breaking user expectations if implicit filtering occurs without clear diagnostics.
-- Increased latency if trust evaluation repeats unnecessarily.
-
----
-
-#### H3 — Provenance Heatmap + Causal Cone Visualizer
-
-**Vision:**
-Provide immediate intuition about write hotspots and causal dependency depth. Given a target node/edge/property, render a causal cone and highlight churn intensity to support debugging, incident response, and evolution analysis.
-
-**Mini battle plan:**
-
-1. Contract phase:
-
-- Define API/CLI: `warp provenance heatmap`, `warp provenance cone --target ...`.
-- Define visualization payload schema (nodes, edges, weights, timestamps).
-- Define deterministic layout seed handling for reproducible diagrams.
-
-2. MVP phase:
-
-- Use existing provenance index to compute cone and patch frequency.
-- Export JSON + optional Mermaid/HTML render.
-- Provide summary stats: depth, fan-in, high-churn nodes.
-
-3. Hardening phase:
-
-- Add sampling for very large cones.
-- Add filters by writer/time range/operation type.
-- Add "explain this value" one-shot workflow for support/debug.
-
-**Defensive tests:**
-
-- Cone correctness tests against hand-built miniature patch histories.
-- Stability tests: same input and seed yields same output ordering/layout hints.
-- Performance tests on synthetic high-fan-in graphs.
-- Fuzz tests for malformed target identifiers.
-
-**Primary risks:**
-
-- Large cone explosion without sampling limits.
-- Visualization layer becoming a maintenance burden if tightly coupled to core.
-
----
-
-#### H4 — Checkpoint Policy Advisor
-
-**Vision:**
-Shift checkpoint tuning from guesswork to measured policy recommendations. Advisor inspects patch cadence, materialize timings, and cache behavior to propose `checkpointPolicy.every` and optional GC cadence.
-
-**Mini battle plan:**
-
-1. Contract phase:
-
-- Define advisor command: `warp checkpoint advise [--window <n>]`.
-- Define output: recommended policy, confidence, expected gains, tradeoffs.
-- Define telemetry inputs and privacy boundaries.
-
-2. MVP phase:
-
-- Collect/aggregate core signals already emitted by timing/logger paths.
-- Compute heuristic recommendation bands (conservative/balanced/aggressive).
-- Expose dry-run simulation: "what if policy X?".
-
-3. Hardening phase:
-
-- Add workload profiles (read-heavy, write-heavy, mixed).
-- Add guardrails to avoid over-checkpointing thrash.
-- Store policy-change audit trail.
-
-**Defensive tests:**
-
-- Scenario tests with synthetic workloads and expected recommendation ranges.
-- Regression tests: no recommendation when evidence quality is low.
-- Safety tests: advisor never suggests invalid/degenerate values.
-- Determinism tests for same telemetry window.
-
-**Primary risks:**
-
-- Overfitting heuristics to narrow workload assumptions.
-- Recommendation trust erosion if confidence scoring is opaque.
-
----
-
-#### H5 — Conflict Simulator Mode
-
-**Vision:**
-Provide a deterministic sandbox for modeling concurrent writer behavior before production rollout. Teams can simulate interleavings, inspect receipts/conflicts, and validate convergence guarantees under stress.
-
-**Mini battle plan:**
-
-1. Contract phase:
-
-- Define scenario format (`writers`, `ops`, `interleavings`, `seed`).
-- Define outputs: final state hash, per-op receipts, conflict report.
-- Define replay compatibility with real patch format.
-
-2. MVP phase:
-
-- Build runner that executes scenarios through existing reducer semantics.
-- Add deterministic seed-based interleaving generator.
-- Emit machine-readable artifacts for CI diffing.
-
-3. Hardening phase:
-
-- Add canned scenarios for known footguns.
-- Add minimization helper to shrink failing scenarios.
-- Add compatibility mode for historical schema versions.
-
-**Defensive tests:**
-
-- Convergence tests: multiple interleavings produce equivalent final state.
-- Differential tests: simulator output matches live engine replay output.
-- Flake resistance tests with repeated seeded runs.
-- Input validation tests for malformed scenarios.
-
-**Primary risks:**
-
-- Divergence between simulator and real pipeline if abstractions drift.
-- Misleading confidence if scenarios are too simplistic.
-
----
-
-#### H6 — Offline Bundle Export/Import for Air-Gapped Sync
-
-**Vision:**
-Enable secure graph/trust transfer where network sync is unavailable. Bundle includes selected refs, trust records, integrity manifests, and optional signatures; import verifies before applying.
-
-**Mini battle plan:**
-
-1. Contract phase:
-
-- Define bundle manifest format and signature envelope.
-- Define CLI: `warp bundle export` / `warp bundle import --verify`.
-- Define partial export scope (graph-only, trust-only, checkpoint-only).
-
-2. MVP phase:
-
-- Implement deterministic packing of refs + blobs + metadata.
-- Implement verification pipeline (hashes, trust chain integrity, manifest schema).
-- Add dry-run import report.
-
-3. Hardening phase:
-
-- Add chunking/streaming for large bundles.
-- Add compatibility matrix across versions.
-- Add replay protection and origin identity metadata.
-
-**Defensive tests:**
-
-- Tamper tests: modified bundle must fail verification deterministically.
-- Round-trip tests: export→import yields identical frontier/state hash.
-- Backward compatibility tests across supported schema versions.
-- Large-bundle stress tests.
-
-**Primary risks:**
-
-- Security footguns in partially verified imports.
-- Operational complexity for version negotiation.
-
----
-
-#### H7 — Query Plan Telemetry + Explain Mode
-
-**Vision:**
-Introduce explainability for query/traversal execution: which index path was used, when fallback happened, and where time/memory were spent. Reduce "why is this slow?" debugging time.
-
-**Mini battle plan:**
-
-1. Contract phase:
-
-- Define `--explain` payload for query/traverse commands.
-- Define stable telemetry fields (indexUsed, fallbackReason, neighborFetchCount, cacheHits).
-- Define redaction policy for sensitive IDs in logs.
-
-2. MVP phase:
-
-- Instrument traversal/query engine at key decision points.
-- Emit explain report in JSON/NDJSON.
-- Add summary in human-readable CLI output.
-
-3. Hardening phase:
-
-- Add per-phase timings and warning thresholds.
-- Add regression benchmark gates to detect performance drift.
-- Add trace correlation IDs for distributed workflows.
-
-**Defensive tests:**
-
-- Snapshot tests for explain payload schema stability.
-- Unit tests for fallback reason classification.
-- Regression tests that telemetry collection does not alter behavior.
-- Overhead tests to cap instrumentation cost.
-
-**Primary risks:**
-
-- Telemetry overhead in hot loops.
-- Schema churn breaking downstream tooling.
-
----
-
-#### H8 — Kairos Timeline Command (Branch Event Geometry)
-
-**Vision:**
-Expose branch-event structure directly: fork/join timelines, writer divergence windows, and convergence points. Make Chronos (linear patch ticks) and Kairos (branch structure) both inspectable in one tool.
-
-**Mini battle plan:**
-
-1. Contract phase:
-
-- Define output model for event graph: nodes (events), edges (causal/branch links), annotations.
-- Define CLI: `warp timeline kairos [--from ... --to ... --format mermaid|json]`.
-- Define ordering rules for stable output across runs.
-
-2. MVP phase:
-
-- Build event graph from writer refs + ancestry relationships.
-- Render textual summary + JSON graph payload.
-- Include quick metrics (fork count, max divergence depth, mean convergence latency).
-
-3. Hardening phase:
-
-- Add filters by writer/subgraph/time.
-- Add compact mode for CI/report integration.
-- Integrate with provenance cone command for cross-navigation.
-
-**Defensive tests:**
-
-- Determinism tests for event ordering and IDs.
-- Correctness tests on synthetic fork/join histories.
-- Performance tests on long multi-writer histories.
-- Output parser tests for Mermaid and JSON modes.
-
-**Primary risks:**
-
-- Ambiguity in representing complex multi-parent histories.
-- User overload if visuals are too dense by default.
-
----
-
-### Concern Hardening Pack
-
-#### C-H1 — Fragile Error-String Matching for Trust Ref Absence
-
-**Concern:**
-`readRecords()` currently infers "ref missing" by substring matching on error messages.
-This is adapter-dependent and brittle under localization or message wording changes.
-
-**Mitigation strategy:**
-
-1. Introduce typed persistence error codes (`E_REF_NOT_FOUND`, `E_REF_IO`, etc.).
-2. Update trust read path to branch on error code, not string text.
-3. Keep temporary compatibility shim with explicit TODO removal milestone.
-
-**Defensive tests:**
-
-- Adapter contract tests that assert standardized error codes.
-- Trust read tests with localized/custom error messages to verify no false classification.
-- Regression tests for existing adapters to ensure old behavior remains correct until shim removal.
-
-**Exit criteria:**
-No trust-path logic depends on raw error message text for control flow.
-
----
-
-#### C-H2 — Public Materialization Freeze Contract Ambiguity
-
-**Concern:**
-Top-level frozen return objects changed identity semantics. Callers may assume returned `state` is the same reference as internal cache and mutate/compare by identity.
-
-**Mitigation strategy:**
-
-1. Document explicit public contract: shallow-frozen wrapper, internal substructures may share references.
-2. Add helper API for safe mutable clone when needed (`materializeMutable()` or utility clone call guidance).
-3. Add compatibility notes in migration docs/changelog.
-
-**Defensive tests:**
-
-- Contract tests asserting returned state is frozen and top-level identity differs from `_cachedState`.
-- Tests ensuring readonly behavior triggers mutation failures in strict mode.
-- Tests proving internal cache is not corrupted by attempted public mutation.
-
-**Exit criteria:**
-No ambiguity in docs/tests around identity and mutability guarantees of public materialization APIs.
-
----
-
-#### C-H3 — `CachedValue` Null-Value Semantics
-
-**Concern:**
-`_isValid()` treats `null` as "no cache," so legitimate `null` compute results never cache as valid entries.
-This can cause repeated recompute churn and unexpected behavior.
-
-**Mitigation strategy:**
-
-1. Introduce explicit `hasComputedValue` sentinel independent from `_value` content.
-2. Preserve existing API shape while allowing `null` to be cached as a valid payload.
-3. Add migration note if any behavior changes for callers that used null as "absent".
-
-**Defensive tests:**
-
-- Test that `compute -> null` is cached within TTL and not recomputed.
-- Test invalidate still clears sentinel and forces recompute.
-- Test serialization/metadata paths behave correctly for null payloads.
-
-**Exit criteria:**
-Cache validity is based on cache state, not payload truthiness/value class.
-
----
-
-#### C-H4 — Trust Error Payload Assembly Duplication
-
-**Concern:**
-Verifier and CLI build similar trust error payloads independently.
-This creates drift risk in `source`, `reasonCode`, and response shape.
-
-**Mitigation strategy:**
-
-1. Extract a shared helper factory for trust error/not-configured payload builders.
-2. Make source/reason semantics centralized and table-driven.
-3. Add schema assertion at boundaries to prevent accidental divergence.
-
-**Defensive tests:**
-
-- Golden tests asserting verifier and CLI produce identical payload structure for equivalent error conditions.
-- Schema conformance tests on all trust payload variants.
-- Snapshot tests to detect accidental field drift.
-
-**Exit criteria:**
-Single-source trust payload composition for common states; CLI and service outputs remain shape-compatible by construction.
-
----
-
-### Recommended Sequencing (when cooldown ends)
-
-1. `C-H1` and `C-H4` first (trust correctness and consistency foundation).
-2. `C-H2` next (contract/documentation hardening around materialization freeze behavior).
-3. `C-H3` next (semantic cleanup of cache null handling).
-4. `H1` and `H7` as first feature wave (high practical operator value with moderate implementation risk).
-5. `H2` and `H5` as second feature wave (policy + simulation leverage).
-6. `H3`, `H4`, `H8`, then `H6` based on bandwidth and ecosystem demand.
-
----
+# ROADMAP - @git-stunts/git-warp
+
+Last reconciled: 2026-06-04
+
+GitHub Issues are the live Method tracker. This roadmap is an issue-indexed planning view over the current open issue set, not a second backlog. If this document and GitHub disagree, GitHub wins and this document should be regenerated or corrected.
+
+The major-version ladder follows VISION: v18 makes the graph substrate honest, v19 makes observer/runtime doctrine honest, v20 makes slice-first streaming execution ordinary, and v21 makes distributed/plural admission semantics runtime-real.
+
+## Snapshot
+
+| Metric | Count |
+| --- | ---: |
+| Open GitHub issues indexed | 430 |
+| `lane:bad-code` maintenance issues | 216 |
+| `lane:cool-ideas` enhancement issues | 110 |
+| `lane:release` issues | 22 |
+| Blocked issues | 41 |
+| Unlabeled issues | 1 |
+
+## Release Assignment Rules
+
+- Issues with `lane:release` and a version lane are hard release-plan issues for that major.
+- `release-home:v17.0.0` is treated as residual maintenance carried forward into v18.x, not as a new v17 release.
+- `release-home:v18.0.0` issues that are not in `lane:release` are treated as v18.x hardening unless their feature clearly belongs later.
+- Issues without a release-home label are assigned by feature area: observer work to v19, streaming/materialization work to v20, merge/strand/worldline work to v21, and docs/testing/tooling/runtime-boundary hardening to v18.x.
+- This is a proposed roadmap. Changing a GitHub issue label is the authoritative way to move an issue between release slots.
+
+## Proposed Release Buckets
+
+| Release Slot | Count | Planning Intent |
+| --- | ---: | --- |
+| v18.0.0 | 4 | Ship only after first-use Optics, bounded-memory public paths, content cutover truth, and release operation evidence are coherent. |
+| v18.0.x | 165 | Patch/minor repair lane for docs, testing quality, release tooling, dependency hygiene, and old v17 residual maintenance that should not block the v18.0.0 tag unless directly tied to a release gate. |
+| v18.1.0 | 86 | Pay down API capability, runtime-boundary, trie, codec, DTO, and type-model sludge after the v18 public line is honest. |
+| v18.2.0 | 5 | Tighten command coverage, issue triage, public docs automation, and package-surface hygiene without expanding the runtime ontology. |
+| v19.0.0 | 30 | Make observer doctrine runtime-real beyond the v18 bounded public-path gate: observer-readable receipts, support rules, plans, envelopes, fragments, and witnessed suffix shells. |
+| v19.1.0 | 30 | Advance trust/security contracts, sync authentication, protocol alignment, and policy surfaces once observer boundaries are stable enough to protect. |
+| v19.2.0 | 6 | Package extraction, multi-package release, MCP, and integration architecture that should follow the v19 observer model rather than constrain it prematurely. |
+| v20.0.0 | 18 | Make slice-first, bounded, streaming read/write execution ordinary runtime behavior rather than special-case gate evidence. |
+| v20.1.0 | 23 | Reshape indexes, materialization controllers, async traversal, and diagnostics around bounded support instead of full-state residency. |
+| v20.2.0 | 22 | Handle browser, visualization, and TTD-facing surfaces after streaming reads and indexes are dependable. |
+| v21.0.0 | 36 | Make distributed/plural admission semantics runtime-real: merge classifiers, braid collapse, local sites, and strand/worldline merge nouns. |
+| v21.1.0 | 1 | Stabilize WESLEY and Continuum contract surfaces after the merge runtime nouns are no longer speculative. |
+| future | 4 | Issues without enough signal for a release slot. They stay visible here until labels or designs make a sharper call possible. |
+
+## Current Label Counts
+
+### Lanes
+
+| Label | Count |
+| --- | ---: |
+| lane:bad-code | 216 |
+| lane:cool-ideas | 110 |
+| lane:up-next | 43 |
+| lane:backlog-root | 34 |
+| lane:release | 22 |
+| lane:v19.0.0 | 11 |
+| lane:inbox | 4 |
+| lane:v18.0.0 | 4 |
+| lane:v21.0.0 | 4 |
+| lane:v20.0.0 | 3 |
+
+### Types
+
+| Label | Count |
+| --- | ---: |
+| type:maintenance | 216 |
+| type:enhancement | 213 |
+
+### Release Home Labels
+
+| Label | Count |
+| --- | ---: |
+| release-home:v17.0.0 | 164 |
+| release-home:v18.0.0 | 22 |
+| release-home:v20.0.0 | 14 |
+| release-home:v19.0.0 | 13 |
+| release-home:v21.0.0 | 7 |
+
+### Feature Labels
+
+| Label | Count |
+| --- | ---: |
+| feature:testing-quality | 113 |
+| feature:merge-strands-worldlines | 50 |
+| feature:runtime-boundaries | 36 |
+| feature:api-capabilities | 35 |
+| feature:docs-dx | 34 |
+| feature:sync-trust-security | 30 |
+| feature:observer-admission-runtime | 27 |
+| feature:tooling-release | 27 |
+| feature:materialization-query-index | 26 |
+| feature:browser-viz | 22 |
+| feature:trie-state-storage | 16 |
+| feature:graph-model-substrate | 4 |
+| feature:btr-provenance-boundary | 1 |
+| feature:materialization-snapshotting | 1 |
+| feature:materialized-index | 1 |
+| feature:protocol-alignment | 1 |
+| feature:v17-optics-checkpoint-tail | 1 |
+
+## Roadmap Tables
+
+Each issue appears once in the proposed release tables below. Columns preserve the current GitHub labels that drove the assignment.
+
+### v18.0.0 - Public Release Gate
+
+Ship only after first-use Optics, bounded-memory public paths, content cutover truth, and release operation evidence are coherent.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#547](https://github.com/git-stunts/git-warp/issues/547) | Optics public API closeout | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
+| [#549](https://github.com/git-stunts/git-warp/issues/549) | Bounded-memory large-graph product gate | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
+| [#550](https://github.com/git-stunts/git-warp/issues/550) | Content attachment-plane cutover | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, release |
+| [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
+
+### v18.0.x - Release Repair And Residual Maintenance
+
+Patch/minor repair lane for docs, testing quality, release tooling, dependency hygiene, and old v17 residual maintenance that should not block the v18.0.0 tag unless directly tied to a release gate.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#112](https://github.com/git-stunts/git-warp/issues/112) | API Examples Review Checklist | enhancement | backlog-root | docs-dx | - | - |
+| [#113](https://github.com/git-stunts/git-warp/issues/113) | Archived Doc Status Guardrail | enhancement | backlog-root | docs-dx | - | - |
+| [#114](https://github.com/git-stunts/git-warp/issues/114) | Batch Review Fix Commits | enhancement | backlog-root | tooling-release | - | - |
+| [#116](https://github.com/git-stunts/git-warp/issues/116) | Consumer Test Type-Only Import Coverage | enhancement | backlog-root | testing-quality | - | - |
+| [#117](https://github.com/git-stunts/git-warp/issues/117) | Contributor Review-Loop Hygiene Guide | enhancement | backlog-root | docs-dx | - | - |
+| [#118](https://github.com/git-stunts/git-warp/issues/118) | Deno Smoke Test | enhancement | backlog-root | testing-quality | - | - |
+| [#119](https://github.com/git-stunts/git-warp/issues/119) | Docs Consistency Preflight | enhancement | backlog-root | tooling-release | - | - |
+| [#120](https://github.com/git-stunts/git-warp/issues/120) | Docs-Version-Sync Pre-Commit Check | enhancement | backlog-root | tooling-release | - | - |
+| [#121](https://github.com/git-stunts/git-warp/issues/121) | Fix JSR Publish Dry-Run Deno Panic | enhancement | backlog-root | tooling-release | - | - |
+| [#122](https://github.com/git-stunts/git-warp/issues/122) | `scripts/pr-ready` Merge-Readiness CLI | enhancement | backlog-root | tooling-release | - | - |
+| [#124](https://github.com/git-stunts/git-warp/issues/124) | Pure TypeScript Example App | enhancement | backlog-root | testing-quality | - | - |
+| [#125](https://github.com/git-stunts/git-warp/issues/125) | Docs: README Install Section | enhancement | backlog-root | docs-dx | - | - |
+| [#126](https://github.com/git-stunts/git-warp/issues/126) | Document readonly receipt arrays | enhancement | backlog-root | docs-dx | - | - |
+| [#127](https://github.com/git-stunts/git-warp/issues/127) | Review bot warning policy | enhancement | backlog-root | tooling-release | - | - |
+| [#128](https://github.com/git-stunts/git-warp/issues/128) | RFC Field Count Drift Detector | enhancement | backlog-root | docs-dx | - | - |
+| [#130](https://github.com/git-stunts/git-warp/issues/130) | Test-File Wildcard Ratchet | enhancement | backlog-root | testing-quality | - | - |
+| [#132](https://github.com/git-stunts/git-warp/issues/132) | Vitest Explicit Runtime Excludes | enhancement | backlog-root | testing-quality | - | - |
+| [#133](https://github.com/git-stunts/git-warp/issues/133) | WarpGraph Constructor Lifecycle Docs | enhancement | backlog-root | docs-dx | - | - |
+| [#135](https://github.com/git-stunts/git-warp/issues/135) | Benchmark Budgets + CI Regression Gate | enhancement | backlog-root | tooling-release | - | - |
+| [#148](https://github.com/git-stunts/git-warp/issues/148) | CheckpointSerializerV5 returns empty state for null/undefined input | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#155](https://github.com/git-stunts/git-warp/issues/155) | @git-stunts/trailer-codec type poison at the boundary | maintenance | bad-code | tooling-release | v17.0.0 | bad-code |
+| [#156](https://github.com/git-stunts/git-warp/issues/156) | callInternalRuntimeMethod walks prototype chains | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#158](https://github.com/git-stunts/git-warp/issues/158) | PROTO_materialize-controller-seek-cache-error-opacity | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#160](https://github.com/git-stunts/git-warp/issues/160) | Reducer silently no-ops unknown op types — typos become silent data loss | maintenance | bad-code | docs-dx | v18.0.0 | bad-code |
+| [#165](https://github.com/git-stunts/git-warp/issues/165) | Machine-local path literals in backlog docs | maintenance | bad-code | docs-dx | v17.0.0 | bad-code |
+| [#172](https://github.com/git-stunts/git-warp/issues/172) | IndexRebuildService has 5 performance.now() calls for profiling | maintenance | bad-code | tooling-release | v17.0.0 | bad-code |
+| [#173](https://github.com/git-stunts/git-warp/issues/173) | MessageCodecInternal imports @git-stunts/trailer-codec in domain | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#187](https://github.com/git-stunts/git-warp/issues/187) | BunHttpAdapter/DenoHttpAdapter reference undeclared global types | maintenance | bad-code | docs-dx | v17.0.0 | bad-code |
+| [#193](https://github.com/git-stunts/git-warp/issues/193) | JoinReducer accepts NodeRemove/EdgeRemove with empty observedDots and no node/edge fields | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#202](https://github.com/git-stunts/git-warp/issues/202) | TrustAssessment is a typedef-only domain concept | maintenance | bad-code | docs-dx | v17.0.0 | bad-code |
+| [#203](https://github.com/git-stunts/git-warp/issues/203) | TrustState constructor validates nothing and exposes mutable Maps | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#211](https://github.com/git-stunts/git-warp/issues/211) | CheckpointController mixes checkpoint, GC, and migration | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#218](https://github.com/git-stunts/git-warp/issues/218) | EffectPipeline uses module-level mutable counter | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#221](https://github.com/git-stunts/git-warp/issues/221) | InMemoryGraphAdapter has module-level mutable global state | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#224](https://github.com/git-stunts/git-warp/issues/224) | 48 functions exceed the 50-line limit | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#227](https://github.com/git-stunts/git-warp/issues/227) | materialize() requires empty options object — DX friction | maintenance | bad-code | tooling-release | v17.0.0 | bad-code |
+| [#231](https://github.com/git-stunts/git-warp/issues/231) | QueryController.hasNode assigned via external prototype mutation | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#233](https://github.com/git-stunts/git-warp/issues/233) | 49 silent catch blocks across the codebase | maintenance | bad-code | docs-dx | v17.0.0 | bad-code |
+| [#246](https://github.com/git-stunts/git-warp/issues/246) | GitGraphAdapter exposes this.plumbing as public | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#255](https://github.com/git-stunts/git-warp/issues/255) | Sludge map has no formal JSON schema | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#257](https://github.com/git-stunts/git-warp/issues/257) | Capability interfaces lack JSDoc on individual methods | maintenance | bad-code | docs-dx | v17.0.0 | bad-code |
+| [#259](https://github.com/git-stunts/git-warp/issues/259) | CC_codec-module-untested | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#264](https://github.com/git-stunts/git-warp/issues/264) | Public docs still teach the materialization frontdoor | maintenance | bad-code | docs-dx | v17.0.0 | bad-code |
+| [#265](https://github.com/git-stunts/git-warp/issues/265) | Error code naming inconsistency across throw sites | maintenance | bad-code | tooling-release | v17.0.0 | bad-code |
+| [#269](https://github.com/git-stunts/git-warp/issues/269) | index.d.ts is hand-maintained — should be generated | maintenance | bad-code | tooling-release | v17.0.0 | bad-code |
+| [#271](https://github.com/git-stunts/git-warp/issues/271) | IndexRebuildService tests check method existence, not correctness | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#273](https://github.com/git-stunts/git-warp/issues/273) | PROTO_js-test-typecheck-drift | maintenance | bad-code | docs-dx | v17.0.0 | bad-code |
+| [#275](https://github.com/git-stunts/git-warp/issues/275) | PatchSession.js (349 LOC) has zero tests and parses error messages | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#278](https://github.com/git-stunts/git-warp/issues/278) | SPEC required link check path filter | maintenance | bad-code | tooling-release | v17.0.0 | bad-code |
+| [#281](https://github.com/git-stunts/git-warp/issues/281) | StateReaderV5.js (599 LOC) has zero tests | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#287](https://github.com/git-stunts/git-warp/issues/287) | Static text assertions in `test/unit/scripts/capability-consumer-migration-closeout.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#288](https://github.com/git-stunts/git-warp/issues/288) | Static text assertions in `test/unit/scripts/capability-interfaces-closeout.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#289](https://github.com/git-stunts/git-warp/issues/289) | Static text assertions in `test/conformance/castQuarantineGraduation.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#290](https://github.com/git-stunts/git-warp/issues/290) | Static text assertions in `test/unit/scripts/changelog-config-extension-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#291](https://github.com/git-stunts/git-warp/issues/291) | Static text assertions in `test/unit/scripts/cli-guide-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#292](https://github.com/git-stunts/git-warp/issues/292) | Static text assertions in `test/conformance/comparisonLiveCoordinateSeam.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#293](https://github.com/git-stunts/git-warp/issues/293) | Static text assertions in `test/conformance/conflictTargetIdentityFakeModelGraduation.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#294](https://github.com/git-stunts/git-warp/issues/294) | Static text assertions in `test/unit/scripts/contamination-dynamic-imports-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#295](https://github.com/git-stunts/git-warp/issues/295) | Static text assertions in `test/unit/scripts/content-access-duplication-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#296](https://github.com/git-stunts/git-warp/issues/296) | Static text assertions in `test/unit/scripts/dead-code-cleanup-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#297](https://github.com/git-stunts/git-warp/issues/297) | Static text assertions in `test/unit/scripts/delete-warpruntime-class-split.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#298](https://github.com/git-stunts/git-warp/issues/298) | Static text assertions in `test/unit/scripts/documentation-corpus-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#299](https://github.com/git-stunts/git-warp/issues/299) | Static text assertions in `test/unit/domain/trust/domainPurity.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#300](https://github.com/git-stunts/git-warp/issues/300) | Static text assertions in `test/unit/scripts/factory-functions-in-tests-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#301](https://github.com/git-stunts/git-warp/issues/301) | Static text assertions in `test/unit/infrastructure/adapters/GitGraphAdapter.gitCasPersistence.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#302](https://github.com/git-stunts/git-warp/issues/302) | Static text assertions in `test/unit/scripts/glossary-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#304](https://github.com/git-stunts/git-warp/issues/304) | Static text assertions in `test/conformance/hygieneQuarantineGraduation.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#305](https://github.com/git-stunts/git-warp/issues/305) | Static text assertions in `test/conformance/immutableSnapshotBuilder.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#306](https://github.com/git-stunts/git-warp/issues/306) | Static text assertions in `test/unit/scripts/incremental-index-updater-closeout-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#307](https://github.com/git-stunts/git-warp/issues/307) | Static text assertions in `test/unit/scripts/index-builder-on-git-cas-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#308](https://github.com/git-stunts/git-warp/issues/308) | Static text assertions in `test/unit/scripts/internal-runtime-shim-closeout.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#309](https://github.com/git-stunts/git-warp/issues/309) | Static text assertions in `test/unit/scripts/kill-warpruntime-split.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#311](https://github.com/git-stunts/git-warp/issues/311) | Static text assertions in `test/unit/scripts/migrate-warpruntime-test-helper-split.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#314](https://github.com/git-stunts/git-warp/issues/314) | Static text assertions in `test/unit/scripts/observer-geometry-ladder-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#320](https://github.com/git-stunts/git-warp/issues/320) | Static text assertions in `test/unit/scripts/public-api-advanced-guide-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#322](https://github.com/git-stunts/git-warp/issues/322) | Static text assertions in `test/unit/scripts/public-api-cost-signaling.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#324](https://github.com/git-stunts/git-warp/issues/324) | Static text assertions in `test/unit/scripts/public-api-getting-started-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#325](https://github.com/git-stunts/git-warp/issues/325) | Static text assertions in `test/unit/scripts/public-api-guide-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#326](https://github.com/git-stunts/git-warp/issues/326) | Static text assertions in `test/unit/scripts/public-api-observer-label.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#327](https://github.com/git-stunts/git-warp/issues/327) | Static text assertions in `test/unit/scripts/public-api-observer-noun.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#328](https://github.com/git-stunts/git-warp/issues/328) | Static text assertions in `test/unit/scripts/public-api-readme-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#329](https://github.com/git-stunts/git-warp/issues/329) | Static text assertions in `test/unit/scripts/public-api-strand-noun.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#330](https://github.com/git-stunts/git-warp/issues/330) | Static text assertions in `test/unit/scripts/query-builder-closeout.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#331](https://github.com/git-stunts/git-warp/issues/331) | Static text assertions in `test/unit/scripts/query-controller-capability-seam.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#332](https://github.com/git-stunts/git-warp/issues/332) | Static text assertions in `test/conformance/queryReadModelSeam.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#333](https://github.com/git-stunts/git-warp/issues/333) | Static text assertions in `test/unit/scripts/read-api-doc-consistency.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#334](https://github.com/git-stunts/git-warp/issues/334) | Static text assertions in `test/unit/scripts/release-policy-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#335](https://github.com/git-stunts/git-warp/issues/335) | Static text assertions in `test/unit/scripts/remaining-big-files-closeout-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#336](https://github.com/git-stunts/git-warp/issues/336) | Static text assertions in `test/unit/scripts/runtime-controller-host-types.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#337](https://github.com/git-stunts/git-warp/issues/337) | Static text assertions in `test/unit/scripts/runtime-helper-wrapper-seams.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#338](https://github.com/git-stunts/git-warp/issues/338) | Static text assertions in `test/unit/scripts/runtime-host-product-seam.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#339](https://github.com/git-stunts/git-warp/issues/339) | Static text assertions in `test/unit/scripts/runtime-wiring-surface-closeout.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#340](https://github.com/git-stunts/git-warp/issues/340) | Static text assertions in `test/conformance/sludgeAtlas.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#341](https://github.com/git-stunts/git-warp/issues/341) | Static text assertions in `test/conformance/snapshotPropValueApiModel.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#342](https://github.com/git-stunts/git-warp/issues/342) | Static text assertions in `test/unit/scripts/streaming-memory-audit-closeout.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#345](https://github.com/git-stunts/git-warp/issues/345) | Static text assertions in `test/unit/scripts/uniform-git-cas-closeout.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#346](https://github.com/git-stunts/git-warp/issues/346) | Static text assertions in `test/conformance/v17CheckpointTailOpticReadBasis.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#347](https://github.com/git-stunts/git-warp/issues/347) | Static text assertions in `test/unit/scripts/v17-materialization-contract-docs.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#348](https://github.com/git-stunts/git-warp/issues/348) | Static text assertions in `test/unit/scripts/v17-migration-script-hygiene.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#349](https://github.com/git-stunts/git-warp/issues/349) | Static text assertions in `test/unit/scripts/v17-public-reading-surface.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#350](https://github.com/git-stunts/git-warp/issues/350) | Static text assertions in `test/unit/scripts/v17-worldline-reading-surface.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#351](https://github.com/git-stunts/git-warp/issues/351) | Static text assertions in `test/unit/v7-guards.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#352](https://github.com/git-stunts/git-warp/issues/352) | Static text assertions in `test/unit/scripts/warp-drift-crosslinks-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#353](https://github.com/git-stunts/git-warp/issues/353) | Static text assertions in `test/unit/scripts/warp-drift-release-slotting-shape.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#354](https://github.com/git-stunts/git-warp/issues/354) | Static text assertions in `test/unit/scripts/warpapp-capability-bridge.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#355](https://github.com/git-stunts/git-warp/issues/355) | Static text assertions in `test/unit/scripts/warpcore-runtime-bridge.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#356](https://github.com/git-stunts/git-warp/issues/356) | Static text assertions in `test/unit/scripts/warpgraph-capability-seam.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#357](https://github.com/git-stunts/git-warp/issues/357) | Static text assertions in `test/unit/scripts/warpgraph-factory-closeout.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#358](https://github.com/git-stunts/git-warp/issues/358) | Static text assertions in `test/unit/scripts/warpgraph-runtime-bridge-closeout.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#359](https://github.com/git-stunts/git-warp/issues/359) | Static text assertions in `test/unit/helpers/warpGraphTestUtilsStructure.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#360](https://github.com/git-stunts/git-warp/issues/360) | Static text assertions in `test/unit/scripts/warpruntime-helper-migration.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#361](https://github.com/git-stunts/git-warp/issues/361) | Static text assertions in `test/unit/scripts/warpruntime-suite-migration.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#362](https://github.com/git-stunts/git-warp/issues/362) | Static text assertions in `test/unit/scripts/worldline-detached-factory-seam.test.ts` | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#363](https://github.com/git-stunts/git-warp/issues/363) | SyncController tests mock 3 modules — test only proves wiring | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#366](https://github.com/git-stunts/git-warp/issues/366) | 20+ test files create incomplete persistence mocks | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#367](https://github.com/git-stunts/git-warp/issues/367) | WarpStream architecture has no user-facing documentation | maintenance | bad-code | docs-dx | v17.0.0 | bad-code |
+| [#371](https://github.com/git-stunts/git-warp/issues/371) | SPEC_v17-release-self-review-blockers | maintenance | bad-code | tooling-release | v17.0.0 | bad-code |
+| [#373](https://github.com/git-stunts/git-warp/issues/373) | VisibleStateComparisonV5 (808 LOC) and VisibleStateTransferPlannerV5 (692 LOC) have zero tests | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#390](https://github.com/git-stunts/git-warp/issues/390) | Source-change guard for doc-only cycles | enhancement | cool-ideas | testing-quality | v18.0.0 | idea |
+| [#391](https://github.com/git-stunts/git-warp/issues/391) | NO GODS CI Report | enhancement | cool-ideas | testing-quality | - | idea |
+| [#393](https://github.com/git-stunts/git-warp/issues/393) | Precommit Sludge Guillotine | enhancement | cool-ideas | testing-quality | - | idea |
+| [#397](https://github.com/git-stunts/git-warp/issues/397) | Sludge Score Dashboard | enhancement | cool-ideas | testing-quality | - | idea |
+| [#398](https://github.com/git-stunts/git-warp/issues/398) | Sludge Striker End-of-Turn Protocol | enhancement | cool-ideas | testing-quality | - | idea |
+| [#401](https://github.com/git-stunts/git-warp/issues/401) | Expand ADVANCED_GUIDE.md with trust, performance, and checkpoints | enhancement | cool-ideas | docs-dx | - | idea |
+| [#402](https://github.com/git-stunts/git-warp/issues/402) | Advanced multi-writer workflow documentation | enhancement | cool-ideas | docs-dx | - | idea |
+| [#404](https://github.com/git-stunts/git-warp/issues/404) | Agent ratchet telemetry — per-commit snapshot of tsc/lint/tests | enhancement | cool-ideas | testing-quality | - | idea |
+| [#405](https://github.com/git-stunts/git-warp/issues/405) | Auto-generate the SSTS scorecard from git diff | enhancement | cool-ideas | testing-quality | - | idea |
+| [#408](https://github.com/git-stunts/git-warp/issues/408) | Clarify scope boundaries between BEARING.md and VISION.md | enhancement | cool-ideas | docs-dx | - | idea |
+| [#411](https://github.com/git-stunts/git-warp/issues/411) | CLAUDESPEED session handoff protocol | enhancement | cool-ideas | testing-quality | - | idea |
+| [#415](https://github.com/git-stunts/git-warp/issues/415) | Cross-path equivalence as a general testing pattern | enhancement | cool-ideas | testing-quality | - | idea |
+| [#417](https://github.com/git-stunts/git-warp/issues/417) | DX_dead-export-ratchet | enhancement | cool-ideas | tooling-release | - | idea |
+| [#419](https://github.com/git-stunts/git-warp/issues/419) | Documentation freshness ratchet | enhancement | cool-ideas | docs-dx | - | idea |
+| [#420](https://github.com/git-stunts/git-warp/issues/420) | ESLint rule: `throw new Error(...)` is banned; require domain error subclass | enhancement | cool-ideas | testing-quality | - | idea |
+| [#421](https://github.com/git-stunts/git-warp/issues/421) | `git warp explain` — trace a value's admission history | enhancement | cool-ideas | docs-dx | - | idea |
+| [#422](https://github.com/git-stunts/git-warp/issues/422) | Golden Blob Museum | enhancement | cool-ideas | testing-quality | - | idea |
+| [#423](https://github.com/git-stunts/git-warp/issues/423) | Graft cool ideas (post-Phase 1) | enhancement | cool-ideas | docs-dx | - | idea |
+| [#424](https://github.com/git-stunts/git-warp/issues/424) | Hex Tripwire Test | enhancement | cool-ideas | testing-quality | - | idea |
+| [#426](https://github.com/git-stunts/git-warp/issues/426) | Convert 29 remaining JS test helper files to TypeScript | enhancement | cool-ideas | testing-quality | - | idea |
+| [#427](https://github.com/git-stunts/git-warp/issues/427) | MockPersistenceFactory — typed, complete, safe | enhancement | cool-ideas | testing-quality | - | idea |
+| [#429](https://github.com/git-stunts/git-warp/issues/429) | Ban conditional early returns in test bodies | enhancement | cool-ideas | testing-quality | - | idea |
+| [#436](https://github.com/git-stunts/git-warp/issues/436) | Automated SSJS scorecard in pre-commit hook | enhancement | cool-ideas | testing-quality | - | idea |
+| [#437](https://github.com/git-stunts/git-warp/issues/437) | SSTS Conformance Suite | enhancement | cool-ideas | testing-quality | - | idea |
+| [#438](https://github.com/git-stunts/git-warp/issues/438) | Systems-Style Scorecard as pre-commit hook | enhancement | cool-ideas | tooling-release | - | idea |
+| [#439](https://github.com/git-stunts/git-warp/issues/439) | ESLint rule for vacuous test assertions | enhancement | cool-ideas | testing-quality | - | idea |
+| [#440](https://github.com/git-stunts/git-warp/issues/440) | Test oracle invariants — assert what MUST be true, not what IS true | enhancement | cool-ideas | testing-quality | - | idea |
+| [#442](https://github.com/git-stunts/git-warp/issues/442) | Mechanical tsc autofix tool | enhancement | cool-ideas | tooling-release | - | idea |
+| [#443](https://github.com/git-stunts/git-warp/issues/443) | V17 release readiness dashboard | enhancement | cool-ideas | tooling-release | - | idea |
+| [#444](https://github.com/git-stunts/git-warp/issues/444) | Doc-as-test pipeline: run code snippets from docs as tests | enhancement | cool-ideas | docs-dx | - | idea |
+| [#446](https://github.com/git-stunts/git-warp/issues/446) | Namespace duality guide: flat vs architectural access | enhancement | cool-ideas | docs-dx | - | idea |
+| [#450](https://github.com/git-stunts/git-warp/issues/450) | Use @git-stunts/vault for trust signing keys | enhancement | cool-ideas | docs-dx | - | idea |
+| [#459](https://github.com/git-stunts/git-warp/issues/459) | Agent-first merge surfaces | enhancement | cool-ideas | docs-dx | - | idea |
+| [#462](https://github.com/git-stunts/git-warp/issues/462) | Canonicalization optics | enhancement | cool-ideas | docs-dx | - | idea |
+| [#466](https://github.com/git-stunts/git-warp/issues/466) | Common-basis braid explainer | enhancement | cool-ideas | docs-dx | - | idea |
+| [#477](https://github.com/git-stunts/git-warp/issues/477) | WARP provenance layer for safe-context | enhancement | cool-ideas | docs-dx | - | idea |
+| [#487](https://github.com/git-stunts/git-warp/issues/487) | Content-addressed witnesses in git-cas | enhancement | cool-ideas | docs-dx | - | idea |
+| [#505](https://github.com/git-stunts/git-warp/issues/505) | TSC Campaign Agent-Authored Code Audit | enhancement | up-next | testing-quality | - | - |
+| [#510](https://github.com/git-stunts/git-warp/issues/510) | Fix current npm audit findings for brace-expansion and tmp | enhancement | up-next | tooling-release | - | - |
+| [#514](https://github.com/git-stunts/git-warp/issues/514) | Reconcile namespace notation across VISION.md, README.md, ARCHITECTURE.md | enhancement | up-next | docs-dx | - | - |
+| [#529](https://github.com/git-stunts/git-warp/issues/529) | Memory-bounded stream witnesses | enhancement | up-next | testing-quality | - | blocked |
+| [#576](https://github.com/git-stunts/git-warp/issues/576) | BAD: first-use docs are caveated because normal reads lack bounded providers | maintenance | bad-code | docs-dx | v18.0.0 | blocked, bad-code |
+| [#578](https://github.com/git-stunts/git-warp/issues/578) | COOL: generate first-use docs guards from the public API cost inventory | enhancement | cool-ideas | docs-dx | v18.0.0 | blocked, idea |
+| [#580](https://github.com/git-stunts/git-warp/issues/580) | Consolidate static-text assertion cleanup campaign | maintenance | bad-code | testing-quality | - | bad-code |
+| [#602](https://github.com/git-stunts/git-warp/issues/602) | COOL IDEA: batch PR witness dashboard | enhancement | cool-ideas | tooling-release | - | idea |
+| [#603](https://github.com/git-stunts/git-warp/issues/603) | COOL IDEA: issue completion scanner | enhancement | cool-ideas | tooling-release | - | idea |
+| [#618](https://github.com/git-stunts/git-warp/issues/618) | Open issue counts do not distinguish PR-covered work | maintenance | bad-code | tooling-release | v18.0.0 | bad-code |
+
+### v18.1.0 - Runtime/API Boundary Hardening
+
+Pay down API capability, runtime-boundary, trie, codec, DTO, and type-model sludge after the v18 public line is honest.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#123](https://github.com/git-stunts/git-warp/issues/123) | Public API Catalog And Browser Documentation Playground | enhancement | backlog-root | api-capabilities | - | - |
+| [#131](https://github.com/git-stunts/git-warp/issues/131) | `typedCustom()` Zod Helper | enhancement | backlog-root | runtime-boundaries | - | - |
+| [#134](https://github.com/git-stunts/git-warp/issues/134) | WarpGraph Invisible API Surface Docs | enhancement | backlog-root | api-capabilities | - | - |
+| [#137](https://github.com/git-stunts/git-warp/issues/137) | Recursive tree path edge-case benchmark | enhancement | backlog-root | trie-state-storage | - | - |
+| [#146](https://github.com/git-stunts/git-warp/issues/146) | Decide whether policy is an architecture layer | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#149](https://github.com/git-stunts/git-warp/issues/149) | Checkpoint schema support contract has drifted | maintenance | bad-code | trie-state-storage | v17.0.0 | bad-code |
+| [#150](https://github.com/git-stunts/git-warp/issues/150) | HttpRequest/HttpResponse are typedef-only port boundary types | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#151](https://github.com/git-stunts/git-warp/issues/151) | LoggerObservabilityBridge has no constructor validation | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#153](https://github.com/git-stunts/git-warp/issues/153) | Path-keyed object accumulators at Git boundaries | maintenance | bad-code | trie-state-storage | v18.0.0 | bad-code |
+| [#159](https://github.com/git-stunts/git-warp/issues/159) | openWarpGraph() uses 9 `as unknown as` casts at trust boundary | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#161](https://github.com/git-stunts/git-warp/issues/161) | PROTO_roaring-loader-fallback-opacity | maintenance | bad-code | trie-state-storage | v17.0.0 | bad-code |
+| [#170](https://github.com/git-stunts/git-warp/issues/170) | Domain message codec wrappers re-export infrastructure adapter code | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#171](https://github.com/git-stunts/git-warp/issues/171) | Adapter and native bindings living in src/domain/utils/ | maintenance | bad-code | trie-state-storage | v17.0.0 | bad-code |
+| [#179](https://github.com/git-stunts/git-warp/issues/179) | HTTP sync server has no graceful shutdown | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#191](https://github.com/git-stunts/git-warp/issues/191) | GCPolicy and related types are typedef-only | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#192](https://github.com/git-stunts/git-warp/issues/192) | IncrementalIndexUpdater leans on `Record&lt;string, unknown&gt;` and a duck-typed `WarpStateLike` | maintenance | bad-code | trie-state-storage | v17.0.0 | bad-code |
+| [#194](https://github.com/git-stunts/git-warp/issues/194) | `lwwMax` returns `LWWRegister&lt;T&gt; \| null` — awkward null in the happy path | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#197](https://github.com/git-stunts/git-warp/issues/197) | PatchDiff class has no validation and typedef-only entries | maintenance | bad-code | trie-state-storage | v18.0.0 | bad-code |
+| [#199](https://github.com/git-stunts/git-warp/issues/199) | removeNode/removeEdge on a non-existent entity silently produces no-op | maintenance | bad-code | trie-state-storage | v18.0.0 | bad-code |
+| [#204](https://github.com/git-stunts/git-warp/issues/204) | Promote StateDiffResult from @typedef to class | maintenance | bad-code | runtime-boundaries | v18.0.0 | bad-code |
+| [#208](https://github.com/git-stunts/git-warp/issues/208) | WriterError constructor has inverted parameter order | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#217](https://github.com/git-stunts/git-warp/issues/217) | PayloadTooLargeError defined in two files independently | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#223](https://github.com/git-stunts/git-warp/issues/223) | CC_joinreducer-coupling-hotspot | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#230](https://github.com/git-stunts/git-warp/issues/230) | CC_patchbuilder-churn-risk | maintenance | bad-code | api-capabilities | v18.0.0 | bad-code |
+| [#232](https://github.com/git-stunts/git-warp/issues/232) | RuntimeHost is back over the source file size ceiling | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#239](https://github.com/git-stunts/git-warp/issues/239) | WarpRuntime's 10 Object.defineProperty blocks should be a shared helper | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#241](https://github.com/git-stunts/git-warp/issues/241) | CborCodec.js exports bare functions, class, and singleton | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#242](https://github.com/git-stunts/git-warp/issues/242) | CLI persistence shape leaks plumbing into application wiring | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#245](https://github.com/git-stunts/git-warp/issues/245) | EffectSinkPort.deliver() has union return type | maintenance | bad-code | runtime-boundaries | v17.0.0 | bad-code |
+| [#247](https://github.com/git-stunts/git-warp/issues/247) | GraphPersistencePort drops ConfigPort capability and forces side channels | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#248](https://github.com/git-stunts/git-warp/issues/248) | `_materializeGraph()` survives the v17 reading contract | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#249](https://github.com/git-stunts/git-warp/issues/249) | HookInstaller uses an ad hoc git config callback instead of a typed port | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#251](https://github.com/git-stunts/git-warp/issues/251) | `_runtime` exposed on public WarpGraph interface | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#253](https://github.com/git-stunts/git-warp/issues/253) | Guard BTR wire DTO locality | maintenance | bad-code | btr-provenance-boundary | v18.0.0 | bad-code |
+| [#254](https://github.com/git-stunts/git-warp/issues/254) | Split CheckpointTailWitnessLocator before it becomes sludge | maintenance | bad-code | v17-optics-checkpoint-tail | v17.0.0 | bad-code |
+| [#260](https://github.com/git-stunts/git-warp/issues/260) | Consumer typecheck still expects public materialization | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#272](https://github.com/git-stunts/git-warp/issues/272) | PROTO_inmemory-graph-adapter-default-hash-unavailable-branch | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#276](https://github.com/git-stunts/git-warp/issues/276) | QueryBuilder tests exist but still carry legacy scaffolding sludge | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#280](https://github.com/git-stunts/git-warp/issues/280) | PROTO_state-diff-private-helper-residue | maintenance | bad-code | api-capabilities | v18.0.0 | bad-code |
+| [#369](https://github.com/git-stunts/git-warp/issues/369) | CC_untested-controllers | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#372](https://github.com/git-stunts/git-warp/issues/372) | Codebase has a pattern of vacuous assertions | maintenance | bad-code | api-capabilities | v17.0.0 | bad-code |
+| [#379](https://github.com/git-stunts/git-warp/issues/379) | CborCheckpointStoreAdapter owns general CRDT serialization | maintenance | bad-code | trie-state-storage | v17.0.0 | bad-code |
+| [#380](https://github.com/git-stunts/git-warp/issues/380) | Deno runtime smoke tests must disable timer sanitizers | maintenance | bad-code | runtime-boundaries | v18.0.0 | bad-code |
+| [#389](https://github.com/git-stunts/git-warp/issues/389) | Trie geometry profile exposed contract drift and a 1M scan-count regression | maintenance | bad-code | trie-state-storage | v17.0.0 | bad-code |
+| [#396](https://github.com/git-stunts/git-warp/issues/396) | RuntimeHost Dependency Map | enhancement | cool-ideas | runtime-boundaries | - | idea |
+| [#399](https://github.com/git-stunts/git-warp/issues/399) | Canonical byte nouns for hash and signature boundaries | enhancement | cool-ideas | runtime-boundaries | v18.0.0 | idea |
+| [#406](https://github.com/git-stunts/git-warp/issues/406) | User-Supplied Resilience Policies via Alfred | enhancement | cool-ideas | trie-state-storage | - | idea |
+| [#414](https://github.com/git-stunts/git-warp/issues/414) | Controller test harness — mock host with typed capability surface | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#425](https://github.com/git-stunts/git-warp/issues/425) | CI gate that audits all invariants on every PR | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#428](https://github.com/git-stunts/git-warp/issues/428) | Mutation testing to find tests that bless bugs | enhancement | cool-ideas | trie-state-storage | - | idea |
+| [#433](https://github.com/git-stunts/git-warp/issues/433) | requireCapabilities as a universal adapter wiring pattern | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#441](https://github.com/git-stunts/git-warp/issues/441) | `touched-files-status` — one command to show every file changed on a branch | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#445](https://github.com/git-stunts/git-warp/issues/445) | Error code registry as importable constants | enhancement | cool-ideas | runtime-boundaries | - | idea |
+| [#448](https://github.com/git-stunts/git-warp/issues/448) | Runtime capability assertion in openWarpGraph() | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#449](https://github.com/git-stunts/git-warp/issues/449) | Sub-path exports to reduce default bundle size | enhancement | cool-ideas | trie-state-storage | - | idea |
+| [#452](https://github.com/git-stunts/git-warp/issues/452) | Switch encrypted stores to fixed chunking | enhancement | cool-ideas | runtime-boundaries | - | idea |
+| [#453](https://github.com/git-stunts/git-warp/issues/453) | Lazy adapter construction for cold-start optimization | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#455](https://github.com/git-stunts/git-warp/issues/455) | Native vs WASM Roaring Benchmark Pack | enhancement | cool-ideas | trie-state-storage | - | idea |
+| [#463](https://github.com/git-stunts/git-warp/issues/463) | Capability-based security via TypeScript narrowing | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#464](https://github.com/git-stunts/git-warp/issues/464) | Capability ports as a first-class protocol | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#468](https://github.com/git-stunts/git-warp/issues/468) | Align BTR shells with Continuum receipt families | enhancement | cool-ideas | protocol-alignment | v18.0.0 | idea |
+| [#473](https://github.com/git-stunts/git-warp/issues/473) | Materialization-free provenance readings | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#475](https://github.com/git-stunts/git-warp/issues/475) | Plan → Validate → Execute → Observe pipeline | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#478](https://github.com/git-stunts/git-warp/issues/478) | Safe path-map materialization pattern | enhancement | cool-ideas | trie-state-storage | - | idea |
+| [#480](https://github.com/git-stunts/git-warp/issues/480) | Typed codec port pattern — domain never touches raw bytes for serde | enhancement | cool-ideas | runtime-boundaries | - | idea |
+| [#483](https://github.com/git-stunts/git-warp/issues/483) | WarpRuntime.open() as a Builder pattern | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#485](https://github.com/git-stunts/git-warp/issues/485) | Writer-isolated bisect mode | enhancement | cool-ideas | api-capabilities | - | idea |
+| [#504](https://github.com/git-stunts/git-warp/issues/504) | Fill the remaining CLI command gaps | enhancement | up-next | api-capabilities | - | - |
+| [#507](https://github.com/git-stunts/git-warp/issues/507) | Enforce Max File Size + One-Thing-Per-File Policy | enhancement | up-next | runtime-boundaries | - | - |
+| [#509](https://github.com/git-stunts/git-warp/issues/509) | Break up the `index.d.ts` monolith | enhancement | up-next | api-capabilities | - | - |
+| [#512](https://github.com/git-stunts/git-warp/issues/512) | DX: Document Plumbing → GitPlumbing rename as breaking change | enhancement | up-next | api-capabilities | - | - |
+| [#513](https://github.com/git-stunts/git-warp/issues/513) | `@git-stunts/trailer-codec` Type Declarations | enhancement | up-next | runtime-boundaries | - | - |
+| [#518](https://github.com/git-stunts/git-warp/issues/518) | Vault-backed git-cas encryption for graph content | enhancement | up-next | runtime-boundaries | - | - |
+| [#520](https://github.com/git-stunts/git-warp/issues/520) | Policy-as-a-port for retries, timeouts, and streams | enhancement | up-next | runtime-boundaries | - | - |
+| [#521](https://github.com/git-stunts/git-warp/issues/521) | Make the substrate upgrader the compatibility boundary | enhancement | up-next | runtime-boundaries | - | - |
+| [#523](https://github.com/git-stunts/git-warp/issues/523) | Dissolve serialization from domain (P5) | enhancement | up-next | runtime-boundaries | - | blocked |
+| [#524](https://github.com/git-stunts/git-warp/issues/524) | Delete VersionVector and ORSet backward-compat shims | enhancement | up-next | runtime-boundaries | - | - |
+| [#532](https://github.com/git-stunts/git-warp/issues/532) | CBOR decode boundary: hydrate ops into class instances | enhancement | up-next | runtime-boundaries | - | - |
+| [#533](https://github.com/git-stunts/git-warp/issues/533) | Typed capability interfaces per controller | enhancement | up-next | api-capabilities | - | - |
+| [#534](https://github.com/git-stunts/git-warp/issues/534) | Drop `V5` runtime nouns | enhancement | up-next | runtime-boundaries | - | - |
+| [#537](https://github.com/git-stunts/git-warp/issues/537) | Migrate op consumers to instanceof dispatch | enhancement | up-next | runtime-boundaries | - | - |
+| [#538](https://github.com/git-stunts/git-warp/issues/538) | Patch Commit Visibility Contract | enhancement | up-next | api-capabilities | - | - |
+| [#541](https://github.com/git-stunts/git-warp/issues/541) | Cohesive WarpKernelPort (Persistence Union Type Cleanup) | enhancement | up-next | runtime-boundaries | - | - |
+| [#542](https://github.com/git-stunts/git-warp/issues/542) | PROTO: WarpRuntime.open() options → WarpOpenOptions class | enhancement | up-next | runtime-boundaries | - | - |
+| [#543](https://github.com/git-stunts/git-warp/issues/543) | Persisted Wire-Format Migration (ADR 2) — EdgePropSet | enhancement | up-next | runtime-boundaries | - | - |
+| [#613](https://github.com/git-stunts/git-warp/issues/613) | Remove graph-wide materializing APIs from the v18 public surface | maintenance | bad-code | api-capabilities | v18.0.0 | bad-code |
+
+### v18.2.0 - Tooling, Docs, And Package Surface
+
+Tighten command coverage, issue triage, public docs automation, and package-surface hygiene without expanding the runtime ontology.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#238](https://github.com/git-stunts/git-warp/issues/238) | git-stunts ecosystem packages are underused | maintenance | bad-code | testing-quality | v17.0.0 | bad-code |
+| [#412](https://github.com/git-stunts/git-warp/issues/412) | Expand CLI_GUIDE.md with complete command reference | enhancement | cool-ideas | docs-dx | - | idea |
+| [#506](https://github.com/git-stunts/git-warp/issues/506) | Audit dependency hygiene: tar override, zod pin, patch-package | enhancement | up-next | tooling-release | - | - |
+| [#601](https://github.com/git-stunts/git-warp/issues/601) | COOL IDEA: repository inventory witness command | enhancement | cool-ideas | tooling-release | - | idea |
+| [#619](https://github.com/git-stunts/git-warp/issues/619) | Generate an issue triage report for bad-code batch planning | enhancement | cool-ideas | tooling-release | v18.0.0 | idea |
+
+### v19.0.0 - Observer Admission Runtime
+
+Make observer doctrine runtime-real beyond the v18 bounded public-path gate: observer-readable receipts, support rules, plans, envelopes, fragments, and witnessed suffix shells.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#152](https://github.com/git-stunts/git-warp/issues/152) | PatchSession classifies errors by parsing err.message | maintenance | bad-code | observer-admission-runtime | v19.0.0 | bad-code |
+| [#154](https://github.com/git-stunts/git-warp/issues/154) | TrustRecordSchema superRefine mutates record during validation | maintenance | bad-code | merge-strands-worldlines | v19.0.0 | bad-code |
+| [#166](https://github.com/git-stunts/git-warp/issues/166) | BoundaryTransitionRecord and AuditService use ambient wall-clock | maintenance | bad-code | observer-admission-runtime | v19.0.0 | bad-code |
+| [#181](https://github.com/git-stunts/git-warp/issues/181) | 5 eslint-disable suppressions bypass the wall-clock ban in domain | maintenance | bad-code | observer-admission-runtime | v19.0.0 | bad-code |
+| [#183](https://github.com/git-stunts/git-warp/issues/183) | WarpServeService domain/infra boundary blur | maintenance | bad-code | merge-strands-worldlines | v19.0.0 | bad-code |
+| [#196](https://github.com/git-stunts/git-warp/issues/196) | Op wire POJOs and Op class instances flow through the same pipeline | maintenance | bad-code | observer-admission-runtime | v19.0.0 | bad-code |
+| [#222](https://github.com/git-stunts/git-warp/issues/222) | PROTO_join-reducer-import-time-strategy-validation-residue | maintenance | bad-code | observer-admission-runtime | v19.0.0 | bad-code |
+| [#234](https://github.com/git-stunts/git-warp/issues/234) | sortedReplacer and validation helpers duplicated across 3 files | maintenance | bad-code | observer-admission-runtime | v19.0.0 | bad-code |
+| [#237](https://github.com/git-stunts/git-warp/issues/237) | PROTO_trust-record-service-unreachable-exhausted-tails | maintenance | bad-code | merge-strands-worldlines | v19.0.0 | bad-code |
+| [#256](https://github.com/git-stunts/git-warp/issues/256) | WarpGraph.audit.test.js has vacuous tests with conditional early returns | maintenance | bad-code | observer-admission-runtime | v19.0.0 | bad-code |
+| [#261](https://github.com/git-stunts/git-warp/issues/261) | Coverage ratchet baseline dropped during v17 release preflight | maintenance | bad-code | tooling-release | v19.0.0 | bad-code |
+| [#384](https://github.com/git-stunts/git-warp/issues/384) | Live-tail bounded query/checksum substrate is missing | maintenance | bad-code | observer-admission-runtime | v18.0.0 | blocked, bad-code |
+| [#385](https://github.com/git-stunts/git-warp/issues/385) | Domain types own their own serialization (P5 violation) | maintenance | bad-code | observer-admission-runtime | v19.0.0 | bad-code |
+| [#410](https://github.com/git-stunts/git-warp/issues/410) | Self-healing CLAUDE.md — generated from codebase truth | enhancement | cool-ideas | observer-admission-runtime | - | idea |
+| [#431](https://github.com/git-stunts/git-warp/issues/431) | satisfies-based port validation for plain-object adapters | enhancement | cool-ideas | observer-admission-runtime | - | idea |
+| [#474](https://github.com/git-stunts/git-warp/issues/474) | ORSet.compact() returns CompactionReceipt | enhancement | cool-ideas | observer-admission-runtime | - | idea |
+| [#484](https://github.com/git-stunts/git-warp/issues/484) | First-class Witness type | enhancement | cool-ideas | observer-admission-runtime | - | idea |
+| [#511](https://github.com/git-stunts/git-warp/issues/511) | Guide: Observer-First Client Pattern | enhancement | up-next | observer-admission-runtime | - | blocked |
+| [#525](https://github.com/git-stunts/git-warp/issues/525) | Grow Observer toward full structural observer | enhancement | up-next | observer-admission-runtime | - | - |
+| [#554](https://github.com/git-stunts/git-warp/issues/554) | Make receipts observer-readable or replace them with observer-readable truth | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+| [#555](https://github.com/git-stunts/git-warp/issues/555) | Docs/runtime convergence ratchet | enhancement | release, v19.0.0 | observer-admission-runtime | - | release |
+| [#556](https://github.com/git-stunts/git-warp/issues/556) | Keep WARP doctrine and shipped runtime teaching aligned | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+| [#557](https://github.com/git-stunts/git-warp/issues/557) | WESLEY Receipt Envelope Boundary | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+| [#558](https://github.com/git-stunts/git-warp/issues/558) | Bounded support rules for query surfaces | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+| [#559](https://github.com/git-stunts/git-warp/issues/559) | Causal indexes for sliced queries | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+| [#560](https://github.com/git-stunts/git-warp/issues/560) | Live holographic strands | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+| [#561](https://github.com/git-stunts/git-warp/issues/561) | Observer plans and reading envelopes | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+| [#562](https://github.com/git-stunts/git-warp/issues/562) | Support-scoped fragment materialization | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+| [#563](https://github.com/git-stunts/git-warp/issues/563) | Tick-range graph diff API | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+| [#564](https://github.com/git-stunts/git-warp/issues/564) | Witnessed suffix admission shells | enhancement | release, v19.0.0 | observer-admission-runtime | - | blocked, release |
+
+### v19.1.0 - Sync, Trust, And Protocol Security
+
+Advance trust/security contracts, sync authentication, protocol alignment, and policy surfaces once observer boundaries are stable enough to protect.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#129](https://github.com/git-stunts/git-warp/issues/129) | Docs: SECURITY_SYNC.md | enhancement | backlog-root | sync-trust-security | - | - |
+| [#138](https://github.com/git-stunts/git-warp/issues/138) | `TrustKeyStore` Pre-Validated Key Cache | enhancement | backlog-root | sync-trust-security | - | - |
+| [#139](https://github.com/git-stunts/git-warp/issues/139) | Doctor: Property-Based Fuzz Test | enhancement | backlog-root | sync-trust-security | - | - |
+| [#140](https://github.com/git-stunts/git-warp/issues/140) | Trust Record Round-Trip Snapshot Test | enhancement | backlog-root | sync-trust-security | - | - |
+| [#141](https://github.com/git-stunts/git-warp/issues/141) | Trust Schema Discriminated Union | enhancement | backlog-root | sync-trust-security | - | - |
+| [#142](https://github.com/git-stunts/git-warp/issues/142) | `unsignedRecordForId` Edge-Case Tests | enhancement | backlog-root | sync-trust-security | - | - |
+| [#147](https://github.com/git-stunts/git-warp/issues/147) | CBOR deserialization has no depth or size limits | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#167](https://github.com/git-stunts/git-warp/issues/167) | CLI hook installer bypasses ports with raw git subprocesses | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#168](https://github.com/git-stunts/git-warp/issues/168) | TrustCanonical.js imports defaultCrypto (node:crypto in domain) | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#169](https://github.com/git-stunts/git-warp/issues/169) | defaultCodec/defaultCrypto/defaultTrustCrypto import infrastructure in domain | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#175](https://github.com/git-stunts/git-warp/issues/175) | Repo maintenance scripts still shell out to raw git instead of plumbing | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#176](https://github.com/git-stunts/git-warp/issues/176) | Sync endpoint has no rate limiting | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#177](https://github.com/git-stunts/git-warp/issues/177) | Sync response paging and metrics are still coarse | maintenance | bad-code | sync-trust-security | v19.0.0 | bad-code |
+| [#178](https://github.com/git-stunts/git-warp/issues/178) | Sync auth HMAC secrets passed as plain strings through domain | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#180](https://github.com/git-stunts/git-warp/issues/180) | SyncAuthService uses crypto.randomUUID for HMAC nonce | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#184](https://github.com/git-stunts/git-warp/issues/184) | WriterId.js uses crypto.getRandomValues in domain | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#206](https://github.com/git-stunts/git-warp/issues/206) | EventId defined as both typedef and class | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#209](https://github.com/git-stunts/git-warp/issues/209) | Always-true null/undefined checks on non-nullable values | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#235](https://github.com/git-stunts/git-warp/issues/235) | TrustEvaluator couples to TrustStateBuilder key encoding | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#236](https://github.com/git-stunts/git-warp/issues/236) | TrustRecordService has multiple code smells | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#243](https://github.com/git-stunts/git-warp/issues/243) | CommitPort has 10 methods mixing 4 concerns | maintenance | bad-code | sync-trust-security | v17.0.0 | bad-code |
+| [#418](https://github.com/git-stunts/git-warp/issues/418) | Full discriminated unions for RawOpV2 / CanonicalOpV2 with typed fields | enhancement | cool-ideas | sync-trust-security | - | idea |
+| [#430](https://github.com/git-stunts/git-warp/issues/430) | Op hydration at the CBOR decode boundary | enhancement | cool-ideas | sync-trust-security | - | idea |
+| [#447](https://github.com/git-stunts/git-warp/issues/447) | Opaque SyncSecret type with redaction protection | enhancement | cool-ideas | sync-trust-security | - | idea |
+| [#454](https://github.com/git-stunts/git-warp/issues/454) | Materialization budget — O(P) with a ceiling | enhancement | cool-ideas | sync-trust-security | - | idea |
+| [#457](https://github.com/git-stunts/git-warp/issues/457) | Streaming GraphTraversal — async generators | enhancement | cool-ideas | sync-trust-security | - | idea |
+| [#470](https://github.com/git-stunts/git-warp/issues/470) | Rename `encrypted` trailer to `eg-encrypted` | enhancement | cool-ideas | sync-trust-security | - | idea |
+| [#476](https://github.com/git-stunts/git-warp/issues/476) | Safe CBOR decoder with depth/size/allocation limits | enhancement | cool-ideas | sync-trust-security | - | idea |
+| [#488](https://github.com/git-stunts/git-warp/issues/488) | Per-writer key envelope encryption (KEK wrapping) | enhancement | cool-ideas | sync-trust-security | - | idea |
+| [#544](https://github.com/git-stunts/git-warp/issues/544) | Sync Auth: Migrate from Symmetric HMAC to Ed25519 Asymmetric Signatures | enhancement | up-next | sync-trust-security | - | - |
+
+### v19.2.0 - Workspace And Integration Boundaries
+
+Package extraction, multi-package release, MCP, and integration architecture that should follow the v19 observer model rather than constrain it prematurely.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#500](https://github.com/git-stunts/git-warp/issues/500) | METHOD MCP workspace detection drift | enhancement | inbox | - | - | - |
+| [#515](https://github.com/git-stunts/git-warp/issues/515) | Extract warp-adapters as a real published workspace package | enhancement | up-next | runtime-boundaries | - | blocked |
+| [#516](https://github.com/git-stunts/git-warp/issues/516) | Extract warp-kernel as a real published workspace package | enhancement | up-next | runtime-boundaries | - | blocked |
+| [#517](https://github.com/git-stunts/git-warp/issues/517) | Extract warp-orset as a real published workspace package | enhancement | up-next | trie-state-storage | - | blocked |
+| [#519](https://github.com/git-stunts/git-warp/issues/519) | Design and implement the multi-package release pipeline | enhancement | up-next | tooling-release | - | blocked |
+| [#522](https://github.com/git-stunts/git-warp/issues/522) | Add a git-warp MCP server | enhancement | up-next | api-capabilities | - | - |
+
+### v20.0.0 - Streaming Read/Write Execution
+
+Make slice-first, bounded, streaming read/write execution ordinary runtime behavior rather than special-case gate evidence.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#136](https://github.com/git-stunts/git-warp/issues/136) | Out-of-core materialization and streaming reads | enhancement | backlog-root | materialization-query-index | - | blocked |
+| [#189](https://github.com/git-stunts/git-warp/issues/189) | ORSet and LWW have no constructor validation | maintenance | bad-code | merge-strands-worldlines | v20.0.0 | bad-code |
+| [#190](https://github.com/git-stunts/git-warp/issues/190) | Frontier is a typedef alias for Map with 9 free functions | maintenance | bad-code | merge-strands-worldlines | v20.0.0 | bad-code |
+| [#205](https://github.com/git-stunts/git-warp/issues/205) | VersionVector constructor accepts undefined entries | maintenance | bad-code | merge-strands-worldlines | v20.0.0 | bad-code |
+| [#212](https://github.com/git-stunts/git-warp/issues/212) | ComparisonController contains 4 shadow selector classes | maintenance | bad-code | merge-strands-worldlines | v20.0.0 | bad-code |
+| [#220](https://github.com/git-stunts/git-warp/issues/220) | GraphTraversal.js has 11 algorithms in 1617 LOC | maintenance | bad-code | testing-quality | v20.0.0 | bad-code |
+| [#225](https://github.com/git-stunts/git-warp/issues/225) | LogicalTraversal is a deprecated facade with a broad materialization seam | maintenance | bad-code | merge-strands-worldlines | v20.0.0 | bad-code |
+| [#226](https://github.com/git-stunts/git-warp/issues/226) | MaterializeController is a god object (~1009 LOC) | maintenance | bad-code | merge-strands-worldlines | v20.0.0 | bad-code |
+| [#262](https://github.com/git-stunts/git-warp/issues/262) | DagPathFinding.js (705 LOC) has zero tests and 5 functions &gt;50 LOC | maintenance | bad-code | testing-quality | v20.0.0 | bad-code |
+| [#274](https://github.com/git-stunts/git-warp/issues/274) | No observability for CRDT conflict resolution rates | maintenance | bad-code | merge-strands-worldlines | v20.0.0 | bad-code |
+| [#375](https://github.com/git-stunts/git-warp/issues/375) | BitmapIndexBuilder/Reader/Streaming always change together (22x in 3 months) | maintenance | bad-code | materialization-query-index | v20.0.0 | bad-code |
+| [#386](https://github.com/git-stunts/git-warp/issues/386) | QueryBuilder match() does a full node scan | maintenance | bad-code | observer-admission-runtime | v20.0.0 | bad-code |
+| [#387](https://github.com/git-stunts/git-warp/issues/387) | PROTO_streaming-bitmap-index-builder-serialization-tail | maintenance | bad-code | merge-strands-worldlines | v20.0.0 | bad-code |
+| [#458](https://github.com/git-stunts/git-warp/issues/458) | Streaming materialization with progressive state | enhancement | cool-ideas | materialization-query-index | - | idea |
+| [#530](https://github.com/git-stunts/git-warp/issues/530) | Migrate read paths + unbounded scans to streams | enhancement | up-next | materialization-query-index | - | blocked |
+| [#565](https://github.com/git-stunts/git-warp/issues/565) | End-To-End Graph Streaming Reads And Writes | enhancement | release, v20.0.0 | materialization-query-index | - | blocked, release |
+| [#566](https://github.com/git-stunts/git-warp/issues/566) | Align Playback-Head And TTD Consumers After Read Nouns Stabilize | enhancement | release, v20.0.0 | merge-strands-worldlines | - | blocked, release |
+| [#567](https://github.com/git-stunts/git-warp/issues/567) | Strand Collapse Optic For Causal Slicing | enhancement | release, v20.0.0 | merge-strands-worldlines | - | blocked, release |
+
+### v20.1.0 - Materialization, Index, And Diagnostic Model
+
+Reshape indexes, materialization controllers, async traversal, and diagnostics around bounded support instead of full-state residency.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#174](https://github.com/git-stunts/git-warp/issues/174) | runtimeHelpers imports infrastructure adapters and branches on plumbing presence | maintenance | bad-code | materialization-query-index | v17.0.0 | bad-code |
+| [#182](https://github.com/git-stunts/git-warp/issues/182) | WarpRuntime.open constructs infrastructure adapters by peeking at plumbing | maintenance | bad-code | materialization-query-index | v17.0.0 | bad-code |
+| [#185](https://github.com/git-stunts/git-warp/issues/185) | PropertyIndexReader impersonates a larger storage port | maintenance | bad-code | materialized-index | v17.0.0 | blocked, bad-code |
+| [#186](https://github.com/git-stunts/git-warp/issues/186) | Materialization snapshotting is off by default | maintenance | bad-code | materialization-snapshotting | v17.0.0 | bad-code |
+| [#188](https://github.com/git-stunts/git-warp/issues/188) | CoordinateFactExport has 11 typedef-only domain concepts | maintenance | bad-code | materialization-query-index | v17.0.0 | bad-code |
+| [#195](https://github.com/git-stunts/git-warp/issues/195) | NeighborEdge and Direction are typedef-only domain concepts | maintenance | bad-code | materialization-query-index | v18.0.0 | bad-code |
+| [#198](https://github.com/git-stunts/git-warp/issues/198) | PatchV2 class has zero constructor validation | maintenance | bad-code | materialization-query-index | v18.0.0 | bad-code |
+| [#210](https://github.com/git-stunts/git-warp/issues/210) | Subscriber type uses bare `Function` instead of typed callback | maintenance | bad-code | materialization-query-index | v17.0.0 | bad-code |
+| [#228](https://github.com/git-stunts/git-warp/issues/228) | MaterializedViewService carries index verification concern | maintenance | bad-code | materialization-query-index | v20.0.0 | bad-code |
+| [#229](https://github.com/git-stunts/git-warp/issues/229) | PatchBuilderV2 12-parameter constructor | maintenance | bad-code | materialization-query-index | v18.0.0 | bad-code |
+| [#250](https://github.com/git-stunts/git-warp/issues/250) | GraphPersistencePort uses Object.defineProperty breaking instanceof | maintenance | bad-code | materialization-query-index | v17.0.0 | bad-code |
+| [#383](https://github.com/git-stunts/git-warp/issues/383) | Legacy seek-cache key drops frontier | maintenance | bad-code | materialization-query-index | v17.0.0 | bad-code |
+| [#388](https://github.com/git-stunts/git-warp/issues/388) | topologicalSort always materializes full adjacency | maintenance | bad-code | materialization-query-index | v20.0.0 | bad-code |
+| [#392](https://github.com/git-stunts/git-warp/issues/392) | Observer Query Coordinate Language | enhancement | cool-ideas | materialization-query-index | - | idea |
+| [#394](https://github.com/git-stunts/git-warp/issues/394) | Query Cursor Fuzzer | enhancement | cool-ideas | materialization-query-index | - | idea |
+| [#395](https://github.com/git-stunts/git-warp/issues/395) | Query Hologram Explain Plan | enhancement | cool-ideas | materialization-query-index | - | idea |
+| [#435](https://github.com/git-stunts/git-warp/issues/435) | Serializer Exorcism Commit Series | enhancement | cool-ideas | materialization-query-index | - | idea |
+| [#451](https://github.com/git-stunts/git-warp/issues/451) | CI alert when change-coupling score increases | enhancement | cool-ideas | materialization-query-index | - | idea |
+| [#456](https://github.com/git-stunts/git-warp/issues/456) | Restore buffer guard for seek cache + blob adapter | enhancement | cool-ideas | materialization-query-index | - | idea |
+| [#472](https://github.com/git-stunts/git-warp/issues/472) | Incremental History Backfill for Git Mirror Use Cases | enhancement | cool-ideas | materialization-query-index | - | idea |
+| [#527](https://github.com/git-stunts/git-warp/issues/527) | Async Generator Traversal API | enhancement | up-next | materialization-query-index | - | blocked |
+| [#528](https://github.com/git-stunts/git-warp/issues/528) | Remove per-artifact ports + defaultCodec | enhancement | up-next | materialization-query-index | - | blocked |
+| [#535](https://github.com/git-stunts/git-warp/issues/535) | MaterializeController strategy decomposition | enhancement | up-next | materialization-query-index | - | - |
+
+### v20.2.0 - Browser And Visualization Product Surface
+
+Handle browser, visualization, and TTD-facing surfaces after streaming reads and indexes are dependable.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#115](https://github.com/git-stunts/git-warp/issues/115) | Browser guide and storage adapter documentation | enhancement | backlog-root | browser-viz | - | - |
+| [#143](https://github.com/git-stunts/git-warp/issues/143) | Mermaid Diagram Content Checklist | enhancement | backlog-root | browser-viz | - | - |
+| [#144](https://github.com/git-stunts/git-warp/issues/144) | Mermaid `~~~` Invisible-Link Fragility | enhancement | backlog-root | browser-viz | - | - |
+| [#145](https://github.com/git-stunts/git-warp/issues/145) | Mermaid Rendering Smoke Test | enhancement | backlog-root | browser-viz | - | - |
+| [#244](https://github.com/git-stunts/git-warp/issues/244) | Visualization modules mix named and default exports | maintenance | bad-code | browser-viz | v17.0.0 | bad-code |
+| [#258](https://github.com/git-stunts/git-warp/issues/258) | CLAUDE.md has 24 factual inaccuracies (3 critical) | maintenance | bad-code | browser-viz | v17.0.0 | bad-code |
+| [#400](https://github.com/git-stunts/git-warp/issues/400) | Admission replay stepper | enhancement | cool-ideas | browser-viz | - | idea |
+| [#403](https://github.com/git-stunts/git-warp/issues/403) | Agent onboarding smoke test | enhancement | cool-ideas | browser-viz | - | idea |
+| [#407](https://github.com/git-stunts/git-warp/issues/407) | Artifact Store Stack Diagram | enhancement | cool-ideas | browser-viz | - | idea |
+| [#434](https://github.com/git-stunts/git-warp/issues/434) | DX_risk-hotspot-ci-dashboard | enhancement | cool-ideas | browser-viz | - | idea |
+| [#469](https://github.com/git-stunts/git-warp/issues/469) | CRDT conflict resolution dashboard | enhancement | cool-ideas | browser-viz | - | idea |
+| [#479](https://github.com/git-stunts/git-warp/issues/479) | First-class observer and aperture envelopes in warp-ttd protocol | enhancement | cool-ideas | browser-viz | - | idea |
+| [#482](https://github.com/git-stunts/git-warp/issues/482) | WARP FUSE mount for worldlines, strands, and braids | enhancement | cool-ideas | browser-viz | - | idea |
+| [#490](https://github.com/git-stunts/git-warp/issues/490) | Visualize braid collapse outcomes in warp-ttd | enhancement | cool-ideas | browser-viz | - | idea |
+| [#491](https://github.com/git-stunts/git-warp/issues/491) | Braid Studio | enhancement | cool-ideas | browser-viz | - | idea |
+| [#492](https://github.com/git-stunts/git-warp/issues/492) | Counterfactual merge explorer | enhancement | cool-ideas | browser-viz | - | idea |
+| [#493](https://github.com/git-stunts/git-warp/issues/493) | Graph diff via transitive reduction comparison | enhancement | cool-ideas | browser-viz | - | idea |
+| [#494](https://github.com/git-stunts/git-warp/issues/494) | `levels()` as Lightweight `--view` Layout | enhancement | cool-ideas | browser-viz | - | idea |
+| [#495](https://github.com/git-stunts/git-warp/issues/495) | Live SSJS health dashboard | enhancement | cool-ideas | browser-viz | - | idea |
+| [#496](https://github.com/git-stunts/git-warp/issues/496) | Structural Diff via Transitive Reduction | enhancement | cool-ideas | browser-viz | - | idea |
+| [#497](https://github.com/git-stunts/git-warp/issues/497) | WARP UI Visualizer | enhancement | cool-ideas | browser-viz | - | idea |
+| [#545](https://github.com/git-stunts/git-warp/issues/545) | VIZ: cut git-warp visualization surface in favor of warp-ttd | enhancement | up-next | browser-viz | - | - |
+
+### v21.0.0 - Merge/Strand/Worldline Runtime
+
+Make distributed/plural admission semantics runtime-real: merge classifiers, braid collapse, local sites, and strand/worldline merge nouns.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#157](https://github.com/git-stunts/git-warp/issues/157) | callInternalRuntimeMethod is a runtime access-control escape hatch | maintenance | bad-code | merge-strands-worldlines | v17.0.0 | bad-code |
+| [#162](https://github.com/git-stunts/git-warp/issues/162) | WarpState.prop carries `LWWRegister&lt;unknown&gt;` — the value type is a lie | maintenance | bad-code | merge-strands-worldlines | v18.0.0 | bad-code |
+| [#163](https://github.com/git-stunts/git-warp/issues/163) | Worldline double-casts itself to WarpRuntime in 3 places | maintenance | bad-code | merge-strands-worldlines | v17.0.0 | bad-code |
+| [#164](https://github.com/git-stunts/git-warp/issues/164) | PROTO_wormhole-service-defensive-tail-branches | maintenance | bad-code | merge-strands-worldlines | v21.0.0 | bad-code |
+| [#200](https://github.com/git-stunts/git-warp/issues/200) | strandPublicShape.js is a complex identity transform | maintenance | bad-code | merge-strands-worldlines | v21.0.0 | bad-code |
+| [#201](https://github.com/git-stunts/git-warp/issues/201) | Strand model still lives as a typedef corridor across collaborator files | maintenance | bad-code | merge-strands-worldlines | v21.0.0 | bad-code |
+| [#207](https://github.com/git-stunts/git-warp/issues/207) | WormholeEdge is a typedef with external serialize behavior | maintenance | bad-code | merge-strands-worldlines | v21.0.0 | bad-code |
+| [#213](https://github.com/git-stunts/git-warp/issues/213) | ConflictAnalyzerService has dead and self-cancelling branches | maintenance | bad-code | merge-strands-worldlines | v21.0.0 | bad-code |
+| [#214](https://github.com/git-stunts/git-warp/issues/214) | ConflictAnalyzerService is a god object (2582 LOC) | maintenance | bad-code | merge-strands-worldlines | v21.0.0 | bad-code |
+| [#215](https://github.com/git-stunts/git-warp/issues/215) | CC_dead-exports-182 | maintenance | bad-code | merge-strands-worldlines | v17.0.0 | bad-code |
+| [#216](https://github.com/git-stunts/git-warp/issues/216) | Detached graph openers duplicate and drift from WarpRuntime.open() | maintenance | bad-code | merge-strands-worldlines | v17.0.0 | bad-code |
+| [#219](https://github.com/git-stunts/git-warp/issues/219) | exactOptionalPropertyTypes conditional spread boilerplate | maintenance | bad-code | merge-strands-worldlines | v17.0.0 | bad-code |
+| [#240](https://github.com/git-stunts/git-warp/issues/240) | DRY up WarpRuntime delegation boilerplate | maintenance | bad-code | merge-strands-worldlines | v17.0.0 | bad-code |
+| [#252](https://github.com/git-stunts/git-warp/issues/252) | Worldline reaches into 13+ WarpRuntime private fields | maintenance | bad-code | merge-strands-worldlines | v17.0.0 | bad-code |
+| [#364](https://github.com/git-stunts/git-warp/issues/364) | 30 test files over 800 LOC — test gods | maintenance | bad-code | merge-strands-worldlines | v17.0.0 | bad-code |
+| [#365](https://github.com/git-stunts/git-warp/issues/365) | Test helper overlap — consolidate fixture DSLs | maintenance | bad-code | merge-strands-worldlines | v17.0.0 | bad-code |
+| [#370](https://github.com/git-stunts/git-warp/issues/370) | CC_untested-strand-services | maintenance | bad-code | merge-strands-worldlines | v21.0.0 | bad-code |
+| [#416](https://github.com/git-stunts/git-warp/issues/416) | Dead code cemetery — automated detection | enhancement | cool-ideas | merge-strands-worldlines | - | idea |
+| [#460](https://github.com/git-stunts/git-warp/issues/460) | Aperture-relative merge | enhancement | cool-ideas | merge-strands-worldlines | - | idea |
+| [#461](https://github.com/git-stunts/git-warp/issues/461) | Braid — composite read presentation across lanes | enhancement | cool-ideas | merge-strands-worldlines | - | idea |
+| [#465](https://github.com/git-stunts/git-warp/issues/465) | PROTO_change-coupling-breaker | enhancement | cool-ideas | merge-strands-worldlines | - | idea |
+| [#467](https://github.com/git-stunts/git-warp/issues/467) | Conflict distance | enhancement | cool-ideas | merge-strands-worldlines | - | idea |
+| [#471](https://github.com/git-stunts/git-warp/issues/471) | Frontier as a proper class — the last great typedef | enhancement | cool-ideas | merge-strands-worldlines | - | idea |
+| [#481](https://github.com/git-stunts/git-warp/issues/481) | Unmerge as first-class | enhancement | cool-ideas | merge-strands-worldlines | - | idea |
+| [#486](https://github.com/git-stunts/git-warp/issues/486) | Merge geometry open questions | enhancement | cool-ideas | merge-strands-worldlines | - | idea |
+| [#489](https://github.com/git-stunts/git-warp/issues/489) | `git warp certify` — property certificates as CLI output | enhancement | cool-ideas | merge-strands-worldlines | - | idea |
+| [#503](https://github.com/git-stunts/git-warp/issues/503) | Conflict Pipeline God-Context | enhancement | up-next | merge-strands-worldlines | - | - |
+| [#508](https://github.com/git-stunts/git-warp/issues/508) | Merge conflict corpus and benchmark | enhancement | up-next | merge-strands-worldlines | - | - |
+| [#526](https://github.com/git-stunts/git-warp/issues/526) | Rename Worldline class to match theory | enhancement | up-next | merge-strands-worldlines | - | blocked |
+| [#536](https://github.com/git-stunts/git-warp/issues/536) | Merge classifier | enhancement | up-next | merge-strands-worldlines | - | blocked |
+| [#539](https://github.com/git-stunts/git-warp/issues/539) | Same-Writer Concurrent Patch Race Witness | enhancement | up-next | merge-strands-worldlines | - | blocked |
+| [#540](https://github.com/git-stunts/git-warp/issues/540) | TTD merge inspector | enhancement | up-next | merge-strands-worldlines | - | blocked |
+| [#568](https://github.com/git-stunts/git-warp/issues/568) | Local site object for neighborhoods | enhancement | release, v21.0.0 | merge-strands-worldlines | - | blocked, release |
+| [#569](https://github.com/git-stunts/git-warp/issues/569) | Merge runtime noun family | enhancement | release, v21.0.0 | merge-strands-worldlines | - | blocked, release |
+| [#570](https://github.com/git-stunts/git-warp/issues/570) | Implement collapseBraid() per runtime spec | enhancement | release, v21.0.0 | merge-strands-worldlines | - | blocked, release |
+| [#571](https://github.com/git-stunts/git-warp/issues/571) | Wesley merge contracts | enhancement | release, v21.0.0 | merge-strands-worldlines | - | blocked, release |
+
+### v21.1.0 - WESLEY/Continuum Merge Contracts
+
+Stabilize WESLEY and Continuum contract surfaces after the merge runtime nouns are no longer speculative.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#531](https://github.com/git-stunts/git-warp/issues/531) | WESLEY lane / coordinate / capability boundary | enhancement | up-next | merge-strands-worldlines | - | blocked |
+
+### Future / Needs Triage
+
+Issues without enough signal for a release slot. They stay visible here until labels or designs make a sharper call possible.
+
+| Issue | Title | Type | Lane | Feature | Release Home | Flags |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#499](https://github.com/git-stunts/git-warp/issues/499) | METHOD CLI tooling | enhancement | inbox | - | - | - |
+| [#501](https://github.com/git-stunts/git-warp/issues/501) | Upgrade METHOD.md to v2 draft | enhancement | inbox | - | - | - |
+| [#502](https://github.com/git-stunts/git-warp/issues/502) | Witness directory convention for playback | enhancement | inbox | - | - | - |
+| [#625](https://github.com/git-stunts/git-warp/issues/625) | Decide native vs translated continuum.debug.hello.v1 posture | - | - | - | - | - |
+
+## Reconciliation Check
+
+| Check | Value |
+| --- | --- |
+| Open issues pulled from GitHub | 430 |
+| Issues assigned to roadmap tables | 430 |
+| Unassigned gap | 0 |
+
+## Maintenance Notes
+
+- Regenerate this document after large merge batches, release-lane relabeling, or issue migration work.
+- Keep design docs and release evidence linked from the issue itself. This roadmap should point to issues, not duplicate acceptance criteria.
+- Do not make all `lane:bad-code` issues v18.0.0 blockers. Only issues that threaten the v18 release gates should block the tag; the rest belong in v18.x hardening or later feature-aligned paydown.
