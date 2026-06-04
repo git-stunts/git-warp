@@ -7,6 +7,8 @@
  */
 import { vi, type Mock } from 'vitest';
 import WarpStream from '../../src/domain/stream/WarpStream.ts';
+import type CodecValue from '../../src/domain/types/codec/CodecValue.ts';
+import defaultCodec from '../../src/domain/utils/defaultCodec.ts';
 
 // ---------------------------------------------------------------------------
 // Mock Persistence (GraphPersistencePort surface)
@@ -87,14 +89,14 @@ export function createMockPersistence(overrides: Partial<MockPersistence> = {}):
 // ---------------------------------------------------------------------------
 
 export interface MockCodec {
-  encode: Mock;
-  decode: Mock;
+  encode: Mock<(value: CodecValue) => Uint8Array>;
+  decode: Mock<(bytes: Uint8Array) => CodecValue>;
 }
 
 export function createMockCodec(overrides: Partial<MockCodec> = {}): MockCodec {
   return {
-    encode: vi.fn((value: unknown) => new Uint8Array(JSON.stringify(value).split('').map(c => c.charCodeAt(0)))),
-    decode: vi.fn((bytes: Uint8Array) => JSON.parse(String.fromCharCode(...bytes))),
+    encode: vi.fn((value: CodecValue): Uint8Array => defaultCodec.encode(value)),
+    decode: vi.fn((bytes: Uint8Array): CodecValue => defaultCodec.decode(bytes)),
     ...overrides,
   };
 }
@@ -103,7 +105,7 @@ export function createMockCodec(overrides: Partial<MockCodec> = {}): MockCodec {
 export function createStubCodec(): MockCodec {
   return {
     encode: vi.fn(() => new Uint8Array([1])),
-    decode: vi.fn(() => ({})),
+    decode: vi.fn((_bytes: Uint8Array): CodecValue => ({})),
   };
 }
 
