@@ -209,12 +209,14 @@ describe('BitmapIndexReader', () => {
         info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
+        child: vi.fn(),
       };
-      const lenient = new BitmapIndexReader(({
+      mockLogger.child.mockReturnValue(mockLogger);
+      const lenient = new BitmapIndexReader({
         storage: mockStorage,
         strict: false,
         logger: mockLogger,
-      } as any));
+      });
       // Valid CBOR but wrong structure (array instead of object)
       mockStorage.readBlob.mockResolvedValue(defaultCodec.encode([1, 2, 3]));
 
@@ -306,14 +308,16 @@ describe('BitmapIndexReader', () => {
         info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
+        child: vi.fn(),
       };
+      mockLogger.child.mockReturnValue(mockLogger);
 
       // Non-strict reader
-      const nonStrictReader = new BitmapIndexReader(({
+      const nonStrictReader = new BitmapIndexReader({
         storage: mockStorage,
         strict: false,
         logger: mockLogger,
-      } as any));
+      });
       mockStorage.readBlob.mockResolvedValue(corruptBitmapData);
       nonStrictReader.setup({ 'shards_rev_ab.cbor': 'eee5fff600000000000000000000000000000000' });
 
