@@ -125,6 +125,8 @@ import WarpAppDefault, {
   NoOpEffectSink,
   ConsoleEffectSink,
   ChunkEffectSink,
+  type Aperture,
+  type ObserverConfig,
   type PropValue,
   type SnapshotPropValue,
   type SyncRateLimitConfig,
@@ -336,6 +338,12 @@ const warpWorldline: WarpWorldline = await openWarpWorldline(worldlineOptions);
 const worldlinePatchBuild: WarpWorldlinePatchBuild = (patch) => {
   patch.addNode('worldline-node');
 };
+const publicUsersAperture: Aperture = {
+  match: 'user:*',
+  expose: ['name'],
+  redact: ['secret'],
+};
+const publicUsersObserverConfig: ObserverConfig = publicUsersAperture;
 const worldlinePatchSha: string = await warpWorldline.commit(worldlinePatchBuild);
 const worldlineOpticBasis: WarpWorldlineOpticBasis = await warpWorldline.prepareOpticBasis();
 const worldlineCoordinate: WarpWorldlineCoordinate = await warpWorldline.coordinate();
@@ -344,6 +352,8 @@ const worldlineHistorical: Worldline = await warpWorldline.seek({
   source: { kind: 'live', ceiling: 1 },
 });
 const worldlineObserver: Observer = await warpWorldline.observer({ match: '*' });
+const namedApertureObserver: Observer = await warpWorldline.observer('public-users', publicUsersAperture);
+const aliasApertureObserver: Observer = await warpWorldline.observer(publicUsersObserverConfig);
 const coordinateFrontierEntries: readonly WarpWorldlineCoordinateFrontierEntry[] =
   worldlineCoordinate.frontierEntries;
 const coordinateSource = worldlineCoordinate.source();
@@ -358,6 +368,8 @@ void coordinateOpticAlive;
 void worldlineLive;
 void worldlineHistorical;
 void worldlineObserver;
+void namedApertureObserver;
+void aliasApertureObserver;
 
 const materialized: SnapshotWarpState = await graph.materialize();
 const materializedWithReceipts: { state: SnapshotWarpState; receipts: readonly ReturnType<typeof createTickReceipt>[] } =
