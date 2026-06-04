@@ -12,9 +12,9 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 
 | Metric | Count |
 | --- | ---: |
-| Open GitHub issues indexed | 430 |
-| `lane:bad-code` maintenance issues | 216 |
-| `lane:cool-ideas` enhancement issues | 110 |
+| Open GitHub issues indexed | 408 |
+| `lane:bad-code` maintenance issues | 214 |
+| `lane:cool-ideas` enhancement issues | 95 |
 | `lane:release` issues | 22 |
 | Blocked issues | 41 |
 | Unlabeled issues | 1 |
@@ -46,7 +46,6 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 | v19.2.0 | 6 | Package extraction, multi-package release, MCP, and integration architecture that should follow the v19 observer model rather than constrain it prematurely. |
 | v20.0.0 | 18 | Make slice-first, bounded, streaming read/write execution ordinary runtime behavior rather than special-case gate evidence. |
 | v20.1.0 | 23 | Reshape indexes, materialization controllers, async traversal, and diagnostics around bounded support instead of full-state residency. |
-| v20.2.0 | 22 | Handle browser, visualization, and TTD-facing surfaces after streaming reads and indexes are dependable. |
 | v21.0.0 | 36 | Make distributed/plural admission semantics runtime-real: merge classifiers, braid collapse, local sites, and strand/worldline merge nouns. |
 | v21.1.0 | 1 | Stabilize WESLEY and Continuum contract surfaces after the merge runtime nouns are no longer speculative. |
 | future | 4 | Issues without enough signal for a release slot. They stay visible here until labels or designs make a sharper call possible. |
@@ -57,10 +56,10 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 
 | Label | Count |
 | --- | ---: |
-| lane:bad-code | 216 |
-| lane:cool-ideas | 110 |
-| lane:up-next | 43 |
-| lane:backlog-root | 34 |
+| lane:bad-code | 214 |
+| lane:cool-ideas | 95 |
+| lane:up-next | 42 |
+| lane:backlog-root | 30 |
 | lane:release | 22 |
 | lane:v19.0.0 | 11 |
 | lane:inbox | 4 |
@@ -72,14 +71,14 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 
 | Label | Count |
 | --- | ---: |
-| type:maintenance | 216 |
-| type:enhancement | 213 |
+| type:maintenance | 214 |
+| type:enhancement | 193 |
 
 ### Release Home Labels
 
 | Label | Count |
 | --- | ---: |
-| release-home:v17.0.0 | 164 |
+| release-home:v17.0.0 | 162 |
 | release-home:v18.0.0 | 22 |
 | release-home:v20.0.0 | 14 |
 | release-home:v19.0.0 | 13 |
@@ -98,7 +97,6 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 | feature:observer-admission-runtime | 27 |
 | feature:tooling-release | 27 |
 | feature:materialization-query-index | 26 |
-| feature:browser-viz | 22 |
 | feature:trie-state-storage | 16 |
 | feature:graph-model-substrate | 4 |
 | feature:btr-provenance-boundary | 1 |
@@ -576,35 +574,6 @@ Reshape indexes, materialization controllers, async traversal, and diagnostics a
 | [#528](https://github.com/git-stunts/git-warp/issues/528) | Remove per-artifact ports + defaultCodec | Blocked | enhancement | up-next | materialization-query-index | - | blocked |
 | [#535](https://github.com/git-stunts/git-warp/issues/535) | MaterializeController strategy decomposition | Open | enhancement | up-next | materialization-query-index | - | - |
 
-### v20.2.0 - Browser And Visualization Product Surface
-
-Handle browser, visualization, and TTD-facing surfaces after streaming reads and indexes are dependable.
-
-| Issue | Title | Status | Type | Lane | Feature | Release Home | Flags |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| [#115](https://github.com/git-stunts/git-warp/issues/115) | Browser guide and storage adapter documentation | Open | enhancement | backlog-root | browser-viz | - | - |
-| [#143](https://github.com/git-stunts/git-warp/issues/143) | Mermaid Diagram Content Checklist | Open | enhancement | backlog-root | browser-viz | - | - |
-| [#144](https://github.com/git-stunts/git-warp/issues/144) | Mermaid `~~~` Invisible-Link Fragility | Open | enhancement | backlog-root | browser-viz | - | - |
-| [#145](https://github.com/git-stunts/git-warp/issues/145) | Mermaid Rendering Smoke Test | Open | enhancement | backlog-root | browser-viz | - | - |
-| [#244](https://github.com/git-stunts/git-warp/issues/244) | Visualization modules mix named and default exports | Open | maintenance | bad-code | browser-viz | v17.0.0 | bad-code |
-| [#258](https://github.com/git-stunts/git-warp/issues/258) | CLAUDE.md has 24 factual inaccuracies (3 critical) | Open | maintenance | bad-code | browser-viz | v17.0.0 | bad-code |
-| [#400](https://github.com/git-stunts/git-warp/issues/400) | Admission replay stepper | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#403](https://github.com/git-stunts/git-warp/issues/403) | Agent onboarding smoke test | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#407](https://github.com/git-stunts/git-warp/issues/407) | Artifact Store Stack Diagram | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#434](https://github.com/git-stunts/git-warp/issues/434) | DX_risk-hotspot-ci-dashboard | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#469](https://github.com/git-stunts/git-warp/issues/469) | CRDT conflict resolution dashboard | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#479](https://github.com/git-stunts/git-warp/issues/479) | First-class observer and aperture envelopes in warp-ttd protocol | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#482](https://github.com/git-stunts/git-warp/issues/482) | WARP FUSE mount for worldlines, strands, and braids | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#490](https://github.com/git-stunts/git-warp/issues/490) | Visualize braid collapse outcomes in warp-ttd | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#491](https://github.com/git-stunts/git-warp/issues/491) | Braid Studio | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#492](https://github.com/git-stunts/git-warp/issues/492) | Counterfactual merge explorer | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#493](https://github.com/git-stunts/git-warp/issues/493) | Graph diff via transitive reduction comparison | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#494](https://github.com/git-stunts/git-warp/issues/494) | `levels()` as Lightweight `--view` Layout | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#495](https://github.com/git-stunts/git-warp/issues/495) | Live SSJS health dashboard | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#496](https://github.com/git-stunts/git-warp/issues/496) | Structural Diff via Transitive Reduction | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#497](https://github.com/git-stunts/git-warp/issues/497) | WARP UI Visualizer | Open | enhancement | cool-ideas | browser-viz | - | idea |
-| [#545](https://github.com/git-stunts/git-warp/issues/545) | VIZ: cut git-warp visualization surface in favor of warp-ttd | Open | enhancement | up-next | browser-viz | - | - |
-
 ### v21.0.0 - Merge/Strand/Worldline Runtime
 
 Make distributed/plural admission semantics runtime-real: merge classifiers, braid collapse, local sites, and strand/worldline merge nouns.
@@ -671,8 +640,8 @@ Issues without enough signal for a release slot. They stay visible here until la
 
 | Check | Count |
 | --- | ---: |
-| Open issues pulled from GitHub | 430 |
-| Issues assigned to roadmap tables | 430 |
+| Open issues pulled from GitHub | 408 |
+| Issues assigned to roadmap tables | 408 |
 | Largest release slot | 50 |
 | Release slots over 50 issues | 0 |
 | Unassigned gap | 0 |
