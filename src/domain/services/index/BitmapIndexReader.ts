@@ -19,6 +19,14 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
+function isPlainLoadedShard(value: LoadedShard | null | undefined): value is LoadedShard {
+  return value !== null
+    && value !== undefined
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.getPrototypeOf(value) === Object.prototype;
+}
+
 function isMetaShardPath(path: string): boolean {
   return /^meta_[0-9a-f]{2}(?:\.chunk-\d{6})?\.cbor$/.test(path);
 }
@@ -145,7 +153,14 @@ export default class BitmapIndexReader {
     for (const actualPath of this._resolveShardPaths(shardPath)) {
       const shard = await this._getOrLoadShard(actualPath) as Record<string, Uint8Array>;
       const bitmapBytes = shard[sha];
-      if (!bitmapBytes || !(bitmapBytes instanceof Uint8Array) || bitmapBytes.length === 0) {
+      if (bitmapBytes === undefined || bitmapBytes === null) {
+        continue;
+      }
+      if (!(bitmapBytes instanceof Uint8Array)) {
+        this._handleInvalidBitmapValue(actualPath, sha);
+        continue;
+      }
+      if (bitmapBytes.length === 0) {
         continue;
       }
       const ids = this._deserializeBitmapIds(bitmapBytes, actualPath);
@@ -246,6 +261,9 @@ export default class BitmapIndexReader {
   private _decodeAndCacheShard(buffer: Uint8Array, path: string, oid: string): LoadedShard {
     try {
       const data = this._codec.decode<LoadedShard>(buffer);
+      if (!isPlainLoadedShard(data)) {
+        return this._handleInvalidShardShape(path, oid, 'shard_not_object');
+      }
       this.loadedShards.set(path, data);
       return data;
     } catch (err) {
@@ -269,6 +287,45 @@ export default class BitmapIndexReader {
       oid,
     });
     return {};
+  }
+
+  private _handleInvalidShardShape(path: string, oid: string, reason: string): LoadedShard {
+    const corruptionError = new ShardCorruptionError('Invalid shard shape', {
+      shardPath: path,
+      oid,
+      reason,
+    });
+    if (this.strict) {
+      throw corruptionError;
+    }
+    this.logger.warn('Shard shape invalid', {
+      operation: 'loadShard',
+      shardPath: path,
+      oid,
+      reason,
+    });
+    return {};
+  }
+
+  private _handleInvalidBitmapValue(path: string, sha: string): void {
+    const oid = this.shardOids.get(path);
+    const shardOid = isNonEmptyString(oid) ? oid : path;
+    const corruptionError = new ShardCorruptionError('Invalid bitmap value', {
+      shardPath: path,
+      oid: shardOid,
+      reason: 'bitmap_value_not_bytes',
+      context: { sha },
+    });
+    if (this.strict) {
+      throw corruptionError;
+    }
+    this.logger.warn('Bitmap value invalid', {
+      operation: 'deserializeBitmap',
+      shardPath: path,
+      oid: shardOid,
+      reason: 'bitmap_value_not_bytes',
+      sha,
+    });
   }
 
   private async _loadShardBuffer(path: string, oid: string): Promise<Uint8Array> {

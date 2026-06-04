@@ -32,6 +32,18 @@ const _makeBitmapBytes = (ids) => {
 };
 void _makeBitmapBytes;
 
+function createMockLogger() {
+  const logger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn(),
+  };
+  logger.child.mockReturnValue(logger);
+  return logger;
+}
+
 describe('BitmapIndexReader', () => {
     let mockStorage;
     let reader;
@@ -203,8 +215,13 @@ describe('BitmapIndexReader', () => {
       expect(parents).toEqual([]);
     });
 
-    it('returns empty array when shard contains wrong data type (non-strict)', async () => {
-      const lenient = new BitmapIndexReader(({ storage: mockStorage, strict: false } as any));
+    it('returns empty array with warning when shard contains wrong data type (non-strict)', async () => {
+      const mockLogger = createMockLogger();
+      const lenient = new BitmapIndexReader({
+        storage: mockStorage,
+        strict: false,
+        logger: mockLogger,
+      });
       // Valid CBOR but wrong structure (array instead of object)
       mockStorage.readBlob.mockResolvedValue(defaultCodec.encode([1, 2, 3]));
 
@@ -214,6 +231,37 @@ describe('BitmapIndexReader', () => {
 
       const parents = await lenient.getParents('abcd123400000000000000000000000000000000');
       expect(parents).toEqual([]);
+      expect(mockLogger.warn).toHaveBeenCalledWith('Shard shape invalid', expect.objectContaining({
+        operation: 'loadShard',
+        shardPath: 'shards_rev_ab.cbor',
+        reason: 'shard_not_object',
+      }));
+    });
+
+    it('rejects top-level byte-string shards before caching them (non-strict)', async () => {
+      const sha = 'abcd123400000000000000000000000000000000';
+      const shardPath = 'shards_rev_ab.cbor';
+      const mockLogger = createMockLogger();
+      const lenient = new BitmapIndexReader({
+        storage: mockStorage,
+        strict: false,
+        logger: mockLogger,
+      });
+      mockStorage.readBlob.mockResolvedValue(defaultCodec.encode(new Uint8Array([1, 2, 3])));
+
+      lenient.setup({
+        [shardPath]: 'fff6aaa100000000000000000000000000000000',
+      });
+
+      await expect(lenient.getParents(sha)).resolves.toEqual([]);
+      await expect(lenient.getParents(sha)).resolves.toEqual([]);
+      expect(mockStorage.readBlob).toHaveBeenCalledTimes(2);
+      expect(mockLogger.warn).toHaveBeenCalledTimes(2);
+      expect(mockLogger.warn).toHaveBeenCalledWith('Shard shape invalid', expect.objectContaining({
+        operation: 'loadShard',
+        shardPath,
+        reason: 'shard_not_object',
+      }));
     });
 
     it('throws ShardLoadError on storage failure but continues after', async () => {
@@ -283,27 +331,35 @@ describe('BitmapIndexReader', () => {
 
     it('non-strict mode returns empty but strict mode throws for same corruption', async () => {
       // Valid CBOR encoding of a plain object — but reader treats it as a bitmap shard
-      // and tries to deserialize values as Uint8Array bitmaps. Since the values are not
-      // Uint8Array, _deserializeBitmapIds will fail in strict mode.
+      // and requires values to be Uint8Array bitmap bytes.
       const sha = 'abcd123400000000000000000000000000000000';
       const corruptBitmapData = defaultCodec.encode({ [sha]: 'not-a-bitmap' });
+      const mockLogger = createMockLogger();
 
       // Non-strict reader
-      const nonStrictReader = new BitmapIndexReader(({ storage: mockStorage, strict: false } as any));
+      const nonStrictReader = new BitmapIndexReader({
+        storage: mockStorage,
+        strict: false,
+        logger: mockLogger,
+      });
       mockStorage.readBlob.mockResolvedValue(corruptBitmapData);
       nonStrictReader.setup({ 'shards_rev_ab.cbor': 'eee5fff600000000000000000000000000000000' });
 
       const nonStrictResult = await nonStrictReader.getParents(sha);
       expect(nonStrictResult).toEqual([]); // Graceful degradation
 
-      // Strict reader gets same data but the bitmap value is not a Uint8Array
-      // so _getEdges returns [] for missing/empty bitmapBytes without throwing
-      // (the check is `!(bitmapBytes instanceof Uint8Array)`)
+      expect(mockLogger.warn).toHaveBeenCalledWith('Bitmap value invalid', expect.objectContaining({
+        operation: 'deserializeBitmap',
+        shardPath: 'shards_rev_ab.cbor',
+        reason: 'bitmap_value_not_bytes',
+        sha,
+      }));
+
+      // Strict reader gets same data and rejects the non-byte bitmap value.
       const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true } as any));
       strictReader.setup({ 'shards_rev_ab.cbor': 'eee5fff600000000000000000000000000000000' });
 
-      const strictResult = await strictReader.getParents(sha);
-      expect(strictResult).toEqual([]);
+      await expect(strictReader.getParents(sha)).rejects.toThrow(ShardCorruptionError);
     });
 
     it('logs a warning on each CBOR decode error (no caching on failure)', async () => {
