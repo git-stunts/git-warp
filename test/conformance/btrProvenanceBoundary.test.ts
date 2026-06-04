@@ -1,107 +1,116 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
+import {
+  BTR,
+  createBTR,
+  NodeCryptoAdapter,
+  ProvenancePayload,
+  replayBTR,
+  verifyBTR,
+} from '../../index.ts';
+import BtrCodecAdapter from '../../src/infrastructure/adapters/BtrCodecAdapter.ts';
+import { createEmptyState, createSamplePatches } from '../helpers/warpGraphTestUtils.ts';
 
-const DESIGN_PATH = 'docs/design/0099-btr-provenance-codec-boundary-repair.md';
-const BTR_PATH = 'src/domain/services/provenance/BTR.ts';
-const BTR_OPERATIONS_PATH = 'src/domain/services/provenance/btrOperations.ts';
-const APPLICATION_BTR_OPERATIONS_PATH = 'src/application/provenance/BtrOperations.ts';
-const PROVENANCE_PAYLOAD_PATH = 'src/domain/services/provenance/ProvenancePayload.ts';
+const crypto = new NodeCryptoAdapter();
+const btrCodec = new BtrCodecAdapter();
+const key = 'btr-provenance-boundary-test-key';
+const timestamp = '2026-04-14T00:00:00.000Z';
 
-const OFFENDER_FILES = [
-  BTR_PATH,
-  PROVENANCE_PAYLOAD_PATH,
-] as const;
+type BtrRecord = Awaited<ReturnType<typeof createBTR>>;
 
-const OWNERSHIP_TEST_PATH = 'test/conformance/btrSigningBytesOwnership.test.ts';
-const SLUDGE_ATLAS_TEST_PATH = 'test/conformance/sludgeAtlas.test.ts';
-
-function readRepoFile(path: string): string {
-  return readFileSync(join(REPO_ROOT, path), 'utf8');
+function samplePayload(): ProvenancePayload {
+  const { patchA, patchB, patchC } = createSamplePatches();
+  return new ProvenancePayload([patchA, patchB, patchC]);
 }
 
-function sourceFor(path: string): string {
-  return readRepoFile(path);
+function decodeRecord(bytes: Uint8Array): BtrRecord {
+  const result = btrCodec.decodeRecord(bytes);
+  expect(result.kind).toBe('decoded_boundary_transition_record');
+  if (result.kind !== 'decoded_boundary_transition_record') {
+    throw new Error(result.reason);
+  }
+  return result.record;
 }
 
-function repoFileExists(path: string): boolean {
-  return existsSync(join(REPO_ROOT, path));
-}
-
-function expectNoPattern(source: string, pattern: RegExp, label: string): void {
-  expect(source, label).not.toMatch(pattern);
+function tamperTimestamp(record: BtrRecord): BtrRecord {
+  return new BTR({
+    version: record.version,
+    h_in: record.h_in,
+    h_out: record.h_out,
+    U_0: record.U_0,
+    P: record.P,
+    t: '2026-04-14T00:00:01.000Z',
+    kappa: record.kappa,
+  });
 }
 
 describe('BTR provenance boundary repair contract', () => {
-  it('keeps the ownership and sludge-atlas doctrine tests present', () => {
-    expect(readRepoFile(OWNERSHIP_TEST_PATH)).toContain('BTR signing-byte ownership doctrine');
-    expect(readRepoFile(SLUDGE_ATLAS_TEST_PATH)).toContain('sludge atlas contract');
+  it('round-trips BTR records through the codec boundary and verifies replay', async () => {
+    const record = await createBTR(createEmptyState(), samplePayload(), {
+      key,
+      timestamp,
+      crypto,
+      btrCodec,
+    });
+
+    const decoded = decodeRecord(btrCodec.encodeRecord(record));
+    const verification = await verifyBTR(decoded, key, {
+      crypto,
+      btrCodec,
+      verifyReplay: true,
+    });
+    const replayed = await replayBTR(decoded, { crypto });
+
+    expect(decoded.P).toHaveLength(3);
+    expect(decoded.kappa).toBe(record.kappa);
+    expect(verification.valid).toBe(true);
+    expect(verification.reason).toBeUndefined();
+    expect(replayed.h_out).toBe(record.h_out);
+    expect(replayed.state.hasNodeRecord('node-a')).toBe(true);
+    expect(replayed.state.hasNodeRecord('node-b')).toBe(true);
+    expect(replayed.state.getNodeProp('node-a', 'name')?.value)
+      .toEqual({ type: 'inline', value: 'Alice' });
   });
 
-  it('records the inherited doctrine in the 0099 design', () => {
-    const design = readRepoFile(DESIGN_PATH);
+  it('rejects semantic tampering after a valid BTR was signed', async () => {
+    const record = await createBTR(createEmptyState(), samplePayload(), {
+      key,
+      timestamp,
+      crypto,
+      btrCodec,
+    });
 
-    expect(design).toContain('Domain owns meaning. Adapters own encoding. Ports define capabilities.');
-    expect(design).toContain('Crypto signs typed canonical bytes.');
-    expect(design).toContain('Decision: keep `CryptoPort.hmac` generic and byte-oriented for this');
-    expect(design).toContain('`BtrSigningBytes` construction must be guarded');
-    expect(design).toContain('Do not resume `0096-purge-cast-hacks`');
+    const verification = await verifyBTR(tamperTimestamp(record), key, {
+      crypto,
+      btrCodec,
+      verifyReplay: true,
+    });
+
+    expect(verification.valid).toBe(false);
+    expect(verification.reason).toBe('Authentication tag mismatch');
   });
 
-  it('removes boundary codec imports and calls from known offender files', () => {
-    for (const path of OFFENDER_FILES) {
-      const source = sourceFor(path);
+  it('requires explicit crypto and BTR codec ports for verification', async () => {
+    const record = await createBTR(createEmptyState(), samplePayload(), {
+      key,
+      timestamp,
+      crypto,
+      btrCodec,
+    });
 
-      expectNoPattern(source, /\bCodecPort\b/, `${path}: CodecPort`);
-      expectNoPattern(source, /\bdefaultCodec\b/, `${path}: defaultCodec`);
-      expectNoPattern(source, /\bcodec\.encode\b/, `${path}: codec.encode`);
-      expectNoPattern(source, /\bcodec\.decode\b/, `${path}: codec.decode`);
-    }
+    expect(await verifyBTR(record, key, { crypto })).toMatchObject({
+      valid: false,
+      reason: 'BoundaryTransitionRecordCodecPort required for HMAC verification',
+    });
+    expect(await verifyBTR(record, key, { btrCodec })).toMatchObject({
+      valid: false,
+      reason: 'CryptoPort required for HMAC verification',
+    });
   });
 
-  it('removes the legacy domain-side BTR operations module', () => {
-    expect(repoFileExists(BTR_OPERATIONS_PATH)).toBe(false);
-  });
-
-  it('removes domain-owned wire API names from BTR/provenance values', () => {
-    for (const path of OFFENDER_FILES) {
-      const source = sourceFor(path);
-
-      expectNoPattern(source, /\bserialize\s*\(/, `${path}: serialize(`);
-      expectNoPattern(source, /\bdeserialize\s*\(/, `${path}: deserialize(`);
-      expectNoPattern(source, /\btoJSON\s*\(/, `${path}: toJSON(`);
-      expectNoPattern(source, /\bfromJSON\s*\(/, `${path}: fromJSON(`);
-    }
-  });
-
-  it('removes anonymous BTR/provenance bags and fake wire models', () => {
-    for (const path of OFFENDER_FILES) {
-      const source = sourceFor(path);
-
-      expectNoPattern(source, /\bPatchEntryJSON\b/, `${path}: PatchEntryJSON`);
-      expectNoPattern(source, /\bRecord\s*<\s*string\b/, `${path}: Record<string`);
-    }
-  });
-
-  it('removes cast-theater bridges from known offender files', () => {
-    for (const path of OFFENDER_FILES) {
-      const source = sourceFor(path);
-
-      expectNoPattern(source, /\bas\s+unknown\s+as\s+PatchEntry\b/, `${path}: as unknown as PatchEntry`);
-      expectNoPattern(source, /\bas\s+unknown\s+as\s+BTRFields\b/, `${path}: as unknown as BTRFields`);
-      expectNoPattern(source, /\bas\s+unknown\s+as\b/, `${path}: as unknown as`);
-    }
-  });
-
-  it('removes HMAC object-bag signing from BTR orchestration', () => {
-    const source = sourceFor(APPLICATION_BTR_OPERATIONS_PATH);
-
-    expectNoPattern(source, /\bcomputeHmac\s*\(\s*fields\b/, 'computeHmac(fields');
-    expectNoPattern(source, /\bcodec\.encode\s*\(\s*fields\b/, 'codec.encode(fields)');
-    expectNoPattern(source, /\bfields\s*:\s*\{/, 'fields: {');
-    expectNoPattern(source, /\bP\s*:\s*readonly\s+Record\b/, 'P: readonly Record');
+  it('reports invalid wire bytes at the codec boundary', () => {
+    expect(btrCodec.decodeRecord(new Uint8Array([0, 1, 2, 3]))).toMatchObject({
+      kind: 'boundary_transition_record_decode_failed',
+    });
   });
 });
