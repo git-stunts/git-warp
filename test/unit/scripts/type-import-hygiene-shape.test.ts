@@ -1,35 +1,32 @@
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
 const HYGIENE_CONSISTENT_TYPE_IMPORTS = '@typescript-eslint/consistent-type-imports';
 const HYGIENE_RESTRICT_TEMPLATE_EXPRESSIONS = '@typescript-eslint/restrict-template-expressions';
-const fixturePaths: string[] = [];
-
-afterEach(() => {
-  while (fixturePaths.length > 0) {
-    const fixturePath = fixturePaths.pop();
-    if (fixturePath !== undefined) {
-      rmSync(fixturePath, { force: true });
-    }
-  }
-});
+const SOURCE_TREE_HYGIENE_FIXTURES = Object.freeze([
+  'src/domain/type-import-hygiene-fixture.ts',
+  'src/domain/template-expression-hygiene-fixture.ts',
+]);
+const DOMAIN_LINT_TEXT_FILE = 'src/domain/errors/index.ts';
 
 function presentRuleId(ruleId: string | null): ruleId is string {
   return ruleId !== null;
 }
 
-async function lintRuleIds(relativePath: string, source: string): Promise<string[]> {
-  const fixturePath = `${repoRoot}${relativePath}`;
-  writeFileSync(fixturePath, source, 'utf8');
-  fixturePaths.push(fixturePath);
+function expectNoSourceTreeHygieneFixtures(): void {
+  for (const fixturePath of SOURCE_TREE_HYGIENE_FIXTURES) {
+    expect(existsSync(`${repoRoot}${fixturePath}`)).toBe(false);
+  }
+}
 
+async function lintRuleIds(relativePath: string, source: string): Promise<string[]> {
   const eslint = new ESLint({ cwd: repoRoot });
-  const [result] = await eslint.lintFiles([relativePath]);
+  const [result] = await eslint.lintText(source, { filePath: relativePath });
   if (!result) {
     return [];
   }
@@ -96,23 +93,24 @@ function arrayPropertyLength(manifestName: string, propertyName: string): number
 describe('type-import/template-expression hygiene posture', () => {
   it('rejects value imports that are only used as types through ESLint', async () => {
     const ruleIds = await lintRuleIds(
-      'src/domain/type-import-hygiene-fixture.ts',
+      DOMAIN_LINT_TEXT_FILE,
       [
-        "import WarpError from './errors/WarpError.ts';",
+        "import WarpError from './WarpError.ts';",
         '',
-        'type Box = { readonly error: WarpError | null };',
-        'const box: Box = { error: null };',
+        'type Box = { readonly error: WarpError };',
+        'declare const box: Box;',
         'void box;',
         '',
       ].join('\n'),
     );
 
     expect(ruleIds).toContain(HYGIENE_CONSISTENT_TYPE_IMPORTS);
+    expectNoSourceTreeHygieneFixtures();
   });
 
   it('rejects boolean template interpolation through ESLint', async () => {
     const ruleIds = await lintRuleIds(
-      'src/domain/template-expression-hygiene-fixture.ts',
+      DOMAIN_LINT_TEXT_FILE,
       [
         'const enabled = true;',
         'const message = `enabled: ${enabled}`;',
@@ -122,6 +120,7 @@ describe('type-import/template-expression hygiene posture', () => {
     );
 
     expect(ruleIds).toContain(HYGIENE_RESTRICT_TEMPLATE_EXPRESSIONS);
+    expectNoSourceTreeHygieneFixtures();
   });
 
   it('keeps the hygiene quarantine manifests active and empty', () => {
