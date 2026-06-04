@@ -32,6 +32,18 @@ const _makeBitmapBytes = (ids) => {
 };
 void _makeBitmapBytes;
 
+function createMockLogger() {
+  const logger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn(),
+  };
+  logger.child.mockReturnValue(logger);
+  return logger;
+}
+
 describe('BitmapIndexReader', () => {
     let mockStorage;
     let reader;
@@ -204,14 +216,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('returns empty array with warning when shard contains wrong data type (non-strict)', async () => {
-      const mockLogger = {
-        debug: vi.fn(),
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        child: vi.fn(),
-      };
-      mockLogger.child.mockReturnValue(mockLogger);
+      const mockLogger = createMockLogger();
       const lenient = new BitmapIndexReader({
         storage: mockStorage,
         strict: false,
@@ -229,6 +234,32 @@ describe('BitmapIndexReader', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith('Shard shape invalid', expect.objectContaining({
         operation: 'loadShard',
         shardPath: 'shards_rev_ab.cbor',
+        reason: 'shard_not_object',
+      }));
+    });
+
+    it('rejects top-level byte-string shards before caching them (non-strict)', async () => {
+      const sha = 'abcd123400000000000000000000000000000000';
+      const shardPath = 'shards_rev_ab.cbor';
+      const mockLogger = createMockLogger();
+      const lenient = new BitmapIndexReader({
+        storage: mockStorage,
+        strict: false,
+        logger: mockLogger,
+      });
+      mockStorage.readBlob.mockResolvedValue(defaultCodec.encode(new Uint8Array([1, 2, 3])));
+
+      lenient.setup({
+        [shardPath]: 'fff6aaa100000000000000000000000000000000',
+      });
+
+      await expect(lenient.getParents(sha)).resolves.toEqual([]);
+      await expect(lenient.getParents(sha)).resolves.toEqual([]);
+      expect(mockStorage.readBlob).toHaveBeenCalledTimes(2);
+      expect(mockLogger.warn).toHaveBeenCalledTimes(2);
+      expect(mockLogger.warn).toHaveBeenCalledWith('Shard shape invalid', expect.objectContaining({
+        operation: 'loadShard',
+        shardPath,
         reason: 'shard_not_object',
       }));
     });
@@ -303,14 +334,7 @@ describe('BitmapIndexReader', () => {
       // and requires values to be Uint8Array bitmap bytes.
       const sha = 'abcd123400000000000000000000000000000000';
       const corruptBitmapData = defaultCodec.encode({ [sha]: 'not-a-bitmap' });
-      const mockLogger = {
-        debug: vi.fn(),
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        child: vi.fn(),
-      };
-      mockLogger.child.mockReturnValue(mockLogger);
+      const mockLogger = createMockLogger();
 
       // Non-strict reader
       const nonStrictReader = new BitmapIndexReader({

@@ -19,6 +19,14 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
+function isPlainLoadedShard(value: LoadedShard | null | undefined): value is LoadedShard {
+  return value !== null
+    && value !== undefined
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.getPrototypeOf(value) === Object.prototype;
+}
+
 function isMetaShardPath(path: string): boolean {
   return /^meta_[0-9a-f]{2}(?:\.chunk-\d{6})?\.cbor$/.test(path);
 }
@@ -253,7 +261,7 @@ export default class BitmapIndexReader {
   private _decodeAndCacheShard(buffer: Uint8Array, path: string, oid: string): LoadedShard {
     try {
       const data = this._codec.decode<LoadedShard>(buffer);
-      if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+      if (!isPlainLoadedShard(data)) {
         return this._handleInvalidShardShape(path, oid, 'shard_not_object');
       }
       this.loadedShards.set(path, data);
