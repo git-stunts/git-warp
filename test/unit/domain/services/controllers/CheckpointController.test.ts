@@ -170,6 +170,9 @@ function createMockHost(overrides = {}) {
     _lastFrontier: null,
     _cachedViewHash: null,
     _cachedIndexTree: null,
+    _materializedGraph: null,
+    _logicalIndex: null,
+    _propertyReader: null,
     discoverWriters: vi.fn().mockResolvedValue([]),
     materialize: vi.fn().mockResolvedValue(stubState()),
     _loadWriterPatches: vi.fn().mockResolvedValue([]),
@@ -473,6 +476,11 @@ describe('CheckpointController', () => {
     it('runs GC on cached state and returns result', () => {
       const state = stubState();
       host['_cachedState'] = state;
+      host['_materializedGraph'] = { stale: 'graph' };
+      host['_logicalIndex'] = { stale: 'index' };
+      host['_propertyReader'] = { stale: 'reader' };
+      host['_cachedIndexTree'] = { 'stale.cbor': new Uint8Array([1]) };
+      host['_cachedViewHash'] = 'stale-hash';
       const gcResult = stubGCResult();
       executeGCMock.mockReturnValue(gcResult);
 
@@ -482,6 +490,11 @@ describe('CheckpointController', () => {
       expect(cloneStateMock).toHaveBeenCalledWith(state);
       expect(computeAppliedVVMock).toHaveBeenCalled();
       expect(host['_patchesSinceGC']).toBe(0);
+      expect(host['_materializedGraph']).toBeNull();
+      expect(host['_logicalIndex']).toBeNull();
+      expect(host['_propertyReader']).toBeNull();
+      expect(host['_cachedIndexTree']).toBeNull();
+      expect(host['_cachedViewHash']).toBeNull();
     });
 
     it('throws E_NO_STATE when no cached state exists', () => {
@@ -589,12 +602,22 @@ describe('CheckpointController', () => {
     it('runs GC when enabled and thresholds met', () => {
       host['_gcPolicy'] = strictPolicy(true);
       host['_cachedState'] = null;
+      host['_materializedGraph'] = { stale: 'graph' };
+      host['_logicalIndex'] = { stale: 'index' };
+      host['_propertyReader'] = { stale: 'reader' };
+      host['_cachedIndexTree'] = { 'stale.cbor': new Uint8Array([1]) };
+      host['_cachedViewHash'] = 'stale-hash';
 
       const state = stubState();
       ctrl._maybeRunGC(state);
 
       expect(executeGCMock).toHaveBeenCalled();
       expect(host['_patchesSinceGC']).toBe(0);
+      expect(host['_materializedGraph']).toBeNull();
+      expect(host['_logicalIndex']).toBeNull();
+      expect(host['_propertyReader']).toBeNull();
+      expect(host['_cachedIndexTree']).toBeNull();
+      expect(host['_cachedViewHash']).toBeNull();
     });
 
     it('logs warning when GC disabled but thresholds met', () => {

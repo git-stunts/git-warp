@@ -57,6 +57,9 @@ type CheckpointHost = {
   _checkpointStore: CheckpointStorePort | null;
   _stateHashService: StateHashService | null;
   _provenanceIndex: ProvenanceIndex | null;
+  _materializedGraph?: object | null;
+  _logicalIndex?: object | null;
+  _propertyReader?: object | null;
   _cachedIndexTree: Record<string, Uint8Array> | null;
   _codec: CodecPort;
   _commitMessageCodec: CommitMessageCodecPort;
@@ -443,7 +446,7 @@ export default class CheckpointController {
           return;
         }
 
-        h._cachedState = clonedState;
+        this._installCompactedState(clonedState);
         h._lastGCLamport = h._maxObservedLamport;
         h._patchesSinceGC = 0;
         if (h._logger) {
@@ -531,11 +534,21 @@ export default class CheckpointController {
       );
     }
 
-    h._cachedState = clonedState;
+    this._installCompactedState(clonedState);
     h._lastGCLamport = h._maxObservedLamport;
     h._patchesSinceGC = 0;
 
     return result;
+  }
+
+  private _installCompactedState(state: WarpState): void {
+    const h = this._host;
+    h._cachedState = state;
+    h._materializedGraph = null;
+    h._logicalIndex = null;
+    h._propertyReader = null;
+    h._cachedIndexTree = null;
+    h._cachedViewHash = null;
   }
 
   getGCMetrics(): {
