@@ -43,13 +43,37 @@ export default class WarpCore {
   declare readonly worldline: WarpCoreRuntimeSurface['worldline'];
   declare readonly observer: WarpCoreRuntimeSurface['observer'];
   declare readonly translationCost: WarpCoreRuntimeSurface['translationCost'];
+  /**
+   * Returns the content blob OID attached to a node.
+   */
   declare readonly getContentOid: WarpCoreRuntimeSurface['getContentOid'];
+  /**
+   * Returns metadata for the content blob attached to a node.
+   */
   declare readonly getContentMeta: WarpCoreRuntimeSurface['getContentMeta'];
+  /**
+   * Returns the decoded content payload attached to a node.
+   */
   declare readonly getContent: WarpCoreRuntimeSurface['getContent'];
+  /**
+   * Returns the content blob OID attached to an edge.
+   */
   declare readonly getEdgeContentOid: WarpCoreRuntimeSurface['getEdgeContentOid'];
+  /**
+   * Returns metadata for the content blob attached to an edge.
+   */
   declare readonly getEdgeContentMeta: WarpCoreRuntimeSurface['getEdgeContentMeta'];
+  /**
+   * Returns the decoded content payload attached to an edge.
+   */
   declare readonly getEdgeContent: WarpCoreRuntimeSurface['getEdgeContent'];
+  /**
+   * Opens a stream for the content blob attached to a node.
+   */
   declare readonly getContentStream: WarpCoreRuntimeSurface['getContentStream'];
+  /**
+   * Opens a stream for the content blob attached to an edge.
+   */
   declare readonly getEdgeContentStream: WarpCoreRuntimeSurface['getEdgeContentStream'];
   declare readonly createPatch: WarpCoreRuntimeSurface['createPatch'];
   declare readonly patch: WarpCoreRuntimeSurface['patch'];
