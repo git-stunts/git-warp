@@ -1,8 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, it, expect, vi } from 'vitest';
 import { HookInstaller, classifyExistingHook } from '../../../../src/domain/services/HookInstaller.ts';
 
 const VERSION = '7.1.0';
+const REAL_TEMPLATE = readFileSync(
+  fileURLToPath(new URL('../../../../scripts/hooks/post-merge.sh', import.meta.url)),
+  'utf8',
+);
 
 function makeFs(files = {}) {
   const store = new Map(Object.entries(files));
@@ -32,6 +38,15 @@ function makeInstaller(fsFiles = {}, hooksDir = '/repo/.git/hooks') {
     path,
   });
   return { installer, fs, hookPathPort };
+}
+
+function readStoredString(fs: ReturnType<typeof makeFs>, filePath: string): string {
+  const content = fs._store.get(filePath);
+  expect(typeof content).toBe('string');
+  if (typeof content === 'string') {
+    return content;
+  }
+  return '';
 }
 
 const TEMPLATE = `#!/bin/sh
@@ -266,41 +281,56 @@ describe('HookInstaller.getHookStatus', () => {
   });
 });
 
-// ── Template integrity ──────────────────────────────────────────────────────
+// ── Real template smoke ─────────────────────────────────────────────────────
 
-describe('template integrity', () => {
-    let templateContent;
+describe('real post-merge template smoke', () => {
+  it('stamps the checked-in template and reports current status through the installer', async () => {
+    const { installer, fs } = makeInstaller({
+      '/tmpl/post-merge.sh': REAL_TEMPLATE,
+    });
 
-  beforeEach(async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve, dirname } = await import('node:path');
-    const { fileURLToPath } = await import('node:url');
-    const dir = dirname(fileURLToPath(import.meta.url));
-    const templatePath = resolve(dir, '..', '..', '..', '..', 'scripts', 'hooks', 'post-merge.sh');
-    templateContent = readFileSync(templatePath, 'utf8');
+    const result = await installer.install('/repo', { strategy: 'install' });
+    const written = readStoredString(fs, result.hookPath);
+    const classification = classifyExistingHook(written);
+    const status = await installer.getHookStatus('/repo');
+
+    expect(result.action).toBe('installed');
+    expect(classification.kind).toBe('ours');
+    expect(classification.version).toBe(VERSION);
+    expect(status.installed).toBe(true);
+    expect(status.current).toBe(true);
+    expect(status.version).toBe(VERSION);
   });
 
-  it('has shebang line', () => {
-    expect(templateContent.startsWith('#!/bin/sh')).toBe(true);
-  });
+  it('appends and upgrades the checked-in template through installer behavior', async () => {
+    const foreign = '#!/bin/sh\necho "foreign"\n';
+    const { installer, fs } = makeInstaller({
+      '/tmpl/post-merge.sh': REAL_TEMPLATE,
+      '/repo/.git/hooks/post-merge': foreign,
+    });
 
-  it('contains version placeholder', () => {
-    expect(templateContent).toContain('__WARP_HOOK_VERSION__');
-  });
+    const appendResult = await installer.install('/repo', { strategy: 'append' });
+    const appended = readStoredString(fs, appendResult.hookPath);
+    const appendedClassification = classifyExistingHook(appended);
 
-  it('contains start delimiter', () => {
-    expect(templateContent).toContain('# --- @git-stunts/git-warp post-merge hook');
-  });
+    expect(appendResult.action).toBe('appended');
+    expect(appendedClassification.kind).toBe('ours');
+    expect(appendedClassification.version).toBe(VERSION);
+    expect(appendedClassification.appended).toBe(true);
 
-  it('contains end delimiter', () => {
-    expect(templateContent).toContain('# --- end @git-stunts/git-warp ---');
-  });
+    const { installer: upgrader, fs: upgradeFs } = makeInstaller({
+      '/tmpl/post-merge.sh': REAL_TEMPLATE,
+      '/repo/.git/hooks/post-merge': appended.replaceAll(VERSION, '7.0.0'),
+    });
 
-  it('contains version marker line', () => {
-    expect(templateContent).toContain('# warp-hook-version: __WARP_HOOK_VERSION__');
-  });
+    const upgradeResult = await upgrader.install('/repo', { strategy: 'upgrade' });
+    const upgraded = readStoredString(upgradeFs, upgradeResult.hookPath);
+    const upgradedClassification = classifyExistingHook(upgraded);
 
-  it('contains warp.autoMaterialize config check', () => {
-    expect(templateContent).toContain('warp.autoMaterialize');
+    expect(upgradeResult.action).toBe('upgraded');
+    expect(upgraded).toContain('echo "foreign"');
+    expect(upgradedClassification.kind).toBe('ours');
+    expect(upgradedClassification.version).toBe(VERSION);
+    expect(upgraded).not.toContain('7.0.0');
   });
 });
