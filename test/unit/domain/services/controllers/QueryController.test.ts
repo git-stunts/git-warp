@@ -103,9 +103,13 @@ function buildState(spec = {}) {
  * @returns {*}
  */
 function createHost(state, overrides = {}) {
+  const frontier = new Map([['w', 'tip']]);
   return {
     _cachedState: state,
     _autoMaterialize: true,
+    _lastFrontier: frontier,
+    _stateDirty: false,
+    getFrontier: vi.fn().mockResolvedValue(new Map(frontier)),
     _ensureFreshState: vi.fn().mockResolvedValue(undefined),
     _persistence: {
       readBlob: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
@@ -542,6 +546,46 @@ describe('QueryController', () => {
       const props = await observer.getNodeProps('alice');
 
       expect(host._materializeGraph).not.toHaveBeenCalled();
+      expect(props).toEqual({ age: 30, name: 'Alice' });
+    });
+
+    it('creates explicit live-source observers without detached full graph materialization', async () => {
+      host._materializeGraph = vi.fn().mockRejectedValue(new Error('live observer must not materialize'));
+
+      const observer = await ctrl.observer('people', { match: 'alice' }, { source: { kind: 'live' } });
+      const props = await observer.getNodeProps('alice');
+
+      expect(host.getFrontier).toHaveBeenCalled();
+      expect(host._materializeGraph).not.toHaveBeenCalled();
+      expect(props).toEqual({ age: 30, name: 'Alice' });
+    });
+
+    it('uses detached live materialization when the cached frontier is stale', async () => {
+      const detachedState = buildState({
+        nodes: ['alice'],
+        props: [
+          { nodeId: 'alice', key: 'name', value: 'Detached Alice' },
+        ],
+      });
+      host._lastFrontier = new Map([['w', 'old-tip']]);
+      host.getFrontier = vi.fn().mockResolvedValue(new Map([['w', 'new-tip']]));
+      host._materializeGraph = vi.fn().mockResolvedValue({ state: detachedState, stateHash: 'detached-state-hash' });
+
+      const observer = await ctrl.observer('people', { match: 'alice' }, { source: { kind: 'live' } });
+      const props = await observer.getNodeProps('alice');
+
+      expect(host.getFrontier).toHaveBeenCalled();
+      expect(host._materializeGraph).toHaveBeenCalledWith({ ceiling: null });
+      expect(props).toEqual({ name: 'Detached Alice' });
+    });
+
+    it('keeps ceiling-scoped live observers on the detached materialization path', async () => {
+      host._materializeGraph = vi.fn().mockResolvedValue({ state, stateHash: 'ceiling-hash' });
+
+      const observer = await ctrl.observer('people', { match: 'alice' }, { source: { kind: 'live', ceiling: 7 } });
+      const props = await observer.getNodeProps('alice');
+
+      expect(host._materializeGraph).toHaveBeenCalledWith({ ceiling: 7 });
       expect(props).toEqual({ age: 30, name: 'Alice' });
     });
   });

@@ -55,7 +55,13 @@ type QueryObserverFactoryHost = {
   observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
 };
 
-type MaterializableHost = QueryReadHost & QueryContentHost & QueryObserverFactoryHost & Pick<QueryCapability, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges'> & Partial<CheckpointTailOpticSource>;
+type LiveFrontierHost = {
+  _lastFrontier: Map<string, string> | null;
+  _stateDirty: boolean;
+  getFrontier(): Promise<Map<string, string>>;
+};
+
+type MaterializableHost = QueryReadHost & QueryContentHost & QueryObserverFactoryHost & Pick<QueryCapability, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges'> & Partial<CheckpointTailOpticSource> & Partial<LiveFrontierHost>;
 
 type QueryStateHasher = (state: WarpState) => Promise<string>;
 
@@ -78,6 +84,36 @@ async function snapshotCurrent(deps: QueryControllerDeps): Promise<QuerySnapshot
     throw new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' });
   }
   return { state: cloneState(state), stateHash: await deps.hashState(state) };
+}
+
+function hasLiveFrontierHost(graph: MaterializableHost): graph is MaterializableHost & LiveFrontierHost {
+  return graph._lastFrontier instanceof Map
+    && typeof graph._stateDirty === 'boolean'
+    && typeof graph.getFrontier === 'function';
+}
+
+function frontiersEqual(left: Map<string, string>, right: Map<string, string>): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const [writerId, tipSha] of left.entries()) {
+    if (right.get(writerId) !== tipSha) {
+      return false;
+    }
+  }
+  return true;
+}
+
+async function hasFreshCachedLiveSnapshot(deps: QueryControllerDeps): Promise<boolean> {
+  const graph = deps.hostGraph;
+  if (graph._cachedState === null || !hasLiveFrontierHost(graph) || graph._stateDirty) {
+    return false;
+  }
+  const lastFrontier = graph._lastFrontier;
+  if (lastFrontier === null) {
+    return false;
+  }
+  return frontiersEqual(await graph.getFrontier(), lastFrontier);
 }
 
 // ── Observer snapshot resolution ────────────────────────────────────
@@ -124,6 +160,9 @@ async function resolveLiveSnapshot(
   deps: QueryControllerDeps,
   source: LiveSelector,
 ): Promise<QuerySnapshot> {
+  if (source.ceiling === null && await hasFreshCachedLiveSnapshot(deps)) {
+    return await snapshotCurrent(deps);
+  }
   const detached = await openDetachedObserverGraph(deps);
   const materialized = await detached._materializeGraph({ ceiling: source.ceiling ?? null });
   return {
