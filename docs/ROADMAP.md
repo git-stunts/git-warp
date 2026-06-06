@@ -30,7 +30,7 @@ goalpost.
 | Current public release | `v17.0.0` |
 | Goalposts | `5` |
 | Landed goalposts | `0` |
-| Total planned slice budget | `47` |
+| Total planned slice budget | `53` |
 | Target lane | `lane:v18.0.0` |
 | Release evidence packet | `docs/releases/v18.0.0/README.md` |
 
@@ -72,7 +72,7 @@ Release progress should be reported as:
 
 ```text
 v18.0.0 goalposts: 0/5 landed
-v18.0.0 slices: 0/47 landed
+v18.0.0 slices: 0/53 landed
 next goalpost: V18-GP4 Holographic Slicing And Checkpoint Basis
 next slice: #629 Checkpoint basis manifest contract
 ```
