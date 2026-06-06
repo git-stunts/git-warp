@@ -1,5 +1,6 @@
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
-import type CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
+import QueryError from '../../errors/QueryError.ts';
+import CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
 import {
   type TraversalOpticStrategy,
   TraversalOpticCursor,
@@ -26,8 +27,8 @@ export default class TraversalOptic {
     readonly startNodeId: string;
     readonly locator: CheckpointTailWitnessLocator;
   }) {
-    this._startNodeId = options.startNodeId;
-    this._locator = options.locator;
+    this._startNodeId = validateStartNodeId(options.startNodeId);
+    this._locator = validateLocator(options.locator);
     Object.freeze(this);
   }
 
@@ -37,3 +38,24 @@ export default class TraversalOptic {
 }
 
 export { TraversalOpticCursor };
+
+function validateStartNodeId(startNodeId: string): string {
+  if (typeof startNodeId !== 'string' || startNodeId.length === 0) {
+    throwTraversalOpticError('startNodeId', 'empty-string');
+  }
+  return startNodeId;
+}
+
+function validateLocator(locator: CheckpointTailWitnessLocator): CheckpointTailWitnessLocator {
+  if (!(locator instanceof CheckpointTailWitnessLocator)) {
+    throwTraversalOpticError('locator', 'invalid-locator');
+  }
+  return locator;
+}
+
+function throwTraversalOpticError(field: string, reason: string): never {
+  throw new QueryError('Traversal optic is invalid.', {
+    code: 'E_TRAVERSAL_OPTIC',
+    context: { field, reason },
+  });
+}
