@@ -92,7 +92,14 @@ describe('release policy shape', () => {
     expect(releaseDoc).toContain('release-evidence-template.md');
     expect(releaseDoc).toContain('CHANGELOG.md` accurately reflects the diff');
     expect(releaseDoc).toContain('Any accepted residual risk is named with rationale, owner, and follow-up');
+    expect(releaseDoc).toContain('Deterministic reproducibility');
+    expect(releaseDoc).toContain('docs/releases/vX.Y.Z/fixtures/');
     expect(releaseGuard).toContain('REL-DOC-EVIDENCE');
+    expect(releaseGuard).toContain('Deterministic reproducibility');
+    expect(releaseGuard).toContain('Canonical fixtures and witnesses');
+    expect(releaseEvidenceTemplate).toContain('Deterministic reproducibility');
+    expect(releaseEvidenceTemplate).toContain('Canonical fixtures and witnesses');
+    expect(releaseEvidenceTemplate).toContain('Expected deterministic result');
 
     for (const docPath of [
       'CHANGELOG.md',

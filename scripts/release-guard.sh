@@ -202,6 +202,8 @@ check_release_evidence() {
   local required_terms=(
     "Issue gates"
     "Validation"
+    "Deterministic reproducibility"
+    "Canonical fixtures and witnesses"
     "Documentation review"
     "Accepted residual risks"
     "CHANGELOG.md"

@@ -14,6 +14,8 @@ evidence packet.
 | Release PR | `TBD` |
 | Release operator | `TBD` |
 | Reviewers | `TBD` |
+| Canonical fixture root | `docs/releases/vX.Y.Z/fixtures/` or `not applicable` |
+| Witness root | `docs/releases/vX.Y.Z/README.md` or `TBD` |
 
 ## Issue gates
 
@@ -29,6 +31,36 @@ Paste or summarize the `npm run release:guard -- --tag vX.Y.Z` output.
 | `REL-GIT-ORIGIN-MAIN` | `TBD` | Tag commit equals `origin/main`. |
 | `REL-DOC-CHANGELOG-DATED` | `TBD` | Dated changelog entry exists. |
 | `REL-DOC-EVIDENCE` | `TBD` | This evidence packet is complete. |
+
+## Deterministic reproducibility
+
+Evidence must be replayable from the tag commit, this release packet, and named
+immutable inputs. A witness records the observed output or proof. A canonical
+fixture records the input required to reproduce that witness.
+
+Use `not applicable` only when the command depends solely on repository state at
+the tag commit and live policy state already captured by the witness. Otherwise,
+commit the fixture under `docs/releases/vX.Y.Z/fixtures/` or cite an existing
+committed fixture.
+
+| Claim or gate | Replay command | Canonical fixture or input | Witness | Expected deterministic result |
+| --- | --- | --- | --- | --- |
+| Release guard | `npm run release:guard -- --tag vX.Y.Z` | tag commit, GitHub issue labels captured in witness | `TBD` | All gates pass. |
+| Changelog diff review | `git diff --stat vPREV..vX.Y.Z` | previous public tag and target tag | `TBD` | Changelog summarizes externally meaningful changes. |
+| Package publishability | `npm pack --dry-run` | tag commit | `TBD` | File list and package metadata match release intent. |
+| JSR publishability | `npx -y jsr publish --dry-run` | tag commit | `TBD` | Dry-run succeeds for the tag version. |
+| Public behavior claim | `TBD` | `docs/releases/vX.Y.Z/fixtures/...` or existing fixture path | `TBD` | `TBD` |
+
+## Canonical fixtures and witnesses
+
+Supply canonical fixtures with witnesses whenever evidence depends on runtime
+data, generated output, graph shape, storage contents, migration input, package
+artifact contents, replayed bugs, CLI transcript input, large-graph topology, or
+performance/size proof.
+
+| Fixture or input | Witness | Replay command | Stable digest or normalized output | Notes |
+| --- | --- | --- | --- | --- |
+| `not applicable` | `TBD` | `TBD` | `TBD` | Replace this row when fixtures are required. |
 
 ## Validation
 

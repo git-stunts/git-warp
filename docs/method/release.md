@@ -84,7 +84,7 @@ publishing. It enforces:
 | `REL-GIT-CLEAN` | The worktree has no unstaged or staged-but-uncommitted changes. |
 | `REL-GIT-ORIGIN-MAIN` | The tag commit is exactly `origin/main`. |
 | `REL-DOC-CHANGELOG-DATED` | `CHANGELOG.md` has a dated entry for the tag version. |
-| `REL-DOC-EVIDENCE` | `docs/releases/vX.Y.Z/README.md` exists and contains the required release evidence sections and documentation review matrix. |
+| `REL-DOC-EVIDENCE` | `docs/releases/vX.Y.Z/README.md` exists and contains the required release evidence sections, deterministic reproducibility record, and documentation review matrix. |
 
 The release workflow also runs lint, Markdown lint, link checks, type gates,
 consumer and declaration-surface checks, and coverage tests before any registry
@@ -110,6 +110,32 @@ truth. Every release evidence packet must record human review for:
 - `docs/ROADMAP.md` and `docs/BEARING.md` match the release posture.
 - Any accepted residual risk is named with rationale, owner, and follow-up
   issue. Hidden accepted failures are not allowed.
+
+### Deterministic reproducibility
+
+Evidence is not complete unless it can be replayed deterministically by another
+operator from the committed release packet, the tag commit, and named immutable
+inputs. A witness proves what happened during release validation; it is not
+enough by itself when the input that produced it is missing or mutable.
+
+Every release evidence packet must record:
+
+- The exact command, script, or workflow that produced each witness.
+- The canonical fixture or immutable input used by that command, when the claim
+  depends on more than repository state at the tag commit.
+- The expected stable result, normalized output, or digest that a replay must
+  reproduce.
+- Any normalization applied for host-specific noise such as temp paths, clocks,
+  ordering, process IDs, registry timestamps, or environment-specific absolute
+  paths.
+
+Canonical fixtures are required when evidence depends on graph topology, stored
+Git objects, package artifact contents, migration inputs, CLI transcripts,
+large-graph or performance fixtures, generated docs, reproduced bugs, or any
+other data shape that cannot be reconstructed uniquely from the tag commit. Put
+release-specific fixtures under `docs/releases/vX.Y.Z/fixtures/` unless an
+existing committed fixture is already canonical. Pair each fixture with at least
+one witness that names the replay command and the expected deterministic result.
 
 Use [release-evidence-template.md](../checklists/release-evidence-template.md)
 for the committed evidence packet.
