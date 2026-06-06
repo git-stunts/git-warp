@@ -130,16 +130,18 @@ describe('query read model seam', () => {
     const queryBuilderSource = readRepoFile(QUERY_BUILDER_PATH);
     const observerSource = readRepoFile(OBSERVER_PATH);
     const queryControllerSource = readRepoFile(QUERY_CONTROLLER_PATH);
-    const querySeamSource = [
+    const queryModelConstructionSource = [
       queryRunnerSource,
       queryBuilderSource,
-      observerSource,
       queryControllerSource,
     ].join('\n');
 
     for (const pattern of FULL_GRAPH_QUERY_MODEL_PATTERNS) {
-      expect(querySeamSource).not.toMatch(pattern);
+      expect(queryModelConstructionSource).not.toMatch(pattern);
     }
+
+    expect(observerSource).toContain('QueryReadModelProvider');
+    expect(observerSource).toContain('openQueryReadModel');
   });
 
   it('requires a streaming or cursor-shaped query read model contract', () => {
