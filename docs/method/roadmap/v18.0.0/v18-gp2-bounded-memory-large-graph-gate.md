@@ -55,7 +55,7 @@ result arrays fitting in process memory.
 | 2 | complete | Add large-graph-over-small-pool canonical fixture. | `test/conformance/fixtures/V18LargeGraphOverSmallPoolFixture.ts` |
 | 3 | complete | Add public-path full-residency trap tests. | `test/conformance/v18BoundedMemoryLargeGraphGate.test.ts` traps whole-graph residency and blessed worldline public paths. |
 | 4 | complete | Add bounded patch-stream substrate proof. | `test/unit/domain/services/optic/CheckpointPatchFactStream.test.ts` |
-| 5 | inProgress | Add stream-built or shard-built read-basis evidence. | `BoundedQueryReadModel` proves one-result read-model leases; patch/shard basis evidence remains open. |
+| 5 | complete | Add stream-built or shard-built read-basis evidence. | `test/unit/domain/services/optic/StreamingCheckpointBasisBuilder.test.ts` |
 | 6 | complete | Add node liveness fact resolver evidence. | `test/unit/domain/services/optic/CheckpointFactResolver.test.ts` |
 | 7 | complete | Add edge endpoint fact resolver evidence. | `test/unit/domain/services/optic/CheckpointFactResolver.test.ts` |
 | 8 | complete | Add property fact resolver evidence. | `test/unit/domain/services/optic/CheckpointFactResolver.test.ts` |
@@ -72,7 +72,7 @@ result arrays fitting in process memory.
 - [x] A committed large-graph fixture exceeds the configured git-warp memory
       budget.
 - [x] Blessed public paths fail if they use full residency.
-- [ ] Reads, writes, content lookup, and sync have bounded proof.
+- [x] Reads, writes, content lookup, and sync have bounded proof.
 - [x] Capability reporting distinguishes safe, transitional, diagnostic, and
       legacy surfaces.
 - [ ] Non-release closeout evidence names fixture, witness, replay command, and
@@ -87,6 +87,7 @@ result arrays fitting in process memory.
 | Public paths obey memory budget. | Large-graph-over-small-pool fixture. | Focused conformance output. | `npx vitest run test/conformance/v18BoundedMemoryLargeGraphGate.test.ts` | Fixture size exceeds budget; streamed reads keep peak leased entries at `1`. |
 | Bounded reads have cursor evidence. | Large-graph-over-small-pool fixture. | Focused page-reader conformance output. | `npx vitest run test/conformance/v18BoundedQueryNodePageReader.test.ts` | Node reads return deterministic two-node pages with offset cursors and peak result lease `1`. |
 | Unsafe public paths are trapped. | Large-graph-over-small-pool fixture. | Full-residency trap output. | `npx vitest run test/conformance/v18BoundedMemoryLargeGraphGate.test.ts` | Whole-graph residency fails closed under the fixture pool; blessed worldline public paths do not expose `materialize`, `getStateSnapshot`, `getNodes`, or `getEdges`. |
+| Streaming read-basis construction is bounded. | Checkpoint basis fact stream. | Focused basis-builder output. | `npx vitest run test/unit/domain/services/optic/StreamingCheckpointBasisBuilder.test.ts` | Builder writes three deterministic shard chunks, keeps peak pending-fact lease `2`, releases all leases, and rejects a third pending fact under a two-fact pool. |
 | Patch facts stream under budget. | Checkpoint patch fact stream bounded path. | Focused patch fact stream output. | `npx vitest run test/unit/domain/services/optic/CheckpointPatchFactStream.test.ts` | `streamBounded()` keeps peak residency to one patch entry plus one emitted fact. |
 | Fact resolvers are targeted and bounded. | Checkpoint fact stream value objects. | Focused resolver output. | `npx vitest run test/unit/domain/services/optic/CheckpointFactResolver.test.ts` | Node liveness, edge endpoints, node properties, and content OIDs resolve with peak fact lease `1`. |
 | Existing-entity writes have targeted preconditions. | Checkpoint fact stream value objects. | Focused write resolver output. | `npx vitest run test/unit/domain/services/optic/CheckpointExistingEntityWriteResolver.test.ts` | Existing-node and existing-edge write decisions resolve with peak fact lease `1`. |

@@ -2,6 +2,8 @@ import type BlobPort from '../../../ports/BlobPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 import QueryError from '../../errors/QueryError.ts';
+import type MemoryBudgetLease from '../../memory/MemoryBudgetLease.ts';
+import type WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
 import defaultCodec from '../../utils/defaultCodec.ts';
 import { CheckpointBasisFact, type CheckpointBasisFactShardFamily } from './CheckpointBasisFact.ts';
 import CheckpointBasisManifest, {
@@ -22,6 +24,7 @@ export type StreamingCheckpointBasisBuilderOptions = {
   readonly frontier: Map<string, string>;
   readonly storage: CheckpointBasisPublicationStorage;
   readonly codec?: CodecPort;
+  readonly pool?: WarpMemoryPool;
   readonly maxFactsPerShard: number;
   readonly layoutFamily?: string;
   readonly payloadLayout?: string;
@@ -31,6 +34,12 @@ export type StreamingCheckpointBasisBuilderOptions = {
 type CheckpointBasisRootStore = {
   readonly family: CheckpointBasisFactShardFamily;
   readonly roots: Map<string, string>;
+};
+
+type CheckpointBasisPublicationRuntime = {
+  readonly storage: CheckpointBasisPublicationStorage;
+  readonly codec: CodecPort;
+  readonly pool: WarpMemoryPool | null;
 };
 
 type CheckpointBasisPublicationView = {
@@ -73,6 +82,7 @@ export default class StreamingCheckpointBasisBuilder {
   private readonly _frontier: Map<string, string>;
   private readonly _storage: CheckpointBasisPublicationStorage;
   private readonly _codec: CodecPort;
+  private readonly _pool: WarpMemoryPool | null;
   private readonly _maxFactsPerShard: number;
   private readonly _layoutFamily: string;
   private readonly _payloadLayout: string;
@@ -88,6 +98,7 @@ export default class StreamingCheckpointBasisBuilder {
     this._frontier = copyFrontier(options.frontier);
     this._storage = options.storage;
     this._codec = options.codec ?? defaultCodec;
+    this._pool = poolOrNull(options.pool);
     this._maxFactsPerShard = validatePositiveInteger(options.maxFactsPerShard, 'maxFactsPerShard');
     this._layoutFamily = options.layoutFamily ?? 'checkpoint-basis-shards';
     this._payloadLayout = options.payloadLayout ?? 'basis-facts-v1';
@@ -98,19 +109,24 @@ export default class StreamingCheckpointBasisBuilder {
   async build(facts: AsyncIterable<CheckpointBasisFact>): Promise<StreamingCheckpointBasisBuildResult> {
     validateFactStream(facts);
     const publication = createCheckpointBasisPublication(this._maxFactsPerShard);
-    for await (const fact of facts) {
-      await publication.addFact(fact, this._storage, this._codec);
+    const runtime = publicationRuntime(this._storage, this._codec, this._pool);
+    try {
+      for await (const fact of facts) {
+        await publication.addFact(fact, runtime);
+      }
+      await publication.flushAll(runtime);
+      const treeEntries = publication.treeEntries();
+      const rootTreeOid = await this._storage.writeTree([...treeEntries]);
+      return new StreamingCheckpointBasisBuildResult({
+        manifest: this._manifest(publication, rootTreeOid),
+        rootTreeOid,
+        flushCount: publication.flushCount,
+        shardWriteCount: publication.shardWriteCount,
+        treeEntries,
+      });
+    } finally {
+      publication.releaseAllLeases();
     }
-    await publication.flushAll(this._storage, this._codec);
-    const treeEntries = publication.treeEntries();
-    const rootTreeOid = await this._storage.writeTree([...treeEntries]);
-    return new StreamingCheckpointBasisBuildResult({
-      manifest: this._manifest(publication, rootTreeOid),
-      rootTreeOid,
-      flushCount: publication.flushCount,
-      shardWriteCount: publication.shardWriteCount,
-      treeEntries,
-    });
   }
 
   private _manifest(
@@ -155,6 +171,7 @@ class CheckpointBasisPendingShard {
   readonly basePath: string;
   readonly pendingKey: string;
   private readonly _facts: CheckpointBasisFact[];
+  private readonly _leases: MemoryBudgetLease[];
 
   constructor(options: {
     readonly family: CheckpointBasisFactShardFamily;
@@ -165,20 +182,32 @@ class CheckpointBasisPendingShard {
     this.basePath = options.basePath;
     this.pendingKey = options.pendingKey;
     this._facts = [];
+    this._leases = [];
   }
 
   get size(): number {
     return this._facts.length;
   }
 
-  add(fact: CheckpointBasisFact): void {
+  add(fact: CheckpointBasisFact, pool: WarpMemoryPool | null): void {
+    const lease = pool?.acquire({ scope: 'checkpoint-basis-pending-fact', amount: 1 }) ?? null;
     this._facts.push(fact);
+    if (lease !== null) {
+      this._leases.push(lease);
+    }
   }
 
   takeSortedFacts(): readonly CheckpointBasisFact[] {
     const facts = [...this._facts].sort((left, right) => compareText(left.sortKey(), right.sortKey()));
     this._facts.length = 0;
     return Object.freeze(facts);
+  }
+
+  releaseLeases(): void {
+    for (const lease of this._leases) {
+      lease.release();
+    }
+    this._leases.length = 0;
   }
 }
 
@@ -215,25 +244,27 @@ class CheckpointBasisPublication {
 
   async addFact(
     fact: CheckpointBasisFact,
-    storage: CheckpointBasisPublicationStorage,
-    codec: CodecPort,
+    runtime: CheckpointBasisPublicationRuntime,
   ): Promise<void> {
     validateFact(fact);
     const pendingShard = this._pendingShard(fact);
-    pendingShard.add(fact);
+    pendingShard.add(fact, runtime.pool);
     if (pendingShard.size >= this._maxFactsPerShard) {
-      await this._flush(pendingShard, storage, codec);
+      await this._flush(pendingShard, runtime);
     }
   }
 
-  async flushAll(
-    storage: CheckpointBasisPublicationStorage,
-    codec: CodecPort,
-  ): Promise<void> {
+  async flushAll(runtime: CheckpointBasisPublicationRuntime): Promise<void> {
     for (const pendingShard of this._pending.values()) {
       if (pendingShard.size > 0) {
-        await this._flush(pendingShard, storage, codec);
+        await this._flush(pendingShard, runtime);
       }
+    }
+  }
+
+  releaseAllLeases(): void {
+    for (const pendingShard of this._pending.values()) {
+      pendingShard.releaseLeases();
     }
   }
 
@@ -272,8 +303,7 @@ class CheckpointBasisPublication {
 
   private async _flush(
     pendingShard: CheckpointBasisPendingShard,
-    storage: CheckpointBasisPublicationStorage,
-    codec: CodecPort,
+    runtime: CheckpointBasisPublicationRuntime,
   ): Promise<void> {
     const facts = pendingShard.takeSortedFacts();
     if (facts.length === 0) {
@@ -281,11 +311,15 @@ class CheckpointBasisPublication {
     }
     const nextChunkIndex = this._nextChunkIndex(pendingShard.pendingKey);
     const chunkPath = chunkedPath(pendingShard.family, pendingShard.basePath, nextChunkIndex);
-    const oid = await storage.writeBlob(codec.encode(facts.map((fact) => fact.toTransport())));
-    this._rootsForFamily(pendingShard.family).set(chunkPath, oid);
-    this._treeEntries.push(`100644 blob ${oid}\t${chunkPath}`);
-    this.flushCount += 1;
-    this.shardWriteCount += 1;
+    try {
+      const oid = await runtime.storage.writeBlob(runtime.codec.encode(facts.map((fact) => fact.toTransport())));
+      this._rootsForFamily(pendingShard.family).set(chunkPath, oid);
+      this._treeEntries.push(`100644 blob ${oid}\t${chunkPath}`);
+      this.flushCount += 1;
+      this.shardWriteCount += 1;
+    } finally {
+      pendingShard.releaseLeases();
+    }
   }
 
   private _nextChunkIndex(pendingKey: string): number {
@@ -318,6 +352,18 @@ class CheckpointBasisPublication {
 
 function createCheckpointBasisPublication(maxFactsPerShard: number): CheckpointBasisPublication {
   return new CheckpointBasisPublication({ maxFactsPerShard });
+}
+
+function publicationRuntime(
+  storage: CheckpointBasisPublicationStorage,
+  codec: CodecPort,
+  pool: WarpMemoryPool | null,
+): CheckpointBasisPublicationRuntime {
+  return Object.freeze({ storage, codec, pool });
+}
+
+function poolOrNull(pool: WarpMemoryPool | undefined): WarpMemoryPool | null {
+  return pool ?? null;
 }
 
 function publicationPostures(

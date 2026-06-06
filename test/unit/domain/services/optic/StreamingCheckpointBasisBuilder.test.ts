@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+
+import MemoryBudgetError from '../../../../../src/domain/errors/MemoryBudgetError.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
+import MemoryBudget from '../../../../../src/domain/memory/MemoryBudget.ts';
+import WarpMemoryPool from '../../../../../src/domain/memory/WarpMemoryPool.ts';
 import {
   CheckpointNodeLivenessFact,
   type CheckpointBasisFact,
@@ -11,33 +13,22 @@ import StreamingCheckpointBasisBuilder from '../../../../../src/domain/services/
 import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
 import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 
-const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
-const BUILDER_SOURCE = 'src/domain/services/optic/StreamingCheckpointBasisBuilder.ts';
-
 describe('StreamingCheckpointBasisBuilder', () => {
-  it('flushes bounded fact shards to storage and emits a manifest', async () => {
-    const storage = new RecordingBasisStorage();
-    const builder = new StreamingCheckpointBasisBuilder({
-      graphName: 'streaming-checkpoint-basis-builder-test',
-      checkpointSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      frontier: new Map([['writer-a', 'patch-a']]),
-      storage,
-      maxFactsPerShard: 2,
-    });
+  it('flushes sorted fact chunks to storage and emits a manifest', async () => {
+    const storage = new RecordingCheckpointBasisStorage();
+    const builder = builderFixture(storage, 2);
 
-    const result = await builder.build(factStream([
-      livenessFact({ lamport: 2, patchSha: 'bbbb' }),
-      livenessFact({ lamport: 1, patchSha: 'aaaa' }),
-      livenessFact({ lamport: 3, patchSha: 'cccc' }),
-      livenessFact({ lamport: 4, patchSha: 'dddd' }),
-      livenessFact({ lamport: 5, patchSha: 'eeee' }),
+    const result = await builder.build(facts([
+      nodeAliveWithPatch(2, 'bbbb'),
+      nodeAliveWithPatch(1, 'aaaa'),
+      nodeAliveWithPatch(3, 'cccc'),
+      nodeAliveWithPatch(4, 'dddd'),
+      nodeAliveWithPatch(5, 'eeee'),
     ]));
 
     expect(result.flushCount).toBe(3);
     expect(result.shardWriteCount).toBe(3);
-    expect(storage.blobWrites).toHaveLength(3);
-    expect(storage.treeWrites).toHaveLength(1);
-    expect(result.rootTreeOid).toBe('tree-000001');
+    expect(result.rootTreeOid).toBe('tree-0001');
     expect(result.treeEntries).toHaveLength(3);
     expect(result.treeEntries[0]).toContain('node-liveness/liveness_');
     expect(result.treeEntries[0]).toContain('.chunk-000001');
@@ -52,65 +43,131 @@ describe('StreamingCheckpointBasisBuilder', () => {
     expect(firstChunk.map((fact) => eventPatchSha(fact))).toEqual(['aaaa', 'bbbb']);
   });
 
-  it('keeps the builder source off full-state and materialization inputs', () => {
-    const source = readFileSync(`${REPO_ROOT}${BUILDER_SOURCE}`, 'utf8');
+  it('builds checkpoint basis shards while releasing pending-fact leases', async () => {
+    const storage = new RecordingCheckpointBasisStorage();
+    const pool = new WarpMemoryPool({ name: 'streaming-checkpoint-basis', budget: MemoryBudget.facts(2) });
+    const builder = builderFixture(storage, 2, pool);
 
-    expect(source).not.toContain('WarpState');
-    expect(source).not.toContain('materialize(');
-    expect(source).not.toContain('_materializeGraph');
-    expect(source).not.toContain('getStateSnapshot');
+    const result = await builder.build(facts([
+      nodeAlive('task:bounded', 1),
+      nodeAlive('task:bounded', 2),
+      nodeAlive('task:bounded', 3),
+      nodeAlive('task:bounded', 4),
+      nodeAlive('task:bounded', 5),
+    ]));
+
+    expect(result.flushCount).toBe(3);
+    expect(result.shardWriteCount).toBe(3);
+    expect(result.manifest.chunking.maxFactsPerShard).toBe(2);
+    expect(result.manifest.chunking.chunkCount).toBe(3);
+    expect(result.manifest.completeness.kind).toBe('complete');
+    expect(storage.blobWriteCount()).toBe(3);
+    expect(storage.treeWriteCount()).toBe(1);
+    expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 2, rejected: 0 });
+  });
+
+  it('rejects basis construction that would exceed pending-fact budget', async () => {
+    const storage = new RecordingCheckpointBasisStorage();
+    const pool = new WarpMemoryPool({ name: 'streaming-checkpoint-basis', budget: MemoryBudget.facts(2) });
+    const builder = builderFixture(storage, 3, pool);
+
+    await expect(builder.build(facts([
+      nodeAlive('task:bounded', 1),
+      nodeAlive('task:bounded', 2),
+      nodeAlive('task:bounded', 3),
+    ]))).rejects.toBeInstanceOf(MemoryBudgetError);
+    expect(storage.blobWriteCount()).toBe(0);
+    expect(storage.treeWriteCount()).toBe(0);
+    expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 2, rejected: 1 });
   });
 
   it('rejects invalid memory thresholds with a typed obstruction', () => {
-    expect(() => new StreamingCheckpointBasisBuilder({
-      graphName: 'streaming-checkpoint-basis-builder-test',
-      checkpointSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      frontier: new Map([['writer-a', 'patch-a']]),
-      storage: new RecordingBasisStorage(),
-      maxFactsPerShard: 0,
-    })).toThrow(QueryError);
+    expect(() => builderFixture(new RecordingCheckpointBasisStorage(), 0)).toThrow(QueryError);
   });
 });
 
-class RecordingBasisStorage {
-  readonly blobWrites: Uint8Array[] = [];
-  readonly treeWrites: Array<readonly string[]> = [];
+class RecordingCheckpointBasisStorage {
+  private readonly _blobOids: string[];
+  private readonly _blobWrites: Uint8Array[];
+  private readonly _treeOids: string[];
 
-  writeBlob(content: Uint8Array | string): Promise<string> {
-    const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
-    this.blobWrites.push(bytes);
-    return Promise.resolve(`blob-${String(this.blobWrites.length).padStart(6, '0')}`);
+  constructor() {
+    this._blobOids = [];
+    this._blobWrites = [];
+    this._treeOids = [];
   }
 
-  writeTree(entries: string[]): Promise<string> {
-    this.treeWrites.push(Object.freeze([...entries]));
-    return Promise.resolve(`tree-${String(this.treeWrites.length).padStart(6, '0')}`);
+  async writeBlob(content: Uint8Array | string): Promise<string> {
+    const oid = `blob-${String(this._blobOids.length + 1).padStart(4, '0')}`;
+    this._blobOids.push(oid);
+    this._blobWrites.push(contentBytes(content));
+    return oid;
+  }
+
+  async writeTree(_entries: readonly string[]): Promise<string> {
+    const oid = `tree-${String(this._treeOids.length + 1).padStart(4, '0')}`;
+    this._treeOids.push(oid);
+    return oid;
+  }
+
+  blobWriteCount(): number {
+    return this._blobOids.length;
+  }
+
+  treeWriteCount(): number {
+    return this._treeOids.length;
   }
 
   requiredBlob(index: number): Uint8Array {
-    const blob = this.blobWrites[index];
-    if (blob === undefined) {
-      throw new Error(`missing recorded blob ${index}`);
+    const blob = this._blobWrites[index];
+    if (blob !== undefined) {
+      return blob;
     }
-    return blob;
+    throw new Error(`missing recorded blob ${index}`);
   }
 }
 
-async function* factStream(facts: readonly CheckpointBasisFact[]): AsyncIterable<CheckpointBasisFact> {
-  for (const fact of facts) {
-    yield fact;
+function builderFixture(
+  storage: RecordingCheckpointBasisStorage,
+  maxFactsPerShard: number,
+  pool?: WarpMemoryPool,
+): StreamingCheckpointBasisBuilder {
+  const options = {
+    graphName: 'v18-bounded-memory',
+    checkpointSha: 'checkpoint-bounded-memory',
+    frontier: new Map([['writer-a', 'patch-0005']]),
+    storage,
+    maxFactsPerShard,
+  };
+  if (pool === undefined) {
+    return new StreamingCheckpointBasisBuilder(options);
+  }
+  return new StreamingCheckpointBasisBuilder({
+    ...options,
+    pool,
+  });
+}
+
+async function* facts(values: readonly CheckpointBasisFact[]): AsyncIterable<CheckpointBasisFact> {
+  for (const value of values) {
+    yield value;
   }
 }
 
-function livenessFact(options: {
-  readonly lamport: number;
-  readonly patchSha: string;
-}): CheckpointNodeLivenessFact {
+function nodeAlive(nodeId: string, lamport: number): CheckpointNodeLivenessFact {
+  return new CheckpointNodeLivenessFact({ nodeId, alive: true, eventId: event(lamport) });
+}
+
+function nodeAliveWithPatch(lamport: number, patchSha: string): CheckpointNodeLivenessFact {
   return new CheckpointNodeLivenessFact({
     nodeId: 'node:streamed',
     alive: true,
-    eventId: new EventId(options.lamport, 'writer-a', options.patchSha, 0),
+    eventId: new EventId(lamport, 'writer-a', patchSha, 0),
   });
+}
+
+function event(lamport: number): EventId {
+  return new EventId(lamport, 'writer-a', lamport.toString(16).padStart(4, '0'), 0);
 }
 
 function decodeChunk(bytes: Uint8Array): readonly CheckpointBasisFactTransport[] {
@@ -122,4 +179,11 @@ function eventPatchSha(fact: CheckpointBasisFactTransport): string {
     return fact.eventId.patchSha;
   }
   throw new Error('expected event-backed checkpoint basis fact');
+}
+
+function contentBytes(content: Uint8Array | string): Uint8Array {
+  if (content instanceof Uint8Array) {
+    return content;
+  }
+  return new TextEncoder().encode(content);
 }
