@@ -75,12 +75,12 @@ Every type annotation must reflect a runtime reality. If a class validates its c
 
 **No `any`. Ever.** Not in source, not in tests, not in type assertions, not hidden behind generics. `any` is a hole in the type system that propagates silently. It is banned without exception.
 
-**No `unknown` outside boundary parser implementations.** At raw system
-boundaries (JSON.parse, external APIs, wire protocols), untrusted data enters
-through a **parser** that produces a concrete type or fails with a typed error.
-The parser is the boundary. `unknown` is allowed only long enough for an
-adapter, parser, or explicitly named boundary reader to prove the concrete
-transport or domain type. It never reaches core behavior or public APIs.
+**No `unknown` outside adapter-owned boundary parser implementations.** At raw
+system boundaries (JSON.parse, external APIs, wire protocols), untrusted data
+enters through an adapter parser that produces a concrete type or fails with a
+typed error. The parser is the boundary. `unknown` is allowed only long enough
+for adapter-local parser code to prove the concrete transport or domain type.
+It never reaches core behavior, named boundary readers, or public APIs.
 
 ```typescript
 // The boundary parser. This is the ONLY place raw data is touched.
@@ -366,24 +366,17 @@ The runtime model is the source. TypeScript types reflect it. Tests prove it. Do
 **P7: Runtime Dispatch Over Tag Switching**
 Inside a coherent runtime, `instanceof` is the correct dispatch mechanism.
 
-**Cross-realm note:** `instanceof` breaks across realm boundaries (iframes, web workers, multiple module instances). When values cross realms, use branding:
-
-```typescript
-class EventId {
-  static readonly brand = Symbol.for('flyingrobots.EventId');
-  get [EventId.brand](): true { return true; }
-  static is(v: unknown): v is EventId {
-    return v != null && (v as Record<symbol, unknown>)[EventId.brand] === true;
-  }
-}
-```
+**Cross-realm note:** `instanceof` breaks across realm boundaries (iframes,
+web workers, multiple module instances). When values cross realms, normalize
+them at an adapter or boundary reader and construct validated domain objects in
+the current realm before core logic uses them.
 
 ### Practices
 
 These are concrete coding disciplines. Most are linter-enforceable. Violations should fail CI.
 
 - **`any` is banished.** No exceptions. No `as any`. No generic defaults to `any`. No `Function` type. If you cannot type it, you haven't understood it yet.
-- **`unknown` is banished.** Raw data enters through parsers that return concrete types or throw. The parser is the boundary, not the call site.
+- **`unknown` is adapter-boundary-only.** Adapter parsers may use it as a temporary name for raw input. They must return concrete types or typed failures. It does not cross into core.
 - **`as` is banished.** Type assertions bypass the compiler. Use runtime guards, discriminated classes, or parser functions instead. The compiler should follow your runtime logic, not be overridden by your wishes.
 - **`interface` is for ports only.** Ports (abstract contracts between layers) use `interface`. Domain concepts use `class`. If it has invariants, identity, or behavior, it is a class.
 - **Trusted values must preserve integrity** — Use `Object.freeze()`, `readonly`, or `private` fields to protect invariants after construction.
@@ -403,17 +396,13 @@ await replayer.replaySegment(segment, policy);
 - **Magic numbers and strings are banished** — Give semantic numbers a named constant.
 - **Boolean trap parameters are banished** — Use named parameter objects or separate methods.
 - **One thing per file.** "Where is Foo?" → open `Foo.ts` → find Foo. Done. Every class, every domain type, every meaningful export lives in a file named after it. Re-export shims that forward from a monolith are not splits — they are lies about where code lives. If the file is named after the class, the class definition must be in that file.
-- **No `enum`.** TypeScript enums are runtime objects with surprising behavior. Use `as const` objects or class hierarchies.
+- **No `enum`.** TypeScript enums are runtime objects with surprising behavior. Use runtime token classes or class hierarchies.
 
 ```typescript
 // WRONG — TypeScript enum (reverse mapping, numeric default, surprising equality)
 enum OpType { NodeAdd, NodeRemove }
 
-// RIGHT — const object
-const OP_TYPE = { NODE_ADD: 'NodeAdd', NODE_REMOVE: 'NodeRemove' } as const;
-type OpType = typeof OP_TYPE[keyof typeof OP_TYPE];
-
-// BEST — class hierarchy (when behavior differs per variant)
+// RIGHT — class hierarchy
 abstract class Op { abstract apply(state: State): State; }
 class NodeAdd extends Op { /* ... */ }
 class NodeRemove extends Op { /* ... */ }

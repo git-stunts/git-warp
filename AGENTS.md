@@ -163,7 +163,7 @@ DTO and stop there**. Do not hallucinate fake domain models.
   boundary reader modules. Core behavior branches on validated domain
   objects, not raw decoded shapes.
 - Prefer `instanceof` dispatch over tag switching.
-- No `any`. No `unknown` outside parser functions. No `as` assertions. No `enum`.
+- No `any`. No `unknown` outside adapters. No `as` assertions. No `enum`.
 - `interface` is for ports only. Domain concepts are classes.
 - No boolean trap parameters. Use named option objects or separate methods.
 - No magic strings or numbers when a named constant should exist.

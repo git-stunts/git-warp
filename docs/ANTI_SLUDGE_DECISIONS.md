@@ -135,8 +135,8 @@ with these repository-specific interpretations:
   boundary reader modules.
 - Decoded transport values must be validated into runtime-backed domain
   objects before behavioral domain logic branches on them.
-- `unknown` remains boundary-only rather than globally impossible because
-  parser and adapter code need a way to name untrusted input before
+- `unknown` remains adapter-boundary-only rather than globally impossible
+  because adapter parser code needs a way to name untrusted input before
   validation.
 - Current complexity limits stay stricter than the reference standard:
   complexity 5, depth 3, 30 lines per function, and 3 parameters unless a
