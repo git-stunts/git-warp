@@ -246,9 +246,12 @@ NODE
 }
 
 check_clean_tree() {
-  if git diff --quiet && git diff --cached --quiet; then
+  local status
+  status="$(git status --porcelain)"
+  if [ "$status" = "" ]; then
     pass "REL-GIT-CLEAN" "working tree is clean"
   else
+    printf '%s\n' "$status"
     fail "REL-GIT-CLEAN" "working tree has uncommitted changes"
   fi
 }

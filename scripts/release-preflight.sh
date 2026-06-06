@@ -73,9 +73,11 @@ fi
 
 # ── 2. Clean working tree ────────────────────────────────────────────────────
 echo "Working tree:"
-if git diff --quiet && git diff --cached --quiet; then
+WORKTREE_STATUS="$(git status --porcelain)"
+if [ "$WORKTREE_STATUS" = "" ]; then
   pass "clean (no uncommitted changes)"
 else
+  printf '%s\n' "$WORKTREE_STATUS"
   fail "dirty working tree — commit or stash first"
 fi
 

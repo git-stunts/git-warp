@@ -98,6 +98,7 @@ describe('release policy shape', () => {
     expect(packageJson.scripts['release:prep']).toBe('bash scripts/release-preflight.sh --stage prep-pr');
     expect(packageJson.scripts['release:preflight']).toBe('bash scripts/release-preflight.sh --stage final-local');
     expect(preflight).toContain('bash scripts/release-guard.sh --stage "$STAGE" --tag "v${PKG}"');
+    expect(preflight).toContain('git status --porcelain');
   });
 
   it('locks release tags behind issue gates and prior-release cleanup', () => {
@@ -120,6 +121,7 @@ describe('release policy shape', () => {
     expect(releaseGuard).toContain('check_zero_label "REL-GH-ASAP-ZERO" "lane:asap"');
     expect(releaseGuard).toContain('check_zero_label "REL-GH-TARGET-LANE-ZERO" "$TARGET_LANE"');
     expect(releaseGuard).toContain('release-home:v');
+    expect(releaseGuard).toContain('git status --porcelain');
   });
 
   it('requires version lockstep across npm, jsr, lockfile, and private workspaces', () => {
