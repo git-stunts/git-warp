@@ -83,9 +83,13 @@ export default class CheckpointTailReadIdentityBuilder {
 
 function labelsAspect(labels: readonly string[]): string {
   if (labels.length === 0) {
-    return 'all-labels';
+    return 'labels:*';
   }
-  return [...labels].sort().join(',');
+  const encoded = [...labels]
+    .sort()
+    .map((label) => `${label.length}:${label}`)
+    .join('|');
+  return `labels:${encoded}`;
 }
 
 function frontierIdentity(frontier: Map<string, string>): readonly ReadIdentityFrontierEntry[] {
