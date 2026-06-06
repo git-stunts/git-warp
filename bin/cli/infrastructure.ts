@@ -107,6 +107,7 @@ Commands:
   trust            Evaluate writer trust from signed evidence
   materialize      Diagnostic replay/checkpoint for graph state
   seek             Time-travel: step through graph history by Lamport tick
+  optic            Emit checkpoint-tail optic witness output
   patch            Decode and inspect raw patches
   tree             ASCII tree traversal from root nodes
   bisect           Binary search for first bad patch in writer history
@@ -137,6 +138,10 @@ Path options:
   --dir <out|in|both>   Traversal direction (default: out)
   --label <label>       Filter by edge label (repeatable, comma-separated)
   --max-depth <n>       Maximum depth
+
+Optic options:
+  witness <node-id>     Read a node or property with checkpoint-tail evidence
+  --property <key>      Read a single node property
 
 History options:
   --node <id>           Filter patches touching node id
@@ -225,7 +230,7 @@ export function notFoundError(message: string): CliError {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'check', 'doctor', 'debug', 'strand', 'materialize', 'seek', 'query', 'path', 'history', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
+export const KNOWN_COMMANDS = ['info', 'check', 'doctor', 'debug', 'strand', 'materialize', 'seek', 'query', 'path', 'optic', 'history', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },

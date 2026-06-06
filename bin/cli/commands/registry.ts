@@ -7,6 +7,7 @@ import handleMaterialize from './materialize.ts';
 import handleSeek from './seek.ts';
 import handleQuery from './query.ts';
 import handlePath from './path.ts';
+import handleOptic from './optic.ts';
 import handleHistory from './history.ts';
 import handleDebug from './debug.ts';
 import handleStrand from './strand.ts';
@@ -38,6 +39,7 @@ export const COMMANDS: ReadonlyMap<string, CommandHandler> = new Map<string, Com
   ['seek', handleSeek],
   ['query', handleQuery],
   ['path', handlePath],
+  ['optic', handleOptic],
   ['history', handleHistory],
   ['debug', handleDebug],
   ['strand', handleStrand],
