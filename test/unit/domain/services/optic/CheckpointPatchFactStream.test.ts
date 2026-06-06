@@ -19,6 +19,9 @@ import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
+import Op from '../../../../../src/domain/types/ops/Op.ts';
+import { OP_SCOPE_BOTH } from '../../../../../src/domain/types/ops/OpScope.ts';
+import OpApplied from '../../../../../src/domain/types/ops/OpApplied.ts';
 import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
@@ -125,6 +128,33 @@ describe('CheckpointPatchFactStream', () => {
     });
   });
 
+  it('preserves unsupported operation obstructions', async () => {
+    const source = new TestPatchFactStreamSource();
+    source.setChain('aaaa', [
+      patchEntry({
+        sha: 'aaaa',
+        writer: 'writer-a',
+        lamport: 1,
+        ops: [
+          // @ts-expect-error deliberate unsupported operation fixture for the obstruction boundary
+          new UnsupportedPatchOperation(),
+        ],
+      }),
+    ]);
+    const stream = new CheckpointPatchFactStream({ source });
+
+    await expect(collectFacts(stream.stream({
+      previousCheckpoint: checkpoint(new Map([['writer-a', 'base-a']])),
+      targetFrontier: new Map([['writer-a', 'aaaa']]),
+    }))).rejects.toMatchObject({
+      code: 'E_CHECKPOINT_PATCH_FACT_STREAM',
+      context: {
+        field: 'patch.ops',
+        reason: 'unsupported-operation',
+      },
+    });
+  });
+
   it('keeps the patch fact stream source off full-read operations', () => {
     const source = readFileSync(`${REPO_ROOT}${STREAM_SOURCE}`, 'utf8');
 
@@ -190,6 +220,25 @@ class TestPatchFactStreamSource extends CheckpointTailOpticSource {
 
 class InvalidPropertyCarrier {
   readonly invalid = true;
+}
+
+class UnsupportedPatchOperation extends Op<'UnsupportedPatchOperation'> {
+  readonly receiptName = 'UnsupportedPatchOperation';
+
+  constructor() {
+    super('UnsupportedPatchOperation', OP_SCOPE_BOTH);
+    Object.freeze(this);
+  }
+
+  validate(): void {}
+  mutate(): void {}
+  outcome(): OpApplied {
+    return new OpApplied('unsupported');
+  }
+  snapshot(): object {
+    return Object.freeze({});
+  }
+  accumulate(): void {}
 }
 
 function checkpoint(frontier: Map<string, string>): CheckpointTailCheckpointFrontier {

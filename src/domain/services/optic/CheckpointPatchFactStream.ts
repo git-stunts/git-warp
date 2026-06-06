@@ -135,14 +135,23 @@ function lowerOperation(
   rawOp: CheckpointTailPatchEntry['patch']['ops'][number],
   opIndex: number,
 ): readonly FactWithEvent[] {
-  const eventId = new EventId(entry.patch.lamport, entry.patch.writer, entry.sha, opIndex);
   try {
+    const eventId = new EventId(entry.patch.lamport, entry.patch.writer, entry.sha, opIndex);
     const op = normalizeRawOp(rawOp);
     return factsForOperation(op, eventId);
   } catch (error) {
+    if (isUnsupportedOperationError(error)) {
+      throw error;
+    }
     const cause = error instanceof Error ? error.message : null;
     return malformedOperationFacts(cause);
   }
+}
+
+function isUnsupportedOperationError(error: unknown): error is QueryError { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  return error instanceof QueryError
+    && error.code === 'E_CHECKPOINT_PATCH_FACT_STREAM'
+    && error.context['reason'] === 'unsupported-operation';
 }
 
 function factsForOperation(
