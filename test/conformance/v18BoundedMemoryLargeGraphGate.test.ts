@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { openWarpWorldline } from '../../index.ts';
 import MemoryBudgetError from '../../src/domain/errors/MemoryBudgetError.ts';
 import BoundedQueryReadModel from '../../src/domain/services/query/BoundedQueryReadModel.ts';
+import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import V18LargeGraphOverSmallPoolFixture from './fixtures/V18LargeGraphOverSmallPoolFixture.ts';
 
 describe('v18 bounded-memory large-graph gate', () => {
@@ -45,5 +47,20 @@ describe('v18 bounded-memory large-graph gate', () => {
       peak: 1,
       rejected: 0,
     });
+  });
+
+  it('keeps blessed worldline public paths off full-residency APIs', async () => {
+    const worldline = await openWarpWorldline({
+      persistence: new InMemoryGraphAdapter(),
+      worldlineName: 'v18-bounded-public-path',
+      writerId: 'agent-1',
+    });
+
+    expect('materialize' in worldline).toBe(false);
+    expect('getStateSnapshot' in worldline).toBe(false);
+    expect('getNodes' in worldline).toBe(false);
+    expect('getEdges' in worldline).toBe(false);
+    expect(worldline.capabilities().legacyNames()).toEqual(['legacy-query-arrays']);
+    expect(worldline.capabilities().diagnosticNames()).toEqual(['graph-wide-materialization']);
   });
 });
