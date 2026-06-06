@@ -81,6 +81,7 @@
     "setup:hooks": "node scripts/setup-hooks.ts",
     "prepare": "patch-package && node scripts/setup-hooks.ts",
     "prepack": "npm run build && npm run lint && npm run test:local && npm run typecheck:consumer",
+    "release:guard": "bash scripts/release-guard.sh",
     "release:preflight": "bash scripts/release-preflight.sh",
     "upgrade": "npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js",
     "install:git-warp": "bash scripts/install-git-warp.sh",

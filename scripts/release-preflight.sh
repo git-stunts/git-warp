@@ -35,6 +35,14 @@ else
   fail "package.json ($PKG) != jsr.json ($JSR)"
 fi
 
+# ── 1b. Release policy guard ─────────────────────────────────────────────────
+echo "Release policy:"
+if bash scripts/release-guard.sh --tag "v${PKG}"; then
+  pass "release guard"
+else
+  fail "release guard failed"
+fi
+
 # ── 2. Clean working tree ────────────────────────────────────────────────────
 echo "Working tree:"
 if git diff --quiet && git diff --cached --quiet; then
@@ -66,6 +74,21 @@ if npm run lint --silent 2>/dev/null; then
   pass "ESLint clean"
 else
   fail "ESLint errors"
+fi
+if npm run lint:md --silent 2>/dev/null; then
+  pass "Markdown clean"
+else
+  fail "Markdown lint errors"
+fi
+if npm run lint:md:code --silent 2>/dev/null; then
+  pass "Markdown code samples clean"
+else
+  fail "Markdown code sample errors"
+fi
+if npm run lint:links --silent 2>/dev/null; then
+  pass "Documentation links clean"
+else
+  fail "Documentation link errors"
 fi
 
 # ── 6. Type firewall ─────────────────────────────────────────────────────────
@@ -123,7 +146,7 @@ echo "Security:"
 if npm audit --omit=dev --audit-level=high 2>/dev/null; then
   pass "no high/critical vulnerabilities"
 else
-  warn "npm audit found issues (non-blocking)"
+  fail "npm audit found high/critical runtime vulnerabilities"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────

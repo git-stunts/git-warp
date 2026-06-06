@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  issues: read
 
 concurrency:
   group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -39,6 +40,9 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      - name: Fetch main for release guard
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
 
       - name: Validate tag format and compute metadata
         id: meta
@@ -70,6 +74,23 @@ jobs:
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
             echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Release guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: npm run release:guard -- --tag "${{ steps.meta.outputs.tag }}"
+
+      - name: Verify release tests and docs
+        run: |
+          npm run lint
+          npm run lint:md
+          npm run lint:md:code
+          npm run lint:links
+          npm run typecheck
+          npm run typecheck:policy
+          npm run typecheck:consumer
+          npm run typecheck:surface
+          npm run test:coverage:ci
 
       - name: Verify tag == package.json version
         shell: bash

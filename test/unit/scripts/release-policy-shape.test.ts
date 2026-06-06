@@ -10,6 +10,18 @@ const preflight = readFileSync(
   fileURLToPath(new URL('../../../scripts/release-preflight.sh', import.meta.url)),
   'utf8',
 );
+const releaseGuardPath = fileURLToPath(
+  new URL('../../../scripts/release-guard.sh', import.meta.url),
+);
+const releaseGuard = existsSync(releaseGuardPath)
+  ? readFileSync(releaseGuardPath, 'utf8')
+  : '';
+const releaseEvidenceTemplatePath = fileURLToPath(
+  new URL('../../../docs/checklists/release-evidence-template.md', import.meta.url),
+);
+const releaseEvidenceTemplate = existsSync(releaseEvidenceTemplatePath)
+  ? readFileSync(releaseEvidenceTemplatePath, 'utf8')
+  : '';
 const packedArtifactSmokePath = fileURLToPath(
   new URL('../../../scripts/smoke-packed-artifact.sh', import.meta.url),
 );
@@ -49,6 +61,70 @@ describe('release policy shape', () => {
   it('documents the normal branch -> PR -> merge -> tag release loop', () => {
     expect(releaseDoc).toContain('Push the release-prep branch and open a PR to `main`.');
     expect(releaseDoc).toContain('Merge to `main` after review and green CI.');
+    expect(releaseDoc).toContain('Fast-forward local `main`, fetch `origin/main`, and rerun final preflight');
+  });
+
+  it('locks release tags behind issue gates and prior-release cleanup', () => {
+    expect(existsSync(releaseGuardPath)).toBe(true);
+    expect(packageJson.scripts['release:guard']).toBe('bash scripts/release-guard.sh');
+    expect(preflight).toContain('scripts/release-guard.sh --tag "v${PKG}"');
+    expect(releaseWorkflow).toContain('npm run release:guard -- --tag "${{ steps.meta.outputs.tag }}"');
+
+    expect(releaseDoc).toContain('Tag-time release law');
+    expect(releaseDoc).toContain('REL-GH-ASAP-ZERO');
+    expect(releaseDoc).toContain('REL-GH-TARGET-LANE-ZERO');
+    expect(releaseDoc).toContain('REL-GH-PRIOR-RELEASE-ZERO');
+    expect(releaseGuard).toContain('check_zero_label "REL-GH-ASAP-ZERO" "lane:asap"');
+    expect(releaseGuard).toContain('check_zero_label "REL-GH-TARGET-LANE-ZERO" "$TARGET_LANE"');
+    expect(releaseGuard).toContain('release-home:v');
+  });
+
+  it('requires version lockstep across npm, jsr, lockfile, and private workspaces', () => {
+    expect(releaseDoc).toContain('REL-META-VERSION-LOCKSTEP');
+    expect(releaseDoc).toContain('private workspace package versions');
+    expect(releaseGuard).toContain('package-lock.json root package');
+    expect(releaseGuard).toContain('packages');
+    expect(releaseGuard).toContain('must remain private unless publish policy changes');
+  });
+
+  it('requires release evidence and documentation review before tagging', () => {
+    expect(existsSync(releaseEvidenceTemplatePath)).toBe(true);
+    expect(releaseDoc).toContain('release-evidence-template.md');
+    expect(releaseDoc).toContain('CHANGELOG.md` accurately reflects the diff');
+    expect(releaseDoc).toContain('Any accepted residual risk is named with rationale, owner, and follow-up');
+    expect(releaseGuard).toContain('REL-DOC-EVIDENCE');
+
+    for (const docPath of [
+      'CHANGELOG.md',
+      'README.md',
+      'TECHNICAL_TEARDOWN.md',
+      'docs/ARCHITECTURE.md',
+      'docs/GETTING_STARTED.md',
+      'docs/READINGS_AND_OPTICS.md',
+      'docs/GUIDE.md',
+      'docs/API_REFERENCE.md',
+      'docs/PUBLIC_API_COSTS.md',
+      'docs/CLI_GUIDE.md',
+      'docs/ROADMAP.md',
+      'docs/BEARING.md',
+    ]) {
+      expect(releaseEvidenceTemplate).toContain(docPath);
+      expect(releaseGuard).toContain(docPath);
+    }
+  });
+
+  it('runs release tests and documentation gates before publish jobs', () => {
+    expect(preflight).toContain('npm run lint:md --silent');
+    expect(preflight).toContain('npm run lint:md:code --silent');
+    expect(preflight).toContain('npm run lint:links --silent');
+    expect(preflight).toContain('npm audit found high/critical runtime vulnerabilities');
+
+    expect(releaseWorkflow).toContain('Fetch main for release guard');
+    expect(releaseWorkflow).toContain('Verify release tests and docs');
+    expect(releaseWorkflow).toContain('npm run lint:md');
+    expect(releaseWorkflow).toContain('npm run lint:links');
+    expect(releaseWorkflow).toContain('npm run typecheck:surface');
+    expect(releaseWorkflow).toContain('npm run test:coverage:ci');
   });
 
   it('keeps the roadmap header honest about the public release and repair entry', () => {
