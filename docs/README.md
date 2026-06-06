@@ -64,6 +64,12 @@ when you need that level of detail.
 - [Protocol Specs](specs/)
   Normative specs such as audit receipts, bisect, content attachment, and trust
   crypto.
+- [Reading Identity](specs/READING_IDENTITY.md)
+  Identity separation for bytes, retained payloads, basis, commitments, proofs,
+  and semantic readings.
+- [Canonical Fixtures And Witnesses](method/canonical-fixtures.md)
+  Fixture, witness, replay-command, and normalization rules for deterministic
+  proof.
 - [ADR Archive](archive/adr/README.md)
   Formal architectural decisions.
 

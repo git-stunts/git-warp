@@ -235,6 +235,8 @@ Reproducibility is a support obligation over clocks, randomness, network,
 filesystem reads, environment variables, toolchain versions, policy state,
 model versions, human approvals, and GitHub issue state. Hidden ambient causes
 must be sampled outside the deterministic boundary, recorded, and witnessed.
+Use [canonical-fixtures.md](canonical-fixtures.md) for fixture and witness
+naming, replay, and normalization rules.
 
 ## Issue Label Model
 
@@ -329,3 +331,8 @@ version. For each goalpost, the release packet records:
 Before a release may be tagged, no target-version goalpost issue may remain open
 unless the release evidence names it as explicitly superseded or out of scope
 for that version with a linked issue disposition.
+
+`npm run goalpost:guard` is the advisory structural guard for goalpost docs. It
+passes when no goalpost docs exist, and it fails when any goalpost doc omits the
+required identity, slice, proof-story, acceptance, deterministic evidence, or
+release-gate sections.

@@ -2,7 +2,8 @@
 
 Copy this template to `docs/releases/vX.Y.Z/README.md` during release prep and
 fill it before tagging. A release tag must not be created from an incomplete
-evidence packet.
+evidence packet. The completed packet must not contain template placeholders
+such as `TBD`, `0/N`, or angle-bracket placeholder fields.
 
 ## Release Identity
 
@@ -23,11 +24,19 @@ Paste or summarize the `npm run release:guard -- --tag vX.Y.Z` output.
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
+| `REL-TOOL-NODE` | `TBD` | Node.js available for metadata checks and tag inference. |
+| `REL-TOOL-GIT` | `TBD` | Git available for worktree and ancestry checks. |
+| `REL-TOOL-GH` | `TBD` | GitHub CLI available when live issue gates are required, or not required for this stage. |
+| `REL-TAG-FORMAT` | `TBD` | Tag uses leading-`v` SemVer. |
+| `REL-GH-ACCESS` | `TBD` | GitHub repository readable when live issue gates are required. |
 | `REL-GH-ASAP-ZERO` | `TBD` | No open `lane:asap` issues. |
 | `REL-GH-TARGET-LANE-ZERO` | `TBD` | No open target-version lane issues. |
+| `REL-GH-PRIOR-RELEASE-LABELS` | `TBD` | All `release-home:v*` labels use release SemVer. |
 | `REL-GH-PRIOR-RELEASE-ZERO` | `TBD` | No open prior-release-home issues. |
+| `REL-GH-STAGE` | `TBD` | Stage-specific issue gate posture recorded. |
 | `REL-META-VERSION-LOCKSTEP` | `TBD` | Package, JSR, lockfile, and workspace versions match. |
 | `REL-GIT-CLEAN` | `TBD` | Worktree clean at tag time. |
+| `REL-GIT-STAGE` | `TBD` | Branch-prep posture recorded, if applicable. |
 | `REL-GIT-ORIGIN-MAIN` | `TBD` | Tag commit equals `origin/main`. |
 | `REL-DOC-CHANGELOG-DATED` | `TBD` | Dated changelog entry exists. |
 | `REL-DOC-EVIDENCE` | `TBD` | This evidence packet is complete. |
@@ -60,6 +69,7 @@ disposition and follow-up issue.
 | Goalpost | Issue | Doc | Landed PRs | Slices complete | Proof matrix | Fixtures or inputs | Witnesses | Replay commands | Residual risk |
 | --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- |
 | `TBD` | `TBD` | `TBD` | `TBD` | `0/N` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` |
+| `single-issue exception` | `TBD` | `not goalpost-shaped` | `TBD` | `not applicable` | `TBD` | `TBD` | `TBD` | `TBD` | `Reason and follow-up issue required.` |
 
 ## Canonical fixtures and witnesses
 

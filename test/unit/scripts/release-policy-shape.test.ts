@@ -32,6 +32,28 @@ const releaseWorkflow = readFileSync(
   fileURLToPath(new URL('../../../.github/workflows/release.yml', import.meta.url)),
   'utf8',
 );
+const architectureDoc = readFileSync(
+  fileURLToPath(new URL('../../../docs/ARCHITECTURE.md', import.meta.url)),
+  'utf8',
+);
+const readingIdentitySpecPath = fileURLToPath(
+  new URL('../../../docs/specs/READING_IDENTITY.md', import.meta.url),
+);
+const readingIdentitySpec = existsSync(readingIdentitySpecPath)
+  ? readFileSync(readingIdentitySpecPath, 'utf8')
+  : '';
+const canonicalFixturesDocPath = fileURLToPath(
+  new URL('../../../docs/method/canonical-fixtures.md', import.meta.url),
+);
+const canonicalFixturesDoc = existsSync(canonicalFixturesDocPath)
+  ? readFileSync(canonicalFixturesDocPath, 'utf8')
+  : '';
+const goalpostGuardPath = fileURLToPath(
+  new URL('../../../scripts/goalpost-guard.sh', import.meta.url),
+);
+const goalpostGuard = existsSync(goalpostGuardPath)
+  ? readFileSync(goalpostGuardPath, 'utf8')
+  : '';
 const packageJson = JSON.parse(readFileSync(
   fileURLToPath(new URL('../../../package.json', import.meta.url)),
   'utf8',
@@ -62,15 +84,24 @@ describe('release policy shape', () => {
     expect(releaseDoc).toContain('Push the release-prep branch and open a PR to `main`.');
     expect(releaseDoc).toContain('Merge to `main` after review and green CI.');
     expect(releaseDoc).toContain('Fast-forward local `main`, fetch `origin/main`, and rerun final preflight');
+    expect(packageJson.scripts['release:prep']).toBe('bash scripts/release-preflight.sh --stage prep-pr');
+    expect(packageJson.scripts['release:preflight']).toBe('bash scripts/release-preflight.sh --stage final-local');
+    expect(preflight).toContain('bash scripts/release-guard.sh --stage "$STAGE" --tag "v${PKG}"');
   });
 
   it('locks release tags behind issue gates and prior-release cleanup', () => {
     expect(existsSync(releaseGuardPath)).toBe(true);
     expect(packageJson.scripts['release:guard']).toBe('bash scripts/release-guard.sh');
-    expect(preflight).toContain('scripts/release-guard.sh --tag "v${PKG}"');
-    expect(releaseWorkflow).toContain('npm run release:guard -- --tag "${{ steps.meta.outputs.tag }}"');
+    expect(releaseGuard).toContain('prep-pr | final-local | tag-workflow | rerun-workflow');
+    expect(releaseGuard).toContain('check_stage_issue_gates');
+    expect(releaseGuard).toContain('check_origin_main_ancestor');
+    expect(releaseGuard).toContain('prereleaseRank = { alpha: 0, beta: 1, rc: 2 }');
+    expect(releaseWorkflow).toContain('STAGE="rerun-workflow"');
+    expect(releaseWorkflow).toContain('STAGE="tag-workflow"');
+    expect(releaseWorkflow).toContain('npm run release:guard -- --stage "$STAGE" --tag "${{ steps.meta.outputs.tag }}"');
 
     expect(releaseDoc).toContain('Tag-time release law');
+    expect(releaseDoc).toContain('The guard is stage-aware');
     expect(releaseDoc).toContain('REL-GH-ASAP-ZERO');
     expect(releaseDoc).toContain('REL-GH-TARGET-LANE-ZERO');
     expect(releaseDoc).toContain('REL-GH-PRIOR-RELEASE-ZERO');
@@ -98,6 +129,7 @@ describe('release policy shape', () => {
     expect(releaseGuard).toContain('Deterministic reproducibility');
     expect(releaseGuard).toContain('Goalpost evidence');
     expect(releaseGuard).toContain('Canonical fixtures and witnesses');
+    expect(releaseGuard).toContain('evidence packet still contains template placeholders');
     expect(releaseEvidenceTemplate).toContain('Deterministic reproducibility');
     expect(releaseEvidenceTemplate).toContain('Goalpost evidence');
     expect(releaseEvidenceTemplate).toContain('Canonical fixtures and witnesses');
@@ -126,7 +158,9 @@ describe('release policy shape', () => {
     expect(preflight).toContain('npm run lint:md --silent');
     expect(preflight).toContain('npm run lint:md:code --silent');
     expect(preflight).toContain('npm run lint:links --silent');
+    expect(preflight).toContain('fail "tsc produced errors"');
     expect(preflight).toContain('npm audit found high/critical runtime vulnerabilities');
+    expect(preflight).not.toContain('Security audit (warning only)');
 
     expect(releaseWorkflow).toContain('Fetch main for release guard');
     expect(releaseWorkflow).toContain('Verify release tests and docs');
@@ -134,6 +168,21 @@ describe('release policy shape', () => {
     expect(releaseWorkflow).toContain('npm run lint:links');
     expect(releaseWorkflow).toContain('npm run typecheck:surface');
     expect(releaseWorkflow).toContain('npm run test:coverage:ci');
+  });
+
+  it('locks reading identity, fixture, and goalpost guard doctrine into docs', () => {
+    expect(existsSync(readingIdentitySpecPath)).toBe(true);
+    expect(existsSync(canonicalFixturesDocPath)).toBe(true);
+    expect(existsSync(goalpostGuardPath)).toBe(true);
+    expect(packageJson.scripts['goalpost:guard']).toBe('bash scripts/goalpost-guard.sh');
+
+    expect(architectureDoc).toContain('Graph-shaped readings');
+    expect(architectureDoc).toContain('Reading Identity');
+    expect(readingIdentitySpec).toContain('A byte hash identifies bytes.');
+    expect(readingIdentitySpec).toContain('Semantic reading identity');
+    expect(canonicalFixturesDoc).toContain('fixture + replay command -> witness');
+    expect(canonicalFixturesDoc).toContain('Host-specific noise must be normalized');
+    expect(goalpostGuard).toContain('Deterministic Evidence');
   });
 
   it('keeps the roadmap header honest about the public release and repair entry', () => {

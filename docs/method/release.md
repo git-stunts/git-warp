@@ -34,6 +34,12 @@ Both registries use OIDC trusted publishing -- no stored tokens.
 
 ## Preflight checklist
 
+Run the branch-local prep check before opening the release-prep PR:
+
+```bash
+npm run release:prep
+```
+
 Run the final local preflight from aligned `main` before tagging:
 
 ```bash
@@ -44,10 +50,10 @@ This script (`scripts/release-preflight.sh`) checks:
 
 | #   | Check                                                                 | Blocking? |
 | --- | --------------------------------------------------------------------- | --------- |
-| 1   | `scripts/release-guard.sh` release policy gates                       | Yes       |
+| 1   | `scripts/release-guard.sh` staged release policy gates                | Yes       |
 | 2   | `package.json` version == `jsr.json` version                          | Yes       |
 | 3   | Clean working tree (no uncommitted changes)                           | Yes       |
-| 4   | Tag commit matches `origin/main`                                      | Yes       |
+| 4   | Tag commit matches `origin/main` in final/tag stages                  | Yes       |
 | 5   | CHANGELOG has a dated `[X.Y.Z] - YYYY-MM-DD` entry                    | Yes       |
 | 6   | ESLint, Markdown lint, Markdown code samples, and link checks pass     | Yes       |
 | 7   | Type firewall (source, test, policy, consumer, generated npm surface) | Yes       |
@@ -77,14 +83,31 @@ publishing. It enforces:
 
 | Gate | Rule |
 | --- | --- |
+| `REL-TOOL-NODE` | Node.js is available for metadata checks and tag inference. |
+| `REL-TOOL-GIT` | Git is available for worktree, ancestry, and release posture checks. |
+| `REL-TOOL-GH` | GitHub CLI is available when the stage enforces live GitHub issue gates. |
+| `REL-TAG-FORMAT` | The release tag uses leading-`v` SemVer, with optional `alpha`, `beta`, or `rc` prerelease suffix. |
+| `REL-GH-ACCESS` | The configured GitHub repository is readable before live issue gates run. |
 | `REL-GH-ASAP-ZERO` | There are zero open GitHub Issues labeled `lane:asap`. |
 | `REL-GH-TARGET-LANE-ZERO` | There are zero open GitHub Issues in the target version lane, such as `lane:v18.0.0`. |
+| `REL-GH-PRIOR-RELEASE-LABELS` | Every `release-home:v*` label uses valid release SemVer before prior-release arithmetic runs. |
 | `REL-GH-PRIOR-RELEASE-ZERO` | There are zero open GitHub Issues with `release-home:` labels lower than the target version. |
+| `REL-GH-STAGE` | Stages that intentionally skip live issue gates state why. |
 | `REL-META-VERSION-LOCKSTEP` | Root `package.json`, `jsr.json`, `package-lock.json`, and private workspace package versions all match the tag version. |
 | `REL-GIT-CLEAN` | The worktree has no unstaged or staged-but-uncommitted changes. |
+| `REL-GIT-STAGE` | Branch-prep stage declares branch-local posture instead of pretending it is a tag-time check. |
 | `REL-GIT-ORIGIN-MAIN` | The tag commit is exactly `origin/main`. |
 | `REL-DOC-CHANGELOG-DATED` | `CHANGELOG.md` has a dated entry for the tag version. |
 | `REL-DOC-EVIDENCE` | `docs/releases/vX.Y.Z/README.md` exists and contains the required release evidence sections, deterministic reproducibility record, and documentation review matrix. |
+
+The guard is stage-aware:
+
+| Stage | Caller | Git posture | Issue gates |
+| --- | --- | --- | --- |
+| `prep-pr` | `npm run release:prep` | Branch-local clean tree; does not require `HEAD == origin/main`. | Skipped until final tag preflight; `gh` is not required. |
+| `final-local` | `npm run release:preflight` | Requires `HEAD == origin/main`. | Enforced live. |
+| `tag-workflow` | tag push workflow | Requires tag commit `HEAD == origin/main`. | Enforced live. |
+| `rerun-workflow` | manual workflow dispatch for existing tag | Requires tag commit reachable from `origin/main`. | Skipped for registry recovery; `gh` is not required by the guard. |
 
 The release workflow also runs lint, Markdown lint, link checks, type gates,
 consumer and declaration-surface checks, and coverage tests before any registry
@@ -140,6 +163,8 @@ other data shape that cannot be reconstructed uniquely from the tag commit. Put
 release-specific fixtures under `docs/releases/vX.Y.Z/fixtures/` unless an
 existing committed fixture is already canonical. Pair each fixture with at least
 one witness that names the replay command and the expected deterministic result.
+Use [canonical-fixtures.md](canonical-fixtures.md) for fixture and witness
+naming, replay, and normalization rules.
 
 Use [release-evidence-template.md](../checklists/release-evidence-template.md)
 for the committed evidence packet.
@@ -155,9 +180,9 @@ proof-story, slice-budget, and deterministic proof contract.
    - Move `[Unreleased]` items in `CHANGELOG.md` to a dated `[X.Y.Z] — YYYY-MM-DD` section.
    - Fill `docs/releases/vX.Y.Z/README.md` from the release evidence template.
    - Commit: `git commit -m "release: vX.Y.Z"`
-2. Run preflight:
+2. Run branch-local release prep:
    ```bash
-   npm run release:preflight
+   npm run release:prep
    ```
 3. Push the release-prep branch and open a PR to `main`.
 4. Merge to `main` after review and green CI.
@@ -182,7 +207,7 @@ proof-story, slice-budget, and deterministic proof contract.
    - **publish_jsr** -- publishes to JSR via OIDC
    - **github_release** -- creates GitHub Release with auto-generated notes
 9. If one registry fails, re-run only that job from the Actions UI.
-   - If a rerun cannot use the fixed workflow from `main`, run the **Release** workflow manually with the existing tag. The workflow is idempotent: already-published registry versions are skipped, missing registry versions are published, and existing GitHub Release notes are updated with the current registry summary.
+   - If a rerun cannot use the fixed workflow from `main`, run the **Release** workflow manually with the existing tag. The workflow uses `rerun-workflow` release-guard stage for registry recovery: the existing tag must remain reachable from `origin/main`, but live issue-zero gates are not re-applied after the tag already exists. The workflow is idempotent: already-published registry versions are skipped, missing registry versions are published, and existing GitHub Release notes are updated with the current registry summary.
 10. Confirm:
    - npm dist-tag is correct (`latest` for stable, `next`/`beta`/`alpha` for prereleases)
    - JSR version is visible

@@ -8,9 +8,18 @@ set -euo pipefail
 
 REPO="${GITHUB_REPOSITORY:-git-stunts/git-warp}"
 TAG=""
+STAGE="final-local"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --stage)
+      if [ "$#" -lt 2 ]; then
+        echo "release-guard: --stage requires a value" >&2
+        exit 2
+      fi
+      STAGE="$2"
+      shift 2
+      ;;
     --tag)
       if [ "$#" -lt 2 ]; then
         echo "release-guard: --tag requires a value" >&2
@@ -34,19 +43,18 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ "$TAG" = "" ]; then
-  TAG="v$(node -p "require('./package.json').version")"
-fi
+case "$STAGE" in
+  prep-pr | final-local | tag-workflow | rerun-workflow) ;;
+  *)
+    echo "release-guard: invalid stage: $STAGE" >&2
+    exit 2
+    ;;
+esac
 
-if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(rc|beta|alpha)\.[0-9]+)?$ ]]; then
-  echo "release-guard: invalid tag format: $TAG" >&2
-  exit 2
-fi
-
-TAG_VERSION="${TAG#v}"
-TARGET_VERSION="${TAG_VERSION%%-*}"
-TARGET_LANE="lane:v${TARGET_VERSION}"
-EVIDENCE_FILE="docs/releases/v${TARGET_VERSION}/README.md"
+TAG_VERSION=""
+TARGET_VERSION=""
+TARGET_LANE=""
+EVIDENCE_FILE=""
 FAILURES=0
 
 pass() {
@@ -66,31 +74,100 @@ require_command() {
   fi
 }
 
-semver_key() {
-  local version="${1%%-*}"
-  local major minor patch
-  IFS=. read -r major minor patch <<EOF
-$version
-EOF
-  printf '%04d%04d%04d' "$((10#$major))" "$((10#$minor))" "$((10#$patch))"
+require_gh_for_stage() {
+  case "$STAGE" in
+    final-local | tag-workflow)
+      require_command gh "REL-TOOL-GH"
+      ;;
+    prep-pr | rerun-workflow)
+      pass "REL-TOOL-GH" "gh is not required for $STAGE stage"
+      ;;
+  esac
+}
+
+derive_and_validate_tag() {
+  if [ "$TAG" = "" ]; then
+    if command -v node >/dev/null 2>&1; then
+      TAG="v$(node -p "require('./package.json').version")"
+    else
+      fail "REL-TAG-DEFAULT" "cannot infer tag without node; pass --tag explicitly"
+      TAG="v0.0.0"
+    fi
+  fi
+
+  if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(rc|beta|alpha)\.[0-9]+)?$ ]]; then
+    TAG_VERSION="${TAG#v}"
+    TARGET_VERSION="${TAG_VERSION%%-*}"
+    TARGET_LANE="lane:v${TARGET_VERSION}"
+    EVIDENCE_FILE="docs/releases/v${TARGET_VERSION}/README.md"
+    pass "REL-TAG-FORMAT" "$TAG is a valid release tag"
+  else
+    fail "REL-TAG-FORMAT" "$TAG is not vMAJOR.MINOR.PATCH or prerelease"
+    TAG_VERSION="0.0.0"
+    TARGET_VERSION="0.0.0"
+    TARGET_LANE="lane:v${TARGET_VERSION}"
+    EVIDENCE_FILE="docs/releases/v${TARGET_VERSION}/README.md"
+  fi
+}
+
+is_release_version() {
+  [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(rc|beta|alpha)\.[0-9]+)?$ ]]
 }
 
 semver_less_than() {
-  local left right
-  left="$(semver_key "$1")"
-  right="$(semver_key "$2")"
-  [ "$left" -lt "$right" ]
+  node - "$1" "$2" <<'NODE'
+const left = process.argv[2];
+const right = process.argv[3];
+const prereleaseRank = { alpha: 0, beta: 1, rc: 2 };
+
+function parse(version) {
+  const match = /^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-(alpha|beta|rc)\.([0-9]+))?$/.exec(version);
+  if (!match) {
+    process.exit(2);
+  }
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: match[4] === undefined ? null : {
+      rank: prereleaseRank[match[4]],
+      number: Number(match[5]),
+    },
+  };
+}
+
+function compare(leftVersion, rightVersion) {
+  for (const field of ['major', 'minor', 'patch']) {
+    if (leftVersion[field] !== rightVersion[field]) {
+      return leftVersion[field] - rightVersion[field];
+    }
+  }
+  if (leftVersion.prerelease === null && rightVersion.prerelease === null) {
+    return 0;
+  }
+  if (leftVersion.prerelease !== null && rightVersion.prerelease === null) {
+    return -1;
+  }
+  if (leftVersion.prerelease === null && rightVersion.prerelease !== null) {
+    return 1;
+  }
+  if (leftVersion.prerelease.rank !== rightVersion.prerelease.rank) {
+    return leftVersion.prerelease.rank - rightVersion.prerelease.rank;
+  }
+  return leftVersion.prerelease.number - rightVersion.prerelease.number;
+}
+
+process.exit(compare(parse(left), parse(right)) < 0 ? 0 : 1);
+NODE
 }
 
 count_open_issues_with_label() {
   local label="$1"
-  gh issue list \
-    --repo "$REPO" \
-    --state open \
-    --label "$label" \
-    --limit 1000 \
-    --json number \
-    --jq 'length'
+  local search_query="repo:$REPO is:issue is:open label:\"$label\""
+  gh api graphql \
+    -f query='query($searchQuery: String!) { search(query: $searchQuery, type: ISSUE, first: 1) { issueCount } }' \
+    -f searchQuery="$search_query" \
+    --jq '.data.search.issueCount'
 }
 
 check_zero_label() {
@@ -176,7 +253,15 @@ check_clean_tree() {
   fi
 }
 
-check_origin_main() {
+check_github_access() {
+  if gh repo view "$REPO" --json nameWithOwner --jq '.nameWithOwner' >/dev/null 2>&1; then
+    pass "REL-GH-ACCESS" "GitHub repository $REPO is readable"
+  else
+    fail "REL-GH-ACCESS" "cannot read GitHub repository $REPO through gh"
+  fi
+}
+
+check_origin_main_exact() {
   local head main
   head="$(git rev-parse HEAD)"
   if ! main="$(git rev-parse origin/main 2>/dev/null)"; then
@@ -188,6 +273,34 @@ check_origin_main() {
   else
     fail "REL-GIT-ORIGIN-MAIN" "HEAD $head does not match origin/main $main"
   fi
+}
+
+check_origin_main_ancestor() {
+  local head main
+  head="$(git rev-parse HEAD)"
+  if ! main="$(git rev-parse origin/main 2>/dev/null)"; then
+    fail "REL-GIT-ORIGIN-MAIN" "origin/main is unavailable; fetch origin main before release"
+    return
+  fi
+  if git merge-base --is-ancestor "$head" "$main"; then
+    pass "REL-GIT-ORIGIN-MAIN" "HEAD $head is reachable from origin/main $main for workflow rerun"
+  else
+    fail "REL-GIT-ORIGIN-MAIN" "HEAD $head is not reachable from origin/main $main"
+  fi
+}
+
+check_stage_git_posture() {
+  case "$STAGE" in
+    prep-pr)
+      pass "REL-GIT-STAGE" "prep-pr validates branch-local release content before merge"
+      ;;
+    final-local | tag-workflow)
+      check_origin_main_exact
+      ;;
+    rerun-workflow)
+      check_origin_main_ancestor
+      ;;
+  esac
 }
 
 check_changelog() {
@@ -230,6 +343,7 @@ check_release_evidence() {
   fi
 
   local missing=0
+  local placeholders=0
   for term in "${required_terms[@]}"; do
     if ! grep -qF "$term" "$EVIDENCE_FILE"; then
       printf '    missing evidence term: %s\n' "$term"
@@ -237,10 +351,20 @@ check_release_evidence() {
     fi
   done
 
-  if [ "$missing" -eq 0 ]; then
-    pass "REL-DOC-EVIDENCE" "$EVIDENCE_FILE contains release evidence sections and doc review matrix"
+  local placeholder_hits
+  placeholder_hits="$(grep -nE '(^|[^A-Za-z])TBD([^A-Za-z]|$)|0/N|<[^>]+>' "$EVIDENCE_FILE" || true)"
+  if [ "$placeholder_hits" != "" ]; then
+    printf '%s\n' "$placeholder_hits" | head -20
+    placeholders=1
+  fi
+
+  if [ "$missing" -eq 0 ] && [ "$placeholders" -eq 0 ]; then
+    pass "REL-DOC-EVIDENCE" "$EVIDENCE_FILE contains completed release evidence sections and doc review matrix"
   else
-    fail "REL-DOC-EVIDENCE" "$EVIDENCE_FILE is missing $missing required evidence term(s)"
+    if [ "$placeholders" -ne 0 ]; then
+      printf '    evidence packet still contains template placeholders\n'
+    fi
+    fail "REL-DOC-EVIDENCE" "$EVIDENCE_FILE is missing $missing required evidence term(s) or contains placeholders"
   fi
 }
 
@@ -249,6 +373,7 @@ check_issue_gates() {
   check_zero_label "REL-GH-TARGET-LANE-ZERO" "$TARGET_LANE"
 
   local prior_failures=0
+  local malformed_labels=0
   while IFS= read -r label; do
     [ "$label" = "" ] && continue
     case "$label" in
@@ -256,6 +381,11 @@ check_issue_gates() {
       *) continue ;;
     esac
     local version="${label#release-home:v}"
+    if ! is_release_version "$version"; then
+      printf '    malformed release-home label: %s\n' "$label"
+      malformed_labels=$((malformed_labels + 1))
+      continue
+    fi
     if semver_less_than "$version" "$TARGET_VERSION"; then
       local count
       count="$(count_open_issues_with_label "$label")"
@@ -266,6 +396,12 @@ check_issue_gates() {
     fi
   done < <(gh label list --repo "$REPO" --search "release-home:v" --limit 1000 --json name --jq '.[].name')
 
+  if [ "$malformed_labels" -eq 0 ]; then
+    pass "REL-GH-PRIOR-RELEASE-LABELS" "all release-home labels use release SemVer"
+  else
+    fail "REL-GH-PRIOR-RELEASE-LABELS" "$malformed_labels malformed release-home label(s)"
+  fi
+
   if [ "$prior_failures" -eq 0 ]; then
     pass "REL-GH-PRIOR-RELEASE-ZERO" "no open prior-release-home issues before v${TARGET_VERSION}"
   else
@@ -273,21 +409,39 @@ check_issue_gates() {
   fi
 }
 
-echo "Release guard:"
-echo "  repo: $REPO"
-echo "  tag:  $TAG"
-echo ""
+check_stage_issue_gates() {
+  case "$STAGE" in
+    prep-pr)
+      pass "REL-GH-STAGE" "prep-pr skips live issue-zero gates until final tag preflight"
+      ;;
+    final-local | tag-workflow)
+      check_github_access
+      check_issue_gates
+      ;;
+    rerun-workflow)
+      pass "REL-GH-STAGE" "rerun-workflow skips live issue-zero gates for existing-tag registry recovery"
+      ;;
+  esac
+}
 
 require_command node "REL-TOOL-NODE"
 require_command git "REL-TOOL-GIT"
-require_command gh "REL-TOOL-GH"
+require_gh_for_stage
+
+derive_and_validate_tag
+
+echo "Release guard:"
+echo "  repo: $REPO"
+echo "  tag:  $TAG"
+echo "  stage: $STAGE"
+echo ""
 
 check_versions
 check_clean_tree
-check_origin_main
+check_stage_git_posture
 check_changelog
 check_release_evidence
-check_issue_gates
+check_stage_issue_gates
 
 echo ""
 if [ "$FAILURES" -eq 0 ]; then
