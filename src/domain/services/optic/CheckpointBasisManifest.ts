@@ -69,8 +69,8 @@ export default class CheckpointBasisManifest {
   readonly schema: number;
   readonly graphName: string;
   readonly checkpointSha: string;
-  readonly frontier: Map<string, string>;
-  readonly appliedVersionVector: Map<string, number>;
+  private readonly _frontier: Map<string, string>;
+  private readonly _appliedVersionVector: Map<string, number>;
   readonly basisIdentity: string;
   readonly semanticReadingIdentity: string;
   readonly livenessRoots: CheckpointBasisShardRootMap;
@@ -98,8 +98,8 @@ export default class CheckpointBasisManifest {
     const nullableRefs = nullableManifestRefs(options);
     this.schema = schema;
     this.graphName = options.graphName; this.checkpointSha = options.checkpointSha;
-    this.frontier = copyFrontier(options.frontier);
-    this.appliedVersionVector = copyVersionVector(options.appliedVersionVector);
+    this._frontier = copyFrontier(options.frontier);
+    this._appliedVersionVector = copyVersionVector(options.appliedVersionVector);
     this.basisIdentity = validateIdentity(options.basisIdentity, 'basisIdentity');
     this.semanticReadingIdentity = validateIdentity(options.semanticReadingIdentity, 'semanticReadingIdentity');
     this.livenessRoots = roots.livenessRoots; this.propertyRoots = roots.propertyRoots;
@@ -118,6 +118,14 @@ export default class CheckpointBasisManifest {
     this.verificationPosture = verificationPostureOrDefault(options.verificationPosture ?? null);
     validateManifestState(this);
     Object.freeze(this);
+  }
+
+  get frontier(): Map<string, string> {
+    return copyFrontier(this._frontier);
+  }
+
+  get appliedVersionVector(): Map<string, number> {
+    return copyVersionVector(this._appliedVersionVector);
   }
 
   rootMaps(): readonly CheckpointBasisShardRootMap[] {

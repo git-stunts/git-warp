@@ -33,6 +33,18 @@ describe('CheckpointBasisManifest', () => {
     expect(Object.isFrozen(manifest)).toBe(true);
   });
 
+  it('keeps frontier and version-vector maps immutable after construction', () => {
+    const manifest = new CheckpointBasisManifest(validManifestOptions());
+    const exposedFrontier = manifest.frontier;
+    const exposedVersionVector = manifest.appliedVersionVector;
+
+    exposedFrontier.set('writer-b', 'patch-b');
+    exposedVersionVector.set('writer-b', 2);
+
+    expect([...manifest.frontier.entries()]).toEqual([['writer-a', 'patch-a']]);
+    expect([...manifest.appliedVersionVector.entries()]).toEqual([['writer-a', 1]]);
+  });
+
   it('rejects unsupported checkpoint schemas with a typed obstruction', () => {
     expectManifestError(
       () => new CheckpointBasisManifest({ ...validManifestOptions(), schema: CURRENT_CHECKPOINT_SCHEMA + 1 }),
