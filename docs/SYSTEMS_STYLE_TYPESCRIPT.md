@@ -16,6 +16,11 @@ Trusted domain values must be created through runtime construction, parsing, or 
 
 This rule outranks type annotations, build steps, editor hints, compile-time tooling, team folklore, and "but the compiler said it was fine."
 
+Rule 0 is not inspirational prose. It is a merge standard. If runtime
+behavior, tests, types, and docs disagree, fix the runtime model first and
+then repair the witnesses around it. Types, tests, and docs are supporting
+evidence. They are not the source of truth.
+
 ### What This Means in Practice
 
 Infrastructure cannot afford fake contracts:
@@ -70,7 +75,12 @@ Every type annotation must reflect a runtime reality. If a class validates its c
 
 **No `any`. Ever.** Not in source, not in tests, not in type assertions, not hidden behind generics. `any` is a hole in the type system that propagates silently. It is banned without exception.
 
-**No `unknown`.** Not as a parameter type, not as a return type, not as a field type. At raw system boundaries (JSON.parse, external APIs, wire protocols), untrusted data enters through a **parser** that produces a concrete type or throws. The parser is the boundary. `unknown` never escapes it.
+**No `unknown` outside adapter-owned boundary parser implementations.** At raw
+system boundaries (JSON.parse, external APIs, wire protocols), untrusted data
+enters through an adapter parser that produces a concrete type or fails with a
+typed error. The parser is the boundary. `unknown` is allowed only long enough
+for adapter-local parser code to prove the concrete transport or domain type.
+It never reaches core behavior, named boundary readers, or public APIs.
 
 ```typescript
 // The boundary parser. This is the ONLY place raw data is touched.
@@ -90,7 +100,7 @@ function applyPatch(patch: PatchV2): PatchResult { /* ... */ }
 const id = value as string;
 
 // RIGHT — prove it at runtime, compiler follows
-if (typeof value !== 'string') { throw new TypeError('expected string'); }
+if (typeof value !== 'string') { throw new InvalidBoundaryValue('expected string'); }
 const id = value; // compiler knows it's string
 ```
 
@@ -155,9 +165,48 @@ class NodeFsStorageAdapter implements StoragePort {
 }
 ```
 
+#### Dependency Injection Is Mandatory
+
+Core dependencies enter through constructors or explicit method parameters.
+No domain object may reach sideways for a global service, singleton,
+service locator, ambient process state, host API, or concrete adapter.
+
+This rule does **not** ban `new` in core. Core may construct domain value
+objects, entities, outcomes, errors, cursors, coordinates, CRDT records, and
+other runtime model objects. That is how runtime truth is established.
+
+What core may not construct is a concrete host capability:
+
+- no infrastructure adapters
+- no filesystem, network, process, or environment implementation
+- no ambient clock or entropy source
+- no concrete persistence implementation
+- no codec with host side effects
+
+Those capabilities are ports. Adapters implement the ports. Core receives the
+ports and owns only the domain behavior.
+
+#### Encoding and Decoding Stay at Boundaries
+
+Serialization, deserialization, and codec work happen in adapters, codec
+ports, or named boundary reader modules. After decoding, values must be
+validated and converted into runtime-backed domain objects before behavioral
+domain logic branches on them.
+
+Decoded DTOs may cross a boundary only as transport shapes. They do not get to
+masquerade as domain concepts. A parser or boundary reader has one job: turn
+untrusted bytes and shapes into validated runtime values, or fail with a typed
+error.
+
 ### The Object Model
 
 Systems-style TypeScript organizes code around four categories of **runtime-backed** objects:
+
+Prefer classes with constructors for domain concepts. The lighter
+`Interface + Factory + Brand` pattern is discouraged for domain modeling
+because it leaves too much trust in erased structural types. It is allowed
+only for pure transport DTOs, deliberately hot-path primitives, or cases where
+structural typing is itself the intended contract.
 
 **Value Objects** — Meaningful domain values with invariants
 
@@ -246,7 +295,7 @@ class InvalidObjectId extends DomainError {
 if (err instanceof InvalidObjectId) { /* ... */ }
 
 // NEVER parse messages
-if (err.message.includes('invalid')) { /* raccoon-in-a-dumpster energy */ }
+if (err.message.includes('invalid')) { /* message parsing is not a contract */ }
 ```
 
 ### Principles
@@ -317,24 +366,17 @@ The runtime model is the source. TypeScript types reflect it. Tests prove it. Do
 **P7: Runtime Dispatch Over Tag Switching**
 Inside a coherent runtime, `instanceof` is the correct dispatch mechanism.
 
-**Cross-realm note:** `instanceof` breaks across realm boundaries (iframes, web workers, multiple module instances). When values cross realms, use branding:
-
-```typescript
-class EventId {
-  static readonly brand = Symbol.for('flyingrobots.EventId');
-  get [EventId.brand](): true { return true; }
-  static is(v: unknown): v is EventId {
-    return v != null && (v as Record<symbol, unknown>)[EventId.brand] === true;
-  }
-}
-```
+**Cross-realm note:** `instanceof` breaks across realm boundaries (iframes,
+web workers, multiple module instances). When values cross realms, normalize
+them at an adapter or boundary reader and construct validated domain objects in
+the current realm before core logic uses them.
 
 ### Practices
 
 These are concrete coding disciplines. Most are linter-enforceable. Violations should fail CI.
 
 - **`any` is banished.** No exceptions. No `as any`. No generic defaults to `any`. No `Function` type. If you cannot type it, you haven't understood it yet.
-- **`unknown` is banished.** Raw data enters through parsers that return concrete types or throw. The parser is the boundary, not the call site.
+- **`unknown` is adapter-boundary-only.** Adapter parsers may use it as a temporary name for raw input. They must return concrete types or typed failures. It does not cross into core.
 - **`as` is banished.** Type assertions bypass the compiler. Use runtime guards, discriminated classes, or parser functions instead. The compiler should follow your runtime logic, not be overridden by your wishes.
 - **`interface` is for ports only.** Ports (abstract contracts between layers) use `interface`. Domain concepts use `class`. If it has invariants, identity, or behavior, it is a class.
 - **Trusted values must preserve integrity** — Use `Object.freeze()`, `readonly`, or `private` fields to protect invariants after construction.
@@ -354,17 +396,13 @@ await replayer.replaySegment(segment, policy);
 - **Magic numbers and strings are banished** — Give semantic numbers a named constant.
 - **Boolean trap parameters are banished** — Use named parameter objects or separate methods.
 - **One thing per file.** "Where is Foo?" → open `Foo.ts` → find Foo. Done. Every class, every domain type, every meaningful export lives in a file named after it. Re-export shims that forward from a monolith are not splits — they are lies about where code lives. If the file is named after the class, the class definition must be in that file.
-- **No `enum`.** TypeScript enums are runtime objects with surprising behavior. Use `as const` objects or class hierarchies.
+- **No `enum`.** TypeScript enums are runtime objects with surprising behavior. Use runtime token classes or class hierarchies.
 
 ```typescript
 // WRONG — TypeScript enum (reverse mapping, numeric default, surprising equality)
 enum OpType { NodeAdd, NodeRemove }
 
-// RIGHT — const object
-const OP_TYPE = { NODE_ADD: 'NodeAdd', NODE_REMOVE: 'NodeRemove' } as const;
-type OpType = typeof OP_TYPE[keyof typeof OP_TYPE];
-
-// BEST — class hierarchy (when behavior differs per variant)
+// RIGHT — class hierarchy
 abstract class Op { abstract apply(state: State): State; }
 class NodeAdd extends Op { /* ... */ }
 class NodeRemove extends Op { /* ... */ }
@@ -418,11 +456,16 @@ Most bad TypeScript infrastructure stems from weak modeling. The discipline is:
 
 Before merging, ask:
 
+- What is actually true at runtime, and which runtime object proves it?
+- Does this follow hexagonal architecture?
+- Are concrete dependencies injected rather than constructed in core?
+- Is encoding or decoding restricted to adapters, codec ports, or named
+  boundary readers?
 - Is this a real domain concept? Where is its runtime-backed class?
 - Are there any `any`, `unknown`, or `as` in the diff?
 - Does construction establish trust?
 - Does behavior live on the type that owns it?
-- Is anyone parsing `err.message` like a raccoon in a dumpster?
+- Is anyone parsing `err.message` instead of branching on typed errors?
 - Are there magic numbers or strings?
 - Could this logic run in a browser?
 - Is there an `interface` that should be a `class`?

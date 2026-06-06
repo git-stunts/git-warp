@@ -12,6 +12,11 @@ The policy is binding:
 - **Decisions:** [`docs/ANTI_SLUDGE_DECISIONS.md`](docs/ANTI_SLUDGE_DECISIONS.md)
 - **Foundations:** [`docs/SYSTEMS_STYLE_TYPESCRIPT.md`](docs/SYSTEMS_STYLE_TYPESCRIPT.md)
 
+Rule 0 is binding: **Runtime Truth Wins**. If runtime behavior, types,
+tests, and docs disagree, fix the runtime model first and then update the
+evidence. Type annotations and docs support runtime truth; they do not
+override it.
+
 ### Automatic rejection list
 
 A patch must be rejected on sight if it introduces any of the
@@ -63,6 +68,9 @@ Generate only:
   constructors, `Object.freeze`, `instanceof` dispatch)
 - runtime-honest TypeScript (types document reality; parsers gate
   untrusted input)
+- constructor-injected ports for external capabilities
+- domain object construction in core only when it establishes validated
+  runtime truth
 - boring adapters and sharp core logic
 - discriminated unions and explicit result types instead of
   boolean-flag bags
@@ -73,6 +81,8 @@ Do **not** generate:
 - clever sludge
 - "good enough" sludge
 - compile-time theater
+- construction of infrastructure adapters, host APIs, persistence
+  implementations, wall clocks, or entropy sources inside core
 - puddle-assembly object construction (`thing.a = ...; if (...) thing.b = ...`)
 - `utils.ts`, `helpers.ts`, `misc.ts`, `common.ts` — name the concept
 
@@ -146,8 +156,14 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - Prefer one file per class, type, or object. If a file accumulates peer concepts, split it.
 - Runtime truth wins. If something has invariants, identity, or behavior, it should exist as a runtime-backed type.
 - Validate at boundaries and constructors. Constructors establish invariants and do no I/O.
+- Dependency injection is mandatory for external capabilities. Core may
+  construct domain objects, but not adapters, host services, persistence
+  implementations, wall clocks, or entropy sources.
+- Encoding and decoding stay in adapters, codec ports, or explicitly named
+  boundary reader modules. Core behavior branches on validated domain
+  objects, not raw decoded shapes.
 - Prefer `instanceof` dispatch over tag switching.
-- No `any`. No `unknown` outside parser functions. No `as` assertions. No `enum`.
+- No `any`. No `unknown` outside adapters. No `as` assertions. No `enum`.
 - `interface` is for ports only. Domain concepts are classes.
 - No boolean trap parameters. Use named option objects or separate methods.
 - No magic strings or numbers when a named constant should exist.

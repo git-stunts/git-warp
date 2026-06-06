@@ -24,6 +24,11 @@ to express **real domain concepts**, **explicit boundaries**, and
 
 If the code compiles but violates this policy, the code is wrong.
 
+Runtime truth is the source of authority. When runtime behavior,
+types, tests, and docs disagree, repair the runtime model first.
+Type annotations, schemas, generated declarations, tests, and docs are
+evidence about the runtime. They do not outrank it.
+
 Cycle 0023 made the cost of shape-trust legible: we introduced an
 abstract class (`ORSetLike`) with exactly one implementation, named
 after a vague shape. It violated SSTS and was reverted within one
@@ -59,6 +64,27 @@ Dependencies point inward only.
 - `domain` and `ports` must **never** import from `infrastructure`.
 - `domain` and `ports` must **never** import Node platform APIs or
   framework libraries.
+
+### Dependency injection rule
+
+External capabilities enter core through constructors or explicit method
+parameters. Core must not reach sideways for globals, service locators,
+singletons, ambient process state, host APIs, or concrete adapter instances.
+
+This does not ban constructing domain objects in core. Domain code may create
+runtime-backed values, entities, outcomes, errors, cursors, coordinates, CRDT
+records, and other domain model objects. Those constructions establish
+runtime truth.
+
+The ban is on constructing concrete host capabilities in core:
+
+- infrastructure adapters
+- filesystem, network, process, or environment implementations
+- wall-clock or entropy sources
+- persistence implementations
+- codecs with host-specific side effects
+
+Those are ports. Core receives the port; adapters implement it.
 
 ### External effects belong in adapters
 
@@ -217,6 +243,10 @@ This is a hard rule.
 - operate only on already-decoded values
 - never parse raw transport data
 - never inspect ad-hoc object shapes from external systems
+- construct validated runtime-backed domain objects
+- use named boundary reader modules only when the module is explicitly
+  responsible for turning serialized checkpoint or index data into domain
+  values
 
 There must be a visible place where the raw world becomes the
 typed world. No invisible shape drift. No inline property poking
@@ -396,6 +426,8 @@ TypeScript does not validate runtime data. Therefore:
 - External data must be decoded at runtime.
 - Internal logic must assume decoded inputs.
 - Compile-time types must correspond to actual runtime guarantees.
+- If runtime behavior contradicts a type, the type is wrong.
+- If a document contradicts runtime behavior, the document is wrong.
 
 A cast is not validation. It is a costume.
 
@@ -403,7 +435,9 @@ A cast is not validation. It is a costume.
 
 ## 13. Preferred patterns
 
-- pure domain functions
+- runtime-backed domain classes with constructor validation
+- pure domain functions where the concept truly has no identity,
+  invariant, or behavior
 - explicit ports and adapters
 - discriminated unions and sealed class hierarchies
 - exact named types (SSTS P1: runtime-backed forms)
