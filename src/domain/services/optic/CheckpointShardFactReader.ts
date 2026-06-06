@@ -1,5 +1,7 @@
 import type { PropValue } from '../../types/PropValue.ts';
 import computeShardKey from '../../utils/shardKey.ts';
+import { getRoaringBitmap32 } from '../../utils/roaring.ts';
+import toBytes from '../../utils/toBytes.ts';
 import IndexError from '../../errors/IndexError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import QueryError from '../../errors/QueryError.ts';
@@ -27,6 +29,8 @@ type CheckpointShardReadFailureContext = {
   readonly path: string;
   readonly oid: string;
 };
+
+type DecodedEdgeShardBuckets = Record<string, Record<string, Uint8Array | ArrayLike<number>>>;
 
 export type CheckpointShardNeighborhoodReadOptions = {
   readonly nodeId: string;
@@ -93,21 +97,12 @@ export default class CheckpointShardFactReader {
     basis: CheckpointTailIndexBasis,
     options: CheckpointShardNeighborhoodReadOptions,
   ): Promise<readonly NeighborhoodOpticEdge[]> {
-    const shardOids = neighborhoodShardOidMap(basis, options);
-    if (Object.keys(shardOids).length === 0) {
+    const baseShardOids = neighborhoodShardOidMap(basis, options);
+    if (!hasAdjacencyShard(baseShardOids)) {
       return Object.freeze([]);
     }
     try {
-      const tree = await readShardTree({
-        graphName: this._source.graphName,
-        persistence: this._source._persistence,
-        shardOids,
-      });
-      const reader = new LogicalIndexReader({ codec: this._source._codec })
-        .loadFromTree(tree);
-      const labelIds = labelIdsFor(reader.toLogicalIndex().getLabelRegistry(), options.labels);
-      const edges = neighborhoodEdges(reader.toLogicalIndex(), options, labelIds);
-      return Object.freeze(edges);
+      return await this._readNeighborhoodWithBaseShards(basis, options, baseShardOids);
     } catch (error) {
       const context = firstShardFailureContext(this._source.graphName);
       const failure = error instanceof Error ? checkpointLogicalShardReadFailure(error, context) : null;
@@ -149,6 +144,39 @@ export default class CheckpointShardFactReader {
   private _propertyPath(nodeId: string): string {
     return `props_${computeShardKey(nodeId)}.cbor`;
   }
+
+  private async _readNeighborhoodWithBaseShards(
+    basis: CheckpointTailIndexBasis,
+    options: CheckpointShardNeighborhoodReadOptions,
+    baseShardOids: Record<string, string>,
+  ): Promise<readonly NeighborhoodOpticEdge[]> {
+    const baseTree = await this._readShardTree(baseShardOids);
+    const baseReader = new LogicalIndexReader({ codec: this._source._codec })
+      .loadFromTree(baseTree);
+    const baseIndex = baseReader.toLogicalIndex();
+    const labelIds = labelIdsFor(baseIndex.getLabelRegistry(), options.labels);
+    const shardOids = neighborhoodShardOidMapWithNeighborLiveness({
+      basis,
+      options,
+      baseShardOids,
+      baseTree,
+      sourceGlobalId: baseIndex.getGlobalId(options.nodeId),
+      labelIds,
+      codec: this._source._codec,
+    });
+    const tree = await this._readShardTree(shardOids);
+    const reader = new LogicalIndexReader({ codec: this._source._codec })
+      .loadFromTree(tree);
+    return Object.freeze(neighborhoodEdges(reader.toLogicalIndex(), options, labelIds));
+  }
+
+  private async _readShardTree(shardOids: Record<string, string>): Promise<Record<string, Uint8Array>> {
+    return await readShardTree({
+      graphName: this._source.graphName,
+      persistence: this._source._persistence,
+      shardOids,
+    });
+  }
 }
 
 function neighborhoodShardOidMap(
@@ -156,7 +184,11 @@ function neighborhoodShardOidMap(
   options: CheckpointShardNeighborhoodReadOptions,
 ): Record<string, string> {
   const shardOids: Record<string, string> = {};
-  addShardRoots(shardOids, basis.manifest.livenessRoots.entries());
+  addOptionalShardRoot(
+    shardOids,
+    basis.manifest.livenessRoots.get(metaPathForNodeId(options.nodeId)),
+    metaPathForNodeId(options.nodeId),
+  );
   addOptionalShardRoot(shardOids, basis.manifest.edgeFactRoots.get('labels.cbor'), 'labels.cbor');
   const shardKey = computeShardKey(options.nodeId);
   if (options.direction === 'out' || options.direction === 'both') {
@@ -170,16 +202,110 @@ function neighborhoodShardOidMap(
   return sortShardOidMap(shardOids);
 }
 
-function addShardRoots(target: Record<string, string>, roots: Iterable<readonly [string, string]>): void {
-  for (const [path, oid] of roots) {
-    target[path] = oid;
+function neighborhoodShardOidMapWithNeighborLiveness(options: {
+  readonly basis: CheckpointTailIndexBasis;
+  readonly options: CheckpointShardNeighborhoodReadOptions;
+  readonly baseShardOids: Record<string, string>;
+  readonly baseTree: Record<string, Uint8Array>;
+  readonly sourceGlobalId: number | undefined;
+  readonly labelIds: number[] | undefined;
+  readonly codec: CheckpointTailOpticSource['_codec'];
+}): Record<string, string> {
+  const shardOids: Record<string, string> = { ...options.baseShardOids };
+  if (options.sourceGlobalId === undefined) {
+    return sortShardOidMap(shardOids);
   }
+  const neighborShardKeys = neighborhoodNeighborShardKeys({
+    tree: options.baseTree,
+    sourceGlobalId: options.sourceGlobalId,
+    direction: options.options.direction,
+    labelIds: options.labelIds,
+    codec: options.codec,
+  });
+  for (const shardKey of neighborShardKeys) {
+    const path = `meta_${shardKey}.cbor`;
+    addOptionalShardRoot(shardOids, options.basis.manifest.livenessRoots.get(path), path);
+  }
+  return sortShardOidMap(shardOids);
 }
 
 function addOptionalShardRoot(target: Record<string, string>, oid: string | undefined, path: string): void {
   if (oid !== undefined) {
     target[path] = oid;
   }
+}
+
+function hasAdjacencyShard(shardOids: Record<string, string>): boolean {
+  return Object.keys(shardOids)
+    .some((path) => path.startsWith('fwd_') || path.startsWith('rev_'));
+}
+
+function metaPathForNodeId(nodeId: string): string {
+  return `meta_${computeShardKey(nodeId)}.cbor`;
+}
+
+function neighborhoodNeighborShardKeys(options: {
+  readonly tree: Record<string, Uint8Array>;
+  readonly sourceGlobalId: number;
+  readonly direction: Direction;
+  readonly labelIds: number[] | undefined;
+  readonly codec: CheckpointTailOpticSource['_codec'];
+}): readonly string[] {
+  const keys = new Set<string>();
+  for (const [path, bytes] of Object.entries(options.tree)) {
+    if (shouldReadEdgeShard(path, options.direction)) {
+      addNeighborShardKeys(keys, {
+        buckets: options.codec.decode<DecodedEdgeShardBuckets>(bytes),
+        sourceGlobalId: options.sourceGlobalId,
+        labelIds: options.labelIds,
+      });
+    }
+  }
+  return Object.freeze([...keys].sort(compareText));
+}
+
+function shouldReadEdgeShard(path: string, direction: Direction): boolean {
+  if (path.startsWith('fwd_')) {
+    return direction === 'out' || direction === 'both';
+  }
+  if (path.startsWith('rev_')) {
+    return direction === 'in' || direction === 'both';
+  }
+  return false;
+}
+
+function addNeighborShardKeys(target: Set<string>, options: {
+  readonly buckets: DecodedEdgeShardBuckets;
+  readonly sourceGlobalId: number;
+  readonly labelIds: number[] | undefined;
+}): void {
+  const sourceGlobalId = String(options.sourceGlobalId);
+  const selectedBuckets = selectedEdgeBuckets(options.buckets, options.labelIds);
+  const RoaringBitmap32 = getRoaringBitmap32();
+  for (const bucket of selectedBuckets) {
+    const bitmapBytes = options.buckets[bucket]?.[sourceGlobalId];
+    if (bitmapBytes !== undefined) {
+      for (const globalId of RoaringBitmap32.deserialize(toBytes(bitmapBytes), true).toArray()) {
+        target.add(shardKeyForGlobalId(globalId));
+      }
+    }
+  }
+}
+
+function selectedEdgeBuckets(
+  buckets: DecodedEdgeShardBuckets,
+  labelIds: number[] | undefined,
+): readonly string[] {
+  if (labelIds !== undefined) {
+    return Object.freeze(labelIds.map((labelId) => String(labelId)));
+  }
+  return Object.freeze(Object.keys(buckets)
+    .filter((bucket) => bucket !== 'all')
+    .sort(compareText));
+}
+
+function shardKeyForGlobalId(globalId: number): string {
+  return ((globalId >>> 24) & 0xff).toString(16).padStart(2, '0');
 }
 
 function sortShardOidMap(source: Record<string, string>): Record<string, string> {
