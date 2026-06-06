@@ -75,7 +75,12 @@ Every type annotation must reflect a runtime reality. If a class validates its c
 
 **No `any`. Ever.** Not in source, not in tests, not in type assertions, not hidden behind generics. `any` is a hole in the type system that propagates silently. It is banned without exception.
 
-**No `unknown`.** Not as a parameter type, not as a return type, not as a field type. At raw system boundaries (JSON.parse, external APIs, wire protocols), untrusted data enters through a **parser** that produces a concrete type or throws. The parser is the boundary. `unknown` never escapes it.
+**No `unknown` outside boundary parser implementations.** At raw system
+boundaries (JSON.parse, external APIs, wire protocols), untrusted data enters
+through a **parser** that produces a concrete type or fails with a typed error.
+The parser is the boundary. `unknown` is allowed only long enough for an
+adapter, parser, or explicitly named boundary reader to prove the concrete
+transport or domain type. It never reaches core behavior or public APIs.
 
 ```typescript
 // The boundary parser. This is the ONLY place raw data is touched.
@@ -95,7 +100,7 @@ function applyPatch(patch: PatchV2): PatchResult { /* ... */ }
 const id = value as string;
 
 // RIGHT — prove it at runtime, compiler follows
-if (typeof value !== 'string') { throw new TypeError('expected string'); }
+if (typeof value !== 'string') { throw new InvalidBoundaryValue('expected string'); }
 const id = value; // compiler knows it's string
 ```
 
@@ -290,7 +295,7 @@ class InvalidObjectId extends DomainError {
 if (err instanceof InvalidObjectId) { /* ... */ }
 
 // NEVER parse messages
-if (err.message.includes('invalid')) { /* raccoon-in-a-dumpster energy */ }
+if (err.message.includes('invalid')) { /* message parsing is not a contract */ }
 ```
 
 ### Principles
