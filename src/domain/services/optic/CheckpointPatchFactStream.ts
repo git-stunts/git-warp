@@ -1,0 +1,321 @@
+import QueryError from '../../errors/QueryError.ts';
+import BlobValue from '../../types/ops/BlobValue.ts';
+import EdgeAdd from '../../types/ops/EdgeAdd.ts';
+import EdgePropSet from '../../types/ops/EdgePropSet.ts';
+import EdgeRemove from '../../types/ops/EdgeRemove.ts';
+import NodeAdd from '../../types/ops/NodeAdd.ts';
+import NodePropSet from '../../types/ops/NodePropSet.ts';
+import NodeRemove from '../../types/ops/NodeRemove.ts';
+import { isPropValue } from '../../types/PropValue.ts';
+import { EventId, compareEventIds } from '../../utils/EventId.ts';
+import { normalizeRawOp } from '../OpNormalizer.ts';
+import {
+  CheckpointAdjacencyFact,
+  CheckpointBasisFact,
+  CheckpointContentAnchorFact,
+  CheckpointEdgeFact,
+  CheckpointNodeLivenessFact,
+  CheckpointNodePropertyFact,
+  CheckpointProvenanceFact,
+} from './CheckpointBasisFact.ts';
+import CheckpointTailOpticSource, {
+  type CheckpointTailCheckpointFrontier,
+  type CheckpointTailPatchEntry,
+} from './CheckpointTailOpticSource.ts';
+
+export type CheckpointPatchFactStreamOptions = {
+  readonly source: CheckpointTailOpticSource;
+};
+
+export type CheckpointPatchFactStreamReadOptions = {
+  readonly previousCheckpoint: CheckpointTailCheckpointFrontier;
+  readonly targetFrontier: Map<string, string>;
+};
+
+type FactWithEvent = {
+  readonly fact: CheckpointBasisFact;
+  readonly eventId: EventId;
+};
+
+export default class CheckpointPatchFactStream {
+  private readonly _source: CheckpointTailOpticSource;
+
+  constructor(options: CheckpointPatchFactStreamOptions) {
+    validateSource(options.source);
+    this._source = options.source;
+    Object.freeze(this);
+  }
+
+  async *stream(options: CheckpointPatchFactStreamReadOptions): AsyncIterable<CheckpointBasisFact> {
+    validateCheckpoint(options.previousCheckpoint);
+    validateFrontier(options.targetFrontier, 'targetFrontier');
+    const entries = await this._collectEntries(options);
+    const facts = lowerEntriesToFacts(entries);
+    for (const fact of facts) {
+      yield fact.fact;
+    }
+  }
+
+  private async _collectEntries(
+    options: CheckpointPatchFactStreamReadOptions,
+  ): Promise<readonly CheckpointTailPatchEntry[]> {
+    const entries: CheckpointTailPatchEntry[] = [];
+    for (const writerId of sortedWriterIds(options.targetFrontier)) {
+      const writerEntries = await this._loadWriterEntries({
+        writerId,
+        previousCheckpoint: options.previousCheckpoint,
+        targetFrontier: options.targetFrontier,
+      });
+      entries.push(...writerEntries);
+    }
+    return Object.freeze(entries);
+  }
+
+  private async _loadWriterEntries(options: {
+    readonly writerId: string;
+    readonly previousCheckpoint: CheckpointTailCheckpointFrontier;
+    readonly targetFrontier: Map<string, string>;
+  }): Promise<readonly CheckpointTailPatchEntry[]> {
+    const targetTip = options.targetFrontier.get(options.writerId);
+    if (targetTip === undefined) {
+      return Object.freeze([]);
+    }
+    const stopAtSha = options.previousCheckpoint.frontier.get(options.writerId) ?? null;
+    if (targetTip === stopAtSha) {
+      return Object.freeze([]);
+    }
+    const entries = await this._source._loadPatchChainFromSha(targetTip, stopAtSha);
+    await this._validateCoverage(options.writerId, entries, options.previousCheckpoint);
+    return Object.freeze(entries);
+  }
+
+  private async _validateCoverage(
+    writerId: string,
+    entries: readonly CheckpointTailPatchEntry[],
+    previousCheckpoint: CheckpointTailCheckpointFrontier,
+  ): Promise<void> {
+    const lastEntry = entries[entries.length - 1];
+    if (lastEntry === undefined) {
+      return;
+    }
+    try {
+      await this._source._validatePatchAgainstCheckpoint(writerId, lastEntry.sha, previousCheckpoint);
+    } catch (error) {
+      const cause = error instanceof Error ? error.message : null;
+      throwStreamError('previousCheckpoint', 'checkpoint-coverage-obstructed', cause);
+    }
+  }
+}
+
+function lowerEntriesToFacts(entries: readonly CheckpointTailPatchEntry[]): readonly FactWithEvent[] {
+  const facts: FactWithEvent[] = [];
+  for (const entry of entries) {
+    facts.push(...lowerEntryToFacts(entry));
+  }
+  return Object.freeze(facts.sort(compareFactEvents));
+}
+
+function lowerEntryToFacts(entry: CheckpointTailPatchEntry): readonly FactWithEvent[] {
+  validatePatchEntry(entry);
+  const facts: FactWithEvent[] = [];
+  for (let opIndex = 0; opIndex < entry.patch.ops.length; opIndex += 1) {
+    const rawOp = entry.patch.ops[opIndex];
+    if (rawOp !== undefined) {
+      facts.push(...lowerOperation(entry, rawOp, opIndex));
+    }
+  }
+  return Object.freeze(facts);
+}
+
+function lowerOperation(
+  entry: CheckpointTailPatchEntry,
+  rawOp: CheckpointTailPatchEntry['patch']['ops'][number],
+  opIndex: number,
+): readonly FactWithEvent[] {
+  const eventId = new EventId(entry.patch.lamport, entry.patch.writer, entry.sha, opIndex);
+  try {
+    const op = normalizeRawOp(rawOp);
+    return factsForOperation(op, eventId);
+  } catch (error) {
+    const cause = error instanceof Error ? error.message : null;
+    throwStreamError('patch.ops', 'malformed-patch', cause);
+  }
+}
+
+function factsForOperation(
+  op: ReturnType<typeof normalizeRawOp>,
+  eventId: EventId,
+): readonly FactWithEvent[] {
+  if (op instanceof NodeAdd) {
+    return factsWithProvenance([
+      new CheckpointNodeLivenessFact({ nodeId: op.node, alive: true, eventId }),
+    ], op.node, eventId);
+  }
+  if (op instanceof NodeRemove) {
+    return factsWithProvenance([
+      new CheckpointNodeLivenessFact({ nodeId: op.node, alive: false, eventId }),
+    ], op.node, eventId);
+  }
+  if (op instanceof NodePropSet) {
+    return nodePropertyFacts(op, eventId);
+  }
+  if (op instanceof EdgeAdd) {
+    return edgeFacts(op.from, op.to, op.label, true, eventId);
+  }
+  if (op instanceof EdgeRemove) {
+    return edgeFacts(op.from, op.to, op.label, false, eventId);
+  }
+  if (op instanceof EdgePropSet) {
+    return factsWithProvenance([
+      new CheckpointEdgeFact({
+        from: op.from,
+        to: op.to,
+        label: op.label,
+        alive: true,
+        eventId,
+      }),
+    ], edgeTarget(op.from, op.to, op.label), eventId);
+  }
+  if (op instanceof BlobValue) {
+    return factsWithProvenance([
+      new CheckpointContentAnchorFact({
+        owner: op.node,
+        contentOid: op.oid,
+        eventId,
+      }),
+    ], op.node, eventId);
+  }
+  throwStreamError('patch.ops', 'unsupported-operation');
+}
+
+function nodePropertyFacts(op: NodePropSet, eventId: EventId): readonly FactWithEvent[] {
+  const value = op.value;
+  if (!isPropValue(value)) {
+    throwStreamError('patch.ops.value', 'malformed-patch');
+  }
+  return factsWithProvenance([
+    new CheckpointNodePropertyFact({
+      nodeId: op.node,
+      key: op.key,
+      value,
+      eventId,
+    }),
+  ], `${op.node}:${op.key}`, eventId);
+}
+
+function edgeFacts(
+  from: string,
+  to: string,
+  label: string,
+  alive: boolean,
+  eventId: EventId,
+): readonly FactWithEvent[] {
+  const target = edgeTarget(from, to, label);
+  return factsWithProvenance([
+    new CheckpointAdjacencyFact({ direction: 'outgoing', from, to, label, alive, eventId }),
+    new CheckpointAdjacencyFact({ direction: 'incoming', from, to, label, alive, eventId }),
+    new CheckpointEdgeFact({ from, to, label, alive, eventId }),
+  ], target, eventId);
+}
+
+function factsWithProvenance(
+  facts: readonly CheckpointBasisFact[],
+  target: string,
+  eventId: EventId,
+): readonly FactWithEvent[] {
+  const wrapped: FactWithEvent[] = [];
+  for (const fact of facts) {
+    wrapped.push(Object.freeze({ fact, eventId }));
+  }
+  wrapped.push(Object.freeze({
+    fact: new CheckpointProvenanceFact({
+      target,
+      patchSha: eventId.patchSha,
+      writerId: eventId.writerId,
+      lamport: eventId.lamport,
+    }),
+    eventId,
+  }));
+  return Object.freeze(wrapped);
+}
+
+function compareFactEvents(left: FactWithEvent, right: FactWithEvent): number {
+  const eventComparison = compareEventIds(left.eventId, right.eventId);
+  if (eventComparison !== 0) {
+    return eventComparison;
+  }
+  return left.fact.sortKey() < right.fact.sortKey() ? -1 : left.fact.sortKey() > right.fact.sortKey() ? 1 : 0;
+}
+
+function sortedWriterIds(frontier: Map<string, string>): readonly string[] {
+  return Object.freeze([...frontier.keys()].sort());
+}
+
+function edgeTarget(from: string, to: string, label: string): string {
+  return `${from}->${to}:${label}`;
+}
+
+function validateSource(source: CheckpointTailOpticSource): void {
+  if (
+    source === null
+    || source === undefined
+    || typeof source._loadPatchChainFromSha !== 'function'
+    || typeof source._validatePatchAgainstCheckpoint !== 'function'
+  ) {
+    throwStreamError('source', 'invalid-source');
+  }
+}
+
+function validateCheckpoint(checkpoint: CheckpointTailCheckpointFrontier): void {
+  if (
+    checkpoint === null
+    || checkpoint === undefined
+    || typeof checkpoint.schema !== 'number'
+    || !(checkpoint.frontier instanceof Map)
+  ) {
+    throwStreamError('previousCheckpoint', 'invalid-checkpoint');
+  }
+  validateFrontier(checkpoint.frontier, 'previousCheckpoint.frontier');
+}
+
+function validateFrontier(frontier: Map<string, string>, field: string): void {
+  if (!(frontier instanceof Map)) {
+    throwStreamError(field, 'invalid-frontier');
+  }
+  for (const [writerId, patchSha] of frontier) {
+    validateText(writerId, `${field}.writerId`);
+    validateText(patchSha, `${field}.patchSha`);
+  }
+}
+
+function validatePatchEntry(entry: CheckpointTailPatchEntry): void {
+  if (
+    entry === null
+    || entry === undefined
+    || typeof entry.sha !== 'string'
+    || entry.patch === null
+    || entry.patch === undefined
+    || typeof entry.patch.writer !== 'string'
+    || typeof entry.patch.lamport !== 'number'
+    || !Array.isArray(entry.patch.ops)
+  ) {
+    throwStreamError('patch', 'malformed-patch');
+  }
+}
+
+function validateText(value: string, field: string): void {
+  if (typeof value !== 'string' || value.length === 0) {
+    throwStreamError(field, 'empty-string');
+  }
+}
+
+function throwStreamError(field: string, reason: string, cause?: string | null): never {
+  throw new QueryError('Checkpoint patch fact stream is obstructed.', {
+    code: 'E_CHECKPOINT_PATCH_FACT_STREAM',
+    context: {
+      field,
+      reason,
+      cause: cause ?? null,
+    },
+  });
+}
