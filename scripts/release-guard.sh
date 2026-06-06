@@ -203,6 +203,7 @@ check_release_evidence() {
     "Issue gates"
     "Validation"
     "Deterministic reproducibility"
+    "Goalpost evidence"
     "Canonical fixtures and witnesses"
     "Documentation review"
     "Accepted residual risks"

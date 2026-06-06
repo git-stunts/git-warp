@@ -96,8 +96,10 @@ describe('release policy shape', () => {
     expect(releaseDoc).toContain('docs/releases/vX.Y.Z/fixtures/');
     expect(releaseGuard).toContain('REL-DOC-EVIDENCE');
     expect(releaseGuard).toContain('Deterministic reproducibility');
+    expect(releaseGuard).toContain('Goalpost evidence');
     expect(releaseGuard).toContain('Canonical fixtures and witnesses');
     expect(releaseEvidenceTemplate).toContain('Deterministic reproducibility');
+    expect(releaseEvidenceTemplate).toContain('Goalpost evidence');
     expect(releaseEvidenceTemplate).toContain('Canonical fixtures and witnesses');
     expect(releaseEvidenceTemplate).toContain('Expected deterministic result');
 

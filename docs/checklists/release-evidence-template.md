@@ -51,6 +51,16 @@ committed fixture.
 | JSR publishability | `npx -y jsr publish --dry-run` | tag commit | `TBD` | Dry-run succeeds for the tag version. |
 | Public behavior claim | `TBD` | `docs/releases/vX.Y.Z/fixtures/...` or existing fixture path | `TBD` | `TBD` |
 
+## Goalpost evidence
+
+Every landed goalpost that contributes to this release must be named here. If a
+goalpost was superseded or moved out of scope for this version, record the issue
+disposition and follow-up issue.
+
+| Goalpost | Issue | Doc | Landed PRs | Slices complete | Proof matrix | Fixtures or inputs | Witnesses | Replay commands | Residual risk |
+| --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- |
+| `TBD` | `TBD` | `TBD` | `TBD` | `0/N` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` |
+
 ## Canonical fixtures and witnesses
 
 Supply canonical fixtures with witnesses whenever evidence depends on runtime

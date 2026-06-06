@@ -108,6 +108,10 @@ truth. Every release evidence packet must record human review for:
   `docs/ADVANCED_GUIDE.md`, `docs/CLI_GUIDE.md`,
   `docs/CONCEPTUAL_OVERVIEW.md`, migration docs, specs, and trust docs.
 - `docs/ROADMAP.md` and `docs/BEARING.md` match the release posture.
+- Every landed release goalpost contributing to this version is named with its
+  issue, doc, landed PRs, completed slice count, deterministic proof matrix,
+  canonical fixtures or immutable inputs, witnesses, replay commands, and
+  residual-risk disposition.
 - Any accepted residual risk is named with rationale, owner, and follow-up
   issue. Hidden accepted failures are not allowed.
 
@@ -139,6 +143,9 @@ one witness that names the replay command and the expected deterministic result.
 
 Use [release-evidence-template.md](../checklists/release-evidence-template.md)
 for the committed evidence packet.
+
+Use [roadmap-planning.md](roadmap-planning.md) for the formal goalpost,
+proof-story, slice-budget, and deterministic proof contract.
 
 ## Steps
 
