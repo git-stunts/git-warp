@@ -31,6 +31,20 @@ type OpticBasisEvidence = {
   readonly checkpointSha: string;
 };
 
+type CompleteWitnessOptions = {
+  readonly graphName: string;
+  readonly basis: OpticBasisEvidence;
+  readonly result: OpticWitnessResult;
+  readonly selection: OpticWitnessSelection;
+};
+
+type ObstructedWitnessOptions = {
+  readonly graphName: string;
+  readonly basis: OpticBasisEvidence | null;
+  readonly selection: OpticWitnessSelection;
+  readonly error: unknown;
+};
+
 export default async function handleOptic({
   options,
   args,
@@ -39,47 +53,87 @@ export default async function handleOptic({
   readonly args: string[];
 }): Promise<OpticCommandResult> {
   const selection = parseOpticWitnessArgs(args);
+  const opened = await openOpticWorldline(options);
+
+  return await runOpticWitness(opened, selection);
+}
+
+async function openOpticWorldline(options: CliOptions): Promise<{
+  readonly graphName: string;
+  readonly worldline: Awaited<ReturnType<typeof openWarpWorldline>>;
+}> {
   const { persistence } = await createPersistence(options.repo);
   const graphName = await resolveOpticGraphName(persistence, options.graph);
-  const worldline = await openWarpWorldline({
-    persistence,
-    worldlineName: graphName,
-    writerId: options.writer,
-    crypto: new WebCryptoAdapter(),
-  });
-  let basisEvidence: OpticBasisEvidence | null = null;
+  return {
+    graphName,
+    worldline: await openWarpWorldline({
+      persistence,
+      worldlineName: graphName,
+      writerId: options.writer,
+      crypto: new WebCryptoAdapter(),
+    }),
+  };
+}
 
+async function runOpticWitness(
+  opened: {
+    readonly graphName: string;
+    readonly worldline: Awaited<ReturnType<typeof openWarpWorldline>>;
+  },
+  selection: OpticWitnessSelection,
+): Promise<OpticCommandResult> {
+  let basisEvidence: OpticBasisEvidence | null = null;
   try {
-    const basis = await worldline.prepareOpticBasis();
-    basisEvidence = {
-      basisId: `checkpoint-tail:${graphName}:${basis.checkpointSha}`,
-      checkpointSha: basis.checkpointSha,
-    };
-    const coordinate = await worldline.coordinate();
+    basisEvidence = await prepareBasisEvidence(opened);
+    const coordinate = await opened.worldline.coordinate();
     const result = await readSelection(coordinate.optic(), selection);
-    return {
-      payload: witnessPayload({
-        graphName,
-        basis: basisEvidence,
-        result,
-        selection,
-      }),
-      exitCode: EXIT_CODES.OK,
-    };
+    return completeWitnessResult({
+      graphName: opened.graphName,
+      basis: basisEvidence,
+      result,
+      selection,
+    });
   } catch (error) {
-    if (error instanceof QueryError) {
-      return {
-        payload: obstructedWitnessPayload({
-          graphName,
-          basis: basisEvidence,
-          selection,
-          error,
-        }),
-        exitCode: EXIT_CODES.INTERNAL,
-      };
-    }
-    throw error;
+    return obstructedWitnessResult({
+      graphName: opened.graphName,
+      basis: basisEvidence,
+      selection,
+      error,
+    });
   }
+}
+
+async function prepareBasisEvidence(opened: {
+  readonly graphName: string;
+  readonly worldline: Awaited<ReturnType<typeof openWarpWorldline>>;
+}): Promise<OpticBasisEvidence> {
+  const basis = await opened.worldline.prepareOpticBasis();
+  return {
+    basisId: `checkpoint-tail:${opened.graphName}:${basis.checkpointSha}`,
+    checkpointSha: basis.checkpointSha,
+  };
+}
+
+function completeWitnessResult(options: CompleteWitnessOptions): OpticCommandResult {
+  return {
+    payload: witnessPayload(options),
+    exitCode: EXIT_CODES.OK,
+  };
+}
+
+function obstructedWitnessResult(options: ObstructedWitnessOptions): OpticCommandResult {
+  if (!(options.error instanceof QueryError)) {
+    throw options.error;
+  }
+  return {
+    payload: obstructedWitnessPayload({
+      graphName: options.graphName,
+      basis: options.basis,
+      selection: options.selection,
+      error: options.error,
+    }),
+    exitCode: EXIT_CODES.INTERNAL,
+  };
 }
 
 function parseOpticWitnessArgs(args: readonly string[]): OpticWitnessSelection {
@@ -134,7 +188,7 @@ function witnessPayload(options: {
   readonly result: OpticWitnessResult;
   readonly selection: OpticWitnessSelection;
 }): object {
-  const readIdentity = options.result.readIdentity;
+  const { readIdentity } = options.result;
   return {
     command: 'optic witness',
     graph: options.graphName,

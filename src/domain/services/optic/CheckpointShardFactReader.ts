@@ -250,13 +250,9 @@ function compareNeighborhoodEdges(
   left: NeighborhoodOpticEdge,
   right: NeighborhoodOpticEdge,
 ): number {
-  if (left.direction !== right.direction) {
-    return left.direction < right.direction ? -1 : 1;
-  }
-  if (left.neighborId !== right.neighborId) {
-    return left.neighborId < right.neighborId ? -1 : 1;
-  }
-  return left.label < right.label ? -1 : left.label > right.label ? 1 : 0;
+  return compareText(left.direction, right.direction)
+    || compareText(left.neighborId, right.neighborId)
+    || compareText(left.label, right.label);
 }
 
 function edgeKey(edge: NeighborhoodOpticEdge): string {
@@ -310,6 +306,10 @@ function firstShardFailureContext(
   graphName: string,
 ): CheckpointShardReadFailureContext {
   return { graphName, path: 'checkpoint-neighborhood-index', oid: 'decoded-shards' };
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function shardIdentities(

@@ -205,16 +205,29 @@ function isTargetNeighborhoodEdge(
   if (!(op instanceof EdgeAdd) && !(op instanceof EdgeRemove)) {
     return false;
   }
-  if (options.labels.length > 0 && !options.labels.includes(op.label)) {
-    return false;
+  return matchesNeighborhoodLabel(op, options.labels)
+    && matchesNeighborhoodDirection(op, options.nodeId, options.direction);
+}
+
+function matchesNeighborhoodLabel(
+  op: EdgeAdd | EdgeRemove,
+  labels: readonly string[],
+): boolean {
+  return labels.length === 0 || labels.includes(op.label);
+}
+
+function matchesNeighborhoodDirection(
+  op: EdgeAdd | EdgeRemove,
+  nodeId: string,
+  direction: 'in' | 'out' | 'both',
+): boolean {
+  if (direction === 'out') {
+    return op.from === nodeId;
   }
-  if (options.direction === 'out') {
-    return op.from === options.nodeId;
+  if (direction === 'in') {
+    return op.to === nodeId;
   }
-  if (options.direction === 'in') {
-    return op.to === options.nodeId;
-  }
-  return op.from === options.nodeId || op.to === options.nodeId;
+  return op.from === nodeId || op.to === nodeId;
 }
 
 function readScalarTailPropertyValue(

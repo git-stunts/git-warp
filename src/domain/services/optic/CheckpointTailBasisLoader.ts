@@ -32,6 +32,14 @@ export type CheckpointTailIndexBasis = {
   readonly propOids: CheckpointTailShardOidMap;
 };
 
+type CheckpointTailManifestRoots = {
+  readonly livenessRoots: CheckpointBasisShardRootMap;
+  readonly propertyRoots: CheckpointBasisShardRootMap;
+  readonly outgoingAdjacencyRoots: CheckpointBasisShardRootMap;
+  readonly incomingAdjacencyRoots: CheckpointBasisShardRootMap;
+  readonly edgeFactRoots: CheckpointBasisShardRootMap;
+};
+
 export default class CheckpointTailBasisLoader {
   private readonly _source: CheckpointTailOpticSource;
 
@@ -46,7 +54,6 @@ export default class CheckpointTailBasisLoader {
     if (!isCurrentCheckpointSchema(checkpointMessage.schema)) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-without-index-tree');
     }
-
     const indexShardOids = await this._loadCheckpointIndexShardOids(checkpointMessage.indexOid);
     const frontierBytes = await this._readCheckpointPayloadBlob(checkpointMessage.frontierOid);
     const frontier = deserializeFrontier(frontierBytes, { codec: this._source._codec });
@@ -54,7 +61,6 @@ export default class CheckpointTailBasisLoader {
     if (Object.keys(indexOids).length === 0 && Object.keys(propOids).length === 0) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-missing-index-shards');
     }
-
     return {
       checkpointSha,
       schema: checkpointMessage.schema,
@@ -122,22 +128,8 @@ function createManifest(options: {
   readonly indexOids: CheckpointTailShardOidMap;
   readonly propOids: CheckpointTailShardOidMap;
 }): CheckpointBasisManifest {
-  const livenessRoots = rootsForPrefix('node-liveness', options.indexOids, 'meta_');
-  const propertyRoots = new CheckpointBasisShardRootMap({
-    family: 'node-property',
-    roots: shardOidMapToMap(options.propOids),
-  });
-  const outgoingRoots = rootsForPrefix('outgoing-adjacency', options.indexOids, 'fwd_');
-  const incomingRoots = rootsForPrefix('incoming-adjacency', options.indexOids, 'rev_');
-  const edgeFactRoots = edgeFactRootsFromIndex(options.indexOids);
-  const shardCount = Math.max(
-    1,
-    livenessRoots.size
-      + propertyRoots.size
-      + outgoingRoots.size
-      + incomingRoots.size
-      + edgeFactRoots.size,
-  );
+  const roots = createManifestRoots(options.indexOids, options.propOids);
+  const shardCount = manifestShardCount(roots);
   return new CheckpointBasisManifest({
     schema: options.schema,
     graphName: options.graphName,
@@ -146,25 +138,53 @@ function createManifest(options: {
     appliedVersionVector: appliedVersionVectorFromFrontier(options.frontier),
     basisIdentity: `basis:${options.graphName}:${options.checkpointSha}:checkpoint-tail-index`,
     semanticReadingIdentity: `reading-basis:${options.graphName}:${options.checkpointSha}:node-property-optics`,
-    livenessRoots,
-    propertyRoots,
-    outgoingAdjacencyRoots: outgoingRoots,
-    incomingAdjacencyRoots: incomingRoots,
-    edgeFactRoots,
+    ...roots,
     provenancePosture: CheckpointBasisSupportPosture.unavailable('checkpoint-tail-provenance-root-unavailable'),
     contentAnchorPosture: CheckpointBasisSupportPosture.unavailable('checkpoint-tail-content-root-unavailable'),
-    shardGeometry: new CheckpointBasisShardGeometry({
-      layoutFamily: 'checkpoint-tail-index-shards',
-      payloadLayout: 'checkpoint-schema-5-index',
-      shardKeyStrategy: 'hex-prefix-2',
-      shardCount,
-    }),
-    chunking: new CheckpointBasisChunking({
-      maxFactsPerShard: shardCount,
-      chunkCount: 1,
-    }),
+    shardGeometry: checkpointShardGeometry(shardCount),
+    chunking: checkpointChunking(shardCount),
     completeness: CheckpointBasisCompleteness.complete(),
   });
+}
+
+function createManifestRoots(
+  indexOids: CheckpointTailShardOidMap,
+  propOids: CheckpointTailShardOidMap,
+): CheckpointTailManifestRoots {
+  return {
+    livenessRoots: rootsForPrefix('node-liveness', indexOids, 'meta_'),
+    propertyRoots: new CheckpointBasisShardRootMap({
+      family: 'node-property',
+      roots: shardOidMapToMap(propOids),
+    }),
+    outgoingAdjacencyRoots: rootsForPrefix('outgoing-adjacency', indexOids, 'fwd_'),
+    incomingAdjacencyRoots: rootsForPrefix('incoming-adjacency', indexOids, 'rev_'),
+    edgeFactRoots: edgeFactRootsFromIndex(indexOids),
+  };
+}
+
+function manifestShardCount(roots: CheckpointTailManifestRoots): number {
+  return Math.max(
+    1,
+    roots.livenessRoots.size
+      + roots.propertyRoots.size
+      + roots.outgoingAdjacencyRoots.size
+      + roots.incomingAdjacencyRoots.size
+      + roots.edgeFactRoots.size,
+  );
+}
+
+function checkpointShardGeometry(shardCount: number): CheckpointBasisShardGeometry {
+  return new CheckpointBasisShardGeometry({
+    layoutFamily: 'checkpoint-tail-index-shards',
+    payloadLayout: 'checkpoint-schema-5-index',
+    shardKeyStrategy: 'hex-prefix-2',
+    shardCount,
+  });
+}
+
+function checkpointChunking(shardCount: number): CheckpointBasisChunking {
+  return new CheckpointBasisChunking({ maxFactsPerShard: shardCount, chunkCount: 1 });
 }
 
 function rootsForPrefix(

@@ -11,16 +11,17 @@ import { EventId, compareEventIds } from '../../utils/EventId.ts';
 import { normalizeRawOp } from '../OpNormalizer.ts';
 import {
   CheckpointAdjacencyFact,
-  CheckpointBasisFact,
+  type CheckpointBasisFact,
   CheckpointContentAnchorFact,
   CheckpointEdgeFact,
   CheckpointNodeLivenessFact,
   CheckpointNodePropertyFact,
   CheckpointProvenanceFact,
 } from './CheckpointBasisFact.ts';
-import CheckpointTailOpticSource, {
-  type CheckpointTailCheckpointFrontier,
-  type CheckpointTailPatchEntry,
+import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
+import type {
+  CheckpointTailCheckpointFrontier,
+  CheckpointTailPatchEntry,
 } from './CheckpointTailOpticSource.ts';
 
 export type CheckpointPatchFactStreamOptions = {
@@ -36,6 +37,8 @@ type FactWithEvent = {
   readonly fact: CheckpointBasisFact;
   readonly eventId: EventId;
 };
+
+type NormalizedPatchOperation = ReturnType<typeof normalizeRawOp>;
 
 export default class CheckpointPatchFactStream {
   private readonly _source: CheckpointTailOpticSource;
@@ -138,14 +141,33 @@ function lowerOperation(
     return factsForOperation(op, eventId);
   } catch (error) {
     const cause = error instanceof Error ? error.message : null;
-    throwStreamError('patch.ops', 'malformed-patch', cause);
+    return malformedOperationFacts(cause);
   }
 }
 
 function factsForOperation(
-  op: ReturnType<typeof normalizeRawOp>,
+  op: NormalizedPatchOperation,
   eventId: EventId,
 ): readonly FactWithEvent[] {
+  const nodeFacts = factsForNodeOperation(op, eventId);
+  if (nodeFacts !== null) {
+    return nodeFacts;
+  }
+  const edgeOperationFacts = factsForEdgeOperation(op, eventId);
+  if (edgeOperationFacts !== null) {
+    return edgeOperationFacts;
+  }
+  const contentFacts = factsForContentOperation(op, eventId);
+  if (contentFacts !== null) {
+    return contentFacts;
+  }
+  return unsupportedOperationFacts();
+}
+
+function factsForNodeOperation(
+  op: NormalizedPatchOperation,
+  eventId: EventId,
+): readonly FactWithEvent[] | null {
   if (op instanceof NodeAdd) {
     return factsWithProvenance([
       new CheckpointNodeLivenessFact({ nodeId: op.node, alive: true, eventId }),
@@ -159,11 +181,18 @@ function factsForOperation(
   if (op instanceof NodePropSet) {
     return nodePropertyFacts(op, eventId);
   }
+  return null;
+}
+
+function factsForEdgeOperation(
+  op: NormalizedPatchOperation,
+  eventId: EventId,
+): readonly FactWithEvent[] | null {
   if (op instanceof EdgeAdd) {
-    return edgeFacts(op.from, op.to, op.label, true, eventId);
+    return edgeFacts({ from: op.from, to: op.to, label: op.label, alive: true, eventId });
   }
   if (op instanceof EdgeRemove) {
-    return edgeFacts(op.from, op.to, op.label, false, eventId);
+    return edgeFacts({ from: op.from, to: op.to, label: op.label, alive: false, eventId });
   }
   if (op instanceof EdgePropSet) {
     return factsWithProvenance([
@@ -176,6 +205,13 @@ function factsForOperation(
       }),
     ], edgeTarget(op.from, op.to, op.label), eventId);
   }
+  return null;
+}
+
+function factsForContentOperation(
+  op: NormalizedPatchOperation,
+  eventId: EventId,
+): readonly FactWithEvent[] | null {
   if (op instanceof BlobValue) {
     return factsWithProvenance([
       new CheckpointContentAnchorFact({
@@ -185,11 +221,11 @@ function factsForOperation(
       }),
     ], op.node, eventId);
   }
-  throwStreamError('patch.ops', 'unsupported-operation');
+  return null;
 }
 
 function nodePropertyFacts(op: NodePropSet, eventId: EventId): readonly FactWithEvent[] {
-  const value = op.value;
+  const { value } = op;
   if (!isPropValue(value)) {
     throwStreamError('patch.ops.value', 'malformed-patch');
   }
@@ -203,13 +239,14 @@ function nodePropertyFacts(op: NodePropSet, eventId: EventId): readonly FactWith
   ], `${op.node}:${op.key}`, eventId);
 }
 
-function edgeFacts(
-  from: string,
-  to: string,
-  label: string,
-  alive: boolean,
-  eventId: EventId,
-): readonly FactWithEvent[] {
+function edgeFacts(options: {
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+  readonly alive: boolean;
+  readonly eventId: EventId;
+}): readonly FactWithEvent[] {
+  const { from, to, label, alive, eventId } = options;
   const target = edgeTarget(from, to, label);
   return factsWithProvenance([
     new CheckpointAdjacencyFact({ direction: 'outgoing', from, to, label, alive, eventId }),
@@ -255,6 +292,14 @@ function edgeTarget(from: string, to: string, label: string): string {
   return `${from}->${to}:${label}`;
 }
 
+function malformedOperationFacts(cause: string | null): never {
+  throwStreamError('patch.ops', 'malformed-patch', cause);
+}
+
+function unsupportedOperationFacts(): never {
+  throwStreamError('patch.ops', 'unsupported-operation');
+}
+
 function validateSource(source: CheckpointTailOpticSource): void {
   if (
     source === null
@@ -289,18 +334,24 @@ function validateFrontier(frontier: Map<string, string>, field: string): void {
 }
 
 function validatePatchEntry(entry: CheckpointTailPatchEntry): void {
-  if (
-    entry === null
-    || entry === undefined
-    || typeof entry.sha !== 'string'
-    || entry.patch === null
-    || entry.patch === undefined
-    || typeof entry.patch.writer !== 'string'
-    || typeof entry.patch.lamport !== 'number'
-    || !Array.isArray(entry.patch.ops)
-  ) {
+  if (isMalformedPatchEntry(entry)) {
     throwStreamError('patch', 'malformed-patch');
   }
+}
+
+function isMalformedPatchEntry(entry: CheckpointTailPatchEntry): boolean {
+  return entry === null
+    || entry === undefined
+    || typeof entry.sha !== 'string'
+    || !hasPatchShape(entry);
+}
+
+function hasPatchShape(entry: CheckpointTailPatchEntry): boolean {
+  return entry.patch !== null
+    && entry.patch !== undefined
+    && typeof entry.patch.writer === 'string'
+    && typeof entry.patch.lamport === 'number'
+    && Array.isArray(entry.patch.ops);
 }
 
 function validateText(value: string, field: string): void {

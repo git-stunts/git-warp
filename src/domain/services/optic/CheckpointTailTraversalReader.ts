@@ -29,6 +29,23 @@ type NormalizedTraversalOptions = {
   readonly cursor: TraversalOpticCursor | null;
 };
 
+type TraversalRunState = {
+  readonly traversal: NormalizedTraversalOptions;
+  readonly visited: Set<string>;
+  readonly frontier: TraversalOpticFrontierEntry[];
+  readonly resultEdges: TraversalOpticEdge[];
+  readonly readIdentities: ReadIdentity[];
+};
+
+type TraversalResultOptions = {
+  readonly traversal: NormalizedTraversalOptions;
+  readonly edges: readonly TraversalOpticEdge[];
+  readonly visited: Set<string>;
+  readonly frontier: readonly TraversalOpticFrontierEntry[];
+  readonly completeness: TraversalOpticCompleteness;
+  readonly readIdentities: readonly ReadIdentity[];
+};
+
 export default class CheckpointTailTraversalReader {
   private readonly _readNeighborhood: TraversalNeighborhoodRead;
 
@@ -41,94 +58,40 @@ export default class CheckpointTailTraversalReader {
     startNodeId: string,
     options: TraversalOpticReadOptions,
   ): Promise<TraversalOpticReadResult> {
-    const traversal = normalizeTraversalOptions(startNodeId, options);
-    const visited = new Set(traversal.cursor?.visitedNodeIds ?? [startNodeId]);
-    const frontier = [...(traversal.cursor?.frontier ?? [frontierEntry(startNodeId, 0, null)])];
-    const resultEdges: TraversalOpticEdge[] = [];
-    const readIdentities: ReadIdentity[] = [];
-    if (traversal.goalNodeId !== null && visited.has(traversal.goalNodeId)) {
-      return traversalResult(traversal, {
-        edges: resultEdges,
-        visited,
-        frontier: [],
-        completeness: 'goal-found',
-        readIdentities,
-      });
+    const state = createTraversalRunState(startNodeId, options);
+    if (isGoalAlreadyVisited(state)) {
+      return goalAlreadyVisitedResult(state);
     }
-
-    while (frontier.length > 0) {
-      if (resultEdges.length >= traversal.maxEdges) {
-        return openTraversalResult(traversal, resultEdges, visited, frontier, readIdentities);
-      }
-      const current = frontier.shift();
-      if (current !== undefined) {
-        const result = await this._expandFrontierEntry({
-          current,
-          frontier,
-          readIdentities,
-          resultEdges,
-          traversal,
-          visited,
-        });
-        if (result !== null) {
-          return result;
-        }
-      }
-    }
-
-    return traversalResult(traversal, {
-      edges: resultEdges,
-      visited,
-      frontier,
-      completeness: traversal.goalNodeId === null ? 'complete' : 'goal-not-found-within-boundary',
-      readIdentities,
-    });
+    return await this._drainFrontier(state);
   }
 
-  private async _expandFrontierEntry(options: {
-    readonly current: TraversalOpticFrontierEntry;
-    readonly frontier: TraversalOpticFrontierEntry[];
-    readonly readIdentities: ReadIdentity[];
-    readonly resultEdges: TraversalOpticEdge[];
-    readonly traversal: NormalizedTraversalOptions;
-    readonly visited: Set<string>;
-  }): Promise<TraversalOpticReadResult | null> {
-    if (options.current.depth >= options.traversal.maxDepth) {
+  private async _drainFrontier(state: TraversalRunState): Promise<TraversalOpticReadResult> {
+    while (state.frontier.length > 0) {
+      if (state.resultEdges.length >= state.traversal.maxEdges) {
+        return openTraversalResult(state);
+      }
+      const current = state.frontier.shift();
+      if (current === undefined) {
+        continue;
+      }
+      const result = await this._expandFrontierEntry(state, current);
+      if (result !== null) {
+        return result;
+      }
+    }
+    return traversalStateResult(state, drainedFrontierCompleteness(state));
+  }
+
+  private async _expandFrontierEntry(
+    state: TraversalRunState,
+    current: TraversalOpticFrontierEntry,
+  ): Promise<TraversalOpticReadResult | null> {
+    if (current.depth >= state.traversal.maxDepth) {
       return null;
     }
-    const neighborhood = await this._readNeighborhoodForEntry(options.current, options.traversal, options.resultEdges);
-    options.readIdentities.push(neighborhood.readIdentity);
-    const depth = options.current.depth + 1;
-    for (const edge of neighborhood.edges) {
-      if (!options.visited.has(edge.neighborId) && options.visited.size >= options.traversal.maxNodes) {
-        options.frontier.unshift(options.current);
-        return openTraversalResult(
-          options.traversal,
-          options.resultEdges,
-          options.visited,
-          options.frontier,
-          options.readIdentities,
-        );
-      }
-      options.resultEdges.push(traversalEdge(options.current.nodeId, edge, depth));
-      if (!options.visited.has(edge.neighborId)) {
-        const result = addTraversalNeighbor(options, edge.neighborId, depth);
-        if (result !== null) {
-          return result;
-        }
-      }
-    }
-    if (neighborhood.cursor !== null) {
-      options.frontier.unshift(frontierEntry(options.current.nodeId, options.current.depth, neighborhood.cursor));
-      return openTraversalResult(
-        options.traversal,
-        options.resultEdges,
-        options.visited,
-        options.frontier,
-        options.readIdentities,
-      );
-    }
-    return null;
+    const neighborhood = await this._readNeighborhoodForEntry(current, state.traversal, state.resultEdges);
+    state.readIdentities.push(neighborhood.readIdentity);
+    return processNeighborhoodRead(state, current, neighborhood);
   }
 
   private async _readNeighborhoodForEntry(
@@ -146,31 +109,103 @@ export default class CheckpointTailTraversalReader {
   }
 }
 
+function processNeighborhoodRead(
+  state: TraversalRunState,
+  current: TraversalOpticFrontierEntry,
+  neighborhood: NeighborhoodOpticReadResult,
+): TraversalOpticReadResult | null {
+  const depth = current.depth + 1;
+  for (const edge of neighborhood.edges) {
+    const boundaryResult = maybeOpenForNodeLimit(state, current, edge.neighborId);
+    if (boundaryResult !== null) {
+      return boundaryResult;
+    }
+    state.resultEdges.push(traversalEdge(current.nodeId, edge, depth));
+    const neighborResult = addTraversalNeighbor(state, edge.neighborId, depth);
+    if (neighborResult !== null) {
+      return neighborResult;
+    }
+  }
+  return maybeOpenForNeighborhoodCursor(state, current, neighborhood.cursor);
+}
+
+function maybeOpenForNodeLimit(
+  state: TraversalRunState,
+  current: TraversalOpticFrontierEntry,
+  neighborId: string,
+): TraversalOpticReadResult | null {
+  if (state.visited.has(neighborId) || state.visited.size < state.traversal.maxNodes) {
+    return null;
+  }
+  state.frontier.unshift(current);
+  return openTraversalResult(state);
+}
+
 function addTraversalNeighbor(
-  options: {
-    readonly frontier: TraversalOpticFrontierEntry[];
-    readonly readIdentities: readonly ReadIdentity[];
-    readonly resultEdges: readonly TraversalOpticEdge[];
-    readonly traversal: NormalizedTraversalOptions;
-    readonly visited: Set<string>;
-  },
+  state: TraversalRunState,
   neighborId: string,
   depth: number,
 ): TraversalOpticReadResult | null {
-  options.visited.add(neighborId);
-  if (options.traversal.goalNodeId === neighborId) {
-    return traversalResult(options.traversal, {
-      edges: options.resultEdges,
-      visited: options.visited,
-      frontier: options.frontier,
+  if (state.visited.has(neighborId)) {
+    return null;
+  }
+  state.visited.add(neighborId);
+  if (state.traversal.goalNodeId === neighborId) {
+    return traversalResult({
+      traversal: state.traversal,
+      edges: state.resultEdges,
+      visited: state.visited,
+      frontier: state.frontier,
       completeness: 'goal-found',
-      readIdentities: options.readIdentities,
+      readIdentities: state.readIdentities,
     });
   }
-  if (depth < options.traversal.maxDepth) {
-    options.frontier.push(frontierEntry(neighborId, depth, null));
+  if (depth < state.traversal.maxDepth) {
+    state.frontier.push(frontierEntry(neighborId, depth, null));
   }
   return null;
+}
+
+function maybeOpenForNeighborhoodCursor(
+  state: TraversalRunState,
+  current: TraversalOpticFrontierEntry,
+  cursor: string | null,
+): TraversalOpticReadResult | null {
+  if (cursor === null) {
+    return null;
+  }
+  state.frontier.unshift(frontierEntry(current.nodeId, current.depth, cursor));
+  return openTraversalResult(state);
+}
+
+function createTraversalRunState(
+  startNodeId: string,
+  options: TraversalOpticReadOptions,
+): TraversalRunState {
+  const traversal = normalizeTraversalOptions(startNodeId, options);
+  return {
+    traversal,
+    visited: new Set(traversal.cursor?.visitedNodeIds ?? [startNodeId]),
+    frontier: [...(traversal.cursor?.frontier ?? [frontierEntry(startNodeId, 0, null)])],
+    resultEdges: [],
+    readIdentities: [],
+  };
+}
+
+function isGoalAlreadyVisited(state: TraversalRunState): boolean {
+  const { goalNodeId } = state.traversal;
+  return goalNodeId !== null && state.visited.has(goalNodeId);
+}
+
+function goalAlreadyVisitedResult(state: TraversalRunState): TraversalOpticReadResult {
+  return traversalResult({
+    traversal: state.traversal,
+    edges: state.resultEdges,
+    visited: state.visited,
+    frontier: [],
+    completeness: 'goal-found',
+    readIdentities: state.readIdentities,
+  });
 }
 
 function normalizeTraversalOptions(
@@ -261,51 +296,58 @@ function normalizeTraversalCursor(
   });
 }
 
-function traversalResult(
-  traversal: NormalizedTraversalOptions,
-  options: {
-    readonly edges: readonly TraversalOpticEdge[];
-    readonly visited: Set<string>;
-    readonly frontier: readonly TraversalOpticFrontierEntry[];
-    readonly completeness: TraversalOpticCompleteness;
-    readonly readIdentities: readonly ReadIdentity[];
-  },
-): TraversalOpticReadResult {
+function traversalResult(options: TraversalResultOptions): TraversalOpticReadResult {
+  const visitedNodeIds = [...options.visited];
   return new TraversalOpticReadResult({
-    startNodeId: traversal.startNodeId,
-    strategy: traversal.strategy,
-    direction: traversal.direction,
-    maxDepth: traversal.maxDepth,
-    maxNodes: traversal.maxNodes,
-    maxEdges: traversal.maxEdges,
-    goalNodeId: traversal.goalNodeId,
+    startNodeId: options.traversal.startNodeId,
+    strategy: options.traversal.strategy,
+    direction: options.traversal.direction,
+    maxDepth: options.traversal.maxDepth,
+    maxNodes: options.traversal.maxNodes,
+    maxEdges: options.traversal.maxEdges,
+    goalNodeId: options.traversal.goalNodeId,
     edges: options.edges,
-    visitedNodeIds: [...options.visited],
+    visitedNodeIds,
     frontier: options.frontier,
     completeness: options.completeness,
-    cursor: options.completeness === 'frontier-open'
-      ? new TraversalOpticCursor({
-        frontier: options.frontier,
-        visitedNodeIds: [...options.visited],
-      })
-      : null,
+    cursor: traversalCursor(options.completeness, options.frontier, visitedNodeIds),
     readIdentities: options.readIdentities,
   });
 }
 
-function openTraversalResult(
-  traversal: NormalizedTraversalOptions,
-  edges: readonly TraversalOpticEdge[],
-  visited: Set<string>,
-  frontier: readonly TraversalOpticFrontierEntry[],
-  readIdentities: readonly ReadIdentity[],
+function traversalStateResult(
+  state: TraversalRunState,
+  completeness: TraversalOpticCompleteness,
 ): TraversalOpticReadResult {
-  return traversalResult(traversal, {
-    edges,
-    visited,
+  return traversalResult({
+    traversal: state.traversal,
+    edges: state.resultEdges,
+    visited: state.visited,
+    frontier: state.frontier,
+    completeness,
+    readIdentities: state.readIdentities,
+  });
+}
+
+function openTraversalResult(state: TraversalRunState): TraversalOpticReadResult {
+  return traversalStateResult(state, 'frontier-open');
+}
+
+function drainedFrontierCompleteness(state: TraversalRunState): TraversalOpticCompleteness {
+  return state.traversal.goalNodeId === null ? 'complete' : 'goal-not-found-within-boundary';
+}
+
+function traversalCursor(
+  completeness: TraversalOpticCompleteness,
+  frontier: readonly TraversalOpticFrontierEntry[],
+  visitedNodeIds: readonly string[],
+): TraversalOpticCursor | null {
+  if (completeness !== 'frontier-open') {
+    return null;
+  }
+  return new TraversalOpticCursor({
     frontier,
-    completeness: 'frontier-open',
-    readIdentities,
+    visitedNodeIds,
   });
 }
 

@@ -18,6 +18,7 @@ import NeighborhoodOpticReadResult, {
 import type { NeighborhoodOpticReadOptions } from './NeighborhoodOptic.ts';
 import type TraversalOpticReadResult from './TraversalOpticReadResult.ts';
 import type { TraversalOpticReadOptions } from './TraversalOptic.ts';
+import type ReadIdentity from './ReadIdentity.ts';
 
 const DEFAULT_MAX_TAIL_PATCHES = 10_000;
 
@@ -179,24 +180,15 @@ export default class CheckpointTailWitnessLocator {
       cursor: options.cursor ?? null,
       limit: options.limit ?? null,
     });
-    return new NeighborhoodOpticReadResult({
-      nodeId,
+    return neighborhoodReadResult({
+      basis,
       direction,
-      edges: windowed.edges,
-      completeness: windowed.cursor === null ? 'complete' : 'truncated',
-      cursor: windowed.cursor,
-      readIdentity: this._readIdentityBuilder.neighborhood({
-        basis,
-        nodeId,
-        direction,
-        labels,
-        checkpointIndexShards: this._shardReader.neighborhoodShardIdentities(basis, {
-          nodeId,
-          direction,
-          labels,
-        }),
-        tailWitnesses: tail.witnesses,
-      }),
+      labels,
+      nodeId,
+      readIdentityBuilder: this._readIdentityBuilder,
+      shardReader: this._shardReader,
+      tail,
+      windowed,
     });
   }
 
@@ -288,13 +280,17 @@ function parseCursor(cursor: string | null): number {
     return 0;
   }
   const parsed = Number.parseInt(cursor, 10);
-  if (!Number.isInteger(parsed) || parsed < 0 || String(parsed) !== cursor) {
+  if (!isCanonicalCursor(parsed, cursor)) {
     throw new QueryError('Neighborhood optic cursor must be a non-negative integer string.', {
       code: 'E_OPTIC_NEIGHBORHOOD_OPTIONS',
       context: { field: 'cursor' },
     });
   }
   return parsed;
+}
+
+function isCanonicalCursor(parsed: number, raw: string): boolean {
+  return Number.isInteger(parsed) && parsed >= 0 && String(parsed) === raw;
 }
 
 function parseLimit(limit: number | null): number | null {
@@ -308,4 +304,51 @@ function parseLimit(limit: number | null): number | null {
     });
   }
   return limit;
+}
+
+function neighborhoodReadResult(options: {
+  readonly basis: CheckpointTailIndexBasis;
+  readonly direction: Direction;
+  readonly labels: readonly string[];
+  readonly nodeId: string;
+  readonly readIdentityBuilder: CheckpointTailReadIdentityBuilder;
+  readonly shardReader: CheckpointShardFactReader;
+  readonly tail: TailWitnessScan;
+  readonly windowed: {
+    readonly edges: readonly NeighborhoodOpticEdge[];
+    readonly cursor: string | null;
+  };
+}): NeighborhoodOpticReadResult {
+  const readIdentity = neighborhoodReadIdentity(options);
+  return new NeighborhoodOpticReadResult({
+    nodeId: options.nodeId,
+    direction: options.direction,
+    edges: options.windowed.edges,
+    completeness: options.windowed.cursor === null ? 'complete' : 'truncated',
+    cursor: options.windowed.cursor,
+    readIdentity,
+  });
+}
+
+function neighborhoodReadIdentity(options: {
+  readonly basis: CheckpointTailIndexBasis;
+  readonly direction: Direction;
+  readonly labels: readonly string[];
+  readonly nodeId: string;
+  readonly readIdentityBuilder: CheckpointTailReadIdentityBuilder;
+  readonly shardReader: CheckpointShardFactReader;
+  readonly tail: TailWitnessScan;
+}): ReadIdentity {
+  return options.readIdentityBuilder.neighborhood({
+    basis: options.basis,
+    nodeId: options.nodeId,
+    direction: options.direction,
+    labels: options.labels,
+    checkpointIndexShards: options.shardReader.neighborhoodShardIdentities(options.basis, {
+      nodeId: options.nodeId,
+      direction: options.direction,
+      labels: options.labels,
+    }),
+    tailWitnesses: options.tail.witnesses,
+  });
 }

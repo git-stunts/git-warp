@@ -1,10 +1,11 @@
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import type CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
-import type TraversalOpticReadResult from './TraversalOpticReadResult.ts';
 import {
   type TraversalOpticStrategy,
   TraversalOpticCursor,
 } from './TraversalOpticReadResult.ts';
+
+type TraversalOpticReadPromise = ReturnType<CheckpointTailWitnessLocator['readTraversal']>;
 
 export type TraversalOpticReadOptions = {
   readonly strategy?: TraversalOpticStrategy;
@@ -30,7 +31,7 @@ export default class TraversalOptic {
     Object.freeze(this);
   }
 
-  async read(options: TraversalOpticReadOptions = {}): Promise<TraversalOpticReadResult> {
+  async read(options: TraversalOpticReadOptions = {}): TraversalOpticReadPromise {
     return await this._locator.readTraversal(this._startNodeId, options);
   }
 }

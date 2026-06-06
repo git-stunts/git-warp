@@ -3,6 +3,14 @@ import { CURRENT_CHECKPOINT_SCHEMA } from '../state/checkpointHelpers.ts';
 
 export const CHECKPOINT_BASIS_MANIFEST_SCHEMA = 1;
 
+const CHECKPOINT_BASIS_ROOT_FAMILIES: readonly string[] = Object.freeze([
+  'node-liveness',
+  'node-property',
+  'outgoing-adjacency',
+  'incoming-adjacency',
+  'edge-fact',
+]);
+
 export type CheckpointBasisRootFamily =
   | 'node-liveness'
   | 'node-property'
@@ -41,6 +49,21 @@ export type CheckpointBasisManifestOptions = {
   readonly verificationPosture?: CheckpointBasisSupportPosture | null;
 };
 
+type CheckpointBasisManifestRootMaps = {
+  readonly livenessRoots: CheckpointBasisShardRootMap;
+  readonly propertyRoots: CheckpointBasisShardRootMap;
+  readonly outgoingAdjacencyRoots: CheckpointBasisShardRootMap;
+  readonly incomingAdjacencyRoots: CheckpointBasisShardRootMap;
+  readonly edgeFactRoots: CheckpointBasisShardRootMap;
+};
+
+type CheckpointBasisNullableRefs = {
+  readonly commitmentFamily: string | null;
+  readonly commitmentRoot: string | null;
+  readonly proofFamily: string | null;
+  readonly openedAperture: string | null;
+};
+
 export default class CheckpointBasisManifest {
   readonly manifestSchema: number = CHECKPOINT_BASIS_MANIFEST_SCHEMA;
   readonly schema: number;
@@ -70,56 +93,30 @@ export default class CheckpointBasisManifest {
   readonly verificationPosture: CheckpointBasisSupportPosture;
 
   constructor(options: CheckpointBasisManifestOptions) {
-    const schema = options.schema ?? CURRENT_CHECKPOINT_SCHEMA;
-    validateSupportedSchema(schema);
-    validateNonEmptyString(options.graphName, 'graphName');
-    validateNonEmptyString(options.checkpointSha, 'checkpointSha');
-    validateFrontier(options.frontier);
-    validateAppliedVersionVector(options.appliedVersionVector);
-
+    const schema = validateManifestOptions(options);
+    const roots = manifestRootMaps(options);
+    const nullableRefs = nullableManifestRefs(options);
     this.schema = schema;
-    this.graphName = options.graphName;
-    this.checkpointSha = options.checkpointSha;
+    this.graphName = options.graphName; this.checkpointSha = options.checkpointSha;
     this.frontier = copyFrontier(options.frontier);
     this.appliedVersionVector = copyVersionVector(options.appliedVersionVector);
     this.basisIdentity = validateIdentity(options.basisIdentity, 'basisIdentity');
     this.semanticReadingIdentity = validateIdentity(options.semanticReadingIdentity, 'semanticReadingIdentity');
-    this.livenessRoots = requireRoots(options.livenessRoots, 'livenessRoots', 'node-liveness');
-    this.propertyRoots = requireRoots(options.propertyRoots, 'propertyRoots', 'node-property');
-    this.outgoingAdjacencyRoots = requireRoots(
-      options.outgoingAdjacencyRoots,
-      'outgoingAdjacencyRoots',
-      'outgoing-adjacency',
-    );
-    this.incomingAdjacencyRoots = requireRoots(
-      options.incomingAdjacencyRoots,
-      'incomingAdjacencyRoots',
-      'incoming-adjacency',
-    );
-    this.edgeFactRoots = requireRoots(options.edgeFactRoots, 'edgeFactRoots', 'edge-fact');
-    this.provenancePosture = options.provenancePosture;
-    this.contentAnchorPosture = options.contentAnchorPosture;
-    this.shardGeometry = options.shardGeometry;
-    this.chunking = options.chunking;
-    this.completeness = options.completeness;
+    this.livenessRoots = roots.livenessRoots; this.propertyRoots = roots.propertyRoots;
+    this.outgoingAdjacencyRoots = roots.outgoingAdjacencyRoots; this.incomingAdjacencyRoots = roots.incomingAdjacencyRoots;
+    this.edgeFactRoots = roots.edgeFactRoots; this.provenancePosture = options.provenancePosture;
+    this.contentAnchorPosture = options.contentAnchorPosture; this.shardGeometry = options.shardGeometry;
+    this.chunking = options.chunking; this.completeness = options.completeness;
     this.retainedPayloadRefs = freezeStringList(options.retainedPayloadRefs ?? [], 'retainedPayloadRefs');
     this.retainedPayloadByteHashes = freezeStringList(
       options.retainedPayloadByteHashes ?? [],
       'retainedPayloadByteHashes',
     );
-    this.commitmentFamily = validateNullableIdentity(options.commitmentFamily ?? null, 'commitmentFamily');
-    this.commitmentRoot = validateNullableIdentity(options.commitmentRoot ?? null, 'commitmentRoot');
-    this.proofFamily = validateNullableIdentity(options.proofFamily ?? null, 'proofFamily');
+    this.commitmentFamily = nullableRefs.commitmentFamily; this.commitmentRoot = nullableRefs.commitmentRoot;
+    this.proofFamily = nullableRefs.proofFamily; this.openedAperture = nullableRefs.openedAperture;
     this.proofRefs = freezeStringList(options.proofRefs ?? [], 'proofRefs');
-    this.openedAperture = validateNullableIdentity(options.openedAperture ?? null, 'openedAperture');
-    this.verificationPosture = options.verificationPosture ?? CheckpointBasisSupportPosture.present('verified');
-
-    validateSupportPosture(this.provenancePosture, 'provenancePosture');
-    validateSupportPosture(this.contentAnchorPosture, 'contentAnchorPosture');
-    validateSupportPosture(this.verificationPosture, 'verificationPosture');
-    validateCompleteness(this.completeness);
-    validateShardGeometry(this);
-    validateReadingIdentitySeparation(this);
+    this.verificationPosture = verificationPostureOrDefault(options.verificationPosture ?? null);
+    validateManifestState(this);
     Object.freeze(this);
   }
 
@@ -132,6 +129,52 @@ export default class CheckpointBasisManifest {
       this.edgeFactRoots,
     ]);
   }
+}
+
+function validateManifestOptions(options: CheckpointBasisManifestOptions): number {
+  const schema = options.schema ?? CURRENT_CHECKPOINT_SCHEMA;
+  validateSupportedSchema(schema);
+  validateNonEmptyString(options.graphName, 'graphName');
+  validateNonEmptyString(options.checkpointSha, 'checkpointSha');
+  validateFrontier(options.frontier);
+  validateAppliedVersionVector(options.appliedVersionVector);
+  return schema;
+}
+
+function manifestRootMaps(options: CheckpointBasisManifestOptions): CheckpointBasisManifestRootMaps {
+  return {
+    livenessRoots: requireRoots(options.livenessRoots, 'livenessRoots', 'node-liveness'),
+    propertyRoots: requireRoots(options.propertyRoots, 'propertyRoots', 'node-property'),
+    outgoingAdjacencyRoots: requireRoots(
+      options.outgoingAdjacencyRoots,
+      'outgoingAdjacencyRoots',
+      'outgoing-adjacency',
+    ),
+    incomingAdjacencyRoots: requireRoots(
+      options.incomingAdjacencyRoots,
+      'incomingAdjacencyRoots',
+      'incoming-adjacency',
+    ),
+    edgeFactRoots: requireRoots(options.edgeFactRoots, 'edgeFactRoots', 'edge-fact'),
+  };
+}
+
+function nullableManifestRefs(options: CheckpointBasisManifestOptions): CheckpointBasisNullableRefs {
+  return {
+    commitmentFamily: validateNullableIdentity(options.commitmentFamily ?? null, 'commitmentFamily'),
+    commitmentRoot: validateNullableIdentity(options.commitmentRoot ?? null, 'commitmentRoot'),
+    proofFamily: validateNullableIdentity(options.proofFamily ?? null, 'proofFamily'),
+    openedAperture: validateNullableIdentity(options.openedAperture ?? null, 'openedAperture'),
+  };
+}
+
+function validateManifestState(manifest: CheckpointBasisManifest): void {
+  validateSupportPosture(manifest.provenancePosture, 'provenancePosture');
+  validateSupportPosture(manifest.contentAnchorPosture, 'contentAnchorPosture');
+  validateSupportPosture(manifest.verificationPosture, 'verificationPosture');
+  validateCompleteness(manifest.completeness);
+  validateShardGeometry(manifest);
+  validateReadingIdentitySeparation(manifest);
 }
 
 export class CheckpointBasisShardRootMap {
@@ -268,6 +311,12 @@ export class CheckpointBasisSupportPosture {
   }
 }
 
+function verificationPostureOrDefault(
+  posture: CheckpointBasisSupportPosture | null,
+): CheckpointBasisSupportPosture {
+  return posture ?? CheckpointBasisSupportPosture.present('verified');
+}
+
 function requireRoots(
   roots: CheckpointBasisShardRootMap | undefined,
   field: string,
@@ -292,13 +341,7 @@ function validateSupportedSchema(schema: number): void {
 }
 
 function validateRootFamily(family: string): void {
-  if (
-    family !== 'node-liveness'
-    && family !== 'node-property'
-    && family !== 'outgoing-adjacency'
-    && family !== 'incoming-adjacency'
-    && family !== 'edge-fact'
-  ) {
+  if (!CHECKPOINT_BASIS_ROOT_FAMILIES.includes(family)) {
     throwManifestError('family', 'unsupported-root-family');
   }
 }
@@ -361,12 +404,7 @@ function validateCompleteness(completeness: CheckpointBasisCompleteness): void {
 }
 
 function validateShardGeometry(manifest: CheckpointBasisManifest): void {
-  if (!(manifest.shardGeometry instanceof CheckpointBasisShardGeometry)) {
-    throwManifestError('shardGeometry', 'invalid-shard-geometry');
-  }
-  if (!(manifest.chunking instanceof CheckpointBasisChunking)) {
-    throwManifestError('chunking', 'invalid-chunking');
-  }
+  validateShardGeometryObjects(manifest);
   const observed = new Set<string>();
   for (const rootMap of manifest.rootMaps()) {
     for (const path of rootMap.paths()) {
@@ -382,28 +420,55 @@ function validateShardGeometry(manifest: CheckpointBasisManifest): void {
 }
 
 function validateReadingIdentitySeparation(manifest: CheckpointBasisManifest): void {
-  const byteIdentityValues = new Set<string>();
-  byteIdentityValues.add(manifest.checkpointSha);
-  byteIdentityValues.add(manifest.basisIdentity);
-  for (const rootMap of manifest.rootMaps()) {
-    for (const [, oid] of rootMap.entries()) {
-      byteIdentityValues.add(oid);
-    }
-  }
-  for (const ref of manifest.retainedPayloadRefs) {
-    byteIdentityValues.add(ref);
-  }
-  for (const hash of manifest.retainedPayloadByteHashes) {
-    byteIdentityValues.add(hash);
-  }
-  if (manifest.commitmentRoot !== null) {
-    byteIdentityValues.add(manifest.commitmentRoot);
-  }
-  for (const ref of manifest.proofRefs) {
-    byteIdentityValues.add(ref);
-  }
+  const byteIdentityValues = initialByteIdentityValues(manifest);
+  addRootIdentityValues(byteIdentityValues, manifest);
+  addRetainedIdentityValues(byteIdentityValues, manifest);
+  addCommitmentIdentityValues(byteIdentityValues, manifest);
+  addProofIdentityValues(byteIdentityValues, manifest);
   if (byteIdentityValues.has(manifest.semanticReadingIdentity)) {
     throwManifestError('semanticReadingIdentity', 'semantic-identity-collides-with-byte-identity');
+  }
+}
+
+function validateShardGeometryObjects(manifest: CheckpointBasisManifest): void {
+  if (!(manifest.shardGeometry instanceof CheckpointBasisShardGeometry)) {
+    throwManifestError('shardGeometry', 'invalid-shard-geometry');
+  }
+  if (!(manifest.chunking instanceof CheckpointBasisChunking)) {
+    throwManifestError('chunking', 'invalid-chunking');
+  }
+}
+
+function initialByteIdentityValues(manifest: CheckpointBasisManifest): Set<string> {
+  return new Set([manifest.checkpointSha, manifest.basisIdentity]);
+}
+
+function addRootIdentityValues(values: Set<string>, manifest: CheckpointBasisManifest): void {
+  for (const rootMap of manifest.rootMaps()) {
+    for (const [, oid] of rootMap.entries()) {
+      values.add(oid);
+    }
+  }
+}
+
+function addRetainedIdentityValues(values: Set<string>, manifest: CheckpointBasisManifest): void {
+  for (const ref of manifest.retainedPayloadRefs) {
+    values.add(ref);
+  }
+  for (const hash of manifest.retainedPayloadByteHashes) {
+    values.add(hash);
+  }
+}
+
+function addCommitmentIdentityValues(values: Set<string>, manifest: CheckpointBasisManifest): void {
+  if (manifest.commitmentRoot !== null) {
+    values.add(manifest.commitmentRoot);
+  }
+}
+
+function addProofIdentityValues(values: Set<string>, manifest: CheckpointBasisManifest): void {
+  for (const ref of manifest.proofRefs) {
+    values.add(ref);
   }
 }
 

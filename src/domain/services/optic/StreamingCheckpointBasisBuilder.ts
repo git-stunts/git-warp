@@ -7,6 +7,7 @@ import { CheckpointBasisFact, type CheckpointBasisFactShardFamily } from './Chec
 import CheckpointBasisManifest, {
   CheckpointBasisChunking,
   CheckpointBasisCompleteness,
+  type CheckpointBasisRootFamily,
   CheckpointBasisShardGeometry,
   CheckpointBasisShardRootMap,
   CheckpointBasisSupportPosture,
@@ -25,6 +26,22 @@ export type StreamingCheckpointBasisBuilderOptions = {
   readonly layoutFamily?: string;
   readonly payloadLayout?: string;
   readonly shardKeyStrategy?: string;
+};
+
+type CheckpointBasisRootStore = {
+  readonly family: CheckpointBasisFactShardFamily;
+  readonly roots: Map<string, string>;
+};
+
+type CheckpointBasisPublicationView = {
+  readonly flushCount: number;
+  readonly shardWriteCount: number;
+  rootMap(family: 'node-liveness'): CheckpointBasisShardRootMap;
+  rootMap(family: 'node-property'): CheckpointBasisShardRootMap;
+  rootMap(family: 'outgoing-adjacency'): CheckpointBasisShardRootMap;
+  rootMap(family: 'incoming-adjacency'): CheckpointBasisShardRootMap;
+  rootMap(family: 'edge-fact'): CheckpointBasisShardRootMap;
+  hasFamily(family: 'provenance' | 'content-anchor'): boolean;
 };
 
 export class StreamingCheckpointBasisBuildResult {
@@ -80,7 +97,7 @@ export default class StreamingCheckpointBasisBuilder {
 
   async build(facts: AsyncIterable<CheckpointBasisFact>): Promise<StreamingCheckpointBasisBuildResult> {
     validateFactStream(facts);
-    const publication = new CheckpointBasisPublication({ maxFactsPerShard: this._maxFactsPerShard });
+    const publication = createCheckpointBasisPublication(this._maxFactsPerShard);
     for await (const fact of facts) {
       await publication.addFact(fact, this._storage, this._codec);
     }
@@ -97,7 +114,7 @@ export default class StreamingCheckpointBasisBuilder {
   }
 
   private _manifest(
-    publication: CheckpointBasisPublication,
+    publication: CheckpointBasisPublicationView,
     rootTreeOid: string,
   ): CheckpointBasisManifest {
     const shardCount = Math.max(1, publication.shardWriteCount);
@@ -114,26 +131,54 @@ export default class StreamingCheckpointBasisBuilder {
       outgoingAdjacencyRoots: publication.rootMap('outgoing-adjacency'),
       incomingAdjacencyRoots: publication.rootMap('incoming-adjacency'),
       edgeFactRoots: publication.rootMap('edge-fact'),
-      provenancePosture: publication.hasFamily('provenance')
-        ? CheckpointBasisSupportPosture.present(`tree:${rootTreeOid}:provenance`)
-        : CheckpointBasisSupportPosture.unavailable('no-provenance-facts'),
-      contentAnchorPosture: publication.hasFamily('content-anchor')
-        ? CheckpointBasisSupportPosture.present(`tree:${rootTreeOid}:content-anchor`)
-        : CheckpointBasisSupportPosture.unavailable('no-content-anchor-facts'),
-      shardGeometry: new CheckpointBasisShardGeometry({
-        layoutFamily: this._layoutFamily,
-        payloadLayout: this._payloadLayout,
-        shardKeyStrategy: this._shardKeyStrategy,
-        shardCount,
-      }),
-      chunking: new CheckpointBasisChunking({
-        maxFactsPerShard: this._maxFactsPerShard,
-        chunkCount,
-      }),
+      ...publicationPostures(publication, rootTreeOid),
+      shardGeometry: this._shardGeometry(shardCount),
+      chunking: new CheckpointBasisChunking({ maxFactsPerShard: this._maxFactsPerShard, chunkCount }),
       completeness: publication.shardWriteCount > 0
         ? CheckpointBasisCompleteness.complete()
         : CheckpointBasisCompleteness.partial('empty-fact-stream'),
     });
+  }
+
+  private _shardGeometry(shardCount: number): CheckpointBasisShardGeometry {
+    return new CheckpointBasisShardGeometry({
+      layoutFamily: this._layoutFamily,
+      payloadLayout: this._payloadLayout,
+      shardKeyStrategy: this._shardKeyStrategy,
+      shardCount,
+    });
+  }
+}
+
+class CheckpointBasisPendingShard {
+  readonly family: CheckpointBasisFactShardFamily;
+  readonly basePath: string;
+  readonly pendingKey: string;
+  private readonly _facts: CheckpointBasisFact[];
+
+  constructor(options: {
+    readonly family: CheckpointBasisFactShardFamily;
+    readonly basePath: string;
+    readonly pendingKey: string;
+  }) {
+    this.family = options.family;
+    this.basePath = options.basePath;
+    this.pendingKey = options.pendingKey;
+    this._facts = [];
+  }
+
+  get size(): number {
+    return this._facts.length;
+  }
+
+  add(fact: CheckpointBasisFact): void {
+    this._facts.push(fact);
+  }
+
+  takeSortedFacts(): readonly CheckpointBasisFact[] {
+    const facts = [...this._facts].sort((left, right) => compareText(left.sortKey(), right.sortKey()));
+    this._facts.length = 0;
+    return Object.freeze(facts);
   }
 }
 
@@ -251,55 +296,45 @@ class CheckpointBasisPublication {
   }
 
   private _rootsForFamily(family: CheckpointBasisFactShardFamily): Map<string, string> {
-    switch (family) {
-      case 'node-liveness':
-        return this._livenessRoots;
-      case 'node-property':
-        return this._propertyRoots;
-      case 'outgoing-adjacency':
-        return this._outgoingAdjacencyRoots;
-      case 'incoming-adjacency':
-        return this._incomingAdjacencyRoots;
-      case 'edge-fact':
-        return this._edgeFactRoots;
-      case 'provenance':
-        return this._provenanceRoots;
-      case 'content-anchor':
-        return this._contentAnchorRoots;
+    const store = this._rootStores().find((candidate) => candidate.family === family);
+    if (store === undefined) {
+      throwBuilderError('family', 'unsupported-root-family');
     }
+    return store.roots;
+  }
+
+  private _rootStores(): readonly CheckpointBasisRootStore[] {
+    return Object.freeze([
+      { family: 'node-liveness', roots: this._livenessRoots },
+      { family: 'node-property', roots: this._propertyRoots },
+      { family: 'outgoing-adjacency', roots: this._outgoingAdjacencyRoots },
+      { family: 'incoming-adjacency', roots: this._incomingAdjacencyRoots },
+      { family: 'edge-fact', roots: this._edgeFactRoots },
+      { family: 'provenance', roots: this._provenanceRoots },
+      { family: 'content-anchor', roots: this._contentAnchorRoots },
+    ]);
   }
 }
 
-class CheckpointBasisPendingShard {
-  readonly family: CheckpointBasisFactShardFamily;
-  readonly basePath: string;
-  readonly pendingKey: string;
-  private readonly _facts: CheckpointBasisFact[];
+function createCheckpointBasisPublication(maxFactsPerShard: number): CheckpointBasisPublication {
+  return new CheckpointBasisPublication({ maxFactsPerShard });
+}
 
-  constructor(options: {
-    readonly family: CheckpointBasisFactShardFamily;
-    readonly basePath: string;
-    readonly pendingKey: string;
-  }) {
-    this.family = options.family;
-    this.basePath = options.basePath;
-    this.pendingKey = options.pendingKey;
-    this._facts = [];
-  }
-
-  get size(): number {
-    return this._facts.length;
-  }
-
-  add(fact: CheckpointBasisFact): void {
-    this._facts.push(fact);
-  }
-
-  takeSortedFacts(): readonly CheckpointBasisFact[] {
-    const facts = [...this._facts].sort((left, right) => compareText(left.sortKey(), right.sortKey()));
-    this._facts.length = 0;
-    return Object.freeze(facts);
-  }
+function publicationPostures(
+  publication: CheckpointBasisPublicationView,
+  rootTreeOid: string,
+): {
+  readonly provenancePosture: CheckpointBasisSupportPosture;
+  readonly contentAnchorPosture: CheckpointBasisSupportPosture;
+} {
+  return {
+    provenancePosture: publication.hasFamily('provenance')
+      ? CheckpointBasisSupportPosture.present(`tree:${rootTreeOid}:provenance`)
+      : CheckpointBasisSupportPosture.unavailable('no-provenance-facts'),
+    contentAnchorPosture: publication.hasFamily('content-anchor')
+      ? CheckpointBasisSupportPosture.present(`tree:${rootTreeOid}:content-anchor`)
+      : CheckpointBasisSupportPosture.unavailable('no-content-anchor-facts'),
+  };
 }
 
 function chunkedPath(
@@ -310,21 +345,23 @@ function chunkedPath(
   return `${family}/${basePath}.chunk-${String(chunkIndex).padStart(6, '0')}`;
 }
 
-function manifestRootFamily(family: CheckpointBasisFactShardFamily): 'node-liveness'
-  | 'node-property'
-  | 'outgoing-adjacency'
-  | 'incoming-adjacency'
-  | 'edge-fact' {
-  if (
-    family === 'node-liveness'
-    || family === 'node-property'
-    || family === 'outgoing-adjacency'
-    || family === 'incoming-adjacency'
-    || family === 'edge-fact'
-  ) {
+const MANIFEST_ROOT_FAMILIES: readonly CheckpointBasisRootFamily[] = Object.freeze([
+  'node-liveness',
+  'node-property',
+  'outgoing-adjacency',
+  'incoming-adjacency',
+  'edge-fact',
+]);
+
+function manifestRootFamily(family: CheckpointBasisFactShardFamily): CheckpointBasisRootFamily {
+  if (isManifestRootFamily(family)) {
     return family;
   }
-  throwBuilderError('family', 'not-a-manifest-root-family');
+  return throwBuilderError('family', 'not-a-manifest-root-family');
+}
+
+function isManifestRootFamily(family: CheckpointBasisFactShardFamily): family is CheckpointBasisRootFamily {
+  return MANIFEST_ROOT_FAMILIES.includes(family as CheckpointBasisRootFamily);
 }
 
 function appliedVersionVectorFromFrontier(frontier: Map<string, string>): Map<string, number> {

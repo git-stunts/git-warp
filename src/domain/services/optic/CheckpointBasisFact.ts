@@ -1,6 +1,5 @@
 import QueryError from '../../errors/QueryError.ts';
-import type { PropValue } from '../../types/PropValue.ts';
-import { isPropValue } from '../../types/PropValue.ts';
+import { isPropValue, type PropValue } from '../../types/PropValue.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import { EventId } from '../../utils/EventId.ts';
 import type { CheckpointBasisRootFamily } from './CheckpointBasisManifest.ts';
