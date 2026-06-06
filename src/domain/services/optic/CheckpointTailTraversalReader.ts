@@ -115,8 +115,17 @@ function processNeighborhoodRead(
   neighborhood: NeighborhoodOpticReadResult,
 ): TraversalOpticReadResult | null {
   const depth = current.depth + 1;
-  for (const edge of neighborhood.edges) {
-    const boundaryResult = maybeOpenForNodeLimit(state, current, edge.neighborId);
+  for (let edgeIndex = 0; edgeIndex < neighborhood.edges.length; edgeIndex += 1) {
+    const edge = neighborhood.edges[edgeIndex];
+    if (edge === undefined) {
+      continue;
+    }
+    const boundaryResult = maybeOpenForNodeLimit({
+      state,
+      current,
+      neighborId: edge.neighborId,
+      edgeIndex,
+    });
     if (boundaryResult !== null) {
       return boundaryResult;
     }
@@ -129,16 +138,21 @@ function processNeighborhoodRead(
   return maybeOpenForNeighborhoodCursor(state, current, neighborhood.cursor);
 }
 
-function maybeOpenForNodeLimit(
-  state: TraversalRunState,
-  current: TraversalOpticFrontierEntry,
-  neighborId: string,
-): TraversalOpticReadResult | null {
-  if (state.visited.has(neighborId) || state.visited.size < state.traversal.maxNodes) {
+function maybeOpenForNodeLimit(options: {
+  readonly state: TraversalRunState;
+  readonly current: TraversalOpticFrontierEntry;
+  readonly neighborId: string;
+  readonly edgeIndex: number;
+}): TraversalOpticReadResult | null {
+  if (options.state.visited.has(options.neighborId) || options.state.visited.size < options.state.traversal.maxNodes) {
     return null;
   }
-  state.frontier.unshift(current);
-  return openTraversalResult(state);
+  options.state.frontier.unshift(frontierEntry(
+    options.current.nodeId,
+    options.current.depth,
+    blockedEdgeCursor(options.current, options.edgeIndex),
+  ));
+  return openTraversalResult(options.state);
 }
 
 function addTraversalNeighbor(
@@ -176,6 +190,31 @@ function maybeOpenForNeighborhoodCursor(
   }
   state.frontier.unshift(frontierEntry(current.nodeId, current.depth, cursor));
   return openTraversalResult(state);
+}
+
+function blockedEdgeCursor(
+  current: TraversalOpticFrontierEntry,
+  edgeIndex: number,
+): string {
+  return String(traversalEdgeCursorOffset(current.edgeCursor) + edgeIndex);
+}
+
+function traversalEdgeCursorOffset(cursor: string | null): number {
+  if (cursor === null || cursor.length === 0) {
+    return 0;
+  }
+  const parsed = Number.parseInt(cursor, 10);
+  if (!isCanonicalTraversalEdgeCursor(parsed, cursor)) {
+    throw new QueryError('Traversal optic frontier edge cursor must be a non-negative integer string.', {
+      code: 'E_OPTIC_TRAVERSAL_OPTIONS',
+      context: { field: 'cursor.frontier.edgeCursor' },
+    });
+  }
+  return parsed;
+}
+
+function isCanonicalTraversalEdgeCursor(parsed: number, raw: string): boolean {
+  return Number.isInteger(parsed) && parsed >= 0 && String(parsed) === raw;
 }
 
 function createTraversalRunState(

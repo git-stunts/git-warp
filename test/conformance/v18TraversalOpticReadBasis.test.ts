@@ -93,6 +93,45 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
     });
   });
 
+  it('resumes a node-budget-open frontier at the blocked edge', async () => {
+    const fixture = await openTraversalFixture('v18-traversal-optic-node-budget-cursor');
+    const readPath = new V17PublicOpticReadPath(fixture.graph.worldline());
+
+    const first = await readPath.readTraversal(ROOT_NODE_ID, {
+      direction: 'out',
+      maxDepth: 2,
+      maxNodes: 2,
+      maxEdges: 10,
+    });
+    const cursor = Reflect.get(first, 'cursor');
+    const second = await readPath.readTraversal(ROOT_NODE_ID, {
+      direction: 'out',
+      maxDepth: 2,
+      maxNodes: 10,
+      maxEdges: 10,
+      cursor,
+    });
+
+    expect(first).toMatchObject({
+      completeness: 'frontier-open',
+      frontier: [
+        { nodeId: ROOT_NODE_ID, depth: 0, edgeCursor: '1' },
+        { nodeId: ALPHA_NODE_ID, depth: 1, edgeCursor: null },
+      ],
+      edges: [
+        { fromNodeId: ROOT_NODE_ID, toNodeId: ALPHA_NODE_ID, label: LINK_LABEL, depth: 1 },
+      ],
+    });
+    expect(second).toMatchObject({
+      completeness: 'complete',
+      edges: [
+        { fromNodeId: ROOT_NODE_ID, toNodeId: BETA_NODE_ID, label: LINK_LABEL, depth: 1 },
+        { fromNodeId: ALPHA_NODE_ID, toNodeId: GAMMA_NODE_ID, label: LINK_LABEL, depth: 2 },
+        { fromNodeId: BETA_NODE_ID, toNodeId: DELTA_NODE_ID, label: LINK_LABEL, depth: 2 },
+      ],
+    });
+  });
+
   it('distinguishes a missing goal inside the requested boundary', async () => {
     const fixture = await openTraversalFixture('v18-traversal-optic-goal-miss');
     const readPath = new V17PublicOpticReadPath(fixture.graph.worldline());
