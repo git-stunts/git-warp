@@ -8,6 +8,8 @@
  */
 
 import { buildWritersPrefix } from '../../../../src/domain/utils/RefLayout.ts';
+import createV18BoundedMemoryCapabilityReport
+  from '../../../../src/domain/memory/createV18BoundedMemoryCapabilityReport.ts';
 import { parseCommandArgs } from '../../infrastructure.ts';
 import { doctorSchema } from '../../schemas.ts';
 import { createPersistence, resolveGraphName } from '../../shared.ts';
@@ -18,6 +20,8 @@ import type { CliOptions, Persistence } from '../../types.ts';
 
 const DOCTOR_OPTIONS = {
   strict: { type: 'boolean', default: false },
+  'memory-budget': { type: 'string' },
+  'large-graph': { type: 'boolean', default: false },
 };
 
 const DEFAULT_POLICY: DoctorPolicy = {
@@ -36,24 +40,84 @@ const IMPACT_ORDER = {
   hygiene: 3,
 } as const;
 
+type DoctorCommandValues = {
+  readonly strict: boolean;
+  readonly 'memory-budget': string | undefined;
+  readonly 'large-graph': boolean;
+};
+
+type RawDoctorCommandValues = {
+  readonly strict: boolean;
+  readonly 'memory-budget'?: string | undefined;
+  readonly 'large-graph': boolean;
+};
+
 /** Handles the `git warp doctor` command: runs structural health checks and returns findings. */
 export default async function handleDoctor({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: DoctorPayload; exitCode: number }> {
   const { values } = parseCommandArgs(args, DOCTOR_OPTIONS, doctorSchema);
+  const commandValues = normalizeCommandValues(values);
   const startMs = Date.now();
 
   const { persistence } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
-  const policy = { ...DEFAULT_POLICY, strict: Boolean(values.strict) };
+  const policy = { ...DEFAULT_POLICY, strict: commandValues.strict };
   const writerHeads = await collectWriterHeads(persistence, graphName);
 
   const ctx: DoctorContext = { persistence, graphName, writerHeads, policy, repoPath: options.repo };
 
+  const memoryFindings = memoryBudgetFindings(commandValues);
   const { findings, checksRun } = await runChecks(ctx, startMs);
+  findings.push(...memoryFindings);
   findings.sort(compareFinding);
 
-  const payload = assemblePayload({ repo: options.repo, graph: graphName, policy, findings, checksRun, startMs });
+  const payload = assemblePayload({
+    repo: options.repo,
+    graph: graphName,
+    policy,
+    findings,
+    checksRun: checksRun + memoryFindings.length,
+    startMs,
+  });
   const exitCode = computeExitCode(payload.health, policy.strict);
   return { payload, exitCode };
+}
+
+function normalizeCommandValues(values: RawDoctorCommandValues): DoctorCommandValues {
+  return {
+    strict: values.strict,
+    'memory-budget': values['memory-budget'],
+    'large-graph': values['large-graph'],
+  };
+}
+
+function memoryBudgetFindings(values: DoctorCommandValues): DoctorFinding[] {
+  if (values['memory-budget'] === undefined && !values['large-graph']) {
+    return [];
+  }
+  const report = createV18BoundedMemoryCapabilityReport();
+  return [{
+    id: 'memory-budget',
+    status: 'ok',
+    code: CODES.MEMORY_BUDGET_REPORT,
+    impact: 'operability',
+    message: 'Memory-budget posture reported for large-graph operation.',
+    evidence: {
+      requestedBudget: values['memory-budget'] ?? 'not-specified',
+      largeGraph: values['large-graph'],
+      safe: mutableNames(report.safeNames()),
+      transitional: mutableNames(report.transitionalNames()),
+      diagnostic: mutableNames(report.diagnosticNames()),
+      legacy: mutableNames(report.legacyNames()),
+    },
+  }];
+}
+
+function mutableNames(names: readonly string[]): string[] {
+  const result: string[] = [];
+  for (const name of names) {
+    result.push(name);
+  }
+  return result;
 }
 
 /** Assembles the final DoctorPayload from sorted findings. */

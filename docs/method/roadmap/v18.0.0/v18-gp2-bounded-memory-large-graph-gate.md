@@ -63,8 +63,8 @@ result arrays fitting in process memory.
 | 10 | complete | Add existing-entity write resolver evidence. | `test/unit/domain/services/optic/CheckpointExistingEntityWriteResolver.test.ts` |
 | 11 | complete | Add bounded read cursor or limit evidence. | `test/conformance/v18BoundedQueryNodePageReader.test.ts` |
 | 12 | complete | Add sync cursor or batch evidence. | `test/unit/domain/services/sync/BoundedSyncPatchBatchReader.test.ts` |
-| 13 | inProgress | Add capability report for bounded and legacy surfaces. | `test/unit/domain/WarpWorldline.capabilities.test.ts`; operator CLI report remains open. |
-| 14 | open | Add operator memory-budget witness. | witness |
+| 13 | complete | Add capability report for bounded and legacy surfaces. | `test/unit/domain/WarpWorldline.capabilities.test.ts`; `test/unit/cli/doctor.test.ts` |
+| 14 | complete | Add operator memory-budget witness. | `git warp doctor --memory-budget 64mb --large-graph` payload test |
 | 15 | open | Update non-release closeout evidence and close or disposition #549. | issueUpdate |
 
 ## Acceptance Criteria
@@ -92,6 +92,7 @@ result arrays fitting in process memory.
 | Existing-entity writes have targeted preconditions. | Checkpoint fact stream value objects. | Focused write resolver output. | `npx vitest run test/unit/domain/services/optic/CheckpointExistingEntityWriteResolver.test.ts` | Existing-node and existing-edge write decisions resolve with peak fact lease `1`. |
 | Sync has cursorized batch evidence. | Async sync patch descriptor source. | Focused sync batch output. | `npx vitest run test/unit/domain/services/sync/BoundedSyncPatchBatchReader.test.ts` | Patch descriptors page with deterministic cursors and peak patch lease `1`; public `SyncResponse.patches` array integration remains legacy. |
 | Capability posture is inspectable. | `WarpWorldline.capabilities()`. | Focused unit output. | `npx vitest run test/unit/domain/WarpWorldline.capabilities.test.ts` | Report distinguishes safe, transitional, diagnostic, and legacy surfaces. |
+| Operator memory-budget posture is inspectable. | `git warp doctor` memory-budget flags. | Focused CLI output. | `npx vitest run test/unit/cli/doctor.test.ts test/unit/cli/schemas.test.ts` | Doctor payload includes requested budget, large-graph flag, and safe/transitional/diagnostic/legacy capability lists. |
 
 ## Observer Geometry
 

@@ -196,6 +196,29 @@ describe('doctor command', () => {
     expect(result.exitCode).toBe(DOCTOR_EXIT_CODES.STRICT_FINDINGS);
   });
 
+  it('reports memory-budget posture for large-graph doctor runs', async () => {
+    const result = await handleDoctor({
+      options: CLI_OPTIONS,
+      args: ['--memory-budget', '64mb', '--large-graph'],
+    });
+    const finding = result.payload.findings.find(
+      (/** @type {*} */ f) => f.code === CODES.MEMORY_BUDGET_REPORT,
+    );
+
+    expect(result.exitCode).toBe(DOCTOR_EXIT_CODES.OK);
+    expect(result.payload.summary.checksRun).toBe(8);
+    expect(finding).toBeDefined();
+    expect(finding?.status).toBe('ok');
+    expect(finding?.evidence).toMatchObject({
+      requestedBudget: '64mb',
+      largeGraph: true,
+      safe: ['memory-budget-contract'],
+      transitional: ['checkpoint-tail-optics'],
+      diagnostic: ['graph-wide-materialization'],
+      legacy: ['legacy-query-arrays'],
+    });
+  });
+
   it('sorts findings by status > impact > id', async () => {
     // Targeted mock: only break nodeExists for writer refs so that
     // checkRefsConsistent emits a fail, without accidentally affecting
