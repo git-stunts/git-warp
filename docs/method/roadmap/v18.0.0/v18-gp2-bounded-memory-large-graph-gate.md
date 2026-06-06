@@ -62,7 +62,7 @@ result arrays fitting in process memory.
 | 9 | complete | Add content-reference lookup evidence. | `test/unit/domain/services/optic/CheckpointFactResolver.test.ts` |
 | 10 | complete | Add existing-entity write resolver evidence. | `test/unit/domain/services/optic/CheckpointExistingEntityWriteResolver.test.ts` |
 | 11 | complete | Add bounded read cursor or limit evidence. | `test/conformance/v18BoundedQueryNodePageReader.test.ts` |
-| 12 | open | Add sync cursor or batch evidence. | test |
+| 12 | complete | Add sync cursor or batch evidence. | `test/unit/domain/services/sync/BoundedSyncPatchBatchReader.test.ts` |
 | 13 | inProgress | Add capability report for bounded and legacy surfaces. | `test/unit/domain/WarpWorldline.capabilities.test.ts`; operator CLI report remains open. |
 | 14 | open | Add operator memory-budget witness. | witness |
 | 15 | open | Update non-release closeout evidence and close or disposition #549. | issueUpdate |
@@ -90,6 +90,7 @@ result arrays fitting in process memory.
 | Patch facts stream under budget. | Checkpoint patch fact stream bounded path. | Focused patch fact stream output. | `npx vitest run test/unit/domain/services/optic/CheckpointPatchFactStream.test.ts` | `streamBounded()` keeps peak residency to one patch entry plus one emitted fact. |
 | Fact resolvers are targeted and bounded. | Checkpoint fact stream value objects. | Focused resolver output. | `npx vitest run test/unit/domain/services/optic/CheckpointFactResolver.test.ts` | Node liveness, edge endpoints, node properties, and content OIDs resolve with peak fact lease `1`. |
 | Existing-entity writes have targeted preconditions. | Checkpoint fact stream value objects. | Focused write resolver output. | `npx vitest run test/unit/domain/services/optic/CheckpointExistingEntityWriteResolver.test.ts` | Existing-node and existing-edge write decisions resolve with peak fact lease `1`. |
+| Sync has cursorized batch evidence. | Async sync patch descriptor source. | Focused sync batch output. | `npx vitest run test/unit/domain/services/sync/BoundedSyncPatchBatchReader.test.ts` | Patch descriptors page with deterministic cursors and peak patch lease `1`; public `SyncResponse.patches` array integration remains legacy. |
 | Capability posture is inspectable. | `WarpWorldline.capabilities()`. | Focused unit output. | `npx vitest run test/unit/domain/WarpWorldline.capabilities.test.ts` | Report distinguishes safe, transitional, diagnostic, and legacy surfaces. |
 
 ## Observer Geometry
