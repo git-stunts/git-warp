@@ -21,6 +21,11 @@ type CheckpointTailReadFailureOptions =
     readonly graphName: string;
     readonly opticKind: 'neighborhood';
     readonly nodeId: string;
+  }
+  | {
+    readonly graphName: string;
+    readonly opticKind: 'traversal';
+    readonly nodeId: string;
   };
 
 export default class CheckpointTailReadFailure {
@@ -62,6 +67,9 @@ function createTarget(options: {
   }
   if (options.opticKind === 'neighborhood') {
     return OpticReadTarget.neighborhood(options.nodeId);
+  }
+  if (options.opticKind === 'traversal') {
+    return OpticReadTarget.traversal(options.nodeId);
   }
   return OpticReadTarget.nodeProperty(options.nodeId, options.propertyKey ?? '');
 }

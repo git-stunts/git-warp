@@ -5,6 +5,7 @@ import CheckpointShardFactReader from './CheckpointShardFactReader.ts';
 import CheckpointTailFactReducer from './CheckpointTailFactReducer.ts';
 import CheckpointTailReadFailure from './CheckpointTailReadFailure.ts';
 import CheckpointTailReadIdentityBuilder from './CheckpointTailReadIdentityBuilder.ts';
+import CheckpointTailTraversalReader from './CheckpointTailTraversalReader.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import NodeOpticReadResult from './NodeOpticReadResult.ts';
@@ -15,6 +16,8 @@ import NeighborhoodOpticReadResult, {
   type NeighborhoodOpticEdge,
 } from './NeighborhoodOpticReadResult.ts';
 import type { NeighborhoodOpticReadOptions } from './NeighborhoodOptic.ts';
+import type TraversalOpticReadResult from './TraversalOpticReadResult.ts';
+import type { TraversalOpticReadOptions } from './TraversalOptic.ts';
 
 const DEFAULT_MAX_TAIL_PATCHES = 10_000;
 
@@ -25,6 +28,7 @@ export default class CheckpointTailWitnessLocator {
   private readonly _factReducer: CheckpointTailFactReducer;
   private readonly _readIdentityBuilder: CheckpointTailReadIdentityBuilder;
   private readonly _tailScan: CheckpointTailWitnessScan;
+  private readonly _traversalReader: CheckpointTailTraversalReader;
 
   constructor(options: {
     readonly source: CheckpointTailOpticSource;
@@ -40,6 +44,9 @@ export default class CheckpointTailWitnessLocator {
     this._tailScan = new CheckpointTailWitnessScan({
       source: options.source,
       maxTailPatches: options.maxTailPatches ?? DEFAULT_MAX_TAIL_PATCHES,
+    });
+    this._traversalReader = new CheckpointTailTraversalReader({
+      readNeighborhood: async (nodeId, readOptions) => await this.readNeighborhood(nodeId, readOptions),
     });
     Object.freeze(this);
   }
@@ -90,6 +97,24 @@ export default class CheckpointTailWitnessLocator {
           graphName: this._graphName,
           opticKind: 'neighborhood',
           nodeId,
+        }).enrich(error);
+      }
+      throw error;
+    }
+  }
+
+  async readTraversal(
+    startNodeId: string,
+    options: TraversalOpticReadOptions,
+  ): Promise<TraversalOpticReadResult> {
+    try {
+      return await this._readTraversalResult(startNodeId, options);
+    } catch (error) {
+      if (error instanceof QueryError) {
+        throw new CheckpointTailReadFailure({
+          graphName: this._graphName,
+          opticKind: 'traversal',
+          nodeId: startNodeId,
         }).enrich(error);
       }
       throw error;
@@ -173,6 +198,13 @@ export default class CheckpointTailWitnessLocator {
         tailWitnesses: tail.witnesses,
       }),
     });
+  }
+
+  private async _readTraversalResult(
+    startNodeId: string,
+    options: TraversalOpticReadOptions,
+  ): Promise<TraversalOpticReadResult> {
+    return await this._traversalReader.read(startNodeId, options);
   }
 
   private async _scanTailForNode(

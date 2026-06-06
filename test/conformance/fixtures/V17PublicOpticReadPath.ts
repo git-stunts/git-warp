@@ -27,6 +27,12 @@ export default class V17PublicOpticReadPath {
     return await this.invokePromiseObject(neighborhoodScope, 'read', [options]);
   }
 
+  async readTraversal(startNodeId: string, options: object): Promise<object> {
+    const optic = this.invokeObject(this.worldline, 'optic');
+    const traversalScope = this.invokeObject(optic, 'traversal', [startNodeId]);
+    return await this.invokePromiseObject(traversalScope, 'read', [options]);
+  }
+
   private invokeObject(receiver: object, methodName: string, args: readonly string[] = []): object {
     const method = Reflect.get(receiver, methodName);
     if (typeof method !== 'function') {

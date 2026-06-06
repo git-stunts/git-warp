@@ -1,6 +1,6 @@
 import OpticReadFailureSchemaError from './OpticReadFailureSchemaError.ts';
 
-export type OpticKindValue = 'node' | 'node-property' | 'neighborhood';
+export type OpticKindValue = 'node' | 'node-property' | 'neighborhood' | 'traversal';
 
 export type NodeOpticTargetContext = {
   readonly nodeId: string;
@@ -44,6 +44,10 @@ export default class OpticReadTarget {
 
   static neighborhood(nodeId: string): OpticReadTarget {
     return new OpticReadTarget({ opticKind: 'neighborhood', nodeId });
+  }
+
+  static traversal(nodeId: string): OpticReadTarget {
+    return new OpticReadTarget({ opticKind: 'traversal', nodeId });
   }
 
   toContextValue(): OpticTargetContext {
