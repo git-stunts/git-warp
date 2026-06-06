@@ -16,6 +16,11 @@ Trusted domain values must be created through runtime construction, parsing, or 
 
 This rule outranks type annotations, build steps, editor hints, compile-time tooling, team folklore, and "but the compiler said it was fine."
 
+Rule 0 is not inspirational prose. It is a merge standard. If runtime
+behavior, tests, types, and docs disagree, fix the runtime model first and
+then repair the witnesses around it. Types, tests, and docs are supporting
+evidence. They are not the source of truth.
+
 ### What This Means in Practice
 
 Infrastructure cannot afford fake contracts:
@@ -155,9 +160,48 @@ class NodeFsStorageAdapter implements StoragePort {
 }
 ```
 
+#### Dependency Injection Is Mandatory
+
+Core dependencies enter through constructors or explicit method parameters.
+No domain object may reach sideways for a global service, singleton,
+service locator, ambient process state, host API, or concrete adapter.
+
+This rule does **not** ban `new` in core. Core may construct domain value
+objects, entities, outcomes, errors, cursors, coordinates, CRDT records, and
+other runtime model objects. That is how runtime truth is established.
+
+What core may not construct is a concrete host capability:
+
+- no infrastructure adapters
+- no filesystem, network, process, or environment implementation
+- no ambient clock or entropy source
+- no concrete persistence implementation
+- no codec with host side effects
+
+Those capabilities are ports. Adapters implement the ports. Core receives the
+ports and owns only the domain behavior.
+
+#### Encoding and Decoding Stay at Boundaries
+
+Serialization, deserialization, and codec work happen in adapters, codec
+ports, or named boundary reader modules. After decoding, values must be
+validated and converted into runtime-backed domain objects before behavioral
+domain logic branches on them.
+
+Decoded DTOs may cross a boundary only as transport shapes. They do not get to
+masquerade as domain concepts. A parser or boundary reader has one job: turn
+untrusted bytes and shapes into validated runtime values, or fail with a typed
+error.
+
 ### The Object Model
 
 Systems-style TypeScript organizes code around four categories of **runtime-backed** objects:
+
+Prefer classes with constructors for domain concepts. The lighter
+`Interface + Factory + Brand` pattern is discouraged for domain modeling
+because it leaves too much trust in erased structural types. It is allowed
+only for pure transport DTOs, deliberately hot-path primitives, or cases where
+structural typing is itself the intended contract.
 
 **Value Objects** — Meaningful domain values with invariants
 
@@ -418,11 +462,16 @@ Most bad TypeScript infrastructure stems from weak modeling. The discipline is:
 
 Before merging, ask:
 
+- What is actually true at runtime, and which runtime object proves it?
+- Does this follow hexagonal architecture?
+- Are concrete dependencies injected rather than constructed in core?
+- Is encoding or decoding restricted to adapters, codec ports, or named
+  boundary readers?
 - Is this a real domain concept? Where is its runtime-backed class?
 - Are there any `any`, `unknown`, or `as` in the diff?
 - Does construction establish trust?
 - Does behavior live on the type that owns it?
-- Is anyone parsing `err.message` like a raccoon in a dumpster?
+- Is anyone parsing `err.message` instead of branching on typed errors?
 - Are there magic numbers or strings?
 - Could this logic run in a browser?
 - Is there an `interface` that should be a `class`?

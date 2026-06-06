@@ -28,7 +28,7 @@ caps, missing raw-Error discipline).
 This document records the binding decisions for how we adopt the
 bundle's enforcement and how we repay the pre-existing contamination.
 
-## 2. The five binding decisions
+## 2. The six binding decisions
 
 ### Decision 1 — Hot adoption, not ratchet
 
@@ -119,6 +119,32 @@ then boundary leakage (root cause of most casts), then fake naming
 (decorative symptoms), then wall tightening (structural fix that
 stabilizes the above).
 
+### Decision 6 — Runtime truth standard, adapted for git-warp
+
+Adopt the Runtime Truth standard as binding doctrine for git-warp,
+with these repository-specific interpretations:
+
+- Runtime behavior is the source of authority. Types, tests, docs,
+  schemas, and generated artifacts are evidence about runtime truth.
+- Hexagonal architecture remains mandatory.
+- Dependency injection is mandatory for external capabilities.
+- Core may construct domain objects. Core must not construct concrete
+  infrastructure, host, persistence, wall-clock, entropy, or adapter
+  implementations.
+- Encoding and decoding stay in adapters, codec ports, or explicitly named
+  boundary reader modules.
+- Decoded transport values must be validated into runtime-backed domain
+  objects before behavioral domain logic branches on them.
+- `unknown` remains boundary-only rather than globally impossible because
+  parser and adapter code need a way to name untrusted input before
+  validation.
+- Current complexity limits stay stricter than the reference standard:
+  complexity 5, depth 3, 30 lines per function, and 3 parameters unless a
+  documented carve-out applies.
+
+This decision adopts the standard's substance without weakening git-warp's
+existing stricter gates.
+
 ## 3. Rules added from the bundle
 
 | Rule | Enforcement | Source |
@@ -183,5 +209,6 @@ stabilizes the above).
 
 | Date | Change |
 |---|---|
-| 2026-04-16 | Initial adoption. Decisions 1–5 locked. |
+| 2026-04-16 | Initial adoption. Decisions 1-5 locked. |
 | 2026-04-23 | Activated `consistent-type-imports` and `restrict-template-expressions` as quarantine-backed hygiene rules. |
+| 2026-06-06 | Locked Runtime Truth standard into SSTS and anti-sludge policy as Decision 6. |
