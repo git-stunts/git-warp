@@ -215,9 +215,9 @@ describe('release policy shape', () => {
     expect(roadmap).toContain('## Active Planning Instance');
     expect(roadmap).toContain('| Goalposts | `5` |');
     expect(roadmap).toContain('| Total planned slice budget | `53` |');
-    expect(roadmap).toContain('v18.0.0 goalposts: 0/5 landed');
-    expect(roadmap).toContain('v18.0.0 slices: 0/53 landed');
-    expect(roadmap).toContain('next slice: #629 Checkpoint basis manifest contract');
+    expect(roadmap).toContain('v18.0.0 goalposts: 3/5 landed');
+    expect(roadmap).toContain('v18.0.0 slices: 32/53 landed');
+    expect(roadmap).toContain('next slice: reconcile #549 against landed holographic slicing evidence');
     expect(roadmap).toContain('method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md');
 
     for (const goalpostPath of v18GoalpostPaths) {
