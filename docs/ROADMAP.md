@@ -13,6 +13,70 @@ The major-version ladder follows VISION: v18 makes the graph substrate honest, v
 
 No release slot may carry more than 50 open issues. If a bucket crosses that line, split it into explicit patch or minor waves before treating it as a coherent release plan.
 
+## Active Planning Instance
+
+The active roadmap instance uses the formal planning system in
+[roadmap-planning.md](method/roadmap-planning.md). The issue tables below remain
+the complete open-issue inventory. This section is the release-scale execution
+view: goalposts, proof stories, slice budgets, release gates, and next
+goalpost.
+
+### v18.0.0 - Graph Substrate Honesty Release
+
+| Field | Value |
+| --- | --- |
+| Release id | `v18.0.0` |
+| Release status | `active` |
+| Current public release | `v17.0.0` |
+| Goalposts | `5` |
+| Landed goalposts | `0` |
+| Total planned slice budget | `53` |
+| Target lane | `lane:v18.0.0` |
+| Release evidence packet | `docs/releases/v18.0.0/README.md` |
+
+v18.0.0 is ready only when every goalpost below is landed, every issue in
+`lane:v18.0.0` is closed, superseded work has been closed or moved out of the
+target lane with linked disposition, the release evidence packet is complete
+and placeholder-free, and `npm run release:preflight` passes from aligned
+`main`.
+
+| Goalpost | Status | Slice budget | Umbrella or tracker issue | Goalpost doc | Release gate |
+| --- | --- | ---: | --- | --- | --- |
+| V18-GP1 Optics Public API Closeout | active | 20 | [#547](https://github.com/git-stunts/git-warp/issues/547) | [v18-gp1-optics-public-api-closeout.md](method/roadmap/v18.0.0/v18-gp1-optics-public-api-closeout.md) | First-use Optics must be usable and honest without hidden full materialization. |
+| V18-GP2 Bounded-Memory Large-Graph Product Gate | active | 15 | [#549](https://github.com/git-stunts/git-warp/issues/549) | [v18-gp2-bounded-memory-large-graph-gate.md](method/roadmap/v18.0.0/v18-gp2-bounded-memory-large-graph-gate.md) | Normal public reads, writes, content lookup, and sync must honor an explicit memory budget. |
+| V18-GP3 Content Attachment Plane Honesty | active | 4 | [#550](https://github.com/git-stunts/git-warp/issues/550) | [v18-gp3-content-attachment-plane-honesty.md](method/roadmap/v18.0.0/v18-gp3-content-attachment-plane-honesty.md) | Release claims must distinguish typed attachment-plane progress from accepted legacy storage residuals. |
+| V18-GP4 Holographic Slicing And Checkpoint Basis | active | 8 | [#626](https://github.com/git-stunts/git-warp/issues/626), [#628](https://github.com/git-stunts/git-warp/issues/628)-[#635](https://github.com/git-stunts/git-warp/issues/635) | [v18-gp4-holographic-slicing-checkpoint-basis.md](method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md) | Normal public graph-shaped reads must move toward bounded, witnessed slices over declared basis. |
+| V18-GP5 Release Operation Evidence | active | 6 | [#552](https://github.com/git-stunts/git-warp/issues/552) | [v18-gp5-release-operation-evidence.md](method/roadmap/v18.0.0/v18-gp5-release-operation-evidence.md) | Tagging and publishing must satisfy the release policy and record deterministic evidence. |
+
+Sequencing:
+
+```text
+V18-GP4 Holographic slicing basis
+  -> V18-GP1 Optics public API closeout
+  -> V18-GP2 Bounded-memory product gate
+  -> V18-GP3 Content attachment honesty
+  -> V18-GP5 Release operation evidence
+```
+
+The next execution target is V18-GP4 slice 2, issue
+[#629](https://github.com/git-stunts/git-warp/issues/629), after issue
+[#628](https://github.com/git-stunts/git-warp/issues/628) is either closed from
+its landed implementation evidence or moved out of the v18 lane with explicit
+carry-forward disposition. The closed design umbrella issue
+[#626](https://github.com/git-stunts/git-warp/issues/626) does not by itself
+prove the goalpost landed; the implementation proof stories
+[#628](https://github.com/git-stunts/git-warp/issues/628) through
+[#635](https://github.com/git-stunts/git-warp/issues/635) own that proof.
+
+Release progress should be reported as:
+
+```text
+v18.0.0 goalposts: 0/5 landed
+v18.0.0 slices: 0/53 landed
+next goalpost: V18-GP4 Holographic Slicing And Checkpoint Basis
+next slice: #629 Checkpoint basis manifest contract
+```
+
 ## Snapshot
 
 | Metric | Count |

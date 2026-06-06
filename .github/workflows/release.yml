@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  issues: read
 
 concurrency:
   group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -30,6 +31,8 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node 22
         uses: actions/setup-node@v6
@@ -39,6 +42,9 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      - name: Fetch main for release guard
+        run: git fetch --no-tags origin main:refs/remotes/origin/main
 
       - name: Validate tag format and compute metadata
         id: meta
@@ -70,6 +76,30 @@ jobs:
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
             echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Release guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            STAGE="rerun-workflow"
+          else
+            STAGE="tag-workflow"
+          fi
+          npm run release:guard -- --stage "$STAGE" --tag "${{ steps.meta.outputs.tag }}"
+
+      - name: Verify release tests and docs
+        run: |
+          npm run lint
+          npm run lint:md
+          npm run lint:md:code
+          npm run lint:links
+          npm run typecheck
+          npm run typecheck:policy
+          npm run typecheck:consumer
+          npm run typecheck:surface
+          npm run test:coverage:ci
 
       - name: Verify tag == package.json version
         shell: bash
@@ -133,6 +163,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.verify.outputs.tag }}
+          persist-credentials: false
 
       - name: Setup Node 24
         uses: actions/setup-node@v6
@@ -207,6 +238,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.verify.outputs.tag }}
+          persist-credentials: false
 
       - name: Setup Node 22
         uses: actions/setup-node@v6

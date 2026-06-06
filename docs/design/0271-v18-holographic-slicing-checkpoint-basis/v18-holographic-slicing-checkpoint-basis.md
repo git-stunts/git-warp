@@ -19,7 +19,7 @@ blocking_issues:
 supersedes: []
 superseded_by: null
 created: "2026-06-04"
-updated: "2026-06-04"
+updated: "2026-06-06"
 ---
 
 # PROTO-0271 - Holographic Slicing And Streaming Checkpoint Basis
@@ -51,6 +51,12 @@ coordinate basis. Checkpoints become the operator job that streams admitted
 graph facts into CAS-backed basis shards and manifests, so node, property,
 neighborhood, traversal, and indexed query reads can touch only the shards and
 bounded tail needed for their declared question.
+
+This design adopts the Echo/WARP ontology: there is no privileged substrate-owned
+canonical graph. Witnessed causal history is the territory. Graph-shaped
+objects are observer-relative readings over that territory. A materialized graph
+may be useful as a diagnostic, export, compatibility, checkpoint, or migration
+artifact, but it is never the authority by itself.
 
 ## Sponsored Human
 
@@ -127,6 +133,75 @@ and
 cursorized reads, bounded memory, and bounded-mode legacy rejection as v18
 blockers:
 [docs/BEARING.md#44:39646e65d0819f8a8f336709ff50bce0609e506c](https://github.com/git-stunts/git-warp/blob/39646e65d0819f8a8f336709ff50bce0609e506c/docs/BEARING.md#L44).
+
+## Echo-Derived WARP Doctrine
+
+This design incorporates architecture doctrine from Echo's WARP notes and makes
+the resulting rules git-warp design constraints.
+
+The WARP shape for public git-warp reads is:
+
+```text
+bounded causal basis
++ optic law
++ observer aperture
++ support obligations
++ capability, budget, and evidence posture
+-> witnessed reading artifact
+```
+
+The substrate exchanges witnessed causal material, not graph database objects.
+Transport, replay, and retained evidence should move:
+
+- causal suffixes;
+- coordinates and frontiers;
+- optic or rule identities;
+- support obligations;
+- witness references;
+- payload references;
+- admission outcomes;
+- reading envelopes;
+- retained artifact identities.
+
+They must not move or rely on:
+
+- runtime internals;
+- private cache layout;
+- scheduler or controller state;
+- host-time ordering folklore;
+- materialized state as truth;
+- graph-shaped objects without observer geometry.
+
+Identity layers stay separate:
+
+| Identity | Meaning |
+| --- | --- |
+| Git object SHA or CAS hash | Exact byte identity. |
+| Retained payload hash | Canonical bytes for a retained reading or checkpoint payload. |
+| Commitment root | Authenticated commitment to retained payload coordinates, when present. |
+| Proof reference | Compact support for selected openings, when present. |
+| Reading identity | The semantic question answered by the reading. |
+| Basis identity | The causal basis and frontier used to answer the question. |
+
+A byte hash does not answer a question. A reading identity names the question,
+basis, aperture, law, projection, budget, and evidence posture that make those
+bytes meaningful.
+
+Adapters, generated helpers, CLI commands, and operator tools may make git-warp
+ergonomic. They must not:
+
+- hide full-materialization fallback for app-facing reads;
+- silently retry against a later frontier when a basis is stale;
+- replace typed admission or obstruction outcomes with booleans;
+- hide missing witness, rights, budget, attachment, or support evidence;
+- treat Git/CAS content hashes as semantic reading identity;
+- introduce application nouns as substrate APIs.
+
+Nondeterministic host facts are allowed only when sampled outside the
+deterministic boundary, made explicit as canonical input, and witnessed. Hidden
+time, randomness, environment, filesystem, network, map iteration order, or
+policy state must not affect graph-preserved facts, witnesses, read identity,
+retained-reading identity, or admission posture.
 
 ## Problem
 
@@ -213,8 +288,21 @@ Required fields:
 - content-anchor root or explicit unavailable posture;
 - shard geometry and chunking metadata;
 - completeness posture.
+- semantic reading identity fields for questions answered through the basis;
+- basis identity fields for the causal frontier and shard family;
+- layout family and payload layout identifier;
+- retained payload refs and byte hashes, when retained bytes exist;
+- optional commitment family and commitment root;
+- optional proof family and proof refs;
+- opened coordinate or aperture-selector metadata, when proof-backed openings
+  are present;
+- verification posture;
+- residual, redaction, plurality, or obstruction posture.
 
 The manifest is not a `WarpState`. It is a basis for bounded fact resolution.
+It separates byte identity from semantic read identity. A Git tree hash, CAS
+hash, retained payload hash, commitment root, proof ref, and read identity may
+all point at the same release evidence chain, but they are not interchangeable.
 
 ### Streaming Checkpoint Basis Builder
 
@@ -248,9 +336,14 @@ Every slice result must include:
 
 - request identity;
 - basis identity;
+- reading identity;
+- optic law or projection identity;
+- observer aperture;
 - result facts;
-- evidence;
+- support obligations and evidence;
+- capability, rights, and budget posture;
 - completeness posture;
+- residual, redaction, plurality, or obstruction posture;
 - unknown or out-of-window posture;
 - limit/cursor information when the boundary is not exhausted.
 
@@ -388,6 +481,9 @@ contracts, not rendered UI.
 | Adjacency shards | Streamed edge facts | Neighbor slice | Corrupt shard, missing shard, invalid direction | Rebuild basis or fail closed | CAS/Git shard blobs or trie roots | Stable direction and edge ordering |
 | Tail witness scan | Patch chains after checkpoint frontier | Tail overlay facts | Tail exceeds budget, malformed patch | Refresh checkpoint or narrow request | Patch commits and read identity | Patch order follows causal frontier rules |
 | Traversal cursor | TraversalOptic result | Pending frontier and visited posture | Cursor basis mismatch, expired basis, invalid limits | Restart traversal from request | Runtime-backed cursor DTO | Strategy-defined deterministic order |
+| Semantic reading identity | Optic request plus basis, aperture, law, projection, and evidence posture | Retained reading key | CAS/Git hash used as semantic identity, missing aperture, missing law | Rebuild request identity or reject | Reading envelope fields | Canonical request encoding |
+| Retained payload identity | Canonical retained bytes | CAS/Git byte ref | Payload hash treated as read identity | Re-retain bytes or fail verification | CAS/Git object ref | Exact byte hashing |
+| Commitment/proof slots | Manifest commitment/proof metadata | Future proof-backed openings | Commitment root without payload layout, proof without opened coordinates | Reject proof-backed posture | Manifest fields | Stable opened coordinate ordering |
 
 ```mermaid
 flowchart LR
@@ -414,9 +510,10 @@ flowchart LR
 | Port changes | Introduce or reuse streaming storage/checkpoint-basis ports so domain builders can write CAS-backed chunks without whole-buffer residency. |
 | Adapter changes | Git/CAS adapters own stream and tree object I/O. Domain code does not import host APIs. |
 | Boundary validation | Manifest, cursor, and obstruction DTOs validate at construction or decode boundaries. |
-| Runtime-backed nouns introduced | `CheckpointBasisManifest`, `HolographicSlice`, `NeighborhoodOptic`, `TraversalOptic`, `TraversalCursor`, `SliceCompleteness`, `BasisObstruction`. |
+| Runtime-backed nouns introduced | `CheckpointBasisManifest`, `ReadingIdentity`, `BasisIdentity`, `RetainedPayloadRef`, `HolographicSlice`, `NeighborhoodOptic`, `TraversalOptic`, `TraversalCursor`, `SliceCompleteness`, `BasisObstruction`. |
 | Expected failure representation | Missing basis, corrupt shard, tail budget exceeded, and global scan requirements are typed obstruction results or domain errors. |
-| Banned shortcuts avoided | No `any`, `unknown`, `as unknown as`, fake `*Like` types, hidden `materialize()`, or graph-like slice facade. |
+| Ontology boundary | Witnessed causal history is the authority; graph-shaped values are readings with observer geometry. |
+| Banned shortcuts avoided | No `any`, `unknown`, `as unknown as`, fake `*Like` types, hidden `materialize()`, content-hash-as-read-identity, or graph-like slice facade. |
 | Quarantine impact | Touching quarantined files must graduate or inline-suppress by ticket. This design does not grant file-level exceptions. |
 
 ## Cost / Residency Posture
@@ -439,8 +536,13 @@ This design preserves deterministic replay by:
 - streaming patches in causal order defined by writer refs and checkpoint
   coverage;
 - writing shards under deterministic shard keys and sorted tree entries;
-- recording basis identity and frontier in every slice result;
+- recording basis identity, reading identity, aperture, law, projection, and
+  frontier in every slice result;
 - making traversal strategy and tie-breaking explicit;
+- separating byte identity, retained payload identity, commitment/proof identity,
+  basis identity, and semantic reading identity;
+- sampling host nondeterminism outside the deterministic boundary and recording
+  it as explicit witnessed input;
 - treating out-of-boundary absence as unknown or incomplete, not global truth.
 
 Causal inputs:
@@ -665,6 +767,7 @@ replacements or have been removed from the public app surface.
 Future implementation proof must include behavior tests for:
 
 - materialization boundary policy;
+- byte identity vs semantic reading identity separation;
 - streaming checkpoint basis construction;
 - checkpoint manifest validation;
 - node and property reads through streamed basis shards;
@@ -672,6 +775,7 @@ Future implementation proof must include behavior tests for:
 - traversal cursor behavior;
 - bounded tail failure;
 - global-scan rejection;
+- missing witness, rights, budget, attachment, or support evidence obstruction;
 - CLI/operator lower-mode witness output.
 
 Documentation tests may confirm wording and policy placement, but they cannot be
@@ -747,6 +851,10 @@ Behavior tests required:
       larger than its memory threshold and proves multiple shard flushes occur.
 - [ ] A checkpoint manifest validation test rejects missing liveness, property,
       adjacency, or frontier roots with typed obstruction.
+- [ ] A checkpoint manifest identity test rejects CAS/Git hashes used as
+      semantic read identity and requires explicit basis and reading identity.
+- [ ] A retained-payload test proves payload byte hash, commitment/proof slots,
+      basis identity, and reading identity remain separate fields.
 - [ ] A node/property optic test reads only target shards plus bounded tail and
       fails closed on corrupt shard.
 - [ ] A `NeighborhoodOptic` test returns deterministic outgoing and incoming
@@ -758,6 +866,9 @@ Behavior tests required:
 - [ ] A global topo/query request test returns `requires-global-scan` unless the
       request declares an explicit diagnostic/export job or bounded/indexed
       basis.
+- [ ] An adapter/CLI test proves missing witness, rights, budget, attachment,
+      or support evidence is reported as obstruction rather than hidden by full
+      materialization fallback.
 
 Documentation/process tests, only if relevant:
 
@@ -775,6 +886,9 @@ The design cycle is done when:
 - [ ] Current Truth anchors use durable full-SHA permalinks.
 - [ ] The design names materialization, checkpoint basis, neighborhood, and
       traversal contracts.
+- [ ] The design names Echo-derived WARP ontology constraints: no canonical
+      substrate graph, graph-shaped values as readings, identity separation,
+      adapter honesty, and explicit nondeterministic inputs.
 - [ ] Implementation slices each have executable proof targets.
 - [ ] Acceptance criteria distinguish design acceptance from implementation
       proof.
@@ -787,6 +901,11 @@ The implementation program is done only when:
       under memory budget.
 - [ ] Node, property, neighborhood, and traversal optics read through bounded
       basis facts plus bounded tail.
+- [ ] Checkpoint manifests and slice outputs separate byte identity, retained
+      payload identity, commitment/proof identity, basis identity, and semantic
+      reading identity.
+- [ ] Missing support obligations are surfaced as obstruction, residual,
+      redaction, plurality, or rehydration posture rather than cache misses.
 - [ ] Global scans are explicit diagnostic/export/checkpoint jobs.
 - [ ] CLI/operator witness output is machine-readable.
 - [ ] Legacy materializing APIs are removed from app-facing docs or clearly

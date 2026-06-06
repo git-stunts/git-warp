@@ -72,9 +72,11 @@ docs/
     retro/<cycle>/<task>.md         retrospectives
     graveyard/                      rejected ideas
     design-doc-template.md          standard design doc shape
+    goalpost-template.md            standard roadmap goalpost shape
     guide.md                        operator advice and non-doctrinal practice notes
     process.md                      how cycles run
     release.md                      how releases work
+    roadmap-planning.md             release goalpost and slice-budget doctrine
   design/
     <cycle>/<task>.md               cycle design docs
     *.md                            living documents
@@ -161,6 +163,12 @@ cycle design docs follow
 [design-doc-template.md](method/design-doc-template.md). Work does not silently
 fall back into the queue.
 
+Release-scale milestones use [roadmap-planning.md](method/roadmap-planning.md)
+and [goalpost-template.md](method/goalpost-template.md). A goalpost is the
+middle layer between a roadmap release bucket and implementation cycles: one
+umbrella issue, one slice budget, proof-story child issues, acceptance
+criteria, and a deterministic proof matrix.
+
 ### Pull Requests
 
 Every pull request must reference at least one same-repository GitHub Issue in
@@ -168,12 +176,12 @@ its title or body. References to pull requests do not count. The accepted forms
 are `#123`, `GH-123`, `git-stunts/git-warp#123`, and
 `https://github.com/git-stunts/git-warp/issues/123`.
 
-Cycle-start pull requests are draft PRs. After the design doc commit is pushed,
-open a draft PR that references the issue, label the issue
-`work-in-progress`, and link the PR from the issue. Draft means the cycle is
-owned and inspectable, not ready to merge. Move the PR out of draft only when
-the cycle has playback, acceptance evidence, closeout material, and validation
-showing the branch is ready to merge into `main`.
+Cycle-start pull requests are non-draft PRs. After the design doc commit is
+pushed, open a PR that references the issue, label the issue
+`work-in-progress`, and link the PR from the issue. The PR is the public cycle
+workspace. It is not ready to merge until the cycle has playback, acceptance
+evidence, closeout material, and validation showing the branch is ready to merge
+into `main`.
 
 ### Commitment
 
@@ -291,11 +299,11 @@ in one sentence, the cycle is too big. Split it.
    posture is not relevant, say so explicitly. Silence is not a position.
 
 2. **Commit and open the cycle PR** - stage the design doc and any cycle-start
-   signpost change, commit, push the branch, open a draft pull request that
+   signpost change, commit, push the branch, open a non-draft pull request that
    references the issue, label the issue `work-in-progress`, and link the PR
-   from the issue. The draft PR is the public cycle workspace; it becomes ready
-   for merge review only after playback, acceptance evidence, closeout
-   material, and validation show the branch is ready to merge into `main`.
+   from the issue. The PR is the public cycle workspace; it becomes ready for
+   merge review only after playback, acceptance evidence, closeout material,
+   and validation show the branch is ready to merge into `main`.
 
 3. **RED** - write failing tests. The proof surface becomes the spec.
    Default to agent surface first.
@@ -324,9 +332,8 @@ in one sentence, the cycle is too big. Split it.
    Closing the cycle packet does not mean `main` has accepted it yet.
 
 7. **PR / review** - when playback, acceptance evidence, closeout material, and
-   validation show the branch is ready to merge into `main`, move the PR out of
-   draft and continue review in the already-open cycle PR until merge or
-   rejection.
+   validation show the branch is ready to merge into `main`, continue review in
+   the already-open cycle PR until merge or rejection.
 
 8. **Ship sync on `main`** - after merge, update repo-level ship
    surfaces such as `docs/BEARING.md`, `CHANGELOG.md`, and release
@@ -438,7 +445,7 @@ to resurrect something, you must address the note.
 idea -> lane:inbox -> lane:cool-ideas -> lane:up-next -> lane:asap
   -> issue + synced merge target + cycle branch
   -> design/<cycle>/  (committed issue)
-  -> draft work-in-progress PR
+  -> non-draft work-in-progress PR
   -> RED -> GREEN -> playback (witness)
   -> retro/<cycle>/   (cycle packet closed)
   -> review -> main

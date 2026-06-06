@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────────
-# Release Preflight — local sanity check before tagging a release.
+# Release Preflight — local sanity check before release prep or tagging.
 #
-# Usage:  npm run release:preflight
-#         bash scripts/release-preflight.sh
+# Usage:  npm run release:prep
+#         npm run release:preflight
+#         bash scripts/release-preflight.sh --stage final-local
 #
 # Exits 0 if all checks pass, 1 if any hard check fails.
 # ──────────────────────────────────────────────────────────────────────────────
@@ -20,9 +21,36 @@ fail() { echo -e "  ${RED}✗${NC} $1"; EXIT=1; }
 warn() { echo -e "  ${YELLOW}!${NC} $1"; }
 
 EXIT=0
+STAGE="final-local"
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --stage)
+      if [ "$#" -lt 2 ]; then
+        echo "release-preflight: --stage requires a value" >&2
+        exit 2
+      fi
+      STAGE="$2"
+      shift 2
+      ;;
+    *)
+      echo "release-preflight: unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+case "$STAGE" in
+  prep-pr | final-local) ;;
+  *)
+    echo "release-preflight: invalid stage: $STAGE" >&2
+    exit 2
+    ;;
+esac
 
 echo ""
 echo -e "${BOLD}═══ Release Preflight ═══${NC}"
+echo "Stage: $STAGE"
 echo ""
 
 # ── 1. Version agreement ─────────────────────────────────────────────────────
@@ -35,11 +63,21 @@ else
   fail "package.json ($PKG) != jsr.json ($JSR)"
 fi
 
+# ── 1b. Release policy guard ─────────────────────────────────────────────────
+echo "Release policy:"
+if bash scripts/release-guard.sh --stage "$STAGE" --tag "v${PKG}"; then
+  pass "release guard"
+else
+  fail "release guard failed"
+fi
+
 # ── 2. Clean working tree ────────────────────────────────────────────────────
 echo "Working tree:"
-if git diff --quiet && git diff --cached --quiet; then
+WORKTREE_STATUS="$(git status --porcelain)"
+if [ "$WORKTREE_STATUS" = "" ]; then
   pass "clean (no uncommitted changes)"
 else
+  printf '%s\n' "$WORKTREE_STATUS"
   fail "dirty working tree — commit or stash first"
 fi
 
@@ -67,13 +105,28 @@ if npm run lint --silent 2>/dev/null; then
 else
   fail "ESLint errors"
 fi
+if npm run lint:md --silent 2>/dev/null; then
+  pass "Markdown clean"
+else
+  fail "Markdown lint errors"
+fi
+if npm run lint:md:code --silent 2>/dev/null; then
+  pass "Markdown code samples clean"
+else
+  fail "Markdown code sample errors"
+fi
+if npm run lint:links --silent 2>/dev/null; then
+  pass "Documentation links clean"
+else
+  fail "Documentation link errors"
+fi
 
 # ── 6. Type firewall ─────────────────────────────────────────────────────────
 echo "Type firewall:"
 if npm run typecheck:src --silent 2>/dev/null; then
   pass "tsc --noEmit (source)"
 else
-  warn "tsc produced errors (advisory — JSDoc JS cross-module false positives)"
+  fail "tsc produced errors"
 fi
 if npm run typecheck:policy --silent 2>/dev/null; then
   pass "IRONCLAD policy"
@@ -118,12 +171,12 @@ else
   fail "JSR publish dry-run failed"
 fi
 
-# ── 9. Security audit (warning only) ─────────────────────────────────────────
+# ── 9. Security audit ────────────────────────────────────────────────────────
 echo "Security:"
 if npm audit --omit=dev --audit-level=high 2>/dev/null; then
   pass "no high/critical vulnerabilities"
 else
-  warn "npm audit found issues (non-blocking)"
+  fail "npm audit found high/critical runtime vulnerabilities"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
@@ -131,11 +184,15 @@ echo ""
 if [ "$EXIT" -eq 0 ]; then
   echo -e "${GREEN}All preflight checks passed.${NC}"
   echo ""
-  echo "Ready to tag:"
-  echo "  git tag -s v${PKG} -m 'release: v${PKG}'"
-  echo "  git push origin v${PKG}"
+  if [ "$STAGE" = "prep-pr" ]; then
+    echo "Ready to push the release-prep branch and open a PR."
+  else
+    echo "Ready to tag:"
+    echo "  git tag -s v${PKG} -m 'release: v${PKG}'"
+    echo "  git push origin v${PKG}"
+  fi
 else
-  echo -e "${RED}Preflight failed. Fix the issues above before tagging.${NC}"
+  echo -e "${RED}Preflight failed. Fix the issues above before continuing.${NC}"
 fi
 echo ""
 exit $EXIT
