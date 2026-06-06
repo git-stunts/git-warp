@@ -54,7 +54,7 @@ result arrays fitting in process memory.
 | 1 | complete | Define memory budget contract and budget error shape. | `test/unit/domain/memory/WarpMemoryPool.test.ts` |
 | 2 | complete | Add large-graph-over-small-pool canonical fixture. | `test/conformance/fixtures/V18LargeGraphOverSmallPoolFixture.ts` |
 | 3 | inProgress | Add public-path full-residency trap tests. | `test/conformance/v18BoundedMemoryLargeGraphGate.test.ts` traps whole-graph residency; blessed public path traps remain open. |
-| 4 | open | Add bounded patch-stream substrate proof. | test |
+| 4 | complete | Add bounded patch-stream substrate proof. | `test/unit/domain/services/optic/CheckpointPatchFactStream.test.ts` |
 | 5 | inProgress | Add stream-built or shard-built read-basis evidence. | `BoundedQueryReadModel` proves one-result read-model leases; patch/shard basis evidence remains open. |
 | 6 | complete | Add node liveness fact resolver evidence. | `test/unit/domain/services/optic/CheckpointFactResolver.test.ts` |
 | 7 | complete | Add edge endpoint fact resolver evidence. | `test/unit/domain/services/optic/CheckpointFactResolver.test.ts` |
@@ -86,6 +86,7 @@ result arrays fitting in process memory.
 | Memory budgets reject over-residency. | `WarpMemoryPool` leases under an 8-byte budget. | Focused unit output. | `npx vitest run test/unit/domain/memory/WarpMemoryPool.test.ts` | Over-budget leases throw `E_MEMORY_BUDGET_EXCEEDED` with stable context. |
 | Public paths obey memory budget. | Large-graph-over-small-pool fixture. | Focused conformance output. | `npx vitest run test/conformance/v18BoundedMemoryLargeGraphGate.test.ts` | Fixture size exceeds budget; streamed reads keep peak leased entries at `1`. |
 | Unsafe public paths are trapped. | Large-graph-over-small-pool fixture. | Full-residency trap output. | `npx vitest run test/conformance/v18BoundedMemoryLargeGraphGate.test.ts` | Whole-graph residency fails closed under the fixture pool; blessed public path traps remain open. |
+| Patch facts stream under budget. | Checkpoint patch fact stream bounded path. | Focused patch fact stream output. | `npx vitest run test/unit/domain/services/optic/CheckpointPatchFactStream.test.ts` | `streamBounded()` keeps peak residency to one patch entry plus one emitted fact. |
 | Fact resolvers are targeted and bounded. | Checkpoint fact stream value objects. | Focused resolver output. | `npx vitest run test/unit/domain/services/optic/CheckpointFactResolver.test.ts` | Node liveness, edge endpoints, node properties, and content OIDs resolve with peak fact lease `1`. |
 | Existing-entity writes have targeted preconditions. | Checkpoint fact stream value objects. | Focused write resolver output. | `npx vitest run test/unit/domain/services/optic/CheckpointExistingEntityWriteResolver.test.ts` | Existing-node and existing-edge write decisions resolve with peak fact lease `1`. |
 | Capability posture is inspectable. | `WarpWorldline.capabilities()`. | Focused unit output. | `npx vitest run test/unit/domain/WarpWorldline.capabilities.test.ts` | Report distinguishes safe, transitional, diagnostic, and legacy surfaces. |

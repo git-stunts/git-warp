@@ -8,6 +8,8 @@ import NodePropSet from '../../types/ops/NodePropSet.ts';
 import NodeRemove from '../../types/ops/NodeRemove.ts';
 import { isPropValue } from '../../types/PropValue.ts';
 import { EventId, compareEventIds } from '../../utils/EventId.ts';
+import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';
+import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
 import { normalizeRawOp } from '../OpNormalizer.ts';
 import {
   CheckpointAdjacencyFact,
@@ -31,6 +33,10 @@ export type CheckpointPatchFactStreamOptions = {
 export type CheckpointPatchFactStreamReadOptions = {
   readonly previousCheckpoint: CheckpointTailCheckpointFrontier;
   readonly targetFrontier: Map<string, string>;
+};
+
+export type CheckpointPatchFactStreamBoundedReadOptions = CheckpointPatchFactStreamReadOptions & {
+  readonly pool: WarpMemoryPool;
 };
 
 type FactWithEvent = {
@@ -59,6 +65,17 @@ export default class CheckpointPatchFactStream {
     }
   }
 
+  async *streamBounded(
+    options: CheckpointPatchFactStreamBoundedReadOptions,
+  ): AsyncIterable<CheckpointBasisFact> {
+    validateCheckpoint(options.previousCheckpoint);
+    validateFrontier(options.targetFrontier, 'targetFrontier');
+    const pool = requireMemoryPool(options.pool);
+    for (const writerId of sortedWriterIds(options.targetFrontier)) {
+      yield* this._streamWriterFacts({ writerId, options, pool });
+    }
+  }
+
   private async _collectEntries(
     options: CheckpointPatchFactStreamReadOptions,
   ): Promise<readonly CheckpointTailPatchEntry[]> {
@@ -72,6 +89,40 @@ export default class CheckpointPatchFactStream {
       entries.push(...writerEntries);
     }
     return Object.freeze(entries);
+  }
+
+  private async *_streamWriterFacts(options: {
+    readonly writerId: string;
+    readonly options: CheckpointPatchFactStreamReadOptions;
+    readonly pool: WarpMemoryPool;
+  }): AsyncIterable<CheckpointBasisFact> {
+    const writerEntries = await this._loadWriterEntries({
+      writerId: options.writerId,
+      previousCheckpoint: options.options.previousCheckpoint,
+      targetFrontier: options.options.targetFrontier,
+    });
+    for (const entry of writerEntries) {
+      yield* this._streamEntryFacts(entry, options.pool);
+    }
+  }
+
+  private *_streamEntryFacts(
+    entry: CheckpointTailPatchEntry,
+    pool: WarpMemoryPool,
+  ): Iterable<CheckpointBasisFact> {
+    const entryLease = pool.acquire({ scope: 'checkpoint.patch.entry', amount: 1 });
+    try {
+      for (const fact of lowerEntryToFacts(entry)) {
+        const factLease = pool.acquire({ scope: 'checkpoint.patch.fact', amount: 1 });
+        try {
+          yield fact.fact;
+        } finally {
+          factLease.release();
+        }
+      }
+    } finally {
+      entryLease.release();
+    }
   }
 
   private async _loadWriterEntries(options: {
@@ -318,6 +369,16 @@ function validateSource(source: CheckpointTailOpticSource): void {
   ) {
     throwStreamError('source', 'invalid-source');
   }
+}
+
+function requireMemoryPool(pool: WarpMemoryPool): WarpMemoryPool {
+  if (pool instanceof WarpMemoryPool) {
+    return pool;
+  }
+  throw new MemoryBudgetError('Checkpoint patch fact stream requires a WarpMemoryPool', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field: 'pool' },
+  });
 }
 
 function validateCheckpoint(checkpoint: CheckpointTailCheckpointFrontier): void {
