@@ -29,7 +29,7 @@ goalpost.
 | Release status | `active` |
 | Current public release | `v17.0.0` |
 | Goalposts | `5` |
-| Landed goalposts | `2` |
+| Landed goalposts | `3` |
 | Total planned slice budget | `53` |
 | Target lane | `lane:v18.0.0` |
 | Release evidence packet | `docs/releases/v18.0.0/README.md` |
@@ -42,7 +42,7 @@ and placeholder-free, and `npm run release:preflight` passes from aligned
 
 | Goalpost | Status | Slice budget | Umbrella or tracker issue | Goalpost doc | Release gate |
 | --- | --- | ---: | --- | --- | --- |
-| V18-GP1 Optics Public API Closeout | active | 20 | [#547](https://github.com/git-stunts/git-warp/issues/547) | [v18-gp1-optics-public-api-closeout.md](method/roadmap/v18.0.0/v18-gp1-optics-public-api-closeout.md) | First-use Optics must be usable and honest without hidden full materialization. |
+| V18-GP1 Optics Public API Closeout | landed | 20 | [#547](https://github.com/git-stunts/git-warp/issues/547) | [v18-gp1-optics-public-api-closeout.md](method/roadmap/v18.0.0/v18-gp1-optics-public-api-closeout.md) | First-use Optics are usable and honest without hidden full materialization. |
 | V18-GP2 Bounded-Memory Large-Graph Product Gate | active | 15 | [#549](https://github.com/git-stunts/git-warp/issues/549) | [v18-gp2-bounded-memory-large-graph-gate.md](method/roadmap/v18.0.0/v18-gp2-bounded-memory-large-graph-gate.md) | Normal public reads, writes, content lookup, and sync must honor an explicit memory budget. |
 | V18-GP3 Content Attachment Plane Honesty | landed | 4 | [#550](https://github.com/git-stunts/git-warp/issues/550) | [v18-gp3-content-attachment-plane-honesty.md](method/roadmap/v18.0.0/v18-gp3-content-attachment-plane-honesty.md) | Release claims now distinguish typed attachment-plane progress from accepted legacy storage residuals. |
 | V18-GP4 Holographic Slicing And Checkpoint Basis | landed | 8 | [#626](https://github.com/git-stunts/git-warp/issues/626), [#628](https://github.com/git-stunts/git-warp/issues/628)-[#635](https://github.com/git-stunts/git-warp/issues/635) | [v18-gp4-holographic-slicing-checkpoint-basis.md](method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md) | Normal public graph-shaped reads now have bounded, witnessed slices over declared basis. |
@@ -58,30 +58,28 @@ V18-GP4 Holographic slicing basis
   -> V18-GP5 Release operation evidence
 ```
 
-V18-GP4 is landed. The next release-blocking target is V18-GP1
-[#547](https://github.com/git-stunts/git-warp/issues/547), with V18-GP2
-[#549](https://github.com/git-stunts/git-warp/issues/549) still owning the
-broader bounded-memory release gate that may keep GP1 from closing as
-release-complete.
+V18-GP1, V18-GP3, and V18-GP4 are landed. The next release-blocking target is
+V18-GP2 [#549](https://github.com/git-stunts/git-warp/issues/549), which owns
+the broader bounded-memory public-path product gate.
 
 Release progress should be reported as:
 
 ```text
-v18.0.0 goalposts: 2/5 landed
-v18.0.0 slices: 12/53 landed
-next goalpost: V18-GP1 Optics Public API Closeout
-next slice: reconcile #547 against landed Optics evidence and #549 dependency
+v18.0.0 goalposts: 3/5 landed
+v18.0.0 slices: 32/53 landed
+next goalpost: V18-GP2 Bounded-Memory Large-Graph Product Gate
+next slice: reconcile #549 against landed holographic slicing evidence
 ```
 
 ## Snapshot
 
 | Metric | Count |
 | --- | ---: |
-| Open GitHub issues indexed | 408 |
+| Open GitHub issues indexed | 407 |
 | `lane:bad-code` maintenance issues | 214 |
 | `lane:cool-ideas` enhancement issues | 95 |
-| `lane:release` issues | 21 |
-| Blocked issues | 40 |
+| `lane:release` issues | 20 |
+| Blocked issues | 39 |
 | Unlabeled issues | 1 |
 
 ## Release Assignment Rules
@@ -97,7 +95,7 @@ next slice: reconcile #547 against landed Optics evidence and #549 dependency
 
 | Release Slot | Count | Planning Intent |
 | --- | ---: | --- |
-| v18.0.0 | 3 | Ship only after first-use Optics, bounded-memory public paths, and release operation evidence are coherent. |
+| v18.0.0 | 2 | Ship only after bounded-memory public paths and release operation evidence are coherent. |
 | v18.0.1 | 50 | Repair public docs, examples, release tooling, and review guardrails that make the v18 line usable without expanding the runtime ontology. |
 | v18.0.2 | 50 | Finish the remaining release-tooling spillover, then start the testing-quality cleanup wave with behavior-backed proofs instead of brittle text checks. |
 | v18.0.3 | 50 | Continue static-text and fixture-quality paydown while keeping the release train small enough to review as one coherent patch wave. |
@@ -125,8 +123,8 @@ next slice: reconcile #547 against landed Optics evidence and #549 dependency
 | lane:cool-ideas | 95 |
 | lane:up-next | 43 |
 | lane:backlog-root | 30 |
-| lane:release | 21 |
-| lane:v18.0.0 | 3 |
+| lane:release | 20 |
+| lane:v18.0.0 | 2 |
 | lane:v19.0.0 | 11 |
 | lane:inbox | 4 |
 | lane:v21.0.0 | 4 |
@@ -137,7 +135,7 @@ next slice: reconcile #547 against landed Optics evidence and #549 dependency
 | Label | Count |
 | --- | ---: |
 | type:maintenance | 214 |
-| type:enhancement | 201 |
+| type:enhancement | 192 |
 
 ### Release Home Labels
 
@@ -163,7 +161,7 @@ next slice: reconcile #547 against landed Optics evidence and #549 dependency
 | feature:observer-admission-runtime | 27 |
 | feature:tooling-release | 27 |
 | feature:trie-state-storage | 16 |
-| feature:graph-model-substrate | 4 |
+| feature:graph-model-substrate | 3 |
 | feature:btr-provenance-boundary | 1 |
 | feature:materialization-snapshotting | 1 |
 | feature:materialized-index | 1 |
@@ -176,11 +174,10 @@ Each issue appears once in the proposed release tables below. `Status` is derive
 
 ### v18.0.0 - Public Release Gate
 
-Ship only after first-use Optics, bounded-memory public paths, and release operation evidence are coherent.
+Ship only after bounded-memory public paths and release operation evidence are coherent.
 
 | Issue | Title | Status | Type | Lane | Feature | Release Home | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| [#547](https://github.com/git-stunts/git-warp/issues/547) | Optics public API closeout | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
 | [#549](https://github.com/git-stunts/git-warp/issues/549) | Bounded-memory large-graph product gate | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
 | [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
 
@@ -705,8 +702,8 @@ Issues without enough signal for a release slot. They stay visible here until la
 
 | Check | Count |
 | --- | ---: |
-| Open issues pulled from GitHub | 408 |
-| Issues assigned to roadmap tables | 408 |
+| Open issues pulled from GitHub | 407 |
+| Issues assigned to roadmap tables | 407 |
 | Largest release slot | 50 |
 | Release slots over 50 issues | 0 |
 | Unassigned gap | 0 |

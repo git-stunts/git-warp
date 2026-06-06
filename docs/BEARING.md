@@ -80,7 +80,6 @@ as evidence. The migration map is
 Current release-blocking issues:
 
 - [#549 Bounded-memory large-graph product gate](https://github.com/git-stunts/git-warp/issues/549)
-- [#547 Optics public API closeout](https://github.com/git-stunts/git-warp/issues/547)
 - [#552 v18 public release blockers](https://github.com/git-stunts/git-warp/issues/552)
 
 Completed gate evidence:
@@ -91,6 +90,9 @@ Completed gate evidence:
   through PR #643 plus tracker closeout for issues #629 through #632.
 - V18-GP3 Content attachment-plane honesty closed on 2026-06-06 by naming the
   v18 residual risk and carrying full storage-plane retirement to #646.
+- V18-GP1 Optics public API closeout closed on 2026-06-06 with public
+  coordinate node/property read, first-use honesty, recovery, docs, and
+  consumer type evidence.
 
 ## Where Are We
 
