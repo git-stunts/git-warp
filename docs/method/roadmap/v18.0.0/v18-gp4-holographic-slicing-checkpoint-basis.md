@@ -10,7 +10,7 @@
 | Goalpost doc | `docs/method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md` |
 | Design cycle | `docs/design/0271-v18-holographic-slicing-checkpoint-basis/v18-holographic-slicing-checkpoint-basis.md` |
 | Slice budget | `8` |
-| Status | `active` |
+| Status | `landed` |
 | Sponsor human | `James` |
 | Sponsor agent | `Codex` |
 
@@ -21,12 +21,12 @@ slices over a declared checkpoint-tail or streamed checkpoint basis.
 
 ## Current Truth
 
-Design issue [#626](https://github.com/git-stunts/git-warp/issues/626) is closed
-because the design landed. That does not prove the implementation goalpost
-landed. The runtime proof stories are child issues
-[#628](https://github.com/git-stunts/git-warp/issues/628) through
-[#635](https://github.com/git-stunts/git-warp/issues/635), and they remain the
-release-relevant proof surface for this goalpost.
+Design issue [#626](https://github.com/git-stunts/git-warp/issues/626) and
+implementation proof stories [#628](https://github.com/git-stunts/git-warp/issues/628)
+through [#635](https://github.com/git-stunts/git-warp/issues/635) are closed.
+PR [#643](https://github.com/git-stunts/git-warp/pull/643) landed the runtime
+and witness proof surface, then the remaining tracker drift was closed with
+deterministic evidence comments on 2026-06-06.
 
 ## Scope
 
@@ -61,36 +61,38 @@ release-relevant proof surface for this goalpost.
 
 | Slice | Status | Description | Expected proof |
 | ---: | --- | --- | --- |
-| 1 | open | Materialization boundary guard. | test |
-| 2 | open | Checkpoint basis manifest contract. | schema |
-| 3 | open | Streaming checkpoint basis builder. | test |
-| 4 | open | Patch-to-fact stream. | test |
-| 5 | open | Node and property optics on streamed basis. | test |
-| 6 | open | NeighborhoodOptic adjacency slices. | test |
-| 7 | open | TraversalOptic cursorized traversal. | test |
-| 8 | open | Holographic CLI/operator witness playback. | witness |
+| 1 | complete | Materialization boundary guard. | test |
+| 2 | complete | Checkpoint basis manifest contract. | schema |
+| 3 | complete | Streaming checkpoint basis builder. | test |
+| 4 | complete | Patch-to-fact stream. | test |
+| 5 | complete | Node and property optics on streamed basis. | test |
+| 6 | complete | NeighborhoodOptic adjacency slices. | test |
+| 7 | complete | TraversalOptic cursorized traversal. | test |
+| 8 | complete | Holographic CLI/operator witness playback. | witness |
 
 ## Acceptance Criteria
 
-- [ ] App-facing reads do not hide full materialization.
-- [ ] Checkpoint manifests and slice outputs separate byte identity, retained
+- [x] App-facing reads do not hide full materialization.
+- [x] Checkpoint manifests and slice outputs separate byte identity, retained
       payload identity, commitment/proof identity, basis identity, and semantic
       reading identity.
-- [ ] Streaming checkpoint basis construction produces CAS-backed shard roots
+- [x] Streaming checkpoint basis construction produces CAS-backed shard roots
       under memory budget.
-- [ ] Node, property, neighborhood, and traversal optics read through bounded
+- [x] Node, property, neighborhood, and traversal optics read through bounded
       basis facts plus bounded tail.
-- [ ] Missing support obligations are surfaced as obstruction, residual,
+- [x] Missing support obligations are surfaced as obstruction, residual,
       redaction, plurality, or rehydration posture.
-- [ ] CLI/operator witness output is machine-readable.
+- [x] CLI/operator witness output is machine-readable.
 
 ## Deterministic Evidence
 
 | Claim | Canonical fixture or input | Witness | Replay command | Expected deterministic result |
 | --- | --- | --- | --- | --- |
-| Materialization boundary is guarded. | Tag commit source tree. | Focused guard test output. | `npm test -- --run <materialization-boundary-test>` | Public paths fail if they call materializing APIs. |
-| Checkpoint basis identity is explicit. | Checkpoint basis manifest fixture. | Manifest validation output. | `npm test -- --run <checkpoint-basis-manifest-test>` | Manifest validates basis identity, reading identity, roots, frontier, and obstruction posture. |
-| Slices are replayable. | Canonical graph or patch-stream fixture. | CLI/operator witness. | `npm test -- --run <holographic-slice-test>` | Replay reproduces stable slice output or typed obstruction. |
+| Materialization boundary is guarded. | PR #643 merge commit `d52cbea16f6ac1236dbdfd0579fe6da0b9e6a809`. | Focused guard and conformance tests. | `npx vitest run test/conformance/v17CheckpointTailOpticReadBasis.test.ts` | Public paths fail if they call materializing APIs. |
+| Checkpoint basis identity is explicit. | `test/unit/domain/services/optic/CheckpointBasisManifest.test.ts`. | Manifest validation output. | `npx vitest run test/unit/domain/services/optic/CheckpointBasisManifest.test.ts` | Manifest validates basis identity, reading identity, roots, frontier, and obstruction posture. |
+| Streamed basis slices are replayable. | `test/unit/domain/services/optic/StreamingCheckpointBasisBuilder.test.ts` and `test/unit/domain/services/optic/CheckpointPatchFactStream.test.ts`. | Builder and patch-to-fact test output. | `npx vitest run test/unit/domain/services/optic/StreamingCheckpointBasisBuilder.test.ts test/unit/domain/services/optic/CheckpointPatchFactStream.test.ts` | Replay produces stable shard roots, stable fact order, or typed obstruction. |
+| Optics read through bounded basis. | `test/unit/domain/services/optic/CheckpointShardFactReader.manifest.test.ts`. | Manifest-backed shard read output. | `npx vitest run test/unit/domain/services/optic/CheckpointShardFactReader.manifest.test.ts` | Node, property, neighborhood, and traversal reads use targeted basis shards plus bounded tail. |
+| Operator playback is machine-readable. | PR #643 holographic CLI witness implementation. | CLI/operator witness tests. | `npm run test:local` | Holographic witness playback remains part of the full local suite. |
 
 ## Observer Geometry
 
@@ -108,21 +110,20 @@ npm run release:prep
 
 ## Release Gate Impact
 
-This goalpost is the graph-substrate honesty bridge between v18 Optics and the
-bounded-memory product gate. Without it, the release can describe design intent
-but cannot prove the bounded slice substrate needed for the next implementation
-work.
+This landed goalpost is the graph-substrate honesty bridge between v18 Optics
+and the bounded-memory product gate. The release can now cite bounded slice
+substrate evidence while the broader bounded-memory product gate remains open.
 
 ## Residual Risks
 
 | Risk | Rationale | Owner | Follow-up issue |
 | --- | --- | --- | --- |
-| #626 is closed while implementation proof stories remain open. | The design landed separately from implementation; ROADMAP treats #628-#635 as the release proof surface. | `@git-stunts` | [#628](https://github.com/git-stunts/git-warp/issues/628)-[#635](https://github.com/git-stunts/git-warp/issues/635) |
+| Broader bounded-memory release gate remains open. | GP4 proves bounded holographic slice substrate, not the full public-path memory-budget platform required by V18-GP2. | `@git-stunts` | [#549](https://github.com/git-stunts/git-warp/issues/549) |
 
 ## Closeout
 
-- [ ] Slices complete or honestly dispositioned.
-- [ ] Proof matrix replayed.
-- [ ] Goalpost issue updated.
-- [ ] Child proof-story issues closed, superseded, or carried forward.
-- [ ] Release evidence updated.
+- [x] Slices complete or honestly dispositioned.
+- [x] Proof matrix replayed.
+- [x] Goalpost issue updated.
+- [x] Child proof-story issues closed, superseded, or carried forward.
+- [x] Release evidence updated.
