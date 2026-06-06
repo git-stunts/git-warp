@@ -144,12 +144,12 @@ else
   fail "Declaration surface mismatch"
 fi
 
-# ── 7. Unit tests ────────────────────────────────────────────────────────────
+# ── 7. Coverage tests ────────────────────────────────────────────────────────
 echo "Tests:"
 if npm run test:coverage:ci --silent 2>/dev/null; then
-  pass "unit tests + coverage threshold"
+  pass "coverage test suite + threshold"
 else
-  fail "unit test or coverage failures"
+  fail "coverage test suite or threshold failures"
 fi
 
 # ── 8. Pack dry-runs ─────────────────────────────────────────────────────────
