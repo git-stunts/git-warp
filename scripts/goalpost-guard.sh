@@ -4,7 +4,8 @@ set -euo pipefail
 
 REQUIRED_TERMS=(
   "Goalpost id"
-  "Slice Budget"
+  "Slice budget"
+  "## Slice Budget"
   "Proof Stories"
   "Acceptance Criteria"
   "Deterministic Evidence"

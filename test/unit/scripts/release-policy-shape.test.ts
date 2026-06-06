@@ -190,6 +190,7 @@ describe('release policy shape', () => {
     expect(canonicalFixturesDoc).toContain('fixture + replay command -> witness');
     expect(canonicalFixturesDoc).toContain('Host-specific noise must be normalized');
     expect(goalpostGuard).toContain('Deterministic Evidence');
+    expect(goalpostGuard).toContain('Slice budget');
   });
 
   it('keeps the roadmap header honest about the public release and repair entry', () => {
