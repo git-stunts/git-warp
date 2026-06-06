@@ -19,6 +19,8 @@ import type Observer from './services/query/Observer.ts';
 import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
 import CheckpointTailBasisVerifier from './services/optic/CheckpointTailBasisVerifier.ts';
 import type { WorldlineOptions } from './capabilities/QueryCapability.ts';
+import type MemoryCapabilityReport from './memory/MemoryCapabilityReport.ts';
+import createV18BoundedMemoryCapabilityReport from './memory/createV18BoundedMemoryCapabilityReport.ts';
 
 export type WarpWorldlineOpenOptions = Omit<WarpGraphDeps, 'graphName'> & {
   readonly worldlineName: string;
@@ -34,6 +36,7 @@ type CreateWorldline = (options?: WorldlineOptions) => Worldline;
 type PrepareOpticBasis = () => Promise<WarpWorldlineOpticBasis>;
 type GetFrontier = () => Promise<Map<string, string>>;
 type ReadOpticBasis = () => WarpWorldlineOpticBasis | null;
+type ReadCapabilities = () => MemoryCapabilityReport;
 
 type WarpWorldlineConstructionOptions = {
   readonly worldlineName: string;
@@ -43,6 +46,7 @@ type WarpWorldlineConstructionOptions = {
   readonly prepareOpticBasis?: PrepareOpticBasis;
   readonly getFrontier?: GetFrontier;
   readonly readOpticBasis?: ReadOpticBasis;
+  readonly readCapabilities?: ReadCapabilities;
 };
 
 export default class WarpWorldline {
@@ -53,6 +57,7 @@ export default class WarpWorldline {
   private readonly _prepareOpticBasis: PrepareOpticBasis | null;
   private readonly _getFrontier: GetFrontier | null;
   private readonly _readOpticBasis: ReadOpticBasis | null;
+  private readonly _readCapabilities: ReadCapabilities;
 
   constructor(options: WarpWorldlineConstructionOptions) {
     assertNonEmpty(options.worldlineName, 'worldlineName');
@@ -64,6 +69,7 @@ export default class WarpWorldline {
     this._prepareOpticBasis = options.prepareOpticBasis ?? null;
     this._getFrontier = options.getFrontier ?? null;
     this._readOpticBasis = options.readOpticBasis ?? null;
+    this._readCapabilities = options.readCapabilities ?? createV18BoundedMemoryCapabilityReport;
     Object.freeze(this);
   }
 
@@ -100,6 +106,10 @@ export default class WarpWorldline {
 
   optic(): WorldlineOptic {
     return this.live().optic();
+  }
+
+  capabilities(): MemoryCapabilityReport {
+    return this._readCapabilities();
   }
 
   async prepareOpticBasis(): Promise<WarpWorldlineOpticBasis> {

@@ -60,6 +60,7 @@ import WarpAppDefault, {
   StorageError,
   TraversalError,
   OperationAbortedError,
+  MemoryBudgetError,
   Observer,
   ContinuumArtifactAuthorityError,
 
@@ -100,6 +101,14 @@ import WarpAppDefault, {
   GitWarpReceiptSourceFacts,
   createCurrentContinuumGeneratedFamilyInventory,
   ContinuumArtifactJsonFileAdapter,
+  MemoryBudget,
+  MemoryBudgetLease,
+  MemoryCapability,
+  MemoryCapabilityPosture,
+  MemoryCapabilityReport,
+  WarpMemoryPool,
+  WarpMemoryPoolSnapshot,
+  createV18BoundedMemoryCapabilityReport,
 } from '../../../index.ts';
 
 const { WarpGraph, WarpRuntime, Worldline, ObserverView } = (await import('../../../index.ts') as any);
@@ -345,9 +354,38 @@ describe('index.ts exports', () => {
       expect(typeof OperationAbortedError).toBe('function');
     });
 
+    it('exports MemoryBudgetError', () => {
+      expect(MemoryBudgetError).toBeDefined();
+      expect(typeof MemoryBudgetError).toBe('function');
+    });
+
     it('exports ContinuumArtifactAuthorityError', () => {
       expect(ContinuumArtifactAuthorityError).toBeDefined();
       expect(typeof ContinuumArtifactAuthorityError).toBe('function');
+    });
+  });
+
+  describe('bounded-memory contract exports', () => {
+    it('exports the memory budget runtime nouns', () => {
+      expect(MemoryBudget).toBeDefined();
+      expect(typeof MemoryBudget).toBe('function');
+      expect(MemoryBudgetLease).toBeDefined();
+      expect(typeof MemoryBudgetLease).toBe('function');
+      expect(WarpMemoryPool).toBeDefined();
+      expect(typeof WarpMemoryPool).toBe('function');
+      expect(WarpMemoryPoolSnapshot).toBeDefined();
+      expect(typeof WarpMemoryPoolSnapshot).toBe('function');
+    });
+
+    it('exports the memory capability report runtime nouns', () => {
+      expect(MemoryCapability).toBeDefined();
+      expect(typeof MemoryCapability).toBe('function');
+      expect(MemoryCapabilityPosture).toBeDefined();
+      expect(typeof MemoryCapabilityPosture).toBe('function');
+      expect(MemoryCapabilityReport).toBeDefined();
+      expect(typeof MemoryCapabilityReport).toBe('function');
+      expect(createV18BoundedMemoryCapabilityReport).toBeDefined();
+      expect(typeof createV18BoundedMemoryCapabilityReport).toBe('function');
     });
   });
 

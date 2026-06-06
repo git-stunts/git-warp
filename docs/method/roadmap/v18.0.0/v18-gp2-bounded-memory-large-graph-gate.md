@@ -51,11 +51,11 @@ result arrays fitting in process memory.
 
 | Slice | Status | Description | Expected proof |
 | ---: | --- | --- | --- |
-| 1 | open | Define memory budget contract and budget error shape. | test |
-| 2 | open | Add large-graph-over-small-pool canonical fixture. | fixture |
-| 3 | open | Add public-path full-residency trap tests. | test |
+| 1 | complete | Define memory budget contract and budget error shape. | `test/unit/domain/memory/WarpMemoryPool.test.ts` |
+| 2 | complete | Add large-graph-over-small-pool canonical fixture. | `test/conformance/fixtures/V18LargeGraphOverSmallPoolFixture.ts` |
+| 3 | inProgress | Add public-path full-residency trap tests. | `test/conformance/v18BoundedMemoryLargeGraphGate.test.ts` traps whole-graph residency; blessed public path traps remain open. |
 | 4 | open | Add bounded patch-stream substrate proof. | test |
-| 5 | open | Add stream-built or shard-built read-basis evidence. | test |
+| 5 | inProgress | Add stream-built or shard-built read-basis evidence. | `BoundedQueryReadModel` proves one-result read-model leases; patch/shard basis evidence remains open. |
 | 6 | open | Add node liveness fact resolver evidence. | test |
 | 7 | open | Add edge endpoint fact resolver evidence. | test |
 | 8 | open | Add property fact resolver evidence. | test |
@@ -63,28 +63,30 @@ result arrays fitting in process memory.
 | 10 | open | Add existing-entity write resolver evidence. | test |
 | 11 | open | Add bounded read cursor or limit evidence. | test |
 | 12 | open | Add sync cursor or batch evidence. | test |
-| 13 | open | Add capability report for bounded and legacy surfaces. | test |
+| 13 | inProgress | Add capability report for bounded and legacy surfaces. | `test/unit/domain/WarpWorldline.capabilities.test.ts`; operator CLI report remains open. |
 | 14 | open | Add operator memory-budget witness. | witness |
-| 15 | open | Update release evidence and close or disposition #549. | issueUpdate |
+| 15 | open | Update non-release closeout evidence and close or disposition #549. | issueUpdate |
 
 ## Acceptance Criteria
 
-- [ ] A committed large-graph fixture exceeds the configured git-warp memory
+- [x] A committed large-graph fixture exceeds the configured git-warp memory
       budget.
 - [ ] Blessed public paths fail if they use full residency.
 - [ ] Reads, writes, content lookup, and sync have bounded proof.
-- [ ] Capability reporting distinguishes safe, transitional, diagnostic, and
+- [x] Capability reporting distinguishes safe, transitional, diagnostic, and
       legacy surfaces.
-- [ ] Release evidence names fixture, witness, replay command, and residual
-      risk.
+- [ ] Non-release closeout evidence names fixture, witness, replay command, and
+      residual risk. Release evidence is skipped until explicit tag/release
+      approval.
 
 ## Deterministic Evidence
 
 | Claim | Canonical fixture or input | Witness | Replay command | Expected deterministic result |
 | --- | --- | --- | --- | --- |
-| Public paths obey memory budget. | Large-graph-over-small-pool fixture. | Focused conformance output. | `npm test -- --run <bounded-memory-conformance>` | Public operations complete or fail closed without full residency. |
-| Unsafe public paths are trapped. | Tag commit source tree. | Full-residency trap output. | `npm test -- --run <full-residency-trap>` | Test fails on materialization, unbounded arrays, or full snapshot construction. |
-| Capability posture is inspectable. | Capability report fixture. | Operator report witness. | `npm test -- --run <capability-report-test>` | Report distinguishes bounded, transitional, diagnostic, offline, and legacy surfaces. |
+| Memory budgets reject over-residency. | `WarpMemoryPool` leases under an 8-byte budget. | Focused unit output. | `npx vitest run test/unit/domain/memory/WarpMemoryPool.test.ts` | Over-budget leases throw `E_MEMORY_BUDGET_EXCEEDED` with stable context. |
+| Public paths obey memory budget. | Large-graph-over-small-pool fixture. | Focused conformance output. | `npx vitest run test/conformance/v18BoundedMemoryLargeGraphGate.test.ts` | Fixture size exceeds budget; streamed reads keep peak leased entries at `1`. |
+| Unsafe public paths are trapped. | Large-graph-over-small-pool fixture. | Full-residency trap output. | `npx vitest run test/conformance/v18BoundedMemoryLargeGraphGate.test.ts` | Whole-graph residency fails closed under the fixture pool; blessed public path traps remain open. |
+| Capability posture is inspectable. | `WarpWorldline.capabilities()`. | Focused unit output. | `npx vitest run test/unit/domain/WarpWorldline.capabilities.test.ts` | Report distinguishes safe, transitional, diagnostic, and legacy surfaces. |
 
 ## Observer Geometry
 
@@ -97,7 +99,7 @@ result arrays fitting in process memory.
 ```bash
 npm run test:local
 npm run typecheck
-npm run release:prep
+# Release commands are skipped until explicit user approval.
 ```
 
 ## Release Gate Impact
