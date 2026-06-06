@@ -110,6 +110,7 @@ describe('release policy shape', () => {
     expect(releaseWorkflow).toContain('STAGE="rerun-workflow"');
     expect(releaseWorkflow).toContain('STAGE="tag-workflow"');
     expect(releaseWorkflow).toContain('npm run release:guard -- --stage "$STAGE" --tag "${{ steps.meta.outputs.tag }}"');
+    expect(releaseWorkflow).toContain('persist-credentials: false');
 
     expect(releaseDoc).toContain('Tag-time release law');
     expect(releaseDoc).toContain('The guard is stage-aware');
