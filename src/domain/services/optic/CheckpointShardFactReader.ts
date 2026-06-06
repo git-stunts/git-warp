@@ -39,7 +39,7 @@ export default class CheckpointShardFactReader {
     nodeId: string,
   ): Promise<boolean> {
     const path = this._metaPath(nodeId);
-    const oid = basis.indexOids[path];
+    const oid = basis.manifest.livenessRoots.get(path);
     if (oid === undefined) {
       return false;
     }
@@ -61,7 +61,7 @@ export default class CheckpointShardFactReader {
     propertyKey: string,
   ): Promise<PropValue | undefined> {
     const path = this._propertyPath(nodeId);
-    const oid = basis.propOids[path];
+    const oid = basis.manifest.propertyRoots.get(path);
     if (oid === undefined) {
       return undefined;
     }
@@ -86,7 +86,7 @@ export default class CheckpointShardFactReader {
     nodeId: string,
   ): readonly ReadIdentityIndexShard[] {
     const path = this._metaPath(nodeId);
-    return shardIdentities([{ path, oid: basis.indexOids[path] }]);
+    return shardIdentities([{ path, oid: basis.manifest.livenessRoots.get(path) }]);
   }
 
   propertyShardIdentities(
@@ -94,7 +94,7 @@ export default class CheckpointShardFactReader {
     nodeId: string,
   ): readonly ReadIdentityIndexShard[] {
     const path = this._propertyPath(nodeId);
-    return shardIdentities([{ path, oid: basis.propOids[path] }]);
+    return shardIdentities([{ path, oid: basis.manifest.propertyRoots.get(path) }]);
   }
 
   private _metaPath(nodeId: string): string {

@@ -49,7 +49,7 @@ describe('StreamingCheckpointBasisBuilder', () => {
 
     const firstChunk = decodeChunk(storage.requiredBlob(0));
     expect(firstChunk.map((fact) => fact.kind)).toEqual(['node-liveness', 'node-liveness']);
-    expect(firstChunk.map((fact) => fact.eventId.patchSha)).toEqual(['aaaa', 'bbbb']);
+    expect(firstChunk.map((fact) => eventPatchSha(fact))).toEqual(['aaaa', 'bbbb']);
   });
 
   it('keeps the builder source off full-state and materialization inputs', () => {
@@ -115,4 +115,11 @@ function livenessFact(options: {
 
 function decodeChunk(bytes: Uint8Array): readonly CheckpointBasisFactTransport[] {
   return defaultCodec.decode<readonly CheckpointBasisFactTransport[]>(bytes);
+}
+
+function eventPatchSha(fact: CheckpointBasisFactTransport): string {
+  if ('eventId' in fact) {
+    return fact.eventId.patchSha;
+  }
+  throw new Error('expected event-backed checkpoint basis fact');
 }
