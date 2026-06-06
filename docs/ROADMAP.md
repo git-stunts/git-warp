@@ -29,7 +29,7 @@ goalpost.
 | Release status | `active` |
 | Current public release | `v17.0.0` |
 | Goalposts | `5` |
-| Landed goalposts | `1` |
+| Landed goalposts | `2` |
 | Total planned slice budget | `53` |
 | Target lane | `lane:v18.0.0` |
 | Release evidence packet | `docs/releases/v18.0.0/README.md` |
@@ -44,7 +44,7 @@ and placeholder-free, and `npm run release:preflight` passes from aligned
 | --- | --- | ---: | --- | --- | --- |
 | V18-GP1 Optics Public API Closeout | active | 20 | [#547](https://github.com/git-stunts/git-warp/issues/547) | [v18-gp1-optics-public-api-closeout.md](method/roadmap/v18.0.0/v18-gp1-optics-public-api-closeout.md) | First-use Optics must be usable and honest without hidden full materialization. |
 | V18-GP2 Bounded-Memory Large-Graph Product Gate | active | 15 | [#549](https://github.com/git-stunts/git-warp/issues/549) | [v18-gp2-bounded-memory-large-graph-gate.md](method/roadmap/v18.0.0/v18-gp2-bounded-memory-large-graph-gate.md) | Normal public reads, writes, content lookup, and sync must honor an explicit memory budget. |
-| V18-GP3 Content Attachment Plane Honesty | active | 4 | [#550](https://github.com/git-stunts/git-warp/issues/550) | [v18-gp3-content-attachment-plane-honesty.md](method/roadmap/v18.0.0/v18-gp3-content-attachment-plane-honesty.md) | Release claims must distinguish typed attachment-plane progress from accepted legacy storage residuals. |
+| V18-GP3 Content Attachment Plane Honesty | landed | 4 | [#550](https://github.com/git-stunts/git-warp/issues/550) | [v18-gp3-content-attachment-plane-honesty.md](method/roadmap/v18.0.0/v18-gp3-content-attachment-plane-honesty.md) | Release claims now distinguish typed attachment-plane progress from accepted legacy storage residuals. |
 | V18-GP4 Holographic Slicing And Checkpoint Basis | landed | 8 | [#626](https://github.com/git-stunts/git-warp/issues/626), [#628](https://github.com/git-stunts/git-warp/issues/628)-[#635](https://github.com/git-stunts/git-warp/issues/635) | [v18-gp4-holographic-slicing-checkpoint-basis.md](method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md) | Normal public graph-shaped reads now have bounded, witnessed slices over declared basis. |
 | V18-GP5 Release Operation Evidence | active | 6 | [#552](https://github.com/git-stunts/git-warp/issues/552) | [v18-gp5-release-operation-evidence.md](method/roadmap/v18.0.0/v18-gp5-release-operation-evidence.md) | Tagging and publishing must satisfy the release policy and record deterministic evidence. |
 
@@ -67,8 +67,8 @@ release-complete.
 Release progress should be reported as:
 
 ```text
-v18.0.0 goalposts: 1/5 landed
-v18.0.0 slices: 8/53 landed
+v18.0.0 goalposts: 2/5 landed
+v18.0.0 slices: 12/53 landed
 next goalpost: V18-GP1 Optics Public API Closeout
 next slice: reconcile #547 against landed Optics evidence and #549 dependency
 ```
@@ -80,8 +80,8 @@ next slice: reconcile #547 against landed Optics evidence and #549 dependency
 | Open GitHub issues indexed | 408 |
 | `lane:bad-code` maintenance issues | 214 |
 | `lane:cool-ideas` enhancement issues | 95 |
-| `lane:release` issues | 22 |
-| Blocked issues | 41 |
+| `lane:release` issues | 21 |
+| Blocked issues | 40 |
 | Unlabeled issues | 1 |
 
 ## Release Assignment Rules
@@ -97,7 +97,7 @@ next slice: reconcile #547 against landed Optics evidence and #549 dependency
 
 | Release Slot | Count | Planning Intent |
 | --- | ---: | --- |
-| v18.0.0 | 4 | Ship only after first-use Optics, bounded-memory public paths, content cutover truth, and release operation evidence are coherent. |
+| v18.0.0 | 3 | Ship only after first-use Optics, bounded-memory public paths, and release operation evidence are coherent. |
 | v18.0.1 | 50 | Repair public docs, examples, release tooling, and review guardrails that make the v18 line usable without expanding the runtime ontology. |
 | v18.0.2 | 50 | Finish the remaining release-tooling spillover, then start the testing-quality cleanup wave with behavior-backed proofs instead of brittle text checks. |
 | v18.0.3 | 50 | Continue static-text and fixture-quality paydown while keeping the release train small enough to review as one coherent patch wave. |
@@ -109,7 +109,7 @@ next slice: reconcile #547 against landed Optics evidence and #549 dependency
 | v19.0.0 | 30 | Make observer doctrine runtime-real beyond the v18 bounded public-path gate: observer-readable receipts, support rules, plans, envelopes, fragments, and witnessed suffix shells. |
 | v19.1.0 | 30 | Advance trust/security contracts, sync authentication, protocol alignment, and policy surfaces once observer boundaries are stable enough to protect. |
 | v19.2.0 | 6 | Package extraction, multi-package release, MCP, and integration architecture that should follow the v19 observer model rather than constrain it prematurely. |
-| v20.0.0 | 18 | Make slice-first, bounded, streaming read/write execution ordinary runtime behavior rather than special-case gate evidence. |
+| v20.0.0 | 19 | Make slice-first, bounded, streaming read/write execution ordinary runtime behavior rather than special-case gate evidence. |
 | v20.1.0 | 23 | Reshape indexes, materialization controllers, async traversal, and diagnostics around bounded support instead of full-state residency. |
 | v21.0.0 | 36 | Make distributed/plural admission semantics runtime-real: merge classifiers, braid collapse, local sites, and strand/worldline merge nouns. |
 | v21.1.0 | 1 | Stabilize WESLEY and Continuum contract surfaces after the merge runtime nouns are no longer speculative. |
@@ -123,10 +123,10 @@ next slice: reconcile #547 against landed Optics evidence and #549 dependency
 | --- | ---: |
 | lane:bad-code | 214 |
 | lane:cool-ideas | 95 |
-| lane:up-next | 42 |
+| lane:up-next | 43 |
 | lane:backlog-root | 30 |
-| lane:release | 22 |
-| lane:v18.0.0 | 4 |
+| lane:release | 21 |
+| lane:v18.0.0 | 3 |
 | lane:v19.0.0 | 11 |
 | lane:inbox | 4 |
 | lane:v21.0.0 | 4 |
@@ -145,7 +145,7 @@ next slice: reconcile #547 against landed Optics evidence and #549 dependency
 | --- | ---: |
 | release-home:v17.0.0 | 162 |
 | release-home:v18.0.0 | 22 |
-| release-home:v20.0.0 | 14 |
+| release-home:v20.0.0 | 15 |
 | release-home:v19.0.0 | 13 |
 | release-home:v21.0.0 | 7 |
 
@@ -176,13 +176,12 @@ Each issue appears once in the proposed release tables below. `Status` is derive
 
 ### v18.0.0 - Public Release Gate
 
-Ship only after first-use Optics, bounded-memory public paths, content cutover truth, and release operation evidence are coherent.
+Ship only after first-use Optics, bounded-memory public paths, and release operation evidence are coherent.
 
 | Issue | Title | Status | Type | Lane | Feature | Release Home | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | [#547](https://github.com/git-stunts/git-warp/issues/547) | Optics public API closeout | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
 | [#549](https://github.com/git-stunts/git-warp/issues/549) | Bounded-memory large-graph product gate | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
-| [#550](https://github.com/git-stunts/git-warp/issues/550) | Content attachment-plane cutover | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, release |
 | [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
 
 ### v18.0.1 - Public Docs And Release Tooling Repair
@@ -608,6 +607,7 @@ Make slice-first, bounded, streaming read/write execution ordinary runtime behav
 | [#565](https://github.com/git-stunts/git-warp/issues/565) | End-To-End Graph Streaming Reads And Writes | Blocked | enhancement | release, v20.0.0 | materialization-query-index | - | blocked, release |
 | [#566](https://github.com/git-stunts/git-warp/issues/566) | Align Playback-Head And TTD Consumers After Read Nouns Stabilize | Blocked | enhancement | release, v20.0.0 | merge-strands-worldlines | - | blocked, release |
 | [#567](https://github.com/git-stunts/git-warp/issues/567) | Strand Collapse Optic For Causal Slicing | Blocked | enhancement | release, v20.0.0 | merge-strands-worldlines | - | blocked, release |
+| [#646](https://github.com/git-stunts/git-warp/issues/646) | Retire legacy content attachment storage-plane boundaries | Open | enhancement | up-next | graph-model-substrate | v20.0.0 | - |
 
 ### v20.1.0 - Materialization, Index, And Diagnostic Model
 

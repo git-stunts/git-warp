@@ -81,7 +81,6 @@ Current release-blocking issues:
 
 - [#549 Bounded-memory large-graph product gate](https://github.com/git-stunts/git-warp/issues/549)
 - [#547 Optics public API closeout](https://github.com/git-stunts/git-warp/issues/547)
-- [#550 Content attachment-plane cutover](https://github.com/git-stunts/git-warp/issues/550)
 - [#552 v18 public release blockers](https://github.com/git-stunts/git-warp/issues/552)
 
 Completed gate evidence:
@@ -90,6 +89,8 @@ Completed gate evidence:
   closed on 2026-06-02 through PR #574.
 - V18-GP4 Holographic slicing and checkpoint basis closed on 2026-06-06
   through PR #643 plus tracker closeout for issues #629 through #632.
+- V18-GP3 Content attachment-plane honesty closed on 2026-06-06 by naming the
+  v18 residual risk and carrying full storage-plane retirement to #646.
 
 ## Where Are We
 

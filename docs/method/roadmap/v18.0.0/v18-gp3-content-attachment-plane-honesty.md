@@ -10,7 +10,7 @@
 | Goalpost doc | `docs/method/roadmap/v18.0.0/v18-gp3-content-attachment-plane-honesty.md` |
 | Design cycle | `docs/specs/CONTENT_ATTACHMENT.md` |
 | Slice budget | `4` |
-| Status | `active` |
+| Status | `landed` |
 | Sponsor human | `James` |
 | Sponsor agent | `Codex` |
 
@@ -23,10 +23,11 @@ claim total storage-plane retirement.
 
 ## Current Truth
 
-Issue [#550](https://github.com/git-stunts/git-warp/issues/550) is open in
-`lane:v18.0.0`. Its issue body records completed content payload and projection
-progress, then states that content persistence still has named legacy
-`_content*` compatibility boundaries.
+Issue [#550](https://github.com/git-stunts/git-warp/issues/550) is closed as a
+v18 honesty gate, not as total storage-plane retirement. Its evidence records
+completed content payload and projection progress, names the remaining legacy
+`_content*` compatibility boundaries, and carries full storage-plane retirement
+forward to [#646](https://github.com/git-stunts/git-warp/issues/646).
 
 ## Scope
 
@@ -51,24 +52,25 @@ progress, then states that content persistence still has named legacy
 
 | Slice | Status | Description | Expected proof |
 | ---: | --- | --- | --- |
-| 1 | open | Re-audit content attachment progress against current source and specs. | docUpdate |
-| 2 | open | Replay or add content attachment equivalence evidence. | test |
-| 3 | open | Update release docs to name accepted legacy boundaries precisely. | docUpdate |
-| 4 | open | Close or carry forward #550 with storage-plane follow-up issue. | issueUpdate |
+| 1 | complete | Re-audit content attachment progress against current source and specs. | docUpdate |
+| 2 | complete | Replay or add content attachment equivalence evidence. | test |
+| 3 | complete | Update release docs to name accepted legacy boundaries precisely. | docUpdate |
+| 4 | complete | Close or carry forward #550 with storage-plane follow-up issue. | issueUpdate |
 
 ## Acceptance Criteria
 
-- [ ] Content attachment docs cite current runtime evidence.
-- [ ] Legacy `_content*` compatibility boundaries are named.
-- [ ] Public release notes do not claim total storage-plane retirement.
-- [ ] Follow-up ownership exists for any post-v18 storage cutover.
+- [x] Content attachment docs cite current runtime evidence.
+- [x] Legacy `_content*` compatibility boundaries are named.
+- [x] Public release notes do not claim total storage-plane retirement.
+- [x] Follow-up ownership exists for any post-v18 storage cutover.
 
 ## Deterministic Evidence
 
 | Claim | Canonical fixture or input | Witness | Replay command | Expected deterministic result |
 | --- | --- | --- | --- | --- |
-| Attachment-plane evidence still matches runtime behavior. | Existing content attachment fixtures or v18 release fixture. | Focused content attachment test output. | `npm test -- --run <content-attachment-test>` | Content attachment evidence matches runtime ids and projection behavior. |
-| Residual legacy boundaries are explicit. | Tag commit source tree. | Release evidence doc row. | `npm run release:prep` | Release evidence names accepted residual risk instead of hiding it. |
+| Attachment-plane evidence still matches runtime behavior. | `test/unit/domain/services/ContentAttachmentProjection.test.ts` and v18 fixture witnesses. | Focused content attachment test output. | `npx vitest run test/unit/domain/services/ContentAttachmentProjection.test.ts test/unit/scripts/v18-v17-public-read-legacy-reading-builder.test.ts test/unit/scripts/v18-scratch-public-read-builder.test.ts` | Content attachment evidence matches runtime ids and projection behavior. |
+| Residual legacy boundaries are explicit. | `docs/releases/v18.0.0/README.md` and `test/unit/scripts/v18-content-property-closeout-audit.test.ts`. | Release evidence doc row and raw-boundary audit output. | `npx vitest run test/unit/scripts/v18-content-property-closeout-audit.test.ts test/unit/scripts/v18-release-story-shape.test.ts test/unit/scripts/v18-worldline-api-doc-guard.test.ts` | Release evidence names accepted residual risk instead of hiding it, and public docs do not overclaim retirement. |
+| Post-v18 storage cutover has an owner. | GitHub issue [#646](https://github.com/git-stunts/git-warp/issues/646). | Issue tracker. | `gh issue view 646 --repo git-stunts/git-warp` | Full legacy `_content*` storage-plane retirement is carried outside `lane:v18.0.0`. |
 
 ## Observer Geometry
 
@@ -85,20 +87,19 @@ npm run release:prep
 
 ## Release Gate Impact
 
-This goalpost prevents v18 release notes from claiming more than the content
-attachment evidence proves. It can land by either completing the remaining v18
-content attachment work or by recording a precise accepted residual risk with a
-post-v18 follow-up.
+This landed goalpost prevents v18 release notes from claiming more than the
+content attachment evidence proves. The remaining full storage-plane retirement
+work is now tracked outside `lane:v18.0.0` by #646.
 
 ## Residual Risks
 
 | Risk | Rationale | Owner | Follow-up issue |
 | --- | --- | --- | --- |
-| Legacy content storage boundaries may remain after v18. | Issue #550 already records this as named residual risk, not hidden completeness debt. | `@git-stunts` | [#550](https://github.com/git-stunts/git-warp/issues/550) |
+| Legacy content storage boundaries remain after v18. | This is named residual risk, not hidden completeness debt; #646 owns later full retirement. | `@git-stunts` | [#646](https://github.com/git-stunts/git-warp/issues/646) |
 
 ## Closeout
 
-- [ ] Slices complete or honestly dispositioned.
-- [ ] Proof matrix replayed.
-- [ ] Goalpost issue updated.
-- [ ] Release evidence updated.
+- [x] Slices complete or honestly dispositioned.
+- [x] Proof matrix replayed.
+- [x] Goalpost issue updated.
+- [x] Release evidence updated.
