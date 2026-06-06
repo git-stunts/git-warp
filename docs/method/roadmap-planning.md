@@ -107,7 +107,7 @@ Goalpost = {
   proofStories: ProofStory[],
   acceptanceCriteria: ChecklistItem[],
   proofMatrix: DeterministicEvidenceRow[],
-  status: "planned" | "active" | "review-ready" | "landed" | "superseded"
+  status: "planned" | "scaffolded" | "active" | "review-ready" | "landed" | "superseded"
 }
 ```
 

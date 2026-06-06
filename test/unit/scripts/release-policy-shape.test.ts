@@ -66,6 +66,10 @@ const roadmap = readFileSync(
   fileURLToPath(new URL('../../../docs/ROADMAP.md', import.meta.url)),
   'utf8',
 );
+const roadmapPlanning = readFileSync(
+  fileURLToPath(new URL('../../../docs/method/roadmap-planning.md', import.meta.url)),
+  'utf8',
+);
 const v18GoalpostPaths = [
   '../../../docs/method/roadmap/v18.0.0/v18-gp1-optics-public-api-closeout.md',
   '../../../docs/method/roadmap/v18.0.0/v18-gp2-bounded-memory-large-graph-gate.md',
@@ -191,6 +195,9 @@ describe('release policy shape', () => {
     expect(canonicalFixturesDoc).toContain('Host-specific noise must be normalized');
     expect(goalpostGuard).toContain('Deterministic Evidence');
     expect(goalpostGuard).toContain('Slice budget');
+    expect(roadmapPlanning).toContain(
+      'status: "planned" | "scaffolded" | "active" | "review-ready" | "landed" | "superseded"',
+    );
   });
 
   it('keeps the roadmap header honest about the public release and repair entry', () => {
