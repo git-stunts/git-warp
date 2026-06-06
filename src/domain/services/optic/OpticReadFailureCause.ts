@@ -13,6 +13,7 @@ export type OpticReadFailureCauseValue =
   | 'checkpoint-shard-invalid'
   | 'tail-node-remove-needs-raw-liveness-witnesses'
   | 'tail-property-value-needs-parser'
+  | 'tail-neighborhood-needs-adjacency-witnesses'
   | 'tail-budget-exceeded'
   | 'read-identity-missing-field'
   | 'read-identity-evidence-unavailable'
@@ -31,6 +32,7 @@ const OPTIC_READ_FAILURE_CAUSES: readonly string[] = Object.freeze([
   'checkpoint-shard-invalid',
   'tail-node-remove-needs-raw-liveness-witnesses',
   'tail-property-value-needs-parser',
+  'tail-neighborhood-needs-adjacency-witnesses',
   'tail-budget-exceeded',
   'read-identity-missing-field',
   'read-identity-evidence-unavailable',
@@ -45,6 +47,7 @@ const CREATE_INDEXED_BASIS_CAUSES: readonly OpticReadFailureCauseValue[] = Objec
   'checkpoint-shard-invalid',
   'tail-node-remove-needs-raw-liveness-witnesses',
   'tail-property-value-needs-parser',
+  'tail-neighborhood-needs-adjacency-witnesses',
 ]);
 
 export default class OpticReadFailureCause {

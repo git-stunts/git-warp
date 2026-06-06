@@ -1,4 +1,5 @@
 import type CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
+import NeighborhoodOptic from './NeighborhoodOptic.ts';
 import type NodeOpticReadResult from './NodeOpticReadResult.ts';
 import NodePropertyOptic from './NodePropertyOptic.ts';
 
@@ -23,6 +24,13 @@ export default class NodeOptic {
     return new NodePropertyOptic({
       nodeId: this._nodeId,
       propertyKey: key,
+      locator: this._locator,
+    });
+  }
+
+  neighbors(): NeighborhoodOptic {
+    return new NeighborhoodOptic({
+      nodeId: this._nodeId,
       locator: this._locator,
     });
   }

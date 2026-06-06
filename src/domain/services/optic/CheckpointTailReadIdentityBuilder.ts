@@ -46,6 +46,22 @@ export default class CheckpointTailReadIdentityBuilder {
     });
   }
 
+  neighborhood(options: {
+    readonly basis: CheckpointTailIndexBasis;
+    readonly nodeId: string;
+    readonly direction: string;
+    readonly labels: readonly string[];
+    readonly checkpointIndexShards: readonly ReadIdentityIndexShard[];
+    readonly tailWitnesses: readonly ReadIdentityTailWitness[];
+  }): ReadIdentity {
+    return this._build({
+      basis: options.basis,
+      entityAspect: `node:${options.nodeId}:neighborhood:${options.direction}:${labelsAspect(options.labels)}`,
+      checkpointIndexShards: options.checkpointIndexShards,
+      tailWitnesses: options.tailWitnesses,
+    });
+  }
+
   private _build(options: {
     readonly basis: CheckpointTailIndexBasis;
     readonly entityAspect: string;
@@ -63,6 +79,13 @@ export default class CheckpointTailReadIdentityBuilder {
       projectionVersion: PROJECTION_VERSION,
     });
   }
+}
+
+function labelsAspect(labels: readonly string[]): string {
+  if (labels.length === 0) {
+    return 'all-labels';
+  }
+  return [...labels].sort().join(',');
 }
 
 function frontierIdentity(frontier: Map<string, string>): readonly ReadIdentityFrontierEntry[] {

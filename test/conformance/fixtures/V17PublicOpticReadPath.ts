@@ -21,6 +21,12 @@ export default class V17PublicOpticReadPath {
     return await this.invokePromiseObject(propertyScope, 'read');
   }
 
+  async readNeighborhood(nodeId: string, options: object): Promise<object> {
+    const optic = this.invokeObject(this.worldline, 'optic');
+    const neighborhoodScope = this.invokeObject(optic, 'neighborhood', [nodeId]);
+    return await this.invokePromiseObject(neighborhoodScope, 'read', [options]);
+  }
+
   private invokeObject(receiver: object, methodName: string, args: readonly string[] = []): object {
     const method = Reflect.get(receiver, methodName);
     if (typeof method !== 'function') {
@@ -35,13 +41,17 @@ export default class V17PublicOpticReadPath {
     return result;
   }
 
-  private async invokePromiseObject(receiver: object, methodName: string): Promise<object> {
+  private async invokePromiseObject(
+    receiver: object,
+    methodName: string,
+    args: readonly object[] = [],
+  ): Promise<object> {
     const method = Reflect.get(receiver, methodName);
     if (typeof method !== 'function') {
       throw new V17CheckpointTailOpticFixtureError(`${methodName}() must exist for v17 optic RED`);
     }
 
-    const result = method.call(receiver);
+    const result = method.call(receiver, ...args);
     if (!(result instanceof Promise)) {
       throw new V17CheckpointTailOpticFixtureError(`${methodName}() must return a Promise for v17 optic RED`);
     }

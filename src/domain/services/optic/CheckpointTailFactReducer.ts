@@ -1,6 +1,8 @@
 import { LWWRegister } from '../../crdt/LWW.ts';
 import QueryError from '../../errors/QueryError.ts';
 import NodeAdd from '../../types/ops/NodeAdd.ts';
+import EdgeAdd from '../../types/ops/EdgeAdd.ts';
+import EdgeRemove from '../../types/ops/EdgeRemove.ts';
 import NodePropSet from '../../types/ops/NodePropSet.ts';
 import NodeRemove from '../../types/ops/NodeRemove.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -37,6 +39,20 @@ export default class CheckpointTailFactReducer {
     });
   }
 
+  includesNeighborhood(
+    entry: CheckpointTailPatchEntry,
+    options: {
+      readonly nodeId: string;
+      readonly direction: 'in' | 'out' | 'both';
+      readonly labels: readonly string[];
+    },
+  ): boolean {
+    return entry.patch.ops.some((rawOp) => {
+      const op = normalizeRawOp(rawOp);
+      return isTargetNeighborhoodEdge(op, options);
+    });
+  }
+
   reduceNodeLiveness(
     baseAlive: boolean,
     tailEntries: readonly CheckpointTailPatchEntry[],
@@ -57,6 +73,14 @@ export default class CheckpointTailFactReducer {
   }): PropValue | undefined {
     const tailRegister = this._tailPropertyRegister(options);
     return tailRegister !== null ? tailRegister.value : options.baseValue;
+  }
+
+  assertNeighborhoodTailStable(
+    tailEntries: readonly CheckpointTailPatchEntry[],
+  ): void {
+    if (tailEntries.length > 0) {
+      throwNoBoundedBasis(this._graphName, 'tail-neighborhood-needs-adjacency-witnesses');
+    }
   }
 
   private _reduceNodeLivenessEntry(
@@ -168,6 +192,29 @@ function isTargetNodeRemove(
   nodeId: string,
 ): op is NodeRemove {
   return op instanceof NodeRemove && op.node === nodeId;
+}
+
+function isTargetNeighborhoodEdge(
+  op: NormalizedTailOperation,
+  options: {
+    readonly nodeId: string;
+    readonly direction: 'in' | 'out' | 'both';
+    readonly labels: readonly string[];
+  },
+): op is EdgeAdd | EdgeRemove {
+  if (!(op instanceof EdgeAdd) && !(op instanceof EdgeRemove)) {
+    return false;
+  }
+  if (options.labels.length > 0 && !options.labels.includes(op.label)) {
+    return false;
+  }
+  if (options.direction === 'out') {
+    return op.from === options.nodeId;
+  }
+  if (options.direction === 'in') {
+    return op.to === options.nodeId;
+  }
+  return op.from === options.nodeId || op.to === options.nodeId;
 }
 
 function readScalarTailPropertyValue(

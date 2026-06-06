@@ -16,6 +16,11 @@ type CheckpointTailReadFailureOptions =
     readonly opticKind: 'node-property';
     readonly nodeId: string;
     readonly propertyKey: string;
+  }
+  | {
+    readonly graphName: string;
+    readonly opticKind: 'neighborhood';
+    readonly nodeId: string;
   };
 
 export default class CheckpointTailReadFailure {
@@ -54,6 +59,9 @@ function createTarget(options: {
 }): OpticReadTarget {
   if (options.opticKind === 'node') {
     return OpticReadTarget.node(options.nodeId);
+  }
+  if (options.opticKind === 'neighborhood') {
+    return OpticReadTarget.neighborhood(options.nodeId);
   }
   return OpticReadTarget.nodeProperty(options.nodeId, options.propertyKey ?? '');
 }

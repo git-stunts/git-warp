@@ -8,6 +8,8 @@ import PropertyIndexReader from '../index/PropertyIndexReader.ts';
 import type { CheckpointTailIndexBasis } from './CheckpointTailBasisLoader.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 import type { ReadIdentityIndexShard } from './ReadIdentity.ts';
+import type { Direction, NeighborEdge } from '../../../ports/NeighborProviderPort.ts';
+import type { NeighborhoodOpticEdge } from './NeighborhoodOpticReadResult.ts';
 
 const MAX_CACHED_CHECKPOINT_PROPERTY_SHARDS = 1;
 const INDEX_SHARD_MISSING_CODE = 'E_INDEX_SHARD_MISSING';
@@ -24,6 +26,12 @@ type CheckpointShardReadFailureContext = {
   readonly graphName: string;
   readonly path: string;
   readonly oid: string;
+};
+
+export type CheckpointShardNeighborhoodReadOptions = {
+  readonly nodeId: string;
+  readonly direction: Direction;
+  readonly labels: readonly string[];
 };
 
 export default class CheckpointShardFactReader {
@@ -81,6 +89,33 @@ export default class CheckpointShardFactReader {
     }
   }
 
+  async readNeighborhood(
+    basis: CheckpointTailIndexBasis,
+    options: CheckpointShardNeighborhoodReadOptions,
+  ): Promise<readonly NeighborhoodOpticEdge[]> {
+    const shardOids = neighborhoodShardOidMap(basis, options);
+    if (Object.keys(shardOids).length === 0) {
+      return Object.freeze([]);
+    }
+    try {
+      const tree = await readShardTree({
+        graphName: this._source.graphName,
+        persistence: this._source._persistence,
+        shardOids,
+      });
+      const reader = new LogicalIndexReader({ codec: this._source._codec })
+        .loadFromTree(tree);
+      const labelIds = labelIdsFor(reader.toLogicalIndex().getLabelRegistry(), options.labels);
+      const edges = neighborhoodEdges(reader.toLogicalIndex(), options, labelIds);
+      return Object.freeze(edges);
+    } catch (error) {
+      const context = firstShardFailureContext(this._source.graphName);
+      const failure = error instanceof Error ? checkpointLogicalShardReadFailure(error, context) : null;
+      if (failure !== null) { throw failure; }
+      throw error;
+    }
+  }
+
   nodeLivenessShardIdentities(
     basis: CheckpointTailIndexBasis,
     nodeId: string,
@@ -97,6 +132,16 @@ export default class CheckpointShardFactReader {
     return shardIdentities([{ path, oid: basis.manifest.propertyRoots.get(path) }]);
   }
 
+  neighborhoodShardIdentities(
+    basis: CheckpointTailIndexBasis,
+    options: CheckpointShardNeighborhoodReadOptions,
+  ): readonly ReadIdentityIndexShard[] {
+    return shardIdentities(
+      Object.entries(neighborhoodShardOidMap(basis, options))
+        .map(([path, oid]) => ({ path, oid })),
+    );
+  }
+
   private _metaPath(nodeId: string): string {
     return `meta_${computeShardKey(nodeId)}.cbor`;
   }
@@ -104,6 +149,167 @@ export default class CheckpointShardFactReader {
   private _propertyPath(nodeId: string): string {
     return `props_${computeShardKey(nodeId)}.cbor`;
   }
+}
+
+function neighborhoodShardOidMap(
+  basis: CheckpointTailIndexBasis,
+  options: CheckpointShardNeighborhoodReadOptions,
+): Record<string, string> {
+  const shardOids: Record<string, string> = {};
+  addShardRoots(shardOids, basis.manifest.livenessRoots.entries());
+  addOptionalShardRoot(shardOids, basis.manifest.edgeFactRoots.get('labels.cbor'), 'labels.cbor');
+  const shardKey = computeShardKey(options.nodeId);
+  if (options.direction === 'out' || options.direction === 'both') {
+    const path = `fwd_${shardKey}.cbor`;
+    addOptionalShardRoot(shardOids, basis.manifest.outgoingAdjacencyRoots.get(path), path);
+  }
+  if (options.direction === 'in' || options.direction === 'both') {
+    const path = `rev_${shardKey}.cbor`;
+    addOptionalShardRoot(shardOids, basis.manifest.incomingAdjacencyRoots.get(path), path);
+  }
+  return sortShardOidMap(shardOids);
+}
+
+function addShardRoots(target: Record<string, string>, roots: Iterable<readonly [string, string]>): void {
+  for (const [path, oid] of roots) {
+    target[path] = oid;
+  }
+}
+
+function addOptionalShardRoot(target: Record<string, string>, oid: string | undefined, path: string): void {
+  if (oid !== undefined) {
+    target[path] = oid;
+  }
+}
+
+function sortShardOidMap(source: Record<string, string>): Record<string, string> {
+  const sorted: Record<string, string> = {};
+  for (const path of Object.keys(source).sort()) {
+    const oid = source[path];
+    if (oid !== undefined) {
+      sorted[path] = oid;
+    }
+  }
+  return sorted;
+}
+
+function labelIdsFor(
+  registry: Map<string, number>,
+  labels: readonly string[],
+): number[] | undefined {
+  if (labels.length === 0) {
+    return undefined;
+  }
+  const ids: number[] = [];
+  for (const label of labels) {
+    const id = registry.get(label);
+    if (id !== undefined) {
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+function neighborhoodEdges(
+  index: ReturnType<LogicalIndexReader['toLogicalIndex']>,
+  options: CheckpointShardNeighborhoodReadOptions,
+  labelIds: number[] | undefined,
+): NeighborhoodOpticEdge[] {
+  const edges: NeighborhoodOpticEdge[] = [];
+  if (options.direction === 'out' || options.direction === 'both') {
+    edges.push(...tagEdges('out', index.getEdges(options.nodeId, 'out', labelIds)));
+  }
+  if (options.direction === 'in' || options.direction === 'both') {
+    edges.push(...tagEdges('in', index.getEdges(options.nodeId, 'in', labelIds)));
+  }
+  return dedupeSortNeighborhoodEdges(edges);
+}
+
+function tagEdges(
+  direction: 'in' | 'out',
+  edges: readonly NeighborEdge[],
+): readonly NeighborhoodOpticEdge[] {
+  return edges.map((edge) => Object.freeze({
+    direction,
+    neighborId: edge.neighborId,
+    label: edge.label,
+  }));
+}
+
+function dedupeSortNeighborhoodEdges(
+  edges: readonly NeighborhoodOpticEdge[],
+): NeighborhoodOpticEdge[] {
+  const byKey = new Map<string, NeighborhoodOpticEdge>();
+  for (const edge of edges) {
+    byKey.set(edgeKey(edge), edge);
+  }
+  return [...byKey.values()].sort(compareNeighborhoodEdges);
+}
+
+function compareNeighborhoodEdges(
+  left: NeighborhoodOpticEdge,
+  right: NeighborhoodOpticEdge,
+): number {
+  if (left.direction !== right.direction) {
+    return left.direction < right.direction ? -1 : 1;
+  }
+  if (left.neighborId !== right.neighborId) {
+    return left.neighborId < right.neighborId ? -1 : 1;
+  }
+  return left.label < right.label ? -1 : left.label > right.label ? 1 : 0;
+}
+
+function edgeKey(edge: NeighborhoodOpticEdge): string {
+  return `${edge.direction}\u0000${edge.neighborId}\u0000${edge.label}`;
+}
+
+async function readShardTree(options: {
+  readonly graphName: string;
+  readonly persistence: CheckpointTailOpticSource['_persistence'];
+  readonly shardOids: Record<string, string>;
+}): Promise<Record<string, Uint8Array>> {
+  const tree: Record<string, Uint8Array> = {};
+  for (const path of Object.keys(options.shardOids).sort()) {
+    const oid = options.shardOids[path];
+    if (oid !== undefined) {
+      tree[path] = await readShardBlob({
+        graphName: options.graphName,
+        persistence: options.persistence,
+        path,
+        oid,
+      });
+    }
+  }
+  return tree;
+}
+
+async function readShardBlob(options: {
+  readonly graphName: string;
+  readonly persistence: CheckpointTailOpticSource['_persistence'];
+  readonly path: string;
+  readonly oid: string;
+}): Promise<Uint8Array> {
+  try {
+    return await options.persistence.readBlob(options.oid);
+  } catch (error) {
+    const failure = error instanceof Error
+      ? checkpointLogicalShardReadFailure(error, {
+        graphName: options.graphName,
+        path: options.path,
+        oid: options.oid,
+      })
+      : null;
+    if (failure !== null) {
+      throw failure;
+    }
+    throw error;
+  }
+}
+
+function firstShardFailureContext(
+  graphName: string,
+): CheckpointShardReadFailureContext {
+  return { graphName, path: 'checkpoint-neighborhood-index', oid: 'decoded-shards' };
 }
 
 function shardIdentities(
