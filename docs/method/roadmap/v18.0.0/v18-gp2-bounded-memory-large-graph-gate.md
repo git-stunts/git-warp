@@ -65,7 +65,7 @@ result arrays fitting in process memory.
 | 12 | complete | Add sync cursor or batch evidence. | `test/unit/domain/services/sync/BoundedSyncPatchBatchReader.test.ts` |
 | 13 | complete | Add capability report for bounded and legacy surfaces. | `test/unit/domain/WarpWorldline.capabilities.test.ts`; `test/unit/cli/doctor.test.ts` |
 | 14 | complete | Add operator memory-budget witness. | `git warp doctor --memory-budget 64mb --large-graph` payload test |
-| 15 | open | Update non-release closeout evidence and close or disposition #549. | issueUpdate |
+| 15 | complete | Update non-release closeout evidence and close or disposition #549. | `npm run test:local`; issue update; release evidence skipped by explicit scope |
 
 ## Acceptance Criteria
 
@@ -75,7 +75,7 @@ result arrays fitting in process memory.
 - [x] Reads, writes, content lookup, and sync have bounded proof.
 - [x] Capability reporting distinguishes safe, transitional, diagnostic, and
       legacy surfaces.
-- [ ] Non-release closeout evidence names fixture, witness, replay command, and
+- [x] Non-release closeout evidence names fixture, witness, replay command, and
       residual risk. Release evidence is skipped until explicit tag/release
       approval.
 
@@ -119,11 +119,13 @@ streaming/cursor safety beyond the evidence already committed.
 
 | Risk | Rationale | Owner | Follow-up issue |
 | --- | --- | --- | --- |
-| Some global graph questions may remain diagnostic or offline only. | The gate requires explicit bounded posture, not cheap answers to every global query. | `@git-stunts` | [#549](https://github.com/git-stunts/git-warp/issues/549) |
+| Release evidence and tag-time proof remain intentionally skipped. | The current scope is non-release roadmap closeout. `v18.0.0` must not be tagged without explicit approval. | `@git-stunts` | [#552](https://github.com/git-stunts/git-warp/issues/552) |
+| Some global graph questions may remain diagnostic or offline only. | The gate requires explicit bounded posture, not cheap answers to every global query. Capability reporting must keep those paths labeled. | `@git-stunts` | [#613](https://github.com/git-stunts/git-warp/issues/613) |
 
 ## Closeout
 
-- [ ] Slices complete or honestly dispositioned.
-- [ ] Proof matrix replayed.
-- [ ] Goalpost issue updated.
-- [ ] Release evidence updated.
+- [x] Slices complete or honestly dispositioned.
+- [x] Proof matrix replayed.
+- [x] Goalpost issue updated.
+- [x] Release evidence intentionally skipped; #552 remains the release-only
+      blocker.
