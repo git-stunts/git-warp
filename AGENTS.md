@@ -114,6 +114,31 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - Retros live in `docs/method/retro/<NNNN-slug>/`.
 - Signposts are `docs/BEARING.md` and `docs/VISION.md`; update them at cycle boundaries, not mid-cycle.
 - Zero tolerance for brokenness: if you encounter an error or warning in your path, fix it or surface it explicitly.
+- End every turn with the compact progress footer:
+
+  ```text
+  ═══ ⋆★⋆ Progress Report ⋆★⋆ ═══
+
+  <goalpost name>
+  <progress bar> <percent> (<done>/<total> slices)
+
+  - [x] <completed slice>
+  - [ ] <open slice>
+
+  ⎇ <branch> +<ahead>/-<behind>
+  <pr-icon> <pr-status>
+  ```
+
+  Compute `+<ahead>/-<behind>` against the active merge target, normally
+  `origin/main`, using local refs unless the turn already fetched. Keep the PR
+  line compact:
+
+  - `🚫 none` when no PR exists.
+  - `📤 [#N](url)` when a PR is open.
+  - `📝 [#N](url)` when a PR is draft.
+  - `🏁 [#N](url)` when a PR was merged.
+  - `🐇 [#N](url)` when waiting for Code Rabbit.
+  - `🧪 [#N](url)` when CI is not finished yet.
 
 ## Engineering Doctrine
 

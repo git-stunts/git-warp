@@ -26,7 +26,7 @@ export default class V17OpticFailureExpectations {
   expectNoBoundedBasisFailure(options: {
     readonly read: Promise<object>;
     readonly graphName: string;
-    readonly opticKind: 'node' | 'node-property';
+    readonly opticKind: 'node' | 'node-property' | 'neighborhood' | 'traversal';
     readonly target: object;
     readonly cause: string;
     readonly recoveryHints?: readonly ExpectedRecoveryHint[];
@@ -49,7 +49,7 @@ export default class V17OpticFailureExpectations {
   expectShardUnavailableFailure(options: {
     readonly read: Promise<object>;
     readonly graphName: string;
-    readonly opticKind: 'node' | 'node-property';
+    readonly opticKind: 'node' | 'node-property' | 'neighborhood' | 'traversal';
     readonly target: object;
   }): Promise<void> {
     return this.expectNoBoundedBasisFailure({
@@ -62,7 +62,7 @@ export default class V17OpticFailureExpectations {
   expectTailBudgetExceededFailure(options: {
     readonly read: Promise<object>;
     readonly graphName: string;
-    readonly opticKind: 'node' | 'node-property';
+    readonly opticKind: 'node' | 'node-property' | 'neighborhood' | 'traversal';
     readonly target: object;
   }): Promise<void> {
     return expect(options.read)

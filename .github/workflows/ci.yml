@@ -246,5 +246,5 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - name: 'Gate 9: Unit coverage threshold'
+      - name: 'Gate 9: Unit and V18 optic coverage threshold'
         run: npm run test:coverage:ci
