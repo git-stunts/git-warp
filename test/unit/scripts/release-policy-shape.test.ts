@@ -66,6 +66,13 @@ const roadmap = readFileSync(
   fileURLToPath(new URL('../../../docs/ROADMAP.md', import.meta.url)),
   'utf8',
 );
+const v18GoalpostPaths = [
+  '../../../docs/method/roadmap/v18.0.0/v18-gp1-optics-public-api-closeout.md',
+  '../../../docs/method/roadmap/v18.0.0/v18-gp2-bounded-memory-large-graph-gate.md',
+  '../../../docs/method/roadmap/v18.0.0/v18-gp3-content-attachment-plane-honesty.md',
+  '../../../docs/method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md',
+  '../../../docs/method/roadmap/v18.0.0/v18-gp5-release-operation-evidence.md',
+].map((path) => fileURLToPath(new URL(path, import.meta.url)));
 
 describe('release policy shape', () => {
   it('keeps package and jsr versions aligned on the release branch', () => {
@@ -191,6 +198,26 @@ describe('release policy shape', () => {
     expect(roadmap).toContain(
       'v17.0.1 repair work is recorded in source docs/changelog without public npm/tag evidence',
     );
+  });
+
+  it('sets up the active v18 roadmap planning instance', () => {
+    expect(roadmap).toContain('## Active Planning Instance');
+    expect(roadmap).toContain('| Goalposts | `5` |');
+    expect(roadmap).toContain('| Total planned slice budget | `47` |');
+    expect(roadmap).toContain('v18.0.0 goalposts: 0/5 landed');
+    expect(roadmap).toContain('v18.0.0 slices: 0/47 landed');
+    expect(roadmap).toContain('next slice: #629 Checkpoint basis manifest contract');
+    expect(roadmap).toContain('method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md');
+
+    for (const goalpostPath of v18GoalpostPaths) {
+      const goalpost = readFileSync(goalpostPath, 'utf8');
+      expect(goalpost).toContain('Goalpost id');
+      expect(goalpost).toContain('## Proof Stories');
+      expect(goalpost).toContain('## Slice Budget');
+      expect(goalpost).toContain('## Acceptance Criteria');
+      expect(goalpost).toContain('## Deterministic Evidence');
+      expect(goalpost).toContain('## Release Gate Impact');
+    }
   });
 
   it('keeps publish artifacts slim instead of shipping the full repo corpus', () => {
