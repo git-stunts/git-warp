@@ -63,6 +63,35 @@ named admitted causal lane. `openWarpGraph()` returns the advanced frozen
 capability bag organized by these moments, plus governance (sync) for
 distributed admission.
 
+### Graph-shaped readings
+
+git-warp does not treat a materialized graph as substrate truth. Witnessed
+causal history is the authority. A graph-shaped value is an observer-relative
+reading over that history, and it is valid only for the basis, aperture, law,
+projection, support obligations, rights posture, budget posture, and witness
+posture it names.
+
+The public direction is:
+
+```text
+bounded causal basis
++ optic law
++ observer aperture
++ support obligations
++ capability, budget, and evidence posture
+-> witnessed reading artifact
+```
+
+Git object IDs, CAS hashes, retained payload hashes, commitment roots, proof
+references, basis identities, and semantic reading identities must stay
+separate. A byte hash identifies bytes; it does not answer a semantic question
+by itself.
+
+Adapters and CLI commands must not hide full-materialization fallback, missing
+witnesses, missing rights evidence, or budget limits. Missing support is an
+obstruction, residual posture, redaction, plurality, or rehydration requirement,
+not a cache miss to paper over.
+
 ### Systems-Style TypeScript (SSTS)
 
 The engineering standard for this codebase. Key rules:
