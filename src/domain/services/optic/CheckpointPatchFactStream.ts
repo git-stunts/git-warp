@@ -51,6 +51,8 @@ export type CheckpointPatchFactStreamBoundedReadOptions = CheckpointPatchFactStr
 type NormalizedPatchOperation = ReturnType<typeof normalizeRawOp>;
 
 const CHECKPOINT_PATCH_FACT_SCOPE = 'checkpoint.patch.fact';
+const FACT_CURSOR_ERROR_FIELD = 'factCursor';
+const INVALID_CURSOR_SELECTION_REASON = 'invalid-cursor-selection';
 
 export default class CheckpointPatchFactStream {
   private readonly _source: CheckpointTailOpticSource;
@@ -83,7 +85,7 @@ export default class CheckpointPatchFactStream {
         const selectedIndex = selectFactCursorIndex(cursors);
         const selected = cursors[selectedIndex];
         if (selected === undefined) {
-          throwStreamError('factCursor', 'invalid-cursor-selection');
+          throwStreamError(FACT_CURSOR_ERROR_FIELD, INVALID_CURSOR_SELECTION_REASON);
         }
         yield selected.current.fact;
         const nextCursor = await readNextFactCursor(selected.writerId, selected.iterator);
