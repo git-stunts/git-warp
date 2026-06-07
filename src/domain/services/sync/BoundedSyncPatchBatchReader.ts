@@ -2,6 +2,10 @@ import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';
 import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
 import BoundedSyncPatchBatch, { type BoundedSyncPatchDescriptor } from './BoundedSyncPatchBatch.ts';
 
+const SYNC_PATCH_BATCH_LEASE_SCOPE = 'sync.patch.batch';
+const SYNC_PATCH_BATCH_LEASE_AMOUNT = 1;
+const SYNC_PATCH_BATCH_READ_AHEAD_INCREMENT = 1;
+
 export type BoundedSyncPatchSourceRequest = {
   readonly cursor: string | null;
   readonly limit: number;
@@ -56,7 +60,10 @@ async function collectBatch(options: CollectBatchOptions): Promise<BoundedSyncPa
   let index = options.start;
   let cursor: string | null = null;
   for await (const patch of options.source) {
-    const lease = options.pool.acquire({ scope: 'sync.patch.batch', amount: 1 });
+    const lease = options.pool.acquire({
+      scope: SYNC_PATCH_BATCH_LEASE_SCOPE,
+      amount: SYNC_PATCH_BATCH_LEASE_AMOUNT,
+    });
     try {
       const control = appendPatch({ patches, patch, index, limit: options.limit });
       index = control.nextIndex;
@@ -106,7 +113,7 @@ function cursorOffset(cursor: string | null): number {
 }
 
 function readAheadLimit(limit: number): number {
-  return limit + 1;
+  return limit + SYNC_PATCH_BATCH_READ_AHEAD_INCREMENT;
 }
 
 function requirePositiveInteger(value: number, field: string): number {
