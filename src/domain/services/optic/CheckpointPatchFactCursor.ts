@@ -1,5 +1,9 @@
+import QueryError from '../../errors/QueryError.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 import type { CheckpointBasisFact } from './CheckpointBasisFact.ts';
+
+const FACT_CURSOR_CLOSE_FAILURE_CODE = 'E_CHECKPOINT_FACT_CURSOR_CLOSE';
+const FACT_CURSOR_CLOSE_FAILURE_REASON = 'non-error-rejection';
 
 export type FactWithEvent = {
   readonly fact: CheckpointBasisFact;
@@ -36,9 +40,32 @@ export async function readNextFactCursor(
 }
 
 export async function closeFactCursors(cursors: readonly FactStreamCursor[]): Promise<void> {
+  let firstError: Error | null = null;
   for (const cursor of cursors) {
-    await cursor.iterator.return?.();
+    firstError = await closeFactCursor(cursor, firstError);
   }
+  if (firstError !== null) {
+    throw firstError;
+  }
+}
+
+async function closeFactCursor(cursor: FactStreamCursor, firstError: Error | null): Promise<Error | null> {
+  try {
+    await cursor.iterator.return?.();
+    return firstError;
+  } catch (error) {
+    if (firstError !== null) {
+      return firstError;
+    }
+    return error instanceof Error ? error : cursorCloseFailure();
+  }
+}
+
+function cursorCloseFailure(): QueryError {
+  return new QueryError('Checkpoint patch fact cursor close failed.', {
+    code: FACT_CURSOR_CLOSE_FAILURE_CODE,
+    context: { reason: FACT_CURSOR_CLOSE_FAILURE_REASON },
+  });
 }
 
 export function selectFactCursorIndex(cursors: readonly FactStreamCursor[]): number {
