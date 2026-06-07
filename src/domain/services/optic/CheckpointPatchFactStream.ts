@@ -7,7 +7,7 @@ import NodeAdd from '../../types/ops/NodeAdd.ts';
 import NodePropSet from '../../types/ops/NodePropSet.ts';
 import NodeRemove from '../../types/ops/NodeRemove.ts';
 import { isPropValue } from '../../types/PropValue.ts';
-import { EventId, compareEventIds } from '../../utils/EventId.ts';
+import { EventId } from '../../utils/EventId.ts';
 import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';
 import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
 import { normalizeRawOp } from '../OpNormalizer.ts';
@@ -20,6 +20,15 @@ import {
   CheckpointNodePropertyFact,
   CheckpointProvenanceFact,
 } from './CheckpointBasisFact.ts';
+import {
+  closeFactCursors,
+  compareFactEvents,
+  type FactStreamCursor,
+  type FactWithEvent,
+  readNextFactCursor,
+  selectFactCursorIndex,
+  sortedOperationFacts,
+} from './CheckpointPatchFactCursor.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 import type {
   CheckpointTailCheckpointFrontier,
@@ -39,12 +48,9 @@ export type CheckpointPatchFactStreamBoundedReadOptions = CheckpointPatchFactStr
   readonly pool: WarpMemoryPool;
 };
 
-type FactWithEvent = {
-  readonly fact: CheckpointBasisFact;
-  readonly eventId: EventId;
-};
-
 type NormalizedPatchOperation = ReturnType<typeof normalizeRawOp>;
+
+const CHECKPOINT_PATCH_FACT_SCOPE = 'checkpoint.patch.fact';
 
 export default class CheckpointPatchFactStream {
   private readonly _source: CheckpointTailOpticSource;
@@ -71,8 +77,44 @@ export default class CheckpointPatchFactStream {
     validateCheckpoint(options.previousCheckpoint);
     validateFrontier(options.targetFrontier, 'targetFrontier');
     const pool = requireMemoryPool(options.pool);
-    for (const writerId of sortedWriterIds(options.targetFrontier)) {
-      yield* this._streamWriterFacts({ writerId, options, pool });
+    const cursors = await this._openWriterCursors(options, pool);
+    try {
+      while (cursors.length > 0) {
+        const selectedIndex = selectFactCursorIndex(cursors);
+        const selected = cursors[selectedIndex];
+        if (selected === undefined) {
+          throwStreamError('factCursor', 'invalid-cursor-selection');
+        }
+        yield selected.current.fact;
+        const nextCursor = await readNextFactCursor(selected.writerId, selected.iterator);
+        if (nextCursor === null) {
+          cursors.splice(selectedIndex, 1);
+        } else {
+          cursors[selectedIndex] = nextCursor;
+        }
+      }
+    } finally {
+      await closeFactCursors(cursors);
+    }
+  }
+
+  private async _openWriterCursors(
+    options: CheckpointPatchFactStreamReadOptions,
+    pool: WarpMemoryPool,
+  ): Promise<FactStreamCursor[]> {
+    const cursors: FactStreamCursor[] = [];
+    try {
+      for (const writerId of sortedWriterIds(options.targetFrontier)) {
+        const iterator = this._streamWriterFacts({ writerId, options, pool })[Symbol.asyncIterator]();
+        const cursor = await readNextFactCursor(writerId, iterator);
+        if (cursor !== null) {
+          cursors.push(cursor);
+        }
+      }
+      return cursors;
+    } catch (error) {
+      await closeFactCursors(cursors);
+      throw error;
     }
   }
 
@@ -95,7 +137,7 @@ export default class CheckpointPatchFactStream {
     readonly writerId: string;
     readonly options: CheckpointPatchFactStreamReadOptions;
     readonly pool: WarpMemoryPool;
-  }): AsyncIterable<CheckpointBasisFact> {
+  }): AsyncIterable<FactWithEvent> {
     const writerEntries = await this._loadWriterEntries({
       writerId: options.writerId,
       previousCheckpoint: options.options.previousCheckpoint,
@@ -109,19 +151,14 @@ export default class CheckpointPatchFactStream {
   private *_streamEntryFacts(
     entry: CheckpointTailPatchEntry,
     pool: WarpMemoryPool,
-  ): Iterable<CheckpointBasisFact> {
-    const entryLease = pool.acquire({ scope: 'checkpoint.patch.entry', amount: 1 });
-    try {
-      for (const fact of lowerEntryToFacts(entry)) {
-        const factLease = pool.acquire({ scope: 'checkpoint.patch.fact', amount: 1 });
-        try {
-          yield fact.fact;
-        } finally {
-          factLease.release();
-        }
+  ): Iterable<FactWithEvent> {
+    for (const fact of lowerEntryFacts(entry)) {
+      const factLease = pool.acquire({ scope: CHECKPOINT_PATCH_FACT_SCOPE, amount: 1 });
+      try {
+        yield fact;
+      } finally {
+        factLease.release();
       }
-    } finally {
-      entryLease.release();
     }
   }
 
@@ -170,15 +207,17 @@ function lowerEntriesToFacts(entries: readonly CheckpointTailPatchEntry[]): read
 }
 
 function lowerEntryToFacts(entry: CheckpointTailPatchEntry): readonly FactWithEvent[] {
+  return Object.freeze([...lowerEntryFacts(entry)]);
+}
+
+function* lowerEntryFacts(entry: CheckpointTailPatchEntry): Iterable<FactWithEvent> {
   validatePatchEntry(entry);
-  const facts: FactWithEvent[] = [];
   for (let opIndex = 0; opIndex < entry.patch.ops.length; opIndex += 1) {
     const rawOp = entry.patch.ops[opIndex];
     if (rawOp !== undefined) {
-      facts.push(...lowerOperation(entry, rawOp, opIndex));
+      yield* sortedOperationFacts(lowerOperation(entry, rawOp, opIndex));
     }
   }
-  return Object.freeze(facts);
 }
 
 function lowerOperation(
@@ -334,14 +373,6 @@ function factsWithProvenance(
     eventId,
   }));
   return Object.freeze(wrapped);
-}
-
-function compareFactEvents(left: FactWithEvent, right: FactWithEvent): number {
-  const eventComparison = compareEventIds(left.eventId, right.eventId);
-  if (eventComparison !== 0) {
-    return eventComparison;
-  }
-  return left.fact.sortKey() < right.fact.sortKey() ? -1 : left.fact.sortKey() > right.fact.sortKey() ? 1 : 0;
 }
 
 function sortedWriterIds(frontier: Map<string, string>): readonly string[] {

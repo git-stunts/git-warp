@@ -2,7 +2,14 @@ import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';
 import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
 import BoundedSyncPatchBatch, { type BoundedSyncPatchDescriptor } from './BoundedSyncPatchBatch.ts';
 
-export type BoundedSyncPatchSourceFactory = () => AsyncIterable<BoundedSyncPatchDescriptor>;
+export type BoundedSyncPatchSourceRequest = {
+  readonly cursor: string | null;
+  readonly limit: number;
+};
+
+export type BoundedSyncPatchSourceFactory = (
+  request: BoundedSyncPatchSourceRequest,
+) => AsyncIterable<BoundedSyncPatchDescriptor>;
 
 export type BoundedSyncPatchBatchReaderFields = {
   readonly openSource: BoundedSyncPatchSourceFactory;
@@ -27,11 +34,11 @@ export default class BoundedSyncPatchBatchReader {
 
   async readBatch(request: BoundedSyncPatchBatchRequest): Promise<BoundedSyncPatchBatch> {
     const limit = requirePositiveInteger(request.limit, 'limit');
-    const start = cursorOffset(request.cursor ?? null);
+    const cursor = normalizeCursor(request.cursor ?? null);
     return await collectBatch({
-      source: this._openSource(),
+      source: this._openSource({ cursor, limit: readAheadLimit(limit) }),
       pool: this._pool,
-      start,
+      start: cursorOffset(cursor),
       limit,
     });
   }
@@ -46,12 +53,12 @@ type CollectBatchOptions = {
 
 async function collectBatch(options: CollectBatchOptions): Promise<BoundedSyncPatchBatch> {
   const patches: BoundedSyncPatchDescriptor[] = [];
-  let index = 0;
+  let index = options.start;
   let cursor: string | null = null;
   for await (const patch of options.source) {
     const lease = options.pool.acquire({ scope: 'sync.patch.batch', amount: 1 });
     try {
-      const control = appendPatch({ patches, patch, index, start: options.start, limit: options.limit });
+      const control = appendPatch({ patches, patch, index, limit: options.limit });
       index = control.nextIndex;
       cursor = control.cursor;
     } finally {
@@ -68,19 +75,20 @@ type AppendPatchOptions = {
   readonly patches: BoundedSyncPatchDescriptor[];
   readonly patch: BoundedSyncPatchDescriptor;
   readonly index: number;
-  readonly start: number;
   readonly limit: number;
 };
 
 function appendPatch(options: AppendPatchOptions): { readonly nextIndex: number; readonly cursor: string | null } {
-  if (options.index < options.start) {
-    return { nextIndex: options.index + 1, cursor: null };
-  }
   if (options.patches.length >= options.limit) {
     return { nextIndex: options.index, cursor: options.index.toString() };
   }
   options.patches.push(options.patch);
   return { nextIndex: options.index + 1, cursor: null };
+}
+
+function normalizeCursor(cursor: string | null): string | null {
+  cursorOffset(cursor);
+  return cursor;
 }
 
 function cursorOffset(cursor: string | null): number {
@@ -95,6 +103,10 @@ function cursorOffset(cursor: string | null): number {
     code: 'E_BOUNDED_SYNC_BATCH_INVALID',
     context: { field: 'cursor', value: cursor },
   });
+}
+
+function readAheadLimit(limit: number): number {
+  return limit + 1;
 }
 
 function requirePositiveInteger(value: number, field: string): number {

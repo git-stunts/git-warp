@@ -18,10 +18,15 @@ import { CODES } from './codes.ts';
 import { DOCTOR_EXIT_CODES, type DoctorFinding, type DoctorPolicy, type DoctorPayload, type DoctorContext } from './types.ts';
 import type { CliOptions, Persistence } from '../../types.ts';
 
+const DOCTOR_OPTION_MEMORY_BUDGET = 'memory-budget';
+const DOCTOR_OPTION_LARGE_GRAPH = 'large-graph';
+const MEMORY_BUDGET_FINDING_ID = 'memory-budget';
+const MEMORY_BUDGET_NOT_SPECIFIED = 'not-specified';
+
 const DOCTOR_OPTIONS = {
   strict: { type: 'boolean', default: false },
-  'memory-budget': { type: 'string' },
-  'large-graph': { type: 'boolean', default: false },
+  [DOCTOR_OPTION_MEMORY_BUDGET]: { type: 'string' },
+  [DOCTOR_OPTION_LARGE_GRAPH]: { type: 'boolean', default: false },
 };
 
 const DEFAULT_POLICY: DoctorPolicy = {
@@ -42,14 +47,14 @@ const IMPACT_ORDER = {
 
 type DoctorCommandValues = {
   readonly strict: boolean;
-  readonly 'memory-budget': string | undefined;
-  readonly 'large-graph': boolean;
+  readonly [DOCTOR_OPTION_MEMORY_BUDGET]: string | undefined;
+  readonly [DOCTOR_OPTION_LARGE_GRAPH]: boolean;
 };
 
 type RawDoctorCommandValues = {
   readonly strict: boolean;
-  readonly 'memory-budget'?: string | undefined;
-  readonly 'large-graph': boolean;
+  readonly [DOCTOR_OPTION_MEMORY_BUDGET]?: string | undefined;
+  readonly [DOCTOR_OPTION_LARGE_GRAPH]: boolean;
 };
 
 /** Handles the `git warp doctor` command: runs structural health checks and returns findings. */
@@ -85,25 +90,25 @@ export default async function handleDoctor({ options, args }: { options: CliOpti
 function normalizeCommandValues(values: RawDoctorCommandValues): DoctorCommandValues {
   return {
     strict: values.strict,
-    'memory-budget': values['memory-budget'],
-    'large-graph': values['large-graph'],
+    [DOCTOR_OPTION_MEMORY_BUDGET]: values[DOCTOR_OPTION_MEMORY_BUDGET],
+    [DOCTOR_OPTION_LARGE_GRAPH]: values[DOCTOR_OPTION_LARGE_GRAPH],
   };
 }
 
 function memoryBudgetFindings(values: DoctorCommandValues): DoctorFinding[] {
-  if (values['memory-budget'] === undefined && !values['large-graph']) {
+  if (values[DOCTOR_OPTION_MEMORY_BUDGET] === undefined && !values[DOCTOR_OPTION_LARGE_GRAPH]) {
     return [];
   }
   const report = createV18BoundedMemoryCapabilityReport();
   return [{
-    id: 'memory-budget',
+    id: MEMORY_BUDGET_FINDING_ID,
     status: 'ok',
     code: CODES.MEMORY_BUDGET_REPORT,
     impact: 'operability',
     message: 'Memory-budget posture reported for large-graph operation.',
     evidence: {
-      requestedBudget: values['memory-budget'] ?? 'not-specified',
-      largeGraph: values['large-graph'],
+      requestedBudget: values[DOCTOR_OPTION_MEMORY_BUDGET] ?? MEMORY_BUDGET_NOT_SPECIFIED,
+      largeGraph: values[DOCTOR_OPTION_LARGE_GRAPH],
       safe: mutableNames(report.safeNames()),
       transitional: mutableNames(report.transitionalNames()),
       diagnostic: mutableNames(report.diagnosticNames()),

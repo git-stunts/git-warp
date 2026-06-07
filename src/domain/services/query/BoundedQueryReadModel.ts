@@ -63,18 +63,27 @@ export default class BoundedQueryReadModel implements QueryReadModel {
 }
 
 function requireQueryReadModel(value: QueryReadModel): QueryReadModel {
-  if (
-    typeof value.stateHash === 'string' &&
-    typeof value.nodes === 'function' &&
-    typeof value.neighbors === 'function' &&
-    typeof value.nodeProps === 'function'
-  ) {
+  if (hasQueryReadModelShape(value)) {
     return value;
   }
   throw new MemoryBudgetError('BoundedQueryReadModel requires a QueryReadModel source', {
     code: 'E_MEMORY_BUDGET_INVALID',
     context: { field: 'source' },
   });
+}
+
+function hasQueryReadModelShape(value: QueryReadModel): boolean {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+  return hasQueryReadModelMembers(value);
+}
+
+function hasQueryReadModelMembers(value: QueryReadModel): boolean {
+  return typeof value.stateHash === 'string'
+    && typeof value.nodes === 'function'
+    && typeof value.neighbors === 'function'
+    && typeof value.nodeProps === 'function';
 }
 
 function requireWarpMemoryPool(value: WarpMemoryPool): WarpMemoryPool {

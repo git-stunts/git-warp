@@ -44,24 +44,28 @@ describe('WarpMemoryPool', () => {
 
     pool.acquire({ scope: 'patch-batch', amount: 5 });
 
-    expect(() => pool.acquire({ scope: 'result-window', amount: 4 })).toThrow(MemoryBudgetError);
+    let captured: MemoryBudgetError | null = null;
     try {
       pool.acquire({ scope: 'result-window', amount: 4 });
     } catch (error) {
-      expect(error).toBeInstanceOf(MemoryBudgetError);
-      expect(error).toMatchObject({
-        code: 'E_MEMORY_BUDGET_EXCEEDED',
-        context: {
-          name: 'large-graph-read',
-          scope: 'result-window',
-          unit: 'byte',
-          limit: 8,
-          leased: 5,
-          requested: 4,
-          rejected: 2,
-        },
-      });
+      if (error instanceof MemoryBudgetError) {
+        captured = error;
+      }
     }
+
+    expect(captured).toBeInstanceOf(MemoryBudgetError);
+    expect(captured).toMatchObject({
+      code: 'E_MEMORY_BUDGET_EXCEEDED',
+      context: {
+        name: 'large-graph-read',
+        scope: 'result-window',
+        unit: 'byte',
+        limit: 8,
+        leased: 5,
+        requested: 4,
+        rejected: 1,
+      },
+    });
   });
 
   it('rejects invalid budget contracts before a pool can run', () => {

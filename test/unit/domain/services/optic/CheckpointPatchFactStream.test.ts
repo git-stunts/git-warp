@@ -115,6 +115,89 @@ describe('CheckpointPatchFactStream', () => {
       'node-property',
       'provenance',
     ]);
+    expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 1, rejected: 0 });
+  });
+
+  it('streams bounded writer facts in the same global order as the unbounded stream', async () => {
+    const source = new TestPatchFactStreamSource();
+    source.setChain('aaaa', [
+      patchEntry({
+        sha: 'aaaa',
+        writer: 'writer-a',
+        lamport: 3,
+        ops: [new NodeAdd('node:a', new Dot('writer-a', 3))],
+      }),
+    ]);
+    source.setChain('bbbb', [
+      patchEntry({
+        sha: 'bbbb',
+        writer: 'writer-b',
+        lamport: 2,
+        ops: [new NodePropSet('node:b', 'title', 'B')],
+      }),
+    ]);
+    const stream = new CheckpointPatchFactStream({ source });
+    const previousCheckpoint = checkpoint(new Map());
+    const targetFrontier = new Map([
+      ['writer-a', 'aaaa'],
+      ['writer-b', 'bbbb'],
+    ]);
+    const pool = new WarpMemoryPool({
+      name: 'patch-fact-stream-merge',
+      budget: MemoryBudget.entries(2),
+    });
+
+    const unboundedFacts = await collectFacts(stream.stream({ previousCheckpoint, targetFrontier }));
+    const boundedFacts = await collectFacts(stream.streamBounded({ previousCheckpoint, targetFrontier, pool }));
+
+    expect(boundedFacts.map((fact) => fact.sortKey())).toEqual(unboundedFacts.map((fact) => fact.sortKey()));
+    expect(boundedFacts.map((fact) => fact.kind)).toEqual([
+      'node-property',
+      'provenance',
+      'node-liveness',
+      'provenance',
+    ]);
+    expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 2, rejected: 0 });
+  });
+
+  it('releases bounded writer cursor leases when the consumer closes early', async () => {
+    const source = new TestPatchFactStreamSource();
+    source.setChain('aaaa', [
+      patchEntry({
+        sha: 'aaaa',
+        writer: 'writer-a',
+        lamport: 3,
+        ops: [new NodeAdd('node:a', new Dot('writer-a', 3))],
+      }),
+    ]);
+    source.setChain('bbbb', [
+      patchEntry({
+        sha: 'bbbb',
+        writer: 'writer-b',
+        lamport: 2,
+        ops: [new NodePropSet('node:b', 'title', 'B')],
+      }),
+    ]);
+    const pool = new WarpMemoryPool({
+      name: 'patch-fact-stream-close',
+      budget: MemoryBudget.entries(2),
+    });
+    const stream = new CheckpointPatchFactStream({ source });
+    const iterator = stream.streamBounded({
+      previousCheckpoint: checkpoint(new Map()),
+      targetFrontier: new Map([
+        ['writer-a', 'aaaa'],
+        ['writer-b', 'bbbb'],
+      ]),
+      pool,
+    })[Symbol.asyncIterator]();
+
+    await expect(iterator.next()).resolves.toMatchObject({
+      value: { kind: 'node-property' },
+      done: false,
+    });
+    expect(pool.snapshot()).toMatchObject({ leased: 2, peak: 2, rejected: 0 });
+    await iterator.return?.();
     expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 2, rejected: 0 });
   });
 

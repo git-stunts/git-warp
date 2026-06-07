@@ -53,6 +53,8 @@ type CheckpointBasisPublicationView = {
   hasFamily(family: 'provenance' | 'content-anchor'): boolean;
 };
 
+const CHECKPOINT_BASIS_PENDING_FACT_SCOPE = 'checkpoint-basis-pending-fact';
+
 export class StreamingCheckpointBasisBuildResult {
   readonly manifest: CheckpointBasisManifest;
   readonly rootTreeOid: string;
@@ -190,7 +192,7 @@ class CheckpointBasisPendingShard {
   }
 
   add(fact: CheckpointBasisFact, pool: WarpMemoryPool | null): void {
-    const lease = pool?.acquire({ scope: 'checkpoint-basis-pending-fact', amount: 1 }) ?? null;
+    const lease = pool?.acquire({ scope: CHECKPOINT_BASIS_PENDING_FACT_SCOPE, amount: 1 }) ?? null;
     this._facts.push(fact);
     if (lease !== null) {
       this._leases.push(lease);
