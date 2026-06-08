@@ -3,7 +3,7 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type MemoryBudgetLease from '../../memory/MemoryBudgetLease.ts';
-import type WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
+import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
 import defaultCodec from '../../utils/defaultCodec.ts';
 import { CheckpointBasisFact, type CheckpointBasisFactShardFamily } from './CheckpointBasisFact.ts';
 import CheckpointBasisManifest, {
@@ -91,20 +91,21 @@ export default class StreamingCheckpointBasisBuilder {
   private readonly _shardKeyStrategy: string;
 
   constructor(options: StreamingCheckpointBasisBuilderOptions) {
-    validateText(options.graphName, 'graphName');
-    validateText(options.checkpointSha, 'checkpointSha');
-    validateFrontier(options.frontier);
-    validateStorage(options.storage);
-    this._graphName = options.graphName;
-    this._checkpointSha = options.checkpointSha;
-    this._frontier = copyFrontier(options.frontier);
-    this._storage = options.storage;
-    this._codec = options.codec ?? defaultCodec;
-    this._pool = poolOrNull(options.pool);
-    this._maxFactsPerShard = validatePositiveInteger(options.maxFactsPerShard, 'maxFactsPerShard');
-    this._layoutFamily = options.layoutFamily ?? 'checkpoint-basis-shards';
-    this._payloadLayout = options.payloadLayout ?? 'basis-facts-v1';
-    this._shardKeyStrategy = options.shardKeyStrategy ?? 'hex-prefix-2';
+    const validOptions = requireBuilderOptions(options);
+    validateText(validOptions.graphName, 'graphName');
+    validateText(validOptions.checkpointSha, 'checkpointSha');
+    validateFrontier(validOptions.frontier);
+    validateStorage(validOptions.storage);
+    this._graphName = validOptions.graphName;
+    this._checkpointSha = validOptions.checkpointSha;
+    this._frontier = copyFrontier(validOptions.frontier);
+    this._storage = validOptions.storage;
+    this._codec = validOptions.codec ?? defaultCodec;
+    this._pool = poolOrNull(validOptions.pool);
+    this._maxFactsPerShard = validatePositiveInteger(validOptions.maxFactsPerShard, 'maxFactsPerShard');
+    this._layoutFamily = validOptions.layoutFamily ?? 'checkpoint-basis-shards';
+    this._payloadLayout = validOptions.payloadLayout ?? 'basis-facts-v1';
+    this._shardKeyStrategy = validOptions.shardKeyStrategy ?? 'hex-prefix-2';
     Object.freeze(this);
   }
 
@@ -352,9 +353,7 @@ class CheckpointBasisPublication {
   }
 }
 
-function createCheckpointBasisPublication(maxFactsPerShard: number): CheckpointBasisPublication {
-  return new CheckpointBasisPublication({ maxFactsPerShard });
-}
+function createCheckpointBasisPublication(maxFactsPerShard: number): CheckpointBasisPublication { return new CheckpointBasisPublication({ maxFactsPerShard }); }
 
 function publicationRuntime(
   storage: CheckpointBasisPublicationStorage,
@@ -365,7 +364,19 @@ function publicationRuntime(
 }
 
 function poolOrNull(pool: WarpMemoryPool | undefined): WarpMemoryPool | null {
-  return pool ?? null;
+  if (pool === undefined || pool instanceof WarpMemoryPool) {
+    return pool ?? null;
+  }
+  return throwBuilderError('pool', 'invalid-pool');
+}
+
+function requireBuilderOptions(
+  options: StreamingCheckpointBasisBuilderOptions | null | undefined,
+): StreamingCheckpointBasisBuilderOptions {
+  if (options === null || typeof options !== 'object') {
+    throwBuilderError('options', 'invalid-options');
+  }
+  return options;
 }
 
 function publicationPostures(

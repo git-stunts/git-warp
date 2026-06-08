@@ -16,10 +16,23 @@ export default class BoundedSyncPatchBatch {
   readonly cursor: string | null;
 
   constructor(fields: BoundedSyncPatchBatchFields) {
-    this.patches = freezePatches(fields.patches);
-    this.cursor = normalizeCursor(fields.cursor);
+    const validFields = requireBatchFields(fields);
+    this.patches = freezePatches(validFields.patches);
+    this.cursor = normalizeCursor(validFields.cursor);
     Object.freeze(this);
   }
+}
+
+function requireBatchFields(
+  fields: BoundedSyncPatchBatchFields | null | undefined,
+): BoundedSyncPatchBatchFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('Bounded sync patch batch requires object fields', {
+    code: 'E_BOUNDED_SYNC_BATCH_INVALID',
+    context: { field: 'fields' },
+  });
 }
 
 function freezePatches(values: readonly BoundedSyncPatchDescriptor[]): readonly BoundedSyncPatchDescriptor[] {

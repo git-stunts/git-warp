@@ -15,7 +15,7 @@ describe('BoundedSyncPatchBatchReader', () => {
     const requests: BoundedSyncPatchSourceRequest[] = [];
     const pool = new WarpMemoryPool({
       name: 'sync-patch-batch',
-      budget: MemoryBudget.patches(1),
+      budget: MemoryBudget.patches(2),
     });
     const reader = new BoundedSyncPatchBatchReader({
       openSource: (request) => {
@@ -40,7 +40,19 @@ describe('BoundedSyncPatchBatchReader', () => {
       { cursor: '2', limit: 3 },
       { cursor: '4', limit: 3 },
     ]);
-    expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 1, rejected: 0 });
+    expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 2, rejected: 0 });
+  });
+
+  it('rejects retained sync batches that exceed the memory pool', async () => {
+    const reader = new BoundedSyncPatchBatchReader({
+      openSource: (request) => patchSource(syncPatchDescriptors(), request),
+      pool: new WarpMemoryPool({
+        name: 'sync-patch-batch',
+        budget: MemoryBudget.patches(1),
+      }),
+    });
+
+    await expect(reader.readBatch({ limit: 2 })).rejects.toBeInstanceOf(MemoryBudgetError);
   });
 
   it('rejects malformed patch descriptors before field access', () => {

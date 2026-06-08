@@ -1,11 +1,13 @@
 import QueryError from '../../errors/QueryError.ts';
-import BlobValue from '../../types/ops/BlobValue.ts';
-import EdgeAdd from '../../types/ops/EdgeAdd.ts';
-import EdgePropSet from '../../types/ops/EdgePropSet.ts';
-import EdgeRemove from '../../types/ops/EdgeRemove.ts';
-import NodeAdd from '../../types/ops/NodeAdd.ts';
-import NodePropSet from '../../types/ops/NodePropSet.ts';
-import NodeRemove from '../../types/ops/NodeRemove.ts';
+import {
+  BlobValue,
+  EdgeAdd,
+  EdgePropSet,
+  EdgeRemove,
+  NodeAdd,
+  NodePropSet,
+  NodeRemove,
+} from '../../types/ops/index.ts';
 import { isPropValue } from '../../types/PropValue.ts';
 import { EventId } from '../../utils/EventId.ts';
 import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';

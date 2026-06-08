@@ -1,5 +1,5 @@
 import MemoryBudgetError from '../errors/MemoryBudgetError.ts';
-import type { MemoryBudgetUnit } from './MemoryBudgetUnit.ts';
+import { requireMemoryBudgetUnit, type MemoryBudgetUnit } from './MemoryBudgetUnit.ts';
 
 type ReleaseLease = (id: string) => void;
 
@@ -22,18 +22,41 @@ export default class MemoryBudgetLease {
   private readonly _releaseLease: ReleaseLease;
 
   constructor(fields: MemoryBudgetLeaseFields) {
-    this.id = requireNonEmptyString(fields.id, 'id');
-    this.name = requireNonEmptyString(fields.name, 'name');
-    this.scope = requireNonEmptyString(fields.scope, 'scope');
-    this.amount = requirePositiveInteger(fields.amount, 'amount');
-    this.unit = fields.unit;
-    this._releaseLease = fields.releaseLease;
+    const validFields = requireMemoryBudgetLeaseFields(fields);
+    this.id = requireNonEmptyString(validFields.id, 'id');
+    this.name = requireNonEmptyString(validFields.name, 'name');
+    this.scope = requireNonEmptyString(validFields.scope, 'scope');
+    this.amount = requirePositiveInteger(validFields.amount, 'amount');
+    this.unit = requireMemoryBudgetUnit(validFields.unit);
+    this._releaseLease = requireReleaseLease(validFields.releaseLease);
     Object.freeze(this);
   }
 
   release(): void {
     this._releaseLease(this.id);
   }
+}
+
+function requireMemoryBudgetLeaseFields(
+  fields: MemoryBudgetLeaseFields | null | undefined,
+): MemoryBudgetLeaseFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('MemoryBudgetLease requires object fields', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field: 'fields' },
+  });
+}
+
+function requireReleaseLease(value: ReleaseLease): ReleaseLease {
+  if (typeof value === 'function') {
+    return value;
+  }
+  throw new MemoryBudgetError('Memory budget lease requires a release function', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field: 'releaseLease' },
+  });
 }
 
 function requireNonEmptyString(value: string, field: string): string {

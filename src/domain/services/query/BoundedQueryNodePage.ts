@@ -12,10 +12,23 @@ export default class BoundedQueryNodePage {
   readonly cursor: string | null;
 
   constructor(fields: BoundedQueryNodePageFields) {
-    this.nodes = freezeNodes(fields.nodes);
-    this.cursor = normalizeCursor(fields.cursor);
+    const validFields = requirePageFields(fields);
+    this.nodes = freezeNodes(validFields.nodes);
+    this.cursor = normalizeCursor(validFields.cursor);
     Object.freeze(this);
   }
+}
+
+function requirePageFields(
+  fields: BoundedQueryNodePageFields | null | undefined,
+): BoundedQueryNodePageFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('Bounded query node page requires object fields', {
+    code: 'E_BOUNDED_QUERY_PAGE_INVALID',
+    context: { field: 'fields' },
+  });
 }
 
 function freezeNodes(values: readonly QueryNodeSnapshot[]): readonly QueryNodeSnapshot[] {

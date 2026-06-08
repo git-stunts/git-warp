@@ -1,6 +1,6 @@
 import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';
+import type MemoryBudgetLease from '../../memory/MemoryBudgetLease.ts';
 import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
-import BoundedQueryReadModel from './BoundedQueryReadModel.ts';
 import BoundedQueryNodePage from './BoundedQueryNodePage.ts';
 import type { QueryNodeStreamRequest, QueryReadModel } from './QueryReadModelProvider.ts';
 import type { QueryNodeSnapshot } from './QueryPlan.ts';
@@ -21,43 +21,81 @@ export default class BoundedQueryNodePageReader {
   private readonly _pool: WarpMemoryPool;
 
   constructor(fields: BoundedQueryNodePageReaderFields) {
-    this._readModel = fields.readModel;
-    this._pool = requireWarpMemoryPool(fields.pool);
+    const validFields = requireReaderFields(fields);
+    this._readModel = validFields.readModel;
+    this._pool = requireWarpMemoryPool(validFields.pool);
     Object.freeze(this);
   }
 
   async readPage(request: BoundedQueryNodePageRequest): Promise<BoundedQueryNodePage> {
-    const limit = requirePositiveInteger(request.limit, 'limit');
-    const start = cursorOffset(request.cursor ?? null);
-    const bounded = new BoundedQueryReadModel({
-      source: this._readModel,
+    const validRequest = requirePageRequest(request);
+    const limit = requirePositiveInteger(validRequest.limit, 'limit');
+    const start = cursorOffset(validRequest.cursor ?? null);
+    return await collectPage({
+      nodes: this._readModel.nodes(validRequest),
       pool: this._pool,
+      start,
+      limit,
     });
-    return await collectPage(bounded.nodes(request), start, limit);
   }
 }
 
-async function collectPage(
-  nodes: AsyncIterable<QueryNodeSnapshot>,
-  start: number,
-  limit: number,
-): Promise<BoundedQueryNodePage> {
+type CollectPageOptions = {
+  readonly nodes: AsyncIterable<QueryNodeSnapshot>;
+  readonly pool: WarpMemoryPool;
+  readonly start: number;
+  readonly limit: number;
+};
+
+async function collectPage(options: CollectPageOptions): Promise<BoundedQueryNodePage> {
   const pageNodes: QueryNodeSnapshot[] = [];
+  const leases: MemoryBudgetLease[] = [];
   let index = 0;
   let cursor: string | null = null;
-  for await (const node of nodes) {
-    if (index < start) {
+  try {
+    for await (const node of options.nodes) {
+      if (index < options.start) {
+        index += 1;
+        continue;
+      }
+      if (pageNodes.length >= options.limit) {
+        cursor = index.toString();
+        break;
+      }
+      leases.push(options.pool.acquire({ scope: 'query.nodes.page', amount: 1 }));
+      pageNodes.push(node);
       index += 1;
-      continue;
     }
-    if (pageNodes.length >= limit) {
-      cursor = index.toString();
-      break;
+    return new BoundedQueryNodePage({ nodes: pageNodes, cursor });
+  } finally {
+    for (const lease of leases) {
+      lease.release();
     }
-    pageNodes.push(node);
-    index += 1;
   }
-  return new BoundedQueryNodePage({ nodes: pageNodes, cursor });
+}
+
+function requireReaderFields(
+  fields: BoundedQueryNodePageReaderFields | null | undefined,
+): BoundedQueryNodePageReaderFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('BoundedQueryNodePageReader requires object fields', {
+    code: 'E_BOUNDED_QUERY_PAGE_INVALID',
+    context: { field: 'fields' },
+  });
+}
+
+function requirePageRequest(
+  request: BoundedQueryNodePageRequest | null | undefined,
+): BoundedQueryNodePageRequest {
+  if (request !== null && typeof request === 'object') {
+    return request;
+  }
+  throw new MemoryBudgetError('Bounded query node page request must be an object', {
+    code: 'E_BOUNDED_QUERY_PAGE_INVALID',
+    context: { field: 'request' },
+  });
 }
 
 function cursorOffset(cursor: string | null): number {

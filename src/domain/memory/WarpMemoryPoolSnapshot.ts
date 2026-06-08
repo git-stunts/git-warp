@@ -1,4 +1,5 @@
-import type { MemoryBudgetUnit } from './MemoryBudgetUnit.ts';
+import MemoryBudgetError from '../errors/MemoryBudgetError.ts';
+import { requireMemoryBudgetUnit, type MemoryBudgetUnit } from './MemoryBudgetUnit.ts';
 
 export type WarpMemoryPoolSnapshotFields = {
   readonly name: string;
@@ -19,12 +20,58 @@ export default class WarpMemoryPoolSnapshot {
   readonly rejected: number;
 
   constructor(fields: WarpMemoryPoolSnapshotFields) {
-    this.name = fields.name;
-    this.limit = fields.limit;
-    this.unit = fields.unit;
-    this.leased = fields.leased;
-    this.peak = fields.peak;
-    this.rejected = fields.rejected;
+    const validFields = requireSnapshotFields(fields);
+    this.name = requireNonEmptyString(validFields.name, 'name');
+    this.limit = requirePositiveInteger(validFields.limit, 'limit');
+    this.unit = requireMemoryBudgetUnit(validFields.unit);
+    this.leased = requireNonNegativeInteger(validFields.leased, 'leased');
+    this.peak = requireNonNegativeInteger(validFields.peak, 'peak');
+    this.rejected = requireNonNegativeInteger(validFields.rejected, 'rejected');
+    requireSnapshotInvariant(this.leased, this.peak);
     Object.freeze(this);
   }
+}
+
+function requireSnapshotFields(
+  fields: WarpMemoryPoolSnapshotFields | null | undefined,
+): WarpMemoryPoolSnapshotFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  return throwSnapshotError('fields');
+}
+
+function requireNonEmptyString(value: string, field: string): string {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
+  }
+  return throwSnapshotError(field);
+}
+
+function requirePositiveInteger(value: number, field: string): number {
+  if (Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  return throwSnapshotError(field);
+}
+
+function requireNonNegativeInteger(value: number, field: string): number {
+  if (Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+  return throwSnapshotError(field);
+}
+
+function requireSnapshotInvariant(leased: number, peak: number): void {
+  if (peak >= leased) {
+    return;
+  }
+  throwSnapshotError('peak');
+}
+
+function throwSnapshotError(field: string): never {
+  throw new MemoryBudgetError('WarpMemoryPoolSnapshot requires valid accounting fields', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field },
+  });
 }

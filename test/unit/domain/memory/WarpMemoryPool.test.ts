@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import MemoryBudget from '../../../../src/domain/memory/MemoryBudget.ts';
+import MemoryBudgetLease from '../../../../src/domain/memory/MemoryBudgetLease.ts';
 import MemoryBudgetError from '../../../../src/domain/errors/MemoryBudgetError.ts';
+import MemoryCapability from '../../../../src/domain/memory/MemoryCapability.ts';
+import MemoryCapabilityReport from '../../../../src/domain/memory/MemoryCapabilityReport.ts';
 import WarpMemoryPool from '../../../../src/domain/memory/WarpMemoryPool.ts';
+import WarpMemoryPoolSnapshot from '../../../../src/domain/memory/WarpMemoryPoolSnapshot.ts';
 
 describe('WarpMemoryPool', () => {
   it('leases and releases bounded graph-owned memory deterministically', () => {
@@ -74,6 +78,45 @@ describe('WarpMemoryPool', () => {
     expect(() => new WarpMemoryPool({
       name: '',
       budget: MemoryBudget.bytes(1),
+    })).toThrow(MemoryBudgetError);
+  });
+
+  it('rejects malformed runtime constructor inputs before field access', () => {
+    // @ts-expect-error deliberate malformed constructor fixture
+    expect(() => new MemoryBudget(null)).toThrow(MemoryBudgetError);
+    // @ts-expect-error deliberate malformed constructor fixture
+    expect(() => new MemoryBudgetLease(null)).toThrow(MemoryBudgetError);
+    // @ts-expect-error deliberate malformed constructor fixture
+    expect(() => new MemoryCapability(null)).toThrow(MemoryBudgetError);
+    // @ts-expect-error deliberate malformed constructor fixture
+    expect(() => new MemoryCapabilityReport(null)).toThrow(MemoryBudgetError);
+    // @ts-expect-error deliberate malformed constructor fixture
+    expect(() => new WarpMemoryPool(null)).toThrow(MemoryBudgetError);
+    const pool = new WarpMemoryPool({
+      name: 'pool',
+      budget: MemoryBudget.bytes(1),
+    });
+    // @ts-expect-error deliberate malformed lease request fixture
+    expect(() => pool.acquire(null)).toThrow(MemoryBudgetError);
+  });
+
+  it('rejects impossible memory-pool snapshots', () => {
+    expect(() => new WarpMemoryPoolSnapshot({
+      name: '',
+      limit: -1,
+      // @ts-expect-error deliberate malformed unit fixture
+      unit: 'bogus',
+      leased: -1,
+      peak: -1,
+      rejected: -1,
+    })).toThrow(MemoryBudgetError);
+    expect(() => new WarpMemoryPoolSnapshot({
+      name: 'pool',
+      limit: 1,
+      unit: 'byte',
+      leased: 2,
+      peak: 1,
+      rejected: 0,
     })).toThrow(MemoryBudgetError);
   });
 });

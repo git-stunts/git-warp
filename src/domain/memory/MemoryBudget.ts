@@ -20,8 +20,9 @@ export default class MemoryBudget {
   readonly unit: MemoryBudgetUnit;
 
   constructor(fields: MemoryBudgetFields) {
-    this.limit = requirePositiveInteger(fields.limit, 'limit');
-    this.unit = requireMemoryBudgetUnit(fields.unit);
+    const validFields = requireMemoryBudgetFields(fields);
+    this.limit = requirePositiveInteger(validFields.limit, 'limit');
+    this.unit = requireMemoryBudgetUnit(validFields.unit);
     Object.freeze(this);
   }
 
@@ -44,6 +45,18 @@ export default class MemoryBudget {
   static results(limit: number): MemoryBudget {
     return new MemoryBudget({ limit, unit: MEMORY_BUDGET_UNIT_RESULT });
   }
+}
+
+function requireMemoryBudgetFields(
+  fields: MemoryBudgetFields | null | undefined,
+): MemoryBudgetFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('MemoryBudget requires object fields', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field: 'fields' },
+  });
 }
 
 function requirePositiveInteger(value: number, field: string): number {

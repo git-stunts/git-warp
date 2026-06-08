@@ -48,26 +48,6 @@ import SeekCachePort from './src/ports/SeekCachePort.ts';
 import InMemoryGraphAdapter from './src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.ts';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.ts';
-import {
-  AuditError,
-  ContinuumArtifactAuthorityError,
-  EncryptionError,
-  ForkError,
-  IndexError,
-  QueryError,
-  PatchError,
-  MemoryBudgetError,
-  SchemaUnsupportedError,
-  ShardLoadError,
-  ShardCorruptionError,
-  ShardValidationError,
-  StorageError,
-  TraversalError,
-  OperationAbortedError,
-  SyncError,
-  StrandError,
-  WormholeError,
-} from './src/domain/errors/index.ts';
 import WriterError from './src/domain/errors/WriterError.ts';
 import BlobStoragePort from './src/ports/BlobStoragePort.ts';
 import InMemoryBlobStorageAdapter from './src/domain/utils/defaultBlobStorage.ts';
@@ -191,15 +171,6 @@ import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.t
 import SyncSecret from './src/domain/services/sync/SyncSecret.ts';
 import ContentAttachmentProjection from './src/domain/services/ContentAttachmentProjection.ts';
 import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
-import MemoryBudget from './src/domain/memory/MemoryBudget.ts';
-import MemoryBudgetLease from './src/domain/memory/MemoryBudgetLease.ts';
-import MemoryCapability from './src/domain/memory/MemoryCapability.ts';
-import MemoryCapabilityPosture from './src/domain/memory/MemoryCapabilityPosture.ts';
-import MemoryCapabilityReport from './src/domain/memory/MemoryCapabilityReport.ts';
-import WarpMemoryPool from './src/domain/memory/WarpMemoryPool.ts';
-import WarpMemoryPoolSnapshot from './src/domain/memory/WarpMemoryPoolSnapshot.ts';
-import createV18BoundedMemoryCapabilityReport
-  from './src/domain/memory/createV18BoundedMemoryCapabilityReport.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import WarpWorldline, { openWarpWorldline } from './src/domain/WarpWorldline.ts';
 import WarpWorldlineCoordinate from './src/domain/WarpWorldlineCoordinate.ts';
@@ -235,6 +206,27 @@ import {
 } from './src/domain/services/CoordinateFactExport.ts';
 
 export * from './src/domain/graph/publicGraphSubstrate.ts';
+export * from './src/domain/memory/index.ts';
+export {
+  AuditError,
+  ContinuumArtifactAuthorityError,
+  EncryptionError,
+  ForkError,
+  IndexError,
+  MemoryBudgetError,
+  OperationAbortedError,
+  PatchError,
+  QueryError,
+  SchemaUnsupportedError,
+  ShardCorruptionError,
+  ShardLoadError,
+  ShardValidationError,
+  StorageError,
+  StrandError,
+  SyncError,
+  TraversalError,
+  WormholeError,
+} from './src/domain/errors/index.ts';
 
 import ContinuumArtifactAuthority from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import ContinuumArtifactDescriptor from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
@@ -343,24 +335,6 @@ export {
   DenoHttpAdapter,
 
   // Error types for integrity failure handling
-  AuditError,
-  ContinuumArtifactAuthorityError,
-  EncryptionError,
-  PatchError,
-  ForkError,
-  IndexError,
-  QueryError,
-  MemoryBudgetError,
-  SchemaUnsupportedError,
-  ShardLoadError,
-  ShardCorruptionError,
-  ShardValidationError,
-  StorageError,
-  TraversalError,
-  OperationAbortedError,
-  SyncError,
-  StrandError,
-  WormholeError,
   WriterError,
 
   // Cancellation utilities
@@ -375,14 +349,6 @@ export {
   WarpWorldline,
   WarpWorldlineCoordinate,
   WarpWorldlineOpticBasis,
-  MemoryBudget,
-  MemoryBudgetLease,
-  MemoryCapability,
-  MemoryCapabilityPosture,
-  MemoryCapabilityReport,
-  WarpMemoryPool,
-  WarpMemoryPoolSnapshot,
-  createV18BoundedMemoryCapabilityReport,
 
   // Multi-writer graph support (legacy/diagnostic — prefer openWarpWorldline)
   WarpApp,

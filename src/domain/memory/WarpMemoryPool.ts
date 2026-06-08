@@ -24,8 +24,9 @@ export default class WarpMemoryPool {
   private readonly _releasedLeases: Set<string>;
 
   constructor(fields: WarpMemoryPoolFields) {
-    this.name = requireNonEmptyString(fields.name, 'name');
-    this.budget = requireMemoryBudget(fields.budget);
+    const validFields = requirePoolFields(fields);
+    this.name = requireNonEmptyString(validFields.name, 'name');
+    this.budget = requireMemoryBudget(validFields.budget);
     this._leased = 0;
     this._peak = 0;
     this._rejected = 0;
@@ -34,8 +35,9 @@ export default class WarpMemoryPool {
   }
 
   acquire(request: MemoryLeaseRequest): MemoryBudgetLease {
-    const scope = requireNonEmptyString(request.scope, 'scope');
-    const amount = requirePositiveInteger(request.amount, 'amount');
+    const validRequest = requireLeaseRequest(request);
+    const scope = requireNonEmptyString(validRequest.scope, 'scope');
+    const amount = requirePositiveInteger(validRequest.amount, 'amount');
     this.assertAvailable(scope, amount);
     this._leased += amount;
     this._peak = Math.max(this._peak, this._leased);
@@ -92,6 +94,26 @@ export default class WarpMemoryPool {
     this._nextLease += 1;
     return leaseId;
   }
+}
+
+function requirePoolFields(fields: WarpMemoryPoolFields | null | undefined): WarpMemoryPoolFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('WarpMemoryPool requires object fields', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field: 'fields' },
+  });
+}
+
+function requireLeaseRequest(request: MemoryLeaseRequest | null | undefined): MemoryLeaseRequest {
+  if (request !== null && typeof request === 'object') {
+    return request;
+  }
+  throw new MemoryBudgetError('Memory lease request must be an object', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field: 'request' },
+  });
 }
 
 function requireMemoryBudget(value: MemoryBudget): MemoryBudget {

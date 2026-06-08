@@ -1,4 +1,5 @@
 import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';
+import type MemoryBudgetLease from '../../memory/MemoryBudgetLease.ts';
 import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
 import BoundedSyncPatchBatch, { type BoundedSyncPatchDescriptor } from './BoundedSyncPatchBatch.ts';
 
@@ -31,14 +32,16 @@ export default class BoundedSyncPatchBatchReader {
   private readonly _pool: WarpMemoryPool;
 
   constructor(fields: BoundedSyncPatchBatchReaderFields) {
-    this._openSource = fields.openSource;
-    this._pool = requireWarpMemoryPool(fields.pool);
+    const validFields = requireReaderFields(fields);
+    this._openSource = requireOpenSource(validFields.openSource);
+    this._pool = requireWarpMemoryPool(validFields.pool);
     Object.freeze(this);
   }
 
   async readBatch(request: BoundedSyncPatchBatchRequest): Promise<BoundedSyncPatchBatch> {
-    const limit = requirePositiveInteger(request.limit, 'limit');
-    const cursor = normalizeCursor(request.cursor ?? null);
+    const validRequest = requireBatchRequest(request);
+    const limit = requirePositiveInteger(validRequest.limit, 'limit');
+    const cursor = normalizeCursor(validRequest.cursor ?? null);
     return await collectBatch({
       source: this._openSource({ cursor, limit: readAheadLimit(limit) }),
       pool: this._pool,
@@ -57,25 +60,32 @@ type CollectBatchOptions = {
 
 async function collectBatch(options: CollectBatchOptions): Promise<BoundedSyncPatchBatch> {
   const patches: BoundedSyncPatchDescriptor[] = [];
+  const leases: MemoryBudgetLease[] = [];
   let index = options.start;
   let cursor: string | null = null;
-  for await (const patch of options.source) {
-    const lease = options.pool.acquire({
-      scope: SYNC_PATCH_BATCH_LEASE_SCOPE,
-      amount: SYNC_PATCH_BATCH_LEASE_AMOUNT,
-    });
-    try {
+  try {
+    for await (const patch of options.source) {
+      if (patches.length >= options.limit) {
+        cursor = index.toString();
+        break;
+      }
+      leases.push(options.pool.acquire({
+        scope: SYNC_PATCH_BATCH_LEASE_SCOPE,
+        amount: SYNC_PATCH_BATCH_LEASE_AMOUNT,
+      }));
       const control = appendPatch({ patches, patch, index, limit: options.limit });
       index = control.nextIndex;
       cursor = control.cursor;
-    } finally {
+      if (cursor !== null) {
+        break;
+      }
+    }
+    return new BoundedSyncPatchBatch({ patches, cursor });
+  } finally {
+    for (const lease of leases) {
       lease.release();
     }
-    if (cursor !== null) {
-      break;
-    }
   }
-  return new BoundedSyncPatchBatch({ patches, cursor });
 }
 
 type AppendPatchOptions = {
@@ -114,6 +124,40 @@ function cursorOffset(cursor: string | null): number {
 
 function readAheadLimit(limit: number): number {
   return limit + SYNC_PATCH_BATCH_READ_AHEAD_INCREMENT;
+}
+
+function requireReaderFields(
+  fields: BoundedSyncPatchBatchReaderFields | null | undefined,
+): BoundedSyncPatchBatchReaderFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('BoundedSyncPatchBatchReader requires object fields', {
+    code: 'E_BOUNDED_SYNC_BATCH_INVALID',
+    context: { field: 'fields' },
+  });
+}
+
+function requireBatchRequest(
+  request: BoundedSyncPatchBatchRequest | null | undefined,
+): BoundedSyncPatchBatchRequest {
+  if (request !== null && typeof request === 'object') {
+    return request;
+  }
+  throw new MemoryBudgetError('Bounded sync patch batch request must be an object', {
+    code: 'E_BOUNDED_SYNC_BATCH_INVALID',
+    context: { field: 'request' },
+  });
+}
+
+function requireOpenSource(value: BoundedSyncPatchSourceFactory): BoundedSyncPatchSourceFactory {
+  if (typeof value === 'function') {
+    return value;
+  }
+  throw new MemoryBudgetError('BoundedSyncPatchBatchReader requires an openSource function', {
+    code: 'E_BOUNDED_SYNC_BATCH_INVALID',
+    context: { field: 'openSource' },
+  });
 }
 
 function requirePositiveInteger(value: number, field: string): number {

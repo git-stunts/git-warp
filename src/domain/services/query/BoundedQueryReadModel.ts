@@ -21,8 +21,9 @@ export default class BoundedQueryReadModel implements QueryReadModel {
   private readonly _pool: WarpMemoryPool;
 
   constructor(fields: BoundedQueryReadModelFields) {
-    this._source = requireQueryReadModel(fields.source);
-    this._pool = requireWarpMemoryPool(fields.pool);
+    const validFields = requireReadModelFields(fields);
+    this._source = requireQueryReadModel(validFields.source);
+    this._pool = requireWarpMemoryPool(validFields.pool);
     this.stateHash = this._source.stateHash;
     Object.freeze(this);
   }
@@ -60,6 +61,18 @@ export default class BoundedQueryReadModel implements QueryReadModel {
       lease.release();
     }
   }
+}
+
+function requireReadModelFields(
+  fields: BoundedQueryReadModelFields | null | undefined,
+): BoundedQueryReadModelFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('BoundedQueryReadModel requires object fields', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field: 'fields' },
+  });
 }
 
 function requireQueryReadModel(value: QueryReadModel): QueryReadModel {

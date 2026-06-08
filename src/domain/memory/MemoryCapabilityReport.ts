@@ -10,7 +10,7 @@ export default class MemoryCapabilityReport {
   readonly capabilities: readonly MemoryCapability[];
 
   constructor(fields: MemoryCapabilityReportFields) {
-    this.capabilities = freezeCapabilities(fields.capabilities);
+    this.capabilities = freezeCapabilities(requireReportFields(fields).capabilities);
     Object.freeze(this);
   }
 
@@ -44,6 +44,18 @@ export default class MemoryCapabilityReport {
   private namesMatching(predicate: (capability: MemoryCapability) => boolean): readonly string[] {
     return Object.freeze(this.capabilities.filter(predicate).map((capability) => capability.name));
   }
+}
+
+function requireReportFields(
+  fields: MemoryCapabilityReportFields | null | undefined,
+): MemoryCapabilityReportFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('MemoryCapabilityReport requires object fields', {
+    code: 'E_MEMORY_CAPABILITY_INVALID',
+    context: { field: 'fields' },
+  });
 }
 
 function freezeCapabilities(values: readonly MemoryCapability[]): readonly MemoryCapability[] {

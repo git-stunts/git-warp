@@ -16,12 +16,25 @@ export default class MemoryCapability {
   readonly note: string;
 
   constructor(fields: MemoryCapabilityFields) {
-    this.name = requireNonEmptyString(fields.name, 'name');
-    this.posture = normalizePosture(fields.posture);
-    this.evidence = requireNonEmptyString(fields.evidence, 'evidence');
-    this.note = requireNonEmptyString(fields.note, 'note');
+    const validFields = requireMemoryCapabilityFields(fields);
+    this.name = requireNonEmptyString(validFields.name, 'name');
+    this.posture = normalizePosture(validFields.posture);
+    this.evidence = requireNonEmptyString(validFields.evidence, 'evidence');
+    this.note = requireNonEmptyString(validFields.note, 'note');
     Object.freeze(this);
   }
+}
+
+function requireMemoryCapabilityFields(
+  fields: MemoryCapabilityFields | null | undefined,
+): MemoryCapabilityFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('MemoryCapability requires object fields', {
+    code: 'E_MEMORY_CAPABILITY_INVALID',
+    context: { field: 'fields' },
+  });
 }
 
 function normalizePosture(
