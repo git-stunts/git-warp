@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import MemoryBudgetError from '../../../../../src/domain/errors/MemoryBudgetError.ts';
 import MemoryBudget from '../../../../../src/domain/memory/MemoryBudget.ts';
 import WarpMemoryPool from '../../../../../src/domain/memory/WarpMemoryPool.ts';
 import CheckpointExistingEntityWriteResolver
@@ -39,6 +40,11 @@ describe('CheckpointExistingEntityWriteResolver', () => {
       edgeFact('task:1', 'task:2', 'blocks', false, 2),
     ]), { from: 'task:1', to: 'task:2', label: 'blocks' })).resolves.toBe(false);
     expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 1, rejected: 0 });
+  });
+
+  it('rejects malformed constructor fields before field access', () => {
+    // @ts-expect-error deliberate malformed constructor fixture
+    expect(() => new CheckpointExistingEntityWriteResolver(null)).toThrow(MemoryBudgetError);
   });
 });
 

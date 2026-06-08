@@ -201,6 +201,25 @@ describe('CheckpointPatchFactStream', () => {
     expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 2, rejected: 0 });
   });
 
+  it('rejects malformed bounded stream options before field access', async () => {
+    const stream = new CheckpointPatchFactStream({ source: new TestPatchFactStreamSource() });
+
+    await expect(collectFacts(
+      // @ts-expect-error deliberate malformed bounded stream options fixture
+      stream.streamBounded(null),
+    )).rejects.toMatchObject({
+      code: 'E_CHECKPOINT_PATCH_FACT_STREAM',
+      context: {
+        field: 'options',
+        reason: 'invalid-bounded-read-options',
+      },
+    });
+    await expect(collectFacts(
+      // @ts-expect-error deliberate malformed bounded stream options fixture
+      stream.streamBounded(null),
+    )).rejects.toBeInstanceOf(QueryError);
+  });
+
   it('turns previous checkpoint coverage failure into a typed obstruction', async () => {
     const source = new TestPatchFactStreamSource();
     source.setChain('aaaa', [

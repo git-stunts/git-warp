@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import MemoryBudgetError from '../../../../../src/domain/errors/MemoryBudgetError.ts';
 import MemoryBudget from '../../../../../src/domain/memory/MemoryBudget.ts';
 import WarpMemoryPool from '../../../../../src/domain/memory/WarpMemoryPool.ts';
 import CheckpointFactResolver from '../../../../../src/domain/services/optic/CheckpointFactResolver.ts';
@@ -71,6 +72,11 @@ describe('CheckpointFactResolver', () => {
     ]), 'task:1')).resolves.toBe('oid-current');
     await expect(resolver.resolveContentOid(facts([]), 'task:missing')).resolves.toBeNull();
     expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 1, rejected: 0 });
+  });
+
+  it('rejects malformed constructor fields before field access', () => {
+    // @ts-expect-error deliberate malformed constructor fixture
+    expect(() => new CheckpointFactResolver(null)).toThrow(MemoryBudgetError);
   });
 });
 

@@ -78,10 +78,11 @@ export default class CheckpointPatchFactStream {
   async *streamBounded(
     options: CheckpointPatchFactStreamBoundedReadOptions,
   ): AsyncIterable<CheckpointBasisFact> {
-    validateCheckpoint(options.previousCheckpoint);
-    validateFrontier(options.targetFrontier, 'targetFrontier');
-    const pool = requireMemoryPool(options.pool);
-    const cursors = await this._openWriterCursors(options, pool);
+    const validOptions = requireBoundedReadOptions(options);
+    validateCheckpoint(validOptions.previousCheckpoint);
+    validateFrontier(validOptions.targetFrontier, 'targetFrontier');
+    const pool = requireMemoryPool(validOptions.pool);
+    const cursors = await this._openWriterCursors(validOptions, pool);
     try {
       while (cursors.length > 0) {
         const selectedIndex = selectFactCursorIndex(cursors);
@@ -414,6 +415,15 @@ function requireMemoryPool(pool: WarpMemoryPool): WarpMemoryPool {
     code: 'E_MEMORY_BUDGET_INVALID',
     context: { field: 'pool' },
   });
+}
+
+function requireBoundedReadOptions(
+  options: CheckpointPatchFactStreamBoundedReadOptions | null | undefined,
+): CheckpointPatchFactStreamBoundedReadOptions {
+  if (options !== null && typeof options === 'object') {
+    return options;
+  }
+  return throwStreamError('options', 'invalid-bounded-read-options');
 }
 
 function validateCheckpoint(checkpoint: CheckpointTailCheckpointFrontier): void {

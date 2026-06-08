@@ -1,3 +1,4 @@
+import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';
 import type WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
 import type { CheckpointBasisFact } from './CheckpointBasisFact.ts';
 import CheckpointFactResolver, { type CheckpointEdgeIdentity } from './CheckpointFactResolver.ts';
@@ -11,7 +12,8 @@ export default class CheckpointExistingEntityWriteResolver {
   private readonly _factResolver: CheckpointFactResolver;
 
   constructor(fields: CheckpointExistingEntityWriteResolverFields) {
-    this._factResolver = new CheckpointFactResolver({ pool: fields.pool });
+    const validFields = requireResolverFields(fields);
+    this._factResolver = new CheckpointFactResolver({ pool: validFields.pool });
     Object.freeze(this);
   }
 
@@ -29,4 +31,16 @@ export default class CheckpointExistingEntityWriteResolver {
     const resolution = await this._factResolver.resolveEdgeEndpoints(facts, edge);
     return resolution?.alive === true;
   }
+}
+
+function requireResolverFields(
+  fields: CheckpointExistingEntityWriteResolverFields | null | undefined,
+): CheckpointExistingEntityWriteResolverFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('CheckpointExistingEntityWriteResolver requires object fields', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field: 'fields' },
+  });
 }

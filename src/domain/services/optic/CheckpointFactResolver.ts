@@ -42,7 +42,8 @@ export default class CheckpointFactResolver {
   private readonly _pool: WarpMemoryPool;
 
   constructor(fields: CheckpointFactResolverFields) {
-    this._pool = requireWarpMemoryPool(fields.pool);
+    const validFields = requireResolverFields(fields);
+    this._pool = requireWarpMemoryPool(validFields.pool);
     Object.freeze(this);
   }
 
@@ -109,6 +110,18 @@ export default class CheckpointFactResolver {
     }
     return latest?.contentOid ?? null;
   }
+}
+
+function requireResolverFields(
+  fields: CheckpointFactResolverFields | null | undefined,
+): CheckpointFactResolverFields {
+  if (fields !== null && typeof fields === 'object') {
+    return fields;
+  }
+  throw new MemoryBudgetError('CheckpointFactResolver requires object fields', {
+    code: 'E_MEMORY_BUDGET_INVALID',
+    context: { field: 'fields' },
+  });
 }
 
 function requireWarpMemoryPool(value: WarpMemoryPool): WarpMemoryPool {
