@@ -33,9 +33,14 @@ RUN arch="${TARGETARCH:-$(dpkg --print-architecture)}" \
   && curl -fsSL \
     "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${deno_arch}-unknown-linux-gnu.zip" \
     -o /tmp/deno.zip \
+  && curl -fsSL \
+    "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${deno_arch}-unknown-linux-gnu.zip.sha256sum" \
+    -o /tmp/deno.zip.sha256sum \
+  && expected_sha="$(cut -d ' ' -f 1 /tmp/deno.zip.sha256sum)" \
+  && echo "${expected_sha}  /tmp/deno.zip" | sha256sum -c - \
   && unzip -q /tmp/deno.zip -d /tmp \
   && install -m 0755 /tmp/deno /usr/local/bin/deno \
-  && rm -f /tmp/deno /tmp/deno.zip \
+  && rm -f /tmp/deno /tmp/deno.zip /tmp/deno.zip.sha256sum \
   && deno --version
 RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
