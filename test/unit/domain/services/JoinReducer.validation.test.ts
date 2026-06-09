@@ -118,6 +118,14 @@ describe('JoinReducer validation', () => {
       expect(() => applyOpV2(state, (null as any), eventId)).toThrow(PatchError);
     });
 
+    it('throws PatchError for null ops through all reduceV5 paths', () => {
+      const entry = makePatchEntry([null]);
+
+      expect(() => reduceV5([entry])).toThrow(PatchError);
+      expect(() => reduceV5([entry], undefined, { receipts: true })).toThrow(PatchError);
+      expect(() => reduceV5([entry], undefined, { trackDiff: true })).toThrow(PatchError);
+    });
+
     it('throws PatchError for op without type field', () => {
       const state = createEmptyState();
       const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);

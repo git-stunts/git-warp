@@ -117,6 +117,15 @@ export function joinStates(a: WarpState, b: WarpState): WarpState {
  * data loss.
  */
 export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
+  const type = readReducerOpType(op);
+  assertKnownReducerOp(op, type);
+  const canonOp = normalizeRawOp(op);
+  if (!(canonOp instanceof Op)) { return; }
+  canonOp.validate();
+  canonOp.mutate(state, eventId);
+}
+
+function readReducerOpType(op: OpLike): string { // nosemgrep: ts-no-like-types -- 0025C
   if (op === null || op === undefined || typeof op !== 'object') {
     throw new PatchError(
       `Invalid op: expected object with string 'type', got ${String(op)}`,
@@ -130,11 +139,7 @@ export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void 
       { context: { actual: typeof type } },
     );
   }
-  assertKnownReducerOp(op, type);
-  const canonOp = normalizeRawOp(op);
-  if (!(canonOp instanceof Op)) { return; }
-  canonOp.validate();
-  canonOp.mutate(state, eventId);
+  return type;
 }
 
 function assertKnownReducerOp(op: OpLike, type: string): void { // nosemgrep: ts-no-like-types -- 0025C
@@ -150,7 +155,8 @@ export function applyFast(state: WarpState, patch: PatchLike, patchSha: string):
   for (let i = 0; i < patch.ops.length; i++) {
     const op = patch.ops[i];
     if (op === undefined) { continue; }
-    assertKnownReducerOp(op, Reflect.get(op, 'type'));
+    const type = readReducerOpType(op);
+    assertKnownReducerOp(op, type);
     const canonOp = normalizeRawOp(op);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
@@ -174,7 +180,8 @@ export function applyWithDiff(
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
-    assertKnownReducerOp(rawOp, Reflect.get(rawOp, 'type'));
+    const type = readReducerOpType(rawOp);
+    assertKnownReducerOp(rawOp, type);
     const canonOp = normalizeRawOp(rawOp);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
@@ -201,7 +208,8 @@ export function applyWithReceipt(
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
-    assertKnownReducerOp(rawOp, Reflect.get(rawOp, 'type'));
+    const type = readReducerOpType(rawOp);
+    assertKnownReducerOp(rawOp, type);
     const canonOp = normalizeRawOp(rawOp);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
