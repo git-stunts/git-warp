@@ -30,14 +30,24 @@ function stateDiffRecordsEqual(left: StateDiffRecord, right: StateDiffRecord): b
 }
 
 function stateDiffObjectsEqual(left: object, right: object): boolean {
-  if (left instanceof Uint8Array) {
-    return right instanceof Uint8Array && stateDiffBytesEqual(left, right);
+  if (left instanceof Uint8Array || right instanceof Uint8Array) {
+    return stateDiffByteObjectsEqual(left, right);
   }
-  if (right instanceof Uint8Array) { return false; }
-  if (Array.isArray(left)) {
-    return Array.isArray(right) && stateDiffArraysEqual(left, right);
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return stateDiffArrayObjectsEqual(left, right);
   }
-  if (Array.isArray(right)) { return false; }
+  return stateDiffPlainObjectsEqual(left, right);
+}
+
+function stateDiffByteObjectsEqual(left: object, right: object): boolean {
+  return left instanceof Uint8Array && right instanceof Uint8Array && stateDiffBytesEqual(left, right);
+}
+
+function stateDiffArrayObjectsEqual(left: object, right: object): boolean {
+  return Array.isArray(left) && Array.isArray(right) && stateDiffArraysEqual(left, right);
+}
+
+function stateDiffPlainObjectsEqual(left: object, right: object): boolean {
   if (!isPlainRecord(left) || !isPlainRecord(right)) { return false; }
   return stateDiffRecordsEqual(left, right);
 }
@@ -51,7 +61,7 @@ function stateDiffBytesEqual(left: Uint8Array, right: Uint8Array): boolean {
 }
 
 function isPlainRecord(value: object): value is StateDiffRecord {
-  const prototype = Object.getPrototypeOf(value);
+  const prototype = Reflect.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 

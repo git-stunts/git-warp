@@ -34,14 +34,13 @@ function requireNonEmptyString(value: string, field: string): string {
   return value;
 }
 
-function requireArray<T>(value: readonly T[], field: string): readonly T[] {
+function requireArray(value: readonly (object | string)[], field: string): void {
   if (!Array.isArray(value)) {
     throw new PatchError(`${field} must be an array`, {
       code: 'E_PATCH_DIFF_ARRAY',
       context: { field },
     });
   }
-  return value;
 }
 
 export class EdgeDiffEntry {
@@ -109,11 +108,16 @@ export class PatchDiff {
     edgesRemoved: readonly EdgeDiffEntry[];
     propsChanged: readonly PropDiffEntry[];
   }) {
-    this.nodesAdded = Object.freeze(requireArray(nodesAdded, 'nodesAdded').map((nodeId) => requireNonEmptyString(nodeId, 'nodeId')));
-    this.nodesRemoved = Object.freeze(requireArray(nodesRemoved, 'nodesRemoved').map((nodeId) => requireNonEmptyString(nodeId, 'nodeId')));
-    this.edgesAdded = Object.freeze(requireArray(edgesAdded, 'edgesAdded').map((entry) => EdgeDiffEntry.fromEntry(entry)));
-    this.edgesRemoved = Object.freeze(requireArray(edgesRemoved, 'edgesRemoved').map((entry) => EdgeDiffEntry.fromEntry(entry)));
-    this.propsChanged = Object.freeze(requireArray(propsChanged, 'propsChanged').map((entry) => PropDiffEntry.fromEntry(entry)));
+    requireArray(nodesAdded, 'nodesAdded');
+    requireArray(nodesRemoved, 'nodesRemoved');
+    requireArray(edgesAdded, 'edgesAdded');
+    requireArray(edgesRemoved, 'edgesRemoved');
+    requireArray(propsChanged, 'propsChanged');
+    this.nodesAdded = Object.freeze(nodesAdded.map((nodeId) => requireNonEmptyString(nodeId, 'nodeId')));
+    this.nodesRemoved = Object.freeze(nodesRemoved.map((nodeId) => requireNonEmptyString(nodeId, 'nodeId')));
+    this.edgesAdded = Object.freeze(edgesAdded.map((entry) => EdgeDiffEntry.fromEntry(entry)));
+    this.edgesRemoved = Object.freeze(edgesRemoved.map((entry) => EdgeDiffEntry.fromEntry(entry)));
+    this.propsChanged = Object.freeze(propsChanged.map((entry) => PropDiffEntry.fromEntry(entry)));
     Object.freeze(this);
   }
 
