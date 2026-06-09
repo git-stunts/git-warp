@@ -31,8 +31,9 @@ export default class BoundedQueryNodePageReader {
     const validRequest = requirePageRequest(request);
     const limit = requirePositiveInteger(validRequest.limit, 'limit');
     const start = cursorOffset(validRequest.cursor ?? null);
+    const streamRequest = queryNodeStreamRequest(validRequest);
     return await collectPage({
-      nodes: this._readModel.nodes(validRequest),
+      nodes: this._readModel.nodes(streamRequest),
       pool: this._pool,
       start,
       limit,
@@ -46,6 +47,13 @@ type CollectPageOptions = {
   readonly start: number;
   readonly limit: number;
 };
+
+function queryNodeStreamRequest(request: BoundedQueryNodePageRequest): QueryNodeStreamRequest {
+  return Object.freeze({
+    pattern: request.pattern,
+    select: request.select,
+  });
+}
 
 async function collectPage(options: CollectPageOptions): Promise<BoundedQueryNodePage> {
   const pageNodes: QueryNodeSnapshot[] = [];
