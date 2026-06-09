@@ -9,7 +9,7 @@ import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
 import { OP_SCOPE_BOTH } from './OpScope.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
-import type { PatchDiff } from '../PatchDiff.ts';
+import type { MutablePatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 import ReceiptBuilder from '../../services/ReceiptBuilder.ts';
 
@@ -44,7 +44,7 @@ export default class NodeAdd extends Op<'NodeAdd'> {
     return { nodeWasAlive: state.nodeAlive.contains(this.node) };
   }
 
-  accumulate(diff: PatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
+  accumulate(diff: MutablePatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
     if (before.nodeWasAlive !== true && state.nodeAlive.contains(this.node)) {
       diff.nodesAdded.push(this.node);
     }

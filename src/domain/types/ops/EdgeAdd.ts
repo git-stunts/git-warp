@@ -11,7 +11,7 @@ import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 import { encodeEdgeKey } from '../../services/KeyCodec.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
-import type { PatchDiff } from '../PatchDiff.ts';
+import type { MutablePatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 import ReceiptBuilder from '../../services/ReceiptBuilder.ts';
 
@@ -61,7 +61,7 @@ export default class EdgeAdd extends Op<'EdgeAdd'> {
     return { edgeWasAlive: state.edgeAlive.contains(ek), edgeKey: ek };
   }
 
-  accumulate(diff: PatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
+  accumulate(diff: MutablePatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
     if (before.edgeWasAlive !== true && before.edgeKey !== undefined && state.edgeAlive.contains(before.edgeKey)) {
       diff.edgesAdded.push({ from: this.from, to: this.to, label: this.label });
     }

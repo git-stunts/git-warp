@@ -7,7 +7,7 @@
 
 import type { EventId } from '../../utils/EventId.ts';
 import type WarpState from '../../services/state/WarpState.ts';
-import type { PatchDiff } from '../PatchDiff.ts';
+import type { MutablePatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 import type { PropValue } from '../PropValue.ts';
 
@@ -29,7 +29,7 @@ export function snapshotProp(state: WarpState, propKey: string): SnapshotBeforeO
 
 /** Post-op diff accumulation for a property register. */
 export function accumulatePropDiff(
-  diff: PatchDiff,
+  diff: MutablePatchDiff,
   state: WarpState,
   nodeId: string,
   key: string,

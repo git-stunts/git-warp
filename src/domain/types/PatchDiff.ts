@@ -34,7 +34,7 @@ function requireNonEmptyString(value: string, field: string): string {
   return value;
 }
 
-function requireArray<T>(value: T[], field: string): T[] {
+function requireArray<T>(value: readonly T[], field: string): readonly T[] {
   if (!Array.isArray(value)) {
     throw new PatchError(`${field} must be an array`, {
       code: 'E_PATCH_DIFF_ARRAY',
@@ -85,35 +85,35 @@ export class PropDiffEntry {
  */
 export class PatchDiff {
   /** Edges that transitioned not-alive -> alive */
-  edgesAdded: EdgeDiffEntry[];
+  readonly edgesAdded: readonly EdgeDiffEntry[];
 
   /** Edges that transitioned alive -> not-alive */
-  edgesRemoved: EdgeDiffEntry[];
+  readonly edgesRemoved: readonly EdgeDiffEntry[];
 
   /** Nodes that transitioned not-alive -> alive */
-  nodesAdded: string[];
+  readonly nodesAdded: readonly string[];
 
   /** Nodes that transitioned alive -> not-alive */
-  nodesRemoved: string[];
+  readonly nodesRemoved: readonly string[];
 
   /** Properties whose LWW winner actually changed */
-  propsChanged: PropDiffEntry[];
+  readonly propsChanged: readonly PropDiffEntry[];
 
   /**
    * Creates a PatchDiff from field values.
    */
   constructor({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged }: {
-    nodesAdded: string[];
-    nodesRemoved: string[];
-    edgesAdded: EdgeDiffEntry[];
-    edgesRemoved: EdgeDiffEntry[];
-    propsChanged: PropDiffEntry[];
+    nodesAdded: readonly string[];
+    nodesRemoved: readonly string[];
+    edgesAdded: readonly EdgeDiffEntry[];
+    edgesRemoved: readonly EdgeDiffEntry[];
+    propsChanged: readonly PropDiffEntry[];
   }) {
-    this.nodesAdded = requireArray(nodesAdded, 'nodesAdded').map((nodeId) => requireNonEmptyString(nodeId, 'nodeId'));
-    this.nodesRemoved = requireArray(nodesRemoved, 'nodesRemoved').map((nodeId) => requireNonEmptyString(nodeId, 'nodeId'));
-    this.edgesAdded = requireArray(edgesAdded, 'edgesAdded').map((entry) => EdgeDiffEntry.fromEntry(entry));
-    this.edgesRemoved = requireArray(edgesRemoved, 'edgesRemoved').map((entry) => EdgeDiffEntry.fromEntry(entry));
-    this.propsChanged = requireArray(propsChanged, 'propsChanged').map((entry) => PropDiffEntry.fromEntry(entry));
+    this.nodesAdded = Object.freeze(requireArray(nodesAdded, 'nodesAdded').map((nodeId) => requireNonEmptyString(nodeId, 'nodeId')));
+    this.nodesRemoved = Object.freeze(requireArray(nodesRemoved, 'nodesRemoved').map((nodeId) => requireNonEmptyString(nodeId, 'nodeId')));
+    this.edgesAdded = Object.freeze(requireArray(edgesAdded, 'edgesAdded').map((entry) => EdgeDiffEntry.fromEntry(entry)));
+    this.edgesRemoved = Object.freeze(requireArray(edgesRemoved, 'edgesRemoved').map((entry) => EdgeDiffEntry.fromEntry(entry)));
+    this.propsChanged = Object.freeze(requireArray(propsChanged, 'propsChanged').map((entry) => PropDiffEntry.fromEntry(entry)));
     Object.freeze(this);
   }
 
@@ -129,6 +129,24 @@ export class PatchDiff {
       propsChanged: [],
     });
   }
+}
+
+export type MutablePatchDiff = {
+  readonly edgesAdded: EdgeDiffEntry[];
+  readonly edgesRemoved: EdgeDiffEntry[];
+  readonly nodesAdded: string[];
+  readonly nodesRemoved: string[];
+  readonly propsChanged: PropDiffEntry[];
+};
+
+export function createPatchDiffAccumulator(): MutablePatchDiff {
+  return {
+    edgesAdded: [],
+    edgesRemoved: [],
+    nodesAdded: [],
+    nodesRemoved: [],
+    propsChanged: [],
+  };
 }
 
 /**
@@ -148,7 +166,7 @@ function edgeKey(e: EdgeDiffEntry): string {
 /**
  * Deduplicates property diff entries, keeping the last entry per (nodeId, key).
  */
-function deduplicateProps(allProps: PropDiffEntry[]): PropDiffEntry[] {
+function deduplicateProps(allProps: readonly PropDiffEntry[]): PropDiffEntry[] {
   const propMap = new Map<string, PropDiffEntry>();
   for (const entry of allProps) {
     propMap.set(`${entry.nodeId}\0${entry.key}`, entry);

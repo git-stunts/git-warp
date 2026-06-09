@@ -23,7 +23,7 @@
 import { EventId } from '../utils/EventId.ts';
 import { createTickReceipt, type TickReceipt, type OpOutcome } from '../types/TickReceipt.ts';
 import { normalizeRawOp } from './OpNormalizer.ts';
-import { createEmptyDiff, mergeDiffs, type PatchDiff } from '../types/PatchDiff.ts';
+import { PatchDiff, createEmptyDiff, createPatchDiffAccumulator, mergeDiffs } from '../types/PatchDiff.ts';
 import PatchError from '../errors/PatchError.ts';
 import WarpState from './state/WarpState.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
@@ -176,7 +176,7 @@ export function applyWithDiff(
   patch: PatchLike, // nosemgrep: ts-no-like-types -- 0025C
   patchSha: string,
 ): { state: WarpState; diff: PatchDiff } {
-  const diff = createEmptyDiff();
+  const diff = createPatchDiffAccumulator();
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
@@ -191,7 +191,7 @@ export function applyWithDiff(
     canonOp.accumulate(diff, state, before);
   }
   state.foldPatch(patch);
-  return { state, diff };
+  return { state, diff: new PatchDiff(diff) };
 }
 
 /**

@@ -7,7 +7,7 @@ import { OP_SCOPE_BOTH } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes, assertArray } from './validate.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
-import type { PatchDiff } from '../PatchDiff.ts';
+import type { MutablePatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 import ReceiptBuilder from '../../services/ReceiptBuilder.ts';
 import DiffCalculator from '../../services/DiffCalculator.ts';
@@ -56,7 +56,7 @@ export default class EdgeRemove extends Op<'EdgeRemove'> {
     return { aliveBeforeEdges: DiffCalculator.aliveElementsForDots(state.edgeAlive, new Set(this.observedDots)) };
   }
 
-  accumulate(diff: PatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
+  accumulate(diff: MutablePatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
     DiffCalculator.collectEdgeRemovals(diff, state, before.aliveBeforeEdges);
   }
 }

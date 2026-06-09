@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
 import {
   EdgeDiffEntry,
+  PatchDiff,
   PropDiffEntry,
   createEmptyDiff,
   mergeDiffs,
@@ -47,6 +48,28 @@ describe('PatchDiff', () => {
         value: 'Ada',
         prevValue: undefined,
       })).toThrow(PatchError);
+    });
+
+    it('freezes PatchDiff collections', () => {
+      const diff = new PatchDiff({
+        nodesAdded: ['a'],
+        nodesRemoved: [],
+        edgesAdded: [new EdgeDiffEntry({ from: 'a', to: 'b', label: 'rel' })],
+        edgesRemoved: [],
+        propsChanged: [new PropDiffEntry({
+          nodeId: 'a',
+          key: 'name',
+          value: 'Ada',
+          prevValue: undefined,
+        })],
+      });
+
+      expect(Object.isFrozen(diff.nodesAdded)).toBe(true);
+      expect(Object.isFrozen(diff.edgesAdded)).toBe(true);
+      expect(Object.isFrozen(diff.propsChanged)).toBe(true);
+      expect(() => {
+        Reflect.apply(Array.prototype.push, diff.nodesAdded, ['b']);
+      }).toThrow(TypeError);
     });
   });
 

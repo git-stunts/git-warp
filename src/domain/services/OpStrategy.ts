@@ -1,4 +1,4 @@
-import type { PatchDiff } from '../types/PatchDiff.ts';
+import type { MutablePatchDiff } from '../types/PatchDiff.ts';
 import type OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import type { EventId } from '../utils/EventId.ts';
 import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
@@ -30,7 +30,7 @@ export default abstract class OpStrategy {
 
   /** Post-mutation diff accumulation. Mutates `diff` in place. */
   abstract accumulate(
-    diff: PatchDiff,
+    diff: MutablePatchDiff,
     state: WarpState,
     op: OpLike, // nosemgrep: ts-no-like-types -- 0025C
     before: SnapshotBeforeOp,
@@ -56,7 +56,7 @@ export default abstract class OpStrategy {
 
   /** Shared diff accumulator for property strategies. */
   protected static _accumulatePropDiff(
-    diff: PatchDiff,
+    diff: MutablePatchDiff,
     state: WarpState,
     change: {
       readonly nodeId: string;
