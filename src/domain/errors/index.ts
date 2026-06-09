@@ -5,6 +5,7 @@ export { default as ContinuumArtifactAuthorityError } from './ContinuumArtifactA
 export { default as EncryptionError } from './EncryptionError.ts';
 export { default as ForkError } from './ForkError.ts';
 export { default as IndexError } from './IndexError.ts';
+export { default as MemoryBudgetError } from './MemoryBudgetError.ts';
 export { default as OperationAbortedError } from './OperationAbortedError.ts';
 export { default as PatchError } from './PatchError.ts';
 export { default as QueryError } from './QueryError.ts';

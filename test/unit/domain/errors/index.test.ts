@@ -10,6 +10,7 @@ describe('domain/errors index barrel', () => {
       'EncryptionError',
       'ForkError',
       'IndexError',
+      'MemoryBudgetError',
       'OperationAbortedError',
       'PatchError',
       'QueryError',

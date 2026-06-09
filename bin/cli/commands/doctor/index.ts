@@ -8,6 +8,8 @@
  */
 
 import { buildWritersPrefix } from '../../../../src/domain/utils/RefLayout.ts';
+import createV18BoundedMemoryCapabilityReport
+  from '../../../../src/domain/memory/createV18BoundedMemoryCapabilityReport.ts';
 import { parseCommandArgs } from '../../infrastructure.ts';
 import { doctorSchema } from '../../schemas.ts';
 import { createPersistence, resolveGraphName } from '../../shared.ts';
@@ -16,8 +18,15 @@ import { CODES } from './codes.ts';
 import { DOCTOR_EXIT_CODES, type DoctorFinding, type DoctorPolicy, type DoctorPayload, type DoctorContext } from './types.ts';
 import type { CliOptions, Persistence } from '../../types.ts';
 
+const DOCTOR_OPTION_MEMORY_BUDGET = 'memory-budget';
+const DOCTOR_OPTION_LARGE_GRAPH = 'large-graph';
+const MEMORY_BUDGET_FINDING_ID = 'memory-budget';
+const MEMORY_BUDGET_NOT_SPECIFIED = 'not-specified';
+
 const DOCTOR_OPTIONS = {
   strict: { type: 'boolean', default: false },
+  [DOCTOR_OPTION_MEMORY_BUDGET]: { type: 'string' },
+  [DOCTOR_OPTION_LARGE_GRAPH]: { type: 'boolean', default: false },
 };
 
 const DEFAULT_POLICY: DoctorPolicy = {
@@ -36,24 +45,84 @@ const IMPACT_ORDER = {
   hygiene: 3,
 } as const;
 
+type DoctorCommandValues = {
+  readonly strict: boolean;
+  readonly [DOCTOR_OPTION_MEMORY_BUDGET]: string | undefined;
+  readonly [DOCTOR_OPTION_LARGE_GRAPH]: boolean;
+};
+
+type RawDoctorCommandValues = {
+  readonly strict: boolean;
+  readonly [DOCTOR_OPTION_MEMORY_BUDGET]?: string | undefined;
+  readonly [DOCTOR_OPTION_LARGE_GRAPH]: boolean;
+};
+
 /** Handles the `git warp doctor` command: runs structural health checks and returns findings. */
 export default async function handleDoctor({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: DoctorPayload; exitCode: number }> {
   const { values } = parseCommandArgs(args, DOCTOR_OPTIONS, doctorSchema);
+  const commandValues = normalizeCommandValues(values);
   const startMs = Date.now();
 
   const { persistence } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
-  const policy = { ...DEFAULT_POLICY, strict: Boolean(values.strict) };
+  const policy = { ...DEFAULT_POLICY, strict: commandValues.strict };
   const writerHeads = await collectWriterHeads(persistence, graphName);
 
   const ctx: DoctorContext = { persistence, graphName, writerHeads, policy, repoPath: options.repo };
 
+  const memoryFindings = memoryBudgetFindings(commandValues);
   const { findings, checksRun } = await runChecks(ctx, startMs);
+  findings.push(...memoryFindings);
   findings.sort(compareFinding);
 
-  const payload = assemblePayload({ repo: options.repo, graph: graphName, policy, findings, checksRun, startMs });
+  const payload = assemblePayload({
+    repo: options.repo,
+    graph: graphName,
+    policy,
+    findings,
+    checksRun: checksRun + memoryFindings.length,
+    startMs,
+  });
   const exitCode = computeExitCode(payload.health, policy.strict);
   return { payload, exitCode };
+}
+
+function normalizeCommandValues(values: RawDoctorCommandValues): DoctorCommandValues {
+  return {
+    strict: values.strict,
+    [DOCTOR_OPTION_MEMORY_BUDGET]: values[DOCTOR_OPTION_MEMORY_BUDGET],
+    [DOCTOR_OPTION_LARGE_GRAPH]: values[DOCTOR_OPTION_LARGE_GRAPH],
+  };
+}
+
+function memoryBudgetFindings(values: DoctorCommandValues): DoctorFinding[] {
+  if (values[DOCTOR_OPTION_MEMORY_BUDGET] === undefined && !values[DOCTOR_OPTION_LARGE_GRAPH]) {
+    return [];
+  }
+  const report = createV18BoundedMemoryCapabilityReport();
+  return [{
+    id: MEMORY_BUDGET_FINDING_ID,
+    status: 'ok',
+    code: CODES.MEMORY_BUDGET_REPORT,
+    impact: 'operability',
+    message: 'Memory-budget posture reported for large-graph operation.',
+    evidence: {
+      requestedBudget: values[DOCTOR_OPTION_MEMORY_BUDGET] ?? MEMORY_BUDGET_NOT_SPECIFIED,
+      largeGraph: values[DOCTOR_OPTION_LARGE_GRAPH],
+      safe: mutableNames(report.safeNames()),
+      transitional: mutableNames(report.transitionalNames()),
+      diagnostic: mutableNames(report.diagnosticNames()),
+      legacy: mutableNames(report.legacyNames()),
+    },
+  }];
+}
+
+function mutableNames(names: readonly string[]): string[] {
+  const result: string[] = [];
+  for (const name of names) {
+    result.push(name);
+  }
+  return result;
 }
 
 /** Assembles the final DoctorPayload from sorted findings. */

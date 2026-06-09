@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
+import MemoryBudget from '../../../../../src/domain/memory/MemoryBudget.ts';
+import WarpMemoryPool from '../../../../../src/domain/memory/WarpMemoryPool.ts';
 import CheckpointPatchFactStream from '../../../../../src/domain/services/optic/CheckpointPatchFactStream.ts';
 import {
   CheckpointBasisFact,
@@ -77,6 +79,145 @@ describe('CheckpointPatchFactStream', () => {
     expect(facts[0]).toBeInstanceOf(CheckpointNodeLivenessFact);
     expect(facts[2]).toBeInstanceOf(CheckpointNodePropertyFact);
     expect(facts[3]).toBeInstanceOf(CheckpointProvenanceFact);
+  });
+
+  it('streams bounded facts without full patch-chain residency', async () => {
+    const source = new TestPatchFactStreamSource();
+    source.setChain('bbbb', [
+      patchEntry({
+        sha: 'bbbb',
+        writer: 'writer-b',
+        lamport: 2,
+        ops: [new NodePropSet('node:b', 'title', 'B')],
+      }),
+      patchEntry({
+        sha: 'bbbc',
+        writer: 'writer-b',
+        lamport: 3,
+        ops: [new NodePropSet('node:b', 'status', 'done')],
+      }),
+    ]);
+    const pool = new WarpMemoryPool({
+      name: 'patch-fact-stream',
+      budget: MemoryBudget.entries(2),
+    });
+    const stream = new CheckpointPatchFactStream({ source });
+
+    const facts = await collectFacts(stream.streamBounded({
+      previousCheckpoint: checkpoint(new Map([['writer-b', 'base-b']])),
+      targetFrontier: new Map([['writer-b', 'bbbb']]),
+      pool,
+    }));
+
+    expect(facts.map((fact) => fact.kind)).toEqual([
+      'node-property',
+      'provenance',
+      'node-property',
+      'provenance',
+    ]);
+    expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 1, rejected: 0 });
+  });
+
+  it('streams bounded writer facts in the same global order as the unbounded stream', async () => {
+    const source = new TestPatchFactStreamSource();
+    source.setChain('aaaa', [
+      patchEntry({
+        sha: 'aaaa',
+        writer: 'writer-a',
+        lamport: 3,
+        ops: [new NodeAdd('node:a', new Dot('writer-a', 3))],
+      }),
+    ]);
+    source.setChain('bbbb', [
+      patchEntry({
+        sha: 'bbbb',
+        writer: 'writer-b',
+        lamport: 2,
+        ops: [new NodePropSet('node:b', 'title', 'B')],
+      }),
+    ]);
+    const stream = new CheckpointPatchFactStream({ source });
+    const previousCheckpoint = checkpoint(new Map());
+    const targetFrontier = new Map([
+      ['writer-a', 'aaaa'],
+      ['writer-b', 'bbbb'],
+    ]);
+    const pool = new WarpMemoryPool({
+      name: 'patch-fact-stream-merge',
+      budget: MemoryBudget.entries(2),
+    });
+
+    const unboundedFacts = await collectFacts(stream.stream({ previousCheckpoint, targetFrontier }));
+    const boundedFacts = await collectFacts(stream.streamBounded({ previousCheckpoint, targetFrontier, pool }));
+
+    expect(boundedFacts.map((fact) => fact.sortKey())).toEqual(unboundedFacts.map((fact) => fact.sortKey()));
+    expect(boundedFacts.map((fact) => fact.kind)).toEqual([
+      'node-property',
+      'provenance',
+      'node-liveness',
+      'provenance',
+    ]);
+    expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 2, rejected: 0 });
+  });
+
+  it('releases bounded writer cursor leases when the consumer closes early', async () => {
+    const source = new TestPatchFactStreamSource();
+    source.setChain('aaaa', [
+      patchEntry({
+        sha: 'aaaa',
+        writer: 'writer-a',
+        lamport: 3,
+        ops: [new NodeAdd('node:a', new Dot('writer-a', 3))],
+      }),
+    ]);
+    source.setChain('bbbb', [
+      patchEntry({
+        sha: 'bbbb',
+        writer: 'writer-b',
+        lamport: 2,
+        ops: [new NodePropSet('node:b', 'title', 'B')],
+      }),
+    ]);
+    const pool = new WarpMemoryPool({
+      name: 'patch-fact-stream-close',
+      budget: MemoryBudget.entries(2),
+    });
+    const stream = new CheckpointPatchFactStream({ source });
+    const iterator = stream.streamBounded({
+      previousCheckpoint: checkpoint(new Map()),
+      targetFrontier: new Map([
+        ['writer-a', 'aaaa'],
+        ['writer-b', 'bbbb'],
+      ]),
+      pool,
+    })[Symbol.asyncIterator]();
+
+    await expect(iterator.next()).resolves.toMatchObject({
+      value: { kind: 'node-property' },
+      done: false,
+    });
+    expect(pool.snapshot()).toMatchObject({ leased: 2, peak: 2, rejected: 0 });
+    await iterator.return?.();
+    expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 2, rejected: 0 });
+  });
+
+  it('rejects malformed bounded stream options before field access', async () => {
+    const stream = new CheckpointPatchFactStream({ source: new TestPatchFactStreamSource() });
+
+    await expect(collectFacts(
+      // @ts-expect-error deliberate malformed bounded stream options fixture
+      stream.streamBounded(null),
+    )).rejects.toMatchObject({
+      code: 'E_CHECKPOINT_PATCH_FACT_STREAM',
+      context: {
+        field: 'options',
+        reason: 'invalid-bounded-read-options',
+      },
+    });
+    await expect(collectFacts(
+      // @ts-expect-error deliberate malformed bounded stream options fixture
+      stream.streamBounded(null),
+    )).rejects.toBeInstanceOf(QueryError);
   });
 
   it('turns previous checkpoint coverage failure into a typed obstruction', async () => {

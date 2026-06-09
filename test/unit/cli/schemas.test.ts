@@ -57,6 +57,12 @@ describe('doctorSchema', () => {
     expect(result.strict).toBe(true);
   });
 
+  it('accepts memory-budget large-graph witness options', () => {
+    const result = doctorSchema.parse({ 'memory-budget': '64mb', 'large-graph': true });
+    expect(result['memory-budget']).toBe('64mb');
+    expect(result['large-graph']).toBe(true);
+  });
+
   it('rejects unknown keys', () => {
     expect(() => doctorSchema.parse({ unknown: true })).toThrow();
   });

@@ -48,25 +48,6 @@ import SeekCachePort from './src/ports/SeekCachePort.ts';
 import InMemoryGraphAdapter from './src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.ts';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.ts';
-import {
-  AuditError,
-  ContinuumArtifactAuthorityError,
-  EncryptionError,
-  ForkError,
-  IndexError,
-  QueryError,
-  PatchError,
-  SchemaUnsupportedError,
-  ShardLoadError,
-  ShardCorruptionError,
-  ShardValidationError,
-  StorageError,
-  TraversalError,
-  OperationAbortedError,
-  SyncError,
-  StrandError,
-  WormholeError,
-} from './src/domain/errors/index.ts';
 import WriterError from './src/domain/errors/WriterError.ts';
 import BlobStoragePort from './src/ports/BlobStoragePort.ts';
 import InMemoryBlobStorageAdapter from './src/domain/utils/defaultBlobStorage.ts';
@@ -225,6 +206,27 @@ import {
 } from './src/domain/services/CoordinateFactExport.ts';
 
 export * from './src/domain/graph/publicGraphSubstrate.ts';
+export * from './src/domain/memory/index.ts';
+export {
+  AuditError,
+  ContinuumArtifactAuthorityError,
+  EncryptionError,
+  ForkError,
+  IndexError,
+  MemoryBudgetError,
+  OperationAbortedError,
+  PatchError,
+  QueryError,
+  SchemaUnsupportedError,
+  ShardCorruptionError,
+  ShardLoadError,
+  ShardValidationError,
+  StorageError,
+  StrandError,
+  SyncError,
+  TraversalError,
+  WormholeError,
+} from './src/domain/errors/index.ts';
 
 import ContinuumArtifactAuthority from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import ContinuumArtifactDescriptor from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
@@ -333,23 +335,6 @@ export {
   DenoHttpAdapter,
 
   // Error types for integrity failure handling
-  AuditError,
-  ContinuumArtifactAuthorityError,
-  EncryptionError,
-  PatchError,
-  ForkError,
-  IndexError,
-  QueryError,
-  SchemaUnsupportedError,
-  ShardLoadError,
-  ShardCorruptionError,
-  ShardValidationError,
-  StorageError,
-  TraversalError,
-  OperationAbortedError,
-  SyncError,
-  StrandError,
-  WormholeError,
   WriterError,
 
   // Cancellation utilities
