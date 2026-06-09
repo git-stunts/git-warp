@@ -179,7 +179,7 @@ export default class Worldline {
     if (bounded !== null) {
       return bounded;
     }
-    return await (await this._delegateObserver()).openQueryReadModel();
+    return await (await this._delegateObserver()).openQueryReadModel(request);
   }
 
   private async _boundedExactReadModel(
