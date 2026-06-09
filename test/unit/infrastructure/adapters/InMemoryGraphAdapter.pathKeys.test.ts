@@ -21,6 +21,9 @@ describe('InMemoryGraphAdapter path-keyed tree reads', () => {
       expect(oids[path]).toBe(oid);
       expect(files[path]).toEqual(payload);
     }
-    expect(Object.prototype).not.toHaveProperty('polluted');
+    const ordinaryObject = {};
+    for (const path of PROTOTYPE_PATHS) {
+      expect(Reflect.get(ordinaryObject, path)).not.toBe(oid);
+    }
   });
 });
