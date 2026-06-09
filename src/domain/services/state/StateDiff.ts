@@ -43,18 +43,32 @@ type StateDiffResultFields = {
   readonly props: { readonly set: PropSet[]; readonly removed: PropRemoved[] };
 };
 
+function freezeStringArray(values: readonly string[]): readonly string[] {
+  return Object.freeze([...values]);
+}
+
+function freezeObjectArray<T extends object>(values: readonly T[]): readonly Readonly<T>[] {
+  return Object.freeze(values.map((value) => Object.freeze({ ...value })));
+}
+
 export class StateDiffResult {
-  readonly nodes: { added: string[]; removed: string[] };
-  readonly edges: { added: EdgeChange[]; removed: EdgeChange[] };
-  readonly props: { set: PropSet[]; removed: PropRemoved[] };
+  readonly nodes: { readonly added: readonly string[]; readonly removed: readonly string[] };
+  readonly edges: { readonly added: readonly Readonly<EdgeChange>[]; readonly removed: readonly Readonly<EdgeChange>[] };
+  readonly props: { readonly set: readonly Readonly<PropSet>[]; readonly removed: readonly Readonly<PropRemoved>[] };
 
   constructor({ nodes, edges, props }: StateDiffResultFields) {
-    this.nodes = { added: [...nodes.added], removed: [...nodes.removed] };
-    this.edges = { added: [...edges.added], removed: [...edges.removed] };
-    this.props = { set: [...props.set], removed: [...props.removed] };
-    Object.freeze(this.nodes);
-    Object.freeze(this.edges);
-    Object.freeze(this.props);
+    this.nodes = Object.freeze({
+      added: freezeStringArray(nodes.added),
+      removed: freezeStringArray(nodes.removed),
+    });
+    this.edges = Object.freeze({
+      added: freezeObjectArray(edges.added),
+      removed: freezeObjectArray(edges.removed),
+    });
+    this.props = Object.freeze({
+      set: freezeObjectArray(props.set),
+      removed: freezeObjectArray(props.removed),
+    });
     Object.freeze(this);
   }
 }
@@ -236,11 +250,11 @@ export function isEmptyDiff(diff: StateDiffResult): boolean {
   return isEmptyPair(diff.nodes) && isEmptyPair(diff.edges) && isEmptySetRemoved(diff.props);
 }
 
-function isEmptyPair(pair: { added: unknown[]; removed: unknown[] }): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function isEmptyPair(pair: { readonly added: readonly unknown[]; readonly removed: readonly unknown[] }): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return pair.added.length === 0 && pair.removed.length === 0;
 }
 
-function isEmptySetRemoved(pair: { set: unknown[]; removed: unknown[] }): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function isEmptySetRemoved(pair: { readonly set: readonly unknown[]; readonly removed: readonly unknown[] }): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return pair.set.length === 0 && pair.removed.length === 0;
 }
 
