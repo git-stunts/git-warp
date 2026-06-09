@@ -16,15 +16,28 @@ let WarpCore: any;
 // deno-lint-ignore no-explicit-any
 let WebCryptoAdapter: any;
 
-export function denoRuntimeTest(name: string, fn: () => Promise<void>): void {
+type DenoRuntimeTestOptions = {
+  readonly disableSanitizers?: boolean;
+};
+
+// @git-stunts/alfred timeout policies used through npm Git plumbing leave
+// losing timeout timers alive after fast commands complete under Deno's
+// Node-compat layer. Git-backed runtime tests opt out until the upstream
+// timeout clock can cancel losing timers.
+export const GIT_BACKED_RUNTIME_TEST_OPTIONS: DenoRuntimeTestOptions = Object.freeze({
+  disableSanitizers: true,
+});
+
+export function denoRuntimeTest(
+  name: string,
+  fn: () => Promise<void>,
+  options: DenoRuntimeTestOptions = {},
+): void {
+  const sanitizersEnabled = options.disableSanitizers !== true;
   Deno.test({
     name,
-    // @git-stunts/alfred timeout policies used through npm Git plumbing leave
-    // losing timeout timers alive after fast commands complete under Deno's
-    // Node-compat layer. The runtime assertions still run; sanitizer strictness
-    // is disabled here until the upstream timeout clock can cancel losing timers.
-    sanitizeOps: false,
-    sanitizeResources: false,
+    sanitizeOps: sanitizersEnabled,
+    sanitizeResources: sanitizersEnabled,
     fn,
   });
 }

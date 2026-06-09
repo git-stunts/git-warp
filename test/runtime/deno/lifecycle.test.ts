@@ -1,5 +1,5 @@
 import { assertEquals, assert } from "./assertions.ts";
-import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
+import { createTestRepo, denoRuntimeTest, GIT_BACKED_RUNTIME_TEST_OPTIONS } from "./helpers.ts";
 
 denoRuntimeTest("lifecycle: open → addNode → materialize → getNodes", async () => {
   const repo = await createTestRepo("lifecycle");
@@ -15,7 +15,7 @@ denoRuntimeTest("lifecycle: open → addNode → materialize → getNodes", asyn
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
 
 denoRuntimeTest("lifecycle: creates edges and retrieves them", async () => {
   const repo = await createTestRepo("lifecycle-edge");
@@ -34,7 +34,7 @@ denoRuntimeTest("lifecycle: creates edges and retrieves them", async () => {
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
 
 denoRuntimeTest("lifecycle: node properties", async () => {
   const repo = await createTestRepo("lifecycle-props");
@@ -50,4 +50,4 @@ denoRuntimeTest("lifecycle: node properties", async () => {
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);

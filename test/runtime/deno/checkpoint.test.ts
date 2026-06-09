@@ -1,5 +1,5 @@
 import { assertMatch, assertRejects } from "./assertions.ts";
-import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
+import { createTestRepo, denoRuntimeTest, GIT_BACKED_RUNTIME_TEST_OPTIONS } from "./helpers.ts";
 import SchemaUnsupportedError from "../../../src/domain/errors/SchemaUnsupportedError.ts";
 
 denoRuntimeTest("checkpoint: creates checkpoint with valid SHA", async () => {
@@ -16,7 +16,7 @@ denoRuntimeTest("checkpoint: creates checkpoint with valid SHA", async () => {
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
 
 denoRuntimeTest("checkpoint: materializeAt rejects session-backed runtime checkpoints", async () => {
   const repo = await createTestRepo("ckpt-at");
@@ -35,4 +35,4 @@ denoRuntimeTest("checkpoint: materializeAt rejects session-backed runtime checkp
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);

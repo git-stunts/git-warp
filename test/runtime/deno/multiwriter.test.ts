@@ -1,5 +1,5 @@
 import { assertEquals, assert } from "./assertions.ts";
-import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
+import { createTestRepo, denoRuntimeTest, GIT_BACKED_RUNTIME_TEST_OPTIONS } from "./helpers.ts";
 
 denoRuntimeTest("multiwriter: two writers merge via CRDT", async () => {
   const repo = await createTestRepo("mw");
@@ -17,7 +17,7 @@ denoRuntimeTest("multiwriter: two writers merge via CRDT", async () => {
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
 
 denoRuntimeTest("multiwriter: discovers all writers", async () => {
   const repo = await createTestRepo("mw-disc");
@@ -33,4 +33,4 @@ denoRuntimeTest("multiwriter: discovers all writers", async () => {
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
