@@ -35,10 +35,26 @@ export interface PropRemoved {
   oldValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
-export interface StateDiffResult {
-  nodes: { added: string[]; removed: string[] };
-  edges: { added: EdgeChange[]; removed: EdgeChange[] };
-  props: { set: PropSet[]; removed: PropRemoved[] };
+type StateDiffResultFields = {
+  readonly nodes: { readonly added: string[]; readonly removed: string[] };
+  readonly edges: { readonly added: EdgeChange[]; readonly removed: EdgeChange[] };
+  readonly props: { readonly set: PropSet[]; readonly removed: PropRemoved[] };
+};
+
+export class StateDiffResult {
+  readonly nodes: { added: string[]; removed: string[] };
+  readonly edges: { added: EdgeChange[]; removed: EdgeChange[] };
+  readonly props: { set: PropSet[]; removed: PropRemoved[] };
+
+  constructor({ nodes, edges, props }: StateDiffResultFields) {
+    this.nodes = { added: [...nodes.added], removed: [...nodes.removed] };
+    this.edges = { added: [...edges.added], removed: [...edges.removed] };
+    this.props = { set: [...props.set], removed: [...props.removed] };
+    Object.freeze(this.nodes);
+    Object.freeze(this.edges);
+    Object.freeze(this.props);
+    Object.freeze(this);
+  }
 }
 
 function compareEdges(a: EdgeChange, b: EdgeChange): number {
@@ -222,11 +238,11 @@ export function diffStates(before: WarpState | null, after: WarpState): StateDif
   propsSet.sort(compareProps);
   propsRemoved.sort(compareProps);
 
-  return {
+  return new StateDiffResult({
     nodes: { added: nodesAdded, removed: nodesRemoved },
     edges: { added: edgesAdded, removed: edgesRemoved },
     props: { set: propsSet, removed: propsRemoved },
-  };
+  });
 }
 
 /**
@@ -248,9 +264,9 @@ function isEmptySetRemoved(pair: { set: unknown[]; removed: unknown[] }): boolea
  * Creates an empty diff result.
  */
 export function createEmptyDiff(): StateDiffResult {
-  return {
+  return new StateDiffResult({
     nodes: { added: [], removed: [] },
     edges: { added: [], removed: [] },
     props: { set: [], removed: [] },
-  };
+  });
 }

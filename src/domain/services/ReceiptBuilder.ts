@@ -58,8 +58,8 @@ function hasEffectiveRemoval(orset: ORSet, targetDots: ReadonlySet<string>): boo
 export default class ReceiptBuilder {
   /**
    * Valid receipt op types (the set accepted by TickReceipt). Exposed
-   * for filtering forward-compatible unrecognized ops out of receipt
-   * entries.
+   * so receipt construction can reject unrecognized op entries at the
+   * reducer boundary instead of silently dropping them.
    */
   static readonly VALID_RECEIPT_OPS: ReadonlySet<string> = VALID_RECEIPT_OPS;
 

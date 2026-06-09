@@ -494,13 +494,12 @@ describe('JoinReducer receipts', () => {
   });
 
   // =========================================================================
-  // Unknown / forward-compatible op types
+  // Unknown op types
   // =========================================================================
 
-  describe('unknown op types (forward-compat)', () => {
-    it('unknown op is applied to state but excluded from receipt ops', () => {
+  describe('unknown op types', () => {
+    it('throws instead of excluding unknown ops from receipt output', () => {
       const state = createEmptyState();
-      // Mix a known op with an unknown future op type
       const patch = makePatch({
         writer: 'w1',
         lamport: 1,
@@ -511,19 +510,10 @@ describe('JoinReducer receipts', () => {
         ],
       });
 
-      // Must not throw despite the unknown op type
-      const { state: resultState, receipt } = (join(state, patch, 'abcd1234', true) as any);
-
-      // The unknown op is silently skipped in the receipt
-      expect(receipt.ops).toHaveLength(2);
-      expect(receipt.ops[0].op).toBe('NodeAdd');
-      expect(receipt.ops[1].op).toBe('NodePropSet');
-
-      // State was still mutated (applyOpV2 ran for all ops, unknown ones are no-ops)
-      expect(resultState).toBe(state);
+      expect(() => join(state, patch, 'abcd1234', true)).toThrow('Unknown patch op type');
     });
 
-    it('patch with only unknown ops yields receipt with empty ops', () => {
+    it('patch with only unknown ops fails closed', () => {
       const state = createEmptyState();
       const patch = makePatch({
         writer: 'w1',
@@ -533,8 +523,7 @@ describe('JoinReducer receipts', () => {
         ],
       });
 
-      const { receipt } = (join(state, patch, 'abcd1234', true) as any);
-      expect(receipt.ops).toHaveLength(0);
+      expect(() => join(state, patch, 'abcd1234', true)).toThrow('Unknown patch op type');
     });
   });
 

@@ -113,8 +113,8 @@ export function joinStates(a: WarpState, b: WarpState): WarpState {
 
 /**
  * Applies a single V2 operation to the given state. Mutates `state`
- * in place. Unknown op types are silently ignored for forward
- * compatibility.
+ * in place. Unknown op types fail closed instead of becoming silent
+ * data loss.
  */
 export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
   if (op === null || op === undefined || typeof op !== 'object') {
@@ -130,13 +130,19 @@ export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void 
       { context: { actual: typeof type } },
     );
   }
-  if (!OpValidator.isKnownRaw(op) && !OpValidator.isKnownCanonical(op)) {
-    return;
-  }
+  assertKnownReducerOp(op, type);
   const canonOp = normalizeRawOp(op);
   if (!(canonOp instanceof Op)) { return; }
   canonOp.validate();
   canonOp.mutate(state, eventId);
+}
+
+function assertKnownReducerOp(op: OpLike, type: string): void { // nosemgrep: ts-no-like-types -- 0025C
+  if (OpValidator.isKnownRaw(op) || OpValidator.isKnownCanonical(op)) { return; }
+  throw new PatchError(
+    `Unknown patch op type: ${type}`,
+    { code: 'E_PATCH_UNKNOWN_OP', context: { opType: type } },
+  );
 }
 
 /** Applies a patch to state without receipt or diff collection. */
@@ -144,7 +150,7 @@ export function applyFast(state: WarpState, patch: PatchLike, patchSha: string):
   for (let i = 0; i < patch.ops.length; i++) {
     const op = patch.ops[i];
     if (op === undefined) { continue; }
-    if (!OpValidator.isKnownRaw(op) && !OpValidator.isKnownCanonical(op)) { continue; }
+    assertKnownReducerOp(op, Reflect.get(op, 'type'));
     const canonOp = normalizeRawOp(op);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
@@ -168,7 +174,7 @@ export function applyWithDiff(
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
-    if (!OpValidator.isKnownRaw(rawOp) && !OpValidator.isKnownCanonical(rawOp)) { continue; }
+    assertKnownReducerOp(rawOp, Reflect.get(rawOp, 'type'));
     const canonOp = normalizeRawOp(rawOp);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
@@ -195,7 +201,7 @@ export function applyWithReceipt(
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
-    if (!OpValidator.isKnownRaw(rawOp) && !OpValidator.isKnownCanonical(rawOp)) { continue; }
+    assertKnownReducerOp(rawOp, Reflect.get(rawOp, 'type'));
     const canonOp = normalizeRawOp(rawOp);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();

@@ -31,7 +31,12 @@ import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.ts';
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
-import { findAttachedData, assertNoReservedBytes, normalizeContentMetadata } from './PatchBuilderValidation.ts';
+import {
+  findAttachedData,
+  assertNoReservedBytes,
+  assertObservedDotsForRemove,
+  normalizeContentMetadata,
+} from './PatchBuilderValidation.ts';
 import { commitPatch } from './PatchCommitter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
 import type { WarpState } from './JoinReducer.ts';
@@ -184,6 +189,7 @@ export class PatchBuilder {
       );
     }
     const observedDots = [...state.nodeAlive.getDots(nodeId)];
+    assertObservedDotsForRemove(observedDots, 'node', { nodeId });
     this._ops.push(new NodeRemove(nodeId, observedDots));
     this._observedOperands.add(nodeId);
     return this;
@@ -215,6 +221,7 @@ export class PatchBuilder {
       );
     }
     const observedDots = [...state.edgeAlive.getDots(edgeKey)];
+    assertObservedDotsForRemove(observedDots, 'edge', { edgeKey });
     this._ops.push(new EdgeRemove({ from, to, label, observedDots }));
     this._observedOperands.add(edgeKey);
     return this;

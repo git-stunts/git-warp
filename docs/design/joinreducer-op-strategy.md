@@ -84,7 +84,7 @@ export function applyFast(state, patch, patchSha) {
     if (op === undefined) { continue; }
     const canonOp = normalizeRawOp(op);
     const strategy = OP_STRATEGIES.get(canonOp.type);
-    if (!strategy) { continue; }  // forward-compat: unknown ops skip
+    if (!strategy) { throw unknownOpError(canonOp.type); }
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
     strategy.mutate(state, canonOp, eventId);
   }

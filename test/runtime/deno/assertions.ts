@@ -6,7 +6,7 @@ type Comparable =
   | readonly Comparable[]
   | { readonly [key: string]: Comparable };
 
-type ErrorConstructor = abstract new (message: string) => Error;
+type ErrorConstructor = (abstract new (message: string) => Error) & { readonly name: string };
 
 function format(value: Comparable): string {
   return JSON.stringify(value);
@@ -41,8 +41,10 @@ export async function assertRejects(
     if (!(error instanceof Error)) {
       throw new Error("Expected rejection to throw an Error instance");
     }
+    const expectedName = errorClass.name;
+    const actualName = error.name;
     if (!(error instanceof errorClass)) {
-      throw new Error(`Expected rejection to be ${errorClass.name}, got ${error.name}`);
+      throw new Error(`Expected rejection to be ${expectedName}, got ${actualName}`);
     }
     if (messageIncludes !== undefined && !error.message.includes(messageIncludes)) {
       throw new Error(`Expected rejection message to include ${messageIncludes}`);

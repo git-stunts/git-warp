@@ -8,18 +8,76 @@
  * @module domain/types/PatchDiff
  */
 
-export type EdgeDiffEntry = {
-  from: string;
-  to: string;
-  label: string;
+import PatchError from '../errors/PatchError.ts';
+
+type EdgeDiffEntryFields = {
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
 };
 
-export type PropDiffEntry = {
-  nodeId: string;
-  key: string;
-  value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  prevValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+type PropDiffEntryFields = {
+  readonly nodeId: string;
+  readonly key: string;
+  readonly value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  readonly prevValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 };
+
+function requireNonEmptyString(value: string, field: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new PatchError(`${field} must be a non-empty string`, {
+      code: 'E_PATCH_DIFF_FIELD',
+      context: { field },
+    });
+  }
+  return value;
+}
+
+function requireArray<T>(value: T[], field: string): T[] {
+  if (!Array.isArray(value)) {
+    throw new PatchError(`${field} must be an array`, {
+      code: 'E_PATCH_DIFF_ARRAY',
+      context: { field },
+    });
+  }
+  return value;
+}
+
+export class EdgeDiffEntry {
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+
+  constructor({ from, to, label }: EdgeDiffEntryFields) {
+    this.from = requireNonEmptyString(from, 'from');
+    this.to = requireNonEmptyString(to, 'to');
+    this.label = requireNonEmptyString(label, 'label');
+    Object.freeze(this);
+  }
+
+  static fromEntry(entry: EdgeDiffEntry | EdgeDiffEntryFields): EdgeDiffEntry {
+    return entry instanceof EdgeDiffEntry ? entry : new EdgeDiffEntry(entry);
+  }
+}
+
+export class PropDiffEntry {
+  readonly nodeId: string;
+  readonly key: string;
+  readonly value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  readonly prevValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+
+  constructor({ nodeId, key, value, prevValue }: PropDiffEntryFields) {
+    this.nodeId = requireNonEmptyString(nodeId, 'nodeId');
+    this.key = requireNonEmptyString(key, 'key');
+    this.value = value;
+    this.prevValue = prevValue;
+    Object.freeze(this);
+  }
+
+  static fromEntry(entry: PropDiffEntry | PropDiffEntryFields): PropDiffEntry {
+    return entry instanceof PropDiffEntry ? entry : new PropDiffEntry(entry);
+  }
+}
 
 /**
  * PatchDiff — captures alive-ness transitions during patch application.
@@ -50,11 +108,11 @@ export class PatchDiff {
     edgesRemoved: EdgeDiffEntry[];
     propsChanged: PropDiffEntry[];
   }) {
-    this.nodesAdded = nodesAdded;
-    this.nodesRemoved = nodesRemoved;
-    this.edgesAdded = edgesAdded;
-    this.edgesRemoved = edgesRemoved;
-    this.propsChanged = propsChanged;
+    this.nodesAdded = requireArray(nodesAdded, 'nodesAdded').map((nodeId) => requireNonEmptyString(nodeId, 'nodeId'));
+    this.nodesRemoved = requireArray(nodesRemoved, 'nodesRemoved').map((nodeId) => requireNonEmptyString(nodeId, 'nodeId'));
+    this.edgesAdded = requireArray(edgesAdded, 'edgesAdded').map((entry) => EdgeDiffEntry.fromEntry(entry));
+    this.edgesRemoved = requireArray(edgesRemoved, 'edgesRemoved').map((entry) => EdgeDiffEntry.fromEntry(entry));
+    this.propsChanged = requireArray(propsChanged, 'propsChanged').map((entry) => PropDiffEntry.fromEntry(entry));
     Object.freeze(this);
   }
 

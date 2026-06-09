@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import NeighborProviderPort, {
+  NeighborEdge,
   type Direction,
   type NeighborOptions,
-  type NeighborEdge,
+  isDirection,
 } from '../../../src/ports/NeighborProviderPort.ts';
 
 describe('NeighborProviderPort', () => {
@@ -20,10 +21,31 @@ describe('NeighborProviderPort', () => {
     expect(provider.latencyClass).toBe('async-local');
   });
 
+  it('validates direction values', () => {
+    expect(isDirection('out')).toBe(true);
+    expect(isDirection('in')).toBe(true);
+    expect(isDirection('both')).toBe(true);
+    expect(isDirection('sideways')).toBe(false);
+  });
+
+  it('constructs immutable neighbor edge values', () => {
+    const edge = new NeighborEdge('node:b', 'knows');
+
+    expect(Object.isFrozen(edge)).toBe(true);
+    expect(edge).toEqual({ neighborId: 'node:b', label: 'knows' });
+    expect(NeighborEdge.from(edge)).toBe(edge);
+    expect(NeighborEdge.from({ neighborId: 'node:c', label: 'likes' })).toEqual({
+      neighborId: 'node:c',
+      label: 'likes',
+    });
+    expect(() => new NeighborEdge('', 'knows')).toThrow('neighborId');
+    expect(new NeighborEdge('node:b', '')).toEqual({ neighborId: 'node:b', label: '' });
+  });
+
   it('concrete subclass satisfies the contract', async () => {
     class TestProvider extends NeighborProviderPort {
       async getNeighbors(_nodeId: string, _direction: Direction, _options?: NeighborOptions): Promise<NeighborEdge[]> {
-        return [{ neighborId: 'b', label: 'knows' }];
+        return [new NeighborEdge('b', 'knows')];
       }
       async hasNode(_nodeId: string) { return true; }
     }

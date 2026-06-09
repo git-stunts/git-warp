@@ -3,6 +3,7 @@ import {
   diffStates,
   isEmptyDiff,
   createEmptyDiff,
+  StateDiffResult,
 } from '../../../../src/domain/services/state/StateDiff.ts';
 import {
   createEmptyState,
@@ -63,6 +64,7 @@ describe('StateDiff', () => {
 
         const diff = diffStates(before, after);
 
+        expect(diff).toBeInstanceOf(StateDiffResult);
         expect(diff.nodes.added).toEqual(['user:alice']);
         expect(diff.nodes.removed).toEqual([]);
       });

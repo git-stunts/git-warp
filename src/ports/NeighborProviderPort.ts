@@ -6,15 +6,45 @@
  * using strict codepoint comparison (never localeCompare).
  */
 
+import NeighborProviderError from '../domain/errors/NeighborProviderError.ts';
+
 export type Direction = 'out' | 'in' | 'both';
+
+const VALID_DIRECTIONS = new Set<string>(['out', 'in', 'both']);
+
+export function isDirection(value: string): value is Direction {
+  return VALID_DIRECTIONS.has(value);
+}
 
 export interface NeighborOptions {
   labels?: Set<string>;
 }
 
-export interface NeighborEdge {
-  neighborId: string;
-  label: string;
+export class NeighborEdge {
+  readonly neighborId: string;
+  readonly label: string;
+
+  constructor(neighborId: string, label: string) {
+    if (typeof neighborId !== 'string' || neighborId.length === 0) {
+      throw new NeighborProviderError('neighborId must be a non-empty string', {
+        code: NeighborProviderError.E_INVALID_NEIGHBOR_ID,
+        context: { neighborId },
+      });
+    }
+    if (typeof label !== 'string') {
+      throw new NeighborProviderError('label must be a string', {
+        code: NeighborProviderError.E_INVALID_NEIGHBOR_LABEL,
+        context: { label },
+      });
+    }
+    this.neighborId = neighborId;
+    this.label = label;
+    Object.freeze(this);
+  }
+
+  static from(edge: NeighborEdge | { readonly neighborId: string; readonly label: string }): NeighborEdge {
+    return edge instanceof NeighborEdge ? edge : new NeighborEdge(edge.neighborId, edge.label);
+  }
 }
 
 export type LatencyClass = 'sync' | 'async-local' | 'async-remote';
