@@ -36,4 +36,14 @@ describe('v18 bounded query node page reader', () => {
       .rejects.toBeInstanceOf(MemoryBudgetError);
     expect(fixture.pool.snapshot()).toMatchObject({ leased: 0, peak: 2, rejected: 1 });
   });
+
+  it('rejects malformed read models before field access', () => {
+    const fixture = new V18LargeGraphOverSmallPoolFixture();
+
+    expect(() => new BoundedQueryNodePageReader({
+      // @ts-expect-error deliberate malformed read-model fixture
+      readModel: null,
+      pool: fixture.pool,
+    })).toThrow(MemoryBudgetError);
+  });
 });

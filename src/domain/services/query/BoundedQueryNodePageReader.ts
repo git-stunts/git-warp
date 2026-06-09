@@ -22,7 +22,7 @@ export default class BoundedQueryNodePageReader {
 
   constructor(fields: BoundedQueryNodePageReaderFields) {
     const validFields = requireReaderFields(fields);
-    this._readModel = validFields.readModel;
+    this._readModel = requireQueryReadModel(validFields.readModel);
     this._pool = requireWarpMemoryPool(validFields.pool);
     Object.freeze(this);
   }
@@ -84,6 +84,30 @@ function requireReaderFields(
     code: 'E_BOUNDED_QUERY_PAGE_INVALID',
     context: { field: 'fields' },
   });
+}
+
+function requireQueryReadModel(value: QueryReadModel): QueryReadModel {
+  if (hasQueryReadModelShape(value)) {
+    return value;
+  }
+  throw new MemoryBudgetError('BoundedQueryNodePageReader requires a QueryReadModel', {
+    code: 'E_BOUNDED_QUERY_PAGE_INVALID',
+    context: { field: 'readModel' },
+  });
+}
+
+function hasQueryReadModelShape(value: QueryReadModel): boolean {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+  return hasQueryReadModelMembers(value);
+}
+
+function hasQueryReadModelMembers(value: QueryReadModel): boolean {
+  return typeof value.stateHash === 'string'
+    && typeof value.nodes === 'function'
+    && typeof value.neighbors === 'function'
+    && typeof value.nodeProps === 'function';
 }
 
 function requirePageRequest(
