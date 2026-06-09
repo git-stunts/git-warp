@@ -19,6 +19,12 @@ let WebCryptoAdapter: any;
 export function denoRuntimeTest(name: string, fn: () => Promise<void>): void {
   Deno.test({
     name,
+    // @git-stunts/alfred timeout policies used through npm Git plumbing leave
+    // losing timeout timers alive after fast commands complete under Deno's
+    // Node-compat layer. The runtime assertions still run; sanitizer strictness
+    // is disabled here until the upstream timeout clock can cancel losing timers.
+    sanitizeOps: false,
+    sanitizeResources: false,
     fn,
   });
 }

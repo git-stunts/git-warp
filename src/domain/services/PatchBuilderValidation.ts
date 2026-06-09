@@ -72,7 +72,7 @@ export function assertObservedDotsForRemove(
   if (observedDots.length > 0) { return; }
   const target = targetKind === 'node' ? context.nodeId : context.edgeKey;
   throw new PatchError(
-    `Cannot remove unknown ${targetKind} '${target ?? 'unknown'}': entity is not alive in current state`,
+    `Cannot remove missing ${targetKind} '${target ?? 'unresolved'}': entity is not alive in current state`,
     { code: 'E_PATCH_ENTITY_NOT_FOUND', context: { targetKind, ...context } },
   );
 }
