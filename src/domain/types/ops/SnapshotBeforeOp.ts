@@ -1,9 +1,11 @@
 /** Pre-op snapshot bag used to compute post-op diffs. */
+import type { PropValue } from '../PropValue.ts';
+
 export type SnapshotBeforeOp = {
   nodeWasAlive?: boolean;
   edgeWasAlive?: boolean;
   edgeKey?: string;
-  prevPropValue?: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  prevPropValue?: PropValue | undefined;
   propKey?: string;
   aliveBeforeNodes?: Set<string>;
   aliveBeforeEdges?: Set<string>;

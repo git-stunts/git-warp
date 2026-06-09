@@ -9,6 +9,7 @@
  */
 
 import PatchError from '../errors/PatchError.ts';
+import type { PropValue } from './PropValue.ts';
 
 type EdgeDiffEntryFields = {
   readonly from: string;
@@ -19,8 +20,8 @@ type EdgeDiffEntryFields = {
 type PropDiffEntryFields = {
   readonly nodeId: string;
   readonly key: string;
-  readonly value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  readonly prevValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  readonly value: PropValue | undefined;
+  readonly prevValue: PropValue | undefined;
 };
 
 function requireNonEmptyString(value: string, field: string): string {
@@ -63,8 +64,8 @@ export class EdgeDiffEntry {
 export class PropDiffEntry {
   readonly nodeId: string;
   readonly key: string;
-  readonly value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  readonly prevValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  readonly value: PropValue | undefined;
+  readonly prevValue: PropValue | undefined;
 
   constructor({ nodeId, key, value, prevValue }: PropDiffEntryFields) {
     this.nodeId = requireNonEmptyString(nodeId, 'nodeId');
