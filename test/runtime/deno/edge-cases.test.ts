@@ -1,5 +1,5 @@
 import { assertEquals, assert } from "./assertions.ts";
-import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
+import { createTestRepo, denoRuntimeTest, GIT_BACKED_RUNTIME_TEST_OPTIONS } from "./helpers.ts";
 
 denoRuntimeTest("edge-cases: empty graph materializes with zero nodes", async () => {
   const repo = await createTestRepo("empty");
@@ -11,7 +11,7 @@ denoRuntimeTest("edge-cases: empty graph materializes with zero nodes", async ()
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
 
 denoRuntimeTest("edge-cases: self-edges are supported", async () => {
   const repo = await createTestRepo("self");
@@ -30,7 +30,7 @@ denoRuntimeTest("edge-cases: self-edges are supported", async () => {
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
 
 denoRuntimeTest("edge-cases: unicode node IDs", async () => {
   const repo = await createTestRepo("unicode");
@@ -45,4 +45,4 @@ denoRuntimeTest("edge-cases: unicode node IDs", async () => {
   } finally {
     await repo.cleanup();
   }
-});
+}, GIT_BACKED_RUNTIME_TEST_OPTIONS);

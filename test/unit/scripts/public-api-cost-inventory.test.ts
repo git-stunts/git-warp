@@ -83,10 +83,12 @@ describe('public API cost inventory', () => {
       'worldline.optic()',
       'worldline.live().getNodeProps(id)',
       'worldline.live().getNodes()',
+      "worldline.query().match(id).select(['id']).run()",
       'worldline.query().run()',
       'graph.materialize()',
       'graph.getStateSnapshot()',
       'graph.getContentStream(id)',
+      "graph.query().match(id).select(['id']).run()",
       'graph.syncWith()',
       'graph.syncWith({ materialize: true })',
       'openWarpGraph()',
@@ -112,6 +114,19 @@ describe('public API cost inventory', () => {
       }
       expect(['yes', 'caveat', 'no']).toContain(row.firstUseDocs);
     }
+  });
+
+  it('classifies exact id-only query as the bounded first-use read shape', () => {
+    const rows = inventoryRows();
+    const worldlineExact = findApi(rows, "worldline.query().match(id).select(['id']).run()");
+    const graphExact = findApi(rows, "graph.query().match(id).select(['id']).run()");
+
+    expect(worldlineExact.label).toBe('bounded');
+    expect(worldlineExact.firstUseDocs).toBe('yes');
+    expect(worldlineExact.provider).toContain('checkpoint-tail exact-id');
+    expect(graphExact.label).toBe('bounded');
+    expect(graphExact.firstUseDocs).toBe('yes');
+    expect(graphExact.notes).toContain('without full materialization');
   });
 
   it('states the bounded-probe Optics setup truth', () => {
@@ -142,7 +157,8 @@ describe('public API cost inventory', () => {
     expect(apiReference).toContain('create that basis by materializing the full graph');
     expect(readings).toContain('does not create that evidence by materializing the full graph');
     expect(migration).toContain('not materialize the full graph to manufacture a basis');
-    expect(readme).toContain('providers are still `transitional`');
+    expect(readme).toContain('providers are still');
+    expect(readme).toContain('`transitional` until the bounded-memory gate lands');
     expect(readings).toContain('current providers are `transitional`');
 
     expect(readme).not.toContain('Creates the checkpoint-tail evidence');

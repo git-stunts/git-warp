@@ -16,25 +16,46 @@ let WarpCore: any;
 // deno-lint-ignore no-explicit-any
 let WebCryptoAdapter: any;
 
-export function denoRuntimeTest(name: string, fn: () => Promise<void>): void {
+type DenoRuntimeTestOptions = {
+  readonly disableSanitizers?: boolean;
+};
+
+// @git-stunts/alfred timeout policies used through npm Git plumbing leave
+// losing timeout timers alive after fast commands complete under Deno's
+// Node-compat layer. Git-backed runtime tests opt out until the upstream
+// timeout clock can cancel losing timers.
+export const GIT_BACKED_RUNTIME_TEST_OPTIONS: DenoRuntimeTestOptions = Object.freeze({
+  disableSanitizers: true,
+});
+
+export function denoRuntimeTest(
+  name: string,
+  fn: () => Promise<void>,
+  options: DenoRuntimeTestOptions = {},
+): void {
+  const sanitizersEnabled = options.disableSanitizers !== true;
   Deno.test({
     name,
-    sanitizeOps: false,
-    sanitizeResources: false,
+    sanitizeOps: sanitizersEnabled,
+    sanitizeResources: sanitizersEnabled,
     fn,
   });
 }
 
 export async function loadModules() {
   const root = Deno.cwd();
-  Plumbing = (await import(join(root, "node_modules/@git-stunts/plumbing/index.js"))).default;
-  GitGraphAdapter = (await import(join(root, "src/infrastructure/adapters/GitGraphAdapter.ts"))).default;
-  WarpCore = (await import(join(root, "src/domain/WarpCore.ts"))).default;
-  WebCryptoAdapter = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.ts"))).default;
+  const plumbingModule = (await import(join(root, "node_modules/@git-stunts/plumbing/index.js"))).default;
+  const gitGraphAdapterModule = (await import(join(root, "src/infrastructure/adapters/GitGraphAdapter.ts"))).default;
+  const warpCoreModule = (await import(join(root, "src/domain/WarpCore.ts"))).default;
+  const webCryptoAdapterModule = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.ts"))).default;
+  Plumbing = plumbingModule;
+  GitGraphAdapter = gitGraphAdapterModule;
+  WarpCore = warpCoreModule;
+  WebCryptoAdapter = webCryptoAdapterModule;
 }
 
 export async function createTestRepo(label = "deno-test") {
-  if (!Plumbing) {
+  if (!Plumbing || !GitGraphAdapter || !WarpCore || !WebCryptoAdapter) {
     await loadModules();
   }
 

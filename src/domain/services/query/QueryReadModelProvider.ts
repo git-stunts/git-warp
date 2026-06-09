@@ -1,6 +1,7 @@
 import type {
   QueryNodePropertyBag,
   QueryNodeSnapshot,
+  QueryOperation,
 } from './QueryPlan.ts';
 
 export type QueryPropertyBag = QueryNodePropertyBag;
@@ -30,6 +31,12 @@ export interface QueryReadModel {
   nodeProps(nodeId: string): Promise<QueryPropertyBag | null>;
 }
 
+export type QueryReadModelOpenRequest = {
+  readonly nodeRequest: QueryNodeStreamRequest;
+  readonly operations: readonly QueryOperation[];
+  readonly aggregate: boolean;
+};
+
 export interface QueryReadModelProvider {
-  openQueryReadModel(): Promise<QueryReadModel>;
+  openQueryReadModel(request?: QueryReadModelOpenRequest): Promise<QueryReadModel>;
 }

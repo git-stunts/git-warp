@@ -4,23 +4,50 @@
 # Build context is the parent monorepo directory (context: ..).
 FROM node:22-slim AS node22
 
-FROM denoland/deno:2.1.9
+FROM ubuntu:24.04
+ARG DENO_VERSION=2.1.9
+ARG TARGETARCH
 ARG DENO_ALLOW_SCRIPTS="npm:roaring,npm:cbor-extract"
 USER root
 COPY --from=node22 /usr/local/bin/node /usr/local/bin/node
 COPY --from=node22 /usr/local/bin/npm /usr/local/bin/npm
 COPY --from=node22 /usr/local/bin/npx /usr/local/bin/npx
 COPY --from=node22 /usr/local/lib/node_modules /usr/local/lib/node_modules
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DENO_DIR=/deno-dir
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
     git \
-    python3 \
-    make \
     g++ \
+    make \
+    python3 \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+RUN arch="${TARGETARCH:-$(dpkg --print-architecture)}" \
+  && case "${arch}" in \
+    amd64) deno_arch="x86_64" ;; \
+    arm64) deno_arch="aarch64" ;; \
+    *) echo "Unsupported Deno Docker target architecture: ${arch}" >&2; exit 1 ;; \
+  esac \
+  && curl -fsSL \
+    "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${deno_arch}-unknown-linux-gnu.zip" \
+    -o /tmp/deno.zip \
+  && curl -fsSL \
+    "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${deno_arch}-unknown-linux-gnu.zip.sha256sum" \
+    -o /tmp/deno.zip.sha256sum \
+  && expected_sha="$(cut -d ' ' -f 1 /tmp/deno.zip.sha256sum)" \
+  && echo "${expected_sha}  /tmp/deno.zip" | sha256sum -c - \
+  && unzip -q /tmp/deno.zip -d /tmp \
+  && install -m 0755 /tmp/deno /usr/local/bin/deno \
+  && rm -f /tmp/deno /tmp/deno.zip /tmp/deno.zip.sha256sum \
+  && deno --version
 RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
   # Needed on PATH for Deno npm lifecycle fallback builds (roaring/cbor-extract).
   && ln -sf /usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js /usr/local/bin/node-gyp
+RUN useradd --create-home --shell /usr/sbin/nologin deno \
+  && mkdir -p /deno-dir
 WORKDIR /app
 COPY git-warp/package*.json ./
 COPY git-warp/scripts ./scripts

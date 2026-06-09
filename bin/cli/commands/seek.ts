@@ -1,4 +1,4 @@
-import { diffStates, type StateDiffResult } from '../../../src/domain/services/state/StateDiff.ts';
+import { diffStates, StateDiffResult } from '../../../src/domain/services/state/StateDiff.ts';
 import {
   clearActiveCursor,
   readSavedCursor,
@@ -158,20 +158,20 @@ function applyDiffLimit(diff: StateDiffResult, diffBaseline: string, baselineTic
 
   let remaining = diffLimit;
   /** Caps an array to the remaining budget and decrements the budget. */
-  const cap = (arr: unknown[]): unknown[] => {
+  const cap = <T>(arr: readonly T[]): T[] => {
     const take = Math.min(arr.length, remaining);
     remaining -= take;
     return arr.slice(0, take);
   };
 
-  const capped = {
+  const capped = new StateDiffResult({
     nodes: { added: cap(diff.nodes.added), removed: cap(diff.nodes.removed) },
     edges: { added: cap(diff.edges.added), removed: cap(diff.edges.removed) },
     props: { set: cap(diff.props.set), removed: cap(diff.props.removed) },
-  };
+  });
 
   const shownChanges = diffLimit - remaining;
-  return { structuralDiff: capped as StateDiffResult, diffBaseline, baselineTick, truncated: true, totalChanges, shownChanges };
+  return { structuralDiff: capped, diffBaseline, baselineTick, truncated: true, totalChanges, shownChanges };
 }
 
 // ============================================================================

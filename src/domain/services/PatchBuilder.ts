@@ -17,10 +17,6 @@ import EdgeAdd from '../types/ops/EdgeAdd.ts';
 import EdgeRemove from '../types/ops/EdgeRemove.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import EdgePropSet from '../types/ops/EdgePropSet.ts';
-import ContentAttachmentMime from '../graph/ContentAttachmentMime.ts';
-import ContentAttachmentOid from '../graph/ContentAttachmentOid.ts';
-import ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
-import ContentAttachmentSize from '../graph/ContentAttachmentSize.ts';
 import ContentAttachmentWriteIntent from '../graph/ContentAttachmentWriteIntent.ts';
 import EdgePropertyWriteIntent from '../graph/EdgePropertyWriteIntent.ts';
 import NodePropertyWriteIntent from '../graph/NodePropertyWriteIntent.ts';
@@ -29,9 +25,18 @@ import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT
 import { lowerCanonicalOp } from './OpNormalizer.ts';
 import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
-import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.ts';
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
-import { findAttachedData, assertNoReservedBytes, normalizeContentMetadata } from './PatchBuilderValidation.ts';
+import {
+  findAttachedData,
+  assertNoReservedBytes,
+  assertObservedDotsForRemove,
+} from './PatchBuilderValidation.ts';
+import {
+  requirePatchPropertyValue,
+  storeContentAttachmentPayload,
+  type ContentInput,
+  type ContentMetadataInput,
+} from './PatchBuilderContent.ts';
 import { commitPatch } from './PatchCommitter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
 import type { WarpState } from './JoinReducer.ts';
@@ -42,12 +47,7 @@ import type RefPort from '../../ports/RefPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
-import type { BlobStorageOptions } from '../../ports/BlobStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
-import { isPropValue, type PropValue } from '../types/PropValue.ts';
-
-type ContentInput = AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string;
-type ContentMetadataInput = { mime?: string | null; size?: number | null };
 
 type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
@@ -184,6 +184,7 @@ export class PatchBuilder {
       );
     }
     const observedDots = [...state.nodeAlive.getDots(nodeId)];
+    assertObservedDotsForRemove(observedDots, 'node', { nodeId });
     this._ops.push(new NodeRemove(nodeId, observedDots));
     this._observedOperands.add(nodeId);
     return this;
@@ -215,6 +216,7 @@ export class PatchBuilder {
       );
     }
     const observedDots = [...state.edgeAlive.getDots(edgeKey)];
+    assertObservedDotsForRemove(observedDots, 'edge', { edgeKey });
     this._ops.push(new EdgeRemove({ from, to, label, observedDots }));
     this._observedOperands.add(edgeKey);
     return this;
@@ -287,7 +289,12 @@ export class PatchBuilder {
       throw new WriterError('NO_BLOB_STORAGE', 'Cannot attach content without blob storage — inject blobStorage via open() or use InMemoryBlobStorageAdapter');
     }
     const slug = `${this._graphName}/${nodeId}`;
-    const payload = await storeContentAttachmentPayload(this._blobStorage, content, metadata, slug);
+    const payload = await storeContentAttachmentPayload({
+      blobStorage: this._blobStorage,
+      content,
+      metadata,
+      slug,
+    });
     const intent = ContentAttachmentWriteIntent.forNode(nodeId, payload);
     this._lowerNodeContentIntent(intent);
     this._contentBlobs.push(intent.oid());
@@ -320,7 +327,12 @@ export class PatchBuilder {
       throw new WriterError('NO_BLOB_STORAGE', 'Cannot attach content without blob storage — inject blobStorage via open() or use InMemoryBlobStorageAdapter');
     }
     const slug = `${this._graphName}/${from}/${to}/${label}`;
-    const payload = await storeContentAttachmentPayload(this._blobStorage, content, metadata, slug);
+    const payload = await storeContentAttachmentPayload({
+      blobStorage: this._blobStorage,
+      content,
+      metadata,
+      slug,
+    });
     const intent = ContentAttachmentWriteIntent.forEdge({ from, to, label }, payload);
     this._lowerEdgeContentIntent(intent);
     this._contentBlobs.push(intent.oid());
@@ -458,71 +470,4 @@ export class PatchBuilder {
    * snapshot of blob OIDs to persist alongside the patch entry.
    */
   get contentBlobs(): readonly string[] { return [...this._contentBlobs]; }
-}
-
-/** Validates public patch property values before intent construction. */
-function requirePatchPropertyValue<T>(value: T): PropValue {
-  if (isPropValue(value)) {
-    return value;
-  }
-  throw new PatchError('Property value must be property-compatible data', {
-    code: 'E_PATCH_INVALID_PROPERTY_VALUE',
-  });
-}
-
-async function storeContentAttachmentPayload(
-  blobStorage: BlobStoragePort,
-  content: ContentInput,
-  metadata: ContentMetadataInput | undefined,
-  slug: string,
-): Promise<ContentAttachmentPayload> {
-  if (isBufferedContent(content)) {
-    const normalizedMeta = normalizeContentMetadata(content, metadata);
-    const options = contentStorageOptions(slug, normalizedMeta.mime, normalizedMeta.size);
-    const oid = await blobStorage.store(content, options);
-    return contentAttachmentPayload(oid, normalizedMeta.mime, normalizedMeta.size);
-  }
-  const mime = metadata?.mime ?? null;
-  const size = metadata?.size ?? null;
-  const typedMime = contentAttachmentMime(mime);
-  const typedSize = contentAttachmentSize(size);
-  const options = contentStorageOptions(slug, typedMime?.toString() ?? null, typedSize?.toNumber() ?? null);
-  const oid = await blobStorage.storeStream(normalizeToAsyncIterable(content), options);
-  return new ContentAttachmentPayload({
-    oid: new ContentAttachmentOid(oid),
-    mime: typedMime,
-    size: typedSize,
-  });
-}
-
-function isBufferedContent(content: ContentInput): content is Uint8Array | string {
-  return !isStreamingInput(content);
-}
-
-function contentAttachmentPayload(
-  oid: string,
-  mime: string | null,
-  size: number | null,
-): ContentAttachmentPayload {
-  return new ContentAttachmentPayload({
-    oid: new ContentAttachmentOid(oid),
-    mime: contentAttachmentMime(mime),
-    size: contentAttachmentSize(size),
-  });
-}
-
-function contentAttachmentMime(mime: string | null): ContentAttachmentMime | null {
-  return mime === null ? null : new ContentAttachmentMime(mime);
-}
-
-function contentAttachmentSize(size: number | null): ContentAttachmentSize | null {
-  return size === null ? null : new ContentAttachmentSize(size);
-}
-
-function contentStorageOptions(
-  slug: string,
-  mime: string | null,
-  size: number | null,
-): BlobStorageOptions {
-  return { slug, mime, size };
 }

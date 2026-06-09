@@ -15,7 +15,7 @@ import PatchError from '../../errors/PatchError.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type { EventId } from '../../utils/EventId.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
-import type { PatchDiff } from '../PatchDiff.ts';
+import type { MutablePatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 import ReceiptBuilder from '../../services/ReceiptBuilder.ts';
 
@@ -57,7 +57,7 @@ export default class PropSet extends Op<'PropSet'> {
     return snapshotProp(state, encodePropKey(this.node, this.key));
   }
 
-  accumulate(diff: PatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
+  accumulate(diff: MutablePatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
     accumulatePropDiff(diff, state, this.node, this.key, before);
   }
 }

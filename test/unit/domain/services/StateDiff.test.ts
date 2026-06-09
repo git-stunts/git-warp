@@ -3,6 +3,12 @@ import {
   diffStates,
   isEmptyDiff,
   createEmptyDiff,
+  StateDiffResult,
+} from '../../../../src/domain/services/state/StateDiff.ts';
+import type {
+  EdgeChange,
+  PropRemoved,
+  PropSet,
 } from '../../../../src/domain/services/state/StateDiff.ts';
 import {
   createEmptyState,
@@ -52,7 +58,61 @@ function makeEventId(lamport, writerId = 'w1') {
   return new EventId(lamport, writerId, 'abcd1234', 0);
 }
 
+type StateDiffResultTestFields = Partial<{
+  nodesAdded: string[];
+  nodesRemoved: string[];
+  edgesAdded: EdgeChange[];
+  edgesRemoved: EdgeChange[];
+  propsSet: PropSet[];
+  propsRemoved: PropRemoved[];
+}>;
+
+function makeStateDiffResult(fields: StateDiffResultTestFields = {}): StateDiffResult {
+  return new StateDiffResult({
+    nodes: {
+      added: fields.nodesAdded ?? [],
+      removed: fields.nodesRemoved ?? [],
+    },
+    edges: {
+      added: fields.edgesAdded ?? [],
+      removed: fields.edgesRemoved ?? [],
+    },
+    props: {
+      set: fields.propsSet ?? [],
+      removed: fields.propsRemoved ?? [],
+    },
+  });
+}
+
 describe('StateDiff', () => {
+  describe('StateDiffResult', () => {
+    it('freezes nested diff collections', () => {
+      const diff = new StateDiffResult({
+        nodes: { added: ['node:a'], removed: [] },
+        edges: { added: [{ from: 'node:a', to: 'node:b', label: 'rel' }], removed: [] },
+        props: {
+          set: [{
+            key: 'node:a\x00name',
+            nodeId: 'node:a',
+            propKey: 'name',
+            oldValue: undefined,
+            newValue: 'Ada',
+          }],
+          removed: [],
+        },
+      });
+
+      expect(Object.isFrozen(diff.nodes.added)).toBe(true);
+      expect(Object.isFrozen(diff.edges.added)).toBe(true);
+      expect(Object.isFrozen(diff.props.set)).toBe(true);
+      expect(Object.isFrozen(diff.edges.added[0])).toBe(true);
+      expect(Object.isFrozen(diff.props.set[0])).toBe(true);
+      expect(() => {
+        Reflect.apply(Array.prototype.push, diff.nodes.added, ['node:b']);
+      }).toThrow(TypeError);
+    });
+  });
+
   describe('diffStates', () => {
     describe('node changes', () => {
       it('detects added nodes', () => {
@@ -63,6 +123,7 @@ describe('StateDiff', () => {
 
         const diff = diffStates(before, after);
 
+        expect(diff).toBeInstanceOf(StateDiffResult);
         expect(diff.nodes.added).toEqual(['user:alice']);
         expect(diff.nodes.removed).toEqual([]);
       });
@@ -534,38 +595,36 @@ describe('StateDiff', () => {
     });
 
     it('returns false when nodes added', () => {
-      const diff = createEmptyDiff();
-      diff.nodes.added.push('a');
+      const diff = makeStateDiffResult({ nodesAdded: ['a'] });
       expect(isEmptyDiff(diff)).toBe(false);
     });
 
     it('returns false when nodes removed', () => {
-      const diff = createEmptyDiff();
-      diff.nodes.removed.push('a');
+      const diff = makeStateDiffResult({ nodesRemoved: ['a'] });
       expect(isEmptyDiff(diff)).toBe(false);
     });
 
     it('returns false when edges added', () => {
-      const diff = createEmptyDiff();
-      diff.edges.added.push({ from: 'a', to: 'b', label: 'c' });
+      const diff = makeStateDiffResult({ edgesAdded: [{ from: 'a', to: 'b', label: 'c' }] });
       expect(isEmptyDiff(diff)).toBe(false);
     });
 
     it('returns false when edges removed', () => {
-      const diff = createEmptyDiff();
-      diff.edges.removed.push({ from: 'a', to: 'b', label: 'c' });
+      const diff = makeStateDiffResult({ edgesRemoved: [{ from: 'a', to: 'b', label: 'c' }] });
       expect(isEmptyDiff(diff)).toBe(false);
     });
 
     it('returns false when props set', () => {
-      const diff = createEmptyDiff();
-      diff.props.set.push({ key: 'k', nodeId: 'n', propKey: 'p', oldValue: undefined, newValue: 1 });
+      const diff = makeStateDiffResult({
+        propsSet: [{ key: 'k', nodeId: 'n', propKey: 'p', oldValue: undefined, newValue: 1 }],
+      });
       expect(isEmptyDiff(diff)).toBe(false);
     });
 
     it('returns false when props removed', () => {
-      const diff = createEmptyDiff();
-      diff.props.removed.push({ key: 'k', nodeId: 'n', propKey: 'p', oldValue: 1 });
+      const diff = makeStateDiffResult({
+        propsRemoved: [{ key: 'k', nodeId: 'n', propKey: 'p', oldValue: 1 }],
+      });
       expect(isEmptyDiff(diff)).toBe(false);
     });
   });
@@ -585,8 +644,7 @@ describe('StateDiff', () => {
       const diff1 = createEmptyDiff();
       const diff2 = createEmptyDiff();
 
-      diff1.nodes.added.push('a');
-
+      expect(diff1.nodes.added).not.toBe(diff2.nodes.added);
       expect(diff2.nodes.added).toEqual([]);
     });
   });

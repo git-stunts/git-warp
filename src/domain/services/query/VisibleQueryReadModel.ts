@@ -91,7 +91,6 @@ function visibleNode(
 }
 
 export default class VisibleQueryReadModel implements QueryReadModel {
-  readonly stateHash: string;
   readonly #source: QueryReadModel;
   readonly #visibility: QueryReadModelVisibility;
 
@@ -101,7 +100,10 @@ export default class VisibleQueryReadModel implements QueryReadModel {
   }) {
     this.#source = params.source;
     this.#visibility = params.visibility;
-    this.stateHash = params.source.stateHash;
+  }
+
+  get stateHash(): string {
+    return this.#source.stateHash;
   }
 
   async *nodes(request: QueryNodeStreamRequest): AsyncIterable<QueryNodeSnapshot> {

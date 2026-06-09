@@ -263,7 +263,7 @@ describe('Structural seek diff (diffStates integration)', () => {
     const { diffStates } = await import('../../../src/domain/services/state/StateDiff.ts');
     const diff = diffStates(null as any, after as any);
 
-    expect(diff.nodes.added.sort()).toEqual(['n1', 'n2']);
+    expect([...diff.nodes.added].sort()).toEqual(['n1', 'n2']);
     expect(diff.nodes.removed).toEqual([]);
   });
 

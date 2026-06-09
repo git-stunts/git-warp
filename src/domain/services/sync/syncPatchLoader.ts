@@ -12,6 +12,7 @@ import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import SyncError from '../../errors/SyncError.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
+import Patch from '../../types/Patch.ts';
 import type { OpV2 } from '../../types/ops/unions.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
@@ -44,21 +45,29 @@ export interface LoadPatchRangeOptions {
 /**
  * Normalizes a patch after CBOR deserialization.
  *
- * CBOR deserialization returns plain JavaScript objects, but the CRDT
+ * CBOR deserialization can return plain JavaScript objects, but the CRDT
  * merge logic (JoinReducer) expects the context field to be a VersionVector.
- * This function performs the conversion in-place and returns the same object.
- *
- * **Mutation**: This function mutates the input patch object for efficiency.
+ * This function always constructs a validated Patch so decoded objects cannot
+ * bypass constructor invariants.
  */
 export function normalizePatch(patch: DecodedPatch): DecodedPatch {
-  if (patch.context === null || patch.context === undefined) {
-    patch.context = VersionVector.empty();
-    return patch;
+  const context = patch.context instanceof VersionVector
+    ? patch.context
+    : (patch.context === null || patch.context === undefined)
+        ? VersionVector.empty()
+        : VersionVector.from(patch.context);
+  const patchInput = {
+    writer: patch.writer,
+    lamport: patch.lamport,
+    context,
+    ops: patch.ops,
+    reads: patch.reads,
+    writes: patch.writes,
+  };
+  if (patch.schema === undefined) {
+    return new Patch(patchInput);
   }
-  if (!(patch.context instanceof VersionVector)) {
-    patch.context = VersionVector.from(patch.context);
-  }
-  return patch;
+  return new Patch({ schema: patch.schema, ...patchInput });
 }
 
 // ---------------------------------------------------------------------------

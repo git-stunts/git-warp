@@ -1,7 +1,7 @@
 /**
  * JoinReducer validation tests (C2/C3).
  *
- * C2: Unknown op type is silently ignored in reduceV5() — documented baseline.
+ * C2: Unknown op type fails closed in reduceV5().
  * C2: Empty ops array doesn't crash.
  * C3: Receipt path with malformed ops — now throws PatchError with E_PATCH_MALFORMED.
  */
@@ -33,27 +33,24 @@ const makePatchEntry = (/** @type {any[]} */ ops) => ({
 
 describe('JoinReducer validation', () => {
   describe('C2 — unknown op types', () => {
-    it('silently ignores unknown op type in applyOpV2', () => {
+    it('throws PatchError for unknown op type in applyOpV2', () => {
       const state = createEmptyState();
       const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
-      // Should not throw
-      applyOpV2(state, ({ type: 'FutureOp', data: 42 } as any), eventId);
+      expect(() => {
+        applyOpV2(state, { type: 'FutureOp' }, eventId);
+      }).toThrow(PatchError);
 
-      // State unchanged
       expect([...state.nodeAlive.elements()]).toHaveLength(0);
     });
 
-    it('silently ignores unknown op type in reduceV5', () => {
+    it('throws PatchError for unknown op type in reduceV5', () => {
       const entry = makePatchEntry([
         { type: 'NodeAdd', node: 'node:a', dot: Dot.create('w1', 1) },
         { type: 'UnknownFutureOp', payload: {} },
       ]);
 
-      const state = reduceV5([entry]);
-
-      // The known NodeAdd should still apply
-      expect(state.nodeAlive.contains('node:a')).toBe(true);
+      expect(() => reduceV5([entry])).toThrow(PatchError);
     });
   });
 
@@ -119,6 +116,14 @@ describe('JoinReducer validation', () => {
       const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
       expect(() => applyOpV2(state, (null as any), eventId)).toThrow(PatchError);
+    });
+
+    it('throws PatchError for null ops through all reduceV5 paths', () => {
+      const entry = makePatchEntry([null]);
+
+      expect(() => reduceV5([entry])).toThrow(PatchError);
+      expect(() => reduceV5([entry], undefined, { receipts: true })).toThrow(PatchError);
+      expect(() => reduceV5([entry], undefined, { trackDiff: true })).toThrow(PatchError);
     });
 
     it('throws PatchError for op without type field', () => {
@@ -228,13 +233,13 @@ describe('JoinReducer validation', () => {
       });
     });
 
-    describe('forward-compat', () => {
+    describe('fail-closed op recognition', () => {
       it('BlobValue does NOT throw', () => {
         expect(() => applyOpV2(state(), ({ type: 'BlobValue', oid: 'abc' } as any), eid)).not.toThrow();
       });
 
-      it('unknown type does NOT throw', () => {
-        expect(() => applyOpV2(state(), ({ type: 'FutureOpV99', data: {} } as any), eid)).not.toThrow();
+      it('unknown type throws', () => {
+        expect(() => applyOpV2(state(), { type: 'FutureOpV99' }, eid)).toThrow(PatchError);
       });
     });
   });

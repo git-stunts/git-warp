@@ -1,15 +1,75 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyDiff, mergeDiffs } from '../../../../src/domain/types/PatchDiff.ts';
+import PatchError from '../../../../src/domain/errors/PatchError.ts';
+import {
+  EdgeDiffEntry,
+  PatchDiff,
+  PropDiffEntry,
+  createEmptyDiff,
+  mergeDiffs,
+} from '../../../../src/domain/types/PatchDiff.ts';
 
 describe('PatchDiff', () => {
   describe('createEmptyDiff', () => {
     it('returns a diff with all empty arrays', () => {
       const d = createEmptyDiff();
+      expect(Object.isFrozen(d)).toBe(true);
       expect(d.nodesAdded).toEqual([]);
       expect(d.nodesRemoved).toEqual([]);
       expect(d.edgesAdded).toEqual([]);
       expect(d.edgesRemoved).toEqual([]);
       expect(d.propsChanged).toEqual([]);
+    });
+
+    it('validates and freezes edge and property entries', () => {
+      const edge = new EdgeDiffEntry({ from: 'a', to: 'b', label: 'rel' });
+      const prop = new PropDiffEntry({
+        nodeId: 'a',
+        key: 'name',
+        value: 'Ada',
+        prevValue: undefined,
+      });
+
+      expect(Object.isFrozen(edge)).toBe(true);
+      expect(Object.isFrozen(prop)).toBe(true);
+      expect(edge).toEqual({ from: 'a', to: 'b', label: 'rel' });
+      expect(prop).toEqual({
+        nodeId: 'a',
+        key: 'name',
+        value: 'Ada',
+        prevValue: undefined,
+      });
+    });
+
+    it('rejects invalid diff fields', () => {
+      expect(() => new EdgeDiffEntry({ from: '', to: 'b', label: 'rel' })).toThrow(PatchError);
+      expect(() => new PropDiffEntry({
+        nodeId: 'a',
+        key: '',
+        value: 'Ada',
+        prevValue: undefined,
+      })).toThrow(PatchError);
+    });
+
+    it('freezes PatchDiff collections', () => {
+      const diff = new PatchDiff({
+        nodesAdded: ['a'],
+        nodesRemoved: [],
+        edgesAdded: [new EdgeDiffEntry({ from: 'a', to: 'b', label: 'rel' })],
+        edgesRemoved: [],
+        propsChanged: [new PropDiffEntry({
+          nodeId: 'a',
+          key: 'name',
+          value: 'Ada',
+          prevValue: undefined,
+        })],
+      });
+
+      expect(Object.isFrozen(diff.nodesAdded)).toBe(true);
+      expect(Object.isFrozen(diff.edgesAdded)).toBe(true);
+      expect(Object.isFrozen(diff.propsChanged)).toBe(true);
+      expect(() => {
+        Reflect.apply(Array.prototype.push, diff.nodesAdded, ['b']);
+      }).toThrow(TypeError);
     });
   });
 
@@ -127,7 +187,11 @@ describe('PatchDiff', () => {
         propsChanged: [{ nodeId: 'n1', key: 'k', value: 'v', prevValue: undefined }],
       };
       const merged = mergeDiffs(a, createEmptyDiff());
-      expect(merged).toEqual(a);
+      expect(merged.nodesAdded).toEqual(a.nodesAdded);
+      expect(merged.nodesRemoved).toEqual(a.nodesRemoved);
+      expect(merged.edgesAdded).toEqual(a.edgesAdded);
+      expect(merged.edgesRemoved).toEqual(a.edgesRemoved);
+      expect(merged.propsChanged).toEqual(a.propsChanged);
     });
   });
 });

@@ -61,7 +61,7 @@
     "build": "tsc -p tsconfig.publish.json",
     "lint": "eslint .",
     "lint:ratchet": "sh scripts/lint-ratchet.sh",
-    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
+    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules --ignore \"**/node_modules/**\"",
     "lint:md:code": "node scripts/lint-markdown-code-samples.ts",
     "lint:links": "lychee --config .lychee.toml '**/*.md'",
     "lint:semgrep": "node scripts/lint-semgrep-with-quarantines.ts",

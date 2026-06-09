@@ -26,6 +26,7 @@ import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type {
   QueryReadModel,
+  QueryReadModelOpenRequest,
   QueryReadModelProvider,
 } from './QueryReadModelProvider.ts';
 
@@ -192,10 +193,10 @@ export default class Observer {
     return this;
   }
 
-  async openQueryReadModel(): Promise<QueryReadModel> {
+  async openQueryReadModel(request?: QueryReadModelOpenRequest): Promise<QueryReadModel> {
     if (this._readModelProvider !== null) {
       return new VisibleQueryReadModel({
-        source: await this._readModelProvider.openQueryReadModel(),
+        source: await this._readModelProvider.openQueryReadModel(request),
         visibility: this._queryVisibility(),
       });
     }

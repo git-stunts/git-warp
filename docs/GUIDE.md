@@ -141,8 +141,11 @@ Start from a worldline when you want stable application reads.
 ```typescript
 const worldline = team.live();
 
-const task = await worldline.getNodeProps('task:auth');
-// { title: 'Implement OAuth2', status: 'in-progress' }
+const task = await worldline.query()
+  .match('task:auth')
+  .select(['id'])
+  .run();
+// task.nodes = [{ id: 'task:auth' }]
 ```
 
 ### Pattern 2: the redacted view

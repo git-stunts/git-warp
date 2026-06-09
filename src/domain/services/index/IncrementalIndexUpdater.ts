@@ -223,7 +223,7 @@ export default class IncrementalIndexUpdater {
   }
 
   private _handleProps(
-    propsChanged: PropDiffEntry[],
+    propsChanged: readonly PropDiffEntry[],
     loadShard: (path: string) => Uint8Array | undefined,
     out: Record<string, Uint8Array>,
   ): void {

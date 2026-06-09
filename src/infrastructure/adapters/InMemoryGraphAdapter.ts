@@ -111,11 +111,11 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     if (entries === undefined) {
       throw new PersistenceError(`Tree not found: ${treeOid}`, PersistenceError.E_MISSING_OBJECT);
     }
-    const result: Record<string, string> = {};
+    const result = new Map<string, string>();
     for (const e of entries) {
-      result[e.path] = e.oid;
+      result.set(e.path, e.oid);
     }
-    return result;
+    return Object.fromEntries(result);
   }
 
   async readTreeEntryOid(treeOid: string, path: TreeEntryPath): Promise<TreeEntryProbeResult> {
@@ -157,11 +157,11 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
 
   async readTree(treeOid: string): Promise<Record<string, Uint8Array>> {
     const oids = await this.readTreeOids(treeOid);
-    const files: Record<string, Uint8Array> = {};
+    const files = new Map<string, Uint8Array>();
     for (const [path, oid] of Object.entries(oids)) {
-      files[path] = await this.readBlob(oid);
+      files.set(path, await this.readBlob(oid));
     }
-    return files;
+    return Object.fromEntries(files);
   }
 
   private _requireTreeEntries(treeOid: string): TreeEntry[] {

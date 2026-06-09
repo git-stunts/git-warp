@@ -64,6 +64,19 @@ export function assertNoReservedBytes(value: string, label: string): void {
   }
 }
 
+export function assertObservedDotsForRemove(
+  observedDots: readonly string[],
+  targetKind: 'node' | 'edge',
+  context: { readonly nodeId?: string; readonly edgeKey?: string },
+): void {
+  if (observedDots.length > 0) { return; }
+  const target = targetKind === 'node' ? context.nodeId : context.edgeKey;
+  throw new PatchError(
+    `Cannot remove missing ${targetKind} '${target ?? 'unresolved'}': entity is not alive in current state`,
+    { code: 'E_PATCH_ENTITY_NOT_FOUND', context: { targetKind, ...context } },
+  );
+}
+
 /**
  * Calculates the persisted byte length of attached content.
  */

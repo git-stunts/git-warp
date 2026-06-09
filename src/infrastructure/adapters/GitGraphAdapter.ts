@@ -282,7 +282,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
 
   async readTree(treeOid: string): Promise<Record<string, Uint8Array>> {
     const oids = await this.readTreeOids(treeOid);
-    const files: Record<string, Uint8Array> = {};
+    const files = new Map<string, Uint8Array>();
     const entries = Object.entries(oids);
     const batchSize = 16;
     for (let i = 0; i < entries.length; i += batchSize) {
@@ -292,11 +292,11 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
         const entry = batch[j];
         const result = results[j];
         if (entry !== undefined && result !== undefined) {
-          files[entry[0]] = result;
+          files.set(entry[0], result);
         }
       }
     }
-    return files;
+    return Object.fromEntries(files);
   }
 
   async readTreeOids(treeOid: string): Promise<Record<string, string>> {

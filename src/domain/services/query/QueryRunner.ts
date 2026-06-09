@@ -16,6 +16,7 @@ import type {
   QueryPropertyBag,
   QueryReadModel,
   QueryReadModelProvider,
+  QueryReadModelOpenRequest,
 } from './QueryReadModelProvider.ts';
 
 type MutableQueryPropertyBag = { [key: string]: SnapshotPropValue };
@@ -386,13 +387,13 @@ export default class QueryRunner {
   }
 
   async run(plan: QueryPlan): Promise<QueryResult | AggregateResult> {
-    const readModel = await this.#provider.openQueryReadModel();
-    const getProps = createPropsMemo(readModel);
     const selectFields = validateSelectFields(plan.select);
     const request: QueryNodeStreamRequest = {
       pattern: plan.pattern ?? DEFAULT_PATTERN,
-      select: plan.select,
+      select: selectFields,
     };
+    const readModel = await this.#provider.openQueryReadModel(openRequest(plan, request));
+    const getProps = createPropsMemo(readModel);
     const matched = await collectInitialStrand(readModel, request);
     const strand = await applyOperations({
       strand: matched,
@@ -412,4 +413,15 @@ export default class QueryRunner {
     const nodes = await buildResultNodes(strand, selectFields, getProps);
     return { stateHash: readModel.stateHash, nodes };
   }
+}
+
+function openRequest(
+  plan: QueryPlan,
+  nodeRequest: QueryNodeStreamRequest,
+): QueryReadModelOpenRequest {
+  return {
+    nodeRequest,
+    operations: plan.operations,
+    aggregate: plan.aggregate !== null,
+  };
 }

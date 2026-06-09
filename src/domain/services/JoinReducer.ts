@@ -23,7 +23,7 @@
 import { EventId } from '../utils/EventId.ts';
 import { createTickReceipt, type TickReceipt, type OpOutcome } from '../types/TickReceipt.ts';
 import { normalizeRawOp } from './OpNormalizer.ts';
-import { createEmptyDiff, mergeDiffs, type PatchDiff } from '../types/PatchDiff.ts';
+import { PatchDiff, createEmptyDiff, createPatchDiffAccumulator, mergeDiffs } from '../types/PatchDiff.ts';
 import PatchError from '../errors/PatchError.ts';
 import WarpState from './state/WarpState.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
@@ -113,10 +113,19 @@ export function joinStates(a: WarpState, b: WarpState): WarpState {
 
 /**
  * Applies a single V2 operation to the given state. Mutates `state`
- * in place. Unknown op types are silently ignored for forward
- * compatibility.
+ * in place. Unknown op types fail closed instead of becoming silent
+ * data loss.
  */
 export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
+  const type = readReducerOpType(op);
+  assertKnownReducerOp(op, type);
+  const canonOp = normalizeRawOp(op);
+  if (!(canonOp instanceof Op)) { return; }
+  canonOp.validate();
+  canonOp.mutate(state, eventId);
+}
+
+function readReducerOpType(op: OpLike): string { // nosemgrep: ts-no-like-types -- 0025C
   if (op === null || op === undefined || typeof op !== 'object') {
     throw new PatchError(
       `Invalid op: expected object with string 'type', got ${String(op)}`,
@@ -130,13 +139,15 @@ export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void 
       { context: { actual: typeof type } },
     );
   }
-  if (!OpValidator.isKnownRaw(op) && !OpValidator.isKnownCanonical(op)) {
-    return;
-  }
-  const canonOp = normalizeRawOp(op);
-  if (!(canonOp instanceof Op)) { return; }
-  canonOp.validate();
-  canonOp.mutate(state, eventId);
+  return type;
+}
+
+function assertKnownReducerOp(op: OpLike, type: string): void { // nosemgrep: ts-no-like-types -- 0025C
+  if (OpValidator.isKnownRaw(op) || OpValidator.isKnownCanonical(op)) { return; }
+  throw new PatchError(
+    `Unknown patch op type: ${type}`,
+    { code: 'E_PATCH_UNKNOWN_OP', context: { opType: type } },
+  );
 }
 
 /** Applies a patch to state without receipt or diff collection. */
@@ -144,7 +155,8 @@ export function applyFast(state: WarpState, patch: PatchLike, patchSha: string):
   for (let i = 0; i < patch.ops.length; i++) {
     const op = patch.ops[i];
     if (op === undefined) { continue; }
-    if (!OpValidator.isKnownRaw(op) && !OpValidator.isKnownCanonical(op)) { continue; }
+    const type = readReducerOpType(op);
+    assertKnownReducerOp(op, type);
     const canonOp = normalizeRawOp(op);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
@@ -164,11 +176,12 @@ export function applyWithDiff(
   patch: PatchLike, // nosemgrep: ts-no-like-types -- 0025C
   patchSha: string,
 ): { state: WarpState; diff: PatchDiff } {
-  const diff = createEmptyDiff();
+  const diff = createPatchDiffAccumulator();
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
-    if (!OpValidator.isKnownRaw(rawOp) && !OpValidator.isKnownCanonical(rawOp)) { continue; }
+    const type = readReducerOpType(rawOp);
+    assertKnownReducerOp(rawOp, type);
     const canonOp = normalizeRawOp(rawOp);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
@@ -178,7 +191,7 @@ export function applyWithDiff(
     canonOp.accumulate(diff, state, before);
   }
   state.foldPatch(patch);
-  return { state, diff };
+  return { state, diff: new PatchDiff(diff) };
 }
 
 /**
@@ -195,7 +208,8 @@ export function applyWithReceipt(
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
-    if (!OpValidator.isKnownRaw(rawOp) && !OpValidator.isKnownCanonical(rawOp)) { continue; }
+    const type = readReducerOpType(rawOp);
+    assertKnownReducerOp(rawOp, type);
     const canonOp = normalizeRawOp(rawOp);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();

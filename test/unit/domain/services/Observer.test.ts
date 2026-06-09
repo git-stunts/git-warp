@@ -87,6 +87,37 @@ class ObserverTraversalReadModelProvider implements QueryReadModelProvider {
   }
 }
 
+class RefreshingStateHashReadModel implements QueryReadModel {
+  #stateHash = 'checkpoint-tail-query:pending:user:alice';
+
+  get stateHash(): string {
+    return this.#stateHash;
+  }
+
+  async *nodes(request: QueryNodeStreamRequest): AsyncIterable<QueryNodeSnapshot> {
+    if (request.pattern !== 'user:alice') {
+      return;
+    }
+    this.#stateHash = 'checkpoint-tail-query:final:user:alice';
+    yield nodeSnapshot('user:alice');
+  }
+
+  async *neighbors(
+    _nodeId: string,
+    _options: QueryNeighborOptions,
+  ): AsyncIterable<QueryNeighborEntry> {}
+
+  nodeProps(nodeId: string): Promise<QueryPropertyBag | null> {
+    return Promise.resolve(nodeId === 'user:alice' ? EMPTY_QUERY_PROPS : null);
+  }
+}
+
+class RefreshingStateHashReadModelProvider implements QueryReadModelProvider {
+  openQueryReadModel(): Promise<QueryReadModel> {
+    return Promise.resolve(new RefreshingStateHashReadModel());
+  }
+}
+
 /** @param {any} graph @param {(state: any) => void} seedFn */
 function setupGraphState(graph, seedFn) {
   const state = createEmptyState();
@@ -435,6 +466,21 @@ describe('Observer', () => {
 
       // Should only see user:bob, not team:eng
       expect(result.nodes.map((/** @type {any} */ n) => n.id)).toEqual(['user:bob']);
+    });
+
+    it('query stateHash reflects read model updates after visible wrapping', async () => {
+      const view = new Observer({
+        name: 'read-model-state-hash',
+        config: { match: 'user:*' },
+        readModelProvider: new RefreshingStateHashReadModelProvider(),
+      });
+
+      const result = await view.query().match('user:alice').select(['id']).run();
+
+      expect(result).toEqual({
+        stateHash: 'checkpoint-tail-query:final:user:alice',
+        nodes: [{ id: 'user:alice' }],
+      });
     });
   });
 

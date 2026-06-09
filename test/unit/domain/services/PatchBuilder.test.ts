@@ -410,7 +410,7 @@ describe('PatchBuilder', () => {
     });
   });
 
-  describe('empty state produces empty observedDots', () => {
+  describe('entity removal requires existing live dots', () => {
     it('removeNode with null state throws E_PATCH_NO_STATE', () => {
       const builder = new PatchBuilder(({
         writerId: 'writer1',
@@ -422,7 +422,7 @@ describe('PatchBuilder', () => {
       expect(() => builder.removeNode('x')).toThrow(PatchError);
     });
 
-    it('removeNode with empty state returns empty observedDots', () => {
+    it('removeNode with empty state throws E_PATCH_ENTITY_NOT_FOUND', () => {
       const state = createMockState();
 
       const builder = new PatchBuilder(({
@@ -432,10 +432,9 @@ describe('PatchBuilder', () => {
         getCurrentState: () => state,
       } as any));
 
-      builder.removeNode('x'); // Node doesn't exist in state
-
-      const patch = builder.build();
-      expect((patch.ops[0] as any).observedDots).toEqual([]);
+      expect(() => builder.removeNode('x')).toThrow(
+        expect.objectContaining({ code: 'E_PATCH_ENTITY_NOT_FOUND' }),
+      );
     });
 
     it('removeEdge with null state throws E_PATCH_NO_STATE', () => {
@@ -449,7 +448,7 @@ describe('PatchBuilder', () => {
       expect(() => builder.removeEdge('a', 'b', 'rel')).toThrow(PatchError);
     });
 
-    it('removeEdge with empty state returns empty observedDots', () => {
+    it('removeEdge with empty state throws E_PATCH_ENTITY_NOT_FOUND', () => {
       const state = createMockState();
 
       const builder = new PatchBuilder(({
@@ -459,10 +458,9 @@ describe('PatchBuilder', () => {
         getCurrentState: () => state,
       } as any));
 
-      builder.removeEdge('a', 'b', 'rel'); // Edge doesn't exist in state
-
-      const patch = builder.build();
-      expect((patch.ops[0] as any).observedDots).toEqual([]);
+      expect(() => builder.removeEdge('a', 'b', 'rel')).toThrow(
+        expect.objectContaining({ code: 'E_PATCH_ENTITY_NOT_FOUND' }),
+      );
     });
   });
 
@@ -535,10 +533,12 @@ describe('PatchBuilder', () => {
       const state = createMockState();
       const nodeDot = Dot.create('writer1', 1);
       state.nodeAlive.add('b', nodeDot);
+      state.nodeAlive.add('c', Dot.create('writer1', 2));
+      state.edgeAlive.add(encodeEdgeKey('b', 'c', 'old-link'), Dot.create('writer1', 3));
 
       // Start from counter 1 since we added dot with counter 1
       const vv = VersionVector.empty();
-      vv.set('writer1', 1);
+      vv.set('writer1', 3);
 
       const builder = new PatchBuilder(({
         writerId: 'writer1',
@@ -551,7 +551,7 @@ describe('PatchBuilder', () => {
         .addNode('a')
         .addEdge('a', 'b', 'link')
         .setProperty('a', 'name', 'A')
-        .removeEdge('a', 'b', 'link')
+        .removeEdge('b', 'c', 'old-link')
         .removeNode('b');
 
       const patch = builder.build();

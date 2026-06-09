@@ -11,7 +11,14 @@ import QueryError from '../errors/QueryError.ts';
 import CoordinateCheckpointTailOpticSource from './optic/CoordinateCheckpointTailOpticSource.ts';
 import WorldlineOptic from './optic/WorldlineOptic.ts';
 import type CheckpointTailOpticSource from './optic/CheckpointTailOpticSource.ts';
-import type { QueryReadModel, QueryReadModelProvider } from './query/QueryReadModelProvider.ts';
+import type {
+  QueryReadModel,
+  QueryReadModelOpenRequest,
+  QueryReadModelProvider,
+} from './query/QueryReadModelProvider.ts';
+import CheckpointTailExactIdQueryReadModel, {
+  exactIdOnlyQueryNodeId,
+} from './query/CheckpointTailExactIdQueryReadModel.ts';
 
 type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
 type VisibleEdge = Awaited<ReturnType<Observer['getEdges']>>[number];
@@ -167,8 +174,48 @@ export default class Worldline {
     return this;
   }
 
-  async openQueryReadModel(): Promise<QueryReadModel> {
-    return await (await this._delegateObserver()).openQueryReadModel();
+  async openQueryReadModel(request?: QueryReadModelOpenRequest): Promise<QueryReadModel> {
+    const bounded = await this._boundedExactReadModel(request);
+    if (bounded !== null) {
+      return bounded;
+    }
+    return await (await this._delegateObserver()).openQueryReadModel(request);
+  }
+
+  private async _boundedExactReadModel(
+    request: QueryReadModelOpenRequest | undefined,
+  ): Promise<QueryReadModel | null> {
+    const nodeId = exactIdOnlyQueryNodeId(request);
+    if (nodeId === null || this._opticSource === null) {
+      return null;
+    }
+    const optic = await this._exactReadOptic();
+    return optic === null
+      ? null
+      : new CheckpointTailExactIdQueryReadModel({ nodeId, optic });
+  }
+
+  private async _exactReadOptic(): Promise<WorldlineOptic | null> {
+    const source = this._opticSource;
+    if (source === null) {
+      return null;
+    }
+    if (this._source instanceof LiveSelector) {
+      if (await source._readCheckpointSha() === null) {
+        return null;
+      }
+      return new WorldlineOptic({ source });
+    }
+    if (this._source instanceof CoordinateSelector && this._source.checkpointSha !== null) {
+      return new WorldlineOptic({
+        source: new CoordinateCheckpointTailOpticSource({
+          source,
+          checkpointSha: this._source.checkpointSha,
+          frontier: this._source.frontier,
+        }),
+      });
+    }
+    return null;
   }
 
   query(): QueryBuilder {

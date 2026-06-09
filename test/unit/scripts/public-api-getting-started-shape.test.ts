@@ -25,10 +25,9 @@ describe('Getting Started doc shape', () => {
     expect(gettingStarted).toContain('refs/warp/security-audit/writers/local');
     expect(gettingStarted).toContain("// patch1 = 'abc123...'");
     expect(gettingStarted).toContain("// patch2 = 'def456...'");
-    expect(gettingStarted).toContain("// { title: 'OAuth state mismatch', severity: 'high', status: 'triaged' }");
-    expect(gettingStarted).toContain("// { title: 'OAuth state mismatch', severity: 'critical', status: 'open' }");
-    expect(gettingStarted).toContain('// findings = {');
-    expect(gettingStarted).toContain('// path = {');
+    expect(gettingStarted).toContain("stateHash: 'checkpoint-tail-query:{...read identity...}'");
+    expect(gettingStarted).toContain("nodes: [{ id: 'finding:oauth-state-mismatch' }]");
+    expect(gettingStarted).toContain("findingBeforeTriage.nodes = [{ id: 'finding:oauth-state-mismatch' }]");
   });
 
   it('shows explicit WARP ref sync and hands off to the next docs', () => {

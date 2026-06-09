@@ -86,7 +86,7 @@ describe('PatchHydrator', () => {
     expect(edgeAdd.dot).toEqual(new Dot('alice', 2));
   });
 
-  it('preserves runtime VersionVector context and direct dot objects', () => {
+  it('clones runtime VersionVector context and preserves direct dot objects', () => {
     const context = VersionVector.from({ alice: 4 });
     const patch = hydrateDecodedPatch({
       writer: 'alice',
@@ -95,7 +95,12 @@ describe('PatchHydrator', () => {
       ops: [{ type: 'NodeAdd', node: 'user:alice', dot: { writerId: 'alice', counter: 5 } }],
     });
 
-    expect(patch.context).toBe(context);
+    expect(patch.context).toBeInstanceOf(VersionVector);
+    expect(patch.context).not.toBe(context);
+    if (!(patch.context instanceof VersionVector)) {
+      throw new Error('expected VersionVector context');
+    }
+    expect(patch.context.get('alice')).toBe(4);
     expect(patch.reads).toBeUndefined();
     expect(patch.writes).toBeUndefined();
 

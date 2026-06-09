@@ -418,7 +418,7 @@ describe('WarpCore.status() (LH/STATUS/1)', () => {
         {
           writerId: 'writer-2',
           sha: remoteSha,
-          patch: { schema: 2, ops: [], context: {} },
+          patch: { schema: 2, writer: 'writer-2', lamport: 1, ops: [], context: {} },
         },
       ],
     };
@@ -453,7 +453,7 @@ describe('WarpCore.status() (LH/STATUS/1)', () => {
         {
           writerId: 'writer-2',
           sha: remoteSha,
-          patch: { schema: 2, ops: [], context: {} },
+          patch: { schema: 2, writer: 'writer-2', lamport: 1, ops: [], context: {} },
         },
       ],
     };

@@ -9,6 +9,7 @@ import { cloneState } from '../JoinReducer.ts';
 import LiveQueryReadModelProvider from '../query/LiveQueryReadModelProvider.ts';
 import Observer from '../query/Observer.ts';
 import Worldline from '../Worldline.ts';
+import WorldlineOptic from '../optic/WorldlineOptic.ts';
 import type CheckpointTailOpticSource from '../optic/CheckpointTailOpticSource.ts';
 import { computeTranslationCost } from '../TranslationCost.ts';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
@@ -22,7 +23,14 @@ import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.t
 import type QueryCapability from '../../capabilities/QueryCapability.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { QueryContentHost, QueryReadHost } from './ReadGraphHost.ts';
-import type { QueryReadModelProvider } from '../query/QueryReadModelProvider.ts';
+import type {
+  QueryReadModel,
+  QueryReadModelOpenRequest,
+  QueryReadModelProvider,
+} from '../query/QueryReadModelProvider.ts';
+import CheckpointTailExactIdQueryReadModel, {
+  exactIdOnlyQueryNodeId,
+} from '../query/CheckpointTailExactIdQueryReadModel.ts';
 import { E_NO_STATE_MSG } from './QueryStateMessages.ts';
 
 import {
@@ -289,6 +297,24 @@ function defaultQueryReadModelProvider(ctrl: QueryController): QueryReadModelPro
     currentState: () => h._cachedState,
     stateHash: ctrl._hashState,
     neighborProvider: () => h._materializedGraph?.provider ?? null,
+    boundedReadModelProvider: async (request) => await boundedExactReadModel(h, request),
+  });
+}
+
+async function boundedExactReadModel(
+  graph: MaterializableHost,
+  request: QueryReadModelOpenRequest,
+): Promise<QueryReadModel | null> {
+  const nodeId = exactIdOnlyQueryNodeId(request);
+  if (nodeId === null || !hasWorldlineOpticSource(graph)) {
+    return null;
+  }
+  if (await graph._readCheckpointSha() === null) {
+    return null;
+  }
+  return new CheckpointTailExactIdQueryReadModel({
+    nodeId,
+    optic: new WorldlineOptic({ source: graph }),
   });
 }
 

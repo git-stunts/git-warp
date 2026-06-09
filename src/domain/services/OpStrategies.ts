@@ -31,7 +31,7 @@ import {
 import { OP_TYPES } from '../types/TickReceipt.ts';
 import PatchError from '../errors/PatchError.ts';
 import type WarpState from './state/WarpState.ts';
-import type { PatchDiff } from '../types/PatchDiff.ts';
+import type { MutablePatchDiff } from '../types/PatchDiff.ts';
 import OpApplied from '../types/ops/OpApplied.ts';
 import type OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import OpValidator from './OpValidator.ts';
@@ -65,7 +65,7 @@ class NodeAddStrategy extends OpStrategy {
   snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return { nodeWasAlive: state.nodeAlive.contains(op.node as string) };
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
+  accumulate(diff: MutablePatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     if (before.nodeWasAlive !== true && state.nodeAlive.contains(op.node as string)) {
       diff.nodesAdded.push(op.node as string);
     }
@@ -93,7 +93,7 @@ class NodeRemoveStrategy extends OpStrategy {
     const nodeDots = rawDots instanceof Set ? rawDots : new Set(rawDots);
     return { aliveBeforeNodes: DiffCalculator.aliveElementsForDots(state.nodeAlive, nodeDots) };
   }
-  accumulate(diff: PatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
+  accumulate(diff: MutablePatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     DiffCalculator.collectNodeRemovals(diff, state, before.aliveBeforeNodes);
   }
 }
@@ -122,7 +122,7 @@ class EdgeAddStrategy extends OpStrategy {
     const ek = encodeEdgeKey(op.from as string, op.to as string, op.label as string);
     return { edgeWasAlive: state.edgeAlive.contains(ek), edgeKey: ek };
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
+  accumulate(diff: MutablePatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     if (before.edgeWasAlive !== true && before.edgeKey !== undefined && state.edgeAlive.contains(before.edgeKey)) {
       diff.edgesAdded.push({ from: op.from as string, to: op.to as string, label: op.label as string });
     }
@@ -161,7 +161,7 @@ class EdgeRemoveStrategy extends OpStrategy {
     const edgeDots = rawEdgeDots instanceof Set ? rawEdgeDots : new Set(rawEdgeDots);
     return { aliveBeforeEdges: DiffCalculator.aliveElementsForDots(state.edgeAlive, edgeDots) };
   }
-  accumulate(diff: PatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
+  accumulate(diff: MutablePatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     DiffCalculator.collectEdgeRemovals(diff, state, before.aliveBeforeEdges);
   }
 }
@@ -185,7 +185,7 @@ class NodePropSetStrategy extends OpStrategy {
   snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return OpStrategy._snapshotProp(state, encodePropKey(op.node as string, op.key as string));
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
+  accumulate(diff: MutablePatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     OpStrategy._accumulatePropDiff(diff, state, {
       nodeId: op.node as string,
       key: op.key as string,
@@ -225,7 +225,7 @@ class EdgePropSetStrategy extends OpStrategy {
       encodeEdgePropKey(op.from as string, op.to as string, op.label as string, op.key as string),
     );
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
+  accumulate(diff: MutablePatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     OpStrategy._accumulatePropDiff(
       diff,
       state,
@@ -265,7 +265,7 @@ class PropSetStrategy extends OpStrategy {
   snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return OpStrategy._snapshotProp(state, encodePropKey(op.node as string, op.key as string));
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
+  accumulate(diff: MutablePatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     OpStrategy._accumulatePropDiff(diff, state, {
       nodeId: op.node as string,
       key: op.key as string,
@@ -284,7 +284,7 @@ class BlobValueStrategy extends OpStrategy {
     return new OpApplied(blobTarget);
   }
   snapshot(_state: WarpState, _op: OpLike): SnapshotBeforeOp { return {}; } // nosemgrep: ts-no-like-types -- 0025C
-  accumulate(_diff: PatchDiff, _state: WarpState, _op: OpLike, _before: SnapshotBeforeOp): void { /* no-op */ } // nosemgrep: ts-no-like-types -- 0025C
+  accumulate(_diff: MutablePatchDiff, _state: WarpState, _op: OpLike, _before: SnapshotBeforeOp): void { /* no-op */ } // nosemgrep: ts-no-like-types -- 0025C
 }
 
 /**

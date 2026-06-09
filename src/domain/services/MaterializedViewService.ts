@@ -211,11 +211,11 @@ export default class MaterializedViewService {
    * migrate to IndexStorePort.writeShards().
    */
   private _encodeShardsToTree(shards: IndexShard[]): Record<string, Uint8Array> {
-    const tree: Record<string, Uint8Array> = {};
+    const tree = new Map<string, Uint8Array>();
     for (const shard of shards) {
       const { path, payload } = shardToEntry(shard);
-      tree[path] = this._codec.encode(payload);
+      tree.set(path, this._codec.encode(payload));
     }
-    return tree;
+    return Object.fromEntries(tree);
   }
 }

@@ -3,6 +3,7 @@ import { ConflictAnalyzerService,
   CONFLICT_ANALYSIS_VERSION,
 } from '../../../../../src/domain/services/strand/ConflictAnalyzerService.ts';
 import * as JoinReducer from '../../../../../src/domain/services/JoinReducer.ts';
+import PatchError from '../../../../../src/domain/errors/PatchError.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import { textEncode } from '../../../../../src/domain/utils/bytes.ts';
 import { createHash } from 'node:crypto';
@@ -1519,7 +1520,7 @@ describe('ConflictAnalyzerService', () => {
       }
     });
 
-    it('skips unknown forward-compatible ops without failing analysis', async () => {
+    it('fails closed on unknown ops during conflict analysis', async () => {
       const graph = createMockGraph({
         writerPatches: {
           w1: [
@@ -1538,10 +1539,7 @@ describe('ConflictAnalyzerService', () => {
       });
       const analyzer = new ConflictAnalyzerService({ graph });
 
-      const result = await analyzer.analyze();
-
-      expect(result.conflicts).toEqual([]);
-      expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
+      await expect(analyzer.analyze()).rejects.toThrow(PatchError);
     });
 
     it('processes node and edge tombstones through effect normalization', async () => {

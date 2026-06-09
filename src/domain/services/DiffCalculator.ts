@@ -14,7 +14,7 @@
 
 import type ORSet from '../crdt/ORSet.ts';
 import type WarpState from './state/WarpState.ts';
-import type { PatchDiff } from '../types/PatchDiff.ts';
+import type { MutablePatchDiff } from '../types/PatchDiff.ts';
 import { decodeEdgeKey } from './KeyCodec.ts';
 
 export default class DiffCalculator {
@@ -68,7 +68,7 @@ export default class DiffCalculator {
    * are dead AFTER. Mutates `diff.nodesRemoved`.
    */
   static collectNodeRemovals(
-    diff: PatchDiff,
+    diff: MutablePatchDiff,
     state: WarpState,
     aliveBeforeNodes: ReadonlySet<string> | undefined,
   ): void {
@@ -85,7 +85,7 @@ export default class DiffCalculator {
    * are dead AFTER. Mutates `diff.edgesRemoved`.
    */
   static collectEdgeRemovals(
-    diff: PatchDiff,
+    diff: MutablePatchDiff,
     state: WarpState,
     aliveBeforeEdges: ReadonlySet<string> | undefined,
   ): void {

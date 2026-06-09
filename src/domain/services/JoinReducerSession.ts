@@ -17,7 +17,13 @@ import OpApplied from "../types/ops/OpApplied.ts";
 import OpRedundant from "../types/ops/OpRedundant.ts";
 import OpSuperseded from "../types/ops/OpSuperseded.ts";
 import PropSet from "../types/ops/PropSet.ts";
-import { createEmptyDiff, mergeDiffs, type PatchDiff } from "../types/PatchDiff.ts";
+import {
+  PatchDiff,
+  createEmptyDiff,
+  createPatchDiffAccumulator,
+  mergeDiffs,
+  type MutablePatchDiff,
+} from "../types/PatchDiff.ts";
 import { compareEventIds, EventId } from "../utils/EventId.ts";
 import {
   encodeEdgeKey,
@@ -181,7 +187,7 @@ async function applyPatchInSession(
   patchSha: string,
   mode: ReplayMode,
 ): Promise<{ readonly diff: PatchDiff; readonly receipt: TickReceipt }> {
-  const diff = createEmptyDiff();
+  const diff = createPatchDiffAccumulator();
   const receiptOps: OpOutcome[] = [];
 
   for (let i = 0; i < patch.ops.length; i += 1) {
@@ -211,7 +217,7 @@ async function applyPatchInSession(
   foldPatchIntoFrame(frame, patch);
 
   return {
-    diff,
+    diff: new PatchDiff(diff),
     receipt: createTickReceipt({
       patchSha,
       writer: patch.writer,
@@ -374,7 +380,7 @@ async function mutateInSession(
 }
 
 async function accumulateDiff(
-  diff: PatchDiff,
+  diff: MutablePatchDiff,
   frame: ReducerSessionFrame,
   before: ReplayDiffSnapshot,
 ): Promise<void> {
