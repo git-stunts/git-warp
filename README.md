@@ -46,14 +46,19 @@ await events.commit((patch) => {
   patch.addNode('user:alice').setProperty('user:alice', 'role', 'admin');
 });
 
-// Reveal: read the admitted truth through a live worldline
-const props = await events.live().getNodeProps('user:alice');
+// Reveal: confirm admitted truth through the bounded exact-id query shape
+const visible = await events.live()
+  .query()
+  .match('user:alice')
+  .select(['id'])
+  .run();
 ```
 
-Live exact reads are first-use friendly API shapes, but their current v18
-providers are still `transitional` until the bounded-memory gate lands. See
-[PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md) before treating any read path as
-large-graph safe.
+Exact id-only query reads use the checkpoint-tail provider when a bounded basis
+exists; broader property, wildcard, traversal, and observer providers are still
+`transitional` until the bounded-memory gate lands. See
+[PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md) before treating a broader read
+path as large-graph safe.
 
 ## What git-warp is
 

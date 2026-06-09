@@ -94,8 +94,10 @@ Now the live graph says the finding is triaged, but the earlier state still exis
 
 ## Read current state
 
-The live read shapes below are the normal application surface, but their current
-providers are `transitional` until the bounded-memory gate lands. See
+The first-use read shape is exact id-only query. When a checkpoint-tail basis is
+available, this path uses the bounded exact-read provider and reports a
+checkpoint-tail read identity instead of a fake whole-graph hash. Broader
+property, wildcard, traversal, and observer reads remain `transitional`; see
 [Public API Costs](PUBLIC_API_COSTS.md) before treating them as large-graph
 safe.
 
@@ -103,29 +105,13 @@ safe.
 // Create a live read handle over current worldline history
 const worldline = audit.live();
 
-const finding = await worldline.getNodeProps('finding:oauth-state-mismatch');
-// { title: 'OAuth state mismatch', severity: 'high', status: 'triaged' }
-
-const findings = await worldline.query()
-  .match('finding:*')
+const finding = await worldline.query()
+  .match('finding:oauth-state-mismatch')
+  .select(['id'])
   .run();
-// findings = {
-//   stateHash: 'abc123...',
-//   nodes: [
-//     {
-//       id: 'finding:oauth-state-mismatch',
-//       props: { title: 'OAuth state mismatch', severity: 'high', status: 'triaged' },
-//     },
-//   ],
-// }
-
-const path = await worldline.traverse.shortestPath('finding:oauth-state-mismatch', 'service:auth', {
-  dir: 'out',
-});
-// path = {
-//   found: true,
-//   path: ['finding:oauth-state-mismatch', 'service:auth'],
-//   length: 1,
+// finding = {
+//   stateHash: 'checkpoint-tail-query:{...read identity...}',
+//   nodes: [{ id: 'finding:oauth-state-mismatch' }],
 // }
 ```
 
@@ -142,8 +128,11 @@ const beforeTriage = await audit.seek({
   },
 });
 
-const findingBeforeTriage = await beforeTriage.getNodeProps('finding:oauth-state-mismatch');
-// { title: 'OAuth state mismatch', severity: 'critical', status: 'open' }
+const findingBeforeTriage = await beforeTriage.query()
+  .match('finding:oauth-state-mismatch')
+  .select(['id'])
+  .run();
+// findingBeforeTriage.nodes = [{ id: 'finding:oauth-state-mismatch' }]
 ```
 
 `ceiling: 1` means "show me the graph after the first patch only." The second patch still exists in history, but this pinned worldline ignores it.

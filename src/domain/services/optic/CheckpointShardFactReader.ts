@@ -309,14 +309,14 @@ function shardKeyForGlobalId(globalId: number): string {
 }
 
 function sortShardOidMap(source: Record<string, string>): Record<string, string> {
-  const sorted: Record<string, string> = {};
+  const sorted = new Map<string, string>();
   for (const path of Object.keys(source).sort()) {
     const oid = source[path];
     if (oid !== undefined) {
-      sorted[path] = oid;
+      sorted.set(path, oid);
     }
   }
-  return sorted;
+  return Object.fromEntries(sorted);
 }
 
 function labelIdsFor(
@@ -390,19 +390,19 @@ async function readShardTree(options: {
   readonly persistence: CheckpointTailOpticSource['_persistence'];
   readonly shardOids: Record<string, string>;
 }): Promise<Record<string, Uint8Array>> {
-  const tree: Record<string, Uint8Array> = {};
+  const tree = new Map<string, Uint8Array>();
   for (const path of Object.keys(options.shardOids).sort()) {
     const oid = options.shardOids[path];
     if (oid !== undefined) {
-      tree[path] = await readShardBlob({
+      tree.set(path, await readShardBlob({
         graphName: options.graphName,
         persistence: options.persistence,
         path,
         oid,
-      });
+      }));
     }
   }
-  return tree;
+  return Object.fromEntries(tree);
 }
 
 async function readShardBlob(options: {

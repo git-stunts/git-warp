@@ -13,6 +13,8 @@ import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import WarpStateClass from './WarpState.ts';
+import { compareEdgeChanges, comparePropChanges } from './StateDiffOrdering.ts';
+import { stateDiffValuesEqual } from './StateDiffValueEquality.ts';
 
 export interface EdgeChange {
   from: string;
@@ -55,62 +57,6 @@ export class StateDiffResult {
     Object.freeze(this.props);
     Object.freeze(this);
   }
-}
-
-function compareEdges(a: EdgeChange, b: EdgeChange): number {
-  return compareField(a.from, b.from) || compareField(a.to, b.to) || compareField(a.label, b.label);
-}
-
-function compareField(x: string, y: string): number {
-  if (x < y) { return -1; }
-  if (x > y) { return 1; }
-  return 0;
-}
-
-function compareProps(a: { key: string }, b: { key: string }): number {
-  if (a.key < b.key) { return -1; }
-  if (a.key > b.key) { return 1; }
-  return 0;
-}
-
-function arraysEqual(a: unknown[], b: unknown[]): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (a.length !== b.length) { return false; }
-  for (let i = 0; i < a.length; i++) {
-    if (!deepEqual(a[i], b[i])) { return false; }
-  }
-  return true;
-}
-
-function objectsEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const keysA = Object.keys(a);
-  const keysB = Object.keys(b);
-  if (keysA.length !== keysB.length) { return false; }
-  for (const key of keysA) {
-    if (!Object.prototype.hasOwnProperty.call(b, key)) { return false; }
-    if (!deepEqual(a[key], b[key])) { return false; }
-  }
-  return true;
-}
-
-function deepEqual(a: unknown, b: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (a === b) { return true; }
-  if (!isNonNullObject(a) || !isNonNullObject(b)) { return false; }
-  return deepEqualObjects(a as object, b as object);
-}
-
-function deepEqualObjects(a: object, b: object): boolean {
-  if (Array.isArray(a)) {
-    return Array.isArray(b) && arraysEqual(a, b);
-  }
-  if (Array.isArray(b)) { return false; }
-  return objectsEqual(
-    a as Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    b as Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  );
-}
-
-function isNonNullObject(value: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  return value !== null && typeof value === 'object';
 }
 
 function setAdded(before: Set<string>, after: Set<string>): string[] {
@@ -197,12 +143,51 @@ function classifyPropChange(
   const beforeReg = beforeProps.get(key);
   const afterReg = afterProps.get(key);
   const { nodeId, propKey } = decodePropKey(key);
+  const addition = classifyPropAddition({ key, nodeId, propKey, beforeReg, afterReg });
+  if (addition !== undefined) { return addition; }
+  const removal = classifyPropRemoval({ key, nodeId, propKey, beforeReg, afterReg });
+  if (removal !== undefined) { return removal; }
+  return classifyPropUpdateIfComplete({ key, nodeId, propKey, beforeReg, afterReg });
+}
 
+function classifyPropAddition(opts: {
+  key: string;
+  nodeId: string;
+  propKey: string;
+  beforeReg: LWWRegister<PropValue> | undefined;
+  afterReg: LWWRegister<PropValue> | undefined;
+}): PropSet | undefined {
+  const { key, nodeId, propKey, beforeReg, afterReg } = opts;
   if (afterReg !== undefined && beforeReg === undefined) {
     return { key, nodeId, propKey, oldValue: undefined, newValue: lwwValue(afterReg) };
   }
+  return undefined;
+}
+
+function classifyPropRemoval(opts: {
+  key: string;
+  nodeId: string;
+  propKey: string;
+  beforeReg: LWWRegister<PropValue> | undefined;
+  afterReg: LWWRegister<PropValue> | undefined;
+}): PropRemoved | undefined {
+  const { key, nodeId, propKey, beforeReg, afterReg } = opts;
   if (afterReg === undefined && beforeReg !== undefined) {
     return { key, nodeId, propKey, oldValue: lwwValue(beforeReg) };
+  }
+  return undefined;
+}
+
+function classifyPropUpdateIfComplete(opts: {
+  key: string;
+  nodeId: string;
+  propKey: string;
+  beforeReg: LWWRegister<PropValue> | undefined;
+  afterReg: LWWRegister<PropValue> | undefined;
+}): PropSet | undefined {
+  const { key, nodeId, propKey, beforeReg, afterReg } = opts;
+  if (beforeReg === undefined || afterReg === undefined) {
+    return undefined;
   }
   return classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg });
 }
@@ -211,14 +196,13 @@ function classifyPropUpdate(opts: {
   key: string;
   nodeId: string;
   propKey: string;
-  beforeReg: LWWRegister<PropValue> | undefined;
-  afterReg: LWWRegister<PropValue> | undefined;
+  beforeReg: LWWRegister<PropValue>;
+  afterReg: LWWRegister<PropValue>;
 }): PropSet | undefined {
   const { key, nodeId, propKey, beforeReg, afterReg } = opts;
-  if (afterReg === undefined) { return undefined; }
   const beforeValue = lwwValue(beforeReg);
   const afterValue = lwwValue(afterReg);
-  if (!deepEqual(beforeValue, afterValue)) {
+  if (!stateDiffValuesEqual(beforeValue, afterValue)) {
     return { key, nodeId, propKey, oldValue: beforeValue, newValue: afterValue };
   }
   return undefined;
@@ -233,10 +217,10 @@ export function diffStates(before: WarpState | null, after: WarpState): StateDif
 
   nodesAdded.sort();
   nodesRemoved.sort();
-  edgesAdded.sort(compareEdges);
-  edgesRemoved.sort(compareEdges);
-  propsSet.sort(compareProps);
-  propsRemoved.sort(compareProps);
+  edgesAdded.sort(compareEdgeChanges);
+  edgesRemoved.sort(compareEdgeChanges);
+  propsSet.sort(comparePropChanges);
+  propsRemoved.sort(comparePropChanges);
 
   return new StateDiffResult({
     nodes: { added: nodesAdded, removed: nodesRemoved },

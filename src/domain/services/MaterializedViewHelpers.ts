@@ -34,10 +34,10 @@ export function buildInMemoryPropertyReader(
   tree: Record<string, Uint8Array>,
   codec: CodecPort,
 ): PropertyIndexReader {
-  const propShardOids: Record<string, string> = {};
+  const propShardOids = new Map<string, string>();
   for (const path of Object.keys(tree)) {
     if (path.startsWith(PROPS_PREFIX)) {
-      propShardOids[path] = path;
+      propShardOids.set(path, path);
     }
   }
 
@@ -50,7 +50,7 @@ export function buildInMemoryPropertyReader(
   } as unknown as IndexStoragePort; // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
   const reader = new PropertyIndexReader({ storage, codec });
-  reader.setup(propShardOids);
+  reader.setup(Object.fromEntries(propShardOids));
   return reader;
 }
 
@@ -63,17 +63,20 @@ export function partitionShardOids(shardOids: Record<string, string>): {
   indexOids: Record<string, string>;
   propOids: Record<string, string>;
 } {
-  const indexOids: Record<string, string> = {};
-  const propOids: Record<string, string> = {};
+  const indexOids = new Map<string, string>();
+  const propOids = new Map<string, string>();
 
   for (const [path, oid] of Object.entries(shardOids)) {
     if (path.startsWith(PROPS_PREFIX)) {
-      propOids[path] = oid;
+      propOids.set(path, oid);
     } else {
-      indexOids[path] = oid;
+      indexOids.set(path, oid);
     }
   }
-  return { indexOids, propOids };
+  return {
+    indexOids: Object.fromEntries(indexOids),
+    propOids: Object.fromEntries(propOids),
+  };
 }
 
 // ── Shard → tree entry ────────────────────────────────────────────────────────

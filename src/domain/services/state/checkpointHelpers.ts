@@ -86,17 +86,20 @@ export function partitionTreeOids(rawOids: Record<string, string>): {
   treeOids: Record<string, string>;
   indexShardOids: Record<string, string>;
 } {
-  const treeOids: Record<string, string> = {};
-  const indexShardOids: Record<string, string> = {};
+  const treeOids = new Map<string, string>();
+  const indexShardOids = new Map<string, string>();
 
   for (const [path, oid] of Object.entries(rawOids)) {
     if (path.startsWith('index/')) {
-      indexShardOids[path.slice(6)] = oid;
+      indexShardOids.set(path.slice(6), oid);
     } else {
-      treeOids[path] = oid;
+      treeOids.set(path, oid);
     }
   }
-  return { treeOids, indexShardOids };
+  return {
+    treeOids: Object.fromEntries(treeOids),
+    indexShardOids: Object.fromEntries(indexShardOids),
+  };
 }
 
 /**
