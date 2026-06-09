@@ -1,10 +1,16 @@
-export function stateDiffValuesEqual(left: unknown, right: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+import type { PropValue } from '../../types/PropValue.ts';
+
+type StateDiffValue = PropValue | undefined;
+type StateDiffObject = Exclude<StateDiffValue, string | number | boolean | null | undefined>;
+type StateDiffRecord = { readonly [key: string]: StateDiffValue };
+
+export function stateDiffValuesEqual(left: StateDiffValue, right: StateDiffValue): boolean {
   if (left === right) { return true; }
   if (!isNonNullObject(left) || !isNonNullObject(right)) { return false; }
-  return stateDiffObjectsEqual(left as object, right as object);
+  return stateDiffObjectsEqual(left, right);
 }
 
-function stateDiffArraysEqual(left: readonly unknown[], right: readonly unknown[]): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function stateDiffArraysEqual(left: readonly StateDiffValue[], right: readonly StateDiffValue[]): boolean {
   if (left.length !== right.length) { return false; }
   for (let index = 0; index < left.length; index += 1) {
     if (!stateDiffValuesEqual(left[index], right[index])) { return false; }
@@ -12,10 +18,7 @@ function stateDiffArraysEqual(left: readonly unknown[], right: readonly unknown[
   return true;
 }
 
-function stateDiffRecordsEqual(
-  left: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  right: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-): boolean {
+function stateDiffRecordsEqual(left: StateDiffRecord, right: StateDiffRecord): boolean {
   const leftKeys = Object.keys(left);
   const rightKeys = Object.keys(right);
   if (leftKeys.length !== rightKeys.length) { return false; }
@@ -27,16 +30,31 @@ function stateDiffRecordsEqual(
 }
 
 function stateDiffObjectsEqual(left: object, right: object): boolean {
+  if (left instanceof Uint8Array) {
+    return right instanceof Uint8Array && stateDiffBytesEqual(left, right);
+  }
+  if (right instanceof Uint8Array) { return false; }
   if (Array.isArray(left)) {
     return Array.isArray(right) && stateDiffArraysEqual(left, right);
   }
   if (Array.isArray(right)) { return false; }
-  return stateDiffRecordsEqual(
-    left as Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    right as Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  );
+  if (!isPlainRecord(left) || !isPlainRecord(right)) { return false; }
+  return stateDiffRecordsEqual(left, right);
 }
 
-function isNonNullObject(value: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function stateDiffBytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.byteLength !== right.byteLength) { return false; }
+  for (let index = 0; index < left.byteLength; index += 1) {
+    if (left[index] !== right[index]) { return false; }
+  }
+  return true;
+}
+
+function isPlainRecord(value: object): value is StateDiffRecord {
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function isNonNullObject(value: StateDiffValue): value is StateDiffObject {
   return value !== null && typeof value === 'object';
 }
