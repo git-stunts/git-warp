@@ -41,7 +41,7 @@ function assertStringArray(arr: string[] | undefined): void {
  */
 function _nonEmpty(arr: string[] | undefined): string[] | undefined {
   assertStringArray(arr);
-  return (arr && arr.length > 0) ? arr : undefined;
+  return (arr && arr.length > 0) ? [...arr] : undefined;
 }
 
 function validateSchema(schema: number): asserts schema is 2 | 3 {

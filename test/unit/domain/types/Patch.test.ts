@@ -6,15 +6,20 @@ import Patch from '../../../../src/domain/types/Patch.ts';
 describe('Patch', () => {
   it('freezes a valid patch and copies mutable inputs', () => {
     const ops = [];
+    const reads = ['node:a'];
+    const writes = ['node:b'];
     const patch = new Patch({
       schema: 2,
       writer: 'writer-1',
       lamport: 1,
       context: { 'writer-0': 1 },
       ops,
-      reads: ['node:a'],
-      writes: ['node:b'],
+      reads,
+      writes,
     });
+
+    reads.push('node:c');
+    writes.push('node:d');
 
     expect(Object.isFrozen(patch)).toBe(true);
     expect(patch.context).toEqual({ 'writer-0': 1 });
