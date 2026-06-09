@@ -47,16 +47,15 @@ export interface LoadPatchRangeOptions {
  *
  * CBOR deserialization can return plain JavaScript objects, but the CRDT
  * merge logic (JoinReducer) expects the context field to be a VersionVector.
- * This function returns the input when it is already normalized and constructs
- * a validated Patch when boundary repair is needed.
+ * This function always constructs a validated Patch so decoded objects cannot
+ * bypass constructor invariants.
  */
 export function normalizePatch(patch: DecodedPatch): DecodedPatch {
-  if (patch.context instanceof VersionVector) {
-    return patch;
-  }
-  const context = (patch.context === null || patch.context === undefined)
-    ? VersionVector.empty()
-    : VersionVector.from(patch.context);
+  const context = patch.context instanceof VersionVector
+    ? patch.context
+    : (patch.context === null || patch.context === undefined)
+        ? VersionVector.empty()
+        : VersionVector.from(patch.context);
   const patchInput = {
     writer: patch.writer,
     lamport: patch.lamport,
