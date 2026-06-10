@@ -53,7 +53,7 @@ esac
 
 TAG_VERSION=""
 TARGET_VERSION=""
-TARGET_LANE=""
+TARGET_MILESTONE=""
 EVIDENCE_FILE=""
 FAILURES=0
 
@@ -98,14 +98,14 @@ derive_and_validate_tag() {
   if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(rc|beta|alpha)\.[0-9]+)?$ ]]; then
     TAG_VERSION="${TAG#v}"
     TARGET_VERSION="${TAG_VERSION%%-*}"
-    TARGET_LANE="lane:v${TARGET_VERSION}"
+    TARGET_MILESTONE="v${TARGET_VERSION}"
     EVIDENCE_FILE="docs/releases/v${TARGET_VERSION}/README.md"
     pass "REL-TAG-FORMAT" "$TAG is a valid release tag"
   else
     fail "REL-TAG-FORMAT" "$TAG is not vMAJOR.MINOR.PATCH or prerelease"
     TAG_VERSION="0.0.0"
     TARGET_VERSION="0.0.0"
-    TARGET_LANE="lane:v${TARGET_VERSION}"
+    TARGET_MILESTONE="v${TARGET_VERSION}"
     EVIDENCE_FILE="docs/releases/v${TARGET_VERSION}/README.md"
   fi
 }
@@ -170,6 +170,61 @@ count_open_issues_with_label() {
     --jq '.data.search.issueCount'
 }
 
+count_open_issues_with_milestone() {
+  local milestone="$1"
+  local search_query="repo:$REPO is:issue is:open milestone:\"$milestone\""
+  gh api graphql \
+    -f query='query($searchQuery: String!) { search(query: $searchQuery, type: ISSUE, first: 1) { issueCount } }' \
+    -f searchQuery="$search_query" \
+    --jq '.data.search.issueCount'
+}
+
+label_exists() {
+  local label="$1"
+  gh label list \
+    --repo "$REPO" \
+    --search "$label" \
+    --limit 100 \
+    --json name \
+    --jq '.[].name' \
+    | grep -Fx -- "$label" >/dev/null
+}
+
+milestone_exists() {
+  local milestone="$1"
+  gh api "repos/$REPO/milestones?state=all&per_page=100" \
+    --paginate \
+    --jq '.[].title' \
+    | grep -Fx -- "$milestone" >/dev/null
+}
+
+list_release_milestones() {
+  gh api "repos/$REPO/milestones?state=all&per_page=100" \
+    --paginate \
+    --jq '.[].title' \
+    | grep '^v' || true
+}
+
+require_label() {
+  local check_id="$1"
+  local label="$2"
+  if label_exists "$label"; then
+    pass "$check_id" "GitHub label $label exists"
+  else
+    fail "$check_id" "GitHub label $label is missing"
+  fi
+}
+
+require_milestone() {
+  local check_id="$1"
+  local milestone="$2"
+  if milestone_exists "$milestone"; then
+    pass "$check_id" "GitHub milestone $milestone exists"
+  else
+    fail "$check_id" "GitHub milestone $milestone is missing"
+  fi
+}
+
 check_zero_label() {
   local check_id="$1"
   local label="$2"
@@ -183,6 +238,25 @@ check_zero_label() {
       --repo "$REPO" \
       --state open \
       --label "$label" \
+      --limit 20 \
+      --json number,title,url \
+      --template '{{range .}}{{printf "#%v %s %s\n" .number .title .url}}{{end}}'
+  fi
+}
+
+check_zero_milestone() {
+  local check_id="$1"
+  local milestone="$2"
+  local count
+  count="$(count_open_issues_with_milestone "$milestone")"
+  if [ "$count" = "0" ]; then
+    pass "$check_id" "no open issues in milestone $milestone"
+  else
+    fail "$check_id" "$count open issue(s) in milestone $milestone"
+    gh issue list \
+      --repo "$REPO" \
+      --state open \
+      --milestone "$milestone" \
       --limit 20 \
       --json number,title,url \
       --template '{{range .}}{{printf "#%v %s %s\n" .number .title .url}}{{end}}'
@@ -372,43 +446,45 @@ check_release_evidence() {
 }
 
 check_issue_gates() {
-  check_zero_label "REL-GH-ASAP-ZERO" "lane:asap"
-  check_zero_label "REL-GH-TARGET-LANE-ZERO" "$TARGET_LANE"
+  require_label "REL-GH-PRIORITY-ASAP-LABEL" "priority:asap"
+  check_zero_label "REL-GH-ASAP-ZERO" "priority:asap"
+  require_milestone "REL-GH-TARGET-MILESTONE-EXISTS" "$TARGET_MILESTONE"
+  check_zero_milestone "REL-GH-TARGET-MILESTONE-ZERO" "$TARGET_MILESTONE"
 
   local prior_failures=0
-  local malformed_labels=0
-  while IFS= read -r label; do
-    [ "$label" = "" ] && continue
-    case "$label" in
-      release-home:v*) ;;
+  local malformed_milestones=0
+  while IFS= read -r milestone; do
+    [ "$milestone" = "" ] && continue
+    case "$milestone" in
+      v*) ;;
       *) continue ;;
     esac
-    local version="${label#release-home:v}"
+    local version="${milestone#v}"
     if ! is_release_version "$version"; then
-      printf '    malformed release-home label: %s\n' "$label"
-      malformed_labels=$((malformed_labels + 1))
+      printf '    malformed release milestone: %s\n' "$milestone"
+      malformed_milestones=$((malformed_milestones + 1))
       continue
     fi
     if semver_less_than "$version" "$TARGET_VERSION"; then
       local count
-      count="$(count_open_issues_with_label "$label")"
+      count="$(count_open_issues_with_milestone "$milestone")"
       if [ "$count" != "0" ]; then
-        printf '    %s has %s open issue(s)\n' "$label" "$count"
+        printf '    milestone %s has %s open issue(s)\n' "$milestone" "$count"
         prior_failures=$((prior_failures + count))
       fi
     fi
-  done < <(gh label list --repo "$REPO" --search "release-home:v" --limit 1000 --json name --jq '.[].name')
+  done < <(list_release_milestones)
 
-  if [ "$malformed_labels" -eq 0 ]; then
-    pass "REL-GH-PRIOR-RELEASE-LABELS" "all release-home labels use release SemVer"
+  if [ "$malformed_milestones" -eq 0 ]; then
+    pass "REL-GH-PRIOR-RELEASE-MILESTONES" "all release milestones use release SemVer"
   else
-    fail "REL-GH-PRIOR-RELEASE-LABELS" "$malformed_labels malformed release-home label(s)"
+    fail "REL-GH-PRIOR-RELEASE-MILESTONES" "$malformed_milestones malformed release milestone(s)"
   fi
 
   if [ "$prior_failures" -eq 0 ]; then
-    pass "REL-GH-PRIOR-RELEASE-ZERO" "no open prior-release-home issues before v${TARGET_VERSION}"
+    pass "REL-GH-PRIOR-RELEASE-ZERO" "no open prior-release milestone issues before v${TARGET_VERSION}"
   else
-    fail "REL-GH-PRIOR-RELEASE-ZERO" "$prior_failures open issue(s) remain from prior release-home labels"
+    fail "REL-GH-PRIOR-RELEASE-ZERO" "$prior_failures open issue(s) remain from prior release milestones"
   fi
 }
 

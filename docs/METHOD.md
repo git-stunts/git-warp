@@ -110,29 +110,29 @@ artifact-history claims, not semantic-provenance claims.
 GitHub Issues are the live tracker. Repository docs are the evidence ledger.
 Issue labels carry Method scheduling state so community contributors can see
 and discuss work without cloning the repository or reading local backlog
-folders.
+folders. Labels are query indexes, not prose decoration.
 
 ### Inbox
 
 Anyone - human, agent, or community contributor - captures raw ideas as
-GitHub Issues with `lane:inbox`. A sentence is enough. Add provenance in the
-issue body or comments when origin or timing matters.
+GitHub Issues. A sentence is enough. Add provenance in the issue body or
+comments when origin or timing matters.
 
-### Lanes
+### Live Axes
 
-| Label                      | Purpose                                          |
-| -------------------------- | ------------------------------------------------ |
-| `lane:inbox`               | Unprocessed intake.                              |
-| `lane:asap`                | Pull into a cycle soon.                          |
-| `lane:up-next`             | Next in line.                                    |
-| `lane:cool-ideas`          | Not committed work.                              |
-| `lane:bad-code`            | Debt, rot, or structural risk.                   |
-| `lane:backlog-root`        | Migrated unlaned work that needs classification. |
-| `lane:v18.0.0` and similar | Release-scoped work for the named lane.          |
+Use these live axes for new and edited GitHub Issues:
 
-Numbered release lanes may also use release milestones or a broad
-`lane:release` label, but the exact source lane label remains useful for
-migration provenance.
+| Axis | Values | Rule |
+| --- | --- | --- |
+| Type | `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, `type:story` | Exactly one. |
+| Priority | `priority:asap`, `priority:next`, `priority:later` | Zero or one. |
+| Status | `status:blocked`, `status:active` | Only when true. |
+| Area | `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, `area:architecture` | Prefer one. |
+| Release target | GitHub Milestone such as `v18.0.0` | Required only for release-owned work. |
+
+Legacy `lane:*`, `release-home:*`, `feature:*`, `legend:*`, `blocked`, and
+`work-in-progress` labels are migration-only. Do not add them to new issues.
+Use GitHub Milestones for release ownership.
 
 ### Naming
 
@@ -147,8 +147,9 @@ legend:MODEL
 legend:DX
 ```
 
-Historical filesystem filenames may survive in archive paths and issue body
-provenance. New work starts as a GitHub Issue.
+Historical filesystem filenames and legend labels may survive in archive paths
+and issue body provenance. New work starts as a GitHub Issue using the live
+axes above.
 
 ### Promoting
 
@@ -158,8 +159,8 @@ When an issue is pulled into a cycle, it becomes a design doc:
 GitHub issue -> docs/design/<cycle>/<task>.md
 ```
 
-The issue is labeled `work-in-progress` and linked from the design doc. New
-cycle design docs follow
+The issue is labeled `status:active` and linked from the design doc. New cycle
+design docs follow
 [design-doc-template.md](method/design-doc-template.md). Work does not silently
 fall back into the queue.
 
@@ -178,7 +179,7 @@ are `#123`, `GH-123`, `git-stunts/git-warp#123`, and
 
 Cycle-start pull requests are non-draft PRs. After the design doc commit is
 pushed, open a PR that references the issue, label the issue
-`work-in-progress`, and link the PR from the issue. The PR is the public cycle
+`status:active`, and link the PR from the issue. The PR is the public cycle
 workspace. It is not ready to merge until the cycle has playback, acceptance
 evidence, closeout material, and validation showing the branch is ready to merge
 into `main`.
@@ -196,7 +197,9 @@ agent) in the design doc. It does not go back.
 
 End of cycle:
 
-- Process `lane:inbox`. Promote, flesh out, or close with a disposition.
+- Process newly filed issues. Add the required `type:*`, optional
+  `priority:*`, status, area, and milestone metadata; flesh out or close with a
+  disposition.
 - Re-prioritize. What you learned changes what matters.
 - Clean up. Merge duplicates, kill the dead.
 
@@ -215,7 +218,7 @@ Same loop regardless:
 
 - **Feature** - design, test, build, ship.
 - **Design** - the deliverable is docs, not code.
-- **Debt** - pull from issues labeled `lane:bad-code`. The hill is
+- **Debt** - pull from issues labeled `type:debt`. The hill is
   "this no longer bothers us."
 
 ---
@@ -238,7 +241,7 @@ The current legends in this repo are:
   `HYGIENE`, `INFRA`, `PERF`, `PROTO`, `SLUDGE`, `TRUST`, `TS`,
   `TUI`, and `VIZ`.
 - **Invariant legends** — debt grouped by the law it violates. These
-  are the canonical legend labels for `lane:bad-code` issues:
+  are issue-body groupings for `type:debt` work:
   - `HEX` — hex boundary honesty
   - `BND` — boundary decode and validation honesty
   - `MODEL` — runtime-backed model honesty
@@ -300,10 +303,10 @@ in one sentence, the cycle is too big. Split it.
 
 2. **Commit and open the cycle PR** - stage the design doc and any cycle-start
    signpost change, commit, push the branch, open a non-draft pull request that
-   references the issue, label the issue `work-in-progress`, and link the PR
-   from the issue. The PR is the public cycle workspace; it becomes ready for
-   merge review only after playback, acceptance evidence, closeout material,
-   and validation show the branch is ready to merge into `main`.
+   references the issue, label the issue `status:active`, and link the PR from
+   the issue. The PR is the public cycle workspace; it becomes ready for merge
+   review only after playback, acceptance evidence, closeout material, and
+   validation show the branch is ready to merge into `main`.
 
 3. **RED** - write failing tests. The proof surface becomes the spec.
    Default to agent surface first.
@@ -325,8 +328,9 @@ in one sentence, the cycle is too big. Split it.
 6. **Close** - write the retro and witness packet on the branch.
    - Drift check (mandatory). Undocumented drift is the only true
      failure mode.
-   - New debt to GitHub Issues labeled `lane:bad-code`.
-   - Cool ideas to GitHub Issues labeled `lane:cool-ideas`.
+   - New debt to GitHub Issues labeled `type:debt`.
+   - Cool ideas to GitHub Issues labeled `priority:later` plus the
+     appropriate `type:*`.
    - Issue maintenance.
 
    Closing the cycle packet does not mean `main` has accepted it yet.
@@ -387,7 +391,8 @@ a standup:
 
 - What is everyone working on? -> open design docs
 - What is committed? -> each design doc names its sponsors and hill
-- What is next? -> GitHub Issues labeled `lane:asap`
+- What is next? -> GitHub Issues labeled `priority:asap` or
+  `priority:next`
 - What failed and why? -> `ls docs/method/retro/`
 - What did we decide not to do? -> `ls docs/method/graveyard/`
 
@@ -418,10 +423,11 @@ agenda.
 
 ### Conflict in the tracker
 
-Two people pulling conflicting `lane:asap` issues is a design-doc problem, not
-a process problem. Active design docs are visible through the repo itself. If
-your hill contradicts an active cycle's hill, you should see it at step 1.
-Resolve it there or file it as a tension in `docs/BEARING.md`.
+Two people pulling conflicting `priority:asap` or `priority:next` issues is a
+design-doc problem, not a process problem. Active design docs are visible
+through the repo itself. If your hill contradicts an active cycle's hill, you
+should see it at step 1. Resolve it there or file it as a tension in
+`docs/BEARING.md`.
 
 ### What this does not add
 
@@ -442,10 +448,10 @@ to resurrect something, you must address the note.
 ## Flow
 
 ```text
-idea -> lane:inbox -> lane:cool-ideas -> lane:up-next -> lane:asap
+idea -> issue with type/priority/status/area/milestone metadata
   -> issue + synced merge target + cycle branch
   -> design/<cycle>/  (committed issue)
-  -> non-draft work-in-progress PR
+  -> non-draft status:active PR
   -> RED -> GREEN -> playback (witness)
   -> retro/<cycle>/   (cycle packet closed)
   -> review -> main

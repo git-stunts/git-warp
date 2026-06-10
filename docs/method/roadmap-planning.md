@@ -244,20 +244,18 @@ Labels are query indexes, not prose decoration.
 
 git-warp keeps its structured label model:
 
-| Label | Meaning |
+| Axis | Meaning |
 | --- | --- |
-| `type:goalpost` | Umbrella milestone issue. |
-| `type:proof-story` | Child issue scoped to one actor story or proof contract. |
-| `lane:asap` | Immediate release pressure. |
-| `lane:vX.Y.Z` | Active version lane for the named release. |
-| `release-home:vX.Y.Z` | Release ownership for planning and prior-release cleanup. |
-| `feature:*` | Capability area. |
-| `legend:*` | Work doctrine or theme. |
-| `work-in-progress` | Current active implementation cycle. |
+| `type:*` | Work kind. Use exactly one of `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, or `type:story`. Existing `type:proof-story` issues are migration residue for proof-story children. |
+| `priority:*` | Scheduling pressure. Use zero or one of `priority:asap`, `priority:next`, or `priority:later`. |
+| `status:*` | Active workflow exception. Use `status:blocked` or `status:active` only when true. |
+| `area:*` | Primary work area, such as `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, or `area:architecture`. |
+| GitHub Milestone | Release ownership and prior-release cleanup target. |
 
-The important invariant is that `type:goalpost` and `type:proof-story` are not
+The important invariant is that `type:goalpost` and child story types are not
 mixed casually. Umbrella issues get `type:goalpost`; child proof-story issues
-get `type:proof-story`.
+prefer `type:story` for new work while existing `type:proof-story` issues are
+migrated.
 
 ## Lifecycle
 

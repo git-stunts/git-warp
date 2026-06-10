@@ -2,13 +2,51 @@
 
 ## Planning Sources Of Truth
 
-- `docs/method/backlog/` — lane-organized backlog (inbox/, asap/, up-next/, cool-ideas/, bad-code/)
+- GitHub Issues — live work tracker, triage surface, and release gate input
+- GitHub Milestones — release ownership and release-gate targeting
 - `docs/design/<NNNN-slug>/` — active cycle work; backlog item promotes here
 - `CHANGELOG.md` — what has landed
 - `docs/method/retro/<NNNN-slug>/` — closed cycle retrospectives
 
-No milestones. No ROADMAP. Cycles are the unit of work.
+Local backlog files and migration JSON are historical evidence unless a current
+GitHub Issue links to them. Cycles are the unit of implementation work, but
+GitHub Issues and Milestones are the live planning surface.
 See [METHOD](../docs/METHOD.md) for the full process.
+
+## Issue Triage
+
+Labels are query indexes, not prose decoration. Keep issue metadata boring and
+orthogonal.
+
+Use these live axes for new or edited issues:
+
+| Axis | Required? | Values |
+| --- | --- | --- |
+| Type | Exactly one | `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, `type:story` |
+| Priority | Zero or one | `priority:asap`, `priority:next`, `priority:later` |
+| Status | Only when true | `status:blocked`, `status:active` |
+| Area | Prefer one | `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, `area:architecture` |
+| Release target | When release-owned | GitHub Milestone such as `v18.0.0` or `v19.0.0` |
+
+Do not use release labels for new work. Release targeting belongs in GitHub
+Milestones.
+
+Legacy labels are migration-only:
+
+| Legacy label | Replacement |
+| --- | --- |
+| `lane:bad-code` | `type:debt` |
+| `lane:cool-ideas` | `priority:later` plus the appropriate `type:*` |
+| `lane:up-next` | `priority:next` |
+| `lane:asap` | `priority:asap` |
+| `lane:release` | `type:release` |
+| `blocked` | `status:blocked` |
+| `work-in-progress` | `status:active` |
+| `release-home:vX.Y.Z` / `lane:vX.Y.Z` | GitHub Milestone `vX.Y.Z` |
+| `feature:*` / `legend:*` | One `area:*` label, with doctrine in the issue body |
+
+Release gates must fail when a required label or milestone is missing. A
+missing label is not evidence that no matching issues exist.
 
 ## Cycle Process
 

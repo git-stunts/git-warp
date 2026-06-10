@@ -88,10 +88,12 @@ publishing. It enforces:
 | `REL-TOOL-GH` | GitHub CLI is available when the stage enforces live GitHub issue gates. |
 | `REL-TAG-FORMAT` | The release tag uses leading-`v` SemVer, with optional `alpha`, `beta`, or `rc` prerelease suffix. |
 | `REL-GH-ACCESS` | The configured GitHub repository is readable before live issue gates run. |
-| `REL-GH-ASAP-ZERO` | There are zero open GitHub Issues labeled `lane:asap`. |
-| `REL-GH-TARGET-LANE-ZERO` | There are zero open GitHub Issues in the target version lane, such as `lane:v18.0.0`. |
-| `REL-GH-PRIOR-RELEASE-LABELS` | Every `release-home:v*` label uses valid release SemVer before prior-release arithmetic runs. |
-| `REL-GH-PRIOR-RELEASE-ZERO` | There are zero open GitHub Issues with `release-home:` labels lower than the target version. |
+| `REL-GH-PRIORITY-ASAP-LABEL` | The required `priority:asap` label exists before urgent-issue counts run. |
+| `REL-GH-ASAP-ZERO` | There are zero open GitHub Issues labeled `priority:asap`. |
+| `REL-GH-TARGET-MILESTONE-EXISTS` | The target GitHub Milestone, such as `v18.0.0`, exists before target counts run. |
+| `REL-GH-TARGET-MILESTONE-ZERO` | There are zero open GitHub Issues in the target GitHub Milestone. |
+| `REL-GH-PRIOR-RELEASE-MILESTONES` | Every `v*` GitHub Milestone uses valid release SemVer before prior-release arithmetic runs. |
+| `REL-GH-PRIOR-RELEASE-ZERO` | There are zero open GitHub Issues in GitHub Milestones lower than the target version. |
 | `REL-GH-STAGE` | Stages that intentionally skip live issue gates state why. |
 | `REL-META-VERSION-LOCKSTEP` | Root `package.json`, `jsr.json`, `package-lock.json`, and private workspace package versions all match the tag version. |
 | `REL-GIT-CLEAN` | The worktree has no unstaged or staged-but-uncommitted changes. |

@@ -110,20 +110,58 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - If you wrote files in the turn, commit them in that turn. Do not leave your own edits staged but uncommitted.
 - Cycle-start draft pull requests are allowed and expected. After the design
   doc commit is pushed, open a draft PR that references the issue, label the
-  issue `work-in-progress`, and keep the PR draft until playback, acceptance
+  issue `status:active`, and keep the PR draft until playback, acceptance
   evidence, closeout, and validation make the branch ready to merge into `main`.
 
 ## Process
 
 - Read [METHOD](docs/METHOD.md) and follow it.
-- Backlog lives in `docs/method/backlog/` with lanes `inbox/`, `asap/`, `up-next/`, `cool-ideas/`, and `bad-code/`.
-- As you work, feel free to file concrete jank, stank, or correctness smells under `docs/method/backlog/bad-code/`.
-- As you work, feel free to file speculative improvements or design sparks under `docs/method/backlog/cool-ideas/`.
-- Prefer small, precise backlog notes over leaving useful discoveries only in chat.
+- GitHub Issues are the live work tracker. Local backlog files and migration
+  JSON are historical evidence unless a current issue links to them.
+- Prefer small, precise GitHub Issues over leaving useful discoveries only in
+  chat.
 - Cycles live in `docs/design/<NNNN-slug>/`.
 - Retros live in `docs/method/retro/<NNNN-slug>/`.
 - Signposts are `docs/BEARING.md` and `docs/VISION.md`; update them at cycle boundaries, not mid-cycle.
 - Zero tolerance for brokenness: if you encounter an error or warning in your path, fix it or surface it explicitly.
+- Issue labels are query indexes, not prose decoration. Use exactly these live
+  axes for new or edited issues:
+
+  - `type:*` answers what kind of work it is. Use exactly one of
+    `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`,
+    `type:goalpost`, or `type:story`.
+  - `priority:*` answers when it should be handled. Use zero or one of
+    `priority:asap`, `priority:next`, or `priority:later`.
+  - `status:*` answers active workflow exceptions. Use `status:blocked` or
+    `status:active` only when the issue is actually blocked or actively being
+    worked.
+  - `area:*` answers where the work primarily lives. Prefer one of `area:api`,
+    `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`,
+    `area:testing`, `area:tooling`, `area:release`, or `area:architecture`.
+  - GitHub Milestones own release targeting. Do not create release-target
+    labels for new work.
+
+- Legacy planning labels are migration-only. Do not add `lane:bad-code`,
+  `lane:cool-ideas`, `lane:release`, `lane:v*`, `release-home:v*`,
+  `feature:*`, `legend:*`, `blocked`, or `work-in-progress` to new issues
+  unless a cleanup cycle is deliberately migrating or removing them.
+- Canonical replacements:
+
+  | Legacy label | Replacement |
+  | --- | --- |
+  | `lane:bad-code` | `type:debt` |
+  | `lane:cool-ideas` | `priority:later` plus the appropriate `type:*` |
+  | `lane:up-next` | `priority:next` |
+  | `lane:asap` | `priority:asap` |
+  | `lane:release` | `type:release` |
+  | `blocked` | `status:blocked` |
+  | `work-in-progress` | `status:active` |
+  | `release-home:vX.Y.Z` / `lane:vX.Y.Z` | GitHub Milestone `vX.Y.Z` |
+  | `feature:*` / `legend:*` | One `area:*` label, with doctrine in the body |
+
+- Release gates must count GitHub Issues by the simplified labels and
+  milestones. Missing required labels or milestones are gate failures, never
+  proof that the count is zero.
 - End every turn with the compact progress footer:
 
   ```text

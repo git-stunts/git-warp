@@ -29,10 +29,12 @@ Paste or summarize the `npm run release:guard -- --tag vX.Y.Z` output.
 | `REL-TOOL-GH` | `TBD` | GitHub CLI available when live issue gates are required, or not required for this stage. |
 | `REL-TAG-FORMAT` | `TBD` | Tag uses leading-`v` SemVer. |
 | `REL-GH-ACCESS` | `TBD` | GitHub repository readable when live issue gates are required. |
-| `REL-GH-ASAP-ZERO` | `TBD` | No open `lane:asap` issues. |
-| `REL-GH-TARGET-LANE-ZERO` | `TBD` | No open target-version lane issues. |
-| `REL-GH-PRIOR-RELEASE-LABELS` | `TBD` | All `release-home:v*` labels use release SemVer. |
-| `REL-GH-PRIOR-RELEASE-ZERO` | `TBD` | No open prior-release-home issues. |
+| `REL-GH-PRIORITY-ASAP-LABEL` | `TBD` | Required `priority:asap` label exists. |
+| `REL-GH-ASAP-ZERO` | `TBD` | No open `priority:asap` issues. |
+| `REL-GH-TARGET-MILESTONE-EXISTS` | `TBD` | Target GitHub Milestone exists. |
+| `REL-GH-TARGET-MILESTONE-ZERO` | `TBD` | No open issues in the target GitHub Milestone. |
+| `REL-GH-PRIOR-RELEASE-MILESTONES` | `TBD` | All release GitHub Milestones use release SemVer. |
+| `REL-GH-PRIOR-RELEASE-ZERO` | `TBD` | No open issues in prior release GitHub Milestones. |
 | `REL-GH-STAGE` | `TBD` | Stage-specific issue gate posture recorded. |
 | `REL-META-VERSION-LOCKSTEP` | `TBD` | Package, JSR, lockfile, and workspace versions match. |
 | `REL-GIT-CLEAN` | `TBD` | Worktree clean at tag time. |
