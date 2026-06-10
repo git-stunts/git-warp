@@ -62,18 +62,43 @@ const DEFAULT_MAX_ENTRIES = 200;
 const INDEX_SCHEMA_VERSION = 1;
 const MAX_CAS_RETRIES = 3;
 
+function _emptyEntries(): Record<string, IndexEntry> {
+  return Object.create(null) as Record<string, IndexEntry>;
+}
+
 function _emptyIndex(): CacheIndex {
-  return { schemaVersion: INDEX_SCHEMA_VERSION, entries: {} };
+  return { schemaVersion: INDEX_SCHEMA_VERSION, entries: _emptyEntries() };
+}
+
+function _isObjectRecord(value: unknown): value is object {
+  return typeof value === 'object' && value !== null;
+}
+
+function _normalizeIndexEntries(entries: unknown): Record<string, IndexEntry> {
+  const normalized = _emptyEntries();
+  if (!_isObjectRecord(entries)) {
+    return normalized;
+  }
+  for (const [key, value] of Object.entries(entries)) {
+    if (_isObjectRecord(value)) {
+      normalized[key] = value as IndexEntry;
+    }
+  }
+  return normalized;
 }
 
 function _parseIndexBlob(buf: Uint8Array): CacheIndex {
   const parsed: unknown = JSON.parse(textDecode(buf));
+  const candidate = parsed as { schemaVersion?: unknown; entries?: unknown };
   if (
     typeof parsed === 'object' &&
     parsed !== null &&
-    (parsed as { schemaVersion?: unknown }).schemaVersion === INDEX_SCHEMA_VERSION
+    candidate.schemaVersion === INDEX_SCHEMA_VERSION
   ) {
-    return parsed as CacheIndex;
+    return {
+      schemaVersion: INDEX_SCHEMA_VERSION,
+      entries: _normalizeIndexEntries(candidate.entries),
+    };
   }
   return _emptyIndex();
 }
@@ -295,7 +320,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
 
   override async has(key: string): Promise<boolean> {
     const index = await this._readIndex();
-    return key in index.entries;
+    return Object.hasOwn(index.entries, key);
   }
 
   override async keys(): Promise<string[]> {
@@ -306,7 +331,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   override async delete(key: string): Promise<boolean> {
     let existed = false;
     await this._mutateIndex((index) => {
-      existed = key in index.entries;
+      existed = Object.hasOwn(index.entries, key);
       delete index.entries[key];
       return index;
     });

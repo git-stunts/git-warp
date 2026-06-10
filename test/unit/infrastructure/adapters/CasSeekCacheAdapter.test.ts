@@ -458,6 +458,23 @@ describe('CasSeekCacheAdapter', () => {
       expect(entry.createdAt).toBeDefined();
     });
 
+    it('stores prototype-like keys as data properties', async () => {
+      const protoKey = '__proto__';
+      const treeOid = 'proto-tree-oid';
+
+      mockStore.mockResolvedValue({ chunks: [] });
+      mockCreateTree.mockResolvedValue(treeOid);
+      persistence.readRef.mockResolvedValue(null);
+
+      await adapter.set(protoKey, SAMPLE_BUFFER);
+
+      const writtenJson = JSON.parse(
+        new TextDecoder().decode(persistence.writeBlob.mock.calls[0][0])
+      );
+      expect(Object.hasOwn(writtenJson.entries, protoKey)).toBe(true);
+      expect(writtenJson.entries[protoKey].treeOid).toBe(treeOid);
+    });
+
     it('preserves existing entries in the index', async () => {
       const existingKey = 'v1:t10-existinghash';
       const existingEntry = {
@@ -543,6 +560,11 @@ describe('CasSeekCacheAdapter', () => {
       );
       expect(await adapter.has(SAMPLE_KEY)).toBe(false);
     });
+
+    it('does not treat inherited object names as cache hits', async () => {
+      persistence.readRef.mockResolvedValue(null);
+      expect(await adapter.has('toString')).toBe(false);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -615,6 +637,13 @@ describe('CasSeekCacheAdapter', () => {
       );
       expect(writtenJson.entries[otherKey]).toBeDefined();
       expect(writtenJson.entries[SAMPLE_KEY]).toBeUndefined();
+    });
+
+    it('returns false when deleting an inherited object name', async () => {
+      persistence.readRef.mockResolvedValue(null);
+
+      const result = await adapter.delete('toString');
+      expect(result).toBe(false);
     });
   });
 

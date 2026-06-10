@@ -215,6 +215,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   id through the state-backed read model.
 - V18 Deno runtime smoke tests now run with Deno's default op and resource
   sanitizers instead of using the git-backed runtime sanitizer bypass.
+- V18 CAS seek-cache indexes now normalize persisted cache-key maps into
+  null-prototype entries and use own-property checks so prototype-like keys
+  remain data, not object prototype behavior.
 - V18 release-candidate review follow-up now rejects empty production-runtime
   replay repository paths, rejects empty scratch replay target fields with
   structured invalid-target evidence, and reports confirmation JSON parse
