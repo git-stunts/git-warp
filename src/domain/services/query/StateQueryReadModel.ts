@@ -6,6 +6,7 @@ import { createSnapshotPropValue } from '../ImmutableSnapshot.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import NodePropertyProjection from '../NodePropertyProjection.ts';
+import QueryNodePatternIndex from './QueryNodePatternIndex.ts';
 import type {
   QueryNeighborEntry,
   QueryNeighborOptions,
@@ -111,12 +112,14 @@ export default class StateQueryReadModel implements QueryReadModel {
   readonly #state: WarpState;
   readonly #visibility: ObserverVisibility;
   readonly #neighborProvider: NeighborProviderPort | null;
+  readonly #nodePatternIndex: QueryNodePatternIndex;
 
   constructor(params: StateQueryReadModelParams) {
     this.#state = params.state;
     this.stateHash = params.stateHash;
     this.#visibility = params.visibility;
     this.#neighborProvider = params.neighborProvider ?? null;
+    this.#nodePatternIndex = new QueryNodePatternIndex(this.#state.nodeAlive);
   }
 
   nodes(request: QueryNodeStreamRequest): AsyncIterable<QueryNodeSnapshot> {
@@ -178,7 +181,7 @@ export default class StateQueryReadModel implements QueryReadModel {
   }
 
   *#visibleNodes(request: QueryNodeStreamRequest): Iterable<QueryNodeSnapshot> {
-    for (const nodeId of liveElements(this.#state, 'node')) {
+    for (const nodeId of this.#nodePatternIndex.liveCandidates(request.pattern)) {
       if (this.#isVisibleNode(nodeId) && nodeMatches(request.pattern, nodeId)) {
         yield emptyNodeSnapshot(nodeId);
       }
