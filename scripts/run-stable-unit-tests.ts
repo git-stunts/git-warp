@@ -17,18 +17,13 @@ const DEFAULT_MAX_WORKERS = 4;
 const DEFAULT_MIN_FREE_MIB = 512;
 const SUCCESS_EXIT_CODE = 0;
 const FAILURE_EXIT_CODE = 1;
+const TEST_FILE_PATTERN = /\.(?:test|spec|benchmark)\.(?:[cm][jt]s|[jt]sx?)$/;
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const VITEST_ENTRY = join(ROOT, 'node_modules', 'vitest', 'vitest.mjs');
 
 function isTestFile(fileName: string): boolean {
-  return (
-    fileName.endsWith('.test.ts') ||
-    fileName.endsWith('.spec.ts') ||
-    fileName.endsWith('.test.js') ||
-    fileName.endsWith('.spec.js') ||
-    fileName.endsWith('.benchmark.ts')
-  );
+  return TEST_FILE_PATTERN.test(fileName);
 }
 
 function listDirectTestFiles(relativeDirectory: string): string[] {

@@ -41,6 +41,7 @@ describe('scripts/run-stable-unit-tests.ts', () => {
     expect(result.output).toContain('free memory: 2048 MiB');
     expect(result.output).toContain('stable-unit-tests: running shard unit-small-surfaces');
     expect(result.output).toContain('stable-unit-tests: running shard unit-domain-services-subdirs');
+    expect(result.output).toContain('test/unit/scripts/run-stable-unit-tests-extension-fixture.test.mts');
     expect(result.output).toContain('--maxWorkers 3');
   });
 
