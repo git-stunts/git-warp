@@ -28,9 +28,9 @@ describe('v18 release story shape', () => {
 
   it('keeps the residual-risk and non-goal story visible', () => {
     expect(releaseNotes).toContain('total raw content/property storage retirement');
-    expect(releaseNotes).toContain('bounded-memory large-graph product gate');
-    expect(releaseNotes).toContain(
-      'normal public reads, writes, content lookup, and sync pass the',
-    );
+    expect(releaseNotes).toContain('zero open issues in the `v18.0.0` milestone');
+    expect(releaseNotes).toContain('row-specific cost labels');
+    expect(releaseNotes).toContain('diagnostic, offline, and legacy surfaces');
+    expect(releaseNotes).toContain('not first-use application evidence');
   });
 });
