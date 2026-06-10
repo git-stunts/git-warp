@@ -10,7 +10,7 @@
 | Goalpost doc | `docs/method/roadmap/v18.0.0/v18-gp2-bounded-memory-large-graph-gate.md` |
 | Design cycle | `docs/design/0267-v18-bounded-memory-large-graph-product-gate/v18-bounded-memory-large-graph-product-gate.md` |
 | Slice budget | `15` |
-| Status | `active` |
+| Status | `landed` |
 | Sponsor human | `James` |
 | Sponsor agent | `Codex` |
 
@@ -21,10 +21,16 @@ git-warp memory budget against a graph larger than that budget.
 
 ## Current Truth
 
-Issue [#549](https://github.com/git-stunts/git-warp/issues/549) is open in
-`lane:v18.0.0` and blocks release. Its issue body states that v18 cannot rely
-on full graph state, full indexes, full patch arrays, full snapshots, or full
-result arrays fitting in process memory.
+Issue [#549](https://github.com/git-stunts/git-warp/issues/549) is closed as
+the non-release bounded-memory product gate. The landed evidence proves the
+memory budget contract, large-graph-over-small-pool fixture, bounded read
+cursor, patch-stream, basis-builder, fact-resolver, sync batch, capability
+report, and operator witness shapes listed below.
+
+Release/tag evidence is explicitly out of scope for this goalpost. Issue
+[#552](https://github.com/git-stunts/git-warp/issues/552) remains the v18
+release-operation blocker until explicit tag approval and publish evidence
+exist.
 
 ## Scope
 
@@ -111,9 +117,10 @@ npm run typecheck
 
 ## Release Gate Impact
 
-This goalpost proves the release's large-graph product promise. Until it lands,
-public v18 docs must not claim arbitrary graph size, bounded content lookup, or
-streaming/cursor safety beyond the evidence already committed.
+This goalpost proves the release's large-graph product promise at the
+non-release evidence layer. Public v18 docs may cite the committed
+bounded-memory fixture and witness paths, but release operation evidence remains
+separate under V18-GP5 and must not be inferred from this closeout.
 
 ## Residual Risks
 
