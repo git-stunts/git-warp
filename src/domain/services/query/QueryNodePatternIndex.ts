@@ -145,5 +145,11 @@ function lowerBound(keys: readonly string[], needle: string): number {
 }
 
 function compareStrings(left: string, right: string): number {
-  return left.localeCompare(right);
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
 }

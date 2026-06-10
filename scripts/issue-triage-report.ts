@@ -5,6 +5,12 @@ import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCallback);
 
+const GH_TIMEOUT_MS = 30_000;
+const LABEL_STATUS_ACTIVE = 'status:active';
+const LABEL_TYPE_DEBT = 'type:debt';
+const LABEL_WORK_IN_PROGRESS = 'work-in-progress';
+const ACTIVE_LABELS = new Set([LABEL_STATUS_ACTIVE, LABEL_WORK_IN_PROGRESS]);
+
 function isBrokenPipe(error: Error): boolean {
   return Reflect.get(error, 'code') === 'EPIPE';
 }
@@ -79,8 +85,6 @@ type CliOptions = {
   readonly limit: string;
 };
 
-const ACTIVE_LABELS = new Set(['status:active', 'work-in-progress']);
-
 function issueSummary(issue: IssueInput | ClosingIssueInput): IssueSummary {
   return {
     number: issue.number,
@@ -98,7 +102,13 @@ function compareNumbers(left: number, right: number): number {
 }
 
 function compareStrings(left: string, right: string): number {
-  return left.localeCompare(right);
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
 }
 
 function compareIssues(left: IssueSummary, right: IssueSummary): number {
@@ -177,7 +187,7 @@ export function buildIssueTriageReport(
   const activeIssues = openIssues.filter((issue) => hasAnyLabel(issue, ACTIVE_LABELS));
   const availableIssues = openIssues.filter((issue) => !coveredNumbers.has(issue.number) && !hasAnyLabel(issue, ACTIVE_LABELS));
   const debtCandidates = availableIssues
-    .filter((issue) => hasLabel(issue, 'type:debt'))
+    .filter((issue) => hasLabel(issue, LABEL_TYPE_DEBT))
     .map(issueSummary)
     .sort(compareIssues);
 
@@ -246,8 +256,13 @@ function parseArgs(args: readonly string[]): CliOptions {
 }
 
 async function ghJson<T>(args: readonly string[]): Promise<T> {
-  const { stdout } = await execFile('gh', args, { encoding: 'utf8' });
-  return JSON.parse(stdout);
+  try {
+    const { stdout } = await execFile('gh', args, { encoding: 'utf8', timeout: GH_TIMEOUT_MS });
+    return JSON.parse(stdout);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`ghJson failed for gh ${args.join(' ')}: ${message}`);
+  }
 }
 
 async function main(args: readonly string[]): Promise<void> {
