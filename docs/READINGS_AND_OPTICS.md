@@ -20,7 +20,7 @@ application code should reach for first.
 Current v18 read shapes are cost-labeled in
 [PUBLIC API COSTS](PUBLIC_API_COSTS.md). Live exact reads, queries, observers,
 coordinate capture, and coordinate Optics are first-use friendly shapes, but
-their current providers are `transitional` until the bounded-memory gate lands.
+each surface keeps the cost label and caveat recorded in the inventory.
 
 ## Core Contract
 
@@ -152,9 +152,10 @@ verification, coordinate capture, or an optic reports
 tooling, or use a live worldline or observer read when you do not need Optic
 identity.
 
-Coordinate Optics avoid full graph materialization, but remain `transitional`
-until gate 2 adds memory-budgeted basis verification, frontier capture, and tail
-providers.
+Coordinate Optics avoid full graph materialization. Their v18 release evidence
+is tied to checkpoint-tail basis and tail witnesses, so use
+[PUBLIC API COSTS](PUBLIC_API_COSTS.md) before treating broader graph questions
+as large-graph safe.
 
 `events.optic()` remains a convenience for one-off live optic reads when a
 checkpoint-tail basis already exists. It is not the coherent multi-read boundary. If two

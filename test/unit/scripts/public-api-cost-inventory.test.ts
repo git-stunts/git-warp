@@ -135,7 +135,7 @@ describe('public API cost inventory', () => {
     expect(prepare.label).toBe('transitional');
     expect(prepare.firstUseDocs).toBe('caveat');
     expect(prepare.provider).toContain('bounded tree-entry probes');
-    expect(prepare.notes).toContain('broader memory-budgeted product gate remains open');
+    expect(prepare.notes).toContain('basis availability and row-specific cost posture');
     expect(prepare.issue).toBe('https://github.com/git-stunts/git-warp/issues/549');
 
     const materialize = findApi(rows, 'graph.materialize()');
@@ -152,14 +152,16 @@ describe('public API cost inventory', () => {
 
     expect(readme).toContain('PUBLIC_API_COSTS.md');
     expect(docsIndex).toContain('PUBLIC_API_COSTS.md');
-    expect(apiReference).toContain('Full-result reads such as `getNodes()` and `getEdges()` are diagnostic/offline');
+    expect(apiReference).toContain('Full-result reads such as');
+    expect(apiReference).toContain('`getNodes()` and `getEdges()` are diagnostic/offline');
     expect(apiReference).not.toContain("await worldline.getNodes();                 // ['user:alice', 'user:bob']");
     expect(apiReference).toContain('create that basis by materializing the full graph');
     expect(readings).toContain('does not create that evidence by materializing the full graph');
     expect(migration).toContain('not materialize the full graph to manufacture a basis');
-    expect(readme).toContain('providers are still');
-    expect(readme).toContain('`transitional` until the bounded-memory gate lands');
-    expect(readings).toContain('current providers are `transitional`');
+    expect(readme).toContain('check that inventory before');
+    expect(readme).not.toContain('`transitional` until the bounded-memory gate lands');
+    expect(readings).toContain('each surface keeps the cost label and caveat');
+    expect(readings).not.toContain('until the bounded-memory gate lands');
 
     expect(readme).not.toContain('Creates the checkpoint-tail evidence');
     expect(apiReference).not.toContain('may perform runtime folding internally');

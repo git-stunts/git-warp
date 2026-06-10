@@ -138,9 +138,9 @@ The handle intentionally does not expose `graphName`, `materialize()`,
 
 `prepareOpticBasis()` verifies existing checkpoint-tail evidence. It does not
 create that basis by materializing the full graph. If no basis exists, it fails
-closed with `E_OPTIC_NO_BOUNDED_BASIS`; gate 2 owns memory-budgeted basis
-construction. For coherent Optics, capture a coordinate after verifying the
-basis:
+closed with `E_OPTIC_NO_BOUNDED_BASIS`; basis construction remains an explicit
+operator/setup concern. For coherent Optics, capture a coordinate after
+verifying the basis:
 
 ```typescript
 await todos.prepareOpticBasis();
@@ -544,9 +544,9 @@ const path = await worldline.traverse.shortestPath('user:alice', 'user:bob', {
 ```
 
 These exact-read and query shapes are the preferred application surface, but
-their current providers are `transitional` until the bounded-memory gate lands.
-Full-result reads such as `getNodes()` and `getEdges()` are diagnostic/offline
-surfaces, not first-use product-read examples. See
+their cost posture is still classified per surface. Full-result reads such as
+`getNodes()` and `getEdges()` are diagnostic/offline surfaces, not first-use
+product-read examples. See
 [PUBLIC API COSTS](PUBLIC_API_COSTS.md).
 
 When you need a filtered or redacted aperture, define a lens and create an
@@ -623,8 +623,8 @@ const role = await coordinate.optic().node('user:alice').prop('role').read();
 The coordinate pins the checkpoint-tail basis and writer frontier used by the
 optic. If the live worldline advances between two reads, reads through the
 captured coordinate still describe the captured position. Coordinate Optics avoid
-full graph materialization, but remain `transitional` until memory-budgeted
-basis and tail providers land.
+full graph materialization, and their large-graph posture is governed by the
+current public API cost inventory.
 
 Node optic absence returns `alive: false`. Property optic absence returns
 `exists: false` and `value: undefined`. Blank node ids and blank property keys

@@ -15,10 +15,12 @@ are part of the model.
 
 ## Release status
 
-The `v18.0.0` source line is not public release evidence yet. It is blocked
-until first-use Optics setup avoids full graph materialization and normal public
-reads, writes, content lookup, and sync pass bounded-memory conformance against
-a graph larger than git-warp's configured memory pool.
+The `v18.0.0` source line is in pre-tag release-gate closeout. First-use
+Optics setup avoids full graph materialization, and the v18 bounded-memory
+goalpost has landed deterministic evidence for the named public paths it
+claims. Full-result helpers, graph-wide diagnostics, legacy facades, and
+offline migration tools remain explicitly classified instead of being presented
+as first-use application APIs.
 
 Live work is tracked in
 [GitHub Issues](https://github.com/git-stunts/git-warp/issues). Repository
@@ -55,10 +57,10 @@ const visible = await events.live()
 ```
 
 Exact id-only query reads use the checkpoint-tail provider when a bounded basis
-exists; broader property, wildcard, traversal, and observer providers are still
-`transitional` until the bounded-memory gate lands. See
-[PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md) before treating a broader read
-path as large-graph safe.
+exists. Broader property, wildcard, traversal, observer, full-result, and
+diagnostic providers keep their current labels in
+[PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md); check that inventory before
+treating a broader read path as large-graph safe.
 
 ## What git-warp is
 
@@ -91,8 +93,8 @@ named admitted causal lane with one writer identity and a small public handle:
 For coherent Optics, verify the checkpoint-tail basis, capture a coordinate, and read
 through that coordinate. If no checkpoint-tail basis exists yet,
 `prepareOpticBasis()` fails closed with `E_OPTIC_NO_BOUNDED_BASIS` instead of
-materializing the whole graph. This path is still `transitional` until gate 2
-adds memory-budgeted basis and tail providers:
+materializing the whole graph. This path remains caveated to available
+checkpoint-tail basis evidence and the public API cost inventory:
 
 ```typescript
 await events.prepareOpticBasis();
