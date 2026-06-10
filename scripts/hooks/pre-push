@@ -94,7 +94,7 @@ echo "[Gates 1-7] All static gates passed."
 if [ "$QUICK" = "1" ]; then
   echo "[Gate 8] Skipped (WARP_QUICK_PUSH quick mode)"
 else
-  echo "[Gate 8] Running unit tests..."
+  echo "[Gate 8] Running stable unit-test shards..."
   run_tool "$NPM_LAUNCHER" "$NPM_BIN" run test:local || { echo ""; echo "BLOCKED — Gate 8 FAILED: Unit tests"; exit 1; }
 fi
 

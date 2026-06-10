@@ -181,7 +181,7 @@ describe('scripts/hooks/pre-push', () => {
     const result = runPrePushHook();
 
     expect(result.status).toBe(0);
-    expect(result.output).toContain('[Gate 8] Running unit tests...');
+    expect(result.output).toContain('[Gate 8] Running stable unit-test shards...');
     expect([...result.commands].sort()).toEqual([
       'lint',
       'lint:md',
