@@ -1,0 +1,80 @@
+diff --git a/node_modules/@git-stunts/alfred/src/policies/timeout.js b/node_modules/@git-stunts/alfred/src/policies/timeout.js
+index 0548dff..99f7db3 100644
+--- a/node_modules/@git-stunts/alfred/src/policies/timeout.js
++++ b/node_modules/@git-stunts/alfred/src/policies/timeout.js
+@@ -53,36 +53,45 @@ import { resolve } from '../utils/resolvable.js';
+  * await clock.advance(5000); // Triggers timeout
+  */
+ export async function timeout(ms, fn, options = {}) {
+-  const { onTimeout, telemetry = new NoopSink(), clock = new SystemClock() } = options;
++  const { onTimeout, telemetry = new NoopSink() } = options;
++  const clock = options.clock || new SystemClock();
+   const timeoutMs = resolve(ms);
+   const controller = new AbortController();
+   const startTime = clock.now();
+ 
+   let completed = false;
++  let timeoutHandle = null;
+ 
+-  const timeoutPromise = new Promise((_, reject) => {
+-    clock.sleep(timeoutMs).then(() => {
+-      if (completed) {
+-        return;
+-      }
+-
+-      controller.abort();
+-      const elapsed = clock.now() - startTime;
++  const rejectWithTimeout = (reject) => {
++    if (completed) {
++      return;
++    }
+ 
+-      if (onTimeout) {
+-        onTimeout(elapsed);
+-      }
++    controller.abort();
++    const elapsed = clock.now() - startTime;
+ 
+-      telemetry.emit({
+-        type: 'timeout',
+-        timestamp: clock.now(),
+-        timeout: timeoutMs,
+-        elapsed,
+-        metrics: { timeouts: 1, failures: 1 },
+-      });
++    if (onTimeout) {
++      onTimeout(elapsed);
++    }
+ 
+-      reject(new TimeoutError(timeoutMs, elapsed));
++    telemetry.emit({
++      type: 'timeout',
++      timestamp: clock.now(),
++      timeout: timeoutMs,
++      elapsed,
++      metrics: { timeouts: 1, failures: 1 },
+     });
++
++    reject(new TimeoutError(timeoutMs, elapsed));
++  };
++
++  const timeoutPromise = new Promise((_, reject) => {
++    if (options.clock) {
++      clock.sleep(timeoutMs).then(() => rejectWithTimeout(reject));
++      return;
++    }
++
++    timeoutHandle = setTimeout(() => rejectWithTimeout(reject), timeoutMs);
+   });
+ 
+   try {
+@@ -96,5 +105,9 @@ export async function timeout(ms, fn, options = {}) {
+   } catch (error) {
+     completed = true;
+     throw error;
++  } finally {
++    if (timeoutHandle !== null) {
++      clearTimeout(timeoutHandle);
++    }
+   }
+ }

@@ -215,6 +215,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   id through the state-backed read model.
 - V18 Deno runtime smoke tests now run with Deno's default op and resource
   sanitizers instead of using the git-backed runtime sanitizer bypass.
+- V18 Deno runtime smoke tests now patch Alfred timeout cleanup so fast
+  operations clear their pending real-clock timeout handles instead of leaking
+  timers under Deno's resource sanitizer.
 - V18 CAS seek-cache indexes now normalize persisted cache-key maps into
   null-prototype entries and use own-property checks so prototype-like keys
   remain data, not object prototype behavior.
