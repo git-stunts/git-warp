@@ -80,9 +80,9 @@ open issues should not use them as live coordination state.
       `v18.0.0` milestone.
 - [x] Migrate open `lane:bad-code` issues to `type:debt`.
 - [x] Remove legacy debt lane/type labels from migrated open debt issues.
-- [ ] Update #552 with a comment explaining that #547 and #549 are closed with
+- [x] Update #552 with a comment explaining that #547 and #549 are closed with
       file-line evidence while release operation remains open.
-- [ ] Do not close #552 without explicit operator approval.
+- [x] Do not close #552 without explicit operator approval.
 - [x] Rerun issue-count evidence after migration.
 
 ## Post-Migration State
