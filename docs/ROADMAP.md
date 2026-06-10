@@ -29,21 +29,21 @@ goalpost.
 | Release status | `active` |
 | Current public release | `v17.0.0` |
 | Goalposts | `5` |
-| Landed goalposts | `3` |
+| Landed goalposts | `4` |
 | Total planned slice budget | `53` |
-| Target lane | `lane:v18.0.0` |
+| Target milestone | `v18.0.0` |
 | Release evidence packet | `docs/releases/v18.0.0/README.md` |
 
-v18.0.0 is ready only when every goalpost below is landed, every issue in
-`lane:v18.0.0` is closed, superseded work has been closed or moved out of the
-target lane with linked disposition, the release evidence packet is complete
-and placeholder-free, and `npm run release:preflight` passes from aligned
-`main`.
+v18.0.0 is ready only when every goalpost below is landed, every issue in the
+`v18.0.0` milestone is closed, superseded work has been closed or moved out of
+the target milestone with linked disposition, the release evidence packet is
+complete and placeholder-free, and `npm run release:preflight` passes from
+aligned `main`.
 
 | Goalpost | Status | Slice budget | Umbrella or tracker issue | Goalpost doc | Release gate |
 | --- | --- | ---: | --- | --- | --- |
 | V18-GP1 Optics Public API Closeout | landed | 20 | [#547](https://github.com/git-stunts/git-warp/issues/547) | [v18-gp1-optics-public-api-closeout.md](method/roadmap/v18.0.0/v18-gp1-optics-public-api-closeout.md) | First-use Optics are usable and honest without hidden full materialization. |
-| V18-GP2 Bounded-Memory Large-Graph Product Gate | active | 15 | [#549](https://github.com/git-stunts/git-warp/issues/549) | [v18-gp2-bounded-memory-large-graph-gate.md](method/roadmap/v18.0.0/v18-gp2-bounded-memory-large-graph-gate.md) | Normal public reads, writes, content lookup, and sync must honor an explicit memory budget. |
+| V18-GP2 Bounded-Memory Large-Graph Product Gate | landed | 15 | [#549](https://github.com/git-stunts/git-warp/issues/549) | [v18-gp2-bounded-memory-large-graph-gate.md](method/roadmap/v18.0.0/v18-gp2-bounded-memory-large-graph-gate.md) | Normal public reads, writes, content lookup, and sync must honor an explicit memory budget. |
 | V18-GP3 Content Attachment Plane Honesty | landed | 4 | [#550](https://github.com/git-stunts/git-warp/issues/550) | [v18-gp3-content-attachment-plane-honesty.md](method/roadmap/v18.0.0/v18-gp3-content-attachment-plane-honesty.md) | Release claims now distinguish typed attachment-plane progress from accepted legacy storage residuals. |
 | V18-GP4 Holographic Slicing And Checkpoint Basis | landed | 8 | [#626](https://github.com/git-stunts/git-warp/issues/626), [#628](https://github.com/git-stunts/git-warp/issues/628)-[#635](https://github.com/git-stunts/git-warp/issues/635) | [v18-gp4-holographic-slicing-checkpoint-basis.md](method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md) | Normal public graph-shaped reads now have bounded, witnessed slices over declared basis. |
 | V18-GP5 Release Operation Evidence | active | 6 | [#552](https://github.com/git-stunts/git-warp/issues/552) | [v18-gp5-release-operation-evidence.md](method/roadmap/v18.0.0/v18-gp5-release-operation-evidence.md) | Tagging and publishing must satisfy the release policy and record deterministic evidence. |
@@ -58,20 +58,25 @@ V18-GP4 Holographic slicing basis
   -> V18-GP5 Release operation evidence
 ```
 
-V18-GP1, V18-GP3, and V18-GP4 are landed. The next release-blocking target is
-V18-GP2 [#549](https://github.com/git-stunts/git-warp/issues/549), which owns
-the broader bounded-memory public-path product gate.
+V18-GP1, V18-GP2, V18-GP3, and V18-GP4 are landed. The next release-blocking
+target is V18-GP5 [#552](https://github.com/git-stunts/git-warp/issues/552),
+which owns release operation evidence and must not be completed before explicit
+tag approval.
 
 Release progress should be reported as:
 
 ```text
-v18.0.0 goalposts: 3/5 landed
-v18.0.0 slices: 32/53 landed
-next goalpost: V18-GP2 Bounded-Memory Large-Graph Product Gate
-next slice: reconcile #549 against landed holographic slicing evidence
+v18.0.0 goalposts: 4/5 landed
+v18.0.0 slices: 47/53 landed
+next goalpost: V18-GP5 Release Operation Evidence
+next slice: reconcile #552 against current issue metadata and release evidence
 ```
 
-## Snapshot
+## Pre-Migration Snapshot
+
+This snapshot records the legacy label state before the 2026-06-10 simplified
+taxonomy migration. Current planning authority lives in GitHub milestones and
+the `type:*`, `priority:*`, `status:*`, and `area:*` label axes.
 
 | Metric | Count |
 | --- | ---: |
@@ -84,12 +89,19 @@ next slice: reconcile #549 against landed holographic slicing evidence
 
 ## Release Assignment Rules
 
-- Issues with `lane:release` and a version lane are hard release-plan issues for that major.
-- No planned release slot may contain more than 50 open issues. Oversized buckets must be split into explicit patch or minor waves.
-- `release-home:v17.0.0` is treated as residual maintenance carried forward into the v18 patch train, not as a new v17 release.
-- `release-home:v18.0.0` issues that are not in `lane:release` are treated as v18 hardening unless their feature clearly belongs later.
-- Issues without a release-home label are assigned by feature area: observer work to v19, streaming/materialization work to v20, merge/strand/worldline work to v21, and docs/testing/tooling/runtime-boundary hardening to v18.
-- This is a proposed roadmap. Changing a GitHub issue label is the authoritative way to move an issue between release slots.
+- Issues in a version milestone are hard release-plan issues for that version.
+- No planned release slot may contain more than 50 open issues. Oversized
+  buckets must be split into explicit patch or minor waves.
+- Legacy `release-home:*` labels are migration inputs only. Convert them to
+  GitHub milestones before treating the release bucket as authoritative.
+- Legacy `lane:*`, `feature:*`, and `legend:*` labels are migration inputs only.
+  Convert active issue state to `type:*`, `priority:*`, `status:*`, and
+  `area:*`.
+- Issues without a milestone are assigned by area: observer work to v19,
+  streaming/materialization work to v20, merge/strand/worldline work to v21,
+  and docs/testing/tooling/runtime-boundary hardening to v18.
+- This is a proposed roadmap. Changing a GitHub issue milestone is the
+  authoritative way to move an issue between release slots.
 
 ## Proposed Release Buckets
 
@@ -113,7 +125,7 @@ next slice: reconcile #549 against landed holographic slicing evidence
 | v21.1.0 | 1 | Stabilize WESLEY and Continuum contract surfaces after the merge runtime nouns are no longer speculative. |
 | future | 4 | Issues without enough signal for a release slot. They stay visible here until labels or designs make a sharper call possible. |
 
-## Current Label Counts
+## Legacy Label Counts At Migration Start
 
 ### Lanes
 
@@ -178,8 +190,8 @@ Ship only after bounded-memory public paths and release operation evidence are c
 
 | Issue | Title | Status | Type | Lane | Feature | Release Home | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| [#549](https://github.com/git-stunts/git-warp/issues/549) | Bounded-memory large-graph product gate | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
-| [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Blocked | enhancement | release, v18.0.0 | graph-model-substrate | - | blocked, wip, release |
+| [#549](https://github.com/git-stunts/git-warp/issues/549) | Bounded-memory large-graph product gate | Closed | enhancement | release, v18.0.0 | graph-model-substrate | - | release |
+| [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Blocked | release | release, v18.0.0 | graph-model-substrate | - | blocked, release |
 
 ### v18.0.1 - Public Docs And Release Tooling Repair
 

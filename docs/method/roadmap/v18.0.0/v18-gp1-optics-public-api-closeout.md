@@ -26,8 +26,9 @@ Issue [#547](https://github.com/git-stunts/git-warp/issues/547) is closed as
 the public Optics closeout goalpost. The landed evidence proves
 `openWarpWorldline(...).prepareOpticBasis()`, `coordinate()`, and
 `coordinate.optic()` for public node/property reads without hidden full
-materialization. The broader memory-budget product gate remains open in
-[#549](https://github.com/git-stunts/git-warp/issues/549).
+materialization. The broader memory-budget product gate is closed in
+[#549](https://github.com/git-stunts/git-warp/issues/549), and release/tag
+evidence remains under [#552](https://github.com/git-stunts/git-warp/issues/552).
 
 ## Scope
 
@@ -118,7 +119,7 @@ operation evidence before tagging.
 
 | Risk | Rationale | Owner | Follow-up issue |
 | --- | --- | --- | --- |
-| Broader bounded-memory public-path product gate remains open. | GP1 proves the public Optics chain and first-use honesty, not every normal public read/write/content/sync path under memory budget. | `@git-stunts` | [#549](https://github.com/git-stunts/git-warp/issues/549) |
+| Release evidence and tag-time proof remain intentionally skipped. | GP1 proves the public Optics chain and first-use honesty, while V18-GP5 owns explicit tag approval and publish evidence. | `@git-stunts` | [#552](https://github.com/git-stunts/git-warp/issues/552) |
 
 ## Closeout
 

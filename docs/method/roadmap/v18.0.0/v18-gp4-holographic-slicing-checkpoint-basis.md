@@ -112,13 +112,15 @@ npm run release:prep
 
 This landed goalpost is the graph-substrate honesty bridge between v18 Optics
 and the bounded-memory product gate. The release can now cite bounded slice
-substrate evidence while the broader bounded-memory product gate remains open.
+substrate evidence. The broader bounded-memory product gate is closed in
+[#549](https://github.com/git-stunts/git-warp/issues/549), while release/tag
+evidence remains under [#552](https://github.com/git-stunts/git-warp/issues/552).
 
 ## Residual Risks
 
 | Risk | Rationale | Owner | Follow-up issue |
 | --- | --- | --- | --- |
-| Broader bounded-memory release gate remains open. | GP4 proves bounded holographic slice substrate, not the full public-path memory-budget platform required by V18-GP2. | `@git-stunts` | [#549](https://github.com/git-stunts/git-warp/issues/549) |
+| Release evidence and tag-time proof remain intentionally skipped. | GP4 proves bounded holographic slice substrate; V18-GP5 owns explicit tag approval and publish evidence. | `@git-stunts` | [#552](https://github.com/git-stunts/git-warp/issues/552) |
 
 ## Closeout
 
