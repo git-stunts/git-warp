@@ -102,10 +102,21 @@ Custom hooks in `scripts/hooks/`, auto-configured on `npm install`.
 ## Running Tests
 
 ```bash
-npm run test:local       # Unit tests without Docker
-npm test                 # Unit tests (Docker)
-npm run test:matrix      # Full multi-runtime matrix (Docker)
+npm run test:local       # Stable sharded unit tests without Docker
+npm run test:local:raw   # Direct Vitest unit-test runner for investigation
+npm test                 # Stable sharded unit tests in Docker
+npm run test:matrix      # Full multi-runtime matrix in Docker
 ```
+
+`test:local` uses the resource-deterministic runner in
+`scripts/run-stable-unit-tests.ts`. It prints Node, Vitest, worker-count, and
+memory facts before spawning Vitest, runs non-overlapping shards sequentially,
+and caps each Vitest process with `--maxWorkers`.
+
+Use `WARP_TEST_MAX_WORKERS=<n>` to lower or raise the per-shard worker cap.
+Use `WARP_TEST_MIN_FREE_MB=<n>` to change the preflight memory floor only with
+an explicit operator decision. Do not raise timeouts to mask runner resource
+contention; make resource assumptions explicit.
 
 ### No-Coordination Invariant
 
