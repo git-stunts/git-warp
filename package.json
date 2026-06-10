@@ -85,6 +85,7 @@
     "release:guard": "bash scripts/release-guard.sh",
     "release:prep": "bash scripts/release-preflight.sh --stage prep-pr",
     "release:preflight": "bash scripts/release-preflight.sh --stage final-local",
+    "issue:triage": "node scripts/issue-triage-report.ts",
     "goalpost:guard": "bash scripts/goalpost-guard.sh",
     "upgrade": "npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js",
     "install:git-warp": "bash scripts/install-git-warp.sh",
