@@ -213,6 +213,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 query matching now routes exact-id and trailing-prefix node patterns
   through a query-owned node-pattern index instead of draining every live node
   id through the state-backed read model.
+- V18 Deno runtime smoke tests now run with Deno's default op and resource
+  sanitizers instead of using the git-backed runtime sanitizer bypass.
 - V18 release-candidate review follow-up now rejects empty production-runtime
   replay repository paths, rejects empty scratch replay target fields with
   structured invalid-target evidence, and reports confirmation JSON parse

@@ -1,5 +1,5 @@
 import { assertEquals, assert } from "./assertions.ts";
-import { createTestRepo, denoRuntimeTest, GIT_BACKED_RUNTIME_TEST_OPTIONS } from "./helpers.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
 
 denoRuntimeTest("tombstone: removeNode hides node", async () => {
   const repo = await createTestRepo("tomb");
@@ -16,7 +16,7 @@ denoRuntimeTest("tombstone: removeNode hides node", async () => {
   } finally {
     await repo.cleanup();
   }
-}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
+});
 
 denoRuntimeTest("tombstone: re-add after removal", async () => {
   const repo = await createTestRepo("tomb-re");
@@ -35,4 +35,4 @@ denoRuntimeTest("tombstone: re-add after removal", async () => {
   } finally {
     await repo.cleanup();
   }
-}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
+});

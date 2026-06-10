@@ -1,5 +1,5 @@
 import { assertEquals, assert } from "./assertions.ts";
-import { createTestRepo, denoRuntimeTest, GIT_BACKED_RUNTIME_TEST_OPTIONS } from "./helpers.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
 
 denoRuntimeTest("traversal: BFS visits in breadth-first order", async () => {
   const repo = await createTestRepo("trav-bfs");
@@ -18,7 +18,7 @@ denoRuntimeTest("traversal: BFS visits in breadth-first order", async () => {
   } finally {
     await repo.cleanup();
   }
-}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
+});
 
 denoRuntimeTest("traversal: shortestPath finds path", async () => {
   const repo = await createTestRepo("trav-sp");
@@ -39,7 +39,7 @@ denoRuntimeTest("traversal: shortestPath finds path", async () => {
   } finally {
     await repo.cleanup();
   }
-}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
+});
 
 denoRuntimeTest("traversal: shortestPath not found", async () => {
   const repo = await createTestRepo("trav-nf");
@@ -55,4 +55,4 @@ denoRuntimeTest("traversal: shortestPath not found", async () => {
   } finally {
     await repo.cleanup();
   }
-}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
+});

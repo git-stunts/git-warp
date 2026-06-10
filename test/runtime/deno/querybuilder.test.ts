@@ -1,5 +1,5 @@
 import { assertEquals, assert } from "./assertions.ts";
-import { createTestRepo, denoRuntimeTest, GIT_BACKED_RUNTIME_TEST_OPTIONS } from "./helpers.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
 
 denoRuntimeTest("query: match glob returns matching nodes", async () => {
   const repo = await createTestRepo("query");
@@ -19,7 +19,7 @@ denoRuntimeTest("query: match glob returns matching nodes", async () => {
   } finally {
     await repo.cleanup();
   }
-}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
+});
 
 denoRuntimeTest("query: where filters by property", async () => {
   const repo = await createTestRepo("query-where");
@@ -43,7 +43,7 @@ denoRuntimeTest("query: where filters by property", async () => {
   } finally {
     await repo.cleanup();
   }
-}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
+});
 
 denoRuntimeTest("query: outgoing traversal", async () => {
   const repo = await createTestRepo("query-out");
@@ -61,4 +61,4 @@ denoRuntimeTest("query: outgoing traversal", async () => {
   } finally {
     await repo.cleanup();
   }
-}, GIT_BACKED_RUNTIME_TEST_OPTIONS);
+});
