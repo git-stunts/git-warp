@@ -110,7 +110,7 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - If you wrote files in the turn, commit them in that turn. Do not leave your own edits staged but uncommitted.
 - Cycle-start draft pull requests are allowed and expected. After the design
   doc commit is pushed, open a draft PR that references the issue, label the
-  issue `work-in-progress`, and keep the PR draft until playback, acceptance
+  issue `status:active`, and keep the PR draft until playback, acceptance
   evidence, closeout, and validation make the branch ready to merge into `main`.
 
 ## Process

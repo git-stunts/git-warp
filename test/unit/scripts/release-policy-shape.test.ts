@@ -115,12 +115,20 @@ describe('release policy shape', () => {
 
     expect(releaseDoc).toContain('Tag-time release law');
     expect(releaseDoc).toContain('The guard is stage-aware');
+    expect(releaseDoc).toContain('REL-GH-PRIORITY-ASAP-LABEL');
     expect(releaseDoc).toContain('REL-GH-ASAP-ZERO');
-    expect(releaseDoc).toContain('REL-GH-TARGET-LANE-ZERO');
+    expect(releaseDoc).toContain('REL-GH-TARGET-MILESTONE-EXISTS');
+    expect(releaseDoc).toContain('REL-GH-TARGET-MILESTONE-ZERO');
+    expect(releaseDoc).toContain('REL-GH-PRIOR-RELEASE-MILESTONES');
     expect(releaseDoc).toContain('REL-GH-PRIOR-RELEASE-ZERO');
-    expect(releaseGuard).toContain('check_zero_label "REL-GH-ASAP-ZERO" "lane:asap"');
-    expect(releaseGuard).toContain('check_zero_label "REL-GH-TARGET-LANE-ZERO" "$TARGET_LANE"');
-    expect(releaseGuard).toContain('release-home:v');
+    expect(releaseGuard).toContain('require_label "REL-GH-PRIORITY-ASAP-LABEL" "priority:asap"');
+    expect(releaseGuard).toContain('check_zero_label "REL-GH-ASAP-ZERO" "priority:asap"');
+    expect(releaseGuard).toContain('require_milestone "REL-GH-TARGET-MILESTONE-EXISTS" "$TARGET_MILESTONE"');
+    expect(releaseGuard).toContain('check_zero_milestone "REL-GH-TARGET-MILESTONE-ZERO" "$TARGET_MILESTONE"');
+    expect(releaseGuard).toContain('REL-GH-PRIOR-RELEASE-MILESTONES');
+    expect(releaseGuard).not.toContain('check_zero_label "REL-GH-ASAP-ZERO" "lane:asap"');
+    expect(releaseGuard).not.toContain('REL-GH-TARGET-LANE-ZERO');
+    expect(releaseGuard).not.toContain('release-home:v');
     expect(releaseGuard).toContain('git status --porcelain');
   });
 
