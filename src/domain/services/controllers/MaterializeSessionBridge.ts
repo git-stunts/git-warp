@@ -8,7 +8,7 @@ import WarpStateClass from "../state/WarpState.ts";
 import type { PatchLike } from "../JoinReducer.ts"; // nosemgrep: ts-no-like-types -- 0025C
 import {
   ReducerSessionFrame,
-  reduceV5InSession,
+  reducePatchesInSession,
 } from "../JoinReducerSession.ts";
 import {
   buildAdjacencyFromSession,
@@ -45,7 +45,7 @@ export async function reduceSessionBackedState(args: {
   );
   try {
     if (args.receipts) {
-      const result = await reduceV5InSession(args.patches, frame, {
+      const result = await reducePatchesInSession(args.patches, frame, {
         receipts: true,
       });
       const adjacency = await buildAdjacencyFromSession(result.frame.session);
@@ -56,7 +56,7 @@ export async function reduceSessionBackedState(args: {
       };
     }
     if (args.wantDiff) {
-      const result = await reduceV5InSession(args.patches, frame, {
+      const result = await reducePatchesInSession(args.patches, frame, {
         trackDiff: true,
       });
       const adjacency = await buildAdjacencyFromSession(result.frame.session);
@@ -66,7 +66,7 @@ export async function reduceSessionBackedState(args: {
         diff: result.diff,
       };
     }
-    const result = await reduceV5InSession(args.patches, frame);
+    const result = await reducePatchesInSession(args.patches, frame);
     const adjacency = await buildAdjacencyFromSession(result.session);
     return {
       state: await projectFrameToState(result),

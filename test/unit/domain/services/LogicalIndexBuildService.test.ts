@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.ts';
-import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
@@ -23,20 +23,20 @@ function buildState({ nodes, edges, props }) {
   for (const nodeId of nodes) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+    applyPatchOp(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
   for (const { from, to, label } of edges) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
+    applyPatchOp(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     lamport++;
   }
 
   for (const { nodeId, key, value } of (props || [])) {
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'PropSet', node: nodeId, key, value }, eventId);
+    applyPatchOp(state, { type: 'PropSet', node: nodeId, key, value }, eventId);
     lamport++;
   }
 

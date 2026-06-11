@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
-import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
@@ -17,7 +17,7 @@ function buildTestState() {
   for (const nodeId of ['A', 'B', 'C']) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+    applyPatchOp(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
@@ -28,7 +28,7 @@ function buildTestState() {
   ]) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
+    applyPatchOp(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     lamport++;
   }
 
@@ -38,7 +38,7 @@ function buildTestState() {
     { nodeId: 'B', key: 'role', value: 'admin' },
   ]) {
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'PropSet', node: nodeId, key, value }, eventId);
+    applyPatchOp(state, { type: 'PropSet', node: nodeId, key, value }, eventId);
     lamport++;
   }
 

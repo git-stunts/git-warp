@@ -2,7 +2,7 @@ import VersionVector from '../crdt/VersionVector.ts';
 import { Dot } from '../crdt/Dot.ts';
 import PatchError from '../errors/PatchError.ts';
 import Patch from '../types/Patch.ts';
-import type { OpV2 } from '../types/ops/unions.ts';
+import type { PatchOp } from '../types/ops/unions.ts';
 import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 import { hydrateKnownDecodedOp } from './OpNormalizer.ts';
 
@@ -322,9 +322,9 @@ function normalizeDecodedOp(rawOp: unknown): OpLike { // nosemgrep: ts-no-like-t
   return OP_NORMALIZERS[readDecodedOpType(record)](record);
 }
 
-function readOps(value: unknown): OpV2[] { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function readOps(value: unknown): PatchOp[] { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const ops = expectArray(value, 'ops');
-  const normalized: OpV2[] = [];
+  const normalized: PatchOp[] = [];
   for (const rawOp of ops) {
     normalized.push(hydrateKnownDecodedOp(normalizeDecodedOp(rawOp)));
   }

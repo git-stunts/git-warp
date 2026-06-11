@@ -14,7 +14,7 @@ import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoo
 import StrandCoordinateMetadata from '../../types/conflict/StrandCoordinateMetadata.ts';
 import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
-import { reduceV5 } from '../JoinReducer.ts';
+import { reducePatches } from '../JoinReducer.ts';
 import createStrandCoordinator, { type StrandCoordinatorGraphRuntime } from './createStrandCoordinator.ts';
 import { TickReceipt } from '../../types/TickReceipt.ts';
 import type Patch from '../../types/Patch.ts';
@@ -164,8 +164,8 @@ function buildPatchFrames(entries: Array<{ patch: Patch; sha: string }>): PatchF
  * Replays all patches through the reducer and attaches the resulting receipts to each frame.
  */
 export function attachReceipts(patchFrames: PatchFrame[]): void {
-  const reduced = reduceV5(
-    patchFrames.map(({ patch, sha }) => ({ patch, sha })) as Parameters<typeof reduceV5>[0],
+  const reduced = reducePatches(
+    patchFrames.map(({ patch, sha }) => ({ patch, sha })) as Parameters<typeof reducePatches>[0],
     undefined,
     { receipts: true },
   ) as { receipts: TickReceipt[] };

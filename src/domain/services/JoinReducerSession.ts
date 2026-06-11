@@ -124,21 +124,21 @@ export async function applyWithReceiptInSession(
   return result.receipt;
 }
 
-export function reduceV5InSession(
+export function reducePatchesInSession(
   patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   frame: ReducerSessionFrame,
 ): Promise<ReducerSessionFrame>;
-export function reduceV5InSession(
+export function reducePatchesInSession(
   patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   frame: ReducerSessionFrame,
   options: { readonly receipts: true },
 ): Promise<{ frame: ReducerSessionFrame; receipts: TickReceipt[] }>;
-export function reduceV5InSession(
+export function reducePatchesInSession(
   patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   frame: ReducerSessionFrame,
   options: { readonly trackDiff: true },
 ): Promise<{ frame: ReducerSessionFrame; diff: PatchDiff }>;
-export async function reduceV5InSession(
+export async function reducePatchesInSession(
   patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   frame: ReducerSessionFrame,
   options?: { readonly receipts?: boolean; readonly trackDiff?: boolean },

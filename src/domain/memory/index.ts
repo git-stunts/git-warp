@@ -5,7 +5,7 @@ export { default as MemoryCapabilityPosture } from './MemoryCapabilityPosture.ts
 export { default as MemoryCapabilityReport } from './MemoryCapabilityReport.ts';
 export { default as WarpMemoryPool } from './WarpMemoryPool.ts';
 export { default as WarpMemoryPoolSnapshot } from './WarpMemoryPoolSnapshot.ts';
-export { default as createV18BoundedMemoryCapabilityReport } from './createV18BoundedMemoryCapabilityReport.ts';
+export { default as createBoundedMemoryCapabilityReport } from './createBoundedMemoryCapabilityReport.ts';
 export type { MemoryBudgetFields } from './MemoryBudget.ts';
 export type { MemoryBudgetLeaseFields } from './MemoryBudgetLease.ts';
 export type { MemoryBudgetUnit } from './MemoryBudgetUnit.ts';

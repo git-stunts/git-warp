@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
-import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../src/domain/services/state/StateSerializer.ts';
+import { computeStateHash, nodeVisible, edgeVisible } from '../../src/domain/services/state/StateSerializer.ts';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import SchemaUnsupportedError from '../../src/domain/errors/SchemaUnsupportedError.ts';
@@ -55,8 +55,8 @@ describe('WarpCore Integration', () => {
       // Materialize and verify
             const state = (await graph.materialize()) as any;
 
-      expect(nodeVisibleV5(state, 'user:alice')).toBe(true);
-      expect(nodeVisibleV5(state, 'user:bob')).toBe(true);
+      expect(nodeVisible(state, 'user:alice')).toBe(true);
+      expect(nodeVisible(state, 'user:bob')).toBe(true);
       expect(edgeVisible(state, encodeEdgeKey('user:alice', 'user:bob', 'follows'))).toBe(true);
     });
 
@@ -82,7 +82,7 @@ describe('WarpCore Integration', () => {
         .commit();
 
             const state2 = (await graph.materialize()) as any;
-      expect(nodeVisibleV5(state2, 'temp')).toBe(false);
+      expect(nodeVisible(state2, 'temp')).toBe(false);
     });
   });
 
@@ -113,8 +113,8 @@ describe('WarpCore Integration', () => {
       // Either writer can materialize the combined state
             const state = (await alice.materialize()) as any;
 
-      expect(nodeVisibleV5(state, 'node:a')).toBe(true);
-      expect(nodeVisibleV5(state, 'node:b')).toBe(true);
+      expect(nodeVisible(state, 'node:a')).toBe(true);
+      expect(nodeVisible(state, 'node:b')).toBe(true);
     });
 
     it('discovers all writers', async () => {
@@ -243,7 +243,7 @@ describe('WarpCore Integration', () => {
       expect(refAfter).not.toBe(refBefore);
 
       const state = (await graph.materialize() as any);
-      expect(nodeVisibleV5(state, 'a')).toBe(true);
+      expect(nodeVisible(state, 'a')).toBe(true);
     });
 
     it('sequential patches advance ref each time', async () => {
@@ -264,8 +264,8 @@ describe('WarpCore Integration', () => {
       expect(sha1).not.toBe(sha2);
 
       const state = (await graph.materialize() as any);
-      expect(nodeVisibleV5(state, 'a')).toBe(true);
-      expect(nodeVisibleV5(state, 'b')).toBe(true);
+      expect(nodeVisible(state, 'a')).toBe(true);
+      expect(nodeVisible(state, 'b')).toBe(true);
     });
 
     it('reentrancy throws but outer patch still commits', async () => {
@@ -293,8 +293,8 @@ describe('WarpCore Integration', () => {
       expect(ref).toBeTruthy();
 
       const state = (await graph.materialize() as any);
-      expect(nodeVisibleV5(state, 'a')).toBe(true);
-      expect(nodeVisibleV5(state, 'b')).toBe(false);
+      expect(nodeVisible(state, 'a')).toBe(true);
+      expect(nodeVisible(state, 'b')).toBe(false);
     });
 
     it('error in callback does not advance ref', async () => {

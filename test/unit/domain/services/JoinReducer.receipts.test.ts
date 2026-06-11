@@ -4,9 +4,9 @@ import {
   encodeEdgeKey,
   encodePropKey,
   join,
-  reduceV5 as _reduceV5,
+  reducePatches as _reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reduceV5 = (_reduceV5) as (...args: any[]) => any;
+const reducePatches = (_reducePatches) as (...args: any[]) => any;
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
@@ -360,10 +360,10 @@ describe('JoinReducer receipts', () => {
   });
 
   // =========================================================================
-  // reduceV5 with receipts
+  // reducePatches with receipts
   // =========================================================================
 
-  describe('reduceV5 with receipts', () => {
+  describe('reducePatches with receipts', () => {
     it('returns { state, receipts } when receipts option is true', () => {
       const patches = [
         {
@@ -375,7 +375,7 @@ describe('JoinReducer receipts', () => {
           sha: 'abcd1234',
         },
       ];
-      const result = reduceV5(patches, undefined, { receipts: true });
+      const result = reducePatches(patches, undefined, { receipts: true });
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('receipts');
       expect(result.receipts).toHaveLength(1);
@@ -391,7 +391,7 @@ describe('JoinReducer receipts', () => {
           sha: 'abcd1234',
         },
       ];
-      const result = reduceV5(patches, undefined, { receipts: false });
+      const result = reducePatches(patches, undefined, { receipts: false });
       // Returns state directly
       expect(result.nodeAlive).toBeDefined();
       expect(result.receipts).toBeUndefined();
@@ -406,7 +406,7 @@ describe('JoinReducer receipts', () => {
           sha: 'abcd1234',
         },
       ];
-      const result = reduceV5(patches);
+      const result = reducePatches(patches);
       expect(result.nodeAlive).toBeDefined();
       expect(result.receipts).toBeUndefined();
     });
@@ -438,7 +438,7 @@ describe('JoinReducer receipts', () => {
           sha: 'cccc3333',
         },
       ];
-      const { receipts } = reduceV5(patches, undefined, { receipts: true });
+      const { receipts } = reducePatches(patches, undefined, { receipts: true });
       expect(receipts).toHaveLength(3);
     });
 
@@ -456,14 +456,14 @@ describe('JoinReducer receipts', () => {
           sha: 'abcd1234',
         },
       ];
-      const { state, receipts } = reduceV5(patches, initial, { receipts: true });
+      const { state, receipts } = reducePatches(patches, initial, { receipts: true });
       expect(receipts).toHaveLength(1);
       expect(state.nodeAlive.contains('n0')).toBe(true);
       expect(state.nodeAlive.contains('n1')).toBe(true);
     });
 
     it('empty patches array yields empty receipts', () => {
-      const { state, receipts } = reduceV5([], undefined, { receipts: true });
+      const { state, receipts } = reducePatches([], undefined, { receipts: true });
       expect(receipts).toHaveLength(0);
       expect(state.nodeAlive.entries.size).toBe(0);
     });
@@ -558,7 +558,7 @@ describe('JoinReducer receipts', () => {
         { patch: p2, sha: 'bbbb2222' },
       ];
 
-      const { state, receipts } = reduceV5(patches, undefined, { receipts: true });
+      const { state, receipts } = reducePatches(patches, undefined, { receipts: true });
 
       // Patch 1 receipts: both ops applied (first writer, empty state)
       expect(receipts[0].writer).toBe('alice');
@@ -595,7 +595,7 @@ describe('JoinReducer receipts', () => {
         { patch: p2, sha: 'bbbb2222' },
       ];
 
-      const { receipts } = reduceV5(patches, undefined, { receipts: true });
+      const { receipts } = reducePatches(patches, undefined, { receipts: true });
 
       // Alice's write is applied
       expect(receipts[0].ops[0].result).toBe('applied');

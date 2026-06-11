@@ -50,16 +50,16 @@ vi.mock('../../../../../src/domain/services/JoinReducer.ts', () => ({
     edgeAlive: new Map(),
     prop: new Map(),
   })),
-  reduceV5: vi.fn(),
+  reducePatches: vi.fn(),
 }));
 
-const { createEmptyState, reduceV5 } = await import(
+const { createEmptyState, reducePatches } = await import(
   '../../../../../src/domain/services/JoinReducer.ts'
 );
 
 // Cast mocked functions so .mockReturnValue is available
 const mockCreateEmptyState = (createEmptyState);
-const mockReduceV5 = (reduceV5);
+const mockReduceV5 = (reducePatches);
 
 // ── Host factory ────────────────────────────────────────────────────────
 
@@ -221,7 +221,7 @@ describe('ProvenanceController — materializeSlice', () => {
     );
   });
 
-  it('uses reduceV5 with receipts when options.receipts is true', async () => {
+  it('uses reducePatches with receipts when options.receipts is true', async () => {
     const patch = makePatch({ writer: 'w1', lamport: 1 });
     host._provenanceIndex.patchesFor.mockReturnValue(['sha1']);
     host._codec.decode.mockReturnValue(patch);

@@ -8,8 +8,8 @@
  */
 
 import { buildWritersPrefix } from '../../../../src/domain/utils/RefLayout.ts';
-import createV18BoundedMemoryCapabilityReport
-  from '../../../../src/domain/memory/createV18BoundedMemoryCapabilityReport.ts';
+import createBoundedMemoryCapabilityReport
+  from '../../../../src/domain/memory/createBoundedMemoryCapabilityReport.ts';
 import { parseCommandArgs } from '../../infrastructure.ts';
 import { doctorSchema } from '../../schemas.ts';
 import { createPersistence, resolveGraphName } from '../../shared.ts';
@@ -99,7 +99,7 @@ function memoryBudgetFindings(values: DoctorCommandValues): DoctorFinding[] {
   if (values[DOCTOR_OPTION_MEMORY_BUDGET] === undefined && !values[DOCTOR_OPTION_LARGE_GRAPH]) {
     return [];
   }
-  const report = createV18BoundedMemoryCapabilityReport();
+  const report = createBoundedMemoryCapabilityReport();
   return [{
     id: MEMORY_BUDGET_FINDING_ID,
     status: 'ok',

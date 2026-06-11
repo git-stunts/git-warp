@@ -75,7 +75,7 @@ dispatch — eliminating all string-based tag switching.
 ### What does NOT change
 
 - Wire format. Persisted patches remain CBOR with `{ type: 'NodeAdd', ... }` plain objects. The class boundary is at decode, not encode.
-- PatchV2 class. It holds `ops: Op[]` instead of `ops: OpV2[]` but the shape is the same.
+- PatchV2 class. It holds `ops: Op[]` instead of `ops: PatchOp[]` but the shape is the same.
 - CRDT semantics. JoinReducer mutation logic is identical.
 - Public API surface. `createPatch().addNode()` still works.
 

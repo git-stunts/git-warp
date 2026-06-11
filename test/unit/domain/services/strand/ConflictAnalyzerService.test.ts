@@ -894,7 +894,7 @@ describe('ConflictAnalyzerService', () => {
 
       const analyzeOnce = async () => {
         const analyzer = new ConflictAnalyzerService({ graph: makeGraph() });
-        const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
           state: {} as any,
           receipts: [
             { patchSha: 'a'.repeat(40), writer: '', lamport: 1, ops: [] as any[] },
@@ -1216,7 +1216,7 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
         receipts: [{
           patchSha: 'a'.repeat(40),
           writer: 'w1',
@@ -1236,7 +1236,7 @@ describe('ConflictAnalyzerService', () => {
 
     it('emits receipt_unavailable when a NodeRemove has no node identity (reducer skips the op)', async () => {
       // A NodeRemove without a 'node' field is silently skipped by the reducer
-      // (hydrateNodeRemove returns the raw op; applyOpV2 skips non-Op values).
+      // (hydrateNodeRemove returns the raw op; applyPatchOp skips non-Op values).
       // The receipt has no entry for this op, so conflict analysis emits receipt_unavailable.
       const graph = createMockGraph({
         writerPatches: {
@@ -1306,7 +1306,7 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
@@ -1344,7 +1344,7 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
@@ -1381,7 +1381,7 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
@@ -1418,7 +1418,7 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
@@ -1497,7 +1497,7 @@ describe('ConflictAnalyzerService', () => {
       const analyzer = new ConflictAnalyzerService({ graph });
       const nodeAddStrategy = JoinReducer.OP_STRATEGIES.get('NodeAdd');
       const originalReceiptName = nodeAddStrategy?.receiptName;
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
@@ -1606,7 +1606,7 @@ describe('ConflictAnalyzerService', () => {
       const analyzer = new ConflictAnalyzerService({ graph });
       const nodePropStrategy = JoinReducer.OP_STRATEGIES.get('NodePropSet');
       const originalReceiptName = nodePropStrategy?.receiptName;
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
         receipts: [
           {
             patchSha: alphaSha,
@@ -1670,7 +1670,7 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
         receipts: [
           {
             patchSha: alphaSha,
@@ -1967,7 +1967,7 @@ describe('ConflictAnalyzerService', () => {
 
       const analyzeOnce = async () => {
         const analyzer = new ConflictAnalyzerService({ graph: makeGraph() });
-        const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
           receipts: [
             {
               patchSha: alphaSha,

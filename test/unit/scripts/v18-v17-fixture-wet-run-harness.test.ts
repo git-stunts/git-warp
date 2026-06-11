@@ -26,7 +26,7 @@ import V17GoldenGraphFixtureManifest, {
   V17GoldenPropertyFact,
   V17GoldenRemovalFact,
   V17GoldenGraphFixtureWriterChain,
-} from '../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+} from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureManifest.ts';
 import { gitOk, MigrationTestDirectories } from './migrationTestEnvironment.ts';
 
 const FIXTURE_MANIFEST_PATH = resolve('fixtures/v17/graph-model-golden/manifest.json');

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
-import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
@@ -16,7 +16,7 @@ function buildTestState() {
   for (const nodeId of ['A', 'B', 'C', 'D']) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+    applyPatchOp(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
@@ -28,7 +28,7 @@ function buildTestState() {
   ]) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
+    applyPatchOp(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     lamport++;
   }
 
@@ -68,7 +68,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     for (const nodeId of ['A', 'B']) {
       const dot = Dot.create(writer, lamport);
       const eventId = new EventId(lamport, writer, sha, opIdx++);
-      applyOpV2(smallState, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+      applyPatchOp(smallState, { type: 'NodeAdd', node: nodeId, dot }, eventId);
       lamport++;
     }
     const { logicalIndex } = service.build(smallState);
@@ -186,7 +186,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     for (const nodeId of ['ISO']) {
       const dot = Dot.create(writer, lamport);
       const eventId = new EventId(lamport, writer, sha, opIdx++);
-      applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+      applyPatchOp(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
       lamport++;
     }
 

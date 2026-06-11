@@ -3,14 +3,14 @@ import { z } from 'zod';
 import CommitMessageCodecPort, {
   type AnchorCommitMessage,
   type CheckpointCommitMessage,
-  CHECKPOINT_VERSION_V5,
+  CHECKPOINT_STORAGE_FORMAT,
   createGitCasPatchStorage,
   type CommitMessageKind,
   LEGACY_EXTERNAL_PATCH_STORAGE,
   LEGACY_GIT_BLOB_PATCH_STORAGE,
   type PatchCommitMessage,
-  PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH_V1,
-  PATCH_STORAGE_VERSION_V17,
+  PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH,
+  PATCH_STORAGE_FORMAT,
   type PatchStorageRoute,
 } from '../../ports/CommitMessageCodecPort.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
@@ -100,8 +100,8 @@ const legacyExternalStorageSchema = z.object({
 
 const gitCasStorageSchema = z.object({
   strategy: z.literal('git-cas'),
-  version: z.literal(PATCH_STORAGE_VERSION_V17),
-  schema: z.literal(PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH_V1),
+  version: z.literal(PATCH_STORAGE_FORMAT),
+  schema: z.literal(PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH),
   encrypted: z.boolean(),
 });
 
@@ -297,7 +297,7 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
   override encodeCheckpoint(message: CheckpointCommitMessage): string {
     const parsed = checkpointCommitMessageSchema.safeParse({
       ...message,
-      checkpointVersion: message.checkpointVersion ?? CHECKPOINT_VERSION_V5,
+      checkpointVersion: message.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
     });
     if (!parsed.success) {
       throw messageCodecError(parsed.error.issues[0]?.message ?? 'invalid checkpoint commit message');
@@ -311,7 +311,7 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
         [TRAILER_KEYS.frontierOid]: parsed.data.frontierOid,
         [TRAILER_KEYS.indexOid]: parsed.data.indexOid,
         [TRAILER_KEYS.schema]: String(parsed.data.schema),
-        [TRAILER_KEYS.checkpointVersion]: parsed.data.checkpointVersion ?? CHECKPOINT_VERSION_V5,
+        [TRAILER_KEYS.checkpointVersion]: parsed.data.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
       },
     });
   }
@@ -421,7 +421,7 @@ export function encodeCheckpointMessage(params: EncodeCheckpointCompatParams): s
     frontierOid: params.frontierOid,
     indexOid: params.indexOid,
     schema: params.schema ?? 2,
-    checkpointVersion: params.checkpointVersion ?? CHECKPOINT_VERSION_V5,
+    checkpointVersion: params.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
   });
 }
 

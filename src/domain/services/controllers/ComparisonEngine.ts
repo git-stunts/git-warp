@@ -20,10 +20,10 @@ import { planVisibleStateTransfer } from '../transfer/VisibleStateTransferPlanne
 import { normalizeVisibleStateScope } from '../VisibleStateScope.ts';
 import type {
   VisibleStateScope,
-  CoordinateComparisonSelectorV1,
-  CoordinateTransferPlanSelectorV1,
-  CoordinateComparisonV1,
-  CoordinateTransferPlanV1,
+  CoordinateComparisonSelectorInput,
+  CoordinateTransferPlanSelectorInput,
+  CoordinateComparison,
+  CoordinateTransferPlan,
 } from '../../types/CoordinateComparison.ts';
 import type {
   CompareStrandOptions,
@@ -51,8 +51,8 @@ const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
 
 // ── Result shapes ────────────────────────────────────────────────────
 
-export type VisiblePatchDivergenceV1 = CoordinateComparisonV1['visiblePatchDivergence'];
-export type VisiblePatchDivergenceTargetV1 = NonNullable<VisiblePatchDivergenceV1['target']>;
+export type VisiblePatchDivergence = CoordinateComparison['visiblePatchDivergence'];
+export type VisiblePatchDivergenceTarget = NonNullable<VisiblePatchDivergence['target']>;
 
 // ── Divergence ───────────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ function buildTargetDivergence(
   leftEntries: PatchEntry[],
   rightEntries: PatchEntry[],
   targetId: string,
-): VisiblePatchDivergenceTargetV1 {
+): VisiblePatchDivergenceTarget {
   const leftTarget = targetPatchShas(leftEntries, targetId);
   const rightTarget = targetPatchShas(rightEntries, targetId);
   const rightTargetSet = new Set(rightTarget);
@@ -93,7 +93,7 @@ export function buildPatchDivergenceImpl(
   leftEntries: PatchEntry[],
   rightEntries: PatchEntry[],
   targetId: string | null,
-): VisiblePatchDivergenceV1 {
+): VisiblePatchDivergence {
   const leftShas = uniqueSortedPatchShas(leftEntries);
   const rightShas = uniqueSortedPatchShas(rightEntries);
   const rightSet = new Set(rightShas);
@@ -101,7 +101,7 @@ export function buildPatchDivergenceImpl(
   const leftOnly = leftShas.filter((sha) => !rightSet.has(sha));
   const rightOnly = rightShas.filter((sha) => !leftSet.has(sha));
 
-  const base: VisiblePatchDivergenceV1 = {
+  const base: VisiblePatchDivergence = {
     sharedCount: leftShas.filter((sha) => rightSet.has(sha)).length,
     leftOnlyCount: leftOnly.length,
     rightOnlyCount: rightOnly.length,
@@ -158,7 +158,7 @@ function normalizeAgainstSelector(
   normalizedStrandId: string,
   against: CompareAgainst,
   againstCeiling: number | null,
-): CoordinateComparisonSelectorV1 {
+): CoordinateComparisonSelectorInput {
   if (against === 'base') {
     return { kind: 'strand_base', strandId: normalizedStrandId, ceiling: againstCeiling };
   }
@@ -181,7 +181,7 @@ function normalizeIntoSelector(
   normalizedStrandId: string,
   into: PlanTransferInto,
   intoCeiling: number | null,
-): CoordinateTransferPlanSelectorV1 {
+): CoordinateTransferPlanSelectorInput {
   if (into === 'base') {
     return { kind: 'strand_base', strandId: normalizedStrandId, ceiling: intoCeiling };
   }
@@ -234,7 +234,7 @@ export async function compareCoordinatesImpl(
   graph: ComparisonHost,
   selectorContext: ComparisonSelectorContext,
   options: CompareCoordinatesOptions,
-): Promise<CoordinateComparisonV1> {
+): Promise<CoordinateComparison> {
   assertRequiredOptions(options, 'compareCoordinates()');
   const { normalizedLeft, normalizedRight, targetId, scope } = extractComparisonInputs(options);
 
@@ -271,7 +271,7 @@ export async function compareStrandImpl(
   selectorContext: ComparisonSelectorContext,
   strandId: string,
   options: CompareStrandOptions = {},
-): Promise<CoordinateComparisonV1> {
+): Promise<CoordinateComparison> {
   assertOptionsObject(options, 'compareStrand()');
   const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
@@ -279,7 +279,7 @@ export async function compareStrandImpl(
   const targetId = normalizeOptionalString(options.targetId, 'targetId');
   const scope = normalizeVisibleStateScope(options.scope, 'scope');
 
-  const left: CoordinateComparisonSelectorV1 = { kind: 'strand', strandId: normalizedStrandId, ceiling };
+  const left: CoordinateComparisonSelectorInput = { kind: 'strand', strandId: normalizedStrandId, ceiling };
   const right = normalizeAgainstSelector(normalizedStrandId, options.against ?? 'base', againstCeiling);
 
   return await compareCoordinatesImpl(graph, selectorContext, {
@@ -299,7 +299,7 @@ async function finalizeTransferPlan(params: {
   transfer: Awaited<ReturnType<typeof planVisibleStateTransfer>>;
   comparisonDigest: string;
   scope: VisibleStateScope | null;
-}): Promise<CoordinateTransferPlanV1> {
+}): Promise<CoordinateTransferPlan> {
   const { graph, sourceSide, targetSide, transfer, comparisonDigest, scope } = params;
   const changed = transfer.summary.opCount > 0;
   const sides = {
@@ -328,7 +328,7 @@ export async function planCoordinateTransferImpl(
   graph: ComparisonHost,
   selectorContext: ComparisonSelectorContext,
   options: PlanCoordinateTransferOptions,
-): Promise<CoordinateTransferPlanV1> {
+): Promise<CoordinateTransferPlan> {
   assertRequiredOptions(options, 'planCoordinateTransfer()');
   const normalizedSource = normalizeSelector(options.source, 'source');
   const normalizedTarget = normalizeSelector(options.target, 'target');
@@ -366,14 +366,14 @@ export async function planStrandTransferImpl(
   selectorContext: ComparisonSelectorContext,
   strandId: string,
   options: PlanStrandTransferOptions = {},
-): Promise<CoordinateTransferPlanV1> {
+): Promise<CoordinateTransferPlan> {
   assertOptionsObject(options, 'planStrandTransfer()');
   const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
   const intoCeiling = normalizeLamportCeiling(options.intoCeiling, 'intoCeiling');
   const scope = normalizeVisibleStateScope(options.scope, 'scope');
 
-  const source: CoordinateTransferPlanSelectorV1 = { kind: 'strand', strandId: normalizedStrandId, ceiling };
+  const source: CoordinateTransferPlanSelectorInput = { kind: 'strand', strandId: normalizedStrandId, ceiling };
   const target = normalizeIntoSelector(normalizedStrandId, options.into ?? 'live', intoCeiling);
 
   return await planCoordinateTransferImpl(graph, selectorContext, {

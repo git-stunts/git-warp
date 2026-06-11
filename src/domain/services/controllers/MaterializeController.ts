@@ -10,7 +10,7 @@
  * Side effects (notification, GC, auto-checkpoint) are the caller's job.
  */
 
-import { reduceV5, createEmptyState } from '../JoinReducer.ts';
+import { reducePatches as reduceJoinedPatches, createEmptyState } from '../JoinReducer.ts';
 import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
 import { materializeIncremental, type LoadPersistence } from '../state/checkpointLoad.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
@@ -86,7 +86,7 @@ export type MaterializeResult = {
 
 // ── Reduce helpers ──────────────────────────────────────────────────
 
-type ReducerInput = Parameters<typeof reduceV5>[0];
+type ReducerInput = Parameters<typeof reduceJoinedPatches>[0];
 
 function toReducerInput(patches: PatchWithSha[]): ReducerInput {
   return patches as ReducerInput;
@@ -100,20 +100,24 @@ type ReduceOutput = {
 };
 
 function reduceWithReceipts(patches: PatchWithSha[], base?: WarpState): ReduceOutput {
-  const r = reduceV5(toReducerInput(patches), base, { receipts: true }) as { state: WarpState; receipts: TickReceipt[] };
+  const r = reduceJoinedPatches(toReducerInput(patches), base, { receipts: true }) as { state: WarpState; receipts: TickReceipt[] };
   return { state: r.state, receipts: r.receipts };
 }
 
 function reduceWithDiff(patches: PatchWithSha[], base?: WarpState): ReduceOutput {
-  const r = reduceV5(toReducerInput(patches), base, { trackDiff: true }) as { state: WarpState; diff: PatchDiff };
+  const r = reduceJoinedPatches(toReducerInput(patches), base, { trackDiff: true }) as { state: WarpState; diff: PatchDiff };
   return { state: r.state, diff: r.diff };
 }
 
 function reducePlain(patches: PatchWithSha[], base?: WarpState): ReduceOutput {
-  return { state: reduceV5(toReducerInput(patches), base) as WarpState };
+  return { state: reduceJoinedPatches(toReducerInput(patches), base) as WarpState };
 }
 
-function reducePatches(patches: PatchWithSha[], base: WarpState | undefined, opts: { receipts: boolean; wantDiff: boolean }): ReduceOutput {
+function reduceMaterializePatches(
+  patches: PatchWithSha[],
+  base: WarpState | undefined,
+  opts: { receipts: boolean; wantDiff: boolean },
+): ReduceOutput {
   if (opts.receipts) { return reduceWithReceipts(patches, base); }
   if (opts.wantDiff) { return reduceWithDiff(patches, base); }
   return reducePlain(patches, base);
@@ -422,7 +426,7 @@ export default class MaterializeController {
   ): Promise<ReduceOutput> {
     const {openStateSession} = this._deps;
     if (openStateSession === undefined) {
-      return reducePatches(patches, base, opts);
+      return reduceMaterializePatches(patches, base, opts);
     }
     const sessionArgs = {
       openStateSession,

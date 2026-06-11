@@ -9,7 +9,7 @@
  * (`src/domain/trust/TrustCrypto.js`) was removed in v14.
  *
  * @module infrastructure/adapters/TrustCryptoAdapter
- * @see docs/specs/TRUST_V1_CRYPTO.md
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md
  */
 
 import { createHash, createPublicKey, verify } from 'node:crypto';

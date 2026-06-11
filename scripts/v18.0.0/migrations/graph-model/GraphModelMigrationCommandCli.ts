@@ -9,7 +9,7 @@ import { parseGraphModelMigrationDryRunRequest }
 import { parseGraphModelMigrationFinalizationRequest }
   from '../../../../src/infrastructure/adapters/GraphModelMigrationFinalizationRequestJsonAdapter.ts';
 import { parseV17GoldenGraphFixtureManifestJson }
-  from '../../../../src/infrastructure/adapters/V17GoldenGraphFixtureManifestJsonAdapter.ts';
+  from './V17GoldenGraphFixtureManifestJsonAdapter.ts';
 import { runGraphModelMigrationCommand } from './GraphModelMigrationCommand.ts';
 import { formatGraphModelMigrationCommandReport } from './GraphModelMigrationCommandReport.ts';
 import { createGraphModelMigrationProductionRuntimeConformanceProvider }

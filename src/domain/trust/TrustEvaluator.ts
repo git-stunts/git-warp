@@ -5,7 +5,7 @@
  * trust state and policy configuration. No I/O, no side effects.
  *
  * @module domain/trust/TrustEvaluator
- * @see docs/specs/TRUST_V1_CRYPTO.md Section 12
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Section 12
  */
 
 import { TrustPolicySchema, type TrustExplanation, type EvidenceSummary, type TrustPolicy } from './schemas.ts';

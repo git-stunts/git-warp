@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
-import { reduceV5 as _reduceV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
-const reduceV5 = (_reduceV5) as (...args: any[]) => any;
+import { reducePatches as _reducePatches, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
+const reducePatches = (_reducePatches) as (...args: any[]) => any;
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import {
   createNodeAddV2,
@@ -344,8 +344,8 @@ describe('ProvenancePayload', () => {
       const payload = new ProvenancePayload(patches);
       const payloadState = payload.replay();
 
-      // Direct materialization via reduceV5
-      const directState = reduceV5(patches);
+      // Direct materialization via reducePatches
+      const directState = reducePatches(patches);
 
       // Compare nodes
       expect(payloadState.nodeAlive.contains('node-a')).toBe(
@@ -373,7 +373,7 @@ describe('ProvenancePayload', () => {
 
       // Create initial state with first patch
       const initialPatches = [patchA];
-      const initialState = reduceV5(initialPatches);
+      const initialState = reducePatches(initialPatches);
 
       // Replay remaining patches from initial state
       const payload = new ProvenancePayload([patchB, patchC]);
@@ -390,7 +390,7 @@ describe('ProvenancePayload', () => {
     it('does not mutate initial state', () => {
       const { patchA, patchB } = createSamplePatches();
 
-      const initialState = reduceV5([patchA]);
+      const initialState = reducePatches([patchA]);
       const originalNodeCount = initialState.nodeAlive.entries.size;
 
       const payload = new ProvenancePayload([patchB]);
@@ -403,7 +403,7 @@ describe('ProvenancePayload', () => {
 
     it('returns cloned initial state for empty payload', () => {
       const { patchA } = createSamplePatches();
-      const initialState = reduceV5([patchA]);
+      const initialState = reducePatches([patchA]);
 
       const payload = ProvenancePayload.identity();
       const result = payload.replay(initialState);

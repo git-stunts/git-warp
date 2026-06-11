@@ -90,7 +90,7 @@ const {
 vi.mock('../../../../../src/domain/services/VisibleStateScope.ts', () => ({
   normalizeVisibleStateScope: normalizeVisibleStateScopeMock,
   scopeMaterializedState: scopeMaterializedStateMock,
-  scopePatchEntriesV1: scopePatchEntriesV1Mock,
+  scopePatchEntries: scopePatchEntriesV1Mock,
 }));
 
 const { computeChecksumMock } = vi.hoisted(() => ({

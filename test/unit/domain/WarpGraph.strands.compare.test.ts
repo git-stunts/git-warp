@@ -533,7 +533,7 @@ describe('WarpCore strand foundation', () => {
       key: 'obsolete',
       value: null,
     });
-    const attachOp = /** @type {import('../../../index.ts').VisibleStateTransferOperationV1 & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentOid: string, mime?: string|null, size?: number|null }} */ (
+    const attachOp = /** @type {import('../../../index.ts').VisibleStateTransferOperation & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentOid: string, mime?: string|null, size?: number|null }} */ (
       transferPlan.ops.find((op) => op.op === 'attach_node_content' && op.nodeId === 'doc:1')
     );
     expect(attachOp).toMatchObject({

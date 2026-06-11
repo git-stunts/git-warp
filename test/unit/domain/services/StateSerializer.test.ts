@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nodeVisibleV5,
+  nodeVisible,
   edgeVisible,
-  propVisibleV5,
+  propertyVisible,
   projectState,
-  serializeStateV5,
+  serializeState,
   computeStateHash,
-  deserializeStateV5,
+  deserializeState,
 } from '../../../../src/domain/services/state/StateSerializer.ts';
 import { createStateReader } from '../../../../src/domain/services/state/StateReader.ts';
 import { compareVisibleState } from '../../../../src/domain/services/comparison/VisibleStateComparison.ts';
@@ -86,13 +86,13 @@ function buildStateV5({ nodes = [] as any[], edges = [] as any[], props = [] as 
 }
 
 describe('StateSerializer', () => {
-  describe('nodeVisibleV5', () => {
+  describe('nodeVisible', () => {
     it('returns true for alive nodes', () => {
       const state = buildStateV5({
         nodes: [{ nodeId: 'a' }],
       });
 
-      expect(nodeVisibleV5(state, 'a')).toBe(true);
+      expect(nodeVisible(state, 'a')).toBe(true);
     });
 
     it('returns false for tombstoned nodes', () => {
@@ -100,13 +100,13 @@ describe('StateSerializer', () => {
         nodes: [{ nodeId: 'a', alive: false }],
       });
 
-      expect(nodeVisibleV5(state, 'a')).toBe(false);
+      expect(nodeVisible(state, 'a')).toBe(false);
     });
 
     it('returns false for unknown nodes', () => {
       const state = createEmptyState();
 
-      expect(nodeVisibleV5(state, 'nonexistent')).toBe(false);
+      expect(nodeVisible(state, 'nonexistent')).toBe(false);
     });
 
     it('returns true when add-remove-add (concurrent wins)', () => {
@@ -122,7 +122,7 @@ describe('StateSerializer', () => {
       state.nodeAlive.add('a', mockDot('bob', 1));
 
       // Node should be visible (concurrent add wins)
-      expect(nodeVisibleV5(state, 'a')).toBe(true);
+      expect(nodeVisible(state, 'a')).toBe(true);
     });
   });
 
@@ -196,7 +196,7 @@ describe('StateSerializer', () => {
     });
   });
 
-  describe('propVisibleV5', () => {
+  describe('propertyVisible', () => {
     function makeOrphanEntry(nodeId: string, key: string): NodePropertyEntry {
       const propValue: PropValue = 'orphan';
       return {
@@ -214,7 +214,7 @@ describe('StateSerializer', () => {
       });
       const entries = [...state.nodeProperties()];
       expect(entries.length).toBeGreaterThan(0);
-      expect(propVisibleV5(state, entries[0]!)).toBe(true);
+      expect(propertyVisible(state, entries[0]!)).toBe(true);
     });
 
     it('returns false when node is tombstoned', () => {
@@ -224,16 +224,16 @@ describe('StateSerializer', () => {
       });
       const entries = [...state.nodeProperties()];
       expect(entries.length).toBeGreaterThan(0);
-      expect(propVisibleV5(state, entries[0]!)).toBe(false);
+      expect(propertyVisible(state, entries[0]!)).toBe(false);
     });
 
     it('returns false when node is unknown', () => {
       const state = createEmptyState();
-      expect(propVisibleV5(state, makeOrphanEntry('a', 'name'))).toBe(false);
+      expect(propertyVisible(state, makeOrphanEntry('a', 'name'))).toBe(false);
     });
   });
 
-  describe('serializeStateV5', () => {
+  describe('serializeState', () => {
     it('projectState returns the visible projection without exposing OR-Set internals', () => {
       const state = buildStateV5({
         nodes: [
@@ -271,8 +271,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeStateV5(state);
-      const result = deserializeStateV5((bytes as any));
+      const bytes = serializeState(state);
+      const result = deserializeState((bytes as any));
 
       expect(result.nodes).toEqual(['a', 'c']);
     });
@@ -282,8 +282,8 @@ describe('StateSerializer', () => {
         nodes: [{ nodeId: 'zebra' }, { nodeId: 'apple' }, { nodeId: 'mango' }],
       });
 
-      const bytes = serializeStateV5(state);
-      const result = deserializeStateV5((bytes as any));
+      const bytes = serializeState(state);
+      const result = deserializeState((bytes as any));
 
       expect(result.nodes).toEqual(['apple', 'mango', 'zebra']);
     });
@@ -299,8 +299,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeStateV5(state);
-      const result = deserializeStateV5((bytes as any));
+      const bytes = serializeState(state);
+      const result = deserializeState((bytes as any));
 
       expect(result.edges).toEqual([
         { from: 'a', to: 'b', label: 'a' },
@@ -321,8 +321,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeStateV5(state);
-      const result = deserializeStateV5((bytes as any));
+      const bytes = serializeState(state);
+      const result = deserializeState((bytes as any));
 
       expect(result.props).toEqual([
         { node: 'a', key: 'age', value: createInlineValue(25) },
@@ -349,8 +349,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeStateV5(state);
-      const result = deserializeStateV5((bytes as any));
+      const bytes = serializeState(state);
+      const result = deserializeState((bytes as any));
 
       expect(result.nodes).toEqual(['a', 'c']);
       expect(result.edges).toEqual([{ from: 'a', to: 'c', label: 'knows' }]);
@@ -365,8 +365,8 @@ describe('StateSerializer', () => {
         edges: [{ from: 'a', to: 'b', label: 'knows', alive: false }], // tombstoned edge
       });
 
-      const bytes = serializeStateV5(state);
-      const result = deserializeStateV5((bytes as any));
+      const bytes = serializeState(state);
+      const result = deserializeState((bytes as any));
 
       expect(result.edges).toEqual([]);
     });
@@ -374,8 +374,8 @@ describe('StateSerializer', () => {
     it('serializes empty state correctly', () => {
       const state = createEmptyState();
 
-      const bytes = serializeStateV5(state);
-      const result = deserializeStateV5((bytes as any));
+      const bytes = serializeState(state);
+      const result = deserializeState((bytes as any));
 
       expect(result).toEqual({ nodes: [], edges: [], props: [] });
     });
@@ -534,8 +534,8 @@ describe('StateSerializer', () => {
     });
   });
 
-  describe('deserializeStateV5', () => {
-    it('roundtrips with serializeStateV5', () => {
+  describe('deserializeState', () => {
+    it('roundtrips with serializeState', () => {
       const state = buildStateV5({
         nodes: [{ nodeId: 'a' }, { nodeId: 'b' }],
         edges: [{ from: 'a', to: 'b', label: 'knows' }],
@@ -545,8 +545,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeStateV5(state);
-      const result = deserializeStateV5((bytes as any));
+      const bytes = serializeState(state);
+      const result = deserializeState((bytes as any));
 
       expect(result.nodes).toEqual(['a', 'b']);
       expect(result.edges).toEqual([{ from: 'a', to: 'b', label: 'knows' }]);
@@ -562,8 +562,8 @@ describe('StateSerializer', () => {
         props: [{ nodeId: 'a', key: 'data', value: complexValue }],
       });
 
-      const bytes = serializeStateV5(state);
-      const result = deserializeStateV5((bytes as any));
+      const bytes = serializeState(state);
+      const result = deserializeState((bytes as any));
 
       const firstProp = result.props[0];
       expect(firstProp).toBeDefined();
@@ -606,8 +606,8 @@ describe('StateSerializer', () => {
       state2.nodeAlive.add('n', mockDot('carol', 1));
 
       // Both should show 'n' as visible
-      expect(nodeVisibleV5(state1, 'n')).toBe(true);
-      expect(nodeVisibleV5(state2, 'n')).toBe(true);
+      expect(nodeVisible(state1, 'n')).toBe(true);
+      expect(nodeVisible(state2, 'n')).toBe(true);
       expect(await computeStateHash(state1, { crypto })).toBe(await computeStateHash(state2, { crypto }));
     });
 

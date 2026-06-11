@@ -17,7 +17,7 @@ import { createStateReader } from '../state/StateReader.ts';
 import { computeStateHash } from '../state/StateSerializer.ts';
 import {
   scopeMaterializedState,
-  scopePatchEntriesV1,
+  scopePatchEntries,
 } from '../VisibleStateScope.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type Patch from '../../types/Patch.ts';
@@ -25,14 +25,14 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 
 import type {
   VisibleStateScope,
-  CoordinateComparisonSelectorV1,
-  CoordinateComparisonSideV1,
+  CoordinateComparisonSelectorInput,
+  CoordinateComparisonSide,
 } from '../../types/CoordinateComparison.ts';
 import type {
   ComparisonCoordinateSideReadPort,
 } from './ComparisonCoordinateSideReadPort.ts';
 import type ComparisonSideFinalizer from './ComparisonSideFinalizerPort.ts';
-import type { StrandDescriptor as StrandDescriptorV1 } from '../../types/StrandDescriptor.ts';
+import type { StrandDescriptor } from '../../types/StrandDescriptor.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 
 // ── Shared types ─────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ export type ComparisonSelectorContext = {
  * discriminated by selector kind. Carries enough context to replay the
  * resolution deterministically and to show back to the caller.
  */
-export type ComparisonRequestedSideV1 =
+export type ComparisonRequestedSide =
   | { kind: 'live'; ceiling?: number | null }
   | { kind: 'coordinate'; frontier: Record<string, string>; ceiling: number | null }
   | { kind: 'strand'; strandId: string; ceiling?: number | null }
@@ -104,10 +104,10 @@ export type ComparisonRequestedSideV1 =
     };
 
 /** Strand metadata attached to a strand-kind resolved side. */
-export type StrandComparisonMetadataV1 = NonNullable<CoordinateComparisonSideV1['resolved']['strand']>;
+export type StrandComparisonMetadata = NonNullable<CoordinateComparisonSide['resolved']['strand']>;
 
 /** Resolved payload shape for a finalized comparison side. */
-export type ComparisonResolvedSideV1 = CoordinateComparisonSideV1['resolved'];
+export type ComparisonResolvedSide = CoordinateComparisonSide['resolved'];
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -291,8 +291,8 @@ export async function collectPatchEntriesForFrontier(
 
 export function buildStrandMetadata(
   strandId: string,
-  descriptor: StrandDescriptorV1,
-): StrandComparisonMetadataV1 {
+  descriptor: StrandDescriptor,
+): StrandComparisonMetadata {
   const readOverlays = descriptor.braid?.readOverlays ?? [];
   return {
     strandId,
@@ -319,16 +319,16 @@ export async function computeStateHashForGraph(graph: ComparisonDigestHost, stat
 // ── ResolvedComparisonSide ───────────────────────────────────────────
 
 export class ResolvedComparisonSide {
-  readonly requested: ComparisonRequestedSideV1;
-  readonly resolved: ComparisonResolvedSideV1;
+  readonly requested: ComparisonRequestedSide;
+  readonly resolved: ComparisonResolvedSide;
   readonly state: WarpState;
   readonly patchEntries: PatchEntry[];
 
   constructor(params: {
-    requested: ComparisonRequestedSideV1;
+    requested: ComparisonRequestedSide;
     state: WarpState;
     patchEntries: readonly PatchEntry[];
-    resolved: ComparisonResolvedSideV1;
+    resolved: ComparisonResolvedSide;
   }) {
     this.requested = params.requested;
     this.resolved = params.resolved;
@@ -343,17 +343,17 @@ export class ResolvedComparisonSide {
 export async function finalizeSide(
   graph: ComparisonDigestHost,
   params: {
-    requested: ComparisonRequestedSideV1;
+    requested: ComparisonRequestedSide;
     state: WarpState;
     patchEntries: readonly PatchEntry[];
     coordinateKind: 'frontier' | 'strand' | 'strand_base';
     lamportCeiling: number | null;
-    strand?: StrandComparisonMetadataV1;
+    strand?: StrandComparisonMetadata;
   },
   scope: VisibleStateScope | null,
 ): Promise<ResolvedComparisonSide> {
   const scopedState = scopeMaterializedState(params.state, scope);
-  const scopedPatchEntries = scopePatchEntriesV1([...params.patchEntries], scope);
+  const scopedPatchEntries = scopePatchEntries([...params.patchEntries], scope);
   const visiblePatchFrontier = patchFrontierFromEntries(scopedPatchEntries);
   const visibleLamportFrontier = lamportFrontierFromEntries(scopedPatchEntries);
   const reader = createStateReader(scopedState);
@@ -515,7 +515,7 @@ export class StrandBaseComparisonSelector extends NormalizedSelector {
 // ── Selector normalization ───────────────────────────────────────────
 
 export function normalizeSelector(
-  selector: CoordinateComparisonSelectorV1,
+  selector: CoordinateComparisonSelectorInput,
   field: string,
 ): NormalizedSelector {
   if (selector === null || selector === undefined || typeof selector !== 'object') {

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import V17GoldenGraphFixtureGenesisReading
-  from '../../../../src/domain/migrations/V17GoldenGraphFixtureGenesisReading.ts';
+  from '../../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureGenesisReading.ts';
 import V17GoldenGraphFixtureManifest, {
   V17GoldenContentFact,
   V17GoldenEdgeFact,
@@ -13,9 +13,9 @@ import V17GoldenGraphFixtureManifest, {
   V17GoldenNodeFact,
   V17GoldenPropertyFact,
   V17GoldenRemovalFact,
-} from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+} from '../../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureManifest.ts';
 import { parseV17GoldenGraphFixtureManifestJson }
-  from '../../../../src/infrastructure/adapters/V17GoldenGraphFixtureManifestJsonAdapter.ts';
+  from '../../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureManifestJsonAdapter.ts';
 
 const FIXTURE_MANIFEST_PATH = resolve('fixtures/v17/graph-model-golden/manifest.json');
 

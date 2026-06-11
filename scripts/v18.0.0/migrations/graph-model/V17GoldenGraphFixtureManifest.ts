@@ -1,5 +1,5 @@
-import { compareStrings } from '../utils/StringComparison.ts';
-import WarpError from '../errors/WarpError.ts';
+import { compareStrings } from '../../../../src/domain/utils/StringComparison.ts';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 
 const OID_PATTERN = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 const PATH_SEGMENT_SEPARATOR = '/';

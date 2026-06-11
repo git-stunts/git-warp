@@ -8,7 +8,7 @@
  * @module test/helpers/topologyHelpers
  */
 
-import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyPatchOp } from '../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
 
@@ -38,7 +38,7 @@ export function createCircular(n) {
     const nodeId = `n${i}`;
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+    applyPatchOp(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
@@ -48,7 +48,7 @@ export function createCircular(n) {
     const to = `n${(i + 1) % n}`;
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'EdgeAdd', from, to, label: 'edge', dot }, eventId);
+    applyPatchOp(state, { type: 'EdgeAdd', from, to, label: 'edge', dot }, eventId);
     lamport++;
   }
 
@@ -91,7 +91,7 @@ export function createDiamond() {
   for (const nodeId of nodes) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+    applyPatchOp(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
@@ -99,7 +99,7 @@ export function createDiamond() {
   for (const { from, to } of edges) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'EdgeAdd', from, to, label: 'edge', dot }, eventId);
+    applyPatchOp(state, { type: 'EdgeAdd', from, to, label: 'edge', dot }, eventId);
     lamport++;
   }
 

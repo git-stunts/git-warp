@@ -12,8 +12,8 @@ export { encodeAuditMessage, decodeAuditMessage } from './AuditMessageCodec.ts';
 export {
   detectSchemaVersion,
   assertOpsCompatible,
-  SCHEMA_V2,
-  SCHEMA_V3,
-  PATCH_SCHEMA_V2,
-  PATCH_SCHEMA_V3,
+  CLASSIC_PATCH_SCHEMA_VERSION,
+  EDGE_PROPERTY_PATCH_SCHEMA_VERSION,
+  PATCH_SCHEMA_CLASSIC,
+  PATCH_SCHEMA_EDGE_PROPERTIES,
 } from './MessageSchemaDetector.ts';

@@ -1,4 +1,4 @@
-import ContinuumArtifactDescriptor from './ContinuumArtifactDescriptor.ts';
+import ContinuumArtifactDescriptor from '../../../../src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import V17GoldenGraphFixtureManifest, {
   V17_GOLDEN_CONTENT_FACT,
   V17_GOLDEN_EDGE_FACT,
@@ -7,8 +7,8 @@ import V17GoldenGraphFixtureManifest, {
   V17_GOLDEN_PROPERTY_FACT,
   V17_GOLDEN_REMOVAL_FACT,
   type V17GoldenGraphFixtureFactKind,
-} from '../migrations/V17GoldenGraphFixtureManifest.ts';
-import WarpError from '../errors/WarpError.ts';
+} from './V17GoldenGraphFixtureManifest.ts';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 
 const RUNTIME_BOUNDARY_FAMILY_ID = 'runtime-boundary-family';
 const RUNTIME_BOUNDARY_SCHEMA_BASENAME = 'continuum-runtime-boundary-family.graphql';

@@ -4,14 +4,14 @@ import { describe, expect, it } from 'vitest';
 
 import ContinuumArtifactDescriptor from '../../../../src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import GitWarpGraphModelContractConformance
-  from '../../../../src/domain/continuum/GitWarpGraphModelContractConformance.ts';
+  from '../../../../scripts/v18.0.0/migrations/graph-model/GitWarpGraphModelContractConformance.ts';
 import GitWarpWarpTtdGeneratedFamilySmoke
-  from '../../../../src/domain/continuum/GitWarpWarpTtdGeneratedFamilySmoke.ts';
+  from '../../../../scripts/v18.0.0/migrations/graph-model/GitWarpWarpTtdGeneratedFamilySmoke.ts';
 import ContinuumArtifactJsonFileAdapter, {
   type ContinuumArtifactJsonLoadContext,
 } from '../../../../src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 import { parseV17GoldenGraphFixtureManifestJson }
-  from '../../../../src/infrastructure/adapters/V17GoldenGraphFixtureManifestJsonAdapter.ts';
+  from '../../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureManifestJsonAdapter.ts';
 
 const runtimeBoundaryFixturePath = fileURLToPath(
   new URL('../../../fixtures/continuum/runtime-boundary-family-generated-artifact.json', import.meta.url),

@@ -1,7 +1,7 @@
 /**
  * WARP V5 Reducer Benchmark Suite
  *
- * Tests reduceV5 performance at various scales with proper statistical measurement.
+ * Tests reducePatches performance at various scales with proper statistical measurement.
  * Uses median of 5 runs after 2 warmup runs for accurate results.
  *
  * Scaling tests: 1K, 5K, 10K, 25K patches
@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { reduceV5 as _reduceV5 } from '../../src/domain/services/JoinReducer.ts';
+import { reducePatches as _reducePatches } from '../../src/domain/services/JoinReducer.ts';
 import type WarpState from '../../src/domain/services/state/WarpState.ts';
 import Patch from '../../src/domain/types/Patch.ts';
 import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
@@ -21,7 +21,7 @@ const createNodeAddV2 = (node: string, dot: unknown) => new NodeAdd(node, dot as
 const createEdgeAddV2 = (from: string, to: string, label: string, dot: unknown) => new EdgeAdd({ from, to, label, dot } as ConstructorParameters<typeof EdgeAdd>[0]);
 function createPropSetV2(node: string, key: string, value: unknown) { return new PropSet(node, key, value); }
 
-const reduceV5 = _reduceV5 as (...args: unknown[]) => WarpState;
+const reducePatches = _reducePatches as (...args: unknown[]) => WarpState;
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
 import { Dot, encodeDot } from '../../src/domain/crdt/Dot.ts';
@@ -202,7 +202,7 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       /** @type {any} */
       let state;
       const stats = await runBenchmark(() => {
-        state = reduceV5(patches);
+        state = reducePatches(patches);
       }, WARMUP_RUNS, MEASURED_RUNS);
 
       // Measure memory after
@@ -239,7 +239,7 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       const clock = new TestClock();
       function timedReduce(patches: unknown[], base?: unknown) {
         clock.advance(patches.length);
-        return reduceV5(patches, base);
+        return reducePatches(patches, base);
       }
 
       // Full reduce
@@ -279,13 +279,13 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       const newPatches = generateV5Patches(100, { writerCount: 2, opsPerPatch: 2 });
 
       // Create base state (outside benchmark)
-      const baseState = reduceV5(basePatches);
+      const baseState = reducePatches(basePatches);
 
       // Test clock: 1 unit per patch, deterministic
       const clock = new TestClock();
       const stats = await runBenchmark(() => {
         clock.advance(newPatches.length);
-        reduceV5(newPatches, baseState);
+        reducePatches(newPatches, baseState);
       }, WARMUP_RUNS, MEASURED_RUNS, { clock });
 
       console.log(`\n  100 patches on 10K state: ${stats.median} simulated units`);
@@ -302,7 +302,7 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       forceGC();
       const memBefore = process.memoryUsage().heapUsed;
 
-      const state = reduceV5(patches);
+      const state = reducePatches(patches);
 
       forceGC();
       const memAfter = process.memoryUsage().heapUsed;
@@ -321,8 +321,8 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       const patches = generateV5Patches(1000);
       const shuffled = createRng(BENCHMARK_SEED).shuffle(patches);
 
-      const state1 = reduceV5(patches);
-      const state2 = reduceV5(shuffled);
+      const state1 = reducePatches(patches);
+      const state2 = reducePatches(shuffled);
 
       // Compare node alive sets
       const nodes1 = state1.nodeAlive.elements().sort();

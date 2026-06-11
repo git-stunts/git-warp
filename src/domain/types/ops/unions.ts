@@ -24,17 +24,17 @@ export type NodeId = string;
 /**
  * Union of all raw (persisted) v2 operation types.
  */
-export type RawOpV2 = NodeAdd | NodeRemove | EdgeAdd | EdgeRemove | PropSet | BlobValue;
+export type RawPatchOp = NodeAdd | NodeRemove | EdgeAdd | EdgeRemove | PropSet | BlobValue;
 
 /**
  * Union of all canonical (internal) v2 operation types.
  * Reducers, provenance, receipts, and queries operate on canonical ops only.
  */
-export type CanonicalOpV2 = NodeAdd | NodeRemove | EdgeAdd | EdgeRemove | NodePropSet | EdgePropSet | BlobValue;
+export type CanonicalPatchOp = NodeAdd | NodeRemove | EdgeAdd | EdgeRemove | NodePropSet | EdgePropSet | BlobValue;
 
 /**
  * Union of all v2 operation types (raw + canonical).
  * Used in patch containers that may hold either raw ops (from disk)
  * or canonical ops (after normalization).
  */
-export type OpV2 = RawOpV2 | CanonicalOpV2;
+export type PatchOp = RawPatchOp | CanonicalPatchOp;

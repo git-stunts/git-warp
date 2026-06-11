@@ -48,7 +48,7 @@ describe('evaluateWriters — trusted writer', () => {
 
     expect(assessment.trustVerdict).toBe('pass');
     expect(assessment.trustSchemaVersion).toBe(1);
-    expect(assessment.mode).toBe('signed_evidence_v1');
+    expect(assessment.mode).toBe('signed_evidence');
     expect(assessment.trust.evaluatedWriters).toEqual(['alice']);
     expect(assessment.trust.untrustedWriters).toEqual([]);
     expect(assessment.trust.explanations).toHaveLength(1);

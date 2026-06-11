@@ -24,26 +24,26 @@ function requireObject(value: unknown, label: string): asserts value is Record<s
 const COORDINATE_COMPARISON_FACT_EXPORT_VERSION = 'coordinate-comparison-fact/v1';
 const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-fact/v1';
 
-export interface VisibleStateScopePrefixFilterV1 {
+export interface VisibleStateScopePrefixFilter {
   include?: string[];
   exclude?: string[];
 }
 
 export interface VisibleStateScope {
-  nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
+  nodeIdPrefixes?: VisibleStateScopePrefixFilter;
 }
 
-export interface VisibleStateTransferOperationV1 {
+export interface VisibleStateTransferOperation {
   op: string;
   [key: string]: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
-export interface VisibleStateTransferOperationFactV1 {
+export interface VisibleStateTransferOperationFact {
   op: string;
   [key: string]: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
-export interface CoordinateComparisonV1 {
+export interface CoordinateComparison {
   comparisonVersion: string;
   comparisonDigest?: string;
   scope?: VisibleStateScope | null;
@@ -53,7 +53,7 @@ export interface CoordinateComparisonV1 {
   visibleState: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
-export interface CoordinateComparisonFactV1 {
+export interface CoordinateComparisonFact {
   comparisonVersion: string;
   scope?: VisibleStateScope;
   left: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
@@ -62,15 +62,15 @@ export interface CoordinateComparisonFactV1 {
   visibleState: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
-export interface CoordinateComparisonFactExportV1 {
+export interface CoordinateComparisonFactExport {
   exportVersion: string;
   factKind: 'coordinate-comparison';
   factDigest: string;
   canonicalFactJson: string;
-  fact: CoordinateComparisonFactV1;
+  fact: CoordinateComparisonFact;
 }
 
-export interface CoordinateTransferPlanV1 {
+export interface CoordinateTransferPlan {
   transferVersion: string;
   transferDigest?: string;
   comparisonDigest: string;
@@ -79,10 +79,10 @@ export interface CoordinateTransferPlanV1 {
   source: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   target: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   summary: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  ops: VisibleStateTransferOperationV1[];
+  ops: VisibleStateTransferOperation[];
 }
 
-export interface CoordinateTransferPlanFactV1 {
+export interface CoordinateTransferPlanFact {
   transferVersion: string;
   comparisonDigest: string;
   scope?: VisibleStateScope;
@@ -90,15 +90,15 @@ export interface CoordinateTransferPlanFactV1 {
   source: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   target: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   summary: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  ops: VisibleStateTransferOperationFactV1[];
+  ops: VisibleStateTransferOperationFact[];
 }
 
-export interface CoordinateTransferPlanFactExportV1 {
+export interface CoordinateTransferPlanFactExport {
   exportVersion: string;
   factKind: 'coordinate-transfer-plan';
   factDigest: string;
   canonicalFactJson: string;
-  fact: CoordinateTransferPlanFactV1;
+  fact: CoordinateTransferPlanFact;
 }
 
 /**
@@ -114,7 +114,7 @@ function requireNonEmptyString(value: unknown, label: string): string { // nosem
 /**
  * Serializes a node content attach operation to its fact form.
  */
-function serializeNodeContentOp(op: VisibleStateTransferOperationV1): VisibleStateTransferOperationFactV1 {
+function serializeNodeContentOp(op: VisibleStateTransferOperation): VisibleStateTransferOperationFact {
   return {
     op: op.op,
     nodeId: op['nodeId'],
@@ -127,7 +127,7 @@ function serializeNodeContentOp(op: VisibleStateTransferOperationV1): VisibleSta
 /**
  * Serializes an edge content attach operation to its fact form.
  */
-function serializeEdgeContentOp(op: VisibleStateTransferOperationV1): VisibleStateTransferOperationFactV1 {
+function serializeEdgeContentOp(op: VisibleStateTransferOperation): VisibleStateTransferOperationFact {
   return {
     op: op.op,
     from: op['from'],
@@ -142,7 +142,7 @@ function serializeEdgeContentOp(op: VisibleStateTransferOperationV1): VisibleSta
 /**
  * Serializes a single transfer operation into its JSON-safe fact form.
  */
-function serializeSingleTransferOp(op: VisibleStateTransferOperationV1): VisibleStateTransferOperationFactV1 {
+function serializeSingleTransferOp(op: VisibleStateTransferOperation): VisibleStateTransferOperationFact {
   switch (op.op) {
     case TRANSFER_OP_ATTACH_NODE_CONTENT:
       return serializeNodeContentOp(op);
@@ -157,7 +157,7 @@ function serializeSingleTransferOp(op: VisibleStateTransferOperationV1): Visible
  * Produces the JSON-safe transfer-op representation used for deterministic
  * transfer digests and higher-layer factual exports.
  */
-function serializeTransferOpsForFact(ops: VisibleStateTransferOperationV1[]): VisibleStateTransferOperationFactV1[] {
+function serializeTransferOpsForFact(ops: VisibleStateTransferOperation[]): VisibleStateTransferOperationFact[] {
   if (!Array.isArray(ops)) {
     throw new WarpError('ops must be an array', 'E_COORDINATE_FACT_OPS_NOT_ARRAY');
   }
@@ -169,10 +169,10 @@ function serializeTransferOpsForFact(ops: VisibleStateTransferOperationV1[]): Vi
  * Builds the exact substrate fact payload hashed by `comparisonDigest`.
  */
 export function buildCoordinateComparisonFact(
-  comparison: Pick<CoordinateComparisonV1, 'comparisonVersion' | 'left' | 'right' | 'visiblePatchDivergence' | 'visibleState'> & {
+  comparison: Pick<CoordinateComparison, 'comparisonVersion' | 'left' | 'right' | 'visiblePatchDivergence' | 'visibleState'> & {
     scope?: VisibleStateScope | null;
   },
-): CoordinateComparisonFactV1 {
+): CoordinateComparisonFact {
   requireObject(comparison, 'comparison');
 
   requireNonEmptyString(comparison.comparisonVersion, 'comparison.comparisonVersion');
@@ -190,10 +190,10 @@ export function buildCoordinateComparisonFact(
  * Builds the exact JSON-safe substrate fact payload hashed by `transferDigest`.
  */
 export function buildCoordinateTransferPlanFact(
-  transferPlan: Pick<CoordinateTransferPlanV1, 'transferVersion' | 'comparisonDigest' | 'changed' | 'source' | 'target' | 'summary' | 'ops'> & {
+  transferPlan: Pick<CoordinateTransferPlan, 'transferVersion' | 'comparisonDigest' | 'changed' | 'source' | 'target' | 'summary' | 'ops'> & {
     scope?: VisibleStateScope | null;
   },
-): CoordinateTransferPlanFactV1 {
+): CoordinateTransferPlanFact {
   requireObject(transferPlan, 'transferPlan');
 
   requireNonEmptyString(transferPlan.transferVersion, 'transferPlan.transferVersion');
@@ -214,7 +214,7 @@ export function buildCoordinateTransferPlanFact(
  * Exports a coordinate comparison as a deterministic substrate fact envelope
  * suitable for higher-layer storage or attestation context.
  */
-export function exportCoordinateComparisonFact(comparison: CoordinateComparisonV1): CoordinateComparisonFactExportV1 {
+export function exportCoordinateComparisonFact(comparison: CoordinateComparison): CoordinateComparisonFactExport {
   const fact = buildCoordinateComparisonFact(comparison);
   const factDigest = requireNonEmptyString(comparison.comparisonDigest, 'comparison.comparisonDigest');
   return {
@@ -230,7 +230,7 @@ export function exportCoordinateComparisonFact(comparison: CoordinateComparisonV
  * Exports a coordinate transfer plan as a deterministic substrate fact
  * envelope without embedding raw attachment bytes.
  */
-export function exportCoordinateTransferPlanFact(transferPlan: CoordinateTransferPlanV1): CoordinateTransferPlanFactExportV1 {
+export function exportCoordinateTransferPlanFact(transferPlan: CoordinateTransferPlan): CoordinateTransferPlanFactExport {
   const fact = buildCoordinateTransferPlanFact(transferPlan);
   const factDigest = requireNonEmptyString(transferPlan.transferDigest, 'transferPlan.transferDigest');
   return {

@@ -6,7 +6,7 @@
  * that requires a spec version bump.
  *
  * @module domain/trust/reasonCodes
- * @see docs/specs/TRUST_V1_CRYPTO.md Section 15
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Section 15
  */
 
 const TRUST_REASON_CODES = {

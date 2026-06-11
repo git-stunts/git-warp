@@ -8,7 +8,7 @@ import TrieGeometry from "../../../../src/domain/orset/trie/TrieGeometry.ts";
 import StateSession from "../../../../src/domain/orset/session/StateSession.ts";
 import type WarpState from "../../../../src/domain/services/state/WarpState.ts";
 import {
-  reduceV5,
+  reducePatches,
   joinStates,
   type PatchLike,
 } from "../../../../src/domain/services/JoinReducer.ts";
@@ -78,7 +78,7 @@ async function loadJoinReducerSessionModule() {
 }
 
 function expectReduceV5ReceiptResult(
-  result: ReturnType<typeof reduceV5>,
+  result: ReturnType<typeof reducePatches>,
 ): { readonly state: WarpState; readonly receipts: readonly TickReceipt[] } {
   if (
     result !== null &&
@@ -88,11 +88,11 @@ function expectReduceV5ReceiptResult(
   ) {
     return result;
   }
-  throw new Error("Expected reduceV5 receipts result");
+  throw new Error("Expected reducePatches receipts result");
 }
 
 function expectReduceV5DiffResult(
-  result: ReturnType<typeof reduceV5>,
+  result: ReturnType<typeof reducePatches>,
 ): { readonly state: WarpState; readonly diff: PatchDiff } {
   if (
     result !== null &&
@@ -102,10 +102,10 @@ function expectReduceV5DiffResult(
   ) {
     return result;
   }
-  throw new Error("Expected reduceV5 diff result");
+  throw new Error("Expected reducePatches diff result");
 }
 
-function expectReduceV5State(result: ReturnType<typeof reduceV5>) {
+function expectReduceV5State(result: ReturnType<typeof reducePatches>) {
   if (
     result !== null &&
     typeof result === "object" &&
@@ -119,7 +119,7 @@ function expectReduceV5State(result: ReturnType<typeof reduceV5>) {
 describe("JoinReducer session-backed path", () => {
   describe("golden path", () => {
     it("replays mixed patches through one session-backed reducer frame", async () => {
-      const { ReducerSessionFrame, reduceV5InSession } =
+      const { ReducerSessionFrame, reducePatchesInSession } =
         await loadJoinReducerSessionModule();
       const { session, store, pageCache } = await openSession();
       const frame = new ReducerSessionFrame({
@@ -141,7 +141,7 @@ describe("JoinReducer session-backed path", () => {
         },
       ] as const;
 
-      const result = await reduceV5InSession(patches, frame);
+      const result = await reducePatchesInSession(patches, frame);
 
       expect(await result.session.nodeContains("node:1")).toBe(true);
       expect(await result.session.nodeContains("node:2")).toBe(true);
@@ -170,7 +170,7 @@ describe("JoinReducer session-backed path", () => {
     });
 
     it("matches the legacy sync reducer in receipt mode", async () => {
-      const { ReducerSessionFrame, reduceV5InSession } =
+      const { ReducerSessionFrame, reducePatchesInSession } =
         await loadJoinReducerSessionModule();
       const { session } = await openSession();
       const frame = new ReducerSessionFrame({
@@ -191,9 +191,9 @@ describe("JoinReducer session-backed path", () => {
       ] as const;
 
       const syncResult = expectReduceV5ReceiptResult(
-        reduceV5(patches, undefined, { receipts: true }),
+        reducePatches(patches, undefined, { receipts: true }),
       );
-      const sessionResult = await reduceV5InSession(patches, frame, {
+      const sessionResult = await reducePatchesInSession(patches, frame, {
         receipts: true,
       });
 
@@ -207,7 +207,7 @@ describe("JoinReducer session-backed path", () => {
     });
 
     it("matches the legacy sync reducer in diff mode", async () => {
-      const { ReducerSessionFrame, reduceV5InSession } =
+      const { ReducerSessionFrame, reducePatchesInSession } =
         await loadJoinReducerSessionModule();
       const { session } = await openSession();
       const frame = new ReducerSessionFrame({
@@ -234,9 +234,9 @@ describe("JoinReducer session-backed path", () => {
       ] as const;
 
       const syncResult = expectReduceV5DiffResult(
-        reduceV5(patches, undefined, { trackDiff: true }),
+        reducePatches(patches, undefined, { trackDiff: true }),
       );
-      const sessionResult = await reduceV5InSession(patches, frame, {
+      const sessionResult = await reducePatchesInSession(patches, frame, {
         trackDiff: true,
       });
 
@@ -249,7 +249,7 @@ describe("JoinReducer session-backed path", () => {
 
   describe("edge cases", () => {
     it("leaves an empty frame untouched for an empty patch list", async () => {
-      const { ReducerSessionFrame, reduceV5InSession } =
+      const { ReducerSessionFrame, reducePatchesInSession } =
         await loadJoinReducerSessionModule();
       const { session, store } = await openSession();
       const frame = new ReducerSessionFrame({
@@ -259,7 +259,7 @@ describe("JoinReducer session-backed path", () => {
         edgeBirthEvent: new Map(),
       });
 
-      const result = await reduceV5InSession([], frame);
+      const result = await reducePatchesInSession([], frame);
 
       expect(await result.session.nodeContains("node:1")).toBe(false);
       expect(await result.session.edgeContains("edge:1")).toBe(false);
@@ -270,7 +270,7 @@ describe("JoinReducer session-backed path", () => {
     });
 
     it("handles tombstone patches through the session-backed alive-set path", async () => {
-      const { ReducerSessionFrame, reduceV5InSession } =
+      const { ReducerSessionFrame, reducePatchesInSession } =
         await loadJoinReducerSessionModule();
       const { session } = await openSession();
       const frame = new ReducerSessionFrame({
@@ -304,7 +304,7 @@ describe("JoinReducer session-backed path", () => {
         },
       ] as const;
 
-      const result = await reduceV5InSession(patches, frame);
+      const result = await reducePatchesInSession(patches, frame);
 
       expect(await result.session.nodeContains("node:1")).toBe(false);
       expect(
@@ -359,7 +359,7 @@ describe("JoinReducer session-backed path", () => {
 
   describe("known failure modes", () => {
     it("does not flush between patches while replay is still in progress", async () => {
-      const { ReducerSessionFrame, reduceV5InSession } =
+      const { ReducerSessionFrame, reducePatchesInSession } =
         await loadJoinReducerSessionModule();
       const { session, store } = await openSession();
       const frame = new ReducerSessionFrame({
@@ -380,7 +380,7 @@ describe("JoinReducer session-backed path", () => {
         },
       ] as const;
 
-      await reduceV5InSession(patches, frame);
+      await reducePatchesInSession(patches, frame);
 
       expect(store.hasBeenWrittenTo()).toBe(false);
     });
@@ -408,7 +408,7 @@ describe("JoinReducer session-backed path", () => {
 
       const merged = await joinFrames(left, right);
       const syncJoined = joinStates(
-        expectReduceV5State(reduceV5([
+        expectReduceV5State(reducePatches([
           {
             patch: makePatch("alice", 1, [
               nodeAdd("node:left", new Dot("alice", 1)),
@@ -416,7 +416,7 @@ describe("JoinReducer session-backed path", () => {
             sha: "3".repeat(40),
           },
         ])),
-        expectReduceV5State(reduceV5([
+        expectReduceV5State(reducePatches([
           {
             patch: makePatch("bob", 1, [
               nodeAdd("node:right", new Dot("bob", 1)),

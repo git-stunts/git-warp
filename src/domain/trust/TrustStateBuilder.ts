@@ -8,7 +8,7 @@
  * Accepts sync arrays or async streams (from TrustChainPort).
  *
  * @module domain/trust/TrustStateBuilder
- * @see docs/specs/TRUST_V1_CRYPTO.md Section 11
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Section 11
  */
 
 import { type TrustRecord, type KeyAddSubject, type KeyRevokeSubject, type WriterBindAddSubject, type WriterBindRevokeSubject } from './TrustRecord.ts';

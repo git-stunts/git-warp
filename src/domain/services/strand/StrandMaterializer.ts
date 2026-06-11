@@ -1,4 +1,4 @@
-import { createEmptyState, reduceV5, type WarpState } from '../JoinReducer.ts';
+import { createEmptyState, reducePatches, type WarpState } from '../JoinReducer.ts';
 import { isNonEmptyString } from './strandShared.ts';
 import type Patch from '../../types/Patch.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
@@ -130,14 +130,14 @@ export default class StrandMaterializer {
       };
     }
     if (collectReceipts) {
-      return reduceV5(
-        allPatches as Parameters<typeof reduceV5>[0],
+      return reducePatches(
+        allPatches as Parameters<typeof reducePatches>[0],
         undefined,
         { receipts: true },
       ) as { state: WarpState; receipts: TickReceipt[] };
     }
     return {
-      state: reduceV5(allPatches as Parameters<typeof reduceV5>[0]) as WarpState,
+      state: reducePatches(allPatches as Parameters<typeof reducePatches>[0]) as WarpState,
       receipts: [],
     };
   }

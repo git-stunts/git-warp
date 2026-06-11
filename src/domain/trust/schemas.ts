@@ -6,7 +6,7 @@
  * boundary -- all trust data passes through these schemas.
  *
  * @module domain/trust/schemas
- * @see docs/specs/TRUST_V1_CRYPTO.md Sections 8-10, 14
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Sections 8-10, 14
  */
 
 import { z } from 'zod';
@@ -123,7 +123,7 @@ const EvidenceSummarySchema = z.object({
 
 const TrustAssessmentSchema = z.object({
   trustSchemaVersion: z.literal(1),
-  mode: z.literal('signed_evidence_v1'),
+  mode: z.literal('signed_evidence'),
   trustVerdict: z.enum(['pass', 'fail', 'not_configured']),
   trust: z.object({
     status: z.enum(['configured', 'pinned', 'error', 'not_configured']),

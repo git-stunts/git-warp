@@ -19,7 +19,7 @@ import { PropertyShard } from '../../src/domain/artifacts/PropertyShard.ts';
 import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.ts';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.ts';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.ts';
-import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyPatchOp } from '../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
 
@@ -70,14 +70,14 @@ function buildStateFromGenerated({ nodes, edges }) {
   for (const nodeId of nodes) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+    applyPatchOp(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
   for (const { from, to, label } of edges) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
+    applyPatchOp(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     lamport++;
   }
 

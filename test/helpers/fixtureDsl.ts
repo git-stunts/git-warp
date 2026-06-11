@@ -12,7 +12,7 @@ import { deepStrictEqual } from 'node:assert/strict';
 import AdjacencyNeighborProvider from '../../src/domain/services/query/AdjacencyNeighborProvider.ts';
 import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.ts';
 import MaterializedViewService from '../../src/domain/services/MaterializedViewService.ts';
-import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyPatchOp } from '../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
 
@@ -679,7 +679,7 @@ export function fixtureToState(fixture) {
   for (const nodeId of fixture.nodes) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+    applyPatchOp(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
@@ -689,7 +689,7 @@ export function fixtureToState(fixture) {
     const dots = state.nodeAlive.entries.get(nodeId);
     if (dots) {
       const eventId = new EventId(lamport, writer, sha, opIdx++);
-      applyOpV2(state, /** @type {*} */ ({ type: 'NodeRemove', node: nodeId, observedDots: new Set(dots) }), eventId);
+      applyPatchOp(state, /** @type {*} */ ({ type: 'NodeRemove', node: nodeId, observedDots: new Set(dots) }), eventId);
       lamport++;
     }
   }
@@ -697,7 +697,7 @@ export function fixtureToState(fixture) {
   for (const { from, to, label } of fixture.edges) {
     const dot = Dot.create(writer, lamport);
     const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
+    applyPatchOp(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     lamport++;
   }
 
@@ -708,7 +708,7 @@ export function fixtureToState(fixture) {
     if (dots) {
       const [from, to, label] = edgeKey.split('\0');
       const eventId = new EventId(lamport, writer, sha, opIdx++);
-      applyOpV2(state, /** @type {*} */ ({ type: 'EdgeRemove', from, to, label, observedDots: new Set(dots) }), eventId);
+      applyPatchOp(state, /** @type {*} */ ({ type: 'EdgeRemove', from, to, label, observedDots: new Set(dots) }), eventId);
       lamport++;
     }
   }
@@ -716,7 +716,7 @@ export function fixtureToState(fixture) {
   for (const { nodeId, key, value, lamport: propLamport } of (fixture.props || [])) {
     const tick = propLamport ?? lamport;
     const eventId = new EventId(tick, writer, sha, opIdx++);
-    applyOpV2(state, { type: 'PropSet', node: nodeId, key, value }, eventId);
+    applyPatchOp(state, { type: 'PropSet', node: nodeId, key, value }, eventId);
     lamport = Math.max(lamport, tick) + 1;
   }
 

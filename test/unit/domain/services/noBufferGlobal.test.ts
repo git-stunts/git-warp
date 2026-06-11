@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.ts';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
-import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
@@ -18,20 +18,20 @@ function buildState() {
   let opIdx = 0;
 
   for (const nodeId of ['A', 'B']) {
-    applyOpV2(
+    applyPatchOp(
       state,
       { type: 'NodeAdd', node: nodeId, dot: Dot.create(writer, lamport) },
       new EventId(lamport, writer, sha, opIdx++),
     );
     lamport++;
   }
-  applyOpV2(
+  applyPatchOp(
     state,
     { type: 'EdgeAdd', from: 'A', to: 'B', label: 'knows', dot: Dot.create(writer, lamport) },
     new EventId(lamport, writer, sha, opIdx++),
   );
   lamport++;
-  applyOpV2(
+  applyPatchOp(
     state,
     { type: 'PropSet', node: 'A', key: 'name', value: 'Alice' },
     new EventId(lamport, writer, sha, opIdx++),

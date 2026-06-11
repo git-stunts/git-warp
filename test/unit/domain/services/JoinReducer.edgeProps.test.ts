@@ -6,12 +6,12 @@ import {
   encodeEdgePropKey,
   isEdgePropKey,
   EDGE_PROP_PREFIX,
-  applyOpV2,
+  applyPatchOp,
   joinStates,
-  reduceV5 as _reduceV5,
+  reducePatches as _reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { decodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
-const reduceV5 = (_reduceV5) as (...args: any[]) => any;
+const reducePatches = (_reducePatches) as (...args: any[]) => any;
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
@@ -116,7 +116,7 @@ describe('JoinReducer — edge property LWW', () => {
         ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(42) })],
       });
 
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
       ]);
@@ -136,11 +136,11 @@ describe('JoinReducer — edge property LWW', () => {
         ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(42) })],
       });
 
-      const stateAB = reduceV5([
+      const stateAB = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
       ]);
-      const stateBA = reduceV5([
+      const stateBA = reducePatches([
         { patch: patchB, sha: 'bbbb1234' },
         { patch: patchA, sha: 'aaaa1234' },
       ]);
@@ -166,11 +166,11 @@ describe('JoinReducer — edge property LWW', () => {
         ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue('from-B') })],
       });
 
-      const stateAB = reduceV5([
+      const stateAB = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
       ]);
-      const stateBA = reduceV5([
+      const stateBA = reducePatches([
         { patch: patchB, sha: 'bbbb1234' },
         { patch: patchA, sha: 'aaaa1234' },
       ]);
@@ -196,7 +196,7 @@ describe('JoinReducer — edge property LWW', () => {
         ops: [new EdgePropSet({ from: 'n1', to: 'n2', label: 'link', key: 'color', value: createInlineValue('blue') })],
       });
 
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patchAlice, sha: 'aaaa1234' },
         { patch: patchZara, sha: 'bbbb1234' },
       ]);
@@ -223,11 +223,11 @@ describe('JoinReducer — edge property LWW', () => {
       });
 
       // 'ffff0000' > '0000ffff' lexicographically
-      const stateLH = reduceV5([
+      const stateLH = reducePatches([
         { patch: patchLow, sha: '0000ffff' },
         { patch: patchHigh, sha: 'ffff0000' },
       ]);
-      const stateHL = reduceV5([
+      const stateHL = reducePatches([
         { patch: patchHigh, sha: 'ffff0000' },
         { patch: patchLow, sha: '0000ffff' },
       ]);
@@ -257,7 +257,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([{ patch, sha: 'abcd1234' }]);
+      const state = reducePatches([{ patch, sha: 'abcd1234' }]);
 
       expect(getEdgeProp(state, 'a', 'b', 'rel', 'color')).toEqual(createInlineValue('second'));
     });
@@ -325,7 +325,7 @@ describe('JoinReducer — edge property LWW', () => {
       expect(allPerms.length).toBe(24);
 
       for (const perm of allPerms) {
-        const state = reduceV5(perm);
+        const state = reducePatches(perm);
         expect(getEdgeProp(state, 'x', 'y', 'rel', 'score')).toEqual(expected);
       }
     });
@@ -361,7 +361,7 @@ describe('JoinReducer — edge property LWW', () => {
 
       for (let seed = 0; seed < 10; seed++) {
         const shuffled = shuffle(patches, seed + 42);
-        const state = reduceV5(shuffled);
+        const state = reducePatches(shuffled);
         expect(getEdgeProp(state, 'src', 'dst', 'link', 'tag')).toEqual(expected);
       }
     });
@@ -383,7 +383,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([{ patch, sha: 'abcd1234' }]);
+      const state = reducePatches([{ patch, sha: 'abcd1234' }]);
 
       expect(getNodeProp(state, 'x', 'weight')).toEqual(createInlineValue('node-weight'));
       expect(getEdgeProp(state, 'x', 'y', 'rel', 'weight')).toEqual(
@@ -420,7 +420,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
         { patch: patchC, sha: 'cccc1234' },
@@ -452,7 +452,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
       ]);
@@ -473,7 +473,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([{ patch, sha: 'abcd1234' }]);
+      const state = reducePatches([{ patch, sha: 'abcd1234' }]);
 
       expect(getEdgeProp(state, 'x', 'y', 'follows', 'since')).toEqual(
         createInlineValue('2024-01')
@@ -493,7 +493,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([{ patch, sha: 'abcd1234' }]);
+      const state = reducePatches([{ patch, sha: 'abcd1234' }]);
 
       expect(getEdgeProp(state, 'a', 'b', 'friend', 'strength')).toEqual(createInlineValue(5));
       expect(getEdgeProp(state, 'a', 'b', 'colleague', 'strength')).toEqual(
@@ -524,7 +524,7 @@ describe('JoinReducer — edge property LWW', () => {
       });
 
       // Apply in reverse order — LWW should still pick lamport 3
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patch3, sha: 'cccc1234' },
         { patch: patch1, sha: 'aaaa1234' },
         { patch: patch2, sha: 'bbbb1234' },
@@ -548,7 +548,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([{ patch, sha: 'abcd1234' }]);
+      const state = reducePatches([{ patch, sha: 'abcd1234' }]);
 
       expect(getEdgeProp(state, 'a', 'b', 'rel', 'val')).toEqual(createInlineValue(5));
     });
@@ -563,14 +563,14 @@ describe('JoinReducer — edge property LWW', () => {
       const stateB = createEmptyState();
 
       // Apply edge prop in state A at lamport 1
-      applyOpV2(
+      applyPatchOp(
         stateA,
         new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(10) }),
         new EventId(1, 'A', 'aaaa1234', 0)
       );
 
       // Apply edge prop in state B at lamport 2
-      applyOpV2(
+      applyPatchOp(
         stateB,
         new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(20) }),
         new EventId(2, 'B', 'bbbb1234', 0)
@@ -586,12 +586,12 @@ describe('JoinReducer — edge property LWW', () => {
       const stateA = createEmptyState();
       const stateB = createEmptyState();
 
-      applyOpV2(
+      applyPatchOp(
         stateA,
         new EdgePropSet({ from: 'p', to: 'q', label: 'link', key: 'tag', value: createInlineValue('alpha') }),
         new EventId(5, 'A', 'aaaa1234', 0)
       );
-      applyOpV2(
+      applyPatchOp(
         stateB,
         new EdgePropSet({ from: 'p', to: 'q', label: 'link', key: 'tag', value: createInlineValue('beta') }),
         new EventId(5, 'B', 'bbbb1234', 0)
@@ -633,7 +633,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patchAdd, sha: 'aaaa1234' },
         { patch: patchRemove, sha: 'bbbb1234' },
       ]);
@@ -655,7 +655,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([{ patch, sha: 'abcd1234' }]);
+      const state = reducePatches([{ patch, sha: 'abcd1234' }]);
 
       // Edge should NOT be alive (no EdgeAdd was done)
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
@@ -667,32 +667,32 @@ describe('JoinReducer — edge property LWW', () => {
   });
 
   // =========================================================================
-  // applyOpV2: direct low-level tests for edge PropSet
+  // applyPatchOp: direct low-level tests for edge PropSet
   // =========================================================================
-  describe('applyOpV2 — direct edge PropSet', () => {
-    it('applies edge PropSet via applyOpV2', () => {
+  describe('applyPatchOp — direct edge PropSet', () => {
+    it('applies edge PropSet via applyPatchOp', () => {
       const state = createEmptyState();
       const eventId = new EventId(1, 'W', 'abcd1234', 0);
       const op = new EdgePropSet({ from: 'from', to: 'to', label: 'label', key: 'key', value: createInlineValue('val') });
 
-      applyOpV2(state, op, eventId);
+      applyPatchOp(state, op, eventId);
 
       expect(getEdgeProp(state, 'from', 'to', 'label', 'key')).toEqual(
         createInlineValue('val')
       );
     });
 
-    it('LWW correctly resolves when applying two ops via applyOpV2', () => {
+    it('LWW correctly resolves when applying two ops via applyPatchOp', () => {
       const state = createEmptyState();
       const op = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('old') });
 
       // Apply lower EventId first
-      applyOpV2(state, op, new EventId(1, 'W', 'aaaa1234', 0));
+      applyPatchOp(state, op, new EventId(1, 'W', 'aaaa1234', 0));
       expect(getEdgeProp(state, 'f', 't', 'l', 'k')).toEqual(createInlineValue('old'));
 
       // Apply higher EventId — should overwrite
       const op2 = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('new') });
-      applyOpV2(state, op2, new EventId(2, 'W', 'bbbb1234', 0));
+      applyPatchOp(state, op2, new EventId(2, 'W', 'bbbb1234', 0));
       expect(getEdgeProp(state, 'f', 't', 'l', 'k')).toEqual(createInlineValue('new'));
     });
 
@@ -701,11 +701,11 @@ describe('JoinReducer — edge property LWW', () => {
 
       // Apply higher EventId first
       const opHigh = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('winner') });
-      applyOpV2(state, opHigh, new EventId(5, 'W', 'aaaa1234', 0));
+      applyPatchOp(state, opHigh, new EventId(5, 'W', 'aaaa1234', 0));
 
       // Apply lower EventId second — should NOT overwrite
       const opLow = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('loser') });
-      applyOpV2(state, opLow, new EventId(1, 'W', 'bbbb1234', 0));
+      applyPatchOp(state, opLow, new EventId(1, 'W', 'bbbb1234', 0));
 
       expect(getEdgeProp(state, 'f', 't', 'l', 'k')).toEqual(createInlineValue('winner'));
     });
@@ -724,7 +724,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
 
-      const state = reduceV5([{ patch, sha: 'abcd1234' }]);
+      const state = reducePatches([{ patch, sha: 'abcd1234' }]);
 
       expect(getEdgeProp(state, 'a', 'b', 'rel', 'metadata')).toEqual(
         createInlineValue({ created: '2025-01-01', version: 3 })
@@ -738,7 +738,7 @@ describe('JoinReducer — edge property LWW', () => {
         ops: [new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'optional', value: createInlineValue(null) })],
       });
 
-      const state = reduceV5([{ patch, sha: 'abcd1234' }]);
+      const state = reducePatches([{ patch, sha: 'abcd1234' }]);
 
       expect(getEdgeProp(state, 'a', 'b', 'rel', 'optional')).toEqual(createInlineValue(null));
     });
@@ -750,7 +750,7 @@ describe('JoinReducer — edge property LWW', () => {
         ops: [new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'active', value: createInlineValue(true) })],
       });
 
-      const state = reduceV5([{ patch, sha: 'abcd1234' }]);
+      const state = reducePatches([{ patch, sha: 'abcd1234' }]);
 
       expect(getEdgeProp(state, 'a', 'b', 'rel', 'active')).toEqual(createInlineValue(true));
     });

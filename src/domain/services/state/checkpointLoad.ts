@@ -20,7 +20,7 @@ import { Dot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { LWWRegister } from '../../crdt/LWW.ts';
 import { EventId } from '../../utils/EventId.ts';
-import { reduceV5 } from '../JoinReducer.ts';
+import { reducePatches } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
 import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -279,7 +279,7 @@ export async function materializeIncremental({
   }
 
   // 5. Apply new patches using the reducer with checkpoint state as initial
-  const finalState = reduceV5(allPatches, initialState) as WarpState;
+  const finalState = reducePatches(allPatches, initialState) as WarpState;
 
   return finalState;
 }

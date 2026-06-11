@@ -5,7 +5,7 @@
  * This is the single source of truth for verdict logic.
  *
  * @module domain/trust/verdict
- * @see docs/specs/TRUST_V1_CRYPTO.md Section 13
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Section 13
  */
 
 /** The subset of trust data needed for verdict derivation. */

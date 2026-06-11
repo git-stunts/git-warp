@@ -3,7 +3,7 @@
  *
  * After the M14/JoinReducer-split refactor, the only logic remaining
  * in this file is the per-path dispatcher (applyFast / applyWithDiff /
- * applyWithReceipt), the reduceV5 driver, and thin wrappers for
+ * applyWithReceipt), the reducePatches driver, and thin wrappers for
  * backward-compatible factory/clone/join helpers.
  *
  * Everything else lives in its own module:
@@ -116,7 +116,7 @@ export function joinStates(a: WarpState, b: WarpState): WarpState {
  * in place. Unknown op types fail closed instead of becoming silent
  * data loss.
  */
-export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
+export function applyPatchOp(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
   const type = readReducerOpType(op);
   assertKnownReducerOp(op, type);
   const canonOp = normalizeRawOp(op);
@@ -266,7 +266,7 @@ export function join(
  *   - `receipts`    → returns `{ state, receipts }` for provenance tracking
  *   - `trackDiff`   → returns `{ state, diff }` for incremental index updates
  */
-export function reduceV5(
+export function reducePatches(
   patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   initialState?: WarpState,
   options?: { readonly receipts?: boolean; readonly trackDiff?: boolean },

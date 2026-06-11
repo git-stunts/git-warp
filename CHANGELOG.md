@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stable coordinate while keeping `openWarpGraph()` and materialize-first APIs
   out of first-use application code.
 
+### Changed
+
+- Removed release-versioned runtime names from `src`: current reducer, state
+  projection, patch-op, comparison, transfer, trust, and memory capability
+  symbols now use unversioned names, while the v17 golden fixture and generated
+  conformance artifacts live under `scripts/v18.0.0/migrations/graph-model/`.
+
 ## [18.0.0] — 2026-05-25
 
 ### Added

@@ -16,10 +16,10 @@ import EdgeRemove from '../../types/ops/EdgeRemove.ts';
 import NodeAdd from '../../types/ops/NodeAdd.ts';
 import NodePropSet from '../../types/ops/NodePropSet.ts';
 import NodeRemove from '../../types/ops/NodeRemove.ts';
-import type { CanonicalOpV2, OpV2 } from '../../types/ops/unions.ts';
+import type { CanonicalPatchOp, PatchOp } from '../../types/ops/unions.ts';
 import ConflictOpAnchor, { receiptNameForRawType } from './ConflictOpAnchor.ts';
 
-export type CanonicalOpBlob = CanonicalOpV2 | ConflictOpAnchor;
+export type CanonicalOpBlob = CanonicalPatchOp | ConflictOpAnchor;
 
 type CanonicalConflictOpClass =
   | typeof NodeAdd
@@ -44,7 +44,7 @@ function isCanonicalConflictOp(value: object): value is CanonicalOpBlob {
   return CANONICAL_CONFLICT_OP_CLASSES.some((OpClass) => value instanceof OpClass);
 }
 
-export function normalizeConflictOp(rawOp: OpV2): CanonicalOpBlob | null {
+export function normalizeConflictOp(rawOp: PatchOp): CanonicalOpBlob | null {
   const normalizedOp = normalizeRawOp(rawOp);
   return isCanonicalConflictOp(normalizedOp) ? normalizedOp : ConflictOpAnchor.from(rawOp);
 }

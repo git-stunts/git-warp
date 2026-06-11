@@ -7,31 +7,31 @@
 
 import type { ContentMeta } from './ContentMeta.ts';
 
-export type VisibleStateSummaryV5 = {
+export type VisibleStateSummary = {
   nodeCount: number;
   edgeCount: number;
   nodePropertyCount: number;
   edgePropertyCount: number;
 };
 
-export type VisibleStateScopePrefixFilterV1 = {
+export type VisibleStateScopePrefixFilter = {
   include?: string[];
   exclude?: string[];
 };
 
 export type VisibleStateScope = {
-  nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
+  nodeIdPrefixes?: VisibleStateScopePrefixFilter;
 };
 
-export type CoordinateComparisonSelectorV1 =
+export type CoordinateComparisonSelectorInput =
   | { kind: 'live'; ceiling?: number | null }
   | { kind: 'strand'; strandId: string; ceiling?: number | null }
   | { kind: 'strand_base'; strandId: string; ceiling?: number | null }
   | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null };
 
-export type CoordinateTransferPlanSelectorV1 = CoordinateComparisonSelectorV1;
+export type CoordinateTransferPlanSelectorInput = CoordinateComparisonSelectorInput;
 
-export type CoordinateComparisonSideV1 = {
+export type CoordinateComparisonSide = {
   requested: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   resolved: {
     coordinateKind: 'frontier' | 'strand' | 'strand_base';
@@ -42,7 +42,7 @@ export type CoordinateComparisonSideV1 = {
     lamportCeiling: number | null;
     stateHash: string;
     patchUniverseDigest: string;
-    summary: VisibleStateSummaryV5 & { patchCount: number };
+    summary: VisibleStateSummary & { patchCount: number };
     strand?: {
       strandId: string;
       baseLamportCeiling: number | null;
@@ -61,8 +61,8 @@ export type VisibleStateComparison = {
   comparisonVersion: string;
   changed: boolean;
   summary: {
-    left: VisibleStateSummaryV5;
-    right: VisibleStateSummaryV5;
+    left: VisibleStateSummary;
+    right: VisibleStateSummary;
     nodes: { added: number; removed: number };
     edges: { added: number; removed: number };
     nodeProperties: { added: number; removed: number; changed: number };
@@ -122,12 +122,12 @@ export type VisibleStateComparison = {
   };
 };
 
-export type CoordinateComparisonV1 = {
+export type CoordinateComparison = {
   comparisonVersion: string;
   comparisonDigest: string;
   scope?: VisibleStateScope;
-  left: CoordinateComparisonSideV1;
-  right: CoordinateComparisonSideV1;
+  left: CoordinateComparisonSide;
+  right: CoordinateComparisonSide;
   visiblePatchDivergence: {
     sharedCount: number;
     leftOnlyCount: number;
@@ -148,7 +148,7 @@ export type CoordinateComparisonV1 = {
   visibleState: VisibleStateComparison;
 };
 
-export type VisibleStateTransferPlanSummaryV1 = {
+export type VisibleStateTransferPlanSummary = {
   opCount: number;
   addNodeCount: number;
   removeNodeCount: number;
@@ -164,7 +164,7 @@ export type VisibleStateTransferPlanSummaryV1 = {
   clearEdgeContentCount: number;
 };
 
-export type VisibleStateTransferOperationV1 =
+export type VisibleStateTransferOperation =
   | { op: 'add_node'; nodeId: string }
   | { op: 'remove_node'; nodeId: string }
   | { op: 'set_node_property'; nodeId: string; key: string; value: unknown } // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
@@ -176,16 +176,16 @@ export type VisibleStateTransferOperationV1 =
   | { op: 'attach_edge_content'; from: string; to: string; label: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
   | { op: 'clear_edge_content'; from: string; to: string; label: string };
 
-export type CoordinateTransferPlanSideV1 = CoordinateComparisonSideV1;
+export type CoordinateTransferPlanSide = CoordinateComparisonSide;
 
-export type CoordinateTransferPlanV1 = {
+export type CoordinateTransferPlan = {
   transferVersion: string;
   transferDigest: string;
   comparisonDigest: string;
   scope?: VisibleStateScope;
   changed: boolean;
-  source: CoordinateTransferPlanSideV1;
-  target: CoordinateTransferPlanSideV1;
-  summary: VisibleStateTransferPlanSummaryV1;
-  ops: VisibleStateTransferOperationV1[];
+  source: CoordinateTransferPlanSide;
+  target: CoordinateTransferPlanSide;
+  summary: VisibleStateTransferPlanSummary;
+  ops: VisibleStateTransferOperation[];
 };

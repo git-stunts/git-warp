@@ -16,11 +16,11 @@ The JoinReducer has three entry points that loop over patch operations:
 | `applyWithReceipt(state, patch, sha)` | Provenance / tick receipts | No |
 | `applyWithDiff(state, patch, sha)` | Incremental index updates | No |
 
-All three share the same mutation core (`applyOpV2`), but the receipt and diff
+All three share the same mutation core (`applyPatchOp`), but the receipt and diff
 paths add pre-mutation introspection and post-mutation metadata collection via
 **separate switch statements** over the same 8 canonical op types:
 
-1. **`applyOpV2`** (L295) — mutation switch
+1. **`applyPatchOp`** (L295) — mutation switch
 2. **`applyWithReceipt`** (L869) — inline outcome switch
 3. **`snapshotBeforeOp`** (L682) + **`accumulateOpDiff`** (L730) — snapshot/accumulate switches
 4. **`validateOp`** (L247) — validation switch
@@ -34,7 +34,7 @@ This is a DRY violation at the architectural level. The three paths are
 
 ## Non-Problem
 
-The CRDT kernel is NOT bifurcated. All three paths call `applyOpV2()` for
+The CRDT kernel is NOT bifurcated. All three paths call `applyPatchOp()` for
 state mutation. The deterministic guarantees of the reduction engine are
 intact. The risk is in the metadata layers, not the state layer.
 
@@ -153,9 +153,9 @@ The following signatures and return types are unchanged:
 - `applyFast(state, patch, patchSha) => WarpStateV5`
 - `applyWithReceipt(state, patch, patchSha) => {state, receipt}`
 - `applyWithDiff(state, patch, patchSha) => {state, diff}`
-- `applyOpV2(state, op, eventId) => void` (delegates to strategy.mutate)
+- `applyPatchOp(state, op, eventId) => void` (delegates to strategy.mutate)
 - `join(state, patch, patchSha, collectReceipts)` — unchanged dispatcher
-- `reduceV5(patches, initialState, options)` — unchanged
+- `reducePatches(patches, initialState, options)` — unchanged
 - All receipt/diff shapes unchanged
 
 ## Cross-Path Equivalence Test
@@ -169,7 +169,7 @@ catches any future divergence between paths.
 ## Migration Steps
 
 1. Define strategy objects using existing function bodies (no behavioral change)
-2. Wire `applyOpV2` to delegate to `strategy.mutate()` — verify tests pass
+2. Wire `applyPatchOp` to delegate to `strategy.mutate()` — verify tests pass
 3. Wire `applyWithReceipt` to use `strategy.outcome()` — verify tests pass
 4. Wire `applyWithDiff` to use `strategy.snapshot()` + `strategy.accumulate()` — verify tests pass
 5. Wire validation to use `strategy.validate()` — verify tests pass

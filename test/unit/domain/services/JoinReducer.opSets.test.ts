@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createEmptyState,
-  applyOpV2,
+  applyPatchOp,
   encodePropKey,
   encodeEdgePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
@@ -117,17 +117,17 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
   // callers now use OpValidator.isKnownRaw directly.
 
   // -----------------------------------------------------------------------
-  // applyOpV2 accepts canonical ops internally
+  // applyPatchOp accepts canonical ops internally
   // -----------------------------------------------------------------------
 
-  describe('applyOpV2 accepts canonical ops internally', () => {
+  describe('applyPatchOp accepts canonical ops internally', () => {
     it('applies NodePropSet', () => {
       const state = createEmptyState();
       const dot = Dot.create('w1', 1);
       const addEid = new EventId(1, 'w1', 'a'.repeat(40), 0);
       const propEid = new EventId(2, 'w1', 'b'.repeat(40), 0);
-      applyOpV2(state, { type: 'NodeAdd', node: 'x', dot }, addEid);
-      applyOpV2(state, { type: 'NodePropSet', node: 'x', key: 'color', value: 'blue' }, propEid);
+      applyPatchOp(state, { type: 'NodeAdd', node: 'x', dot }, addEid);
+      applyPatchOp(state, { type: 'NodePropSet', node: 'x', key: 'color', value: 'blue' }, propEid);
 
       // Property was set — check the prop map
       expect(state.hasProp(encodePropKey('x', 'color'))).toBe(true);
@@ -138,10 +138,10 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
       const dot = Dot.create('w1', 1);
       const addEid = new EventId(1, 'w1', 'a'.repeat(40), 0);
       const propEid = new EventId(2, 'w1', 'b'.repeat(40), 0);
-      applyOpV2(state, { type: 'NodeAdd', node: 'a', dot }, addEid);
-      applyOpV2(state, { type: 'NodeAdd', node: 'b', dot }, addEid);
-      applyOpV2(state, { type: 'EdgeAdd', from: 'a', to: 'b', label: 'rel', dot }, addEid);
-      applyOpV2(state, { type: 'EdgePropSet', from: 'a', to: 'b', label: 'rel', key: 'weight', value: 0.5 }, propEid);
+      applyPatchOp(state, { type: 'NodeAdd', node: 'a', dot }, addEid);
+      applyPatchOp(state, { type: 'NodeAdd', node: 'b', dot }, addEid);
+      applyPatchOp(state, { type: 'EdgeAdd', from: 'a', to: 'b', label: 'rel', dot }, addEid);
+      applyPatchOp(state, { type: 'EdgePropSet', from: 'a', to: 'b', label: 'rel', key: 'weight', value: 0.5 }, propEid);
 
       // Edge property was set — check the prop map
       expect(state.hasProp(encodeEdgePropKey('a', 'b', 'rel', 'weight'))).toBe(true);

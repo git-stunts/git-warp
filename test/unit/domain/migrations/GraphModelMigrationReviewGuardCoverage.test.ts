@@ -10,7 +10,7 @@ import GraphModelMigrationScratchRef
 import V17GoldenGraphFixtureManifest, {
   V17GoldenGraphFixtureVisibleFact,
   V17GoldenGraphFixtureWriterChain,
-} from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+} from '../../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureManifest.ts';
 
 describe('graph model migration review guard coverage', () => {
   it('covers scratch ref validation branches without native TypeError escapes', () => {

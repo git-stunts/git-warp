@@ -18,7 +18,7 @@ import type Worldline from './services/Worldline.ts';
 import type Observer from './services/query/Observer.ts';
 import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
 import CheckpointTailBasisVerifier from './services/optic/CheckpointTailBasisVerifier.ts';
-import createV18BoundedMemoryCapabilityReport from './memory/createV18BoundedMemoryCapabilityReport.ts';
+import createBoundedMemoryCapabilityReport from './memory/createBoundedMemoryCapabilityReport.ts';
 
 export type WarpWorldlineOpenOptions = Omit<WarpGraphDeps, 'graphName'> & {
   readonly worldlineName: string;
@@ -35,7 +35,7 @@ type CreateWorldline = (options?: WorldlineOptions) => Worldline;
 type PrepareOpticBasis = () => Promise<WarpWorldlineOpticBasis>;
 type GetFrontier = () => Promise<Map<string, string>>;
 type ReadOpticBasis = () => WarpWorldlineOpticBasis | null;
-type ReadCapabilities = typeof createV18BoundedMemoryCapabilityReport;
+type ReadCapabilities = typeof createBoundedMemoryCapabilityReport;
 
 type WarpWorldlineConstructionOptions = {
   readonly worldlineName: string;
@@ -68,7 +68,7 @@ export default class WarpWorldline {
     this._prepareOpticBasis = options.prepareOpticBasis ?? null;
     this._getFrontier = options.getFrontier ?? null;
     this._readOpticBasis = options.readOpticBasis ?? null;
-    this._readCapabilities = options.readCapabilities ?? createV18BoundedMemoryCapabilityReport;
+    this._readCapabilities = options.readCapabilities ?? createBoundedMemoryCapabilityReport;
     Object.freeze(this);
   }
 

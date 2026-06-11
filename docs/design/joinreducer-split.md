@@ -25,8 +25,8 @@
    `mergeProps`, `mergeEdgeBirthEvent` (lines 81–89, 953–1016, 1087–1095)
 5. **Frontier management** — `foldPatchDot`, `updateFrontierFromPatch`
    (lines 559–583)
-6. **Core reduction** — `applyOpV2`, `applyFast`, `applyWithReceipt`,
-   `applyWithDiff`, `join`, `reduceV5` (lines 288–1070)
+6. **Core reduction** — `applyPatchOp`, `applyFast`, `applyWithReceipt`,
+   `applyWithDiff`, `join`, `reducePatches` (lines 288–1070)
 
 This violates SRP: changes to receipt format require touching the same 1096-LOC
 file as changes to state cloning. The file's import block pulls in 11 modules
@@ -68,7 +68,7 @@ plus re-exports from all extracted modules.
 - `EventId.js` — compareEventIds
 
 **Called by:**
-- JoinReducer core (applyFast, applyWithReceipt, applyWithDiff, reduceV5)
+- JoinReducer core (applyFast, applyWithReceipt, applyWithDiff, reducePatches)
 - External consumers via JoinReducer re-exports: materialize.methods.js,
   materializeAdvanced.methods.js, provenance.methods.js, checkpoint.methods.js,
   patch.methods.js, query.methods.js, TemporalQuery.js, MigrationService.js,
@@ -92,7 +92,7 @@ plus re-exports from all extracted modules.
 - `PatchError.js` — error type for validation failures
 
 **Called by:**
-- JoinReducer core (applyOpV2 calls validateOp; applyWithReceipt and
+- JoinReducer core (applyPatchOp calls validateOp; applyWithReceipt and
   applyWithDiff call validateOp independently)
 - External consumers via JoinReducer re-exports: SyncProtocol.js (isKnownRawOp)
 
@@ -161,19 +161,19 @@ import { createEmptyStateV5, cloneStateV5, updateFrontierFromPatch } from './War
 import { snapshotBeforeOp, accumulateOpDiff } from './DiffCalculator.js';
 import { RECEIPT_OP_TYPE, VALID_RECEIPT_OPS, nodeAddOutcome, ... } from './ReceiptBuilder.js';
 import { encodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
-// CRDT imports for applyOpV2 only:
+// CRDT imports for applyPatchOp only:
 import { orsetAdd, orsetRemove } from '../crdt/ORSet.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { compareEventIds } from '../utils/EventId.js';
 ```
 
 ### Retained Functions
-- `applyOpV2(state, op, eventId)` — core op application (~65 LOC)
+- `applyPatchOp(state, op, eventId)` — core op application (~65 LOC)
 - `applyFast(state, patch, patchSha)` — fast path, no receipt/diff (~8 LOC)
 - `applyWithReceipt(state, patch, patchSha)` — receipt path (~70 LOC)
 - `applyWithDiff(state, patch, patchSha)` — diff path (~15 LOC)
 - `join(state, patch, patchSha, collectReceipts)` — dispatch (~5 LOC)
-- `reduceV5(patches, initialState, options)` — batch reduce (~30 LOC)
+- `reducePatches(patches, initialState, options)` — batch reduce (~30 LOC)
 
 ### Re-exports (Backward Compatibility)
 ```javascript
@@ -204,13 +204,13 @@ export { RECEIPT_OP_TYPE, VALID_RECEIPT_OPS } from './ReceiptBuilder.js';
 ## Internal Call Graph
 
 ```text
-reduceV5()
+reducePatches()
   ├─ createEmptyStateV5()    [WarpStateFactory]
   ├─ cloneStateV5()          [WarpStateFactory]
   ├─ applyFast()             [JoinReducer core]
   │   ├─ normalizeRawOp()    [OpNormalizer]
   │   ├─ createEventId()     [EventId]
-  │   ├─ applyOpV2()         [JoinReducer core]
+  │   ├─ applyPatchOp()         [JoinReducer core]
   │   │   ├─ validateOp()    [OpValidator]
   │   │   └─ CRDT ops        [ORSet, LWW]
   │   └─ updateFrontierFromPatch() [WarpStateFactory]
@@ -219,7 +219,7 @@ reduceV5()
   │   ├─ validateOp()        [OpValidator]
   │   ├─ createEventId()     [EventId]
   │   ├─ *Outcome()          [ReceiptBuilder]
-  │   ├─ applyOpV2()         [JoinReducer core]
+  │   ├─ applyPatchOp()         [JoinReducer core]
   │   ├─ updateFrontierFromPatch() [WarpStateFactory]
   │   └─ createTickReceipt() [TickReceipt]
   └─ applyWithDiff()         [JoinReducer core]
@@ -227,7 +227,7 @@ reduceV5()
       ├─ validateOp()        [OpValidator]
       ├─ createEventId()     [EventId]
       ├─ snapshotBeforeOp()  [DiffCalculator]
-      ├─ applyOpV2()         [JoinReducer core]
+      ├─ applyPatchOp()         [JoinReducer core]
       ├─ accumulateOpDiff()  [DiffCalculator]
       └─ updateFrontierFromPatch() [WarpStateFactory]
 

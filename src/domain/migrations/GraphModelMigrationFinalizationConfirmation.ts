@@ -1,7 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
 
 export const V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION =
-  'CONFIRM_V18_GRAPH_MODEL_MIGRATION_FINALIZATION';
+  'CONFIRM_GRAPH_MODEL_MIGRATION_FINALIZATION';
 
 export type GraphModelMigrationFinalizationConfirmationFields = {
   readonly token: string;

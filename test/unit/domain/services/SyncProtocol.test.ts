@@ -10,9 +10,9 @@ import {
 } from '../../../../src/domain/services/sync/SyncProtocol.ts';
 import {
   createEmptyState,
-  reduceV5 as _reduceV5,
+  reducePatches as _reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reduceV5: (...args: any[]) => any = _reduceV5;
+const reducePatches: (...args: any[]) => any = _reducePatches;
 import { createFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -603,14 +603,14 @@ describe('SyncProtocol', () => {
       const persistence = createMockPersistence(commits, blobs);
 
       // Node A state and frontier
-      let stateA = reduceV5([
+      let stateA = reducePatches([
         { patch: patchA1, sha: SHA_A },
         { patch: patchA2, sha: SHA_B },
       ]);
       let frontierA = new Map([['w1', SHA_B]]);
 
       // Node B state and frontier
-      let stateB = reduceV5([{ patch: patchB1, sha: SHA_C }]);
+      let stateB = reducePatches([{ patch: patchB1, sha: SHA_C }]);
       let frontierB = new Map([['w2', SHA_C]]);
 
       // B requests sync from A

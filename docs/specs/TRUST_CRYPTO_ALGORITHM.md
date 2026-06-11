@@ -283,7 +283,7 @@ Note: V1 has no `degraded` verdict. Untrusted writers are a hard failure in `enf
 ```json
 {
   "trustSchemaVersion": 1,
-  "mode": "signed_evidence_v1",
+  "mode": "signed_evidence",
   "trustVerdict": "pass | fail | not_configured",
   "trust": {
     "status": "configured | pinned | error | not_configured",

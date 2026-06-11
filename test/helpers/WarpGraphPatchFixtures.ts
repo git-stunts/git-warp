@@ -6,7 +6,7 @@ import PropSet from '../../src/domain/types/ops/PropSet.ts';
 import NodePropSet from '../../src/domain/types/ops/NodePropSet.ts';
 import EdgePropSet from '../../src/domain/types/ops/EdgePropSet.ts';
 import BlobValue from '../../src/domain/types/ops/BlobValue.ts';
-import type { OpV2 } from '../../src/domain/types/ops/unions.ts';
+import type { PatchOp } from '../../src/domain/types/ops/unions.ts';
 import Patch from '../../src/domain/types/Patch.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
@@ -36,7 +36,7 @@ type RawPatchInputOperation = {
   readonly oid?: string;
 };
 
-type PatchInputOperation = OpV2 | RawPatchInputOperation;
+type PatchInputOperation = PatchOp | RawPatchInputOperation;
 
 type InlineFixtureValue =
   | string
@@ -80,7 +80,7 @@ class PatchFixtureError extends Error {
   }
 }
 
-function isPatchOp(op: PatchInputOperation | ReturnType<typeof normalizeRawOp>): op is OpV2 {
+function isPatchOp(op: PatchInputOperation | ReturnType<typeof normalizeRawOp>): op is PatchOp {
   return op instanceof NodeAdd
     || op instanceof NodeRemove
     || op instanceof EdgeAdd
