@@ -13,11 +13,10 @@ import ProvenancePayload from '../../../../src/domain/services/provenance/Proven
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import {
   createEmptyState,
-  reducePatches as _reducePatches,
+  reducePatches,
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reducePatches = (_reducePatches) as (...args: any[]) => any;
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';

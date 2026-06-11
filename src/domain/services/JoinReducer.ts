@@ -269,6 +269,31 @@ export function join(
 export function reducePatches(
   patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   initialState?: WarpState,
+  options?: undefined,
+): WarpState;
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState: WarpState | undefined,
+  options: { readonly receipts: false; readonly trackDiff?: false },
+): WarpState;
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState: WarpState | undefined,
+  options: { readonly receipts: true; readonly trackDiff?: boolean },
+): { state: WarpState; receipts: TickReceipt[] };
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState: WarpState | undefined,
+  options: { readonly receipts?: false; readonly trackDiff: true },
+): { state: WarpState; diff: PatchDiff };
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState: WarpState | undefined,
+  options: { readonly receipts?: boolean; readonly trackDiff?: boolean },
+): WarpState | { state: WarpState; receipts: TickReceipt[] } | { state: WarpState; diff: PatchDiff };
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState?: WarpState,
   options?: { readonly receipts?: boolean; readonly trackDiff?: boolean },
 ): WarpState | { state: WarpState; receipts: TickReceipt[] } | { state: WarpState; diff: PatchDiff } {
   const state = initialState ? cloneState(initialState) : createEmptyState();

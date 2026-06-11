@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { upgradeVisibleStateProjection } from '../../../scripts/migrations/v17.0.0/visible-state-upgrade.ts';
 import {
-  reducePatches as _reducePatches,
+  reducePatches,
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
 } from '../../../src/domain/services/JoinReducer.ts';
-const reducePatches: (...args: any[]) => any = _reducePatches;
 import { compareEventIds, EventId } from '../../../src/domain/utils/EventId.ts';
 import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../src/domain/crdt/LWW.ts';
 

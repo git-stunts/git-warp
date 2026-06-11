@@ -16,11 +16,10 @@ import {
   encodeCheckpointMessage,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import {
-  reducePatches as _reducePatches,
+  reducePatches,
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reducePatches: (...args: any[]) => any = _reducePatches;
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import {
   createNodeAddV2,

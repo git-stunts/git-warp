@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
-import { reducePatches as _reducePatches, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
-const reducePatches = (_reducePatches) as (...args: any[]) => any;
+import { reducePatches, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import {
   createNodeAddV2,

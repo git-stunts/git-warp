@@ -12,11 +12,10 @@ import {
   applyWithReceipt,
   joinStates,
   OP_STRATEGIES,
-  reducePatches as _reducePatches,
+  reducePatches,
   cloneState,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { decodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
-const reducePatches = (_reducePatches) as (...args: any[]) => any;
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
@@ -318,14 +317,18 @@ describe('JoinReducer', () => {
           sha: 'ccc33333',
         },
       ];
+      const [patch1, patch2, patch3] = patches;
+      if (patch1 === undefined || patch2 === undefined || patch3 === undefined) {
+        throw new Error('expected three permutation patches');
+      }
 
       // Test all permutations produce same result
-      const state123 = reducePatches([patches[0], patches[1], patches[2]]);
-      const state132 = reducePatches([patches[0], patches[2], patches[1]]);
-      const state213 = reducePatches([patches[1], patches[0], patches[2]]);
-      const state231 = reducePatches([patches[1], patches[2], patches[0]]);
-      const state312 = reducePatches([patches[2], patches[0], patches[1]]);
-      const state321 = reducePatches([patches[2], patches[1], patches[0]]);
+      const state123 = reducePatches([patch1, patch2, patch3]);
+      const state132 = reducePatches([patch1, patch3, patch2]);
+      const state213 = reducePatches([patch2, patch1, patch3]);
+      const state231 = reducePatches([patch2, patch3, patch1]);
+      const state312 = reducePatches([patch3, patch1, patch2]);
+      const state321 = reducePatches([patch3, patch2, patch1]);
 
       // All should have same nodes
       for (const state of [state123, state132, state213, state231, state312, state321]) {

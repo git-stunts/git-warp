@@ -1,7 +1,7 @@
 /**
- * WARP v5 Integration Tests - KILLER TESTS
+ * WARP Integration Tests - KILLER TESTS
  *
- * These tests verify the critical invariants of the WARP v5 upgrade:
+ * These tests verify the critical invariants of the WARP upgrade:
  * 1. Permutation Invariance - Any ordering of patches produces identical state hash
  * 2. Migration Boundary - v4 -> v5 preserves visible projection
  * 3. Concurrent Add/Remove Resurrection - add wins when remove has empty observedDots
@@ -12,19 +12,14 @@
 
 import { describe, it, expect } from 'vitest';
 
-// Core v5 reducer
+// Core reducer
 import {
-  reducePatches as _reducePatches,
+  reducePatches,
   encodeEdgeKey,
   encodePropKey,
   cloneState,
   joinStates,
 } from '../../../../src/domain/services/JoinReducer.ts';
-
-/**
- * Typed wrapper for reducePatches that returns WarpState (no receipts in these tests).
- */
-const reducePatches = (patches: any[], initialState?: any): any => _reducePatches(patches, initialState);
 
 // v4 reducer helpers (local test helpers for migration tests)
 import { compareEventIds, EventId } from '../../../../src/domain/utils/EventId.ts';

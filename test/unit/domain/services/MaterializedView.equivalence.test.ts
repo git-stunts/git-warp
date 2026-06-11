@@ -227,7 +227,7 @@ describe('MaterializedView equivalence', () => {
       const service = new MaterializedViewService();
 
       // ── Full rebuild ──────────────────────────────────────────────
-      const fullState = (reducePatches(patches) as any);
+      const fullState = reducePatches(patches);
       const fullBuild = service.build(fullState);
       const fullBitmapProvider = new BitmapNeighborProvider({
         logicalIndex: fullBuild.logicalIndex,
@@ -271,7 +271,7 @@ describe('MaterializedView equivalence', () => {
       const service = new MaterializedViewService();
 
       // ── Full rebuild ──────────────────────────────────────────────
-      const fullState = (reducePatches(patches) as any);
+      const fullState = reducePatches(patches);
       const fullBuild = service.build(fullState);
       const fullBitmapProvider = new BitmapNeighborProvider({
         logicalIndex: fullBuild.logicalIndex,
@@ -397,7 +397,7 @@ describe('MaterializedView equivalence', () => {
       },
     ];
 
-    const fullState = (reducePatches(patches) as any);
+    const fullState = reducePatches(patches);
     const build = service.build(fullState);
 
     // Object.prototype must be untouched

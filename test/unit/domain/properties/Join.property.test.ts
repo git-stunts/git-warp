@@ -3,15 +3,11 @@ import fc from 'fast-check';
 import { createRng } from '../../../helpers/seededRng.ts';
 import {
   createEmptyState,
-  joinStates as _joinStates,
-  reducePatches as _reducePatches,
+  joinStates,
+  reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import { computeStateHash as _computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
-
-const joinStates = (_joinStates) as any;
-const reducePatches = (_reducePatches) as any;
-const computeStateHash = (_computeStateHash) as any;
 
 const crypto = new NodeCryptoAdapter();
 const PROPERTY_TEST_SEED = 42;
@@ -348,11 +344,12 @@ describe('JoinReducer property tests', () => {
 
           // All nodes from a should be in joined
           for (const [element, dots] of a.nodeAlive.entries) {
-            if (!joined.nodeAlive.entries.has(element)) {
+            const joinedDots = joined.nodeAlive.entries.get(element);
+            if (joinedDots === undefined) {
               return false;
             }
             for (const dot of dots) {
-              if (!joined.nodeAlive.entries.get(element).has(dot)) {
+              if (!joinedDots.has(dot)) {
                 return false;
               }
             }

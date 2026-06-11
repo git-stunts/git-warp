@@ -4,9 +4,8 @@ import {
   encodeEdgeKey,
   encodePropKey,
   applyWithDiff,
-  reducePatches as _reducePatches,
+  reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reducePatches = (_reducePatches) as (...args: any[]) => any;
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';

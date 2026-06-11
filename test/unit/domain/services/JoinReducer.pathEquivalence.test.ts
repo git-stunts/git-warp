@@ -13,11 +13,10 @@ import {
   applyFast,
   applyWithReceipt,
   applyWithDiff,
-  reducePatches as _reducePatches,
+  reducePatches,
   CANONICAL_KNOWN_OPS,
   OP_STRATEGIES,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reducePatches = (_reducePatches) as (...args: any[]) => any;
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 

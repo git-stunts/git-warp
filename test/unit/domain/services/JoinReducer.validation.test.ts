@@ -10,13 +10,11 @@ import { describe, it, expect } from 'vitest';
 import {
   createEmptyState,
   applyPatchOp,
-  reducePatches as _reducePatches,
+  reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
-
-const reducePatches = (_reducePatches) as (...args: any[]) => any;
 
 const makePatchEntry = (/** @type {any[]} */ ops) => ({
   patch: {
@@ -60,14 +58,14 @@ describe('JoinReducer validation', () => {
       const state = reducePatches([entry]);
 
       expect([...state.nodeAlive.elements()]).toHaveLength(0);
-      expect(state.prop.size).toBe(0);
+      expect(state.propSize()).toBe(0);
     });
 
     it('reducePatches with zero patches produces empty state', () => {
       const state = reducePatches([]);
 
       expect([...state.nodeAlive.elements()]).toHaveLength(0);
-      expect(state.prop.size).toBe(0);
+      expect(state.propSize()).toBe(0);
     });
   });
 

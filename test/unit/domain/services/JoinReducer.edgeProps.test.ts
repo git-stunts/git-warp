@@ -8,10 +8,9 @@ import {
   EDGE_PROP_PREFIX,
   applyPatchOp,
   joinStates,
-  reducePatches as _reducePatches,
+  reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { decodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
-const reducePatches = (_reducePatches) as (...args: any[]) => any;
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';

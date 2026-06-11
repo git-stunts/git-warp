@@ -10,9 +10,8 @@ import {
 } from '../../../../src/domain/services/sync/SyncProtocol.ts';
 import {
   createEmptyState,
-  reducePatches as _reducePatches,
+  reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reducePatches: (...args: any[]) => any = _reducePatches;
 import { createFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
