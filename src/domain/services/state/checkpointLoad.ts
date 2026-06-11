@@ -279,7 +279,7 @@ export async function materializeIncremental({
   }
 
   // 5. Apply new patches using the reducer with checkpoint state as initial
-  const finalState = reducePatches(allPatches, initialState) as WarpState;
+  const finalState = reducePatches(allPatches, initialState);
 
   return finalState;
 }

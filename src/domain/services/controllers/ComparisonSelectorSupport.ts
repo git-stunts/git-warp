@@ -298,43 +298,75 @@ export class ResolvedComparisonSide {
   }
 }
 
+type FinalizeSideParams = {
+  requested: ComparisonRequestedSide;
+  state: WarpState;
+  patchEntries: readonly PatchEntry[];
+  coordinateKind: 'frontier' | 'strand' | 'strand_base';
+  lamportCeiling: number | null;
+  strand?: StrandComparisonMetadata;
+};
+
+type ScopedFinalizedSide = {
+  state: WarpState;
+  patchEntries: readonly PatchEntry[];
+  patchFrontier: Record<string, string>;
+  lamportFrontier: Record<string, number>;
+  stateHash: string;
+  patchShas: readonly string[];
+};
+
 export async function finalizeSide(
   graph: ComparisonDigestHost,
-  params: {
-    requested: ComparisonRequestedSide;
-    state: WarpState;
-    patchEntries: readonly PatchEntry[];
-    coordinateKind: 'frontier' | 'strand' | 'strand_base';
-    lamportCeiling: number | null;
-    strand?: StrandComparisonMetadata;
-  },
+  params: FinalizeSideParams,
   scope: VisibleStateScope | null,
 ): Promise<ResolvedComparisonSide> {
-  const scopedState = scopeMaterializedState(params.state, scope);
-  const scopedPatchEntries = scopePatchEntries([...params.patchEntries], scope);
-  const visiblePatchFrontier = patchFrontierFromEntries(scopedPatchEntries);
-  const visibleLamportFrontier = lamportFrontierFromEntries(scopedPatchEntries);
-  const reader = createStateReader(scopedState);
-  const stateHash = await computeStateHashForGraph(graph, scopedState);
-  const patchShas = uniqueSortedPatchShas(scopedPatchEntries);
+  const scoped = await scopedFinalizedSide(graph, params, scope);
+  const resolved = await buildResolvedPayload(graph, params, scoped);
 
   return new ResolvedComparisonSide({
     requested: params.requested,
-    state: scopedState,
-    patchEntries: [...scopedPatchEntries],
-    resolved: {
-      coordinateKind: params.coordinateKind,
-      patchFrontier: visiblePatchFrontier,
-      patchFrontierDigest: await computeChecksum(visiblePatchFrontier, graph._crypto),
-      lamportFrontier: visibleLamportFrontier,
-      lamportFrontierDigest: await computeChecksum(visibleLamportFrontier, graph._crypto),
-      lamportCeiling: params.lamportCeiling,
-      stateHash,
-      patchUniverseDigest: await computeChecksum({ patches: patchShas }, graph._crypto),
-      summary: summarizeVisibleState(reader, scopedPatchEntries.length),
-      ...(params.strand !== undefined ? { strand: params.strand } : {}),
-    },
+    state: scoped.state,
+    patchEntries: [...scoped.patchEntries],
+    resolved,
   });
+}
+
+async function scopedFinalizedSide(
+  graph: ComparisonDigestHost,
+  params: FinalizeSideParams,
+  scope: VisibleStateScope | null,
+): Promise<ScopedFinalizedSide> {
+  const scopedState = scopeMaterializedState(params.state, scope);
+  const scopedPatchEntries = scopePatchEntries([...params.patchEntries], scope);
+  return {
+    state: scopedState,
+    patchEntries: scopedPatchEntries,
+    patchFrontier: patchFrontierFromEntries(scopedPatchEntries),
+    lamportFrontier: lamportFrontierFromEntries(scopedPatchEntries),
+    stateHash: await computeStateHashForGraph(graph, scopedState),
+    patchShas: uniqueSortedPatchShas(scopedPatchEntries),
+  };
+}
+
+async function buildResolvedPayload(
+  graph: ComparisonDigestHost,
+  params: FinalizeSideParams,
+  scoped: ScopedFinalizedSide,
+): Promise<ComparisonResolvedSide> {
+  const reader = createStateReader(scoped.state);
+  return {
+    coordinateKind: params.coordinateKind,
+    patchFrontier: scoped.patchFrontier,
+    patchFrontierDigest: await computeChecksum(scoped.patchFrontier, graph._crypto),
+    lamportFrontier: scoped.lamportFrontier,
+    lamportFrontierDigest: await computeChecksum(scoped.lamportFrontier, graph._crypto),
+    lamportCeiling: params.lamportCeiling,
+    stateHash: scoped.stateHash,
+    patchUniverseDigest: await computeChecksum({ patches: scoped.patchShas }, graph._crypto),
+    summary: summarizeVisibleState(reader, scoped.patchEntries.length),
+    ...(params.strand !== undefined ? { strand: params.strand } : {}),
+  };
 }
 
 function summarizeVisibleState(reader: ReturnType<typeof createStateReader>, patchCount: number) {

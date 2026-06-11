@@ -137,7 +137,7 @@ export default class StrandMaterializer {
       ) as { state: WarpState; receipts: TickReceipt[] };
     }
     return {
-      state: reducePatches(allPatches as Parameters<typeof reducePatches>[0]) as WarpState,
+      state: reducePatches(allPatches as Parameters<typeof reducePatches>[0]),
       receipts: [],
     };
   }

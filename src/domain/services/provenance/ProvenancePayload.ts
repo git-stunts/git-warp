@@ -49,7 +49,7 @@ class ProvenancePayload {
     if (this.#provenance.length === 0) {
       return initialState ? cloneState(initialState) : createEmptyState();
     }
-    return reducePatches(this.#provenance.entries(), initialState) as WarpState;
+    return reducePatches(this.#provenance.entries(), initialState);
   }
 
   [Symbol.iterator](): Iterator<PatchEntry> {

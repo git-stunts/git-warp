@@ -28,10 +28,8 @@ import {
   normalizeLamportCeiling,
   normalizeRequiredString,
   optionalCeiling,
-} from './ComparisonSelectorSupport.ts';
-import type {
-  ComparisonHost,
-  ResolvedComparisonSide,
+  type ComparisonHost,
+  type ResolvedComparisonSide,
 } from './ComparisonSelectorSupport.ts';
 
 export {

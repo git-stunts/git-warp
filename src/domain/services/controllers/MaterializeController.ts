@@ -110,7 +110,7 @@ function reduceWithDiff(patches: PatchWithSha[], base?: WarpState): ReduceOutput
 }
 
 function reducePlain(patches: PatchWithSha[], base?: WarpState): ReduceOutput {
-  return { state: reduceJoinedPatches(toReducerInput(patches), base) as WarpState };
+  return { state: reduceJoinedPatches(toReducerInput(patches), base) };
 }
 
 function reduceMaterializePatches(
