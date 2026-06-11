@@ -61,9 +61,11 @@ evidence exists yet.
 
 ## Acceptance Criteria
 
-- [ ] Zero open `lane:asap` issues.
-- [ ] Zero open `lane:v18.0.0` issues.
-- [ ] Zero open prior-release-home issues lower than `v18.0.0`.
+- [ ] Zero open `priority:asap` issues.
+- [ ] Zero open issues in the GitHub `v18.0.0` milestone.
+- [ ] Zero open issues in prior-release GitHub milestones.
+- [ ] Every open issue carries exactly one `type:*`, `priority:*`,
+      `status:*`, and `area:*` label.
 - [ ] Zero failing tests.
 - [ ] Release evidence packet has no `TBD`, `0/N`, or angle-bracket
       placeholders.

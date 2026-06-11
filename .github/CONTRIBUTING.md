@@ -18,15 +18,19 @@ See [METHOD](../docs/METHOD.md) for the full process.
 Labels are query indexes, not prose decoration. Keep issue metadata boring and
 orthogonal.
 
-Use these live axes for new or edited issues:
+Use these live axes for every open issue. New or edited issues must carry one
+label from each axis:
 
 | Axis | Required? | Values |
 | --- | --- | --- |
-| Type | Exactly one | `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, `type:story` |
-| Priority | Zero or one | `priority:asap`, `priority:next`, `priority:later` |
-| Status | Only when true | `status:blocked`, `status:active` |
-| Area | Prefer one | `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, `area:architecture` |
+| Type | Exactly one | `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, `type:story`, `type:maintenance` |
+| Priority | Exactly one | `priority:asap`, `priority:next`, `priority:later` |
+| Status | Exactly one | `status:available`, `status:blocked`, `status:active` |
+| Area | Exactly one | `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, `area:architecture` |
 | Release target | When release-owned | GitHub Milestone such as `v18.0.0` or `v19.0.0` |
+
+Use `status:available` for open work that is neither blocked nor actively being
+worked.
 
 Do not use release labels for new work. Release targeting belongs in GitHub
 Milestones.
@@ -42,6 +46,7 @@ Legacy labels are migration-only:
 | `lane:release` | `type:release` |
 | `blocked` | `status:blocked` |
 | `work-in-progress` | `status:active` |
+| no legacy workflow label | `status:available` |
 | `release-home:vX.Y.Z` / `lane:vX.Y.Z` | GitHub Milestone `vX.Y.Z` |
 | `feature:*` / `legend:*` | One `area:*` label, with doctrine in the issue body |
 

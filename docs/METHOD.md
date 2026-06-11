@@ -120,15 +120,19 @@ comments when origin or timing matters.
 
 ### Live Axes
 
-Use these live axes for new and edited GitHub Issues:
+Use these live axes for every open GitHub Issue. New or edited issues must
+carry one label from each axis:
 
 | Axis | Values | Rule |
 | --- | --- | --- |
-| Type | `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, `type:story` | Exactly one. |
-| Priority | `priority:asap`, `priority:next`, `priority:later` | Zero or one. |
-| Status | `status:blocked`, `status:active` | Only when true. |
-| Area | `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, `area:architecture` | Prefer one. |
+| Type | `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, `type:story`, `type:maintenance` | Exactly one. |
+| Priority | `priority:asap`, `priority:next`, `priority:later` | Exactly one. |
+| Status | `status:available`, `status:blocked`, `status:active` | Exactly one. |
+| Area | `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, `area:architecture` | Exactly one. |
 | Release target | GitHub Milestone such as `v18.0.0` | Required only for release-owned work. |
+
+`status:available` is the neutral state for open work that is neither blocked
+nor actively being worked.
 
 Legacy `lane:*`, `release-home:*`, `feature:*`, `legend:*`, `blocked`, and
 `work-in-progress` labels are migration-only. Do not add them to new issues.

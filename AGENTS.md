@@ -124,17 +124,18 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - Retros live in `docs/method/retro/<NNNN-slug>/`.
 - Signposts are `docs/BEARING.md` and `docs/VISION.md`; update them at cycle boundaries, not mid-cycle.
 - Zero tolerance for brokenness: if you encounter an error or warning in your path, fix it or surface it explicitly.
-- Issue labels are query indexes, not prose decoration. Use exactly these live
-  axes for new or edited issues:
+- Issue labels are query indexes, not prose decoration. Every open issue must
+  carry exactly one label from each live axis:
 
   - `type:*` answers what kind of work it is. Use exactly one of
     `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`,
-    `type:goalpost`, or `type:story`.
-  - `priority:*` answers when it should be handled. Use zero or one of
+    `type:goalpost`, `type:story`, or `type:maintenance`.
+  - `priority:*` answers when it should be handled. Use exactly one of
     `priority:asap`, `priority:next`, or `priority:later`.
-  - `status:*` answers active workflow exceptions. Use `status:blocked` or
-    `status:active` only when the issue is actually blocked or actively being
-    worked.
+  - `status:*` answers workflow state. Use exactly one of
+    `status:available`, `status:blocked`, or `status:active`.
+    `status:available` is the neutral state for open work that is neither
+    blocked nor actively being worked.
   - `area:*` answers where the work primarily lives. Prefer one of `area:api`,
     `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`,
     `area:testing`, `area:tooling`, `area:release`, or `area:architecture`.
@@ -156,6 +157,7 @@ DTO and stop there**. Do not hallucinate fake domain models.
   | `lane:release` | `type:release` |
   | `blocked` | `status:blocked` |
   | `work-in-progress` | `status:active` |
+  | no legacy workflow label | `status:available` |
   | `release-home:vX.Y.Z` / `lane:vX.Y.Z` | GitHub Milestone `vX.Y.Z` |
   | `feature:*` / `legend:*` | One `area:*` label, with doctrine in the body |
 

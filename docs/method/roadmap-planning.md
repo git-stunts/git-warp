@@ -246,10 +246,10 @@ git-warp keeps its structured label model:
 
 | Axis | Meaning |
 | --- | --- |
-| `type:*` | Work kind. Use exactly one of `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, or `type:story`. Existing `type:proof-story` issues are migration residue for proof-story children. |
-| `priority:*` | Scheduling pressure. Use zero or one of `priority:asap`, `priority:next`, or `priority:later`. |
-| `status:*` | Active workflow exception. Use `status:blocked` or `status:active` only when true. |
-| `area:*` | Primary work area, such as `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, or `area:architecture`. |
+| `type:*` | Work kind. Use exactly one of `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, `type:story`, or `type:maintenance`. Existing `type:proof-story` issues are migration residue for proof-story children. |
+| `priority:*` | Scheduling pressure. Use exactly one of `priority:asap`, `priority:next`, or `priority:later`. |
+| `status:*` | Workflow state. Use exactly one of `status:available`, `status:blocked`, or `status:active`. `status:available` is the neutral state for open work that is neither blocked nor actively being worked. |
+| `area:*` | Primary work area, such as `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, or `area:architecture`. Use exactly one. |
 | GitHub Milestone | Release ownership and prior-release cleanup target. |
 
 The important invariant is that `type:goalpost` and child story types are not
