@@ -890,7 +890,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
 });
 
 // ============================================================================
-// KILLER TEST 5: Diamond Test - WARP v5 True Lattice Confluence
+// KILLER TEST 5: Diamond Test - WARP True Lattice Confluence
 // ============================================================================
 
 describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
@@ -1234,7 +1234,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
 // Additional Integration Tests
 // ============================================================================
 
-describe('Additional WARP v5 Integration Tests', () => {
+describe('Additional WARP Integration Tests', () => {
   describe('Props with LWW semantics', () => {
     it('concurrent prop sets resolve by EventId (lamport, writer, sha, index)', async () => {
       const patchA = {

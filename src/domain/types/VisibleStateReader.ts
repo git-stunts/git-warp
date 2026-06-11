@@ -8,7 +8,7 @@ import type { SnapshotPropValue } from '../services/snapshot/SnapshotPropValue.t
 type VisibleStateProperties = Readonly<{ [key: string]: SnapshotPropValue }>;
 
 /**
- * Read-only accessor over materialized V5 state with entity-local inspection.
+ * Read-only accessor over materialized state with entity-local inspection.
  *
  * Port interface — consumers depend on this contract without coupling
  * to the concrete StateReader implementation.

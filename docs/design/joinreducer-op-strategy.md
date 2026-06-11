@@ -45,13 +45,13 @@ Each canonical op type defines a **strategy object** with five methods:
 ```js
 /**
  * @typedef {Object} OpStrategy
- * @property {(state: WarpStateV5, op: OpLike, eventId: EventId) => void} mutate
+ * @property {(state: WarpState, op: OpLike, eventId: EventId) => void} mutate
  *   Applies the operation to CRDT state. Called by all three paths.
- * @property {(state: WarpStateV5, op: OpLike, eventId: EventId) => OpOutcomeResult} outcome
+ * @property {(state: WarpState, op: OpLike, eventId: EventId) => OpOutcomeResult} outcome
  *   Pre-mutation outcome determination for receipts. Called by applyWithReceipt only.
- * @property {(state: WarpStateV5, op: OpLike) => SnapshotBeforeOp} snapshot
+ * @property {(state: WarpState, op: OpLike) => SnapshotBeforeOp} snapshot
  *   Pre-mutation state snapshot for diffs. Called by applyWithDiff only.
- * @property {(diff: PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp) => void} accumulate
+ * @property {(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp) => void} accumulate
  *   Post-mutation diff accumulation. Called by applyWithDiff only.
  * @property {(op: OpLikeRecord) => void} validate
  *   Validates required fields. Throws PatchError on malformed ops.
@@ -150,7 +150,7 @@ Adding a new op type without all five methods is a hard error at import time.
 
 The following signatures and return types are unchanged:
 
-- `applyFast(state, patch, patchSha) => WarpStateV5`
+- `applyFast(state, patch, patchSha) => WarpState`
 - `applyWithReceipt(state, patch, patchSha) => {state, receipt}`
 - `applyWithDiff(state, patch, patchSha) => {state, diff}`
 - `applyPatchOp(state, op, eventId) => void` (delegates to strategy.mutate)
@@ -163,7 +163,7 @@ The following signatures and return types are unchanged:
 New test file: `JoinReducer.pathEquivalence.test.js`
 
 Applies identical patches through all three paths and asserts bitwise-equal
-final state (all five WarpStateV5 fields). This is the regression test that
+final state (all five WarpState fields). This is the regression test that
 catches any future divergence between paths.
 
 ## Migration Steps

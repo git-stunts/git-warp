@@ -21,7 +21,7 @@
 3. **Diff calculation** — `snapshotBeforeOp`, `accumulateOpDiff`,
    `collectNodeRemovals`, `collectEdgeRemovals`, `buildDotToElement`,
    `aliveElementsForDots` (lines 601–800)
-4. **State factory** — `createEmptyStateV5`, `cloneStateV5`, `joinStates`,
+4. **State factory** — `createEmptyState`, `cloneState`, `joinStates`,
    `mergeProps`, `mergeEdgeBirthEvent` (lines 81–89, 953–1016, 1087–1095)
 5. **Frontier management** — `foldPatchDot`, `updateFrontierFromPatch`
    (lines 559–583)
@@ -53,8 +53,8 @@ plus re-exports from all extracted modules.
 ### Module 1: `WarpStateFactory.js` (~150 LOC)
 
 **Extracted functions:**
-- `createEmptyStateV5()` — creates empty V5 state
-- `cloneStateV5(state)` — deep clone of V5 state
+- `createEmptyState()` — creates empty state
+- `cloneState(state)` — deep clone of state
 - `joinStates(a, b)` — CRDT join of two states
 - `mergeProps(a, b)` — LWW-Max merge of property maps (private helper, exported for joinStates)
 - `mergeEdgeBirthEvent(a, b)` — EventId-max merge of edge birth maps (private helper)
@@ -157,7 +157,7 @@ import { normalizeRawOp } from './OpNormalizer.js';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.js';
 import { createTickReceipt } from '../types/TickReceipt.js';
 import { validateOp } from './OpValidator.js';
-import { createEmptyStateV5, cloneStateV5, updateFrontierFromPatch } from './WarpStateFactory.js';
+import { createEmptyState, cloneState, updateFrontierFromPatch } from './WarpStateFactory.js';
 import { snapshotBeforeOp, accumulateOpDiff } from './DiffCalculator.js';
 import { RECEIPT_OP_TYPE, VALID_RECEIPT_OPS, nodeAddOutcome, ... } from './ReceiptBuilder.js';
 import { encodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
@@ -185,7 +185,7 @@ export { encodeEdgeKey, decodeEdgeKey, encodePropKey, decodePropKey,
 export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.js';
 
 // From WarpStateFactory (new)
-export { createEmptyStateV5, cloneStateV5, joinStates, foldPatchDot,
+export { createEmptyState, cloneState, joinStates, foldPatchDot,
          updateFrontierFromPatch } from './WarpStateFactory.js';
 
 // From OpValidator (new)
@@ -205,8 +205,8 @@ export { RECEIPT_OP_TYPE, VALID_RECEIPT_OPS } from './ReceiptBuilder.js';
 
 ```text
 reducePatches()
-  ├─ createEmptyStateV5()    [WarpStateFactory]
-  ├─ cloneStateV5()          [WarpStateFactory]
+  ├─ createEmptyState()      [WarpStateFactory]
+  ├─ cloneState()            [WarpStateFactory]
   ├─ applyFast()             [JoinReducer core]
   │   ├─ normalizeRawOp()    [OpNormalizer]
   │   ├─ createEventId()     [EventId]
@@ -253,8 +253,8 @@ JoinReducer.js and run the full test suite. No external imports change.
 
 This order minimizes intermediate churn:
 
-1. **WarpStateFactory** — most widely imported symbols (`createEmptyStateV5`,
-   `cloneStateV5`). Extract first to establish the pattern. No dependency on
+1. **WarpStateFactory** — most widely imported symbols (`createEmptyState`,
+   `cloneState`). Extract first to establish the pattern. No dependency on
    other new modules.
 
 2. **OpValidator** — pure functions with a single dependency (PatchError).

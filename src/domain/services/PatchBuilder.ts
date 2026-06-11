@@ -1,5 +1,5 @@
 /**
- * PatchBuilder — fluent API for building WARP v5 (schema:2) patches.
+ * PatchBuilder — fluent API for building schema:2 WARP patches.
  *
  * Maintains a VersionVector per writer, assigns dots on add operations,
  * reads current state to populate observedDots for removes, and includes
