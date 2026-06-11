@@ -62,48 +62,16 @@ import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellati
 // Multi-writer graph support (WARP)
 import WarpCore from './src/domain/WarpCore.ts';
 import WarpApp from './src/domain/WarpApp.ts';
-// V1 op factories — inlined after WarpTypes.ts deletion (deprecated, kept for backward compat)
-function createNodeAdd(node: string): { type: 'NodeAdd'; node: string } {
-  return { type: 'NodeAdd' as const, node };
-}
-
-function createNodeTombstone(node: string): { type: 'NodeTombstone'; node: string } {
-  return { type: 'NodeTombstone' as const, node };
-}
-
-function createEdgeAdd(
-  from: string,
-  to: string,
-  label: string,
-): { type: 'EdgeAdd'; from: string; to: string; label: string } {
-  return { type: 'EdgeAdd' as const, from, to, label };
-}
-
-function createEdgeTombstone(
-  from: string,
-  to: string,
-  label: string,
-): { type: 'EdgeTombstone'; from: string; to: string; label: string } {
-  return { type: 'EdgeTombstone' as const, from, to, label };
-}
-
-type PropSetValue = { type: 'inline'; value: PropValue } | { type: 'blob'; oid: string };
-
-function createPropSet(
-  node: string,
-  key: string,
-  value: PropSetValue,
-): { type: 'PropSet'; node: string; key: string; value: PropSetValue } {
-  return { type: 'PropSet' as const, node, key, value };
-}
-
-function createInlineValue(value: PropValue): { type: 'inline'; value: PropValue } {
-  return { type: 'inline' as const, value };
-}
-
-function createBlobValue(oid: string): { type: 'blob'; oid: string } {
-  return { type: 'blob' as const, oid };
-}
+import {
+  createNodeAdd,
+  createNodeTombstone,
+  createEdgeAdd,
+  createEdgeTombstone,
+  createPropSet,
+  createInlineValue,
+  createBlobValue,
+  createV18BoundedMemoryCapabilityReport,
+} from './rootCompatibility.ts';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.ts';
 import Observer from './src/domain/services/query/Observer.ts';
 import Worldline from './src/domain/services/Worldline.ts';
@@ -179,7 +147,6 @@ import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
 import { ProvenanceIndex } from './src/domain/services/provenance/ProvenanceIndex.ts';
-import createBoundedMemoryCapabilityReport from './src/domain/memory/createBoundedMemoryCapabilityReport.ts';
 import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/index/WarpStateIndexBuilder.ts';
 import { computeStateHash, projectState } from './src/domain/services/state/StateSerializer.ts';
 import { createStateReader } from './src/domain/services/state/StateReader.ts';
@@ -205,11 +172,6 @@ import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from './src/domain/services/CoordinateFactExport.ts';
-
-/**
- * @deprecated Use createBoundedMemoryCapabilityReport.
- */
-const createV18BoundedMemoryCapabilityReport = createBoundedMemoryCapabilityReport;
 
 export * from './src/domain/graph/publicGraphSubstrate.ts';
 export * from './src/domain/memory/index.ts';
