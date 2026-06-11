@@ -95,7 +95,7 @@ export default async function handleVerifyAudit({ options, args }: { options: Cl
       }
       (payload)['trustAssessment'] = {
         trustSchemaVersion: 1,
-        mode: 'signed_evidence_v1',
+        mode: 'signed_evidence',
         trustVerdict: 'error',
         error: err instanceof Error ? err.message : 'Trust evaluation failed',
       };

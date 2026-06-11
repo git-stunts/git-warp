@@ -5,7 +5,7 @@ const CONTINUUM_FAMILY_VERSION = '0.1.0';
 const PROFILED_FIXTURE_WITNESSED = 'profiled-fixture-witnessed';
 const AUTHORED_ONLY = 'authored-only';
 
-/** Builds the current v18 Continuum/Wesley generated-family readiness inventory. */
+/** Builds the current Continuum/Wesley generated-family readiness inventory. */
 export default function createCurrentContinuumGeneratedFamilyInventory(): ContinuumGeneratedFamilyInventory {
   return new ContinuumGeneratedFamilyInventory({
     entries: [

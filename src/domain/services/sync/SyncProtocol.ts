@@ -1,5 +1,5 @@
 /**
- * SyncProtocol — WARP V5 frontier-based per-writer chain sync.
+ * SyncProtocol — frontier-based per-writer chain sync.
  *
  * Barrel re-export of the sync protocol split across focused sub-modules:
  * - syncPatchLoader    — patch loading helpers (loadPatchRange, etc.)
@@ -7,7 +7,7 @@
  * - syncRequestResponse — request/response protocol (createSyncRequest, etc.)
  *
  * @module domain/services/sync/SyncProtocol
- * @see WARP V5 Spec Section 11 (Network Sync)
+ * @see WARP sync spec Section 11 (Network Sync)
  */
 
 export type { DecodedPatch, LoadPatchRangeOptions } from './syncPatchLoader.ts';

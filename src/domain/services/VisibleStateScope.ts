@@ -110,7 +110,7 @@ function normalizePrefixFilter(value: unknown, field: string): VisibleStateScope
 /**
  * Normalizes a substrate-generic visible-state scope.
  *
- * Current v1 scope stays intentionally narrow:
+ * Current scope stays intentionally narrow:
  * - include/exclude node-id prefixes
  *
  * Edges, edge properties, and attachment metadata follow node visibility.

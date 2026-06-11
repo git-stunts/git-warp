@@ -6,8 +6,8 @@ import ReadIdentity, {
   type ReadIdentityTailWitness,
 } from './ReadIdentity.ts';
 
-const REDUCER_VERSION = 'checkpoint-tail-locator-v1';
-const PROJECTION_VERSION = 'optic-read-v17-foundation-v1';
+const REDUCER_VERSION = 'checkpoint-tail-locator';
+const PROJECTION_VERSION = 'optic-read-foundation';
 
 export default class CheckpointTailReadIdentityBuilder {
   private readonly _worldline: string;

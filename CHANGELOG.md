@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   symbols now use unversioned names, while the v17 golden fixture and generated
   conformance artifacts live under `scripts/v18.0.0/migrations/graph-model/`.
 
+### Deprecated
+
+- The root package still exports `createV18BoundedMemoryCapabilityReport` as a
+  deprecated compatibility alias for `createBoundedMemoryCapabilityReport`;
+  versioned compatibility aliases must stay at the package boundary, not inside
+  `src`.
+
 ## [18.0.0] — 2026-05-25
 
 ### Added

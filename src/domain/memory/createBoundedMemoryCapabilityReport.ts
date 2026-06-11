@@ -12,7 +12,7 @@ export const MEMORY_CAPABILITY_CHECKPOINT_TAIL_OPTICS = 'checkpoint-tail-optics'
 export const MEMORY_CAPABILITY_GRAPH_WIDE_MATERIALIZATION = 'graph-wide-materialization';
 export const MEMORY_CAPABILITY_LEGACY_QUERY_ARRAYS = 'legacy-query-arrays';
 
-/** Reports the current v18 bounded-memory truth without claiming release completion. */
+/** Reports the current bounded-memory truth without claiming release completion. */
 export default function createBoundedMemoryCapabilityReport(): MemoryCapabilityReport {
   return new MemoryCapabilityReport({
     capabilities: [
@@ -37,7 +37,7 @@ export default function createBoundedMemoryCapabilityReport(): MemoryCapabilityR
       new MemoryCapability({
         name: MEMORY_CAPABILITY_LEGACY_QUERY_ARRAYS,
         posture: MEMORY_CAPABILITY_LEGACY,
-        evidence: 'public API cost inventory and v18 #549 gate',
+        evidence: 'public API cost inventory and bounded-memory #549 gate',
         note: 'unbounded array helpers remain legacy until cursorized public replacements land',
       }),
     ],

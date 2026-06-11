@@ -1,11 +1,11 @@
 /**
- * syncPatchLoader — patch loading helpers for the WARP V5 sync protocol.
+ * syncPatchLoader — patch loading helpers for the WARP sync protocol.
  *
  * Handles reading patches from Git commits: decoding commit messages,
  * loading patch blobs, and walking writer chains to collect patch ranges.
  *
  * @module domain/services/sync/syncPatchLoader
- * @see SyncProtocol — WARP V5 Spec Section 11 (Network Sync)
+ * @see SyncProtocol — WARP sync spec Section 11 (Network Sync)
  */
 
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';

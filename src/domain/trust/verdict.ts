@@ -26,7 +26,7 @@ type TrustVerdict = 'pass' | 'fail' | 'not_configured';
  * - untrustedWriters.length > 0 -> 'fail'
  * - otherwise               -> 'pass'
  *
- * V1 has no 'degraded' verdict -- untrusted writers are a hard failure.
+ * The current trust contract has no 'degraded' verdict -- untrusted writers are a hard failure.
  */
 function deriveTrustVerdict(trust: VerdictInput): TrustVerdict {
   if (trust.status === 'not_configured') {

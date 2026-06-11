@@ -1,5 +1,5 @@
 /**
- * GCPolicy — garbage collection thresholds for WARP V5.
+ * GCPolicy — garbage collection thresholds for the current WARP state.
  *
  * Instances are immutable value objects. `evaluate()` checks a set of
  * runtime metrics against the thresholds and returns a frozen

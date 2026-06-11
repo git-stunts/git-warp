@@ -42,7 +42,7 @@ export interface PatchFrame {
   receipt: TickReceipt;
 }
 
-const CONFLICT_REDUCER_ID = 'join-reducer-v5';
+const CONFLICT_REDUCER_ID = 'join-reducer';
 
 /**
  * Extracts the fields needed by ConflictResolution.fromCandidate from an OpRecord.

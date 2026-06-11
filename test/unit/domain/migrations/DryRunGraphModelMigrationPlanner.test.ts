@@ -46,7 +46,7 @@ describe('DryRunGraphModelMigrationPlanner', () => {
 
     expect(result.hasFatalErrors()).toBe(false);
     expect(result.manifest?.sourceBasis.basisId).toBe('basis:source');
-    expect(result.manifest?.targetBasis.basisId).toBe('basis:source:v18-dry-run');
+    expect(result.manifest?.targetBasis.basisId).toBe('basis:source:dry-run');
     expect(result.manifest?.contentMappings.map((mapping) => mapping.legacyContentKey)).toEqual([
       'node:a\0_content',
       'node:b\0_content',

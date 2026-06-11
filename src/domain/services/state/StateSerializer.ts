@@ -8,12 +8,12 @@ import WarpStateClass, { type NodePropertyEntry } from './WarpState.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /**
- * State Serialization and Hashing for WARP v5
+ * State serialization and hashing for the current WARP state
  *
  * Provides visibility predicates for determining what is visible in the graph,
  * canonical state serialization for deterministic hashing, and state hash computation.
  *
- * V5 uses ORSet-based state (rather than LWW registers for nodeAlive/edgeAlive).
+ * Current state uses ORSet-based state rather than LWW registers for nodeAlive/edgeAlive.
  *
  * @module StateSerializer
  * @see WARP Spec Section 8.3 (Visibility)
@@ -70,7 +70,7 @@ export function serializeState(state: WarpState, { codec }: { codec?: CodecPort 
 }
 
 /**
- * Projects a materialized V5 state into its visible graph projection.
+ * Projects a materialized state into its visible graph projection.
  */
 export function projectState(state: WarpState): StateProjection {
   const nodes = [...state.nodeAlive.elements()].sort();

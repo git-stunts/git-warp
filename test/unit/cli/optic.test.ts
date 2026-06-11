@@ -47,8 +47,8 @@ const READ_IDENTITY = Object.freeze({
   tailWitnesses: Object.freeze([
     Object.freeze({ sha: 'dddddddddddddddddddddddddddddddddddddddd', writerId: 'alice', lamport: 3 }),
   ]),
-  reducerVersion: 'checkpoint-tail-locator-v1',
-  projectionVersion: 'optic-read-v17-foundation-v1',
+  reducerVersion: 'checkpoint-tail-locator',
+  projectionVersion: 'optic-read-foundation',
 });
 
 describe('optic command', () => {

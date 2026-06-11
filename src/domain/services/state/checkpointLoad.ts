@@ -343,7 +343,7 @@ export function reconstructStateFromCheckpoint(
     edgeAlive.add(edgeKey, syntheticDot);
   }
 
-  // Reconstruct props with LWW registers (same as v4)
+  // Reconstruct props with LWW registers matching the legacy checkpoint shape.
   for (const p of props) {
     const propKey = encodePropKey(p.node, p.key);
     prop.set(propKey, LWWRegister.set(syntheticEventId, p.value as PropValue));

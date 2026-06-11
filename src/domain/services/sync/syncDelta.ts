@@ -1,11 +1,11 @@
 /**
- * syncDelta — delta computation for the WARP V5 sync protocol.
+ * syncDelta — delta computation for the WARP sync protocol.
  *
  * Computes what patches each side needs by comparing frontiers, and
  * provides a fast check for whether sync is needed at all.
  *
  * @module domain/services/sync/syncDelta
- * @see SyncProtocol — WARP V5 Spec Section 11 (Network Sync)
+ * @see SyncProtocol — WARP sync spec Section 11 (Network Sync)
  */
 
 // ---------------------------------------------------------------------------

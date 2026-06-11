@@ -35,6 +35,28 @@ after a vague shape. It violated SSTS and was reverted within one
 session. Every `*Like`, every `as unknown as`, every untyped
 boundary is a smaller version of that same mistake.
 
+## 0.1. Source version-name law
+
+`src/` represents the current runtime, not a museum of release cuts.
+Active source paths, class names, function names, type names, constants,
+and helper names must not carry release-version suffixes such as `V5`,
+`v18`, `VX`, or `vX`.
+
+Legacy release-specific artifacts belong under `scripts/` as migration-path
+artifacts. They must not be left in `src/` merely because old code still knows
+how to read them.
+
+There is one narrow exception: immutable wire-format, persisted storage,
+signature, cache-key, and domain-separation tokens may retain their byte-stable
+version strings. Those exceptions are not informal. Each allowed pattern must
+be named with a rationale in
+[`scripts/source-version-name-policy.ts`](../scripts/source-version-name-policy.ts),
+and `scripts/check-anti-sludge.sh` enforces the resulting scan.
+
+Compatibility aliases for removed public names may exist at the package
+boundary when needed to avoid breaking the published root API, but they should
+not reintroduce versioned names inside `src/`.
+
 ---
 
 ## 1. Architecture law: hexagonal or it is wrong

@@ -3,7 +3,7 @@
  *
  * This builder creates adjacency indexes from WarpState.edgeAlive OR-Set,
  * NOT from Git commit DAG topology. This is the correct WARP architecture
- * as specified in TECH-SPEC-V7.md Task 6.
+ * as specified in the historical index-builder technical spec.
  *
  * The index supports O(1) neighbor lookups by node ID.
  *
@@ -34,7 +34,7 @@ function validateWarpState(state: WarpState | null | undefined): WarpState {
 /**
  * Builds a bitmap index from materialized WARP state.
  *
- * This is the V7-compliant index builder that operates on logical graph edges
+ * This is the compliant index builder that operates on logical graph edges
  * from the edgeAlive OR-Set, not Git commit parents.
  *
  * @example

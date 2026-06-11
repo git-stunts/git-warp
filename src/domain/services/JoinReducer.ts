@@ -1,5 +1,5 @@
 /**
- * JoinReducer — thin core of the WARP v5 reducer.
+ * JoinReducer — thin core of the current WARP reducer.
  *
  * After the M14/JoinReducer-split refactor, the only logic remaining
  * in this file is the per-path dispatcher (applyFast / applyWithDiff /
@@ -112,7 +112,7 @@ export function joinStates(a: WarpState, b: WarpState): WarpState {
 // -------------------------------------------------------------------
 
 /**
- * Applies a single V2 operation to the given state. Mutates `state`
+ * Applies a single patch operation to the given state. Mutates `state`
  * in place. Unknown op types fail closed instead of becoming silent
  * data loss.
  */
@@ -260,7 +260,7 @@ export function join(
 }
 
 /**
- * Reduces a sequence of patches into a V5 state. Supports three modes:
+ * Reduces a sequence of patches into the current state. Supports three modes:
  *
  *   - default       → returns the mutated state
  *   - `receipts`    → returns `{ state, receipts }` for provenance tracking

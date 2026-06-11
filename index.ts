@@ -179,6 +179,7 @@ import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
 import { ProvenanceIndex } from './src/domain/services/provenance/ProvenanceIndex.ts';
+import createBoundedMemoryCapabilityReport from './src/domain/memory/createBoundedMemoryCapabilityReport.ts';
 import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/index/WarpStateIndexBuilder.ts';
 import { computeStateHash, projectState } from './src/domain/services/state/StateSerializer.ts';
 import { createStateReader } from './src/domain/services/state/StateReader.ts';
@@ -204,6 +205,11 @@ import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from './src/domain/services/CoordinateFactExport.ts';
+
+/**
+ * @deprecated Use createBoundedMemoryCapabilityReport.
+ */
+const createV18BoundedMemoryCapabilityReport = createBoundedMemoryCapabilityReport;
 
 export * from './src/domain/graph/publicGraphSubstrate.ts';
 export * from './src/domain/memory/index.ts';
@@ -396,6 +402,7 @@ export {
   scopeMaterializedState,
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
+  createV18BoundedMemoryCapabilityReport,
 
   // Continuum compatibility artifacts
   ContinuumArtifactAuthority,

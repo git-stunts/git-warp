@@ -1,8 +1,8 @@
 /**
- * Legacy Anchor Detector for v3 backward compatibility.
+ * Legacy Anchor Detector for backward compatibility.
  *
- * This module provides parser functions to detect legacy v3 JSON anchors
- * ({"_type":"anchor"}) alongside v4 trailer-based anchors for backward
+ * This module provides parser functions to detect legacy JSON anchors
+ * ({"_type":"anchor"}) alongside trailer-based anchors for backward
  * compatibility in E-plane traversals.
  *
  * Both functions accept `unknown` because they are parser boundaries: they // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
@@ -14,8 +14,8 @@
  */
 
 /**
- * Detects if a commit message is a legacy v3 anchor.
- * v3 anchors are JSON objects with `_type: "anchor"`.
+ * Detects if a commit message is a legacy JSON anchor.
+ * Legacy anchors are JSON objects with `_type: "anchor"`.
  *
  * @example
  * isLegacyAnchor('{"_type":"anchor"}'); // true
@@ -41,7 +41,7 @@ export function isLegacyAnchor(message: unknown): boolean { // nosemgrep: ts-no-
 }
 
 /**
- * Detects if a commit is any type of anchor (v3 JSON or v4 trailer).
+ * Detects if a commit is any type of anchor (legacy JSON or trailer).
  *
  * This function provides unified anchor detection that works across
  * both protocol versions, ensuring anchors are correctly filtered

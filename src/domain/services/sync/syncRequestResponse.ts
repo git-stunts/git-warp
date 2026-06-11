@@ -1,11 +1,11 @@
 /**
- * syncRequestResponse — request/response protocol for WARP V5 sync.
+ * syncRequestResponse — request/response protocol for WARP sync.
  *
  * Handles creation and processing of SyncRequest/SyncResponse messages,
  * plus the client-side application of received patches.
  *
  * @module domain/services/sync/syncRequestResponse
- * @see SyncProtocol — WARP V5 Spec Section 11 (Network Sync)
+ * @see SyncProtocol — WARP sync spec Section 11 (Network Sync)
  * @see JoinReducer — CRDT merge implementation
  */
 
