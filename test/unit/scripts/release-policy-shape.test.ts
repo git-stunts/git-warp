@@ -77,6 +77,27 @@ const v18GoalpostPaths = [
   '../../../docs/method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md',
   '../../../docs/method/roadmap/v18.0.0/v18-gp5-release-operation-evidence.md',
 ].map((path) => fileURLToPath(new URL(path, import.meta.url)));
+const v18ReleaseBlockersIssue = '[#552](https://github.com/git-stunts/git-warp/issues/552)';
+const v18ReleaseBlockersClosedRow = [
+  `| ${v18ReleaseBlockersIssue}`,
+  'v18 public release blockers',
+  'Closed',
+  'release',
+  'release, v18.0.0',
+  'graph-model-substrate',
+  '-',
+  'release |',
+].join(' | ');
+const v18ReleaseBlockersBlockedRow = [
+  `| ${v18ReleaseBlockersIssue}`,
+  'v18 public release blockers',
+  'Blocked',
+  'release',
+  'release, v18.0.0',
+  'graph-model-substrate',
+  '-',
+  'blocked, release |',
+].join(' | ');
 
 describe('release policy shape', () => {
   it('keeps package and jsr versions aligned on the release branch', () => {
@@ -221,12 +242,18 @@ describe('release policy shape', () => {
 
   it('sets up the active v18 roadmap planning instance', () => {
     expect(roadmap).toContain('## Active Planning Instance');
+    expect(roadmap).toContain('| Release status | `pre-tag complete` |');
     expect(roadmap).toContain('| Goalposts | `5` |');
+    expect(roadmap).toContain('| Landed goalposts | `5` |');
     expect(roadmap).toContain('| Total planned slice budget | `53` |');
-    expect(roadmap).toContain('v18.0.0 goalposts: 4/5 landed');
-    expect(roadmap).toContain('v18.0.0 slices: 47/53 landed');
-    expect(roadmap).toContain('next slice: reconcile #552 against current issue metadata and release evidence');
+    expect(roadmap).toContain('v18.0.0 goalposts: 5/5 landed');
+    expect(roadmap).toContain('v18.0.0 slices: 53/53 landed');
+    expect(roadmap).toContain('next slice: keep paying down v18-line debt without cutting the tag');
+    expect(roadmap).toContain('No v18 tag has been cut');
+    expect(roadmap).toContain('explicit operator approval');
     expect(roadmap).toContain('method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md');
+    expect(roadmap).toContain(v18ReleaseBlockersClosedRow);
+    expect(roadmap).not.toContain(v18ReleaseBlockersBlockedRow);
 
     for (const goalpostPath of v18GoalpostPaths) {
       const goalpost = readFileSync(goalpostPath, 'utf8');

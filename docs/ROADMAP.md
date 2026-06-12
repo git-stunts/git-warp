@@ -1,6 +1,6 @@
 # ROADMAP - @git-stunts/git-warp
 
-Last reconciled: 2026-06-06
+Last reconciled: 2026-06-12
 
 **Current public package/tag release:** v17.0.0
 **Next intended release:** v18.0.0
@@ -26,19 +26,25 @@ goalpost.
 | Field | Value |
 | --- | --- |
 | Release id | `v18.0.0` |
-| Release status | `active` |
+| Release status | `pre-tag complete` |
 | Current public release | `v17.0.0` |
 | Goalposts | `5` |
-| Landed goalposts | `4` |
+| Landed goalposts | `5` |
 | Total planned slice budget | `53` |
 | Target milestone | `v18.0.0` |
 | Release evidence packet | `docs/releases/v18.0.0/README.md` |
 
-v18.0.0 is ready only when every goalpost below is landed, every issue in the
-`v18.0.0` milestone is closed, superseded work has been closed or moved out of
-the target milestone with linked disposition, the release evidence packet is
-complete and placeholder-free, and `npm run release:preflight` passes from
-aligned `main`.
+v18.0.0 is ready for an explicit operator tag decision only when every goalpost
+below is landed, every issue in the `v18.0.0` milestone is closed, superseded
+work has been closed or moved out of the target milestone with linked
+disposition, the release evidence packet is complete and placeholder-free, and
+`npm run release:preflight` passes from aligned `main`.
+
+As of 2026-06-12, GitHub has zero open `v18.0.0` milestone issues, zero open
+`release-home:v18.0.0` issues, and zero open `lane:v18.0.0` issues. V18-GP5
+[#552](https://github.com/git-stunts/git-warp/issues/552) is closed with
+final-local guard evidence. No v18 tag has been cut; tagging still requires
+explicit operator approval.
 
 | Goalpost | Status | Slice budget | Umbrella or tracker issue | Goalpost doc | Release gate |
 | --- | --- | ---: | --- | --- | --- |
@@ -46,7 +52,7 @@ aligned `main`.
 | V18-GP2 Bounded-Memory Large-Graph Product Gate | landed | 15 | [#549](https://github.com/git-stunts/git-warp/issues/549) | [v18-gp2-bounded-memory-large-graph-gate.md](method/roadmap/v18.0.0/v18-gp2-bounded-memory-large-graph-gate.md) | Normal public reads, writes, content lookup, and sync must honor an explicit memory budget. |
 | V18-GP3 Content Attachment Plane Honesty | landed | 4 | [#550](https://github.com/git-stunts/git-warp/issues/550) | [v18-gp3-content-attachment-plane-honesty.md](method/roadmap/v18.0.0/v18-gp3-content-attachment-plane-honesty.md) | Release claims now distinguish typed attachment-plane progress from accepted legacy storage residuals. |
 | V18-GP4 Holographic Slicing And Checkpoint Basis | landed | 8 | [#626](https://github.com/git-stunts/git-warp/issues/626), [#628](https://github.com/git-stunts/git-warp/issues/628)-[#635](https://github.com/git-stunts/git-warp/issues/635) | [v18-gp4-holographic-slicing-checkpoint-basis.md](method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md) | Normal public graph-shaped reads now have bounded, witnessed slices over declared basis. |
-| V18-GP5 Release Operation Evidence | active | 6 | [#552](https://github.com/git-stunts/git-warp/issues/552) | [v18-gp5-release-operation-evidence.md](method/roadmap/v18.0.0/v18-gp5-release-operation-evidence.md) | Tagging and publishing must satisfy the release policy and record deterministic evidence. |
+| V18-GP5 Release Operation Evidence | landed | 6 | [#552](https://github.com/git-stunts/git-warp/issues/552) | [v18-gp5-release-operation-evidence.md](method/roadmap/v18.0.0/v18-gp5-release-operation-evidence.md) | Tagging and publishing must satisfy the release policy and record deterministic evidence. |
 
 Sequencing:
 
@@ -58,18 +64,17 @@ V18-GP4 Holographic slicing basis
   -> V18-GP5 Release operation evidence
 ```
 
-V18-GP1, V18-GP2, V18-GP3, and V18-GP4 are landed. The next release-blocking
-target is V18-GP5 [#552](https://github.com/git-stunts/git-warp/issues/552),
-which owns release operation evidence and must not be completed before explicit
-tag approval.
+V18-GP1, V18-GP2, V18-GP3, V18-GP4, and V18-GP5 are landed. The remaining
+v18 release action is an explicit operator tag decision. Do not create the
+v18 tag without explicit operator approval.
 
 Release progress should be reported as:
 
 ```text
-v18.0.0 goalposts: 4/5 landed
-v18.0.0 slices: 47/53 landed
-next goalpost: V18-GP5 Release Operation Evidence
-next slice: reconcile #552 against current issue metadata and release evidence
+v18.0.0 goalposts: 5/5 landed
+v18.0.0 slices: 53/53 landed
+next goalpost: none for v18 before explicit tag approval
+next slice: keep paying down v18-line debt without cutting the tag
 ```
 
 ## Pre-Migration Snapshot
@@ -107,7 +112,7 @@ the `type:*`, `priority:*`, `status:*`, and `area:*` label axes.
 
 | Release Slot | Count | Planning Intent |
 | --- | ---: | --- |
-| v18.0.0 | 2 | Ship only after bounded-memory public paths and release operation evidence are coherent. |
+| v18.0.0 | 0 | Pre-tag goalposts are closed; tag and publish still require explicit operator approval. |
 | v18.0.1 | 50 | Repair public docs, examples, release tooling, and review guardrails that make the v18 line usable without expanding the runtime ontology. |
 | v18.0.2 | 50 | Finish the remaining release-tooling spillover, then start the testing-quality cleanup wave with behavior-backed proofs instead of brittle text checks. |
 | v18.0.3 | 50 | Continue static-text and fixture-quality paydown while keeping the release train small enough to review as one coherent patch wave. |
@@ -191,7 +196,7 @@ Ship only after bounded-memory public paths and release operation evidence are c
 | Issue | Title | Status | Type | Lane | Feature | Release Home | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | [#549](https://github.com/git-stunts/git-warp/issues/549) | Bounded-memory large-graph product gate | Closed | enhancement | release, v18.0.0 | graph-model-substrate | - | release |
-| [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Blocked | release | release, v18.0.0 | graph-model-substrate | - | blocked, release |
+| [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Closed | release | release, v18.0.0 | graph-model-substrate | - | release |
 
 ### v18.0.1 - Public Docs And Release Tooling Repair
 
