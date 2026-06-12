@@ -19,7 +19,7 @@ const REDUCER_TEST_FILES = [
   '../../../test/unit/scripts/visible-state-upgrade.test.ts',
 ] as const;
 
-const REDUCE_PATCHES_ALIAS = /reducePatches\s+as\s+_reducePatches/;
+const REDUCE_PATCHES_ALIAS = /reducePatches\s+as\s+[A-Za-z_$][\w$]*/;
 const REDUCE_PATCHES_ANY_SIGNATURE = /const\s+reducePatches[\s\S]*?\(\s*\.\.\.args:\s*any\[\]\s*\)\s*=>\s*any/;
 const REDUCE_PATCHES_ANY_CAST = /reducePatches\([^;\n]*\)\s+as\s+any/;
 const REDUCE_PATCHES_TYPED_WRAPPER = /const\s+reducePatches\s*=\s*\([^)]*any[^)]*\)\s*:\s*any\s*=>/;
@@ -29,6 +29,10 @@ function readRepoFile(relativePath: string): string {
 }
 
 describe('reducePatches test type hygiene', () => {
+  it('detects reducePatches aliases with arbitrary local names', () => {
+    expect(REDUCE_PATCHES_ALIAS.test('import { reducePatches as reducer } from "./JoinReducer.ts";')).toBe(true);
+  });
+
   it('does not launder reducePatches through any-typed aliases', () => {
     const offenders = REDUCER_TEST_FILES.flatMap((path) => {
       const source = readRepoFile(path);
