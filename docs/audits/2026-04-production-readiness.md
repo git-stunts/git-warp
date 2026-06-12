@@ -98,7 +98,7 @@ and planned for resolution. Does not affect correctness.
 
 **Risk 3: Materialization is O(P) and unbounded in memory**
 
-reduceV5() loads all patches sequentially. No AbortSignal support.
+reducePatches() loads all patches sequentially. No AbortSignal support.
 No forced checkpoint at sync boundaries. A new node syncing a
 graph with no checkpoints will attempt full materialization.
 

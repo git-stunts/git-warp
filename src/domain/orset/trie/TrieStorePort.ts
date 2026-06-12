@@ -34,7 +34,7 @@ import type { TrieBranchEntries } from "./TrieBranchEntries.ts";
  * ## Geometry-agnostic
  *
  * The branch collaborator type `TrieBranchEntries` is
- * `ReadonlyMap<number, string>`. v1 populates indices `0..15` for
+ * `ReadonlyMap<number, string>`. The default geometry populates indices `0..15` for
  * 4-bit nibbles (16-way fanout), but the port signature supports
  * any fanout the geometry benchmark picks — up to the 256-way
  * ceiling set by `RouteKey`. Nothing in this port hardcodes 16.

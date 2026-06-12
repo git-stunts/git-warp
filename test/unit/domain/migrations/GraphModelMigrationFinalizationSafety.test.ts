@@ -7,7 +7,7 @@ import GenesisEquivalenceGateResult
   from '../../../../src/domain/migrations/GenesisEquivalenceGateResult.ts';
 import GraphModelMigrationBasis from '../../../../src/domain/migrations/GraphModelMigrationBasis.ts';
 import GraphModelMigrationFinalizationConfirmation, {
-  V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
+  GRAPH_MODEL_MIGRATION_FINALIZATION_CONFIRMATION,
 } from '../../../../src/domain/migrations/GraphModelMigrationFinalizationConfirmation.ts';
 import GraphModelMigrationFinalizationRequest
   from '../../../../src/domain/migrations/GraphModelMigrationFinalizationRequest.ts';
@@ -138,7 +138,7 @@ function completeRequest(overrides: {
 
 function confirmation(): GraphModelMigrationFinalizationConfirmation {
   return new GraphModelMigrationFinalizationConfirmation({
-    token: V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
+    token: GRAPH_MODEL_MIGRATION_FINALIZATION_CONFIRMATION,
   });
 }
 

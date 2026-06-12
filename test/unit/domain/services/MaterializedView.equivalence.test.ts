@@ -3,7 +3,7 @@
  * index updates.
  *
  * For each seed, generates a random patch sequence, then compares:
- * 1. FULL REBUILD: reduceV5(allPatches) -> MaterializedViewService.build()
+ * 1. FULL REBUILD: reducePatches(allPatches) -> MaterializedViewService.build()
  * 2. INCREMENTAL: apply patches one-by-one with trackDiff -> applyDiff after each
  *
  * Results must be identical: query every alive node's neighbors (out/in) + properties.
@@ -12,8 +12,8 @@ import { describe, it, expect } from 'vitest';
 import {
   createEmptyState,
   applyWithDiff,
-  applyOpV2,
-  reduceV5,
+  applyPatchOp,
+  reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
@@ -137,7 +137,7 @@ function generatePatches(seed) {
     // Update tracking state so future removals are meaningful
     for (let i = 0; i < ops.length; i++) {
       const eventId = new EventId(lamport, writer, sha, i);
-      applyOpV2(trackState, (ops[i] as typeof ops[0]), eventId);
+      applyPatchOp(trackState, (ops[i] as typeof ops[0]), eventId);
     }
   }
 
@@ -227,7 +227,7 @@ describe('MaterializedView equivalence', () => {
       const service = new MaterializedViewService();
 
       // ── Full rebuild ──────────────────────────────────────────────
-      const fullState = (reduceV5(patches) as any);
+      const fullState = reducePatches(patches);
       const fullBuild = service.build(fullState);
       const fullBitmapProvider = new BitmapNeighborProvider({
         logicalIndex: fullBuild.logicalIndex,
@@ -271,7 +271,7 @@ describe('MaterializedView equivalence', () => {
       const service = new MaterializedViewService();
 
       // ── Full rebuild ──────────────────────────────────────────────
-      const fullState = (reduceV5(patches) as any);
+      const fullState = reducePatches(patches);
       const fullBuild = service.build(fullState);
       const fullBitmapProvider = new BitmapNeighborProvider({
         logicalIndex: fullBuild.logicalIndex,
@@ -397,7 +397,7 @@ describe('MaterializedView equivalence', () => {
       },
     ];
 
-    const fullState = (reduceV5(patches) as any);
+    const fullState = reducePatches(patches);
     const build = service.build(fullState);
 
     // Object.prototype must be untouched

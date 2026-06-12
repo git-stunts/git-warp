@@ -17,7 +17,7 @@ import V17GoldenGraphFixtureManifest, {
   type V17GoldenGraphFixtureVisibleFact,
   V17GoldenMultiWriterFact,
   V17GoldenRemovalFact,
-} from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+} from './V17GoldenGraphFixtureManifest.ts';
 import {
   publicContentFactKey,
   publicPropertyFactKey,

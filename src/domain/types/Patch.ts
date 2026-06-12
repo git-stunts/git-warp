@@ -12,7 +12,7 @@
 
 import VersionVector from '../crdt/VersionVector.ts';
 import PatchError from '../errors/PatchError.ts';
-import type { OpV2 } from './ops/unions.ts';
+import type { PatchOp } from './ops/unions.ts';
 
 function assertMetadataEntry(value: string): void {
   if (typeof value !== 'string' || value.length === 0) {
@@ -71,7 +71,7 @@ function validateLamport(lamport: number): void {
   }
 }
 
-function validateOps(ops: OpV2[]): void {
+function validateOps(ops: PatchOp[]): void {
   if (!Array.isArray(ops)) {
     throw new PatchError('Patch ops must be an array', {
       code: 'E_PATCH_OPS',
@@ -123,7 +123,7 @@ export default class Patch {
   /**
    * Ordered array of operations.
    */
-  ops: OpV2[];
+  ops: PatchOp[];
 
   /**
    * Node/edge IDs read by this patch (provenance tracking).
@@ -145,7 +145,7 @@ export default class Patch {
     writer: string;
     lamport: number;
     context: VersionVector | Map<string, number> | Record<string, number>;
-    ops: OpV2[];
+    ops: PatchOp[];
     reads?: string[] | undefined;
     writes?: string[] | undefined;
   }) {

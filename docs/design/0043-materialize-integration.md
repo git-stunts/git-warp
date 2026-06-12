@@ -57,7 +57,7 @@ A contributor can now answer:
 The async-firewall pieces are now ready, but `MaterializeController` still
 reduces through:
 
-- `reduceV5(...)`
+- `reducePatches(...)`
 - `WarpState`
 - legacy checkpoint load assumptions
 
@@ -98,13 +98,13 @@ This cycle should make that ownership explicit inside `MaterializeController`.
 Replay should move from:
 
 ```text
-reduceV5(...)
+reducePatches(...)
 ```
 
 to the session-backed reducer seam from `0041`:
 
 ```text
-reduceV5InSession(...)
+reducePatchesInSession(...)
 ```
 
 That means materialization now owns a mixed replay frame:

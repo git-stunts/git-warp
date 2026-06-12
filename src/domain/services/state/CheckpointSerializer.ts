@@ -1,8 +1,8 @@
 /**
- * Checkpoint Serialization for WARP V5
+ * Checkpoint serialization for the current WARP state
  *
- * Provides full V5 state serialization including ORSet internals (entries + tombstones).
- * This is the AUTHORITATIVE checkpoint format for V5 state.
+ * Provides full state serialization including ORSet internals (entries + tombstones).
+ * This is the AUTHORITATIVE checkpoint format for current state.
  *
  * Key differences from StateSerializer:
  * - StateSerializer serializes the VISIBLE PROJECTION (for hashing)
@@ -34,7 +34,7 @@ interface SerializedLWWRegister {
 // ============================================================================
 
 /**
- * Serializes full V5 state including ORSet internals (entries + tombstones).
+ * Serializes full state including ORSet internals (entries + tombstones).
  * This is the AUTHORITATIVE checkpoint format.
  */
 export function serializeFullState(
@@ -81,7 +81,7 @@ function serializeEdgeBirthArray(
 }
 
 /**
- * Deserializes full V5 state. Used for resume.
+ * Deserializes full state. Used for resume.
  */
 export function deserializeFullState(
   buffer: Uint8Array,

@@ -8,8 +8,8 @@
  */
 
 import type {
-  CoordinateComparisonV1,
-  CoordinateTransferPlanV1,
+  CoordinateComparison,
+  CoordinateTransferPlan,
 } from '../../types/CoordinateComparison.ts';
 import type {
   CompareStrandOptions,
@@ -28,7 +28,7 @@ import {
   planStrandTransferImpl,
   planCoordinateTransferImpl,
   compareCoordinatesImpl,
-  type VisiblePatchDivergenceV1,
+  type VisiblePatchDivergence,
 } from './ComparisonEngine.ts';
 
 export type ComparisonControllerDeps = {
@@ -50,33 +50,33 @@ export default class ComparisonController {
     leftEntries: PatchEntry[],
     rightEntries: PatchEntry[],
     targetId?: string | null,
-  ): VisiblePatchDivergenceV1 {
+  ): VisiblePatchDivergence {
     return buildPatchDivergenceImpl(leftEntries, rightEntries, targetId ?? null);
   }
 
   async compareStrand(
     strandId: string,
     options: CompareStrandOptions = {},
-  ): Promise<CoordinateComparisonV1> {
+  ): Promise<CoordinateComparison> {
     return await compareStrandImpl(this._host, this._selectorContext, strandId, options);
   }
 
   async planStrandTransfer(
     strandId: string,
     options: PlanStrandTransferOptions = {},
-  ): Promise<CoordinateTransferPlanV1> {
+  ): Promise<CoordinateTransferPlan> {
     return await planStrandTransferImpl(this._host, this._selectorContext, strandId, options);
   }
 
   async planCoordinateTransfer(
     options: PlanCoordinateTransferOptions,
-  ): Promise<CoordinateTransferPlanV1> {
+  ): Promise<CoordinateTransferPlan> {
     return await planCoordinateTransferImpl(this._host, this._selectorContext, options);
   }
 
   async compareCoordinates(
     options: CompareCoordinatesOptions,
-  ): Promise<CoordinateComparisonV1> {
+  ): Promise<CoordinateComparison> {
     return await compareCoordinatesImpl(this._host, this._selectorContext, options);
   }
 }

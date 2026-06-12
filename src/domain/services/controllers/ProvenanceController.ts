@@ -8,7 +8,7 @@
  */
 
 import QueryError from '../../errors/QueryError.ts';
-import { createEmptyState, reduceV5, type WarpState } from '../JoinReducer.ts';
+import { createEmptyState, reducePatches, type WarpState } from '../JoinReducer.ts';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.ts';
 import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 import type Patch from '../../types/Patch.ts';
@@ -82,7 +82,7 @@ export default class ProvenanceController {
     const sortedPatches = this._sortPatchesCausally(patchEntries);
 
     if (collectReceipts) {
-      const result = reduceV5(sortedPatches, undefined, { receipts: true }) as { state: WarpState; receipts: TickReceipt[] };
+      const result = reducePatches(sortedPatches, undefined, { receipts: true }) as { state: WarpState; receipts: TickReceipt[] };
       return {
         state: result.state,
         patchCount: sortedPatches.length,

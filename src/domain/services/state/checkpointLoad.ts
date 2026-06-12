@@ -20,7 +20,7 @@ import { Dot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { LWWRegister } from '../../crdt/LWW.ts';
 import { EventId } from '../../utils/EventId.ts';
-import { reduceV5 } from '../JoinReducer.ts';
+import { reducePatches } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
 import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -279,7 +279,7 @@ export async function materializeIncremental({
   }
 
   // 5. Apply new patches using the reducer with checkpoint state as initial
-  const finalState = reduceV5(allPatches, initialState) as WarpState;
+  const finalState = reducePatches(allPatches, initialState);
 
   return finalState;
 }
@@ -343,7 +343,7 @@ export function reconstructStateFromCheckpoint(
     edgeAlive.add(edgeKey, syntheticDot);
   }
 
-  // Reconstruct props with LWW registers (same as v4)
+  // Reconstruct props with LWW registers matching the legacy checkpoint shape.
   for (const p of props) {
     const propKey = encodePropKey(p.node, p.key);
     prop.set(propKey, LWWRegister.set(syntheticEventId, p.value as PropValue));

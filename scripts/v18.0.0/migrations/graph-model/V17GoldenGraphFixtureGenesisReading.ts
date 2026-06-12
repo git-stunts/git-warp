@@ -1,8 +1,8 @@
-import GenesisEquivalenceBoundary from './GenesisEquivalenceBoundary.ts';
-import GenesisEquivalenceReading from './GenesisEquivalenceReading.ts';
+import GenesisEquivalenceBoundary from '../../../../src/domain/migrations/GenesisEquivalenceBoundary.ts';
+import GenesisEquivalenceReading from '../../../../src/domain/migrations/GenesisEquivalenceReading.ts';
 import GenesisEquivalenceReadingFact, {
   type GenesisEquivalenceReadingFactKind,
-} from './GenesisEquivalenceReadingFact.ts';
+} from '../../../../src/domain/migrations/GenesisEquivalenceReadingFact.ts';
 import V17GoldenGraphFixtureManifest, {
   V17GoldenContentFact,
   V17GoldenEdgeFact,
@@ -12,7 +12,7 @@ import V17GoldenGraphFixtureManifest, {
   V17GoldenPropertyFact,
   V17GoldenRemovalFact,
 } from './V17GoldenGraphFixtureManifest.ts';
-import WarpError from '../errors/WarpError.ts';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 
 const LEGACY_FIXTURE_READING_PREFIX = 'v17-golden-fixture';
 

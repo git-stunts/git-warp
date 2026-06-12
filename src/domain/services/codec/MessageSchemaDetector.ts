@@ -9,13 +9,13 @@ import { getCodec, TRAILER_KEYS } from './MessageCodecInternal.ts';
 // ── Constants ───────────────────────────────────────────────────────
 
 /** Patch schema v2 — classic node-only patches. */
-export const SCHEMA_V2 = 2;
+export const CLASSIC_PATCH_SCHEMA_VERSION = 2;
 
 /** Patch schema v3 — edge-property-aware patches. */
-export const SCHEMA_V3 = 3;
+export const EDGE_PROPERTY_PATCH_SCHEMA_VERSION = 3;
 
-export const PATCH_SCHEMA_V2 = SCHEMA_V2;
-export const PATCH_SCHEMA_V3 = SCHEMA_V3;
+export const PATCH_SCHEMA_CLASSIC = CLASSIC_PATCH_SCHEMA_VERSION;
+export const PATCH_SCHEMA_EDGE_PROPERTIES = EDGE_PROPERTY_PATCH_SCHEMA_VERSION;
 
 // ── Schema version detection ────────────────────────────────────────
 
@@ -28,25 +28,25 @@ function isEdgePropOp(op: OpLike): boolean { // nosemgrep: ts-no-like-types -- 0
 
 /** Detects the schema version required for a set of ops. */
 export function detectSchemaVersion(ops: OpLike[]): number { // nosemgrep: ts-no-like-types -- 0025C
-  if (!Array.isArray(ops)) { return SCHEMA_V2; }
+  if (!Array.isArray(ops)) { return CLASSIC_PATCH_SCHEMA_VERSION; }
   for (const op of ops) {
     if (op === null || op === undefined || typeof op !== 'object') { continue; }
-    if (isEdgePropOp(op)) { return SCHEMA_V3; }
+    if (isEdgePropOp(op)) { return EDGE_PROPERTY_PATCH_SCHEMA_VERSION; }
   }
-  return SCHEMA_V2;
+  return CLASSIC_PATCH_SCHEMA_VERSION;
 }
 
 // ── Schema compatibility ────────────────────────────────────────────
 
 /** Asserts ops are compatible with a max supported schema version. */
 export function assertOpsCompatible(ops: OpLike[], maxSchema: number): void { // nosemgrep: ts-no-like-types -- 0025C
-  if (maxSchema >= SCHEMA_V3) { return; }
+  if (maxSchema >= EDGE_PROPERTY_PATCH_SCHEMA_VERSION) { return; }
   if (!Array.isArray(ops)) { return; }
   for (const op of ops) {
     if (op === null || op === undefined || typeof op !== 'object') { continue; }
     if (isEdgePropOp(op)) {
       throw new SchemaUnsupportedError('Upgrade to >=7.3.0 (WEIGHTED) to sync edge properties.', {
-        context: { requiredSchema: SCHEMA_V3, maxSupportedSchema: maxSchema },
+        context: { requiredSchema: EDGE_PROPERTY_PATCH_SCHEMA_VERSION, maxSupportedSchema: maxSchema },
       });
     }
   }

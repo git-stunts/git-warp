@@ -12,7 +12,7 @@ import type {
 } from '../../../../src/domain/services/state/StateDiff.ts';
 import {
   createEmptyState,
-  applyOpV2,
+  applyPatchOp,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
@@ -48,7 +48,7 @@ function applyOps(state, ops, writerId) {
   let lamport = 1;
   for (const op of ops) {
     const eventId = new EventId(lamport++, writerId, 'abcd1234', 0);
-    applyOpV2(state, op, eventId);
+    applyPatchOp(state, op, eventId);
   }
 }
 

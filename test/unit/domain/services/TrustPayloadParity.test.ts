@@ -81,7 +81,7 @@ function buildNotConfiguredPayload(graphName) {
   return {
     graph: graphName,
     trustSchemaVersion: 1,
-    mode: 'signed_evidence_v1',
+    mode: 'signed_evidence',
     trustVerdict: 'not_configured',
     trust: {
       status: 'not_configured',
@@ -110,7 +110,7 @@ function buildErrorPayload(graphName, pinInfo) {
   return {
     graph: graphName,
     trustSchemaVersion: 1,
-    mode: 'signed_evidence_v1',
+    mode: 'signed_evidence',
     trustVerdict: 'fail',
     trust: {
       status: 'error',
@@ -326,7 +326,7 @@ describe('TrustPayloadParity — error path', () => {
     // Service error path (from AuditVerifierService.evaluateTrust)
     const serviceErrorPayload = {
       trustSchemaVersion: 1,
-      mode: 'signed_evidence_v1',
+      mode: 'signed_evidence',
       trustVerdict: 'fail',
       trust: {
         status: 'error',
@@ -401,7 +401,7 @@ describe('TrustPayloadParity — not-configured path', () => {
     // Service not_configured path (from AuditVerifierService.evaluateTrust)
     const servicePayload = {
       trustSchemaVersion: 1,
-      mode: 'signed_evidence_v1',
+      mode: 'signed_evidence',
       trustVerdict: 'not_configured',
       trust: {
         status: 'not_configured',

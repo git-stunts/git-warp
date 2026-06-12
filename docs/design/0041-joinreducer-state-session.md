@@ -17,7 +17,7 @@ Today `JoinReducer.ts` still assumes one synchronous `WarpState` bag:
 - receipts and diffs also inspect those in-memory `ORSet`s directly
 
 That is not truthful for the trie-backed line. But the obvious fix is also
-wrong: we should not make `reduceV5()` silently become an async wrapper around
+wrong: we should not make `reducePatches()` silently become an async wrapper around
 the old synchronous `WarpState` surface. That would blur the current substrate
 and make `PROTO_materialize-integration` harder instead of clearer.
 
@@ -39,7 +39,7 @@ A contributor can now answer:
 
 1. Make patch replay operate through `StateSession` for trie-backed
    `nodeAlive` / `edgeAlive`.
-2. Keep the current synchronous `reduceV5()` path intact for the current
+2. Keep the current synchronous `reducePatches()` path intact for the current
    in-memory substrate until `PROTO_materialize-integration`.
 3. Introduce one truthful reducer-owned runtime shape for the mixed state:
    trie-backed alive sets plus synchronous metadata.
@@ -69,7 +69,7 @@ currently owns only the trie-backed alive sets.
 So the truthful async seam is **not**:
 
 ```text
-reduceV5(patches): Promise<WarpState>
+reducePatches(patches): Promise<WarpState>
 ```
 
 and it is also **not**:
@@ -92,7 +92,7 @@ The truthful seam is a mixed reducer frame:
 - `applyFast(state, patch, sha)`
 - `applyWithDiff(state, patch, sha)`
 - `applyWithReceipt(state, patch, sha)`
-- `reduceV5(patches, initialState?, options?)`
+- `reducePatches(patches, initialState?, options?)`
 
 Those functions should stay valid for the current in-memory `WarpState`
 substrate until `PROTO_materialize-integration` moves runtime materialization
@@ -149,7 +149,7 @@ async function applyWithReceiptInSession(
   patchSha: string,
 ): Promise<TickReceipt>;
 
-async function reduceV5InSession(
+async function reducePatchesInSession(
   patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>,
   frame?: ReducerSessionFrame,
   options?: { readonly receipts?: boolean; readonly trackDiff?: boolean },
@@ -159,7 +159,7 @@ async function reduceV5InSession(
 The important law is:
 
 - session-backed replay has its own async surface
-- legacy `reduceV5()` remains sync until later integration
+- legacy `reducePatches()` remains sync until later integration
 
 ### 4. Do not route session replay through `Op.mutate(state)`
 
@@ -223,7 +223,7 @@ That controller handoff belongs with `PROTO_materialize-integration`.
 
 ### Agent
 
-- Can I explain why making `reduceV5()` secretly async would be the wrong seam?
+- Can I explain why making `reducePatches()` secretly async would be the wrong seam?
 - Can I point to the truthful mixed reducer frame for session-backed replay?
 - Can I explain why current `Op.mutate(state)` cannot simply be reused on the
   session-backed path?
@@ -239,7 +239,7 @@ That controller handoff belongs with `PROTO_materialize-integration`.
 
 ### Golden path
 
-- `reduceV5InSession()` replays patches through one `StateSession` and returns
+- `reducePatchesInSession()` replays patches through one `StateSession` and returns
   updated metadata plus flushed trie roots on close
 - receipt mode on the session-backed path matches the legacy sync reducer for
   equivalent patches
@@ -303,9 +303,9 @@ Likely first red surfaces:
 
 ### Agent
 
-- Can I explain why making `reduceV5()` secretly async would be the wrong seam?
-  - Yes. The shipped shape keeps legacy `reduceV5()` synchronous and adds
-    `reduceV5InSession()` as the truthful async path.
+- Can I explain why making `reducePatches()` secretly async would be the wrong seam?
+  - Yes. The shipped shape keeps legacy `reducePatches()` synchronous and adds
+    `reducePatchesInSession()` as the truthful async path.
 - Can I point to the truthful mixed reducer frame for session-backed replay?
   - Yes. `ReducerSessionFrame` carries `StateSession` plus `prop`,
     `observedFrontier`, and `edgeBirthEvent`.

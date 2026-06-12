@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import MaterializeController from '../../../../src/domain/services/controllers/MaterializeController.ts';
-import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
@@ -17,7 +17,7 @@ function buildState(nodes, edges) {
   let opIdx = 0;
 
   for (const nodeId of nodes) {
-    applyOpV2(
+    applyPatchOp(
       state,
       { type: 'NodeAdd', node: nodeId, dot: Dot.create(writer, lamport) },
       new EventId(lamport, writer, sha, opIdx++),
@@ -25,7 +25,7 @@ function buildState(nodes, edges) {
     lamport++;
   }
   for (const [from, to, label] of edges) {
-    applyOpV2(
+    applyPatchOp(
       state,
       { type: 'EdgeAdd', from, to, label, dot: Dot.create(writer, lamport) },
       new EventId(lamport, writer, sha, opIdx++),

@@ -1144,7 +1144,7 @@ describe('AuditVerifierService — evaluateTrust', () => {
       writerIds: ['alice'],
     });
 
-    expect(result.mode).toBe('signed_evidence_v1');
+    expect(result.mode).toBe('signed_evidence');
     expect(result.trust.status).toBe('configured');
     expect(result.trust.source).toBe('ref');
     expect(result.trustVerdict).toBe('pass');

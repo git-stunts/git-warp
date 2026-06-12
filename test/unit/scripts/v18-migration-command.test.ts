@@ -26,7 +26,7 @@ import GenesisEquivalenceReadingFact
   from '../../../src/domain/migrations/GenesisEquivalenceReadingFact.ts';
 import GraphModelMigrationBasis from '../../../src/domain/migrations/GraphModelMigrationBasis.ts';
 import GraphModelMigrationFinalizationConfirmation, {
-  V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
+  GRAPH_MODEL_MIGRATION_FINALIZATION_CONFIRMATION,
 } from '../../../src/domain/migrations/GraphModelMigrationFinalizationConfirmation.ts';
 import GraphModelMigrationNodeMapping
   from '../../../src/domain/migrations/GraphModelMigrationNodeMapping.ts';
@@ -390,7 +390,7 @@ function basis(): GenesisEquivalenceComparisonBasis {
 
 function confirmation(): GraphModelMigrationFinalizationConfirmation {
   return new GraphModelMigrationFinalizationConfirmation({
-    token: V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
+    token: GRAPH_MODEL_MIGRATION_FINALIZATION_CONFIRMATION,
   });
 }
 

@@ -6,10 +6,10 @@
 
 import type Patch from '../types/Patch.ts';
 import type {
-  CoordinateComparisonSelectorV1,
-  CoordinateComparisonV1,
-  CoordinateTransferPlanSelectorV1,
-  CoordinateTransferPlanV1,
+  CoordinateComparisonSelectorInput,
+  CoordinateComparison,
+  CoordinateTransferPlanSelectorInput,
+  CoordinateTransferPlan,
   VisibleStateScope,
 } from '../types/CoordinateComparison.ts';
 
@@ -38,16 +38,16 @@ export type PlanStrandTransferOptions = {
 
 /** Options for compareCoordinates(). */
 export type CompareCoordinatesOptions = {
-  left: CoordinateComparisonSelectorV1;
-  right: CoordinateComparisonSelectorV1;
+  left: CoordinateComparisonSelectorInput;
+  right: CoordinateComparisonSelectorInput;
   targetId?: string | null;
   scope?: VisibleStateScope | null;
 };
 
 /** Options for planCoordinateTransfer(). */
 export type PlanCoordinateTransferOptions = {
-  source: CoordinateTransferPlanSelectorV1;
-  target: CoordinateTransferPlanSelectorV1;
+  source: CoordinateTransferPlanSelectorInput;
+  target: CoordinateTransferPlanSelectorInput;
   scope?: VisibleStateScope | null;
 };
 
@@ -60,15 +60,15 @@ export default abstract class ComparisonCapability {
   abstract compareStrand(
     _strandId: string,
     _options?: CompareStrandOptions,
-  ): Promise<CoordinateComparisonV1>;
+  ): Promise<CoordinateComparison>;
   abstract planStrandTransfer(
     _strandId: string,
     _options?: PlanStrandTransferOptions,
-  ): Promise<CoordinateTransferPlanV1>;
+  ): Promise<CoordinateTransferPlan>;
   abstract compareCoordinates(
     _options: CompareCoordinatesOptions,
-  ): Promise<CoordinateComparisonV1>;
+  ): Promise<CoordinateComparison>;
   abstract planCoordinateTransfer(
     _options: PlanCoordinateTransferOptions,
-  ): Promise<CoordinateTransferPlanV1>;
+  ): Promise<CoordinateTransferPlan>;
 }

@@ -4,7 +4,7 @@
  * @module domain/services/transfer/transferOps
  */
 
-import type { VisibleStateTransferOperationV1, VisibleStateTransferPlanSummaryV1 } from '../../types/CoordinateComparison.ts';
+import type { VisibleStateTransferOperation, VisibleStateTransferPlanSummary } from '../../types/CoordinateComparison.ts';
 import {
   contentMetaKey,
   valueKey,
@@ -28,8 +28,8 @@ export function nodePropertyOp(
   nodeId: string,
   key: string,
   value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-): VisibleStateTransferOperationV1 {
-  return { op: 'set_node_property', nodeId, key, value } as VisibleStateTransferOperationV1;
+): VisibleStateTransferOperation {
+  return { op: 'set_node_property', nodeId, key, value } as VisibleStateTransferOperation;
 }
 
 /**
@@ -39,7 +39,7 @@ export function edgePropertyOp(
   edge: EdgeRef,
   key: string,
   value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-): VisibleStateTransferOperationV1 {
+): VisibleStateTransferOperation {
   return {
     op: 'set_edge_property',
     from: edge.from,
@@ -47,7 +47,7 @@ export function edgePropertyOp(
     label: edge.label,
     key,
     value,
-  } as VisibleStateTransferOperationV1;
+  } as VisibleStateTransferOperation;
 }
 
 export type PropertyKeyInfo = {
@@ -87,9 +87,9 @@ export function sourcePropertyChanged(info: PropertyKeyInfo): boolean {
  */
 export function buildPropertyDiffOp(
   info: PropertyKeyInfo,
-  buildOp: (key: string, value: unknown) => VisibleStateTransferOperationV1, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  buildOp: (key: string, value: unknown) => VisibleStateTransferOperation, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   key: string,
-): VisibleStateTransferOperationV1 | null {
+): VisibleStateTransferOperation | null {
   if (!info.sourceHas && info.targetHas) {
     return buildOp(key, null);
   }
@@ -105,9 +105,9 @@ export function buildPropertyDiffOp(
 export function collectPropertyOps(
   sourceProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   targetProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  buildOp: (key: string, value: unknown) => VisibleStateTransferOperationV1, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-): VisibleStateTransferOperationV1[] {
-  const ops: VisibleStateTransferOperationV1[] = [];
+  buildOp: (key: string, value: unknown) => VisibleStateTransferOperation, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+): VisibleStateTransferOperation[] {
+  const ops: VisibleStateTransferOperation[] = [];
 
   for (const key of propertyKeys(sourceProps, targetProps)) {
     const info = inspectPropertyKey(sourceProps, targetProps, key);
@@ -126,8 +126,8 @@ export type ContentOpParams = {
   sourceMeta: ContentMeta | null;
   targetMeta: ContentMeta | null;
   loadContent: () => Promise<Uint8Array>;
-  buildAttach: (content: Uint8Array, meta: ContentMeta) => VisibleStateTransferOperationV1;
-  buildClear: () => VisibleStateTransferOperationV1;
+  buildAttach: (content: Uint8Array, meta: ContentMeta) => VisibleStateTransferOperation;
+  buildClear: () => VisibleStateTransferOperation;
 };
 
 /**
@@ -135,7 +135,7 @@ export type ContentOpParams = {
  */
 export async function planContentOp(
   params: ContentOpParams,
-): Promise<VisibleStateTransferOperationV1 | null> {
+): Promise<VisibleStateTransferOperation | null> {
   if (contentMetaKey(params.sourceMeta) === contentMetaKey(params.targetMeta)) {
     return null;
   }
@@ -153,7 +153,7 @@ export function buildNodeAttach(
   nodeId: string,
   content: Uint8Array,
   meta: ContentMeta,
-): VisibleStateTransferOperationV1 {
+): VisibleStateTransferOperation {
   return {
     op: TRANSFER_OP_ATTACH_NODE_CONTENT,
     nodeId,
@@ -161,14 +161,14 @@ export function buildNodeAttach(
     contentOid: meta.oid,
     mime: meta.mime,
     size: meta.size,
-  } as VisibleStateTransferOperationV1;
+  } as VisibleStateTransferOperation;
 }
 
 /**
  * Build the clear operation for a single node's content.
  */
-export function buildNodeClear(nodeId: string): VisibleStateTransferOperationV1 {
-  return { op: TRANSFER_OP_CLEAR_NODE_CONTENT, nodeId } as VisibleStateTransferOperationV1;
+export function buildNodeClear(nodeId: string): VisibleStateTransferOperation {
+  return { op: TRANSFER_OP_CLEAR_NODE_CONTENT, nodeId } as VisibleStateTransferOperation;
 }
 
 export type NodeContentOpsParams = {
@@ -184,17 +184,17 @@ export type NodeContentOpsParams = {
 export async function planNodeContentOp(
   params: NodeContentOpsParams,
   nodeId: string,
-): Promise<VisibleStateTransferOperationV1 | null> {
+): Promise<VisibleStateTransferOperation | null> {
   function loadContent(): Promise<Uint8Array> {
     return params.loadContent(
       nodeId,
       params.sourceReader.getNodeContentMeta(nodeId) as ContentMeta,
     );
   }
-  function buildAttach(content: Uint8Array, meta: ContentMeta): VisibleStateTransferOperationV1 {
+  function buildAttach(content: Uint8Array, meta: ContentMeta): VisibleStateTransferOperation {
     return buildNodeAttach(nodeId, content, meta);
   }
-  function buildClear(): VisibleStateTransferOperationV1 {
+  function buildClear(): VisibleStateTransferOperation {
     return buildNodeClear(nodeId);
   }
 
@@ -212,8 +212,8 @@ export async function planNodeContentOp(
  */
 export async function collectNodeContentOps(
   params: NodeContentOpsParams,
-): Promise<VisibleStateTransferOperationV1[]> {
-  const ops: VisibleStateTransferOperationV1[] = [];
+): Promise<VisibleStateTransferOperation[]> {
+  const ops: VisibleStateTransferOperation[] = [];
 
   for (const nodeId of params.nodeIds) {
     const op = await planNodeContentOp(params, nodeId);
@@ -232,7 +232,7 @@ export function buildEdgeAttach(
   edge: EdgeRef,
   content: Uint8Array,
   meta: ContentMeta,
-): VisibleStateTransferOperationV1 {
+): VisibleStateTransferOperation {
   return {
     op: TRANSFER_OP_ATTACH_EDGE_CONTENT,
     from: edge.from,
@@ -242,19 +242,19 @@ export function buildEdgeAttach(
     contentOid: meta.oid,
     mime: meta.mime,
     size: meta.size,
-  } as VisibleStateTransferOperationV1;
+  } as VisibleStateTransferOperation;
 }
 
 /**
  * Build the clear operation for a single edge's content.
  */
-export function buildEdgeClear(edge: EdgeRef): VisibleStateTransferOperationV1 {
+export function buildEdgeClear(edge: EdgeRef): VisibleStateTransferOperation {
   return {
     op: TRANSFER_OP_CLEAR_EDGE_CONTENT,
     from: edge.from,
     to: edge.to,
     label: edge.label,
-  } as VisibleStateTransferOperationV1;
+  } as VisibleStateTransferOperation;
 }
 
 export type EdgeContentOpsParams = {
@@ -270,17 +270,17 @@ export type EdgeContentOpsParams = {
 export async function planEdgeContentOp(
   params: EdgeContentOpsParams,
   edge: EdgeRef,
-): Promise<VisibleStateTransferOperationV1 | null> {
+): Promise<VisibleStateTransferOperation | null> {
   function loadContent(): Promise<Uint8Array> {
     return params.loadContent(
       edge,
       params.sourceReader.getEdgeContentMeta(edge.from, edge.to, edge.label) as ContentMeta,
     );
   }
-  function buildAttach(content: Uint8Array, meta: ContentMeta): VisibleStateTransferOperationV1 {
+  function buildAttach(content: Uint8Array, meta: ContentMeta): VisibleStateTransferOperation {
     return buildEdgeAttach(edge, content, meta);
   }
-  function buildClear(): VisibleStateTransferOperationV1 {
+  function buildClear(): VisibleStateTransferOperation {
     return buildEdgeClear(edge);
   }
 
@@ -298,8 +298,8 @@ export async function planEdgeContentOp(
  */
 export async function collectEdgeContentOps(
   params: EdgeContentOpsParams,
-): Promise<VisibleStateTransferOperationV1[]> {
-  const ops: VisibleStateTransferOperationV1[] = [];
+): Promise<VisibleStateTransferOperation[]> {
+  const ops: VisibleStateTransferOperation[] = [];
 
   for (const edge of params.edges) {
     const op = await planEdgeContentOp(params, edge);
@@ -314,7 +314,7 @@ export async function collectEdgeContentOps(
 // ── Summary / counting ────────────────────────────────────────────────────────
 
 const DIRECT_SUMMARY_FIELDS: Partial<
-  Record<VisibleStateTransferOperationV1['op'], keyof VisibleStateTransferPlanSummaryV1>
+  Record<VisibleStateTransferOperation['op'], keyof VisibleStateTransferPlanSummary>
 > = {
   add_node: 'addNodeCount',
   remove_node: 'removeNodeCount',
@@ -330,8 +330,8 @@ const DIRECT_SUMMARY_FIELDS: Partial<
  * Increment the appropriate node-property summary counter.
  */
 export function countNodePropertyOp(
-  summary: VisibleStateTransferPlanSummaryV1,
-  op: VisibleStateTransferOperationV1,
+  summary: VisibleStateTransferPlanSummary,
+  op: VisibleStateTransferOperation,
 ): void {
   if ('value' in op && op.value === null) {
     summary.clearNodePropertyCount += 1;
@@ -344,8 +344,8 @@ export function countNodePropertyOp(
  * Increment the appropriate edge-property summary counter.
  */
 export function countEdgePropertyOp(
-  summary: VisibleStateTransferPlanSummaryV1,
-  op: VisibleStateTransferOperationV1,
+  summary: VisibleStateTransferPlanSummary,
+  op: VisibleStateTransferOperation,
 ): void {
   if ('value' in op && op.value === null) {
     summary.clearEdgePropertyCount += 1;
@@ -358,8 +358,8 @@ export function countEdgePropertyOp(
  * Increment the correct summary counter for a single transfer operation.
  */
 export function countOp(
-  summary: VisibleStateTransferPlanSummaryV1,
-  op: VisibleStateTransferOperationV1,
+  summary: VisibleStateTransferPlanSummary,
+  op: VisibleStateTransferOperation,
 ): void {
   const directField = DIRECT_SUMMARY_FIELDS[op.op];
 
@@ -382,9 +382,9 @@ export function countOp(
  * Produce a summary of operation counts from a list of transfer operations.
  */
 export function summarizeOps(
-  ops: VisibleStateTransferOperationV1[],
-): VisibleStateTransferPlanSummaryV1 {
-  const summary: VisibleStateTransferPlanSummaryV1 = {
+  ops: VisibleStateTransferOperation[],
+): VisibleStateTransferPlanSummary {
+  const summary: VisibleStateTransferPlanSummary = {
     opCount: ops.length,
     addNodeCount: 0,
     removeNodeCount: 0,

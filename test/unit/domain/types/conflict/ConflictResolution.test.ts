@@ -3,14 +3,14 @@ import ConflictResolution from '../../../../../src/domain/types/conflict/Conflic
 
 describe('ConflictResolution', () => {
   const VALID = (({
-    reducerId: 'join-reducer-v5',
+    reducerId: 'join-reducer',
     basis: { code: 'lww' },
     winnerMode: 'immediate',
   }) as any);
 
   it('creates a frozen resolution without comparator', () => {
     const r = new ConflictResolution(VALID);
-    expect(r.reducerId).toBe('join-reducer-v5');
+    expect(r.reducerId).toBe('join-reducer');
     expect(r.basis).toEqual({ code: 'lww' });
     expect(Object.isFrozen(r.basis)).toBe(true);
     expect(r.winnerMode).toBe('immediate');

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   assertOpsCompatible,
   detectSchemaVersion,
-  SCHEMA_V2,
-  SCHEMA_V3,
+  CLASSIC_PATCH_SCHEMA_VERSION,
+  EDGE_PROPERTY_PATCH_SCHEMA_VERSION,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import SchemaUnsupportedError from '../../../../src/domain/errors/SchemaUnsupportedError.ts';
 import { EDGE_PROP_PREFIX } from '../../../../src/domain/services/JoinReducer.ts';
@@ -43,14 +43,14 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
   // -------------------------------------------------------------------------
 
   describe('assertOpsCompatible', () => {
-    describe('v2 reader (maxSchema = SCHEMA_V2)', () => {
+    describe('v2 reader (maxSchema = CLASSIC_PATCH_SCHEMA_VERSION)', () => {
       it('accepts v2 patches with only node ops', () => {
         const ops = [
           nodeAddOp('user:alice'),
           nodePropSetOp('user:alice', 'name', 'Alice'),
         ];
 
-        expect(() => assertOpsCompatible(ops, SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
       it('accepts v2 patches with node + edge ops (no edge props)', () => {
@@ -61,16 +61,16 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
           nodePropSetOp('user:alice', 'name', 'Alice'),
         ];
 
-        expect(() => assertOpsCompatible(ops, SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
       it('accepts empty ops array', () => {
-        expect(() => assertOpsCompatible([], SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible([], CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
       it('accepts non-array ops (defensive)', () => {
-        expect(() => assertOpsCompatible((null as any), SCHEMA_V2)).not.toThrow();
-        expect(() => assertOpsCompatible((undefined as any), SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible((null as any), CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
+        expect(() => assertOpsCompatible((undefined as any), CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
       it('throws E_SCHEMA_UNSUPPORTED for edge property ops', () => {
@@ -79,14 +79,14 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
           edgePropSetOp('user:alice', 'user:bob', 'follows', 'weight', 0.8),
         ];
 
-        expect(() => assertOpsCompatible(ops, SCHEMA_V2)).toThrow(SchemaUnsupportedError);
+        expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).toThrow(SchemaUnsupportedError);
       });
 
       it('error has correct code', () => {
         const ops = [edgePropSetOp('a', 'b', 'rel', 'w', 1)];
 
         try {
-          assertOpsCompatible(ops, SCHEMA_V2);
+          assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION);
           expect.unreachable('should have thrown');
         } catch (/** @type {any} */ err) {
           expect((err as any).code).toBe('E_SCHEMA_UNSUPPORTED');
@@ -97,7 +97,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         const ops = [edgePropSetOp('a', 'b', 'rel', 'w', 1)];
 
         try {
-          assertOpsCompatible(ops, SCHEMA_V2);
+          assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION);
           expect.unreachable('should have thrown');
         } catch (/** @type {any} */ err) {
           expect((err as any).message).toContain('>=7.3.0');
@@ -110,11 +110,11 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         const ops = [edgePropSetOp('a', 'b', 'rel', 'w', 1)];
 
         try {
-          assertOpsCompatible(ops, SCHEMA_V2);
+          assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION);
           expect.unreachable('should have thrown');
         } catch (/** @type {any} */ err) {
-          expect((err as any).context.requiredSchema).toBe(SCHEMA_V3);
-          expect((err as any).context.maxSupportedSchema).toBe(SCHEMA_V2);
+          expect((err as any).context.requiredSchema).toBe(EDGE_PROPERTY_PATCH_SCHEMA_VERSION);
+          expect((err as any).context.maxSupportedSchema).toBe(CLASSIC_PATCH_SCHEMA_VERSION);
         }
       });
 
@@ -125,7 +125,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
           edgePropSetOp('c', 'd', 'rel', 'w2', 2),
         ];
 
-        expect(() => assertOpsCompatible(ops, SCHEMA_V2)).toThrow(SchemaUnsupportedError);
+        expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).toThrow(SchemaUnsupportedError);
       });
 
       it('accepts v3 patch with ONLY node/edge ops (no edge props)', () => {
@@ -139,7 +139,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
 
         // Even though detectSchemaVersion would say v2, the point is:
         // assertOpsCompatible only looks at ops, not the schema header.
-        expect(() => assertOpsCompatible(ops, SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
       it('handles unknown op types gracefully (no crash)', () => {
@@ -149,18 +149,18 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         ];
 
         // Unknown op types that don't look like edge prop PropSets pass through
-        expect(() => assertOpsCompatible(ops, SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
     });
 
-    describe('v3 reader (maxSchema = SCHEMA_V3)', () => {
+    describe('v3 reader (maxSchema = EDGE_PROPERTY_PATCH_SCHEMA_VERSION)', () => {
       it('accepts v2 patches (backward compatible)', () => {
         const ops = [
           nodeAddOp('user:alice'),
           nodePropSetOp('user:alice', 'name', 'Alice'),
         ];
 
-        expect(() => assertOpsCompatible(ops, SCHEMA_V3)).not.toThrow();
+        expect(() => assertOpsCompatible(ops, EDGE_PROPERTY_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
       it('accepts v3 patches with edge prop ops', () => {
@@ -169,7 +169,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
           edgePropSetOp('user:alice', 'user:bob', 'follows', 'weight', 0.8),
         ];
 
-        expect(() => assertOpsCompatible(ops, SCHEMA_V3)).not.toThrow();
+        expect(() => assertOpsCompatible(ops, EDGE_PROPERTY_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
       it('accepts mixed node + edge prop ops', () => {
@@ -182,11 +182,11 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
           edgePropSetOp('user:alice', 'user:bob', 'follows', 'since', '2025-01-01'),
         ];
 
-        expect(() => assertOpsCompatible(ops, SCHEMA_V3)).not.toThrow();
+        expect(() => assertOpsCompatible(ops, EDGE_PROPERTY_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
       it('accepts empty ops array', () => {
-        expect(() => assertOpsCompatible([], SCHEMA_V3)).not.toThrow();
+        expect(() => assertOpsCompatible([], EDGE_PROPERTY_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
     });
 
@@ -198,7 +198,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
           nodePropSetOp('n1', 'k', 'v'),
         ];
 
-        expect(() => assertOpsCompatible(ops, SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
     });
 
@@ -209,7 +209,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
           edgePropSetOp('n1', 'n2', 'e', 'weight', 42),
         ];
 
-        expect(() => assertOpsCompatible(ops, SCHEMA_V3)).not.toThrow();
+        expect(() => assertOpsCompatible(ops, EDGE_PROPERTY_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
     });
   });
@@ -225,7 +225,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         nodePropSetOp('user:alice', 'name', 'Alice'),
       ];
 
-      expect(detectSchemaVersion(ops)).toBe(SCHEMA_V2);
+      expect(detectSchemaVersion(ops)).toBe(CLASSIC_PATCH_SCHEMA_VERSION);
     });
 
     it('edge prop ops detected as v3', () => {
@@ -234,25 +234,25 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         edgePropSetOp('user:alice', 'user:bob', 'follows', 'weight', 0.8),
       ];
 
-      expect(detectSchemaVersion(ops)).toBe(SCHEMA_V3);
+      expect(detectSchemaVersion(ops)).toBe(EDGE_PROPERTY_PATCH_SCHEMA_VERSION);
     });
 
     it('detectSchemaVersion v2 ops pass assertOpsCompatible(v2)', () => {
       const ops = [nodeAddOp('n'), nodePropSetOp('n', 'k', 'v')];
-      expect(detectSchemaVersion(ops)).toBe(SCHEMA_V2);
-      expect(() => assertOpsCompatible(ops, SCHEMA_V2)).not.toThrow();
+      expect(detectSchemaVersion(ops)).toBe(CLASSIC_PATCH_SCHEMA_VERSION);
+      expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
     });
 
     it('detectSchemaVersion v3 ops rejected by assertOpsCompatible(v2)', () => {
       const ops = [edgePropSetOp('a', 'b', 'r', 'w', 1)];
-      expect(detectSchemaVersion(ops)).toBe(SCHEMA_V3);
-      expect(() => assertOpsCompatible(ops, SCHEMA_V2)).toThrow(SchemaUnsupportedError);
+      expect(detectSchemaVersion(ops)).toBe(EDGE_PROPERTY_PATCH_SCHEMA_VERSION);
+      expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).toThrow(SchemaUnsupportedError);
     });
 
     it('detectSchemaVersion v3 ops accepted by assertOpsCompatible(v3)', () => {
       const ops = [edgePropSetOp('a', 'b', 'r', 'w', 1)];
-      expect(detectSchemaVersion(ops)).toBe(SCHEMA_V3);
-      expect(() => assertOpsCompatible(ops, SCHEMA_V3)).not.toThrow();
+      expect(detectSchemaVersion(ops)).toBe(EDGE_PROPERTY_PATCH_SCHEMA_VERSION);
+      expect(() => assertOpsCompatible(ops, EDGE_PROPERTY_PATCH_SCHEMA_VERSION)).not.toThrow();
     });
   });
 
@@ -314,7 +314,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
       ];
 
       // v3 reader accepts everything
-      expect(() => assertOpsCompatible(v2Patch, SCHEMA_V3)).not.toThrow();
+      expect(() => assertOpsCompatible(v2Patch, EDGE_PROPERTY_PATCH_SCHEMA_VERSION)).not.toThrow();
     });
 
     it('v3 writer -> v2 reader WITH edge prop ops: E_SCHEMA_UNSUPPORTED', () => {
@@ -327,7 +327,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
       ];
 
       // v2 reader must reject — silent drop would lose edge properties
-      expect(() => assertOpsCompatible(v3PatchWithEdgeProps, SCHEMA_V2)).toThrow(
+      expect(() => assertOpsCompatible(v3PatchWithEdgeProps, CLASSIC_PATCH_SCHEMA_VERSION)).toThrow(
         SchemaUnsupportedError
       );
     });
@@ -341,12 +341,12 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
       ];
 
       // v2 reader can handle this — no unknown ops
-      expect(() => assertOpsCompatible(v3PatchNodeOnly, SCHEMA_V2)).not.toThrow();
+      expect(() => assertOpsCompatible(v3PatchNodeOnly, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
     });
 
     it('v2 writer -> v2 reader: succeeds', () => {
       const ops = [nodeAddOp('n'), nodePropSetOp('n', 'k', 'v')];
-      expect(() => assertOpsCompatible(ops, SCHEMA_V2)).not.toThrow();
+      expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
     });
 
     it('v3 writer -> v3 reader: succeeds', () => {
@@ -354,7 +354,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         nodeAddOp('n'),
         edgePropSetOp('n', 'm', 'r', 'weight', 42),
       ];
-      expect(() => assertOpsCompatible(ops, SCHEMA_V3)).not.toThrow();
+      expect(() => assertOpsCompatible(ops, EDGE_PROPERTY_PATCH_SCHEMA_VERSION)).not.toThrow();
     });
   });
 });

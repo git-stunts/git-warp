@@ -4,9 +4,8 @@ import {
   encodeEdgeKey,
   encodePropKey,
   join,
-  reduceV5 as _reduceV5,
+  reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
@@ -49,6 +48,14 @@ function edgeRemove(from, to, label, observedDots) {
 /** @param {any} node @param {any} key @param {any} value */
 function propSet(node, key, value) {
   return { type: 'PropSet', node, key, value };
+}
+
+function requiredArrayEntry<T>(values: readonly T[], index: number): T {
+  const value = values[index];
+  if (value === undefined) {
+    throw new Error(`missing array entry at index ${index}`);
+  }
+  return value;
 }
 
 // ---------------------------------------------------------------------------
@@ -360,10 +367,10 @@ describe('JoinReducer receipts', () => {
   });
 
   // =========================================================================
-  // reduceV5 with receipts
+  // reducePatches with receipts
   // =========================================================================
 
-  describe('reduceV5 with receipts', () => {
+  describe('reducePatches with receipts', () => {
     it('returns { state, receipts } when receipts option is true', () => {
       const patches = [
         {
@@ -375,7 +382,7 @@ describe('JoinReducer receipts', () => {
           sha: 'abcd1234',
         },
       ];
-      const result = reduceV5(patches, undefined, { receipts: true });
+      const result = reducePatches(patches, undefined, { receipts: true });
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('receipts');
       expect(result.receipts).toHaveLength(1);
@@ -391,10 +398,10 @@ describe('JoinReducer receipts', () => {
           sha: 'abcd1234',
         },
       ];
-      const result = reduceV5(patches, undefined, { receipts: false });
+      const result = reducePatches(patches, undefined, { receipts: false });
       // Returns state directly
       expect(result.nodeAlive).toBeDefined();
-      expect(result.receipts).toBeUndefined();
+      expect('receipts' in result).toBe(false);
     });
 
     it('returns state directly when no options provided', () => {
@@ -406,9 +413,9 @@ describe('JoinReducer receipts', () => {
           sha: 'abcd1234',
         },
       ];
-      const result = reduceV5(patches);
+      const result = reducePatches(patches);
       expect(result.nodeAlive).toBeDefined();
-      expect(result.receipts).toBeUndefined();
+      expect('receipts' in result).toBe(false);
     });
 
     it('receipt count matches patch count', () => {
@@ -438,7 +445,7 @@ describe('JoinReducer receipts', () => {
           sha: 'cccc3333',
         },
       ];
-      const { receipts } = reduceV5(patches, undefined, { receipts: true });
+      const { receipts } = reducePatches(patches, undefined, { receipts: true });
       expect(receipts).toHaveLength(3);
     });
 
@@ -456,14 +463,14 @@ describe('JoinReducer receipts', () => {
           sha: 'abcd1234',
         },
       ];
-      const { state, receipts } = reduceV5(patches, initial, { receipts: true });
+      const { state, receipts } = reducePatches(patches, initial, { receipts: true });
       expect(receipts).toHaveLength(1);
       expect(state.nodeAlive.contains('n0')).toBe(true);
       expect(state.nodeAlive.contains('n1')).toBe(true);
     });
 
     it('empty patches array yields empty receipts', () => {
-      const { state, receipts } = reduceV5([], undefined, { receipts: true });
+      const { state, receipts } = reducePatches([], undefined, { receipts: true });
       expect(receipts).toHaveLength(0);
       expect(state.nodeAlive.entries.size).toBe(0);
     });
@@ -558,21 +565,23 @@ describe('JoinReducer receipts', () => {
         { patch: p2, sha: 'bbbb2222' },
       ];
 
-      const { state, receipts } = reduceV5(patches, undefined, { receipts: true });
+      const { state, receipts } = reducePatches(patches, undefined, { receipts: true });
+      const firstReceipt = requiredArrayEntry(receipts, 0);
+      const secondReceipt = requiredArrayEntry(receipts, 1);
 
       // Patch 1 receipts: both ops applied (first writer, empty state)
-      expect(receipts[0].writer).toBe('alice');
-      expect(receipts[0].ops[0]).toMatchObject({ op: 'NodeAdd', result: 'applied' });
-      expect(receipts[0].ops[1]).toMatchObject({ op: 'NodePropSet', result: 'applied' });
+      expect(firstReceipt.writer).toBe('alice');
+      expect(requiredArrayEntry(firstReceipt.ops, 0)).toMatchObject({ op: 'NodeAdd', result: 'applied' });
+      expect(requiredArrayEntry(firstReceipt.ops, 1)).toMatchObject({ op: 'NodePropSet', result: 'applied' });
 
       // Patch 2 receipts: node add applied (different dot), prop wins (higher lamport)
-      expect(receipts[1].writer).toBe('bob');
-      expect(receipts[1].ops[0]).toMatchObject({ op: 'NodeAdd', result: 'applied' });
-      expect(receipts[1].ops[1]).toMatchObject({ op: 'NodePropSet', result: 'applied' });
+      expect(secondReceipt.writer).toBe('bob');
+      expect(requiredArrayEntry(secondReceipt.ops, 0)).toMatchObject({ op: 'NodeAdd', result: 'applied' });
+      expect(requiredArrayEntry(secondReceipt.ops, 1)).toMatchObject({ op: 'NodePropSet', result: 'applied' });
 
       // Final state: bob's color wins
       const key = encodePropKey('n1', 'color');
-      expect(state.getEncodedProp(key).value).toBe('blue');
+      expect(state.getEncodedProp(key)?.value).toBe('blue');
     });
 
     it('superseded prop shows reason with winner info', () => {
@@ -595,15 +604,19 @@ describe('JoinReducer receipts', () => {
         { patch: p2, sha: 'bbbb2222' },
       ];
 
-      const { receipts } = reduceV5(patches, undefined, { receipts: true });
+      const { receipts } = reducePatches(patches, undefined, { receipts: true });
+      const firstReceipt = requiredArrayEntry(receipts, 0);
+      const secondReceipt = requiredArrayEntry(receipts, 1);
+      const firstOp = requiredArrayEntry(firstReceipt.ops, 0);
+      const secondOp = requiredArrayEntry(secondReceipt.ops, 0);
 
       // Alice's write is applied
-      expect(receipts[0].ops[0].result).toBe('applied');
+      expect(firstOp.result).toBe('applied');
 
       // Bob's write is superseded — alice wins at lamport 10
-      expect(receipts[1].ops[0].result).toBe('superseded');
-      expect(receipts[1].ops[0].reason).toContain('alice');
-      expect(receipts[1].ops[0].reason).toContain('10');
+      expect(secondOp.result).toBe('superseded');
+      expect(secondOp.reason).toContain('alice');
+      expect(secondOp.reason).toContain('10');
     });
   });
 });

@@ -106,7 +106,7 @@ If someone mutates a receipt, the commit SHA changes and the downstream chain no
 For the normative details, use:
 
 - [Audit receipt spec](specs/AUDIT_RECEIPT.md)
-- [Trust crypto spec](specs/TRUST_V1_CRYPTO.md)
+- [Trust crypto spec](specs/TRUST_CRYPTO_ALGORITHM.md)
 - [Trust migration](trust/TRUST_MIGRATION.md)
 - [Trust operator runbook](trust/TRUST_OPERATOR_RUNBOOK.md)
 

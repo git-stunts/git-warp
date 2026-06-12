@@ -1,11 +1,11 @@
 /**
- * syncPatchLoader — patch loading helpers for the WARP V5 sync protocol.
+ * syncPatchLoader — patch loading helpers for the WARP sync protocol.
  *
  * Handles reading patches from Git commits: decoding commit messages,
  * loading patch blobs, and walking writer chains to collect patch ranges.
  *
  * @module domain/services/sync/syncPatchLoader
- * @see SyncProtocol — WARP V5 Spec Section 11 (Network Sync)
+ * @see SyncProtocol — WARP sync spec Section 11 (Network Sync)
  */
 
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
@@ -13,7 +13,7 @@ import PersistenceError from '../../errors/PersistenceError.ts';
 import SyncError from '../../errors/SyncError.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import Patch from '../../types/Patch.ts';
-import type { OpV2 } from '../../types/ops/unions.ts';
+import type { PatchOp } from '../../types/ops/unions.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
@@ -25,7 +25,7 @@ import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.t
 
 export interface DecodedPatch {
   context: VersionVector | Map<string, number> | Record<string, number> | null | undefined;
-  ops: OpV2[];
+  ops: PatchOp[];
   writer: string;
   lamport: number;
   schema?: 2 | 3;

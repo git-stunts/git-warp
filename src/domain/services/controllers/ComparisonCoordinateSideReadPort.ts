@@ -1,18 +1,18 @@
 import type { WarpState } from '../JoinReducer.ts';
 import type {
-  ComparisonRequestedSideV1,
-  ComparisonResolvedSideV1,
+  ComparisonRequestedSide,
+  ComparisonResolvedSide,
   PatchEntry,
-  StrandComparisonMetadataV1,
+  StrandComparisonMetadata,
 } from './ComparisonSelector.ts';
 
 export type ComparisonCoordinateSideRead = {
-  readonly requested: ComparisonRequestedSideV1;
+  readonly requested: ComparisonRequestedSide;
   readonly state: WarpState;
   readonly patchEntries: readonly PatchEntry[];
-  readonly coordinateKind: ComparisonResolvedSideV1['coordinateKind'];
+  readonly coordinateKind: ComparisonResolvedSide['coordinateKind'];
   readonly lamportCeiling: number | null;
-  readonly strand?: StrandComparisonMetadataV1;
+  readonly strand?: StrandComparisonMetadata;
 };
 
 export type LiveComparisonSideReadRequest = {

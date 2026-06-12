@@ -246,7 +246,7 @@ Precise extraction. The scalpel.
 
 - `StrandService.tick` — a class method
 - `src/foo.rs#VersionVector.merge` — file-qualified Rust method
-- `reduceV5` — top-level function (project-wide search if ambiguous)
+- `reducePatches` — top-level function (project-wide search if ambiguous)
 
 Returns the complete syntactic extent: body, JSDoc/doc comments,
 decorators/attributes. Nothing else.

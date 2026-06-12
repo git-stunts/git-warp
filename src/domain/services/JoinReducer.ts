@@ -1,9 +1,9 @@
 /**
- * JoinReducer — thin core of the WARP v5 reducer.
+ * JoinReducer — thin core of the current WARP reducer.
  *
  * After the M14/JoinReducer-split refactor, the only logic remaining
  * in this file is the per-path dispatcher (applyFast / applyWithDiff /
- * applyWithReceipt), the reduceV5 driver, and thin wrappers for
+ * applyWithReceipt), the reducePatches driver, and thin wrappers for
  * backward-compatible factory/clone/join helpers.
  *
  * Everything else lives in its own module:
@@ -112,11 +112,11 @@ export function joinStates(a: WarpState, b: WarpState): WarpState {
 // -------------------------------------------------------------------
 
 /**
- * Applies a single V2 operation to the given state. Mutates `state`
+ * Applies a single patch operation to the given state. Mutates `state`
  * in place. Unknown op types fail closed instead of becoming silent
  * data loss.
  */
-export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
+export function applyPatchOp(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
   const type = readReducerOpType(op);
   assertKnownReducerOp(op, type);
   const canonOp = normalizeRawOp(op);
@@ -260,13 +260,38 @@ export function join(
 }
 
 /**
- * Reduces a sequence of patches into a V5 state. Supports three modes:
+ * Reduces a sequence of patches into the current state. Supports three modes:
  *
  *   - default       → returns the mutated state
  *   - `receipts`    → returns `{ state, receipts }` for provenance tracking
  *   - `trackDiff`   → returns `{ state, diff }` for incremental index updates
  */
-export function reduceV5(
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState?: WarpState,
+  options?: undefined,
+): WarpState;
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState: WarpState | undefined,
+  options: { readonly receipts: false; readonly trackDiff?: false },
+): WarpState;
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState: WarpState | undefined,
+  options: { readonly receipts: true; readonly trackDiff?: boolean },
+): { state: WarpState; receipts: TickReceipt[] };
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState: WarpState | undefined,
+  options: { readonly receipts?: false; readonly trackDiff: true },
+): { state: WarpState; diff: PatchDiff };
+export function reducePatches(
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  initialState: WarpState | undefined,
+  options: { readonly receipts?: boolean; readonly trackDiff?: boolean },
+): WarpState | { state: WarpState; receipts: TickReceipt[] } | { state: WarpState; diff: PatchDiff };
+export function reducePatches(
   patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   initialState?: WarpState,
   options?: { readonly receipts?: boolean; readonly trackDiff?: boolean },

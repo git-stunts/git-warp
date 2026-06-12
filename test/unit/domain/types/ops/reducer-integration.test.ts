@@ -32,7 +32,7 @@ function createNodePropSetV2(node, key, value) { return new NodePropSet(node, ke
 function createEdgePropSetV2(from, to, label, key, value) { return new EdgePropSet({ from, to, label, key, value }); }
 import {
   createEmptyState,
-  applyOpV2,
+  applyPatchOp,
   applyFast,
   applyWithReceipt,
   applyWithDiff,
@@ -49,14 +49,14 @@ describe('Op class instances through JoinReducer', () => {
     return new EventId(1, 'alice', 'abcd1234', opIndex);
   }
 
-  describe('applyOpV2', () => {
+  describe('applyPatchOp', () => {
     it('applies NodeAdd class instance to state', () => {
       const state = createEmptyState();
       const dot = new Dot('alice', 1);
       const op = createNodeAddV2('user:alice', dot);
 
       expect(op).toBeInstanceOf(NodeAdd);
-      applyOpV2(state, op, eid(0));
+      applyPatchOp(state, op, eid(0));
 
       expect(state.nodeAlive.contains('user:alice')).toBe(true);
     });
@@ -67,9 +67,9 @@ describe('Op class instances through JoinReducer', () => {
       const dot2 = new Dot('alice', 2);
       const dot3 = new Dot('alice', 3);
 
-      applyOpV2(state, createNodeAddV2('n1', dot1), eid(0));
-      applyOpV2(state, createNodeAddV2('n2', dot2), eid(1));
-      applyOpV2(state, createEdgeAddV2('n1', 'n2', 'rel', dot3), eid(2));
+      applyPatchOp(state, createNodeAddV2('n1', dot1), eid(0));
+      applyPatchOp(state, createNodeAddV2('n2', dot2), eid(1));
+      applyPatchOp(state, createEdgeAddV2('n1', 'n2', 'rel', dot3), eid(2));
 
       expect(state.edgeAlive.contains('n1\x00n2\x00rel')).toBe(true);
     });
@@ -79,7 +79,7 @@ describe('Op class instances through JoinReducer', () => {
       const op = createNodePropSetV2('user:alice', 'name', 'Alice');
 
       expect(op).toBeInstanceOf(NodePropSet);
-      applyOpV2(state, op, eid(0));
+      applyPatchOp(state, op, eid(0));
 
       const propKey = 'user:alice\x00name';
       const reg = state.getEncodedProp(propKey);
@@ -91,7 +91,7 @@ describe('Op class instances through JoinReducer', () => {
       const state = createEmptyState();
       const op = createPropSetV2('user:alice', 'name', 'Alice');
 
-      applyOpV2(state, op, eid(0));
+      applyPatchOp(state, op, eid(0));
 
       const propKey = 'user:alice\x00name';
       const reg = state.getEncodedProp(propKey);
@@ -103,10 +103,10 @@ describe('Op class instances through JoinReducer', () => {
       const state = createEmptyState();
       const dot = new Dot('alice', 1);
 
-      applyOpV2(state, createNodeAddV2('n1', dot), eid(0));
+      applyPatchOp(state, createNodeAddV2('n1', dot), eid(0));
       expect(state.nodeAlive.contains('n1')).toBe(true);
 
-      applyOpV2(state, createNodeRemoveV2('n1', ['alice:1']), eid(1));
+      applyPatchOp(state, createNodeRemoveV2('n1', ['alice:1']), eid(1));
       expect(state.nodeAlive.contains('n1')).toBe(false);
     });
   });

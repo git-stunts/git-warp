@@ -1,7 +1,7 @@
 import {
   GitWarpGraphModelContractConformanceResult,
 } from './GitWarpGraphModelContractConformance.ts';
-import WarpError from '../errors/WarpError.ts';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 
 const WARP_TTD_PRESENT_POSTURE = 'PRESENT';
 const WARP_TTD_OBSTRUCTED_POSTURE = 'OBSTRUCTED';

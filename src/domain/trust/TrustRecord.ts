@@ -9,7 +9,7 @@
  * canonical form, so domain code never touches untyped wire data.
  *
  * @module domain/trust/TrustRecord
- * @see docs/specs/TRUST_V1_CRYPTO.md
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md
  */
 
 import TrustError from '../errors/TrustError.ts';

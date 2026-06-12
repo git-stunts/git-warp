@@ -12,7 +12,7 @@ import type GraphModelMigrationContentSource from './GraphModelMigrationContentS
 import type GraphModelMigrationPropertyMapping from './GraphModelMigrationPropertyMapping.ts';
 
 const MISSING_CONTENT_SOURCE_CODE = 'E_MISSING_CONTENT_SOURCE';
-const DRY_RUN_TARGET_BASIS_SUFFIX = ':v18-dry-run';
+const DRY_RUN_TARGET_BASIS_SUFFIX = ':dry-run';
 const CONTENT_ATTACHMENT_PREFIX = 'content-attachment:';
 const PROPERTY_TARGET_KEY_FORMAT = 'property-target-key:length-prefixed-v1';
 const PROPERTY_TARGET_KEY_SEPARATOR = ':';

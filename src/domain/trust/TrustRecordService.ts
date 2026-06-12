@@ -6,7 +6,7 @@
  * Git object construction, no I/O beyond port calls.
  *
  * @module domain/trust/TrustRecordService
- * @see docs/specs/TRUST_V1_CRYPTO.md Section 7
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Section 7
  */
 
 import type TrustChainPort from '../../ports/TrustChainPort.ts';

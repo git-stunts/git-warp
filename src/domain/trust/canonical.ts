@@ -5,7 +5,7 @@
  * for recordId computation and signature payloads.
  *
  * @module domain/trust/canonical
- * @see docs/specs/TRUST_V1_CRYPTO.md Section 6
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Section 6
  */
 
 import { canonicalStringify } from '../utils/canonicalStringify.ts';

@@ -27,7 +27,7 @@ describe('GraphModelMigrationOperationLowerer', () => {
 
     expect(result.hasFatalErrors()).toBe(false);
     expect(result.patchPlan?.sourceBasis.basisId).toBe('basis:source');
-    expect(result.patchPlan?.targetBasis.basisId).toBe('basis:source:v18-dry-run');
+    expect(result.patchPlan?.targetBasis.basisId).toBe('basis:source:dry-run');
     expect(result.patchPlan?.operations.map((operation) => operation.toKey())).toEqual([
       'lowered\0content-attachment\0node:a\0_content\0content-attachment:node:a\0_content',
       'lowered\0node-record\0node:a\0node:a',

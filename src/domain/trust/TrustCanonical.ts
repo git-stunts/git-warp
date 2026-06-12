@@ -5,7 +5,7 @@
  * signature payloads (raw UTF-8 bytes) for trust records.
  *
  * @module domain/trust/TrustCanonical
- * @see docs/specs/TRUST_V1_CRYPTO.md
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md
  */
 
 import { recordIdPayload, signaturePayload, type TrustRecordFields } from './canonical.ts';

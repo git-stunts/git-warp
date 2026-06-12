@@ -7,7 +7,7 @@
  * @module domain/services/provenance/ProvenancePayload
  */
 
-import { reduceV5, createEmptyState, cloneState, type WarpState } from '../JoinReducer.ts';
+import { reducePatches, createEmptyState, cloneState, type WarpState } from '../JoinReducer.ts';
 import WarpError from '../../errors/WarpError.ts';
 import BoundaryTransitionProvenance, { type PatchEntry } from './BoundaryTransitionProvenance.ts';
 
@@ -49,7 +49,7 @@ class ProvenancePayload {
     if (this.#provenance.length === 0) {
       return initialState ? cloneState(initialState) : createEmptyState();
     }
-    return reduceV5(this.#provenance.entries(), initialState) as WarpState;
+    return reducePatches(this.#provenance.entries(), initialState);
   }
 
   [Symbol.iterator](): Iterator<PatchEntry> {

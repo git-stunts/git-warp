@@ -1,12 +1,12 @@
 /**
- * Trust V1 assessment — frozen result of evaluating writer trust.
+ * Trust assessment — frozen result of evaluating writer trust.
  *
  * The verdict is derived at construction and immutable. The assessment
  * captures a complete snapshot of the evaluation: which writers were
  * checked, why each passed or failed, and the evidence summary.
  *
  * @module domain/trust/TrustAssessment
- * @see docs/specs/TRUST_V1_CRYPTO.md Section 12
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Section 12
  */
 
 import { deriveTrustVerdict, type TrustVerdict, type VerdictInput } from './verdict.ts';
@@ -33,7 +33,7 @@ type TrustDetail = {
 
 class TrustAssessment {
   readonly trustSchemaVersion: 1 = 1;
-  readonly mode: 'signed_evidence_v1' = 'signed_evidence_v1';
+  readonly mode: 'signed_evidence' = 'signed_evidence';
   readonly trustVerdict: TrustVerdict;
   readonly trust: Readonly<TrustDetail>;
 

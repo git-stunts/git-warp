@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { Dot, encodeDot } from '../../src/domain/crdt/Dot.ts';
-import { applyOpV2, createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
+import { applyPatchOp, createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import type WarpState from '../../src/domain/services/state/WarpState.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
 
@@ -74,14 +74,14 @@ export class StateBuilder {
 
   node(nodeId: string, options: BuilderEventOptions = {}): StateBuilder {
     const { dot, eventId } = this._createMutationContext(options);
-    applyOpV2(this._state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
+    applyPatchOp(this._state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     return this;
   }
 
   removeNode(nodeId: string, options: BuilderRemoveOptions = {}): StateBuilder {
     const { eventId } = this._createMutationContext(options);
     const observedDots = this._normalizeObserved(options.observed) || this._state.nodeAlive.getDots(nodeId);
-    applyOpV2(
+    applyPatchOp(
       this._state,
       /** @type {any} */ ({ type: 'NodeRemove', node: nodeId, observedDots }),
       eventId,
@@ -91,7 +91,7 @@ export class StateBuilder {
 
   edge(from: string, to: string, label: string, options: BuilderEventOptions = {}): StateBuilder {
     const { dot, eventId } = this._createMutationContext(options);
-    applyOpV2(this._state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
+    applyPatchOp(this._state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     return this;
   }
 
@@ -99,7 +99,7 @@ export class StateBuilder {
     const { eventId } = this._createMutationContext(options);
     const edgeKey = encodeEdgeKey(from, to, label);
     const observedDots = this._normalizeObserved(options.observed) || this._state.edgeAlive.getDots(edgeKey);
-    applyOpV2(
+    applyPatchOp(
       this._state,
       /** @type {any} */ ({ type: 'EdgeRemove', from, to, label, observedDots }),
       eventId,
@@ -109,13 +109,13 @@ export class StateBuilder {
 
   nodeProp(nodeId: string, key: string, value: unknown, options: BuilderEventOptions = {}): StateBuilder {
     const { eventId } = this._createMutationContext(options);
-    applyOpV2(this._state, { type: 'NodePropSet', node: nodeId, key, value }, eventId);
+    applyPatchOp(this._state, { type: 'NodePropSet', node: nodeId, key, value }, eventId);
     return this;
   }
 
   edgeProp(from: string, to: string, label: string, key: string, value: unknown, options: BuilderEventOptions = {}): StateBuilder {
     const { eventId } = this._createMutationContext(options);
-    applyOpV2(this._state, { type: 'EdgePropSet', from, to, label, key, value }, eventId);
+    applyPatchOp(this._state, { type: 'EdgePropSet', from, to, label, key, value }, eventId);
     return this;
   }
 

@@ -59,10 +59,10 @@ describe('TrustAssessment structural invariants', () => {
     expect(assessment.trustSchemaVersion).toBe(1);
   });
 
-  it('mode is always signed_evidence_v1', async () => {
+  it('mode is always signed_evidence', async () => {
     const state = await buildState([KEY_ADD_1]);
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
-    expect(assessment.mode).toBe('signed_evidence_v1');
+    expect(assessment.mode).toBe('signed_evidence');
   });
 
   it('untrustedWriters is a subset of evaluatedWriters', async () => {

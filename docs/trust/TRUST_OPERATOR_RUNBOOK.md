@@ -56,7 +56,7 @@ git warp trust --trust-pin abc123def456...
 | Field | Meaning |
 |---|---|
 | `trustVerdict` | `pass`, `fail`, or `not_configured` |
-| `mode` | Always `signed_evidence_v1` |
+| `mode` | Always `signed_evidence` |
 | `trust.status` | `configured`, `pinned`, `error`, `not_configured` |
 | `trust.source` | `ref`, `cli_pin`, `env_pin`, `none` |
 | `trust.explanations[]` | Per-writer trust assessment with reason codes |

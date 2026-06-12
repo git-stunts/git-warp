@@ -4,7 +4,7 @@ import V17GoldenGraphFixtureManifest, {
   V17GoldenEdgeFact,
   type V17GoldenGraphFixtureVisibleFact,
   V17GoldenPropertyFact,
-} from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+} from './V17GoldenGraphFixtureManifest.ts';
 import { encodeLegacyEdgePropNode } from '../../../../src/domain/services/KeyCodec.ts';
 
 export class V17GoldenGraphFixturePropertyMappingError extends Error {

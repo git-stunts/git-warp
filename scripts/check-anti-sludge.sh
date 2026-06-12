@@ -45,6 +45,8 @@ fi
 
 check_filenames
 
+node scripts/source-version-name-policy.ts
+
 if [[ "$fail" -ne 0 ]]; then
   echo "Anti-SLUDGE shell checks failed." >&2
   exit 1

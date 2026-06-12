@@ -12,7 +12,7 @@ export type ContinuumGeneratedFamilyInventoryEntryFields = {
   readonly openCut: string;
 };
 
-/** One current Continuum-family readiness row for git-warp v18 planning. */
+/** One current Continuum-family readiness row for git-warp planning. */
 export default class ContinuumGeneratedFamilyInventoryEntry {
   readonly familyId: ContinuumFamilyId;
   readonly version: string;

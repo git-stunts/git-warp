@@ -17,7 +17,7 @@ import V17GoldenGraphFixtureManifest, {
   V17GoldenContentFact,
   V17GoldenEdgeFact,
   V17GoldenNodeFact,
-} from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+} from './V17GoldenGraphFixtureManifest.ts';
 import {
   GraphModelMigrationCommandResult,
   runGraphModelMigrationCommand,

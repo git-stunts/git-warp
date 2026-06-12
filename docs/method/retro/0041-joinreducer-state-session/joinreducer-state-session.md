@@ -18,7 +18,7 @@ What landed:
   - `applyFastInSession()`
   - `applyWithDiffInSession()`
   - `applyWithReceiptInSession()`
-  - `reduceV5InSession()`
+  - `reducePatchesInSession()`
   - `joinFrames()`
 - session-native join semantics that preserve tombstones instead of replaying
   only live ids
@@ -32,7 +32,7 @@ What landed:
 
 ## What worked
 
-- keeping the async reducer path separate from legacy `reduceV5()` kept the
+- keeping the async reducer path separate from legacy `reducePatches()` kept the
   transition honest
 - the mixed reducer frame let us move alive-set work onto `StateSession`
   without pretending `prop`, `observedFrontier`, and `edgeBirthEvent` had
@@ -60,5 +60,5 @@ The next direct `v17` trunk tasks are:
 2. `PROTO_materialize-integration`
 
 There is also explicit noun cleanup queued in
-`PROTO_drop-v5-runtime-nouns`, because this cycle kept the old `reduceV5`
+`PROTO_drop-v5-runtime-nouns`, because this cycle kept the old `reducePatches`
 name only as a transitional compatibility surface.

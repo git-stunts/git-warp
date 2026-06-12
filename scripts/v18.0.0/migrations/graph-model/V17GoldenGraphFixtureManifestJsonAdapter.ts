@@ -16,9 +16,9 @@ import V17GoldenGraphFixtureManifest, {
   type V17GoldenGraphFixtureFactKind,
   type V17GoldenGraphFixtureTypedFactFields,
   type V17GoldenGraphFixtureVisibleFact,
-} from '../../domain/migrations/V17GoldenGraphFixtureManifest.ts';
-import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
-import type { JsonObject } from './JsonObject.ts';
+} from './V17GoldenGraphFixtureManifest.ts';
+import AdapterValidationError from '../../../../src/domain/errors/AdapterValidationError.ts';
+import type { JsonObject } from '../../../../src/infrastructure/adapters/JsonObject.ts';
 
 const MANIFEST_KEYS = Object.freeze([
   'fixtureId',

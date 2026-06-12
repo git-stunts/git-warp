@@ -141,7 +141,7 @@ export default class Worldline {
         }),
       });
     }
-    throw new QueryError('v17 foundation optics support live and coordinate worldlines only', {
+    throw new QueryError('checkpoint-tail optics support live and coordinate worldlines only', {
       code: 'E_OPTIC_NO_BOUNDED_BASIS',
       context: { selector: this._source.constructor.name },
     });

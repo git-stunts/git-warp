@@ -13,7 +13,7 @@ import GraphModelMigrationWriterChainDescriptor
   from '../../../../src/domain/migrations/GraphModelMigrationWriterChainDescriptor.ts';
 import V17GoldenGraphFixtureManifest, {
   V17_GOLDEN_CONTENT_FACT,
-} from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+} from './V17GoldenGraphFixtureManifest.ts';
 import { compareStrings } from '../../../../src/domain/utils/StringComparison.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC }
   from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';

@@ -23,7 +23,7 @@ import type TrieGeometry from "./TrieGeometry.ts";
  *
  * The Git-tree adapter (`INFRA_git-trie-store-adapter`, a later
  * cycle) names branch-tree entries after `nibble.toString(16)`
- * when it writes the entries to a real Git tree. For v1's 4-bit
+ * when it writes the entries to a real Git tree. For 4-bit
  * nibbles that produces `"0".."f"`; for 8-bit nibbles it would
  * produce `"0".."ff"`. The codec itself does NOT write Git trees —
  * that is the adapter's job — but the naming convention is

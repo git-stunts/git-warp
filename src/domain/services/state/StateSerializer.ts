@@ -8,12 +8,12 @@ import WarpStateClass, { type NodePropertyEntry } from './WarpState.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /**
- * State Serialization and Hashing for WARP v5
+ * State serialization and hashing for the current WARP state
  *
  * Provides visibility predicates for determining what is visible in the graph,
  * canonical state serialization for deterministic hashing, and state hash computation.
  *
- * V5 uses ORSet-based state (rather than LWW registers for nodeAlive/edgeAlive).
+ * Current state uses ORSet-based state rather than LWW registers for nodeAlive/edgeAlive.
  *
  * @module StateSerializer
  * @see WARP Spec Section 8.3 (Visibility)
@@ -27,7 +27,7 @@ import type { PropValue } from '../../types/PropValue.ts';
 /**
  * Checks if a node is visible (present in the ORSet).
  */
-export function nodeVisibleV5(state: WarpState, nodeId: string): boolean {
+export function nodeVisible(state: WarpState, nodeId: string): boolean {
   return state.nodeAlive.contains(nodeId);
 }
 
@@ -38,7 +38,7 @@ export function nodeVisibleV5(state: WarpState, nodeId: string): boolean {
 export function edgeVisible(state: WarpState, edgeKey: string): boolean {
   if (!state.edgeAlive.contains(edgeKey)) { return false; }
   const { from, to } = decodeEdgeKey(edgeKey);
-  return nodeVisibleV5(state, from) && nodeVisibleV5(state, to);
+  return nodeVisible(state, from) && nodeVisible(state, to);
 }
 
 /**
@@ -46,8 +46,8 @@ export function edgeVisible(state: WarpState, edgeKey: string): boolean {
  * Property is visible if the owning node is visible.
  * Callers obtain entries from WarpState property iterators — prop existence is implied.
  */
-export function propVisibleV5(state: WarpState, entry: NodePropertyEntry): boolean {
-  return nodeVisibleV5(state, entry.nodeId);
+export function propertyVisible(state: WarpState, entry: NodePropertyEntry): boolean {
+  return nodeVisible(state, entry.nodeId);
 }
 
 // ============================================================================
@@ -64,13 +64,13 @@ export interface StateProjection {
  * Serializes state to canonical CBOR bytes.
  * Only includes VISIBLE projection with stable ordering.
  */
-export function serializeStateV5(state: WarpState, { codec }: { codec?: CodecPort } = {}): Uint8Array {
+export function serializeState(state: WarpState, { codec }: { codec?: CodecPort } = {}): Uint8Array {
   const projection = projectState(state);
   return (codec ?? defaultCodec).encode(projection);
 }
 
 /**
- * Projects a materialized V5 state into its visible graph projection.
+ * Projects a materialized state into its visible graph projection.
  */
 export function projectState(state: WarpState): StateProjection {
   const nodes = [...state.nodeAlive.elements()].sort();
@@ -89,7 +89,7 @@ export function projectState(state: WarpState): StateProjection {
 
   const visibleProps: Array<{ node: string; key: string; value: PropValue }> = [];
   for (const entry of WarpStateClass.nodePropertiesFromState(state)) {
-    if (nodeVisibleV5(state, entry.nodeId)) {
+    if (nodeVisible(state, entry.nodeId)) {
       visibleProps.push({ node: entry.nodeId, key: entry.key, value: entry.register.value });
     }
   }
@@ -111,7 +111,7 @@ interface StateHashOptions {
  */
 export async function computeStateHash(state: WarpState, { crypto, codec }: StateHashOptions = {}): Promise<string> {
   const c = crypto ?? defaultCrypto;
-  const serialized = serializeStateV5(state, codec ? { codec } : {});
+  const serialized = serializeState(state, codec ? { codec } : {});
   return await c.hash('sha256', serialized);
 }
 
@@ -119,7 +119,7 @@ export async function computeStateHash(state: WarpState, { crypto, codec }: Stat
  * Deserializes state from CBOR bytes.
  * Note: This reconstructs the visible projection only.
  */
-export function deserializeStateV5(buffer: Uint8Array, { codec }: { codec?: CodecPort } = {}): StateProjection {
+export function deserializeState(buffer: Uint8Array, { codec }: { codec?: CodecPort } = {}): StateProjection {
   const c = codec ?? defaultCodec;
   return c.decode(buffer);
 }

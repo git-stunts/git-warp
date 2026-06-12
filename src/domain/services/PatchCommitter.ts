@@ -16,7 +16,7 @@ import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
-import type { OpV2, CanonicalOpV2 } from '../types/ops/unions.ts';
+import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
 import type CommitPort from '../../ports/CommitPort.ts';
 import type BlobPort from '../../ports/BlobPort.ts';
 import type TreePort from '../../ports/TreePort.ts';
@@ -36,7 +36,7 @@ export type CommitState = {
   writerId: string;
   lamport: number;
   vv: VersionVector;
-  ops: OpV2[];
+  ops: PatchOp[];
   observedOperands: Set<string>;
   writes: Set<string>;
   hasEdgeProps: boolean;
@@ -99,7 +99,7 @@ export async function commitPatch(state: CommitState): Promise<string> {
 
   // Build Patch
   const schema = state.hasEdgeProps ? 3 : 2;
-  const rawOps = state.ops.map((op) => lowerCanonicalOp(op as CanonicalOpV2));
+  const rawOps = state.ops.map((op) => lowerCanonicalOp(op as CanonicalPatchOp));
   const patch = new Patch({
     schema,
     writer: state.writerId,

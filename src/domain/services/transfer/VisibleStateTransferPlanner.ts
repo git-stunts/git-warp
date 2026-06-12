@@ -7,8 +7,8 @@
  */
 
 import type {
-  VisibleStateTransferOperationV1,
-  VisibleStateTransferPlanSummaryV1,
+  VisibleStateTransferOperation,
+  VisibleStateTransferPlanSummary,
 } from '../../types/CoordinateComparison.ts';
 import {
   compareStrings,
@@ -31,10 +31,10 @@ export const VISIBLE_STATE_TRANSFER_PLAN_VERSION = 'visible-state-transfer-plan/
 type AssembleOpsParams = {
   nodeShape: NodeShapeDelta;
   edgeShape: EdgeShapeDelta;
-  nodePropertyOps: VisibleStateTransferOperationV1[];
-  edgePropertyOps: VisibleStateTransferOperationV1[];
-  nodeContentOps: VisibleStateTransferOperationV1[];
-  edgeContentOps: VisibleStateTransferOperationV1[];
+  nodePropertyOps: VisibleStateTransferOperation[];
+  edgePropertyOps: VisibleStateTransferOperation[];
+  nodeContentOps: VisibleStateTransferOperation[];
+  edgeContentOps: VisibleStateTransferOperation[];
 };
 
 /**
@@ -43,7 +43,7 @@ type AssembleOpsParams = {
  * Ordering: add nodes → node properties → node content → add edges → edge properties →
  * edge content → remove edges → remove nodes.
  */
-export function assembleOps(parts: AssembleOpsParams): VisibleStateTransferOperationV1[] {
+export function assembleOps(parts: AssembleOpsParams): VisibleStateTransferOperation[] {
   return [
     ...parts.nodeShape.addedNodeOps,
     ...parts.nodePropertyOps,
@@ -63,8 +63,8 @@ export type TransferLoaders = {
 
 export type TransferPlanResult = {
   transferVersion: string;
-  ops: VisibleStateTransferOperationV1[];
-  summary: VisibleStateTransferPlanSummaryV1;
+  ops: VisibleStateTransferOperation[];
+  summary: VisibleStateTransferPlanSummary;
 };
 
 type BuildOpsParams = {
@@ -78,7 +78,7 @@ type BuildOpsParams = {
 /**
  * Collect all shape, property, and content ops and assemble them into order.
  */
-async function buildOps(params: BuildOpsParams): Promise<VisibleStateTransferOperationV1[]> {
+async function buildOps(params: BuildOpsParams): Promise<VisibleStateTransferOperation[]> {
   const { sourceReader, targetReader, nodeShape, edgeShape, loaders } = params;
   const syncOps = collectSyncPropertyOps({ sourceReader, targetReader, nodeShape, edgeShape });
   const contentOps = await collectAllContentOps({

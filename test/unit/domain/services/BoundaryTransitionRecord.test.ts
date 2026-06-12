@@ -13,11 +13,10 @@ import ProvenancePayload from '../../../../src/domain/services/provenance/Proven
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import {
   createEmptyState,
-  reduceV5 as _reduceV5,
+  reducePatches,
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -122,7 +121,7 @@ describe('BoundaryTransitionRecord', () => {
       const { patchA, patchB, patchC } = createSamplePatches();
 
       // Create initial state from first patch
-      const initialState = reduceV5([patchA]);
+      const initialState = reducePatches([patchA]);
 
       // Create payload from remaining patches
       const payload = new ProvenancePayload([patchB, patchC]);

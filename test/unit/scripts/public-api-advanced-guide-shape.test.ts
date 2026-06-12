@@ -20,7 +20,7 @@ describe('Advanced Guide engine-room shape', () => {
   it('covers trust and advanced inspection surfaces', () => {
     expect(advancedGuide).toContain('## Security and trust');
     expect(advancedGuide).toContain('[Audit receipt spec](specs/AUDIT_RECEIPT.md)');
-    expect(advancedGuide).toContain('[Trust crypto spec](specs/TRUST_V1_CRYPTO.md)');
+    expect(advancedGuide).toContain('[Trust crypto spec](specs/TRUST_CRYPTO_ALGORITHM.md)');
     expect(advancedGuide).toContain('## Advanced reads and inspection');
   });
 

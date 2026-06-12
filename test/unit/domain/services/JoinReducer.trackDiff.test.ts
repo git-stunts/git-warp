@@ -4,9 +4,8 @@ import {
   encodeEdgeKey,
   encodePropKey,
   applyWithDiff,
-  reduceV5 as _reduceV5,
+  reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -387,10 +386,10 @@ describe('JoinReducer diff tracking', () => {
   });
 
   // =========================================================================
-  // reduceV5 with trackDiff
+  // reducePatches with trackDiff
   // =========================================================================
 
-  describe('reduceV5 with trackDiff', () => {
+  describe('reducePatches with trackDiff', () => {
     it('multi-patch reduce → merged diff is cumulative', () => {
       const patches = [
         {
@@ -417,7 +416,7 @@ describe('JoinReducer diff tracking', () => {
         },
       ];
 
-      const result = reduceV5(patches, undefined, { trackDiff: true });
+      const result = reducePatches(patches, undefined, { trackDiff: true });
 
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('diff');
@@ -439,7 +438,7 @@ describe('JoinReducer diff tracking', () => {
         },
       ];
 
-      const result = reduceV5(patches);
+      const result = reducePatches(patches);
 
       // Returns state directly, NOT wrapped in { state, diff }
       expect(result.nodeAlive).toBeDefined();
@@ -460,7 +459,7 @@ describe('JoinReducer diff tracking', () => {
         },
       ];
 
-      const result = reduceV5(patches, undefined, { trackDiff: true });
+      const result = reducePatches(patches, undefined, { trackDiff: true });
 
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('diff');
@@ -476,7 +475,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('empty patches array → empty diff', () => {
-      const result = reduceV5([], undefined, { trackDiff: true });
+      const result = reducePatches([], undefined, { trackDiff: true });
 
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('diff');
@@ -509,7 +508,7 @@ describe('JoinReducer diff tracking', () => {
         },
       ];
 
-      const result = reduceV5(patches, initial, { trackDiff: true });
+      const result = reducePatches(patches, initial, { trackDiff: true });
 
       // n1 was already alive, so not in nodesAdded
       // n2 is newly added
@@ -531,13 +530,13 @@ describe('JoinReducer diff tracking', () => {
       ];
 
       // receipts mode (existing) — should still work
-      const receiptResult = reduceV5(patches, undefined, { receipts: true });
+      const receiptResult = reducePatches(patches, undefined, { receipts: true });
       expect(receiptResult).toHaveProperty('state');
       expect(receiptResult).toHaveProperty('receipts');
       expect(receiptResult).not.toHaveProperty('diff');
 
       // trackDiff mode (new) — should NOT contain receipts
-      const diffResult = reduceV5(patches, undefined, { trackDiff: true });
+      const diffResult = reducePatches(patches, undefined, { trackDiff: true });
       expect(diffResult).toHaveProperty('state');
       expect(diffResult).toHaveProperty('diff');
       expect(diffResult).not.toHaveProperty('receipts');

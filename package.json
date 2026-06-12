@@ -66,6 +66,7 @@
     "lint:links": "lychee --config .lychee.toml '**/*.md'",
     "lint:semgrep": "node scripts/lint-semgrep-with-quarantines.ts",
     "lint:sludge": "bash scripts/check-anti-sludge.sh",
+    "lint:source-version-names": "node scripts/source-version-name-policy.ts",
     "lint:contamination": "node scripts/contamination-map.ts",
     "lint:quarantine-graduate": "node scripts/quarantine-graduate-check.ts",
     "format": "prettier --write .",

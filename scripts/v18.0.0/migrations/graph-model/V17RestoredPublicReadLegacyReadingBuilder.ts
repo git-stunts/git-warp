@@ -9,9 +9,9 @@ import GenesisEquivalenceReading
 import GenesisEquivalenceReadingFact
   from '../../../../src/domain/migrations/GenesisEquivalenceReadingFact.ts';
 import V17GoldenGraphFixtureGenesisReading
-  from '../../../../src/domain/migrations/V17GoldenGraphFixtureGenesisReading.ts';
+  from './V17GoldenGraphFixtureGenesisReading.ts';
 import V17GoldenGraphFixtureManifest
-  from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+  from './V17GoldenGraphFixtureManifest.ts';
 import { CONTENT_PROPERTY_KEY }
   from '../../../../src/domain/services/KeyCodec.ts';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';

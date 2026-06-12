@@ -1,16 +1,16 @@
 /**
- * syncRequestResponse — request/response protocol for WARP V5 sync.
+ * syncRequestResponse — request/response protocol for WARP sync.
  *
  * Handles creation and processing of SyncRequest/SyncResponse messages,
  * plus the client-side application of received patches.
  *
  * @module domain/services/sync/syncRequestResponse
- * @see SyncProtocol — WARP V5 Spec Section 11 (Network Sync)
+ * @see SyncProtocol — WARP sync spec Section 11 (Network Sync)
  * @see JoinReducer — CRDT merge implementation
  */
 
 import nullLogger from '../../utils/nullLogger.ts';
-import { assertOpsCompatible, SCHEMA_V3 } from '../codec/WarpMessageCodec.ts';
+import { assertOpsCompatible, EDGE_PROPERTY_PATCH_SCHEMA_VERSION } from '../codec/WarpMessageCodec.ts';
 import { applyFast, cloneState, isKnownRawOp } from '../JoinReducer.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import SyncError from '../../errors/SyncError.ts';
@@ -272,7 +272,7 @@ export async function processSyncRequest(
  * state will be identical. However, applying in chronological order (as
  * provided) is slightly more efficient.
  *
- * **Schema validation**: Patches are checked against SCHEMA_V3 before apply.
+ * **Schema validation**: Patches are checked against EDGE_PROPERTY_PATCH_SCHEMA_VERSION before apply.
  * If a patch contains op types we don't understand (from a newer schema),
  * assertOpsCompatible throws to prevent silent data loss.
  *
@@ -333,7 +333,7 @@ export function applySyncResponse(
         }
       }
       // Guard: reject patches exceeding our maximum supported schema version.
-      assertOpsCompatible(normalizedPatch.ops, SCHEMA_V3);
+      assertOpsCompatible(normalizedPatch.ops, EDGE_PROPERTY_PATCH_SCHEMA_VERSION);
       // Apply patch to state (applyFast mutates in-place; return value is the same reference)
       applyFast(newState, normalizedPatch, sha);
       applied++;

@@ -4,7 +4,7 @@
  * @module domain/services/transfer/transferShape
  */
 
-import type { VisibleStateTransferOperationV1 } from '../../types/CoordinateComparison.ts';
+import type { VisibleStateTransferOperation } from '../../types/CoordinateComparison.ts';
 import {
   compareStrings,
   collectEdgeRefs,
@@ -26,8 +26,8 @@ export { summarizeOps };
 // ── Shape delta ───────────────────────────────────────────────────────────────
 
 export type NodeShapeDelta = {
-  addedNodeOps: VisibleStateTransferOperationV1[];
-  removedNodeOps: VisibleStateTransferOperationV1[];
+  addedNodeOps: VisibleStateTransferOperation[];
+  removedNodeOps: VisibleStateTransferOperation[];
   propertyNodeIds: string[];
 };
 
@@ -43,10 +43,10 @@ export function collectNodeShapeDelta(
   return {
     addedNodeOps: sourceNodeIds
       .filter((nodeId) => !targetNodeSet.has(nodeId))
-      .map((nodeId) => ({ op: 'add_node', nodeId }) as VisibleStateTransferOperationV1),
+      .map((nodeId) => ({ op: 'add_node', nodeId }) as VisibleStateTransferOperation),
     removedNodeOps: targetNodeIds
       .filter((nodeId) => !sourceNodeSet.has(nodeId))
-      .map((nodeId) => ({ op: 'remove_node', nodeId }) as VisibleStateTransferOperationV1),
+      .map((nodeId) => ({ op: 'remove_node', nodeId }) as VisibleStateTransferOperation),
     propertyNodeIds: sourceNodeIds,
   };
 }
@@ -54,13 +54,13 @@ export function collectNodeShapeDelta(
 /**
  * Build add-edge transfer operations from a list of edge refs.
  */
-export function buildAddEdgeOps(edgeRefs: EdgeRef[]): VisibleStateTransferOperationV1[] {
+export function buildAddEdgeOps(edgeRefs: EdgeRef[]): VisibleStateTransferOperation[] {
   return edgeRefs.map((edge) => ({
     op: 'add_edge',
     from: edge.from,
     to: edge.to,
     label: edge.label,
-  }) as VisibleStateTransferOperationV1);
+  }) as VisibleStateTransferOperation);
 }
 
 /**
@@ -69,7 +69,7 @@ export function buildAddEdgeOps(edgeRefs: EdgeRef[]): VisibleStateTransferOperat
 export function buildRemoveEdgeOps(
   removedKeys: string[],
   targetEdgesByKey: Map<string, EdgeRef>,
-): VisibleStateTransferOperationV1[] {
+): VisibleStateTransferOperation[] {
   return removedKeys.map((key) => {
     const edge = targetEdgesByKey.get(key) as EdgeRef;
     return {
@@ -77,13 +77,13 @@ export function buildRemoveEdgeOps(
       from: edge.from,
       to: edge.to,
       label: edge.label,
-    } as VisibleStateTransferOperationV1;
+    } as VisibleStateTransferOperation;
   });
 }
 
 export type EdgeShapeDelta = {
-  addedEdgeOps: VisibleStateTransferOperationV1[];
-  removedEdgeOps: VisibleStateTransferOperationV1[];
+  addedEdgeOps: VisibleStateTransferOperation[];
+  removedEdgeOps: VisibleStateTransferOperation[];
   edgeRefs: EdgeRef[];
 };
 
@@ -124,7 +124,7 @@ export function collectNodePropertyOps(
   sourceReader: VisibleStateReader,
   targetReader: VisibleStateReader,
   nodeIds: string[],
-): VisibleStateTransferOperationV1[] {
+): VisibleStateTransferOperation[] {
   return nodeIds.flatMap((nodeId) =>
     collectPropertyOps(
       sourceReader.getNodeProps(nodeId) ?? {},
@@ -141,7 +141,7 @@ export function collectEdgePropertyOps(
   sourceReader: VisibleStateReader,
   targetReader: VisibleStateReader,
   edgeRefs: EdgeRef[],
-): VisibleStateTransferOperationV1[] {
+): VisibleStateTransferOperation[] {
   return edgeRefs.flatMap((edge) =>
     collectPropertyOps(
       sourceReader.getEdgeProps(edge.from, edge.to, edge.label) ?? {},
@@ -164,8 +164,8 @@ export type SyncPropertyOpsParams = {
  * Collect synchronous property diff ops for nodes and edges.
  */
 export function collectSyncPropertyOps(params: SyncPropertyOpsParams): {
-  nodePropertyOps: VisibleStateTransferOperationV1[];
-  edgePropertyOps: VisibleStateTransferOperationV1[];
+  nodePropertyOps: VisibleStateTransferOperation[];
+  edgePropertyOps: VisibleStateTransferOperation[];
 } {
   return {
     nodePropertyOps: collectNodePropertyOps(
@@ -196,8 +196,8 @@ export type AllContentOpsParams = {
  * Collect async content attach/clear ops for all nodes and edges.
  */
 export async function collectAllContentOps(params: AllContentOpsParams): Promise<{
-  nodeContentOps: VisibleStateTransferOperationV1[];
-  edgeContentOps: VisibleStateTransferOperationV1[];
+  nodeContentOps: VisibleStateTransferOperation[];
+  edgeContentOps: VisibleStateTransferOperation[];
 }> {
   const nodeContentOps = await collectNodeContentOps({
     sourceReader: params.sourceReader,

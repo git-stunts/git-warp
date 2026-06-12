@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { upgradeVisibleStateProjection } from '../../../scripts/migrations/v17.0.0/visible-state-upgrade.ts';
 import {
-  reduceV5 as _reduceV5,
+  reducePatches,
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
 } from '../../../src/domain/services/JoinReducer.ts';
-const reduceV5: (...args: any[]) => any = _reduceV5;
 import { compareEventIds, EventId } from '../../../src/domain/utils/EventId.ts';
 import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../src/domain/crdt/LWW.ts';
 
@@ -121,7 +120,7 @@ function reduce(patches: Array<{patch: any; sha: string}>) {
 // ============================================================================
 // End of v4 test helpers
 // ============================================================================
-import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../../src/domain/services/state/StateSerializer.ts';
+import { computeStateHash, nodeVisible, edgeVisible } from '../../../src/domain/services/state/StateSerializer.ts';
 import { lwwSet, lwwValue } from '../../../src/domain/crdt/LWW.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
@@ -682,8 +681,8 @@ describe('visible-state upgrade helper', () => {
         const currentState = upgradeVisibleStateProjection(legacyState, '__migration__');
 
         // Verify migration preserved all visible entities
-        expect(nodeVisibleV5(currentState, 'user:alice')).toBe(true);
-        expect(nodeVisibleV5(currentState, 'user:bob')).toBe(true);
+        expect(nodeVisible(currentState, 'user:alice')).toBe(true);
+        expect(nodeVisible(currentState, 'user:bob')).toBe(true);
         expect(edgeVisible(currentState, encodeEdgeKeyV5('user:bob', 'user:alice', 'follows'))).toBe(true);
 
         // Step 3: Apply current patches (OR-Set based) AFTER migration
@@ -715,11 +714,11 @@ describe('visible-state upgrade helper', () => {
         ];
 
         // Apply current patches to migrated state
-        const finalState = reduceV5(v5Patches, currentState);
+        const finalState = reducePatches(v5Patches, currentState);
 
         // Step 4: Verify NO data loss - all original v4 data is preserved
-        expect(nodeVisibleV5(finalState, 'user:alice')).toBe(true);
-        expect(nodeVisibleV5(finalState, 'user:bob')).toBe(true);
+        expect(nodeVisible(finalState, 'user:alice')).toBe(true);
+        expect(nodeVisible(finalState, 'user:bob')).toBe(true);
         expect(edgeVisible(finalState, encodeEdgeKeyV5('user:bob', 'user:alice', 'follows'))).toBe(true);
 
         // Verify props from v4 are preserved
@@ -729,7 +728,7 @@ describe('visible-state upgrade helper', () => {
         expect(lwwValue(finalState.getEncodedProp(bobPropKey))).toEqual(createInlineValue('Bob'));
 
         // Step 5: Verify new current data is present
-        expect(nodeVisibleV5(finalState, 'user:charlie')).toBe(true);
+        expect(nodeVisible(finalState, 'user:charlie')).toBe(true);
         expect(edgeVisible(finalState, encodeEdgeKeyV5('user:charlie', 'user:alice', 'follows'))).toBe(true);
         expect(edgeVisible(finalState, encodeEdgeKeyV5('user:charlie', 'user:bob', 'follows'))).toBe(true);
 
@@ -786,9 +785,9 @@ describe('visible-state upgrade helper', () => {
         };
 
         // Apply in different orders
-        const stateABC = reduceV5([v5PatchA, v5PatchB, v5PatchC], currentState);
-        const stateCBA = reduceV5([v5PatchC, v5PatchB, v5PatchA], currentState);
-        const stateBAC = reduceV5([v5PatchB, v5PatchA, v5PatchC], currentState);
+        const stateABC = reducePatches([v5PatchA, v5PatchB, v5PatchC], currentState);
+        const stateCBA = reducePatches([v5PatchC, v5PatchB, v5PatchA], currentState);
+        const stateBAC = reducePatches([v5PatchB, v5PatchA, v5PatchC], currentState);
 
         // All orders produce the same hash (permutation invariance)
         const hashABC = await computeStateHash(stateABC, { crypto });
@@ -799,9 +798,9 @@ describe('visible-state upgrade helper', () => {
         expect(hashABC).toBe(hashBAC);
 
         // Original v4 data preserved in all cases
-        expect(nodeVisibleV5(stateABC, 'existing-node')).toBe(true);
-        expect(nodeVisibleV5(stateCBA, 'existing-node')).toBe(true);
-        expect(nodeVisibleV5(stateBAC, 'existing-node')).toBe(true);
+        expect(nodeVisible(stateABC, 'existing-node')).toBe(true);
+        expect(nodeVisible(stateCBA, 'existing-node')).toBe(true);
+        expect(nodeVisible(stateBAC, 'existing-node')).toBe(true);
       });
     });
 
@@ -815,7 +814,7 @@ describe('visible-state upgrade helper', () => {
        * The migration boundary enforces this at the WarpCore level:
        * - v1 patches are processed by reduce() (LWW-based) before migration
        * - A current checkpoint is created via upgradeVisibleStateProjection()
-       * - v2 patches are processed by reduceV5() (OR-Set based) after migration
+       * - v2 patches are processed by reducePatches() (OR-Set based) after migration
        *
        * The reducers themselves do NOT validate patch schema because they
        * trust the migration boundary to be properly enforced by the API layer.
@@ -823,7 +822,7 @@ describe('visible-state upgrade helper', () => {
        * These tests document the expected behavior when the boundary is respected.
        */
 
-      it('reduceV5 only processes v2 patches (v1 patches should go through migration first)', () => {
+      it('reducePatches only processes v2 patches (v1 patches should go through migration first)', () => {
         // Create a v1 patch (schema:1, LWW operations)
         const v1Patch = {
           patch: createPatchV1({
@@ -848,11 +847,11 @@ describe('visible-state upgrade helper', () => {
         // CORRECT WORKFLOW: Process v1 patches first, then migrate, then v2
         const legacyState = reduce([v1Patch]);
         const migratedState = upgradeVisibleStateProjection(legacyState, '__migration__');
-        const finalState = reduceV5([v2Patch], migratedState);
+        const finalState = reducePatches([v2Patch], migratedState);
 
         // Both nodes visible after proper migration workflow
-        expect(nodeVisibleV5(finalState, 'node-from-v1')).toBe(true);
-        expect(nodeVisibleV5(finalState, 'node-from-v2')).toBe(true);
+        expect(nodeVisible(finalState, 'node-from-v1')).toBe(true);
+        expect(nodeVisible(finalState, 'node-from-v2')).toBe(true);
       });
 
       it('migration boundary is the separation point between v1 and v2 patches', () => {
@@ -889,8 +888,8 @@ describe('visible-state upgrade helper', () => {
         const currentState = upgradeVisibleStateProjection(legacyState, '__migration__');
 
         // AFTER migration: Only visible entities survive
-        expect(nodeVisibleV5(currentState, 'n1')).toBe(true);
-        expect(nodeVisibleV5(currentState, 'n2')).toBe(false); // stays deleted
+        expect(nodeVisible(currentState, 'n1')).toBe(true);
+        expect(nodeVisible(currentState, 'n2')).toBe(false); // stays deleted
 
         // v2 patches can now add new data
         const v2Patches = [
@@ -908,12 +907,12 @@ describe('visible-state upgrade helper', () => {
           },
         ];
 
-        const finalState = reduceV5(v2Patches, currentState);
+        const finalState = reducePatches(v2Patches, currentState);
 
         // Verify migration boundary was respected
-        expect(nodeVisibleV5(finalState, 'n1')).toBe(true);  // from v4
-        expect(nodeVisibleV5(finalState, 'n2')).toBe(false); // tombstoned in v4
-        expect(nodeVisibleV5(finalState, 'n3')).toBe(true);  // from current
+        expect(nodeVisible(finalState, 'n1')).toBe(true);  // from v4
+        expect(nodeVisible(finalState, 'n2')).toBe(false); // tombstoned in v4
+        expect(nodeVisible(finalState, 'n3')).toBe(true);  // from current
         expect(edgeVisible(finalState, encodeEdgeKeyV5('n1', 'n3', 'link'))).toBe(true);
       });
 
@@ -922,7 +921,7 @@ describe('visible-state upgrade helper', () => {
          * This test documents the expected behavior when mixing patches.
          * The reducers do NOT validate schema - they trust the migration boundary.
          *
-         * If v1 patches were passed to reduceV5, they would be processed
+         * If v1 patches were passed to reducePatches, they would be processed
          * incorrectly because v1 patches use different operation types
          * (NodeAdd vs NodeAdd with dot, NodeTombstone vs NodeRemove with observedDots).
          *

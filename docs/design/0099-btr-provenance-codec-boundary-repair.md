@@ -63,7 +63,7 @@ This PULL designs that repair before touching implementation.
 | ----: | ---------------------------------------------------------------------------------------- | ---------------------------------------- |
 | 14-17 | `PatchEntry` is an interface, not a runtime-backed value                                 | Model gap                                |
 | 19-31 | `ProvenancePayload` freezes an array but validates only `Array.isArray`                  | Runtime-invariant gap                    |
-| 53-58 | `replay()` depends on `reduceV5([...this.#patches])` and casts the result to `WarpState` | Existing model/cast debt adjacent to BTR |
+| 53-58 | `replay()` depends on `reducePatches([...this.#patches])` and casts the result to `WarpState` | Existing model/cast debt adjacent to BTR |
 | 73-78 | Domain API exposes `toJSON()` and `fromJSON(...)` names                                  | Wire-language leakage                    |
 
 ### `src/ports/CryptoPort.ts`

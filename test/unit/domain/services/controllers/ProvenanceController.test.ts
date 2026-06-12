@@ -29,7 +29,10 @@ const mockDecodePatchMessage = (decodePatchMessage);
 
 // ── Mock ProvenancePayload ──────────────────────────────────────────────
 
-const mockReplay = vi.fn();
+const { mockReplay, mockReducePatches } = vi.hoisted(() => ({
+  mockReplay: vi.fn(),
+  mockReducePatches: vi.fn(),
+}));
 
 vi.mock('../../../../../src/domain/services/provenance/ProvenancePayload.ts', () => {
   const MockPayload = vi.fn(function (this: any) {
@@ -50,16 +53,15 @@ vi.mock('../../../../../src/domain/services/JoinReducer.ts', () => ({
     edgeAlive: new Map(),
     prop: new Map(),
   })),
-  reduceV5: vi.fn(),
+  reducePatches: mockReducePatches,
 }));
 
-const { createEmptyState, reduceV5 } = await import(
+const { createEmptyState } = await import(
   '../../../../../src/domain/services/JoinReducer.ts'
 );
 
 // Cast mocked functions so .mockReturnValue is available
 const mockCreateEmptyState = (createEmptyState);
-const mockReduceV5 = (reduceV5);
 
 // ── Host factory ────────────────────────────────────────────────────────
 
@@ -221,21 +223,21 @@ describe('ProvenanceController — materializeSlice', () => {
     );
   });
 
-  it('uses reduceV5 with receipts when options.receipts is true', async () => {
+  it('uses reducePatches with receipts when options.receipts is true', async () => {
     const patch = makePatch({ writer: 'w1', lamport: 1 });
     host._provenanceIndex.patchesFor.mockReturnValue(['sha1']);
     host._codec.decode.mockReturnValue(patch);
 
     const fakeState = { nodeAlive: new Map() };
     const fakeReceipts = [{ type: 'tick' }];
-    (mockReduceV5 as any).mockReturnValue({ state: fakeState, receipts: fakeReceipts });
+    mockReducePatches.mockReturnValue({ state: fakeState, receipts: fakeReceipts });
 
     const result = await ctrl.materializeSlice('node:x', { receipts: true });
 
     expect(result.state).toBe(fakeState);
     expect(result.patchCount).toBe(1);
     expect(result.receipts).toBe(fakeReceipts);
-    expect(mockReduceV5).toHaveBeenCalledWith(
+    expect(mockReducePatches).toHaveBeenCalledWith(
       expect.any(Array),
       undefined,
       { receipts: true },

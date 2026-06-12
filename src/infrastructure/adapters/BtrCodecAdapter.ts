@@ -10,7 +10,7 @@ import VersionVector from '../../domain/crdt/VersionVector.ts';
 import type { Dot } from '../../domain/crdt/Dot.ts';
 import defaultCborCodec from '../codecs/CborCodec.ts';
 import type Patch from '../../domain/types/Patch.ts';
-import type { OpV2 } from '../../domain/types/ops/unions.ts';
+import type { PatchOp } from '../../domain/types/ops/unions.ts';
 import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import type { PatchEntry } from '../../domain/services/provenance/BoundaryTransitionProvenance.ts';
 import type {
@@ -133,7 +133,7 @@ function toBtrCanonicalDot(dot: Dot): BtrWireDot {
   };
 }
 
-function toBtrCanonicalOperation(op: OpV2): BtrWireOperation {
+function toBtrCanonicalOperation(op: PatchOp): BtrWireOperation {
   switch (op.type) {
     case 'NodeAdd':
       return {

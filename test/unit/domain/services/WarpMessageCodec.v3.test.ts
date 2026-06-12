@@ -8,8 +8,8 @@ import {
   decodeAnchorMessage,
   detectMessageKind,
   detectSchemaVersion,
-  SCHEMA_V2,
-  SCHEMA_V3,
+  CLASSIC_PATCH_SCHEMA_VERSION,
+  EDGE_PROPERTY_PATCH_SCHEMA_VERSION,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 
 // Test fixtures
@@ -21,12 +21,12 @@ const EDGE_PROP_PREFIX = '\x01';
 
 describe('WarpMessageCodec schema v3', () => {
   describe('constants', () => {
-    it('SCHEMA_V2 is 2', () => {
-      expect(SCHEMA_V2).toBe(2);
+    it('CLASSIC_PATCH_SCHEMA_VERSION is 2', () => {
+      expect(CLASSIC_PATCH_SCHEMA_VERSION).toBe(2);
     });
 
-    it('SCHEMA_V3 is 3', () => {
-      expect(SCHEMA_V3).toBe(3);
+    it('EDGE_PROPERTY_PATCH_SCHEMA_VERSION is 3', () => {
+      expect(EDGE_PROPERTY_PATCH_SCHEMA_VERSION).toBe(3);
     });
   });
 

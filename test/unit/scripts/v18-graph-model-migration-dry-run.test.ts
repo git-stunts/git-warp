@@ -50,7 +50,7 @@ describe('v18 graph-model migration dry-run CLI', () => {
     expect(first.stdout).toContain('plannedOperations: 3');
     expect(first.stdout).toContain('graphHistoryWrites: 0');
     expect(first.stderr).toBe('');
-    expect(firstManifest).toContain('"basisId": "basis:source:v18-dry-run"');
+    expect(firstManifest).toContain('"basisId": "basis:source:dry-run"');
     expect(firstManifest).toContain('"targetAttachmentKey": "content-attachment:node:a\\u0000_content"');
   });
 
@@ -63,7 +63,7 @@ describe('v18 graph-model migration dry-run CLI', () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('manifest: stdout');
-    expect(result.stdout).toContain('"basisId": "basis:source:v18-dry-run"');
+    expect(result.stdout).toContain('"basisId": "basis:source:dry-run"');
     expect(result.stderr).toBe('');
   });
 

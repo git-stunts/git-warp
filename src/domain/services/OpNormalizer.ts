@@ -27,7 +27,7 @@ import NodeAdd from '../types/ops/NodeAdd.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import NodeRemove from '../types/ops/NodeRemove.ts';
 import PropSet from '../types/ops/PropSet.ts';
-import type { CanonicalOpV2, OpV2 } from '../types/ops/unions.ts';
+import type { CanonicalPatchOp, PatchOp } from '../types/ops/unions.ts';
 import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 import { isLegacyEdgePropNode, decodeLegacyEdgePropNode, encodeLegacyEdgePropNode } from './KeyCodec.ts';
 
@@ -225,7 +225,7 @@ const HYDRATORS: ReadonlyMap<string, (rawOp: OpLike) => OpLike> = Object.freeze(
   ['BlobValue', hydrateBlobValue],
 ]));
 
-function isRuntimeOp(rawOp: OpLike): rawOp is OpV2 { // nosemgrep: ts-no-like-types -- 0025C
+function isRuntimeOp(rawOp: OpLike): rawOp is PatchOp { // nosemgrep: ts-no-like-types -- 0025C
   return RUNTIME_OP_CLASSES.some((OpClass) => rawOp instanceof OpClass);
 }
 
@@ -250,7 +250,7 @@ export function hydrateDecodedOp(rawOp: OpLike): OpLike { // nosemgrep: ts-no-li
  * Hydrates a known decoded op into a runtime-backed current op class.
  * Unknown types are rejected at this stricter boundary.
  */
-export function hydrateKnownDecodedOp(rawOp: OpLike): OpV2 { // nosemgrep: ts-no-like-types -- 0025C
+export function hydrateKnownDecodedOp(rawOp: OpLike): PatchOp { // nosemgrep: ts-no-like-types -- 0025C
   const hydratedOp = hydrateDecodedOp(rawOp);
   if (isRuntimeOp(hydratedOp)) {
     return hydratedOp;
@@ -260,7 +260,7 @@ export function hydrateKnownDecodedOp(rawOp: OpLike): OpV2 { // nosemgrep: ts-no
   });
 }
 
-function normalizePropSet(rawPropSet: PropSet): CanonicalOpV2 {
+function normalizePropSet(rawPropSet: PropSet): CanonicalPatchOp {
   if (isLegacyEdgePropNode(rawPropSet.node)) {
     const { from, to, label } = decodeLegacyEdgePropNode(rawPropSet.node);
     return new EdgePropSet({ from, to, label, key: rawPropSet.key, value: rawPropSet.value });
@@ -297,7 +297,7 @@ export function normalizeRawOp(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like
  * A future graph capability cutover (ADR 2) may allow emitting raw
  * `EdgePropSet` directly.
  */
-export function lowerCanonicalOp(canonicalOp: CanonicalOpV2): OpV2 {
+export function lowerCanonicalOp(canonicalOp: CanonicalPatchOp): PatchOp {
   if (canonicalOp.type === 'NodePropSet') {
     return new PropSet(canonicalOp.node, canonicalOp.key, canonicalOp.value);
   }

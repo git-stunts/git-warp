@@ -64,7 +64,7 @@ import V17GoldenGraphFixtureManifest, {
   V17GoldenGraphFixtureVisibleFact,
   V17GoldenGraphFixtureWriterChain,
   v17GoldenGraphFixtureFactKindFromString,
-} from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+} from '../../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureManifest.ts';
 
 describe('graph model migration constructor guards', () => {
   it('rejects invalid scalar fields on leaf nouns', () => {

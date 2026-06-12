@@ -1,28 +1,28 @@
 import TrieGeometryError from "../../errors/TrieGeometryError.ts";
 
 /**
- * Supported fanout values for v1 of the shadow-trie ORSet.
+ * Supported fanout values for the shadow-trie ORSet.
  *
  * The geometry benchmark (`PERF_trie-geometry-and-memory-profile`)
  * will validate or replace these values. The codec and cursor
  * remain parameterized across the entire range; only the
- * constructor gate is v1-specific.
+ * constructor gate is geometry-specific.
  */
 export const SUPPORTED_FANOUTS: ReadonlyArray<number> = [16, 64, 256];
 
 /**
- * v1 default fanout (4-bit nibbles, 16-way branching). Matches
+ * Default fanout (4-bit nibbles, 16-way branching). Matches
  * the backlog brief.
  */
 export const DEFAULT_FANOUT = 16;
 
 /**
- * v1 default nibble width in bits. `log2(DEFAULT_FANOUT)`.
+ * Default nibble width in bits. `log2(DEFAULT_FANOUT)`.
  */
 export const DEFAULT_NIBBLE_BITS = 4;
 
 /**
- * v1 default leaf capacity (split threshold).
+ * Default leaf capacity (split threshold).
  *
  * Picked at 64 as a starting point: small enough to keep binary
  * search cheap, large enough to amortize split cascades. The perf
@@ -31,7 +31,7 @@ export const DEFAULT_NIBBLE_BITS = 4;
 export const DEFAULT_LEAF_CAPACITY = 64;
 
 /**
- * v1 default leaf floor (merge threshold).
+ * Default leaf floor (merge threshold).
  *
  * Picked as `DEFAULT_LEAF_CAPACITY / 4 = 16`. A 1:4 floor:capacity
  * ratio is a standard rebalance choice that keeps merge/split
@@ -115,7 +115,7 @@ export default class TrieGeometry {
   }
 
   /**
-   * v1 default geometry: 16-way fanout, 4-bit nibbles, leaf
+   * Default geometry: 16-way fanout, 4-bit nibbles, leaf
    * capacity 64, leaf floor 16. Revisit via the perf cycle.
    */
   static default16way(): TrieGeometry {

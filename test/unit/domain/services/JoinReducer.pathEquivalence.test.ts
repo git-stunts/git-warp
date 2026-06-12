@@ -13,11 +13,10 @@ import {
   applyFast,
   applyWithReceipt,
   applyWithDiff,
-  reduceV5 as _reduceV5,
+  reducePatches,
   CANONICAL_KNOWN_OPS,
   OP_STRATEGIES,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 
@@ -335,16 +334,16 @@ describe('cross-path state equivalence', () => {
     assertStatesEqual(s1, s3, 'fast vs diff');
   });
 
-  it('reduceV5 all three modes produce identical state', () => {
+  it('reducePatches all three modes produce identical state', () => {
     const patches = [
       { patch: makePatch('alice', 1, [nodeAdd('a', dot1), propSet('a', 'x', 1)]), sha: '4'.repeat(40) },
       { patch: makePatch('bob', 1, [nodeAdd('b', dot3), edgeAdd('a', 'b', 'r', Dot.create('bob', 2))]), sha: '5'.repeat(40) },
       { patch: makePatch('alice', 2, [propSet('a', 'x', 2)], { alice: 1 }), sha: '6'.repeat(40) },
     ];
 
-    const statePlain = reduceV5(patches);
-    const { state: stateReceipts } = reduceV5(patches, undefined, { receipts: true });
-    const { state: stateDiff } = reduceV5(patches, undefined, { trackDiff: true });
+    const statePlain = reducePatches(patches);
+    const { state: stateReceipts } = reducePatches(patches, undefined, { receipts: true });
+    const { state: stateDiff } = reducePatches(patches, undefined, { trackDiff: true });
 
     assertStatesEqual(statePlain, stateReceipts, 'plain vs receipts');
     assertStatesEqual(statePlain, stateDiff, 'plain vs diff');

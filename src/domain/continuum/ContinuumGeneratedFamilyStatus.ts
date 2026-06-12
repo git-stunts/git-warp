@@ -12,7 +12,7 @@ export const CONTINUUM_GENERATED_FAMILY_STATUSES: readonly ContinuumGeneratedFam
   AUTHORED_ONLY,
 ]);
 
-/** Runtime-backed readiness posture for a Continuum family in the v18 inventory. */
+/** Runtime-backed readiness posture for a Continuum family in the current inventory. */
 export default class ContinuumGeneratedFamilyStatus {
   readonly value: ContinuumGeneratedFamilyStatusValue;
 

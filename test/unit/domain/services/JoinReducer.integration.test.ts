@@ -1,7 +1,7 @@
 /**
- * WARP v5 Integration Tests - KILLER TESTS
+ * WARP Integration Tests - KILLER TESTS
  *
- * These tests verify the critical invariants of the WARP v5 upgrade:
+ * These tests verify the critical invariants of the WARP upgrade:
  * 1. Permutation Invariance - Any ordering of patches produces identical state hash
  * 2. Migration Boundary - v4 -> v5 preserves visible projection
  * 3. Concurrent Add/Remove Resurrection - add wins when remove has empty observedDots
@@ -12,19 +12,14 @@
 
 import { describe, it, expect } from 'vitest';
 
-// Core v5 reducer
+// Core reducer
 import {
-  reduceV5 as _reduceV5,
+  reducePatches,
   encodeEdgeKey,
   encodePropKey,
   cloneState,
   joinStates,
 } from '../../../../src/domain/services/JoinReducer.ts';
-
-/**
- * Typed wrapper for reduceV5 that returns WarpState (no receipts in these tests).
- */
-const reduceV5 = (patches: any[], initialState?: any): any => _reduceV5(patches, initialState);
 
 // v4 reducer helpers (local test helpers for migration tests)
 import { compareEventIds, EventId } from '../../../../src/domain/utils/EventId.ts';
@@ -111,9 +106,9 @@ function reduce(patches: any[]) {
 // State serialization and hashing
 import {
   computeStateHash,
-  nodeVisibleV5,
+  nodeVisible,
   edgeVisible,
-  serializeStateV5,
+  serializeState,
 } from '../../../../src/domain/services/state/StateSerializer.ts';
 
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -359,7 +354,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
     // Test 100 random permutations
     for (let i = 0; i < 100; i++) {
       const shuffled = shuffle(patches);
-      const state = reduceV5(shuffled);
+      const state = reducePatches(shuffled);
       hashes.add(await computeStateHash(state, { crypto }));
     }
 
@@ -408,7 +403,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
       [patchC, patchB, patchA],
     ];
 
-    const hashes = await Promise.all(permutations.map((p) => computeStateHash(reduceV5(p), { crypto })));
+    const hashes = await Promise.all(permutations.map((p) => computeStateHash(reducePatches(p), { crypto })));
 
     // All should be identical
     expect(new Set(hashes).size).toBe(1);
@@ -421,7 +416,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
     // 50 random permutations
     for (let i = 0; i < 50; i++) {
       const shuffled = shuffle(patches);
-      const state = reduceV5(shuffled);
+      const state = reducePatches(shuffled);
       hashes.add(await computeStateHash(state, { crypto }));
     }
 
@@ -487,7 +482,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
 
     // Verify each v4 visible node is visible in v5
     for (const nodeId of v4VisibleNodes) {
-      expect(nodeVisibleV5(v5State, nodeId)).toBe(true);
+      expect(nodeVisible(v5State, nodeId)).toBe(true);
     }
 
     // Add v5 patches and verify order-independence
@@ -517,8 +512,8 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
       },
     ];
 
-    const finalA = reduceV5(v5Patches, v5State);
-    const finalB = reduceV5(shuffle(v5Patches), v5State);
+    const finalA = reducePatches(v5Patches, v5State);
+    const finalB = reducePatches(shuffle(v5Patches), v5State);
 
     expect(await computeStateHash(finalA, { crypto })).toBe(await computeStateHash(finalB, { crypto }));
   });
@@ -596,7 +591,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
     const v5State = upgradeVisibleStateProjection(v4State, '__migration__');
 
     // Node should be visible (add > tombstone in LWW)
-    expect(nodeVisibleV5(v5State, 'cycle-node')).toBe(true);
+    expect(nodeVisible(v5State, 'cycle-node')).toBe(true);
 
     // Prop should be preserved
     const propKey = encodePropKey('cycle-node', 'state');
@@ -633,12 +628,12 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
     };
 
     // Merge in both orders
-    const stateAB = reduceV5([patchA, patchB]);
-    const stateBA = reduceV5([patchB, patchA]);
+    const stateAB = reducePatches([patchA, patchB]);
+    const stateBA = reducePatches([patchB, patchA]);
 
     // X is visible (add wins because B didn't observe A's dot)
-    expect(nodeVisibleV5(stateAB, 'X')).toBe(true);
-    expect(nodeVisibleV5(stateBA, 'X')).toBe(true);
+    expect(nodeVisible(stateAB, 'X')).toBe(true);
+    expect(nodeVisible(stateBA, 'X')).toBe(true);
 
     // Same hash regardless of order
     expect(await computeStateHash(stateAB, { crypto })).toBe(await computeStateHash(stateBA, { crypto }));
@@ -678,10 +673,10 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       sha: 'cccc1111',
     };
 
-    const state = reduceV5([patchA, patchB, patchC]);
+    const state = reducePatches([patchA, patchB, patchC]);
 
     // X should still be visible (B's add survived)
-    expect(nodeVisibleV5(state, 'X')).toBe(true);
+    expect(nodeVisible(state, 'X')).toBe(true);
 
     // Verify in all orderings
     const allOrders = [
@@ -694,8 +689,8 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
     ];
 
     for (const order of allOrders) {
-      const s = reduceV5(order);
-      expect(nodeVisibleV5(s, 'X')).toBe(true);
+      const s = reducePatches(order);
+      expect(nodeVisible(s, 'X')).toBe(true);
     }
   });
 
@@ -722,10 +717,10 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       sha: 'bbbb2222',
     };
 
-    const state = reduceV5([patchA, patchB]);
+    const state = reducePatches([patchA, patchB]);
 
     // X should be gone
-    expect(nodeVisibleV5(state, 'X')).toBe(false);
+    expect(nodeVisible(state, 'X')).toBe(false);
   });
 
   it('edge concurrent add/remove follows same semantics', async () => {
@@ -767,8 +762,8 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       sha: 'edbb0011',
     };
 
-    const stateAB = reduceV5([...nodePatches, patchA, patchB]);
-    const stateBA = reduceV5([...nodePatches, patchB, patchA]);
+    const stateAB = reducePatches([...nodePatches, patchA, patchB]);
+    const stateBA = reducePatches([...nodePatches, patchB, patchA]);
 
     const edgeKey = encodeEdgeKey('from', 'to', 'link');
 
@@ -787,7 +782,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
   it('compaction does not change visible state hash', async () => {
     // Apply patches
     const patches = generateV2Patches(50);
-    const state = reduceV5(patches);
+    const state = reducePatches(patches);
     const hashBefore = await computeStateHash(state, { crypto });
 
     // Create checkpoint with compaction
@@ -822,10 +817,10 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
       sha: 'bbbb2222',
     };
 
-    const state = reduceV5([patchA, patchB]);
+    const state = reducePatches([patchA, patchB]);
 
     // Node should be gone
-    expect(nodeVisibleV5(state, 'x')).toBe(false);
+    expect(nodeVisible(state, 'x')).toBe(false);
 
     // Compaction should clean up
     const vv = VersionVector.empty();
@@ -833,7 +828,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     state.nodeAlive.compact(vv);
 
     // State should still have same visible projection (empty)
-    expect(nodeVisibleV5(state, 'x')).toBe(false);
+    expect(nodeVisible(state, 'x')).toBe(false);
 
     // Internal cleanup: entries should be empty
     expect(state.nodeAlive.entries.size).toBe(0);
@@ -851,10 +846,10 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
       sha: 'aaaa1111',
     };
 
-    const state = reduceV5([patch]);
+    const state = reducePatches([patch]);
 
     // Node is visible
-    expect(nodeVisibleV5(state, 'live-node')).toBe(true);
+    expect(nodeVisible(state, 'live-node')).toBe(true);
 
     // Compact with VV that includes the dot
     const vv = VersionVector.empty();
@@ -863,7 +858,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     state.nodeAlive.compact(vv);
 
     // Node should STILL be visible - live dots are never compacted
-    expect(nodeVisibleV5(state, 'live-node')).toBe(true);
+    expect(nodeVisible(state, 'live-node')).toBe(true);
   });
 
   it('incremental compaction is safe', async () => {
@@ -873,21 +868,21 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     const wave3 = generateV2Patches(20);
 
     // Full reduce
-    const fullState = reduceV5([...wave1, ...wave2, ...wave3]);
+    const fullState = reducePatches([...wave1, ...wave2, ...wave3]);
     const fullHash = await computeStateHash(fullState, { crypto });
 
     // Incremental with compaction between waves
-    let state = reduceV5(wave1);
+    let state = reducePatches(wave1);
     let vv = computeIncludedVV(wave1);
     state.nodeAlive.compact(vv);
     state.edgeAlive.compact(vv);
 
-    state = reduceV5(wave2, state);
+    state = reducePatches(wave2, state);
     vv = vv.merge(computeIncludedVV(wave2));
     state.nodeAlive.compact(vv);
     state.edgeAlive.compact(vv);
 
-    state = reduceV5(wave3, state);
+    state = reducePatches(wave3, state);
 
     // Final hash should match full reduce
     expect(await computeStateHash(state, { crypto })).toBe(fullHash);
@@ -895,7 +890,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
 });
 
 // ============================================================================
-// KILLER TEST 5: Diamond Test - WARP v5 True Lattice Confluence
+// KILLER TEST 5: Diamond Test - WARP True Lattice Confluence
 // ============================================================================
 
 describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
@@ -918,7 +913,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     ];
 
     // State S - the common ancestor
-    const stateS = reduceV5(basePatches);
+    const stateS = reducePatches(basePatches);
 
     // Fork S into S1 and S2 (clone the state)
     const stateS1 = cloneState(stateS);
@@ -955,10 +950,10 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     };
 
     // Apply P1 to S1
-    const s1WithP1 = reduceV5([patchP1], stateS1);
+    const s1WithP1 = reducePatches([patchP1], stateS1);
 
     // Apply P2 to S2
-    const s2WithP2 = reduceV5([patchP2], stateS2);
+    const s2WithP2 = reducePatches([patchP2], stateS2);
 
     // Merge S1 + S2 -> ResultA (using joinStates)
     const resultA = joinStates(s1WithP1, s2WithP2);
@@ -973,15 +968,15 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     expect(hashA).toBe(hashB);
 
     // Additional verification: both results should contain all data from both branches
-    expect(nodeVisibleV5(resultA, 'root')).toBe(true);
-    expect(nodeVisibleV5(resultA, 'shared')).toBe(true);
-    expect(nodeVisibleV5(resultA, 'alice-node')).toBe(true);
-    expect(nodeVisibleV5(resultA, 'bob-node')).toBe(true);
+    expect(nodeVisible(resultA, 'root')).toBe(true);
+    expect(nodeVisible(resultA, 'shared')).toBe(true);
+    expect(nodeVisible(resultA, 'alice-node')).toBe(true);
+    expect(nodeVisible(resultA, 'bob-node')).toBe(true);
 
-    expect(nodeVisibleV5(resultB, 'root')).toBe(true);
-    expect(nodeVisibleV5(resultB, 'shared')).toBe(true);
-    expect(nodeVisibleV5(resultB, 'alice-node')).toBe(true);
-    expect(nodeVisibleV5(resultB, 'bob-node')).toBe(true);
+    expect(nodeVisible(resultB, 'root')).toBe(true);
+    expect(nodeVisible(resultB, 'shared')).toBe(true);
+    expect(nodeVisible(resultB, 'alice-node')).toBe(true);
+    expect(nodeVisible(resultB, 'bob-node')).toBe(true);
   });
 
   it('diamond merge with conflicting operations produces identical hash', async () => {
@@ -1001,7 +996,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       },
     ];
 
-    const stateS = reduceV5(basePatches);
+    const stateS = reducePatches(basePatches);
     const stateS1 = cloneState(stateS);
     const stateS2 = cloneState(stateS);
 
@@ -1026,8 +1021,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       sha: 'bbbb3333',
     };
 
-    const s1WithP1 = reduceV5([patchP1], stateS1);
-    const s2WithP2 = reduceV5([patchP2], stateS2);
+    const s1WithP1 = reducePatches([patchP1], stateS1);
+    const s2WithP2 = reducePatches([patchP2], stateS2);
 
     const resultA = joinStates(s1WithP1, s2WithP2);
     const resultB = joinStates(s2WithP2, s1WithP1);
@@ -1055,7 +1050,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       },
     ];
 
-    const stateS = reduceV5(basePatches);
+    const stateS = reducePatches(basePatches);
     const stateS1 = cloneState(stateS);
     const stateS2 = cloneState(stateS);
 
@@ -1081,8 +1076,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       sha: 'bbbb6666',
     };
 
-    const s1WithP1 = reduceV5([patchP1], stateS1);
-    const s2WithP2 = reduceV5([patchP2], stateS2);
+    const s1WithP1 = reducePatches([patchP1], stateS1);
+    const s2WithP2 = reducePatches([patchP2], stateS2);
 
     const resultA = joinStates(s1WithP1, s2WithP2);
     const resultB = joinStates(s2WithP2, s1WithP1);
@@ -1091,8 +1086,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     expect(await computeStateHash(resultA, { crypto })).toBe(await computeStateHash(resultB, { crypto }));
 
     // Node should be visible (Bob's add wasn't observed by Alice's remove)
-    expect(nodeVisibleV5(resultA, 'contested')).toBe(true);
-    expect(nodeVisibleV5(resultB, 'contested')).toBe(true);
+    expect(nodeVisible(resultA, 'contested')).toBe(true);
+    expect(nodeVisible(resultB, 'contested')).toBe(true);
   });
 });
 
@@ -1116,11 +1111,11 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     const permutation5 = shuffle(patches);
 
     // Reduce each permutation
-    const state1 = reduceV5(permutation1);
-    const state2 = reduceV5(permutation2);
-    const state3 = reduceV5(permutation3);
-    const state4 = reduceV5(permutation4);
-    const state5 = reduceV5(permutation5);
+    const state1 = reducePatches(permutation1);
+    const state2 = reducePatches(permutation2);
+    const state3 = reducePatches(permutation3);
+    const state4 = reducePatches(permutation4);
+    const state5 = reducePatches(permutation5);
 
     // Compute hashes
     const hash1 = await computeStateHash(state1, { crypto });
@@ -1144,7 +1139,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     const hashes: any[] = [] as any[];
     for (let i = 0; i < 5; i++) {
       const shuffled = shuffle(patches);
-      const state = reduceV5(shuffled);
+      const state = reducePatches(shuffled);
       hashes.push(await computeStateHash(state, { crypto }));
     }
 
@@ -1201,7 +1196,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     const hashes: any[] = [] as any[];
     for (let i = 0; i < 5; i++) {
       const shuffled = shuffle(patches);
-      const state = reduceV5(shuffled);
+      const state = reducePatches(shuffled);
       hashes.push(await computeStateHash(state, { crypto }));
     }
 
@@ -1230,7 +1225,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     // This test ensures our shuffle is working
     // With 100 patches, probability of all 5 having same first element is (1/100)^4 ≈ 0
     // We don't assert this strictly as it could flake, but we verify hashes are still identical
-    const hashes = await Promise.all(permutations.map((p) => computeStateHash(reduceV5(p), { crypto })));
+    const hashes = await Promise.all(permutations.map((p) => computeStateHash(reducePatches(p), { crypto })));
     expect(new Set(hashes).size).toBe(1);
   });
 });
@@ -1239,7 +1234,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
 // Additional Integration Tests
 // ============================================================================
 
-describe('Additional WARP v5 Integration Tests', () => {
+describe('Additional WARP Integration Tests', () => {
   describe('Props with LWW semantics', () => {
     it('concurrent prop sets resolve by EventId (lamport, writer, sha, index)', async () => {
       const patchA = {
@@ -1265,8 +1260,8 @@ describe('Additional WARP v5 Integration Tests', () => {
         sha: 'bbbb2222',
       };
 
-      const stateAB = reduceV5([patchA, patchB]);
-      const stateBA = reduceV5([patchB, patchA]);
+      const stateAB = reducePatches([patchA, patchB]);
+      const stateBA = reducePatches([patchB, patchA]);
 
       const propKey = encodePropKey('x', 'color');
 
@@ -1302,7 +1297,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         sha: 'bbbb2222',
       };
 
-      const state = reduceV5([patchA, patchB]);
+      const state = reducePatches([patchA, patchB]);
       const propKey = encodePropKey('x', 'val');
 
       // B > A lexicographically, so B wins
@@ -1337,11 +1332,11 @@ describe('Additional WARP v5 Integration Tests', () => {
         },
       ];
 
-      const state = reduceV5(patches);
+      const state = reducePatches(patches);
 
       // Node 'a' is gone
-      expect(nodeVisibleV5(state, 'a')).toBe(false);
-      expect(nodeVisibleV5(state, 'b')).toBe(true);
+      expect(nodeVisible(state, 'a')).toBe(false);
+      expect(nodeVisible(state, 'b')).toBe(true);
 
       // Edge should be invisible (source endpoint gone)
       const edgeKey = encodeEdgeKey('a', 'b', 'link');
@@ -1383,7 +1378,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         },
       ];
 
-      const state = reduceV5(patches);
+      const state = reducePatches(patches);
 
       // VV should be pointwise max
       expect(state.observedFrontier.get('X')).toBe(5);
@@ -1400,7 +1395,7 @@ describe('Additional WARP v5 Integration Tests', () => {
       // 20 random permutations
       for (let i = 0; i < 20; i++) {
         const shuffled = shuffle(patches);
-        const state = reduceV5(shuffled);
+        const state = reducePatches(shuffled);
         hashes.add(await computeStateHash(state, { crypto }));
       }
 
@@ -1410,11 +1405,11 @@ describe('Additional WARP v5 Integration Tests', () => {
     it('serialization is stable across runs', () => {
       const patches = generateV2Patches(30);
 
-      const state1 = reduceV5(patches);
-      const state2 = reduceV5(shuffle(patches));
+      const state1 = reducePatches(patches);
+      const state2 = reducePatches(shuffle(patches));
 
-      const bytes1 = serializeStateV5(state1);
-      const bytes2 = serializeStateV5(state2);
+      const bytes1 = serializeState(state1);
+      const bytes2 = serializeState(state2);
 
       // Byte-for-byte identical
       expect(Buffer.compare(bytes1, bytes2)).toBe(0);

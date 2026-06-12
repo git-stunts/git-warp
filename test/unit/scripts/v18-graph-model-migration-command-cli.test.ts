@@ -13,7 +13,7 @@ import {
 import { runMigrationGit }
   from '../../../scripts/v18.0.0/migrations/graph-model/GitMigrationCommandRunner.ts';
 import {
-  V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
+  GRAPH_MODEL_MIGRATION_FINALIZATION_CONFIRMATION,
 } from '../../../src/domain/migrations/GraphModelMigrationFinalizationConfirmation.ts';
 import { gitOk } from './migrationTestEnvironment.ts';
 
@@ -282,7 +282,7 @@ function finalizationRequestJson(
     scratchRefName: SCRATCH_REF,
     scratchHead,
     archiveRefName: options.archiveRefName ?? ARCHIVE_REF,
-    confirmationToken: V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
+    confirmationToken: GRAPH_MODEL_MIGRATION_FINALIZATION_CONFIRMATION,
     equivalence: {
       legacyBasis: {
         graphId: 'v17-golden-graph',
@@ -290,7 +290,7 @@ function finalizationRequestJson(
       },
       migratedBasis: {
         graphId: 'v17-golden-graph',
-        basisId: 'basis:source:v18-dry-run',
+        basisId: 'basis:source:dry-run',
       },
       legacyFactCount: 8,
       migratedFactCount: 8,

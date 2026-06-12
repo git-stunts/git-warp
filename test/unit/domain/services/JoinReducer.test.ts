@@ -6,17 +6,16 @@ import {
   decodeEdgeKey,
   encodePropKey,
   EDGE_PROP_PREFIX,
-  applyOpV2,
+  applyPatchOp,
   join,
   applyFast,
   applyWithReceipt,
   joinStates,
   OP_STRATEGIES,
-  reduceV5 as _reduceV5,
+  reducePatches,
   cloneState,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { decodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
-const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
@@ -96,7 +95,7 @@ describe('JoinReducer', () => {
     });
   });
 
-  describe('applyOpV2', () => {
+  describe('applyPatchOp', () => {
     describe('NodeAdd', () => {
       it('adds node to nodeAlive ORSet', () => {
         const state = createEmptyState();
@@ -104,7 +103,7 @@ describe('JoinReducer', () => {
         const eventId = new EventId(1, 'writer1', 'abcd1234', 0);
         const op = new NodeAdd('x', dot);
 
-        applyOpV2(state, op, eventId);
+        applyPatchOp(state, op, eventId);
 
         expect(state.nodeAlive.contains('x')).toBe(true);
       });
@@ -114,8 +113,8 @@ describe('JoinReducer', () => {
         const dot1 = Dot.create('writer1', 1);
         const dot2 = Dot.create('writer2', 1);
 
-        applyOpV2(state, new NodeAdd('x', dot1), new EventId(1, 'writer1', 'aaaa1234', 0));
-        applyOpV2(state, new NodeAdd('x', dot2), new EventId(1, 'writer2', 'bbbb1234', 0));
+        applyPatchOp(state, new NodeAdd('x', dot1), new EventId(1, 'writer1', 'aaaa1234', 0));
+        applyPatchOp(state, new NodeAdd('x', dot2), new EventId(1, 'writer2', 'bbbb1234', 0));
 
         expect(state.nodeAlive.contains('x')).toBe(true);
         const dots = state.nodeAlive.getDots('x');
@@ -126,7 +125,7 @@ describe('JoinReducer', () => {
         const state = createEmptyState();
         const eventId = new EventId(1, 'writer1', 'abcd1234', 0);
 
-        applyOpV2(state, {
+        applyPatchOp(state, {
           type: 'NodeAdd',
           node: 'x',
           dot: { writerId: 'writer1', counter: 1 },
@@ -143,12 +142,12 @@ describe('JoinReducer', () => {
         const dot = Dot.create('writer1', 1);
 
         // Add node
-        applyOpV2(state, new NodeAdd('x', dot), new EventId(1, 'writer1', 'aaaa1234', 0));
+        applyPatchOp(state, new NodeAdd('x', dot), new EventId(1, 'writer1', 'aaaa1234', 0));
         expect(state.nodeAlive.contains('x')).toBe(true);
 
         // Remove node with observed dots
         const observedDots = new Set(['writer1:1']);
-        applyOpV2(
+        applyPatchOp(
           state,
           new NodeRemove('x', [...observedDots]),
           new EventId(2, 'writer1', 'bbbb1234', 0)
@@ -164,7 +163,7 @@ describe('JoinReducer', () => {
         const dot = Dot.create('writer1', 1);
         const op = new EdgeAdd({ from: 'a', to: 'b', label: 'rel', dot: dot });
 
-        applyOpV2(state, op, new EventId(1, 'writer1', 'abcd1234', 0));
+        applyPatchOp(state, op, new EventId(1, 'writer1', 'abcd1234', 0));
 
         const edgeKey = encodeEdgeKey('a', 'b', 'rel');
         expect(state.edgeAlive.contains(edgeKey)).toBe(true);
@@ -177,7 +176,7 @@ describe('JoinReducer', () => {
         const dot = Dot.create('writer1', 1);
 
         // Add edge
-        applyOpV2(
+        applyPatchOp(
           state,
           new EdgeAdd({ from: 'a', to: 'b', label: 'rel', dot: dot }),
           new EventId(1, 'writer1', 'aaaa1234', 0)
@@ -187,7 +186,7 @@ describe('JoinReducer', () => {
 
         // Remove edge
         const observedDots = new Set(['writer1:1']);
-        applyOpV2(
+        applyPatchOp(
           state,
           new EdgeRemove({ from: 'a', to: 'b', label: 'rel', observedDots: [...observedDots] }),
           new EventId(2, 'writer1', 'bbbb1234', 0)
@@ -204,7 +203,7 @@ describe('JoinReducer', () => {
         const value = createInlineValue('hello');
         const op = new PropSet('x', 'name', value);
 
-        applyOpV2(state, op, eventId);
+        applyPatchOp(state, op, eventId);
 
         const propKey = encodePropKey('x', 'name');
         expect(lwwValue(state.getEncodedProp(propKey))).toEqual(value);
@@ -217,8 +216,8 @@ describe('JoinReducer', () => {
         const value1 = createInlineValue('old');
         const value2 = createInlineValue('new');
 
-        applyOpV2(state, new PropSet('x', 'name', value1), eventId1);
-        applyOpV2(state, new PropSet('x', 'name', value2), eventId2);
+        applyPatchOp(state, new PropSet('x', 'name', value1), eventId1);
+        applyPatchOp(state, new PropSet('x', 'name', value2), eventId2);
 
         const propKey = encodePropKey('x', 'name');
         expect(lwwValue(state.getEncodedProp(propKey))).toEqual(value2);
@@ -231,8 +230,8 @@ describe('JoinReducer', () => {
         const value1 = createInlineValue('newer');
         const value2 = createInlineValue('older');
 
-        applyOpV2(state, new PropSet('x', 'name', value1), eventId1);
-        applyOpV2(state, new PropSet('x', 'name', value2), eventId2);
+        applyPatchOp(state, new PropSet('x', 'name', value1), eventId1);
+        applyPatchOp(state, new PropSet('x', 'name', value2), eventId2);
 
         const propKey = encodePropKey('x', 'name');
         expect(lwwValue(state.getEncodedProp(propKey))).toEqual(value1);
@@ -243,7 +242,7 @@ describe('JoinReducer', () => {
         const eventId = new EventId(1, 'writer1', 'abcd1234', 0);
         const value = createInlineValue(5);
 
-        applyOpV2(state, {
+        applyPatchOp(state, {
           type: 'PropSet',
           node: `${EDGE_PROP_PREFIX}a\0b\0rel`,
           key: 'weight',
@@ -274,12 +273,12 @@ describe('JoinReducer', () => {
       });
       const shaB = 'bbbb1234';
 
-      const stateAB = reduceV5([
+      const stateAB = reducePatches([
         { patch: patchA, sha: shaA },
         { patch: patchB, sha: shaB },
       ]);
 
-      const stateBA = reduceV5([
+      const stateBA = reducePatches([
         { patch: patchB, sha: shaB },
         { patch: patchA, sha: shaA },
       ]);
@@ -318,14 +317,18 @@ describe('JoinReducer', () => {
           sha: 'ccc33333',
         },
       ];
+      const [patch1, patch2, patch3] = patches;
+      if (patch1 === undefined || patch2 === undefined || patch3 === undefined) {
+        throw new Error('expected three permutation patches');
+      }
 
       // Test all permutations produce same result
-      const state123 = reduceV5([patches[0], patches[1], patches[2]]);
-      const state132 = reduceV5([patches[0], patches[2], patches[1]]);
-      const state213 = reduceV5([patches[1], patches[0], patches[2]]);
-      const state231 = reduceV5([patches[1], patches[2], patches[0]]);
-      const state312 = reduceV5([patches[2], patches[0], patches[1]]);
-      const state321 = reduceV5([patches[2], patches[1], patches[0]]);
+      const state123 = reducePatches([patch1, patch2, patch3]);
+      const state132 = reducePatches([patch1, patch3, patch2]);
+      const state213 = reducePatches([patch2, patch1, patch3]);
+      const state231 = reducePatches([patch2, patch3, patch1]);
+      const state312 = reducePatches([patch3, patch1, patch2]);
+      const state321 = reducePatches([patch3, patch2, patch1]);
 
       // All should have same nodes
       for (const state of [state123, state132, state213, state231, state312, state321]) {
@@ -354,12 +357,12 @@ describe('JoinReducer', () => {
       });
 
       // Apply in both orders
-      const stateAB = reduceV5([
+      const stateAB = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
       ]);
 
-      const stateBA = reduceV5([
+      const stateBA = reducePatches([
         { patch: patchB, sha: 'bbbb1234' },
         { patch: patchA, sha: 'aaaa1234' },
       ]);
@@ -391,7 +394,7 @@ describe('JoinReducer', () => {
         ops: [new NodeRemove('x', ['A:1'])],
       });
 
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
         { patch: patchC, sha: 'cccc1234' },
@@ -421,7 +424,7 @@ describe('JoinReducer', () => {
         ops: [new PropSet('x', 'name', createInlineValue('B-value'))],
       });
 
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
       ]);
@@ -443,7 +446,7 @@ describe('JoinReducer', () => {
         ops: [new PropSet('x', 'name', createInlineValue('B-value'))],
       });
 
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
       ]);
@@ -471,7 +474,7 @@ describe('JoinReducer', () => {
         ops: [new NodeRemove('x', ['A:1'])],
       });
 
-      const state = reduceV5([
+      const state = reducePatches([
         { patch: patchA, sha: 'aaaa1234' },
         { patch: patchB, sha: 'bbbb1234' },
       ]);
@@ -492,8 +495,8 @@ describe('JoinReducer', () => {
 
       // Add node to state A
       const dotA = Dot.create('A', 1);
-      applyOpV2(stateA, new NodeAdd('x', dotA), new EventId(1, 'A', 'aaaa1234', 0));
-      applyOpV2(
+      applyPatchOp(stateA, new NodeAdd('x', dotA), new EventId(1, 'A', 'aaaa1234', 0));
+      applyPatchOp(
         stateA,
         new PropSet('x', 'name', createInlineValue('A-name')),
         new EventId(1, 'A', 'aaaa1234', 1)
@@ -501,8 +504,8 @@ describe('JoinReducer', () => {
 
       // Add different node to state B
       const dotB = Dot.create('B', 1);
-      applyOpV2(stateB, new NodeAdd('y', dotB), new EventId(1, 'B', 'bbbb1234', 0));
-      applyOpV2(
+      applyPatchOp(stateB, new NodeAdd('y', dotB), new EventId(1, 'B', 'bbbb1234', 0));
+      applyPatchOp(
         stateB,
         new PropSet('y', 'name', createInlineValue('B-name')),
         new EventId(1, 'B', 'bbbb1234', 1)
@@ -528,12 +531,12 @@ describe('JoinReducer', () => {
       const stateB = createEmptyState();
 
       // Both set same property with different values
-      applyOpV2(
+      applyPatchOp(
         stateA,
         new PropSet('x', 'name', createInlineValue('A-value')),
         new EventId(1, 'A', 'aaaa1234', 0)
       );
-      applyOpV2(
+      applyPatchOp(
         stateB,
         new PropSet('x', 'name', createInlineValue('B-value')),
         new EventId(2, 'B', 'bbbb1234', 0)
@@ -552,13 +555,13 @@ describe('JoinReducer', () => {
       const stateB = createEmptyState();
 
       const dotA = Dot.create('A', 1);
-      applyOpV2(stateA, new NodeAdd('x', dotA), new EventId(1, 'A', 'aaaa1234', 0));
+      applyPatchOp(stateA, new NodeAdd('x', dotA), new EventId(1, 'A', 'aaaa1234', 0));
 
       const joined = joinStates(stateA, stateB);
 
       // Add something to joined state
       const dotNew = Dot.create('C', 1);
-      applyOpV2(joined, new NodeAdd('z', dotNew), new EventId(1, 'C', 'cccc1234', 0));
+      applyPatchOp(joined, new NodeAdd('z', dotNew), new EventId(1, 'C', 'cccc1234', 0));
 
       // Original states should be unchanged
       expect(stateA.nodeAlive.contains('z')).toBe(false);
@@ -570,13 +573,13 @@ describe('JoinReducer', () => {
     it('creates independent copy', () => {
       const state = createEmptyState();
       const dot = Dot.create('A', 1);
-      applyOpV2(state, new NodeAdd('x', dot), new EventId(1, 'A', 'aaaa1234', 0));
+      applyPatchOp(state, new NodeAdd('x', dot), new EventId(1, 'A', 'aaaa1234', 0));
 
       const cloned = cloneState(state);
 
       // Modify cloned state
       const dot2 = Dot.create('B', 1);
-      applyOpV2(cloned, new NodeAdd('y', dot2), new EventId(1, 'B', 'bbbb1234', 0));
+      applyPatchOp(cloned, new NodeAdd('y', dot2), new EventId(1, 'B', 'bbbb1234', 0));
 
       // Original should be unchanged
       expect(state.nodeAlive.contains('x')).toBe(true);
@@ -590,9 +593,9 @@ describe('JoinReducer', () => {
     it('normalizes plain state-like objects through the structural fallback', () => {
       const state = createEmptyState();
       const dot = Dot.create('A', 1);
-      applyOpV2(state, new NodeAdd('x', dot), new EventId(1, 'A', 'aaaa1234', 0));
-      applyOpV2(state, new EdgeAdd({ from: 'x', to: 'y', label: 'rel', dot: Dot.create('A', 2) }), new EventId(2, 'A', 'bbbb1234', 0));
-      applyOpV2(state, new PropSet('x', 'name', createInlineValue('Alice')), new EventId(3, 'A', 'cccc1234', 0));
+      applyPatchOp(state, new NodeAdd('x', dot), new EventId(1, 'A', 'aaaa1234', 0));
+      applyPatchOp(state, new EdgeAdd({ from: 'x', to: 'y', label: 'rel', dot: Dot.create('A', 2) }), new EventId(2, 'A', 'bbbb1234', 0));
+      applyPatchOp(state, new PropSet('x', 'name', createInlineValue('Alice')), new EventId(3, 'A', 'cccc1234', 0));
 
       const plainState = {
         nodeAlive: state.nodeAlive,
@@ -603,7 +606,7 @@ describe('JoinReducer', () => {
       };
 
       const cloned = cloneState((plainState));
-      applyOpV2(cloned, new NodeAdd('z', Dot.create('B', 1)), new EventId(4, 'B', 'dddd1234', 0));
+      applyPatchOp(cloned, new NodeAdd('z', Dot.create('B', 1)), new EventId(4, 'B', 'dddd1234', 0));
 
       expect(cloned.nodeAlive.contains('x')).toBe(true);
       expect(cloned.nodeAlive.contains('z')).toBe(true);
@@ -612,9 +615,9 @@ describe('JoinReducer', () => {
     });
   });
 
-  describe('reduceV5', () => {
+  describe('reducePatches', () => {
     it('returns empty state for empty patches', () => {
-      const state = reduceV5([]);
+      const state = reducePatches([]);
 
       expect(state.nodeAlive.entries.size).toBe(0);
       expect(state.edgeAlive.entries.size).toBe(0);
@@ -628,7 +631,7 @@ describe('JoinReducer', () => {
         lamport: 1,
         ops: [new NodeAdd('existing', Dot.create('init', 1))],
       });
-      const initialState = reduceV5([{ patch: initialPatch, sha: 'aaaa1234' }]);
+      const initialState = reducePatches([{ patch: initialPatch, sha: 'aaaa1234' }]);
 
       // Apply new patch on top
       const newPatch = createPatch({
@@ -637,7 +640,7 @@ describe('JoinReducer', () => {
         ops: [new NodeAdd('new', Dot.create('new', 1))],
       });
 
-      const finalState = reduceV5([{ patch: newPatch, sha: 'bbbb1234' }], initialState);
+      const finalState = reducePatches([{ patch: newPatch, sha: 'bbbb1234' }], initialState);
 
       // Should have both nodes
       expect(finalState.nodeAlive.contains('existing')).toBe(true);
@@ -650,7 +653,7 @@ describe('JoinReducer', () => {
         lamport: 1,
         ops: [new NodeAdd('x', Dot.create('init', 1))],
       });
-      const initialState = reduceV5([{ patch: initialPatch, sha: 'aaaa1234' }]);
+      const initialState = reducePatches([{ patch: initialPatch, sha: 'aaaa1234' }]);
 
       const newPatch = createPatch({
         writer: 'new',
@@ -658,7 +661,7 @@ describe('JoinReducer', () => {
         ops: [new NodeAdd('y', Dot.create('new', 1))],
       });
 
-      reduceV5([{ patch: newPatch, sha: 'bbbb1234' }], initialState);
+      reducePatches([{ patch: newPatch, sha: 'bbbb1234' }], initialState);
 
       // Initial state should still only have 'x'
       expect(initialState.nodeAlive.contains('x')).toBe(true);

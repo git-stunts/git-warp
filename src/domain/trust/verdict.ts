@@ -5,7 +5,7 @@
  * This is the single source of truth for verdict logic.
  *
  * @module domain/trust/verdict
- * @see docs/specs/TRUST_V1_CRYPTO.md Section 13
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Section 13
  */
 
 /** The subset of trust data needed for verdict derivation. */
@@ -26,7 +26,7 @@ type TrustVerdict = 'pass' | 'fail' | 'not_configured';
  * - untrustedWriters.length > 0 -> 'fail'
  * - otherwise               -> 'pass'
  *
- * V1 has no 'degraded' verdict -- untrusted writers are a hard failure.
+ * The current trust contract has no 'degraded' verdict -- untrusted writers are a hard failure.
  */
 function deriveTrustVerdict(trust: VerdictInput): TrustVerdict {
   if (trust.status === 'not_configured') {

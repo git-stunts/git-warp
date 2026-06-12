@@ -12,7 +12,7 @@ import {
   normalizeVisibleStateScope,
   nodeIdInVisibleStateScope,
   scopeMaterializedState,
-  scopePatchEntriesV1,
+  scopePatchEntries,
 } from '../../../../src/domain/services/VisibleStateScope.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 
@@ -201,6 +201,6 @@ describe('VisibleStateScope', () => {
       },
     ];
 
-    expect(scopePatchEntriesV1((entries as any), scope).map(({ sha }) => sha)).toEqual(['a', 'd', 'e']);
+    expect(scopePatchEntries((entries as any), scope).map(({ sha }) => sha)).toEqual(['a', 'd', 'e']);
   });
 });

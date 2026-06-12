@@ -109,6 +109,7 @@ import WarpAppDefault, {
   WarpMemoryPool,
   WarpMemoryPoolSnapshot,
   createV18BoundedMemoryCapabilityReport,
+  createBoundedMemoryCapabilityReport,
 } from '../../../index.ts';
 
 const { WarpGraph, WarpRuntime, Worldline, ObserverView } = (await import('../../../index.ts') as any);
@@ -386,6 +387,9 @@ describe('index.ts exports', () => {
       expect(typeof MemoryCapabilityReport).toBe('function');
       expect(createV18BoundedMemoryCapabilityReport).toBeDefined();
       expect(typeof createV18BoundedMemoryCapabilityReport).toBe('function');
+      expect(createV18BoundedMemoryCapabilityReport).toBe(createBoundedMemoryCapabilityReport);
+      expect(createBoundedMemoryCapabilityReport).toBeDefined();
+      expect(typeof createBoundedMemoryCapabilityReport).toBe('function');
     });
   });
 

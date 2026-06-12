@@ -9,16 +9,16 @@ import {
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
 import type { EventId } from '../utils/EventId.ts';
-import type { RawOpV2 } from '../types/ops/unions.ts';
+import type { RawPatchOp } from '../types/ops/unions.ts';
 import type Patch from '../types/Patch.ts';
 
-export interface VisibleStateScopePrefixFilterV1 {
+export interface VisibleStateScopePrefixFilter {
   include?: string[];
   exclude?: string[];
 }
 
 export interface VisibleStateScope {
-  nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
+  nodeIdPrefixes?: VisibleStateScopePrefixFilter;
 }
 
 /**
@@ -92,7 +92,7 @@ function rejectUnknownKeys(raw: Record<string, unknown>, allowed: string[], fiel
 /**
  * Normalizes a prefix filter object with optional include/exclude arrays.
  */
-function normalizePrefixFilter(value: unknown, field: string): VisibleStateScopePrefixFilterV1 | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function normalizePrefixFilter(value: unknown, field: string): VisibleStateScopePrefixFilter | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value === undefined || value === null) {
     return null;
   }
@@ -110,7 +110,7 @@ function normalizePrefixFilter(value: unknown, field: string): VisibleStateScope
 /**
  * Normalizes a substrate-generic visible-state scope.
  *
- * Current v1 scope stays intentionally narrow:
+ * Current scope stays intentionally narrow:
  * - include/exclude node-id prefixes
  *
  * Edges, edge properties, and attachment metadata follow node visibility.
@@ -147,21 +147,21 @@ function matchesExclude(value: string, exclude: string[]): boolean {
 /**
  * Extracts the include list from prefix filter rules, defaulting to empty.
  */
-function extractIncludeList(rules: VisibleStateScopePrefixFilterV1): string[] {
+function extractIncludeList(rules: VisibleStateScopePrefixFilter): string[] {
   return Array.isArray(rules.include) ? rules.include : [];
 }
 
 /**
  * Extracts the exclude list from prefix filter rules, defaulting to empty.
  */
-function extractExcludeList(rules: VisibleStateScopePrefixFilterV1): string[] {
+function extractExcludeList(rules: VisibleStateScopePrefixFilter): string[] {
   return Array.isArray(rules.exclude) ? rules.exclude : [];
 }
 
 /**
  * Tests whether a value matches include/exclude prefix rules.
  */
-function matchesPrefixFilter(value: string, rules: VisibleStateScopePrefixFilterV1 | null | undefined): boolean {
+function matchesPrefixFilter(value: string, rules: VisibleStateScopePrefixFilter | null | undefined): boolean {
   if (rules === null || rules === undefined) {
     return true;
   }
@@ -338,7 +338,7 @@ function opAffectsScope(op: unknown, scope: VisibleStateScope | null | undefined
     return true;
   }
 
-  const normalized = normalizeRawOp(op as RawOpV2 | { type: string }) as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const normalized = normalizeRawOp(op as RawPatchOp | { type: string }) as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return normalizedOpAffectsScope(normalized, scope);
 }
 
@@ -356,7 +356,7 @@ function patchAffectsScope(patch: Patch, scope: VisibleStateScope | null | undef
 /**
  * Filters patch entries down to patches with at least one in-scope op.
  */
-export function scopePatchEntriesV1(
+export function scopePatchEntries(
   entries: Array<{ patch: Patch; sha: string }>,
   scope: VisibleStateScope | null | undefined,
 ): Array<{ patch: Patch; sha: string }> {

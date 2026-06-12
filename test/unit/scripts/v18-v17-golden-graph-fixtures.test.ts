@@ -8,7 +8,7 @@ import {
 } from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureRestore.ts';
 import {
   parseV17GoldenGraphFixtureManifestJson,
-} from '../../../src/infrastructure/adapters/V17GoldenGraphFixtureManifestJsonAdapter.ts';
+} from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureManifestJsonAdapter.ts';
 import {
   V17GoldenContentFact,
   V17GoldenEdgeFact,
@@ -16,7 +16,7 @@ import {
   V17GoldenNodeFact,
   V17GoldenPropertyFact,
   V17GoldenRemovalFact,
-} from '../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+} from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureManifest.ts';
 
 const FIXTURE_MANIFEST_PATH = resolve('fixtures/v17/graph-model-golden/manifest.json');
 

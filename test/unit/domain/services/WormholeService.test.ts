@@ -16,11 +16,10 @@ import {
   encodeCheckpointMessage,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import {
-  reduceV5 as _reduceV5,
+  reducePatches,
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
-const reduceV5: (...args: any[]) => any = _reduceV5;
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import {
   createNodeAddV2,
@@ -450,7 +449,7 @@ describe('WormholeService', () => {
         }),
         sha: initialSha,
       }];
-      const initialState = reduceV5(initialPatches);
+      const initialState = reducePatches(initialPatches);
 
       // Create wormhole patches
       const patch1 = createPatch({
@@ -811,7 +810,7 @@ describe('WormholeService', () => {
         patch,
         sha: getSha(i + 1),
       }));
-      const fullResult = reduceV5(allPatches);
+      const fullResult = reducePatches(allPatches);
 
       // Verify both produce same state
       for (let i = 1; i <= 10; i++) {
@@ -889,7 +888,7 @@ describe('WormholeService', () => {
         patch,
         sha: getSha(i + 1),
       }));
-      const fullResult = reduceV5(allPatches);
+      const fullResult = reducePatches(allPatches);
 
       // Verify both produce same state
       for (let i = 1; i <= 20; i++) {

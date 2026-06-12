@@ -1,6 +1,6 @@
-export const PATCH_STORAGE_VERSION_V17 = 'v17';
-export const PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH_V1 = 'git-cas-cbor-patch-v1';
-export const CHECKPOINT_VERSION_V5 = 'v5';
+export const PATCH_STORAGE_FORMAT = 'v17';
+export const PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH = 'git-cas-cbor-patch-v1';
+export const CHECKPOINT_STORAGE_FORMAT = 'v5';
 
 export type CommitMessageKind = 'patch' | 'checkpoint' | 'anchor' | 'audit';
 
@@ -20,8 +20,8 @@ export interface LegacyExternalPatchStorage {
 
 export interface GitCasPatchStorage {
   strategy: 'git-cas';
-  version: typeof PATCH_STORAGE_VERSION_V17;
-  schema: typeof PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH_V1;
+  version: typeof PATCH_STORAGE_FORMAT;
+  schema: typeof PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH;
   encrypted: boolean;
 }
 
@@ -47,8 +47,8 @@ export const LEGACY_EXTERNAL_PATCH_STORAGE: LegacyExternalPatchStorage = Object.
 export function createGitCasPatchStorage(encrypted: boolean): GitCasPatchStorage {
   return Object.freeze({
     strategy: 'git-cas',
-    version: PATCH_STORAGE_VERSION_V17,
-    schema: PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH_V1,
+    version: PATCH_STORAGE_FORMAT,
+    schema: PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH,
     encrypted,
   });
 }

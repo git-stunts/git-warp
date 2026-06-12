@@ -1,5 +1,5 @@
 /**
- * PatchBuilder — fluent API for building WARP v5 (schema:2) patches.
+ * PatchBuilder — fluent API for building schema:2 WARP patches.
  *
  * Maintains a VersionVector per writer, assigns dots on add operations,
  * reads current state to populate observedDots for removes, and includes
@@ -20,7 +20,7 @@ import EdgePropSet from '../types/ops/EdgePropSet.ts';
 import ContentAttachmentWriteIntent from '../graph/ContentAttachmentWriteIntent.ts';
 import EdgePropertyWriteIntent from '../graph/EdgePropertyWriteIntent.ts';
 import NodePropertyWriteIntent from '../graph/NodePropertyWriteIntent.ts';
-import type { OpV2, CanonicalOpV2 } from '../types/ops/unions.ts';
+import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
 import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
 import WriterError from '../errors/WriterError.ts';
@@ -84,7 +84,7 @@ export class PatchBuilder {
   private readonly _commitMessageCodec: CommitMessageCodecPort;
   private readonly _logger: LoggerPort;
   private readonly _blobStorage: BlobStoragePort | null;
-  private readonly _ops: OpV2[] = [];
+  private readonly _ops: PatchOp[] = [];
   private readonly _nodesAdded = new Set<string>();
   private readonly _edgesAdded = new Set<string>();
   private readonly _observedOperands = new Set<string>();
@@ -416,7 +416,7 @@ export class PatchBuilder {
 
   build(): Patch {
     const schema = this._hasEdgeProps ? 3 : 2;
-    const rawOps = this._ops.map((op) => lowerCanonicalOp(op as CanonicalOpV2));
+    const rawOps = this._ops.map((op) => lowerCanonicalOp(op as CanonicalPatchOp));
     return new Patch({
       schema,
       writer: this._writerId,
@@ -459,7 +459,7 @@ export class PatchBuilder {
 
   // ── Accessors ──────────────────────────────────────────────────────
 
-  get ops(): OpV2[] { return this._ops; }
+  get ops(): PatchOp[] { return this._ops; }
   get versionVector(): VersionVector { return this._vv; }
   get reads(): ReadonlySet<string> { return new Set(this._observedOperands); }
   get writes(): ReadonlySet<string> { return new Set(this._writes); }

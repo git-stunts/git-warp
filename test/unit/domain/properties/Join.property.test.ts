@@ -3,15 +3,11 @@ import fc from 'fast-check';
 import { createRng } from '../../../helpers/seededRng.ts';
 import {
   createEmptyState,
-  joinStates as _joinStates,
-  reduceV5 as _reduceV5,
+  joinStates,
+  reducePatches,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import { computeStateHash as _computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
-
-const joinStates = (_joinStates) as any;
-const reduceV5 = (_reduceV5) as any;
-const computeStateHash = (_computeStateHash) as any;
 
 const crypto = new NodeCryptoAdapter();
 const PROPERTY_TEST_SEED = 42;
@@ -300,14 +296,14 @@ describe('JoinReducer property tests', () => {
           fc.array(patchWithShaArb, { minLength: 2, maxLength: 10 }),
           async (patches) => {
             // Reduce patches in original order
-            const state1 = reduceV5(patches);
+            const state1 = reducePatches(patches);
             const hash1 = await computeStateHash(state1, { crypto });
 
             // Shuffle patches using seeded RNG helper
             const shuffled = createRng(PROPERTY_TEST_SEED).shuffle(patches);
 
             // Reduce shuffled patches
-            const state2 = reduceV5(shuffled);
+            const state2 = reducePatches(shuffled);
             const hash2 = await computeStateHash(state2, { crypto });
 
             return hash1 === hash2;
@@ -323,10 +319,10 @@ describe('JoinReducer property tests', () => {
           fc.array(patchWithShaArb, { minLength: 2, maxLength: 5 }),
           async (patches) => {
             // Reduce all at once
-            const allAtOnce = reduceV5(patches);
+            const allAtOnce = reducePatches(patches);
 
             // Reduce each individually, then join
-            const individualStates = patches.map((p) => reduceV5([p]));
+            const individualStates = patches.map((p) => reducePatches([p]));
             const joined = individualStates.reduce(
               (acc, state) => joinStates(acc, state),
               createEmptyState()
@@ -348,11 +344,12 @@ describe('JoinReducer property tests', () => {
 
           // All nodes from a should be in joined
           for (const [element, dots] of a.nodeAlive.entries) {
-            if (!joined.nodeAlive.entries.has(element)) {
+            const joinedDots = joined.nodeAlive.entries.get(element);
+            if (joinedDots === undefined) {
               return false;
             }
             for (const dot of dots) {
-              if (!joined.nodeAlive.entries.get(element).has(dot)) {
+              if (!joinedDots.has(dot)) {
                 return false;
               }
             }

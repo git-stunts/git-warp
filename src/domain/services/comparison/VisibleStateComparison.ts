@@ -147,7 +147,7 @@ function assembleResult({ deltas, leftSummary, rightSummary, target }: AssembleP
 }
 
 /**
- * Compares two materialized V5 states using only their visible substrate truth.
+ * Compares two materialized states using only their visible substrate truth.
  *
  * The comparison remains reducer-agnostic and application-blind:
  * - visible node deltas

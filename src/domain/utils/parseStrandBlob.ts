@@ -282,7 +282,7 @@ function validateEvolution(obj: Record<string, unknown>, label: string): void { 
   validateLastTick(lastTick, label);
 }
 
-/** Return type of parseStrandBlob — the validated v1 strand descriptor. */
+/** Return type of parseStrandBlob — the validated strand descriptor. */
 export interface StrandDescriptor {
   readonly schemaVersion: number;
   readonly strandId: string;

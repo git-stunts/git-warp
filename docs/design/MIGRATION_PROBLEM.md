@@ -175,8 +175,8 @@ This is not a single-file fix. The following files must be updated in lockstep:
 
 | File | Change |
 |------|--------|
-| `WarpTypesV2.js` | New `OpV2EdgePropSet` typedef + `createEdgePropSetV2()` factory. Add to `OpV2` union. |
-| `JoinReducer.js` | New `case 'EdgePropSet'` in `applyOpV2()` and `applyWithReceipt()`. Add `'EdgePropSet'` to `KNOWN_OPS`. |
+| `WarpTypesV2.js` | New `OpV2EdgePropSet` typedef + `createEdgePropSetV2()` factory. Add to `PatchOp` union. |
+| `JoinReducer.js` | New `case 'EdgePropSet'` in `applyPatchOp()` and `applyWithReceipt()`. Add `'EdgePropSet'` to `KNOWN_OPS`. |
 | `PatchBuilderV2.js` | `setEdgeProperty()` emits `EdgePropSet` instead of `PropSet`-with-`\x01`. |
 | `KeyCodec.js` | No structural change, but `encodeEdgePropKey()` gets used directly by the reducer instead of relying on the mathematical identity. |
 | `MessageSchemaDetector.js` | New `SCHEMA_V4 = 4` constant. `detectSchemaVersion()` checks for `type === 'EdgePropSet'`. `assertOpsCompatible()` gets a v3→v4 boundary check. |
@@ -244,7 +244,7 @@ Case 3 is the hard one. Two options:
 
 1. **Which sync compatibility strategy?** 3a (hard boundary), 3c (negotiation), or 3d (deferred flip)?
 
-2. **Where does normalization live?** In `WarpMessageCodec.decodePatchMessage()` (single decode site) or in `JoinReducer.applyOpV2()` (keep both paths in the reducer)?
+2. **Where does normalization live?** In `WarpMessageCodec.decodePatchMessage()` (single decode site) or in `JoinReducer.applyPatchOp()` (keep both paths in the reducer)?
 
 3. **Should `PropSet`-with-`\x01` detection be removed from `isEdgePropKey()`?** If the reducer only ever sees `EdgePropSet`, the predicate becomes dead code. But it's still needed for checkpoint deserialization (state.prop map keys still use the `\x01` encoding).
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.ts';
-import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
@@ -23,14 +23,14 @@ function buildState(nodes, edges) {
   let lamport = 1;
 
   for (const nodeId of nodes) {
-    applyOpV2(state,
+    applyPatchOp(state,
       { type: 'NodeAdd', node: nodeId, dot: Dot.create(writer, lamport) },
       new EventId(lamport, writer, sha, opIdx++));
     lamport++;
   }
 
   for (const { from, to, label } of edges) {
-    applyOpV2(state,
+    applyPatchOp(state,
       { type: 'EdgeAdd', from, to, label, dot: Dot.create(writer, lamport) },
       new EventId(lamport, writer, sha, opIdx++));
     lamport++;

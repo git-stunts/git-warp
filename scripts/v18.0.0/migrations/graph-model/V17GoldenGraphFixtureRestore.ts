@@ -3,9 +3,9 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
-import V17GoldenGraphFixtureManifest from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
+import V17GoldenGraphFixtureManifest from './V17GoldenGraphFixtureManifest.ts';
 import { parseV17GoldenGraphFixtureManifestJson }
-  from '../../../../src/infrastructure/adapters/V17GoldenGraphFixtureManifestJsonAdapter.ts';
+  from './V17GoldenGraphFixtureManifestJsonAdapter.ts';
 
 const execFileAsync = promisify(execFile);
 

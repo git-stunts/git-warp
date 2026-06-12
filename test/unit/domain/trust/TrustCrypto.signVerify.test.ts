@@ -5,7 +5,7 @@
  * TrustCrypto.verifySignature(). Also tests tamper detection through the
  * canonical serialization path.
  *
- * @see docs/specs/TRUST_V1_CRYPTO.md Section 6
+ * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Section 6
  */
 
 import { describe, it, expect } from 'vitest';
