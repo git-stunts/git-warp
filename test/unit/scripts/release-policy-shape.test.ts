@@ -221,11 +221,15 @@ describe('release policy shape', () => {
 
   it('sets up the active v18 roadmap planning instance', () => {
     expect(roadmap).toContain('## Active Planning Instance');
+    expect(roadmap).toContain('| Release status | `pre-tag complete` |');
     expect(roadmap).toContain('| Goalposts | `5` |');
+    expect(roadmap).toContain('| Landed goalposts | `5` |');
     expect(roadmap).toContain('| Total planned slice budget | `53` |');
-    expect(roadmap).toContain('v18.0.0 goalposts: 4/5 landed');
-    expect(roadmap).toContain('v18.0.0 slices: 47/53 landed');
-    expect(roadmap).toContain('next slice: reconcile #552 against current issue metadata and release evidence');
+    expect(roadmap).toContain('v18.0.0 goalposts: 5/5 landed');
+    expect(roadmap).toContain('v18.0.0 slices: 53/53 landed');
+    expect(roadmap).toContain('next slice: keep paying down v18-line debt without cutting the tag');
+    expect(roadmap).toContain('No v18 tag has been cut');
+    expect(roadmap).toContain('explicit operator approval');
     expect(roadmap).toContain('method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md');
 
     for (const goalpostPath of v18GoalpostPaths) {
