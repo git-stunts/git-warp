@@ -77,6 +77,27 @@ const v18GoalpostPaths = [
   '../../../docs/method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md',
   '../../../docs/method/roadmap/v18.0.0/v18-gp5-release-operation-evidence.md',
 ].map((path) => fileURLToPath(new URL(path, import.meta.url)));
+const v18ReleaseBlockersIssue = '[#552](https://github.com/git-stunts/git-warp/issues/552)';
+const v18ReleaseBlockersClosedRow = [
+  `| ${v18ReleaseBlockersIssue}`,
+  'v18 public release blockers',
+  'Closed',
+  'release',
+  'release, v18.0.0',
+  'graph-model-substrate',
+  '-',
+  'release |',
+].join(' | ');
+const v18ReleaseBlockersBlockedRow = [
+  `| ${v18ReleaseBlockersIssue}`,
+  'v18 public release blockers',
+  'Blocked',
+  'release',
+  'release, v18.0.0',
+  'graph-model-substrate',
+  '-',
+  'blocked, release |',
+].join(' | ');
 
 describe('release policy shape', () => {
   it('keeps package and jsr versions aligned on the release branch', () => {
@@ -231,6 +252,8 @@ describe('release policy shape', () => {
     expect(roadmap).toContain('No v18 tag has been cut');
     expect(roadmap).toContain('explicit operator approval');
     expect(roadmap).toContain('method/roadmap/v18.0.0/v18-gp4-holographic-slicing-checkpoint-basis.md');
+    expect(roadmap).toContain(v18ReleaseBlockersClosedRow);
+    expect(roadmap).not.toContain(v18ReleaseBlockersBlockedRow);
 
     for (const goalpostPath of v18GoalpostPaths) {
       const goalpost = readFileSync(goalpostPath, 'utf8');

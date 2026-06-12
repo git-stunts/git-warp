@@ -196,7 +196,7 @@ Ship only after bounded-memory public paths and release operation evidence are c
 | Issue | Title | Status | Type | Lane | Feature | Release Home | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | [#549](https://github.com/git-stunts/git-warp/issues/549) | Bounded-memory large-graph product gate | Closed | enhancement | release, v18.0.0 | graph-model-substrate | - | release |
-| [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Blocked | release | release, v18.0.0 | graph-model-substrate | - | blocked, release |
+| [#552](https://github.com/git-stunts/git-warp/issues/552) | v18 public release blockers | Closed | release | release, v18.0.0 | graph-model-substrate | - | release |
 
 ### v18.0.1 - Public Docs And Release Tooling Repair
 
