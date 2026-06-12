@@ -18,7 +18,8 @@
   `API_kill-warpruntime`
 - added and updated the ratchets:
   - [migrate-warpruntime-test-helper-split.test.ts](../../../../test/unit/scripts/migrate-warpruntime-test-helper-split.test.ts)
-  - [delete-warpruntime-class-split.test.ts](../../../../test/unit/scripts/delete-warpruntime-class-split.test.ts)
+  - [openwarpgraph-composition-root.test.ts](../../../../test/unit/scripts/openwarpgraph-composition-root.test.ts)
+  - [WarpGraph.public-sync.test.ts](../../../../test/unit/domain/WarpGraph.public-sync.test.ts)
   - [kill-warpruntime-split.test.ts](../../../../test/unit/scripts/kill-warpruntime-split.test.ts)
 
 ## Why it mattered
@@ -30,5 +31,5 @@ another giant test-surface bomb inside one blocker note.
 
 ## Witness
 
-- `npm exec vitest run test/unit/scripts/migrate-warpruntime-test-helper-split.test.ts test/unit/scripts/delete-warpruntime-class-split.test.ts test/unit/scripts/kill-warpruntime-split.test.ts`
+- `npm exec vitest run test/unit/scripts/migrate-warpruntime-test-helper-split.test.ts test/unit/scripts/openwarpgraph-composition-root.test.ts test/unit/domain/WarpGraph.public-sync.test.ts test/unit/scripts/kill-warpruntime-split.test.ts`
 - `git diff --check`
