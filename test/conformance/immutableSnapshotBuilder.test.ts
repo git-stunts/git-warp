@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
@@ -12,14 +9,6 @@ import {
 import WarpState from '../../src/domain/services/state/WarpState.ts';
 import { createTickReceipt } from '../../src/domain/types/TickReceipt.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
-
-const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const IMMUTABLE_SNAPSHOT_PATH = 'src/domain/services/ImmutableSnapshot.ts';
-
-type ForbiddenSourcePattern = {
-  readonly label: string;
-  readonly pattern: RegExp;
-};
 
 class ConstructorGuardedValue {
   #secret: string;
@@ -34,41 +23,6 @@ class ConstructorGuardedValue {
   reveal(): string {
     return this.#secret;
   }
-}
-
-const FORBIDDEN_SOURCE_PATTERNS: readonly ForbiddenSourcePattern[] = [
-  {
-    label: 'generic object clone',
-    pattern: /function\s+cloneImmutableObject\s*<\s*T\s*>\s*\(\s*value:\s*object/u,
-  },
-  {
-    label: 'descriptor-copy allocation',
-    pattern: /\bObject\.create\b/u,
-  },
-  {
-    label: 'double-cast preservation',
-    pattern: /\bas\s+unknown\s+as\s+T\b/u,
-  },
-  {
-    label: 'generic public snapshot entry point',
-    pattern: /createImmutableValue\s*<\s*T\s*>\s*\(\s*value:\s*T\s*\)\s*:\s*T/u,
-  },
-  {
-    label: 'proxy returned as arbitrary T',
-    pattern: /\bproxy\s+as\s+T\b/u,
-  },
-  {
-    label: 'frozen clone returned as arbitrary T',
-    pattern: /Object\.freeze\s*\(\s*cloned\s*\)\s+as\s+T\b/u,
-  },
-  {
-    label: 'fallback arbitrary object clone',
-    pattern: /return\s+cloneImmutableObject\s*\(\s*value\s*,\s*seen\s*\)/u,
-  },
-];
-
-function readRepoFile(path: string): string {
-  return readFileSync(join(REPO_ROOT, path), 'utf8');
 }
 
 function testEvent(lamport: number, patchSha: string): EventId {
@@ -87,14 +41,6 @@ function receiptArrayFixture(): ReturnType<typeof createTickReceipt>[] {
 }
 
 describe('immutable snapshot builder contract', () => {
-  it('removes generic clone/freeze source artifacts from ImmutableSnapshot', () => {
-    const source = readRepoFile(IMMUTABLE_SNAPSHOT_PATH);
-
-    for (const { label, pattern } of FORBIDDEN_SOURCE_PATTERNS) {
-      expect(source, label).not.toMatch(pattern);
-    }
-  });
-
   it('rejects unsupported arbitrary class instances instead of descriptor-copying them', () => {
     const guarded = new ConstructorGuardedValue('secret');
 

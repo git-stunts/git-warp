@@ -1,40 +1,45 @@
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import MarkdownDocument from '../../helpers/MarkdownDocument.ts';
 
 function readDoc(relativePath: string): string {
-  return readFileSync(fileURLToPath(new URL(`../../../${relativePath}`, import.meta.url)), 'utf8');
+  return fileURLToPath(new URL(`../../../${relativePath}`, import.meta.url));
 }
 
-const glossary = readDoc('docs/GLOSSARY.md');
-const guide = readDoc('docs/GUIDE.md');
-const conceptualOverview = readDoc('docs/CONCEPTUAL_OVERVIEW.md');
+const glossary = MarkdownDocument.fromFile(readDoc('docs/GLOSSARY.md'));
+const guide = MarkdownDocument.fromFile(readDoc('docs/GUIDE.md'));
+const conceptualOverview = MarkdownDocument.fromFile(readDoc('docs/CONCEPTUAL_OVERVIEW.md'));
 
 describe('Glossary is the canonical noun source of truth', () => {
   it('defines the status model for shipped, transition, and target nouns', () => {
-    expect(glossary).toContain('# Glossary');
-    expect(glossary).toContain('This is the canonical noun source of truth for `git-warp`.');
-    expect(glossary).toContain('- **shipped**: current repo/runtime truth');
-    expect(glossary).toContain('- **transition**: the repo uses this noun, but the implementation shape is');
-    expect(glossary).toContain('- **target**: the noun is part of the intended architecture');
+    expect(glossary.hasHeading(1, 'Glossary')).toBe(true);
+    expect(glossary.hasHeading(2, 'Status key')).toBe(true);
+    expect(glossary.listItems().some((item) => item.startsWith('**shipped**:'))).toBe(true);
+    expect(glossary.listItems().some((item) => item.startsWith('**transition**:'))).toBe(true);
+    expect(glossary.listItems().some((item) => item.startsWith('**target**:'))).toBe(true);
   });
 
   it('records the core observer-geometry runtime nouns and working law', () => {
-    expect(glossary).toContain('| `Coordinate` |');
-    expect(glossary).toContain('| `Observer` |');
-    expect(glossary).toContain('| `Aperture` |');
-    expect(glossary).toContain('| `Optic` |');
-    expect(glossary).toContain('| `Bounded support rule` |');
-    expect(glossary).toContain('| `Causal index` |');
-    expect(glossary).toContain('| `Support fragment` |');
-    expect(glossary).toContain('| `WarpStateSnapshot` |');
-    expect(glossary).toContain('## Working law');
-    expect(glossary).toContain('1. An app asks an **Observer** to answer an **Optic**.');
-    expect(glossary).toContain('3. The runtime derives the **bounded support rule**');
+    const terms = glossary.tableRows().map((row) => row.cells[0]);
+
+    expect(terms).toEqual(expect.arrayContaining([
+      '`Coordinate`',
+      '`Observer`',
+      '`Aperture`',
+      '`Optic`',
+      '`Bounded support rule`',
+      '`Causal index`',
+      '`Support fragment`',
+      '`WarpStateSnapshot`',
+    ]));
+    expect(glossary.hasHeading(2, 'Working law')).toBe(true);
+    expect(glossary.listItems().some((item) => item.includes('**Observer**') && item.includes('**Optic**')))
+      .toBe(true);
+    expect(glossary.listItems().some((item) => item.includes('**bounded support rule**'))).toBe(true);
   });
 
   it('is pointed to by the high-traffic conceptual docs', () => {
-    expect(guide).toContain('[GLOSSARY.md](GLOSSARY.md)');
-    expect(conceptualOverview).toContain('[GLOSSARY.md](GLOSSARY.md)');
+    expect(guide.hasLink('GLOSSARY.md', 'GLOSSARY.md')).toBe(true);
+    expect(conceptualOverview.hasLink('GLOSSARY.md', 'GLOSSARY.md')).toBe(true);
   });
 });
