@@ -86,6 +86,7 @@ describe('documentation corpus taxonomy', () => {
 
   it('keeps an explicit archive index', () => {
     expect(archiveIndex.hasHeading(1, 'Archive Index')).toBe(true);
+    expect(archiveIndex.containsText('should not be treated as the canonical current docs set')).toBe(true);
     expect(archiveIndex.hasLink('archived backlog notes', 'backlog/README.md')).toBe(true);
     expect(archiveIndex.hasLink('archived architectural decision records', 'adr/README.md')).toBe(true);
     expect(archiveIndex.hasLink('../README.md', '../README.md')).toBe(true);

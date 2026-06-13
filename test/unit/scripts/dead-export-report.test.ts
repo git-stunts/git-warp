@@ -14,7 +14,7 @@ describe('dead export report', () => {
     expect(report.filesScanned).toBe(5);
     expect(report.exportsScanned).toBe(6);
     expect(report.findings.map((finding) => `${finding.path}:${finding.name}:${finding.kind}`)).toEqual([
-      'index.ts:renamedUnusedFunction:re-export',
+      'index.ts:PublicUnusedFunction:re-export',
       'index.ts:UnusedValue:re-export',
       'renamed-unused-function.ts:renamedUnusedFunction:function',
       'unused-value.ts:UnusedValue:class',

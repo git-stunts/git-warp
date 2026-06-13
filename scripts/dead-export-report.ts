@@ -27,7 +27,8 @@ type SourceRecord = {
 
 type ExportDeclarationRecord = {
   readonly path: string;
-  readonly name: string;
+  readonly exportedName: string;
+  readonly referenceName: string;
   readonly kind: ExportKind;
 };
 
@@ -148,6 +149,14 @@ function pushExportedStatement(
     return;
   }
 
+  pushDirectExportedStatement(record, statement, declarations);
+}
+
+function pushDirectExportedStatement(
+  record: SourceRecord,
+  statement: ts.Statement,
+  declarations: ExportDeclarationRecord[],
+): void {
   if (ts.isClassDeclaration(statement) && statement.name !== undefined) {
     pushDeclaration(record, declarations, statement.name.text, 'class');
     return;
@@ -184,8 +193,8 @@ function pushExportDeclaration(
   }
 
   for (const element of exportClause.elements) {
-    const localName = element.propertyName?.text ?? element.name.text;
-    pushDeclaration(record, declarations, localName, 're-export');
+    const referenceName = element.propertyName?.text ?? element.name.text;
+    pushDeclaration(record, declarations, element.name.text, 're-export', referenceName);
   }
 }
 
@@ -204,12 +213,14 @@ function pushVariableStatement(
 function pushDeclaration(
   record: SourceRecord,
   declarations: ExportDeclarationRecord[],
-  name: string,
+  exportedName: string,
   kind: ExportKind,
+  referenceName: string = exportedName,
 ): void {
   declarations.push(Object.freeze({
     path: record.relativePath,
-    name,
+    exportedName,
+    referenceName,
     kind,
   }));
 }
@@ -231,9 +242,9 @@ function findingForDeclaration(
 ): DeadExportFinding {
   return Object.freeze({
     path: declaration.path,
-    name: declaration.name,
+    name: declaration.exportedName,
     kind: declaration.kind,
-    identifierReferences: referenceCounts.get(declaration.name) ?? 0,
+    identifierReferences: referenceCounts.get(declaration.referenceName) ?? 0,
   });
 }
 

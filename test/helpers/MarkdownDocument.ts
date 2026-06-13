@@ -69,6 +69,10 @@ export default class MarkdownDocument {
     return this.links().some((link) => link.text === text && link.target === target);
   }
 
+  containsText(text: string): boolean {
+    return this.text.includes(text);
+  }
+
   tableRows(): readonly MarkdownTableRow[] {
     const rows: MarkdownTableRow[] = [];
     for (const line of this.lines()) {
