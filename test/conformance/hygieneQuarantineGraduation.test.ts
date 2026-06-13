@@ -1,18 +1,27 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 const MANIFESTS = [
   '../../policy/quarantines/HYGIENE-consistent-type-imports.json',
   '../../policy/quarantines/HYGIENE-restrict-template-expressions.json',
 ] as const;
 
-function readManifest(relativePath: string): string {
-  return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8');
+const hygieneManifestSchema = z.object({
+  files: z.array(z.string()),
+}).passthrough();
+
+type HygieneManifest = z.infer<typeof hygieneManifestSchema>;
+
+function readManifest(relativePath: string): HygieneManifest {
+  return hygieneManifestSchema.parse(JSON.parse(
+    readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8'),
+  ));
 }
 
-function expectEmptyFilesArray(manifest: string): void {
-  expect(manifest).toMatch(/"files"\s*:\s*\[\s*\]/u);
+function expectEmptyFilesArray(manifest: HygieneManifest): void {
+  expect(manifest.files).toEqual([]);
 }
 
 describe('hygiene quarantine graduation', () => {

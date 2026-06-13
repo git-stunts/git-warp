@@ -1,14 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import GitGraphAdapter, { type CollectableStream, type GitPlumbing } from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
-
-const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 
 interface GitExecuteOptions {
   readonly args: string[];
   readonly input?: string | Uint8Array;
+}
+
+interface GitStreamOptions {
+  readonly args: string[];
 }
 
 class EmptyCollectableStream implements CollectableStream {
@@ -24,9 +23,24 @@ class EmptyCollectableStream implements CollectableStream {
   }
 }
 
+class ByteCollectableStream implements CollectableStream {
+  constructor(private readonly chunks: readonly Uint8Array[]) {}
+
+  async *[Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
+    for (const chunk of this.chunks) {
+      yield chunk;
+    }
+  }
+
+  async collect(): Promise<Buffer | string> {
+    return Buffer.concat(this.chunks.map((chunk) => Buffer.from(chunk)));
+  }
+}
+
 class RecordingPlumbing implements GitPlumbing {
   readonly emptyTree = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
   readonly calls: GitExecuteOptions[] = [];
+  readonly streamCalls: GitStreamOptions[] = [];
 
   constructor(protected readonly oid: string) {}
 
@@ -35,7 +49,8 @@ class RecordingPlumbing implements GitPlumbing {
     return `${this.oid}\n`;
   }
 
-  async executeStream(_options: { args: string[] }): Promise<CollectableStream> {
+  async executeStream(options: GitStreamOptions): Promise<CollectableStream> {
+    this.streamCalls.push(options);
     return new EmptyCollectableStream();
   }
 }
@@ -58,8 +73,35 @@ class FlakyPlumbing extends RecordingPlumbing {
   }
 }
 
-function readRepoFile(relativePath: string): string {
-  return readFileSync(join(repoRoot, relativePath), 'utf8');
+class TreeListingPlumbing extends RecordingPlumbing {
+  constructor(
+    oid: string,
+    private readonly treeListing: string,
+  ) {
+    super(oid);
+  }
+
+  override async execute(options: GitExecuteOptions): Promise<string> {
+    this.calls.push(options);
+    if (options.args[0] === 'ls-tree') {
+      return this.treeListing;
+    }
+    return `${this.oid}\n`;
+  }
+}
+
+class BlobStreamPlumbing extends RecordingPlumbing {
+  constructor(
+    oid: string,
+    private readonly chunks: readonly Uint8Array[],
+  ) {
+    super(oid);
+  }
+
+  override async executeStream(options: GitStreamOptions): Promise<CollectableStream> {
+    this.streamCalls.push(options);
+    return new ByteCollectableStream(this.chunks);
+  }
 }
 
 describe('GitGraphAdapter git-cas persistence bridge', () => {
@@ -124,31 +166,31 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
     expect(plumbing.calls).toHaveLength(2);
   });
 
-  it('ratchets write delegation while keeping non-equivalent read/ref semantics local', () => {
-    const adapter = readRepoFile('src/infrastructure/adapters/GitGraphAdapter.ts');
-    const reader = readRepoFile('src/infrastructure/adapters/GitCasGraphReaderAdapter.ts');
-    const recursiveTreeReader = readRepoFile('src/infrastructure/adapters/GitRecursiveTreeOidReaderAdapter.ts');
-    const successorCard = join(
-      repoRoot,
-      'docs/archive/backlog/v17.0.0-residual-backlog/INFRA_git-cas-adapter-parity.md',
-    );
+  it('reads recursive tree OIDs through the injected Git plumbing boundary', async () => {
+    const treeOid = '1'.repeat(40);
+    const blobOid = '2'.repeat(40);
+    const nestedTreeOid = '3'.repeat(40);
+    const listing = [
+      `100644 blob ${blobOid}\tpatch.cbor`,
+      `040000 tree ${nestedTreeOid}\tnested`,
+      '',
+    ].join('\0');
+    const plumbing = new TreeListingPlumbing(treeOid, listing);
+    const adapter = new GitGraphAdapter({ plumbing });
 
-    expect(adapter).toContain("import { GitPersistenceAdapter } from '@git-stunts/git-cas'");
-    expect(adapter).toContain('private readonly _gitCasPersistence: GitPersistenceAdapter');
-    expect(adapter).toContain('policy: createGitCasRetryPolicy(this._retryOptions)');
-    expect(adapter).toContain('this._gitCasPersistence.writeBlob');
-    expect(adapter).toContain('this._gitCasPersistence.writeTree');
-    expect(adapter).toContain('new GitCasGraphReaderAdapter');
-    expect(adapter).toContain('new GitRecursiveTreeOidReaderAdapter');
-    expect(adapter).toContain('this._gitCasGraphReader.readBlob');
-    expect(adapter).toContain('this._gitCasGraphReader.readTreeOids');
-    expect(adapter).toContain('treeOidReader: this._recursiveTreeOidReader');
-    expect(adapter).not.toContain('this._gitCasPersistence.createCommit');
-    expect(reader).toContain('this._persistence.readBlobStream');
-    expect(reader).toContain('collectUnboundedGraphBlobStream');
-    expect(reader).not.toContain('this._persistence.iterateTree');
-    expect(recursiveTreeReader).toContain("args: ['ls-tree', '-rz', treeOid]");
-    expect(recursiveTreeReader).toContain('parseRecursiveTreeEntry');
-    expect(existsSync(successorCard)).toBe(true);
+    await expect(adapter.readTreeOids(treeOid)).resolves.toEqual({
+      'patch.cbor': blobOid,
+    });
+    expect(plumbing.calls).toContainEqual({ args: ['ls-tree', '-rz', treeOid] });
+  });
+
+  it('reads graph blobs through the git-cas stream path', async () => {
+    const oid = 'f'.repeat(40);
+    const payload = new TextEncoder().encode('graph payload');
+    const plumbing = new BlobStreamPlumbing(oid, [payload]);
+    const adapter = new GitGraphAdapter({ plumbing });
+
+    await expect(adapter.readBlob(oid)).resolves.toEqual(payload);
+    expect(plumbing.streamCalls).toEqual([{ args: ['cat-file', 'blob', oid] }]);
   });
 });

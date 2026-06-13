@@ -1,21 +1,15 @@
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
+import MarkdownDocument from '../../helpers/MarkdownDocument.ts';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
-const readme = readFileSync(`${repoRoot}README.md`, 'utf8');
-const docsIndex = readFileSync(`${repoRoot}docs/README.md`, 'utf8');
-const archiveIndex = readFileSync(`${repoRoot}docs/archive/README.md`, 'utf8');
-const styleGuide = readFileSync(
-  `${repoRoot}.github/maintainers/documentation/style-guide.md`,
-  'utf8',
-);
-const maintainerDocsIndex = readFileSync(
-  `${repoRoot}.github/maintainers/README.md`,
-  'utf8',
-);
+const readme = MarkdownDocument.fromFile(`${repoRoot}README.md`);
+const docsIndex = MarkdownDocument.fromFile(`${repoRoot}docs/README.md`);
+const archiveIndex = MarkdownDocument.fromFile(`${repoRoot}docs/archive/README.md`);
+const styleGuide = MarkdownDocument.fromFile(`${repoRoot}.github/maintainers/documentation/style-guide.md`);
+const maintainerDocsIndex = MarkdownDocument.fromFile(`${repoRoot}.github/maintainers/README.md`);
 
 /**
  * Set of every path tracked by git, keyed by repo-relative POSIX path.
@@ -51,7 +45,7 @@ function hasFile(relativePath: string): boolean {
 
 describe('documentation corpus taxonomy', () => {
   it('exposes a docs index and links to it from the root README', () => {
-    expect(readme).toContain('## Documentation');
+    expect(readme.hasHeading(2, 'Documentation')).toBe(true);
     expect(hasFile('docs/GETTING_STARTED.md')).toBe(true);
     expect(hasFile('docs/API_REFERENCE.md')).toBe(true);
     expect(hasFile('docs/ADVANCED_GUIDE.md')).toBe(true);
@@ -64,32 +58,37 @@ describe('documentation corpus taxonomy', () => {
     expect(hasFile('docs/ADR-001-Folds.md')).toBe(false);
     expect(hasFile('examples')).toBe(false);
     expect(hasFile('GRAVEYARD.md')).toBe(false);
-    expect(docsIndex).toContain('# Documentation Index');
-    expect(docsIndex).toContain('[Getting Started](GETTING_STARTED.md)');
-    expect(docsIndex).toContain('[Guide](GUIDE.md)');
-    expect(docsIndex).toContain('[API Reference](API_REFERENCE.md)');
-    expect(docsIndex).toContain('[Advanced Guide](ADVANCED_GUIDE.md)');
-    expect(docsIndex).toContain('[CLI Guide](CLI_GUIDE.md)');
-    expect(docsIndex).toContain('[Conceptual Overview](CONCEPTUAL_OVERVIEW.md)');
-    expect(docsIndex).toContain('[Architecture](ARCHITECTURE.md)');
-    expect(docsIndex).toContain('[Roadmap](ROADMAP.md)');
-    expect(docsIndex).not.toContain('## Current Release-Blocker Docs');
+    expect(docsIndex.hasHeading(1, 'Documentation Index')).toBe(true);
+    expect(docsIndex.hasLink('Getting Started', 'GETTING_STARTED.md')).toBe(true);
+    expect(docsIndex.hasLink('Guide', 'GUIDE.md')).toBe(true);
+    expect(docsIndex.hasLink('API Reference', 'API_REFERENCE.md')).toBe(true);
+    expect(docsIndex.hasLink('Advanced Guide', 'ADVANCED_GUIDE.md')).toBe(true);
+    expect(docsIndex.hasLink('CLI Guide', 'CLI_GUIDE.md')).toBe(true);
+    expect(docsIndex.hasLink('Conceptual Overview', 'CONCEPTUAL_OVERVIEW.md')).toBe(true);
+    expect(docsIndex.hasLink('Architecture', 'ARCHITECTURE.md')).toBe(true);
+    expect(docsIndex.hasLink('Roadmap', 'ROADMAP.md')).toBe(true);
+    expect(docsIndex.hasHeading(2, 'Current Release-Blocker Docs')).toBe(false);
   });
 
   it('keeps a maintainer-facing documentation guide for writing and information architecture', () => {
-    expect(docsIndex).toContain('[Maintainer docs](../.github/maintainers/README.md)');
-    expect(docsIndex).toContain('[Documentation style guide](../.github/maintainers/documentation/style-guide.md)');
-    expect(maintainerDocsIndex).toContain('# Maintainer docs');
-    expect(maintainerDocsIndex).toContain('[Documentation style guide](documentation/style-guide.md)');
-    expect(styleGuide).toContain('# Documentation style guide');
-    expect(styleGuide).toContain('## Writing principles');
-    expect(styleGuide).toContain('## Audience model');
-    expect(styleGuide).toContain('## Target information architecture');
+    expect(docsIndex.hasLink('Maintainer docs', '../.github/maintainers/README.md')).toBe(true);
+    expect(docsIndex.hasLink(
+      'Documentation style guide',
+      '../.github/maintainers/documentation/style-guide.md',
+    )).toBe(true);
+    expect(maintainerDocsIndex.hasHeading(1, 'Maintainer docs')).toBe(true);
+    expect(maintainerDocsIndex.hasLink('Documentation style guide', 'documentation/style-guide.md')).toBe(true);
+    expect(styleGuide.hasHeading(1, 'Documentation style guide')).toBe(true);
+    expect(styleGuide.hasHeading(2, 'Writing principles')).toBe(true);
+    expect(styleGuide.hasHeading(2, 'Audience model')).toBe(true);
+    expect(styleGuide.hasHeading(2, 'Target information architecture')).toBe(true);
   });
 
   it('keeps an explicit archive index', () => {
-    expect(archiveIndex).toContain('# Archive Index');
-    expect(archiveIndex).toContain('should not be treated as the canonical current docs set');
+    expect(archiveIndex.hasHeading(1, 'Archive Index')).toBe(true);
+    expect(archiveIndex.hasLink('archived backlog notes', 'backlog/README.md')).toBe(true);
+    expect(archiveIndex.hasLink('archived architectural decision records', 'adr/README.md')).toBe(true);
+    expect(archiveIndex.hasLink('../README.md', '../README.md')).toBe(true);
   });
 
   it('moves obvious historical clutter out of top-level docs', () => {
