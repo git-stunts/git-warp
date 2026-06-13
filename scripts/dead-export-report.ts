@@ -4,14 +4,7 @@ import { extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
-type ExportKind =
-  | 'class'
-  | 'const'
-  | 'enum'
-  | 'function'
-  | 'interface'
-  | 're-export'
-  | 'type';
+type ExportKind = 'class' | 'const' | 'enum' | 'function' | 'interface' | 're-export' | 'type';
 
 export type DeadExportFinding = {
   readonly path: string;
@@ -28,7 +21,6 @@ export type DeadExportReport = {
 };
 
 type SourceRecord = {
-  readonly path: string;
   readonly relativePath: string;
   readonly sourceFile: ts.SourceFile;
 };
@@ -44,7 +36,6 @@ const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
 const IGNORED_DIRECTORIES = new Set(['.git', 'dist', 'node_modules']);
 const MARKDOWN_TABLE_HEADER = '| Path | Export | Kind | Identifier refs |';
 const MARKDOWN_TABLE_SEPARATOR = '| --- | --- | --- | ---: |';
-
 export function buildDeadExportReport(sourceRoot: string = DEFAULT_SOURCE_ROOT): DeadExportReport {
   const root = resolve(sourceRoot);
   const records = sourceRecords(root);
@@ -87,7 +78,6 @@ function sourceRecords(root: string): readonly SourceRecord[] {
   return sourceFilePaths(root).map((path) => {
     const text = readFileSync(path, 'utf8');
     return Object.freeze({
-      path,
       relativePath: relative(root, path),
       sourceFile: ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, scriptKind(path)),
     });
@@ -269,34 +259,24 @@ function isReferenceIdentifier(identifier: ts.Identifier): boolean {
   if (parent === undefined) {
     return false;
   }
-  if (ts.isImportSpecifier(parent)) {
-    return parent.name !== identifier && parent.propertyName !== identifier;
-  }
-  if (ts.isExportSpecifier(parent)) {
-    return parent.name !== identifier && parent.propertyName !== identifier;
-  }
-  if (ts.isClassDeclaration(parent) && parent.name === identifier) {
+  return !isImportOrExportSpecifierName(identifier, parent) && !isDeclarationName(identifier, parent);
+}
+
+function isImportOrExportSpecifierName(identifier: ts.Identifier, parent: ts.Node): boolean {
+  if (!ts.isImportSpecifier(parent) && !ts.isExportSpecifier(parent)) {
     return false;
   }
-  if (ts.isFunctionDeclaration(parent) && parent.name === identifier) {
-    return false;
-  }
-  if (ts.isInterfaceDeclaration(parent) && parent.name === identifier) {
-    return false;
-  }
-  if (ts.isTypeAliasDeclaration(parent) && parent.name === identifier) {
-    return false;
-  }
-  if (ts.isEnumDeclaration(parent) && parent.name === identifier) {
-    return false;
-  }
-  if (ts.isVariableDeclaration(parent) && parent.name === identifier) {
-    return false;
-  }
-  if (ts.isParameter(parent) && parent.name === identifier) {
-    return false;
-  }
-  return true;
+  return parent.name === identifier || parent.propertyName === identifier;
+}
+
+function isDeclarationName(identifier: ts.Identifier, parent: ts.Node): boolean {
+  return (ts.isClassDeclaration(parent) && parent.name === identifier)
+    || (ts.isFunctionDeclaration(parent) && parent.name === identifier)
+    || (ts.isInterfaceDeclaration(parent) && parent.name === identifier)
+    || (ts.isTypeAliasDeclaration(parent) && parent.name === identifier)
+    || (ts.isEnumDeclaration(parent) && parent.name === identifier)
+    || (ts.isVariableDeclaration(parent) && parent.name === identifier)
+    || (ts.isParameter(parent) && parent.name === identifier);
 }
 
 function compareFindings(left: DeadExportFinding, right: DeadExportFinding): number {
@@ -316,6 +296,5 @@ function isDirectExecution(): boolean {
 }
 
 if (isDirectExecution()) {
-  const sourceRoot = process.argv[2] ?? DEFAULT_SOURCE_ROOT;
-  process.stdout.write(formatDeadExportReport(buildDeadExportReport(sourceRoot)));
+  process.stdout.write(formatDeadExportReport(buildDeadExportReport(process.argv[2] ?? DEFAULT_SOURCE_ROOT)));
 }
