@@ -97,7 +97,7 @@ jobs:
             '**/*.md'
           fail: true
           format: markdown
-          output: ./lychee-report.md
+          output: ${{ runner.temp }}/lychee-report.md
           jobSummary: true
 
       - name: Verify release tests and docs
