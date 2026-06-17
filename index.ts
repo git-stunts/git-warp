@@ -112,6 +112,16 @@ import {
   serializeWormhole,
   deserializeWormhole,
 } from './src/domain/services/WormholeService.ts';
+import ApertureOpeningProof from './src/domain/services/wormhole/ApertureOpeningProof.ts';
+import RejectedApertureOpening from './src/domain/services/wormhole/RejectedApertureOpening.ts';
+import RejectedZKWormhole from './src/domain/services/wormhole/RejectedZKWormhole.ts';
+import VerifiedApertureOpening from './src/domain/services/wormhole/VerifiedApertureOpening.ts';
+import VerifiedZKWormhole from './src/domain/services/wormhole/VerifiedZKWormhole.ts';
+import ZKWormholeEdge from './src/domain/services/wormhole/ZKWormholeEdge.ts';
+import {
+  openAperture,
+  verifyZKWormhole,
+} from './src/domain/services/wormhole/ZKWormholeService.ts';
 
 import BisectService from './src/domain/services/BisectService.ts';
 import EffectSinkPort from './src/ports/EffectSinkPort.ts';
@@ -137,6 +147,7 @@ import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.ts'
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.ts';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.ts';
 import SyncSecret from './src/domain/services/sync/SyncSecret.ts';
+import ZKWormholeProofVerifierPort from './src/ports/ZKWormholeProofVerifierPort.ts';
 import ContentAttachmentProjection from './src/domain/services/ContentAttachmentProjection.ts';
 import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
@@ -163,6 +174,12 @@ import type {
   WarpWorldlineOpenOptions,
   WarpWorldlinePatchBuild,
 } from './src/domain/WarpWorldline.ts';
+import type { ApertureOpeningProofFields } from './src/domain/services/wormhole/ApertureOpeningProof.ts';
+import type { ZKWormholeEdgeFields } from './src/domain/services/wormhole/ZKWormholeEdge.ts';
+import type {
+  ApertureOpeningVerificationResult,
+  ZKWormholeVerificationResult,
+} from './src/domain/services/wormhole/ZKWormholeVerificationResult.ts';
 import type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
 import {
   normalizeVisibleStateScope,
@@ -214,6 +231,10 @@ import ContinuumReceiptFamilyProjection from './src/domain/continuum/ContinuumRe
 import GitWarpTickPatchReplayCore from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
 import GitWarpReadingEnvelopePayloadFact from './src/domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
 import GitWarpReadingEnvelopeSourceFacts from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
+import GitWarpBraidHologram from './src/domain/continuum/GitWarpBraidHologram.ts';
+import GitWarpBraidHologramMember from './src/domain/continuum/GitWarpBraidHologramMember.ts';
+import GitWarpSuffixTransformHologram from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
+import GitWarpTickHologram from './src/domain/continuum/GitWarpTickHologram.ts';
 import GitWarpTickReceiptShell from './src/domain/continuum/GitWarpTickReceiptShell.ts';
 import GitWarpTickReceiptWitnessCore from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
 import GitWarpTickWitnessLadder from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
@@ -252,6 +273,14 @@ import type {
 import type {
   GitWarpReadingEnvelopeSourceFactsFields,
 } from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
+import type { GitWarpBraidHologramFields } from './src/domain/continuum/GitWarpBraidHologram.ts';
+import type {
+  GitWarpBraidHologramMemberFields,
+} from './src/domain/continuum/GitWarpBraidHologramMember.ts';
+import type {
+  GitWarpSuffixTransformHologramFields,
+} from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
+import type { GitWarpTickHologramFields } from './src/domain/continuum/GitWarpTickHologram.ts';
 import type {
   GitWarpTickPatchReplayCoreFields,
 } from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
@@ -391,6 +420,10 @@ export {
   ContinuumReceiptFamilyProjection,
   GitWarpReadingEnvelopePayloadFact,
   GitWarpReadingEnvelopeSourceFacts,
+  GitWarpBraidHologram,
+  GitWarpBraidHologramMember,
+  GitWarpSuffixTransformHologram,
+  GitWarpTickHologram,
   GitWarpTickPatchReplayCore,
   GitWarpTickReceiptShell,
   GitWarpTickReceiptWitnessCore,
@@ -422,6 +455,15 @@ export {
   replayWormhole,
   serializeWormhole,
   deserializeWormhole,
+  ApertureOpeningProof,
+  RejectedApertureOpening,
+  RejectedZKWormhole,
+  VerifiedApertureOpening,
+  VerifiedZKWormhole,
+  ZKWormholeEdge,
+  openAperture,
+  verifyZKWormhole,
+  ZKWormholeProofVerifierPort,
 
   // Effect emission & delivery observation
   EffectSinkPort,
@@ -452,6 +494,10 @@ export type {
   SyncRateLimitConfig,
   WarpWorldlineOpenOptions,
   WarpWorldlinePatchBuild,
+  ApertureOpeningProofFields,
+  ApertureOpeningVerificationResult,
+  ZKWormholeEdgeFields,
+  ZKWormholeVerificationResult,
   WarpWorldlineCoordinateFrontierEntry,
   ContinuumArtifactAuthorityValue,
   ContinuumArtifactDescriptorFields,
@@ -471,6 +517,10 @@ export type {
   GitWarpReceiptSourceFactsFields,
   GitWarpReadingEnvelopePayloadFactFields,
   GitWarpReadingEnvelopeSourceFactsFields,
+  GitWarpBraidHologramFields,
+  GitWarpBraidHologramMemberFields,
+  GitWarpSuffixTransformHologramFields,
+  GitWarpTickHologramFields,
   GitWarpTickPatchReplayCoreFields,
   GitWarpTickReceiptShellFields,
   GitWarpTickReceiptWitnessCoreFields,

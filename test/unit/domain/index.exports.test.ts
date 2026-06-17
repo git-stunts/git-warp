@@ -96,6 +96,10 @@ import WarpAppDefault, {
   ContinuumReceiptFamilyProjection,
   GitWarpReadingEnvelopePayloadFact,
   GitWarpReadingEnvelopeSourceFacts,
+  GitWarpBraidHologram,
+  GitWarpBraidHologramMember,
+  GitWarpSuffixTransformHologram,
+  GitWarpTickHologram,
   GitWarpTickPatchReplayCore,
   GitWarpTickReceiptShell,
   GitWarpTickReceiptWitnessCore,
@@ -114,6 +118,15 @@ import WarpAppDefault, {
   WarpMemoryPoolSnapshot,
   createV18BoundedMemoryCapabilityReport,
   createBoundedMemoryCapabilityReport,
+  ApertureOpeningProof,
+  RejectedApertureOpening,
+  RejectedZKWormhole,
+  VerifiedApertureOpening,
+  VerifiedZKWormhole,
+  ZKWormholeEdge,
+  openAperture,
+  verifyZKWormhole,
+  ZKWormholeProofVerifierPort,
 } from '../../../index.ts';
 
 const { WarpGraph, WarpRuntime, Worldline, ObserverView } = (await import('../../../index.ts') as any);
@@ -415,6 +428,10 @@ describe('index.ts exports', () => {
       expect(ContinuumReceiptFamilyProjection).toBeDefined();
       expect(GitWarpReadingEnvelopePayloadFact).toBeDefined();
       expect(GitWarpReadingEnvelopeSourceFacts).toBeDefined();
+      expect(GitWarpBraidHologram).toBeDefined();
+      expect(GitWarpBraidHologramMember).toBeDefined();
+      expect(GitWarpSuffixTransformHologram).toBeDefined();
+      expect(GitWarpTickHologram).toBeDefined();
       expect(GitWarpTickPatchReplayCore).toBeDefined();
       expect(GitWarpTickReceiptShell).toBeDefined();
       expect(GitWarpTickReceiptWitnessCore).toBeDefined();
@@ -469,6 +486,20 @@ describe('index.ts exports', () => {
       expect(inventory.requireEntry('receipt-family').status).toBeInstanceOf(ContinuumGeneratedFamilyStatus);
       expect(inventory.requireEntry('receipt-family').status.isProjectionReady()).toBe(true);
       expect(inventory.requireEntry('runtime-boundary-family').status.isProjectionReady()).toBe(false);
+    });
+  });
+
+  describe('ZK wormhole artifacts', () => {
+    it('exports cold-tier wormhole proof surfaces', () => {
+      expect(ApertureOpeningProof).toBeDefined();
+      expect(RejectedApertureOpening).toBeDefined();
+      expect(RejectedZKWormhole).toBeDefined();
+      expect(VerifiedApertureOpening).toBeDefined();
+      expect(VerifiedZKWormhole).toBeDefined();
+      expect(ZKWormholeEdge).toBeDefined();
+      expect(openAperture).toBeDefined();
+      expect(verifyZKWormhole).toBeDefined();
+      expect(ZKWormholeProofVerifierPort).toBeDefined();
     });
   });
 
