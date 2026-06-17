@@ -105,23 +105,14 @@ import {
 import { BTR } from './src/domain/services/provenance/BTR.ts';
 
 // Wormhole compression (HOLOGRAM)
-import {
-  createWormhole,
-  composeWormholes,
-  replayWormhole,
-  serializeWormhole,
-  deserializeWormhole,
-} from './src/domain/services/WormholeService.ts';
+import { createWormhole, composeWormholes, replayWormhole, serializeWormhole, deserializeWormhole } from './src/domain/services/WormholeService.ts';
 import ApertureOpeningProof from './src/domain/services/wormhole/ApertureOpeningProof.ts';
 import RejectedApertureOpening from './src/domain/services/wormhole/RejectedApertureOpening.ts';
 import RejectedZKWormhole from './src/domain/services/wormhole/RejectedZKWormhole.ts';
 import VerifiedApertureOpening from './src/domain/services/wormhole/VerifiedApertureOpening.ts';
 import VerifiedZKWormhole from './src/domain/services/wormhole/VerifiedZKWormhole.ts';
 import ZKWormholeEdge from './src/domain/services/wormhole/ZKWormholeEdge.ts';
-import {
-  openAperture,
-  verifyZKWormhole,
-} from './src/domain/services/wormhole/ZKWormholeService.ts';
+import { openAperture, verifyZKWormhole } from './src/domain/services/wormhole/ZKWormholeService.ts';
 
 import BisectService from './src/domain/services/BisectService.ts';
 import EffectSinkPort from './src/ports/EffectSinkPort.ts';
@@ -170,16 +161,10 @@ import type { PropValue } from './src/domain/types/PropValue.ts';
 import type { Aperture, ObserverConfig } from './src/domain/types/Aperture.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
 import type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
-import type {
-  WarpWorldlineOpenOptions,
-  WarpWorldlinePatchBuild,
-} from './src/domain/WarpWorldline.ts';
+import type { WarpWorldlineOpenOptions, WarpWorldlinePatchBuild } from './src/domain/WarpWorldline.ts';
 import type { ApertureOpeningProofFields } from './src/domain/services/wormhole/ApertureOpeningProof.ts';
 import type { ZKWormholeEdgeFields } from './src/domain/services/wormhole/ZKWormholeEdge.ts';
-import type {
-  ApertureOpeningVerificationResult,
-  ZKWormholeVerificationResult,
-} from './src/domain/services/wormhole/ZKWormholeVerificationResult.ts';
+import type { ApertureOpeningVerificationResult, ZKWormholeVerificationResult } from './src/domain/services/wormhole/ZKWormholeVerificationResult.ts';
 import type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
 import {
   normalizeVisibleStateScope,
@@ -224,8 +209,7 @@ import ContinuumEvidencePosture from './src/domain/continuum/ContinuumEvidencePo
 import ContinuumEvidenceProofStrength from './src/domain/continuum/ContinuumEvidenceProofStrength.ts';
 import ContinuumFamilyId from './src/domain/continuum/ContinuumFamilyId.ts';
 import ContinuumGeneratedFamilyInventory from './src/domain/continuum/ContinuumGeneratedFamilyInventory.ts';
-import ContinuumGeneratedFamilyInventoryEntry
-  from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
+import ContinuumGeneratedFamilyInventoryEntry from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
 import ContinuumGeneratedFamilyStatus from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
 import ContinuumReceiptFamilyProjection from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 import GitWarpTickPatchReplayCore from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
@@ -241,8 +225,7 @@ import GitWarpTickWitnessLadder from './src/domain/continuum/GitWarpTickWitnessL
 import GitWarpWitnessedSuffixPatchFact from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
 import GitWarpWitnessedSuffixSourceFacts from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
 import GitWarpReceiptSourceFacts from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
-import createCurrentContinuumGeneratedFamilyInventory
-  from './src/domain/continuum/createCurrentContinuumGeneratedFamilyInventory.ts';
+import createCurrentContinuumGeneratedFamilyInventory from './src/domain/continuum/createCurrentContinuumGeneratedFamilyInventory.ts';
 import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
@@ -253,12 +236,8 @@ import type { ContinuumEvidenceOriginValue } from './src/domain/continuum/Contin
 import type { ContinuumEvidencePostureFields } from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import type { ContinuumEvidenceProofStrengthValue } from './src/domain/continuum/ContinuumEvidenceProofStrength.ts';
 import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
-import type {
-  ContinuumGeneratedFamilyInventoryEntryFields,
-} from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
-import type {
-  ContinuumGeneratedFamilyStatusValue,
-} from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
+import type { ContinuumGeneratedFamilyInventoryEntryFields } from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
+import type { ContinuumGeneratedFamilyStatusValue } from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
 import type {
   ContinuumDeliveryObservationFact,
   ContinuumReceiptFact,
@@ -267,38 +246,18 @@ import type {
   ContinuumReceiptWitnessFact,
 } from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 import type { GitWarpReceiptSourceFactsFields } from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
-import type {
-  GitWarpReadingEnvelopePayloadFactFields,
-} from './src/domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
-import type {
-  GitWarpReadingEnvelopeSourceFactsFields,
-} from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
+import type { GitWarpReadingEnvelopePayloadFactFields } from './src/domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
+import type { GitWarpReadingEnvelopeSourceFactsFields } from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
 import type { GitWarpBraidHologramFields } from './src/domain/continuum/GitWarpBraidHologram.ts';
-import type {
-  GitWarpBraidHologramMemberFields,
-} from './src/domain/continuum/GitWarpBraidHologramMember.ts';
-import type {
-  GitWarpSuffixTransformHologramFields,
-} from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
+import type { GitWarpBraidHologramMemberFields } from './src/domain/continuum/GitWarpBraidHologramMember.ts';
+import type { GitWarpSuffixTransformHologramFields } from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
 import type { GitWarpTickHologramFields } from './src/domain/continuum/GitWarpTickHologram.ts';
-import type {
-  GitWarpTickPatchReplayCoreFields,
-} from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
-import type {
-  GitWarpTickReceiptShellFields,
-} from './src/domain/continuum/GitWarpTickReceiptShell.ts';
-import type {
-  GitWarpTickReceiptWitnessCoreFields,
-} from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
-import type {
-  GitWarpTickWitnessLadderFields,
-} from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
-import type {
-  GitWarpWitnessedSuffixPatchFactFields,
-} from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
-import type {
-  GitWarpWitnessedSuffixSourceFactsFields,
-} from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
+import type { GitWarpTickPatchReplayCoreFields } from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
+import type { GitWarpTickReceiptShellFields } from './src/domain/continuum/GitWarpTickReceiptShell.ts';
+import type { GitWarpTickReceiptWitnessCoreFields } from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
+import type { GitWarpTickWitnessLadderFields } from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
+import type { GitWarpWitnessedSuffixPatchFactFields } from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
+import type { GitWarpWitnessedSuffixSourceFactsFields } from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
 import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 
 export {
@@ -420,10 +379,7 @@ export {
   ContinuumReceiptFamilyProjection,
   GitWarpReadingEnvelopePayloadFact,
   GitWarpReadingEnvelopeSourceFacts,
-  GitWarpBraidHologram,
-  GitWarpBraidHologramMember,
-  GitWarpSuffixTransformHologram,
-  GitWarpTickHologram,
+  GitWarpBraidHologram, GitWarpBraidHologramMember, GitWarpSuffixTransformHologram, GitWarpTickHologram,
   GitWarpTickPatchReplayCore,
   GitWarpTickReceiptShell,
   GitWarpTickReceiptWitnessCore,
@@ -455,15 +411,9 @@ export {
   replayWormhole,
   serializeWormhole,
   deserializeWormhole,
-  ApertureOpeningProof,
-  RejectedApertureOpening,
-  RejectedZKWormhole,
-  VerifiedApertureOpening,
-  VerifiedZKWormhole,
-  ZKWormholeEdge,
-  openAperture,
-  verifyZKWormhole,
-  ZKWormholeProofVerifierPort,
+  ApertureOpeningProof, RejectedApertureOpening, RejectedZKWormhole,
+  VerifiedApertureOpening, VerifiedZKWormhole, ZKWormholeEdge,
+  openAperture, verifyZKWormhole, ZKWormholeProofVerifierPort,
 
   // Effect emission & delivery observation
   EffectSinkPort,
@@ -494,10 +444,8 @@ export type {
   SyncRateLimitConfig,
   WarpWorldlineOpenOptions,
   WarpWorldlinePatchBuild,
-  ApertureOpeningProofFields,
-  ApertureOpeningVerificationResult,
-  ZKWormholeEdgeFields,
-  ZKWormholeVerificationResult,
+  ApertureOpeningProofFields, ApertureOpeningVerificationResult,
+  ZKWormholeEdgeFields, ZKWormholeVerificationResult,
   WarpWorldlineCoordinateFrontierEntry,
   ContinuumArtifactAuthorityValue,
   ContinuumArtifactDescriptorFields,
@@ -517,10 +465,8 @@ export type {
   GitWarpReceiptSourceFactsFields,
   GitWarpReadingEnvelopePayloadFactFields,
   GitWarpReadingEnvelopeSourceFactsFields,
-  GitWarpBraidHologramFields,
-  GitWarpBraidHologramMemberFields,
-  GitWarpSuffixTransformHologramFields,
-  GitWarpTickHologramFields,
+  GitWarpBraidHologramFields, GitWarpBraidHologramMemberFields,
+  GitWarpSuffixTransformHologramFields, GitWarpTickHologramFields,
   GitWarpTickPatchReplayCoreFields,
   GitWarpTickReceiptShellFields,
   GitWarpTickReceiptWitnessCoreFields,
