@@ -25,13 +25,13 @@ function makePatchFact(fields: {
 
 function makeSourceFacts(fields: {
   readonly familyId?: string;
-  readonly posture?: string | ContinuumEvidencePosture;
+  readonly posture?: ContinuumEvidencePosture;
   readonly patches?: readonly GitWarpWitnessedSuffixPatchFact[];
 } = {}): GitWarpWitnessedSuffixSourceFacts {
   const inventory = createCurrentContinuumGeneratedFamilyInventory();
   return new GitWarpWitnessedSuffixSourceFacts({
     family: inventory.requireEntry(fields.familyId ?? 'runtime-boundary-family'),
-    evidencePosture: fields.posture ?? 'translated-git-warp-evidence',
+    evidencePosture: fields.posture ?? ContinuumEvidencePosture.translatedGitWarpEvidence(),
     graphName: 'demo',
     sourceFrontierRef: 'frontier:remote:writer-a:7',
     basisFrontierRef: 'frontier:local:writer-a:4',
@@ -60,10 +60,12 @@ describe('GitWarpWitnessedSuffixSourceFacts', () => {
 
   it('rejects native or unproven evidence posture for translated git-warp suffixes', () => {
     expect(() => makeSourceFacts({
-      posture: new ContinuumEvidencePosture('native-continuum-evidence'),
+      posture: ContinuumEvidencePosture.nativeContinuumEvidence(),
     })).toThrow(WarpError);
 
-    expect(() => makeSourceFacts({ posture: 'unproven-continuum-shape' })).toThrow(WarpError);
+    expect(() => makeSourceFacts({
+      posture: ContinuumEvidencePosture.unsupportedDescriptor(),
+    })).toThrow(WarpError);
   });
 
   it('rejects empty suffix patch lists and invalid patch facts', () => {

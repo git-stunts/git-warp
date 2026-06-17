@@ -1,67 +1,142 @@
+import ContinuumEvidenceAccess from './ContinuumEvidenceAccess.ts';
+import ContinuumEvidenceCompleteness from './ContinuumEvidenceCompleteness.ts';
+import ContinuumEvidenceOrigin from './ContinuumEvidenceOrigin.ts';
+import ContinuumEvidenceProofStrength from './ContinuumEvidenceProofStrength.ts';
 import WarpError from '../errors/WarpError.ts';
 
-const TRANSLATED_GIT_WARP_EVIDENCE = 'translated-git-warp-evidence';
-const NATIVE_CONTINUUM_EVIDENCE = 'native-continuum-evidence';
-const UNPROVEN_CONTINUUM_SHAPE = 'unproven-continuum-shape';
+const LATTICE_SEPARATOR = ':';
 
-/** Stable string labels for the evidence posture carried by Continuum-family values. */
-export type ContinuumEvidencePostureValue =
-  | typeof TRANSLATED_GIT_WARP_EVIDENCE
-  | typeof NATIVE_CONTINUUM_EVIDENCE
-  | typeof UNPROVEN_CONTINUUM_SHAPE;
+export type ContinuumEvidencePostureFields = {
+  readonly origin: string | ContinuumEvidenceOrigin;
+  readonly proofStrength: string | ContinuumEvidenceProofStrength;
+  readonly access: string | ContinuumEvidenceAccess;
+  readonly completeness: string | ContinuumEvidenceCompleteness;
+};
 
-/** Complete ordered set of evidence postures accepted by git-warp. */
-export const CONTINUUM_EVIDENCE_POSTURES: readonly ContinuumEvidencePostureValue[] = Object.freeze([
-  TRANSLATED_GIT_WARP_EVIDENCE,
-  NATIVE_CONTINUUM_EVIDENCE,
-  UNPROVEN_CONTINUUM_SHAPE,
-]);
-
-/** Runtime-backed witnesshood posture for Continuum-family values. */
+/** Runtime-backed four-coordinate evidence posture for Continuum-family values. */
 export default class ContinuumEvidencePosture {
-  readonly value: ContinuumEvidencePostureValue;
+  readonly origin: ContinuumEvidenceOrigin;
+  readonly proofStrength: ContinuumEvidenceProofStrength;
+  readonly access: ContinuumEvidenceAccess;
+  readonly completeness: ContinuumEvidenceCompleteness;
 
-  /** Builds an immutable posture from a validated Continuum evidence label. */
-  constructor(value: string) {
-    this.value = requireContinuumEvidencePosture(value);
+  constructor(fields: ContinuumEvidencePostureFields) {
+    const checkedFields = requireFields(fields);
+    this.origin = normalizeOrigin(checkedFields.origin);
+    this.proofStrength = normalizeProofStrength(checkedFields.proofStrength);
+    this.access = normalizeAccess(checkedFields.access);
+    this.completeness = normalizeCompleteness(checkedFields.completeness);
     Object.freeze(this);
+  }
+
+  static translatedGitWarpEvidence(): ContinuumEvidencePosture {
+    return new ContinuumEvidencePosture({
+      origin: ContinuumEvidenceOrigin.translated(),
+      proofStrength: ContinuumEvidenceProofStrength.witnessed(),
+      access: ContinuumEvidenceAccess.available(),
+      completeness: ContinuumEvidenceCompleteness.complete(),
+    });
+  }
+
+  static nativeContinuumEvidence(): ContinuumEvidencePosture {
+    return new ContinuumEvidencePosture({
+      origin: ContinuumEvidenceOrigin.native(),
+      proofStrength: ContinuumEvidenceProofStrength.witnessed(),
+      access: ContinuumEvidenceAccess.available(),
+      completeness: ContinuumEvidenceCompleteness.complete(),
+    });
+  }
+
+  static unsupportedDescriptor(): ContinuumEvidencePosture {
+    return new ContinuumEvidencePosture({
+      origin: ContinuumEvidenceOrigin.descriptor(),
+      proofStrength: ContinuumEvidenceProofStrength.none(),
+      access: ContinuumEvidenceAccess.available(),
+      completeness: ContinuumEvidenceCompleteness.unsupported(),
+    });
   }
 
   /** Returns true for git-warp-local facts translated into Continuum shape. */
   isTranslatedGitWarpEvidence(): boolean {
-    return this.value === TRANSLATED_GIT_WARP_EVIDENCE;
+    return this.origin.isTranslated()
+      && this.proofStrength.isWitnessed()
+      && this.access.isAvailable()
+      && this.completeness.isComplete();
   }
 
   /** Returns true only for values with native Continuum witnesshood proof. */
   isNativeContinuumEvidence(): boolean {
-    return this.value === NATIVE_CONTINUUM_EVIDENCE;
+    return this.origin.isNative() && this.proofStrength.isWitnessed();
   }
 
-  /** Returns true for shape-conformant values without witnesshood proof. */
-  isUnprovenContinuumShape(): boolean {
-    return this.value === UNPROVEN_CONTINUUM_SHAPE;
+  /** Returns true when a native proof string must accompany this posture. */
+  requiresNativeWitnessProof(): boolean {
+    return this.origin.isNative() && this.proofStrength.isWitnessed() && this.access.isAvailable();
   }
 
-  /** Returns the stable posture string. */
+  /** Returns true when direct replay can trust this posture without expansion. */
+  canAuthorizeReplayShortcut(): boolean {
+    return this.origin.isReplayOrigin()
+      && this.proofStrength.isWitnessed()
+      && this.access.isAvailable()
+      && this.completeness.isComplete();
+  }
+
+  /** Returns true when the posture is shape-only descriptor evidence. */
+  isUnsupportedDescriptor(): boolean {
+    return this.origin.equals(ContinuumEvidenceOrigin.descriptor())
+      && this.proofStrength.hasNoProof()
+      && this.completeness.isUnsupported();
+  }
+
+  /** Returns the stable four-coordinate lattice key. */
   toString(): string {
-    return this.value;
+    return [
+      this.origin.toString(),
+      this.proofStrength.toString(),
+      this.access.toString(),
+      this.completeness.toString(),
+    ].join(LATTICE_SEPARATOR);
   }
 }
 
-/** Validates a raw evidence posture string. */
-export function requireContinuumEvidencePosture(value: string): ContinuumEvidencePostureValue {
-  if (typeof value !== 'string') {
-    throw new WarpError(
-      `Continuum evidence posture must be one of: ${CONTINUUM_EVIDENCE_POSTURES.join(', ')}`,
-      'E_VALIDATION',
-    );
+function requireFields(
+  value: ContinuumEvidencePostureFields | null | undefined,
+): ContinuumEvidencePostureFields {
+  if (value === null || value === undefined) {
+    throw new WarpError('ContinuumEvidencePosture fields must be provided', 'E_VALIDATION');
   }
-  const valid = CONTINUUM_EVIDENCE_POSTURES.find((candidate) => candidate === value);
-  if (valid === undefined) {
-    throw new WarpError(
-      `Continuum evidence posture must be one of: ${CONTINUUM_EVIDENCE_POSTURES.join(', ')}`,
-      'E_VALIDATION',
-    );
+  return value;
+}
+
+function normalizeOrigin(value: string | ContinuumEvidenceOrigin): ContinuumEvidenceOrigin {
+  if (value instanceof ContinuumEvidenceOrigin) {
+    return value;
   }
-  return valid;
+  return new ContinuumEvidenceOrigin(value);
+}
+
+function normalizeProofStrength(
+  value: string | ContinuumEvidenceProofStrength,
+): ContinuumEvidenceProofStrength {
+  if (value instanceof ContinuumEvidenceProofStrength) {
+    return value;
+  }
+  return new ContinuumEvidenceProofStrength(value);
+}
+
+function normalizeAccess(value: string | ContinuumEvidenceAccess): ContinuumEvidenceAccess {
+  if (value instanceof ContinuumEvidenceAccess) {
+    return value;
+  }
+  return new ContinuumEvidenceAccess(value);
+}
+
+function normalizeCompleteness(
+  value: string | ContinuumEvidenceCompleteness,
+): ContinuumEvidenceCompleteness {
+  if (value instanceof ContinuumEvidenceCompleteness) {
+    return value;
+  }
+  return new ContinuumEvidenceCompleteness(value);
 }

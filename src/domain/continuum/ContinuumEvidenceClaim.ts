@@ -5,7 +5,7 @@ import WarpError from '../errors/WarpError.ts';
 /** Constructor payload for a Continuum evidence claim. */
 export type ContinuumEvidenceClaimFields = {
   readonly descriptor: ContinuumArtifactDescriptor;
-  readonly posture: string | ContinuumEvidencePosture;
+  readonly posture: ContinuumEvidencePosture;
   readonly nativeWitnessProof?: string;
 };
 
@@ -19,7 +19,7 @@ export default class ContinuumEvidenceClaim {
   constructor(fields: ContinuumEvidenceClaimFields) {
     const checkedFields = requireFields(fields);
     this.descriptor = requireDescriptor(checkedFields.descriptor);
-    this.posture = normalizePosture(checkedFields.posture);
+    this.posture = requirePosture(checkedFields.posture);
     this.nativeWitnessProof = optionalNonEmptyString(checkedFields.nativeWitnessProof, 'nativeWitnessProof');
     this.assertNativeProofMatchesPosture();
     Object.freeze(this);
@@ -48,8 +48,8 @@ export default class ContinuumEvidenceClaim {
 
   /** Enforces that native proof exists only for native Continuum evidence. */
   private assertNativeProofMatchesPosture(): void {
-    if (this.posture.isNativeContinuumEvidence() && this.nativeWitnessProof === undefined) {
-      throw new WarpError('native Continuum evidence requires nativeWitnessProof', 'E_VALIDATION');
+    if (this.posture.requiresNativeWitnessProof() && this.nativeWitnessProof === undefined) {
+      throw new WarpError('available native Continuum evidence requires nativeWitnessProof', 'E_VALIDATION');
     }
     if (!this.posture.isNativeContinuumEvidence() && this.nativeWitnessProof !== undefined) {
       throw new WarpError('nativeWitnessProof requires native Continuum evidence posture', 'E_VALIDATION');
@@ -75,12 +75,12 @@ function requireDescriptor(value: ContinuumArtifactDescriptor): ContinuumArtifac
   return value;
 }
 
-/** Normalizes an evidence posture carrier. */
-function normalizePosture(value: string | ContinuumEvidencePosture): ContinuumEvidencePosture {
-  if (value instanceof ContinuumEvidencePosture) {
-    return value;
+/** Validates an evidence posture carrier. */
+function requirePosture(value: ContinuumEvidencePosture): ContinuumEvidencePosture {
+  if (!(value instanceof ContinuumEvidencePosture)) {
+    throw new WarpError('posture must be a ContinuumEvidencePosture', 'E_VALIDATION');
   }
-  return new ContinuumEvidencePosture(value);
+  return value;
 }
 
 /** Validates an optional non-empty string. */

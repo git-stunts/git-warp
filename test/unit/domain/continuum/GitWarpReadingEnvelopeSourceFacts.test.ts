@@ -19,13 +19,13 @@ function makePayload(): GitWarpReadingEnvelopePayloadFact {
 
 function makeSourceFacts(fields: {
   readonly familyId?: string;
-  readonly posture?: string | ContinuumEvidencePosture;
+  readonly posture?: ContinuumEvidencePosture;
   readonly payload?: GitWarpReadingEnvelopePayloadFact;
 } = {}): GitWarpReadingEnvelopeSourceFacts {
   const inventory = createCurrentContinuumGeneratedFamilyInventory();
   return new GitWarpReadingEnvelopeSourceFacts({
     family: inventory.requireEntry(fields.familyId ?? 'runtime-boundary-family'),
-    evidencePosture: fields.posture ?? 'translated-git-warp-evidence',
+    evidencePosture: fields.posture ?? ContinuumEvidencePosture.translatedGitWarpEvidence(),
     observerPlanId: 'observer-plan:live-materialize',
     observationRequestId: 'observation-request:001',
     sourceRef: 'graph:demo/writer:writer-a',
@@ -55,10 +55,12 @@ describe('GitWarpReadingEnvelopeSourceFacts', () => {
 
   it('rejects native or unproven evidence posture for translated git-warp readings', () => {
     expect(() => makeSourceFacts({
-      posture: new ContinuumEvidencePosture('native-continuum-evidence'),
+      posture: ContinuumEvidencePosture.nativeContinuumEvidence(),
     })).toThrow(WarpError);
 
-    expect(() => makeSourceFacts({ posture: 'unproven-continuum-shape' })).toThrow(WarpError);
+    expect(() => makeSourceFacts({
+      posture: ContinuumEvidencePosture.unsupportedDescriptor(),
+    })).toThrow(WarpError);
   });
 
   it('rejects blank payload and source-fact fields', () => {
@@ -69,7 +71,7 @@ describe('GitWarpReadingEnvelopeSourceFacts', () => {
 
     expect(() => new GitWarpReadingEnvelopeSourceFacts({
       family: createCurrentContinuumGeneratedFamilyInventory().requireEntry('runtime-boundary-family'),
-      evidencePosture: 'translated-git-warp-evidence',
+      evidencePosture: ContinuumEvidencePosture.translatedGitWarpEvidence(),
       observerPlanId: '',
       observationRequestId: 'observation-request:001',
       sourceRef: 'graph:demo/writer:writer-a',

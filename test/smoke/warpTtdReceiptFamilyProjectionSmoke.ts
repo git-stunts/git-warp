@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 
 import ContinuumArtifactDescriptor from '../../src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import ContinuumEvidenceClaim from '../../src/domain/continuum/ContinuumEvidenceClaim.ts';
+import ContinuumEvidencePosture from '../../src/domain/continuum/ContinuumEvidencePosture.ts';
 import ContinuumReceiptFamilyProjection from '../../src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 import GitWarpReceiptSourceFacts from '../../src/domain/continuum/GitWarpReceiptSourceFacts.ts';
 import { DeliveryObservation } from '../../src/domain/types/DeliveryObservation.ts';
@@ -10,7 +11,7 @@ import type { ContinuumReceiptFact, ContinuumReceiptOpFact } from '../../src/dom
 
 const RECEIPT_SCHEMA_PATH = 'schemas/continuum-receipt-family.graphql';
 const PATCH_SHA = '0123456789abcdef0123456789abcdef01234567';
-const TRANSLATED_POSTURE = 'translated-git-warp-evidence';
+const TRANSLATED_POSTURE_KEY = 'translated:witnessed:available:complete';
 
 type SmokeGraph = {
   materialize(options: { receipts: true; ceiling?: number | null }): Promise<{
@@ -76,7 +77,7 @@ function makeProjection(): ContinuumReceiptFamilyProjection {
   });
   const evidence = new ContinuumEvidenceClaim({
     descriptor,
-    posture: TRANSLATED_POSTURE,
+    posture: ContinuumEvidencePosture.translatedGitWarpEvidence(),
   });
   const sourceFacts = new GitWarpReceiptSourceFacts({
     tickReceipt: new TickReceipt({
@@ -108,7 +109,7 @@ function requireGeneratedProjection(value: object): ContinuumReceiptFamilyProjec
     throw new TypeError('warp-ttd smoke requires generated-family git-warp projection output');
   }
   const witness = value.witnesses[0];
-  if (witness === undefined || witness.evidencePosture !== TRANSLATED_POSTURE) {
+  if (witness === undefined || witness.evidencePosture !== TRANSLATED_POSTURE_KEY) {
     throw new TypeError('warp-ttd smoke requires translated git-warp evidence posture');
   }
   return value;
@@ -187,7 +188,7 @@ assert.throws(
   /generated-family git-warp projection/,
 );
 
-assert.equal(projection.witnesses[0]?.evidencePosture, TRANSLATED_POSTURE);
+assert.equal(projection.witnesses[0]?.evidencePosture, TRANSLATED_POSTURE_KEY);
 
 const acceptedProjection = requireGeneratedProjection(projection);
 const GitWarpAdapter = await loadGitWarpAdapter();

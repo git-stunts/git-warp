@@ -83,8 +83,12 @@ import WarpAppDefault, {
   ContinuumArtifactAuthority,
   ContinuumArtifactDescriptor,
   ContinuumArtifactIngestionPolicy,
+  ContinuumEvidenceAccess,
   ContinuumEvidenceClaim,
+  ContinuumEvidenceCompleteness,
+  ContinuumEvidenceOrigin,
   ContinuumEvidencePosture,
+  ContinuumEvidenceProofStrength,
   ContinuumFamilyId,
   ContinuumGeneratedFamilyInventory,
   ContinuumGeneratedFamilyInventoryEntry,
@@ -393,13 +397,17 @@ describe('index.ts exports', () => {
     });
   });
 
-  describe('Continuum compatibility artifacts', () => {
+  describe('Continuum boundary artifacts', () => {
     it('exports the artifact descriptor classes', () => {
       expect(ContinuumArtifactAuthority).toBeDefined();
       expect(ContinuumArtifactDescriptor).toBeDefined();
       expect(ContinuumArtifactIngestionPolicy).toBeDefined();
+      expect(ContinuumEvidenceAccess).toBeDefined();
       expect(ContinuumEvidenceClaim).toBeDefined();
+      expect(ContinuumEvidenceCompleteness).toBeDefined();
+      expect(ContinuumEvidenceOrigin).toBeDefined();
       expect(ContinuumEvidencePosture).toBeDefined();
+      expect(ContinuumEvidenceProofStrength).toBeDefined();
       expect(ContinuumFamilyId).toBeDefined();
       expect(ContinuumGeneratedFamilyInventory).toBeDefined();
       expect(ContinuumGeneratedFamilyInventoryEntry).toBeDefined();
@@ -445,7 +453,7 @@ describe('index.ts exports', () => {
       });
       const claim = new ContinuumEvidenceClaim({
         descriptor,
-        posture: 'translated-git-warp-evidence',
+        posture: ContinuumEvidencePosture.translatedGitWarpEvidence(),
       });
 
       expect(claim.posture).toBeInstanceOf(ContinuumEvidencePosture);

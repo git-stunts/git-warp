@@ -8,7 +8,7 @@ const RUNTIME_BOUNDARY_FAMILY_ID = 'runtime-boundary-family';
 
 export type GitWarpReadingEnvelopeSourceFactsFields = {
   readonly family: ContinuumGeneratedFamilyInventoryEntry;
-  readonly evidencePosture: string | ContinuumEvidencePosture;
+  readonly evidencePosture: ContinuumEvidencePosture;
   readonly observerPlanId: string;
   readonly observationRequestId: string;
   readonly sourceRef: string;
@@ -74,20 +74,15 @@ function requireRuntimeBoundaryFamily(
 }
 
 /** Requires translated git-warp evidence posture. */
-function requireTranslatedPosture(value: string | ContinuumEvidencePosture): ContinuumEvidencePosture {
-  const posture = normalizePosture(value);
+function requireTranslatedPosture(value: ContinuumEvidencePosture): ContinuumEvidencePosture {
+  if (!(value instanceof ContinuumEvidencePosture)) {
+    throw new WarpError('evidencePosture must be a ContinuumEvidencePosture', 'E_VALIDATION');
+  }
+  const posture = value;
   if (!posture.isTranslatedGitWarpEvidence()) {
     throw new WarpError('reading envelope source facts require translated git-warp evidence', 'E_VALIDATION');
   }
   return posture;
-}
-
-/** Normalizes an evidence posture carrier. */
-function normalizePosture(value: string | ContinuumEvidencePosture): ContinuumEvidencePosture {
-  if (value instanceof ContinuumEvidencePosture) {
-    return value;
-  }
-  return new ContinuumEvidencePosture(value);
 }
 
 /** Validates a reading payload carrier. */

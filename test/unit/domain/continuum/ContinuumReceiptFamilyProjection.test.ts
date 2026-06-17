@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import ContinuumArtifactDescriptor from '../../../../src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import ContinuumEvidenceClaim from '../../../../src/domain/continuum/ContinuumEvidenceClaim.ts';
+import ContinuumEvidencePosture from '../../../../src/domain/continuum/ContinuumEvidencePosture.ts';
 import ContinuumReceiptFamilyProjection from '../../../../src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 import GitWarpReceiptSourceFacts from '../../../../src/domain/continuum/GitWarpReceiptSourceFacts.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
@@ -31,12 +32,13 @@ function makeDescriptor(fields: {
 
 function makeEvidence(fields: {
   readonly descriptor?: ContinuumArtifactDescriptor;
-  readonly posture?: string;
+  readonly posture?: ContinuumEvidencePosture;
 } = {}): ContinuumEvidenceClaim {
+  const posture = fields.posture ?? ContinuumEvidencePosture.translatedGitWarpEvidence();
   return new ContinuumEvidenceClaim({
     descriptor: fields.descriptor ?? makeDescriptor(),
-    posture: fields.posture ?? 'translated-git-warp-evidence',
-    ...(fields.posture === 'native-continuum-evidence' ? { nativeWitnessProof: 'continuum-native-proof:test' } : {}),
+    posture,
+    ...(posture.isNativeContinuumEvidence() ? { nativeWitnessProof: 'continuum-native-proof:test' } : {}),
   });
 }
 
@@ -109,7 +111,7 @@ describe('ContinuumReceiptFamilyProjection', () => {
     }]);
     expect(witness.kind).toBe('git-warp-tick-receipt');
     expect(witness.receiptPatchSha).toBe('c'.repeat(40));
-    expect(witness.evidencePosture).toBe('translated-git-warp-evidence');
+    expect(witness.evidencePosture).toBe('translated:witnessed:available:complete');
     expect(projection.deliveryObservations).toEqual([{
       emissionId: 'effect:1',
       sinkId: 'sink:test',
@@ -141,7 +143,7 @@ describe('ContinuumReceiptFamilyProjection', () => {
   });
 
   it('rejects projection without translated git-warp evidence posture', () => {
-    const evidence = makeEvidence({ posture: 'native-continuum-evidence' });
+    const evidence = makeEvidence({ posture: ContinuumEvidencePosture.nativeContinuumEvidence() });
     const sourceFacts = new GitWarpReceiptSourceFacts({ tickReceipt: makeReceipt() });
 
     expect(() => new ContinuumReceiptFamilyProjection({ evidence, sourceFacts })).toThrow(WarpError);

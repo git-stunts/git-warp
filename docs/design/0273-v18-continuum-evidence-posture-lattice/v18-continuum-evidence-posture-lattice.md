@@ -39,9 +39,11 @@ This design is primarily:
 
 ## Decision Summary
 
-git-warp will replace the flat `ContinuumEvidencePosture` string enum with a multi-dimensional lattice struct containing four distinct dimensions: Origin, Proof Strength, Access, and Completeness. This ensures that the runtime can distinguish between native vs. translated history and redact or verify partial logs without collapsing them into a single unproven status.
+git-warp will replace the flat `ContinuumEvidencePosture` string enum with a runtime-backed lattice containing four distinct dimensions: Origin, Proof Strength, Access, and Completeness. This ensures that the runtime can distinguish between native vs. translated history and redact or verify partial logs without collapsing them into a single unproven status.
 
 This design aligns with AION Foundations Paper VIII: evidence posture is a structured property of causal claims crossing participant boundaries, enabling fine-grained capability checks and privacy-preserving audits.
+
+The flat posture labels were never released in v17. They are current-main residue, not public compatibility commitments. v18 must not preserve them as aliases.
 
 ## Sponsored Human
 
@@ -53,15 +55,17 @@ An autonomous agent needs a structured lattice interface to programmatically det
 
 ## Hill
 
-By the end of this design cycle, the `ContinuumEvidencePosture` class will be refactored into a four-dimensional lattice type. The change will be verified by a suite of unit tests checking boundary-posture validations, and the codebase will compile with no type errors.
+By the end of this design cycle, the `ContinuumEvidencePosture` class will be refactored into a four-dimensional lattice type backed by runtime coordinate classes. The change will be verified by a suite of unit tests checking boundary-posture validations, and the codebase will compile with no type errors.
 
 ## Current Truth
 
-Currently, `ContinuumEvidencePosture.ts` defines the posture as a flat string enum:
+At the start of this cycle, `ContinuumEvidencePosture.ts` defined the posture as a flat string enum:
 [src/domain/continuum/ContinuumEvidencePosture.ts#8](file:///Users/james/git/git-stunts/git-warp/src/domain/continuum/ContinuumEvidencePosture.ts#L8).
 This collapses the dimensions, meaning we cannot distinguish between "translated but witnessed" and "native but redacted" history.
 This flat posture is used inside `ContinuumEvidenceClaim` to validate UCAN-style proof presence:
 [src/domain/continuum/ContinuumEvidenceClaim.ts#50](file:///Users/james/git/git-stunts/git-warp/src/domain/continuum/ContinuumEvidenceClaim.ts#L50).
+
+Paper VIII also defines `Scratch`, `AuthorOnly`, and `Shared` as revelation postures on observer coordinates and holograms. Those are not evidence-posture values and must not be folded into `ContinuumEvidencePosture`.
 
 ## Playback Questions
 
@@ -79,51 +83,38 @@ We define four dimensions:
 3.  **Access:** `available` | `redacted` | `credential-required` | `denied`
 4.  **Completeness:** `complete` | `partial` | `residual` | `obstructed` | `unsupported`
 
-### 2. Typings & Class Struct
+### 2. Runtime-Backed Coordinates
 
 ```typescript
-export type CausalOrigin = 'native' | 'translated' | 'fixture' | 'synthetic' | 'descriptor';
-export type CausalProofStrength = 'witnessed' | 'digest-only' | 'claimed' | 'none';
-export type CausalAccess = 'available' | 'redacted' | 'credential-required' | 'denied';
-export type CausalCompleteness = 'complete' | 'partial' | 'residual' | 'obstructed' | 'unsupported';
-
-export interface ContinuumEvidencePostureFields {
-  readonly origin: CausalOrigin;
-  readonly proofStrength: CausalProofStrength;
-  readonly access: CausalAccess;
-  readonly completeness: CausalCompleteness;
-}
+export default class ContinuumEvidenceOrigin { /* native | translated | fixture | synthetic | descriptor */ }
+export default class ContinuumEvidenceProofStrength { /* witnessed | digest-only | claimed | none */ }
+export default class ContinuumEvidenceAccess { /* available | redacted | credential-required | denied */ }
+export default class ContinuumEvidenceCompleteness { /* complete | partial | residual | obstructed | unsupported */ }
 
 export default class ContinuumEvidencePosture {
-  readonly origin: CausalOrigin;
-  readonly proofStrength: CausalProofStrength;
-  readonly access: CausalAccess;
-  readonly completeness: CausalCompleteness;
+  readonly origin: ContinuumEvidenceOrigin;
+  readonly proofStrength: ContinuumEvidenceProofStrength;
+  readonly access: ContinuumEvidenceAccess;
+  readonly completeness: ContinuumEvidenceCompleteness;
 
   constructor(fields: ContinuumEvidencePostureFields) {
-    this.origin = requireOrigin(fields.origin);
-    this.proofStrength = requireProofStrength(fields.proofStrength);
-    this.access = requireAccess(fields.access);
-    this.completeness = requireCompleteness(fields.completeness);
+    this.origin = normalizeOrigin(fields.origin);
+    this.proofStrength = normalizeProofStrength(fields.proofStrength);
+    this.access = normalizeAccess(fields.access);
+    this.completeness = normalizeCompleteness(fields.completeness);
     Object.freeze(this);
   }
 
-  isShareable(): boolean {
-    return (
-      this.origin === 'native' &&
-      this.proofStrength === 'witnessed' &&
-      this.access === 'available' &&
-      this.completeness === 'complete'
-    );
-  }
+  canAuthorizeReplayShortcut(): boolean;
 }
 ```
 
 ## Implementation
 
-1.  Create the new lattice dimensions and helper validation functions in `src/domain/continuum/ContinuumEvidencePosture.ts`.
+1.  Create one runtime-backed coordinate class per lattice dimension under `src/domain/continuum/`.
 2.  Refactor `ContinuumEvidenceClaim.ts` to accept the new `ContinuumEvidencePosture` structure in its constructor.
 3.  Update the conversion fixtures in `GitWarpWitnessedSuffixSourceFacts.ts` and `GitWarpReadingEnvelopeSourceFacts.ts` to construct the lattice fields.
+4.  Remove the unreleased flat posture labels instead of preserving aliases.
 
 ## Non-Goals
 
@@ -133,7 +124,8 @@ export default class ContinuumEvidencePosture {
 ## RED
 
 - Attempting to construct a posture with invalid lattice coordinates (e.g. `origin: 'invalid'`) must throw a validation error.
-- Building a `native` witness claim without providing `nativeWitnessProof` must be rejected.
+- Building an available native witnessed claim without providing `nativeWitnessProof` must be rejected.
+- Building a redacted native witnessed claim without direct proof material must be allowed but must not authorize replay shortcuts.
 
 ## Verification
 

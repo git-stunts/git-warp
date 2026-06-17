@@ -199,8 +199,12 @@ export {
 import ContinuumArtifactAuthority from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import ContinuumArtifactDescriptor from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import ContinuumArtifactIngestionPolicy from './src/domain/continuum/ContinuumArtifactIngestionPolicy.ts';
+import ContinuumEvidenceAccess from './src/domain/continuum/ContinuumEvidenceAccess.ts';
 import ContinuumEvidenceClaim from './src/domain/continuum/ContinuumEvidenceClaim.ts';
+import ContinuumEvidenceCompleteness from './src/domain/continuum/ContinuumEvidenceCompleteness.ts';
+import ContinuumEvidenceOrigin from './src/domain/continuum/ContinuumEvidenceOrigin.ts';
 import ContinuumEvidencePosture from './src/domain/continuum/ContinuumEvidencePosture.ts';
+import ContinuumEvidenceProofStrength from './src/domain/continuum/ContinuumEvidenceProofStrength.ts';
 import ContinuumFamilyId from './src/domain/continuum/ContinuumFamilyId.ts';
 import ContinuumGeneratedFamilyInventory from './src/domain/continuum/ContinuumGeneratedFamilyInventory.ts';
 import ContinuumGeneratedFamilyInventoryEntry
@@ -221,8 +225,12 @@ import createCurrentContinuumGeneratedFamilyInventory
 import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
+import type { ContinuumEvidenceAccessValue } from './src/domain/continuum/ContinuumEvidenceAccess.ts';
 import type { ContinuumEvidenceClaimFields } from './src/domain/continuum/ContinuumEvidenceClaim.ts';
-import type { ContinuumEvidencePostureValue } from './src/domain/continuum/ContinuumEvidencePosture.ts';
+import type { ContinuumEvidenceCompletenessValue } from './src/domain/continuum/ContinuumEvidenceCompleteness.ts';
+import type { ContinuumEvidenceOriginValue } from './src/domain/continuum/ContinuumEvidenceOrigin.ts';
+import type { ContinuumEvidencePostureFields } from './src/domain/continuum/ContinuumEvidencePosture.ts';
+import type { ContinuumEvidenceProofStrengthValue } from './src/domain/continuum/ContinuumEvidenceProofStrength.ts';
 import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
 import type {
   ContinuumGeneratedFamilyInventoryEntryFields,
@@ -366,12 +374,16 @@ export {
   exportCoordinateTransferPlanFact,
   createV18BoundedMemoryCapabilityReport,
 
-  // Continuum compatibility artifacts
+  // Continuum boundary artifacts
   ContinuumArtifactAuthority,
   ContinuumArtifactDescriptor,
   ContinuumArtifactIngestionPolicy,
+  ContinuumEvidenceAccess,
   ContinuumEvidenceClaim,
+  ContinuumEvidenceCompleteness,
+  ContinuumEvidenceOrigin,
   ContinuumEvidencePosture,
+  ContinuumEvidenceProofStrength,
   ContinuumFamilyId,
   ContinuumGeneratedFamilyInventory,
   ContinuumGeneratedFamilyInventoryEntry,
@@ -443,8 +455,12 @@ export type {
   WarpWorldlineCoordinateFrontierEntry,
   ContinuumArtifactAuthorityValue,
   ContinuumArtifactDescriptorFields,
+  ContinuumEvidenceAccessValue,
   ContinuumEvidenceClaimFields,
-  ContinuumEvidencePostureValue,
+  ContinuumEvidenceCompletenessValue,
+  ContinuumEvidenceOriginValue,
+  ContinuumEvidencePostureFields,
+  ContinuumEvidenceProofStrengthValue,
   ContinuumGeneratedFamilyInventoryEntryFields,
   ContinuumGeneratedFamilyStatusValue,
   ContinuumDeliveryObservationFact,
