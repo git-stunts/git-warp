@@ -60,10 +60,10 @@ By the end of this design cycle, the `ContinuumEvidencePosture` class will be re
 ## Current Truth
 
 At the start of this cycle, `ContinuumEvidencePosture.ts` defined the posture as a flat string enum:
-[src/domain/continuum/ContinuumEvidencePosture.ts#8](file:///Users/james/git/git-stunts/git-warp/src/domain/continuum/ContinuumEvidencePosture.ts#L8).
+[src/domain/continuum/ContinuumEvidencePosture.ts#L8](../../../src/domain/continuum/ContinuumEvidencePosture.ts#L8).
 This collapses the dimensions, meaning we cannot distinguish between "translated but witnessed" and "native but redacted" history.
 This flat posture is used inside `ContinuumEvidenceClaim` to validate UCAN-style proof presence:
-[src/domain/continuum/ContinuumEvidenceClaim.ts#50](file:///Users/james/git/git-stunts/git-warp/src/domain/continuum/ContinuumEvidenceClaim.ts#L50).
+[src/domain/continuum/ContinuumEvidenceClaim.ts#L50](../../../src/domain/continuum/ContinuumEvidenceClaim.ts#L50).
 
 Paper VIII also defines `Scratch`, `AuthorOnly`, and `Shared` as revelation postures on observer coordinates and holograms. Those are not evidence-posture values and must not be folded into `ContinuumEvidencePosture`.
 

@@ -146,4 +146,97 @@ describe('git-warp hologram replay semantics', () => {
       payload: ProvenancePayload.identity(),
     })).toThrow(WarpError);
   });
+
+  it('rejects invalid braid hologram structure at runtime boundaries', () => {
+    const patch = makePatch({ writer: 'writer-a', lamport: 1, nodeId: 'node:a' });
+    const alphaMember = new GitWarpBraidHologramMember({
+      strandId: 'strand:a',
+      payload: makePayload(patch, 'f'.repeat(40)),
+    });
+    const duplicateAlphaMember = new GitWarpBraidHologramMember({
+      strandId: 'strand:a',
+      payload: makePayload(patch, '1'.repeat(40)),
+    });
+
+    expect(() => new GitWarpBraidHologram(
+      // @ts-expect-error runtime guard for JavaScript callers
+      undefined,
+    )).toThrow(WarpError);
+
+    expect(() => new GitWarpBraidHologram({
+      settlementId: '',
+      lawId: 'braid-law:non-empty',
+      projectionDigest: 'sha256:non-empty',
+      proofRef: 'proof:non-empty',
+      members: [alphaMember, new GitWarpBraidHologramMember({
+        strandId: 'strand:b',
+        payload: makePayload(patch, '2'.repeat(40)),
+      })],
+    })).toThrow(WarpError);
+
+    expect(() => new GitWarpBraidHologram({
+      settlementId: 'settlement:duplicate',
+      lawId: 'braid-law:duplicate',
+      projectionDigest: 'sha256:duplicate',
+      proofRef: 'proof:duplicate',
+      members: [alphaMember, duplicateAlphaMember],
+    })).toThrow(WarpError);
+
+    expect(() => new GitWarpBraidHologram({
+      settlementId: 'settlement:invalid-member',
+      lawId: 'braid-law:invalid-member',
+      projectionDigest: 'sha256:invalid-member',
+      proofRef: 'proof:invalid-member',
+      members: [alphaMember, { strandId: 'strand:b', payload: makePayload(patch, '3'.repeat(40)) }],
+    })).toThrow(WarpError);
+  });
+
+  it('rejects invalid braid members and suffix-transform fields', () => {
+    const patch = makePatch({ writer: 'writer-a', lamport: 1, nodeId: 'node:a' });
+
+    expect(() => new GitWarpBraidHologramMember(
+      // @ts-expect-error runtime guard for JavaScript callers
+      undefined,
+    )).toThrow(WarpError);
+
+    expect(() => new GitWarpBraidHologramMember({
+      strandId: '',
+      payload: makePayload(patch, '4'.repeat(40)),
+    })).toThrow(WarpError);
+
+    expect(() => new GitWarpBraidHologramMember({
+      strandId: 'strand:empty-payload',
+      payload: ProvenancePayload.identity(),
+    })).toThrow(WarpError);
+
+    expect(() => new GitWarpBraidHologramMember({
+      strandId: 'strand:invalid-payload',
+      // @ts-expect-error runtime guard for JavaScript callers
+      payload: patch,
+    })).toThrow(WarpError);
+
+    expect(() => new GitWarpSuffixTransformHologram(
+      // @ts-expect-error runtime guard for JavaScript callers
+      undefined,
+    )).toThrow(WarpError);
+
+    expect(() => new GitWarpSuffixTransformHologram({
+      sourceFrontierRef: '',
+      basisFrontierRef: 'frontier:local',
+      targetFrontierRef: 'frontier:merged',
+      transportLawId: 'transport-law:non-empty',
+      proofRef: 'proof:non-empty',
+      payload: makePayload(patch, '5'.repeat(40)),
+    })).toThrow(WarpError);
+
+    expect(() => new GitWarpSuffixTransformHologram({
+      sourceFrontierRef: 'frontier:remote',
+      basisFrontierRef: 'frontier:local',
+      targetFrontierRef: 'frontier:merged',
+      transportLawId: 'transport-law:invalid-payload',
+      proofRef: 'proof:invalid-payload',
+      // @ts-expect-error runtime guard for JavaScript callers
+      payload: patch,
+    })).toThrow(WarpError);
+  });
 });

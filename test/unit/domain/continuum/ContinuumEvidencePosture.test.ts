@@ -93,7 +93,33 @@ describe('ContinuumEvidencePosture', () => {
 
     expect(claim.isNativeContinuumEvidence()).toBe(true);
     expect(claim.nativeWitnessProof).toBeUndefined();
+    expect(claim.posture.access.equals(ContinuumEvidenceAccess.redacted())).toBe(true);
     expect(claim.posture.canAuthorizeReplayShortcut()).toBe(false);
+  });
+
+  it('accepts string coordinates and exposes all lattice coordinate helpers', () => {
+    const posture = new ContinuumEvidencePosture({
+      origin: 'fixture',
+      proofStrength: 'digest-only',
+      access: 'credential-required',
+      completeness: 'residual',
+    });
+    const syntheticOrigin = ContinuumEvidenceOrigin.synthetic();
+    const claimedProof = ContinuumEvidenceProofStrength.claimed();
+    const deniedAccess = ContinuumEvidenceAccess.denied();
+    const partialCompleteness = ContinuumEvidenceCompleteness.partial();
+    const obstructedCompleteness = ContinuumEvidenceCompleteness.obstructed();
+
+    expect(posture.toString()).toBe('fixture:digest-only:credential-required:residual');
+    expect(posture.origin.equals(ContinuumEvidenceOrigin.fixture())).toBe(true);
+    expect(posture.proofStrength.equals(ContinuumEvidenceProofStrength.digestOnly())).toBe(true);
+    expect(posture.access.requiresCredential()).toBe(true);
+    expect(posture.completeness.equals(ContinuumEvidenceCompleteness.residual())).toBe(true);
+    expect(syntheticOrigin.toString()).toBe('synthetic');
+    expect(claimedProof.toString()).toBe('claimed');
+    expect(deniedAccess.toString()).toBe('denied');
+    expect(partialCompleteness.toString()).toBe('partial');
+    expect(obstructedCompleteness.toString()).toBe('obstructed');
   });
 
   it('rejects native witness proof when posture is not native evidence', () => {
@@ -130,11 +156,37 @@ describe('ContinuumEvidencePosture', () => {
   it('rejects missing or invalid posture coordinates', () => {
     const descriptor = makeGeneratedReceiptDescriptor();
 
+    expect(() => new ContinuumEvidencePosture(
+      // @ts-expect-error runtime guard for JavaScript callers
+      undefined,
+    )).toThrow(WarpError);
+
     expect(() => new ContinuumEvidencePosture({
       origin: 'invalid',
       proofStrength: 'witnessed',
       access: 'available',
       completeness: 'complete',
+    })).toThrow(WarpError);
+
+    expect(() => new ContinuumEvidencePosture({
+      origin: 'translated',
+      proofStrength: 'invalid',
+      access: 'available',
+      completeness: 'complete',
+    })).toThrow(WarpError);
+
+    expect(() => new ContinuumEvidencePosture({
+      origin: 'translated',
+      proofStrength: 'witnessed',
+      access: 'invalid',
+      completeness: 'complete',
+    })).toThrow(WarpError);
+
+    expect(() => new ContinuumEvidencePosture({
+      origin: 'translated',
+      proofStrength: 'witnessed',
+      access: 'available',
+      completeness: 'invalid',
     })).toThrow(WarpError);
 
     expect(() => new ContinuumEvidenceClaim({

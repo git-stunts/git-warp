@@ -57,7 +57,7 @@ By the end of this design cycle, the domain will define replay-bearing hologram 
 ## Current Truth
 
 Currently, `WormholeService.ts` only supports sequential replay of `ProvenancePayload`:
-[src/domain/services/WormholeService.ts#48](file:///Users/james/git/git-stunts/git-warp/src/domain/services/WormholeService.ts#L48).
+[src/domain/services/WormholeService.ts#L48](../../../src/domain/services/WormholeService.ts#L48).
 There is no representation of Verkle roots, space-time bivariate polynomials, or SNARK proofs in the codebase.
 
 The current Continuum witness ladder already separates replay core, witness core, and receipt shell for tick receipts. It does not yet generalize that replay/materialization contract to braid holograms or suffix-transform holograms.
