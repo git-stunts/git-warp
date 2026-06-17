@@ -89,12 +89,22 @@ jobs:
           fi
           npm run release:guard -- --stage "$STAGE" --tag "${{ steps.meta.outputs.tag }}"
 
+      - name: Lychee link check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --config .lychee.toml
+            '**/*.md'
+          fail: true
+          format: markdown
+          output: ./lychee-report.md
+          jobSummary: true
+
       - name: Verify release tests and docs
         run: |
           npm run lint
           npm run lint:md
           npm run lint:md:code
-          npm run lint:links
           npm run typecheck
           npm run typecheck:policy
           npm run typecheck:consumer
