@@ -206,9 +206,10 @@ describe('release policy shape', () => {
     expect(preflight).not.toContain('Security audit (warning only)');
 
     expect(releaseWorkflow).toContain('Fetch main for release guard');
+    expect(releaseWorkflow).toContain('Lychee link check');
+    expect(releaseWorkflow).toContain('lycheeverse/lychee-action@v2');
     expect(releaseWorkflow).toContain('Verify release tests and docs');
     expect(releaseWorkflow).toContain('npm run lint:md');
-    expect(releaseWorkflow).toContain('npm run lint:links');
     expect(releaseWorkflow).toContain('npm run typecheck:surface');
     expect(releaseWorkflow).toContain('npm run test:coverage:ci');
   });
