@@ -355,16 +355,14 @@ describe('CheckpointService edge cases', () => {
   // --------------------------------------------------------------------------
 
   describe('deserializeFullState edge cases', () => {
-    it('returns empty state for null buffer', () => {
-      const state = deserializeFullState((null as any));
-      expect(state.nodeAlive.elements()).toHaveLength(0);
-      expect(state.edgeAlive.elements()).toHaveLength(0);
-      expect(state.propSize()).toBe(0);
+    it('throws for null buffer', () => {
+      expect(() => deserializeFullState(null as never))
+        .toThrow('Checkpoint state buffer is missing');
     });
 
-    it('returns empty state for undefined buffer', () => {
-      const state = deserializeFullState((undefined as any));
-      expect(state.nodeAlive.elements()).toHaveLength(0);
+    it('throws for undefined buffer', () => {
+      expect(() => deserializeFullState(undefined as never))
+        .toThrow('Checkpoint state buffer is missing');
     });
 
     it('throws for wrong version string', () => {
