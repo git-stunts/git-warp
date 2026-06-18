@@ -1,8 +1,8 @@
 import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
-interface WriterErrorOptions extends WarpErrorOptions {
+type WriterErrorOptions = WarpErrorOptions & {
   readonly cause?: Error | undefined;
-}
+};
 
 /**
  * Error class for Writer operations.
