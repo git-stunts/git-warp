@@ -351,6 +351,9 @@ const worldlineLive: Worldline = warpWorldline.live();
 const worldlineHistorical: Worldline = await warpWorldline.seek({
   source: { kind: 'live', ceiling: 1 },
 });
+const appObserver: Observer = await app.observer(publicUsersAperture);
+const appNamedApertureObserver: Observer = await app.observer('public-users', publicUsersAperture);
+const appAliasApertureObserver: Observer = await app.observer(publicUsersObserverConfig);
 const worldlineObserver: Observer = await warpWorldline.observer({ match: '*' });
 const namedApertureObserver: Observer = await warpWorldline.observer('public-users', publicUsersAperture);
 const aliasApertureObserver: Observer = await warpWorldline.observer(publicUsersObserverConfig);
@@ -367,6 +370,9 @@ void coordinateSource;
 void coordinateOpticAlive;
 void worldlineLive;
 void worldlineHistorical;
+void appObserver;
+void appNamedApertureObserver;
+void appAliasApertureObserver;
 void worldlineObserver;
 void namedApertureObserver;
 void aliasApertureObserver;
