@@ -14,7 +14,7 @@ const maintainerDocsIndex = MarkdownDocument.fromFile(`${repoRoot}.github/mainta
 /**
  * Set of every path tracked by git, keyed by repo-relative POSIX path.
  *
- * Uses `git ls-files` rather than `existsSync`, so docs-shape assertions
+ * Uses `git ls-files` rather than `existsSync`, so docs graph assertions
  * reflect what's in the repository, not the local filesystem. This makes
  * the assertions stable against gitignored filesystem noise (e.g. macOS
  * `.DS_Store` droppings) and meaningful: "is this path tracked?" is the
@@ -43,7 +43,7 @@ function hasFile(relativePath: string): boolean {
   return false;
 }
 
-describe('documentation corpus taxonomy', () => {
+describe('documentation corpus graph', () => {
   it('exposes a docs index and links to it from the root README', () => {
     expect(readme.hasHeading(2, 'Documentation')).toBe(true);
     expect(hasFile('docs/GETTING_STARTED.md')).toBe(true);
