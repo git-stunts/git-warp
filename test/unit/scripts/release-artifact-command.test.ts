@@ -1,13 +1,18 @@
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
-function runNpmPackDryRun(): string {
-  const result = spawnSync('npm', ['pack', '--dry-run', '--ignore-scripts'], {
+function runNpmCommand(args: readonly string[]): string {
+  const result = spawnSync('npm', [...args], {
     encoding: 'utf8',
   });
   expect(result.error).toBeUndefined();
   expect(result.status).toBe(0);
   return `${result.stdout}\n${result.stderr}`;
+}
+
+function runNpmPackDryRun(): string {
+  runNpmCommand(['run', 'build', '--silent']);
+  return runNpmCommand(['pack', '--dry-run', '--ignore-scripts']);
 }
 
 describe('release artifact command evidence', () => {

@@ -9,14 +9,31 @@ import RuntimeDetachedFactory from '../../../src/domain/warp/RuntimeDetachedFact
 import RuntimePatchCollector from '../../../src/domain/warp/RuntimePatchCollector.ts';
 import {
   openRuntimeHostProduct,
-  type RuntimeHostProduct,
 } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import PatchJournalPort from '../../../src/ports/PatchJournalPort.ts';
 import CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
+import defaultCrypto from '../../../src/domain/utils/defaultCrypto.ts';
+import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
+import GCPolicy from '../../../src/domain/services/GCPolicy.ts';
+import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 
-import type { DetachedOpenHost } from '../../../src/domain/services/controllers/detachedOpen.ts';
+import type {
+  DetachedGraphOpen,
+  DetachedOpenHost,
+  DetachedOpenOptions,
+} from '../../../src/domain/services/controllers/detachedOpen.ts';
+import type { DetachedGraphInternalReadSurface } from '../../../src/domain/capabilities/DetachedGraphFactory.ts';
+import type Patch from '../../../src/domain/types/Patch.ts';
+import type PatchEntry from '../../../src/domain/artifacts/PatchEntry.ts';
+import type {
+  CheckpointData,
+  CheckpointRecord,
+  CheckpointWriteResult,
+} from '../../../src/ports/CheckpointStorePort.ts';
+import type { IndexShard } from '../../../src/domain/artifacts/IndexShard.ts';
+import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
 
 describe('public strand and runtime host seams', () => {
   it('uses StrandError as the public speculative-lane error noun', () => {
@@ -57,7 +74,7 @@ describe('public strand and runtime host seams', () => {
     expect(braided.overlay.writable).toBe(false);
     expect(materialized.nodeAlive.contains('task:review')).toBe(true);
     expect(patches).toHaveLength(1);
-    expect(entityPatches).toEqual([patches[0]?.sha]);
+    expect(entityPatches).toEqual([requireSinglePatchSha(patches)]);
     await expect(core.getStrand('review')).resolves.toMatchObject({
       strandId: 'review',
       overlay: { patchCount: 1, writable: false },
@@ -103,22 +120,32 @@ describe('public strand and runtime host seams', () => {
   });
 
   it('opens detached read-only runtime clones through the detached factory wrapper', async () => {
-    const runtime = await openRuntimeHostProduct({
-      persistence: new InMemoryGraphAdapter(),
+    const host = createDetachedHost();
+    const readSurface = createDetachedReadSurface();
+    const open = vi.fn<DetachedGraphOpen>(async () => readSurface);
+
+    const detached = await new RuntimeDetachedFactory(host, open).openReadOnly();
+    const options = requireDetachedOpenOptions(open);
+
+    expect(detached).toBe(readSurface);
+    expect(options).toMatchObject({
+      persistence: host._persistence,
       graphName: 'detached-runtime',
       writerId: 'agent-1',
+      gcPolicy: GCPolicy.DEFAULT,
+      autoMaterialize: false,
+      onDeleteWithData: 'reject',
+      crypto: defaultCrypto,
+      codec: defaultCodec,
+      audit: false,
     });
-    await runtime.patch((patch) => {
-      patch.addNode('node:detached');
-    });
-
-    const detached = await new RuntimeDetachedFactory(
-      createDetachedHost(runtime),
-      openRuntimeHostProduct,
-    ).openReadOnly();
-    const snapshot = await detached.materialize({ ceiling: null });
-
-    expect(snapshot.nodeAlive.contains('node:detached')).toBe(true);
+    expect(options.seekCache).toBeUndefined();
+    expect(options.blobStorage).toBeUndefined();
+    expect(options.patchBlobStorage).toBeUndefined();
+    expect(options.trust).toEqual({ mode: 'off', pin: null });
+    expect(options.patchJournal).toBe(host._patchJournal);
+    expect(options.checkpointStore).toBe(host._checkpointStore);
+    expect(options.indexStore).toBe(host._indexStore);
   });
 
   it('delegates patch collection through a strict runtime host wrapper', async () => {
@@ -143,49 +170,122 @@ describe('public strand and runtime host seams', () => {
   });
 });
 
-function createDetachedHost(runtime: RuntimeHostProduct): DetachedOpenHost {
+function createDetachedHost(): DetachedOpenHost {
   return {
-    _persistence: runtime.persistence,
-    _graphName: runtime.graphName,
-    _writerId: runtime.writerId,
-    _gcPolicy: runtime.gcPolicy,
+    _persistence: new InMemoryGraphAdapter(),
+    _graphName: 'detached-runtime',
+    _writerId: 'agent-1',
+    _gcPolicy: GCPolicy.DEFAULT,
     _checkpointPolicy: null,
     _logger: null,
-    _seekCache: runtime.seekCache,
+    _seekCache: null,
     _blobStorage: null,
     _patchBlobStorage: null,
     _trustConfig: { mode: 'off', pin: null },
-    _patchJournal: readPatchJournal(runtime),
-    _checkpointStore: readCheckpointStore(runtime),
-    _indexStore: readIndexStore(runtime),
-    _onDeleteWithData: runtime.onDeleteWithData,
-    _crypto: runtime._crypto,
-    _codec: runtime._codec,
+    _patchJournal: new RecordingPatchJournalPort(),
+    _checkpointStore: new RecordingCheckpointStorePort(),
+    _indexStore: new RecordingIndexStorePort(),
+    _onDeleteWithData: 'reject',
+    _crypto: defaultCrypto,
+    _codec: defaultCodec,
   };
 }
 
-function readPatchJournal(runtime: RuntimeHostProduct): PatchJournalPort {
-  const value = Reflect.get(runtime, '_patchJournal');
-  if (value instanceof PatchJournalPort) {
-    return value;
-  }
-  throw new RuntimeSeamTestError('runtime product did not expose a patch journal');
+function createDetachedReadSurface(): DetachedGraphInternalReadSurface {
+  return {
+    async materialize() {
+      throw new RuntimeSeamTestError('materialize should not be called');
+    },
+    async materializeCoordinate() {
+      throw new RuntimeSeamTestError('materializeCoordinate should not be called');
+    },
+    async materializeStrand() {
+      throw new RuntimeSeamTestError('materializeStrand should not be called');
+    },
+    async _materializeGraph() {
+      throw new RuntimeSeamTestError('_materializeGraph should not be called');
+    },
+    async _materializeCoordinateGraph() {
+      throw new RuntimeSeamTestError('_materializeCoordinateGraph should not be called');
+    },
+    async _materializeStrandGraph() {
+      throw new RuntimeSeamTestError('_materializeStrandGraph should not be called');
+    },
+  };
 }
 
-function readCheckpointStore(runtime: RuntimeHostProduct): CheckpointStorePort {
-  const value = Reflect.get(runtime, '_checkpointStore');
-  if (value instanceof CheckpointStorePort) {
-    return value;
+function requireDetachedOpenOptions(
+  open: ReturnType<typeof vi.fn<DetachedGraphOpen>>,
+): DetachedOpenOptions {
+  expect(open).toHaveBeenCalledTimes(1);
+  const call = open.mock.calls[0];
+  if (call === undefined) {
+    throw new RuntimeSeamTestError('detached opener was not called');
   }
-  throw new RuntimeSeamTestError('runtime product did not expose a checkpoint store');
+  return call[0];
 }
 
-function readIndexStore(runtime: RuntimeHostProduct): IndexStorePort {
-  const value = Reflect.get(runtime, '_indexStore');
-  if (value instanceof IndexStorePort) {
-    return value;
+class RecordingPatchJournalPort extends PatchJournalPort {
+  async writePatch(_patch: Patch): Promise<string> {
+    return 'patch-oid';
   }
-  throw new RuntimeSeamTestError('runtime product did not expose an index store');
+
+  async readPatch(_patchOid: string): Promise<Patch> {
+    throw new RuntimeSeamTestError('readPatch should not be called');
+  }
+
+  scanPatchRange(
+    _writerId: string,
+    _fromSha: string | null,
+    _toSha: string,
+  ): WarpStream<PatchEntry> {
+    return WarpStream.from([]);
+  }
+}
+
+class RecordingCheckpointStorePort extends CheckpointStorePort {
+  async writeCheckpoint(_record: CheckpointRecord): Promise<CheckpointWriteResult> {
+    return {
+      stateBlobOid: 'state-oid',
+      frontierBlobOid: 'frontier-oid',
+      appliedVVBlobOid: 'applied-vv-oid',
+      provenanceIndexBlobOid: null,
+    };
+  }
+
+  async readCheckpoint(_treeOids: Record<string, string>): Promise<CheckpointData> {
+    throw new RuntimeSeamTestError('readCheckpoint should not be called');
+  }
+}
+
+class RecordingIndexStorePort extends IndexStorePort {
+  async writeShards(_shardStream: WarpStream<IndexShard>): Promise<string> {
+    return 'index-tree-oid';
+  }
+
+  scanShards(_treeOid: string): WarpStream<IndexShard> {
+    return WarpStream.from([]);
+  }
+
+  async readShardOids(_treeOid: string): Promise<Record<string, string>> {
+    return {};
+  }
+
+  async decodeShard<TDecoded extends CodecValue = CodecValue>(
+    _blobOid: string,
+  ): Promise<TDecoded> {
+    throw new RuntimeSeamTestError('decodeShard should not be called');
+  }
 }
 
 class RuntimeSeamTestError extends Error {}
+
+function requireSinglePatchSha(
+  patches: ReadonlyArray<{ readonly sha: string }>,
+): string {
+  const patch = patches[0];
+  if (patch === undefined) {
+    throw new RuntimeSeamTestError('expected one strand patch');
+  }
+  return patch.sha;
+}

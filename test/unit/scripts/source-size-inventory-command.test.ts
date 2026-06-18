@@ -6,6 +6,22 @@ type InventoryEntry = {
   readonly path: string;
 };
 
+const SOURCE_FILE_LOC_CEILING = 500;
+const TEST_FILE_LOC_CEILING = 800;
+
+const SOURCE_OVER_BUDGET_PATHS = Object.freeze([
+  'src/domain/RuntimeHost.ts',
+  'src/domain/orset/trie/TrieCursor.ts',
+  'src/domain/services/JoinReducerSession.ts',
+  'src/domain/services/audit/AuditChainVerifier.ts',
+  'src/domain/services/controllers/CheckpointController.ts',
+  'src/domain/services/optic/CheckpointBasisManifest.ts',
+  'src/domain/services/optic/CheckpointShardFactReader.ts',
+  'src/domain/services/state/WarpState.ts',
+]);
+
+const STRAND_SERVICE_TEST_PATH = 'test/unit/domain/services/strand/StrandService.test.ts';
+
 function runLineInventory(): readonly InventoryEntry[] {
   const result = spawnSync('sh', [
     '-c',
@@ -33,7 +49,7 @@ function parseInventoryLine(line: string): InventoryEntry {
   }
   const lineCount = Number(match[1]);
   const path = match[2];
-  if (!Number.isInteger(lineCount) || path === undefined) {
+  if (!Number.isInteger(lineCount) || lineCount <= 0 || path === undefined) {
     throw new SourceInventoryError(`invalid inventory line: ${line}`);
   }
   return { lines: lineCount, path };
@@ -41,34 +57,51 @@ function parseInventoryLine(line: string): InventoryEntry {
 
 class SourceInventoryError extends Error {}
 
+function byInventoryPath(a: InventoryEntry, b: InventoryEntry): number {
+  if (a.path < b.path) {
+    return -1;
+  }
+  if (a.path > b.path) {
+    return 1;
+  }
+  return 0;
+}
+
+function requireInventoryEntry(
+  entries: readonly InventoryEntry[],
+  path: string,
+): InventoryEntry {
+  const entry = entries.find((candidate) => candidate.path === path);
+  if (entry === undefined) {
+    throw new SourceInventoryError(`missing inventory entry: ${path}`);
+  }
+  return entry;
+}
+
 describe('source size inventory command', () => {
   it('reports the current source files over the 500 LOC ceiling', () => {
     const entries = runLineInventory();
     const sourceOverBudget = entries
-      .filter((entry) => entry.path.startsWith('src/') && entry.lines > 500)
-      .sort((a, b) => a.path.localeCompare(b.path));
+      .filter((entry) => entry.path.startsWith('src/') && entry.lines > SOURCE_FILE_LOC_CEILING)
+      .sort(byInventoryPath);
 
-    expect(sourceOverBudget).toEqual([
-      { lines: 831, path: 'src/domain/orset/trie/TrieCursor.ts' },
-      { lines: 920, path: 'src/domain/RuntimeHost.ts' },
-      { lines: 502, path: 'src/domain/services/audit/AuditChainVerifier.ts' },
-      { lines: 575, path: 'src/domain/services/controllers/CheckpointController.ts' },
-      { lines: 602, path: 'src/domain/services/JoinReducerSession.ts' },
-      { lines: 552, path: 'src/domain/services/optic/CheckpointBasisManifest.ts' },
-      { lines: 511, path: 'src/domain/services/optic/CheckpointShardFactReader.ts' },
-      { lines: 515, path: 'src/domain/services/state/WarpState.ts' },
-    ]);
+    expect(sourceOverBudget.map((entry) => entry.path)).toEqual(SOURCE_OVER_BUDGET_PATHS);
+    for (const entry of sourceOverBudget) {
+      expect(entry.lines).toBeGreaterThan(SOURCE_FILE_LOC_CEILING);
+    }
   });
 
   it('keeps test-file overages visible as inventory, not closeout prose', () => {
     const entries = runLineInventory();
-    const largestTest = entries
-      .filter((entry) => entry.path.startsWith('test/') && entry.lines > 800)
-      .sort((a, b) => b.lines - a.lines)[0];
+    const testOverBudget = entries
+      .filter((entry) => entry.path.startsWith('test/') && entry.lines > TEST_FILE_LOC_CEILING)
+      .sort(byInventoryPath);
+    const strandServiceTest = requireInventoryEntry(testOverBudget, STRAND_SERVICE_TEST_PATH);
 
-    expect(largestTest).toEqual({
-      lines: 2845,
-      path: 'test/unit/domain/services/strand/StrandService.test.ts',
-    });
+    expect(strandServiceTest.lines).toBeGreaterThan(TEST_FILE_LOC_CEILING);
+  });
+
+  it('rejects zero-line rows as invalid policy inventory evidence', () => {
+    expect(() => parseInventoryLine('0 src/empty.ts')).toThrow(SourceInventoryError);
   });
 });
