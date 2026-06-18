@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawnSync, type SpawnSyncOptionsWithStringEncoding, type SpawnSyncReturns } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
 type InventoryEntry = {
@@ -6,8 +6,29 @@ type InventoryEntry = {
   readonly path: string;
 };
 
+const COMMAND_TIMEOUT_MS = 120_000;
 const SOURCE_FILE_LOC_CEILING = 500;
 const TEST_FILE_LOC_CEILING = 800;
+const LINE_INVENTORY_COMMAND = [
+  "find src bin scripts test/unit test/conformance -path '*/node_modules/*' -prune -o",
+  "-type f \\( -name '*.ts' -o -name '*.js' -o -name '*.sh' \\) -print0",
+  '| xargs -0 wc -l',
+].join(' ');
+
+type CommandRunner = (
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) => SpawnSyncReturns<string>;
+
+type SpawnCall = {
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly timeout: SpawnSyncOptionsWithStringEncoding['timeout'];
+  readonly killSignal: SpawnSyncOptionsWithStringEncoding['killSignal'];
+};
+
+const defaultCommandRunner: CommandRunner = (command, args, options) => spawnSync(command, [...args], options);
 
 const SOURCE_OVER_BUDGET_PATHS = Object.freeze([
   'src/domain/RuntimeHost.ts',
@@ -22,16 +43,14 @@ const SOURCE_OVER_BUDGET_PATHS = Object.freeze([
 
 const STRAND_SERVICE_TEST_PATH = 'test/unit/domain/services/strand/StrandService.test.ts';
 
-function runLineInventory(): readonly InventoryEntry[] {
-  const result = spawnSync('sh', [
+function runLineInventory(runner: CommandRunner = defaultCommandRunner): readonly InventoryEntry[] {
+  const result = runner('sh', [
     '-c',
-    [
-      "find src bin scripts test/unit test/conformance -path '*/node_modules/*' -prune -o",
-      "-type f \\( -name '*.ts' -o -name '*.js' -o -name '*.sh' \\) -print0",
-      '| xargs -0 wc -l',
-    ].join(' '),
+    LINE_INVENTORY_COMMAND,
   ], {
     encoding: 'utf8',
+    timeout: COMMAND_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
   });
   expect(result.error).toBeUndefined();
   expect(result.status).toBe(0);
@@ -57,6 +76,17 @@ function parseInventoryLine(line: string): InventoryEntry {
 
 class SourceInventoryError extends Error {}
 
+function successfulSpawnResult(stdout: string): SpawnSyncReturns<string> {
+  return {
+    pid: 0,
+    output: [null, stdout, ''],
+    stdout,
+    stderr: '',
+    status: 0,
+    signal: null,
+  };
+}
+
 function byInventoryPath(a: InventoryEntry, b: InventoryEntry): number {
   if (a.path < b.path) {
     return -1;
@@ -79,6 +109,28 @@ function requireInventoryEntry(
 }
 
 describe('source size inventory command', () => {
+  it('bounds the inventory subprocess with a timeout', () => {
+    const calls: SpawnCall[] = [];
+    const recordingRunner: CommandRunner = (command, args, options) => {
+      calls.push({
+        command,
+        args: [...args],
+        timeout: options.timeout,
+        killSignal: options.killSignal,
+      });
+      return successfulSpawnResult('1 src/index.ts\n');
+    };
+
+    runLineInventory(recordingRunner);
+
+    expect(calls).toEqual([{
+      command: 'sh',
+      args: ['-c', LINE_INVENTORY_COMMAND],
+      timeout: COMMAND_TIMEOUT_MS,
+      killSignal: 'SIGKILL',
+    }]);
+  });
+
   it('reports the current source files over the 500 LOC ceiling', () => {
     const entries = runLineInventory();
     const sourceOverBudget = entries
