@@ -5,8 +5,10 @@
 
 ## What changed
 
-- added the suite ratchet at
-  [warpruntime-suite-migration.test.ts](../../../../test/unit/scripts/warpruntime-suite-migration.test.ts)
+- added suite evidence now carried by
+  [runtimeProductExecutableSurface.test.ts](../../../../test/unit/domain/runtimeProductExecutableSurface.test.ts),
+  [publicReadApiExecutablePaths.test.ts](../../../../test/unit/domain/publicReadApiExecutablePaths.test.ts),
+  and [publicStrandAndRuntimeSeams.test.ts](../../../../test/unit/domain/publicStrandAndRuntimeSeams.test.ts)
 - moved runtime-facing unit, integration, service, and infrastructure-adapter
   suites away from direct `WarpRuntime` imports and `WarpRuntime.open(...)`
 - renamed the remaining runtime-named core tests to `WarpCore.*`
@@ -27,7 +29,7 @@ removal.
 
 ## Witness
 
-- `npm exec vitest run test/unit/scripts/warpruntime-suite-migration.test.ts test/unit/scripts/migrate-warpruntime-test-helper-split.test.ts test/unit/scripts/delete-warpruntime-class-split.test.ts test/unit/scripts/kill-warpruntime-split.test.ts`
+- `npm exec vitest run test/unit/domain/runtimeProductExecutableSurface.test.ts test/unit/domain/publicReadApiExecutablePaths.test.ts test/unit/domain/publicStrandAndRuntimeSeams.test.ts`
 - `npm exec vitest run $(git diff --name-only --diff-filter=ACM | rg '^test/.*\.test\.ts$' | rg -v 'WarpGraph\.(serve|syncAuth|syncWith)\.test\.ts')`
 - `npm exec vitest run test/unit/domain/WarpGraph.serve.test.ts test/unit/domain/WarpGraph.syncAuth.test.ts test/unit/domain/WarpGraph.syncWith.test.ts`
 - `npm run typecheck`

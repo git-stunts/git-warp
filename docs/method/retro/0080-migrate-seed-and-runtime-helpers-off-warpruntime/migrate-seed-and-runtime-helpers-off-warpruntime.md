@@ -12,8 +12,9 @@
   to `WarpCore.open(...)`
 - removed `WarpRuntime` helper-contract wording from
   [concurrencyHarness.ts](../../../../test/helpers/concurrencyHarness.ts)
-- added the helper ratchet at
-  [warpruntime-helper-migration.test.ts](../../../../test/unit/scripts/warpruntime-helper-migration.test.ts)
+- added helper coverage now carried by
+  [publicApiExecutableExamples.test.ts](../../../../test/unit/domain/publicApiExecutableExamples.test.ts)
+  and [warpGraphTestUtilsStructure.test.ts](../../../../test/unit/helpers/warpGraphTestUtilsStructure.test.ts)
 - advanced the runtime-kill chain so the next remaining blocker is
   `DX_migrate-runtime-suites-off-warpruntime`
 
@@ -25,7 +26,7 @@ delete cost in the suites themselves instead of hiding it in shared setup.
 
 ## Witness
 
-- `npm exec vitest run test/unit/scripts/warpruntime-helper-migration.test.ts test/unit/scripts/migrate-warpruntime-test-helper-split.test.ts test/unit/scripts/delete-warpruntime-class-split.test.ts test/unit/scripts/kill-warpruntime-split.test.ts`
+- `npm exec vitest run test/unit/domain/publicApiExecutableExamples.test.ts test/unit/helpers/warpGraphTestUtilsStructure.test.ts`
 - `npm exec vitest run test/unit/domain/WarpCore.content.test.ts test/unit/domain/WarpCore.effectPipeline.test.ts test/unit/domain/WarpCore.emit.test.ts test/integration/api/fork.test.ts`
 - `npm run typecheck`
 - `git diff --check`

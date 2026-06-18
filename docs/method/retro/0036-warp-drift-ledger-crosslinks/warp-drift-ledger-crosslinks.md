@@ -48,18 +48,26 @@ The cycle succeeded because it kept those responsibilities distinct.
 ### The crosslink contract is now ratcheted
 
 The cycle added
-[warp-drift-crosslinks-shape.test.ts](../../../../test/unit/scripts/warp-drift-crosslinks-shape.test.ts)
-so the repo will fail loudly if those crosslinks disappear later.
+`test/unit/scripts/warp-drift-crosslinks-shape.test.ts` so the repo would fail
+loudly if those crosslinks disappeared later.
+
+That historical ratchet has since been retired. Current successor coverage lives
+at
+[warp-drift-doc-graph.test.ts](../../../../test/unit/scripts/warp-drift-doc-graph.test.ts).
 
 For a small docs hygiene slice, that is the right outcome: the fix is now
 structural instead of purely editorial.
 
 ## Verification
 
-Passed:
+Passed at cycle close:
 
 - `git diff --check`
 - `npm exec vitest run test/unit/scripts/warp-drift-crosslinks-shape.test.ts test/unit/scripts/glossary-shape.test.ts test/unit/scripts/observer-geometry-ladder-shape.test.ts`
+
+Current successor coverage:
+
+- `npm exec vitest run test/unit/scripts/warp-drift-doc-graph.test.ts test/unit/scripts/glossary-shape.test.ts test/unit/scripts/observer-geometry-ladder-shape.test.ts`
 
 Key witness commits:
 

@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import V17CheckpointBasisArtifactFixture from './fixtures/V17CheckpointBasisArtifactFixture.ts';
 import V17CheckpointIndexTreeFixture from './fixtures/V17CheckpointIndexTreeFixture.ts';
@@ -21,17 +18,7 @@ import V17OpticFailureExpectations from './fixtures/V17OpticFailureExpectations.
 import V17PublicOpticReadPath from './fixtures/V17PublicOpticReadPath.ts';
 import V17TailBudgetExceededFixture from './fixtures/V17TailBudgetExceededFixture.ts';
 
-const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const DELIVERY_PLAN_PATH = 'docs/design/0112-v17-foundation-delivery-plan.md';
 const failures = new V17OpticFailureExpectations();
-
-function readRepoFile(path: string): string {
-  return readFileSync(join(REPO_ROOT, path), 'utf8');
-}
-
-function collapseWhitespace(value: string): string {
-  return value.replace(/\s+/gu, ' ');
-}
 
 describe('v17 checkpoint-tail optic read basis', () => {
   it('requires exact node optic reads to avoid _materializeGraph()', async () => {
@@ -321,14 +308,5 @@ describe('v17 checkpoint-tail optic read basis', () => {
       cause: 'checkpoint-shard-invalid',
     });
     materialization.expectUnused();
-  });
-
-  it('keeps checkpoint tail semantics causal rather than scalar', () => {
-    const deliveryPlan = collapseWhitespace(readRepoFile(DELIVERY_PLAN_PATH));
-
-    expect(deliveryPlan).toContain('live suffix scan after that checkpoint frontier');
-    expect(deliveryPlan).toContain('across all relevant writers and lanes');
-    expect(deliveryPlan).toContain('all lane and writer suffixes not covered by the checkpoint frontier');
-    expect(deliveryPlan).toContain('Do not assume one writer, one lane, or one scalar tail.');
   });
 });

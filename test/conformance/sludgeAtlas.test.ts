@@ -1,15 +1,8 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
+import sludgeMap from '../../policy/sludge/sludge-map.json' with { type: 'json' };
 
-const SLUDGE_MAP_PATH = 'policy/sludge/sludge-map.json';
-const GUIDE_PATH = 'docs/method/refactoring-guides/anti-sludge-refactoring-guide.md';
-const DESIGN_PATH = 'docs/design/0097-sludge-atlas-and-refactor-guide.md';
-
-const REQUIRED_FAMILY_IDS = [
+const REQUIRED_FAMILY_IDS = Object.freeze([
   'cast-theater',
   'boundary-leakage',
   'anonymous-bag-models',
@@ -17,24 +10,14 @@ const REQUIRED_FAMILY_IDS = [
   'port-impersonation',
   'generic-preservation-lies',
   'default-behavior-bugs',
-] as const;
+]);
 
-const REQUIRED_FINDING_PATHS = [
+const REQUIRED_FINDING_PATHS = Object.freeze([
   'src/domain/services/provenance/BTR.ts',
   'src/domain/services/provenance/btrOperations.ts',
   'src/domain/services/ImmutableSnapshot.ts',
   'src/domain/services/index/PropertyIndexReader.ts',
-] as const;
-
-const REQUIRED_GUIDE_SECTIONS = [
-  'Anti-pattern: Cast Theater',
-  'Anti-pattern: Boundary Leakage',
-  'Anti-pattern: Anonymous Bag Models',
-  'Anti-pattern: Canonical Byte Violations',
-  'Anti-pattern: Port Impersonation',
-  'Anti-pattern: Generic Preservation Lies',
-  'Anti-pattern: Default Behavior Bugs',
-] as const;
+]);
 
 type SludgeFinding = {
   readonly path?: string;
@@ -64,16 +47,12 @@ type SludgeMap = {
   readonly families?: readonly SludgeFamily[];
 };
 
-function readRepoFile(path: string): string {
-  return readFileSync(join(REPO_ROOT, path), 'utf8');
-}
+const atlas: SludgeMap = sludgeMap;
 
-function readSludgeMap(): SludgeMap {
-  return JSON.parse(readRepoFile(SLUDGE_MAP_PATH)) as SludgeMap;
-}
+class SludgeAtlasTestError extends Error {}
 
-function allFindings(sludgeMap: SludgeMap): readonly SludgeFinding[] {
-  return sludgeMap.families?.flatMap((family) => family.findings ?? []) ?? [];
+function allFindings(map: SludgeMap): readonly SludgeFinding[] {
+  return map.families?.flatMap((family) => family.findings ?? []) ?? [];
 }
 
 function assertNonEmptyString(value: string | undefined, field: string): void {
@@ -82,24 +61,17 @@ function assertNonEmptyString(value: string | undefined, field: string): void {
 }
 
 describe('sludge atlas contract', () => {
-  it('parses the sludge map and points back to the blocked source cycle', () => {
-    const sludgeMap = readSludgeMap();
+  it('publishes structured release-blocking families for the blocked cycle', () => {
+    const familyIds = new Set((atlas.families ?? []).map((family) => family.id));
 
-    expect(sludgeMap.source_cycle_blocked).toBe('0096-purge-cast-hacks');
-  });
-
-  it('includes the required sludge families', () => {
-    const sludgeMap = readSludgeMap();
-    const familyIds = new Set((sludgeMap.families ?? []).map((family) => family.id));
-
+    expect(atlas.source_cycle_blocked).toBe('0096-purge-cast-hacks');
     for (const familyId of REQUIRED_FAMILY_IDS) {
       expect(familyIds.has(familyId), familyId).toBe(true);
     }
   });
 
-  it('includes findings for the required source paths', () => {
-    const sludgeMap = readSludgeMap();
-    const findingPaths = new Set(allFindings(sludgeMap).map((finding) => finding.path));
+  it('includes structured findings for required source paths', () => {
+    const findingPaths = new Set(allFindings(atlas).map((finding) => finding.path));
 
     for (const path of REQUIRED_FINDING_PATHS) {
       expect(findingPaths.has(path), path).toBe(true);
@@ -107,9 +79,7 @@ describe('sludge atlas contract', () => {
   });
 
   it('gives every finding a concrete diagnosis and recommended repair', () => {
-    const sludgeMap = readSludgeMap();
-
-    for (const finding of allFindings(sludgeMap)) {
+    for (const finding of allFindings(atlas)) {
       assertNonEmptyString(finding.path, 'path');
       assertNonEmptyString(finding.symptom, `${finding.path}: symptom`);
       assertNonEmptyString(finding.root_cause, `${finding.path}: root_cause`);
@@ -118,19 +88,21 @@ describe('sludge atlas contract', () => {
   });
 
   it('marks cast-purge blockers explicitly', () => {
-    const sludgeMap = readSludgeMap();
-    const blockingFindings = allFindings(sludgeMap)
-      .filter((finding) => finding.blocks?.includes('0096-purge-cast-hacks') === true);
+    const blockedCycle = atlas.source_cycle_blocked;
+    if (blockedCycle === undefined) {
+      throw new SludgeAtlasTestError('expected blocked cycle');
+    }
+    const blockingFindings = allFindings(atlas)
+      .filter((finding) => finding.blocks?.includes(blockedCycle) === true);
 
     expect(blockingFindings.length).toBeGreaterThan(0);
     for (const finding of blockingFindings) {
-      expect(finding.blocks).toContain('0096-purge-cast-hacks');
+      expect(finding.blocks?.includes(blockedCycle)).toBe(true);
     }
   });
 
   it('requires proposed nouns to state ownership, invariant, and eliminated sludge', () => {
-    const sludgeMap = readSludgeMap();
-    const findingsWithNouns = allFindings(sludgeMap)
+    const findingsWithNouns = allFindings(atlas)
       .filter((finding) => (finding.proposed_nouns ?? []).length > 0);
 
     expect(findingsWithNouns.length).toBeGreaterThan(0);
@@ -144,19 +116,5 @@ describe('sludge atlas contract', () => {
         assertNonEmptyString(noun.eliminates, `${finding.path}: proposed_noun.eliminates`);
       }
     }
-  });
-
-  it('keeps the refactoring guide anchored to required anti-patterns', () => {
-    const guide = readRepoFile(GUIDE_PATH);
-
-    for (const section of REQUIRED_GUIDE_SECTIONS) {
-      expect(guide).toContain(section);
-    }
-  });
-
-  it('states that implementation follows dependency order instead of grep order', () => {
-    const design = readRepoFile(DESIGN_PATH);
-
-    expect(design).toContain('dependency order instead of grep order');
   });
 });
