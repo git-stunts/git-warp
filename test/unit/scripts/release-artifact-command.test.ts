@@ -16,6 +16,8 @@ type SpawnCall = {
   readonly killSignal: SpawnSyncOptionsWithStringEncoding['killSignal'];
 };
 
+type PackSectionName = 'Tarball Contents' | 'Tarball Details';
+
 const defaultCommandRunner: CommandRunner = (command, args, options) => spawnSync(command, [...args], options);
 
 function runNpmCommand(args: readonly string[], runner: CommandRunner = defaultCommandRunner): string {
@@ -38,11 +40,11 @@ function packEntries(output: string): ReadonlySet<string> {
   const entries = new Set<string>();
   let inContents = false;
   for (const line of output.split('\n')) {
-    if (line === 'npm notice Tarball Contents') {
+    if (isPackSectionHeader(line, 'Tarball Contents')) {
       inContents = true;
       continue;
     }
-    if (line === 'npm notice Tarball Details') {
+    if (isPackSectionHeader(line, 'Tarball Details')) {
       break;
     }
     if (!inContents) {
@@ -54,6 +56,11 @@ function packEntries(output: string): ReadonlySet<string> {
     }
   }
   return entries;
+}
+
+function isPackSectionHeader(line: string, sectionName: PackSectionName): boolean {
+  const normalizedHeader = line.replaceAll('=', '').replace(/\s+/gu, ' ').trim();
+  return line.includes(sectionName) && normalizedHeader === `npm notice ${sectionName}`;
 }
 
 function packEntryPath(line: string): string | null {
@@ -93,6 +100,17 @@ describe('release artifact command evidence', () => {
       timeout: COMMAND_TIMEOUT_MS,
       killSignal: 'SIGKILL',
     }]);
+  });
+
+  it('parses decorated npm pack section headers', () => {
+    const entries = packEntries([
+      'npm notice === Tarball Contents ===',
+      'npm notice 1.2kB dist/index.js',
+      'npm notice === Tarball Details ===',
+      'npm notice name: @git-stunts/git-warp',
+    ].join('\n'));
+
+    expect(entries).toEqual(new Set(['dist/index.js']));
   });
 
   it('dry-runs the packed npm artifact and exposes the compiled public surface', () => {
