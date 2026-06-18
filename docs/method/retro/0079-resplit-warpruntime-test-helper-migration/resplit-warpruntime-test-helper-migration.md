@@ -16,11 +16,11 @@
   `DX_migrate-tests-and-seed-helpers-off-warpruntime` →
   `API_delete-warpruntime-class` →
   `API_kill-warpruntime`
-- added and updated the ratchets:
-  - [migrate-warpruntime-test-helper-split.test.ts](../../../../test/unit/scripts/migrate-warpruntime-test-helper-split.test.ts)
+- added and updated the ratchets, now carried by executable replacement evidence:
+  - [publicApiExecutableExamples.test.ts](../../../../test/unit/domain/publicApiExecutableExamples.test.ts)
+  - [publicStrandAndRuntimeSeams.test.ts](../../../../test/unit/domain/publicStrandAndRuntimeSeams.test.ts)
   - [openwarpgraph-composition-root.test.ts](../../../../test/unit/scripts/openwarpgraph-composition-root.test.ts)
   - [WarpGraph.public-sync.test.ts](../../../../test/unit/domain/WarpGraph.public-sync.test.ts)
-  - [kill-warpruntime-split.test.ts](../../../../test/unit/scripts/kill-warpruntime-split.test.ts)
 
 ## Why it mattered
 
@@ -31,5 +31,5 @@ another giant test-surface bomb inside one blocker note.
 
 ## Witness
 
-- `npm exec vitest run test/unit/scripts/migrate-warpruntime-test-helper-split.test.ts test/unit/scripts/openwarpgraph-composition-root.test.ts test/unit/domain/WarpGraph.public-sync.test.ts test/unit/scripts/kill-warpruntime-split.test.ts`
+- `npm exec vitest run test/unit/domain/publicApiExecutableExamples.test.ts test/unit/domain/publicStrandAndRuntimeSeams.test.ts test/unit/scripts/openwarpgraph-composition-root.test.ts test/unit/domain/WarpGraph.public-sync.test.ts`
 - `git diff --check`

@@ -1,68 +1,38 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
-
-const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
-
-const PROP_VALUE_PATH = 'src/domain/types/PropValue.ts';
-const IMMUTABLE_SNAPSHOT_PATH = 'src/domain/services/ImmutableSnapshot.ts';
-const MATERIALIZE_CAPABILITY_PATH = 'src/domain/capabilities/MaterializeCapability.ts';
-const QUERY_CAPABILITY_PATH = 'src/domain/capabilities/QueryCapability.ts';
-const QUERY_READS_PATH = 'src/domain/services/controllers/QueryReads.ts';
-const STATE_READER_CONTEXT_PATH = 'src/domain/services/state/StateReaderContext.ts';
-const SNAPSHOT_OR_SET_PATH = 'src/domain/services/snapshot/SnapshotORSet.ts';
-const SNAPSHOT_WARP_STATE_PATH = 'src/domain/services/snapshot/SnapshotWarpState.ts';
+import {
+  ImmutableBytes,
+  SnapshotORSet,
+  SnapshotVersionVector,
+  SnapshotWarpState,
+  createSnapshotORSet,
+  createSnapshotPropValue,
+  createSnapshotPropertyValues,
+  createSnapshotWarpState,
+} from '../../src/domain/services/ImmutableSnapshot.ts';
+import { createEmptyState, encodePropKey } from '../../src/domain/services/JoinReducer.ts';
+import type { SnapshotPropValue } from '../../src/domain/services/snapshot/SnapshotPropValue.ts';
+import { EventId } from '../../src/domain/utils/EventId.ts';
 
 type SnapshotEntry = {
   readonly element: string;
   readonly dots: readonly string[];
 };
 
-type SnapshotORSetView = {
-  contains(element: string): boolean;
-  elements(): readonly string[];
-  countEntries(): number;
-  countLiveDots(): number;
-  countTombstones(): number;
-  getDots(element: string): readonly string[];
-  hasDot(element: string, encodedDot: string): boolean;
-  isTombstoned(encodedDot: string): boolean;
-  entries(): readonly SnapshotEntry[];
-  entryDots(): readonly string[];
-  tombstones(): readonly string[];
-};
-
-type SnapshotFactoryModule = {
-  readonly createSnapshotORSet?: (value: ORSet) => SnapshotORSetView;
-};
-
-function readRepoFile(path: string): string {
-  return readFileSync(join(REPO_ROOT, path), 'utf8');
-}
-
-function readDomainSource(): string {
-  return domainSourceFiles('src/domain')
-    .map((path) => readRepoFile(path))
-    .join('\n');
-}
-
-function classSource(source: string, className: string): string {
-  const classPrefix = '(?:export\\s+)?(?:default\\s+)?class';
-  const startPattern = new RegExp(`${classPrefix}\\s+${className}\\b`, 'u');
-  const start = source.search(startPattern);
-  if (start === -1) {
-    return '';
+function compareStrings(left: string, right: string): number {
+  if (left < right) {
+    return -1;
   }
-  const rest = source.slice(start);
-  const nextClass = rest.slice(1).search(/\n(?:export\s+)?(?:default\s+)?class\s+\w+\b/u);
-  return nextClass === -1 ? rest : rest.slice(0, nextClass + 1);
+  if (left > right) {
+    return 1;
+  }
+  return 0;
 }
 
 function sortedStrings(values: readonly string[]): string[] {
-  return [...values].sort((left, right) => left.localeCompare(right));
+  return [...values].sort(compareStrings);
 }
 
 function sortedEntries(entries: readonly SnapshotEntry[]): SnapshotEntry[] {
@@ -71,39 +41,19 @@ function sortedEntries(entries: readonly SnapshotEntry[]): SnapshotEntry[] {
       element: entry.element,
       dots: sortedStrings(entry.dots),
     }))
-    .sort((left, right) => left.element.localeCompare(right.element));
-}
-
-function domainSourceFiles(path: string): string[] {
-  const absolutePath = join(REPO_ROOT, path);
-  if (!existsSync(absolutePath)) {
-    return [];
-  }
-  const entries = readdirSync(absolutePath, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    const childPath = `${path}/${entry.name}`;
-    if (entry.isDirectory()) {
-      files.push(...domainSourceFiles(childPath));
-      continue;
-    }
-    if (entry.isFile() && entry.name.endsWith('.ts')) {
-      files.push(childPath);
-    }
-  }
-  return files;
+    .sort((left, right) => compareStrings(left.element, right.element));
 }
 
 function mutateStringArray(values: readonly string[]): void {
   try {
     Reflect.set(values, '0', 'mutated');
   } catch {
-    // Frozen arrays may throw. The assertion is that later reads do not change.
+    // Frozen arrays may throw. Later assertions verify the value stayed stable.
   }
   try {
     Reflect.apply(Array.prototype.push, values, ['extra']);
   } catch {
-    // Frozen arrays may throw. The assertion is that later reads do not change.
+    // Frozen arrays may throw. Later assertions verify the value stayed stable.
   }
 }
 
@@ -111,110 +61,101 @@ function mutateSnapshotEntry(entry: SnapshotEntry): void {
   try {
     Reflect.set(entry, 'element', 'mutated-entry');
   } catch {
-    // Frozen entry objects may throw. The assertion is that later reads do not change.
+    // Frozen entry objects may throw. Later assertions verify stability.
   }
   mutateStringArray(entry.dots);
 }
 
-async function loadSnapshotFactoryModule(): Promise<SnapshotFactoryModule> {
-  return import('../../src/domain/services/ImmutableSnapshot.ts');
+function requireImmutableBytes(value: SnapshotPropValue | undefined): ImmutableBytes {
+  if (value instanceof ImmutableBytes) {
+    return value;
+  }
+  throw new SnapshotPropValueApiModelTestError('expected ImmutableBytes');
 }
 
+function isSnapshotPropValueArray(
+  value: SnapshotPropValue,
+): value is readonly SnapshotPropValue[] {
+  return Array.isArray(value);
+}
+
+function requireSnapshotRecord(
+  value: SnapshotPropValue | undefined,
+): { readonly [key: string]: SnapshotPropValue } {
+  if (value === undefined || value === null) {
+    throw new SnapshotPropValueApiModelTestError('expected snapshot property record');
+  }
+  if (isSnapshotPropValueArray(value) || value instanceof ImmutableBytes || typeof value !== 'object') {
+    throw new SnapshotPropValueApiModelTestError('expected snapshot property record');
+  }
+  return value;
+}
+
+function requireSnapshotArray(
+  value: SnapshotPropValue | undefined,
+): readonly SnapshotPropValue[] {
+  if (value !== undefined && isSnapshotPropValueArray(value)) {
+    return value;
+  }
+  throw new SnapshotPropValueApiModelTestError('expected snapshot property array');
+}
+
+class SnapshotPropValueApiModelTestError extends Error {}
+
 describe('snapshot PropValue API model', () => {
-  it('keeps storage PropValue storage-shaped and separate from immutable snapshot bytes', () => {
-    const propValueSource = readRepoFile(PROP_VALUE_PATH);
-    const domainSource = readDomainSource();
+  it('projects byte values recursively into immutable public bytes', () => {
+    const sourceBytes = new Uint8Array([1, 2, 3]);
+    const snapshot = createSnapshotPropertyValues({
+      bytes: sourceBytes,
+      nested: {
+        list: [sourceBytes],
+      },
+    });
 
-    expect(propValueSource).toContain('Uint8Array');
-    expect(propValueSource).not.toContain('ImmutableBytes');
-    expect(domainSource).toMatch(/class\s+ImmutableBytes\b/u);
-    expect(domainSource).toMatch(/type\s+SnapshotPropValue\b[\s\S]*ImmutableBytes/u);
+    sourceBytes[0] = 9;
+
+    const topLevelBytes = requireImmutableBytes(snapshot['bytes']);
+    const nested = requireSnapshotRecord(snapshot['nested']);
+    const list = requireSnapshotArray(nested['list']);
+    const nestedBytes = requireImmutableBytes(list[0]);
+    const mutableCopy = topLevelBytes.toUint8Array();
+    mutableCopy[1] = 9;
+
+    expect(topLevelBytes.toArray()).toEqual([1, 2, 3]);
+    expect(nestedBytes.toArray()).toEqual([1, 2, 3]);
+    expect(Object.isFrozen(list)).toBe(true);
+    expect(Object.isFrozen(nested)).toBe(true);
   });
 
-  it('requires public state snapshots to use SnapshotWarpState instead of storage WarpState', () => {
-    const immutableSnapshotSource = readRepoFile(IMMUTABLE_SNAPSHOT_PATH);
-    const materializeCapabilitySource = readRepoFile(MATERIALIZE_CAPABILITY_PATH);
-    const queryCapabilitySource = readRepoFile(QUERY_CAPABILITY_PATH);
-    const domainSource = readDomainSource();
+  it('creates SnapshotWarpState with read-side wrappers and immutable byte properties', () => {
+    const state = createEmptyState();
+    state.nodeAlive.add('node-a', Dot.create('writer-a', 1));
+    state.mutatePropLWW(
+      encodePropKey('node-a', 'bytes'),
+      new EventId(1, 'writer-a', 'aabbccdd', 0),
+      new Uint8Array([4, 5, 6]),
+    );
 
-    expect(domainSource).toMatch(/class\s+SnapshotWarpState\b/u);
-    expect(immutableSnapshotSource).toMatch(/createSnapshotWarpState\s*\(\s*state:\s*WarpState\s*\)\s*:\s*SnapshotWarpState/u);
-    expect(immutableSnapshotSource).not.toMatch(/createImmutableWarpStateSnapshot\s*\(\s*state:\s*WarpState\s*\)\s*:\s*WarpState/u);
+    const snapshot = createSnapshotWarpState(state);
+    const prop = snapshot.prop.get(encodePropKey('node-a', 'bytes'));
 
-    // MaterializeCapability is the public read-side materialization surface.
-    // This does not ban internal/live reducer or cache APIs from returning WarpState.
-    expect(materializeCapabilitySource).toContain('SnapshotWarpState');
-    expect(materializeCapabilitySource).not.toMatch(/type\s+MaterializeWithReceipts\s*=\s*\{[\s\S]*?\bstate\s*:\s*WarpState\b/u);
-    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materialize\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*>/u);
-    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materialize\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*\|/u);
-    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materializeCoordinate\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*>/u);
-    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materializeCoordinate\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*\|/u);
-    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materializeAt\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*>/u);
-    expect(queryCapabilitySource).not.toMatch(/getStateSnapshot\s*\([^)]*\)\s*:\s*Promise\s*<\s*WarpState\s*\|\s*null\s*>/u);
+    expect(snapshot).toBeInstanceOf(SnapshotWarpState);
+    expect(snapshot.nodeAlive).toBeInstanceOf(SnapshotORSet);
+    expect(snapshot.observedFrontier).toBeInstanceOf(SnapshotVersionVector);
+    expect(requireImmutableBytes(prop?.value).toArray()).toEqual([4, 5, 6]);
+    const setMethod = Reflect.get(snapshot.prop, 'set');
+    expect(() => {
+      Reflect.apply(setMethod, snapshot.prop, ['intruder', prop]);
+    }).toThrow(/read-only/u);
   });
 
-  it('requires SnapshotWarpState fields to expose read-side types, not live mutable CRDT surfaces', () => {
-    const domainSource = readDomainSource();
-    const snapshotWarpStateSource = readRepoFile(SNAPSHOT_WARP_STATE_PATH);
-
-    expect(domainSource).toMatch(/class\s+SnapshotORSet\b/u);
-    expect(domainSource).toMatch(/class\s+SnapshotVersionVector\b/u);
-    expect(snapshotWarpStateSource).toMatch(/nodeAlive\s*:\s*SnapshotORSet/u);
-    expect(snapshotWarpStateSource).toMatch(/edgeAlive\s*:\s*SnapshotORSet/u);
-    expect(snapshotWarpStateSource).toMatch(/observedFrontier\s*:\s*SnapshotVersionVector/u);
-    expect(snapshotWarpStateSource).toMatch(/prop\s*:\s*ReadonlyMap\s*<\s*string\s*,\s*LWWRegister\s*<\s*SnapshotPropValue\s*>\s*>/u);
-    expect(snapshotWarpStateSource).toMatch(/edgeBirthEvent\s*:\s*ReadonlyMap\s*<\s*string\s*,\s*EventId\s*>/u);
-    expect(snapshotWarpStateSource).not.toMatch(/nodeAlive\s*:\s*ORSet/u);
-    expect(snapshotWarpStateSource).not.toMatch(/edgeAlive\s*:\s*ORSet/u);
-    expect(snapshotWarpStateSource).not.toMatch(/observedFrontier\s*:\s*VersionVector/u);
+  it('rejects unsupported snapshot sources at runtime', () => {
+    expect(() => Reflect.apply(createSnapshotWarpState, null, [ORSet.empty()])).toThrow(
+      /unsupported snapshot source: expected WarpState/u,
+    );
   });
 
-  it('requires public property-bag APIs to project storage values to SnapshotPropValue', () => {
-    const queryCapabilitySource = readRepoFile(QUERY_CAPABILITY_PATH);
-    const queryReadsSource = readRepoFile(QUERY_READS_PATH);
-    const stateReaderContextSource = readRepoFile(STATE_READER_CONTEXT_PATH);
-
-    expect(queryCapabilitySource).not.toMatch(/Record\s*<\s*string\s*,\s*unknown\s*>/u);
-    expect(queryCapabilitySource).toContain('SnapshotPropValue');
-    expect(queryCapabilitySource).not.toMatch(/props\s*:\s*Record\s*<\s*string\s*,\s*unknown\s*>/u);
-    expect(queryReadsSource).not.toMatch(/type\s+PropertyBag\s*=\s*Record\s*<\s*string\s*,\s*PropValue\s*>/u);
-    expect(stateReaderContextSource).not.toMatch(/Record\s*<\s*string\s*,\s*unknown\s*>/u);
-  });
-
-  it('requires SnapshotORSet to avoid live mutators and fake readonly Set returns', () => {
-    const snapshotORSetSource = readRepoFile(SNAPSHOT_OR_SET_PATH);
-
-    expect(snapshotORSetSource).toMatch(/class\s+SnapshotORSet\b/u);
-    expect(snapshotORSetSource).not.toMatch(/\badd\s*\(/u);
-    expect(snapshotORSetSource).not.toMatch(/\bremove\s*\(/u);
-    expect(snapshotORSetSource).not.toMatch(/\bcompact\s*\(/u);
-    expect(snapshotORSetSource).not.toMatch(/(?:^|\n)\s*(?:readonly\s+)?entries\s*:\s*Map\b/u);
-    expect(snapshotORSetSource).not.toMatch(/(?:^|\n)\s*(?:readonly\s+)?tombstones\s*:\s*Set\b/u);
-    expect(snapshotORSetSource).not.toMatch(/\b\w+\s*\([^)]*\)\s*:\s*Set\s*</u);
-    expect(snapshotORSetSource).not.toMatch(/\b\w+\s*\([^)]*\)\s*:\s*ReadonlySet\s*</u);
-    expect(snapshotORSetSource).not.toMatch(/ReadonlySet/u);
-  });
-
-  it('requires SnapshotVersionVector to avoid mutating frontier methods', () => {
-    const domainSource = readDomainSource();
-    const snapshotVersionVectorSource = classSource(domainSource, 'SnapshotVersionVector');
-
-    expect(domainSource).toMatch(/class\s+SnapshotVersionVector\b/u);
-    expect(snapshotVersionVectorSource).not.toMatch(/\bset\s*\(/u);
-    expect(snapshotVersionVectorSource).not.toMatch(/\bincrement\s*\(/u);
-  });
-
-  it('requires SnapshotORSet array returns to be frozen or defensive copies', async () => {
-    const snapshotModule = await loadSnapshotFactoryModule();
-
-    expect(typeof snapshotModule.createSnapshotORSet).toBe('function');
-
-    const createSnapshotORSet = snapshotModule.createSnapshotORSet;
-    if (createSnapshotORSet === undefined) {
-      expect(createSnapshotORSet).toBeDefined();
-      return;
-    }
-
+  it('keeps SnapshotORSet array returns frozen or defensive', () => {
     const source = ORSet.empty();
     source.add('node-a', new Dot('writer-a', 1));
     source.add('node-b', new Dot('writer-a', 2));
@@ -249,13 +190,10 @@ describe('snapshot PropValue API model', () => {
     ]);
   });
 
-  it('rejects fake immutable byte and set representations in snapshot source', () => {
-    const immutableSnapshotSource = readRepoFile(IMMUTABLE_SNAPSHOT_PATH);
-
-    expect(immutableSnapshotSource).not.toContain('Readonly<Uint8Array>');
-    expect(immutableSnapshotSource).not.toContain('ReadonlySet');
-    expect(immutableSnapshotSource).not.toMatch(/\bProxy\s*</u);
-    expect(immutableSnapshotSource).not.toMatch(/\bas\s+unknown\s+as\b/u);
-    expect(immutableSnapshotSource).not.toMatch(/\bas\s+any\b/u);
+  it('preserves primitive public property values without wrapper ceremony', () => {
+    expect(createSnapshotPropValue('ready')).toBe('ready');
+    expect(createSnapshotPropValue(3)).toBe(3);
+    expect(createSnapshotPropValue(false)).toBe(false);
+    expect(createSnapshotPropValue(null)).toBeNull();
   });
 });
