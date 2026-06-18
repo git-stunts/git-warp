@@ -1,35 +1,22 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import MarkdownDocument from '../../helpers/MarkdownDocument.ts';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
-
-type MarkdownLink = {
-  readonly label: string;
-  readonly href: string;
-};
 
 type SlottingRow = {
   readonly driftArea: string;
   readonly releaseHome: string;
 };
 
-function readDoc(relativePath: string): string {
-  return readFileSync(join(REPO_ROOT, relativePath), 'utf8');
+function readMarkdownDoc(relativePath: string): MarkdownDocument {
+  return MarkdownDocument.fromFile(join(REPO_ROOT, relativePath));
 }
 
-function markdownLinks(markdown: string): readonly MarkdownLink[] {
-  const links: MarkdownLink[] = [];
-  const pattern = /\[([^\]]+)\]\(([^)]+)\)/gu;
-  for (const match of markdown.matchAll(pattern)) {
-    const label = match[1];
-    const href = match[2];
-    if (label !== undefined && href !== undefined && !href.startsWith('http')) {
-      links.push({ label, href });
-    }
-  }
-  return links;
+function readDoc(relativePath: string): string {
+  return readMarkdownDoc(relativePath).text;
 }
 
 function resolveDocLink(sourcePath: string, href: string): string {
@@ -38,7 +25,10 @@ function resolveDocLink(sourcePath: string, href: string): string {
 
 function linkTargets(sourcePath: string): Set<string> {
   return new Set(
-    markdownLinks(readDoc(sourcePath)).map((link) => resolveDocLink(sourcePath, link.href)),
+    readMarkdownDoc(sourcePath)
+      .links()
+      .filter((link) => !link.target.startsWith('http'))
+      .map((link) => resolveDocLink(sourcePath, link.target)),
   );
 }
 

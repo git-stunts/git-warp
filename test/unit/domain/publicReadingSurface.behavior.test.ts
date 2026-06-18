@@ -64,7 +64,7 @@ describe('public reading surfaces', () => {
     ]);
   });
 
-  it('keeps WarpApp as a curated facade that reads content through capabilities', async () => {
+  it('keeps WarpApp curated while WarpCore remains the explicit materialization escape hatch', async () => {
     const app = await WarpApp.open(openOptions('public-reading-app', 'writer-app'));
 
     await app.patch(async (patch) => {

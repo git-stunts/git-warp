@@ -165,10 +165,21 @@ The witness for this cycle is small and explicit:
   - `docs/design/release-horizon-v20-v21.md`
 - the audit now says directly that it is the drift ledger rather than the
   canonical wall-chart
-- the ratchet coverage exists at
+- at cycle close, the ratchet coverage existed at
+  `test/unit/scripts/warp-drift-crosslinks-shape.test.ts`
+- current successor coverage lives at
   `test/unit/scripts/warp-drift-doc-graph.test.ts`
 
-Verification command:
+Historical verification command at cycle close:
+
+```sh
+npm exec vitest run \
+  test/unit/scripts/warp-drift-crosslinks-shape.test.ts \
+  test/unit/scripts/glossary-shape.test.ts \
+  test/unit/scripts/observer-geometry-ladder-shape.test.ts
+```
+
+Current successor command:
 
 ```sh
 npm exec vitest run \
