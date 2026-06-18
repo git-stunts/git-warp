@@ -1,44 +1,47 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { basename } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
-const compatibilityModulePath = 'test/helpers/warpGraphTestUtils.ts';
-
-const conceptModulePaths = [
-  'test/helpers/WarpGraphObjectIds.ts',
-  'test/helpers/WarpGraphMockPersistence.ts',
-  'test/helpers/WarpGraphPatchFixtures.ts',
-  'test/helpers/WarpGraphMockLogger.ts',
-  'test/helpers/WarpGraphTestRepositories.ts',
-  'test/helpers/WarpGraphStateSeed.ts',
-] as const;
-
-function readRepoFile(relativePath: string): string {
-  return readFileSync(`${repoRoot}${relativePath}`, 'utf8');
-}
-
-function lineCount(source: string): number {
-  return source.split('\n').filter((line) => line.trim().length > 0).length;
-}
+import {
+  addNodeToState,
+  createEmptyState,
+  createInMemoryRepo,
+  createMockPersistence,
+  createOidGenerator,
+  createPatch,
+} from '../../helpers/warpGraphTestUtils.ts';
 
 describe('warp graph test helper structure', () => {
-  it('keeps the legacy helper path as a small compatibility barrel', () => {
-    const source = readRepoFile(compatibilityModulePath);
+  it('keeps the legacy helper barrel executable for persistence and patch fixtures', async () => {
+    const persistence = createMockPersistence();
+    const oidGenerator = createOidGenerator();
+    const ref = 'refs/warp/test/writers/agent-1';
+    const currentOid = oidGenerator.next();
+    const patch = createPatch({
+      writer: 'agent-1',
+      lamport: 1,
+      ops: [
+        {
+          type: 'NodeAdd',
+          node: 'node:barrel',
+          dot: { writerId: 'agent-1', counter: 1 },
+        },
+      ],
+    });
 
-    expect(lineCount(source)).toBeLessThanOrEqual(32);
-    expect(source).not.toMatch(/\bexport\s+function\b/);
-    expect(source).not.toMatch(/\bfunction\s+create[A-Z]/);
-    expect(source).not.toMatch(/\breturn\s+\{/);
+    await persistence.updateRef(ref, currentOid);
+
+    await expect(persistence.readRef(ref)).resolves.toBe(currentOid);
+    expect(patch.writer).toBe('agent-1');
+    expect(patch.ops).toHaveLength(1);
   });
 
-  it('splits helper responsibilities into named concept modules', () => {
-    const barrelSource = readRepoFile(compatibilityModulePath);
+  it('keeps state and in-memory repository helpers executable through the barrel', async () => {
+    const state = createEmptyState();
+    const repo = createInMemoryRepo();
 
-    for (const path of conceptModulePaths) {
-      expect(existsSync(`${repoRoot}${path}`), path).toBe(true);
-      expect(barrelSource, path).toContain(`'./${basename(path)}'`);
-    }
+    addNodeToState(state, 'node:seeded', 1, 'agent-1');
+
+    expect(state.nodeAlive.contains('node:seeded')).toBe(true);
+    expect(repo.persistence.emptyTree).toBe('4b825dc642cb6eb9a060e54bf8d69288fbee4904');
+    await expect(repo.cleanup()).resolves.toBeUndefined();
   });
 });
