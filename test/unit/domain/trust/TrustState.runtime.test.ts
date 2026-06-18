@@ -87,6 +87,28 @@ describe('TrustState runtime boundaries', () => {
     })).toThrow(TrustError);
   });
 
+  it('rejects malformed map entries with TrustError', () => {
+    expect(() => emptyTrustState({
+      // @ts-expect-error runtime validation covers malformed boundary input.
+      activeKeys: new Map([[KEY_ID_1, null]]),
+    })).toThrow(TrustError);
+
+    expect(() => emptyTrustState({
+      // @ts-expect-error runtime validation covers malformed boundary input.
+      revokedKeys: new Map([[KEY_ID_1, null]]),
+    })).toThrow(TrustError);
+
+    expect(() => emptyTrustState({
+      // @ts-expect-error runtime validation covers malformed boundary input.
+      writerBindings: new Map([[`alice\0${KEY_ID_1}`, null]]),
+    })).toThrow(TrustError);
+
+    expect(() => emptyTrustState({
+      // @ts-expect-error runtime validation covers malformed boundary input.
+      revokedBindings: new Map([[`alice\0${KEY_ID_1}`, null]]),
+    })).toThrow(TrustError);
+  });
+
   it('exposes writer binding query methods', async () => {
     const state = await buildState([KEY_ADD_1, WRITER_BIND_ADD_ALICE]);
 

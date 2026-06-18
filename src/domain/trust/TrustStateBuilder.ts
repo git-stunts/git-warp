@@ -213,13 +213,24 @@ function assertMatchingBindingKey(encodedKeyId: string, valueKeyId: string, fiel
   }
 }
 
+function assertEntryObject(value: object, field: string): void {
+  if (value === null || typeof value !== 'object') {
+    throw new TrustError(`${field} entry must be an object`, {
+      code: 'E_TRUST_STATE_INVALID',
+      context: { field },
+    });
+  }
+}
+
 function freezeActiveKeyInfo(info: ActiveKeyInfo): ActiveKeyInfo {
+  assertEntryObject(info, 'activeKeys');
   assertNonEmptyString(info.publicKey, 'activeKeys.publicKey');
   assertNonEmptyString(info.addedAt, 'activeKeys.addedAt');
   return Object.freeze({ publicKey: info.publicKey, addedAt: info.addedAt });
 }
 
 function freezeRevokedKeyInfo(info: RevokedKeyInfo): RevokedKeyInfo {
+  assertEntryObject(info, 'revokedKeys');
   assertNonEmptyString(info.publicKey, 'revokedKeys.publicKey');
   assertNonEmptyString(info.revokedAt, 'revokedKeys.revokedAt');
   assertNonEmptyString(info.reasonCode, 'revokedKeys.reasonCode');
@@ -227,12 +238,14 @@ function freezeRevokedKeyInfo(info: RevokedKeyInfo): RevokedKeyInfo {
 }
 
 function freezeBindingInfo(info: BindingInfo): BindingInfo {
+  assertEntryObject(info, 'writerBindings');
   assertKeyId(info.keyId, 'writerBindings.keyId');
   assertNonEmptyString(info.boundAt, 'writerBindings.boundAt');
   return Object.freeze({ keyId: info.keyId, boundAt: info.boundAt });
 }
 
 function freezeRevokedBindingInfo(info: RevokedBindingInfo): RevokedBindingInfo {
+  assertEntryObject(info, 'revokedBindings');
   assertKeyId(info.keyId, 'revokedBindings.keyId');
   assertNonEmptyString(info.revokedAt, 'revokedBindings.revokedAt');
   assertNonEmptyString(info.reasonCode, 'revokedBindings.reasonCode');
