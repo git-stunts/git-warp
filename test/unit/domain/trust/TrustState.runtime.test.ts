@@ -107,6 +107,11 @@ describe('TrustState runtime boundaries', () => {
       // @ts-expect-error runtime validation covers malformed boundary input.
       revokedBindings: new Map([[`alice\0${KEY_ID_1}`, null]]),
     })).toThrow(TrustError);
+
+    expect(() => emptyTrustState({
+      // @ts-expect-error runtime validation covers malformed boundary input.
+      errors: [null],
+    })).toThrow(TrustError);
   });
 
   it('exposes writer binding query methods', async () => {

@@ -256,6 +256,7 @@ function freezeRevokedBindingInfo(info: RevokedBindingInfo): RevokedBindingInfo 
 function copyBuildErrors(errors: BuildError[]): readonly BuildError[] {
   assertArray(errors, 'errors');
   return Object.freeze(errors.map((error) => {
+    assertEntryObject(error, 'errors');
     assertNonEmptyString(error.recordId, 'errors.recordId');
     assertNonEmptyString(error.error, 'errors.error');
     return Object.freeze({ recordId: error.recordId, error: error.error });
