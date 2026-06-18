@@ -12,7 +12,7 @@
   so `WarpCore.open()` now adopts the explicit runtime product surface instead
   of linking onto the runtime bridge
 - updated the closeout and composition-root ratchets:
-  - [warpcore-runtime-bridge.test.ts](../../../../test/unit/scripts/warpcore-runtime-bridge.test.ts)
+  - [publicReadingSurface.behavior.test.ts](../../../../test/unit/domain/publicReadingSurface.behavior.test.ts)
   - [openwarpgraph-composition-root.test.ts](../../../../test/unit/scripts/openwarpgraph-composition-root.test.ts)
 - advanced the runtime-kill chain so the remaining order is now:
   `API_delete-warpruntime-class` → `API_kill-warpruntime`

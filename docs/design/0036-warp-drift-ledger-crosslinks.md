@@ -165,14 +165,14 @@ The witness for this cycle is small and explicit:
   - `docs/design/release-horizon-v20-v21.md`
 - the audit now says directly that it is the drift ledger rather than the
   canonical wall-chart
-- the ratchet test exists at
-  `test/unit/scripts/warp-drift-crosslinks-shape.test.ts`
+- the ratchet coverage exists at
+  `test/unit/scripts/warp-drift-doc-graph.test.ts`
 
 Verification command:
 
 ```sh
 npm exec vitest run \
-  test/unit/scripts/warp-drift-crosslinks-shape.test.ts \
+  test/unit/scripts/warp-drift-doc-graph.test.ts \
   test/unit/scripts/glossary-shape.test.ts \
   test/unit/scripts/observer-geometry-ladder-shape.test.ts
 ```

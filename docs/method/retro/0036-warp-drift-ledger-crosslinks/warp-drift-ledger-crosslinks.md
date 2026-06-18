@@ -48,7 +48,7 @@ The cycle succeeded because it kept those responsibilities distinct.
 ### The crosslink contract is now ratcheted
 
 The cycle added
-[warp-drift-crosslinks-shape.test.ts](../../../../test/unit/scripts/warp-drift-crosslinks-shape.test.ts)
+[warp-drift-doc-graph.test.ts](../../../../test/unit/scripts/warp-drift-doc-graph.test.ts)
 so the repo will fail loudly if those crosslinks disappear later.
 
 For a small docs hygiene slice, that is the right outcome: the fix is now
@@ -59,7 +59,7 @@ structural instead of purely editorial.
 Passed:
 
 - `git diff --check`
-- `npm exec vitest run test/unit/scripts/warp-drift-crosslinks-shape.test.ts test/unit/scripts/glossary-shape.test.ts test/unit/scripts/observer-geometry-ladder-shape.test.ts`
+- `npm exec vitest run test/unit/scripts/warp-drift-doc-graph.test.ts test/unit/scripts/glossary-shape.test.ts test/unit/scripts/observer-geometry-ladder-shape.test.ts`
 
 Key witness commits:
 
