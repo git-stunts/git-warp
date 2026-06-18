@@ -52,10 +52,7 @@ const httpMock = vi.hoisted(() => {
       capturedHandler = handler;
       return fakeServer;
     }),
-    capturedHandler(): CapturedHandler {
-      if (capturedHandler === undefined) {
-        throw new Error('expected NodeHttpAdapter to register a request handler');
-      }
+    capturedHandler(): CapturedHandler | undefined {
       return capturedHandler;
     },
     reset(): void {
@@ -117,7 +114,12 @@ describe('NodeHttpAdapter boundary validation', () => {
     adapter.createServer(handler);
 
     const res = responseDouble();
-    httpMock.capturedHandler()(new EmptyRequest({}), res.response);
+    const capturedHandler = httpMock.capturedHandler();
+    expect(capturedHandler).toBeDefined();
+    if (capturedHandler === undefined) {
+      return;
+    }
+    capturedHandler(new EmptyRequest({}), res.response);
     await res.done;
 
     expect(handler).not.toHaveBeenCalled();
