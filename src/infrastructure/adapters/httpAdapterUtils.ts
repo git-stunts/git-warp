@@ -85,7 +85,7 @@ export const PAYLOAD_TOO_LARGE_LENGTH = String(PAYLOAD_TOO_LARGE_BYTES.byteLengt
 // ── Shared request conversion ───────────────────────────────────────────────
 
 /**
- * Converts a Web API Request into the plain-object format expected by
+ * Converts a Web API Request into the HttpRequest instance expected by
  * HttpServerPort request handlers.
  *
  * Used by both BunHttpAdapter and DenoHttpAdapter.
