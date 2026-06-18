@@ -61,10 +61,14 @@ That keeps `v19` from silently inflating into “everything after `v18`.”
 
 ## Verification
 
-Passed:
+Passed at cycle close:
 
 - `git diff --check`
 - `npm exec vitest run test/unit/scripts/warp-drift-release-slotting-shape.test.ts test/unit/scripts/warp-drift-crosslinks-shape.test.ts test/unit/scripts/glossary-shape.test.ts test/unit/scripts/observer-geometry-ladder-shape.test.ts`
+
+Current successor coverage:
+
+- `npm exec vitest run test/unit/scripts/warp-drift-doc-graph.test.ts test/unit/scripts/glossary-shape.test.ts test/unit/scripts/observer-geometry-ladder-shape.test.ts`
 
 Key witness commits:
 

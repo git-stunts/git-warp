@@ -12,10 +12,13 @@
   so `WarpCore.open()` now adopts the explicit runtime product surface instead
   of linking onto the runtime bridge
 - updated the closeout and composition-root ratchets:
-  - [warpcore-runtime-bridge.test.ts](../../../../test/unit/scripts/warpcore-runtime-bridge.test.ts)
+  - `test/unit/scripts/warpcore-runtime-bridge.test.ts`
   - [openwarpgraph-composition-root.test.ts](../../../../test/unit/scripts/openwarpgraph-composition-root.test.ts)
 - advanced the runtime-kill chain so the remaining order is now:
   `API_delete-warpruntime-class` → `API_kill-warpruntime`
+
+Current successor coverage for the retired closeout ratchet lives in
+[publicReadingSurface.behavior.test.ts](../../../../test/unit/domain/publicReadingSurface.behavior.test.ts).
 
 ## Why it mattered
 
@@ -25,6 +28,12 @@ the runtime class to masquerade as its substrate.
 
 ## Witness
 
+Historical witness at cycle close:
+
 - `npm exec vitest run test/unit/scripts/warpcore-runtime-bridge.test.ts test/unit/scripts/openwarpgraph-composition-root.test.ts test/unit/domain/WarpCore.content.test.ts test/unit/domain/WarpCore.effectPipeline.test.ts test/unit/domain/WarpCore.emit.test.ts test/unit/domain/WarpGraph.strands.test.ts test/unit/domain/WarpGraph.conflicts.test.ts test/unit/domain/WarpGraph.worldline.test.ts test/unit/domain/WarpGraph.observerBoundary.test.ts test/unit/scripts/kill-warpruntime-split.test.ts`
 - `npm run typecheck`
 - `git diff --check`
+
+Current successor witness:
+
+- `npm exec vitest run test/unit/domain/publicReadingSurface.behavior.test.ts test/unit/scripts/openwarpgraph-composition-root.test.ts`
