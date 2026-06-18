@@ -15,21 +15,47 @@ function runNpmPackDryRun(): string {
   return runNpmCommand(['pack', '--dry-run', '--ignore-scripts']);
 }
 
+function packEntries(output: string): ReadonlySet<string> {
+  const entries = new Set<string>();
+  let inContents = false;
+  for (const line of output.split('\n')) {
+    if (line === 'npm notice Tarball Contents') {
+      inContents = true;
+      continue;
+    }
+    if (line === 'npm notice Tarball Details') {
+      break;
+    }
+    if (!inContents) {
+      continue;
+    }
+    const entry = packEntryPath(line);
+    if (entry !== null) {
+      entries.add(entry);
+    }
+  }
+  return entries;
+}
+
+function packEntryPath(line: string): string | null {
+  const match = /^npm notice\s+\S+\s+(.+)$/u.exec(line);
+  return match?.[1] ?? null;
+}
+
 describe('release artifact command evidence', () => {
   it('dry-runs the packed npm artifact and exposes the compiled public surface', () => {
-    const output = runNpmPackDryRun();
+    const entries = packEntries(runNpmPackDryRun());
 
-    expect(output).toContain('npm notice Tarball Contents');
-    expect(output).toContain('dist/index.js');
-    expect(output).toContain('dist/index.d.ts');
-    expect(output).toContain('dist/browser.js');
-    expect(output).toContain('dist/bin/warp-graph.js');
-    expect(output).toContain('bin/git-warp');
-    expect(output).toContain('README.md');
-    expect(output).toContain('CHANGELOG.md');
-    expect(output).toContain('LICENSE');
-    expect(output).not.toContain('docs/GUIDE.md');
-    expect(output).not.toContain('src/domain/RuntimeHost.ts');
-    expect(output).not.toContain('.github/maintainers');
+    expect(entries.has('dist/index.js')).toBe(true);
+    expect(entries.has('dist/index.d.ts')).toBe(true);
+    expect(entries.has('dist/browser.js')).toBe(true);
+    expect(entries.has('dist/bin/warp-graph.js')).toBe(true);
+    expect(entries.has('bin/git-warp')).toBe(true);
+    expect(entries.has('README.md')).toBe(true);
+    expect(entries.has('CHANGELOG.md')).toBe(true);
+    expect(entries.has('LICENSE')).toBe(true);
+    expect(entries.has('docs/GUIDE.md')).toBe(false);
+    expect(entries.has('src/domain/RuntimeHost.ts')).toBe(false);
+    expect(entries.has('.github/maintainers')).toBe(false);
   });
 });
