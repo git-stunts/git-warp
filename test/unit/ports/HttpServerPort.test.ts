@@ -60,6 +60,21 @@ describe('HttpRequest', () => {
       body: 'not-bytes',
     })).toThrow(HttpBoundaryError);
   });
+
+  it('normalizes request header names to lowercase', () => {
+    const request = new HttpRequest({
+      method: 'GET',
+      url: '/sync',
+      headers: { 'Content-Type': 'text/plain', ACCEPT: 'application/json' },
+    });
+
+    expect(request.headers).toEqual({
+      'content-type': 'text/plain',
+      accept: 'application/json',
+    });
+    expect(Reflect.has(request.headers, 'Content-Type')).toBe(false);
+    expect(Reflect.has(request.headers, 'ACCEPT')).toBe(false);
+  });
 });
 
 describe('HttpResponse', () => {
@@ -102,6 +117,15 @@ describe('HttpResponse', () => {
       // @ts-expect-error runtime boundary validation covers untrusted handlers.
       body: 42,
     })).toThrow(HttpBoundaryError);
+  });
+
+  it('normalizes response header names to lowercase', () => {
+    const response = new HttpResponse({
+      headers: { 'X-Trace-Id': 'abc123' },
+    });
+
+    expect(response.headers).toEqual({ 'x-trace-id': 'abc123' });
+    expect(Reflect.has(response.headers ?? {}, 'X-Trace-Id')).toBe(false);
   });
 });
 

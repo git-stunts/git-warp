@@ -124,7 +124,7 @@ function validatedHeaders(headers: Record<string, string>): Record<string, strin
   for (const [key, value] of Object.entries(headers)) {
     assertNonEmptyString(key, 'headers');
     assertNonEmptyString(value, `headers.${key}`);
-    validated[key] = value;
+    validated[key.toLowerCase()] = value;
   }
   Object.freeze(validated);
   return validated;
