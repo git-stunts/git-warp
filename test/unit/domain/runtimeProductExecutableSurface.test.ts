@@ -5,6 +5,16 @@ import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryG
 
 const HEX_OBJECT_ID = /^[0-9a-f]{40}$/u;
 
+function requireFrontierEntry(frontier: ReadonlyMap<string, string>, writerId: string): string {
+  const objectId = frontier.get(writerId);
+  if (objectId !== undefined) {
+    return objectId;
+  }
+  throw new RuntimeProductExecutableSurfaceTestError(`missing frontier entry for ${writerId}`);
+}
+
+class RuntimeProductExecutableSurfaceTestError extends Error {}
+
 describe('runtime product executable surface', () => {
   it('exposes checkpoint, sync frontier, and observer behavior on one product', async () => {
     const runtime = await openRuntimeHostProduct({
@@ -33,6 +43,6 @@ describe('runtime product executable surface', () => {
       kind: 'surface',
     });
     expect(checkpointSha).toMatch(HEX_OBJECT_ID);
-    expect(frontier.get('agent-1')).toMatch(HEX_OBJECT_ID);
+    expect(requireFrontierEntry(frontier, 'agent-1')).toMatch(HEX_OBJECT_ID);
   });
 });
