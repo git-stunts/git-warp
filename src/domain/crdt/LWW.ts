@@ -100,6 +100,9 @@ export class LWWRegister<T> {
    *
    * @returns Register with greater EventId, or null if both null/undefined
    */
+  static max<V>(a: LWWRegister<V>, b: LWWRegister<V> | null | undefined): LWWRegister<V>;
+  static max<V>(a: LWWRegister<V> | null | undefined, b: LWWRegister<V>): LWWRegister<V>;
+  static max<V>(a: LWWRegister<V> | null | undefined, b: LWWRegister<V> | null | undefined): LWWRegister<V> | null;
   static max<V>(a: LWWRegister<V> | null | undefined, b: LWWRegister<V> | null | undefined): LWWRegister<V> | null {
     const resolvedA = _lwwCoalesce(a);
     const resolvedB = _lwwCoalesce(b);
@@ -141,6 +144,9 @@ export function lwwSet<T>(eventId: EventId, value: T): LWWRegister<T> {
 }
 
 /** @deprecated Use {@link LWWRegister.max} */
+export function lwwMax<T>(a: LWWRegister<T>, b: LWWRegister<T> | null | undefined): LWWRegister<T>;
+export function lwwMax<T>(a: LWWRegister<T> | null | undefined, b: LWWRegister<T>): LWWRegister<T>;
+export function lwwMax<T>(a: LWWRegister<T> | null | undefined, b: LWWRegister<T> | null | undefined): LWWRegister<T> | null;
 export function lwwMax<T>(a: LWWRegister<T> | null | undefined, b: LWWRegister<T> | null | undefined): LWWRegister<T> | null {
   return LWWRegister.max(a, b);
 }

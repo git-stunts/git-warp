@@ -672,7 +672,7 @@ describe('Writer (WARP schema:2)', () => {
 
   describe('WriterError', () => {
     it('has correct name and code properties', () => {
-      const err = new WriterError('TEST_CODE', 'test message');
+      const err = new WriterError('test message', { code: 'TEST_CODE' });
       expect(err.name).toBe('WriterError');
       expect(err.code).toBe('TEST_CODE');
       expect(err.message).toBe('test message');
@@ -680,12 +680,12 @@ describe('Writer (WARP schema:2)', () => {
 
     it('preserves cause', () => {
       const cause = new Error('original');
-      const err = new WriterError('WRAPPED', 'wrapped error', cause);
+      const err = new WriterError('wrapped error', { code: 'WRAPPED', cause });
       expect(err.cause).toBe(cause);
     });
 
     it('is instanceof Error', () => {
-      const err = new WriterError('CODE', 'msg');
+      const err = new WriterError('msg', { code: 'CODE' });
       expect(err instanceof Error).toBe(true);
       expect(err instanceof WriterError).toBe(true);
     });

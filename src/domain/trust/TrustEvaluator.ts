@@ -11,7 +11,7 @@
 import { TrustPolicySchema, type TrustExplanation, type EvidenceSummary, type TrustPolicy } from './schemas.ts';
 import { TRUST_REASON_CODES } from './reasonCodes.ts';
 import { TrustAssessment, type TrustDetail, type TrustSource } from './TrustAssessment.ts';
-import type { TrustState, RevokedBindingInfo } from './TrustStateBuilder.ts';
+import type { TrustState } from './TrustStateBuilder.ts';
 
 // -- Evidence summary builder -------------------------------------------------
 
@@ -27,41 +27,14 @@ function buildEvidenceSummary(state: TrustState): EvidenceSummary {
 
 // -- Single-writer evaluation -------------------------------------------------
 
-function findActiveBindings(
-  writerId: string,
-  bindings: ReadonlyMap<string, { readonly keyId: string }>,
-): string[] {
-  const prefix = `${writerId}\0`;
-  const keyIds: string[] = [];
-  for (const [key, binding] of bindings) {
-    if (key.startsWith(prefix)) {
-      keyIds.push(binding.keyId);
-    }
-  }
-  return keyIds;
-}
-
-function hasRevokedBindings(
-  writerId: string,
-  revoked: ReadonlyMap<string, RevokedBindingInfo>,
-): boolean {
-  const prefix = `${writerId}\0`;
-  for (const key of revoked.keys()) {
-    if (key.startsWith(prefix)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function evaluateSingleWriter(
   writerId: string,
   state: TrustState,
 ): TrustExplanation {
-  const activeKeyIds = findActiveBindings(writerId, state.writerBindings);
+  const activeKeyIds = state.getBindingsForWriter(writerId).map((binding) => binding.keyId);
 
   if (activeKeyIds.length === 0) {
-    const revoked = hasRevokedBindings(writerId, state.revokedBindings);
+    const revoked = state.hasRevokedBindingsForWriter(writerId);
     return {
       writerId,
       trusted: false,
@@ -75,7 +48,7 @@ function evaluateSingleWriter(
   }
 
   for (const keyId of activeKeyIds) {
-    if (state.activeKeys.has(keyId)) {
+    if (state.hasActiveKey(keyId)) {
       return {
         writerId,
         trusted: true,

@@ -91,7 +91,7 @@ describe('All domain errors extend WarpError', () => {
   }
 
   it('WriterError instanceof WarpError', () => {
-    const err = new WriterError('EMPTY_PATCH', 'no ops');
+    const err = new WriterError('no ops', { code: 'EMPTY_PATCH' });
     expect(err).toBeInstanceOf(WarpError);
     expect(err).toBeInstanceOf(Error);
     expect(err.name).toBe('WriterError');

@@ -1,11 +1,14 @@
-import WarpError from './WarpError.ts';
+import WarpError, { type WarpErrorOptions } from './WarpError.ts';
+
+interface WriterErrorOptions extends WarpErrorOptions {
+  readonly cause?: Error | undefined;
+}
 
 /**
  * Error class for Writer operations.
  *
- * Preserves the existing (code, message, cause) positional constructor
- * signature used throughout PatchSession and PatchBuilder, while
- * inheriting from WarpError for unified error hierarchy.
+ * Follows the standard WarpError subclass constructor shape:
+ * (message, options), with the writer-specific error code carried by options.
  *
  * ## Error Codes
  *
@@ -23,16 +26,8 @@ export default class WriterError extends WarpError {
   expectedSha: string | null | undefined = undefined;
   actualSha: string | null | undefined = undefined;
 
-  /**
-   * Note: constructor parameter order differs from other WarpError subclasses
-   * (code, message vs message, code). This is intentional to match the most
-   * common call sites in PatchSession and PatchBuilder where the error code
-   * is the primary discriminator.
-   */
-  constructor(code: string, message: string, cause?: Error) {
-    super(message, 'WRITER_ERROR', { code });
-    if (cause !== undefined) {
-      this.cause = cause;
-    }
+  constructor(message: string, options: WriterErrorOptions = {}) {
+    super(message, 'WRITER_ERROR', options);
+    this.cause = options.cause;
   }
 }

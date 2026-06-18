@@ -1,4 +1,4 @@
-import HttpServerPort, { type HttpRequest, type HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
+import HttpServerPort, { type HttpRequest, HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import {
   noopLogger,
@@ -12,10 +12,10 @@ import {
  * Converts a plain-object response from the handler into a Deno Response.
  */
 function toDenoResponse(plain: HttpResponse): Response {
-  const status = plain.status !== undefined && plain.status !== 0 ? plain.status : 200;
-  return new Response((plain.body ?? null) as BodyInit | null, {
-    status,
-    headers: plain.headers ?? {},
+  const validated = HttpResponse.from(plain);
+  return new Response((validated.body ?? null) as BodyInit | null, {
+    status: validated.status ?? 200,
+    headers: validated.headers ?? {},
   });
 }
 

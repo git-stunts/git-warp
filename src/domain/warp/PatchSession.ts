@@ -60,11 +60,10 @@ function _buildCasConflictError(
   const expectedSha = typeof casError.expectedSha === 'string' ? casError.expectedSha : expectedOldHead;
   const actualSha = typeof casError.actualSha === 'string' ? casError.actualSha : null;
   return new WriterError(
-    'WRITER_REF_ADVANCED',
     `Writer ref ${writerRef} has advanced since beginPatch(). ` +
     `Expected ${_displaySha(expectedSha)}, found ${_displaySha(actualSha)}. ` +
     'Call beginPatch() again to retry.',
-    cause,
+    { code: 'WRITER_REF_ADVANCED', cause },
   );
 }
 
@@ -78,9 +77,9 @@ function _classifyCommitError(err: unknown, ctx: CommitContext): WriterError { /
     return _buildCasConflictError(casError, cause, ctx);
   }
   if (errMsg.includes('Concurrent commit detected') || errMsg.includes('has advanced')) {
-    return new WriterError('WRITER_REF_ADVANCED', errMsg, cause);
+    return new WriterError(errMsg, { code: 'WRITER_REF_ADVANCED', cause });
   }
-  return new WriterError('PERSIST_WRITE_FAILED', `Failed to persist patch: ${errMsg}`, cause);
+  return new WriterError(`Failed to persist patch: ${errMsg}`, { code: 'PERSIST_WRITE_FAILED', cause });
 }
 
 interface PatchSessionOptions {
@@ -219,7 +218,7 @@ export class PatchSession {
   /** Ensures the patch has at least one operation. */
   private _ensureNotEmpty(): void {
     if (this._builder.ops.length === 0) {
-      throw new WriterError('EMPTY_PATCH', 'Cannot commit empty patch: no operations added');
+      throw new WriterError('Cannot commit empty patch: no operations added', { code: 'EMPTY_PATCH' });
     }
   }
 
@@ -232,8 +231,8 @@ export class PatchSession {
   private _ensureNotCommitted(): void {
     if (this._committed) {
       throw new WriterError(
-        'SESSION_COMMITTED',
         'PatchSession already committed. Call beginPatch() to create a new session.',
+        { code: 'SESSION_COMMITTED' },
       );
     }
   }

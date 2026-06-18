@@ -10,9 +10,7 @@
  */
 
 import QueryError from '../../errors/QueryError.ts';
-import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
 import createStrandCoordinator from '../strand/createStrandCoordinator.ts';
-import type { WarpState } from '../JoinReducer.ts';
 import type {
   VisibleStateScope,
   CoordinateComparisonSelectorInput,
@@ -155,8 +153,8 @@ export class StrandComparisonSelector extends NormalizedSelector {
     const graph = context.strandGraph;
     const strands = strandCoordinatorFor(graph);
     const descriptor = await strands.getOrThrow(this.strandId);
-    const state = await callInternalRuntimeMethod<WarpState>(
-      graph, 'materializeStrand', this.strandId,
+    const materialized = await graph._materializeStrandGraph(
+      this.strandId,
       this.ceiling === null ? undefined : { ceiling: this.ceiling },
     );
     const patchEntries = await strands.getPatchEntries(
@@ -164,7 +162,7 @@ export class StrandComparisonSelector extends NormalizedSelector {
     );
     return await finalizeSide(graph, {
       requested: { kind: 'strand', strandId: this.strandId, ...optionalCeiling(this.ceiling) },
-      state, patchEntries, coordinateKind: 'strand', lamportCeiling: this.ceiling,
+      state: materialized.state, patchEntries, coordinateKind: 'strand', lamportCeiling: this.ceiling,
       strand: buildStrandMetadata(this.strandId, descriptor),
     }, scope);
   }
