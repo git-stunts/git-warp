@@ -58,24 +58,28 @@ function buildStateV5({ nodes = [] as any[], edges = [] as any[], props = [] as 
 
 describe('CheckpointSerializer', () => {
   describe('serializeFullState / deserializeFullState', () => {
-    it('returns empty state when buffer is null', () => {
-      const restored = deserializeFullState(null as any);
-
-      expect(restored.nodeAlive.entries.size).toBe(0);
-      expect(restored.edgeAlive.entries.size).toBe(0);
-      expect(restored.propSize()).toBe(0);
-      expect(restored.observedFrontier.size).toBe(0);
-      expect(restored.edgeBirthEvent.size).toBe(0);
+    it('throws when buffer is null', () => {
+      expect(() => deserializeFullState(null as never))
+        .toThrow('Checkpoint state buffer is missing');
     });
 
-    it('returns empty state when buffer is undefined', () => {
-      const restored = deserializeFullState(undefined as any);
+    it('throws when buffer is undefined', () => {
+      expect(() => deserializeFullState(undefined as never))
+        .toThrow('Checkpoint state buffer is missing');
+    });
 
-      expect(restored.nodeAlive.entries.size).toBe(0);
-      expect(restored.edgeAlive.entries.size).toBe(0);
-      expect(restored.propSize()).toBe(0);
-      expect(restored.observedFrontier.size).toBe(0);
-      expect(restored.edgeBirthEvent.size).toBe(0);
+    it('throws when decoded payload is null', () => {
+      const buffer = encode(null);
+
+      expect(() => deserializeFullState(buffer))
+        .toThrow('Checkpoint state payload is missing');
+    });
+
+    it('throws when decoded payload is undefined', () => {
+      const buffer = encode(undefined);
+
+      expect(() => deserializeFullState(buffer))
+        .toThrow('Checkpoint state payload is missing');
     });
 
     it('handles buffer with missing nodeAlive and edgeAlive fields', () => {

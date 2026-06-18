@@ -16,9 +16,10 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { decodeDot } from '../../crdt/Dot.ts';
-import { createEmptyState, type WarpState as WarpStateType } from '../JoinReducer.ts';
+import type { WarpState as WarpStateType } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
+import WarpError from '../../errors/WarpError.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { EventId } from '../../utils/EventId.ts';
@@ -89,11 +90,17 @@ export function deserializeFullState(
 ): WarpStateType {
   const codec = codecOpt ?? defaultCodec;
   if (buffer === null || buffer === undefined) {
-    return createEmptyState();
+    throw new WarpError(
+      'Checkpoint state buffer is missing',
+      'E_CHECKPOINT_STATE_BUFFER_MISSING',
+    );
   }
   const obj = codec.decode<DeserializedFullState | null | undefined>(buffer);
   if (obj === null || obj === undefined) {
-    return createEmptyState();
+    throw new WarpError(
+      'Checkpoint state payload is missing',
+      'E_CHECKPOINT_STATE_PAYLOAD_MISSING',
+    );
   }
   if (obj.version !== undefined && obj.version !== 'full-v5') {
     throw new SchemaUnsupportedError(
