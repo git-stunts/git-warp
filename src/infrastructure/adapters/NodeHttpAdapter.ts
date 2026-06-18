@@ -29,13 +29,6 @@ async function readBody(req: IncomingMessage): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-/**
- * Returns the string if non-empty, otherwise the fallback.
- */
-function stringOrDefault(value: string | undefined, fallback: string): string {
-  return typeof value === 'string' && value.length > 0 ? value : fallback;
-}
-
 /** Converts Node's incoming header shape into the port header contract. */
 function normalizeNodeHeaders(headers: IncomingMessage['headers']): Record<string, string> {
   const normalized: Record<string, string> = {};
@@ -54,8 +47,8 @@ function normalizeNodeHeaders(headers: IncomingMessage['headers']): Record<strin
  */
 function buildHttpRequest(req: IncomingMessage, body: Buffer): HttpRequest {
   return new HttpRequest({
-    method: stringOrDefault(req.method, 'GET'),
-    url: stringOrDefault(req.url, '/'),
+    method: req.method ?? '',
+    url: req.url ?? '',
     headers: normalizeNodeHeaders(req.headers),
     body: body.length > 0 ? body : undefined,
   });
