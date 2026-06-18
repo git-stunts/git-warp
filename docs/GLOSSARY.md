@@ -23,7 +23,7 @@ If another document uses one of these nouns differently, this glossary wins.
 
 | Term | Canonical meaning | Current repo manifestation | Status |
 |---|---|---|---|
-| `Coordinate` | A comparable read point composed from a causal basis and a ceiling. The smallest honest identity for a materialization/read target. | Usually implicit as `frontier + ceiling` in materialization and snapshot code. | transition |
+| `Coordinate` | A comparable read point composed from a causal basis and a ceiling. The smallest honest identity for a materialization/read target. | Public worldline coordinates use `WarpWorldlineCoordinate`; lower controller paths still often carry `frontier + ceiling` directly. | transition |
 | `Frontier` | The causal basis of a read or write: the antichain/encoding that says what history has been observed. | Encoded operationally as version vectors and writer tips. | transition |
 | `Ceiling` | The upper replay boundary on a chosen coordinate or lane. | Public APIs already use `ceiling` as the read bound. | shipped |
 | `Tick` | One atomic admitted history step on a lane/worldline. | Often approximated by Lamport-bearing patches and receipts. | transition |
@@ -58,7 +58,7 @@ If another document uses one of these nouns differently, this glossary wins.
 
 | Term | Canonical meaning | Current repo manifestation | Status |
 |---|---|---|---|
-| `WarpStateSnapshot` | A persisted materialized graph state at a coordinate. | First-class runtime snapshot noun after cycle 0034. | shipped |
+| `WarpStateSnapshot` | A persisted materialized graph state at a coordinate. | First-class runtime snapshot noun after cycle 0034; the immutable public view is `SnapshotWarpState`. | shipped |
 | `WarpStateCache` | The owning system for persisted and in-memory snapshot reuse. | First-class runtime/cache noun after cycle 0034. | shipped |
 | `Checkpoint` | A pinned snapshot protected from ordinary eviction and discoverable as a stable retained read point. | Unified logically with snapshots after cycle 0034; discoverability/policy still maturing. | transition |
 
