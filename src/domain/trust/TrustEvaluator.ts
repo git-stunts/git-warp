@@ -12,6 +12,7 @@ import { TrustPolicySchema, type TrustExplanation, type EvidenceSummary, type Tr
 import { TRUST_REASON_CODES } from './reasonCodes.ts';
 import { TrustAssessment, type TrustDetail, type TrustSource } from './TrustAssessment.ts';
 import type { TrustState } from './TrustStateBuilder.ts';
+import TrustError from '../errors/TrustError.ts';
 
 // -- Evidence summary builder -------------------------------------------------
 
@@ -64,6 +65,29 @@ function evaluateSingleWriter(
     reasonCode: TRUST_REASON_CODES.WRITER_BOUND_KEY_REVOKED,
     reason: `Writer '${writerId}' is bound only to revoked keys`,
   };
+}
+
+function buildInvalidWriterExplanation(writerId: string): TrustExplanation {
+  return {
+    writerId,
+    trusted: false,
+    reasonCode: TRUST_REASON_CODES.WRITER_HAS_NO_ACTIVE_BINDING,
+    reason: 'Writer id is not valid for trust binding lookup',
+  };
+}
+
+function evaluateSingleWriterSafely(
+  writerId: string,
+  state: TrustState,
+): TrustExplanation {
+  try {
+    return evaluateSingleWriter(writerId, state);
+  } catch (err) {
+    if (err instanceof TrustError) {
+      return buildInvalidWriterExplanation(writerId);
+    }
+    throw err;
+  }
 }
 
 // -- Assessment factory (DRY: one builder, not three) -------------------------
@@ -150,7 +174,7 @@ function evaluateWriters(
     }));
   }
 
-  const explanations = sorted.map((w) => evaluateSingleWriter(w, trustState));
+  const explanations = sorted.map((w) => evaluateSingleWriterSafely(w, trustState));
   const untrusted = explanations.filter((e) => !e.trusted).map((e) => e.writerId);
 
   return new TrustAssessment(buildDetail({
