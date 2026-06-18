@@ -25,6 +25,7 @@ type BuildError = { readonly recordId: string; readonly error: string };
 
 const KEY_ID_PATTERN = /^ed25519:[a-f0-9]{64}$/;
 const BINDING_KEY_SEPARATOR = '\0';
+const TRUST_STATE_INVALID_CODE = 'E_TRUST_STATE_INVALID';
 
 // -- TrustState ---------------------------------------------------------------
 
@@ -85,7 +86,7 @@ class TrustState {
 function assertMap<K, V>(value: Map<K, V>, field: string): void {
   if (!(value instanceof Map)) {
     throw new TrustError(`${field} must be a Map`, {
-      code: 'E_TRUST_STATE_INVALID',
+      code: TRUST_STATE_INVALID_CODE,
       context: { field },
     });
   }
@@ -94,7 +95,7 @@ function assertMap<K, V>(value: Map<K, V>, field: string): void {
 function assertArray<T>(value: T[], field: string): void {
   if (!Array.isArray(value)) {
     throw new TrustError(`${field} must be an array`, {
-      code: 'E_TRUST_STATE_INVALID',
+      code: TRUST_STATE_INVALID_CODE,
       context: { field },
     });
   }
@@ -103,7 +104,7 @@ function assertArray<T>(value: T[], field: string): void {
 function assertNonEmptyString(value: string, field: string): void {
   if (typeof value !== 'string' || value.length === 0) {
     throw new TrustError(`${field} must be a non-empty string`, {
-      code: 'E_TRUST_STATE_INVALID',
+      code: TRUST_STATE_INVALID_CODE,
       context: { field },
     });
   }
@@ -113,7 +114,7 @@ function assertKeyId(keyId: string, field: string): void {
   assertNonEmptyString(keyId, field);
   if (!KEY_ID_PATTERN.test(keyId)) {
     throw new TrustError(`${field} must be an ed25519 key id`, {
-      code: 'E_TRUST_STATE_INVALID',
+      code: TRUST_STATE_INVALID_CODE,
       context: { field, keyId },
     });
   }
@@ -123,7 +124,7 @@ function assertWriterId(writerId: string, field: string): void {
   assertNonEmptyString(writerId, field);
   if (writerId.includes(BINDING_KEY_SEPARATOR)) {
     throw new TrustError(`${field} must not contain the trust binding separator`, {
-      code: 'E_TRUST_STATE_INVALID',
+      code: TRUST_STATE_INVALID_CODE,
       context: { field, writerId },
     });
   }
@@ -132,7 +133,7 @@ function assertWriterId(writerId: string, field: string): void {
 function assertRecordCount(recordsProcessed: number): void {
   if (!Number.isInteger(recordsProcessed) || recordsProcessed < 0) {
     throw new TrustError('recordsProcessed must be a non-negative integer', {
-      code: 'E_TRUST_STATE_INVALID',
+      code: TRUST_STATE_INVALID_CODE,
       context: { field: 'recordsProcessed' },
     });
   }
@@ -149,7 +150,7 @@ function parseBindingKey(bindingKey: string, field: string): { readonly writerId
   const separatorIndex = bindingKey.indexOf(BINDING_KEY_SEPARATOR);
   if (separatorIndex <= 0 || separatorIndex !== bindingKey.lastIndexOf(BINDING_KEY_SEPARATOR)) {
     throw new TrustError(`${field} key must encode exactly one writer/key binding`, {
-      code: 'E_TRUST_STATE_INVALID',
+      code: TRUST_STATE_INVALID_CODE,
       context: { field },
     });
   }
@@ -207,7 +208,7 @@ function copyRevokedBindings(source: Map<string, RevokedBindingInfo>): TrustRead
 function assertMatchingBindingKey(encodedKeyId: string, valueKeyId: string, field: string): void {
   if (encodedKeyId !== valueKeyId) {
     throw new TrustError(`${field} keyId must match the encoded binding key`, {
-      code: 'E_TRUST_STATE_INVALID',
+      code: TRUST_STATE_INVALID_CODE,
       context: { field, encodedKeyId, valueKeyId },
     });
   }
@@ -216,7 +217,7 @@ function assertMatchingBindingKey(encodedKeyId: string, valueKeyId: string, fiel
 function assertEntryObject(value: object, field: string): void {
   if (value === null || typeof value !== 'object') {
     throw new TrustError(`${field} entry must be an object`, {
-      code: 'E_TRUST_STATE_INVALID',
+      code: TRUST_STATE_INVALID_CODE,
       context: { field },
     });
   }
