@@ -44,6 +44,13 @@ describe('HttpRequest', () => {
     })).toThrow(HttpBoundaryError);
   });
 
+  it('rejects non-object request inputs at runtime', () => {
+    // @ts-expect-error runtime boundary validation covers malformed adapter input.
+    expect(() => new HttpRequest(null)).toThrow(HttpBoundaryError);
+    // @ts-expect-error runtime boundary validation covers malformed adapter input.
+    expect(() => HttpRequest.from(null)).toThrow(HttpBoundaryError);
+  });
+
   it('rejects invalid request body values at runtime', () => {
     expect(() => new HttpRequest({
       method: 'POST',
@@ -81,6 +88,13 @@ describe('HttpResponse', () => {
   it('rejects invalid response status values', () => {
     expect(() => new HttpResponse({ status: 0 })).toThrow(HttpBoundaryError);
     expect(() => new HttpResponse({ status: 600 })).toThrow(HttpBoundaryError);
+  });
+
+  it('rejects non-object response inputs at runtime', () => {
+    // @ts-expect-error runtime boundary validation covers malformed handler input.
+    expect(() => new HttpResponse(null)).toThrow(HttpBoundaryError);
+    // @ts-expect-error runtime boundary validation covers malformed handler input.
+    expect(() => HttpResponse.from(null)).toThrow(HttpBoundaryError);
   });
 
   it('rejects invalid response body values at runtime', () => {

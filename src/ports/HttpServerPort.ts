@@ -37,6 +37,7 @@ export class HttpRequest {
   readonly body: Uint8Array | undefined;
 
   constructor(options: HttpRequestOptions) {
+    assertRequestOptions(options);
     assertNonEmptyString(options.method, 'method');
     assertNonEmptyString(options.url, 'url');
     assertBody(options.body, 'body');
@@ -61,6 +62,7 @@ export class HttpResponse {
   readonly body?: string | Uint8Array | null | undefined;
 
   constructor(options: HttpResponseOptions = {}) {
+    assertResponseOptions(options);
     assertStatus(options.status);
     assertResponseBody(options.body);
     this.status = options.status;
@@ -71,6 +73,18 @@ export class HttpResponse {
 
   static from(response: HttpResponse | HttpResponseOptions): HttpResponse {
     return response instanceof HttpResponse ? response : new HttpResponse(response);
+  }
+}
+
+function assertRequestOptions(options: HttpRequestOptions): void {
+  if (options === null || typeof options !== 'object') {
+    throw new HttpBoundaryError('HTTP request options must be an object', 'request');
+  }
+}
+
+function assertResponseOptions(options: HttpResponseOptions): void {
+  if (options === null || typeof options !== 'object') {
+    throw new HttpBoundaryError('HTTP response options must be an object', 'response');
   }
 }
 
