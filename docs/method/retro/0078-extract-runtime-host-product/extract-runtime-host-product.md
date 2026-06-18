@@ -18,12 +18,11 @@
   `DX_migrate-tests-and-seed-helpers-off-warpruntime` →
   `API_delete-warpruntime-class` →
   `API_kill-warpruntime`
-- refreshed the ratchets:
-  - [runtime-host-product-seam.test.ts](../../../../test/unit/scripts/runtime-host-product-seam.test.ts)
+- refreshed the ratchets, now carried by executable replacement evidence:
+  - [runtimeProductExecutableSurface.test.ts](../../../../test/unit/domain/runtimeProductExecutableSurface.test.ts)
+  - [publicStrandAndRuntimeSeams.test.ts](../../../../test/unit/domain/publicStrandAndRuntimeSeams.test.ts)
   - [openwarpgraph-composition-root.test.ts](../../../../test/unit/scripts/openwarpgraph-composition-root.test.ts)
   - [WarpGraph.public-sync.test.ts](../../../../test/unit/domain/WarpGraph.public-sync.test.ts)
-  - [runtime-controller-host-types.test.ts](../../../../test/unit/scripts/runtime-controller-host-types.test.ts)
-  - [kill-warpruntime-split.test.ts](../../../../test/unit/scripts/kill-warpruntime-split.test.ts)
 
 ## Why it mattered
 
@@ -34,6 +33,6 @@ tests and helpers rather than by more hidden source imports.
 
 ## Witness
 
-- `npm exec vitest run test/unit/scripts/runtime-host-product-seam.test.ts test/unit/scripts/openwarpgraph-composition-root.test.ts test/unit/domain/WarpGraph.public-sync.test.ts test/unit/scripts/runtime-controller-host-types.test.ts test/unit/domain/services/controllers/ForkController.test.ts test/unit/domain/warp/WarpGraphRuntimeBridge.test.ts test/unit/domain/WarpCore.content.test.ts test/unit/scripts/kill-warpruntime-split.test.ts`
+- `npm exec vitest run test/unit/domain/runtimeProductExecutableSurface.test.ts test/unit/domain/publicStrandAndRuntimeSeams.test.ts test/unit/scripts/openwarpgraph-composition-root.test.ts test/unit/domain/WarpGraph.public-sync.test.ts test/unit/domain/services/controllers/ForkController.test.ts test/unit/domain/warp/WarpGraphRuntimeBridge.test.ts test/unit/domain/WarpCore.content.test.ts`
 - `npm run typecheck`
 - `git diff --check`
