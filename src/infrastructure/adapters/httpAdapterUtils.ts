@@ -14,7 +14,7 @@ import { HttpRequest } from '../../ports/HttpServerPort.ts';
 /**
  * Error thrown when a request body exceeds the size limit.
  */
-class PayloadTooLargeError extends WarpError {
+export class PayloadTooLargeError extends WarpError {
   readonly status: number;
 
   constructor(totalBytes: number) {

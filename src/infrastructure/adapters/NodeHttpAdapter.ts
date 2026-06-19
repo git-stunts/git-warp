@@ -1,16 +1,7 @@
 import HttpServerPort, { HttpRequest, HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
-import { MAX_BODY_BYTES, noopLogger } from './httpAdapterUtils.ts';
+import { MAX_BODY_BYTES, PayloadTooLargeError, noopLogger } from './httpAdapterUtils.ts';
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import WarpError from '../../domain/errors/WarpError.ts';
-
-/**
- * Error thrown when the request body exceeds the size limit.
- */
-class PayloadTooLargeError extends WarpError {
-  constructor(totalBytes: number) {
-    super('Payload Too Large', 'E_PAYLOAD_TOO_LARGE', { context: { totalBytes } });
-  }
-}
 
 /**
  * Reads the request body from a Node.js IncomingMessage stream, enforcing a size limit.
