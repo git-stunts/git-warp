@@ -44,8 +44,8 @@ type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
 function _assertValidLamport(lamport: number, commitSha: string): void {
   if (typeof lamport !== 'number' || !Number.isFinite(lamport) || lamport < 1) {
     throw new WriterError(
-      'E_LAMPORT_CORRUPT',
       `Malformed Lamport timestamp in commit ${commitSha}: ${JSON.stringify(lamport)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
+      { code: 'E_LAMPORT_CORRUPT' },
     );
   }
 }
@@ -54,8 +54,8 @@ function _assertValidLamport(lamport: number, commitSha: string): void {
 function _validateJournal(patchJournal: PatchJournalPort): void {
   if (patchJournal === null || patchJournal === undefined) {
     throw new WriterError(
-      'E_MISSING_JOURNAL',
       'patchJournal is required — Writer.beginPatch() produces patches that must be persisted via a PatchJournalPort.',
+      { code: 'E_MISSING_JOURNAL' },
     );
   }
 }
@@ -196,8 +196,8 @@ export class Writer {
   async commitPatch(build: (p: PatchSession) => void | Promise<void>): Promise<string> {
     if (this._commitInProgress) {
       throw new WriterError(
-        'COMMIT_IN_PROGRESS',
         'commitPatch() is not reentrant. Use beginPatch() for nested or concurrent patches.',
+        { code: 'COMMIT_IN_PROGRESS' },
       );
     }
     this._commitInProgress = true;

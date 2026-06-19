@@ -196,6 +196,7 @@ function poisonHost(): ComparisonHost {
     _persistence: {
       readBlob: vi.fn(async () => failPoisonHostCall()),
     },
+    _materializeStrandGraph: vi.fn(async () => failPoisonHostCall()),
   };
 }
 

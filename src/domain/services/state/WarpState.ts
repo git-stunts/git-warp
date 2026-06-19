@@ -141,18 +141,14 @@ export default class WarpState {
   mutatePropLWW(encodedKey: string, eventId: EventId, value: PropValue): void {
     const current = this.prop.get(encodedKey);
     const winner = lwwMax(current, lwwSet(eventId, value));
-    if (winner !== null) {
-      this.prop.set(encodedKey, winner);
-    }
+    this.prop.set(encodedKey, winner);
   }
 
   /** LWW-max write for callers that already hold a validated property register. */
   mutatePropRegisterLWW(encodedKey: string, register: LWWRegister<PropValue>): void {
     const current = this.prop.get(encodedKey);
     const winner = lwwMax(current, register);
-    if (winner !== null) {
-      this.prop.set(encodedKey, winner);
-    }
+    this.prop.set(encodedKey, winner);
   }
 
   /** Yields every node property register with decoded identity. */
@@ -376,9 +372,7 @@ export default class WarpState {
     for (const [key, regB] of b) {
       const regA = result.get(key);
       const winner = lwwMax(regA, regB);
-      if (winner !== null) {
-        result.set(key, winner);
-      }
+      result.set(key, winner);
     }
     return result;
   }

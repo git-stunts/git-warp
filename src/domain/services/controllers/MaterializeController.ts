@@ -149,7 +149,7 @@ export default class MaterializeController {
   }
 
   /** Full materialization — live frontier, optional ceiling. */
-  async materialize(opts: { receipts?: boolean; ceiling?: number | null; wantDiff?: boolean }): Promise<MaterializeResult> {
+  async materialize(opts: { receipts?: boolean; ceiling?: number | null; wantDiff?: boolean } = {}): Promise<MaterializeResult> {
     const ceiling = normalizeExplicitCeiling(opts.ceiling);
     if (ceiling !== null) {
       return await this._materializeWithCeiling({ ceiling, receipts: opts.receipts === true });

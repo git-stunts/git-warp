@@ -122,6 +122,14 @@ function createControllerFixtures() {
 }
 
 describe('MaterializeController — unified snapshot cache', () => {
+  it('materializes live state with default options when called without arguments', async () => {
+    const { controller, patches } = createControllerFixtures();
+
+    await expect(controller.materialize()).resolves.toBeDefined();
+
+    expect(patches.loadCheckpoint).toHaveBeenCalled();
+  });
+
   it('uses an exact snapshot hit for coordinate materialization before replay', async () => {
     const { controller, stateCache, patches } = createControllerFixtures();
     const coordinate: Coordinate = {

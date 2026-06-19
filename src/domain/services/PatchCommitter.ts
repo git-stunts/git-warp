@@ -163,8 +163,8 @@ export async function commitPatch(state: CommitState): Promise<string> {
 /** Builds a WriterError that preserves expected and actual writer-ref heads. */
 function buildWriterCasConflict(expectedSha: string | null, actualSha: string | null): WriterError {
   const err = new WriterError(
-    'WRITER_CAS_CONFLICT',
     'Commit failed: writer ref was updated by another process. Re-materialize and retry.',
+    { code: 'WRITER_CAS_CONFLICT' },
   );
   err.expectedSha = expectedSha;
   err.actualSha = actualSha;

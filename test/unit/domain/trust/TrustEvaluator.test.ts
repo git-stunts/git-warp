@@ -184,4 +184,21 @@ describe('evaluateWriters — mixed trusted/untrusted', () => {
     expect((aliceExpl as any)['trusted']).toBe(true);
     expect((malloryExpl as any)['trusted']).toBe(false);
   });
+
+  it('continues evaluating writers when one writer id is malformed', async () => {
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+    const malformedWriterId = 'bad\0writer';
+    const assessment = evaluateWriters(['alice', malformedWriterId], state, VALID_POLICY);
+    const explanations = new Map(
+      assessment.trust.explanations.map((explanation) => [explanation.writerId, explanation]),
+    );
+
+    expect(assessment.trust.evaluatedWriters).toEqual(['alice', malformedWriterId]);
+    expect(assessment.trust.untrustedWriters).toEqual([malformedWriterId]);
+    expect(explanations.get('alice')?.trusted).toBe(true);
+    expect(explanations.get(malformedWriterId)?.trusted).toBe(false);
+    expect(explanations.get(malformedWriterId)?.reasonCode).toBe(
+      TRUST_REASON_CODES.WRITER_HAS_NO_ACTIVE_BINDING,
+    );
+  });
 });

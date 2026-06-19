@@ -1,4 +1,4 @@
-import HttpServerPort, { type HttpRequest, type HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
+import HttpServerPort, { HttpRequest, HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
 import { MAX_BODY_BYTES, noopLogger } from './httpAdapterUtils.ts';
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import WarpError from '../../domain/errors/WarpError.ts';
@@ -29,23 +29,29 @@ async function readBody(req: IncomingMessage): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-/**
- * Returns the string if non-empty, otherwise the fallback.
- */
-function stringOrDefault(value: string | undefined, fallback: string): string {
-  return typeof value === 'string' && value.length > 0 ? value : fallback;
+/** Converts Node's incoming header shape into the port header contract. */
+function normalizeNodeHeaders(headers: IncomingMessage['headers']): Record<string, string> {
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value === 'string') {
+      normalized[key] = value;
+    } else if (Array.isArray(value)) {
+      normalized[key] = value.join(', ');
+    }
+  }
+  return normalized;
 }
 
 /**
  * Builds an HttpRequest from a Node.js IncomingMessage and body buffer.
  */
 function buildHttpRequest(req: IncomingMessage, body: Buffer): HttpRequest {
-  return {
-    method: stringOrDefault(req.method, 'GET'),
-    url: stringOrDefault(req.url, '/'),
-    headers: req.headers as Record<string, string>,
+  return new HttpRequest({
+    method: req.method ?? '',
+    url: req.url ?? '',
+    headers: normalizeNodeHeaders(req.headers),
     body: body.length > 0 ? body : undefined,
-  };
+  });
 }
 
 /**
@@ -72,9 +78,9 @@ function handleDispatchError(
  * Sends the handler response back through the Node.js ServerResponse.
  */
 function sendResponse(response: HttpResponse, res: ServerResponse): void {
-  const status = typeof response.status === 'number' && response.status > 0 ? response.status : 200;
-  res.writeHead(status, response.headers ?? {});
-  res.end(response.body);
+  const validated = HttpResponse.from(response);
+  res.writeHead(validated.status ?? 200, validated.headers ?? {});
+  res.end(validated.body ?? undefined);
 }
 
 interface DispatchOptions {

@@ -48,6 +48,10 @@ export type ComparisonCoordinateSideReadSource = ComparisonPatchEntrySource & {
   _materializeCoordinateGraph(opts: MaterializeCoordinateOptions): Promise<ComparisonMaterializedState>;
 };
 
+export type MaterializeStrandOptions = {
+  ceiling?: number | null;
+};
+
 /**
  * Host surface still required by transfer planning and full strand overlay
  * comparison. Coordinate-backed selector resolution uses
@@ -56,6 +60,7 @@ export type ComparisonCoordinateSideReadSource = ComparisonPatchEntrySource & {
 export type ComparisonHost = ComparisonDigestHost & {
   _blobStorage: { retrieve(oid: string): Promise<Uint8Array> } | null;
   _persistence: { readBlob(oid: string): Promise<Uint8Array> };
+  _materializeStrandGraph(strandId: string, options?: MaterializeStrandOptions): Promise<ComparisonMaterializedState>;
 };
 
 /**

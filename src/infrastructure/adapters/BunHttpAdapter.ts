@@ -1,4 +1,4 @@
-import HttpServerPort, { type HttpRequest, type HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
+import HttpServerPort, { type HttpRequest, HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import {
   noopLogger,
@@ -13,12 +13,10 @@ import {
  * Converts a plain-object port response into a Bun Response.
  */
 function toResponse(portResponse: HttpResponse): Response {
-  const status = portResponse.status !== undefined && portResponse.status !== 0
-    ? portResponse.status
-    : 200;
-  return new Response((portResponse.body ?? null) as BodyInit | null, {
-    status,
-    headers: portResponse.headers ?? {},
+  const validated = HttpResponse.from(portResponse);
+  return new Response((validated.body ?? null) as BodyInit | null, {
+    status: validated.status ?? 200,
+    headers: validated.headers ?? {},
   });
 }
 

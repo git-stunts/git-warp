@@ -12,6 +12,8 @@
  */
 
 import { type TrustRecord, type KeyAddSubject, type KeyRevokeSubject, type WriterBindAddSubject, type WriterBindRevokeSubject } from './TrustRecord.ts';
+import TrustError from '../errors/TrustError.ts';
+import TrustReadonlyMap from './TrustReadonlyMap.ts';
 
 // -- Domain types for trust state ---------------------------------------------
 
@@ -21,13 +23,17 @@ type BindingInfo = { readonly keyId: string; readonly boundAt: string };
 type RevokedBindingInfo = { readonly keyId: string; readonly revokedAt: string; readonly reasonCode: string };
 type BuildError = { readonly recordId: string; readonly error: string };
 
+const KEY_ID_PATTERN = /^ed25519:[a-f0-9]{64}$/;
+const BINDING_KEY_SEPARATOR = '\0';
+const TRUST_STATE_INVALID_CODE = 'E_TRUST_STATE_INVALID';
+
 // -- TrustState ---------------------------------------------------------------
 
 class TrustState {
-  readonly activeKeys: ReadonlyMap<string, ActiveKeyInfo>;
-  readonly revokedKeys: ReadonlyMap<string, RevokedKeyInfo>;
-  readonly writerBindings: ReadonlyMap<string, BindingInfo>;
-  readonly revokedBindings: ReadonlyMap<string, RevokedBindingInfo>;
+  readonly activeKeys: TrustReadonlyMap<string, ActiveKeyInfo>;
+  readonly revokedKeys: TrustReadonlyMap<string, RevokedKeyInfo>;
+  readonly writerBindings: TrustReadonlyMap<string, BindingInfo>;
+  readonly revokedBindings: TrustReadonlyMap<string, RevokedBindingInfo>;
   readonly errors: readonly BuildError[];
   readonly recordsProcessed: number;
 
@@ -39,14 +45,222 @@ class TrustState {
     errors: BuildError[];
     recordsProcessed: number;
   }) {
-    this.activeKeys = fields.activeKeys;
-    this.revokedKeys = fields.revokedKeys;
-    this.writerBindings = fields.writerBindings;
-    this.revokedBindings = fields.revokedBindings;
-    this.errors = fields.errors;
+    this.activeKeys = copyActiveKeys(fields.activeKeys);
+    this.revokedKeys = copyRevokedKeys(fields.revokedKeys);
+    this.writerBindings = copyWriterBindings(fields.writerBindings);
+    this.revokedBindings = copyRevokedBindings(fields.revokedBindings);
+    this.errors = copyBuildErrors(fields.errors);
+    assertRecordCount(fields.recordsProcessed);
     this.recordsProcessed = fields.recordsProcessed;
     Object.freeze(this);
   }
+
+  hasActiveKey(keyId: string): boolean {
+    assertKeyId(keyId, 'keyId');
+    return this.activeKeys.has(keyId);
+  }
+
+  getBindingsForWriter(writerId: string): readonly BindingInfo[] {
+    assertWriterId(writerId, 'writerId');
+    const bindings: BindingInfo[] = [];
+    for (const [bindingKey, binding] of this.writerBindings) {
+      const parsed = parseBindingKey(bindingKey, 'writerBindings');
+      if (parsed.writerId === writerId) {
+        bindings.push(binding);
+      }
+    }
+    return Object.freeze(bindings);
+  }
+
+  hasRevokedBindingsForWriter(writerId: string): boolean {
+    assertWriterId(writerId, 'writerId');
+    for (const bindingKey of this.revokedBindings.keys()) {
+      if (parseBindingKey(bindingKey, 'revokedBindings').writerId === writerId) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+function assertMap<K, V>(value: Map<K, V>, field: string): void {
+  if (!(value instanceof Map)) {
+    throw new TrustError(`${field} must be a Map`, {
+      code: TRUST_STATE_INVALID_CODE,
+      context: { field },
+    });
+  }
+}
+
+function assertArray<T>(value: T[], field: string): void {
+  if (!Array.isArray(value)) {
+    throw new TrustError(`${field} must be an array`, {
+      code: TRUST_STATE_INVALID_CODE,
+      context: { field },
+    });
+  }
+}
+
+function assertNonEmptyString(value: string, field: string): void {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new TrustError(`${field} must be a non-empty string`, {
+      code: TRUST_STATE_INVALID_CODE,
+      context: { field },
+    });
+  }
+}
+
+function assertKeyId(keyId: string, field: string): void {
+  assertNonEmptyString(keyId, field);
+  if (!KEY_ID_PATTERN.test(keyId)) {
+    throw new TrustError(`${field} must be an ed25519 key id`, {
+      code: TRUST_STATE_INVALID_CODE,
+      context: { field, keyId },
+    });
+  }
+}
+
+function assertWriterId(writerId: string, field: string): void {
+  assertNonEmptyString(writerId, field);
+  if (writerId.includes(BINDING_KEY_SEPARATOR)) {
+    throw new TrustError(`${field} must not contain the trust binding separator`, {
+      code: TRUST_STATE_INVALID_CODE,
+      context: { field, writerId },
+    });
+  }
+}
+
+function assertRecordCount(recordsProcessed: number): void {
+  if (!Number.isInteger(recordsProcessed) || recordsProcessed < 0) {
+    throw new TrustError('recordsProcessed must be a non-negative integer', {
+      code: TRUST_STATE_INVALID_CODE,
+      context: { field: 'recordsProcessed' },
+    });
+  }
+}
+
+function encodeBindingKey(writerId: string, keyId: string): string {
+  assertWriterId(writerId, 'writerId');
+  assertKeyId(keyId, 'keyId');
+  return `${writerId}${BINDING_KEY_SEPARATOR}${keyId}`;
+}
+
+function parseBindingKey(bindingKey: string, field: string): { readonly writerId: string; readonly keyId: string } {
+  assertNonEmptyString(bindingKey, field);
+  const separatorIndex = bindingKey.indexOf(BINDING_KEY_SEPARATOR);
+  if (separatorIndex <= 0 || separatorIndex !== bindingKey.lastIndexOf(BINDING_KEY_SEPARATOR)) {
+    throw new TrustError(`${field} key must encode exactly one writer/key binding`, {
+      code: TRUST_STATE_INVALID_CODE,
+      context: { field },
+    });
+  }
+  const writerId = bindingKey.slice(0, separatorIndex);
+  const keyId = bindingKey.slice(separatorIndex + BINDING_KEY_SEPARATOR.length);
+  assertWriterId(writerId, `${field}.writerId`);
+  assertKeyId(keyId, `${field}.keyId`);
+  return { writerId, keyId };
+}
+
+function copyActiveKeys(source: Map<string, ActiveKeyInfo>): TrustReadonlyMap<string, ActiveKeyInfo> {
+  assertMap(source, 'activeKeys');
+  const copy = new Map<string, ActiveKeyInfo>();
+  for (const [keyId, info] of source) {
+    assertKeyId(keyId, 'activeKeys.key');
+    copy.set(keyId, freezeActiveKeyInfo(info));
+  }
+  return new TrustReadonlyMap(copy);
+}
+
+function copyRevokedKeys(source: Map<string, RevokedKeyInfo>): TrustReadonlyMap<string, RevokedKeyInfo> {
+  assertMap(source, 'revokedKeys');
+  const copy = new Map<string, RevokedKeyInfo>();
+  for (const [keyId, info] of source) {
+    assertKeyId(keyId, 'revokedKeys.key');
+    copy.set(keyId, freezeRevokedKeyInfo(info));
+  }
+  return new TrustReadonlyMap(copy);
+}
+
+function copyWriterBindings(source: Map<string, BindingInfo>): TrustReadonlyMap<string, BindingInfo> {
+  assertMap(source, 'writerBindings');
+  const copy = new Map<string, BindingInfo>();
+  for (const [bindingKey, info] of source) {
+    const parsed = parseBindingKey(bindingKey, 'writerBindings');
+    const frozen = freezeBindingInfo(info);
+    assertMatchingBindingKey(parsed.keyId, frozen.keyId, 'writerBindings');
+    copy.set(bindingKey, frozen);
+  }
+  return new TrustReadonlyMap(copy);
+}
+
+function copyRevokedBindings(source: Map<string, RevokedBindingInfo>): TrustReadonlyMap<string, RevokedBindingInfo> {
+  assertMap(source, 'revokedBindings');
+  const copy = new Map<string, RevokedBindingInfo>();
+  for (const [bindingKey, info] of source) {
+    const parsed = parseBindingKey(bindingKey, 'revokedBindings');
+    const frozen = freezeRevokedBindingInfo(info);
+    assertMatchingBindingKey(parsed.keyId, frozen.keyId, 'revokedBindings');
+    copy.set(bindingKey, frozen);
+  }
+  return new TrustReadonlyMap(copy);
+}
+
+function assertMatchingBindingKey(encodedKeyId: string, valueKeyId: string, field: string): void {
+  if (encodedKeyId !== valueKeyId) {
+    throw new TrustError(`${field} keyId must match the encoded binding key`, {
+      code: TRUST_STATE_INVALID_CODE,
+      context: { field, encodedKeyId, valueKeyId },
+    });
+  }
+}
+
+function assertEntryObject(value: object, field: string): void {
+  if (value === null || typeof value !== 'object') {
+    throw new TrustError(`${field} entry must be an object`, {
+      code: TRUST_STATE_INVALID_CODE,
+      context: { field },
+    });
+  }
+}
+
+function freezeActiveKeyInfo(info: ActiveKeyInfo): ActiveKeyInfo {
+  assertEntryObject(info, 'activeKeys');
+  assertNonEmptyString(info.publicKey, 'activeKeys.publicKey');
+  assertNonEmptyString(info.addedAt, 'activeKeys.addedAt');
+  return Object.freeze({ publicKey: info.publicKey, addedAt: info.addedAt });
+}
+
+function freezeRevokedKeyInfo(info: RevokedKeyInfo): RevokedKeyInfo {
+  assertEntryObject(info, 'revokedKeys');
+  assertNonEmptyString(info.publicKey, 'revokedKeys.publicKey');
+  assertNonEmptyString(info.revokedAt, 'revokedKeys.revokedAt');
+  assertNonEmptyString(info.reasonCode, 'revokedKeys.reasonCode');
+  return Object.freeze({ publicKey: info.publicKey, revokedAt: info.revokedAt, reasonCode: info.reasonCode });
+}
+
+function freezeBindingInfo(info: BindingInfo): BindingInfo {
+  assertEntryObject(info, 'writerBindings');
+  assertKeyId(info.keyId, 'writerBindings.keyId');
+  assertNonEmptyString(info.boundAt, 'writerBindings.boundAt');
+  return Object.freeze({ keyId: info.keyId, boundAt: info.boundAt });
+}
+
+function freezeRevokedBindingInfo(info: RevokedBindingInfo): RevokedBindingInfo {
+  assertEntryObject(info, 'revokedBindings');
+  assertKeyId(info.keyId, 'revokedBindings.keyId');
+  assertNonEmptyString(info.revokedAt, 'revokedBindings.revokedAt');
+  assertNonEmptyString(info.reasonCode, 'revokedBindings.reasonCode');
+  return Object.freeze({ keyId: info.keyId, revokedAt: info.revokedAt, reasonCode: info.reasonCode });
+}
+
+function copyBuildErrors(errors: BuildError[]): readonly BuildError[] {
+  assertArray(errors, 'errors');
+  return Object.freeze(errors.map((error) => {
+    assertEntryObject(error, 'errors');
+    assertNonEmptyString(error.recordId, 'errors.recordId');
+    assertNonEmptyString(error.error, 'errors.error');
+    return Object.freeze({ recordId: error.recordId, error: error.error });
+  }));
 }
 
 // -- Build options (crypto injection) -----------------------------------------
@@ -161,7 +375,7 @@ function handleKeyRevoke(subject: KeyRevokeSubject, issuedAt: string, recordId: 
 }
 
 function handleBindAdd(subject: WriterBindAddSubject, issuedAt: string, recordId: string, ctx: TrustBuildContext): void {
-  const bindingKey = `${subject.writerId}\0${subject.keyId}`;
+  const bindingKey = encodeBindingKey(subject.writerId, subject.keyId);
   if (ctx.revokedKeys.has(subject.keyId)) {
     ctx.errors.push({ recordId, error: `Cannot bind writer to revoked key: ${subject.keyId}` });
     return;
@@ -174,7 +388,7 @@ function handleBindAdd(subject: WriterBindAddSubject, issuedAt: string, recordId
 }
 
 function handleBindRevoke(subject: WriterBindRevokeSubject, issuedAt: string, recordId: string, ctx: TrustBuildContext): void {
-  const bindingKey = `${subject.writerId}\0${subject.keyId}`;
+  const bindingKey = encodeBindingKey(subject.writerId, subject.keyId);
   const binding = ctx.writerBindings.get(bindingKey);
   if (!binding) {
     ctx.errors.push({ recordId, error: `Cannot revoke non-existent binding: writer=${subject.writerId} key=${subject.keyId}` });

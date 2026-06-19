@@ -9,6 +9,7 @@
  */
 
 import WarpError from '../../domain/errors/WarpError.ts';
+import { HttpRequest } from '../../ports/HttpServerPort.ts';
 
 /**
  * Error thrown when a request body exceeds the size limit.
@@ -84,17 +85,12 @@ export const PAYLOAD_TOO_LARGE_LENGTH = String(PAYLOAD_TOO_LARGE_BYTES.byteLengt
 // ── Shared request conversion ───────────────────────────────────────────────
 
 /**
- * Converts a Web API Request into the plain-object format expected by
+ * Converts a Web API Request into the HttpRequest instance expected by
  * HttpServerPort request handlers.
  *
  * Used by both BunHttpAdapter and DenoHttpAdapter.
  */
-export async function toPortRequest(request: Request): Promise<{
-  method: string;
-  url: string;
-  headers: Record<string, string>;
-  body: Uint8Array | undefined;
-}> {
+export async function toPortRequest(request: Request): Promise<HttpRequest> {
   const headers: Record<string, string> = {};
   request.headers.forEach((value, key) => {
     headers[key] = value;
@@ -103,12 +99,12 @@ export async function toPortRequest(request: Request): Promise<{
   const body = await readRequestBody(request, headers);
 
   const parsedUrl = new URL(request.url);
-  return {
+  return new HttpRequest({
     method: request.method,
     url: parsedUrl.pathname + parsedUrl.search,
     headers,
     body,
-  };
+  });
 }
 
 /**

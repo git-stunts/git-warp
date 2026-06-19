@@ -101,14 +101,6 @@ vi.mock('../../../../../src/domain/utils/checksumUtils.ts', () => ({
   computeChecksum: computeChecksumMock,
 }));
 
-const { callInternalRuntimeMethodMock } = vi.hoisted(() => ({
-  callInternalRuntimeMethodMock: vi.fn(),
-}));
-
-vi.mock('../../../../../src/domain/utils/callInternalRuntimeMethod.ts', () => ({
-  callInternalRuntimeMethod: callInternalRuntimeMethodMock,
-}));
-
 const { strandServiceGetOrThrowMock, strandServiceGetPatchEntriesMock } = vi.hoisted(() => ({
   strandServiceGetOrThrowMock: vi.fn(),
   strandServiceGetPatchEntriesMock: vi.fn(async () => []),
@@ -219,6 +211,7 @@ function createMockHost(overrides = {}) {
     },
     getFrontier: vi.fn(async () => new Map([['alice', 'sha-alice-1']])),
     materializeCoordinate: vi.fn(async (_request?: { frontier: Map<string, string>; ceiling?: number }) => emptyState),
+    _materializeStrandGraph: vi.fn(async () => ({ state: emptyState })),
     _loadPatchChainFromSha: vi.fn(async () => []),
     ...overrides,
   };
@@ -617,7 +610,7 @@ describe('ComparisonController', () => {
         braid: { readOverlays: [] },
       };
       strandServiceGetOrThrowMock.mockResolvedValue(descriptor);
-      callInternalRuntimeMethodMock.mockResolvedValue(state);
+      (host['_materializeStrandGraph'] as ReturnType<typeof vi.fn>).mockResolvedValue({ state });
     });
 
     it('rejects empty strandId', async () => {
@@ -665,9 +658,7 @@ describe('ComparisonController', () => {
     it('passes ceiling through to strand resolution', async () => {
       await controller.compareStrand('my-strand', { ceiling: 5 });
 
-      expect(callInternalRuntimeMethodMock).toHaveBeenCalledWith(
-        expect.anything(),
-        'materializeStrand',
+      expect(host['_materializeStrandGraph']).toHaveBeenCalledWith(
         'my-strand',
         { ceiling: 5 },
       );
@@ -828,7 +819,7 @@ describe('ComparisonController', () => {
         braid: { readOverlays: [] },
       };
       strandServiceGetOrThrowMock.mockResolvedValue(descriptor);
-      callInternalRuntimeMethodMock.mockResolvedValue(state);
+      (host['_materializeStrandGraph'] as ReturnType<typeof vi.fn>).mockResolvedValue({ state });
     });
 
     it('rejects empty strandId', async () => {
@@ -939,18 +930,16 @@ describe('ComparisonController', () => {
       (host['materializeCoordinate'] as ReturnType<typeof vi.fn>).mockResolvedValue(state);
       (host['_loadPatchChainFromSha'] as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       strandServiceGetOrThrowMock.mockResolvedValue(strandDescriptor);
-      callInternalRuntimeMethodMock.mockResolvedValue(state);
+      (host['_materializeStrandGraph'] as ReturnType<typeof vi.fn>).mockResolvedValue({ state });
     });
 
-    it('resolves strand selector via callInternalRuntimeMethod', async () => {
+    it('resolves strand selector via explicit strand materialization', async () => {
       await controller.compareCoordinates({
         left: { kind: 'strand', strandId: 'my-strand' },
         right: { kind: 'live' },
       });
 
-      expect(callInternalRuntimeMethodMock).toHaveBeenCalledWith(
-        expect.anything(),
-        'materializeStrand',
+      expect(host['_materializeStrandGraph']).toHaveBeenCalledWith(
         'my-strand',
         undefined,
       );

@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import HttpServerPort, {
-  type HttpRequest,
+  HttpBoundaryError,
+  HttpRequest,
+  HttpResponse,
   type HttpServerHandle,
 } from '../../../src/ports/HttpServerPort.ts';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.ts';
@@ -8,6 +10,122 @@ import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapte
 describe('HttpServerPort', () => {
   it('abstract methods are not callable on base prototype', () => {
     expect(HttpServerPort.prototype.createServer).toBeUndefined();
+  });
+});
+
+describe('HttpRequest', () => {
+  it('validates and freezes request fields', () => {
+    const request = new HttpRequest({
+      method: 'POST',
+      url: '/sync',
+      headers: { 'content-type': 'application/cbor' },
+      body: new Uint8Array([1, 2, 3]),
+    });
+
+    expect(request.method).toBe('POST');
+    expect(request.url).toBe('/sync');
+    expect(request.headers['content-type']).toBe('application/cbor');
+    expect(request.body).toEqual(new Uint8Array([1, 2, 3]));
+    expect(Object.isFrozen(request)).toBe(true);
+    expect(Object.isFrozen(request.headers)).toBe(true);
+  });
+
+  it('rejects invalid request fields', () => {
+    expect(() => new HttpRequest({
+      method: '',
+      url: '/sync',
+      headers: {},
+    })).toThrow(HttpBoundaryError);
+
+    expect(() => new HttpRequest({
+      method: 'GET',
+      url: '',
+      headers: {},
+    })).toThrow(HttpBoundaryError);
+  });
+
+  it('rejects non-object request inputs at runtime', () => {
+    // @ts-expect-error runtime boundary validation covers malformed adapter input.
+    expect(() => new HttpRequest(null)).toThrow(HttpBoundaryError);
+    // @ts-expect-error runtime boundary validation covers malformed adapter input.
+    expect(() => HttpRequest.from(null)).toThrow(HttpBoundaryError);
+  });
+
+  it('rejects invalid request body values at runtime', () => {
+    expect(() => new HttpRequest({
+      method: 'POST',
+      url: '/sync',
+      headers: {},
+      // @ts-expect-error runtime boundary validation covers untrusted adapters.
+      body: 'not-bytes',
+    })).toThrow(HttpBoundaryError);
+  });
+
+  it('normalizes request header names to lowercase', () => {
+    const request = new HttpRequest({
+      method: 'GET',
+      url: '/sync',
+      headers: { 'Content-Type': 'text/plain', ACCEPT: 'application/json' },
+    });
+
+    expect(request.headers).toEqual({
+      'content-type': 'text/plain',
+      accept: 'application/json',
+    });
+    expect(Reflect.has(request.headers, 'Content-Type')).toBe(false);
+    expect(Reflect.has(request.headers, 'ACCEPT')).toBe(false);
+  });
+});
+
+describe('HttpResponse', () => {
+  it('validates and freezes response fields', () => {
+    const response = new HttpResponse({
+      status: 201,
+      headers: { 'content-type': 'text/plain' },
+      body: 'created',
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.headers?.['content-type']).toBe('text/plain');
+    expect(response.body).toBe('created');
+    expect(Object.isFrozen(response)).toBe(true);
+    expect(Object.isFrozen(response.headers)).toBe(true);
+  });
+
+  it('defaults to an empty response shape', () => {
+    const response = new HttpResponse();
+
+    expect(response.status).toBeUndefined();
+    expect(response.headers).toBeUndefined();
+    expect(response.body).toBeUndefined();
+  });
+
+  it('rejects invalid response status values', () => {
+    expect(() => new HttpResponse({ status: 0 })).toThrow(HttpBoundaryError);
+    expect(() => new HttpResponse({ status: 600 })).toThrow(HttpBoundaryError);
+  });
+
+  it('rejects non-object response inputs at runtime', () => {
+    // @ts-expect-error runtime boundary validation covers malformed handler input.
+    expect(() => new HttpResponse(null)).toThrow(HttpBoundaryError);
+    // @ts-expect-error runtime boundary validation covers malformed handler input.
+    expect(() => HttpResponse.from(null)).toThrow(HttpBoundaryError);
+  });
+
+  it('rejects invalid response body values at runtime', () => {
+    expect(() => new HttpResponse({
+      // @ts-expect-error runtime boundary validation covers untrusted handlers.
+      body: 42,
+    })).toThrow(HttpBoundaryError);
+  });
+
+  it('normalizes response header names to lowercase', () => {
+    const response = new HttpResponse({
+      headers: { 'X-Trace-Id': 'abc123' },
+    });
+
+    expect(response.headers).toEqual({ 'x-trace-id': 'abc123' });
+    expect(Reflect.has(response.headers ?? {}, 'X-Trace-Id')).toBe(false);
   });
 });
 
@@ -65,16 +183,19 @@ describe('NodeHttpAdapter', () => {
   });
 
   it('handles a basic request/response cycle', async () => {
-    server = adapter.createServer(async (req: HttpRequest) => ({
-      status: 201,
-      headers: { 'content-type': 'application/json' },
-      body: [
-        req.method,
-        req.url,
-        req.headers['content-type'],
-        req.body === undefined ? '' : new TextDecoder().decode(req.body),
-      ].join('|'),
-    }));
+    server = adapter.createServer(async (req: HttpRequest) => {
+      expect(req).toBeInstanceOf(HttpRequest);
+      return {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+        body: [
+          req.method,
+          req.url,
+          req.headers['content-type'],
+          req.body === undefined ? '' : new TextDecoder().decode(req.body),
+        ].join('|'),
+      };
+    });
     const activeServer = server;
 
     await listenOnLoopback(activeServer);
