@@ -82,26 +82,28 @@ describe('PatchSession', () => {
     });
   });
 
-  it('classifies non-CAS advanced-ref errors as WRITER_REF_ADVANCED', async () => {
+  it('classifies typed CAS conflicts as WRITER_REF_ADVANCED', async () => {
     const { builder, session } = createSession();
-    builder.commit.mockRejectedValue(new Error('writer ref has advanced unexpectedly'));
+    const cause = new WriterError('typed CAS conflict', { code: 'WRITER_CAS_CONFLICT' });
+    cause.expectedSha = 'a'.repeat(40);
+    cause.actualSha = 'b'.repeat(40);
+    builder.commit.mockRejectedValue(cause);
 
     await expect(session.commit()).rejects.toMatchObject({
       code: 'WRITER_REF_ADVANCED',
+      cause,
+      message: expect.stringContaining('Expected aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
     });
   });
 
-  it('preserves the original cause on classified commit failures', async () => {
+  it('does not classify raw advanced-looking messages as CAS conflicts', async () => {
     const { builder, session } = createSession();
-    const cause = new Error('Concurrent commit detected while writing patch');
+    const cause = new Error('writer ref has advanced unexpectedly');
     builder.commit.mockRejectedValue(cause);
 
-    try {
-      await session.commit();
-      expect.unreachable('commit should fail');
-    } catch (err) {
-      expect(err).toBeInstanceOf(WriterError);
-      expect(err).toMatchObject({ code: 'WRITER_REF_ADVANCED', cause });
-    }
+    await expect(session.commit()).rejects.toMatchObject({
+      code: 'PERSIST_WRITE_FAILED',
+      cause,
+    });
   });
 });
