@@ -45,12 +45,16 @@ export type IndexVerifyResult = {
 export default abstract class MaterializeCapability {
   /** @deprecated For application reads, use openWarpWorldline().live(), seek(), or observer reads. */
   abstract materialize(_options: { receipts: true; ceiling?: number | null }): Promise<MaterializeWithReceipts>;
+  /** @deprecated For application reads, use openWarpWorldline().live(), seek(), or observer reads. */
   abstract materialize(_options?: { receipts?: false; ceiling?: number | null }): Promise<SnapshotWarpState>;
+  /** @deprecated For application reads, use openWarpWorldline().live(), seek(), or observer reads. */
   abstract materialize(_options?: MaterializeOptions): Promise<SnapshotWarpState | MaterializeWithReceipts>;
 
   /** @deprecated For application coordinate reads, use worldline seek/read handles. */
   abstract materializeCoordinate(_options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<MaterializeWithReceipts>;
+  /** @deprecated For application coordinate reads, use worldline seek/read handles. */
   abstract materializeCoordinate(_options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false }): Promise<SnapshotWarpState>;
+  /** @deprecated For application coordinate reads, use worldline seek/read handles. */
   abstract materializeCoordinate(_options: MaterializeCoordinateOptions): Promise<SnapshotWarpState | MaterializeWithReceipts>;
 
   /** @deprecated For application checkpoint reads, use historical worldline reads. */

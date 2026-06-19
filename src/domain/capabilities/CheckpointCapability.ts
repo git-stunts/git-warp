@@ -29,9 +29,18 @@ export type MaybeGCResult = {
 };
 
 export default abstract class CheckpointCapability {
+  /** Create a checkpoint commit for the current graph state. */
   abstract createCheckpoint(): Promise<string>;
+
+  /** Synchronize checkpoint coverage metadata with persisted state. */
   abstract syncCoverage(): Promise<void>;
+
+  /** Run garbage collection only when the configured policy says it is due. */
   abstract maybeRunGC(): MaybeGCResult;
+
+  /** Force an immediate garbage-collection pass. */
   abstract runGC(): GCExecuteResult;
+
+  /** Return current garbage-collection metrics, or null when unavailable. */
   abstract getGCMetrics(): GCMetrics | null;
 }

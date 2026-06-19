@@ -16,11 +16,15 @@ export type SliceResult = {
 };
 
 export default abstract class ProvenanceCapability {
+  /** Return patch SHAs in the backward cone for an entity id. */
   abstract patchesFor(_entityId: string): Promise<string[]>;
+
   /** Diagnostic/provenance slice inspection; not a first-use application read path. */
   abstract materializeSlice(
     _nodeId: string,
     _options?: { receipts?: boolean },
   ): Promise<SliceResult>;
+
+  /** Load and decode a patch by content-addressable SHA. */
   abstract loadPatchBySha(_sha: string): Promise<Patch>;
 }

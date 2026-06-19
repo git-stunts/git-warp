@@ -52,22 +52,31 @@ export type PlanCoordinateTransferOptions = {
 };
 
 export default abstract class ComparisonCapability {
+  /** Build a patch-divergence summary from two ordered patch streams. */
   abstract buildPatchDivergence(
     _leftEntries: ComparisonPatchEntry[],
     _rightEntries: ComparisonPatchEntry[],
     _targetId?: string | null,
   ): Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+
+  /** Compare a strand against its base, live graph, or another strand. */
   abstract compareStrand(
     _strandId: string,
     _options?: CompareStrandOptions,
   ): Promise<CoordinateComparison>;
+
+  /** Plan how to transfer visible strand state into another coordinate. */
   abstract planStrandTransfer(
     _strandId: string,
     _options?: PlanStrandTransferOptions,
   ): Promise<CoordinateTransferPlan>;
+
+  /** Compare two explicit coordinate selectors. */
   abstract compareCoordinates(
     _options: CompareCoordinatesOptions,
   ): Promise<CoordinateComparison>;
+
+  /** Plan transfer from one explicit coordinate selector into another. */
   abstract planCoordinateTransfer(
     _options: PlanCoordinateTransferOptions,
   ): Promise<CoordinateTransferPlan>;

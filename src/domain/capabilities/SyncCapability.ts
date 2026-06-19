@@ -108,13 +108,30 @@ export type ServeHandle = {
 };
 
 export default abstract class SyncCapability {
+  /** Return the local writer frontier. */
   abstract getFrontier(): Promise<Map<string, string>>;
+
+  /** Return whether the local frontier has changed since the last check. */
   abstract hasFrontierChanged(): Promise<boolean>;
+
+  /** Return a lightweight local sync status snapshot. */
   abstract status(): Promise<WarpStatus>;
+
+  /** Create a sync request from the local frontier. */
   abstract createSyncRequest(): Promise<SyncRequest>;
+
+  /** Process an incoming sync request and return missing patches. */
   abstract processSyncRequest(_request: SyncRequest): Promise<SyncResponse>;
+
+  /** Apply patches from a sync response to local state. */
   abstract applySyncResponse(_response: SyncResponse): Promise<ApplySyncResult>;
+
+  /** Return whether syncing is needed for a remote frontier. */
   abstract syncNeeded(_remoteFrontier: Map<string, string>): Promise<boolean>;
+
+  /** Sync with an in-process peer, public capability peer, or remote URL. */
   abstract syncWith(_remote: SyncRemote, _options?: SyncWithOptions): Promise<SyncWithResult>;
+
+  /** Serve sync requests over a supplied HTTP server port. */
   abstract serve(_options: ServeOptions): Promise<ServeHandle>;
 }

@@ -26,6 +26,9 @@ export type SubscriptionHandle = {
 };
 
 export default abstract class SubscriptionCapability {
+  /** Subscribe to state diffs, optionally replaying the current state. */
   abstract subscribe(_options: SubscribeOptions): SubscriptionHandle;
+
+  /** Watch matching graph changes with polling behavior. */
   abstract watch(_pattern: string | string[], _options: WatchOptions): SubscriptionHandle;
 }
