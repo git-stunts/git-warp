@@ -192,10 +192,7 @@ describe('WarpCore.status() (LH/STATUS/1)', () => {
 
     await graph.materialize();
     const status = await graph.status();
-    // Empty patches produce 0 tombstones
-    expect(typeof status.tombstoneRatio).toBe('number');
-    expect(status.tombstoneRatio).toBeGreaterThanOrEqual(0);
-    expect(status.tombstoneRatio).toBeLessThanOrEqual(1);
+    expect(status.tombstoneRatio).toBe(0);
   });
 
   // =========================================================================

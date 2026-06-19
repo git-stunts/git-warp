@@ -213,7 +213,9 @@ describe('WarpCore coverage gaps', () => {
 
       const { state, receipt } = graph.join(otherState);
 
-      expect(state).toBeDefined();
+      expect(state.nodeAlive.elements()).toEqual([]);
+      expect(state.edgeAlive.elements()).toEqual([]);
+      expect(state.propSize()).toBe(0);
       expect(receipt.nodesAdded).toBe(0);
       expect(receipt.nodesRemoved).toBe(0);
       expect(receipt.edgesAdded).toBe(0);
@@ -262,10 +264,12 @@ describe('WarpCore coverage gaps', () => {
       graph.join(otherState);
 
       expect((graph as any)._stateDirty).toBe(false);
-      expect((graph)._materializedGraph).not.toBeNull();
-      expect((graph as any)._materializedGraph?.state).toBeDefined();
-      expect((graph as any)._materializedGraph?.adjacency).toBeDefined();
-      expect((graph as any)._materializedGraph?.stateHash).toBeNull();
+      const materialized = (graph as any)._materializedGraph;
+      expect(materialized).not.toBeNull();
+      expect(materialized.state.nodeAlive.elements()).toEqual(['user:alice']);
+      expect(materialized.adjacency.outgoing.size).toBe(0);
+      expect(materialized.adjacency.incoming.size).toBe(0);
+      expect(materialized.stateHash).toBeNull();
     });
 
     it('preserves merged state — _ensureFreshState() does not throw or rematerialize', async () => {
@@ -424,9 +428,14 @@ describe('WarpCore coverage gaps', () => {
 
       expect(setStateSpy).toHaveBeenCalledTimes(1);
       const [, options] = (setStateSpy.mock.calls[0] as [unknown, any]);
-      expect(options).toBeDefined();
-      expect(options.diff).toBeDefined();
-      expect(options.diff.nodesAdded).toContain('user:alice');
+      expect(options).toMatchObject({
+        diff: {
+          nodesAdded: ['user:alice'],
+          nodesRemoved: [],
+          edgesAdded: [],
+          edgesRemoved: [],
+        },
+      });
     });
 
     it('passes diff:null to _setMaterializedState when audit is enabled', async () => {
@@ -594,8 +603,15 @@ describe('WarpCore coverage gaps', () => {
       const result = graph.maybeRunGC();
 
       expect(result.ran).toBe(true);
-      expect(result.result).toBeDefined();
-      expect(result.reasons.length).toBeGreaterThan(0);
+      expect(result.result).toMatchObject({
+        nodesCompacted: 0,
+        edgesCompacted: 0,
+        tombstonesRemoved: 0,
+      });
+      expect(result.reasons).toEqual([
+        'Entry count 1 exceeds threshold 0',
+        'Patches since compaction 10000 exceeds minimum 0',
+      ]);
     });
   });
 
@@ -902,8 +918,12 @@ describe('WarpCore coverage gaps', () => {
 
       const wormhole = await graph.createWormhole(fromSha, toSha);
 
-      expect(wormhole).toBeDefined();
-      expect(wormhole.patchCount).toBeGreaterThanOrEqual(0);
+      expect(wormhole.fromSha).toBe(fromSha);
+      expect(wormhole.toSha).toBe(toSha);
+      expect(wormhole.writerId).toBe('writer-1');
+      expect(wormhole.patchCount).toBe(2);
+      expect(wormhole.payload.length).toBe(2);
+      expect(wormhole.payload.entries().map((entry) => entry.sha)).toEqual([fromSha, toSha]);
     });
   });
 
