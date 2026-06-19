@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `EffectSinkPort.deliver()` now returns `DeliveryObservation[]`
+  consistently. Custom sinks must wrap single observations in an array; the
+  built-in no-op, console, chunk, multiplex, and effect-pipeline surfaces all
+  use the array contract so fan-out and single-sink delivery share one return
+  shape.
 - Removed release-versioned runtime names from `src`: current reducer, state
   projection, patch-op, comparison, transfer, trust, and memory capability
   symbols now use unversioned names, while the v17 golden fixture and generated
