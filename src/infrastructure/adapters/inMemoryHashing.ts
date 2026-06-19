@@ -54,24 +54,31 @@ async function probeNodeCrypto(): Promise<CreateHashFn | null> {
 
 /** Default hash function using node:crypto SHA-1. */
 export function defaultHash(data: Uint8Array): string {
-  if (_nodeCreateHash === null) {
+  const createHash = _nodeCreateHash;
+  if (createHash === null) {
     throw new WarpError(
-      'No hash function available. Pass { hash } to InMemoryGraphAdapter constructor.',
-      'E_NO_HASH',
+      'defaultHash called before node:crypto initialization completed',
+      'E_HASH_NOT_READY',
     );
   }
-  return _nodeCreateHash('sha1').update(data).digest('hex');
+  return createHash('sha1').update(data).digest('hex');
 }
 
 /**
  * Eagerly kicks off the async crypto probe when no custom hash is provided.
  * Returns a promise that resolves when the probe completes.
  */
-export function initCryptoReady(hash: HashFn | undefined): Promise<CreateHashFn | null> {
+export async function initCryptoReady(hash: HashFn | undefined): Promise<void> {
   if (hash !== null && hash !== undefined) {
-    return Promise.resolve(null);
+    return;
   }
-  return probeNodeCrypto();
+  const createHash = await probeNodeCrypto();
+  if (createHash === null) {
+    throw new WarpError(
+      'No hash function available. Pass { hash } to InMemoryGraphAdapter constructor.',
+      'E_NO_HASH',
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

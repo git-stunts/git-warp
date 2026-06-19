@@ -70,7 +70,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   private readonly _author: string;
   private readonly _clock: { now(): number };
   private readonly _hash: HashFn;
-  private readonly _cryptoReady: Promise<unknown>;
+  private readonly _cryptoReady: Promise<void>;
   private readonly _commits = new Map<string, CommitRecord>();
   private readonly _blobs = new Map<string, Uint8Array>();
   private readonly _trees = new Map<string, TreeEntry[]>();
