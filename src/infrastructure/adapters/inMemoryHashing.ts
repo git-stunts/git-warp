@@ -42,12 +42,14 @@ async function probeNodeCrypto(): Promise<CreateHashFn | null> {
   if (_cryptoProbed) {
     return _nodeCreateHash;
   }
-  _cryptoProbed = true;
   try {
     const nodeCrypto = await import('node:crypto');
     _nodeCreateHash = nodeCrypto.createHash as CreateHashFn;
+    _cryptoProbed = true;
   } catch {
-    // Browser or non-Node runtime — hash must be injected via constructor
+    // Browser, non-Node runtime, or test-level module mock: callers decide
+    // whether missing ambient hashing is acceptable for their boundary.
+    _cryptoProbed = false;
   }
   return _nodeCreateHash;
 }
@@ -68,17 +70,12 @@ export function defaultHash(data: Uint8Array): string {
  * Eagerly kicks off the async crypto probe when no custom hash is provided.
  * Returns a promise that resolves when the probe completes.
  */
-export async function initCryptoReady(hash: HashFn | undefined): Promise<void> {
+export async function initCryptoReady(hash: HashFn | undefined): Promise<boolean> {
   if (hash !== null && hash !== undefined) {
-    return;
+    return true;
   }
   const createHash = await probeNodeCrypto();
-  if (createHash === null) {
-    throw new WarpError(
-      'No hash function available. Pass { hash } to InMemoryGraphAdapter constructor.',
-      'E_NO_HASH',
-    );
-  }
+  return createHash !== null;
 }
 
 // ---------------------------------------------------------------------------

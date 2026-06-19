@@ -70,7 +70,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   private readonly _author: string;
   private readonly _clock: { now(): number };
   private readonly _hash: HashFn;
-  private readonly _cryptoReady: Promise<void>;
+  private readonly _cryptoReady: Promise<boolean>;
   private readonly _commits = new Map<string, CommitRecord>();
   private readonly _blobs = new Map<string, Uint8Array>();
   private readonly _trees = new Map<string, TreeEntry[]>();
@@ -81,10 +81,11 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   constructor(options?: InMemoryAdapterOptions) {
     super();
     const opts = options ?? {};
+    const hasInjectedHash = opts.hash !== null && opts.hash !== undefined;
     this._author = (opts.author !== undefined && opts.author.length > 0) ? opts.author : 'InMemory <inmemory@test>';
     this._clock = opts.clock ?? { now: () => Date.now() };
-    this._hash = opts.hash ?? defaultHash;
-    this._cryptoReady = initCryptoReady(opts.hash);
+    this._hash = hasInjectedHash ? opts.hash : defaultHash;
+    this._cryptoReady = initCryptoReady(hasInjectedHash ? opts.hash : undefined);
   }
 
   // -- TreePort -------------------------------------------------------------
@@ -94,7 +95,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   async writeTree(entries: string[]): Promise<string> {
-    await this._cryptoReady;
+    await this._ensureHashReady();
     const parsed = entries.map(line => parseMktreeEntry(line));
     const oid = hashTree(this._hash, parsed);
     this._trees.set(oid, parsed);
@@ -183,7 +184,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   // -- BlobPort -------------------------------------------------------------
 
   async writeBlob(content: Uint8Array | string): Promise<string> {
-    await this._cryptoReady;
+    await this._ensureHashReady();
     const bytes = toBytes(content);
     const oid = hashBlob(this._hash, bytes);
     this._blobs.set(oid, bytes);
@@ -361,11 +362,21 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   private async _createCommit(treeOid: string, parents: string[], message: string): Promise<string> {
-    await this._cryptoReady;
+    await this._ensureHashReady();
     const date = new Date(this._clock.now()).toISOString();
     const sha = hashCommit(this._hash, { treeOid, parents, message, author: this._author, date });
     this._commits.set(sha, { treeOid, parents: [...parents], message, author: this._author, date });
     return sha;
+  }
+
+  private async _ensureHashReady(): Promise<void> {
+    if (await this._cryptoReady) {
+      return;
+    }
+    throw new WarpError(
+      'No hash function available. Pass { hash } to InMemoryGraphAdapter constructor.',
+      'E_NO_HASH',
+    );
   }
 
   private _resolveRef(ref: string): string | null {
