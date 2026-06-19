@@ -123,6 +123,28 @@ Drop below the ordinary app-facing read path when you intentionally need:
 
 These are valid public APIs. What you should not do is treat them as the raw ingredients for a second graph runtime in your app.
 
+## Streams, transforms, and sinks
+
+Advanced storage surfaces use `WarpStream` when the result may grow with graph
+history or index size. A stream is directly usable in `for await` loops and can
+be piped through transforms by infrastructure or diagnostic code that needs a
+bounded pipeline.
+
+The important boundaries are:
+
+- adapters turn host streams, arrays, cursors, or generated rows into
+  `WarpStream`
+- domain services consume semantic stream items, not Node `Readable` objects
+- `PatchJournalPort.scanPatchRange(...)` streams patch entries
+- `IndexStorePort.writeShards(...)` and `IndexStorePort.scanShards(...)`
+  stream index shards
+- `CommitPort.logNodesStream(...)` streams Git commit-log chunks
+
+`Transform` and `Sink` are composition concepts for these pipelines. Use them
+when you are adapting or inspecting substrate flow. Do not wrap ordinary
+worldline/query reads in custom stream layers; those reads already carry their
+own coordinate, aperture, and witness posture.
+
 ## Strands and braids
 
 Strands are the substrate's durable speculative lanes.

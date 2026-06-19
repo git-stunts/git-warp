@@ -167,6 +167,26 @@ dependency bag and owns the orchestration for its domain:
 | ComparisonController | comparison | Coordinate comparison, transfer planning |
 | SubscriptionController | subscriptions | Reactive state change notification |
 
+### Streams and bounded storage ports
+
+`WarpStream` is the domain stream primitive used by storage and traversal
+ports when an operation may be unbounded. It is an async-iterable wrapper with
+composition helpers for stream pipelines; adapters convert host streams,
+arrays, cursors, or generated records into `WarpStream` at the boundary.
+
+The stream layer keeps large reads from pretending to be ordinary in-memory
+arrays. Current advanced ports that use this boundary include:
+
+| Port | Streamed surface | Role |
+| --- | --- | --- |
+| `CommitPort` | `logNodesStream(...)` | Git commit-log chunks without loading the full log |
+| `PatchJournalPort` | `scanPatchRange(...)` | Patch journal entries over a writer/range |
+| `IndexStorePort` | `writeShards(...)`, `scanShards(...)` | Bitmap/index shards as bounded stream units |
+
+`CheckpointStorePort` is the checkpoint storage boundary. It does not expose a
+general stream API today, but it sits beside the streamed stores because it
+owns folded state persistence rather than live query semantics.
+
 ### Domain services (src/domain/services/)
 
 Stateless services that implement domain logic:
@@ -189,6 +209,9 @@ Abstract contracts between domain and infrastructure:
 - **ClockPort** — wall clock (injected, not ambient)
 - **LoggerPort** — structured logging
 - **SeekCachePort** — persistent seek cache for time-travel
+- **PatchJournalPort** — streamed patch-entry scans
+- **CheckpointStorePort** — folded checkpoint state storage
+- **IndexStorePort** — streamed index shard storage
 
 ### Infrastructure adapters (src/infrastructure/)
 
