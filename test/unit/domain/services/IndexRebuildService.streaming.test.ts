@@ -3,6 +3,9 @@ import IndexRebuildService from '../../../../src/domain/services/index/IndexRebu
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
 
+const ROOT_SHA = 'a'.repeat(40);
+const CHILD_SHA = 'b'.repeat(40);
+
 describe('IndexRebuildService streaming mode', () => {
     let service;
     let mockStorage;
@@ -85,8 +88,8 @@ describe('IndexRebuildService streaming mode', () => {
     it('produces valid index that can be loaded', async () => {
       mockGraphService = {
         async *iterateNodes() {
-          yield new GraphNode({ sha: 'aa1111', author: 'test', date: '2026-01-28', message: 'root', parents: [] });
-          yield new GraphNode({ sha: 'bb2222', author: 'test', date: '2026-01-28', message: 'child', parents: ['aa1111'] });
+          yield new GraphNode({ sha: ROOT_SHA, author: 'test', date: '2026-01-28', message: 'root', parents: [] });
+          yield new GraphNode({ sha: CHILD_SHA, author: 'test', date: '2026-01-28', message: 'child', parents: [ROOT_SHA] });
         }
       };
 
@@ -99,20 +102,9 @@ describe('IndexRebuildService streaming mode', () => {
       expect(treeEntries.some((/** @type {any} */ e) => e.includes('meta_'))).toBe(true);
       expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_'))).toBe(true);
 
-      // Should be able to load the index (mock the tree OIDs)
-            const shardOids = ({}) as Record<string, string>;
-      treeEntries.forEach((/** @type {any} */ entry) => {
-        const match = entry.match(/100644 blob (\S+)\t(\S+)/);
-        if (match) {
-          shardOids[match[2]] = match[1];
-        }
-      });
-      mockStorage.readTreeOids.mockResolvedValue(shardOids);
-
       const reader = await service.load(treeOid);
-      expect(reader).toBeDefined();
-      expect(typeof reader.getParents).toBe('function');
-      expect(typeof reader.getChildren).toBe('function');
+      await expect(reader.getParents(CHILD_SHA)).resolves.toEqual([ROOT_SHA]);
+      await expect(reader.getChildren(ROOT_SHA)).resolves.toEqual([CHILD_SHA]);
     });
   });
 

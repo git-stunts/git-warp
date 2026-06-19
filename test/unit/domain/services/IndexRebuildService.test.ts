@@ -4,6 +4,26 @@ import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
 
+const ROOT_SHA = 'a'.repeat(40);
+const CHILD_SHA = 'b'.repeat(40);
+const GRANDCHILD_SHA = 'c'.repeat(40);
+
+function createReadableIndexHarness() {
+  const storage = new MockStreamingIndexStorage();
+  const graphService = {
+    async *iterateNodes() {
+      yield { sha: ROOT_SHA, parents: [] };
+      yield { sha: CHILD_SHA, parents: [ROOT_SHA] };
+      yield { sha: GRANDCHILD_SHA, parents: [CHILD_SHA] };
+    },
+  };
+  const indexService = new IndexRebuildService({
+    storage,
+    graphService,
+  });
+  return { indexService, storage };
+}
+
 describe('IndexRebuildService', () => {
     let service;
     let mockStorage;
@@ -46,48 +66,43 @@ describe('IndexRebuildService', () => {
     });
   });
 
-  it('rebuilds the index and persists it', async () => {
-    const treeOid = await service.rebuild('main');
+  it('rebuilds, persists, and reloads a readable index', async () => {
+    const { indexService, storage } = createReadableIndexHarness();
 
-    // Verify blobs are written (one per shard type)
-    expect(mockStorage.writeBlob).toHaveBeenCalled();
-    expect(mockStorage.writeBlob.mock.calls.length).toBeGreaterThan(0);
-    expect(mockStorage.writeTree).toHaveBeenCalled();
-    expect(treeOid).toBe('tree-oid');
+    const treeOid = await indexService.rebuild('main');
+    const reader = await indexService.load(treeOid);
+
+    expect(storage.writeBlob).toHaveBeenCalled();
+    expect(storage.writeTree).toHaveBeenCalled();
+    await expect(reader.getParents(CHILD_SHA)).resolves.toEqual([ROOT_SHA]);
+    await expect(reader.getChildren(ROOT_SHA)).resolves.toEqual([CHILD_SHA]);
   });
 
-  it('loads an index from a tree OID', async () => {
-    const reader = await service.load('tree-oid');
+  it('loads an index from a tree OID and answers relationship lookups', async () => {
+    const { indexService } = createReadableIndexHarness();
+    const treeOid = await indexService.rebuild('main');
 
-    expect(mockStorage.readTreeOids).toHaveBeenCalledWith('tree-oid');
-    expect(reader).toBeDefined();
-    expect(typeof reader.getParents).toBe('function');
-    expect(typeof reader.getChildren).toBe('function');
+    const reader = await indexService.load(treeOid);
+
+    await expect(reader.getParents(GRANDCHILD_SHA)).resolves.toEqual([CHILD_SHA]);
+    await expect(reader.getChildren(CHILD_SHA)).resolves.toEqual([GRANDCHILD_SHA]);
   });
 
-  // Testing _persistIndex directly to verify shard file creation without full rebuild overhead
-  it('persists index from builder to storage', async () => {
-    // Create a minimal builder with known data
-    const BitmapIndexBuilder = (await import('../../../../src/domain/services/index/BitmapIndexBuilder.ts')).default;
-    const builder = new BitmapIndexBuilder();
-    builder.registerNode('aabbccdd');
-    builder.addEdge('aabbccdd', 'eeffgghh');
+  it('persists shard blobs and tree entries during rebuild', async () => {
+    const { indexService, storage } = createReadableIndexHarness();
 
-    const treeOid = await service._persistIndex(builder);
+    const treeOid = await indexService.rebuild('main');
+    const treeCall = storage.writeTree.mock.calls[0];
+    if (treeCall === undefined) {
+      throw new Error('expected writeTree call');
+    }
+    const treeEntries = treeCall[0];
 
-    // Verify blobs were written for each shard
-    expect(mockStorage.writeBlob).toHaveBeenCalled();
-    // Should have meta shards and edge shards
-    const blobCalls = mockStorage.writeBlob.mock.calls;
-    expect(blobCalls.length).toBeGreaterThanOrEqual(2);
-
-    // Verify tree was created with all entries
-    expect(mockStorage.writeTree).toHaveBeenCalledTimes(1);
-    const treeEntries = mockStorage.writeTree.mock.calls[0][0];
+    expect(treeOid).toMatch(/^tree_/);
+    expect(storage.writeBlob.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(storage.writeTree).toHaveBeenCalledTimes(1);
     expect(treeEntries.length).toBeGreaterThanOrEqual(2);
-    expect(treeEntries.every((/** @type {any} */ e) => e.startsWith('100644 blob'))).toBe(true);
-
-    expect(treeOid).toBe('tree-oid');
+    expect(treeEntries.every((entry: string) => entry.startsWith('100644 blob'))).toBe(true);
   });
 
   describe('rebuild validation', () => {
