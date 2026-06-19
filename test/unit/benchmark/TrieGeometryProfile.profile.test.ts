@@ -11,16 +11,15 @@ import {
 describe("Trie geometry profile harness", () => {
   it("runs the default matrix when GIT_WARP_PROFILE=1", async () => {
     if (process.env["GIT_WARP_PROFILE"] !== "1") {
-      expect(true).toBe(true);
+      expect(process.env["GIT_WARP_PROFILE"]).not.toBe("1");
       return;
     }
 
     const rows: TrieGeometryProfileRow[] = [];
     const onlyLabel = process.env["GIT_WARP_PROFILE_ONLY_LABEL"] ?? null;
-    for (const scenario of createTrieGeometryProfilePlan()) {
-      if (onlyLabel !== null && scenario.label !== onlyLabel) {
-        continue;
-      }
+    const scenarios = createTrieGeometryProfilePlan()
+      .filter((scenario) => onlyLabel === null || scenario.label === onlyLabel);
+    for (const scenario of scenarios) {
       const row = await runTrieGeometryProfileScenario(scenario);
       rows.push(row);
       console.log(
@@ -32,24 +31,21 @@ describe("Trie geometry profile harness", () => {
     console.log("");
     console.log(formatTrieGeometryProfileReport({ recommendation, rows }));
 
-    expect(rows).toHaveLength(createTrieGeometryProfilePlan().length);
+    expect(rows).toHaveLength(scenarios.length);
   }, 300_000);
 
   it("runs the 1M-entry stress scale when GIT_WARP_PROFILE_STRESS=1", async () => {
     if (process.env["GIT_WARP_PROFILE_STRESS"] !== "1") {
-      expect(true).toBe(true);
+      expect(process.env["GIT_WARP_PROFILE_STRESS"]).not.toBe("1");
       return;
     }
 
     const rows: TrieGeometryProfileRow[] = [];
     const onlyLabel = process.env["GIT_WARP_PROFILE_ONLY_LABEL"] ?? null;
-    for (const scenario of createTrieGeometryProfilePlan({ includeStress: true })) {
-      if (scenario.totalEntries !== 1_000_000) {
-        continue;
-      }
-      if (onlyLabel !== null && scenario.label !== onlyLabel) {
-        continue;
-      }
+    const scenarios = createTrieGeometryProfilePlan({ includeStress: true })
+      .filter((scenario) => scenario.totalEntries === 1_000_000)
+      .filter((scenario) => onlyLabel === null || scenario.label === onlyLabel);
+    for (const scenario of scenarios) {
       const row = await runTrieGeometryProfileScenario(scenario);
       rows.push(row);
       console.log(
@@ -63,6 +59,12 @@ describe("Trie geometry profile harness", () => {
       console.log(formatTrieGeometryProfileReport({ recommendation, rows }));
     }
 
-    expect(rows.length).toBeGreaterThanOrEqual(0);
+    if (onlyLabel === null) {
+      expect(rows.length).toBeGreaterThan(0);
+    }
+    expect(rows).toHaveLength(scenarios.length);
+    for (const row of rows) {
+      expect(row.totalEntries).toBe(1_000_000);
+    }
   }, 900_000);
 });

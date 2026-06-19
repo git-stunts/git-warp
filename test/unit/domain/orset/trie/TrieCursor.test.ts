@@ -4,10 +4,15 @@ import { Dot } from "../../../../../src/domain/crdt/Dot.ts";
 import TrieCursor from "../../../../../src/domain/orset/trie/TrieCursor.ts";
 import TrieCursorError from "../../../../../src/domain/errors/TrieCursorError.ts";
 import TrieStoreError from "../../../../../src/domain/errors/TrieStoreError.ts";
+import RouteKey from "../../../../../src/domain/orset/route/RouteKey.ts";
 import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import TrieLeaf from "../../../../../src/domain/orset/trie/TrieLeaf.ts";
 import TrieBranch from "../../../../../src/domain/orset/trie/TrieBranch.ts";
+import {
+  shiftSuffixLeftByOneNibble,
+  suffixOfRouteKey,
+} from "../../../../../src/domain/orset/trie/trieCursorHelpers.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 import {
   InMemoryTrieStore,
@@ -222,6 +227,39 @@ describe("TrieCursor", () => {
       for (const id of ids) {
         expect(await cursor.contains(id)).toBe(true);
       }
+    });
+
+    it("keeps all elements reachable with 64-way geometry", async () => {
+      const geometry64 = new TrieGeometry({
+        fanout: 64,
+        nibbleBits: 6,
+        leafCapacity: 2,
+        leafFloor: 1,
+      });
+      const { cursor } = makeCursor({ geometry: geometry64 });
+      const ids = Array.from({ length: 40 }, (_, i) => `node64:${i}`);
+      for (let i = 0; i < ids.length; i += 1) {
+        const id = ids[i];
+        if (id === undefined) {
+          continue;
+        }
+        await cursor.add(id, dotOf("w64", i + 1));
+      }
+      for (const id of ids) {
+        expect(await cursor.contains(id)).toBe(true);
+      }
+      expect(new Set(await cursor.elements())).toEqual(new Set(ids));
+    });
+
+    it("shortens 64-way suffixes without preserving padding bits", () => {
+      const routeKey = RouteKey.fromElement("node64:padding-regression");
+      const maxDepth = Math.floor(256 / 6);
+      const parentSuffix = suffixOfRouteKey(routeKey, 1, 6);
+      const childSuffix = shiftSuffixLeftByOneNibble(parentSuffix, 6, maxDepth - 1);
+
+      expect(parentSuffix.length).toBe(31);
+      expect(childSuffix).toEqual(suffixOfRouteKey(routeKey, 2, 6));
+      expect(childSuffix.length).toBe(30);
     });
 
     it("a snapshot after splits enumerates bottom-up (deepest first)", async () => {

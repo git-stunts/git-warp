@@ -4,7 +4,6 @@ import fc from "fast-check";
 import RouteKey, {
   ROUTE_KEY_BYTES,
   ROUTE_KEY_BITS,
-  type NibbleBits,
 } from "../../../../../src/domain/orset/route/RouteKey.ts";
 import RouteKeyError from "../../../../../src/domain/errors/RouteKeyError.ts";
 
@@ -135,6 +134,14 @@ describe("RouteKey", () => {
       expect(key.nibbleAt(3, 2)).toBe(0b11);
     });
 
+    it("extracts 6-bit nibbles across byte boundaries", () => {
+      // 0xabcd... = 101010 111100 110100...
+      const key = new RouteKey(pattern);
+      expect(key.nibbleAt(0, 6)).toBe(0b101010);
+      expect(key.nibbleAt(1, 6)).toBe(0b111100);
+      expect(key.nibbleAt(2, 6)).toBe(0b110100);
+    });
+
     it("rejects negative depth", () => {
       const key = new RouteKey(allZeros);
       expect(() => key.nibbleAt(-1, 4)).toThrow(RouteKeyError);
@@ -151,17 +158,18 @@ describe("RouteKey", () => {
       expect(() => key.nibbleAt(64, 4)).toThrow(RouteKeyError);
       // 8-bit nibbles: max depth is 32 (exclusive)
       expect(() => key.nibbleAt(32, 8)).toThrow(RouteKeyError);
+      // 6-bit nibbles: max whole-slot depth is 42 (exclusive)
+      expect(() => key.nibbleAt(42, 6)).toThrow(RouteKeyError);
       // 1-bit nibbles: max depth is 256 (exclusive)
       expect(() => key.nibbleAt(256, 1)).toThrow(RouteKeyError);
     });
 
     it("rejects unsupported nibble widths", () => {
       const key = new RouteKey(allZeros);
-      // Cast through a local any-free escape hatch: use a typed variable the runtime will reject.
-      const bad = 3 as unknown as NibbleBits;
-      expect(() => key.nibbleAt(0, bad)).toThrow(RouteKeyError);
-      const badLarge = 16 as unknown as NibbleBits;
-      expect(() => key.nibbleAt(0, badLarge)).toThrow(RouteKeyError);
+      // @ts-expect-error runtime rejects unsupported JavaScript callers.
+      expect(() => key.nibbleAt(0, 3)).toThrow(RouteKeyError);
+      // @ts-expect-error runtime rejects unsupported JavaScript callers.
+      expect(() => key.nibbleAt(0, 16)).toThrow(RouteKeyError);
     });
   });
 
