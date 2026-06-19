@@ -14,6 +14,7 @@ import WarpError from '../errors/WarpError.ts';
 import type { EffectEmission } from '../types/EffectEmission.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
 import type { DeliveryObservation } from '../types/DeliveryObservation.ts';
+import { requireDeliveryObservationBatch } from '../types/DeliveryObservationBatch.ts';
 
 /** Default sink ID for MultiplexSink. */
 const MULTIPLEX_SINK_ID = 'multiplex';
@@ -69,7 +70,11 @@ export class MultiplexSink extends EffectSinkPort {
   ): Promise<DeliveryObservation[]> {
     const observations: DeliveryObservation[] = [];
     for (const sink of this._sinks) {
-      observations.push(...await sink.deliver(emission, lens));
+      const childObservations = requireDeliveryObservationBatch(
+        await sink.deliver(emission, lens),
+        sink.id,
+      );
+      observations.push(...childObservations);
     }
     return observations;
   }

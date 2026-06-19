@@ -5,9 +5,11 @@ import {
   LIVE_LENS,
   REPLAY_LENS,
   INSPECT_LENS,
+  type ExternalizationPolicy,
 } from '../../../../src/domain/types/ExternalizationPolicy.ts';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';
-import { createDeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.ts';
+import { createDeliveryObservation, type DeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.ts';
+import type { EffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
 
 class RecordingSink extends EffectSinkPort {
   _id: string;
@@ -32,6 +34,26 @@ class RecordingSink extends EffectSinkPort {
       timestamp: Date.now(),
       lens,
     })];
+  }
+}
+
+class SingleObservationSink extends EffectSinkPort {
+  get id(): string {
+    return 'single-observation';
+  }
+
+  async deliver(
+    emission: EffectEmission,
+    lens: ExternalizationPolicy,
+  ): Promise<DeliveryObservation[]> {
+    // @ts-expect-error exercising runtime validation for stale JavaScript sinks
+    return Promise.resolve(createDeliveryObservation({
+      emissionId: emission.id,
+      sinkId: this.id,
+      outcome: 'delivered',
+      timestamp: 0,
+      lens,
+    }));
   }
 }
 
@@ -213,6 +235,20 @@ describe('EffectPipeline', () => {
 
       expect(result.observations[0]?.outcome).toBe('delivered');
       expect(sink.delivered).toHaveLength(1);
+    });
+
+    it('rejects a direct sink that does not return an observation array', async () => {
+      const pipeline = new EffectPipeline({
+        sink: new SingleObservationSink(),
+        lens: LIVE_LENS,
+      });
+
+      await expect(
+        pipeline.emit('test', null, { id: 'bad-direct-1', timestamp: 0 }),
+      ).rejects.toMatchObject({
+        code: 'E_EFFECT_SINK_INVALID_OBSERVATION_BATCH',
+        context: { sinkId: 'single-observation' },
+      });
     });
   });
 });

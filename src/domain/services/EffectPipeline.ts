@@ -14,6 +14,7 @@
 import { createEffectEmission, type EffectEmission } from '../types/EffectEmission.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
 import type { DeliveryObservation } from '../types/DeliveryObservation.ts';
+import { requireDeliveryObservationBatch } from '../types/DeliveryObservationBatch.ts';
 import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 
 const NULL_COORDINATE: { frontier: Record<string, string> | null; ceiling: number | null } = {
@@ -125,7 +126,10 @@ export class EffectPipeline {
 
     this._emissions.push(emission);
 
-    const observations = await this._sink.deliver(emission, this._lens);
+    const observations = requireDeliveryObservationBatch(
+      await this._sink.deliver(emission, this._lens),
+      this._sink.id,
+    );
     this._recordObservations(observations);
 
     return { emission, observations };

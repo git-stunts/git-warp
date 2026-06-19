@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { MultiplexSink } from '../../../../src/domain/services/MultiplexSink.ts';
 import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
-import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.ts';
+import type { EffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
+import { LIVE_LENS, REPLAY_LENS, type ExternalizationPolicy } from '../../../../src/domain/types/ExternalizationPolicy.ts';
+import type { DeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.ts';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';
 
 /** @returns {import('../../../../src/domain/types/EffectEmission.ts').EffectEmission} */
@@ -65,6 +67,20 @@ class FailingSink extends EffectSinkPort {
       timestamp: Date.now(),
       lens: (lens),
     })];
+  }
+}
+
+class InvalidObservationSink extends EffectSinkPort {
+  get id(): string {
+    return 'invalid-observation';
+  }
+
+  async deliver(
+    _emission: EffectEmission,
+    _lens: ExternalizationPolicy,
+  ): Promise<DeliveryObservation[]> {
+    // @ts-expect-error exercising runtime validation for stale JavaScript sinks
+    return Promise.resolve(['not-an-observation']);
   }
 }
 
@@ -169,5 +185,17 @@ describe('MultiplexSink', () => {
     await mux.deliver(emission, REPLAY_LENS);
 
     expect(((stub as any).calls[0] as any).lens).toBe(REPLAY_LENS);
+  });
+
+  it('rejects child sinks that return non-observation entries', async () => {
+    const mux = new MultiplexSink();
+    mux.addSink(new InvalidObservationSink());
+
+    await expect(
+      mux.deliver(makeEmission('bad-child-1'), LIVE_LENS),
+    ).rejects.toMatchObject({
+      code: 'E_EFFECT_SINK_INVALID_OBSERVATION',
+      context: { sinkId: 'invalid-observation', index: 0 },
+    });
   });
 });
