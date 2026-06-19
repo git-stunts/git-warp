@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import sludgeMap from '../../policy/sludge/sludge-map.json' with { type: 'json' };
+import sludgeMapJsonSchema from '../../policy/sludge/sludge-map.schema.json' with { type: 'json' };
 
 const REQUIRED_FAMILY_IDS = Object.freeze([
   'cast-theater',
@@ -19,35 +21,46 @@ const REQUIRED_FINDING_PATHS = Object.freeze([
   'src/domain/services/index/PropertyIndexReader.ts',
 ]);
 
-type SludgeFinding = {
-  readonly path?: string;
-  readonly symptom?: string;
-  readonly root_cause?: string;
-  readonly recommended_fix?: string;
-  readonly blocks?: readonly string[];
-  readonly proposed_nouns?: readonly ProposedNoun[];
-};
+const nonEmptyString = z.string().trim().min(1);
 
-type ProposedNoun = {
-  readonly name?: string;
-  readonly constructs?: string;
-  readonly consumes?: string;
-  readonly proves_invariant?: string;
-  readonly layer?: string;
-  readonly eliminates?: string;
-};
+const proposedNounSchema = z.object({
+  name: nonEmptyString,
+  constructs: nonEmptyString,
+  consumes: nonEmptyString,
+  proves_invariant: nonEmptyString,
+  layer: z.enum(['domain', 'ports', 'policy']),
+  eliminates: nonEmptyString,
+}).strict();
 
-type SludgeFamily = {
-  readonly id?: string;
-  readonly findings?: readonly SludgeFinding[];
-};
+const findingSchema = z.object({
+  path: nonEmptyString,
+  lines: z.array(z.number().int().positive()).min(1).optional(),
+  symptom: nonEmptyString,
+  root_cause: nonEmptyString,
+  recommended_fix: nonEmptyString,
+  blocks: z.array(nonEmptyString),
+  proposed_nouns: z.array(proposedNounSchema).min(1).optional(),
+}).strict();
 
-type SludgeMap = {
-  readonly source_cycle_blocked?: string;
-  readonly families?: readonly SludgeFamily[];
-};
+const familySchema = z.object({
+  id: nonEmptyString,
+  label: nonEmptyString,
+  severity: z.enum(['release-blocking', 'watch']),
+  blocks: z.array(nonEmptyString),
+  findings: z.array(findingSchema).min(1),
+}).strict();
 
-const atlas: SludgeMap = sludgeMap;
+const sludgeMapSchema = z.object({
+  generated_for_cycle: nonEmptyString,
+  source_cycle_blocked: nonEmptyString,
+  families: z.array(familySchema).min(1),
+  dependency_order: z.array(nonEmptyString).optional(),
+}).strict();
+
+type SludgeMap = z.infer<typeof sludgeMapSchema>;
+type SludgeFinding = z.infer<typeof findingSchema>;
+
+const atlas: SludgeMap = sludgeMapSchema.parse(sludgeMap);
 
 class SludgeAtlasTestError extends Error {}
 
@@ -61,6 +74,19 @@ function assertNonEmptyString(value: string | undefined, field: string): void {
 }
 
 describe('sludge atlas contract', () => {
+  it('publishes a formal schema for the sludge map', () => {
+    expect(sludgeMapJsonSchema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(sludgeMapJsonSchema.$id).toBe('https://git-stunts.dev/git-warp/schemas/sludge-map.schema.json');
+    expect(sludgeMapJsonSchema.additionalProperties).toBe(false);
+    expect(sludgeMapJsonSchema.required).toEqual(['generated_for_cycle', 'source_cycle_blocked', 'families']);
+    expect(sludgeMapJsonSchema.$defs.proposedNoun.properties.layer.enum)
+      .toEqual(['domain', 'ports', 'policy']);
+  });
+
+  it('validates the sludge map against the strict runtime schema', () => {
+    expect(() => sludgeMapSchema.parse(sludgeMap)).not.toThrow();
+  });
+
   it('publishes structured release-blocking families for the blocked cycle', () => {
     const familyIds = new Set((atlas.families ?? []).map((family) => family.id));
 
