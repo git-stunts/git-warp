@@ -3,8 +3,7 @@ import type VersionVector from "../../crdt/VersionVector.ts";
 import TrieCursorError from "../../errors/TrieCursorError.ts";
 import ORSetElementState from "../ORSetElementState.ts";
 import type CodecPort from "../../../ports/CodecPort.ts";
-import RouteKey from "../route/RouteKey.ts";
-import type { NibbleBits } from "../route/RouteKey.ts";
+import RouteKey, { type NibbleBits } from "../route/RouteKey.ts";
 
 import DirtyPageSet, { encodeDirtyPath } from "./DirtyPageSet.ts";
 import type PageCache from "./PageCache.ts";
