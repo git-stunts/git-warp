@@ -144,8 +144,7 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       const pipeline = (core.effectPipeline as EffectPipeline);
       const result = await pipeline.emit('test', null, { id: 'emit-replay', timestamp: 0 });
 
-      const obs = Array.isArray(result.observations) ? result.observations[0] : result.observations;
-      expect(obs?.outcome).toBe('suppressed');
+      expect(result.observations[0]?.outcome).toBe('suppressed');
     });
   });
 });

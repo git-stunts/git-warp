@@ -34,18 +34,18 @@ describe('NoOpEffectSink', () => {
 
   it('always returns delivered in live mode', async () => {
     const sink = new NoOpEffectSink();
-    const obs = await sink.deliver(makeEmission(), LIVE_LENS);
+    const [obs] = await sink.deliver(makeEmission(), LIVE_LENS);
 
-    expect(obs.outcome).toBe('delivered');
-    expect(obs.sinkId).toBe('noop');
-    expect(obs.emissionId).toBe('em-1');
+    expect(obs?.outcome).toBe('delivered');
+    expect(obs?.sinkId).toBe('noop');
+    expect(obs?.emissionId).toBe('em-1');
   });
 
   it('returns suppressed in replay mode with suppressExternal', async () => {
     const sink = new NoOpEffectSink();
-    const obs = await sink.deliver(makeEmission(), REPLAY_LENS);
+    const [obs] = await sink.deliver(makeEmission(), REPLAY_LENS);
 
-    expect(obs.outcome).toBe('suppressed');
-    expect(obs.reason).toContain('replay');
+    expect(obs?.outcome).toBe('suppressed');
+    expect(obs?.reason).toContain('replay');
   });
 });

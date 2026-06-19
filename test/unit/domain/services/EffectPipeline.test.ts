@@ -24,14 +24,14 @@ class RecordingSink extends EffectSinkPort {
 
   async deliver(emission: any, lens: any) {
     this.delivered.push({ emission, lens });
-    return createDeliveryObservation({
+    return [createDeliveryObservation({
       emissionId: emission.id,
       sinkId: this._id,
       outcome: lens.suppressExternal ? 'suppressed' : 'delivered',
       ...(lens.suppressExternal ? { reason: `suppressed by ${lens.mode} lens` } : {}),
       timestamp: Date.now(),
       lens,
-    });
+    })];
   }
 }
 
@@ -64,7 +64,7 @@ describe('EffectPipeline', () => {
       expect(result.emission.payload).toEqual({ text: 'hi' });
       expect(result.emission.timestamp).toBe(42);
       expect(result.observations).toHaveLength(1);
-      const obs0 = /** @type {{ outcome: string }} */ (Array.isArray(result.observations) ? result.observations[0] : result.observations);
+      const obs0 = result.observations[0];
       expect(obs0!.outcome).toBe('delivered');
       expect(sink.delivered).toHaveLength(1);
     });
@@ -151,7 +151,7 @@ describe('EffectPipeline', () => {
       const { pipeline } = setup(REPLAY_LENS);
       const result = await pipeline.emit('notification', null, emitOpts());
 
-      const obs0 = /** @type {{ outcome: string, reason: string }} */ (Array.isArray(result.observations) ? result.observations[0] : result.observations);
+      const obs0 = result.observations[0];
       expect(obs0!.outcome).toBe('suppressed');
       expect(obs0!.reason).toContain('replay');
     });
@@ -211,8 +211,7 @@ describe('EffectPipeline', () => {
       const pipeline = new EffectPipeline({ sink, lens: LIVE_LENS });
       const result = await pipeline.emit('test', null, { id: 'direct-1', timestamp: 0 });
 
-      const obs = /** @type {{ outcome: string }} */ (result.observations);
-      expect((obs as any).outcome).toBe('delivered');
+      expect(result.observations[0]?.outcome).toBe('delivered');
       expect(sink.delivered).toHaveLength(1);
     });
   });

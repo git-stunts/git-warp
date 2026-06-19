@@ -14,8 +14,8 @@ describe('EffectSinkPort', () => {
   it('concrete subclass satisfies the contract', async () => {
     class TestSink extends EffectSinkPort {
       get id() { return 'test-sink'; }
-      async deliver(_emission: EffectEmission, _lens: ExternalizationPolicy): Promise<DeliveryObservation> {
-        return { outcome: 'delivered' } as unknown as DeliveryObservation;
+      async deliver(_emission: EffectEmission, _lens: ExternalizationPolicy): Promise<DeliveryObservation[]> {
+        return [{ outcome: 'delivered' } as unknown as DeliveryObservation];
       }
     }
     const sink = new TestSink();

@@ -30,27 +30,27 @@ export class NoOpEffectSink extends EffectSinkPort {
     return this._id;
   }
 
-  deliver(emission: EffectEmission, lens: ExternalizationPolicy): Promise<DeliveryObservation> {
+  deliver(emission: EffectEmission, lens: ExternalizationPolicy): Promise<DeliveryObservation[]> {
     if (lens.suppressExternal) {
       return Promise.resolve(
-        createDeliveryObservation({
+        [createDeliveryObservation({
           emissionId: emission.id,
           sinkId: this._id,
           outcome: OUTCOME_SUPPRESSED,
           reason: `suppressed by ${lens.mode} lens`,
           timestamp: Date.now(),
           lens,
-        }),
+        })],
       );
     }
     return Promise.resolve(
-      createDeliveryObservation({
+      [createDeliveryObservation({
         emissionId: emission.id,
         sinkId: this._id,
         outcome: OUTCOME_DELIVERED,
         timestamp: Date.now(),
         lens,
-      }),
+      })],
     );
   }
 }

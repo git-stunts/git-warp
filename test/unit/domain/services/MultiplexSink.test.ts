@@ -37,13 +37,13 @@ class StubSink extends EffectSinkPort {
     const { createDeliveryObservation } = await import(
       '../../../../src/domain/types/DeliveryObservation.ts'
     );
-    return createDeliveryObservation({
+    return [createDeliveryObservation({
       emissionId: (emission).id,
       sinkId: this._id,
       outcome: 'delivered',
       timestamp: Date.now(),
       lens: (lens),
-    });
+    })];
   }
 }
 
@@ -57,14 +57,14 @@ class FailingSink extends EffectSinkPort {
     const { createDeliveryObservation } = await import(
       '../../../../src/domain/types/DeliveryObservation.ts'
     );
-    return createDeliveryObservation({
+    return [createDeliveryObservation({
       emissionId: (emission).id,
       sinkId: 'failing',
       outcome: 'failed',
       reason: 'boom',
       timestamp: Date.now(),
       lens: (lens),
-    });
+    })];
   }
 }
 

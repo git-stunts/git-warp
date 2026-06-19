@@ -47,9 +47,9 @@ describe('ChunkEffectSink', () => {
 
   it('writes an emission to a file as NDJSON', async () => {
     const sink = new ChunkEffectSink({ dir });
-    const obs = await sink.deliver(makeEmission(), LIVE_LENS);
+    const [obs] = await sink.deliver(makeEmission(), LIVE_LENS);
 
-    expect(obs.outcome).toBe('delivered');
+    expect(obs?.outcome).toBe('delivered');
 
     const files = await readdir(dir);
     expect(files.length).toBeGreaterThanOrEqual(1);
@@ -92,11 +92,11 @@ describe('ChunkEffectSink', () => {
 
   it('still writes during replay (chunk sink is replay-safe)', async () => {
     const sink = new ChunkEffectSink({ dir });
-    const obs = await sink.deliver(makeEmission(), REPLAY_LENS);
+    const [obs] = await sink.deliver(makeEmission(), REPLAY_LENS);
 
     // ChunkEffectSink is replay-safe: it writes to local forensic log
     // regardless of delivery lens
-    expect(obs.outcome).toBe('delivered');
+    expect(obs?.outcome).toBe('delivered');
 
     const files = await readdir(dir);
     expect(files.length).toBeGreaterThanOrEqual(1);

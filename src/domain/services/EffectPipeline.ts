@@ -113,7 +113,7 @@ export class EffectPipeline {
       writer?: string | null;
       coordinate?: { frontier?: Record<string, string> | null; ceiling?: number | null };
     },
-  ): Promise<{ emission: EffectEmission; observations: DeliveryObservation | DeliveryObservation[] }> {
+  ): Promise<{ emission: EffectEmission; observations: DeliveryObservation[] }> {
     const emission = createEffectEmission({
       id: options?.id ?? '',
       kind,
@@ -134,13 +134,9 @@ export class EffectPipeline {
   /**
    * Appends one or more delivery observations to the internal observation log.
    */
-  private _recordObservations(observations: DeliveryObservation | DeliveryObservation[]): void {
-    if (Array.isArray(observations)) {
-      for (const obs of observations) {
-        this._observations.push(obs);
-      }
-    } else {
-      this._observations.push(observations);
+  private _recordObservations(observations: readonly DeliveryObservation[]): void {
+    for (const obs of observations) {
+      this._observations.push(obs);
     }
   }
 }

@@ -72,25 +72,25 @@ export class ChunkEffectSink extends EffectSinkPort {
     return this._id;
   }
 
-  async deliver(emission: EffectEmission, lens: ExternalizationPolicy): Promise<DeliveryObservation> {
+  async deliver(emission: EffectEmission, lens: ExternalizationPolicy): Promise<DeliveryObservation[]> {
     try {
       await this._write(emission);
-      return createDeliveryObservation({
+      return [createDeliveryObservation({
         emissionId: emission.id,
         sinkId: this._id,
         outcome: OUTCOME_DELIVERED,
         timestamp: Date.now(),
         lens,
-      });
+      })];
     } catch (err: unknown) {
-      return createDeliveryObservation({
+      return [createDeliveryObservation({
         emissionId: emission.id,
         sinkId: this._id,
         outcome: OUTCOME_FAILED,
         reason: err instanceof Error ? err.message : String(err),
         timestamp: Date.now(),
         lens,
-      });
+      })];
     }
   }
 
