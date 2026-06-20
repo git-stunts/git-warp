@@ -3,75 +3,75 @@ import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type { DecodedPatch } from './syncPatchLoader.ts';
 
 /** Page request for bounded sync responses. */
-export interface SyncRequestPage {
-  maxPatches: number;
-  cursor?: string | null;
-}
+export type SyncRequestPage = {
+  readonly maxPatches: number;
+  readonly cursor?: string | null;
+};
 
 /** Page metadata returned with a sync response. */
-export interface SyncResponsePage {
-  maxPatches: number | null;
-  cursor: string | null;
-  hasMore: boolean;
-  returnedPatches: number;
-}
+export type SyncResponsePage = {
+  readonly maxPatches: number | null;
+  readonly cursor: string | null;
+  readonly hasMore: boolean;
+  readonly returnedPatches: number;
+};
 
 /** Deterministic response-shaping metrics for sync operators. */
-export interface SyncResponseMetrics {
-  patchCount: number;
-  skippedWriterCount: number;
-  estimatedPayloadBytes: number;
-  latencyMs: number | null;
-}
+export type SyncResponseMetrics = {
+  readonly patchCount: number;
+  readonly skippedWriterCount: number;
+  readonly estimatedPayloadBytes: number;
+  readonly latencyMs: number | null;
+};
 
-export interface CreateSyncRequestOptions {
-  page?: SyncRequestPage;
-}
+export type CreateSyncRequestOptions = {
+  readonly page?: SyncRequestPage;
+};
 
-export interface NormalizedSyncPageRequest {
-  maxPatches: number | null;
-  cursorOffset: number;
-}
+export type NormalizedSyncPageRequest = {
+  readonly maxPatches: number | null;
+  readonly cursorOffset: number;
+};
 
-export interface SyncPagePatchEntry {
-  writerId: string;
-  sha: string;
-  patch: DecodedPatch;
-}
+export type SyncPagePatchEntry = {
+  readonly writerId: string;
+  readonly sha: string;
+  readonly patch: DecodedPatch;
+};
 
-export interface SyncPageSkippedWriterEntry {
-  writerId: string;
-  reason: string;
-  localSha: string;
-  remoteSha: string | null;
-}
+export type SyncPageSkippedWriterEntry = {
+  readonly writerId: string;
+  readonly reason: string;
+  readonly localSha: string;
+  readonly remoteSha: string | null;
+};
 
-interface PageAppendOptions {
-  patches: SyncPagePatchEntry[];
-  entry: SyncPagePatchEntry;
-  page: NormalizedSyncPageRequest;
-  seenPatches: number;
-}
+type PageAppendOptions = {
+  readonly patches: SyncPagePatchEntry[];
+  readonly entry: SyncPagePatchEntry;
+  readonly page: NormalizedSyncPageRequest;
+  readonly seenPatches: number;
+};
 
-export interface PageAppendResult {
-  seenPatches: number;
-  hasMore: boolean;
-  cursor: string | null;
-}
+export type PageAppendResult = {
+  readonly seenPatches: number;
+  readonly hasMore: boolean;
+  readonly cursor: string | null;
+};
 
-export interface SyncResponsePayloadEstimateInput {
-  frontier: Record<string, string>;
-  patches: readonly SyncPagePatchEntry[];
-  skippedWriters: readonly SyncPageSkippedWriterEntry[];
-  page: SyncResponsePage;
-}
+export type SyncResponsePayloadEstimateInput = {
+  readonly frontier: Record<string, string>;
+  readonly patches: readonly SyncPagePatchEntry[];
+  readonly skippedWriters: readonly SyncPageSkippedWriterEntry[];
+  readonly page: SyncResponsePage;
+};
 
-export interface SyncResponseMetricsLogInput {
-  logger: LoggerPort;
-  graphName: string;
-  page: SyncResponsePage;
-  metrics: SyncResponseMetrics;
-}
+export type SyncResponseMetricsLogInput = {
+  readonly logger: LoggerPort;
+  readonly graphName: string;
+  readonly page: SyncResponsePage;
+  readonly metrics: SyncResponseMetrics;
+};
 
 export function normalizeSyncPageRequest(page: SyncRequestPage | undefined): NormalizedSyncPageRequest {
   if (page === undefined) {
