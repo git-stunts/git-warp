@@ -19,6 +19,7 @@ import handleTrust from './trust.ts';
 import handlePatch from './patch.ts';
 import handleTree from './tree.ts';
 import handleBisect from './bisect.ts';
+import handleMcp from './mcp.ts';
 
 /** Opaque handler return value. The entry point normalizes any shape
  *  into `{ payload, exitCode, close? }` at runtime via type guards. */
@@ -51,4 +52,5 @@ export const COMMANDS: ReadonlyMap<string, CommandHandler> = new Map<string, Com
   ['tree', handleTree],
   ['bisect', handleBisect],
   ['install-hooks', handleInstallHooks],
+  ['mcp', handleMcp],
 ]);

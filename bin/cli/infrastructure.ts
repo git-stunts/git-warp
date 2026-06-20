@@ -111,6 +111,7 @@ Commands:
   patch            Decode and inspect raw patches
   tree             ASCII tree traversal from root nodes
   bisect           Binary search for first bad patch in writer history
+  mcp              Start a local read-only MCP server over stdio
   install-hooks    Install post-merge git hook
 
 Options:
@@ -230,7 +231,7 @@ export function notFoundError(message: string): CliError {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'check', 'doctor', 'debug', 'strand', 'materialize', 'seek', 'query', 'path', 'optic', 'history', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
+export const KNOWN_COMMANDS = ['info', 'check', 'doctor', 'debug', 'strand', 'materialize', 'seek', 'query', 'path', 'optic', 'history', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'mcp', 'install-hooks'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },
