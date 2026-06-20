@@ -38,12 +38,8 @@ git warp check --repo ./team-repo
 git warp doctor --repo ./team-repo --strict
 ```
 
-If you want the terminal dashboard view, use:
-
-```bash
-git warp --view info --repo ./team-repo
-git warp --view check --repo ./team-repo
-```
+The old `--view` flag has been removed. Use `warp-ttd` for visualization
+workflows instead of asking `git warp` to render dashboards.
 
 Typical operator output looks like this:
 
@@ -177,6 +173,50 @@ git warp install-hooks --repo ./team-repo
 ```
 
 These are operator and maintainer tools, not normal product APIs.
+
+Checkpoint and GC operations are explicit command families:
+
+```bash
+git warp checkpoint status --repo ./team-repo
+git warp checkpoint create --repo ./team-repo
+git warp checkpoint sync-coverage --repo ./team-repo
+git warp gc status --repo ./team-repo
+git warp gc maybe-run --repo ./team-repo
+git warp gc run --repo ./team-repo
+```
+
+Programmatic sync can be inspected, initiated, or served from the CLI:
+
+```bash
+git warp sync status --repo ./team-repo
+git warp sync request --repo ./team-repo --json
+git warp sync with http://127.0.0.1:3900/sync --repo ./team-repo --auth-secret "$WARP_SYNC_SECRET"
+git warp serve --repo ./team-repo --port 3900 --auth-secret "$WARP_SYNC_SECRET"
+```
+
+For local-only experiments, `serve` can run without auth only when the operator
+explicitly chooses the unsafe localhost mode:
+
+```bash
+git warp serve --repo ./team-repo --port 3900 --unsafe-allow-unauthenticated-localhost
+```
+
+Use `fork` when you need a new graph ref rooted at a known writer patch:
+
+```bash
+git warp fork --repo ./team-repo --from alice --at <sha> --fork-name experiment
+```
+
+Use `watch` for NDJSON change notifications:
+
+```bash
+git warp watch 'task:*' --repo ./team-repo --poll 2000 --ndjson
+```
+
+`export` / `import` and `upgrade` / `migrate` remain intentionally absent from
+the CLI registry until the repository has explicit file-exchange and substrate
+upgrade adapter boundaries. Do not paper over those gaps with command names that
+pretend a complete boundary exists.
 
 ## Where next
 

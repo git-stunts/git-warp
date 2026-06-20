@@ -20,6 +20,12 @@ import handlePatch from './patch.ts';
 import handleTree from './tree.ts';
 import handleBisect from './bisect.ts';
 import handleMcp from './mcp.ts';
+import handleSync from './sync.ts';
+import handleServe from './serve.ts';
+import handleFork from './fork.ts';
+import handleCheckpoint from './checkpoint.ts';
+import handleGc from './gc.ts';
+import handleWatch from './watch.ts';
 
 /** Opaque handler return value. The entry point normalizes any shape
  *  into `{ payload, exitCode, close? }` at runtime via type guards. */
@@ -53,4 +59,10 @@ export const COMMANDS: ReadonlyMap<string, CommandHandler> = new Map<string, Com
   ['bisect', handleBisect],
   ['install-hooks', handleInstallHooks],
   ['mcp', handleMcp],
+  ['sync', handleSync],
+  ['serve', handleServe],
+  ['fork', handleFork],
+  ['checkpoint', handleCheckpoint],
+  ['gc', handleGc],
+  ['watch', handleWatch],
 ]);

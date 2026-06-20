@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A dated TSC Zero agent-merge audit now retires the historical #505/B171
   drift concern by reconstructing PR #73's conflict-resolution scope and
   mapping it to current TypeScript owner modules.
+- The CLI now exposes honest `sync`, `serve`, `fork`, `checkpoint`, `gc`, and
+  `watch` command families backed by current runtime capabilities, while docs
+  keep `export` / `import` and `upgrade` / `migrate` omitted until those
+  adapter boundaries exist.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.
