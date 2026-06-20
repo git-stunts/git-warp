@@ -4,7 +4,7 @@ import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 
 
 describe('VersionVector', () => {
-  describe('createVersionVector', () => {
+  describe('empty', () => {
     it('creates an empty version vector', () => {
       const vv = VersionVector.empty();
 
@@ -13,7 +13,7 @@ describe('VersionVector', () => {
     });
   });
 
-  describe('vvIncrement', () => {
+  describe('increment', () => {
     it('increments counter for new writer', () => {
       const vv = VersionVector.empty();
 
@@ -63,7 +63,7 @@ describe('VersionVector', () => {
     });
   });
 
-  describe('vvMerge', () => {
+  describe('merge', () => {
     it('merges empty vectors', () => {
       const a = VersionVector.empty();
       const b = VersionVector.empty();
@@ -155,7 +155,7 @@ describe('VersionVector', () => {
     });
   });
 
-  describe('vvDescends', () => {
+  describe('descends', () => {
     it('empty vector descends from empty vector', () => {
       const a = VersionVector.empty();
       const b = VersionVector.empty();
@@ -236,7 +236,7 @@ describe('VersionVector', () => {
     });
   });
 
-  describe('vvContains', () => {
+  describe('contains', () => {
     it('empty vector does not contain any dot', () => {
       const vv = VersionVector.empty();
       const dot = Dot.create('alice', 1);
@@ -277,7 +277,7 @@ describe('VersionVector', () => {
     });
   });
 
-  describe('vvSerialize / vvDeserialize', () => {
+  describe('serialize / from', () => {
     it('serializes empty vector', () => {
       const vv = VersionVector.empty();
 
@@ -361,7 +361,7 @@ describe('VersionVector', () => {
     });
   });
 
-  describe('vvClone', () => {
+  describe('clone', () => {
     it('creates a copy', () => {
       const original = VersionVector.empty();
       original.set('alice', 1);
@@ -383,7 +383,7 @@ describe('VersionVector', () => {
     });
   });
 
-  describe('vvEqual', () => {
+  describe('equals', () => {
     it('empty vectors are equal', () => {
       const a = VersionVector.empty();
       const b = VersionVector.empty();

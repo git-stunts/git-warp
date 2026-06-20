@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ContentAttachmentPayload`, and `GraphContentAttachmentSetOp` as the primary
   storage-plane model while documenting `_content*` keys only as legacy
   compatibility input.
+- CRDT tests and diagnostics now use the `VersionVector` and `ORSet` class API
+  names directly, with a regression guard preventing legacy helper shim exports
+  from returning to the domain modules.
 - `EffectSinkPort.deliver()` now returns `DeliveryObservation[]`
   consistently. Custom sinks must wrap single observations in an array; the
   built-in no-op, console, chunk, multiplex, and effect-pipeline surfaces all
