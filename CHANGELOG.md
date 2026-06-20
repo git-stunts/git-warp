@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updated development dependency locks for the current `npm audit` findings:
+  Vite resolves to the patched 8.0.16 line, `tmp` resolves to 0.2.7,
+  `brace-expansion` resolves to 5.0.6 where used by markdown tooling, the
+  markdownlint CLI resolves to 0.49.x, and the explicit `tar` override now
+  points at the patched 7.5.16 release.
 - Patch write docs now state the public visibility contract: `commit()`,
   `writer.commitPatch(...)`, and `graph.patches.patch(...)` only resolve after
   the canonical writer ref advances and reads back at the returned patch SHA.
