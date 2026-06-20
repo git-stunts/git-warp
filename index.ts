@@ -252,6 +252,10 @@ import GitWarpReadingEnvelopeSourceFacts from './src/domain/continuum/GitWarpRea
 import GitWarpBraidHologram from './src/domain/continuum/GitWarpBraidHologram.ts';
 import GitWarpBraidHologramMember from './src/domain/continuum/GitWarpBraidHologramMember.ts';
 import GitWarpSuffixTransformHologram from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
+import GitWarpWitnessedSuffixAdmissionOutcome
+  from './src/domain/continuum/GitWarpWitnessedSuffixAdmissionOutcome.ts';
+import GitWarpWitnessedSuffixAdmissionShell
+  from './src/domain/continuum/GitWarpWitnessedSuffixAdmissionShell.ts';
 import GitWarpReceiptEnvelopeBoundary from './src/domain/continuum/GitWarpReceiptEnvelopeBoundary.ts';
 import GitWarpTickHologram from './src/domain/continuum/GitWarpTickHologram.ts';
 import GitWarpTickReceiptShell from './src/domain/continuum/GitWarpTickReceiptShell.ts';
@@ -286,6 +290,12 @@ import type { GitWarpReadingEnvelopeSourceFactsFields } from './src/domain/conti
 import type { GitWarpBraidHologramFields } from './src/domain/continuum/GitWarpBraidHologram.ts';
 import type { GitWarpBraidHologramMemberFields } from './src/domain/continuum/GitWarpBraidHologramMember.ts';
 import type { GitWarpSuffixTransformHologramFields } from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
+import type {
+  GitWarpWitnessedSuffixAdmissionOutcomeValue,
+} from './src/domain/continuum/GitWarpWitnessedSuffixAdmissionOutcome.ts';
+import type {
+  GitWarpWitnessedSuffixAdmissionShellFields,
+} from './src/domain/continuum/GitWarpWitnessedSuffixAdmissionShell.ts';
 import type {
   GitWarpReceiptEnvelopeAnchor,
   GitWarpReceiptEnvelopeBoundaryFields,
@@ -441,7 +451,12 @@ export {
   ContinuumReceiptFamilyProjection,
   GitWarpReadingEnvelopePayloadFact,
   GitWarpReadingEnvelopeSourceFacts,
-  GitWarpBraidHologram, GitWarpBraidHologramMember, GitWarpSuffixTransformHologram, GitWarpTickHologram,
+  GitWarpBraidHologram,
+  GitWarpBraidHologramMember,
+  GitWarpSuffixTransformHologram,
+  GitWarpWitnessedSuffixAdmissionOutcome,
+  GitWarpWitnessedSuffixAdmissionShell,
+  GitWarpTickHologram,
   GitWarpReceiptEnvelopeBoundary,
   GitWarpTickPatchReplayCore,
   GitWarpTickReceiptShell,
@@ -539,6 +554,8 @@ export type {
   GitWarpReadingEnvelopeSourceFactsFields,
   GitWarpBraidHologramFields, GitWarpBraidHologramMemberFields,
   GitWarpSuffixTransformHologramFields, GitWarpTickHologramFields,
+  GitWarpWitnessedSuffixAdmissionOutcomeValue,
+  GitWarpWitnessedSuffixAdmissionShellFields,
   GitWarpReceiptEnvelopeAnchor,
   GitWarpReceiptEnvelopeBoundaryFields,
   GitWarpTickPatchReplayCoreFields,

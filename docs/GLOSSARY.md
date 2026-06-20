@@ -53,6 +53,7 @@ If another document uses one of these nouns differently, this glossary wins.
 |---|---|---|---|
 | `Witness` | Minimal information sufficient to justify a local change/rewrite result. | No first-class witness type yet. | target |
 | `TickReceipt` | The operational envelope recording what happened for one admitted step, including outcomes and enough data to audit the admission. | First-class runtime type today. Larger than a witness. | shipped |
+| `Witnessed suffix admission shell` | Observer-readable import/export envelope for a transported suffix normalized against a comparable basis, with explicit admitted/staged/plural/conflict/obstruction outcome. | `GitWarpWitnessedSuffixAdmissionShell` binds source facts, patch references, witness material, and a replay-bearing suffix hologram. Sync still carries frontier negotiation as transport optimization until protocol wiring is upgraded. | transition |
 | `GraphDiff` | A first-class change result answering “what changed between these coordinates?” | `GraphDiff` is returned by the comparison diff API for live Lamport ranges and is built from the same visible-state comparison engine as coordinate comparison. | transition |
 
 ## Persistence nouns

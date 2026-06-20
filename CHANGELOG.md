@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GraphDiff` now exposes a first-class comparison diff result for live Lamport
   ranges through `comparison.diff({ from, to })`, without routing through
   wildcard query scans.
+- `GitWarpWitnessedSuffixAdmissionShell` now gives suffix import/export an
+  observer-readable shell with explicit admission outcomes and replay-bearing
+  hologram material instead of a naked patch-list contract.
 - A dated TSC Zero agent-merge audit now retires the historical #505/B171
   drift concern by reconstructing PR #73's conflict-resolution scope and
   mapping it to current TypeScript owner modules.

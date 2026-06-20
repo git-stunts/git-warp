@@ -2432,6 +2432,37 @@ The boundary deliberately excludes raw `ops` and `reason` text. Those stay
 diagnostic; the stable contract is the receipt identity and aggregate outcome
 anchor.
 
+Witnessed suffix import/export is represented by
+`GitWarpWitnessedSuffixAdmissionShell`. The shell names the graph, lane,
+transported site, source/basis/target frontiers, patch references, witness
+material, admission law, transport law, explicit import outcome, and replay
+hologram without reducing protocol truth to a naked `frontier + patches`
+transport list.
+
+```typescript
+const shell = new GitWarpWitnessedSuffixAdmissionShell({
+  laneId: 'lane:writer-remote',
+  transportedSiteRef: 'site:remote',
+  admissionLawId: 'admission-law:witnessed-suffix',
+  outcome: GitWarpWitnessedSuffixAdmissionOutcome.admitted(),
+  sourceFacts,
+  hologram,
+});
+
+shell.patchRefs; // stable patch references for observers
+shell.materializeFrom(localBasis); // deterministic target materialization
+```
+
+Admission outcomes are runtime-backed:
+
+| Outcome | Meaning |
+|---|---|
+| `admitted` | The suffix was normalized and admitted against the basis. |
+| `staged` | The suffix is witnessed but waiting for local prerequisites. |
+| `plural` | Multiple lawful continuations remain and need selection. |
+| `conflict` | The suffix overlaps with local history in a conflicting way. |
+| `obstruction` | A law or witness gap blocks admission. |
+
 Use normal query/worldline readings when you do not need diagnostic receipt
 detail.
 

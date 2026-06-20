@@ -102,6 +102,8 @@ import WarpAppDefault, {
   GitWarpBraidHologram,
   GitWarpBraidHologramMember,
   GitWarpSuffixTransformHologram,
+  GitWarpWitnessedSuffixAdmissionOutcome,
+  GitWarpWitnessedSuffixAdmissionShell,
   GitWarpTickHologram,
   GitWarpTickPatchReplayCore,
   GitWarpTickReceiptShell,
@@ -433,6 +435,8 @@ describe('index.ts exports', () => {
       expect(GitWarpBraidHologram).toBeDefined();
       expect(GitWarpBraidHologramMember).toBeDefined();
       expect(GitWarpSuffixTransformHologram).toBeDefined();
+      expect(GitWarpWitnessedSuffixAdmissionOutcome).toBeDefined();
+      expect(GitWarpWitnessedSuffixAdmissionShell).toBeDefined();
       expect(GitWarpTickHologram).toBeDefined();
       expect(GitWarpTickPatchReplayCore).toBeDefined();
       expect(GitWarpTickReceiptShell).toBeDefined();
