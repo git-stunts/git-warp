@@ -237,6 +237,7 @@ import GitWarpReadingEnvelopeSourceFacts from './src/domain/continuum/GitWarpRea
 import GitWarpBraidHologram from './src/domain/continuum/GitWarpBraidHologram.ts';
 import GitWarpBraidHologramMember from './src/domain/continuum/GitWarpBraidHologramMember.ts';
 import GitWarpSuffixTransformHologram from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
+import GitWarpReceiptEnvelopeBoundary from './src/domain/continuum/GitWarpReceiptEnvelopeBoundary.ts';
 import GitWarpTickHologram from './src/domain/continuum/GitWarpTickHologram.ts';
 import GitWarpTickReceiptShell from './src/domain/continuum/GitWarpTickReceiptShell.ts';
 import GitWarpTickReceiptWitnessCore from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
@@ -270,6 +271,10 @@ import type { GitWarpReadingEnvelopeSourceFactsFields } from './src/domain/conti
 import type { GitWarpBraidHologramFields } from './src/domain/continuum/GitWarpBraidHologram.ts';
 import type { GitWarpBraidHologramMemberFields } from './src/domain/continuum/GitWarpBraidHologramMember.ts';
 import type { GitWarpSuffixTransformHologramFields } from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
+import type {
+  GitWarpReceiptEnvelopeAnchor,
+  GitWarpReceiptEnvelopeBoundaryFields,
+} from './src/domain/continuum/GitWarpReceiptEnvelopeBoundary.ts';
 import type { GitWarpTickHologramFields } from './src/domain/continuum/GitWarpTickHologram.ts';
 import type { GitWarpTickPatchReplayCoreFields } from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
 import type { GitWarpTickReceiptShellFields } from './src/domain/continuum/GitWarpTickReceiptShell.ts';
@@ -419,6 +424,7 @@ export {
   GitWarpReadingEnvelopePayloadFact,
   GitWarpReadingEnvelopeSourceFacts,
   GitWarpBraidHologram, GitWarpBraidHologramMember, GitWarpSuffixTransformHologram, GitWarpTickHologram,
+  GitWarpReceiptEnvelopeBoundary,
   GitWarpTickPatchReplayCore,
   GitWarpTickReceiptShell,
   GitWarpTickReceiptWitnessCore,
@@ -507,6 +513,8 @@ export type {
   GitWarpReadingEnvelopeSourceFactsFields,
   GitWarpBraidHologramFields, GitWarpBraidHologramMemberFields,
   GitWarpSuffixTransformHologramFields, GitWarpTickHologramFields,
+  GitWarpReceiptEnvelopeAnchor,
+  GitWarpReceiptEnvelopeBoundaryFields,
   GitWarpTickPatchReplayCoreFields,
   GitWarpTickReceiptShellFields,
   GitWarpTickReceiptWitnessCoreFields,

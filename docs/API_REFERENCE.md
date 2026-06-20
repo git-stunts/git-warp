@@ -2355,6 +2355,31 @@ PropSet user:alice.name: superseded
 
 **Zero-cost when disabled:** When receipts are not requested (the default), there is strictly zero overhead — no arrays allocated, no strings constructed.
 
+External envelope consumers should not reinterpret raw receipt objects as a
+stable protocol. Wrap a diagnostic receipt in `GitWarpReceiptEnvelopeBoundary`
+when another tool needs substrate-owned anchors:
+
+```typescript
+const boundary = new GitWarpReceiptEnvelopeBoundary({ receipt });
+const anchor = boundary.stableAnchor();
+// anchor = {
+//   boundaryVersion: 'git-warp.receipt-envelope-boundary/v1',
+//   substrateFactKind: 'git-warp.tick-receipt',
+//   patchSha: '...',
+//   writer: 'alice',
+//   lamport: 7,
+//   outcomeCount: 3,
+//   appliedCount: 2,
+//   supersededCount: 1,
+//   redundantCount: 0,
+//   hasExplanatoryReasons: true,
+// }
+```
+
+The boundary deliberately excludes raw `ops` and `reason` text. Those stay
+diagnostic; the stable contract is the receipt identity and aggregate outcome
+anchor.
+
 Use normal query/worldline readings when you do not need diagnostic receipt
 detail.
 
