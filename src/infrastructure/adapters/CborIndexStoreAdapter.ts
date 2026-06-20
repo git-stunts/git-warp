@@ -141,7 +141,11 @@ export class CborIndexStoreAdapter extends IndexStorePort {
           continue;
         }
         const blobOid = oids[path] as string;
-        const bytes = await readPayloadBlob(adapter._blobPort, adapter._blobStorage, blobOid);
+        const bytes = await readPayloadBlob({
+          blobPort: adapter._blobPort,
+          blobStorage: adapter._blobStorage,
+          oid: blobOid,
+        });
         const data = adapter._codec.decode(bytes);
         yield shard(data);
       }
@@ -153,7 +157,11 @@ export class CborIndexStoreAdapter extends IndexStorePort {
   }
 
   override async decodeShard<TDecoded extends CodecValue = CodecValue>(blobOid: string): Promise<TDecoded> {
-    const bytes = await readPayloadBlob(this._blobPort, this._blobStorage, blobOid);
+    const bytes = await readPayloadBlob({
+      blobPort: this._blobPort,
+      blobStorage: this._blobStorage,
+      oid: blobOid,
+    });
     return this._codec.decode<TDecoded>(bytes);
   }
 }

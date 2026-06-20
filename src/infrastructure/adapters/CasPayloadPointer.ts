@@ -2,6 +2,10 @@ import WarpError from '../../domain/errors/WarpError.ts';
 import { textDecode, textEncode } from '../../domain/utils/bytes.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type { BlobStorageOptions } from '../../ports/BlobStoragePort.ts';
+import {
+  CURRENT_SUBSTRATE_ONLY_POLICY,
+  type SubstrateCompatibilityPolicyValue,
+} from './SubstrateCompatibilityPolicy.ts';
 
 const POINTER_PREFIX = 'git-warp:cas-pointer:v1:';
 const POINTER_PREFIX_BYTES = textEncode(POINTER_PREFIX);
@@ -19,6 +23,13 @@ type PayloadBlobWriteRequest = {
   readonly blobStorage: BlobStoragePort | null | undefined;
   readonly bytes: Uint8Array;
   readonly options?: BlobStorageOptions;
+};
+
+type PayloadBlobReadRequest = {
+  readonly blobPort: BlobReader;
+  readonly blobStorage: BlobStoragePort | null | undefined;
+  readonly oid: string;
+  readonly compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
 };
 
 function hasPointerPrefix(bytes: Uint8Array): boolean {
@@ -64,21 +75,41 @@ export async function writePayloadBlob(request: PayloadBlobWriteRequest): Promis
   return await blobPort.writeBlob(encodeCasPayloadPointer(storageOid));
 }
 
-export async function readPayloadBlob(
-  blobPort: BlobReader,
-  blobStorage: BlobStoragePort | null | undefined,
-  oid: string,
-): Promise<Uint8Array> {
-  const bytes = await blobPort.readBlob(oid);
+export async function readPayloadBlob(request: PayloadBlobReadRequest): Promise<Uint8Array> {
+  const bytes = await request.blobPort.readBlob(request.oid);
   const storageOid = decodeCasPayloadPointer(bytes);
   if (storageOid === null) {
-    return bytes;
+    return inlinePayloadBytes(request, bytes);
   }
-  if (blobStorage === null || blobStorage === undefined) {
+  if (request.blobStorage === null || request.blobStorage === undefined) {
     throw new WarpError(
-      `Blob ${oid} is a CAS payload pointer but no blobStorage is configured`,
+      `Blob ${request.oid} is a CAS payload pointer but no blobStorage is configured`,
       'E_INVALID_DEPENDENCY',
     );
   }
-  return await blobStorage.retrieve(storageOid);
+  return await request.blobStorage.retrieve(storageOid);
+}
+
+function inlinePayloadBytes(
+  request: PayloadBlobReadRequest,
+  bytes: Uint8Array,
+): Uint8Array {
+  if (request.blobStorage !== null && request.blobStorage !== undefined) {
+    requireLegacyInlinePayloadPolicy(request.oid, request.compatibilityPolicy);
+  }
+  return bytes;
+}
+
+function requireLegacyInlinePayloadPolicy(
+  oid: string,
+  policy: SubstrateCompatibilityPolicyValue | undefined,
+): void {
+  const resolvedPolicy = policy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
+  if (resolvedPolicy.legacyInlinePayloadReads) {
+    return;
+  }
+  throw new WarpError(
+    `Inline payload blob ${oid} requires the substrate migration compatibility policy`,
+    'E_LEGACY_SUBSTRATE_DISABLED',
+  );
 }

@@ -5,9 +5,8 @@
  * as a CAS tree in the Git object store. The tree OID serves as the
  * storage identifier.
  *
- * Backward compatibility: if `retrieve()` fails to find a CAS manifest
- * at the given OID, it falls back to reading a raw Git blob. This
- * handles content written before the CAS migration.
+ * Current runtime reads require CAS manifests. Migration tooling can inject an
+ * explicit retired raw Git blob read policy while translating old substrates.
  *
  * @module infrastructure/adapters/CasBlobAdapter
  */
@@ -16,6 +15,10 @@ import BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import { createLazyCas } from './lazyCasInit.ts';
 import { createCdcCasStore } from './CasStoreFactory.ts';
+import {
+  CURRENT_SUBSTRATE_ONLY_POLICY,
+  type SubstrateCompatibilityPolicyValue,
+} from './SubstrateCompatibilityPolicy.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import { Readable } from 'node:stream';
 
@@ -75,12 +78,14 @@ export default class CasBlobAdapter extends BlobStoragePort {
   private readonly _encryptionKey: Uint8Array | undefined;
   private readonly _logger: LoggerPort | undefined;
   private readonly _getCas: () => Promise<CasStore>;
+  private readonly _compatibilityPolicy: SubstrateCompatibilityPolicyValue;
 
-  constructor({ plumbing, persistence, encryptionKey, logger }: {
+  constructor({ plumbing, persistence, encryptionKey, logger, compatibilityPolicy }: {
     plumbing: unknown;
     persistence: BlobPersistence;
     encryptionKey?: Uint8Array;
     logger?: LoggerPort;
+    compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
   }) {
     super();
     this._plumbing = plumbing;
@@ -88,6 +93,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
     this._encryptionKey = encryptionKey;
     this._logger = logger;
     this._getCas = createLazyCas(() => this._initCas());
+    this._compatibilityPolicy = compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
   }
 
   private async _initCas(): Promise<CasStore> {
@@ -126,6 +132,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
       if (!isLegacyBlobError(err)) {
         throw err;
       }
+      this._requireLegacyContentBlobPolicy(oid, err);
       return await this._fallbackReadBlob(oid);
     }
   }
@@ -211,6 +218,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
       if (!isLegacyBlobError(err)) {
         throw err;
       }
+      this._requireLegacyContentBlobPolicy(oid, err);
       const blob = await this._fallbackReadBlob(oid);
       return singleChunkIterator(blob);
     }
@@ -227,6 +235,20 @@ export default class CasBlobAdapter extends BlobStoragePort {
 
     const { buffer } = await cas.restore(restoreOpts);
     return singleChunkIterator(buffer);
+  }
+
+  private _requireLegacyContentBlobPolicy(oid: string, error: unknown): void {
+    if (this._compatibilityPolicy.legacyContentBlobReads) {
+      return;
+    }
+    throw new PersistenceError(
+      `Legacy raw blob reads require the substrate migration compatibility policy: ${oid}`,
+      'E_LEGACY_SUBSTRATE_DISABLED',
+      {
+        ...(error instanceof Error ? { cause: error } : {}),
+        context: { oid },
+      },
+    );
   }
 }
 

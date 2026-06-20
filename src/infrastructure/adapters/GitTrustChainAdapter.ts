@@ -22,6 +22,10 @@ import TrustError from '../../domain/errors/TrustError.ts';
 import { createLazyCas } from './lazyCasInit.ts';
 import { loadGitCasConstructors } from './gitCasModule.ts';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
+import {
+  CURRENT_SUBSTRATE_ONLY_POLICY,
+  type SubstrateCompatibilityPolicyValue,
+} from './SubstrateCompatibilityPolicy.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import { Readable } from 'node:stream';
@@ -68,6 +72,7 @@ type GitTrustChainDeps = {
   readonly plumbing: Plumbing;
   readonly crypto: CryptoPort;
   readonly logger?: LoggerPort;
+  readonly compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
 };
 
 // -- Plumbing helpers ---------------------------------------------------------
@@ -188,6 +193,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
   private readonly _crypto: CryptoPort;
   private readonly _logger: LoggerPort | undefined;
   private readonly _getCas: () => Promise<CasStore>;
+  private readonly _compatibilityPolicy: SubstrateCompatibilityPolicyValue;
   private _cbor: CborCodecInstance | null = null;
 
   constructor(deps: GitTrustChainDeps) {
@@ -196,6 +202,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     this._crypto = deps.crypto;
     this._logger = deps.logger;
     this._getCas = createLazyCas(() => this._initCas());
+    this._compatibilityPolicy = deps.compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
   }
 
   private async _initCas(): Promise<CasStore> {
@@ -245,6 +252,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       const decoded = cbor.decode(restored.buffer) as Record<string, string>;
       return decoded['recordId'] ?? null;
     } catch {
+      this._requireLegacyTrustRecordPolicy(commitSha);
       // Fallback: try reading as raw blob (pre-CAS migration)
       const entries = await readTreeEntries(this._plumbing, info.treeSha);
       const manifestOid = entries.get(RECORD_BLOB_NAME);
@@ -306,6 +314,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       const restored = await cas.restore({ manifest });
       rawRecord = cbor.decode(restored.buffer) as typeof rawRecord;
     } catch {
+      this._requireLegacyTrustRecordPolicy(commitSha);
       // Fallback: pre-CAS raw blob
       const entries = await readTreeEntries(this._plumbing, info.treeSha);
       const blobOid = entries.get(RECORD_BLOB_NAME);
@@ -341,6 +350,16 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       signature: rawRecord['signature'] as { readonly alg: string; readonly sig: string },
       signaturePayload: sigPayload,
     });
+  }
+
+  private _requireLegacyTrustRecordPolicy(commitSha: string): void {
+    if (this._compatibilityPolicy.legacyTrustRecordBlobReads) {
+      return;
+    }
+    throw new TrustError(
+      `Legacy trust record blob reads require the substrate migration compatibility policy: ${commitSha}`,
+      { code: 'E_LEGACY_SUBSTRATE_DISABLED', context: { commitSha } },
+    );
   }
 
   // -- Port implementation: persistRecord -------------------------------------

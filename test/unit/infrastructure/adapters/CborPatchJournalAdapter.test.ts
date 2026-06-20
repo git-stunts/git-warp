@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import { reducePatches } from '../../../../src/domain/services/JoinReducer.ts';
 import { hydrateDecodedPatch } from '../../../../src/domain/services/PatchHydrator.ts';
@@ -11,6 +10,14 @@ import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/PatchMessageCodec.ts';
+import {
+  LEGACY_EXTERNAL_PATCH_STORAGE,
+  LEGACY_GIT_BLOB_PATCH_STORAGE,
+  createGitCasPatchStorage,
+} from '../../../../src/ports/CommitMessageCodecPort.ts';
+import {
+  V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+} from '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts';
 import PatchJournalPort from '../../../../src/ports/PatchJournalPort.ts';
 import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
 import type { BlobStorageOptions } from '../../../../src/ports/BlobStoragePort.ts';
@@ -273,12 +280,46 @@ describe('CborPatchJournalAdapter', () => {
       expect(encryptedAdapter.usesExternalStorage).toBe(true);
     });
 
-    it('rejects encrypted reads when no patchBlobStorage is configured', async () => {
+    it('rejects encrypted legacy reads without migration compatibility policy', async () => {
       const codec = new CborCodec();
       const blobPort = createMemoryBlobPort();
       const adapter = new CborPatchJournalAdapter({ codec, blobPort });
 
-      await expect(adapter.readPatch('encrypted_oid', { encrypted: true })).rejects.toBeInstanceOf(EncryptionError);
+      await expect(adapter.readPatch('encrypted_oid', { encrypted: true }))
+        .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+    });
+
+    it('rejects legacy patch storage reads when current git-cas storage is configured', async () => {
+      const codec = new CborCodec();
+      const blobPort = createMemoryBlobPort();
+      const adapter = new CborPatchJournalAdapter({
+        codec,
+        blobPort,
+        blobStorage: createMockBlobStorage(),
+        writeStorage: createGitCasPatchStorage(false),
+      });
+
+      await expect(adapter.readPatch('legacy_oid', { storage: LEGACY_GIT_BLOB_PATCH_STORAGE }))
+        .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+      await expect(adapter.readPatch('legacy_oid', { storage: LEGACY_EXTERNAL_PATCH_STORAGE }))
+        .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+    });
+
+    it('allows legacy patch storage reads only under migration compatibility policy', async () => {
+      const codec = new CborCodec();
+      const blobPort = createMemoryBlobPort();
+      const patchOid = 'legacy_oid';
+      blobPort.store.set(patchOid, codec.encode(GOLDEN_PATCH));
+      const adapter = new CborPatchJournalAdapter({
+        codec,
+        blobPort,
+        blobStorage: createMockBlobStorage(),
+        writeStorage: createGitCasPatchStorage(false),
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+      });
+
+      await expect(adapter.readPatch(patchOid, { storage: LEGACY_GIT_BLOB_PATCH_STORAGE }))
+        .resolves.toMatchObject({ writer: 'alice' });
     });
   });
 

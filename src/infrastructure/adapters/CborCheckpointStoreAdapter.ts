@@ -124,14 +124,14 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     }
 
     const reads: Array<Promise<Uint8Array>> = [
-      readPayloadBlob(this._blobPort, this._blobStorage, stateOid),
-      readPayloadBlob(this._blobPort, this._blobStorage, frontierOid),
+      readPayloadBlob({ blobPort: this._blobPort, blobStorage: this._blobStorage, oid: stateOid }),
+      readPayloadBlob({ blobPort: this._blobPort, blobStorage: this._blobStorage, oid: frontierOid }),
     ];
     if (appliedVVOid !== undefined) {
-      reads.push(readPayloadBlob(this._blobPort, this._blobStorage, appliedVVOid));
+      reads.push(readPayloadBlob({ blobPort: this._blobPort, blobStorage: this._blobStorage, oid: appliedVVOid }));
     }
     if (provenanceOid !== undefined) {
-      reads.push(readPayloadBlob(this._blobPort, this._blobStorage, provenanceOid));
+      reads.push(readPayloadBlob({ blobPort: this._blobPort, blobStorage: this._blobStorage, oid: provenanceOid }));
     }
 
     const buffers = await Promise.all(reads);

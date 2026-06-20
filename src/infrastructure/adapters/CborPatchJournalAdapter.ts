@@ -17,6 +17,10 @@ import {
   type PatchStorageRoute,
   type default as CommitMessageCodecPort,
 } from '../../ports/CommitMessageCodecPort.ts';
+import {
+  CURRENT_SUBSTRATE_ONLY_POLICY,
+  type SubstrateCompatibilityPolicyValue,
+} from './SubstrateCompatibilityPolicy.ts';
 
 interface BlobPort {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -45,8 +49,9 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   private readonly _legacyPatchBlobStorage: BlobStoragePort | null;
   private readonly _writeStorage: PatchStorageRoute;
   private readonly _commitMessageCodec: CommitMessageCodecPort;
+  private readonly _compatibilityPolicy: SubstrateCompatibilityPolicyValue;
 
-  constructor({ codec, blobPort, commitPort, patchBlobStorage, blobStorage, legacyPatchBlobStorage, writeStorage, commitMessageCodec }: {
+  constructor({ codec, blobPort, commitPort, patchBlobStorage, blobStorage, legacyPatchBlobStorage, writeStorage, commitMessageCodec, compatibilityPolicy }: {
     codec: CodecPort;
     blobPort: BlobPort;
     commitPort?: CommitPort;
@@ -55,6 +60,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     legacyPatchBlobStorage?: BlobStoragePort | null;
     writeStorage?: PatchStorageRoute;
     commitMessageCodec?: CommitMessageCodecPort;
+    compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
   }) {
     super();
     if (codec === null || codec === undefined) {
@@ -72,6 +78,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
       ? LEGACY_EXTERNAL_PATCH_STORAGE
       : LEGACY_GIT_BLOB_PATCH_STORAGE);
     this._commitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+    this._compatibilityPolicy = compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
   }
 
   override async writePatch(patch: Patch): Promise<string> {
@@ -97,7 +104,8 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     patchOid: string,
     { storage, encrypted = false }: ReadPatchOptions = {},
   ): Promise<Patch> {
-    const resolvedStorage = storage ?? (encrypted ? LEGACY_EXTERNAL_PATCH_STORAGE : LEGACY_GIT_BLOB_PATCH_STORAGE);
+    const resolvedStorage = storage ?? (encrypted ? LEGACY_EXTERNAL_PATCH_STORAGE : this._writeStorage);
+    this._requireReadableStorage(resolvedStorage);
     let bytes: Uint8Array;
     if (resolvedStorage.strategy === 'git-cas') {
       if (this._blobStorage === null) {
@@ -117,6 +125,23 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
       bytes = await this._blobPort.readBlob(patchOid);
     }
     return hydrateDecodedPatch(this._codec.decode(bytes));
+  }
+
+  private _requireReadableStorage(storage: PatchStorageRoute): void {
+    if (storage.strategy === 'git-cas' || this._isConfiguredWriteRoute(storage)) {
+      return;
+    }
+    if (this._compatibilityPolicy.legacyPatchStorageReads) {
+      return;
+    }
+    throw new WarpError(
+      `Legacy patch storage reads require the substrate migration compatibility policy: ${storage.strategy}`,
+      'E_LEGACY_SUBSTRATE_DISABLED',
+    );
+  }
+
+  private _isConfiguredWriteRoute(storage: PatchStorageRoute): boolean {
+    return this._writeStorage.strategy === storage.strategy && this._blobStorage === null;
   }
 
   override get writeStorage(): PatchStorageRoute {
