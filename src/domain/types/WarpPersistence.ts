@@ -13,18 +13,18 @@
  * @module domain/types/WarpPersistence
  */
 
-import type CommitPort from '../../ports/CommitPort.ts';
 import type BlobPort from '../../ports/BlobPort.ts';
 import type TreePort from '../../ports/TreePort.ts';
 import type RefPort from '../../ports/RefPort.ts';
+import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 
 /**
- * Standard four-port persistence intersection — commit + blob + tree + ref.
+ * Standard WARP kernel persistence surface — commit + blob + tree + ref.
  * Used by sync readers, checkpoint creators, patch writers, and
  * materialize paths. Identical to CheckpointPersistence by design
  * (see module-level note).
  */
-export type CorePersistence = CommitPort & BlobPort & TreePort & RefPort;
+export type CorePersistence = WarpKernelPort;
 
 /**
  * Index storage — blob reads/writes, tree reads/writes, ref reads/writes.

@@ -90,7 +90,7 @@ but the identity field is `worldlineName` instead of `graphName`.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `persistence` | `CorePersistence` | Yes | Git storage adapter |
+| `persistence` | `CorePersistence` (`WarpKernelPort`) | Yes | Git storage adapter |
 | `worldlineName` | `string` | Yes | Admitted worldline identity |
 | `writerId` | `string` | Yes | Writer identity |
 | `trust` | `{ mode?: 'off' \| 'log-only' \| 'enforce'; pin?: string \| null }` | No | Trust verification |
@@ -208,7 +208,7 @@ const graph = await openWarpGraph({
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `persistence` | `CorePersistence` | Yes | Git storage adapter |
+| `persistence` | `CorePersistence` (`WarpKernelPort`) | Yes | Git storage adapter |
 | `graphName` | `string` | Yes | Graph identity |
 | `writerId` | `string` | Yes | Writer identity |
 | `trust` | `{ mode?: 'off' \| 'log-only' \| 'enforce'; pin?: string \| null }` | No | Trust verification |

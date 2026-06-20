@@ -40,20 +40,16 @@ import {
 import { commitPatch } from './PatchCommitter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
 import type { WarpState } from './JoinReducer.ts';
-import type CommitPort from '../../ports/CommitPort.ts';
-import type BlobPort from '../../ports/BlobPort.ts';
-import type TreePort from '../../ports/TreePort.ts';
-import type RefPort from '../../ports/RefPort.ts';
+import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 
-type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
 
 type PatchBuilderOptions = {
-  persistence: PersistencePorts;
+  persistence: WarpKernelPort;
   graphName: string;
   writerId: string;
   lamport: number;
@@ -70,7 +66,7 @@ type PatchBuilderOptions = {
 };
 
 export class PatchBuilder {
-  private readonly _persistence: PersistencePorts;
+  private readonly _persistence: WarpKernelPort;
   private readonly _graphName: string;
   private readonly _writerId: string;
   private readonly _targetRefPath: string | null;

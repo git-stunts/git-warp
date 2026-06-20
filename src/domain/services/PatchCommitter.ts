@@ -17,10 +17,7 @@ import PatchError from '../errors/PatchError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
 import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
-import type CommitPort from '../../ports/CommitPort.ts';
-import type BlobPort from '../../ports/BlobPort.ts';
-import type TreePort from '../../ports/TreePort.ts';
-import type RefPort from '../../ports/RefPort.ts';
+import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import {
@@ -28,10 +25,8 @@ import {
   type default as CommitMessageCodecPort,
 } from '../../ports/CommitMessageCodecPort.ts';
 
-type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
-
 export type CommitState = {
-  persistence: PersistencePorts;
+  persistence: WarpKernelPort;
   graphName: string;
   writerId: string;
   lamport: number;
@@ -173,7 +168,7 @@ function buildWriterCasConflict(expectedSha: string | null, actualSha: string | 
 
 /** Advances a writer ref atomically and translates stale-head failures. */
 async function compareAndSwapWriterRef(
-  persistence: PersistencePorts,
+  persistence: WarpKernelPort,
   writerRef: string,
   newCommitSha: string,
   expectedSha: string | null,
@@ -194,7 +189,7 @@ async function compareAndSwapWriterRef(
 
 /** Verifies that a successful commit is immediately visible at the writer ref. */
 async function assertWriterRefVisible(
-  persistence: PersistencePorts,
+  persistence: WarpKernelPort,
   writerRef: string,
   expectedSha: string,
 ): Promise<void> {

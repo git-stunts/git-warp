@@ -42,6 +42,7 @@ import IndexRebuildService from './src/domain/services/index/IndexRebuildService
 import HealthCheckService, { HealthStatus } from './src/domain/services/HealthCheckService.ts';
 import CommitDagTraversalService from './src/domain/services/dag/CommitDagTraversalService.ts';
 import GraphPersistencePort from './src/ports/GraphPersistencePort.ts';
+import type WarpKernelPort from './src/ports/WarpKernelPort.ts';
 import IndexStoragePort from './src/ports/IndexStoragePort.ts';
 import LoggerPort from './src/ports/LoggerPort.ts';
 import SeekCachePort from './src/ports/SeekCachePort.ts';
@@ -442,6 +443,7 @@ export type {
   PropValue,
   SnapshotPropValue,
   SyncRateLimitConfig,
+  WarpKernelPort,
   WarpWorldlineOpenOptions,
   WarpWorldlinePatchBuild,
   ApertureOpeningProofFields, ApertureOpeningVerificationResult,

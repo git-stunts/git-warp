@@ -130,6 +130,7 @@ import WarpAppDefault, {
   type PropValue,
   type SnapshotPropValue,
   type SyncRateLimitConfig,
+  type WarpKernelPort,
   type WarpWorldlineOpenOptions,
   type WarpWorldlinePatchBuild,
   type WarpWorldlineCoordinateFrontierEntry,
@@ -150,6 +151,7 @@ type PublicVisibleEdge = Readonly<{
 }>;
 
 declare const persistence: GraphPersistencePort;
+const kernelPersistence: WarpKernelPort = persistence;
 declare const indexStorage: IndexStoragePort;
 declare const logger: LoggerPort;
 declare const crypto: CryptoPort;
@@ -292,6 +294,7 @@ void sameAppCtor;
 void exportedRuntimeSurface;
 void exportedFunctionSurface;
 void exportedConstantSurface;
+void kernelPersistence;
 
 const app: WarpApp = await WarpApp.open({
   graphName: 'consumer-test',

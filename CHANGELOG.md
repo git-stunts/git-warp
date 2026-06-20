@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `WarpKernelPort` now names the cohesive WARP kernel persistence contract
+  (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
+  longer need anonymous four-port intersections for core graph persistence.
 - Coordinate-backed Optics now expose the public v18 success path:
   `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()` let
   Worldline-first callers run coherent node and property optic reads from a

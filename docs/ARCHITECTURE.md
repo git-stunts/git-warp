@@ -203,7 +203,9 @@ Stateless services that implement domain logic:
 
 Abstract contracts between domain and infrastructure:
 
-- **GraphPersistencePort** — composite of CommitPort + BlobPort + TreePort + RefPort
+- **GraphPersistencePort** — runtime composite of CommitPort + BlobPort + TreePort + RefPort
+- **WarpKernelPort** — type-only kernel persistence contract for CommitPort +
+  BlobPort + TreePort + RefPort
 - **CodecPort** — encode/decode (CBOR)
 - **CryptoPort** — hash, hmac, sign, verify
 - **ClockPort** — wall clock (injected, not ambient)
