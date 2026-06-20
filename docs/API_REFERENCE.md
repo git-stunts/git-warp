@@ -867,6 +867,30 @@ const result = await worldline.query()
   .run();
 ```
 
+### Graph Diff
+
+Use `graph.comparison.diff({ from, to })` when a caller asks what changed
+between two live Lamport ceilings. The result is a frozen `GraphDiff` object
+with structural and property deltas, visible patch divergence, and the resolved
+coordinate summaries used to compute it.
+
+```typescript
+const diff = await graph.comparison.diff({
+  from: 120,
+  to: 135,
+  targetId: 'user:alice',
+});
+
+diff.diffVersion; // 'graph-diff/v1'
+diff.nodes.added;
+diff.nodeProperties.changed;
+diff.visiblePatchDivergence.rightOnlyPatchShas;
+```
+
+`diff()` resolves the two ceilings as live coordinate reads and uses the
+substrate comparison engine. It is not implemented by `query().match('*')` or
+by client-side wildcard scans.
+
 ### Graph Traversals
 
 `LogicalTraversal` is available on `Worldline`, `Observer`, and

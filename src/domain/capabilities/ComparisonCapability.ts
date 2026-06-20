@@ -5,6 +5,7 @@
  */
 
 import type Patch from '../types/Patch.ts';
+import type GraphDiff from '../services/comparison/GraphDiff.ts';
 import type {
   CoordinateComparisonSelectorInput,
   CoordinateComparison,
@@ -51,6 +52,14 @@ export type PlanCoordinateTransferOptions = {
   scope?: VisibleStateScope | null;
 };
 
+/** Options for graph diff over the live coordinate at two Lamport ceilings. */
+export type GraphDiffOptions = {
+  from: number;
+  to: number;
+  targetId?: string | null;
+  scope?: VisibleStateScope | null;
+};
+
 export default abstract class ComparisonCapability {
   /** Build a patch-divergence summary from two ordered patch streams. */
   abstract buildPatchDivergence(
@@ -75,6 +84,11 @@ export default abstract class ComparisonCapability {
   abstract compareCoordinates(
     _options: CompareCoordinatesOptions,
   ): Promise<CoordinateComparison>;
+
+  /** Return a first-class graph delta between two live Lamport ceilings. */
+  abstract diff(
+    _options: GraphDiffOptions,
+  ): Promise<GraphDiff>;
 
   /** Plan transfer from one explicit coordinate selector into another. */
   abstract planCoordinateTransfer(

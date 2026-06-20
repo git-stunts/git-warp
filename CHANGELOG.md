@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CausalIndexPlan` now carries the query-provider index posture for bounded
   support rules, including the existing provenance entity-patch index family and
   explicit global-discovery fallback.
+- `GraphDiff` now exposes a first-class comparison diff result for live Lamport
+  ranges through `comparison.diff({ from, to })`, without routing through
+  wildcard query scans.
 - A dated TSC Zero agent-merge audit now retires the historical #505/B171
   drift concern by reconstructing PR #73's conflict-resolution scope and
   mapping it to current TypeScript owner modules.

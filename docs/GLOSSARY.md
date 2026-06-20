@@ -53,7 +53,7 @@ If another document uses one of these nouns differently, this glossary wins.
 |---|---|---|---|
 | `Witness` | Minimal information sufficient to justify a local change/rewrite result. | No first-class witness type yet. | target |
 | `TickReceipt` | The operational envelope recording what happened for one admitted step, including outcomes and enough data to audit the admission. | First-class runtime type today. Larger than a witness. | shipped |
-| `GraphDiff` | A first-class change result answering “what changed between these coordinates?” | Not yet a public runtime noun; substrate pieces exist (`PatchDiff`, `StateDiff`, receipts). | target |
+| `GraphDiff` | A first-class change result answering “what changed between these coordinates?” | `GraphDiff` is returned by the comparison diff API for live Lamport ranges and is built from the same visible-state comparison engine as coordinate comparison. | transition |
 
 ## Persistence nouns
 

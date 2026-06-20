@@ -130,6 +130,7 @@ export default class WarpCore {
   declare readonly compareStrand: WarpCoreRuntimeSurface['compareStrand'];
   declare readonly planStrandTransfer: WarpCoreRuntimeSurface['planStrandTransfer'];
   declare readonly compareCoordinates: WarpCoreRuntimeSurface['compareCoordinates'];
+  declare readonly diff: WarpCoreRuntimeSurface['diff'];
   declare readonly planCoordinateTransfer: WarpCoreRuntimeSurface['planCoordinateTransfer'];
   declare readonly subscribe: WarpCoreRuntimeSurface['subscribe'];
   declare readonly watch: WarpCoreRuntimeSurface['watch'];

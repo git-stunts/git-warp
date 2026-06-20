@@ -673,6 +673,7 @@ export default class RuntimeHost {
   planStrandTransfer: ComparisonController['planStrandTransfer'] = (...args) => this._comparisonController.planStrandTransfer(...args);
   planCoordinateTransfer: ComparisonController['planCoordinateTransfer'] = (...args) => this._comparisonController.planCoordinateTransfer(...args);
   compareCoordinates: ComparisonController['compareCoordinates'] = (...args) => this._comparisonController.compareCoordinates(...args);
+  diff: ComparisonController['diff'] = (...args) => this._comparisonController.diff(...args);
 
   getFrontier: SyncController['getFrontier'] = (...args) => this._syncController.getFrontier(...args);
   hasFrontierChanged: SyncController['hasFrontierChanged'] = (...args) => this._syncController.hasFrontierChanged(...args);

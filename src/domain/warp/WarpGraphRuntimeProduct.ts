@@ -79,6 +79,7 @@ export function buildWarpGraphRuntimeSurface(runtime: RuntimeGraphHostProduct): 
     compareStrand: runtime.compareStrand.bind(runtime),
     planStrandTransfer: runtime.planStrandTransfer.bind(runtime),
     compareCoordinates: runtime.compareCoordinates.bind(runtime),
+    diff: runtime.diff.bind(runtime),
     planCoordinateTransfer: runtime.planCoordinateTransfer.bind(runtime),
     subscribe: runtime.subscribe.bind(runtime),
     watch: runtime.watch.bind(runtime),

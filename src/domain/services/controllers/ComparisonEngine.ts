@@ -15,6 +15,7 @@ import {
   buildCoordinateTransferPlanFact,
 } from '../CoordinateFactExport.ts';
 import { createStateReader } from '../state/StateReader.ts';
+import GraphDiff from '../comparison/GraphDiff.ts';
 import { compareVisibleState } from '../comparison/VisibleStateComparison.ts';
 import { planVisibleStateTransfer } from '../transfer/VisibleStateTransferPlanner.ts';
 import { normalizeVisibleStateScope } from '../VisibleStateScope.ts';
@@ -29,6 +30,7 @@ import type {
   CompareStrandOptions,
   PlanStrandTransferOptions,
   CompareCoordinatesOptions,
+  GraphDiffOptions,
   PlanCoordinateTransferOptions,
 } from '../../capabilities/ComparisonCapability.ts';
 import type Patch from '../../types/Patch.ts';
@@ -264,6 +266,40 @@ export async function compareCoordinatesImpl(
     visiblePatchDivergence,
     visibleState,
   };
+}
+
+function normalizeDiffTick(value: number, field: string): number {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new QueryError(`${field} must be a non-negative integer`, {
+      code: 'invalid_coordinate',
+      context: { field, value },
+    });
+  }
+  return value;
+}
+
+export async function diffImpl(
+  graph: ComparisonHost,
+  selectorContext: ComparisonSelectorContext,
+  options: GraphDiffOptions,
+): Promise<GraphDiff> {
+  assertRequiredOptions(options, 'diff()');
+  const from = normalizeDiffTick(options.from, 'from');
+  const to = normalizeDiffTick(options.to, 'to');
+  if (from > to) {
+    throw new QueryError('diff() requires from <= to', {
+      code: 'invalid_coordinate',
+      context: { from, to },
+    });
+  }
+  const scope = normalizeVisibleStateScope(options.scope, 'scope');
+  const comparison = await compareCoordinatesImpl(graph, selectorContext, {
+    left: { kind: 'live', ceiling: from },
+    right: { kind: 'live', ceiling: to },
+    targetId: normalizeOptionalString(options.targetId, 'targetId'),
+    ...(scope !== null && scope !== undefined ? { scope } : {}),
+  });
+  return new GraphDiff({ comparison });
 }
 
 export async function compareStrandImpl(

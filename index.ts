@@ -160,6 +160,7 @@ import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/service
 import { computeStateHash, projectState } from './src/domain/services/state/StateSerializer.ts';
 import { createStateReader } from './src/domain/services/state/StateReader.ts';
 import { compareVisibleState } from './src/domain/services/comparison/VisibleStateComparison.ts';
+import GraphDiff from './src/domain/services/comparison/GraphDiff.ts';
 import TtdMergeBranch from './src/domain/services/merge/TtdMergeBranch.ts';
 import TtdMergeFootprint from './src/domain/services/merge/TtdMergeFootprint.ts';
 import TtdMergeInspection from './src/domain/services/merge/TtdMergeInspection.ts';
@@ -180,6 +181,7 @@ import type { ApertureOpeningProofFields } from './src/domain/services/wormhole/
 import type { ZKWormholeEdgeFields } from './src/domain/services/wormhole/ZKWormholeEdge.ts';
 import type { ApertureOpeningVerificationResult, ZKWormholeVerificationResult } from './src/domain/services/wormhole/ZKWormholeVerificationResult.ts';
 import type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
+import type { GraphDiffFields } from './src/domain/services/comparison/GraphDiff.ts';
 import type {
   BoundedSupportDirection,
   BoundedSupportKind,
@@ -404,6 +406,7 @@ export {
   projectState,
   createStateReader,
   compareVisibleState,
+  GraphDiff,
   TtdMergeBranch,
   TtdMergeFootprint,
   TtdMergeInspection,
@@ -512,6 +515,7 @@ export type {
   CausalIndexFamily,
   CausalIndexPlanFields,
   CausalIndexPlanPosture,
+  GraphDiffFields,
   ApertureOpeningProofFields, ApertureOpeningVerificationResult,
   ZKWormholeEdgeFields, ZKWormholeVerificationResult,
   WarpWorldlineCoordinateFrontierEntry,

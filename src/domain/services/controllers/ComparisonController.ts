@@ -15,8 +15,10 @@ import type {
   CompareStrandOptions,
   PlanStrandTransferOptions,
   CompareCoordinatesOptions,
+  GraphDiffOptions,
   PlanCoordinateTransferOptions,
 } from '../../capabilities/ComparisonCapability.ts';
+import type GraphDiff from '../comparison/GraphDiff.ts';
 import type {
   ComparisonHost,
   ComparisonSelectorContext,
@@ -28,6 +30,7 @@ import {
   planStrandTransferImpl,
   planCoordinateTransferImpl,
   compareCoordinatesImpl,
+  diffImpl,
   type VisiblePatchDivergence,
 } from './ComparisonEngine.ts';
 
@@ -78,5 +81,11 @@ export default class ComparisonController {
     options: CompareCoordinatesOptions,
   ): Promise<CoordinateComparison> {
     return await compareCoordinatesImpl(this._host, this._selectorContext, options);
+  }
+
+  async diff(
+    options: GraphDiffOptions,
+  ): Promise<GraphDiff> {
+    return await diffImpl(this._host, this._selectorContext, options);
   }
 }

@@ -322,13 +322,14 @@ function bindProvenanceCapability(runtime: WarpGraphRuntimeSurface): ProvenanceC
 function bindComparisonCapability(runtime: WarpGraphRuntimeSurface): ComparisonCapability {
   requireCapability(runtime, 'comparison', [
     'buildPatchDivergence', 'compareStrand', 'planStrandTransfer',
-    'compareCoordinates', 'planCoordinateTransfer',
+    'compareCoordinates', 'diff', 'planCoordinateTransfer',
   ]);
   return Object.freeze({
     buildPatchDivergence: runtime.buildPatchDivergence.bind(runtime),
     compareStrand: runtime.compareStrand.bind(runtime),
     planStrandTransfer: runtime.planStrandTransfer.bind(runtime),
     compareCoordinates: runtime.compareCoordinates.bind(runtime),
+    diff: runtime.diff.bind(runtime),
     planCoordinateTransfer: runtime.planCoordinateTransfer.bind(runtime),
   });
 }

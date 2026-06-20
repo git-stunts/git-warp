@@ -80,6 +80,7 @@ import WarpAppDefault, {
   createBlobValue,
   createStateReader,
   compareVisibleState,
+  GraphDiff,
   normalizeVisibleStateScope,
   scopeMaterializedState,
   ContinuumArtifactAuthority,
@@ -584,6 +585,11 @@ describe('index.ts exports', () => {
     it('exports compareVisibleState', () => {
       expect(compareVisibleState).toBeDefined();
       expect(typeof compareVisibleState).toBe('function');
+    });
+
+    it('exports GraphDiff', () => {
+      expect(GraphDiff).toBeDefined();
+      expect(typeof GraphDiff).toBe('function');
     });
   });
 
