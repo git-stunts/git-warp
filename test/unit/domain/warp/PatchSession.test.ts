@@ -106,4 +106,15 @@ describe('PatchSession', () => {
       cause,
     });
   });
+
+  it('does not classify raw concurrent-looking messages as CAS conflicts', async () => {
+    const { builder, session } = createSession();
+    const cause = new Error('Concurrent commit detected while updating writer ref');
+    builder.commit.mockRejectedValue(cause);
+
+    await expect(session.commit()).rejects.toMatchObject({
+      code: 'PERSIST_WRITE_FAILED',
+      cause,
+    });
+  });
 });
