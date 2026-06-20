@@ -59,7 +59,10 @@ const sourceVersionNameExceptions: readonly SourceVersionNameException[] = Objec
     pattern: policyPattern([
       '(?:',
       'git-warp:',
+      '|git-warp\\.receipt-envelope-boundary/v[0-9]+',
       '|coordinate-(?:compare|comparison|transfer)\\S*/v[0-9]+',
+      '|graph-diff/v[0-9]+',
+      '|ttd-merge-inspection/v[0-9]+',
       '|visible-state-\\S*/v[0-9]+',
       '|frontier-lamport/v[0-9]+',
       '|conflict-analyzer/v[0-9]+',
@@ -69,6 +72,7 @@ const sourceVersionNameExceptions: readonly SourceVersionNameException[] = Objec
       '|full-v[0-9]+',
       '|git-cas-cbor-patch-v[0-9]+',
       '|cbor-v[0-9]+',
+      '|(?:whole|framed|convergent)-v[0-9]+',
       '|wesley\\.realization\\.manifest\\.v[0-9]+',
       '|property-target-key:length-prefixed-v[0-9]+',
       '|effect-emission-v[0-9]+',
