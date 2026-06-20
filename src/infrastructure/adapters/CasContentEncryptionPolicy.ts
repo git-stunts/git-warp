@@ -102,7 +102,7 @@ export default class CasContentEncryptionPolicy {
     const diagnostics = validateVaultWitness(options.vault);
     return new CasContentEncryptionPolicy(
       enabledFields({
-        encryptionKey: new Uint8Array(validateKey(options.encryptionKey, diagnostics)),
+        encryptionKey: copyValidatedKey(options.encryptionKey, diagnostics),
         scheme,
         frameBytes,
         diagnostics,
@@ -116,7 +116,7 @@ export default class CasContentEncryptionPolicy {
     const frameBytes = normalizeFrameBytes(scheme, options.frameBytes);
     return new CasContentEncryptionPolicy(
       enabledFields({
-        encryptionKey: validateKey(options.encryptionKey, null),
+        encryptionKey: copyValidatedKey(options.encryptionKey, null),
         scheme,
         frameBytes,
         diagnostics: undefined,
@@ -141,7 +141,7 @@ export default class CasContentEncryptionPolicy {
       return {};
     }
     return {
-      encryptionKey: this._requireKey(),
+      encryptionKey: this._copyKey(),
       encryption: this._storeEncryptionOptions(),
     };
   }
@@ -150,14 +150,14 @@ export default class CasContentEncryptionPolicy {
     if (!this._enabled) {
       return {};
     }
-    return { encryptionKey: this._requireKey() };
+    return { encryptionKey: this._copyKey() };
   }
 
-  private _requireKey(): Uint8Array {
+  private _copyKey(): Uint8Array {
     if (this._encryptionKey === undefined) {
       throw encryptionPolicyError('CAS content encryption is enabled without a resolved key', 'E_CAS_ENCRYPTION_KEY_MISSING');
     }
-    return this._encryptionKey;
+    return new Uint8Array(this._encryptionKey);
   }
 
   private _storeEncryptionOptions(): CasStoreEncryptionOptions {
@@ -332,6 +332,13 @@ function validateKey(
     );
   }
   return encryptionKey;
+}
+
+function copyValidatedKey(
+  encryptionKey: Uint8Array,
+  diagnostics: CasContentEncryptionDiagnostics | null,
+): Uint8Array {
+  return new Uint8Array(validateKey(encryptionKey, diagnostics));
 }
 
 function assertNonEmpty(value: string, field: string, code: string): void {

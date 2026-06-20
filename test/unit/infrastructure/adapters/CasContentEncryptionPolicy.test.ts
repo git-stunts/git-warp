@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
 import CasContentEncryptionPolicy, {
   mapCasContentEncryptionError,
@@ -16,6 +16,11 @@ function verifiedVault(overrides: Partial<CasVaultResolutionWitness> = {}): CasV
     privacyMode: true,
     ...overrides,
   };
+}
+
+function requireKey(key: Uint8Array | undefined): Uint8Array {
+  assert.isDefined(key);
+  return key;
 }
 
 describe('CasContentEncryptionPolicy', () => {
@@ -54,6 +59,30 @@ describe('CasContentEncryptionPolicy', () => {
     });
     expect(policy.toStoreOptions().encryptionKey).not.toBe(key);
     expect(policy.toRestoreOptions().encryptionKey).not.toBe(key);
+  });
+
+  it('does not share internal resolved key buffers or exported option buffers', () => {
+    const originalKey = new Uint8Array(32).fill(5);
+    const expectedKey = new Uint8Array(32).fill(5);
+    const policy = CasContentEncryptionPolicy.fromInternalResolvedKey({
+      encryptionKey: originalKey,
+      scheme: 'whole',
+    });
+
+    originalKey[0] = 99;
+    const firstStoreKey = requireKey(policy.toStoreOptions().encryptionKey);
+    const firstRestoreKey = requireKey(policy.toRestoreOptions().encryptionKey);
+
+    expect(firstStoreKey).toEqual(expectedKey);
+    expect(firstRestoreKey).toEqual(expectedKey);
+    expect(firstStoreKey).not.toBe(originalKey);
+    expect(firstRestoreKey).not.toBe(originalKey);
+    expect(firstStoreKey).not.toBe(firstRestoreKey);
+
+    firstStoreKey[1] = 88;
+
+    expect(requireKey(policy.toStoreOptions().encryptionKey)).toEqual(expectedKey);
+    expect(requireKey(policy.toRestoreOptions().encryptionKey)).toEqual(expectedKey);
   });
 
   it('rejects failed vault passphrase verification', () => {
