@@ -2,7 +2,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   ApertureOpeningProof,
+  BoundedSupportRule,
+  CausalIndexPlan,
   Observer,
+  SupportFragmentPlan,
   WarpWorldlineCoordinate,
 } from '../../../index.ts';
 import type { Aperture } from '../../../index.ts';
@@ -21,12 +24,12 @@ const runtimeTerms = Object.freeze([
   { term: 'Observer', exportedName: 'Observer', status: 'transition' },
   { term: 'Aperture', exportedName: 'Aperture', status: 'transition' },
   { term: 'WarpStateSnapshot', exportedName: 'SnapshotWarpState', status: 'shipped' },
+  { term: 'Causal index', exportedName: 'CausalIndexPlan', status: 'transition' },
+  { term: 'Support fragment', exportedName: 'SupportFragmentPlan', status: 'transition' },
 ]);
 
 const targetTerms = Object.freeze([
   'Optic',
-  'Causal index',
-  'Support fragment',
 ]);
 
 function glossaryRow(term: string) {
@@ -75,6 +78,12 @@ describe('runtime noun documentation graph', () => {
       redact: ['secret'],
     };
     const observer = new Observer({ name: 'public-users', config: aperture });
+    const supportRule = BoundedSupportRule.entityRead({
+      surface: 'query',
+      nodeIds: ['user:alice'],
+    });
+    const causalIndexPlan = CausalIndexPlan.fromSupportRule(supportRule);
+    const supportFragmentPlan = SupportFragmentPlan.fromSupportRule(supportRule);
     const coordinate = new WarpWorldlineCoordinate({
       worldlineName: 'events',
       checkpointSha: 'checkpoint-1',
@@ -95,6 +104,8 @@ describe('runtime noun documentation graph', () => {
 
     expect(observer.name).toBe('public-users');
     expect(observer.source?.kind).toBe('live');
+    expect(causalIndexPlan.canUseCausalIndex()).toBe(true);
+    expect(supportFragmentPlan.canMaterializeSupportFragment()).toBe(true);
     expect(coordinate.source()).toEqual({
       kind: 'coordinate',
       frontier: new Map([
