@@ -76,6 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The old exported `Worldline` read-handle class is now `ProjectionHandle`,
+  matching its actual role as a pinned projection/read handle instead of a
+  causal-history object.
 - Removed the stale `tar` override after current dependent ranges resolve to
   patched `tar@7.5.16`, relaxed the direct `zod` dependency to the current v3
   range, and documented every active `patch-package` patch.

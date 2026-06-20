@@ -58,7 +58,7 @@ import WarpAppDefault, {
   WarpWorldline,
   WarpWorldlineCoordinate,
   WarpWorldlineOpticBasis,
-  Worldline,
+  ProjectionHandle,
   WorldlineSelector,
   LiveSelector,
   CoordinateSelector,
@@ -217,7 +217,7 @@ const exportedRuntimeSurface = [
   openWarpGraph,
   WarpApp,
   WarpCore,
-  Worldline,
+  ProjectionHandle,
   WorldlineSelector,
   LiveSelector,
   CoordinateSelector,
@@ -358,8 +358,8 @@ const publicUsersObserverConfig: ObserverConfig = publicUsersAperture;
 const worldlinePatchSha: string = await warpWorldline.commit(worldlinePatchBuild);
 const worldlineOpticBasis: WarpWorldlineOpticBasis = await warpWorldline.prepareOpticBasis();
 const worldlineCoordinate: WarpWorldlineCoordinate = await warpWorldline.coordinate();
-const worldlineLive: Worldline = warpWorldline.live();
-const worldlineHistorical: Worldline = await warpWorldline.seek({
+const worldlineLive: ProjectionHandle = warpWorldline.live();
+const worldlineHistorical: ProjectionHandle = await warpWorldline.seek({
   source: { kind: 'live', ceiling: 1 },
 });
 const appObserver: Observer = await app.observer(publicUsersAperture);
@@ -395,7 +395,7 @@ const stateSnapshot: SnapshotWarpState | null = await graph.getStateSnapshot();
 const graphBagStateSnapshot: SnapshotWarpState | null = await graphBag.query.getStateSnapshot();
 const graphBagNodeProps: PublicPropBag | null = await graphBag.query.getNodeProps('node-a');
 const graphBagQueryBuilder: QueryBuilder = graphBag.query.query();
-const graphBagWorldline: Worldline = graphBag.query.worldline();
+const graphBagWorldline: ProjectionHandle = graphBag.query.worldline();
 const graphBagObserver: Observer = await graphBag.query.observer({ match: '*' });
 const nodeAlive: SnapshotORSet = materialized.nodeAlive;
 const observedFrontier: SnapshotVersionVector = materialized.observedFrontier;
@@ -432,7 +432,7 @@ const neighbors: Array<{ nodeId: string; label: string; direction: 'outgoing' | 
 const propertyCount: number = await graph.getPropertyCount();
 const queryBuilder: QueryBuilder = graph.query();
 const observer: Observer = await graph.observer({ match: '*' });
-const worldline: Worldline = graph.worldline();
+const worldline: ProjectionHandle = graph.worldline();
 
 void nodeProps;
 void edgeProps;

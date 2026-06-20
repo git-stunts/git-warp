@@ -5,7 +5,7 @@
  * index verification, and cache invalidation.
  *
  * Compatibility substrate capability. Application reads should prefer
- * openWarpWorldline(), Worldline, Observer, and bounded optic handles.
+ * openWarpWorldline(), ProjectionHandle, Observer, and bounded optic handles.
  */
 
 import type SnapshotWarpState from '../services/snapshot/SnapshotWarpState.ts';

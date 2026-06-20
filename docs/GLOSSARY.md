@@ -32,7 +32,8 @@ If another document uses one of these nouns differently, this glossary wins.
 
 | Term | Canonical meaning | Current repo manifestation | Status |
 |---|---|---|---|
-| `Worldline` | The causal history of a deterministic read basis; a lawful history object, not merely a handle. | The current `Worldline` class is a pinned read coordinate facade, not the full historical object. | transition |
+| `Worldline` | The causal history of a deterministic read basis; a lawful history object, not merely a handle. | Public entry uses `openWarpWorldline()` for admitted lane workflows; pinned reads now return `ProjectionHandle` instead of a class named `Worldline`. | transition |
+| `ProjectionHandle` | A pinned read/projection handle over a selected worldline source. | Returned by `WarpWorldline.live()`, `WarpWorldline.seek(...)`, and `graph.query.worldline(...)`. | shipped |
 | `Observer` | The realized reading surface for a question asked through an aperture. It executes a read contract and returns a view. | Current `Observer` is mostly the projection/filter half over materialized state. | transition |
 | `Aperture` | The observer-relative read boundary: what distinctions remain visible and which basis the read is taken over. | Current `Aperture` is a small `{ match, expose, redact }` policy object. | transition |
 | `Optic` | The semantic question being asked of the graph. It defines the shape of the read, not the execution plan. | No first-class optic noun exists in runtime today. | target |

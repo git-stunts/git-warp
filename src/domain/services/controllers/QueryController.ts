@@ -8,7 +8,7 @@
 import { cloneState } from '../JoinReducer.ts';
 import LiveQueryReadModelProvider from '../query/LiveQueryReadModelProvider.ts';
 import Observer from '../query/Observer.ts';
-import Worldline from '../Worldline.ts';
+import ProjectionHandle from '../ProjectionHandle.ts';
 import WorldlineOptic from '../optic/WorldlineOptic.ts';
 import type CheckpointTailOpticSource from '../optic/CheckpointTailOpticSource.ts';
 import { computeTranslationCost } from '../TranslationCost.ts';
@@ -386,7 +386,7 @@ wire('query', function (this: QueryController) {
   }).query();
 });
 wire('worldline', function (this: QueryController, options?: ObserverOptions) {
-  return new Worldline({
+  return new ProjectionHandle({
     graph: host(this),
     source: toSelector(options?.source) ?? new LiveSelector(),
     opticSource: worldlineOpticSource(host(this)),

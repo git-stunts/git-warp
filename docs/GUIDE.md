@@ -17,7 +17,9 @@ Use it when you are writing an app, an agent workflow, or a local-first tool on 
 The most important thing to understand is state before methods.
 
 - `openWarpWorldline()` returns the first-use handle for application workflows.
-- A `Worldline` is an admitted causal lane and a pinned read coordinate.
+- A `Worldline` is an admitted causal lane.
+- A `ProjectionHandle` is the pinned read handle returned by `live()`,
+  `seek(...)`, and `graph.query.worldline(...)`.
 - An `Aperture` defines what is visible.
 - An `Observer` is a filtered read-only view through that aperture.
 - A `Strand` is a speculative write lane branched from an observation.
@@ -120,7 +122,7 @@ await graph.strands.patchStrand('review-auth', (p) => {
 const reviewLane = graph.query.worldline({
   source: { kind: 'strand', strandId: 'review-auth' },
 });
-// reviewLane is a Worldline pinned to the strand overlay
+// reviewLane is a ProjectionHandle pinned to the strand overlay
 ```
 
 Use strands for speculative work. Use ordinary patches for live truth.

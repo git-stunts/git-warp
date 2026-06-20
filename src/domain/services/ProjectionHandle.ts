@@ -22,7 +22,7 @@ import CheckpointTailExactIdQueryReadModel, {
 
 type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
 type VisibleEdge = Awaited<ReturnType<Observer['getEdges']>>[number];
-type WorldlineObserverFactory = {
+type ProjectionObserverFactory = {
   observer(config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
   observer(
     name: string,
@@ -40,8 +40,11 @@ function toSelector(source?: WorldlineSelector | WorldlineSource | null): Worldl
     return new LiveSelector();
   }
 
-  const sourceKind = source.kind;
+  return selectorFromSource(source);
+}
 
+function selectorFromSource(source: WorldlineSource): WorldlineSelector {
+  const sourceKind = source.kind;
   if (sourceKind === 'live') {
     return new LiveSelector(source.ceiling);
   }
@@ -79,8 +82,8 @@ function toWorldlineSource(source: WorldlineSelector): WorldlineSource {
   });
 }
 
-export default class Worldline {
-  private readonly _graph: WorldlineObserverFactory;
+export default class ProjectionHandle {
+  private readonly _graph: ProjectionObserverFactory;
   private readonly _source: WorldlineSelector;
   private readonly _opticSource: CheckpointTailOpticSource | null;
   private _delegateObserverPromise: Promise<Observer> | null;
@@ -91,7 +94,7 @@ export default class Worldline {
     source,
     opticSource,
   }: {
-    graph: WorldlineObserverFactory;
+    graph: ProjectionObserverFactory;
     source?: WorldlineSelector | WorldlineSource | null;
     opticSource?: CheckpointTailOpticSource | null;
   }) {
@@ -106,9 +109,9 @@ export default class Worldline {
     return toWorldlineSource(this._source);
   }
 
-  async seek(options?: WorldlineOptions): Promise<Worldline> {
+  async seek(options?: WorldlineOptions): Promise<ProjectionHandle> {
     return await Promise.resolve(
-      new Worldline({
+      new ProjectionHandle({
         graph: this._graph,
         source: options?.source ?? this._source,
         opticSource: this._opticSource,
@@ -201,21 +204,32 @@ export default class Worldline {
       return null;
     }
     if (this._source instanceof LiveSelector) {
-      if (await source._readCheckpointSha() === null) {
-        return null;
-      }
-      return new WorldlineOptic({ source });
+      return await this._liveExactReadOptic(source);
     }
-    if (this._source instanceof CoordinateSelector && this._source.checkpointSha !== null) {
-      return new WorldlineOptic({
-        source: new CoordinateCheckpointTailOpticSource({
-          source,
-          checkpointSha: this._source.checkpointSha,
-          frontier: this._source.frontier,
-        }),
-      });
+    if (this._source instanceof CoordinateSelector) {
+      return this._coordinateExactReadOptic(source);
     }
     return null;
+  }
+
+  private async _liveExactReadOptic(source: CheckpointTailOpticSource): Promise<WorldlineOptic | null> {
+    if (await source._readCheckpointSha() === null) {
+      return null;
+    }
+    return new WorldlineOptic({ source });
+  }
+
+  private _coordinateExactReadOptic(source: CheckpointTailOpticSource): WorldlineOptic | null {
+    if (!(this._source instanceof CoordinateSelector) || this._source.checkpointSha === null) {
+      return null;
+    }
+    return new WorldlineOptic({
+      source: new CoordinateCheckpointTailOpticSource({
+        source,
+        checkpointSha: this._source.checkpointSha,
+        frontier: this._source.frontier,
+      }),
+    });
   }
 
   query(): QueryBuilder {

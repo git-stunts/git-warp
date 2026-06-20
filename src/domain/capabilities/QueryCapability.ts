@@ -9,7 +9,7 @@ import type SnapshotWarpState from '../services/snapshot/SnapshotWarpState.ts';
 import type { SnapshotPropValue } from '../services/snapshot/SnapshotPropValue.ts';
 import type { ContentMeta } from '../types/ContentMeta.ts';
 import type QueryBuilder from '../services/query/QueryBuilder.ts';
-import type Worldline from '../services/Worldline.ts';
+import type ProjectionHandle from '../services/ProjectionHandle.ts';
 import type Observer from '../services/query/Observer.ts';
 import type { Aperture } from '../types/Aperture.ts';
 
@@ -92,8 +92,8 @@ export default abstract class QueryCapability {
   /** Create a fluent query builder over the current read model. */
   abstract query(): QueryBuilder;
 
-  /** Create a worldline read handle pinned by the given options. */
-  abstract worldline(_options?: WorldlineOptions): Worldline;
+  /** Create a projection read handle pinned by the given worldline options. */
+  abstract worldline(_options?: WorldlineOptions): ProjectionHandle;
 
   /** Create an observer lens for filtered visible reads. */
   abstract observer(

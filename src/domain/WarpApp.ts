@@ -17,7 +17,7 @@ import type {
   WatchOptions,
 } from './capabilities/SubscriptionCapability.ts';
 import type Observer from './services/query/Observer.ts';
-import type Worldline from './services/Worldline.ts';
+import type ProjectionHandle from './services/ProjectionHandle.ts';
 import type { Writer } from './warp/Writer.ts';
 import type { PatchBuilder } from './services/PatchBuilder.ts';
 
@@ -31,7 +31,7 @@ type AppSurface = {
   patch(build: PatchBuild): Promise<string>;
   patchMany(...builds: PatchBuild[]): Promise<string[]>;
   syncWith(remote: string | AppSurface, options?: SyncWithOptions): Promise<SyncWithResult>;
-  worldline(options?: WorldlineOptions): Worldline;
+  worldline(options?: WorldlineOptions): ProjectionHandle;
   observer(
     nameOrConfig: string | Aperture,
     configOrOptions?: Aperture | ObserverOptions,
@@ -155,7 +155,7 @@ export default class WarpApp {
     return await this._surface().syncWith(unwrapSyncRemote(remote), options);
   }
 
-  worldline(options?: WorldlineOptions): Worldline {
+  worldline(options?: WorldlineOptions): ProjectionHandle {
     return this._surface().worldline(options);
   }
 

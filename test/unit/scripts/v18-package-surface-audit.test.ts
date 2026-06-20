@@ -58,6 +58,8 @@ describe('v18 package surface audit', () => {
     expect(indexSource).toContain('import WarpWorldline, { openWarpWorldline }');
     expect(indexSource).toContain('openWarpWorldline,');
     expect(indexSource).toContain('WarpWorldline,');
+    expect(indexSource).toContain('ProjectionHandle,');
+    expect(indexSource).not.toMatch(/^\s+Worldline,$/m);
     expect(indexSource).toContain('WarpWorldlineOpenOptions,');
     expect(indexSource).toContain('WarpWorldlinePatchBuild,');
   });

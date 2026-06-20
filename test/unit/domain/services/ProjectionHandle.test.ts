@@ -13,7 +13,7 @@ import type {
 } from '../../../../src/domain/services/query/QueryReadModelProvider.ts';
 import type { QueryNodeSnapshot } from '../../../../src/domain/services/query/QueryPlan.ts';
 import type { SnapshotPropValue } from '../../../../src/domain/services/snapshot/SnapshotPropValue.ts';
-import Worldline from '../../../../src/domain/services/Worldline.ts';
+import ProjectionHandle from '../../../../src/domain/services/ProjectionHandle.ts';
 
 class EmptyQueryReadModel implements QueryReadModel {
   readonly stateHash = 'empty';
@@ -40,7 +40,7 @@ class RecordingReadModelProvider implements QueryReadModelProvider {
   }
 }
 
-class WorldlineGraphFixture {
+class ProjectionGraphFixture {
   readonly observerRequests: ObserverRequest[] = [];
 
   constructor(private readonly observerResult: Observer) {}
@@ -134,12 +134,12 @@ function requireAperture(value: Aperture | { source: WorldlineSource } | undefin
   if (value !== undefined && 'match' in value) {
     return value;
   }
-  throw new WorldlineTestError('expected observer aperture');
+  throw new ProjectionHandleTestError('expected observer aperture');
 }
 
-class WorldlineTestError extends Error {}
+class ProjectionHandleTestError extends Error {}
 
-describe('Worldline', () => {
+describe('ProjectionHandle', () => {
   it('forwards query read-model requests to the delegate fallback', async () => {
     const provider = new RecordingReadModelProvider();
     const delegate = new Observer({
@@ -147,7 +147,7 @@ describe('Worldline', () => {
       config: { match: '*' },
       readModelProvider: provider,
     });
-    const worldline = new Worldline({ graph: new WorldlineGraphFixture(delegate) });
+    const worldline = new ProjectionHandle({ graph: new ProjectionGraphFixture(delegate) });
     const request: QueryReadModelOpenRequest = {
       nodeRequest: { pattern: 'node:a', select: ['id'] },
       operations: [],
@@ -165,14 +165,14 @@ describe('Worldline', () => {
       config: { match: '*' },
       readModelProvider: new RecordingReadModelProvider(),
     });
-    const graph = new WorldlineGraphFixture(delegate);
+    const graph = new ProjectionGraphFixture(delegate);
     const source: WorldlineSource = {
       kind: 'coordinate',
       frontier: { 'writer-a': 'a'.repeat(40) },
       ceiling: 7,
       checkpointSha: 'b'.repeat(40),
     };
-    const worldline = new Worldline({ graph, source });
+    const worldline = new ProjectionHandle({ graph, source });
 
     await worldline.observer('coordinate-reader', { match: 'node:*' });
 
@@ -198,8 +198,8 @@ describe('Worldline', () => {
       graph: backing,
       source: { kind: 'live' },
     });
-    const graph = new WorldlineGraphFixture(delegate);
-    const worldline = new Worldline({
+    const graph = new ProjectionGraphFixture(delegate);
+    const worldline = new ProjectionHandle({
       graph,
       source: { kind: 'strand', strandId: 'review-lane', ceiling: 3 },
     });

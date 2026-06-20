@@ -128,6 +128,7 @@ explicit.
 | Term | Meaning |
 |------|---------|
 | **Worldline** | Canonical admitted causal lane. The shared truth others may rely on. |
+| **ProjectionHandle** | Pinned read handle over a live, historical, coordinate, or strand source. |
 | **Coordinate** | Stable causal read position used by coherent Optics. |
 | **Strand** | Speculative causal lane with fork provenance. Private until admitted. |
 | **Braid** | Plural composition over a family of lanes. Not itself a lane. |

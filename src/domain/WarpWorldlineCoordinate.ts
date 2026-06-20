@@ -1,6 +1,6 @@
 import WarpError from './errors/WarpError.ts';
 import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
-import type Worldline from './services/Worldline.ts';
+import type ProjectionHandle from './services/ProjectionHandle.ts';
 import type { WorldlineOptions, WorldlineSource } from './capabilities/QueryCapability.ts';
 
 export type WarpWorldlineCoordinateFrontierEntry = {
@@ -12,7 +12,7 @@ export type WarpWorldlineCoordinateOptions = {
   readonly worldlineName: string;
   readonly checkpointSha: string;
   readonly frontier: Map<string, string>;
-  readonly createWorldline: (options?: WorldlineOptions) => Worldline;
+  readonly createWorldline: (options?: WorldlineOptions) => ProjectionHandle;
 };
 
 export default class WarpWorldlineCoordinate {
@@ -20,7 +20,7 @@ export default class WarpWorldlineCoordinate {
   readonly worldlineName: string;
   readonly checkpointSha: string;
   readonly frontierEntries: readonly WarpWorldlineCoordinateFrontierEntry[];
-  private readonly _createWorldline: (options?: WorldlineOptions) => Worldline;
+  private readonly _createWorldline: (options?: WorldlineOptions) => ProjectionHandle;
 
   constructor(options: WarpWorldlineCoordinateOptions) {
     assertFrontier(options.frontier);
@@ -75,7 +75,7 @@ function assertFrontier(frontier: Map<string, string>): void {
   }
 }
 
-function assertWorldlineFactory(createWorldline: (options?: WorldlineOptions) => Worldline): void {
+function assertWorldlineFactory(createWorldline: (options?: WorldlineOptions) => ProjectionHandle): void {
   if (typeof createWorldline !== 'function') {
     throw new WarpError(
       'WarpWorldline coordinate requires a worldline factory',

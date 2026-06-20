@@ -78,7 +78,7 @@ import Observer from './src/domain/services/query/Observer.ts';
 import ObserverAccumulation from './src/domain/services/query/ObserverAccumulation.ts';
 import ObserverBasis from './src/domain/services/query/ObserverBasis.ts';
 import ObserverEmission from './src/domain/services/query/ObserverEmission.ts';
-import Worldline from './src/domain/services/Worldline.ts';
+import ProjectionHandle from './src/domain/services/ProjectionHandle.ts';
 import WorldlineSelector from './src/domain/types/WorldlineSelector.ts';
 import LiveSelector from './src/domain/types/LiveSelector.ts';
 import CoordinateSelector from './src/domain/types/CoordinateSelector.ts';
@@ -342,11 +342,11 @@ export {
   WarpWorldline,
   WarpWorldlineCoordinate,
   WarpWorldlineOpticBasis,
+  ProjectionHandle,
 
   // Multi-writer graph support (legacy/diagnostic — prefer openWarpWorldline)
   WarpApp,
   WarpCore,
-  Worldline,
   WorldlineSelector,
   LiveSelector,
   CoordinateSelector,

@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import * as publicApi from '../../../index.ts';
 
 // Import everything from the main entry point
 import WarpAppDefault, {
@@ -62,6 +63,7 @@ import WarpAppDefault, {
   OperationAbortedError,
   MemoryBudgetError,
   Observer,
+  ProjectionHandle,
   ContinuumArtifactAuthorityError,
 
   // Cancellation utilities
@@ -129,8 +131,6 @@ import WarpAppDefault, {
   ZKWormholeProofVerifierPort,
 } from '../../../index.ts';
 
-const { WarpGraph, WarpRuntime, Worldline, ObserverView } = (await import('../../../index.ts') as any);
-
 describe('index.ts exports', () => {
   describe('default export', () => {
     it('exports WarpApp as default', () => {
@@ -155,11 +155,11 @@ describe('index.ts exports', () => {
     });
 
     it('does not export WarpRuntime from the public entry point', () => {
-      expect(WarpRuntime).toBeUndefined();
+      expect('WarpRuntime' in publicApi).toBe(false);
     });
 
     it('does not export WarpGraph as a public compatibility alias', () => {
-      expect(WarpGraph).toBeUndefined();
+      expect('WarpGraph' in publicApi).toBe(false);
     });
   });
 
@@ -176,16 +176,17 @@ describe('index.ts exports', () => {
   });
 
   describe('core classes', () => {
-    it('exports Worldline', () => {
-      expect(Worldline).toBeDefined();
-      expect(typeof Worldline).toBe('function');
+    it('exports ProjectionHandle and not the retired Worldline class alias', () => {
+      expect(ProjectionHandle).toBeDefined();
+      expect(typeof ProjectionHandle).toBe('function');
+      expect('Worldline' in publicApi).toBe(false);
     });
 
     it('exports Observer', () => {
       expect(Observer).toBeDefined();
       expect(typeof Observer).toBe('function');
       expect(Observer.name).toBe('Observer');
-      expect(ObserverView).toBeUndefined();
+      expect('ObserverView' in publicApi).toBe(false);
     });
 
     it('exports GitGraphAdapter', () => {
