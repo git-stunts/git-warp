@@ -182,6 +182,11 @@ import {
 
 export * from './src/domain/graph/publicGraphSubstrate.ts';
 export * from './src/domain/memory/index.ts';
+export { default as OperationPolicyPort } from './src/ports/OperationPolicyPort.ts';
+export type { OperationPolicyExecuteOptions, OperationRetryDecision, OperationRetryObserver } from './src/ports/OperationPolicyPort.ts';
+export { default as AlfredOperationPolicyAdapter } from './src/infrastructure/adapters/AlfredOperationPolicyAdapter.ts';
+export { default as NoopOperationPolicyAdapter } from './src/infrastructure/adapters/NoopOperationPolicyAdapter.ts';
+export { OperationPolicyExhaustedError, OperationPolicyTimeoutError } from './src/domain/errors/index.ts';
 export {
   AuditError,
   ContinuumArtifactAuthorityError,

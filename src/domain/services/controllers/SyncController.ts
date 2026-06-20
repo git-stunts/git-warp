@@ -13,7 +13,6 @@ import {
   type SyncRequest,
   type SyncResponse,
 } from '../sync/SyncProtocol.ts';
-import { retry, RetryExhaustedError, TimeoutError, type RetryOptions } from '@git-stunts/alfred';
 import { checkAborted } from '../../utils/cancellation.ts';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
@@ -28,6 +27,9 @@ import type {
   SyncHttpAuth,
   SyncHttpClientResult,
 } from '../../../ports/SyncHttpClientPort.ts';
+import OperationPolicyExhaustedError from '../../errors/OperationPolicyExhaustedError.ts';
+import type OperationPolicyPort from '../../../ports/OperationPolicyPort.ts';
+import type { OperationPolicyExecuteOptions } from '../../../ports/OperationPolicyPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type SyncSecret from '../sync/SyncSecret.ts';
 import {
@@ -136,11 +138,17 @@ export default class SyncController {
   readonly _host: SyncHost;
   readonly _trustGate: SyncTrustGate | null;
   private _httpClient: SyncHttpClientPort | null;
+  private _operationPolicy: OperationPolicyPort | null;
 
-  constructor(host: SyncHost, options: { trustGate?: SyncTrustGate; httpClient?: SyncHttpClientPort } = {}) {
+  constructor(host: SyncHost, options: {
+    trustGate?: SyncTrustGate;
+    httpClient?: SyncHttpClientPort;
+    operationPolicy?: OperationPolicyPort;
+  } = {}) {
     this._host = host;
     this._trustGate = options.trustGate ?? null;
     this._httpClient = options.httpClient ?? null;
+    this._operationPolicy = options.operationPolicy ?? null;
   }
 
   /**
@@ -153,6 +161,14 @@ export default class SyncController {
     const mod = await import('../../../infrastructure/adapters/FetchSyncHttpClientAdapter.ts');
     const adapter = new mod.default();
     this._httpClient = adapter;
+    return adapter;
+  }
+
+  private async _resolveOperationPolicy(): Promise<OperationPolicyPort> {
+    if (this._operationPolicy !== null) { return this._operationPolicy; }
+    const mod = await import('../../../infrastructure/adapters/AlfredOperationPolicyAdapter.ts');
+    const adapter = new mod.default();
+    this._operationPolicy = adapter;
     return adapter;
   }
 
@@ -334,7 +350,7 @@ export default class SyncController {
       if (err instanceof SyncError) {
         return ['E_SYNC_REMOTE', 'E_SYNC_TIMEOUT', 'E_SYNC_NETWORK'].includes(err.code);
       }
-      return err instanceof TimeoutError;
+      return false;
     };
 
     const executeAttempt = async (): Promise<{
@@ -378,15 +394,17 @@ export default class SyncController {
     };
 
     try {
-      const syncResult = await retry(executeAttempt, {
+      const operationPolicy = await this._resolveOperationPolicy();
+      const syncResult = await operationPolicy.execute(executeAttempt, {
         retries, delay: baseDelayMs, maxDelay: maxDelayMs,
-        backoff: 'exponential', jitter: 'decorrelated', signal, shouldRetry,
+        backoff: 'exponential', jitter: 'decorrelated', shouldRetry,
+        ...(signal !== undefined ? { signal } : {}),
         onRetry: (error: Error, attemptNumber: number, delayMs: number) => {
           if (typeof onStatus === 'function') {
             onStatus({ type: 'retrying', attempt: attemptNumber, delayMs, error });
           }
         },
-      } as RetryOptions);
+      } satisfies OperationPolicyExecuteOptions);
       if (materializeAfterSync) {
         const state = this._host._cachedState;
         if (state === null) {
@@ -403,7 +421,7 @@ export default class SyncController {
         if (typeof onStatus === 'function') { onStatus({ type: 'failed', attempt, error: abortedError }); }
         throw abortedError;
       }
-      if (err instanceof RetryExhaustedError) {
+      if (err instanceof OperationPolicyExhaustedError) {
         const { cause } = err;
         if (typeof onStatus === 'function') { onStatus({ type: 'failed', attempt: err.attempts, error: cause }); }
         throw cause;

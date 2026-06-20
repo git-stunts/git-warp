@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import GitGraphAdapter, { type CollectableStream, type GitPlumbing } from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import OperationPolicyPort, {
+  type OperationPolicyExecuteOptions,
+} from '../../../../src/ports/OperationPolicyPort.ts';
 
 interface GitExecuteOptions {
   readonly args: string[];
@@ -104,6 +107,27 @@ class BlobStreamPlumbing extends RecordingPlumbing {
   }
 }
 
+class RecordingOperationPolicy extends OperationPolicyPort {
+  executeCalls = 0;
+  streamCalls = 0;
+
+  override async execute<T>(
+    operation: (signal?: AbortSignal) => Promise<T>,
+    options: OperationPolicyExecuteOptions = {},
+  ): Promise<T> {
+    this.executeCalls += 1;
+    return await operation(options.signal);
+  }
+
+  override async stream<T>(
+    operation: (signal?: AbortSignal) => Promise<AsyncIterable<T>>,
+    options: OperationPolicyExecuteOptions = {},
+  ): Promise<AsyncIterable<T>> {
+    this.streamCalls += 1;
+    return await operation(options.signal);
+  }
+}
+
 describe('GitGraphAdapter git-cas persistence bridge', () => {
   it('delegates blob writes through the git-cas persistence adapter', async () => {
     const oid = 'a'.repeat(40);
@@ -164,6 +188,33 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
     await expect(adapter.writeBlob('payload')).resolves.toBe(oid);
 
     expect(plumbing.calls).toHaveLength(2);
+  });
+
+  it('routes delegated git-cas writes through the injected operation policy', async () => {
+    const oid = 'e'.repeat(40);
+    const plumbing = new RecordingPlumbing(oid);
+    const policy = new RecordingOperationPolicy();
+    const adapter = new GitGraphAdapter({ plumbing, policy });
+
+    await expect(adapter.writeBlob('payload')).resolves.toBe(oid);
+
+    expect(policy.executeCalls).toBeGreaterThan(0);
+    expect(policy.streamCalls).toBe(0);
+  });
+
+  it('routes log stream setup through the injected operation policy', async () => {
+    const oid = 'f'.repeat(40);
+    const plumbing = new BlobStreamPlumbing(oid, [new TextEncoder().encode('commit\0')]);
+    const policy = new RecordingOperationPolicy();
+    const adapter = new GitGraphAdapter({ plumbing, policy });
+
+    const stream = await adapter.logNodesStream({ ref: 'refs/heads/main', limit: 1 });
+
+    expect(policy.streamCalls).toBe(1);
+    expect(plumbing.streamCalls).toEqual([{
+      args: ['log', '-z', '-1', 'refs/heads/main'],
+    }]);
+    await expect(stream.collect()).resolves.toEqual([new TextEncoder().encode('commit\0')]);
   });
 
   it('reads recursive tree OIDs through the injected Git plumbing boundary', async () => {

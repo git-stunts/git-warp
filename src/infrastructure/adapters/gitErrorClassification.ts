@@ -5,8 +5,8 @@
  * PersistenceError categories. Extracted from GitGraphAdapter to keep
  * the adapter under the 500 LOC limit.
  */
-import type { RetryOptions } from '@git-stunts/alfred';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
+import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
 
 // ---------------------------------------------------------------------------
 // Types — shapes of errors and dependencies from the Git plumbing boundary
@@ -201,7 +201,7 @@ export function wrapGitError(err: GitError, hint: GitErrorHint = {}): GitError |
 // ---------------------------------------------------------------------------
 
 /** Default retry options for git operations. Exponential backoff with jitter. */
-export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
+export const DEFAULT_RETRY_OPTIONS: OperationPolicyExecuteOptions = {
   retries: 3,
   delay: 100,
   maxDelay: 2000,
