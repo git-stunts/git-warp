@@ -157,7 +157,8 @@ describe('CasBlobAdapter', () => {
       await adapter.store('secret data');
 
       const storeCall = (mockStore.mock.calls[0] as any)[0];
-      expect(storeCall.encryptionKey).toBe(encKey);
+      expect(storeCall.encryptionKey).toEqual(encKey);
+      expect(storeCall.encryptionKey).not.toBe(encKey);
     });
 
     it('passes vault-backed encryption policy to CAS store when configured', async () => {
@@ -474,7 +475,8 @@ describe('CasBlobAdapter', () => {
       await adapter.storeStream(source());
 
       const storeCall = (mockStore.mock.calls[0] as any)[0];
-      expect(storeCall.encryptionKey).toBe(encKey);
+      expect(storeCall.encryptionKey).toEqual(encKey);
+      expect(storeCall.encryptionKey).not.toBe(encKey);
     });
   });
 
