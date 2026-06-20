@@ -54,9 +54,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "overrides": {
-    "tar": "7.5.16"
-  },
   "scripts": {
     "build": "tsc -p tsconfig.publish.json",
     "lint": "sh -c 'eslint . \"$@\" && npm run lint:source-size' --",
@@ -124,7 +121,7 @@
     "roaring-wasm": "^1.1.0",
     "string-width": "^7.1.0",
     "wrap-ansi": "^9.0.0",
-    "zod": "3.24.1"
+    "zod": "^3.24.1"
   },
   "optionalDependencies": {
     "roaring": "^2.7.0"
