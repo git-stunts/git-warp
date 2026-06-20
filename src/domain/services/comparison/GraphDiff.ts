@@ -62,112 +62,130 @@ function requireComparison(comparison: CoordinateComparison): CoordinateComparis
   return comparison;
 }
 
+function freezeObject<T extends object>(value: T): T {
+  Object.freeze(value);
+  return value;
+}
+
+function copyStringArray(values: readonly string[]): string[] {
+  return freezeObject([...values]);
+}
+
 function copySide(side: CoordinateComparisonSide): CoordinateComparisonSide {
-  return {
-    requested: { ...side.requested },
-    resolved: {
-      ...side.resolved,
-      patchFrontier: { ...side.resolved.patchFrontier },
-      lamportFrontier: { ...side.resolved.lamportFrontier },
-      summary: { ...side.resolved.summary },
-      ...(side.resolved.strand !== undefined
-        ? {
-            strand: {
-              ...side.resolved.strand,
-              braid: {
-                readOverlayCount: side.resolved.strand.braid.readOverlayCount,
-                braidedStrandIds: [...side.resolved.strand.braid.braidedStrandIds],
-              },
-            },
-          }
-        : {}),
-    },
-  };
+  const resolved: CoordinateComparisonSide['resolved'] = side.resolved.strand === undefined
+    ? {
+        ...side.resolved,
+        patchFrontier: freezeObject({ ...side.resolved.patchFrontier }),
+        lamportFrontier: freezeObject({ ...side.resolved.lamportFrontier }),
+        summary: freezeObject({ ...side.resolved.summary }),
+      }
+    : {
+        ...side.resolved,
+        patchFrontier: freezeObject({ ...side.resolved.patchFrontier }),
+        lamportFrontier: freezeObject({ ...side.resolved.lamportFrontier }),
+        summary: freezeObject({ ...side.resolved.summary }),
+        strand: freezeObject({
+          ...side.resolved.strand,
+          braid: freezeObject({
+            readOverlayCount: side.resolved.strand.braid.readOverlayCount,
+            braidedStrandIds: copyStringArray(side.resolved.strand.braid.braidedStrandIds),
+          }),
+        }),
+      };
+  return freezeObject({
+    requested: freezeObject({ ...side.requested }),
+    resolved: freezeObject(resolved),
+  });
 }
 
 function copyScope(scope: VisibleStateScope): VisibleStateScope {
-  return {
+  return freezeObject({
     ...(scope.nodeIdPrefixes !== undefined
       ? {
-          nodeIdPrefixes: {
+          nodeIdPrefixes: freezeObject({
             ...(scope.nodeIdPrefixes.include !== undefined
-              ? { include: [...scope.nodeIdPrefixes.include] }
+              ? { include: copyStringArray(scope.nodeIdPrefixes.include) }
               : {}),
             ...(scope.nodeIdPrefixes.exclude !== undefined
-              ? { exclude: [...scope.nodeIdPrefixes.exclude] }
+              ? { exclude: copyStringArray(scope.nodeIdPrefixes.exclude) }
               : {}),
-          },
+          }),
         }
       : {}),
-  };
+  });
 }
 
 function copySummary(summary: VisibleStateComparison['summary']): VisibleStateComparison['summary'] {
-  return {
-    left: { ...summary.left },
-    right: { ...summary.right },
-    nodes: { ...summary.nodes },
-    edges: { ...summary.edges },
-    nodeProperties: { ...summary.nodeProperties },
-    edgeProperties: { ...summary.edgeProperties },
-  };
+  return freezeObject({
+    left: freezeObject({ ...summary.left }),
+    right: freezeObject({ ...summary.right }),
+    nodes: freezeObject({ ...summary.nodes }),
+    edges: freezeObject({ ...summary.edges }),
+    nodeProperties: freezeObject({ ...summary.nodeProperties }),
+    edgeProperties: freezeObject({ ...summary.edgeProperties }),
+  });
 }
 
 function copyNodes(nodes: VisibleStateComparison['nodes']): VisibleStateComparison['nodes'] {
-  return {
-    added: [...nodes.added],
-    removed: [...nodes.removed],
-  };
+  return freezeObject({
+    added: copyStringArray(nodes.added),
+    removed: copyStringArray(nodes.removed),
+  });
 }
 
 function copyObjectArray<T extends object>(values: readonly T[]): T[] {
-  return values.map((value) => ({ ...value }));
+  return freezeObject(values.map((value) => freezeObject({ ...value })));
 }
 
 function copyEdges(edges: VisibleStateComparison['edges']): VisibleStateComparison['edges'] {
-  return {
+  return freezeObject({
     added: copyObjectArray(edges.added),
     removed: copyObjectArray(edges.removed),
-  };
+  });
 }
 
 function copyNodeProperties(
   delta: VisibleStateComparison['nodeProperties'],
 ): VisibleStateComparison['nodeProperties'] {
-  return {
+  return freezeObject({
     added: copyObjectArray(delta.added),
     removed: copyObjectArray(delta.removed),
     changed: copyObjectArray(delta.changed),
-  };
+  });
 }
 
 function copyEdgeProperties(
   delta: VisibleStateComparison['edgeProperties'],
 ): VisibleStateComparison['edgeProperties'] {
-  return {
+  return freezeObject({
     added: copyObjectArray(delta.added),
     removed: copyObjectArray(delta.removed),
     changed: copyObjectArray(delta.changed),
-  };
+  });
 }
 
 function copyPatchDivergence(
   divergence: CoordinateComparison['visiblePatchDivergence'],
 ): CoordinateComparison['visiblePatchDivergence'] {
-  return {
-    sharedCount: divergence.sharedCount,
-    leftOnlyCount: divergence.leftOnlyCount,
-    rightOnlyCount: divergence.rightOnlyCount,
-    leftOnlyPatchShas: [...divergence.leftOnlyPatchShas],
-    rightOnlyPatchShas: [...divergence.rightOnlyPatchShas],
-    ...(divergence.target !== undefined
-      ? {
-          target: {
-            ...divergence.target,
-            leftOnlyPatchShas: [...divergence.target.leftOnlyPatchShas],
-            rightOnlyPatchShas: [...divergence.target.rightOnlyPatchShas],
-          },
-        }
-      : {}),
-  };
+  const copied: CoordinateComparison['visiblePatchDivergence'] = divergence.target === undefined
+    ? {
+        sharedCount: divergence.sharedCount,
+        leftOnlyCount: divergence.leftOnlyCount,
+        rightOnlyCount: divergence.rightOnlyCount,
+        leftOnlyPatchShas: copyStringArray(divergence.leftOnlyPatchShas),
+        rightOnlyPatchShas: copyStringArray(divergence.rightOnlyPatchShas),
+      }
+    : {
+        sharedCount: divergence.sharedCount,
+        leftOnlyCount: divergence.leftOnlyCount,
+        rightOnlyCount: divergence.rightOnlyCount,
+        leftOnlyPatchShas: copyStringArray(divergence.leftOnlyPatchShas),
+        rightOnlyPatchShas: copyStringArray(divergence.rightOnlyPatchShas),
+        target: freezeObject({
+          ...divergence.target,
+          leftOnlyPatchShas: copyStringArray(divergence.target.leftOnlyPatchShas),
+          rightOnlyPatchShas: copyStringArray(divergence.target.rightOnlyPatchShas),
+        }),
+      };
+  return freezeObject(copied);
 }
