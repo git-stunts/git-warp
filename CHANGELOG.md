@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lane, coordinate, and debugger capability authority now has a frozen
   substrate boundary naming `worldline`, `strand`, `braid`, and stable
   coordinate anchors for external protocol consumers.
+- The Guide and Advanced Guide now make Observer-first reads the documented
+  client posture while explicitly warning that aperture redaction is not
+  encryption.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.

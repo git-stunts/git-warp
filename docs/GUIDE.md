@@ -193,6 +193,15 @@ const users = await view.query().match('user:*').run();
 // }
 ```
 
+Observer redaction is application-layer filtering. It is useful for
+multi-tenant views and product isolation, but it is not a cryptographic
+boundary: a user with filesystem access to `.git/objects/` can still inspect
+raw patch objects unless the graph content is encrypted at rest. Use
+`CasContentEncryptionPolicy` and the vault-backed CAS workflow in the
+[Advanced Guide](ADVANCED_GUIDE.md#vault-backed-cas-content-encryption) when
+the data itself must be protected. `@git-stunts/vault` is the intended key
+management path; do not put graph encryption secrets in `.env` files.
+
 ### Pattern 3: the historical view
 
 Pin an explicit coordinate when you need to ask what the graph looked like earlier.

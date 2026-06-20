@@ -110,6 +110,17 @@ For the normative details, use:
 - [Trust migration](trust/TRUST_MIGRATION.md)
 - [Trust operator runbook](trust/TRUST_OPERATOR_RUNBOOK.md)
 
+### Observer redaction is not encryption
+
+`Aperture.redact` and Observer filtering hide fields from a selected read path.
+They do not rewrite patch history, delete Git objects, or prevent a local
+operator from inspecting raw objects under `.git/objects/`. Treat redaction as
+application-layer projection, not data protection.
+
+Use vault-backed CAS content encryption when the stored bytes need protection
+at rest. The key-management path is `@git-stunts/vault` and OS-native keychain
+storage, not `.env` files or anonymous process-global secrets.
+
 ### Vault-backed CAS content encryption
 
 CAS-backed graph content uses git-cas v6 encryption after an operator resolves
