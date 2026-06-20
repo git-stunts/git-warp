@@ -41,7 +41,6 @@ describe('WarpCore.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
       });
-
       await graph.materialize();
 
       const slice = await graph.materializeSlice('unknown');

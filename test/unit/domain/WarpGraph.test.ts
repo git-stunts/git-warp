@@ -646,7 +646,6 @@ describe('WarpCore', () => {
         .mockResolvedValueOnce(mockPatch2.patchBuffer);
 
       const state = (await graph.materialize());
-
       // V5 state uses ORSet
       expect(state.nodeAlive.contains('user:alice')).toBe(true);
       expect(state.nodeAlive.contains('user:bob')).toBe(true);

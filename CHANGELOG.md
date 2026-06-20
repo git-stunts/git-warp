@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A normalized merge-conflict corpus and `benchmark:merge-conflicts` harness now
   classify projection, semantic, and governance conflict cases for future merge
   lifting work.
+- `npm run lint` now includes a source-size ratchet that enforces the 500 LOC
+  source, 800 LOC test, and 300 LOC tooling caps for new files while keeping
+  current over-budget files in an explicit relaxation list.
 
 ### Changed
 

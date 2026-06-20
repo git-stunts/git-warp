@@ -493,7 +493,6 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     }
     await this._executeWithRetry({ args: ['config', key, value] });
   }
-
   private _isConfigKeyNotFound(err: GitError): boolean {
     return getExitCode(err) === 1;
   }
