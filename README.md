@@ -109,6 +109,13 @@ Worldlines and Optics unless it is deliberately working on those lower layers.
 
 `openWarpGraph()` is organized around four architectural moments:
 
+Public examples use the flat capability aliases (`graph.patches`,
+`graph.query`, `graph.checkpoint`) as the canonical user-facing form. The
+moment-scoped form (`graph.commitment.patches`,
+`graph.revelation.query`, `graph.folding.checkpoint`) is the same runtime
+object and is available when code wants to make the architectural moment
+explicit.
+
 | Moment | Capabilities | What it does |
 |--------|-------------|--------------|
 | **Commitment** | `patches`, `strands`, `comparison` | Admits claims into frontier-relative truth |

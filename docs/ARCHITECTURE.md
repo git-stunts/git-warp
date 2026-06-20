@@ -129,6 +129,12 @@ The advanced compatibility entry point. Returns a frozen capability bag for
 tooling, diagnostics, and graph-first integrations that intentionally need the
 lower-level surface:
 
+The flat aliases are canonical for user-facing examples. Moment-scoped names
+are available for explicit architecture code and point at the same objects:
+`graph.patches === graph.commitment.patches`,
+`graph.query === graph.revelation.query`, and
+`graph.checkpoint === graph.folding.checkpoint`.
+
 ```text
 const graph = await openWarpGraph({ persistence, graphName, writerId });
 
