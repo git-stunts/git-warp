@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs now have a doctrine/runtime alignment ratchet that defines status labels,
   runtime evidence, and release rules for public claims that run ahead of the
   implementation.
+- README, Guide, and Advanced Guide now point readers at a teaching-alignment
+  audit before treating target WARP doctrine as shipped runtime behavior.
 - A dated TSC Zero agent-merge audit now retires the historical #505/B171
   drift concern by reconstructing PR #73's conflict-resolution scope and
   mapping it to current TypeScript owner modules.

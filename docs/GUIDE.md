@@ -11,6 +11,17 @@ Use it when you are writing an app, an agent workflow, or a local-first tool on 
 - If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
 - If you want the canonical meaning of core nouns like `Worldline`,
   `Observer`, `Aperture`, or `Coordinate`, use [GLOSSARY.md](GLOSSARY.md).
+- If a doc claim seems stronger than the current API, use the
+  [Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md) and the
+  [teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
+
+## Runtime posture
+
+This guide teaches shipped and transition APIs for builder workflows. Worldline
+commits, live reads, coordinates, observers, and apertures are the current
+application path. Strand examples below describe the current pinned-overlay
+implementation; live holographic strands, common-basis braids, witnessed suffix
+admission, and support-scoped fragment materialization remain target doctrine.
 
 ## Mental model
 
@@ -127,7 +138,10 @@ const reviewLane = graph.query.worldline({
 
 Use strands for speculative work. Use ordinary patches for live truth.
 
-For the deeper substrate story behind strands, braids, and transfer planning, use [Advanced Guide -> Strands and braids](ADVANCED_GUIDE.md#strands-and-braids).
+For the deeper substrate story behind strands, braids, and transfer planning,
+use [Advanced Guide -> Strands and braids](ADVANCED_GUIDE.md#strands-and-braids).
+For the target-model gap, use the
+[teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 ## Streamed substrate work
 

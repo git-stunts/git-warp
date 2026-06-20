@@ -11,6 +11,7 @@ For those roles, use:
 
 - [GLOSSARY](../GLOSSARY.md)
 - [doctrine/runtime alignment ratchet](../DOCTRINE_RUNTIME_ALIGNMENT.md)
+- [WARP doctrine/runtime teaching alignment](WARP_DOCTRINE_RUNTIME_ALIGNMENT.md)
 - [observer-geometry-architecture-ladder](../design/0035-observer-geometry-architecture-ladder.md)
 - [remaining-warp-drift-release-slotting](../design/0037-remaining-warp-drift-release-slotting.md)
 - [release-horizon-v20-v21](../design/release-horizon-v20-v21.md)
@@ -212,6 +213,7 @@ The canonical noun and runtime-planning surfaces for this drift now live in:
 
 - [GLOSSARY](../GLOSSARY.md)
 - [doctrine/runtime alignment ratchet](../DOCTRINE_RUNTIME_ALIGNMENT.md)
+- [WARP doctrine/runtime teaching alignment](WARP_DOCTRINE_RUNTIME_ALIGNMENT.md)
 - [observer-geometry-architecture-ladder](../design/0035-observer-geometry-architecture-ladder.md)
 - [release-horizon-v20-v21](../design/release-horizon-v20-v21.md)
 
@@ -234,6 +236,7 @@ backlog items own the implementation work.
 
 - [GLOSSARY](../GLOSSARY.md)
 - [doctrine/runtime alignment ratchet](../DOCTRINE_RUNTIME_ALIGNMENT.md)
+- [WARP doctrine/runtime teaching alignment](WARP_DOCTRINE_RUNTIME_ALIGNMENT.md)
 - [observer-geometry-architecture-ladder](../design/0035-observer-geometry-architecture-ladder.md)
 - [remaining-warp-drift-release-slotting](../design/0037-remaining-warp-drift-release-slotting.md)
 - [release-horizon-v20-v21](../design/release-horizon-v20-v21.md)

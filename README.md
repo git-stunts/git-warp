@@ -28,6 +28,20 @@ design docs, witnesses, retros, and archived backlog cards are evidence.
 Current public API cost labels are in
 [PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md).
 
+## Runtime posture
+
+Use [GLOSSARY.md](docs/GLOSSARY.md) for shipped, transition, and target noun
+status. Use the
+[Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) and
+[teaching alignment audit](docs/audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md) when
+a doc claim is stronger than the runtime surface.
+
+Current first-use docs teach `openWarpWorldline()`, worldline reads,
+coordinates, and observer apertures as the current application path. Live
+holographic strands, common-basis braid validation, witnessed suffix admission,
+and support-scoped fragment materialization remain target doctrine unless their
+own docs say otherwise.
+
 ## Quick start
 
 ```typescript
@@ -173,6 +187,8 @@ your source tree. Sync happens through normal `git push` / `git fetch`.
 - **[Migration Guide](docs/migrations/v18.0.0.md)** — Worldline-first v18 API migration
 - **[CLI Guide](docs/CLI_GUIDE.md)** — terminal workflows
 - **[Vision](docs/VISION.md)** — repo doctrine
+- **[Glossary](docs/GLOSSARY.md)** — shipped, transition, and target noun status
+- **[Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md)** — evidence rule for docs-ahead claims
 - **[Specs](docs/specs/)** — normative protocol and format specifications
 
 ## Substrate stack

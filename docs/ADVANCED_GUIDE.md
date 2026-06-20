@@ -7,6 +7,17 @@ Use it when you need to understand why `git-warp` is safe, how replay works, wha
 - If you are new, start with [Getting Started](GETTING_STARTED.md).
 - If you are building day-to-day product code, use the [Guide](GUIDE.md).
 - If you want every method and appendix in one place, use the [API Reference](API_REFERENCE.md).
+- If you need noun status, use [GLOSSARY.md](GLOSSARY.md) and the
+  [Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md).
+
+## Runtime posture
+
+This guide is allowed to discuss substrate internals and target doctrine, but
+it must mark the difference. Today, pinned-base strands, braid support overlays,
+frontier-based sync, and whole-state materialization are implementation
+posture. Live holographic strands, common-basis braids, witnessed suffix
+admission, and support-scoped fragments are target doctrine tracked in the
+[teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 ## Public roots and boundaries
 
@@ -214,6 +225,11 @@ own coordinate, aperture, and witness posture.
 ## Strands and braids
 
 Strands are the substrate's durable speculative lanes.
+
+Status: the runtime currently uses pinned-overlay strand mechanics. The target
+model is live holographic strands with basis-relative realization and
+common-basis braid validation; see the
+[teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 What a strand records:
 
