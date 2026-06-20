@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 //      making the simple lookbehind miss it.
 const RAW_COMPATIBILITY_PATTERN = /decodePropKey|decodeEdgePropKey|state\.prop|(?:(?<![a-z])_content(?![A-Z])|\\t_content_)/u;
 const DESIGN_DOC = 'docs/design/0203-v18-content-property-closeout-audit/v18-content-property-closeout-audit.md';
+const CONTENT_ATTACHMENT_SPEC = 'docs/specs/CONTENT_ATTACHMENT.md';
 const EXPECTED_RAW_COMPATIBILITY_FILES = Object.freeze([
   'src/domain/graph/LegacyContentPropertyKeys.ts',
   'src/domain/services/KeyCodec.ts',
@@ -65,6 +66,17 @@ describe('v18 content/property closeout audit', () => {
       expect(RAW_COMPATIBILITY_PATTERN.test(await readFile(file, 'utf8'))).toBe(false);
       expect(doc).toContain(`- \`${file}\` retired`);
     }
+  });
+
+  it('presents typed content attachments as the primary storage-plane model', async () => {
+    const spec = await readFile(CONTENT_ATTACHMENT_SPEC, 'utf8');
+
+    expect(spec).toContain('Primary Runtime Model');
+    expect(spec).toContain('ContentAttachmentRecord');
+    expect(spec).toContain('GraphContentAttachmentSetOp');
+    expect(spec).toContain('Legacy Storage Compatibility');
+    expect(spec).not.toContain('A content attachment is represented as a **node property** with a well-known key.');
+    expect(spec).not.toContain('| How content is referenced | `_content` property on nodes/edges (CAS SHA) |');
   });
 });
 
