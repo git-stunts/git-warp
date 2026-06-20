@@ -87,6 +87,7 @@ import WarpAppDefault, {
   projectState,
   createStateReader,
   compareVisibleState,
+  GraphDiff,
   ImmutableBytes,
   SnapshotORSet,
   SnapshotVersionVector,
@@ -134,6 +135,7 @@ import WarpAppDefault, {
   type WarpKernelPort,
   type WarpWorldlineOpenOptions,
   type WarpWorldlinePatchBuild,
+  type GraphDiffOptions,
   type WarpWorldlineCoordinateFrontierEntry,
 } from '../../index.ts';
 
@@ -391,6 +393,8 @@ void aliasApertureObserver;
 const materialized: SnapshotWarpState = await graph.materialize();
 const materializedWithReceipts: { state: SnapshotWarpState; receipts: readonly ReturnType<typeof createTickReceipt>[] } =
   await graph.materialize({ receipts: true });
+const graphDiffOptions: GraphDiffOptions = { from: 0, to: 1, targetId: 'node-a' };
+const graphDiff: GraphDiff = await graph.diff(graphDiffOptions);
 const stateSnapshot: SnapshotWarpState | null = await graph.getStateSnapshot();
 const graphBagStateSnapshot: SnapshotWarpState | null = await graphBag.query.getStateSnapshot();
 const graphBagNodeProps: PublicPropBag | null = await graphBag.query.getNodeProps('node-a');
@@ -414,6 +418,7 @@ if (snapshotValue instanceof ImmutableBytes) {
 }
 
 void materializedWithReceipts;
+void graphDiff;
 void stateSnapshot;
 void graphBagStateSnapshot;
 void graphBagNodeProps;

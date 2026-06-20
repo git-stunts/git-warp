@@ -184,6 +184,7 @@ import type { ApertureOpeningProofFields } from './src/domain/services/wormhole/
 import type { ZKWormholeEdgeFields } from './src/domain/services/wormhole/ZKWormholeEdge.ts';
 import type { ApertureOpeningVerificationResult, ZKWormholeVerificationResult } from './src/domain/services/wormhole/ZKWormholeVerificationResult.ts';
 import type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
+import type { GraphDiffOptions } from './src/domain/capabilities/ComparisonCapability.ts';
 import type { GraphDiffFields } from './src/domain/services/comparison/GraphDiff.ts';
 import type { ObserverPlanFields } from './src/domain/services/query/ObserverPlan.ts';
 import type {
@@ -547,6 +548,7 @@ export type {
   CausalIndexPlanPosture,
   SupportFragmentMaterializationPosture,
   SupportFragmentPlanFields,
+  GraphDiffOptions,
   GraphDiffFields,
   ObserverPlanFields,
   ObserverReadingEnvelopeBudget,

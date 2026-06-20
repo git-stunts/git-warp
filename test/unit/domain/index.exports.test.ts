@@ -601,6 +601,9 @@ describe('index.ts exports', () => {
     it('exports GraphDiff', () => {
       expect(GraphDiff).toBeDefined();
       expect(typeof GraphDiff).toBe('function');
+    });
+
+    it('exports SupportFragmentPlan', () => {
       expect(SupportFragmentPlan).toBeDefined();
       expect(typeof SupportFragmentPlan).toBe('function');
     });
