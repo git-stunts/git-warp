@@ -137,7 +137,10 @@ agent-authored type fixes that were never audited for subtle semantic drift
 (e.g. changed fallback values, widened types, reordered logic). Tests
 passing does not guarantee absence of drift.
 
-**Status:** **not aligned** — tracked as B171 (high priority audit).
+**Original status:** **not aligned** — tracked as B171 (high priority audit).
+
+**Closeout:** retired by the 2026-06-20 audit:
+[TSC Zero Agent Merge Audit](../../audit/2026-06-20_tsc-zero-agent-merge-audit.md).
 
 ## Playback
 
