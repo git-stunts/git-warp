@@ -79,6 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Observers now expose `plan()` and `readingEnvelope()` so reusable observers
   and one-shot reads share a source/config plan and emitted reading envelope
   family with witness, shell, budget, plurality, and residual metadata.
+- Observer reading envelopes now validate and carry receipt boundary anchors, so
+  read surfaces can expose substrate receipt truth without depending on raw
+  materialization receipt internals.
 - `git warp mcp` now starts a local stdio MCP server with a read-only tool
   catalog for graph info, node ids, node properties, edges, and existence
   checks; write-capable tools remain absent until writer/trust policy is

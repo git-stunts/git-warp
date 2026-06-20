@@ -40,7 +40,7 @@ type VisibleEdge = { from: string; to: string; label: string; props: VisibleNode
 type ObserverSnapshot = { state: WarpState; stateHash: string };
 type ObserverReadingEnvelopeOptions = Pick<
 ObserverReadingEnvelopeFields,
-'witnessRef' | 'shellRef' | 'pluralityRef'
+'witnessRef' | 'shellRef' | 'pluralityRef' | 'receiptAnchors'
 >;
 
 export interface ObserverBacking {

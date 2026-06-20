@@ -1408,18 +1408,23 @@ const plan = view.plan();
 const envelope = await view.readingEnvelope({
   witnessRef: 'receipt-or-proof-ref',
   shellRef: 'observer-shell-ref',
+  receiptAnchors: [receiptBoundary.stableAnchor()],
 });
 
 envelope.payload.nodeCount;
 envelope.budget.propertyKeyCount;
 envelope.residualBasis;
+envelope.receiptAnchors[0]?.patchSha;
 ```
 
 `ObserverPlan` freezes the observer name, aperture, structural basis, and
 worldline source. `ObserverReadingEnvelope` ties that plan to an emitted
 `ObserverEmission` payload, optional witness/shell/plurality references, and
-budget metadata derived from the payload. Normal node/query/traversal reads and
-envelope reads therefore share the same observer family.
+validated receipt anchors from `GitWarpReceiptEnvelopeBoundary`, plus budget
+metadata derived from the payload. Normal node/query/traversal reads and
+envelope reads therefore share the same observer family, and external tools do
+not need raw receipt `ops` or debug `reason` strings for observer-level routing
+decisions.
 
 For higher-layer reads, this is the preferred boundary: choose a worldline,
 choose an observer, optionally seek, then read through that observer instead of

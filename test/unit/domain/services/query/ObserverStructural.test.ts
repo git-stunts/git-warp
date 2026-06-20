@@ -9,6 +9,9 @@ import ObserverBasis from '../../../../../src/domain/services/query/ObserverBasi
 import ObserverEmission from '../../../../../src/domain/services/query/ObserverEmission.ts';
 import ObserverPlan from '../../../../../src/domain/services/query/ObserverPlan.ts';
 import ObserverReadingEnvelope from '../../../../../src/domain/services/query/ObserverReadingEnvelope.ts';
+import GitWarpReceiptEnvelopeBoundary
+  from '../../../../../src/domain/continuum/GitWarpReceiptEnvelopeBoundary.ts';
+import { TickReceipt } from '../../../../../src/domain/types/TickReceipt.ts';
 import type { WorldlineSource } from '../../../../../src/domain/capabilities/QueryCapability.ts';
 
 type ObserverCall = {
@@ -63,6 +66,21 @@ class StructuralObserverBacking implements ObserverBacking {
       source: options.source,
     }));
   }
+}
+
+function makeReceiptBoundary(): GitWarpReceiptEnvelopeBoundary {
+  return new GitWarpReceiptEnvelopeBoundary({
+    receipt: new TickReceipt({
+      patchSha: 'c'.repeat(40),
+      writer: 'writer-a',
+      lamport: 4,
+      ops: [{
+        op: 'NodeAdd',
+        target: 'task:a',
+        result: 'applied',
+      }],
+    }),
+  });
 }
 
 describe('Observer structural surface', () => {
@@ -145,6 +163,7 @@ describe('Observer structural surface', () => {
       witnessRef: 'witness:observer-structural',
       shellRef: 'shell:observer-structural',
       pluralityRef: 'plurality:status-owner',
+      receiptAnchors: [makeReceiptBoundary().stableAnchor()],
     });
 
     expect(plan).toBeInstanceOf(ObserverPlan);
@@ -176,11 +195,26 @@ describe('Observer structural surface', () => {
     expect(envelope.residualBasis).toEqual(['owner']);
     expect(envelope.hasResidual()).toBe(true);
     expect(envelope.hasPlurality()).toBe(true);
+    expect(envelope.hasReceiptAnchors()).toBe(true);
+    expect(envelope.receiptAnchors).toEqual([{
+      boundaryVersion: 'git-warp.receipt-envelope-boundary/v1',
+      substrateFactKind: 'git-warp.tick-receipt',
+      patchSha: 'c'.repeat(40),
+      writer: 'writer-a',
+      lamport: 4,
+      outcomeCount: 1,
+      appliedCount: 1,
+      supersededCount: 0,
+      redundantCount: 0,
+      hasExplanatoryReasons: false,
+    }]);
     expect(envelope.source).toEqual({ kind: 'live' });
     expect(envelope.witnessRef).toBe('witness:observer-structural');
     expect(envelope.shellRef).toBe('shell:observer-structural');
     expect(Object.isFrozen(envelope)).toBe(true);
     expect(Object.isFrozen(envelope.budget)).toBe(true);
+    expect(Object.isFrozen(envelope.receiptAnchors)).toBe(true);
+    expect(Object.isFrozen(envelope.receiptAnchors[0])).toBe(true);
     expect(Object.isFrozen(envelope.residualBasis)).toBe(true);
   });
 
@@ -232,5 +266,28 @@ describe('Observer structural surface', () => {
       plan: payload,
       payload,
     })).toThrow('observer reading envelope requires an ObserverPlan');
+
+    expect(() => new ObserverReadingEnvelope({
+      plan: new ObserverPlan({
+        name: 'valid',
+        match: '*',
+        basis,
+        source: { kind: 'live' },
+      }),
+      payload,
+      receiptAnchors: [{
+        // @ts-expect-error runtime guard for JavaScript callers
+        boundaryVersion: 'unsupported-boundary',
+        substrateFactKind: 'git-warp.tick-receipt',
+        patchSha: 'c'.repeat(40),
+        writer: 'writer-a',
+        lamport: 4,
+        outcomeCount: 1,
+        appliedCount: 1,
+        supersededCount: 0,
+        redundantCount: 0,
+        hasExplanatoryReasons: false,
+      }],
+    })).toThrow('observer reading envelope receipt anchor has an unsupported boundary');
   });
 });
