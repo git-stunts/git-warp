@@ -8,7 +8,7 @@
  * Not public API — import from WarpMessageCodec or individual codecs.
  */
 
-import { TrailerCodec, TrailerCodecService } from '@git-stunts/trailer-codec';
+import { TrailerCodec, TrailerCodecService, type TrailerCodecFacade } from '@git-stunts/trailer-codec';
 import MessageCodecError from '../../errors/MessageCodecError.ts';
 
 // ── Constants ───────────────────────────────────────────────────────
@@ -41,22 +41,14 @@ const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 
 // ── Codec instance ──────────────────────────────────────────────────
 
-type TrailerCodecShape = {
-  encode(msg: { title: string; trailers: Record<string, string> }): string;
-  decode(msg: string): { trailers: Record<string, string> };
-};
-
-let _codec: TrailerCodecShape | null = null;
+let _codec: TrailerCodecFacade | null = null;
 
 /** Returns the lazy singleton TrailerCodec instance. */
-export function getCodec(): TrailerCodecShape {
+export function getCodec(): TrailerCodecFacade {
   if (_codec !== null) {
     return _codec;
   }
-  const TrailerCodecServiceCtor = TrailerCodecService as new () => unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const TrailerCodecCtor = TrailerCodec as new (opts: { service: unknown }) => TrailerCodecShape; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const service: unknown = new TrailerCodecServiceCtor(); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  _codec = new TrailerCodecCtor({ service });
+  _codec = new TrailerCodec({ service: new TrailerCodecService() });
   return _codec;
 }
 

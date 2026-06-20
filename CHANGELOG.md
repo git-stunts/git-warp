@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vault-resolved git-cas encryption boundary for CAS content, including
   current scheme selection, vault verification diagnostics, and legacy scheme
   migration errors.
+- The `@git-stunts/trailer-codec` dependency now carries a local
+  `patch-package` declaration patch, allowing git-warp to remove the ambient
+  trailer-codec shim and casted codec singleton construction.
 
 ### Changed
 

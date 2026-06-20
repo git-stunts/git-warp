@@ -1,0 +1,169 @@
+diff --git a/node_modules/@git-stunts/trailer-codec/index.d.ts b/node_modules/@git-stunts/trailer-codec/index.d.ts
+new file mode 100644
+index 0000000..6525b80
+--- /dev/null
++++ b/node_modules/@git-stunts/trailer-codec/index.d.ts
+@@ -0,0 +1,163 @@
++import type { ZodSchema } from 'zod';
++
++export interface GitTrailerJson {
++  readonly key: string;
++  readonly value: string;
++}
++
++export interface GitCommitMessageInput {
++  readonly title: string;
++  readonly body?: string;
++  readonly trailers?: ReadonlyArray<GitTrailerJson | GitTrailer>;
++}
++
++export interface GitCommitMessageOptions {
++  readonly trailerSchema?: ZodSchema;
++  readonly formatters?: {
++    readonly titleFormatter?: (value: string) => string;
++    readonly bodyFormatter?: (value: string) => string;
++  };
++}
++
++export class GitCommitMessage {
++  readonly title: string;
++  readonly body: string;
++  readonly trailers: readonly GitTrailer[];
++  constructor(input: GitCommitMessageInput, options?: GitCommitMessageOptions);
++  toString(): string;
++  toJSON(): { readonly title: string; readonly body: string; readonly trailers: readonly GitTrailerJson[] };
++}
++
++export class GitTrailer {
++  readonly key: string;
++  readonly value: string;
++  constructor(key: string, value: string, schema?: ZodSchema);
++  toString(): string;
++  toJSON(): GitTrailerJson;
++}
++
++export class TrailerCodecError extends Error {
++  readonly meta: Record<string, unknown>;
++  constructor(message: string, meta?: Record<string, unknown>);
++}
++
++export interface TrailerSchemaBundle {
++  readonly schema: ZodSchema;
++  readonly keyPattern: string;
++  readonly keyRegex: RegExp;
++}
++
++export interface TrailerParserOptions {
++  readonly keyPattern?: string;
++}
++
++export class TrailerParser {
++  readonly lineRegex: RegExp;
++  constructor(options?: TrailerParserOptions);
++  split(lines: readonly string[]): {
++    readonly trailerStart: number;
++    readonly bodyLines: readonly string[];
++    readonly trailerLines: readonly string[];
++  };
++}
++
++export interface TrailerCodecServiceOptions {
++  readonly schemaBundle?: TrailerSchemaBundle;
++  readonly trailerFactory?: (key: string, value: string, schema: ZodSchema) => GitTrailer;
++  readonly parser?: TrailerParser | null;
++  readonly messageNormalizer?: {
++    normalizeLines(message: string): string[];
++    guardMessageSize(message: string): void;
++  };
++  readonly titleExtractor?: (lines: string[]) => { readonly title: string; readonly nextIndex: number };
++  readonly bodyComposer?: (lines: string[]) => string;
++  readonly formatters?: GitCommitMessageOptions['formatters'];
++}
++
++export class TrailerCodecService {
++  constructor(options?: TrailerCodecServiceOptions);
++  decode(message: string): GitCommitMessage;
++  encode(messageEntity: GitCommitMessage | GitCommitMessageInput): string;
++}
++
++export interface TrailerCodecPayload {
++  readonly title: string;
++  readonly body?: string;
++  readonly trailers?: Record<string, string>;
++}
++
++export interface TrailerCodecDecodedMessage {
++  readonly title: string;
++  readonly body: string;
++  readonly trailers: Record<string, string>;
++}
++
++export interface TrailerCodecFacade {
++  encode(payload: TrailerCodecPayload): string;
++  decode(message: string): TrailerCodecDecodedMessage;
++  encodeMessage(payload: TrailerCodecPayload): string;
++  decodeMessage(message: string): TrailerCodecDecodedMessage;
++}
++
++export interface TrailerCodecOptions {
++  readonly service: TrailerCodecService;
++  readonly bodyFormatOptions?: BodyFormatOptions;
++}
++
++export default class TrailerCodec implements TrailerCodecFacade {
++  constructor(options: TrailerCodecOptions);
++  encode(payload: TrailerCodecPayload): string;
++  decode(message: string): TrailerCodecDecodedMessage;
++  encodeMessage(payload: TrailerCodecPayload): string;
++  decodeMessage(message: string): TrailerCodecDecodedMessage;
++}
++
++export { TrailerCodec };
++
++export interface BodyFormatOptions {
++  readonly keepTrailingNewline?: boolean;
++}
++
++export function formatBodySegment(body?: string, options?: BodyFormatOptions): string;
++
++export interface TrailerMessageHelpers {
++  decodeMessage(message: string): TrailerCodecDecodedMessage;
++  encodeMessage(payload: TrailerCodecPayload): string;
++}
++
++export function createMessageHelpers(options?: {
++  readonly service?: TrailerCodecService;
++  readonly bodyFormatOptions?: BodyFormatOptions;
++}): TrailerMessageHelpers;
++
++export function createDefaultTrailerCodec(options?: {
++  readonly bodyFormatOptions?: BodyFormatOptions;
++}): TrailerCodec;
++
++export function decodeMessage(message: string, bodyFormatOptions?: BodyFormatOptions): TrailerCodecDecodedMessage;
++export function encodeMessage(payload: TrailerCodecPayload, bodyFormatOptions?: BodyFormatOptions): string;
++
++export interface ConfiguredCodecOptions {
++  readonly keyPattern?: string | RegExp;
++  readonly keyMaxLength?: number;
++  readonly parserOptions?: TrailerParserOptions;
++  readonly formatters?: GitCommitMessageOptions['formatters'];
++  readonly bodyFormatOptions?: BodyFormatOptions;
++}
++
++export interface ConfiguredCodec {
++  readonly service: TrailerCodecService;
++  readonly helpers: TrailerMessageHelpers;
++  decodeMessage(message: string): TrailerCodecDecodedMessage;
++  encodeMessage(payload: TrailerCodecPayload): string;
++}
++
++export function createConfiguredCodec(options?: ConfiguredCodecOptions): ConfiguredCodec;
++
++export function createGitTrailerSchemaBundle(options?: {
++  readonly keyPattern?: string | RegExp;
++  readonly keyMaxLength?: number;
++}): TrailerSchemaBundle;
++
++export const TRAILER_KEY_RAW_PATTERN_STRING: string;
++export const TRAILER_KEY_REGEX: RegExp;

@@ -31,7 +31,6 @@ describe('non-TS tail shape', () => {
     expect(trackedNonTypeScriptTail()).toEqual([
       'src/globals.d.ts',
       'test/type-check/runtime-declarations.d.ts',
-      'test/type-check/trailer-codec.d.ts',
     ]);
   });
 
