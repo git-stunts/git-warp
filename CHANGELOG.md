@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TTD merge inspection now has a public read-only object-merge protocol with
   precursor, branch footprint, candidate join, obstruction, lowering, policy,
   and classifier evidence.
+- Graph traversal now exposes `bfsStream()` and `dfsStream()` async generator
+  APIs, with collected `bfs()` and `dfs()` results layered over the same
+  traversal path.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.
