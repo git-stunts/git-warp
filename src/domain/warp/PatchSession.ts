@@ -17,10 +17,10 @@ import type Patch from '../types/Patch.ts';
 
 const NONE_DISPLAY = '(none)';
 
-/**
- * Extracts the error message and cause from an unknown error value. // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
- */
-function _extractErrorInfo(err: unknown): { errMsg: string; cause: Error | undefined } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+type CommitFailure = Error | string;
+
+/** Extracts the error message and cause from a commit failure. */
+function _extractErrorInfo(err: CommitFailure): { errMsg: string; cause: Error | undefined } {
   const errMsg = err instanceof Error ? err.message : String(err);
   const cause = err instanceof Error ? err : undefined;
   return { errMsg, cause };
@@ -59,7 +59,7 @@ function _buildCasConflictError(
 /**
  * Classifies a commit error into the appropriate WriterError code.
  */
-function _classifyCommitError(err: unknown, ctx: CommitContext): WriterError { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function _classifyCommitError(err: CommitFailure, ctx: CommitContext): WriterError {
   if (err instanceof WriterError && err.code === 'WRITER_CAS_CONFLICT') {
     return _buildCasConflictError(err, ctx);
   }
@@ -199,7 +199,12 @@ export class PatchSession {
       this._committed = true;
       return sha;
     } catch (err) {
-      throw _classifyCommitError(err, { graphName: this._graphName, writerId: this._writerId, expectedOldHead: this._expectedOldHead });
+      const classifiedInput: CommitFailure = err instanceof Error ? err : String(err);
+      throw _classifyCommitError(classifiedInput, {
+        graphName: this._graphName,
+        writerId: this._writerId,
+        expectedOldHead: this._expectedOldHead,
+      });
     }
   }
 
