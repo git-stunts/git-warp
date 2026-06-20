@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://git-stunts.dev/git-warp/schemas/sludge-map.schema.json",
+  "title": "git-warp sludge map",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_for_cycle", "source_cycle_blocked", "families"],
+  "properties": {
+    "generated_for_cycle": { "$ref": "#/$defs/nonEmptyString" },
+    "source_cycle_blocked": { "$ref": "#/$defs/nonEmptyString" },
+    "families": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/family" }
+    },
+    "dependency_order": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stringList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" }
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "severity", "blocks", "findings"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "severity": {
+          "type": "string",
+          "enum": ["release-blocking", "watch"]
+        },
+        "blocks": { "$ref": "#/$defs/stringList" },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/finding" }
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "symptom", "root_cause", "recommended_fix", "blocks"],
+      "properties": {
+        "path": { "$ref": "#/$defs/nonEmptyString" },
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "symptom": { "$ref": "#/$defs/nonEmptyString" },
+        "root_cause": { "$ref": "#/$defs/nonEmptyString" },
+        "recommended_fix": { "$ref": "#/$defs/nonEmptyString" },
+        "blocks": { "$ref": "#/$defs/stringList" },
+        "proposed_nouns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/proposedNoun" }
+        }
+      }
+    },
+    "proposedNoun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "constructs", "consumes", "proves_invariant", "layer", "eliminates"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "constructs": { "$ref": "#/$defs/nonEmptyString" },
+        "consumes": { "$ref": "#/$defs/nonEmptyString" },
+        "proves_invariant": { "$ref": "#/$defs/nonEmptyString" },
+        "layer": {
+          "type": "string",
+          "enum": ["domain", "ports", "policy"]
+        },
+        "eliminates": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    }
+  }
+}

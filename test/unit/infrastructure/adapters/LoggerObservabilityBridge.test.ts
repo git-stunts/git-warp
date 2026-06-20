@@ -12,6 +12,18 @@ function mockLogger() {
 }
 
 describe('LoggerObservabilityBridge', () => {
+  describe('constructor', () => {
+    it('rejects a missing logger at construction time', () => {
+      // @ts-expect-error exercising runtime validation for untyped callers
+      expect(() => new LoggerObservabilityBridge(null))
+        .toThrow('LoggerObservabilityBridge requires a logger');
+
+      // @ts-expect-error exercising runtime validation for untyped callers
+      expect(() => new LoggerObservabilityBridge(undefined))
+        .toThrow('LoggerObservabilityBridge requires a logger');
+    });
+  });
+
   describe('metric()', () => {
     it('forwards metric as debug log with channel prefix', () => {
       const logger = mockLogger();

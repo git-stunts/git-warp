@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import EffectSinkPort from '../../../src/ports/EffectSinkPort.ts';
-import type { EffectEmission } from '../../../src/domain/types/EffectEmission.ts';
-import type { ExternalizationPolicy } from '../../../src/domain/types/ExternalizationPolicy.ts';
-import type { DeliveryObservation } from '../../../src/domain/types/DeliveryObservation.ts';
+import { createEffectEmission, type EffectEmission } from '../../../src/domain/types/EffectEmission.ts';
+import { LIVE_LENS, type ExternalizationPolicy } from '../../../src/domain/types/ExternalizationPolicy.ts';
+import { createDeliveryObservation, type DeliveryObservation } from '../../../src/domain/types/DeliveryObservation.ts';
 
 describe('EffectSinkPort', () => {
   it('abstract members are not callable on base prototype', () => {
@@ -14,12 +14,31 @@ describe('EffectSinkPort', () => {
   it('concrete subclass satisfies the contract', async () => {
     class TestSink extends EffectSinkPort {
       get id() { return 'test-sink'; }
-      async deliver(_emission: EffectEmission, _lens: ExternalizationPolicy): Promise<DeliveryObservation> {
-        return { outcome: 'delivered' } as unknown as DeliveryObservation;
+      async deliver(emission: EffectEmission, lens: ExternalizationPolicy): Promise<DeliveryObservation[]> {
+        return [createDeliveryObservation({
+          emissionId: emission.id,
+          sinkId: this.id,
+          outcome: 'delivered',
+          timestamp: 0,
+          lens,
+        })];
       }
     }
     const sink = new TestSink();
+    const observations = await sink.deliver(
+      createEffectEmission({
+        id: 'emission-1',
+        kind: 'test',
+        payload: null,
+        timestamp: 0,
+        writer: null,
+        coordinate: { frontier: null, ceiling: null },
+      }),
+      LIVE_LENS,
+    );
+
     expect(sink).toBeInstanceOf(EffectSinkPort);
     expect(sink.id).toBe('test-sink');
+    expect(observations[0]?.outcome).toBe('delivered');
   });
 });

@@ -8,7 +8,7 @@ import type { DeliveryObservation } from '../domain/types/DeliveryObservation.ts
  * Each sink has a unique `id` and a `deliver()` method that accepts
  * an EffectEmission and an ExternalizationPolicy. The sink decides
  * its behavior based on the policy (e.g., suppress during replay)
- * and returns a DeliveryObservation recording the outcome.
+ * and returns delivery observations recording the outcome.
  *
  * This is a host-domain port for externalization, not a substrate
  * contract. Sinks operate outside the graph.
@@ -25,5 +25,5 @@ export default abstract class EffectSinkPort {
   abstract deliver(
     _emission: EffectEmission,
     _lens: ExternalizationPolicy,
-  ): Promise<DeliveryObservation | DeliveryObservation[]>;
+  ): Promise<DeliveryObservation[]>;
 }

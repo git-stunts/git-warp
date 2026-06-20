@@ -127,6 +127,31 @@ Use strands for speculative work. Use ordinary patches for live truth.
 
 For the deeper substrate story behind strands, braids, and transfer planning, use [Advanced Guide -> Strands and braids](ADVANCED_GUIDE.md#strands-and-braids).
 
+## Streamed substrate work
+
+Most application code should not handle substrate streams directly. Use
+worldlines, observers, optics, and query builders first.
+
+When you are writing an adapter or a diagnostic tool, unbounded substrate reads
+use `WarpStream` through advanced ports instead of returning whole arrays.
+Typical examples are commit-log scans, patch-journal ranges, and index-shard
+reads. Consume them with `for await` and keep each streamed item as the unit of
+work:
+
+```typescript
+const stream = await persistence.logNodesStream({
+  ref: 'refs/warp/team/writers/alice',
+});
+
+for await (const chunk of stream) {
+  // Inspect or forward one commit-log chunk at a time.
+}
+```
+
+If you are not implementing a port, prefer the higher-level read APIs in this
+guide. Streams are the substrate boundary, not a second application query
+model.
+
 ## Common read patterns
 
 The patterns in this section are the preferred application API shapes. Their

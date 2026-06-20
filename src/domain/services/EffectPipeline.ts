@@ -14,6 +14,7 @@
 import { createEffectEmission, type EffectEmission } from '../types/EffectEmission.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
 import type { DeliveryObservation } from '../types/DeliveryObservation.ts';
+import { requireDeliveryObservationBatch } from '../types/DeliveryObservationBatch.ts';
 import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 
 const NULL_COORDINATE: { frontier: Record<string, string> | null; ceiling: number | null } = {
@@ -113,7 +114,7 @@ export class EffectPipeline {
       writer?: string | null;
       coordinate?: { frontier?: Record<string, string> | null; ceiling?: number | null };
     },
-  ): Promise<{ emission: EffectEmission; observations: DeliveryObservation | DeliveryObservation[] }> {
+  ): Promise<{ emission: EffectEmission; observations: DeliveryObservation[] }> {
     const emission = createEffectEmission({
       id: options?.id ?? '',
       kind,
@@ -125,7 +126,10 @@ export class EffectPipeline {
 
     this._emissions.push(emission);
 
-    const observations = await this._sink.deliver(emission, this._lens);
+    const observations = requireDeliveryObservationBatch(
+      await this._sink.deliver(emission, this._lens),
+      this._sink.id,
+    );
     this._recordObservations(observations);
 
     return { emission, observations };
@@ -134,13 +138,9 @@ export class EffectPipeline {
   /**
    * Appends one or more delivery observations to the internal observation log.
    */
-  private _recordObservations(observations: DeliveryObservation | DeliveryObservation[]): void {
-    if (Array.isArray(observations)) {
-      for (const obs of observations) {
-        this._observations.push(obs);
-      }
-    } else {
-      this._observations.push(observations);
+  private _recordObservations(observations: readonly DeliveryObservation[]): void {
+    for (const obs of observations) {
+      this._observations.push(obs);
     }
   }
 }

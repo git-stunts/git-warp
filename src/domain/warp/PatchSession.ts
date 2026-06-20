@@ -17,23 +17,13 @@ import type Patch from '../types/Patch.ts';
 
 const NONE_DISPLAY = '(none)';
 
-/**
- * Extracts the error message and cause from an unknown error value. // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
- */
-function _extractErrorInfo(err: unknown): { errMsg: string; cause: Error | undefined } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+type CommitFailure = Error | string;
+
+/** Extracts the error message and cause from a commit failure. */
+function _extractErrorInfo(err: CommitFailure): { errMsg: string; cause: Error | undefined } {
   const errMsg = err instanceof Error ? err.message : String(err);
   const cause = err instanceof Error ? err : undefined;
   return { errMsg, cause };
-}
-
-/**
- * Extracts the CAS error object from an unknown error if applicable. // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
- */
-function _extractCasError(err: unknown): { code?: unknown; expectedSha?: unknown; actualSha?: unknown } | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (err !== null && err !== undefined && typeof err === 'object') {
-    return err as { code?: unknown; expectedSha?: unknown; actualSha?: unknown }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  }
-  return null;
 }
 
 /** Formats a nullable SHA for display in error messages. */
@@ -51,34 +41,32 @@ interface CommitContext {
  * Builds a CAS conflict WriterError with ref details.
  */
 function _buildCasConflictError(
-  casError: { code?: unknown; expectedSha?: unknown; actualSha?: unknown }, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  cause: Error | undefined,
+  casError: WriterError,
   ctx: CommitContext,
 ): WriterError {
   const { graphName, writerId, expectedOldHead } = ctx;
   const writerRef = buildWriterRef(graphName, writerId);
-  const expectedSha = typeof casError.expectedSha === 'string' ? casError.expectedSha : expectedOldHead;
-  const actualSha = typeof casError.actualSha === 'string' ? casError.actualSha : null;
+  const expectedSha = casError.expectedSha ?? expectedOldHead;
+  const actualSha = casError.actualSha ?? null;
   return new WriterError(
     `Writer ref ${writerRef} has advanced since beginPatch(). ` +
     `Expected ${_displaySha(expectedSha)}, found ${_displaySha(actualSha)}. ` +
     'Call beginPatch() again to retry.',
-    { code: 'WRITER_REF_ADVANCED', cause },
+    { code: 'WRITER_REF_ADVANCED', cause: casError },
   );
 }
 
 /**
  * Classifies a commit error into the appropriate WriterError code.
  */
-function _classifyCommitError(err: unknown, ctx: CommitContext): WriterError { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function _classifyCommitError(err: CommitFailure, ctx: CommitContext): WriterError {
+  if (err instanceof WriterError && err.code === 'WRITER_CAS_CONFLICT') {
+    return _buildCasConflictError(err, ctx);
+  }
+  if (err instanceof WriterError && err.code === 'WRITER_REF_ADVANCED') {
+    return err;
+  }
   const { errMsg, cause } = _extractErrorInfo(err);
-  const casError = _extractCasError(err);
-  if (casError !== null && casError.code === 'WRITER_CAS_CONFLICT') {
-    return _buildCasConflictError(casError, cause, ctx);
-  }
-  if (errMsg.includes('Concurrent commit detected') || errMsg.includes('has advanced')) {
-    return new WriterError(errMsg, { code: 'WRITER_REF_ADVANCED', cause });
-  }
   return new WriterError(`Failed to persist patch: ${errMsg}`, { code: 'PERSIST_WRITE_FAILED', cause });
 }
 
@@ -211,7 +199,12 @@ export class PatchSession {
       this._committed = true;
       return sha;
     } catch (err) {
-      throw _classifyCommitError(err, { graphName: this._graphName, writerId: this._writerId, expectedOldHead: this._expectedOldHead });
+      const classifiedInput: CommitFailure = err instanceof Error ? err : String(err);
+      throw _classifyCommitError(classifiedInput, {
+        graphName: this._graphName,
+        writerId: this._writerId,
+        expectedOldHead: this._expectedOldHead,
+      });
     }
   }
 

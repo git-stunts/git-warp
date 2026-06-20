@@ -97,9 +97,13 @@ An **EffectSinkPort** is a hexagonal port. Each sink has an `id` and a
 ```js
 class EffectSinkPort {
   get id()  // → string
-  async deliver(emission, lens)  // → DeliveryObservation
+  async deliver(emission, lens)  // → DeliveryObservation[]
 }
 ```
+
+Single-observation sinks still return an array with one
+`DeliveryObservation`. This keeps the port shape identical for direct sinks and
+fan-out sinks.
 
 Concrete adapters implement this port:
 
@@ -122,12 +126,12 @@ class MultiplexSink extends EffectSinkPort {
   addSink(sink)     // register a child sink
   removeSink(id)    // unregister by id
   get sinks()       // → readonly sink array
-  async deliver(emission, lens)  // → DeliveryObservation[] (one per child)
+  async deliver(emission, lens)  // → DeliveryObservation[] (from children)
 }
 ```
 
-The multiplex sink's own `deliver()` returns an array of observations
-(one per child sink). Its own `id` is `'multiplex'`.
+The multiplex sink's own `deliver()` returns the concatenated child
+observation arrays. Its own `id` is `'multiplex'`.
 
 ### 6. Effect Pipeline
 

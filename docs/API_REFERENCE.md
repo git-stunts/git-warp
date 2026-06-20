@@ -232,6 +232,26 @@ const graph = await openWarpGraph({
 | `indexStore` | `IndexStorePort \| null` | No | Index store |
 | `adjacencyCacheSize` | `number` | No | Adjacency cache size |
 
+### Streamed Advanced Ports
+
+Some lower-level ports expose `WarpStream`-backed methods so callers can handle
+large substrate ranges without forcing full residency:
+
+| Port | Method | Stream item |
+| --- | --- | --- |
+| `CommitPort` | `logNodesStream(options)` | `CommitLogChunk` |
+| `PatchJournalPort` | `scanPatchRange(writerId, fromSha, toSha)` | `PatchEntry` |
+| `IndexStorePort` | `writeShards(shardStream)` | `IndexShard` input |
+| `IndexStorePort` | `scanShards(treeOid)` | `IndexShard` output |
+
+`CheckpointStorePort` owns folded checkpoint persistence. It is listed with the
+advanced storage ports because it participates in bounded recovery, but its
+current surface is checkpoint-oriented rather than a general stream scan.
+
+`WarpStream` is an async iterable. Advanced callers consume it with
+`for await`; adapters are responsible for converting host-specific streams or
+storage cursors into this domain stream boundary.
+
 ### WarpGraph interface
 
 The returned `WarpGraph` is a frozen object with these capability namespaces:

@@ -34,27 +34,27 @@ describe('ConsoleEffectSink', () => {
   it('logs to the provided logger in live mode', async () => {
     const info = vi.fn();
     const sink = new ConsoleEffectSink({ logger: { info } });
-    const obs = await sink.deliver(makeEmission(), LIVE_LENS);
+    const [obs] = await sink.deliver(makeEmission(), LIVE_LENS);
 
-    expect(obs.outcome).toBe('delivered');
+    expect(obs?.outcome).toBe('delivered');
     expect(info).toHaveBeenCalledTimes(1);
   });
 
   it('suppresses in replay mode', async () => {
     const info = vi.fn();
     const sink = new ConsoleEffectSink({ logger: { info } });
-    const obs = await sink.deliver(makeEmission(), REPLAY_LENS);
+    const [obs] = await sink.deliver(makeEmission(), REPLAY_LENS);
 
-    expect(obs.outcome).toBe('suppressed');
+    expect(obs?.outcome).toBe('suppressed');
     expect(info).not.toHaveBeenCalled();
   });
 
   it('suppresses in inspect mode', async () => {
     const info = vi.fn();
     const sink = new ConsoleEffectSink({ logger: { info } });
-    const obs = await sink.deliver(makeEmission(), INSPECT_LENS);
+    const [obs] = await sink.deliver(makeEmission(), INSPECT_LENS);
 
-    expect(obs.outcome).toBe('suppressed');
+    expect(obs?.outcome).toBe('suppressed');
     expect(info).not.toHaveBeenCalled();
   });
 });

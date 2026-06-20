@@ -57,9 +57,9 @@ export class ConsoleEffectSink extends EffectSinkPort {
     return this._id;
   }
 
-  deliver(emission: EffectEmission, lens: ExternalizationPolicy): Promise<DeliveryObservation> {
+  deliver(emission: EffectEmission, lens: ExternalizationPolicy): Promise<DeliveryObservation[]> {
     if (lens.suppressExternal) {
-      return Promise.resolve(buildSuppressedObservation(this._id, emission, lens));
+      return Promise.resolve([buildSuppressedObservation(this._id, emission, lens)]);
     }
 
     if (this._logger !== null) {
@@ -67,13 +67,13 @@ export class ConsoleEffectSink extends EffectSinkPort {
     }
 
     return Promise.resolve(
-      createDeliveryObservation({
+      [createDeliveryObservation({
         emissionId: emission.id,
         sinkId: this._id,
         outcome: OUTCOME_DELIVERED,
         timestamp: Date.now(),
         lens,
-      }),
+      })],
     );
   }
 }

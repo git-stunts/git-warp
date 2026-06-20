@@ -18,6 +18,7 @@
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type LogFields from '../../domain/types/log/LogFields.ts';
 import type LogFieldValue from '../../domain/types/log/LogFieldValue.ts';
+import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Narrows a raw `Record<string, unknown>` context into the typed
@@ -69,6 +70,12 @@ export default class LoggerObservabilityBridge {
 
   /** Creates a bridge that forwards CAS observability events to the given logger. */
   constructor(logger: LoggerPort) {
+    if (logger === null || logger === undefined) {
+      throw new WarpError(
+        'LoggerObservabilityBridge requires a logger',
+        'E_OBSERVABILITY_LOGGER_REQUIRED',
+      );
+    }
     this._logger = logger;
   }
 

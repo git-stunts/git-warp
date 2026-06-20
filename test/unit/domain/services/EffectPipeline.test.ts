@@ -5,9 +5,11 @@ import {
   LIVE_LENS,
   REPLAY_LENS,
   INSPECT_LENS,
+  type ExternalizationPolicy,
 } from '../../../../src/domain/types/ExternalizationPolicy.ts';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';
-import { createDeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.ts';
+import { createDeliveryObservation, type DeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.ts';
+import type { EffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
 
 class RecordingSink extends EffectSinkPort {
   _id: string;
@@ -24,14 +26,34 @@ class RecordingSink extends EffectSinkPort {
 
   async deliver(emission: any, lens: any) {
     this.delivered.push({ emission, lens });
-    return createDeliveryObservation({
+    return [createDeliveryObservation({
       emissionId: emission.id,
       sinkId: this._id,
       outcome: lens.suppressExternal ? 'suppressed' : 'delivered',
       ...(lens.suppressExternal ? { reason: `suppressed by ${lens.mode} lens` } : {}),
       timestamp: Date.now(),
       lens,
-    });
+    })];
+  }
+}
+
+class SingleObservationSink extends EffectSinkPort {
+  get id(): string {
+    return 'single-observation';
+  }
+
+  async deliver(
+    emission: EffectEmission,
+    lens: ExternalizationPolicy,
+  ): Promise<DeliveryObservation[]> {
+    // @ts-expect-error exercising runtime validation for stale JavaScript sinks
+    return Promise.resolve(createDeliveryObservation({
+      emissionId: emission.id,
+      sinkId: this.id,
+      outcome: 'delivered',
+      timestamp: 0,
+      lens,
+    }));
   }
 }
 
@@ -64,7 +86,7 @@ describe('EffectPipeline', () => {
       expect(result.emission.payload).toEqual({ text: 'hi' });
       expect(result.emission.timestamp).toBe(42);
       expect(result.observations).toHaveLength(1);
-      const obs0 = /** @type {{ outcome: string }} */ (Array.isArray(result.observations) ? result.observations[0] : result.observations);
+      const obs0 = result.observations[0];
       expect(obs0!.outcome).toBe('delivered');
       expect(sink.delivered).toHaveLength(1);
     });
@@ -151,7 +173,7 @@ describe('EffectPipeline', () => {
       const { pipeline } = setup(REPLAY_LENS);
       const result = await pipeline.emit('notification', null, emitOpts());
 
-      const obs0 = /** @type {{ outcome: string, reason: string }} */ (Array.isArray(result.observations) ? result.observations[0] : result.observations);
+      const obs0 = result.observations[0];
       expect(obs0!.outcome).toBe('suppressed');
       expect(obs0!.reason).toContain('replay');
     });
@@ -211,9 +233,22 @@ describe('EffectPipeline', () => {
       const pipeline = new EffectPipeline({ sink, lens: LIVE_LENS });
       const result = await pipeline.emit('test', null, { id: 'direct-1', timestamp: 0 });
 
-      const obs = /** @type {{ outcome: string }} */ (result.observations);
-      expect((obs as any).outcome).toBe('delivered');
+      expect(result.observations[0]?.outcome).toBe('delivered');
       expect(sink.delivered).toHaveLength(1);
+    });
+
+    it('rejects a direct sink that does not return an observation array', async () => {
+      const pipeline = new EffectPipeline({
+        sink: new SingleObservationSink(),
+        lens: LIVE_LENS,
+      });
+
+      await expect(
+        pipeline.emit('test', null, { id: 'bad-direct-1', timestamp: 0 }),
+      ).rejects.toMatchObject({
+        code: 'E_EFFECT_SINK_INVALID_OBSERVATION_BATCH',
+        context: { sinkId: 'single-observation' },
+      });
     });
   });
 });

@@ -5,12 +5,13 @@ import TrieBranch from "./TrieBranch.ts";
 import type TrieGeometry from "./TrieGeometry.ts";
 import TrieLeaf, { type TrieLeafEntry } from "./TrieLeaf.ts";
 import { compareBytes, pendingChildOid } from "./trieCursorHelpers.ts";
+import type { NibbleBits } from "../route/RouteKey.ts";
 
 type LoadChildKind = "leaf" | "branch" | null;
 
 export type TrieCompactorInit = {
   readonly geometry: TrieGeometry;
-  readonly nibbleBits: 1 | 2 | 4 | 8;
+  readonly nibbleBits: NibbleBits;
   readonly loadRootIfNeeded: () => Promise<void>;
   readonly hasRoot: () => boolean;
   readonly leafAt: (path: readonly number[]) => TrieLeaf | null;
@@ -49,7 +50,7 @@ type MergeCandidate = {
 
 export default class TrieCompactor {
   readonly #geometry: TrieGeometry;
-  readonly #nibbleBits: 1 | 2 | 4 | 8;
+  readonly #nibbleBits: NibbleBits;
   readonly #loadRootIfNeeded: () => Promise<void>;
   readonly #hasRoot: () => boolean;
   readonly #leafAt: (path: readonly number[]) => TrieLeaf | null;
@@ -326,7 +327,7 @@ function collapseLeafUp(
   leaf: TrieLeaf,
   childNibble: number,
   childDepth: number,
-  nibbleBits: 1 | 2 | 4 | 8,
+  nibbleBits: NibbleBits,
   geometry: TrieGeometry,
 ): TrieLeaf {
   const lengthened = leaf.entries().map((entry) => ({
@@ -348,9 +349,9 @@ function prependNibbleToSuffix(args: {
   readonly suffix: Uint8Array;
   readonly nibble: number;
   readonly depth: number;
-  readonly nibbleBits: 1 | 2 | 4 | 8;
+  readonly nibbleBits: NibbleBits;
 }): Uint8Array {
-  const oldSlots = (256 - args.depth * args.nibbleBits) / args.nibbleBits;
+  const oldSlots = Math.floor((256 - args.depth * args.nibbleBits) / args.nibbleBits);
   const totalSlots = oldSlots + 1;
   const totalBits = totalSlots * args.nibbleBits;
   const out = new Uint8Array(Math.ceil(totalBits / 8));
@@ -364,26 +365,40 @@ function prependNibbleToSuffix(args: {
 function readSlot(
   suffix: Uint8Array,
   slot: number,
-  nibbleBits: 1 | 2 | 4 | 8,
+  nibbleBits: NibbleBits,
 ): number {
   const bitOffset = slot * nibbleBits;
-  const byteIndex = Math.floor(bitOffset / 8);
-  const bitInByte = bitOffset % 8;
-  const shift = 8 - nibbleBits - bitInByte;
-  const mask = (1 << nibbleBits) - 1;
-  return ((suffix[byteIndex] ?? 0) >>> shift) & mask;
+  let value = 0;
+  for (let bitIndex = 0; bitIndex < nibbleBits; bitIndex += 1) {
+    value = (value << 1) | readBitMsbFirst(suffix, bitOffset + bitIndex);
+  }
+  return value;
 }
 
 function writeSlot(
   out: Uint8Array,
   slot: number,
-  nibbleBits: 1 | 2 | 4 | 8,
+  nibbleBits: NibbleBits,
   value: number,
 ): void {
   const bitOffset = slot * nibbleBits;
+  for (let bitIndex = 0; bitIndex < nibbleBits; bitIndex += 1) {
+    const bit = (value >>> (nibbleBits - bitIndex - 1)) & 1;
+    writeBitMsbFirst(out, bitOffset + bitIndex, bit);
+  }
+}
+
+function writeBitMsbFirst(out: Uint8Array, bitOffset: number, bit: number): void {
   const byteIndex = Math.floor(bitOffset / 8);
+  const byte = out[byteIndex] ?? 0;
   const bitInByte = bitOffset % 8;
-  const shift = 8 - nibbleBits - bitInByte;
-  const prev = out[byteIndex] ?? 0;
-  out[byteIndex] = (prev | (value << shift)) & 0xff;
+  const mask = 1 << (7 - bitInByte);
+  out[byteIndex] = bit === 1 ? byte | mask : byte & ~mask;
+}
+
+function readBitMsbFirst(bytes: Uint8Array, bitOffset: number): number {
+  const byteIndex = Math.floor(bitOffset / 8);
+  const byte = bytes[byteIndex] ?? 0;
+  const bitInByte = bitOffset % 8;
+  return (byte >>> (7 - bitInByte)) & 1;
 }

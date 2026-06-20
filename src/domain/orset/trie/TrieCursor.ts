@@ -3,7 +3,7 @@ import type VersionVector from "../../crdt/VersionVector.ts";
 import TrieCursorError from "../../errors/TrieCursorError.ts";
 import ORSetElementState from "../ORSetElementState.ts";
 import type CodecPort from "../../../ports/CodecPort.ts";
-import RouteKey from "../route/RouteKey.ts";
+import RouteKey, { type NibbleBits } from "../route/RouteKey.ts";
 
 import DirtyPageSet, { encodeDirtyPath } from "./DirtyPageSet.ts";
 import type PageCache from "./PageCache.ts";
@@ -46,7 +46,7 @@ interface InsertContext {
   readonly element: string;
   readonly encodedDot: string;
   readonly depth: number;
-  readonly nibbleBits: 1 | 2 | 4 | 8;
+  readonly nibbleBits: NibbleBits;
   readonly maxDepth: number;
 }
 
@@ -55,7 +55,7 @@ interface SplitContext {
   readonly leafPath: readonly number[];
   readonly nibbleInParent: number;
   readonly leafDepth: number;
-  readonly nibbleBits: 1 | 2 | 4 | 8;
+  readonly nibbleBits: NibbleBits;
   readonly maxDepth: number;
 }
 
@@ -191,7 +191,7 @@ export default class TrieCursor {
       encodedDot,
       depth: 0,
       nibbleBits,
-      maxDepth: 256 / nibbleBits,
+      maxDepth: Math.floor(256 / nibbleBits),
     };
   }
 
@@ -416,9 +416,9 @@ export default class TrieCursor {
   async #descendForLookup(
     routeKey: RouteKey,
     element: string,
-    nibbleBits: 1 | 2 | 4 | 8,
+    nibbleBits: NibbleBits,
   ): Promise<TrieLeafEntry | null> {
-    const maxDepth = 256 / nibbleBits;
+    const maxDepth = Math.floor(256 / nibbleBits);
     let path: readonly number[] = [];
     for (let depth = 0; depth < maxDepth; depth += 1) {
       const step = await this.#stepLookup({ routeKey, path, depth, nibbleBits });
@@ -440,7 +440,7 @@ export default class TrieCursor {
     readonly routeKey: RouteKey;
     readonly path: readonly number[];
     readonly depth: number;
-    readonly nibbleBits: 1 | 2 | 4 | 8;
+    readonly nibbleBits: NibbleBits;
   }): Promise<LookupStep> {
     const branch = this.#branchAt(args.path);
     if (branch === null) {
@@ -606,25 +606,30 @@ export default class TrieCursor {
     }
     const partitions = partitionEntriesByNextNibble(leaf, ctx.nibbleBits);
     this.#clearLeafAt(ctx.leafPath);
-    const newBranch = this.#installPartitionedLeaves(ctx.leafPath, partitions);
+    const newBranch = this.#installPartitionedLeaves(ctx, partitions);
     this.#markBranchDirty(ctx.leafPath, newBranch);
     this.#rebindParentBranch(ctx.parentPath, ctx.nibbleInParent);
     await this.#cascadeSplitsInto(ctx, newBranch);
   }
 
   #installPartitionedLeaves(
-    leafPath: readonly number[],
+    ctx: SplitContext,
     partitions: ReadonlyMap<number, readonly TrieLeafEntry[]>,
   ): TrieBranch {
     const childEntries = new Map<number, string>();
+    const suffixNibbles = ctx.maxDepth - ctx.leafDepth;
     for (const [childNibble, childEntriesList] of partitions) {
-      const childPath = [...leafPath, childNibble];
+      const childPath = [...ctx.leafPath, childNibble];
       const childLeaf = new TrieLeaf(
-        shortenEntries(childEntriesList, nibbleBitsOf(this.#geometry.nibbleBits)),
+        shortenEntries(
+          childEntriesList,
+          nibbleBitsOf(this.#geometry.nibbleBits),
+          suffixNibbles,
+        ),
         this.#geometry,
       );
       this.#markLeafDirty(childPath, childLeaf);
-      childEntries.set(childNibble, pendingChildOid(leafPath, childNibble));
+      childEntries.set(childNibble, pendingChildOid(ctx.leafPath, childNibble));
     }
     return new TrieBranch(childEntries, this.#geometry);
   }

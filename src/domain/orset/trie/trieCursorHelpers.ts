@@ -2,6 +2,7 @@ import TrieCursorError from "../../errors/TrieCursorError.ts";
 import TrieStoreError from "../../errors/TrieStoreError.ts";
 import type { Dot } from "../../crdt/Dot.ts";
 import type RouteKey from "../route/RouteKey.ts";
+import type { NibbleBits } from "../route/RouteKey.ts";
 
 import { encodeDirtyPath } from "./DirtyPageSet.ts";
 import TrieLeaf, { type TrieLeafEntry } from "./TrieLeaf.ts";
@@ -16,16 +17,16 @@ import TrieLeaf, { type TrieLeafEntry } from "./TrieLeaf.ts";
  * pure and testable in isolation.
  */
 
-const VALID_NIBBLE_BITS: ReadonlyArray<1 | 2 | 4 | 8> = [1, 2, 4, 8];
+const VALID_NIBBLE_BITS: ReadonlyArray<NibbleBits> = [1, 2, 4, 6, 8];
 
-export function nibbleBitsOf(n: number): 1 | 2 | 4 | 8 {
+export function nibbleBitsOf(n: number): NibbleBits {
   for (const candidate of VALID_NIBBLE_BITS) {
     if (candidate === n) {
       return candidate;
     }
   }
   throw new TrieCursorError(
-    `TrieCursor geometry nibbleBits must be 1, 2, 4, or 8; received ${String(n)}`,
+    `TrieCursor geometry nibbleBits must be 1, 2, 4, 6, or 8; received ${String(n)}`,
     { code: "E_TRIE_CURSOR_INPUT", context: { nibbleBits: n } },
   );
 }
@@ -66,7 +67,7 @@ function hasValidCounter(dot: Dot): boolean {
 export function suffixOfRouteKey(
   routeKey: RouteKey,
   depth: number,
-  nibbleBits: 1 | 2 | 4 | 8,
+  nibbleBits: NibbleBits,
 ): Uint8Array {
   // Always pack MSB-first so the representation is consistent
   // across byte-aligned and sub-byte-aligned depths. A consistent
@@ -78,9 +79,9 @@ export function suffixOfRouteKey(
 function packSuffixMsbFirst(
   routeKey: RouteKey,
   depth: number,
-  nibbleBits: 1 | 2 | 4 | 8,
+  nibbleBits: NibbleBits,
 ): Uint8Array {
-  const maxDepth = 256 / nibbleBits;
+  const maxDepth = Math.floor(256 / nibbleBits);
   const nibblesLeft = maxDepth - depth;
   const byteCount = Math.ceil((nibblesLeft * nibbleBits) / 8);
   const out = new Uint8Array(byteCount);
@@ -93,22 +94,29 @@ function packSuffixMsbFirst(
 function writeNibbleAt(args: {
   readonly out: Uint8Array;
   readonly slot: number;
-  readonly nibbleBits: 1 | 2 | 4 | 8;
+  readonly nibbleBits: NibbleBits;
   readonly value: number;
 }): void {
   const bitOffset = args.slot * args.nibbleBits;
+  for (let bitIndex = 0; bitIndex < args.nibbleBits; bitIndex += 1) {
+    const bit = (args.value >>> (args.nibbleBits - bitIndex - 1)) & 1;
+    writeBitMsbFirst(args.out, bitOffset + bitIndex, bit);
+  }
+}
+
+function writeBitMsbFirst(out: Uint8Array, bitOffset: number, bit: number): void {
   const byteIndex = Math.floor(bitOffset / 8);
+  const byte = out[byteIndex] ?? 0;
   const bitInByte = bitOffset % 8;
-  const shift = 8 - args.nibbleBits - bitInByte;
-  const prev = args.out[byteIndex] ?? 0;
-  args.out[byteIndex] = (prev | (args.value << shift)) & 0xff;
+  const mask = 1 << (7 - bitInByte);
+  out[byteIndex] = bit === 1 ? byte | mask : byte & ~mask;
 }
 
 export interface UpsertArgs {
   readonly leaf: TrieLeaf;
   readonly routeKey: RouteKey;
   readonly leafDepth: number;
-  readonly nibbleBits: 1 | 2 | 4 | 8;
+  readonly nibbleBits: NibbleBits;
   readonly element: string;
   readonly encodedDot: string;
 }
@@ -229,7 +237,7 @@ export interface FindEntryArgs {
   readonly leaf: TrieLeaf;
   readonly routeKey: RouteKey;
   readonly depth: number;
-  readonly nibbleBits: 1 | 2 | 4 | 8;
+  readonly nibbleBits: NibbleBits;
   readonly element: string;
 }
 
@@ -320,7 +328,7 @@ function bytesEqualInRange(
 
 export function partitionEntriesByNextNibble(
   leaf: TrieLeaf,
-  nibbleBits: 1 | 2 | 4 | 8,
+  nibbleBits: NibbleBits,
 ): ReadonlyMap<number, readonly TrieLeafEntry[]> {
   const out = new Map<number, TrieLeafEntry[]>();
   for (const entry of leaf.entries()) {
@@ -345,7 +353,7 @@ function pushIntoBucket(
 
 function firstNibbleOfSuffix(
   suffix: Uint8Array,
-  nibbleBits: 1 | 2 | 4 | 8,
+  nibbleBits: NibbleBits,
 ): number {
   const byte = suffix[0] ?? 0;
   const shift = 8 - nibbleBits;
@@ -355,10 +363,15 @@ function firstNibbleOfSuffix(
 
 export function shortenEntries(
   entries: readonly TrieLeafEntry[],
-  nibbleBits: 1 | 2 | 4 | 8,
+  nibbleBits: NibbleBits,
+  suffixNibbles: number,
 ): TrieLeafEntry[] {
   const shortened = entries.map((entry) => ({
-    routeKeySuffix: shiftSuffixLeftByOneNibble(entry.routeKeySuffix, nibbleBits),
+    routeKeySuffix: shiftSuffixLeftByOneNibble(
+      entry.routeKeySuffix,
+      nibbleBits,
+      suffixNibbles,
+    ),
     element: entry.element,
     dots: entry.dots,
     tombstonedDots: entry.tombstonedDots,
@@ -375,20 +388,30 @@ export function shortenEntries(
  */
 export function shiftSuffixLeftByOneNibble(
   suffix: Uint8Array,
-  nibbleBits: 1 | 2 | 4 | 8,
+  nibbleBits: NibbleBits,
+  suffixNibbles: number,
 ): Uint8Array {
-  const totalBits = suffix.length * 8 - nibbleBits;
+  const totalBits = (suffixNibbles - 1) * nibbleBits;
   if (totalBits <= 0) {
     return new Uint8Array(0);
   }
   const newLength = Math.ceil(totalBits / 8);
   const out = new Uint8Array(newLength);
-  for (let i = 0; i < newLength; i += 1) {
-    const hi = (suffix[i] ?? 0) << nibbleBits;
-    const lo = (suffix[i + 1] ?? 0) >>> (8 - nibbleBits);
-    out[i] = (hi | lo) & 0xff;
+  for (let bitIndex = 0; bitIndex < totalBits; bitIndex += 1) {
+    writeBitMsbFirst(
+      out,
+      bitIndex,
+      readBitMsbFirst(suffix, nibbleBits + bitIndex),
+    );
   }
   return out;
+}
+
+function readBitMsbFirst(bytes: Uint8Array, bitOffset: number): number {
+  const byteIndex = Math.floor(bitOffset / 8);
+  const byte = bytes[byteIndex] ?? 0;
+  const bitInByte = bitOffset % 8;
+  return (byte >>> (7 - bitInByte)) & 1;
 }
 
 export function tombstoneEntry(

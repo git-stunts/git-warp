@@ -19,14 +19,14 @@ export const ROUTE_KEY_BITS = ROUTE_KEY_BYTES * 8;
  * Supported nibble widths in bits.
  *
  * The trie geometry parameterizes branching factor via nibble width.
- * 4 bits gives 16-way branching, 8 bits gives 256-way. Nibble width
- * must divide 8 evenly so a nibble never straddles a byte boundary
- * that way simple, or must be small enough that straddling is handled
- * by the byte-shift extraction below. Supported widths are 1, 2, 4, 8.
+ * 4 bits gives 16-way branching, 6 bits gives 64-way branching, and
+ * 8 bits gives 256-way branching. Non-byte-aligned widths may
+ * straddle byte boundaries; extraction reads individual bits
+ * MSB-first so every supported width has the same semantics.
  */
-export type NibbleBits = 1 | 2 | 4 | 8;
+export type NibbleBits = 1 | 2 | 4 | 6 | 8;
 
-const SUPPORTED_NIBBLE_BITS: ReadonlyArray<NibbleBits> = [1, 2, 4, 8];
+const SUPPORTED_NIBBLE_BITS: ReadonlyArray<NibbleBits> = [1, 2, 4, 6, 8];
 
 /**
  * Binary route key derived from an element ID via blake3.
@@ -94,19 +94,7 @@ export default class RouteKey {
   nibbleAt(depth: number, nibbleBits: NibbleBits): number {
     validateNibbleAtArgs(depth, nibbleBits);
     const bitOffset = depth * nibbleBits;
-    const byteIndex = Math.floor(bitOffset / 8);
-    const bitInByte = bitOffset % 8;
-    // Bits read MSB-first within a byte; shift so the nibble's high bit sits at position nibbleBits-1.
-    const shift = 8 - nibbleBits - bitInByte;
-    const mask = (1 << nibbleBits) - 1;
-    const byte = this.bytes[byteIndex];
-    if (byte === undefined) {
-      throw new RouteKeyError(
-        `RouteKey.nibbleAt internal error: byte index ${String(byteIndex)} out of bounds`,
-        { code: "E_ROUTE_KEY_BYTES" },
-      );
-    }
-    return (byte >>> shift) & mask;
+    return readBitsMsbFirst(this.bytes, bitOffset, nibbleBits);
   }
 
   /**
@@ -127,7 +115,7 @@ export default class RouteKey {
 function validateNibbleAtArgs(depth: number, nibbleBits: NibbleBits): void {
   if (!SUPPORTED_NIBBLE_BITS.includes(nibbleBits)) {
     throw new RouteKeyError(
-      `RouteKey.nibbleAt requires nibbleBits in {1,2,4,8}; received ${String(nibbleBits)}`,
+      `RouteKey.nibbleAt requires nibbleBits in {1,2,4,6,8}; received ${String(nibbleBits)}`,
       { code: "E_ROUTE_KEY_NIBBLE_BITS" },
     );
   }
@@ -137,11 +125,32 @@ function validateNibbleAtArgs(depth: number, nibbleBits: NibbleBits): void {
       { code: "E_ROUTE_KEY_DEPTH" },
     );
   }
-  const maxDepth = ROUTE_KEY_BITS / nibbleBits;
+  const maxDepth = Math.floor(ROUTE_KEY_BITS / nibbleBits);
   if (depth >= maxDepth) {
     throw new RouteKeyError(
       `RouteKey.nibbleAt depth ${String(depth)} exceeds maximum ${String(maxDepth - 1)} for nibbleBits=${String(nibbleBits)}`,
       { code: "E_ROUTE_KEY_DEPTH" },
     );
   }
+}
+
+function readBitsMsbFirst(bytes: Uint8Array, bitOffset: number, width: NibbleBits): number {
+  let value = 0;
+  for (let bitIndex = 0; bitIndex < width; bitIndex += 1) {
+    value = (value << 1) | readBitMsbFirst(bytes, bitOffset + bitIndex);
+  }
+  return value;
+}
+
+function readBitMsbFirst(bytes: Uint8Array, bitOffset: number): number {
+  const byteIndex = Math.floor(bitOffset / 8);
+  const byte = bytes[byteIndex];
+  if (byte === undefined) {
+    throw new RouteKeyError(
+      `RouteKey.nibbleAt internal error: byte index ${String(byteIndex)} out of bounds`,
+      { code: "E_ROUTE_KEY_BYTES" },
+    );
+  }
+  const bitInByte = bitOffset % 8;
+  return (byte >>> (7 - bitInByte)) & 1;
 }
