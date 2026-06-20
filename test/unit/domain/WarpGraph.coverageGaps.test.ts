@@ -263,9 +263,12 @@ describe('WarpCore coverage gaps', () => {
 
       graph.join(otherState);
 
-      expect((graph as any)._stateDirty).toBe(false);
-      const materialized = (graph as any)._materializedGraph;
+      expect(graph._stateDirty).toBe(false);
+      const materialized = graph._materializedGraph;
       expect(materialized).not.toBeNull();
+      if (materialized === null) {
+        throw new Error('expected materialized graph');
+      }
       expect(materialized.state.nodeAlive.elements()).toEqual(['user:alice']);
       expect(materialized.adjacency.outgoing.size).toBe(0);
       expect(materialized.adjacency.incoming.size).toBe(0);
