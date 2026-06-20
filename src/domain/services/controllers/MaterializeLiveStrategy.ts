@@ -28,16 +28,15 @@ export default class MaterializeLiveStrategy {
     checkpoint: CheckpointData,
     opts: MaterializeLiveOptions,
   ): Promise<MaterializeResult> {
-    const patches = await this.collectPatchStream(this.runtime.deps.patches.streamPatchesSince(checkpoint));
-    const reduced = await this.runtime.reducePatches(patches, checkpoint.state, opts);
-    const provenance = this.runtime.buildProvenance(
-      patches,
+    const reduction = await this.runtime.reducePatchStream(
+      this.runtime.deps.patches.streamPatchesSince(checkpoint),
+      checkpoint.state,
+      opts,
       checkpoint.provenanceIndex,
     );
     return await this.runtime.buildResult({
-      reduced,
-      patches,
-      provenance,
+      reduced: reduction.reduced,
+      summary: reduction.summary,
       degraded: false,
       ceiling: null,
       frontier: null,
@@ -49,35 +48,26 @@ export default class MaterializeLiveStrategy {
     if (writers.length === 0) {
       return await this.runtime.emptyResult();
     }
-    const patches = await this.loadAllPatches(writers);
-    if (patches.length === 0) {
+    const reduction = await this.runtime.reducePatchStream(
+      this.streamAllPatches(writers),
+      undefined,
+      opts,
+    );
+    if (reduction.summary.patchCount === 0) {
       return await this.runtime.emptyResult();
     }
-    const reduced = await this.runtime.reducePatches(patches, undefined, opts);
     return await this.runtime.buildResult({
-      reduced,
-      patches,
-      provenance: this.runtime.buildProvenance(patches),
+      reduced: reduction.reduced,
+      summary: reduction.summary,
       degraded: false,
       ceiling: null,
       frontier: null,
     });
   }
 
-  private async loadAllPatches(writers: string[]): Promise<PatchWithSha[]> {
-    const all: PatchWithSha[] = [];
+  private async *streamAllPatches(writers: string[]): AsyncIterable<PatchWithSha> {
     for (const writerId of writers) {
-      const patches = await this.collectPatchStream(this.runtime.deps.patches.streamWriterPatches(writerId));
-      all.push(...patches);
+      yield* this.runtime.deps.patches.streamWriterPatches(writerId);
     }
-    return all;
-  }
-
-  private async collectPatchStream(stream: AsyncIterable<PatchWithSha>): Promise<PatchWithSha[]> {
-    const all: PatchWithSha[] = [];
-    for await (const patch of stream) {
-      all.push(patch);
-    }
-    return all;
   }
 }

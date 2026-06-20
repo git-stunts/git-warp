@@ -18,7 +18,6 @@ import {
   normalizeFrontierInput,
   normalizeExplicitCeiling,
   buildAdjacency,
-  maxLamportInPatches,
   type MaterializeAdjacency,
 } from './MaterializeHelpers.ts';
 import {
@@ -29,6 +28,11 @@ import MaterializeLiveStrategy from './MaterializeLiveStrategy.ts';
 import MaterializeCoordinateStrategy from './MaterializeCoordinateStrategy.ts';
 import MaterializeCeilingStrategy from './MaterializeCeilingStrategy.ts';
 import MaterializeCheckpointStrategy from './MaterializeCheckpointStrategy.ts';
+import MaterializePatchStreamReducer, {
+  type MaterializePatchStreamOptions,
+  type MaterializePatchStreamReduction,
+} from './MaterializePatchStreamReducer.ts';
+import { summarizeMaterializePatches } from './MaterializePatchSummary.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
@@ -261,9 +265,9 @@ export default class MaterializeController {
       adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
       receipts: params.reduced.receipts,
       diff: params.reduced.diff,
-      patchCount: params.patches.length,
-      maxObservedLamport: maxLamportInPatches(params.patches),
-      provenanceIndex: params.provenance,
+      patchCount: params.summary.patchCount,
+      maxObservedLamport: params.summary.maxObservedLamport,
+      provenanceIndex: params.summary.provenance,
       provenanceDegraded: params.degraded,
       frontier: params.frontier,
       ceiling: params.ceiling,
@@ -289,12 +293,39 @@ export default class MaterializeController {
     return await reduceSessionBackedState(sessionArgs);
   }
 
+  private async _reducePatchStream(
+    stream: AsyncIterable<PatchWithSha>,
+    base: WarpState | undefined,
+    opts: MaterializePatchStreamOptions,
+    provenanceBase?: ProvenanceIndex,
+  ): Promise<MaterializePatchStreamReduction> {
+    if (this._deps.openStateSession === undefined) {
+      return await MaterializePatchStreamReducer.reduce({
+        source: stream,
+        base,
+        options: opts,
+        ...(provenanceBase === undefined ? {} : { provenanceBase }),
+      });
+    }
+    const patches: PatchWithSha[] = [];
+    for await (const entry of stream) {
+      patches.push(entry);
+    }
+    const reduced = await this._reducePatches(patches, base, opts);
+    return {
+      reduced,
+      summary: summarizeMaterializePatches(patches, provenanceBase),
+    };
+  }
+
   private _createStrategyRuntime(): MaterializeStrategyRuntime {
     return {
       deps: this._deps,
       emptyResult: async (ceiling, frontier) => await this._emptyResult(ceiling, frontier),
       wrapState: async (state, ceiling, frontier) => await this._wrapState(state, ceiling, frontier),
       reducePatches: async (patches, base, opts) => await this._reducePatches(patches, base, opts),
+      reducePatchStream: async (stream, base, opts, provenanceBase) =>
+        await this._reducePatchStream(stream, base, opts, provenanceBase),
       buildResult: async (params) => await this._buildResult(params),
       buildProvenance: (patches, base) => buildProvenance(patches, base),
       loadPersistence: () => this._loadPersistence(),

@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Patch collection for materialization now has stream-first frontier,
   checkpoint, and writer patch APIs, with legacy array collectors reduced to
   stream collection wrappers.
+- Materialization now reduces default-runtime patch streams directly and carries
+  a deterministic witness that fails if live materialization buffers patch
+  entries before reducing them.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.
