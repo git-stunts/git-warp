@@ -6,8 +6,11 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
 import BlobStoragePort from '../../../src/ports/BlobStoragePort.ts';
 import EncryptionError from '../../../src/domain/errors/EncryptionError.ts';
+import { CborPatchJournalAdapter } from '../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
+import SubstrateCompatibilityPolicy from '../../../src/infrastructure/adapters/SubstrateCompatibilityPolicy.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 // ---------------------------------------------------------------------------
@@ -51,6 +54,18 @@ class InMemoryBlobStorage extends BlobStoragePort {
     yield* ([] as Uint8Array[]);
     throw new Error('retrieveStream not implemented');
   }
+}
+
+function createMixedStoragePatchJournal(repo, patchStorage) {
+  return new CborPatchJournalAdapter({
+    codec: defaultCodec,
+    blobPort: repo.persistence,
+    commitPort: repo.persistence,
+    patchBlobStorage: patchStorage,
+    compatibilityPolicy: new SubstrateCompatibilityPolicy({
+      legacyPatchStorageReads: true,
+    }),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +177,7 @@ describe('WarpCore encryption at rest (B164)', () => {
       graphName: 'mixed-test',
       writerId: 'writer-2',
       patchBlobStorage: patchStorage,
+      patchJournal: createMixedStoragePatchJournal(repo, patchStorage),
     });
     await graph2.patch(p => {
       p.addNode('user:secret');
@@ -174,6 +190,7 @@ describe('WarpCore encryption at rest (B164)', () => {
       graphName: 'mixed-test',
       writerId: 'reader',
       patchBlobStorage: patchStorage,
+      patchJournal: createMixedStoragePatchJournal(repo, patchStorage),
     });
     await graph3.materialize();
 

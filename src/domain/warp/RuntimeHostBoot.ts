@@ -168,7 +168,9 @@ export class WarpOpenOptions {
     if (options.patchJournal !== undefined) { this.patchJournal = options.patchJournal; }
     if (options.checkpointStore !== undefined) { this.checkpointStore = options.checkpointStore; }
     if (options.indexStore !== undefined) { this.indexStore = options.indexStore; }
-    if (options.trust !== undefined) { this.trust = Object.freeze({ ...options.trust }); }
+    if (options.trust !== undefined) {
+      this.trust = Object.freeze(normalizeTrustConfig(options.trust));
+    }
     if (options.effectPipeline !== undefined) { this.effectPipeline = options.effectPipeline; }
     if (options.effectSinks !== undefined) { this.effectSinks = Object.freeze([...options.effectSinks]); }
     if (options.externalizationPolicy !== undefined) { this.externalizationPolicy = options.externalizationPolicy; }
