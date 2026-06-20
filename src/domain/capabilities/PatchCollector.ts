@@ -1,5 +1,6 @@
 import type Patch from '../types/Patch.ts';
 import type WarpState from '../services/state/WarpState.ts';
+import type { ProvenanceIndex } from '../services/provenance/ProvenanceIndex.ts';
 
 /** A patch with its content-addressable SHA. */
 export type PatchWithSha = { patch: Patch; sha: string };
@@ -10,7 +11,7 @@ export type CheckpointData = {
   frontier: Map<string, string>;
   stateHash: string;
   schema: number;
-  provenanceIndex?: { clone(): unknown; addPatch(sha: string, reads?: string[], writes?: string[]): void } | undefined; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  provenanceIndex?: ProvenanceIndex | undefined;
   indexShardOids?: Record<string, string> | null | undefined;
 };
 
