@@ -85,6 +85,7 @@ describe('TrustRecordSchema — subject transforms propagate', () => {
     if (result.success) {
       expect(result.data.subject['writerId']).toBe('alice');
     }
+    expect(record.subject.writerId).toBe('  alice  ');
   });
 
   it('trims writerId in WRITER_BIND_REVOKE subject through TrustRecordSchema', () => {
@@ -107,5 +108,6 @@ describe('TrustRecordSchema — subject transforms propagate', () => {
     if (result.success) {
       expect(result.data.subject['writerId']).toBe('bob');
     }
+    expect(record.subject.writerId).toBe('  bob  ');
   });
 });

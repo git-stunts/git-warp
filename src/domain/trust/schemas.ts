@@ -60,16 +60,21 @@ const WriterBindRevokeSubjectSchema = z.object({
   reasonCode: z.enum(['ACCESS_REMOVED', 'ROTATION', 'KEY_REVOKED']),
 });
 
+// -- Inferred subject types (runtime truth via Zod) ---------------------------
+
+type KeyAddSubject = z.infer<typeof KeyAddSubjectSchema>;
+type KeyRevokeSubject = z.infer<typeof KeyRevokeSubjectSchema>;
+type WriterBindAddSubject = z.infer<typeof WriterBindAddSubjectSchema>;
+type WriterBindRevokeSubject = z.infer<typeof WriterBindRevokeSubjectSchema>;
+type TrustRecordSubject =
+  | KeyAddSubject
+  | KeyRevokeSubject
+  | WriterBindAddSubject
+  | WriterBindRevokeSubject;
+
 // -- Subject dispatch map (DRY: one lookup, not four identical functions) ------
 
 type RecordType = z.infer<typeof RecordTypeSchema>;
-
-const SUBJECT_SCHEMAS: Record<RecordType, z.ZodTypeAny> = {
-  KEY_ADD: KeyAddSubjectSchema,
-  KEY_REVOKE: KeyRevokeSubjectSchema,
-  WRITER_BIND_ADD: WriterBindAddSubjectSchema,
-  WRITER_BIND_REVOKE: WriterBindRevokeSubjectSchema,
-};
 
 // -- Trust record envelope ----------------------------------------------------
 
@@ -83,18 +88,47 @@ const TrustRecordSchema = z.object({
   subject: z.record(z.unknown()), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   meta: z.record(z.unknown()).optional().default({}), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   signature: TrustSignatureSchema,
-}).superRefine((record, ctx) => {
-  const schema = SUBJECT_SCHEMAS[record.recordType];
-  const result = schema.safeParse(record.subject);
-  if (!result.success) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Invalid ${record.recordType} subject: ${result.error.message}`,
-    });
-  } else {
-    record.subject = result.data as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  }
+}).transform((record, ctx) => {
+  const subject = parseSubject(record.recordType, record.subject, ctx);
+  return {
+    ...record,
+    subject,
+  };
 });
+
+function parseSubject(
+  recordType: RecordType,
+  subject: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  ctx: z.RefinementCtx,
+): TrustRecordSubject {
+  if (recordType === 'KEY_ADD') {
+    return parseSpecificSubject({ schema: KeyAddSubjectSchema, recordType, subject, ctx });
+  }
+  if (recordType === 'KEY_REVOKE') {
+    return parseSpecificSubject({ schema: KeyRevokeSubjectSchema, recordType, subject, ctx });
+  }
+  if (recordType === 'WRITER_BIND_ADD') {
+    return parseSpecificSubject({ schema: WriterBindAddSubjectSchema, recordType, subject, ctx });
+  }
+  return parseSpecificSubject({ schema: WriterBindRevokeSubjectSchema, recordType, subject, ctx });
+}
+
+function parseSpecificSubject<T>(params: {
+  readonly schema: z.ZodType<T>;
+  readonly recordType: RecordType;
+  readonly subject: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  readonly ctx: z.RefinementCtx;
+}): T {
+  const result = params.schema.safeParse(params.subject);
+  if (result.success) {
+    return result.data;
+  }
+  params.ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: `Invalid ${params.recordType} subject: ${result.error.message}`,
+  });
+  return z.NEVER;
+}
 
 // -- Policy config ------------------------------------------------------------
 
@@ -136,12 +170,6 @@ const TrustAssessmentSchema = z.object({
   }),
 });
 
-// -- Inferred subject types (runtime truth via Zod) ---------------------------
-
-type KeyAddSubject = z.infer<typeof KeyAddSubjectSchema>;
-type KeyRevokeSubject = z.infer<typeof KeyRevokeSubjectSchema>;
-type WriterBindAddSubject = z.infer<typeof WriterBindAddSubjectSchema>;
-type WriterBindRevokeSubject = z.infer<typeof WriterBindRevokeSubjectSchema>;
 type TrustSignature = z.infer<typeof TrustSignatureSchema>;
 type TrustPolicy = z.infer<typeof TrustPolicySchema>;
 type TrustExplanation = z.infer<typeof TrustExplanationSchema>;
