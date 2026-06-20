@@ -76,6 +76,7 @@ import {
 import QueryBuilder from './src/domain/services/query/QueryBuilder.ts';
 import BoundedSupportRule from './src/domain/services/query/BoundedSupportRule.ts';
 import CausalIndexPlan from './src/domain/services/query/CausalIndexPlan.ts';
+import SupportFragmentPlan from './src/domain/services/query/SupportFragmentPlan.ts';
 import Observer from './src/domain/services/query/Observer.ts';
 import ObserverAccumulation from './src/domain/services/query/ObserverAccumulation.ts';
 import ObserverBasis from './src/domain/services/query/ObserverBasis.ts';
@@ -200,6 +201,10 @@ import type {
   CausalIndexPlanFields,
   CausalIndexPlanPosture,
 } from './src/domain/services/query/CausalIndexPlan.ts';
+import type {
+  SupportFragmentMaterializationPosture,
+  SupportFragmentPlanFields,
+} from './src/domain/services/query/SupportFragmentPlan.ts';
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
@@ -390,6 +395,7 @@ export {
   StrandSelector,
   BoundedSupportRule,
   CausalIndexPlan,
+  SupportFragmentPlan,
   QueryBuilder,
   Observer,
   ObserverAccumulation,
@@ -539,6 +545,8 @@ export type {
   CausalIndexFamily,
   CausalIndexPlanFields,
   CausalIndexPlanPosture,
+  SupportFragmentMaterializationPosture,
+  SupportFragmentPlanFields,
   GraphDiffFields,
   ObserverPlanFields,
   ObserverReadingEnvelopeBudget,

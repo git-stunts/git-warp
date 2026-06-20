@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CausalIndexPlan` now carries the query-provider index posture for bounded
   support rules, including the existing provenance entity-patch index family and
   explicit global-discovery fallback.
+- `SupportFragmentPlan` now gives bounded query reads a support-scoped fragment
+  materialization contract, including coordinate-scoped fragment keys and an
+  explicit `global-fallback` posture for discovery queries.
 - `GraphDiff` now exposes a first-class comparison diff result for live Lamport
   ranges through `comparison.diff({ from, to })`, without routing through
   wildcard query scans.

@@ -5,6 +5,7 @@ import type {
 } from './QueryPlan.ts';
 import type BoundedSupportRule from './BoundedSupportRule.ts';
 import type CausalIndexPlan from './CausalIndexPlan.ts';
+import type SupportFragmentPlan from './SupportFragmentPlan.ts';
 
 export type QueryPropertyBag = QueryNodePropertyBag;
 
@@ -39,6 +40,7 @@ export type QueryReadModelOpenRequest = {
   readonly aggregate: boolean;
   readonly supportRule: BoundedSupportRule;
   readonly causalIndexPlan: CausalIndexPlan;
+  readonly supportFragmentPlan: SupportFragmentPlan;
 };
 
 export interface QueryReadModelProvider {

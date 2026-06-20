@@ -10,6 +10,7 @@ import ImmutableBytes from '../snapshot/ImmutableBytes.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type { AggregateResult } from './QueryAggregation.ts';
 import BoundedSupportRule from './BoundedSupportRule.ts';
+import SupportFragmentPlan from './SupportFragmentPlan.ts';
 import QueryPlan, { type AggregateSpec, type QueryNodeSnapshot, type QueryOperation } from './QueryPlan.ts';
 import QueryRunner, { type QueryResult } from './QueryRunner.ts';
 import type { QueryReadModelProvider } from './QueryReadModelProvider.ts';
@@ -173,6 +174,10 @@ export default class QueryBuilder {
 
   supportRule(): BoundedSupportRule {
     return BoundedSupportRule.fromQueryPlan(this.toPlan());
+  }
+
+  supportFragmentPlan(): SupportFragmentPlan {
+    return SupportFragmentPlan.fromSupportRule(this.supportRule());
   }
 
   match(pattern: string | string[]): QueryBuilder {

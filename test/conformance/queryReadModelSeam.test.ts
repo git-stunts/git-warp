@@ -162,6 +162,8 @@ describe('query read model seam', () => {
     const openRequest = provider.openRequests[0];
     expect(openRequest?.supportRule.kind).toBe('entity');
     expect(openRequest?.causalIndexPlan.families).toEqual(['entity-patch']);
+    expect(openRequest?.supportFragmentPlan.posture).toBe('support-fragment');
+    expect(openRequest?.supportFragmentPlan.scopeKey).toContain('roots:node:target');
   });
 
   it('lets QueryBuilder compose traversal and projection on the narrow provider', async () => {

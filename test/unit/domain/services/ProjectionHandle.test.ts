@@ -4,6 +4,7 @@ import type { WorldlineSource } from '../../../../src/domain/capabilities/QueryC
 import Observer, { type ObserverBacking } from '../../../../src/domain/services/query/Observer.ts';
 import BoundedSupportRule from '../../../../src/domain/services/query/BoundedSupportRule.ts';
 import CausalIndexPlan from '../../../../src/domain/services/query/CausalIndexPlan.ts';
+import SupportFragmentPlan from '../../../../src/domain/services/query/SupportFragmentPlan.ts';
 import type {
   QueryNeighborEntry,
   QueryNeighborOptions,
@@ -154,12 +155,17 @@ describe('ProjectionHandle', () => {
       surface: 'query',
       nodeIds: ['node:a'],
     });
+    const causalIndexPlan = CausalIndexPlan.fromSupportRule(supportRule);
     const request: QueryReadModelOpenRequest = {
       nodeRequest: { pattern: 'node:a', select: ['id'] },
       operations: [],
       aggregate: false,
       supportRule,
-      causalIndexPlan: CausalIndexPlan.fromSupportRule(supportRule),
+      causalIndexPlan,
+      supportFragmentPlan: SupportFragmentPlan.fromSupportAndIndex({
+        supportRule,
+        causalIndexPlan,
+      }),
     };
 
     await worldline.openQueryReadModel(request);

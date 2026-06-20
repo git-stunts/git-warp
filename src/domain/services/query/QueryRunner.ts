@@ -3,6 +3,7 @@
 import QueryError from '../../errors/QueryError.ts';
 import BoundedSupportRule from './BoundedSupportRule.ts';
 import CausalIndexPlan from './CausalIndexPlan.ts';
+import SupportFragmentPlan from './SupportFragmentPlan.ts';
 import type QueryPlan from './QueryPlan.ts';
 import type {
   QueryNodeEdgeSnapshot,
@@ -422,11 +423,16 @@ function openRequest(
   nodeRequest: QueryNodeStreamRequest,
 ): QueryReadModelOpenRequest {
   const supportRule = BoundedSupportRule.fromQueryPlan(plan);
+  const causalIndexPlan = CausalIndexPlan.fromSupportRule(supportRule);
   return {
     nodeRequest,
     operations: plan.operations,
     aggregate: plan.aggregate !== null,
     supportRule,
-    causalIndexPlan: CausalIndexPlan.fromSupportRule(supportRule),
+    causalIndexPlan,
+    supportFragmentPlan: SupportFragmentPlan.fromSupportAndIndex({
+      supportRule,
+      causalIndexPlan,
+    }),
   };
 }

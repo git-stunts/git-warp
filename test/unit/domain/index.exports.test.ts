@@ -83,6 +83,7 @@ import WarpAppDefault, {
   createStateReader,
   compareVisibleState,
   GraphDiff,
+  SupportFragmentPlan,
   normalizeVisibleStateScope,
   scopeMaterializedState,
   ContinuumArtifactAuthority,
@@ -600,6 +601,8 @@ describe('index.ts exports', () => {
     it('exports GraphDiff', () => {
       expect(GraphDiff).toBeDefined();
       expect(typeof GraphDiff).toBe('function');
+      expect(SupportFragmentPlan).toBeDefined();
+      expect(typeof SupportFragmentPlan).toBe('function');
     });
   });
 

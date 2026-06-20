@@ -764,6 +764,23 @@ entity reads to the existing provenance entity-patch index, maps exact rooted
 traversals to a composite entity-patch plus neighborhood-adjacency posture, and
 marks wildcard discovery as requiring a global scan.
 
+`supportFragmentPlan()` exposes the fragment-materialization posture derived
+from the same support rule:
+
+```typescript
+const fragmentPlan = worldline.query()
+  .match('user:alice')
+  .supportFragmentPlan();
+
+fragmentPlan.canMaterializeSupportFragment(); // true
+fragmentPlan.fragmentKeyForCoordinate('frontier:demo');
+```
+
+`QueryReadModelOpenRequest` also carries `supportFragmentPlan`, so read-model
+providers can cache fragments keyed by support scope plus coordinate. Wildcard
+and discovery queries produce `global-fallback` plans instead of fake fragment
+keys.
+
 #### Filtering with `where()`
 
 **Object shorthand** — strict equality on primitive values. Multiple properties use AND semantics:
