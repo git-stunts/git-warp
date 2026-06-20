@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   orchestrator, keeping graph access and hashing dependencies narrow.
 - Same-writer race coverage now includes isolated runtime handles so the
   accepted outcome is one visible winner plus one retryable writer-ref loss.
+- `MergeClassifier` now emits explicit projection, semantic, or governance
+  merge labels from runtime-backed merge evidence and is checked against the
+  normalized merge conflict corpus.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.
