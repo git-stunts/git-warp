@@ -736,6 +736,28 @@ const result = await worldline.query()
 - `'*:admin'` — matches `org:admin`, `team:admin`, etc.
 - `'doc:*:draft'` — matches `doc:1:draft`, `doc:abc:draft`, etc.
 
+#### Support Rule Inspection
+
+`supportRule()` returns the current `BoundedSupportRule` for the accumulated
+query plan. Exact node-id reads are `entity` support, exact node-id traversals
+are `neighborhood` support, and wildcard/discovery reads are
+`global-discovery`.
+
+```typescript
+const support = worldline.query()
+  .match('user:alice')
+  .outgoing('manages', { depth: [1, 2] })
+  .supportRule();
+
+support.kind; // 'neighborhood'
+support.isBounded(); // true
+support.maxDepth; // 2
+```
+
+This is an execution contract, not an index. It lets future causal indexes and
+support fragments know which support set a read is allowed to use; it does not
+make wildcard discovery cheaper by itself.
+
 #### Filtering with `where()`
 
 **Object shorthand** — strict equality on primitive values. Multiple properties use AND semantics:

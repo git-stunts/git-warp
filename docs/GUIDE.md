@@ -305,6 +305,22 @@ const downstream = await worldline.query()
 // }
 ```
 
+The same accumulated plan can expose its support law before execution:
+
+```typescript
+const support = worldline.query()
+  .match('epic:auth')
+  .outgoing('contains', { depth: [1, 2] })
+  .supportRule();
+
+// support.kind = 'neighborhood'
+// support.maxDepth = 2
+```
+
+Use support rules to decide whether a read is exact, neighborhood-bounded, or
+global discovery. They do not replace indexes; they tell future indexes and
+support fragments what the read is allowed to ask for.
+
 ### Pattern 3: aggregate
 
 ```typescript

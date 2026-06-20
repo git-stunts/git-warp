@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GitWarpReceiptEnvelopeBoundary` now freezes the minimal receipt/provenance
   anchor external envelope consumers may depend on without exposing raw debug
   receipt details as protocol truth.
+- `BoundedSupportRule` now gives query plans a runtime-backed support law so
+  exact entity reads, neighborhood traversals, and wildcard discovery are
+  distinguishable before execution.
 - A dated TSC Zero agent-merge audit now retires the historical #505/B171
   drift concern by reconstructing PR #73's conflict-resolution scope and
   mapping it to current TypeScript owner modules.

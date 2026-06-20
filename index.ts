@@ -74,6 +74,7 @@ import {
   createV18BoundedMemoryCapabilityReport,
 } from './rootCompatibility.ts';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.ts';
+import BoundedSupportRule from './src/domain/services/query/BoundedSupportRule.ts';
 import Observer from './src/domain/services/query/Observer.ts';
 import ObserverAccumulation from './src/domain/services/query/ObserverAccumulation.ts';
 import ObserverBasis from './src/domain/services/query/ObserverBasis.ts';
@@ -178,6 +179,12 @@ import type { ApertureOpeningProofFields } from './src/domain/services/wormhole/
 import type { ZKWormholeEdgeFields } from './src/domain/services/wormhole/ZKWormholeEdge.ts';
 import type { ApertureOpeningVerificationResult, ZKWormholeVerificationResult } from './src/domain/services/wormhole/ZKWormholeVerificationResult.ts';
 import type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
+import type {
+  BoundedSupportDirection,
+  BoundedSupportKind,
+  BoundedSupportRuleFields,
+  BoundedSupportSurface,
+} from './src/domain/services/query/BoundedSupportRule.ts';
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
@@ -356,6 +363,7 @@ export {
   LiveSelector,
   CoordinateSelector,
   StrandSelector,
+  BoundedSupportRule,
   QueryBuilder,
   Observer,
   ObserverAccumulation,
@@ -490,6 +498,10 @@ export type {
   WarpKernelPort,
   WarpWorldlineOpenOptions,
   WarpWorldlinePatchBuild,
+  BoundedSupportDirection,
+  BoundedSupportKind,
+  BoundedSupportRuleFields,
+  BoundedSupportSurface,
   ApertureOpeningProofFields, ApertureOpeningVerificationResult,
   ZKWormholeEdgeFields, ZKWormholeVerificationResult,
   WarpWorldlineCoordinateFrontierEntry,
