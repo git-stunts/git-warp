@@ -81,8 +81,8 @@ import {
 } from './runtimeHelpers.ts';
 import {
   resolveRuntimeHostConstructionOptions,
+  type RuntimeHostOpenInput,
   type RuntimeHostConstructionOptions,
-  type RuntimeHostOpenOptions,
 } from './warp/RuntimeHostBoot.ts';
 
 import type { NeighborEdge } from '../ports/NeighborProviderPort.ts';
@@ -761,7 +761,7 @@ export default class RuntimeHost {
    *   writerId: 'node-1'
    * });
    */
-  static async open(options: RuntimeHostOpenOptions): Promise<RuntimeHost> {
+  static async open(options: RuntimeHostOpenInput): Promise<RuntimeHost> {
     return await openRuntimeHost(options);
   }
 
@@ -912,7 +912,7 @@ export default class RuntimeHost {
   }
 }
 
-export async function openRuntimeHost(options: RuntimeHostOpenOptions): Promise<RuntimeHost> {
+export async function openRuntimeHost(options: RuntimeHostOpenInput): Promise<RuntimeHost> {
   const { options: resolvedOptions } = await resolveRuntimeHostConstructionOptions(options);
   const graph = new RuntimeHost(resolvedOptions);
   await graph._validateMigrationBoundary();

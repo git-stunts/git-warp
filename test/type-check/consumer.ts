@@ -52,6 +52,7 @@ import WarpAppDefault, {
   createTimeoutSignal,
   openWarpWorldline,
   openWarpGraph,
+  WarpOpenOptions,
   WarpApp,
   WarpCore,
   WarpWorldline,
@@ -162,6 +163,11 @@ declare const btrCodecOptions: Parameters<typeof createBTR>[2];
 declare const btrVerifyOptions: Parameters<typeof verifyBTR>[2];
 
 const sameAppCtor: typeof WarpAppDefault = WarpApp;
+const parsedOpenOptions = new WarpOpenOptions({
+  persistence,
+  graphName: 'consumer-open-options',
+  writerId: 'writer-open-options',
+});
 
 const exportedRuntimeSurface = [
   GitGraphAdapter,
@@ -206,6 +212,7 @@ const exportedRuntimeSurface = [
   StrandError,
   WormholeError,
   WriterError,
+  WarpOpenOptions,
   WarpWorldline,
   openWarpGraph,
   WarpApp,
@@ -295,6 +302,7 @@ void exportedRuntimeSurface;
 void exportedFunctionSurface;
 void exportedConstantSurface;
 void kernelPersistence;
+void parsedOpenOptions;
 
 const app: WarpApp = await WarpApp.open({
   graphName: 'consumer-test',

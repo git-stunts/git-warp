@@ -1,7 +1,7 @@
 import WarpError from './errors/WarpError.ts';
 import {
   openWarpCoreRuntimeProduct,
-  type WarpCoreOpenOptions,
+  type WarpCoreOpenInput,
   type WarpCoreRuntimeSurface,
 } from './warp/WarpCoreRuntimeProduct.ts';
 
@@ -139,7 +139,7 @@ export default class WarpCore {
   declare _effectPipeline: EffectPipeline | null;
   declare readonly _crypto: CryptoPort;
 
-  static async open(options: WarpCoreOpenOptions): Promise<WarpCore> {
+  static async open(options: WarpCoreOpenInput): Promise<WarpCore> {
     return WarpCore._adopt(await openWarpCoreRuntimeProduct(options));
   }
 

@@ -4,11 +4,13 @@ import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { WarpGraphRuntimeSurface } from './WarpGraphRuntimeProduct.ts';
 import {
   openRuntimeHostProduct,
+  type RuntimeHostOpenInput,
   type RuntimeHostOpenOptions,
   type RuntimeHostProduct,
 } from './RuntimeHostProduct.ts';
 
 export type WarpCoreOpenOptions = RuntimeHostOpenOptions;
+export type WarpCoreOpenInput = RuntimeHostOpenInput;
 export type StrandCreateOptions = Parameters<RuntimeHostProduct['createStrand']>[0];
 export type StrandDescriptor = Awaited<ReturnType<RuntimeHostProduct['createStrand']>>;
 export type StrandBraidOptions = Parameters<RuntimeHostProduct['braidStrand']>[1];
@@ -153,7 +155,7 @@ export function buildWarpCoreRuntimeSurface(runtime: RuntimeHostProduct): WarpCo
 }
 
 export async function openWarpCoreRuntimeProduct(
-  options: WarpCoreOpenOptions,
+  options: WarpCoreOpenInput,
 ): Promise<WarpCoreRuntimeSurface> {
   const runtime = await openRuntimeHostProduct(options);
   return buildWarpCoreRuntimeSurface(runtime);

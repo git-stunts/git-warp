@@ -144,6 +144,7 @@ import ContentAttachmentProjection from './src/domain/services/ContentAttachment
 import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import WarpWorldline, { openWarpWorldline } from './src/domain/WarpWorldline.ts';
+import { WarpOpenOptions } from './src/domain/warp/RuntimeHostBoot.ts';
 import WarpWorldlineCoordinate from './src/domain/WarpWorldlineCoordinate.ts';
 import WarpWorldlineOpticBasis from './src/domain/WarpWorldlineOpticBasis.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
@@ -307,6 +308,7 @@ export {
   createTimeoutSignal,
 
   // Multi-writer graph — advanced compatibility composition root
+  WarpOpenOptions,
   openWarpGraph,
 
   // Worldline-first public handle

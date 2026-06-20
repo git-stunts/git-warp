@@ -1,10 +1,12 @@
 import {
   openRuntimeHostProduct,
   type RuntimeGraphHostProduct,
+  type RuntimeHostOpenInput,
   type RuntimeHostOpenOptions,
 } from './RuntimeHostProduct.ts';
 
 export type WarpGraphRuntimeOpenOptions = RuntimeHostOpenOptions;
+export type WarpGraphRuntimeOpenInput = RuntimeHostOpenInput;
 
 export type WarpGraphRuntimeSurface = RuntimeGraphHostProduct;
 
@@ -85,7 +87,7 @@ export function buildWarpGraphRuntimeSurface(runtime: RuntimeGraphHostProduct): 
 }
 
 export async function openWarpGraphRuntimeProduct(
-  options: WarpGraphRuntimeOpenOptions,
+  options: WarpGraphRuntimeOpenInput,
 ): Promise<WarpGraphRuntimeSurface> {
   const runtime = await openRuntimeHostProduct(options);
   return buildWarpGraphRuntimeSurface(runtime);

@@ -1,13 +1,17 @@
 import {
   openWarpGraphRuntimeProduct,
-  type WarpGraphRuntimeOpenOptions,
+  type WarpGraphRuntimeOpenInput,
   type WarpGraphRuntimeSurface,
 } from './WarpGraphRuntimeProduct.ts';
 
-export type { WarpGraphRuntimeOpenOptions, WarpGraphRuntimeSurface } from './WarpGraphRuntimeProduct.ts';
+export type {
+  WarpGraphRuntimeOpenInput,
+  WarpGraphRuntimeOpenOptions,
+  WarpGraphRuntimeSurface,
+} from './WarpGraphRuntimeProduct.ts';
 
 export async function openWarpGraphRuntime(
-  options: WarpGraphRuntimeOpenOptions,
+  options: WarpGraphRuntimeOpenInput,
 ): Promise<WarpGraphRuntimeSurface> {
   return await openWarpGraphRuntimeProduct(options);
 }

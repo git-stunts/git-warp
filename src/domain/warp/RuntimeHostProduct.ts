@@ -31,7 +31,10 @@ import type Patch from '../types/Patch.ts';
 import type WarpState from '../services/state/WarpState.ts';
 import type SnapshotWarpState from '../services/snapshot/SnapshotWarpState.ts';
 import type { TickReceipt } from '../types/TickReceipt.ts';
-import type { RuntimeHostOpenOptions as RuntimeHostBootOpenOptions } from './RuntimeHostBoot.ts';
+import type {
+  RuntimeHostOpenInput as RuntimeHostBootOpenInput,
+  RuntimeHostOpenOptions as RuntimeHostBootOpenOptions,
+} from './RuntimeHostBoot.ts';
 import { openRuntimeHost } from '../RuntimeHost.ts';
 
 export type RuntimeCapabilitySurface =
@@ -51,6 +54,7 @@ export type RuntimeGraphHostProduct = RuntimeCapabilitySurface & {
 };
 
 export type RuntimeHostOpenOptions = RuntimeHostBootOpenOptions;
+export type RuntimeHostOpenInput = RuntimeHostBootOpenInput;
 
 export type RuntimeForkRequest = {
   from: string;
@@ -192,7 +196,7 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
 };
 
 export async function openRuntimeHostProduct(
-  options: RuntimeHostOpenOptions,
+  options: RuntimeHostOpenInput,
 ): Promise<RuntimeHostProduct> {
   return await openRuntimeHost(options);
 }
