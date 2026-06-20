@@ -1399,6 +1399,28 @@ const admins = await view.query().match('user:*').where({ role: 'admin' }).run()
 const path = await view.traverse.shortestPath('user:alice', 'user:bob', { dir: 'out' });
 ```
 
+The same observer can also surface its source/config split explicitly:
+
+```typescript
+const plan = view.plan();
+// plan.source = { kind: 'live' } or the coordinate/strand selector used
+
+const envelope = await view.readingEnvelope({
+  witnessRef: 'receipt-or-proof-ref',
+  shellRef: 'observer-shell-ref',
+});
+
+envelope.payload.nodeCount;
+envelope.budget.propertyKeyCount;
+envelope.residualBasis;
+```
+
+`ObserverPlan` freezes the observer name, aperture, structural basis, and
+worldline source. `ObserverReadingEnvelope` ties that plan to an emitted
+`ObserverEmission` payload, optional witness/shell/plurality references, and
+budget metadata derived from the payload. Normal node/query/traversal reads and
+envelope reads therefore share the same observer family.
+
 For higher-layer reads, this is the preferred boundary: choose a worldline,
 choose an observer, optionally seek, then read through that observer instead of
 reconstructing a second graph-shaped read model above the substrate.

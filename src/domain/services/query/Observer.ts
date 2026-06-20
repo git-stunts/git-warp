@@ -15,6 +15,8 @@ import VisibleQueryReadModel from './VisibleQueryReadModel.ts';
 import LogicalTraversal from './LogicalTraversal.ts';
 import ObserverAccumulation from './ObserverAccumulation.ts';
 import ObserverBasis from './ObserverBasis.ts';
+import ObserverPlan from './ObserverPlan.ts';
+import ObserverReadingEnvelope, { type ObserverReadingEnvelopeFields } from './ObserverReadingEnvelope.ts';
 import { createStateReader } from '../state/StateReader.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import QueryError from '../../errors/QueryError.ts';
@@ -36,6 +38,10 @@ import type {
 type VisibleNodeProps = Readonly<{ [key: string]: SnapshotPropValue }>;
 type VisibleEdge = { from: string; to: string; label: string; props: VisibleNodeProps };
 type ObserverSnapshot = { state: WarpState; stateHash: string };
+type ObserverReadingEnvelopeOptions = Pick<
+ObserverReadingEnvelopeFields,
+'witnessRef' | 'shellRef' | 'pluralityRef'
+>;
 
 export interface ObserverBacking {
   hasNode: (nodeId: string) => Promise<boolean>;
@@ -255,6 +261,26 @@ export default class Observer {
 
   async emit(): Promise<ObserverEmission> {
     return (await this.accumulate()).emit();
+  }
+
+  plan(): ObserverPlan {
+    return new ObserverPlan({
+      name: this._name,
+      match: Array.isArray(this._matchPattern) ? [...this._matchPattern] : this._matchPattern,
+      ...(this._expose !== undefined ? { expose: [...this._expose] } : {}),
+      ...(this._redact !== undefined ? { redact: [...this._redact] } : {}),
+      basis: this._basis,
+      source: this._source ?? new LiveSelector(),
+    });
+  }
+
+  async readingEnvelope(options: ObserverReadingEnvelopeOptions = {}): Promise<ObserverReadingEnvelope> {
+    return new ObserverReadingEnvelope({
+      plan: this.plan(),
+      payload: await this.emit(),
+      stateHash: this.stateHash,
+      ...options,
+    });
   }
 
   // ===========================================================================

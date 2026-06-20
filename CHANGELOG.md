@@ -76,6 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Observers now carry an optional structural basis and expose deterministic
   accumulation/emission objects (`ObserverBasis`, `ObserverAccumulation`, and
   `ObserverEmission`) alongside the existing projection/query surface.
+- Observers now expose `plan()` and `readingEnvelope()` so reusable observers
+  and one-shot reads share a source/config plan and emitted reading envelope
+  family with witness, shell, budget, plurality, and residual metadata.
 - `git warp mcp` now starts a local stdio MCP server with a read-only tool
   catalog for graph info, node ids, node properties, edges, and existence
   checks; write-capable tools remain absent until writer/trust policy is

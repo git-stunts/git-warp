@@ -80,6 +80,8 @@ import Observer from './src/domain/services/query/Observer.ts';
 import ObserverAccumulation from './src/domain/services/query/ObserverAccumulation.ts';
 import ObserverBasis from './src/domain/services/query/ObserverBasis.ts';
 import ObserverEmission from './src/domain/services/query/ObserverEmission.ts';
+import ObserverPlan from './src/domain/services/query/ObserverPlan.ts';
+import ObserverReadingEnvelope from './src/domain/services/query/ObserverReadingEnvelope.ts';
 import ProjectionHandle from './src/domain/services/ProjectionHandle.ts';
 import WorldlineSelector from './src/domain/types/WorldlineSelector.ts';
 import LiveSelector from './src/domain/types/LiveSelector.ts';
@@ -182,6 +184,11 @@ import type { ZKWormholeEdgeFields } from './src/domain/services/wormhole/ZKWorm
 import type { ApertureOpeningVerificationResult, ZKWormholeVerificationResult } from './src/domain/services/wormhole/ZKWormholeVerificationResult.ts';
 import type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
 import type { GraphDiffFields } from './src/domain/services/comparison/GraphDiff.ts';
+import type { ObserverPlanFields } from './src/domain/services/query/ObserverPlan.ts';
+import type {
+  ObserverReadingEnvelopeBudget,
+  ObserverReadingEnvelopeFields,
+} from './src/domain/services/query/ObserverReadingEnvelope.ts';
 import type {
   BoundedSupportDirection,
   BoundedSupportKind,
@@ -388,6 +395,8 @@ export {
   ObserverAccumulation,
   ObserverBasis,
   ObserverEmission,
+  ObserverPlan,
+  ObserverReadingEnvelope,
   PatchBuilder,
   PatchSession,
   Writer,
@@ -531,6 +540,9 @@ export type {
   CausalIndexPlanFields,
   CausalIndexPlanPosture,
   GraphDiffFields,
+  ObserverPlanFields,
+  ObserverReadingEnvelopeBudget,
+  ObserverReadingEnvelopeFields,
   ApertureOpeningProofFields, ApertureOpeningVerificationResult,
   ZKWormholeEdgeFields, ZKWormholeVerificationResult,
   WarpWorldlineCoordinateFrontierEntry,

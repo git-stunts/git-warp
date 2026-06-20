@@ -63,6 +63,8 @@ import WarpAppDefault, {
   OperationAbortedError,
   MemoryBudgetError,
   Observer,
+  ObserverPlan,
+  ObserverReadingEnvelope,
   ProjectionHandle,
   ContinuumArtifactAuthorityError,
 
@@ -189,6 +191,10 @@ describe('index.ts exports', () => {
       expect(Observer).toBeDefined();
       expect(typeof Observer).toBe('function');
       expect(Observer.name).toBe('Observer');
+      expect(ObserverPlan).toBeDefined();
+      expect(typeof ObserverPlan).toBe('function');
+      expect(ObserverReadingEnvelope).toBeDefined();
+      expect(typeof ObserverReadingEnvelope).toBe('function');
       expect('ObserverView' in publicApi).toBe(false);
     });
 

@@ -7,6 +7,8 @@ import Observer, {
 import ObserverAccumulation from '../../../../../src/domain/services/query/ObserverAccumulation.ts';
 import ObserverBasis from '../../../../../src/domain/services/query/ObserverBasis.ts';
 import ObserverEmission from '../../../../../src/domain/services/query/ObserverEmission.ts';
+import ObserverPlan from '../../../../../src/domain/services/query/ObserverPlan.ts';
+import ObserverReadingEnvelope from '../../../../../src/domain/services/query/ObserverReadingEnvelope.ts';
 import type { WorldlineSource } from '../../../../../src/domain/capabilities/QueryCapability.ts';
 
 type ObserverCall = {
@@ -127,11 +129,108 @@ describe('Observer structural surface', () => {
     await expect(observer.emit()).resolves.toEqual(emission);
   });
 
+  it('emits one reading envelope family from the observer plan and payload', async () => {
+    const observer = new Observer({
+      name: 'structural',
+      config: {
+        match: 'task:*',
+        expose: ['status'],
+        basis: ['status', 'owner'],
+      },
+      graph: new StructuralObserverBacking(),
+    });
+
+    const plan = observer.plan();
+    const envelope = await observer.readingEnvelope({
+      witnessRef: 'witness:observer-structural',
+      shellRef: 'shell:observer-structural',
+      pluralityRef: 'plurality:status-owner',
+    });
+
+    expect(plan).toBeInstanceOf(ObserverPlan);
+    expect(plan.name).toBe('structural');
+    expect(plan.source).toEqual({ kind: 'live' });
+    expect(plan.toConfig()).toEqual({
+      match: 'task:*',
+      expose: ['status'],
+      basis: ['status', 'owner'],
+    });
+    expect(Object.isFrozen(plan)).toBe(true);
+    expect(Object.isFrozen(plan.expose)).toBe(true);
+
+    expect(envelope).toBeInstanceOf(ObserverReadingEnvelope);
+    expect(envelope.plan).toEqual(plan);
+    expect(envelope.payload).toEqual(new ObserverEmission({
+      basis: ['status', 'owner'],
+      nodeCount: 2,
+      edgeCount: 1,
+      propertyKeys: ['status'],
+      matchedBasis: ['status'],
+    }));
+    expect(envelope.budget).toEqual({
+      nodeCount: 2,
+      edgeCount: 1,
+      propertyKeyCount: 1,
+      matchedBasisCount: 1,
+    });
+    expect(envelope.residualBasis).toEqual(['owner']);
+    expect(envelope.hasResidual()).toBe(true);
+    expect(envelope.hasPlurality()).toBe(true);
+    expect(envelope.source).toEqual({ kind: 'live' });
+    expect(envelope.witnessRef).toBe('witness:observer-structural');
+    expect(envelope.shellRef).toBe('shell:observer-structural');
+    expect(Object.isFrozen(envelope)).toBe(true);
+    expect(Object.isFrozen(envelope.budget)).toBe(true);
+    expect(Object.isFrozen(envelope.residualBasis)).toBe(true);
+  });
+
   it('rejects invalid basis distinctions at construction time', () => {
     expect(() => new Observer({
       name: 'invalid',
       config: { match: '*', basis: ['status', ''] },
       graph: new StructuralObserverBacking(),
     })).toThrow('observer basis distinction must be non-empty');
+  });
+
+  it('rejects invalid observer plans and reading envelopes', () => {
+    const basis = new ObserverBasis(['status']);
+    const payload = new ObserverEmission({
+      basis: ['status'],
+      nodeCount: 1,
+      edgeCount: 0,
+      propertyKeys: ['status'],
+      matchedBasis: ['status'],
+    });
+
+    expect(() => new ObserverPlan({
+      name: '',
+      match: '*',
+      basis,
+      source: { kind: 'live' },
+    })).toThrow('observer plan field must be a non-empty string');
+
+    expect(() => new ObserverPlan({
+      name: 'invalid',
+      match: [],
+      basis,
+      source: { kind: 'live' },
+    })).toThrow('observer plan match must be a string or non-empty string array');
+
+    expect(() => new ObserverReadingEnvelope({
+      plan: new ObserverPlan({
+        name: 'valid',
+        match: '*',
+        basis,
+        source: { kind: 'live' },
+      }),
+      payload,
+      witnessRef: '',
+    })).toThrow('observer reading envelope refs must be non-empty when provided');
+
+    expect(() => new ObserverReadingEnvelope({
+      // @ts-expect-error runtime guard for JavaScript callers
+      plan: payload,
+      payload,
+    })).toThrow('observer reading envelope requires an ObserverPlan');
   });
 });
