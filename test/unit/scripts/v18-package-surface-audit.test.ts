@@ -1,17 +1,24 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+function repoPath(relativePath: string): string {
+  return fileURLToPath(new URL(`../../../${relativePath}`, import.meta.url));
+}
+
 function readText(relativePath: string): string {
-  return readFileSync(
-    fileURLToPath(new URL(`../../../${relativePath}`, import.meta.url)),
-    'utf8',
-  );
+  return readFileSync(repoPath(relativePath), 'utf8');
+}
+
+function lineCount(source: string): number {
+  return source.split('\n').length;
 }
 
 const packageJson = readText('package.json');
 const jsrJson = readText('jsr.json');
+const tsconfigPublish = readText('tsconfig.publish.json');
 const indexSource = readText('index.ts');
+const generatedIndexDeclarations = readText('dist/index.d.ts');
 
 function packageModuleDoc(): string {
   const terminator = indexSource.indexOf('*/');
@@ -38,6 +45,13 @@ describe('v18 package surface audit', () => {
     expect(packageJson).toContain('"import": "./dist/index.js"');
     expect(packageJson).toContain('"default": "./dist/index.js"');
     expect(jsrJson).toContain('".": "./index.ts"');
+  });
+
+  it('keeps the legacy root declaration monolith retired', () => {
+    expect(existsSync(repoPath('index.d.ts'))).toBe(false);
+    expect(packageJson).not.toContain('"types": "./index.d.ts"');
+    expect(tsconfigPublish).toContain('"declaration": true');
+    expect(lineCount(generatedIndexDeclarations)).toBeLessThanOrEqual(500);
   });
 
   it('exports the Worldline-first opener, handle, and option types from the root', () => {

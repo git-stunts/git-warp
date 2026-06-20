@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `brace-expansion` resolves to 5.0.6 where used by markdown tooling, the
   markdownlint CLI resolves to 0.49.x, and the explicit `tar` override now
   points at the patched 7.5.16 release.
+- Retired the legacy root `index.d.ts` monolith posture: npm consumers now
+  receive generated `dist/index.d.ts` declarations from the TypeScript source
+  barrel, while JSR continues to publish `index.ts` directly.
 - Patch write docs now state the public visibility contract: `commit()`,
   `writer.commitPatch(...)`, and `graph.patches.patch(...)` only resolve after
   the canonical writer ref advances and reads back at the returned patch SHA.
