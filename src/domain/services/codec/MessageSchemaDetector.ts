@@ -4,6 +4,9 @@
 
 import { EDGE_PROP_PREFIX } from '../KeyCodec.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
+import EdgePropSet from '../../types/ops/EdgePropSet.ts';
+import PropSet from '../../types/ops/PropSet.ts';
+import type { PatchOp } from '../../types/ops/unions.ts';
 import { getCodec, TRAILER_KEYS } from './MessageCodecInternal.ts';
 
 // ── Constants ───────────────────────────────────────────────────────
@@ -19,15 +22,13 @@ export const PATCH_SCHEMA_EDGE_PROPERTIES = EDGE_PROPERTY_PATCH_SCHEMA_VERSION;
 
 // ── Schema version detection ────────────────────────────────────────
 
-type OpLike = { type: string; node?: string }; // nosemgrep: ts-no-like-types -- 0025C
-
-function isEdgePropOp(op: OpLike): boolean { // nosemgrep: ts-no-like-types -- 0025C
-  if (op.type === 'EdgePropSet') { return true; }
-  return op.type === 'PropSet' && typeof op.node === 'string' && op.node.startsWith(EDGE_PROP_PREFIX);
+function isEdgePropOp(op: PatchOp): boolean {
+  if (op instanceof EdgePropSet) { return true; }
+  return op instanceof PropSet && op.node.startsWith(EDGE_PROP_PREFIX);
 }
 
 /** Detects the schema version required for a set of ops. */
-export function detectSchemaVersion(ops: OpLike[]): number { // nosemgrep: ts-no-like-types -- 0025C
+export function detectSchemaVersion(ops: readonly PatchOp[] | null | undefined): number {
   if (!Array.isArray(ops)) { return CLASSIC_PATCH_SCHEMA_VERSION; }
   for (const op of ops) {
     if (op === null || op === undefined || typeof op !== 'object') { continue; }
@@ -39,7 +40,7 @@ export function detectSchemaVersion(ops: OpLike[]): number { // nosemgrep: ts-no
 // ── Schema compatibility ────────────────────────────────────────────
 
 /** Asserts ops are compatible with a max supported schema version. */
-export function assertOpsCompatible(ops: OpLike[], maxSchema: number): void { // nosemgrep: ts-no-like-types -- 0025C
+export function assertOpsCompatible(ops: readonly PatchOp[] | null | undefined, maxSchema: number): void {
   if (maxSchema >= EDGE_PROPERTY_PATCH_SCHEMA_VERSION) { return; }
   if (!Array.isArray(ops)) { return; }
   for (const op of ops) {

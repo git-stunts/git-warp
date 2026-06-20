@@ -6,31 +6,31 @@ import {
   EDGE_PROPERTY_PATCH_SCHEMA_VERSION,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import SchemaUnsupportedError from '../../../../src/domain/errors/SchemaUnsupportedError.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EDGE_PROP_PREFIX } from '../../../../src/domain/services/JoinReducer.ts';
+import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
+import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers — minimal op factories
 // ---------------------------------------------------------------------------
 
-/** @param {string} nodeId */
-function nodeAddOp(nodeId) {
-  return { type: 'NodeAdd', node: nodeId, dot: { writer: 'w1', counter: 1 } };
+function nodeAddOp(nodeId: string): NodeAdd {
+  return new NodeAdd(nodeId, new Dot('w1', 1));
 }
 
-/** @param {string} from @param {string} to @param {string} label */
-function edgeAddOp(from, to, label) {
-  return { type: 'EdgeAdd', from, to, label, dot: { writer: 'w1', counter: 1 } };
+function edgeAddOp(from: string, to: string, label: string): EdgeAdd {
+  return new EdgeAdd({ from, to, label, dot: new Dot('w1', 1) });
 }
 
-/** @param {string} nodeId @param {string} key @param {any} value */
-function nodePropSetOp(nodeId, key, value) {
-  return { type: 'PropSet', node: nodeId, key, value };
+function nodePropSetOp(nodeId: string, key: string, value: string | number): PropSet {
+  return new PropSet(nodeId, key, value);
 }
 
-/** @param {string} from @param {string} to @param {string} label @param {string} key @param {any} value */
-function edgePropSetOp(from, to, label, key, value) {
+function edgePropSetOp(from: string, to: string, label: string, key: string, value: string | number): PropSet {
   // Edge prop ops use the \x01 prefix namespace in the node field
-  return { type: 'PropSet', node: `${EDGE_PROP_PREFIX}${from}\0${to}\0${label}`, key, value };
+  return new PropSet(`${EDGE_PROP_PREFIX}${from}\0${to}\0${label}`, key, value);
 }
 
 // ---------------------------------------------------------------------------
@@ -69,8 +69,8 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
       });
 
       it('accepts non-array ops (defensive)', () => {
-        expect(() => assertOpsCompatible((null as any), CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
-        expect(() => assertOpsCompatible((undefined as any), CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
+        expect(() => assertOpsCompatible(null, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
+        expect(() => assertOpsCompatible(undefined, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
       it('throws E_SCHEMA_UNSUPPORTED for edge property ops', () => {
@@ -88,8 +88,12 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         try {
           assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION);
           expect.unreachable('should have thrown');
-        } catch (/** @type {any} */ err) {
-          expect((err as any).code).toBe('E_SCHEMA_UNSUPPORTED');
+        } catch (err) {
+          expect(err).toBeInstanceOf(SchemaUnsupportedError);
+          if (!(err instanceof SchemaUnsupportedError)) {
+            throw err;
+          }
+          expect(err.code).toBe('E_SCHEMA_UNSUPPORTED');
         }
       });
 
@@ -99,10 +103,14 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         try {
           assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION);
           expect.unreachable('should have thrown');
-        } catch (/** @type {any} */ err) {
-          expect((err as any).message).toContain('>=7.3.0');
-          expect((err as any).message).toContain('WEIGHTED');
-          expect((err as any).message).toContain('edge properties');
+        } catch (err) {
+          expect(err).toBeInstanceOf(SchemaUnsupportedError);
+          if (!(err instanceof SchemaUnsupportedError)) {
+            throw err;
+          }
+          expect(err.message).toContain('>=7.3.0');
+          expect(err.message).toContain('WEIGHTED');
+          expect(err.message).toContain('edge properties');
         }
       });
 
@@ -112,9 +120,13 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         try {
           assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION);
           expect.unreachable('should have thrown');
-        } catch (/** @type {any} */ err) {
-          expect((err as any).context.requiredSchema).toBe(EDGE_PROPERTY_PATCH_SCHEMA_VERSION);
-          expect((err as any).context.maxSupportedSchema).toBe(CLASSIC_PATCH_SCHEMA_VERSION);
+        } catch (err) {
+          expect(err).toBeInstanceOf(SchemaUnsupportedError);
+          if (!(err instanceof SchemaUnsupportedError)) {
+            throw err;
+          }
+          expect(err.context['requiredSchema']).toBe(EDGE_PROPERTY_PATCH_SCHEMA_VERSION);
+          expect(err.context['maxSupportedSchema']).toBe(CLASSIC_PATCH_SCHEMA_VERSION);
         }
       });
 
@@ -142,13 +154,9 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
 
-      it('handles unknown op types gracefully (no crash)', () => {
-        const ops = [
-          { type: 'FutureOp', data: 'unknown' },
-          nodeAddOp('user:x'),
-        ];
+      it('handles runtime node ops without raw-shape fallback', () => {
+        const ops = [nodeAddOp('user:x')];
 
-        // Unknown op types that don't look like edge prop PropSets pass through
         expect(() => assertOpsCompatible(ops, CLASSIC_PATCH_SCHEMA_VERSION)).not.toThrow();
       });
     });

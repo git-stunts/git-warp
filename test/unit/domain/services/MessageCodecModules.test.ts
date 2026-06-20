@@ -31,6 +31,7 @@ import {
 } from '../../../../src/domain/services/codec/TrailerValidation.ts';
 import { EDGE_PROP_PREFIX } from '../../../../src/domain/services/KeyCodec.ts';
 import SchemaUnsupportedError from '../../../../src/domain/errors/SchemaUnsupportedError.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 
 const OID = 'a'.repeat(40);
 const STATE_HASH = 'b'.repeat(64);
@@ -77,10 +78,7 @@ describe('message codec modules', () => {
   });
 
   it('detects message kind and schema compatibility from shared detector module', () => {
-    const edgePropOp = {
-      type: 'PropSet',
-      node: `${EDGE_PROP_PREFIX}node:a\0node:b\0rel\0weight`,
-    };
+    const edgePropOp = new PropSet(`${EDGE_PROP_PREFIX}node:a\0node:b\0rel`, 'weight', 1);
     const anchorMessage = encodeAnchorMessage({ graph: 'events', schema: 2 });
 
     expect(detectSchemaVersion([edgePropOp])).toBe(EDGE_PROPERTY_PATCH_SCHEMA_VERSION);

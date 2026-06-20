@@ -11,6 +11,10 @@ import {
   CLASSIC_PATCH_SCHEMA_VERSION,
   EDGE_PROPERTY_PATCH_SCHEMA_VERSION,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
+import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 
 // Test fixtures
 const VALID_OID_SHA1 = 'a'.repeat(40);
@@ -18,6 +22,22 @@ const VALID_STATE_HASH = 'c'.repeat(64);
 
 // Edge property prefix used in JoinReducer
 const EDGE_PROP_PREFIX = '\x01';
+
+function nodeAddOp(nodeId: string, counter: number): NodeAdd {
+  return new NodeAdd(nodeId, new Dot('w1', counter));
+}
+
+function edgeAddOp(from: string, to: string, label: string, counter: number): EdgeAdd {
+  return new EdgeAdd({ from, to, label, dot: new Dot('w1', counter) });
+}
+
+function nodePropSetOp(nodeId: string, key: string, value: string): PropSet {
+  return new PropSet(nodeId, key, value);
+}
+
+function edgePropSetOp(from: string, to: string, label: string, key: string, value: number): PropSet {
+  return new PropSet(`${EDGE_PROP_PREFIX}${from}\0${to}\0${label}`, key, value);
+}
 
 describe('WarpMessageCodec schema v3', () => {
   describe('constants', () => {
@@ -33,28 +53,26 @@ describe('WarpMessageCodec schema v3', () => {
   describe('detectSchemaVersion', () => {
     it('returns schema 2 for ops with only node PropSet', () => {
       const ops = [
-        { type: 'NodeAdd', node: 'user:alice', dot: { writer: 'w1', seq: 1 } },
-        { type: 'PropSet', node: 'user:alice', key: 'name', value: 'Alice' },
+        nodeAddOp('user:alice', 1),
+        nodePropSetOp('user:alice', 'name', 'Alice'),
       ];
       expect(detectSchemaVersion(ops)).toBe(2);
     });
 
     it('returns schema 3 when any PropSet has edge prop prefix', () => {
-      const edgePropNode = `${EDGE_PROP_PREFIX}user:alice\0user:bob\0manages\0weight`;
       const ops = [
-        { type: 'NodeAdd', node: 'user:alice', dot: { writer: 'w1', seq: 1 } },
-        { type: 'PropSet', node: edgePropNode, key: 'weight', value: 1.5 },
+        nodeAddOp('user:alice', 1),
+        edgePropSetOp('user:alice', 'user:bob', 'manages', 'weight', 1.5),
       ];
       expect(detectSchemaVersion(ops)).toBe(3);
     });
 
     it('returns schema 3 even if only one PropSet has edge prop prefix among many', () => {
-      const edgePropNode = `${EDGE_PROP_PREFIX}a\0b\0rel\0key`;
       const ops = [
-        { type: 'PropSet', node: 'user:alice', key: 'name', value: 'Alice' },
-        { type: 'PropSet', node: 'user:bob', key: 'name', value: 'Bob' },
-        { type: 'PropSet', node: edgePropNode, key: 'key', value: 42 },
-        { type: 'PropSet', node: 'user:carol', key: 'name', value: 'Carol' },
+        nodePropSetOp('user:alice', 'name', 'Alice'),
+        nodePropSetOp('user:bob', 'name', 'Bob'),
+        edgePropSetOp('a', 'b', 'rel', 'key', 42),
+        nodePropSetOp('user:carol', 'name', 'Carol'),
       ];
       expect(detectSchemaVersion(ops)).toBe(3);
     });
@@ -64,22 +82,24 @@ describe('WarpMessageCodec schema v3', () => {
     });
 
     it('returns schema 2 for non-array input', () => {
-      expect(detectSchemaVersion((null as any))).toBe(2);
-      expect(detectSchemaVersion((undefined as any))).toBe(2);
-      expect(detectSchemaVersion(('not-an-array' as any))).toBe(2);
+      expect(detectSchemaVersion(null)).toBe(2);
+      expect(detectSchemaVersion(undefined)).toBe(2);
+      // @ts-expect-error Exercising the runtime guard for untyped JavaScript callers.
+      expect(detectSchemaVersion('not-an-array')).toBe(2);
     });
 
     it('returns schema 2 when no PropSet ops exist', () => {
       const ops = [
-        { type: 'NodeAdd', node: 'user:alice', dot: { writer: 'w1', seq: 1 } },
-        { type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'knows', dot: { writer: 'w1', seq: 2 } },
+        nodeAddOp('user:alice', 1),
+        edgeAddOp('user:alice', 'user:bob', 'knows', 2),
       ];
       expect(detectSchemaVersion(ops)).toBe(2);
     });
 
-    it('ignores non-PropSet ops even if their node starts with \\x01', () => {
+    it('returns schema 2 for non-property runtime ops', () => {
       const ops = [
-        { type: 'NodeAdd', node: `${EDGE_PROP_PREFIX}weird`, dot: { writer: 'w1', seq: 1 } },
+        nodeAddOp('user:alice', 1),
+        edgeAddOp('user:alice', 'user:bob', 'knows', 2),
       ];
       expect(detectSchemaVersion(ops)).toBe(2);
     });
@@ -193,8 +213,8 @@ describe('WarpMessageCodec schema v3', () => {
   describe('detectSchemaVersion integration with encodePatchMessage', () => {
     it('node-only ops produce schema 2', () => {
       const ops = [
-        { type: 'NodeAdd', node: 'user:alice', dot: { writer: 'w1', seq: 1 } },
-        { type: 'PropSet', node: 'user:alice', key: 'name', value: 'Alice' },
+        nodeAddOp('user:alice', 1),
+        nodePropSetOp('user:alice', 'name', 'Alice'),
       ];
       const schema = detectSchemaVersion(ops);
       expect(schema).toBe(2);
@@ -210,10 +230,9 @@ describe('WarpMessageCodec schema v3', () => {
     });
 
     it('edge prop ops produce schema 3', () => {
-      const edgePropNode = `${EDGE_PROP_PREFIX}a\0b\0rel\0weight`;
       const ops = [
-        { type: 'NodeAdd', node: 'user:alice', dot: { writer: 'w1', seq: 1 } },
-        { type: 'PropSet', node: edgePropNode, key: 'weight', value: 3.14 },
+        nodeAddOp('user:alice', 1),
+        edgePropSetOp('a', 'b', 'rel', 'weight', 3.14),
       ];
       const schema = detectSchemaVersion(ops);
       expect(schema).toBe(3);
