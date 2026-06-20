@@ -421,6 +421,13 @@ In every case, the commit updates `refs/warp/<graph>/writers/<writerId>`. It
 does **not** stage files, modify your normal Git worktree, or create a normal
 source-tree commit on your current branch.
 
+Patch writes use a visibility contract: a successful `commit()`,
+`writer.commitPatch(...)`, or `graph.patches.patch(...)` return means the patch
+commit was created, the canonical writer ref advanced by compare-and-swap, and
+the writer ref was read back pointing at the returned SHA. A patch object that
+exists in storage but is not reachable from the visible writer tip is reported
+as a failed write, not a successful hidden sibling commit.
+
 ### Creating Patches
 
 ```typescript
@@ -518,6 +525,11 @@ The Writer handles ref management and compare-and-swap (CAS) safety
 automatically. If another process advances the writer ref between
 `beginPatch()` and `commit()`, the commit fails with `WRITER_REF_ADVANCED`
 rather than silently losing data.
+
+The returned SHA is the visible writer-tip commit. If the patch commit is
+created but the writer ref cannot be advanced and verified at that SHA, the
+write fails and post-commit hooks such as eager cache updates and audit receipt
+recording do not run.
 
 ### Writer ID Resolution
 

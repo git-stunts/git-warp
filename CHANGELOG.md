@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Patch write docs now state the public visibility contract: `commit()`,
+  `writer.commitPatch(...)`, and `graph.patches.patch(...)` only resolve after
+  the canonical writer ref advances and reads back at the returned patch SHA.
 - `EffectSinkPort.deliver()` now returns `DeliveryObservation[]`
   consistently. Custom sinks must wrap single observations in an array; the
   built-in no-op, console, chunk, multiplex, and effect-pipeline surfaces all
