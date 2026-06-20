@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MergeClassifier` now emits explicit projection, semantic, or governance
   merge labels from runtime-backed merge evidence and is checked against the
   normalized merge conflict corpus.
+- Lane, coordinate, and debugger capability authority now has a frozen
+  substrate boundary naming `worldline`, `strand`, `braid`, and stable
+  coordinate anchors for external protocol consumers.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.
