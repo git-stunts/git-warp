@@ -117,6 +117,7 @@ async function signForRequest(
       secret: auth.secret,
       keyId: auth.keyId !== undefined && auth.keyId !== '' ? auth.keyId : 'default',
       lamport: auth.lamport,
+      authScheme: auth.scheme,
     },
     { crypto: auth.crypto },
   );

@@ -2426,6 +2426,11 @@ const { close, url } = await graph.sync.serve({
 await close(); // shut down
 ```
 
+HTTP sync auth remains shared-secret HMAC. New signed requests declare
+`x-warp-auth-scheme: shared-secret-hmac-sha256`; peers accept legacy HMAC
+requests without that header during migration and reject unsupported declared
+schemes before HMAC verification.
+
 Non-local bind hosts require enforced auth with a per-key rate-limit
 budget. Local unauthenticated serving is available only with
 `unsafeAllowUnauthenticatedLocalhost: true`.

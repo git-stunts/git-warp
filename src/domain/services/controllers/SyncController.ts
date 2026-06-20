@@ -35,6 +35,7 @@ import {
   resolveSyncTarget,
   resolveSyncTrustGate,
 } from './syncHelpers.ts';
+import { SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME } from '../sync/SyncAuthService.ts';
 import type {
   SyncHost,
   SkippedWriter,
@@ -83,6 +84,7 @@ function resolveAuth(
 ): SyncHttpAuth | undefined {
   if (auth === undefined || auth.secret === undefined) { return undefined; }
   return {
+    scheme: SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME,
     secret: auth.secret,
     ...(auth.keyId !== undefined && auth.keyId !== '' ? { keyId: auth.keyId } : {}),
     lamport,

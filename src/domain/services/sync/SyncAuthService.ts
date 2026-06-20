@@ -23,6 +23,8 @@ import SyncRateLimiter, { type SyncRateLimitConfig } from './SyncRateLimiter.ts'
 const SIG_VERSION = '2';
 const SIG_PREFIX = 'warp-v2';
 const HMAC_ALGO = 'sha256';
+export const SYNC_AUTH_SCHEME_HEADER = 'x-warp-auth-scheme';
+export const SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME = 'shared-secret-hmac-sha256';
 const DEFAULT_NONCE_CAPACITY = 100_000;
 const NONCE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SIG_HEX_LENGTH = 64;
@@ -31,6 +33,7 @@ const MAX_TIMESTAMP_DIGITS = 16;
 
 type FailResult = { ok: false; reason: string; status: number };
 type OkResult = { ok: true };
+export type SyncAuthScheme = typeof SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME;
 
 /**
  * Canonicalizes a URL path for signature computation.
@@ -44,6 +47,7 @@ export function canonicalizePath(url: string): string {
  * Builds the canonical string that gets signed.
  */
 export function buildCanonicalPayload(params: {
+  authScheme?: SyncAuthScheme;
   keyId: string;
   method: string;
   path: string;
@@ -52,23 +56,26 @@ export function buildCanonicalPayload(params: {
   contentType: string;
   bodySha256: string;
 }): string {
-  const { keyId, method, path, timestamp, nonce, contentType, bodySha256 } = params;
-  return `${SIG_PREFIX}|${keyId}|${method}|${path}|${timestamp}|${nonce}|${contentType}|${bodySha256}`;
+  const { authScheme, keyId, method, path, timestamp, nonce, contentType, bodySha256 } = params;
+  const prefix = authScheme === undefined ? SIG_PREFIX : `${SIG_PREFIX}|${authScheme}`;
+  return `${prefix}|${keyId}|${method}|${path}|${timestamp}|${nonce}|${contentType}|${bodySha256}`;
 }
 
 /**
  * Signs an outgoing sync request.
  */
 export async function signSyncRequest(
-  params: { method: string; path: string; contentType: string; body: Uint8Array; secret: SyncSecret; keyId: string; lamport: number },
+  params: { method: string; path: string; contentType: string; body: Uint8Array; secret: SyncSecret; keyId: string; lamport: number; authScheme?: SyncAuthScheme },
   deps: { crypto?: CryptoPort } = {},
 ): Promise<Record<string, string>> {
   const c = deps.crypto ?? defaultCrypto;
   const timestamp = String(params.lamport);
   const nonce = globalThis.crypto.randomUUID();
+  const authScheme = params.authScheme ?? SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME;
 
   const bodySha256 = await c.hash('sha256', params.body);
   const canonical = buildCanonicalPayload({
+    authScheme,
     keyId: params.keyId,
     method: params.method.toUpperCase(),
     path: params.path,
@@ -82,6 +89,7 @@ export async function signSyncRequest(
   const signature = hexEncode(hmacBuf);
 
   return {
+    [SYNC_AUTH_SCHEME_HEADER]: authScheme,
     'x-warp-sig-version': SIG_VERSION,
     'x-warp-key-id': params.keyId,
     'x-warp-timestamp': timestamp,
@@ -129,6 +137,19 @@ function _checkHeaderFormats(timestamp: string, nonce: string, signature: string
     return fail('MALFORMED_SIGNATURE', 400);
   }
   return { ok: true };
+}
+
+function _validateAuthScheme(
+  headers: Record<string, string>,
+): FailResult | (OkResult & { authScheme: SyncAuthScheme | null }) {
+  const authScheme = headers[SYNC_AUTH_SCHEME_HEADER];
+  if (authScheme === undefined) {
+    return { ok: true, authScheme: null };
+  }
+  if (authScheme === SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME) {
+    return { ok: true, authScheme };
+  }
+  return fail('UNSUPPORTED_AUTH_SCHEME', 400);
 }
 
 function _validateKeys(keys: Record<string, SyncSecret> | undefined): asserts keys is Record<string, SyncSecret> {
@@ -201,7 +222,17 @@ export default class SyncAuthService {
     return this._mode;
   }
 
-  private _validateHeaders(headers: Record<string, string>): FailResult | (OkResult & { sigVersion: string; signature: string; timestamp: string; nonce: string; keyId: string }) {
+  private _validateHeaders(headers: Record<string, string>): FailResult | (OkResult & {
+    sigVersion: string;
+    signature: string;
+    timestamp: string;
+    nonce: string;
+    keyId: string;
+    authScheme: SyncAuthScheme | null;
+  }) {
+    const authSchemeResult = _validateAuthScheme(headers);
+    if (!authSchemeResult.ok) { return authSchemeResult; }
+
     const sigVersion = headers['x-warp-sig-version'];
     if (sigVersion !== SIG_VERSION) { return fail('INVALID_VERSION', 400); }
 
@@ -217,7 +248,7 @@ export default class SyncAuthService {
     const formatCheck = _checkHeaderFormats(timestamp, nonce, signature);
     if (!formatCheck.ok) { return formatCheck; }
 
-    return { ok: true, sigVersion, signature, timestamp, nonce, keyId };
+    return { ok: true, sigVersion, signature, timestamp, nonce, keyId, authScheme: authSchemeResult.authScheme };
   }
 
   private _validateFreshness(timestamp: string, keyId: string): FailResult | OkResult {
@@ -273,14 +304,16 @@ export default class SyncAuthService {
     keyId: string;
     timestamp: string;
     nonce: string;
+    authScheme: SyncAuthScheme | null;
   }): Promise<FailResult | OkResult> {
-    const { request, secret, keyId, timestamp, nonce } = params;
+    const { request, secret, keyId, timestamp, nonce, authScheme } = params;
     const body = request.body ?? new Uint8Array(0);
     const bodySha256 = await this._crypto.hash('sha256', body);
     const contentType = request.headers['content-type'] !== undefined ? request.headers['content-type'] : '';
     const path = canonicalizePath(request.url);
 
     const canonical = buildCanonicalPayload({
+      ...(authScheme !== null ? { authScheme } : {}),
       keyId,
       method: request.method.toUpperCase(),
       path,
@@ -323,7 +356,7 @@ export default class SyncAuthService {
       return this._fail('header validation failed', { reason: headerResult.reason }, headerResult);
     }
 
-    const { timestamp, nonce, keyId } = headerResult;
+    const { timestamp, nonce, keyId, authScheme } = headerResult;
 
     const freshnessResult = this._validateFreshness(timestamp, keyId);
     if (!freshnessResult.ok) {
@@ -336,7 +369,7 @@ export default class SyncAuthService {
     }
 
     const sigResult = await this._verifySignature({
-      request, secret: keyResult.secret, keyId, timestamp, nonce,
+      request, secret: keyResult.secret, keyId, timestamp, nonce, authScheme,
     });
     if (!sigResult.ok) {
       return this._fail('signature mismatch', { keyId }, sigResult);
