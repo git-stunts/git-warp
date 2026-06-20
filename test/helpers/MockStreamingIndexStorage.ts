@@ -10,6 +10,8 @@ function singleChunkStream(bytes: Uint8Array): AsyncIterable<Uint8Array> {
   return normalizeToAsyncIterable(bytes);
 }
 
+const EMPTY_TREE_OID = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
 export default class MockStreamingIndexStorage extends StreamingIndexStoragePort {
   private readonly _blobStore: Map<string, Uint8Array> = new Map();
   private readonly _treeStore: Map<string, Record<string, string>> = new Map();
@@ -17,8 +19,13 @@ export default class MockStreamingIndexStorage extends StreamingIndexStoragePort
   private _blobCounter: number = 0;
   private _treeCounter: number = 0;
 
+  constructor() {
+    super();
+    this._treeStore.set(EMPTY_TREE_OID, {});
+  }
+
   get emptyTree(): string {
-    return '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+    return EMPTY_TREE_OID;
   }
 
   writeBlob = vi.fn(async (content: Uint8Array | string) => {
