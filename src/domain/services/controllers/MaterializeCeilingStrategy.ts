@@ -3,7 +3,7 @@ import type {
   MaterializeStrategyRuntime,
 } from './MaterializeStrategyRuntime.ts';
 import type { MaterializeResult } from './MaterializeController.ts';
-import MaterializeCoordinateStrategy from './MaterializeCoordinateStrategy.ts';
+import type MaterializeCoordinateStrategy from './MaterializeCoordinateStrategy.ts';
 
 export default class MaterializeCeilingStrategy {
   private readonly runtime: MaterializeStrategyRuntime;

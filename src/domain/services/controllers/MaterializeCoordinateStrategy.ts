@@ -4,6 +4,7 @@ import type {
   MaterializeStrategyRuntime,
 } from './MaterializeStrategyRuntime.ts';
 import type { MaterializeResult } from './MaterializeController.ts';
+import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type {
   WarpStateCoordinate,
   WarpStateSnapshotRecord,
@@ -22,7 +23,7 @@ export default class MaterializeCoordinateStrategy {
   }
 
   async materialize(opts: MaterializeCoordinateOptions): Promise<MaterializeResult> {
-    if (opts.frontier.size === 0 || (opts.ceiling !== null && opts.ceiling <= 0)) {
+    if (this.canReturnEmpty(opts)) {
       return await this.runtime.emptyResult(opts.ceiling, opts.frontier);
     }
     const coordinate = this.snapshotCoordinate(opts.frontier, opts.ceiling);
@@ -34,7 +35,7 @@ export default class MaterializeCoordinateStrategy {
       return cacheResolved;
     }
     const patches = await this.runtime.deps.patches.collectForFrontier(opts.frontier, opts.ceiling);
-    if (patches.length === 0) {
+    if (this.noPatches(patches)) {
       return await this.runtime.emptyResult(opts.ceiling, opts.frontier);
     }
     const reduced = await this.runtime.reducePatches(patches, undefined, {
@@ -49,6 +50,18 @@ export default class MaterializeCoordinateStrategy {
       ceiling: opts.ceiling,
       frontier: opts.frontier,
     });
+  }
+
+  private canReturnEmpty(opts: MaterializeCoordinateOptions): boolean {
+    return opts.frontier.size === 0 || this.ceilingExcludesAll(opts.ceiling);
+  }
+
+  private ceilingExcludesAll(ceiling: number | null): boolean {
+    return ceiling !== null && ceiling <= 0;
+  }
+
+  private noPatches(patches: readonly object[]): boolean {
+    return patches.length === 0;
   }
 
   private snapshotCoordinate(
@@ -69,17 +82,37 @@ export default class MaterializeCoordinateStrategy {
     if (stateCache === null) {
       return null;
     }
+    return await this.tryResolveCachedSnapshot(stateCache, opts);
+  }
 
+  private async tryResolveCachedSnapshot(
+    stateCache: WarpStateCachePort,
+    opts: { coordinate: WarpStateCoordinate; receipts: boolean },
+  ): Promise<MaterializeResult | null> {
+    const exactResult = await this.tryResolveExactSnapshot(stateCache, opts);
+    if (exactResult !== null) {
+      return exactResult;
+    }
+    return await this.tryResolvePredecessorSnapshot(stateCache, opts);
+  }
+
+  private async tryResolveExactSnapshot(
+    stateCache: WarpStateCachePort,
+    opts: { coordinate: WarpStateCoordinate; receipts: boolean },
+  ): Promise<MaterializeResult | null> {
     const exact = await stateCache.getExact(opts.coordinate);
     if (this.canUseSnapshot(exact, opts.receipts)) {
       return await this.snapshotToResult(exact);
     }
+    return null;
+  }
 
+  private async tryResolvePredecessorSnapshot(
+    stateCache: WarpStateCachePort,
+    opts: { coordinate: WarpStateCoordinate; receipts: boolean },
+  ): Promise<MaterializeResult | null> {
     const predecessor = await stateCache.getBestCompatiblePredecessor(opts.coordinate);
     if (!this.canUseSnapshot(predecessor, opts.receipts)) {
-      return null;
-    }
-    if (predecessor === null || predecessor.state === undefined) {
       return null;
     }
 
