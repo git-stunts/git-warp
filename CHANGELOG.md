@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   catalog for graph info, node ids, node properties, edges, and existence
   checks; write-capable tools remain absent until writer/trust policy is
   explicit at the MCP boundary.
+- `CasContentEncryptionPolicy` now gives `GitGraphAdapter` an operator-facing
+  vault-resolved git-cas encryption boundary for CAS content, including
+  current scheme selection, vault verification diagnostics, and legacy scheme
+  migration errors.
 
 ### Changed
 

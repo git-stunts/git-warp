@@ -19,6 +19,7 @@ import AdapterValidationError from '../../domain/errors/AdapterValidationError.t
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import CasBlobAdapter from './CasBlobAdapter.ts';
+import type CasContentEncryptionPolicy from './CasContentEncryptionPolicy.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
 import GitRecursiveTreeOidReaderAdapter from './GitRecursiveTreeOidReaderAdapter.ts';
 import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
@@ -40,17 +41,14 @@ import {
 import { createGitCasPatchStorage, type PatchStorageRoute } from '../../ports/CommitMessageCodecPort.ts';
 import type OperationPolicyPort from '../../ports/OperationPolicyPort.ts';
 import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
-
-// Re-export for downstream consumers that reference these types via the adapter module.
-export type { GitPlumbing, GitError } from './gitErrorClassification.ts';
-export type { CollectableStream } from './gitErrorClassification.ts';
+export type { GitPlumbing, GitError, CollectableStream } from './gitErrorClassification.ts';
 
 interface GitGraphAdapterOptions {
   readonly plumbing: GitPlumbing;
   readonly retryOptions?: Partial<OperationPolicyExecuteOptions>;
   readonly policy?: OperationPolicyPort;
+  readonly casContentEncryption?: CasContentEncryptionPolicy;
 }
-
 interface GitCasPolicy {
   execute<T>(operation: () => Promise<T>): Promise<T>;
 }
@@ -100,13 +98,15 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
   private readonly _gitCasPersistence: GitPersistenceAdapter;
   private readonly _gitCasGraphReader: GitCasGraphReaderAdapter;
   private readonly _recursiveTreeOidReader: GitRecursiveTreeOidReaderAdapter;
+  private readonly _casContentEncryption: CasContentEncryptionPolicy | undefined;
 
-  constructor({ plumbing, retryOptions = {}, policy }: GitGraphAdapterOptions) {
+  constructor({ plumbing, retryOptions = {}, policy, casContentEncryption }: GitGraphAdapterOptions) {
     super();
     if (plumbing === null || plumbing === undefined) {
       throw new AdapterValidationError('plumbing is required');
     }
     this.plumbing = plumbing;
+    this._casContentEncryption = casContentEncryption;
     this._retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions };
     this._policy = policy ?? new AlfredOperationPolicyAdapter({
       retryOptions: this._retryOptions,
@@ -163,6 +163,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     return Promise.resolve(new CasBlobAdapter({
       plumbing: this.plumbing,
       persistence: this,
+      ...(this._casContentEncryption ? { contentEncryption: this._casContentEncryption } : {}),
     }));
   }
 

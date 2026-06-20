@@ -43,6 +43,9 @@ const { default: BlobStoragePort } = await import(
 const { default: PersistenceError } = await import(
   '../../../../src/domain/errors/PersistenceError.ts'
 );
+const { default: CasContentEncryptionPolicy } = await import(
+  '../../../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts'
+);
 const { V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY } = await import(
   '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts'
 );
@@ -155,6 +158,42 @@ describe('CasBlobAdapter', () => {
 
       const storeCall = (mockStore.mock.calls[0] as any)[0];
       expect(storeCall.encryptionKey).toBe(encKey);
+    });
+
+    it('passes vault-backed encryption policy to CAS store when configured', async () => {
+      mockStore.mockResolvedValue({});
+      mockCreateTree.mockResolvedValue('tree-oid');
+
+      const encKey = new Uint8Array(32).fill(9);
+      const contentEncryption = CasContentEncryptionPolicy.fromResolvedVaultKey({
+        encryptionKey: encKey,
+        scheme: 'framed',
+        frameBytes: 65536,
+        vault: {
+          vaultSlug: 'graphs/team/content',
+          keyId: 'content-key-1',
+          verification: 'verified',
+          rotationEpoch: 1,
+          encryptionCount: 1,
+          encryptionCountLimit: 100,
+          privacyMode: true,
+        },
+      });
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence: makePersistence(),
+        contentEncryption,
+      });
+
+      await adapter.store('secret data');
+
+      expect(mockStore).toHaveBeenCalledWith(
+        expect.objectContaining({
+          encryptionKey: encKey,
+          encryption: { scheme: 'framed', frameBytes: 65536 },
+        }),
+      );
+      expect(mockStore.mock.calls[0]?.[0].encryptionKey).not.toBe(encKey);
     });
 
     it('does not include encryptionKey when not configured', async () => {
@@ -349,6 +388,44 @@ describe('CasBlobAdapter', () => {
       });
 
       await expect(adapter.retrieve('enc-oid')).rejects.toThrow('decryption failed');
+      expect(persistence.readBlob).not.toHaveBeenCalled();
+    });
+
+    it('surfaces legacy git-cas encryption scheme errors with migration guidance', async () => {
+      const persistence = makePersistence();
+      const casErr = Object.assign(new Error('Legacy encryption scheme "whole-v1" is no longer supported'), {
+        code: 'LEGACY_SCHEME',
+      });
+      mockReadManifest.mockRejectedValue(casErr);
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      await expect(adapter.retrieve('enc-legacy-oid')).rejects.toMatchObject({
+        code: 'E_CAS_LEGACY_ENCRYPTION_SCHEME',
+      });
+      expect(persistence.readBlob).not.toHaveBeenCalled();
+    });
+
+    it('surfaces wrong vault passphrase errors without deleting or falling back', async () => {
+      const manifest = { chunks: ['chunk1'] };
+      const persistence = makePersistence();
+      const casErr = Object.assign(new Error('Vault passphrase verification failed'), {
+        code: 'INTEGRITY_ERROR',
+      });
+      mockReadManifest.mockResolvedValue(manifest);
+      mockRestore.mockRejectedValue(casErr);
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      await expect(adapter.retrieve('enc-oid')).rejects.toMatchObject({
+        code: 'E_CAS_VAULT_PASSPHRASE_FAILED',
+      });
       expect(persistence.readBlob).not.toHaveBeenCalled();
     });
   });

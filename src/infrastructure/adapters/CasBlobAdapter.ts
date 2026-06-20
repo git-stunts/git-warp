@@ -19,6 +19,12 @@ import {
   CURRENT_SUBSTRATE_ONLY_POLICY,
   type SubstrateCompatibilityPolicyValue,
 } from './SubstrateCompatibilityPolicy.ts';
+import CasContentEncryptionPolicy, {
+  type CasRestoreEncryptionArguments,
+  type CasStoreEncryptionArguments,
+  type CasStoreEncryptionOptions,
+  mapCasContentEncryptionError,
+} from './CasContentEncryptionPolicy.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import { Readable } from 'node:stream';
 
@@ -28,9 +34,9 @@ interface CasManifest {
 
 interface CasStore {
   readManifest(opts: { treeOid: string }): Promise<CasManifest>;
-  restore(opts: { manifest: CasManifest; encryptionKey?: Uint8Array }): Promise<{ buffer: Uint8Array }>;
-  restoreStream?: (opts: { manifest: CasManifest; encryptionKey?: Uint8Array }) => AsyncIterable<Uint8Array>;
-  store(opts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array }): Promise<CasManifest>;
+  restore(opts: { manifest: CasManifest } & CasRestoreEncryptionArguments): Promise<{ buffer: Uint8Array }>;
+  restoreStream?: (opts: { manifest: CasManifest } & CasRestoreEncryptionArguments) => AsyncIterable<Uint8Array>;
+  store(opts: { source: unknown; slug: string; filename: string } & CasStoreEncryptionArguments): Promise<CasManifest>;
   createTree(opts: { manifest: CasManifest }): Promise<string>;
 }
 
@@ -75,22 +81,23 @@ function hasLegacyBlobMessage(msg: string): boolean {
 export default class CasBlobAdapter extends BlobStoragePort {
   private readonly _plumbing: unknown;
   private readonly _persistence: BlobPersistence;
-  private readonly _encryptionKey: Uint8Array | undefined;
+  private readonly _contentEncryption: CasContentEncryptionPolicy;
   private readonly _logger: LoggerPort | undefined;
   private readonly _getCas: () => Promise<CasStore>;
   private readonly _compatibilityPolicy: SubstrateCompatibilityPolicyValue;
 
-  constructor({ plumbing, persistence, encryptionKey, logger, compatibilityPolicy }: {
+  constructor({ plumbing, persistence, encryptionKey, contentEncryption, logger, compatibilityPolicy }: {
     plumbing: unknown;
     persistence: BlobPersistence;
     encryptionKey?: Uint8Array;
+    contentEncryption?: CasContentEncryptionPolicy;
     logger?: LoggerPort;
     compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
   }) {
     super();
     this._plumbing = plumbing;
     this._persistence = persistence;
-    this._encryptionKey = encryptionKey;
+    this._contentEncryption = resolveContentEncryption(contentEncryption, encryptionKey);
     this._logger = logger;
     this._getCas = createLazyCas(() => this._initCas());
     this._compatibilityPolicy = compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
@@ -110,14 +117,12 @@ export default class CasBlobAdapter extends BlobStoragePort {
       : content;
     const source = Readable.from([buf]);
 
-    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array } = {
+    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
       source,
       slug: options?.slug ?? `blob-${Date.now().toString(36)}`,
       filename: 'content',
+      ...this._contentEncryption.toStoreOptions(),
     };
-    if (this._encryptionKey) {
-      storeOpts.encryptionKey = this._encryptionKey;
-    }
 
     const manifest = await cas.store(storeOpts);
     return await cas.createTree({ manifest });
@@ -129,6 +134,10 @@ export default class CasBlobAdapter extends BlobStoragePort {
     try {
       return await this._restoreFromCas(cas, oid);
     } catch (err) {
+      const encryptionError = mapCasContentEncryptionError(err, 'content-attachment');
+      if (encryptionError !== null) {
+        throw encryptionError;
+      }
       if (!isLegacyBlobError(err)) {
         throw err;
       }
@@ -156,26 +165,20 @@ export default class CasBlobAdapter extends BlobStoragePort {
     return blob;
   }
 
-  private _buildRestoreOpts(manifest: CasManifest): { manifest: CasManifest; encryptionKey?: Uint8Array } {
-    const opts: { manifest: CasManifest; encryptionKey?: Uint8Array } = { manifest };
-    if (this._encryptionKey) {
-      opts.encryptionKey = this._encryptionKey;
-    }
-    return opts;
+  private _buildRestoreOpts(manifest: CasManifest): { manifest: CasManifest } & CasRestoreEncryptionArguments {
+    return { manifest, ...this._contentEncryption.toRestoreOptions() };
   }
 
   override async storeStream(source: AsyncIterable<Uint8Array>, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string> {
     const cas = await this._getCas();
     const readable = Readable.from(source);
 
-    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array } = {
+    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
       source: readable,
       slug: options?.slug ?? `blob-${Date.now().toString(36)}`,
       filename: 'content',
+      ...this._contentEncryption.toStoreOptions(),
     };
-    if (this._encryptionKey) {
-      storeOpts.encryptionKey = this._encryptionKey;
-    }
 
     const manifest = await cas.store(storeOpts);
     return await cas.createTree({ manifest });
@@ -215,6 +218,10 @@ export default class CasBlobAdapter extends BlobStoragePort {
     try {
       return await this._streamFromCas(cas, oid);
     } catch (err) {
+      const encryptionError = mapCasContentEncryptionError(err, 'content-attachment-stream');
+      if (encryptionError !== null) {
+        throw encryptionError;
+      }
       if (!isLegacyBlobError(err)) {
         throw err;
       }
@@ -250,6 +257,19 @@ export default class CasBlobAdapter extends BlobStoragePort {
       },
     );
   }
+}
+
+function resolveContentEncryption(
+  contentEncryption: CasContentEncryptionPolicy | undefined,
+  encryptionKey: Uint8Array | undefined,
+): CasContentEncryptionPolicy {
+  if (contentEncryption !== undefined) {
+    return contentEncryption;
+  }
+  if (encryptionKey !== undefined) {
+    return CasContentEncryptionPolicy.fromInternalResolvedKey({ encryptionKey });
+  }
+  return CasContentEncryptionPolicy.disabled();
 }
 
 function singleChunkIterator(buf: Uint8Array): AsyncIterator<Uint8Array> {
