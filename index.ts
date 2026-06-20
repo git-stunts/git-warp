@@ -75,6 +75,9 @@ import {
 } from './rootCompatibility.ts';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.ts';
 import Observer from './src/domain/services/query/Observer.ts';
+import ObserverAccumulation from './src/domain/services/query/ObserverAccumulation.ts';
+import ObserverBasis from './src/domain/services/query/ObserverBasis.ts';
+import ObserverEmission from './src/domain/services/query/ObserverEmission.ts';
 import Worldline from './src/domain/services/Worldline.ts';
 import WorldlineSelector from './src/domain/types/WorldlineSelector.ts';
 import LiveSelector from './src/domain/types/LiveSelector.ts';
@@ -327,6 +330,9 @@ export {
   StrandSelector,
   QueryBuilder,
   Observer,
+  ObserverAccumulation,
+  ObserverBasis,
+  ObserverEmission,
   PatchBuilder,
   PatchSession,
   Writer,

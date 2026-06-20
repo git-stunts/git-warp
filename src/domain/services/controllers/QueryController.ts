@@ -22,6 +22,7 @@ import QueryError from '../../errors/QueryError.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
 import type QueryCapability from '../../capabilities/QueryCapability.ts';
 import type WarpState from '../state/WarpState.ts';
+import type { Aperture } from '../../types/Aperture.ts';
 import type { QueryContentHost, QueryReadHost } from './ReadGraphHost.ts';
 import type {
   QueryReadModel,
@@ -208,7 +209,7 @@ async function resolveStrandSnapshot(
 
 // ── Observer argument normalization ─────────────────────────────────
 
-type ObserverConfig = { match: string | string[]; expose?: string[]; redact?: string[] };
+type ObserverConfig = Aperture;
 
 type NormalizedObserverArgs = {
   name: string;

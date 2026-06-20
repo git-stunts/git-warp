@@ -11,13 +11,10 @@ import type { ContentMeta } from '../types/ContentMeta.ts';
 import type QueryBuilder from '../services/query/QueryBuilder.ts';
 import type Worldline from '../services/Worldline.ts';
 import type Observer from '../services/query/Observer.ts';
+import type { Aperture } from '../types/Aperture.ts';
 
 /** Observer lens configuration for match/expose/redact filtering. */
-export type ObserverConfig = {
-  match: string | string[];
-  expose?: string[];
-  redact?: string[];
-};
+export type ObserverConfig = Aperture;
 
 /** Translation cost breakdown between two observer configurations. */
 export type TranslationCostResult = {

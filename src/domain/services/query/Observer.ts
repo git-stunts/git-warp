@@ -13,6 +13,8 @@ import QueryBuilder from './QueryBuilder.ts';
 import StateQueryReadModel from './StateQueryReadModel.ts';
 import VisibleQueryReadModel from './VisibleQueryReadModel.ts';
 import LogicalTraversal from './LogicalTraversal.ts';
+import ObserverAccumulation from './ObserverAccumulation.ts';
+import ObserverBasis from './ObserverBasis.ts';
 import { createStateReader } from '../state/StateReader.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import QueryError from '../../errors/QueryError.ts';
@@ -24,6 +26,7 @@ import type { WorldlineSource } from '../../capabilities/QueryCapability.ts';
 import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type { WarpState } from '../JoinReducer.ts';
+import type ObserverEmission from './ObserverEmission.ts';
 import type {
   QueryReadModel,
   QueryReadModelOpenRequest,
@@ -93,6 +96,7 @@ export interface ObserverConfig {
   match: string | string[];
   expose?: string[];
   redact?: string[];
+  basis?: string[];
 }
 
 interface ObserverOptions {
@@ -112,6 +116,7 @@ export default class Observer {
   private _matchPattern!: string | string[];
   private _expose: string[] | undefined;
   private _redact: string[] | undefined;
+  private _basis!: ObserverBasis;
   private _graph!: ObserverBacking | null;
   private _snapshot!: ObserverSnapshot | null;
   private _source!: WorldlineSelector | null;
@@ -130,6 +135,7 @@ export default class Observer {
     this._matchPattern = Array.isArray(config.match) ? [...config.match] : config.match;
     this._expose = config.expose ? [...config.expose] : undefined;
     this._redact = config.redact ? [...config.redact] : undefined;
+    this._basis = ObserverBasis.from(config.basis);
   }
 
   private _initBacking(
@@ -157,6 +163,10 @@ export default class Observer {
     return this._snapshot ? this._snapshot.stateHash : null;
   }
 
+  get basis(): ObserverBasis {
+    return this._basis;
+  }
+
   private _requireGraph(): ObserverBacking {
     if (!this._graph) {
       throw new QueryError(
@@ -173,6 +183,7 @@ export default class Observer {
     };
     if (this._expose) { config.expose = [...this._expose]; }
     if (this._redact) { config.redact = [...this._redact]; }
+    if (!this._basis.isEmpty()) { config.basis = this._basis.toConfigValue(); }
     return config;
   }
 
@@ -224,6 +235,26 @@ export default class Observer {
       ...(this._expose !== undefined ? { expose: [...this._expose] } : {}),
       ...(this._redact !== undefined ? { redact: [...this._redact] } : {}),
     };
+  }
+
+  // ===========================================================================
+  // Structural observer API
+  // ===========================================================================
+
+  async accumulate(): Promise<ObserverAccumulation> {
+    let accumulation = ObserverAccumulation.empty(this._basis);
+    const nodeIds = await this.getNodes();
+    for (const nodeId of nodeIds) {
+      const props = await this.getNodeProps(nodeId);
+      if (props !== null) {
+        accumulation = accumulation.includeNode(props);
+      }
+    }
+    return accumulation.includeEdges((await this.getEdges()).length);
+  }
+
+  async emit(): Promise<ObserverEmission> {
+    return (await this.accumulate()).emit();
   }
 
   // ===========================================================================
