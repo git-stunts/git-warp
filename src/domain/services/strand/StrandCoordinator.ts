@@ -162,10 +162,16 @@ export default class StrandCoordinator {
   _hydrateOverlayMetadata(descriptor: ParsedStrandDescriptor): Promise<StrandDescriptor> {
     return this._deps.descriptors.hydrateDescriptor(descriptor);
   }
-  _collectPatchEntries(descriptor: StrandDescriptor, options: { ceiling: number | null }): Promise<StrandPatchEntry[]> {
+  _collectPatchEntries(
+    descriptor: StrandDescriptor,
+    options: { ceiling: number | null; parentBasis?: 'pinned' | 'live' },
+  ): Promise<StrandPatchEntry[]> {
     return this._deps.materializer.collectPatchEntries(descriptor, options);
   }
-  _materializeDescriptor(descriptor: StrandDescriptor, options: { collectReceipts: boolean; ceiling: number | null }): ReturnType<StrandMaterializer['materializeDescriptor']> {
+  _materializeDescriptor(
+    descriptor: StrandDescriptor,
+    options: { collectReceipts: boolean; ceiling: number | null; parentBasis?: 'pinned' | 'live' },
+  ): ReturnType<StrandMaterializer['materializeDescriptor']> {
     return this._deps.materializer.materializeDescriptor(descriptor, options);
   }
   _commitQueuedPatch(params: Parameters<StrandPatchService['commitQueuedPatch']>[0]): ReturnType<StrandPatchService['commitQueuedPatch']> {
@@ -289,6 +295,7 @@ export default class StrandCoordinator {
     const { state, receipts } = await this._deps.materializer.materializeDescriptor(descriptor, {
       collectReceipts: options.receipts === true,
       ceiling,
+      parentBasis: 'live',
     });
     return Object.freeze({ state, receipts });
   }

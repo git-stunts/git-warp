@@ -4,8 +4,11 @@ import type Patch from '../../types/Patch.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { StrandDescriptor } from './strandTypes.ts';
 
+type ParentBasisMode = 'pinned' | 'live';
+
 type WarpRuntime = {
   _loadPatchChainFromSha(sha: string): Promise<Array<{ patch: Patch; sha: string }>>;
+  getFrontier?: () => Promise<Map<string, string>>;
 };
 
 export default class StrandMaterializer {
@@ -22,8 +25,26 @@ export default class StrandMaterializer {
    * Collect all base-observation patches from the pinned frontier writers.
    */
   async collectBasePatches(descriptor: StrandDescriptor): Promise<Array<{ patch: Patch; sha: string }>> {
+    return await this._collectParentBasisPatches(descriptor, 'pinned');
+  }
+
+  /**
+   * Collect parent-basis patches from live truth when the caller opts in.
+   */
+  async collectParentBasisPatches(
+    descriptor: StrandDescriptor,
+    options: { parentBasis: ParentBasisMode },
+  ): Promise<Array<{ patch: Patch; sha: string }>> {
+    return await this._collectParentBasisPatches(descriptor, options.parentBasis);
+  }
+
+  private async _collectParentBasisPatches(
+    descriptor: StrandDescriptor,
+    parentBasis: ParentBasisMode,
+  ): Promise<Array<{ patch: Patch; sha: string }>> {
     const allPatches: Array<{ patch: Patch; sha: string }> = [];
-    for (const tipSha of this._sortedFrontierTipShas(descriptor)) {
+    const parentFrontier = await this._parentBasisFrontier(descriptor, parentBasis);
+    for (const tipSha of this._sortedFrontierTipShas(parentFrontier)) {
       const writerPatches = await this._graph._loadPatchChainFromSha(tipSha);
       this._pushVisibleBasePatches(allPatches, writerPatches, descriptor.baseObservation.lamportCeiling ?? null);
     }
@@ -57,9 +78,9 @@ export default class StrandMaterializer {
    */
   async collectPatchEntries(
     descriptor: StrandDescriptor,
-    { ceiling }: { ceiling: number | null },
+    { ceiling, parentBasis = 'pinned' }: { ceiling: number | null; parentBasis?: ParentBasisMode },
   ): Promise<Array<{ patch: Patch; sha: string }>> {
-    const basePatches = await this.collectBasePatches(descriptor);
+    const basePatches = await this.collectParentBasisPatches(descriptor, { parentBasis });
     const braidedOverlayPatches = await this.collectBraidedOverlayPatches(descriptor);
     const overlayPatches = await this.collectOverlayPatches(descriptor);
     const deduped = new Map<string, { patch: Patch; sha: string }>();
@@ -80,19 +101,33 @@ export default class StrandMaterializer {
    */
   async materializeDescriptor(
     descriptor: StrandDescriptor,
-    { collectReceipts, ceiling }: { collectReceipts: boolean; ceiling: number | null },
+    {
+      collectReceipts,
+      ceiling,
+      parentBasis = 'pinned',
+    }: { collectReceipts: boolean; ceiling: number | null; parentBasis?: ParentBasisMode },
   ): Promise<{
     state: WarpState;
     receipts: TickReceipt[];
     allPatches: Array<{ patch: Patch; sha: string }>;
   }> {
-    const allPatches = await this.collectPatchEntries(descriptor, { ceiling });
+    const allPatches = await this.collectPatchEntries(descriptor, { ceiling, parentBasis });
     const { state, receipts } = this._reduceCollectedPatches(allPatches, collectReceipts);
     return { state, receipts, allPatches };
   }
 
-  private _sortedFrontierTipShas(descriptor: StrandDescriptor): string[] {
-    return Object.entries(descriptor.baseObservation.frontier)
+  private async _parentBasisFrontier(
+    descriptor: StrandDescriptor,
+    parentBasis: ParentBasisMode,
+  ): Promise<Record<string, string>> {
+    if (parentBasis === 'pinned' || this._graph.getFrontier === undefined) {
+      return descriptor.baseObservation.frontier;
+    }
+    return Object.fromEntries(await this._graph.getFrontier());
+  }
+
+  private _sortedFrontierTipShas(frontier: Record<string, string>): string[] {
+    return Object.entries(frontier)
       .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
       .map(([, tipSha]) => tipSha)
       .filter((tipSha): tipSha is string => isNonEmptyString(tipSha));

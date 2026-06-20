@@ -1451,6 +1451,11 @@ Observers are pinned read handles. By default they capture the current
 materialized coordinate at creation time. They can also bind directly to an
 explicit coordinate or a pinned strand instead of following live truth.
 
+Strand-backed observers use the strand overlay plus the current parent basis.
+Untouched parent regions therefore follow live truth; callers that need a
+frozen historical basis should bind an explicit coordinate instead of a strand
+source.
+
 `graph.query.observer(...)` remains available as a convenience entry
 point, but `worldline()` is the clearer public noun when the caller wants to pin
 history explicitly.
