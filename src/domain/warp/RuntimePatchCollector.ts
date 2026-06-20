@@ -80,19 +80,20 @@ export default class RuntimePatchCollector extends PatchCollector {
     return await this._runtime._loadWriterPatches(writerId);
   }
 
-  async collectForFrontier(frontier: Map<string, string>, ceiling: number | null): Promise<PatchWithSha[]> {
-    const all: PatchWithSha[] = [];
+  override async *streamForFrontier(
+    frontier: Map<string, string>,
+    ceiling: number | null,
+  ): AsyncIterable<PatchWithSha> {
     for (const writerId of frontier.keys()) {
       const tipSha = frontier.get(writerId);
       if (typeof tipSha !== 'string' || tipSha.length === 0) { continue; }
       const patches = await this._runtime._loadPatchChainFromSha(tipSha);
       for (const entry of patches) {
-        if (ceiling === null || (entry.patch.lamport ?? 0) <= ceiling) {
-          all.push(entry);
+        if (ceiling === null || entry.patch.lamport <= ceiling) {
+          yield entry;
         }
       }
     }
-    return all;
   }
 
   async loadCheckpoint(): Promise<CheckpointData | null> {

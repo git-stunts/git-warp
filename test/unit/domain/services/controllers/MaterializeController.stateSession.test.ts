@@ -11,6 +11,8 @@ import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 import SchemaUnsupportedError from "../../../../../src/domain/errors/SchemaUnsupportedError.ts";
 import { InMemoryTrieStore } from "../../../../helpers/trieHelpers.ts";
 import { createEmptyState } from "../../../../../src/domain/services/JoinReducer.ts";
+import Patch from "../../../../../src/domain/types/Patch.ts";
+import type { CheckpointData, PatchWithSha } from "../../../../../src/domain/capabilities/PatchCollector.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -19,18 +21,7 @@ type Coordinate = {
   ceiling: number | null;
 };
 
-type PatchRecord = {
-  patch: {
-    schema: number;
-    writer: string;
-    lamport: number;
-    context: Record<string, number>;
-    ops: readonly (NodeAdd | EdgeAdd)[];
-    reads: readonly string[];
-    writes: readonly string[];
-  };
-  sha: string;
-};
+type PatchRecord = PatchWithSha;
 
 function nodeAddPatchRecord(args: {
   readonly writer: string;
@@ -39,15 +30,14 @@ function nodeAddPatchRecord(args: {
   readonly node: string;
 }): PatchRecord {
   return {
-    patch: {
-      schema: 2,
+    patch: new Patch({
       writer: args.writer,
       lamport: args.lamport,
       context: {},
       ops: [new NodeAdd(args.node, Dot.create(args.writer, args.lamport))],
       reads: [],
       writes: [args.node],
-    },
+    }),
     sha: args.sha,
   };
 }
@@ -61,8 +51,7 @@ function edgeAddPatchRecord(args: {
   readonly label: string;
 }): PatchRecord {
   return {
-    patch: {
-      schema: 2,
+    patch: new Patch({
       writer: args.writer,
       lamport: args.lamport,
       context: {},
@@ -76,7 +65,7 @@ function edgeAddPatchRecord(args: {
       ],
       reads: [],
       writes: [`${args.from}\0${args.to}\0${args.label}`],
-    },
+    }),
     sha: args.sha,
   };
 }
@@ -96,6 +85,12 @@ function snapshotRecord(coordinate: Coordinate) {
   };
 }
 
+async function* streamFromPromise<T>(items: Promise<T[]>): AsyncIterable<T> {
+  for (const item of await items) {
+    yield item;
+  }
+}
+
 function createControllerFixtures() {
   const stateCache = {
     getExact: vi.fn(),
@@ -108,13 +103,26 @@ function createControllerFixtures() {
   };
   const patches = {
     discoverWriters: vi.fn().mockResolvedValue([]),
-    loadWriterPatches: vi.fn().mockResolvedValue([]),
-    collectForFrontier: vi.fn().mockResolvedValue([]),
-    collectForFrontierSinceCoordinate: vi.fn().mockResolvedValue([]),
+    loadWriterPatches: vi.fn<(_writerId: string) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
+    collectForFrontier:
+      vi.fn<(_frontier: Map<string, string>, _ceiling: number | null) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
+    collectForFrontierSinceCoordinate:
+      vi.fn<(_frontier: Map<string, string>, _ceiling: number | null, _coordinate: Coordinate) => Promise<PatchWithSha[]>>()
+        .mockResolvedValue([]),
     loadCheckpoint: vi.fn().mockResolvedValue(null),
-    loadPatchesSince: vi.fn().mockResolvedValue([]),
-    loadPatchChain: vi.fn().mockResolvedValue([]),
+    loadPatchesSince: vi.fn<(_checkpoint: CheckpointData) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
+    loadPatchChain: vi.fn<(_toSha: string, _fromSha?: string | null) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
     getFrontier: vi.fn().mockResolvedValue(new Map([["writer-1", "tip-1"]])),
+    streamWriterPatches: vi.fn((writerId: string) => streamFromPromise(patches.loadWriterPatches(writerId))),
+    streamForFrontier: vi.fn((frontier: Map<string, string>, ceiling: number | null) =>
+      streamFromPromise(patches.collectForFrontier(frontier, ceiling))),
+    streamForFrontierSinceCoordinate: vi.fn((
+      frontier: Map<string, string>,
+      ceiling: number | null,
+      coordinate: Coordinate,
+    ) => streamFromPromise(patches.collectForFrontierSinceCoordinate(frontier, ceiling, coordinate))),
+    streamPatchesSince: vi.fn((checkpoint: Parameters<typeof patches.loadPatchesSince>[0]) =>
+      streamFromPromise(patches.loadPatchesSince(checkpoint))),
   };
   const store = new InMemoryTrieStore();
   const pageCache = new PageCache({ maxResident: 32 });

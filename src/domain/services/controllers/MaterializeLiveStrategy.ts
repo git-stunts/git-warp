@@ -28,7 +28,7 @@ export default class MaterializeLiveStrategy {
     checkpoint: CheckpointData,
     opts: MaterializeLiveOptions,
   ): Promise<MaterializeResult> {
-    const patches = await this.runtime.deps.patches.loadPatchesSince(checkpoint);
+    const patches = await this.collectPatchStream(this.runtime.deps.patches.streamPatchesSince(checkpoint));
     const reduced = await this.runtime.reducePatches(patches, checkpoint.state, opts);
     const provenance = this.runtime.buildProvenance(
       patches,
@@ -67,10 +67,16 @@ export default class MaterializeLiveStrategy {
   private async loadAllPatches(writers: string[]): Promise<PatchWithSha[]> {
     const all: PatchWithSha[] = [];
     for (const writerId of writers) {
-      const patches = await this.runtime.deps.patches.loadWriterPatches(writerId);
-      for (const patch of patches) {
-        all.push(patch);
-      }
+      const patches = await this.collectPatchStream(this.runtime.deps.patches.streamWriterPatches(writerId));
+      all.push(...patches);
+    }
+    return all;
+  }
+
+  private async collectPatchStream(stream: AsyncIterable<PatchWithSha>): Promise<PatchWithSha[]> {
+    const all: PatchWithSha[] = [];
+    for await (const patch of stream) {
+      all.push(patch);
     }
     return all;
   }

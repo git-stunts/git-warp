@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graph traversal now exposes `bfsStream()` and `dfsStream()` async generator
   APIs, with collected `bfs()` and `dfs()` results layered over the same
   traversal path.
+- Patch collection for materialization now has stream-first frontier,
+  checkpoint, and writer patch APIs, with legacy array collectors reduced to
+  stream collection wrappers.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.

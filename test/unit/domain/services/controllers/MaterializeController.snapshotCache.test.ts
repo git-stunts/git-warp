@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import MaterializeController from '../../../../../src/domain/services/controllers/MaterializeController.ts';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
+import Patch from '../../../../../src/domain/types/Patch.ts';
+import type { CheckpointData, PatchWithSha } from '../../../../../src/domain/capabilities/PatchCollector.ts';
 
 type Coordinate = {
   frontier: Map<string, string>;
@@ -18,30 +20,18 @@ type SnapshotRecord = {
   createdAt: string;
 };
 
-type PatchRecord = {
-  patch: {
-    schema: number;
-    writer: string;
-    lamport: number;
-    context: Record<string, never>;
-    ops: [];
-    reads: string[];
-    writes: string[];
-  };
-  sha: string;
-};
+type PatchRecord = PatchWithSha;
 
 function patchRecord(lamport: number, sha: string): PatchRecord {
   return {
-    patch: {
-      schema: 2,
+    patch: new Patch({
       writer: 'writer-1',
       lamport,
       context: {},
       ops: [],
       reads: [],
       writes: [],
-    },
+    }),
     sha,
   };
 }
@@ -63,6 +53,12 @@ function snapshotRecord(
   };
 }
 
+async function* streamFromPromise<T>(items: Promise<T[]>): AsyncIterable<T> {
+  for (const item of await items) {
+    yield item;
+  }
+}
+
 function createControllerFixtures() {
   const stateCache = {
     getExact: vi.fn<(_coordinate: Coordinate) => Promise<SnapshotRecord | null>>(),
@@ -76,13 +72,26 @@ function createControllerFixtures() {
 
   const patches = {
     discoverWriters: vi.fn().mockResolvedValue([]),
-    loadWriterPatches: vi.fn().mockResolvedValue([]),
-    collectForFrontier: vi.fn().mockResolvedValue([]),
-    collectForFrontierSinceCoordinate: vi.fn().mockResolvedValue([]),
+    loadWriterPatches: vi.fn<(_writerId: string) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
+    collectForFrontier:
+      vi.fn<(_frontier: Map<string, string>, _ceiling: number | null) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
+    collectForFrontierSinceCoordinate:
+      vi.fn<(_frontier: Map<string, string>, _ceiling: number | null, _coordinate: Coordinate) => Promise<PatchWithSha[]>>()
+        .mockResolvedValue([]),
     loadCheckpoint: vi.fn().mockResolvedValue(null),
-    loadPatchesSince: vi.fn().mockResolvedValue([]),
-    loadPatchChain: vi.fn().mockResolvedValue([]),
+    loadPatchesSince: vi.fn<(_checkpoint: CheckpointData) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
+    loadPatchChain: vi.fn<(_toSha: string, _fromSha?: string | null) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
     getFrontier: vi.fn().mockResolvedValue(new Map([['writer-1', 'tip-7']])),
+    streamWriterPatches: vi.fn((writerId: string) => streamFromPromise(patches.loadWriterPatches(writerId))),
+    streamForFrontier: vi.fn((frontier: Map<string, string>, ceiling: number | null) =>
+      streamFromPromise(patches.collectForFrontier(frontier, ceiling))),
+    streamForFrontierSinceCoordinate: vi.fn((
+      frontier: Map<string, string>,
+      ceiling: number | null,
+      coordinate: Coordinate,
+    ) => streamFromPromise(patches.collectForFrontierSinceCoordinate(frontier, ceiling, coordinate))),
+    streamPatchesSince: vi.fn((checkpoint: Parameters<typeof patches.loadPatchesSince>[0]) =>
+      streamFromPromise(patches.loadPatchesSince(checkpoint))),
   };
 
   const deps = {

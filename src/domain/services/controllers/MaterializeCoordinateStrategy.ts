@@ -10,6 +10,7 @@ import type {
   WarpStateSnapshotRecord,
 } from '../../../ports/WarpStateCachePort.ts';
 import type WarpState from '../state/WarpState.ts';
+import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
 
 type UsableSnapshotRecord = WarpStateSnapshotRecord & {
   state: WarpState;
@@ -34,10 +35,19 @@ export default class MaterializeCoordinateStrategy {
     if (cacheResolved !== null) {
       return cacheResolved;
     }
-    const patches = await this.runtime.deps.patches.collectForFrontier(opts.frontier, opts.ceiling);
+    const patches = await this.collectPatchStream(
+      this.runtime.deps.patches.streamForFrontier(opts.frontier, opts.ceiling),
+    );
     if (this.noPatches(patches)) {
       return await this.runtime.emptyResult(opts.ceiling, opts.frontier);
     }
+    return await this.materializeCollectedPatches(opts, patches);
+  }
+
+  private async materializeCollectedPatches(
+    opts: MaterializeCoordinateOptions,
+    patches: PatchWithSha[],
+  ): Promise<MaterializeResult> {
     const reduced = await this.runtime.reducePatches(patches, undefined, {
       receipts: opts.receipts,
       wantDiff: false,
@@ -116,10 +126,12 @@ export default class MaterializeCoordinateStrategy {
       return null;
     }
 
-    const patches = await this.runtime.deps.patches.collectForFrontierSinceCoordinate(
-      opts.coordinate.frontier,
-      opts.coordinate.ceiling,
-      predecessor.coordinate,
+    const patches = await this.collectPatchStream(
+      this.runtime.deps.patches.streamForFrontierSinceCoordinate(
+        opts.coordinate.frontier,
+        opts.coordinate.ceiling,
+        predecessor.coordinate,
+      ),
     );
     const reduced = await this.runtime.reducePatches(patches, predecessor.state, {
       receipts: false,
@@ -157,5 +169,13 @@ export default class MaterializeCoordinateStrategy {
       ceiling: snapshot.coordinate.ceiling,
       frontier: snapshot.coordinate.frontier,
     });
+  }
+
+  private async collectPatchStream(stream: AsyncIterable<PatchWithSha>): Promise<PatchWithSha[]> {
+    const patches: PatchWithSha[] = [];
+    for await (const patch of stream) {
+      patches.push(patch);
+    }
+    return patches;
   }
 }
