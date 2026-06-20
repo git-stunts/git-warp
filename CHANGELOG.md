@@ -443,6 +443,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`browser.d.ts` deleted** — Same: `browser.ts` is the source of truth and npm consumers receive generated `dist/browser.d.ts`.
 - **`contracts/type-surface.m8.json` deleted** — The Ironclad manifest is redundant when the barrel IS the contract.
 - **Entry points renamed** — Source entry points moved from `index.js` → `index.ts`, `browser.js` → `browser.ts`, and `bin/warp-graph.js` → `bin/warp-graph.ts`. npm exports point at generated `dist/*.js`; JSR exports point at TypeScript source.
+- **`@git-stunts/plumbing` class rename** — The substrate package now exposes
+  the Git plumbing runtime as the default `GitPlumbing` class. Consumers that
+  imported a named `Plumbing` symbol must switch to a default import and choose
+  the local name explicitly: `import GitPlumbing from '@git-stunts/plumbing';`.
 
 ### Changed
 

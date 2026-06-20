@@ -83,6 +83,10 @@ const todos = await openWarpWorldline({
 });
 ```
 
+`GitPlumbing` is the local name for the default export from
+`@git-stunts/plumbing` v3. Do not import a named `Plumbing` symbol; v17 treats
+that substrate rename as a breaking change.
+
 ### WarpWorldlineOpenOptions
 
 `WarpWorldlineOpenOptions` accepts the same substrate ports as `WarpGraphDeps`,
