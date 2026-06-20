@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `watch` command families backed by current runtime capabilities, while docs
   keep `export` / `import` and `upgrade` / `migrate` omitted until those
   adapter boundaries exist.
+- Conflict analysis pipeline stages now receive an explicit
+  `ConflictPipelineContext` instead of the `ConflictAnalyzerService`
+  orchestrator, keeping graph access and hashing dependencies narrow.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.

@@ -18,12 +18,8 @@ import type ConflictTarget from '../../types/conflict/ConflictTarget.ts';
 import type ConflictResolution from '../../types/conflict/ConflictResolution.ts';
 import type ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import type ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
-import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import type ConflictAnalysisRequest from './ConflictAnalysisRequest.ts';
-
-type HashingService = {
-  _hash(payload: HashablePayload): Promise<string>;
-};
+import type ConflictPipelineContext from './ConflictPipelineContext.ts';
 
 type ConflictKind = 'supersession' | 'redundancy' | 'eventual_override';
 
@@ -165,7 +161,7 @@ function buildConflictIdInput({
 }
 
 async function buildConflictTrace(
-  service: HashingService,
+  context: ConflictPipelineContext,
   {
     group,
     evidence,
@@ -178,8 +174,8 @@ async function buildConflictTrace(
 ): Promise<ConflictTrace> {
   const winner = ConflictWinner.fromRecord(group.winner);
   const losers = buildLosers(group, evidence);
-  const whyFingerprint = await service._hash(buildWhyFingerprintInput(group, losers));
-  const conflictId = await service._hash(buildConflictIdInput({ group, winner, losers, resolvedCoordinate }));
+  const whyFingerprint = await context.hash(buildWhyFingerprintInput(group, losers));
+  const conflictId = await context.hash(buildConflictIdInput({ group, winner, losers, resolvedCoordinate }));
   const classificationNotes = evidence === 'full' ? [...group.noteCodes].sort(compareStrings) : undefined;
   return new ConflictTrace({
     conflictId,
@@ -198,7 +194,7 @@ async function buildConflictTrace(
  * Transforms grouped conflicts into sorted, finalized ConflictTrace records.
  */
 export async function buildConflictTraces(
-  service: HashingService,
+  context: ConflictPipelineContext,
   {
     grouped,
     evidence,
@@ -211,7 +207,7 @@ export async function buildConflictTraces(
 ): Promise<ConflictTrace[]> {
   const traces: ConflictTrace[] = [];
   for (const group of grouped) {
-    traces.push(await buildConflictTrace(service, { group, evidence, resolvedCoordinate }));
+    traces.push(await buildConflictTrace(context, { group, evidence, resolvedCoordinate }));
   }
   traces.sort((a, b) => ConflictTrace.compare(a, b));
   return traces;
@@ -236,7 +232,7 @@ function diagnosticCodes(diagnostics: ConflictDiagnostic[]): string[] {
  * Computes a snapshot hash over the entire analysis result.
  */
 export async function buildAnalysisSnapshotHash(
-  service: HashingService,
+  context: ConflictPipelineContext,
   {
     resolvedCoordinate,
     request,
@@ -251,7 +247,7 @@ export async function buildAnalysisSnapshotHash(
     traces: ConflictTrace[];
   },
 ): Promise<string> {
-  return await service._hash({
+  return await context.hash({
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
     resolvedCoordinate,
     filters: request.toSnapshotFilterRecord(),
@@ -265,7 +261,7 @@ export async function buildAnalysisSnapshotHash(
  * Computes a snapshot hash for an analysis that found zero conflicts.
  */
 export async function buildEmptySnapshotHash(
-  service: HashingService,
+  context: ConflictPipelineContext,
   {
     resolvedCoordinate,
     request,
@@ -274,7 +270,7 @@ export async function buildEmptySnapshotHash(
     request: ConflictAnalysisRequest;
   },
 ): Promise<string> {
-  return await service._hash({
+  return await context.hash({
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
     resolvedCoordinate,
     filters: request.toSnapshotFilterRecord(),

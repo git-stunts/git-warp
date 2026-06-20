@@ -8,7 +8,6 @@
  */
 
 import ConflictTarget from '../../types/conflict/ConflictTarget.ts';
-import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import {
   normalizeConflictOp,
   receiptNameForOp,
@@ -22,6 +21,7 @@ import ConflictEffectPayload, {
 } from './ConflictEffectPayload.ts';
 import type { ConflictTargetIdentity } from './ConflictTargetIdentityModels.ts';
 import ConflictTargetResolver from './ConflictTargetResolver.ts';
+import type ConflictPipelineContext from './ConflictPipelineContext.ts';
 
 export {
   effectKey,
@@ -52,12 +52,8 @@ export function buildTargetIdentity(canonOp: CanonicalOpBlob, receiptTarget: str
   return ConflictTargetResolver.resolve(canonOp, receiptTarget);
 }
 
-type HashingService = {
-  _hash(payload: HashablePayload): Promise<string>;
-};
-
 export async function buildConflictTarget(
-  service: HashingService,
+  context: ConflictPipelineContext,
   { canonOp, receiptTarget }: { canonOp: CanonicalOpBlob; receiptTarget: string },
 ): Promise<ConflictTarget | null> {
   const targetIdentity = buildTargetIdentity(canonOp, receiptTarget);
@@ -66,12 +62,12 @@ export async function buildConflictTarget(
   }
   return new ConflictTarget({
     ...targetIdentity,
-    targetDigest: await service._hash(targetIdentity),
+    targetDigest: await context.hash(targetIdentity),
   });
 }
 
 export async function buildEffectDigest(
-  service: HashingService,
+  context: ConflictPipelineContext,
   {
     target,
     receiptOpType,
@@ -82,5 +78,5 @@ export async function buildEffectDigest(
   if (effectPayload === null) {
     return null;
   }
-  return await service._hash(buildEffectPayload(target, receiptOpType, effectPayload));
+  return await context.hash(buildEffectPayload(target, receiptOpType, effectPayload));
 }
