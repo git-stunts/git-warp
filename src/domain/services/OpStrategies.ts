@@ -28,7 +28,6 @@ import {
   encodeEdgePropKey,
   EDGE_PROP_PREFIX,
 } from './KeyCodec.ts';
-import { OP_TYPES } from '../types/TickReceipt.ts';
 import PatchError from '../errors/PatchError.ts';
 import type WarpState from './state/WarpState.ts';
 import type { MutablePatchDiff } from '../types/PatchDiff.ts';
@@ -38,6 +37,7 @@ import OpValidator from './OpValidator.ts';
 import DiffCalculator from './DiffCalculator.ts';
 import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 import OpStrategy from './OpStrategy.ts';
+import { validateOpStrategyRegistry } from './OpStrategyRegistryValidation.ts';
 import ReceiptBuilder from './ReceiptBuilder.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 
@@ -303,13 +303,4 @@ export const OP_STRATEGIES: ReadonlyMap<string, OpStrategy> = Object.freeze(new 
   ['BlobValue', new BlobValueStrategy()],
 ]));
 
-// Load-time validation: every strategy must declare a valid receiptName
-// that matches a TickReceipt OP_TYPES entry.
-for (const [type, strategy] of OP_STRATEGIES) {
-  if (!OP_TYPES.includes(strategy.receiptName)) {
-    throw new PatchError(
-      `OpStrategy '${type}' receiptName '${strategy.receiptName}' is not in TickReceipt OP_TYPES`,
-      { context: { opType: type, receiptName: strategy.receiptName } },
-    );
-  }
-}
+validateOpStrategyRegistry(OP_STRATEGIES);
