@@ -453,7 +453,7 @@ export default class RuntimeHost {
     strandId: string,
     options: { ceiling?: number | null } = {},
   ): Promise<MaterializedGraph> {
-    const result = await this._strandController._materializeStrandLive(strandId, options);
+    const result = await this._strandController._materializeStrandRead(strandId, options);
     return await this._materializedGraphFromState(result.state);
   }
 

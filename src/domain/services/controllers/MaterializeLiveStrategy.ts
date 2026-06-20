@@ -29,7 +29,7 @@ export default class MaterializeLiveStrategy {
     opts: MaterializeLiveOptions,
   ): Promise<MaterializeResult> {
     const reduction = await this.runtime.reducePatchStream(
-      this.runtime.deps.patches.streamPatchesSince(checkpoint),
+      this.streamPatchesSince(checkpoint),
       checkpoint.state,
       opts,
       checkpoint.provenanceIndex,
@@ -41,6 +41,16 @@ export default class MaterializeLiveStrategy {
       ceiling: null,
       frontier: null,
     });
+  }
+
+  private async *streamPatchesSince(checkpoint: CheckpointData): AsyncIterable<PatchWithSha> {
+    if (typeof this.runtime.deps.patches.streamPatchesSince === 'function') {
+      yield* this.runtime.deps.patches.streamPatchesSince(checkpoint);
+      return;
+    }
+    for (const entry of await this.runtime.deps.patches.loadPatchesSince(checkpoint)) {
+      yield entry;
+    }
   }
 
   private async fromScratch(opts: MaterializeLiveOptions): Promise<MaterializeResult> {

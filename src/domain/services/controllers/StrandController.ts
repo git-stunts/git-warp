@@ -64,6 +64,10 @@ export default class StrandController {
     return await this._strandService.materializeLiveState(strandId, options);
   }
 
+  async _materializeStrandRead(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }> {
+    return await this._strandService.materializeReadState(strandId, options);
+  }
+
   async getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {
     return await this._strandService.getPatchEntries(strandId, options) as Array<{ patch: Patch; sha: string }>;
   }

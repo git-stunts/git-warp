@@ -339,7 +339,7 @@ describe('WarpCore strand foundation', () => {
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
   });
 
-  it('observer() can bind to a strand whose parent basis follows live truth', async () => {
+  it('observer() can bind to a strand overlay without sliding under live parent changes', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
@@ -381,7 +381,7 @@ describe('WarpCore strand foundation', () => {
     );
 
     await expect(strandObserver.getNodeProps('n1')).resolves.toMatchObject({
-      color: 'blue',
+      color: 'red',
       status: 'reviewing',
     });
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
