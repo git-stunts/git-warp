@@ -17,11 +17,29 @@ import SyncError from '../../errors/SyncError.ts';
 import { cloneFrontier, updateFrontier } from '../Frontier.ts';
 import { computeSyncDelta } from './syncDelta.ts';
 import { normalizePatch, loadPatchRange, type DecodedPatch } from './syncPatchLoader.ts';
+import {
+  appendPatchForPage,
+  estimateResponsePayloadBytes,
+  logResponseMetrics,
+  normalizeObservedLatencyMs,
+  normalizeSyncPageRequest,
+  type CreateSyncRequestOptions,
+  type SyncRequestPage,
+  type SyncResponseMetrics,
+  type SyncResponsePage,
+} from './SyncResponsePaging.ts';
 import type WarpState from '../state/WarpState.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
+
+export type {
+  CreateSyncRequestOptions,
+  SyncRequestPage,
+  SyncResponseMetrics,
+  SyncResponsePage,
+} from './SyncResponsePaging.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +60,8 @@ export interface SyncRequest {
    * Converted from Map for JSON serialization.
    */
   frontier: Record<string, string>;
+  /** Optional page budget for bounded sync responses. */
+  page?: SyncRequestPage;
 }
 
 /** A patch entry in a sync response. */
@@ -77,11 +97,16 @@ export interface SyncResponse {
   patches: SyncPatchEntry[];
   /** Writers that were skipped during sync */
   skippedWriters?: SkippedWriterEntry[];
+  /** Page metadata for bounded responses */
+  page?: SyncResponsePage;
+  /** Response-shaping metrics */
+  metrics?: SyncResponseMetrics;
 }
 
 export interface ProcessSyncRequestOptions {
   patchJournal?: PatchJournalPort;
   logger?: LoggerPort;
+  observedLatencyMs?: number;
 }
 
 export interface ApplySyncResponseResult {
@@ -131,10 +156,17 @@ function objectToFrontier(obj: Record<string, string>): Map<string, string> {
  * const request = createSyncRequest(frontier);
  * // { type: 'sync-request', frontier: { w1: 'sha-a', w2: 'sha-b' } }
  */
-export function createSyncRequest(frontier: Map<string, string>): SyncRequest {
+export function createSyncRequest(
+  frontier: Map<string, string>,
+  options: CreateSyncRequestOptions = {},
+): SyncRequest {
+  const page = options.page !== undefined ? normalizeSyncPageRequest(options.page) : null;
   return {
     type: 'sync-request',
     frontier: frontierToObject(frontier),
+    ...(options.page !== undefined
+      ? { page: { maxPatches: page?.maxPatches ?? options.page.maxPatches, cursor: options.page.cursor ?? null } }
+      : {}),
   };
 }
 
@@ -172,11 +204,13 @@ export async function processSyncRequest(
   localFrontier: Map<string, string>,
   persistence: CommitPort & BlobPort,
   graphName: string,
-  { patchJournal, logger }: ProcessSyncRequestOptions = {},
+  { patchJournal, logger, observedLatencyMs }: ProcessSyncRequestOptions = {},
 ): Promise<SyncResponse> {
   const log = logger ?? nullLogger;
 
   const remoteFrontier = objectToFrontier(request.frontier);
+  const pageRequest = normalizeSyncPageRequest(request.page);
+  const latencyMs = normalizeObservedLatencyMs(observedLatencyMs);
 
   // Compute what the requester needs
   const delta = computeSyncDelta(remoteFrontier, localFrontier);
@@ -184,8 +218,17 @@ export async function processSyncRequest(
   // Load patches that the requester needs (from local to requester)
   const patches: SyncPatchEntry[] = [];
   const skippedWriters: SkippedWriterEntry[] = [];
+  let seenPatches = 0;
+  let hasMore = false;
+  let cursor: string | null = null;
 
-  for (const [writerId, range] of delta.needFromRemote) {
+  const writerRanges = [...delta.needFromRemote.entries()]
+    .sort(([left], [right]) => left.localeCompare(right));
+
+  for (const [writerId, range] of writerRanges) {
+    if (hasMore) {
+      break;
+    }
     try {
       // Pre-check ancestry to avoid expensive chain walk (B107 / S3 fix).
       // If the persistence layer provides isAncestor, use it to detect
@@ -215,14 +258,36 @@ export async function processSyncRequest(
       if (patchJournal !== undefined && patchJournal !== null && typeof patchJournal.scanPatchRange === 'function') {
         const stream = patchJournal.scanPatchRange(writerId, range.from, range.to);
         for await (const entry of stream) {
-          patches.push({ writerId, sha: entry.sha, patch: entry.patch });
+          const control = appendPatchForPage({
+            patches,
+            entry: { writerId, sha: entry.sha, patch: entry.patch },
+            page: pageRequest,
+            seenPatches,
+          });
+          seenPatches = control.seenPatches;
+          hasMore = control.hasMore;
+          cursor = control.cursor;
+          if (hasMore) {
+            break;
+          }
         }
       } else {
         const writerPatches = await loadPatchRange(
           persistence, graphName, writerId, range.from, range.to, patchJournal !== undefined ? { patchJournal } : {},
         );
         for (const { patch, sha } of writerPatches) {
-          patches.push({ writerId, sha, patch });
+          const control = appendPatchForPage({
+            patches,
+            entry: { writerId, sha, patch },
+            page: pageRequest,
+            seenPatches,
+          });
+          seenPatches = control.seenPatches;
+          hasMore = control.hasMore;
+          cursor = control.cursor;
+          if (hasMore) {
+            break;
+          }
         }
       }
     } catch (err) {
@@ -250,11 +315,38 @@ export async function processSyncRequest(
     }
   }
 
+  const frontier = frontierToObject(localFrontier);
+  const page: SyncResponsePage = {
+    maxPatches: pageRequest.maxPatches,
+    cursor: hasMore ? cursor : null,
+    hasMore,
+    returnedPatches: patches.length,
+  };
+  const metrics: SyncResponseMetrics = {
+    patchCount: patches.length,
+    skippedWriterCount: skippedWriters.length,
+    estimatedPayloadBytes: estimateResponsePayloadBytes({
+      frontier,
+      patches,
+      skippedWriters,
+      page,
+    }),
+    latencyMs,
+  };
+  logResponseMetrics({
+    logger: log,
+    graphName,
+    page,
+    metrics,
+  });
+
   return {
     type: 'sync-response',
-    frontier: frontierToObject(localFrontier),
+    frontier,
     patches,
     skippedWriters,
+    page,
+    metrics,
   };
 }
 

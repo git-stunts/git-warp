@@ -68,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.
+- Sync responses now support an explicit `{ maxPatches, cursor }` page contract
+  and return first-class response-shaping metrics for patch count, skipped
+  writers, estimated payload bytes, and injected latency observations.
 - `WarpOpenOptions` now provides a frozen, runtime-backed open-options boundary
   for runtime graph openers while raw option objects remain accepted at the
   composition boundary.

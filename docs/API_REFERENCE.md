@@ -2540,6 +2540,18 @@ const response = await graph.sync.processSyncRequest(request);
 const { applied } = await graph.sync.applySyncResponse(response);
 ```
 
+Sync requests may include a bounded response page:
+
+```typescript
+const request = await graph.sync.createSyncRequest();
+request.page = { maxPatches: 500, cursor: null };
+
+const response = await graph.sync.processSyncRequest(request);
+// response.page.cursor is the next cursor when response.page.hasMore is true.
+// response.metrics reports patch count, skipped writer count, estimated payload
+// bytes, and caller-supplied latency when the server measured it.
+```
+
 #### High-Level API
 
 For most use cases, use `syncWith()` which handles the full round-trip:
