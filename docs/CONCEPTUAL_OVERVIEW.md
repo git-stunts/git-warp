@@ -5,6 +5,8 @@ This document explains the core ideas behind `git-warp` in plain language.
 Use it when you understand what the package does and want a deeper conceptual model before diving into the implementation specs or the formal AIΩN papers.
 
 For canonical noun definitions, use [GLOSSARY.md](GLOSSARY.md).
+For the rule that separates shipped runtime behavior from target doctrine, use
+the [Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 ## The Core Idea
 

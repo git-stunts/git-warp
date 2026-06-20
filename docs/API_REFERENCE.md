@@ -10,6 +10,11 @@ Use it when you already understand the mental model and want the full method, fl
 - If you want engine-room internals, use the [Advanced Guide](ADVANCED_GUIDE.md).
 - If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
 
+This reference describes shipped or transition runtime surfaces. When a stronger
+WARP noun or semantic promise is still target doctrine, the status and evidence
+rules live in the
+[Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md).
+
 The rest of this file intentionally stays dense and comprehensive.
 
 For new application code, start with `openWarpWorldline()`. It returns the
