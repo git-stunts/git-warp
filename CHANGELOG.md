@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Conflict analysis pipeline stages now receive an explicit
   `ConflictPipelineContext` instead of the `ConflictAnalyzerService`
   orchestrator, keeping graph access and hashing dependencies narrow.
+- Same-writer race coverage now includes isolated runtime handles so the
+  accepted outcome is one visible winner plus one retryable writer-ref loss.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.

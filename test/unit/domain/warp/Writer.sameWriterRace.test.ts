@@ -112,4 +112,55 @@ describe('same-writer concurrent patch race witness', () => {
     expect(await materialized.hasNode(FIRST_NODE)).toBe(firstWon);
     expect(await materialized.hasNode(SECOND_NODE)).toBe(!firstWon);
   });
+
+  it('preserves visible truth when isolated handles race the same writer ref', async () => {
+    const persistence = new SameWriterRaceAdapter();
+    const firstHandle = await openRuntimeHostProduct({
+      persistence,
+      graphName: GRAPH_NAME,
+      writerId: WRITER_ID,
+    });
+    const secondHandle = await openRuntimeHostProduct({
+      persistence,
+      graphName: GRAPH_NAME,
+      writerId: WRITER_ID,
+    });
+    const firstWriter = await firstHandle.writer(WRITER_ID);
+    const secondWriter = await secondHandle.writer(WRITER_ID);
+    const firstPatch = await firstWriter.beginPatch();
+    const secondPatch = await secondWriter.beginPatch();
+    firstPatch.addNode(FIRST_NODE);
+    secondPatch.addNode(SECOND_NODE);
+
+    persistence.armCommitPrecheckRace(2);
+    const results = await Promise.allSettled([
+      firstPatch.commit(),
+      secondPatch.commit(),
+    ]);
+
+    const winners = fulfilled(results);
+    const losers = rejected(results);
+    expect(winners).toHaveLength(1);
+    expect(losers).toHaveLength(1);
+    const loser = losers[0];
+    const winner = winners[0];
+    if (loser === undefined || winner === undefined) {
+      expect.fail('isolated-handle race witness must produce one winner and one loser');
+    }
+    expect(loser.reason).toMatchObject({ code: 'WRITER_REF_ADVANCED' });
+
+    const finalTip = await persistence.readRef(WRITER_REF);
+    expect(finalTip).toBe(winner.value);
+
+    const firstWon = results[0].status === 'fulfilled';
+    const materialized = await openRuntimeHostProduct({
+      persistence,
+      graphName: GRAPH_NAME,
+      writerId: WRITER_ID,
+    });
+    await materialized.materialize();
+
+    expect(await materialized.hasNode(FIRST_NODE)).toBe(firstWon);
+    expect(await materialized.hasNode(SECOND_NODE)).toBe(!firstWon);
+  });
 });
