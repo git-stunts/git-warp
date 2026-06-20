@@ -13,6 +13,8 @@
  */
 
 import WarpError from '../errors/WarpError.ts';
+import { sortedReplacer } from '../utils/canonicalStringify.ts';
+import { requireNonEmptyString, validateTimestamp } from '../utils/scalarValidation.ts';
 import { DELIVERY_MODES, DELIVERY_OUTCOMES } from './ExternalizationPolicy.ts';
 
 // Re-export constants for convenience (tests import from here too)
@@ -84,24 +86,6 @@ export class EffectEmission {
 // ============================================================================
 
 /**
- * Asserts that a value is a non-empty string, throwing if it is not.
- */
-function requireNonEmptyString(value: unknown, name: string): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
-  }
-}
-
-/**
- * Asserts that a value is a non-negative finite number suitable for a wall-clock timestamp.
- */
-function validateTimestamp(value: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    throw new WarpError('timestamp must be a non-negative finite number', 'E_VALIDATION');
-  }
-}
-
-/**
  * Asserts that a value is a non-null object suitable for use as an effect coordinate.
  */
 function validateCoordinate(value: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
@@ -131,21 +115,6 @@ export function createEffectEmission({ id, kind, payload, timestamp, writer, coo
 // ============================================================================
 // Canonical JSON
 // ============================================================================
-
-/**
- * JSON.stringify replacer that sorts object keys alphabetically for deterministic output.
- */
-function sortedReplacer(_key: string, value: unknown): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const sorted: { [x: string]: unknown } = {}; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    const obj = value as { [x: string]: unknown }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    for (const k of Object.keys(obj).sort()) {
-      sorted[k] = obj[k];
-    }
-    return sorted;
-  }
-  return value;
-}
 
 /**
  * Produces a deterministic JSON string for an EffectEmission.

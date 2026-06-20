@@ -15,7 +15,26 @@ export function canonicalStringify(value: unknown): string { // nosemgrep: ts-no
   return _canonicalStringify(value, new WeakSet());
 }
 
+export function sortedReplacer(_key: string, value: unknown): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    return Object.fromEntries(
+      Object.entries(value).sort(([left], [right]) => compareJsonKeys(left, right)),
+    );
+  }
+  return value;
+}
+
 const NULL_LITERAL: string = 'null';
+
+function compareJsonKeys(left: string, right: string): number {
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
+}
 
 /**
  * Checks if a value should be serialized as null (undefined, function, or symbol).

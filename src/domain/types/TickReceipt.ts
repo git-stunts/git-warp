@@ -12,6 +12,8 @@
  */
 
 import WarpError from '../errors/WarpError.ts';
+import { sortedReplacer } from '../utils/canonicalStringify.ts';
+import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 
 // ============================================================================
 // Constants
@@ -167,8 +169,8 @@ export class TickReceipt {
    * @throws If any field is invalid
    */
   constructor({ patchSha, writer, lamport, ops }: { patchSha: string; writer: string; lamport: number; ops: OpOutcome[] }) {
-    assertNonEmptyString(patchSha, 'patchSha');
-    assertNonEmptyString(writer, 'writer');
+    requireNonEmptyString(patchSha, 'patchSha');
+    requireNonEmptyString(writer, 'writer');
     assertNonNegativeInt(lamport);
     assertOpsArray(ops);
 
@@ -185,15 +187,6 @@ export class TickReceipt {
  */
 export function createTickReceipt({ patchSha, writer, lamport, ops }: { patchSha: string; writer: string; lamport: number; ops: OpOutcome[] }): TickReceipt {
   return new TickReceipt({ patchSha, writer, lamport, ops });
-}
-
-/**
- * Asserts that a value is a non-empty string.
- */
-function assertNonEmptyString(value: unknown, name: string): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
-  }
 }
 
 /**
@@ -245,40 +238,4 @@ function freezeOps(ops: OpOutcome[]): ReadonlyArray<Readonly<OpOutcome>> {
  */
 export function canonicalJson(receipt: TickReceipt): string {
   return JSON.stringify(receipt, sortedReplacer); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
-}
-
-/**
- * JSON.stringify replacer callback that sorts object keys alphabetically.
- *
- * This function is passed as the second argument to `JSON.stringify()` and
- * is called recursively for every key-value pair in the object being serialized.
- * For plain objects, it returns a new object with keys in sorted order, ensuring
- * deterministic JSON output regardless of property insertion order.
- *
- * Arrays are passed through unchanged since their order is semantically significant.
- * Primitive values (strings, numbers, booleans, null) are also passed through unchanged.
- *
- * This is essential for producing canonical JSON representations that can be
- * compared byte-for-byte or hashed consistently.
- *
- * @example
- * // Used internally by canonicalJson
- * JSON.stringify({ b: 1, a: 2 }, sortedReplacer);
- * // Returns: '{"a":2,"b":1}'
- *
- * @example
- * // Nested objects are also sorted
- * JSON.stringify({ z: { b: 1, a: 2 }, y: 3 }, sortedReplacer);
- * // Returns: '{"y":3,"z":{"a":2,"b":1}}'
- */
-function sortedReplacer(_key: string, value: unknown): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const sorted: { [x: string]: unknown } = {}; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    const obj = value as { [x: string]: unknown }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    for (const k of Object.keys(obj).sort()) {
-      sorted[k] = obj[k];
-    }
-    return sorted;
-  }
-  return value;
 }
