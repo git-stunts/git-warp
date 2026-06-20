@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Guide and Advanced Guide now make Observer-first reads the documented
   client posture while explicitly warning that aperture redaction is not
   encryption.
+- TTD merge inspection now has a public read-only object-merge protocol with
+  precursor, branch footprint, candidate join, obstruction, lowering, policy,
+  and classifier evidence.
 - `WarpKernelPort` now names the cohesive WARP kernel persistence contract
   (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
   longer need anonymous four-port intersections for core graph persistence.

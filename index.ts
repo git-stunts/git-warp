@@ -158,6 +158,13 @@ import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/service
 import { computeStateHash, projectState } from './src/domain/services/state/StateSerializer.ts';
 import { createStateReader } from './src/domain/services/state/StateReader.ts';
 import { compareVisibleState } from './src/domain/services/comparison/VisibleStateComparison.ts';
+import TtdMergeBranch from './src/domain/services/merge/TtdMergeBranch.ts';
+import TtdMergeFootprint from './src/domain/services/merge/TtdMergeFootprint.ts';
+import TtdMergeInspection from './src/domain/services/merge/TtdMergeInspection.ts';
+import TtdMergeInspector from './src/domain/services/merge/TtdMergeInspector.ts';
+import TtdMergeLoweringWitness from './src/domain/services/merge/TtdMergeLoweringWitness.ts';
+import TtdMergeObstructionWitness from './src/domain/services/merge/TtdMergeObstructionWitness.ts';
+import TtdMergePolicyRequirement from './src/domain/services/merge/TtdMergePolicyRequirement.ts';
 import ImmutableBytes from './src/domain/services/snapshot/ImmutableBytes.ts';
 import SnapshotORSet from './src/domain/services/snapshot/SnapshotORSet.ts';
 import SnapshotVersionVector from './src/domain/services/snapshot/SnapshotVersionVector.ts';
@@ -271,6 +278,15 @@ import type { GitWarpTickWitnessLadderFields } from './src/domain/continuum/GitW
 import type { GitWarpWitnessedSuffixPatchFactFields } from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
 import type { GitWarpWitnessedSuffixSourceFactsFields } from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
 import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
+import type { TtdMergeBranchFields } from './src/domain/services/merge/TtdMergeBranch.ts';
+import type { TtdMergeFootprintFields } from './src/domain/services/merge/TtdMergeFootprint.ts';
+import type { TtdMergeInspectionFields } from './src/domain/services/merge/TtdMergeInspection.ts';
+import type { TtdMergeInspectionDomain } from './src/domain/services/merge/TtdMergeInspectionDomain.ts';
+import type { TtdMergeLoweringSurface } from './src/domain/services/merge/TtdMergeLoweringSurface.ts';
+import type { TtdMergeLoweringWitnessFields } from './src/domain/services/merge/TtdMergeLoweringWitness.ts';
+import type { TtdMergeObjectBranchInput, TtdMergeObjectInspectionInput } from './src/domain/services/merge/TtdMergeInspector.ts';
+import type { TtdMergeObstructionWitnessFields } from './src/domain/services/merge/TtdMergeObstructionWitness.ts';
+import type { TtdMergePolicyRequirementFields } from './src/domain/services/merge/TtdMergePolicyRequirement.ts';
 
 export {
   GitGraphAdapter,
@@ -368,6 +384,13 @@ export {
   projectState,
   createStateReader,
   compareVisibleState,
+  TtdMergeBranch,
+  TtdMergeFootprint,
+  TtdMergeInspection,
+  TtdMergeInspector,
+  TtdMergeLoweringWitness,
+  TtdMergeObstructionWitness,
+  TtdMergePolicyRequirement,
   ImmutableBytes,
   SnapshotORSet,
   SnapshotVersionVector,
@@ -492,6 +515,16 @@ export type {
   GitWarpWitnessedSuffixSourceFactsFields,
   ContinuumArtifactJsonLoadContext,
   ContinuumFamilyIdValue,
+  TtdMergeBranchFields,
+  TtdMergeFootprintFields,
+  TtdMergeInspectionDomain,
+  TtdMergeInspectionFields,
+  TtdMergeLoweringSurface,
+  TtdMergeLoweringWitnessFields,
+  TtdMergeObjectBranchInput,
+  TtdMergeObjectInspectionInput,
+  TtdMergeObstructionWitnessFields,
+  TtdMergePolicyRequirementFields,
 };
 
 // WarpApp remains the compatibility default export for v15-era consumers.
