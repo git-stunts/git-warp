@@ -1,6 +1,8 @@
 /** QueryRunner - pure executor for QueryPlan instances. */
 
 import QueryError from '../../errors/QueryError.ts';
+import BoundedSupportRule from './BoundedSupportRule.ts';
+import CausalIndexPlan from './CausalIndexPlan.ts';
 import type QueryPlan from './QueryPlan.ts';
 import type {
   QueryNodeEdgeSnapshot,
@@ -419,9 +421,12 @@ function openRequest(
   plan: QueryPlan,
   nodeRequest: QueryNodeStreamRequest,
 ): QueryReadModelOpenRequest {
+  const supportRule = BoundedSupportRule.fromQueryPlan(plan);
   return {
     nodeRequest,
     operations: plan.operations,
     aggregate: plan.aggregate !== null,
+    supportRule,
+    causalIndexPlan: CausalIndexPlan.fromSupportRule(supportRule),
   };
 }

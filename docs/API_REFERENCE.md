@@ -758,6 +758,12 @@ This is an execution contract, not an index. It lets future causal indexes and
 support fragments know which support set a read is allowed to use; it does not
 make wildcard discovery cheaper by itself.
 
+For provider authors, `QueryRunner` sends both `supportRule` and
+`causalIndexPlan` in `QueryReadModelOpenRequest`. `CausalIndexPlan` maps exact
+entity reads to the existing provenance entity-patch index, maps exact rooted
+traversals to a composite entity-patch plus neighborhood-adjacency posture, and
+marks wildcard discovery as requiring a global scan.
+
 #### Filtering with `where()`
 
 **Object shorthand** — strict equality on primitive values. Multiple properties use AND semantics:

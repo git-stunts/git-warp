@@ -3,6 +3,8 @@ import type {
   QueryNodeSnapshot,
   QueryOperation,
 } from './QueryPlan.ts';
+import type BoundedSupportRule from './BoundedSupportRule.ts';
+import type CausalIndexPlan from './CausalIndexPlan.ts';
 
 export type QueryPropertyBag = QueryNodePropertyBag;
 
@@ -35,6 +37,8 @@ export type QueryReadModelOpenRequest = {
   readonly nodeRequest: QueryNodeStreamRequest;
   readonly operations: readonly QueryOperation[];
   readonly aggregate: boolean;
+  readonly supportRule: BoundedSupportRule;
+  readonly causalIndexPlan: CausalIndexPlan;
 };
 
 export interface QueryReadModelProvider {

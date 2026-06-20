@@ -75,6 +75,7 @@ import {
 } from './rootCompatibility.ts';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.ts';
 import BoundedSupportRule from './src/domain/services/query/BoundedSupportRule.ts';
+import CausalIndexPlan from './src/domain/services/query/CausalIndexPlan.ts';
 import Observer from './src/domain/services/query/Observer.ts';
 import ObserverAccumulation from './src/domain/services/query/ObserverAccumulation.ts';
 import ObserverBasis from './src/domain/services/query/ObserverBasis.ts';
@@ -185,6 +186,11 @@ import type {
   BoundedSupportRuleFields,
   BoundedSupportSurface,
 } from './src/domain/services/query/BoundedSupportRule.ts';
+import type {
+  CausalIndexFamily,
+  CausalIndexPlanFields,
+  CausalIndexPlanPosture,
+} from './src/domain/services/query/CausalIndexPlan.ts';
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
@@ -364,6 +370,7 @@ export {
   CoordinateSelector,
   StrandSelector,
   BoundedSupportRule,
+  CausalIndexPlan,
   QueryBuilder,
   Observer,
   ObserverAccumulation,
@@ -502,6 +509,9 @@ export type {
   BoundedSupportKind,
   BoundedSupportRuleFields,
   BoundedSupportSurface,
+  CausalIndexFamily,
+  CausalIndexPlanFields,
+  CausalIndexPlanPosture,
   ApertureOpeningProofFields, ApertureOpeningVerificationResult,
   ZKWormholeEdgeFields, ZKWormholeVerificationResult,
   WarpWorldlineCoordinateFrontierEntry,

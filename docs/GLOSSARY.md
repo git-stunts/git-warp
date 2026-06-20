@@ -43,7 +43,7 @@ If another document uses one of these nouns differently, this glossary wins.
 | Term | Canonical meaning | Current repo manifestation | Status |
 |---|---|---|---|
 | `Bounded support rule` | The smallest causally sufficient support set required to answer an optic through an aperture honestly. | `BoundedSupportRule` now exposes exact-entity, neighborhood, and global-discovery posture for query plans; execution still uses existing read models until causal indexes and fragments consume the rule. | transition |
-| `Causal index` | A materialized, rebuildable acceleration structure that helps find the relevant support set without whole-graph discovery. | Bits of this exist in provenance and receipts, but not as a unified indexed runtime surface. | target |
+| `Causal index` | A materialized, rebuildable acceleration structure that helps find the relevant support set without whole-graph discovery. | `CausalIndexPlan` now maps bounded query support rules to entity-patch, neighborhood-adjacency, or global-discovery index posture; the entity-patch family is backed by `ProvenanceIndex`. | transition |
 | `Support fragment` | A cached partial materialization keyed by support contract and coordinate, reusable for later reads. | Today the runtime mostly assumes one full cached state; fragments are not yet primary. | target |
 | `Materialization plan` | The runtime execution plan that decides whether to use receipts, indexes, fragments, replay, or full state to satisfy a read. | Not explicit today; buried in controller behavior. | target |
 

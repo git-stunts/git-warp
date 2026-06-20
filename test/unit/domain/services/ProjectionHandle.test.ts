@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Aperture } from '../../../../src/domain/types/Aperture.ts';
 import type { WorldlineSource } from '../../../../src/domain/capabilities/QueryCapability.ts';
 import Observer, { type ObserverBacking } from '../../../../src/domain/services/query/Observer.ts';
+import BoundedSupportRule from '../../../../src/domain/services/query/BoundedSupportRule.ts';
+import CausalIndexPlan from '../../../../src/domain/services/query/CausalIndexPlan.ts';
 import type {
   QueryNeighborEntry,
   QueryNeighborOptions,
@@ -148,10 +150,16 @@ describe('ProjectionHandle', () => {
       readModelProvider: provider,
     });
     const worldline = new ProjectionHandle({ graph: new ProjectionGraphFixture(delegate) });
+    const supportRule = BoundedSupportRule.entityRead({
+      surface: 'query',
+      nodeIds: ['node:a'],
+    });
     const request: QueryReadModelOpenRequest = {
       nodeRequest: { pattern: 'node:a', select: ['id'] },
       operations: [],
       aggregate: false,
+      supportRule,
+      causalIndexPlan: CausalIndexPlan.fromSupportRule(supportRule),
     };
 
     await worldline.openQueryReadModel(request);
