@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `@git-stunts/trailer-codec` dependency now carries a local
   `patch-package` declaration patch, allowing git-warp to remove the ambient
   trailer-codec shim and casted codec singleton construction.
+- A normalized merge-conflict corpus and `benchmark:merge-conflicts` harness now
+  classify projection, semantic, and governance conflict cases for future merge
+  lifting work.
 
 ### Changed
 
