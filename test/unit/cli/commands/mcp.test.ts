@@ -70,6 +70,26 @@ describe('MCP command protocol', () => {
     });
   });
 
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects non-finite numeric request IDs',
+    async (id) => {
+      const response = await handleMcpMessage(new McpReadGraph(), {
+        jsonrpc: '2.0',
+        id,
+        method: 'ping',
+      }, { serverVersion: '18.0.0' });
+
+      expect(response).toEqual({
+        jsonrpc: '2.0',
+        id: null,
+        error: {
+          code: -32600,
+          message: 'Invalid Request',
+        },
+      });
+    },
+  );
+
   it('returns structured tool output without CLI text parsing', async () => {
     const response = await handleMcpMessage(new McpReadGraph(), {
       jsonrpc: '2.0',

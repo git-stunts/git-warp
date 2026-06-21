@@ -188,7 +188,12 @@ function hasValidParams(value: McpJsonObject): boolean {
 }
 
 function isRequestId(value: unknown): boolean {
-  return value === undefined || value === null || typeof value === 'string' || typeof value === 'number';
+  return (
+    value === undefined
+    || value === null
+    || typeof value === 'string'
+    || (typeof value === 'number' && Number.isFinite(value))
+  );
 }
 
 function resultResponse(id: McpRequestId, result: McpJsonValue): McpResponse {
