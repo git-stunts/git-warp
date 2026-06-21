@@ -30,6 +30,13 @@ import type { ReadPatchOptions } from '../../../../../src/ports/PatchJournalPort
 const SHA_1 = '1'.repeat(40);
 const SHA_2 = '2'.repeat(40);
 const SHA_3 = '3'.repeat(40);
+const STRICT_SYNC_LIMITS = Object.freeze({
+  maxWritersInFrontier: 10,
+  maxPatches: 2,
+  maxOpsPerPatch: 10,
+  maxStringBytes: 256,
+  maxBlobBytes: 1024,
+});
 
 describe('Sync response paging and metrics', () => {
   it('pages broad sync responses and emits deterministic response metrics', async () => {
@@ -115,6 +122,12 @@ describe('Sync response paging and metrics', () => {
       frontier: {},
       page: { maxPatches: 0 },
     }).ok).toBe(false);
+
+    expect(validateSyncRequest({
+      type: 'sync-request',
+      frontier: {},
+      page: { maxPatches: 3 },
+    }, STRICT_SYNC_LIMITS).ok).toBe(false);
 
     expect(validateSyncResponse({
       type: 'sync-response',

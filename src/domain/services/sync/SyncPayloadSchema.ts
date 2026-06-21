@@ -100,9 +100,9 @@ function patchEntrySchema(limits: SyncPayloadLimits): z.ZodObject<z.ZodRawShape>
   });
 }
 
-function syncRequestPageSchema(): z.ZodObject<z.ZodRawShape> {
+function syncRequestPageSchema(limits: SyncPayloadLimits): z.ZodObject<z.ZodRawShape> {
   return z.object({
-    maxPatches: z.number().int().min(1),
+    maxPatches: z.number().int().min(1).max(limits.maxPatches),
     cursor: z.string().min(1).nullable().optional(),
   }).strict();
 }
@@ -131,7 +131,7 @@ export function createSyncRequestSchema(limits: SyncPayloadLimits = DEFAULT_LIMI
   return z.object({
     type: z.literal('sync-request'),
     frontier: frontierSchema(limits.maxWritersInFrontier),
-    page: syncRequestPageSchema().optional(),
+    page: syncRequestPageSchema(limits).optional(),
   }).strict();
 }
 
