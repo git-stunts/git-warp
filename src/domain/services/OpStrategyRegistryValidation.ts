@@ -27,10 +27,11 @@ export function validateOpStrategyRegistry(
   validReceiptOps: ReadonlySet<string> = VALID_RECEIPT_OPS,
 ): void {
   for (const [opType, strategy] of registry) {
+    const checkedStrategy = requireStrategyObject(opType, strategy);
     for (const methodName of REQUIRED_STRATEGY_METHODS) {
-      requireStrategyMethod(opType, strategy, methodName);
+      requireStrategyMethod(opType, checkedStrategy, methodName);
     }
-    const receiptName = requireReceiptName(opType, strategy);
+    const receiptName = requireReceiptName(opType, checkedStrategy);
     if (!validReceiptOps.has(receiptName)) {
       throw new PatchError(
         `OpStrategy '${opType}' receiptName '${receiptName}' is not in TickReceipt OP_TYPES`,
@@ -38,6 +39,19 @@ export function validateOpStrategyRegistry(
       );
     }
   }
+}
+
+function requireStrategyObject(
+  opType: string,
+  strategy: OpStrategyRegistryEntry | null | undefined,
+): OpStrategyRegistryEntry {
+  if (strategy !== null && strategy !== undefined && typeof strategy === 'object') {
+    return strategy;
+  }
+  throw new PatchError(
+    `OpStrategy '${opType}' must be an object`,
+    { context: { opType } },
+  );
 }
 
 function requireStrategyMethod(

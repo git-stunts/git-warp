@@ -37,6 +37,16 @@ describe('validateOpStrategyRegistry', () => {
     );
   });
 
+  it('rejects a null strategy value with PatchError', () => {
+    const registry = new Map<string, OpStrategyRegistryEntry>();
+    registry.set('NodeAdd', Reflect.get(Object.freeze({ NodeAdd: null }), 'NodeAdd'));
+
+    expect(() => validateOpStrategyRegistry(registry, VALID_RECEIPT_OPS)).toThrow(PatchError);
+    expect(() => validateOpStrategyRegistry(registry, VALID_RECEIPT_OPS)).toThrow(
+      "OpStrategy 'NodeAdd' must be an object",
+    );
+  });
+
   it('rejects a strategy missing receiptName', () => {
     const { receiptName: _receiptName, ...strategy } = makeStrategy();
     const registry = new Map([['NodeAdd', strategy]]);
