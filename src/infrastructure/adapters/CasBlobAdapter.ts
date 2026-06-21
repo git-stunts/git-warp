@@ -5,9 +5,8 @@
  * as a CAS tree in the Git object store. The tree OID serves as the
  * storage identifier.
  *
- * Backward compatibility: if `retrieve()` fails to find a CAS manifest
- * at the given OID, it falls back to reading a raw Git blob. This
- * handles content written before the CAS migration.
+ * Current runtime reads require CAS manifests. Migration tooling can inject an
+ * explicit retired raw Git blob read policy while translating old substrates.
  *
  * @module infrastructure/adapters/CasBlobAdapter
  */
@@ -16,6 +15,16 @@ import BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import { createLazyCas } from './lazyCasInit.ts';
 import { createCdcCasStore } from './CasStoreFactory.ts';
+import {
+  CURRENT_SUBSTRATE_ONLY_POLICY,
+  type SubstrateCompatibilityPolicyValue,
+} from './SubstrateCompatibilityPolicy.ts';
+import CasContentEncryptionPolicy, {
+  type CasRestoreEncryptionArguments,
+  type CasStoreEncryptionArguments,
+  type CasStoreEncryptionOptions,
+  mapCasContentEncryptionError,
+} from './CasContentEncryptionPolicy.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import { Readable } from 'node:stream';
 
@@ -25,9 +34,9 @@ interface CasManifest {
 
 interface CasStore {
   readManifest(opts: { treeOid: string }): Promise<CasManifest>;
-  restore(opts: { manifest: CasManifest; encryptionKey?: Uint8Array }): Promise<{ buffer: Uint8Array }>;
-  restoreStream?: (opts: { manifest: CasManifest; encryptionKey?: Uint8Array }) => AsyncIterable<Uint8Array>;
-  store(opts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array }): Promise<CasManifest>;
+  restore(opts: { manifest: CasManifest } & CasRestoreEncryptionArguments): Promise<{ buffer: Uint8Array }>;
+  restoreStream?: (opts: { manifest: CasManifest } & CasRestoreEncryptionArguments) => AsyncIterable<Uint8Array>;
+  store(opts: { source: unknown; slug: string; filename: string } & CasStoreEncryptionArguments): Promise<CasManifest>;
   createTree(opts: { manifest: CasManifest }): Promise<string>;
 }
 
@@ -48,7 +57,11 @@ function normalizeToUint8Array(buffer: Uint8Array): Uint8Array {
  * CAS migration).
  *
  * - `MANIFEST_NOT_FOUND` — tree exists but contains no manifest entry
- * - `GIT_ERROR` — Git couldn't read the tree at all (wrong object type)
+ * - `GIT_ERROR` — Git couldn't read the tree at all
+ *
+ * `GIT_ERROR` can mean either "wrong object type" or "missing object" depending
+ * on the plumbing path. The legacy fallback path probes the raw object before
+ * deciding whether this is retired legacy content or a genuinely missing OID.
  */
 const LEGACY_BLOB_CODES = new Set(['MANIFEST_NOT_FOUND', 'GIT_ERROR']);
 
@@ -69,25 +82,44 @@ function hasLegacyBlobMessage(msg: string): boolean {
     || msg.includes('does not exist');
 }
 
+function missingGitObjectError(oid: string, cause: unknown): PersistenceError {
+  if (cause instanceof Error) {
+    return new PersistenceError(
+      `Missing Git object: ${oid}`,
+      PersistenceError.E_MISSING_OBJECT,
+      { cause, context: { oid } },
+    );
+  }
+  return new PersistenceError(
+    `Missing Git object: ${oid}`,
+    PersistenceError.E_MISSING_OBJECT,
+    { context: { oid } },
+  );
+}
+
 export default class CasBlobAdapter extends BlobStoragePort {
   private readonly _plumbing: unknown;
   private readonly _persistence: BlobPersistence;
-  private readonly _encryptionKey: Uint8Array | undefined;
+  private readonly _contentEncryption: CasContentEncryptionPolicy;
   private readonly _logger: LoggerPort | undefined;
   private readonly _getCas: () => Promise<CasStore>;
+  private readonly _compatibilityPolicy: SubstrateCompatibilityPolicyValue;
 
-  constructor({ plumbing, persistence, encryptionKey, logger }: {
+  constructor({ plumbing, persistence, encryptionKey, contentEncryption, logger, compatibilityPolicy }: {
     plumbing: unknown;
     persistence: BlobPersistence;
     encryptionKey?: Uint8Array;
+    contentEncryption?: CasContentEncryptionPolicy;
     logger?: LoggerPort;
+    compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
   }) {
     super();
     this._plumbing = plumbing;
     this._persistence = persistence;
-    this._encryptionKey = encryptionKey;
+    this._contentEncryption = resolveContentEncryption(contentEncryption, encryptionKey);
     this._logger = logger;
     this._getCas = createLazyCas(() => this._initCas());
+    this._compatibilityPolicy = compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
   }
 
   private async _initCas(): Promise<CasStore> {
@@ -104,14 +136,12 @@ export default class CasBlobAdapter extends BlobStoragePort {
       : content;
     const source = Readable.from([buf]);
 
-    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array } = {
+    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
       source,
       slug: options?.slug ?? `blob-${Date.now().toString(36)}`,
       filename: 'content',
+      ...this._contentEncryption.toStoreOptions(),
     };
-    if (this._encryptionKey) {
-      storeOpts.encryptionKey = this._encryptionKey;
-    }
 
     const manifest = await cas.store(storeOpts);
     return await cas.createTree({ manifest });
@@ -123,10 +153,14 @@ export default class CasBlobAdapter extends BlobStoragePort {
     try {
       return await this._restoreFromCas(cas, oid);
     } catch (err) {
+      const encryptionError = mapCasContentEncryptionError(err, 'content-attachment');
+      if (encryptionError !== null) {
+        throw encryptionError;
+      }
       if (!isLegacyBlobError(err)) {
         throw err;
       }
-      return await this._fallbackReadBlob(oid);
+      return await this._readLegacyContentBlobCandidate(oid, err);
     }
   }
 
@@ -149,26 +183,20 @@ export default class CasBlobAdapter extends BlobStoragePort {
     return blob;
   }
 
-  private _buildRestoreOpts(manifest: CasManifest): { manifest: CasManifest; encryptionKey?: Uint8Array } {
-    const opts: { manifest: CasManifest; encryptionKey?: Uint8Array } = { manifest };
-    if (this._encryptionKey) {
-      opts.encryptionKey = this._encryptionKey;
-    }
-    return opts;
+  private _buildRestoreOpts(manifest: CasManifest): { manifest: CasManifest } & CasRestoreEncryptionArguments {
+    return { manifest, ...this._contentEncryption.toRestoreOptions() };
   }
 
   override async storeStream(source: AsyncIterable<Uint8Array>, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string> {
     const cas = await this._getCas();
     const readable = Readable.from(source);
 
-    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array } = {
+    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
       source: readable,
       slug: options?.slug ?? `blob-${Date.now().toString(36)}`,
       filename: 'content',
+      ...this._contentEncryption.toStoreOptions(),
     };
-    if (this._encryptionKey) {
-      storeOpts.encryptionKey = this._encryptionKey;
-    }
 
     const manifest = await cas.store(storeOpts);
     return await cas.createTree({ manifest });
@@ -208,10 +236,14 @@ export default class CasBlobAdapter extends BlobStoragePort {
     try {
       return await this._streamFromCas(cas, oid);
     } catch (err) {
+      const encryptionError = mapCasContentEncryptionError(err, 'content-attachment-stream');
+      if (encryptionError !== null) {
+        throw encryptionError;
+      }
       if (!isLegacyBlobError(err)) {
         throw err;
       }
-      const blob = await this._fallbackReadBlob(oid);
+      const blob = await this._readLegacyContentBlobCandidate(oid, err);
       return singleChunkIterator(blob);
     }
   }
@@ -228,6 +260,49 @@ export default class CasBlobAdapter extends BlobStoragePort {
     const { buffer } = await cas.restore(restoreOpts);
     return singleChunkIterator(buffer);
   }
+
+  private async _readLegacyContentBlobCandidate(oid: string, error: unknown): Promise<Uint8Array> {
+    if (this._compatibilityPolicy.legacyContentBlobReads) {
+      return await this._fallbackReadBlob(oid);
+    }
+    const blob = await this._probeLegacyContentBlob(oid);
+    if (blob === null) {
+      throw missingGitObjectError(oid, error);
+    }
+    throw new PersistenceError(
+      `Legacy raw blob reads require the substrate migration compatibility policy: ${oid}`,
+      'E_LEGACY_SUBSTRATE_DISABLED',
+      {
+        ...(error instanceof Error ? { cause: error } : {}),
+        context: { oid },
+      },
+    );
+  }
+
+  private async _probeLegacyContentBlob(oid: string): Promise<Uint8Array | null> {
+    try {
+      const blob = await this._persistence.readBlob(oid);
+      return blob ?? null;
+    } catch (err) {
+      if (err instanceof PersistenceError && err.code === PersistenceError.E_MISSING_OBJECT) {
+        return null;
+      }
+      throw err;
+    }
+  }
+}
+
+function resolveContentEncryption(
+  contentEncryption: CasContentEncryptionPolicy | undefined,
+  encryptionKey: Uint8Array | undefined,
+): CasContentEncryptionPolicy {
+  if (contentEncryption !== undefined) {
+    return contentEncryption;
+  }
+  if (encryptionKey !== undefined) {
+    return CasContentEncryptionPolicy.fromInternalResolvedKey({ encryptionKey });
+  }
+  return CasContentEncryptionPolicy.disabled();
 }
 
 function singleChunkIterator(buf: Uint8Array): AsyncIterator<Uint8Array> {

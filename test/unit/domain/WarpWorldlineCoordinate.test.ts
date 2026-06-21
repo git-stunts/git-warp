@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 import WarpWorldlineCoordinate from '../../../src/domain/WarpWorldlineCoordinate.ts';
-import type Worldline from '../../../src/domain/services/Worldline.ts';
+import type ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
 
-function unusedWorldlineFactory(): Worldline {
+function unusedWorldlineFactory(): ProjectionHandle {
   throw new WarpError('unused worldline factory', 'E_TEST_UNUSED_WORLDLINE_FACTORY');
 }
 

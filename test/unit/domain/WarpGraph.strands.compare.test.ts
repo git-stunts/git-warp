@@ -364,6 +364,22 @@ describe('WarpCore strand foundation', () => {
       { node: 'n1', key: 'color', leftValue: 'red', rightValue: 'blue' },
     ]);
 
+    const graphDiff = await graph.diff({
+      from: 1,
+      to: 2,
+      targetId: 'n1',
+    });
+
+    expect(graphDiff.diffVersion).toBe('graph-diff/v1');
+    expect(graphDiff.changed).toBe(true);
+    expect(graphDiff.left.resolved.lamportCeiling).toBe(1);
+    expect(graphDiff.right.resolved.lamportCeiling).toBe(2);
+    expect(graphDiff.nodeProperties.changed).toEqual([
+      { node: 'n1', key: 'color', leftValue: 'red', rightValue: 'blue' },
+    ]);
+    expect(graphDiff.visiblePatchDivergence.rightOnlyPatchShas).toEqual([blueSha]);
+    expect(Object.isFrozen(graphDiff)).toBe(true);
+
     const factExport = exportCoordinateComparisonFact(coordinateComparison);
     expect(factExport).toEqual({
       exportVersion: 'coordinate-comparison-fact/v1',

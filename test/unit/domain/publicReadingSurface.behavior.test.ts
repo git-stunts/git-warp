@@ -8,7 +8,11 @@ import WarpAppDefault, {
   WarpCore,
 } from '../../../index.ts';
 
-function openOptions(graphName: string, writerId: string): Parameters<typeof WarpCore.open>[0] {
+function openOptions(graphName: string, writerId: string): {
+  persistence: InMemoryGraphAdapter;
+  graphName: string;
+  writerId: string;
+} {
   return {
     persistence: new InMemoryGraphAdapter(),
     graphName,

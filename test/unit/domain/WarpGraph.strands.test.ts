@@ -237,7 +237,7 @@ describe('WarpCore strand foundation', () => {
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
   });
 
-  it('materializeStrand replays the pinned base observation even after later writes', async () => {
+  it('materializeStrand follows live parent truth outside overlay divergence', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
@@ -265,8 +265,8 @@ describe('WarpCore strand foundation', () => {
     const result = /** @type {{ state: any, receipts: any[] }} */ (await graph.materializeStrand('ws_red', { receipts: true }));
     const reader = createStateReader(result.state);
 
-    expect(result.receipts).toHaveLength(1);
-    expect(reader.getNodeProps('n1')).toMatchObject({ color: 'red' });
+    expect(result.receipts).toHaveLength(2);
+    expect(reader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
 
     await graph.materialize();
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
@@ -339,7 +339,7 @@ describe('WarpCore strand foundation', () => {
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
   });
 
-  it('observer() can bind directly to a pinned strand instead of live truth', async () => {
+  it('observer() can bind to a strand overlay without sliding under live parent changes', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',

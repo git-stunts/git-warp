@@ -9,14 +9,136 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Docs now have a doctrine/runtime alignment ratchet that defines status labels,
+  runtime evidence, and release rules for public claims that run ahead of the
+  implementation.
+- README, Guide, and Advanced Guide now point readers at a teaching-alignment
+  audit before treating target WARP doctrine as shipped runtime behavior.
+- `GitWarpReceiptEnvelopeBoundary` now freezes the minimal receipt/provenance
+  anchor external envelope consumers may depend on without exposing raw debug
+  receipt details as protocol truth.
+- `BoundedSupportRule` now gives query plans a runtime-backed support law so
+  exact entity reads, neighborhood traversals, and wildcard discovery are
+  distinguishable before execution.
+- `CausalIndexPlan` now carries the query-provider index posture for bounded
+  support rules, including the existing provenance entity-patch index family and
+  explicit global-discovery fallback.
+- `SupportFragmentPlan` now gives bounded query reads a support-scoped fragment
+  materialization contract, including coordinate-scoped fragment keys and an
+  explicit `global-fallback` posture for discovery queries.
+- `GraphDiff` now exposes a first-class comparison diff result for live Lamport
+  ranges through `comparison.diff({ from, to })`, without routing through
+  wildcard query scans.
+- `GitWarpWitnessedSuffixAdmissionShell` now gives suffix import/export an
+  observer-readable shell with explicit admission outcomes and replay-bearing
+  hologram material instead of a naked patch-list contract.
+- A dated TSC Zero agent-merge audit now retires the historical #505/B171
+  drift concern by reconstructing PR #73's conflict-resolution scope and
+  mapping it to current TypeScript owner modules.
+- The CLI now exposes honest `sync`, `serve`, `fork`, `checkpoint`, `gc`, and
+  `watch` command families backed by current runtime capabilities, while docs
+  keep `export` / `import` and `upgrade` / `migrate` omitted until those
+  adapter boundaries exist.
+- Conflict analysis pipeline stages now receive an explicit
+  `ConflictPipelineContext` instead of the `ConflictAnalyzerService`
+  orchestrator, keeping graph access and hashing dependencies narrow.
+- Same-writer race coverage now includes isolated runtime handles so the
+  accepted outcome is one visible winner plus one retryable writer-ref loss.
+- `MergeClassifier` now emits explicit projection, semantic, or governance
+  merge labels from runtime-backed merge evidence and is checked against the
+  normalized merge conflict corpus.
+- Lane, coordinate, and debugger capability authority now has a frozen
+  substrate boundary naming `worldline`, `strand`, `braid`, and stable
+  coordinate anchors for external protocol consumers.
+- The Guide and Advanced Guide now make Observer-first reads the documented
+  client posture while explicitly warning that aperture redaction is not
+  encryption.
+- TTD merge inspection now has a public read-only object-merge protocol with
+  precursor, branch footprint, candidate join, obstruction, lowering, policy,
+  and classifier evidence.
+- Graph traversal now exposes `bfsStream()` and `dfsStream()` async generator
+  APIs, with collected `bfs()` and `dfs()` results layered over the same
+  traversal path.
+- Patch collection for materialization now has stream-first frontier,
+  checkpoint, and writer patch APIs, with legacy array collectors reduced to
+  stream collection wrappers.
+- Materialization now reduces default-runtime patch streams directly and carries
+  a deterministic witness that fails if live materialization buffers patch
+  entries before reducing them.
+- `WarpKernelPort` now names the cohesive WARP kernel persistence contract
+  (`CommitPort` + `BlobPort` + `TreePort` + `RefPort`) so domain services no
+  longer need anonymous four-port intersections for core graph persistence.
+- Sync responses now support an explicit `{ maxPatches, cursor }` page contract
+  and return first-class response-shaping metrics for patch count, skipped
+  writers, estimated payload bytes, and injected latency observations.
+- `WarpOpenOptions` now provides a frozen, runtime-backed open-options boundary
+  for runtime graph openers while raw option objects remain accepted at the
+  composition boundary.
 - Coordinate-backed Optics now expose the public v18 success path:
   `prepareOpticBasis()`, `coordinate()`, and `coordinate.optic()` let
   Worldline-first callers run coherent node and property optic reads from a
   stable coordinate while keeping `openWarpGraph()` and materialize-first APIs
   out of first-use application code.
+- Observers now carry an optional structural basis and expose deterministic
+  accumulation/emission objects (`ObserverBasis`, `ObserverAccumulation`, and
+  `ObserverEmission`) alongside the existing projection/query surface.
+- Observers now expose `plan()` and `readingEnvelope()` so reusable observers
+  and one-shot reads share a source/config plan and emitted reading envelope
+  family with witness, shell, budget, plurality, and residual metadata.
+- Observer reading envelopes now validate and carry receipt boundary anchors, so
+  read surfaces can expose substrate receipt truth without depending on raw
+  materialization receipt internals.
+- Strand materialization now resolves parent-basis patches from the live
+  frontier when the runtime provides `getFrontier()`, so untouched strand
+  regions follow parent truth while overlay divergence remains strand-owned.
+- `git warp mcp` now starts a local stdio MCP server with a read-only tool
+  catalog for graph info, node ids, node properties, edges, and existence
+  checks; write-capable tools remain absent until writer/trust policy is
+  explicit at the MCP boundary.
+- `CasContentEncryptionPolicy` now gives `GitGraphAdapter` an operator-facing
+  vault-resolved git-cas encryption boundary for CAS content, including
+  current scheme selection, vault verification diagnostics, and legacy scheme
+  migration errors.
+- The `@git-stunts/trailer-codec` dependency now carries a local
+  `patch-package` declaration patch, allowing git-warp to remove the ambient
+  trailer-codec shim and casted codec singleton construction.
+- A normalized merge-conflict corpus and `benchmark:merge-conflicts` harness now
+  classify projection, semantic, and governance conflict cases for future merge
+  lifting work.
+- `npm run lint` now includes a source-size ratchet that enforces the 500 LOC
+  source, 800 LOC test, and 300 LOC tooling caps for new files while keeping
+  current over-budget files in an explicit relaxation list.
 
 ### Changed
 
+- The old exported `Worldline` read-handle class is now `ProjectionHandle`,
+  matching its actual role as a pinned projection/read handle instead of a
+  causal-history object.
+- Removed the stale `tar` override after current dependent ranges resolve to
+  patched `tar@7.5.16`, relaxed the direct `zod` dependency to the current v3
+  range, and documented every active `patch-package` patch.
+- Updated development dependency locks for the current `npm audit` findings:
+  Vite resolves to the patched 8.0.16 line, `tmp` resolves to 0.2.7,
+  `brace-expansion` resolves to 5.0.6 where used by markdown tooling, the
+  markdownlint CLI resolves to 0.49.x, and the explicit `tar` override now
+  points at the patched 7.5.16 release.
+- Retired the legacy root `index.d.ts` monolith posture: npm consumers now
+  receive generated `dist/index.d.ts` declarations from the TypeScript source
+  barrel, while JSR continues to publish `index.ts` directly.
+- Patch write docs now state the public visibility contract: `commit()`,
+  `writer.commitPatch(...)`, and `graph.patches.patch(...)` only resolve after
+  the canonical writer ref advances and reads back at the returned patch SHA.
+- HTTP sync auth now declares the signed scheme with
+  `x-warp-auth-scheme: shared-secret-hmac-sha256`; peers continue to accept
+  legacy HMAC requests without the header during migration, but unsupported
+  declared schemes are rejected before HMAC verification.
+- The content attachment spec now presents `ContentAttachmentRecord`,
+  `ContentAttachmentPayload`, and `GraphContentAttachmentSetOp` as the primary
+  storage-plane model while documenting `_content*` keys only as legacy
+  compatibility input.
+- CRDT tests and diagnostics now use the `VersionVector` and `ORSet` class API
+  names directly, with a regression guard preventing legacy helper shim exports
+  from returning to the domain modules.
 - `EffectSinkPort.deliver()` now returns `DeliveryObservation[]`
   consistently. Custom sinks must wrap single observations in an array; the
   built-in no-op, console, chunk, multiplex, and effect-pipeline surfaces all
@@ -409,6 +531,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`browser.d.ts` deleted** — Same: `browser.ts` is the source of truth and npm consumers receive generated `dist/browser.d.ts`.
 - **`contracts/type-surface.m8.json` deleted** — The Ironclad manifest is redundant when the barrel IS the contract.
 - **Entry points renamed** — Source entry points moved from `index.js` → `index.ts`, `browser.js` → `browser.ts`, and `bin/warp-graph.js` → `bin/warp-graph.ts`. npm exports point at generated `dist/*.js`; JSR exports point at TypeScript source.
+- **`@git-stunts/plumbing` class rename** — The substrate package now exposes
+  the Git plumbing runtime as the default `GitPlumbing` class. Consumers that
+  imported a named `Plumbing` symbol must switch to a default import and choose
+  the local name explicitly: `import GitPlumbing from '@git-stunts/plumbing';`.
 
 ### Changed
 

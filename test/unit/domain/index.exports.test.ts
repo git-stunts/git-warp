@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import * as publicApi from '../../../index.ts';
 
 // Import everything from the main entry point
 import WarpAppDefault, {
@@ -62,6 +63,9 @@ import WarpAppDefault, {
   OperationAbortedError,
   MemoryBudgetError,
   Observer,
+  ObserverPlan,
+  ObserverReadingEnvelope,
+  ProjectionHandle,
   ContinuumArtifactAuthorityError,
 
   // Cancellation utilities
@@ -78,6 +82,8 @@ import WarpAppDefault, {
   createBlobValue,
   createStateReader,
   compareVisibleState,
+  GraphDiff,
+  SupportFragmentPlan,
   normalizeVisibleStateScope,
   scopeMaterializedState,
   ContinuumArtifactAuthority,
@@ -99,6 +105,8 @@ import WarpAppDefault, {
   GitWarpBraidHologram,
   GitWarpBraidHologramMember,
   GitWarpSuffixTransformHologram,
+  GitWarpWitnessedSuffixAdmissionOutcome,
+  GitWarpWitnessedSuffixAdmissionShell,
   GitWarpTickHologram,
   GitWarpTickPatchReplayCore,
   GitWarpTickReceiptShell,
@@ -129,8 +137,6 @@ import WarpAppDefault, {
   ZKWormholeProofVerifierPort,
 } from '../../../index.ts';
 
-const { WarpGraph, WarpRuntime, Worldline, ObserverView } = (await import('../../../index.ts') as any);
-
 describe('index.ts exports', () => {
   describe('default export', () => {
     it('exports WarpApp as default', () => {
@@ -155,11 +161,11 @@ describe('index.ts exports', () => {
     });
 
     it('does not export WarpRuntime from the public entry point', () => {
-      expect(WarpRuntime).toBeUndefined();
+      expect('WarpRuntime' in publicApi).toBe(false);
     });
 
     it('does not export WarpGraph as a public compatibility alias', () => {
-      expect(WarpGraph).toBeUndefined();
+      expect('WarpGraph' in publicApi).toBe(false);
     });
   });
 
@@ -176,16 +182,21 @@ describe('index.ts exports', () => {
   });
 
   describe('core classes', () => {
-    it('exports Worldline', () => {
-      expect(Worldline).toBeDefined();
-      expect(typeof Worldline).toBe('function');
+    it('exports ProjectionHandle and not the retired Worldline class alias', () => {
+      expect(ProjectionHandle).toBeDefined();
+      expect(typeof ProjectionHandle).toBe('function');
+      expect('Worldline' in publicApi).toBe(false);
     });
 
     it('exports Observer', () => {
       expect(Observer).toBeDefined();
       expect(typeof Observer).toBe('function');
       expect(Observer.name).toBe('Observer');
-      expect(ObserverView).toBeUndefined();
+      expect(ObserverPlan).toBeDefined();
+      expect(typeof ObserverPlan).toBe('function');
+      expect(ObserverReadingEnvelope).toBeDefined();
+      expect(typeof ObserverReadingEnvelope).toBe('function');
+      expect('ObserverView' in publicApi).toBe(false);
     });
 
     it('exports GitGraphAdapter', () => {
@@ -431,6 +442,8 @@ describe('index.ts exports', () => {
       expect(GitWarpBraidHologram).toBeDefined();
       expect(GitWarpBraidHologramMember).toBeDefined();
       expect(GitWarpSuffixTransformHologram).toBeDefined();
+      expect(GitWarpWitnessedSuffixAdmissionOutcome).toBeDefined();
+      expect(GitWarpWitnessedSuffixAdmissionShell).toBeDefined();
       expect(GitWarpTickHologram).toBeDefined();
       expect(GitWarpTickPatchReplayCore).toBeDefined();
       expect(GitWarpTickReceiptShell).toBeDefined();
@@ -583,6 +596,16 @@ describe('index.ts exports', () => {
     it('exports compareVisibleState', () => {
       expect(compareVisibleState).toBeDefined();
       expect(typeof compareVisibleState).toBe('function');
+    });
+
+    it('exports GraphDiff', () => {
+      expect(GraphDiff).toBeDefined();
+      expect(typeof GraphDiff).toBe('function');
+    });
+
+    it('exports SupportFragmentPlan', () => {
+      expect(SupportFragmentPlan).toBeDefined();
+      expect(typeof SupportFragmentPlan).toBe('function');
     });
   });
 

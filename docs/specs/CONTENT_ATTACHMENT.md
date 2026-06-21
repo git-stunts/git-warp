@@ -8,22 +8,33 @@
 
 ## 1. Introduction
 
-This document proposes **content attachment** — the ability to attach content-addressed blobs to WARP graph nodes (and optionally edges) as first-class payloads.
+This document describes **content attachment**: content-addressed blobs attached
+to WARP graph nodes and edges as first-class payloads.
 
-Currently, git-warp models nodes and edges with flat key-value properties. Properties are powerful for structured metadata but are not designed for large or opaque payloads (documents, images, binary data). There is no first-class concept corresponding to the paper's **attachment** — the `α(v)` and `β(e)` mappings that assign a payload to every vertex and edge.
+Earlier git-warp releases represented content through flat property
+compatibility keys. Current graph-model code projects visible content into
+runtime-backed `ContentAttachmentRecord` and `ContentAttachmentPayload` objects,
+then emits `GraphContentAttachmentSetOp` operations in the graph-operation
+algebra. Legacy `_content*` keys remain only as compatibility and migration
+input, not as the public substrate contract.
 
 Content attachment bridges this gap by giving nodes the ability to carry `Atom(p)` payloads: content-addressed blobs stored in the Git object store and referenced by SHA from the graph.
 
 ### Motivation
 
-Consumers of git-warp (e.g., git-mind) need to attach rich content to graph nodes — ADR bodies, spec documents, configuration files, narrative text. Without a substrate-level primitive, each consumer must:
+Consumers of git-warp (e.g., git-mind) need to attach rich content to graph
+nodes and edges: ADR bodies, spec documents, configuration files, narrative
+text, and other opaque payloads. Without a substrate-level primitive, each
+consumer must:
 
-- Invent its own property convention for referencing external blobs
+- Invent its own convention for referencing external blobs
 - Manage CAS storage independently
 - Re-derive time-travel, multi-writer merge, and observer scoping for content
 - Risk inconsistency between the content store and the graph state
 
-All of these are already solved by git-warp for properties. Content attachment extends the same guarantees to blob payloads.
+All of these are already solved by git-warp's graph substrate. Content
+attachment extends the same deterministic visibility, merge, and traversal
+guarantees to blob payloads.
 
 ### Relationship to the Paper
 
@@ -42,15 +53,17 @@ This proposal implements the depth-0 case of attachments: nodes carry `Atom(p)` 
 
 ### In scope
 
-- Installing `git-cas` (or equivalent CAS-over-git primitive) as a dependency
-- API for writing a blob and attaching its CAS key to a node
-- API for reading attached content from a node
-- CRDT semantics for content references (same as property semantics)
-- Time-travel compatibility (content references participate in `materialize({ ceiling })`)
+- Runtime-backed content attachment records for nodes and edges
+- API for writing a blob and attaching its content storage reference
+- API for reading attached node and edge content
+- CRDT semantics for content references
+- Time-travel compatibility through `materialize({ ceiling })`
+- Deterministic projection from legacy `_content*` compatibility records
 
 ### Out of scope
 
-- MIME type handling, storage policies, size thresholds (consumer concerns)
+- Full removal of every legacy `_content*` compatibility reader
+- MIME type policy, storage policy, and size thresholds beyond stored metadata
 - CLI commands for content manipulation (consumer concerns)
 - Editor integration, conflict resolution UX (consumer concerns)
 - Nested WARP attachments (future work)
@@ -59,33 +72,57 @@ This proposal implements the depth-0 case of attachments: nodes carry `Atom(p)` 
 
 ## 3. Design
 
-### 3.1 Storage Model
+### 3.1 Primary Runtime Model
 
-Content blobs are stored as **Git objects** in the repository's object store. Git's object store is already a content-addressed store — every blob is identified by its SHA. No additional storage layer is required beyond what Git provides natively.
-
-`git-cas` provides a clean API for writing arbitrary blobs to the Git object store and retrieving them by SHA, without involving the index or working tree.
-
-### 3.2 Graph Representation
-
-A content attachment is represented as a **node property** with a well-known key. When a blob is attached to a node, its CAS SHA is stored as the property value:
+The primary runtime model is a typed content attachment record:
 
 ```text
-node: "adr:0007"
-property: "_content" = "a1b2c3d4e5f6..."  (git blob SHA)
+ContentAttachmentRecord
+  owner: NodeRecord | EdgeRecord
+  payload: ContentAttachmentPayload
+    oid: ContentAttachmentOid
+    mime: ContentAttachmentMime | null
+    size: ContentAttachmentSize | null
 ```
 
-This approach:
+Materialized state is projected through `ContentAttachmentProjection`. Public
+content reads (`getContent*` and `getEdgeContent*`) consume that projection
+instead of branching on raw property maps. Graph-model exports use
+`GraphContentAttachmentSetOp` for visible content and exclude content
+compatibility keys from generic node and edge property operations.
 
-- Requires zero changes to the CRDT model (content SHAs are just property values)
-- Gets time-travel for free (`materialize({ ceiling })` handles property history)
-- Gets multi-writer merge for free (LWW on the `_content` property)
-- Gets observer scoping for free (property visibility follows node visibility)
+### 3.2 Storage Model
 
-The `_content` key prefix convention (underscore) signals a system-level property, distinguishing it from user-defined properties.
+Content bytes are stored through the configured `BlobStoragePort`. The default
+Git-backed path stores payloads in content-addressed CAS trees and keeps older
+raw Git blob payloads readable through a compatibility path. Runtime content
+records carry the storage reference as `ContentAttachmentOid`; callers should
+not derive behavior from the legacy storage key names.
 
-### 3.3 Final API
+### 3.3 Legacy Storage Compatibility
 
-The hybrid approach was implemented: dedicated methods that encapsulate CAS details, while the `_content` property remains directly accessible for advanced use.
+Legacy state may still contain the well-known compatibility keys
+`_content`, `_content.mime`, and `_content.size`. Those keys are migration
+source facts and compatibility read inputs. They are centralized in
+`LegacyContentPropertyKeys` / `KeyCodec` and projected into
+`ContentAttachmentRecord` before public content reads or graph-operation
+algebra exports observe them.
+
+The compatibility mapping is:
+
+| Compatibility key | Typed field |
+|---|---|
+| `_content` | `ContentAttachmentPayload.oid` |
+| `_content.mime` | `ContentAttachmentPayload.mime` |
+| `_content.size` | `ContentAttachmentPayload.size` |
+
+Metadata is accepted only when it belongs to the same content write lineage as
+the content reference. Manual compatibility rewrites do not inherit stale MIME
+or size metadata from an older content payload.
+
+### 3.4 Final API
+
+Dedicated methods encapsulate blob storage and typed content projection.
 
 #### Write API (PatchBuilderV2 / PatchSession)
 
@@ -119,36 +156,34 @@ const edgeMeta = await graph.getEdgeContentMeta('a', 'b', 'rel');
 ```
 
 `getContent()` returns raw `Uint8Array` bytes. Consumers wanting text should decode with `new TextDecoder().decode(buffer)`.
-If `_content` points at a missing blob OID, `getContent()` throws instead of silently returning empty bytes.
-`getEdgeContent()` has the same byte-decoding and missing-blob semantics for edge `_content` references.
-`getContentMeta()` / `getEdgeContentMeta()` return `{ oid, mime, size }` when metadata exists, or `null` when no attachment exists. Historical attachments created before metadata support, or later manual `_content` rewrites that bypass the attachment helpers, may still surface `mime: null` / `size: null`.
+If a projected content attachment points at a missing blob OID, `getContent()`
+throws instead of silently returning empty bytes. `getEdgeContent()` has the
+same byte-decoding and missing-blob semantics for edge content references.
+`getContentMeta()` / `getEdgeContentMeta()` return `{ oid, mime, size }` when
+metadata exists, or `null` when no attachment exists. Historical attachments
+created before metadata support, or later manual compatibility rewrites that
+bypass the attachment helpers, may still surface `mime: null` / `size: null`.
 
-#### Constant
+#### Compatibility Constant
 
 ```javascript
 import { CONTENT_PROPERTY_KEY } from '@git-stunts/git-warp';
 // CONTENT_PROPERTY_KEY === '_content'
 ```
 
-### 3.4 Content Metadata
-
-git-warp stores logical attachment metadata in sibling system properties alongside the `_content` reference:
-
-| Property | Purpose | Example |
-|---|---|---|
-| `_content` | CAS blob SHA (required) | `"a1b2c3d4..."` |
-| `_content.size` | Logical content byte length | `4096` |
-| `_content.mime` | MIME type hint | `"text/markdown"` |
-
-`attachContent()` / `attachEdgeContent()` always persist `_content.size` from the actual encoded byte length. If callers provide `{ mime }`, the MIME hint is stored in `_content.mime`; otherwise the metadata API returns `mime: null`. The read APIs only surface `_content.mime` / `_content.size` when they belong to the current `_content` attachment lineage, so a later manual `_content` rewrite does not inherit stale metadata from an older blob reference.
+The constant remains exported for migration code and compatibility tests. New
+domain logic should prefer typed content attachment records.
 
 ---
 
 ## 4. CRDT Semantics
 
-Content attachment inherits existing property CRDT semantics:
+Content attachment inherits the same LWW visibility semantics as the
+compatibility content reference that feeds the typed projection:
 
-- **LWW (Last-Writer-Wins):** If two writers attach different content to the same node concurrently, the one with the higher Lamport timestamp wins. Ties broken by writer ID, then patch SHA.
+- **LWW (Last-Writer-Wins):** If two writers attach different content to the
+  same node or edge concurrently, the one with the higher Lamport timestamp
+  wins. Ties are broken by writer ID, then patch SHA.
 - **Tombstones:** If a writer removes a node, its content attachment is removed with it (OR-Set semantics on nodes).
 - **No content-level merge:** Content blobs are opaque atoms. There is no attempt to merge conflicting blob contents — the SHA is the unit of conflict resolution, not the bytes.
 
@@ -166,24 +201,38 @@ const content = await graph.getContent('adr:0007');
 // Returns content as of the given tick
 ```
 
-The `_content` property at tick `N` points to whatever content storage OID was current at that tick. Current storage uses CAS trees for attachment payloads, so historical content is retrievable as long as the Git objects have not been garbage-collected.
+The typed content projection at tick `N` resolves to the content storage OID
+visible at that tick. Current storage uses CAS trees for attachment payloads,
+so historical content is retrievable as long as the Git objects have not been
+garbage-collected.
 
 ---
 
 ## 6. Durability / Git GC
 
-Content storage trees can be unreachable unless an application commit or checkpoint commit anchors them. Without anchoring, `git gc --prune=now` would delete them.
+Content storage trees can be unreachable unless an application commit or
+checkpoint commit anchors them. Without anchoring, `git gc --prune=now` would
+delete them.
 
 **Solution:** patch commits embed content storage OIDs in the patch commit tree alongside the encoded patch:
 
 ```text
 patch               → encoded patch storage tree
-_content_<oid>      → content storage tree, keyed by its hex OID
+_content_<oid>      → compatibility content storage tree anchor
 ```
 
-This makes content storage reachable via the writer ref chain (`refs/warp/<graph>/writers/<id>` → commit → tree → content tree). GC protection is automatic. Sync replicates content along with patches. Zero new refs, zero new Git commands.
+The tree-entry name is a storage compatibility anchor, not the runtime content
+model. It makes content storage reachable via the writer ref chain
+(`refs/warp/<graph>/writers/<id>` → commit → tree → content tree). GC
+protection is automatic. Sync replicates content along with patches.
 
-**Checkpoint anchoring:** checkpoint creation also scans `state.prop` for `_content` values and embeds the referenced storage OIDs in the checkpoint tree. This ensures content survives GC even if patch commits are ever pruned (e.g., by future compaction or writer-chain truncation). The invariant is: **content storage referenced by live state is always reachable from at least one ref** — either the writer ref (patch commit tree) or the checkpoint ref (checkpoint commit tree).
+**Checkpoint anchoring:** checkpoint creation scans compatibility content
+references that still back current state and embeds the referenced storage OIDs
+in the checkpoint tree. This ensures content survives GC even if patch commits
+are ever pruned (e.g., by future compaction or writer-chain truncation). The
+invariant is: **content storage referenced by live state is always reachable
+from at least one ref** — either the writer ref (patch commit tree) or the
+checkpoint ref (checkpoint commit tree).
 
 Current content OIDs are CAS trees. Checkpoint anchoring also preserves legacy raw Git blob content by writing those anchors as blob tree entries instead of tree entries.
 
@@ -193,7 +242,14 @@ Integration tests verify both anchoring paths with `git gc --prune=now`.
 
 ## 7. Implementation Notes
 
-Content attachment now stores payloads through the configured `BlobStoragePort`; the default integration path uses Git CAS trees and falls back to raw Git blobs only for older stored payloads.
+Content attachment stores payloads through the configured `BlobStoragePort`.
+The default integration path uses Git CAS trees and falls back to raw Git blobs
+only for older stored payloads.
+
+`ContentAttachmentProjection` is the compatibility boundary from legacy
+content keys to typed content records. `GraphOpAlgebraProjection` emits
+`GraphContentAttachmentSetOp` for visible content and filters content
+compatibility keys out of generic property operations.
 
 Edge attachments are included in v1 (not deferred).
 
@@ -203,6 +259,9 @@ Edge attachments are included in v1 (not deferred).
 
 - **Nested WARP attachments:** The paper allows `α(v)` to be a full WARP graph, not just an atom. This would mean a node's attachment is itself a graph with nodes, edges, and their own attachments. This is a significant extension beyond content blobs and is out of scope.
 - **Content integrity verification:** Optionally verify blob SHA on read to detect corruption.
+- **Final compatibility removal:** Once migration fixtures prove all stored
+  legacy content references can be upgraded, remove the remaining `_content*`
+  compatibility readers and tree-entry naming from the storage plane.
 
 ---
 
@@ -210,13 +269,15 @@ Edge attachments are included in v1 (not deferred).
 
 | Aspect | Decision |
 |---|---|
-| Where content is stored | Git object store (content-addressed blobs) |
-| How content is referenced | `_content` property on nodes/edges (CAS SHA) |
-| CRDT model | Existing LWW property semantics, no change |
+| Where content is stored | `BlobStoragePort` / Git CAS content storage |
+| How content is represented | `ContentAttachmentRecord` + `ContentAttachmentPayload` |
+| Compatibility input | `_content`, `_content.mime`, `_content.size` |
+| Graph algebra | `GraphContentAttachmentSetOp`, not generic property ops |
+| CRDT model | Existing LWW visibility semantics |
 | Time-travel | Automatic via `materialize({ ceiling })` |
 | New dependency | None (uses existing BlobPort on GitGraphAdapter) |
-| API shape | Hybrid: dedicated methods + direct property access |
-| GC protection | Blob OIDs embedded in patch commit tree |
+| API shape | Dedicated methods over typed content projection |
+| GC protection | Content OIDs embedded in patch/checkpoint trees |
 | Edge attachments | Included in v1 |
 | Nested WARP attachments | Future work |
 | Paper alignment | Implements `Atom(p)` for vertex and edge attachments |

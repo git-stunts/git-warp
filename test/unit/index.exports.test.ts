@@ -7,6 +7,8 @@ describe('public runtime exports', () => {
     expect(api.WarpWorldline).toBeDefined();
     expect(api.WarpWorldlineCoordinate).toBeDefined();
     expect(api.WarpWorldlineOpticBasis).toBeDefined();
+    expect(api.ProjectionHandle).toBeDefined();
+    expect('Worldline' in api).toBe(false);
   });
 
   it('does not export the retired browser viewer service', () => {

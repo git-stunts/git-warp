@@ -1,34 +1,17 @@
-import { spawnSync, type SpawnSyncOptionsWithStringEncoding, type SpawnSyncReturns } from 'node:child_process';
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 
-type InventoryEntry = {
-  readonly lines: number;
-  readonly path: string;
-};
+import {
+  SOURCE_SIZE_RELAXATIONS,
+  checkSourceSizeGate,
+  collectSourceSizeInventory,
+} from '../../../scripts/source-size-gate.ts';
 
-const COMMAND_TIMEOUT_MS = 120_000;
 const SOURCE_FILE_LOC_CEILING = 500;
 const TEST_FILE_LOC_CEILING = 800;
-const LINE_INVENTORY_COMMAND = [
-  "find src bin scripts test/unit test/conformance -path '*/node_modules/*' -prune -o",
-  "-type f \\( -name '*.ts' -o -name '*.js' -o -name '*.sh' \\) -print0",
-  '| xargs -0 wc -l',
-].join(' ');
-
-type CommandRunner = (
-  command: string,
-  args: readonly string[],
-  options: SpawnSyncOptionsWithStringEncoding,
-) => SpawnSyncReturns<string>;
-
-type SpawnCall = {
-  readonly command: string;
-  readonly args: readonly string[];
-  readonly timeout: SpawnSyncOptionsWithStringEncoding['timeout'];
-  readonly killSignal: SpawnSyncOptionsWithStringEncoding['killSignal'];
-};
-
-const defaultCommandRunner: CommandRunner = (command, args, options) => spawnSync(command, [...args], options);
+const TOOLING_FILE_LOC_CEILING = 300;
 
 const SOURCE_OVER_BUDGET_PATHS = Object.freeze([
   'src/domain/RuntimeHost.ts',
@@ -41,119 +24,80 @@ const SOURCE_OVER_BUDGET_PATHS = Object.freeze([
   'src/domain/services/state/WarpState.ts',
 ]);
 
+const TOOLING_OVER_BUDGET_PATHS = Object.freeze([
+  'bin/cli/commands/doctor/checks.ts',
+  'bin/cli/commands/seek.ts',
+  'bin/cli/infrastructure.ts',
+  'scripts/check-dts-surface.ts',
+  'scripts/contamination-map.ts',
+  'scripts/dead-export-report.ts',
+  'scripts/issue-triage-report.ts',
+  'scripts/lint-semgrep-with-quarantines.ts',
+  'scripts/release-guard.sh',
+  'scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureManifest.ts',
+]);
+
 const STRAND_SERVICE_TEST_PATH = 'test/unit/domain/services/strand/StrandService.test.ts';
+const tempDirs: string[] = [];
 
-function runLineInventory(runner: CommandRunner = defaultCommandRunner): readonly InventoryEntry[] {
-  const result = runner('sh', [
-    '-c',
-    LINE_INVENTORY_COMMAND,
-  ], {
-    encoding: 'utf8',
-    timeout: COMMAND_TIMEOUT_MS,
-    killSignal: 'SIGKILL',
-  });
-  expect(result.error).toBeUndefined();
-  expect(result.status).toBe(0);
-  return result.stdout
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.endsWith(' total'))
-    .map(parseInventoryLine);
+afterEach(() => {
+  while (tempDirs.length > 0) {
+    rmSync(tempDirs.pop() ?? '', { force: true, recursive: true });
+  }
+});
+
+function createTempRepo(): string {
+  const root = mkdtempSync(join(tmpdir(), 'git-warp-source-size-'));
+  tempDirs.push(root);
+  for (const directory of ['src', 'bin', 'scripts', 'test/unit', 'test/conformance']) {
+    mkdirSync(join(root, directory), { recursive: true });
+  }
+  return root;
 }
 
-function parseInventoryLine(line: string): InventoryEntry {
-  const match = /^(\d+)\s+(.+)$/u.exec(line);
-  if (match === null) {
-    throw new SourceInventoryError(`unparseable inventory line: ${line}`);
-  }
-  const lineCount = Number(match[1]);
-  const path = match[2];
-  if (!Number.isInteger(lineCount) || lineCount <= 0 || path === undefined) {
-    throw new SourceInventoryError(`invalid inventory line: ${line}`);
-  }
-  return { lines: lineCount, path };
+function writeLines(root: string, path: string, lines: number): void {
+  mkdirSync(join(root, path, '..'), { recursive: true });
+  writeFileSync(join(root, path), Array.from({ length: lines }, (_, index) => `line ${index}`).join('\n'));
 }
 
-class SourceInventoryError extends Error {}
+describe('source size gate', () => {
+  it('reports the current source files over the 500 LOC ceiling as explicit relaxations', () => {
+    const report = checkSourceSizeGate();
+    const sourceOverBudget = report.entries
+      .filter((entry) => entry.band === 'source' && entry.lines > SOURCE_FILE_LOC_CEILING)
+      .map((entry) => entry.path);
 
-function successfulSpawnResult(stdout: string): SpawnSyncReturns<string> {
-  return {
-    pid: 0,
-    output: [null, stdout, ''],
-    stdout,
-    stderr: '',
-    status: 0,
-    signal: null,
-  };
-}
-
-function byInventoryPath(a: InventoryEntry, b: InventoryEntry): number {
-  if (a.path < b.path) {
-    return -1;
-  }
-  if (a.path > b.path) {
-    return 1;
-  }
-  return 0;
-}
-
-function requireInventoryEntry(
-  entries: readonly InventoryEntry[],
-  path: string,
-): InventoryEntry {
-  const entry = entries.find((candidate) => candidate.path === path);
-  if (entry === undefined) {
-    throw new SourceInventoryError(`missing inventory entry: ${path}`);
-  }
-  return entry;
-}
-
-describe('source size inventory command', () => {
-  it('bounds the inventory subprocess with a timeout', () => {
-    const calls: SpawnCall[] = [];
-    const recordingRunner: CommandRunner = (command, args, options) => {
-      calls.push({
-        command,
-        args: [...args],
-        timeout: options.timeout,
-        killSignal: options.killSignal,
-      });
-      return successfulSpawnResult('1 src/index.ts\n');
-    };
-
-    runLineInventory(recordingRunner);
-
-    expect(calls).toEqual([{
-      command: 'sh',
-      args: ['-c', LINE_INVENTORY_COMMAND],
-      timeout: COMMAND_TIMEOUT_MS,
-      killSignal: 'SIGKILL',
-    }]);
+    expect(sourceOverBudget).toEqual(SOURCE_OVER_BUDGET_PATHS);
+    expect(report.violations).toEqual([]);
+    expect(report.staleRelaxations).toEqual([]);
   });
 
-  it('reports the current source files over the 500 LOC ceiling', () => {
-    const entries = runLineInventory();
-    const sourceOverBudget = entries
-      .filter((entry) => entry.path.startsWith('src/') && entry.lines > SOURCE_FILE_LOC_CEILING)
-      .sort(byInventoryPath);
+  it('keeps tooling overages visible against the 300 LOC ceiling', () => {
+    const entries = collectSourceSizeInventory();
+    const toolingOverBudget = entries
+      .filter((entry) => entry.band === 'tooling' && entry.lines > TOOLING_FILE_LOC_CEILING)
+      .map((entry) => entry.path);
 
-    expect(sourceOverBudget.map((entry) => entry.path)).toEqual(SOURCE_OVER_BUDGET_PATHS);
-    for (const entry of sourceOverBudget) {
-      expect(entry.lines).toBeGreaterThan(SOURCE_FILE_LOC_CEILING);
-    }
+    expect(toolingOverBudget).toEqual(TOOLING_OVER_BUDGET_PATHS);
   });
 
   it('keeps test-file overages visible as inventory, not closeout prose', () => {
-    const entries = runLineInventory();
-    const testOverBudget = entries
-      .filter((entry) => entry.path.startsWith('test/') && entry.lines > TEST_FILE_LOC_CEILING)
-      .sort(byInventoryPath);
-    const strandServiceTest = requireInventoryEntry(testOverBudget, STRAND_SERVICE_TEST_PATH);
+    const entries = collectSourceSizeInventory();
+    const strandServiceTest = entries.find((entry) => entry.path === STRAND_SERVICE_TEST_PATH);
 
-    expect(strandServiceTest.lines).toBeGreaterThan(TEST_FILE_LOC_CEILING);
+    expect(strandServiceTest?.lines).toBeGreaterThan(TEST_FILE_LOC_CEILING);
+    expect(SOURCE_SIZE_RELAXATIONS).toContain(STRAND_SERVICE_TEST_PATH);
   });
 
-  it('rejects zero-line rows as invalid policy inventory evidence', () => {
-    expect(() => parseInventoryLine('0 src/empty.ts')).toThrow(SourceInventoryError);
+  it('fails new over-budget files and stale relaxations', () => {
+    const root = createTempRepo();
+    writeLines(root, 'src/new-god.ts', SOURCE_FILE_LOC_CEILING + 1);
+    writeLines(root, 'bin/tool.ts', TOOLING_FILE_LOC_CEILING);
+    writeLines(root, 'test/unit/small.test.ts', TEST_FILE_LOC_CEILING);
+
+    const report = checkSourceSizeGate(root);
+
+    expect(report.violations.map((entry) => entry.path)).toEqual(['src/new-god.ts']);
+    expect(report.staleRelaxations).toEqual([...SOURCE_SIZE_RELAXATIONS].sort());
   });
 });

@@ -7,7 +7,7 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 const getEntry = (map, key) => map.get(key);
 
 describe('ORSet', () => {
-  describe('createORSet', () => {
+  describe('empty', () => {
     it('creates empty ORSet', () => {
       const set = ORSet.empty();
 
@@ -18,7 +18,7 @@ describe('ORSet', () => {
     });
   });
 
-  describe('orsetAdd', () => {
+  describe('add', () => {
     it('adds element with dot', () => {
       const set = ORSet.empty();
       const dot = Dot.create('writer1', 1);
@@ -64,7 +64,7 @@ describe('ORSet', () => {
     });
   });
 
-  describe('orsetRemove', () => {
+  describe('remove', () => {
     it('adds observed dots to tombstones', () => {
       const set = ORSet.empty();
       const dot = Dot.create('writer1', 1);
@@ -99,7 +99,7 @@ describe('ORSet', () => {
     });
   });
 
-  describe('orsetContains', () => {
+  describe('contains', () => {
     it('returns true for element with non-tombstoned dot', () => {
       const set = ORSet.empty();
       const dot = Dot.create('writer1', 1);
@@ -138,7 +138,7 @@ describe('ORSet', () => {
     });
   });
 
-  describe('orsetElements', () => {
+  describe('elements', () => {
     it('returns empty array for empty set', () => {
       const set = ORSet.empty();
 
@@ -178,7 +178,7 @@ describe('ORSet', () => {
     });
   });
 
-  describe('orsetGetDots', () => {
+  describe('getDots', () => {
     it('returns non-tombstoned dots for element', () => {
       const set = ORSet.empty();
       const dot1 = Dot.create('writer1', 1);
@@ -213,7 +213,7 @@ describe('ORSet', () => {
     });
   });
 
-  describe('orsetJoin - Lattice Properties', () => {
+  describe('join - lattice properties', () => {
     it('commutativity: a.join(b) equals b.join(a)', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
@@ -241,7 +241,7 @@ describe('ORSet', () => {
       }
     });
 
-    it('associativity: orsetJoin(a.join(b), c) equals a.join(orsetJoin(b, c))', () => {
+    it('associativity: a.join(b).join(c) equals a.join(b.join(c))', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
       const c = ORSet.empty();
@@ -297,7 +297,7 @@ describe('ORSet', () => {
     });
   });
 
-  describe('orsetJoin - Union Semantics', () => {
+  describe('join - union semantics', () => {
     it('unions entries from both sets', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
@@ -441,7 +441,7 @@ describe('ORSet', () => {
     });
   });
 
-  describe('orsetCompact', () => {
+  describe('compact', () => {
     it('removes tombstoned dots that are <= includedVV', () => {
       const set = ORSet.empty();
       const dot = Dot.create('writer1', 1);
@@ -551,7 +551,7 @@ describe('ORSet', () => {
     });
   });
 
-  describe('orsetSerialize / orsetDeserialize', () => {
+  describe('serialize / deserialize', () => {
     it('serializes empty set', () => {
       const set = ORSet.empty();
       const serialized = set.serialize();

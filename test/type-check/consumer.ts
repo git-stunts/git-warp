@@ -52,12 +52,13 @@ import WarpAppDefault, {
   createTimeoutSignal,
   openWarpWorldline,
   openWarpGraph,
+  WarpOpenOptions,
   WarpApp,
   WarpCore,
   WarpWorldline,
   WarpWorldlineCoordinate,
   WarpWorldlineOpticBasis,
-  Worldline,
+  ProjectionHandle,
   WorldlineSelector,
   LiveSelector,
   CoordinateSelector,
@@ -86,6 +87,7 @@ import WarpAppDefault, {
   projectState,
   createStateReader,
   compareVisibleState,
+  GraphDiff,
   ImmutableBytes,
   SnapshotORSet,
   SnapshotVersionVector,
@@ -130,8 +132,10 @@ import WarpAppDefault, {
   type PropValue,
   type SnapshotPropValue,
   type SyncRateLimitConfig,
+  type WarpKernelPort,
   type WarpWorldlineOpenOptions,
   type WarpWorldlinePatchBuild,
+  type GraphDiffOptions,
   type WarpWorldlineCoordinateFrontierEntry,
 } from '../../index.ts';
 
@@ -150,6 +154,7 @@ type PublicVisibleEdge = Readonly<{
 }>;
 
 declare const persistence: GraphPersistencePort;
+const kernelPersistence: WarpKernelPort = persistence;
 declare const indexStorage: IndexStoragePort;
 declare const logger: LoggerPort;
 declare const crypto: CryptoPort;
@@ -160,6 +165,11 @@ declare const btrCodecOptions: Parameters<typeof createBTR>[2];
 declare const btrVerifyOptions: Parameters<typeof verifyBTR>[2];
 
 const sameAppCtor: typeof WarpAppDefault = WarpApp;
+const parsedOpenOptions = new WarpOpenOptions({
+  persistence,
+  graphName: 'consumer-open-options',
+  writerId: 'writer-open-options',
+});
 
 const exportedRuntimeSurface = [
   GitGraphAdapter,
@@ -204,11 +214,12 @@ const exportedRuntimeSurface = [
   StrandError,
   WormholeError,
   WriterError,
+  WarpOpenOptions,
   WarpWorldline,
   openWarpGraph,
   WarpApp,
   WarpCore,
-  Worldline,
+  ProjectionHandle,
   WorldlineSelector,
   LiveSelector,
   CoordinateSelector,
@@ -292,6 +303,8 @@ void sameAppCtor;
 void exportedRuntimeSurface;
 void exportedFunctionSurface;
 void exportedConstantSurface;
+void kernelPersistence;
+void parsedOpenOptions;
 
 const app: WarpApp = await WarpApp.open({
   graphName: 'consumer-test',
@@ -347,8 +360,8 @@ const publicUsersObserverConfig: ObserverConfig = publicUsersAperture;
 const worldlinePatchSha: string = await warpWorldline.commit(worldlinePatchBuild);
 const worldlineOpticBasis: WarpWorldlineOpticBasis = await warpWorldline.prepareOpticBasis();
 const worldlineCoordinate: WarpWorldlineCoordinate = await warpWorldline.coordinate();
-const worldlineLive: Worldline = warpWorldline.live();
-const worldlineHistorical: Worldline = await warpWorldline.seek({
+const worldlineLive: ProjectionHandle = warpWorldline.live();
+const worldlineHistorical: ProjectionHandle = await warpWorldline.seek({
   source: { kind: 'live', ceiling: 1 },
 });
 const appObserver: Observer = await app.observer(publicUsersAperture);
@@ -380,11 +393,13 @@ void aliasApertureObserver;
 const materialized: SnapshotWarpState = await graph.materialize();
 const materializedWithReceipts: { state: SnapshotWarpState; receipts: readonly ReturnType<typeof createTickReceipt>[] } =
   await graph.materialize({ receipts: true });
+const graphDiffOptions: GraphDiffOptions = { from: 0, to: 1, targetId: 'node-a' };
+const graphDiff: GraphDiff = await graph.diff(graphDiffOptions);
 const stateSnapshot: SnapshotWarpState | null = await graph.getStateSnapshot();
 const graphBagStateSnapshot: SnapshotWarpState | null = await graphBag.query.getStateSnapshot();
 const graphBagNodeProps: PublicPropBag | null = await graphBag.query.getNodeProps('node-a');
 const graphBagQueryBuilder: QueryBuilder = graphBag.query.query();
-const graphBagWorldline: Worldline = graphBag.query.worldline();
+const graphBagWorldline: ProjectionHandle = graphBag.query.worldline();
 const graphBagObserver: Observer = await graphBag.query.observer({ match: '*' });
 const nodeAlive: SnapshotORSet = materialized.nodeAlive;
 const observedFrontier: SnapshotVersionVector = materialized.observedFrontier;
@@ -403,6 +418,7 @@ if (snapshotValue instanceof ImmutableBytes) {
 }
 
 void materializedWithReceipts;
+void graphDiff;
 void stateSnapshot;
 void graphBagStateSnapshot;
 void graphBagNodeProps;
@@ -421,7 +437,7 @@ const neighbors: Array<{ nodeId: string; label: string; direction: 'outgoing' | 
 const propertyCount: number = await graph.getPropertyCount();
 const queryBuilder: QueryBuilder = graph.query();
 const observer: Observer = await graph.observer({ match: '*' });
-const worldline: Worldline = graph.worldline();
+const worldline: ProjectionHandle = graph.worldline();
 
 void nodeProps;
 void edgeProps;

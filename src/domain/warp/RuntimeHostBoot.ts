@@ -34,9 +34,11 @@ import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
-import type { GCPolicyConfig } from '../services/GCPolicy.ts';
-import type GCPolicy from '../services/GCPolicy.ts';
+import GCPolicy, { type GCPolicyConfig } from '../services/GCPolicy.ts';
 import type { MaterializeSessionOpener } from '../services/controllers/MaterializeSessionBridge.ts';
+
+type DeletePolicy = 'reject' | 'cascade' | 'warn';
+const VALID_DELETE_POLICIES: ReadonlyArray<DeletePolicy> = ['reject', 'cascade', 'warn'];
 
 export type RuntimeHostConstructionOptions = {
   persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
@@ -46,7 +48,7 @@ export type RuntimeHostConstructionOptions = {
   adjacencyCacheSize?: number;
   checkpointPolicy?: { every: number };
   autoMaterialize?: boolean;
-  onDeleteWithData?: 'reject' | 'cascade' | 'warn';
+  onDeleteWithData?: DeletePolicy;
   logger?: LoggerPort;
   crypto?: CryptoPort;
   codec?: CodecPort;
@@ -73,9 +75,9 @@ export type RuntimeHostOpenOptions = {
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
   adjacencyCacheSize?: number;
-  checkpointPolicy?: { every: number };
+  checkpointPolicy?: { every: number } | null;
   autoMaterialize?: boolean;
-  onDeleteWithData?: 'reject' | 'cascade' | 'warn';
+  onDeleteWithData?: DeletePolicy;
   logger?: LoggerPort;
   crypto?: CryptoPort;
   codec?: CodecPort;
@@ -90,10 +92,156 @@ export type RuntimeHostOpenOptions = {
   indexStore?: IndexStorePort | null;
   trust?: { mode?: TrustMode; pin?: string | null };
   effectPipeline?: EffectPipeline;
-  effectSinks?: EffectSinkPort[];
+  effectSinks?: readonly EffectSinkPort[];
   externalizationPolicy?: ExternalizationPolicy;
   openStateSession?: MaterializeSessionOpener;
 };
+
+export class WarpOpenOptions {
+  readonly persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+  readonly graphName: string;
+  readonly writerId: string;
+  readonly gcPolicy: GCPolicyConfig | GCPolicy;
+  readonly adjacencyCacheSize?: number;
+  readonly checkpointPolicy?: { every: number };
+  readonly autoMaterialize?: boolean;
+  readonly onDeleteWithData?: DeletePolicy;
+  readonly logger?: LoggerPort;
+  readonly crypto: CryptoPort;
+  readonly codec: CodecPort;
+  readonly seekCache?: SeekCachePort;
+  readonly stateCache?: WarpStateCachePort;
+  readonly audit?: boolean;
+  readonly blobStorage?: BlobStoragePort;
+  readonly patchBlobStorage?: BlobStoragePort;
+  readonly commitMessageCodec?: CommitMessageCodecPort;
+  readonly patchJournal?: PatchJournalPort | null;
+  readonly checkpointStore?: CheckpointStorePort | null;
+  readonly indexStore?: IndexStorePort | null;
+  readonly trust?: { mode?: TrustMode; pin?: string | null };
+  readonly effectPipeline?: EffectPipeline;
+  readonly effectSinks?: readonly EffectSinkPort[];
+  readonly externalizationPolicy?: ExternalizationPolicy;
+  readonly openStateSession?: MaterializeSessionOpener;
+
+  constructor(options: RuntimeHostOpenOptions) {
+    if (options.persistence === null || options.persistence === undefined) {
+      throw new WarpError('persistence is required', 'E_INVALID_ARG');
+    }
+    validateGraphName(options.graphName);
+    validateWriterId(options.writerId);
+
+    this.persistence = options.persistence;
+    this.graphName = options.graphName;
+    this.writerId = options.writerId;
+    this.gcPolicy = snapshotGCPolicy(options.gcPolicy);
+    this.crypto = options.crypto ?? defaultCrypto;
+    this.codec = options.codec ?? defaultCodec;
+
+    if (options.adjacencyCacheSize !== undefined) {
+      this.adjacencyCacheSize = options.adjacencyCacheSize;
+    }
+    const checkpointPolicy = normalizeCheckpointPolicy(options.checkpointPolicy);
+    if (checkpointPolicy !== undefined) {
+      this.checkpointPolicy = checkpointPolicy;
+    }
+    if (options.autoMaterialize !== undefined) {
+      this.autoMaterialize = normalizeBooleanOption(
+        options.autoMaterialize,
+        'autoMaterialize',
+        'E_AUTO_MATERIALIZE_TYPE',
+      );
+    }
+    if (options.onDeleteWithData !== undefined) {
+      this.onDeleteWithData = normalizeDeletePolicy(options.onDeleteWithData);
+    }
+    if (options.logger !== undefined) { this.logger = options.logger; }
+    if (options.seekCache !== undefined) { this.seekCache = options.seekCache; }
+    if (options.stateCache !== undefined) { this.stateCache = options.stateCache; }
+    if (options.audit !== undefined) {
+      this.audit = normalizeBooleanOption(options.audit, 'audit', 'E_AUDIT_TYPE');
+    }
+    if (options.blobStorage !== undefined) { this.blobStorage = options.blobStorage; }
+    if (options.patchBlobStorage !== undefined) { this.patchBlobStorage = options.patchBlobStorage; }
+    if (options.commitMessageCodec !== undefined) { this.commitMessageCodec = options.commitMessageCodec; }
+    if (options.patchJournal !== undefined) { this.patchJournal = options.patchJournal; }
+    if (options.checkpointStore !== undefined) { this.checkpointStore = options.checkpointStore; }
+    if (options.indexStore !== undefined) { this.indexStore = options.indexStore; }
+    if (options.trust !== undefined) {
+      this.trust = Object.freeze(normalizeTrustConfig(options.trust));
+    }
+    if (options.effectPipeline !== undefined) { this.effectPipeline = options.effectPipeline; }
+    if (options.effectSinks !== undefined) { this.effectSinks = Object.freeze([...options.effectSinks]); }
+    if (options.externalizationPolicy !== undefined) { this.externalizationPolicy = options.externalizationPolicy; }
+    if (options.openStateSession !== undefined) { this.openStateSession = options.openStateSession; }
+
+    Object.freeze(this);
+  }
+
+  static from(options: RuntimeHostOpenOptions | WarpOpenOptions): WarpOpenOptions {
+    if (options instanceof WarpOpenOptions) {
+      return options;
+    }
+    return new WarpOpenOptions(options);
+  }
+
+  static minimal(options: {
+    persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+    graphName?: string;
+    writerId?: string;
+  }): WarpOpenOptions {
+    return new WarpOpenOptions({
+      persistence: options.persistence,
+      graphName: options.graphName ?? 'default',
+      writerId: options.writerId ?? 'local',
+    });
+  }
+}
+
+export type RuntimeHostOpenInput = RuntimeHostOpenOptions | WarpOpenOptions;
+
+function normalizeBooleanOption(value: boolean, label: string, code: string): boolean {
+  if (typeof value !== 'boolean') {
+    throw new WarpError(`${label} must be a boolean`, code);
+  }
+  return value;
+}
+
+function normalizeCheckpointPolicy(
+  checkpointPolicy: { every: number } | null | undefined,
+): { every: number } | undefined {
+  if (checkpointPolicy === null || checkpointPolicy === undefined) {
+    return undefined;
+  }
+  if (typeof checkpointPolicy !== 'object') {
+    throw new WarpError('checkpointPolicy must be an object with { every: number }', 'E_CHECKPOINT_POLICY_TYPE');
+  }
+  if (!Number.isInteger(checkpointPolicy.every) || checkpointPolicy.every <= 0) {
+    throw new WarpError('checkpointPolicy.every must be a positive integer', 'E_CHECKPOINT_POLICY_EVERY');
+  }
+  return Object.freeze({ every: checkpointPolicy.every });
+}
+
+function snapshotGCPolicy(value: GCPolicyConfig | GCPolicy | undefined): GCPolicyConfig | GCPolicy {
+  if (value === undefined) {
+    return Object.freeze({});
+  }
+  if (value instanceof GCPolicy) {
+    return value;
+  }
+  return Object.freeze({ ...value });
+}
+
+function normalizeDeletePolicy(policy: DeletePolicy): DeletePolicy {
+  if (!VALID_DELETE_POLICIES.includes(policy)) {
+    throw new WarpError(
+      `onDeleteWithData must be one of: ${VALID_DELETE_POLICIES.join(', ')}`,
+      'E_ON_DELETE_WITH_DATA_INVALID',
+      { context: { got: policy, valid: VALID_DELETE_POLICIES } },
+    );
+  }
+  return policy;
+}
 
 export type RuntimeMigrationBoundary = {
   _validateMigrationBoundary(): Promise<void>;
@@ -104,72 +252,42 @@ export type RuntimeBooted<T extends RuntimeMigrationBoundary> = {
   normalizedTrust: NormalizedTrustConfig;
 };
 
-export async function resolveRuntimeHostConstructionOptions({
-  persistence,
-  graphName,
-  writerId,
-  gcPolicy = {},
-  adjacencyCacheSize,
-  checkpointPolicy,
-  autoMaterialize,
-  onDeleteWithData,
-  logger,
-  crypto,
-  codec,
-  seekCache,
-  stateCache,
-  audit,
-  blobStorage,
-  patchBlobStorage,
-  commitMessageCodec,
-  patchJournal,
-  checkpointStore,
-  indexStore,
-  trust,
-  effectPipeline,
-  effectSinks,
-  externalizationPolicy,
-  openStateSession,
-}: RuntimeHostOpenOptions): Promise<{
+export async function resolveRuntimeHostConstructionOptions(
+  input: RuntimeHostOpenInput,
+): Promise<{
   options: RuntimeHostConstructionOptions;
   normalizedTrust: NormalizedTrustConfig;
 }> {
-  validateGraphName(graphName);
-  validateWriterId(writerId);
-
-  if (persistence === null || persistence === undefined) {
-    throw new WarpError('persistence is required', 'E_INVALID_ARG');
-  }
-
-  if (checkpointPolicy !== undefined && checkpointPolicy !== null) {
-    if (typeof checkpointPolicy !== 'object' || checkpointPolicy === null) {
-      throw new WarpError('checkpointPolicy must be an object with { every: number }', 'E_CHECKPOINT_POLICY_TYPE');
-    }
-    if (!Number.isInteger(checkpointPolicy.every) || checkpointPolicy.every <= 0) {
-      throw new WarpError('checkpointPolicy.every must be a positive integer', 'E_CHECKPOINT_POLICY_EVERY');
-    }
-  }
-
-  if (autoMaterialize !== undefined && typeof autoMaterialize !== 'boolean') {
-    throw new WarpError('autoMaterialize must be a boolean', 'E_AUTO_MATERIALIZE_TYPE');
-  }
-
-  if (audit !== undefined && typeof audit !== 'boolean') {
-    throw new WarpError('audit must be a boolean', 'E_AUDIT_TYPE');
-  }
+  const options = WarpOpenOptions.from(input);
+  const {
+    persistence,
+    graphName,
+    writerId,
+    gcPolicy,
+    adjacencyCacheSize,
+    checkpointPolicy,
+    autoMaterialize,
+    onDeleteWithData,
+    logger,
+    crypto,
+    codec,
+    seekCache,
+    stateCache,
+    audit,
+    blobStorage,
+    patchBlobStorage,
+    commitMessageCodec,
+    patchJournal,
+    checkpointStore,
+    indexStore,
+    trust,
+    effectPipeline,
+    effectSinks,
+    externalizationPolicy,
+    openStateSession,
+  } = options;
 
   const normalizedTrust = normalizeTrustConfig(trust);
-
-  if (onDeleteWithData !== undefined) {
-    const valid = ['reject', 'cascade', 'warn'] as const;
-    if (!valid.includes(onDeleteWithData)) {
-      throw new WarpError(
-        `onDeleteWithData must be one of: ${valid.join(', ')}`,
-        'E_ON_DELETE_WITH_DATA_INVALID',
-        { context: { got: onDeleteWithData, valid } },
-      );
-    }
-  }
 
   const resolvedBlobStorage = await resolveBlobStorage(blobStorage, persistence);
   const resolvedCommitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
@@ -194,7 +312,9 @@ export async function resolveRuntimeHostConstructionOptions({
       commitPort,
       commitMessageCodec: resolvedCommitMessageCodec,
       ...(patchWriteStorage.strategy === 'git-cas' ? { blobStorage: resolvedBlobStorage } : {}),
-      ...(patchBlobStorage !== undefined && patchBlobStorage !== null ? { legacyPatchBlobStorage: patchBlobStorage } : {}),
+      ...(patchBlobStorage !== undefined && patchBlobStorage !== null
+        ? { legacyPatchBlobStorage: patchBlobStorage }
+        : {}),
       writeStorage: patchWriteStorage,
     });
   }
@@ -296,7 +416,9 @@ export async function resolveRuntimeHostConstructionOptions({
       viewService: resolvedViewService,
       stateHashService: resolvedStateHashService,
       ...(resolvedAuditService !== undefined ? { auditService: resolvedAuditService } : {}),
-      ...(resolvedEffectPipeline !== undefined && resolvedEffectPipeline !== null ? { effectPipeline: resolvedEffectPipeline } : {}),
+      ...(resolvedEffectPipeline !== undefined && resolvedEffectPipeline !== null
+        ? { effectPipeline: resolvedEffectPipeline }
+        : {}),
       ...(resolvedOpenStateSession === undefined ? {} : { openStateSession: resolvedOpenStateSession }),
     },
   };

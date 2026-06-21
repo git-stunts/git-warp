@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import MemoryCapabilityReport from '../../../src/domain/memory/MemoryCapabilityReport.ts';
-import Worldline from '../../../src/domain/services/Worldline.ts';
+import ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
 
 function createHandle(): WarpWorldline {
   return new WarpWorldline({
     worldlineName: 'events',
     writerId: 'agent-1',
     commitPatch: async () => 'patch-sha',
-    createWorldline: () => new Worldline({
+    createWorldline: () => new ProjectionHandle({
       graph: {
         observer: async () => {
           throw new Error('unused observer path');

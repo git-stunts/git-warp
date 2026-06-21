@@ -43,6 +43,12 @@ const { default: BlobStoragePort } = await import(
 const { default: PersistenceError } = await import(
   '../../../../src/domain/errors/PersistenceError.ts'
 );
+const { default: CasContentEncryptionPolicy } = await import(
+  '../../../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts'
+);
+const { V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY } = await import(
+  '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts'
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -151,7 +157,44 @@ describe('CasBlobAdapter', () => {
       await adapter.store('secret data');
 
       const storeCall = (mockStore.mock.calls[0] as any)[0];
-      expect(storeCall.encryptionKey).toBe(encKey);
+      expect(storeCall.encryptionKey).toEqual(encKey);
+      expect(storeCall.encryptionKey).not.toBe(encKey);
+    });
+
+    it('passes vault-backed encryption policy to CAS store when configured', async () => {
+      mockStore.mockResolvedValue({});
+      mockCreateTree.mockResolvedValue('tree-oid');
+
+      const encKey = new Uint8Array(32).fill(9);
+      const contentEncryption = CasContentEncryptionPolicy.fromResolvedVaultKey({
+        encryptionKey: encKey,
+        scheme: 'framed',
+        frameBytes: 65536,
+        vault: {
+          vaultSlug: 'graphs/team/content',
+          keyId: 'content-key-1',
+          verification: 'verified',
+          rotationEpoch: 1,
+          encryptionCount: 1,
+          encryptionCountLimit: 100,
+          privacyMode: true,
+        },
+      });
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence: makePersistence(),
+        contentEncryption,
+      });
+
+      await adapter.store('secret data');
+
+      expect(mockStore).toHaveBeenCalledWith(
+        expect.objectContaining({
+          encryptionKey: encKey,
+          encryption: { scheme: 'framed', frameBytes: 65536 },
+        }),
+      );
+      expect(mockStore.mock.calls[0]?.[0].encryptionKey).not.toBe(encKey);
     });
 
     it('does not include encryptionKey when not configured', async () => {
@@ -206,7 +249,41 @@ describe('CasBlobAdapter', () => {
       expect(mockRestore).toHaveBeenCalledWith({ manifest, encryptionKey: encKey });
     });
 
-    it('falls back to raw Git blob when CAS readManifest throws MANIFEST_NOT_FOUND', async () => {
+    it('probes but rejects raw Git blob fallback by default', async () => {
+      const persistence = makePersistence();
+      const casErr = Object.assign(new Error('No manifest entry'), { code: 'MANIFEST_NOT_FOUND' });
+      mockReadManifest.mockRejectedValue(casErr);
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      await expect(adapter.retrieve('raw-blob-oid')).rejects.toMatchObject({
+        code: 'E_LEGACY_SUBSTRATE_DISABLED',
+      });
+      expect(persistence.readBlob).toHaveBeenCalledWith('raw-blob-oid');
+    });
+
+    it('returns E_MISSING_OBJECT for missing content OIDs by default', async () => {
+      const persistence = makePersistence();
+      persistence.readBlob.mockResolvedValue(null);
+      mockReadManifest.mockRejectedValue(new Error('not a tree object'));
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      await expect(adapter.retrieve('ghost-oid'))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_MISSING_OBJECT,
+          message: 'Missing Git object: ghost-oid',
+        });
+      expect(persistence.readBlob).toHaveBeenCalledWith('ghost-oid');
+    });
+
+    it('falls back to raw Git blob when CAS readManifest throws MANIFEST_NOT_FOUND under migration policy', async () => {
       const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
@@ -216,6 +293,7 @@ describe('CasBlobAdapter', () => {
       const adapter = new CasBlobAdapter({
         plumbing: makePlumbing(),
         persistence,
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
 
       const result = await adapter.retrieve('raw-blob-oid');
@@ -224,7 +302,7 @@ describe('CasBlobAdapter', () => {
       expect(persistence.readBlob).toHaveBeenCalledWith('raw-blob-oid');
     });
 
-    it('falls back to raw Git blob when CAS readManifest throws GIT_ERROR', async () => {
+    it('falls back to raw Git blob when CAS readManifest throws GIT_ERROR under migration policy', async () => {
       const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
@@ -234,6 +312,7 @@ describe('CasBlobAdapter', () => {
       const adapter = new CasBlobAdapter({
         plumbing: makePlumbing(),
         persistence,
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
 
       const result = await adapter.retrieve('raw-blob-oid');
@@ -242,7 +321,7 @@ describe('CasBlobAdapter', () => {
       expect(persistence.readBlob).toHaveBeenCalledWith('raw-blob-oid');
     });
 
-    it('falls back to raw Git blob on message-based legacy errors (no .code)', async () => {
+    it('falls back to raw Git blob on message-based legacy errors under migration policy', async () => {
       const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
@@ -252,6 +331,7 @@ describe('CasBlobAdapter', () => {
       const adapter = new CasBlobAdapter({
         plumbing: makePlumbing(),
         persistence,
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
 
       const result = await adapter.retrieve('bad-tree-oid');
@@ -260,7 +340,7 @@ describe('CasBlobAdapter', () => {
       expect(persistence.readBlob).toHaveBeenCalledWith('bad-tree-oid');
     });
 
-    it('falls back to raw Git blob on "bad object" message (no .code)', async () => {
+    it('falls back to raw Git blob on "bad object" message under migration policy', async () => {
       const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
@@ -269,6 +349,7 @@ describe('CasBlobAdapter', () => {
       const adapter = new CasBlobAdapter({
         plumbing: makePlumbing(),
         persistence,
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
 
       const result = await adapter.retrieve('bad-obj-oid');
@@ -277,7 +358,7 @@ describe('CasBlobAdapter', () => {
       expect(persistence.readBlob).toHaveBeenCalledWith('bad-obj-oid');
     });
 
-    it('falls back to raw Git blob on "does not exist" message (no .code)', async () => {
+    it('falls back to raw Git blob on "does not exist" message under migration policy', async () => {
       const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
@@ -286,6 +367,7 @@ describe('CasBlobAdapter', () => {
       const adapter = new CasBlobAdapter({
         plumbing: makePlumbing(),
         persistence,
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
 
       const result = await adapter.retrieve('missing-oid');
@@ -303,6 +385,7 @@ describe('CasBlobAdapter', () => {
       const adapter = new CasBlobAdapter({
         plumbing: makePlumbing(),
         persistence,
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
 
       await expect(adapter.retrieve('ghost-oid'))
@@ -324,6 +407,44 @@ describe('CasBlobAdapter', () => {
       });
 
       await expect(adapter.retrieve('enc-oid')).rejects.toThrow('decryption failed');
+      expect(persistence.readBlob).not.toHaveBeenCalled();
+    });
+
+    it('surfaces legacy git-cas encryption scheme errors with migration guidance', async () => {
+      const persistence = makePersistence();
+      const casErr = Object.assign(new Error('Legacy encryption scheme "whole-v1" is no longer supported'), {
+        code: 'LEGACY_SCHEME',
+      });
+      mockReadManifest.mockRejectedValue(casErr);
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      await expect(adapter.retrieve('enc-legacy-oid')).rejects.toMatchObject({
+        code: 'E_CAS_LEGACY_ENCRYPTION_SCHEME',
+      });
+      expect(persistence.readBlob).not.toHaveBeenCalled();
+    });
+
+    it('surfaces wrong vault passphrase errors without deleting or falling back', async () => {
+      const manifest = { chunks: ['chunk1'] };
+      const persistence = makePersistence();
+      const casErr = Object.assign(new Error('Vault passphrase verification failed'), {
+        code: 'INTEGRITY_ERROR',
+      });
+      mockReadManifest.mockResolvedValue(manifest);
+      mockRestore.mockRejectedValue(casErr);
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      await expect(adapter.retrieve('enc-oid')).rejects.toMatchObject({
+        code: 'E_CAS_VAULT_PASSPHRASE_FAILED',
+      });
       expect(persistence.readBlob).not.toHaveBeenCalled();
     });
   });
@@ -372,7 +493,8 @@ describe('CasBlobAdapter', () => {
       await adapter.storeStream(source());
 
       const storeCall = (mockStore.mock.calls[0] as any)[0];
-      expect(storeCall.encryptionKey).toBe(encKey);
+      expect(storeCall.encryptionKey).toEqual(encKey);
+      expect(storeCall.encryptionKey).not.toBe(encKey);
     });
   });
 
@@ -409,7 +531,7 @@ describe('CasBlobAdapter', () => {
       expect(new TextDecoder().decode(result)).toBe('hello world');
     });
 
-    it('falls back to single-chunk yield for legacy raw Git blobs', async () => {
+    it('falls back to single-chunk yield for legacy raw Git blobs under migration policy', async () => {
       const rawBuf = new TextEncoder().encode('legacy blob content');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
@@ -419,6 +541,7 @@ describe('CasBlobAdapter', () => {
       const adapter = new CasBlobAdapter({
         plumbing: makePlumbing(),
         persistence,
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
 
       const stream = adapter.retrieveStream('raw-blob-oid');
@@ -463,6 +586,7 @@ describe('CasBlobAdapter', () => {
       const adapter = new CasBlobAdapter({
         plumbing: makePlumbing(),
         persistence,
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
 
       const stream = adapter.retrieveStream('ghost-oid');

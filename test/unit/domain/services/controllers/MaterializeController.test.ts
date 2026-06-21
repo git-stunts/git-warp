@@ -53,6 +53,12 @@ function fakePatchEntry(opts = {}) {
   };
 }
 
+async function* streamFromPromise<T>(items: Promise<T[]>): AsyncIterable<T> {
+  for (const item of await items) {
+    yield item;
+  }
+}
+
 // ── Mock deps factories ──────────────────────────────────────────────────────
 
 /**
@@ -61,15 +67,29 @@ function fakePatchEntry(opts = {}) {
  * @param {object} [overrides]
  */
 function makeMockPatches(overrides = {}) {
-  return {
+  const patches = {
     discoverWriters: vi.fn().mockResolvedValue([]),
     loadWriterPatches: vi.fn().mockResolvedValue([]),
     collectForFrontier: vi.fn().mockResolvedValue([]),
+    collectForFrontierSinceCoordinate: vi.fn().mockResolvedValue([]),
     loadCheckpoint: vi.fn().mockResolvedValue(null),
     loadPatchesSince: vi.fn().mockResolvedValue([]),
     loadPatchChain: vi.fn().mockResolvedValue([]),
     getFrontier: vi.fn().mockResolvedValue(new Map()),
     ...overrides,
+  };
+  return {
+    ...patches,
+    streamWriterPatches: vi.fn((writerId: string) => streamFromPromise(patches.loadWriterPatches(writerId))),
+    streamForFrontier: vi.fn((frontier: Map<string, string>, ceiling: number | null) =>
+      streamFromPromise(patches.collectForFrontier(frontier, ceiling))),
+    streamForFrontierSinceCoordinate: vi.fn((
+      frontier: Map<string, string>,
+      ceiling: number | null,
+      coordinate: { frontier: Map<string, string>; ceiling: number | null },
+    ) => streamFromPromise(patches.collectForFrontierSinceCoordinate(frontier, ceiling, coordinate))),
+    streamPatchesSince: vi.fn((checkpoint: Parameters<typeof patches.loadPatchesSince>[0]) =>
+      streamFromPromise(patches.loadPatchesSince(checkpoint))),
   };
 }
 

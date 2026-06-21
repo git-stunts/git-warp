@@ -8,7 +8,7 @@
 import { cloneState } from '../JoinReducer.ts';
 import LiveQueryReadModelProvider from '../query/LiveQueryReadModelProvider.ts';
 import Observer from '../query/Observer.ts';
-import Worldline from '../Worldline.ts';
+import ProjectionHandle from '../ProjectionHandle.ts';
 import WorldlineOptic from '../optic/WorldlineOptic.ts';
 import type CheckpointTailOpticSource from '../optic/CheckpointTailOpticSource.ts';
 import { computeTranslationCost } from '../TranslationCost.ts';
@@ -22,6 +22,7 @@ import QueryError from '../../errors/QueryError.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
 import type QueryCapability from '../../capabilities/QueryCapability.ts';
 import type WarpState from '../state/WarpState.ts';
+import type { Aperture } from '../../types/Aperture.ts';
 import type { QueryContentHost, QueryReadHost } from './ReadGraphHost.ts';
 import type {
   QueryReadModel,
@@ -208,7 +209,7 @@ async function resolveStrandSnapshot(
 
 // ── Observer argument normalization ─────────────────────────────────
 
-type ObserverConfig = { match: string | string[]; expose?: string[]; redact?: string[] };
+type ObserverConfig = Aperture;
 
 type NormalizedObserverArgs = {
   name: string;
@@ -385,7 +386,7 @@ wire('query', function (this: QueryController) {
   }).query();
 });
 wire('worldline', function (this: QueryController, options?: ObserverOptions) {
-  return new Worldline({
+  return new ProjectionHandle({
     graph: host(this),
     source: toSelector(options?.source) ?? new LiveSelector(),
     opticSource: worldlineOpticSource(host(this)),

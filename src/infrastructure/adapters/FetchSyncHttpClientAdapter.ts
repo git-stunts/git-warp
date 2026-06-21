@@ -12,7 +12,6 @@
  * `src/domain/**`.
  */
 
-import { timeout, TimeoutError } from '@git-stunts/alfred';
 import SyncHttpClientPort, {
   type SyncHttpAuth,
   type SyncHttpClientRequest,
@@ -21,11 +20,25 @@ import SyncHttpClientPort, {
 } from '../../ports/SyncHttpClientPort.ts';
 import type { SyncResponse } from '../../domain/services/sync/SyncProtocol.ts';
 import { signSyncRequest, canonicalizePath } from '../../domain/services/sync/SyncAuthService.ts';
+import OperationPolicyTimeoutError from '../../domain/errors/OperationPolicyTimeoutError.ts';
+import type OperationPolicyPort from '../../ports/OperationPolicyPort.ts';
+import AlfredOperationPolicyAdapter from './AlfredOperationPolicyAdapter.ts';
+
+type FetchSyncHttpClientAdapterOptions = {
+  readonly policy?: OperationPolicyPort;
+};
 
 /**
  * Implementation of SyncHttpClientPort using `fetch`.
  */
 export default class FetchSyncHttpClientAdapter extends SyncHttpClientPort {
+  private readonly _policy: OperationPolicyPort;
+
+  constructor(options: FetchSyncHttpClientAdapterOptions = {}) {
+    super();
+    this._policy = options.policy ?? new AlfredOperationPolicyAdapter();
+  }
+
   async exchange(
     request: SyncHttpClientRequest,
     telemetry: SyncHttpClientTelemetry,
@@ -51,17 +64,16 @@ export default class FetchSyncHttpClientAdapter extends SyncHttpClientPort {
     headers: Record<string, string>,
   ): Promise<{ kind: 'http-response'; response: Response } | SyncHttpClientResult> {
     try {
-      const response = await timeout(request.timeoutMs, (timeoutSignal: AbortSignal) => {
-        const combinedSignal = request.signal
-          ? AbortSignal.any([timeoutSignal, request.signal])
-          : timeoutSignal;
-        return fetch(request.targetUrl.toString(), {
+      const response = await this._policy.execute((policySignal?: AbortSignal) => {
+        const combinedSignal = combineAbortSignals(policySignal, request.signal);
+        const init: RequestInit = {
           method: 'POST',
           headers,
           body: bodyStr,
-          signal: combinedSignal,
-        });
-      });
+          ...(combinedSignal !== undefined ? { signal: combinedSignal } : {}),
+        };
+        return fetch(request.targetUrl.toString(), init);
+      }, { timeoutMs: request.timeoutMs });
       return { kind: 'http-response', response };
     } catch (err) {
       return classifyTransportError(err);
@@ -117,6 +129,7 @@ async function signForRequest(
       secret: auth.secret,
       keyId: auth.keyId !== undefined && auth.keyId !== '' ? auth.keyId : 'default',
       lamport: auth.lamport,
+      authScheme: auth.scheme,
     },
     { crypto: auth.crypto },
   );
@@ -127,8 +140,21 @@ async function signForRequest(
  * typed SyncHttpClientResult variant.
  */
 function classifyTransportError(err: unknown): SyncHttpClientResult {
-  if (err instanceof TimeoutError) { return { kind: 'timeout' }; }
+  if (err instanceof OperationPolicyTimeoutError) { return { kind: 'timeout' }; }
   if (err instanceof Error && err.name === 'AbortError') { return { kind: 'aborted' }; }
   const message = err instanceof Error ? err.message : String(err);
   return { kind: 'network-failure', message };
+}
+
+function combineAbortSignals(
+  first: AbortSignal | undefined,
+  second: AbortSignal | undefined,
+): AbortSignal | undefined {
+  if (first === undefined) {
+    return second;
+  }
+  if (second === undefined) {
+    return first;
+  }
+  return AbortSignal.any([first, second]);
 }

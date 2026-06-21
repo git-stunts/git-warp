@@ -4,6 +4,7 @@ import type RefPort from '../../ports/RefPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type { BlobStorageOptions } from '../../ports/BlobStoragePort.ts';
 import StreamingIndexStoragePort from '../../ports/StreamingIndexStoragePort.ts';
+import WarpError from '../../domain/errors/WarpError.ts';
 import {
   decodeCasPayloadPointer,
   encodeCasPayloadPointer,
@@ -42,7 +43,11 @@ export class CasIndexStorageAdapter extends StreamingIndexStoragePort {
   }
 
   override async readBlob(oid: string): Promise<Uint8Array> {
-    return await readPayloadBlob(this._blobPort, this._blobStorage, oid);
+    return await readPayloadBlob({
+      blobPort: this._blobPort,
+      blobStorage: this._blobStorage,
+      oid,
+    });
   }
 
   override async writeBlobStream(
@@ -60,8 +65,10 @@ export class CasIndexStorageAdapter extends StreamingIndexStoragePort {
         const pointerBytes = await adapter._blobPort.readBlob(oid);
         const storageOid = decodeCasPayloadPointer(pointerBytes);
         if (storageOid === null) {
-          yield pointerBytes;
-          return;
+          throw new WarpError(
+            `Inline index payload blob ${oid} requires the substrate migration compatibility policy`,
+            'E_LEGACY_SUBSTRATE_DISABLED',
+          );
         }
         for await (const chunk of adapter._blobStorage.retrieveStream(storageOid)) {
           yield chunk;

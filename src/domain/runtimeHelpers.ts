@@ -98,7 +98,7 @@ export async function resolveIndexStore(
  * Constructs an EffectPipeline from an array of sinks and an optional externalization lens.
  */
 export async function buildEffectPipeline(
-  sinks: EffectSinkPort[],
+  sinks: readonly EffectSinkPort[],
   lens: ExternalizationPolicy | undefined,
 ): Promise<EffectPipeline> {
   const multMod: { MultiplexSink: typeof MultiplexSink } = await import('./services/MultiplexSink.ts');

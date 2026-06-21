@@ -31,6 +31,7 @@ import type { Direction, NeighborOptions } from '../../../ports/NeighborProvider
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
 import TraversalContext, {
+  type RunStats,
   type TraversalStats,
   type TraversalHooks,
   DEFAULT_MAX_NODES,
@@ -39,6 +40,54 @@ import TraversalContext, {
 import GraphPathFinding from './GraphPathFinding.ts';
 import GraphTopology from './GraphTopology.ts';
 import GraphAnalysis from './GraphAnalysis.ts';
+
+export type GraphTraversalStreamParams = {
+  readonly start: string;
+  readonly direction?: Direction | undefined;
+  readonly options?: NeighborOptions | undefined;
+  readonly maxNodes?: number | undefined;
+  readonly maxDepth?: number | undefined;
+  readonly signal?: AbortSignal | undefined;
+  readonly hooks?: TraversalHooks | undefined;
+};
+
+type PrimitiveTraversalRun = {
+  readonly start: string;
+  readonly direction: Direction;
+  readonly options: NeighborOptions | undefined;
+  readonly maxNodes: number;
+  readonly maxDepth: number;
+  readonly signal: AbortSignal | undefined;
+  readonly hooks: TraversalHooks | undefined;
+  readonly rs: RunStats;
+  readonly visited: Set<string>;
+};
+
+function createPrimitiveRun(
+  params: GraphTraversalStreamParams,
+  rs: RunStats,
+  visited: Set<string>,
+): PrimitiveTraversalRun {
+  return {
+    start: params.start,
+    direction: params.direction ?? 'out',
+    options: params.options,
+    maxNodes: params.maxNodes ?? DEFAULT_MAX_NODES,
+    maxDepth: params.maxDepth ?? DEFAULT_MAX_DEPTH,
+    signal: params.signal,
+    hooks: params.hooks,
+    rs,
+    visited,
+  };
+}
+
+async function collectTraversal(stream: AsyncIterable<string>): Promise<string[]> {
+  const nodes: string[] = [];
+  for await (const node of stream) {
+    nodes.push(node);
+  }
+  return nodes;
+}
 
 export default class GraphTraversal {
   private readonly _ctx: TraversalContext;
@@ -61,45 +110,45 @@ export default class GraphTraversal {
 
   // ── Primitive traversals (kept in facade) ──────────────────────────
 
-  async bfs(params: {
-    start: string;
-    direction?: Direction | undefined;
-    options?: NeighborOptions | undefined;
-    maxNodes?: number | undefined;
-    maxDepth?: number | undefined;
-    signal?: AbortSignal | undefined;
-    hooks?: TraversalHooks | undefined;
-  }): Promise<{ nodes: string[]; stats: TraversalStats }> {
-    const { start, direction = 'out', options, signal, hooks } = params;
-    const maxNodes = params.maxNodes ?? DEFAULT_MAX_NODES;
-    const maxDepth = params.maxDepth ?? DEFAULT_MAX_DEPTH;
+  async bfs(params: GraphTraversalStreamParams): Promise<{ nodes: string[]; stats: TraversalStats }> {
     const rs = this._ctx.newRunStats();
-    await this._ctx.validateStart(start);
     const visited = new Set<string>();
-    let currentLevel: Array<{ nodeId: string; depth: number }> = [{ nodeId: start, depth: 0 }];
-    const result: string[] = [];
+    const run = createPrimitiveRun(params, rs, visited);
+    const nodes = await collectTraversal(this._bfsStream(run));
+    return { nodes, stats: this._ctx.stats(visited.size, rs) };
+  }
 
-    while (currentLevel.length > 0 && visited.size < maxNodes) {
+  async *bfsStream(params: GraphTraversalStreamParams): AsyncGenerator<string> {
+    const rs = this._ctx.newRunStats();
+    const visited = new Set<string>();
+    yield* this._bfsStream(createPrimitiveRun(params, rs, visited));
+  }
+
+  private async *_bfsStream(run: PrimitiveTraversalRun): AsyncGenerator<string> {
+    await this._ctx.validateStart(run.start);
+    let currentLevel: Array<{ nodeId: string; depth: number }> = [{ nodeId: run.start, depth: 0 }];
+
+    while (currentLevel.length > 0 && run.visited.size < run.maxNodes) {
       currentLevel.sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0));
       const nextLevel: Array<{ nodeId: string; depth: number }> = [];
       const queued = new Set<string>();
 
       for (const { nodeId, depth } of currentLevel) {
-        if (visited.size >= maxNodes) { break; }
-        if (visited.has(nodeId)) { continue; }
-        if (depth > maxDepth) { continue; }
-        if (visited.size % 1000 === 0) { checkAborted(signal, 'bfs'); }
+        if (run.visited.size >= run.maxNodes) { break; }
+        if (run.visited.has(nodeId)) { continue; }
+        if (depth > run.maxDepth) { continue; }
+        if (run.visited.size % 1000 === 0) { checkAborted(run.signal, 'bfs'); }
 
-        visited.add(nodeId);
-        result.push(nodeId);
-        if (hooks?.onVisit) { hooks.onVisit(nodeId, depth); }
+        run.visited.add(nodeId);
+        if (run.hooks?.onVisit) { run.hooks.onVisit(nodeId, depth); }
+        yield nodeId;
 
-        if (depth < maxDepth) {
-          const neighbors = await this._ctx.getNeighbors(nodeId, direction, rs, options);
-          rs.edgesTraversed += neighbors.length;
-          if (hooks?.onExpand) { hooks.onExpand(nodeId, neighbors); }
+        if (depth < run.maxDepth) {
+          const neighbors = await this._ctx.getNeighbors(nodeId, run.direction, run.rs, run.options);
+          run.rs.edgesTraversed += neighbors.length;
+          if (run.hooks?.onExpand) { run.hooks.onExpand(nodeId, neighbors); }
           for (const { neighborId } of neighbors) {
-            if (!visited.has(neighborId) && !queued.has(neighborId)) {
+            if (!run.visited.has(neighborId) && !queued.has(neighborId)) {
               queued.add(neighborId);
               nextLevel.push({ nodeId: neighborId, depth: depth + 1 });
             }
@@ -108,52 +157,49 @@ export default class GraphTraversal {
       }
       currentLevel = nextLevel;
     }
-
-    return { nodes: result, stats: this._ctx.stats(visited.size, rs) };
   }
 
-  async dfs(params: {
-    start: string;
-    direction?: Direction;
-    options?: NeighborOptions;
-    maxNodes?: number;
-    maxDepth?: number;
-    signal?: AbortSignal;
-    hooks?: TraversalHooks;
-  }): Promise<{ nodes: string[]; stats: TraversalStats }> {
-    const { start, direction = 'out', options, signal, hooks } = params;
-    const maxNodes = params.maxNodes ?? DEFAULT_MAX_NODES;
-    const maxDepth = params.maxDepth ?? DEFAULT_MAX_DEPTH;
+  async dfs(params: GraphTraversalStreamParams): Promise<{ nodes: string[]; stats: TraversalStats }> {
     const rs = this._ctx.newRunStats();
-    await this._ctx.validateStart(start);
     const visited = new Set<string>();
-    const stack: Array<{ nodeId: string; depth: number }> = [{ nodeId: start, depth: 0 }];
-    const result: string[] = [];
+    const run = createPrimitiveRun(params, rs, visited);
+    const nodes = await collectTraversal(this._dfsStream(run));
+    return { nodes, stats: this._ctx.stats(visited.size, rs) };
+  }
 
-    while (stack.length > 0 && visited.size < maxNodes) {
-      const entry = stack.pop()!;
-      if (visited.has(entry.nodeId)) { continue; }
-      if (entry.depth > maxDepth) { continue; }
-      if (visited.size % 1000 === 0) { checkAborted(signal, 'dfs'); }
+  async *dfsStream(params: GraphTraversalStreamParams): AsyncGenerator<string> {
+    const rs = this._ctx.newRunStats();
+    const visited = new Set<string>();
+    yield* this._dfsStream(createPrimitiveRun(params, rs, visited));
+  }
 
-      visited.add(entry.nodeId);
-      result.push(entry.nodeId);
-      if (hooks?.onVisit) { hooks.onVisit(entry.nodeId, entry.depth); }
+  private async *_dfsStream(run: PrimitiveTraversalRun): AsyncGenerator<string> {
+    await this._ctx.validateStart(run.start);
+    const stack: Array<{ nodeId: string; depth: number }> = [{ nodeId: run.start, depth: 0 }];
 
-      if (entry.depth < maxDepth) {
-        const neighbors = await this._ctx.getNeighbors(entry.nodeId, direction, rs, options);
-        rs.edgesTraversed += neighbors.length;
-        if (hooks?.onExpand) { hooks.onExpand(entry.nodeId, neighbors); }
+    while (stack.length > 0 && run.visited.size < run.maxNodes) {
+      const entry = stack.pop();
+      if (entry === undefined) { continue; }
+      if (run.visited.has(entry.nodeId)) { continue; }
+      if (entry.depth > run.maxDepth) { continue; }
+      if (run.visited.size % 1000 === 0) { checkAborted(run.signal, 'dfs'); }
+
+      run.visited.add(entry.nodeId);
+      if (run.hooks?.onVisit) { run.hooks.onVisit(entry.nodeId, entry.depth); }
+      yield entry.nodeId;
+
+      if (entry.depth < run.maxDepth) {
+        const neighbors = await this._ctx.getNeighbors(entry.nodeId, run.direction, run.rs, run.options);
+        run.rs.edgesTraversed += neighbors.length;
+        if (run.hooks?.onExpand) { run.hooks.onExpand(entry.nodeId, neighbors); }
         for (let i = neighbors.length - 1; i >= 0; i -= 1) {
           const nb = neighbors[i];
-          if (nb !== undefined && !visited.has(nb.neighborId)) {
+          if (nb !== undefined && !run.visited.has(nb.neighborId)) {
             stack.push({ nodeId: nb.neighborId, depth: entry.depth + 1 });
           }
         }
       }
     }
-
-    return { nodes: result, stats: this._ctx.stats(visited.size, rs) };
   }
 
   // ── Delegates to GraphPathFinding ──────────────────────────────────

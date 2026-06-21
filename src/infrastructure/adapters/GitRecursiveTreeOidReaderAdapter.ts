@@ -1,4 +1,3 @@
-import { retry, type RetryOptions } from '@git-stunts/alfred';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import TreeEntryFound from '../../domain/tree/TreeEntryFound.ts';
 import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
@@ -12,10 +11,13 @@ import {
   toGitError,
   wrapGitError,
 } from './gitErrorClassification.ts';
+import type OperationPolicyPort from '../../ports/OperationPolicyPort.ts';
+import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
 
 type GitRecursiveTreeOidReaderAdapterOptions = {
   readonly plumbing: GitPlumbing;
-  readonly retryOptions: RetryOptions;
+  readonly policy: OperationPolicyPort;
+  readonly retryOptions: OperationPolicyExecuteOptions;
 };
 
 type RecursiveTreeEntry = {
@@ -44,17 +46,19 @@ const GIT_OBJECT_ID_PATTERN = /^[0-9a-fA-F]{4,64}$/u;
 
 export default class GitRecursiveTreeOidReaderAdapter {
   private readonly _plumbing: GitPlumbing;
-  private readonly _retryOptions: RetryOptions;
+  private readonly _policy: OperationPolicyPort;
+  private readonly _retryOptions: OperationPolicyExecuteOptions;
 
   constructor(options: GitRecursiveTreeOidReaderAdapterOptions) {
     this._plumbing = options.plumbing;
+    this._policy = options.policy;
     this._retryOptions = options.retryOptions;
   }
 
   async readTreeOids(treeOid: string): Promise<Record<string, string>> {
     validateOid(treeOid);
     try {
-      const output = await retry(
+      const output = await this._policy.execute(
         () => this._plumbing.execute({ args: ['ls-tree', '-rz', treeOid] }),
         this._retryOptions,
       );
@@ -67,7 +71,7 @@ export default class GitRecursiveTreeOidReaderAdapter {
   async readTreeEntryOid(treeOid: string, path: TreeEntryPath): Promise<TreeEntryProbeResult> {
     validateOid(treeOid);
     try {
-      const output = await retry(
+      const output = await this._policy.execute(
         () => this._plumbing.execute({
           args: ['ls-tree', '-z', treeOid, '--', path.value],
         }),
@@ -87,7 +91,7 @@ export default class GitRecursiveTreeOidReaderAdapter {
     validateOid(treeOid);
     const context = prefixParseContext(prefix, limit);
     try {
-      const stream = await retry(
+      const stream = await this._policy.stream(
         () => this._plumbing.executeStream({
           args: ['ls-tree', '-z', treeOid, '--', context.childPrefix],
         }),

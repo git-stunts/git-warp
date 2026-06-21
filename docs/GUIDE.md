@@ -11,13 +11,26 @@ Use it when you are writing an app, an agent workflow, or a local-first tool on 
 - If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
 - If you want the canonical meaning of core nouns like `Worldline`,
   `Observer`, `Aperture`, or `Coordinate`, use [GLOSSARY.md](GLOSSARY.md).
+- If a doc claim seems stronger than the current API, use the
+  [Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md) and the
+  [teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
+
+## Runtime posture
+
+This guide teaches shipped and transition APIs for builder workflows. Worldline
+commits, live reads, coordinates, observers, and apertures are the current
+application path. Strand examples below describe the current pinned-overlay
+implementation; live holographic strands, common-basis braids, witnessed suffix
+admission, and support-scoped fragment materialization remain target doctrine.
 
 ## Mental model
 
 The most important thing to understand is state before methods.
 
 - `openWarpWorldline()` returns the first-use handle for application workflows.
-- A `Worldline` is an admitted causal lane and a pinned read coordinate.
+- A `Worldline` is an admitted causal lane.
+- A `ProjectionHandle` is the pinned read handle returned by `live()`,
+  `seek(...)`, and `graph.query.worldline(...)`.
 - An `Aperture` defines what is visible.
 - An `Observer` is a filtered read-only view through that aperture.
 - A `Strand` is a speculative write lane branched from an observation.
@@ -120,12 +133,15 @@ await graph.strands.patchStrand('review-auth', (p) => {
 const reviewLane = graph.query.worldline({
   source: { kind: 'strand', strandId: 'review-auth' },
 });
-// reviewLane is a Worldline pinned to the strand overlay
+// reviewLane is a ProjectionHandle pinned to the strand overlay
 ```
 
 Use strands for speculative work. Use ordinary patches for live truth.
 
-For the deeper substrate story behind strands, braids, and transfer planning, use [Advanced Guide -> Strands and braids](ADVANCED_GUIDE.md#strands-and-braids).
+For the deeper substrate story behind strands, braids, and transfer planning,
+use [Advanced Guide -> Strands and braids](ADVANCED_GUIDE.md#strands-and-braids).
+For the target-model gap, use the
+[teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 ## Streamed substrate work
 
@@ -192,6 +208,15 @@ const users = await view.query().match('user:*').run();
 //   ],
 // }
 ```
+
+Observer redaction is application-layer filtering. It is useful for
+multi-tenant views and product isolation, but it is not a cryptographic
+boundary: a user with filesystem access to `.git/objects/` can still inspect
+raw patch objects unless the graph content is encrypted at rest. Use
+`CasContentEncryptionPolicy` and the vault-backed CAS workflow in the
+[Advanced Guide](ADVANCED_GUIDE.md#vault-backed-cas-content-encryption) when
+the data itself must be protected. `@git-stunts/vault` is the intended key
+management path; do not put graph encryption secrets in `.env` files.
 
 ### Pattern 3: the historical view
 
@@ -279,6 +304,22 @@ const downstream = await worldline.query()
 //   ],
 // }
 ```
+
+The same accumulated plan can expose its support law before execution:
+
+```typescript
+const support = worldline.query()
+  .match('epic:auth')
+  .outgoing('contains', { depth: [1, 2] })
+  .supportRule();
+
+// support.kind = 'neighborhood'
+// support.maxDepth = 2
+```
+
+Use support rules to decide whether a read is exact, neighborhood-bounded, or
+global discovery. They do not replace indexes; they tell future indexes and
+support fragments what the read is allowed to ask for.
 
 ### Pattern 3: aggregate
 

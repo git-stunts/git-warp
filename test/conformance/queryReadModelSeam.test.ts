@@ -153,12 +153,17 @@ describe('query read model seam', () => {
     expect(provider.nodePropsCalls).toBe(0);
     expect(provider.neighborRequests).toEqual([]);
     expect(provider.openRequests).toEqual([
-      {
+      expect.objectContaining({
         nodeRequest: { pattern: 'node:target', select: ['id'] },
         operations: [],
         aggregate: false,
-      },
+      }),
     ]);
+    const openRequest = provider.openRequests[0];
+    expect(openRequest?.supportRule.kind).toBe('entity');
+    expect(openRequest?.causalIndexPlan.families).toEqual(['entity-patch']);
+    expect(openRequest?.supportFragmentPlan.posture).toBe('support-fragment');
+    expect(openRequest?.supportFragmentPlan.scopeKey).toContain('roots:node:target');
   });
 
   it('lets QueryBuilder compose traversal and projection on the narrow provider', async () => {

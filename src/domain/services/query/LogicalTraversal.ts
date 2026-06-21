@@ -78,18 +78,34 @@ export default class LogicalTraversal {
   async bfs(start: string, options: TraversalOptions = {}): Promise<string[]> {
     const { engine, direction, options: opts, depthLimit } = await this._prepare(start, options);
     const { nodes } = await engine.bfs(stripUndefined({
-      start, direction, options: opts, maxDepth: depthLimit, maxNodes: Infinity,
+      start, direction, options: opts, maxDepth: depthLimit, maxNodes: Infinity, signal: options.signal,
     }));
     return nodes;
+  }
+
+  /** Breadth-first traversal stream. */
+  async *bfsStream(start: string, options: TraversalOptions = {}): AsyncGenerator<string> {
+    const { engine, direction, options: opts, depthLimit } = await this._prepare(start, options);
+    yield* engine.bfsStream(stripUndefined({
+      start, direction, options: opts, maxDepth: depthLimit, maxNodes: Infinity, signal: options.signal,
+    }));
   }
 
   /** Depth-first traversal (pre-order). */
   async dfs(start: string, options: TraversalOptions = {}): Promise<string[]> {
     const { engine, direction, options: opts, depthLimit } = await this._prepare(start, options);
     const { nodes } = await engine.dfs(stripUndefined({
-      start, direction, options: opts, maxDepth: depthLimit, maxNodes: Infinity,
+      start, direction, options: opts, maxDepth: depthLimit, maxNodes: Infinity, signal: options.signal,
     }));
     return nodes;
+  }
+
+  /** Depth-first traversal stream. */
+  async *dfsStream(start: string, options: TraversalOptions = {}): AsyncGenerator<string> {
+    const { engine, direction, options: opts, depthLimit } = await this._prepare(start, options);
+    yield* engine.dfsStream(stripUndefined({
+      start, direction, options: opts, maxDepth: depthLimit, maxNodes: Infinity, signal: options.signal,
+    }));
   }
 
   /** Shortest path (unweighted BFS). */

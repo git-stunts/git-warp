@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { openWarpWorldline } from '../../../index.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain/WarpWorldline.ts';
-import Worldline from '../../../src/domain/services/Worldline.ts';
+import ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
 import Observer, { type ObserverBacking } from '../../../src/domain/services/query/Observer.ts';
 
 import type { Aperture } from '../../../src/domain/types/Aperture.ts';
@@ -52,8 +52,8 @@ function createObserver(
   });
 }
 
-function createWorldline(calls: ObserverCall[]): Worldline {
-  return new Worldline({
+function createWorldline(calls: ObserverCall[]): ProjectionHandle {
+  return new ProjectionHandle({
     graph: {
       observer: async (
         nameOrConfig: string | Aperture,
@@ -280,13 +280,13 @@ describe('WarpWorldline', () => {
     expect(receivedBuild).toBe(build);
   });
 
-  it('returns existing Worldline read handles for live and historical reads', async () => {
+  it('returns existing ProjectionHandle read handles for live and historical reads', async () => {
     const handle = createHandle();
 
-    expect(handle.live()).toBeInstanceOf(Worldline);
+    expect(handle.live()).toBeInstanceOf(ProjectionHandle);
 
     const historical = await handle.seek({ source: { kind: 'live', ceiling: 2 } });
-    expect(historical).toBeInstanceOf(Worldline);
+    expect(historical).toBeInstanceOf(ProjectionHandle);
     expect(historical.source).toEqual({ kind: 'live', ceiling: 2 });
   });
 

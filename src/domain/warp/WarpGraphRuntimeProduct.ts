@@ -1,10 +1,12 @@
 import {
   openRuntimeHostProduct,
   type RuntimeGraphHostProduct,
+  type RuntimeHostOpenInput,
   type RuntimeHostOpenOptions,
 } from './RuntimeHostProduct.ts';
 
 export type WarpGraphRuntimeOpenOptions = RuntimeHostOpenOptions;
+export type WarpGraphRuntimeOpenInput = RuntimeHostOpenInput;
 
 export type WarpGraphRuntimeSurface = RuntimeGraphHostProduct;
 
@@ -77,6 +79,7 @@ export function buildWarpGraphRuntimeSurface(runtime: RuntimeGraphHostProduct): 
     compareStrand: runtime.compareStrand.bind(runtime),
     planStrandTransfer: runtime.planStrandTransfer.bind(runtime),
     compareCoordinates: runtime.compareCoordinates.bind(runtime),
+    diff: runtime.diff.bind(runtime),
     planCoordinateTransfer: runtime.planCoordinateTransfer.bind(runtime),
     subscribe: runtime.subscribe.bind(runtime),
     watch: runtime.watch.bind(runtime),
@@ -85,7 +88,7 @@ export function buildWarpGraphRuntimeSurface(runtime: RuntimeGraphHostProduct): 
 }
 
 export async function openWarpGraphRuntimeProduct(
-  options: WarpGraphRuntimeOpenOptions,
+  options: WarpGraphRuntimeOpenInput,
 ): Promise<WarpGraphRuntimeSurface> {
   const runtime = await openRuntimeHostProduct(options);
   return buildWarpGraphRuntimeSurface(runtime);

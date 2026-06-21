@@ -57,6 +57,9 @@ when you need that level of detail.
   Current committed release and milestone inventory.
 - [Release Guide](method/release.md)
   Release and preflight process.
+- [Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md)
+  Status labels, evidence requirements, and release rules for docs that run
+  ahead of runtime implementation.
 - [Trust Migration](trust/TRUST_MIGRATION.md)
   Migration path for signed trust evidence.
 - [Trust Operator Runbook](trust/TRUST_OPERATOR_RUNBOOK.md)

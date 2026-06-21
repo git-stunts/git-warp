@@ -11,6 +11,8 @@ export interface Aperture {
   expose?: string[];
   /** Property keys to exclude (blacklist). Takes precedence over expose. */
   redact?: string[];
+  /** Native observer distinctions for structural accumulation and emission. */
+  basis?: string[];
 }
 
 /** Legacy compatibility alias for Aperture. */

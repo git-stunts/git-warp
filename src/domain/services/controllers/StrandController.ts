@@ -7,12 +7,11 @@
  * @module domain/services/controllers/StrandController
  */
 
-import createStrandCoordinator from '../strand/createStrandCoordinator.ts';
+import createStrandCoordinator, { type StrandCoordinatorGraphRuntime } from '../strand/createStrandCoordinator.ts';
 import { ConflictAnalyzerService } from '../strand/ConflictAnalyzerService.ts';
 import type StrandCoordinator from '../strand/StrandCoordinator.ts';
 import type { StrandDescriptor, StrandQueuedIntent, StrandTickRecord } from '../strand/strandTypes.ts';
 import type { ConflictAnalyzeOptions } from '../strand/ConflictAnalysisRequest.ts';
-import type { AnalyzerService } from '../strand/ConflictFrameLoader.ts';
 import type ConflictAnalysis from '../../types/conflict/ConflictAnalysis.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
@@ -20,7 +19,9 @@ import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchBuilder } from '../PatchBuilder.ts';
 import type Patch from '../../types/Patch.ts';
 
-type StrandHost = AnalyzerService['_graph'];
+export type StrandHost = StrandCoordinatorGraphRuntime & {
+  _loadWriterPatches(writerId: string): Promise<Array<{ patch: Patch; sha: string }>>;
+};
 
 export default class StrandController {
   _host: StrandHost;
@@ -61,6 +62,10 @@ export default class StrandController {
 
   async _materializeStrandLive(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }> {
     return await this._strandService.materializeLiveState(strandId, options);
+  }
+
+  async _materializeStrandRead(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }> {
+    return await this._strandService.materializeReadState(strandId, options);
   }
 
   async getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {

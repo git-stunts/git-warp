@@ -12,13 +12,14 @@ import ConflictAnchor from '../../types/conflict/ConflictAnchor.ts';
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
 import StrandCoordinateMetadata from '../../types/conflict/StrandCoordinateMetadata.ts';
-import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
 import { reducePatches } from '../JoinReducer.ts';
-import createStrandCoordinator, { type StrandCoordinatorGraphRuntime } from './createStrandCoordinator.ts';
+import createStrandCoordinator from './createStrandCoordinator.ts';
 import { TickReceipt } from '../../types/TickReceipt.ts';
 import type Patch from '../../types/Patch.ts';
 import type ConflictAnalysisRequest from './ConflictAnalysisRequest.ts';
+import type ConflictPipelineContext from './ConflictPipelineContext.ts';
+import type { ConflictPipelineGraphRuntime } from './ConflictPipelineContext.ts';
 
 
 // ── Constants re-exported for caller convenience ────────────────────
@@ -295,33 +296,21 @@ function buildResolvedCoordinate({
 
 // ── Context resolution ──────────────────────────────────────────────
 
-export type AnalyzerService = {
-  _graph: AnalyzerGraphRuntime;
-  _hash(payload: HashablePayload): Promise<string>;
-};
-
 /**
- * The analyzer reaches into the shared strand-coordinator graph
- * runtime (for strand-coordinate resolution) plus an additional
- * `_loadWriterPatches` method (for frontier-coordinate enumeration).
- * The intersection type lets the analyzer pass `service._graph`
- * straight into `createStrandCoordinator` without a cast.
+ * The context reaches into the shared strand-coordinator graph runtime
+ * for strand-coordinate resolution plus `_loadWriterPatches` for
+ * frontier-coordinate enumeration.
  */
-type AnalyzerGraphRuntime = StrandCoordinatorGraphRuntime & {
-  _loadWriterPatches(writerId: string): Promise<Array<{ patch: Patch; sha: string }>>;
-};
-
 type AnalysisContext = {
   patchFrames: PatchFrame[];
   resolvedCoordinate: ConflictResolvedCoordinate;
 };
 
 async function resolveStrandContext(
-  service: AnalyzerService,
+  context: ConflictPipelineContext,
   request: ConflictAnalysisRequest,
 ): Promise<AnalysisContext> {
-  // AnalyzerGraphRuntime structurally extends StrandCoordinatorGraphRuntime.
-  const strands = createStrandCoordinator(service._graph);
+  const strands = createStrandCoordinator(context.graph);
   const descriptor = await strands.getOrThrow(request.strandId!);
   const entries = await strands.getPatchEntries(request.strandId!, {
     ceiling: request.lamportCeiling,
@@ -343,14 +332,14 @@ async function resolveStrandContext(
 }
 
 async function resolveFrontierContext(
-  service: AnalyzerService,
+  context: ConflictPipelineContext,
   request: ConflictAnalysisRequest,
 ): Promise<AnalysisContext> {
   const { frontier, patchFrames } = await loadFrontierPatchFrames(
-    service._graph,
+    context.graph,
     request.lamportCeiling,
   );
-  const frontierDigest = await service._hash(frontierToRecord(frontier));
+  const frontierDigest = await context.hash(frontierToRecord(frontier));
   return {
     patchFrames,
     resolvedCoordinate: buildResolvedCoordinate({
@@ -364,7 +353,7 @@ async function resolveFrontierContext(
 }
 
 async function loadFrontierPatchFrames(
-  graph: AnalyzerService['_graph'],
+  graph: ConflictPipelineGraphRuntime,
   lamportCeiling: number | null,
 ): Promise<{ frontier: Map<string, string>; patchFrames: PatchFrame[] }> {
   const frontier = await graph.getFrontier();
@@ -389,11 +378,11 @@ async function loadFrontierPatchFrames(
  * strand or frontier coordinates.
  */
 export async function resolveAnalysisContext(
-  service: AnalyzerService,
+  context: ConflictPipelineContext,
   request: ConflictAnalysisRequest,
 ): Promise<AnalysisContext> {
   if (request.usesStrandCoordinate()) {
-    return await resolveStrandContext(service, request);
+    return await resolveStrandContext(context, request);
   }
-  return await resolveFrontierContext(service, request);
+  return await resolveFrontierContext(context, request);
 }

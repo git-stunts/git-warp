@@ -42,6 +42,7 @@ import IndexRebuildService from './src/domain/services/index/IndexRebuildService
 import HealthCheckService, { HealthStatus } from './src/domain/services/HealthCheckService.ts';
 import CommitDagTraversalService from './src/domain/services/dag/CommitDagTraversalService.ts';
 import GraphPersistencePort from './src/ports/GraphPersistencePort.ts';
+import type WarpKernelPort from './src/ports/WarpKernelPort.ts';
 import IndexStoragePort from './src/ports/IndexStoragePort.ts';
 import LoggerPort from './src/ports/LoggerPort.ts';
 import SeekCachePort from './src/ports/SeekCachePort.ts';
@@ -73,8 +74,16 @@ import {
   createV18BoundedMemoryCapabilityReport,
 } from './rootCompatibility.ts';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.ts';
+import BoundedSupportRule from './src/domain/services/query/BoundedSupportRule.ts';
+import CausalIndexPlan from './src/domain/services/query/CausalIndexPlan.ts';
+import SupportFragmentPlan from './src/domain/services/query/SupportFragmentPlan.ts';
 import Observer from './src/domain/services/query/Observer.ts';
-import Worldline from './src/domain/services/Worldline.ts';
+import ObserverAccumulation from './src/domain/services/query/ObserverAccumulation.ts';
+import ObserverBasis from './src/domain/services/query/ObserverBasis.ts';
+import ObserverEmission from './src/domain/services/query/ObserverEmission.ts';
+import ObserverPlan from './src/domain/services/query/ObserverPlan.ts';
+import ObserverReadingEnvelope from './src/domain/services/query/ObserverReadingEnvelope.ts';
+import ProjectionHandle from './src/domain/services/ProjectionHandle.ts';
 import WorldlineSelector from './src/domain/types/WorldlineSelector.ts';
 import LiveSelector from './src/domain/types/LiveSelector.ts';
 import CoordinateSelector from './src/domain/types/CoordinateSelector.ts';
@@ -143,6 +152,7 @@ import ContentAttachmentProjection from './src/domain/services/ContentAttachment
 import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import WarpWorldline, { openWarpWorldline } from './src/domain/WarpWorldline.ts';
+import { WarpOpenOptions } from './src/domain/warp/RuntimeHostBoot.ts';
 import WarpWorldlineCoordinate from './src/domain/WarpWorldlineCoordinate.ts';
 import WarpWorldlineOpticBasis from './src/domain/WarpWorldlineOpticBasis.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
@@ -153,6 +163,14 @@ import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/service
 import { computeStateHash, projectState } from './src/domain/services/state/StateSerializer.ts';
 import { createStateReader } from './src/domain/services/state/StateReader.ts';
 import { compareVisibleState } from './src/domain/services/comparison/VisibleStateComparison.ts';
+import GraphDiff from './src/domain/services/comparison/GraphDiff.ts';
+import TtdMergeBranch from './src/domain/services/merge/TtdMergeBranch.ts';
+import TtdMergeFootprint from './src/domain/services/merge/TtdMergeFootprint.ts';
+import TtdMergeInspection from './src/domain/services/merge/TtdMergeInspection.ts';
+import TtdMergeInspector from './src/domain/services/merge/TtdMergeInspector.ts';
+import TtdMergeLoweringWitness from './src/domain/services/merge/TtdMergeLoweringWitness.ts';
+import TtdMergeObstructionWitness from './src/domain/services/merge/TtdMergeObstructionWitness.ts';
+import TtdMergePolicyRequirement from './src/domain/services/merge/TtdMergePolicyRequirement.ts';
 import ImmutableBytes from './src/domain/services/snapshot/ImmutableBytes.ts';
 import SnapshotORSet from './src/domain/services/snapshot/SnapshotORSet.ts';
 import SnapshotVersionVector from './src/domain/services/snapshot/SnapshotVersionVector.ts';
@@ -166,6 +184,28 @@ import type { ApertureOpeningProofFields } from './src/domain/services/wormhole/
 import type { ZKWormholeEdgeFields } from './src/domain/services/wormhole/ZKWormholeEdge.ts';
 import type { ApertureOpeningVerificationResult, ZKWormholeVerificationResult } from './src/domain/services/wormhole/ZKWormholeVerificationResult.ts';
 import type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
+import type { GraphDiffOptions } from './src/domain/capabilities/ComparisonCapability.ts';
+import type { GraphDiffFields } from './src/domain/services/comparison/GraphDiff.ts';
+import type { ObserverPlanFields } from './src/domain/services/query/ObserverPlan.ts';
+import type {
+  ObserverReadingEnvelopeBudget,
+  ObserverReadingEnvelopeFields,
+} from './src/domain/services/query/ObserverReadingEnvelope.ts';
+import type {
+  BoundedSupportDirection,
+  BoundedSupportKind,
+  BoundedSupportRuleFields,
+  BoundedSupportSurface,
+} from './src/domain/services/query/BoundedSupportRule.ts';
+import type {
+  CausalIndexFamily,
+  CausalIndexPlanFields,
+  CausalIndexPlanPosture,
+} from './src/domain/services/query/CausalIndexPlan.ts';
+import type {
+  SupportFragmentMaterializationPosture,
+  SupportFragmentPlanFields,
+} from './src/domain/services/query/SupportFragmentPlan.ts';
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
@@ -177,6 +217,14 @@ import {
 
 export * from './src/domain/graph/publicGraphSubstrate.ts';
 export * from './src/domain/memory/index.ts';
+export * from './src/continuumExports.ts';
+export { default as OperationPolicyPort } from './src/ports/OperationPolicyPort.ts';
+export type { OperationPolicyExecuteOptions, OperationRetryDecision, OperationRetryObserver } from './src/ports/OperationPolicyPort.ts';
+export { default as CasContentEncryptionPolicy } from './src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
+export type { CasContentEncryptionDiagnostics, CasContentEncryptionScheme, CasResolvedVaultKeyOptions, CasVaultResolutionWitness } from './src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
+export { default as AlfredOperationPolicyAdapter } from './src/infrastructure/adapters/AlfredOperationPolicyAdapter.ts';
+export { default as NoopOperationPolicyAdapter } from './src/infrastructure/adapters/NoopOperationPolicyAdapter.ts';
+export { OperationPolicyExhaustedError, OperationPolicyTimeoutError } from './src/domain/errors/index.ts';
 export {
   AuditError,
   ContinuumArtifactAuthorityError,
@@ -198,67 +246,15 @@ export {
   WormholeError,
 } from './src/domain/errors/index.ts';
 
-import ContinuumArtifactAuthority from './src/domain/continuum/ContinuumArtifactAuthority.ts';
-import ContinuumArtifactDescriptor from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
-import ContinuumArtifactIngestionPolicy from './src/domain/continuum/ContinuumArtifactIngestionPolicy.ts';
-import ContinuumEvidenceAccess from './src/domain/continuum/ContinuumEvidenceAccess.ts';
-import ContinuumEvidenceClaim from './src/domain/continuum/ContinuumEvidenceClaim.ts';
-import ContinuumEvidenceCompleteness from './src/domain/continuum/ContinuumEvidenceCompleteness.ts';
-import ContinuumEvidenceOrigin from './src/domain/continuum/ContinuumEvidenceOrigin.ts';
-import ContinuumEvidencePosture from './src/domain/continuum/ContinuumEvidencePosture.ts';
-import ContinuumEvidenceProofStrength from './src/domain/continuum/ContinuumEvidenceProofStrength.ts';
-import ContinuumFamilyId from './src/domain/continuum/ContinuumFamilyId.ts';
-import ContinuumGeneratedFamilyInventory from './src/domain/continuum/ContinuumGeneratedFamilyInventory.ts';
-import ContinuumGeneratedFamilyInventoryEntry from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
-import ContinuumGeneratedFamilyStatus from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
-import ContinuumReceiptFamilyProjection from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
-import GitWarpTickPatchReplayCore from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
-import GitWarpReadingEnvelopePayloadFact from './src/domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
-import GitWarpReadingEnvelopeSourceFacts from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
-import GitWarpBraidHologram from './src/domain/continuum/GitWarpBraidHologram.ts';
-import GitWarpBraidHologramMember from './src/domain/continuum/GitWarpBraidHologramMember.ts';
-import GitWarpSuffixTransformHologram from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
-import GitWarpTickHologram from './src/domain/continuum/GitWarpTickHologram.ts';
-import GitWarpTickReceiptShell from './src/domain/continuum/GitWarpTickReceiptShell.ts';
-import GitWarpTickReceiptWitnessCore from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
-import GitWarpTickWitnessLadder from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
-import GitWarpWitnessedSuffixPatchFact from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
-import GitWarpWitnessedSuffixSourceFacts from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
-import GitWarpReceiptSourceFacts from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
-import createCurrentContinuumGeneratedFamilyInventory from './src/domain/continuum/createCurrentContinuumGeneratedFamilyInventory.ts';
-import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
-import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
-import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
-import type { ContinuumEvidenceAccessValue } from './src/domain/continuum/ContinuumEvidenceAccess.ts';
-import type { ContinuumEvidenceClaimFields } from './src/domain/continuum/ContinuumEvidenceClaim.ts';
-import type { ContinuumEvidenceCompletenessValue } from './src/domain/continuum/ContinuumEvidenceCompleteness.ts';
-import type { ContinuumEvidenceOriginValue } from './src/domain/continuum/ContinuumEvidenceOrigin.ts';
-import type { ContinuumEvidencePostureFields } from './src/domain/continuum/ContinuumEvidencePosture.ts';
-import type { ContinuumEvidenceProofStrengthValue } from './src/domain/continuum/ContinuumEvidenceProofStrength.ts';
-import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
-import type { ContinuumGeneratedFamilyInventoryEntryFields } from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
-import type { ContinuumGeneratedFamilyStatusValue } from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
-import type {
-  ContinuumDeliveryObservationFact,
-  ContinuumReceiptFact,
-  ContinuumReceiptFamilyProjectionFields,
-  ContinuumReceiptOpFact,
-  ContinuumReceiptWitnessFact,
-} from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
-import type { GitWarpReceiptSourceFactsFields } from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
-import type { GitWarpReadingEnvelopePayloadFactFields } from './src/domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
-import type { GitWarpReadingEnvelopeSourceFactsFields } from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
-import type { GitWarpBraidHologramFields } from './src/domain/continuum/GitWarpBraidHologram.ts';
-import type { GitWarpBraidHologramMemberFields } from './src/domain/continuum/GitWarpBraidHologramMember.ts';
-import type { GitWarpSuffixTransformHologramFields } from './src/domain/continuum/GitWarpSuffixTransformHologram.ts';
-import type { GitWarpTickHologramFields } from './src/domain/continuum/GitWarpTickHologram.ts';
-import type { GitWarpTickPatchReplayCoreFields } from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
-import type { GitWarpTickReceiptShellFields } from './src/domain/continuum/GitWarpTickReceiptShell.ts';
-import type { GitWarpTickReceiptWitnessCoreFields } from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
-import type { GitWarpTickWitnessLadderFields } from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
-import type { GitWarpWitnessedSuffixPatchFactFields } from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
-import type { GitWarpWitnessedSuffixSourceFactsFields } from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
-import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
+import type { TtdMergeBranchFields } from './src/domain/services/merge/TtdMergeBranch.ts';
+import type { TtdMergeFootprintFields } from './src/domain/services/merge/TtdMergeFootprint.ts';
+import type { TtdMergeInspectionFields } from './src/domain/services/merge/TtdMergeInspection.ts';
+import type { TtdMergeInspectionDomain } from './src/domain/services/merge/TtdMergeInspectionDomain.ts';
+import type { TtdMergeLoweringSurface } from './src/domain/services/merge/TtdMergeLoweringSurface.ts';
+import type { TtdMergeLoweringWitnessFields } from './src/domain/services/merge/TtdMergeLoweringWitness.ts';
+import type { TtdMergeObjectBranchInput, TtdMergeObjectInspectionInput } from './src/domain/services/merge/TtdMergeInspector.ts';
+import type { TtdMergeObstructionWitnessFields } from './src/domain/services/merge/TtdMergeObstructionWitness.ts';
+import type { TtdMergePolicyRequirementFields } from './src/domain/services/merge/TtdMergePolicyRequirement.ts';
 
 export {
   GitGraphAdapter,
@@ -306,6 +302,7 @@ export {
   createTimeoutSignal,
 
   // Multi-writer graph — advanced compatibility composition root
+  WarpOpenOptions,
   openWarpGraph,
 
   // Worldline-first public handle
@@ -313,17 +310,25 @@ export {
   WarpWorldline,
   WarpWorldlineCoordinate,
   WarpWorldlineOpticBasis,
+  ProjectionHandle,
 
   // Multi-writer graph support (legacy/diagnostic — prefer openWarpWorldline)
   WarpApp,
   WarpCore,
-  Worldline,
   WorldlineSelector,
   LiveSelector,
   CoordinateSelector,
   StrandSelector,
+  BoundedSupportRule,
+  CausalIndexPlan,
+  SupportFragmentPlan,
   QueryBuilder,
   Observer,
+  ObserverAccumulation,
+  ObserverBasis,
+  ObserverEmission,
+  ObserverPlan,
+  ObserverReadingEnvelope,
   PatchBuilder,
   PatchSession,
   Writer,
@@ -352,6 +357,14 @@ export {
   projectState,
   createStateReader,
   compareVisibleState,
+  GraphDiff,
+  TtdMergeBranch,
+  TtdMergeFootprint,
+  TtdMergeInspection,
+  TtdMergeInspector,
+  TtdMergeLoweringWitness,
+  TtdMergeObstructionWitness,
+  TtdMergePolicyRequirement,
   ImmutableBytes,
   SnapshotORSet,
   SnapshotVersionVector,
@@ -361,34 +374,6 @@ export {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
   createV18BoundedMemoryCapabilityReport,
-
-  // Continuum boundary artifacts
-  ContinuumArtifactAuthority,
-  ContinuumArtifactDescriptor,
-  ContinuumArtifactIngestionPolicy,
-  ContinuumEvidenceAccess,
-  ContinuumEvidenceClaim,
-  ContinuumEvidenceCompleteness,
-  ContinuumEvidenceOrigin,
-  ContinuumEvidencePosture,
-  ContinuumEvidenceProofStrength,
-  ContinuumFamilyId,
-  ContinuumGeneratedFamilyInventory,
-  ContinuumGeneratedFamilyInventoryEntry,
-  ContinuumGeneratedFamilyStatus,
-  ContinuumReceiptFamilyProjection,
-  GitWarpReadingEnvelopePayloadFact,
-  GitWarpReadingEnvelopeSourceFacts,
-  GitWarpBraidHologram, GitWarpBraidHologramMember, GitWarpSuffixTransformHologram, GitWarpTickHologram,
-  GitWarpTickPatchReplayCore,
-  GitWarpTickReceiptShell,
-  GitWarpTickReceiptWitnessCore,
-  GitWarpTickWitnessLadder,
-  GitWarpWitnessedSuffixPatchFact,
-  GitWarpWitnessedSuffixSourceFacts,
-  GitWarpReceiptSourceFacts,
-  createCurrentContinuumGeneratedFamilyInventory,
-  ContinuumArtifactJsonFileAdapter,
 
   // Tick receipts (LIGHTHOUSE)
   createTickReceipt,
@@ -442,39 +427,36 @@ export type {
   PropValue,
   SnapshotPropValue,
   SyncRateLimitConfig,
+  WarpKernelPort,
   WarpWorldlineOpenOptions,
   WarpWorldlinePatchBuild,
+  BoundedSupportDirection,
+  BoundedSupportKind,
+  BoundedSupportRuleFields,
+  BoundedSupportSurface,
+  CausalIndexFamily,
+  CausalIndexPlanFields,
+  CausalIndexPlanPosture,
+  SupportFragmentMaterializationPosture,
+  SupportFragmentPlanFields,
+  GraphDiffOptions,
+  GraphDiffFields,
+  ObserverPlanFields,
+  ObserverReadingEnvelopeBudget,
+  ObserverReadingEnvelopeFields,
   ApertureOpeningProofFields, ApertureOpeningVerificationResult,
   ZKWormholeEdgeFields, ZKWormholeVerificationResult,
   WarpWorldlineCoordinateFrontierEntry,
-  ContinuumArtifactAuthorityValue,
-  ContinuumArtifactDescriptorFields,
-  ContinuumEvidenceAccessValue,
-  ContinuumEvidenceClaimFields,
-  ContinuumEvidenceCompletenessValue,
-  ContinuumEvidenceOriginValue,
-  ContinuumEvidencePostureFields,
-  ContinuumEvidenceProofStrengthValue,
-  ContinuumGeneratedFamilyInventoryEntryFields,
-  ContinuumGeneratedFamilyStatusValue,
-  ContinuumDeliveryObservationFact,
-  ContinuumReceiptFact,
-  ContinuumReceiptFamilyProjectionFields,
-  ContinuumReceiptOpFact,
-  ContinuumReceiptWitnessFact,
-  GitWarpReceiptSourceFactsFields,
-  GitWarpReadingEnvelopePayloadFactFields,
-  GitWarpReadingEnvelopeSourceFactsFields,
-  GitWarpBraidHologramFields, GitWarpBraidHologramMemberFields,
-  GitWarpSuffixTransformHologramFields, GitWarpTickHologramFields,
-  GitWarpTickPatchReplayCoreFields,
-  GitWarpTickReceiptShellFields,
-  GitWarpTickReceiptWitnessCoreFields,
-  GitWarpTickWitnessLadderFields,
-  GitWarpWitnessedSuffixPatchFactFields,
-  GitWarpWitnessedSuffixSourceFactsFields,
-  ContinuumArtifactJsonLoadContext,
-  ContinuumFamilyIdValue,
+  TtdMergeBranchFields,
+  TtdMergeFootprintFields,
+  TtdMergeInspectionDomain,
+  TtdMergeInspectionFields,
+  TtdMergeLoweringSurface,
+  TtdMergeLoweringWitnessFields,
+  TtdMergeObjectBranchInput,
+  TtdMergeObjectInspectionInput,
+  TtdMergeObstructionWitnessFields,
+  TtdMergePolicyRequirementFields,
 };
 
 // WarpApp remains the compatibility default export for v15-era consumers.

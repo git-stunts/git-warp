@@ -18,10 +18,14 @@ export { computeSyncDelta, syncNeeded } from './syncDelta.ts';
 
 export type {
   SyncRequest,
+  SyncRequestPage,
   SyncResponse,
+  SyncResponsePage,
+  SyncResponseMetrics,
   SyncPatchEntry,
   SkippedWriterEntry,
   ProcessSyncRequestOptions,
+  CreateSyncRequestOptions,
   ApplySyncResponseResult,
 } from './syncRequestResponse.ts';
 export {

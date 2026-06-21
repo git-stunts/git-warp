@@ -32,6 +32,9 @@ jobs:
       - name: TS policy
         run: npm run typecheck:policy
 
+      - name: Build
+        run: npm run build --silent
+
       - name: Test
         run: npm run test:local --if-present
 

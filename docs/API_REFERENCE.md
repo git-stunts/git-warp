@@ -10,6 +10,11 @@ Use it when you already understand the mental model and want the full method, fl
 - If you want engine-room internals, use the [Advanced Guide](ADVANCED_GUIDE.md).
 - If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
 
+This reference describes shipped or transition runtime surfaces. When a stronger
+WARP noun or semantic promise is still target doctrine, the status and evidence
+rules live in the
+[Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md).
+
 The rest of this file intentionally stays dense and comprehensive.
 
 For new application code, start with `openWarpWorldline()`. It returns the
@@ -83,6 +88,10 @@ const todos = await openWarpWorldline({
 });
 ```
 
+`GitPlumbing` is the local name for the default export from
+`@git-stunts/plumbing` v3. Do not import a named `Plumbing` symbol; v17 treats
+that substrate rename as a breaking change.
+
 ### WarpWorldlineOpenOptions
 
 `WarpWorldlineOpenOptions` accepts the same substrate ports as `WarpGraphDeps`,
@@ -90,7 +99,7 @@ but the identity field is `worldlineName` instead of `graphName`.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `persistence` | `CorePersistence` | Yes | Git storage adapter |
+| `persistence` | `CorePersistence` (`WarpKernelPort`) | Yes | Git storage adapter |
 | `worldlineName` | `string` | Yes | Admitted worldline identity |
 | `writerId` | `string` | Yes | Writer identity |
 | `trust` | `{ mode?: 'off' \| 'log-only' \| 'enforce'; pin?: string \| null }` | No | Trust verification |
@@ -208,7 +217,7 @@ const graph = await openWarpGraph({
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `persistence` | `CorePersistence` | Yes | Git storage adapter |
+| `persistence` | `CorePersistence` (`WarpKernelPort`) | Yes | Git storage adapter |
 | `graphName` | `string` | Yes | Graph identity |
 | `writerId` | `string` | Yes | Writer identity |
 | `trust` | `{ mode?: 'off' \| 'log-only' \| 'enforce'; pin?: string \| null }` | No | Trust verification |
@@ -421,6 +430,13 @@ In every case, the commit updates `refs/warp/<graph>/writers/<writerId>`. It
 does **not** stage files, modify your normal Git worktree, or create a normal
 source-tree commit on your current branch.
 
+Patch writes use a visibility contract: a successful `commit()`,
+`writer.commitPatch(...)`, or `graph.patches.patch(...)` return means the patch
+commit was created, the canonical writer ref advanced by compare-and-swap, and
+the writer ref was read back pointing at the returned SHA. A patch object that
+exists in storage but is not reachable from the visible writer tip is reported
+as a failed write, not a successful hidden sibling commit.
+
 ### Creating Patches
 
 ```typescript
@@ -518,6 +534,11 @@ The Writer handles ref management and compare-and-swap (CAS) safety
 automatically. If another process advances the writer ref between
 `beginPatch()` and `commit()`, the commit fails with `WRITER_REF_ADVANCED`
 rather than silently losing data.
+
+The returned SHA is the visible writer-tip commit. If the patch commit is
+created but the writer ref cannot be advanced and verified at that SHA, the
+write fails and post-commit hooks such as eager cache updates and audit receipt
+recording do not run.
 
 ### Writer ID Resolution
 
@@ -715,6 +736,51 @@ const result = await worldline.query()
 - `'*:admin'` — matches `org:admin`, `team:admin`, etc.
 - `'doc:*:draft'` — matches `doc:1:draft`, `doc:abc:draft`, etc.
 
+#### Support Rule Inspection
+
+`supportRule()` returns the current `BoundedSupportRule` for the accumulated
+query plan. Exact node-id reads are `entity` support, exact node-id traversals
+are `neighborhood` support, and wildcard/discovery reads are
+`global-discovery`.
+
+```typescript
+const support = worldline.query()
+  .match('user:alice')
+  .outgoing('manages', { depth: [1, 2] })
+  .supportRule();
+
+support.kind; // 'neighborhood'
+support.isBounded(); // true
+support.maxDepth; // 2
+```
+
+This is an execution contract, not an index. It lets future causal indexes and
+support fragments know which support set a read is allowed to use; it does not
+make wildcard discovery cheaper by itself.
+
+For provider authors, `QueryRunner` sends both `supportRule` and
+`causalIndexPlan` in `QueryReadModelOpenRequest`. `CausalIndexPlan` maps exact
+entity reads to the existing provenance entity-patch index, maps exact rooted
+traversals to a composite entity-patch plus neighborhood-adjacency posture, and
+marks wildcard discovery as requiring a global scan.
+
+`supportFragmentPlan()` exposes the fragment-materialization posture derived
+from the same support rule:
+
+```typescript
+const fragmentPlan = worldline.query()
+  .match('user:alice')
+  .supportFragmentPlan();
+
+fragmentPlan.canMaterializeSupportFragment(); // true
+fragmentPlan.fragmentKeyForCoordinate('frontier:demo');
+```
+
+`QueryReadModelOpenRequest` also carries `supportFragmentPlan`, so read-model
+providers can cache fragments keyed by support scope plus coordinate. Wildcard
+and discovery queries produce `global-fallback` plans instead of fake fragment
+keys.
+
 #### Filtering with `where()`
 
 **Object shorthand** — strict equality on primitive values. Multiple properties use AND semantics:
@@ -817,6 +883,30 @@ const result = await worldline.query()
   .aggregate({ count: true })
   .run();
 ```
+
+### Graph Diff
+
+Use `graph.comparison.diff({ from, to })` when a caller asks what changed
+between two live Lamport ceilings. The result is a frozen `GraphDiff` object
+with structural and property deltas, visible patch divergence, and the resolved
+coordinate summaries used to compute it.
+
+```typescript
+const diff = await graph.comparison.diff({
+  from: 120,
+  to: 135,
+  targetId: 'user:alice',
+});
+
+diff.diffVersion; // 'graph-diff/v1'
+diff.nodes.added;
+diff.nodeProperties.changed;
+diff.visiblePatchDivergence.rightOnlyPatchShas;
+```
+
+`diff()` resolves the two ceilings as live coordinate reads and uses the
+substrate comparison engine. It is not implemented by `query().match('*')` or
+by client-side wildcard scans.
 
 ### Graph Traversals
 
@@ -1326,6 +1416,33 @@ const admins = await view.query().match('user:*').where({ role: 'admin' }).run()
 const path = await view.traverse.shortestPath('user:alice', 'user:bob', { dir: 'out' });
 ```
 
+The same observer can also surface its source/config split explicitly:
+
+```typescript
+const plan = view.plan();
+// plan.source = { kind: 'live' } or the coordinate/strand selector used
+
+const envelope = await view.readingEnvelope({
+  witnessRef: 'receipt-or-proof-ref',
+  shellRef: 'observer-shell-ref',
+  receiptAnchors: [receiptBoundary.stableAnchor()],
+});
+
+envelope.payload.nodeCount;
+envelope.budget.propertyKeyCount;
+envelope.residualBasis;
+envelope.receiptAnchors[0]?.patchSha;
+```
+
+`ObserverPlan` freezes the observer name, aperture, structural basis, and
+worldline source. `ObserverReadingEnvelope` ties that plan to an emitted
+`ObserverEmission` payload, optional witness/shell/plurality references, and
+validated receipt anchors from `GitWarpReceiptEnvelopeBoundary`, plus budget
+metadata derived from the payload. Normal node/query/traversal reads and
+envelope reads therefore share the same observer family, and external tools do
+not need raw receipt `ops` or debug `reason` strings for observer-level routing
+decisions.
+
 For higher-layer reads, this is the preferred boundary: choose a worldline,
 choose an observer, optionally seek, then read through that observer instead of
 reconstructing a second graph-shaped read model above the substrate.
@@ -1333,6 +1450,11 @@ reconstructing a second graph-shaped read model above the substrate.
 Observers are pinned read handles. By default they capture the current
 materialized coordinate at creation time. They can also bind directly to an
 explicit coordinate or a pinned strand instead of following live truth.
+
+Strand-backed observers use the strand overlay plus the current parent basis.
+Untouched parent regions therefore follow live truth; callers that need a
+frozen historical basis should bind an explicit coordinate instead of a strand
+source.
 
 `graph.query.observer(...)` remains available as a convenience entry
 point, but `worldline()` is the clearer public noun when the caller wants to pin
@@ -2334,6 +2456,62 @@ PropSet user:alice.name: superseded
 
 **Zero-cost when disabled:** When receipts are not requested (the default), there is strictly zero overhead — no arrays allocated, no strings constructed.
 
+External envelope consumers should not reinterpret raw receipt objects as a
+stable protocol. Wrap a diagnostic receipt in `GitWarpReceiptEnvelopeBoundary`
+when another tool needs substrate-owned anchors:
+
+```typescript
+const boundary = new GitWarpReceiptEnvelopeBoundary({ receipt });
+const anchor = boundary.stableAnchor();
+// anchor = {
+//   boundaryVersion: 'git-warp.receipt-envelope-boundary/v1',
+//   substrateFactKind: 'git-warp.tick-receipt',
+//   patchSha: '...',
+//   writer: 'alice',
+//   lamport: 7,
+//   outcomeCount: 3,
+//   appliedCount: 2,
+//   supersededCount: 1,
+//   redundantCount: 0,
+//   hasExplanatoryReasons: true,
+// }
+```
+
+The boundary deliberately excludes raw `ops` and `reason` text. Those stay
+diagnostic; the stable contract is the receipt identity and aggregate outcome
+anchor.
+
+Witnessed suffix import/export is represented by
+`GitWarpWitnessedSuffixAdmissionShell`. The shell names the graph, lane,
+transported site, source/basis/target frontiers, patch references, witness
+material, admission law, transport law, explicit import outcome, and replay
+hologram without reducing protocol truth to a naked `frontier + patches`
+transport list.
+
+```typescript
+const shell = new GitWarpWitnessedSuffixAdmissionShell({
+  laneId: 'lane:writer-remote',
+  transportedSiteRef: 'site:remote',
+  admissionLawId: 'admission-law:witnessed-suffix',
+  outcome: GitWarpWitnessedSuffixAdmissionOutcome.admitted(),
+  sourceFacts,
+  hologram,
+});
+
+shell.patchRefs; // stable patch references for observers
+shell.materializeFrom(localBasis); // deterministic target materialization
+```
+
+Admission outcomes are runtime-backed:
+
+| Outcome | Meaning |
+|---|---|
+| `admitted` | The suffix was normalized and admitted against the basis. |
+| `staged` | The suffix is witnessed but waiting for local prerequisites. |
+| `plural` | Multiple lawful continuations remain and need selection. |
+| `conflict` | The suffix overlaps with local history in a conflicting way. |
+| `obstruction` | A law or witness gap blocks admission. |
+
 Use normal query/worldline readings when you do not need diagnostic receipt
 detail.
 
@@ -2360,6 +2538,18 @@ const response = await graph.sync.processSyncRequest(request);
 
 // Client side
 const { applied } = await graph.sync.applySyncResponse(response);
+```
+
+Sync requests may include a bounded response page:
+
+```typescript
+const request = await graph.sync.createSyncRequest();
+request.page = { maxPatches: 500, cursor: null };
+
+const response = await graph.sync.processSyncRequest(request);
+// response.page.cursor is the next cursor when response.page.hasMore is true.
+// response.metrics reports patch count, skipped writer count, estimated payload
+// bytes, and caller-supplied latency when the server measured it.
 ```
 
 #### High-Level API
@@ -2413,6 +2603,11 @@ const { close, url } = await graph.sync.serve({
 
 await close(); // shut down
 ```
+
+HTTP sync auth remains shared-secret HMAC. New signed requests declare
+`x-warp-auth-scheme: shared-secret-hmac-sha256`; peers accept legacy HMAC
+requests without that header during migration and reject unsupported declared
+schemes before HMAC verification.
 
 Non-local bind hosts require enforced auth with a per-key rate-limit
 budget. Local unauthenticated serving is available only with

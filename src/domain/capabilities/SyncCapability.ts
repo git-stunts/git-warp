@@ -23,6 +23,10 @@ export type WarpStatus = {
 export type SyncRequest = {
   type: 'sync-request';
   frontier: Record<string, string>;
+  page?: {
+    maxPatches: number;
+    cursor?: string | null;
+  };
 };
 
 /** Sync response message. */
@@ -30,6 +34,18 @@ export type SyncResponse = {
   type: 'sync-response';
   frontier: Record<string, string>;
   patches: Array<{ writerId: string; sha: string; patch: DecodedPatch }>;
+  page?: {
+    maxPatches: number | null;
+    cursor: string | null;
+    hasMore: boolean;
+    returnedPatches: number;
+  };
+  metrics?: {
+    patchCount: number;
+    skippedWriterCount: number;
+    estimatedPayloadBytes: number;
+    latencyMs: number | null;
+  };
 };
 
 /** Trust options for sync verification. */

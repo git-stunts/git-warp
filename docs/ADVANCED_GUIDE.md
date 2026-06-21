@@ -7,6 +7,17 @@ Use it when you need to understand why `git-warp` is safe, how replay works, wha
 - If you are new, start with [Getting Started](GETTING_STARTED.md).
 - If you are building day-to-day product code, use the [Guide](GUIDE.md).
 - If you want every method and appendix in one place, use the [API Reference](API_REFERENCE.md).
+- If you need noun status, use [GLOSSARY.md](GLOSSARY.md) and the
+  [Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md).
+
+## Runtime posture
+
+This guide is allowed to discuss substrate internals and target doctrine, but
+it must mark the difference. Today, pinned-base strands, braid support overlays,
+frontier-based sync, and whole-state materialization are implementation
+posture. Live holographic strands, common-basis braids, witnessed suffix
+admission, and support-scoped fragments are target doctrine tracked in the
+[teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 ## Public roots and boundaries
 
@@ -110,6 +121,72 @@ For the normative details, use:
 - [Trust migration](trust/TRUST_MIGRATION.md)
 - [Trust operator runbook](trust/TRUST_OPERATOR_RUNBOOK.md)
 
+### Observer redaction is not encryption
+
+`Aperture.redact` and Observer filtering hide fields from a selected read path.
+They do not rewrite patch history, delete Git objects, or prevent a local
+operator from inspecting raw objects under `.git/objects/`. Treat redaction as
+application-layer projection, not data protection.
+
+Use vault-backed CAS content encryption when the stored bytes need protection
+at rest. The key-management path is `@git-stunts/vault` and OS-native keychain
+storage, not `.env` files or anonymous process-global secrets.
+
+### Vault-backed CAS content encryption
+
+CAS-backed graph content uses git-cas v6 encryption after an operator resolves
+the content key through the vault workflow. Ordinary application code should not
+carry anonymous raw encryption keys. The git-warp boundary is
+`CasContentEncryptionPolicy`: it records the current git-cas scheme, the
+verified vault source, privacy-mode state, and rotation counters, then hands the
+resolved bytes to git-cas only inside the adapter call.
+
+```typescript
+import {
+  CasContentEncryptionPolicy,
+  GitGraphAdapter,
+} from '@git-stunts/git-warp';
+
+const casContentEncryption = CasContentEncryptionPolicy.fromResolvedVaultKey({
+  encryptionKey: resolvedVaultKey,
+  scheme: 'framed',
+  frameBytes: 64 * 1024,
+  vault: {
+    vaultSlug: 'graphs/team/content',
+    keyId: 'content-kek-2026-06',
+    verification: 'verified',
+    rotationEpoch: 3,
+    encryptionCount: 512,
+    encryptionCountLimit: 4294967295,
+    privacyMode: true,
+  },
+});
+
+const persistence = new GitGraphAdapter({
+  plumbing,
+  casContentEncryption,
+});
+```
+
+Operator flow:
+
+- Set up the git-cas vault first and keep its passphrase recovery procedure
+  outside the application process.
+- Resolve and verify the vault key before constructing
+  `CasContentEncryptionPolicy`; wrong passphrases and missing vault metadata
+  are rejected at that boundary.
+- Use only current git-cas schemes: `whole`, `framed`, or `convergent`.
+  `framed` is the usual streaming-friendly choice. `whole` is simplest but
+  buffers the encrypted payload as one unit. `convergent` preserves CDC
+  deduplication but leaks equality of identical plaintext chunks, so use it
+  only when the deduplication/confidentiality tradeoff is acceptable.
+- Rotate before the vault encryption count reaches the git-cas nonce budget.
+  git-warp refuses to build a write policy once the supplied rotation witness is
+  at its limit.
+- If git-cas reports `LEGACY_SCHEME`, migrate the old encrypted manifests with
+  the git-cas legacy encryption migration before restoring or rewriting them
+  through git-warp.
+
 ## Advanced reads and inspection
 
 Drop below the ordinary app-facing read path when you intentionally need:
@@ -148,6 +225,11 @@ own coordinate, aperture, and witness posture.
 ## Strands and braids
 
 Strands are the substrate's durable speculative lanes.
+
+Status: the runtime currently uses pinned-overlay strand mechanics. The target
+model is live holographic strands with basis-relative realization and
+common-basis braid validation; see the
+[teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 What a strand records:
 

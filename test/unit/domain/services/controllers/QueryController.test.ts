@@ -915,7 +915,7 @@ describe('QueryController', () => {
   // ── worldline ────────────────────────────────────────────────────────────
 
   describe('worldline()', () => {
-    it('returns a Worldline instance', () => {
+    it('returns a ProjectionHandle instance', () => {
       const wl = ctrl.worldline();
       expect(wl).toBeDefined();
       expect(typeof wl.query).toBe('function');

@@ -74,6 +74,7 @@ export type StrandCoordinatorDeps = {
  */
 type ImmutableWarpState = ReturnType<typeof createImmutableWarpStateSnapshot>;
 type ImmutableReceiptArray = ReturnType<typeof createImmutableTickReceiptArraySnapshot>;
+type ParentBasisMode = 'pinned' | 'live';
 type MaterializedStrandResult =
   | ImmutableWarpState
   | Readonly<{ state: ImmutableWarpState; receipts: ImmutableReceiptArray }>;
@@ -162,10 +163,16 @@ export default class StrandCoordinator {
   _hydrateOverlayMetadata(descriptor: ParsedStrandDescriptor): Promise<StrandDescriptor> {
     return this._deps.descriptors.hydrateDescriptor(descriptor);
   }
-  _collectPatchEntries(descriptor: StrandDescriptor, options: { ceiling: number | null }): Promise<StrandPatchEntry[]> {
+  _collectPatchEntries(
+    descriptor: StrandDescriptor,
+    options: { ceiling: number | null; parentBasis?: 'pinned' | 'live' },
+  ): Promise<StrandPatchEntry[]> {
     return this._deps.materializer.collectPatchEntries(descriptor, options);
   }
-  _materializeDescriptor(descriptor: StrandDescriptor, options: { collectReceipts: boolean; ceiling: number | null }): ReturnType<StrandMaterializer['materializeDescriptor']> {
+  _materializeDescriptor(
+    descriptor: StrandDescriptor,
+    options: { collectReceipts: boolean; ceiling: number | null; parentBasis?: 'pinned' | 'live' },
+  ): ReturnType<StrandMaterializer['materializeDescriptor']> {
     return this._deps.materializer.materializeDescriptor(descriptor, options);
   }
   _commitQueuedPatch(params: Parameters<StrandPatchService['commitQueuedPatch']>[0]): ReturnType<StrandPatchService['commitQueuedPatch']> {
@@ -289,12 +296,24 @@ export default class StrandCoordinator {
     const { state, receipts } = await this._deps.materializer.materializeDescriptor(descriptor, {
       collectReceipts: options.receipts === true,
       ceiling,
+      parentBasis: 'live',
+    });
+    return Object.freeze({ state, receipts });
+  }
+
+  async materializeReadState(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<LiveMaterializedStrandResult> {
+    const descriptor = await this.getOrThrow(strandId);
+    const ceiling = normalizeLamportCeiling(options.ceiling);
+    const { state, receipts } = await this._deps.materializer.materializeDescriptor(descriptor, {
+      collectReceipts: options.receipts === true,
+      ceiling,
+      parentBasis: this._readParentBasisFor(descriptor),
     });
     return Object.freeze({ state, receipts });
   }
 
   async materialize(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<MaterializedStrandResult> {
-    const { state, receipts } = await this.materializeLiveState(strandId, options);
+    const { state, receipts } = await this.materializeReadState(strandId, options);
     if (options.receipts === true) {
       return Object.freeze({
         state: createImmutableWarpStateSnapshot(state),
@@ -302,6 +321,16 @@ export default class StrandCoordinator {
       });
     }
     return createImmutableWarpStateSnapshot(state);
+  }
+
+  private _readParentBasisFor(descriptor: StrandDescriptor): ParentBasisMode {
+    if (descriptor.overlay.headPatchSha !== null && descriptor.overlay.headPatchSha !== undefined) {
+      return 'pinned';
+    }
+    if ((descriptor.braid?.readOverlays ?? []).length > 0) {
+      return 'pinned';
+    }
+    return 'live';
   }
 
   // ── Patching (delegates) ────────────────────────────────────────
@@ -317,7 +346,10 @@ export default class StrandCoordinator {
   async getPatchEntries(strandId: string, options: { ceiling?: number | null } = {}): Promise<StrandPatchEntry[]> {
     const descriptor = await this.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
-    return await this._deps.materializer.collectPatchEntries(descriptor, { ceiling });
+    return await this._deps.materializer.collectPatchEntries(descriptor, {
+      ceiling,
+      parentBasis: this._readParentBasisFor(descriptor),
+    });
   }
 
   async patchesFor(strandId: string, entityId: string, options: { ceiling?: number | null } = {}): Promise<string[]> {

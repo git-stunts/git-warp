@@ -22,14 +22,20 @@ import { createLazyCas } from './lazyCasInit.ts';
 import { createCdcCasStore } from './CasStoreFactory.ts';
 import CacheError from '../../domain/errors/CacheError.ts';
 import { textEncode, textDecode, concatBytes } from '../../domain/utils/bytes.ts';
+import CasContentEncryptionPolicy, {
+  type CasRestoreEncryptionArguments,
+  type CasStoreEncryptionArguments,
+  type CasStoreEncryptionOptions,
+  mapCasContentEncryptionError,
+} from './CasContentEncryptionPolicy.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import { Readable } from 'node:stream';
 
 interface CasStore {
   readManifest(opts: { treeOid: string }): Promise<unknown>;
-  restore(opts: { manifest: unknown; encryptionKey?: Uint8Array }): Promise<{ buffer: Uint8Array }>;
-  restoreStream?: (opts: { manifest: unknown; encryptionKey?: Uint8Array }) => AsyncIterable<Uint8Array>;
-  store(opts: { source: Readable; slug: string; filename: string; encryptionKey?: Uint8Array }): Promise<unknown>;
+  restore(opts: { manifest: unknown } & CasRestoreEncryptionArguments): Promise<{ buffer: Uint8Array }>;
+  restoreStream?: (opts: { manifest: unknown } & CasRestoreEncryptionArguments) => AsyncIterable<Uint8Array>;
+  store(opts: { source: Readable; slug: string; filename: string } & CasStoreEncryptionArguments): Promise<unknown>;
   createTree(opts: { manifest: unknown }): Promise<string>;
 }
 
@@ -109,15 +115,17 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   private readonly _maxEntries: number;
   private readonly _ref: string;
   private readonly _encryptionKey: Uint8Array | undefined;
+  private readonly _contentEncryption: CasContentEncryptionPolicy;
   private readonly _logger: LoggerPort | undefined;
   private readonly _getCas: () => Promise<CasStore>;
 
-  constructor({ persistence, plumbing, graphName, maxEntries, encryptionKey, logger }: {
+  constructor({ persistence, plumbing, graphName, maxEntries, encryptionKey, contentEncryption, logger }: {
     persistence: CachePersistence;
     plumbing: unknown;
     graphName: string;
     maxEntries?: number;
     encryptionKey?: Uint8Array;
+    contentEncryption?: CasContentEncryptionPolicy;
     logger?: LoggerPort;
   }) {
     super();
@@ -126,6 +134,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     this._maxEntries = maxEntries ?? DEFAULT_MAX_ENTRIES;
     this._ref = buildSeekCacheRef(graphName);
     this._encryptionKey = encryptionKey;
+    this._contentEncryption = resolveContentEncryption(contentEncryption, this._encryptionKey);
     this._logger = logger;
     this._getCas = createLazyCas(() => this._initCas());
   }
@@ -223,7 +232,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   // Restore helpers
   // ---------------------------------------------------------------------------
 
-  private async _restoreBuffer(cas: CasStore, restoreOpts: { manifest: unknown; encryptionKey?: Uint8Array }): Promise<Uint8Array> {
+  private async _restoreBuffer(cas: CasStore, restoreOpts: { manifest: unknown } & CasRestoreEncryptionArguments): Promise<Uint8Array> {
     if (typeof cas.restoreStream === 'function') {
       const stream = cas.restoreStream(restoreOpts);
       const chunks: Uint8Array[] = [];
@@ -253,7 +262,11 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
 
     try {
       return await this._getEntry(cas, key, entry);
-    } catch {
+    } catch (err) {
+      const encryptionError = mapCasContentEncryptionError(err, 'seek-cache');
+      if (encryptionError !== null) {
+        throw encryptionError;
+      }
       await this._mutateIndex((idx) => {
         delete idx.entries[key];
         return idx;
@@ -264,10 +277,10 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
 
   private async _getEntry(cas: CasStore, key: string, entry: IndexEntry): Promise<SeekCacheEntry> {
     const manifest = await cas.readManifest({ treeOid: entry.treeOid });
-    const restoreOpts: { manifest: unknown; encryptionKey?: Uint8Array } = { manifest };
-    if (this._encryptionKey !== null && this._encryptionKey !== undefined) {
-      restoreOpts.encryptionKey = this._encryptionKey;
-    }
+    const restoreOpts: { manifest: unknown } & CasRestoreEncryptionArguments = {
+      manifest,
+      ...this._contentEncryption.toRestoreOptions(),
+    };
     const buffer = await this._restoreBuffer(cas, restoreOpts);
     await this._mutateIndex((idx) => {
       const tracked = idx.entries[key];
@@ -309,10 +322,12 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
 
   private async _storeCasAsset(cas: CasStore, key: string, buffer: Uint8Array): Promise<{ manifest: unknown; treeOid: string }> {
     const source = Readable.from([buffer]);
-    const storeOpts: { source: Readable; slug: string; filename: string; encryptionKey?: Uint8Array } = { source, slug: key, filename: 'state.cbor' };
-    if (this._encryptionKey !== null && this._encryptionKey !== undefined) {
-      storeOpts.encryptionKey = this._encryptionKey;
-    }
+    const storeOpts: { source: Readable; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
+      source,
+      slug: key,
+      filename: 'state.cbor',
+      ...this._contentEncryption.toStoreOptions(),
+    };
     const manifest = await cas.store(storeOpts);
     const treeOid = await cas.createTree({ manifest });
     return { manifest, treeOid };
@@ -345,4 +360,17 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
       // Ref may not exist — that's fine
     }
   }
+}
+
+function resolveContentEncryption(
+  contentEncryption: CasContentEncryptionPolicy | undefined,
+  encryptionKey: Uint8Array | undefined,
+): CasContentEncryptionPolicy {
+  if (contentEncryption !== undefined) {
+    return contentEncryption;
+  }
+  if (encryptionKey !== undefined) {
+    return CasContentEncryptionPolicy.fromInternalResolvedKey({ encryptionKey });
+  }
+  return CasContentEncryptionPolicy.disabled();
 }

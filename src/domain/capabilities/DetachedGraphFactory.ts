@@ -77,7 +77,7 @@ export type DetachedGraphInternalReadSurface =
  *
  * Replaces the 3 duplicated `openDetachedReadGraph` /
  * `openDetachedObserverGraph` free functions scattered across
- * QueryController, MaterializeController, and Worldline.
+ * QueryController, MaterializeController, and ProjectionHandle.
  *
  * The returned graph has `autoMaterialize: false` and is intended
  * for snapshot queries that must not mutate the primary graph.

@@ -2,15 +2,26 @@ import { describe, it, expect, vi } from 'vitest';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
+import { reducePatches } from '../../../../src/domain/services/JoinReducer.ts';
+import { hydrateDecodedPatch } from '../../../../src/domain/services/PatchHydrator.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
+import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/PatchMessageCodec.ts';
-
-/** @param {Record<string, unknown>} opts */
-function createPatch(opts) { return new Patch((opts)); }
+import {
+  LEGACY_EXTERNAL_PATCH_STORAGE,
+  LEGACY_GIT_BLOB_PATCH_STORAGE,
+  createGitCasPatchStorage,
+} from '../../../../src/ports/CommitMessageCodecPort.ts';
+import {
+  V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+} from '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts';
 import PatchJournalPort from '../../../../src/ports/PatchJournalPort.ts';
+import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
+import type { BlobStorageOptions } from '../../../../src/ports/BlobStoragePort.ts';
+import MockBlobPort from '../../../helpers/MockBlobPort.ts';
 
 /**
  * Golden fixture: a known Patch encoded with the canonical CBOR codec.
@@ -20,24 +31,21 @@ import PatchJournalPort from '../../../../src/ports/PatchJournalPort.ts';
  * that CBOR (de)serializes. The domain typedef uses Dot class, but the codec
  * boundary handles the tuple ↔ Dot mapping.
  */
-const GOLDEN_PATCH = createPatch({
+const GOLDEN_PATCH = hydrateDecodedPatch({
   schema: 2,
   writer: 'alice',
   lamport: 1,
   context: { alice: 0 },
-  ops: (([
+  ops: [
     { type: 'NodeAdd', id: 'user:alice', dot: ['alice', 1] },
     { type: 'PropSet', node: 'user:alice', key: 'name', value: 'Alice' },
-  ]) as any),
+  ],
   reads: [],
   writes: ['user:alice'],
 });
 
 const GOLDEN_HEX =
-  'b9000767636f6e74657874b9000165616c69636500676c616d706f727401636f707382b9000363646f748265616c696365016269646a757365723a616c6963656474797065674e6f6465416464b90004636b6579646e616d65646e6f64656a757365723a616c69636564747970656750726f705365746576616c756565416c696365657265616473f766736368656d61026677726974657265616c69636566777269746573816a757365723a616c696365';
-
-import MockBlobPort from '../../../helpers/MockBlobPort.ts';
-import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
+  'b9000767636f6e74657874b9000165616c69636500676c616d706f727401636f707382b9000563646f74b9000267636f756e7465720168777269746572496465616c696365646e6f64656a757365723a616c6963656b726563656970744e616d65674e6f64654164646573636f7065036474797065674e6f6465416464b90006636b6579646e616d65646e6f64656a757365723a616c6963656b726563656970744e616d656750726f705365746573636f70650264747970656750726f705365746576616c756565416c696365657265616473f766736368656d61026677726974657265616c69636566777269746573816a757365723a616c696365';
 
 /**
  * Creates an in-memory BlobPort backed by MockBlobPort.
@@ -45,6 +53,84 @@ import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
  */
 function createMemoryBlobPort() {
   return new MockBlobPort();
+}
+
+function createPatch(opts: ConstructorParameters<typeof Patch>[0]): Patch {
+  return new Patch(opts);
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const hexPairs = hex.match(/.{2}/g);
+  if (hexPairs === null) {
+    throw new Error('golden hex must contain bytes');
+  }
+  return new Uint8Array(hexPairs.map((h) => parseInt(h, 16)));
+}
+
+function storedBlobBytes(blobPort: MockBlobPort): Uint8Array {
+  const stored = blobPort.store.values().next();
+  if (stored.done === true || !(stored.value instanceof Uint8Array)) {
+    throw new Error('expected one stored Uint8Array blob');
+  }
+  return stored.value;
+}
+
+function createRuntimeClassPatch(): Patch {
+  return new Patch({
+    schema: 3,
+    writer: 'alice',
+    lamport: 2,
+    context: { alice: 1 },
+    ops: [
+      new NodeAdd('user:alice', new Dot('alice', 1)),
+      new EdgeAdd({
+        from: 'user:alice',
+        to: 'user:bob',
+        label: 'knows',
+        dot: new Dot('alice', 2),
+      }),
+      new PropSet('user:alice', 'name', 'Alice'),
+    ],
+    writes: ['user:alice'],
+  });
+}
+
+function reducePatch(patch: Patch) {
+  return reducePatches([{ patch, sha: 'a'.repeat(40) }]);
+}
+
+type MockBlobStorageOptions = {
+  readonly storeResult?: string;
+  readonly retrieveResult?: Uint8Array;
+};
+
+class MockPatchBlobStorage extends BlobStoragePort {
+  private readonly _storeResult: string;
+  private readonly _retrieveResult: Uint8Array;
+
+  constructor(opts: MockBlobStorageOptions = {}) {
+    super();
+    this._storeResult = opts.storeResult ?? 'encrypted_oid';
+    this._retrieveResult = opts.retrieveResult ?? new Uint8Array(0);
+  }
+
+  override store = vi.fn(async (
+    _content: Uint8Array | string,
+    _options?: BlobStorageOptions,
+  ): Promise<string> => this._storeResult);
+
+  override retrieve = vi.fn(async (_oid: string): Promise<Uint8Array> => this._retrieveResult);
+
+  override async storeStream(
+    _source: AsyncIterable<Uint8Array>,
+    _options?: BlobStorageOptions,
+  ): Promise<string> {
+    return this._storeResult;
+  }
+
+  override async *retrieveStream(_oid: string): AsyncIterable<Uint8Array> {
+    yield this._retrieveResult;
+  }
 }
 
 describe('CborPatchJournalAdapter', () => {
@@ -59,8 +145,10 @@ describe('CborPatchJournalAdapter', () => {
     const codec = new CborCodec();
     const blobPort = createMemoryBlobPort();
 
-    expect(() => new CborPatchJournalAdapter(({ blobPort } as any))).toThrow('CborPatchJournalAdapter requires a codec');
-    expect(() => new CborPatchJournalAdapter(({ codec } as any))).toThrow('CborPatchJournalAdapter requires a blobPort');
+    // @ts-expect-error Exercising the runtime guard for untyped JavaScript callers.
+    expect(() => new CborPatchJournalAdapter({ blobPort })).toThrow('CborPatchJournalAdapter requires a codec');
+    // @ts-expect-error Exercising the runtime guard for untyped JavaScript callers.
+    expect(() => new CborPatchJournalAdapter({ codec })).toThrow('CborPatchJournalAdapter requires a blobPort');
   });
 
   it('writePatch returns a string OID', async () => {
@@ -104,7 +192,7 @@ describe('CborPatchJournalAdapter', () => {
       const adapter = new CborPatchJournalAdapter({ codec, blobPort });
 
       await adapter.writePatch(GOLDEN_PATCH);
-      const storedBytes = (blobPort.store.values().next().value as Uint8Array);
+      const storedBytes = storedBlobBytes(blobPort);
       const storedHex = Array.from(storedBytes).map(
         (/** @type {number} */ b) => b.toString(16).padStart(2, '0'),
       ).join('');
@@ -114,10 +202,7 @@ describe('CborPatchJournalAdapter', () => {
 
     it('round-trips the golden bytes back to the same domain object', async () => {
       const codec = new CborCodec();
-      const hexPairs = (GOLDEN_HEX.match(/.{2}/g) as string[]);
-      const goldenBytes = new Uint8Array(
-        hexPairs.map((h) => parseInt(h, 16)),
-      );
+      const goldenBytes = hexToBytes(GOLDEN_HEX);
       const blobPort = createMemoryBlobPort();
       blobPort.store.set('golden', goldenBytes);
       const adapter = new CborPatchJournalAdapter({ codec, blobPort });
@@ -133,22 +218,27 @@ describe('CborPatchJournalAdapter', () => {
       }
       expect(firstOp.dot).toBeInstanceOf(Dot);
     });
+
+    it('round-trips runtime op classes through CBOR and preserves reducer state', async () => {
+      const codec = new CborCodec();
+      const blobPort = createMemoryBlobPort();
+      const adapter = new CborPatchJournalAdapter({ codec, blobPort });
+      const originalPatch = createRuntimeClassPatch();
+
+      const oid = await adapter.writePatch(originalPatch);
+      const hydratedPatch = await adapter.readPatch(oid);
+      const [nodeAdd, edgeAdd, propSet] = hydratedPatch.ops;
+
+      expect(nodeAdd).toBeInstanceOf(NodeAdd);
+      expect(edgeAdd).toBeInstanceOf(EdgeAdd);
+      expect(propSet).toBeInstanceOf(PropSet);
+      expect(reducePatch(hydratedPatch)).toEqual(reducePatch(originalPatch));
+    });
   });
 
   describe('encrypted patch support', () => {
-    /**
-     * Creates a mock BlobStoragePort with vitest spies.
-     * @param {{ storeResult?: string, retrieveResult?: Uint8Array }} [opts]
-     * @returns {BlobStoragePort}
-     */
-    function createMockBlobStorage(opts = {}) {
-      const mock = ((({
-        store: vi.fn().mockResolvedValue((opts as any).storeResult ?? 'encrypted_oid'),
-        retrieve: vi.fn().mockResolvedValue((opts as any).retrieveResult ?? new Uint8Array(0)),
-        storeStream: vi.fn(),
-        retrieveStream: vi.fn(),
-      })) as BlobStoragePort);
-      return mock;
+    function createMockBlobStorage(opts: MockBlobStorageOptions = {}): MockPatchBlobStorage {
+      return new MockPatchBlobStorage(opts);
     }
 
     it('uses patchBlobStorage when provided for writePatch', async () => {
@@ -190,12 +280,46 @@ describe('CborPatchJournalAdapter', () => {
       expect(encryptedAdapter.usesExternalStorage).toBe(true);
     });
 
-    it('rejects encrypted reads when no patchBlobStorage is configured', async () => {
+    it('rejects encrypted legacy reads without migration compatibility policy', async () => {
       const codec = new CborCodec();
       const blobPort = createMemoryBlobPort();
       const adapter = new CborPatchJournalAdapter({ codec, blobPort });
 
-      await expect(adapter.readPatch('encrypted_oid', { encrypted: true })).rejects.toBeInstanceOf(EncryptionError);
+      await expect(adapter.readPatch('encrypted_oid', { encrypted: true }))
+        .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+    });
+
+    it('rejects legacy patch storage reads when current git-cas storage is configured', async () => {
+      const codec = new CborCodec();
+      const blobPort = createMemoryBlobPort();
+      const adapter = new CborPatchJournalAdapter({
+        codec,
+        blobPort,
+        blobStorage: createMockBlobStorage(),
+        writeStorage: createGitCasPatchStorage(false),
+      });
+
+      await expect(adapter.readPatch('legacy_oid', { storage: LEGACY_GIT_BLOB_PATCH_STORAGE }))
+        .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+      await expect(adapter.readPatch('legacy_oid', { storage: LEGACY_EXTERNAL_PATCH_STORAGE }))
+        .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+    });
+
+    it('allows legacy patch storage reads only under migration compatibility policy', async () => {
+      const codec = new CborCodec();
+      const blobPort = createMemoryBlobPort();
+      const patchOid = 'legacy_oid';
+      blobPort.store.set(patchOid, codec.encode(GOLDEN_PATCH));
+      const adapter = new CborPatchJournalAdapter({
+        codec,
+        blobPort,
+        blobStorage: createMockBlobStorage(),
+        writeStorage: createGitCasPatchStorage(false),
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+      });
+
+      await expect(adapter.readPatch(patchOid, { storage: LEGACY_GIT_BLOB_PATCH_STORAGE }))
+        .resolves.toMatchObject({ writer: 'alice' });
     });
   });
 
@@ -216,14 +340,14 @@ describe('CborPatchJournalAdapter', () => {
         writer: 'alice',
         lamport: 1,
         context: { alice: 0 },
-        ops: [{ type: 'NodeAdd', id: 'n1', dot: ['alice', 1] }],
+        ops: [new NodeAdd('n1', new Dot('alice', 1))],
       });
       const patch2 = createPatch({
         schema: 2,
         writer: 'alice',
         lamport: 2,
         context: { alice: 1 },
-        ops: [{ type: 'NodeAdd', id: 'n2', dot: ['alice', 2] }],
+        ops: [new NodeAdd('n2', new Dot('alice', 2))],
       });
       const patchOid1 = 'a'.repeat(40);
       const patchOid2 = 'b'.repeat(40);

@@ -14,7 +14,7 @@ import WarpWorldlineOpticBasis from './WarpWorldlineOpticBasis.ts';
 import { openRuntimeHostProduct } from './warp/RuntimeHostProduct.ts';
 import type { Aperture } from './types/Aperture.ts';
 import type { PatchBuilder } from './services/PatchBuilder.ts';
-import type Worldline from './services/Worldline.ts';
+import type ProjectionHandle from './services/ProjectionHandle.ts';
 import type Observer from './services/query/Observer.ts';
 import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
 import CheckpointTailBasisVerifier from './services/optic/CheckpointTailBasisVerifier.ts';
@@ -30,8 +30,8 @@ export type WarpWorldlinePatchBuild = (
 ) => void | Promise<void>;
 
 type CommitPatch = (build: WarpWorldlinePatchBuild) => Promise<string>;
-type WorldlineOptions = Parameters<Worldline['seek']>[0];
-type CreateWorldline = (options?: WorldlineOptions) => Worldline;
+type WorldlineOptions = Parameters<ProjectionHandle['seek']>[0];
+type CreateWorldline = (options?: WorldlineOptions) => ProjectionHandle;
 type PrepareOpticBasis = () => Promise<WarpWorldlineOpticBasis>;
 type GetFrontier = () => Promise<Map<string, string>>;
 type ReadOpticBasis = () => WarpWorldlineOpticBasis | null;
@@ -76,11 +76,11 @@ export default class WarpWorldline {
     return await this._commitPatch(build);
   }
 
-  live(): Worldline {
+  live(): ProjectionHandle {
     return this._createWorldline();
   }
 
-  async seek(options?: WorldlineOptions): Promise<Worldline> {
+  async seek(options?: WorldlineOptions): Promise<ProjectionHandle> {
     return await this.live().seek(options);
   }
 

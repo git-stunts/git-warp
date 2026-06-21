@@ -13,10 +13,10 @@ import ConflictDiagnostic, { type ConflictDiagnosticData } from '../../types/con
 import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
 import { type TickReceipt, type OpOutcome } from '../../types/TickReceipt.ts';
 import type Patch from '../../types/Patch.ts';
-import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import type ConflictTarget from '../../types/conflict/ConflictTarget.ts';
 import ConflictCandidate from './ConflictCandidate.ts';
 import OpRecord from './OpRecord.ts';
+import type ConflictPipelineContext from './ConflictPipelineContext.ts';
 import {
   receiptNameForOp,
   effectKey,
@@ -84,10 +84,6 @@ export interface CollectorState {
   propertyAppliedHistory: Map<string, OpRecord[]>;
   equivalentWinnerByTargetEffect: Map<string, OpRecord>;
   candidates: ConflictCandidate[];
-}
-
-interface HashingService {
-  _hash(payload: HashablePayload): Promise<string>;
 }
 
 // ── Diagnostics ──────────────────────────────────────────────────────
@@ -206,16 +202,16 @@ type AnalyzeOneOpResult = { record: OpRecord | null; nextReceiptOpIndex: number 
 
 /** Resolves target and effectDigest; emits diagnostics on failure. */
 async function resolveTarget(
-  service: HashingService,
+  pipeline: ConflictPipelineContext,
   params: BuildOpRecordParams,
 ): Promise<ResolvedOpIdentity | null> {
   const { frame, opIndex, canonOp, receiptOutcome, receiptOpType, diagnostics } = params;
-  const target = await buildConflictTarget(service, { canonOp, receiptTarget: receiptOutcome.target });
+  const target = await buildConflictTarget(pipeline, { canonOp, receiptTarget: receiptOutcome.target });
   if (target === null) {
     pushRecordDiagnostic(diagnostics, { code: 'anchor_incomplete', messagePrefix: 'Target identity unavailable', frame, opIndex });
     return null;
   }
-  const effectDigest = await buildEffectDigest(service, { target, receiptOpType, canonOp });
+  const effectDigest = await buildEffectDigest(pipeline, { target, receiptOpType, canonOp });
   if (typeof effectDigest !== 'string' || effectDigest.length === 0) {
     pushRecordDiagnostic(diagnostics, { code: 'digest_unavailable', messagePrefix: 'Effect payload unavailable', frame, opIndex });
     return null;
@@ -227,10 +223,10 @@ async function resolveTarget(
  * Builds a full OpRecord from a canonical op, its receipt outcome, and frame context.
  */
 export async function buildOpRecord(
-  service: HashingService,
+  pipeline: ConflictPipelineContext,
   params: BuildOpRecordParams,
 ): Promise<OpRecord | null> {
-  const identity = await resolveTarget(service, params);
+  const identity = await resolveTarget(pipeline, params);
   if (identity === null) { return null; }
   const { frame, opIndex, receiptOpIndex, receiptOutcome, receiptOpType } = params;
   const { patch, sha, context, patchOrder } = frame;
@@ -267,7 +263,7 @@ function handleMissingReceipt(
  * Analyzes a single operation within a frame.
  */
 export async function analyzeOneOp(
-  service: HashingService,
+  pipeline: ConflictPipelineContext,
   { frame, opIndex, receiptOpIndex, receipt, diagnostics }: AnalyzeOneOpParams,
 ): Promise<AnalyzeOneOpResult | null> {
   const rawOp = frame.patch.ops[opIndex];
@@ -279,7 +275,7 @@ export async function analyzeOneOp(
   if (receiptOutcome === undefined || receiptOutcome === null) {
     return handleMissingReceipt(diagnostics, { frame, opIndex, receiptOpIndex });
   }
-  const record = await buildOpRecord(service, {
+  const record = await buildOpRecord(pipeline, {
     frame, opIndex, receiptOpIndex, canonOp, receiptOutcome, receiptOpType, diagnostics,
   });
   return { record, nextReceiptOpIndex: receiptOpIndex + 1 };
@@ -479,13 +475,13 @@ type AnalyzeFrameOpsParams = {
  * Analyzes all operations in a single patch frame.
  */
 export async function analyzeFrameOps(
-  service: HashingService,
+  pipeline: ConflictPipelineContext,
   { frame, scannedPatchShas, diagnostics, collector }: AnalyzeFrameOpsParams,
 ): Promise<void> {
   const { patch, receipt, sha } = frame;
   let receiptOpIndex = 0;
   for (let opIndex = 0; opIndex < patch.ops.length; opIndex++) {
-    const result = await analyzeOneOp(service, { frame, opIndex, receiptOpIndex, receipt, diagnostics });
+    const result = await analyzeOneOp(pipeline, { frame, opIndex, receiptOpIndex, receipt, diagnostics });
     if (result === null) { continue; }
     receiptOpIndex = result.nextReceiptOpIndex;
     if (result.record !== null) {

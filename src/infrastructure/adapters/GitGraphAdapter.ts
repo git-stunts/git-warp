@@ -5,7 +5,6 @@
  * composite GraphPersistencePort (CommitPort + BlobPort + TreePort +
  * RefPort + ConfigPort).
  */
-import { retry, type RetryOptions } from '@git-stunts/alfred';
 import { GitPersistenceAdapter } from '@git-stunts/git-cas';
 import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
@@ -20,9 +19,11 @@ import AdapterValidationError from '../../domain/errors/AdapterValidationError.t
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import CasBlobAdapter from './CasBlobAdapter.ts';
+import type CasContentEncryptionPolicy from './CasContentEncryptionPolicy.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
 import GitRecursiveTreeOidReaderAdapter from './GitRecursiveTreeOidReaderAdapter.ts';
 import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
+import AlfredOperationPolicyAdapter from './AlfredOperationPolicyAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
 import type { ContentAnchorObjectType } from '../../domain/services/state/checkpointHelpers.ts';
@@ -38,16 +39,16 @@ import {
   DEFAULT_RETRY_OPTIONS,
 } from './gitErrorClassification.ts';
 import { createGitCasPatchStorage, type PatchStorageRoute } from '../../ports/CommitMessageCodecPort.ts';
-
-// Re-export for downstream consumers that reference these types via the adapter module.
-export type { GitPlumbing, GitError } from './gitErrorClassification.ts';
-export type { CollectableStream } from './gitErrorClassification.ts';
+import type OperationPolicyPort from '../../ports/OperationPolicyPort.ts';
+import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
+export type { GitPlumbing, GitError, CollectableStream } from './gitErrorClassification.ts';
 
 interface GitGraphAdapterOptions {
   readonly plumbing: GitPlumbing;
-  readonly retryOptions?: Partial<RetryOptions>;
+  readonly retryOptions?: Partial<OperationPolicyExecuteOptions>;
+  readonly policy?: OperationPolicyPort;
+  readonly casContentEncryption?: CasContentEncryptionPolicy;
 }
-
 interface GitCasPolicy {
   execute<T>(operation: () => Promise<T>): Promise<T>;
 }
@@ -65,10 +66,13 @@ function toGitCasBlobContent(content: Uint8Array | string): Uint8Array {
 /**
  * Adapts git-warp retry options to git-cas's policy-shaped boundary.
  */
-function createGitCasRetryPolicy(retryOptions: RetryOptions): GitCasPolicy {
+function createGitCasRetryPolicy(
+  policy: OperationPolicyPort,
+  retryOptions: OperationPolicyExecuteOptions,
+): GitCasPolicy {
   return Object.freeze({
     async execute<T>(operation: () => Promise<T>): Promise<T> {
-      return await retry(operation, retryOptions);
+      return await policy.execute(operation, retryOptions);
     },
   });
 }
@@ -89,24 +93,31 @@ function parseContentAnchorObjectType(
 
 export default class GitGraphAdapter extends GraphPersistencePort implements RuntimeStorageCapabilityPort {
   private readonly plumbing: GitPlumbing;
-  private readonly _retryOptions: RetryOptions;
+  private readonly _policy: OperationPolicyPort;
+  private readonly _retryOptions: OperationPolicyExecuteOptions;
   private readonly _gitCasPersistence: GitPersistenceAdapter;
   private readonly _gitCasGraphReader: GitCasGraphReaderAdapter;
   private readonly _recursiveTreeOidReader: GitRecursiveTreeOidReaderAdapter;
+  private readonly _casContentEncryption: CasContentEncryptionPolicy | undefined;
 
-  constructor({ plumbing, retryOptions = {} }: GitGraphAdapterOptions) {
+  constructor({ plumbing, retryOptions = {}, policy, casContentEncryption }: GitGraphAdapterOptions) {
     super();
     if (plumbing === null || plumbing === undefined) {
       throw new AdapterValidationError('plumbing is required');
     }
     this.plumbing = plumbing;
+    this._casContentEncryption = casContentEncryption;
     this._retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions };
+    this._policy = policy ?? new AlfredOperationPolicyAdapter({
+      retryOptions: this._retryOptions,
+    });
     this._gitCasPersistence = new GitPersistenceAdapter({
       plumbing,
-      policy: createGitCasRetryPolicy(this._retryOptions),
+      policy: createGitCasRetryPolicy(this._policy, this._retryOptions),
     });
     this._recursiveTreeOidReader = new GitRecursiveTreeOidReaderAdapter({
       plumbing,
+      policy: this._policy,
       retryOptions: this._retryOptions,
     });
     this._gitCasGraphReader = new GitCasGraphReaderAdapter({
@@ -117,7 +128,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
   }
 
   private async _executeWithRetry(options: { args: string[]; input?: string | Buffer }): Promise<string> {
-    return await retry(() => this.plumbing.execute(options), this._retryOptions);
+    return await this._policy.execute(() => this.plumbing.execute(options), this._retryOptions);
   }
 
   /**
@@ -152,6 +163,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     return Promise.resolve(new CasBlobAdapter({
       plumbing: this.plumbing,
       persistence: this,
+      ...(this._casContentEncryption ? { contentEncryption: this._casContentEncryption } : {}),
     }));
   }
 
@@ -266,7 +278,10 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
       args.push(`--format=${cleanFormat}`);
     }
     args.push(ref);
-    const rawStream = await this.plumbing.executeStream({ args });
+    const rawStream = await this._policy.stream(
+      () => this.plumbing.executeStream({ args }),
+      this._retryOptions,
+    );
     return WarpStream.from<CommitLogChunk>(rawStream);
   }
 
@@ -478,7 +493,6 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     }
     await this._executeWithRetry({ args: ['config', key, value] });
   }
-
   private _isConfigKeyNotFound(err: GitError): boolean {
     return getExitCode(err) === 1;
   }

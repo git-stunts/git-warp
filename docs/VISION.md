@@ -40,6 +40,13 @@ The architecture decomposes into three moments:
 - **Folding** — admitted history is re-expressed in boundary-equivalent form
 - **Revelation** — admitted truth is exposed under bounded rights
 
+The public API prefers flat capability aliases for ordinary code:
+`graph.patches`, `graph.query`, and `graph.checkpoint`. Moment-scoped names
+remain available when architectural explicitness matters:
+`graph.commitment.patches`, `graph.revelation.query`, and
+`graph.folding.checkpoint`. They are aliases for the same runtime objects, not
+separate APIs.
+
 The read-side correction now matters just as much as the admission-side one:
 
 - the substrate is witnessed causal history, not a canonical materialized graph

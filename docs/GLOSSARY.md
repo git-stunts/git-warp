@@ -32,8 +32,10 @@ If another document uses one of these nouns differently, this glossary wins.
 
 | Term | Canonical meaning | Current repo manifestation | Status |
 |---|---|---|---|
-| `Worldline` | The causal history of a deterministic read basis; a lawful history object, not merely a handle. | The current `Worldline` class is a pinned read coordinate facade, not the full historical object. | transition |
-| `Observer` | The realized reading surface for a question asked through an aperture. It executes a read contract and returns a view. | Current `Observer` is mostly the projection/filter half over materialized state. | transition |
+| `Worldline` | The causal history of a deterministic read basis; a lawful history object, not merely a handle. | Public entry uses `openWarpWorldline()` for admitted lane workflows; pinned reads now return `ProjectionHandle` instead of a class named `Worldline`. | transition |
+| `ProjectionHandle` | A pinned read/projection handle over a selected worldline source. | Returned by `WarpWorldline.live()`, `WarpWorldline.seek(...)`, and `graph.query.worldline(...)`. | shipped |
+| `Observer` | The realized reading surface for a question asked through an aperture. It executes a read contract and returns a view. | Current `Observer` exposes normal read/query/traversal methods plus `ObserverPlan` and `ObserverReadingEnvelope` for the source-plan-reading split. | transition |
+| `Live strand` | A strand realization over a live parent basis plus owned overlay divergence. Untouched parent regions should flow through from the current parent; overlay writes remain owned by the strand. | `StrandMaterializer` now resolves parent-basis patches from `getFrontier()` when the runtime provides it, while older test seams fall back to `baseObservation.frontier`. | transition |
 | `Aperture` | The observer-relative read boundary: what distinctions remain visible and which basis the read is taken over. | Current `Aperture` is a small `{ match, expose, redact }` policy object. | transition |
 | `Optic` | The semantic question being asked of the graph. It defines the shape of the read, not the execution plan. | No first-class optic noun exists in runtime today. | target |
 
@@ -41,9 +43,9 @@ If another document uses one of these nouns differently, this glossary wins.
 
 | Term | Canonical meaning | Current repo manifestation | Status |
 |---|---|---|---|
-| `Bounded support rule` | The smallest causally sufficient support set required to answer an optic through an aperture honestly. | Missing as a first-class runtime noun; partially implied by provenance and slice materialization. | target |
-| `Causal index` | A materialized, rebuildable acceleration structure that helps find the relevant support set without whole-graph discovery. | Bits of this exist in provenance and receipts, but not as a unified indexed runtime surface. | target |
-| `Support fragment` | A cached partial materialization keyed by support contract and coordinate, reusable for later reads. | Today the runtime mostly assumes one full cached state; fragments are not yet primary. | target |
+| `Bounded support rule` | The smallest causally sufficient support set required to answer an optic through an aperture honestly. | `BoundedSupportRule` now exposes exact-entity, neighborhood, and global-discovery posture for query plans; execution still uses existing read models until causal indexes and fragments consume the rule. | transition |
+| `Causal index` | A materialized, rebuildable acceleration structure that helps find the relevant support set without whole-graph discovery. | `CausalIndexPlan` now maps bounded query support rules to entity-patch, neighborhood-adjacency, or global-discovery index posture; the entity-patch family is backed by `ProvenanceIndex`. | transition |
+| `Support fragment` | A cached partial materialization keyed by support contract and coordinate, reusable for later reads. | `SupportFragmentPlan` now travels through query open requests and names cacheable support scope versus global fallback; fragment cache storage is still pending. | transition |
 | `Materialization plan` | The runtime execution plan that decides whether to use receipts, indexes, fragments, replay, or full state to satisfy a read. | Not explicit today; buried in controller behavior. | target |
 
 ## Change and proof nouns
@@ -52,7 +54,8 @@ If another document uses one of these nouns differently, this glossary wins.
 |---|---|---|---|
 | `Witness` | Minimal information sufficient to justify a local change/rewrite result. | No first-class witness type yet. | target |
 | `TickReceipt` | The operational envelope recording what happened for one admitted step, including outcomes and enough data to audit the admission. | First-class runtime type today. Larger than a witness. | shipped |
-| `GraphDiff` | A first-class change result answering “what changed between these coordinates?” | Not yet a public runtime noun; substrate pieces exist (`PatchDiff`, `StateDiff`, receipts). | target |
+| `Witnessed suffix admission shell` | Observer-readable import/export envelope for a transported suffix normalized against a comparable basis, with explicit admitted/staged/plural/conflict/obstruction outcome. | `GitWarpWitnessedSuffixAdmissionShell` binds source facts, patch references, witness material, and a replay-bearing suffix hologram. Sync still carries frontier negotiation as transport optimization until protocol wiring is upgraded. | transition |
+| `GraphDiff` | A first-class change result answering “what changed between these coordinates?” | `GraphDiff` is returned by the comparison diff API for live Lamport ranges and is built from the same visible-state comparison engine as coordinate comparison. | transition |
 
 ## Persistence nouns
 

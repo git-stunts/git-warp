@@ -54,18 +54,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "overrides": {
-    "tar": "7.5.11"
-  },
   "scripts": {
     "build": "tsc -p tsconfig.publish.json",
-    "lint": "eslint .",
+    "lint": "sh -c 'eslint . \"$@\" && npm run lint:source-size' --",
     "lint:ratchet": "sh scripts/lint-ratchet.sh",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules --ignore \"**/node_modules/**\"",
     "lint:md:code": "node scripts/lint-markdown-code-samples.ts",
     "lint:links": "lychee --config .lychee.toml '**/*.md'",
     "lint:semgrep": "node scripts/lint-semgrep-with-quarantines.ts",
     "lint:sludge": "bash scripts/check-anti-sludge.sh",
+    "lint:source-size": "node scripts/source-size-gate.ts",
     "lint:source-version-names": "node scripts/source-version-name-policy.ts",
     "lint:contamination": "node scripts/contamination-map.ts",
     "lint:quarantine-graduate": "node scripts/quarantine-graduate-check.ts",
@@ -78,6 +76,7 @@
     "test:coverage:ci": "vitest run --coverage test/unit test/conformance/v18*Optic*.test.ts",
     "benchmark": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest bench --run test/benchmark \"$@\"; else docker compose -f docker/docker-compose.yml run --build --rm test npm run benchmark:local -- \"$@\"; fi' --",
     "benchmark:local": "vitest bench --run test/benchmark",
+    "benchmark:merge-conflicts": "vitest run test/benchmark/MergeConflictCorpus.benchmark.ts",
     "benchmark:detached-reads": "vitest run test/benchmark/DetachedReadBoundary.benchmark.ts",
     "benchmark:trie-geometry": "GIT_WARP_PROFILE=1 vitest run test/unit/benchmark/TrieGeometryProfile.profile.test.ts",
     "setup:hooks": "node scripts/setup-hooks.ts",
@@ -122,7 +121,7 @@
     "roaring-wasm": "^1.1.0",
     "string-width": "^7.1.0",
     "wrap-ansi": "^9.0.0",
-    "zod": "3.24.1"
+    "zod": "^3.24.1"
   },
   "optionalDependencies": {
     "roaring": "^2.7.0"
@@ -138,7 +137,7 @@
     "eslint-plugin-jsdoc": "^62.8.1",
     "fast-check": "^4.5.3",
     "jiti": "^2.6.1",
-    "markdownlint-cli": "^0.48.0",
+    "markdownlint-cli": "^0.49.0",
     "patch-package": "^8.0.0",
     "prettier": "^3.4.2",
     "typescript": "^5.9.3",

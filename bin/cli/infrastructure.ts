@@ -111,13 +111,20 @@ Commands:
   patch            Decode and inspect raw patches
   tree             ASCII tree traversal from root nodes
   bisect           Binary search for first bad patch in writer history
+  mcp              Start a local read-only MCP server over stdio
+  sync             Inspect sync status or sync with an HTTP peer
+  serve            Serve the sync endpoint over HTTP
+  fork             Create a graph fork at a writer patch
+  checkpoint       Inspect or create checkpoint state
+  gc               Inspect or run checkpoint garbage collection
+  watch            Stream graph change notifications as NDJSON
   install-hooks    Install post-merge git hook
 
 Options:
   --repo <path>     Path to git repo (default: cwd)
   --json            Emit JSON output (pretty-printed, sorted keys)
   --ndjson          Emit compact single-line JSON (for piping/scripting)
-  --view [mode]     Visual output (ascii, svg:FILE, html:FILE)
+  --view [mode]     Removed; use warp-ttd for visualization
   --graph <name>    Graph name (required if repo has multiple graphs)
   --writer <id>     Writer id (default: cli)
   -h, --help        Show this help
@@ -190,6 +197,45 @@ Bisect options:
   --bad <sha>           Known-bad commit SHA (invariant violated)
   --test <command>      Shell command (exit 0=good, non-zero=bad)
   --writer <id>         Writer chain to bisect (required)
+
+Sync options:
+  status                Show local sync status (default)
+  request               Emit a sync request payload
+  with <url>            Sync with an HTTP peer
+  --path <path>         Override HTTP sync path
+  --materialize         Materialize after sync
+  --auth-secret <text>  Shared-secret HMAC secret
+  --auth-key-id <id>    Shared-secret key id (default: default)
+
+Serve options:
+  --port <n>            Port to listen on (0 allowed)
+  --host <host>         Host to bind (default: 127.0.0.1)
+  --path <path>         Sync path (default: /sync)
+  --auth-secret <text>  Shared-secret HMAC secret
+  --auth-key-id <id>    Shared-secret key id (default: default)
+  --auth-mode <mode>    enforce or log-only
+  --unsafe-allow-unauthenticated-localhost
+                         Permit unauthenticated localhost serving
+
+Fork options:
+  --from <writer>       Writer chain to fork from
+  --at <sha>            Patch SHA to fork at
+  --fork-name <name>    New graph name
+  --fork-writer <id>    Writer id for the fork graph
+
+Checkpoint options:
+  status                Show current checkpoint head (default)
+  create                Materialize current state and create a checkpoint
+  sync-coverage         Synchronize checkpoint coverage metadata
+
+GC options:
+  status                Show current GC metrics (default)
+  maybe-run             Run only when policy says GC is due
+  run                   Force a GC pass
+
+Watch options:
+  [pattern]             Node pattern to watch (default: *)
+  --poll <ms>           Enable polling interval
 `;
 
 /**
@@ -230,7 +276,7 @@ export function notFoundError(message: string): CliError {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'check', 'doctor', 'debug', 'strand', 'materialize', 'seek', 'query', 'path', 'optic', 'history', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
+export const KNOWN_COMMANDS = ['info', 'check', 'doctor', 'debug', 'strand', 'materialize', 'seek', 'query', 'path', 'optic', 'history', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'mcp', 'sync', 'serve', 'fork', 'checkpoint', 'gc', 'watch', 'install-hooks'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },

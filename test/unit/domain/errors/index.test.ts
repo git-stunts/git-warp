@@ -12,6 +12,8 @@ describe('domain/errors index barrel', () => {
       'IndexError',
       'MemoryBudgetError',
       'OperationAbortedError',
+      'OperationPolicyExhaustedError',
+      'OperationPolicyTimeoutError',
       'PatchError',
       'QueryError',
       'SchemaUnsupportedError',

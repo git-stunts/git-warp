@@ -142,7 +142,7 @@ export default class VersionVector {
     for (const key of sortedKeys) {
       const val = vv.get(key);
       if (val === undefined || val === 0) {
-        throw new CrdtError(`vvSerialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`, {
+        throw new CrdtError(`VersionVector.serialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`, {
           code: 'E_CRDT_ZERO_COUNTER',
           context: { writerId: key },
         });

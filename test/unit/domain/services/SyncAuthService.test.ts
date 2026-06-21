@@ -124,6 +124,20 @@ describe('buildCanonicalPayload', () => {
     });
     expect(result).toBe('warp-v2|||||||');
   });
+
+  it('includes auth scheme when a versioned scheme is declared', () => {
+    const result = buildCanonicalPayload({
+      authScheme: 'shared-secret-hmac-sha256',
+      keyId: 'k1',
+      method: 'POST',
+      path: '/sync',
+      timestamp: '123',
+      nonce: 'abc',
+      contentType: 'application/json',
+      bodySha256: 'deadbeef',
+    });
+    expect(result).toBe('warp-v2|shared-secret-hmac-sha256|k1|POST|/sync|123|abc|application/json|deadbeef');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -151,13 +165,14 @@ describe('canonicalizePath', () => {
 // signSyncRequest
 // ---------------------------------------------------------------------------
 describe('signSyncRequest', () => {
-  it('returns exactly 5 auth headers', async () => {
+  it('returns exactly 6 versioned auth headers', async () => {
     const body = Buffer.from('hello');
     const headers = await signSyncRequest(
       { method: 'POST', path: '/sync', contentType: 'text/plain', body, secret: SECRET, keyId: KEY_ID, lamport: 1 },
       { crypto: defaultCrypto },
     );
-    expect(Object.keys(headers)).toHaveLength(5);
+    expect(Object.keys(headers)).toHaveLength(6);
+    expect(headers).toHaveProperty('x-warp-auth-scheme', 'shared-secret-hmac-sha256');
     expect(headers).toHaveProperty('x-warp-sig-version', '2');
     expect(headers).toHaveProperty('x-warp-key-id', KEY_ID);
     expect(headers).toHaveProperty('x-warp-timestamp');
@@ -225,6 +240,20 @@ describe('verify() reject paths', () => {
     const req = await buildSignedRequest({ 'x-warp-sig-version': '1' });
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'INVALID_VERSION', status: 400 });
+  });
+
+  it('accepts legacy HMAC requests without an auth scheme during migration', async () => {
+    const svc = makeService();
+    const req = await buildSignedRequest();
+    const result = await svc.verify(req);
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('rejects unsupported asymmetric auth scheme before HMAC verification', async () => {
+    const svc = makeService();
+    const req = await buildSignedRequest({ 'x-warp-auth-scheme': 'ed25519' });
+    const result = await svc.verify(req);
+    expect(result).toEqual({ ok: false, reason: 'UNSUPPORTED_AUTH_SCHEME', status: 400 });
   });
 
   it('rejects missing signature -> 401 MISSING_AUTH', async () => {

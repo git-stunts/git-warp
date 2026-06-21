@@ -14,6 +14,14 @@ const architecture = readFileSync(
   fileURLToPath(new URL('../../../docs/ARCHITECTURE.md', import.meta.url)),
   'utf8',
 );
+const readme = readFileSync(
+  fileURLToPath(new URL('../../../README.md', import.meta.url)),
+  'utf8',
+);
+const vision = readFileSync(
+  fileURLToPath(new URL('../../../docs/VISION.md', import.meta.url)),
+  'utf8',
+);
 
 type Heading = {
   readonly level: number;
@@ -185,5 +193,19 @@ describe('architecture doc shape', () => {
 
     expect(typeof WarpApp.open).toBe('function');
     expect(typeof WarpCore.open).toBe('function');
+  });
+
+  it('documents flat capability aliases as canonical and moment-scoped names as aliases', () => {
+    for (const markdown of [readme, architecture, vision]) {
+      expect(markdown).toContain('graph.patches');
+      expect(markdown).toContain('graph.commitment.patches');
+      expect(markdown).toContain('graph.query');
+      expect(markdown).toContain('graph.revelation.query');
+      expect(markdown).toContain('graph.checkpoint');
+      expect(markdown).toContain('graph.folding.checkpoint');
+    }
+    expect(readme).toContain('canonical user-facing form');
+    expect(architecture).toContain('flat aliases are canonical');
+    expect(vision).toContain('They are aliases for the same runtime objects');
   });
 });

@@ -1,8 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
-import { canonicalStringify } from '../../../../src/domain/utils/canonicalStringify.ts';
+import { canonicalStringify, sortedReplacer } from '../../../../src/domain/utils/canonicalStringify.ts';
 
 describe('canonicalStringify', () => {
+  describe('sortedReplacer', () => {
+    it('sorts object keys for JSON.stringify consumers', () => {
+      const json = JSON.stringify({ z: 1, a: 2, m: 3 }, sortedReplacer);
+
+      expect(json).toBe('{"a":2,"m":3,"z":1}');
+    });
+
+    it('leaves array order intact while sorting nested object keys', () => {
+      const json = JSON.stringify([{ b: 1, a: 2 }], sortedReplacer);
+
+      expect(json).toBe('[{"a":2,"b":1}]');
+    });
+  });
+
   describe('primitives', () => {
     it('returns "null" for undefined', () => {
       expect(canonicalStringify(undefined)).toBe('null');

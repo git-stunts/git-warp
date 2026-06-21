@@ -22,10 +22,7 @@ import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../services/codec/WarpMessageCodec
 import WriterError from '../errors/WriterError.ts';
 import type VersionVector from '../crdt/VersionVector.ts';
 import type Patch from '../types/Patch.ts';
-import type CommitPort from '../../ports/CommitPort.ts';
-import type BlobPort from '../../ports/BlobPort.ts';
-import type TreePort from '../../ports/TreePort.ts';
-import type RefPort from '../../ports/RefPort.ts';
+import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
@@ -35,8 +32,6 @@ import type { WarpState } from '../services/JoinReducer.ts';
 // Re-export for backward compatibility — consumers importing from Writer.ts
 // should migrate to importing from '../errors/WriterError.ts' directly.
 export { WriterError };
-
-type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
 
 /**
  * Asserts that a Lamport timestamp is a valid positive finite integer.
@@ -63,7 +58,7 @@ function _validateJournal(patchJournal: PatchJournalPort): void {
 type OnDeleteWithData = 'reject' | 'cascade' | 'warn';
 
 interface WriterOptions {
-  persistence: PersistencePorts;
+  persistence: WarpKernelPort;
   graphName: string;
   writerId: string;
   versionVector: VersionVector;
@@ -80,7 +75,7 @@ interface WriterOptions {
  * Writer class for creating and committing patches to a WARP graph.
  */
 export class Writer {
-  private _persistence: PersistencePorts;
+  private _persistence: WarpKernelPort;
   private _graphName: string;
   private _writerId: string;
   private _versionVector: VersionVector;
@@ -154,7 +149,7 @@ export class Writer {
    * Constructs PatchBuilder options from Writer state.
    */
   private _buildPatchOpts(core: {
-    persistence: PersistencePorts;
+    persistence: WarpKernelPort;
     graphName: string;
     writerId: string;
     lamport: number;

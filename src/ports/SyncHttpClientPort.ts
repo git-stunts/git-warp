@@ -13,6 +13,7 @@
 
 import type { SyncRequest, SyncResponse } from '../domain/services/sync/SyncProtocol.ts';
 import type SyncSecret from '../domain/services/sync/SyncSecret.ts';
+import type { SyncAuthScheme } from '../domain/services/sync/SyncAuthService.ts';
 import type CryptoPort from './CryptoPort.ts';
 
 /**
@@ -20,6 +21,7 @@ import type CryptoPort from './CryptoPort.ts';
  * this to sign the request body after serialization.
  */
 export interface SyncHttpAuth {
+  readonly scheme: SyncAuthScheme;
   readonly secret: SyncSecret;
   readonly keyId?: string;
   readonly lamport: number;

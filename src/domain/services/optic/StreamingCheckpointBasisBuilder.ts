@@ -422,7 +422,6 @@ function manifestRootFamily(family: CheckpointBasisFactShardFamily): CheckpointB
 function isManifestRootFamily(family: CheckpointBasisFactShardFamily): family is CheckpointBasisRootFamily {
   return MANIFEST_ROOT_FAMILIES.includes(family as CheckpointBasisRootFamily);
 }
-
 function appliedVersionVectorFromFrontier(frontier: Map<string, string>): Map<string, number> {
   const versionVector = new Map<string, number>();
   for (const writerId of [...frontier.keys()].sort()) {

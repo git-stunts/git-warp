@@ -10,14 +10,10 @@
 import type ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import type ConflictCandidate from './ConflictCandidate.ts';
 import type OpRecord from './OpRecord.ts';
-import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
+import type ConflictPipelineContext from './ConflictPipelineContext.ts';
 import { analyzeFrameOps, addEventualOverrideCandidates, type PatchFrame } from './conflictCandidateAnalysis.ts';
 
 export { inferCausalRelation } from './conflictCandidateAnalysis.ts';
-
-interface HashingService {
-  _hash(payload: HashablePayload): Promise<string>;
-}
 
 /**
  * Mutable accumulator for conflict candidates during frame analysis.
@@ -44,7 +40,7 @@ export class ConflictCandidateCollector {
    * Walks all patch frames, builds op records, and classifies conflict candidates.
    */
   static async collect(
-    service: HashingService,
+    context: ConflictPipelineContext,
     {
       patchFrames,
       scannedPatchShas,
@@ -57,7 +53,7 @@ export class ConflictCandidateCollector {
   ): Promise<ConflictCandidateCollector> {
     const collector = new ConflictCandidateCollector();
     for (const frame of patchFrames) {
-      await analyzeFrameOps(service, { frame, scannedPatchShas, diagnostics, collector });
+      await analyzeFrameOps(context, { frame, scannedPatchShas, diagnostics, collector });
     }
     addEventualOverrideCandidates(collector, scannedPatchShas);
     return collector;

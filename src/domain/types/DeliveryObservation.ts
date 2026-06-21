@@ -11,6 +11,8 @@
  */
 
 import WarpError from '../errors/WarpError.ts';
+import { sortedReplacer } from '../utils/canonicalStringify.ts';
+import { requireNonEmptyString, validateTimestamp } from '../utils/scalarValidation.ts';
 import { validateOutcome, DELIVERY_MODES, type ExternalizationPolicy, type DeliveryOutcome } from './ExternalizationPolicy.ts';
 
 const modeSet = new Set(DELIVERY_MODES);
@@ -74,24 +76,6 @@ export class DeliveryObservation {
 // ============================================================================
 
 /**
- * Asserts that a value is a non-empty string, throwing if it is not.
- */
-function requireNonEmptyString(value: string, name: string): void {
-  if (value.length === 0) {
-    throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
-  }
-}
-
-/**
- * Asserts that a timestamp is a non-negative finite number.
- */
-function validateTimestamp(value: number): void {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new WarpError('timestamp must be a non-negative finite number', 'E_VALIDATION');
-  }
-}
-
-/**
  * Asserts that a lens is a non-null object.
  */
 function requireLensObject(lens: { mode: string; suppressExternal: boolean }): void {
@@ -150,23 +134,6 @@ export function createDeliveryObservation({ emissionId, sinkId, outcome, reason,
 // ============================================================================
 // Canonical JSON
 // ============================================================================
-
-/**
- * JSON.stringify replacer that sorts object keys alphabetically for deterministic output.
- */
-function sortedReplacer(_key: string, value: Record<string, number | string | boolean | null> | string | number | boolean | null): Record<string, number | string | boolean | null> | string | number | boolean | null {
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const sorted: Record<string, number | string | boolean | null> = {};
-    for (const k of Object.keys(value).sort()) {
-      const v = value[k];
-      if (v !== undefined) {
-        sorted[k] = v;
-      }
-    }
-    return sorted;
-  }
-  return value;
-}
 
 /**
  * Produces a deterministic JSON string for a DeliveryObservation.

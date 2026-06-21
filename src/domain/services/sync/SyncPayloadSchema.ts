@@ -9,7 +9,7 @@
  * @see B64 -- Sync ingress payload validation
  */
 
-import { z } from 'zod';
+import z from 'zod';
 
 // ── Resource Limits ─────────────────────────────────────────────────────────
 
@@ -100,12 +100,38 @@ function patchEntrySchema(limits: SyncPayloadLimits): z.ZodObject<z.ZodRawShape>
   });
 }
 
+function syncRequestPageSchema(limits: SyncPayloadLimits): z.ZodObject<z.ZodRawShape> {
+  return z.object({
+    maxPatches: z.number().int().min(1).max(limits.maxPatches),
+    cursor: z.string().min(1).nullable().optional(),
+  }).strict();
+}
+
+function syncResponsePageSchema(): z.ZodObject<z.ZodRawShape> {
+  return z.object({
+    maxPatches: z.number().int().min(1).nullable(),
+    cursor: z.string().min(1).nullable(),
+    hasMore: z.boolean(),
+    returnedPatches: z.number().int().min(0),
+  }).strict();
+}
+
+function syncResponseMetricsSchema(): z.ZodObject<z.ZodRawShape> {
+  return z.object({
+    patchCount: z.number().int().min(0),
+    skippedWriterCount: z.number().int().min(0),
+    estimatedPayloadBytes: z.number().int().min(0),
+    latencyMs: z.number().min(0).nullable(),
+  }).strict();
+}
+
 // ── Sync Request Schema ─────────────────────────────────────────────────────
 
 export function createSyncRequestSchema(limits: SyncPayloadLimits = DEFAULT_LIMITS): z.ZodType {
   return z.object({
     type: z.literal('sync-request'),
     frontier: frontierSchema(limits.maxWritersInFrontier),
+    page: syncRequestPageSchema(limits).optional(),
   }).strict();
 }
 
@@ -118,12 +144,23 @@ export function createSyncResponseSchema(limits: SyncPayloadLimits = DEFAULT_LIM
     type: z.literal('sync-response'),
     frontier: frontierSchema(limits.maxWritersInFrontier),
     patches: z.array(patchEntrySchema(limits)).max(limits.maxPatches),
+    page: syncResponsePageSchema().optional(),
+    metrics: syncResponseMetricsSchema().optional(),
   }).passthrough();
 }
 
 const SyncResponseSchema = createSyncResponseSchema();
 
 // ── Validation Helpers ──────────────────────────────────────────────────────
+
+type ValidatedSyncRequestPayload = {
+  type: 'sync-request';
+  frontier: Record<string, string>;
+  page?: {
+    maxPatches: number;
+    cursor?: string | null;
+  };
+};
 
 function normalizePayloadFrontier(payload: unknown): string | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isPlainObject(payload)) { return null; }
@@ -143,7 +180,7 @@ function normalizePayloadFrontier(payload: unknown): string | null { // nosemgre
 export function validateSyncRequest(
   payload: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   limits: SyncPayloadLimits = DEFAULT_LIMITS,
-): { ok: true; value: { type: 'sync-request'; frontier: Record<string, string> } } | { ok: false; error: string } {
+): { ok: true; value: ValidatedSyncRequestPayload } | { ok: false; error: string } {
   const frontierErr = normalizePayloadFrontier(payload);
   if (frontierErr !== null) {
     return { ok: false, error: frontierErr };
@@ -154,7 +191,7 @@ export function validateSyncRequest(
   if (!result.success) {
     return { ok: false, error: result.error.message };
   }
-  return { ok: true, value: result.data as { type: 'sync-request'; frontier: Record<string, string> } };
+  return { ok: true, value: result.data as ValidatedSyncRequestPayload };
 }
 
 /**

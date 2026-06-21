@@ -9,6 +9,8 @@ import QueryError from '../../errors/QueryError.ts';
 import ImmutableBytes from '../snapshot/ImmutableBytes.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type { AggregateResult } from './QueryAggregation.ts';
+import BoundedSupportRule from './BoundedSupportRule.ts';
+import SupportFragmentPlan from './SupportFragmentPlan.ts';
 import QueryPlan, { type AggregateSpec, type QueryNodeSnapshot, type QueryOperation } from './QueryPlan.ts';
 import QueryRunner, { type QueryResult } from './QueryRunner.ts';
 import type { QueryReadModelProvider } from './QueryReadModelProvider.ts';
@@ -161,6 +163,23 @@ export default class QueryBuilder {
     this._aggregate = null;
   }
 
+  toPlan(): QueryPlan {
+    return new QueryPlan({
+      pattern: this._pattern ?? DEFAULT_PATTERN,
+      operations: this._operations,
+      select: this._select,
+      aggregate: this._aggregate,
+    });
+  }
+
+  supportRule(): BoundedSupportRule {
+    return BoundedSupportRule.fromQueryPlan(this.toPlan());
+  }
+
+  supportFragmentPlan(): SupportFragmentPlan {
+    return SupportFragmentPlan.fromSupportRule(this.supportRule());
+  }
+
   match(pattern: string | string[]): QueryBuilder {
     assertMatchPattern(pattern);
     this._pattern = pattern;
@@ -239,13 +258,7 @@ export default class QueryBuilder {
   }
 
   async run(): Promise<QueryResult | AggregateResult> {
-    const plan = new QueryPlan({
-      pattern: this._pattern ?? DEFAULT_PATTERN,
-      operations: this._operations,
-      select: this._select,
-      aggregate: this._aggregate,
-    });
     const runner = new QueryRunner(this._provider);
-    return await runner.run(plan);
+    return await runner.run(this.toPlan());
   }
 }

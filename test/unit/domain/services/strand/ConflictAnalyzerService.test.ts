@@ -8,6 +8,7 @@ import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import { textEncode } from '../../../../../src/domain/utils/bytes.ts';
 import { createHash } from 'node:crypto';
 import StrandCoordinator from '../../../../../src/domain/services/strand/StrandCoordinator.ts';
+import ConflictPipelineContext from '../../../../../src/domain/services/strand/ConflictPipelineContext.ts';
 
 // ── Deterministic helpers ─────────────────────────────────────────────────────
 
@@ -89,14 +90,13 @@ describe('ConflictAnalyzerService', () => {
   // ── Constructor ─────────────────────────────────────────────────────────
 
   describe('constructor', () => {
-    it('stores graph reference and initializes digest cache', () => {
+    it('initializes the explicit conflict pipeline context', () => {
       const graph = createMockGraph();
       const analyzer = new ConflictAnalyzerService({ graph });
       const anyAnalyzer = analyzer as any;
 
-      expect(anyAnalyzer._graph).toBe(graph);
-      expect(anyAnalyzer._digestCache).toBeInstanceOf(Map);
-      expect(anyAnalyzer._digestCache.size).toBe(0);
+      expect(anyAnalyzer._pipelineContext).toBeInstanceOf(ConflictPipelineContext);
+      expect(anyAnalyzer._pipelineContext.graph).toBe(graph);
     });
   });
 
@@ -1454,8 +1454,11 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const originalHash = analyzer._hash.bind(analyzer);
-      const hashSpy = vi.spyOn(analyzer, '_hash').mockImplementation(async (payload) => {
+      const originalHash = ConflictPipelineContext.prototype.hash;
+      const hashSpy = vi.spyOn(ConflictPipelineContext.prototype, 'hash').mockImplementation(async function (
+        this: ConflictPipelineContext,
+        payload,
+      ) {
         if (
           payload !== null &&
           typeof payload === 'object' &&
@@ -1464,7 +1467,7 @@ describe('ConflictAnalyzerService', () => {
         ) {
           return '';
         }
-        return await originalHash(payload);
+        return await originalHash.call(this, payload);
       });
 
       try {
@@ -1740,35 +1743,37 @@ describe('ConflictAnalyzerService', () => {
     });
   });
 
-  // ── _hash ───────────────────────────────────────────────────────────────
+  // ── ConflictPipelineContext.hash ────────────────────────────────────────
 
-  describe('_hash', () => {
+  describe('ConflictPipelineContext.hash', () => {
     it('returns deterministic hash for same payload', async () => {
       const graph = createMockGraph();
-      const analyzer = new ConflictAnalyzerService({ graph });
+      const context = new ConflictPipelineContext({ graph });
 
-      const h1 = await analyzer._hash({ key: 'value' });
-      const h2 = await analyzer._hash({ key: 'value' });
+      const h1 = await context.hash({ key: 'value' });
+      const h2 = await context.hash({ key: 'value' });
 
       expect(h1).toBe(h2);
     });
 
     it('returns different hash for different payloads', async () => {
       const graph = createMockGraph();
-      const analyzer = new ConflictAnalyzerService({ graph });
+      const context = new ConflictPipelineContext({ graph });
 
-      const h1 = await analyzer._hash({ a: 1 });
-      const h2 = await analyzer._hash({ b: 2 });
+      const h1 = await context.hash({ a: 1 });
+      const h2 = await context.hash({ b: 2 });
 
       expect(h1).not.toBe(h2);
     });
 
-    it('caches results in digest cache', async () => {
+    it('caches repeated payload digests', async () => {
       const graph = createMockGraph();
-      const analyzer = new ConflictAnalyzerService({ graph });
+      const context = new ConflictPipelineContext({ graph });
 
-      await (analyzer as any)._hash({ x: 1 });
-      expect((analyzer as any)._digestCache.size).toBeGreaterThan(0);
+      await context.hash({ x: 1 });
+      await context.hash({ x: 1 });
+
+      expect(graph._crypto.hash).toHaveBeenCalledTimes(1);
     });
   });
 

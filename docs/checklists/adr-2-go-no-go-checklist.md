@@ -5,6 +5,11 @@ This checklist enforces ADR 3.
 ADR 2 must not be implemented or activated because it feels tidy, inevitable, or "basically done."
 It proceeds only when the required evidence exists.
 
+Current executable no-go witness:
+`test/unit/domain/services/EdgePropSetWireMigrationGate.test.ts` keeps canonical
+`EdgePropSet` lowered to legacy raw `PropSet` storage and prevents accidental
+schema v4 claims until the gates below are deliberately satisfied.
+
 ---
 
 ## Gate 1 — Implementation Readiness

@@ -44,9 +44,9 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 2. orsetJoin is commutative
+  // 2. ORSet.join is commutative
   // ---------------------------------------------------------------------------
-  describe('orsetJoin is commutative', () => {
+  describe('ORSet.join is commutative', () => {
     it('a.join(b) equals b.join(a) for entries and tombstones', () => {
       const a = ORSet.empty();
       a.add('node:1', Dot.create('alice', 1));
@@ -73,9 +73,9 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 3. vvMerge is commutative
+  // 3. VersionVector.merge is commutative
   // ---------------------------------------------------------------------------
-  describe('vvMerge is commutative', () => {
+  describe('VersionVector.merge is commutative', () => {
     it('a.merge(b) equals b.merge(a)', () => {
       const a = VersionVector.empty();
       a.increment('alice'); // alice:1
@@ -98,9 +98,9 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 4. vvMerge is idempotent
+  // 4. VersionVector.merge is idempotent
   // ---------------------------------------------------------------------------
-  describe('vvMerge is idempotent', () => {
+  describe('VersionVector.merge is idempotent', () => {
     it('a.merge(a) equals a', () => {
       const a = VersionVector.empty();
       a.increment('alice'); // alice:1
