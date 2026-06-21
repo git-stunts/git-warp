@@ -218,7 +218,7 @@ function buildInspection(computation: ObjectMergeComputation, classifier: MergeC
 export default class TtdMergeInspector {
   readonly classifier: MergeClassifier;
 
-  constructor(classifier = new MergeClassifier()) {
+  constructor(classifier: MergeClassifier = new MergeClassifier()) {
     this.classifier = classifier;
     Object.freeze(this);
   }
