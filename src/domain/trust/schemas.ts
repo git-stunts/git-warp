@@ -9,7 +9,7 @@
  * @see docs/specs/TRUST_CRYPTO_ALGORITHM.md Sections 8-10, 14
  */
 
-import { z } from 'zod';
+import z from 'zod';
 
 // -- Primitives ---------------------------------------------------------------
 

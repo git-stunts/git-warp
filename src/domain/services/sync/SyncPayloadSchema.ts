@@ -9,7 +9,7 @@
  * @see B64 -- Sync ingress payload validation
  */
 
-import { z } from 'zod';
+import z from 'zod';
 
 // ── Resource Limits ─────────────────────────────────────────────────────────
 

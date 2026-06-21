@@ -1,5 +1,5 @@
 import { TrailerCodec, TrailerCodecService, type TrailerCodecFacade } from '@git-stunts/trailer-codec';
-import { z } from 'zod';
+import z from 'zod';
 import CommitMessageCodecPort, {
   type AnchorCommitMessage,
   type CheckpointCommitMessage,

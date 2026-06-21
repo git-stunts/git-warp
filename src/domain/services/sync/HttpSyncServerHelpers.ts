@@ -8,7 +8,7 @@
  * @module domain/services/sync/HttpSyncServerHelpers
  */
 
-import { z } from 'zod';
+import z from 'zod';
 import SyncAuthService from './SyncAuthService.ts';
 import SyncError from '../../errors/SyncError.ts';
 import { validateSyncRequest } from './SyncPayloadSchema.ts';
