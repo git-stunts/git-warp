@@ -34,8 +34,7 @@ import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
-import type { GCPolicyConfig } from '../services/GCPolicy.ts';
-import type GCPolicy from '../services/GCPolicy.ts';
+import GCPolicy, { type GCPolicyConfig } from '../services/GCPolicy.ts';
 import type { MaterializeSessionOpener } from '../services/controllers/MaterializeSessionBridge.ts';
 
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
@@ -135,7 +134,7 @@ export class WarpOpenOptions {
     this.persistence = options.persistence;
     this.graphName = options.graphName;
     this.writerId = options.writerId;
-    this.gcPolicy = options.gcPolicy ?? {};
+    this.gcPolicy = snapshotGCPolicy(options.gcPolicy);
     this.crypto = options.crypto ?? defaultCrypto;
     this.codec = options.codec ?? defaultCodec;
 
@@ -221,6 +220,16 @@ function normalizeCheckpointPolicy(
     throw new WarpError('checkpointPolicy.every must be a positive integer', 'E_CHECKPOINT_POLICY_EVERY');
   }
   return Object.freeze({ every: checkpointPolicy.every });
+}
+
+function snapshotGCPolicy(value: GCPolicyConfig | GCPolicy | undefined): GCPolicyConfig | GCPolicy {
+  if (value === undefined) {
+    return Object.freeze({});
+  }
+  if (value instanceof GCPolicy) {
+    return value;
+  }
+  return Object.freeze({ ...value });
 }
 
 function normalizeDeletePolicy(policy: DeletePolicy): DeletePolicy {

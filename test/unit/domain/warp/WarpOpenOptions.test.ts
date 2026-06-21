@@ -42,6 +42,22 @@ describe('WarpOpenOptions', () => {
     expect(Object.isFrozen(options.checkpointPolicy)).toBe(true);
   });
 
+  it('snapshots gcPolicy config objects before freezing open options', () => {
+    const gcPolicy = { enabled: true };
+    const options = new WarpOpenOptions({
+      persistence: createMockPersistence(),
+      graphName: 'gc-options',
+      writerId: 'writer-1',
+      gcPolicy,
+    });
+
+    gcPolicy.enabled = false;
+
+    expect(options.gcPolicy).toEqual({ enabled: true });
+    expect(options.gcPolicy).not.toBe(gcPolicy);
+    expect(Object.isFrozen(options.gcPolicy)).toBe(true);
+  });
+
   it('rejects invalid checkpointPolicy values before async boot resolution', () => {
     expect(() => new WarpOpenOptions({
       persistence: createMockPersistence(),
