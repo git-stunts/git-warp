@@ -1544,6 +1544,31 @@ describe('StrandService', () => {
       expect(entries).toHaveLength(2);
     });
 
+    it('uses live parent basis for patch entries when no pinned overlays exist', async () => {
+      const desc = buildValidDescriptor({
+        strandId: 'alpha',
+        baseObservation: {
+          coordinateVersion: STRAND_COORDINATE_VERSION,
+          frontier: { writer1: 'base-tip' },
+          frontierDigest: 'digest-abc',
+          lamportCeiling: null,
+        },
+      });
+      storeDescriptor(desc);
+      graph.getFrontier.mockResolvedValue(new Map([['writer1', 'live-tip']]));
+
+      patchChains.set('base-tip', [
+        { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'base-1' },
+      ]);
+      patchChains.set('live-tip', [
+        { patch: makePatch({ lamport: 2, writer: 'writer1' }), sha: 'live-1' },
+      ]);
+
+      const entries = await service.getPatchEntries('alpha');
+
+      expect(entries.map((entry) => entry.sha)).toEqual(['live-1']);
+    });
+
     it('filters by ceiling when provided', async () => {
       const desc = buildValidDescriptor({
         strandId: 'alpha',

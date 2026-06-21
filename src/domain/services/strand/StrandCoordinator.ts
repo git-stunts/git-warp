@@ -346,7 +346,10 @@ export default class StrandCoordinator {
   async getPatchEntries(strandId: string, options: { ceiling?: number | null } = {}): Promise<StrandPatchEntry[]> {
     const descriptor = await this.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
-    return await this._deps.materializer.collectPatchEntries(descriptor, { ceiling });
+    return await this._deps.materializer.collectPatchEntries(descriptor, {
+      ceiling,
+      parentBasis: this._readParentBasisFor(descriptor),
+    });
   }
 
   async patchesFor(strandId: string, entityId: string, options: { ceiling?: number | null } = {}): Promise<string[]> {
