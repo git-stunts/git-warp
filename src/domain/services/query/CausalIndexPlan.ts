@@ -1,5 +1,6 @@
 import QueryError from '../../errors/QueryError.ts';
 import BoundedSupportRule from './BoundedSupportRule.ts';
+import { freezeStringList, requireNonEmptyString } from './queryValidation.ts';
 
 export type CausalIndexFamily = 'entity-patch' | 'neighborhood-adjacency' | 'global-discovery';
 export type CausalIndexPlanPosture = 'available' | 'composite' | 'unsupported';
@@ -22,6 +23,7 @@ const INDEX_POSTURES: readonly CausalIndexPlanPosture[] = Object.freeze([
   'composite',
   'unsupported',
 ]);
+const CAUSAL_INDEX_PLAN_ERROR = 'E_QUERY_CAUSAL_INDEX_PLAN';
 
 /** Index-selection posture for a bounded public read support rule. */
 export default class CausalIndexPlan {
@@ -36,8 +38,12 @@ export default class CausalIndexPlan {
     this.supportRule = requireSupportRule(checkedFields.supportRule);
     this.posture = requirePosture(checkedFields.posture);
     this.families = freezeFamilies(checkedFields.families);
-    this.reason = requireNonEmptyString(checkedFields.reason, 'reason');
-    this.requiredEntityIds = freezeStringList(checkedFields.requiredEntityIds ?? [], 'requiredEntityIds');
+    this.reason = requireNonEmptyString(checkedFields.reason, 'reason', CAUSAL_INDEX_PLAN_ERROR);
+    this.requiredEntityIds = freezeStringList(
+      checkedFields.requiredEntityIds ?? [],
+      'requiredEntityIds',
+      CAUSAL_INDEX_PLAN_ERROR,
+    );
     Object.freeze(this);
   }
 
@@ -81,7 +87,7 @@ export default class CausalIndexPlan {
 function requireFields(fields: CausalIndexPlanFields | null | undefined): CausalIndexPlanFields {
   if (fields === null || fields === undefined) {
     throw new QueryError('CausalIndexPlan fields must be provided', {
-      code: 'E_QUERY_CAUSAL_INDEX_PLAN',
+      code: CAUSAL_INDEX_PLAN_ERROR,
     });
   }
   return fields;
@@ -90,7 +96,7 @@ function requireFields(fields: CausalIndexPlanFields | null | undefined): Causal
 function requireSupportRule(value: BoundedSupportRule): BoundedSupportRule {
   if (!(value instanceof BoundedSupportRule)) {
     throw new QueryError('CausalIndexPlan requires a BoundedSupportRule', {
-      code: 'E_QUERY_CAUSAL_INDEX_PLAN',
+      code: CAUSAL_INDEX_PLAN_ERROR,
     });
   }
   return value;
@@ -99,52 +105,28 @@ function requireSupportRule(value: BoundedSupportRule): BoundedSupportRule {
 function requirePosture(value: CausalIndexPlanPosture): CausalIndexPlanPosture {
   if (!INDEX_POSTURES.includes(value)) {
     throw new QueryError('CausalIndexPlan posture is unsupported', {
-      code: 'E_QUERY_CAUSAL_INDEX_PLAN',
+      code: CAUSAL_INDEX_PLAN_ERROR,
       context: { posture: value },
     });
   }
   return value;
 }
 
-function requireNonEmptyString(value: string, field: string): string {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new QueryError(`${field} must be a non-empty string`, {
-      code: 'E_QUERY_CAUSAL_INDEX_PLAN',
-      context: { field },
-    });
-  }
-  return value.trim();
-}
-
 function freezeFamilies(values: readonly CausalIndexFamily[]): readonly CausalIndexFamily[] {
   if (!Array.isArray(values)) {
     throw new QueryError('families must be an array', {
-      code: 'E_QUERY_CAUSAL_INDEX_PLAN',
+      code: CAUSAL_INDEX_PLAN_ERROR,
     });
   }
   const normalized: CausalIndexFamily[] = [];
   for (const value of values) {
     if (!INDEX_FAMILIES.includes(value)) {
       throw new QueryError('families contains unsupported index family', {
-        code: 'E_QUERY_CAUSAL_INDEX_PLAN',
+        code: CAUSAL_INDEX_PLAN_ERROR,
         context: { family: value },
       });
     }
     normalized.push(value);
-  }
-  return Object.freeze([...new Set(normalized)].sort());
-}
-
-function freezeStringList(values: readonly string[], field: string): readonly string[] {
-  if (!Array.isArray(values)) {
-    throw new QueryError(`${field} must be an array`, {
-      code: 'E_QUERY_CAUSAL_INDEX_PLAN',
-      context: { field },
-    });
-  }
-  const normalized: string[] = [];
-  for (const value of values) {
-    normalized.push(requireNonEmptyString(value, field));
   }
   return Object.freeze([...new Set(normalized)].sort());
 }

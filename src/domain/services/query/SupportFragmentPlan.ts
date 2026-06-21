@@ -1,6 +1,7 @@
 import QueryError from '../../errors/QueryError.ts';
 import BoundedSupportRule from './BoundedSupportRule.ts';
 import CausalIndexPlan from './CausalIndexPlan.ts';
+import { freezeStringList, requireNonEmptyString } from './queryValidation.ts';
 
 export type SupportFragmentMaterializationPosture =
   | 'support-fragment'
@@ -20,6 +21,7 @@ const SUPPORT_FRAGMENT_POSTURES: readonly SupportFragmentMaterializationPosture[
   'support-fragment-with-index-fill',
   'global-fallback',
 ]);
+const SUPPORT_FRAGMENT_PLAN_ERROR = 'E_QUERY_SUPPORT_FRAGMENT_PLAN';
 
 /** Support-scoped fragment materialization contract for a bounded read plan. */
 export default class SupportFragmentPlan {
@@ -37,8 +39,12 @@ export default class SupportFragmentPlan {
       this.supportRule,
     );
     this.posture = requirePosture(checkedFields.posture);
-    this.scopeKey = requireNonEmptyString(checkedFields.scopeKey, 'scopeKey');
-    this.requiredEntityIds = freezeStringList(checkedFields.requiredEntityIds ?? [], 'requiredEntityIds');
+    this.scopeKey = requireNonEmptyString(checkedFields.scopeKey, 'scopeKey', SUPPORT_FRAGMENT_PLAN_ERROR);
+    this.requiredEntityIds = freezeStringList(
+      checkedFields.requiredEntityIds ?? [],
+      'requiredEntityIds',
+      SUPPORT_FRAGMENT_PLAN_ERROR,
+    );
     Object.freeze(this);
   }
 
@@ -76,17 +82,21 @@ export default class SupportFragmentPlan {
   fragmentKeyForCoordinate(coordinateRef: string): string {
     if (this.requiresFullGraphFallback()) {
       throw new QueryError('global fallback plans do not have support-scoped fragment keys', {
-        code: 'E_QUERY_SUPPORT_FRAGMENT_PLAN',
+        code: SUPPORT_FRAGMENT_PLAN_ERROR,
       });
     }
-    return `${this.scopeKey}@${requireNonEmptyString(coordinateRef, 'coordinateRef')}`;
+    return `${this.scopeKey}@${requireNonEmptyString(
+      coordinateRef,
+      'coordinateRef',
+      SUPPORT_FRAGMENT_PLAN_ERROR,
+    )}`;
   }
 }
 
 function requireFields(fields: SupportFragmentPlanFields | null | undefined): SupportFragmentPlanFields {
   if (fields === null || fields === undefined) {
     throw new QueryError('SupportFragmentPlan fields must be provided', {
-      code: 'E_QUERY_SUPPORT_FRAGMENT_PLAN',
+      code: SUPPORT_FRAGMENT_PLAN_ERROR,
     });
   }
   return fields;
@@ -95,7 +105,7 @@ function requireFields(fields: SupportFragmentPlanFields | null | undefined): Su
 function requireSupportRule(value: BoundedSupportRule): BoundedSupportRule {
   if (!(value instanceof BoundedSupportRule)) {
     throw new QueryError('SupportFragmentPlan requires a BoundedSupportRule', {
-      code: 'E_QUERY_SUPPORT_FRAGMENT_PLAN',
+      code: SUPPORT_FRAGMENT_PLAN_ERROR,
     });
   }
   return value;
@@ -107,12 +117,12 @@ function requireMatchingCausalIndexPlan(
 ): CausalIndexPlan {
   if (!(value instanceof CausalIndexPlan)) {
     throw new QueryError('SupportFragmentPlan requires a CausalIndexPlan', {
-      code: 'E_QUERY_SUPPORT_FRAGMENT_PLAN',
+      code: SUPPORT_FRAGMENT_PLAN_ERROR,
     });
   }
   if (value.supportRule !== supportRule) {
     throw new QueryError('SupportFragmentPlan support rule and causal index plan must match', {
-      code: 'E_QUERY_SUPPORT_FRAGMENT_PLAN',
+      code: SUPPORT_FRAGMENT_PLAN_ERROR,
     });
   }
   return value;
@@ -123,7 +133,7 @@ function requirePosture(
 ): SupportFragmentMaterializationPosture {
   if (!SUPPORT_FRAGMENT_POSTURES.includes(value)) {
     throw new QueryError('SupportFragmentPlan posture is unsupported', {
-      code: 'E_QUERY_SUPPORT_FRAGMENT_PLAN',
+      code: SUPPORT_FRAGMENT_PLAN_ERROR,
       context: { posture: value },
     });
   }
@@ -159,28 +169,4 @@ function joinOrNone(values: readonly string[]): string {
     return 'none';
   }
   return values.join('+');
-}
-
-function requireNonEmptyString(value: string, field: string): string {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new QueryError(`${field} must be a non-empty string`, {
-      code: 'E_QUERY_SUPPORT_FRAGMENT_PLAN',
-      context: { field },
-    });
-  }
-  return value.trim();
-}
-
-function freezeStringList(values: readonly string[], field: string): readonly string[] {
-  if (!Array.isArray(values)) {
-    throw new QueryError(`${field} must be an array`, {
-      code: 'E_QUERY_SUPPORT_FRAGMENT_PLAN',
-      context: { field },
-    });
-  }
-  const normalized: string[] = [];
-  for (const value of values) {
-    normalized.push(requireNonEmptyString(value, field));
-  }
-  return Object.freeze([...new Set(normalized)].sort());
 }
