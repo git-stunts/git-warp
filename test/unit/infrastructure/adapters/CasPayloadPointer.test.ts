@@ -42,6 +42,6 @@ describe('CasPayloadPointer compatibility boundary', () => {
       blobStorage: new MemoryBlobStorage(),
       oid: 'inline-oid',
       compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
-    })).resolves.toBe(bytes);
+    })).resolves.toEqual(bytes);
   });
 });
