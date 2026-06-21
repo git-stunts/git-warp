@@ -57,7 +57,11 @@ function normalizeToUint8Array(buffer: Uint8Array): Uint8Array {
  * CAS migration).
  *
  * - `MANIFEST_NOT_FOUND` — tree exists but contains no manifest entry
- * - `GIT_ERROR` — Git couldn't read the tree at all (wrong object type)
+ * - `GIT_ERROR` — Git couldn't read the tree at all
+ *
+ * `GIT_ERROR` can mean either "wrong object type" or "missing object" depending
+ * on the plumbing path. The legacy fallback path probes the raw object before
+ * deciding whether this is retired legacy content or a genuinely missing OID.
  */
 const LEGACY_BLOB_CODES = new Set(['MANIFEST_NOT_FOUND', 'GIT_ERROR']);
 
@@ -76,6 +80,21 @@ function hasLegacyBlobMessage(msg: string): boolean {
   return msg.includes('not a tree')
     || msg.includes('bad object')
     || msg.includes('does not exist');
+}
+
+function missingGitObjectError(oid: string, cause: unknown): PersistenceError {
+  if (cause instanceof Error) {
+    return new PersistenceError(
+      `Missing Git object: ${oid}`,
+      PersistenceError.E_MISSING_OBJECT,
+      { cause, context: { oid } },
+    );
+  }
+  return new PersistenceError(
+    `Missing Git object: ${oid}`,
+    PersistenceError.E_MISSING_OBJECT,
+    { context: { oid } },
+  );
 }
 
 export default class CasBlobAdapter extends BlobStoragePort {
@@ -141,8 +160,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
       if (!isLegacyBlobError(err)) {
         throw err;
       }
-      this._requireLegacyContentBlobPolicy(oid, err);
-      return await this._fallbackReadBlob(oid);
+      return await this._readLegacyContentBlobCandidate(oid, err);
     }
   }
 
@@ -225,8 +243,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
       if (!isLegacyBlobError(err)) {
         throw err;
       }
-      this._requireLegacyContentBlobPolicy(oid, err);
-      const blob = await this._fallbackReadBlob(oid);
+      const blob = await this._readLegacyContentBlobCandidate(oid, err);
       return singleChunkIterator(blob);
     }
   }
@@ -244,9 +261,13 @@ export default class CasBlobAdapter extends BlobStoragePort {
     return singleChunkIterator(buffer);
   }
 
-  private _requireLegacyContentBlobPolicy(oid: string, error: unknown): void {
+  private async _readLegacyContentBlobCandidate(oid: string, error: unknown): Promise<Uint8Array> {
     if (this._compatibilityPolicy.legacyContentBlobReads) {
-      return;
+      return await this._fallbackReadBlob(oid);
+    }
+    const blob = await this._probeLegacyContentBlob(oid);
+    if (blob === null) {
+      throw missingGitObjectError(oid, error);
     }
     throw new PersistenceError(
       `Legacy raw blob reads require the substrate migration compatibility policy: ${oid}`,
@@ -256,6 +277,18 @@ export default class CasBlobAdapter extends BlobStoragePort {
         context: { oid },
       },
     );
+  }
+
+  private async _probeLegacyContentBlob(oid: string): Promise<Uint8Array | null> {
+    try {
+      const blob = await this._persistence.readBlob(oid);
+      return blob ?? null;
+    } catch (err) {
+      if (err instanceof PersistenceError && err.code === PersistenceError.E_MISSING_OBJECT) {
+        return null;
+      }
+      throw err;
+    }
   }
 }
 

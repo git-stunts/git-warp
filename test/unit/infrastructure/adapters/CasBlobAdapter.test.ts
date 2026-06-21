@@ -249,7 +249,7 @@ describe('CasBlobAdapter', () => {
       expect(mockRestore).toHaveBeenCalledWith({ manifest, encryptionKey: encKey });
     });
 
-    it('rejects raw Git blob fallback by default', async () => {
+    it('probes but rejects raw Git blob fallback by default', async () => {
       const persistence = makePersistence();
       const casErr = Object.assign(new Error('No manifest entry'), { code: 'MANIFEST_NOT_FOUND' });
       mockReadManifest.mockRejectedValue(casErr);
@@ -262,7 +262,25 @@ describe('CasBlobAdapter', () => {
       await expect(adapter.retrieve('raw-blob-oid')).rejects.toMatchObject({
         code: 'E_LEGACY_SUBSTRATE_DISABLED',
       });
-      expect(persistence.readBlob).not.toHaveBeenCalled();
+      expect(persistence.readBlob).toHaveBeenCalledWith('raw-blob-oid');
+    });
+
+    it('returns E_MISSING_OBJECT for missing content OIDs by default', async () => {
+      const persistence = makePersistence();
+      persistence.readBlob.mockResolvedValue(null);
+      mockReadManifest.mockRejectedValue(new Error('not a tree object'));
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      await expect(adapter.retrieve('ghost-oid'))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_MISSING_OBJECT,
+          message: 'Missing Git object: ghost-oid',
+        });
+      expect(persistence.readBlob).toHaveBeenCalledWith('ghost-oid');
     });
 
     it('falls back to raw Git blob when CAS readManifest throws MANIFEST_NOT_FOUND under migration policy', async () => {
