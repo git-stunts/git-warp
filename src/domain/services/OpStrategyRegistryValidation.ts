@@ -23,7 +23,7 @@ export type OpStrategyRegistryEntry = {
 const VALID_RECEIPT_OPS: ReadonlySet<string> = new Set(OP_TYPES);
 
 export function validateOpStrategyRegistry(
-  registry: ReadonlyMap<string, OpStrategyRegistryEntry>,
+  registry: ReadonlyMap<string, OpStrategyRegistryEntry | null | undefined>,
   validReceiptOps: ReadonlySet<string> = VALID_RECEIPT_OPS,
 ): void {
   for (const [opType, strategy] of registry) {
