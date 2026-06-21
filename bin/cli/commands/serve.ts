@@ -20,7 +20,7 @@ const SERVE_OPTIONS = {
 };
 
 const serveInputSchema = z.object({
-  port: z.coerce.number().int().nonnegative('port must be a non-negative integer'),
+  port: z.coerce.number().int().nonnegative({ message: 'port must be a non-negative integer' }),
   host: z.string().min(1, 'Missing value for --host').optional(),
   path: z.string().min(1, 'Missing value for --path').optional(),
   'max-request-bytes': z.coerce.number().int().positive().optional(),
