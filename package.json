@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "18.0.0",
+  "version": "18.0.1",
   "description": "Worldline-first WARP graph over Git: deterministic multi-writer causal history, readings, and tooling.",
   "type": "module",
   "license": "Apache-2.0",
@@ -123,9 +123,7 @@
     "wrap-ansi": "^9.0.0",
     "zod": "^3.24.1"
   },
-  "optionalDependencies": {
-    "roaring": "^2.7.0"
-  },
+  "optionalDependencies": {},
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@git-stunts/docker-guard": "^0.1.0",

@@ -1,8 +1,5 @@
 import WarpError from '../../domain/errors/WarpError.ts';
-import type {
-  RoaringBitmap32Constructor,
-  RoaringModuleInput,
-} from '../../domain/utils/roaring.ts';
+import type { RoaringBitmap32Constructor, RoaringModuleInput } from '../../domain/utils/roaring.ts';
 
 type RoaringModule = {
   readonly RoaringBitmap32: RoaringBitmap32Constructor;
@@ -63,30 +60,8 @@ function requireRoaringModule(): RoaringModule {
   );
 }
 
-function hasRoaringLibraryInitialize(
-  value: unknown,
-): value is { readonly roaringLibraryInitialize: () => Promise<void> } {
+function hasRoaringLibraryInitialize(value: unknown): value is { readonly roaringLibraryInitialize: () => Promise<void> } {
   return isObjectRecord(value) && typeof value['roaringLibraryInitialize'] === 'function';
-}
-
-async function tryNativeImport(errors: Error[]): Promise<RoaringModule | null> {
-  try {
-    return normalizeRoaringModule(await import('roaring'));
-  } catch (err) {
-    errors.push(err instanceof Error ? err : new WarpError(String(err), 'E_ROARING_LOAD'));
-    return null;
-  }
-}
-
-async function tryCjsRequire(errors: Error[]): Promise<RoaringModule | null> {
-  try {
-    const nodeModule = await import('node:module');
-    const req = nodeModule.createRequire(import.meta.url);
-    return normalizeRoaringModule(req('roaring'));
-  } catch (err) {
-    errors.push(err instanceof Error ? err : new WarpError(String(err), 'E_ROARING_LOAD'));
-    return null;
-  }
 }
 
 async function tryWasmFallback(errors: Error[]): Promise<RoaringModule | null> {
@@ -110,14 +85,11 @@ async function tryWasmFallback(errors: Error[]): Promise<RoaringModule | null> {
 
 async function loadFallbackChain(): Promise<void> {
   const loadErrors: Error[] = [];
-  roaringModule =
-    (await tryNativeImport(loadErrors)) ??
-    (await tryCjsRequire(loadErrors)) ??
-    (await tryWasmFallback(loadErrors));
+  roaringModule = await tryWasmFallback(loadErrors);
   if (roaringModule === null) {
     throw new AggregateError(
       loadErrors,
-      'Failed to load roaring via import(), require(), and roaring-wasm',
+      'Failed to load roaring-wasm module',
     );
   }
   nativeAvailability = NOT_CHECKED;
