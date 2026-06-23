@@ -176,7 +176,7 @@ mindmap
 | **Witness** | target | Minimal information sufficient to justify a local change result. |
 | **TickReceipt** | shipped | The operational envelope recording what happened for one admitted step. |
 | **GraphDiff** | transition | A first-class "what changed between these coordinates?" result. |
-| **Witnessed suffix admission shell** | transition | Observer-readable import/export envelope for a transported suffix (Gate D, [#663](https://github.com/git-stunts/git-warp/issues/663)). |
+| **Witnessed suffix admission shell** | transition | Observer-readable import/export envelope for a transported suffix; live Echo/git-warp network exchange remains Continuum stack work. |
 | **WarpStateSnapshot** | shipped | A persisted materialized graph state at a coordinate. |
 | **WarpStateCache** | shipped | The owning system for persisted and in-memory snapshot reuse. |
 | **Checkpoint** | transition | A pinned snapshot protected from ordinary eviction. |
@@ -333,7 +333,6 @@ Current focus areas for `v18.1.0`:
 - Worldline-first optics: `prepareOpticBasis()` plus coordinate optics keep first-use reads bounded instead of materializing the whole graph.
 - Bounded query planning: `BoundedSupportRule`, `CausalIndexPlan`, and `SupportFragmentPlan` give reads an explicit support posture ahead of execution.
 - `comparison.diff({ from, to })` returns a first-class `GraphDiff` for live Lamport ranges without wildcard scans.
-- Witnessed suffix exchange (Gate D, [#663](https://github.com/git-stunts/git-warp/issues/663)) is the active goalpost for sharing admitted history across participants.
 - Full-result helpers, graph-wide diagnostics, legacy facades, and offline migration tools remain explicitly classified instead of being presented as first-use application APIs.
 
 Live work is tracked in [GitHub Issues](https://github.com/git-stunts/git-warp/issues).
@@ -346,7 +345,7 @@ Use [GLOSSARY.md](docs/GLOSSARY.md) for shipped, transition, and target noun sta
 
 Use the [Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) and the [teaching alignment audit](docs/audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md) when a doc claim is stronger than the runtime surface.
 
-Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates, and observer apertures as the application path. Live holographic strands, common-basis braid validation, witnessed suffix admission, and support-scoped fragment materialization remain target doctrine unless their own docs say otherwise.
+Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates, and observer apertures as the application path. Live holographic strands, common-basis braid validation, witnessed suffix admission, Echo/git-warp suffix exchange, and support-scoped fragment materialization remain target doctrine unless their own docs say otherwise.
 
 ## Documentation
 

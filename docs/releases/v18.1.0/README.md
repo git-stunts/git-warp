@@ -71,6 +71,16 @@ The final tag gate must have:
 At implementation time, #665 remains the release-tracking issue. It must be
 closed or otherwise explicitly superseded before the final tag gate can pass.
 
+#663 is closed as a v18.1.0 scope correction, not as proof of Continuum Gate D.
+The live Echo/git-warp suffix-exchange pass rule still belongs to the open
+stack gates:
+
+- Continuum profile/coordination: https://github.com/flyingrobots/continuum/issues/33
+- Echo peer implementation: https://github.com/flyingrobots/echo/issues/591
+
+`v18.1.0` therefore makes no claim that bidirectional sibling-runtime suffix
+exchange over a real network boundary has passed.
+
 ## Validation
 
 Packet-level validation run during scaffold:
@@ -180,6 +190,8 @@ Accepted only for this scaffold packet:
 
 - `Optic` is marked `transition`, not `shipped`, because native Continuum
   witnesshood and remote optic transport remain out of scope;
+- witnessed suffix exchange remains translated/shape-level git-warp evidence
+  until Continuum #33 and Echo #591 provide the live network proof;
 - release evidence still needs final validation output before tag approval.
 
 ## Required Closeout Evidence
@@ -197,6 +209,7 @@ This packet does not claim:
 
 - native Continuum witnesshood;
 - remote optic transport;
+- live Echo/git-warp witnessed suffix exchange;
 - a full materialization-plan implementation;
 - distributed braid or plural-admission semantics;
 - permission to tag before the reified Optic gate is complete.
