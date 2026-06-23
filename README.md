@@ -85,6 +85,8 @@ const coordinate = await events.coordinate();
 const role = await coordinate.optic().node("user:alice").prop("role").read();
 ```
 
+---
+
 <details>
 <summary><h3>For the Nerds™: Optics</h3></summary>
 
@@ -99,6 +101,8 @@ const role = await coordinate.optic().node("user:alice").prop("role").read();
 > And `.node("user:alice").prop("role")` is literal **optic composition** — composing optics tensors their residuals ($M_1 \otimes M_2$), so a chained read stays bounded by construction.
 
 </details>
+
+---
 
 ### Bounded reads in practice
 
