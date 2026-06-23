@@ -1,208 +1,369 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp-alt.svg" alt="git-warp logo" />
-  <h1><code>git-warp</code></h1>
-  <p>A recursive witnessed admission architecture over Git.</p>
+<img src="https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp-alt.svg" alt="git-warp logo" />
+<p><strong>A Git-native runtime for shared causal history.</strong></p>
+<p>Offline-first, multi-writer, deterministic, and built for provenance-aware graphs.</p>
 </div>
 
-[![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts%2Fgit-warp)
+<p align="center">
+<a href="https://github.com/git-stunts/git-warp/actions/workflows/ci.yml">
+<img alt="CI" src="https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg" />
+</a>
+<a href="https://opensource.org/licenses/Apache-2.0">
+<img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" />
+</a>
+<a href="https://www.npmjs.com/package/@git-stunts%2Fgit-warp">
+<img alt="npm version" src="https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg" />
+</a>
+</p>
 
-`git-warp` commits truth and reveals truth through bounded worldlines.
+`git-warp` is a Git-native system for storing and reading **causal history**.
 
-It stores causal graph history in Git objects and refs. Writes are
-admitted through patches. Reads happen through worldlines, strands,
-and observers. Provenance, replay, and explicit historical coordinates
-are part of the model.
+Instead of treating a graph as one big in-memory object, `git-warp` treats history as the source of truth. Reads are bounded views over that history, and writes are appended as patches. It is one runtime in the [Continuum](https://github.com/flyingrobots/continuum) stack ([more below](#continuum)).
 
-## Release status
+If that sounds abstract, the short version is:
 
-The `v18.0.0` source line is in pre-tag release-gate closeout. First-use
-Optics setup avoids full graph materialization, and the v18 bounded-memory
-goalpost has landed deterministic evidence for the named public paths it
-claims. Full-result helpers, graph-wide diagnostics, legacy facades, and
-offline migration tools remain explicitly classified instead of being presented
-as first-use application APIs.
+- You can work **offline**.
+- Multiple writers can contribute **without central coordination**.
+- Conflicts resolve **deterministically**.
+- Every value keeps **provenance**.
+- Reads are designed to stay **bounded**, not accidentally materialize everything.
 
-Live work is tracked in
-[GitHub Issues](https://github.com/git-stunts/git-warp/issues). Repository
-design docs, witnesses, retros, and archived backlog cards are evidence.
-Current public API cost labels are in
-[PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md).
+## What it does
+`git-warp` provides a causal history substrate and read/runtime layer for graph-shaped data.
 
-## Runtime posture
+It lets you:
 
-Use [GLOSSARY.md](docs/GLOSSARY.md) for shipped, transition, and target noun
-status. Use the
-[Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) and
-[teaching alignment audit](docs/audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md) when
-a doc claim is stronger than the runtime surface.
-
-Current first-use docs teach `openWarpWorldline()`, worldline reads,
-coordinates, and observer apertures as the current application path. Live
-holographic strands, common-basis braid validation, witnessed suffix admission,
-and support-scoped fragment materialization remain target doctrine unless their
-own docs say otherwise.
+- Commit patches into a shared causal log.
+- Read the latest visible state through worldlines.
+- Read historical coordinates without rewriting history.
+- Use observers and apertures to control what a reader can see.
+- Keep provenance attached to values and outcomes.
+- Sync through normal Git transport.
 
 ## Quick start
 
 ```typescript
-import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
-import GitPlumbing from '@git-stunts/plumbing';
+import { GitGraphAdapter, openWarpWorldline } from "@git-stunts/git-warp";
+import GitPlumbing from "@git-stunts/plumbing";
 
-const plumbing = new GitPlumbing({ cwd: '.' });
+const plumbing = new GitPlumbing({ cwd: "." });
 const persistence = new GitGraphAdapter({ plumbing });
-
 const events = await openWarpWorldline({
   persistence,
-  worldlineName: 'events',
-  writerId: 'agent-1',
+  worldlineName: "events",
+  writerId: "agent-1",
 });
 
-// Commit: admit a claim into shared causal reality
+// Commit: admit a claim into shared causal history.
 await events.commit((patch) => {
-  patch.addNode('user:alice').setProperty('user:alice', 'role', 'admin');
+  patch.addNode("user:alice").setProperty("user:alice", "role", "admin");
 });
 
-// Reveal: confirm admitted truth through the bounded exact-id query shape
-const visible = await events.live()
+// Read: confirm what is visible through the worldline.
+const visible = await events
+  .live()
   .query()
-  .match('user:alice')
-  .select(['id'])
+  .match("user:alice")
+  .select(["id"])
   .run();
 ```
 
-Exact id-only query reads use the checkpoint-tail provider when a bounded basis
-exists. Broader property, wildcard, traversal, observer, full-result, and
-diagnostic providers keep their current labels in
-[PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md); check that inventory before
-treating a broader read path as large-graph safe.
+### Bounded coordinate reads with optics
 
-## What git-warp is
+The `live()` query above reads the latest visible state. When you instead want a **bounded, coherent read pinned to a point in history**, you read through an *optic*.
 
-`git-warp` is a Git-native implementation of WARP: Worldline Algebra
-for Recursive Provenance.
+- An **optic** is the bounded question you ask of causal history — "which node, property, neighbor set, or traversal do I want?" It names the read you mean instead of materializing the whole graph to go looking.
+- We use optics so reads stay **scoped and coherent**: an optic answers from a fixed position, so concurrent writes can't shift the result mid-read, and the runtime only touches the causal support the question actually needs.
+- An **optic basis** is the bounded evidence that the read can be answered honestly from history — a verified checkpoint-tail basis. `prepareOpticBasis()` establishes it. If no bounded basis exists yet, it fails closed with `E_OPTIC_NO_BOUNDED_BASIS` rather than silently materializing everything.
+- An optic always reads through an **observer coordinate**: `coordinate()` captures a stable, observer-relative position (a causal basis plus a ceiling). Later writes advance the live worldline, but reads through that coordinate keep answering from the captured position.
 
-- **Offline-first** — writers work independently, converge later
-- **Multi-writer** — each writer owns its own ref, no coordination
-- **Append-only** — history is never rewritten
-- **Deterministic** — same patches, any order, same visible state
-- **Provenance-complete** — every value traces to exactly one producing patch
-- **Speculative** — strands are causal lanes for counterfactual work
-- **Observable** — worldlines, observers, and apertures shape what you see
-
-## The admission architecture
-
-The product-facing surface starts with `openWarpWorldline()`. A worldline is a
-named admitted causal lane with one writer identity and a small public handle:
-
-| Handle method | Moment | What it does |
-|---------------|--------|--------------|
-| `commit()` | Commitment | Admits a patch into the named worldline |
-| `live()` | Revelation | Reads the latest visible state |
-| `seek()` | Historical revelation | Reads a bounded historical coordinate |
-| `observer()` | Bounded revelation | Creates an observer through an aperture |
-| `prepareOpticBasis()` | Folding | Verifies the checkpoint-tail evidence needed by coordinate Optics |
-| `coordinate()` | Revelation | Captures a stable coordinate for coherent optic reads |
-| `optic()` | Bounded optic work | Starts one-off live optic-shaped reads over the worldline |
-
-For coherent Optics, verify the checkpoint-tail basis, capture a coordinate, and read
-through that coordinate. If no checkpoint-tail basis exists yet,
-`prepareOpticBasis()` fails closed with `E_OPTIC_NO_BOUNDED_BASIS` instead of
-materializing the whole graph. This path remains caveated to available
-checkpoint-tail basis evidence and the public API cost inventory:
+So the order is: verify the basis, capture a coordinate, then read through it.
 
 ```typescript
 await events.prepareOpticBasis();
 const coordinate = await events.coordinate();
-const role = await coordinate.optic().node('user:alice').prop('role').read();
+const role = await coordinate.optic().node("user:alice").prop("role").read();
 ```
 
-Advanced tooling can still open the lower-level capability bag with
-`openWarpGraph()`. That surface is supported for compatibility, diagnostics,
-substrate operations, and migration evidence. New application code should prefer
-Worldlines and Optics unless it is deliberately working on those lower layers.
+<details>
+<summary><h3>For the Nerds™: Optics</h3></summary>
 
-`openWarpGraph()` is organized around four architectural moments:
+> In category theory, an **optic** from a whole $(S, T)$ to a part $(A, B)$ is an element of a coend — an existential package over a *residual* object $M$:
+>
+> $$\mathrm{Optic}\big((S,T),\,(A,B)\big) \;=\; \int^{M} \mathcal{C}\!\left(S,\; M \otimes A\right) \times \mathcal{C}\!\left(M \otimes B,\; T\right)$$
+>
+> That is a focus $S \to M \otimes A$ paired with a put-back $M \otimes B \to T$, where $M$ — everything you *didn't* look at — is sealed inside the existential and never named.
+>
+> git-warp's read model is the read-only half. The whole $S$ is a **coordinate** (a reading over causal history); the part $A$ is the bounded question (`.node()`, `.prop()`, a traversal); the residual $M$ is the rest of history you deliberately do not materialize. The **bounded support rule** is that $M$ made small and explicit, and `prepareOpticBasis()` is the witness that a lawful factorization $S \to M \otimes A$ exists at the chosen coordinate. No witness ⇒ `E_OPTIC_NO_BOUNDED_BASIS`: the runtime refuses the read rather than collapsing $M$ back into the whole graph.
+>
+> And `.node("user:alice").prop("role")` is literal **optic composition** — composing optics tensors their residuals ($M_1 \otimes M_2$), so a chained read stays bounded by construction.
 
-Public examples use the flat capability aliases (`graph.patches`,
-`graph.query`, `graph.checkpoint`) as the canonical user-facing form. The
-moment-scoped form (`graph.commitment.patches`,
-`graph.revelation.query`, `graph.folding.checkpoint`) is the same runtime
-object and is available when code wants to make the architectural moment
-explicit.
+</details>
 
-| Moment | Capabilities | What it does |
-|--------|-------------|--------------|
-| **Commitment** | `patches`, `strands`, `comparison` | Admits claims into frontier-relative truth |
-| **Folding** | `checkpoint` | Re-expresses admitted history as operational artifacts |
-| **Revelation** | `query`, `subscriptions`, `provenance` | Exposes admitted truth under bounded rights |
-| **Governance** | `sync` | Transports and admits remote suffixes |
+### Bounded reads in practice
 
-## Core nouns
+Two more shipped reads stay bounded without folding the whole graph. Both use the advanced `openWarpGraph()` surface.
 
-| Term | Meaning |
-|------|---------|
-| **Worldline** | Canonical admitted causal lane. The shared truth others may rely on. |
-| **ProjectionHandle** | Pinned read handle over a live, historical, coordinate, or strand source. |
-| **Coordinate** | Stable causal read position used by coherent Optics. |
-| **Strand** | Speculative causal lane with fork provenance. Private until admitted. |
-| **Braid** | Plural composition over a family of lanes. Not itself a lane. |
-| **Observer** | Filtered read-only projection through an aperture. |
-| **Aperture** | The boundary that shapes what an observer can see. |
-| **Patch** | A claim: a set of operations over a bounded causal site. |
-| **Receipt** | Provenance-bearing witness of an admission outcome. |
+```typescript
+const graph = await openWarpGraph({ persistence, graphName: "events", writerId: "agent-1" });
+
+// What changed between two live Lamport ceilings — a frozen GraphDiff, not a wildcard scan.
+const diff = await graph.comparison.diff({ from: 120, to: 135, targetId: "user:alice" });
+
+// One entity's backward causal cone, replayed on its own (a diagnostic read).
+const slice = await graph.provenance.materializeSlice("user:alice");
+```
+
+See [`examples/`](examples/) for runnable versions and [Bounded Reads](docs/topics/bounded-reads.md) for the model.
+
+## Core ideas
+
+git-warp's concepts span how history is **written**, **positioned**, **read**, **accelerated**, **proven**, and **persisted**. The map groups every canonical noun by its glossary section and marks runtime status. Status markers: no mark = **shipped** runtime truth, `~` = **transition** (the noun exists but is narrower than its canonical meaning), `*` = **target** (intended architecture, not yet a first-class runtime concept).
+
+```mermaid
+mindmap
+  root((git-warp))
+    Write
+      Patch
+      Worldline ~
+      Live strand ~
+      Braid *
+    Position
+      Coordinate ~
+      Frontier ~
+      Ceiling
+      Tick ~
+    Read
+      ProjectionHandle
+      Observer ~
+      Aperture ~
+      Optic *
+      Optic basis
+    Support
+      Bounded support rule ~
+      Causal index ~
+      Support fragment ~
+      Materialization plan *
+    Prove
+      Witness *
+      TickReceipt
+      GraphDiff ~
+      Suffix admission shell ~
+    Persist
+      Snapshot
+      State cache
+      Checkpoint ~
+```
+
+| Concept | Status | One-line meaning |
+|---|---|---|
+| **Patch** | shipped | An appended claim about a bounded causal site; never rewritten. |
+| **Worldline** | transition | The named causal history a writer commits to and readers observe. |
+| **Live strand** | transition | A strand over a live parent basis plus its own owned overlay divergence. |
+| **Braid** | target | A composition of lanes; common-basis braid validation is not yet shipped. |
+| **Coordinate** | transition | A comparable read point: a causal basis plus a ceiling. |
+| **Frontier** | transition | The causal basis — which history has been observed (writer tips / version vectors). |
+| **Ceiling** | shipped | The upper replay boundary on a coordinate or lane. |
+| **Tick** | transition | One atomic admitted history step on a lane. |
+| **ProjectionHandle** | shipped | A pinned read handle returned by `live()` and `seek()`. |
+| **Observer** | transition | A read surface that answers a question through an aperture. |
+| **Aperture** | transition | The `{ match, expose, redact }` policy bounding what an observer sees. |
+| **Optic** | target | The semantic question asked of history — the shape of the read, not the plan. |
+| **Optic basis** | shipped | Verified bounded evidence (`prepareOpticBasis()`) that an optic read is answerable without full materialization. |
+| **Bounded support rule** | transition | The smallest causally sufficient support set to answer an optic honestly. |
+| **Causal index** | transition | A rebuildable acceleration structure that finds support without whole-graph discovery. |
+| **Support fragment** | transition | A cached partial materialization keyed by support and coordinate (cache storage pending). |
+| **Materialization plan** | target | The plan deciding receipts vs. indexes vs. fragments vs. replay vs. full state. |
+| **Witness** | target | Minimal information sufficient to justify a local change result. |
+| **TickReceipt** | shipped | The operational envelope recording what happened for one admitted step. |
+| **GraphDiff** | transition | A first-class "what changed between these coordinates?" result. |
+| **Witnessed suffix admission shell** | transition | Observer-readable import/export envelope for a transported suffix (Gate D, [#663](https://github.com/git-stunts/git-warp/issues/663)). |
+| **WarpStateSnapshot** | shipped | A persisted materialized graph state at a coordinate. |
+| **WarpStateCache** | shipped | The owning system for persisted and in-memory snapshot reuse. |
+| **Checkpoint** | transition | A pinned snapshot protected from ordinary eviction. |
+
+[GLOSSARY.md](docs/GLOSSARY.md) is the canonical source for these nouns and their status; if any doc disagrees, the glossary wins.
+
+> `Optic` is marked `target` because no first-class reified optic *type* exists in the runtime yet. The fluent optic *read path* — `coordinate().optic().node().prop().read()` — is callable today; see [Optics](docs/topics/optics.md).
+
+## How it works
+
+### Deterministic and offline-first
+
+Writers can make independent changes without a central coordinator. When history converges, the same patches produce the same visible result.
+
+<details>
+<summary><strong>For the Nerds™ — convergence is a join-semilattice</strong></summary>
+
+Deterministic multi-writer merge is the statement that materialized state forms a **join-semilattice** $(L, \sqcup)$: a partial order with a least upper bound for any pair. Each writer's patches push state *up* the order, and merge is the **join** $\sqcup$ — idempotent, commutative, and associative:
+
+$$x \sqcup x = x \qquad x \sqcup y = y \sqcup x \qquad (x \sqcup y) \sqcup z = x \sqcup (y \sqcup z)$$
+
+Those three laws are exactly what "no central coordinator" buys you:
+
+- **commutativity** ⇒ writers can apply each other's patches in any order,
+- **associativity** ⇒ they can batch them however the network delivers them,
+- **idempotence** ⇒ re-delivering the same patch is harmless.
+
+So convergence isn't luck; it's the **least upper bound** $\bigsqcup_i h_i$ of everyone's observed history $h_i$. This is the CRDT (state-based / CvRDT) guarantee: monotone updates into a semilattice always reconcile to the same join, independent of message order or duplication.
+
+</details>
+
+### Append-only
+
+History is never rewritten. New claims are appended to Git refs under `refs/warp/...`.
+
+### Provenance-aware
+
+Every visible value traces back to the patch that produced it.
+
+### Bounded reads
+
+The runtime is designed so reads stay scoped. It avoids the “just materialize the whole graph” footgun.
+
+<details>
+<summary><strong>For the Nerds™ — a causal cone is a down-set</strong></summary>
+
+History is a **poset** $(H, \preceq)$ under causal precedence (Git's parent edges give the Hasse diagram). A **coordinate** picks a *consistent cut*: a down-closed set, i.e. a **down-set / order ideal**
+
+$$\downarrow\! C \;=\; \{\, x \in H \mid x \preceq c \text{ for some } c \in C \,\}.$$
+
+A **frontier** is that cut's boundary — an **antichain** of writer tips, the maximal elements of the ideal.
+
+A read's **causal cone** $D(v) = {\downarrow}\{v\}$ is the down-set generated by $v$: everything that could have influenced it, and nothing that couldn't. Because the poset is well-founded, $D(v)$ is finite even when $H$ is unbounded — which is *why* a bounded read can exist at all. The **bounded support rule** is then just the claim "this optic's answer factors through $D(v)$, so materializing the rest of $H \setminus D(v)$ is provably unnecessary."
+
+</details>
+
+### Holographic history
+
+History keeps per-entity provenance, so a single node's backward causal cone can be reconstructed and replayed on its own: `provenance.materializeSlice(nodeId)` loads only the cone's patches, never the whole graph. This slice path is currently classified as a **diagnostic** read, not a first-use application API.
+
+The worldline-wide version — *live holographic strands* and *support-scoped fragment* materialization — remains target doctrine; see [Runtime posture](#runtime-posture) and [Bounded Reads](docs/topics/bounded-reads.md).
+
+## API surface
+
+The main application entry point is `openWarpWorldline()`.
+
+A worldline gives you a small, practical interface:
+
+|Method|What it does|
+|---|---|
+|`commit()`|Admits a patch into the worldline|
+|`live()`|Reads the latest visible state|
+|`seek()`|Reads a historical coordinate|
+|`observer()`|Creates a filtered read view|
+|`prepareOpticBasis()`|Verifies bounded evidence for coordinate-based reads|
+|`coordinate()`|Captures a stable causal position|
+|`optic()`|Starts a one-off optic-shaped read|
+
+For coherent optic reads, call `prepareOpticBasis()` first, then read through a coordinate.
+
+If no bounded basis exists yet, `prepareOpticBasis()` fails closed with `E_OPTIC_NO_BOUNDED_BASIS` rather than materializing the whole graph.
+
+Advanced tooling can also use `openWarpGraph()` directly. That lower-level surface is intended for compatibility, diagnostics, substrate operations, and migration work. New application code should generally prefer worldlines and optics.
+
+## Architectural moments
+
+`openWarpGraph()` exposes the runtime through four moments:
+
+|Moment|Capabilities|What it does|
+|---|---|---|
+|Commitment|`patches`, `strands`, `comparison`|Admits claims into frontier-relative truth|
+|Folding|`checkpoint`|Re-expresses admitted history as operational artifacts|
+|Revelation|`query`, `subscriptions`, `provenance`|Exposes admitted truth under bounded rights|
+|Governance|`sync`|Transports and admits remote suffixes|
+
+Public examples use the flat aliases like `graph.query` and `graph.checkpoint`. The moment-scoped names are the same runtime object with more explicit naming.
 
 ## Why Git
 
 Git and WARP fit together because both are:
 
-- append-only in spirit
-- content-addressed
-- distributed and multi-writer
-- history-preserving
+- append-only in spirit.
+- content-addressed.
+- distributed and multi-writer.
+- history-preserving.
 
-Each writer appends patch commits under `refs/warp/<graph>/writers/<writerId>`.
-Commits point at Git's empty tree — graph history stays orthogonal to
-your source tree. Sync happens through normal `git push` / `git fetch`.
+Each writer appends patch commits under `refs/warp/<graph>/writers/<writerId>`. The commits point at Git's empty tree, so graph history stays separate from your source tree. Sync uses normal `git push` and `git fetch`.
+
+<details>
+<summary><strong>For the Nerds™ — Git as a Merkle DAG, patches as a free monoid</strong></summary>
+
+Git's object store is a **Merkle DAG**: every object is named by the hash of its content, so a commit's id transitively fixes its entire history. That gives **structural sharing** (equal subhistories are stored once — hash-consing) and **tamper-evidence** for free: change one byte upstream and every downstream id changes.
+
+git-warp leans on two consequences. First, each writer's chain at `refs/warp/<graph>/writers/<writerId>` is the **free monoid** $(W^{*},\, \cdot,\, \varepsilon)$ on that writer's claims $W$ — append-only concatenation $\cdot$, empty history $\varepsilon$ as identity, no rewriting. Second, the commits point at Git's **empty tree** (`4b825dc…`), so the DAG carries *causal* structure with an empty *file* payload: graph history rides Git's transport and dedup without ever touching your working tree. Merge law lives one layer above this (see the semilattice note); Git just supplies the verifiable spine.
+
+</details>
+
+## Continuum
+
+`git-warp` is one runtime in the [Continuum](https://github.com/flyingrobots/continuum) stack. Continuum is **not** a runtime, database, or storage engine — it is the shared **boundary protocol** that lets independent runtimes, apps, debuggers, and agents exchange *witnessed history* instead of copying one database or scraping UIs.
+
+Continuum's model shift is the same one git-warp is built on:
+
+> The graph is a coordinate chart over witnessed causal history. History is the territory; state is a policy-relative materialized view; files are readings; writes are intents; admission is witnessed.
+
+Its shared vocabulary is **Intent → Admission → Witness → Reading**:
+
+- **Intent** — "I want to do this" (a submitted patch).
+- **Admission** — the runtime decides whether it can happen.
+- **Witness** — evidence for the decision (receipts, provenance).
+- **Reading** — one lawful view of the resulting history (worldlines, optics, observers).
+
+In the stack, **git-warp and Echo own runtime truth**, while Continuum owns the boundary language and proof posture that lets those runtimes cooperate across the network.
 
 ## When to use it
 
-| Use case | Fit |
-|----------|-----|
-| Offline-first multi-writer convergence | Strong |
-| Agent/tool substrate with causal history | Strong |
-| Graph semantics without inventing merge law | Strong |
-| Speculative lanes for what-if exploration | Strong |
-| High-throughput real-time execution | Use Echo instead |
-| General-purpose OLTP | Use Postgres |
-| Full-text search / analytics | Use purpose-built engines |
-| Time-travel debugging UI | Use warp-ttd on top of git-warp |
+|Use case|Fit|
+|---|---|
+|Offline-first multi-writer convergence|Strong|
+|Agent/tool substrate with causal history|Strong|
+|Graph semantics without inventing merge law|Strong|
+|Speculative lanes for what-if exploration|Strong|
+|High-throughput real-time execution|Use Echo instead|
+|General-purpose OLTP|Use Postgres|
+|Full-text search / analytics|Use purpose-built engines|
+|Time-travel debugging UI|Use warp-ttd on top of git-warp|
+
+## Release status
+
+`v18.0.0` has shipped. `v18.1.0` is in progress and targets bounded, coordinate-scoped reads.
+
+Current focus areas for `v18.1.0`:
+
+- Worldline-first optics: `prepareOpticBasis()` plus coordinate optics keep first-use reads bounded instead of materializing the whole graph.
+- Bounded query planning: `BoundedSupportRule`, `CausalIndexPlan`, and `SupportFragmentPlan` give reads an explicit support posture ahead of execution.
+- `comparison.diff({ from, to })` returns a first-class `GraphDiff` for live Lamport ranges without wildcard scans.
+- Witnessed suffix exchange (Gate D, [#663](https://github.com/git-stunts/git-warp/issues/663)) is the active goalpost for sharing admitted history across participants.
+- Full-result helpers, graph-wide diagnostics, legacy facades, and offline migration tools remain explicitly classified instead of being presented as first-use application APIs.
+
+Live work is tracked in [GitHub Issues](https://github.com/git-stunts/git-warp/issues).
+
+For current API cost labels, see [PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md).
+
+## Runtime posture
+
+Use [GLOSSARY.md](docs/GLOSSARY.md) for shipped, transition, and target noun status.
+
+Use the [Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) and the [teaching alignment audit](docs/audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md) when a doc claim is stronger than the runtime surface.
+
+Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates, and observer apertures as the application path. Live holographic strands, common-basis braid validation, witnessed suffix admission, and support-scoped fragment materialization remain target doctrine unless their own docs say otherwise.
 
 ## Documentation
 
-- **[Getting Started](docs/GETTING_STARTED.md)** — first open, write, read, sync
-- **[Readings & Optics](docs/READINGS_AND_OPTICS.md)** — public read model and app-facing read patterns
-- **[Guide](docs/GUIDE.md)** — patterns for apps, agents, and tools
-- **[API Reference](docs/API_REFERENCE.md)** — exhaustive public API
-- **[Architecture](docs/ARCHITECTURE.md)** — hexagonal layers and admission kernel
-- **[Migration Guide](docs/migrations/v18.0.0.md)** — Worldline-first v18 API migration
-- **[CLI Guide](docs/CLI_GUIDE.md)** — terminal workflows
-- **[Vision](docs/VISION.md)** — repo doctrine
-- **[Glossary](docs/GLOSSARY.md)** — shipped, transition, and target noun status
-- **[Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md)** — evidence rule for docs-ahead claims
-- **[Specs](docs/specs/)** — normative protocol and format specifications
-
-## Substrate stack
-
-`git-warp` is part of the `@git-stunts` substrate:
-
-| Package | Role |
-|---------|------|
-| `@git-stunts/plumbing` | Git operations |
-| `@git-stunts/git-cas` | Content-addressable storage with dedup |
-| `@git-stunts/alfred` | Resilience (retry, timeout, circuit breaker) |
-| `@git-stunts/trailer-codec` | Commit message trailers |
-| `@git-stunts/vault` | Secrets management via OS keychain |
-
+- [Getting Started](docs/GETTING_STARTED.md) — first open, write, read, sync
+- [Readings & Optics](docs/READINGS_AND_OPTICS.md) — public read model and app-facing read patterns
+- [Topics](docs/topics/) — focused guides: [Optics](docs/topics/optics.md), [Observers](docs/topics/observers.md), [Bounded Reads](docs/topics/bounded-reads.md)
+- [Examples](examples/) — runnable read-model snippets
+- [Guide](docs/GUIDE.md) — patterns for apps, agents, and tools
+- [API Reference](docs/API_REFERENCE.md) — exhaustive public API
+- [Architecture](docs/ARCHITECTURE.md) — hexagonal layers and admission kernel
+- [Migration Guide](docs/migrations/v18.0.0.md) — Worldline-first v18 API migration
+- [CLI Guide](docs/CLI_GUIDE.md) — terminal workflows
+- [Vision](docs/VISION.md) — repo doctrine
+- [Glossary](docs/GLOSSARY.md) — shipped, transition, and target noun status
+- [Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) — evidence rule for docs-ahead claims
+- [Specs](docs/specs/) — normative protocol and format specifications
 ## License
 
 Apache-2.0
