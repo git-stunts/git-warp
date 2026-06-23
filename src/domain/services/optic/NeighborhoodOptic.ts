@@ -1,6 +1,7 @@
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import type CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
 import type NeighborhoodOpticReadResult from './NeighborhoodOpticReadResult.ts';
+import type Optic from './Optic.ts';
 
 export type NeighborhoodOpticReadOptions = {
   readonly direction?: Direction;
@@ -10,19 +11,23 @@ export type NeighborhoodOpticReadOptions = {
 };
 
 export default class NeighborhoodOptic {
-  private readonly _nodeId: string;
+  private readonly _optic: Optic;
   private readonly _locator: CheckpointTailWitnessLocator;
 
   constructor(options: {
-    readonly nodeId: string;
+    readonly optic: Optic;
     readonly locator: CheckpointTailWitnessLocator;
   }) {
-    this._nodeId = options.nodeId;
+    this._optic = options.optic;
     this._locator = options.locator;
     Object.freeze(this);
   }
 
+  toOptic(): Optic {
+    return this._optic;
+  }
+
   async read(options: NeighborhoodOpticReadOptions = {}): Promise<NeighborhoodOpticReadResult> {
-    return await this._locator.readNeighborhood(this._nodeId, options);
+    return await this._locator.readNeighborhood(this._optic, options);
   }
 }

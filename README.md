@@ -85,10 +85,8 @@ const coordinate = await events.coordinate();
 const role = await coordinate.optic().node("user:alice").prop("role").read();
 ```
 
----
-
 <details>
-<summary><h3>For the Nerds™: Optics</h3></summary>
+<summary><h4>For the Nerds™: Optics</h4></summary>
 
 > In category theory, an **optic** from a whole $(S, T)$ to a part $(A, B)$ is an element of a coend — an existential package over a *residual* object $M$:
 >
@@ -101,9 +99,6 @@ const role = await coordinate.optic().node("user:alice").prop("role").read();
 > And `.node("user:alice").prop("role")` is literal **optic composition** — composing optics tensors their residuals ($M_1 \otimes M_2$), so a chained read stays bounded by construction.
 
 </details>
-
----
-
 ### Bounded reads in practice
 
 Two more shipped reads stay bounded without folding the whole graph. Both use the advanced `openWarpGraph()` surface.
@@ -141,7 +136,7 @@ mindmap
       ProjectionHandle
       Observer ~
       Aperture ~
-      Optic *
+      Optic ~
       Optic basis
     Support
       Bounded support rule ~
@@ -172,7 +167,7 @@ mindmap
 | **ProjectionHandle** | shipped | A pinned read handle returned by `live()` and `seek()`. |
 | **Observer** | transition | A read surface that answers a question through an aperture. |
 | **Aperture** | transition | The `{ match, expose, redact }` policy bounding what an observer sees. |
-| **Optic** | target | The semantic question asked of history — the shape of the read, not the plan. |
+| **Optic** | transition | A first-class runtime read-intent noun used by fluent optic reads; native Continuum transport remains future work. |
 | **Optic basis** | shipped | Verified bounded evidence (`prepareOpticBasis()`) that an optic read is answerable without full materialization. |
 | **Bounded support rule** | transition | The smallest causally sufficient support set to answer an optic honestly. |
 | **Causal index** | transition | A rebuildable acceleration structure that finds support without whole-graph discovery. |
@@ -188,7 +183,7 @@ mindmap
 
 [GLOSSARY.md](docs/GLOSSARY.md) is the canonical source for these nouns and their status; if any doc disagrees, the glossary wins.
 
-> `Optic` is marked `target` because no first-class reified optic *type* exists in the runtime yet. The fluent optic *read path* — `coordinate().optic().node().prop().read()` — is callable today; see [Optics](docs/topics/optics.md).
+> `Optic` is now a reified runtime noun for the public read path. The fluent API — `coordinate().optic().node().prop().read()` — lowers into a frozen `Optic` value before execution; see [Optics](docs/topics/optics.md).
 
 ## How it works
 
@@ -197,19 +192,19 @@ mindmap
 Writers can make independent changes without a central coordinator. When history converges, the same patches produce the same visible result.
 
 <details>
-<summary><strong>For the Nerds™ — convergence is a join-semilattice</strong></summary>
+<summary><h4>For the Nerds™ — Convergence is a join-semilattice</h4></summary>
 
-Deterministic multi-writer merge is the statement that materialized state forms a **join-semilattice** $(L, \sqcup)$: a partial order with a least upper bound for any pair. Each writer's patches push state *up* the order, and merge is the **join** $\sqcup$ — idempotent, commutative, and associative:
-
-$$x \sqcup x = x \qquad x \sqcup y = y \sqcup x \qquad (x \sqcup y) \sqcup z = x \sqcup (y \sqcup z)$$
-
-Those three laws are exactly what "no central coordinator" buys you:
-
-- **commutativity** ⇒ writers can apply each other's patches in any order,
-- **associativity** ⇒ they can batch them however the network delivers them,
-- **idempotence** ⇒ re-delivering the same patch is harmless.
-
-So convergence isn't luck; it's the **least upper bound** $\bigsqcup_i h_i$ of everyone's observed history $h_i$. This is the CRDT (state-based / CvRDT) guarantee: monotone updates into a semilattice always reconcile to the same join, independent of message order or duplication.
+> Deterministic multi-writer merge is the statement that materialized state forms a **join-semilattice** $(L, \sqcup)$: a partial order with a least upper bound for any pair. Each writer's patches push state *up* the order, and merge is the **join** $\sqcup$ — idempotent, commutative, and associative:
+>
+> $$x \sqcup x = x \qquad x \sqcup y = y \sqcup x \qquad (x \sqcup y) \sqcup z = x \sqcup (y \sqcup z)$$
+>
+> Those three laws are exactly what "no central coordinator" buys you:
+>
+> - **commutativity** ⇒ writers can apply each other's patches in any order,
+> - **associativity** ⇒ they can batch them however the network delivers them,
+> - **idempotence** ⇒ re-delivering the same patch is harmless.
+>
+> So convergence isn't luck; it's the **least upper bound** $\bigsqcup_i h_i$ of everyone's observed history $h_i$. This is the CRDT (state-based / CvRDT) guarantee: monotone updates into a semilattice always reconcile to the same join, independent of message order or duplication.
 
 </details>
 
@@ -226,15 +221,15 @@ Every visible value traces back to the patch that produced it.
 The runtime is designed so reads stay scoped. It avoids the “just materialize the whole graph” footgun.
 
 <details>
-<summary><strong>For the Nerds™ — a causal cone is a down-set</strong></summary>
+<summary><h4>For the Nerds™ — A causal cone is a down-set</h4></summary>
 
-History is a **poset** $(H, \preceq)$ under causal precedence (Git's parent edges give the Hasse diagram). A **coordinate** picks a *consistent cut*: a down-closed set, i.e. a **down-set / order ideal**
-
-$$\downarrow\! C \;=\; \{\, x \in H \mid x \preceq c \text{ for some } c \in C \,\}.$$
-
-A **frontier** is that cut's boundary — an **antichain** of writer tips, the maximal elements of the ideal.
-
-A read's **causal cone** $D(v) = {\downarrow}\{v\}$ is the down-set generated by $v$: everything that could have influenced it, and nothing that couldn't. Because the poset is well-founded, $D(v)$ is finite even when $H$ is unbounded — which is *why* a bounded read can exist at all. The **bounded support rule** is then just the claim "this optic's answer factors through $D(v)$, so materializing the rest of $H \setminus D(v)$ is provably unnecessary."
+> History is a **poset** $(H, \preceq)$ under causal precedence (Git's parent edges give the Hasse diagram). A **coordinate** picks a *consistent cut*: a down-closed set, i.e. a **down-set / order ideal**
+>
+> $$\downarrow\! C \;=\; \{\, x \in H \mid x \preceq c \text{ for some } c \in C \,\}.$$
+>
+> A **frontier** is that cut's boundary — an **antichain** of writer tips, the maximal elements of the ideal.
+>
+> A read's **causal cone** $D(v) = {\downarrow}\{v\}$ is the down-set generated by $v$: everything that could have influenced it, and nothing that couldn't. Because the poset is well-founded, $D(v)$ is finite even when $H$ is unbounded — which is *why* a bounded read can exist at all. The **bounded support rule** is then just the claim "this optic's answer factors through $D(v)$, so materializing the rest of $H \setminus D(v)$ is provably unnecessary."
 
 </details>
 
@@ -291,11 +286,11 @@ Git and WARP fit together because both are:
 Each writer appends patch commits under `refs/warp/<graph>/writers/<writerId>`. The commits point at Git's empty tree, so graph history stays separate from your source tree. Sync uses normal `git push` and `git fetch`.
 
 <details>
-<summary><strong>For the Nerds™ — Git as a Merkle DAG, patches as a free monoid</strong></summary>
+<summary><h4>For the Nerds™ — Git as a Merkle DAG, patches as a free monoid</h4></summary>
 
-Git's object store is a **Merkle DAG**: every object is named by the hash of its content, so a commit's id transitively fixes its entire history. That gives **structural sharing** (equal subhistories are stored once — hash-consing) and **tamper-evidence** for free: change one byte upstream and every downstream id changes.
-
-git-warp leans on two consequences. First, each writer's chain at `refs/warp/<graph>/writers/<writerId>` is the **free monoid** $(W^{*},\, \cdot,\, \varepsilon)$ on that writer's claims $W$ — append-only concatenation $\cdot$, empty history $\varepsilon$ as identity, no rewriting. Second, the commits point at Git's **empty tree** (`4b825dc…`), so the DAG carries *causal* structure with an empty *file* payload: graph history rides Git's transport and dedup without ever touching your working tree. Merge law lives one layer above this (see the semilattice note); Git just supplies the verifiable spine.
+> Git's object store is a **Merkle DAG**: every object is named by the hash of its content, so a commit's id transitively fixes its entire history. That gives **structural sharing** (equal subhistories are stored once — hash-consing) and **tamper-evidence** for free: change one byte upstream and every downstream id changes.
+>
+> `git-warp` leans on two consequences. First, each writer's chain at `refs/warp/<graph>/writers/<writerId>` is the **free monoid** $(W^{*},\, \cdot,\, \varepsilon)$ on that writer's claims $W$ — append-only concatenation $\cdot$, empty history $\varepsilon$ as identity, no rewriting. Second, the commits point at Git's **empty tree** (`4b825dc…`), so the DAG carries *causal* structure with an empty *file* payload: graph history rides Git's transport and dedup without ever touching your working tree. Merge law lives one layer above this (see the semilattice note); Git just supplies the verifiable spine.
 
 </details>
 
@@ -368,6 +363,7 @@ Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates
 - [Glossary](docs/GLOSSARY.md) — shipped, transition, and target noun status
 - [Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) — evidence rule for docs-ahead claims
 - [Specs](docs/specs/) — normative protocol and format specifications
+
 ## License
 
 Apache-2.0

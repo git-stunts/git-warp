@@ -5,7 +5,7 @@ task_id: "v18-reified-optics"
 legend: "API"
 release_home: "v18.1.0"
 issue: "https://github.com/git-stunts/git-warp/issues/665"
-status: "draft"
+status: "landed"
 base_commit: "33ed62aaef7f323b60b17398cc87eab8d4a2ed79"
 owners:
   - "@git-stunts"
@@ -423,4 +423,9 @@ behind it.
 
 ## Retrospective
 
-TBD after implementation and validation.
+Implementation landed the conservative public noun: `Optic` is exported and
+runtime-backed for node, node-property, neighborhood, and traversal reads. The
+fluent path now lowers into `Optic` before checkpoint-tail execution, while
+native Continuum witnesshood and remote optic transport remain outside this
+cycle. Public docs therefore mark `Optic` as `transition`, not `target` and not
+fully native Continuum witnesshood.

@@ -9,6 +9,7 @@ import LogicalTraversal from './query/LogicalTraversal.ts';
 import QueryBuilder from './query/QueryBuilder.ts';
 import QueryError from '../errors/QueryError.ts';
 import CoordinateCheckpointTailOpticSource from './optic/CoordinateCheckpointTailOpticSource.ts';
+import OpticCoordinatePosture from './optic/OpticCoordinatePosture.ts';
 import WorldlineOptic from './optic/WorldlineOptic.ts';
 import type CheckpointTailOpticSource from './optic/CheckpointTailOpticSource.ts';
 import type {
@@ -130,23 +131,28 @@ export default class ProjectionHandle {
       return new WorldlineOptic({ source: this._opticSource });
     }
     if (this._source instanceof CoordinateSelector) {
-      if (this._source.checkpointSha === null) {
-        throw new QueryError('coordinate optic requires a checkpoint-tail bounded basis source', {
-          code: 'E_OPTIC_NO_BOUNDED_BASIS',
-          context: { reason: 'coordinate-without-optic-basis' },
-        });
-      }
-      return new WorldlineOptic({
-        source: new CoordinateCheckpointTailOpticSource({
-          source: this._opticSource,
-          checkpointSha: this._source.checkpointSha,
-          frontier: this._source.frontier,
-        }),
-      });
+      return this._coordinateOptic(this._opticSource);
     }
     throw new QueryError('checkpoint-tail optics support live and coordinate worldlines only', {
       code: 'E_OPTIC_NO_BOUNDED_BASIS',
       context: { selector: this._source.constructor.name },
+    });
+  }
+
+  private _coordinateOptic(source: CheckpointTailOpticSource): WorldlineOptic {
+    if (!(this._source instanceof CoordinateSelector) || this._source.checkpointSha === null) {
+      throw new QueryError('coordinate optic requires a checkpoint-tail bounded basis source', {
+        code: 'E_OPTIC_NO_BOUNDED_BASIS',
+        context: { reason: 'coordinate-without-optic-basis' },
+      });
+    }
+    return new WorldlineOptic({
+      source: new CoordinateCheckpointTailOpticSource({
+        source,
+        checkpointSha: this._source.checkpointSha,
+        frontier: this._source.frontier,
+      }),
+      coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
     });
   }
 
@@ -229,6 +235,7 @@ export default class ProjectionHandle {
         checkpointSha: this._source.checkpointSha,
         frontier: this._source.frontier,
       }),
+      coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
     });
   }
 

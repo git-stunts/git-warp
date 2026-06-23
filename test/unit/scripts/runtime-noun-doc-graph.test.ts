@@ -5,8 +5,13 @@ import {
   BoundedSupportRule,
   CausalIndexPlan,
   Observer,
+  Optic,
+  OpticAperturePosture,
+  OpticBasisPosture,
+  OpticCoordinatePosture,
   SupportFragmentPlan,
   WarpWorldlineCoordinate,
+  ContinuumEvidencePosture,
 } from '../../../index.ts';
 import type { Aperture } from '../../../index.ts';
 import MarkdownDocument from '../../helpers/MarkdownDocument.ts';
@@ -23,14 +28,13 @@ const runtimeTerms = Object.freeze([
   { term: 'Coordinate', exportedName: 'WarpWorldlineCoordinate', status: 'transition' },
   { term: 'Observer', exportedName: 'Observer', status: 'transition' },
   { term: 'Aperture', exportedName: 'Aperture', status: 'transition' },
+  { term: 'Optic', exportedName: 'Optic', status: 'transition' },
   { term: 'WarpStateSnapshot', exportedName: 'SnapshotWarpState', status: 'shipped' },
   { term: 'Causal index', exportedName: 'CausalIndexPlan', status: 'transition' },
   { term: 'Support fragment', exportedName: 'SupportFragmentPlan', status: 'transition' },
 ]);
 
-const targetTerms = Object.freeze([
-  'Optic',
-]);
+const targetTerms = Object.freeze([]);
 
 function glossaryRow(term: string) {
   return glossary.tableRowByFirstCell(`\`${term}\``);
@@ -101,6 +105,13 @@ describe('runtime noun documentation graph', () => {
       evaluatedValue: new Uint8Array([1, 2, 3]),
       verkleProof: new Uint8Array([4, 5, 6]),
     });
+    const optic = Optic.node({
+      nodeId: 'user:alice',
+      coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
+      aperturePosture: OpticAperturePosture.defaultFullRead(),
+      basisPosture: OpticBasisPosture.checkpointTailBasisVerified(),
+      evidencePosture: ContinuumEvidencePosture.translatedGitWarpEvidence(),
+    });
 
     expect(observer.name).toBe('public-users');
     expect(observer.source?.kind).toBe('live');
@@ -116,5 +127,10 @@ describe('runtime noun documentation graph', () => {
     });
     expect(proof.evaluatedValueBytes()).toEqual(new Uint8Array([1, 2, 3]));
     expect(proof.verkleProofBytes()).toEqual(new Uint8Array([4, 5, 6]));
+    expect(optic.toContextValue()).toMatchObject({
+      opticKind: 'node',
+      target: { nodeId: 'user:alice' },
+      supportRule: 'exact-entity',
+    });
   });
 });

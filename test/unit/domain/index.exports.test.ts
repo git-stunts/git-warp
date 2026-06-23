@@ -66,6 +66,11 @@ import WarpAppDefault, {
   ObserverPlan,
   ObserverReadingEnvelope,
   ProjectionHandle,
+  Optic,
+  OpticAperturePosture,
+  OpticBasisPosture,
+  OpticCoordinatePosture,
+  OpticSupportRule,
   ContinuumArtifactAuthorityError,
 
   // Cancellation utilities
@@ -186,6 +191,19 @@ describe('index.ts exports', () => {
       expect(ProjectionHandle).toBeDefined();
       expect(typeof ProjectionHandle).toBe('function');
       expect('Worldline' in publicApi).toBe(false);
+    });
+
+    it('exports reified Optic runtime nouns', () => {
+      expect(Optic).toBeDefined();
+      expect(typeof Optic).toBe('function');
+      expect(OpticAperturePosture).toBeDefined();
+      expect(typeof OpticAperturePosture).toBe('function');
+      expect(OpticBasisPosture).toBeDefined();
+      expect(typeof OpticBasisPosture).toBe('function');
+      expect(OpticCoordinatePosture).toBeDefined();
+      expect(typeof OpticCoordinatePosture).toBe('function');
+      expect(OpticSupportRule).toBeDefined();
+      expect(typeof OpticSupportRule).toBe('function');
     });
 
     it('exports Observer', () => {

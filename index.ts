@@ -155,6 +155,11 @@ import WarpWorldline, { openWarpWorldline } from './src/domain/WarpWorldline.ts'
 import { WarpOpenOptions } from './src/domain/warp/RuntimeHostBoot.ts';
 import WarpWorldlineCoordinate from './src/domain/WarpWorldlineCoordinate.ts';
 import WarpWorldlineOpticBasis from './src/domain/WarpWorldlineOpticBasis.ts';
+import Optic from './src/domain/services/optic/Optic.ts';
+import OpticAperturePosture from './src/domain/services/optic/OpticAperturePosture.ts';
+import OpticBasisPosture from './src/domain/services/optic/OpticBasisPosture.ts';
+import OpticCoordinatePosture from './src/domain/services/optic/OpticCoordinatePosture.ts';
+import OpticSupportRule from './src/domain/services/optic/OpticSupportRule.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
@@ -180,6 +185,15 @@ import type { Aperture, ObserverConfig } from './src/domain/types/Aperture.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
 import type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
 import type { WarpWorldlineOpenOptions, WarpWorldlinePatchBuild } from './src/domain/WarpWorldline.ts';
+import type {
+  OpticContextValue,
+  OpticFields,
+  OpticPostureFields,
+} from './src/domain/services/optic/Optic.ts';
+import type { OpticAperturePostureValue } from './src/domain/services/optic/OpticAperturePosture.ts';
+import type { OpticBasisPostureValue } from './src/domain/services/optic/OpticBasisPosture.ts';
+import type { OpticCoordinatePostureValue } from './src/domain/services/optic/OpticCoordinatePosture.ts';
+import type { OpticSupportRuleValue } from './src/domain/services/optic/OpticSupportRule.ts';
 import type { ApertureOpeningProofFields } from './src/domain/services/wormhole/ApertureOpeningProof.ts';
 import type { ZKWormholeEdgeFields } from './src/domain/services/wormhole/ZKWormholeEdge.ts';
 import type { ApertureOpeningVerificationResult, ZKWormholeVerificationResult } from './src/domain/services/wormhole/ZKWormholeVerificationResult.ts';
@@ -310,6 +324,11 @@ export {
   WarpWorldline,
   WarpWorldlineCoordinate,
   WarpWorldlineOpticBasis,
+  Optic,
+  OpticAperturePosture,
+  OpticBasisPosture,
+  OpticCoordinatePosture,
+  OpticSupportRule,
   ProjectionHandle,
 
   // Multi-writer graph support (legacy/diagnostic — prefer openWarpWorldline)
@@ -430,6 +449,13 @@ export type {
   WarpKernelPort,
   WarpWorldlineOpenOptions,
   WarpWorldlinePatchBuild,
+  OpticAperturePostureValue,
+  OpticBasisPostureValue,
+  OpticContextValue,
+  OpticCoordinatePostureValue,
+  OpticFields,
+  OpticPostureFields,
+  OpticSupportRuleValue,
   BoundedSupportDirection,
   BoundedSupportKind,
   BoundedSupportRuleFields,

@@ -1,0 +1,105 @@
+import { describe, expect, it } from 'vitest';
+import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
+import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
+import {
+  DEFAULT_COMMIT_MESSAGE_CODEC,
+} from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import CheckpointTailOpticSource, {
+  type CheckpointTailCheckpointFrontier,
+  type CheckpointTailPatchEntry,
+} from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
+import Optic from '../../../../../src/domain/services/optic/Optic.ts';
+import OpticCoordinatePosture from '../../../../../src/domain/services/optic/OpticCoordinatePosture.ts';
+import WorldlineOptic from '../../../../../src/domain/services/optic/WorldlineOptic.ts';
+import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
+import type CodecPort from '../../../../../src/ports/CodecPort.ts';
+import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
+
+class TestCheckpointTailOpticSource extends CheckpointTailOpticSource {
+  readonly graphName = 'worldline-optic-reification';
+  readonly _persistence: CorePersistence = new InMemoryGraphAdapter();
+  readonly _codec: CodecPort = defaultCodec;
+  readonly _blobStorage: BlobStoragePort | null = null;
+  readonly _commitMessageCodec: CommitMessageCodecPort = DEFAULT_COMMIT_MESSAGE_CODEC;
+
+  discoverWriters(): Promise<string[]> {
+    return Promise.resolve([]);
+  }
+
+  _readCheckpointSha(): Promise<string | null> {
+    return Promise.resolve(null);
+  }
+
+  _loadPatchChainFromSha(): Promise<CheckpointTailPatchEntry[]> {
+    return Promise.resolve([]);
+  }
+
+  _loadWriterPatches(): Promise<CheckpointTailPatchEntry[]> {
+    return Promise.resolve([]);
+  }
+
+  _validatePatchAgainstCheckpoint(
+    _writerId: string,
+    _incomingSha: string,
+    _checkpoint: CheckpointTailCheckpointFrontier | null | undefined,
+  ): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+describe('WorldlineOptic', () => {
+  it('lowers node and property scopes into reified Optic nouns', () => {
+    const worldlineOptic = new WorldlineOptic({
+      source: new TestCheckpointTailOpticSource(),
+      coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
+    });
+
+    const nodeScope = worldlineOptic.node('node:alpha');
+    const propertyScope = nodeScope.prop('role');
+
+    expect(nodeScope.toOptic()).toBeInstanceOf(Optic);
+    expect(nodeScope.toOptic().toContextValue()).toMatchObject({
+      opticKind: 'node',
+      target: { nodeId: 'node:alpha' },
+      coordinatePosture: 'captured-coordinate',
+      supportRule: 'exact-entity',
+    });
+    expect(propertyScope.toOptic().toContextValue()).toMatchObject({
+      opticKind: 'node-property',
+      target: { nodeId: 'node:alpha', propertyKey: 'role' },
+      coordinatePosture: 'captured-coordinate',
+      supportRule: 'exact-entity',
+    });
+  });
+
+  it('lowers neighborhood and traversal scopes with bounded-support posture', () => {
+    const worldlineOptic = new WorldlineOptic({
+      source: new TestCheckpointTailOpticSource(),
+    });
+
+    const neighborhoodScope = worldlineOptic.neighborhood('node:hub');
+    const traversalScope = worldlineOptic.traversal('node:hub');
+
+    expect(neighborhoodScope.toOptic().toContextValue()).toMatchObject({
+      opticKind: 'neighborhood',
+      target: { nodeId: 'node:hub' },
+      coordinatePosture: 'live-one-off',
+      supportRule: 'neighborhood',
+    });
+    expect(traversalScope.toOptic().toContextValue()).toMatchObject({
+      opticKind: 'traversal',
+      target: { nodeId: 'node:hub' },
+      supportRule: 'global-discovery-refused',
+    });
+    expect(traversalScope.toOptic({
+      maxDepth: 1,
+      maxNodes: 1,
+      maxEdges: 1,
+    }).toContextValue()).toMatchObject({
+      opticKind: 'traversal',
+      target: { nodeId: 'node:hub' },
+      supportRule: 'traversal-window',
+    });
+  });
+});

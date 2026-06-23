@@ -46,13 +46,17 @@ failures are different — `E_OPTIC_TAIL_BUDGET_EXCEEDED` and
 already exists. For two reads that must describe the same causal position, use a
 single captured coordinate.
 
-## Noun status: read path vs. reified type
+## Noun status: reified runtime type
 
-The optic **read path above is callable today**. The optic as a first-class,
-reified runtime **type/noun** is `target` in [`docs/GLOSSARY.md`](../GLOSSARY.md)
-("no first-class optic noun exists in runtime today"). Reifying `Optic` is tied
-to the Paper VII admission kernel and is design-cycle work; the noun should be
-coordinated with Continuum's boundary vocabulary, not invented ad hoc.
+The optic **read path above is callable today**, and it lowers into a
+first-class, reified runtime **type/noun** before execution. The exported
+`Optic` object carries the read target, coordinate posture, basis posture,
+support rule, aperture posture, and translated Continuum evidence posture.
+
+That makes `Optic` a git-warp runtime noun, not a Continuum-native witness. The
+current noun is marked `transition` in [`docs/GLOSSARY.md`](../GLOSSARY.md)
+because remote optic transport, native Continuum witnesshood, and observer-owned
+aperture transport remain future work.
 
 ## For the Nerds™ — the categorical optic
 

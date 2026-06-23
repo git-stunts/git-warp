@@ -79,6 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Worldline-first callers run coherent node and property optic reads from a
   stable coordinate while keeping `openWarpGraph()` and materialize-first APIs
   out of first-use application code.
+- `Optic` is now an exported, runtime-backed read-intent noun carrying target,
+  coordinate, basis, support, aperture, and translated Continuum evidence
+  posture for node, node-property, neighborhood, and traversal reads.
 - Observers now carry an optional structural basis and expose deterministic
   accumulation/emission objects (`ObserverBasis`, `ObserverAccumulation`, and
   `ObserverEmission`) alongside the existing projection/query surface.

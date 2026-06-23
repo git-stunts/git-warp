@@ -2,13 +2,16 @@
 
 Status: pre-tag release evidence packet for the `v18.1.0` release-prep
 line. No `v18.1.0` tag has been cut. Tagging still requires explicit operator
-approval after the release gate below is complete, merged, and locally green.
+approval after the release gate below is merged and locally green.
 
 Date: 2026-06-23.
 
 ## Release Gate
 
-`v18.1.0` must not ship until the reified Optic design cycle is complete.
+`v18.1.0` must not ship until the reified Optic design cycle is complete. This
+packet now records the runtime implementation and local evidence for that gate;
+final tag approval still requires the release guard and GitHub issue gates to
+be green after merge.
 
 Gate:
 
@@ -23,8 +26,8 @@ remaining limitation.
 
 ## Current Packet Scope
 
-This packet records the release-prep state established before the Optic
-reification implementation lands:
+This packet records the release-prep state after the Optic reification
+implementation landed:
 
 - public README accuracy pass;
 - focused topic docs for Optics, Observers, and Bounded Reads;
@@ -32,7 +35,8 @@ reification implementation lands:
 - ESLint configuration repair;
 - root npm, JSR, lockfile, and private workspace versions aligned at `18.1.0`;
 - `CHANGELOG.md` promoted to a dated `18.1.0` entry;
-- hard release gate for the reified Optic runtime noun.
+- reified `Optic` runtime noun for fluent node, node-property, neighborhood,
+  and traversal reads.
 
 ## Version Lockstep
 
@@ -64,8 +68,8 @@ The final tag gate must have:
 - zero open issues in the `v18.1.0` milestone;
 - zero open issues in earlier release milestones.
 
-At packet creation time, #665 is intentionally open and labeled
-`priority:asap`; that is the hard release blocker for reified Optics.
+At implementation time, #665 remains the release-tracking issue. It must be
+closed or otherwise explicitly superseded before the final tag gate can pass.
 
 ## Validation
 
@@ -79,6 +83,22 @@ npx markdownlint-cli CHANGELOG.md \
 
 Final validation must append the completed #665 implementation tests, release
 guard output, and package preflight output before tagging.
+
+Implementation validation:
+
+```bash
+npx vitest run test/unit/domain/index.exports.test.ts \
+  test/unit/domain/services/optic/Optic.test.ts \
+  test/unit/domain/services/optic/WorldlineOptic.test.ts \
+  test/unit/domain/services/optic/TraversalOptic.test.ts
+
+npm run typecheck
+
+npx vitest run test/conformance/v17CheckpointTailOpticReadBasis.test.ts \
+  test/conformance/v18FirstUseOpticsHonesty.test.ts \
+  test/conformance/v18NeighborhoodOpticReadBasis.test.ts \
+  test/conformance/v18TraversalOpticReadBasis.test.ts
+```
 
 ## Deterministic reproducibility
 
@@ -96,7 +116,10 @@ The active `v18.1.0` goalpost is reified Optics:
 
 - issue #665;
 - design `0275-v18-reified-optics`;
-- final witness to be appended after implementation and validation land.
+- runtime witness: `test/unit/domain/services/optic/Optic.test.ts`;
+- lowering witness: `test/unit/domain/services/optic/WorldlineOptic.test.ts`;
+- package export witness: `test/unit/domain/index.exports.test.ts`;
+- conformance witnesses listed in Validation.
 
 ## Canonical fixtures and witnesses
 
@@ -108,9 +131,12 @@ Current packet witnesses:
 - `docs/topics/optics.md`
 - `docs/topics/observers.md`
 - `docs/topics/bounded-reads.md`
-
-Final packet witnesses must include the targeted reified Optic tests added by
-#665.
+- `test/unit/domain/services/optic/Optic.test.ts`
+- `test/unit/domain/services/optic/WorldlineOptic.test.ts`
+- `test/unit/domain/index.exports.test.ts`
+- `test/conformance/v18FirstUseOpticsHonesty.test.ts`
+- `test/conformance/v18NeighborhoodOpticReadBasis.test.ts`
+- `test/conformance/v18TraversalOpticReadBasis.test.ts`
 
 ## Documentation Evidence
 
@@ -118,8 +144,9 @@ The public documentation now distinguishes:
 
 - shipped first-use read path: `prepareOpticBasis()`, `coordinate()`, and
   `coordinate().optic()`;
-- target runtime noun: first-class `Optic` reification still pending until
-  issue #665 lands;
+- transition runtime noun: first-class `Optic` reification has landed for the
+  public read path, while native Continuum witnesshood and remote transport
+  remain out of scope;
 - Continuum posture: git-warp evidence is translated git-warp evidence shaped
   for Continuum unless native Continuum witnesshood is proven separately.
 
@@ -151,18 +178,16 @@ with the landed Optic runtime noun.
 
 Accepted only for this scaffold packet:
 
-- reified Optic implementation is still pending behind #665;
-- native Continuum witnesshood remains out of scope;
+- `Optic` is marked `transition`, not `shipped`, because native Continuum
+  witnesshood and remote optic transport remain out of scope;
 - release evidence still needs final validation output before tag approval.
 
 ## Required Closeout Evidence
 
 Before tagging `v18.1.0`, append the final closeout evidence here:
 
-- issue #665 closed or explicitly superseded;
-- implementation commit or PR link;
-- targeted optic reification test commands and results;
-- docs/glossary status transition;
+- issue #665 closed or explicitly superseded after merge;
+- implementation commit or PR link after merge;
 - final release guard result;
 - accepted residual risks, if any.
 
