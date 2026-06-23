@@ -58,6 +58,7 @@ import WarpAppDefault, {
   WarpWorldline,
   WarpWorldlineCoordinate,
   WarpWorldlineOpticBasis,
+  ContinuumEvidencePosture,
   Optic,
   OpticAperturePosture,
   OpticBasisPosture,
