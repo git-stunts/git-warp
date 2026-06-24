@@ -48,8 +48,7 @@ first-class runtime noun, puts coherent optic reads on the public
 observer reading envelopes, sharpens bounded support planning, and keeps the
 new consolidated docs topology under an executable guard.
 
-See [CHANGELOG.md](CHANGELOG.md) for the full release notes. The GitHub
-release will be published after the `v18.1.0` tag lands on `main`.
+See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
 ## Quick start
 
