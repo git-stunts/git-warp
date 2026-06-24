@@ -4,10 +4,21 @@
  * Pairs with docs/topics/optics.md. Illustrative: run against a real
  * @git-stunts/plumbing-backed Git repository.
  */
-import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
+import {
+  GitGraphAdapter,
+  openWarpWorldline,
+  type PropValue,
+} from '@git-stunts/git-warp';
 import GitPlumbing from '@git-stunts/plumbing';
 
-export async function readRoleThroughOptic(cwd: string): Promise<unknown> {
+type PublicNodePropertyRead = {
+  readonly nodeId: string;
+  readonly key: string;
+  readonly exists: boolean;
+  readonly value: PropValue | undefined;
+};
+
+export async function readRoleThroughOptic(cwd: string): Promise<PublicNodePropertyRead> {
   const plumbing = new GitPlumbing({ cwd });
   const persistence = new GitGraphAdapter({ plumbing });
 

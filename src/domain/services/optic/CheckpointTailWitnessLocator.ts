@@ -116,6 +116,7 @@ export default class CheckpointTailWitnessLocator {
     requireOpticKind(optic, 'traversal');
     const startNodeId = optic.nodeId();
     try {
+      requireExecutableTraversalSupport(optic, options);
       return await this._readTraversalResult(optic, options);
     } catch (error) {
       if (error instanceof QueryError) {
@@ -271,6 +272,39 @@ function requireOpticKind(optic: Optic, opticKind: OpticKindValue): void {
       context: { expectedOpticKind: opticKind },
     });
   }
+}
+
+function requireExecutableTraversalSupport(
+  optic: Optic,
+  options: TraversalOpticReadOptions,
+): void {
+  if (optic.supportRule.isTraversalWindow()) {
+    return;
+  }
+
+  if (hasTraversalWindowOptions(options)) {
+    throw new QueryError('Traversal optic support rule refuses bounded traversal execution.', {
+      code: 'E_OPTIC_SCHEMA',
+      context: {
+        field: 'supportRule',
+        supportRule: optic.supportRule.toString(),
+        reason: 'requires-global-scan',
+      },
+    });
+  }
+
+  throw new QueryError('Traversal optic requires explicit bounded traversal limits.', {
+    code: 'E_OPTIC_TRAVERSAL_UNBOUNDED',
+    context: { field: 'supportRule', reason: 'requires-global-scan' },
+  });
+}
+
+function hasTraversalWindowOptions(options: TraversalOpticReadOptions): boolean {
+  return (
+    options.maxDepth !== undefined
+    && options.maxNodes !== undefined
+    && options.maxEdges !== undefined
+  );
 }
 
 function normalizeLabels(labels: readonly string[]): readonly string[] {

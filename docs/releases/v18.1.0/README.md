@@ -68,8 +68,9 @@ The final tag gate must have:
 - zero open issues in the `v18.1.0` milestone;
 - zero open issues in earlier release milestones.
 
-At implementation time, #665 remains the release-tracking issue. It must be
-closed or otherwise explicitly superseded before the final tag gate can pass.
+#665 is closed as the reified Optic tracker. PR #666 remains the unmerged
+implementation and release-prep vehicle; final tag approval still requires the
+PR merge plus green release guard and preflight evidence.
 
 #663 is closed as a v18.1.0 scope correction, not as proof of Continuum Gate D.
 The live Echo/git-warp suffix-exchange pass rule still belongs to the open
@@ -198,8 +199,8 @@ Accepted only for this scaffold packet:
 
 Before tagging `v18.1.0`, append the final closeout evidence here:
 
-- issue #665 closed or explicitly superseded after merge;
-- implementation commit or PR link after merge;
+- issue #665 closeout link;
+- PR #666 merge commit or successor implementation PR link;
 - final release guard result;
 - accepted residual risks, if any.
 

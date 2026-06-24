@@ -99,6 +99,7 @@ const role = await coordinate.optic().node("user:alice").prop("role").read();
 > And `.node("user:alice").prop("role")` is literal **optic composition** — composing optics tensors their residuals ($M_1 \otimes M_2$), so a chained read stays bounded by construction.
 
 </details>
+
 ### Bounded reads in practice
 
 Two more shipped reads stay bounded without folding the whole graph. Both use the advanced `openWarpGraph()` surface.

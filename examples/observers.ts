@@ -4,10 +4,18 @@
  * Pairs with docs/topics/observers.md. Illustrative: run against a real
  * @git-stunts/plumbing-backed Git repository.
  */
-import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
+import {
+  GitGraphAdapter,
+  openWarpWorldline,
+  type SnapshotPropValue,
+} from '@git-stunts/git-warp';
 import GitPlumbing from '@git-stunts/plumbing';
 
-export async function readThroughPublicAperture(cwd: string): Promise<unknown> {
+type PublicNodeProps = Readonly<{ [key: string]: SnapshotPropValue }>;
+
+export async function readThroughPublicAperture(
+  cwd: string,
+): Promise<PublicNodeProps | null> {
   const plumbing = new GitPlumbing({ cwd });
   const persistence = new GitGraphAdapter({ plumbing });
 
