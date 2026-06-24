@@ -337,7 +337,7 @@ Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates
 
 ## Documentation
 
-- [Topics](docs/topics/index.md) — task-oriented documentation map
+- [Topics](docs/topics/README.md) — task-oriented documentation map
 - [Getting started](docs/topics/getting-started.md) — first open, write, read, sync
 - [Optics](docs/topics/optics.md), [Observers](docs/topics/observers.md), and [Bounded reads](docs/topics/bounded-reads.md) — the current public read model
 - [Querying](docs/topics/querying.md), [Sync](docs/topics/sync.md), and [CLI](docs/topics/cli.md) — common usage paths
@@ -417,7 +417,7 @@ Yes. Graph history lives under WARP refs such as `refs/warp/<graph>/writers/<wri
 
 ### Where can I get help or see examples?
 
-[examples/](examples/), [docs/topics/](docs/topics/index.md), [Issues](https://github.com/git-stunts/git-warp/issues).
+[examples/](examples/), [docs/topics/](docs/topics/README.md), [Issues](https://github.com/git-stunts/git-warp/issues).
 
 ---
 

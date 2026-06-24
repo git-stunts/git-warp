@@ -131,7 +131,7 @@ This is the intended documentation layout for the live corpus.
   Root architecture and implementation boundary map.
 - `CHANGELOG.md`
   Public release history.
-- `docs/topics/index.md`
+- `docs/topics/README.md`
   Canonical docs topic router.
 - `docs/topics/*.md`
   Reader-task pages for onboarding, app workflows, read surfaces, CLI work,

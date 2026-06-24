@@ -116,7 +116,7 @@ source file, design, or release evidence row.
 | `CHANGELOG.md` | `TBD` | Diff since previous public tag is accurately summarized. |
 | `README.md` | `TBD` | Front-door release status, install, examples, and docs links reviewed. |
 | `ARCHITECTURE.md` | `TBD` | Architecture, ports, adapters, storage model, and public/core boundary reviewed. |
-| `docs/topics/index.md` | `TBD` | Topic router and public docs map reviewed. |
+| `docs/topics/README.md` | `TBD` | Topic router and public docs map reviewed. |
 | `docs/topics/getting-started.md` | `TBD` | First-use workflow reviewed. |
 | `docs/topics/optics.md` | `TBD` | Optic setup, read basis, and noun status reviewed. |
 | `docs/topics/observers.md` | `TBD` | Aperture and redaction posture reviewed. |

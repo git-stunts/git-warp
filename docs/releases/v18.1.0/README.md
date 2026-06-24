@@ -172,7 +172,7 @@ Release documentation review surface:
 - `CHANGELOG.md`
 - `README.md`
 - `ARCHITECTURE.md`
-- `docs/topics/index.md`
+- `docs/topics/README.md`
 - `docs/topics/getting-started.md`
 - `docs/topics/optics.md`
 - `docs/topics/observers.md`
