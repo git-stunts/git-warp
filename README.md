@@ -372,9 +372,82 @@ Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates
 - [Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) — evidence rule for docs-ahead claims
 - [Specs](docs/specs/) — normative protocol and format specifications
 
+---
+
+## FAQ
+
+### What is `git-warp`, really?
+
+A Git-native causal history runtime. It stores graph-shaped data as an append-only log of patches in Git refs, then provides safe, bounded reads over that history.
+
+It is deliberately "weird": optimized for offline-first, multi-writer, provenance-first use cases rather than high-throughput OLTP.
+
+### How does it differ from a normal CRDT or graph database?
+
+It is a **state-based CvRDT substrate** with strong emphasis on bounded reads, perfect provenance, and Git as the transport layer.
+
+This gives you deterministic convergence without a central server, but reads are intentionally scoped (via optics and coordinates) instead of materializing the entire graph.
+
+### What does the data model look like?
+
+**Nodes**, **properties**, and **directed edges** identified by stable string IDs. Changes are additive patches that are never rewritten. See [Getting Started](docs/GETTING_STARTED.md).
+
+### Can multiple people/agents write at the same time?
+
+Yes — independently, even fully offline. Histories converge deterministically via the join-semilattice model. No locking required.
+
+### How do I install and set it up?
+
+```bash
+npm install @git-stunts/git-warp @git-stunts/plumbing
+```
+
+Works alongside any existing Git repo. Full setup: [Getting Started](docs/GETTING_STARTED.md).
+
+### How does syncing work?
+
+Standard Git (`push`/`fetch`/`pull`). Patches live under `refs/warp/...`.
+
+### How are reads secured/filtered?
+
+**Observers** + **Apertures** with `{ match, expose, redact }` policies for different views over the same history.
+
+### Is it production ready?
+
+`v18.1.0` is shipped for intended use cases. Check [GLOSSARY.md](docs/GLOSSARY.md) for shipped vs. transition status.
+
+### What about performance and scale?
+
+Strong for offline/moderate causal workloads thanks to bounded support and holographic slices. Not for high-frequency real-time (use **[Echo](https://github.com/flyingrobots/echo)**).
+
+### How does it relate to Echo and Continuum?
+
+- **`git-warp`**: Offline-first/Git-native ("the weird one").
+- **[Echo](https://github.com/flyingrobots/echo)**: Primary high-throughput runtime.
+- **[Continuum](https://github.com/flyingrobots/continuum)**: Boundary protocol for witnessed history exchange.
+
+### Do I have to understand category theory/optics?
+
+No. The fluent API is practical; theory is optional.
+
+### What if I have existing data?
+
+Migration tools and diagnostic surfaces exist. See [Migration Guide](docs/migrations/).
+
+### Can I use it with my existing Git repository?
+
+Yes — graph history is isolated (points to empty tree).
+
+### Where can I get help or see examples?
+
+[examples/](examples/), [docs/topics/](docs/topics/), [Issues](https://github.com/git-stunts/git-warp/issues).
+
+---
+
 ## License
 
-Apache-2.0
+[Apache-2.0](./LICENSE)
+Copyright © 2026 James Ross • [FlyingRobots](https://github.com/flyingrobots)
 
 ---
 
