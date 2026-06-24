@@ -4,10 +4,15 @@ import type { CorePersistence } from '../../../../../src/domain/types/WarpPersis
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
 } from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import QueryError from '../../../../../src/domain/errors/QueryError.ts';
+import CheckpointTailWitnessLocator from '../../../../../src/domain/services/optic/CheckpointTailWitnessLocator.ts';
 import CheckpointTailOpticSource, {
   type CheckpointTailCheckpointFrontier,
   type CheckpointTailPatchEntry,
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
+import NeighborhoodOptic from '../../../../../src/domain/services/optic/NeighborhoodOptic.ts';
+import NodeOptic from '../../../../../src/domain/services/optic/NodeOptic.ts';
+import NodePropertyOptic from '../../../../../src/domain/services/optic/NodePropertyOptic.ts';
 import Optic from '../../../../../src/domain/services/optic/Optic.ts';
 import OpticCoordinatePosture from '../../../../../src/domain/services/optic/OpticCoordinatePosture.ts';
 import WorldlineOptic from '../../../../../src/domain/services/optic/WorldlineOptic.ts';
@@ -101,5 +106,27 @@ describe('WorldlineOptic', () => {
       target: { nodeId: 'node:hub' },
       supportRule: 'traversal-window',
     });
+  });
+
+  it('rejects mismatched reified Optic kinds at scope construction', () => {
+    const source = new TestCheckpointTailOpticSource();
+    const locator = new CheckpointTailWitnessLocator({ source });
+    const worldlineOptic = new WorldlineOptic({ source });
+    const nodeOptic = worldlineOptic.node('node:alpha').toOptic();
+    const propertyOptic = worldlineOptic.node('node:alpha').prop('role').toOptic();
+    const neighborhoodOptic = worldlineOptic.neighborhood('node:alpha').toOptic();
+
+    expect(() => new NodeOptic({
+      optic: neighborhoodOptic,
+      locator,
+    })).toThrow(QueryError);
+    expect(() => new NodePropertyOptic({
+      optic: nodeOptic,
+      locator,
+    })).toThrow(QueryError);
+    expect(() => new NeighborhoodOptic({
+      optic: propertyOptic,
+      locator,
+    })).toThrow(QueryError);
   });
 });

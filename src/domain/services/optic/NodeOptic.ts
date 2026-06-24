@@ -1,9 +1,12 @@
 import type CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
+import QueryError from '../../errors/QueryError.ts';
 import NeighborhoodOptic from './NeighborhoodOptic.ts';
 import type NodeOpticReadResult from './NodeOpticReadResult.ts';
 import NodePropertyOptic from './NodePropertyOptic.ts';
-import type Optic from './Optic.ts';
+import Optic from './Optic.ts';
 import TraversalOptic from './TraversalOptic.ts';
+
+const NODE_OPTIC_KIND = 'node';
 
 export default class NodeOptic {
   private readonly _optic: Optic;
@@ -13,7 +16,7 @@ export default class NodeOptic {
     readonly optic: Optic;
     readonly locator: CheckpointTailWitnessLocator;
   }) {
-    this._optic = options.optic;
+    this._optic = validateNodeOptic(options.optic);
     this._locator = options.locator;
     Object.freeze(this);
   }
@@ -46,4 +49,18 @@ export default class NodeOptic {
       locator: this._locator,
     });
   }
+}
+
+function validateNodeOptic(optic: Optic): Optic {
+  if (!(optic instanceof Optic) || optic.target.opticKind !== NODE_OPTIC_KIND) {
+    throwNodeOpticError('optic', 'invalid-optic');
+  }
+  return optic;
+}
+
+function throwNodeOpticError(field: string, reason: string): never {
+  throw new QueryError('Node optic is invalid.', {
+    code: 'E_NODE_OPTIC',
+    context: { field, reason },
+  });
 }
