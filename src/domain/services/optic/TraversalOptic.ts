@@ -1,6 +1,8 @@
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import QueryError from '../../errors/QueryError.ts';
 import CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
+import Optic from './Optic.ts';
+import OpticSupportRule from './OpticSupportRule.ts';
 import {
   type TraversalOpticStrategy,
   TraversalOpticCursor,
@@ -20,30 +22,34 @@ export type TraversalOpticReadOptions = {
 };
 
 export default class TraversalOptic {
-  private readonly _startNodeId: string;
+  private readonly _optic: Optic;
   private readonly _locator: CheckpointTailWitnessLocator;
 
   constructor(options: {
-    readonly startNodeId: string;
+    readonly optic: Optic;
     readonly locator: CheckpointTailWitnessLocator;
   }) {
-    this._startNodeId = validateStartNodeId(options.startNodeId);
+    this._optic = validateTraversalOptic(options.optic);
     this._locator = validateLocator(options.locator);
     Object.freeze(this);
   }
 
+  toOptic(options: TraversalOpticReadOptions = {}): Optic {
+    return this._optic.withSupportRule(traversalSupportRule(options));
+  }
+
   async read(options: TraversalOpticReadOptions = {}): TraversalOpticReadPromise {
-    return await this._locator.readTraversal(this._startNodeId, options);
+    return await this._locator.readTraversal(this.toOptic(options), options);
   }
 }
 
 export { TraversalOpticCursor };
 
-function validateStartNodeId(startNodeId: string): string {
-  if (typeof startNodeId !== 'string' || startNodeId.length === 0) {
-    throwTraversalOpticError('startNodeId', 'empty-string');
+function validateTraversalOptic(optic: Optic): Optic {
+  if (!(optic instanceof Optic) || optic.target.opticKind !== 'traversal') {
+    throwTraversalOpticError('optic', 'invalid-optic');
   }
-  return startNodeId;
+  return optic;
 }
 
 function validateLocator(locator: CheckpointTailWitnessLocator): CheckpointTailWitnessLocator {
@@ -58,4 +64,15 @@ function throwTraversalOpticError(field: string, reason: string): never {
     code: 'E_TRAVERSAL_OPTIC',
     context: { field, reason },
   });
+}
+
+function traversalSupportRule(options: TraversalOpticReadOptions): OpticSupportRule {
+  if (
+    options.maxDepth === undefined
+    || options.maxNodes === undefined
+    || options.maxEdges === undefined
+  ) {
+    return OpticSupportRule.globalDiscoveryRefused();
+  }
+  return OpticSupportRule.traversalWindow();
 }

@@ -1,45 +1,67 @@
 import type CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
+import QueryError from '../../errors/QueryError.ts';
 import NeighborhoodOptic from './NeighborhoodOptic.ts';
 import type NodeOpticReadResult from './NodeOpticReadResult.ts';
 import NodePropertyOptic from './NodePropertyOptic.ts';
+import Optic from './Optic.ts';
+import OpticSupportRule from './OpticSupportRule.ts';
 import TraversalOptic from './TraversalOptic.ts';
 
+const NODE_OPTIC_KIND = 'node';
+
 export default class NodeOptic {
-  private readonly _nodeId: string;
+  private readonly _optic: Optic;
   private readonly _locator: CheckpointTailWitnessLocator;
 
   constructor(options: {
-    readonly nodeId: string;
+    readonly optic: Optic;
     readonly locator: CheckpointTailWitnessLocator;
   }) {
-    this._nodeId = options.nodeId;
+    this._optic = validateNodeOptic(options.optic);
     this._locator = options.locator;
     Object.freeze(this);
   }
 
+  toOptic(): Optic {
+    return this._optic;
+  }
+
   async read(): Promise<NodeOpticReadResult> {
-    return await this._locator.readNode(this._nodeId);
+    return await this._locator.readNode(this._optic);
   }
 
   prop(key: string): NodePropertyOptic {
     return new NodePropertyOptic({
-      nodeId: this._nodeId,
-      propertyKey: key,
+      optic: this._optic.nodeProperty(key),
       locator: this._locator,
     });
   }
 
   neighbors(): NeighborhoodOptic {
     return new NeighborhoodOptic({
-      nodeId: this._nodeId,
+      optic: this._optic.neighborhood(),
       locator: this._locator,
     });
   }
 
   traverse(): TraversalOptic {
     return new TraversalOptic({
-      startNodeId: this._nodeId,
+      optic: this._optic.traversal(OpticSupportRule.globalDiscoveryRefused()),
       locator: this._locator,
     });
   }
+}
+
+function validateNodeOptic(optic: Optic): Optic {
+  if (!(optic instanceof Optic) || optic.target.opticKind !== NODE_OPTIC_KIND) {
+    throwNodeOpticError('optic', 'invalid-optic');
+  }
+  return optic;
+}
+
+function throwNodeOpticError(field: string, reason: string): never {
+  throw new QueryError('Node optic is invalid.', {
+    code: 'E_NODE_OPTIC',
+    context: { field, reason },
+  });
 }

@@ -820,6 +820,9 @@ export default tseslint.config(
   {
     files: ["examples/**/*.ts"],
     languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      parser: tseslint.parser,
       globals: {
         process: "readonly",
         Buffer: "readonly",

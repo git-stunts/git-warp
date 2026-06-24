@@ -58,6 +58,12 @@ import WarpAppDefault, {
   WarpWorldline,
   WarpWorldlineCoordinate,
   WarpWorldlineOpticBasis,
+  ContinuumEvidencePosture,
+  Optic,
+  OpticAperturePosture,
+  OpticBasisPosture,
+  OpticCoordinatePosture,
+  OpticSupportRule,
   ProjectionHandle,
   WorldlineSelector,
   LiveSelector,
@@ -135,6 +141,9 @@ import WarpAppDefault, {
   type WarpKernelPort,
   type WarpWorldlineOpenOptions,
   type WarpWorldlinePatchBuild,
+  type OpticContextValue,
+  type OpticFields,
+  type OpticPostureFields,
   type GraphDiffOptions,
   type WarpWorldlineCoordinateFrontierEntry,
 } from '../../index.ts';
@@ -237,6 +246,11 @@ const exportedRuntimeSurface = [
   SnapshotWarpState,
   WarpWorldlineCoordinate,
   WarpWorldlineOpticBasis,
+  Optic,
+  OpticAperturePosture,
+  OpticBasisPosture,
+  OpticCoordinatePosture,
+  OpticSupportRule,
   ProvenancePayload,
   BTR,
   EffectSinkPort,
@@ -373,11 +387,30 @@ const aliasApertureObserver: Observer = await warpWorldline.observer(publicUsers
 const coordinateFrontierEntries: readonly WarpWorldlineCoordinateFrontierEntry[] =
   worldlineCoordinate.frontierEntries;
 const coordinateSource = worldlineCoordinate.source();
+const coordinateOptic = worldlineCoordinate.optic().node('worldline-node').toOptic();
+const coordinateOpticContext: OpticContextValue = coordinateOptic.toContextValue();
 const coordinateOpticNode = await worldlineCoordinate.optic().node('worldline-node').read();
 const coordinateOpticAlive: boolean = coordinateOpticNode.alive;
+const publicOpticPosture: OpticPostureFields = {
+  coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
+  aperturePosture: OpticAperturePosture.defaultFullRead(),
+  basisPosture: OpticBasisPosture.checkpointTailBasisVerified(),
+  evidencePosture: ContinuumEvidencePosture.translatedGitWarpEvidence(),
+};
+const publicOpticFields: OpticFields = {
+  ...publicOpticPosture,
+  target: coordinateOptic.target,
+  supportRule: OpticSupportRule.exactEntity(),
+};
+const publicOptic: Optic = new Optic(publicOpticFields);
 
 void worldlinePatchSha;
 void worldlineOpticBasis;
+void coordinateOptic;
+void coordinateOpticContext;
+void publicOpticPosture;
+void publicOpticFields;
+void publicOptic;
 void coordinateFrontierEntries;
 void coordinateSource;
 void coordinateOpticAlive;

@@ -668,8 +668,10 @@ full graph materialization, and their large-graph posture is governed by the
 current public API cost inventory.
 
 Node optic absence returns `alive: false`. Property optic absence returns
-`exists: false` and `value: undefined`. Blank node ids and blank property keys
-use the same absence shapes. Evidence failures remain explicit errors:
+`exists: false` and `value: undefined` for non-empty target identities that are
+not present at the coordinate. Blank node ids and blank property keys are
+invalid optic target schemas and fail with `E_OPTIC_FAILURE_SCHEMA`. Evidence
+failures remain explicit errors:
 `E_OPTIC_NO_BOUNDED_BASIS` means the basis is missing or unsupported,
 `E_OPTIC_TAIL_BUDGET_EXCEEDED` means the bounded tail exceeded the read budget,
 and `E_OPTIC_READ_IDENTITY` means the evidence identity could not be built.

@@ -7,13 +7,11 @@ const REPO_ROOT = new URL('../../../', import.meta.url);
 const PATCH_PACKAGE_FILES: readonly string[] = [
   '@git-stunts+alfred+0.10.3.patch',
   '@git-stunts+trailer-codec+2.1.1.patch',
-  '@mapbox+node-pre-gyp+2.0.3.patch',
 ];
 
 const PATCH_PACKAGE_README_HEADINGS: readonly string[] = [
   '### `@git-stunts/alfred@0.10.3`',
   '### `@git-stunts/trailer-codec@2.1.1`',
-  '### `@mapbox/node-pre-gyp@2.0.3`',
 ];
 
 function repoPath(relativePath: string): URL {

@@ -16,6 +16,9 @@ import NeighborhoodOpticReadResult, {
   type NeighborhoodOpticEdge,
 } from './NeighborhoodOpticReadResult.ts';
 import type { NeighborhoodOpticReadOptions } from './NeighborhoodOptic.ts';
+import Optic from './Optic.ts';
+import OpticReadTarget, { type OpticKindValue } from './OpticReadTarget.ts';
+import OpticSupportRule from './OpticSupportRule.ts';
 import type TraversalOpticReadResult from './TraversalOpticReadResult.ts';
 import type { TraversalOpticReadOptions } from './TraversalOptic.ts';
 import type ReadIdentity from './ReadIdentity.ts';
@@ -29,7 +32,6 @@ export default class CheckpointTailWitnessLocator {
   private readonly _factReducer: CheckpointTailFactReducer;
   private readonly _readIdentityBuilder: CheckpointTailReadIdentityBuilder;
   private readonly _tailScan: CheckpointTailWitnessScan;
-  private readonly _traversalReader: CheckpointTailTraversalReader;
 
   constructor(options: {
     readonly source: CheckpointTailOpticSource;
@@ -46,13 +48,12 @@ export default class CheckpointTailWitnessLocator {
       source: options.source,
       maxTailPatches: options.maxTailPatches ?? DEFAULT_MAX_TAIL_PATCHES,
     });
-    this._traversalReader = new CheckpointTailTraversalReader({
-      readNeighborhood: async (nodeId, readOptions) => await this.readNeighborhood(nodeId, readOptions),
-    });
     Object.freeze(this);
   }
 
-  async readNode(nodeId: string): Promise<NodeOpticReadResult> {
+  async readNode(optic: Optic): Promise<NodeOpticReadResult> {
+    requireOpticKind(optic, 'node');
+    const nodeId = optic.nodeId();
     try {
       return await this._readNodeResult(nodeId);
     } catch (error) {
@@ -68,9 +69,11 @@ export default class CheckpointTailWitnessLocator {
   }
 
   async readNodeProperty(
-    nodeId: string,
-    propertyKey: string,
+    optic: Optic,
   ): Promise<NodePropertyOpticReadResult> {
+    requireOpticKind(optic, 'node-property');
+    const nodeId = optic.nodeId();
+    const propertyKey = optic.propertyKey();
     try {
       return await this._readNodePropertyResult(nodeId, propertyKey);
     } catch (error) {
@@ -87,9 +90,11 @@ export default class CheckpointTailWitnessLocator {
   }
 
   async readNeighborhood(
-    nodeId: string,
+    optic: Optic,
     options: NeighborhoodOpticReadOptions,
   ): Promise<NeighborhoodOpticReadResult> {
+    requireOpticKind(optic, 'neighborhood');
+    const nodeId = optic.nodeId();
     try {
       return await this._readNeighborhoodResult(nodeId, options);
     } catch (error) {
@@ -105,11 +110,14 @@ export default class CheckpointTailWitnessLocator {
   }
 
   async readTraversal(
-    startNodeId: string,
+    optic: Optic,
     options: TraversalOpticReadOptions,
   ): Promise<TraversalOpticReadResult> {
+    requireOpticKind(optic, 'traversal');
+    const startNodeId = optic.nodeId();
     try {
-      return await this._readTraversalResult(startNodeId, options);
+      requireExecutableTraversalSupport(optic, options);
+      return await this._readTraversalResult(optic, options);
     } catch (error) {
       if (error instanceof QueryError) {
         throw new CheckpointTailReadFailure({
@@ -193,10 +201,19 @@ export default class CheckpointTailWitnessLocator {
   }
 
   private async _readTraversalResult(
-    startNodeId: string,
+    optic: Optic,
     options: TraversalOpticReadOptions,
   ): Promise<TraversalOpticReadResult> {
-    return await this._traversalReader.read(startNodeId, options);
+    return await this._traversalReaderFor(optic).read(optic.nodeId(), options);
+  }
+
+  private _traversalReaderFor(optic: Optic): CheckpointTailTraversalReader {
+    return new CheckpointTailTraversalReader({
+      readNeighborhood: async (nodeId, readOptions) => await this.readNeighborhood(
+        optic.withTarget(OpticReadTarget.neighborhood(nodeId), OpticSupportRule.neighborhood()),
+        readOptions,
+      ),
+    });
   }
 
   private async _scanTailForNode(
@@ -246,6 +263,48 @@ function normalizeDirection(direction: Direction | undefined): Direction {
     code: 'E_OPTIC_NEIGHBORHOOD_OPTIONS',
     context: { field: 'direction' },
   });
+}
+
+function requireOpticKind(optic: Optic, opticKind: OpticKindValue): void {
+  if (!(optic instanceof Optic) || optic.target.opticKind !== opticKind) {
+    throw new QueryError('Checkpoint-tail read requires a matching Optic.', {
+      code: 'E_OPTIC_SCHEMA',
+      context: { expectedOpticKind: opticKind },
+    });
+  }
+}
+
+function requireExecutableTraversalSupport(
+  optic: Optic,
+  options: TraversalOpticReadOptions,
+): void {
+  if (optic.supportRule.isTraversalWindow()) {
+    return;
+  }
+
+  if (hasTraversalWindowOptions(options)) {
+    throw new QueryError('Traversal optic support rule refuses bounded traversal execution.', {
+      code: 'E_OPTIC_SCHEMA',
+      context: {
+        field: 'supportRule',
+        supportRule: optic.supportRule.toString(),
+        reason: 'requires-global-scan',
+      },
+    });
+  }
+
+  throw new QueryError('Traversal optic requires explicit bounded traversal limits.', {
+    code: 'E_OPTIC_TRAVERSAL_UNBOUNDED',
+    context: { field: 'supportRule', reason: 'requires-global-scan' },
+  });
+}
+
+function hasTraversalWindowOptions(options: TraversalOpticReadOptions): boolean {
+  return (
+    options.maxDepth !== undefined
+    && options.maxNodes !== undefined
+    && options.maxEdges !== undefined
+  );
 }
 
 function normalizeLabels(labels: readonly string[]): readonly string[] {

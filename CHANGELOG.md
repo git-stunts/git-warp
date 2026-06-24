@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [18.1.0] - 2026-06-23
 
 ### Added
 
@@ -79,6 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Worldline-first callers run coherent node and property optic reads from a
   stable coordinate while keeping `openWarpGraph()` and materialize-first APIs
   out of first-use application code.
+- `Optic` is now an exported, runtime-backed read-intent noun carrying target,
+  coordinate, basis, support, aperture, and translated Continuum evidence
+  posture for node, node-property, neighborhood, and traversal reads.
 - Observers now carry an optional structural basis and expose deterministic
   accumulation/emission objects (`ObserverBasis`, `ObserverAccumulation`, and
   `ObserverEmission`) alongside the existing projection/query surface.
@@ -148,6 +151,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   projection, patch-op, comparison, transfer, trust, and memory capability
   symbols now use unversioned names, while the v17 golden fixture and generated
   conformance artifacts live under `scripts/v18.0.0/migrations/graph-model/`.
+- Reified Optic target validation now treats blank node ids and property keys
+  as `E_OPTIC_FAILURE_SCHEMA` schema errors, while missing non-empty node and
+  property targets remain ordinary absence results.
+- Removed the brittle doctrine/runtime teaching-alignment static text test so
+  release CI does not fail on README phrasing instead of runtime behavior.
 
 ### Deprecated
 

@@ -114,18 +114,21 @@ The runtime is not finished just because the doctrine is clearer.
 
 The current major-version ladder is:
 
-- `v18.0.0`: make the graph substrate honest, including bounded-memory normal
+- `v18.0.0`: shipped graph substrate honesty, including bounded-memory normal
   public reads, writes, content lookup, and sync
+- `v18.1.0`: reify `Optic` as a runtime noun for the public fluent read path,
+  while keeping native Continuum witnesshood and remote optic transport out of
+  scope
 - `v19.0.0`: make observer/runtime doctrine honest beyond the v18 bounded
   public-path gate
 - `v20.0.0`: make broader slice-first read execution ordinary runtime behavior
 - `v21.0.0`: make distributed/plural admission semantics runtime-real
 
-V18 is blocked by two gates:
+The next release line is blocked by the v18.1.0 merge and tag gates:
 
-- first-use Optics setup must not call full graph materialization;
-- git-warp must prove normal public API use against a graph larger than its
-  configured memory budget.
+- PR #666 must merge with green CI;
+- `v18.1.0` must not claim native Continuum witnesshood, remote optic
+  transport, or live Echo/git-warp suffix exchange.
 
 ## Work tracking
 
