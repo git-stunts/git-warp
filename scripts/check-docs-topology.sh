@@ -71,9 +71,9 @@ for path in "${RETIRED_PATHS[@]}"; do
 done
 
 if [ "$FAILURES" -eq 0 ]; then
-  echo "goalpost-guard: public docs topology passed"
+  echo "docs-topology: public docs topology passed"
 else
-  echo "goalpost-guard: $FAILURES public docs topology failure(s)"
+  echo "docs-topology: $FAILURES public docs topology failure(s)"
 fi
 
 exit "$FAILURES"
