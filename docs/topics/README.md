@@ -3,6 +3,13 @@
 Use these pages when you know what `git-warp` is and want the right page for a
 specific task.
 
+## Current release
+
+`v18.1.0` focuses the public docs around the shipped v18 read model: worldlines,
+coordinates, reified optics, observers, bounded support, strands, Git substrate,
+sync, CLI, operations, and troubleshooting. The full release narrative lives in
+the root [CHANGELOG](../../CHANGELOG.md).
+
 ## Start here
 
 - [Getting started](getting-started.md): install the package, open a worldline,
