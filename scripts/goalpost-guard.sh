@@ -1,54 +1,79 @@
 #!/usr/bin/env bash
-# Advisory guard for roadmap goalpost documents.
+# Advisory guard for the consolidated public documentation topology.
 set -euo pipefail
 
-REQUIRED_TERMS=(
-  "Goalpost id"
-  "Slice budget"
-  "## Slice Budget"
-  "Proof Stories"
-  "Acceptance Criteria"
-  "Deterministic Evidence"
-  "Release Gate Impact"
+REQUIRED_DOCS=(
+  "README.md"
+  "ARCHITECTURE.md"
+  "CHANGELOG.md"
+  "docs/topics/README.md"
+  "docs/topics/getting-started.md"
+  "docs/topics/optic-reads.md"
+  "docs/topics/observers.md"
+  "docs/topics/querying.md"
+  "docs/topics/strands.md"
+  "docs/topics/git-substrate.md"
+  "docs/topics/content-and-cas.md"
+  "docs/topics/continuum-boundary.md"
+  "docs/topics/sync.md"
+  "docs/topics/cli.md"
+  "docs/topics/operations.md"
+  "docs/topics/troubleshooting.md"
+)
+
+RETIRED_PATHS=(
+  "docs/archive"
+  "docs/audits"
+  "docs/design"
+  "docs/images"
+  "docs/invariants"
+  "docs/method"
+  "docs/migrations"
+  "docs/releases"
+  "docs/specs"
+  "docs/trust"
+  "docs/ROADMAP"
+  "docs/ROADMAP.md"
+  "docs/BEARING.md"
+  "docs/VISION.md"
+  "docs/GLOSSARY.md"
+  "docs/DOCTRINE_RUNTIME_ALIGNMENT.md"
 )
 
 FAILURES=0
-FOUND=0
 
-check_goalpost_doc() {
+require_file() {
   local path="$1"
-  local missing=0
-  FOUND=$((FOUND + 1))
-
-  for term in "${REQUIRED_TERMS[@]}"; do
-    if ! grep -qF "$term" "$path"; then
-      printf '  FAIL %s missing "%s"\n' "$path" "$term"
-      missing=$((missing + 1))
-    fi
-  done
-
-  if [ "$missing" -eq 0 ]; then
-    printf '  PASS %s\n' "$path"
+  if [ -f "$path" ]; then
+    printf '  PASS current doc %s\n' "$path"
   else
     FAILURES=$((FAILURES + 1))
+    printf '  FAIL missing current doc %s\n' "$path"
   fi
 }
 
-while IFS= read -r path; do
-  [ "$path" = "" ] && continue
-  if grep -qF "Goalpost id" "$path"; then
-    check_goalpost_doc "$path"
+require_absent() {
+  local path="$1"
+  if [ -e "$path" ]; then
+    FAILURES=$((FAILURES + 1))
+    printf '  FAIL retired docs path still exists %s\n' "$path"
+  else
+    printf '  PASS retired docs path absent %s\n' "$path"
   fi
-done < <(find docs/design docs/method -type f -name '*.md' | sort)
+}
 
-if [ "$FOUND" -eq 0 ]; then
-  echo "goalpost-guard: no goalpost docs found"
-fi
+for path in "${REQUIRED_DOCS[@]}"; do
+  require_file "$path"
+done
+
+for path in "${RETIRED_PATHS[@]}"; do
+  require_absent "$path"
+done
 
 if [ "$FAILURES" -eq 0 ]; then
-  echo "goalpost-guard: all goalpost docs passed"
+  echo "goalpost-guard: public docs topology passed"
 else
-  echo "goalpost-guard: $FAILURES goalpost doc(s) failed"
+  echo "goalpost-guard: $FAILURES public docs topology failure(s)"
 fi
 
 exit "$FAILURES"

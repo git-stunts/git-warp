@@ -1,7 +1,7 @@
 /**
  * Bounded coordinate reads through an optic.
  *
- * Pairs with docs/topics/optics.md. Illustrative: run against a real
+ * Pairs with docs/topics/optic-reads.md. Illustrative: run against a real
  * @git-stunts/plumbing-backed Git repository.
  */
 import {

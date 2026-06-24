@@ -2,7 +2,7 @@
  * Bounded reads that never fold the whole graph: a coordinate delta and a
  * single-entity causal-cone slice.
  *
- * Pairs with docs/topics/bounded-reads.md. These use the advanced
+ * Pairs with docs/topics/optic-reads.md. These use the advanced
  * openWarpGraph() surface; materializeSlice() is a diagnostic read path.
  * Illustrative: run against a real @git-stunts/plumbing-backed Git repository.
  */

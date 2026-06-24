@@ -19,7 +19,7 @@ const execFile = promisify(execFileCallback);
  * @returns {{ baseRef: string, label?: string, outputRoot: string }}
  */
 function parseArgs(args: string[]) {
-  const options: { baseRef: string, label?: string, outputRoot: string } = { baseRef: 'main', outputRoot: 'docs/method/ratchet' };
+  const options: { baseRef: string, label?: string, outputRoot: string } = { baseRef: 'main', outputRoot: '.ratchet' };
   for (const arg of args) {
     if (arg.startsWith('--base=')) {
       options.baseRef = arg.slice('--base='.length);
