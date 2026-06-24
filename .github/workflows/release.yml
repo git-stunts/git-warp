@@ -105,6 +105,7 @@ jobs:
           npm run lint
           npm run lint:md
           npm run lint:md:code
+          npm run lint:docs-topology
           npm run typecheck
           npm run typecheck:policy
           npm run typecheck:consumer

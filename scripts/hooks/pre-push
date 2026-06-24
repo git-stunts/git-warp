@@ -78,6 +78,8 @@ run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint:md &
 MD_PID=$!
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint:md:code &
 MD_CODE_PID=$!
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint:docs-topology &
+DOCS_TOPOLOGY_PID=$!
 
 wait $LINT_PID    || { echo ""; echo "BLOCKED — Gate 4 FAILED: ESLint (includes no-explicit-any)"; exit 1; }
 wait $TC_SRC_PID  || { echo ""; echo "BLOCKED — Gate 1a FAILED: Source typecheck (tsconfig.src.json)"; exit 1; }
@@ -87,6 +89,7 @@ wait $CONSUMER_PID || { echo ""; echo "BLOCKED — Gate 3 FAILED: Consumer type 
 wait $SURFACE_PID || { echo ""; echo "BLOCKED — Gate 5 FAILED: Declaration surface validator"; exit 1; }
 wait $MD_PID      || { echo ""; echo "BLOCKED — Gate 6 FAILED: Markdown lint"; exit 1; }
 wait $MD_CODE_PID || { echo ""; echo "BLOCKED — Gate 7 FAILED: Markdown JS/TS code-sample syntax check"; exit 1; }
+wait $DOCS_TOPOLOGY_PID || { echo ""; echo "BLOCKED — Gate 8 FAILED: Public documentation topology"; exit 1; }
 
 echo "[Gates 1-7] All static gates passed."
 

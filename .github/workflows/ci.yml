@@ -128,6 +128,8 @@ jobs:
         run: npm run lint:md
       - name: 'Gate 7: Markdown JS/TS code-sample syntax check'
         run: npm run lint:md:code
+      - name: 'Gate 8: Public documentation topology'
+        run: npm run lint:docs-topology
 
   type-firewall-audit-advisory:
     runs-on: ubuntu-latest
