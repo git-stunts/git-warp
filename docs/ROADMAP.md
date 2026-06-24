@@ -1,11 +1,12 @@
 # ROADMAP - @git-stunts/git-warp
 
-Last reconciled: 2026-06-12
+Last reconciled: 2026-06-24
 
-**Current public package/tag release:** v17.0.0
-**Next intended release:** v18.0.0
+**Current public package/tag release:** v18.0.0
+**Next intended release:** v18.1.0
 
-v17.0.1 repair work is recorded in source docs/changelog without public npm/tag evidence.
+The source tree is on the `18.1.0` line. No `v18.1.0` tag or GitHub release
+exists yet; PR #666 is the open release-prep vehicle.
 
 GitHub Issues are the live Method tracker. This roadmap is an issue-indexed planning view over the current open issue set, not a second backlog. If this document and GitHub disagree, GitHub wins and this document should be regenerated or corrected.
 
@@ -16,35 +17,69 @@ No release slot may carry more than 50 open issues. If a bucket crosses that lin
 ## Active Planning Instance
 
 The active roadmap instance uses the formal planning system in
-[roadmap-planning.md](method/roadmap-planning.md). The issue tables below remain
-the complete open-issue inventory. This section is the release-scale execution
-view: goalposts, proof stories, slice budgets, release gates, and next
-goalpost.
+[roadmap-planning.md](method/roadmap-planning.md). The issue tables below are
+retained as the 2026-06 planning snapshot. GitHub milestones and live issue
+labels are the authority when this file and GitHub disagree. This section is
+the release-scale execution view: goalposts, proof stories, slice budgets,
+release gates, and next goalpost.
+
+### v18.1.0 - Reified Optic Runtime Noun Release
+
+| Field | Value |
+| --- | --- |
+| Release id | `v18.1.0` |
+| Release status | `pre-tag PR open` |
+| Current public release | `v18.0.0` |
+| Target milestone | `v18.1.0` |
+| Release evidence packet | `docs/releases/v18.1.0/README.md` |
+| Active PR | [#666](https://github.com/git-stunts/git-warp/pull/666) |
+| Release-blocking issue | [#665](https://github.com/git-stunts/git-warp/issues/665) closed |
+
+`v18.1.0` is scoped to the Optic reification and release-evidence correction
+cycle. The release may proceed only after PR #666 merges with green CI,
+release guard/preflight evidence is recorded, and the operator explicitly
+approves tagging.
+
+Current facts:
+
+- `package.json`, `jsr.json`, and root lock metadata target `18.1.0`.
+- The public npm package and GitHub release remain `18.0.0`.
+- GitHub currently reports zero open `v18.1.0` milestone issues and zero open
+  `priority:asap` issues.
+- `Optic` is a runtime-backed read-intent noun for node, node-property,
+  neighborhood, and traversal reads.
+- Missing non-empty node/property targets read as absence. Blank node ids and
+  property keys fail as invalid optic target schemas.
+- Native Continuum witnesshood, remote optic transport, and live Echo/git-warp
+  suffix exchange are non-goals for this release.
+
+Release progress should be reported as:
+
+```text
+v18.1.0 release issue gate: 0 open milestone issues
+v18.1.0 active PR: #666
+next goalpost: merge PR #666 after green CI
+next slice: final release guard/preflight evidence from aligned main
+```
 
 ### v18.0.0 - Graph Substrate Honesty Release
 
 | Field | Value |
 | --- | --- |
 | Release id | `v18.0.0` |
-| Release status | `pre-tag complete` |
-| Current public release | `v17.0.0` |
+| Release status | `published` |
+| Current public release | `v18.0.0` |
 | Goalposts | `5` |
 | Landed goalposts | `5` |
 | Total planned slice budget | `53` |
 | Target milestone | `v18.0.0` |
 | Release evidence packet | `docs/releases/v18.0.0/README.md` |
 
-v18.0.0 is ready for an explicit operator tag decision only when every goalpost
-below is landed, every issue in the `v18.0.0` milestone is closed, superseded
-work has been closed or moved out of the target milestone with linked
-disposition, the release evidence packet is complete and placeholder-free, and
-`npm run release:preflight` passes from aligned `main`.
+v18.0.0 is the current public package/tag release.
 
-As of 2026-06-12, GitHub has zero open `v18.0.0` milestone issues, zero open
-`release-home:v18.0.0` issues, and zero open `lane:v18.0.0` issues. V18-GP5
-[#552](https://github.com/git-stunts/git-warp/issues/552) is closed with
-final-local guard evidence. No v18 tag has been cut; tagging still requires
-explicit operator approval.
+As of 2026-06-24, `v18.0.0` has a GitHub release published on 2026-06-17 and
+npm reports `@git-stunts/git-warp` at `18.0.0`. The v18.0.0 goalpost table
+below is retained as release evidence, not as active work.
 
 | Goalpost | Status | Slice budget | Umbrella or tracker issue | Goalpost doc | Release gate |
 | --- | --- | ---: | --- | --- | --- |
@@ -64,17 +99,15 @@ V18-GP4 Holographic slicing basis
   -> V18-GP5 Release operation evidence
 ```
 
-V18-GP1, V18-GP2, V18-GP3, V18-GP4, and V18-GP5 are landed. The remaining
-v18 release action is an explicit operator tag decision. Do not create the
-v18 tag without explicit operator approval.
+V18-GP1, V18-GP2, V18-GP3, V18-GP4, and V18-GP5 are landed.
 
 Release progress should be reported as:
 
 ```text
 v18.0.0 goalposts: 5/5 landed
 v18.0.0 slices: 53/53 landed
-next goalpost: none for v18 before explicit tag approval
-next slice: keep paying down v18-line debt without cutting the tag
+next goalpost: v18.1.0 reified Optic release prep
+next slice: PR #666 CI closeout
 ```
 
 ## Pre-Migration Snapshot
@@ -112,12 +145,12 @@ the `type:*`, `priority:*`, `status:*`, and `area:*` label axes.
 
 | Release Slot | Count | Planning Intent |
 | --- | ---: | --- |
-| v18.0.0 | 0 | Pre-tag goalposts are closed; tag and publish still require explicit operator approval. |
+| v18.0.0 | 0 | Published graph-substrate honesty release. |
 | v18.0.1 | 50 | Repair public docs, examples, release tooling, and review guardrails that make the v18 line usable without expanding the runtime ontology. |
 | v18.0.2 | 50 | Finish the remaining release-tooling spillover, then start the testing-quality cleanup wave with behavior-backed proofs instead of brittle text checks. |
 | v18.0.3 | 50 | Continue static-text and fixture-quality paydown while keeping the release train small enough to review as one coherent patch wave. |
 | v18.0.4 | 15 | Close the leftover v18 patch-train testing issues and completion-scanner ideas after the larger harness waves have landed. |
-| v18.1.0 | 36 | Pay down API capability, public-surface, command, and materializing-API removal work after the v18.0 public line is honest. |
+| v18.1.0 | 0 | Reified Optic runtime noun and release-evidence correction; PR #666 is the active vehicle. |
 | v18.1.1 | 34 | Turn runtime boundary, wire-format, port, policy, and serialization contracts into explicit runtime-backed surfaces. |
 | v18.1.2 | 16 | Finish trie/state-storage residue and the v17 checkpoint-tail optic carry-forward without overloading the API or boundary waves. |
 | v18.2.0 | 5 | Tighten command coverage, issue triage, public docs automation, and package-surface hygiene without expanding the runtime ontology. |

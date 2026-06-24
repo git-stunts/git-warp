@@ -164,9 +164,11 @@ coordinate for both reads.
 
 Coordinate Optics report ordinary absence as data, not as an exception:
 
-- a missing or blank node id reads as `{ nodeId, alive: false, readIdentity }`;
-- a missing or blank property key reads as
-  `{ nodeId, key, exists: false, value: undefined, readIdentity }`.
+- a missing non-empty node id reads as `{ nodeId, alive: false, readIdentity }`;
+- a missing non-empty property key reads as
+  `{ nodeId, key, exists: false, value: undefined, readIdentity }`;
+- a blank node id or property key is an invalid optic target schema and fails
+  with `E_OPTIC_FAILURE_SCHEMA`.
 
 Evidence failures are different. `E_OPTIC_TAIL_BUDGET_EXCEEDED` means the
 bounded tail is longer than the configured read budget, so refresh the

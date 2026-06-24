@@ -37,7 +37,7 @@ If another document uses one of these nouns differently, this glossary wins.
 | `Observer` | The realized reading surface for a question asked through an aperture. It executes a read contract and returns a view. | Current `Observer` exposes normal read/query/traversal methods plus `ObserverPlan` and `ObserverReadingEnvelope` for the source-plan-reading split. | transition |
 | `Live strand` | A strand realization over a live parent basis plus owned overlay divergence. Untouched parent regions should flow through from the current parent; overlay writes remain owned by the strand. | `StrandMaterializer` now resolves parent-basis patches from `getFrontier()` when the runtime provides it, while older test seams fall back to `baseObservation.frontier`. | transition |
 | `Aperture` | The observer-relative read boundary: what distinctions remain visible and which basis the read is taken over. | Current `Aperture` is a small `{ match, expose, redact }` policy object. | transition |
-| `Optic` | The semantic question being asked of the graph. It defines the shape of the read, not the execution plan. | Exported `Optic` runtime noun used by fluent node, node-property, neighborhood, and traversal reads; carries target, coordinate, basis, support, aperture, and translated Continuum evidence posture. | transition |
+| `Optic` | The semantic question being asked of the graph. It defines the shape of the read, not the execution plan. | Exported `Optic` runtime noun used by fluent node, node-property, neighborhood, and traversal reads; carries target, coordinate, basis, support, aperture, and translated Continuum evidence posture. Blank target identities are schema-invalid. | transition |
 
 ## Support and execution nouns
 

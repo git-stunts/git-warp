@@ -151,6 +151,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   projection, patch-op, comparison, transfer, trust, and memory capability
   symbols now use unversioned names, while the v17 golden fixture and generated
   conformance artifacts live under `scripts/v18.0.0/migrations/graph-model/`.
+- Reified Optic target validation now treats blank node ids and property keys
+  as `E_OPTIC_FAILURE_SCHEMA` schema errors, while missing non-empty node and
+  property targets remain ordinary absence results.
+- Removed the brittle doctrine/runtime teaching-alignment static text test so
+  release CI does not fail on README phrasing instead of runtime behavior.
 
 ### Deprecated
 

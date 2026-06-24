@@ -29,6 +29,7 @@ If that sounds abstract, the short version is:
 - Reads are designed to stay **bounded**, not accidentally materialize everything.
 
 ## What it does
+
 `git-warp` provides a causal history substrate and read/runtime layer for graph-shaped data.
 
 It lets you:
@@ -76,6 +77,7 @@ The `live()` query above reads the latest visible state. When you instead want a
 - We use optics so reads stay **scoped and coherent**: an optic answers from a fixed position, so concurrent writes can't shift the result mid-read, and the runtime only touches the causal support the question actually needs.
 - An **optic basis** is the bounded evidence that the read can be answered honestly from history — a verified checkpoint-tail basis. `prepareOpticBasis()` establishes it. If no bounded basis exists yet, it fails closed with `E_OPTIC_NO_BOUNDED_BASIS` rather than silently materializing everything.
 - An optic always reads through an **observer coordinate**: `coordinate()` captures a stable, observer-relative position (a causal basis plus a ceiling). Later writes advance the live worldline, but reads through that coordinate keep answering from the captured position.
+- Missing non-empty nodes and properties read as absence data. Empty target identities are invalid optic schemas and fail with `E_OPTIC_FAILURE_SCHEMA`.
 
 So the order is: verify the basis, capture a coordinate, then read through it.
 
@@ -238,7 +240,7 @@ The runtime is designed so reads stay scoped. It avoids the “just materialize 
 
 History keeps per-entity provenance, so a single node's backward causal cone can be reconstructed and replayed on its own: `provenance.materializeSlice(nodeId)` loads only the cone's patches, never the whole graph. This slice path is currently classified as a **diagnostic** read, not a first-use application API.
 
-The worldline-wide version — *live holographic strands* and *support-scoped fragment* materialization — remains target doctrine; see [Runtime posture](#runtime-posture) and [Bounded Reads](docs/topics/bounded-reads.md).
+The broader worldline-wide direction is still narrower than the doctrine: live strands and support fragments have runtime footholds, but support-fragment cache storage, plan-driven fragment execution, and full holographic worldline reads are not first-use shipped paths. See [Runtime posture](#runtime-posture) and [Bounded Reads](docs/topics/bounded-reads.md).
 
 ## API surface
 
@@ -254,7 +256,7 @@ A worldline gives you a small, practical interface:
 |`observer()`|Creates a filtered read view|
 |`prepareOpticBasis()`|Verifies bounded evidence for coordinate-based reads|
 |`coordinate()`|Captures a stable causal position|
-|`optic()`|Starts a one-off optic-shaped read|
+|`optic()`|Starts a one-off read that lowers through a reified `Optic`|
 
 For coherent optic reads, call `prepareOpticBasis()` first, then read through a coordinate.
 
@@ -327,14 +329,20 @@ In the stack, **git-warp and Echo own runtime truth**, while Continuum owns the 
 
 ## Release status
 
-`v18.0.0` has shipped. `v18.1.0` is in progress and targets bounded, coordinate-scoped reads.
+`v18.0.0` has shipped. The `v18.1.0` source line is in pre-tag release prep:
+the reified `Optic` gate has landed in runtime and docs, but no `v18.1.0` tag
+has been cut yet. Tagging still requires the release evidence and final gates
+recorded in [docs/releases/v18.1.0/README.md](docs/releases/v18.1.0/README.md).
 
-Current focus areas for `v18.1.0`:
+Current `v18.1.0` truths:
 
-- Worldline-first optics: `prepareOpticBasis()` plus coordinate optics keep first-use reads bounded instead of materializing the whole graph.
-- Bounded query planning: `BoundedSupportRule`, `CausalIndexPlan`, and `SupportFragmentPlan` give reads an explicit support posture ahead of execution.
+- `Optic` is now an exported, frozen runtime noun for the public fluent read path.
+- Blank node ids and property keys are rejected as invalid `Optic` target schemas, while missing non-empty targets still read as ordinary absence.
+- `prepareOpticBasis()` plus coordinate optics keep first-use reads bounded instead of materializing the whole graph.
+- `BoundedSupportRule`, `CausalIndexPlan`, and `SupportFragmentPlan` give reads an explicit support posture ahead of execution.
 - `comparison.diff({ from, to })` returns a first-class `GraphDiff` for live Lamport ranges without wildcard scans.
 - Full-result helpers, graph-wide diagnostics, legacy facades, and offline migration tools remain explicitly classified instead of being presented as first-use application APIs.
+- Native Continuum optic witnesshood, remote optic transport, and live Echo/git-warp suffix exchange remain outside this release claim.
 
 Live work is tracked in [GitHub Issues](https://github.com/git-stunts/git-warp/issues).
 
@@ -346,7 +354,7 @@ Use [GLOSSARY.md](docs/GLOSSARY.md) for shipped, transition, and target noun sta
 
 Use the [Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) and the [teaching alignment audit](docs/audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md) when a doc claim is stronger than the runtime surface.
 
-Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates, and observer apertures as the application path. Live holographic strands, common-basis braid validation, witnessed suffix admission, Echo/git-warp suffix exchange, and support-scoped fragment materialization remain target doctrine unless their own docs say otherwise.
+Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates, reified optics, and observer apertures as the application path. `GitWarpWitnessedSuffixAdmissionShell` is a transition runtime envelope, not proof of live network exchange. Native Continuum witnesshood, remote optic transport, common-basis braid validation, live Echo/git-warp suffix exchange, support-fragment cache storage, and plan-driven fragment execution remain outside the first-use shipped path unless their own docs say otherwise.
 
 ## Documentation
 

@@ -37,6 +37,7 @@ implementation landed:
 - `CHANGELOG.md` promoted to a dated `18.1.0` entry;
 - reified `Optic` runtime noun for fluent node, node-property, neighborhood,
   and traversal reads.
+- schema-invalid optic target evidence for blank node ids and property keys.
 
 ## Version Lockstep
 
@@ -106,6 +107,7 @@ npx vitest run test/unit/domain/index.exports.test.ts \
 npm run typecheck
 
 npx vitest run test/conformance/v17CheckpointTailOpticReadBasis.test.ts \
+  test/conformance/v18CoordinateOpticPublicPath.test.ts \
   test/conformance/v18FirstUseOpticsHonesty.test.ts \
   test/conformance/v18NeighborhoodOpticReadBasis.test.ts \
   test/conformance/v18TraversalOpticReadBasis.test.ts
@@ -155,6 +157,8 @@ The public documentation now distinguishes:
 
 - shipped first-use read path: `prepareOpticBasis()`, `coordinate()`, and
   `coordinate().optic()`;
+- target semantics: missing non-empty nodes and properties report absence, while
+  blank node ids and property keys fail as invalid optic target schemas;
 - transition runtime noun: first-class `Optic` reification has landed for the
   public read path, while native Continuum witnesshood and remote transport
   remain out of scope;

@@ -167,7 +167,7 @@ describe('v18 coordinate optic public path', () => {
     });
   });
 
-  it('treats blank node ids and property keys as absent coordinate facts', async () => {
+  it('rejects blank node ids and property keys as schema-invalid optic targets', async () => {
     const events = await openWorldlineWithOperatorBasis({
       worldlineName: 'events-coordinate-blank-targets',
       seed: (patch) => {
@@ -178,18 +178,17 @@ describe('v18 coordinate optic public path', () => {
     await events.prepareOpticBasis();
     const coordinate = await events.coordinate();
 
-    const blankNode = await coordinate.optic().node('').read();
-    const blankProperty = await coordinate.optic().node(NODE_ID).prop('').read();
-
-    expect(blankNode).toMatchObject({
-      nodeId: '',
-      alive: false,
+    await expect(async () => coordinate.optic().node('').read()).rejects.toMatchObject({
+      code: 'E_OPTIC_FAILURE_SCHEMA',
+      context: {
+        field: 'nodeId',
+      },
     });
-    expect(blankProperty).toMatchObject({
-      nodeId: NODE_ID,
-      key: '',
-      exists: false,
-      value: undefined,
+    await expect(async () => coordinate.optic().node(NODE_ID).prop('').read()).rejects.toMatchObject({
+      code: 'E_OPTIC_FAILURE_SCHEMA',
+      context: {
+        field: 'propertyKey',
+      },
     });
   });
 

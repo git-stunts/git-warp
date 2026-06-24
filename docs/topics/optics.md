@@ -41,6 +41,8 @@ node reads `{ nodeId, alive: false, readIdentity }`; a missing property reads
 `{ nodeId, key, exists: false, value: undefined, readIdentity }`. Evidence
 failures are different — `E_OPTIC_TAIL_BUDGET_EXCEEDED` and
 `E_OPTIC_READ_IDENTITY` are integrity failures, not missing values.
+Blank node ids and property keys are not absence cases. They are invalid optic
+target schemas and fail with `E_OPTIC_FAILURE_SCHEMA`.
 
 `events.optic()` is a convenience for one-off live optic reads when a basis
 already exists. For two reads that must describe the same causal position, use a
