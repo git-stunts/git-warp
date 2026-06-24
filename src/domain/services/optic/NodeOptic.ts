@@ -4,6 +4,7 @@ import NeighborhoodOptic from './NeighborhoodOptic.ts';
 import type NodeOpticReadResult from './NodeOpticReadResult.ts';
 import NodePropertyOptic from './NodePropertyOptic.ts';
 import Optic from './Optic.ts';
+import OpticSupportRule from './OpticSupportRule.ts';
 import TraversalOptic from './TraversalOptic.ts';
 
 const NODE_OPTIC_KIND = 'node';
@@ -45,7 +46,7 @@ export default class NodeOptic {
 
   traverse(): TraversalOptic {
     return new TraversalOptic({
-      optic: this._optic.traversal('global-discovery-refused'),
+      optic: this._optic.traversal(OpticSupportRule.globalDiscoveryRefused()),
       locator: this._locator,
     });
   }

@@ -8,6 +8,7 @@ import OpticBasisPosture from './OpticBasisPosture.ts';
 import OpticCoordinatePosture, {
   type OpticCoordinatePostureValue,
 } from './OpticCoordinatePosture.ts';
+import OpticSupportRule from './OpticSupportRule.ts';
 import TraversalOptic from './TraversalOptic.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 
@@ -50,7 +51,7 @@ export default class WorldlineOptic {
       optic: Optic.traversal({
         ...this._posture,
         startNodeId,
-        supportRule: 'global-discovery-refused',
+        supportRule: OpticSupportRule.globalDiscoveryRefused(),
       }),
       locator: this._locator,
     });
