@@ -6,6 +6,9 @@ created: 2026-06-24
 last_updated: 2026-06-24
 reviewer: codex
 evidence_policy: source-code-only
+lifecycle: temporary_planning
+planning_phase: documentation_reorganization
+retire_after: recommendations_executed
 status: active
 score: 58
 score_label: partially_accurate
@@ -17,9 +20,11 @@ keep:
   - worldline_observer_optic_direction
   - sync_auth_checkpoint_seek_advanced_capabilities
 roll_into:
+  - README.md
+  - ARCHITECTURE.md
   - docs/CONCEPTUAL_OVERVIEW.md
-  - docs/BEARING.md
-  - docs/VISION.md
+  - docs/topics/git-substrate.md
+  - docs/topics/witnessed-causal-history.md
   - docs/releases/
 cut:
   - universal_empty_tree_storage
@@ -42,6 +47,8 @@ Score: **58/100**.
 Disposition: **rewrite**.
 
 Evidence rule: this report treats source code as truth. Markdown documents are not used as supporting evidence.
+
+Lifecycle rule: this report is a temporary planning artifact for documentation reorganization. It should be deleted after its recommendations have been executed or superseded by the consolidated documentation set.
 
 ## Worth Keeping
 
@@ -73,7 +80,7 @@ Evidence rule: this report treats source code as truth. Markdown documents are n
 ## Roll-In Recommendations
 
 - Roll the source-confirmed core explanation back into `docs/CONCEPTUAL_OVERVIEW.md`: Git refs, writer chains, CRDT merge semantics, worldline reads, query/traversal, and bounded descriptions of sync/checkpoint/seek/observer/optic.
-- Move roadmap-shaped or academic framing into `docs/BEARING.md` or `docs/VISION.md`, clearly labeled as direction rather than shipped runtime fact.
+- Move roadmap-shaped or academic framing into focused topic pages such as `docs/topics/witnessed-causal-history.md`, clearly labeled as direction rather than shipped runtime fact. Do not preserve `docs/BEARING.md` or `docs/VISION.md` as long-lived planning warehouses.
 - Move performance and memory statements into release evidence under `docs/releases/` only when they cite reproducible benchmark commands and captured outputs.
 - Move API examples into a source-checked guide or API reference section. Examples should compile or be covered by executable snippets before being used as teaching material.
 
@@ -99,6 +106,9 @@ Future sibling reports should keep the same frontmatter fields:
 - `last_updated`: ISO date when the report was last materially revised.
 - `reviewer`: agent or human reviewer identifier.
 - `evidence_policy`: expected to be `source-code-only` unless the report explicitly audits a non-code artifact.
+- `lifecycle`: expected to be `temporary_planning` for this reorganization pass.
+- `planning_phase`: the cleanup phase that owns the report.
+- `retire_after`: the condition under which the report should be deleted.
 - `status`: `active`, `superseded`, or `closed`.
 - `score`: integer from 0 to 100.
 - `score_label`: compact machine-readable verdict.
