@@ -123,16 +123,14 @@ truth. Every release evidence packet must record human review for:
 - `CHANGELOG.md` accurately reflects the diff since the previous public tag.
 - `README.md` is updated if front-door positioning, install, examples, or
   release status changed.
-- `TECHNICAL_TEARDOWN.md` is updated if the technical overview, public API
-  surface, workflow, or substrate explanation changed.
-- `docs/ARCHITECTURE.md` is updated if public/core boundaries, ports,
+- `ARCHITECTURE.md` is updated if public/core boundaries, ports,
   adapters, storage model, or architecture posture changed.
-- Product docs from `docs/README.md` are updated as needed:
-  `docs/GETTING_STARTED.md`, `docs/READINGS_AND_OPTICS.md`,
-  `docs/GUIDE.md`, `docs/API_REFERENCE.md`, `docs/PUBLIC_API_COSTS.md`,
-  `docs/ADVANCED_GUIDE.md`, `docs/CLI_GUIDE.md`,
-  `docs/CONCEPTUAL_OVERVIEW.md`, migration docs, specs, and trust docs.
-- `docs/ROADMAP.md` and `docs/BEARING.md` match the release posture.
+- Product docs from `docs/topics/` are updated as needed:
+  `getting-started.md`, `optics.md`, `observers.md`, `bounded-reads.md`,
+  `querying.md`, `api-reference.md`, `git-substrate.md`, and `cli.md`.
+- Migration docs, specs, and trust docs are updated when their contracts change.
+- GitHub Issues, release evidence, and `CHANGELOG.md` match the release
+  posture.
 - Every landed release goalpost contributing to this version is named with its
   issue, doc, landed PRs, completed slice count, deterministic proof matrix,
   canonical fixtures or immutable inputs, witnesses, replay commands, and

@@ -37,14 +37,34 @@ causal-cone reconstruction — and it is currently classified as a **diagnostic*
 read path (`src/domain/capabilities/ProvenanceCapability.ts`), not a first-use
 application API.
 
+## Cost labels
+
+These labels classify public surfaces by current provider cost, not by the
+shape the project eventually wants.
+
+| Label | Meaning | First-use docs |
+| --- | --- | --- |
+| `bounded` | Enforces memory and result limits, and does not rely on full graph residency. | Allowed. |
+| `streaming` | Does not accumulate internally and does not read from a full-residency provider. | Allowed. |
+| `cursor` | Returns a resumable bounded window. | Allowed. |
+| `transitional` | Public shape points in the right direction, but the current provider still has a caveat. | Mention only with caveats. |
+| `diagnostic` | May require full residency for inspection, repair, or operator evidence. | Not a first-use app path. |
+| `offline` | Intended for controlled migration or maintenance windows. | Not a first-use app path. |
+| `legacy` | Compatibility surface, not the new product model. | Not a first-use app path. |
+
+`worldline.prepareOpticBasis()` and coordinate optic reads are currently
+`transitional`: they verify checkpoint-tail evidence and fail closed when the
+basis is missing, but their release evidence is tied to checkpoint-tail basis
+and tail witnesses. Exact id-only query reads are `bounded`; broader reads keep
+their row-specific caveat until the provider proves stronger behavior.
+
 ## The footgun it avoids
 
 `getStateSnapshot()`-style full materialization parses the entire operation log
 into one in-memory graph. For large histories that can exceed resident memory
 and spike GC. Bounded reads exist so the default mental model is "ask a scoped
 question," not "materialize the universe, then filter." Full-result helpers and
-graph-wide diagnostics remain available but are explicitly classified; see
-[`docs/PUBLIC_API_COSTS.md`](../PUBLIC_API_COSTS.md).
+graph-wide diagnostics remain available but are explicitly classified here.
 
 ## Still target
 
@@ -59,5 +79,5 @@ wired. See the [Doctrine/runtime Alignment Ratchet](../DOCTRINE_RUNTIME_ALIGNMEN
 
 - [Optics](optics.md) — the bounded question abstraction.
 - [Observers](observers.md) — bounding *what* a reader may see.
-- [Readings & Optics](../READINGS_AND_OPTICS.md) — the app-facing read model.
+- [Querying](querying.md) — app-facing read and builder patterns.
 - Example: [`examples/bounded-reads.ts`](../../examples/bounded-reads.ts).

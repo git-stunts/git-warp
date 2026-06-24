@@ -115,19 +115,17 @@ source file, design, or release evidence row.
 | --- | --- | --- |
 | `CHANGELOG.md` | `TBD` | Diff since previous public tag is accurately summarized. |
 | `README.md` | `TBD` | Front-door release status, install, examples, and docs links reviewed. |
-| `TECHNICAL_TEARDOWN.md` | `TBD` | Technical overview and public API posture reviewed. |
-| `docs/ARCHITECTURE.md` | `TBD` | Architecture, ports, adapters, storage model, and public/core boundary reviewed. |
-| `docs/GETTING_STARTED.md` | `TBD` | First-use workflow reviewed. |
-| `docs/READINGS_AND_OPTICS.md` | `TBD` | Readings, observers, optics, and boundedness claims reviewed. |
-| `docs/GUIDE.md` | `TBD` | Builder workflows reviewed. |
-| `docs/API_REFERENCE.md` | `TBD` | Public API surface, examples, errors, and appendices reviewed. |
-| `docs/PUBLIC_API_COSTS.md` | `TBD` | Cost labels match provider truth. |
-| `docs/ADVANCED_GUIDE.md` | `TBD` | Advanced substrate, trust, and performance claims reviewed. |
-| `docs/CLI_GUIDE.md` | `TBD` | Operator workflows and command claims reviewed. |
-| `docs/CONCEPTUAL_OVERVIEW.md` | `TBD` | Conceptual claims reviewed. |
+| `ARCHITECTURE.md` | `TBD` | Architecture, ports, adapters, storage model, and public/core boundary reviewed. |
+| `docs/topics/index.md` | `TBD` | Topic router and public docs map reviewed. |
+| `docs/topics/getting-started.md` | `TBD` | First-use workflow reviewed. |
+| `docs/topics/optics.md` | `TBD` | Optic setup, read basis, and noun status reviewed. |
+| `docs/topics/observers.md` | `TBD` | Aperture and redaction posture reviewed. |
+| `docs/topics/bounded-reads.md` | `TBD` | Cost labels match provider truth. |
+| `docs/topics/querying.md` | `TBD` | Builder workflows reviewed. |
+| `docs/topics/api-reference.md` | `TBD` | Public API surface, examples, errors, and appendices reviewed. |
+| `docs/topics/git-substrate.md` | `TBD` | Substrate, trust, replay, and performance claims reviewed. |
+| `docs/topics/cli.md` | `TBD` | Operator workflows and command claims reviewed. |
 | `docs/migrations/vX.Y.Z.md` | `TBD` | Migration guidance reviewed, if applicable. |
-| `docs/ROADMAP.md` | `TBD` | Public release, next release, and issue counts reviewed. |
-| `docs/BEARING.md` | `TBD` | Release posture and current direction reviewed. |
 | `docs/releases/vX.Y.Z/README.md` | `TBD` | Release evidence packet complete. |
 
 ## Changelog Diff Review

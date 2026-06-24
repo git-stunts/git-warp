@@ -35,8 +35,8 @@ participant without collapsing it into Echo, Wesley, or `warp-ttd`.
 - `~/git/wesley/README.md`
 - `~/git/echo/docs/BEARING.md`
 - `~/git/warp-ttd/docs/BEARING.md`
-- [VISION.md](../../VISION.md)
-- [BEARING.md](../../BEARING.md)
+- [README.md](../../../README.md)
+- [ARCHITECTURE.md](../../../ARCHITECTURE.md)
 - [backlog/WORKLOADS.md](../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/WORKLOADS.md)
 - [backlog/v18.0.0/README.md](../../archive/backlog/github-issue-migration-2026-06-01/docs/method/backlog/v18.0.0/README.md)
 

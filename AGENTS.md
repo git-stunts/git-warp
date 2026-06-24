@@ -122,7 +122,10 @@ DTO and stop there**. Do not hallucinate fake domain models.
   chat.
 - Cycles live in `docs/design/<NNNN-slug>/`.
 - Retros live in `docs/method/retro/<NNNN-slug>/`.
-- Signposts are `docs/BEARING.md` and `docs/VISION.md`; update them at cycle boundaries, not mid-cycle.
+- Current public documentation lives in root `README.md`, root
+  `ARCHITECTURE.md`, `CHANGELOG.md`, and `docs/topics/`. Do not revive
+  `docs/BEARING.md` or `docs/VISION.md`; use GitHub Issues, release evidence,
+  and topic pages for current status.
 - Zero tolerance for brokenness: if you encounter an error or warning in your path, fix it or surface it explicitly.
 - Issue labels are query indexes, not prose decoration. Every open issue must
   carry exactly one label from each live axis:
@@ -228,7 +231,8 @@ DTO and stop there**. Do not hallucinate fake domain models.
 ## Repo Context
 
 - `@git-stunts/git-warp` is a multi-writer graph database stored on top of Git.
-- Graph data is stored as commits pointing at Git's empty tree (`4b825dc642cb6eb9a060e54bf8d69288fbee4904`).
+- Graph data lives under WARP refs outside source-tree refs; graph commits may
+  carry patch, checkpoint, receipt, or content trees.
 - Writers append independent patch chains; materialization deterministically merges them through CRDTs.
 
 ## Tests and Coverage

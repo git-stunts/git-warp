@@ -4,8 +4,8 @@ This is the operator's guide.
 
 Use the CLI when you want to inspect, validate, debug, or time-travel a live repository without writing application code.
 
-- If you are building an app, start with the [Guide](GUIDE.md).
-- If you want the substrate internals behind these commands, use the [Advanced Guide](ADVANCED_GUIDE.md).
+- If you are building an app, start with the [Querying](querying.md).
+- If you want the substrate internals behind these commands, use the [Git substrate](git-substrate.md).
 
 The CLI is also the shipped Time Travel Debugger surface. In `git-warp`, debugger philosophy and debugger commands stay together because the debugger is intentionally a thin CLI-first adapter over substrate facts.
 
@@ -220,7 +220,6 @@ pretend a complete boundary exists.
 
 ## Where next
 
-- [Guide](GUIDE.md): builder patterns for app code
-- [API Reference](API_REFERENCE.md): exhaustive command and API details
-- [Advanced Guide](ADVANCED_GUIDE.md): substrate internals and trust model
-- [Conceptual Overview](CONCEPTUAL_OVERVIEW.md): WARP concepts and substrate story
+- [Querying](querying.md): builder patterns for app code
+- [API reference](api-reference.md): exhaustive command and API details
+- [Git substrate](git-substrate.md): substrate internals and trust model

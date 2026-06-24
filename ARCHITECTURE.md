@@ -4,9 +4,9 @@ This document explains how `git-warp` is structured internally.
 
 If you are learning the product for the first time, start with:
 
-- [README.md](../README.md)
-- [Getting Started](GETTING_STARTED.md)
-- [Guide](GUIDE.md)
+- [README.md](README.md)
+- [Getting started](docs/topics/getting-started.md)
+- [Querying](docs/topics/querying.md)
 
 ## System map
 
@@ -85,7 +85,7 @@ bounded causal basis
 Git object IDs, CAS hashes, retained payload hashes, commitment roots, proof
 references, basis identities, and semantic reading identities must stay
 separate. A byte hash identifies bytes; it does not answer a semantic question
-by itself. See [Reading Identity](specs/READING_IDENTITY.md).
+by itself. See [Reading Identity](docs/specs/READING_IDENTITY.md).
 
 Adapters and CLI commands must not hide full-materialization fallback, missing
 witnesses, missing rights evidence, or budget limits. Missing support is an
@@ -104,7 +104,7 @@ The engineering standard for this codebase. Key rules:
 - One file per concept, 500 LOC max
 - Tests are the spec
 
-Full standard: `docs/SYSTEMS_STYLE_TYPESCRIPT.md`
+Full standard: [Systems-Style TypeScript](docs/SYSTEMS_STYLE_TYPESCRIPT.md).
 
 ## Public API surface
 
@@ -234,10 +234,15 @@ Concrete implementations of ports:
 
 ## Git storage model
 
-All graph data is stored as Git commits pointing to the empty tree
-(`4b825dc642cb6eb9a060e54bf8d69288fbee4904`). No files appear in the
-working directory. Each writer maintains an independent patch chain
-under `refs/warp/<graph>/writers/<writerId>`.
+Graph history lives under WARP refs, not source-tree refs. Each writer
+maintains an independent patch chain under
+`refs/warp/<graph>/writers/<writerId>`, so graph history does not appear in the
+checked-out working directory and does not rewrite `refs/heads/*`.
+
+Patch, checkpoint, coverage, cursor, and audit commits may carry Git trees for
+patch payloads, checkpoint state, receipts, or content attachments. Isolation
+comes from the ref namespace and Git plumbing, not from a rule that every graph
+commit has no payload tree.
 
 ```text
 refs/warp/events/writers/alice → commit-sha-1
@@ -246,5 +251,8 @@ refs/warp/events/checkpoint    → checkpoint-sha
 refs/warp/events/coverage      → coverage-sha
 ```
 
-Materialization walks all writer chains, applies patches through
-JoinReducer (CRDT merge), and produces a frozen `WarpState`.
+Reads open a live, pinned, observer, or optic basis over those refs. Diagnostic
+materialization walks visible writer chains, applies patches through
+`JoinReducer` (CRDT merge), and produces a frozen `WarpState`; application code
+should prefer worldlines, observers, query builders, and optics before whole
+graph replay.

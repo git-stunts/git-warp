@@ -42,6 +42,12 @@ Observers express product boundaries. They are not a substitute for the
 authority/capability proofs handled upstream (e.g. Wesley/Edict contracts); an
 aperture says what a *reading* shows, not what an *operation* is permitted to do.
 
+Observer redaction is also not encryption. It hides fields from the selected
+read path, but it does not rewrite patch history, delete Git objects, or prevent
+a local operator from inspecting raw objects. Use vault-backed CAS content
+encryption when stored bytes need protection at rest; see
+[Git substrate](git-substrate.md#vault-backed-cas-content-encryption).
+
 ## See also
 
 - [Optics](optics.md) · [Bounded Reads](bounded-reads.md)

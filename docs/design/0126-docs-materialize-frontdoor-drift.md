@@ -128,7 +128,7 @@ Initial result: failed as expected.
 
 ## GREEN Implementation
 
-- Added [READINGS_AND_OPTICS.md](../READINGS_AND_OPTICS.md), covering
+- Added [Optics](../topics/optics.md), covering
   live, pinned, observer, strand, checkpoint-backed, and provenance
   readings.
 - Rewrote README and Getting Started examples so writes use

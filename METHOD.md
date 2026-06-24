@@ -68,8 +68,8 @@ in one sentence, the cycle is too big. Split it.
    rejection.
 
 7. **Ship sync on `main`** - after merge, update repo-level ship
-   surfaces such as `docs/BEARING.md`, `CHANGELOG.md`, and release
-   notes when the cycle changes them.
+   surfaces such as `README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`,
+   `docs/topics/`, and release notes when the cycle changes them.
 
    Releases happen when externally meaningful behavior changes. Not
    every cycle is a release. Ship sync only happens on merged `main`
@@ -126,35 +126,21 @@ a standup:
 If any of these are unclear, the docs are incomplete. Fix the docs,
 not the process.
 
-### BEARING.md
+### Public documentation
 
-A single living document at `docs/BEARING.md`. One page, updated at
-cycle boundaries - not mid-cycle. It answers three questions:
-
-1. **Where are we going?** - the current priority (legend, theme, or
-   plain English).
-2. **What just shipped?** - last completed cycle, one line.
-3. **What feels wrong?** - known tensions, open questions, gut
-   feelings that do not yet have backlog items.
-
-`BEARING.md` is a signpost, not a status report. It summarizes
-direction; it does not create commitments, replace backlog items, or
-record decisions that belong in design docs, retros, or the backlog.
-It is updated during ship sync after merge. On a solo project, that is
-usually you. On a team, it is whoever merges last or owns the ship
-sync. No scheduling, no rotation, no process.
-
-If the bearing drifts without anyone noticing, that is the signal to
-talk - not a meeting, just a conversation. The drift itself is the
-agenda.
+The repo has three standing root artifacts: `README.md`,
+`ARCHITECTURE.md`, and `CHANGELOG.md`. Product and operator depth lives under
+`docs/topics/`, grouped by reader task. Current direction and work state live
+in GitHub Issues, release evidence, design docs, and retros; do not create a
+parallel status warehouse in `BEARING.md` or `VISION.md`.
 
 ### Conflict at the backlog
 
 Two people pulling conflicting work from `asap/` is a design-doc
 problem, not a process problem. Active design docs are visible through
 the repo itself. If your hill contradicts an active cycle's hill, you
-should see it at step 1. Resolve it there or file it as a tension in
-`docs/BEARING.md`.
+should see it at step 1. Resolve it there or file it as a GitHub Issue or
+name it in the cycle design doc.
 
 ### What this does not add
 
@@ -180,7 +166,7 @@ idea -> inbox/ -> cool-ideas/ -> up-next/ -> asap/
   -> RED -> GREEN -> playback (witness)
   -> retro/<cycle>/   (cycle packet closed)
   -> PR -> main
-  -> ship sync (BEARING / CHANGELOG / release when meaningful)
+  -> ship sync (README / ARCHITECTURE / CHANGELOG / topics / release)
       - or ->
   -> graveyard/
 ```
@@ -206,7 +192,7 @@ pull time. Coordination is reading the filesystem. That is enough.
 
 | Convention | Example | When |
 |------------|---------|------|
-| `ALL_CAPS.md` | `VISION.md`, `BEARING.md` | Signpost - root or `docs/` |
+| `ALL_CAPS.md` | `CHANGELOG.md`, `METHOD.md` | Root policy or history artifact |
 | `lowercase.md` | `doctrine.md` | Everything else |
 | `<LEGEND>_<name>.md` | `CC_raw-error-purge.md` | Backlog with legend |
 | `<name>.md` | `debt-trailer-codec.md` | Backlog without legend |

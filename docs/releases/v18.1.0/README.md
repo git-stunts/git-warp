@@ -171,19 +171,17 @@ Release documentation review surface:
 
 - `CHANGELOG.md`
 - `README.md`
-- `TECHNICAL_TEARDOWN.md`
-- `docs/ARCHITECTURE.md`
-- `docs/GETTING_STARTED.md`
-- `docs/READINGS_AND_OPTICS.md`
-- `docs/GUIDE.md`
-- `docs/API_REFERENCE.md`
-- `docs/CLI_GUIDE.md`
-- `docs/PUBLIC_API_COSTS.md`
-- `docs/ADVANCED_GUIDE.md`
-- `docs/CONCEPTUAL_OVERVIEW.md`
+- `ARCHITECTURE.md`
+- `docs/topics/index.md`
+- `docs/topics/getting-started.md`
+- `docs/topics/optics.md`
+- `docs/topics/observers.md`
+- `docs/topics/bounded-reads.md`
+- `docs/topics/querying.md`
+- `docs/topics/api-reference.md`
+- `docs/topics/git-substrate.md`
+- `docs/topics/cli.md`
 - `docs/migrations/`
-- `docs/ROADMAP.md`
-- `docs/BEARING.md`
 
 This scaffold records the public README/topic/example accuracy pass. Final
 tagging requires the full release documentation surface to remain consistent

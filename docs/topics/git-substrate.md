@@ -1,14 +1,13 @@
-# Advanced guide
+# Git substrate
 
-This is the engine-room guide.
+Use this page when you need to understand why `git-warp` is safe, how replay
+works, what lives in Git, and where the trust and performance boundaries are.
 
-Use it when you need to understand why `git-warp` is safe, how replay works, what lives in Git, and where the trust and performance boundaries are.
-
-- If you are new, start with [Getting Started](GETTING_STARTED.md).
-- If you are building day-to-day product code, use the [Guide](GUIDE.md).
-- If you want every method and appendix in one place, use the [API Reference](API_REFERENCE.md).
-- If you need noun status, use [GLOSSARY.md](GLOSSARY.md) and the
-  [Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md).
+- If you are new, start with [Getting started](getting-started.md).
+- If you are building day-to-day product code, use [Querying](querying.md).
+- If you want every method and appendix in one place, use the [API reference](api-reference.md).
+- If you need noun status, use [GLOSSARY.md](../GLOSSARY.md) and the
+  [Doctrine/runtime Alignment Ratchet](../DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 ## Runtime posture
 
@@ -17,7 +16,7 @@ it must mark the difference. Today, pinned-base strands, braid support overlays,
 frontier-based sync, and whole-state materialization are implementation
 posture. Live holographic strands, common-basis braids, witnessed suffix
 admission, and support-scoped fragments are target doctrine tracked in the
-[teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
+[teaching alignment audit](../audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 ## Public roots and boundaries
 
@@ -44,7 +43,7 @@ At the substrate level, a WARP patch is a Git commit.
 ```mermaid
 flowchart TB
     commit["Patch commit<br />sha=f1a2b3c"] --> parent["Parent patch<br />same writer"]
-    commit --> tree["Empty tree<br />4b825dc..."]
+    commit --> tree["Patch/content tree<br />payload and attachments"]
     commit --> trailers["Trailers<br />eg-kind=patch<br />eg-graph=team<br />eg-writer=alice<br />eg-lamport=42"]
     commit -.-> blob["patch.cbor<br />CBOR-encoded operation log"]
     tree --> attachments["_content_* blobs<br />optional attachment payloads"]
@@ -53,12 +52,16 @@ flowchart TB
 What matters:
 
 - the patch lives under `refs/warp/<graph>/writers/<writerId>`
-- the commit points at Git's well-known empty tree
+- the commit lives on a WARP ref, outside ordinary source-tree refs
+- the commit may carry a Git tree for patch payloads or content attachments
 - the operation log is CBOR-encoded
 - trailers carry graph, writer, Lamport, and replay metadata
 - optional attachment blobs hang off the patch object graph
 
-This is the core reason `git-warp` can live inside a normal repo without taking over your checked-out source tree.
+The ref namespace is the reason `git-warp` can live inside a normal repo without
+taking over your checked-out source tree. Do not model correctness around a
+blanket empty-tree invariant; patch and checkpoint commits may carry payload
+trees.
 
 ## How replay converges
 
@@ -116,10 +119,10 @@ If someone mutates a receipt, the commit SHA changes and the downstream chain no
 
 For the normative details, use:
 
-- [Audit receipt spec](specs/AUDIT_RECEIPT.md)
-- [Trust crypto spec](specs/TRUST_CRYPTO_ALGORITHM.md)
-- [Trust migration](trust/TRUST_MIGRATION.md)
-- [Trust operator runbook](trust/TRUST_OPERATOR_RUNBOOK.md)
+- [Audit receipt spec](../specs/AUDIT_RECEIPT.md)
+- [Trust crypto spec](../specs/TRUST_CRYPTO_ALGORITHM.md)
+- [Trust migration](../trust/TRUST_MIGRATION.md)
+- [Trust operator runbook](../trust/TRUST_OPERATOR_RUNBOOK.md)
 
 ### Observer redaction is not encryption
 
@@ -229,7 +232,7 @@ Strands are the substrate's durable speculative lanes.
 Status: the runtime currently uses pinned-overlay strand mechanics. The target
 model is live holographic strands with basis-relative realization and
 common-basis braid validation; see the
-[teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
+[teaching alignment audit](../audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 What a strand records:
 
@@ -320,9 +323,8 @@ Current design backlog:
 
 ## Where next
 
-- [API Reference](API_REFERENCE.md): exhaustive methods, appendices, and error codes
-- [Guide](GUIDE.md): builder patterns and day-to-day app flows
-- [CLI Guide](CLI_GUIDE.md): operator workflows, time travel, and debugger commands
-- [Conceptual Overview](CONCEPTUAL_OVERVIEW.md): the broader WARP mental model
-- [Architecture](ARCHITECTURE.md): internal layering
-- [Protocol specs](specs/): normative formats
+- [API reference](api-reference.md): exhaustive methods, appendices, and error codes
+- [Querying](querying.md): builder patterns and day-to-day app flows
+- [CLI](cli.md): operator workflows, time travel, and debugger commands
+- [Architecture](../../ARCHITECTURE.md): internal layering
+- [Protocol specs](../specs/): normative formats

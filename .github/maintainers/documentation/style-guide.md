@@ -125,32 +125,28 @@ should make that obvious.
 
 This is the intended documentation layout for the live corpus.
 
-- `docs/README.md`
-  Canonical docs index.
-- `docs/getting-started/`
-  First-use onboarding and early tutorial flow.
-- `docs/app/`
-  Product-facing docs for `WarpApp`, `Worldline`, `Aperture`, `Observer`, `Strand`,
-  braid patterns, and app-shaped usage.
-- `docs/core/`
-  Advanced substrate docs for `WarpCore`, materialization, receipts,
-  provenance, comparison, transfer plans, and playback coordination.
-- `docs/patterns/`
-  Reusable flows and end-to-end usage patterns.
-- `docs/reference/`
-  CLI and API reference.
+- `README.md`
+  Product front door.
+- `ARCHITECTURE.md`
+  Root architecture and implementation boundary map.
+- `CHANGELOG.md`
+  Public release history.
+- `docs/topics/index.md`
+  Canonical docs topic router.
+- `docs/topics/*.md`
+  Reader-task pages for onboarding, app workflows, read surfaces, CLI work,
+  API lookup, and substrate explanation.
 - `docs/reference/machine/`
-  Generated machine-readable artifacts for agents and tooling.
-- `docs/theory/`
-  WARP theory and deeper conceptual material.
+  Generated machine-readable artifacts for agents and tooling, if introduced.
 - `.github/maintainers/`
   Maintainer-facing docs, including this style guide.
 - `docs/archive/`
   Superseded or historical material that should not be treated as current
   onboarding or reference.
 
-This is the target architecture. The repo does not need to move every file into
-that structure in one slice, but new docs work should move toward it.
+Do not reintroduce `docs/BEARING.md`, `docs/VISION.md`, `docs/ROADMAP.md`, or
+parallel top-level product guides. If a topic grows too large, split it by
+reader task under `docs/topics/`, not by legacy document title.
 
 ## Current project artifacts that stay in place
 
@@ -159,7 +155,7 @@ discoverable:
 
 - `BACKLOG/`
 - `docs/design/`
-- `docs/archive/retrospectives/`
+- `docs/method/retro/`
 
 They are not first-use product docs, but they are important project artifacts.
 

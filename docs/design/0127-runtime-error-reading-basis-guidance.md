@@ -11,7 +11,7 @@
 Runtime read/provenance errors no longer tell v17 users to "Call
 materialize". They explain that no live reading basis, stale reading
 basis, or provenance reading index is available, and they point to
-[Readings And Optics](../READINGS_AND_OPTICS.md).
+[Optics](../topics/optics.md).
 
 ## User Stories
 

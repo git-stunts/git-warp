@@ -286,14 +286,14 @@ Git and WARP fit together because both are:
 - distributed and multi-writer.
 - history-preserving.
 
-Each writer appends patch commits under `refs/warp/<graph>/writers/<writerId>`. The commits point at Git's empty tree, so graph history stays separate from your source tree. Sync uses normal `git push` and `git fetch`.
+Each writer appends patch commits under `refs/warp/<graph>/writers/<writerId>`. The refs stay outside normal branch history, so graph history stays separate from your checked-out source tree. Patch commits may carry patch and content trees; the isolation comes from refs and Git plumbing, not from pretending every data commit is empty. Sync uses normal `git push` and `git fetch` over the WARP refs.
 
 <details>
 <summary><h4>For the Nerds™ — Git as a Merkle DAG, patches as a free monoid</h4></summary>
 
 > Git's object store is a **Merkle DAG**: every object is named by the hash of its content, so a commit's id transitively fixes its entire history. That gives **structural sharing** (equal subhistories are stored once — hash-consing) and **tamper-evidence** for free: change one byte upstream and every downstream id changes.
 >
-> `git-warp` leans on two consequences. First, each writer's chain at `refs/warp/<graph>/writers/<writerId>` is the **free monoid** $(W^{*},\, \cdot,\, \varepsilon)$ on that writer's claims $W$ — append-only concatenation $\cdot$, empty history $\varepsilon$ as identity, no rewriting. Second, the commits point at Git's **empty tree** (`4b825dc…`), so the DAG carries *causal* structure with an empty *file* payload: graph history rides Git's transport and dedup without ever touching your working tree. Merge law lives one layer above this (see the semilattice note); Git just supplies the verifiable spine.
+> `git-warp` leans on two consequences. First, each writer's chain at `refs/warp/<graph>/writers/<writerId>` is the **free monoid** $(W^{*},\, \cdot,\, \varepsilon)$ on that writer's claims $W$ — append-only concatenation $\cdot$, empty history $\varepsilon$ as identity, no rewriting. Second, the commits live on WARP refs rather than source-tree refs, so graph history rides Git's transport and dedup without touching your working tree. Merge law lives one layer above this (see the semilattice note); Git supplies the verifiable spine.
 
 </details>
 
@@ -327,27 +327,6 @@ In the stack, **git-warp and Echo own runtime truth**, while Continuum owns the 
 |Full-text search / analytics|Use purpose-built engines|
 |Time-travel debugging UI|Use warp-ttd on top of git-warp|
 
-## Release status
-
-`v18.0.0` has shipped. The `v18.1.0` source line is in pre-tag release prep:
-the reified `Optic` gate has landed in runtime and docs, but no `v18.1.0` tag
-has been cut yet. Tagging still requires the release evidence and final gates
-recorded in [docs/releases/v18.1.0/README.md](docs/releases/v18.1.0/README.md).
-
-Current `v18.1.0` truths:
-
-- `Optic` is now an exported, frozen runtime noun for the public fluent read path.
-- Blank node ids and property keys are rejected as invalid `Optic` target schemas, while missing non-empty targets still read as ordinary absence.
-- `prepareOpticBasis()` plus coordinate optics keep first-use reads bounded instead of materializing the whole graph.
-- `BoundedSupportRule`, `CausalIndexPlan`, and `SupportFragmentPlan` give reads an explicit support posture ahead of execution.
-- `comparison.diff({ from, to })` returns a first-class `GraphDiff` for live Lamport ranges without wildcard scans.
-- Full-result helpers, graph-wide diagnostics, legacy facades, and offline migration tools remain explicitly classified instead of being presented as first-use application APIs.
-- Native Continuum optic witnesshood, remote optic transport, and live Echo/git-warp suffix exchange remain outside this release claim.
-
-Live work is tracked in [GitHub Issues](https://github.com/git-stunts/git-warp/issues).
-
-For current API cost labels, see [PUBLIC_API_COSTS.md](docs/PUBLIC_API_COSTS.md).
-
 ## Runtime posture
 
 Use [GLOSSARY.md](docs/GLOSSARY.md) for shipped, transition, and target noun status.
@@ -358,16 +337,14 @@ Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates
 
 ## Documentation
 
-- [Getting Started](docs/GETTING_STARTED.md) — first open, write, read, sync
-- [Readings & Optics](docs/READINGS_AND_OPTICS.md) — public read model and app-facing read patterns
-- [Topics](docs/topics/) — focused guides: [Optics](docs/topics/optics.md), [Observers](docs/topics/observers.md), [Bounded Reads](docs/topics/bounded-reads.md)
+- [Topics](docs/topics/index.md) — task-oriented documentation map
+- [Getting started](docs/topics/getting-started.md) — first open, write, read, sync
+- [Optics](docs/topics/optics.md), [Observers](docs/topics/observers.md), and [Bounded reads](docs/topics/bounded-reads.md) — the current public read model
+- [Querying](docs/topics/querying.md), [Sync](docs/topics/sync.md), and [CLI](docs/topics/cli.md) — common usage paths
 - [Examples](examples/) — runnable read-model snippets
-- [Guide](docs/GUIDE.md) — patterns for apps, agents, and tools
-- [API Reference](docs/API_REFERENCE.md) — exhaustive public API
-- [Architecture](docs/ARCHITECTURE.md) — hexagonal layers and admission kernel
+- [API reference](docs/topics/api-reference.md) — transitional public API reference
+- [Architecture](ARCHITECTURE.md) — hexagonal layers and admission kernel
 - [Migration Guide](docs/migrations/v18.0.0.md) — Worldline-first v18 API migration
-- [CLI Guide](docs/CLI_GUIDE.md) — terminal workflows
-- [Vision](docs/VISION.md) — repo doctrine
 - [Glossary](docs/GLOSSARY.md) — shipped, transition, and target noun status
 - [Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) — evidence rule for docs-ahead claims
 - [Specs](docs/specs/) — normative protocol and format specifications
@@ -390,7 +367,7 @@ This gives you deterministic convergence without a central server, but reads are
 
 ### What does the data model look like?
 
-**Nodes**, **properties**, and **directed edges** identified by stable string IDs. Changes are additive patches that are never rewritten. See [Getting Started](docs/GETTING_STARTED.md).
+**Nodes**, **properties**, and **directed edges** identified by stable string IDs. Changes are additive patches that are never rewritten. See [Getting started](docs/topics/getting-started.md).
 
 ### Can multiple people/agents write at the same time?
 
@@ -402,7 +379,7 @@ Yes — independently, even fully offline. Histories converge deterministically 
 npm install @git-stunts/git-warp @git-stunts/plumbing
 ```
 
-Works alongside any existing Git repo. Full setup: [Getting Started](docs/GETTING_STARTED.md).
+Works alongside any existing Git repo. Full setup: [Getting started](docs/topics/getting-started.md).
 
 ### How does syncing work?
 
@@ -414,7 +391,7 @@ Standard Git (`push`/`fetch`/`pull`). Patches live under `refs/warp/...`.
 
 ### Is it production ready?
 
-`v18.1.0` is shipped for intended use cases. Check [GLOSSARY.md](docs/GLOSSARY.md) for shipped vs. transition status.
+Check [CHANGELOG.md](CHANGELOG.md), [GLOSSARY.md](docs/GLOSSARY.md), and the package registry for release and surface status. The README does not carry live release gates.
 
 ### What about performance and scale?
 
@@ -436,11 +413,11 @@ Migration tools and diagnostic surfaces exist. See [Migration Guide](docs/migrat
 
 ### Can I use it with my existing Git repository?
 
-Yes — graph history is isolated (points to empty tree).
+Yes. Graph history lives under WARP refs such as `refs/warp/<graph>/writers/<writerId>`, separate from branch refs and the checked-out worktree.
 
 ### Where can I get help or see examples?
 
-[examples/](examples/), [docs/topics/](docs/topics/), [Issues](https://github.com/git-stunts/git-warp/issues).
+[examples/](examples/), [docs/topics/](docs/topics/index.md), [Issues](https://github.com/git-stunts/git-warp/issues).
 
 ---
 

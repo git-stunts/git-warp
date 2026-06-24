@@ -9,7 +9,10 @@ Use this guide when you want your first successful `git-warp` flow:
 5. pin a historical view
 6. sync the worldline history through Git refs
 
-If you already know you want broader builder patterns, jump to the [Guide](GUIDE.md). If you want the public read model first, jump to [Readings And Optics](READINGS_AND_OPTICS.md). If you want substrate internals, trust, replay, or performance details, jump to the [Advanced Guide](ADVANCED_GUIDE.md).
+If you already know you want broader builder patterns, jump to
+[Querying](querying.md). If you want the public read model first, jump to
+[Optics](optics.md). If you want substrate internals, trust, replay, or
+performance details, jump to [Git substrate](git-substrate.md).
 
 ## Install
 
@@ -98,7 +101,7 @@ The first-use read shape is exact id-only query. When a checkpoint-tail basis is
 available, this path uses the bounded exact-read provider and reports a
 checkpoint-tail read identity instead of a fake whole-graph hash. Broader
 property, wildcard, traversal, and observer reads remain `transitional`; see
-[Public API Costs](PUBLIC_API_COSTS.md) before treating them as large-graph
+[Bounded reads](bounded-reads.md) before treating them as large-graph
 safe.
 
 ```typescript
@@ -176,9 +179,9 @@ In a real repo, you will usually automate that with Git config or team tooling s
 
 ## Next steps
 
-- [Readings And Optics](READINGS_AND_OPTICS.md): public read contract, live and pinned readings, observers, and optics
-- [Guide](GUIDE.md): builder patterns for Worldlines, observers, and strands
-- [API Reference](API_REFERENCE.md): exhaustive API and examples
-- [Advanced Guide](ADVANCED_GUIDE.md): substrate internals, trust, replay, and performance
-- [CLI Guide](CLI_GUIDE.md): operator workflows from the terminal
-- [Conceptual Overview](CONCEPTUAL_OVERVIEW.md): the WARP mental model and Git substrate story
+- [Optics](optics.md): public read contract, live and pinned readings, observers, and optics
+- [Querying](querying.md): builder patterns for Worldlines, observers, and strands
+- [API reference](api-reference.md): exhaustive API and examples
+- [Git substrate](git-substrate.md): substrate internals, trust, replay, and performance
+- [CLI](cli.md): operator workflows from the terminal
+- [Sync](sync.md): explicit WARP refspecs and sync diagnostics

@@ -4,16 +4,16 @@ This document is the exhaustive reference surface for `git-warp`.
 
 Use it when you already understand the mental model and want the full method, flag, appendix, and error-code surface in one place.
 
-- If you are learning the product, start with [Getting Started](GETTING_STARTED.md).
-- If you are building an app, use the narrative [Guide](GUIDE.md).
-- If you are choosing read surfaces, use [Readings And Optics](READINGS_AND_OPTICS.md).
-- If you want engine-room internals, use the [Advanced Guide](ADVANCED_GUIDE.md).
-- If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
+- If you are learning the product, start with [Getting started](getting-started.md).
+- If you are building an app, use the narrative [Querying](querying.md).
+- If you are choosing read surfaces, use [Optics](optics.md).
+- If you want engine-room internals, use the [Git substrate](git-substrate.md).
+- If you want terminal workflows, use the [CLI](cli.md).
 
 This reference describes shipped or transition runtime surfaces. When a stronger
 WARP noun or semantic promise is still target doctrine, the status and evidence
 rules live in the
-[Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md).
+[Doctrine/runtime Alignment Ratchet](../DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 The rest of this file intentionally stays dense and comprehensive.
 
@@ -588,7 +588,7 @@ These exact-read and query shapes are the preferred application surface, but
 their cost posture is still classified per surface. Full-result reads such as
 `getNodes()` and `getEdges()` are diagnostic/offline surfaces, not first-use
 product-read examples. See
-[PUBLIC API COSTS](PUBLIC_API_COSTS.md).
+[Bounded reads](bounded-reads.md).
 
 When you need a filtered or redacted aperture, define a lens and create an
 observer on top of the worldline:
@@ -611,7 +611,7 @@ methods above. Both surfaces express the read as a bounded revelation over
 causal history instead of asking callers to fold the graph into a public state
 object first.
 
-For the narrative version of this model, see [Readings And Optics](READINGS_AND_OPTICS.md).
+For the narrative version of this model, see [Optics](optics.md).
 
 For most live reads, call the query capability directly:
 
@@ -1839,7 +1839,7 @@ and does not retarget the caller runtime. When you want a pinned application-
 facing read handle over the same speculative lane, prefer `graph.query.worldline(...)` plus
 `observer(...)` as shown above.
 
-Use the [Advanced Guide](ADVANCED_GUIDE.md) for the dedicated strand model and the [CLI Guide](CLI_GUIDE.md) for the full CLI flags.
+Use the [Git substrate](git-substrate.md) for the dedicated strand model and the [CLI](cli.md) for the full CLI flags.
 
 ### Time Travel Debugger (TTD)
 
@@ -1856,7 +1856,7 @@ On supported topics, add `--strand <id>` to inspect a pinned speculative lane in
 
 `strand` is intentionally **not** part of TTD. It is a separate durable substrate family that pins coordinates instead of inspecting them read-only.
 
-See the [CLI Guide](CLI_GUIDE.md) for complete command flags and debugger workflows.
+See the [CLI](cli.md) for complete command flags and debugger workflows.
 
 **Programmatic API:**
 
@@ -2309,7 +2309,11 @@ refs/warp/<graphName>/
     └── head           # Octopus anchor (all writer tips)
 ```
 
-Each writer's ref points to the tip of their patch chain. Patches are Git commits whose parents point to the previous patch from the same writer. All commits point to Git's well-known empty tree (`4b825dc642cb6eb9a060e54bf8d69288fbee4904`), making data invisible to normal Git workflows.
+Each writer's ref points to the tip of their patch chain. Patches are Git
+commits whose parents point to the previous patch from the same writer. Graph
+data stays invisible to normal branch workflows because it lives under
+`refs/warp/...`; patch and checkpoint commits may carry Git trees for payloads,
+content attachments, receipts, or folded state.
 
 ### Appendix C: Patch Format
 
@@ -2861,7 +2865,9 @@ Exit code 0 means all chains are valid (or partial when `--since` is used). Exit
 
 #### Spec Reference
 
-The full specification — including canonical serialization rules, field constraints, trust model, and normative test vectors — lives in [`docs/specs/AUDIT_RECEIPT.md`](specs/AUDIT_RECEIPT.md).
+The full specification — including canonical serialization rules, field
+constraints, trust model, and normative test vectors — lives in
+[`docs/specs/AUDIT_RECEIPT.md`](../specs/AUDIT_RECEIPT.md).
 
 ---
 
@@ -2895,5 +2901,5 @@ observer paths your application actually uses.
 
 ## Further Reading
 
-- [Architecture](ARCHITECTURE.md) — system design and internals
-- [Conceptual Overview](CONCEPTUAL_OVERVIEW.md) — WARP concepts and substrate mental model
+- [Architecture](../../ARCHITECTURE.md) — system design and internals
+- [Git substrate](git-substrate.md) — WARP concepts and substrate mental model

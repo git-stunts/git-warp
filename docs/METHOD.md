@@ -63,9 +63,8 @@ Witnesses are not victory photos. They are rerunnable proof.
 
 ```text
 docs/
-  BEARING.md                        current direction signpost
-  VISION.md                         north-star signpost
   METHOD.md                         local Method doctrine signpost
+  topics/                           public product/operator documentation
   method/
     backlog/                        legacy/migration-only backlog cards
     legends/                        named domains
@@ -82,9 +81,9 @@ docs/
     *.md                            living documents
 ```
 
-Repo signposts live at root or one level into `docs/`. `README.md` is
-the standing root exception; every other signpost uses `ALL_CAPS.md`.
-Deeper than that, it is not a signpost.
+Public docs live in root artifacts and `docs/topics/`. Deeper docs are
+evidence, specs, method material, release packets, or archives; they are not
+status signposts.
 
 ---
 
@@ -93,11 +92,12 @@ Deeper than that, it is not a signpost.
 METHOD expects a few bounded repo-level signposts. They summarize the
 state of the repo; they do not create commitments.
 
-| Signpost          | Role                                                                     |
-| ----------------- | ------------------------------------------------------------------------ |
-| `README.md`       | The operating doctrine and filesystem shape.                             |
-| `docs/BEARING.md` | Current direction, last shipped cycle, and tensions at cycle boundaries. |
-| `docs/VISION.md`  | A bounded executive synthesis grounded in repo-visible sources.          |
+| Artifact | Role |
+| --- | --- |
+| `README.md` | Product front door and install path. |
+| `ARCHITECTURE.md` | Root system map and implementation boundary guide. |
+| `CHANGELOG.md` | Public release history. |
+| `docs/topics/` | Task-oriented public documentation. |
 
 Generated signposts should carry generation metadata and a source
 manifest. Unless they say otherwise explicitly, they are making
@@ -344,8 +344,8 @@ in one sentence, the cycle is too big. Split it.
    the already-open cycle PR until merge or rejection.
 
 8. **Ship sync on `main`** - after merge, update repo-level ship
-   surfaces such as `docs/BEARING.md`, `CHANGELOG.md`, and release
-   notes when the cycle changes them.
+   surfaces such as `README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`,
+   `docs/topics/`, and release notes when the cycle changes them.
 
    Releases happen when externally meaningful behavior changes. Not
    every cycle is a release. Ship sync only happens on merged `main`
@@ -403,35 +403,20 @@ a standup:
 If any of these are unclear, the docs are incomplete. Fix the docs,
 not the process.
 
-### BEARING.md
+### Public documentation
 
-A single living document at `docs/BEARING.md`. One page, updated at
-cycle boundaries - not mid-cycle. It answers three questions:
-
-1. **Where are we going?** - the current priority (legend, theme, or
-   plain English).
-2. **What just shipped?** - last completed cycle, one line.
-3. **What feels wrong?** - known tensions, open questions, gut
-   feelings that do not yet have GitHub Issues.
-
-`BEARING.md` is a signpost, not a status report. It summarizes
-direction; it does not create commitments, replace GitHub Issues, or
-record decisions that belong in design docs, retros, or issue discussion.
-It is updated during ship sync after merge. On a solo project, that is
-usually you. On a team, it is whoever merges last or owns the ship
-sync. No scheduling, no rotation, no process.
-
-If the bearing drifts without anyone noticing, that is the signal to
-talk - not a meeting, just a conversation. The drift itself is the
-agenda.
+The repo keeps the current public surface in `README.md`, `ARCHITECTURE.md`,
+`CHANGELOG.md`, and `docs/topics/`. Current direction and work state live in
+GitHub Issues, release evidence, design docs, and retros. Do not revive
+`docs/BEARING.md` or `docs/VISION.md` as live status stores.
 
 ### Conflict in the tracker
 
 Two people pulling conflicting `priority:asap` or `priority:next` issues is a
 design-doc problem, not a process problem. Active design docs are visible
 through the repo itself. If your hill contradicts an active cycle's hill, you
-should see it at step 1. Resolve it there or file it as a tension in
-`docs/BEARING.md`.
+should see it at step 1. Resolve it there or file it as a GitHub Issue or
+name it in the cycle design doc.
 
 ### What this does not add
 
@@ -459,7 +444,7 @@ idea -> issue with type/priority/status/area/milestone metadata
   -> RED -> GREEN -> playback (witness)
   -> retro/<cycle>/   (cycle packet closed)
   -> review -> main
-  -> ship sync (BEARING / CHANGELOG / release when meaningful)
+  -> ship sync (README / ARCHITECTURE / CHANGELOG / topics / release)
       - or ->
   -> closed issue / graveyard evidence
 ```
@@ -486,7 +471,7 @@ pull time. Coordination is reading the filesystem. That is enough.
 
 | Convention           | Example                    | When                       |
 | -------------------- | -------------------------- | -------------------------- |
-| `ALL_CAPS.md`        | `VISION.md`, `BEARING.md`  | Signpost - root or `docs/` |
+| `ALL_CAPS.md`        | `CHANGELOG.md`, `METHOD.md` | Root policy or history artifact |
 | `lowercase.md`       | `doctrine.md`              | Everything else            |
 | `<LEGEND>_<name>.md` | `CC_raw-error-purge.md`    | Backlog with legend        |
 | `<name>.md`          | `debt-trailer-codec.md`    | Backlog without legend     |

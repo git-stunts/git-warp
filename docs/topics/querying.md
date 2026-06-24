@@ -1,19 +1,19 @@
-# Guide
+# Querying
 
-This is the builder's guide.
+Use this page when you are writing an app, an agent workflow, or a local-first
+tool on top of `git-warp` and want the main patterns without reading a
+substrate manual.
 
-Use it when you are writing an app, an agent workflow, or a local-first tool on top of `git-warp` and you want the main patterns without reading a substrate manual.
-
-- If you are brand new, start with [Getting Started](GETTING_STARTED.md).
-- If you want the public read model, use [Readings And Optics](READINGS_AND_OPTICS.md).
-- If you want exhaustive method-by-method detail, use the [API Reference](API_REFERENCE.md).
-- If you want replay, trust, performance, and substrate internals, use the [Advanced Guide](ADVANCED_GUIDE.md).
-- If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
+- If you are brand new, start with [Getting started](getting-started.md).
+- If you want the public read model, use [Optics](optics.md).
+- If you want exhaustive method-by-method detail, use the [API reference](api-reference.md).
+- If you want replay, trust, performance, and substrate internals, use the [Git substrate](git-substrate.md).
+- If you want terminal workflows, use the [CLI](cli.md).
 - If you want the canonical meaning of core nouns like `Worldline`,
-  `Observer`, `Aperture`, or `Coordinate`, use [GLOSSARY.md](GLOSSARY.md).
+  `Observer`, `Aperture`, or `Coordinate`, use [GLOSSARY.md](../GLOSSARY.md).
 - If a doc claim seems stronger than the current API, use the
-  [Doctrine/runtime Alignment Ratchet](DOCTRINE_RUNTIME_ALIGNMENT.md) and the
-  [teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
+  [Doctrine/runtime Alignment Ratchet](../DOCTRINE_RUNTIME_ALIGNMENT.md) and the
+  [teaching alignment audit](../audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 ## Runtime posture
 
@@ -139,9 +139,9 @@ const reviewLane = graph.query.worldline({
 Use strands for speculative work. Use ordinary patches for live truth.
 
 For the deeper substrate story behind strands, braids, and transfer planning,
-use [Advanced Guide -> Strands and braids](ADVANCED_GUIDE.md#strands-and-braids).
+use [Git substrate -> Strands and braids](git-substrate.md#strands-and-braids).
 For the target-model gap, use the
-[teaching alignment audit](audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
+[teaching alignment audit](../audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
 
 ## Streamed substrate work
 
@@ -172,7 +172,7 @@ model.
 
 The patterns in this section are the preferred application API shapes. Their
 current providers are classified per surface; use
-[Public API Costs](PUBLIC_API_COSTS.md) for the current cost label and caveat
+[Bounded reads](bounded-reads.md) for the current cost label and caveat
 before treating a read path as large-graph safe.
 
 ### Pattern 1: the live view
@@ -213,8 +213,8 @@ Observer redaction is application-layer filtering. It is useful for
 multi-tenant views and product isolation, but it is not a cryptographic
 boundary: a user with filesystem access to `.git/objects/` can still inspect
 raw patch objects unless the graph content is encrypted at rest. Use
-`CasContentEncryptionPolicy` and the vault-backed CAS workflow in the
-[Advanced Guide](ADVANCED_GUIDE.md#vault-backed-cas-content-encryption) when
+`CasContentEncryptionPolicy` and the vault-backed CAS workflow in
+[Git substrate](git-substrate.md#vault-backed-cas-content-encryption) when
 the data itself must be protected. `@git-stunts/vault` is the intended key
 management path; do not put graph encryption secrets in `.env` files.
 
@@ -351,7 +351,7 @@ const dependencyPath = await worldline.traverse.shortestPath('task:docs', 'task:
 // }
 ```
 
-For the exhaustive query surface, use the [API Reference](API_REFERENCE.md).
+For the exhaustive query surface, use the [API reference](api-reference.md).
 
 ## Collaboration patterns
 
@@ -392,7 +392,10 @@ for (const patchSha of patchShas) {
 }
 ```
 
-Use this pattern when you need to explain a lost race or build higher-level conflict UX. For the deeper replay and provenance model behind receipts, use [Advanced Guide -> How replay converges](ADVANCED_GUIDE.md#how-replay-converges). For the app-facing read contract, use [Readings And Optics](READINGS_AND_OPTICS.md).
+Use this pattern when you need to explain a lost race or build higher-level
+conflict UX. For the deeper replay and provenance model behind receipts, use
+[Git substrate -> How replay converges](git-substrate.md#how-replay-converges).
+For the app-facing read contract, use [Optics](optics.md).
 
 ## When to use lower-level capabilities
 
@@ -410,8 +413,8 @@ What to avoid is not the inspection API itself. The thing to avoid is exporting 
 
 ## Where next
 
-- [Readings And Optics](READINGS_AND_OPTICS.md): public read model and app-facing read patterns
-- [API Reference](API_REFERENCE.md): exhaustive methods, flags, and examples
-- [Advanced Guide](ADVANCED_GUIDE.md): patch anatomy, replay, trust, GC, and performance
-- [CLI Guide](CLI_GUIDE.md): operator workflows and live-repo inspection
-- [Conceptual Overview](CONCEPTUAL_OVERVIEW.md): the WARP mental model and Git substrate story
+- [Optics](optics.md): public read model and app-facing read patterns
+- [API reference](api-reference.md): exhaustive methods, flags, and examples
+- [Git substrate](git-substrate.md): patch anatomy, replay, trust, GC, and performance
+- [CLI](cli.md): operator workflows and live-repo inspection
+- [Architecture](../../ARCHITECTURE.md): root system map and admission model
