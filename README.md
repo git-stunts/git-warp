@@ -1,5 +1,4 @@
 <div align="center">
-<img src="https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp-alt.svg" alt="git-warp logo" />
 <p><strong>A Git-native runtime for shared causal history.</strong></p>
 <p>Offline-first, multi-writer, deterministic, and built for provenance-aware graphs.</p>
 </div>
@@ -116,11 +115,11 @@ const diff = await graph.comparison.diff({ from: 120, to: 135, targetId: "user:a
 const slice = await graph.provenance.materializeSlice("user:alice");
 ```
 
-See [`examples/`](examples/) for runnable versions and [Bounded Reads](docs/topics/bounded-reads.md) for the model.
+See [`examples/`](examples/) for runnable versions and [Optic reads](docs/topics/optic-reads.md) for the model.
 
 ## Core ideas
 
-git-warp's concepts span how history is **written**, **positioned**, **read**, **accelerated**, **proven**, and **persisted**. The map groups every canonical noun by its glossary section and marks runtime status. Status markers: no mark = **shipped** runtime truth, `~` = **transition** (the noun exists but is narrower than its canonical meaning), `*` = **target** (intended architecture, not yet a first-class runtime concept).
+git-warp's concepts span how history is **written**, **positioned**, **read**, **accelerated**, **proven**, and **persisted**. The map marks runtime posture directly. Status markers: no mark = **shipped** runtime truth, `~` = **transition** (the noun exists but is narrower than its canonical meaning), `*` = **target** (intended architecture, not yet a first-class runtime concept).
 
 ```mermaid
 mindmap
@@ -184,9 +183,11 @@ mindmap
 | **WarpStateCache** | shipped | The owning system for persisted and in-memory snapshot reuse. |
 | **Checkpoint** | transition | A pinned snapshot protected from ordinary eviction. |
 
-[GLOSSARY.md](docs/GLOSSARY.md) is the canonical source for these nouns and their status; if any doc disagrees, the glossary wins.
+The topic pages own the current explanations for these nouns. Exact API, CLI,
+schema, and error inventories should be generated or coverage-checked rather
+than maintained as long-form prose.
 
-> `Optic` is now a reified runtime noun for the public read path. The fluent API — `coordinate().optic().node().prop().read()` — lowers into a frozen `Optic` value before execution; see [Optics](docs/topics/optics.md).
+> `Optic` is now a reified runtime noun for the public read path. The fluent API lowers into a frozen `Optic` value before execution; see [Optic reads](docs/topics/optic-reads.md).
 
 ## How it works
 
@@ -240,7 +241,7 @@ The runtime is designed so reads stay scoped. It avoids the “just materialize 
 
 History keeps per-entity provenance, so a single node's backward causal cone can be reconstructed and replayed on its own: `provenance.materializeSlice(nodeId)` loads only the cone's patches, never the whole graph. This slice path is currently classified as a **diagnostic** read, not a first-use application API.
 
-The broader worldline-wide direction is still narrower than the doctrine: live strands and support fragments have runtime footholds, but support-fragment cache storage, plan-driven fragment execution, and full holographic worldline reads are not first-use shipped paths. See [Runtime posture](#runtime-posture) and [Bounded Reads](docs/topics/bounded-reads.md).
+The broader worldline-wide direction is still narrower than the doctrine: live strands and support fragments have runtime footholds, but support-fragment cache storage, plan-driven fragment execution, and full holographic worldline reads are not first-use shipped paths. See [Runtime posture](#runtime-posture), [Optic reads](docs/topics/optic-reads.md), and [Strands](docs/topics/strands.md).
 
 ## API surface
 
@@ -329,25 +330,18 @@ In the stack, **git-warp and Echo own runtime truth**, while Continuum owns the 
 
 ## Runtime posture
 
-Use [GLOSSARY.md](docs/GLOSSARY.md) for shipped, transition, and target noun status.
-
-Use the [Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) and the [teaching alignment audit](docs/audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md) when a doc claim is stronger than the runtime surface.
-
 Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates, reified optics, and observer apertures as the application path. `GitWarpWitnessedSuffixAdmissionShell` is a transition runtime envelope, not proof of live network exchange. Native Continuum witnesshood, remote optic transport, common-basis braid validation, live Echo/git-warp suffix exchange, support-fragment cache storage, and plan-driven fragment execution remain outside the first-use shipped path unless their own docs say otherwise.
 
 ## Documentation
 
 - [Topics](docs/topics/README.md) — task-oriented documentation map
 - [Getting started](docs/topics/getting-started.md) — first open, write, read, sync
-- [Optics](docs/topics/optics.md), [Observers](docs/topics/observers.md), and [Bounded reads](docs/topics/bounded-reads.md) — the current public read model
-- [Querying](docs/topics/querying.md), [Sync](docs/topics/sync.md), and [CLI](docs/topics/cli.md) — common usage paths
+- [Optic reads](docs/topics/optic-reads.md), [Observers](docs/topics/observers.md), and [Querying](docs/topics/querying.md) — the current public read model
+- [Strands](docs/topics/strands.md), [Sync](docs/topics/sync.md), and [CLI](docs/topics/cli.md) — common usage paths
+- [Git substrate](docs/topics/git-substrate.md), [Content and CAS](docs/topics/content-and-cas.md), and [Continuum boundary](docs/topics/continuum-boundary.md) — substrate and boundary explanations
+- [Operations](docs/topics/operations.md) and [Troubleshooting](docs/topics/troubleshooting.md) — maintenance and recovery workflows
 - [Examples](examples/) — runnable read-model snippets
-- [API reference](docs/topics/api-reference.md) — transitional public API reference
 - [Architecture](ARCHITECTURE.md) — hexagonal layers and admission kernel
-- [Migration Guide](docs/migrations/v18.0.0.md) — Worldline-first v18 API migration
-- [Glossary](docs/GLOSSARY.md) — shipped, transition, and target noun status
-- [Doctrine/runtime Alignment Ratchet](docs/DOCTRINE_RUNTIME_ALIGNMENT.md) — evidence rule for docs-ahead claims
-- [Specs](docs/specs/) — normative protocol and format specifications
 
 ---
 
@@ -391,7 +385,7 @@ Standard Git (`push`/`fetch`/`pull`). Patches live under `refs/warp/...`.
 
 ### Is it production ready?
 
-Check [CHANGELOG.md](CHANGELOG.md), [GLOSSARY.md](docs/GLOSSARY.md), and the package registry for release and surface status. The README does not carry live release gates.
+Check [CHANGELOG.md](CHANGELOG.md), the topic docs, and the package registry for release and surface status. The README does not carry live release gates.
 
 ### What about performance and scale?
 
@@ -409,7 +403,7 @@ No. The fluent API is practical; theory is optional.
 
 ### What if I have existing data?
 
-Migration tools and diagnostic surfaces exist. See [Migration Guide](docs/migrations/).
+Migration tools and diagnostic surfaces exist. See [Operations](docs/topics/operations.md) and [Git substrate](docs/topics/git-substrate.md).
 
 ### Can I use it with my existing Git repository?
 

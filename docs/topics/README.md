@@ -1,41 +1,43 @@
 # Topics
 
-Use these pages when you already know what `git-warp` is and want to finish a
-specific reader task.
+Use these pages when you know what `git-warp` is and want the right page for a
+specific task.
 
 ## Start here
 
 - [Getting started](getting-started.md): install the package, open a worldline,
   write a patch, read it back, and sync WARP refs.
-- [Querying](querying.md): build application workflows with worldlines,
-  observers, query builders, strands, and lower-level capability namespaces.
+- [Querying](querying.md): choose between worldlines, observers, optic reads,
+  query builders, and strand sources.
 
 ## Read and observe
 
-- [Optics](optics.md): ask bounded questions of causal history.
-- [Observers](observers.md): expose a read surface through an aperture.
-- [Bounded reads](bounded-reads.md): understand shipped cost labels,
-  checkpoint-tail bases, and full-materialization caveats.
+- [Optic reads](optic-reads.md): ask bounded questions of causal history.
+- [Observers](observers.md): expose a filtered read surface through an aperture.
+- [Strands](strands.md): keep speculative work durable and separate from live
+  truth.
 
-## Operate and inspect
+## Substrate and boundaries
+
+- [Git substrate](git-substrate.md): understand WARP refs, patch commits,
+  checkpoints, replay, and provenance.
+- [Content and CAS](content-and-cas.md): handle content attachments,
+  content-addressed storage, and encrypted CAS payloads.
+- [Continuum boundary](continuum-boundary.md): understand what git-warp owns
+  locally and what Continuum owns as boundary vocabulary.
+
+## Operate
 
 - [CLI](cli.md): inspect, validate, debug, and time-travel a live repository.
 - [Sync](sync.md): move WARP refs between clones and inspect sync status.
-- [Git substrate](git-substrate.md): understand patch commits, WARP refs,
-  replay convergence, trust, checkpoints, streams, and GC.
+- [Operations](operations.md): run checkpoint, GC, index, audit, trust, and
+  maintenance workflows.
+- [Troubleshooting](troubleshooting.md): start from symptoms and choose the next
+  diagnostic check.
 
-## Look up exact facts
+## Root artifacts
 
-- [API reference](api-reference.md): dense public API, command, appendix, and
-  error-code reference.
-- [Glossary](../GLOSSARY.md): shipped, transition, and target noun status.
-- [Architecture](../../ARCHITECTURE.md): root system map, ports, adapters, and
+- [README](../../README.md): product landing page.
+- [Architecture](../../ARCHITECTURE.md): system map, ports, adapters, and
   admission architecture.
-
-## Contribute safely
-
-- [Doctrine/runtime Alignment Ratchet](../DOCTRINE_RUNTIME_ALIGNMENT.md):
-  evidence rules for docs-ahead claims.
-- [Systems-Style TypeScript](../SYSTEMS_STYLE_TYPESCRIPT.md): code style and
-  runtime-truth rules.
-- [Method](../METHOD.md): local cycle, review, release, and witness process.
+- [Changelog](../../CHANGELOG.md): release history.

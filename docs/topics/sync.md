@@ -77,3 +77,4 @@ does not converge, move to provenance, audit receipts, or trust diagnostics.
 - [Querying](querying.md)
 - [CLI](cli.md)
 - [Git substrate](git-substrate.md)
+- [Continuum boundary](continuum-boundary.md)

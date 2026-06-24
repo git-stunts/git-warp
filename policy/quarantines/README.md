@@ -120,4 +120,4 @@ manifest after graduating a file.
 - `AGENTS.md` — STOP preamble + rejection list + graduation rule.
 - `docs/ANTI_SLUDGE_POLICY.md` — full policy.
 - `docs/ANTI_SLUDGE_DECISIONS.md` — binding decisions.
-- `docs/design/0025-anti-sludge-purge/` — executing cycle.
+- `docs/design/0025-anti-sludge-purge/` in Git history — historical executing cycle.

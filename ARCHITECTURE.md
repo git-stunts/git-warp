@@ -85,7 +85,8 @@ bounded causal basis
 Git object IDs, CAS hashes, retained payload hashes, commitment roots, proof
 references, basis identities, and semantic reading identities must stay
 separate. A byte hash identifies bytes; it does not answer a semantic question
-by itself. See [Reading Identity](docs/specs/READING_IDENTITY.md).
+by itself. Keep semantic read identity in the owning runtime object or generated
+reference, not in ad hoc prose.
 
 Adapters and CLI commands must not hide full-materialization fallback, missing
 witnesses, missing rights evidence, or budget limits. Missing support is an

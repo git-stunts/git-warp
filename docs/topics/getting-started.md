@@ -10,8 +10,8 @@ Use this guide when you want your first successful `git-warp` flow:
 6. sync the worldline history through Git refs
 
 If you already know you want broader builder patterns, jump to
-[Querying](querying.md). If you want the public read model first, jump to
-[Optics](optics.md). If you want substrate internals, trust, replay, or
+[Querying](querying.md). If you want bounded reads first, jump to
+[Optic reads](optic-reads.md). If you want substrate internals, trust, replay, or
 performance details, jump to [Git substrate](git-substrate.md).
 
 ## Install
@@ -101,8 +101,7 @@ The first-use read shape is exact id-only query. When a checkpoint-tail basis is
 available, this path uses the bounded exact-read provider and reports a
 checkpoint-tail read identity instead of a fake whole-graph hash. Broader
 property, wildcard, traversal, and observer reads remain `transitional`; see
-[Bounded reads](bounded-reads.md) before treating them as large-graph
-safe.
+[Optic reads](optic-reads.md) before treating them as large-graph safe.
 
 ```typescript
 // Create a live read handle over current worldline history
@@ -179,9 +178,10 @@ In a real repo, you will usually automate that with Git config or team tooling s
 
 ## Next steps
 
-- [Optics](optics.md): public read contract, live and pinned readings, observers, and optics
+- [Optic reads](optic-reads.md): bounded read contract and current cost posture
 - [Querying](querying.md): builder patterns for Worldlines, observers, and strands
-- [API reference](api-reference.md): exhaustive API and examples
+- [Strands](strands.md): durable speculative lanes and braids
 - [Git substrate](git-substrate.md): substrate internals, trust, replay, and performance
+- [Content and CAS](content-and-cas.md): content attachments and encrypted CAS payloads
 - [CLI](cli.md): operator workflows from the terminal
 - [Sync](sync.md): explicit WARP refspecs and sync diagnostics

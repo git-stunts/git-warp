@@ -1,8 +1,9 @@
 # Observers
 
 An **observer** is a read surface that answers questions through an **aperture**
-— a policy that bounds *what* a reader is allowed to see. Where an
-[optic](optics.md) bounds the *question*, an observer bounds *visibility*.
+- a policy that bounds *what* a reader is allowed to see. Where an
+[optic read](optic-reads.md) bounds the *question*, an observer bounds
+*visibility*.
 
 ## Apertures
 
@@ -46,9 +47,11 @@ Observer redaction is also not encryption. It hides fields from the selected
 read path, but it does not rewrite patch history, delete Git objects, or prevent
 a local operator from inspecting raw objects. Use vault-backed CAS content
 encryption when stored bytes need protection at rest; see
-[Git substrate](git-substrate.md#vault-backed-cas-content-encryption).
+[Content and CAS](content-and-cas.md).
 
 ## See also
 
-- [Optics](optics.md) · [Bounded Reads](bounded-reads.md)
+- [Optic reads](optic-reads.md)
+- [Querying](querying.md)
+- [Content and CAS](content-and-cas.md)
 - Example: [`examples/observers.ts`](../../examples/observers.ts)

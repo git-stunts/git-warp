@@ -6,6 +6,7 @@ Use the CLI when you want to inspect, validate, debug, or time-travel a live rep
 
 - If you are building an app, start with the [Querying](querying.md).
 - If you want the substrate internals behind these commands, use the [Git substrate](git-substrate.md).
+- If you are maintaining a repo, use [Operations](operations.md).
 
 The CLI is also the shipped Time Travel Debugger surface. In `git-warp`, debugger philosophy and debugger commands stay together because the debugger is intentionally a thin CLI-first adapter over substrate facts.
 
@@ -160,6 +161,8 @@ normal product read path for admitted worldline truth.
 Use strands for durable speculative coordinates. Use `seek` for temporary cursor
 movement.
 
+For the workflow model behind these commands, use [Strands](strands.md).
+
 ## Workflow 6: trust and maintenance
 
 The CLI also exposes maintenance and trust-oriented commands:
@@ -221,5 +224,6 @@ pretend a complete boundary exists.
 ## Where next
 
 - [Querying](querying.md): builder patterns for app code
-- [API reference](api-reference.md): exhaustive command and API details
+- [Strands](strands.md): speculative lanes and braids
+- [Operations](operations.md): maintenance workflows
 - [Git substrate](git-substrate.md): substrate internals and trust model

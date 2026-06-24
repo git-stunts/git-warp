@@ -1,89 +1,30 @@
 # Git substrate
 
-Use this page when you need to understand why `git-warp` is safe, how replay
-works, what lives in Git, and where the trust and performance boundaries are.
+Use this page when you need to understand what lives in Git and why replay is
+deterministic.
 
-- If you are new, start with [Getting started](getting-started.md).
-- If you are building day-to-day product code, use [Querying](querying.md).
-- If you want every method and appendix in one place, use the [API reference](api-reference.md).
-- If you need noun status, use [GLOSSARY.md](../GLOSSARY.md) and the
-  [Doctrine/runtime Alignment Ratchet](../DOCTRINE_RUNTIME_ALIGNMENT.md).
+## Public roots
 
-## Runtime posture
+`git-warp` exposes three public roots:
 
-This guide is allowed to discuss substrate internals and target doctrine, but
-it must mark the difference. Today, pinned-base strands, braid support overlays,
-frontier-based sync, and whole-state materialization are implementation
-posture. Live holographic strands, common-basis braids, witnessed suffix
-admission, and support-scoped fragments are target doctrine tracked in the
-[teaching alignment audit](../audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
+- `openWarpWorldline()` for application code and agent workflows;
+- `openWarpGraph()` for diagnostics, sync, checkpoints, provenance,
+  comparison, strands, migration, and compatibility;
+- `WarpApp` and `WarpCore` for legacy facade compatibility and substrate
+  tooling.
 
-## Public roots and boundaries
+Application code should start with `openWarpWorldline()`. Drop to
+`openWarpGraph()` when the task is intentionally substrate-level.
 
-`git-warp` exposes three public roots with different audiences:
+## WARP refs
 
-- `openWarpWorldline()` for application code and agent workflows
-- `openWarpGraph()` for compatibility, diagnostics, sync, checkpoint,
-  provenance, migration, and speculative-strand capability namespaces
-- `WarpApp` / `WarpCore` for legacy facade compatibility and substrate tooling
-
-The normal path is:
-
-1. open with `openWarpWorldline()`
-2. write with `WarpWorldline.commit(...)`
-3. read through `live()`, `seek(...)`, `observer(...)`, and `optic()`
-4. use `openWarpGraph()` only when you intentionally need substrate-level work
-
-Inspection APIs are legitimate. The thing to avoid is exporting their results into a second app-local graph engine or reimplementing traversal/query semantics above the substrate.
-
-## Patch anatomy
-
-At the substrate level, a WARP patch is a Git commit.
-
-```mermaid
-flowchart TB
-    commit["Patch commit<br />sha=f1a2b3c"] --> parent["Parent patch<br />same writer"]
-    commit --> tree["Patch/content tree<br />payload and attachments"]
-    commit --> trailers["Trailers<br />eg-kind=patch<br />eg-graph=team<br />eg-writer=alice<br />eg-lamport=42"]
-    commit -.-> blob["patch.cbor<br />CBOR-encoded operation log"]
-    tree --> attachments["_content_* blobs<br />optional attachment payloads"]
-```
-
-What matters:
-
-- the patch lives under `refs/warp/<graph>/writers/<writerId>`
-- the commit lives on a WARP ref, outside ordinary source-tree refs
-- the commit may carry a Git tree for patch payloads or content attachments
-- the operation log is CBOR-encoded
-- trailers carry graph, writer, Lamport, and replay metadata
-- optional attachment blobs hang off the patch object graph
-
-The ref namespace is the reason `git-warp` can live inside a normal repo without
-taking over your checked-out source tree. Do not model correctness around a
-blanket empty-tree invariant; patch and checkpoint commits may carry payload
-trees.
-
-## How replay converges
-
-Each writer produces an independent patch chain. Visible state is derived by replaying the currently visible patches and reducing them with CRDT rules.
-
-The main rules are:
-
-- nodes and edges use OR-Set semantics
-- properties use LWW registers
-- Lamport clocks plus writer identity provide a deterministic total order
-- version vectors distinguish causal order from concurrency
-
-That is why multiple writers can work independently and later converge without manual merge resolution for graph data.
-
-## Git substrate layout
+WARP data stays under `refs/warp/...`, outside normal source-tree refs:
 
 ```text
 refs/warp/<graphName>/
 ├── writers/
 │   ├── alice
-│   ├── bob
-│   └── ...
+│   └── bob
 ├── checkpoints/
 │   └── head
 ├── coverage/
@@ -91,240 +32,83 @@ refs/warp/<graphName>/
 ├── cursor/
 │   ├── active
 │   └── saved/<name>
-└── audit/
-    └── <writerId>
+├── strand-braids/
+│   └── <strand>/<support>
+├── audit/
+│   └── <writerId>
+└── trust/
+    └── ...
 ```
 
-Normal source-tree history remains on ordinary refs such as `refs/heads/main`. WARP history stays under `refs/warp/...`.
+Normal source code remains under refs such as `refs/heads/main`.
 
-## Security and trust
+## Patch commits
 
-If you are evaluating `git-warp` for audit-critical or adversarial workflows, the key trust surfaces are:
-
-- patch hashes and content-addressed Git objects
-- optional audit receipt chains
-- trust records and crypto adapters
-- deterministic replay over the visible patch set
-
-Tamper evidence matters because `git-warp` separates "what the live graph says" from "what can be proven about how it got there." Audit receipts extend ephemeral replay receipts into a durable Git-native chain:
+At the substrate level, a WARP patch is a Git commit on a WARP ref.
 
 ```mermaid
-flowchart LR
-    data1["data patch P1"] --> audit1["audit commit A1<br />receipt.cbor"]
-    data2["data patch P2"] --> audit2["audit commit A2<br />receipt.cbor"]
-    audit2 --> audit1
+flowchart TB
+    commit["patch commit"] --> parent["previous writer patch"]
+    commit --> tree["patch/content tree"]
+    commit --> trailers["graph, writer, Lamport, schema"]
+    tree --> patch["patch.cbor"]
+    tree --> content["optional content payloads"]
 ```
 
-If someone mutates a receipt, the commit SHA changes and the downstream chain no longer verifies cleanly.
+Patch commits may carry Git trees for payloads and content. Do not document a
+blanket empty-tree invariant for current graph state.
 
-For the normative details, use:
+## Replay convergence
 
-- [Audit receipt spec](../specs/AUDIT_RECEIPT.md)
-- [Trust crypto spec](../specs/TRUST_CRYPTO_ALGORITHM.md)
-- [Trust migration](../trust/TRUST_MIGRATION.md)
-- [Trust operator runbook](../trust/TRUST_OPERATOR_RUNBOOK.md)
+Each writer appends an independent patch chain. Visible state is derived by
+replaying the visible patches and reducing them with deterministic CRDT rules:
 
-### Observer redaction is not encryption
+- nodes and edges use OR-Set semantics;
+- properties use last-writer-wins registers;
+- Lamport ticks plus writer identity provide deterministic ordering;
+- version vectors distinguish causal order from concurrency.
 
-`Aperture.redact` and Observer filtering hide fields from a selected read path.
-They do not rewrite patch history, delete Git objects, or prevent a local
-operator from inspecting raw objects under `.git/objects/`. Treat redaction as
-application-layer projection, not data protection.
+That is why multiple writers can work independently and later converge without
+source-tree merge conflicts for graph data.
 
-Use vault-backed CAS content encryption when the stored bytes need protection
-at rest. The key-management path is `@git-stunts/vault` and OS-native keychain
-storage, not `.env` files or anonymous process-global secrets.
+## Checkpoints
 
-### Vault-backed CAS content encryption
+Checkpoints persist folded state plus index, frontier, and schema metadata.
+They accelerate recovery and bounded-read evidence. They are not the source of
+truth; patch history remains authoritative.
 
-CAS-backed graph content uses git-cas v6 encryption after an operator resolves
-the content key through the vault workflow. Ordinary application code should not
-carry anonymous raw encryption keys. The git-warp boundary is
-`CasContentEncryptionPolicy`: it records the current git-cas scheme, the
-verified vault source, privacy-mode state, and rotation counters, then hands the
-resolved bytes to git-cas only inside the adapter call.
+Use [Operations](operations.md) for checkpoint and GC workflows.
 
-```typescript
-import {
-  CasContentEncryptionPolicy,
-  GitGraphAdapter,
-} from '@git-stunts/git-warp';
+## Provenance
 
-const casContentEncryption = CasContentEncryptionPolicy.fromResolvedVaultKey({
-  encryptionKey: resolvedVaultKey,
-  scheme: 'framed',
-  frameBytes: 64 * 1024,
-  vault: {
-    vaultSlug: 'graphs/team/content',
-    keyId: 'content-kek-2026-06',
-    verification: 'verified',
-    rotationEpoch: 3,
-    encryptionCount: 512,
-    encryptionCountLimit: 4294967295,
-    privacyMode: true,
-  },
-});
+Provenance APIs explain which patches contributed to an entity or slice.
+`materializeSlice(nodeId)` can replay a single entity's backward causal cone for
+diagnostics. It is not the first-use application read path.
 
-const persistence = new GitGraphAdapter({
-  plumbing,
-  casContentEncryption,
-});
-```
+## Content storage
 
-Operator flow:
-
-- Set up the git-cas vault first and keep its passphrase recovery procedure
-  outside the application process.
-- Resolve and verify the vault key before constructing
-  `CasContentEncryptionPolicy`; wrong passphrases and missing vault metadata
-  are rejected at that boundary.
-- Use only current git-cas schemes: `whole`, `framed`, or `convergent`.
-  `framed` is the usual streaming-friendly choice. `whole` is simplest but
-  buffers the encrypted payload as one unit. `convergent` preserves CDC
-  deduplication but leaks equality of identical plaintext chunks, so use it
-  only when the deduplication/confidentiality tradeoff is acceptable.
-- Rotate before the vault encryption count reaches the git-cas nonce budget.
-  git-warp refuses to build a write policy once the supplied rotation witness is
-  at its limit.
-- If git-cas reports `LEGACY_SCHEME`, migrate the old encrypted manifests with
-  the git-cas legacy encryption migration before restoring or rewriting them
-  through git-warp.
-
-## Advanced reads and inspection
-
-Drop below the ordinary app-facing read path when you intentionally need:
-
-- whole-visible-state inspection
-- direct materialization
-- replay receipts
-- provenance and slice materialization
-- temporal analysis
-- coordinate comparison and transfer planning
-
-These are valid public APIs. What you should not do is treat them as the raw ingredients for a second graph runtime in your app.
-
-## Streams, transforms, and sinks
-
-Advanced storage surfaces use `WarpStream` when the result may grow with graph
-history or index size. A stream is directly usable in `for await` loops and can
-be piped through transforms by infrastructure or diagnostic code that needs a
-bounded pipeline.
-
-The important boundaries are:
-
-- adapters turn host streams, arrays, cursors, or generated rows into
-  `WarpStream`
-- domain services consume semantic stream items, not Node `Readable` objects
-- `PatchJournalPort.scanPatchRange(...)` streams patch entries
-- `IndexStorePort.writeShards(...)` and `IndexStorePort.scanShards(...)`
-  stream index shards
-- `CommitPort.logNodesStream(...)` streams Git commit-log chunks
-
-`Transform` and `Sink` are composition concepts for these pipelines. Use them
-when you are adapting or inspecting substrate flow. Do not wrap ordinary
-worldline/query reads in custom stream layers; those reads already carry their
-own coordinate, aperture, and witness posture.
+Patch trees can carry payloads and content pointers. Larger payloads and
+encrypted content are handled through CAS-backed adapters. Use
+[Content and CAS](content-and-cas.md) for content attachments, git-cas, and
+encryption posture.
 
 ## Strands and braids
 
-Strands are the substrate's durable speculative lanes.
+Strands are durable speculative lanes built on pinned observations and overlay
+patch logs. Braid refs record pinned support overlays for strand composition.
 
-Status: the runtime currently uses pinned-overlay strand mechanics. The target
-model is live holographic strands with basis-relative realization and
-common-basis braid validation; see the
-[teaching alignment audit](../audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
+Use [Strands](strands.md) for user-facing strand and braid workflows.
 
-What a strand records:
+## Continuum boundary
 
-- a pinned base observation
-- optional Lamport ceiling
-- overlay identity for divergent writes
-- optional braid support overlays
-- optional owner, scope, and lease metadata
+git-warp owns local runtime truth over Git-backed history. Continuum owns the
+shared boundary vocabulary for witnessed history exchange. Use
+[Continuum boundary](continuum-boundary.md) for that relationship.
 
-The important boundary is:
+## See also
 
-- a strand is not a Git worktree feature
-- a strand is not a governance engine
-- a strand is a durable coordinate plus an overlay patch log
-
-That is why strands belong in the advanced tier. Most builders use
-`openWarpWorldline()` first. Reach for `openWarpGraph()` and strands when you
-need review lanes, comparison, transfer planning, or other explicit speculative
-workflows.
-
-## Coordinate fact export
-
-When a higher layer needs a deterministic, hashable artifact for audit, attestation, or machine-to-machine exchange, export a fact envelope instead of inventing custom JSON.
-
-```javascript
-import {
-  exportCoordinateComparisonFact,
-  exportCoordinateTransferPlanFact,
-} from '@git-stunts/git-warp';
-
-const comparison = await graph.compareCoordinates({
-  left: { kind: 'live' },
-  right: {
-    kind: 'coordinate',
-    frontier: { alice: 'abc123...' },
-  },
-});
-
-const comparisonFact = exportCoordinateComparisonFact(comparison);
-// comparisonFact = {
-//   exportVersion: 'coordinate-comparison-fact/v1',
-//   factKind: 'coordinate-comparison',
-//   factDigest: '7d7f...',
-//   canonicalFactJson: '{"comparisonVersion":"coordinate-comparison/v1",...}',
-//   fact: { ... },
-// }
-
-const transferPlan = await graph.planCoordinateTransfer({
-  source: { kind: 'live' },
-  target: {
-    kind: 'coordinate',
-    frontier: { alice: 'abc123...' },
-  },
-});
-
-const transferFact = exportCoordinateTransferPlanFact(transferPlan);
-// transferFact = {
-//   exportVersion: 'coordinate-transfer-plan-fact/v1',
-//   factKind: 'coordinate-transfer-plan',
-//   factDigest: '9ac1...',
-//   canonicalFactJson: '{"transferVersion":"coordinate-transfer-plan/v1",...}',
-//   fact: { ... },
-// }
-```
-
-## Performance, checkpoints, and GC
-
-These topics matter once your graph is large enough that replay cost becomes visible.
-
-- checkpoints snapshot materialized state for faster incremental recovery
-- GC compacts safe tombstone bookkeeping from the live state
-- earlier history remains reconstructable through time-travel reads
-- out-of-core whole-state reads remain future work
-- streamed attachment I/O remains future work
-
-The practical rule of thumb is:
-
-- if your graph still materializes fast enough that replay is not user-visible, do nothing
-- if cold reads are regularly replaying low-thousands of patches and startup latency becomes noticeable, enable auto-checkpointing
-- `checkpointPolicy: { every: 500 }` is the conservative default for most repos because it keeps replay bounded without creating checkpoint churn on every write
-
-That is not a law of physics. It is a good operating default until real measurements tell you otherwise.
-
-Current design backlog:
-
-- [Out-of-core materialization](https://github.com/git-stunts/git-warp/issues/136)
-- [Streaming graph traversal](https://github.com/git-stunts/git-warp/issues/457)
-
-## Where next
-
-- [API reference](api-reference.md): exhaustive methods, appendices, and error codes
-- [Querying](querying.md): builder patterns and day-to-day app flows
-- [CLI](cli.md): operator workflows, time travel, and debugger commands
-- [Architecture](../../ARCHITECTURE.md): internal layering
-- [Protocol specs](../specs/): normative formats
+- [Getting started](getting-started.md)
+- [Querying](querying.md)
+- [Content and CAS](content-and-cas.md)
+- [Operations](operations.md)
+- [Troubleshooting](troubleshooting.md)

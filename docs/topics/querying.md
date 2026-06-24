@@ -1,48 +1,22 @@
 # Querying
 
-Use this page when you are writing an app, an agent workflow, or a local-first
-tool on top of `git-warp` and want the main patterns without reading a
-substrate manual.
+Use this page when you are writing product code, an agent workflow, or a
+local-first tool on top of `git-warp`.
 
-- If you are brand new, start with [Getting started](getting-started.md).
-- If you want the public read model, use [Optics](optics.md).
-- If you want exhaustive method-by-method detail, use the [API reference](api-reference.md).
-- If you want replay, trust, performance, and substrate internals, use the [Git substrate](git-substrate.md).
-- If you want terminal workflows, use the [CLI](cli.md).
-- If you want the canonical meaning of core nouns like `Worldline`,
-  `Observer`, `Aperture`, or `Coordinate`, use [GLOSSARY.md](../GLOSSARY.md).
-- If a doc claim seems stronger than the current API, use the
-  [Doctrine/runtime Alignment Ratchet](../DOCTRINE_RUNTIME_ALIGNMENT.md) and the
-  [teaching alignment audit](../audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
+The main decision is not which method exists. The main decision is which read
+surface owns the question.
 
-## Runtime posture
+## Choose the read surface
 
-This guide teaches shipped and transition APIs for builder workflows. Worldline
-commits, live reads, coordinates, observers, and apertures are the current
-application path. Strand examples below describe the current pinned-overlay
-implementation; live holographic strands, common-basis braids, witnessed suffix
-admission, and support-scoped fragment materialization remain target doctrine.
-
-## Mental model
-
-The most important thing to understand is state before methods.
-
-- `openWarpWorldline()` returns the first-use handle for application workflows.
-- A `Worldline` is an admitted causal lane.
-- A `ProjectionHandle` is the pinned read handle returned by `live()`,
-  `seek(...)`, and `graph.query.worldline(...)`.
-- An `Aperture` defines what is visible.
-- An `Observer` is a filtered read-only view through that aperture.
-- A `Strand` is a speculative write lane branched from an observation.
-- `openWarpGraph()` returns the lower-level capability bag for diagnostics,
-  migration, sync, provenance, checkpoints, and speculative-strand controls.
-
-If you understand those nouns, the rest of the API becomes much easier to reason about.
-
-> **Advanced compatibility:** `openWarpGraph()`, `WarpApp.open()`, and
-> `WarpCore.open()` remain supported for lower-level diagnostics,
-> compatibility, migrations, and substrate tooling. New application code should
-> start with `openWarpWorldline()`.
+| Need | Use | Why |
+| --- | --- | --- |
+| Write and read live admitted history | `openWarpWorldline()` | First-use application surface. |
+| Read one known entity or property with bounded evidence | Optic read | Fails closed when the checkpoint-tail basis is unavailable. |
+| Filter visibility for a role, tenant, or review surface | Observer | Applies an aperture over a worldline or projection. |
+| Ask broader graph questions | Query builder | Supports match, predicates, traversal, selection, aggregation, and support plans. |
+| Read an earlier coordinate | `seek(...)` or `graph.query.worldline({ source })` | Pins the read to a coordinate or ceiling. |
+| Read speculative work | Strand source | Keeps proposed work out of live truth. |
+| Inspect provenance or replay internals | Substrate capability | Diagnostic and operator path. |
 
 ## Open a worldline
 
@@ -62,14 +36,13 @@ const team = await openWarpWorldline({
   worldlineName: 'team',
   writerId: 'alice',
 });
-// team is the frozen Worldline-first handle for this admitted lane
 ```
 
-## Common write patterns
+Use `openWarpWorldline()` for normal application code. Use `openWarpGraph()`
+only when the task intentionally needs lower-level capability namespaces such
+as sync, provenance, checkpoints, comparison, or strands.
 
-### Pattern 1: direct patch
-
-Use `worldline.commit(...)` for normal live writes.
+## Write live truth
 
 ```typescript
 const patchSha = await team.commit((p) => {
@@ -77,150 +50,47 @@ const patchSha = await team.commit((p) => {
     .setProperty('task:auth', 'title', 'Implement OAuth2')
     .setProperty('task:auth', 'status', 'in-progress');
 });
-// patchSha = 'abc123...'
 ```
 
-This commits one atomic WARP patch after the callback finishes. It updates
-`refs/warp/<graph>/writers/<writerId>`. It does not touch your normal Git
-worktree or create a source-tree commit on the current branch.
+The callback builds one WARP patch. The patch lands under WARP refs, not under
+ordinary source-tree branch refs.
 
-The remaining write patterns use the lower-level graph capability bag because
-they need writer sessions or speculative lanes:
-
-```typescript
-const graph = await openWarpGraph({
-  persistence,
-  graphName: 'team',
-  writerId: 'alice',
-});
-```
-
-### Pattern 2: explicit writer session
-
-Use the lower-level graph writer API when you intentionally want a multi-step
-session before committing.
-
-```typescript
-const writer = await graph.patches.writer();
-const session = await writer.beginPatch();
-
-session.addNode('task:review');
-session.setProperty('task:review', 'status', 'todo');
-session.addEdge('task:review', 'task:auth', 'depends-on');
-
-const patchSha = await session.commit();
-// patchSha = 'def456...'
-```
-
-Nothing is written until `session.commit()` runs.
-
-### Pattern 3: speculative write lane
-
-Use a `Strand` when you want reviewable or transferable work that should not land in live truth yet.
-
-```typescript
-const strand = await graph.strands.createStrand({
-  strandId: 'review-auth',
-  owner: 'alice',
-  scope: 'OAuth review',
-});
-// strand = { strandId: 'review-auth', ... }
-
-await graph.strands.patchStrand('review-auth', (p) => {
-  p.setProperty('task:auth', 'status', 'ready-for-review');
-});
-
-const reviewLane = graph.query.worldline({
-  source: { kind: 'strand', strandId: 'review-auth' },
-});
-// reviewLane is a ProjectionHandle pinned to the strand overlay
-```
-
-Use strands for speculative work. Use ordinary patches for live truth.
-
-For the deeper substrate story behind strands, braids, and transfer planning,
-use [Git substrate -> Strands and braids](git-substrate.md#strands-and-braids).
-For the target-model gap, use the
-[teaching alignment audit](../audits/WARP_DOCTRINE_RUNTIME_ALIGNMENT.md).
-
-## Streamed substrate work
-
-Most application code should not handle substrate streams directly. Use
-worldlines, observers, optics, and query builders first.
-
-When you are writing an adapter or a diagnostic tool, unbounded substrate reads
-use `WarpStream` through advanced ports instead of returning whole arrays.
-Typical examples are commit-log scans, patch-journal ranges, and index-shard
-reads. Consume them with `for await` and keep each streamed item as the unit of
-work:
-
-```typescript
-const stream = await persistence.logNodesStream({
-  ref: 'refs/warp/team/writers/alice',
-});
-
-for await (const chunk of stream) {
-  // Inspect or forward one commit-log chunk at a time.
-}
-```
-
-If you are not implementing a port, prefer the higher-level read APIs in this
-guide. Streams are the substrate boundary, not a second application query
-model.
-
-## Common read patterns
-
-The patterns in this section are the preferred application API shapes. Their
-current providers are classified per surface; use
-[Bounded reads](bounded-reads.md) for the current cost label and caveat
-before treating a read path as large-graph safe.
-
-### Pattern 1: the live view
-
-Start from a worldline when you want stable application reads.
+## Read live truth
 
 ```typescript
 const worldline = team.live();
 
-const task = await worldline.query()
-  .match('task:auth')
-  .select(['id'])
+const tasks = await worldline.query()
+  .match('task:*')
+  .select(['id', 'props'])
   .run();
-// task.nodes = [{ id: 'task:auth' }]
 ```
 
-### Pattern 2: the redacted view
+The query builder supports match predicates, property filters, incoming and
+outgoing traversal, selection, aggregation, support planning, and execution.
+Broad wildcard and traversal shapes can still have provider caveats, so do not
+claim every query is a bounded optic read.
 
-Add an observer when the caller should not see everything.
+For exact id-only reads with checkpoint-tail evidence, use
+[Optic reads](optic-reads.md).
+
+## Read through an observer
 
 ```typescript
-const userAperture = {
-  match: ['user:*', 'task:*'],
+const publicAperture = {
+  match: ['task:*', 'user:*'],
   redact: ['email', 'ssn'],
 };
 
-const view = await worldline.observer('public-users', userAperture);
-const users = await view.query().match('user:*').run();
-// users = {
-//   stateHash: 'abc123...',
-//   nodes: [
-//     { id: 'user:alice', props: { name: 'Alice', role: 'lead' } },
-//   ],
-// }
+const publicView = await worldline.observer('public-users', publicAperture);
+const users = await publicView.query().match('user:*').run();
 ```
 
-Observer redaction is application-layer filtering. It is useful for
-multi-tenant views and product isolation, but it is not a cryptographic
-boundary: a user with filesystem access to `.git/objects/` can still inspect
-raw patch objects unless the graph content is encrypted at rest. Use
-`CasContentEncryptionPolicy` and the vault-backed CAS workflow in
-[Git substrate](git-substrate.md#vault-backed-cas-content-encryption) when
-the data itself must be protected. `@git-stunts/vault` is the intended key
-management path; do not put graph encryption secrets in `.env` files.
+Observers are read-only filtered views. Redaction changes what a selected read
+path returns; it is not encryption. Use [Content and CAS](content-and-cas.md)
+when stored bytes need protection at rest.
 
-### Pattern 3: the historical view
-
-Pin an explicit coordinate when you need to ask what the graph looked like earlier.
+## Read a historical coordinate
 
 ```typescript
 const historical = await team.seek({
@@ -232,156 +102,32 @@ const historical = await team.seek({
 });
 
 const taskAtTick12 = await historical.getNodeProps('task:auth');
-// { title: 'Implement OAuth2', status: 'todo' }
 ```
 
-### Pattern 4: the speculative view
+Coordinates pin the read. They do not move Git `HEAD`.
 
-Read a strand through the same worldline abstraction you use for live truth.
+## Read a strand
 
 ```typescript
+const graph = await openWarpGraph({
+  persistence,
+  graphName: 'team',
+  writerId: 'alice',
+});
+
 const reviewLane = graph.query.worldline({
   source: { kind: 'strand', strandId: 'review-auth' },
 });
 
 const reviewTask = await reviewLane.getNodeProps('task:auth');
-// { title: 'Implement OAuth2', status: 'ready-for-review' }
 ```
 
-## Common query patterns
+Use [Strands](strands.md) for the full speculative-lane workflow, including
+braids, comparison, diagnostic materialization, and transfer planning.
 
-Use one canonical graph example when you are learning the query and traversal surface:
+## Explain a conflict
 
-```mermaid
-flowchart TD
-    epic["epic:auth"]
-    task1["task:oauth<br />status=in-progress<br />points=5"]
-    task2["task:review<br />status=todo<br />points=2"]
-    task3["task:docs<br />status=todo<br />points=1"]
-    user1["user:alice"]
-    user2["user:bob"]
-
-    epic -->|"contains"| task1
-    epic -->|"contains"| task2
-    epic -->|"contains"| task3
-    task1 -->|"assigned-to"| user2
-    task2 -->|"assigned-to"| user1
-    task2 -->|"depends-on"| task1
-    task3 -->|"depends-on"| task2
-```
-
-### Pattern 1: match nodes
-
-```typescript
-const tasks = await worldline.query()
-  .match('task:*')
-  .run();
-// tasks = {
-//   stateHash: 'abc123...',
-//   nodes: [
-//     { id: 'task:oauth', props: { status: 'in-progress', points: 5 } },
-//     { id: 'task:review', props: { status: 'todo', points: 2 } },
-//     { id: 'task:docs', props: { status: 'todo', points: 1 } },
-//   ],
-// }
-```
-
-### Pattern 2: hop outward from a node
-
-```typescript
-const downstream = await worldline.query()
-  .match('epic:auth')
-  .outgoing('contains', { depth: [1, 2] })
-  .run();
-// downstream = {
-//   stateHash: 'abc123...',
-//   nodes: [
-//     { id: 'task:oauth', props: { status: 'in-progress', points: 5 } },
-//     { id: 'task:review', props: { status: 'todo', points: 2 } },
-//     { id: 'task:docs', props: { status: 'todo', points: 1 } },
-//     { id: 'user:bob', props: {} },
-//     { id: 'user:alice', props: {} },
-//   ],
-// }
-```
-
-The same accumulated plan can expose its support law before execution:
-
-```typescript
-const support = worldline.query()
-  .match('epic:auth')
-  .outgoing('contains', { depth: [1, 2] })
-  .supportRule();
-
-// support.kind = 'neighborhood'
-// support.maxDepth = 2
-```
-
-Use support rules to decide whether a read is exact, neighborhood-bounded, or
-global discovery. They do not replace indexes; they tell future indexes and
-support fragments what the read is allowed to ask for.
-
-### Pattern 3: aggregate
-
-```typescript
-const summary = await worldline.query()
-  .match('task:*')
-  .where({ status: 'todo' })
-  .aggregate({ count: true, sum: 'props.points', avg: 'props.points' })
-  .run();
-// summary = {
-//   stateHash: 'abc123...',
-//   count: 2,
-//   sum: 3,
-//   avg: 1.5,
-// }
-```
-
-### Pattern 4: find a path
-
-```typescript
-const dependencyPath = await worldline.traverse.shortestPath('task:docs', 'task:oauth', {
-  dir: 'out',
-  labelFilter: 'depends-on',
-});
-// dependencyPath = {
-//   found: true,
-//   path: ['task:docs', 'task:review', 'task:oauth'],
-//   length: 2,
-// }
-```
-
-For the exhaustive query surface, use the [API reference](api-reference.md).
-
-## Collaboration patterns
-
-### Sync
-
-The simplest sync is Git push and pull plus the WARP refspecs for your graph:
-
-```bash
-git fetch origin 'refs/warp/team/*:refs/warp/team/*'
-git push origin 'refs/warp/team/*:refs/warp/team/*'
-```
-
-Automate those refspecs in team tooling or Git config once the workflow is established.
-
-### Conflict outcomes
-
-The easiest way to understand CRDT behavior is to look at outcomes, not theory.
-
-| Alice writes | Bob writes | Outcome |
-| --- | --- | --- |
-| add node `task:auth` | add node `task:auth` | one visible node; duplicate adds converge |
-| set `task:auth.status = "todo"` | set `task:auth.status = "done"` | one winning value by Lamport order, then writer tie-break |
-| add edge `task:review -> task:auth` | remove same edge without seeing add | concurrent add wins |
-| remove node after observing current edge set | set property on removed node concurrently | tombstoned node stays hidden in live view |
-
-The inspection APIs are valid tools here. What you should avoid is rebuilding your own graph engine above `git-warp` when the substrate already knows how to replay, query, and traverse.
-
-### Pattern: find out why your write lost
-
-If you know a write was superseded and need the reason, inspect the provenance for the entity and load the contributing patches.
+When you need to explain why a visible value won, inspect provenance:
 
 ```typescript
 const patchShas = await graph.provenance.patchesFor('task:auth');
@@ -392,29 +138,13 @@ for (const patchSha of patchShas) {
 }
 ```
 
-Use this pattern when you need to explain a lost race or build higher-level
-conflict UX. For the deeper replay and provenance model behind receipts, use
-[Git substrate -> How replay converges](git-substrate.md#how-replay-converges).
-For the app-facing read contract, use [Optics](optics.md).
+Use this for diagnostics and conflict UX. Do not build a second graph runtime
+above provenance output.
 
-## When to use lower-level capabilities
+## See also
 
-Reach for individual capability namespaces when you intentionally need:
-
-- `graph.query` — compatibility and diagnostic reads through worldlines,
-  observers, traversal, and query builders
-- `graph.provenance` — provenance and patch inspection, backward-cone tracing
-- `graph.comparison` — coordinate comparison and transfer planning
-- `graph.checkpoint` — checkpoint creation, GC metrics
-- `graph.sync` — programmatic sync, serve endpoints
-- `graph.subscriptions` — reactive push-based change notification
-
-What to avoid is not the inspection API itself. The thing to avoid is exporting that data into a second app-local graph or writing your own traversal/query semantics above the substrate.
-
-## Where next
-
-- [Optics](optics.md): public read model and app-facing read patterns
-- [API reference](api-reference.md): exhaustive methods, flags, and examples
-- [Git substrate](git-substrate.md): patch anatomy, replay, trust, GC, and performance
-- [CLI](cli.md): operator workflows and live-repo inspection
-- [Architecture](../../ARCHITECTURE.md): root system map and admission model
+- [Optic reads](optic-reads.md)
+- [Observers](observers.md)
+- [Strands](strands.md)
+- [Git substrate](git-substrate.md)
+- [Sync](sync.md)

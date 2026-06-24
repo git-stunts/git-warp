@@ -5,7 +5,7 @@
 **Companion docs:**
 - Full policy: [`docs/ANTI_SLUDGE_POLICY.md`](./ANTI_SLUDGE_POLICY.md)
 - Systems-style foundations: [`docs/SYSTEMS_STYLE_TYPESCRIPT.md`](./SYSTEMS_STYLE_TYPESCRIPT.md)
-- Executing cycle: `docs/design/0025-anti-sludge-purge/`
+- Historical executing cycle: `docs/design/0025-anti-sludge-purge/` in Git history
 - LLM-facing instructions: [`AGENTS.md`](../AGENTS.md)
 
 ## 1. Why this document exists
