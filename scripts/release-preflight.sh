@@ -146,7 +146,9 @@ fi
 
 # ── 7. Coverage tests ────────────────────────────────────────────────────────
 echo "Tests:"
-if npm run test:coverage:ci --silent 2>/dev/null; then
+# Do not pass npm --silent here. It leaks npm loglevel settings into child npm
+# subprocesses spawned by release artifact tests and suppresses npm pack output.
+if npm run test:coverage:ci 2>/dev/null; then
   pass "coverage test suite + threshold"
 else
   fail "coverage test suite or threshold failures"
