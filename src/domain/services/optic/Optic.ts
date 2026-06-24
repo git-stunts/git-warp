@@ -18,6 +18,11 @@ import OpticSupportRule, {
   type OpticSupportRuleValue,
 } from './OpticSupportRule.ts';
 
+const NODE_OPTIC_KIND: OpticKindValue = 'node';
+const NODE_PROPERTY_OPTIC_KIND: OpticKindValue = 'node-property';
+const NEIGHBORHOOD_OPTIC_KIND: OpticKindValue = 'neighborhood';
+const TRAVERSAL_OPTIC_KIND: OpticKindValue = 'traversal';
+
 export type OpticPostureFields = {
   readonly coordinatePosture: OpticCoordinatePosture | OpticCoordinatePostureValue;
   readonly aperturePosture: OpticAperturePosture | OpticAperturePostureValue;
@@ -239,17 +244,17 @@ function supportRuleMatchesTarget(
   if (isExactEntityOpticKind(opticKind)) {
     return supportRule.isExactEntity();
   }
-  if (opticKind === 'neighborhood') {
+  if (opticKind === NEIGHBORHOOD_OPTIC_KIND) {
     return supportRule.isNeighborhood();
   }
-  if (opticKind === 'traversal') {
+  if (opticKind === TRAVERSAL_OPTIC_KIND) {
     return isTraversalSupportRule(supportRule);
   }
   return false;
 }
 
 function isExactEntityOpticKind(opticKind: OpticKindValue): boolean {
-  return opticKind === 'node' || opticKind === 'node-property';
+  return opticKind === NODE_OPTIC_KIND || opticKind === NODE_PROPERTY_OPTIC_KIND;
 }
 
 function isTraversalSupportRule(supportRule: OpticSupportRule): boolean {
