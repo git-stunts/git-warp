@@ -140,20 +140,14 @@ export default class ProjectionHandle {
   }
 
   private _coordinateOptic(source: CheckpointTailOpticSource): WorldlineOptic {
-    if (!(this._source instanceof CoordinateSelector) || this._source.checkpointSha === null) {
+    const coordinate = this._source;
+    if (!(coordinate instanceof CoordinateSelector) || coordinate.checkpointSha === null) {
       throw new QueryError('coordinate optic requires a checkpoint-tail bounded basis source', {
         code: 'E_OPTIC_NO_BOUNDED_BASIS',
         context: { reason: 'coordinate-without-optic-basis' },
       });
     }
-    return new WorldlineOptic({
-      source: new CoordinateCheckpointTailOpticSource({
-        source,
-        checkpointSha: this._source.checkpointSha,
-        frontier: this._source.frontier,
-      }),
-      coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
-    });
+    return this._capturedCoordinateOptic(source, coordinate, coordinate.checkpointSha);
   }
 
   async _delegateObserver(): Promise<Observer> {
@@ -226,14 +220,23 @@ export default class ProjectionHandle {
   }
 
   private _coordinateExactReadOptic(source: CheckpointTailOpticSource): WorldlineOptic | null {
-    if (!(this._source instanceof CoordinateSelector) || this._source.checkpointSha === null) {
+    const coordinate = this._source;
+    if (!(coordinate instanceof CoordinateSelector) || coordinate.checkpointSha === null) {
       return null;
     }
+    return this._capturedCoordinateOptic(source, coordinate, coordinate.checkpointSha);
+  }
+
+  private _capturedCoordinateOptic(
+    source: CheckpointTailOpticSource,
+    coordinate: CoordinateSelector,
+    checkpointSha: string,
+  ): WorldlineOptic {
     return new WorldlineOptic({
       source: new CoordinateCheckpointTailOpticSource({
         source,
-        checkpointSha: this._source.checkpointSha,
-        frontier: this._source.frontier,
+        checkpointSha,
+        frontier: coordinate.frontier,
       }),
       coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
     });
