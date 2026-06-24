@@ -55,7 +55,9 @@ describe('TraversalOptic', () => {
 });
 
 function locator(): CheckpointTailWitnessLocator {
-  return Object.create(CheckpointTailWitnessLocator.prototype) as CheckpointTailWitnessLocator;
+  return new CheckpointTailWitnessLocator({
+    source: new TestCheckpointTailOpticSource(),
+  });
 }
 
 function traversalOptic(supportRule: 'global-discovery-refused' | 'traversal-window'): Optic {
