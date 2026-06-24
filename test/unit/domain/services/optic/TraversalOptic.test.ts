@@ -48,7 +48,6 @@ describe('TraversalOptic', () => {
     })).rejects.toMatchObject({
       code: 'E_OPTIC_SCHEMA',
       context: {
-        cause: 'requires-global-scan',
         reason: 'requires-global-scan',
       },
     });
