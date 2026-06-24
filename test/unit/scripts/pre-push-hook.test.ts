@@ -139,6 +139,7 @@ describe('scripts/hooks/pre-push', () => {
     expect(result.events[0]).toBe('linkcheck:--config .lychee.toml **/*.md');
     expect(result.events.slice(1).sort()).toEqual([
       'npm:lint',
+      'npm:lint:docs-topology',
       'npm:lint:md',
       'npm:lint:md:code',
       'npm:typecheck:consumer',
@@ -153,11 +154,12 @@ describe('scripts/hooks/pre-push', () => {
     const result = runPrePushHook({ quick: true });
 
     expect(result.status).toBe(0);
-    expect(result.output).toContain('WARP_QUICK_PUSH: quick mode active — Gate 8 (unit tests) will be skipped');
-    expect(result.output).toContain('[Gates 1-7] Running lint + typecheck + policy + consumer type test + surface validator + markdown gates...');
-    expect(result.output).toContain('[Gate 8] Skipped (WARP_QUICK_PUSH quick mode)');
+    expect(result.output).toContain('WARP_QUICK_PUSH: quick mode active — Gate 9 (unit tests) will be skipped');
+    expect(result.output).toContain('[Gates 1-8] Running lint + typecheck + policy + consumer type test + surface validator + markdown gates + docs topology...');
+    expect(result.output).toContain('[Gate 9] Skipped (WARP_QUICK_PUSH quick mode)');
     expect([...result.commands].sort()).toEqual([
       'lint',
+      'lint:docs-topology',
       'lint:md',
       'lint:md:code',
       'typecheck:consumer',
@@ -181,9 +183,10 @@ describe('scripts/hooks/pre-push', () => {
     const result = runPrePushHook();
 
     expect(result.status).toBe(0);
-    expect(result.output).toContain('[Gate 8] Running stable unit-test shards...');
+    expect(result.output).toContain('[Gate 9] Running stable unit-test shards...');
     expect([...result.commands].sort()).toEqual([
       'lint',
+      'lint:docs-topology',
       'lint:md',
       'lint:md:code',
       'test:local',
@@ -202,7 +205,8 @@ describe('scripts/hooks/pre-push', () => {
     ['typecheck:surface', 'BLOCKED — Gate 5 FAILED: Declaration surface validator'],
     ['lint:md', 'BLOCKED — Gate 6 FAILED: Markdown lint'],
     ['lint:md:code', 'BLOCKED — Gate 7 FAILED: Markdown JS/TS code-sample syntax check'],
-    ['test:local', 'BLOCKED — Gate 8 FAILED: Unit tests'],
+    ['lint:docs-topology', 'BLOCKED — Gate 8 FAILED: Public documentation topology'],
+    ['test:local', 'BLOCKED — Gate 9 FAILED: Unit tests'],
   ];
 
   for (const [failCommand, expectedMessage] of failureCases) {
