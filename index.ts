@@ -2,10 +2,9 @@
  * @module
  *
  * Deterministic WARP graph over Git: graph-native storage, traversal,
- * and tooling. All graph state lives as Git commits pointing to the
- * well-known empty tree — invisible to normal Git workflows, but
- * inheriting content-addressing, cryptographic integrity, and
- * distributed replication.
+ * and tooling. Graph history lives under WARP refs, where patch and
+ * checkpoint commits can carry Git trees for payloads, content, and
+ * folded state while staying outside normal branch refs.
  *
  * First-use application code should open a named worldline with
  * `openWarpWorldline()`. `WarpApp`, `WarpCore`, and `openWarpGraph()` remain

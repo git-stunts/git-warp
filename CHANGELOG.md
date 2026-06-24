@@ -1708,7 +1708,7 @@ Completes M1.T2 (security hygiene), M2.T3 (signposts + defaults), and backlog it
 
 ### Breaking
 
-- **`autoMaterialize` defaults to `true`**: Query methods now transparently call `materialize()` when no cached state exists. To preserve old behavior, pass `autoMaterialize: false` explicitly. See [migration guide](docs/GUIDE.md#migrating-from-automaterialize-false).
+- **`autoMaterialize` defaults to `true`**: Query methods now transparently call `materialize()` when no cached state exists. To preserve old behavior, pass `autoMaterialize: false` explicitly. The historical migration guide was retired during the documentation cleanup and remains available in Git history.
 
 ### Added
 

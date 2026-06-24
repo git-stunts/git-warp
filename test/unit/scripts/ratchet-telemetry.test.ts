@@ -62,10 +62,10 @@ describe('ratchet telemetry', () => {
 
   it('builds snapshot paths under the branch directory', () => {
     expect(buildSnapshotPath({
-      outputRoot: 'docs/method/ratchet',
+      outputRoot: '.ratchet',
       branch: 'cycle/0013-typescript-migration',
       label: 'abc12345',
-    })).toBe('docs/method/ratchet/0013-typescript-migration/abc12345.json');
+    })).toBe('.ratchet/0013-typescript-migration/abc12345.json');
   });
 
   it('writes and reads back validated snapshots', async () => {

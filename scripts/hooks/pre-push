@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # IRONCLAD M9 — pre-push gate
 #
-# Six blocking gates + one advisory gate in parallel, then unit tests.
+# Static gates plus one advisory link check in parallel, then unit tests.
 # This is the last local line of defense before CI.
 # ═══════════════════════════════════════════════════════════════════════════
 set -e
@@ -44,7 +44,7 @@ LINKCHECK_LAUNCHER="${WARP_LINKCHECK_LAUNCHER:-}"
 QUICK=0
 if [ "$WARP_QUICK_PUSH" = "1" ] || [ "$WARP_QUICK_PUSH" = "true" ]; then
   QUICK=1
-  echo "WARP_QUICK_PUSH: quick mode active — Gate 8 (unit tests) will be skipped"
+  echo "WARP_QUICK_PUSH: quick mode active — Gate 9 (unit tests) will be skipped"
 fi
 
 echo "══════════════════════════════════════════════════════════"
@@ -59,8 +59,8 @@ else
   echo "[Gate 0] Link check skipped (lychee not installed)"
 fi
 
-# ── Gates 1-7 in parallel (all are read-only) ─────────────────────────────
-echo "[Gates 1-7] Running lint + typecheck + policy + consumer type test + surface validator + markdown gates..."
+# ── Gates 1-8 in parallel (all are read-only) ─────────────────────────────
+echo "[Gates 1-8] Running lint + typecheck + policy + consumer type test + surface validator + markdown gates + docs topology..."
 
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint &
 LINT_PID=$!
@@ -78,6 +78,8 @@ run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint:md &
 MD_PID=$!
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint:md:code &
 MD_CODE_PID=$!
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint:docs-topology &
+DOCS_TOPOLOGY_PID=$!
 
 wait $LINT_PID    || { echo ""; echo "BLOCKED — Gate 4 FAILED: ESLint (includes no-explicit-any)"; exit 1; }
 wait $TC_SRC_PID  || { echo ""; echo "BLOCKED — Gate 1a FAILED: Source typecheck (tsconfig.src.json)"; exit 1; }
@@ -87,15 +89,16 @@ wait $CONSUMER_PID || { echo ""; echo "BLOCKED — Gate 3 FAILED: Consumer type 
 wait $SURFACE_PID || { echo ""; echo "BLOCKED — Gate 5 FAILED: Declaration surface validator"; exit 1; }
 wait $MD_PID      || { echo ""; echo "BLOCKED — Gate 6 FAILED: Markdown lint"; exit 1; }
 wait $MD_CODE_PID || { echo ""; echo "BLOCKED — Gate 7 FAILED: Markdown JS/TS code-sample syntax check"; exit 1; }
+wait $DOCS_TOPOLOGY_PID || { echo ""; echo "BLOCKED — Gate 8 FAILED: Public documentation topology"; exit 1; }
 
-echo "[Gates 1-7] All static gates passed."
+echo "[Gates 1-8] All static gates passed."
 
-# ── Gate 8: Unit tests ─────────────────────────────────────────────────────
+# ── Gate 9: Unit tests ─────────────────────────────────────────────────────
 if [ "$QUICK" = "1" ]; then
-  echo "[Gate 8] Skipped (WARP_QUICK_PUSH quick mode)"
+  echo "[Gate 9] Skipped (WARP_QUICK_PUSH quick mode)"
 else
-  echo "[Gate 8] Running stable unit-test shards..."
-  run_tool "$NPM_LAUNCHER" "$NPM_BIN" run test:local || { echo ""; echo "BLOCKED — Gate 8 FAILED: Unit tests"; exit 1; }
+  echo "[Gate 9] Running stable unit-test shards..."
+  run_tool "$NPM_LAUNCHER" "$NPM_BIN" run test:local || { echo ""; echo "BLOCKED — Gate 9 FAILED: Unit tests"; exit 1; }
 fi
 
 echo "══════════════════════════════════════════════════════════"

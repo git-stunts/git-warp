@@ -5,9 +5,9 @@ pairs with a topic page under [`docs/topics/`](../docs/topics/).
 
 | Example | Shows | Topic |
 | --- | --- | --- |
-| [`optics.ts`](optics.ts) | A bounded coordinate read through an optic | [Optics](../docs/topics/optics.md) |
+| [`optics.ts`](optics.ts) | A bounded coordinate read through an optic | [Optic reads](../docs/topics/optic-reads.md) |
 | [`observers.ts`](observers.ts) | Bounding visibility with an aperture | [Observers](../docs/topics/observers.md) |
-| [`bounded-reads.ts`](bounded-reads.ts) | `comparison.diff()` and `materializeSlice()` | [Bounded Reads](../docs/topics/bounded-reads.md) |
+| [`bounded-reads.ts`](bounded-reads.ts) | `comparison.diff()` and `materializeSlice()` | [Optic reads](../docs/topics/optic-reads.md) |
 
 Each example exports an `async` function that takes the `cwd` of a Git
 repository. They construct a `@git-stunts/plumbing`-backed `GitGraphAdapter`, so

@@ -54,8 +54,45 @@ esac
 TAG_VERSION=""
 TARGET_VERSION=""
 TARGET_MILESTONE=""
-EVIDENCE_FILE=""
 FAILURES=0
+
+REQUIRED_RELEASE_DOCS=(
+  "README.md"
+  "ARCHITECTURE.md"
+  "CHANGELOG.md"
+  "docs/topics/README.md"
+  "docs/topics/getting-started.md"
+  "docs/topics/optic-reads.md"
+  "docs/topics/observers.md"
+  "docs/topics/querying.md"
+  "docs/topics/strands.md"
+  "docs/topics/git-substrate.md"
+  "docs/topics/content-and-cas.md"
+  "docs/topics/continuum-boundary.md"
+  "docs/topics/sync.md"
+  "docs/topics/cli.md"
+  "docs/topics/operations.md"
+  "docs/topics/troubleshooting.md"
+)
+
+RETIRED_DOC_PATHS=(
+  "docs/archive"
+  "docs/audits"
+  "docs/design"
+  "docs/images"
+  "docs/invariants"
+  "docs/method"
+  "docs/migrations"
+  "docs/releases"
+  "docs/specs"
+  "docs/trust"
+  "docs/ROADMAP"
+  "docs/ROADMAP.md"
+  "docs/BEARING.md"
+  "docs/VISION.md"
+  "docs/GLOSSARY.md"
+  "docs/DOCTRINE_RUNTIME_ALIGNMENT.md"
+)
 
 pass() {
   printf '  PASS %s %s\n' "$1" "$2"
@@ -99,14 +136,12 @@ derive_and_validate_tag() {
     TAG_VERSION="${TAG#v}"
     TARGET_VERSION="${TAG_VERSION%%-*}"
     TARGET_MILESTONE="v${TARGET_VERSION}"
-    EVIDENCE_FILE="docs/releases/v${TARGET_VERSION}/README.md"
     pass "REL-TAG-FORMAT" "$TAG is a valid release tag"
   else
     fail "REL-TAG-FORMAT" "$TAG is not vMAJOR.MINOR.PATCH or prerelease"
     TAG_VERSION="0.0.0"
     TARGET_VERSION="0.0.0"
     TARGET_MILESTONE="v${TARGET_VERSION}"
-    EVIDENCE_FILE="docs/releases/v${TARGET_VERSION}/README.md"
   fi
 }
 
@@ -389,59 +424,27 @@ check_changelog() {
 }
 
 check_release_evidence() {
-  local required_terms=(
-    "Issue gates"
-    "Validation"
-    "Deterministic reproducibility"
-    "Goalpost evidence"
-    "Canonical fixtures and witnesses"
-    "Documentation review"
-    "Accepted residual risks"
-    "CHANGELOG.md"
-    "README.md"
-    "TECHNICAL_TEARDOWN.md"
-    "docs/ARCHITECTURE.md"
-    "docs/GETTING_STARTED.md"
-    "docs/READINGS_AND_OPTICS.md"
-    "docs/GUIDE.md"
-    "docs/API_REFERENCE.md"
-    "docs/CLI_GUIDE.md"
-    "docs/PUBLIC_API_COSTS.md"
-    "docs/ADVANCED_GUIDE.md"
-    "docs/CONCEPTUAL_OVERVIEW.md"
-    "docs/migrations/"
-    "docs/ROADMAP.md"
-    "docs/BEARING.md"
-  )
-
-  if [ ! -f "$EVIDENCE_FILE" ]; then
-    fail "REL-DOC-EVIDENCE" "$EVIDENCE_FILE is missing"
-    return
-  fi
-
   local missing=0
-  local placeholders=0
-  for term in "${required_terms[@]}"; do
-    if ! grep -qF "$term" "$EVIDENCE_FILE"; then
-      printf '    missing evidence term: %s\n' "$term"
+  local retired=0
+
+  for path in "${REQUIRED_RELEASE_DOCS[@]}"; do
+    if [ ! -f "$path" ]; then
+      printf '    missing release doc: %s\n' "$path"
       missing=$((missing + 1))
     fi
   done
 
-  local placeholder_hits
-  placeholder_hits="$(grep -nE '(^|[^A-Za-z])TBD([^A-Za-z]|$)|0/N|<[^>]+>' "$EVIDENCE_FILE" || true)"
-  if [ "$placeholder_hits" != "" ]; then
-    printf '%s\n' "$placeholder_hits" | head -20
-    placeholders=1
-  fi
-
-  if [ "$missing" -eq 0 ] && [ "$placeholders" -eq 0 ]; then
-    pass "REL-DOC-EVIDENCE" "$EVIDENCE_FILE contains completed release evidence sections and doc review matrix"
-  else
-    if [ "$placeholders" -ne 0 ]; then
-      printf '    evidence packet still contains template placeholders\n'
+  for path in "${RETIRED_DOC_PATHS[@]}"; do
+    if [ -e "$path" ]; then
+      printf '    retired docs path still exists: %s\n' "$path"
+      retired=$((retired + 1))
     fi
-    fail "REL-DOC-EVIDENCE" "$EVIDENCE_FILE is missing $missing required evidence term(s) or contains placeholders"
+  done
+
+  if [ "$missing" -eq 0 ] && [ "$retired" -eq 0 ]; then
+    pass "REL-DOC-EVIDENCE" "release evidence lives in CHANGELOG.md and the public docs topology is consolidated"
+  else
+    fail "REL-DOC-EVIDENCE" "$missing required release doc(s) missing; $retired retired docs path(s) present"
   fi
 }
 

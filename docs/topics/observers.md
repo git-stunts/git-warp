@@ -1,8 +1,9 @@
 # Observers
 
 An **observer** is a read surface that answers questions through an **aperture**
-— a policy that bounds *what* a reader is allowed to see. Where an
-[optic](optics.md) bounds the *question*, an observer bounds *visibility*.
+- a policy that bounds *what* a reader is allowed to see. Where an
+[optic read](optic-reads.md) bounds the *question*, an observer bounds
+*visibility*.
 
 ## Apertures
 
@@ -42,7 +43,15 @@ Observers express product boundaries. They are not a substitute for the
 authority/capability proofs handled upstream (e.g. Wesley/Edict contracts); an
 aperture says what a *reading* shows, not what an *operation* is permitted to do.
 
+Observer redaction is also not encryption. It hides fields from the selected
+read path, but it does not rewrite patch history, delete Git objects, or prevent
+a local operator from inspecting raw objects. Use vault-backed CAS content
+encryption when stored bytes need protection at rest; see
+[Content and CAS](content-and-cas.md).
+
 ## See also
 
-- [Optics](optics.md) · [Bounded Reads](bounded-reads.md)
+- [Optic reads](optic-reads.md)
+- [Querying](querying.md)
+- [Content and CAS](content-and-cas.md)
 - Example: [`examples/observers.ts`](../../examples/observers.ts)

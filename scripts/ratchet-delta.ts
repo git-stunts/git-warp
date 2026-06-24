@@ -15,7 +15,7 @@ const execFile = promisify(execFileCallback);
  * @returns {{ branch?: string, from?: string, to?: string, outputRoot: string, format: string }}
  */
 function parseArgs(args: string[]) {
-  const options: { branch?: string, from?: string, to?: string, outputRoot: string, format: string } = { outputRoot: 'docs/method/ratchet', format: 'text' };
+  const options: { branch?: string, from?: string, to?: string, outputRoot: string, format: string } = { outputRoot: '.ratchet', format: 'text' };
   for (const arg of args) {
     if (arg.startsWith('--branch=')) {
       options.branch = arg.slice('--branch='.length);
