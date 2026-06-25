@@ -57,9 +57,11 @@ jobs:
             if [[ "$VERSION" =~ -beta\. ]]; then DIST=beta; fi
             if [[ "$VERSION" =~ -alpha\. ]]; then DIST=alpha; fi
           fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "dist=$DIST" >> "$GITHUB_OUTPUT"
-          echo "pre=$PRE" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$VERSION"
+            echo "dist=$DIST"
+            echo "pre=$PRE"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Release prep guard
         run: npm run release:guard -- --stage prep-pr --tag "v${{ steps.predict.outputs.version }}"
@@ -77,7 +79,7 @@ jobs:
               "- npm pack dry-run: passed",
               "- jsr publish dry-run: passed",
               "",
-              "If this PR is from a `release/*` branch and merges to `main`, Release Autotag will run final preflight, create `v${{ steps.predict.outputs.version }}`, and dispatch the Release workflow."
+              "If this PR is from a `release/*` branch and merges to `main`, Release Autotag will run final preflight and create `v${{ steps.predict.outputs.version }}`. A maintainer who is a JSR `@git-stunts` scope member must then dispatch the Release workflow manually."
             ].join("\n");
             github.rest.issues.createComment({
               ...context.repo,

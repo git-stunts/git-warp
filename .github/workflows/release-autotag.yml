@@ -5,7 +5,6 @@ on:
     branches: [main]
 
 permissions:
-  actions: write
   contents: write
   issues: read
   pull-requests: read
@@ -77,9 +76,11 @@ jobs:
             TAG_EXISTS=false
           fi
 
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "tag_exists=$TAG_EXISTS" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+            echo "tag_exists=$TAG_EXISTS"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Lychee link check
         if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
@@ -121,16 +122,23 @@ jobs:
             -f ref="refs/tags/$TAG" \
             -f sha="$TAG_OBJECT_SHA" >/dev/null
 
-      - name: Dispatch release workflow
+      - name: Manual release dispatch summary
         if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.metadata.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          gh workflow run release.yml --ref main -f tag="$TAG"
-          echo "Tagged $TAG and dispatched release.yml." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Tagged $TAG."
+            echo ""
+            echo "Registry publication is a manual maintainer step for now."
+            echo "Dispatch release.yml from a GitHub account that is a member of the JSR @git-stunts scope:"
+            echo ""
+            echo '```bash'
+            echo "gh workflow run release.yml --ref main -f tag=$TAG"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Skip summary
         if: steps.release_pr.outputs.should_release != 'true' || steps.metadata.outputs.tag_exists == 'true'
@@ -142,5 +150,5 @@ jobs:
           if [ "$SHOULD_RELEASE" != "true" ]; then
             echo "No release branch merge detected." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Tag $TAG already exists; no release dispatched." >> "$GITHUB_STEP_SUMMARY"
+            echo "Tag $TAG already exists; no tag created." >> "$GITHUB_STEP_SUMMARY"
           fi
