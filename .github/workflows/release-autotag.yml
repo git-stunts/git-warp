@@ -19,12 +19,13 @@ jobs:
     name: Tag merged release branch
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: '22'
           cache: npm
@@ -84,7 +85,7 @@ jobs:
         if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: npm run release:preflight
+        run: bash scripts/release-preflight.sh --stage final-local --tag "${{ steps.metadata.outputs.tag }}"
 
       - name: Create release tag
         if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
