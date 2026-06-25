@@ -127,10 +127,16 @@ if npm run lint:md:code --silent 2>/dev/null; then
 else
   fail "Markdown code sample errors"
 fi
-if npm run lint:links --silent 2>/dev/null; then
-  pass "Documentation links clean"
+if command -v lychee >/dev/null 2>&1; then
+  if npm run lint:links --silent 2>/dev/null; then
+    pass "Documentation links clean"
+  else
+    fail "Documentation link errors"
+  fi
+elif [ "${WARP_LINKCHECK_EXTERNAL_OK:-}" = "1" ]; then
+  pass "Documentation links clean (external gate)"
 else
-  fail "Documentation link errors"
+  fail "Documentation link checker unavailable"
 fi
 
 # ── 6. Type firewall ─────────────────────────────────────────────────────────
