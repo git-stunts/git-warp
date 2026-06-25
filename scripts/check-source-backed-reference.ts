@@ -12,13 +12,9 @@ class SourceText {
     this.lines = readFileSync(path, 'utf8').split('\n');
   }
 
-  line(index: number): string {
-    return this.lines[index] ?? '';
-  }
+  line(index: number): string { return this.lines[index] ?? ''; }
 
-  ref(index: number): string {
-    return `${this.path}#L${index + 1}`;
-  }
+  ref(index: number): string { return `${this.path}#L${index + 1}`; }
 }
 
 class InventoryItem {
@@ -219,6 +215,13 @@ function codeList(items: readonly InventoryItem[]): string {
   return ['```text', ...items.map((item) => `${item.name} @ ${item.source}`), '```'].join('\n');
 }
 
+function requireLineRef(source: SourceText, needle: string): string {
+  for (let index = 0; index < source.lines.length; index += 1) {
+    if (source.line(index).includes(needle)) { return source.ref(index); }
+  }
+  throw new Error(`${needle} not found in ${source.path}`);
+}
+
 function generate(): string {
   const packageSource = new SourceText('package.json');
   const jsrSource = new SourceText('jsr.json');
@@ -274,7 +277,7 @@ function generate(): string {
     'Structured CLI errors for `--json` and `--ndjson` use the payload shape',
     '`{ error: { code, message, cause? } }` from the CLI entry point.',
     '',
-    `Source: \`${cliSource.ref(129)}\`.`,
+    `Source: \`${requireLineRef(cliSource, 'const payload:')}\`.`,
     '',
     '## Public error classes',
     '',
@@ -286,10 +289,7 @@ function generate(): string {
 const expected = generate();
 const shouldWrite = process.argv.includes('--write');
 
-if (shouldWrite) {
-  writeFileSync(OUTPUT_PATH, expected);
-  process.exit(0);
-}
+if (shouldWrite) { writeFileSync(OUTPUT_PATH, expected); process.exit(0); }
 
 const actual = readFileSync(OUTPUT_PATH, 'utf8');
 if (actual !== expected) {

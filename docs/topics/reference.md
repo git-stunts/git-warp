@@ -286,7 +286,7 @@ ZKWormholeVerificationResult @ index.ts#L442
 Structured CLI errors for `--json` and `--ndjson` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
 
-Source: `bin/warp-graph.ts#L130`.
+Source: `bin/warp-graph.ts#L129`.
 
 ## Public error classes
 
