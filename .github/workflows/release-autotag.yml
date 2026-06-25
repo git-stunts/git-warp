@@ -85,37 +85,49 @@ jobs:
         if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/release-preflight.sh --stage final-local --tag "${{ steps.metadata.outputs.tag }}"
+          TAG: ${{ steps.metadata.outputs.tag }}
+        run: bash scripts/release-preflight.sh --stage final-local --tag "$TAG"
 
       - name: Create release tag
         if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.metadata.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ steps.metadata.outputs.tag }}"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "release: $TAG"
-          git push origin "refs/tags/$TAG"
+          TAG_OBJECT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/tags" \
+            -f tag="$TAG" \
+            -f message="release: $TAG" \
+            -f object="$GITHUB_SHA" \
+            -f type="commit" \
+            --jq ".sha")"
+
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/$TAG" \
+            -f sha="$TAG_OBJECT_SHA" >/dev/null
 
       - name: Dispatch release workflow
         if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.metadata.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ steps.metadata.outputs.tag }}"
           gh workflow run release.yml --ref main -f tag="$TAG"
           echo "Tagged $TAG and dispatched release.yml." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Skip summary
         if: steps.release_pr.outputs.should_release != 'true' || steps.metadata.outputs.tag_exists == 'true'
+        env:
+          SHOULD_RELEASE: ${{ steps.release_pr.outputs.should_release }}
+          TAG: ${{ steps.metadata.outputs.tag }}
         shell: bash
         run: |
-          if [ "${{ steps.release_pr.outputs.should_release }}" != "true" ]; then
+          if [ "$SHOULD_RELEASE" != "true" ]; then
             echo "No release branch merge detected." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Tag ${{ steps.metadata.outputs.tag }} already exists; no release dispatched." >> "$GITHUB_STEP_SUMMARY"
+            echo "Tag $TAG already exists; no release dispatched." >> "$GITHUB_STEP_SUMMARY"
           fi
