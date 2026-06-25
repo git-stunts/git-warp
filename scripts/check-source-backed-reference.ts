@@ -281,7 +281,6 @@ function generate(): string {
     '## Public error classes',
     '',
     table(['Class', 'Module', 'Source'], errors.map((item) => [`\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``])),
-    '',
   ].join('\n')}\n`;
 }
 

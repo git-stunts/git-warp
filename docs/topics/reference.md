@@ -313,4 +313,3 @@ Source: `bin/warp-graph.ts#L129`.
 | `TraversalError` | `./TraversalError.ts` | `src/domain/errors/index.ts#L21` |
 | `StrandError` | `./StrandError.ts` | `src/domain/errors/index.ts#L22` |
 | `WormholeError` | `./WormholeError.ts` | `src/domain/errors/index.ts#L23` |
-
