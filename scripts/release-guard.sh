@@ -73,6 +73,7 @@ REQUIRED_RELEASE_DOCS=(
   "docs/topics/continuum-boundary.md"
   "docs/topics/sync.md"
   "docs/topics/cli.md"
+  "docs/topics/reference.md"
   "docs/topics/troubleshooting.md"
 )
 

@@ -38,6 +38,8 @@ lives in the root [CHANGELOG](../../CHANGELOG.md).
 
 - [CLI](cli.md): inspect, validate, debug, and time-travel a live repository.
 - [Sync](sync.md): move WARP refs between clones and inspect sync status.
+- [Source-backed reference](reference.md): generated API, CLI, entrypoint, and
+  error inventories with source citations.
 - [Troubleshooting](troubleshooting.md): start from symptoms and choose the next
   diagnostic check.
 - [Operations](../operations/): run checkpoint, GC, index, audit, trust, and
