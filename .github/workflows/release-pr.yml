@@ -68,18 +68,34 @@ jobs:
 
       - name: PR comment (release preview)
         uses: actions/github-script@v8
+        env:
+          RELEASE_DIST: ${{ steps.predict.outputs.dist }}
+          RELEASE_PRE: ${{ steps.predict.outputs.pre }}
+          RELEASE_VERSION: ${{ steps.predict.outputs.version }}
         with:
           script: |
+            const requireEnv = (name) => {
+              const value = process.env[name];
+              if (!value) {
+                throw new Error(`${name} is required`);
+              }
+              return value;
+            };
+
+            const dist = requireEnv("RELEASE_DIST");
+            const pre = requireEnv("RELEASE_PRE");
+            const version = requireEnv("RELEASE_VERSION");
+
             const body = [
               "## Release Preflight",
               "",
-              `- package version: \`${{ steps.predict.outputs.version }}\``,
-              `- prerelease: \`${{ steps.predict.outputs.pre }}\``,
-              `- npm dist-tag on release: \`${{ steps.predict.outputs.dist }}\``,
+              `- package version: \`${version}\``,
+              `- prerelease: \`${pre}\``,
+              `- npm dist-tag on release: \`${dist}\``,
               "- npm pack dry-run: passed",
               "- jsr publish dry-run: passed",
               "",
-              "If this PR is from a `release/*` branch and merges to `main`, Release Autotag will run final preflight and create `v${{ steps.predict.outputs.version }}`. A maintainer who is a JSR `@git-stunts` scope member must then dispatch the Release workflow manually."
+              `If this PR is from a \`release/*\` branch and merges to \`main\`, Release Autotag will run final preflight and create \`v${version}\`. A maintainer who is a JSR \`@git-stunts\` scope member must then dispatch the Release workflow manually.`
             ].join("\n");
             github.rest.issues.createComment({
               ...context.repo,
