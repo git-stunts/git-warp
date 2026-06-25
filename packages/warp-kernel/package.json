@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/warp-kernel",
-  "version": "18.1.1",
+  "version": "18.1.2",
   "description": "Domain engine: services, WarpState, and controllers for git-warp.",
   "private": true,
   "type": "module",

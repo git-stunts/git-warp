@@ -42,10 +42,10 @@ It lets you:
 
 ## Latest release
 
-`v18.1.1` republishes the v18.1 line from the current `main` release state.
-It carries the reified `Optic` read model, observer reading envelopes, bounded
-support planning, the consolidated docs topology, and the upstream
-`@git-stunts/alfred` timeout fix without relying on the old local patch.
+`v18.1.2` publishes the source-backed reference shelf for package entrypoints,
+root API exports, CLI commands, structured CLI errors, and public error classes.
+It also locks the release path to autotag the exact merged `main` commit, then
+publish npm and JSR from a maintainer-dispatched workflow.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
