@@ -57,9 +57,11 @@ TARGET_MILESTONE=""
 FAILURES=0
 
 REQUIRED_RELEASE_DOCS=(
+  ".github/RELEASE.md"
   "README.md"
   "ARCHITECTURE.md"
   "CHANGELOG.md"
+  "docs/operations/README.md"
   "docs/topics/README.md"
   "docs/topics/getting-started.md"
   "docs/topics/optic-reads.md"
@@ -71,7 +73,6 @@ REQUIRED_RELEASE_DOCS=(
   "docs/topics/continuum-boundary.md"
   "docs/topics/sync.md"
   "docs/topics/cli.md"
-  "docs/topics/operations.md"
   "docs/topics/troubleshooting.md"
 )
 
@@ -442,7 +443,7 @@ check_release_evidence() {
   done
 
   if [ "$missing" -eq 0 ] && [ "$retired" -eq 0 ]; then
-    pass "REL-DOC-EVIDENCE" "release evidence lives in CHANGELOG.md and the public docs topology is consolidated"
+    pass "REL-DOC-EVIDENCE" "release evidence lives in CHANGELOG.md and the consolidated docs topology"
   else
     fail "REL-DOC-EVIDENCE" "$missing required release doc(s) missing; $retired retired docs path(s) present"
   fi

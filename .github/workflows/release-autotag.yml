@@ -1,0 +1,133 @@
+name: Release Autotag
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  actions: write
+  contents: write
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: release-autotag-main
+  cancel-in-progress: false
+
+jobs:
+  autotag:
+    name: Tag merged release branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Fetch main
+        run: git fetch --no-tags origin main:refs/remotes/origin/main
+
+      - name: Detect merged release PR
+        id: release_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HEAD_REF="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            -H "Accept: application/vnd.github+json" \
+            --jq '.[0].head.ref // ""' 2>/dev/null || true)"
+
+          if [ "$HEAD_REF" = "" ]; then
+            SUBJECT="$(git log -1 --pretty=%s)"
+            HEAD_REF="$(printf '%s\n' "$SUBJECT" \
+              | sed -nE 's/^Merge pull request #[0-9]+ from [^/]+\/(release\/[^[:space:]]+)$/\1/p')"
+          fi
+
+          if [[ "$HEAD_REF" == release/* ]]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "head_ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Compute release tag
+        id: metadata
+        if: steps.release_pr.outputs.should_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v$VERSION"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            TAG_EXISTS=true
+          else
+            TAG_EXISTS=false
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tag_exists=$TAG_EXISTS" >> "$GITHUB_OUTPUT"
+
+      - name: Final release preflight
+        if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.metadata.outputs.tag }}
+        run: bash scripts/release-preflight.sh --stage final-local --tag "$TAG"
+
+      - name: Create release tag
+        if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.metadata.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG_OBJECT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/tags" \
+            -f tag="$TAG" \
+            -f message="release: $TAG" \
+            -f object="$GITHUB_SHA" \
+            -f type="commit" \
+            --jq ".sha")"
+
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/$TAG" \
+            -f sha="$TAG_OBJECT_SHA" >/dev/null
+
+      - name: Dispatch release workflow
+        if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.metadata.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run release.yml --ref main -f tag="$TAG"
+          echo "Tagged $TAG and dispatched release.yml." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Skip summary
+        if: steps.release_pr.outputs.should_release != 'true' || steps.metadata.outputs.tag_exists == 'true'
+        env:
+          SHOULD_RELEASE: ${{ steps.release_pr.outputs.should_release }}
+          TAG: ${{ steps.metadata.outputs.tag }}
+        shell: bash
+        run: |
+          if [ "$SHOULD_RELEASE" != "true" ]; then
+            echo "No release branch merge detected." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Tag $TAG already exists; no release dispatched." >> "$GITHUB_STEP_SUMMARY"
+          fi

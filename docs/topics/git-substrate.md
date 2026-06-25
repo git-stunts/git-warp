@@ -77,7 +77,7 @@ Checkpoints persist folded state plus index, frontier, and schema metadata.
 They accelerate recovery and bounded-read evidence. They are not the source of
 truth; patch history remains authoritative.
 
-Use [Operations](operations.md) for checkpoint and GC workflows.
+Use [Operations](../operations/) for checkpoint and GC workflows.
 
 ## Provenance
 
@@ -110,5 +110,5 @@ shared boundary vocabulary for witnessed history exchange. Use
 - [Getting started](getting-started.md)
 - [Querying](querying.md)
 - [Content and CAS](content-and-cas.md)
-- [Operations](operations.md)
+- [Operations](../operations/)
 - [Troubleshooting](troubleshooting.md)

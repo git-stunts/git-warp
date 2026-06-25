@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Advisory guard for the consolidated public documentation topology.
+# Advisory guard for the consolidated documentation topology.
 set -euo pipefail
 
 REQUIRED_DOCS=(
+  ".github/RELEASE.md"
   "README.md"
   "ARCHITECTURE.md"
   "CHANGELOG.md"
+  "docs/operations/README.md"
   "docs/topics/README.md"
   "docs/topics/getting-started.md"
   "docs/topics/optic-reads.md"
@@ -17,7 +19,6 @@ REQUIRED_DOCS=(
   "docs/topics/continuum-boundary.md"
   "docs/topics/sync.md"
   "docs/topics/cli.md"
-  "docs/topics/operations.md"
   "docs/topics/troubleshooting.md"
 )
 
@@ -71,9 +72,9 @@ for path in "${RETIRED_PATHS[@]}"; do
 done
 
 if [ "$FAILURES" -eq 0 ]; then
-  echo "docs-topology: public docs topology passed"
+  echo "docs-topology: documentation topology passed"
 else
-  echo "docs-topology: $FAILURES public docs topology failure(s)"
+  echo "docs-topology: $FAILURES documentation topology failure(s)"
 fi
 
 exit "$FAILURES"

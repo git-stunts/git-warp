@@ -4,8 +4,9 @@ Use this page when you are maintaining or diagnosing a live repository rather
 than writing product code against the worldline API.
 
 For ordinary application reads and writes, start with
-[Getting started](getting-started.md), [Querying](querying.md), and
-[Optic reads](optic-reads.md).
+[Getting started](../topics/getting-started.md),
+[Querying](../topics/querying.md), and
+[Optic reads](../topics/optic-reads.md).
 
 ## Health checks
 
@@ -80,7 +81,7 @@ setup docs rather than relying on developer machine state.
 
 ## See also
 
-- [CLI](cli.md)
-- [Git substrate](git-substrate.md)
-- [Sync](sync.md)
-- [Troubleshooting](troubleshooting.md)
+- [CLI](../topics/cli.md)
+- [Git substrate](../topics/git-substrate.md)
+- [Sync](../topics/sync.md)
+- [Troubleshooting](../topics/troubleshooting.md)

@@ -87,5 +87,5 @@ graph adapter, and migrate legacy encrypted manifests before rewriting them.
 
 - [Git substrate](git-substrate.md)
 - [Observers](observers.md)
-- [Operations](operations.md)
+- [Operations](../operations/)
 - [Troubleshooting](troubleshooting.md)

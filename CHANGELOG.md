@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.1.1] - 2026-06-25
+
+### Release notes
+
+`v18.1.1` is a release-provenance patch for the v18.1 line. It publishes from
+the current `main` release state so the public tag includes the documentation
+consolidation, current signposts, the upstream `@git-stunts/alfred` timeout
+release, and the removal of the old local alfred patch.
+
+The release process now matches that desired outcome: release prep happens on a
+`release/*` PR, final preflight runs after that PR lands on `main`, CI creates
+the release tag at the merge commit, and the tag dispatches the publish
+workflow. Contributor release procedure lives in `.github/RELEASE.md`; the
+learning shelf remains `docs/topics/`, while operator workflows live in
+`docs/operations/`.
+
+### Changed
+
+- Updated release metadata to `18.1.1` across npm, JSR, the lockfile, and
+  private workspace package manifests.
+- Updated README, architecture, topic index, contributor docs, and agent
+  guidance so the current release and documentation topology point at the
+  current shipped truth.
+- Moved operator workflows out of `docs/topics/` and into
+  `docs/operations/README.md`, keeping the topic shelf focused on learning the
+  product model.
+- Added `.github/RELEASE.md` as the maintainer runbook for release prep,
+  signpost review, automated tagging, publish workflow behavior, and manual
+  fallback.
+- Added a `Release Autotag` workflow that detects merged `release/*` PRs on
+  `main`, runs final release preflight, creates the release tag, and dispatches
+  the existing release workflow.
+- Updated PR release preflight comments and release-preflight output to describe
+  the automated tag-and-dispatch path instead of assuming a local manual tag is
+  the happy path.
+
 ## [18.1.0] - 2026-06-24
 
 ### Release notes

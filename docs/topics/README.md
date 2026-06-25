@@ -5,10 +5,11 @@ specific task.
 
 ## Current release
 
-`v18.1.0` focuses the public docs around the shipped v18 read model: worldlines,
-coordinates, reified optics, observers, bounded support, strands, Git substrate,
-sync, CLI, operations, and troubleshooting. The full release narrative lives in
-the root [CHANGELOG](../../CHANGELOG.md).
+`v18.1.1` focuses the public docs around the shipped v18 read model:
+worldlines, coordinates, reified optics, observers, bounded support, strands,
+Git substrate, sync, CLI, and troubleshooting. Operator workflows live outside
+the topic shelf in [Operations](../operations/). The full release narrative
+lives in the root [CHANGELOG](../../CHANGELOG.md).
 
 ## Start here
 
@@ -37,10 +38,10 @@ the root [CHANGELOG](../../CHANGELOG.md).
 
 - [CLI](cli.md): inspect, validate, debug, and time-travel a live repository.
 - [Sync](sync.md): move WARP refs between clones and inspect sync status.
-- [Operations](operations.md): run checkpoint, GC, index, audit, trust, and
-  maintenance workflows.
 - [Troubleshooting](troubleshooting.md): start from symptoms and choose the next
   diagnostic check.
+- [Operations](../operations/): run checkpoint, GC, index, audit, trust, and
+  maintenance workflows.
 
 ## Root artifacts
 

@@ -7,7 +7,8 @@
 - GitHub Milestones own release targeting.
 - `CHANGELOG.md` records externally meaningful changes.
 - Current public docs live in `README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`,
-  and `docs/topics/`.
+  `docs/topics/`, and `docs/operations/`.
+- Release process instructions live in `.github/RELEASE.md`.
 
 Historical design notes, retrospectives, archived backlog files, and deleted
 planning packets remain available through Git history. Do not recreate archive,
@@ -44,8 +45,11 @@ Use the topic shelf for current docs:
 - `docs/topics/continuum-boundary.md`
 - `docs/topics/sync.md`
 - `docs/topics/cli.md`
-- `docs/topics/operations.md`
 - `docs/topics/troubleshooting.md`
+
+Use `docs/operations/README.md` for operator workflows over a live
+`git-warp` repository. Use `.github/RELEASE.md` for maintainer release
+procedure. Do not put contributor runbooks in the topic shelf.
 
 Exact API, CLI, schema, and error inventories should be generated or
 coverage-checked instead of hand-maintained as prose.

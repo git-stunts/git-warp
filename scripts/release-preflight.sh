@@ -4,7 +4,7 @@
 #
 # Usage:  npm run release:prep
 #         npm run release:preflight
-#         bash scripts/release-preflight.sh --stage final-local
+#         bash scripts/release-preflight.sh --stage final-local --tag v18.1.1
 #
 # Exits 0 if all checks pass, 1 if any hard check fails.
 # ──────────────────────────────────────────────────────────────────────────────
@@ -22,6 +22,7 @@ warn() { echo -e "  ${YELLOW}!${NC} $1"; }
 
 EXIT=0
 STAGE="final-local"
+TAG=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -31,6 +32,14 @@ while [ "$#" -gt 0 ]; do
         exit 2
       fi
       STAGE="$2"
+      shift 2
+      ;;
+    --tag)
+      if [ "$#" -lt 2 ]; then
+        echo "release-preflight: --tag requires a value" >&2
+        exit 2
+      fi
+      TAG="$2"
       shift 2
       ;;
     *)
@@ -56,6 +65,9 @@ echo ""
 # ── 1. Version agreement ─────────────────────────────────────────────────────
 PKG=$(node -p "require('./package.json').version")
 JSR=$(node -p "require('./jsr.json').version")
+if [ "$TAG" = "" ]; then
+  TAG="v${PKG}"
+fi
 echo "Versions:"
 if [ "$PKG" = "$JSR" ]; then
   pass "package.json ($PKG) == jsr.json ($JSR)"
@@ -65,7 +77,7 @@ fi
 
 # ── 1b. Release policy guard ─────────────────────────────────────────────────
 echo "Release policy:"
-if bash scripts/release-guard.sh --stage "$STAGE" --tag "v${PKG}"; then
+if bash scripts/release-guard.sh --stage "$STAGE" --tag "$TAG"; then
   pass "release guard"
 else
   fail "release guard failed"
@@ -189,8 +201,11 @@ if [ "$EXIT" -eq 0 ]; then
   if [ "$STAGE" = "prep-pr" ]; then
     echo "Ready to push the release-prep branch and open a PR."
   else
-    echo "Ready to tag:"
-    echo "  git tag -s v${PKG} -m 'release: v${PKG}'"
+    echo "Ready for Release Autotag to create and publish:"
+    echo "  v${PKG}"
+    echo ""
+    echo "Manual fallback, if autotag cannot run:"
+    echo "  git tag -a v${PKG} -m 'release: v${PKG}'"
     echo "  git push origin v${PKG}"
   fi
 else
