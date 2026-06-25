@@ -194,7 +194,8 @@ mindmap
 
 The topic pages own the current explanations for these nouns. Exact API, CLI,
 schema, and error inventories should be generated or coverage-checked rather
-than maintained as long-form prose.
+than maintained as long-form prose; see the generated
+[source-backed reference](docs/topics/reference.md).
 
 > `Optic` is now a reified runtime noun for the public read path. The fluent API lowers into a frozen `Optic` value before execution; see [Optic reads](docs/topics/optic-reads.md).
 
