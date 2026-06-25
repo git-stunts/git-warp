@@ -6,7 +6,7 @@ Use the CLI when you want to inspect, validate, debug, or time-travel a live rep
 
 - If you are building an app, start with the [Querying](querying.md).
 - If you want the substrate internals behind these commands, use the [Git substrate](git-substrate.md).
-- If you are maintaining a repo, use [Operations](operations.md).
+- If you are maintaining a repo, use [Operations](../operations/).
 
 The CLI is also the shipped Time Travel Debugger surface. In `git-warp`, debugger philosophy and debugger commands stay together because the debugger is intentionally a thin CLI-first adapter over substrate facts.
 
@@ -225,5 +225,5 @@ pretend a complete boundary exists.
 
 - [Querying](querying.md): builder patterns for app code
 - [Strands](strands.md): speculative lanes and braids
-- [Operations](operations.md): maintenance workflows
+- [Operations](../operations/): maintenance workflows
 - [Git substrate](git-substrate.md): substrate internals and trust model

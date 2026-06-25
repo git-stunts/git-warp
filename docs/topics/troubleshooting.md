@@ -103,7 +103,7 @@ refs.
 
 ## See also
 
-- [Operations](operations.md)
+- [Operations](../operations/)
 - [CLI](cli.md)
 - [Sync](sync.md)
 - [Content and CAS](content-and-cas.md)

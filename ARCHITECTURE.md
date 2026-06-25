@@ -10,10 +10,11 @@ If you are learning the product for the first time, start with:
 
 ## Release posture
 
-`v18.1.0` is the current release target. Architecturally, it closes the v18
-read-model cycle by making `Optic` a runtime noun, making observer reading
-envelopes explicit, naming bounded support planning, and keeping release
-evidence in `CHANGELOG.md` plus the consolidated `docs/topics/` shelf.
+`v18.1.1` is the current release target. Architecturally, it carries the v18
+read-model closeout from the current `main` release state: `Optic` is a
+runtime noun, observer reading envelopes are explicit, bounded support planning
+is named, the public learning shelf is consolidated under `docs/topics/`, and
+operator workflows live outside that shelf under `docs/operations/`.
 
 The longer release notes live in [CHANGELOG.md](CHANGELOG.md). The runtime
 architecture below describes current implementation boundaries, not aspirational

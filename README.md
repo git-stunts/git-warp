@@ -42,11 +42,10 @@ It lets you:
 
 ## Latest release
 
-`v18.1.0` is the read-model closeout for the v18 line. It makes `Optic` a
-first-class runtime noun, puts coherent optic reads on the public
-`prepareOpticBasis()` → `coordinate()` → `coordinate.optic()` path, adds
-observer reading envelopes, sharpens bounded support planning, and keeps the
-new consolidated docs topology under an executable guard.
+`v18.1.1` republishes the v18.1 line from the current `main` release state.
+It carries the reified `Optic` read model, observer reading envelopes, bounded
+support planning, the consolidated docs topology, and the upstream
+`@git-stunts/alfred` timeout fix without relying on the old local patch.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
@@ -349,7 +348,7 @@ Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates
 - [Optic reads](docs/topics/optic-reads.md), [Observers](docs/topics/observers.md), and [Querying](docs/topics/querying.md) — the current public read model
 - [Strands](docs/topics/strands.md), [Sync](docs/topics/sync.md), and [CLI](docs/topics/cli.md) — common usage paths
 - [Git substrate](docs/topics/git-substrate.md), [Content and CAS](docs/topics/content-and-cas.md), and [Continuum boundary](docs/topics/continuum-boundary.md) — substrate and boundary explanations
-- [Operations](docs/topics/operations.md) and [Troubleshooting](docs/topics/troubleshooting.md) — maintenance and recovery workflows
+- [Operations](docs/operations/) and [Troubleshooting](docs/topics/troubleshooting.md) — maintenance and recovery workflows
 - [Examples](examples/) — runnable read-model snippets
 - [Architecture](ARCHITECTURE.md) — hexagonal layers and admission kernel
 
@@ -413,7 +412,7 @@ No. The fluent API is practical; theory is optional.
 
 ### What if I have existing data?
 
-Migration tools and diagnostic surfaces exist. See [Operations](docs/topics/operations.md) and [Git substrate](docs/topics/git-substrate.md).
+Migration tools and diagnostic surfaces exist. See [Operations](docs/operations/) and [Git substrate](docs/topics/git-substrate.md).
 
 ### Can I use it with my existing Git repository?
 

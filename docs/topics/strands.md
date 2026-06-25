@@ -110,5 +110,5 @@ git warp strand drop review-auth --repo ./team-repo
 
 - [Querying](querying.md)
 - [Git substrate](git-substrate.md)
-- [Operations](operations.md)
+- [Operations](../operations/)
 - [CLI](cli.md)

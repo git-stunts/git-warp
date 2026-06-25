@@ -189,8 +189,11 @@ if [ "$EXIT" -eq 0 ]; then
   if [ "$STAGE" = "prep-pr" ]; then
     echo "Ready to push the release-prep branch and open a PR."
   else
-    echo "Ready to tag:"
-    echo "  git tag -s v${PKG} -m 'release: v${PKG}'"
+    echo "Ready for Release Autotag to create and publish:"
+    echo "  v${PKG}"
+    echo ""
+    echo "Manual fallback, if autotag cannot run:"
+    echo "  git tag -a v${PKG} -m 'release: v${PKG}'"
     echo "  git push origin v${PKG}"
   fi
 else
