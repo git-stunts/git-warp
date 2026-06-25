@@ -128,7 +128,7 @@ else
   fail "Markdown code sample errors"
 fi
 if command -v lychee >/dev/null 2>&1; then
-  if npm run lint:links --silent 2>/dev/null; then
+  if npm run lint:links; then
     pass "Documentation links clean"
   else
     fail "Documentation link errors"
