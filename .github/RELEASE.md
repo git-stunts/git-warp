@@ -6,8 +6,8 @@ End-user learning material belongs in `README.md`, `ARCHITECTURE.md`,
 
 ## Release shape
 
-Releases use a branch -> PR -> merge -> automated tag -> release workflow
-sequence.
+Releases use a branch -> PR -> merge -> automated tag -> manual registry
+publish sequence.
 
 1. Create a release-prep branch named `release/vX.Y.Z`.
 2. Prepare release content on that branch.
@@ -15,8 +15,10 @@ sequence.
 4. Merge the PR after review and green CI.
 5. The `Release Autotag` workflow sees the merged `release/*` branch on
    `main`, runs final release preflight, creates the `vX.Y.Z` tag at the merge
-   commit, and dispatches the `Release` workflow for that tag.
-6. The `Release` workflow verifies publishability, publishes npm and JSR, and
+   commit, and prints the manual publish command.
+6. A maintainer whose GitHub account is a JSR `@git-stunts` scope member
+   manually dispatches the `Release` workflow for that tag.
+7. The `Release` workflow verifies publishability, publishes npm and JSR, and
    creates or updates the GitHub Release.
 
 The tag must point at the exact `main` commit that passed the release prep PR.
@@ -72,7 +74,7 @@ npm run release:prep
 
 CI also runs release-prep validation on PRs. The PR preview comment reports the
 package version and npm dist-tag that will be used if the release branch merges
-and the autotag workflow runs.
+and the autotag workflow creates the tag.
 
 ## Automatic tagging
 
@@ -87,13 +89,40 @@ The workflow:
 - skips if the tag already exists;
 - runs `npm run release:preflight` from the aligned `main` commit;
 - creates an annotated tag at that commit;
-- dispatches `release.yml` with the tag as input.
+- prints the manual `release.yml` dispatch command.
 
 GitHub does not reliably start another workflow from a tag push made with the
-default `GITHUB_TOKEN`, so autotag dispatches the release workflow explicitly.
-That dispatched workflow uses the existing-tag recovery posture, but the live
-issue gates and exact-`main` checks have already run in autotag immediately
-before tag creation.
+default `GITHUB_TOKEN`. JSR also treats workflows dispatched by
+`github-actions[bot]` differently from workflows dispatched by a GitHub user who
+is a JSR scope member. For now, autotag stops after tag creation. A maintainer
+dispatches the release workflow manually so JSR OIDC publishing runs under a
+scope-member actor.
+
+## Manual registry publication
+
+After autotag creates `vX.Y.Z`, a maintainer whose GitHub account is a JSR
+`@git-stunts` scope member must dispatch the release workflow:
+
+```bash
+gh workflow run release.yml --ref main -f tag=vX.Y.Z
+```
+
+Watch the run:
+
+```bash
+gh run list --workflow release.yml --limit 5
+gh run watch <RUN_ID> --exit-status --interval 30
+```
+
+Verify both registries:
+
+```bash
+npm view @git-stunts/git-warp@X.Y.Z version --registry=https://registry.npmjs.org
+npm view @jsr/git-stunts__git-warp@X.Y.Z version --registry=https://npm.jsr.io
+```
+
+Do not move the tag if either registry fails. Fix the registry-specific problem
+and rerun the release workflow or the failed job.
 
 ## Release gates
 
@@ -127,4 +156,5 @@ git push origin vX.Y.Z
 ```
 
 If one registry publish fails after the tag exists, rerun the `Release`
-workflow manually with the existing tag. Do not move the tag.
+workflow manually with the existing tag from a maintainer account that satisfies
+registry identity requirements. Do not move the tag.
