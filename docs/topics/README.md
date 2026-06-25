@@ -5,11 +5,13 @@ specific task.
 
 ## Current release
 
-`v18.1.1` focuses the public docs around the shipped v18 read model:
+`v18.1.2` keeps the public docs focused around the shipped v18 read model:
 worldlines, coordinates, reified optics, observers, bounded support, strands,
-Git substrate, sync, CLI, and troubleshooting. Operator workflows live outside
-the topic shelf in [Operations](../operations/). The full release narrative
-lives in the root [CHANGELOG](../../CHANGELOG.md).
+Git substrate, sync, CLI, and troubleshooting. It also adds the generated
+[Source-backed reference](reference.md) for exact package, API, CLI, and error
+inventories. Operator workflows live outside the topic shelf in
+[Operations](../operations/). The full release narrative lives in the root
+[CHANGELOG](../../CHANGELOG.md).
 
 ## Start here
 

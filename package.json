@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "18.1.1",
+  "version": "18.1.2",
   "description": "Worldline-first WARP graph over Git: deterministic multi-writer causal history, readings, and tooling.",
   "type": "module",
   "license": "Apache-2.0",

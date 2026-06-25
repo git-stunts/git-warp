@@ -7,12 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.1.2] - 2026-06-25
+
+### Release notes
+
+`v18.1.2` is a release-hygiene and public-reference patch for the v18.1 line.
+It publishes the source-backed reference shelf so package entrypoints, root API
+exports, CLI commands, structured CLI error output, and public error classes
+are generated from source instead of hand-maintained Markdown.
+
+It also carries the corrected release publication path: merged `release/*` PRs
+autotag the exact `main` commit after final preflight, and a JSR scope-member
+maintainer manually dispatches the registry publish workflow for that tag.
+That keeps GitHub Release evidence, npm publication, and JSR OIDC identity
+aligned without relying on bot-dispatched registry publishing.
+
 ### Added
 
 - Added a generated source-backed reference topic for package entrypoints, root
   API exports, CLI commands, structured CLI error output, and public error
   classes, plus a docs-topology gate that fails when the reference drifts from
   source.
+
+### Changed
+
+- Updated release automation and maintainer documentation so release autotagging
+  stops after creating the tag, while npm and JSR publication run from an
+  explicit maintainer-dispatched workflow.
+- Added the source-backed reference topic to release guard and documentation
+  topology checks so release prep fails if the generated reference is missing.
 
 ## [18.1.1] - 2026-06-25
 
