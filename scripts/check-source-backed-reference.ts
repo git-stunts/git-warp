@@ -131,8 +131,10 @@ function exportName(token: string): string {
   return cleaned.replace(/^type\s+/, '').trim();
 }
 
-function collectDelimitedNames(text: string): readonly string[] {
-  return text
+function collectLineNames(line: string): readonly string[] {
+  return line
+    .replace(/^\s*export\s+(type\s+)?\{/, '')
+    .replace(/\}.*$/, '')
     .split(',')
     .map(exportName)
     .filter((name) => /^[A-Za-z0-9_]+$/.test(name))
@@ -149,22 +151,19 @@ function captureRootExports(indexSource: SourceText, kind: 'values' | 'types'): 
       continue;
     }
 
-    const blockLines = [line];
-    let end = index;
-    while (end < indexSource.lines.length && !indexSource.line(end).includes('};') && !indexSource.line(end).includes("} from ")) {
-      end += 1;
-      blockLines.push(indexSource.line(end));
-    }
-
-    const block = blockLines.join('\n');
-    const bodyMatch = /\{([\s\S]*)\}/.exec(block);
-    if (bodyMatch) {
-      for (const name of collectDelimitedNames(bodyMatch[1] ?? '')) {
-        items.push(new InventoryItem(name, kind, indexSource.ref(index)));
+    let exportIndex = index;
+    while (exportIndex < indexSource.lines.length) {
+      const exportLine = indexSource.line(exportIndex);
+      for (const name of collectLineNames(exportLine)) {
+        items.push(new InventoryItem(name, kind, indexSource.ref(exportIndex)));
       }
+      if (exportLine.includes('};') || exportLine.includes("} from ")) {
+        break;
+      }
+      exportIndex += 1;
     }
 
-    index = end;
+    index = exportIndex;
   }
 
   return items.sort((left, right) => left.name.localeCompare(right.name));
