@@ -81,11 +81,24 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "tag_exists=$TAG_EXISTS" >> "$GITHUB_OUTPUT"
 
+      - name: Lychee link check
+        if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411
+        with:
+          args: >-
+            --config .lychee.toml
+            '**/*.md'
+          fail: true
+          format: markdown
+          output: ${{ runner.temp }}/lychee-report.md
+          jobSummary: true
+
       - name: Final release preflight
         if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.metadata.outputs.tag }}
+          WARP_LINKCHECK_EXTERNAL_OK: "1"
         run: bash scripts/release-preflight.sh --stage final-local --tag "$TAG"
 
       - name: Create release tag
