@@ -40,6 +40,16 @@ It lets you:
 - Keep provenance attached to values and outcomes.
 - Sync through normal Git transport.
 
+## Latest release
+
+`v18.1.0` is the read-model closeout for the v18 line. It makes `Optic` a
+first-class runtime noun, puts coherent optic reads on the public
+`prepareOpticBasis()` → `coordinate()` → `coordinate.optic()` path, adds
+observer reading envelopes, sharpens bounded support planning, and keeps the
+new consolidated docs topology under an executable guard.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
+
 ## Quick start
 
 ```typescript

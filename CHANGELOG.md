@@ -5,7 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [18.1.0] - 2026-06-23
+## [18.1.0] - 2026-06-24
+
+### Release notes
+
+`v18.1.0` is the read-model closeout for the v18 line. `v18.0.0` gave users the
+Worldline-first public surface; `v18.1.0` makes the read side structurally
+honest by reifying `Optic`, validating coherent coordinate-backed optic reads,
+giving observers explicit reading envelopes, and naming the bounded support
+contracts that keep reads from falling back to whole-graph materialization.
+
+The release also sharpens the runtime and operator surface around that model:
+`GraphDiff`, streaming traversal, stream-first materialization, sync pagination,
+signed sync-auth scheme declaration, read-only MCP tools, CAS content encryption
+policy, and merge-conflict classification all move previously fuzzy boundaries
+into runtime-backed artifacts.
+
+Documentation and release evidence now follow the same rule. The live public
+corpus is the root `README.md`, root `ARCHITECTURE.md`, `CHANGELOG.md`, and
+`docs/topics/`; release evidence lives in the changelog and executable gates
+rather than one-off release packets or retired planning documents.
 
 ### Added
 
