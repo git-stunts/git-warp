@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { WesleyDotCodecAdapter } from '../../../../src/infrastructure/adapters/wesley/WesleyDotCodecAdapter.ts';
+import {
+  decodeDotWireVars,
+  encodeDotWireVars,
+} from '../../../../src/infrastructure/adapters/wesley/generated/DotWire.generated.ts';
 
 const codec = new WesleyDotCodecAdapter();
 
@@ -49,5 +53,31 @@ describe('WesleyDotCodecAdapter', () => {
     const tooLargeForCurrentWesleyInt = new Dot('alice', 0x8000_0000);
 
     expect(() => codec.encode(tooLargeForCurrentWesleyInt)).toThrow('Wesley LE-binary i32 out of range');
+  });
+});
+
+describe('generated DotWire query helpers', () => {
+  it('encodes and decodes DotWire variables through the generated boundary', () => {
+    const encoded = encodeDotWireVars({ writerId: 'alice', counter: 42 });
+
+    expect(encoded).toEqual(aliceDotBytes(42));
+    expect(decodeDotWireVars(encoded)).toEqual({
+      ok: true,
+      value: { writerId: 'alice', counter: 42 },
+    });
+  });
+
+  it('returns codec errors instead of throwing for invalid generated input', () => {
+    const validWithTrailingByte = new Uint8Array([...aliceDotBytes(42), 0xff]);
+    const truncated = new Uint8Array([0x05, 0x00, 0x00]);
+
+    expect(decodeDotWireVars(validWithTrailingByte)).toMatchObject({
+      ok: false,
+      error: { message: 'trailing bytes after decode' },
+    });
+    expect(decodeDotWireVars(truncated)).toMatchObject({
+      ok: false,
+      error: { message: 'unexpected end of Wesley LE-binary input' },
+    });
   });
 });
