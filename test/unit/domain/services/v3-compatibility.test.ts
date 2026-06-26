@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isLegacyAnchor, isAnyAnchor } from '../../../../src/domain/services/LegacyAnchorDetector.ts';
+import { isLegacyAnchor, isAnyAnchor } from '../../../../src/infrastructure/adapters/LegacyAnchorMessageDetectorAdapter.ts';
 import { encodeAnchorMessage, detectMessageKind } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 
 /**
