@@ -122,6 +122,8 @@ import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
+import EdgeRemove from '../../../../src/domain/types/ops/EdgeRemove.ts';
+import type { PatchOp } from '../../../../src/domain/types/ops/unions.ts';
 
 /** @param {Record<string, unknown>} opts */
 function createPatch(opts) { return new Patch((opts as any)); }
@@ -184,9 +186,6 @@ class DeterministicRng {
    */
   constructor(seed: number) {
     this._state = seed >>> 0;
-    if (this._state === 0) {
-      this._state = PATCH_GENERATOR_SEED;
-    }
   }
 
   /**
@@ -203,14 +202,19 @@ class DeterministicRng {
 
 /**
  * Fisher-Yates shuffle - returns a new seeded permutation.
- * @param {any[]} array
  */
-function shuffle(array, seed = SHUFFLE_SEED_BASE) {
+function shuffle<T extends NonNullable<unknown>>(array: readonly T[], seed = SHUFFLE_SEED_BASE): T[] {
   const rng = new DeterministicRng(seed);
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
     const j = rng.nextInt(i + 1);
-    [result[i], result[j]] = [result[j], result[i]];
+    const current = result[i];
+    const selected = result[j];
+    if (current === undefined || selected === undefined) {
+      throw new Error('shuffle index out of bounds');
+    }
+    result[i] = selected;
+    result[j] = current;
   }
   return result;
 }
@@ -218,7 +222,7 @@ function shuffle(array, seed = SHUFFLE_SEED_BASE) {
 /**
  * Generates a deterministic hex string of given length.
  */
-function randomHex(rng: DeterministicRng, length = 8) {
+function randomHex(rng: DeterministicRng, length = 8): string {
   let result = '';
   const chars = '0123456789abcdef';
   for (let i = 0; i < length; i++) {
@@ -234,22 +238,28 @@ function randomHex(rng: DeterministicRng, length = 8) {
  */
 function generatePatches(n: number, options: { writers?: string[], maxOpsPerPatch?: number, seed?: number } = {}) {
   const { writers = ['writerA', 'writerB', 'writerC', 'writerD'], maxOpsPerPatch = 3, seed = PATCH_GENERATOR_SEED } = options;
+  if (writers.length === 0) {
+    throw new Error('generatePatches requires at least one writer');
+  }
   const rng = new DeterministicRng(seed);
-  const patches: any[] = [];
-  const writerCounters = new Map();
+  const patches: Array<{ patch: Patch; sha: string }> = [];
+  const writerCounters = new Map<string, number>();
 
   for (let i = 0; i < n; i++) {
-    const writer = writers[rng.nextInt(writers.length)] as string;
+    const writer = writers[rng.nextInt(writers.length)];
+    if (writer === undefined) {
+      throw new Error('generatePatches selected an invalid writer');
+    }
     const lamport = i + 1;
     // SHA must be hex only, at least 4 chars - no prefix!
     const sha = randomHex(rng, 12);
 
     // Track writer's counter for dots
-    const currentCounter = writerCounters.get(writer) || 0;
+    const currentCounter = writerCounters.get(writer) ?? 0;
     const newCounter = currentCounter + 1;
     writerCounters.set(writer, newCounter);
 
-    const ops: any[] = [];
+    const ops: PatchOp[] = [];
     const numOps = rng.nextInt(maxOpsPerPatch) + 1;
 
     for (let j = 0; j < numOps; j++) {
@@ -274,16 +284,21 @@ function generatePatches(n: number, options: { writers?: string[], maxOpsPerPatc
           ops.push(new NodeRemove(nodeId, []));
           break;
         case 4: // EdgeRemove (with empty observedDots)
-          ops.push({ type: 'EdgeRemove', observedDots: new Set() });
+          ops.push(new EdgeRemove({
+            from: nodeId,
+            to: `node:${rng.nextInt(10)}`,
+            label: 'rel',
+            observedDots: [],
+          }));
           break;
       }
     }
 
-    const patch = createPatch({
+    const patch = new Patch({
       writer,
       lamport,
-      context: (VersionVector.empty() as any),
-      ops: (ops as any),
+      context: VersionVector.empty(),
+      ops,
     });
 
     patches.push({ patch, sha });
@@ -1140,6 +1155,15 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     const firstHash = await computeStateHash(reducePatches(first), { crypto });
     const secondHash = await computeStateHash(reducePatches(second), { crypto });
     expect(firstHash).toBe(secondHash);
+  });
+
+  it('preserves explicit seed zero as a distinct replay seed', () => {
+    const zeroSeedShas = generatePatches(12, { seed: 0 }).map(({ sha }) => sha);
+    const repeatedZeroSeedShas = generatePatches(12, { seed: 0 }).map(({ sha }) => sha);
+    const defaultSeedShas = generatePatches(12).map(({ sha }) => sha);
+
+    expect(zeroSeedShas).toEqual(repeatedZeroSeedShas);
+    expect(zeroSeedShas).not.toEqual(defaultSeedShas);
   });
 
   it('100 seeded patches shuffled into 5 permutations produce identical state hashes', async () => {
