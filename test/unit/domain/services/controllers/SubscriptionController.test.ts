@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import SubscriptionController from '../../../../../src/domain/services/controllers/SubscriptionController.ts';
+import { createTimerScheduler } from '../../../../helpers/createTimerScheduler.ts';
 
 // Mock StateDiff — we test SubscriptionController logic, not diff computation
 vi.mock('../../../../../src/domain/services/state/StateDiff.ts', () => ({
@@ -59,22 +60,6 @@ function createHost({ cachedState = null } = {}) {
     _subscribers: ([] as any[]),
     hasFrontierChanged: vi.fn().mockResolvedValue(false),
     _materializeGraph: vi.fn().mockRejectedValue(new Error('hidden materialization trap')),
-  };
-}
-
-/**
- * Creates a timer-backed scheduler for controller polling tests.
- */
-function createTimerScheduler() {
-  return {
-    scheduleEvery(callback: () => void, ms: number) {
-      const id = globalThis.setInterval(callback, ms);
-      return {
-        cancel: () => {
-          globalThis.clearInterval(id);
-        },
-      };
-    },
   };
 }
 
