@@ -170,46 +170,70 @@ import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 // Test Utilities
 // ============================================================================
 
+const PATCH_GENERATOR_SEED = 0x6a09e667;
+const SHUFFLE_SEED_BASE = 0xbb67ae85;
+
+class DeterministicRng {
+  private _state: number;
+
+  constructor(seed: number) {
+    this._state = seed >>> 0;
+    if (this._state === 0) {
+      this._state = PATCH_GENERATOR_SEED;
+    }
+  }
+
+  nextInt(maxExclusive: number): number {
+    if (!Number.isInteger(maxExclusive) || maxExclusive <= 0) {
+      throw new Error('maxExclusive must be a positive integer');
+    }
+    this._state = (Math.imul(this._state, 1664525) + 1013904223) >>> 0;
+    return this._state % maxExclusive;
+  }
+}
+
 /**
- * Fisher-Yates shuffle - returns a new shuffled array
+ * Fisher-Yates shuffle - returns a new seeded permutation.
  * @param {any[]} array
  */
-function shuffle(array) {
+function shuffle(array, seed = SHUFFLE_SEED_BASE) {
+  const rng = new DeterministicRng(seed);
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = rng.nextInt(i + 1);
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
 }
 
 /**
- * Generates a random hex string of given length
+ * Generates a deterministic hex string of given length.
  */
-function randomHex(length = 8) {
+function randomHex(rng: DeterministicRng, length = 8) {
   let result = '';
   const chars = '0123456789abcdef';
   for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(Math.random() * 16)];
+    result += chars[rng.nextInt(16)];
   }
   return result;
 }
 
 /**
- * Generates N random v2 patches with varied operations
+ * Generates N seeded v2 patches with varied operations.
  * @param {number} n
- * @param {{ writers?: string[], maxOpsPerPatch?: number }} options
+ * @param {{ writers?: string[], maxOpsPerPatch?: number, seed?: number }} options
  */
-function generatePatches(n: number, options: { writers?: string[], maxOpsPerPatch?: number } = {}) {
-  const { writers = ['writerA', 'writerB', 'writerC', 'writerD'], maxOpsPerPatch = 3 } = options;
+function generatePatches(n: number, options: { writers?: string[], maxOpsPerPatch?: number, seed?: number } = {}) {
+  const { writers = ['writerA', 'writerB', 'writerC', 'writerD'], maxOpsPerPatch = 3, seed = PATCH_GENERATOR_SEED } = options;
+  const rng = new DeterministicRng(seed);
   const patches: any[] = [];
   const writerCounters = new Map();
 
   for (let i = 0; i < n; i++) {
-    const writer = writers[Math.floor(Math.random() * writers.length)] as string;
+    const writer = writers[rng.nextInt(writers.length)] as string;
     const lamport = i + 1;
     // SHA must be hex only, at least 4 chars - no prefix!
-    const sha = randomHex(12);
+    const sha = randomHex(rng, 12);
 
     // Track writer's counter for dots
     const currentCounter = writerCounters.get(writer) || 0;
@@ -217,11 +241,11 @@ function generatePatches(n: number, options: { writers?: string[], maxOpsPerPatc
     writerCounters.set(writer, newCounter);
 
     const ops: any[] = [];
-    const numOps = Math.floor(Math.random() * maxOpsPerPatch) + 1;
+    const numOps = rng.nextInt(maxOpsPerPatch) + 1;
 
     for (let j = 0; j < numOps; j++) {
-      const opType = Math.floor(Math.random() * 5);
-      const nodeId = `node:${Math.floor(Math.random() * 10)}`;
+      const opType = rng.nextInt(5);
+      const nodeId = `node:${rng.nextInt(10)}`;
       const dot = Dot.create(writer, newCounter + j);
       writerCounters.set(writer, newCounter + j);
 
@@ -230,7 +254,7 @@ function generatePatches(n: number, options: { writers?: string[], maxOpsPerPatc
           ops.push(new NodeAdd(nodeId, dot));
           break;
         case 1: { // EdgeAdd
-          const toNode = `node:${Math.floor(Math.random() * 10)}`;
+          const toNode = `node:${rng.nextInt(10)}`;
           ops.push(new EdgeAdd({ from: nodeId, to: toNode, label: 'rel', dot: dot }));
           break;
         }
@@ -347,13 +371,13 @@ const crypto = new NodeCryptoAdapter();
 
 describe('KILLER TEST 1: Permutation Invariance', () => {
   it('any permutation of schema-2 patches produces same state hash', async () => {
-    // Generate 20 random v2 patches
+    // Generate 20 seeded v2 patches
     const patches = generatePatches(20);
     const hashes = new Set();
 
-    // Test 100 random permutations
+    // Test 100 deterministic permutations
     for (let i = 0; i < 100; i++) {
-      const shuffled = shuffle(patches);
+      const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
       const state = reducePatches(shuffled);
       hashes.add(await computeStateHash(state, { crypto }));
     }
@@ -413,9 +437,9 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
     const patches = generateV2Patches(50);
     const hashes = new Set();
 
-    // 50 random permutations
+    // 50 deterministic permutations
     for (let i = 0; i < 50; i++) {
-      const shuffled = shuffle(patches);
+      const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
       const state = reducePatches(shuffled);
       hashes.add(await computeStateHash(state, { crypto }));
     }
@@ -513,7 +537,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
     ];
 
     const finalA = reducePatches(v5Patches, v5State);
-    const finalB = reducePatches(shuffle(v5Patches), v5State);
+    const finalB = reducePatches(shuffle(v5Patches, SHUFFLE_SEED_BASE + 0x200), v5State);
 
     expect(await computeStateHash(finalA, { crypto })).toBe(await computeStateHash(finalB, { crypto }));
   });
@@ -1096,19 +1120,32 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
 // ============================================================================
 
 describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
-  it('100 random patches shuffled into 5 permutations produce identical state hashes', async () => {
-    // Generate 100 random patches with varied operations
+  it('seeded chaos fixtures are reproducible', async () => {
+    const first = generatePatches(25, { maxOpsPerPatch: 5, seed: 0x12345678 });
+    const second = generatePatches(25, { maxOpsPerPatch: 5, seed: 0x12345678 });
+    const third = generatePatches(25, { maxOpsPerPatch: 5, seed: 0x87654321 });
+
+    expect(first).toEqual(second);
+    expect(first.map(({ sha }) => sha)).not.toEqual(third.map(({ sha }) => sha));
+
+    const firstHash = await computeStateHash(reducePatches(first), { crypto });
+    const secondHash = await computeStateHash(reducePatches(second), { crypto });
+    expect(firstHash).toBe(secondHash);
+  });
+
+  it('100 seeded patches shuffled into 5 permutations produce identical state hashes', async () => {
+    // Generate 100 seeded patches with varied operations
     const patches = generatePatches(100, {
       writers: ['writerA', 'writerB', 'writerC', 'writerD', 'writerE'],
       maxOpsPerPatch: 5,
     });
 
     // Create 5 different permutations
-    const permutation1 = shuffle(patches);
-    const permutation2 = shuffle(patches);
-    const permutation3 = shuffle(patches);
-    const permutation4 = shuffle(patches);
-    const permutation5 = shuffle(patches);
+    const permutation1 = shuffle(patches, SHUFFLE_SEED_BASE + 1);
+    const permutation2 = shuffle(patches, SHUFFLE_SEED_BASE + 2);
+    const permutation3 = shuffle(patches, SHUFFLE_SEED_BASE + 3);
+    const permutation4 = shuffle(patches, SHUFFLE_SEED_BASE + 4);
+    const permutation5 = shuffle(patches, SHUFFLE_SEED_BASE + 5);
 
     // Reduce each permutation
     const state1 = reducePatches(permutation1);
@@ -1138,7 +1175,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     // 5 distinct permutations
     const hashes: any[] = [] as any[];
     for (let i = 0; i < 5; i++) {
-      const shuffled = shuffle(patches);
+      const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
       const state = reducePatches(shuffled);
       hashes.push(await computeStateHash(state, { crypto }));
     }
@@ -1195,7 +1232,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     // Shuffle into 5 permutations and reduce
     const hashes: any[] = [] as any[];
     for (let i = 0; i < 5; i++) {
-      const shuffled = shuffle(patches);
+      const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
       const state = reducePatches(shuffled);
       hashes.push(await computeStateHash(state, { crypto }));
     }
@@ -1211,20 +1248,14 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     // Create 5 permutations
     const permutations: any[] = [];
     for (let i = 0; i < 5; i++) {
-      permutations.push(shuffle(patches));
+      permutations.push(shuffle(patches, SHUFFLE_SEED_BASE + i));
     }
 
-    // Verify permutations are actually different (not all the same order)
-    // Compare first element SHAs as a quick check
+    // Verify permutations are actually different (not all the same order).
     const firstShas = permutations.map((p) => p[0].sha);
-    // At least 2 permutations should have different first elements
-    // (statistically extremely likely with 100 patches)
-    // uniqueFirstShas intentionally unused — see comment below
-    void new Set(firstShas);
+    expect(new Set(firstShas).size).toBeGreaterThan(1);
 
     // This test ensures our shuffle is working
-    // With 100 patches, probability of all 5 having same first element is (1/100)^4 ≈ 0
-    // We don't assert this strictly as it could flake, but we verify hashes are still identical
     const hashes = await Promise.all(permutations.map((p) => computeStateHash(reducePatches(p), { crypto })));
     expect(new Set(hashes).size).toBe(1);
   });
@@ -1392,9 +1423,9 @@ describe('Additional WARP Integration Tests', () => {
       const patches = generateV2Patches(100);
       const hashes = new Set();
 
-      // 20 random permutations
+      // 20 deterministic permutations
       for (let i = 0; i < 20; i++) {
-        const shuffled = shuffle(patches);
+        const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
         const state = reducePatches(shuffled);
         hashes.add(await computeStateHash(state, { crypto }));
       }
@@ -1406,7 +1437,7 @@ describe('Additional WARP Integration Tests', () => {
       const patches = generateV2Patches(30);
 
       const state1 = reducePatches(patches);
-      const state2 = reducePatches(shuffle(patches));
+      const state2 = reducePatches(shuffle(patches, SHUFFLE_SEED_BASE + 0x300));
 
       const bytes1 = serializeState(state1);
       const bytes2 = serializeState(state2);
