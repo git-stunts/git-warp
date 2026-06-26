@@ -130,6 +130,7 @@ export default class SubscriptionController {
         throw new WarpError('poll must be a finite number >= 1000', 'E_WATCH_INVALID_POLL');
       }
     }
+    const pollScheduler = poll === undefined ? null : this._requireScheduler();
 
     const matchesPattern = (nodeId: string): boolean => matchGlob(pattern, nodeId);
 
@@ -169,8 +170,8 @@ export default class SubscriptionController {
 
     let scheduledPoll: ScheduledTask | null = null;
     let pollInFlight = false;
-    if (poll !== undefined) {
-      scheduledPoll = this._requireScheduler().scheduleEvery(() => {
+    if (poll !== undefined && pollScheduler !== null) {
+      scheduledPoll = pollScheduler.scheduleEvery(() => {
         if (pollInFlight) { return; }
         pollInFlight = true;
         host.hasFrontierChanged()

@@ -278,6 +278,7 @@ describe('SubscriptionController', () => {
         const noSchedulerCtrl = new SubscriptionController((host));
         expect(() => noSchedulerCtrl.watch('*', { onChange: vi.fn(), poll: 1000 }))
           .toThrow('poll requires an injected scheduler');
+        expect(host._subscribers).toHaveLength(0);
       });
 
       it('accepts poll exactly 1000', () => {
