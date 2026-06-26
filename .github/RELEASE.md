@@ -25,6 +25,21 @@ The tag must point at the exact `main` commit that passed the release prep PR.
 Do not move existing public tags. If the wrong commit was released, cut the next
 patch version from `main`.
 
+## Release thesis
+
+Every planned, versioned release must have a thesis before implementation work
+starts against that milestone.
+
+The thesis is one short paragraph that answers why the release exists. It must
+name the capability boundary being advanced, the primary user or operator
+outcome, and the work that is explicitly outside the release. Put the thesis in
+the GitHub Milestone description or in a linked tracking issue before marking
+release issues `status:active`.
+
+Use GitHub Milestones for version buckets. Do not create version labels for
+release targeting. Labels remain query axes: `type:*`, `priority:*`,
+`status:*`, and `area:*`.
+
 ## Release prep checklist
 
 Before opening the release-prep PR, update every artifact whose truth changes
@@ -141,6 +156,49 @@ and rerun the release workflow or the failed job.
 `scripts/release-preflight.sh` wraps the guard with lint, Markdown, link,
 type, coverage, npm pack, JSR dry-run, packed-artifact smoke, and npm audit
 checks.
+
+## Post-release retrospective
+
+Run a retrospective immediately after the release tag, GitHub Release, registry
+publication, and visibility checks are complete. Do not start the next planned
+release train until the retrospective exists.
+
+The retrospective must record:
+
+- what was released, including user-facing behavior, runtime/API changes, docs,
+  release tooling, dependency changes, and registry evidence;
+- what did not get released, including planned items moved forward, blocked
+  items, intentional cuts, and accidental omissions;
+- plan-versus-actual scope, including what shipped, slipped, expanded, or
+  changed direction and why;
+- three to five things that went well and why they are repeatable;
+- three to five things to improve and the concrete mitigation for each;
+- fallout GitHub Issues for bad code, cool ideas, process gaps, missing docs,
+  release automation gaps, or follow-up validation.
+
+Every fallout issue must explain why it matters, cite the evidence that proved
+it, name the release bucket when it belongs to one, and define what done looks
+like. Apply exactly one label from each live issue axis and use milestones for
+release targeting.
+
+## Next-release planning
+
+After the retrospective, prep the next release deliberately:
+
+1. Close the completed release milestone when all scoped issues are closed.
+2. Keep empty patch milestones only as patch buckets; do not treat an empty
+   patch milestone as the next feature train.
+3. Triage open GitHub Issues into milestones and label axes.
+4. Choose the next versioned milestone and write or refresh its thesis.
+5. Define must-ship, may-slip, and explicitly-not-included scope.
+6. Break the milestone into two to five goalposts with acceptance evidence.
+7. Promote the first goalpost's issues to `priority:next`.
+8. Mark exactly one active slice or tracking issue `status:active`.
+9. Update release signposts only where the new thesis changes public or
+   maintainer truth.
+
+No release-prep PR should be opened for a planned version whose milestone lacks
+a thesis.
 
 ## Manual fallback
 
