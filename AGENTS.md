@@ -206,6 +206,11 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - Encoding and decoding stay in adapters, codec ports, or explicitly named
   boundary reader modules. Core behavior branches on validated domain
   objects, not raw decoded shapes.
+- Drift is a code smell. When multiple downstream artifacts would otherwise
+  hand-maintain the same boundary shape, define the shape once in GraphQL and
+  generate the codecs, DTOs, fixtures, or other derived artifacts that would
+  drift. Generated artifacts belong at adapter/boundary surfaces; domain code
+  still receives validated runtime nouns.
 - Prefer `instanceof` dispatch over tag switching.
 - No `any`. No `unknown` outside adapters. No `as` assertions. No `enum`.
 - `interface` is for ports only. Domain concepts are classes.
