@@ -9,7 +9,7 @@ import { CodecError, Reader, Writer } from './WesleyLeBinaryRuntime.ts';
 /**
  * Adapter that proves the Wesley-generated LE-binary boundary on `Dot`.
  *
- * This is a v19 pilot, not the final persistent Dot codec: Wesley's current
+ * This is a boundary pilot, not the final persistent Dot codec: Wesley's current
  * GraphQL `Int` lowering encodes `counter` as i32, while `Dot` itself does not
  * yet impose that upper bound.
  */
