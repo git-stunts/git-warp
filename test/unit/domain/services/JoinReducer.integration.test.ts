@@ -203,7 +203,7 @@ class DeterministicRng {
 /**
  * Fisher-Yates shuffle - returns a new seeded permutation.
  */
-function shuffle<T extends NonNullable<unknown>>(array: readonly T[], seed = SHUFFLE_SEED_BASE): T[] {
+function shuffle<T>(array: readonly T[], seed = SHUFFLE_SEED_BASE): T[] {
   const rng = new DeterministicRng(seed);
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
