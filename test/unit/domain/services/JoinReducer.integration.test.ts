@@ -173,9 +173,15 @@ import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 const PATCH_GENERATOR_SEED = 0x6a09e667;
 const SHUFFLE_SEED_BASE = 0xbb67ae85;
 
+/**
+ * Small seeded generator for deterministic test fixtures.
+ */
 class DeterministicRng {
   private _state: number;
 
+  /**
+   * Creates a generator from an unsigned 32-bit seed.
+   */
   constructor(seed: number) {
     this._state = seed >>> 0;
     if (this._state === 0) {
@@ -183,6 +189,9 @@ class DeterministicRng {
     }
   }
 
+  /**
+   * Returns a deterministic integer in `[0, maxExclusive)`.
+   */
   nextInt(maxExclusive: number): number {
     if (!Number.isInteger(maxExclusive) || maxExclusive <= 0) {
       throw new Error('maxExclusive must be a positive integer');

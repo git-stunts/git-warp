@@ -62,6 +62,9 @@ function createHost({ cachedState = null } = {}) {
   };
 }
 
+/**
+ * Creates a timer-backed scheduler for controller polling tests.
+ */
 function createTimerScheduler() {
   return {
     scheduleEvery(callback: () => void, ms: number) {

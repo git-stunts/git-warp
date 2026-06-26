@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
+/**
+ * Creates a timer-backed scheduler for polling tests.
+ */
 function createTimerScheduler() {
   return {
     scheduleEvery(callback: () => void, ms: number) {

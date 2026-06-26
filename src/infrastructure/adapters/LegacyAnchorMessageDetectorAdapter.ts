@@ -12,6 +12,9 @@ const ANCHOR_TYPE = 'anchor';
 const LEGACY_TYPE_KEY = '_type';
 const TRAILER_ANCHOR_MARKER = 'eg-kind: anchor';
 
+/**
+ * Checks whether a parsed legacy JSON value carries the anchor type marker.
+ */
 function hasAnchorType(parsed: unknown): boolean {
   if (parsed === null || typeof parsed !== 'object') {
     return false;
