@@ -56,6 +56,11 @@ describe('v3 Backward Compatibility', () => {
       expect(isAnyAnchor(patchMsg)).toBe(false);
     });
 
+    it('rejects ordinary commit bodies that mention anchor trailers', () => {
+      const body = 'regular commit\n\nThis body mentions eg-kind: anchor but is not a WARP trailer message';
+      expect(isAnyAnchor(body)).toBe(false);
+    });
+
     it('rejects regular node messages', () => {
       expect(isAnyAnchor('Some node content')).toBe(false);
       expect(isAnyAnchor('{"data":"value"}')).toBe(false);

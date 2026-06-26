@@ -11,6 +11,7 @@
 const ANCHOR_TYPE = 'anchor';
 const LEGACY_TYPE_KEY = '_type';
 const TRAILER_ANCHOR_MARKER = 'eg-kind: anchor';
+const WARP_MESSAGE_PREFIX = 'warp:';
 
 /**
  * Checks whether a parsed legacy JSON value carries the anchor type marker.
@@ -20,6 +21,24 @@ function hasAnchorType(parsed: unknown): boolean {
     return false;
   }
   return Reflect.get(parsed, LEGACY_TYPE_KEY) === ANCHOR_TYPE;
+}
+
+/**
+ * Checks whether a WARP trailer block carries the anchor kind marker.
+ */
+function hasAnchorTrailer(message: string): boolean {
+  const trimmed = message.trimEnd();
+  if (!trimmed.startsWith(WARP_MESSAGE_PREFIX)) {
+    return false;
+  }
+  const trailerStart = trimmed.lastIndexOf('\n\n');
+  if (trailerStart === -1) {
+    return false;
+  }
+  return trimmed
+    .slice(trailerStart + 2)
+    .split('\n')
+    .some((line) => line.trim() === TRAILER_ANCHOR_MARKER);
 }
 
 /** Detects a legacy JSON anchor commit message. */
@@ -40,7 +59,7 @@ export function isAnyAnchor(message: unknown): boolean {
   if (typeof message !== 'string') {
     return false;
   }
-  if (message.includes(TRAILER_ANCHOR_MARKER)) {
+  if (hasAnchorTrailer(message)) {
     return true;
   }
   return isLegacyAnchor(message);
