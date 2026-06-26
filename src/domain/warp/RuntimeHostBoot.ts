@@ -32,6 +32,7 @@ import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../../ports/IndexStorePort.ts';
 import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
+import type SchedulerPort from '../../ports/SchedulerPort.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
 import GCPolicy, { type GCPolicyConfig } from '../services/GCPolicy.ts';
@@ -67,6 +68,7 @@ export type RuntimeHostConstructionOptions = {
   auditService?: AuditReceiptService;
   effectPipeline?: EffectPipeline;
   openStateSession?: MaterializeSessionOpener;
+  scheduler?: SchedulerPort;
 };
 
 export type RuntimeHostOpenOptions = {
@@ -95,6 +97,7 @@ export type RuntimeHostOpenOptions = {
   effectSinks?: readonly EffectSinkPort[];
   externalizationPolicy?: ExternalizationPolicy;
   openStateSession?: MaterializeSessionOpener;
+  scheduler?: SchedulerPort;
 };
 
 export class WarpOpenOptions {
@@ -123,6 +126,7 @@ export class WarpOpenOptions {
   readonly effectSinks?: readonly EffectSinkPort[];
   readonly externalizationPolicy?: ExternalizationPolicy;
   readonly openStateSession?: MaterializeSessionOpener;
+  readonly scheduler?: SchedulerPort;
 
   constructor(options: RuntimeHostOpenOptions) {
     if (options.persistence === null || options.persistence === undefined) {
@@ -174,6 +178,7 @@ export class WarpOpenOptions {
     if (options.effectSinks !== undefined) { this.effectSinks = Object.freeze([...options.effectSinks]); }
     if (options.externalizationPolicy !== undefined) { this.externalizationPolicy = options.externalizationPolicy; }
     if (options.openStateSession !== undefined) { this.openStateSession = options.openStateSession; }
+    if (options.scheduler !== undefined) { this.scheduler = options.scheduler; }
 
     Object.freeze(this);
   }
@@ -285,6 +290,7 @@ export async function resolveRuntimeHostConstructionOptions(
     effectSinks,
     externalizationPolicy,
     openStateSession,
+    scheduler,
   } = options;
 
   const normalizedTrust = normalizeTrustConfig(trust);
@@ -420,6 +426,7 @@ export async function resolveRuntimeHostConstructionOptions(
         ? { effectPipeline: resolvedEffectPipeline }
         : {}),
       ...(resolvedOpenStateSession === undefined ? {} : { openStateSession: resolvedOpenStateSession }),
+      ...(scheduler === undefined ? {} : { scheduler }),
     },
   };
 }

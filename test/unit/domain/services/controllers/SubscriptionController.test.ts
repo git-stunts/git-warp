@@ -62,16 +62,31 @@ function createHost({ cachedState = null } = {}) {
   };
 }
 
+function createTimerScheduler() {
+  return {
+    scheduleEvery(callback: () => void, ms: number) {
+      const id = globalThis.setInterval(callback, ms);
+      return {
+        cancel: () => {
+          globalThis.clearInterval(id);
+        },
+      };
+    },
+  };
+}
+
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 describe('SubscriptionController', () => {
     let host;
     let ctrl;
+    let scheduler;
 
   beforeEach(() => {
     vi.clearAllMocks();
     host = createHost();
-    ctrl = new SubscriptionController((host));
+    scheduler = createTimerScheduler();
+    ctrl = new SubscriptionController((host), { scheduler });
     // Default: isEmptyDiff returns true for empty diffs, false for non-empty
     mockIsEmptyDiff.mockImplementation((/** @type {any} */ d) =>
       d.nodes.added.length === 0 &&
@@ -254,6 +269,12 @@ describe('SubscriptionController', () => {
 
       it('throws when poll is Infinity', () => {
         expect(() => ctrl.watch('*', { onChange: vi.fn(), poll: Infinity })).toThrow('poll must be a finite number >= 1000');
+      });
+
+      it('throws when poll is requested without an injected scheduler', () => {
+        const noSchedulerCtrl = new SubscriptionController((host));
+        expect(() => noSchedulerCtrl.watch('*', { onChange: vi.fn(), poll: 1000 }))
+          .toThrow('poll requires an injected scheduler');
       });
 
       it('accepts poll exactly 1000', () => {

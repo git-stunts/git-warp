@@ -2,6 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
+function createTimerScheduler() {
+  return {
+    scheduleEvery(callback: () => void, ms: number) {
+      const id = globalThis.setInterval(callback, ms);
+      return {
+        cancel: () => {
+          globalThis.clearInterval(id);
+        },
+      };
+    },
+  };
+}
+
 describe('WarpCore.watch() (PL/WATCH/1)', () => {
     let repo;
     let graph;
@@ -475,6 +488,7 @@ describe('WarpCore.watch() polling (PL/WATCH/2)', () => {
       persistence: repo.persistence,
       graphName: 'test',
       writerId: 'w1',
+      scheduler: createTimerScheduler(),
     });
   });
 
@@ -508,6 +522,16 @@ describe('WarpCore.watch() polling (PL/WATCH/2)', () => {
     it('throws if pattern is an empty array', () => {
       expect(() => graph.watch([], { onChange: () => {} }))
         .toThrow('pattern must be a non-empty string or non-empty array of strings');
+    });
+
+    it('throws if poll is requested without a scheduler capability', async () => {
+      const noSchedulerGraph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test-no-scheduler',
+        writerId: 'w1',
+      });
+      expect(() => noSchedulerGraph.watch('user:*', { onChange: () => {}, poll: 1000 }))
+        .toThrow('poll requires an injected scheduler');
     });
 
     it('accepts poll of exactly 1000', () => {

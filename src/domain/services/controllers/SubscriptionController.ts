@@ -13,6 +13,8 @@ import WarpError from '../../errors/WarpError.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import { E_STALE_STATE_MSG } from './QueryStateMessages.ts';
+import type SchedulerPort from '../../../ports/SchedulerPort.ts';
+import type { ScheduledTask } from '../../../ports/SchedulerPort.ts';
 
 /**
  * Callback shape for subscriber errors. Errors flow through the catch
@@ -43,20 +45,20 @@ interface SubscriptionHost {
   hasFrontierChanged(): Promise<boolean>;
 }
 
-type SchedulerFn = (callback: () => void, ms: number) => ReturnType<typeof setInterval>;
-
 export default class SubscriptionController {
   _host: SubscriptionHost;
-  private readonly _scheduler: SchedulerFn | null;
+  private readonly _scheduler: SchedulerPort | null;
 
-  constructor(host: SubscriptionHost, options?: { scheduler?: SchedulerFn }) {
+  constructor(host: SubscriptionHost, options?: { scheduler?: SchedulerPort }) {
     this._host = host;
     this._scheduler = options?.scheduler ?? null;
   }
 
-  /** Returns the scheduler, falling back to globalThis.setInterval at call time. */
-  private _resolveScheduler(): SchedulerFn {
-    return this._scheduler ?? globalThis.setInterval.bind(globalThis);
+  private _requireScheduler(): SchedulerPort {
+    if (this._scheduler === null) {
+      throw new WarpError('poll requires an injected scheduler', 'E_WATCH_MISSING_SCHEDULER');
+    }
+    return this._scheduler;
   }
 
   subscribe({ onChange, onError, replay = false }: {
@@ -165,10 +167,10 @@ export default class SubscriptionController {
 
     const host = this._host;
 
-    let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+    let scheduledPoll: ScheduledTask | null = null;
     let pollInFlight = false;
     if (poll !== undefined) {
-      pollIntervalId = this._resolveScheduler()(() => {
+      scheduledPoll = this._requireScheduler().scheduleEvery(() => {
         if (pollInFlight) { return; }
         pollInFlight = true;
         host.hasFrontierChanged()
@@ -194,9 +196,9 @@ export default class SubscriptionController {
 
     return {
       unsubscribe: () => {
-        if (pollIntervalId !== null) {
-          clearInterval(pollIntervalId);
-          pollIntervalId = null;
+        if (scheduledPoll !== null) {
+          scheduledPoll.cancel();
+          scheduledPoll = null;
         }
         subscription.unsubscribe();
       },
