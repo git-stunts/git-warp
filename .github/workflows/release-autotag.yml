@@ -136,7 +136,7 @@ jobs:
             echo "Dispatch release.yml from a GitHub account that is a member of the JSR @git-stunts scope:"
             echo ""
             echo '```bash'
-            echo "gh workflow run release.yml --ref main -f tag=$TAG"
+            echo "gh workflow run release.yml --ref $TAG -f tag=$TAG"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 

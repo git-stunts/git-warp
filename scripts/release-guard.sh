@@ -57,6 +57,7 @@ TARGET_MILESTONE=""
 FAILURES=0
 
 REQUIRED_RELEASE_DOCS=(
+  ".continuum/release.yml"
   ".github/RELEASE.md"
   "README.md"
   "ARCHITECTURE.md"
@@ -216,6 +217,15 @@ count_open_issues_with_milestone() {
     --jq '.data.search.issueCount'
 }
 
+count_open_non_release_issues_with_milestone() {
+  local milestone="$1"
+  local search_query="repo:$REPO is:issue is:open milestone:\"$milestone\" -label:\"type:release\""
+  gh api graphql \
+    -f query='query($searchQuery: String!) { search(query: $searchQuery, type: ISSUE, first: 1) { issueCount } }' \
+    -f searchQuery="$search_query" \
+    --jq '.data.search.issueCount'
+}
+
 label_exists() {
   local label="$1"
   gh label list \
@@ -297,6 +307,25 @@ check_zero_milestone() {
       --limit 20 \
       --json number,title,url \
       --template '{{range .}}{{printf "#%v %s %s\n" .number .title .url}}{{end}}'
+  fi
+}
+
+check_zero_non_release_milestone() {
+  local check_id="$1"
+  local milestone="$2"
+  local count
+  count="$(count_open_non_release_issues_with_milestone "$milestone")"
+  if [ "$count" = "0" ]; then
+    pass "$check_id" "no open non-release-operation issues in milestone $milestone"
+  else
+    fail "$check_id" "$count open non-release-operation issue(s) in milestone $milestone"
+    gh issue list \
+      --repo "$REPO" \
+      --state open \
+      --milestone "$milestone" \
+      --limit 100 \
+      --json number,title,url,labels \
+      --jq '.[] | select(([.labels[].name] | index("type:release")) == null) | "#\(.number) \(.title) \(.url)"'
   fi
 }
 
@@ -452,9 +481,10 @@ check_release_evidence() {
 
 check_issue_gates() {
   require_label "REL-GH-PRIORITY-ASAP-LABEL" "priority:asap"
+  require_label "REL-GH-TYPE-RELEASE-LABEL" "type:release"
   check_zero_label "REL-GH-ASAP-ZERO" "priority:asap"
   require_milestone "REL-GH-TARGET-MILESTONE-EXISTS" "$TARGET_MILESTONE"
-  check_zero_milestone "REL-GH-TARGET-MILESTONE-ZERO" "$TARGET_MILESTONE"
+  check_zero_non_release_milestone "REL-GH-TARGET-MILESTONE-NONRELEASE-ZERO" "$TARGET_MILESTONE"
 
   local prior_failures=0
   local malformed_milestones=0
