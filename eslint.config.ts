@@ -50,6 +50,7 @@ export default tseslint.config(
       "coverage/**",
       "dist/**",
       "examples/html/assets/**",
+      "src/infrastructure/adapters/wesley/generated/**",
       "scripts/**",
       ".claude/**",
       ".obsidian/**",

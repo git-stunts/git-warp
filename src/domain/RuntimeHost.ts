@@ -272,6 +272,7 @@ export default class RuntimeHost {
       auditService,
       effectPipeline,
       openStateSession,
+      scheduler,
     } = options;
 
     this._persistence = persistence;
@@ -335,7 +336,10 @@ export default class RuntimeHost {
         strandGraph: this,
       },
     });
-    this._subscriptionController = new SubscriptionController(this);
+    this._subscriptionController = new SubscriptionController(
+      this,
+      scheduler === undefined ? undefined : { scheduler },
+    );
     this._provenanceController = new ProvenanceController(this);
     this._forkController = new ForkController(this);
     this._queryController = new QueryController({

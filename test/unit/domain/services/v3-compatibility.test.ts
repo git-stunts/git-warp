@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isLegacyAnchor, isAnyAnchor } from '../../../../src/domain/services/LegacyAnchorDetector.ts';
+import { isLegacyAnchor, isAnyAnchor } from '../../../../src/infrastructure/adapters/LegacyAnchorMessageDetectorAdapter.ts';
 import { encodeAnchorMessage, detectMessageKind } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 
 /**
@@ -54,6 +54,11 @@ describe('v3 Backward Compatibility', () => {
     it('rejects regular patch messages', () => {
       const patchMsg = 'warp:patch\n\neg-kind: patch\neg-graph: test';
       expect(isAnyAnchor(patchMsg)).toBe(false);
+    });
+
+    it('rejects ordinary commit bodies that mention anchor trailers', () => {
+      const body = 'regular commit\n\nThis body mentions eg-kind: anchor but is not a WARP trailer message';
+      expect(isAnyAnchor(body)).toBe(false);
     });
 
     it('rejects regular node messages', () => {
@@ -141,15 +146,15 @@ describe('v3 Backward Compatibility', () => {
     });
 
     it('isLegacyAnchor handles numbers', () => {
-      expect(isLegacyAnchor((123 as any))).toBe(false);
+      expect(isLegacyAnchor(123)).toBe(false);
     });
 
     it('isLegacyAnchor handles objects', () => {
-      expect(isLegacyAnchor(({ _type: 'anchor' } as any))).toBe(false);
+      expect(isLegacyAnchor({ _type: 'anchor' })).toBe(false);
     });
 
     it('isLegacyAnchor handles arrays', () => {
-      expect(isLegacyAnchor((['{"_type":"anchor"}'] as any))).toBe(false);
+      expect(isLegacyAnchor(['{"_type":"anchor"}'])).toBe(false);
     });
 
     it('isAnyAnchor handles undefined', () => {
@@ -157,15 +162,15 @@ describe('v3 Backward Compatibility', () => {
     });
 
     it('isAnyAnchor handles numbers', () => {
-      expect(isAnyAnchor((123 as any))).toBe(false);
+      expect(isAnyAnchor(123)).toBe(false);
     });
 
     it('isAnyAnchor handles objects', () => {
-      expect(isAnyAnchor(({ message: 'test' } as any))).toBe(false);
+      expect(isAnyAnchor({ message: 'test' })).toBe(false);
     });
 
     it('isAnyAnchor handles arrays', () => {
-      expect(isAnyAnchor((['test'] as any))).toBe(false);
+      expect(isAnyAnchor(['test'])).toBe(false);
     });
   });
 
@@ -189,9 +194,8 @@ describe('v3 Backward Compatibility', () => {
     });
 
     it('handles empty commit list', () => {
-      /** @type {{sha: string, message: string}[]} */
-      const commits = [];
-      const filtered = commits.filter(c => !isAnyAnchor((c as any).message));
+      const commits: Array<{ sha: string; message: string }> = [];
+      const filtered = commits.filter(c => !isAnyAnchor(c.message));
       expect(filtered).toHaveLength(0);
     });
 
