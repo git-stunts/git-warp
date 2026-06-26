@@ -91,6 +91,9 @@ export class Writer {
    * Writes a list with a u32 little-endian item count.
    */
   writeList<T>(value: T[], write: (writer: Writer, value: T) => void): void {
+    if (value.length > MAX_LIST_ITEMS) {
+      throw new CodecError(`Wesley LE-binary list exceeds item limit: ${value.length}`);
+    }
     this.writeU32Le(value.length);
     for (const item of value) {
       write(this, item);
@@ -213,7 +216,12 @@ export class Reader {
    * Reads a u32 length-prefixed UTF-8 string.
    */
   readString(): string {
-    return textDecoder.decode(this.readBytes(this.readU32Le()));
+    const bytes = this.readBytes(this.readU32Le());
+    try {
+      return textDecoder.decode(bytes);
+    } catch {
+      throw new CodecError('invalid UTF-8 string');
+    }
   }
 
   /**
