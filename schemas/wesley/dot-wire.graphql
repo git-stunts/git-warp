@@ -1,0 +1,14 @@
+"""
+Pilot Wesley wire schema for the smallest git-warp runtime noun.
+
+This SDL is intentionally narrow: it proves the GraphQL -> Wesley IR ->
+LE-binary codec path on a value with no maps, hashes, or storage envelopes.
+"""
+type DotWire {
+  writerId: String!
+  counter: Int!
+}
+
+type Query {
+  dotWire(writerId: String!, counter: Int!): DotWire
+}
