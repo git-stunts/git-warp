@@ -77,6 +77,21 @@ jobs:
             echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Verify checkout matches release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.tag }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            test "${{ github.ref_type }}" = "tag"
+            test "${{ github.ref_name }}" = "$TAG"
+          fi
+          HEAD_COMMIT="$(git rev-parse HEAD)"
+          TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
+          echo "HEAD: $HEAD_COMMIT"
+          echo "$TAG: $TAG_COMMIT"
+          test "$HEAD_COMMIT" = "$TAG_COMMIT"
+
       - name: Release guard
         env:
           GH_TOKEN: ${{ github.token }}

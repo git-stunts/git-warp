@@ -1,0 +1,52 @@
+schema: 1
+repo:
+  name: git-warp
+  package_name: "@git-stunts/git-warp"
+versioning:
+  strategy: fixed
+  tag_format: "v{version}"
+  release_branch_format: "release/v{version}"
+  milestone_format: "v{version}"
+version_sources:
+  - path: package.json
+    type: json
+    field: version
+  - path: package-lock.json
+    type: npm-lock-root
+    field: version
+  - path: jsr.json
+    type: json
+    field: version
+  - path: "packages/*/package.json"
+    type: json
+    field: version
+    required: true
+docs:
+  changelog: CHANGELOG.md
+  front_door: README.md
+  architecture: ARCHITECTURE.md
+  learning_index: docs/topics/README.md
+  learning_topics: docs/topics/
+  operations: docs/operations/README.md
+  contributor:
+    - .github/CONTRIBUTING.md
+    - AGENTS.md
+    - .github/RELEASE.md
+validation:
+  prep: npm run release:prep
+  preflight: npm run release:preflight
+publish:
+  github_release: true
+  registries:
+    - name: npm
+      package: "@git-stunts/git-warp"
+      verify: "npm view @git-stunts/git-warp@{version} version --registry=https://registry.npmjs.org"
+    - name: jsr
+      package: "@jsr/git-stunts__git-warp"
+      verify: "npm view @jsr/git-stunts__git-warp@{version} version --registry=https://npm.jsr.io"
+      requires_github_actor_scope_member: true
+workflow:
+  autotag: release-autotag.yml
+  release: release.yml
+  manual_dispatch_required: true
+  manual_dispatch_reason: "JSR OIDC publish must be dispatched by a GitHub user in the JSR @git-stunts scope."

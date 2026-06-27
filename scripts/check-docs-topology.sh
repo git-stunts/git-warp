@@ -3,6 +3,7 @@
 set -euo pipefail
 
 REQUIRED_DOCS=(
+  ".continuum/release.yml"
   ".github/RELEASE.md"
   "README.md"
   "ARCHITECTURE.md"

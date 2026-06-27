@@ -8,7 +8,8 @@
 - `CHANGELOG.md` records externally meaningful changes.
 - Current public docs live in `README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`,
   `docs/topics/`, and `docs/operations/`.
-- Release process instructions live in `.github/RELEASE.md`.
+- Release process instructions live in `.github/RELEASE.md`; repo-specific
+  release facts live in `.continuum/release.yml`.
 
 Historical design notes, retrospectives, archived backlog files, and deleted
 planning packets remain available through Git history. Do not recreate archive,
@@ -48,8 +49,9 @@ Use the topic shelf for current docs:
 - `docs/topics/troubleshooting.md`
 
 Use `docs/operations/README.md` for operator workflows over a live
-`git-warp` repository. Use `.github/RELEASE.md` for maintainer release
-procedure. Do not put contributor runbooks in the topic shelf.
+`git-warp` repository. Use `.github/RELEASE.md` and
+`.continuum/release.yml` for maintainer release procedure and repo-specific
+release mechanics. Do not put contributor runbooks in the topic shelf.
 
 Exact API, CLI, schema, and error inventories should be generated or
 coverage-checked instead of hand-maintained as prose.

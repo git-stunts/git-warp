@@ -211,7 +211,7 @@ if [ "$EXIT" -eq 0 ]; then
     echo "  v${PKG}"
     echo ""
     echo "After the tag exists, manually dispatch registry publication as a JSR @git-stunts scope member:"
-    echo "  gh workflow run release.yml --ref main -f tag=v${PKG}"
+    echo "  gh workflow run release.yml --ref v${PKG} -f tag=v${PKG}"
     echo ""
     echo "Manual fallback, if autotag cannot run:"
     echo "  git tag -a v${PKG} -m 'release: v${PKG}'"
