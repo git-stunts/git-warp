@@ -54,8 +54,9 @@ export class Writer {
    * Writes a 32-bit float in little-endian order.
    */
   writeF32Le(value: number): void {
+    const f32Value = toFiniteF32(value);
     const bytes = new Uint8Array(4);
-    new DataView(bytes.buffer).setFloat32(0, value, true);
+    new DataView(bytes.buffer).setFloat32(0, f32Value, true);
     this.chunks.push(bytes);
   }
 
@@ -195,7 +196,10 @@ export class Reader {
    */
   readF32Le(): number {
     const bytes = this.readBytes(4);
-    return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getFloat32(0, true);
+    const value = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+      .getFloat32(0, true);
+    toFiniteF32(value);
+    return value;
   }
 
   /**
@@ -292,4 +296,15 @@ export class Reader {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     return kind === 'u32' ? view.getUint32(0, true) : view.getInt32(0, true);
   }
+}
+
+/**
+ * Converts a Wesley f32 value only when it has deterministic finite semantics.
+ */
+function toFiniteF32(value: number): number {
+  const f32Value = Math.fround(value);
+  if (!Number.isFinite(value) || !Number.isFinite(f32Value)) {
+    throw new CodecError('Wesley LE-binary f32 value must be finite');
+  }
+  return f32Value;
 }

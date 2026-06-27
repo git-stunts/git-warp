@@ -43,6 +43,28 @@ describe('WesleyLeBinaryRuntime', () => {
     expect(() => writer.writeI32Le(-0x8000_0001)).toThrow('i32 out of range');
   });
 
+  it('rejects non-finite floats during encode and decode', () => {
+    for (const value of [
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      Number.MAX_VALUE,
+    ]) {
+      const writer = new Writer();
+      expect(() => writer.writeF32Le(value)).toThrow('f32 value must be finite');
+    }
+
+    const nonFiniteEncodings = [
+      new Uint8Array([0x00, 0x00, 0xc0, 0x7f]),
+      new Uint8Array([0x00, 0x00, 0x80, 0x7f]),
+      new Uint8Array([0x00, 0x00, 0x80, 0xff]),
+    ];
+
+    for (const bytes of nonFiniteEncodings) {
+      expect(() => new Reader(bytes).readF32Le()).toThrow('f32 value must be finite');
+    }
+  });
+
   it('rejects invalid tags and truncated input during decode', () => {
     expect(() => new Reader(new Uint8Array([0x02])).readBool())
       .toThrow('invalid boolean tag: 2');
