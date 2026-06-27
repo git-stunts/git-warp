@@ -21,6 +21,7 @@ version_sources:
     type: json
     field: version
     required: true
+    private: true
 docs:
   changelog: CHANGELOG.md
   front_door: README.md

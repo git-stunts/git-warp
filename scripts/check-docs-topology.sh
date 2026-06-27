@@ -2,27 +2,18 @@
 # Advisory guard for the consolidated documentation topology.
 set -euo pipefail
 
-REQUIRED_DOCS=(
-  ".continuum/release.yml"
-  ".github/RELEASE.md"
-  "README.md"
-  "ARCHITECTURE.md"
-  "CHANGELOG.md"
-  "docs/operations/README.md"
-  "docs/topics/README.md"
-  "docs/topics/getting-started.md"
-  "docs/topics/optic-reads.md"
-  "docs/topics/observers.md"
-  "docs/topics/querying.md"
-  "docs/topics/strands.md"
-  "docs/topics/git-substrate.md"
-  "docs/topics/content-and-cas.md"
-  "docs/topics/continuum-boundary.md"
-  "docs/topics/sync.md"
-  "docs/topics/cli.md"
-  "docs/topics/reference.md"
-  "docs/topics/troubleshooting.md"
-)
+REQUIRED_DOCS_OUTPUT=""
+if ! REQUIRED_DOCS_OUTPUT="$(node scripts/release-profile.ts required-docs)"; then
+  echo "docs-topology: failed to read required docs from .continuum/release.yml" >&2
+  exit 1
+fi
+
+if [ "$REQUIRED_DOCS_OUTPUT" = "" ]; then
+  echo "docs-topology: release profile produced no required docs" >&2
+  exit 1
+fi
+
+mapfile -t REQUIRED_DOCS <<< "$REQUIRED_DOCS_OUTPUT"
 
 RETIRED_PATHS=(
   "docs/archive"
