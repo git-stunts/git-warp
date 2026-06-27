@@ -56,28 +56,6 @@ TARGET_VERSION=""
 TARGET_MILESTONE=""
 FAILURES=0
 
-REQUIRED_RELEASE_DOCS=(
-  ".continuum/release.yml"
-  ".github/RELEASE.md"
-  "README.md"
-  "ARCHITECTURE.md"
-  "CHANGELOG.md"
-  "docs/operations/README.md"
-  "docs/topics/README.md"
-  "docs/topics/getting-started.md"
-  "docs/topics/optic-reads.md"
-  "docs/topics/observers.md"
-  "docs/topics/querying.md"
-  "docs/topics/strands.md"
-  "docs/topics/git-substrate.md"
-  "docs/topics/content-and-cas.md"
-  "docs/topics/continuum-boundary.md"
-  "docs/topics/sync.md"
-  "docs/topics/cli.md"
-  "docs/topics/reference.md"
-  "docs/topics/troubleshooting.md"
-)
-
 RETIRED_DOC_PATHS=(
   "docs/archive"
   "docs/audits"
@@ -330,56 +308,8 @@ check_zero_non_release_milestone() {
 }
 
 check_versions() {
-  if TAG_VERSION="$TAG_VERSION" node <<'NODE'
-const { existsSync, readdirSync, readFileSync } = require('node:fs');
-const { join } = require('node:path');
-
-const expected = process.env.TAG_VERSION;
-const failures = [];
-
-function readJson(path) {
-  return JSON.parse(readFileSync(path, 'utf8'));
-}
-
-function expectVersion(label, version) {
-  if (version !== expected) {
-    failures.push(`${label} version ${version} != ${expected}`);
-  }
-}
-
-const rootPackage = readJson('package.json');
-expectVersion('package.json', rootPackage.version);
-expectVersion('jsr.json', readJson('jsr.json').version);
-
-if (existsSync('package-lock.json')) {
-  const lock = readJson('package-lock.json');
-  expectVersion('package-lock.json root package', lock.packages[''].version);
-}
-
-for (const workspace of readdirSync('packages', { withFileTypes: true })) {
-  if (!workspace.isDirectory()) {
-    continue;
-  }
-  const packagePath = join('packages', workspace.name, 'package.json');
-  if (!existsSync(packagePath)) {
-    continue;
-  }
-  const workspacePackage = readJson(packagePath);
-  expectVersion(packagePath, workspacePackage.version);
-  if (workspacePackage.private !== true) {
-    failures.push(`${packagePath} must remain private unless publish policy changes`);
-  }
-}
-
-if (failures.length > 0) {
-  for (const failure of failures) {
-    console.error(failure);
-  }
-  process.exit(1);
-}
-NODE
-  then
-    pass "REL-META-VERSION-LOCKSTEP" "package, JSR, lockfile, and workspace versions match $TAG_VERSION"
+  if node scripts/release-profile.ts check-version-lockstep "$TAG_VERSION"; then
+    pass "REL-META-VERSION-LOCKSTEP" "release profile version sources match $TAG_VERSION"
   else
     fail "REL-META-VERSION-LOCKSTEP" "release metadata is not version-locked"
   fi
@@ -458,12 +388,12 @@ check_release_evidence() {
   local missing=0
   local retired=0
 
-  for path in "${REQUIRED_RELEASE_DOCS[@]}"; do
+  while IFS= read -r path; do
     if [ ! -f "$path" ]; then
       printf '    missing release doc: %s\n' "$path"
       missing=$((missing + 1))
     fi
-  done
+  done < <(node scripts/release-profile.ts required-docs)
 
   for path in "${RETIRED_DOC_PATHS[@]}"; do
     if [ -e "$path" ]; then

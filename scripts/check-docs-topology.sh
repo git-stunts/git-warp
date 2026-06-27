@@ -2,27 +2,7 @@
 # Advisory guard for the consolidated documentation topology.
 set -euo pipefail
 
-REQUIRED_DOCS=(
-  ".continuum/release.yml"
-  ".github/RELEASE.md"
-  "README.md"
-  "ARCHITECTURE.md"
-  "CHANGELOG.md"
-  "docs/operations/README.md"
-  "docs/topics/README.md"
-  "docs/topics/getting-started.md"
-  "docs/topics/optic-reads.md"
-  "docs/topics/observers.md"
-  "docs/topics/querying.md"
-  "docs/topics/strands.md"
-  "docs/topics/git-substrate.md"
-  "docs/topics/content-and-cas.md"
-  "docs/topics/continuum-boundary.md"
-  "docs/topics/sync.md"
-  "docs/topics/cli.md"
-  "docs/topics/reference.md"
-  "docs/topics/troubleshooting.md"
-)
+mapfile -t REQUIRED_DOCS < <(node scripts/release-profile.ts required-docs)
 
 RETIRED_PATHS=(
   "docs/archive"
