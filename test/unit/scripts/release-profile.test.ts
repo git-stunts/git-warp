@@ -36,6 +36,9 @@ async function createProfileFixture(): Promise<string> {
       '    field: version',
       '    required: true',
       '    private: true',
+      '  - path: "components/*/manifest.json"',
+      '    type: json',
+      '    field: version',
       'docs:',
       '  changelog: CHANGELOG.md',
       '  front_door: README.md',
@@ -57,6 +60,7 @@ async function createProfileFixture(): Promise<string> {
   writeFixtureFile(root, 'jsr.json', '{"version":"1.2.3"}');
   writeFixtureFile(root, 'package-lock.json', '{"packages":{"":{"version":"1.2.3"}}}');
   writeFixtureFile(root, 'packages/kernel/package.json', '{"version":"1.2.3","private":true}');
+  writeFixtureFile(root, 'components/generated/manifest.json', '{"version":"1.2.3"}');
   return root;
 }
 

@@ -2,7 +2,18 @@
 # Advisory guard for the consolidated documentation topology.
 set -euo pipefail
 
-mapfile -t REQUIRED_DOCS < <(node scripts/release-profile.ts required-docs)
+REQUIRED_DOCS_OUTPUT=""
+if ! REQUIRED_DOCS_OUTPUT="$(node scripts/release-profile.ts required-docs)"; then
+  echo "docs-topology: failed to read required docs from .continuum/release.yml" >&2
+  exit 1
+fi
+
+if [ "$REQUIRED_DOCS_OUTPUT" = "" ]; then
+  echo "docs-topology: release profile produced no required docs" >&2
+  exit 1
+fi
+
+mapfile -t REQUIRED_DOCS <<< "$REQUIRED_DOCS_OUTPUT"
 
 RETIRED_PATHS=(
   "docs/archive"

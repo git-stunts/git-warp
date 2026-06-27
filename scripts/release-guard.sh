@@ -387,13 +387,24 @@ check_changelog() {
 check_release_evidence() {
   local missing=0
   local retired=0
+  local required_docs
+
+  if ! required_docs="$(node scripts/release-profile.ts required-docs)"; then
+    fail "REL-DOC-PROFILE" "could not read required docs from release profile"
+    return
+  fi
+
+  if [ "$required_docs" = "" ]; then
+    fail "REL-DOC-PROFILE" "release profile produced no required docs"
+    return
+  fi
 
   while IFS= read -r path; do
     if [ ! -f "$path" ]; then
       printf '    missing release doc: %s\n' "$path"
       missing=$((missing + 1))
     fi
-  done < <(node scripts/release-profile.ts required-docs)
+  done <<< "$required_docs"
 
   for path in "${RETIRED_DOC_PATHS[@]}"; do
     if [ -e "$path" ]; then

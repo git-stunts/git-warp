@@ -146,16 +146,23 @@ function expandVersionSourcePaths(root: string, source: ReleaseVersionSource): r
   if (!source.path.includes('*')) {
     return [source.path];
   }
-  if (source.path !== 'packages/*/package.json') {
+
+  const segments = source.path.split('/');
+  const globIndex = segments.findIndex((segment) => segment === '*');
+  const globCount = segments.filter((segment) => segment === '*').length;
+  if (globIndex === -1 || globCount !== 1 || source.path.includes('**')) {
     throw new ReleaseProfileError(`unsupported version source glob: ${source.path}`);
   }
-  const packagesDirectory = join(root, 'packages');
-  if (!existsSync(packagesDirectory)) {
+
+  const prefix = segments.slice(0, globIndex);
+  const suffix = segments.slice(globIndex + 1);
+  const parentDirectory = join(root, ...prefix);
+  if (!existsSync(parentDirectory) || !statSync(parentDirectory).isDirectory()) {
     return [];
   }
-  return readdirSync(packagesDirectory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => `packages/${entry.name}/package.json`)
+
+  return readdirSync(parentDirectory, { withFileTypes: true })
+    .map((entry) => [...prefix, entry.name, ...suffix].join('/'))
     .filter((path) => existsSync(join(root, path)))
     .sort();
 }
