@@ -207,13 +207,13 @@ if [ "$EXIT" -eq 0 ]; then
   if [ "$STAGE" = "prep-pr" ]; then
     echo "Ready to push the release-prep branch and open a PR."
   else
-    echo "Ready for Release Autotag to create:"
+    echo "Ready for Main Push Release Branch Check to create:"
     echo "  v${PKG}"
     echo ""
     echo "After the tag exists, manually dispatch registry publication as a JSR @git-stunts scope member:"
     echo "  gh workflow run release.yml --ref v${PKG} -f tag=v${PKG}"
     echo ""
-    echo "Manual fallback, if autotag cannot run:"
+    echo "Manual fallback, if the main-push release branch check cannot run:"
     echo "  git tag -a v${PKG} -m 'release: v${PKG}'"
     echo "  git push origin v${PKG}"
   fi

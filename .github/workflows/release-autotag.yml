@@ -1,4 +1,4 @@
-name: Release Autotag
+name: Main Push Release Branch Check
 
 on:
   push:
@@ -10,12 +10,12 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: release-autotag-main
+  group: main-push-release-branch-check
   cancel-in-progress: false
 
 jobs:
-  autotag:
-    name: Tag merged release branch
+  release_branch_check:
+    name: Check merged release branch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -148,7 +148,7 @@ jobs:
         shell: bash
         run: |
           if [ "$SHOULD_RELEASE" != "true" ]; then
-            echo "No release branch merge detected." >> "$GITHUB_STEP_SUMMARY"
+            echo "No release branch merge detected; no release tag was created." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Tag $TAG already exists; no tag created." >> "$GITHUB_STEP_SUMMARY"
           fi
