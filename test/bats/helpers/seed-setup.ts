@@ -1,8 +1,8 @@
 /**
  * Shared setup for BATS seed scripts.
  * Resolves project root, dynamic-imports WarpCore + GitGraphAdapter +
- * NodeCryptoAdapter, and creates persistence/crypto adapters for the
- * repo at REPO_PATH.
+ * NodeCryptoAdapter + runtime codec defaults, and creates persistence/
+ * crypto adapters for the repo at REPO_PATH.
  */
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -27,9 +27,16 @@ const cryptoUrl = moduleUrl(
   'dist/src/infrastructure/adapters/NodeCryptoAdapter.js',
   'src/infrastructure/adapters/NodeCryptoAdapter.ts',
 );
+const runtimeCodecDefaultsUrl = moduleUrl(
+  'dist/src/application/RuntimeHostCommitMessageCodecDefaults.js',
+  'src/application/RuntimeHostCommitMessageCodecDefaults.ts',
+);
 const { default: WarpCore } = await import(warpCoreUrl);
 const { default: GitGraphAdapter } = await import(adapterUrl);
 const { default: NodeCryptoAdapter } = await import(cryptoUrl);
+const { installDefaultRuntimeHostCommitMessageCodec } = await import(runtimeCodecDefaultsUrl);
+
+installDefaultRuntimeHostCommitMessageCodec();
 
 const runner = ShellRunnerFactory.create();
 const plumbing = new GitPlumbing({ cwd: repoPath, runner });
