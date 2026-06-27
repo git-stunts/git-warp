@@ -32,7 +32,15 @@ import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCrypt
 
 const crypto = new NodeCryptoAdapter();
 
-async function create(options: CreateCheckpointOptions): ReturnType<typeof createCheckpoint> {
+type CreateCheckpointTestOptions =
+  Omit<CreateCheckpointOptions, 'commitMessageCodec'> &
+  Partial<Pick<CreateCheckpointOptions, 'commitMessageCodec'>>;
+
+type LoadCheckpointTestOptions =
+  Omit<LoadCheckpointOptions, 'commitMessageCodec'> &
+  Partial<Pick<LoadCheckpointOptions, 'commitMessageCodec'>>;
+
+async function create(options: CreateCheckpointTestOptions): ReturnType<typeof createCheckpoint> {
   return await createCheckpoint({
     ...options,
     commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
@@ -40,7 +48,7 @@ async function create(options: CreateCheckpointOptions): ReturnType<typeof creat
 }
 
 async function createCheckpointEnvelope(
-  options: CreateCheckpointOptions,
+  options: CreateCheckpointTestOptions,
 ): ReturnType<typeof createCheckpointEnvelopeWithCodec> {
   return await createCheckpointEnvelopeWithCodec({
     ...options,
@@ -51,7 +59,7 @@ async function createCheckpointEnvelope(
 async function loadCheckpoint(
   persistence: LoadPersistence,
   checkpointSha: string,
-  options: LoadCheckpointOptions = {},
+  options: LoadCheckpointTestOptions = {},
 ): ReturnType<typeof loadCheckpointWithCodec> {
   return await loadCheckpointWithCodec(persistence, checkpointSha, {
     ...options,

@@ -8,6 +8,7 @@ export default defineConfig({
     external: ['roaring', 'roaring-wasm'],
   },
   test: {
+    setupFiles: ['./test/helpers/runtimeHostCommitMessageCodecSetup.ts'],
     include: [
       '**/*.{test,spec}.?(c|m)[jt]s?(x)',
       '**/benchmark/*.benchmark.ts',

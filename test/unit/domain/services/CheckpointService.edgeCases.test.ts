@@ -48,7 +48,19 @@ import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCrypt
 
 const crypto = new NodeCryptoAdapter();
 
-async function create(options: CreateCheckpointOptions): ReturnType<typeof createCheckpoint> {
+type CreateCheckpointTestOptions =
+  Omit<CreateCheckpointOptions, 'commitMessageCodec'> &
+  Partial<Pick<CreateCheckpointOptions, 'commitMessageCodec'>>;
+
+type LoadCheckpointTestOptions =
+  Omit<LoadCheckpointOptions, 'commitMessageCodec'> &
+  Partial<Pick<LoadCheckpointOptions, 'commitMessageCodec'>>;
+
+type MaterializeIncrementalTestOptions =
+  Omit<MaterializeIncrementalOptions, 'commitMessageCodec'> &
+  Partial<Pick<MaterializeIncrementalOptions, 'commitMessageCodec'>>;
+
+async function create(options: CreateCheckpointTestOptions): ReturnType<typeof createCheckpoint> {
   return await createCheckpoint({
     ...options,
     commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
@@ -58,7 +70,7 @@ async function create(options: CreateCheckpointOptions): ReturnType<typeof creat
 async function loadCheckpoint(
   persistence: LoadPersistence,
   checkpointSha: string,
-  options: LoadCheckpointOptions = {},
+  options: LoadCheckpointTestOptions = {},
 ): ReturnType<typeof loadCheckpointWithCodec> {
   return await loadCheckpointWithCodec(persistence, checkpointSha, {
     ...options,
@@ -67,7 +79,7 @@ async function loadCheckpoint(
 }
 
 async function materializeIncremental(
-  options: MaterializeIncrementalOptions,
+  options: MaterializeIncrementalTestOptions,
 ): ReturnType<typeof materializeIncrementalWithCodec> {
   return await materializeIncrementalWithCodec({
     ...options,

@@ -33,8 +33,13 @@ import {
   createInlineValue,
 } from '../../../helpers/warpGraphTestUtils.ts';
 
+type CreateWormholeOptions = Parameters<typeof createWormholeWithCodec>[0];
+type CreateWormholeTestOptions =
+  Omit<CreateWormholeOptions, 'commitMessageCodec'> &
+  Partial<Pick<CreateWormholeOptions, 'commitMessageCodec'>>;
+
 async function createWormhole(
-  options: Parameters<typeof createWormholeWithCodec>[0],
+  options: CreateWormholeTestOptions,
 ): ReturnType<typeof createWormholeWithCodec> {
   return await createWormholeWithCodec({
     ...options,

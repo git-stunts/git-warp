@@ -113,7 +113,13 @@ import {
 import { BTR } from './src/domain/services/provenance/BTR.ts';
 
 // Wormhole compression (HOLOGRAM)
-import { createWormhole, composeWormholes, replayWormhole, serializeWormhole, deserializeWormhole } from './src/domain/services/WormholeService.ts';
+import {
+  createWormhole,
+  composeWormholes,
+  replayWormhole,
+  serializeWormhole,
+  deserializeWormhole,
+} from './src/application/WormholeServiceDefaults.ts';
 import ApertureOpeningProof from './src/domain/services/wormhole/ApertureOpeningProof.ts';
 import RejectedApertureOpening from './src/domain/services/wormhole/RejectedApertureOpening.ts';
 import RejectedZKWormhole from './src/domain/services/wormhole/RejectedZKWormhole.ts';
@@ -227,6 +233,9 @@ import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from './src/domain/services/CoordinateFactExport.ts';
+import { installDefaultRuntimeHostCommitMessageCodec } from './src/application/RuntimeHostCommitMessageCodecDefaults.ts';
+
+installDefaultRuntimeHostCommitMessageCodec();
 
 export * from './src/domain/graph/publicGraphSubstrate.ts';
 export * from './src/domain/memory/index.ts';

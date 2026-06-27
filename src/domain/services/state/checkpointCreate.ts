@@ -49,7 +49,7 @@ export interface CreateCheckpointOptions {
   compact?: boolean;
   provenanceIndex?: ProvenanceIndex;
   codec?: CodecPort;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
   crypto?: CryptoPort;
   indexTree?: Record<string, Uint8Array>;
   checkpointStore?: CheckpointStorePort;

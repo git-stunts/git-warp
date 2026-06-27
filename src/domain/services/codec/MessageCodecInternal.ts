@@ -61,12 +61,24 @@ export function encodeTrailerTextMessage(message: TrailerTextMessage): string {
   for (const key of Object.keys(message.trailers)) {
     const value = message.trailers[key];
     if (value !== undefined) {
-      assertTrailerTextSingleLine(key, 'trailer key');
+      assertTrailerTextKey(key);
       assertTrailerTextSingleLine(value, key);
       lines.push(`${key}: ${value}`);
     }
   }
   return `${lines.join('\n')}\n`;
+}
+
+function assertTrailerTextKey(key: string): void {
+  if (key.length === 0 || /[:\r\n]/.test(key)) {
+    throw new MessageCodecError(
+      'Invalid trailer message: trailer key must be single-line and must not contain ":"',
+      {
+        code: 'E_MESSAGE_TRAILER_LINE',
+        context: { fieldName: 'trailer key' },
+      },
+    );
+  }
 }
 
 function assertTrailerTextSingleLine(value: string, fieldName: string): void {

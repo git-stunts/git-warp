@@ -57,7 +57,7 @@ export interface LoadedCheckpoint {
 export interface LoadCheckpointOptions {
   codec?: CodecPort;
   checkpointStore?: CheckpointStorePort;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
 }
 
 /**
@@ -76,7 +76,7 @@ export interface LoadCheckpointOptions {
 export async function loadCheckpoint(
   persistence: LoadPersistence,
   checkpointSha: string,
-  { codec, checkpointStore, commitMessageCodec }: LoadCheckpointOptions = {},
+  { codec, checkpointStore, commitMessageCodec }: LoadCheckpointOptions,
 ): Promise<LoadedCheckpoint> {
   // 1. Read commit message and decode
   const messageCodec = requireCommitMessageCodec(commitMessageCodec);
@@ -232,7 +232,7 @@ export interface MaterializeIncrementalOptions {
     toSha: string,
   ) => Promise<Array<{ patch: Patch; sha: string }>>;
   codec?: CodecPort;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
 }
 
 /**
@@ -259,7 +259,7 @@ export async function materializeIncremental({
   // 1. Load checkpoint state and frontier from the current envelope.
   const loadOpts: LoadCheckpointOptions = {
     ...(codec !== undefined && codec !== null ? { codec } : {}),
-    ...(commitMessageCodec !== undefined && commitMessageCodec !== null ? { commitMessageCodec } : {}),
+    commitMessageCodec,
   };
   const checkpoint = await loadCheckpoint(persistence, checkpointSha, loadOpts);
   const checkpointFrontier = checkpoint.frontier;

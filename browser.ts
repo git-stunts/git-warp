@@ -28,6 +28,10 @@
  * ```
  */
 
+import { installDefaultRuntimeHostCommitMessageCodec } from './src/application/RuntimeHostCommitMessageCodecDefaults.ts';
+
+installDefaultRuntimeHostCommitMessageCodec();
+
 // Core API
 export { default as WarpApp } from './src/domain/WarpApp.ts';
 export { default as WarpCore } from './src/domain/WarpCore.ts';

@@ -101,7 +101,7 @@ interface ProcessCommitOptions {
   sha: string;
   graphName: string;
   expectedWriter: string | null;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
   codec?: CodecPort;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -192,7 +192,7 @@ interface CollectPatchRangeOptions {
   graphName: string;
   fromSha: string;
   toSha: string;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
   codec?: CodecPort;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -227,7 +227,7 @@ async function collectPatchRange({
       sha: currentSha,
       graphName,
       expectedWriter: writerId,
-      ...(commitMessageCodec !== undefined ? { commitMessageCodec } : {}),
+      commitMessageCodec,
       ...(codec !== undefined ? { codec } : {}),
       ...(blobStorage !== undefined ? { blobStorage } : {}),
       ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
@@ -270,7 +270,7 @@ interface CreateWormholeOptions {
   graphName: string;
   fromSha: string;
   toSha: string;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
   codec?: CodecPort;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -309,7 +309,7 @@ export async function createWormhole({
     graphName,
     fromSha,
     toSha,
-    ...(commitMessageCodec !== undefined ? { commitMessageCodec } : {}),
+    commitMessageCodec,
     ...(codec !== undefined ? { codec } : {}),
     ...(blobStorage !== undefined ? { blobStorage } : {}),
     ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
