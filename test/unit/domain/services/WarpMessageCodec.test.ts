@@ -851,6 +851,28 @@ eg-schema: 1`;
       expect(lines[0]).toBe('warp:patch');
     });
 
+    it('preserves legacy patch trailer line order', () => {
+      const message = encodePatchMessage({
+        graph: 'events',
+        writer: 'node-1',
+        lamport: 1,
+        patchOid: VALID_OID_SHA1,
+        schema: 2,
+      });
+
+      expect(message.split('\n')).toEqual([
+        'warp:patch',
+        '',
+        'eg-kind: patch',
+        'eg-graph: events',
+        'eg-writer: node-1',
+        'eg-lamport: 1',
+        `eg-patch-oid: ${VALID_OID_SHA1}`,
+        'eg-schema: 2',
+        '',
+      ]);
+    });
+
     it('checkpoint message has correct title', () => {
       const message = encodeCheckpointMessage({
         graph: 'events',

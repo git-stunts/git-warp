@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   decodeAnchorMessage,
@@ -9,7 +12,8 @@ import {
   encodeCheckpointMessage,
 } from '../../../../src/domain/services/codec/CheckpointMessageCodec.ts';
 import {
-  getCodec,
+  decodeTrailerTextMessage,
+  encodeTrailerTextMessage,
   validateOid,
   validatePositiveInteger,
   validateSha256,
@@ -35,6 +39,14 @@ import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 
 const OID = 'a'.repeat(40);
 const STATE_HASH = 'b'.repeat(64);
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+const DOMAIN_CODEC_MODULES = [
+  'src/domain/services/codec/AnchorMessageCodec.ts',
+  'src/domain/services/codec/CheckpointMessageCodec.ts',
+  'src/domain/services/codec/MessageCodecInternal.ts',
+  'src/domain/services/codec/PatchMessageCodec.ts',
+  'src/domain/services/codec/WarpMessageCodec.ts',
+];
 
 describe('message codec modules', () => {
   it('round-trips patch, checkpoint, and anchor messages through individual modules', () => {
@@ -77,6 +89,17 @@ describe('message codec modules', () => {
     });
   });
 
+  it('keeps domain codec modules behind domain and port boundaries', () => {
+    for (const modulePath of DOMAIN_CODEC_MODULES) {
+      const source = readFileSync(resolve(ROOT, modulePath), 'utf8');
+
+      expect(source, `${modulePath} must not import infrastructure adapters`)
+        .not.toContain('infrastructure/adapters');
+      expect(source, `${modulePath} must not import the trailer-codec package`)
+        .not.toContain('@git-stunts/trailer-codec');
+    }
+  });
+
   it('detects message kind and schema compatibility from shared detector module', () => {
     const edgePropOp = new PropSet(`${EDGE_PROP_PREFIX}node:a\0node:b\0rel`, 'weight', 1);
     const anchorMessage = encodeAnchorMessage({ graph: 'events', schema: 2 });
@@ -105,8 +128,15 @@ describe('message codec modules', () => {
     );
   });
 
-  it('validates shared scalar fields and reuses a singleton trailer codec', () => {
-    expect(getCodec()).toBe(getCodec());
+  it('validates shared scalar fields and trailer text parsing', () => {
+    const trailerMessage = encodeTrailerTextMessage({
+      title: 'warp:test',
+      trailers: {
+        'eg-kind': 'test',
+      },
+    });
+
+    expect(decodeTrailerTextMessage(trailerMessage).trailers['eg-kind']).toBe('test');
     expect(() => validateOid(OID, 'patchOid')).not.toThrow();
     expect(() => validateSha256(STATE_HASH, 'stateHash')).not.toThrow();
     expect(() => validatePositiveInteger(1, 'schema')).not.toThrow();

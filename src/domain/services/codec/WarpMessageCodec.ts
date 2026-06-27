@@ -7,7 +7,7 @@ export {
   encodeAnchorMessage,
   encodeCheckpointMessage,
   encodePatchMessage,
-} from '../../../infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts'; // nosemgrep: no-restricted-imports:core-infrastructure -- 0025D
+} from './TextCommitMessageCodec.ts';
 export { encodeAuditMessage, decodeAuditMessage } from './AuditMessageCodec.ts';
 export {
   detectSchemaVersion,
