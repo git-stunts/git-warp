@@ -56,6 +56,11 @@ export function assertOpsCompatible(ops: readonly PatchOp[] | null | undefined, 
 // ── Message kind detection ──────────────────────────────────────────
 
 type MessageKind = 'patch' | 'checkpoint' | 'anchor' | 'audit';
+const MESSAGE_KINDS: readonly MessageKind[] = Object.freeze(['patch', 'checkpoint', 'anchor', 'audit']);
+
+function isMessageKind(kind: string | undefined): kind is MessageKind {
+  return MESSAGE_KINDS.some((candidate) => candidate === kind);
+}
 
 /** Detects the WARP message kind from a raw commit message. */
 export function detectMessageKind(message: string): MessageKind | null {
@@ -63,7 +68,7 @@ export function detectMessageKind(message: string): MessageKind | null {
   try {
     const decoded = decodeTrailerTextMessage(message);
     const kind = decoded.trailers[TRAILER_KEYS.kind];
-    if (kind === 'patch' || kind === 'checkpoint' || kind === 'anchor' || kind === 'audit') {
+    if (isMessageKind(kind)) {
       return kind;
     }
     return null;

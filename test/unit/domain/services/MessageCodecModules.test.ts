@@ -161,4 +161,13 @@ describe('message codec modules', () => {
     expect(() => validateSha256(OID, 'stateHash')).toThrow('64 character hex string');
     expect(() => validatePositiveInteger(0, 'schema')).toThrow('positive integer');
   });
+
+  it('rejects multiline trailer text before encoding', () => {
+    expect(() => encodeTrailerTextMessage({
+      title: 'warp:test',
+      trailers: {
+        'eg-kind': 'test\ninjected: true',
+      },
+    })).toThrow('single-line');
+  });
 });

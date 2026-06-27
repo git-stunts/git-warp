@@ -8,6 +8,7 @@ import {
   decodeAnchorMessage,
   detectMessageKind,
 } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import { createGitCasPatchStorage } from '../../../../src/ports/CommitMessageCodecPort.ts';
 
 // Test fixtures
 const VALID_OID_SHA1 = 'a'.repeat(40);
@@ -869,6 +870,32 @@ eg-schema: 1`;
         'eg-lamport: 1',
         `eg-patch-oid: ${VALID_OID_SHA1}`,
         'eg-schema: 2',
+        '',
+      ]);
+    });
+
+    it('preserves conditional patch trailer line order', () => {
+      const message = encodePatchMessage({
+        graph: 'events',
+        writer: 'node-1',
+        lamport: 1,
+        patchOid: VALID_OID_SHA1,
+        schema: 3,
+        storage: createGitCasPatchStorage(true),
+      });
+
+      expect(message.split('\n')).toEqual([
+        'warp:patch',
+        '',
+        'eg-kind: patch',
+        'eg-graph: events',
+        'eg-writer: node-1',
+        'eg-lamport: 1',
+        `eg-patch-oid: ${VALID_OID_SHA1}`,
+        'eg-schema: 3',
+        'eg-storage-version: v17',
+        'eg-storage-schema: git-cas-cbor-patch-v1',
+        'eg-encrypted: true',
         '',
       ]);
     });

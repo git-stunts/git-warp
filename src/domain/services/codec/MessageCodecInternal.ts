@@ -56,14 +56,26 @@ export function encodeTrailerTextMessage(message: TrailerTextMessage): string {
       code: 'E_MESSAGE_TITLE',
     });
   }
+  assertTrailerTextSingleLine(message.title, 'title');
   const lines = [message.title, ''];
   for (const key of Object.keys(message.trailers)) {
     const value = message.trailers[key];
     if (value !== undefined) {
+      assertTrailerTextSingleLine(key, 'trailer key');
+      assertTrailerTextSingleLine(value, key);
       lines.push(`${key}: ${value}`);
     }
   }
   return `${lines.join('\n')}\n`;
+}
+
+function assertTrailerTextSingleLine(value: string, fieldName: string): void {
+  if (/[\r\n]/.test(value)) {
+    throw new MessageCodecError(`Invalid trailer message: ${fieldName} must be single-line`, {
+      code: 'E_MESSAGE_TRAILER_LINE',
+      context: { fieldName },
+    });
+  }
 }
 
 /** Decodes a title plus trailer lines into a transport message. */
