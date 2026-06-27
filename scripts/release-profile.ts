@@ -4,7 +4,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { parse } from 'yaml';
+import { isMap, isScalar, isSeq, parseDocument } from 'yaml';
+import type { Node, YAMLMap } from 'yaml';
 
 export type ReleaseVersionSource = {
   readonly path: string;
@@ -40,26 +41,72 @@ class ReleaseProfileError extends Error {
   }
 }
 
-function readJson(path: string) {
-  return JSON.parse(readFileSync(path, 'utf8'));
+function readMapDocument(path: string, label: string): YAMLMap {
+  const document = parseDocument(readFileSync(path, 'utf8'));
+  if (document.errors.length > 0) {
+    const parseError = document.errors[0]?.message ?? 'invalid document';
+    throw new ReleaseProfileError(`${label} could not be parsed: ${parseError}`);
+  }
+  if (!isMap(document.contents)) {
+    throw new ReleaseProfileError(`${label} must be a map`);
+  }
+  return document.contents;
 }
 
-function assertString(value: string | undefined, label: string): string {
+function requireMapNode(node: Node | null | undefined, label: string): YAMLMap {
+  if (!isMap(node)) {
+    throw new ReleaseProfileError(`${label} must be a map`);
+  }
+  return node;
+}
+
+function requireMapField(map: YAMLMap, key: string, label: string): YAMLMap {
+  return requireMapNode(map.get(key, true), label);
+}
+
+function requireStringField(map: YAMLMap, key: string, label: string): string {
+  const node = map.get(key, true);
+  if (!isScalar(node) || typeof node.value !== 'string' || node.value.length === 0) {
+    throw new ReleaseProfileError(`${label} must be a non-empty string`);
+  }
+  return node.value;
+}
+
+function requireNonEmptyString(value: string | undefined, label: string): string {
   if (typeof value !== 'string' || value.length === 0) {
     throw new ReleaseProfileError(`${label} must be a non-empty string`);
   }
   return value;
 }
 
-function assertStringArray(value: readonly string[] | undefined, label: string): readonly string[] {
-  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string' || entry.length === 0)) {
+function requireSchemaOne(map: YAMLMap): 1 {
+  const node = map.get('schema', true);
+  if (!isScalar(node) || node.value !== 1) {
+    throw new ReleaseProfileError('schema must be 1');
+  }
+  return 1;
+}
+
+function requireStringArrayField(map: YAMLMap, key: string, label: string): readonly string[] {
+  const node = map.get(key, true);
+  if (!isSeq(node)) {
     throw new ReleaseProfileError(`${label} must be a non-empty string array`);
   }
-  return value;
+  const values: string[] = [];
+  for (const item of node.items) {
+    if (!isScalar(item) || typeof item.value !== 'string' || item.value.length === 0) {
+      throw new ReleaseProfileError(`${label} must be a non-empty string array`);
+    }
+    values.push(item.value);
+  }
+  if (values.length === 0) {
+    throw new ReleaseProfileError(`${label} must be a non-empty string array`);
+  }
+  return values;
 }
 
 function assertVersionSourceType(
-  value: ReleaseVersionSource['type'] | undefined,
+  value: string,
   label: string
 ): ReleaseVersionSource['type'] {
   if (value !== 'json' && value !== 'npm-lock-root') {
@@ -68,53 +115,60 @@ function assertVersionSourceType(
   return value;
 }
 
-function assertOptionalBoolean(value: boolean | undefined, label: string): boolean | undefined {
-  if (value !== undefined && typeof value !== 'boolean') {
+function optionalBooleanField(map: YAMLMap, key: string, label: string): boolean | undefined {
+  const node = map.get(key, true);
+  if (node === undefined) {
+    return undefined;
+  }
+  if (!isScalar(node) || typeof node.value !== 'boolean') {
     throw new ReleaseProfileError(`${label} must be boolean when present`);
   }
-  return value;
+  return node.value;
 }
 
-function normalizeProfile(profile: Partial<ReleaseProfile>): ReleaseProfile {
-  if (profile.schema !== 1) {
-    throw new ReleaseProfileError('schema must be 1');
-  }
-  if (!Array.isArray(profile.version_sources) || profile.version_sources.length === 0) {
+function normalizeProfile(profile: YAMLMap): ReleaseProfile {
+  const schema = requireSchemaOne(profile);
+  const versionSourcesNode = profile.get('version_sources', true);
+  if (!isSeq(versionSourcesNode) || versionSourcesNode.items.length === 0) {
     throw new ReleaseProfileError('version_sources must contain at least one source');
   }
-  if (profile.docs === undefined) {
-    throw new ReleaseProfileError('docs profile is required');
-  }
+  const docs = requireMapField(profile, 'docs', 'docs profile');
 
   return Object.freeze({
-    schema: 1,
-    version_sources: profile.version_sources.map((source, index) => {
-      const required = assertOptionalBoolean(source.required, `version_sources[${index}].required`);
-      const privateSource = assertOptionalBoolean(source.private, `version_sources[${index}].private`);
+    schema,
+    version_sources: versionSourcesNode.items.map((source, index) => {
+      if (!isMap(source)) {
+        throw new ReleaseProfileError(`version_sources[${index}] must be a map`);
+      }
+      const sourceMap = source;
+      const required = optionalBooleanField(sourceMap, 'required', `version_sources[${index}].required`);
+      const privateSource = optionalBooleanField(sourceMap, 'private', `version_sources[${index}].private`);
       return Object.freeze({
-        path: assertString(source.path, `version_sources[${index}].path`),
-        type: assertVersionSourceType(source.type, `version_sources[${index}].type`),
-        field: assertString(source.field, `version_sources[${index}].field`),
+        path: requireStringField(sourceMap, 'path', `version_sources[${index}].path`),
+        type: assertVersionSourceType(
+          requireStringField(sourceMap, 'type', `version_sources[${index}].type`),
+          `version_sources[${index}].type`
+        ),
+        field: requireStringField(sourceMap, 'field', `version_sources[${index}].field`),
         ...(required === undefined ? {} : { required }),
         ...(privateSource === undefined ? {} : { private: privateSource }),
       });
     }),
     docs: Object.freeze({
-      changelog: assertString(profile.docs.changelog, 'docs.changelog'),
-      front_door: assertString(profile.docs.front_door, 'docs.front_door'),
-      architecture: assertString(profile.docs.architecture, 'docs.architecture'),
-      learning_index: assertString(profile.docs.learning_index, 'docs.learning_index'),
-      learning_topics: assertString(profile.docs.learning_topics, 'docs.learning_topics'),
-      operations: assertString(profile.docs.operations, 'docs.operations'),
-      contributor: assertStringArray(profile.docs.contributor, 'docs.contributor'),
+      changelog: requireStringField(docs, 'changelog', 'docs.changelog'),
+      front_door: requireStringField(docs, 'front_door', 'docs.front_door'),
+      architecture: requireStringField(docs, 'architecture', 'docs.architecture'),
+      learning_index: requireStringField(docs, 'learning_index', 'docs.learning_index'),
+      learning_topics: requireStringField(docs, 'learning_topics', 'docs.learning_topics'),
+      operations: requireStringField(docs, 'operations', 'docs.operations'),
+      contributor: requireStringArrayField(docs, 'contributor', 'docs.contributor'),
     }),
   });
 }
 
 export function loadReleaseProfile(root: string = ROOT): ReleaseProfile {
   const profilePath = join(root, PROFILE_PATH);
-  const parsed = parse(readFileSync(profilePath, 'utf8')) as Partial<ReleaseProfile>;
-  return normalizeProfile(parsed);
+  return normalizeProfile(readMapDocument(profilePath, PROFILE_PATH));
 }
 
 function listMarkdownFiles(root: string, directoryPath: string): readonly string[] {
@@ -167,12 +221,13 @@ function expandVersionSourcePaths(root: string, source: ReleaseVersionSource): r
     .sort();
 }
 
-function readVersion(source: ReleaseVersionSource, packagePath: string, root: string): string {
-  const packageJson = readJson(join(root, packagePath));
+function readVersion(source: ReleaseVersionSource, packageMap: YAMLMap, packagePath: string): string {
   if (source.type === 'npm-lock-root') {
-    return packageJson.packages[''].version;
+    const packagesMap = requireMapField(packageMap, 'packages', `${packagePath}.packages`);
+    const rootPackageMap = requireMapField(packagesMap, '', `${packagePath}.packages[""]`);
+    return requireStringField(rootPackageMap, 'version', `${packagePath}.packages[""].version`);
   }
-  return packageJson[source.field];
+  return requireStringField(packageMap, source.field, `${packagePath}.${source.field}`);
 }
 
 export function collectVersionLockstepFailures(expectedVersion: string, root: string = ROOT): readonly string[] {
@@ -190,11 +245,12 @@ export function collectVersionLockstepFailures(expectedVersion: string, root: st
         failures.push(`${path} is missing`);
         continue;
       }
-      const version = readVersion(source, path, root);
+      const packageMap = readMapDocument(fullPath, path);
+      const version = readVersion(source, packageMap, path);
       if (version !== expectedVersion) {
         failures.push(`${path} ${source.field} ${version} != ${expectedVersion}`);
       }
-      if (source.private === true && readJson(fullPath).private !== true) {
+      if (source.private === true && optionalBooleanField(packageMap, 'private', `${path}.private`) !== true) {
         failures.push(`${path} must remain private unless publish policy changes`);
       }
     }
@@ -212,7 +268,7 @@ export function runReleaseProfileCli(argv: readonly string[]): number {
     return 0;
   }
   if (command === 'check-version-lockstep') {
-    const expectedVersion = assertString(argv[3], 'expected version');
+    const expectedVersion = requireNonEmptyString(argv[3], 'expected version');
     const failures = collectVersionLockstepFailures(expectedVersion);
     for (const failure of failures) {
       console.error(failure);
