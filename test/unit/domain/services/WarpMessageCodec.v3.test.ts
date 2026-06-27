@@ -7,10 +7,12 @@ import {
   decodeCheckpointMessage,
   decodeAnchorMessage,
   detectMessageKind,
+} from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import {
   detectSchemaVersion,
   CLASSIC_PATCH_SCHEMA_VERSION,
   EDGE_PROPERTY_PATCH_SCHEMA_VERSION,
-} from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+} from '../../../../src/domain/services/codec/MessageSchemaDetector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';

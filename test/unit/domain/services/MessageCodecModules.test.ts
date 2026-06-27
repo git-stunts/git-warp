@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
   decodeAnchorMessage,
-  encodeAnchorMessage,
-} from '../../../../src/domain/services/codec/AnchorMessageCodec.ts';
-import {
   decodeCheckpointMessage,
+  decodePatchMessage,
+  detectMessageKind as detectCommitMessageKind,
+  encodeAnchorMessage,
   encodeCheckpointMessage,
-} from '../../../../src/domain/services/codec/CheckpointMessageCodec.ts';
+  encodePatchMessage,
+} from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import {
   decodeTrailerTextMessage,
   encodeTrailerTextMessage,
@@ -25,10 +26,6 @@ import {
   EDGE_PROPERTY_PATCH_SCHEMA_VERSION,
 } from '../../../../src/domain/services/codec/MessageSchemaDetector.ts';
 import {
-  decodePatchMessage,
-  encodePatchMessage,
-} from '../../../../src/domain/services/codec/PatchMessageCodec.ts';
-import {
   parsePositiveIntTrailer,
   requireTrailer,
   validateKindDiscriminator,
@@ -41,12 +38,20 @@ const OID = 'a'.repeat(40);
 const STATE_HASH = 'b'.repeat(64);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const DOMAIN_CODEC_MODULES = [
-  'src/domain/services/codec/AnchorMessageCodec.ts',
-  'src/domain/services/codec/CheckpointMessageCodec.ts',
+  'src/domain/services/codec/AuditMessageCodec.ts',
+  'src/domain/services/codec/CommitMessageCodecRequirement.ts',
   'src/domain/services/codec/MessageCodecInternal.ts',
-  'src/domain/services/codec/PatchMessageCodec.ts',
+  'src/domain/services/codec/MessageSchemaDetector.ts',
+  'src/domain/services/codec/TrailerValidation.ts',
   'src/domain/services/codec/WarpMessageCodec.ts',
 ];
+const RETIRED_DOMAIN_COMMIT_MESSAGE_FACADES = [
+  'src/domain/services/codec/AnchorMessageCodec.ts',
+  'src/domain/services/codec/CheckpointMessageCodec.ts',
+  'src/domain/services/codec/PatchMessageCodec.ts',
+  'src/domain/services/codec/TextCommitMessageCodec.ts',
+];
+const TRAILER_COMMIT_MESSAGE_ADAPTER = 'src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 
 describe('message codec modules', () => {
   it('round-trips patch, checkpoint, and anchor messages through individual modules', () => {
@@ -89,7 +94,12 @@ describe('message codec modules', () => {
     });
   });
 
-  it('keeps domain codec modules behind domain and port boundaries', () => {
+  it('keeps trailer-codec behind the commit message adapter boundary', () => {
+    const adapterSource = readFileSync(resolve(ROOT, TRAILER_COMMIT_MESSAGE_ADAPTER), 'utf8');
+
+    expect(adapterSource).toContain("@git-stunts/trailer-codec");
+    expect(adapterSource).toContain('extends CommitMessageCodecPort');
+
     for (const modulePath of DOMAIN_CODEC_MODULES) {
       const source = readFileSync(resolve(ROOT, modulePath), 'utf8');
 
@@ -100,12 +110,19 @@ describe('message codec modules', () => {
     }
   });
 
+  it('retires domain-local commit message facade modules', () => {
+    for (const modulePath of RETIRED_DOMAIN_COMMIT_MESSAGE_FACADES) {
+      expect(existsSync(resolve(ROOT, modulePath)), `${modulePath} must stay deleted`).toBe(false);
+    }
+  });
+
   it('detects message kind and schema compatibility from shared detector module', () => {
     const edgePropOp = new PropSet(`${EDGE_PROP_PREFIX}node:a\0node:b\0rel`, 'weight', 1);
     const anchorMessage = encodeAnchorMessage({ graph: 'events', schema: 2 });
 
     expect(detectSchemaVersion([edgePropOp])).toBe(EDGE_PROPERTY_PATCH_SCHEMA_VERSION);
     expect(() => assertOpsCompatible([edgePropOp], 2)).toThrow(SchemaUnsupportedError);
+    expect(detectCommitMessageKind(anchorMessage)).toBe('anchor');
     expect(detectMessageKind(anchorMessage)).toBe('anchor');
     expect(detectMessageKind('not a warp trailer message')).toBeNull();
   });

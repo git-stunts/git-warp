@@ -1,13 +1,3 @@
-export {
-  DEFAULT_COMMIT_MESSAGE_CODEC,
-  decodeAnchorMessage,
-  decodeCheckpointMessage,
-  decodePatchMessage,
-  detectMessageKind,
-  encodeAnchorMessage,
-  encodeCheckpointMessage,
-  encodePatchMessage,
-} from './TextCommitMessageCodec.ts';
 export { encodeAuditMessage, decodeAuditMessage } from './AuditMessageCodec.ts';
 export {
   detectSchemaVersion,

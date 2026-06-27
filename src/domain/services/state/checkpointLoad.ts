@@ -14,7 +14,7 @@ import {
   type CheckpointStateEnvelopeBuffers,
 } from './CheckpointSerializer.ts';
 import { deserializeFrontier } from '../Frontier.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
+import { requireCommitMessageCodec } from '../codec/CommitMessageCodecRequirement.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import { Dot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
@@ -76,11 +76,12 @@ export interface LoadCheckpointOptions {
 export async function loadCheckpoint(
   persistence: LoadPersistence,
   checkpointSha: string,
-  { codec, checkpointStore, commitMessageCodec = DEFAULT_COMMIT_MESSAGE_CODEC }: LoadCheckpointOptions = {},
+  { codec, checkpointStore, commitMessageCodec }: LoadCheckpointOptions = {},
 ): Promise<LoadedCheckpoint> {
   // 1. Read commit message and decode
+  const messageCodec = requireCommitMessageCodec(commitMessageCodec);
   const message = await persistence.showNode(checkpointSha);
-  const decoded = commitMessageCodec.decodeCheckpoint(message);
+  const decoded = messageCodec.decodeCheckpoint(message);
 
   // 2. Reject unsupported schemas; migration tooling owns retired readers.
   if (!isCurrentCheckpointSchema(decoded.schema)) {
@@ -231,6 +232,7 @@ export interface MaterializeIncrementalOptions {
     toSha: string,
   ) => Promise<Array<{ patch: Patch; sha: string }>>;
   codec?: CodecPort;
+  commitMessageCodec?: CommitMessageCodecPort;
 }
 
 /**
@@ -252,9 +254,13 @@ export async function materializeIncremental({
   targetFrontier,
   patchLoader,
   codec,
+  commitMessageCodec,
 }: MaterializeIncrementalOptions): Promise<WarpState> {
   // 1. Load checkpoint state and frontier from the current envelope.
-  const loadOpts: LoadCheckpointOptions = codec !== undefined && codec !== null ? { codec } : {};
+  const loadOpts: LoadCheckpointOptions = {
+    ...(codec !== undefined && codec !== null ? { codec } : {}),
+    ...(commitMessageCodec !== undefined && commitMessageCodec !== null ? { commitMessageCodec } : {}),
+  };
   const checkpoint = await loadCheckpoint(persistence, checkpointSha, loadOpts);
   const checkpointFrontier = checkpoint.frontier;
 

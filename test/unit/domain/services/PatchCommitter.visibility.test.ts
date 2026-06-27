@@ -7,7 +7,7 @@ import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts'
 import nullLogger from '../../../../src/domain/utils/nullLogger.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import { commitPatch, type CommitState } from '../../../../src/domain/services/PatchCommitter.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import CommitPort, {
   type CommitLogChunk,
   type CommitNodeOptions,

@@ -15,7 +15,6 @@ import { buildWriterRef } from '../utils/RefLayout.ts';
 import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
 import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
 import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
@@ -123,8 +122,7 @@ export async function commitPatch(state: CommitState): Promise<string> {
   const treeOid = await state.persistence.writeTree(treeEntries);
 
   // Create commit
-  const messageCodec = state.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
-  const message = messageCodec.encodePatch({
+  const message = state.commitMessageCodec.encodePatch({
     kind: 'patch',
     graph: state.graphName,
     writer: state.writerId,

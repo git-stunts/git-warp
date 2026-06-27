@@ -13,6 +13,7 @@ import InMemoryBlobStorageAdapter from '../../../../src/domain/utils/defaultBlob
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 
 const PROPERTY_TEST_SEED = 4242;
 const FIXED_CLOCK = { now: () => 42 };
@@ -56,6 +57,7 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
     getCurrentState: () => null,
     expectedParentSha: null,
     blobStorage: new InMemoryBlobStorageAdapter(),
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   }) as any));
 
   for (let i = 0; i < contentIds.length; i++) {
@@ -164,6 +166,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     state,
     frontier,
     crypto,
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   });
 
   return await persistence.getCommitTree(checkpointSha);

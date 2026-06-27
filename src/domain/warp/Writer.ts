@@ -18,7 +18,7 @@ import nullLogger from '../utils/nullLogger.ts';
 import { validateWriterId, buildWriterRef } from '../utils/RefLayout.ts';
 import { PatchSession } from './PatchSession.ts';
 import { PatchBuilder } from '../services/PatchBuilder.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../services/codec/WarpMessageCodec.ts';
+import { requireCommitMessageCodec } from '../services/codec/CommitMessageCodecRequirement.ts';
 import WriterError from '../errors/WriterError.ts';
 import type VersionVector from '../crdt/VersionVector.ts';
 import type Patch from '../types/Patch.ts';
@@ -99,7 +99,7 @@ export class Writer {
     this._onCommitSuccess = opts.onCommitSuccess;
     this._onDeleteWithData = opts.onDeleteWithData ?? 'warn';
     this._patchJournal = opts.patchJournal;
-    this._commitMessageCodec = opts.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+    this._commitMessageCodec = requireCommitMessageCodec(opts.commitMessageCodec);
     this._logger = opts.logger ?? nullLogger;
     this._blobStorage = opts.blobStorage ?? null;
     this._commitInProgress = false;

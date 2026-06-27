@@ -14,7 +14,7 @@ import {
   serializeCheckpointStateEnvelope,
 } from './CheckpointSerializer.ts';
 import { serializeFrontier } from '../Frontier.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
+import { requireCommitMessageCodec } from '../codec/CommitMessageCodecRequirement.ts';
 import { cloneState } from '../JoinReducer.ts';
 import {
   writeIndexSubtree,
@@ -97,12 +97,13 @@ export async function createCheckpointEnvelope({
   compact = true,
   provenanceIndex,
   codec,
-  commitMessageCodec = DEFAULT_COMMIT_MESSAGE_CODEC,
+  commitMessageCodec,
   crypto,
   indexTree,
   checkpointStore,
   stateHashService,
 }: CreateCheckpointOptions): Promise<string> {
+  const messageCodec = requireCommitMessageCodec(commitMessageCodec);
   // 1. Compute appliedVV from actual state dots
   const appliedVV = computeAppliedVV(state);
 
@@ -205,7 +206,7 @@ export async function createCheckpointEnvelope({
   const treeOid = await persistence.writeTree(treeEntries);
 
   // 8. Create checkpoint commit message.
-  const message = commitMessageCodec.encodeCheckpoint({
+  const message = messageCodec.encodeCheckpoint({
     kind: 'checkpoint',
     graph: graphName,
     stateHash,

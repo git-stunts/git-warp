@@ -3,7 +3,7 @@ import CheckpointController from '../../../../../src/domain/services/controllers
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
 import defaultCrypto from '../../../../../src/domain/utils/defaultCrypto.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
 
 const { createCheckpointCommitMock } = vi.hoisted(() => ({

@@ -16,7 +16,7 @@ import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InM
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
   encodeCheckpointMessage,
-} from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
+} from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { CURRENT_CHECKPOINT_SCHEMA } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';

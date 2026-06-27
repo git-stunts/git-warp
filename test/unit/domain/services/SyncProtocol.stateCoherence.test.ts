@@ -16,7 +16,7 @@ import {
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.ts';
 // createDot reserved for future test expansion
 // import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { encodePatchMessage } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';

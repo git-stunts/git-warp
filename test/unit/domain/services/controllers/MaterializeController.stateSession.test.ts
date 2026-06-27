@@ -8,6 +8,7 @@ import StateSession from "../../../../../src/domain/orset/session/StateSession.t
 import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from "../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts";
 import SchemaUnsupportedError from "../../../../../src/domain/errors/SchemaUnsupportedError.ts";
 import { InMemoryTrieStore } from "../../../../helpers/trieHelpers.ts";
 import { createEmptyState } from "../../../../../src/domain/services/JoinReducer.ts";
@@ -161,6 +162,7 @@ function createControllerFixtures() {
       showNode: vi.fn().mockResolvedValue(""),
       readBlob: vi.fn().mockResolvedValue(new Uint8Array([1])),
     },
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     getStateCache: () => stateCache,
     patches,
     graphCloner: { openReadOnly: vi.fn() },

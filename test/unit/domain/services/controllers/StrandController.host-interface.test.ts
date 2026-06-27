@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import StrandController, {
   type StrandHost,
 } from '../../../../../src/domain/services/controllers/StrandController.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import CryptoPort from '../../../../../src/ports/CryptoPort.ts';
 

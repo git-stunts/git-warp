@@ -5,7 +5,7 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
-import { decodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { decodePatchMessage } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { decode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';

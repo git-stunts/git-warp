@@ -3,7 +3,7 @@ import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
 import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
-} from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
+} from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import CheckpointTailWitnessLocator from '../../../../../src/domain/services/optic/CheckpointTailWitnessLocator.ts';
 import CheckpointTailOpticSource, {

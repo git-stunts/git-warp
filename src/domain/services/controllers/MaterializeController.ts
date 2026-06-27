@@ -36,6 +36,7 @@ import { summarizeMaterializePatches } from './MaterializePatchSummary.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
@@ -69,6 +70,7 @@ export type MaterializeDeps = {
   patches: PatchCollector;
   graphCloner: DetachedGraphFactory;
   graphName: string;
+  commitMessageCodec: CommitMessageCodecPort;
 };
 
 // ── Result types ────────────────────────────────────────────────────

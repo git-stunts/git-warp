@@ -4,7 +4,6 @@ import defaultCodec from '../utils/defaultCodec.ts';
 import defaultCrypto from '../utils/defaultCrypto.ts';
 import MaterializedViewService from '../services/MaterializedViewService.ts';
 import StateHashService from '../services/state/StateHashService.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../services/codec/WarpMessageCodec.ts';
 import StateSession from '../orset/session/StateSession.ts';
 import PageCache from '../orset/trie/PageCache.ts';
 import TrieGeometry from '../orset/trie/TrieGeometry.ts';
@@ -58,7 +57,7 @@ export type RuntimeHostConstructionOptions = {
   audit?: boolean;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
   trust?: { mode?: TrustMode; pin?: string | null };
   patchJournal: PatchJournalPort;
   checkpointStore: CheckpointStorePort;
@@ -248,6 +247,13 @@ function normalizeDeletePolicy(policy: DeletePolicy): DeletePolicy {
   return policy;
 }
 
+async function resolveDefaultCommitMessageCodec(): Promise<CommitMessageCodecPort> {
+  const { DEFAULT_COMMIT_MESSAGE_CODEC } = await import(
+    /* webpackIgnore: true */ '../../infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts'
+  );
+  return DEFAULT_COMMIT_MESSAGE_CODEC;
+}
+
 export type RuntimeMigrationBoundary = {
   _validateMigrationBoundary(): Promise<void>;
 };
@@ -296,7 +302,7 @@ export async function resolveRuntimeHostConstructionOptions(
   const normalizedTrust = normalizeTrustConfig(trust);
 
   const resolvedBlobStorage = await resolveBlobStorage(blobStorage, persistence);
-  const resolvedCommitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+  const resolvedCommitMessageCodec = commitMessageCodec ?? await resolveDefaultCommitMessageCodec();
   const resolvedCodec = codec ?? defaultCodec;
   const resolvedCrypto = crypto ?? defaultCrypto;
   const patchWriteStorage = resolvePatchWriteStorage(persistence, patchBlobStorage);

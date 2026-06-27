@@ -30,6 +30,7 @@ export default class MaterializeCheckpointStrategy {
       targetFrontier: frontier,
       patchLoader,
       codec: this.runtime.deps.codec,
+      commitMessageCodec: this.runtime.deps.commitMessageCodec,
     });
     return await this.runtime.wrapState(state, null, null);
   }

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.ts';
-import { decodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { decodeCheckpointMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import SchemaUnsupportedError from '../../../src/domain/errors/SchemaUnsupportedError.ts';
 
 async function readCheckpointArtifacts(repo, checkpointSha) {

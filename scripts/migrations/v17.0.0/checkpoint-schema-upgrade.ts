@@ -9,7 +9,7 @@ import {
   deserializeFullState,
 } from '../../../src/domain/services/state/CheckpointSerializer.ts';
 import { deserializeFrontier } from '../../../src/domain/services/Frontier.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.ts';
 import type GraphPersistencePort from '../../../src/ports/GraphPersistencePort.ts';

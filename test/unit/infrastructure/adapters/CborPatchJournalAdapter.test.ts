@@ -9,7 +9,7 @@ import Patch from '../../../../src/domain/types/Patch.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
-import { encodePatchMessage } from '../../../../src/domain/services/codec/PatchMessageCodec.ts';
+import { encodePatchMessage } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import {
   LEGACY_EXTERNAL_PATCH_STORAGE,
   LEGACY_GIT_BLOB_PATCH_STORAGE,

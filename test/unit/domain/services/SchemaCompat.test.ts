@@ -4,7 +4,7 @@ import {
   detectSchemaVersion,
   CLASSIC_PATCH_SCHEMA_VERSION,
   EDGE_PROPERTY_PATCH_SCHEMA_VERSION,
-} from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+} from '../../../../src/domain/services/codec/MessageSchemaDetector.ts';
 import SchemaUnsupportedError from '../../../../src/domain/errors/SchemaUnsupportedError.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EDGE_PROP_PREFIX } from '../../../../src/domain/services/JoinReducer.ts';

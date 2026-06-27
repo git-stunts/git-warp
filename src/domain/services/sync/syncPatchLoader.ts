@@ -8,7 +8,7 @@
  * @see SyncProtocol — WARP sync spec Section 11 (Network Sync)
  */
 
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
+import { requireCommitMessageCodec } from '../codec/CommitMessageCodecRequirement.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import SyncError from '../../errors/SyncError.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
@@ -93,7 +93,7 @@ export function normalizePatch(patch: DecodedPatch): DecodedPatch {
 export async function loadPatchFromCommit(
   persistence: CommitPort & BlobPort,
   sha: string,
-  { patchJournal, commitMessageCodec = DEFAULT_COMMIT_MESSAGE_CODEC }: LoadPatchRangeOptions = {},
+  { patchJournal, commitMessageCodec }: LoadPatchRangeOptions = {},
 ): Promise<DecodedPatch> {
   if (!patchJournal) {
     throw new PersistenceError(
@@ -104,8 +104,9 @@ export async function loadPatchFromCommit(
   }
 
   // Read commit message to extract patch OID and encrypted flag
+  const messageCodec = requireCommitMessageCodec(commitMessageCodec);
   const message = await persistence.showNode(sha);
-  const decoded = commitMessageCodec.decodePatch(message);
+  const decoded = messageCodec.decodePatch(message);
 
   // Read and decode the patch blob via PatchJournalPort (adapter owns the codec)
   const patch = await patchJournal.readPatch(decoded.patchOid, { storage: decoded.storage });

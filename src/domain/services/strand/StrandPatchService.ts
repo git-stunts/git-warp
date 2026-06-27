@@ -252,6 +252,7 @@ export default class StrandPatchService {
       getCurrentState,
       expectedParentSha,
       onDeleteWithData: this._graph._onDeleteWithData,
+      commitMessageCodec: this._graph._commitMessageCodec,
     };
     if (targetRefPath !== undefined) {
       pbOpts.targetRefPath = targetRefPath;

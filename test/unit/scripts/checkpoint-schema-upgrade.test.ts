@@ -13,7 +13,7 @@ import { computeStateHash } from '../../../src/domain/services/state/StateSerial
 import { createCheckpointEnvelope } from '../../../src/domain/services/state/checkpointCreate.ts';
 import { loadCheckpoint } from '../../../src/domain/services/state/checkpointLoad.ts';
 import { CURRENT_CHECKPOINT_SCHEMA } from '../../../src/domain/services/state/checkpointHelpers.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import {
   CheckpointSchemaUpgradeError,
@@ -129,7 +129,7 @@ describe('checkpoint schema upgrade script boundary', () => {
     if (upgradedSha === null) {
       throw new Error('Expected upgraded checkpoint SHA');
     }
-    const loaded = await loadCheckpoint(persistence, upgradedSha);
+    const loaded = await loadCheckpoint(persistence, upgradedSha, { commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC });
     expect(loaded.schema).toBe(CURRENT_CHECKPOINT_SCHEMA);
     expect(loaded.state.nodeAlive.contains('node:a')).toBe(true);
     expect(loaded.indexShardOids).toEqual({ 'nodes/shard.cbor': expect.any(String) });
@@ -162,6 +162,7 @@ describe('checkpoint schema upgrade script boundary', () => {
       state,
       frontier,
       crypto,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
     await persistence.updateRef(checkpointRef, currentCheckpointSha);
 

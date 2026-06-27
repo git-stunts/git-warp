@@ -37,8 +37,8 @@ import {
   type ContentInput,
   type ContentMetadataInput,
 } from './PatchBuilderContent.ts';
+import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import { commitPatch } from './PatchCommitter.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
 import type { WarpState } from './JoinReducer.ts';
 import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
@@ -77,7 +77,7 @@ export class PatchBuilder {
   private readonly _onCommitSuccess: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | null;
   private readonly _onDeleteWithData: DeletePolicy;
   private readonly _patchJournal: PatchJournalPort | null;
-  private readonly _commitMessageCodec: CommitMessageCodecPort;
+  private readonly _commitMessageCodec: CommitMessageCodecPort | null;
   private readonly _logger: LoggerPort;
   private readonly _blobStorage: BlobStoragePort | null;
   private readonly _ops: PatchOp[] = [];
@@ -104,7 +104,7 @@ export class PatchBuilder {
     this._onCommitSuccess = options.onCommitSuccess ?? null;
     this._onDeleteWithData = options.onDeleteWithData ?? 'warn';
     this._patchJournal = options.patchJournal ?? null;
-    this._commitMessageCodec = options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+    this._commitMessageCodec = options.commitMessageCodec ?? null;
     this._logger = options.logger ?? nullLogger;
     this._blobStorage = options.blobStorage ?? null;
   }
@@ -442,7 +442,7 @@ export class PatchBuilder {
         targetRefPath: this._targetRefPath,
         contentBlobs: this._contentBlobs,
         patchJournal: this._patchJournal,
-        commitMessageCodec: this._commitMessageCodec,
+        commitMessageCodec: requireCommitMessageCodec(this._commitMessageCodec),
         logger: this._logger,
         onCommitSuccess: this._onCommitSuccess,
       });

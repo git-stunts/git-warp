@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
-import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { encodePatchMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';

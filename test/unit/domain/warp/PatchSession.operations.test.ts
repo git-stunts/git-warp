@@ -18,6 +18,7 @@ import {
   createPatchJournal,
   type PatchBuilderMockPersistence,
 } from '../services/PatchBuilderTestHarness.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 
 describe('PatchSession operations', () => {
   let persistence: PatchBuilderMockPersistence;
@@ -37,6 +38,7 @@ describe('PatchSession operations', () => {
     const writer = new Writer({
       persistence,
       patchJournal,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -59,6 +61,7 @@ describe('PatchSession operations', () => {
     const writer = new Writer({
       persistence,
       patchJournal,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -78,6 +81,7 @@ describe('PatchSession operations', () => {
     const writer = new Writer({
       persistence,
       patchJournal,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -106,6 +110,7 @@ describe('PatchSession operations', () => {
     const writer = new Writer({
       persistence,
       patchJournal,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -125,6 +130,7 @@ describe('PatchSession operations', () => {
     const writer = new Writer({
       persistence,
       patchJournal,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -149,6 +155,7 @@ describe('PatchSession operations', () => {
     const writer = new Writer({
       persistence,
       patchJournal,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
