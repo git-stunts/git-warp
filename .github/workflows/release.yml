@@ -82,6 +82,10 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${{ steps.meta.outputs.tag }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            test "${{ github.ref_type }}" = "tag"
+            test "${{ github.ref_name }}" = "$TAG"
+          fi
           HEAD_COMMIT="$(git rev-parse HEAD)"
           TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
           echo "HEAD: $HEAD_COMMIT"
