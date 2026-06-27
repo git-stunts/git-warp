@@ -72,9 +72,9 @@ manual registry publish:
 2. Prepare release content on that branch.
 3. Open a normal PR to `main`; do not open a draft PR for release prep.
 4. Merge the PR after review and green CI.
-5. The `Release Autotag` workflow runs on the merge commit, proves the commit
-   came from a release-prep PR, runs final preflight, creates the `vX.Y.Z` tag
-   at that exact commit, and prints the manual publish command.
+5. The `Main Push Release Branch Check` workflow runs on the merge commit,
+   proves the commit came from a release-prep PR, runs final preflight, creates
+   the `vX.Y.Z` tag at that exact commit, and prints the manual publish command.
 6. A maintainer whose GitHub account is a JSR `@git-stunts` scope member
    manually dispatches the `Release` workflow for that tag.
 7. The `Release` workflow checks out the tag, verifies publishability,
@@ -232,13 +232,13 @@ npm run release:prep
 
 CI also runs release-prep validation on PRs. The PR preview comment reports the
 package version and npm dist-tag that will be used if the release branch merges
-and the autotag workflow creates the tag.
+and the main-push release branch check creates the tag.
 
 ## Automatic Tagging
 
-The `Release Autotag` workflow runs on pushes to `main`. It only proceeds when
-the pushed commit is associated with a merged release-prep PR. The PR must come
-from a `release/vX.Y.Z` branch.
+The `Main Push Release Branch Check` workflow runs on pushes to `main`. It only
+proceeds when the pushed commit is associated with a merged release-prep PR. The
+PR must come from a `release/vX.Y.Z` branch.
 
 The workflow:
 
@@ -252,14 +252,15 @@ The workflow:
 GitHub does not reliably start another workflow from a tag push made with the
 default `GITHUB_TOKEN`. JSR also treats workflows dispatched by
 `github-actions[bot]` differently from workflows dispatched by a GitHub user who
-is a JSR scope member. For now, autotag stops after tag creation. A maintainer
-dispatches the release workflow manually so JSR OIDC publishing runs under a
-scope-member actor.
+is a JSR scope member. For now, the main-push release branch check stops after
+tag creation. A maintainer dispatches the release workflow manually so JSR OIDC
+publishing runs under a scope-member actor.
 
 ## Manual Registry Publication
 
-After autotag creates `vX.Y.Z`, a maintainer whose GitHub account is a JSR
-`@git-stunts` scope member must dispatch the release workflow:
+After the main-push release branch check creates `vX.Y.Z`, a maintainer whose
+GitHub account is a JSR `@git-stunts` scope member must dispatch the release
+workflow:
 
 ```bash
 gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z
@@ -437,8 +438,8 @@ a thesis.
 
 ## Manual Fallback
 
-Manual tagging is allowed only when the autotag workflow cannot run. Do not use
-manual tagging to bypass failed gates.
+Manual tagging is allowed only when the main-push release branch check cannot
+run. Do not use manual tagging to bypass failed gates.
 
 From clean, fetched, aligned `main`:
 

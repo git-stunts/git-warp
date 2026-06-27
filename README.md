@@ -44,8 +44,8 @@ It lets you:
 
 `v18.1.2` publishes the source-backed reference shelf for package entrypoints,
 root API exports, CLI commands, structured CLI errors, and public error classes.
-It also locks the release path to autotag the exact merged `main` commit, then
-publish npm and JSR from a maintainer-dispatched workflow.
+It also locks the release path so release-prep PRs tag the exact merged `main`
+commit, then publish npm and JSR from a maintainer-dispatched workflow.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 

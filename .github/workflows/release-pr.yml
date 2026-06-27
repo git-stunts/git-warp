@@ -95,7 +95,7 @@ jobs:
               "- npm pack dry-run: passed",
               "- jsr publish dry-run: passed",
               "",
-              `If this PR is from a \`release/*\` branch and merges to \`main\`, Release Autotag will run final preflight and create \`v${version}\`. A maintainer who is a JSR \`@git-stunts\` scope member must then dispatch the Release workflow manually.`
+              `If this PR is from a \`release/*\` branch and merges to \`main\`, Main Push Release Branch Check will run final preflight and create \`v${version}\`. A maintainer who is a JSR \`@git-stunts\` scope member must then dispatch the Release workflow manually.`
             ].join("\n");
             github.rest.issues.createComment({
               ...context.repo,

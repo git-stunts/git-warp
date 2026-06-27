@@ -47,7 +47,7 @@ publish:
       verify: "npm view @jsr/git-stunts__git-warp@{version} version --registry=https://npm.jsr.io"
       requires_github_actor_scope_member: true
 workflow:
-  autotag: release-autotag.yml
+  main_push_release_branch_check: main-push-release-branch-check.yml
   release: release.yml
   manual_dispatch_required: true
   manual_dispatch_reason: "JSR OIDC publish must be dispatched by a GitHub user in the JSR @git-stunts scope."
