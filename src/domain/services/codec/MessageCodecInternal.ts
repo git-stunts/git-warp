@@ -68,12 +68,7 @@ export function encodeTrailerTextMessage(message: TrailerTextMessage): string {
 
 /** Decodes a title plus trailer lines into a transport message. */
 export function decodeTrailerTextMessage(message: string): TrailerTextMessage {
-  if (message.length === 0) {
-    throw new MessageCodecError('Invalid trailer message: empty message', {
-      code: 'E_MESSAGE_EMPTY',
-    });
-  }
-  const lines = message.replace(/\r\n/g, '\n').split('\n');
+  const lines = requireTrailerTextInput(message).replace(/\r\n/g, '\n').split('\n');
   const title = lines[0];
   if (title === undefined || title.length === 0) {
     throw new MessageCodecError('Invalid trailer message: missing title', {
@@ -88,6 +83,15 @@ export function decodeTrailerTextMessage(message: string): TrailerTextMessage {
     title,
     trailers: decodeTrailerLines(lines.slice(separatorIndex + 1)),
   };
+}
+
+function requireTrailerTextInput(message: string): string {
+  if (typeof message !== 'string' || message.length === 0) {
+    throw new MessageCodecError('Invalid trailer message: expected non-empty string', {
+      code: 'E_MESSAGE_EMPTY',
+    });
+  }
+  return message;
 }
 
 function decodeTrailerLines(lines: readonly string[]): Readonly<Record<string, string>> {
