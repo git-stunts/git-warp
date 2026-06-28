@@ -57,24 +57,24 @@ export default class IntentController implements IntentCapability {
   }
 
   private _checkStatusGuard(
-    guard: { op: 'nodeStatus'; nodeId: string; expected: string; failureTag: string },
+    guard: WarpIntentDescriptor['precommitGuards'][number],
     nodeProps: Readonly<{ [key: string]: unknown }> | null,
   ) {
     const raw = nodeProps ? nodeProps['status'] : null;
     const actualStatus = typeof raw === 'string' ? raw : 'ABSENT';
-    if (actualStatus !== guard.expected) {
+    if (guard.expected !== undefined && actualStatus !== guard.expected) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: actualStatus };
     }
     return null;
   }
 
   private _checkAgentGuard(
-    guard: { op: 'nodeUnassignedOrSelf'; nodeId: string; agentId: string; failureTag: string },
+    guard: WarpIntentDescriptor['precommitGuards'][number],
     nodeProps: Readonly<{ [key: string]: unknown }> | null,
   ) {
     const raw = nodeProps ? nodeProps['agentId'] : null;
     const assignedAgent = typeof raw === 'string' ? raw : null;
-    if (assignedAgent !== null && assignedAgent !== guard.agentId) {
+    if (assignedAgent !== null && guard.agentId !== undefined && assignedAgent !== guard.agentId) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: assignedAgent };
     }
     return null;
