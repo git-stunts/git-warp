@@ -74,8 +74,8 @@ describe('API: Multi-Writer', () => {
     const stateA = await alice.materialize();
     const stateB = await bob.materialize();
 
-    const hashA = await computeStateHash(stateA, { crypto: repo.crypto });
-    const hashB = await computeStateHash(stateB, { crypto: repo.crypto });
+    const hashA = await computeStateHash(stateA, { crypto: repo.crypto, codec: repo.codec });
+    const hashB = await computeStateHash(stateB, { crypto: repo.crypto, codec: repo.codec });
 
     expect(hashA).toBe(hashB);
   });

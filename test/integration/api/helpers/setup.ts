@@ -12,15 +12,17 @@ import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAda
 import CasBlobAdapter from '../../../../src/infrastructure/adapters/CasBlobAdapter.ts';
 import WarpCore from '../../../../src/domain/WarpCore.ts';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
- * Creates a temporary git repository with persistence adapter and crypto.
+ * Creates a temporary git repository with persistence adapter, codec, and crypto.
  *
  * @param {string} [label='api-test'] - Label for the temp directory prefix
- * @returns {Promise<{persistence: Object, tempDir: string, crypto: WebCryptoAdapter, cleanup: () => Promise<void>, openGraph: (graphName: string, writerId: string, opts?: Object) => Promise<Object>}>}
+ * @returns {Promise<{persistence: Object, tempDir: string, codec: typeof defaultCodec, crypto: WebCryptoAdapter, cleanup: () => Promise<void>, openGraph: (graphName: string, writerId: string, opts?: Object) => Promise<Object>}>}
  */
 export async function createTestRepo(label = 'api-test') {
   const tempDir = await mkdtemp(join(tmpdir(), `warp-${label}-`));
+  const codec = defaultCodec;
   const crypto = new WebCryptoAdapter();
 
   try {
@@ -51,6 +53,7 @@ export async function createTestRepo(label = 'api-test') {
         persistence,
         graphName,
         writerId,
+        codec,
         crypto,
       });
     }
@@ -58,6 +61,7 @@ export async function createTestRepo(label = 'api-test') {
     return {
       persistence,
       tempDir,
+      codec,
       crypto,
       openGraph,
       async cleanup() {
