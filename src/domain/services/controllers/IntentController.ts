@@ -62,7 +62,7 @@ export default class IntentController implements IntentCapability {
   ) {
     const raw = nodeProps ? nodeProps['status'] : 'ABSENT';
     const actualStatus = typeof raw === 'string' ? raw : 'ABSENT';
-    const expected = (guard as unknown as { expected: string }).expected;
+    const { expected } = guard as unknown as { expected: string };
     if (actualStatus !== expected) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: actualStatus };
     }
@@ -76,8 +76,8 @@ export default class IntentController implements IntentCapability {
     if (!nodeProps) { return null; }
     const raw = nodeProps['agentId'];
     if (typeof raw !== 'string') { return null; }
-    const expected = (guard as unknown as { agentId: string }).agentId;
-    if (raw !== expected) {
+    const { agentId } = guard as unknown as { agentId: string };
+    if (raw !== agentId) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: raw };
     }
     return null;
