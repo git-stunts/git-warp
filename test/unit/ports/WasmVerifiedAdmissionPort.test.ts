@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { WarpIntentDescriptor, WarpIntentOutcome } from '../../../src/domain/types/WarpIntentDescriptor.ts';
 import type WarpWorldline from '../../../src/domain/WarpWorldline.ts';
-// @ts-expect-error -- intentional red test before service implementation
 import WasmVerifiedAdmissionService from '../../../src/domain/services/admission/WasmVerifiedAdmissionService.ts';
 
 describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {

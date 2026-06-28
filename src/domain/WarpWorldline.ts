@@ -183,7 +183,7 @@ export async function openWarpWorldline(
     },
     getFrontier: async () => await graph.getFrontier(),
     readOpticBasis: () => preparedOpticBasis,
-    admitIntent: async (descriptor) => await graph.intents.admitIntent(descriptor),
+    admitIntent: async (descriptor) => await graph.admitIntent(descriptor),
   });
 }
 

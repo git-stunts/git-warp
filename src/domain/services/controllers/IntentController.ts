@@ -28,53 +28,42 @@ export default class IntentController implements IntentCapability {
 
   async admitIntent(descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> {
     const worldline = this._host.worldline();
-    const query = worldline.query();
-
     for (const guard of descriptor.precommitGuards) {
-      const nodeResult = await query.node(guard.nodeId).read();
-      if (guard.op === 'nodeStatus') {
-        const actualStatus = nodeResult?.status ?? 'ABSENT';
-        if (actualStatus !== guard.expected) {
-          return {
-            admitted: false,
-            obstruction: {
-              tag: guard.failureTag,
-              nodeId: guard.nodeId,
-              actual: String(actualStatus),
-            },
-            intentId: descriptor.intentId,
-          };
-        }
-      } else if (guard.op === 'nodeUnassignedOrSelf') {
-        const assignedAgent = nodeResult?.agentId ?? null;
-        if (assignedAgent !== null && assignedAgent !== guard.agentId) {
-          return {
-            admitted: false,
-            obstruction: {
-              tag: guard.failureTag,
-              nodeId: guard.nodeId,
-              actual: String(assignedAgent),
-            },
-            intentId: descriptor.intentId,
-          };
-        }
+      const nodeProps = await worldline.getNodeProps(guard.nodeId);
+      const obstruction = this._checkGuard(guard, nodeProps);
+      if (obstruction !== null) {
+        return { admitted: false, obstruction, intentId: descriptor.intentId };
       }
     }
-
     const jsonBytes = new TextEncoder().encode(JSON.stringify(descriptor));
-    let sha = `blob:intent:${descriptor.intentId}:${Date.now()}`;
+    const randomSuffix = Math.floor(Math.random() * 1000000);
+    let sha = `blob:intent:${descriptor.intentId}:${randomSuffix}`;
     if (typeof this._host._persistence.writeBlob === 'function') {
       sha = await this._host._persistence.writeBlob(jsonBytes);
     }
+    return { admitted: true, sha, intentId: descriptor.intentId };
+  }
 
-    return {
-      admitted: true,
-      sha,
-      intentId: descriptor.intentId,
-    };
+  private _checkGuard(
+    guard: WarpIntentDescriptor['precommitGuards'][number],
+    nodeProps: Readonly<{ [key: string]: unknown }> | null,
+  ) {
+    if (guard.op === 'nodeStatus') {
+      const actualStatus = nodeProps?.status ?? 'ABSENT';
+      if (actualStatus !== guard.expected) {
+        return { tag: guard.failureTag, nodeId: guard.nodeId, actual: String(actualStatus) };
+      }
+    } else if (guard.op === 'nodeUnassignedOrSelf') {
+      const assignedAgent = nodeProps?.agentId ?? null;
+      if (assignedAgent !== null && assignedAgent !== guard.agentId) {
+        return { tag: guard.failureTag, nodeId: guard.nodeId, actual: String(assignedAgent) };
+      }
+    }
+    return null;
   }
 
   async queueIntent(strandId: string, descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> {
+    await Promise.resolve();
     const list = this._queuedIntents.get(strandId) ?? [];
     list.push(descriptor);
     this._queuedIntents.set(strandId, list);
@@ -86,6 +75,7 @@ export default class IntentController implements IntentCapability {
   }
 
   async getWriterIntents(writerId: string): Promise<WarpIntentDescriptor[]> {
+    await Promise.resolve();
     return this._queuedIntents.get(writerId) ?? [];
   }
 }
