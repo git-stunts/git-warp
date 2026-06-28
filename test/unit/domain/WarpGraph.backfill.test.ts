@@ -5,7 +5,7 @@ import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifi
 import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.ts';
 
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
-import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import Patch from '../../../src/domain/types/Patch.ts';

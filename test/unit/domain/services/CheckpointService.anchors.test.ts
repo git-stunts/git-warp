@@ -6,6 +6,7 @@ import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { CONTENT_PROPERTY_KEY } from '../../../../src/domain/services/KeyCodec.ts';
 import type { ContentAnchorObjectType } from '../../../../src/domain/services/state/checkpointHelpers.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import type WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import type {
   CommitLogChunk,
@@ -152,6 +153,7 @@ describe('CheckpointService content anchors', () => {
       state,
       frontier,
       crypto,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
 
     expect(persistence.envelopeTreeEntries()).toEqual([

@@ -4,6 +4,7 @@ import { WriterError } from '../../../../src/domain/warp/Writer.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 
 /**
  * Creates a mock persistence adapter for CAS testing.
@@ -78,6 +79,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: expectedParent,
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       });
 
       builder.addNode('x');
@@ -93,6 +95,7 @@ describe('PatchBuilder CAS conflict detection', () => {
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
           expectedParentSha: expectedParent,
+          commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         })
           .addNode('x')
           .commit()
@@ -115,6 +118,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: expectedParent,
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       });
 
       builder.addNode('x');
@@ -145,6 +149,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: expectedParent,
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       });
 
       builder.addNode('x');
@@ -169,6 +174,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: null, // Writer expected no prior commits
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       });
 
       builder.addNode('x');
@@ -200,6 +206,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: expectedParent,
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       });
 
       builder.addNode('x');
@@ -234,6 +241,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: null,
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       });
 
       builder.addNode('x');
@@ -264,6 +272,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: parentSha,
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       });
 
       builder.addNode('x');

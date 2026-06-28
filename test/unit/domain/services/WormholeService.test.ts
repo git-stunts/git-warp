@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  createWormhole,
+  createWormhole as createWormholeWithCodec,
   composeWormholes,
   replayWormhole,
   serializeWormhole,
@@ -12,9 +12,10 @@ import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import {
+  DEFAULT_COMMIT_MESSAGE_CODEC,
   encodePatchMessage,
   encodeCheckpointMessage,
-} from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+} from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import {
   reducePatches,
   encodeEdgeKey,
@@ -31,6 +32,20 @@ import {
   Dot,
   createInlineValue,
 } from '../../../helpers/warpGraphTestUtils.ts';
+
+type CreateWormholeOptions = Parameters<typeof createWormholeWithCodec>[0];
+type CreateWormholeTestOptions =
+  Omit<CreateWormholeOptions, 'commitMessageCodec'> &
+  Partial<Pick<CreateWormholeOptions, 'commitMessageCodec'>>;
+
+async function createWormhole(
+  options: CreateWormholeTestOptions,
+): ReturnType<typeof createWormholeWithCodec> {
+  return await createWormholeWithCodec({
+    ...options,
+    commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
+  });
+}
 
 describe('WormholeService', () => {
   describe('createWormhole', () => {

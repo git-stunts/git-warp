@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { create, createCheckpointEnvelope } from '../../../../src/domain/services/state/checkpointCreate.ts';
-import { loadCheckpoint, reconstructStateFromCheckpoint } from '../../../../src/domain/services/state/checkpointLoad.ts';
+import {
+  create as createCheckpoint,
+  createCheckpointEnvelope as createCheckpointEnvelopeWithCodec,
+  type CreateCheckpointOptions,
+} from '../../../../src/domain/services/state/checkpointCreate.ts';
+import {
+  loadCheckpoint as loadCheckpointWithCodec,
+  reconstructStateFromCheckpoint,
+  type LoadCheckpointOptions,
+  type LoadPersistence,
+} from '../../../../src/domain/services/state/checkpointLoad.ts';
 import { createFrontier, updateFrontier, serializeFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import {
@@ -11,13 +20,52 @@ import {
   deserializeAppliedVV,
 } from '../../../../src/domain/services/state/CheckpointSerializer.ts';
 import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
-import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import {
+  DEFAULT_COMMIT_MESSAGE_CODEC,
+  encodeCheckpointMessage,
+  decodeCheckpointMessage,
+} from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();
+
+type CreateCheckpointTestOptions =
+  Omit<CreateCheckpointOptions, 'commitMessageCodec'> &
+  Partial<Pick<CreateCheckpointOptions, 'commitMessageCodec'>>;
+
+type LoadCheckpointTestOptions =
+  Omit<LoadCheckpointOptions, 'commitMessageCodec'> &
+  Partial<Pick<LoadCheckpointOptions, 'commitMessageCodec'>>;
+
+async function create(options: CreateCheckpointTestOptions): ReturnType<typeof createCheckpoint> {
+  return await createCheckpoint({
+    ...options,
+    commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
+  });
+}
+
+async function createCheckpointEnvelope(
+  options: CreateCheckpointTestOptions,
+): ReturnType<typeof createCheckpointEnvelopeWithCodec> {
+  return await createCheckpointEnvelopeWithCodec({
+    ...options,
+    commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
+  });
+}
+
+async function loadCheckpoint(
+  persistence: LoadPersistence,
+  checkpointSha: string,
+  options: LoadCheckpointTestOptions = {},
+): ReturnType<typeof loadCheckpointWithCodec> {
+  return await loadCheckpointWithCodec(persistence, checkpointSha, {
+    ...options,
+    commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
+  });
+}
 
 // Helper to create valid 40-char hex OIDs for testing
 const makeOid = (prefix) => {

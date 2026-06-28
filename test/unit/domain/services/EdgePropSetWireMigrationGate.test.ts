@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   detectSchemaVersion,
   EDGE_PROPERTY_PATCH_SCHEMA_VERSION,
-} from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+} from '../../../../src/domain/services/codec/MessageSchemaDetector.ts';
 import { lowerCanonicalOp } from '../../../../src/domain/services/OpNormalizer.ts';
 import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';

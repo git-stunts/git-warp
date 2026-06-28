@@ -48,7 +48,7 @@ import { diffStates, isEmptyDiff, type StateDiffResult } from './services/state/
 import { buildAdjacency } from './services/controllers/MaterializeHelpers.ts';
 import WarpError from './errors/WarpError.ts';
 import QueryError from './errors/QueryError.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from './services/codec/WarpMessageCodec.ts';
+import { requireCommitMessageCodec } from './services/codec/CommitMessageCodecRequirement.ts';
 
 import type { CorePersistence } from './types/WarpPersistence.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
@@ -307,7 +307,7 @@ export default class RuntimeHost {
     this._stateCache = stateCache || null;
     this._blobStorage = blobStorage || null;
     this._patchBlobStorage = patchBlobStorage || null;
-    this._commitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+    this._commitMessageCodec = requireCommitMessageCodec(commitMessageCodec);
     this._patchInProgress = false;
     this._provenanceDegraded = false;
     this._audit = !!audit;
@@ -381,6 +381,7 @@ export default class RuntimeHost {
       patches: new RuntimePatchCollector(this),
       graphCloner: new RuntimeDetachedFactory(this, async (detachedOptions) => await RuntimeHost.open(detachedOptions)),
       graphName: this._graphName,
+      commitMessageCodec: this._commitMessageCodec,
     });
     this._viewService = viewService;
     this._logicalIndex = null;

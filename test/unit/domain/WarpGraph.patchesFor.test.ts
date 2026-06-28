@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
-import { encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { encodeCheckpointMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { encodeEdgeKey } from '../../../src/domain/services/JoinReducer.ts';
 
 // Shared test utilities - generators are designed for parallel-safety

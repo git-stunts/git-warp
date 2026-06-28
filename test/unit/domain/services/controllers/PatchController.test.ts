@@ -47,7 +47,7 @@ const { decodePatchMessageMock, detectMessageKindMock } = vi.hoisted(() => ({
   detectMessageKindMock: vi.fn(),
 }));
 
-vi.mock('../../../../../src/domain/services/codec/WarpMessageCodec.ts', async (importOriginal) => {
+vi.mock('../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts', async (importOriginal) => {
   const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,

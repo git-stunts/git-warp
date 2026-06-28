@@ -6,6 +6,7 @@ import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import { CborCodec, decode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { hydrateDecodedPatch } from '../../../../src/domain/services/PatchHydrator.ts';
 import type { CommitLogChunk } from '../../../../src/ports/CommitPort.ts';
 import type BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
@@ -137,6 +138,7 @@ export function createPatchJournal(persistence: PatchBuilderMockPersistence): Cb
   return new CborPatchJournalAdapter({
     codec: new CborCodec(),
     blobPort: persistence,
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   });
 }
 
@@ -151,6 +153,7 @@ export function createPatchBuilderOptions(
     lamport: 1,
     versionVector: VersionVector.empty(),
     getCurrentState: () => null,
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     ...overrides,
   };
 }

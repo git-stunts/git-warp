@@ -78,7 +78,7 @@ vi.mock('../../../../../src/domain/services/state/checkpointHelpers.ts', () => (
   isCurrentCheckpointSchema: isCurrentCheckpointSchemaMock,
 }));
 
-vi.mock('../../../../../src/domain/services/codec/WarpMessageCodec.ts', () => ({
+vi.mock('../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts', () => ({
   decodePatchMessage: decodePatchMessageMock,
   detectMessageKind: detectMessageKindMock,
   encodeAnchorMessage: encodeAnchorMessageMock,

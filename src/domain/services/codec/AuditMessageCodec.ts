@@ -4,7 +4,8 @@
 
 import { validateGraphName, validateWriterId } from '../../utils/RefLayout.ts';
 import {
-  getCodec,
+  decodeTrailerTextMessage,
+  encodeTrailerTextMessage,
   MESSAGE_TITLES,
   TRAILER_KEYS,
   validateOid,
@@ -28,16 +29,15 @@ export function encodeAuditMessage(params: { graph: string; writer: string; data
   validateOid(dataCommit, 'dataCommit');
   validateSha256(opsDigest, 'opsDigest');
 
-  const codec = getCodec();
-  return codec.encode({
-    title: MESSAGE_TITLES['audit'] ?? 'audit',
+  return encodeTrailerTextMessage({
+    title: MESSAGE_TITLES.audit,
     trailers: {
-      [TRAILER_KEYS['dataCommit'] ?? 'eg-data-commit']: dataCommit,
-      [TRAILER_KEYS['graph'] ?? 'eg-graph']: graph,
-      [TRAILER_KEYS['kind'] ?? 'eg-kind']: 'audit',
-      [TRAILER_KEYS['opsDigest'] ?? 'eg-ops-digest']: opsDigest,
-      [TRAILER_KEYS['schema'] ?? 'eg-schema']: '1',
-      [TRAILER_KEYS['writer'] ?? 'eg-writer']: writer,
+      [TRAILER_KEYS.dataCommit]: dataCommit,
+      [TRAILER_KEYS.graph]: graph,
+      [TRAILER_KEYS.kind]: 'audit',
+      [TRAILER_KEYS.opsDigest]: opsDigest,
+      [TRAILER_KEYS.schema]: '1',
+      [TRAILER_KEYS.writer]: writer,
     },
   });
 }
@@ -67,8 +67,7 @@ function checkDuplicateTrailers(trailers: Record<string, string>): void {
 
 /** Decodes an audit commit message. */
 export function decodeAuditMessage(message: string): AuditMessage {
-  const codec = getCodec();
-  const { trailers } = codec.decode(message);
+  const { trailers } = decodeTrailerTextMessage(message);
 
   checkDuplicateTrailers(trailers);
   validateKindDiscriminator(trailers, 'audit');

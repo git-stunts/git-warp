@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  loadPatchRange,
+  loadPatchRange as loadPatchRangeWithCodec,
   computeSyncDelta,
   createSyncRequest,
   processSyncRequest,
@@ -15,7 +15,10 @@ import {
 import { createFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import {
+  DEFAULT_COMMIT_MESSAGE_CODEC,
+  encodePatchMessage,
+} from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -101,7 +104,25 @@ function createPatchJournal(persistence: any) {
     codec: new CborCodec(),
     blobPort: persistence,
     commitPort: persistence,
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   });
+}
+
+async function loadPatchRange(
+  ...args: Parameters<typeof loadPatchRangeWithCodec>
+): ReturnType<typeof loadPatchRangeWithCodec> {
+  const [persistence, graphName, writerId, fromSha, toSha, options] = args;
+  return await loadPatchRangeWithCodec(
+    persistence,
+    graphName,
+    writerId,
+    fromSha,
+    toSha,
+    {
+      ...options,
+      commitMessageCodec: options?.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
+    },
+  );
 }
 
 /**

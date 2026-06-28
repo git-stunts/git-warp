@@ -13,7 +13,10 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
-import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import {
+  DEFAULT_COMMIT_MESSAGE_CODEC,
+  encodePatchMessage,
+} from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
@@ -118,6 +121,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -142,6 +146,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -160,6 +165,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -180,6 +186,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -198,6 +205,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -214,6 +222,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -232,6 +241,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -256,6 +266,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -280,6 +291,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -305,6 +317,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -337,6 +350,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -364,6 +378,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -391,6 +406,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -415,6 +431,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -445,6 +462,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -490,6 +508,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -521,6 +540,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -552,6 +572,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -576,6 +597,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -602,6 +624,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -627,6 +650,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -653,6 +677,7 @@ describe('Writer (WARP schema:2)', () => {
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
         versionVector,

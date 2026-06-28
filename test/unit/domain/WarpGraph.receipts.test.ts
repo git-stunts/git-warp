@@ -99,7 +99,7 @@ async function simulatePatchCommit(persistence: any, {
   context,
 }: { graphName: any; writerId: any; lamport: any; ops: any; context?: any }) {
   const { encode } = await import('../../../src/infrastructure/codecs/CborCodec.ts');
-  const { encodePatchMessage } = await import('../../../src/domain/services/codec/WarpMessageCodec.ts');
+  const { encodePatchMessage } = await import('../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts');
   const { buildWriterRef } = await import('../../../src/domain/utils/RefLayout.ts');
   const patch = {
     schema: 2,

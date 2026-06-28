@@ -25,7 +25,7 @@ import ProvenancePayload from './provenance/ProvenancePayload.ts';
 import WormholeError from '../errors/WormholeError.ts';
 import EncryptionError from '../errors/EncryptionError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
+import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import type CommitPort from '../../ports/CommitPort.ts';
 import type BlobPort from '../../ports/BlobPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
@@ -101,7 +101,7 @@ interface ProcessCommitOptions {
   sha: string;
   graphName: string;
   expectedWriter: string | null;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
   codec?: CodecPort;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -123,7 +123,7 @@ async function processCommit({
   patchBlobStorage,
 }: ProcessCommitOptions): Promise<PatchEntry> {
   const codec = codecOpt ?? defaultCodec;
-  const messageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+  const messageCodec = requireCommitMessageCodec(commitMessageCodec);
   const nodeInfo = await persistence.getNodeInfo(sha);
   const { message, parents } = nodeInfo;
 
@@ -192,7 +192,7 @@ interface CollectPatchRangeOptions {
   graphName: string;
   fromSha: string;
   toSha: string;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
   codec?: CodecPort;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -227,7 +227,7 @@ async function collectPatchRange({
       sha: currentSha,
       graphName,
       expectedWriter: writerId,
-      ...(commitMessageCodec !== undefined ? { commitMessageCodec } : {}),
+      commitMessageCodec,
       ...(codec !== undefined ? { codec } : {}),
       ...(blobStorage !== undefined ? { blobStorage } : {}),
       ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
@@ -270,7 +270,7 @@ interface CreateWormholeOptions {
   graphName: string;
   fromSha: string;
   toSha: string;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
   codec?: CodecPort;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -309,7 +309,7 @@ export async function createWormhole({
     graphName,
     fromSha,
     toSha,
-    ...(commitMessageCodec !== undefined ? { commitMessageCodec } : {}),
+    commitMessageCodec,
     ...(codec !== undefined ? { codec } : {}),
     ...(blobStorage !== undefined ? { blobStorage } : {}),
     ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),

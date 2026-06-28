@@ -7,7 +7,7 @@ import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import EdgePropSet from '../../types/ops/EdgePropSet.ts';
 import PropSet from '../../types/ops/PropSet.ts';
 import type { PatchOp } from '../../types/ops/unions.ts';
-import { getCodec, TRAILER_KEYS } from './MessageCodecInternal.ts';
+import { decodeTrailerTextMessage, TRAILER_KEYS } from './MessageCodecInternal.ts';
 
 // ── Constants ───────────────────────────────────────────────────────
 
@@ -56,17 +56,20 @@ export function assertOpsCompatible(ops: readonly PatchOp[] | null | undefined, 
 // ── Message kind detection ──────────────────────────────────────────
 
 type MessageKind = 'patch' | 'checkpoint' | 'anchor' | 'audit';
+const MESSAGE_KINDS: readonly MessageKind[] = Object.freeze(['patch', 'checkpoint', 'anchor', 'audit']);
 
-const VALID_KINDS = new Set<string>(['patch', 'checkpoint', 'anchor', 'audit']);
+function isMessageKind(kind: string | undefined): kind is MessageKind {
+  return MESSAGE_KINDS.some((candidate) => candidate === kind);
+}
 
 /** Detects the WARP message kind from a raw commit message. */
 export function detectMessageKind(message: string): MessageKind | null {
   if (typeof message !== 'string') { return null; }
   try {
-    const decoded = getCodec().decode(message);
-    const kind = decoded.trailers[TRAILER_KEYS['kind'] ?? 'eg-kind'];
-    if (typeof kind === 'string' && VALID_KINDS.has(kind)) {
-      return kind as MessageKind;
+    const decoded = decodeTrailerTextMessage(message);
+    const kind = decoded.trailers[TRAILER_KEYS.kind];
+    if (isMessageKind(kind)) {
+      return kind;
     }
     return null;
   } catch {

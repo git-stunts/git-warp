@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
-import { decodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { decodePatchMessage } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { requirePatchOp } from '../PatchOperationAssertions.ts';
 import {
   createPatchBuilder,

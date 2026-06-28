@@ -13,7 +13,7 @@ import OpticBasisPosture from '../../../../../src/domain/services/optic/OpticBas
 import OpticCoordinatePosture from '../../../../../src/domain/services/optic/OpticCoordinatePosture.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
-} from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
+} from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
 import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';

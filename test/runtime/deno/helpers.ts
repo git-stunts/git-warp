@@ -29,9 +29,11 @@ export function denoRuntimeTest(
 export async function loadModules() {
   const root = Deno.cwd();
   const plumbingModule = (await import(join(root, "node_modules/@git-stunts/plumbing/index.js"))).default;
+  const runtimeDefaultsModule = await import(join(root, "src/application/RuntimeHostCommitMessageCodecDefaults.ts"));
   const gitGraphAdapterModule = (await import(join(root, "src/infrastructure/adapters/GitGraphAdapter.ts"))).default;
   const warpCoreModule = (await import(join(root, "src/domain/WarpCore.ts"))).default;
   const webCryptoAdapterModule = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.ts"))).default;
+  runtimeDefaultsModule.installDefaultRuntimeHostCommitMessageCodec();
   Plumbing = plumbingModule;
   GitGraphAdapter = gitGraphAdapterModule;
   WarpCore = warpCoreModule;

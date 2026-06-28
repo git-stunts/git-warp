@@ -3,6 +3,7 @@ import MaterializeController from '../../../../../src/domain/services/controller
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import type { CheckpointData, PatchWithSha } from '../../../../../src/domain/capabilities/PatchCollector.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 
 type Coordinate = {
   frontier: Map<string, string>;
@@ -117,6 +118,7 @@ function createControllerFixtures() {
       showNode: vi.fn().mockResolvedValue(''),
       readBlob: vi.fn().mockResolvedValue(new Uint8Array([1])),
     },
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     getStateCache: () => stateCache,
     patches,
     graphCloner: { openReadOnly: vi.fn() },

@@ -3,7 +3,7 @@ import { openRuntimeHostProduct, type RuntimeHostProduct } from '../../../src/do
 import ProvenanceController from '../../../src/domain/services/controllers/ProvenanceController.ts';
 import type { ProvenanceReadHost } from '../../../src/domain/services/controllers/ReadGraphHost.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 

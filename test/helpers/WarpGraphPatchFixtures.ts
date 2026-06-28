@@ -12,7 +12,7 @@ import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import { normalizeRawOp } from '../../src/domain/services/OpNormalizer.ts';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.ts';
-import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageCodec.ts';
+import { encodePatchMessage } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { generateOidFromNumber } from './WarpGraphObjectIds.ts';
 
 type PatchContext = ConstructorParameters<typeof Patch>[0]['context'];

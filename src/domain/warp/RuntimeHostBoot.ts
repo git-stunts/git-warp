@@ -4,11 +4,11 @@ import defaultCodec from '../utils/defaultCodec.ts';
 import defaultCrypto from '../utils/defaultCrypto.ts';
 import MaterializedViewService from '../services/MaterializedViewService.ts';
 import StateHashService from '../services/state/StateHashService.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../services/codec/WarpMessageCodec.ts';
 import StateSession from '../orset/session/StateSession.ts';
 import PageCache from '../orset/trie/PageCache.ts';
 import TrieGeometry from '../orset/trie/TrieGeometry.ts';
 import WarpError from '../errors/WarpError.ts';
+import { requireCommitMessageCodec } from '../services/codec/CommitMessageCodecRequirement.ts';
 import {
   resolveBlobStorage,
   resolvePatchWriteStorage,
@@ -41,6 +41,16 @@ import type { MaterializeSessionOpener } from '../services/controllers/Materiali
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
 const VALID_DELETE_POLICIES: ReadonlyArray<DeletePolicy> = ['reject', 'cascade', 'warn'];
 
+export type CommitMessageCodecResolver = () => CommitMessageCodecPort | Promise<CommitMessageCodecPort>;
+
+let runtimeHostCommitMessageCodecResolver: CommitMessageCodecResolver | null = null;
+
+export function installRuntimeHostCommitMessageCodecResolver(
+  resolver: CommitMessageCodecResolver,
+): void {
+  runtimeHostCommitMessageCodecResolver = resolver;
+}
+
 export type RuntimeHostConstructionOptions = {
   persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
   graphName: string;
@@ -58,7 +68,7 @@ export type RuntimeHostConstructionOptions = {
   audit?: boolean;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
-  commitMessageCodec?: CommitMessageCodecPort;
+  commitMessageCodec: CommitMessageCodecPort;
   trust?: { mode?: TrustMode; pin?: string | null };
   patchJournal: PatchJournalPort;
   checkpointStore: CheckpointStorePort;
@@ -252,6 +262,18 @@ export type RuntimeMigrationBoundary = {
   _validateMigrationBoundary(): Promise<void>;
 };
 
+async function resolveConfiguredCommitMessageCodec(
+  commitMessageCodec: CommitMessageCodecPort | undefined,
+): Promise<CommitMessageCodecPort> {
+  if (commitMessageCodec !== undefined) {
+    return commitMessageCodec;
+  }
+  const resolvedCodec = runtimeHostCommitMessageCodecResolver === null
+    ? undefined
+    : await runtimeHostCommitMessageCodecResolver();
+  return requireCommitMessageCodec(resolvedCodec);
+}
+
 export type RuntimeBooted<T extends RuntimeMigrationBoundary> = {
   runtime: T;
   normalizedTrust: NormalizedTrustConfig;
@@ -296,7 +318,7 @@ export async function resolveRuntimeHostConstructionOptions(
   const normalizedTrust = normalizeTrustConfig(trust);
 
   const resolvedBlobStorage = await resolveBlobStorage(blobStorage, persistence);
-  const resolvedCommitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+  const resolvedCommitMessageCodec = await resolveConfiguredCommitMessageCodec(commitMessageCodec);
   const resolvedCodec = codec ?? defaultCodec;
   const resolvedCrypto = crypto ?? defaultCrypto;
   const patchWriteStorage = resolvePatchWriteStorage(persistence, patchBlobStorage);
