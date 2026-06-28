@@ -36,8 +36,7 @@ export default class IntentController implements IntentCapability {
       }
     }
     const jsonBytes = new TextEncoder().encode(JSON.stringify(descriptor));
-    const randomSuffix = Math.floor(Math.random() * 1000000);
-    let sha = `blob:intent:${descriptor.intentId}:${randomSuffix}`;
+    let sha = `blob:intent:${descriptor.intentId}:${this._host._writerId}`;
     if (typeof this._host._persistence.writeBlob === 'function') {
       sha = await this._host._persistence.writeBlob(jsonBytes);
     }
@@ -49,15 +48,34 @@ export default class IntentController implements IntentCapability {
     nodeProps: Readonly<{ [key: string]: unknown }> | null,
   ) {
     if (guard.op === 'nodeStatus') {
-      const actualStatus = nodeProps?.status ?? 'ABSENT';
-      if (actualStatus !== guard.expected) {
-        return { tag: guard.failureTag, nodeId: guard.nodeId, actual: String(actualStatus) };
-      }
-    } else if (guard.op === 'nodeUnassignedOrSelf') {
-      const assignedAgent = nodeProps?.agentId ?? null;
-      if (assignedAgent !== null && assignedAgent !== guard.agentId) {
-        return { tag: guard.failureTag, nodeId: guard.nodeId, actual: String(assignedAgent) };
-      }
+      return this._checkStatusGuard(guard, nodeProps);
+    }
+    if (guard.op === 'nodeUnassignedOrSelf') {
+      return this._checkAgentGuard(guard, nodeProps);
+    }
+    return null;
+  }
+
+  private _checkStatusGuard(
+    guard: { op: 'nodeStatus'; nodeId: string; expected: string; failureTag: string },
+    nodeProps: Readonly<{ [key: string]: unknown }> | null,
+  ) {
+    const raw = nodeProps ? nodeProps['status'] : null;
+    const actualStatus = typeof raw === 'string' ? raw : 'ABSENT';
+    if (actualStatus !== guard.expected) {
+      return { tag: guard.failureTag, nodeId: guard.nodeId, actual: actualStatus };
+    }
+    return null;
+  }
+
+  private _checkAgentGuard(
+    guard: { op: 'nodeUnassignedOrSelf'; nodeId: string; agentId: string; failureTag: string },
+    nodeProps: Readonly<{ [key: string]: unknown }> | null,
+  ) {
+    const raw = nodeProps ? nodeProps['agentId'] : null;
+    const assignedAgent = typeof raw === 'string' ? raw : null;
+    if (assignedAgent !== null && assignedAgent !== guard.agentId) {
+      return { tag: guard.failureTag, nodeId: guard.nodeId, actual: assignedAgent };
     }
     return null;
   }
