@@ -1,3 +1,3 @@
-import { installDefaultRuntimeHostCommitMessageCodec } from '../../src/application/RuntimeHostCommitMessageCodecDefaults.ts';
+import { installDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 
-installDefaultRuntimeHostCommitMessageCodec();
+installDefaultRuntimeHostNodePorts();

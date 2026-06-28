@@ -101,6 +101,7 @@ function createHandle(
     writerId: 'agent-1',
     commitPatch,
     createWorldline: () => createWorldline(calls),
+    admitIntent: async (descriptor) => ({ admitted: true, sha: 'blob:intent:123', intentId: descriptor.intentId }),
   });
 }
 

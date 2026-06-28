@@ -14,13 +14,13 @@
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type StreamingIndexStoragePort from '../../../ports/StreamingIndexStoragePort.ts';
-import defaultCodec from '../../utils/defaultCodec.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import { textEncode } from '../../utils/bytes.ts';
 import { normalizeToAsyncIterable } from '../../utils/streamUtils.ts';
 import IndexError from '../../errors/IndexError.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import BitmapAccumulator from './BitmapAccumulator.ts';
 
 /** Default memory threshold before flushing (50 MB). */
@@ -42,7 +42,7 @@ export type BuilderOptions = {
 
 export default class StreamingBitmapIndexBuilder {
   private readonly _storage: StreamingIndexStoragePort;
-  private readonly _codec: CodecPort;
+  private readonly _codec: CodecPort | null;
   private readonly _logger: LoggerPort;
   private readonly _maxMemoryBytes: number;
   private readonly _onFlush: ((stats: FlushStats) => void) | undefined;
@@ -55,7 +55,7 @@ export default class StreamingBitmapIndexBuilder {
     const { storage, maxMemoryBytes } = StreamingBitmapIndexBuilder._validate(options);
     this._storage = storage;
     this._maxMemoryBytes = maxMemoryBytes;
-    this._codec = options.codec ?? defaultCodec;
+    this._codec = options.codec ?? null;
     this._logger = options.logger ?? nullLogger;
     this._onFlush = options.onFlush;
     this._accumulator = new BitmapAccumulator();
@@ -202,13 +202,14 @@ export default class StreamingBitmapIndexBuilder {
     fwd: Record<string, Record<string, Uint8Array>>;
     rev: Record<string, Record<string, Uint8Array>>;
   }): Promise<void> {
+    const codec = requireCodec(this._codec, 'StreamingBitmapIndexBuilder');
     const tasks: Promise<void>[] = [];
     for (const dir of ['fwd', 'rev'] as const) {
       for (const [prefix, data] of Object.entries(shards[dir])) {
         const path = `shards_${dir}_${prefix}.cbor`;
         tasks.push(
           (async (): Promise<void> => {
-            const encoded = this._codec.encode(data);
+            const encoded = codec.encode(data);
             const oid = await this._storage.writeBlobStream(
               normalizeToAsyncIterable(encoded),
               { slug: path, mime: 'application/cbor', size: encoded.length },
@@ -225,12 +226,13 @@ export default class StreamingBitmapIndexBuilder {
   }
 
   private async _writeMetaShards(): Promise<string[]> {
+    const codec = requireCodec(this._codec, 'StreamingBitmapIndexBuilder');
     const entries: string[] = [];
     const chunkOrdinal = new Map<string, number>();
     const chunkLimit = Math.max(1, Math.floor(this._maxMemoryBytes / 256));
     for (const { prefix, entries: shardEntries } of this._accumulator.iterateMetaShardChunks(chunkLimit)) {
       const chunkIndex = chunkOrdinal.get(prefix) ?? 0;
-      const encoded = this._codec.encode(Object.fromEntries(shardEntries));
+      const encoded = codec.encode(Object.fromEntries(shardEntries));
       const chunkPath = this._chunkPath(`meta_${prefix}.cbor`, chunkIndex);
       const oid = await this._storage.writeBlobStream(
         normalizeToAsyncIterable(encoded),
@@ -269,7 +271,8 @@ export default class StreamingBitmapIndexBuilder {
       sorted[key] = frontier.get(key);
     }
     const envelope = { version: 1, writerCount: frontier.size, frontier: sorted };
-    const cborOid = await this._storage.writeBlob(this._codec.encode(envelope));
+    const codec = requireCodec(this._codec, 'StreamingBitmapIndexBuilder');
+    const cborOid = await this._storage.writeBlob(codec.encode(envelope));
     entries.push(`100644 blob ${cborOid}\tfrontier.cbor`);
     const jsonOid = await this._storage.writeBlob(textEncode(canonicalStringify(envelope)));
     entries.push(`100644 blob ${jsonOid}\tfrontier.json`);

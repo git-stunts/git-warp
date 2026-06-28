@@ -14,8 +14,8 @@ import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryG
 import PatchJournalPort from '../../../src/ports/PatchJournalPort.ts';
 import CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
-import defaultCrypto from '../../../src/domain/utils/defaultCrypto.ts';
-import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
+import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import GCPolicy from '../../../src/domain/services/GCPolicy.ts';
 import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 

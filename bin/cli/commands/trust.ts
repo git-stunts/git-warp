@@ -10,9 +10,10 @@
 import { EXIT_CODES, parseCommandArgs, getEnvVar } from '../infrastructure.ts';
 import { trustSchema } from '../schemas.ts';
 import { createPersistence, resolveGraphName } from '../shared.ts';
-import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifierService.ts';
 import GitTrustChainAdapter from '../../../src/infrastructure/adapters/GitTrustChainAdapter.ts';
+import TrustCryptoAdapter from '../../../src/infrastructure/adapters/TrustCryptoAdapter.ts';
 import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
 import type { CliOptions, Persistence } from '../types.ts';
@@ -63,6 +64,7 @@ export default async function handleTrust({ options, args }: { options: CliOptio
     persistence: persistence as unknown as CorePersistence,
     codec: defaultCodec,
     trustChain,
+    trustCrypto: new TrustCryptoAdapter(),
   });
 
   // Resolve pin (determines source + status)

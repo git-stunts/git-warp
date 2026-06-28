@@ -17,6 +17,7 @@ import { TRUST_REASON_CODES } from '../../../../src/domain/trust/reasonCodes.ts'
 import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 import { signaturePayload } from '../../../../src/domain/trust/canonical.ts';
 import { textEncode } from '../../../../src/domain/utils/bytes.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import {
   KEY_ADD_1,
   KEY_ADD_2,
@@ -47,7 +48,7 @@ describe('Adversarial case 1: Tampered record mid-chain', () => {
       ...KEY_ADD_2,
       subject: { ...KEY_ADD_2.subject, publicKey: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' },
     };
-    expect(await verifyRecordId(tampered)).toBe(false);
+    expect(await verifyRecordId(tampered, { crypto: defaultCrypto })).toBe(false);
   });
 
   it('verifyRecordId rejects when content is modified', async () => {
@@ -57,7 +58,7 @@ describe('Adversarial case 1: Tampered record mid-chain', () => {
     };
 
     // The recordId was computed on the original content — tampered content won't match
-    expect(await verifyRecordId(tampered)).toBe(false);
+    expect(await verifyRecordId(tampered, { crypto: defaultCrypto })).toBe(false);
   });
 });
 
@@ -170,7 +171,7 @@ describe('Adversarial case 5: Forged issuerKeyId', () => {
     };
 
     // The recordId will NOT match because the content has changed
-    expect(await verifyRecordId(forged)).toBe(false);
+    expect(await verifyRecordId(forged, { crypto: defaultCrypto })).toBe(false);
   });
 
   it('forged issuerKeyId changes the canonical hash', async () => {
@@ -180,7 +181,7 @@ describe('Adversarial case 5: Forged issuerKeyId', () => {
 
     // They should compute to different record IDs
     // (the original passes, the forged fails)
-    expect(await verifyRecordId(legit)).toBe(true);
-    expect(await verifyRecordId(forged)).toBe(false);
+    expect(await verifyRecordId(legit, { crypto: defaultCrypto })).toBe(true);
+    expect(await verifyRecordId(forged, { crypto: defaultCrypto })).toBe(false);
   });
 });

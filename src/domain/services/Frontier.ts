@@ -9,7 +9,7 @@
  */
 
 import type CodecPort from '../../ports/CodecPort.ts';
-import defaultCodec from '../utils/defaultCodec.ts';
+import { requireCodec } from './codec/CodecRequirement.ts';
 
 class Frontier {
   private readonly _entries: Map<string, string>;
@@ -93,7 +93,7 @@ class Frontier {
    * converts (Wave 4).
    */
   serialize(codec?: CodecPort): Uint8Array {
-    const c = codec ?? defaultCodec;
+    const c = requireCodec(codec, 'Frontier.serialize');
     const obj: Record<string, string> = {};
     for (const key of this.writers()) {
       const val = this._entries.get(key);
@@ -109,7 +109,7 @@ class Frontier {
    * Same boundary violation note as serialize().
    */
   static deserialize(buffer: Uint8Array, codec?: CodecPort): Frontier {
-    const c = codec ?? defaultCodec;
+    const c = requireCodec(codec, 'Frontier.deserialize');
     const obj = c.decode<Record<string, string>>(buffer);
     const frontier = new Frontier();
     for (const [writerId, patchSha] of Object.entries(obj)) {

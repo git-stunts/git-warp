@@ -14,6 +14,7 @@ import BitmapIndexBuilder from './BitmapIndexBuilder.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import IndexError from '../../errors/IndexError.ts';
 import WarpState from '../state/WarpState.ts';
+import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type StateSession from '../../orset/session/StateSession.ts';
 import {
@@ -45,8 +46,8 @@ function validateWarpState(state: WarpState | null | undefined): WarpState {
 export default class WarpStateIndexBuilder {
   private readonly _builder: BitmapIndexBuilder;
 
-  constructor(_options?: { crypto?: CryptoPort }) {
-    this._builder = new BitmapIndexBuilder();
+  constructor(options: { codec: CodecPort; crypto?: CryptoPort }) {
+    this._builder = new BitmapIndexBuilder({ codec: options.codec });
   }
 
   /**
@@ -147,9 +148,9 @@ export default class WarpStateIndexBuilder {
  */
 export function buildWarpStateIndex(
   state: WarpState | null | undefined,
-  options?: { crypto?: CryptoPort },
+  options: { codec: CodecPort; crypto?: CryptoPort },
 ): { tree: Record<string, Uint8Array>; stats: { nodes: number; edges: number } } {
-  const indexBuilder = new WarpStateIndexBuilder(options !== undefined ? options : {});
+  const indexBuilder = new WarpStateIndexBuilder(options);
   const { stats } = indexBuilder.buildFromState(state);
   const tree = indexBuilder.serialize();
   return { tree, stats };
@@ -157,9 +158,9 @@ export function buildWarpStateIndex(
 
 export async function buildWarpStateIndexFromSession(
   session: StateSession,
-  options?: { crypto?: CryptoPort },
+  options: { codec: CodecPort; crypto?: CryptoPort },
 ): Promise<{ tree: Record<string, Uint8Array>; stats: { nodes: number; edges: number } }> {
-  const indexBuilder = new WarpStateIndexBuilder(options !== undefined ? options : {});
+  const indexBuilder = new WarpStateIndexBuilder(options);
   const { stats } = await indexBuilder.buildFromSession(session);
   const tree = indexBuilder.serialize();
   return { tree, stats };

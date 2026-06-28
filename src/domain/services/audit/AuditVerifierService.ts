@@ -15,6 +15,7 @@ import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type TrustChainPort from '../../../ports/TrustChainPort.ts';
+import type TrustCryptoPort from '../../../ports/TrustCryptoPort.ts';
 import { buildAuditPrefix } from '../../utils/RefLayout.ts';
 import AuditChainVerifier, { type ChainResult } from './AuditChainVerifier.ts';
 import TrustEvaluationService, { type TrustEvaluationOptions } from './TrustEvaluationService.ts';
@@ -36,16 +37,6 @@ type VerifyResult = {
 
 type Persistence = CommitPort & RefPort & BlobPort & TreePort;
 
-type TrustCrypto = {
-  verifySignature: (params: {
-    algorithm: string;
-    publicKeyBase64: string;
-    signatureBase64: string;
-    payload: Uint8Array;
-  }) => boolean;
-  computeKeyFingerprint: (publicKeyBase64: string) => string;
-};
-
 export default class AuditVerifierService {
   private readonly _chainVerifier: AuditChainVerifier;
   private readonly _trustService: TrustEvaluationService;
@@ -56,7 +47,7 @@ export default class AuditVerifierService {
     persistence: Persistence;
     codec: CodecPort;
     logger?: LoggerPort;
-    trustCrypto?: TrustCrypto;
+    trustCrypto?: TrustCryptoPort;
     trustChain?: TrustChainPort;
   }) {
     this._persistence = opts.persistence;

@@ -1,6 +1,6 @@
-import defaultCodec from '../../utils/defaultCodec.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import { textEncode } from '../../utils/bytes.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import BitmapAccumulator from './BitmapAccumulator.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type { RoaringBitmapSubset } from '../../utils/roaring.ts';
@@ -35,7 +35,7 @@ function serializeFrontierToTree(
  * const tree = await builder.serialize();
  */
 export default class BitmapIndexBuilder {
-  private readonly _codec: CodecPort;
+  private readonly _codec: CodecPort | null;
   private readonly _accumulator: BitmapAccumulator;
 
   /**
@@ -43,7 +43,7 @@ export default class BitmapIndexBuilder {
    */
   constructor(options?: { codec?: CodecPort }) {
     const { codec } = options ?? {};
-    this._codec = codec ?? defaultCodec;
+    this._codec = codec ?? null;
     this._accumulator = new BitmapAccumulator();
   }
 
@@ -87,22 +87,23 @@ export default class BitmapIndexBuilder {
    */
   serialize(options?: { frontier?: Map<string, string> }): Record<string, Uint8Array> {
     const { frontier } = options ?? {};
+    const codec = requireCodec(this._codec, 'BitmapIndexBuilder.serialize');
     const tree: Record<string, Uint8Array> = {};
 
     const metaShards = this._accumulator.buildMetaShards();
     for (const [prefix, map] of Object.entries(metaShards)) {
-      tree[`meta_${prefix}.cbor`] = this._codec.encode(map);
+      tree[`meta_${prefix}.cbor`] = codec.encode(map);
     }
 
     const bitmapShards = this._accumulator.serializeBitmapsToShards();
     for (const dir of ['fwd', 'rev'] as const) {
       for (const [prefix, data] of Object.entries(bitmapShards[dir])) {
-        tree[`shards_${dir}_${prefix}.cbor`] = this._codec.encode(data);
+        tree[`shards_${dir}_${prefix}.cbor`] = codec.encode(data);
       }
     }
 
     if (frontier !== undefined) {
-      serializeFrontierToTree(frontier, tree, this._codec);
+      serializeFrontierToTree(frontier, tree, codec);
     }
 
     return tree;

@@ -4,6 +4,8 @@ import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * @param {string[]} nodes
@@ -46,8 +48,8 @@ describe('materialize stale-checkpoint regression', () => {
     const deps = (({
       clock: { now: () => 0, timestamp: () => 0 },
       logger: { info() {}, warn() {}, error() {}, debug() {} },
-      codec: null,
-      crypto: null,
+      codec: defaultCodec,
+      crypto: defaultCrypto,
       persistence: {},
       getSeekCache: () => null,
       graphName: 'test',
@@ -72,7 +74,7 @@ describe('materialize stale-checkpoint regression', () => {
     const result = await ctrl.materialize({});
 
     // The result should reflect latestState which has A, B, C with two edges.
-    const viewService = new MaterializedViewService();
+    const viewService = new MaterializedViewService({ codec: defaultCodec });
     const viewResult = viewService.build(result.state);
     const neighbors = viewResult.logicalIndex
       .getEdges('A', 'out')

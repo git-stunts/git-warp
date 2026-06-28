@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { computeRecordId, verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import {
   KEY_ADD_1,
   KEY_ADD_2,
@@ -19,38 +20,38 @@ import {
 
 describe('Canonical hash freeze', () => {
   it('KEY_ADD_1 recordId is pinned', async () => {
-    expect(await computeRecordId((KEY_ADD_1 as any))).toBe(
+    expect(await computeRecordId((KEY_ADD_1 as any), { crypto: defaultCrypto })).toBe(
       '3d4f7c3bb432678a6e28b3d07de8ad2a86a8c6cbaf037ac90cdd4aaf388abbb4',
     );
   });
 
   it('KEY_ADD_2 recordId is pinned', async () => {
-    expect(await computeRecordId((KEY_ADD_2 as any))).toBe(
+    expect(await computeRecordId((KEY_ADD_2 as any), { crypto: defaultCrypto })).toBe(
       '8b9a16431641093790226915c471b10ce5928c065c4abc5a25e0d90cb2ba936a',
     );
   });
 
   it('WRITER_BIND_ADD_ALICE recordId is pinned', async () => {
-    expect(await computeRecordId((WRITER_BIND_ADD_ALICE as any))).toBe(
+    expect(await computeRecordId((WRITER_BIND_ADD_ALICE as any), { crypto: defaultCrypto })).toBe(
       '70cc5fe9b9f0d12c4dc33ab7e9270702444f3b86b8be8785b966e449ffc889a8',
     );
   });
 
   it('KEY_REVOKE_2 recordId is pinned', async () => {
-    expect(await computeRecordId((KEY_REVOKE_2 as any))).toBe(
+    expect(await computeRecordId((KEY_REVOKE_2 as any), { crypto: defaultCrypto })).toBe(
       '4281dd3741f61c7d3afb21a458284406685484343696719429d8dc90165177f1',
     );
   });
 
   it('WRITER_BIND_REVOKE_BOB recordId is pinned', async () => {
-    expect(await computeRecordId((WRITER_BIND_REVOKE_BOB as any))).toBe(
+    expect(await computeRecordId((WRITER_BIND_REVOKE_BOB as any), { crypto: defaultCrypto })).toBe(
       'f6646d48ee3bd4f2d85387fdad7711054249bc7e174b0c03b78dfa4ad20bdd5c',
     );
   });
 
   it('all golden records pass verifyRecordId', async () => {
     for (const record of GOLDEN_CHAIN) {
-      expect(await verifyRecordId((record as any))).toBe(true);
+      expect(await verifyRecordId((record as any), { crypto: defaultCrypto })).toBe(true);
     }
   });
 

@@ -1,14 +1,11 @@
 import { validateGraphName, validateWriterId } from '../utils/RefLayout.ts';
 import { AuditReceiptService } from '../services/audit/AuditReceiptService.ts';
-import defaultCodec from '../utils/defaultCodec.ts';
-import defaultCrypto from '../utils/defaultCrypto.ts';
 import MaterializedViewService from '../services/MaterializedViewService.ts';
 import StateHashService from '../services/state/StateHashService.ts';
 import StateSession from '../orset/session/StateSession.ts';
 import PageCache from '../orset/trie/PageCache.ts';
 import TrieGeometry from '../orset/trie/TrieGeometry.ts';
 import WarpError from '../errors/WarpError.ts';
-import { requireCommitMessageCodec } from '../services/codec/CommitMessageCodecRequirement.ts';
 import {
   resolveBlobStorage,
   resolvePatchWriteStorage,
@@ -18,6 +15,12 @@ import {
   type TrustMode,
   type NormalizedTrustConfig,
 } from '../runtimeHelpers.ts';
+import {
+  resolveConfiguredCodec,
+  resolveConfiguredCommitMessageCodec,
+  resolveConfiguredCrypto,
+  resolveConfiguredTrustCrypto,
+} from './RuntimeHostPortResolvers.ts';
 
 import type { CorePersistence } from '../types/WarpPersistence.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
@@ -33,6 +36,7 @@ import type IndexStorePort from '../../ports/IndexStorePort.ts';
 import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
 import type SchedulerPort from '../../ports/SchedulerPort.ts';
+import type TrustCryptoPort from '../../ports/TrustCryptoPort.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
 import GCPolicy, { type GCPolicyConfig } from '../services/GCPolicy.ts';
@@ -40,16 +44,6 @@ import type { MaterializeSessionOpener } from '../services/controllers/Materiali
 
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
 const VALID_DELETE_POLICIES: ReadonlyArray<DeletePolicy> = ['reject', 'cascade', 'warn'];
-
-export type CommitMessageCodecResolver = () => CommitMessageCodecPort | Promise<CommitMessageCodecPort>;
-
-let runtimeHostCommitMessageCodecResolver: CommitMessageCodecResolver | null = null;
-
-export function installRuntimeHostCommitMessageCodecResolver(
-  resolver: CommitMessageCodecResolver,
-): void {
-  runtimeHostCommitMessageCodecResolver = resolver;
-}
 
 export type RuntimeHostConstructionOptions = {
   persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
@@ -61,8 +55,9 @@ export type RuntimeHostConstructionOptions = {
   autoMaterialize?: boolean;
   onDeleteWithData?: DeletePolicy;
   logger?: LoggerPort;
-  crypto?: CryptoPort;
-  codec?: CodecPort;
+  crypto: CryptoPort;
+  codec: CodecPort;
+  trustCrypto?: TrustCryptoPort;
   seekCache?: SeekCachePort;
   stateCache?: WarpStateCachePort;
   audit?: boolean;
@@ -93,6 +88,7 @@ export type RuntimeHostOpenOptions = {
   logger?: LoggerPort;
   crypto?: CryptoPort;
   codec?: CodecPort;
+  trustCrypto?: TrustCryptoPort;
   seekCache?: SeekCachePort;
   stateCache?: WarpStateCachePort;
   audit?: boolean;
@@ -120,8 +116,9 @@ export class WarpOpenOptions {
   readonly autoMaterialize?: boolean;
   readonly onDeleteWithData?: DeletePolicy;
   readonly logger?: LoggerPort;
-  readonly crypto: CryptoPort;
-  readonly codec: CodecPort;
+  readonly crypto?: CryptoPort;
+  readonly codec?: CodecPort;
+  readonly trustCrypto?: TrustCryptoPort;
   readonly seekCache?: SeekCachePort;
   readonly stateCache?: WarpStateCachePort;
   readonly audit?: boolean;
@@ -149,8 +146,9 @@ export class WarpOpenOptions {
     this.graphName = options.graphName;
     this.writerId = options.writerId;
     this.gcPolicy = snapshotGCPolicy(options.gcPolicy);
-    this.crypto = options.crypto ?? defaultCrypto;
-    this.codec = options.codec ?? defaultCodec;
+    if (options.crypto !== undefined) { this.crypto = options.crypto; }
+    if (options.codec !== undefined) { this.codec = options.codec; }
+    if (options.trustCrypto !== undefined) { this.trustCrypto = options.trustCrypto; }
 
     if (options.adjacencyCacheSize !== undefined) {
       this.adjacencyCacheSize = options.adjacencyCacheSize;
@@ -258,21 +256,7 @@ function normalizeDeletePolicy(policy: DeletePolicy): DeletePolicy {
   return policy;
 }
 
-export type RuntimeMigrationBoundary = {
-  _validateMigrationBoundary(): Promise<void>;
-};
-
-async function resolveConfiguredCommitMessageCodec(
-  commitMessageCodec: CommitMessageCodecPort | undefined,
-): Promise<CommitMessageCodecPort> {
-  if (commitMessageCodec !== undefined) {
-    return commitMessageCodec;
-  }
-  const resolvedCodec = runtimeHostCommitMessageCodecResolver === null
-    ? undefined
-    : await runtimeHostCommitMessageCodecResolver();
-  return requireCommitMessageCodec(resolvedCodec);
-}
+export type RuntimeMigrationBoundary = { _validateMigrationBoundary(): Promise<void> };
 
 export type RuntimeBooted<T extends RuntimeMigrationBoundary> = {
   runtime: T;
@@ -298,6 +282,7 @@ export async function resolveRuntimeHostConstructionOptions(
     logger,
     crypto,
     codec,
+    trustCrypto,
     seekCache,
     stateCache,
     audit,
@@ -319,8 +304,9 @@ export async function resolveRuntimeHostConstructionOptions(
 
   const resolvedBlobStorage = await resolveBlobStorage(blobStorage, persistence);
   const resolvedCommitMessageCodec = await resolveConfiguredCommitMessageCodec(commitMessageCodec);
-  const resolvedCodec = codec ?? defaultCodec;
-  const resolvedCrypto = crypto ?? defaultCrypto;
+  const resolvedCodec = await resolveConfiguredCodec(codec);
+  const resolvedCrypto = await resolveConfiguredCrypto(crypto);
+  const resolvedTrustCrypto = await resolveConfiguredTrustCrypto(trustCrypto, normalizedTrust);
   const patchWriteStorage = resolvePatchWriteStorage(persistence, patchBlobStorage);
 
   const blobPort = persistence;
@@ -429,8 +415,9 @@ export async function resolveRuntimeHostConstructionOptions(
       ...(autoMaterialize !== undefined ? { autoMaterialize } : {}),
       ...(onDeleteWithData !== undefined ? { onDeleteWithData } : {}),
       ...(logger !== undefined ? { logger } : {}),
-      ...(crypto !== undefined ? { crypto } : {}),
-      ...(codec !== undefined ? { codec } : {}),
+      crypto: resolvedCrypto,
+      codec: resolvedCodec,
+      ...(resolvedTrustCrypto !== undefined ? { trustCrypto: resolvedTrustCrypto } : {}),
       ...(seekCache !== undefined ? { seekCache } : {}),
       ...(stateCache !== undefined ? { stateCache } : {}),
       ...(audit !== undefined ? { audit } : {}),

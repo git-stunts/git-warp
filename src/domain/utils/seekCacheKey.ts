@@ -10,7 +10,8 @@
  * @module domain/utils/seekCacheKey
  */
 
-import defaultCrypto from './defaultCrypto.ts';
+import { requireCrypto } from '../services/crypto/CryptoRequirement.ts';
+import type CryptoPort from '../../ports/CryptoPort.ts';
 
 const KEY_VERSION = 'v1';
 
@@ -19,13 +20,17 @@ const KEY_VERSION = 'v1';
  * and writer frontier snapshot.
  *
  * This function is intentionally async — WebCrypto's `digest()` is async-only,
- * and `defaultCrypto.hash()` uses it. Both call sites are already async.
+ * and WebCrypto-backed ports use it. Both call sites are already async.
  */
-export async function buildSeekCacheKey(ceiling: number, frontier: Map<string, string>): Promise<string> {
+export async function buildSeekCacheKey(
+  ceiling: number,
+  frontier: Map<string, string>,
+  options: { crypto?: CryptoPort } = {},
+): Promise<string> {
   const sorted = [...frontier.entries()].sort((a, b) =>
     a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
   );
   const payload = sorted.map(([w, sha]) => `${w}:${sha}`).join('\n');
-  const hash = await defaultCrypto.hash('sha256', payload);
+  const hash = await requireCrypto(options.crypto, 'buildSeekCacheKey').hash('sha256', payload);
   return `${KEY_VERSION}:t${ceiling}-${hash}`;
 }

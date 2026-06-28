@@ -10,6 +10,7 @@ import {
 } from '../../../src/domain/services/state/CheckpointSerializer.ts';
 import { deserializeFrontier } from '../../../src/domain/services/Frontier.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.ts';
 import type GraphPersistencePort from '../../../src/ports/GraphPersistencePort.ts';
@@ -58,6 +59,7 @@ export async function upgradeCheckpointSchema(
   options: CheckpointSchemaUpgradeOptions,
 ): Promise<CheckpointSchemaUpgradeResult> {
   const commitMessageCodec = options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+  const codec = options.codec ?? defaultCodec;
   const checkpointRef = buildCheckpointRef(options.graphName);
   const previousCheckpointSha = await options.persistence.readRef(checkpointRef);
 
@@ -100,7 +102,7 @@ export async function upgradeCheckpointSchema(
     persistence: options.persistence,
     indexOid: checkpointMessage.indexOid,
     checkpointSha: previousCheckpointSha,
-    ...(options.codec === undefined ? {} : { codec: options.codec }),
+    codec,
   });
 
   if (options.dryRun === true) {
@@ -122,7 +124,7 @@ export async function upgradeCheckpointSchema(
     frontier: retiredPayload.frontier,
     parents: [previousCheckpointSha],
     commitMessageCodec,
-    ...(options.codec === undefined ? {} : { codec: options.codec }),
+    codec,
     ...(options.crypto === undefined ? {} : { crypto: options.crypto }),
     ...(retiredPayload.indexTree === undefined ? {} : { indexTree: retiredPayload.indexTree }),
     ...(retiredPayload.provenanceIndex === undefined ? {} : { provenanceIndex: retiredPayload.provenanceIndex }),
@@ -130,7 +132,7 @@ export async function upgradeCheckpointSchema(
 
   await loadCheckpoint(options.persistence, upgradedCheckpointSha, {
     commitMessageCodec,
-    ...(options.codec === undefined ? {} : { codec: options.codec }),
+    codec,
   });
   await options.persistence.updateRef(checkpointRef, upgradedCheckpointSha);
 

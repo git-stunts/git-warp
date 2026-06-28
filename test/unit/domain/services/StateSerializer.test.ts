@@ -22,6 +22,7 @@ import type { PropValue } from '../../../../src/domain/types/PropValue.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 function createInlineValue(value: unknown) { return { type: 'inline', value }; }
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import {
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_PROPERTY_KEY,
@@ -271,8 +272,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeState(state);
-      const result = deserializeState((bytes as any));
+      const bytes = serializeState(state, { codec: defaultCodec });
+      const result = deserializeState((bytes as any), { codec: defaultCodec });
 
       expect(result.nodes).toEqual(['a', 'c']);
     });
@@ -282,8 +283,8 @@ describe('StateSerializer', () => {
         nodes: [{ nodeId: 'zebra' }, { nodeId: 'apple' }, { nodeId: 'mango' }],
       });
 
-      const bytes = serializeState(state);
-      const result = deserializeState((bytes as any));
+      const bytes = serializeState(state, { codec: defaultCodec });
+      const result = deserializeState((bytes as any), { codec: defaultCodec });
 
       expect(result.nodes).toEqual(['apple', 'mango', 'zebra']);
     });
@@ -299,8 +300,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeState(state);
-      const result = deserializeState((bytes as any));
+      const bytes = serializeState(state, { codec: defaultCodec });
+      const result = deserializeState((bytes as any), { codec: defaultCodec });
 
       expect(result.edges).toEqual([
         { from: 'a', to: 'b', label: 'a' },
@@ -321,8 +322,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeState(state);
-      const result = deserializeState((bytes as any));
+      const bytes = serializeState(state, { codec: defaultCodec });
+      const result = deserializeState((bytes as any), { codec: defaultCodec });
 
       expect(result.props).toEqual([
         { node: 'a', key: 'age', value: createInlineValue(25) },
@@ -349,8 +350,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeState(state);
-      const result = deserializeState((bytes as any));
+      const bytes = serializeState(state, { codec: defaultCodec });
+      const result = deserializeState((bytes as any), { codec: defaultCodec });
 
       expect(result.nodes).toEqual(['a', 'c']);
       expect(result.edges).toEqual([{ from: 'a', to: 'c', label: 'knows' }]);
@@ -365,8 +366,8 @@ describe('StateSerializer', () => {
         edges: [{ from: 'a', to: 'b', label: 'knows', alive: false }], // tombstoned edge
       });
 
-      const bytes = serializeState(state);
-      const result = deserializeState((bytes as any));
+      const bytes = serializeState(state, { codec: defaultCodec });
+      const result = deserializeState((bytes as any), { codec: defaultCodec });
 
       expect(result.edges).toEqual([]);
     });
@@ -374,8 +375,8 @@ describe('StateSerializer', () => {
     it('serializes empty state correctly', () => {
       const state = createEmptyState();
 
-      const bytes = serializeState(state);
-      const result = deserializeState((bytes as any));
+      const bytes = serializeState(state, { codec: defaultCodec });
+      const result = deserializeState((bytes as any), { codec: defaultCodec });
 
       expect(result).toEqual({ nodes: [], edges: [], props: [] });
     });
@@ -492,7 +493,7 @@ describe('StateSerializer', () => {
         nodes: [{ nodeId: 'a' }],
       });
 
-      const hash = await computeStateHash(state, { crypto });
+      const hash = await computeStateHash(state, { crypto, codec: defaultCodec });
 
       expect(hash).toMatch(/^[0-9a-f]{64}$/);
     });
@@ -510,7 +511,7 @@ describe('StateSerializer', () => {
         props: [{ nodeId: 'a', key: 'name', value: createInlineValue('Alice') }],
       });
 
-      expect(await computeStateHash(state1, { crypto })).toBe(await computeStateHash(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto, codec: defaultCodec })).toBe(await computeStateHash(state2, { crypto, codec: defaultCodec }));
     });
 
     it('produces different hashes for different states', async () => {
@@ -522,13 +523,13 @@ describe('StateSerializer', () => {
         nodes: [{ nodeId: 'b' }],
       });
 
-      expect(await computeStateHash(state1, { crypto })).not.toBe(await computeStateHash(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto, codec: defaultCodec })).not.toBe(await computeStateHash(state2, { crypto, codec: defaultCodec }));
     });
 
     it('empty state has consistent hash', async () => {
       const state = createEmptyState();
-      const hash1 = await computeStateHash(state, { crypto });
-      const hash2 = await computeStateHash(state, { crypto });
+      const hash1 = await computeStateHash(state, { crypto, codec: defaultCodec });
+      const hash2 = await computeStateHash(state, { crypto, codec: defaultCodec });
 
       expect(hash1).toBe(hash2);
     });
@@ -545,8 +546,8 @@ describe('StateSerializer', () => {
         ],
       });
 
-      const bytes = serializeState(state);
-      const result = deserializeState((bytes as any));
+      const bytes = serializeState(state, { codec: defaultCodec });
+      const result = deserializeState((bytes as any), { codec: defaultCodec });
 
       expect(result.nodes).toEqual(['a', 'b']);
       expect(result.edges).toEqual([{ from: 'a', to: 'b', label: 'knows' }]);
@@ -562,8 +563,8 @@ describe('StateSerializer', () => {
         props: [{ nodeId: 'a', key: 'data', value: complexValue }],
       });
 
-      const bytes = serializeState(state);
-      const result = deserializeState((bytes as any));
+      const bytes = serializeState(state, { codec: defaultCodec });
+      const result = deserializeState((bytes as any), { codec: defaultCodec });
 
       const firstProp = result.props[0];
       expect(firstProp).toBeDefined();
@@ -586,7 +587,7 @@ describe('StateSerializer', () => {
       state2.nodeAlive.remove(observedDots2);
 
       // Both should have empty visible state (node removed)
-      expect(await computeStateHash(state1, { crypto })).toBe(await computeStateHash(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto, codec: defaultCodec })).toBe(await computeStateHash(state2, { crypto, codec: defaultCodec }));
     });
 
     it('concurrent add after remove wins correctly', async () => {
@@ -608,7 +609,7 @@ describe('StateSerializer', () => {
       // Both should show 'n' as visible
       expect(nodeVisible(state1, 'n')).toBe(true);
       expect(nodeVisible(state2, 'n')).toBe(true);
-      expect(await computeStateHash(state1, { crypto })).toBe(await computeStateHash(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto, codec: defaultCodec })).toBe(await computeStateHash(state2, { crypto, codec: defaultCodec }));
     });
 
     it('different insertion orders produce same hash when final state is same', async () => {
@@ -623,7 +624,7 @@ describe('StateSerializer', () => {
       state2.nodeAlive.add('mango', mockDot('w2', 2));
       state2.nodeAlive.add('zebra', mockDot('w2', 3));
 
-      expect(await computeStateHash(state1, { crypto })).toBe(await computeStateHash(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto, codec: defaultCodec })).toBe(await computeStateHash(state2, { crypto, codec: defaultCodec }));
     });
   });
 

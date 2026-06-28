@@ -1,17 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('BitmapIndexBuilder Integrity Tests', () => {
   describe('Merkle-like properties', () => {
     it('produces different serialization for different graph structures', async () => {
       // Graph A: a -> b -> c (linear)
-      const builderA = new BitmapIndexBuilder();
+      const builderA = new BitmapIndexBuilder({ codec: defaultCodec });
       builderA.addEdge('aaa', 'bbb');
       builderA.addEdge('bbb', 'ccc');
       const treeA = await builderA.serialize();
 
       // Graph B: a -> b, a -> c (fork)
-      const builderB = new BitmapIndexBuilder();
+      const builderB = new BitmapIndexBuilder({ codec: defaultCodec });
       builderB.addEdge('aaa', 'bbb');
       builderB.addEdge('aaa', 'ccc');
       const treeB = await builderB.serialize();
@@ -24,11 +25,11 @@ describe('BitmapIndexBuilder Integrity Tests', () => {
     });
 
     it('produces identical serialization for identical graphs', async () => {
-      const builder1 = new BitmapIndexBuilder();
+      const builder1 = new BitmapIndexBuilder({ codec: defaultCodec });
       builder1.addEdge('aaa', 'bbb');
       builder1.addEdge('bbb', 'ccc');
 
-      const builder2 = new BitmapIndexBuilder();
+      const builder2 = new BitmapIndexBuilder({ codec: defaultCodec });
       builder2.addEdge('aaa', 'bbb');
       builder2.addEdge('bbb', 'ccc');
 
@@ -44,11 +45,11 @@ describe('BitmapIndexBuilder Integrity Tests', () => {
     });
 
     it('detects when a node is added to an existing graph', async () => {
-      const builder1 = new BitmapIndexBuilder();
+      const builder1 = new BitmapIndexBuilder({ codec: defaultCodec });
       builder1.addEdge('aaa', 'bbb');
       const tree1 = await builder1.serialize();
 
-      const builder2 = new BitmapIndexBuilder();
+      const builder2 = new BitmapIndexBuilder({ codec: defaultCodec });
       builder2.addEdge('aaa', 'bbb');
       builder2.addEdge('bbb', 'ccc'); // Extra edge
       const tree2 = await builder2.serialize();
@@ -68,12 +69,12 @@ describe('BitmapIndexBuilder Integrity Tests', () => {
 
     it('node ID assignment is deterministic based on insertion order', () => {
       // Same insertion order = same IDs
-      const builder1 = new BitmapIndexBuilder();
+      const builder1 = new BitmapIndexBuilder({ codec: defaultCodec });
       builder1.registerNode('aaa');
       builder1.registerNode('bbb');
       builder1.registerNode('ccc');
 
-      const builder2 = new BitmapIndexBuilder();
+      const builder2 = new BitmapIndexBuilder({ codec: defaultCodec });
       builder2.registerNode('aaa');
       builder2.registerNode('bbb');
       builder2.registerNode('ccc');
@@ -84,11 +85,11 @@ describe('BitmapIndexBuilder Integrity Tests', () => {
     });
 
     it('different insertion order produces different ID mappings', () => {
-      const builder1 = new BitmapIndexBuilder();
+      const builder1 = new BitmapIndexBuilder({ codec: defaultCodec });
       builder1.registerNode('aaa');
       builder1.registerNode('bbb');
 
-      const builder2 = new BitmapIndexBuilder();
+      const builder2 = new BitmapIndexBuilder({ codec: defaultCodec });
       builder2.registerNode('bbb'); // Different order
       builder2.registerNode('aaa');
 

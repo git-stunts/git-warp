@@ -15,6 +15,7 @@ import MaterializedViewService from '../../src/domain/services/MaterializedViewS
 import { createEmptyState, applyPatchOp } from '../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
+import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * Normalizes a thrown value into an object with `.name` and `.message` for
@@ -658,7 +659,7 @@ export function makeLogicalBitmapProvider(fixture) {
   const state = fixtureToState(fixture);
 
   // Build logical index via MaterializedViewService
-  const svc = new MaterializedViewService();
+  const svc = new MaterializedViewService({ codec: defaultCodec });
   const { logicalIndex } = svc.build(state);
 
   return new BitmapNeighborProvider({ logicalIndex });

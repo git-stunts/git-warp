@@ -14,7 +14,7 @@ import OpticCoordinatePosture from '../../../../../src/domain/services/optic/Opt
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
 } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
 import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';

@@ -121,6 +121,7 @@ function reduce(patches: Array<{patch: any; sha: string}>) {
 // End of v4 test helpers
 // ============================================================================
 import { computeStateHash, nodeVisible, edgeVisible } from '../../../src/domain/services/state/StateSerializer.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { lwwSet, lwwValue } from '../../../src/domain/crdt/LWW.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
@@ -790,9 +791,9 @@ describe('visible-state upgrade helper', () => {
         const stateBAC = reducePatches([v5PatchB, v5PatchA, v5PatchC], currentState);
 
         // All orders produce the same hash (permutation invariance)
-        const hashABC = await computeStateHash(stateABC, { crypto });
-        const hashCBA = await computeStateHash(stateCBA, { crypto });
-        const hashBAC = await computeStateHash(stateBAC, { crypto });
+        const hashABC = await computeStateHash(stateABC, { crypto, codec: defaultCodec });
+        const hashCBA = await computeStateHash(stateCBA, { crypto, codec: defaultCodec });
+        const hashBAC = await computeStateHash(stateBAC, { crypto, codec: defaultCodec });
 
         expect(hashABC).toBe(hashCBA);
         expect(hashABC).toBe(hashBAC);

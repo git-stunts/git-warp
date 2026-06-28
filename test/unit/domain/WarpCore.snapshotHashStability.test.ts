@@ -7,6 +7,7 @@ import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 
 type WarpCoreHarness = any;
 
@@ -156,7 +157,7 @@ async function simulatePatchCommit(persistence, {
 async function hashState(state) {
   return await computeStateHash(
     (state),
-    { crypto },
+    { crypto, codec: defaultCodec },
   );
 }
 

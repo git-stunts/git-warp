@@ -1,9 +1,9 @@
 import { IndexError, ShardLoadError, ShardCorruptionError } from '../../errors/index.ts';
-import defaultCodec from '../../utils/defaultCodec.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import LRUCache from '../../utils/LRUCache.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { isValidShardOid } from '../../utils/validateShardOid.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
@@ -54,7 +54,7 @@ export default class BitmapIndexReader {
   private readonly storage: IndexStoragePort;
   private readonly strict: boolean;
   private readonly logger: LoggerPort;
-  private readonly _codec: CodecPort;
+  private readonly _codec: CodecPort | null;
   readonly maxCachedShards: number;
   private shardOids: Map<string, string>;
   private readonly loadedShards: LRUCache<string, LoadedShard>;
@@ -72,7 +72,7 @@ export default class BitmapIndexReader {
     this.storage = storage;
     this.strict = strict;
     this.logger = logger;
-    this._codec = codec ?? defaultCodec;
+    this._codec = codec ?? null;
     this.maxCachedShards = maxCachedShards;
     this.shardOids = new Map();
     this.loadedShards = new LRUCache(maxCachedShards);
@@ -260,7 +260,7 @@ export default class BitmapIndexReader {
 
   private _decodeAndCacheShard(buffer: Uint8Array, path: string, oid: string): LoadedShard {
     try {
-      const data = this._codec.decode<LoadedShard>(buffer);
+      const data = requireCodec(this._codec, 'BitmapIndexReader').decode<LoadedShard>(buffer);
       if (!isPlainLoadedShard(data)) {
         return this._handleInvalidShardShape(path, oid, 'shard_not_object');
       }

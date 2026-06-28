@@ -1,6 +1,6 @@
-import defaultCodec from '../../utils/defaultCodec.ts';
-import defaultCrypto from '../../utils/defaultCrypto.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
+import { requireCrypto } from '../crypto/CryptoRequirement.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type { WarpState } from '../JoinReducer.ts';
@@ -66,7 +66,7 @@ export interface StateProjection {
  */
 export function serializeState(state: WarpState, { codec }: { codec?: CodecPort } = {}): Uint8Array {
   const projection = projectState(state);
-  return (codec ?? defaultCodec).encode(projection);
+  return requireCodec(codec, 'serializeState').encode(projection);
 }
 
 /**
@@ -110,8 +110,8 @@ interface StateHashOptions {
  * Computes SHA-256 hash of canonical state bytes.
  */
 export async function computeStateHash(state: WarpState, { crypto, codec }: StateHashOptions = {}): Promise<string> {
-  const c = crypto ?? defaultCrypto;
-  const serialized = serializeState(state, codec ? { codec } : {});
+  const c = requireCrypto(crypto, 'computeStateHash');
+  const serialized = serializeState(state, { codec: requireCodec(codec, 'computeStateHash') });
   return await c.hash('sha256', serialized);
 }
 
@@ -120,7 +120,7 @@ export async function computeStateHash(state: WarpState, { crypto, codec }: Stat
  * Note: This reconstructs the visible projection only.
  */
 export function deserializeState(buffer: Uint8Array, { codec }: { codec?: CodecPort } = {}): StateProjection {
-  const c = codec ?? defaultCodec;
+  const c = requireCodec(codec, 'deserializeState');
   return c.decode(buffer);
 }
 

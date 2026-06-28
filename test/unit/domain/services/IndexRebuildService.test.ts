@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.ts';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
 
 const ROOT_SHA = 'a'.repeat(40);
@@ -20,6 +20,7 @@ function createReadableIndexHarness() {
   const indexService = new IndexRebuildService({
     storage,
     graphService,
+    codec: defaultCodec,
   });
   return { indexService, storage };
 }
@@ -46,17 +47,18 @@ describe('IndexRebuildService', () => {
     service = new IndexRebuildService((({
       storage: mockStorage,
       graphService: mockGraphService,
+      codec: defaultCodec,
     }) as any));
   });
 
   describe('constructor validation', () => {
     it('throws when graphService is not provided', () => {
-      expect(() => new IndexRebuildService(({ storage: mockStorage } as any)))
+      expect(() => new IndexRebuildService(({ storage: mockStorage, codec: defaultCodec } as any)))
         .toThrow('IndexRebuildService requires a graphService');
     });
 
     it('throws when storage is not provided', () => {
-      expect(() => new IndexRebuildService(({ graphService: mockGraphService } as any)))
+      expect(() => new IndexRebuildService(({ graphService: mockGraphService, codec: defaultCodec } as any)))
         .toThrow('IndexRebuildService requires a storage adapter');
     });
 

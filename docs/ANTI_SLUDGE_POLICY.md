@@ -149,8 +149,6 @@ module graph level.
 
 Authorized dynamic adapter-loader files:
 
-- `src/domain/utils/defaultCrypto.ts`
-- `src/domain/utils/defaultTrustCrypto.ts`
 - `src/domain/utils/roaring.ts`
 - `src/domain/services/controllers/SyncController.ts`
 

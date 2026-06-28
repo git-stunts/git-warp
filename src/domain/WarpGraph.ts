@@ -22,6 +22,7 @@ import type PatchCapability from './capabilities/PatchCapability.ts';
 import type SyncCapability from './capabilities/SyncCapability.ts';
 import type { SyncRemote, SyncWithOptions } from './capabilities/SyncCapability.ts';
 import type StrandCapability from './capabilities/StrandCapability.ts';
+import type IntentCapability from './capabilities/IntentCapability.ts';
 import type CheckpointCapability from './capabilities/CheckpointCapability.ts';
 import type ProvenanceCapability from './capabilities/ProvenanceCapability.ts';
 import type ComparisonCapability from './capabilities/ComparisonCapability.ts';
@@ -55,6 +56,8 @@ export interface CommitmentSurface {
   readonly patches: PatchCapability;
   /** Speculative lanes: fork, collapse, braid. */
   readonly strands: StrandCapability;
+  /** Unmaterialized intents: declarative machine work admission. */
+  readonly intents: IntentCapability;
   /** Braid presentation: compare coordinates, plan transfers. */
   readonly comparison: ComparisonCapability;
 }
@@ -106,6 +109,7 @@ export interface WarpGraph {
   readonly patches: PatchCapability;
   readonly sync: SyncCapability;
   readonly strands: StrandCapability;
+  readonly intents: IntentCapability;
   readonly checkpoint: CheckpointCapability;
   readonly provenance: ProvenanceCapability;
   readonly comparison: ComparisonCapability;
@@ -295,6 +299,17 @@ function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapabilit
   });
 }
 
+function bindIntentCapability(runtime: WarpGraphRuntimeSurface): IntentCapability {
+  requireCapability(runtime, 'intent', [
+    'admitIntent', 'queueIntent', 'getWriterIntents',
+  ]);
+  return Object.freeze({
+    admitIntent: runtime.admitIntent.bind(runtime),
+    queueIntent: runtime.queueIntent.bind(runtime),
+    getWriterIntents: runtime.getWriterIntents.bind(runtime),
+  });
+}
+
 function bindCheckpointCapability(runtime: WarpGraphRuntimeSurface): CheckpointCapability {
   requireCapability(runtime, 'checkpoint', [
     'createCheckpoint', 'syncCoverage', 'maybeRunGC', 'runGC', 'getGCMetrics',
@@ -359,6 +374,7 @@ export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
   const patches = bindPatchCapability(runtime);
   const sync = bindSyncCapability(runtime);
   const strands = bindStrandCapability(runtime);
+  const intents = bindIntentCapability(runtime);
   const checkpoint = bindCheckpointCapability(runtime);
   const provenance = bindProvenanceCapability(runtime);
   const comparison = bindComparisonCapability(runtime);
@@ -369,13 +385,13 @@ export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
     writerId: runtime.writerId,
 
     // Architectural moments
-    commitment: Object.freeze({ patches, strands, comparison }),
+    commitment: Object.freeze({ patches, strands, intents, comparison }),
     folding: Object.freeze({ checkpoint }),
     revelation: Object.freeze({ query, subscriptions, provenance }),
     governance: Object.freeze({ sync }),
 
     // Flat aliases
-    query, patches, sync, strands,
+    query, patches, sync, strands, intents,
     checkpoint, provenance, comparison, subscriptions,
   };
 

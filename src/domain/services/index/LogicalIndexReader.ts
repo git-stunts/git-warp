@@ -8,13 +8,13 @@
  * @module domain/services/index/LogicalIndexReader
  */
 
-import defaultCodec from '../../utils/defaultCodec.ts';
 import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
 import { MetaShard } from '../../artifacts/MetaShard.ts';
 import { EdgeShard } from '../../artifacts/EdgeShard.ts';
 import { LabelShard } from '../../artifacts/LabelShard.ts';
 import IndexError from '../../errors/IndexError.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
@@ -34,7 +34,7 @@ export type { LogicalIndex } from './logicalIndexHelpers.ts';
 type RoaringCtor = ReturnType<typeof getRoaringBitmap32>;
 
 export default class LogicalIndexReader {
-  private _codec: CodecPort;
+  private _codec: CodecPort | null;
   private _indexStore: IndexStorePort | null;
 
   private _nodeToGlobal: Map<string, number>;
@@ -53,7 +53,7 @@ export default class LogicalIndexReader {
    */
   constructor(options?: { codec?: CodecPort; indexStore?: IndexStorePort }) {
     const { codec, indexStore } = options ?? {};
-    this._codec = codec ?? defaultCodec;
+    this._codec = codec ?? null;
     this._indexStore = indexStore ?? null;
 
     this._nodeToGlobal = new Map();
@@ -162,9 +162,10 @@ export default class LogicalIndexReader {
   /** Processes classified shards in deterministic order (codec path). */
   private _processShards(items: ShardItem[]): void {
     const { meta, labels, edges } = classifyShards(items);
-    const decodedMeta: DecodedItem[] = meta.map(({ path, buf }) => ({ path, data: this._codec.decode(buf) }));
-    const decodedLabels = labels ? this._codec.decode(labels) : null;
-    const decodedEdges: DecodedItem[] = edges.map(({ path, buf }) => ({ path, data: this._codec.decode(buf) }));
+    const codec = requireCodec(this._codec, 'LogicalIndexReader');
+    const decodedMeta: DecodedItem[] = meta.map(({ path, buf }) => ({ path, data: codec.decode(buf) }));
+    const decodedLabels = labels ? codec.decode(labels) : null;
+    const decodedEdges: DecodedItem[] = edges.map(({ path, buf }) => ({ path, data: codec.decode(buf) }));
     this._loadClassified({ meta: decodedMeta, labels: decodedLabels, edges: decodedEdges });
   }
 

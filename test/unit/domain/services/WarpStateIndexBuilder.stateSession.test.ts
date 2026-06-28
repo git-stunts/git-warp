@@ -36,7 +36,7 @@ describe("WarpStateIndexBuilder — state session", () => {
       Dot.create("w1", 4),
     );
 
-    const builder = new WarpStateIndexBuilder();
+    const builder = new WarpStateIndexBuilder({ codec: cborCodec });
     const { stats } = await builder.buildFromSession(session);
 
     expect(stats.nodes).toBe(2);
@@ -49,7 +49,7 @@ describe("WarpStateIndexBuilder — state session", () => {
     const session = await openSession();
     await session.close();
 
-    const builder = new WarpStateIndexBuilder();
+    const builder = new WarpStateIndexBuilder({ codec: cborCodec });
     await expect(builder.buildFromSession(session)).rejects.toThrow(
       "StateSession is closed",
     );

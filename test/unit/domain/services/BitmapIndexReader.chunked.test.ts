@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.ts';
 import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';
 
 function encodeBitmap(ids: number[]): Uint8Array {
@@ -24,7 +24,7 @@ describe('BitmapIndexReader chunked shard support', () => {
     const revChunk0 = await storage.writeBlob(defaultCodec.encode({ bb0001: encodeBitmap([0]) }));
     const revChunk1 = await storage.writeBlob(defaultCodec.encode({ bb0002: encodeBitmap([0]) }));
 
-    const reader = new BitmapIndexReader({ storage });
+    const reader = new BitmapIndexReader({ storage, codec: defaultCodec });
     reader.setup({
       'meta_aa.chunk-000000.cbor': metaAaChunk0,
       'meta_bb.chunk-000000.cbor': metaBbChunk0,

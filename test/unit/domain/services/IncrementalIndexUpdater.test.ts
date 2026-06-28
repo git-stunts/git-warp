@@ -7,7 +7,7 @@ import MaterializedViewService from '../../../../src/domain/services/Materialize
 import { createEmptyState, applyPatchOp, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';
 import { ShardIdOverflowError } from '../../../../src/domain/errors/index.ts';
@@ -47,12 +47,12 @@ function buildState({ nodes, edges, props }) {
 
 /** @param {import('../../../../src/domain/services/JoinReducer.ts').WarpState} state */
 function buildTree(state) {
-  return new MaterializedViewService().build(state).tree;
+  return new MaterializedViewService({ codec: defaultCodec }).build(state).tree;
 }
 
 /** @param {Record<string, Uint8Array>} tree */
 function readIndex(tree) {
-  return new LogicalIndexReader().loadFromTree(tree).toLogicalIndex();
+  return new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(tree).toLogicalIndex();
 }
 
 /** @param {Record<string, Uint8Array>} tree @param {string} shardKey */
@@ -87,7 +87,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state: state2,
@@ -127,7 +127,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesRemoved: [],
         propsChanged: [],
       };
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const removed = updater.computeDirtyShards({
         diff: removeDiff,
         state: state1,
@@ -182,7 +182,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state: state2,
@@ -206,7 +206,7 @@ describe('IncrementalIndexUpdater', () => {
         props: [],
       });
       const tree1 = buildTree(state);
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
 
       // Remove B, then re-add it to initialize the updater's adjacency cache.
       state.nodeAlive.remove(state.nodeAlive.getDots('B'));
@@ -299,7 +299,7 @@ describe('IncrementalIndexUpdater', () => {
         props: [],
       });
       const tree1 = buildTree(state);
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
 
       state.nodeAlive.remove(state.nodeAlive.getDots('B'));
       const removed = updater.computeDirtyShards({
@@ -370,7 +370,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       expect(() =>
         updater.computeDirtyShards({
           diff,
@@ -396,7 +396,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state,
@@ -434,7 +434,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state,
@@ -491,7 +491,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state: state2,
@@ -542,7 +542,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state,
@@ -581,7 +581,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       // Should not throw — unregistered label means edge was never indexed
       const dirtyShards = updater.computeDirtyShards({
         diff,
@@ -614,7 +614,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [{ nodeId: 'A', key: 'name', value: 'Bob', prevValue: 'Alice' }],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state,
@@ -650,7 +650,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [{ nodeId: '__proto__', key: 'x', value: 1, prevValue: undefined }],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state,
@@ -689,7 +689,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [{ nodeId: 'A', key: '__proto__', value: { polluted: true }, prevValue: undefined }],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state,
@@ -770,7 +770,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       };
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const dirtyShards = updater.computeDirtyShards({
         diff,
         state,
@@ -853,7 +853,7 @@ describe('IncrementalIndexUpdater', () => {
         edges: [],
         props: [],
       });
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
 
       const dirtyShards = updater.computeDirtyShards({
         diff: {
@@ -876,7 +876,7 @@ describe('IncrementalIndexUpdater', () => {
         edges: [{ from: 'A', to: 'B', label: 'rel' }],
         props: [],
       });
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const emptyDiff = {
         nodesAdded: [],
         nodesRemoved: [],
@@ -911,7 +911,7 @@ describe('IncrementalIndexUpdater', () => {
         edges: [{ from: 'A', to: 'B', label: 'rel' }],
         props: [],
       });
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const tree1 = buildTree(state);
 
       updater.computeDirtyShards({
@@ -952,7 +952,7 @@ describe('IncrementalIndexUpdater', () => {
         edges: [],
         props: [],
       });
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
 
       const dirtyShards = updater.computeDirtyShards({
         diff: {
@@ -982,7 +982,7 @@ describe('IncrementalIndexUpdater', () => {
         props: [{ nodeId: 'A', key: 'name', value: 'Alice' }],
       });
 
-      const mvs = new MaterializedViewService();
+      const mvs = new MaterializedViewService({ codec: defaultCodec });
       const { tree: tree1 } = mvs.build(state1);
 
       // Incremental update: add node C and edge B->C

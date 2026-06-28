@@ -9,6 +9,7 @@ import type QueryCapability from '../capabilities/QueryCapability.ts';
 import type PatchCapability from '../capabilities/PatchCapability.ts';
 import type SyncCapability from '../capabilities/SyncCapability.ts';
 import type StrandCapability from '../capabilities/StrandCapability.ts';
+import type IntentCapability from '../capabilities/IntentCapability.ts';
 import type CheckpointCapability from '../capabilities/CheckpointCapability.ts';
 import type ProvenanceCapability from '../capabilities/ProvenanceCapability.ts';
 import type ComparisonCapability from '../capabilities/ComparisonCapability.ts';
@@ -43,10 +44,12 @@ export type RuntimeCapabilitySurface =
   RuntimeIndexMaintenanceSurface &
   SyncCapability &
   StrandCapability &
+  IntentCapability &
   CheckpointCapability &
   ProvenanceCapability &
   ComparisonCapability &
   SubscriptionCapability;
+
 
 export type RuntimeGraphHostProduct = RuntimeCapabilitySurface & {
   readonly graphName: string;

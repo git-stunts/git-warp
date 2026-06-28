@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import CheckpointTailBasisVerifier from '../../../../../src/domain/services/optic/CheckpointTailBasisVerifier.ts';
 import CheckpointTailOpticSource, {
   type CheckpointTailCheckpointFrontier,

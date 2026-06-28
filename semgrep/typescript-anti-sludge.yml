@@ -216,8 +216,6 @@ rules:
         - src/ports/**/*.ts
       exclude:
         - '**/*.d.ts'
-        - src/domain/utils/defaultCrypto.ts
-        - src/domain/utils/defaultTrustCrypto.ts
         - src/domain/utils/roaring.ts
         - src/domain/services/controllers/SyncController.ts
 

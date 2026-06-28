@@ -1,6 +1,6 @@
-import defaultCodec from '../../utils/defaultCodec.ts';
 import WarpError from '../../errors/WarpError.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 
 /**
@@ -107,7 +107,7 @@ class ProvenanceIndex {
   }
 
   serialize({ codec }: { codec?: CodecPort } = {}): Uint8Array {
-    const c = codec ?? defaultCodec;
+    const c = requireCodec(codec, 'ProvenanceIndex.serialize');
     return c.encode({ version: 1, entries: this.#sortedEntries() });
   }
 
@@ -120,7 +120,7 @@ class ProvenanceIndex {
   }
 
   static deserialize(buffer: Uint8Array, { codec }: { codec?: CodecPort } = {}): ProvenanceIndex {
-    const c = codec ?? defaultCodec;
+    const c = requireCodec(codec, 'ProvenanceIndex.deserialize');
     const obj = c.decode<{ version?: number; entries?: Array<[string, string[]]> }>(buffer);
     ProvenanceIndex.#validateSerialized(obj);
     return new ProvenanceIndex(ProvenanceIndex.#buildIndex(obj.entries ?? []));

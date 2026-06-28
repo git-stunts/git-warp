@@ -2,7 +2,7 @@ import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 
 import { describe, it, expect } from 'vitest';
 
-import defaultTrustCrypto from '../../../../src/domain/utils/defaultTrustCrypto.ts';
+import defaultTrustCrypto from '../../../../src/infrastructure/adapters/TrustCryptoSingleton.ts';
 
 const ED25519_SPKI_PREFIX_LENGTH = 12;
 
@@ -16,7 +16,7 @@ function makeFixture() {
   return { payload, rawPublicKey, publicKeyBase64, signatureBase64 };
 }
 
-describe('defaultTrustCrypto', () => {
+describe('TrustCryptoSingleton', () => {
   it('verifies a valid ed25519 signature', () => {
     const { payload, publicKeyBase64, signatureBase64 } = makeFixture();
 

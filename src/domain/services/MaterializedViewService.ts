@@ -12,12 +12,12 @@
  * @module domain/services/MaterializedViewService
  */
 
-import defaultCodec from '../utils/defaultCodec.ts';
 import LogicalIndexBuildService from './index/LogicalIndexBuildService.ts';
 import LogicalIndexReader from './index/LogicalIndexReader.ts';
 import PropertyIndexReader from './index/PropertyIndexReader.ts';
 import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.ts';
 import WarpError from '../errors/WarpError.ts';
+import { requireCodec } from './codec/CodecRequirement.ts';
 import { buildInMemoryPropertyReader, partitionShardOids, shardToEntry } from './MaterializedViewHelpers.ts';
 import { verifyIndex, type VerifyResult, type VerifyIndexParams } from './MaterializedViewVerifier.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
@@ -59,7 +59,7 @@ export default class MaterializedViewService {
 
   constructor(options?: MaterializedViewServiceOptions) {
     const { codec, indexStore } = options ?? {};
-    this._codec = codec ?? defaultCodec;
+    this._codec = requireCodec(codec, 'MaterializedViewService');
     this._indexStore = indexStore ?? null;
   }
 
@@ -74,7 +74,7 @@ export default class MaterializedViewService {
     const tree = this._encodeShardsToTree(shards);
 
     // Hydrate index directly from domain objects (no encode→decode roundtrip)
-    const logicalIndex = new LogicalIndexReader()
+    const logicalIndex = new LogicalIndexReader({ codec: this._codec })
       .loadFromShards(shards)
       .toLogicalIndex();
 
