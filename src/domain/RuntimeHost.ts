@@ -16,8 +16,6 @@ import {
   createImmutableTickReceiptArraySnapshot,
   createSnapshotWarpState,
 } from './services/ImmutableSnapshot.ts';
-import defaultCodec from './utils/defaultCodec.ts';
-import defaultCrypto from './utils/defaultCrypto.ts';
 import nullLogger from './utils/nullLogger.ts';
 import LogicalTraversal from './services/query/LogicalTraversal.ts';
 import LiveQueryReadModelProvider from './services/query/LiveQueryReadModelProvider.ts';
@@ -54,6 +52,7 @@ import type { CorePersistence } from './types/WarpPersistence.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
+import type TrustCryptoPort from '../ports/TrustCryptoPort.ts';
 import type SeekCachePort from '../ports/SeekCachePort.ts';
 import type WarpStateCachePort from '../ports/WarpStateCachePort.ts';
 import type BlobStoragePort from '../ports/BlobStoragePort.ts';
@@ -196,6 +195,7 @@ export default class RuntimeHost {
   _logger: LoggerPort | null;
   _crypto: CryptoPort;
   _codec: CodecPort;
+  _trustCrypto: TrustCryptoPort | null;
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
   _subscribers: Subscriber[];
   _lastNotifiedState: WarpState | null;
@@ -257,6 +257,7 @@ export default class RuntimeHost {
       logger,
       crypto,
       codec,
+      trustCrypto,
       seekCache,
       stateCache,
       audit = false,
@@ -293,8 +294,9 @@ export default class RuntimeHost {
     this._adjacencyCache = adjacencyCacheSize > 0 ? new LRUCache(adjacencyCacheSize) : null;
     this._lastFrontier = null;
     this._logger = logger || null;
-    this._crypto = crypto || defaultCrypto;
-    this._codec = codec || defaultCodec;
+    this._crypto = crypto;
+    this._codec = codec;
+    this._trustCrypto = trustCrypto ?? null;
     this._onDeleteWithData = onDeleteWithData;
     this._subscribers = [];
     this._lastNotifiedState = null;
@@ -711,6 +713,7 @@ export default class RuntimeHost {
     const verifier = new AuditVerifierService({
       persistence: this._persistence,
       codec: this._codec,
+      ...(this._trustCrypto === null ? {} : { trustCrypto: this._trustCrypto }),
       ...(this._logger ? { logger: this._logger } : {}),
     });
 

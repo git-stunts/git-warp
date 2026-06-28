@@ -3,6 +3,7 @@ import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProd
 import { buildSeekCacheKey } from '../../../src/domain/utils/seekCacheKey.ts';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 // ---------------------------------------------------------------------------
@@ -130,20 +131,27 @@ function createMockSeekCache() {
 // ===========================================================================
 
 describe('buildSeekCacheKey', () => {
+  async function buildTestSeekCacheKey(
+    ceiling: number,
+    frontier: Map<string, string>,
+  ): Promise<string> {
+    return await buildSeekCacheKey(ceiling, frontier, { crypto: defaultCrypto });
+  }
+
   it('produces deterministic keys for identical inputs', async () => {
     const frontier = new Map([['alice', 'aaa'], ['bob', 'bbb']]);
-    const k1 = await buildSeekCacheKey(5, frontier);
-    const k2 = await buildSeekCacheKey(5, frontier);
+    const k1 = await buildTestSeekCacheKey(5, frontier);
+    const k2 = await buildTestSeekCacheKey(5, frontier);
     expect(k1).toBe(k2);
   });
 
   it('starts with version prefix', async () => {
-    const key = await buildSeekCacheKey(10, new Map([['w1', 'sha1']]));
+    const key = await buildTestSeekCacheKey(10, new Map([['w1', 'sha1']]));
     expect(key).toMatch(/^v1:t10-/);
   });
 
   it('uses full 64-char SHA-256 hex digest', async () => {
-    const key = await buildSeekCacheKey(1, new Map([['w', 's']]));
+    const key = await buildTestSeekCacheKey(1, new Map([['w', 's']]));
     // v1:t1-<64 hex chars>
     const hash = key.split('-').slice(1).join('-');
     expect(hash).toHaveLength(64);
@@ -152,19 +160,19 @@ describe('buildSeekCacheKey', () => {
 
   it('differs when ceiling changes', async () => {
     const f = new Map([['w', 'sha']]);
-    expect(await buildSeekCacheKey(1, f)).not.toBe(await buildSeekCacheKey(2, f));
+    expect(await buildTestSeekCacheKey(1, f)).not.toBe(await buildTestSeekCacheKey(2, f));
   });
 
   it('differs when frontier changes', async () => {
     const f1 = new Map([['w', 'sha1']]);
     const f2 = new Map([['w', 'sha2']]);
-    expect(await buildSeekCacheKey(1, f1)).not.toBe(await buildSeekCacheKey(1, f2));
+    expect(await buildTestSeekCacheKey(1, f1)).not.toBe(await buildTestSeekCacheKey(1, f2));
   });
 
   it('is order-independent for frontier entries', async () => {
     const f1 = new Map([['alice', 'a'], ['bob', 'b']]);
     const f2 = new Map([['bob', 'b'], ['alice', 'a']]);
-    expect(await buildSeekCacheKey(1, f1)).toBe(await buildSeekCacheKey(1, f2));
+    expect(await buildTestSeekCacheKey(1, f1)).toBe(await buildTestSeekCacheKey(1, f2));
   });
 });
 

@@ -10,8 +10,8 @@
 
 import { recordIdPayload, signaturePayload, type TrustRecordFields } from './canonical.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
-import defaultCrypto from '../utils/defaultCrypto.ts';
 import { textEncode } from '../utils/bytes.ts';
+import { requireCrypto } from '../services/crypto/CryptoRequirement.ts';
 
 type CryptoDeps = {
   readonly crypto?: CryptoPort;
@@ -24,7 +24,7 @@ async function computeRecordId(
   record: TrustRecordFields,
   deps: CryptoDeps = {},
 ): Promise<string> {
-  const c = deps.crypto ?? defaultCrypto;
+  const c = requireCrypto(deps.crypto, 'computeRecordId');
   return await c.hash('sha256', recordIdPayload(record));
 }
 

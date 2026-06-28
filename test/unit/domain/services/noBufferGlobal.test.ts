@@ -6,6 +6,7 @@ import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * @returns {import('../../../../src/domain/services/JoinReducer.ts').WarpState}
@@ -53,13 +54,13 @@ describe('Buffer-free index paths', () => {
       (globalRef as any).Buffer = undefined;
 
       const state = buildState();
-      const { tree } = new MaterializedViewService().build(state);
+      const { tree } = new MaterializedViewService({ codec: defaultCodec }).build(state);
 
-      const logicalIndex = new LogicalIndexReader().loadFromTree(tree).toLogicalIndex();
+      const logicalIndex = new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(tree).toLogicalIndex();
       expect(logicalIndex.isAlive('A')).toBe(true);
       expect(logicalIndex.getEdges('A', 'out').map((e) => e.neighborId)).toEqual(['B']);
 
-      const updater = new IncrementalIndexUpdater();
+      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const diff = {
         nodesAdded: [],
         nodesRemoved: [],

@@ -14,6 +14,7 @@
 
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import TrustError from '../../domain/errors/TrustError.ts';
+import TrustCryptoPort, { type TrustSignatureVerification } from '../../ports/TrustCryptoPort.ts';
 
 /** Algorithms supported by this module. */
 export const SUPPORTED_ALGORITHMS = new Set(['ed25519']);
@@ -59,13 +60,6 @@ function decodePublicKey(base64: string): Buffer {
   return raw;
 }
 
-interface VerifySignatureParams {
-  algorithm: string;
-  publicKeyBase64: string;
-  signatureBase64: string;
-  payload: Uint8Array;
-}
-
 /**
  * Verifies an Ed25519 signature against a payload.
  */
@@ -74,7 +68,7 @@ export function verifySignature({
   publicKeyBase64,
   signatureBase64,
   payload,
-}: VerifySignatureParams): boolean {
+}: TrustSignatureVerification): boolean {
   if (!SUPPORTED_ALGORITHMS.has(algorithm)) {
     throw new TrustError(`Unsupported algorithm: ${algorithm}`, {
       code: 'E_TRUST_UNSUPPORTED_ALGORITHM',
@@ -104,4 +98,14 @@ export function computeKeyFingerprint(publicKeyBase64: string): string {
   const raw = decodePublicKey(publicKeyBase64);
   const hash = createHash('sha256').update(raw).digest('hex');
   return `ed25519:${hash}`;
+}
+
+export default class TrustCryptoAdapter extends TrustCryptoPort {
+  override verifySignature(params: TrustSignatureVerification): boolean {
+    return verifySignature(params);
+  }
+
+  override computeKeyFingerprint(publicKeyBase64: string): string {
+    return computeKeyFingerprint(publicKeyBase64);
+  }
 }

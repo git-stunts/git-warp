@@ -53,6 +53,7 @@ const RETIRED_DOMAIN_COMMIT_MESSAGE_FACADES = [
 ];
 const TRAILER_COMMIT_MESSAGE_ADAPTER = 'src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 const RUNTIME_HOST_BOOT = 'src/domain/warp/RuntimeHostBoot.ts';
+const RUNTIME_HOST_PORT_RESOLVERS = 'src/domain/warp/RuntimeHostPortResolvers.ts';
 
 describe('message codec modules', () => {
   it('round-trips patch, checkpoint, and anchor messages through individual modules', () => {
@@ -112,11 +113,12 @@ describe('message codec modules', () => {
   });
 
   it('keeps runtime boot from resolving the trailer adapter inside domain', () => {
-    const source = readFileSync(resolve(ROOT, RUNTIME_HOST_BOOT), 'utf8');
+    const bootSource = readFileSync(resolve(ROOT, RUNTIME_HOST_BOOT), 'utf8');
+    const resolverSource = readFileSync(resolve(ROOT, RUNTIME_HOST_PORT_RESOLVERS), 'utf8');
 
-    expect(source).toContain('installRuntimeHostCommitMessageCodecResolver');
-    expect(source).not.toContain('TrailerCommitMessageCodecAdapter');
-    expect(source).not.toContain('@git-stunts/trailer-codec');
+    expect(resolverSource).toContain('installRuntimeHostCommitMessageCodecResolver');
+    expect(bootSource).not.toContain('TrailerCommitMessageCodecAdapter');
+    expect(bootSource).not.toContain('@git-stunts/trailer-codec');
   });
 
   it('retires domain-local commit message facade modules', () => {

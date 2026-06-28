@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createBTR as createBTRUseCase,
   verifyBTR as verifyBTRUseCase,
-  replayBTR,
+  replayBTR as replayBTRUseCase,
 } from '../../../../src/application/provenance/BtrOperations.ts';
 import {
   BTR,
@@ -19,7 +19,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
-import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import defaultCodec, { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import BtrCodecAdapter from '../../../../src/infrastructure/adapters/BtrCodecAdapter.ts';
 
@@ -41,6 +41,8 @@ describe('BoundaryTransitionRecord', () => {
   type TestCreateBTROptions = Omit<CreateBTRArgs[2], 'btrCodec'>;
   type VerifyBTRArgs = Parameters<typeof verifyBTRUseCase>;
   type TestVerifyBTROptions = Omit<NonNullable<VerifyBTRArgs[2]>, 'btrCodec'>;
+  type ReplayBTRArgs = Parameters<typeof replayBTRUseCase>;
+  type TestReplayBTROptions = NonNullable<ReplayBTRArgs[1]>;
   type BtrDecodeResult = ReturnType<BtrCodecAdapter['decodeRecord']>;
 
   function createBTR(
@@ -48,7 +50,11 @@ describe('BoundaryTransitionRecord', () => {
     payload: CreateBTRArgs[1],
     opts: TestCreateBTROptions,
   ): ReturnType<typeof createBTRUseCase> {
-    return createBTRUseCase(initialState, payload, { ...opts, btrCodec });
+    return createBTRUseCase(initialState, payload, {
+      stateCodec: opts.stateCodec ?? defaultCodec,
+      ...opts,
+      btrCodec,
+    });
   }
 
   function verifyBTR(
@@ -56,7 +62,21 @@ describe('BoundaryTransitionRecord', () => {
     key: VerifyBTRArgs[1],
     opts: TestVerifyBTROptions = {},
   ): ReturnType<typeof verifyBTRUseCase> {
-    return verifyBTRUseCase(btr, key, { ...opts, btrCodec });
+    return verifyBTRUseCase(btr, key, {
+      stateCodec: opts.stateCodec ?? defaultCodec,
+      ...opts,
+      btrCodec,
+    });
+  }
+
+  function replayBTR(
+    btr: ReplayBTRArgs[0],
+    opts: TestReplayBTROptions = {},
+  ): ReturnType<typeof replayBTRUseCase> {
+    return replayBTRUseCase(btr, {
+      stateCodec: opts.stateCodec ?? defaultCodec,
+      ...opts,
+    });
   }
 
   function tamperBTR(btr: BoundaryTransitionRecord, overrides: Partial<BTRFields>): BoundaryTransitionRecord {
@@ -111,7 +131,7 @@ describe('BoundaryTransitionRecord', () => {
       expect(btr.kappa).toBeDefined();
 
       // h_in should be hash of empty state
-      expect(btr.h_in).toBe(await computeStateHash(initialState, { crypto }));
+      expect(btr.h_in).toBe(await computeStateHash(initialState, { crypto, codec: defaultCodec }));
 
       // h_out should differ from h_in (state changed)
       expect(btr.h_out).not.toBe(btr.h_in);
@@ -128,7 +148,7 @@ describe('BoundaryTransitionRecord', () => {
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
 
-      expect(btr.h_in).toBe(await computeStateHash(initialState, { crypto }));
+      expect(btr.h_in).toBe(await computeStateHash(initialState, { crypto, codec: defaultCodec }));
       expect(btr.P.length).toBe(2);
     });
 
@@ -194,7 +214,7 @@ describe('BoundaryTransitionRecord', () => {
       const payload = new ProvenancePayload([patchA, patchB]);
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
-      const result = await verifyBTR(btr, testKey, { crypto });
+      const result = await verifyBTR(btr, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(true);
       expect(result.reason).toBeUndefined();
@@ -205,7 +225,7 @@ describe('BoundaryTransitionRecord', () => {
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: 'correct-key', crypto, timestamp: '2025-01-15T12:00:00.000Z' });
-      const result = await verifyBTR(btr, 'wrong-key', { crypto });
+      const result = await verifyBTR(btr, 'wrong-key', { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -218,7 +238,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
       const tampered = tamperBTR(btr, { h_in: 'tampered_hash_value' });
 
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -231,7 +251,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
       const tampered = tamperBTR(btr, { h_out: 'tampered_hash_value' });
 
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -244,7 +264,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
       const tampered = tamperBTR(btr, { t: '1999-01-01T00:00:00.000Z' });
 
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -258,7 +278,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
       const tampered = tamperBTR(btr, { P: [] });
 
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -272,7 +292,7 @@ describe('BoundaryTransitionRecord', () => {
       // Use valid hex that differs from the real kappa
       const tampered = tamperBTR(btr, { kappa: 'aa'.repeat(btr.kappa.length / 2) });
 
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -300,7 +320,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
       const tampered = tamperBTR(btr, { version: 999 });
 
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toContain('Unsupported BTR version');
@@ -332,7 +352,7 @@ describe('BoundaryTransitionRecord', () => {
         const tamperedBtr = tamperBTR(btr, { h_out: 'tampered_hash_value' });
 
         // replayBTR will compute the correct h_out from U_0 and P
-        const { h_out: computedHash } = await replayBTR(tamperedBtr, { crypto });
+        const { h_out: computedHash } = await replayBTR(tamperedBtr, { crypto, stateCodec: defaultCodec });
 
         // The computed hash should NOT match the tampered value
         expect(computedHash).not.toBe(tamperedBtr.h_out);
@@ -365,7 +385,7 @@ describe('BoundaryTransitionRecord', () => {
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
-      const { state, h_out } = await replayBTR(btr, { crypto });
+      const { state, h_out } = await replayBTR(btr, { crypto, stateCodec: defaultCodec });
 
       expect(h_out).toBe(btr.h_out);
       expect(state.nodeAlive.entries.size).toBe(0);
@@ -378,7 +398,7 @@ describe('BoundaryTransitionRecord', () => {
       const payload = new ProvenancePayload([patchA, patchB, patchC]);
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
-      const { state, h_out } = await replayBTR(btr, { crypto });
+      const { state, h_out } = await replayBTR(btr, { crypto, stateCodec: defaultCodec });
 
       // Verify hash matches
       expect(h_out).toBe(btr.h_out);
@@ -400,7 +420,7 @@ describe('BoundaryTransitionRecord', () => {
       const payload = new ProvenancePayload([patchA, patchB]);
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
-      const { h_out } = await replayBTR(btr, { crypto });
+      const { h_out } = await replayBTR(btr, { crypto, stateCodec: defaultCodec });
 
       expect(h_out).toBe(btr.h_out);
     });
@@ -433,7 +453,7 @@ describe('BoundaryTransitionRecord', () => {
       const bytes = btrCodec.encodeRecord(btr);
       const restored = expectDecoded(btrCodec.decodeRecord(bytes));
 
-      const result = await verifyBTR(restored, testKey, { crypto });
+      const result = await verifyBTR(restored, testKey, { crypto, stateCodec: defaultCodec });
       expect(result.valid).toBe(true);
     });
 
@@ -523,11 +543,11 @@ describe('BoundaryTransitionRecord', () => {
       expect(btr.P.length).toBe(100);
 
       // Verify still works
-      const result = await verifyBTR(btr, testKey, { crypto });
+      const result = await verifyBTR(btr, testKey, { crypto, stateCodec: defaultCodec });
       expect(result.valid).toBe(true);
 
       // Replay still works
-      const { state, h_out } = await replayBTR(btr, { crypto });
+      const { state, h_out } = await replayBTR(btr, { crypto, stateCodec: defaultCodec });
       expect(h_out).toBe(btr.h_out);
       expect(state.nodeAlive.contains('node-0')).toBe(true);
       expect(state.nodeAlive.contains('node-99')).toBe(true);
@@ -539,7 +559,7 @@ describe('BoundaryTransitionRecord', () => {
       const bufferKey = Buffer.from('secret-key-as-buffer');
 
       const btr = await createBTR(initialState, payload, { key: bufferKey, crypto, timestamp: '2025-01-15T12:00:00.000Z' });
-      const result = await verifyBTR(btr, bufferKey, { crypto });
+      const result = await verifyBTR(btr, bufferKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(true);
     });
@@ -585,7 +605,7 @@ describe('BoundaryTransitionRecord', () => {
       const invalidKappa = btr.kappa.slice(0, -2) + 'GG';
       const tampered = tamperBTR(btr, { kappa: invalidKappa });
 
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toContain('Invalid hex');
@@ -603,7 +623,7 @@ describe('BoundaryTransitionRecord', () => {
       const tamperedKappa = flippedChar + originalKappa.slice(1);
 
       const tampered = tamperBTR(btr, { kappa: tamperedKappa });
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
     });
@@ -617,7 +637,7 @@ describe('BoundaryTransitionRecord', () => {
 
       // Add another patch
       const tampered = tamperBTR(btr, { P: [...btr.P, patchB] });
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
     });
@@ -632,7 +652,7 @@ describe('BoundaryTransitionRecord', () => {
       // Remove a patch
       const firstPatch = btr.P[0];
       const tampered = tamperBTR(btr, { P: firstPatch === undefined ? [] : [firstPatch] });
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
     });
@@ -650,7 +670,7 @@ describe('BoundaryTransitionRecord', () => {
       const tampered = tamperBTR(btr, {
         P: firstPatch === undefined || secondPatch === undefined ? btr.P : [secondPatch, firstPatch],
       });
-      const result = await verifyBTR(tampered, testKey, { crypto });
+      const result = await verifyBTR(tampered, testKey, { crypto, stateCodec: defaultCodec });
 
       expect(result.valid).toBe(false);
     });
@@ -667,10 +687,10 @@ describe('BoundaryTransitionRecord', () => {
       expect(btr1.kappa).not.toBe(btr2.kappa);
 
       // Each only verifies with its own key
-      expect((await verifyBTR(btr1, 'key-A', { crypto })).valid).toBe(true);
-      expect((await verifyBTR(btr1, 'key-B', { crypto })).valid).toBe(false);
-      expect((await verifyBTR(btr2, 'key-A', { crypto })).valid).toBe(false);
-      expect((await verifyBTR(btr2, 'key-B', { crypto })).valid).toBe(true);
+      expect((await verifyBTR(btr1, 'key-A', { crypto, stateCodec: defaultCodec })).valid).toBe(true);
+      expect((await verifyBTR(btr1, 'key-B', { crypto, stateCodec: defaultCodec })).valid).toBe(false);
+      expect((await verifyBTR(btr2, 'key-A', { crypto, stateCodec: defaultCodec })).valid).toBe(false);
+      expect((await verifyBTR(btr2, 'key-B', { crypto, stateCodec: defaultCodec })).valid).toBe(true);
     });
   });
 });

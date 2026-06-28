@@ -9,6 +9,7 @@ import {
   cloneFrontier,
   mergeFrontiers,
 } from '../../../../src/domain/services/Frontier.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('Frontier', () => {
   describe('createFrontier', () => {
@@ -108,7 +109,7 @@ describe('Frontier', () => {
       const frontier = createFrontier();
       updateFrontier(frontier, 'writer1', 'sha123');
 
-      const bytes = serializeFrontier(frontier);
+      const bytes = serializeFrontier(frontier, { codec: defaultCodec });
 
       expect(Buffer.isBuffer(bytes) || bytes instanceof Uint8Array).toBe(true);
       expect(bytes.length).toBeGreaterThan(0);
@@ -117,7 +118,7 @@ describe('Frontier', () => {
     it('serializes empty frontier', () => {
       const frontier = createFrontier();
 
-      const bytes = serializeFrontier(frontier);
+      const bytes = serializeFrontier(frontier, { codec: defaultCodec });
 
       expect(Buffer.isBuffer(bytes) || bytes instanceof Uint8Array).toBe(true);
     });
@@ -131,8 +132,8 @@ describe('Frontier', () => {
       updateFrontier(frontier2, 'writer1', 'sha111');
       updateFrontier(frontier2, 'writer2', 'sha222');
 
-      const bytes1 = serializeFrontier(frontier1);
-      const bytes2 = serializeFrontier(frontier2);
+      const bytes1 = serializeFrontier(frontier1, { codec: defaultCodec });
+      const bytes2 = serializeFrontier(frontier2, { codec: defaultCodec });
 
       expect(Buffer.from(bytes1).equals(Buffer.from(bytes2))).toBe(true);
     });
@@ -146,8 +147,8 @@ describe('Frontier', () => {
       updateFrontier(frontier2, 'bob', 'sha2');
       updateFrontier(frontier2, 'alice', 'sha1');
 
-      const bytes1 = serializeFrontier(frontier1);
-      const bytes2 = serializeFrontier(frontier2);
+      const bytes1 = serializeFrontier(frontier1, { codec: defaultCodec });
+      const bytes2 = serializeFrontier(frontier2, { codec: defaultCodec });
 
       expect(Buffer.from(bytes1).equals(Buffer.from(bytes2))).toBe(true);
     });
@@ -159,8 +160,8 @@ describe('Frontier', () => {
       updateFrontier(original, 'writer1', 'sha123');
       updateFrontier(original, 'writer2', 'sha456');
 
-      const bytes = (serializeFrontier(original) as Buffer);
-      const restored = deserializeFrontier(bytes);
+      const bytes = (serializeFrontier(original, { codec: defaultCodec }) as Buffer);
+      const restored = deserializeFrontier(bytes, { codec: defaultCodec });
 
       expect(restored).toBeInstanceOf(Map);
       expect(restored.size).toBe(2);
@@ -171,8 +172,8 @@ describe('Frontier', () => {
     it('reconstructs empty frontier', () => {
       const original = createFrontier();
 
-      const bytes = (serializeFrontier(original) as Buffer);
-      const restored = deserializeFrontier(bytes);
+      const bytes = (serializeFrontier(original, { codec: defaultCodec }) as Buffer);
+      const restored = deserializeFrontier(bytes, { codec: defaultCodec });
 
       expect(restored).toBeInstanceOf(Map);
       expect(restored.size).toBe(0);
@@ -186,8 +187,8 @@ describe('Frontier', () => {
       updateFrontier(original, 'writer2', '789xyz');
       updateFrontier(original, 'writer3', 'sha-with-special_chars.ok');
 
-      const bytes = (serializeFrontier(original) as Buffer);
-      const restored = deserializeFrontier(bytes);
+      const bytes = (serializeFrontier(original, { codec: defaultCodec }) as Buffer);
+      const restored = deserializeFrontier(bytes, { codec: defaultCodec });
 
       expect(restored.size).toBe(original.size);
       for (const [writerId, patchSha] of original) {
@@ -200,10 +201,10 @@ describe('Frontier', () => {
       updateFrontier(original, 'a', 'sha1');
       updateFrontier(original, 'b', 'sha2');
 
-      const bytes1 = (serializeFrontier(original) as Buffer);
-      const restored1 = deserializeFrontier(bytes1);
-      const bytes2 = (serializeFrontier(restored1) as Buffer);
-      const restored2 = deserializeFrontier(bytes2);
+      const bytes1 = (serializeFrontier(original, { codec: defaultCodec }) as Buffer);
+      const restored1 = deserializeFrontier(bytes1, { codec: defaultCodec });
+      const bytes2 = (serializeFrontier(restored1, { codec: defaultCodec }) as Buffer);
+      const restored2 = deserializeFrontier(bytes2, { codec: defaultCodec });
 
       expect(Buffer.from(bytes1).equals(Buffer.from(bytes2))).toBe(true);
       expect(restored2.size).toBe(original.size);

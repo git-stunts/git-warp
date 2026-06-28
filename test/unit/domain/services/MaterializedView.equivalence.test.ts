@@ -22,6 +22,7 @@ import { decodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import BitmapNeighborProvider from '../../../../src/domain/services/index/BitmapNeighborProvider.ts';
 import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { createEmptyDiff } from '../../../../src/domain/types/PatchDiff.ts';
 import { createRng } from '../../../helpers/seededRng.ts';
 
@@ -224,7 +225,7 @@ describe('MaterializedView equivalence', () => {
       const patches = generatePatches(seed);
       expect(patches.length).toBeGreaterThan(0);
 
-      const service = new MaterializedViewService();
+      const service = new MaterializedViewService({ codec: defaultCodec });
 
       // ── Full rebuild ──────────────────────────────────────────────
       const fullState = reducePatches(patches);
@@ -268,7 +269,7 @@ describe('MaterializedView equivalence', () => {
       const patches = generatePatches(seed);
       expect(patches.length).toBeGreaterThan(0);
 
-      const service = new MaterializedViewService();
+      const service = new MaterializedViewService({ codec: defaultCodec });
 
       // ── Full rebuild ──────────────────────────────────────────────
       const fullState = reducePatches(patches);
@@ -341,7 +342,7 @@ describe('MaterializedView equivalence', () => {
   });
 
   it('empty diff produces no dirty shards', () => {
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const state = createEmptyState();
     const { tree } = service.build(state);
 
@@ -363,7 +364,7 @@ describe('MaterializedView equivalence', () => {
   it('proto pollution does not corrupt Object.prototype', () => {
     const beforeKeys = Object.getOwnPropertyNames(Object.prototype).sort();
 
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const writer = 'w-proto';
     const sha = 'deadbeef'.padEnd(40, '0');
 

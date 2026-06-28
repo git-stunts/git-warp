@@ -1,4 +1,5 @@
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
 import {
   createDetachedReadBenchmarkPlan,
@@ -17,7 +18,7 @@ const crypto = new NodeCryptoAdapter();
 async function hashState(state) {
   return await computeStateHash(
     (state),
-    { crypto },
+    { crypto, codec: defaultCodec },
   );
 }
 

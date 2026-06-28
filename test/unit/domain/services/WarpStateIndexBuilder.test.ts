@@ -9,18 +9,23 @@ import { describe, it, expect } from 'vitest';
 import WarpStateIndexBuilder, { buildWarpStateIndex } from '../../../../src/domain/services/index/WarpStateIndexBuilder.ts';
 import { createEmptyState, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('WarpStateIndexBuilder', () => {
+  function createBuilder(): WarpStateIndexBuilder {
+    return new WarpStateIndexBuilder({ codec: defaultCodec });
+  }
+
   describe('buildFromState()', () => {
     it('throws on invalid state', () => {
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       expect(() => builder.buildFromState((null))).toThrow('Invalid state');
       expect(() => builder.buildFromState(({} as any))).toThrow('Invalid state');
     });
 
     it('returns empty index for empty state', () => {
       const state = createEmptyState();
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       const { stats } = builder.buildFromState(state);
 
       expect(stats.nodes).toBe(0);
@@ -35,7 +40,7 @@ describe('WarpStateIndexBuilder', () => {
       state.nodeAlive.add('node-b', Dot.create('w1', 2));
       state.nodeAlive.add('node-c', Dot.create('w1', 3));
 
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       const { stats } = builder.buildFromState(state);
 
       expect(stats.nodes).toBe(3);
@@ -53,7 +58,7 @@ describe('WarpStateIndexBuilder', () => {
       state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), Dot.create('w1', 4));
       state.edgeAlive.add(encodeEdgeKey('b', 'c', 'e2'), Dot.create('w1', 5));
 
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       const { stats } = builder.buildFromState(state);
 
       expect(stats.edges).toBe(2);
@@ -70,7 +75,7 @@ describe('WarpStateIndexBuilder', () => {
       state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), Dot.create('w1', 3));
       state.edgeAlive.add(encodeEdgeKey('b', 'c', 'e2'), Dot.create('w1', 4));
 
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       const { stats } = builder.buildFromState(state);
 
       expect(stats.edges).toBe(1); // Only a->b should be indexed
@@ -82,7 +87,7 @@ describe('WarpStateIndexBuilder', () => {
       state.nodeAlive.add('a', Dot.create('w1', 1));
       state.edgeAlive.add(encodeEdgeKey('a', 'a', 'self'), Dot.create('w1', 2));
 
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       const { stats } = builder.buildFromState(state);
 
       expect(stats.nodes).toBe(1);
@@ -100,7 +105,7 @@ describe('WarpStateIndexBuilder', () => {
       state.edgeAlive.add(encodeEdgeKey('a', 'b', 'likes'), Dot.create('w1', 4));
       state.edgeAlive.add(encodeEdgeKey('a', 'b', 'blocks'), Dot.create('w1', 5));
 
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       const { stats } = builder.buildFromState(state);
 
       expect(stats.edges).toBe(3);
@@ -116,11 +121,11 @@ describe('WarpStateIndexBuilder', () => {
       state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), Dot.create('w1', 3));
 
       // Build twice and compare
-      const builder1 = new WarpStateIndexBuilder();
+      const builder1 = createBuilder();
       builder1.buildFromState(state);
       const tree1 = await builder1.serialize();
 
-      const builder2 = new WarpStateIndexBuilder();
+      const builder2 = createBuilder();
       builder2.buildFromState(state);
       const tree2 = await builder2.serialize();
 
@@ -140,7 +145,7 @@ describe('WarpStateIndexBuilder', () => {
       state.nodeAlive.add('node-b', Dot.create('w1', 2));
       state.edgeAlive.add(encodeEdgeKey('node-a', 'node-b', 'edge'), Dot.create('w1', 3));
 
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       builder.buildFromState(state);
       const tree = await builder.serialize();
 
@@ -164,7 +169,7 @@ describe('WarpStateIndexBuilder', () => {
       state.nodeAlive.add('y', Dot.create('w1', 2));
       state.edgeAlive.add(encodeEdgeKey('x', 'y', 'link'), Dot.create('w1', 3));
 
-      const { tree, stats } = await buildWarpStateIndex(state);
+      const { tree, stats } = await buildWarpStateIndex(state, { codec: defaultCodec });
 
       expect(stats.nodes).toBe(2);
       expect(stats.edges).toBe(1);
@@ -181,7 +186,7 @@ describe('WarpStateIndexBuilder', () => {
       state.nodeAlive.add('user:bob', Dot.create('w1', 2));
       state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 3));
 
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       const { stats } = builder.buildFromState(state);
 
       expect(stats.nodes).toBe(2);
@@ -201,7 +206,7 @@ describe('WarpStateIndexBuilder', () => {
       // Edge direction is defined by from/to, not by any commit parent relationship
       state.edgeAlive.add(encodeEdgeKey('parent', 'child', 'contains'), Dot.create('w1', 3));
 
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       builder.buildFromState(state);
 
       // Check forward bitmap exists for 'parent'
@@ -239,7 +244,7 @@ describe('WarpStateIndexBuilder', () => {
         state.edgeAlive.add(encodeEdgeKey(from, to, `edge-${i}`), Dot.create('w1', 1001 + i));
       }
 
-      const builder = new WarpStateIndexBuilder();
+      const builder = createBuilder();
       const { stats } = builder.buildFromState(state);
 
       expect(stats.nodes).toBe(1000);

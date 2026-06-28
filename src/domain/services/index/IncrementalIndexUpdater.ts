@@ -11,11 +11,11 @@
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type ORSet from '../../crdt/ORSet.ts';
 import type { PatchDiff, PropDiffEntry, EdgeDiffEntry } from '../../types/PatchDiff.ts';
-import defaultCodec from '../../utils/defaultCodec.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import IndexNodeUpdater from './IndexNodeUpdater.ts';
 import IndexEdgeUpdater, { type EdgeUpdateContext } from './IndexEdgeUpdater.ts';
 import type { WorkingMetaShard, EdgeShardData } from './types.ts';
@@ -55,7 +55,7 @@ export default class IncrementalIndexUpdater {
 
   constructor(options?: { codec?: CodecPort }) {
     const { codec } = options || {};
-    this._codec = codec || defaultCodec;
+    this._codec = requireCodec(codec, 'IncrementalIndexUpdater');
     this._edgeAdjacencyCache = new WeakMap();
     this._nextLabelId = null;
     this._nodeUpdater = new IndexNodeUpdater();

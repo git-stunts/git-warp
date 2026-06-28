@@ -3,6 +3,7 @@ import IndexRebuildService from '../../../../src/domain/services/index/IndexRebu
 import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.ts';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
 
 const crypto = new NodeCryptoAdapter();
@@ -60,7 +61,8 @@ describe('Service Logging Integration', () => {
         const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
-          logger: mockLogger
+          logger: mockLogger,
+          codec: defaultCodec,
         }) as any));
 
         await service.rebuild('HEAD');
@@ -88,7 +90,8 @@ describe('Service Logging Integration', () => {
         const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
-          logger: mockLogger
+          logger: mockLogger,
+          codec: defaultCodec,
         }) as any));
 
         await expect(service.rebuild('HEAD')).rejects.toThrow('Graph error');
@@ -98,7 +101,8 @@ describe('Service Logging Integration', () => {
         const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
-          logger: mockLogger
+          logger: mockLogger,
+          codec: defaultCodec,
         }) as any));
 
         await service.rebuild('HEAD', { maxMemoryBytes: 1024 * 1024 });
@@ -114,7 +118,8 @@ describe('Service Logging Integration', () => {
         const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
-          logger: mockLogger
+          logger: mockLogger,
+          codec: defaultCodec,
         }) as any));
 
         await service.load('tree-oid');
@@ -135,7 +140,8 @@ describe('Service Logging Integration', () => {
         const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
-          logger: mockLogger
+          logger: mockLogger,
+          codec: defaultCodec,
         }) as any));
 
         await service.load('tree-oid');

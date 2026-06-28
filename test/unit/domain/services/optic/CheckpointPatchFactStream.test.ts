@@ -17,7 +17,7 @@ import CheckpointTailOpticSource, {
   type CheckpointTailPatchEntry,
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';

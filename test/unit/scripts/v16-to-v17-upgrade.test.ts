@@ -7,6 +7,7 @@ import { createCheckpointEnvelope } from '../../../src/domain/services/state/che
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import {
   formatHumanResult,
   parseArgs,
@@ -71,6 +72,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
       state: createEmptyState(),
       frontier: createFrontier(),
       crypto: new NodeCryptoAdapter(),
+      codec: defaultCodec,
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
     await persistence.updateRef('refs/warp/alpha/checkpoints/head', checkpointSha);

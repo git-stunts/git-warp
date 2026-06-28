@@ -3,6 +3,7 @@ import MaterializedViewService from '../../../../src/domain/services/Materialize
 import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ function buildTestState() {
 describe('MaterializedViewService', () => {
   describe('build', () => {
     it('builds logicalIndex and receipt from state', () => {
-      const service = new MaterializedViewService();
+      const service = new MaterializedViewService({ codec: defaultCodec });
       const state = buildTestState();
       const { tree, logicalIndex, receipt } = service.build(state);
 
@@ -67,7 +68,7 @@ describe('MaterializedViewService', () => {
     });
 
     it('builds a working propertyReader from state', async () => {
-      const service = new MaterializedViewService();
+      const service = new MaterializedViewService({ codec: defaultCodec });
       const state = buildTestState();
       const { propertyReader } = service.build(state);
 
@@ -90,7 +91,7 @@ describe('MaterializedViewService', () => {
     });
 
     it('logicalIndex getEdges returns correct edges', () => {
-      const service = new MaterializedViewService();
+      const service = new MaterializedViewService({ codec: defaultCodec });
       const state = buildTestState();
       const { logicalIndex } = service.build(state);
 
@@ -103,7 +104,7 @@ describe('MaterializedViewService', () => {
 
   describe('persistIndexTree', () => {
     it('writes blobs and creates tree, returns OID', async () => {
-      const service = new MaterializedViewService();
+      const service = new MaterializedViewService({ codec: defaultCodec });
       const state = buildTestState();
       const { tree } = service.build(state);
 
@@ -140,7 +141,7 @@ describe('MaterializedViewService', () => {
 
   describe('loadFromOids', () => {
     it('loads logicalIndex from shard OIDs via storage', async () => {
-      const service = new MaterializedViewService();
+      const service = new MaterializedViewService({ codec: defaultCodec });
       const state = buildTestState();
       const { tree } = service.build(state);
 
@@ -170,7 +171,7 @@ describe('MaterializedViewService', () => {
 
   describe('roundtrip: build → persist → load', () => {
     it('produces identical query results after roundtrip', async () => {
-      const service = new MaterializedViewService();
+      const service = new MaterializedViewService({ codec: defaultCodec });
       const state = buildTestState();
       const { tree, logicalIndex: origIndex } = service.build(state);
 

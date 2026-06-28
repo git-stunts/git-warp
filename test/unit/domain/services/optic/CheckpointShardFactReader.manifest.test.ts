@@ -18,7 +18,7 @@ import LogicalBitmapIndexBuilder from '../../../../../src/domain/services/index/
 import { CURRENT_CHECKPOINT_SCHEMA } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import { EdgeShard } from '../../../../../src/domain/artifacts/EdgeShard.ts';
 import { MetaShard } from '../../../../../src/domain/artifacts/MetaShard.ts';
-import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import computeShardKey from '../../../../../src/domain/utils/shardKey.ts';
 import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';

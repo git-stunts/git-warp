@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import CheckpointController from '../../../../../src/domain/services/controllers/CheckpointController.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
-import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
-import defaultCrypto from '../../../../../src/domain/utils/defaultCrypto.ts';
+import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
+import defaultCrypto from '../../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
 

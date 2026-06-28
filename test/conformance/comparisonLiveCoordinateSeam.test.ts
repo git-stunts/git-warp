@@ -17,8 +17,8 @@ import {
   type ComparisonHost,
   type ComparisonSelectorContext,
 } from '../../src/domain/services/controllers/ComparisonSelector.ts';
-import defaultCodec from '../../src/domain/utils/defaultCodec.ts';
-import defaultCrypto from '../../src/domain/utils/defaultCrypto.ts';
+import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
+import defaultCrypto from '../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 
 const PATCH_SHA = 'f'.repeat(40);
 const STATE_HASH = 'state-hash';

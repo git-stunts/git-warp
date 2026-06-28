@@ -7,6 +7,7 @@ import { createFrontier, updateFrontier } from '../../../../src/domain/services/
 import { createCheckpointEnvelope } from '../../../../src/domain/services/state/checkpointCreate.ts';
 import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import InMemoryBlobStorageAdapter from '../../../../src/domain/utils/defaultBlobStorage.ts';
@@ -166,6 +167,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     state,
     frontier,
     crypto,
+    codec: defaultCodec,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   });
 

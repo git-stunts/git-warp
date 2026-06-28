@@ -3,6 +3,7 @@ import MaterializedViewService from '../../../../src/domain/services/Materialize
 import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ function buildTestState() {
 
 describe('MaterializedViewService.verifyIndex', () => {
   it('reports all passed for a correct index', () => {
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
 
@@ -56,7 +57,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('detects mismatch when index is built from different state', () => {
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const state = buildTestState();
 
     // Build index from a smaller state (only 2 nodes, no edges)
@@ -85,7 +86,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('detects label mismatches for the same neighbor set', () => {
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
 
@@ -119,7 +120,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('produces reproducible results with the same seed', () => {
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
 
@@ -135,7 +136,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('verifies at least one node when sampleRate is positive on non-empty state', () => {
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
 
@@ -149,7 +150,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('uses default seed and sampleRate when options omitted', () => {
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
 
@@ -161,7 +162,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('handles empty state without errors', () => {
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const state = createEmptyState();
     const { logicalIndex } = service.build(state);
 
@@ -177,7 +178,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('detects missing alive nodes even when edge signatures are empty', () => {
-    const service = new MaterializedViewService();
+    const service = new MaterializedViewService({ codec: defaultCodec });
     const state = createEmptyState();
     const writer = 'w1';
     const sha = 'c'.repeat(40);

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loadIndexFrontier, checkStaleness } from '../../../../src/domain/services/index/IndexStalenessChecker.ts';
-import { encode as cborEncode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import defaultCodec, { encode as cborEncode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.ts';
 
 /**
@@ -14,7 +14,7 @@ describe('loadIndexFrontier', () => {
     const storage = { readBlob: vi.fn().mockResolvedValue(cborBuffer) };
     const shardOids = { 'frontier.cbor': 'cbor-oid' };
 
-    const result = await loadIndexFrontier(shardOids, (storage as any));
+    const result = await loadIndexFrontier(shardOids, (storage as any), { codec: defaultCodec });
 
     expect(result).toBeInstanceOf(Map);
     expect(result!.get('alice')).toBe('sha-a');
@@ -28,7 +28,7 @@ describe('loadIndexFrontier', () => {
     const storage = { readBlob: vi.fn().mockResolvedValue(jsonBuffer) };
     const shardOids = { 'frontier.json': 'json-oid' };
 
-    const result = await loadIndexFrontier(shardOids, (storage as any));
+    const result = await loadIndexFrontier(shardOids, (storage as any), { codec: defaultCodec });
 
     expect(result).toBeInstanceOf(Map);
     expect(result!.get('alice')).toBe('sha-a');
@@ -41,7 +41,7 @@ describe('loadIndexFrontier', () => {
     })) as any);
     const shardOids = { 'frontier.cbor': 'cbor-oid' };
 
-    const result = await loadIndexFrontier(shardOids, ({} as any), { indexStore: mockIndexStore });
+    const result = await loadIndexFrontier(shardOids, ({} as any), { codec: defaultCodec, indexStore: mockIndexStore });
 
     expect(result).toBeInstanceOf(Map);
     expect(result!.get('alice')).toBe('sha-a');
@@ -51,7 +51,7 @@ describe('loadIndexFrontier', () => {
 
   it('with neither → null', async () => {
     const storage = { readBlob: vi.fn() };
-    const result = await loadIndexFrontier({}, (storage as any));
+    const result = await loadIndexFrontier({}, (storage as any), { codec: defaultCodec });
     expect(result).toBeNull();
   });
 });
@@ -156,7 +156,7 @@ describe('IndexRebuildService.load() staleness integration', () => {
     });
     storage.readBlob.mockResolvedValue(cborBuffer);
 
-    const service = new IndexRebuildService(({ graphService, storage, logger } as any));
+    const service = new IndexRebuildService(({ graphService, storage, logger, codec: defaultCodec } as any));
     const currentFrontier = new Map([['alice', 'sha-new']]);
 
     await service.load('tree-oid', { currentFrontier });
@@ -177,7 +177,7 @@ describe('IndexRebuildService.load() staleness integration', () => {
     });
     storage.readBlob.mockResolvedValue(cborBuffer);
 
-    const service = new IndexRebuildService(({ graphService, storage, logger } as any));
+    const service = new IndexRebuildService(({ graphService, storage, logger, codec: defaultCodec } as any));
     const currentFrontier = new Map([['alice', 'sha-a']]);
 
     await service.load('tree-oid', { currentFrontier });
@@ -190,7 +190,7 @@ describe('IndexRebuildService.load() staleness integration', () => {
       'meta_aa.json': 'aaa1aaa2aaa3aaa4aaa5aaa6aaa7aaa8aaa9aaa0',
     });
 
-    const service = new IndexRebuildService(({ graphService, storage, logger } as any));
+    const service = new IndexRebuildService(({ graphService, storage, logger, codec: defaultCodec } as any));
     const currentFrontier = new Map([['alice', 'sha-a']]);
 
     await service.load('tree-oid', { currentFrontier });
@@ -224,7 +224,7 @@ describe('IndexRebuildService.load() staleness integration', () => {
     // Mock graphService.iterateNodes to yield nothing (empty graph)
     graphService.iterateNodes = function* () { /* empty */ };
 
-    const service = new IndexRebuildService(({ graphService, storage, logger } as any));
+    const service = new IndexRebuildService(({ graphService, storage, logger, codec: defaultCodec } as any));
 
     const reader = await service.load('tree-oid', {
       currentFrontier,

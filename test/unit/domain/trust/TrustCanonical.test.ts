@@ -6,6 +6,7 @@ import {
   verifyRecordId,
 } from '../../../../src/domain/trust/TrustCanonical.ts';
 import { recordIdPayload } from '../../../../src/domain/trust/canonical.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 
 const record = {
   schemaVersion: 1,
@@ -20,19 +21,20 @@ const record = {
 
 describe('computeRecordId', () => {
   it('returns a 64-character hex string', async () => {
-    const id = await computeRecordId(record);
+    const id = await computeRecordId(record, { crypto: defaultCrypto });
     expect(id).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('is deterministic', async () => {
-    expect(await computeRecordId(record)).toBe(await computeRecordId(record));
+    expect(await computeRecordId(record, { crypto: defaultCrypto }))
+      .toBe(await computeRecordId(record, { crypto: defaultCrypto }));
   });
 
   it('matches manual SHA-256 of recordIdPayload', async () => {
     const expected = createHash('sha256')
       .update(recordIdPayload(record))
       .digest('hex');
-    expect(await computeRecordId(record)).toBe(expected);
+    expect(await computeRecordId(record, { crypto: defaultCrypto })).toBe(expected);
   });
 
   it('is invariant to key order permutation', async () => {
@@ -46,32 +48,35 @@ describe('computeRecordId', () => {
       recordId: record.recordId,
       signature: record.signature,
     };
-    expect(await computeRecordId(permuted)).toBe(await computeRecordId(record));
+    expect(await computeRecordId(permuted, { crypto: defaultCrypto }))
+      .toBe(await computeRecordId(record, { crypto: defaultCrypto }));
   });
 
   it('is independent of recordId field value', async () => {
     const a = { ...record, recordId: 'x'.repeat(64) };
     const b = { ...record, recordId: 'y'.repeat(64) };
-    expect(await computeRecordId(a)).toBe(await computeRecordId(b));
+    expect(await computeRecordId(a, { crypto: defaultCrypto }))
+      .toBe(await computeRecordId(b, { crypto: defaultCrypto }));
   });
 
   it('is independent of signature field value', async () => {
     const a = { ...record, signature: { alg: 'ed25519', sig: 'aaa' } };
     const b = { ...record, signature: { alg: 'ed25519', sig: 'bbb' } };
-    expect(await computeRecordId(a)).toBe(await computeRecordId(b));
+    expect(await computeRecordId(a, { crypto: defaultCrypto }))
+      .toBe(await computeRecordId(b, { crypto: defaultCrypto }));
   });
 });
 
 describe('verifyRecordId', () => {
   it('returns true when recordId matches content', async () => {
-    const id = await computeRecordId(record);
+    const id = await computeRecordId(record, { crypto: defaultCrypto });
     const r = { ...record, recordId: id };
-    expect(await verifyRecordId(r)).toBe(true);
+    expect(await verifyRecordId(r, { crypto: defaultCrypto })).toBe(true);
   });
 
   it('returns false when recordId does not match', async () => {
     const r = { ...record, recordId: 'f'.repeat(64) };
-    expect(await verifyRecordId(r)).toBe(false);
+    expect(await verifyRecordId(r, { crypto: defaultCrypto })).toBe(false);
   });
 });
 

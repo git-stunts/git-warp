@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { inspect } from 'node:util';
 
-import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import SyncAuthService, {
   signSyncRequest,
 } from '../../../../src/domain/services/sync/SyncAuthService.ts';

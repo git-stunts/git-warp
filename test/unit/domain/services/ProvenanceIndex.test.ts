@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import ProvenanceIndex from '../../../../src/domain/services/provenance/ProvenanceIndex.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
+import { createFakeCodecPort } from '../../../helpers/mockPorts.ts';
+
+const codec = createFakeCodecPort();
 
 describe('ProvenanceIndex', () => {
   describe('constructor', () => {
@@ -213,8 +216,8 @@ describe('ProvenanceIndex', () => {
     describe('serialize/deserialize', () => {
       it('roundtrips empty index', () => {
         const index = new ProvenanceIndex();
-        const buffer = (index.serialize() as Buffer);
-        const restored = ProvenanceIndex.deserialize(buffer);
+        const buffer = index.serialize({ codec });
+        const restored = ProvenanceIndex.deserialize(buffer, { codec });
 
         expect(restored.size).toBe(0);
       });
@@ -225,8 +228,8 @@ describe('ProvenanceIndex', () => {
         index.addPatch('sha2', ['a'], ['c']);
         index.addPatch('sha3', [], ['a']);
 
-        const buffer = (index.serialize() as Buffer);
-        const restored = ProvenanceIndex.deserialize(buffer);
+        const buffer = index.serialize({ codec });
+        const restored = ProvenanceIndex.deserialize(buffer, { codec });
 
         expect(restored.patchesFor('a')).toEqual(['sha1', 'sha2', 'sha3']);
         expect(restored.patchesFor('b')).toEqual(['sha1']);
@@ -241,21 +244,20 @@ describe('ProvenanceIndex', () => {
         const index2 = new ProvenanceIndex();
         index2.addPatch('sha1', ['a', 'b'], []);
 
-        const buffer1 = (index1.serialize() as Buffer);
-        const buffer2 = (index2.serialize() as Buffer);
+        const buffer1 = index1.serialize({ codec });
+        const buffer2 = index2.serialize({ codec });
 
-        expect(buffer1.equals(buffer2)).toBe(true);
+        expect(buffer1).toEqual(buffer2);
       });
 
-      it('throws on unsupported version', async () => {
+      it('throws on unsupported version', () => {
         const index = new ProvenanceIndex();
-        index.serialize(); // validate serialization works
+        index.serialize({ codec }); // validate serialization works
 
         // Manually create a buffer with version 99
-        const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.ts');
-        const badData = encode({ version: 99, entries: [] });
+        const badData = codec.encode({ version: 99, entries: [] });
 
-        expect(() => ProvenanceIndex.deserialize(badData)).toThrow('Unsupported');
+        expect(() => ProvenanceIndex.deserialize(badData, { codec })).toThrow('Unsupported');
       });
     });
 
@@ -309,16 +311,14 @@ describe('ProvenanceIndex', () => {
         expect(restored.size).toBe(0);
       });
 
-      it('throws on missing entries in deserialize', async () => {
-        const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.ts');
-        const badData = encode({ version: 1 }); // missing entries field
-        expect(() => ProvenanceIndex.deserialize(badData)).toThrow('Missing or invalid ProvenanceIndex entries');
+      it('throws on missing entries in deserialize', () => {
+        const badData = codec.encode({ version: 1 }); // missing entries field
+        expect(() => ProvenanceIndex.deserialize(badData, { codec })).toThrow('Missing or invalid ProvenanceIndex entries');
       });
 
-      it('throws on null entries in deserialize', async () => {
-        const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.ts');
-        const badData = encode({ version: 1, entries: null });
-        expect(() => ProvenanceIndex.deserialize(badData)).toThrow('Missing or invalid ProvenanceIndex entries');
+      it('throws on null entries in deserialize', () => {
+        const badData = codec.encode({ version: 1, entries: null });
+        expect(() => ProvenanceIndex.deserialize(badData, { codec })).toThrow('Missing or invalid ProvenanceIndex entries');
       });
     });
   });
