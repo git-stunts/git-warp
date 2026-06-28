@@ -60,9 +60,10 @@ export default class IntentController implements IntentCapability {
     guard: WarpIntentDescriptor['precommitGuards'][number],
     nodeProps: Readonly<{ [key: string]: unknown }> | null,
   ) {
-    const raw = nodeProps ? nodeProps['status'] : null;
+    const raw = nodeProps ? nodeProps['status'] : 'ABSENT';
     const actualStatus = typeof raw === 'string' ? raw : 'ABSENT';
-    if (guard.expected !== undefined && actualStatus !== guard.expected) {
+    const expected = (guard as unknown as { expected: string }).expected;
+    if (actualStatus !== expected) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: actualStatus };
     }
     return null;
@@ -72,10 +73,12 @@ export default class IntentController implements IntentCapability {
     guard: WarpIntentDescriptor['precommitGuards'][number],
     nodeProps: Readonly<{ [key: string]: unknown }> | null,
   ) {
-    const raw = nodeProps ? nodeProps['agentId'] : null;
-    const assignedAgent = typeof raw === 'string' ? raw : null;
-    if (assignedAgent !== null && guard.agentId !== undefined && assignedAgent !== guard.agentId) {
-      return { tag: guard.failureTag, nodeId: guard.nodeId, actual: assignedAgent };
+    if (!nodeProps) { return null; }
+    const raw = nodeProps['agentId'];
+    if (typeof raw !== 'string') { return null; }
+    const expected = (guard as unknown as { agentId: string }).agentId;
+    if (raw !== expected) {
+      return { tag: guard.failureTag, nodeId: guard.nodeId, actual: raw };
     }
     return null;
   }
