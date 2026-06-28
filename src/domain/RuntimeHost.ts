@@ -32,6 +32,8 @@ import QueryController from './services/controllers/QueryController.ts';
 import PatchController from './services/controllers/PatchController.ts';
 import CheckpointController from './services/controllers/CheckpointController.ts';
 import SyncTrustGate from './services/sync/SyncTrustGate.ts';
+import IntentController from './services/controllers/IntentController.ts';
+import type IntentCapability from './capabilities/IntentCapability.ts';
 import AuditVerifierService from './services/audit/AuditVerifierService.ts';
 import { E_NO_STATE_MSG } from './services/controllers/QueryStateMessages.ts';
 import type MaterializedViewService from './services/MaterializedViewService.ts';
@@ -216,6 +218,7 @@ export default class RuntimeHost {
   _trustConfig: NormalizedTrustConfig;
   _createSyncTrustGate: (override?: { mode?: TrustMode; pin?: string | null } | null) => SyncTrustGate | null;
   _syncController: SyncController;
+  _intentController: IntentController;
   _strandController: StrandController;
   _comparisonController: ComparisonController;
   _subscriptionController: SubscriptionController;
@@ -329,6 +332,7 @@ export default class RuntimeHost {
     this._syncController = new SyncController(this, {
       ...(trustGate !== undefined ? { trustGate } : {}),
     });
+    this._intentController = new IntentController(this);
     this._strandController = new StrandController(this);
     this._comparisonController = new ComparisonController({
       host: this,
@@ -640,6 +644,10 @@ export default class RuntimeHost {
   }
   tickStrand: StrandController['tickStrand'] = (...args) => this._strandController.tickStrand(...args);
   analyzeConflicts: StrandController['analyzeConflicts'] = (...args) => this._strandController.analyzeConflicts(...args);
+
+  admitIntent: IntentCapability['admitIntent'] = (...args) => this._intentController.admitIntent(...args);
+  queueIntent: IntentCapability['queueIntent'] = (...args) => this._intentController.queueIntent(...args);
+  getWriterIntents: IntentCapability['getWriterIntents'] = (...args) => this._intentController.getWriterIntents(...args);
 
   hasNode: QueryCapability['hasNode'] = (...args) => this._queryController.hasNode(...args);
   getEdgeProps: QueryCapability['getEdgeProps'] = (...args) => this._queryController.getEdgeProps(...args);
