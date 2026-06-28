@@ -11,7 +11,10 @@
     "ts-no-process-env-in-core"
   ],
   "rationale": "Pre-existing raw-shape or I/O leaks in core (src/domain/** and src/ports/**). Root cause: the boundary did not decode into a runtime-backed domain type. Graduate by moving decode/encode to src/infrastructure/adapters/** and by introducing domain types for what was previously passed as `unknown` or `Record<string, unknown>`.",
-  "generated_at": "2026-05-05T08:58:54.884Z",
+  "generated_at": "2026-06-28T19:29:18.370Z",
   "generator": "scripts/contamination-map.ts v1",
-  "files": []
+  "files": [
+    "src/domain/services/controllers/IntentController.ts",
+    "src/domain/types/WarpIntentDescriptor.ts"
+  ]
 }

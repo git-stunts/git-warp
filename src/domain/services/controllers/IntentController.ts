@@ -20,10 +20,12 @@ export type IntentHost = {
 export default class IntentController implements IntentCapability {
   _host: IntentHost;
   private _queuedIntents: Map<string, WarpIntentDescriptor[]>;
+  private _admitCounter: number;
 
   constructor(host: IntentHost) {
     this._host = host;
     this._queuedIntents = new Map();
+    this._admitCounter = 0;
   }
 
   async admitIntent(descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> {
@@ -36,7 +38,8 @@ export default class IntentController implements IntentCapability {
       }
     }
     const jsonBytes = new TextEncoder().encode(JSON.stringify(descriptor));
-    let sha = `blob:intent:${descriptor.intentId}:${this._host._writerId}`;
+    this._admitCounter += 1;
+    let sha = `blob:intent:${descriptor.intentId}:${this._host._writerId}:${this._admitCounter}`;
     if (typeof this._host._persistence.writeBlob === 'function') {
       sha = await this._host._persistence.writeBlob(jsonBytes);
     }

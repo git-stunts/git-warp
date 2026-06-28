@@ -3,6 +3,10 @@ import type { WarpIntentDescriptor, WarpIntentOutcome } from '../../../src/domai
 import type WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import WasmVerifiedAdmissionService from '../../../src/domain/services/admission/WasmVerifiedAdmissionService.ts';
 
+function createMockWarpWorldline(outcome: WarpIntentOutcome): WarpWorldline {
+  return { admitIntent: async () => outcome } as unknown as WarpWorldline;
+}
+
 describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {
   const validIntentDescriptor: WarpIntentDescriptor = {
     intentId: 'intent:xyph:quest:claim:001',
@@ -39,13 +43,11 @@ describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {
   };
 
   it('should verify report digest and admit intent through worldline', async () => {
-    const mockWorldline = {
-      admitIntent: async (descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> => ({
-        admitted: true,
-        sha: 'blob:intent:sha123',
-        intentId: descriptor.intentId,
-      }),
-    } as unknown as WarpWorldline;
+    const mockWorldline = createMockWarpWorldline({
+      admitted: true,
+      sha: 'blob:intent:sha123',
+      intentId: validIntentDescriptor.intentId,
+    });
 
     const service = new WasmVerifiedAdmissionService(mockWorldline);
     const outcome = await service.admitWasmIntent(validIntentDescriptor, validReport);
@@ -58,13 +60,11 @@ describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {
   });
 
   it('should reject admission if verifier report is invalid or untrusted', async () => {
-    const mockWorldline = {
-      admitIntent: async (descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> => ({
-        admitted: true,
-        sha: 'blob:intent:sha123',
-        intentId: descriptor.intentId,
-      }),
-    } as unknown as WarpWorldline;
+    const mockWorldline = createMockWarpWorldline({
+      admitted: true,
+      sha: 'blob:intent:sha123',
+      intentId: validIntentDescriptor.intentId,
+    });
 
     const service = new WasmVerifiedAdmissionService(mockWorldline);
     const outcome = await service.admitWasmIntent(validIntentDescriptor, invalidReport);
@@ -77,17 +77,15 @@ describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {
   });
 
   it('should reflect precommit guard obstructions encountered during worldline admission', async () => {
-    const mockWorldline = {
-      admitIntent: async (descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> => ({
-        admitted: false,
-        obstruction: {
-          tag: 'QuestNotReady',
-          nodeId: 'quest:abc',
-          actual: 'BACKLOG',
-        },
-        intentId: descriptor.intentId,
-      }),
-    } as unknown as WarpWorldline;
+    const mockWorldline = createMockWarpWorldline({
+      admitted: false,
+      obstruction: {
+        tag: 'QuestNotReady',
+        nodeId: 'quest:abc',
+        actual: 'BACKLOG',
+      },
+      intentId: validIntentDescriptor.intentId,
+    });
 
     const service = new WasmVerifiedAdmissionService(mockWorldline);
     const outcome = await service.admitWasmIntent(validIntentDescriptor, validReport);
