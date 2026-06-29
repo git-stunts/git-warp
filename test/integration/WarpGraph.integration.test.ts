@@ -145,6 +145,7 @@ describe('WarpCore Integration', () => {
         graphName: 'test',
         writerId: 'writer1',
         crypto: new NodeCryptoAdapter(),
+        stateCache: null,
       });
 
       // Create some patches
