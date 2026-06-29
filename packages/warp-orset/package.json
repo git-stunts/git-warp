@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/warp-orset",
-  "version": "18.1.2",
+  "version": "18.2.0",
   "description": "ORSet engine: trie, cursor, cache, and session primitives for git-warp.",
   "private": true,
   "type": "module",
