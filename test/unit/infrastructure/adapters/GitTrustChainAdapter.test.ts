@@ -14,7 +14,7 @@ class MockContentAddressableStore {
   restore = mockRestore;
   store = mockStore;
   createTree = mockCreateTree;
-  constructor(opts: any) {}
+  constructor(_opts: any) {}
 }
 
 vi.mock('@git-stunts/git-cas', () => ({
@@ -29,6 +29,9 @@ const { default: GitTrustChainAdapter } = await import(
 const { default: TrustChainPort } = await import(
   '../../../../src/ports/TrustChainPort.ts'
 );
+const { default: CryptoPort } = await import(
+  '../../../../src/ports/CryptoPort.ts'
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,15 +43,17 @@ function makePlumbing() {
   };
 }
 
-function makeCrypto() {
+function makeCrypto(): InstanceType<typeof CryptoPort> {
   return {
-    hash: vi.fn().mockResolvedValue('expected-record-id-hash'),
-    encrypt: vi.fn(),
-    decrypt: vi.fn(),
-    generateKey: vi.fn(),
-    sign: vi.fn(),
-    verify: vi.fn(),
-  };
+    hash: vi.fn().mockResolvedValue('expected-record-id-hash') as any,
+    encrypt: vi.fn() as any,
+    decrypt: vi.fn() as any,
+    generateKey: vi.fn() as any,
+    sign: vi.fn() as any,
+    verify: vi.fn() as any,
+    hmac: vi.fn() as any,
+    timingSafeEqual: vi.fn() as any,
+  } as unknown as InstanceType<typeof CryptoPort>;
 }
 
 const GRAPH_NAME = 'test-graph';
@@ -160,7 +165,7 @@ describe('GitTrustChainAdapter', () => {
         if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
         if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\nparent ${PARENT_SHA}\n\ncommit message`;
         if (args[0] === 'ls-tree') return '100644 blob blob-oid-1\trecord.cbor\n';
-        if (args[0] === 'cat-file' && args[1] === 'blob') return codec.encode(SAMPLE_RECORD_OBJ).toString('binary');
+        if (args[0] === 'cat-file' && args[1] === 'blob') return Buffer.from(codec.encode(SAMPLE_RECORD_OBJ)).toString('binary');
         return '';
       });
 
@@ -277,7 +282,9 @@ describe('GitTrustChainAdapter', () => {
       mockRestore.mockResolvedValueOnce({ buffer: codec.encode(mismatchObj) });
 
       await expect(async () => {
-        for await (const rec of adapter.readRecords(GRAPH_NAME)) {}
+        for await (const rec of adapter.readRecords(GRAPH_NAME)) {
+          expect(rec).toBeDefined();
+        }
       }).rejects.toThrow(/RecordId mismatch/);
     });
 
@@ -292,7 +299,7 @@ describe('GitTrustChainAdapter', () => {
         if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
         if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\n\ncommit 1`;
         if (args[0] === 'ls-tree') return '100644 blob blob-oid-1\trecord.cbor\n';
-        if (args[0] === 'cat-file' && args[1] === 'blob') return codec.encode(SAMPLE_RECORD_OBJ).toString('binary');
+        if (args[0] === 'cat-file' && args[1] === 'blob') return Buffer.from(codec.encode(SAMPLE_RECORD_OBJ)).toString('binary');
         return '';
       });
 
