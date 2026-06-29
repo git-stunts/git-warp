@@ -45,7 +45,8 @@ export default class CasFirstMemoizationEngine {
    * 2.3. Write materialized git-object to git-cas always
    */
   async materialize<T>(request: MaterializationRequest<T>): Promise<CasMaterializationResult<T>> {
-    const key = await this._crypto.hash(request.coordinateKeyParams);
+    void this._codec;
+    const key = await this._crypto.hash('sha256', request.coordinateKeyParams);
 
     const hitResult = await this._tryCasHit(key, request);
     if (hitResult !== null) {

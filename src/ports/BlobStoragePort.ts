@@ -30,5 +30,7 @@ export default abstract class BlobStoragePort {
   abstract retrieveStream(_oid: string): AsyncIterable<Uint8Array>;
 
   /** Checks if the content exists in CAS storage. */
-  abstract has?(_oid: string): Promise<boolean>;
+  async has?(_oid: string): Promise<boolean> {
+    return false;
+  }
 }

@@ -6,7 +6,7 @@ import type CodecPort from '../../src/ports/CodecPort.ts';
 
 describe('CasFirstMemoizationEngine', () => {
   const dummyCrypto: CryptoPort = {
-    hash: vi.fn(async (data: string) => `hash:${data}`),
+    hash: vi.fn(async (_algorithm: string, data: string | Uint8Array) => `hash:${data as string}`),
     hmac: vi.fn(),
     timingSafeEqual: vi.fn(),
   };
