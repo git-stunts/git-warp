@@ -83,11 +83,11 @@ export default class WarpCore {
   declare readonly discoverWriters: WarpCoreRuntimeSurface['discoverWriters'];
   declare readonly discoverTicks: WarpCoreRuntimeSurface['discoverTicks'];
   declare readonly join: WarpCoreRuntimeSurface['join'];
-  /** @deprecated For application reads, use openWarpWorldline().live(), seek(), or observer reads. */
+  /** @deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission. */
   declare readonly materialize: WarpCoreRuntimeSurface['materialize'];
-  /** @deprecated For application coordinate reads, use worldline seek/read handles. */
+  /** @deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission. */
   declare readonly materializeCoordinate: WarpCoreRuntimeSurface['materializeCoordinate'];
-  /** @deprecated For application checkpoint reads, use historical worldline reads. */
+  /** @deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission. */
   declare readonly materializeAt: WarpCoreRuntimeSurface['materializeAt'];
   /** Diagnostic/substrate index verification; not an application read path. */
   declare readonly verifyIndex: WarpCoreRuntimeSurface['verifyIndex'];
@@ -107,7 +107,7 @@ export default class WarpCore {
   declare readonly getStrand: WarpCoreRuntimeSurface['getStrand'];
   declare readonly listStrands: WarpCoreRuntimeSurface['listStrands'];
   declare readonly dropStrand: WarpCoreRuntimeSurface['dropStrand'];
-  /** Diagnostic/speculative-lane snapshot inspection; not a first-use application read path. */
+  /** @deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission. */
   declare readonly materializeStrand: WarpCoreRuntimeSurface['materializeStrand'];
   declare readonly getStrandPatches: WarpCoreRuntimeSurface['getStrandPatches'];
   declare readonly patchesForStrand: WarpCoreRuntimeSurface['patchesForStrand'];
@@ -123,7 +123,7 @@ export default class WarpCore {
   declare readonly runGC: WarpCoreRuntimeSurface['runGC'];
   declare readonly getGCMetrics: WarpCoreRuntimeSurface['getGCMetrics'];
   declare readonly patchesFor: WarpCoreRuntimeSurface['patchesFor'];
-  /** Diagnostic/provenance slice inspection; not a first-use application read path. */
+  /** @deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission. */
   declare readonly materializeSlice: WarpCoreRuntimeSurface['materializeSlice'];
   declare readonly loadPatchBySha: WarpCoreRuntimeSurface['loadPatchBySha'];
   declare readonly buildPatchDivergence: WarpCoreRuntimeSurface['buildPatchDivergence'];
