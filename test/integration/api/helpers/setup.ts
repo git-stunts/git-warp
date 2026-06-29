@@ -49,6 +49,7 @@ export async function createTestRepo(label = 'api-test') {
     async function openGraph(graphName, writerId, opts = {}) {
       return WarpCore.open({
         blobStorage,
+        stateCache: null,
         ...opts,
         persistence,
         graphName,

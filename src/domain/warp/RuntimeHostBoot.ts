@@ -59,7 +59,7 @@ export type RuntimeHostConstructionOptions = {
   codec: CodecPort;
   trustCrypto?: TrustCryptoPort;
   seekCache?: SeekCachePort;
-  stateCache?: WarpStateCachePort;
+  stateCache?: WarpStateCachePort | null;
   audit?: boolean;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -90,7 +90,7 @@ export type RuntimeHostOpenOptions = {
   codec?: CodecPort;
   trustCrypto?: TrustCryptoPort;
   seekCache?: SeekCachePort;
-  stateCache?: WarpStateCachePort;
+  stateCache?: WarpStateCachePort | null;
   audit?: boolean;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -120,7 +120,7 @@ export class WarpOpenOptions {
   readonly codec?: CodecPort;
   readonly trustCrypto?: TrustCryptoPort;
   readonly seekCache?: SeekCachePort;
-  readonly stateCache?: WarpStateCachePort;
+  readonly stateCache?: WarpStateCachePort | null;
   readonly audit?: boolean;
   readonly blobStorage?: BlobStoragePort;
   readonly patchBlobStorage?: BlobStoragePort;
@@ -350,7 +350,7 @@ export async function resolveRuntimeHostConstructionOptions(
   let resolvedStateCache: WarpStateCachePort | undefined;
   if (stateCache !== undefined && stateCache !== null) {
     resolvedStateCache = stateCache;
-  } else if (typeof persistence.createRuntimeStateCache === 'function') {
+  } else if (stateCache !== null && typeof persistence.createRuntimeStateCache === 'function') {
     resolvedStateCache = await persistence.createRuntimeStateCache({
       graphName,
       codec: resolvedCodec,
