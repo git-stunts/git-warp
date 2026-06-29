@@ -1,5 +1,5 @@
 import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifierService.ts';
-import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
 import { EXIT_CODES, parseCommandArgs, getEnvVar } from '../infrastructure.ts';
 import { verifyAuditSchema } from '../schemas.ts';

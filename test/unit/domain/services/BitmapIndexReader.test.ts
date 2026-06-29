@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.ts';
 import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.ts';
 import { ShardLoadError, ShardCorruptionError } from '../../../../src/domain/errors/index.ts';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';
 
 /**
@@ -52,7 +52,7 @@ describe('BitmapIndexReader', () => {
     mockStorage = {
       readBlob: vi.fn(),
     };
-    reader = new BitmapIndexReader(({ storage: mockStorage } as any));
+    reader = new BitmapIndexReader(({ storage: mockStorage, codec: defaultCodec } as any));
   });
 
   describe('constructor validation', () => {
@@ -66,12 +66,12 @@ describe('BitmapIndexReader', () => {
     });
 
     it('uses default maxCachedShards of 100', () => {
-      const readerWithDefaults = new BitmapIndexReader(({ storage: mockStorage } as any));
+      const readerWithDefaults = new BitmapIndexReader(({ storage: mockStorage, codec: defaultCodec } as any));
       expect(readerWithDefaults.maxCachedShards).toBe(100);
     });
 
     it('accepts custom maxCachedShards', () => {
-      const readerWithCustom = new BitmapIndexReader(({ storage: mockStorage, maxCachedShards: 50 } as any));
+      const readerWithCustom = new BitmapIndexReader(({ storage: mockStorage, maxCachedShards: 50, codec: defaultCodec } as any));
       expect(readerWithCustom.maxCachedShards).toBe(50);
     });
   });
@@ -91,6 +91,7 @@ describe('BitmapIndexReader', () => {
       const lenientReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: false,
+        codec: defaultCodec,
         logger: { warn: warnSpy, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
       }) as any));
       lenientReader.setup({
@@ -110,6 +111,7 @@ describe('BitmapIndexReader', () => {
       const strictReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: true,
+        codec: defaultCodec,
       }) as any));
       expect(() => strictReader.setup({
         'meta_ab.cbor': 'not-valid-oid',
@@ -120,6 +122,7 @@ describe('BitmapIndexReader', () => {
       const strictReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: true,
+        codec: defaultCodec,
       }) as any));
       try {
         strictReader.setup({ 'meta_ab.cbor': 'bad!' });
@@ -160,7 +163,7 @@ describe('BitmapIndexReader', () => {
 
     it('loads and decodes bitmap data', async () => {
       // Build a real index
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       builder.addEdge('aabbccdd00000000000000000000000000000000', 'eeff00dd00000000000000000000000000000000');
       const tree = await builder.serialize();
 
@@ -203,7 +206,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('returns empty array when shard contains invalid CBOR (non-strict)', async () => {
-      const lenient = new BitmapIndexReader(({ storage: mockStorage, strict: false } as any));
+      const lenient = new BitmapIndexReader(({ storage: mockStorage, strict: false, codec: defaultCodec } as any));
       mockStorage.readBlob.mockResolvedValue(new Uint8Array([0xff, 0xfe, 0xfd])); // invalid CBOR bytes
 
       lenient.setup({
@@ -220,6 +223,7 @@ describe('BitmapIndexReader', () => {
       const lenient = new BitmapIndexReader({
         storage: mockStorage,
         strict: false,
+        codec: defaultCodec,
         logger: mockLogger,
       });
       // Valid CBOR but wrong structure (array instead of object)
@@ -245,6 +249,7 @@ describe('BitmapIndexReader', () => {
       const lenient = new BitmapIndexReader({
         storage: mockStorage,
         strict: false,
+        codec: defaultCodec,
         logger: mockLogger,
       });
       mockStorage.readBlob.mockResolvedValue(defaultCodec.encode(new Uint8Array([1, 2, 3])));
@@ -266,7 +271,7 @@ describe('BitmapIndexReader', () => {
 
     it('throws ShardLoadError on storage failure but continues after', async () => {
       // Build a real index for comparison
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       builder.addEdge('aabbccdd00000000000000000000000000000000', 'eeff00dd00000000000000000000000000000000');
       const tree = await builder.serialize();
 
@@ -299,7 +304,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('in strict mode throws ShardCorruptionError on invalid CBOR', async () => {
-      const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true } as any));
+      const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true, codec: defaultCodec } as any));
       mockStorage.readBlob.mockResolvedValue(new Uint8Array([0xff, 0xfe, 0xfd])); // invalid CBOR bytes
 
       strictReader.setup({
@@ -340,6 +345,7 @@ describe('BitmapIndexReader', () => {
       const nonStrictReader = new BitmapIndexReader({
         storage: mockStorage,
         strict: false,
+        codec: defaultCodec,
         logger: mockLogger,
       });
       mockStorage.readBlob.mockResolvedValue(corruptBitmapData);
@@ -356,7 +362,7 @@ describe('BitmapIndexReader', () => {
       }));
 
       // Strict reader gets same data and rejects the non-byte bitmap value.
-      const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true } as any));
+      const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true, codec: defaultCodec } as any));
       strictReader.setup({ 'shards_rev_ab.cbor': 'eee5fff600000000000000000000000000000000' });
 
       await expect(strictReader.getParents(sha)).rejects.toThrow(ShardCorruptionError);
@@ -372,6 +378,7 @@ describe('BitmapIndexReader', () => {
       const nonStrictReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: false,
+        codec: defaultCodec,
         logger: mockLogger,
       }) as any));
 
@@ -402,6 +409,7 @@ describe('BitmapIndexReader', () => {
       const lenientReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: false,
+        codec: defaultCodec,
         logger: mockLogger,
       }) as any));
       const sha = 'abcd123400000000000000000000000000000000';
@@ -438,7 +446,8 @@ describe('BitmapIndexReader', () => {
       // Create reader with small cache size
       const smallCacheReader = new BitmapIndexReader((({
         storage: mockStorage,
-        maxCachedShards: 2
+        maxCachedShards: 2,
+        codec: defaultCodec,
       }) as any));
 
       // Create valid CBOR shard data
@@ -476,7 +485,8 @@ describe('BitmapIndexReader', () => {
     it('marks accessed shards as recently used', async () => {
       const smallCacheReader = new BitmapIndexReader((({
         storage: mockStorage,
-        maxCachedShards: 2
+        maxCachedShards: 2,
+        codec: defaultCodec,
       }) as any));
 
       const createValidShard = (/** @type {any} */ id) => defaultCodec.encode({ id });
@@ -521,6 +531,7 @@ describe('BitmapIndexReader', () => {
       const warn = vi.fn();
       const noisyReader = new BitmapIndexReader((({
         storage: mockStorage,
+        codec: defaultCodec,
         logger: { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
       }) as any));
       (noisyReader as any)._warnLargeIdCache(1_000_001);
@@ -531,7 +542,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('wraps codec decode errors into ShardCorruptionError in strict mode', async () => {
-      const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true } as any));
+      const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true, codec: defaultCodec } as any));
       const anyReader = (strictReader);
       anyReader.setup({ 'meta_ab.cbor': '3333444400000000000000000000000000000000' });
       // Inject a codec that throws on decode
@@ -547,7 +558,7 @@ describe('BitmapIndexReader', () => {
 
   describe('round-trip with BitmapIndexBuilder', () => {
     it('correctly resolves parent/child edges from a builder-generated tree', async () => {
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       const parentSha = 'aaaa000000000000000000000000000000000000';
       const childSha = 'bbbb000000000000000000000000000000000000';
       builder.addEdge(parentSha, childSha);

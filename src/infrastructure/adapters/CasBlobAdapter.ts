@@ -38,6 +38,7 @@ interface CasStore {
   restoreStream?: (opts: { manifest: CasManifest } & CasRestoreEncryptionArguments) => AsyncIterable<Uint8Array>;
   store(opts: { source: unknown; slug: string; filename: string } & CasStoreEncryptionArguments): Promise<CasManifest>;
   createTree(opts: { manifest: CasManifest }): Promise<string>;
+  has?: (opts: { treeOid: string }) => Promise<boolean>;
 }
 
 export interface BlobPersistence {
@@ -145,6 +146,19 @@ export default class CasBlobAdapter extends BlobStoragePort {
 
     const manifest = await cas.store(storeOpts);
     return await cas.createTree({ manifest });
+  }
+
+  override async has(oid: string): Promise<boolean> {
+    const cas = await this._getCas();
+    if (typeof cas.has === 'function') {
+      return await cas.has({ treeOid: oid });
+    }
+    try {
+      await cas.readManifest({ treeOid: oid });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   override async retrieve(oid: string): Promise<Uint8Array> {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.ts';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('IndexRebuildService Deep DAG Test', () => {
   it('handles 10,000 node chain without stack overflow', { timeout: 30000 }, async () => {
@@ -37,7 +38,8 @@ describe('IndexRebuildService Deep DAG Test', () => {
 
     const service = new IndexRebuildService((({
       graphService: mockGraphService,
-      storage: mockStorage
+      storage: mockStorage,
+      codec: defaultCodec,
     }) as any));
 
     // This should complete without stack overflow
@@ -103,7 +105,8 @@ describe('IndexRebuildService Deep DAG Test', () => {
 
     const service = new IndexRebuildService((({
       graphService: mockGraphService,
-      storage: mockStorage
+      storage: mockStorage,
+      codec: defaultCodec,
     }) as any));
 
     const treeOid = await service.rebuild('HEAD');

@@ -4,7 +4,7 @@ import type TreePort from '../../../ports/TreePort.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type MemoryBudgetLease from '../../memory/MemoryBudgetLease.ts';
 import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
-import defaultCodec from '../../utils/defaultCodec.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import { CheckpointBasisFact, type CheckpointBasisFactShardFamily } from './CheckpointBasisFact.ts';
 import CheckpointBasisManifest, {
   CheckpointBasisChunking,
@@ -100,7 +100,7 @@ export default class StreamingCheckpointBasisBuilder {
     this._checkpointSha = validOptions.checkpointSha;
     this._frontier = copyFrontier(validOptions.frontier);
     this._storage = validOptions.storage;
-    this._codec = validOptions.codec ?? defaultCodec;
+    this._codec = requireCodec(validOptions.codec, 'StreamingCheckpointBasisBuilder');
     this._pool = poolOrNull(validOptions.pool);
     this._maxFactsPerShard = validatePositiveInteger(validOptions.maxFactsPerShard, 'maxFactsPerShard');
     this._layoutFamily = validOptions.layoutFamily ?? 'checkpoint-basis-shards';

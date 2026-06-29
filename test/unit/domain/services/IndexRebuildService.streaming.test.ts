@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.ts';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 const ROOT_SHA = 'a'.repeat(40);
 const CHILD_SHA = 'b'.repeat(40);
@@ -24,7 +25,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService, codec: defaultCodec } as any));
 
       const treeOid = await service.rebuild('main', { maxMemoryBytes: 50 * 1024 * 1024 });
 
@@ -44,7 +45,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService, codec: defaultCodec } as any));
 
             const flushCalls = ([]) as any[];
       await service.rebuild('main', {
@@ -68,7 +69,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService, codec: defaultCodec } as any));
 
             const progressCalls = ([]) as any[];
       await service.rebuild('main', {
@@ -93,7 +94,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService, codec: defaultCodec } as any));
 
       const treeOid = await service.rebuild('main', { maxMemoryBytes: 50 * 1024 * 1024 });
 
@@ -116,7 +117,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService, codec: defaultCodec } as any));
 
       // Without maxMemoryBytes, should use in-memory builder (original behavior)
       const treeOid = await service.rebuild('main');
@@ -140,7 +141,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService, codec: defaultCodec } as any));
 
             const progressCalls = ([]) as any[];
       await service.rebuild('main', {
@@ -181,7 +182,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService, codec: defaultCodec } as any));
 
       let flushCount = 0;
       await service.rebuild('main', {

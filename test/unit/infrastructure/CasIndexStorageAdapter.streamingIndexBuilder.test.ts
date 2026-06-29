@@ -4,6 +4,7 @@ import BlobStoragePort, { type BlobStorageOptions } from '../../../src/ports/Blo
 import RefPort from '../../../src/ports/RefPort.ts';
 import { CasIndexStorageAdapter } from '../../../src/infrastructure/adapters/CasIndexStorageAdapter.ts';
 import { decodeCasPayloadPointer } from '../../../src/infrastructure/adapters/CasPayloadPointer.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import MockBlobPort from '../../helpers/MockBlobPort.ts';
 import MockTreePort from '../../helpers/MockTreePort.ts';
 
@@ -141,6 +142,7 @@ describe('CasIndexStorageAdapter with streaming index rebuilds', () => {
         { sha: 'bb0002', parents: ['aa0001'] },
       ]),
       storage,
+      codec: defaultCodec,
     });
 
     const treeOid = await service.rebuild('main', { maxMemoryBytes: 1 });

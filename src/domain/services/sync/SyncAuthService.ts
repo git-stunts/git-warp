@@ -10,11 +10,11 @@
  */
 
 import LRUCache from '../../utils/LRUCache.ts';
-import defaultCrypto from '../../utils/defaultCrypto.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import { validateWriterId } from '../../utils/RefLayout.ts';
 import { hexEncode, hexDecode } from '../../utils/bytes.ts';
 import SyncError from '../../errors/SyncError.ts';
+import { requireCrypto } from '../crypto/CryptoRequirement.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type LogFields from '../../types/log/LogFields.ts';
@@ -68,7 +68,7 @@ export async function signSyncRequest(
   params: { method: string; path: string; contentType: string; body: Uint8Array; secret: SyncSecret; keyId: string; lamport: number; authScheme?: SyncAuthScheme },
   deps: { crypto?: CryptoPort } = {},
 ): Promise<Record<string, string>> {
-  const c = deps.crypto ?? defaultCrypto;
+  const c = requireCrypto(deps.crypto, 'signSyncRequest');
   const timestamp = String(params.lamport);
   const nonce = globalThis.crypto.randomUUID();
   const authScheme = params.authScheme ?? SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME;
@@ -209,7 +209,7 @@ export default class SyncAuthService {
     _validateKeys(keys);
     this._keys = keys;
     this._mode = mode;
-    this._crypto = crypto ?? defaultCrypto;
+    this._crypto = requireCrypto(crypto, 'SyncAuthService');
     this._logger = logger ?? nullLogger;
     this._nonceCache = new LRUCache(typeof nonceCapacity === 'number' && nonceCapacity > 0 ? nonceCapacity : DEFAULT_NONCE_CAPACITY);
     this._lastSeenLamport = new Map();

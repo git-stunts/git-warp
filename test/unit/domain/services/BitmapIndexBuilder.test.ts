@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.ts';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('BitmapIndexBuilder', () => {
   describe('constructor', () => {
     it('creates an empty builder', () => {
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       expect(builder.shaToId.size).toBe(0);
       expect(builder.idToSha.length).toBe(0);
       expect(builder.bitmaps.size).toBe(0);
@@ -14,7 +14,7 @@ describe('BitmapIndexBuilder', () => {
 
   describe('registerNode', () => {
     it('assigns sequential IDs to nodes', () => {
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       const id1 = builder.registerNode('sha1');
       const id2 = builder.registerNode('sha2');
       expect(id1).toBe(0);
@@ -22,7 +22,7 @@ describe('BitmapIndexBuilder', () => {
     });
 
     it('returns existing ID for duplicate SHA', () => {
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       const id1 = builder.registerNode('sha1');
       const id2 = builder.registerNode('sha1');
       expect(id1).toBe(id2);
@@ -31,7 +31,7 @@ describe('BitmapIndexBuilder', () => {
 
   describe('addEdge', () => {
     it('creates forward and reverse bitmaps', () => {
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       builder.addEdge('aabbccdd', 'eeffgghh');
 
       expect(builder.bitmaps.has('fwd_aabbccdd')).toBe(true);
@@ -41,7 +41,7 @@ describe('BitmapIndexBuilder', () => {
 
   describe('serialize', () => {
     it('produces sharded output structure', async () => {
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       builder.registerNode('aabbcc');
       builder.addEdge('aabbcc', 'aaddee');
 
@@ -55,7 +55,7 @@ describe('BitmapIndexBuilder', () => {
     });
 
     it('encodes bitmaps as Uint8Array in CBOR', async () => {
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       builder.addEdge('aabbcc', 'aaddee');
 
       const tree = await builder.serialize();
@@ -66,7 +66,7 @@ describe('BitmapIndexBuilder', () => {
     });
 
     it('writes CBOR shards with no version envelope', async () => {
-      const builder = new BitmapIndexBuilder();
+      const builder = new BitmapIndexBuilder({ codec: defaultCodec });
       builder.addEdge('aabbcc', 'ddeeff');
 
       const tree = await builder.serialize();

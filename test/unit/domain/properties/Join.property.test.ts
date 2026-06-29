@@ -8,6 +8,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 const crypto = new NodeCryptoAdapter();
 const PROPERTY_TEST_SEED = 42;
@@ -231,8 +232,8 @@ describe('JoinReducer property tests', () => {
     it('same state produces same hash', async () => {
       await fc.assert(
         fc.asyncProperty(stateArb, async (state) => {
-          const hash1 = await computeStateHash(state, { crypto });
-          const hash2 = await computeStateHash(state, { crypto });
+          const hash1 = await computeStateHash(state, { crypto, codec: defaultCodec });
+          const hash2 = await computeStateHash(state, { crypto, codec: defaultCodec });
           return hash1 === hash2;
         }),
         { numRuns: 100, seed: PROPERTY_TEST_SEED }
@@ -244,8 +245,8 @@ describe('JoinReducer property tests', () => {
         fc.asyncProperty(stateArb, stateArb, async (a, b) => {
           const ab = joinStates(a, b);
           const ba = joinStates(b, a);
-          const hashAB = await computeStateHash(ab, { crypto });
-          const hashBA = await computeStateHash(ba, { crypto });
+          const hashAB = await computeStateHash(ab, { crypto, codec: defaultCodec });
+          const hashBA = await computeStateHash(ba, { crypto, codec: defaultCodec });
           return hashAB === hashBA;
         }),
         { numRuns: 100, seed: PROPERTY_TEST_SEED }
@@ -297,14 +298,14 @@ describe('JoinReducer property tests', () => {
           async (patches) => {
             // Reduce patches in original order
             const state1 = reducePatches(patches);
-            const hash1 = await computeStateHash(state1, { crypto });
+            const hash1 = await computeStateHash(state1, { crypto, codec: defaultCodec });
 
             // Shuffle patches using seeded RNG helper
             const shuffled = createRng(PROPERTY_TEST_SEED).shuffle(patches);
 
             // Reduce shuffled patches
             const state2 = reducePatches(shuffled);
-            const hash2 = await computeStateHash(state2, { crypto });
+            const hash2 = await computeStateHash(state2, { crypto, codec: defaultCodec });
 
             return hash1 === hash2;
           }
@@ -328,7 +329,8 @@ describe('JoinReducer property tests', () => {
               createEmptyState()
             );
 
-            return (await computeStateHash(allAtOnce, { crypto })) === (await computeStateHash(joined, { crypto }));
+            return (await computeStateHash(allAtOnce, { crypto, codec: defaultCodec })) ===
+              (await computeStateHash(joined, { crypto, codec: defaultCodec }));
           }
         ),
         { numRuns: 50, seed: PROPERTY_TEST_SEED }

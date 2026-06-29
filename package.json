@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "18.1.2",
+  "version": "18.2.0",
   "description": "Worldline-first WARP graph over Git: deterministic multi-writer causal history, readings, and tooling.",
   "type": "module",
   "license": "Apache-2.0",
@@ -56,7 +56,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.publish.json",
-    "lint": "sh -c 'eslint . \"$@\" && npm run lint:source-size' --",
+    "lint": "sh -c 'eslint . \"$@\" && npm run lint:source-size && npm run lint:cas-invariants' --",
     "lint:ratchet": "sh scripts/lint-ratchet.sh",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules --ignore \"**/node_modules/**\"",
     "lint:md:code": "node scripts/lint-markdown-code-samples.ts",
@@ -64,6 +64,7 @@
     "lint:links": "lychee --config .lychee.toml '**/*.md'",
     "lint:semgrep": "node scripts/lint-semgrep-with-quarantines.ts",
     "lint:sludge": "bash scripts/check-anti-sludge.sh",
+    "lint:cas-invariants": "bash scripts/check-git-cas-invariants.sh",
     "lint:source-size": "node scripts/source-size-gate.ts",
     "lint:source-backed-reference": "node scripts/check-source-backed-reference.ts",
     "lint:source-version-names": "node scripts/source-version-name-policy.ts",

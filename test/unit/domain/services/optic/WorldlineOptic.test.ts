@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,

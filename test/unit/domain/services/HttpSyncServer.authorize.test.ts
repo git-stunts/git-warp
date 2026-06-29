@@ -8,6 +8,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
+import { createMockCrypto } from '../../../helpers/mockPorts.ts';
 
 function createMockHttpPort() {
   return {
@@ -31,6 +32,7 @@ function createMockGraph() {
 
 const SHA_A = 'a'.repeat(40);
 const TEST_KEYS = { default: SyncSecret.fromString('test-secret') };
+const TEST_CRYPTO = createMockCrypto();
 
 describe('B1 — HttpSyncServer._authorize writer extraction', () => {
   it('extracts writer IDs from frontier keys for sync-requests', async () => {
@@ -47,6 +49,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
       auth: {
         keys: TEST_KEYS,
         mode: 'enforce',
+        crypto: TEST_CRYPTO,
       },
     });
 
@@ -86,6 +89,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
       auth: {
         keys: TEST_KEYS,
         mode: 'enforce',
+        crypto: TEST_CRYPTO,
       },
     });
     (server as any)._auth = mockAuth;
@@ -121,6 +125,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
       auth: {
         keys: TEST_KEYS,
         mode: 'enforce',
+        crypto: TEST_CRYPTO,
       },
     });
     (server as any)._auth = mockAuth;

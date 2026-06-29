@@ -6,10 +6,10 @@
  * @module domain/services/index/PropertyIndexReader
  */
 
-import defaultCodec from '../../utils/defaultCodec.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import LRUCache from '../../utils/LRUCache.ts';
 import IndexError from '../../errors/IndexError.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
@@ -40,7 +40,7 @@ function isPropertyShardEntry(value: CodecValue): value is PropertyShardEntry {
 
 export default class PropertyIndexReader {
   private readonly _storage: IndexStoragePort | undefined;
-  private readonly _codec: CodecPort;
+  private readonly _codec: CodecPort | null;
   private readonly _indexStore: IndexStorePort | null;
   private _shardOids: Map<string, string>;
   private readonly _cache: LRUCache<string, PropertyShard>;
@@ -53,7 +53,7 @@ export default class PropertyIndexReader {
   }) {
     const { storage, codec, indexStore, maxCachedShards = 64 } = options ?? {};
     this._storage = storage;
-    this._codec = codec ?? defaultCodec;
+    this._codec = codec ?? null;
     this._indexStore = indexStore ?? null;
     this._shardOids = new Map();
     this._cache = new LRUCache(maxCachedShards);
@@ -130,7 +130,7 @@ export default class PropertyIndexReader {
         { code: 'E_INDEX_SHARD_MISSING', context: { oid, path } },
       );
     }
-    const decoded = this._codec.decode(buffer);
+    const decoded = requireCodec(this._codec, 'PropertyIndexReader').decode(buffer);
     return this._parseShard(decoded, path);
   }
 

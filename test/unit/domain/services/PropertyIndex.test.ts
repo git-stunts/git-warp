@@ -2,15 +2,15 @@ import { describe, it, expect } from 'vitest';
 import PropertyIndexBuilder from '../../../../src/domain/services/index/PropertyIndexBuilder.ts';
 import PropertyIndexReader from '../../../../src/domain/services/index/PropertyIndexReader.ts';
 import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.ts';
+import { createFakeCodecPort } from '../../../helpers/mockPorts.ts';
 
-const codec = new CborCodec();
+const codec = createFakeCodecPort();
 
 /**
  * Creates an in-memory mock storage from PropertyShard instances.
- * Encodes each shard's entries via CBOR so PropertyIndexReader can decode them.
+ * Encodes each shard's entries so PropertyIndexReader can decode them.
  */
 /** @param {Array<PropertyShard>} shards */
 function mockStorageFromShards(shards) {
@@ -41,7 +41,7 @@ describe('PropertyIndex', () => {
     const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
     const { storage, oids } = mockStorageFromShards(shards);
 
-    const reader = new PropertyIndexReader({ storage });
+    const reader = new PropertyIndexReader({ storage, codec });
     reader.setup(oids);
 
     const aliceProps = await reader.getNodeProps('user:alice');
@@ -58,7 +58,7 @@ describe('PropertyIndex', () => {
     const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
     const { storage, oids } = mockStorageFromShards(shards);
 
-    const reader = new PropertyIndexReader({ storage });
+    const reader = new PropertyIndexReader({ storage, codec });
     reader.setup(oids);
 
     expect(await reader.getNodeProps('nonexistent')).toBeNull();
@@ -86,7 +86,7 @@ describe('PropertyIndex', () => {
     const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
     const { storage, oids } = mockStorageFromShards(shards);
 
-    const reader = new PropertyIndexReader({ storage });
+    const reader = new PropertyIndexReader({ storage, codec });
     reader.setup(oids);
 
     expect(await reader.getNodeProps(first)).toEqual({ x: 1 });
@@ -108,7 +108,7 @@ describe('PropertyIndex', () => {
     }
 
     const { storage, oids } = mockStorageFromShards(shards);
-    const reader = new PropertyIndexReader({ storage });
+    const reader = new PropertyIndexReader({ storage, codec });
     reader.setup(oids);
 
     expect(await reader.getProperty('node:1', 'color')).toBe('red');
@@ -125,7 +125,7 @@ describe('PropertyIndex', () => {
     const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
     const { storage, oids } = mockStorageFromShards(shards);
 
-    const reader = new PropertyIndexReader({ storage });
+    const reader = new PropertyIndexReader({ storage, codec });
     reader.setup(oids);
 
     const props = await reader.getNodeProps('__proto__');
@@ -136,6 +136,7 @@ describe('PropertyIndex', () => {
   it('throws a descriptive error when a shard OID is missing', async () => {
     const reader = new PropertyIndexReader({
       storage: ({ readBlob: async () => undefined } as any),
+      codec,
     });
     reader.setup({ 'props_ab.cbor': 'oid_missing' });
     const abNodeId = `ab${'0'.repeat(38)}`;
@@ -148,6 +149,7 @@ describe('PropertyIndex', () => {
     const shardPath = `props_${computeShardKey(abNodeId)}.cbor`;
     const reader = new PropertyIndexReader({
       storage: ({ readBlob: async () => codec.encode({ [abNodeId]: { name: 'Alice' } }) } as any),
+      codec,
     });
     reader.setup({ [shardPath]: 'oid_bad_format' });
 

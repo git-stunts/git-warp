@@ -20,12 +20,12 @@
  * @module domain/services/WormholeService
  */
 
-import defaultCodec from '../utils/defaultCodec.ts';
 import ProvenancePayload from './provenance/ProvenancePayload.ts';
 import WormholeError from '../errors/WormholeError.ts';
 import EncryptionError from '../errors/EncryptionError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
+import { requireCodec } from './codec/CodecRequirement.ts';
 import type CommitPort from '../../ports/CommitPort.ts';
 import type BlobPort from '../../ports/BlobPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
@@ -122,7 +122,7 @@ async function processCommit({
   blobStorage,
   patchBlobStorage,
 }: ProcessCommitOptions): Promise<PatchEntry> {
-  const codec = codecOpt ?? defaultCodec;
+  const codec = requireCodec(codecOpt, 'WormholeService.processCommit');
   const messageCodec = requireCommitMessageCodec(commitMessageCodec);
   const nodeInfo = await persistence.getNodeInfo(sha);
   const { message, parents } = nodeInfo;

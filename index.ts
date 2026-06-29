@@ -233,9 +233,9 @@ import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from './src/domain/services/CoordinateFactExport.ts';
-import { installDefaultRuntimeHostCommitMessageCodec } from './src/application/RuntimeHostCommitMessageCodecDefaults.ts';
+import { installDefaultRuntimeHostNodePorts } from './src/application/RuntimeHostNodeDefaults.ts';
 
-installDefaultRuntimeHostCommitMessageCodec();
+installDefaultRuntimeHostNodePorts();
 
 export * from './src/domain/graph/publicGraphSubstrate.ts';
 export * from './src/domain/memory/index.ts';

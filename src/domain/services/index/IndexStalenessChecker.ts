@@ -3,8 +3,8 @@
  * frontier metadata stored at build time against current writer refs.
  */
 
-import defaultCodec from '../../utils/defaultCodec.ts';
 import IndexError from '../../errors/IndexError.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
@@ -55,7 +55,7 @@ function buildCborDeps(
   codec?: CodecPort,
   indexStore?: IndexStorePort,
 ): CborDeps {
-  const deps: CborDeps = { storage, codec: codec ?? defaultCodec };
+  const deps: CborDeps = { storage, codec: requireCodec(codec, 'loadIndexFrontier') };
   if (indexStore) {
     deps.indexStore = indexStore;
   }

@@ -29,6 +29,7 @@ import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 const crypto = new NodeCryptoAdapter();
 
@@ -43,6 +44,7 @@ type LoadCheckpointTestOptions =
 async function create(options: CreateCheckpointTestOptions): ReturnType<typeof createCheckpoint> {
   return await createCheckpoint({
     ...options,
+    codec: options.codec ?? defaultCodec,
     commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
   });
 }
@@ -52,6 +54,7 @@ async function createCheckpointEnvelope(
 ): ReturnType<typeof createCheckpointEnvelopeWithCodec> {
   return await createCheckpointEnvelopeWithCodec({
     ...options,
+    codec: options.codec ?? defaultCodec,
     commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
   });
 }
@@ -63,6 +66,7 @@ async function loadCheckpoint(
 ): ReturnType<typeof loadCheckpointWithCodec> {
   return await loadCheckpointWithCodec(persistence, checkpointSha, {
     ...options,
+    codec: options.codec ?? defaultCodec,
     commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
   });
 }
@@ -96,20 +100,20 @@ function installSchema5CheckpointRead({
 }) {
   const frontierOid = makeOid('frontier');
   const appliedVVOid = makeOid('appliedvv');
-  const stateEnvelope = serializeCheckpointStateEnvelope(state);
+  const stateEnvelope = serializeCheckpointStateEnvelope(state, { codec: defaultCodec });
   const blobMap = new Map([
     [makeOid('nodealive'), stateEnvelope.nodeAlive],
     [makeOid('edgealive'), stateEnvelope.edgeAlive],
     [makeOid('prop'), stateEnvelope.prop],
     [makeOid('observed'), stateEnvelope.observedFrontier],
     [makeOid('edgebirth'), stateEnvelope.edgeBirthEvent],
-    [frontierOid, serializeFrontier(frontier)],
+    [frontierOid, serializeFrontier(frontier, { codec: defaultCodec })],
   ]);
   if (includeAppliedVV) {
-    blobMap.set(appliedVVOid, serializeAppliedVV(appliedVV));
+    blobMap.set(appliedVVOid, serializeAppliedVV(appliedVV, { codec: defaultCodec }));
   }
   if (provenanceIndex !== undefined) {
-    blobMap.set(makeOid('provenance'), provenanceIndex.serialize());
+    blobMap.set(makeOid('provenance'), provenanceIndex.serialize({ codec: defaultCodec }));
   }
 
   mockPersistence.showNode.mockResolvedValue(encodeCheckpointMessage({
@@ -148,7 +152,7 @@ function deserializeEnvelopeFromBlobOrder(blobs: Uint8Array[]) {
     prop: requireBlobAt(blobs, 2),
     observedFrontier: requireBlobAt(blobs, 3),
     edgeBirthEvent: requireBlobAt(blobs, 4),
-  });
+  }, { codec: defaultCodec });
 }
 
 function requireBlobAt(blobs: Uint8Array[], index: number): Uint8Array {
@@ -402,7 +406,7 @@ describe('CheckpointService', () => {
       const originalFrontier = createFrontier();
       updateFrontier(originalFrontier, 'writer1', makeOid('sha111'));
 
-      const stateHash = await computeStateHash(v5State, { crypto });
+      const stateHash = await computeStateHash(v5State, { crypto, codec: defaultCodec });
 
       installSchema5CheckpointRead({
         mockPersistence,
@@ -466,7 +470,7 @@ describe('CheckpointService', () => {
         'state/edgeBirthEvent.cbor': makeOid('edgebirth'),
         // Missing state/nodeAlive
       });
-      mockPersistence.readBlob.mockResolvedValue(serializeFrontier(createFrontier()));
+      mockPersistence.readBlob.mockResolvedValue(serializeFrontier(createFrontier(), { codec: defaultCodec }));
 
       await expect(loadCheckpoint(mockPersistence, 'sha'))
         .rejects.toThrow('missing state/nodeAlive');
@@ -492,9 +496,9 @@ describe('CheckpointService', () => {
       updateFrontier(frontier, 'writer1', makeOid('sha111'));
 
       const emptyState = createEmptyState();
-      const stateHash = await computeStateHash(emptyState, { crypto });
-      const frontierBuffer = serializeFrontier(frontier);
-      const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(emptyState));
+      const stateHash = await computeStateHash(emptyState, { crypto, codec: defaultCodec });
+      const frontierBuffer = serializeFrontier(frontier, { codec: defaultCodec });
+      const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(emptyState), { codec: defaultCodec });
 
       const frontierBlobOid = makeOid('frontier');
       const appliedVVBlobOid = makeOid('appliedvv');
@@ -561,10 +565,10 @@ describe('CheckpointService', () => {
       });
       mockPersistence.readBlob.mockImplementation((oid) => {
         if (oid === frontierBlobOid) {
-          return Promise.resolve(serializeFrontier(frontier));
+          return Promise.resolve(serializeFrontier(frontier, { codec: defaultCodec }));
         }
         if (oid === appliedVVBlobOid) {
-          return Promise.resolve(serializeAppliedVV(computeAppliedVV(createEmptyState())));
+          return Promise.resolve(serializeAppliedVV(computeAppliedVV(createEmptyState()), { codec: defaultCodec }));
         }
         return Promise.resolve(new Uint8Array());
       });
@@ -599,10 +603,10 @@ describe('CheckpointService', () => {
       });
       mockPersistence.readBlob.mockImplementation((oid) => {
         if (oid === frontierBlobOid) {
-          return Promise.resolve(serializeFrontier(frontier));
+          return Promise.resolve(serializeFrontier(frontier, { codec: defaultCodec }));
         }
         if (oid === appliedVVBlobOid) {
-          return Promise.resolve(serializeAppliedVV(computeAppliedVV(createEmptyState())));
+          return Promise.resolve(serializeAppliedVV(computeAppliedVV(createEmptyState()), { codec: defaultCodec }));
         }
         return Promise.resolve(new Uint8Array());
       });
@@ -637,10 +641,10 @@ describe('CheckpointService', () => {
       });
       mockPersistence.readBlob.mockImplementation((oid) => {
         if (oid === frontierBlobOid) {
-          return Promise.resolve(serializeFrontier(frontier));
+          return Promise.resolve(serializeFrontier(frontier, { codec: defaultCodec }));
         }
         if (oid === appliedVVBlobOid) {
-          return Promise.resolve(serializeAppliedVV(computeAppliedVV(createEmptyState())));
+          return Promise.resolve(serializeAppliedVV(computeAppliedVV(createEmptyState()), { codec: defaultCodec }));
         }
         return Promise.resolve(new Uint8Array());
       });
@@ -713,7 +717,7 @@ describe('CheckpointService', () => {
         });
 
         const frontier = createFrontier();
-        const stateHash = await computeStateHash(v5State, { crypto });
+        const stateHash = await computeStateHash(v5State, { crypto, codec: defaultCodec });
         const appliedVV = computeAppliedVV(v5State);
 
         installSchema5CheckpointRead({
@@ -1199,7 +1203,7 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
         const appliedVV = computeAppliedVV(originalState);
-        const stateHash = await computeStateHash(originalState, { crypto });
+        const stateHash = await computeStateHash(originalState, { crypto, codec: defaultCodec });
 
         installSchema5CheckpointRead({
           mockPersistence,
@@ -1237,7 +1241,7 @@ describe('CheckpointService', () => {
         const frontier = createFrontier();
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
-        const stateHash = await computeStateHash(originalState, { crypto });
+        const stateHash = await computeStateHash(originalState, { crypto, codec: defaultCodec });
 
         const contentAnchorOid = makeOid('content');
 
@@ -1265,7 +1269,7 @@ describe('CheckpointService', () => {
         const frontier = createFrontier();
         updateFrontier(frontier, 'w1', makeOid('sha1'));
 
-        const stateHash = await computeStateHash(originalState, { crypto });
+        const stateHash = await computeStateHash(originalState, { crypto, codec: defaultCodec });
 
         installSchema5CheckpointRead({
           mockPersistence,
@@ -1436,7 +1440,7 @@ describe('CheckpointService', () => {
         });
 
         // Deserialize and verify appliedVV
-        const appliedVV = deserializeAppliedVV(capturedAppliedVVBlob);
+        const appliedVV = deserializeAppliedVV(capturedAppliedVVBlob, { codec: defaultCodec });
         expect(appliedVV.get('alice')).toBe(10); // max counter for alice
         expect(appliedVV.get('bob')).toBe(7); // max counter for bob
       });
@@ -1517,7 +1521,7 @@ describe('CheckpointService', () => {
       const frontier = createFrontier();
       updateFrontier(frontier, 'writer1', makeOid('aaa'));
 
-      const stateHash = await computeStateHash(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto, codec: defaultCodec });
       installSchema5CheckpointRead({
         mockPersistence,
         state,
@@ -1546,7 +1550,7 @@ describe('CheckpointService', () => {
       const frontier = createFrontier();
       updateFrontier(frontier, 'writer1', makeOid('aaa'));
 
-      const stateHash = await computeStateHash(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto, codec: defaultCodec });
       installSchema5CheckpointRead({
         mockPersistence,
         state,

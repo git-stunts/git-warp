@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 
-describe('defaultCrypto', () => {
+describe('NodeCryptoSingleton', () => {
   describe('hash', () => {
     it('returns expected sha256 hex digest', async () => {
       const result = await defaultCrypto.hash('sha256', 'hello');

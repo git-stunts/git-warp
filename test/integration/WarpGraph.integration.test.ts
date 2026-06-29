@@ -8,6 +8,7 @@ import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct
 import { computeStateHash, nodeVisible, edgeVisible } from '../../src/domain/services/state/StateSerializer.ts';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 import SchemaUnsupportedError from '../../src/domain/errors/SchemaUnsupportedError.ts';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 
@@ -178,7 +179,7 @@ describe('WarpCore Integration', () => {
 
       const crypto = new NodeCryptoAdapter();
             const state1 = (await graph1.materialize()) as any;
-      const hash1 = await computeStateHash(state1, { crypto });
+      const hash1 = await computeStateHash(state1, { crypto, codec: defaultCodec });
 
       // Create identical patches in repo 2 (same repo, fresh graph)
       const graph2 = await openRuntimeHostProduct({
@@ -193,7 +194,7 @@ describe('WarpCore Integration', () => {
         .commit();
 
             const state2 = (await graph2.materialize()) as any;
-      const hash2 = await computeStateHash(state2, { crypto });
+      const hash2 = await computeStateHash(state2, { crypto, codec: defaultCodec });
 
       expect(hash1).toBe(hash2);
     });

@@ -12,10 +12,10 @@
  * @see WARP Spec Section 10 (Checkpoints)
  */
 
-import defaultCodec from '../../utils/defaultCodec.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { decodeDot } from '../../crdt/Dot.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import type { WarpState as WarpStateType } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
@@ -42,7 +42,7 @@ export function serializeFullState(
   state: WarpStateType,
   { codec }: { codec?: CodecPort } = {},
 ): Uint8Array {
-  const c = codec ?? defaultCodec;
+  const c = requireCodec(codec, 'serializeFullState');
   const nodeAliveObj = state.nodeAlive.serialize();
   const edgeAliveObj = state.edgeAlive.serialize();
   const propArray = serializePropsArray(WarpState.allPropEntriesFromState(state));
@@ -88,13 +88,13 @@ export function deserializeFullState(
   buffer: Uint8Array,
   { codec: codecOpt }: { codec?: CodecPort } = {},
 ): WarpStateType {
-  const codec = codecOpt ?? defaultCodec;
   if (buffer === null || buffer === undefined) {
     throw new WarpError(
       'Checkpoint state buffer is missing',
       'E_CHECKPOINT_STATE_BUFFER_MISSING',
     );
   }
+  const codec = requireCodec(codecOpt, 'deserializeFullState');
   const obj = codec.decode<DeserializedFullState | null | undefined>(buffer);
   if (obj === null || obj === undefined) {
     throw new WarpError(
@@ -139,7 +139,7 @@ export function serializeCheckpointStateEnvelope(
   state: WarpStateType,
   { codec }: { codec?: CodecPort } = {},
 ): CheckpointStateEnvelopeBuffers {
-  const c = codec ?? defaultCodec;
+  const c = requireCodec(codec, 'serializeCheckpointStateEnvelope');
   return {
     nodeAlive: c.encode(state.nodeAlive.serialize()),
     edgeAlive: c.encode(state.edgeAlive.serialize()),
@@ -153,7 +153,7 @@ export function deserializeCheckpointStateEnvelope(
   buffers: CheckpointStateEnvelopeBuffers,
   { codec }: { codec?: CodecPort } = {},
 ): WarpStateType {
-  const c = codec ?? defaultCodec;
+  const c = requireCodec(codec, 'deserializeCheckpointStateEnvelope');
   const emptyORSet = { entries: [], tombstones: [] };
   return new WarpState({
     nodeAlive: ORSet.deserialize(decodeEnvelopeBlob(c, buffers.nodeAlive, emptyORSet)),
@@ -215,7 +215,7 @@ export function serializeAppliedVV(
   vv: VersionVector,
   { codec }: { codec?: CodecPort } = {},
 ): Uint8Array {
-  const c = codec ?? defaultCodec;
+  const c = requireCodec(codec, 'serializeAppliedVV');
   const obj = VersionVector.serialize(vv);
   return c.encode(obj);
 }
@@ -227,7 +227,7 @@ export function deserializeAppliedVV(
   buffer: Uint8Array,
   { codec }: { codec?: CodecPort } = {},
 ): VersionVector {
-  const c = codec ?? defaultCodec;
+  const c = requireCodec(codec, 'deserializeAppliedVV');
   const obj = c.decode<Record<string, number>>(buffer);
   return VersionVector.from(obj);
 }

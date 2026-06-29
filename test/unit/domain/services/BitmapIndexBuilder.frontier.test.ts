@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.ts';
-import { decode as cborDecode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import defaultCodec, { decode as cborDecode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * GK/IDX/1 — Store frontier in index metadata at build time.
@@ -11,7 +11,7 @@ import { decode as cborDecode } from '../../../../src/infrastructure/codecs/Cbor
 
 describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
   it('no frontier option → no frontier files in output', async () => {
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ codec: defaultCodec });
     builder.registerNode('aabbcc');
 
     const tree = await builder.serialize();
@@ -21,7 +21,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
   });
 
   it('serialize() without options → no frontier files', async () => {
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ codec: defaultCodec });
     builder.registerNode('aabbcc');
 
     const tree = await builder.serialize({});
@@ -31,7 +31,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
   });
 
   it('with frontier → frontier.cbor and frontier.json present', async () => {
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ codec: defaultCodec });
     builder.registerNode('aabbcc');
 
     const frontier = new Map([
@@ -46,7 +46,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
   });
 
   it('CBOR roundtrip: decode → verify envelope structure', async () => {
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ codec: defaultCodec });
     const frontier = new Map([
       ['writer-b', 'sha-bbb'],
       ['writer-a', 'sha-aaa'],
@@ -64,7 +64,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
   });
 
   it('JSON matches CBOR content', async () => {
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ codec: defaultCodec });
     const frontier = new Map([
       ['writer-b', 'sha-bbb'],
       ['writer-a', 'sha-aaa'],
@@ -78,7 +78,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
   });
 
   it('frontier keys are sorted in output', async () => {
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ codec: defaultCodec });
     const frontier = new Map([
       ['zulu', 'sha-z'],
       ['alpha', 'sha-a'],
@@ -93,7 +93,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
   });
 
   it('empty frontier → writerCount: 0, frontier: {}', async () => {
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ codec: defaultCodec });
     const frontier = new Map();
 
     const tree = await builder.serialize({ frontier });
@@ -105,7 +105,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
   });
 
   it('existing shards unaffected by frontier addition', async () => {
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ codec: defaultCodec });
     builder.registerNode('aabbcc');
     builder.addEdge('aabbcc', 'aaddee');
 

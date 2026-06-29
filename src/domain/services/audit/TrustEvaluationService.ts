@@ -13,19 +13,10 @@ import { evaluateWriters } from '../../trust/TrustEvaluator.ts';
 import { TrustAssessment, type TrustSource } from '../../trust/TrustAssessment.ts';
 import { buildState } from '../../trust/TrustStateBuilder.ts';
 import { TRUST_REASON_CODES } from '../../trust/reasonCodes.ts';
-import defaultTrustCrypto from '../../utils/defaultTrustCrypto.ts';
+import TrustError from '../../errors/TrustError.ts';
+import type TrustCryptoPort from '../../../ports/TrustCryptoPort.ts';
 
 type TrustAssessmentStatus = 'configured' | 'pinned' | 'error' | 'not_configured';
-
-type TrustCrypto = {
-  verifySignature: (params: {
-    algorithm: string;
-    publicKeyBase64: string;
-    signatureBase64: string;
-    payload: Uint8Array;
-  }) => boolean;
-  computeKeyFingerprint: (publicKeyBase64: string) => string;
-};
 
 export type TrustEvaluationOptions = {
   pin?: string;
@@ -98,16 +89,16 @@ function buildFailureAssessment(params: FailureParams): TrustAssessment {
  */
 export default class TrustEvaluationService {
   private readonly _trustChain: TrustChainPort | null;
-  private readonly _trustCrypto: TrustCrypto;
+  private readonly _trustCrypto: TrustCryptoPort | null;
   private readonly _listWriterIds: (graphName: string) => Promise<string[]>;
 
   constructor(opts: {
     trustChain?: TrustChainPort;
-    trustCrypto?: TrustCrypto;
+    trustCrypto?: TrustCryptoPort;
     listWriterIds: (graphName: string) => Promise<string[]>;
   }) {
     this._trustChain = opts.trustChain ?? null;
-    this._trustCrypto = opts.trustCrypto ?? defaultTrustCrypto;
+    this._trustCrypto = opts.trustCrypto ?? null;
     this._listWriterIds = opts.listWriterIds;
   }
 
@@ -134,6 +125,9 @@ export default class TrustEvaluationService {
   private _checkPreconditions(resolved: ResolvedSource): TrustAssessment | null {
     if (!this._trustChain) {
       return this._failWith(resolved, 'Trust chain port not configured');
+    }
+    if (this._trustCrypto === null) {
+      return this._failWith(resolved, 'Trust crypto port not configured');
     }
     return null;
   }
@@ -202,16 +196,22 @@ export default class TrustEvaluationService {
   }
 
   private async _buildTrustState(records: TrustRecord[]) {
+    const trustCrypto = this._trustCrypto;
+    if (trustCrypto === null) {
+      throw new TrustError('Trust crypto port not configured', {
+        code: 'E_TRUST_CRYPTO_REQUIRED',
+      });
+    }
     return await buildState(records, {
       signatureVerifier: (record, publicKeyBase64) =>
-        this._trustCrypto.verifySignature({
+        trustCrypto.verifySignature({
           algorithm: record.signature.alg,
           publicKeyBase64,
           signatureBase64: record.signature.sig,
           payload: record.signaturePayload,
         }),
       computeKeyFingerprint: (publicKeyBase64) =>
-        this._trustCrypto.computeKeyFingerprint(publicKeyBase64),
+        trustCrypto.computeKeyFingerprint(publicKeyBase64),
     });
   }
 }

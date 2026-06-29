@@ -1,4 +1,3 @@
-import defaultCodec from '../../utils/defaultCodec.ts';
 import BitmapIndexBuilder from './BitmapIndexBuilder.ts';
 import BitmapIndexReader from './BitmapIndexReader.ts';
 import StreamingBitmapIndexBuilder from './StreamingBitmapIndexBuilder.ts';
@@ -6,6 +5,7 @@ import { loadIndexFrontier, checkStaleness } from './IndexStalenessChecker.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
 import IndexError from '../../errors/IndexError.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
 import type StreamingIndexStoragePort from '../../../ports/StreamingIndexStoragePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
@@ -101,7 +101,7 @@ export default class IndexRebuildService {
     this.graphService = graphService;
     this.storage = storage;
     this.logger = logger;
-    this._codec = codec ?? defaultCodec;
+    this._codec = requireCodec(codec, 'IndexRebuildService');
     void crypto; // reserved for future use
   }
 
@@ -183,7 +183,7 @@ export default class IndexRebuildService {
 
   private async _rebuildInMemory(ref: string, options: InMemoryOptions): Promise<string> {
     const { limit, onProgress, signal, frontier } = options;
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ codec: this._codec });
     let processedNodes = 0;
 
     for await (const node of this.graphService.iterateNodes({ ref, limit })) {
@@ -209,6 +209,7 @@ export default class IndexRebuildService {
     const streamOpts: ConstructorParameters<typeof StreamingBitmapIndexBuilder>[0] = {
       storage: this._requireStreamingStorage(),
       maxMemoryBytes,
+      codec: this._codec,
     };
     if (onFlush) { streamOpts.onFlush = onFlush; }
     const builder = new StreamingBitmapIndexBuilder(streamOpts);
@@ -305,6 +306,7 @@ export default class IndexRebuildService {
       storage: this.storage,
       strict,
       logger: this.logger.child({ component: 'BitmapIndexReader' }),
+      codec: this._codec,
     });
     reader.setup(shardOids);
 

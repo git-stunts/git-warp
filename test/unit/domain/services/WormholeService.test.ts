@@ -10,7 +10,7 @@ import ProvenancePayload from '../../../../src/domain/services/provenance/Proven
 import WormholeError from '../../../../src/domain/errors/WormholeError.ts';
 import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
   encodePatchMessage,
@@ -43,6 +43,7 @@ async function createWormhole(
 ): ReturnType<typeof createWormholeWithCodec> {
   return await createWormholeWithCodec({
     ...options,
+    codec: options.codec ?? defaultCodec,
     commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
   });
 }

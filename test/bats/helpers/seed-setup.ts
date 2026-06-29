@@ -27,16 +27,16 @@ const cryptoUrl = moduleUrl(
   'dist/src/infrastructure/adapters/NodeCryptoAdapter.js',
   'src/infrastructure/adapters/NodeCryptoAdapter.ts',
 );
-const runtimeCodecDefaultsUrl = moduleUrl(
-  'dist/src/application/RuntimeHostCommitMessageCodecDefaults.js',
-  'src/application/RuntimeHostCommitMessageCodecDefaults.ts',
+const runtimeNodeDefaultsUrl = moduleUrl(
+  'dist/src/application/RuntimeHostNodeDefaults.js',
+  'src/application/RuntimeHostNodeDefaults.ts',
 );
 const { default: WarpCore } = await import(warpCoreUrl);
 const { default: GitGraphAdapter } = await import(adapterUrl);
 const { default: NodeCryptoAdapter } = await import(cryptoUrl);
-const { installDefaultRuntimeHostCommitMessageCodec } = await import(runtimeCodecDefaultsUrl);
+const { installDefaultRuntimeHostNodePorts } = await import(runtimeNodeDefaultsUrl);
 
-installDefaultRuntimeHostCommitMessageCodec();
+installDefaultRuntimeHostNodePorts();
 
 const runner = ShellRunnerFactory.create();
 const plumbing = new GitPlumbing({ cwd: repoPath, runner });

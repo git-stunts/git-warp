@@ -112,6 +112,7 @@ import {
 } from '../../../../src/domain/services/state/StateSerializer.ts';
 
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 // Migration service
 import { upgradeVisibleStateProjection } from '../../../../scripts/migrations/v17.0.0/visible-state-upgrade.ts';
@@ -403,7 +404,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
     for (let i = 0; i < 100; i++) {
       const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
       const state = reducePatches(shuffled);
-      hashes.add(await computeStateHash(state, { crypto }));
+      hashes.add(await computeStateHash(state, { crypto, codec: defaultCodec }));
     }
 
     // All permutations should produce the same hash
@@ -451,7 +452,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
       [patchC, patchB, patchA],
     ];
 
-    const hashes = await Promise.all(permutations.map((p) => computeStateHash(reducePatches(p), { crypto })));
+    const hashes = await Promise.all(permutations.map((p) => computeStateHash(reducePatches(p), { crypto, codec: defaultCodec })));
 
     // All should be identical
     expect(new Set(hashes).size).toBe(1);
@@ -465,7 +466,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
     for (let i = 0; i < 50; i++) {
       const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
       const state = reducePatches(shuffled);
-      hashes.add(await computeStateHash(state, { crypto }));
+      hashes.add(await computeStateHash(state, { crypto, codec: defaultCodec }));
     }
 
     expect(hashes.size).toBe(1);
@@ -563,7 +564,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
     const finalA = reducePatches(v5Patches, v5State);
     const finalB = reducePatches(shuffle(v5Patches, SHUFFLE_SEED_BASE + 0x200), v5State);
 
-    expect(await computeStateHash(finalA, { crypto })).toBe(await computeStateHash(finalB, { crypto }));
+    expect(await computeStateHash(finalA, { crypto, codec: defaultCodec })).toBe(await computeStateHash(finalB, { crypto, codec: defaultCodec }));
   });
 
   it('migration preserves props for visible nodes only', () => {
@@ -684,7 +685,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
     expect(nodeVisible(stateBA, 'X')).toBe(true);
 
     // Same hash regardless of order
-    expect(await computeStateHash(stateAB, { crypto })).toBe(await computeStateHash(stateBA, { crypto }));
+    expect(await computeStateHash(stateAB, { crypto, codec: defaultCodec })).toBe(await computeStateHash(stateBA, { crypto, codec: defaultCodec }));
   });
 
   it('remove only removes observed dots - concurrent add survives', () => {
@@ -818,7 +819,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
     // Edge should be visible (add wins)
     expect(edgeVisible(stateAB, edgeKey)).toBe(true);
     expect(edgeVisible(stateBA, edgeKey)).toBe(true);
-    expect(await computeStateHash(stateAB, { crypto })).toBe(await computeStateHash(stateBA, { crypto }));
+    expect(await computeStateHash(stateAB, { crypto, codec: defaultCodec })).toBe(await computeStateHash(stateBA, { crypto, codec: defaultCodec }));
   });
 });
 
@@ -831,7 +832,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     // Apply patches
     const patches = generateV2Patches(50);
     const state = reducePatches(patches);
-    const hashBefore = await computeStateHash(state, { crypto });
+    const hashBefore = await computeStateHash(state, { crypto, codec: defaultCodec });
 
     // Create checkpoint with compaction
     const includedVV = computeIncludedVV(patches);
@@ -839,7 +840,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     state.edgeAlive.compact(includedVV);
 
     // Hash must match - compaction didn't eat the graph
-    const hashAfter = await computeStateHash(state, { crypto });
+    const hashAfter = await computeStateHash(state, { crypto, codec: defaultCodec });
     expect(hashAfter).toBe(hashBefore);
   });
 
@@ -917,7 +918,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
 
     // Full reduce
     const fullState = reducePatches([...wave1, ...wave2, ...wave3]);
-    const fullHash = await computeStateHash(fullState, { crypto });
+    const fullHash = await computeStateHash(fullState, { crypto, codec: defaultCodec });
 
     // Incremental with compaction between waves
     let state = reducePatches(wave1);
@@ -933,7 +934,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     state = reducePatches(wave3, state);
 
     // Final hash should match full reduce
-    expect(await computeStateHash(state, { crypto })).toBe(fullHash);
+    expect(await computeStateHash(state, { crypto, codec: defaultCodec })).toBe(fullHash);
   });
 });
 
@@ -1010,8 +1011,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     const resultB = joinStates(s2WithP2, s1WithP1);
 
     // Assert: ResultA state hash == ResultB state hash
-    const hashA = await computeStateHash(resultA, { crypto });
-    const hashB = await computeStateHash(resultB, { crypto });
+    const hashA = await computeStateHash(resultA, { crypto, codec: defaultCodec });
+    const hashB = await computeStateHash(resultB, { crypto, codec: defaultCodec });
 
     expect(hashA).toBe(hashB);
 
@@ -1076,7 +1077,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     const resultB = joinStates(s2WithP2, s1WithP1);
 
     // Hashes must be identical regardless of merge order
-    expect(await computeStateHash(resultA, { crypto })).toBe(await computeStateHash(resultB, { crypto }));
+    expect(await computeStateHash(resultA, { crypto, codec: defaultCodec })).toBe(await computeStateHash(resultB, { crypto, codec: defaultCodec }));
 
     // Bob's value wins (higher lamport)
     const propKey = encodePropKey('target', 'value');
@@ -1131,7 +1132,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     const resultB = joinStates(s2WithP2, s1WithP1);
 
     // Hashes must be identical
-    expect(await computeStateHash(resultA, { crypto })).toBe(await computeStateHash(resultB, { crypto }));
+    expect(await computeStateHash(resultA, { crypto, codec: defaultCodec })).toBe(await computeStateHash(resultB, { crypto, codec: defaultCodec }));
 
     // Node should be visible (Bob's add wasn't observed by Alice's remove)
     expect(nodeVisible(resultA, 'contested')).toBe(true);
@@ -1152,8 +1153,8 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     expect(first).toEqual(second);
     expect(first.map(({ sha }) => sha)).not.toEqual(third.map(({ sha }) => sha));
 
-    const firstHash = await computeStateHash(reducePatches(first), { crypto });
-    const secondHash = await computeStateHash(reducePatches(second), { crypto });
+    const firstHash = await computeStateHash(reducePatches(first), { crypto, codec: defaultCodec });
+    const secondHash = await computeStateHash(reducePatches(second), { crypto, codec: defaultCodec });
     expect(firstHash).toBe(secondHash);
   });
 
@@ -1188,11 +1189,11 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     const state5 = reducePatches(permutation5);
 
     // Compute hashes
-    const hash1 = await computeStateHash(state1, { crypto });
-    const hash2 = await computeStateHash(state2, { crypto });
-    const hash3 = await computeStateHash(state3, { crypto });
-    const hash4 = await computeStateHash(state4, { crypto });
-    const hash5 = await computeStateHash(state5, { crypto });
+    const hash1 = await computeStateHash(state1, { crypto, codec: defaultCodec });
+    const hash2 = await computeStateHash(state2, { crypto, codec: defaultCodec });
+    const hash3 = await computeStateHash(state3, { crypto, codec: defaultCodec });
+    const hash4 = await computeStateHash(state4, { crypto, codec: defaultCodec });
+    const hash5 = await computeStateHash(state5, { crypto, codec: defaultCodec });
 
     // Assert: All 5 resulting state hashes are identical
     expect(hash1).toBe(hash2);
@@ -1210,7 +1211,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     for (let i = 0; i < 5; i++) {
       const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
       const state = reducePatches(shuffled);
-      hashes.push(await computeStateHash(state, { crypto }));
+      hashes.push(await computeStateHash(state, { crypto, codec: defaultCodec }));
     }
 
     // All hashes must be identical
@@ -1267,7 +1268,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     for (let i = 0; i < 5; i++) {
       const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
       const state = reducePatches(shuffled);
-      hashes.push(await computeStateHash(state, { crypto }));
+      hashes.push(await computeStateHash(state, { crypto, codec: defaultCodec }));
     }
 
     // All 5 hashes must be identical
@@ -1289,7 +1290,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     expect(new Set(firstShas).size).toBeGreaterThan(1);
 
     // This test ensures our shuffle is working
-    const hashes = await Promise.all(permutations.map((p) => computeStateHash(reducePatches(p), { crypto })));
+    const hashes = await Promise.all(permutations.map((p) => computeStateHash(reducePatches(p), { crypto, codec: defaultCodec })));
     expect(new Set(hashes).size).toBe(1);
   });
 });
@@ -1334,7 +1335,7 @@ describe('Additional WARP Integration Tests', () => {
       expect(lwwValue(stateBA.getEncodedProp(propKey))).toEqual(createInlineValue('blue'));
 
       // Same hash
-      expect(await computeStateHash(stateAB, { crypto })).toBe(await computeStateHash(stateBA, { crypto }));
+      expect(await computeStateHash(stateAB, { crypto, codec: defaultCodec })).toBe(await computeStateHash(stateBA, { crypto, codec: defaultCodec }));
     });
 
     it('same lamport: writer ID is tiebreaker', () => {
@@ -1460,7 +1461,7 @@ describe('Additional WARP Integration Tests', () => {
       for (let i = 0; i < 20; i++) {
         const shuffled = shuffle(patches, SHUFFLE_SEED_BASE + i);
         const state = reducePatches(shuffled);
-        hashes.add(await computeStateHash(state, { crypto }));
+        hashes.add(await computeStateHash(state, { crypto, codec: defaultCodec }));
       }
 
       expect(hashes.size).toBe(1);
@@ -1472,8 +1473,8 @@ describe('Additional WARP Integration Tests', () => {
       const state1 = reducePatches(patches);
       const state2 = reducePatches(shuffle(patches, SHUFFLE_SEED_BASE + 0x300));
 
-      const bytes1 = serializeState(state1);
-      const bytes2 = serializeState(state2);
+      const bytes1 = serializeState(state1, { codec: defaultCodec });
+      const bytes2 = serializeState(state2, { codec: defaultCodec });
 
       // Byte-for-byte identical
       expect(Buffer.compare(bytes1, bytes2)).toBe(0);

@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
-import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import BlobStoragePort from '../../../src/ports/BlobStoragePort.ts';
 import EncryptionError from '../../../src/domain/errors/EncryptionError.ts';
 import { CborPatchJournalAdapter } from '../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';

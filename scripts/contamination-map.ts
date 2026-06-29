@@ -64,8 +64,6 @@ const PLATFORM_LIKE_TOKENS: ReadonlySet<string> = new Set([
 ]);
 
 const AUTHORIZED_DYNAMIC_ADAPTER_LOADERS: ReadonlySet<string> = new Set([
-  'src/domain/utils/defaultCrypto.ts',
-  'src/domain/utils/defaultTrustCrypto.ts',
   'src/domain/utils/roaring.ts',
   'src/domain/services/controllers/SyncController.ts',
 ]);

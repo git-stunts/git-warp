@@ -16,6 +16,7 @@ function createHandle(): WarpWorldline {
         },
       },
     }),
+    admitIntent: async (descriptor) => ({ admitted: true, sha: 'blob:intent:123', intentId: descriptor.intentId }),
   });
 }
 

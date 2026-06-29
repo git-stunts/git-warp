@@ -5,12 +5,12 @@ import {
   WarpOpenOptions,
 } from '../../../../src/domain/warp/RuntimeHostBoot.ts';
 import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
-import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { createMockPersistence } from '../../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpOpenOptions', () => {
-  it('freezes required runtime open options and defaults codec, crypto, and gc policy', () => {
+  it('freezes required runtime open options without resolving default ports', () => {
     const persistence = createMockPersistence();
     const options = new WarpOpenOptions({
       persistence,
@@ -23,8 +23,8 @@ describe('WarpOpenOptions', () => {
     expect(options.graphName).toBe('parsed-options');
     expect(options.writerId).toBe('writer-1');
     expect(options.gcPolicy).toEqual({});
-    expect(options.codec).toBe(defaultCodec);
-    expect(options.crypto).toBe(defaultCrypto);
+    expect(options.codec).toBeUndefined();
+    expect(options.crypto).toBeUndefined();
     expect(options.checkpointPolicy).toBeUndefined();
   });
 
@@ -87,7 +87,7 @@ describe('WarpOpenOptions', () => {
     expect(options.graphName).toBe('raw-options');
     expect(options.writerId).toBe('writer-1');
     expect(options.codec).toBe(defaultCodec);
-    expect(options.crypto).toBe(defaultCrypto);
+    expect(options.crypto).toBeInstanceOf(NodeCryptoAdapter);
   });
 
   it('opens runtime products from a parsed options instance', async () => {

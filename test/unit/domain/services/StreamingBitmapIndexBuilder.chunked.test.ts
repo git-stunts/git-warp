@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import StreamingBitmapIndexBuilder from '../../../../src/domain/services/index/StreamingBitmapIndexBuilder.ts';
 import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('StreamingBitmapIndexBuilder chunked finalize', () => {
   it('writes flushed shard chunks through streaming storage and never reads them back during finalize', async () => {
     const storage = new MockStreamingIndexStorage();
     const builder = new StreamingBitmapIndexBuilder({
       storage,
+      codec: defaultCodec,
       maxMemoryBytes: 1,
     });
 

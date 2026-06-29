@@ -19,6 +19,7 @@ import type Observer from './services/query/Observer.ts';
 import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
 import CheckpointTailBasisVerifier from './services/optic/CheckpointTailBasisVerifier.ts';
 import createBoundedMemoryCapabilityReport from './memory/createBoundedMemoryCapabilityReport.ts';
+import type { WarpIntentDescriptor, WarpIntentOutcome } from './types/WarpIntentDescriptor.ts';
 
 export type WarpWorldlineOpenOptions = Omit<WarpGraphDeps, 'graphName'> & {
   readonly worldlineName: string;
@@ -36,6 +37,7 @@ type PrepareOpticBasis = () => Promise<WarpWorldlineOpticBasis>;
 type GetFrontier = () => Promise<Map<string, string>>;
 type ReadOpticBasis = () => WarpWorldlineOpticBasis | null;
 type ReadCapabilities = typeof createBoundedMemoryCapabilityReport;
+type AdmitIntent = (descriptor: WarpIntentDescriptor) => Promise<WarpIntentOutcome>;
 
 type WarpWorldlineConstructionOptions = {
   readonly worldlineName: string;
@@ -46,6 +48,7 @@ type WarpWorldlineConstructionOptions = {
   readonly getFrontier?: GetFrontier;
   readonly readOpticBasis?: ReadOpticBasis;
   readonly readCapabilities?: ReadCapabilities;
+  readonly admitIntent: AdmitIntent;
 };
 
 export default class WarpWorldline {
@@ -57,6 +60,7 @@ export default class WarpWorldline {
   private readonly _getFrontier: GetFrontier | null;
   private readonly _readOpticBasis: ReadOpticBasis | null;
   private readonly _readCapabilities: ReadCapabilities;
+  private readonly _admitIntent: AdmitIntent;
 
   constructor(options: WarpWorldlineConstructionOptions) {
     assertNonEmpty(options.worldlineName, 'worldlineName');
@@ -69,11 +73,16 @@ export default class WarpWorldline {
     this._getFrontier = options.getFrontier ?? null;
     this._readOpticBasis = options.readOpticBasis ?? null;
     this._readCapabilities = options.readCapabilities ?? createBoundedMemoryCapabilityReport;
+    this._admitIntent = options.admitIntent;
     Object.freeze(this);
   }
 
   async commit(build: WarpWorldlinePatchBuild): Promise<string> {
     return await this._commitPatch(build);
+  }
+
+  async admitIntent(descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> {
+    return await this._admitIntent(descriptor);
   }
 
   live(): ProjectionHandle {
@@ -174,6 +183,7 @@ export async function openWarpWorldline(
     },
     getFrontier: async () => await graph.getFrontier(),
     readOpticBasis: () => preparedOpticBasis,
+    admitIntent: async (descriptor) => await graph.admitIntent(descriptor),
   });
 }
 

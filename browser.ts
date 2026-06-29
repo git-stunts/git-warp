@@ -28,9 +28,9 @@
  * ```
  */
 
-import { installDefaultRuntimeHostCommitMessageCodec } from './src/application/RuntimeHostCommitMessageCodecDefaults.ts';
+import { installDefaultRuntimeHostBrowserPorts } from './src/application/RuntimeHostBrowserDefaults.ts';
 
-installDefaultRuntimeHostCommitMessageCodec();
+installDefaultRuntimeHostBrowserPorts();
 
 // Core API
 export { default as WarpApp } from './src/domain/WarpApp.ts';

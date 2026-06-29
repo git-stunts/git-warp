@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import SyncAuthService, {
   signSyncRequest,
   canonicalizePath,
@@ -930,7 +930,7 @@ describe('Constructor', () => {
   });
 
   it('defaults optional params without throwing', () => {
-    const svc = new SyncAuthService({ keys: syncKeys({ k: 's' }) });
+    const svc = new SyncAuthService({ keys: syncKeys({ k: 's' }), crypto: defaultCrypto });
     expect(svc.mode).toBe('enforce');
     expect(svc.getMetrics().authFailCount).toBe(0);
   });
@@ -943,6 +943,7 @@ describe('verifyWriters()', () => {
   it('allows all writers when allowedWriters is not set', async () => {
     const auth = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
     });
     const result = auth.verifyWriters(['alice', 'bob', 'charlie']);
     expect(result.ok).toBe(true);
@@ -951,6 +952,7 @@ describe('verifyWriters()', () => {
   it('allows listed writers', async () => {
     const auth = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       allowedWriters: ['alice', 'bob'],
     });
     const result = auth.verifyWriters(['alice', 'bob']);
@@ -960,6 +962,7 @@ describe('verifyWriters()', () => {
   it('rejects unlisted writers with FORBIDDEN_WRITER 403', async () => {
     const auth = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       allowedWriters: ['alice'],
     });
     const result = auth.verifyWriters(['alice', 'eve']);
@@ -973,6 +976,7 @@ describe('verifyWriters()', () => {
   it('increments forbiddenWriterRejects metric', async () => {
     const auth = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       allowedWriters: ['alice'],
     });
     auth.verifyWriters(['eve']);
@@ -982,6 +986,7 @@ describe('verifyWriters()', () => {
   it('validates writer IDs at construction time', () => {
     expect(() => new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       allowedWriters: ['valid', 'a/b'],
     })).toThrow('Invalid writer ID');
   });
@@ -989,6 +994,7 @@ describe('verifyWriters()', () => {
   it('rejects empty allowedWriters array', () => {
     expect(() => new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       allowedWriters: [],
     })).toThrow('allowedWriters must be a non-empty array');
   });
@@ -1011,6 +1017,7 @@ describe('mode-agnostic validation', () => {
   it('verifyWriters() returns { ok: false } in log-only mode (caller decides enforcement)', () => {
     const svc = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       mode: 'log-only',
       allowedWriters: ['alice'],
     });
@@ -1029,6 +1036,7 @@ describe('enforceWriters()', () => {
   it('rejects forbidden writers in enforce mode', () => {
     const svc = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       mode: 'enforce',
       allowedWriters: ['alice'],
     });
@@ -1043,6 +1051,7 @@ describe('enforceWriters()', () => {
   it('allows forbidden writers through in log-only mode', () => {
     const svc = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       mode: 'log-only',
       allowedWriters: ['alice'],
     });
@@ -1053,6 +1062,7 @@ describe('enforceWriters()', () => {
   it('increments logOnlyPassthroughs in log-only mode', () => {
     const svc = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       mode: 'log-only',
       allowedWriters: ['alice'],
     });
@@ -1063,6 +1073,7 @@ describe('enforceWriters()', () => {
   it('still increments forbiddenWriterRejects metric in log-only mode', () => {
     const svc = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       mode: 'log-only',
       allowedWriters: ['alice'],
     });
@@ -1073,6 +1084,7 @@ describe('enforceWriters()', () => {
   it('allows listed writers in any mode', () => {
     const svc = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       mode: 'enforce',
       allowedWriters: ['alice', 'bob'],
     });
@@ -1082,6 +1094,7 @@ describe('enforceWriters()', () => {
   it('passes through when no allowedWriters configured', () => {
     const svc = new SyncAuthService({
       keys: syncKeys({ default: 'secret123' }),
+      crypto: defaultCrypto,
       mode: 'enforce',
     });
     expect(svc.enforceWriters(['anyone']).ok).toBe(true);

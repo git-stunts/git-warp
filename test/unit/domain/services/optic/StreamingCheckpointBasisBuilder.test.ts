@@ -10,8 +10,10 @@ import {
   type CheckpointBasisFactTransport,
 } from '../../../../../src/domain/services/optic/CheckpointBasisFact.ts';
 import StreamingCheckpointBasisBuilder from '../../../../../src/domain/services/optic/StreamingCheckpointBasisBuilder.ts';
-import defaultCodec from '../../../../../src/domain/utils/defaultCodec.ts';
 import { EventId } from '../../../../../src/domain/utils/EventId.ts';
+import { createFakeCodecPort } from '../../../../helpers/mockPorts.ts';
+
+const codec = createFakeCodecPort();
 
 describe('StreamingCheckpointBasisBuilder', () => {
   it('flushes sorted fact chunks to storage and emits a manifest', async () => {
@@ -138,6 +140,7 @@ function builderFixture(
     frontier: new Map([['writer-a', 'patch-0005']]),
     storage,
     maxFactsPerShard,
+    codec,
   };
   if (pool === undefined) {
     return new StreamingCheckpointBasisBuilder(options);
@@ -171,7 +174,7 @@ function event(lamport: number): EventId {
 }
 
 function decodeChunk(bytes: Uint8Array): readonly CheckpointBasisFactTransport[] {
-  return defaultCodec.decode<readonly CheckpointBasisFactTransport[]>(bytes);
+  return codec.decode<readonly CheckpointBasisFactTransport[]>(bytes);
 }
 
 function eventPatchSha(fact: CheckpointBasisFactTransport): string {
