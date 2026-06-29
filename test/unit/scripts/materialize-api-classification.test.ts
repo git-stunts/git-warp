@@ -14,10 +14,8 @@ describe('materialize API classification', () => {
     const core = readRepoFile('src/domain/WarpCore.ts');
 
     expect(capability).toContain('Compatibility substrate capability.');
-    expect(capability).toContain('@deprecated For application reads, use openWarpWorldline().live(), seek(), or observer reads.');
-    expect(capability).toContain('@deprecated For application coordinate reads, use worldline seek/read handles.');
-    expect(capability).toContain('@deprecated For application checkpoint reads, use historical worldline reads.');
-    expect(core).toContain('@deprecated For application reads, use openWarpWorldline().live(), seek(), or observer reads.');
+    expect(capability).toContain('@deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission.');
+    expect(core).toContain('@deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission.');
   });
 
   it('classifies provenance and strand materialization as diagnostics', () => {
@@ -27,8 +25,7 @@ describe('materialize API classification', () => {
 
     expect(provenance).toContain('Diagnostic/provenance slice inspection; not a first-use application read path.');
     expect(strand).toContain('Diagnostic/speculative-lane snapshot inspection; not a first-use application read path.');
-    expect(core).toContain('Diagnostic/provenance slice inspection; not a first-use application read path.');
-    expect(core).toContain('Diagnostic/speculative-lane snapshot inspection; not a first-use application read path.');
+    expect(core).toContain('@deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission.');
   });
 
   it('classifies sync materialization as a compatibility convenience', () => {
