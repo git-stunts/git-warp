@@ -5,7 +5,7 @@ import SchemaUnsupportedError from "../../../src/domain/errors/SchemaUnsupported
 denoRuntimeTest("checkpoint: creates checkpoint with valid SHA", async () => {
   const repo = await createTestRepo("ckpt");
   try {
-    const graph = await repo.openGraph("test", "w1");
+    const graph = await repo.openGraph("test", "w1", { stateCache: null });
 
     await (await graph.createPatch()).addNode("n1").commit();
     await (await graph.createPatch()).addNode("n2").commit();
@@ -21,7 +21,7 @@ denoRuntimeTest("checkpoint: creates checkpoint with valid SHA", async () => {
 denoRuntimeTest("checkpoint: materializeAt rejects session-backed runtime checkpoints", async () => {
   const repo = await createTestRepo("ckpt-at");
   try {
-    const graph = await repo.openGraph("test", "w1");
+    const graph = await repo.openGraph("test", "w1", { stateCache: null });
 
     await (await graph.createPatch()).addNode("n1").commit();
     await graph.materialize();
