@@ -347,6 +347,17 @@ export async function resolveRuntimeHostConstructionOptions(
     });
   }
 
+  let resolvedStateCache: WarpStateCachePort | undefined;
+  if (stateCache !== undefined && stateCache !== null) {
+    resolvedStateCache = stateCache;
+  } else if (typeof persistence.createRuntimeStateCache === 'function') {
+    resolvedStateCache = await persistence.createRuntimeStateCache({
+      graphName,
+      codec: resolvedCodec,
+      ...(logger !== undefined ? { logger } : {}),
+    });
+  }
+
   const resolvedIndexStore = await resolveIndexStore(indexStore, {
     codec: resolvedCodec,
     blobPort,
@@ -419,7 +430,7 @@ export async function resolveRuntimeHostConstructionOptions(
       codec: resolvedCodec,
       ...(resolvedTrustCrypto !== undefined ? { trustCrypto: resolvedTrustCrypto } : {}),
       ...(seekCache !== undefined ? { seekCache } : {}),
-      ...(stateCache !== undefined ? { stateCache } : {}),
+      ...(resolvedStateCache !== undefined ? { stateCache: resolvedStateCache } : {}),
       ...(audit !== undefined ? { audit } : {}),
       blobStorage: resolvedBlobStorage,
       ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),

@@ -20,6 +20,10 @@ import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import CasBlobAdapter from './CasBlobAdapter.ts';
 import type CasContentEncryptionPolicy from './CasContentEncryptionPolicy.ts';
+import { GitCasWarpStateCacheAdapter } from './GitCasWarpStateCacheAdapter.ts';
+import type WarpStateCachePort from '../../ports/WarpStateCachePort.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
+import type LoggerPort from '../../ports/LoggerPort.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
 import GitRecursiveTreeOidReaderAdapter from './GitRecursiveTreeOidReaderAdapter.ts';
 import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
@@ -155,27 +159,11 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     }
   }
 
-  get emptyTree(): string {
-    return this.plumbing.emptyTree;
-  }
-
-  createRuntimeBlobStorage(): Promise<BlobStoragePort> {
-    return Promise.resolve(new CasBlobAdapter({
-      plumbing: this.plumbing,
-      persistence: this,
-      ...(this._casContentEncryption ? { contentEncryption: this._casContentEncryption } : {}),
-    }));
-  }
-
-  createRuntimeTrieStore(): Promise<TrieStorePort> {
-    return Promise.resolve(new GitTrieStoreAdapter({
-      plumbing: this.plumbing,
-    }));
-  }
-
-  defaultPatchWriteStorage(): PatchStorageRoute {
-    return createGitCasPatchStorage(false);
-  }
+  get emptyTree(): string { return this.plumbing.emptyTree; }
+  createRuntimeBlobStorage(): Promise<BlobStoragePort> { return Promise.resolve(new CasBlobAdapter({ plumbing: this.plumbing, persistence: this, ...(this._casContentEncryption ? { contentEncryption: this._casContentEncryption } : {}) })); }
+  createRuntimeTrieStore(): Promise<TrieStorePort> { return Promise.resolve(new GitTrieStoreAdapter({ plumbing: this.plumbing })); }
+  createRuntimeStateCache(opts: { graphName: string; codec: CodecPort; logger?: LoggerPort }): Promise<WarpStateCachePort> { return Promise.resolve(new GitCasWarpStateCacheAdapter({ persistence: this, plumbing: this.plumbing, graphName: opts.graphName, codec: opts.codec, ...(opts.logger !== undefined ? { logger: opts.logger } : {}), ...(this._casContentEncryption ? { contentEncryption: this._casContentEncryption } : {}) })); }
+  defaultPatchWriteStorage(): PatchStorageRoute { return createGitCasPatchStorage(false); }
 
   private async _createCommit(opts: {
     tree: string;

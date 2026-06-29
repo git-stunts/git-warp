@@ -56,6 +56,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'audit',
   'trust',
   'seek-cache',
+  'state-cache',
 ]);
 
 // -----------------------------------------------------------------------------
@@ -387,6 +388,21 @@ export function buildAuditPrefix(graphName: string): string {
 export function buildSeekCacheRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/seek-cache`;
+}
+
+/**
+ * Builds the state cache ref path for the given graph.
+ *
+ * The state cache ref points to a blob containing a JSON index of
+ * cached durable CAS WarpState snapshots.
+ *
+ * @example
+ * buildStateCacheRef('events');
+ * // => 'refs/warp/events/state-cache'
+ */
+export function buildStateCacheRef(graphName: string): string {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/state-cache`;
 }
 
 /**
