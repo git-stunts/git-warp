@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.2.0] - 2026-06-28
+
+### Release notes
+
+`v18.2.0` introduces the streaming CAS-First Memoization Engine for graph
+materialization. By interrogating `git-cas` before initiating projection replay
+and utilizing a constant-memory pass-through `teeStream` during materialization,
+`git-warp` guarantees `O(1)` runtime memory footprints and zero-latency
+snapshot hydration.
+
+It also enforces strict `@git-stunts/git-cas` boundary encapsulation across the
+repository, utilizing Buzhash Content-Defined Chunking (CDC) for automated
+rolling hash deduplication of unchanged sub-trees.
+
+### Added
+
+- `CasFirstMemoizationEngine` now enforces the 3-step CAS memoization rule:
+  interrogate `git-cas` for existing snapshots, materialize via lazy streaming
+  upon a cache miss, and simultaneously pipe materialized buffers to `git-cas`
+  via `storeStream`.
+- Added `has()` check capability to `BlobStoragePort` and `CasBlobAdapter` to
+  support zero-latency CAS interrogations before buffering events.
+- Added `docs/topics/cas-first-memoized-materialization.md` to document the
+  constant-memory streaming materialization pipeline and Buzhash CDC rolling
+  hash deduplication mechanics.
+
 ## [18.1.2] - 2026-06-25
 
 ### Release notes
