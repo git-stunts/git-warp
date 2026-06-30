@@ -4,7 +4,7 @@
 #
 # Usage:  npm run release:prep
 #         npm run release:preflight
-#         bash scripts/release-preflight.sh --stage final-local --tag v18.1.1
+#         bash scripts/release-preflight.sh --stage final-local --tag v18.2.1
 #
 # Exits 0 if all checks pass, 1 if any hard check fails.
 # ──────────────────────────────────────────────────────────────────────────────

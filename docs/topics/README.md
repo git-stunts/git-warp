@@ -5,11 +5,10 @@ specific task.
 
 ## Current release
 
-`v18.1.2` keeps the public docs focused around the shipped v18 read model:
-worldlines, coordinates, reified optics, observers, bounded support, strands,
-Git substrate, sync, CLI, and troubleshooting. It also adds the generated
-[Source-backed reference](reference.md) for exact package, API, CLI, and error
-inventories. Operator workflows live outside the topic shelf in
+`v18.2.1` keeps the public docs focused around the shipped v18 read model and
+corrects the WARP state-cache materialization topic: live materialization can
+reuse coordinate-addressed snapshots, while diff and receipt reads remain
+replay-backed. Operator workflows live outside the topic shelf in
 [Operations](../operations/). The full release narrative lives in the root
 [CHANGELOG](../../CHANGELOG.md).
 

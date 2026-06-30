@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.2.1] - 2026-06-30
+
+### Release notes
+
+`v18.2.1` corrects the state-cache materialization path introduced by
+`v18.2.0`. Live materialization now uses WARP-owned frontier coordinates for
+snapshot lookup and publication, while receipt-producing and diff-producing
+reads stay replay-backed so callers receive complete provenance and diff data.
+
+This release also documents the actual boundary: `git-cas` remains storage, and
+`git-warp` owns materialization cache policy, replay coordinates, and snapshot
+eligibility.
+
 ### Fixed
 
 - Live materialization now derives the current writer frontier, checks
