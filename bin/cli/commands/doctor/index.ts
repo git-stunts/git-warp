@@ -68,7 +68,13 @@ export default async function handleDoctor({ options, args }: { options: CliOpti
   const policy = { ...DEFAULT_POLICY, strict: commandValues.strict };
   const writerHeads = await collectWriterHeads(persistence, graphName);
 
-  const ctx: DoctorContext = { persistence, graphName, writerHeads, policy, repoPath: options.repo };
+  let stateCache = null;
+  if (typeof (persistence as any).createRuntimeStateCache === 'function') {
+    const { default: defaultCodec } = await import('../../../../src/infrastructure/codecs/CborCodec.ts');
+    stateCache = await (persistence as any).createRuntimeStateCache({ graphName, codec: defaultCodec });
+  }
+
+  const ctx: DoctorContext = { persistence, stateCache, graphName, writerHeads, policy, repoPath: options.repo };
 
   const memoryFindings = memoryBudgetFindings(commandValues);
   const { findings, checksRun } = await runChecks(ctx, startMs);

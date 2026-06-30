@@ -199,8 +199,22 @@ function parseCheckpointDate(date: string | null): { date: string | null; ageHou
 /** Verify the checkpoint exists and is not stale. */
 export async function checkCheckpointFresh(ctx: DoctorContext): Promise<DoctorFinding> {
   try {
-    const ref = buildCheckpointRef(ctx.graphName);
-    const sha = await ctx.persistence.readRef(ref);
+    let sha: string | null = null;
+    let fromCache = false;
+    let cacheRecord: any = null;
+
+    if (ctx.stateCache !== null) {
+      cacheRecord = await ctx.stateCache.resolveCheckpointHead(ctx.graphName);
+      if (cacheRecord !== null) {
+        sha = cacheRecord.snapshotId;
+        fromCache = true;
+      }
+    }
+
+    if (!fromCache) {
+      const ref = buildCheckpointRef(ctx.graphName);
+      sha = await ctx.persistence.readRef(ref);
+    }
 
     if (typeof sha !== 'string' || sha.length === 0) {
       return {
@@ -210,7 +224,24 @@ export async function checkCheckpointFresh(ctx: DoctorContext): Promise<DoctorFi
       };
     }
 
-    const { date, ageHours } = await getCheckpointAge(ctx.persistence, sha);
+    let date: string | null = null;
+    let ageHours: number | null = null;
+
+    if (fromCache) {
+      if (typeof cacheRecord?.createdAt === 'number') {
+        date = new Date(cacheRecord.createdAt).toISOString();
+      } else if (typeof cacheRecord?.createdAt === 'string' && cacheRecord.createdAt !== 'checkpoint-create') {
+        date = cacheRecord.createdAt;
+      }
+      const parsed = parseCheckpointDate(date);
+      date = parsed.date;
+      ageHours = parsed.ageHours;
+    } else {
+      const result = await getCheckpointAge(ctx.persistence, sha);
+      date = result.date;
+      ageHours = result.ageHours;
+    }
+
     return buildCheckpointFinding({ sha, date, ageHours, maxAge: ctx.policy.checkpointMaxAgeHours });
   } catch (err) {
     return internalError('checkpoint-fresh', err);

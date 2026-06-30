@@ -37,7 +37,7 @@ data = json.loads(os.environ["JSON"])
 r = data["graphs"][0]
 assert "checkpoint" in r
 assert isinstance(r["checkpoint"], str)
-assert re.match(r'^[0-9a-f]{40}$', r["checkpoint"])
+assert re.match(r'^(snapshot:)?[0-9a-f]{40,64}$', r["checkpoint"])
 PY
 }
 
