@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/warp-adapters",
-  "version": "18.2.0",
+  "version": "18.2.1",
   "description": "Infrastructure adapters: Git/CAS, crypto, and HTTP for git-warp.",
   "private": true,
   "type": "module",
