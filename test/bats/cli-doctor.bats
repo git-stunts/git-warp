@@ -77,6 +77,7 @@ PY
 @test "doctor --json no checkpoint yields checkpoint-fresh warn" {
   # Remove the checkpoint ref
   git -C "${TEST_REPO}" update-ref -d refs/warp/demo/checkpoints/head 2>/dev/null || true
+  git -C "${TEST_REPO}" update-ref -d refs/warp/demo/state-cache 2>/dev/null || true
   git -C "${TEST_REPO}" update-ref -d refs/warp/demo/cache/index 2>/dev/null || true
 
   _run_json git warp --repo "${TEST_REPO}" --graph demo --json doctor
@@ -94,6 +95,7 @@ PY
 @test "doctor --strict with warnings returns exit 4" {
   # Remove checkpoint to trigger a warning
   git -C "${TEST_REPO}" update-ref -d refs/warp/demo/checkpoints/head 2>/dev/null || true
+  git -C "${TEST_REPO}" update-ref -d refs/warp/demo/state-cache 2>/dev/null || true
   git -C "${TEST_REPO}" update-ref -d refs/warp/demo/cache/index 2>/dev/null || true
 
   _run_json git warp --repo "${TEST_REPO}" --graph demo --json doctor --strict
