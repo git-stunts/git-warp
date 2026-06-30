@@ -24,6 +24,7 @@ type RuntimePatchCollectorHost = {
   _loadLatestCheckpoint(): Promise<RuntimeCheckpointData | null>;
   _loadPatchesSince(checkpoint: RuntimeCheckpointData): Promise<PatchWithSha[]>;
   getFrontier(): Promise<Map<string, string>>;
+  _isAncestor?(ancestorSha: string, descendantSha: string): Promise<boolean>;
 };
 
 function isProvenanceIndexShape(value: object | null | undefined): value is NonNullable<CheckpointData['provenanceIndex']> {
@@ -106,6 +107,13 @@ export default class RuntimePatchCollector extends PatchCollector {
 
   async loadPatchChain(toSha: string, fromSha?: string | null): Promise<PatchWithSha[]> {
     return await this._runtime._loadPatchChainFromSha(toSha, fromSha);
+  }
+
+  override async isAncestor(ancestorSha: string, descendantSha: string): Promise<boolean> {
+    if (typeof this._runtime._isAncestor !== 'function') {
+      return false;
+    }
+    return await this._runtime._isAncestor(ancestorSha, descendantSha);
   }
 
   async getFrontier(): Promise<Map<string, string>> {

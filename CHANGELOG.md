@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keep receiving replay-derived receipt arrays.
 - Live checkpoint fallback replay is now constrained to the requested frontier
   coordinate before publishing a cache snapshot for that coordinate.
+- Live checkpoint reuse now verifies the checkpoint frontier is a predecessor
+  of the captured live coordinate before seeding state-cache publication.
 
 ### Changed
 

@@ -84,6 +84,7 @@ function createControllerFixtures() {
     loadPatchesSince: vi.fn<(_checkpoint: CheckpointData) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
     loadPatchChain: vi.fn<(_toSha: string, _fromSha?: string | null) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
     getFrontier: vi.fn().mockResolvedValue(new Map([['writer-1', 'tip-7']])),
+    isAncestor: vi.fn<(_ancestorSha: string, _descendantSha: string) => Promise<boolean>>().mockResolvedValue(true),
     streamWriterPatches: vi.fn((writerId: string) => streamFromPromise(patches.loadWriterPatches(writerId))),
     streamForFrontier: vi.fn((frontier: Map<string, string>, ceiling: number | null) =>
       streamFromPromise(patches.collectForFrontier(frontier, ceiling))),
@@ -319,6 +320,46 @@ describe('MaterializeController — unified snapshot cache', () => {
       },
     );
     expect(patches.loadPatchesSince).not.toHaveBeenCalled();
+    expect(stateCache.put).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coordinate: target,
+        state: result.state,
+      }),
+    );
+    expect(result.patchCount).toBe(2);
+    expect(result.frontier).toEqual(target.frontier);
+  });
+
+  it('falls back to live frontier replay when the checkpoint is ahead of the captured coordinate', async () => {
+    const { controller, stateCache, patches } = createControllerFixtures();
+    const target: Coordinate = {
+      frontier: new Map([['writer-1', 'tip-7']]),
+      ceiling: null,
+    };
+    const checkpoint: CheckpointData = {
+      state: createEmptyState(),
+      frontier: new Map([['writer-1', 'tip-9']]),
+      stateHash: 'checkpoint-hash',
+      schema: 5,
+    };
+
+    stateCache.getExact.mockResolvedValue(null);
+    stateCache.getBestCompatiblePredecessor.mockResolvedValue(null);
+    patches.loadCheckpoint.mockResolvedValue(checkpoint);
+    patches.isAncestor.mockResolvedValue(false);
+    patches.collectForFrontier.mockResolvedValue([
+      patchRecord(6, 'sha-6'),
+      patchRecord(7, 'sha-7'),
+    ]);
+
+    const result = await controller.materialize();
+
+    expect(patches.isAncestor).toHaveBeenCalledWith('tip-9', 'tip-7');
+    expect(patches.collectForFrontier).toHaveBeenCalledWith(
+      target.frontier,
+      target.ceiling,
+    );
+    expect(patches.collectForFrontierSinceCoordinate).not.toHaveBeenCalled();
     expect(stateCache.put).toHaveBeenCalledWith(
       expect.objectContaining({
         coordinate: target,

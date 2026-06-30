@@ -160,6 +160,9 @@ export default abstract class PatchCollector {
   /** Load a patch chain between two SHAs. */
   abstract loadPatchChain(_toSha: string, _fromSha?: string | null): Promise<PatchWithSha[]>;
 
+  /** Return whether one patch commit is an ancestor of another, when available. */
+  isAncestor?(_ancestorSha: string, _descendantSha: string): Promise<boolean>;
+
   /** Get the current writer frontier. */
   abstract getFrontier(): Promise<Map<string, string>>;
 }

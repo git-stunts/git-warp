@@ -17,6 +17,10 @@ import {
   snapshotToMaterializeResult,
 } from './MaterializeSnapshotCacheResult.ts';
 
+function nonEmptySha(value: string | undefined): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
 export default class MaterializeLiveStrategy {
   private readonly runtime: MaterializeStrategyRuntime;
 
@@ -65,10 +69,55 @@ export default class MaterializeLiveStrategy {
     opts: MaterializeLiveOptions,
   ): Promise<MaterializeResult> {
     const checkpoint = await this.runtime.deps.patches.loadCheckpoint();
-    if (checkpoint !== null && checkpoint !== undefined && isCurrentCheckpointSchema(checkpoint.schema)) {
+    if (
+      this.isCurrentCheckpoint(checkpoint)
+      && await this.checkpointSupportsCoordinate(checkpoint, coordinate)
+    ) {
       return await this.fromCheckpoint(checkpoint, opts, coordinate.frontier);
     }
     return await this.fromFrontier(coordinate, opts);
+  }
+
+  private isCurrentCheckpoint(
+    checkpoint: CheckpointData | null | undefined,
+  ): checkpoint is CheckpointData {
+    return checkpoint !== null && checkpoint !== undefined && isCurrentCheckpointSchema(checkpoint.schema);
+  }
+
+  private async checkpointSupportsCoordinate(
+    checkpoint: CheckpointData,
+    coordinate: WarpStateCoordinate,
+  ): Promise<boolean> {
+    for (const [writerId, checkpointTip] of checkpoint.frontier) {
+      if (!await this.checkpointWriterTipIsCompatible(
+        checkpointTip,
+        coordinate.frontier.get(writerId),
+      )) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private async checkpointWriterTipIsCompatible(
+    checkpointTip: string,
+    targetTip: string | undefined,
+  ): Promise<boolean> {
+    if (!nonEmptySha(checkpointTip) || !nonEmptySha(targetTip)) {
+      return false;
+    }
+    return checkpointTip === targetTip || await this.checkpointTipPrecedesTarget(checkpointTip, targetTip);
+  }
+
+  private async checkpointTipPrecedesTarget(
+    checkpointTip: string,
+    targetTip: string,
+  ): Promise<boolean> {
+    const { patches } = this.runtime.deps;
+    if (typeof patches.isAncestor !== 'function') {
+      return false;
+    }
+    return await patches.isAncestor(checkpointTip, targetTip);
   }
 
   private async fromCheckpoint(
