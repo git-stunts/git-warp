@@ -58,7 +58,7 @@ seed_graph() {
     script="${BATS_TEST_DIRNAME}/helpers/${script_name%.js}.ts"
   fi
   cd "${PROJECT_ROOT}" || return 1
-  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-transform-types -e '
+  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-strip-types -e '
     import("node:url")
       .then(({ pathToFileURL }) => import(pathToFileURL(process.argv[1]).href))
       .then(

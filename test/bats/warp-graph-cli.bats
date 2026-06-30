@@ -18,7 +18,7 @@ setup() {
   export GIT_COMMITTER_EMAIL="test@test.com"
 
   cd "${PROJECT_ROOT}"
-  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-transform-types -e '
+  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-strip-types -e '
     import("node:url")
       .then(({ pathToFileURL }) => import(pathToFileURL(process.argv[1]).href))
       .then(

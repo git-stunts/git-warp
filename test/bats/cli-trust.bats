@@ -60,7 +60,7 @@ PY
 
   # Add an untrusted writer "bob"
   cd "${PROJECT_ROOT}"
-  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-transform-types -e "
+  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-strip-types -e "
     import('./test/bats/helpers/seed-setup.ts').then(async ({ openGraph }) => {
       const g = await openGraph('demo', 'bob');
       const p = await g.createPatch();
@@ -90,7 +90,7 @@ PY
 
   # Add an untrusted writer "bob"
   cd "${PROJECT_ROOT}"
-  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-transform-types -e "
+  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-strip-types -e "
     import('./test/bats/helpers/seed-setup.ts').then(async ({ openGraph }) => {
       const g = await openGraph('demo', 'bob');
       const p = await g.createPatch();
