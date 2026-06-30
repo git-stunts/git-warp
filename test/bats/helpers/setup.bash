@@ -12,7 +12,7 @@ setup_test_repo() {
   TEST_REPO="$(mktemp -d)"
   cd "${TEST_REPO}" || return 1
 
-  git init >/dev/null
+  git init -b main >/dev/null
   git config user.email "test@test.com"
   git config user.name "Test"
   export GIT_AUTHOR_NAME="Test"
