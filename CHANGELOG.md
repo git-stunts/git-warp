@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   republishing the same full snapshot back into the cache.
 - Live `wantDiff` materialization now bypasses state-cache hits so callers keep
   receiving diff data from replay-backed materialization paths.
+- Receipt-producing materialization now bypasses state-cache hits so callers
+  keep receiving replay-derived receipt arrays.
 - Live checkpoint fallback replay is now constrained to the requested frontier
   coordinate before publishing a cache snapshot for that coordinate.
 

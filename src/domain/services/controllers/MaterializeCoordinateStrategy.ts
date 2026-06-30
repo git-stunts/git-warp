@@ -77,6 +77,9 @@ export default class MaterializeCoordinateStrategy {
     coordinate: WarpStateCoordinate;
     receipts: boolean;
   }): Promise<MaterializeResult | null> {
+    if (opts.receipts) {
+      return null;
+    }
     const stateCache = this.runtime.deps.getStateCache?.() ?? null;
     if (stateCache === null) {
       return null;

@@ -177,7 +177,7 @@ export default class MaterializeLiveStrategy {
     stateCache: WarpStateCachePort,
     opts: { coordinate: WarpStateCoordinate; receipts: boolean; wantDiff: boolean },
   ): Promise<MaterializeResult | null> {
-    if (opts.wantDiff) {
+    if (opts.receipts || opts.wantDiff) {
       return null;
     }
     const exactResult = await this.tryResolveExactSnapshot(stateCache, opts);
