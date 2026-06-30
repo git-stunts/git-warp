@@ -5,6 +5,7 @@
  */
 
 import type { Persistence } from '../../types.ts';
+import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts';
 
 // ── JSON-safe recursive value type ──────────────────────────────────────────
 
@@ -63,7 +64,7 @@ export interface DoctorSummary {
 
 export interface DoctorContext {
   persistence: Persistence;
-  stateCache: any | null; // Using any to avoid complex dependency imports in CLI types
+  stateCache: WarpStateCachePort | null;
   graphName: string;
   writerHeads: Array<{ writerId: string; sha: string | null; ref: string }>;
   policy: DoctorPolicy;

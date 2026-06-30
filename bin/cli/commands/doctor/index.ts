@@ -17,9 +17,11 @@ import { ALL_CHECKS } from './checks.ts';
 import { CODES } from './codes.ts';
 import { DOCTOR_EXIT_CODES, type DoctorFinding, type DoctorPolicy, type DoctorPayload, type DoctorContext } from './types.ts';
 import type { CliOptions, Persistence } from '../../types.ts';
+import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts';
 
 const DOCTOR_OPTION_MEMORY_BUDGET = 'memory-budget';
 const DOCTOR_OPTION_LARGE_GRAPH = 'large-graph';
+
 const MEMORY_BUDGET_FINDING_ID = 'memory-budget';
 const MEMORY_BUDGET_NOT_SPECIFIED = 'not-specified';
 
@@ -68,12 +70,7 @@ export default async function handleDoctor({ options, args }: { options: CliOpti
   const policy = { ...DEFAULT_POLICY, strict: commandValues.strict };
   const writerHeads = await collectWriterHeads(persistence, graphName);
 
-  let stateCache = null;
-  if (typeof (persistence as any).createRuntimeStateCache === 'function') {
-    const { default: defaultCodec } = await import('../../../../src/infrastructure/codecs/CborCodec.ts');
-    stateCache = await (persistence as any).createRuntimeStateCache({ graphName, codec: defaultCodec });
-  }
-
+  const stateCache = await resolveStateCache(persistence, graphName);
   const ctx: DoctorContext = { persistence, stateCache, graphName, writerHeads, policy, repoPath: options.repo };
 
   const memoryFindings = memoryBudgetFindings(commandValues);
@@ -99,6 +96,15 @@ function normalizeCommandValues(values: RawDoctorCommandValues): DoctorCommandVa
     [DOCTOR_OPTION_MEMORY_BUDGET]: values[DOCTOR_OPTION_MEMORY_BUDGET],
     [DOCTOR_OPTION_LARGE_GRAPH]: values[DOCTOR_OPTION_LARGE_GRAPH],
   };
+}
+
+async function resolveStateCache(persistence: Persistence, graphName: string): Promise<WarpStateCachePort | null> {
+  const castPersistence = persistence as unknown as { createRuntimeStateCache?: (args: unknown) => Promise<WarpStateCachePort> };
+  if (typeof castPersistence.createRuntimeStateCache === 'function') {
+    const { default: defaultCodec } = await import('../../../../src/infrastructure/codecs/CborCodec.ts');
+    return await castPersistence.createRuntimeStateCache({ graphName, codec: defaultCodec });
+  }
+  return null;
 }
 
 function memoryBudgetFindings(values: DoctorCommandValues): DoctorFinding[] {

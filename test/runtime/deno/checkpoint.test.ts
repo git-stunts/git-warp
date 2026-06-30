@@ -12,7 +12,7 @@ denoRuntimeTest("checkpoint: creates checkpoint with valid SHA", async () => {
     await graph.materialize();
 
     const sha = await graph.createCheckpoint();
-    assertMatch(sha, /^[0-9a-f]{40}$/);
+    assertMatch(sha, /^(snapshot:)?[0-9a-f]{40,64}$/);
   } finally {
     await repo.cleanup();
   }

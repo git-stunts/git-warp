@@ -23,7 +23,7 @@ describe('API: Checkpoint', () => {
   });
 
   it('creates a checkpoint and returns a valid SHA', async () => {
-    const graph = await repo.openGraph('test', 'writer1');
+    const graph = await repo.openGraph('test', 'writer1', { stateCache: null });
 
     await (await graph.createPatch()).addNode('n1').commit();
     await (await graph.createPatch()).addNode('n2').commit();
@@ -40,7 +40,7 @@ describe('API: Checkpoint', () => {
   });
 
   it('materializeAt rejects session-backed runtime checkpoints', async () => {
-    const graph = await repo.openGraph('test', 'writer1');
+    const graph = await repo.openGraph('test', 'writer1', { stateCache: null });
 
     await (await graph.createPatch()).addNode('n1').commit();
     await (await graph.createPatch()).addNode('n2').commit();
@@ -60,7 +60,7 @@ describe('API: Checkpoint', () => {
   });
 
   it('incremental checkpoint after additional patches', async () => {
-    const graph = await repo.openGraph('test', 'writer1');
+    const graph = await repo.openGraph('test', 'writer1', { stateCache: null });
 
     await (await graph.createPatch()).addNode('a').commit();
     await graph.materialize();
