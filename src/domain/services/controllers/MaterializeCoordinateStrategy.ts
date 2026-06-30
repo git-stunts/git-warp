@@ -1,4 +1,3 @@
-import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import type {
   MaterializeCoordinateOptions,
   MaterializeStrategyRuntime,
@@ -7,14 +6,12 @@ import type { MaterializeResult } from './MaterializeController.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type {
   WarpStateCoordinate,
-  WarpStateSnapshotRecord,
 } from '../../../ports/WarpStateCachePort.ts';
-import type WarpState from '../state/WarpState.ts';
-import { MaterializePatchSummary } from './MaterializePatchSummary.ts';
-
-type UsableSnapshotRecord = WarpStateSnapshotRecord & {
-  state: WarpState;
-};
+import {
+  canUseSnapshot,
+  snapshotToMaterializeResult,
+} from './MaterializeSnapshotCacheResult.ts';
+import { snapshotPublicationForReceipts } from './MaterializeSnapshotPublication.ts';
 
 export default class MaterializeCoordinateStrategy {
   private readonly runtime: MaterializeStrategyRuntime;
@@ -25,7 +22,7 @@ export default class MaterializeCoordinateStrategy {
 
   async materialize(opts: MaterializeCoordinateOptions): Promise<MaterializeResult> {
     if (this.canReturnEmpty(opts)) {
-      return await this.runtime.emptyResult(opts.ceiling, opts.frontier);
+      return await this.emptyResult(opts);
     }
     const coordinate = this.snapshotCoordinate(opts.frontier, opts.ceiling);
     const cacheResolved = await this.tryResolveSnapshotCache({
@@ -37,7 +34,7 @@ export default class MaterializeCoordinateStrategy {
     }
     const reduction = await this.reduceFrontierPatches(opts);
     if (reduction.summary.patchCount === 0) {
-      return await this.runtime.emptyResult(opts.ceiling, opts.frontier);
+      return await this.emptyResult(opts);
     }
     return await this.runtime.buildResult({
       reduced: reduction.reduced,
@@ -46,6 +43,14 @@ export default class MaterializeCoordinateStrategy {
       ceiling: opts.ceiling,
       frontier: opts.frontier,
     });
+  }
+
+  private async emptyResult(opts: MaterializeCoordinateOptions): Promise<MaterializeResult> {
+    return await this.runtime.emptyResult(
+      opts.ceiling,
+      opts.frontier,
+      snapshotPublicationForReceipts(opts),
+    );
   }
 
   private async reduceFrontierPatches(opts: MaterializeCoordinateOptions) {
@@ -81,6 +86,9 @@ export default class MaterializeCoordinateStrategy {
     coordinate: WarpStateCoordinate;
     receipts: boolean;
   }): Promise<MaterializeResult | null> {
+    if (opts.receipts) {
+      return null;
+    }
     const stateCache = this.runtime.deps.getStateCache?.() ?? null;
     if (stateCache === null) {
       return null;
@@ -104,8 +112,8 @@ export default class MaterializeCoordinateStrategy {
     opts: { coordinate: WarpStateCoordinate; receipts: boolean },
   ): Promise<MaterializeResult | null> {
     const exact = await stateCache.getExact(opts.coordinate);
-    if (this.canUseSnapshot(exact, opts.receipts)) {
-      return await this.snapshotToResult(exact);
+    if (canUseSnapshot(exact, { receipts: opts.receipts })) {
+      return snapshotToMaterializeResult(exact);
     }
     return null;
   }
@@ -115,7 +123,7 @@ export default class MaterializeCoordinateStrategy {
     opts: { coordinate: WarpStateCoordinate; receipts: boolean },
   ): Promise<MaterializeResult | null> {
     const predecessor = await stateCache.getBestCompatiblePredecessor(opts.coordinate);
-    if (!this.canUseSnapshot(predecessor, opts.receipts)) {
+    if (!canUseSnapshot(predecessor, { receipts: opts.receipts })) {
       return null;
     }
 
@@ -137,29 +145,6 @@ export default class MaterializeCoordinateStrategy {
       degraded: predecessor.provenancePosture === 'degraded',
       ceiling: opts.coordinate.ceiling,
       frontier: opts.coordinate.frontier,
-    });
-  }
-
-  private canUseSnapshot(
-    snapshot: WarpStateSnapshotRecord | null,
-    receipts: boolean,
-  ): snapshot is UsableSnapshotRecord {
-    if (snapshot === null || snapshot.state === undefined) {
-      return false;
-    }
-    if (receipts && snapshot.provenancePosture === 'degraded') {
-      return false;
-    }
-    return true;
-  }
-
-  private async snapshotToResult(snapshot: UsableSnapshotRecord): Promise<MaterializeResult> {
-    return await this.runtime.buildResult({
-      reduced: { state: snapshot.state },
-      summary: MaterializePatchSummary.empty(new ProvenanceIndex()),
-      degraded: snapshot.provenancePosture === 'degraded',
-      ceiling: snapshot.coordinate.ceiling,
-      frontier: snapshot.coordinate.frontier,
     });
   }
 }

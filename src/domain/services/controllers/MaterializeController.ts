@@ -33,6 +33,10 @@ import MaterializePatchStreamReducer, {
   type MaterializePatchStreamReduction,
 } from './MaterializePatchStreamReducer.ts';
 import { summarizeMaterializePatches } from './MaterializePatchSummary.ts';
+import {
+  shouldPublishMaterializeSnapshot,
+  type MaterializeSnapshotPublicationOptions,
+} from './MaterializeSnapshotPublication.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
@@ -220,24 +224,28 @@ export default class MaterializeController {
   private async _emptyResult(
     ceiling?: number | null,
     frontier?: Map<string, string> | null,
+    options?: MaterializeSnapshotPublicationOptions,
   ): Promise<MaterializeResult> {
-    return await this._wrapState(createEmptyState(), ceiling ?? null, frontier ?? null);
+    return await this._wrapState(createEmptyState(), ceiling ?? null, frontier ?? null, options);
   }
 
   private async _wrapState(
     state: WarpState,
     ceiling: number | null,
     frontier: Map<string, string> | null,
+    options?: MaterializeSnapshotPublicationOptions,
   ): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, state);
     const adjacency = buildAdjacency(state);
-    await this._publishSnapshot({
-      state,
-      stateHash,
-      degraded: false,
-      ceiling,
-      frontier,
-    });
+    if (shouldPublishMaterializeSnapshot(options)) {
+      await this._publishSnapshot({
+        state,
+        stateHash,
+        degraded: false,
+        ceiling,
+        frontier,
+      });
+    }
     return {
       state,
       stateHash,
@@ -254,13 +262,15 @@ export default class MaterializeController {
   private async _buildResult(params: MaterializeResultBuildInput): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, params.reduced.state);
     const adjacency = params.reduced.adjacency ?? buildAdjacency(params.reduced.state);
-    await this._publishSnapshot({
-      state: params.reduced.state,
-      stateHash,
-      degraded: params.degraded,
-      ceiling: params.ceiling,
-      frontier: params.frontier,
-    });
+    if (params.reduced.receipts === undefined) {
+      await this._publishSnapshot({
+        state: params.reduced.state,
+        stateHash,
+        degraded: params.degraded,
+        ceiling: params.ceiling,
+        frontier: params.frontier,
+      });
+    }
     return {
       state: params.reduced.state,
       stateHash,
@@ -323,8 +333,10 @@ export default class MaterializeController {
   private _createStrategyRuntime(): MaterializeStrategyRuntime {
     return {
       deps: this._deps,
-      emptyResult: async (ceiling, frontier) => await this._emptyResult(ceiling, frontier),
-      wrapState: async (state, ceiling, frontier) => await this._wrapState(state, ceiling, frontier),
+      emptyResult: async (ceiling, frontier, options) =>
+        await this._emptyResult(ceiling, frontier, options),
+      wrapState: async (state, ceiling, frontier, options) =>
+        await this._wrapState(state, ceiling, frontier, options),
       reducePatches: async (patches, base, opts) => await this._reducePatches(patches, base, opts),
       reducePatchStream: async (stream, base, opts, provenanceBase) =>
         await this._reducePatchStream(stream, base, opts, provenanceBase),
