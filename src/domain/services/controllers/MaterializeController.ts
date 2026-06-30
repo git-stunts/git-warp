@@ -254,13 +254,15 @@ export default class MaterializeController {
   private async _buildResult(params: MaterializeResultBuildInput): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, params.reduced.state);
     const adjacency = params.reduced.adjacency ?? buildAdjacency(params.reduced.state);
-    await this._publishSnapshot({
-      state: params.reduced.state,
-      stateHash,
-      degraded: params.degraded,
-      ceiling: params.ceiling,
-      frontier: params.frontier,
-    });
+    if (params.reduced.receipts === undefined) {
+      await this._publishSnapshot({
+        state: params.reduced.state,
+        stateHash,
+        degraded: params.degraded,
+        ceiling: params.ceiling,
+        frontier: params.frontier,
+      });
+    }
     return {
       state: params.reduced.state,
       stateHash,

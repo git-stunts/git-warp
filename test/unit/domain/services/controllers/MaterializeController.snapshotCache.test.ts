@@ -280,6 +280,7 @@ describe('MaterializeController — unified snapshot cache', () => {
 
     expect(stateCache.getExact).not.toHaveBeenCalled();
     expect(stateCache.getBestCompatiblePredecessor).not.toHaveBeenCalled();
+    expect(stateCache.put).not.toHaveBeenCalled();
     expect(patches.collectForFrontier).toHaveBeenCalledWith(
       target.frontier,
       target.ceiling,
@@ -445,6 +446,7 @@ describe('MaterializeController — unified snapshot cache', () => {
 
     expect(stateCache.getExact).not.toHaveBeenCalled();
     expect(stateCache.getBestCompatiblePredecessor).not.toHaveBeenCalled();
+    expect(stateCache.put).not.toHaveBeenCalled();
     expect(patches.collectForFrontier).toHaveBeenCalledWith(
       coordinate.frontier,
       coordinate.ceiling,
