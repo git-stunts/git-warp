@@ -16,6 +16,7 @@ import {
   canUseSnapshot,
   snapshotToMaterializeResult,
 } from './MaterializeSnapshotCacheResult.ts';
+import { snapshotPublicationForReceipts } from './MaterializeSnapshotPublication.ts';
 
 function nonEmptySha(value: string | undefined): value is string {
   return typeof value === 'string' && value.length > 0;
@@ -50,7 +51,7 @@ export default class MaterializeLiveStrategy {
   ): Promise<MaterializeResult> {
     const frontier = await this.runtime.deps.patches.getFrontier();
     if (frontier.size === 0) {
-      return await this.runtime.emptyResult(null, frontier);
+      return await this.runtime.emptyResult(null, frontier, snapshotPublicationForReceipts(opts));
     }
     const coordinate = this.snapshotCoordinate(frontier);
     const cacheResolved = await this.tryResolveSnapshotCache(stateCache, {
@@ -175,7 +176,11 @@ export default class MaterializeLiveStrategy {
   private async fromScratch(opts: MaterializeLiveOptions): Promise<MaterializeResult> {
     const writers = await this.runtime.deps.patches.discoverWriters();
     if (writers.length === 0) {
-      return await this.runtime.emptyResult();
+      return await this.runtime.emptyResult(
+        undefined,
+        undefined,
+        snapshotPublicationForReceipts(opts),
+      );
     }
     const reduction = await this.runtime.reducePatchStream(
       this.streamAllPatches(writers),
@@ -183,7 +188,11 @@ export default class MaterializeLiveStrategy {
       opts,
     );
     if (reduction.summary.patchCount === 0) {
-      return await this.runtime.emptyResult();
+      return await this.runtime.emptyResult(
+        undefined,
+        undefined,
+        snapshotPublicationForReceipts(opts),
+      );
     }
     return await this.runtime.buildResult({
       reduced: reduction.reduced,
@@ -204,7 +213,11 @@ export default class MaterializeLiveStrategy {
       opts,
     );
     if (reduction.summary.patchCount === 0) {
-      return await this.runtime.emptyResult(coordinate.ceiling, coordinate.frontier);
+      return await this.runtime.emptyResult(
+        coordinate.ceiling,
+        coordinate.frontier,
+        snapshotPublicationForReceipts(opts),
+      );
     }
     return await this.runtime.buildResult({
       reduced: reduction.reduced,

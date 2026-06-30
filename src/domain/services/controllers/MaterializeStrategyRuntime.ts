@@ -7,6 +7,7 @@ import type {
   MaterializePatchStreamReduction,
 } from './MaterializePatchStreamReducer.ts';
 import type { MaterializePatchSummary } from './MaterializePatchSummary.ts';
+import type { MaterializeSnapshotPublicationOptions } from './MaterializeSnapshotPublication.ts';
 import type {
   MaterializeDeps,
   MaterializePersistence,
@@ -40,8 +41,17 @@ export type MaterializeResultBuildInput = {
 
 export type MaterializeStrategyRuntime = {
   deps: MaterializeDeps;
-  emptyResult(ceiling?: number | null, frontier?: Map<string, string> | null): Promise<MaterializeResult>;
-  wrapState(state: WarpState, ceiling: number | null, frontier: Map<string, string> | null): Promise<MaterializeResult>;
+  emptyResult(
+    ceiling?: number | null,
+    frontier?: Map<string, string> | null,
+    options?: MaterializeSnapshotPublicationOptions,
+  ): Promise<MaterializeResult>;
+  wrapState(
+    state: WarpState,
+    ceiling: number | null,
+    frontier: Map<string, string> | null,
+    options?: MaterializeSnapshotPublicationOptions,
+  ): Promise<MaterializeResult>;
   reducePatches(
     patches: PatchWithSha[],
     base: WarpState | undefined,

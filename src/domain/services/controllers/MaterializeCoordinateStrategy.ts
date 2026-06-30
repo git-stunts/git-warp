@@ -11,6 +11,7 @@ import {
   canUseSnapshot,
   snapshotToMaterializeResult,
 } from './MaterializeSnapshotCacheResult.ts';
+import { snapshotPublicationForReceipts } from './MaterializeSnapshotPublication.ts';
 
 export default class MaterializeCoordinateStrategy {
   private readonly runtime: MaterializeStrategyRuntime;
@@ -21,7 +22,7 @@ export default class MaterializeCoordinateStrategy {
 
   async materialize(opts: MaterializeCoordinateOptions): Promise<MaterializeResult> {
     if (this.canReturnEmpty(opts)) {
-      return await this.runtime.emptyResult(opts.ceiling, opts.frontier);
+      return await this.emptyResult(opts);
     }
     const coordinate = this.snapshotCoordinate(opts.frontier, opts.ceiling);
     const cacheResolved = await this.tryResolveSnapshotCache({
@@ -33,7 +34,7 @@ export default class MaterializeCoordinateStrategy {
     }
     const reduction = await this.reduceFrontierPatches(opts);
     if (reduction.summary.patchCount === 0) {
-      return await this.runtime.emptyResult(opts.ceiling, opts.frontier);
+      return await this.emptyResult(opts);
     }
     return await this.runtime.buildResult({
       reduced: reduction.reduced,
@@ -42,6 +43,14 @@ export default class MaterializeCoordinateStrategy {
       ceiling: opts.ceiling,
       frontier: opts.frontier,
     });
+  }
+
+  private async emptyResult(opts: MaterializeCoordinateOptions): Promise<MaterializeResult> {
+    return await this.runtime.emptyResult(
+      opts.ceiling,
+      opts.frontier,
+      snapshotPublicationForReceipts(opts),
+    );
   }
 
   private async reduceFrontierPatches(opts: MaterializeCoordinateOptions) {
