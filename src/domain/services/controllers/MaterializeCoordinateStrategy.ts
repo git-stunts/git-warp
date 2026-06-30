@@ -1,4 +1,3 @@
-import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import type {
   MaterializeCoordinateOptions,
   MaterializeStrategyRuntime,
@@ -7,14 +6,11 @@ import type { MaterializeResult } from './MaterializeController.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type {
   WarpStateCoordinate,
-  WarpStateSnapshotRecord,
 } from '../../../ports/WarpStateCachePort.ts';
-import type WarpState from '../state/WarpState.ts';
-import { MaterializePatchSummary } from './MaterializePatchSummary.ts';
-
-type UsableSnapshotRecord = WarpStateSnapshotRecord & {
-  state: WarpState;
-};
+import {
+  canUseSnapshot,
+  snapshotToMaterializeResult,
+} from './MaterializeSnapshotCacheResult.ts';
 
 export default class MaterializeCoordinateStrategy {
   private readonly runtime: MaterializeStrategyRuntime;
@@ -104,8 +100,8 @@ export default class MaterializeCoordinateStrategy {
     opts: { coordinate: WarpStateCoordinate; receipts: boolean },
   ): Promise<MaterializeResult | null> {
     const exact = await stateCache.getExact(opts.coordinate);
-    if (this.canUseSnapshot(exact, opts.receipts)) {
-      return await this.snapshotToResult(exact);
+    if (canUseSnapshot(exact, opts.receipts)) {
+      return snapshotToMaterializeResult(exact);
     }
     return null;
   }
@@ -115,7 +111,7 @@ export default class MaterializeCoordinateStrategy {
     opts: { coordinate: WarpStateCoordinate; receipts: boolean },
   ): Promise<MaterializeResult | null> {
     const predecessor = await stateCache.getBestCompatiblePredecessor(opts.coordinate);
-    if (!this.canUseSnapshot(predecessor, opts.receipts)) {
+    if (!canUseSnapshot(predecessor, opts.receipts)) {
       return null;
     }
 
@@ -137,29 +133,6 @@ export default class MaterializeCoordinateStrategy {
       degraded: predecessor.provenancePosture === 'degraded',
       ceiling: opts.coordinate.ceiling,
       frontier: opts.coordinate.frontier,
-    });
-  }
-
-  private canUseSnapshot(
-    snapshot: WarpStateSnapshotRecord | null,
-    receipts: boolean,
-  ): snapshot is UsableSnapshotRecord {
-    if (snapshot === null || snapshot.state === undefined) {
-      return false;
-    }
-    if (receipts && snapshot.provenancePosture === 'degraded') {
-      return false;
-    }
-    return true;
-  }
-
-  private async snapshotToResult(snapshot: UsableSnapshotRecord): Promise<MaterializeResult> {
-    return await this.runtime.buildResult({
-      reduced: { state: snapshot.state },
-      summary: MaterializePatchSummary.empty(new ProvenanceIndex()),
-      degraded: snapshot.provenancePosture === 'degraded',
-      ceiling: snapshot.coordinate.ceiling,
-      frontier: snapshot.coordinate.frontier,
     });
   }
 }

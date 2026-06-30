@@ -33,9 +33,9 @@ inventories. Operator workflows live outside the topic shelf in
   checkpoints, replay, and provenance.
 - [Content and CAS](content-and-cas.md): handle content attachments,
   content-addressed storage, and encrypted CAS payloads.
-- [CAS-First memoized materialization](cas-first-memoized-materialization.md):
-  guarantee constant-memory streaming, Buzhash CDC deduplication, and
-  zero-latency snapshot hydration.
+- [WARP state-cache materialization](cas-first-memoized-materialization.md):
+  skip redundant live materialization replay through coordinate-addressed
+  state-cache snapshots backed by `git-cas`.
 - [Continuum boundary](continuum-boundary.md): understand what git-warp owns
   locally and what Continuum owns as boundary vocabulary.
 

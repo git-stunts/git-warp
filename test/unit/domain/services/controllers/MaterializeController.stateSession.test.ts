@@ -181,8 +181,7 @@ function createControllerFixtures() {
 describe("MaterializeController — state session integration", () => {
   it("replays live materialization through StateSession and returns an explicit WarpState projection bridge", async () => {
     const { controller, patches, openStateSession } = createControllerFixtures();
-    patches.discoverWriters.mockResolvedValue(["writer-1"]);
-    patches.loadWriterPatches.mockResolvedValue([
+    patches.collectForFrontier.mockResolvedValue([
       nodeAddPatchRecord({
         writer: "writer-1",
         lamport: 1,

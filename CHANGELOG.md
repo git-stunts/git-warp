@@ -7,31 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Live materialization now derives the current writer frontier, checks
+  `WarpStateCachePort` for exact and compatible predecessor snapshots before
+  replay, and publishes live replay results with their real WARP coordinate.
+- Exact state-cache hits now return cached materialization results without
+  republishing the same full snapshot back into the cache.
+
+### Changed
+
+- Corrected CAS-first materialization documentation to describe the actual
+  WARP-owned state-cache lifecycle and its full-materialization memory limits.
+
 ## [18.2.0] - 2026-06-28
 
 ### Release notes
 
-`v18.2.0` introduces the streaming CAS-First Memoization Engine for graph
-materialization. By interrogating `git-cas` before initiating projection replay
-and utilizing a constant-memory pass-through `teeStream` during materialization,
-`git-warp` guarantees `O(1)` runtime memory footprints and zero-latency
-snapshot hydration.
+`v18.2.0` introduces the first state-cache memoization components for graph
+materialization. The release adds the initial cache port and `git-cas`-backed
+adapter groundwork for avoiding redundant projection replay, while keeping WARP
+frontier and snapshot semantics inside `git-warp`.
 
-It also enforces strict `@git-stunts/git-cas` boundary encapsulation across the
-repository, utilizing Buzhash Content-Defined Chunking (CDC) for automated
-rolling hash deduplication of unchanged sub-trees.
+It also starts enforcing `@git-stunts/git-cas` boundary encapsulation across the
+repository so WARP-owned state-cache payloads route through the storage library
+instead of hand-rolled CAS plumbing.
 
 ### Added
 
-- `CasFirstMemoizationEngine` now enforces the 3-step CAS memoization rule:
-  interrogate `git-cas` for existing snapshots, materialize via lazy streaming
-  upon a cache miss, and simultaneously pipe materialized buffers to `git-cas`
-  via `storeStream`.
+- Added initial CAS-first memoization and WARP state-cache components for
+  runtime integration work.
 - Added `has()` check capability to `BlobStoragePort` and `CasBlobAdapter` to
   support zero-latency CAS interrogations before buffering events.
 - Added `docs/topics/cas-first-memoized-materialization.md` to document the
-  constant-memory streaming materialization pipeline and Buzhash CDC rolling
-  hash deduplication mechanics.
+  state-cache materialization lifecycle and its current memory boundaries.
 
 ## [18.1.2] - 2026-06-25
 

@@ -1,71 +1,92 @@
-# CAS-First Memoized Materialization
+# WARP State-Cache Materialization
 
-Use this page when you need to understand `git-warp`'s constant-memory streaming
-materialization pipeline, `@git-stunts/git-cas` boundary encapsulation, and
-rolling hash deduplication mechanics.
+Use this page when you need to understand how `git-warp` skips redundant
+materialization replay by memoizing WARP-owned state snapshots in
+`@git-stunts/git-cas`.
 
-## The Materialization Lifecycle
+`git-cas` is only the byte storage substrate. It does not know about WARP
+frontiers, optics, checkpoints, graph state, or materialization rules. `git-warp`
+owns those semantics through `WarpStateCachePort`; the Git-backed adapter stores
+snapshot payloads in `git-cas`.
 
-In `git-warp`, materialization is the bounded projection of raw CRDT graph
-events into structural checkpoints, working set views, or specialized hologram
-slices.
+## The Live Materialization Lifecycle
 
-To guarantee constant-memory `O(1)` runtime footprints and eliminate redundant
-CPU/memory computation across stigmergic peers, `git-warp` enforces a
-**CAS-First memoization pipeline**.
+When a Git-backed runtime has a state cache, live materialization follows this
+coordinate-first lifecycle:
 
 ```text
-+++++++> [git-cas] ---------> (materialization) ------> * (object)
-            ^                            |
-            |                            |
-            +----------------------------+
+[current frontier]
+        |
+        v
+[state-cache exact hit?] ---- yes ---> [return cached state]
+        |
+        no
+        v
+[compatible predecessor?] --- yes ---> [replay suffix, publish snapshot]
+        |
+        no
+        v
+[checkpoint/frontier replay] --------> [publish snapshot]
 ```
 
-## CAS-First Memoization Rules
+### 1. Derive a WARP coordinate
 
-Every materialization request must execute the following strict lifecycle:
+Before replay, the live path reads the current writer frontier and builds a
+WARP state coordinate:
 
-### 2.1. Is object already in git-cas?
+```text
+{ frontier: Map<writerId, tipSha>, ceiling: null }
+```
 
-Before executing any projection logic or buffering events into V8 heap memory,
-`git-warp` derives a deterministic materialization coordinate key:
-`key = sha256(baseFrontierSha + opticLensSha + queryParams)`.
+This coordinate belongs to `git-warp`; it is not a `git-cas` concept.
 
-The runtime immediately interrogates `git-cas` (`await cas.has(key)`). If the
-object exists in storage, `git-warp` bypasses the entire projection calculation
-and streams the pre-calculated object directly to the caller.
+### 2. Check the WARP state cache
 
-### 2.2. No? Materialize via streaming
+The runtime asks `WarpStateCachePort` for an exact snapshot at that coordinate.
+On a hit, it returns the cached state without replaying writer patch streams and
+without republishing the same snapshot.
 
-If the CAS interrogation returns a miss, `git-warp` initializes a lazy, chunked
-streaming materialization pipeline. Events are pulled from the underlying CRDT
-log in bounded batches, processed through the projection kernel, and immediately
-piped out to avoid accumulating unbounded memory buffers.
+If no exact snapshot exists, the runtime asks for the best compatible
+predecessor. A predecessor hit lets materialization replay only the suffix after
+that cached coordinate, then publish a fresh snapshot for the current frontier.
 
-### 2.3. Write materialized git-object to git-cas always
+### 3. Fall back to replay and publish
 
-As the object is materialized, the resulting buffer is simultaneously piped
-directly into `git-cas` (`cas.writeStream(key)`). This permanently memoizes the
-structural reality for all future causal code paths, background daemons, and
-remote peers.
+When there is no usable cached snapshot, the runtime falls back to the existing
+checkpoint/frontier replay path. Successful live and coordinate materializations
+publish an evictable state-cache snapshot with the actual coordinate so the next
+equivalent read can hit the cache.
 
-## Strict @git-stunts/git-cas Encapsulation
+## Memory Boundaries
 
-All CAS operations must route through the formal `@git-stunts/git-cas` library
-API. Direct invocation of raw git storage commands (`git hash-object`,
-`git cat-file`, `git mktree`) is strictly banned within `git-warp`.
+State-cache hits avoid redundant CRDT replay and can remove repeated startup
+costs for graph-sized materializations. They do not make legacy full
+materialization an `O(1)` memory API: a caller that asks for a full
+`SnapshotWarpState` still receives a full in-memory state object.
 
-### Buzhash Content-Defined Chunking (CDC)
+The bounded-memory read path is optic/worldline/query work over a sharded or
+streamed basis. The state cache is the replay-skipping compatibility bridge for
+legacy materialization and checkpoint flows.
 
-Routing through `@git-stunts/git-cas` unlocks advanced rolling hash capabilities:
+## `git-cas` Encapsulation
 
-- **Dynamic Chunking**: `@git-stunts/git-cas` employs a Buzhash rolling hash
-  algorithm to dynamically split streaming data into variable-length chunks
-  based on actual data content rather than fixed byte boundaries.
-- **Structural Deduplication**: If 99% of a materialized graph snapshot remains
-  unchanged between two consecutive frontiers, Buzhash CDC produces the exact
-  same block OIDs for the unchanged sub-trees. `@git-stunts/git-cas` instantly
-  deduplicates these blocks in memory before anything touches disk storage.
+All state-cache payload storage routes through the formal `@git-stunts/git-cas`
+library API. Raw Git plumbing remains an adapter concern for WARP refs and Git
+object access; WARP state-cache payloads should not hand-roll a parallel CAS.
+
+Routing state snapshots through `git-cas` allows content-addressed storage and
+chunk-level reuse where the underlying CAS representation can identify unchanged
+byte ranges. The WARP cache index remains responsible for determining whether a
+snapshot is semantically usable for a materialization coordinate.
+
+## Current Limitations
+
+- Exact state-cache hits bypass replay, but full materialization still hydrates
+  a full `WarpState`.
+- The Git-backed state-cache adapter stores full-state snapshots today. A future
+  sharded basis format should make optic reads avoid full-state hydration.
+- Cache coordinates must stay schema/version aware. A snapshot is reusable only
+  when WARP semantics say the coordinate is compatible.
 
 ## See also
 
