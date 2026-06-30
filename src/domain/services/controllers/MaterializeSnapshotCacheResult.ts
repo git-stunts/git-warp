@@ -11,24 +11,31 @@ export type UsableSnapshotRecord = WarpStateSnapshotRecord & {
   state: WarpState;
 };
 
+type SnapshotUseOptions = Readonly<{
+  receipts: boolean;
+}>;
+
 function snapshotHasState(
   snapshot: WarpStateSnapshotRecord | null | undefined,
 ): snapshot is UsableSnapshotRecord {
   return snapshot !== null && snapshot !== undefined && snapshot.state !== undefined;
 }
 
-function receiptsAllowSnapshot(snapshot: UsableSnapshotRecord, receipts: boolean): boolean {
-  return !receipts || snapshot.provenancePosture !== 'degraded';
+function receiptsAllowSnapshot(
+  snapshot: UsableSnapshotRecord,
+  options: SnapshotUseOptions,
+): boolean {
+  return !options.receipts || snapshot.provenancePosture !== 'degraded';
 }
 
 export function canUseSnapshot(
   snapshot: WarpStateSnapshotRecord | null | undefined,
-  receipts: boolean,
+  options: SnapshotUseOptions,
 ): snapshot is UsableSnapshotRecord {
   if (!snapshotHasState(snapshot)) {
     return false;
   }
-  return receiptsAllowSnapshot(snapshot, receipts);
+  return receiptsAllowSnapshot(snapshot, options);
 }
 
 export function snapshotToMaterializeResult(snapshot: UsableSnapshotRecord): MaterializeResult {

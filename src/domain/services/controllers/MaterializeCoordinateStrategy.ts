@@ -100,7 +100,7 @@ export default class MaterializeCoordinateStrategy {
     opts: { coordinate: WarpStateCoordinate; receipts: boolean },
   ): Promise<MaterializeResult | null> {
     const exact = await stateCache.getExact(opts.coordinate);
-    if (canUseSnapshot(exact, opts.receipts)) {
+    if (canUseSnapshot(exact, { receipts: opts.receipts })) {
       return snapshotToMaterializeResult(exact);
     }
     return null;
@@ -111,7 +111,7 @@ export default class MaterializeCoordinateStrategy {
     opts: { coordinate: WarpStateCoordinate; receipts: boolean },
   ): Promise<MaterializeResult | null> {
     const predecessor = await stateCache.getBestCompatiblePredecessor(opts.coordinate);
-    if (!canUseSnapshot(predecessor, opts.receipts)) {
+    if (!canUseSnapshot(predecessor, { receipts: opts.receipts })) {
       return null;
     }
 

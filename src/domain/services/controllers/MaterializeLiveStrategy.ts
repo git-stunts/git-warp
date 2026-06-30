@@ -52,6 +52,7 @@ export default class MaterializeLiveStrategy {
     const cacheResolved = await this.tryResolveSnapshotCache(stateCache, {
       coordinate,
       receipts: opts.receipts,
+      wantDiff: opts.wantDiff,
     });
     if (cacheResolved !== null) {
       return cacheResolved;
@@ -76,7 +77,7 @@ export default class MaterializeLiveStrategy {
     frontier: Map<string, string> | null,
   ): Promise<MaterializeResult> {
     const reduction = await this.runtime.reducePatchStream(
-      this.streamPatchesSince(checkpoint),
+      this.streamPatchesSinceCheckpoint(checkpoint, frontier),
       checkpoint.state,
       opts,
       checkpoint.provenanceIndex,
@@ -88,6 +89,28 @@ export default class MaterializeLiveStrategy {
       ceiling: null,
       frontier,
     });
+  }
+
+  private async *streamPatchesSinceCheckpoint(
+    checkpoint: CheckpointData,
+    frontier: Map<string, string> | null,
+  ): AsyncIterable<PatchWithSha> {
+    if (frontier !== null) {
+      yield* this.runtime.deps.patches.streamForFrontierSinceCoordinate(
+        frontier,
+        null,
+        this.checkpointCoordinate(checkpoint),
+      );
+      return;
+    }
+    yield* this.streamPatchesSince(checkpoint);
+  }
+
+  private checkpointCoordinate(checkpoint: CheckpointData): WarpStateCoordinate {
+    return {
+      frontier: checkpoint.frontier,
+      ceiling: null,
+    };
   }
 
   private async *streamPatchesSince(checkpoint: CheckpointData): AsyncIterable<PatchWithSha> {
@@ -152,8 +175,11 @@ export default class MaterializeLiveStrategy {
 
   private async tryResolveSnapshotCache(
     stateCache: WarpStateCachePort,
-    opts: { coordinate: WarpStateCoordinate; receipts: boolean },
+    opts: { coordinate: WarpStateCoordinate; receipts: boolean; wantDiff: boolean },
   ): Promise<MaterializeResult | null> {
+    if (opts.wantDiff) {
+      return null;
+    }
     const exactResult = await this.tryResolveExactSnapshot(stateCache, opts);
     if (exactResult !== null) {
       return exactResult;
@@ -166,7 +192,7 @@ export default class MaterializeLiveStrategy {
     opts: { coordinate: WarpStateCoordinate; receipts: boolean },
   ): Promise<MaterializeResult | null> {
     const exact = await stateCache.getExact(opts.coordinate);
-    if (canUseSnapshot(exact, opts.receipts)) {
+    if (canUseSnapshot(exact, { receipts: opts.receipts })) {
       return snapshotToMaterializeResult(exact);
     }
     return null;
@@ -177,7 +203,7 @@ export default class MaterializeLiveStrategy {
     opts: { coordinate: WarpStateCoordinate; receipts: boolean },
   ): Promise<MaterializeResult | null> {
     const predecessor = await stateCache.getBestCompatiblePredecessor(opts.coordinate);
-    if (!canUseSnapshot(predecessor, opts.receipts)) {
+    if (!canUseSnapshot(predecessor, { receipts: opts.receipts })) {
       return null;
     }
 

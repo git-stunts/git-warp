@@ -27,8 +27,54 @@ function patchWithinCeiling(entry: PatchWithSha, ceiling: number | null): boolea
   return ceiling === null || entry.patch.lamport <= ceiling;
 }
 
+function patchAfterBaseCeiling(entry: PatchWithSha, ceiling: number | null): boolean {
+  return ceiling === null || entry.patch.lamport > ceiling;
+}
+
 function validTipSha(tipSha: string | undefined): tipSha is string {
   return typeof tipSha === 'string' && tipSha.length > 0;
+}
+
+function patchInCoordinateSuffix(
+  entry: PatchWithSha,
+  ceiling: number | null,
+  baseCeiling: number | null,
+): boolean {
+  return patchWithinCeiling(entry, ceiling) && patchAfterBaseCeiling(entry, baseCeiling);
+}
+
+function coordinateStopAtSha(
+  writerId: string,
+  baseCoordinate: { frontier: Map<string, string>; ceiling: number | null },
+): string | null {
+  if (baseCoordinate.ceiling !== null) {
+    return null;
+  }
+  const baseTipSha = baseCoordinate.frontier.get(writerId);
+  return validTipSha(baseTipSha) ? baseTipSha : null;
+}
+
+type PatchChainLoader = {
+  loadPatchChain(toSha: string, fromSha?: string | null): Promise<PatchWithSha[]>;
+};
+
+type CoordinateSuffixInput = {
+  writerId: string;
+  tipSha: string;
+  ceiling: number | null;
+  baseCoordinate: { frontier: Map<string, string>; ceiling: number | null };
+};
+
+async function* streamWriterCoordinateSuffix(
+  loader: PatchChainLoader,
+  input: CoordinateSuffixInput,
+): AsyncIterable<PatchWithSha> {
+  const stopAtSha = coordinateStopAtSha(input.writerId, input.baseCoordinate);
+  for (const entry of await loader.loadPatchChain(input.tipSha, stopAtSha)) {
+    if (patchInCoordinateSuffix(entry, input.ceiling, input.baseCoordinate.ceiling)) {
+      yield entry;
+    }
+  }
 }
 
 /**
@@ -84,9 +130,18 @@ export default abstract class PatchCollector {
   async *streamForFrontierSinceCoordinate(
     frontier: Map<string, string>,
     ceiling: number | null,
-    _baseCoordinate: { frontier: Map<string, string>; ceiling: number | null },
+    baseCoordinate: { frontier: Map<string, string>; ceiling: number | null },
   ): AsyncIterable<PatchWithSha> {
-    yield* this.streamForFrontier(frontier, ceiling);
+    for (const writerId of frontier.keys()) {
+      const tipSha = frontier.get(writerId);
+      if (!validTipSha(tipSha)) { continue; }
+      yield* streamWriterCoordinateSuffix(this, {
+        writerId,
+        tipSha,
+        ceiling,
+        baseCoordinate,
+      });
+    }
   }
 
   /** Load the latest checkpoint, or null if none. */

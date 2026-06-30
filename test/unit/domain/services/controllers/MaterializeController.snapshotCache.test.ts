@@ -235,6 +235,74 @@ describe('MaterializeController — unified snapshot cache', () => {
     expect(result.frontier).toEqual(target.frontier);
   });
 
+  it('bypasses live snapshot hits when diff materialization is requested', async () => {
+    const { controller, stateCache, patches } = createControllerFixtures();
+    const target: Coordinate = {
+      frontier: new Map([['writer-1', 'tip-7']]),
+      ceiling: null,
+    };
+
+    stateCache.getExact.mockResolvedValue(
+      snapshotRecord('snapshot-live-exact', target, 'full'),
+    );
+    patches.collectForFrontier.mockResolvedValue([
+      patchRecord(7, 'sha-7'),
+    ]);
+
+    const result = await controller.materialize({ wantDiff: true });
+
+    expect(stateCache.getExact).not.toHaveBeenCalled();
+    expect(stateCache.getBestCompatiblePredecessor).not.toHaveBeenCalled();
+    expect(patches.collectForFrontier).toHaveBeenCalledWith(
+      target.frontier,
+      target.ceiling,
+    );
+    expect(result.diff).toBeDefined();
+    expect(result.frontier).toEqual(target.frontier);
+  });
+
+  it('binds checkpoint fallback replay to the live frontier coordinate', async () => {
+    const { controller, stateCache, patches } = createControllerFixtures();
+    const target: Coordinate = {
+      frontier: new Map([['writer-1', 'tip-7']]),
+      ceiling: null,
+    };
+    const checkpoint: CheckpointData = {
+      state: createEmptyState(),
+      frontier: new Map([['writer-1', 'tip-5']]),
+      stateHash: 'checkpoint-hash',
+      schema: 5,
+    };
+
+    stateCache.getExact.mockResolvedValue(null);
+    stateCache.getBestCompatiblePredecessor.mockResolvedValue(null);
+    patches.loadCheckpoint.mockResolvedValue(checkpoint);
+    patches.collectForFrontierSinceCoordinate.mockResolvedValue([
+      patchRecord(6, 'sha-6'),
+      patchRecord(7, 'sha-7'),
+    ]);
+
+    const result = await controller.materialize();
+
+    expect(patches.collectForFrontierSinceCoordinate).toHaveBeenCalledWith(
+      target.frontier,
+      null,
+      {
+        frontier: checkpoint.frontier,
+        ceiling: null,
+      },
+    );
+    expect(patches.loadPatchesSince).not.toHaveBeenCalled();
+    expect(stateCache.put).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coordinate: target,
+        state: result.state,
+      }),
+    );
+    expect(result.patchCount).toBe(2);
+    expect(result.frontier).toEqual(target.frontier);
+  });
+
   it('uses an exact snapshot hit for coordinate materialization before replay', async () => {
     const { controller, stateCache, patches } = createControllerFixtures();
     const coordinate: Coordinate = {
