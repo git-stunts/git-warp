@@ -40,6 +40,7 @@ Current docs may describe:
 
 - translated evidence posture on `Optic`;
 - receipt and tick witness shells;
+- Supported Outcome Settlement support-tier disclosure;
 - generated Continuum-family inventory;
 - witnessed suffix admission envelopes as boundary artifacts.
 
@@ -63,4 +64,5 @@ Continuum should be explained here, then linked from:
 
 - [Git substrate](git-substrate.md)
 - [Optic reads](optic-reads.md)
+- [Supported Outcome Settlement](supported-outcome-settlement.md)
 - [Sync](sync.md)
