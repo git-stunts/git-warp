@@ -16,6 +16,8 @@ replay-backed. Operator workflows live outside the topic shelf in
 
 - [Getting started](getting-started.md): install the package, open a worldline,
   write a patch, read it back, and sync WARP refs.
+- [v19 public API reflection](api/): understand the planned root API shift to
+  intents, readings, timelines, ticks, and receipts.
 - [Querying](querying.md): choose between worldlines, observers, optic reads,
   query builders, and strand sources.
 

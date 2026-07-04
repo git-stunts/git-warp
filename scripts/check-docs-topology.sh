@@ -22,7 +22,6 @@ RETIRED_PATHS=(
   "docs/images"
   "docs/invariants"
   "docs/method"
-  "docs/migrations"
   "docs/releases"
   "docs/specs"
   "docs/trust"
