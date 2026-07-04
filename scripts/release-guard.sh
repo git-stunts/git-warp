@@ -74,6 +74,10 @@ RETIRED_DOC_PATHS=(
   "docs/DOCTRINE_RUNTIME_ALIGNMENT.md"
 )
 
+CURRENT_MIGRATION_DOCS=(
+  "docs/migrations/v19/README.md"
+)
+
 pass() {
   printf '  PASS %s %s\n' "$1" "$2"
 }
@@ -81,6 +85,16 @@ pass() {
 fail() {
   printf '  FAIL %s %s\n' "$1" "$2"
   FAILURES=$((FAILURES + 1))
+}
+
+is_current_migration_doc() {
+  local path="$1"
+  for current in "${CURRENT_MIGRATION_DOCS[@]}"; do
+    if [ "$path" = "$current" ]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 require_command() {
@@ -386,6 +400,7 @@ check_changelog() {
 check_release_evidence() {
   local missing=0
   local retired=0
+  local unmanaged_migrations=0
   local required_docs
 
   if ! required_docs="$(node scripts/release-profile.ts required-docs)"; then
@@ -405,6 +420,22 @@ check_release_evidence() {
     fi
   done <<< "$required_docs"
 
+  for path in "${CURRENT_MIGRATION_DOCS[@]}"; do
+    if [ ! -f "$path" ]; then
+      printf '    missing current migration doc: %s\n' "$path"
+      missing=$((missing + 1))
+    fi
+  done
+
+  if [ -d "docs/migrations" ]; then
+    while IFS= read -r path; do
+      if ! is_current_migration_doc "$path"; then
+        printf '    unmanaged migration doc: %s\n' "$path"
+        unmanaged_migrations=$((unmanaged_migrations + 1))
+      fi
+    done < <(find docs/migrations -type f | sort)
+  fi
+
   for path in "${RETIRED_DOC_PATHS[@]}"; do
     if [ -e "$path" ]; then
       printf '    retired docs path still exists: %s\n' "$path"
@@ -412,10 +443,10 @@ check_release_evidence() {
     fi
   done
 
-  if [ "$missing" -eq 0 ] && [ "$retired" -eq 0 ]; then
+  if [ "$missing" -eq 0 ] && [ "$retired" -eq 0 ] && [ "$unmanaged_migrations" -eq 0 ]; then
     pass "REL-DOC-EVIDENCE" "release evidence lives in CHANGELOG.md and the consolidated docs topology"
   else
-    fail "REL-DOC-EVIDENCE" "$missing required release doc(s) missing; $retired retired docs path(s) present"
+    fail "REL-DOC-EVIDENCE" "$missing required/current doc(s) missing; $retired retired docs path(s) present; $unmanaged_migrations unmanaged migration doc(s) present"
   fi
 }
 

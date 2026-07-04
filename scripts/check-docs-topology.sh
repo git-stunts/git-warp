@@ -15,6 +15,10 @@ fi
 
 mapfile -t REQUIRED_DOCS <<< "$REQUIRED_DOCS_OUTPUT"
 
+CURRENT_MIGRATION_DOCS=(
+  "docs/migrations/v19/README.md"
+)
+
 RETIRED_PATHS=(
   "docs/archive"
   "docs/audits"
@@ -55,9 +59,41 @@ require_absent() {
   fi
 }
 
+is_current_migration_doc() {
+  local path="$1"
+  for current in "${CURRENT_MIGRATION_DOCS[@]}"; do
+    if [ "$path" = "$current" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+require_current_migration_docs() {
+  local path
+  for path in "${CURRENT_MIGRATION_DOCS[@]}"; do
+    require_file "$path"
+  done
+
+  if [ ! -d "docs/migrations" ]; then
+    return
+  fi
+
+  while IFS= read -r path; do
+    if is_current_migration_doc "$path"; then
+      printf '  PASS current migration doc %s\n' "$path"
+    else
+      FAILURES=$((FAILURES + 1))
+      printf '  FAIL unmanaged migration doc %s\n' "$path"
+    fi
+  done < <(find docs/migrations -type f | sort)
+}
+
 for path in "${REQUIRED_DOCS[@]}"; do
   require_file "$path"
 done
+
+require_current_migration_docs
 
 for path in "${RETIRED_PATHS[@]}"; do
   require_absent "$path"

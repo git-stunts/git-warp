@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import * as browserApi from '../../../browser.ts';
-import * as rootApi from '../../../index.ts';
+import { extractJsExports } from '../../../scripts/check-dts-surface.ts';
+
+const REPO_ROOT = new URL('../../../', import.meta.url);
 
 const VALID_MIGRATION_TARGETS = new Set<string>([
   'storage',
@@ -134,6 +136,30 @@ const BROWSER_EXPORT_MOVE_TARGETS = new Map<string, string>([
   ['WarpCore', 'legacy'],
 ]);
 
+function collectSourceExports(relativePath: string): string[] {
+  return sorted(collectSourceExportsFrom(new URL(relativePath, REPO_ROOT), new Set<string>()));
+}
+
+function collectSourceExportsFrom(sourceUrl: URL, visited: Set<string>): Set<string> {
+  const visitKey = sourceUrl.href;
+  if (visited.has(visitKey)) {
+    return new Set<string>();
+  }
+  visited.add(visitKey);
+
+  const source = readFileSync(sourceUrl, 'utf8');
+  const names = extractJsExports(source);
+  for (const match of source.matchAll(/export\s+\*\s+from\s+['"]([^'"]+)['"]/g)) {
+    const specifier = match[1];
+    if (specifier !== undefined) {
+      for (const name of collectSourceExportsFrom(new URL(specifier, sourceUrl), visited)) {
+        names.add(name);
+      }
+    }
+  }
+  return names;
+}
+
 function sorted(values: Iterable<string>): string[] {
   return Array.from(values).sort();
 }
@@ -198,11 +224,11 @@ function invalidMigrationTargetEntries(
 
 describe('v19 public API boundary', () => {
   it('classifies every forbidden package-root export that still needs migration', () => {
-    expect(unclassifiedExports(Object.keys(rootApi), ROOT_EXPORT_MOVE_TARGETS)).toEqual([]);
+    expect(unclassifiedExports(collectSourceExports('index.ts'), ROOT_EXPORT_MOVE_TARGETS)).toEqual([]);
   });
 
   it('classifies every forbidden browser export that still needs migration', () => {
-    expect(unclassifiedExports(Object.keys(browserApi), BROWSER_EXPORT_MOVE_TARGETS)).toEqual([]);
+    expect(unclassifiedExports(collectSourceExports('browser.ts'), BROWSER_EXPORT_MOVE_TARGETS)).toEqual([]);
   });
 
   it('uses only explicit non-root destinations for classified root leaks', () => {
