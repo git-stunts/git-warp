@@ -75,6 +75,8 @@ describe('v18 package surface audit', () => {
     expect(indexModuleDoc).toContain('write intents, read timelines, and keep receipts');
     expect(indexModuleDoc).toContain('@git-stunts/git-warp/legacy');
     expect(indexModuleDoc).toContain('@git-stunts/git-warp/storage');
+    expect(indexModuleDoc).toContain('@git-stunts/git-warp/advanced');
+    expect(indexModuleDoc).toContain('@git-stunts/git-warp/diagnostics');
     expect(indexModuleDoc).not.toContain('openWarpWorldline');
     expect(indexModuleDoc).not.toContain('WarpApp.open(');
     expect(indexModuleDoc).not.toContain('app.materialize(');
