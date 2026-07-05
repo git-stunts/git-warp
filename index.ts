@@ -54,15 +54,10 @@ export {
 } from './src/domain/errors/index.ts';
 
 export { default as HealthCheckService, HealthStatus } from './src/domain/services/HealthCheckService.ts';
-export { default as IndexRebuildService } from './src/domain/services/index/IndexRebuildService.ts';
-export { default as BitmapIndexBuilder } from './src/domain/services/index/BitmapIndexBuilder.ts';
-export { default as BitmapIndexReader } from './src/domain/services/index/BitmapIndexReader.ts';
 export { default as LoggerPort } from './src/ports/LoggerPort.ts';
 export { default as NoOpLogger } from './src/infrastructure/adapters/NoOpLogger.ts';
 export { default as ConsoleLogger, LogLevel } from './src/infrastructure/adapters/ConsoleLogger.ts';
 export { default as WriterError } from './src/domain/errors/WriterError.ts';
-export { default as BlobStoragePort } from './src/ports/BlobStoragePort.ts';
-export { default as InMemoryBlobStorageAdapter } from './src/domain/utils/defaultBlobStorage.ts';
 export { default as CryptoPort } from './src/ports/CryptoPort.ts';
 export { default as HttpServerPort } from './src/ports/HttpServerPort.ts';
 export { default as NodeCryptoAdapter } from './src/infrastructure/adapters/NodeCryptoAdapter.ts';

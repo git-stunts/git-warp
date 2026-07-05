@@ -16,11 +16,16 @@ const ROOT_ERROR_ALLOWLIST = new Set<string>([
 ]);
 
 const GRAPH_SUBSTRATE_NOUNS = new Set<string>([
+  'BitmapIndexBuilder',
+  'BitmapIndexReader',
+  'BlobStoragePort',
   'ContentAttachmentProjection',
   'EdgeId',
   'EdgePropertyWriteIntent',
   'EdgeRecord',
   'EdgeTypeId',
+  'IndexRebuildService',
+  'InMemoryBlobStorageAdapter',
   'LegacyEdgePropertyKey',
   'LegacyNodePropertyKey',
   'LegacyPropertyProjection',
