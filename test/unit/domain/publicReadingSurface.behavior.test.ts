@@ -6,7 +6,7 @@ import WarpAppDefault, {
   openWarpWorldline,
   WarpApp,
   WarpCore,
-} from '../../../index.ts';
+} from '../../../legacy.ts';
 
 function openOptions(graphName: string, writerId: string): {
   persistence: InMemoryGraphAdapter;

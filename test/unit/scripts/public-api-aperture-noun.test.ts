@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   Observer,
   computeTranslationCost,
-} from '../../../index.ts';
+} from '../../../legacy.ts';
 import type {
   Aperture,
   ObserverConfig,
-} from '../../../index.ts';
+} from '../../../legacy.ts';
 
 function acceptAperture(config: Aperture): ObserverConfig {
   return config;

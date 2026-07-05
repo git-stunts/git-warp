@@ -146,7 +146,7 @@ import WarpAppDefault, {
   type OpticPostureFields,
   type GraphDiffOptions,
   type WarpWorldlineCoordinateFrontierEntry,
-} from '../../index.ts';
+} from '../../legacy.ts';
 
 import {
   WarpError as BrowserWarpError,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import WarpApp, { InMemoryGraphAdapter, WarpCore } from '../../../index.ts';
+import WarpApp, { InMemoryGraphAdapter, WarpCore } from '../../../legacy.ts';
 
 describe('WarpApp facade', () => {
   it('exposes a curated app surface with an explicit core escape hatch', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import * as packageRoot from '../../../index.ts';
+import * as packageRoot from '../../../legacy.ts';
 import {
   InMemoryGraphAdapter,
   Observer,
@@ -8,10 +8,10 @@ import {
   WarpWorldline,
   openWarpGraph,
   openWarpWorldline,
-} from '../../../index.ts';
+} from '../../../legacy.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
 
-import type { Aperture } from '../../../index.ts';
+import type { Aperture } from '../../../legacy.ts';
 
 const PUBLIC_USERS_APERTURE: Aperture = Object.freeze({
   match: 'user:*',

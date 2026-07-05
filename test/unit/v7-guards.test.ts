@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import * as publicApi from '../../index.ts';
+import * as publicApi from '../../legacy.ts';
 import {
   InMemoryGraphAdapter,
   PatchBuilder,
   WarpCore,
-} from '../../index.ts';
+} from '../../legacy.ts';
 
 function openCore(graphName: string): Promise<WarpCore> {
   return WarpCore.open({

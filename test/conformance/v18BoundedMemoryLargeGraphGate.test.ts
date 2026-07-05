@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { openWarpWorldline } from '../../index.ts';
+import { openWarpWorldline } from '../../legacy.ts';
 import MemoryBudgetError from '../../src/domain/errors/MemoryBudgetError.ts';
 import BoundedQueryReadModel from '../../src/domain/services/query/BoundedQueryReadModel.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';

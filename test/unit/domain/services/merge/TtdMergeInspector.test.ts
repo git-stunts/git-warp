@@ -7,7 +7,7 @@ import {
   TtdMergeLoweringWitness,
   TtdMergeObstructionWitness,
   TtdMergePolicyRequirement,
-} from '../../../../../index.ts';
+} from '../../../../../legacy.ts';
 
 function itemAt<T>(items: readonly T[], index: number): T {
   const item = items[index];

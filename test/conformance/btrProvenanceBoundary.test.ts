@@ -7,7 +7,7 @@ import {
   ProvenancePayload,
   replayBTR,
   verifyBTR,
-} from '../../index.ts';
+} from '../../legacy.ts';
 import BtrCodecAdapter from '../../src/infrastructure/adapters/BtrCodecAdapter.ts';
 import { createEmptyState, createSamplePatches } from '../helpers/warpGraphTestUtils.ts';
 

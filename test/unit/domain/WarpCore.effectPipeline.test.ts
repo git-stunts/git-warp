@@ -7,7 +7,7 @@ import {
   NoOpEffectSink,
   LIVE_LENS,
   REPLAY_LENS,
-} from '../../../index.ts';
+} from '../../../legacy.ts';
 
 async function openCore(extra = {}): Promise<WarpCore> {
   return await WarpCore.open({

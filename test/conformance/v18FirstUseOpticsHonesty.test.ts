@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { openWarpWorldline } from '../../index.ts';
+import { openWarpWorldline } from '../../legacy.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import type CommitMessageCodecPort from '../../src/ports/CommitMessageCodecPort.ts';

@@ -1,4 +1,4 @@
-import { openWarpWorldline } from '../../../index.ts';
+import { openWarpWorldline } from '../../../legacy.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import type ReadIdentity from '../../../src/domain/services/optic/ReadIdentity.ts';
 import type WorldlineOptic from '../../../src/domain/services/optic/WorldlineOptic.ts';

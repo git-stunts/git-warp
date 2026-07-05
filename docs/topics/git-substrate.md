@@ -3,9 +3,9 @@
 Use this page when you need to understand what lives in Git and why replay is
 deterministic.
 
-## Public roots
+## Deprecated Compatibility Roots
 
-`git-warp` exposes three public roots:
+The v18 graph-first roots are deprecated and migration-only:
 
 - `openWarpWorldline()` for application code and agent workflows;
 - `openWarpGraph()` for diagnostics, sync, checkpoints, provenance,
@@ -13,8 +13,9 @@ deterministic.
 - `WarpApp` and `WarpCore` for legacy facade compatibility and substrate
   tooling.
 
-Application code should start with `openWarpWorldline()`. Drop to
-`openWarpGraph()` when the task is intentionally substrate-level.
+New application code should not start with these APIs. Use them only to migrate
+existing graph-first consumers or to keep old diagnostic tooling running while
+it moves to explicit diagnostic surfaces.
 
 ## WARP refs
 

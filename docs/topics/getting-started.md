@@ -1,6 +1,9 @@
-# Getting started
+# Deprecated v18 Compatibility Walkthrough
 
-Use this guide when you want your first successful `git-warp` flow:
+This guide documents the deprecated v18 graph-first compatibility flow. Do not
+use it as the starting point for new application code. New work should target
+the v19 intent/timeline/reading/receipt API described in
+[v19 Public API](api/).
 
 1. install the package
 2. open a worldline
@@ -20,14 +23,14 @@ performance details, jump to [Git substrate](git-substrate.md).
 npm install @git-stunts/git-warp @git-stunts/plumbing
 ```
 
-## Open a worldline
+## Open a Deprecated Worldline
 
-This walkthrough uses a collaborative security audit worldline. History matters
-here because the team will revise findings over time and later inspect earlier
-states.
+This walkthrough uses a collaborative security audit worldline only to show how
+existing v18 consumers migrate safely. History matters here because the team
+will revise findings over time and later inspect earlier states.
 
 ```typescript
-import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
+import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp/legacy';
 import GitPlumbing from '@git-stunts/plumbing';
 
 const plumbing = new GitPlumbing({ cwd: './security-repo' });
@@ -45,10 +48,9 @@ Use a unique `writerId` per machine or clone in real deployments. The tutorial
 uses `local` to keep the example readable, but production graphs should use a
 stable unique id such as a hostname, device id, or UUID.
 
-> **Advanced compatibility:** `openWarpGraph()`, `WarpApp.open()`, and
-> `WarpCore.open()` remain supported for lower-level diagnostics,
-> compatibility, migrations, and substrate tooling. New application code should
-> start with `openWarpWorldline()`.
+> **Deprecated compatibility:** `openWarpWorldline()`, `openWarpGraph()`,
+> `WarpApp.open()`, and `WarpCore.open()` are migration-only surfaces. New
+> application code should not start here.
 
 ## Write the first patch
 

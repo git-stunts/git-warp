@@ -17,25 +17,28 @@ function lineCount(source: string): number {
 const packageJson = readText('package.json');
 const jsrJson = readText('jsr.json');
 const tsconfigPublish = readText('tsconfig.publish.json');
+const readme = readText('README.md');
 const indexSource = readText('index.ts');
-const generatedIndexDeclarations = readText('dist/index.d.ts');
+const legacySource = readText('legacy.ts');
+const generatedIndexDeclarationPath = repoPath('dist/index.d.ts');
 
-function packageModuleDoc(): string {
-  const terminator = indexSource.indexOf('*/');
+function moduleDoc(source: string, sourceName: string): string {
+  const terminator = source.indexOf('*/');
   if (terminator === -1) {
-    throw new Error('index.ts is missing its package module JSDoc block');
+    throw new Error(`${sourceName} is missing its package module JSDoc block`);
   }
-  return indexSource.slice(0, terminator + '*/'.length);
+  return source.slice(0, terminator + '*/'.length);
 }
 
-const moduleDoc = packageModuleDoc();
+const indexModuleDoc = moduleDoc(indexSource, 'index.ts');
+const legacyModuleDoc = moduleDoc(legacySource, 'legacy.ts');
 
 describe('v18 package surface audit', () => {
-  it('positions the registry package around the Worldline-first API', () => {
+  it('positions the registry package around the v19 API boundary', () => {
     expect(packageJson).toContain(
-      '"description": "Worldline-first WARP graph over Git: deterministic multi-writer causal history, readings, and tooling."',
+      '"description": "Git-native causal history runtime for intent writes, timeline reads, and receipts."',
     );
-    expect(packageJson).toContain('"worldline"');
+    expect(packageJson).not.toContain('"worldline"');
     expect(packageJson).toContain('"local-first"');
     expect(packageJson).toContain('"crdt"');
   });
@@ -51,31 +54,57 @@ describe('v18 package surface audit', () => {
     expect(existsSync(repoPath('index.d.ts'))).toBe(false);
     expect(packageJson).not.toContain('"types": "./index.d.ts"');
     expect(tsconfigPublish).toContain('"declaration": true');
-    expect(lineCount(generatedIndexDeclarations)).toBeLessThanOrEqual(500);
+    if (existsSync(generatedIndexDeclarationPath)) {
+      expect(lineCount(readFileSync(generatedIndexDeclarationPath, 'utf8'))).toBeLessThanOrEqual(500);
+    }
   });
 
-  it('exports the Worldline-first opener, handle, and option types from the root', () => {
-    expect(indexSource).toContain('import WarpWorldline, { openWarpWorldline }');
-    expect(indexSource).toContain('openWarpWorldline,');
-    expect(indexSource).toContain('WarpWorldline,');
-    expect(indexSource).toContain('ProjectionHandle,');
-    expect(indexSource).not.toMatch(/^\s+Worldline,$/m);
-    expect(indexSource).toContain('WarpWorldlineOpenOptions,');
-    expect(indexSource).toContain('WarpWorldlinePatchBuild,');
+  it('moves the Worldline-first opener, handle, and option types to legacy', () => {
+    expect(indexSource).not.toContain('import WarpWorldline, { openWarpWorldline }');
+    expect(legacySource).toContain('import WarpWorldline, { openWarpWorldline }');
+    expect(legacySource).toContain('openWarpWorldline,');
+    expect(legacySource).toContain('WarpWorldline,');
+    expect(legacySource).toContain('ProjectionHandle,');
+    expect(legacySource).not.toMatch(/^\s+Worldline,$/m);
+    expect(legacySource).toContain('WarpWorldlineOpenOptions,');
+    expect(legacySource).toContain('WarpWorldlinePatchBuild,');
   });
 
-  it('keeps package hover docs on the Worldline-first example', () => {
-    expect(moduleDoc).toContain('@example');
-    expect(moduleDoc).toContain('openWarpWorldline');
-    expect(moduleDoc).toContain("events.commit((patch) =>");
-    expect(moduleDoc).toContain('events.live().getNodeProps');
-    expect(moduleDoc).not.toContain('WarpApp.open(');
-    expect(moduleDoc).not.toContain('app.createPatch(');
-    expect(moduleDoc).not.toContain('app.materialize(');
+  it('keeps package hover docs on the v19 boundary story', () => {
+    expect(indexModuleDoc).toContain('Public v19 application boundary');
+    expect(indexModuleDoc).toContain('write intents, read timelines, and keep receipts');
+    expect(indexModuleDoc).toContain('@git-stunts/git-warp/legacy');
+    expect(indexModuleDoc).toContain('@git-stunts/git-warp/storage');
+    expect(indexModuleDoc).toContain('@git-stunts/git-warp/advanced');
+    expect(indexModuleDoc).toContain('@git-stunts/git-warp/diagnostics');
+    expect(indexModuleDoc).not.toContain('openWarpWorldline');
+    expect(indexModuleDoc).not.toContain('WarpApp.open(');
+    expect(indexModuleDoc).not.toContain('app.materialize(');
   });
 
-  it('keeps default export compatibility explicit', () => {
-    expect(indexSource).toContain('export default WarpApp;');
-    expect(indexSource).toContain('WarpApp remains the compatibility default export');
+  it('keeps legacy hover docs deprecated and example-free', () => {
+    expect(legacyModuleDoc).toContain('@deprecated');
+    expect(legacyModuleDoc).toContain('migration-only');
+    expect(legacyModuleDoc).not.toContain('@example');
+    expect(legacyModuleDoc).not.toContain('openWarpWorldline');
+    expect(legacyModuleDoc).not.toContain("events.commit((patch) =>");
+    expect(legacyModuleDoc).not.toContain('events.live().getNodeProps');
+    expect(legacyModuleDoc).not.toContain('WarpApp.open(');
+    expect(legacyModuleDoc).not.toContain('app.createPatch(');
+    expect(legacyModuleDoc).not.toContain('app.materialize(');
+  });
+
+  it('keeps legacy default export compatibility explicit', () => {
+    expect(indexSource).not.toContain('export default WarpApp;');
+    expect(legacySource).toContain('export default WarpApp;');
+    expect(legacySource).toContain('Deprecated default export retained only for old migration callers');
+  });
+
+  it('keeps the README from teaching copyable legacy API setup', () => {
+    expect(readme).not.toContain('import { openWarpGraph } from "@git-stunts/git-warp/legacy";');
+    expect(readme).not.toContain('const graph = await openWarpGraph(');
+    expect(readme).not.toContain('const events = await openWarpWorldline(');
+    expect(readme).toContain('The v18 graph-first API remains only under `@git-stunts/git-warp/legacy`.');
+    expect(readme).toContain('Treat every legacy import as removal debt.');
   });
 });

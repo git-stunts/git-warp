@@ -9,12 +9,12 @@ vi.mock('../../../bin/cli/shared.ts', () => ({
   listGraphNames: vi.fn(),
 }));
 
-vi.mock('../../../index.ts', () => ({
+vi.mock('../../../legacy.ts', () => ({
   openWarpWorldline: vi.fn(),
 }));
 
 const shared = await import('../../../bin/cli/shared.ts');
-const api = await import('../../../index.ts');
+const api = await import('../../../legacy.ts');
 const createPersistence = shared.createPersistence as ReturnType<typeof vi.fn>;
 const resolveGraphName = shared.resolveGraphName as ReturnType<typeof vi.fn>;
 const listGraphNames = shared.listGraphNames as ReturnType<typeof vi.fn>;

@@ -92,14 +92,11 @@ function requireAppSurface(core: WarpCore, code: string): AppSurface {
 /**
  * Legacy curated WARP application surface.
  *
- * `WarpApp` remains supported for compatibility with existing application
- * builders and agentic CLI usage. New application code should open a named
- * worldline with openWarpWorldline() and keep substrate access out of the
- * first-use path.
+ * `WarpApp` remains only for compatibility with existing application builders
+ * and agentic CLI usage.
  *
- * @deprecated For new application workflows, use openWarpWorldline(). WarpApp
- * remains supported as a compatibility facade while graph-first APIs migrate
- * to worldline/optic-first docs.
+ * @deprecated Use the root intent/timeline/reading/receipt API for new
+ * application workflows. `WarpApp` is a migration-only compatibility facade.
  */
 export default class WarpApp {
   private readonly _core: WarpCore;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryGraphAdapter } from '../../../index.ts';
+import { InMemoryGraphAdapter } from '../../../legacy.ts';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 
 describe('WarpCore API surface', () => {

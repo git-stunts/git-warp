@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import * as api from '../../index.ts';
+import * as api from '../../legacy.ts';
 
 describe('public runtime exports', () => {
   it('exports the Worldline-first open helper and handle', () => {

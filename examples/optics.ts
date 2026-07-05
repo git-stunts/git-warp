@@ -1,14 +1,15 @@
 /**
- * Bounded coordinate reads through an optic.
+ * Deprecated v18 compatibility example: bounded coordinate reads through an
+ * optic.
  *
  * Pairs with docs/topics/optic-reads.md. Illustrative: run against a real
- * @git-stunts/plumbing-backed Git repository.
+ * @git-stunts/plumbing-backed Git repository only for migration testing.
  */
 import {
   GitGraphAdapter,
   openWarpWorldline,
   type PropValue,
-} from '@git-stunts/git-warp';
+} from '@git-stunts/git-warp/legacy';
 import GitPlumbing from '@git-stunts/plumbing';
 
 type PublicNodePropertyRead = {

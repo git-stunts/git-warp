@@ -1,7 +1,7 @@
 # Strands
 
-Use strands when work should be durable, inspectable, and separate from live
-worldline truth until you intentionally compare or transfer it.
+This page documents deprecated v18 strand controls. Use it for migration and
+diagnostic context, not as a first-use public API guide.
 
 A strand is not a Git branch or worktree. It is a WARP coordinate plus an
 overlay patch log. That makes it useful for review lanes, proposed changes,
@@ -23,8 +23,8 @@ const strand = await graph.strands.createStrand({
 });
 ```
 
-Use `openWarpGraph()` for strand controls. Normal application reads and writes
-should still start with `openWarpWorldline()`.
+Use `openWarpGraph()` for legacy strand controls only while migrating. New
+application reads and writes should not start with `openWarpWorldline()`.
 
 ## Patch a strand
 
