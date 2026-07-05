@@ -19,7 +19,7 @@ import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
  * It now adopts an explicit structural core product rather than linking
  * itself onto the `WarpRuntime` prototype.
  *
- * @deprecated Use the v19 root intent/timeline/reading/receipt API for new
+ * @deprecated Use the root intent/timeline/reading/receipt API for new
  * application workflows. `WarpCore` is migration-only for substrate tooling,
  * diagnostics, replay, and existing graph-first integrations.
  */

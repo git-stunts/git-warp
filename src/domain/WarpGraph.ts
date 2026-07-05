@@ -363,7 +363,7 @@ function bindSubscriptionCapability(runtime: WarpGraphRuntimeSurface): Subscript
  * This graph-first capability bag is retained only for migration, tooling, and
  * substrate diagnostics.
  *
- * @deprecated Use the v19 root intent/timeline/reading/receipt API for new
+ * @deprecated Use the root intent/timeline/reading/receipt API for new
  * application workflows. `openWarpGraph()` is migration-only for existing
  * graph-first integrations and diagnostic tooling.
  */

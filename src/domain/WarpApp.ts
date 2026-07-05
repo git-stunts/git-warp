@@ -95,7 +95,7 @@ function requireAppSurface(core: WarpCore, code: string): AppSurface {
  * `WarpApp` remains only for compatibility with existing application builders
  * and agentic CLI usage.
  *
- * @deprecated Use the v19 root intent/timeline/reading/receipt API for new
+ * @deprecated Use the root intent/timeline/reading/receipt API for new
  * application workflows. `WarpApp` is a migration-only compatibility facade.
  */
 export default class WarpApp {

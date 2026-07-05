@@ -213,6 +213,8 @@ import {
 } from './src/domain/services/CoordinateFactExport.ts';
 import { installDefaultRuntimeHostNodePorts } from './src/application/RuntimeHostNodeDefaults.ts';
 
+// Idempotent: the default installers replace runtime resolver slots with
+// closures over frozen singleton adapters; repeated legacy imports do not stack.
 installDefaultRuntimeHostNodePorts();
 
 export * from './src/domain/graph/publicGraphSubstrate.ts';
@@ -471,5 +473,5 @@ export type {
   TtdMergePolicyRequirementFields,
 };
 
-// Deprecated default export retained only for v15-era migration.
+// Deprecated default export retained only for old migration callers.
 export default WarpApp;

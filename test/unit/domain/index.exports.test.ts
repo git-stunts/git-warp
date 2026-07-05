@@ -1,14 +1,14 @@
 /**
- * Tests for the main index.ts exports.
+ * Tests for the legacy compatibility exports.
  *
- * Verifies that all expected exports are available from the package entry point,
- * supporting both ESM and CommonJS import styles.
+ * Verifies that graph-first migration symbols remain available from
+ * `legacy.ts`.
  */
 
 import { describe, it, expect } from 'vitest';
 import * as publicApi from '../../../legacy.ts';
 
-// Import everything from the main entry point
+// Import everything from the legacy compatibility entry point.
 import WarpAppDefault, {
   WarpApp,
   WarpCore,
@@ -142,7 +142,7 @@ import WarpAppDefault, {
   ZKWormholeProofVerifierPort,
 } from '../../../legacy.ts';
 
-describe('index.ts exports', () => {
+describe('legacy.ts exports', () => {
   describe('default export', () => {
     it('exports WarpApp as default', () => {
       expect(WarpAppDefault).toBeDefined();

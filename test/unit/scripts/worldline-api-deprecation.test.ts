@@ -62,7 +62,7 @@ describe('Worldline-first legacy API deprecation posture', () => {
   it('marks openWarpGraph as a deprecated compatibility surface', () => {
     const deprecation = deprecationTextForExportedFunction('src/domain/WarpGraph.ts', 'openWarpGraph');
 
-    expect(deprecation).toContain('v19 root intent/timeline/reading/receipt API');
+    expect(deprecation).toContain('root intent/timeline/reading/receipt API');
     expect(deprecation).toContain('migration-only');
     expect(deprecation).toContain('diagnostic tooling');
   });
@@ -70,14 +70,14 @@ describe('Worldline-first legacy API deprecation posture', () => {
   it('marks WarpApp as a compatibility facade for graph-first migrations', () => {
     const source = readRepoFile('src/domain/WarpApp.ts');
 
-    expect(source).toContain('v19 root intent/timeline/reading/receipt API');
+    expect(source).toContain('root intent/timeline/reading/receipt API');
     expect(source).toContain('migration-only compatibility facade');
   });
 
   it('keeps WarpCore supported for substrate diagnostics instead of first-use apps', () => {
     const source = readRepoFile('src/domain/WarpCore.ts');
 
-    expect(source).toContain('v19 root intent/timeline/reading/receipt API');
+    expect(source).toContain('root intent/timeline/reading/receipt API');
     expect(source).toContain('migration-only');
     expect(source).toContain('substrate tooling');
     expect(source).toContain('diagnostics, replay');
@@ -99,7 +99,7 @@ describe('Worldline-first legacy API deprecation posture', () => {
       'openWarpWorldline',
     );
 
-    expect(deprecation).toContain('openWarp().timeline(name)');
+    expect(deprecation).toContain('root `openWarp().timeline(name)` API');
     expect(deprecation).toContain('migration-only');
   });
 });
