@@ -51,7 +51,11 @@ replay-backed so callers receive complete diff and provenance data.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
-## v19 API Direction
+## Planned v19 API Direction
+
+This is the public contract the v19 facade slices are moving toward. It is the
+direction for new application code, not an endorsement of the deprecated v18
+compatibility API.
 
 ```typescript
 import { openWarp, intent, reading } from "@git-stunts/git-warp";
