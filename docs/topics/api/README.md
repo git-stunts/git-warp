@@ -118,8 +118,20 @@ const write = await timeline.write(
   }),
 );
 
-if (write.outcome !== 'accepted') {
-  throw new Error(write.reason);
+switch (write.outcome) {
+  case 'accepted':
+    break;
+  case 'obstructed':
+    await preserveRepairWork(write.repairHints);
+    break;
+  case 'conflicted':
+    await openConflictResolution(write.conflicts);
+    break;
+  case 'underdetermined':
+    await gatherSupport(write.evidence);
+    break;
+  case 'rejected':
+    throw new Error(write.reason);
 }
 
 const role = await timeline.read(

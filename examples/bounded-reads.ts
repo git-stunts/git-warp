@@ -2,7 +2,7 @@
  * Deprecated v18 compatibility example: bounded reads that never fold the
  * whole graph.
  *
- * Pairs with docs/topics/optic-reads.md. These use the advanced
+ * Pairs with docs/topics/optic-reads.md. These use the legacy
  * openWarpGraph() surface; materializeSlice() is a diagnostic read path.
  * Illustrative: run against a real @git-stunts/plumbing-backed Git repository
  * only for migration testing.

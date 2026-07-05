@@ -120,8 +120,20 @@ const receipt = await events.write(
   }),
 );
 
-if (receipt.outcome !== 'accepted') {
-  throw new Error(receipt.reason);
+switch (receipt.outcome) {
+  case 'accepted':
+    break;
+  case 'obstructed':
+    await preserveRepairWork(receipt.repairHints);
+    break;
+  case 'conflicted':
+    await openConflictResolution(receipt.conflicts);
+    break;
+  case 'underdetermined':
+    await gatherSupport(receipt.evidence);
+    break;
+  case 'rejected':
+    throw new Error(receipt.reason);
 }
 ```
 
