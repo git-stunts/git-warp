@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { extractJsExports } from '../../../scripts/check-dts-surface.ts';
+import {
+  extractJsExports,
+  parseExportBlock,
+} from '../../../scripts/check-dts-surface.ts';
 
 const REPO_ROOT = new URL('../../../', import.meta.url);
 
@@ -39,7 +42,10 @@ const GRAPH_SUBSTRATE_NOUNS = new Set<string>([
 
 const ROOT_EXPORT_MOVE_TARGETS = new Map<string, string>([
   ['ContentAttachmentProjection', 'diagnostics'],
+  ['CasVaultResolutionWitness', 'advanced'],
   ['ContinuumReceiptFamilyProjection', 'advanced'],
+  ['ContinuumReceiptFamilyProjectionFields', 'advanced'],
+  ['ContinuumReceiptWitnessFact', 'advanced'],
   ['CoordinateSelector', 'advanced'],
   ['EdgeId', 'legacy'],
   ['EdgePropertyWriteIntent', 'legacy'],
@@ -47,30 +53,51 @@ const ROOT_EXPORT_MOVE_TARGETS = new Map<string, string>([
   ['EdgeTypeId', 'legacy'],
   ['GitGraphAdapter', 'storage'],
   ['GitWarpBraidHologram', 'advanced'],
+  ['GitWarpBraidHologramFields', 'advanced'],
   ['GitWarpBraidHologramMember', 'advanced'],
+  ['GitWarpBraidHologramMemberFields', 'advanced'],
   ['GitWarpSuffixTransformHologram', 'advanced'],
+  ['GitWarpSuffixTransformHologramFields', 'advanced'],
   ['GitWarpTickHologram', 'advanced'],
+  ['GitWarpTickHologramFields', 'advanced'],
   ['GitWarpTickReceiptWitnessCore', 'advanced'],
+  ['GitWarpTickReceiptWitnessCoreFields', 'advanced'],
   ['GitWarpTickWitnessLadder', 'advanced'],
+  ['GitWarpTickWitnessLadderFields', 'advanced'],
   ['GitWarpWitnessedSuffixAdmissionOutcome', 'advanced'],
+  ['GitWarpWitnessedSuffixAdmissionOutcomeValue', 'advanced'],
   ['GitWarpWitnessedSuffixAdmissionShell', 'advanced'],
+  ['GitWarpWitnessedSuffixAdmissionShellFields', 'advanced'],
   ['GitWarpWitnessedSuffixPatchFact', 'advanced'],
+  ['GitWarpWitnessedSuffixPatchFactFields', 'advanced'],
   ['GitWarpWitnessedSuffixSourceFacts', 'advanced'],
+  ['GitWarpWitnessedSuffixSourceFactsFields', 'advanced'],
   ['GraphAttachmentSetOp', 'legacy'],
+  ['GraphAttachmentSetOpFields', 'legacy'],
   ['GraphContentAttachmentSetOp', 'legacy'],
+  ['GraphContentAttachmentSetOpFields', 'legacy'],
   ['GraphDiff', 'diagnostics'],
+  ['GraphDiffFields', 'diagnostics'],
+  ['GraphDiffOptions', 'diagnostics'],
   ['GraphEdgePropertySetOp', 'legacy'],
+  ['GraphEdgePropertySetOpFields', 'legacy'],
   ['GraphEdgeRecordSetOp', 'legacy'],
+  ['GraphEdgeRecordSetOpFields', 'legacy'],
   ['GraphNode', 'legacy'],
   ['GraphNodePropertySetOp', 'legacy'],
+  ['GraphNodePropertySetOpFields', 'legacy'],
   ['GraphNodeRecordSetOp', 'legacy'],
+  ['GraphNodeRecordSetOpFields', 'legacy'],
   ['GraphOpAlgebra', 'legacy'],
+  ['GraphOpAlgebraFields', 'legacy'],
   ['GraphOpAlgebraProjection', 'diagnostics'],
+  ['GraphOperation', 'legacy'],
   ['GraphPersistencePort', 'storage'],
   ['InMemoryGraphAdapter', 'storage'],
   ['LegacyEdgePropertyKey', 'legacy'],
   ['LegacyNodePropertyKey', 'legacy'],
   ['LegacyPropertyProjection', 'legacy'],
+  ['LegacyPropertyProjectionFields', 'legacy'],
   ['LegacyPropertyValue', 'legacy'],
   ['LiveSelector', 'advanced'],
   ['NodeId', 'legacy'],
@@ -80,14 +107,26 @@ const ROOT_EXPORT_MOVE_TARGETS = new Map<string, string>([
   ['Observer', 'advanced'],
   ['ObserverAccumulation', 'advanced'],
   ['ObserverBasis', 'advanced'],
+  ['ObserverConfig', 'advanced'],
   ['ObserverEmission', 'advanced'],
   ['ObserverPlan', 'advanced'],
+  ['ObserverPlanFields', 'advanced'],
+  ['ObserverReadingEnvelopeBudget', 'advanced'],
   ['ObserverReadingEnvelope', 'advanced'],
+  ['ObserverReadingEnvelopeFields', 'advanced'],
+  ['OperationRetryObserver', 'advanced'],
   ['Optic', 'advanced'],
   ['OpticAperturePosture', 'advanced'],
+  ['OpticAperturePostureValue', 'advanced'],
   ['OpticBasisPosture', 'advanced'],
+  ['OpticBasisPostureValue', 'advanced'],
+  ['OpticContextValue', 'advanced'],
   ['OpticCoordinatePosture', 'advanced'],
+  ['OpticCoordinatePostureValue', 'advanced'],
+  ['OpticFields', 'advanced'],
+  ['OpticPostureFields', 'advanced'],
   ['OpticSupportRule', 'advanced'],
+  ['OpticSupportRuleValue', 'advanced'],
   ['PatchBuilder', 'legacy'],
   ['PatchSession', 'legacy'],
   ['ProjectionHandle', 'advanced'],
@@ -95,7 +134,9 @@ const ROOT_EXPORT_MOVE_TARGETS = new Map<string, string>([
   ['RejectedZKWormhole', 'advanced'],
   ['StrandSelector', 'advanced'],
   ['TtdMergeLoweringWitness', 'diagnostics'],
+  ['TtdMergeLoweringWitnessFields', 'diagnostics'],
   ['TtdMergeObstructionWitness', 'diagnostics'],
+  ['TtdMergeObstructionWitnessFields', 'diagnostics'],
   ['VerifiedZKWormhole', 'advanced'],
   ['VisibleEdgePropertyRecord', 'legacy'],
   ['VisibleNodePropertyRecord', 'legacy'],
@@ -103,10 +144,15 @@ const ROOT_EXPORT_MOVE_TARGETS = new Map<string, string>([
   ['WarpCore', 'legacy'],
   ['WarpWorldline', 'legacy'],
   ['WarpWorldlineCoordinate', 'advanced'],
+  ['WarpWorldlineCoordinateFrontierEntry', 'advanced'],
+  ['WarpWorldlineOpenOptions', 'legacy'],
+  ['WarpWorldlinePatchBuild', 'legacy'],
   ['WarpWorldlineOpticBasis', 'advanced'],
   ['WorldlineSelector', 'advanced'],
   ['ZKWormholeEdge', 'advanced'],
+  ['ZKWormholeEdgeFields', 'advanced'],
   ['ZKWormholeProofVerifierPort', 'advanced'],
+  ['ZKWormholeVerificationResult', 'advanced'],
   ['composeWormholes', 'advanced'],
   ['createBlobValue', 'legacy'],
   ['createEdgeAdd', 'legacy'],
@@ -149,6 +195,11 @@ function collectSourceExportsFrom(sourceUrl: URL, visited: Set<string>): Set<str
 
   const source = readFileSync(sourceUrl, 'utf8');
   const names = extractJsExports(source);
+  for (const match of source.matchAll(/export\s+type\s*\{([^}]+)\}/g)) {
+    for (const name of parseExportBlock(match[1] ?? '')) {
+      names.add(name);
+    }
+  }
   for (const match of source.matchAll(/export\s+\*\s+from\s+['"]([^'"]+)['"]/g)) {
     const specifier = match[1];
     if (specifier !== undefined) {
