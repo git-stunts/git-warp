@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Moved graph-shaped, worldline-shaped, optic-shaped, witness-shaped, and
+  diagnostic compatibility exports out of the package root into explicit
+  `legacy`, `storage`, `advanced`, and `diagnostics` subpaths. The package root
+  and browser root now reject those nouns through the v19 public API boundary
+  audit.
+
 ## [18.2.1] - 2026-06-30
 
 ### Release notes

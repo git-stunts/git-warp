@@ -5,7 +5,7 @@ import {
   NodeCryptoAdapter,
   ProvenancePayload,
   verifyBTR,
-} from '../../index.ts';
+} from '../../legacy.ts';
 import BtrCodecAdapter from '../../src/infrastructure/adapters/BtrCodecAdapter.ts';
 import BtrSigningBytes from '../../src/domain/services/provenance/BtrSigningBytes.ts';
 import type BtrSigningEnvelope from '../../src/domain/services/provenance/BtrSigningEnvelope.ts';

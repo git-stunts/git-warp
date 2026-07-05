@@ -53,7 +53,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 ## Quick start
 
 ```typescript
-import { GitGraphAdapter, openWarpWorldline } from "@git-stunts/git-warp";
+import { GitGraphAdapter, openWarpWorldline } from "@git-stunts/git-warp/legacy";
 import GitPlumbing from "@git-stunts/plumbing";
 
 const plumbing = new GitPlumbing({ cwd: "." });
@@ -116,6 +116,8 @@ const role = await coordinate.optic().node("user:alice").prop("role").read();
 Two more shipped reads stay bounded without folding the whole graph. Both use the advanced `openWarpGraph()` surface.
 
 ```typescript
+import { openWarpGraph } from "@git-stunts/git-warp/legacy";
+
 const graph = await openWarpGraph({ persistence, graphName: "events", writerId: "agent-1" });
 
 // What changed between two live Lamport ceilings — a frozen GraphDiff, not a wildcard scan.
@@ -256,7 +258,9 @@ The broader worldline-wide direction is still narrower than the doctrine: live s
 
 ## API surface
 
-The main application entry point is `openWarpWorldline()`.
+The v18-compatible application entry point is `openWarpWorldline()` from
+`@git-stunts/git-warp/legacy`. The v19 root is being narrowed to intent,
+timeline, reading, and receipt nouns.
 
 A worldline gives you a small, practical interface:
 

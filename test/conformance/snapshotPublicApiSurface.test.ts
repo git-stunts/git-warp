@@ -6,7 +6,7 @@ import {
   SnapshotVersionVector,
   SnapshotWarpState,
   type SnapshotPropValue,
-} from '../../index.ts';
+} from '../../legacy.ts';
 
 type PublicPropBag = Readonly<{ [key: string]: SnapshotPropValue }>;
 type PublicVisibleEdge = {

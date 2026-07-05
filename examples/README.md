@@ -10,6 +10,7 @@ pairs with a topic page under [`docs/topics/`](../docs/topics/).
 | [`bounded-reads.ts`](bounded-reads.ts) | `comparison.diff()` and `materializeSlice()` | [Optic reads](../docs/topics/optic-reads.md) |
 
 Each example exports an `async` function that takes the `cwd` of a Git
-repository. They construct a `@git-stunts/plumbing`-backed `GitGraphAdapter`, so
-run them against a real repo. The Lamport ceilings in `bounded-reads.ts` are
-placeholders — substitute values from your own history.
+repository. They use the v18-compatible
+`@git-stunts/git-warp/legacy` surface with a `@git-stunts/plumbing`-backed
+`GitGraphAdapter`, so run them against a real repo. The Lamport ceilings in
+`bounded-reads.ts` are placeholders — substitute values from your own history.

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BoundedSupportRule,
   CausalIndexPlan,
-} from '../../../../../index.ts';
+} from '../../../../../legacy.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 describe('CausalIndexPlan', () => {

@@ -8,13 +8,6 @@ import {
 
 const REPO_ROOT = new URL('../../../', import.meta.url);
 
-const VALID_MIGRATION_TARGETS = new Set<string>([
-  'storage',
-  'advanced',
-  'diagnostics',
-  'legacy',
-]);
-
 const ROOT_ERROR_ALLOWLIST = new Set<string>([
   'PatchError',
   'QueryError',
@@ -38,148 +31,6 @@ const GRAPH_SUBSTRATE_NOUNS = new Set<string>([
   'NodeTypeId',
   'VisibleEdgePropertyRecord',
   'VisibleNodePropertyRecord',
-]);
-
-const ROOT_EXPORT_MOVE_TARGETS = new Map<string, string>([
-  ['ContentAttachmentProjection', 'diagnostics'],
-  ['CasVaultResolutionWitness', 'advanced'],
-  ['ContinuumReceiptFamilyProjection', 'advanced'],
-  ['ContinuumReceiptFamilyProjectionFields', 'advanced'],
-  ['ContinuumReceiptWitnessFact', 'advanced'],
-  ['CoordinateSelector', 'advanced'],
-  ['EdgeId', 'legacy'],
-  ['EdgePropertyWriteIntent', 'legacy'],
-  ['EdgeRecord', 'legacy'],
-  ['EdgeTypeId', 'legacy'],
-  ['GitGraphAdapter', 'storage'],
-  ['GitWarpBraidHologram', 'advanced'],
-  ['GitWarpBraidHologramFields', 'advanced'],
-  ['GitWarpBraidHologramMember', 'advanced'],
-  ['GitWarpBraidHologramMemberFields', 'advanced'],
-  ['GitWarpSuffixTransformHologram', 'advanced'],
-  ['GitWarpSuffixTransformHologramFields', 'advanced'],
-  ['GitWarpTickHologram', 'advanced'],
-  ['GitWarpTickHologramFields', 'advanced'],
-  ['GitWarpTickReceiptWitnessCore', 'advanced'],
-  ['GitWarpTickReceiptWitnessCoreFields', 'advanced'],
-  ['GitWarpTickWitnessLadder', 'advanced'],
-  ['GitWarpTickWitnessLadderFields', 'advanced'],
-  ['GitWarpWitnessedSuffixAdmissionOutcome', 'advanced'],
-  ['GitWarpWitnessedSuffixAdmissionOutcomeValue', 'advanced'],
-  ['GitWarpWitnessedSuffixAdmissionShell', 'advanced'],
-  ['GitWarpWitnessedSuffixAdmissionShellFields', 'advanced'],
-  ['GitWarpWitnessedSuffixPatchFact', 'advanced'],
-  ['GitWarpWitnessedSuffixPatchFactFields', 'advanced'],
-  ['GitWarpWitnessedSuffixSourceFacts', 'advanced'],
-  ['GitWarpWitnessedSuffixSourceFactsFields', 'advanced'],
-  ['GraphAttachmentSetOp', 'legacy'],
-  ['GraphAttachmentSetOpFields', 'legacy'],
-  ['GraphContentAttachmentSetOp', 'legacy'],
-  ['GraphContentAttachmentSetOpFields', 'legacy'],
-  ['GraphDiff', 'diagnostics'],
-  ['GraphDiffFields', 'diagnostics'],
-  ['GraphDiffOptions', 'diagnostics'],
-  ['GraphEdgePropertySetOp', 'legacy'],
-  ['GraphEdgePropertySetOpFields', 'legacy'],
-  ['GraphEdgeRecordSetOp', 'legacy'],
-  ['GraphEdgeRecordSetOpFields', 'legacy'],
-  ['GraphNode', 'legacy'],
-  ['GraphNodePropertySetOp', 'legacy'],
-  ['GraphNodePropertySetOpFields', 'legacy'],
-  ['GraphNodeRecordSetOp', 'legacy'],
-  ['GraphNodeRecordSetOpFields', 'legacy'],
-  ['GraphOpAlgebra', 'legacy'],
-  ['GraphOpAlgebraFields', 'legacy'],
-  ['GraphOpAlgebraProjection', 'diagnostics'],
-  ['GraphOperation', 'legacy'],
-  ['GraphPersistencePort', 'storage'],
-  ['InMemoryGraphAdapter', 'storage'],
-  ['LegacyEdgePropertyKey', 'legacy'],
-  ['LegacyNodePropertyKey', 'legacy'],
-  ['LegacyPropertyProjection', 'legacy'],
-  ['LegacyPropertyProjectionFields', 'legacy'],
-  ['LegacyPropertyValue', 'legacy'],
-  ['LiveSelector', 'advanced'],
-  ['NodeId', 'legacy'],
-  ['NodePropertyWriteIntent', 'legacy'],
-  ['NodeRecord', 'legacy'],
-  ['NodeTypeId', 'legacy'],
-  ['Observer', 'advanced'],
-  ['ObserverAccumulation', 'advanced'],
-  ['ObserverBasis', 'advanced'],
-  ['ObserverConfig', 'advanced'],
-  ['ObserverEmission', 'advanced'],
-  ['ObserverPlan', 'advanced'],
-  ['ObserverPlanFields', 'advanced'],
-  ['ObserverReadingEnvelopeBudget', 'advanced'],
-  ['ObserverReadingEnvelope', 'advanced'],
-  ['ObserverReadingEnvelopeFields', 'advanced'],
-  ['OperationRetryObserver', 'advanced'],
-  ['Optic', 'advanced'],
-  ['OpticAperturePosture', 'advanced'],
-  ['OpticAperturePostureValue', 'advanced'],
-  ['OpticBasisPosture', 'advanced'],
-  ['OpticBasisPostureValue', 'advanced'],
-  ['OpticContextValue', 'advanced'],
-  ['OpticCoordinatePosture', 'advanced'],
-  ['OpticCoordinatePostureValue', 'advanced'],
-  ['OpticFields', 'advanced'],
-  ['OpticPostureFields', 'advanced'],
-  ['OpticSupportRule', 'advanced'],
-  ['OpticSupportRuleValue', 'advanced'],
-  ['PatchBuilder', 'legacy'],
-  ['PatchSession', 'legacy'],
-  ['ProjectionHandle', 'advanced'],
-  ['QueryBuilder', 'diagnostics'],
-  ['RejectedZKWormhole', 'advanced'],
-  ['StrandSelector', 'advanced'],
-  ['TtdMergeLoweringWitness', 'diagnostics'],
-  ['TtdMergeLoweringWitnessFields', 'diagnostics'],
-  ['TtdMergeObstructionWitness', 'diagnostics'],
-  ['TtdMergeObstructionWitnessFields', 'diagnostics'],
-  ['VerifiedZKWormhole', 'advanced'],
-  ['VisibleEdgePropertyRecord', 'legacy'],
-  ['VisibleNodePropertyRecord', 'legacy'],
-  ['WarpApp', 'legacy'],
-  ['WarpCore', 'legacy'],
-  ['WarpWorldline', 'legacy'],
-  ['WarpWorldlineCoordinate', 'advanced'],
-  ['WarpWorldlineCoordinateFrontierEntry', 'advanced'],
-  ['WarpWorldlineOpenOptions', 'legacy'],
-  ['WarpWorldlinePatchBuild', 'legacy'],
-  ['WarpWorldlineOpticBasis', 'advanced'],
-  ['WorldlineSelector', 'advanced'],
-  ['ZKWormholeEdge', 'advanced'],
-  ['ZKWormholeEdgeFields', 'advanced'],
-  ['ZKWormholeProofVerifierPort', 'advanced'],
-  ['ZKWormholeVerificationResult', 'advanced'],
-  ['composeWormholes', 'advanced'],
-  ['createBlobValue', 'legacy'],
-  ['createEdgeAdd', 'legacy'],
-  ['createEdgeTombstone', 'legacy'],
-  ['createInlineValue', 'legacy'],
-  ['createNodeAdd', 'legacy'],
-  ['createNodeTombstone', 'legacy'],
-  ['createPropSet', 'legacy'],
-  ['createWormhole', 'advanced'],
-  ['decodeEdgePropKey', 'legacy'],
-  ['deserializeWormhole', 'advanced'],
-  ['encodeEdgePropKey', 'legacy'],
-  ['exportCoordinateComparisonFact', 'diagnostics'],
-  ['exportCoordinateTransferPlanFact', 'diagnostics'],
-  ['isEdgePropKey', 'legacy'],
-  ['openWarpGraph', 'legacy'],
-  ['openWarpWorldline', 'legacy'],
-  ['replayWormhole', 'advanced'],
-  ['serializeWormhole', 'advanced'],
-  ['verifyZKWormhole', 'advanced'],
-]);
-
-const BROWSER_EXPORT_MOVE_TARGETS = new Map<string, string>([
-  ['GraphNode', 'legacy'],
-  ['InMemoryGraphAdapter', 'storage'],
-  ['WarpApp', 'legacy'],
-  ['WarpCore', 'legacy'],
 ]);
 
 function collectSourceExports(relativePath: string): string[] {
@@ -252,53 +103,12 @@ function forbiddenExportsFrom(exportNames: readonly string[]): string[] {
   return sorted(exportNames.filter((name) => hasForbiddenVocabulary(name)));
 }
 
-function unclassifiedExports(
-  exportNames: readonly string[],
-  migrationTargets: ReadonlyMap<string, string>,
-): string[] {
-  return sorted(
-    forbiddenExportsFrom(exportNames).filter((name) => !migrationTargets.has(name)),
-  );
-}
-
-function invalidMigrationTargetEntries(
-  migrationTargets: ReadonlyMap<string, string>,
-): string[] {
-  const invalidEntries: string[] = [];
-  for (const [name, target] of migrationTargets.entries()) {
-    if (!VALID_MIGRATION_TARGETS.has(target)) {
-      invalidEntries.push(`${name}:${target}`);
-    }
-  }
-  return sorted(invalidEntries);
-}
-
-function staleMigrationTargetEntries(
-  exportNames: readonly string[],
-  migrationTargets: ReadonlyMap<string, string>,
-): string[] {
-  const forbiddenExports = new Set(forbiddenExportsFrom(exportNames));
-  return sorted(
-    Array.from(migrationTargets.keys()).filter((name) => !forbiddenExports.has(name)),
-  );
-}
-
 describe('v19 public API boundary', () => {
-  it('classifies every forbidden package-root export that still needs migration', () => {
-    expect(unclassifiedExports(collectSourceExports('index.ts'), ROOT_EXPORT_MOVE_TARGETS)).toEqual([]);
+  it('keeps graph, optic, worldline, witness, and diagnostic nouns out of package root', () => {
+    expect(forbiddenExportsFrom(collectSourceExports('index.ts'))).toEqual([]);
   });
 
-  it('classifies every forbidden browser export that still needs migration', () => {
-    expect(unclassifiedExports(collectSourceExports('browser.ts'), BROWSER_EXPORT_MOVE_TARGETS)).toEqual([]);
-  });
-
-  it('uses only explicit non-root destinations for classified root leaks', () => {
-    expect(invalidMigrationTargetEntries(ROOT_EXPORT_MOVE_TARGETS)).toEqual([]);
-    expect(invalidMigrationTargetEntries(BROWSER_EXPORT_MOVE_TARGETS)).toEqual([]);
-  });
-
-  it('removes migration classifications after exports leave root', () => {
-    expect(staleMigrationTargetEntries(collectSourceExports('index.ts'), ROOT_EXPORT_MOVE_TARGETS)).toEqual([]);
-    expect(staleMigrationTargetEntries(collectSourceExports('browser.ts'), BROWSER_EXPORT_MOVE_TARGETS)).toEqual([]);
+  it('keeps graph, optic, worldline, witness, and diagnostic nouns out of browser root', () => {
+    expect(forbiddenExportsFrom(collectSourceExports('browser.ts'))).toEqual([]);
   });
 });

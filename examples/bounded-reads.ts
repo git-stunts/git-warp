@@ -6,7 +6,7 @@
  * openWarpGraph() surface; materializeSlice() is a diagnostic read path.
  * Illustrative: run against a real @git-stunts/plumbing-backed Git repository.
  */
-import { GitGraphAdapter, openWarpGraph } from '@git-stunts/git-warp';
+import { GitGraphAdapter, openWarpGraph } from '@git-stunts/git-warp/legacy';
 import GitPlumbing from '@git-stunts/plumbing';
 
 export async function boundedReads(cwd: string): Promise<void> {

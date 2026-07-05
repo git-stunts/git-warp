@@ -1,30 +1,20 @@
 /**
  * Browser entry point for @git-stunts/git-warp.
  *
- * Re-exports only browser-safe code — no node:crypto, node:stream,
- * or @git-stunts/plumbing imports. Use with InMemoryGraphAdapter
- * and WebCryptoAdapter for fully in-browser WARP graph operation.
+ * Re-exports only browser-safe code without exposing the legacy graph-shaped
+ * compatibility API from the browser root. Use `MemoryStorageAdapter` from the
+ * storage subpath and `WebCryptoAdapter` here for in-browser operation.
  *
  * @module browser
  *
  * @example
  * ```js
- * import {
- *   WarpApp,
- *   InMemoryGraphAdapter,
- *   WebCryptoAdapter,
- *   generateWriterId,
- * } from '@git-stunts/git-warp/browser';
+ * import { WebCryptoAdapter, generateWriterId } from '@git-stunts/git-warp/browser';
+ * import { MemoryStorageAdapter } from '@git-stunts/git-warp/storage';
  * import { sha1sync } from '@git-stunts/git-warp/sha1sync';
  *
- * const adapter = new InMemoryGraphAdapter({ hash: sha1sync });
+ * const adapter = new MemoryStorageAdapter({ hash: sha1sync });
  * const crypto = new WebCryptoAdapter();
- * const app = await WarpApp.open({
- *   persistence: adapter,
- *   graphName: 'demo',
- *   writerId: generateWriterId(),
- *   crypto,
- * });
  * ```
  */
 
@@ -32,13 +22,6 @@ import { installDefaultRuntimeHostBrowserPorts } from './src/application/Runtime
 
 installDefaultRuntimeHostBrowserPorts();
 
-// Core API
-export { default as WarpApp } from './src/domain/WarpApp.ts';
-export { default as WarpCore } from './src/domain/WarpCore.ts';
-export { default as GraphNode } from './src/domain/entities/GraphNode.ts';
-
-// Browser-compatible adapters
-export { default as InMemoryGraphAdapter } from './src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 export { default as WebCryptoAdapter } from './src/infrastructure/adapters/WebCryptoAdapter.ts';
 
 // CRDT primitives

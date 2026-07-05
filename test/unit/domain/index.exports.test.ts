@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import * as publicApi from '../../../index.ts';
+import * as publicApi from '../../../legacy.ts';
 
 // Import everything from the main entry point
 import WarpAppDefault, {
@@ -140,7 +140,7 @@ import WarpAppDefault, {
   openAperture,
   verifyZKWormhole,
   ZKWormholeProofVerifierPort,
-} from '../../../index.ts';
+} from '../../../legacy.ts';
 
 describe('index.ts exports', () => {
   describe('default export', () => {

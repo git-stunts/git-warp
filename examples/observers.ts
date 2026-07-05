@@ -8,7 +8,7 @@ import {
   GitGraphAdapter,
   openWarpWorldline,
   type SnapshotPropValue,
-} from '@git-stunts/git-warp';
+} from '@git-stunts/git-warp/legacy';
 import GitPlumbing from '@git-stunts/plumbing';
 
 type PublicNodeProps = Readonly<{ [key: string]: SnapshotPropValue }>;

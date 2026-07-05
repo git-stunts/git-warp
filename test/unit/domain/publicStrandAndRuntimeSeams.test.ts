@@ -4,7 +4,7 @@ import {
   StrandError,
   WarpCore,
   openWarpGraph,
-} from '../../../index.ts';
+} from '../../../legacy.ts';
 import RuntimeDetachedFactory from '../../../src/domain/warp/RuntimeDetachedFactory.ts';
 import RuntimePatchCollector from '../../../src/domain/warp/RuntimePatchCollector.ts';
 import {

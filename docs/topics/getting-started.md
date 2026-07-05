@@ -27,7 +27,7 @@ here because the team will revise findings over time and later inspect earlier
 states.
 
 ```typescript
-import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
+import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp/legacy';
 import GitPlumbing from '@git-stunts/plumbing';
 
 const plumbing = new GitPlumbing({ cwd: './security-repo' });
@@ -45,10 +45,10 @@ Use a unique `writerId` per machine or clone in real deployments. The tutorial
 uses `local` to keep the example readable, but production graphs should use a
 stable unique id such as a hostname, device id, or UUID.
 
-> **Advanced compatibility:** `openWarpGraph()`, `WarpApp.open()`, and
+> **Legacy compatibility:** `openWarpGraph()`, `WarpApp.open()`, and
 > `WarpCore.open()` remain supported for lower-level diagnostics,
 > compatibility, migrations, and substrate tooling. New application code should
-> start with `openWarpWorldline()`.
+> move toward the v19 intent/timeline/reading/receipt root surface as it lands.
 
 ## Write the first patch
 

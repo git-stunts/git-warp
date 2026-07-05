@@ -5,7 +5,7 @@ import {
   CausalIndexPlan,
   QueryBuilder,
   SupportFragmentPlan,
-} from '../../../../../index.ts';
+} from '../../../../../legacy.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import type {
   QueryNeighborEntry,

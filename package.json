@@ -34,6 +34,26 @@
       "import": "./dist/browser.js",
       "default": "./dist/browser.js"
     },
+    "./storage": {
+      "types": "./dist/storage.d.ts",
+      "import": "./dist/storage.js",
+      "default": "./dist/storage.js"
+    },
+    "./advanced": {
+      "types": "./dist/advanced.d.ts",
+      "import": "./dist/advanced.js",
+      "default": "./dist/advanced.js"
+    },
+    "./diagnostics": {
+      "types": "./dist/diagnostics.d.ts",
+      "import": "./dist/diagnostics.js",
+      "default": "./dist/diagnostics.js"
+    },
+    "./legacy": {
+      "types": "./dist/legacy.d.ts",
+      "import": "./dist/legacy.js",
+      "default": "./dist/legacy.js"
+    },
     "./sha1sync": {
       "types": "./dist/src/infrastructure/adapters/sha1sync.d.ts",
       "import": "./dist/src/infrastructure/adapters/sha1sync.js",
@@ -150,8 +170,6 @@
     "git-stunts",
     "warp",
     "worldline",
-    "graph",
-    "graph-database",
     "local-first",
     "crdt",
     "dag",

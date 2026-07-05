@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import jsrJson from '../../../jsr.json' with { type: 'json' };
 
-const ROOT_EXPORT_FILE = '../../../index.ts';
+const ROOT_EXPORT_FILE = '../../../legacy.ts';
 const ROOT_COMPATIBILITY_IMPORT = "from './rootCompatibility.ts'";
 const ROOT_COMPATIBILITY_PUBLISH_ENTRY = 'rootCompatibility.ts';
 

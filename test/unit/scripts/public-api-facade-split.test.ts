@@ -3,8 +3,8 @@ import WarpAppDefault, {
   InMemoryGraphAdapter,
   WarpApp,
   WarpCore,
-} from '../../../index.ts';
-import * as publicApi from '../../../index.ts';
+} from '../../../legacy.ts';
+import * as publicApi from '../../../legacy.ts';
 
 function openOptions(graphName: string, writerId: string): Parameters<typeof WarpCore.open>[0] {
   return {

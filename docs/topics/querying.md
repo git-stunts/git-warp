@@ -25,7 +25,7 @@ import {
   GitGraphAdapter,
   openWarpGraph,
   openWarpWorldline,
-} from '@git-stunts/git-warp';
+} from '@git-stunts/git-warp/legacy';
 import GitPlumbing from '@git-stunts/plumbing';
 
 const plumbing = new GitPlumbing({ cwd: './team-repo' });
