@@ -36,3 +36,12 @@ export type {
   TtdMergeObstructionWitnessFields,
   TtdMergePolicyRequirementFields,
 } from './legacy.ts';
+export {
+  normalizeVisibleStateScope,
+  nodeIdInVisibleStateScope,
+  scopeMaterializedState,
+} from './src/domain/services/VisibleStateScope.ts';
+export type {
+  VisibleStateScope,
+  VisibleStateScopePrefixFilter,
+} from './src/domain/services/VisibleStateScope.ts';

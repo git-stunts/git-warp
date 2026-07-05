@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `legacy`, `storage`, `advanced`, and `diagnostics` subpaths. The package root
   and browser root now reject those nouns through the v19 public API boundary
   audit.
+- Added visible-state scope helpers to the `diagnostics` subpath so
+  materialized-state inspection has an explicit non-legacy import path.
 - Deprecated the entire graph-first legacy API. `legacy` remains migration-only
   and is no longer presented as a valid first-use path.
 
