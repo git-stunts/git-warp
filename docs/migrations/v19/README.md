@@ -138,7 +138,7 @@ switch (receipt.outcome) {
 ```
 
 `commit((patch) => ...)` is deprecated legacy API. The first-use write surface
-is `write(intent)`.
+is `timeline.write(intent)`.
 
 ## Read Migration
 
@@ -321,8 +321,8 @@ Operation names such as `join`, `sync`, and `read` belong in
 1. Replace root imports with subpath imports while staying on v18 where
    possible.
 2. Move persistence imports from root graph adapters to `storage` adapters.
-3. Convert `commit((patch) => ...)` calls to `write(intent.*)` calls.
-4. Rewrite direct live/query/optic reads as `read(reading.*)` calls.
+3. Convert `commit((patch) => ...)` calls to `timeline.write(intent.*)` calls.
+4. Rewrite direct live/query/optic reads as `timeline.read(reading.*)` calls.
 5. Move `seek()`/coordinate-first call sites to `tick()` and `at(tick)`.
 6. Move diagnostics, materialization, and graph diff code to explicit
    `diagnostics` APIs.
