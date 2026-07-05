@@ -321,9 +321,9 @@ Operation names such as `join`, `sync`, and `read` belong in
 1. Replace root imports with subpath imports while staying on v18 where
    possible.
 2. Move persistence imports from root graph adapters to `storage` adapters.
-3. Replace `commit((patch) => ...)` calls with `write(intent.*)` calls.
-4. Replace direct live/query/optic reads with `read(reading.*)` calls.
-5. Replace `seek()`/coordinate-first call sites with `tick()` and `at(tick)`.
+3. Convert `commit((patch) => ...)` calls to `write(intent.*)` calls.
+4. Rewrite direct live/query/optic reads as `read(reading.*)` calls.
+5. Move `seek()`/coordinate-first call sites to `tick()` and `at(tick)`.
 6. Move diagnostics, materialization, and graph diff code to explicit
    `diagnostics` APIs.
 7. Move remaining graph-shaped code to `legacy` and file follow-up removal

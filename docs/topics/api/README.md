@@ -11,7 +11,7 @@ Write intents. Read timelines. Keep receipts.
 ```
 
 That is the public story. The architecture underneath can keep its exact WARP
-terms, but the package boundary should be small, boring, and hard to misuse.
+terms, but the package boundary should be small, boring, and difficult to misuse.
 
 ## Why Change
 

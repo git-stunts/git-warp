@@ -60,7 +60,7 @@ fields and refusal to inflate a weak receipt shell into stronger proof.
 
 ## Non-Goals
 
-- Do not make git-warp the XYPH Quest court.
-- Do not move Continuum transport semantics into git-warp storage.
-- Do not require zk proof systems for base BTR publication.
-- Do not call typed obstructions counterfactuals.
+- Keep XYPH Quest adjudication outside git-warp.
+- Keep Continuum transport semantics out of git-warp storage.
+- Avoid requiring zk proof systems for base BTR publication.
+- Keep typed obstructions distinct from counterfactuals.
