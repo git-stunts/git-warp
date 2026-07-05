@@ -273,6 +273,16 @@ function invalidMigrationTargetEntries(
   return sorted(invalidEntries);
 }
 
+function staleMigrationTargetEntries(
+  exportNames: readonly string[],
+  migrationTargets: ReadonlyMap<string, string>,
+): string[] {
+  const forbiddenExports = new Set(forbiddenExportsFrom(exportNames));
+  return sorted(
+    Array.from(migrationTargets.keys()).filter((name) => !forbiddenExports.has(name)),
+  );
+}
+
 describe('v19 public API boundary', () => {
   it('classifies every forbidden package-root export that still needs migration', () => {
     expect(unclassifiedExports(collectSourceExports('index.ts'), ROOT_EXPORT_MOVE_TARGETS)).toEqual([]);
@@ -285,5 +295,10 @@ describe('v19 public API boundary', () => {
   it('uses only explicit non-root destinations for classified root leaks', () => {
     expect(invalidMigrationTargetEntries(ROOT_EXPORT_MOVE_TARGETS)).toEqual([]);
     expect(invalidMigrationTargetEntries(BROWSER_EXPORT_MOVE_TARGETS)).toEqual([]);
+  });
+
+  it('removes migration classifications after exports leave root', () => {
+    expect(staleMigrationTargetEntries(collectSourceExports('index.ts'), ROOT_EXPORT_MOVE_TARGETS)).toEqual([]);
+    expect(staleMigrationTargetEntries(collectSourceExports('browser.ts'), BROWSER_EXPORT_MOVE_TARGETS)).toEqual([]);
   });
 });
