@@ -81,10 +81,11 @@ describe('Worldline-first legacy API deprecation posture', () => {
     expect(source).toContain('substrate tooling, diagnostics, replay');
   });
 
-  it('moves the root module comments to the worldline-first entrypoint', () => {
-    const source = readRepoFile('index.ts');
+  it('moves the compatibility module comments to the legacy entrypoint', () => {
+    const source = readRepoFile('legacy.ts');
 
-    expect(source).toContain('First-use application code should open a named worldline');
-    expect(source).toContain('prefer openWarpWorldline');
+    expect(source).toContain('Legacy compatibility surface for graph-first v18-era code.');
+    expect(source).toContain("@git-stunts/git-warp/legacy");
+    expect(source).toContain('export default WarpApp;');
   });
 });

@@ -18,17 +18,19 @@ const packageJson = readText('package.json');
 const jsrJson = readText('jsr.json');
 const tsconfigPublish = readText('tsconfig.publish.json');
 const indexSource = readText('index.ts');
+const legacySource = readText('legacy.ts');
 const generatedIndexDeclarations = readText('dist/index.d.ts');
 
-function packageModuleDoc(): string {
-  const terminator = indexSource.indexOf('*/');
+function moduleDoc(source: string, sourceName: string): string {
+  const terminator = source.indexOf('*/');
   if (terminator === -1) {
-    throw new Error('index.ts is missing its package module JSDoc block');
+    throw new Error(`${sourceName} is missing its package module JSDoc block`);
   }
-  return indexSource.slice(0, terminator + '*/'.length);
+  return source.slice(0, terminator + '*/'.length);
 }
 
-const moduleDoc = packageModuleDoc();
+const indexModuleDoc = moduleDoc(indexSource, 'index.ts');
+const legacyModuleDoc = moduleDoc(legacySource, 'legacy.ts');
 
 describe('v18 package surface audit', () => {
   it('positions the registry package around the Worldline-first API', () => {
@@ -54,28 +56,40 @@ describe('v18 package surface audit', () => {
     expect(lineCount(generatedIndexDeclarations)).toBeLessThanOrEqual(500);
   });
 
-  it('exports the Worldline-first opener, handle, and option types from the root', () => {
-    expect(indexSource).toContain('import WarpWorldline, { openWarpWorldline }');
-    expect(indexSource).toContain('openWarpWorldline,');
-    expect(indexSource).toContain('WarpWorldline,');
-    expect(indexSource).toContain('ProjectionHandle,');
-    expect(indexSource).not.toMatch(/^\s+Worldline,$/m);
-    expect(indexSource).toContain('WarpWorldlineOpenOptions,');
-    expect(indexSource).toContain('WarpWorldlinePatchBuild,');
+  it('moves the Worldline-first opener, handle, and option types to legacy', () => {
+    expect(indexSource).not.toContain('import WarpWorldline, { openWarpWorldline }');
+    expect(legacySource).toContain('import WarpWorldline, { openWarpWorldline }');
+    expect(legacySource).toContain('openWarpWorldline,');
+    expect(legacySource).toContain('WarpWorldline,');
+    expect(legacySource).toContain('ProjectionHandle,');
+    expect(legacySource).not.toMatch(/^\s+Worldline,$/m);
+    expect(legacySource).toContain('WarpWorldlineOpenOptions,');
+    expect(legacySource).toContain('WarpWorldlinePatchBuild,');
   });
 
-  it('keeps package hover docs on the Worldline-first example', () => {
-    expect(moduleDoc).toContain('@example');
-    expect(moduleDoc).toContain('openWarpWorldline');
-    expect(moduleDoc).toContain("events.commit((patch) =>");
-    expect(moduleDoc).toContain('events.live().getNodeProps');
-    expect(moduleDoc).not.toContain('WarpApp.open(');
-    expect(moduleDoc).not.toContain('app.createPatch(');
-    expect(moduleDoc).not.toContain('app.materialize(');
+  it('keeps package hover docs on the v19 boundary story', () => {
+    expect(indexModuleDoc).toContain('Public v19 application boundary');
+    expect(indexModuleDoc).toContain('write intents, read timelines, and keep receipts');
+    expect(indexModuleDoc).toContain('@git-stunts/git-warp/legacy');
+    expect(indexModuleDoc).toContain('@git-stunts/git-warp/storage');
+    expect(indexModuleDoc).not.toContain('openWarpWorldline');
+    expect(indexModuleDoc).not.toContain('WarpApp.open(');
+    expect(indexModuleDoc).not.toContain('app.materialize(');
   });
 
-  it('keeps default export compatibility explicit', () => {
-    expect(indexSource).toContain('export default WarpApp;');
-    expect(indexSource).toContain('WarpApp remains the compatibility default export');
+  it('keeps legacy hover docs on the Worldline-first example', () => {
+    expect(legacyModuleDoc).toContain('@example');
+    expect(legacyModuleDoc).toContain('openWarpWorldline');
+    expect(legacyModuleDoc).toContain("events.commit((patch) =>");
+    expect(legacyModuleDoc).toContain('events.live().getNodeProps');
+    expect(legacyModuleDoc).not.toContain('WarpApp.open(');
+    expect(legacyModuleDoc).not.toContain('app.createPatch(');
+    expect(legacyModuleDoc).not.toContain('app.materialize(');
+  });
+
+  it('keeps legacy default export compatibility explicit', () => {
+    expect(indexSource).not.toContain('export default WarpApp;');
+    expect(legacySource).toContain('export default WarpApp;');
+    expect(legacySource).toContain('WarpApp remains the compatibility default export');
   });
 });
