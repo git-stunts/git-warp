@@ -47,10 +47,11 @@ Compatibility, diagnostics, and expert WARP terms move to explicit subpaths:
 | `storage` | supported persistence adapters |
 | `advanced` | stable formal WARP concepts for expert use |
 | `diagnostics` | operator and inspection tools |
-| `legacy` | compatibility only; deprecated by default |
+| `legacy` | deprecated compatibility only; migration bridge |
 
-Do not use `legacy` for new application code. It exists to let old consumers
-upgrade deliberately instead of rewriting everything in one commit.
+Do not use `legacy` for new application code. It exists only to let old
+consumers upgrade deliberately instead of rewriting everything in one commit.
+Every `legacy` import should be treated as debt with a removal plan.
 
 ## Root Import Migration
 
@@ -124,8 +125,8 @@ if (receipt.outcome !== 'accepted') {
 }
 ```
 
-`commit((patch) => ...)` moves to legacy or diagnostics. The first-use write
-surface is `write(intent)`.
+`commit((patch) => ...)` is deprecated legacy API. The first-use write surface
+is `write(intent)`.
 
 ## Read Migration
 
@@ -242,15 +243,15 @@ and joins first.
 | `InMemoryGraphAdapter` | `storage` `MemoryStorageAdapter` | graph name removed |
 | `GraphPersistencePort` | `storage` `StorageAdapter` | public storage contract |
 | `commit((patch) => ...)` | `timeline.write(intent.*)` | receipt-returning |
-| `PatchBuilder` | `legacy` or `diagnostics` | not root |
-| `PatchSession` | `legacy` or `diagnostics` | not root |
-| `createNodeAdd()` | `legacy` | use intent builders |
-| `createEdgeAdd()` | `legacy` | use intent builders |
-| `createPropSet()` | `legacy` | use intent builders |
-| `openWarpGraph()` | `legacy` or `diagnostics` | no root export |
-| `WarpApp` | `legacy` | no root default export in v19 |
-| `WarpCore` | `diagnostics` or `legacy` | advanced escape hatch |
-| `GraphNode` | `legacy` | no root export |
+| `PatchBuilder` | deprecated `legacy` | replace with intent builders |
+| `PatchSession` | deprecated `legacy` | replace with receipt-returning writes |
+| `createNodeAdd()` | deprecated `legacy` | use intent builders |
+| `createEdgeAdd()` | deprecated `legacy` | use intent builders |
+| `createPropSet()` | deprecated `legacy` | use intent builders |
+| `openWarpGraph()` | deprecated `legacy` | replace diagnostics with explicit diagnostic APIs |
+| `WarpApp` | deprecated `legacy` | no root default export in v19 |
+| `WarpCore` | deprecated `legacy` | replace diagnostics with explicit diagnostic APIs |
+| `GraphNode` | deprecated `legacy` | no root export |
 | `GraphDiff` | `diagnostics` | operator-facing comparison |
 | `Optic` | `advanced` | readings are root |
 | `Coordinate` | `advanced` or receipt fields | ticks are root |
@@ -311,7 +312,8 @@ Operation names such as `join`, `sync`, and `read` belong in
 3. Replace `commit((patch) => ...)` calls with `write(intent.*)` calls.
 4. Replace direct live/query/optic reads with `read(reading.*)` calls.
 5. Replace `seek()`/coordinate-first call sites with `tick()` and `at(tick)`.
-6. Move diagnostics, materialization, and graph diff code to `diagnostics`.
+6. Move diagnostics, materialization, and graph diff code to explicit
+   `diagnostics` APIs.
 7. Move remaining graph-shaped code to `legacy` and file follow-up removal
    issues.
 8. Remove all root imports of graph-shaped symbols.
@@ -321,7 +323,7 @@ Operation names such as `join`, `sync`, and `read` belong in
 The v19 line should not keep old and new APIs side by side in root. That would
 make root a mixed contract again.
 
-Compatibility should be explicit:
+Compatibility should be explicit and visibly deprecated:
 
 ```typescript
 import {
@@ -330,8 +332,8 @@ import {
 } from '@git-stunts/git-warp/legacy';
 ```
 
-That import tells reviewers and migration tools that the call site still needs
-paydown.
+That import tells reviewers and migration tools that the call site is deprecated
+debt and still needs paydown. It is not a second supported product path.
 
 ## Validation Plan
 
@@ -341,7 +343,8 @@ The v19 migration should land with checks that enforce the new boundary:
 - browser export audit mirrors the root first-use API;
 - consumer typecheck covers `openWarp`, `intent`, `reading`, `Timeline`,
   `Receipt`, and storage subpath imports;
-- legacy typecheck proves old symbols still exist only under `legacy`;
+- legacy typecheck proves old symbols still exist only under deprecated
+  `legacy`;
 - docs reference generator records root, storage, advanced, diagnostics, and
   legacy surfaces separately;
 - README quick start uses no graph-shaped root import.
@@ -352,4 +355,3 @@ The v19 migration should land with checks that enforce the new boundary:
 - [Supported Outcome Settlement](../../topics/supported-outcome-settlement.md)
 - [Optic reads](../../topics/optic-reads.md)
 - [Unmaterialized intents](../../topics/unmaterialized-intents.md)
-

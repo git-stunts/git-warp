@@ -1,9 +1,8 @@
 /**
- * Worldline-first public handle for application read/write workflows.
+ * Deprecated v18 public handle for application read/write workflows.
  *
- * This surface intentionally wraps only the minimum commitment and revelation
- * functions needed by first-use application code. Substrate diagnostics remain
- * on WarpCore/openWarpGraph compatibility surfaces.
+ * @deprecated Use the v19 root intent/timeline/reading/receipt API for new
+ * application workflows. `WarpWorldline` is migration-only compatibility.
  */
 import WarpError from './errors/WarpError.ts';
 import QueryError from './errors/QueryError.ts';
@@ -156,6 +155,12 @@ export default class WarpWorldline {
   }
 }
 
+/**
+ * Opens a deprecated v18 worldline compatibility handle.
+ *
+ * @deprecated Use the v19 root `openWarp().timeline(name)` API for new
+ * application workflows. This function is migration-only.
+ */
 export async function openWarpWorldline(
   options: WarpWorldlineOpenOptions,
 ): Promise<WarpWorldline> {

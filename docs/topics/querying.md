@@ -1,7 +1,8 @@
-# Querying
+# Deprecated v18 Querying Compatibility
 
-Use this page when you are writing product code, an agent workflow, or a
-local-first tool on top of `git-warp`.
+Use this page only while migrating v18 graph-first consumers. New product code,
+agent workflows, and local-first tools should target the v19
+intent/timeline/reading/receipt API.
 
 The main decision is not which method exists. The main decision is which read
 surface owns the question.
@@ -10,7 +11,7 @@ surface owns the question.
 
 | Need | Use | Why |
 | --- | --- | --- |
-| Write and read live admitted history | `openWarpWorldline()` | First-use application surface. |
+| Write and read live admitted history | `openWarpWorldline()` | Deprecated compatibility surface. |
 | Read one known entity or property with bounded evidence | Optic read | Fails closed when the checkpoint-tail basis is unavailable. |
 | Filter visibility for a role, tenant, or review surface | Observer | Applies an aperture over a worldline or projection. |
 | Ask broader graph questions | Query builder | Supports match, predicates, traversal, selection, aggregation, and support plans. |
@@ -18,7 +19,7 @@ surface owns the question.
 | Read speculative work | Strand source | Keeps proposed work out of live truth. |
 | Inspect provenance or replay internals | Substrate capability | Diagnostic and operator path. |
 
-## Open a worldline
+## Open a Deprecated Worldline
 
 ```typescript
 import {
@@ -38,9 +39,10 @@ const team = await openWarpWorldline({
 });
 ```
 
-Use `openWarpWorldline()` for normal application code. Use `openWarpGraph()`
-only when the task intentionally needs lower-level capability namespaces such
-as sync, provenance, checkpoints, comparison, or strands.
+Use `openWarpWorldline()` only while paying down v18 compatibility code. Use
+`openWarpGraph()` only when legacy tooling intentionally needs lower-level
+capability namespaces such as sync, provenance, checkpoints, comparison, or
+strands.
 
 ## Write live truth
 

@@ -1,6 +1,6 @@
 <div align="center">
 <p><strong>A Git-native runtime for shared causal history.</strong></p>
-<p>Offline-first, multi-writer, deterministic, and built for provenance-aware graphs.</p>
+<p>Offline-first, multi-writer, deterministic, and built for provenance-aware intent writes, timeline reads, and receipts.</p>
 </div>
 
 <p align="center">
@@ -29,13 +29,14 @@ If that sounds abstract, the short version is:
 
 ## What it does
 
-`git-warp` provides a causal history substrate and read/runtime layer for graph-shaped data.
+`git-warp` provides a causal history substrate and read/runtime layer for
+intent-oriented applications.
 
 It lets you:
 
-- Commit patches into a shared causal log.
-- Read the latest visible state through worldlines.
-- Read historical coordinates without rewriting history.
+- Write intents into a shared causal log.
+- Read the latest visible state through timeline readings.
+- Read historical ticks without rewriting history.
 - Use observers and apertures to control what a reader can see.
 - Keep provenance attached to values and outcomes.
 - Sync through normal Git transport.
@@ -50,51 +51,51 @@ replay-backed so callers receive complete diff and provenance data.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
-## Quick start
+## v19 API Direction
 
 ```typescript
-import { GitGraphAdapter, openWarpWorldline } from "@git-stunts/git-warp/legacy";
+import { openWarp, intent, reading } from "@git-stunts/git-warp";
+import { GitStorageAdapter } from "@git-stunts/git-warp/storage";
 import GitPlumbing from "@git-stunts/plumbing";
 
 const plumbing = new GitPlumbing({ cwd: "." });
-const persistence = new GitGraphAdapter({ plumbing });
-const events = await openWarpWorldline({
-  persistence,
-  worldlineName: "events",
-  writerId: "agent-1",
+const warp = await openWarp({
+  storage: new GitStorageAdapter({ plumbing }),
+  writer: "agent-1",
 });
 
-// Commit: admit a claim into shared causal history.
-await events.commit((patch) => {
-  patch.addNode("user:alice").setProperty("user:alice", "role", "admin");
-});
+const events = await warp.timeline("events");
 
-// Read: confirm what is visible through the worldline.
-const visible = await events
-  .live()
-  .query()
-  .match("user:alice")
-  .select(["id"])
-  .run();
+const write = await events.write(intent.property.set({
+  subject: "user:alice",
+  key: "role",
+  value: "admin",
+}));
+
+const role = await events.read(reading.property({
+  subject: "user:alice",
+  key: "role",
+}));
 ```
 
-### Bounded coordinate reads with optics
+The v18 graph-first API remains only under `@git-stunts/git-warp/legacy`. That
+entrypoint is deprecated and migration-only. Do not start new application code
+on `openWarpWorldline()`, `openWarpGraph()`, `WarpApp`, `WarpCore`,
+`GitGraphAdapter`, patch builders, or graph operation creators.
 
-The `live()` query above reads the latest visible state. When you instead want a **bounded, coherent read pinned to a point in history**, you read through an *optic*.
+### Bounded Reads
 
-- An **optic** is the bounded question you ask of causal history — "which node, property, neighbor set, or traversal do I want?" It names the read you mean instead of materializing the whole graph to go looking.
-- We use optics so reads stay **scoped and coherent**: an optic answers from a fixed position, so concurrent writes can't shift the result mid-read, and the runtime only touches the causal support the question actually needs.
-- An **optic basis** is the bounded evidence that the read can be answered honestly from history — a verified checkpoint-tail basis. `prepareOpticBasis()` establishes it. If no bounded basis exists yet, it fails closed with `E_OPTIC_NO_BOUNDED_BASIS` rather than silently materializing everything.
-- An optic always reads through an **observer coordinate**: `coordinate()` captures a stable, observer-relative position (a causal basis plus a ceiling). Later writes advance the live worldline, but reads through that coordinate keep answering from the captured position.
-- Missing non-empty nodes and properties read as absence data. Empty target identities are invalid optic schemas and fail with `E_OPTIC_FAILURE_SCHEMA`.
+The v19 public API names bounded questions as readings. The formal optic,
+coordinate, observer, and support machinery remains available to expert code
+through advanced/diagnostic surfaces, not the package root.
 
-So the order is: verify the basis, capture a coordinate, then read through it.
-
-```typescript
-await events.prepareOpticBasis();
-const coordinate = await events.coordinate();
-const role = await coordinate.optic().node("user:alice").prop("role").read();
-```
+- A **reading** is the bounded question the public API should expose.
+- An **optic** is the formal execution shape used by expert and proof-oriented
+  surfaces.
+- A **coordinate** is formal evidence position; first-use code should see
+  `tick` and receipt handles before coordinate machinery.
+- Missing support should produce an honest receipt outcome, not a silent
+  whole-history materialization.
 
 <details>
 <summary><h4>For the Nerds™: Optics</h4></summary>
@@ -113,21 +114,15 @@ const role = await coordinate.optic().node("user:alice").prop("role").read();
 
 ### Bounded reads in practice
 
-Two more shipped reads stay bounded without folding the whole graph. Both use the advanced `openWarpGraph()` surface.
+The root API should express bounded questions as readings and report the
+support actually used through receipts. The older `openWarpGraph()` and
+`openWarpWorldline()` examples are deprecated migration material, not a second
+application path. They live under `@git-stunts/git-warp/legacy` only so
+existing consumers can pay down old imports deliberately.
 
-```typescript
-import { openWarpGraph } from "@git-stunts/git-warp/legacy";
-
-const graph = await openWarpGraph({ persistence, graphName: "events", writerId: "agent-1" });
-
-// What changed between two live Lamport ceilings — a frozen GraphDiff, not a wildcard scan.
-const diff = await graph.comparison.diff({ from: 120, to: 135, targetId: "user:alice" });
-
-// One entity's backward causal cone, replayed on its own (a diagnostic read).
-const slice = await graph.provenance.materializeSlice("user:alice");
-```
-
-See [`examples/`](examples/) for runnable versions and [Optic reads](docs/topics/optic-reads.md) for the model.
+See the [v19 API reflection](docs/topics/api/), the
+[v19 migration guide](docs/migrations/v19/), and
+[Optic reads](docs/topics/optic-reads.md) for the model.
 
 ## Core ideas
 
@@ -258,31 +253,16 @@ The broader worldline-wide direction is still narrower than the doctrine: live s
 
 ## API surface
 
-The v18-compatible application entry point is `openWarpWorldline()` from
-`@git-stunts/git-warp/legacy`. The v19 root is being narrowed to intent,
-timeline, reading, and receipt nouns.
-
-A worldline gives you a small, practical interface:
-
-|Method|What it does|
-|---|---|
-|`commit()`|Admits a patch into the worldline|
-|`live()`|Reads the latest visible state|
-|`seek()`|Reads a historical coordinate|
-|`observer()`|Creates a filtered read view|
-|`prepareOpticBasis()`|Verifies bounded evidence for coordinate-based reads|
-|`coordinate()`|Captures a stable causal position|
-|`optic()`|Starts a one-off read that lowers through a reified `Optic`|
-
-For coherent optic reads, call `prepareOpticBasis()` first, then read through a coordinate.
-
-If no bounded basis exists yet, `prepareOpticBasis()` fails closed with `E_OPTIC_NO_BOUNDED_BASIS` rather than materializing the whole graph.
-
-Advanced tooling can also use `openWarpGraph()` directly. That lower-level surface is intended for compatibility, diagnostics, substrate operations, and migration work. New application code should generally prefer worldlines and optics.
+The v19 application entry point is the root intent/timeline/reading/receipt
+surface. The v18 `openWarpWorldline()` and `openWarpGraph()` entry points are
+deprecated and available only from `@git-stunts/git-warp/legacy` for migration.
+Treat every legacy import as removal debt. New application code should use
+root readings and receipts; new operator code should use explicit diagnostic
+APIs instead of the graph-first compatibility bag.
 
 ## Architectural moments
 
-`openWarpGraph()` exposes the runtime through four moments:
+Internally, the runtime still has four architectural moments:
 
 |Moment|Capabilities|What it does|
 |---|---|---|
@@ -291,7 +271,8 @@ Advanced tooling can also use `openWarpGraph()` directly. That lower-level surfa
 |Revelation|`query`, `subscriptions`, `provenance`|Exposes admitted truth under bounded rights|
 |Governance|`sync`|Transports and admits remote suffixes|
 
-Public examples use the flat aliases like `graph.query` and `graph.checkpoint`. The moment-scoped names are the same runtime object with more explicit naming.
+Deprecated migration code may still encounter the old graph-first names for
+these moments. Do not introduce those names in new root-level application code.
 
 ## Why Git
 
@@ -345,14 +326,22 @@ In the stack, **git-warp and Echo own runtime truth**, while Continuum owns the 
 
 ## Runtime posture
 
-Current first-use docs teach `openWarpWorldline()`, worldline reads, coordinates, reified optics, and observer apertures as the application path. `GitWarpWitnessedSuffixAdmissionShell` is a transition runtime envelope, not proof of live network exchange. Native Continuum witnesshood, remote optic transport, common-basis braid validation, live Echo/git-warp suffix exchange, support-fragment cache storage, and plan-driven fragment execution remain outside the first-use shipped path unless their own docs say otherwise.
+Legacy docs may still describe `openWarpWorldline()`, worldline reads,
+coordinates, reified optics, and observer apertures for migration context. They
+are not the first-use application path. `GitWarpWitnessedSuffixAdmissionShell`
+is a transition runtime envelope, not proof of live network exchange. Native
+Continuum witnesshood, remote optic transport, common-basis braid validation,
+live Echo/git-warp suffix exchange, support-fragment cache storage, and
+plan-driven fragment execution remain outside the first-use shipped path unless
+their own docs say otherwise.
 
 ## Documentation
 
 - [Topics](docs/topics/README.md) — task-oriented documentation map
-- [Getting started](docs/topics/getting-started.md) — first open, write, read, sync
-- [Optic reads](docs/topics/optic-reads.md), [Observers](docs/topics/observers.md), and [Querying](docs/topics/querying.md) — the current public read model
-- [Strands](docs/topics/strands.md), [Sync](docs/topics/sync.md), and [CLI](docs/topics/cli.md) — common usage paths
+- [v19 API reflection](docs/topics/api/) — current public API direction
+- [v19 migration guide](docs/migrations/v19/) — deprecated legacy API paydown
+- [Optic reads](docs/topics/optic-reads.md), [Observers](docs/topics/observers.md), and [Querying](docs/topics/querying.md) — read-model context
+- [Strands](docs/topics/strands.md), [Sync](docs/topics/sync.md), and [CLI](docs/topics/cli.md) — runtime and operator paths
 - [Git substrate](docs/topics/git-substrate.md), [Content and CAS](docs/topics/content-and-cas.md), and [Continuum boundary](docs/topics/continuum-boundary.md) — substrate and boundary explanations
 - [Operations](docs/operations/) and [Troubleshooting](docs/topics/troubleshooting.md) — maintenance and recovery workflows
 - [Examples](examples/) — runnable read-model snippets

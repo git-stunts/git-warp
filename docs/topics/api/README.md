@@ -388,10 +388,10 @@ The boundaries mean different things:
 | `storage` | supported persistence adapters |
 | `advanced` | formal WARP nouns for expert use |
 | `diagnostics` | inspection, materialization, replay, and operator tools |
-| `legacy` | compatibility only, with removal pressure |
+| `legacy` | deprecated compatibility only, with removal pressure |
 
 Do not turn `advanced` into a junk drawer. If a symbol exists only because old
-code still imports it, it belongs in `legacy`, not `advanced`.
+code still imports it, it belongs in deprecated `legacy`, not `advanced`.
 
 ## Migration Map
 
@@ -405,16 +405,16 @@ Each old root symbol needs one explicit disposition:
 | `commit((patch) => ...)` | `timeline.write(intent.*)` |
 | `coordinate()` | `tick()` publicly, `Coordinate` in advanced/evidence |
 | `optic()` | `timeline.read(reading.*)` or `advanced` |
-| `openWarpGraph()` | `legacy` or `diagnostics` |
-| `PatchBuilder` | `legacy` or `diagnostics` |
+| `openWarpGraph()` | deprecated `legacy`; replace diagnostics with explicit diagnostic APIs |
+| `PatchBuilder` | deprecated `legacy` |
 | `GraphDiff` | `diagnostics` |
-| graph op creators | `legacy` only |
+| graph op creators | deprecated `legacy` only |
 
 The compatibility story should be honest:
 
 ```text
 Root is clean.
-Legacy is temporary.
+Legacy is deprecated and temporary.
 Diagnostics are for operators.
 Advanced is for formal WARP work.
 ```

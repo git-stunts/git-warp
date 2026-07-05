@@ -1,8 +1,9 @@
 /**
- * Bounding visibility with an observer + aperture.
+ * Deprecated v18 compatibility example: bounding visibility with an observer
+ * and aperture.
  *
  * Pairs with docs/topics/observers.md. Illustrative: run against a real
- * @git-stunts/plumbing-backed Git repository.
+ * @git-stunts/plumbing-backed Git repository only for migration testing.
  */
 import {
   GitGraphAdapter,

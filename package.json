@@ -1,7 +1,7 @@
 {
   "name": "@git-stunts/git-warp",
   "version": "18.2.1",
-  "description": "Worldline-first WARP graph over Git: deterministic multi-writer causal history, readings, and tooling.",
+  "description": "Git-native causal history runtime for intent writes, timeline reads, and receipts.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "James Ross <james@flyingrobots.dev>",
@@ -169,7 +169,6 @@
     "git",
     "git-stunts",
     "warp",
-    "worldline",
     "local-first",
     "crdt",
     "dag",

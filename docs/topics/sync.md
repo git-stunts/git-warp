@@ -22,8 +22,8 @@ operators do not rely on memory.
 
 ## Programmatic sync
 
-Application and operator code can use the lower-level graph capability bag when
-it intentionally needs sync status, requests, or serve endpoints:
+Deprecated operator code can use the lower-level graph capability bag when it
+intentionally needs sync status, requests, or serve endpoints:
 
 ```typescript
 const graph = await openWarpGraph({
@@ -36,8 +36,9 @@ const status = await graph.sync.status();
 const request = await graph.sync.createSyncRequest();
 ```
 
-Use `openWarpWorldline()` for normal application writes and reads. Reach for
-`graph.sync` when the task is transport, governance, or diagnostics.
+Do not use `openWarpWorldline()` for new application writes and reads. Reach for
+`graph.sync` only when maintaining legacy transport, governance, or diagnostic
+tooling.
 
 ## CLI sync
 

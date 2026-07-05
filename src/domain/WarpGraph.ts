@@ -360,12 +360,12 @@ function bindSubscriptionCapability(runtime: WarpGraphRuntimeSurface): Subscript
 /**
  * Opens a WARP multi-writer graph compatibility capability bag.
  *
- * Application workflows should use openWarpWorldline(), which opens a named
- * causal worldline and keeps reads on explicit worldline, coordinate, observer,
- * or optic bases instead of graph-wide materialization.
+ * This graph-first capability bag is retained only for migration, tooling, and
+ * substrate diagnostics.
  *
- * @deprecated For application workflows, use openWarpWorldline(). This advanced
- * compatibility bag remains supported for tooling and substrate diagnostics.
+ * @deprecated Use the v19 root intent/timeline/reading/receipt API for new
+ * application workflows. `openWarpGraph()` is migration-only for existing
+ * graph-first integrations and diagnostic tooling.
  */
 export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
   const runtime = await openWarpGraphRuntime(deps);

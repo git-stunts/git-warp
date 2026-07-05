@@ -1,38 +1,14 @@
 /**
  * @module
  *
- * Deterministic WARP graph over Git. Graph history lives under WARP refs, where patch and
- * checkpoint commits can carry Git trees for payloads, content, and
- * folded state while staying outside normal branch refs.
+ * Deprecated graph-first compatibility surface for v18-era code.
  *
- * Legacy compatibility surface for graph-first v18-era code.
+ * Do not use this entrypoint for new application code. It exists only as a
+ * migration bridge while consumers move to root intent, reading, timeline, and
+ * receipt nouns plus the `storage`, `advanced`, and `diagnostics` subpaths.
  *
- * First-use application code should use the package root. Graph-shaped,
- * worldline-shaped, optic-shaped, witness-shaped, and diagnostic APIs live here
- * while v19 moves the public root to intent, reading, timeline, and receipt
- * nouns.
- *
- * @example
- * ```typescript
- * import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp/legacy';
- * import GitPlumbing from '@git-stunts/plumbing';
- *
- * const persistence = new GitGraphAdapter({
- *   plumbing: new GitPlumbing({ cwd: '.' }),
- * });
- *
- * const events = await openWarpWorldline({
- *   persistence,
- *   worldlineName: 'events',
- *   writerId: 'agent-1',
- * });
- *
- * await events.commit((patch) => {
- *   patch.addNode('user:alice');
- * });
- *
- * const props = await events.live().getNodeProps('user:alice');
- * ```
+ * @deprecated The entire `@git-stunts/git-warp/legacy` module is deprecated
+ * and migration-only. New code must not import from it.
  */
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.ts';
@@ -325,11 +301,11 @@ export {
   checkAborted,
   createTimeoutSignal,
 
-  // Multi-writer graph — advanced compatibility composition root
+  // Deprecated v18 graph composition root.
   WarpOpenOptions,
   openWarpGraph,
 
-  // Worldline-first public handle
+  // Deprecated v18 worldline compatibility handle.
   openWarpWorldline,
   WarpWorldline,
   WarpWorldlineCoordinate,
@@ -341,7 +317,7 @@ export {
   OpticSupportRule,
   ProjectionHandle,
 
-  // Multi-writer graph support (legacy/diagnostic — prefer openWarpWorldline)
+  // Deprecated v18 facades and patch/query helpers.
   WarpApp,
   WarpCore,
   WorldlineSelector,
@@ -495,5 +471,5 @@ export type {
   TtdMergePolicyRequirementFields,
 };
 
-// WarpApp remains the compatibility default export for v15-era consumers.
+// Deprecated default export retained only for v15-era migration.
 export default WarpApp;

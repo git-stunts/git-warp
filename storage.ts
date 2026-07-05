@@ -2,8 +2,8 @@
  * Storage adapters for public git-warp applications.
  *
  * These aliases intentionally avoid exposing graph-shaped adapter names in the
- * first-use API. The legacy graph-named adapters remain available from
- * `@git-stunts/git-warp/legacy`.
+ * first-use API. The graph-named adapters remain only in deprecated
+ * migration-only compatibility surfaces.
  */
 
 export { default as GitStorageAdapter } from './src/infrastructure/adapters/GitGraphAdapter.ts';

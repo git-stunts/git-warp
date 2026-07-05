@@ -4,7 +4,8 @@
  * Public v19 application boundary.
  *
  * Root users should write intents, read timelines, and keep receipts. The
- * graph-first compatibility surface has moved to `@git-stunts/git-warp/legacy`.
+ * graph-first compatibility surface is deprecated and isolated under
+ * `@git-stunts/git-warp/legacy` for migration-only use.
  * Storage adapters live under `@git-stunts/git-warp/storage`; formal read,
  * evidence, and support machinery lives under `@git-stunts/git-warp/advanced`;
  * operator inspection tools live under `@git-stunts/git-warp/diagnostics`.
