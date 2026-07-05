@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Added the v19 `openWarp()` product opener plus `Warp` and `Timeline`
+  facade handles to the root and browser entrypoints.
 - Moved graph-shaped, worldline-shaped, optic-shaped, witness-shaped, and
   diagnostic compatibility exports out of the package root into explicit
   `legacy`, `storage`, `advanced`, and `diagnostics` subpaths. The package root

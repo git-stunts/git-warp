@@ -30,86 +30,91 @@ public API export, CLI command, package entrypoint, or public error class.
 
 | Module | Kind | Source |
 | --- | --- | --- |
-| `./src/domain/memory/index.ts` | export * | `index.ts#L18` |
+| `./src/domain/memory/index.ts` | export * | `index.ts#L23` |
 
 ## Root API value exports
 
-Source: `index.ts`. Count: 60.
+Source: `index.ts`. Count: 63.
 
 ```text
-AlfredOperationPolicyAdapter @ index.ts#L31
-AuditError @ index.ts#L34
-BunHttpAdapter @ index.ts#L65
-canonicalEmissionJson @ index.ts#L81
-canonicalObservationJson @ index.ts#L87
-CasContentEncryptionPolicy @ index.ts#L25
-checkAborted @ index.ts#L67
-ChunkEffectSink @ index.ts#L97
-ConsoleEffectSink @ index.ts#L96
-ConsoleLogger @ index.ts#L59
-ContinuumArtifactAuthorityError @ index.ts#L35
-createDeliveryObservation @ index.ts#L86
-createEffectEmission @ index.ts#L80
-createExternalizationPolicy @ index.ts#L90
-createTickReceipt @ index.ts#L71
-createTimeoutSignal @ index.ts#L67
-CryptoPort @ index.ts#L61
-DELIVERY_MODES @ index.ts#L82
-DELIVERY_OUTCOMES @ index.ts#L83
-DenoHttpAdapter @ index.ts#L66
-EffectPipeline @ index.ts#L78
-EffectSinkPort @ index.ts#L76
-EncryptionError @ index.ts#L36
-ForkError @ index.ts#L37
-HealthCheckService @ index.ts#L56
-HealthStatus @ index.ts#L56
-HttpServerPort @ index.ts#L62
-IndexError @ index.ts#L38
-INSPECT_LENS @ index.ts#L93
-LIVE_LENS @ index.ts#L91
-LoggerPort @ index.ts#L57
-LogLevel @ index.ts#L59
-MemoryBudgetError @ index.ts#L39
-MultiplexSink @ index.ts#L77
-NodeCryptoAdapter @ index.ts#L63
-NoOpEffectSink @ index.ts#L95
-NoOpLogger @ index.ts#L58
-NoopOperationPolicyAdapter @ index.ts#L32
-OperationAbortedError @ index.ts#L40
-OperationPolicyExhaustedError @ index.ts#L41
-OperationPolicyPort @ index.ts#L20
-OperationPolicyTimeoutError @ index.ts#L42
-PatchError @ index.ts#L43
-QueryError @ index.ts#L44
-REPLAY_LENS @ index.ts#L92
-SchemaUnsupportedError @ index.ts#L45
-ShardCorruptionError @ index.ts#L46
-ShardLoadError @ index.ts#L47
-ShardValidationError @ index.ts#L48
-StorageError @ index.ts#L49
-StrandError @ index.ts#L50
-SyncError @ index.ts#L51
-SyncSecret @ index.ts#L68
-TICK_RECEIPT_OP_TYPES @ index.ts#L73
-TICK_RECEIPT_RESULT_TYPES @ index.ts#L74
-tickReceiptCanonicalJson @ index.ts#L72
-TraversalError @ index.ts#L52
-WebCryptoAdapter @ index.ts#L64
-WormholeError @ index.ts#L53
-WriterError @ index.ts#L60
+AlfredOperationPolicyAdapter @ index.ts#L36
+AuditError @ index.ts#L39
+BunHttpAdapter @ index.ts#L70
+canonicalEmissionJson @ index.ts#L86
+canonicalObservationJson @ index.ts#L92
+CasContentEncryptionPolicy @ index.ts#L30
+checkAborted @ index.ts#L72
+ChunkEffectSink @ index.ts#L102
+ConsoleEffectSink @ index.ts#L101
+ConsoleLogger @ index.ts#L64
+ContinuumArtifactAuthorityError @ index.ts#L40
+createDeliveryObservation @ index.ts#L91
+createEffectEmission @ index.ts#L85
+createExternalizationPolicy @ index.ts#L95
+createTickReceipt @ index.ts#L76
+createTimeoutSignal @ index.ts#L72
+CryptoPort @ index.ts#L66
+DELIVERY_MODES @ index.ts#L87
+DELIVERY_OUTCOMES @ index.ts#L88
+DenoHttpAdapter @ index.ts#L71
+EffectPipeline @ index.ts#L83
+EffectSinkPort @ index.ts#L81
+EncryptionError @ index.ts#L41
+ForkError @ index.ts#L42
+HealthCheckService @ index.ts#L61
+HealthStatus @ index.ts#L61
+HttpServerPort @ index.ts#L67
+IndexError @ index.ts#L43
+INSPECT_LENS @ index.ts#L98
+LIVE_LENS @ index.ts#L96
+LoggerPort @ index.ts#L62
+LogLevel @ index.ts#L64
+MemoryBudgetError @ index.ts#L44
+MultiplexSink @ index.ts#L82
+NodeCryptoAdapter @ index.ts#L68
+NoOpEffectSink @ index.ts#L100
+NoOpLogger @ index.ts#L63
+NoopOperationPolicyAdapter @ index.ts#L37
+openWarp @ index.ts#L18
+OperationAbortedError @ index.ts#L45
+OperationPolicyExhaustedError @ index.ts#L46
+OperationPolicyPort @ index.ts#L25
+OperationPolicyTimeoutError @ index.ts#L47
+PatchError @ index.ts#L48
+QueryError @ index.ts#L49
+REPLAY_LENS @ index.ts#L97
+SchemaUnsupportedError @ index.ts#L50
+ShardCorruptionError @ index.ts#L51
+ShardLoadError @ index.ts#L52
+ShardValidationError @ index.ts#L53
+StorageError @ index.ts#L54
+StrandError @ index.ts#L55
+SyncError @ index.ts#L56
+SyncSecret @ index.ts#L73
+TICK_RECEIPT_OP_TYPES @ index.ts#L78
+TICK_RECEIPT_RESULT_TYPES @ index.ts#L79
+tickReceiptCanonicalJson @ index.ts#L77
+Timeline @ index.ts#L20
+TraversalError @ index.ts#L57
+Warp @ index.ts#L19
+WebCryptoAdapter @ index.ts#L69
+WormholeError @ index.ts#L58
+WriterError @ index.ts#L65
 ```
 
 ## Root API type exports
 
-Source: `index.ts`. Count: 6.
+Source: `index.ts`. Count: 8.
 
 ```text
-CasContentEncryptionDiagnostics @ index.ts#L27
-CasContentEncryptionScheme @ index.ts#L28
-CasResolvedVaultKeyOptions @ index.ts#L29
-OperationPolicyExecuteOptions @ index.ts#L22
-OperationRetryDecision @ index.ts#L23
-SyncRateLimitConfig @ index.ts#L69
+CasContentEncryptionDiagnostics @ index.ts#L32
+CasContentEncryptionScheme @ index.ts#L33
+CasResolvedVaultKeyOptions @ index.ts#L34
+OpenWarpOptions @ index.ts#L21
+OperationPolicyExecuteOptions @ index.ts#L27
+OperationRetryDecision @ index.ts#L28
+SyncRateLimitConfig @ index.ts#L74
+WarpStorage @ index.ts#L21
 ```
 
 ## CLI command registry

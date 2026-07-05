@@ -22,6 +22,11 @@ import { installDefaultRuntimeHostBrowserPorts } from './src/application/Runtime
 
 installDefaultRuntimeHostBrowserPorts();
 
+export { openWarp } from './src/domain/api/openWarp.ts';
+export { default as Warp } from './src/domain/api/Warp.ts';
+export { default as Timeline } from './src/domain/api/Timeline.ts';
+export type { OpenWarpOptions, WarpStorage } from './src/domain/api/openWarp.ts';
+
 export { default as WebCryptoAdapter } from './src/infrastructure/adapters/WebCryptoAdapter.ts';
 
 // CRDT primitives

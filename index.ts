@@ -15,6 +15,11 @@ import { installDefaultRuntimeHostNodePorts } from './src/application/RuntimeHos
 
 installDefaultRuntimeHostNodePorts();
 
+export { openWarp } from './src/domain/api/openWarp.ts';
+export { default as Warp } from './src/domain/api/Warp.ts';
+export { default as Timeline } from './src/domain/api/Timeline.ts';
+export type { OpenWarpOptions, WarpStorage } from './src/domain/api/openWarp.ts';
+
 export * from './src/domain/memory/index.ts';
 
 export { default as OperationPolicyPort } from './src/ports/OperationPolicyPort.ts';
