@@ -2,7 +2,7 @@ import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabil
 import type { CorePersistence } from '../types/WarpPersistence.ts';
 import { openWarpWorldline } from '../WarpWorldline.ts';
 import Warp from './Warp.ts';
-import { assertIdentity } from './assertIdentity.ts';
+import { assertWriterIdentity } from './assertIdentity.ts';
 import { createTimeline } from './TimelineRuntime.ts';
 import WarpError from '../errors/WarpError.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from './OpenWarpIdentityFailure.ts';
@@ -39,5 +39,5 @@ function assertOpenWarpOptions(options: OpenWarpOptions | null | undefined): voi
   if (options.storage === null || options.storage === undefined) {
     throw new WarpError('openWarp requires storage', 'E_OPEN_WARP_STORAGE');
   }
-  assertIdentity(options.writer, 'writer', OPEN_WARP_IDENTITY_FAILURE);
+  assertWriterIdentity(options.writer, 'writer', OPEN_WARP_IDENTITY_FAILURE);
 }

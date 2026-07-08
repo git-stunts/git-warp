@@ -8,6 +8,7 @@ import {
   Warp,
 } from '../../../index.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../../../src/domain/api/OpenWarpIdentityFailure.ts';
+import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
 import { MemoryStorageAdapter } from '../../../storage.ts';
 
 function exportedNamesFor(path: string): ReadonlySet<string> {
@@ -173,6 +174,44 @@ describe('v19 Warp facade', () => {
     });
 
     await expect(warp.timeline('')).rejects.toThrow('openWarp requires non-empty identity fields');
+  });
+
+  it('rejects invalid non-empty facade identities before opening timelines', async () => {
+    await expect(openWarp({
+      storage: new MemoryStorageAdapter(),
+      writer: 'agent 1',
+    })).rejects.toMatchObject({ code: 'E_INVALID_WRITER_ID' });
+
+    const openedNames: string[] = [];
+    const openTimeline = async (name: string): Promise<Timeline> => {
+      openedNames.push(name);
+      return new Timeline({ name, writer: 'agent-1' });
+    };
+
+    expect(() => new Warp({
+      writer: 'agent/1',
+      openTimeline,
+    })).toThrow('Invalid writer ID: contains forward slash');
+
+    const warp = new Warp({
+      writer: 'agent-1',
+      openTimeline,
+    });
+
+    await expect(warp.timeline('../events')).rejects.toMatchObject({
+      code: 'E_INVALID_GRAPH_NAME',
+    });
+    expect(openedNames).toEqual([]);
+
+    expect(() => new Timeline({
+      name: 'bad name',
+      writer: 'agent-1',
+    })).toThrow('Invalid graph name: contains space');
+
+    expect(() => new Timeline({
+      name: 'events',
+      writer: 'x'.repeat(MAX_WRITER_ID_LENGTH + 1),
+    })).toThrow('Invalid writer ID: exceeds maximum length');
   });
 
   it('names the openWarp identity failure payload once', () => {

@@ -1,6 +1,6 @@
 import WarpError from '../errors/WarpError.ts';
 import type Timeline from './Timeline.ts';
-import { assertIdentity } from './assertIdentity.ts';
+import { assertTimelineNameIdentity, assertWriterIdentity } from './assertIdentity.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from './OpenWarpIdentityFailure.ts';
 
 type OpenTimeline = (name: string) => Promise<Timeline>;
@@ -22,7 +22,7 @@ export default class Warp {
 
   constructor(options: WarpConstructionOptions) {
     assertWarpConstructionOptions(options);
-    assertIdentity(options.writer, 'writer', OPEN_WARP_IDENTITY_FAILURE);
+    assertWriterIdentity(options.writer, 'writer', OPEN_WARP_IDENTITY_FAILURE);
     this.#writer = options.writer;
     this.#openTimeline = options.openTimeline;
     Object.freeze(this);
@@ -33,7 +33,7 @@ export default class Warp {
   }
 
   async timeline(name: string): Promise<Timeline> {
-    assertIdentity(name, 'timeline', OPEN_WARP_IDENTITY_FAILURE);
+    assertTimelineNameIdentity(name, 'timeline', OPEN_WARP_IDENTITY_FAILURE);
     return await this.#openTimeline(name);
   }
 }
