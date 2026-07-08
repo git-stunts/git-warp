@@ -13,19 +13,21 @@ export type OpenWarpOptions = {
   readonly writer: string;
 };
 
-export async function openWarp(options: OpenWarpOptions): Promise<Warp> {
-  assertOpenWarpOptions(options);
-  const { storage, writer } = options;
+export function openWarp(options: OpenWarpOptions): Promise<Warp> {
+  return Promise.resolve().then(() => {
+    assertOpenWarpOptions(options);
+    const { storage, writer } = options;
 
-  return new Warp({
-    writer,
-    openTimeline: async (name) => createTimeline(
-      await openWarpWorldline({
-        persistence: storage,
-        worldlineName: name,
-        writerId: writer,
-      }),
-    ),
+    return new Warp({
+      writer,
+      openTimeline: async (name) => createTimeline(
+        await openWarpWorldline({
+          persistence: storage,
+          worldlineName: name,
+          writerId: writer,
+        }),
+      ),
+    });
   });
 }
 
