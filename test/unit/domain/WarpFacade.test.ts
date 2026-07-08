@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -9,8 +10,65 @@ import {
 import { OPEN_WARP_IDENTITY_FAILURE } from '../../../src/domain/api/OpenWarpIdentityFailure.ts';
 import { MemoryStorageAdapter } from '../../../storage.ts';
 
-function readRepoSource(path: string): string {
-  return readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
+function exportedNamesFor(path: string): ReadonlySet<string> {
+  const sourceText = readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
+  const sourceFile = ts.createSourceFile(
+    path,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const exportedNames = new Set<string>();
+
+  for (const statement of sourceFile.statements) {
+    collectExportDeclarationNames(statement, exportedNames);
+    collectExportedDeclarationName(statement, exportedNames);
+  }
+
+  return exportedNames;
+}
+
+function collectExportDeclarationNames(statement: ts.Statement, exportedNames: Set<string>): void {
+  if (!ts.isExportDeclaration(statement)) {
+    return;
+  }
+  const exportClause = statement.exportClause;
+  if (exportClause === undefined || !ts.isNamedExports(exportClause)) {
+    return;
+  }
+  for (const element of exportClause.elements) {
+    exportedNames.add(element.name.text);
+  }
+}
+
+function collectExportedDeclarationName(statement: ts.Statement, exportedNames: Set<string>): void {
+  if (!ts.canHaveModifiers(statement)) {
+    return;
+  }
+  const modifiers = ts.getModifiers(statement);
+  if (modifiers === undefined || !modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+    return;
+  }
+
+  if (ts.isVariableStatement(statement)) {
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name)) {
+        exportedNames.add(declaration.name.text);
+      }
+    }
+    return;
+  }
+
+  if (
+    (ts.isClassDeclaration(statement)
+      || ts.isFunctionDeclaration(statement)
+      || ts.isInterfaceDeclaration(statement)
+      || ts.isTypeAliasDeclaration(statement))
+    && statement.name !== undefined
+  ) {
+    exportedNames.add(statement.name.text);
+  }
 }
 
 describe('v19 Warp facade', () => {
@@ -32,12 +90,13 @@ describe('v19 Warp facade', () => {
   });
 
   it('keeps the v19 facade off the browser root', () => {
-    const browserSource = readRepoSource('browser.ts');
+    const browserExports = exportedNamesFor('browser.ts');
 
-    expect(browserSource).not.toContain("export { openWarp }");
-    expect(browserSource).not.toContain("export { default as Warp }");
-    expect(browserSource).not.toContain("export { default as Timeline }");
-    expect(browserSource).not.toContain("export type { OpenWarpOptions, WarpStorage }");
+    expect(browserExports.has('openWarp')).toBe(false);
+    expect(browserExports.has('Warp')).toBe(false);
+    expect(browserExports.has('Timeline')).toBe(false);
+    expect(browserExports.has('OpenWarpOptions')).toBe(false);
+    expect(browserExports.has('WarpStorage')).toBe(false);
   });
 
   it('keeps internal history vocabulary off the public facade objects', async () => {
@@ -88,13 +147,13 @@ describe('v19 Warp facade', () => {
   });
 
   it('keeps identity validation in the dedicated validator module', () => {
-    const warpSource = readRepoSource('src/domain/api/Warp.ts');
-    const timelineSource = readRepoSource('src/domain/api/Timeline.ts');
-    const validatorSource = readRepoSource('src/domain/api/assertIdentity.ts');
+    const warpExports = exportedNamesFor('src/domain/api/Warp.ts');
+    const timelineExports = exportedNamesFor('src/domain/api/Timeline.ts');
+    const validatorExports = exportedNamesFor('src/domain/api/assertIdentity.ts');
 
-    expect(warpSource).not.toContain('export function assertNonEmpty');
-    expect(timelineSource).not.toContain('function assertTimelineIdentity');
-    expect(validatorSource).toContain('export function assertIdentity');
+    expect(warpExports.has('assertNonEmpty')).toBe(false);
+    expect(timelineExports.has('assertTimelineIdentity')).toBe(false);
+    expect(validatorExports.has('assertIdentity')).toBe(true);
   });
 
   it('rejects invalid public facade constructor options with domain errors', () => {
