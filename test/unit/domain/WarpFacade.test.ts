@@ -30,16 +30,13 @@ describe('v19 Warp facade', () => {
     expect(timeline.writer).toBe('agent-1');
   });
 
-  it('exports the same facade from the browser root', async () => {
-    const {
-      openWarp: openBrowserWarp,
-      Timeline: BrowserTimeline,
-      Warp: BrowserWarp,
-    } = await import('../../../browser.ts');
+  it('keeps the v19 facade off the browser root', () => {
+    const browserSource = readRepoSource('browser.ts');
 
-    expect(openBrowserWarp).toBe(openWarp);
-    expect(BrowserWarp).toBe(Warp);
-    expect(BrowserTimeline).toBe(Timeline);
+    expect(browserSource).not.toContain("export { openWarp }");
+    expect(browserSource).not.toContain("export { default as Warp }");
+    expect(browserSource).not.toContain("export { default as Timeline }");
+    expect(browserSource).not.toContain("export type { OpenWarpOptions, WarpStorage }");
   });
 
   it('keeps internal history vocabulary off the public facade objects', async () => {

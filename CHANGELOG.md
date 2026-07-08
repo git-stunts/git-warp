@@ -10,12 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Added the v19 `openWarp()` product opener plus `Warp` and `Timeline`
-  facade handles to the root and browser entrypoints.
+  facade handles to the package root only; the browser root remains outside
+  the v19 facade surface.
 - Moved graph-shaped, worldline-shaped, optic-shaped, witness-shaped, and
   diagnostic compatibility exports out of the package root into explicit
   `legacy`, `storage`, `advanced`, and `diagnostics` subpaths. The package root
-  and browser root now reject those nouns through the v19 public API boundary
-  audit.
+  now rejects those nouns through the v19 public API boundary audit.
 - Added visible-state scope helpers to the `diagnostics` subpath so
   materialized-state inspection has an explicit non-legacy import path.
 - Deprecated the entire graph-first legacy API. `legacy` remains migration-only
