@@ -52,16 +52,16 @@ describe('v19 Warp facade', () => {
   });
 
   it('rejects missing storage and blank identities', async () => {
-    expect(() => openWarp({
+    await expect(openWarp({
       // @ts-expect-error runtime validation accepts JavaScript callers.
       storage: null,
       writer: 'agent-1',
-    })).toThrow('openWarp requires storage');
+    })).rejects.toThrow('openWarp requires storage');
 
-    expect(() => openWarp({
+    await expect(openWarp({
       storage: new MemoryStorageAdapter(),
       writer: '   ',
-    })).toThrow('openWarp requires non-empty identity fields');
+    })).rejects.toThrow('openWarp requires non-empty identity fields');
 
     const warp = await openWarp({
       storage: new MemoryStorageAdapter(),

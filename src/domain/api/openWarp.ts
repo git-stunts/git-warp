@@ -12,11 +12,11 @@ export type OpenWarpOptions = {
   readonly writer: string;
 };
 
-export function openWarp(options: OpenWarpOptions): Promise<Warp> {
+export async function openWarp(options: OpenWarpOptions): Promise<Warp> {
   assertOpenWarpOptions(options);
   const { storage, writer } = options;
 
-  return Promise.resolve(new Warp({
+  return new Warp({
     writer,
     openTimeline: async (name) => createTimeline(
       await openWarpWorldline({
@@ -25,7 +25,7 @@ export function openWarp(options: OpenWarpOptions): Promise<Warp> {
         writerId: writer,
       }),
     ),
-  }));
+  });
 }
 
 function assertOpenWarpOptions(options: OpenWarpOptions | null | undefined): void {
