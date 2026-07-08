@@ -6,6 +6,7 @@ import {
   Timeline,
   Warp,
 } from '../../../index.ts';
+import { OPEN_WARP_IDENTITY_FAILURE } from '../../../src/domain/api/OpenWarpIdentityFailure.ts';
 import { MemoryStorageAdapter } from '../../../storage.ts';
 
 function readRepoSource(path: string): string {
@@ -77,6 +78,13 @@ describe('v19 Warp facade', () => {
     });
 
     await expect(warp.timeline('')).rejects.toThrow('openWarp requires non-empty identity fields');
+  });
+
+  it('names the openWarp identity failure payload once', () => {
+    expect(OPEN_WARP_IDENTITY_FAILURE).toEqual({
+      message: 'openWarp requires non-empty identity fields',
+      code: 'E_OPEN_WARP_IDENTITY',
+    });
   });
 
   it('keeps identity validation in the dedicated validator module', () => {

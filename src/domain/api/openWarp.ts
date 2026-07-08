@@ -5,6 +5,7 @@ import Warp from './Warp.ts';
 import { assertIdentity } from './assertIdentity.ts';
 import { createTimeline } from './TimelineRuntime.ts';
 import WarpError from '../errors/WarpError.ts';
+import { OPEN_WARP_IDENTITY_FAILURE } from './OpenWarpIdentityFailure.ts';
 
 export type WarpStorage = CorePersistence & Partial<RuntimeStorageCapabilityPort>;
 
@@ -38,8 +39,5 @@ function assertOpenWarpOptions(options: OpenWarpOptions | null | undefined): voi
   if (options.storage === null || options.storage === undefined) {
     throw new WarpError('openWarp requires storage', 'E_OPEN_WARP_STORAGE');
   }
-  assertIdentity(options.writer, 'writer', {
-    message: 'openWarp requires non-empty identity fields',
-    code: 'E_OPEN_WARP_IDENTITY',
-  });
+  assertIdentity(options.writer, 'writer', OPEN_WARP_IDENTITY_FAILURE);
 }
