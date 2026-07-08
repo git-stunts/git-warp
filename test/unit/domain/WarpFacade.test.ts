@@ -85,4 +85,21 @@ describe('v19 Warp facade', () => {
     expect(timelineSource).not.toContain('function assertTimelineIdentity');
     expect(validatorSource).toContain('export function assertIdentity');
   });
+
+  it('rejects invalid public facade constructor options with domain errors', () => {
+    expect(() => {
+      // @ts-expect-error runtime validation accepts JavaScript callers.
+      new Warp(null);
+    }).toThrow('Warp requires construction options');
+
+    expect(() => {
+      // @ts-expect-error runtime validation accepts JavaScript callers.
+      new Warp({ writer: 'agent-1' });
+    }).toThrow('Warp requires an openTimeline function');
+
+    expect(() => {
+      // @ts-expect-error runtime validation accepts JavaScript callers.
+      new Timeline(null);
+    }).toThrow('Timeline requires construction options');
+  });
 });

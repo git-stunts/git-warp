@@ -1,3 +1,4 @@
+import WarpError from '../errors/WarpError.ts';
 import type Timeline from './Timeline.ts';
 import { assertIdentity } from './assertIdentity.ts';
 
@@ -19,6 +20,7 @@ export default class Warp {
   readonly #writer: string;
 
   constructor(options: WarpConstructionOptions) {
+    assertWarpConstructionOptions(options);
     assertIdentity(options.writer, 'writer', {
       message: 'openWarp requires non-empty identity fields',
       code: 'E_OPEN_WARP_IDENTITY',
@@ -38,5 +40,14 @@ export default class Warp {
       code: 'E_OPEN_WARP_IDENTITY',
     });
     return await this.#openTimeline(name);
+  }
+}
+
+function assertWarpConstructionOptions(options: WarpConstructionOptions): void {
+  if (options === null || options === undefined) {
+    throw new WarpError('Warp requires construction options', 'E_WARP_CONSTRUCTION_OPTIONS');
+  }
+  if (typeof options.openTimeline !== 'function') {
+    throw new WarpError('Warp requires an openTimeline function', 'E_WARP_TIMELINE_OPENER');
   }
 }
