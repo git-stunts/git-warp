@@ -11,14 +11,7 @@ import { OPEN_WARP_IDENTITY_FAILURE } from '../../../src/domain/api/OpenWarpIden
 import { MemoryStorageAdapter } from '../../../storage.ts';
 
 function exportedNamesFor(path: string): ReadonlySet<string> {
-  const sourceText = readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
-  const sourceFile = ts.createSourceFile(
-    path,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
+  const sourceFile = sourceFileFor(path);
   const exportedNames = new Set<string>();
 
   for (const statement of sourceFile.statements) {
@@ -27,6 +20,28 @@ function exportedNamesFor(path: string): ReadonlySet<string> {
   }
 
   return exportedNames;
+}
+
+function allDeclaredNamesFor(path: string): ReadonlySet<string> {
+  const sourceFile = sourceFileFor(path);
+  const declaredNames = new Set<string>();
+
+  for (const statement of sourceFile.statements) {
+    collectDeclaredStatementName(statement, declaredNames);
+  }
+
+  return declaredNames;
+}
+
+function sourceFileFor(path: string): ts.SourceFile {
+  const sourceText = readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
+  return ts.createSourceFile(
+    path,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
 }
 
 function collectExportDeclarationNames(statement: ts.Statement, exportedNames: Set<string>): void {
@@ -39,6 +54,27 @@ function collectExportDeclarationNames(statement: ts.Statement, exportedNames: S
   }
   for (const element of exportClause.elements) {
     exportedNames.add(element.name.text);
+  }
+}
+
+function collectDeclaredStatementName(statement: ts.Statement, declaredNames: Set<string>): void {
+  if (ts.isVariableStatement(statement)) {
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name)) {
+        declaredNames.add(declaration.name.text);
+      }
+    }
+    return;
+  }
+
+  if (
+    (ts.isClassDeclaration(statement)
+      || ts.isFunctionDeclaration(statement)
+      || ts.isInterfaceDeclaration(statement)
+      || ts.isTypeAliasDeclaration(statement))
+    && statement.name !== undefined
+  ) {
+    declaredNames.add(statement.name.text);
   }
 }
 
@@ -147,12 +183,12 @@ describe('v19 Warp facade', () => {
   });
 
   it('keeps identity validation in the dedicated validator module', () => {
-    const warpExports = exportedNamesFor('src/domain/api/Warp.ts');
-    const timelineExports = exportedNamesFor('src/domain/api/Timeline.ts');
+    const warpNames = allDeclaredNamesFor('src/domain/api/Warp.ts');
+    const timelineNames = allDeclaredNamesFor('src/domain/api/Timeline.ts');
     const validatorExports = exportedNamesFor('src/domain/api/assertIdentity.ts');
 
-    expect(warpExports.has('assertNonEmpty')).toBe(false);
-    expect(timelineExports.has('assertTimelineIdentity')).toBe(false);
+    expect(warpNames.has('assertNonEmpty')).toBe(false);
+    expect(timelineNames.has('assertTimelineIdentity')).toBe(false);
     expect(validatorExports.has('assertIdentity')).toBe(true);
   });
 
