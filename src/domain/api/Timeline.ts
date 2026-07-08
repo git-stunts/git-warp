@@ -1,4 +1,4 @@
-import WarpError from '../errors/WarpError.ts';
+import { assertIdentity } from './assertIdentity.ts';
 
 type TimelineConstructionOptions = {
   readonly name: string;
@@ -17,8 +17,14 @@ export default class Timeline {
   readonly #writer: string;
 
   constructor(options: TimelineConstructionOptions) {
-    assertTimelineIdentity(options.name, 'name');
-    assertTimelineIdentity(options.writer, 'writer');
+    assertIdentity(options.name, 'name', {
+      message: 'Timeline requires non-empty identity fields',
+      code: 'E_TIMELINE_IDENTITY',
+    });
+    assertIdentity(options.writer, 'writer', {
+      message: 'Timeline requires non-empty identity fields',
+      code: 'E_TIMELINE_IDENTITY',
+    });
     this.#name = options.name;
     this.#writer = options.writer;
     Object.freeze(this);
@@ -30,15 +36,5 @@ export default class Timeline {
 
   get writer(): string {
     return this.#writer;
-  }
-}
-
-function assertTimelineIdentity(value: string | null | undefined, field: string): void {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new WarpError(
-      'Timeline requires non-empty identity fields',
-      'E_TIMELINE_IDENTITY',
-      { context: { field } },
-    );
   }
 }

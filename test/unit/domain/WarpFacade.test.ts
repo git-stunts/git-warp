@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,6 +7,10 @@ import {
   Warp,
 } from '../../../index.ts';
 import { MemoryStorageAdapter } from '../../../storage.ts';
+
+function readRepoSource(path: string): string {
+  return readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
+}
 
 describe('v19 Warp facade', () => {
   it('opens named timelines through root application nouns', async () => {
@@ -69,5 +74,15 @@ describe('v19 Warp facade', () => {
     });
 
     await expect(warp.timeline('')).rejects.toThrow('openWarp requires non-empty identity fields');
+  });
+
+  it('keeps identity validation in the dedicated validator module', () => {
+    const warpSource = readRepoSource('src/domain/api/Warp.ts');
+    const timelineSource = readRepoSource('src/domain/api/Timeline.ts');
+    const validatorSource = readRepoSource('src/domain/api/assertIdentity.ts');
+
+    expect(warpSource).not.toContain('export function assertNonEmpty');
+    expect(timelineSource).not.toContain('function assertTimelineIdentity');
+    expect(validatorSource).toContain('export function assertIdentity');
   });
 });
