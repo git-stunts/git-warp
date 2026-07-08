@@ -56,6 +56,12 @@ describe('v19 Warp facade', () => {
     expect('optic' in timeline).toBe(false);
   });
 
+  it('keeps worldline openers off the root export surface', async () => {
+    const rootModule = await import('../../../index.ts');
+
+    expect('openWarpWorldline' in rootModule).toBe(false);
+  });
+
   it('rejects missing storage and blank identities', async () => {
     await expect(openWarp({
       // @ts-expect-error runtime validation accepts JavaScript callers.
