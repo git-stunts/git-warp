@@ -8,5 +8,5 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },
-  "include": ["consumer.ts", "runtime-declarations.d.ts"]
+  "include": ["consumer.ts", "runtime-declarations.d.ts", "v19-consumer.ts"]
 }
