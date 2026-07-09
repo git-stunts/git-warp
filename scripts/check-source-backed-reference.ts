@@ -1,8 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import process from 'node:process';
-
 const OUTPUT_PATH = 'docs/topics/reference.md';
-
 class SourceText {
   readonly path: string;
   readonly lines: readonly string[];
@@ -11,23 +9,12 @@ class SourceText {
     this.path = path;
     this.lines = readFileSync(path, 'utf8').split('\n');
   }
-
   line(index: number): string { return this.lines[index] ?? ''; }
-
   ref(index: number): string { return `${this.path}#L${index + 1}`; }
 }
 
-class InventoryItem {
-  readonly name: string;
-  readonly detail: string;
-  readonly source: string;
-
-  constructor(name: string, detail: string, source: string) {
-    this.name = name;
-    this.detail = detail;
-    this.source = source;
-  }
-}
+type InventoryItem = { readonly name: string; readonly detail: string; readonly source: string };
+function inventoryItem(name: string, detail: string, source: string): InventoryItem { return Object.freeze({ name, detail, source }); }
 
 function captureObjectEntries(source: SourceText, field: string): readonly InventoryItem[] {
   const items: InventoryItem[] = [];
@@ -54,7 +41,7 @@ function captureObjectEntries(source: SourceText, field: string): readonly Inven
 
     const match = /^\s+"([^"]+)":\s+"([^"]+)"/.exec(line);
     if (match) {
-      items.push(new InventoryItem(match[1] ?? '', match[2] ?? '', source.ref(index)));
+      items.push(inventoryItem(match[1] ?? '', match[2] ?? '', source.ref(index)));
     }
   }
 
@@ -81,7 +68,7 @@ function captureExportEntries(source: SourceText, field: string): readonly Inven
     if (depth === 1) {
       const stringMatch = /^\s+"([^"]+)":\s+"([^"]+)"/.exec(line);
       if (stringMatch) {
-        items.push(new InventoryItem(stringMatch[1] ?? '', stringMatch[2] ?? '', source.ref(index)));
+        items.push(inventoryItem(stringMatch[1] ?? '', stringMatch[2] ?? '', source.ref(index)));
       }
 
       const objectMatch = /^\s+"([^"]+)":\s+\{$/.exec(line);
@@ -99,7 +86,7 @@ function captureExportEntries(source: SourceText, field: string): readonly Inven
           nestedDepth -= (nestedLine.match(/}/g) ?? []).length;
           nestedIndex += 1;
         }
-        items.push(new InventoryItem(objectMatch[1] ?? '', details.join('; '), source.ref(index)));
+        items.push(inventoryItem(objectMatch[1] ?? '', details.join('; '), source.ref(index)));
         index = nestedIndex - 1;
         continue;
       }
@@ -141,7 +128,7 @@ function collectLineNames(line: string): readonly string[] {
     .sort((left, right) => left.localeCompare(right));
 }
 
-function captureRootExports(indexSource: SourceText, kind: 'values' | 'types'): readonly InventoryItem[] {
+function captureExports(indexSource: SourceText, kind: 'values' | 'types'): readonly InventoryItem[] {
   const items: InventoryItem[] = [];
   const prefix = kind === 'types' ? 'export type {' : 'export {';
 
@@ -155,7 +142,7 @@ function captureRootExports(indexSource: SourceText, kind: 'values' | 'types'): 
     while (exportIndex < indexSource.lines.length) {
       const exportLine = indexSource.line(exportIndex);
       for (const name of collectLineNames(exportLine)) {
-        items.push(new InventoryItem(name, kind, indexSource.ref(exportIndex)));
+        items.push(inventoryItem(name, kind, indexSource.ref(exportIndex)));
       }
       if (exportLine.includes('};') || exportLine.includes("} from ")) {
         break;
@@ -174,7 +161,7 @@ function captureReExportModules(indexSource: SourceText): readonly InventoryItem
   for (let index = 0; index < indexSource.lines.length; index += 1) {
     const match = /^export \* from '([^']+)';$/.exec(indexSource.line(index));
     if (match) {
-      items.push(new InventoryItem(match[1] ?? '', 'export *', indexSource.ref(index)));
+      items.push(inventoryItem(match[1] ?? '', 'export *', indexSource.ref(index)));
     }
   }
   return items;
@@ -185,7 +172,7 @@ function captureCommands(registrySource: SourceText): readonly InventoryItem[] {
   for (let index = 0; index < registrySource.lines.length; index += 1) {
     const match = /^\s+\['([^']+)',\s*([A-Za-z0-9_]+)\],$/.exec(registrySource.line(index));
     if (match) {
-      items.push(new InventoryItem(match[1] ?? '', match[2] ?? '', registrySource.ref(index)));
+      items.push(inventoryItem(match[1] ?? '', match[2] ?? '', registrySource.ref(index)));
     }
   }
   return items;
@@ -196,7 +183,7 @@ function captureErrorClasses(errorSource: SourceText): readonly InventoryItem[] 
   for (let index = 0; index < errorSource.lines.length; index += 1) {
     const match = /^export \{ default as ([A-Za-z0-9_]+) \} from '([^']+)';$/.exec(errorSource.line(index));
     if (match) {
-      items.push(new InventoryItem(match[1] ?? '', match[2] ?? '', errorSource.ref(index)));
+      items.push(inventoryItem(match[1] ?? '', match[2] ?? '', errorSource.ref(index)));
     }
   }
   return items;
@@ -221,20 +208,39 @@ function requireLineRef(source: SourceText, needle: string): string {
   throw new Error(`${needle} not found in ${source.path}`);
 }
 
+function exportSurface(title: string, source: SourceText, contract: string): readonly string[] {
+  const modules = captureReExportModules(source);
+  const valueExports = captureExports(source, 'values');
+  const typeExports = captureExports(source, 'types');
+  return [
+    `## ${title}`,
+    '',
+    contract,
+    '',
+    ...(modules.length === 0 ? [] : ['### Export modules', '', table(['Module', 'Kind', 'Source'], modules.map((item) => [`\`${item.name}\``, item.detail, `\`${item.source}\``])), '']),
+    '### Value exports',
+    '',
+    `Source: \`${source.path}\`. Count: ${valueExports.length}.`,
+    '',
+    codeList(valueExports),
+    '',
+    '### Type exports',
+    '',
+    `Source: \`${source.path}\`. Count: ${typeExports.length}.`,
+    '',
+    codeList(typeExports),
+  ];
+}
+
 function generate(): string {
   const packageSource = new SourceText('package.json');
   const jsrSource = new SourceText('jsr.json');
-  const indexSource = new SourceText('index.ts');
   const registrySource = new SourceText('bin/cli/commands/registry.ts');
   const cliSource = new SourceText('bin/warp-graph.ts');
   const errorSource = new SourceText('src/domain/errors/index.ts');
-
   const packageBins = captureObjectEntries(packageSource, 'bin');
   const packageExports = captureExportEntries(packageSource, 'exports').filter((item) => item.name.startsWith('.'));
   const jsrExports = captureExportEntries(jsrSource, 'exports').filter((item) => item.name.startsWith('.'));
-  const reExports = captureReExportModules(indexSource);
-  const valueExports = captureRootExports(indexSource, 'values');
-  const typeExports = captureRootExports(indexSource, 'types');
   const commands = captureCommands(registrySource);
   const errors = captureErrorClasses(errorSource);
 
@@ -253,21 +259,15 @@ function generate(): string {
       ...jsrExports.map((item) => ['JSR export', `\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``]),
     ]),
     '',
-    '## Root API export modules',
+    ...exportSurface('Root API export surface', new SourceText('index.ts'), 'First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.'),
     '',
-    table(['Module', 'Kind', 'Source'], reExports.map((item) => [`\`${item.name}\``, item.detail, `\`${item.source}\``])),
+    ...exportSurface('Storage export surface', new SourceText('storage.ts'), 'Supported persistence and crypto adapters for first-use applications.'),
     '',
-    '## Root API value exports',
+    ...exportSurface('Advanced export surface', new SourceText('advanced.ts'), 'Formal WARP and Continuum concepts for expert use; not first-use root API.'),
     '',
-    `Source: \`index.ts\`. Count: ${valueExports.length}.`,
+    ...exportSurface('Diagnostics export surface', new SourceText('diagnostics.ts'), 'Operator, inspection, comparison, and replay tools.'),
     '',
-    codeList(valueExports),
-    '',
-    '## Root API type exports',
-    '',
-    `Source: \`index.ts\`. Count: ${typeExports.length}.`,
-    '',
-    codeList(typeExports),
+    ...exportSurface('Legacy export surface', new SourceText('legacy.ts'), 'Deprecated compatibility-only imports for migration paydown.'),
     '',
     '## CLI command registry',
     '',
