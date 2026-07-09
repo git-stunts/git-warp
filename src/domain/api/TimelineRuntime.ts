@@ -1,6 +1,8 @@
 import WarpError from '../errors/WarpError.ts';
 import type WarpWorldline from '../WarpWorldline.ts';
+import { applyIntentToPatch } from './IntentRuntime.ts';
 import Timeline from './Timeline.ts';
+import WriteReceipt from './WriteReceipt.ts';
 
 const timelineRuntimes = new WeakMap<Timeline, WarpWorldline>();
 
@@ -8,6 +10,18 @@ export function createTimeline(runtime: WarpWorldline): Timeline {
   const timeline = new Timeline({
     name: runtime.worldlineName,
     writer: runtime.writerId,
+    writeIntent: async (intent) => {
+      const patchSha = await runtime.commit((patch) => {
+        applyIntentToPatch(intent, patch);
+      });
+      return new WriteReceipt({
+        timeline: runtime.worldlineName,
+        writer: runtime.writerId,
+        intent,
+        outcome: 'accepted',
+        patchSha,
+      });
+    },
   });
   timelineRuntimes.set(timeline, runtime);
   return timeline;

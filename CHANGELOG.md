@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added root `intent` builders, the runtime-backed `Intent` noun,
+  `Timeline.write(intent)`, and `WriteReceipt` results with the public
+  `ReceiptOutcome` axis: `accepted`, `obstructed`, `conflicted`,
+  `underdetermined`, and `rejected`.
+
 ### Changed
 
 - Added the v19 `openWarp()` product opener plus `Warp` and `Timeline`

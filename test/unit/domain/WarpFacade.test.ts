@@ -3,11 +3,13 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
+  intent,
   openWarp,
   Timeline,
   Warp,
 } from '../../../index.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../../../src/domain/api/OpenWarpIdentityFailure.ts';
+import { requireTimelineRuntime } from '../../../src/domain/api/TimelineRuntime.ts';
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
 import { MemoryStorageAdapter } from '../../../storage.ts';
 
@@ -212,6 +214,44 @@ describe('v19 Warp facade', () => {
       name: 'events',
       writer: 'x'.repeat(MAX_WRITER_ID_LENGTH + 1),
     })).toThrow('Invalid writer ID: exceeds maximum length');
+  });
+
+  it('writes public intents and returns accepted write receipts', async () => {
+    const warp = await openWarp({
+      storage: new MemoryStorageAdapter(),
+      writer: 'agent-1',
+    });
+    const timeline = await warp.timeline('events');
+
+    const nodeReceipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
+    const propertyReceipt = await timeline.write(intent.property.set({
+      subject: 'user:alice',
+      key: 'role',
+      value: 'admin',
+    }));
+
+    expect(nodeReceipt.outcome).toBe('accepted');
+    expect(nodeReceipt.intent.kind).toBe('node.add');
+    expect(typeof nodeReceipt.patchSha).toBe('string');
+    expect(propertyReceipt.outcome).toBe('accepted');
+    expect(propertyReceipt.intent.kind).toBe('property.set');
+    expect(propertyReceipt.timeline).toBe('events');
+    expect(propertyReceipt.writer).toBe('agent-1');
+
+    const result = await requireTimelineRuntime(timeline)
+      .live()
+      .query()
+      .match('user:*')
+      .select(['id', 'props'])
+      .run();
+
+    expect('nodes' in result).toBe(true);
+    if (!('nodes' in result)) {
+      return;
+    }
+    expect(result.nodes).toEqual([
+      { id: 'user:alice', props: { role: 'admin' } },
+    ]);
   });
 
   it('names the openWarp identity failure payload once', () => {

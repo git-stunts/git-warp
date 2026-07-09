@@ -18,7 +18,20 @@ installDefaultRuntimeHostNodePorts();
 export { openWarp } from './src/domain/api/openWarp.ts';
 export { default as Warp } from './src/domain/api/Warp.ts';
 export { default as Timeline } from './src/domain/api/Timeline.ts';
+export { intent } from './src/domain/api/IntentBuilders.ts';
+export { default as Intent } from './src/domain/api/Intent.ts';
+export { default as WriteReceipt } from './src/domain/api/WriteReceipt.ts';
 export type { OpenWarpOptions, WarpStorage } from './src/domain/api/openWarp.ts';
+export type {
+  EdgeIntentFields,
+  EdgePropertyIntentFields,
+  IntentDescriptor,
+  IntentKind,
+  NodeIntentFields,
+  PropertyIntentFields,
+} from './src/domain/api/Intent.ts';
+export type { IntentBuilders } from './src/domain/api/IntentBuilders.ts';
+export type { ReceiptOutcome, WriteReceiptOptions } from './src/domain/api/WriteReceipt.ts';
 
 export * from './src/domain/memory/index.ts';
 
