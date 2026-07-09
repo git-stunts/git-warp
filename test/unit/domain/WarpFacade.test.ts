@@ -16,6 +16,44 @@ import { requireTimelineRuntime } from '../../../src/domain/api/TimelineRuntime.
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
 import { MemoryStorageAdapter } from '../../../storage.ts';
 
+const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([
+  'openWarpGraph',
+  'openWarpWorldline',
+  'WarpGraph',
+  'WarpWorldline',
+  'WarpWorldlineOpticBasis',
+  'ProjectionHandle',
+  'WorldlineOptic',
+  'Observer',
+  'Optic',
+  'Patch',
+  'PatchBuilder',
+  'PatchCommitter',
+  'GitWarpBraidHologram',
+  'GitWarpBraidHologramFields',
+  'GitWarpBraidHologramMember',
+  'GitWarpBraidHologramMemberFields',
+  'GitWarpSuffixTransformHologram',
+  'GitWarpSuffixTransformHologramFields',
+  'GitWarpTickHologram',
+  'GitWarpTickHologramFields',
+]);
+
+const FORBIDDEN_BROWSER_V19_EXPORTS = Object.freeze([
+  'openWarp',
+  'Warp',
+  'Timeline',
+  'intent',
+  'Intent',
+  'reading',
+  'Reading',
+  'ReadReceipt',
+  'ReadingResult',
+  'WriteReceipt',
+  'OpenWarpOptions',
+  'WarpStorage',
+]);
+
 function exportedNamesFor(path: string): ReadonlySet<string> {
   const sourceFile = sourceFileFor(path);
   const exportedNames = new Set<string>();
@@ -134,11 +172,17 @@ describe('v19 Warp facade', () => {
   it('keeps the v19 facade off the browser root', () => {
     const browserExports = exportedNamesFor('browser.ts');
 
-    expect(browserExports.has('openWarp')).toBe(false);
-    expect(browserExports.has('Warp')).toBe(false);
-    expect(browserExports.has('Timeline')).toBe(false);
-    expect(browserExports.has('OpenWarpOptions')).toBe(false);
-    expect(browserExports.has('WarpStorage')).toBe(false);
+    for (const name of FORBIDDEN_BROWSER_V19_EXPORTS) {
+      expect(browserExports.has(name)).toBe(false);
+    }
+  });
+
+  it('keeps substrate graph, worldline, patch, optic, and hologram names off the root', () => {
+    const rootExports = exportedNamesFor('index.ts');
+
+    for (const name of FORBIDDEN_ROOT_SUBSTRATE_EXPORTS) {
+      expect(rootExports.has(name)).toBe(false);
+    }
   });
 
   it('keeps internal history vocabulary off the public facade objects', async () => {
