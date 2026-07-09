@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest';
 import {
   intent,
   openWarp,
+  reading,
+  ReadReceipt,
+  ReadingResult,
   Timeline,
   Warp,
 } from '../../../index.ts';
@@ -252,6 +255,42 @@ describe('v19 Warp facade', () => {
     expect(result.nodes).toEqual([
       { id: 'user:alice', props: { role: 'admin' } },
     ]);
+  });
+
+  it('reads public readings and returns resolved read receipts', async () => {
+    const warp = await openWarp({
+      storage: new MemoryStorageAdapter(),
+      writer: 'agent-1',
+    });
+    const timeline = await warp.timeline('events');
+
+    await timeline.write(intent.node.add({ subject: 'user:alice' }));
+    await timeline.write(intent.property.set({
+      subject: 'user:alice',
+      key: 'role',
+      value: 'admin',
+    }));
+
+    const propertyResult = await timeline.read(reading.property({
+      subject: 'user:alice',
+      key: 'role',
+    }));
+    const existsResult = await timeline.read(reading.node.exists({
+      subject: 'user:alice',
+    }));
+
+    expect(propertyResult).toBeInstanceOf(ReadingResult);
+    expect(propertyResult.receipt).toBeInstanceOf(ReadReceipt);
+    expect(propertyResult.value).toBe('admin');
+    expect(propertyResult.receipt.outcome).toBe('resolved');
+    expect(propertyResult.receipt.reading.kind).toBe('property.get');
+    expect(propertyResult.receipt.timeline).toBe('events');
+    expect(propertyResult.receipt.writer).toBe('agent-1');
+
+    expect(existsResult).toBeInstanceOf(ReadingResult);
+    expect(existsResult.value).toBe(true);
+    expect(existsResult.receipt.outcome).toBe('resolved');
+    expect(existsResult.receipt.reading.kind).toBe('node.exists');
   });
 
   it('names the openWarp identity failure payload once', () => {

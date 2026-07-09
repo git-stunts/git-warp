@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Timeline.write(intent)`, and `WriteReceipt` results with the public
   `ReceiptOutcome` axis: `accepted`, `obstructed`, `conflicted`,
   `underdetermined`, and `rejected`.
+- Added root `reading` builders, the runtime-backed `Reading` noun,
+  `Timeline.read(reading)`, and receipt-bearing `ReadingResult` values for
+  first-use property and node-existence reads.
 
 ### Changed
 

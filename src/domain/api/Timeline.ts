@@ -1,14 +1,18 @@
 import WarpError from '../errors/WarpError.ts';
 import { assertTimelineNameIdentity, assertWriterIdentity } from './assertIdentity.ts';
 import Intent from './Intent.ts';
+import Reading from './Reading.ts';
+import type ReadingResult from './ReadingResult.ts';
 import type WriteReceipt from './WriteReceipt.ts';
 
 type TimelineConstructionOptions = {
   readonly name: string;
   readonly writer: string;
+  readonly readReading?: ReadReading;
   readonly writeIntent?: WriteIntent;
 };
 
+type ReadReading = (reading: Reading) => Promise<ReadingResult>;
 type WriteIntent = (intent: Intent) => Promise<WriteReceipt>;
 
 /**
@@ -20,6 +24,7 @@ type WriteIntent = (intent: Intent) => Promise<WriteReceipt>;
  */
 export default class Timeline {
   readonly #name: string;
+  readonly #readReading: ReadReading | null;
   readonly #writeIntent: WriteIntent | null;
   readonly #writer: string;
 
@@ -35,6 +40,7 @@ export default class Timeline {
     });
     this.#name = options.name;
     this.#writer = options.writer;
+    this.#readReading = options.readReading ?? null;
     this.#writeIntent = options.writeIntent ?? null;
     Object.freeze(this);
   }
@@ -45,6 +51,16 @@ export default class Timeline {
 
   get writer(): string {
     return this.#writer;
+  }
+
+  async read(reading: Reading): Promise<ReadingResult> {
+    if (!(reading instanceof Reading)) {
+      throw new WarpError('Timeline.read requires a Reading', 'E_TIMELINE_READ_READING');
+    }
+    if (this.#readReading === null) {
+      throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
+    }
+    return await this.#readReading(reading);
   }
 
   async write(intent: Intent): Promise<WriteReceipt> {
@@ -65,7 +81,18 @@ function assertTimelineConstructionOptions(options: TimelineConstructionOptions)
       'E_TIMELINE_CONSTRUCTION_OPTIONS',
     );
   }
-  if (options.writeIntent !== undefined && typeof options.writeIntent !== 'function') {
+  assertReadReading(options.readReading);
+  assertWriteIntent(options.writeIntent);
+}
+
+function assertReadReading(readReading: ReadReading | undefined): void {
+  if (readReading !== undefined && typeof readReading !== 'function') {
+    throw new WarpError('Timeline requires a readReading function when provided', 'E_TIMELINE_READER');
+  }
+}
+
+function assertWriteIntent(writeIntent: WriteIntent | undefined): void {
+  if (writeIntent !== undefined && typeof writeIntent !== 'function') {
     throw new WarpError('Timeline requires a writeIntent function when provided', 'E_TIMELINE_WRITER');
   }
 }

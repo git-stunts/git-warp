@@ -1,6 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
 import type WarpWorldline from '../WarpWorldline.ts';
 import { applyIntentToPatch } from './IntentRuntime.ts';
+import { executeReading } from './ReadingRuntime.ts';
 import Timeline from './Timeline.ts';
 import WriteReceipt from './WriteReceipt.ts';
 
@@ -10,6 +11,7 @@ export function createTimeline(runtime: WarpWorldline): Timeline {
   const timeline = new Timeline({
     name: runtime.worldlineName,
     writer: runtime.writerId,
+    readReading: (reading) => executeReading(runtime, reading),
     writeIntent: async (intent) => {
       const patchSha = await runtime.commit((patch) => {
         applyIntentToPatch(intent, patch);
