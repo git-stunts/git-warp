@@ -3,7 +3,10 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
+  DraftTimeline,
   intent,
+  JoinReceipt,
+  JoinResult,
   openWarp,
   reading,
   ReadReceipt,
@@ -335,6 +338,57 @@ describe('v19 Warp facade', () => {
     expect(existsResult.value).toBe(true);
     expect(existsResult.receipt.outcome).toBe('resolved');
     expect(existsResult.receipt.reading.kind).toBe('node.exists');
+  });
+
+  it('drafts speculative writes, previews joins, and joins with receipts', async () => {
+    const warp = await openWarp({
+      storage: new MemoryStorageAdapter(),
+      writer: 'agent-1',
+    });
+    const timeline = await warp.timeline('events');
+
+    await timeline.write(intent.node.add({ subject: 'user:alice' }));
+    const draft = await timeline.draft('try-admin-role');
+
+    const draftWrite = await draft.write(intent.property.set({
+      subject: 'user:alice',
+      key: 'role',
+      value: 'admin',
+    }));
+    const beforeJoin = await timeline.read(reading.property({
+      subject: 'user:alice',
+      key: 'role',
+    }));
+    const preview = await timeline.previewJoin(draft, {
+      policy: 'deterministic',
+    });
+    const afterPreview = await timeline.read(reading.property({
+      subject: 'user:alice',
+      key: 'role',
+    }));
+    const joined = await timeline.join(draft);
+    const afterJoin = await timeline.read(reading.property({
+      subject: 'user:alice',
+      key: 'role',
+    }));
+
+    expect(draft).toBeInstanceOf(DraftTimeline);
+    expect(draft.name).toBe('try-admin-role');
+    expect(draft.timeline).toBe('events');
+    expect(draft.writer).toBe('agent-1');
+    expect(draftWrite.outcome).toBe('accepted');
+    expect(beforeJoin.value).toBeNull();
+    expect(preview).toBeInstanceOf(JoinResult);
+    expect(preview.receipt).toBeInstanceOf(JoinReceipt);
+    expect(preview.receipt.mode).toBe('preview');
+    expect(preview.receipt.outcome).toBe('accepted');
+    expect(preview.receipt.patchShas).toEqual([draftWrite.patchSha]);
+    expect(afterPreview.value).toBeNull();
+    expect(joined).toBeInstanceOf(JoinResult);
+    expect(joined.receipt.mode).toBe('join');
+    expect(joined.receipt.outcome).toBe('accepted');
+    expect(joined.receipt.patchShas).toHaveLength(1);
+    expect(afterJoin.value).toBe('admin');
   });
 
   it('names the openWarp identity failure payload once', () => {

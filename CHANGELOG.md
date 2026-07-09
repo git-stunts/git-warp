@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added root `reading` builders, the runtime-backed `Reading` noun,
   `Timeline.read(reading)`, and receipt-bearing `ReadingResult` values for
   first-use property and node-existence reads.
+- Added `Timeline.draft(name)`, draft writes, `Timeline.previewJoin(draft)`,
+  and `Timeline.join(draft)` with join receipts for first-use speculative
+  workflows.
 
 ### Changed
 

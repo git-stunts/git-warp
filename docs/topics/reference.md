@@ -34,116 +34,125 @@ First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.
 
 | Module | Kind | Source |
 | --- | --- | --- |
-| `./src/domain/memory/index.ts` | export * | `index.ts#L49` |
+| `./src/domain/memory/index.ts` | export * | `index.ts#L55` |
 
 ### Value exports
 
-Source: `index.ts`. Count: 70.
+Source: `index.ts`. Count: 73.
 
 ```text
-AlfredOperationPolicyAdapter @ index.ts#L62
-AuditError @ index.ts#L65
-BunHttpAdapter @ index.ts#L96
-canonicalEmissionJson @ index.ts#L112
-canonicalObservationJson @ index.ts#L118
-CasContentEncryptionPolicy @ index.ts#L56
-checkAborted @ index.ts#L98
-ChunkEffectSink @ index.ts#L128
-ConsoleEffectSink @ index.ts#L127
-ConsoleLogger @ index.ts#L90
-ContinuumArtifactAuthorityError @ index.ts#L66
-createDeliveryObservation @ index.ts#L117
-createEffectEmission @ index.ts#L111
-createExternalizationPolicy @ index.ts#L121
-createTickReceipt @ index.ts#L102
-createTimeoutSignal @ index.ts#L98
-CryptoPort @ index.ts#L92
-DELIVERY_MODES @ index.ts#L113
-DELIVERY_OUTCOMES @ index.ts#L114
-DenoHttpAdapter @ index.ts#L97
-EffectPipeline @ index.ts#L109
-EffectSinkPort @ index.ts#L107
-EncryptionError @ index.ts#L67
-ForkError @ index.ts#L68
-HealthCheckService @ index.ts#L87
-HealthStatus @ index.ts#L87
-HttpServerPort @ index.ts#L93
-IndexError @ index.ts#L69
-INSPECT_LENS @ index.ts#L124
-intent @ index.ts#L21
-Intent @ index.ts#L22
-LIVE_LENS @ index.ts#L122
-LoggerPort @ index.ts#L88
-LogLevel @ index.ts#L90
-MemoryBudgetError @ index.ts#L70
-MultiplexSink @ index.ts#L108
-NodeCryptoAdapter @ index.ts#L94
-NoOpEffectSink @ index.ts#L126
-NoOpLogger @ index.ts#L89
-NoopOperationPolicyAdapter @ index.ts#L63
+AlfredOperationPolicyAdapter @ index.ts#L68
+AuditError @ index.ts#L71
+BunHttpAdapter @ index.ts#L102
+canonicalEmissionJson @ index.ts#L118
+canonicalObservationJson @ index.ts#L124
+CasContentEncryptionPolicy @ index.ts#L62
+checkAborted @ index.ts#L104
+ChunkEffectSink @ index.ts#L134
+ConsoleEffectSink @ index.ts#L133
+ConsoleLogger @ index.ts#L96
+ContinuumArtifactAuthorityError @ index.ts#L72
+createDeliveryObservation @ index.ts#L123
+createEffectEmission @ index.ts#L117
+createExternalizationPolicy @ index.ts#L127
+createTickReceipt @ index.ts#L108
+createTimeoutSignal @ index.ts#L104
+CryptoPort @ index.ts#L98
+DELIVERY_MODES @ index.ts#L119
+DELIVERY_OUTCOMES @ index.ts#L120
+DenoHttpAdapter @ index.ts#L103
+DraftTimeline @ index.ts#L19
+EffectPipeline @ index.ts#L115
+EffectSinkPort @ index.ts#L113
+EncryptionError @ index.ts#L73
+ForkError @ index.ts#L74
+HealthCheckService @ index.ts#L93
+HealthStatus @ index.ts#L93
+HttpServerPort @ index.ts#L99
+IndexError @ index.ts#L75
+INSPECT_LENS @ index.ts#L130
+intent @ index.ts#L22
+Intent @ index.ts#L23
+JoinReceipt @ index.ts#L24
+JoinResult @ index.ts#L25
+LIVE_LENS @ index.ts#L128
+LoggerPort @ index.ts#L94
+LogLevel @ index.ts#L96
+MemoryBudgetError @ index.ts#L76
+MultiplexSink @ index.ts#L114
+NodeCryptoAdapter @ index.ts#L100
+NoOpEffectSink @ index.ts#L132
+NoOpLogger @ index.ts#L95
+NoopOperationPolicyAdapter @ index.ts#L69
 openWarp @ index.ts#L18
-OperationAbortedError @ index.ts#L71
-OperationPolicyExhaustedError @ index.ts#L72
-OperationPolicyPort @ index.ts#L51
-OperationPolicyTimeoutError @ index.ts#L73
-PatchError @ index.ts#L74
-QueryError @ index.ts#L75
-reading @ index.ts#L23
-Reading @ index.ts#L24
-ReadingResult @ index.ts#L25
-ReadReceipt @ index.ts#L26
-REPLAY_LENS @ index.ts#L123
-SchemaUnsupportedError @ index.ts#L76
-ShardCorruptionError @ index.ts#L77
-ShardLoadError @ index.ts#L78
-ShardValidationError @ index.ts#L79
-StorageError @ index.ts#L80
-StrandError @ index.ts#L81
-SyncError @ index.ts#L82
-SyncSecret @ index.ts#L99
-TICK_RECEIPT_OP_TYPES @ index.ts#L104
-TICK_RECEIPT_RESULT_TYPES @ index.ts#L105
-tickReceiptCanonicalJson @ index.ts#L103
-Timeline @ index.ts#L20
-TraversalError @ index.ts#L83
-Warp @ index.ts#L19
-WebCryptoAdapter @ index.ts#L95
-WormholeError @ index.ts#L84
-WriteReceipt @ index.ts#L27
-WriterError @ index.ts#L91
+OperationAbortedError @ index.ts#L77
+OperationPolicyExhaustedError @ index.ts#L78
+OperationPolicyPort @ index.ts#L57
+OperationPolicyTimeoutError @ index.ts#L79
+PatchError @ index.ts#L80
+QueryError @ index.ts#L81
+reading @ index.ts#L26
+Reading @ index.ts#L27
+ReadingResult @ index.ts#L28
+ReadReceipt @ index.ts#L29
+REPLAY_LENS @ index.ts#L129
+SchemaUnsupportedError @ index.ts#L82
+ShardCorruptionError @ index.ts#L83
+ShardLoadError @ index.ts#L84
+ShardValidationError @ index.ts#L85
+StorageError @ index.ts#L86
+StrandError @ index.ts#L87
+SyncError @ index.ts#L88
+SyncSecret @ index.ts#L105
+TICK_RECEIPT_OP_TYPES @ index.ts#L110
+TICK_RECEIPT_RESULT_TYPES @ index.ts#L111
+tickReceiptCanonicalJson @ index.ts#L109
+Timeline @ index.ts#L21
+TraversalError @ index.ts#L89
+Warp @ index.ts#L20
+WebCryptoAdapter @ index.ts#L101
+WormholeError @ index.ts#L90
+WriteReceipt @ index.ts#L30
+WriterError @ index.ts#L97
 ```
 
 ### Type exports
 
-Source: `index.ts`. Count: 26.
+Source: `index.ts`. Count: 32.
 
 ```text
-CasContentEncryptionDiagnostics @ index.ts#L58
-CasContentEncryptionScheme @ index.ts#L59
-CasResolvedVaultKeyOptions @ index.ts#L60
-EdgeIntentFields @ index.ts#L30
-EdgePropertyIntentFields @ index.ts#L31
-IntentBuilders @ index.ts#L37
-IntentDescriptor @ index.ts#L32
-IntentKind @ index.ts#L33
-NodeIntentFields @ index.ts#L34
-NodeReadingFields @ index.ts#L39
-OpenWarpOptions @ index.ts#L28
-OperationPolicyExecuteOptions @ index.ts#L53
-OperationRetryDecision @ index.ts#L54
-PropertyIntentFields @ index.ts#L35
-PropertyReadingFields @ index.ts#L40
-ReadingBuilders @ index.ts#L44
-ReadingDescriptor @ index.ts#L41
-ReadingKind @ index.ts#L42
-ReadingResultOptions @ index.ts#L45
-ReadingValue @ index.ts#L45
-ReadReceiptOptions @ index.ts#L46
-ReadReceiptOutcome @ index.ts#L46
-ReceiptOutcome @ index.ts#L47
-SyncRateLimitConfig @ index.ts#L100
-WarpStorage @ index.ts#L28
-WriteReceiptOptions @ index.ts#L47
+CasContentEncryptionDiagnostics @ index.ts#L64
+CasContentEncryptionScheme @ index.ts#L65
+CasResolvedVaultKeyOptions @ index.ts#L66
+EdgeIntentFields @ index.ts#L33
+EdgePropertyIntentFields @ index.ts#L34
+IntentBuilders @ index.ts#L40
+IntentDescriptor @ index.ts#L35
+IntentKind @ index.ts#L36
+JoinMode @ index.ts#L41
+JoinOptions @ index.ts#L43
+JoinPolicy @ index.ts#L43
+JoinReceiptOptions @ index.ts#L41
+JoinReceiptOutcome @ index.ts#L41
+JoinResultOptions @ index.ts#L42
+NodeIntentFields @ index.ts#L37
+NodeReadingFields @ index.ts#L45
+OpenWarpOptions @ index.ts#L31
+OperationPolicyExecuteOptions @ index.ts#L59
+OperationRetryDecision @ index.ts#L60
+PropertyIntentFields @ index.ts#L38
+PropertyReadingFields @ index.ts#L46
+ReadingBuilders @ index.ts#L50
+ReadingDescriptor @ index.ts#L47
+ReadingKind @ index.ts#L48
+ReadingResultOptions @ index.ts#L51
+ReadingValue @ index.ts#L51
+ReadReceiptOptions @ index.ts#L52
+ReadReceiptOutcome @ index.ts#L52
+ReceiptOutcome @ index.ts#L53
+SyncRateLimitConfig @ index.ts#L106
+WarpStorage @ index.ts#L31
+WriteReceiptOptions @ index.ts#L53
 ```
 
 ## Storage export surface

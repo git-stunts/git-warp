@@ -296,7 +296,7 @@ Strand          -> speculative lane
 Braid           -> deterministic lane composition
 ```
 
-The draft/join slice should make public speculative work read like this:
+Public speculative work reads like this:
 
 ```typescript
 const draft = await timeline.draft('try-admin-role');

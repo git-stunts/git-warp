@@ -158,7 +158,7 @@ const role = await coordinate
   .read();
 ```
 
-Target public shape:
+After:
 
 ```typescript
 import { reading } from '@git-stunts/git-warp';
@@ -239,7 +239,7 @@ if (preview.receipt.outcome === 'accepted') {
 ```
 
 `Strand` and `Braid` remain formal WARP terms. Public users should see drafts
-and joins first once the draft/join facade lands.
+and joins first.
 
 ## Symbol Disposition Table
 
