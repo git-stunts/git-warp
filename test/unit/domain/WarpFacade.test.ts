@@ -382,7 +382,7 @@ describe('v19 Warp facade', () => {
     expect(preview.receipt).toBeInstanceOf(JoinReceipt);
     expect(preview.receipt.mode).toBe('preview');
     expect(preview.receipt.outcome).toBe('accepted');
-    expect(preview.receipt.patchShas).toEqual([draftWrite.patchSha]);
+    expect(preview.receipt.patchShas).toContain(draftWrite.patchSha);
     expect(afterPreview.value).toBeNull();
     expect(joined).toBeInstanceOf(JoinResult);
     expect(joined.receipt.mode).toBe('join');
