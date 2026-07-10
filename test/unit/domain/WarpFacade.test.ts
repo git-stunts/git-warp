@@ -53,6 +53,9 @@ const FORBIDDEN_BROWSER_V19_EXPORTS = Object.freeze([
   'ReadReceipt',
   'ReadingResult',
   'WriteReceipt',
+  'DraftTimeline',
+  'JoinReceipt',
+  'JoinResult',
   'OpenWarpOptions',
   'WarpStorage',
 ]);
