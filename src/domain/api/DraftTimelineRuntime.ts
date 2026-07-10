@@ -12,6 +12,8 @@ type DraftTimelineState = {
   readonly runtime: WarpWorldline;
   readonly draftPatchShas: string[];
   readonly intents: Intent[];
+  readonly joinPatchShas: string[];
+  joinFailed: boolean;
   joined: boolean;
 };
 
@@ -53,7 +55,14 @@ export async function createDraftTimeline(
       });
     },
   });
-  draftStates.set(draft, { runtime, draftPatchShas, intents, joined: false });
+  draftStates.set(draft, {
+    runtime,
+    draftPatchShas,
+    intents,
+    joinPatchShas: [],
+    joinFailed: false,
+    joined: false,
+  });
   return draft;
 }
 
@@ -84,11 +93,23 @@ export async function joinDraftTimeline(
   if (state.joined) {
     return rejectedJoin(runtime, draft, 'Draft has already joined');
   }
+  if (state.joinFailed) {
+    return rejectedJoin(
+      runtime,
+      draft,
+      'Draft join already has a failed commit attempt',
+      state.joinPatchShas,
+    );
+  }
   if (state.intents.length === 0) {
     return rejectedJoin(runtime, draft, 'Draft has no public intents to join');
   }
 
   const patchShas = await commitDraftIntents(runtime, state);
+  if (patchShas.length !== state.intents.length) {
+    state.joinFailed = true;
+    return rejectedJoin(runtime, draft, 'Draft join failed while committing intents', patchShas);
+  }
   state.joined = true;
   return joinResult({
     runtime,
@@ -99,13 +120,18 @@ export async function joinDraftTimeline(
   });
 }
 
-function rejectedJoin(runtime: WarpWorldline, draft: DraftTimeline, reason: string): JoinResult {
+function rejectedJoin(
+  runtime: WarpWorldline,
+  draft: DraftTimeline,
+  reason: string,
+  patchShas: readonly string[] = [],
+): JoinResult {
   return joinResult({
     runtime,
     draft,
     mode: 'join',
     outcome: 'rejected',
-    patchShas: [],
+    patchShas,
     reason,
   });
 }
@@ -114,14 +140,17 @@ async function commitDraftIntents(
   runtime: WarpWorldline,
   state: DraftTimelineState,
 ): Promise<readonly string[]> {
-  const patchShas: string[] = [];
   for (const intent of state.intents) {
-    const patchSha = await runtime.commit((patch) => {
-      applyIntentToPatch(intent, patch);
-    });
-    patchShas.push(patchSha);
+    try {
+      const patchSha = await runtime.commit((patch) => {
+        applyIntentToPatch(intent, patch);
+      });
+      state.joinPatchShas.push(patchSha);
+    } catch {
+      return Object.freeze([...state.joinPatchShas]);
+    }
   }
-  return Object.freeze(patchShas);
+  return Object.freeze([...state.joinPatchShas]);
 }
 
 function requireDraftState(runtime: WarpWorldline, draft: DraftTimeline): DraftTimelineState {
