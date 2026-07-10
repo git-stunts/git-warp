@@ -18,7 +18,7 @@ export type WriteReceiptOptions = {
   readonly reason?: string;
 };
 
-const RECEIPT_OUTCOMES: ReadonlySet<ReceiptOutcome> = new Set([
+export const RECEIPT_OUTCOMES: ReadonlySet<ReceiptOutcome> = new Set([
   'accepted',
   'obstructed',
   'conflicted',
