@@ -30,6 +30,11 @@ type JoinDraft = (draft: DraftTimeline, options: JoinOptions) => Promise<JoinRes
 type OpenDraft = (name: string) => Promise<DraftTimeline>;
 type ReadReading = (reading: Reading) => Promise<ReadingResult>;
 type WriteIntent = (intent: Intent) => Promise<WriteReceipt>;
+type TimelinePortErrorCode =
+  | 'E_TIMELINE_JOINER'
+  | 'E_TIMELINE_DRAFT_OPENER'
+  | 'E_TIMELINE_READER'
+  | 'E_TIMELINE_WRITER';
 
 /**
  * Public timeline handle for application workflows.
@@ -156,21 +161,27 @@ function assertTimelineConstructionOptions(options: TimelineConstructionOptions)
 }
 
 function assertJoinDraft(joinDraft: JoinDraft | undefined): void {
-  if (joinDraft !== undefined && typeof joinDraft !== 'function') {
-    throw new WarpError('Timeline requires a join function when provided', 'E_TIMELINE_JOINER');
-  }
+  assertOptionalFunctionPort(
+    joinDraft,
+    'Timeline requires a join function when provided',
+    'E_TIMELINE_JOINER',
+  );
 }
 
 function assertOpenDraft(openDraft: OpenDraft | undefined): void {
-  if (openDraft !== undefined && typeof openDraft !== 'function') {
-    throw new WarpError('Timeline requires an openDraft function when provided', 'E_TIMELINE_DRAFT_OPENER');
-  }
+  assertOptionalFunctionPort(
+    openDraft,
+    'Timeline requires an openDraft function when provided',
+    'E_TIMELINE_DRAFT_OPENER',
+  );
 }
 
 function assertReadReading(readReading: ReadReading | undefined): void {
-  if (readReading !== undefined && typeof readReading !== 'function') {
-    throw new WarpError('Timeline requires a readReading function when provided', 'E_TIMELINE_READER');
-  }
+  assertOptionalFunctionPort(
+    readReading,
+    'Timeline requires a readReading function when provided',
+    'E_TIMELINE_READER',
+  );
 }
 
 function normalizeJoinOptions(options: JoinOptions | null | undefined): JoinOptions {
@@ -198,7 +209,19 @@ function assertNoDryRunTrap(options: JoinOptions): void {
 }
 
 function assertWriteIntent(writeIntent: WriteIntent | undefined): void {
-  if (writeIntent !== undefined && typeof writeIntent !== 'function') {
-    throw new WarpError('Timeline requires a writeIntent function when provided', 'E_TIMELINE_WRITER');
+  assertOptionalFunctionPort(
+    writeIntent,
+    'Timeline requires a writeIntent function when provided',
+    'E_TIMELINE_WRITER',
+  );
+}
+
+function assertOptionalFunctionPort<TPort>(
+  port: TPort | undefined,
+  message: string,
+  code: TimelinePortErrorCode,
+): void {
+  if (port !== undefined && typeof port !== 'function') {
+    throw new WarpError(message, code);
   }
 }
