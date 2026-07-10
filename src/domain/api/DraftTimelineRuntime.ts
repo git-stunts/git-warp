@@ -72,14 +72,14 @@ export async function previewDraftJoin(
   options: JoinOptions,
 ): Promise<JoinResult> {
   void options;
-  const state = requireDraftState(runtime, draft);
-  await runtime.previewDraftJoin(draft.name);
+  requireDraftState(runtime, draft);
+  const patchShas = await runtime.previewDraftJoin(draft.name);
   return joinResult({
     runtime,
     draft,
     mode: 'preview',
     outcome: 'accepted',
-    patchShas: state.draftPatchShas,
+    patchShas,
   });
 }
 

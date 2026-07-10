@@ -4,6 +4,7 @@ import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain
 import {
   createDraftTimeline,
   joinDraftTimeline,
+  previewDraftJoin,
 } from '../../../src/domain/api/DraftTimelineRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 
@@ -32,6 +33,19 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
 }
 
 describe('DraftTimelineRuntime', () => {
+  it('reports preview patch shas from runtime materialization', async () => {
+    const runtime = createRuntime({
+      previewDraftJoin: async () => ['materialized-preview-patch'],
+    });
+    const draft = await createDraftTimeline(runtime, 'events', 'try-admin-role');
+
+    await draft.write(intent.node.add({ subject: 'user:alice' }));
+    const preview = await previewDraftJoin(runtime, draft, { policy: 'deterministic' });
+
+    expect(preview.receipt.outcome).toBe('accepted');
+    expect(preview.receipt.patchShas).toEqual(['materialized-preview-patch']);
+  });
+
   it('does not replay committed draft intents after a partial join failure', async () => {
     let commitAttempts = 0;
     const runtime = createRuntime({
