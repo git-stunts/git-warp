@@ -238,11 +238,9 @@ function generate(): string {
   const registrySource = new SourceText('bin/cli/commands/registry.ts');
   const cliSource = new SourceText('bin/warp-graph.ts');
   const errorSource = new SourceText('src/domain/errors/index.ts');
-  const rootSource = new SourceText('index.ts');
-  const storageSource = new SourceText('storage.ts');
+  const rootSource = new SourceText('index.ts'), storageSource = new SourceText('storage.ts');
   const advancedSource = new SourceText('advanced.ts');
-  const diagnosticsSource = new SourceText('diagnostics.ts');
-  const legacySource = new SourceText('legacy.ts');
+  const diagnosticsSource = new SourceText('diagnostics.ts'), legacySource = new SourceText('legacy.ts');
   const packageBins = captureObjectEntries(packageSource, 'bin');
   const packageExports = captureExportEntries(packageSource, 'exports').filter((item) => item.name.startsWith('.'));
   const jsrExports = captureExportEntries(jsrSource, 'exports').filter((item) => item.name.startsWith('.'));
