@@ -238,6 +238,11 @@ function generate(): string {
   const registrySource = new SourceText('bin/cli/commands/registry.ts');
   const cliSource = new SourceText('bin/warp-graph.ts');
   const errorSource = new SourceText('src/domain/errors/index.ts');
+  const rootSource = new SourceText('index.ts');
+  const storageSource = new SourceText('storage.ts');
+  const advancedSource = new SourceText('advanced.ts');
+  const diagnosticsSource = new SourceText('diagnostics.ts');
+  const legacySource = new SourceText('legacy.ts');
   const packageBins = captureObjectEntries(packageSource, 'bin');
   const packageExports = captureExportEntries(packageSource, 'exports').filter((item) => item.name.startsWith('.'));
   const jsrExports = captureExportEntries(jsrSource, 'exports').filter((item) => item.name.startsWith('.'));
@@ -259,15 +264,15 @@ function generate(): string {
       ...jsrExports.map((item) => ['JSR export', `\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``]),
     ]),
     '',
-    ...exportSurface('Root API export surface', new SourceText('index.ts'), 'First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.'),
+    ...exportSurface('Root API export surface', rootSource, 'First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.'),
     '',
-    ...exportSurface('Storage export surface', new SourceText('storage.ts'), 'Supported persistence and crypto adapters for first-use applications.'),
+    ...exportSurface('Storage export surface', storageSource, 'Supported persistence and crypto adapters for first-use applications.'),
     '',
-    ...exportSurface('Advanced export surface', new SourceText('advanced.ts'), 'Formal WARP and Continuum concepts for expert use; not first-use root API.'),
+    ...exportSurface('Advanced export surface', advancedSource, 'Formal WARP and Continuum concepts for expert use; not first-use root API.'),
     '',
-    ...exportSurface('Diagnostics export surface', new SourceText('diagnostics.ts'), 'Operator, inspection, comparison, and replay tools.'),
+    ...exportSurface('Diagnostics export surface', diagnosticsSource, 'Operator, inspection, comparison, and replay tools.'),
     '',
-    ...exportSurface('Legacy export surface', new SourceText('legacy.ts'), 'Deprecated compatibility-only imports for migration paydown.'),
+    ...exportSurface('Legacy export surface', legacySource, 'Deprecated compatibility-only imports for migration paydown.'),
     '',
     '## CLI command registry',
     '',
