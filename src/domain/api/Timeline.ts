@@ -103,9 +103,7 @@ export default class Timeline {
   }
 
   async read(reading: Reading): Promise<ReadingResult> {
-    if (!(reading instanceof Reading)) {
-      throw new WarpError('Timeline.read requires a Reading', 'E_TIMELINE_READ_READING');
-    }
+    assertReadingInstance(reading);
     if (this.#readReading === null) {
       throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
     }
@@ -113,9 +111,7 @@ export default class Timeline {
   }
 
   async write(intent: Intent): Promise<WriteReceipt> {
-    if (!(intent instanceof Intent)) {
-      throw new WarpError('Timeline.write requires an Intent', 'E_TIMELINE_WRITE_INTENT');
-    }
+    assertIntentInstance(intent);
     if (this.#writeIntent === null) {
       throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
     }
@@ -126,6 +122,18 @@ export default class Timeline {
 function assertDraftTimeline(draft: DraftTimeline): void {
   if (!(draft instanceof DraftTimeline)) {
     throw new WarpError('Timeline join operations require a DraftTimeline', 'E_TIMELINE_JOIN_DRAFT');
+  }
+}
+
+function assertReadingInstance(reading: Reading): void {
+  if (!(reading instanceof Reading)) {
+    throw new WarpError('Timeline.read requires a Reading', 'E_TIMELINE_READ_READING');
+  }
+}
+
+function assertIntentInstance(intent: Intent): void {
+  if (!(intent instanceof Intent)) {
+    throw new WarpError('Timeline.write requires an Intent', 'E_TIMELINE_WRITE_INTENT');
   }
 }
 
