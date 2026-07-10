@@ -33,6 +33,41 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
 }
 
 describe('DraftTimelineRuntime', () => {
+  it('rejects concurrent joins without double-committing draft intents', async () => {
+    let commitAttempts = 0;
+    let releaseFirstCommit = (): void => undefined;
+    let markFirstCommitStarted = (): void => undefined;
+    const firstCommitStarted = new Promise<void>((resolve) => {
+      markFirstCommitStarted = resolve;
+    });
+    const firstCommitRelease = new Promise<void>((resolve) => {
+      releaseFirstCommit = resolve;
+    });
+    const runtime = createRuntime({
+      commitPatch: async () => {
+        commitAttempts += 1;
+        if (commitAttempts === 1) {
+          markFirstCommitStarted();
+          await firstCommitRelease;
+        }
+        return `join-patch-${commitAttempts}`;
+      },
+    });
+    const draft = await createDraftTimeline(runtime, 'events', 'try-admin-role');
+
+    await draft.write(intent.node.add({ subject: 'user:alice' }));
+    const firstJoin = joinDraftTimeline(runtime, draft, { policy: 'deterministic' });
+    await firstCommitStarted;
+    const secondJoin = await joinDraftTimeline(runtime, draft, { policy: 'deterministic' });
+    releaseFirstCommit();
+    const firstResult = await firstJoin;
+
+    expect(firstResult.receipt.outcome).toBe('accepted');
+    expect(secondJoin.receipt.outcome).toBe('rejected');
+    expect(secondJoin.receipt.reason).toBe('Draft join is already in progress');
+    expect(commitAttempts).toBe(1);
+  });
+
   it('reports preview patch shas from runtime materialization', async () => {
     const runtime = createRuntime({
       previewDraftJoin: async () => ['materialized-preview-patch'],

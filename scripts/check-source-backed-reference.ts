@@ -5,10 +5,7 @@ class SourceText {
   readonly path: string;
   readonly lines: readonly string[];
 
-  constructor(path: string) {
-    this.path = path;
-    this.lines = readFileSync(path, 'utf8').split('\n');
-  }
+  constructor(path: string) { this.path = path; this.lines = readFileSync(path, 'utf8').split('\n'); }
   line(index: number): string { return this.lines[index] ?? ''; }
   ref(index: number): string { return `${this.path}#L${index + 1}`; }
 }
@@ -238,9 +235,11 @@ function generate(): string {
   const registrySource = new SourceText('bin/cli/commands/registry.ts');
   const cliSource = new SourceText('bin/warp-graph.ts');
   const errorSource = new SourceText('src/domain/errors/index.ts');
-  const rootSource = new SourceText('index.ts'), storageSource = new SourceText('storage.ts');
+  const rootSource = new SourceText('index.ts');
+  const storageSource = new SourceText('storage.ts');
   const advancedSource = new SourceText('advanced.ts');
-  const diagnosticsSource = new SourceText('diagnostics.ts'), legacySource = new SourceText('legacy.ts');
+  const diagnosticsSource = new SourceText('diagnostics.ts');
+  const legacySource = new SourceText('legacy.ts');
   const packageBins = captureObjectEntries(packageSource, 'bin');
   const packageExports = captureExportEntries(packageSource, 'exports').filter((item) => item.name.startsWith('.'));
   const jsrExports = captureExportEntries(jsrSource, 'exports').filter((item) => item.name.startsWith('.'));

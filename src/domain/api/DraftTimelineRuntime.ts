@@ -14,6 +14,7 @@ type DraftTimelineState = {
   readonly intents: Intent[];
   readonly joinPatchShas: string[];
   joinFailed: boolean;
+  joining: boolean;
   joined: boolean;
 };
 
@@ -102,12 +103,15 @@ export async function joinDraftTimeline(
     return rejected;
   }
 
+  state.joining = true;
   const patchShas = await commitDraftIntents(runtime, state);
   const failed = rejectedIncompleteJoin({ runtime, draft, state, patchShas });
   if (failed !== null) {
+    state.joining = false;
     return failed;
   }
   state.joined = true;
+  state.joining = false;
   return acceptedJoin({ runtime, draft, state, patchShas });
 }
 
@@ -118,6 +122,9 @@ function rejectedJoinPrecondition(
 ): JoinResult | null {
   if (state.joined) {
     return rejectedJoin({ runtime, draft, reason: 'Draft has already joined' });
+  }
+  if (state.joining) {
+    return rejectedJoin({ runtime, draft, reason: 'Draft join is already in progress' });
   }
   if (state.joinFailed) {
     return rejectedJoin({
@@ -163,6 +170,7 @@ function createDraftState(runtime: WarpWorldline): DraftTimelineState {
     intents: [],
     joinPatchShas: [],
     joinFailed: false,
+    joining: false,
     joined: false,
   };
 }
