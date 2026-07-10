@@ -136,7 +136,7 @@ describe('scripts/hooks/pre-push', () => {
     const result = runPrePushHook({ quick: true });
 
     expect(result.status).toBe(0);
-    expect(result.events[0]).toBe('linkcheck:--config .lychee.toml **/*.md');
+    expect(result.events[0]).toBe('linkcheck:--config .lychee.toml --include-fragments **/*.md');
     expect(result.events.slice(1).sort()).toEqual([
       'npm:lint',
       'npm:lint:docs-topology',
@@ -168,7 +168,7 @@ describe('scripts/hooks/pre-push', () => {
       'typecheck:surface',
       'typecheck:test',
     ]);
-    expect(result.lycheeCalls).toEqual(['--config .lychee.toml **/*.md']);
+    expect(result.lycheeCalls).toEqual(['--config .lychee.toml --include-fragments **/*.md']);
   });
 
   it('skips Gate 0 when the launcher target is unavailable', () => {

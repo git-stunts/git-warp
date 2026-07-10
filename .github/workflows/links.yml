@@ -21,6 +21,7 @@ jobs:
         with:
           args: >-
             --config .lychee.toml
+            --include-fragments
             '**/*.md'
           fail: true
           format: markdown

@@ -11,9 +11,6 @@ offline = true
 # Resolve bare links like [Guide](docs/GUIDE) → docs/GUIDE.md
 fallback_extensions = ["md", "html"]
 
-# Check #heading fragment anchors within markdown files
-include_fragments = "full"
-
 # No interactive progress bar (clean output in hooks/CI)
 no_progress = true
 
