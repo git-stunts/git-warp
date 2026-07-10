@@ -30,9 +30,17 @@ export type WarpWorldlinePatchBuild = (
 ) => void | Promise<void>;
 
 type CommitPatch = (build: WarpWorldlinePatchBuild) => Promise<string>;
+type CreateDraft = (name: string) => Promise<void>;
 type WorldlineOptions = Parameters<ProjectionHandle['seek']>[0];
 type CreateWorldline = (options?: WorldlineOptions) => ProjectionHandle;
+type PatchDraft = (name: string, build: WarpWorldlinePatchBuild) => Promise<string>;
+type PreviewDraftJoin = (name: string) => Promise<readonly string[]>;
+type RuntimeGraph = Awaited<ReturnType<typeof openRuntimeHostProduct>>;
 type PrepareOpticBasis = () => Promise<WarpWorldlineOpticBasis>;
+type DraftWorldlineOptions = Pick<
+  WarpWorldlineConstructionOptions,
+  'createDraft' | 'patchDraft' | 'previewDraftJoin'
+>;
 type GetFrontier = () => Promise<Map<string, string>>;
 type ReadOpticBasis = () => WarpWorldlineOpticBasis | null;
 type ReadCapabilities = typeof createBoundedMemoryCapabilityReport;
@@ -42,7 +50,10 @@ type WarpWorldlineConstructionOptions = {
   readonly worldlineName: string;
   readonly writerId: string;
   readonly commitPatch: CommitPatch;
+  readonly createDraft?: CreateDraft;
   readonly createWorldline: CreateWorldline;
+  readonly patchDraft?: PatchDraft;
+  readonly previewDraftJoin?: PreviewDraftJoin;
   readonly prepareOpticBasis?: PrepareOpticBasis;
   readonly getFrontier?: GetFrontier;
   readonly readOpticBasis?: ReadOpticBasis;
@@ -54,7 +65,10 @@ export default class WarpWorldline {
   readonly worldlineName: string;
   readonly writerId: string;
   private readonly _commitPatch: CommitPatch;
+  private readonly _createDraft: CreateDraft | null;
   private readonly _createWorldline: CreateWorldline;
+  private readonly _patchDraft: PatchDraft | null;
+  private readonly _previewDraftJoin: PreviewDraftJoin | null;
   private readonly _prepareOpticBasis: PrepareOpticBasis | null;
   private readonly _getFrontier: GetFrontier | null;
   private readonly _readOpticBasis: ReadOpticBasis | null;
@@ -67,10 +81,13 @@ export default class WarpWorldline {
     this.worldlineName = options.worldlineName;
     this.writerId = options.writerId;
     this._commitPatch = options.commitPatch;
+    this._createDraft = optionalPort(options.createDraft);
     this._createWorldline = options.createWorldline;
-    this._prepareOpticBasis = options.prepareOpticBasis ?? null;
-    this._getFrontier = options.getFrontier ?? null;
-    this._readOpticBasis = options.readOpticBasis ?? null;
+    this._patchDraft = optionalPort(options.patchDraft);
+    this._previewDraftJoin = optionalPort(options.previewDraftJoin);
+    this._prepareOpticBasis = optionalPort(options.prepareOpticBasis);
+    this._getFrontier = optionalPort(options.getFrontier);
+    this._readOpticBasis = optionalPort(options.readOpticBasis);
     this._readCapabilities = options.readCapabilities ?? createBoundedMemoryCapabilityReport;
     this._admitIntent = options.admitIntent;
     Object.freeze(this);
@@ -82,6 +99,27 @@ export default class WarpWorldline {
 
   async admitIntent(descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> {
     return await this._admitIntent(descriptor);
+  }
+
+  async createDraft(name: string): Promise<void> {
+    if (this._createDraft === null) {
+      throw new WarpError('WarpWorldline was not opened with draft support', 'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE');
+    }
+    await this._createDraft(name);
+  }
+
+  async patchDraft(name: string, build: WarpWorldlinePatchBuild): Promise<string> {
+    if (this._patchDraft === null) {
+      throw new WarpError('WarpWorldline was not opened with draft support', 'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE');
+    }
+    return await this._patchDraft(name, build);
+  }
+
+  async previewDraftJoin(name: string): Promise<readonly string[]> {
+    if (this._previewDraftJoin === null) {
+      throw new WarpError('WarpWorldline was not opened with draft support', 'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE');
+    }
+    return await this._previewDraftJoin(name);
   }
 
   live(): ProjectionHandle {
@@ -155,6 +193,10 @@ export default class WarpWorldline {
   }
 }
 
+function optionalPort<TPort>(port: TPort | undefined): TPort | null {
+  return port ?? null;
+}
+
 /**
  * Opens a deprecated worldline compatibility handle.
  *
@@ -171,12 +213,17 @@ export async function openWarpWorldline(
     ...graphOptions,
     graphName: worldlineName,
   });
+  return createWarpWorldline(worldlineName, graph);
+}
+
+function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWorldline {
   let preparedOpticBasis: WarpWorldlineOpticBasis | null = null;
 
   return new WarpWorldline({
     worldlineName,
     writerId: graph.writerId,
     commitPatch: async (build) => await graph.patch(build),
+    ...draftWorldlineOptions(graph),
     createWorldline: (worldlineOptions) => graph.worldline(worldlineOptions),
     prepareOpticBasis: async () => {
       const basis = await new CheckpointTailBasisVerifier({ source: graph }).verify();
@@ -190,6 +237,22 @@ export async function openWarpWorldline(
     readOpticBasis: () => preparedOpticBasis,
     admitIntent: async (descriptor) => await graph.admitIntent(descriptor),
   });
+}
+
+function draftWorldlineOptions(graph: RuntimeGraph): DraftWorldlineOptions {
+  return {
+    createDraft: async (name) => {
+      await graph.createStrand({
+        strandId: name,
+        owner: graph.writerId,
+      });
+    },
+    patchDraft: async (name, build) => await graph.patchStrand(name, build),
+    previewDraftJoin: async (name) => {
+      await graph.materializeStrand(name, { receipts: true });
+      return (await graph.getStrandPatches(name)).map((entry) => entry.sha);
+    },
+  };
 }
 
 function assertNonEmpty(value: string | null | undefined, field: string): void {

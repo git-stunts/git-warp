@@ -54,7 +54,7 @@ echo "════════════════════════�
 # ── Link check (optional) ──────────────────────────────────────────────────
 if command_exists "$LINKCHECK_LAUNCHER" "$LINKCHECK_BIN"; then
   echo "[Gate 0] Link check..."
-  run_tool "$LINKCHECK_LAUNCHER" "$LINKCHECK_BIN" --config .lychee.toml '**/*.md'
+  run_tool "$LINKCHECK_LAUNCHER" "$LINKCHECK_BIN" --config .lychee.toml --include-fragments '**/*.md'
 else
   echo "[Gate 0] Link check skipped (lychee not installed)"
 fi

@@ -3,13 +3,62 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
+  DraftTimeline,
+  intent,
+  JoinReceipt,
+  JoinResult,
   openWarp,
+  reading,
+  ReadReceipt,
+  ReadingResult,
   Timeline,
   Warp,
 } from '../../../index.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../../../src/domain/api/OpenWarpIdentityFailure.ts';
+import { requireTimelineRuntime } from '../../../src/domain/api/TimelineRuntime.ts';
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
 import { MemoryStorageAdapter } from '../../../storage.ts';
+
+const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([
+  'openWarpGraph',
+  'openWarpWorldline',
+  'WarpGraph',
+  'WarpWorldline',
+  'WarpWorldlineOpticBasis',
+  'ProjectionHandle',
+  'WorldlineOptic',
+  'Observer',
+  'Optic',
+  'Patch',
+  'PatchBuilder',
+  'PatchCommitter',
+  'GitWarpBraidHologram',
+  'GitWarpBraidHologramFields',
+  'GitWarpBraidHologramMember',
+  'GitWarpBraidHologramMemberFields',
+  'GitWarpSuffixTransformHologram',
+  'GitWarpSuffixTransformHologramFields',
+  'GitWarpTickHologram',
+  'GitWarpTickHologramFields',
+]);
+
+const FORBIDDEN_BROWSER_V19_EXPORTS = Object.freeze([
+  'openWarp',
+  'Warp',
+  'Timeline',
+  'intent',
+  'Intent',
+  'reading',
+  'Reading',
+  'ReadReceipt',
+  'ReadingResult',
+  'WriteReceipt',
+  'DraftTimeline',
+  'JoinReceipt',
+  'JoinResult',
+  'OpenWarpOptions',
+  'WarpStorage',
+]);
 
 function exportedNamesFor(path: string): ReadonlySet<string> {
   const sourceFile = sourceFileFor(path);
@@ -129,11 +178,17 @@ describe('v19 Warp facade', () => {
   it('keeps the v19 facade off the browser root', () => {
     const browserExports = exportedNamesFor('browser.ts');
 
-    expect(browserExports.has('openWarp')).toBe(false);
-    expect(browserExports.has('Warp')).toBe(false);
-    expect(browserExports.has('Timeline')).toBe(false);
-    expect(browserExports.has('OpenWarpOptions')).toBe(false);
-    expect(browserExports.has('WarpStorage')).toBe(false);
+    for (const name of FORBIDDEN_BROWSER_V19_EXPORTS) {
+      expect(browserExports.has(name)).toBe(false);
+    }
+  });
+
+  it('keeps substrate graph, worldline, patch, optic, and hologram names off the root', () => {
+    const rootExports = exportedNamesFor('index.ts');
+
+    for (const name of FORBIDDEN_ROOT_SUBSTRATE_EXPORTS) {
+      expect(rootExports.has(name)).toBe(false);
+    }
   });
 
   it('keeps internal history vocabulary off the public facade objects', async () => {
@@ -212,6 +267,131 @@ describe('v19 Warp facade', () => {
       name: 'events',
       writer: 'x'.repeat(MAX_WRITER_ID_LENGTH + 1),
     })).toThrow('Invalid writer ID: exceeds maximum length');
+  });
+
+  it('writes public intents and returns accepted write receipts', async () => {
+    const warp = await openWarp({
+      storage: new MemoryStorageAdapter(),
+      writer: 'agent-1',
+    });
+    const timeline = await warp.timeline('events');
+
+    const nodeReceipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
+    const propertyReceipt = await timeline.write(intent.property.set({
+      subject: 'user:alice',
+      key: 'role',
+      value: 'admin',
+    }));
+
+    expect(nodeReceipt.outcome).toBe('accepted');
+    expect(nodeReceipt.intent.kind).toBe('node.add');
+    expect(typeof nodeReceipt.patchSha).toBe('string');
+    expect(propertyReceipt.outcome).toBe('accepted');
+    expect(propertyReceipt.intent.kind).toBe('property.set');
+    expect(propertyReceipt.timeline).toBe('events');
+    expect(propertyReceipt.writer).toBe('agent-1');
+
+    const result = await requireTimelineRuntime(timeline)
+      .live()
+      .query()
+      .match('user:*')
+      .select(['id', 'props'])
+      .run();
+
+    expect('nodes' in result).toBe(true);
+    if (!('nodes' in result)) {
+      return;
+    }
+    expect(result.nodes).toEqual([
+      { id: 'user:alice', props: { role: 'admin' } },
+    ]);
+  });
+
+  it('reads public readings and returns resolved read receipts', async () => {
+    const warp = await openWarp({
+      storage: new MemoryStorageAdapter(),
+      writer: 'agent-1',
+    });
+    const timeline = await warp.timeline('events');
+
+    await timeline.write(intent.node.add({ subject: 'user:alice' }));
+    await timeline.write(intent.property.set({
+      subject: 'user:alice',
+      key: 'role',
+      value: 'admin',
+    }));
+
+    const propertyResult = await timeline.read(reading.property({
+      subject: 'user:alice',
+      key: 'role',
+    }));
+    const existsResult = await timeline.read(reading.node.exists({
+      subject: 'user:alice',
+    }));
+
+    expect(propertyResult).toBeInstanceOf(ReadingResult);
+    expect(propertyResult.receipt).toBeInstanceOf(ReadReceipt);
+    expect(propertyResult.value).toBe('admin');
+    expect(propertyResult.receipt.outcome).toBe('resolved');
+    expect(propertyResult.receipt.reading.kind).toBe('property.get');
+    expect(propertyResult.receipt.timeline).toBe('events');
+    expect(propertyResult.receipt.writer).toBe('agent-1');
+
+    expect(existsResult).toBeInstanceOf(ReadingResult);
+    expect(existsResult.value).toBe(true);
+    expect(existsResult.receipt.outcome).toBe('resolved');
+    expect(existsResult.receipt.reading.kind).toBe('node.exists');
+  });
+
+  it('drafts speculative writes, previews joins, and joins with receipts', async () => {
+    const warp = await openWarp({
+      storage: new MemoryStorageAdapter(),
+      writer: 'agent-1',
+    });
+    const timeline = await warp.timeline('events');
+
+    await timeline.write(intent.node.add({ subject: 'user:alice' }));
+    const draft = await timeline.draft('try-admin-role');
+
+    const draftWrite = await draft.write(intent.property.set({
+      subject: 'user:alice',
+      key: 'role',
+      value: 'admin',
+    }));
+    const beforeJoin = await timeline.read(reading.property({
+      subject: 'user:alice',
+      key: 'role',
+    }));
+    const preview = await timeline.previewJoin(draft, {
+      policy: 'deterministic',
+    });
+    const afterPreview = await timeline.read(reading.property({
+      subject: 'user:alice',
+      key: 'role',
+    }));
+    const joined = await timeline.join(draft);
+    const afterJoin = await timeline.read(reading.property({
+      subject: 'user:alice',
+      key: 'role',
+    }));
+
+    expect(draft).toBeInstanceOf(DraftTimeline);
+    expect(draft.name).toBe('try-admin-role');
+    expect(draft.timeline).toBe('events');
+    expect(draft.writer).toBe('agent-1');
+    expect(draftWrite.outcome).toBe('accepted');
+    expect(beforeJoin.value).toBeNull();
+    expect(preview).toBeInstanceOf(JoinResult);
+    expect(preview.receipt).toBeInstanceOf(JoinReceipt);
+    expect(preview.receipt.mode).toBe('preview');
+    expect(preview.receipt.outcome).toBe('accepted');
+    expect(preview.receipt.patchShas).toContain(draftWrite.patchSha);
+    expect(afterPreview.value).toBeNull();
+    expect(joined).toBeInstanceOf(JoinResult);
+    expect(joined.receipt.mode).toBe('join');
+    expect(joined.receipt.outcome).toBe('accepted');
+    expect(joined.receipt.patchShas).toHaveLength(1);
+    expect(afterJoin.value).toBe('admin');
   });
 
   it('names the openWarp identity failure payload once', () => {

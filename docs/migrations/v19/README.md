@@ -122,18 +122,14 @@ const receipt = await events.write(
 
 switch (receipt.outcome) {
   case 'accepted':
+    console.log(receipt.patchSha);
     break;
   case 'obstructed':
-    await preserveRepairWork(receipt.repairHints);
-    break;
   case 'conflicted':
-    await openConflictResolution(receipt.conflicts);
-    break;
   case 'underdetermined':
-    await gatherSupport(receipt.evidence);
-    break;
   case 'rejected':
-    throw new Error(receipt.reason);
+    console.log(receipt.reason ?? receipt.outcome);
+    break;
 }
 ```
 
@@ -253,7 +249,7 @@ and joins first.
 | `WarpWorldline` | root `Timeline` | public handle rename |
 | `GitGraphAdapter` | `storage` `GitStorageAdapter` | graph name removed |
 | `InMemoryGraphAdapter` | `storage` `MemoryStorageAdapter` | graph name removed |
-| `GraphPersistencePort` | `storage` `StorageAdapter` | public storage contract |
+| `GraphPersistencePort` | root `WarpStorage` for app options; `legacy` for the old port | public storage contract is facade-shaped |
 | `commit((patch) => ...)` | `timeline.write(intent.*)` | receipt-returning |
 | `PatchBuilder` | deprecated `legacy` | replace with intent builders |
 | `PatchSession` | deprecated `legacy` | replace with receipt-returning writes |
@@ -288,18 +284,14 @@ const receipt = await timeline.write(intent.property.set({
 
 switch (receipt.outcome) {
   case 'accepted':
+    console.log(receipt.patchSha);
     break;
   case 'obstructed':
-    await repair(receipt.repairHints);
-    break;
   case 'conflicted':
-    await resolve(receipt.conflicts);
-    break;
   case 'underdetermined':
-    await gatherSupport(receipt.evidence);
-    break;
   case 'rejected':
-    throw new Error(receipt.reason);
+    console.log(receipt.reason ?? receipt.outcome);
+    break;
 }
 ```
 
@@ -313,8 +305,8 @@ underdetermined
 rejected
 ```
 
-Operation names such as `join`, `sync`, and `read` belong in
-`receipt.operation`, not in `receipt.outcome`.
+Operation names such as `join`, `sync`, and `read` belong in distinct receipt
+classes or operation fields, not in `receipt.outcome`.
 
 ## Suggested Upgrade Sequence
 

@@ -110,6 +110,10 @@ const warp = await openWarp({
 
 const timeline = await warp.timeline('events');
 
+await timeline.write(intent.node.add({
+  subject: 'user:alice',
+}));
+
 const write = await timeline.write(
   intent.property.set({
     subject: 'user:alice',
@@ -120,18 +124,14 @@ const write = await timeline.write(
 
 switch (write.outcome) {
   case 'accepted':
+    console.log(write.patchSha);
     break;
   case 'obstructed':
-    await preserveRepairWork(write.repairHints);
-    break;
   case 'conflicted':
-    await openConflictResolution(write.conflicts);
-    break;
   case 'underdetermined':
-    await gatherSupport(write.evidence);
-    break;
   case 'rejected':
-    throw new Error(write.reason);
+    console.log(write.reason ?? write.outcome);
+    break;
 }
 
 const role = await timeline.read(
@@ -183,35 +183,30 @@ intent.property.set({
   value: 'admin',
 });
 
-intent.entity.create({
+intent.node.add({
   subject: 'user:alice',
 });
 
-intent.link.add({
+intent.edge.add({
   from: 'user:alice',
   to: 'team:ops',
   label: 'memberOf',
 });
 ```
 
-Custom intent definitions are still important, but they should be a named
-escape hatch:
+Domain-specific builders can be layered by application code, but the root API
+should keep returning runtime-backed `Intent` values:
 
 ```typescript
-const assignRole = intent.define({
-  type: 'user.role.assign',
-  schema: {
-    subject: 'user:*',
-    payload: {
-      role: 'string',
-    },
-  },
-});
+function assignRole(subject: string, role: string) {
+  return intent.property.set({
+    subject,
+    key: 'role',
+    value: role,
+  });
+}
 
-await timeline.write(assignRole({
-  subject: 'user:alice',
-  payload: { role: 'admin' },
-}));
+await timeline.write(assignRole('user:alice', 'admin'));
 ```
 
 The builder output should be a runtime-backed value, not loose shape trust.
@@ -238,14 +233,15 @@ In v18, users often need to call `prepareOpticBasis()`, capture a coordinate,
 and read through `optic()`. That discipline is correct, but it should be
 internal ceremony for the first-use path.
 
-The v19 `timeline.read(reading)` flow can still lower to an optic internally:
+The v19 `timeline.read(reading)` flow is the public shape. Advanced bounded
+read paths can still lower readings to optics internally:
 
 1. validate the `Reading`;
 2. lower `Reading` to `Optic`;
 3. prepare or check an optic basis;
 4. capture the observer position;
 5. execute the bounded read;
-6. return `ReadingResult` and `Receipt`.
+6. return `ReadingResult` and `ReadReceipt`.
 
 Operational uncertainty should return receipt outcomes where possible.
 Programmer errors, corruption, impossible states, and violated invariants may
@@ -256,22 +252,18 @@ still throw typed errors.
 Receipts should become the normal control-flow object.
 
 ```typescript
-const receipt = await timeline.write(assignRole);
+const receipt = await timeline.write(assignRole('user:alice', 'admin'));
 
 switch (receipt.outcome) {
   case 'accepted':
+    console.log(receipt.patchSha);
     break;
   case 'obstructed':
-    await repair(receipt.repairHints);
-    break;
   case 'conflicted':
-    await resolve(receipt.conflicts);
-    break;
   case 'underdetermined':
-    await gatherMoreEvidence(receipt.evidence);
-    break;
   case 'rejected':
-    throw new Error(receipt.reason);
+    console.log(receipt.reason ?? receipt.outcome);
+    break;
 }
 ```
 
@@ -288,14 +280,8 @@ rejected
 Do not mix operation types into outcomes. `joined`, `synced`, `staged`, and
 `materialized` describe operations or states, not the outcome axis.
 
-Use:
-
-```text
-receipt.operation
-receipt.outcome
-```
-
-not one overloaded status string.
+Use separate result classes (`WriteReceipt`, `ReadReceipt`, and later join
+receipts), not one overloaded status string.
 
 ## Timelines, Drafts, And Joins
 
@@ -310,7 +296,7 @@ Strand          -> speculative lane
 Braid           -> deterministic lane composition
 ```
 
-Public speculative work should read like this:
+Public speculative work reads like this:
 
 ```typescript
 const draft = await timeline.draft('try-admin-role');
@@ -338,7 +324,7 @@ avoids boolean-trap API design and makes the two phases explicit.
 
 ## Tick And Coordinate
 
-Use `Tick` for ergonomic public time travel:
+Future ergonomic public time travel should use `Tick`:
 
 ```typescript
 const tick = await timeline.tick();
@@ -351,11 +337,12 @@ const roleAtTick = await timeline.at(tick).read(
 );
 ```
 
-Use `Coordinate` for formal evidence and proof posture:
+Use `Coordinate` for formal evidence and proof posture on advanced surfaces.
+Do not make first-use application examples import coordinate machinery.
 
 ```text
-receipt.coordinate
-receipt.evidence.observerCoordinate
+public: tick handle
+advanced: coordinate evidence
 ```
 
 That split lets casual users keep a simple handle while advanced users and

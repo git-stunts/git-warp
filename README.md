@@ -1,6 +1,7 @@
 <div align="center">
 <p><strong>A Git-native runtime for shared causal history.</strong></p>
-<p>Offline-first, multi-writer, deterministic, and built for provenance-aware intent writes, timeline reads, and receipts.</p>
+<p><strong>Write intents. Read timelines. Keep receipts.</strong></p>
+<p>Offline-first, multi-writer, deterministic, and built for provenance-aware applications.</p>
 </div>
 
 <p align="center">
@@ -51,11 +52,10 @@ replay-backed so callers receive complete diff and provenance data.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
-## Planned v19 API Direction
+## v19 First-Use API
 
-This is the public contract the v19 facade slices are moving toward. It is the
-direction for new application code, not an endorsement of the deprecated v18
-compatibility API.
+This is the public contract new application code should start from. The
+deprecated v18 graph-first API remains available only for migration.
 
 ```typescript
 import { openWarp, intent, reading } from "@git-stunts/git-warp";
@@ -70,6 +70,10 @@ const warp = await openWarp({
 
 const events = await warp.timeline("events");
 
+await events.write(intent.node.add({
+  subject: "user:alice",
+}));
+
 const write = await events.write(intent.property.set({
   subject: "user:alice",
   key: "role",
@@ -80,6 +84,9 @@ const role = await events.read(reading.property({
   subject: "user:alice",
   key: "role",
 }));
+
+console.log(role.value);
+console.log(role.receipt);
 ```
 
 The v18 graph-first API remains only under `@git-stunts/git-warp/legacy`. That
