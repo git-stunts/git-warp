@@ -14,6 +14,7 @@ import {
   serializeCheckpointStateEnvelope,
 } from './CheckpointSerializer.ts';
 import { serializeFrontier } from '../Frontier.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import { requireCommitMessageCodec } from '../codec/CommitMessageCodecRequirement.ts';
 import { cloneState } from '../JoinReducer.ts';
 import {
@@ -136,7 +137,10 @@ export async function createCheckpointEnvelope({
   if (stateHashService !== undefined && stateHashService !== null) {
     stateHash = await stateHashService.compute(checkpointState);
   } else {
-    stateHash = await computeStateHash(checkpointState, { ...codecOpt, crypto: crypto as CryptoPort });
+    stateHash = await computeStateHash(checkpointState, {
+      codec: requireCodec(codec, 'createCheckpointEnvelope'),
+      crypto: crypto as CryptoPort,
+    });
   }
 
   if (checkpointStore !== undefined && checkpointStore !== null) {

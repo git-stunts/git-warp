@@ -236,7 +236,7 @@ describe('v19 Warp facade', () => {
   it('keeps the root export surface to the v19 facade allowlist', () => {
     const rootExports = exportedNamesFor('index.ts');
 
-    expect([...rootExports].sort()).toEqual([...ALLOWED_ROOT_EXPORTS].sort());
+    expect([...rootExports].toSorted()).toEqual(ALLOWED_ROOT_EXPORTS.toSorted());
   });
 
   it('keeps internal history vocabulary off the public facade objects', async () => {

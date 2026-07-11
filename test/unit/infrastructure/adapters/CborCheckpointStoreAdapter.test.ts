@@ -356,12 +356,33 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       const decoded = adapter._decodeStateEnvelope(envelope);
       expect(decoded.prop.has('user:skip\x00name')).toBe(false);
       expect(decoded.prop.get('user:a\x00name')?.value).toBe('Ada');
-      expect(decoded.edgeBirthEvent.get('user:a\x00user:b\x00knows')).toEqual({
-        lamport: 1,
-        writerId: 'w1',
-        patchSha: 'e'.repeat(40),
-        opIndex: 0,
-      });
+      const decodedBirthEvent = decoded.edgeBirthEvent.get('user:a\x00user:b\x00knows');
+      expect(decodedBirthEvent).toBeInstanceOf(EventId);
+      expect(decodedBirthEvent).toEqual(new EventId(1, 'w1', 'e'.repeat(40), 0));
+    });
+
+    it('rejects malformed edge birth payloads', async () => {
+      const blobPort = createMemoryBlobPort();
+      const codec = new CborCodec();
+      const adapter = new CborCheckpointStoreAdapter({ codec, blobPort });
+      const treeOids = {
+        'state/nodeAlive': await blobPort.writeBlob(codec.encode({})),
+        'state/edgeAlive': await blobPort.writeBlob(codec.encode({})),
+        'state/prop.cbor': await blobPort.writeBlob(codec.encode([])),
+        'state/observedFrontier.cbor': await blobPort.writeBlob(codec.encode({})),
+        'state/edgeBirthEvent.cbor': await blobPort.writeBlob(codec.encode([
+          ['user:a\x00user:b\x00knows', {
+            lamport: 0,
+            writerId: '',
+            patchSha: '0000',
+            opIndex: 0,
+          }],
+        ])),
+        'frontier.cbor': await blobPort.writeBlob(codec.encode({})),
+      };
+
+      await expect(adapter.readCheckpoint(treeOids))
+        .rejects.toThrow('Checkpoint edgeBirthEvent payload is invalid');
     });
   });
 });
