@@ -16,6 +16,7 @@ import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { serializeORSet } from '../../../../src/infrastructure/codecs/ORSetCodec.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
@@ -150,12 +151,12 @@ const stateArb = fc.record({
 /** @param {any} a @param {any} b */
 function statesEqual(a, b) {
   // Compare nodeAlive ORSets
-  if (JSON.stringify(a.nodeAlive.serialize()) !== JSON.stringify(b.nodeAlive.serialize())) {
+  if (JSON.stringify(serializeORSet(a.nodeAlive)) !== JSON.stringify(serializeORSet(b.nodeAlive))) {
     return false;
   }
 
   // Compare edgeAlive ORSets
-  if (JSON.stringify(a.edgeAlive.serialize()) !== JSON.stringify(b.edgeAlive.serialize())) {
+  if (JSON.stringify(serializeORSet(a.edgeAlive)) !== JSON.stringify(serializeORSet(b.edgeAlive))) {
     return false;
   }
 

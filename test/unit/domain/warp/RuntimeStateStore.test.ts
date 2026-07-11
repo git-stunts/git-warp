@@ -104,7 +104,7 @@ describe('RuntimeStateStore', () => {
     const snapshot = store.get();
     expect(snapshot).not.toBeNull();
     if (snapshot === null) {
-      return;
+      throw new Error('runtime state snapshot must exist');
     }
 
     host._materializedGraph?.adjacency.outgoing.get('alpha')?.push(edge('gamma', 'late'));

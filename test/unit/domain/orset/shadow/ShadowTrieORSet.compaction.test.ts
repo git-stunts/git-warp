@@ -259,7 +259,7 @@ describe("ShadowTrieORSet.compact", () => {
       const { rootOid } = await flushAndReopen({ engine, store });
       expect(rootOid).not.toBeNull();
       if (rootOid === null) {
-        return;
+        throw new Error("rootOid must exist after flush");
       }
 
       const page = await rootChildPage({
@@ -270,7 +270,7 @@ describe("ShadowTrieORSet.compact", () => {
       });
       expect(page.kind).toBe("leaf");
       if (page.kind !== "leaf") {
-        return;
+        throw new Error("expected root child page to be a leaf");
       }
       expect(page.leaf.entries()).toHaveLength(1);
       const [entry] = page.leaf.entries();
@@ -302,7 +302,7 @@ describe("ShadowTrieORSet.compact", () => {
       );
       expect(rootOid).not.toBeNull();
       if (rootOid === null) {
-        return;
+        throw new Error("rootOid must exist after flush");
       }
 
       const page = await rootChildPage({
@@ -313,7 +313,7 @@ describe("ShadowTrieORSet.compact", () => {
       });
       expect(page.kind).toBe("leaf");
       if (page.kind !== "leaf") {
-        return;
+        throw new Error("expected root child page to be a leaf");
       }
       expect(new Set(leafElements(page.leaf))).toEqual(
         new Set(["node:278", "node:20", "node:234"]),
@@ -346,7 +346,7 @@ describe("ShadowTrieORSet.compact", () => {
       });
       expect(rootOid).not.toBeNull();
       if (rootOid === null) {
-        return;
+        throw new Error("rootOid must exist after flush");
       }
 
       const page = await rootChildPage({
@@ -357,7 +357,7 @@ describe("ShadowTrieORSet.compact", () => {
       });
       expect(page.kind).toBe("branch");
       if (page.kind !== "branch") {
-        return;
+        throw new Error("expected root child page to be a branch");
       }
       expect(page.branch.childCount()).toBe(2);
     });
@@ -387,7 +387,7 @@ describe("ShadowTrieORSet.compact", () => {
       });
       expect(rootOid).not.toBeNull();
       if (rootOid === null) {
-        return;
+        throw new Error("rootOid must exist after flush");
       }
 
       const page = await rootChildPage({
@@ -398,7 +398,7 @@ describe("ShadowTrieORSet.compact", () => {
       });
       expect(page.kind).toBe("leaf");
       if (page.kind !== "leaf") {
-        return;
+        throw new Error("expected root child page to be a leaf");
       }
       expect(new Set(leafElements(page.leaf))).toEqual(
         new Set(["node:20", "node:234"]),
@@ -427,7 +427,7 @@ describe("ShadowTrieORSet.compact", () => {
       });
       expect(rootOid).not.toBeNull();
       if (rootOid === null) {
-        return;
+        throw new Error("rootOid must exist after flush");
       }
 
       const page = await rootChildPage({
@@ -438,7 +438,7 @@ describe("ShadowTrieORSet.compact", () => {
       });
       expect(page.kind).toBe("leaf");
       if (page.kind !== "leaf") {
-        return;
+        throw new Error("expected root child page to be a leaf");
       }
       assertStrictSuffixOrder(page.leaf);
     });
@@ -452,7 +452,7 @@ describe("ShadowTrieORSet.compact", () => {
       const flushed = await seeded.engine.flush();
       expect(flushed.rootOid).not.toBeNull();
       if (flushed.rootOid === null) {
-        return;
+        throw new Error("rootOid must exist after flush");
       }
 
       store.failReads();
@@ -474,7 +474,7 @@ describe("ShadowTrieORSet.compact", () => {
       const before = await seeded.engine.flush();
       expect(before.rootOid).not.toBeNull();
       if (before.rootOid === null) {
-        return;
+        throw new Error("rootOid must exist after flush");
       }
 
       const reopened = makeEngine({

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { CborCheckpointStoreAdapter } from '../../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.ts';
 import { decodeCasPayloadPointer } from '../../../../src/infrastructure/adapters/CasPayloadPointer.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { decodeWarpFullState, encodeWarpFullState } from '../../../../src/infrastructure/codecs/WarpStateCborCodec.ts';
 import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.ts';
 import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
@@ -301,54 +302,39 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
 
   describe('state encoding helpers', () => {
     it('returns empty state when the full-state buffer or payload is absent', () => {
-      const adapter = ((new CborCheckpointStoreAdapter({
-        codec: new CborCodec(),
-        blobPort: createMemoryBlobPort(),
-      })) as any);
-
-      const emptyFromNullBuffer = adapter._decodeFullState(null);
+      const emptyFromNullBuffer = decodeWarpFullState(null as never, new CborCodec());
       expect(emptyFromNullBuffer).toBeInstanceOf(WarpState);
       expect(emptyFromNullBuffer.nodeAlive.entries.size).toBe(0);
 
-      const nullDecodingAdapter = ((new CborCheckpointStoreAdapter({
-        codec: {
+      const nullDecodingCodec = {
           encode(value): Uint8Array {
             return (value as any);
           },
           decode(_bytes: Uint8Array) {
             return null as any;
           },
-        } as any,
-        blobPort: createMemoryBlobPort(),
-      })) as any);
+        } as any;
 
-      const emptyFromNullPayload = nullDecodingAdapter._decodeFullState(new Uint8Array([1]));
+      const emptyFromNullPayload = decodeWarpFullState(new Uint8Array([1]), nullDecodingCodec);
       expect(emptyFromNullPayload).toBeInstanceOf(WarpState);
       expect(emptyFromNullPayload.edgeAlive.entries.size).toBe(0);
     });
 
     it('rejects unsupported full-state versions', () => {
-      const adapter = ((new CborCheckpointStoreAdapter({
-        codec: {
+      const codec = {
           encode(value): Uint8Array {
             return (value as any);
           },
           decode(_bytes: Uint8Array) {
             return { version: 'full-v4' } as any;
           },
-        } as any,
-        blobPort: createMemoryBlobPort(),
-      })) as any);
+        } as any;
 
-      expect(() => adapter._decodeFullState(new Uint8Array([1]))).toThrow('Unsupported full state version');
+      expect(() => decodeWarpFullState(new Uint8Array([1]), codec)).toThrow('Unsupported full state version');
     });
 
     it('sorts props and edge birth events, skips null registers, and round-trips birth metadata', () => {
       const codec = new CborCodec();
-      const adapter = ((new CborCheckpointStoreAdapter({
-        codec,
-        blobPort: createMemoryBlobPort(),
-      })) as any);
 
       const prop = new Map([
         ['user:z\x00name', {
@@ -375,7 +361,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         edgeBirthEvent,
       });
 
-      const bytes = adapter._encodeFullState(state);
+      const bytes = encodeWarpFullState(state, codec);
       const raw = /** @type {{
         prop: Array<[string, unknown]>,
         edgeBirthEvent: Array<[string, unknown]>,
@@ -391,9 +377,9 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         'user:z\x00user:y\x00likes',
       ]);
 
-      const decoded = adapter._decodeFullState(bytes);
-      expect(decoded.prop.has('user:skip\x00name')).toBe(false);
-      expect(decoded.prop.get('user:a\x00name')?.value).toBe('Ada');
+      const decoded = decodeWarpFullState(bytes, codec);
+      expect(decoded.hasProp('user:skip\x00name')).toBe(false);
+      expect(decoded.getEncodedProp('user:a\x00name')?.value).toBe('Ada');
       expect(decoded.edgeBirthEvent.get('user:a\x00user:b\x00knows')).toEqual({
         lamport: 1,
         writerId: 'w1',
@@ -403,8 +389,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
     });
 
     it('accepts legacy numeric edge birth data when decoding full state', () => {
-      const adapter = ((new CborCheckpointStoreAdapter({
-        codec: {
+      const codec = {
           encode(value): Uint8Array {
             return (value as any);
           },
@@ -417,11 +402,9 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
               edgeBirthLamport: [['user:a\x00user:b\x00knows', 7]],
             } as any;
           },
-        } as any,
-        blobPort: createMemoryBlobPort(),
-      })) as any);
+        } as any;
 
-      const decoded = adapter._decodeFullState(new Uint8Array([1]));
+      const decoded = decodeWarpFullState(new Uint8Array([1]), codec);
       expect(decoded.edgeBirthEvent.get('user:a\x00user:b\x00knows')).toEqual({
         lamport: 7,
         writerId: '',

@@ -106,23 +106,25 @@ export { default as SyncSecret } from './src/domain/services/sync/SyncSecret.ts'
 export type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
 export {
   createTickReceipt,
-  canonicalJson as tickReceiptCanonicalJson,
   OP_TYPES as TICK_RECEIPT_OP_TYPES,
   RESULT_TYPES as TICK_RECEIPT_RESULT_TYPES,
 } from './src/domain/types/TickReceipt.ts';
+export { tickReceiptCanonicalJson } from './src/infrastructure/codecs/ReceiptJsonCodec.ts';
 export { default as EffectSinkPort } from './src/ports/EffectSinkPort.ts';
 export { MultiplexSink } from './src/domain/services/MultiplexSink.ts';
 export { EffectPipeline } from './src/domain/services/EffectPipeline.ts';
 export {
   createEffectEmission,
-  canonicalEmissionJson,
   DELIVERY_MODES,
   DELIVERY_OUTCOMES,
 } from './src/domain/types/EffectEmission.ts';
 export {
   createDeliveryObservation,
-  canonicalObservationJson,
 } from './src/domain/types/DeliveryObservation.ts';
+export {
+  canonicalEmissionJson,
+  canonicalObservationJson,
+} from './src/infrastructure/codecs/ReceiptJsonCodec.ts';
 export {
   createExternalizationPolicy,
   LIVE_LENS,

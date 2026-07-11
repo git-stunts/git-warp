@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   createTickReceipt as _createTickReceipt,
-  canonicalJson,
   OP_TYPES,
   RESULT_TYPES,
 } from '../../../../src/domain/types/TickReceipt.ts';
+import { tickReceiptCanonicalJson as canonicalJson } from '../../../../src/infrastructure/codecs/ReceiptJsonCodec.ts';
 
 const createTickReceipt = (_createTickReceipt) as any;
 

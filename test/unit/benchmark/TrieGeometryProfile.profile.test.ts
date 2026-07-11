@@ -9,12 +9,7 @@ import {
 } from "../../benchmark/trieGeometryProfile.fixture.ts";
 
 describe("Trie geometry profile harness", () => {
-  it("runs the default matrix when GIT_WARP_PROFILE=1", async () => {
-    if (process.env["GIT_WARP_PROFILE"] !== "1") {
-      expect(process.env["GIT_WARP_PROFILE"]).not.toBe("1");
-      return;
-    }
-
+  it.skipIf(process.env["GIT_WARP_PROFILE"] !== "1")("runs the default matrix when GIT_WARP_PROFILE=1", async () => {
     const rows: TrieGeometryProfileRow[] = [];
     const onlyLabel = process.env["GIT_WARP_PROFILE_ONLY_LABEL"] ?? null;
     const scenarios = createTrieGeometryProfilePlan()
@@ -34,12 +29,7 @@ describe("Trie geometry profile harness", () => {
     expect(rows).toHaveLength(scenarios.length);
   }, 300_000);
 
-  it("runs the 1M-entry stress scale when GIT_WARP_PROFILE_STRESS=1", async () => {
-    if (process.env["GIT_WARP_PROFILE_STRESS"] !== "1") {
-      expect(process.env["GIT_WARP_PROFILE_STRESS"]).not.toBe("1");
-      return;
-    }
-
+  it.skipIf(process.env["GIT_WARP_PROFILE_STRESS"] !== "1")("runs the 1M-entry stress scale when GIT_WARP_PROFILE_STRESS=1", async () => {
     const rows: TrieGeometryProfileRow[] = [];
     const onlyLabel = process.env["GIT_WARP_PROFILE_ONLY_LABEL"] ?? null;
     const scenarios = createTrieGeometryProfilePlan({ includeStress: true })

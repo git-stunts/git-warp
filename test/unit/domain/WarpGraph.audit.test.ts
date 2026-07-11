@@ -148,16 +148,9 @@ describe('WarpCore — audit mode', () => {
       (c) => c[1]?.code === 'AUDIT_SKIPPED_DIRTY_STATE',
     );
 
-    // If graph was able to eager-apply (cachedState was not null),
-    // then audit should have succeeded. Either way is valid behavior.
     const auditRef = await persistence.readRef('refs/warp/events/audit/alice');
-    if (auditRef) {
-      // Eager path worked — audit commit was created
-      expect(typeof auditRef).toBe('string');
-    } else {
-      // Dirty state — skip was logged
-      expect(skipLog).toBeTruthy();
-    }
+    expect(auditRef).toBeNull();
+    expect(skipLog).toBeTruthy();
   });
 
   it('audit commit tree contains receipt.cbor with correct receipt data', async () => {
@@ -178,8 +171,7 @@ describe('WarpCore — audit mode', () => {
 
     const auditSha = await persistence.readRef('refs/warp/events/audit/alice');
     if (!auditSha) {
-      // Skip if eager path wasn't available
-      return;
+      throw new Error('audit ref must exist after audited commit');
     }
 
     const commit = (persistence as any)._commits.get(auditSha);

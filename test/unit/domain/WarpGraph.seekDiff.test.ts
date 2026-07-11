@@ -286,7 +286,7 @@ describe('Structural seek diff (diffStates integration)', () => {
     const state = graph._cachedState;
     expect(state).not.toBeNull();
     if (state === null) {
-      return;
+      throw new Error('cached state must exist after materialize');
     }
     const diff = diffStates(state, state);
 

@@ -11,7 +11,6 @@
  */
 
 import WarpError from '../errors/WarpError.ts';
-import { sortedReplacer } from '../utils/canonicalStringify.ts';
 import { requireNonEmptyString, validateTimestamp } from '../utils/scalarValidation.ts';
 import { validateOutcome, DELIVERY_MODES, type ExternalizationPolicy, type DeliveryOutcome } from './ExternalizationPolicy.ts';
 
@@ -129,15 +128,4 @@ export function createDeliveryObservation({ emissionId, sinkId, outcome, reason,
     emissionId, sinkId, outcome, timestamp, lens,
     ...(reason !== undefined ? { reason } : {}),
   });
-}
-
-// ============================================================================
-// Canonical JSON
-// ============================================================================
-
-/**
- * Produces a deterministic JSON string for a DeliveryObservation.
- */
-export function canonicalObservationJson(observation: DeliveryObservation): string {
-  return JSON.stringify(observation, sortedReplacer); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
 }

@@ -13,7 +13,6 @@
  */
 
 import WarpError from '../errors/WarpError.ts';
-import { sortedReplacer } from '../utils/canonicalStringify.ts';
 import { requireNonEmptyString, validateTimestamp } from '../utils/scalarValidation.ts';
 import { DELIVERY_MODES, DELIVERY_OUTCOMES } from './ExternalizationPolicy.ts';
 
@@ -110,15 +109,4 @@ export function createEffectEmission({ id, kind, payload, timestamp, writer, coo
   coordinate: { frontier: Record<string, string> | null; ceiling: number | null };
 }): Readonly<EffectEmission> {
   return new EffectEmission({ id, kind, payload, timestamp, writer, coordinate });
-}
-
-// ============================================================================
-// Canonical JSON
-// ============================================================================
-
-/**
- * Produces a deterministic JSON string for an EffectEmission.
- */
-export function canonicalEmissionJson(emission: EffectEmission): string {
-  return JSON.stringify(emission, sortedReplacer); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
 }

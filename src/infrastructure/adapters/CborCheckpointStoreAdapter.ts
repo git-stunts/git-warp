@@ -1,15 +1,10 @@
 import CheckpointStorePort, { type CheckpointRecord, type CheckpointWriteResult, type CheckpointData } from '../../ports/CheckpointStorePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
-import ORSet from '../../domain/crdt/ORSet.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
-import { createEmptyState } from '../../domain/services/JoinReducer.ts';
-import WarpState from '../../domain/services/state/WarpState.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.ts';
-import type { LWWRegister } from '../../domain/crdt/LWW.ts';
-import type { PropValue } from '../../domain/types/PropValue.ts';
-import type { EventId } from '../../domain/utils/EventId.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import { decodeWarpFullState, encodeWarpFullState } from '../codecs/WarpStateCborCodec.ts';
 import { readPayloadBlob, writePayloadBlob } from './CasPayloadPointer.ts';
 
 interface BlobPort {
@@ -47,7 +42,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   }
 
   override async writeCheckpoint(record: CheckpointRecord): Promise<CheckpointWriteResult> {
-    const stateBytes = this._encodeFullState(record.state);
+    const stateBytes = encodeWarpFullState(record.state, this._codec);
     const frontierBytes = this._encodeFrontier(record.frontier);
     const appliedVVBytes = this._encodeAppliedVV(record.appliedVV);
 
@@ -136,7 +131,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
     const buffers = await Promise.all(reads);
     let idx = 0;
-    const state = this._decodeFullState(buffers[idx++] as Uint8Array);
+    const state = decodeWarpFullState(buffers[idx++] as Uint8Array, this._codec);
     const frontier = this._decodeFrontier(buffers[idx++] as Uint8Array);
 
     let appliedVV: VersionVector | null = null;
@@ -166,19 +161,6 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     };
   }
 
-  // ── Encode Helpers ──────────────────────────────────────────────────
-
-  private _encodeFullState(state: WarpState): Uint8Array {
-    return this._codec.encode({
-      version: 'full-v5',
-      nodeAlive: state.nodeAlive.serialize(),
-      edgeAlive: state.edgeAlive.serialize(),
-      prop: _serializePropsArray(state.allPropEntries()),
-      observedFrontier: VersionVector.serialize(state.observedFrontier),
-      edgeBirthEvent: _serializeEdgeBirthArray(state.edgeBirthEvent),
-    });
-  }
-
   private _encodeFrontier(frontier: Map<string, string>): Uint8Array {
     const obj: Record<string, string | undefined> = {};
     for (const key of Array.from(frontier.keys()).sort()) {
@@ -189,31 +171,6 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
   private _encodeAppliedVV(vv: VersionVector): Uint8Array {
     return this._codec.encode(VersionVector.serialize(vv));
-  }
-
-  // ── Decode Helpers ──────────────────────────────────────────────────
-
-  private _decodeFullState(buffer: Uint8Array): WarpState {
-    if (buffer === null || buffer === undefined) {
-      return createEmptyState();
-    }
-    const obj = this._codec.decode<DecodedFullState | null | undefined>(buffer);
-    if (obj === null || obj === undefined) {
-      return createEmptyState();
-    }
-    if (obj.version !== undefined && obj.version !== 'full-v5') {
-      throw new WarpError(
-        `Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj.version)}'`,
-        'E_UNSUPPORTED_VERSION',
-      );
-    }
-    return new WarpState({
-      nodeAlive: ORSet.deserialize(obj.nodeAlive ?? {}),
-      edgeAlive: ORSet.deserialize(obj.edgeAlive ?? {}),
-      prop: _deserializeProps(obj.prop ?? []),
-      observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
-      edgeBirthEvent: _deserializeEdgeBirthEvent(obj),
-    });
   }
 
   private _decodeFrontier(buffer: Uint8Array): Map<string, string> {
@@ -229,93 +186,4 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     const obj = this._codec.decode<Record<string, number>>(buffer);
     return VersionVector.from(obj);
   }
-}
-
-interface DecodedFullState {
-  version?: string;
-  nodeAlive?: { [x: string]: string[] };
-  edgeAlive?: { [x: string]: string[] };
-  prop?: Array<[string, unknown]>;
-  observedFrontier?: { [x: string]: number };
-  edgeBirthEvent?: Array<[string, { writerId?: string; lamport?: number }]>;
-  edgeBirthLamport?: Array<[string, number]>;
-}
-
-// ── Private Helpers ───────────────────────────────────────────────────
-
-function _serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<unknown>]>): Array<[string, unknown]> {
-  const arr: Array<[string, unknown]> = [];
-  for (const [key, register] of propEntries) {
-    arr.push([key, _serializeLWWRegister(register)]);
-  }
-  arr.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  return arr;
-}
-
-function _serializeEdgeBirthArray(edgeBirthEvent: Map<string, EventId> | undefined): Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> {
-  const result: Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> = [];
-  if (edgeBirthEvent !== undefined && edgeBirthEvent !== null) {
-    for (const [key, eventId] of edgeBirthEvent) {
-      result.push([key, {
-        lamport: eventId.lamport, writerId: eventId.writerId,
-        patchSha: eventId.patchSha, opIndex: eventId.opIndex,
-      }]);
-    }
-    result.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  }
-  return result;
-}
-
-function _deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> {
-  const prop = new Map<string, LWWRegister<PropValue>>();
-  if (!Array.isArray(propArray)) { return prop; }
-  for (const [key, registerObj] of propArray) {
-    const register = _deserializeLWWRegister(
-      registerObj as { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null,
-    );
-    if (register !== null) { prop.set(key, register); }
-  }
-  return prop;
-}
-
-function _deserializeEdgeBirthEvent(obj: DecodedFullState): Map<string, EventId> {
-  const result = new Map<string, EventId>();
-  const birthData = obj.edgeBirthEvent ?? obj.edgeBirthLamport;
-  if (!Array.isArray(birthData)) { return result; }
-  for (const [key, val] of birthData) {
-    if (typeof val === 'number') {
-      result.set(key, { lamport: val, writerId: '', patchSha: '0000', opIndex: 0 });
-    } else {
-      const ev = val;
-      result.set(key, {
-        lamport: ev.lamport ?? 0,
-        writerId: ev.writerId ?? '',
-        patchSha: (ev as { patchSha?: string }).patchSha ?? '0000',
-        opIndex: (ev as { opIndex?: number }).opIndex ?? 0,
-      });
-    }
-  }
-  return result;
-}
-
-function _serializeLWWRegister(register: LWWRegister<unknown>): { eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string }; value: unknown } | null {
-  if (register === null || register === undefined) { return null; }
-  return {
-    eventId: {
-      lamport: register.eventId.lamport, opIndex: register.eventId.opIndex,
-      patchSha: register.eventId.patchSha, writerId: register.eventId.writerId,
-    },
-    value: register.value,
-  };
-}
-
-function _deserializeLWWRegister(obj: { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null): LWWRegister<PropValue> | null {
-  if (obj === null || obj === undefined) { return null; }
-  return {
-    eventId: {
-      lamport: obj.eventId.lamport, writerId: obj.eventId.writerId,
-      patchSha: obj.eventId.patchSha, opIndex: obj.eventId.opIndex,
-    },
-    value: obj.value as PropValue,
-  };
 }

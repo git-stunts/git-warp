@@ -14,7 +14,7 @@
 
 import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
-import { decodeDot } from '../../crdt/Dot.ts';
+import { Dot, decodeDot } from '../../crdt/Dot.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import type { WarpState as WarpStateType } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
@@ -30,6 +30,16 @@ interface SerializedLWWRegister {
   value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
+interface SerializedORSet {
+  entries: Array<[string, string[]]>;
+  tombstones: string[];
+}
+
+interface ORSetWire {
+  entries?: Array<[string, string[]]>;
+  tombstones?: string[];
+}
+
 // ============================================================================
 // Full State Serialization (for Checkpoints)
 // ============================================================================
@@ -43,8 +53,8 @@ export function serializeFullState(
   { codec }: { codec?: CodecPort } = {},
 ): Uint8Array {
   const c = requireCodec(codec, 'serializeFullState');
-  const nodeAliveObj = state.nodeAlive.serialize();
-  const edgeAliveObj = state.edgeAlive.serialize();
+  const nodeAliveObj = serializeORSet(state.nodeAlive);
+  const edgeAliveObj = serializeORSet(state.edgeAlive);
   const propArray = serializePropsArray(WarpState.allPropEntriesFromState(state));
   const observedFrontierObj = VersionVector.serialize(state.observedFrontier);
   const edgeBirthArray = serializeEdgeBirthArray(state.edgeBirthEvent);
@@ -109,8 +119,8 @@ export function deserializeFullState(
     );
   }
   return new WarpState({
-    nodeAlive: ORSet.deserialize(obj.nodeAlive ?? {}),
-    edgeAlive: ORSet.deserialize(obj.edgeAlive ?? {}),
+    nodeAlive: deserializeORSet(obj.nodeAlive ?? {}),
+    edgeAlive: deserializeORSet(obj.edgeAlive ?? {}),
     prop: deserializeProps(obj.prop ?? []),
     observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
     edgeBirthEvent: deserializeEdgeBirthEvent(obj),
@@ -119,8 +129,8 @@ export function deserializeFullState(
 
 interface DeserializedFullState {
   version?: string;
-  nodeAlive?: { [x: string]: string[] };
-  edgeAlive?: { [x: string]: string[] };
+  nodeAlive?: ORSetWire;
+  edgeAlive?: ORSetWire;
   prop?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   observedFrontier?: { [x: string]: number };
   edgeBirthEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
@@ -141,8 +151,8 @@ export function serializeCheckpointStateEnvelope(
 ): CheckpointStateEnvelopeBuffers {
   const c = requireCodec(codec, 'serializeCheckpointStateEnvelope');
   return {
-    nodeAlive: c.encode(state.nodeAlive.serialize()),
-    edgeAlive: c.encode(state.edgeAlive.serialize()),
+    nodeAlive: c.encode(serializeORSet(state.nodeAlive)),
+    edgeAlive: c.encode(serializeORSet(state.edgeAlive)),
     prop: c.encode(serializePropsArray(WarpState.allPropEntriesFromState(state))),
     observedFrontier: c.encode(VersionVector.serialize(state.observedFrontier)),
     edgeBirthEvent: c.encode(serializeEdgeBirthArray(state.edgeBirthEvent)),
@@ -156,8 +166,8 @@ export function deserializeCheckpointStateEnvelope(
   const c = requireCodec(codec, 'deserializeCheckpointStateEnvelope');
   const emptyORSet = { entries: [], tombstones: [] };
   return new WarpState({
-    nodeAlive: ORSet.deserialize(decodeEnvelopeBlob(c, buffers.nodeAlive, emptyORSet)),
-    edgeAlive: ORSet.deserialize(decodeEnvelopeBlob(c, buffers.edgeAlive, emptyORSet)),
+    nodeAlive: deserializeORSet(decodeEnvelopeBlob(c, buffers.nodeAlive, emptyORSet)),
+    edgeAlive: deserializeORSet(decodeEnvelopeBlob(c, buffers.edgeAlive, emptyORSet)),
     prop: deserializeProps(decodeEnvelopeBlob(c, buffers.prop, [])),
     observedFrontier: VersionVector.from(decodeEnvelopeBlob(c, buffers.observedFrontier, {})),
     edgeBirthEvent: deserializeEdgeBirthEvent({
@@ -235,6 +245,66 @@ export function deserializeAppliedVV(
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+function serializeORSet(set: ORSet): SerializedORSet {
+  return {
+    entries: serializeORSetEntries(set.entriesIter()),
+    tombstones: sortEncodedDots(set.tombstonesIter()),
+  };
+}
+
+function deserializeORSet(obj: ORSetWire): ORSet {
+  const set = ORSet.empty();
+  deserializeORSetEntriesInto(obj.entries, set.entries);
+  deserializeORSetTombstonesInto(obj.tombstones, set.tombstones);
+  return set;
+}
+
+function serializeORSetEntries(entries: Iterable<[string, ReadonlySet<string>]>): Array<[string, string[]]> {
+  const result: Array<[string, string[]]> = [];
+  for (const [element, dots] of entries) {
+    result.push([element, sortEncodedDots(dots)]);
+  }
+  result.sort((left, right) => (
+    left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0
+  ));
+  return result;
+}
+
+function sortEncodedDots(encodedDots: Iterable<string>): string[] {
+  const pairs: Array<{ encoded: string; decoded: Dot }> = [];
+  for (const encoded of encodedDots) {
+    pairs.push({ encoded, decoded: Dot.decode(encoded) });
+  }
+  pairs.sort((left, right) => Dot.compare(left.decoded, right.decoded));
+  return pairs.map((pair) => pair.encoded);
+}
+
+function deserializeORSetEntriesInto(
+  entries: Array<[string, string[]]> | undefined,
+  target: Map<string, Set<string>>,
+): void {
+  if (!Array.isArray(entries)) {
+    return;
+  }
+  for (const [element, dots] of entries) {
+    if (Array.isArray(dots)) {
+      target.set(element, new Set(dots));
+    }
+  }
+}
+
+function deserializeORSetTombstonesInto(
+  tombstones: string[] | undefined,
+  target: Set<string>,
+): void {
+  if (!Array.isArray(tombstones)) {
+    return;
+  }
+  for (const dot of tombstones) {
+    target.add(dot);
+  }
+}
 
 function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const prop = new Map<string, LWWRegister<PropValue>>();

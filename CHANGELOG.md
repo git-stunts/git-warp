@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `Timeline.draft(name)`, draft writes, `Timeline.previewJoin(draft)`,
   and `Timeline.join(draft)` with join receipts for first-use speculative
   workflows.
+- Added the `lint:test-law` gate to reject conditional bare `return;`
+  statements in test bodies so skipped assertions cannot masquerade as passing
+  tests.
 
 ### Changed
 
@@ -33,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   materialized-state inspection has an explicit non-legacy import path.
 - Deprecated the entire graph-first legacy API. `legacy` remains migration-only
   and is no longer presented as a valid first-use path.
+- Moved receipt canonical JSON and ORSet/full-state wire encoding out of
+  domain types and storage adapters into infrastructure codec modules; `ORSet`
+  no longer exposes `serialize()` or `deserialize()`.
+- Raised the coverage ratchet from `92.10%` to `92.56%` after adding targeted
+  coverage for bounded query node paging and memory-budget rejection paths.
 
 ## [18.2.1] - 2026-06-30
 
