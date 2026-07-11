@@ -29,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   diagnostic compatibility exports out of the package root into explicit
   `legacy`, `storage`, `advanced`, and `diagnostics` subpaths. The package root
   now rejects those nouns through the v19 public API boundary audit.
+- Locked the package root to the v19 facade allowlist so support ports,
+  infrastructure adapters, memory helpers, cancellation utilities, sync
+  internals, and canonical serialization helpers stay behind explicit subpaths.
+- Aligned `CheckpointStorePort` with the schema:5 checkpoint envelope tree. The
+  CBOR adapter now owns the named checkpoint artifact encoding for runtime
+  checkpoint creation and loading instead of exposing a stale single
+  `state.cbor` result.
 - Added visible-state scope helpers to the `diagnostics` subpath so
   materialized-state inspection has an explicit non-legacy import path.
 - Deprecated the entire graph-first legacy API. `legacy` remains migration-only

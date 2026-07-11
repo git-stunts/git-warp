@@ -60,6 +60,48 @@ const FORBIDDEN_BROWSER_V19_EXPORTS = Object.freeze([
   'WarpStorage',
 ]);
 
+const ALLOWED_ROOT_EXPORTS = Object.freeze([
+  'DraftTimeline',
+  'EdgeIntentFields',
+  'EdgePropertyIntentFields',
+  'Intent',
+  'IntentBuilders',
+  'IntentDescriptor',
+  'IntentKind',
+  'JoinMode',
+  'JoinOptions',
+  'JoinPolicy',
+  'JoinReceipt',
+  'JoinReceiptOptions',
+  'JoinReceiptOutcome',
+  'JoinResult',
+  'JoinResultOptions',
+  'NodeIntentFields',
+  'NodeReadingFields',
+  'OpenWarpOptions',
+  'PropertyIntentFields',
+  'PropertyReadingFields',
+  'ReadReceipt',
+  'ReadReceiptOptions',
+  'ReadReceiptOutcome',
+  'Reading',
+  'ReadingBuilders',
+  'ReadingDescriptor',
+  'ReadingKind',
+  'ReadingResult',
+  'ReadingResultOptions',
+  'ReadingValue',
+  'ReceiptOutcome',
+  'Timeline',
+  'Warp',
+  'WarpStorage',
+  'WriteReceipt',
+  'WriteReceiptOptions',
+  'intent',
+  'openWarp',
+  'reading',
+]);
+
 function exportedNamesFor(path: string): ReadonlySet<string> {
   const sourceFile = sourceFileFor(path);
   const exportedNames = new Set<string>();
@@ -189,6 +231,12 @@ describe('v19 Warp facade', () => {
     for (const name of FORBIDDEN_ROOT_SUBSTRATE_EXPORTS) {
       expect(rootExports.has(name)).toBe(false);
     }
+  });
+
+  it('keeps the root export surface to the v19 facade allowlist', () => {
+    const rootExports = exportedNamesFor('index.ts');
+
+    expect([...rootExports].sort()).toEqual([...ALLOWED_ROOT_EXPORTS].sort());
   });
 
   it('keeps internal history vocabulary off the public facade objects', async () => {

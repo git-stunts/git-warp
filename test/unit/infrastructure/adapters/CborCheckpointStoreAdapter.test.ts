@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { CborCheckpointStoreAdapter } from '../../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.ts';
 import { decodeCasPayloadPointer } from '../../../../src/infrastructure/adapters/CasPayloadPointer.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
-import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.ts';
+import CheckpointStorePort, { type CheckpointWriteResult } from '../../../../src/ports/CheckpointStorePort.ts';
 import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -41,6 +41,18 @@ function createGoldenState() {
  */
 function createMemoryBlobPort() {
   return new MockBlobPort();
+}
+
+function checkpointTreeOids(result: CheckpointWriteResult): Record<string, string> {
+  return {
+    'state/nodeAlive': result.nodeAliveBlobOid,
+    'state/edgeAlive': result.edgeAliveBlobOid,
+    'state/prop.cbor': result.propBlobOid,
+    'state/observedFrontier.cbor': result.observedFrontierBlobOid,
+    'state/edgeBirthEvent.cbor': result.edgeBirthEventBlobOid,
+    'frontier.cbor': result.frontierBlobOid,
+    'appliedVV.cbor': result.appliedVVBlobOid,
+  };
 }
 
 class MemoryBlobStorage extends BlobStoragePort {
@@ -118,7 +130,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
   });
 
   describe('writeCheckpoint', () => {
-    it('returns OIDs for state, frontier, appliedVV', async () => {
+    it('returns OIDs for state envelope, frontier, appliedVV', async () => {
       const blobPort = createMemoryBlobPort();
       const adapter = new CborCheckpointStoreAdapter({
         codec: new CborCodec(), blobPort,
@@ -134,14 +146,18 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         stateHash: 'deadbeef',
       });
 
-      expect(typeof result.stateBlobOid).toBe('string');
+      expect(typeof result.nodeAliveBlobOid).toBe('string');
+      expect(typeof result.edgeAliveBlobOid).toBe('string');
+      expect(typeof result.propBlobOid).toBe('string');
+      expect(typeof result.observedFrontierBlobOid).toBe('string');
+      expect(typeof result.edgeBirthEventBlobOid).toBe('string');
       expect(typeof result.frontierBlobOid).toBe('string');
       expect(typeof result.appliedVVBlobOid).toBe('string');
       expect(result.provenanceIndexBlobOid).toBeNull();
-      expect(blobPort.writeBlob).toHaveBeenCalledTimes(3);
+      expect(blobPort.writeBlob).toHaveBeenCalledTimes(7);
     });
 
-    it('writes 4 blobs when provenanceIndex is provided', async () => {
+    it('writes 8 blobs when provenanceIndex is provided', async () => {
       const blobPort = createMemoryBlobPort();
       const adapter = new CborCheckpointStoreAdapter({
         codec: new CborCodec(), blobPort,
@@ -161,7 +177,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       });
 
       expect(result.provenanceIndexBlobOid).not.toBeNull();
-      expect(blobPort.writeBlob).toHaveBeenCalledTimes(4);
+      expect(blobPort.writeBlob).toHaveBeenCalledTimes(8);
     });
 
     it('stores checkpoint payloads behind CAS pointer blobs when blobStorage is configured', async () => {
@@ -183,15 +199,15 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         stateHash: 'deadbeef',
       });
 
-      expect(blobStorage.store).toHaveBeenCalledTimes(3);
+      expect(blobStorage.store).toHaveBeenCalledTimes(7);
 
-      const statePointer = await blobPort.readBlob(result.stateBlobOid);
+      const nodeAlivePointer = await blobPort.readBlob(result.nodeAliveBlobOid);
       const frontierPointer = await blobPort.readBlob(result.frontierBlobOid);
       const appliedVVPointer = await blobPort.readBlob(result.appliedVVBlobOid);
 
-      expect(decodeCasPayloadPointer(statePointer)).toBe('storage_0000');
-      expect(decodeCasPayloadPointer(frontierPointer)).toBe('storage_0001');
-      expect(decodeCasPayloadPointer(appliedVVPointer)).toBe('storage_0002');
+      expect(decodeCasPayloadPointer(nodeAlivePointer)).toBe('storage_0000');
+      expect(decodeCasPayloadPointer(frontierPointer)).toBe('storage_0005');
+      expect(decodeCasPayloadPointer(appliedVVPointer)).toBe('storage_0006');
     });
   });
 
@@ -211,13 +227,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         stateHash: 'deadbeef',
       });
 
-      const treeOids = {
-        'state.cbor': writeResult.stateBlobOid,
-        'frontier.cbor': writeResult.frontierBlobOid,
-        'appliedVV.cbor': writeResult.appliedVVBlobOid,
-      };
-
-      const data = await adapter.readCheckpoint(treeOids);
+      const data = await adapter.readCheckpoint(checkpointTreeOids(writeResult));
 
       expect(data.state).toBeDefined();
       expect(data.state.nodeAlive).toBeDefined();
@@ -226,11 +236,12 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       expect((data.appliedVV as NonNullable<typeof data.appliedVV>).get('w1')).toBe(3);
     });
 
-    it('throws on missing state.cbor', async () => {
+    it('throws on missing schema:5 state envelope artifacts', async () => {
       const adapter = new CborCheckpointStoreAdapter({
         codec: new CborCodec(), blobPort: createMemoryBlobPort(),
       });
-      await expect(adapter.readCheckpoint({})).rejects.toThrow('missing state.cbor');
+      await expect(adapter.readCheckpoint({ 'frontier.cbor': 'frontier' }))
+        .rejects.toThrow('missing state/nodeAlive');
     });
 
     it('throws on missing frontier.cbor', async () => {
@@ -239,9 +250,10 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         codec: new CborCodec(), blobPort,
       });
 
-      const stateOid = await blobPort.writeBlob(new Uint8Array([1, 2, 3]));
+      const nodeAliveOid = await blobPort.writeBlob(new Uint8Array([1, 2, 3]));
 
-      await expect(adapter.readCheckpoint({ 'state.cbor': stateOid })).rejects.toThrow('missing frontier.cbor');
+      await expect(adapter.readCheckpoint({ 'state/nodeAlive': nodeAliveOid }))
+        .rejects.toThrow('missing frontier.cbor');
     });
 
     it('returns stripped index shard oids when index artifacts are present', async () => {
@@ -258,9 +270,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       });
 
       const data = await adapter.readCheckpoint({
-        'state.cbor': writeResult.stateBlobOid,
-        'frontier.cbor': writeResult.frontierBlobOid,
-        'appliedVV.cbor': writeResult.appliedVVBlobOid,
+        ...checkpointTreeOids(writeResult),
         'index/meta_aa.cbor': 'oid-meta',
         'index/props_aa.cbor': 'oid-props',
       });
@@ -287,62 +297,15 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         stateHash: 'deadbeef',
       });
 
-      const data = await adapter.readCheckpoint({
-        'state.cbor': writeResult.stateBlobOid,
-        'frontier.cbor': writeResult.frontierBlobOid,
-        'appliedVV.cbor': writeResult.appliedVVBlobOid,
-      });
+      const data = await adapter.readCheckpoint(checkpointTreeOids(writeResult));
 
       expect(data.frontier.get('w1')).toBe('abc123');
       expect(data.appliedVV?.get('w1')).toBe(3);
-      expect(blobStorage.retrieve).toHaveBeenCalledTimes(3);
+      expect(blobStorage.retrieve).toHaveBeenCalledTimes(7);
     });
   });
 
-  describe('state encoding helpers', () => {
-    it('returns empty state when the full-state buffer or payload is absent', () => {
-      const adapter = ((new CborCheckpointStoreAdapter({
-        codec: new CborCodec(),
-        blobPort: createMemoryBlobPort(),
-      })) as any);
-
-      const emptyFromNullBuffer = adapter._decodeFullState(null);
-      expect(emptyFromNullBuffer).toBeInstanceOf(WarpState);
-      expect(emptyFromNullBuffer.nodeAlive.entries.size).toBe(0);
-
-      const nullDecodingAdapter = ((new CborCheckpointStoreAdapter({
-        codec: {
-          encode(value): Uint8Array {
-            return (value as any);
-          },
-          decode(_bytes: Uint8Array) {
-            return null as any;
-          },
-        } as any,
-        blobPort: createMemoryBlobPort(),
-      })) as any);
-
-      const emptyFromNullPayload = nullDecodingAdapter._decodeFullState(new Uint8Array([1]));
-      expect(emptyFromNullPayload).toBeInstanceOf(WarpState);
-      expect(emptyFromNullPayload.edgeAlive.entries.size).toBe(0);
-    });
-
-    it('rejects unsupported full-state versions', () => {
-      const adapter = ((new CborCheckpointStoreAdapter({
-        codec: {
-          encode(value): Uint8Array {
-            return (value as any);
-          },
-          decode(_bytes: Uint8Array) {
-            return { version: 'full-v4' } as any;
-          },
-        } as any,
-        blobPort: createMemoryBlobPort(),
-      })) as any);
-
-      expect(() => adapter._decodeFullState(new Uint8Array([1]))).toThrow('Unsupported full state version');
-    });
-
+  describe('state envelope helpers', () => {
     it('sorts props and edge birth events, skips null registers, and round-trips birth metadata', () => {
       const codec = new CborCodec();
       const adapter = ((new CborCheckpointStoreAdapter({
@@ -375,57 +338,28 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         edgeBirthEvent,
       });
 
-      const bytes = adapter._encodeFullState(state);
-      const raw = /** @type {{
-        prop: Array<[string, unknown]>,
-        edgeBirthEvent: Array<[string, unknown]>,
-      }} */ (codec.decode(bytes));
+      const envelope = adapter._encodeStateEnvelope(state);
+      const rawProp = /** @type {Array<[string, unknown]>} */ (codec.decode(envelope.prop));
+      const rawEdgeBirthEvent =
+        /** @type {Array<[string, unknown]>} */ (codec.decode(envelope.edgeBirthEvent));
 
-      expect((raw as any).prop.map(([key]) => key)).toEqual([
+      expect((rawProp as any).map(([key]) => key)).toEqual([
         'user:a\x00name',
         'user:skip\x00name',
         'user:z\x00name',
       ]);
-      expect((raw as any).edgeBirthEvent.map(([key]) => key)).toEqual([
+      expect((rawEdgeBirthEvent as any).map(([key]) => key)).toEqual([
         'user:a\x00user:b\x00knows',
         'user:z\x00user:y\x00likes',
       ]);
 
-      const decoded = adapter._decodeFullState(bytes);
+      const decoded = adapter._decodeStateEnvelope(envelope);
       expect(decoded.prop.has('user:skip\x00name')).toBe(false);
       expect(decoded.prop.get('user:a\x00name')?.value).toBe('Ada');
       expect(decoded.edgeBirthEvent.get('user:a\x00user:b\x00knows')).toEqual({
         lamport: 1,
         writerId: 'w1',
         patchSha: 'e'.repeat(40),
-        opIndex: 0,
-      });
-    });
-
-    it('accepts legacy numeric edge birth data when decoding full state', () => {
-      const adapter = ((new CborCheckpointStoreAdapter({
-        codec: {
-          encode(value): Uint8Array {
-            return (value as any);
-          },
-          decode(_bytes: Uint8Array) {
-            return {
-              nodeAlive: {},
-              edgeAlive: {},
-              prop: [],
-              observedFrontier: {},
-              edgeBirthLamport: [['user:a\x00user:b\x00knows', 7]],
-            } as any;
-          },
-        } as any,
-        blobPort: createMemoryBlobPort(),
-      })) as any);
-
-      const decoded = adapter._decodeFullState(new Uint8Array([1]));
-      expect(decoded.edgeBirthEvent.get('user:a\x00user:b\x00knows')).toEqual({
-        lamport: 7,
-        writerId: '',
-        patchSha: '0000',
         opIndex: 0,
       });
     });
