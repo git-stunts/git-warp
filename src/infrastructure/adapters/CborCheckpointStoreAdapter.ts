@@ -8,7 +8,6 @@ import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceInde
 import type { LWWRegister } from '../../domain/crdt/LWW.ts';
 import type { PropValue } from '../../domain/types/PropValue.ts';
 import { EventId } from '../../domain/utils/EventId.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 
 interface BlobPort {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -70,7 +69,6 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   constructor({ codec, blobPort }: {
     codec: CodecPort;
     blobPort: BlobPort;
-    blobStorage?: BlobStoragePort | null;
   }) {
     super();
     if (codec === null || codec === undefined) {
@@ -224,28 +222,68 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   }
 
   private async _resolveCheckpointWrites(writes: CheckpointWritePromises): Promise<CheckpointWriteResult> {
+    const [
+      nodeAliveBlobOid,
+      edgeAliveBlobOid,
+      propBlobOid,
+      observedFrontierBlobOid,
+      edgeBirthEventBlobOid,
+      frontierBlobOid,
+      appliedVVBlobOid,
+      provenanceIndexBlobOid,
+    ] = await Promise.all([
+      writes.nodeAliveBlobOid,
+      writes.edgeAliveBlobOid,
+      writes.propBlobOid,
+      writes.observedFrontierBlobOid,
+      writes.edgeBirthEventBlobOid,
+      writes.frontierBlobOid,
+      writes.appliedVVBlobOid,
+      writes.provenanceIndexBlobOid,
+    ]);
+
     return {
-      nodeAliveBlobOid: await writes.nodeAliveBlobOid,
-      edgeAliveBlobOid: await writes.edgeAliveBlobOid,
-      propBlobOid: await writes.propBlobOid,
-      observedFrontierBlobOid: await writes.observedFrontierBlobOid,
-      edgeBirthEventBlobOid: await writes.edgeBirthEventBlobOid,
-      frontierBlobOid: await writes.frontierBlobOid,
-      appliedVVBlobOid: await writes.appliedVVBlobOid,
-      provenanceIndexBlobOid: await writes.provenanceIndexBlobOid,
+      nodeAliveBlobOid,
+      edgeAliveBlobOid,
+      propBlobOid,
+      observedFrontierBlobOid,
+      edgeBirthEventBlobOid,
+      frontierBlobOid,
+      appliedVVBlobOid,
+      provenanceIndexBlobOid,
     };
   }
 
   private async _resolveCheckpointReads(reads: CheckpointReadPromises): Promise<CheckpointReadBuffers> {
+    const [
+      nodeAlive,
+      edgeAlive,
+      prop,
+      observedFrontier,
+      edgeBirthEvent,
+      frontier,
+      appliedVV,
+      provenanceIndex,
+    ] = await Promise.all([
+      reads.nodeAlive,
+      reads.edgeAlive,
+      reads.prop,
+      reads.observedFrontier,
+      reads.edgeBirthEvent,
+      reads.frontier,
+      reads.appliedVV,
+      reads.provenanceIndex,
+    ]);
+
     return {
-      nodeAlive: await reads.nodeAlive,
-      edgeAlive: await reads.edgeAlive,
-      prop: await reads.prop,
-      observedFrontier: await reads.observedFrontier,
-      edgeBirthEvent: await reads.edgeBirthEvent,
-      frontier: await reads.frontier,
-      appliedVV: await reads.appliedVV,
-      provenanceIndex: await reads.provenanceIndex,
+      nodeAlive,
+      edgeAlive,
+      prop,
+      observedFrontier,
+      edgeBirthEvent,
+      frontier,
+      appliedVV,
+      provenanceIndex,
     };
   }
 
@@ -313,7 +351,8 @@ interface EdgeBirthEventPayload {
 function _deserializeEdgeBirthEvent(obj: { edgeBirthEvent?: Array<[string, EdgeBirthEventPayload]> }): Map<string, EventId> {
   const result = new Map<string, EventId>();
   const birthData = obj.edgeBirthEvent;
-  if (!Array.isArray(birthData)) { return result; }
+  if (birthData === undefined) { return result; }
+  if (!Array.isArray(birthData)) { throw invalidEdgeBirthEventPayload('unknown'); }
   for (const entry of birthData) {
     if (!Array.isArray(entry) || entry.length !== 2) {
       throw invalidEdgeBirthEventPayload('unknown');
