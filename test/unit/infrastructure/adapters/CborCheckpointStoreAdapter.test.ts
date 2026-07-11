@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CborCheckpointStoreAdapter } from '../../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.ts';
-import { decodeCasPayloadPointer } from '../../../../src/infrastructure/adapters/CasPayloadPointer.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import CheckpointStorePort, { type CheckpointWriteResult } from '../../../../src/ports/CheckpointStorePort.ts';
 import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
@@ -180,11 +179,12 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       expect(blobPort.writeBlob).toHaveBeenCalledTimes(8);
     });
 
-    it('stores checkpoint payloads behind CAS pointer blobs when blobStorage is configured', async () => {
+    it('writes checkpoint tree blobs directly when blobStorage is configured', async () => {
       const blobPort = createMemoryBlobPort();
       const blobStorage = new MemoryBlobStorage();
+      const codec = new CborCodec();
       const adapter = new CborCheckpointStoreAdapter({
-        codec: new CborCodec(),
+        codec,
         blobPort,
         blobStorage,
       });
@@ -199,15 +199,15 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         stateHash: 'deadbeef',
       });
 
-      expect(blobStorage.store).toHaveBeenCalledTimes(7);
+      expect(blobStorage.store).not.toHaveBeenCalled();
 
-      const nodeAlivePointer = await blobPort.readBlob(result.nodeAliveBlobOid);
-      const frontierPointer = await blobPort.readBlob(result.frontierBlobOid);
-      const appliedVVPointer = await blobPort.readBlob(result.appliedVVBlobOid);
+      const nodeAliveBytes = await blobPort.readBlob(result.nodeAliveBlobOid);
+      const frontierBytes = await blobPort.readBlob(result.frontierBlobOid);
+      const appliedVVBytes = await blobPort.readBlob(result.appliedVVBlobOid);
 
-      expect(decodeCasPayloadPointer(nodeAlivePointer)).toBe('storage_0000');
-      expect(decodeCasPayloadPointer(frontierPointer)).toBe('storage_0005');
-      expect(decodeCasPayloadPointer(appliedVVPointer)).toBe('storage_0006');
+      expect(nodeAliveBytes.byteLength).toBeGreaterThan(0);
+      expect(codec.decode(frontierBytes)).toEqual({ w1: 'abc123' });
+      expect(codec.decode(appliedVVBytes)).toEqual({ w1: 3 });
     });
   });
 
@@ -281,7 +281,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       });
     });
 
-    it('round-trips CAS-backed pointer blobs via blobStorage', async () => {
+    it('round-trips direct checkpoint blobs when blobStorage is configured', async () => {
       const blobPort = createMemoryBlobPort();
       const blobStorage = new MemoryBlobStorage();
       const codec = new CborCodec();
@@ -301,7 +301,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
 
       expect(data.frontier.get('w1')).toBe('abc123');
       expect(data.appliedVV?.get('w1')).toBe(3);
-      expect(blobStorage.retrieve).toHaveBeenCalledTimes(7);
+      expect(blobStorage.retrieve).not.toHaveBeenCalled();
     });
   });
 

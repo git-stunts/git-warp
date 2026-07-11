@@ -9,7 +9,6 @@ import type { LWWRegister } from '../../domain/crdt/LWW.ts';
 import type { PropValue } from '../../domain/types/PropValue.ts';
 import type { EventId } from '../../domain/utils/EventId.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
-import { readPayloadBlob, writePayloadBlob } from './CasPayloadPointer.ts';
 
 interface BlobPort {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -34,9 +33,8 @@ interface CheckpointStateEnvelope {
 export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   private readonly _codec: CodecPort;
   private readonly _blobPort: BlobPort;
-  private readonly _blobStorage: BlobStoragePort | null;
 
-  constructor({ codec, blobPort, blobStorage }: {
+  constructor({ codec, blobPort }: {
     codec: CodecPort;
     blobPort: BlobPort;
     blobStorage?: BlobStoragePort | null;
@@ -50,7 +48,6 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     }
     this._codec = codec;
     this._blobPort = blobPort;
-    this._blobStorage = blobStorage ?? null;
   }
 
   override async writeCheckpoint(record: CheckpointRecord): Promise<CheckpointWriteResult> {
@@ -64,43 +61,16 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     }
 
     const writes: Array<Promise<string>> = [
-      this._writeCheckpointBlob(stateEnvelope.nodeAlive, 'checkpoint-node-alive'),
-      this._writeCheckpointBlob(stateEnvelope.edgeAlive, 'checkpoint-edge-alive'),
-      this._writeCheckpointBlob(stateEnvelope.prop, 'checkpoint-prop'),
-      this._writeCheckpointBlob(stateEnvelope.observedFrontier, 'checkpoint-observed-frontier'),
-      this._writeCheckpointBlob(stateEnvelope.edgeBirthEvent, 'checkpoint-edge-birth-event'),
-      writePayloadBlob({
-        blobPort: this._blobPort,
-        blobStorage: this._blobStorage,
-        bytes: frontierBytes,
-        options: {
-          slug: 'checkpoint-frontier',
-          mime: 'application/cbor',
-          size: frontierBytes.length,
-        },
-      }),
-      writePayloadBlob({
-        blobPort: this._blobPort,
-        blobStorage: this._blobStorage,
-        bytes: appliedVVBytes,
-        options: {
-          slug: 'checkpoint-applied-vv',
-          mime: 'application/cbor',
-          size: appliedVVBytes.length,
-        },
-      }),
+      this._writeCheckpointBlob(stateEnvelope.nodeAlive),
+      this._writeCheckpointBlob(stateEnvelope.edgeAlive),
+      this._writeCheckpointBlob(stateEnvelope.prop),
+      this._writeCheckpointBlob(stateEnvelope.observedFrontier),
+      this._writeCheckpointBlob(stateEnvelope.edgeBirthEvent),
+      this._writeCheckpointBlob(frontierBytes),
+      this._writeCheckpointBlob(appliedVVBytes),
     ];
     if (provenanceBytes !== null) {
-      writes.push(writePayloadBlob({
-        blobPort: this._blobPort,
-        blobStorage: this._blobStorage,
-        bytes: provenanceBytes,
-        options: {
-          slug: 'checkpoint-provenance-index',
-          mime: 'application/cbor',
-          size: provenanceBytes.length,
-        },
-      }));
+      writes.push(this._writeCheckpointBlob(provenanceBytes));
     }
 
     const oids = await Promise.all(writes);
@@ -126,38 +96,18 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     }
 
     const reads: Array<Promise<Uint8Array>> = [
-      readPayloadBlob({
-        blobPort: this._blobPort,
-        blobStorage: this._blobStorage,
-        oid: this._requireTreeOid(treeOids, 'state/nodeAlive'),
-      }),
-      readPayloadBlob({
-        blobPort: this._blobPort,
-        blobStorage: this._blobStorage,
-        oid: this._requireTreeOid(treeOids, 'state/edgeAlive'),
-      }),
-      readPayloadBlob({
-        blobPort: this._blobPort,
-        blobStorage: this._blobStorage,
-        oid: this._requireTreeOid(treeOids, 'state/prop.cbor'),
-      }),
-      readPayloadBlob({
-        blobPort: this._blobPort,
-        blobStorage: this._blobStorage,
-        oid: this._requireTreeOid(treeOids, 'state/observedFrontier.cbor'),
-      }),
-      readPayloadBlob({
-        blobPort: this._blobPort,
-        blobStorage: this._blobStorage,
-        oid: this._requireTreeOid(treeOids, 'state/edgeBirthEvent.cbor'),
-      }),
-      readPayloadBlob({ blobPort: this._blobPort, blobStorage: this._blobStorage, oid: frontierOid }),
+      this._readCheckpointBlob(this._requireTreeOid(treeOids, 'state/nodeAlive')),
+      this._readCheckpointBlob(this._requireTreeOid(treeOids, 'state/edgeAlive')),
+      this._readCheckpointBlob(this._requireTreeOid(treeOids, 'state/prop.cbor')),
+      this._readCheckpointBlob(this._requireTreeOid(treeOids, 'state/observedFrontier.cbor')),
+      this._readCheckpointBlob(this._requireTreeOid(treeOids, 'state/edgeBirthEvent.cbor')),
+      this._readCheckpointBlob(frontierOid),
     ];
     if (appliedVVOid !== undefined) {
-      reads.push(readPayloadBlob({ blobPort: this._blobPort, blobStorage: this._blobStorage, oid: appliedVVOid }));
+      reads.push(this._readCheckpointBlob(appliedVVOid));
     }
     if (provenanceOid !== undefined) {
-      reads.push(readPayloadBlob({ blobPort: this._blobPort, blobStorage: this._blobStorage, oid: provenanceOid }));
+      reads.push(this._readCheckpointBlob(provenanceOid));
     }
 
     const buffers = await Promise.all(reads);
@@ -251,17 +201,12 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     return VersionVector.from(obj);
   }
 
-  private _writeCheckpointBlob(bytes: Uint8Array, slug: string): Promise<string> {
-    return writePayloadBlob({
-      blobPort: this._blobPort,
-      blobStorage: this._blobStorage,
-      bytes,
-      options: {
-        slug,
-        mime: 'application/cbor',
-        size: bytes.length,
-      },
-    });
+  private _writeCheckpointBlob(bytes: Uint8Array): Promise<string> {
+    return this._blobPort.writeBlob(bytes);
+  }
+
+  private _readCheckpointBlob(oid: string): Promise<Uint8Array> {
+    return this._blobPort.readBlob(oid);
   }
 
   private _requireTreeOid(treeOids: Record<string, string>, path: string): string {
