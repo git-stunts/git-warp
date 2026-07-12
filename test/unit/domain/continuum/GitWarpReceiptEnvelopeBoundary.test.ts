@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { GitWarpReceiptEnvelopeBoundary } from '../../../../advanced.ts';
+import GitWarpReceiptEnvelopeBoundary from '../../../../src/domain/continuum/GitWarpReceiptEnvelopeBoundary.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { TickReceipt } from '../../../../src/domain/types/TickReceipt.ts';
 

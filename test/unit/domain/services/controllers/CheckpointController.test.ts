@@ -134,6 +134,7 @@ function createMockHost(overrides = {}) {
       updateRef: vi.fn().mockResolvedValue(undefined),
       commitNode: vi.fn().mockResolvedValue('anchor-sha'),
       getNodeInfo: vi.fn().mockResolvedValue({ message: 'msg', parents: [] }),
+      showNode: vi.fn().mockResolvedValue('msg'),
     },
     _cachedState: null,
     _stateDirty: false,
@@ -145,6 +146,7 @@ function createMockHost(overrides = {}) {
     _codec: { decode: vi.fn() },
     _commitMessageCodec: {
       detectKind: detectMessageKindMock,
+      decodeCheckpoint: vi.fn(),
       decodePatch: vi.fn((message: string) => {
         const decoded = decodePatchMessageMock(message) as {
           storage?: { strategy: string; version: string | null; schema: string | null; encrypted: boolean };
@@ -436,7 +438,8 @@ describe('CheckpointController', () => {
   describe('_validateMigrationBoundary', () => {
     it('passes when checkpoint has v5 schema', async () => {
       ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
-      loadCheckpointMock.mockResolvedValue({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 5, appliedVV: null, indexShardOids: null });
+      detectMessageKindMock.mockReturnValue('checkpoint');
+      ((host['_commitMessageCodec'] as any).decodeCheckpoint as any).mockReturnValue({ schema: 5 });
       isCurrentCheckpointSchemaMock.mockReturnValue(true);
 
       await expect(ctrl._validateMigrationBoundary()).resolves.toBeUndefined();

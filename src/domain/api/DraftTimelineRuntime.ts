@@ -6,7 +6,8 @@ import { applyIntentToPatch } from './IntentRuntime.ts';
 import JoinReceipt from './JoinReceipt.ts';
 import JoinResult from './JoinResult.ts';
 import type { JoinOptions } from './Timeline.ts';
-import WriteReceipt from './WriteReceipt.ts';
+import type WriteReceipt from './WriteReceipt.ts';
+import { executeIntentWrite } from './WriteRuntime.ts';
 
 type DraftTimelineState = {
   readonly runtime: WarpWorldline;
@@ -20,7 +21,6 @@ type DraftTimelineState = {
 
 type DraftWriteFields = {
   readonly runtime: WarpWorldline;
-  readonly timelineName: string;
   readonly draftName: string;
   readonly state: DraftTimelineState;
   readonly intent: Intent;
@@ -64,7 +64,6 @@ export async function createDraftTimeline(
     writer: runtime.writerId,
     writeDraft: async (intent) => await writeDraftIntent({
       runtime,
-      timelineName,
       draftName,
       state,
       intent,
@@ -176,18 +175,21 @@ function createDraftState(runtime: WarpWorldline): DraftTimelineState {
 }
 
 async function writeDraftIntent(fields: DraftWriteFields): Promise<WriteReceipt> {
-  const patchSha = await fields.runtime.patchDraft(fields.draftName, (patch) => {
-    applyIntentToPatch(fields.intent, patch);
-  });
+  const receipt = await executeIntentWrite(
+    fields.runtime,
+    fields.intent,
+    async (build) => await fields.runtime.patchDraft(fields.draftName, build),
+  );
+  if (receipt.outcome !== 'accepted') {
+    return receipt;
+  }
+  const { patchSha } = receipt;
+  if (patchSha === undefined) {
+    throw new WarpError('Accepted draft write is missing its patch SHA', 'E_DRAFT_WRITE_RECEIPT');
+  }
   fields.state.draftPatchShas.push(patchSha);
   fields.state.intents.push(fields.intent);
-  return new WriteReceipt({
-    timeline: fields.timelineName,
-    writer: fields.runtime.writerId,
-    intent: fields.intent,
-    outcome: 'accepted',
-    patchSha,
-  });
+  return receipt;
 }
 
 function rejectedJoin(fields: RejectedJoinFields): JoinResult {

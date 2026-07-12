@@ -8,8 +8,7 @@
     ".": "./index.ts",
     "./storage": "./storage.ts",
     "./advanced": "./advanced.ts",
-    "./diagnostics": "./diagnostics.ts",
-    "./sha1sync": "./src/infrastructure/adapters/sha1sync.ts"
+    "./diagnostics": "./diagnostics.ts"
   },
   "publish": {
     "include": [

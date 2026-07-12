@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  BoundedSupportRule,
-  CausalIndexPlan,
-  SupportFragmentPlan,
-} from '../../../../../advanced.ts';
-import { QueryBuilder } from '../../../../../diagnostics.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
+import BoundedSupportRule from '../../../../../src/domain/services/query/BoundedSupportRule.ts';
+import CausalIndexPlan from '../../../../../src/domain/services/query/CausalIndexPlan.ts';
+import QueryBuilder from '../../../../../src/domain/services/query/QueryBuilder.ts';
+import SupportFragmentPlan from '../../../../../src/domain/services/query/SupportFragmentPlan.ts';
 import type {
   QueryNeighborEntry,
   QueryReadModel,

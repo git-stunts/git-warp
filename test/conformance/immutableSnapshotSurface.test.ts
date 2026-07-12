@@ -35,7 +35,7 @@ async function assertSnapshotPublicApiSurface(graph: WarpCore): Promise<void> {
   void snapshotValue;
 }
 
-describe('snapshot public API surface', () => {
+describe('immutable snapshot surface', () => {
   it('exports runtime snapshot classes from the package root', () => {
     expect(ImmutableBytes).toBeTypeOf('function');
     expect(SnapshotORSet).toBeTypeOf('function');

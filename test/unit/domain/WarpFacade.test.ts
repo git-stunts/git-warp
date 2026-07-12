@@ -2,21 +2,18 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import {
-  DraftTimeline,
-  intent,
-  JoinReceipt,
-  JoinResult,
-  openWarp,
-  reading,
-  ReadReceipt,
-  ReadingResult,
-  Timeline,
-  Warp,
-} from '../../../index.ts';
+import { intent, openWarp, reading } from '../../../index.ts';
+import DraftTimeline from '../../../src/domain/api/DraftTimeline.ts';
+import JoinReceipt from '../../../src/domain/api/JoinReceipt.ts';
+import JoinResult from '../../../src/domain/api/JoinResult.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../../../src/domain/api/OpenWarpIdentityFailure.ts';
+import ReadReceipt from '../../../src/domain/api/ReadReceipt.ts';
+import ReadingResult from '../../../src/domain/api/ReadingResult.ts';
+import Timeline from '../../../src/domain/api/Timeline.ts';
 import { requireTimelineRuntime } from '../../../src/domain/api/TimelineRuntime.ts';
+import Warp from '../../../src/domain/api/Warp.ts';
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { MemoryStorageAdapter } from '../../../storage.ts';
 
 const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([
@@ -134,6 +131,19 @@ function collectExportedDeclarationName(statement: ts.Statement, exportedNames: 
   ) {
     exportedNames.add(statement.name.text);
   }
+}
+
+async function createBoundedReadBasis(
+  storage: InstanceType<typeof MemoryStorageAdapter>,
+  graphName: string
+): Promise<void> {
+  const runtime = await openRuntimeHostProduct({
+    persistence: storage,
+    graphName,
+    writerId: 'agent-1',
+  });
+  await runtime.materialize();
+  await runtime.createCheckpoint();
 }
 
 describe('v19 Warp facade', () => {
@@ -272,6 +282,7 @@ describe('v19 Warp facade', () => {
     );
 
     expect(nodeReceipt.outcome).toBe('accepted');
+    expect(nodeReceipt.operation).toBe('write');
     expect(nodeReceipt.intent.kind).toBe('node.add');
     expect(typeof nodeReceipt.patchSha).toBe('string');
     expect(propertyReceipt.outcome).toBe('accepted');
@@ -293,9 +304,30 @@ describe('v19 Warp facade', () => {
     expect(result.nodes).toEqual([{ id: 'user:alice', props: { role: 'admin' } }]);
   });
 
-  it('reads public readings and returns resolved read receipts', async () => {
+  it('returns operational write failures as receipts', async () => {
     const warp = await openWarp({
       storage: new MemoryStorageAdapter(),
+      writer: 'agent-1',
+    });
+    const timeline = await warp.timeline('events');
+
+    const receipt = await timeline.write(intent.node.remove({ subject: 'user:alice' }));
+
+    expect(receipt).toMatchObject({
+      operation: 'write',
+      outcome: 'obstructed',
+      patchSha: undefined,
+      reason: 'missing_write_basis',
+    });
+    expect(receipt.repairHints).toEqual([
+      expect.objectContaining({ code: 'materialize_write_basis' }),
+    ]);
+  });
+
+  it('reads public readings and returns resolved read receipts', async () => {
+    const storage = new MemoryStorageAdapter();
+    const warp = await openWarp({
+      storage,
       writer: 'agent-1',
     });
     const timeline = await warp.timeline('events');
@@ -308,6 +340,15 @@ describe('v19 Warp facade', () => {
         value: 'admin',
       })
     );
+    await timeline.write(intent.node.add({ subject: 'team:ops' }));
+    await timeline.write(
+      intent.edge.add({
+        from: 'user:alice',
+        to: 'team:ops',
+        label: 'memberOf',
+      })
+    );
+    await createBoundedReadBasis(storage, timeline.name);
 
     const propertyResult = await timeline.read(
       reading.property({
@@ -320,29 +361,110 @@ describe('v19 Warp facade', () => {
         subject: 'user:alice',
       })
     );
+    const neighborhoodResult = await timeline.read(
+      reading.neighborhood({
+        subject: 'user:alice',
+        direction: 'out',
+        labels: ['memberOf'],
+      })
+    );
 
     expect(propertyResult).toBeInstanceOf(ReadingResult);
     expect(propertyResult.receipt).toBeInstanceOf(ReadReceipt);
     expect(propertyResult.value).toBe('admin');
     expect(propertyResult.receipt.outcome).toBe('resolved');
+    expect(propertyResult.receipt.operation).toBe('read');
     expect(propertyResult.receipt.reading.kind).toBe('property.get');
     expect(propertyResult.receipt.timeline).toBe('events');
     expect(propertyResult.receipt.writer).toBe('agent-1');
+    expect(propertyResult.receipt.evidence).toMatchObject({
+      kind: 'checkpoint-tail-read',
+      worldline: 'events',
+    });
 
     expect(existsResult).toBeInstanceOf(ReadingResult);
     expect(existsResult.value).toBe(true);
     expect(existsResult.receipt.outcome).toBe('resolved');
     expect(existsResult.receipt.reading.kind).toBe('node.exists');
+    expect(neighborhoodResult.value).toMatchObject({
+      subject: 'user:alice',
+      direction: 'out',
+      completeness: 'complete',
+      edges: [{ direction: 'out', neighborId: 'team:ops', label: 'memberOf' }],
+    });
+    expect(neighborhoodResult.receipt).toMatchObject({
+      outcome: 'resolved',
+      evidence: { kind: 'checkpoint-tail-read' },
+    });
+    const coordinate = await timeline.coordinate();
+    const coordinateRole = await coordinate.optic().node('user:alice').prop('role').read();
+    expect(coordinateRole.value).toBe('admin');
+    await expect(
+      timeline.readValue(
+        reading.property({
+          subject: 'user:alice',
+          key: 'role',
+        })
+      )
+    ).resolves.toBe('admin');
+
+    const tick = await timeline.tick();
+    await timeline.write(
+      intent.property.set({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'owner',
+      })
+    );
+    const currentRole = await timeline.readValue(
+      reading.property({
+        subject: 'user:alice',
+        key: 'role',
+      })
+    );
+    const historicalRole = await timeline.at(tick).readValue(
+      reading.property({
+        subject: 'user:alice',
+        key: 'role',
+      })
+    );
+    expect(currentRole).toBe('owner');
+    expect(historicalRole).toBe('admin');
   });
 
-  it('drafts speculative writes, previews joins, and joins with receipts', async () => {
+  it('returns an obstructed receipt instead of materializing a missing read basis', async () => {
     const warp = await openWarp({
       storage: new MemoryStorageAdapter(),
       writer: 'agent-1',
     });
     const timeline = await warp.timeline('events');
 
+    const result = await timeline.read(reading.node.exists({ subject: 'user:alice' }));
+
+    expect(result.value).toBeNull();
+    expect(result.receipt).toMatchObject({
+      outcome: 'obstructed',
+      reason: 'missing_bounded_basis',
+    });
+    expect(result.receipt.evidence).toBeUndefined();
+    expect(result.receipt.repairHints).toEqual([
+      expect.objectContaining({ code: 'repair_bounded_basis' }),
+    ]);
+    await expect(
+      timeline.readValue(reading.node.exists({ subject: 'user:alice' }))
+    ).rejects.toMatchObject({ code: 'E_TIMELINE_READ_UNRESOLVED' });
+  });
+
+  it('drafts speculative writes, previews joins, and joins with receipts', async () => {
+    const storage = new MemoryStorageAdapter();
+    const warp = await openWarp({
+      storage,
+      writer: 'agent-1',
+    });
+    const timeline = await warp.timeline('events');
+
     await timeline.write(intent.node.add({ subject: 'user:alice' }));
+    await createBoundedReadBasis(storage, timeline.name);
     const draft = await timeline.draft('try-admin-role');
 
     const draftWrite = await draft.write(

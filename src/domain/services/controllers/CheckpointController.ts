@@ -8,6 +8,7 @@
  */
 
 import QueryError from '../../errors/QueryError.ts';
+import PersistenceError from '../../errors/PersistenceError.ts';
 import { SchemaUnsupportedError } from '../../errors/index.ts';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.ts';
@@ -367,8 +368,7 @@ export default class CheckpointController {
   }
 
   async _validateMigrationBoundary(): Promise<void> {
-    const checkpoint = await this._loadLatestCheckpoint();
-    if (isCurrentCheckpointSchema(checkpoint?.schema)) { return; }
+    if (await this._hasCurrentCheckpointSchema()) { return; }
 
     const hasSchema1History = await this._hasSchema1Patches();
     if (hasSchema1History) {
@@ -376,6 +376,33 @@ export default class CheckpointController {
         'Cannot open graph with retired patch history. Run `npm run upgrade -- --graph <name>` first.',
       );
     }
+  }
+
+  private async _hasCurrentCheckpointSchema(): Promise<boolean> {
+    const checkpointSha = await this._readCheckpointSha();
+    if (typeof checkpointSha !== 'string' || checkpointSha.length === 0) {
+      return false;
+    }
+    const persistence = this._host._persistence;
+    this._assertLoadPersistence(persistence);
+    const message = await persistence.showNode(checkpointSha);
+    if (typeof message !== 'string' || message.length === 0) {
+      return false;
+    }
+    if (this._host._commitMessageCodec.detectKind(message) !== 'checkpoint') {
+      return false;
+    }
+    const checkpoint = this._host._commitMessageCodec.decodeCheckpoint(message);
+    if (isCurrentCheckpointSchema(checkpoint.schema)) {
+      return true;
+    }
+    throw new PersistenceError(
+      `Checkpoint ${checkpointSha} is schema:${checkpoint.schema}. ` +
+        `Only schema:${CURRENT_CHECKPOINT_SCHEMA} checkpoints are supported by the shipped runtime. ` +
+        'Run `npm run upgrade -- --graph <name>` before loading this graph.',
+      'E_CHECKPOINT_UNSUPPORTED_SCHEMA',
+      { context: { checkpointSha, schema: checkpoint.schema } },
+    );
   }
 
   async _hasSchema1Patches(): Promise<boolean> {

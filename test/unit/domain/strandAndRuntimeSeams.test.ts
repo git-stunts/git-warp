@@ -31,7 +31,7 @@ import type {
 import type { IndexShard } from '../../../src/domain/artifacts/IndexShard.ts';
 import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
 
-describe('public strand and runtime host seams', () => {
+describe('strand and runtime host seams', () => {
   it('uses StrandError as the public speculative-lane error noun', () => {
     const error = new StrandError('invalid strand id', {
       code: 'E_STRAND_ID_INVALID',

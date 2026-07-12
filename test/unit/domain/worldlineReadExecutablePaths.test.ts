@@ -4,7 +4,7 @@ import { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 
-describe('public read API executable paths', () => {
+describe('worldline read executable paths', () => {
   it('reads live, historical, and observer-filtered worldlines through public handles', async () => {
     const audit = await openWarpWorldline({
       persistence: new InMemoryGraphAdapter(),

@@ -44,11 +44,6 @@
       "import": "./dist/diagnostics.js",
       "default": "./dist/diagnostics.js"
     },
-    "./sha1sync": {
-      "types": "./dist/src/infrastructure/adapters/sha1sync.d.ts",
-      "import": "./dist/src/infrastructure/adapters/sha1sync.js",
-      "default": "./dist/src/infrastructure/adapters/sha1sync.js"
-    },
     "./package.json": "./package.json"
   },
   "files": [

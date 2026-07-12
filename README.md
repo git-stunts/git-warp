@@ -55,7 +55,8 @@ See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 ## v19 First-Use API
 
 This is the public contract new application code should start from. The
-deprecated v18 graph-first API remains available only for migration.
+v18 graph-first package exports are removed rather than carried as a second
+compatibility API.
 
 ```typescript
 import { openWarp, intent, reading } from '@git-stunts/git-warp';
@@ -84,6 +85,10 @@ const write = await events.write(
   })
 );
 
+if (write.outcome !== 'accepted') {
+  throw new Error(write.reason);
+}
+
 const role = await events.read(
   reading.property({
     subject: 'user:alice',
@@ -91,8 +96,12 @@ const role = await events.read(
   })
 );
 
-console.log(role.value);
-console.log(role.receipt);
+if (role.receipt.outcome === 'resolved') {
+  console.log(role.value);
+  console.log(role.receipt.evidence);
+} else {
+  console.error(role.receipt.reason, role.receipt.repairHints);
+}
 ```
 
 The v18 graph-first API is not exported in v19. Migrate uses of
@@ -102,9 +111,9 @@ upgrading.
 
 ### Bounded Reads
 
-The v19 public API names bounded questions as readings. The formal optic,
-coordinate, observer, and support machinery remains available to expert code
-through advanced/diagnostic surfaces, not the package root.
+The v19 public API names bounded questions as readings. Formal coordinate and
+optic access lives under `advanced`; receipt inspection lives under
+`diagnostics`. Observer, support-plan, and host machinery is internal.
 
 - A **reading** is the bounded question the public API should expose.
 - An **optic** is the formal execution shape used by expert and proof-oriented
@@ -113,6 +122,9 @@ through advanced/diagnostic surfaces, not the package root.
   `tick` and receipt handles before coordinate machinery.
 - Missing support should produce an honest receipt outcome, not a silent
   whole-history materialization.
+
+Create a missing basis with `git warp checkpoint create`, or reconcile
+state-cache retention with `git warp doctor --repair-state-cache`.
 
 <details>
 <summary><h4>For the Nerds™: Optics</h4></summary>

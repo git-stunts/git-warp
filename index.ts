@@ -4,7 +4,7 @@
  * Public v19 application boundary.
  *
  * Root users should write intents, read timelines, and keep receipts. The
- * The graph-first compatibility surface is no longer publicly exported.
+ * graph-first compatibility surface is no longer publicly exported.
  * Storage adapters live under `@git-stunts/git-warp/storage`; formal read,
  * evidence, and support machinery lives under `@git-stunts/git-warp/advanced`;
  * operator inspection tools live under `@git-stunts/git-warp/diagnostics`.
@@ -15,121 +15,49 @@ import { installDefaultRuntimeHostNodePorts } from './src/application/RuntimeHos
 installDefaultRuntimeHostNodePorts();
 
 export { openWarp } from './src/domain/api/openWarp.ts';
-export { default as DraftTimeline } from './src/domain/api/DraftTimeline.ts';
-export { default as Warp } from './src/domain/api/Warp.ts';
-export { default as Timeline } from './src/domain/api/Timeline.ts';
 export { intent } from './src/domain/api/IntentBuilders.ts';
-export { default as Intent } from './src/domain/api/Intent.ts';
-export { default as JoinReceipt } from './src/domain/api/JoinReceipt.ts';
-export { default as JoinResult } from './src/domain/api/JoinResult.ts';
 export { reading } from './src/domain/api/ReadingBuilders.ts';
-export { default as Reading } from './src/domain/api/Reading.ts';
-export { default as ReadingResult } from './src/domain/api/ReadingResult.ts';
-export { default as ReadReceipt } from './src/domain/api/ReadReceipt.ts';
-export { default as WriteReceipt } from './src/domain/api/WriteReceipt.ts';
-export type { OpenWarpOptions, WarpStorage } from './src/domain/api/openWarp.ts';
+export type { default as DraftTimeline } from './src/domain/api/DraftTimeline.ts';
+export type { default as Warp } from './src/domain/api/Warp.ts';
+export type { default as Timeline } from './src/domain/api/Timeline.ts';
+export type { default as Tick } from './src/domain/api/Tick.ts';
+export type { default as TimelineView } from './src/domain/api/TimelineView.ts';
+export type { default as Intent } from './src/domain/api/Intent.ts';
+export type { default as JoinReceipt } from './src/domain/api/JoinReceipt.ts';
+export type { default as JoinResult } from './src/domain/api/JoinResult.ts';
+export type { default as Reading } from './src/domain/api/Reading.ts';
+export type { default as ReadingResult } from './src/domain/api/ReadingResult.ts';
+export type { default as ReadReceipt } from './src/domain/api/ReadReceipt.ts';
+export type { default as WriteReceipt } from './src/domain/api/WriteReceipt.ts';
+export type { OpenWarpOptions, StorageAdapter } from './src/domain/api/openWarp.ts';
 export type {
   EdgeIntentFields,
-  EdgePropertyIntentFields,
   IntentDescriptor,
   IntentKind,
   NodeIntentFields,
   PropertyIntentFields,
 } from './src/domain/api/Intent.ts';
 export type { IntentBuilders } from './src/domain/api/IntentBuilders.ts';
-export type { JoinMode, JoinReceiptOptions, JoinReceiptOutcome } from './src/domain/api/JoinReceipt.ts';
+export type { JoinMode, JoinReceiptOptions } from './src/domain/api/JoinReceipt.ts';
 export type { JoinResultOptions } from './src/domain/api/JoinResult.ts';
 export type { JoinOptions, JoinPolicy } from './src/domain/api/Timeline.ts';
 export type {
+  NeighborhoodReadingFields,
   NodeReadingFields,
   PropertyReadingFields,
+  ReadingDirection,
   ReadingDescriptor,
   ReadingKind,
 } from './src/domain/api/Reading.ts';
 export type { ReadingBuilders } from './src/domain/api/ReadingBuilders.ts';
 export type { ReadingResultOptions, ReadingValue } from './src/domain/api/ReadingResult.ts';
-export type { ReadReceiptOptions, ReadReceiptOutcome } from './src/domain/api/ReadReceipt.ts';
-export type { ReceiptOutcome, WriteReceiptOptions } from './src/domain/api/WriteReceipt.ts';
-
-export * from './src/domain/memory/index.ts';
-
-export { default as OperationPolicyPort } from './src/ports/OperationPolicyPort.ts';
+export type { Receipt } from './src/domain/api/Receipt.ts';
+export type { ReadEvidence, ReadReceiptOptions } from './src/domain/api/ReadReceipt.ts';
 export type {
-  OperationPolicyExecuteOptions,
-  OperationRetryDecision,
-} from './src/ports/OperationPolicyPort.ts';
-export { default as CasContentEncryptionPolicy } from './src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
-export type {
-  CasContentEncryptionDiagnostics,
-  CasContentEncryptionScheme,
-  CasResolvedVaultKeyOptions,
-} from './src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
-export { default as AlfredOperationPolicyAdapter } from './src/infrastructure/adapters/AlfredOperationPolicyAdapter.ts';
-export { default as NoopOperationPolicyAdapter } from './src/infrastructure/adapters/NoopOperationPolicyAdapter.ts';
-export {
-  AuditError,
-  ContinuumArtifactAuthorityError,
-  EncryptionError,
-  ForkError,
-  IndexError,
-  MemoryBudgetError,
-  OperationAbortedError,
-  OperationPolicyExhaustedError,
-  OperationPolicyTimeoutError,
-  PatchError,
-  QueryError,
-  SchemaUnsupportedError,
-  ShardCorruptionError,
-  ShardLoadError,
-  ShardValidationError,
-  StorageError,
-  StrandError,
-  SyncError,
-  TraversalError,
-  WormholeError,
-} from './src/domain/errors/index.ts';
-
-export { default as HealthCheckService, HealthStatus } from './src/domain/services/HealthCheckService.ts';
-export { default as LoggerPort } from './src/ports/LoggerPort.ts';
-export { default as NoOpLogger } from './src/infrastructure/adapters/NoOpLogger.ts';
-export { default as ConsoleLogger, LogLevel } from './src/infrastructure/adapters/ConsoleLogger.ts';
-export { default as WriterError } from './src/domain/errors/WriterError.ts';
-export { default as CryptoPort } from './src/ports/CryptoPort.ts';
-export { default as HttpServerPort } from './src/ports/HttpServerPort.ts';
-export { default as NodeCryptoAdapter } from './src/infrastructure/adapters/NodeCryptoAdapter.ts';
-export { default as WebCryptoAdapter } from './src/infrastructure/adapters/WebCryptoAdapter.ts';
-export { default as BunHttpAdapter } from './src/infrastructure/adapters/BunHttpAdapter.ts';
-export { default as DenoHttpAdapter } from './src/infrastructure/adapters/DenoHttpAdapter.ts';
-export { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.ts';
-export { default as SyncSecret } from './src/domain/services/sync/SyncSecret.ts';
-export type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
-export {
-  createTickReceipt,
-  OP_TYPES as TICK_RECEIPT_OP_TYPES,
-  RESULT_TYPES as TICK_RECEIPT_RESULT_TYPES,
-} from './src/domain/types/TickReceipt.ts';
-export { tickReceiptCanonicalJson } from './src/infrastructure/codecs/ReceiptJsonCodec.ts';
-export { default as EffectSinkPort } from './src/ports/EffectSinkPort.ts';
-export { MultiplexSink } from './src/domain/services/MultiplexSink.ts';
-export { EffectPipeline } from './src/domain/services/EffectPipeline.ts';
-export {
-  createEffectEmission,
-  DELIVERY_MODES,
-  DELIVERY_OUTCOMES,
-} from './src/domain/types/EffectEmission.ts';
-export {
-  createDeliveryObservation,
-} from './src/domain/types/DeliveryObservation.ts';
-export {
-  canonicalEmissionJson,
-  canonicalObservationJson,
-} from './src/infrastructure/codecs/ReceiptJsonCodec.ts';
-export {
-  createExternalizationPolicy,
-  LIVE_LENS,
-  REPLAY_LENS,
-  INSPECT_LENS,
-} from './src/domain/types/ExternalizationPolicy.ts';
-export { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.ts';
-export { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.ts';
-export { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.ts';
+  JoinOutcome,
+  ReadOutcome,
+  ReceiptOutcome,
+  WriteOutcome,
+} from './src/domain/api/ReceiptOutcome.ts';
+export type { RepairHint } from './src/domain/api/ReceiptSupport.ts';
+export type { WriteReceiptOptions } from './src/domain/api/WriteReceipt.ts';

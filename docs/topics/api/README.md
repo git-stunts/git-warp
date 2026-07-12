@@ -79,14 +79,10 @@ tool:
 Optic
 Coordinate
 Witness
-Worldline
-Strand
-Braid
-Hologram
 ```
 
-Those terms should live in advanced, diagnostics, or internal surfaces, not in
-the first-use root API.
+Worldline, Strand, Braid, Hologram, Observer, and Continuum families remain
+internal. They are not moved to `advanced` merely because they left root.
 
 ## Root Shape
 
@@ -139,8 +135,12 @@ const role = await timeline.read(
   })
 );
 
-console.log(role.value);
-console.log(role.receipt);
+if (role.receipt.outcome === 'resolved') {
+  console.log(role.value);
+  console.log(role.receipt.evidence);
+} else {
+  console.log(role.receipt.reason, role.receipt.repairHints);
+}
 ```
 
 The read path should return a result object, not a naked value. Provenance is
@@ -384,12 +384,12 @@ Use explicit subpaths:
 
 The boundaries mean different things:
 
-| Surface       | Meaning                                                 |
-| ------------- | ------------------------------------------------------- |
-| Root          | first-use product API                                   |
-| `storage`     | supported persistence adapters                          |
-| `advanced`    | formal WARP nouns for expert use                        |
-| `diagnostics` | inspection, materialization, replay, and operator tools |
+| Surface       | Meaning                                             |
+| ------------- | --------------------------------------------------- |
+| Root          | first-use product API                               |
+| `storage`     | supported persistence adapters                      |
+| `advanced`    | bounded `Coordinate`, `Optic`, and `Witness` access |
+| `diagnostics` | receipt inspection                                  |
 
 Do not turn `advanced` into a junk drawer. Symbols that exist only for removed
 graph-first consumers are not part of the v19 package boundary.
@@ -404,11 +404,11 @@ Each old root symbol needs one explicit disposition:
 | `GitGraphAdapter`        | `GitStorageAdapter` from `storage`                         |
 | `InMemoryGraphAdapter`   | `MemoryStorageAdapter` from `storage`                      |
 | `commit((patch) => ...)` | `timeline.write(intent.*)`                                 |
-| `coordinate()`           | `tick()` publicly, `Coordinate` in advanced/evidence       |
+| `coordinate()`           | `tick()` publicly; formal access remains advanced          |
 | `optic()`                | `timeline.read(reading.*)` or `advanced`                   |
 | `openWarpGraph()`        | removed; replace diagnostics with explicit diagnostic APIs |
 | `PatchBuilder`           | removed; use intent builders                               |
-| `GraphDiff`              | `diagnostics`                                              |
+| `GraphDiff`              | removed until a public-handle comparison API exists        |
 | graph op creators        | removed; use intent builders                               |
 
 The compatibility story should be honest:

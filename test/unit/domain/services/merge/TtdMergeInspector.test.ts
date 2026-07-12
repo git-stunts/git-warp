@@ -1,13 +1,11 @@
 import { assert, describe, expect, it } from 'vitest';
 
-import {
-  TtdMergeBranch,
-  TtdMergeFootprint,
-  TtdMergeInspector,
-  TtdMergeLoweringWitness,
-  TtdMergeObstructionWitness,
-  TtdMergePolicyRequirement,
-} from '../../../../../diagnostics.ts';
+import TtdMergeBranch from '../../../../../src/domain/services/merge/TtdMergeBranch.ts';
+import TtdMergeFootprint from '../../../../../src/domain/services/merge/TtdMergeFootprint.ts';
+import TtdMergeInspector from '../../../../../src/domain/services/merge/TtdMergeInspector.ts';
+import TtdMergeLoweringWitness from '../../../../../src/domain/services/merge/TtdMergeLoweringWitness.ts';
+import TtdMergeObstructionWitness from '../../../../../src/domain/services/merge/TtdMergeObstructionWitness.ts';
+import TtdMergePolicyRequirement from '../../../../../src/domain/services/merge/TtdMergePolicyRequirement.ts';
 
 function itemAt<T>(items: readonly T[], index: number): T {
   const item = items[index];

@@ -1,7 +1,7 @@
 # v19 Public API Migration Plan
 
 This migration plan covers consumers moving from v18 or earlier public
-surfaces to the planned v19 public API. It is intentionally explicit because
+surfaces to the v19 public API. It is intentionally explicit because
 v19 is a major-version boundary: root exports become small and application
 oriented, while graph-shaped compatibility surfaces are removed.
 
@@ -36,12 +36,12 @@ Diagnostics and expert WARP terms move to explicit subpaths:
 
 ## Subpath Policy
 
-| Subpath       | Contract                                   |
-| ------------- | ------------------------------------------ |
-| Root          | first-use public API; no graph substrate   |
-| `storage`     | supported persistence adapters             |
-| `advanced`    | stable formal WARP concepts for expert use |
-| `diagnostics` | operator and inspection tools              |
+| Subpath       | Contract                                            |
+| ------------- | --------------------------------------------------- |
+| Root          | first-use public API; no graph substrate            |
+| `storage`     | supported persistence adapters                      |
+| `advanced`    | bounded `Coordinate`, `Optic`, and `Witness` access |
+| `diagnostics` | receipt inspection                                  |
 
 The former `browser` and `legacy` subpaths do not exist in v19. Consumers must
 remove those imports before upgrading.
@@ -121,8 +121,8 @@ switch (receipt.outcome) {
 }
 ```
 
-`commit((patch) => ...)` is deprecated legacy API. The first-use write surface
-is `timeline.write(intent)`.
+`commit((patch) => ...)` is removed from the package contract. The write
+surface is `timeline.write(intent)`.
 
 ## Read Migration
 
@@ -157,7 +157,8 @@ result.receipt;
 ```
 
 `reading` is the public request. `Optic` remains the advanced execution and
-proof shape.
+proof shape. A missing bounded basis returns an `obstructed` receipt with
+repair hints; it does not trigger whole-state materialization.
 
 ## Time Travel Migration
 
@@ -227,30 +228,30 @@ and joins first.
 
 ## Symbol Disposition Table
 
-| v18 or earlier symbol    | v19 path                           | Notes                                             |
-| ------------------------ | ---------------------------------- | ------------------------------------------------- |
-| `openWarpWorldline()`    | root `openWarp().timeline(name)`   | preferred application opener                      |
-| `WarpWorldline`          | root `Timeline`                    | public handle rename                              |
-| `GitGraphAdapter`        | `storage` `GitStorageAdapter`      | graph name removed                                |
-| `InMemoryGraphAdapter`   | `storage` `MemoryStorageAdapter`   | graph name removed                                |
-| `GraphPersistencePort`   | root `WarpStorage` for app options | old graph-shaped port removed from public API     |
-| `commit((patch) => ...)` | `timeline.write(intent.*)`         | receipt-returning                                 |
-| `PatchBuilder`           | removed                            | replace with intent builders                      |
-| `PatchSession`           | removed                            | replace with receipt-returning writes             |
-| `createNodeAdd()`        | removed                            | use intent builders                               |
-| `createEdgeAdd()`        | removed                            | use intent builders                               |
-| `createPropSet()`        | removed                            | use intent builders                               |
-| `openWarpGraph()`        | removed                            | replace diagnostics with explicit diagnostic APIs |
-| `WarpApp`                | removed                            | no root default export in v19                     |
-| `WarpCore`               | removed                            | replace diagnostics with explicit diagnostic APIs |
-| `GraphNode`              | removed                            | no public export                                  |
-| `GraphDiff`              | `diagnostics`                      | operator-facing comparison                        |
-| `Optic`                  | `advanced`                         | readings are root                                 |
-| `Coordinate`             | `advanced` or receipt fields       | ticks are root                                    |
-| `Observer`               | `advanced`                         | readings are first-use root                       |
-| `Strand`                 | `advanced`                         | drafts are first-use root                         |
-| `Braid`                  | `advanced`                         | joins are first-use root                          |
-| Continuum evidence nouns | `advanced` or `diagnostics`        | receipt evidence stays root-facing                |
+| v18 or earlier symbol    | v19 path                              | Notes                                             |
+| ------------------------ | ------------------------------------- | ------------------------------------------------- |
+| `openWarpWorldline()`    | root `openWarp().timeline(name)`      | preferred application opener                      |
+| `WarpWorldline`          | root `Timeline`                       | public handle rename                              |
+| `GitGraphAdapter`        | `storage` `GitStorageAdapter`         | graph name removed                                |
+| `InMemoryGraphAdapter`   | `storage` `MemoryStorageAdapter`      | graph name removed                                |
+| `GraphPersistencePort`   | root `StorageAdapter` for app options | old graph-shaped port removed from public API     |
+| `commit((patch) => ...)` | `timeline.write(intent.*)`            | receipt-returning                                 |
+| `PatchBuilder`           | removed                               | replace with intent builders                      |
+| `PatchSession`           | removed                               | replace with receipt-returning writes             |
+| `createNodeAdd()`        | removed                               | use intent builders                               |
+| `createEdgeAdd()`        | removed                               | use intent builders                               |
+| `createPropSet()`        | removed                               | use intent builders                               |
+| `openWarpGraph()`        | removed                               | replace diagnostics with explicit diagnostic APIs |
+| `WarpApp`                | removed                               | no root default export in v19                     |
+| `WarpCore`               | removed                               | replace diagnostics with explicit diagnostic APIs |
+| `GraphNode`              | removed                               | no public export                                  |
+| `GraphDiff`              | removed                               | no public-handle comparison API ships in v19      |
+| `Optic`                  | `advanced`                            | readings are root                                 |
+| `Coordinate`             | `advanced` or receipt fields          | ticks are root                                    |
+| `Observer`               | removed                               | readings are first-use root                       |
+| `Strand`                 | removed                               | drafts are first-use root                         |
+| `Braid`                  | removed                               | joins are first-use root                          |
+| Continuum evidence nouns | removed                               | receipt evidence stays root-facing                |
 
 ## Receipt Outcome Migration
 
@@ -302,8 +303,8 @@ classes or operation fields, not in `receipt.outcome`.
 3. Convert `commit((patch) => ...)` calls to `timeline.write(intent.*)` calls.
 4. Rewrite direct live/query/optic reads as `timeline.read(reading.*)` calls.
 5. Move `seek()`/coordinate-first call sites to `tick()` and `at(tick)`.
-6. Move diagnostics, materialization, and graph diff code to explicit
-   `diagnostics` APIs.
+6. Replace direct diagnostics with `inspectReceipt()`; keep graph diff and
+   materialization integrations internal until they accept public handles.
 7. Remove remaining graph-shaped package imports.
 
 ## Compatibility Window

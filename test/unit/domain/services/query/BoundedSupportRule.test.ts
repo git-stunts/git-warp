@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { BoundedSupportRule } from '../../../../../advanced.ts';
-import { QueryBuilder } from '../../../../../diagnostics.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
+import BoundedSupportRule from '../../../../../src/domain/services/query/BoundedSupportRule.ts';
+import QueryBuilder from '../../../../../src/domain/services/query/QueryBuilder.ts';
 import type {
   QueryNeighborEntry,
   QueryReadModel,

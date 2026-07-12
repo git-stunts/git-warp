@@ -7,10 +7,10 @@ import { createTimeline } from './TimelineRuntime.ts';
 import WarpError from '../errors/WarpError.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from './OpenWarpIdentityFailure.ts';
 
-export type WarpStorage = CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+export type StorageAdapter = CorePersistence & Partial<RuntimeStorageCapabilityPort>;
 
 export type OpenWarpOptions = {
-  readonly storage: WarpStorage;
+  readonly storage: StorageAdapter;
   readonly writer: string;
 };
 

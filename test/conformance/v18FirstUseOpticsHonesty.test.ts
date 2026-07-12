@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { openWarp, reading } from '../../index.ts';
 import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
@@ -161,6 +162,15 @@ describe('v18 first-use Optics honesty gate', () => {
       commitMessageCodec: runtime._commitMessageCodec,
     });
 
+    const warp = await openWarp({ storage: persistence, writer: 'app' });
+    const timeline = await warp.timeline('v18-first-use-optics-honesty');
+    const property = await timeline.read(
+      reading.property({
+        subject: NODE_ID,
+        key: PROPERTY_KEY,
+      })
+    );
+
     persistence.forbidTreeOidMapReads();
     const basis = await events.prepareOpticBasis();
     persistence.allowTreeOidMapReads();
@@ -170,6 +180,11 @@ describe('v18 first-use Optics honesty gate', () => {
     expect(basis.checkpointSha).toBe(checkpointSha);
     expect(coordinate.checkpointSha).toBe(checkpointSha);
     expect(node).toMatchObject({ nodeId: NODE_ID, alive: true });
+    expect(property.value).toBe('open');
+    expect(property.receipt).toMatchObject({
+      outcome: 'resolved',
+      evidence: { checkpointSha },
+    });
     expect(persistence.forbiddenOperations()).toEqual([]);
   });
 

@@ -48,8 +48,11 @@ const receipt = await audit.write(
   })
 );
 
-console.log(receipt.outcome);
-console.log(receipt.patchSha);
+if (receipt.outcome === 'accepted') {
+  console.log(receipt.patchSha);
+} else {
+  console.error(receipt.reason);
+}
 ```
 
 Every call writes one intent and returns a `WriteReceipt`. Treat
@@ -79,7 +82,46 @@ console.log(exists.value, exists.receipt);
 ```
 
 Readings ask bounded questions. The receipt records how the runtime supported
-the answer.
+the answer. A resolved receipt carries checkpoint-tail evidence. If no bounded
+basis exists, `read()` returns an `obstructed` receipt with repair hints instead
+of materializing the whole timeline.
+
+Create or repair the operator-owned basis before retrying:
+
+```bash
+git warp checkpoint create --repo ./security-repo --graph security-audit
+git warp doctor --repo ./security-repo --repair-state-cache
+```
+
+Read a bounded neighborhood with the same result-and-receipt shape:
+
+```typescript
+const related = await audit.read(
+  reading.neighborhood({
+    subject: 'finding:oauth-state-mismatch',
+    direction: 'out',
+    limit: 50,
+  })
+);
+```
+
+Use `readValue()` only when unresolved readings should throw instead of
+participating in receipt-based control flow.
+
+## Read At A Tick
+
+```typescript
+const tick = await audit.tick();
+const historical = await audit.at(tick).read(
+  reading.property({
+    subject: 'finding:oauth-state-mismatch',
+    key: 'severity',
+  })
+);
+```
+
+`TimelineView` is read-only. Formal coordinate and optic access lives under the
+`advanced` subpath.
 
 ## Work In A Draft
 

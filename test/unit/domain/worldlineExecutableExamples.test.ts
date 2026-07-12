@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { Observer, type Aperture } from '../../../advanced.ts';
 import WarpApp from '../../../src/domain/WarpApp.ts';
+import Observer from '../../../src/domain/services/query/Observer.ts';
+import type { Aperture } from '../../../src/domain/types/Aperture.ts';
 import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
 import WarpWorldline, { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
@@ -46,7 +47,7 @@ async function seedGuideGraph(events: WarpWorldline): Promise<void> {
   });
 }
 
-describe('public API executable examples', () => {
+describe('internal worldline executable examples', () => {
   it('opens the internal graph composition root', async () => {
     const graph = await openWarpGraph({
       persistence: new InMemoryGraphAdapter(),
@@ -201,7 +202,7 @@ describe('public API executable examples', () => {
     await expect(historicalObserver.hasNode('user:bob')).resolves.toBe(false);
   });
 
-  it('signals public read costs through runtime capability posture objects', async () => {
+  it('signals worldline read costs through runtime capability posture objects', async () => {
     const events = await openEventsWorldline();
     const report = events.capabilities();
 
@@ -219,7 +220,7 @@ describe('public API executable examples', () => {
     expect(report.requireCapability('legacy-query-arrays').posture.toString()).toBe('legacy');
   });
 
-  it('uses migrated in-memory test fixtures through the public worldline handle', async () => {
+  it('uses migrated in-memory test fixtures through the worldline handle', async () => {
     const repo = createInMemoryRepo();
     try {
       const events = await openWarpWorldline({

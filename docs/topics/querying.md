@@ -6,13 +6,14 @@ earlier releases.
 
 ## Choose The Surface
 
-| Need                                                 | Surface                              |
-| ---------------------------------------------------- | ------------------------------------ |
-| Read one known property                              | `reading.property(...)`              |
-| Check whether one known node exists                  | `reading.node.exists(...)`           |
-| Inspect comparison or visible-state diagnostics      | `diagnostics` subpath                |
-| Work with formal optics, observers, or support plans | `advanced` subpath                   |
-| Run operator-oriented graph commands                 | `git warp query`, `path`, or `optic` |
+| Need                                  | Surface                              |
+| ------------------------------------- | ------------------------------------ |
+| Read one known property               | `reading.property(...)`              |
+| Check whether one known node exists   | `reading.node.exists(...)`           |
+| Read one bounded adjacency page       | `reading.neighborhood(...)`          |
+| Inspect a receipt                     | `diagnostics` subpath                |
+| Capture a formal coordinate and optic | `advanced` subpath                   |
+| Run operator-oriented graph commands  | `git warp query`, `path`, or `optic` |
 
 The `advanced` and `diagnostics` subpaths expose expert components, not a
 second graph-first application facade.
@@ -53,10 +54,32 @@ console.log(task.value);
 console.log(task.receipt.outcome);
 ```
 
+## Read A Neighborhood
+
+```typescript
+const dependencies = await team.read(
+  reading.neighborhood({
+    subject: 'task:auth',
+    direction: 'out',
+    labels: ['dependsOn'],
+    limit: 100,
+  })
+);
+
+console.log(dependencies.value);
+console.log(dependencies.receipt.evidence);
+```
+
+When the required checkpoint-tail basis is absent, a reading returns `null`
+with an `obstructed` receipt and `repairHints`. It never falls back to broad
+materialization. `readValue()` converts that unresolved result into an
+exception for callers that explicitly prefer convenience over receipt control
+flow.
+
 ## Unsupported Root Queries
 
 The root does not currently provide wildcard matching, arbitrary traversal,
-aggregation, historical coordinate selection, or draft reads. Do not recover
+aggregation, arbitrary traversal, or draft reads. Do not recover
 those APIs by importing internal modules. Use the operator CLI or an explicit
 expert surface where one exists, and keep application code on readings.
 
@@ -65,15 +88,15 @@ as a bounded read.
 
 ## Diagnostics
 
-`@git-stunts/git-warp/diagnostics` exports operator-oriented components such as
-`GraphDiff`, `QueryBuilder`, `TtdMergeInspector`, and visible-state scope
-helpers. Callers are responsible for supplying their required runtime context.
+`@git-stunts/git-warp/diagnostics` exports `inspectReceipt()`. It accepts the
+same write, read, and join receipts returned by the root API and does not
+require an internal runtime host.
 
 ## Advanced Read Machinery
 
-`@git-stunts/git-warp/advanced` exports formal concepts such as `Optic`,
-`Observer`, `BoundedSupportRule`, and `CausalIndexPlan`. These are useful for
-proof-oriented or runtime-integration work; they are not first-use query verbs.
+`@git-stunts/git-warp/advanced` exports `Coordinate`, executable `Optic`, and
+the type-only `Witness`. Capture a coordinate with `timeline.coordinate()`;
+ordinary application reads should continue to use `reading.*`.
 
 ## Removed Compatibility Surface
 

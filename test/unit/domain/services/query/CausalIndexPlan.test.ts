@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { BoundedSupportRule, CausalIndexPlan } from '../../../../../advanced.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
+import BoundedSupportRule from '../../../../../src/domain/services/query/BoundedSupportRule.ts';
+import CausalIndexPlan from '../../../../../src/domain/services/query/CausalIndexPlan.ts';
 
 describe('CausalIndexPlan', () => {
   it('maps entity support to the provenance entity-patch index family', () => {

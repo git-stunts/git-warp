@@ -11,7 +11,6 @@ const lowerers: ReadonlyMap<IntentKind, IntentLowerer> = new Map([
   ['edge.add', lowerEdgeAdd],
   ['edge.remove', lowerEdgeRemove],
   ['property.set', lowerPropertySet],
-  ['edgeProperty.set', lowerEdgePropertySet],
 ]);
 
 export function applyIntentToPatch(intent: Intent, patch: PatchBuilder): void {
@@ -48,20 +47,9 @@ function lowerPropertySet(descriptor: IntentDescriptor, patch: PatchBuilder): vo
   patch.setProperty(descriptor.subject, descriptor.key, descriptor.value);
 }
 
-function lowerEdgePropertySet(descriptor: IntentDescriptor, patch: PatchBuilder): void {
-  assertDescriptorKind(descriptor, 'edgeProperty.set');
-  patch.setEdgeProperty(
-    descriptor.from,
-    descriptor.to,
-    descriptor.label,
-    descriptor.key,
-    descriptor.value,
-  );
-}
-
 function assertDescriptorKind<K extends IntentKind>(
   descriptor: IntentDescriptor,
-  kind: K,
+  kind: K
 ): asserts descriptor is Extract<IntentDescriptor, { readonly kind: K }> {
   if (descriptor.kind !== kind) {
     throw new WarpError('Intent lowerer received a mismatched descriptor', 'E_INTENT_KIND');

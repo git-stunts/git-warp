@@ -21,7 +21,7 @@ function openOptions(
   };
 }
 
-describe('public reading surfaces', () => {
+describe('internal reading surfaces', () => {
   it('opens WarpGraph as a capability bag without public materialization or runtime escapes', async () => {
     const graph = await openWarpGraph(openOptions('public-reading-graph', 'writer-graph'));
 
