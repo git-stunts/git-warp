@@ -1,5 +1,11 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { collectBareTestReturnsFromSource } from '../../../scripts/lint-test-vacuous-returns.ts';
+import {
+  collectBareTestReturnsFromSource,
+  testFilesInDirectory,
+} from '../../../scripts/lint-test-vacuous-returns.ts';
 
 describe('lint-test-vacuous-returns', () => {
   it('reports bare returns directly inside it callbacks', () => {
@@ -36,5 +42,23 @@ describe('lint-test-vacuous-returns', () => {
     ].join('\n'));
 
     expect(findings).toEqual([]);
+  });
+
+  it('discovers nested TypeScript and JavaScript tests without external tools', () => {
+    const root = mkdtempSync(join(tmpdir(), 'warp-test-law-'));
+    const nested = join(root, 'nested');
+    mkdirSync(nested);
+    writeFileSync(join(root, 'root.test.ts'), '');
+    writeFileSync(join(nested, 'nested.test.js'), '');
+    writeFileSync(join(nested, 'ignored.json'), '');
+
+    try {
+      expect(testFilesInDirectory(root)).toEqual([
+        join(nested, 'nested.test.js'),
+        join(root, 'root.test.ts'),
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
