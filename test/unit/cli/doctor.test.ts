@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CODES } from '../../../bin/cli/commands/doctor/codes.ts';
 import { DOCTOR_EXIT_CODES } from '../../../bin/cli/commands/doctor/types.ts';
 import { checkCoverageComplete, checkClockSkew, checkRefsConsistent } from '../../../bin/cli/commands/doctor/checks.ts';
+import WarpStateCacheRetentionReport from '../../../src/domain/services/state/WarpStateCacheRetentionReport.ts';
+import WarpStateCacheRepairResult from '../../../src/domain/services/state/WarpStateCacheRepairResult.ts';
 
 // Mock shared.js to avoid real git operations
 vi.mock('../../../bin/cli/shared.ts', () => ({
@@ -217,6 +219,54 @@ describe('doctor command', () => {
       diagnostic: ['graph-wide-materialization'],
       legacy: ['legacy-query-arrays'],
     });
+  });
+
+  it('repairs state-cache roots before checking their resulting health', async () => {
+    const before = new WarpStateCacheRetentionReport({
+      liveSnapshotIds: ['snapshot-a'],
+      anchoredSnapshotIds: [],
+      unanchoredSnapshotIds: ['snapshot-a'],
+      missingSnapshotIds: [],
+      wrongTypeSnapshotIds: [],
+      staleRootNames: [],
+      mismatchedRootNames: [],
+      rootSetError: null,
+    });
+    const after = new WarpStateCacheRetentionReport({
+      liveSnapshotIds: ['snapshot-a'],
+      anchoredSnapshotIds: ['snapshot-a'],
+      unanchoredSnapshotIds: [],
+      missingSnapshotIds: [],
+      wrongTypeSnapshotIds: [],
+      staleRootNames: [],
+      mismatchedRootNames: [],
+      rootSetError: null,
+    });
+    const repairResult = new WarpStateCacheRepairResult({
+      before,
+      after,
+      anchoredSnapshotIds: ['snapshot-a'],
+      unrecoverableSnapshotIds: [],
+      removedStaleRootNames: [],
+    });
+    const repairRetention = vi.fn().mockResolvedValue(repairResult);
+    const inspectRetention = vi.fn().mockResolvedValue(after);
+    mockPersistence.createRuntimeStateCache = vi.fn().mockResolvedValue({
+      repairRetention,
+      inspectRetention,
+      resolveCheckpointHead: vi.fn().mockResolvedValue(null),
+    });
+
+    const result = await handleDoctor({
+      options: CLI_OPTIONS,
+      args: ['--repair-state-cache'],
+    });
+
+    expect(repairRetention).toHaveBeenCalledOnce();
+    expect(inspectRetention).toHaveBeenCalledOnce();
+    expect(result.payload.findings.map((finding) => finding.code)).toContain(
+      CODES.STATE_CACHE_RETENTION_REPAIRED,
+    );
   });
 
   it('sorts findings by status > impact > id', async () => {

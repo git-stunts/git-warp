@@ -41,6 +41,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no longer exposes `serialize()` or `deserialize()`.
 - Raised the coverage ratchet from `92.10%` to `92.56%` after adding targeted
   coverage for bounded query node paging and memory-budget rejection paths.
+- Upgraded `@git-stunts/git-cas` to `^6.1.0` so Git-backed state caches can use
+  the library's crash-safe `RootSet` retention API.
+
+### Fixed
+
+- Git-backed state-cache payload trees are now anchored through a graph-scoped
+  `git-cas` RootSet before their index record is published, then reconciled
+  after publication so live cache entries remain reachable across Git garbage
+  collection without retaining evicted entries forever.
+- Existing state-cache entries are adopted into the RootSet on ordinary reads,
+  and `git warp doctor --repair-state-cache` can rebuild malformed or stale
+  retention metadata while reporting payloads that are missing or have the
+  wrong Git object type.
 
 ## [18.2.1] - 2026-06-30
 

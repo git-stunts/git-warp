@@ -131,7 +131,7 @@
   },
   "dependencies": {
     "@git-stunts/alfred": "^0.10.4",
-    "@git-stunts/git-cas": "^6.0.0",
+    "@git-stunts/git-cas": "^6.1.0",
     "@git-stunts/plumbing": "^3.0.3",
     "@git-stunts/trailer-codec": "^2.1.1",
     "@noble/hashes": "^2.2.0",
