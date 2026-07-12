@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import * as publicApi from '../../legacy.ts';
-import {
-  InMemoryGraphAdapter,
-  PatchBuilder,
-  WarpCore,
-} from '../../legacy.ts';
+import WarpCore from '../../src/domain/WarpCore.ts';
+import { PatchBuilder } from '../../src/domain/services/PatchBuilder.ts';
+import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 
 function openCore(graphName: string): Promise<WarpCore> {
   return WarpCore.open({
@@ -14,12 +11,9 @@ function openCore(graphName: string): Promise<WarpCore> {
   });
 }
 
-describe('V7 schema-2 public contract', () => {
-  it('exports the schema-2 PatchBuilder without schema-1 public artifacts', () => {
-    expect(publicApi.PatchBuilder).toBe(PatchBuilder);
-    expect(Object.prototype.hasOwnProperty.call(publicApi, 'Reducer')).toBe(false);
-    expect(Object.prototype.hasOwnProperty.call(publicApi, 'StateSerializer')).toBe(false);
-    expect(Object.prototype.hasOwnProperty.call(publicApi, 'createPatchV1')).toBe(false);
+describe('schema-2 runtime contract', () => {
+  it('constructs the current schema-2 PatchBuilder', () => {
+    expect(PatchBuilder).toBeTypeOf('function');
   });
 
   it('builds schema-2 patches through the current public graph API', async () => {
@@ -51,6 +45,8 @@ describe('V7 schema-2 public contract', () => {
     await expect(core.hasNode('v7:source')).resolves.toBe(true);
     await expect(core.hasNode('v7:target')).resolves.toBe(true);
     await expect(core.getNodeProps('v7:source')).resolves.toEqual({ status: 'current' });
-    await expect(core.getEdgeProps('v7:source', 'v7:target', 'relates')).resolves.toEqual({ weight: 7 });
+    await expect(core.getEdgeProps('v7:source', 'v7:target', 'relates')).resolves.toEqual({
+      weight: 7,
+    });
   });
 });

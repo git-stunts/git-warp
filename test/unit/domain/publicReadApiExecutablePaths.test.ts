@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { openWarpWorldline } from '../../../legacy.ts';
+import { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 
@@ -19,10 +19,7 @@ describe('public read API executable paths', () => {
         .setProperty('user:alice', 'secret', 'redacted');
     });
     await audit.commit((patch) => {
-      patch
-        .addNode('user:bob')
-        .setProperty('user:bob', 'name', 'Bob')
-        .addNode('internal:salary');
+      patch.addNode('user:bob').setProperty('user:bob', 'name', 'Bob').addNode('internal:salary');
     });
 
     await expect(audit.live().hasNode('user:bob')).resolves.toBe(true);

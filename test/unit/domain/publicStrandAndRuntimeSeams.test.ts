@@ -1,15 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  StrandError,
-  WarpCore,
-  openWarpGraph,
-} from '../../../legacy.ts';
+import WarpCore from '../../../src/domain/WarpCore.ts';
+import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
+import StrandError from '../../../src/domain/errors/StrandError.ts';
 import RuntimeDetachedFactory from '../../../src/domain/warp/RuntimeDetachedFactory.ts';
 import RuntimePatchCollector from '../../../src/domain/warp/RuntimePatchCollector.ts';
-import {
-  openRuntimeHostProduct,
-} from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import PatchJournalPort from '../../../src/ports/PatchJournalPort.ts';
 import CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
@@ -60,9 +56,7 @@ describe('public strand and runtime host seams', () => {
       owner: 'agent-1',
     });
     await core.patchStrand('review', (patch) => {
-      patch
-        .addNode('task:review')
-        .setProperty('task:review', 'status', 'draft');
+      patch.addNode('task:review').setProperty('task:review', 'status', 'draft');
     });
     const braided = await core.braidStrand('review', { writable: false });
     const materialized = await core.materializeStrand('review');
@@ -215,7 +209,7 @@ function createDetachedReadSurface(): DetachedGraphInternalReadSurface {
 }
 
 function requireDetachedOpenOptions(
-  open: ReturnType<typeof vi.fn<DetachedGraphOpen>>,
+  open: ReturnType<typeof vi.fn<DetachedGraphOpen>>
 ): DetachedOpenOptions {
   expect(open).toHaveBeenCalledTimes(1);
   const call = open.mock.calls[0];
@@ -237,7 +231,7 @@ class RecordingPatchJournalPort extends PatchJournalPort {
   scanPatchRange(
     _writerId: string,
     _fromSha: string | null,
-    _toSha: string,
+    _toSha: string
   ): WarpStream<PatchEntry> {
     return WarpStream.from([]);
   }
@@ -271,18 +265,14 @@ class RecordingIndexStorePort extends IndexStorePort {
     return {};
   }
 
-  async decodeShard<TDecoded extends CodecValue = CodecValue>(
-    _blobOid: string,
-  ): Promise<TDecoded> {
+  async decodeShard<TDecoded extends CodecValue = CodecValue>(_blobOid: string): Promise<TDecoded> {
     throw new RuntimeSeamTestError('decodeShard should not be called');
   }
 }
 
 class RuntimeSeamTestError extends Error {}
 
-function requireSinglePatchSha(
-  patches: ReadonlyArray<{ readonly sha: string }>,
-): string {
+function requireSinglePatchSha(patches: ReadonlyArray<{ readonly sha: string }>): string {
   const patch = patches[0];
   if (patch === undefined) {
     throw new RuntimeSeamTestError('expected one strand patch');

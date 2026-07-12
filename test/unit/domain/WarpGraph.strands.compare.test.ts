@@ -73,12 +73,12 @@ function createMockPersistence() {
       return commit || { message: '', parents: [] };
     }),
     writeTree: vi.fn(async (entries) => {
-      const oid = hexSha(2000000 + (++treeCounter));
+      const oid = hexSha(2000000 + ++treeCounter);
       trees.set(oid, entries);
       return oid;
     }),
     commitNodeWithTree: vi.fn(async ({ treeOid, message, parents }) => {
-      const sha = hexSha(3000000 + (++commitCounter));
+      const sha = hexSha(3000000 + ++commitCounter);
       commits.set(sha, { treeOid, message, parents: parents || [] });
       return sha;
     }),
@@ -89,7 +89,7 @@ function createMockPersistence() {
       return oid;
     }),
     commitNode: vi.fn(async ({ message, parents }) => {
-      const sha = hexSha(1000000 + (++commitCounter));
+      const sha = hexSha(1000000 + ++commitCounter);
       commits.set(sha, { message, parents: parents || [] });
       return sha;
     }),
@@ -111,17 +111,13 @@ function createMockPersistence() {
  * }} options
  * @returns {Promise<string>}
  */
-async function simulatePatchCommit(persistence, {
-  graphName,
-  writerId,
-  lamport,
-  ops,
-  reads,
-  writes,
-  context,
-}) {
+async function simulatePatchCommit(
+  persistence,
+  { graphName, writerId, lamport, ops, reads, writes, context }
+) {
   const { encode } = await import('../../../src/infrastructure/codecs/CborCodec.ts');
-  const { encodePatchMessage } = await import('../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts');
+  const { encodePatchMessage } =
+    await import('../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts');
   const { buildWriterRef } = await import('../../../src/domain/utils/RefLayout.ts');
 
   const patch = {
@@ -147,18 +143,18 @@ async function simulatePatchCommit(persistence, {
 }
 
 describe('WarpCore strand foundation', () => {
-    let persistence;
-    let graph;
+  let persistence;
+  let graph;
   const graphName = 'strands-demo';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = ((await WarpCore.open({
+    graph = (await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    })) as WarpCoreRuntime);
+    })) as WarpCoreRuntime;
   });
 
   it('compareStrand reports strand-vs-base divergence as substrate facts', async () => {
@@ -255,9 +251,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 2,
       context: new Map([['alice', 1]]),
-      ops: [
-        { type: 'PropSet', node: 'n1', key: 'status', value: 'live' },
-      ],
+      ops: [{ type: 'PropSet', node: 'n1', key: 'status', value: 'live' }],
       reads: ['n1'],
       writes: ['n1'],
     });
@@ -340,9 +334,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 2,
       context: new Map([['alice', 1]]),
-      ops: [
-        { type: 'PropSet', node: 'n1', key: 'color', value: 'blue' },
-      ],
+      ops: [{ type: 'PropSet', node: 'n1', key: 'color', value: 'blue' }],
       reads: ['n1'],
       writes: ['n1'],
     });
@@ -395,7 +387,9 @@ describe('WarpCore strand foundation', () => {
       },
     });
     expect(factExport.canonicalFactJson).toBe(canonicalStringify(factExport.fact));
-    await expect(graph._crypto.hash('sha256', factExport.canonicalFactJson)).resolves.toBe(factExport.factDigest);
+    await expect(graph._crypto.hash('sha256', factExport.canonicalFactJson)).resolves.toBe(
+      factExport.factDigest
+    );
   });
 
   it('scopes coordinate comparison and transfer planning by node-id prefix without mutating the raw substrate truth', async () => {
@@ -421,8 +415,19 @@ describe('WarpCore strand foundation', () => {
       context: new Map([['alice', 1]]),
       ops: [
         { type: 'NodeAdd', node: 'comparison-artifact:cmp-1', dot: Dot.create('alice', 2) },
-        { type: 'PropSet', node: 'comparison-artifact:cmp-1', key: 'kind', value: 'comparison-artifact' },
-        { type: 'EdgeAdd', from: 'task:1', to: 'comparison-artifact:cmp-1', label: 'governs', dot: Dot.create('alice', 3) },
+        {
+          type: 'PropSet',
+          node: 'comparison-artifact:cmp-1',
+          key: 'kind',
+          value: 'comparison-artifact',
+        },
+        {
+          type: 'EdgeAdd',
+          from: 'task:1',
+          to: 'comparison-artifact:cmp-1',
+          label: 'governs',
+          dot: Dot.create('alice', 3),
+        },
       ],
       reads: ['task:1', 'comparison-artifact:cmp-1'],
       writes: ['comparison-artifact:cmp-1', 'task:1\0comparison-artifact:cmp-1\0governs'],
@@ -452,12 +457,16 @@ describe('WarpCore strand foundation', () => {
     expect(scopedComparison.visibleState.changed).toBe(false);
     expect(scopedComparison.visiblePatchDivergence.leftOnlyCount).toBe(0);
     expect(scopedComparison.visiblePatchDivergence.rightOnlyCount).toBe(0);
-    expect(scopedComparison.left.resolved.patchUniverseDigest).toBe(scopedComparison.right.resolved.patchUniverseDigest);
+    expect(scopedComparison.left.resolved.patchUniverseDigest).toBe(
+      scopedComparison.right.resolved.patchUniverseDigest
+    );
 
     const scopedFactExport = exportCoordinateComparisonFact(scopedComparison);
     expect(scopedFactExport.fact.scope).toEqual(scope);
     expect(scopedFactExport.canonicalFactJson).toBe(canonicalStringify(scopedFactExport.fact));
-    await expect(graph._crypto.hash('sha256', scopedFactExport.canonicalFactJson)).resolves.toBe(scopedFactExport.factDigest);
+    await expect(graph._crypto.hash('sha256', scopedFactExport.canonicalFactJson)).resolves.toBe(
+      scopedFactExport.factDigest
+    );
 
     const scopedTransfer = await graph.planCoordinateTransfer({
       source: { kind: 'coordinate', frontier: operationalFrontier },
@@ -514,8 +523,8 @@ describe('WarpCore strand foundation', () => {
       size: 14,
     });
     persistence._blobs.set(
-      /** @type {{ oid: string }} */ (strandContentMeta).oid,
-      Buffer.from('worldline-body'),
+      /** @type {{ oid: string }} */ strandContentMeta.oid,
+      Buffer.from('worldline-body')
     );
 
     const transferPlan = await graph.planStrandTransfer('ws_transfer_live');
@@ -549,9 +558,10 @@ describe('WarpCore strand foundation', () => {
       key: 'obsolete',
       value: null,
     });
-    const attachOp = /** @type {import('../../../legacy.ts').VisibleStateTransferOperation & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentOid: string, mime?: string|null, size?: number|null }} */ (
-      transferPlan.ops.find((op) => op.op === 'attach_node_content' && op.nodeId === 'doc:1')
-    );
+    const attachOp =
+      /** @type {import('../../../src/domain/types/CoordinateComparison.ts').VisibleStateTransferOperation & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentOid: string, mime?: string|null, size?: number|null }} */ transferPlan.ops.find(
+        (op) => op.op === 'attach_node_content' && op.nodeId === 'doc:1'
+      );
     expect(attachOp).toMatchObject({
       op: 'attach_node_content',
       nodeId: 'doc:1',
@@ -598,7 +608,8 @@ describe('WarpCore strand foundation', () => {
       }),
     });
     expect(factExport.canonicalFactJson).toBe(canonicalStringify(factExport.fact));
-    await expect(graph._crypto.hash('sha256', factExport.canonicalFactJson)).resolves.toBe(factExport.factDigest);
+    await expect(graph._crypto.hash('sha256', factExport.canonicalFactJson)).resolves.toBe(
+      factExport.factDigest
+    );
   });
-
 });

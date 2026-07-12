@@ -1,10 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import {
-  extractJsExports,
-  parseExportBlock,
-} from '../../../scripts/check-dts-surface.ts';
+import { extractJsExports, parseExportBlock } from '../../../scripts/check-dts-surface.ts';
 
 const REPO_ROOT = new URL('../../../', import.meta.url);
 
@@ -76,36 +73,50 @@ function hasForbiddenVocabulary(name: string): boolean {
     return false;
   }
 
-  return name.includes('Graph')
-    || name.includes('Worldline')
-    || name.includes('Strand')
-    || name.includes('Optic')
-    || name.includes('Hologram')
-    || name.includes('Witness')
-    || name.includes('Braid')
-    || name.includes('Wormhole')
-    || name.includes('Projection')
-    || name.includes('Observer')
-    || name.includes('Query')
-    || name.includes('Coordinate')
-    || name.includes('Selector')
-    || name === 'WarpApp'
-    || name === 'WarpCore'
-    || name === 'PatchBuilder'
-    || name === 'PatchSession'
-    || name.startsWith('createNode')
-    || name.startsWith('createEdge')
-    || name.startsWith('createProp')
-    || name === 'createInlineValue'
-    || name === 'createBlobValue'
-    || name === 'decodeEdgePropKey'
-    || name === 'encodeEdgePropKey'
-    || name === 'isEdgePropKey'
-    || GRAPH_SUBSTRATE_NOUNS.has(name);
+  return (
+    name.includes('Graph') ||
+    name.includes('Worldline') ||
+    name.includes('Strand') ||
+    name.includes('Optic') ||
+    name.includes('Hologram') ||
+    name.includes('Witness') ||
+    name.includes('Braid') ||
+    name.includes('Wormhole') ||
+    name.includes('Projection') ||
+    name.includes('Observer') ||
+    name.includes('Query') ||
+    name.includes('Coordinate') ||
+    name.includes('Selector') ||
+    name === 'WarpApp' ||
+    name === 'WarpCore' ||
+    name === 'PatchBuilder' ||
+    name === 'PatchSession' ||
+    name.startsWith('createNode') ||
+    name.startsWith('createEdge') ||
+    name.startsWith('createProp') ||
+    name === 'createInlineValue' ||
+    name === 'createBlobValue' ||
+    name === 'decodeEdgePropKey' ||
+    name === 'encodeEdgePropKey' ||
+    name === 'isEdgePropKey' ||
+    GRAPH_SUBSTRATE_NOUNS.has(name)
+  );
 }
 
 function forbiddenExportsFrom(exportNames: readonly string[]): string[] {
   return sorted(exportNames.filter((name) => hasForbiddenVocabulary(name)));
+}
+
+function packageExportNames(relativePath: string): string[] {
+  const value: unknown = JSON.parse(readFileSync(new URL(relativePath, REPO_ROOT), 'utf8'));
+  if (!isRecord(value) || !isRecord(value['exports'])) {
+    throw new Error(`${relativePath} must contain an exports object`);
+  }
+  return sorted(Object.keys(value['exports']));
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 describe('v19 public API boundary', () => {
@@ -113,7 +124,10 @@ describe('v19 public API boundary', () => {
     expect(forbiddenExportsFrom(collectSourceExports('index.ts'))).toEqual([]);
   });
 
-  it('keeps graph, optic, worldline, witness, and diagnostic nouns out of browser root', () => {
-    expect(forbiddenExportsFrom(collectSourceExports('browser.ts'))).toEqual([]);
+  it('does not publish retired browser or legacy compatibility entrypoints', () => {
+    expect(packageExportNames('package.json')).not.toContain('./browser');
+    expect(packageExportNames('package.json')).not.toContain('./legacy');
+    expect(packageExportNames('jsr.json')).not.toContain('./browser');
+    expect(packageExportNames('jsr.json')).not.toContain('./legacy');
   });
 });

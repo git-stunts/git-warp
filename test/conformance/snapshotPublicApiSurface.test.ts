@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import {
-  WarpCore,
-  ImmutableBytes,
-  SnapshotORSet,
-  SnapshotVersionVector,
-  SnapshotWarpState,
-  type SnapshotPropValue,
-} from '../../legacy.ts';
+import WarpCore from '../../src/domain/WarpCore.ts';
+import ImmutableBytes from '../../src/domain/services/snapshot/ImmutableBytes.ts';
+import SnapshotORSet from '../../src/domain/services/snapshot/SnapshotORSet.ts';
+import type { SnapshotPropValue } from '../../src/domain/services/snapshot/SnapshotPropValue.ts';
+import SnapshotVersionVector from '../../src/domain/services/snapshot/SnapshotVersionVector.ts';
+import SnapshotWarpState from '../../src/domain/services/snapshot/SnapshotWarpState.ts';
 
 type PublicPropBag = Readonly<{ [key: string]: SnapshotPropValue }>;
 type PublicVisibleEdge = {

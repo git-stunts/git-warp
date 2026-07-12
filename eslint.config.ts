@@ -49,7 +49,6 @@ export default tseslint.config(
       "packages/**/node_modules/**",
       "coverage/**",
       "dist/**",
-      "examples/html/assets/**",
       "src/infrastructure/adapters/wesley/generated/**",
       "scripts/**",
       ".claude/**",
@@ -817,42 +816,4 @@ export default tseslint.config(
     },
   },
 
-  // ── Example scripts ────────────────────────────────────────────────────────
-  {
-    files: ["examples/**/*.ts"],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: "module",
-      parser: tseslint.parser,
-      globals: {
-        process: "readonly",
-        Buffer: "readonly",
-        console: "readonly",
-        setTimeout: "readonly",
-        clearTimeout: "readonly",
-        performance: "readonly",
-        global: "readonly",
-      },
-    },
-    rules: {
-      "no-console": "off",
-      "max-lines-per-function": "off",
-      "complexity": "off",
-      "no-unused-vars": "off",
-    },
-  },
-
-  // ── Browser globals for HTML example assets ────────────────────────────────
-  {
-    files: ["examples/html/assets/**/*.ts"],
-    languageOptions: {
-      globals: {
-        window: "readonly",
-        document: "readonly",
-        localStorage: "readonly",
-        CustomEvent: "readonly",
-        Viz: "readonly",
-      },
-    },
-  },
 );

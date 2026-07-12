@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { openWarpGraph } from '../../../legacy.ts';
+import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 type SourcePaths = {
@@ -34,7 +34,7 @@ function parseSource(sourceFilePath: string): ts.SourceFile {
     sourceFilePath,
     readFileSync(sourceFilePath, 'utf8'),
     ts.ScriptTarget.Latest,
-    true,
+    true
   );
 }
 
@@ -65,7 +65,11 @@ function hasIdentifierCall(sourceFile: ts.SourceFile, identifier: string): boole
   return found;
 }
 
-function hasPropertyCall(sourceFile: ts.SourceFile, objectName: string, propertyName: string): boolean {
+function hasPropertyCall(
+  sourceFile: ts.SourceFile,
+  objectName: string,
+  propertyName: string
+): boolean {
   let found = false;
 
   function visit(node: ts.Node): void {
@@ -74,7 +78,8 @@ function hasPropertyCall(sourceFile: ts.SourceFile, objectName: string, property
     }
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
       const callTarget = node.expression;
-      found = ts.isIdentifier(callTarget.expression) &&
+      found =
+        ts.isIdentifier(callTarget.expression) &&
         callTarget.expression.text === objectName &&
         callTarget.name.text === propertyName;
     }
@@ -92,7 +97,8 @@ function exportedFunctionNames(sourceFile: ts.SourceFile): Set<string> {
     if (!ts.isFunctionDeclaration(node) || node.name === undefined) {
       return;
     }
-    const isExported = node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+    const isExported =
+      node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
     if (isExported) {
       names.add(node.name.text);
     }
@@ -101,14 +107,18 @@ function exportedFunctionNames(sourceFile: ts.SourceFile): Set<string> {
   return names;
 }
 
-function exportedFunction(sourceFile: ts.SourceFile, functionName: string): ts.FunctionDeclaration | null {
+function exportedFunction(
+  sourceFile: ts.SourceFile,
+  functionName: string
+): ts.FunctionDeclaration | null {
   let match: ts.FunctionDeclaration | null = null;
 
   sourceFile.forEachChild((node) => {
     if (match !== null || !ts.isFunctionDeclaration(node) || node.name === undefined) {
       return;
     }
-    const isExported = node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+    const isExported =
+      node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
     if (isExported && node.name.text === functionName) {
       match = node;
     }
@@ -159,7 +169,9 @@ function collectCompositionRootViolations(): string[] {
     violations.push('RuntimeHost no longer imports the dedicated boot module');
   }
   if (!hasIdentifierCall(runtimeHost, 'resolveRuntimeHostConstructionOptions')) {
-    violations.push('RuntimeHost no longer delegates option resolution to the dedicated boot module');
+    violations.push(
+      'RuntimeHost no longer delegates option resolution to the dedicated boot module'
+    );
   }
   if (!exportedFunctionNames(runtimeHostBoot).has('resolveRuntimeHostConstructionOptions')) {
     violations.push('RuntimeHostBoot no longer exports the construction-option resolver');
@@ -193,9 +205,13 @@ describe('openWarpGraph compatibility composition root', () => {
       expect(Object.prototype.hasOwnProperty.call(graph, '_runtime')).toBe(false);
       expect('_runtime' in graph).toBe(false);
 
-      await (await graph.patches.createPatch()).addNode('node:compatibility-composition-root').commit();
+      await (await graph.patches.createPatch())
+        .addNode('node:compatibility-composition-root')
+        .commit();
 
-      await expect(graph.query.hasNode('node:compatibility-composition-root')).rejects.toMatchObject({
+      await expect(
+        graph.query.hasNode('node:compatibility-composition-root')
+      ).rejects.toMatchObject({
         code: 'E_NO_STATE',
       });
     } finally {

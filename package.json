@@ -29,11 +29,6 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./browser": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.js",
-      "default": "./dist/browser.js"
-    },
     "./storage": {
       "types": "./dist/storage.d.ts",
       "import": "./dist/storage.js",
@@ -48,11 +43,6 @@
       "types": "./dist/diagnostics.d.ts",
       "import": "./dist/diagnostics.js",
       "default": "./dist/diagnostics.js"
-    },
-    "./legacy": {
-      "types": "./dist/legacy.d.ts",
-      "import": "./dist/legacy.js",
-      "default": "./dist/legacy.js"
     },
     "./sha1sync": {
       "types": "./dist/src/infrastructure/adapters/sha1sync.d.ts",
@@ -75,7 +65,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.publish.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.publish.json",
     "lint": "sh -c 'eslint . \"$@\" && npm run lint:test-law && npm run lint:source-size && npm run lint:cas-invariants' --",
     "lint:ratchet": "sh scripts/lint-ratchet.sh",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules --ignore \"**/node_modules/**\"",

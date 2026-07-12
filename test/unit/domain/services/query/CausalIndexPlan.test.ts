@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  BoundedSupportRule,
-  CausalIndexPlan,
-} from '../../../../../legacy.ts';
+import { BoundedSupportRule, CausalIndexPlan } from '../../../../../advanced.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 describe('CausalIndexPlan', () => {
@@ -52,9 +49,11 @@ describe('CausalIndexPlan', () => {
   });
 
   it('rejects invalid runtime carriers', () => {
-    expect(() => CausalIndexPlan.fromSupportRule(
-      // @ts-expect-error runtime guard for JavaScript callers
-      undefined,
-    )).toThrow(QueryError);
+    expect(() =>
+      CausalIndexPlan.fromSupportRule(
+        // @ts-expect-error runtime guard for JavaScript callers
+        undefined
+      )
+    ).toThrow(QueryError);
   });
 });

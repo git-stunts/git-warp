@@ -1,6 +1,6 @@
 # v19 Public API Reflection
 
-This note records the v19 public API line before implementation. The target is
+This note records the implemented v19 public API line. The target is
 not to make `git-warp` less precise. The target is to stop making first-use
 application code learn substrate language before it can do useful work.
 
@@ -63,11 +63,7 @@ and writer before they understand the simpler timeline model.
 The preferred first-use imports are:
 
 ```typescript
-import {
-  openWarp,
-  intent,
-  reading,
-} from '@git-stunts/git-warp';
+import { openWarp, intent, reading } from '@git-stunts/git-warp';
 ```
 
 Storage adapters belong behind an explicit storage subpath:
@@ -89,8 +85,8 @@ Braid
 Hologram
 ```
 
-Those terms should live in advanced, diagnostics, legacy, or internal surfaces,
-not in the first-use root API.
+Those terms should live in advanced, diagnostics, or internal surfaces, not in
+the first-use root API.
 
 ## Root Shape
 
@@ -110,16 +106,18 @@ const warp = await openWarp({
 
 const timeline = await warp.timeline('events');
 
-await timeline.write(intent.node.add({
-  subject: 'user:alice',
-}));
+await timeline.write(
+  intent.node.add({
+    subject: 'user:alice',
+  })
+);
 
 const write = await timeline.write(
   intent.property.set({
     subject: 'user:alice',
     key: 'role',
     value: 'admin',
-  }),
+  })
 );
 
 switch (write.outcome) {
@@ -138,7 +136,7 @@ const role = await timeline.read(
   reading.property({
     subject: 'user:alice',
     key: 'role',
-  }),
+  })
 );
 
 console.log(role.value);
@@ -149,10 +147,12 @@ The read path should return a result object, not a naked value. Provenance is
 the normal path, not an afterthought:
 
 ```typescript
-const result = await timeline.read(reading.property({
-  subject: 'user:alice',
-  key: 'role',
-}));
+const result = await timeline.read(
+  reading.property({
+    subject: 'user:alice',
+    key: 'role',
+  })
+);
 
 result.value;
 result.receipt;
@@ -216,10 +216,12 @@ The builder output should be a runtime-backed value, not loose shape trust.
 The public API should lead with `reading`.
 
 ```typescript
-await timeline.read(reading.property({
-  subject: 'user:alice',
-  key: 'role',
-}));
+await timeline.read(
+  reading.property({
+    subject: 'user:alice',
+    key: 'role',
+  })
+);
 ```
 
 The formal model remains:
@@ -301,11 +303,13 @@ Public speculative work reads like this:
 ```typescript
 const draft = await timeline.draft('try-admin-role');
 
-await draft.write(intent.property.set({
-  subject: 'user:alice',
-  key: 'role',
-  value: 'admin',
-}));
+await draft.write(
+  intent.property.set({
+    subject: 'user:alice',
+    key: 'role',
+    value: 'admin',
+  })
+);
 
 const preview = await timeline.previewJoin(draft, {
   policy: 'deterministic',
@@ -333,7 +337,7 @@ const roleAtTick = await timeline.at(tick).read(
   reading.property({
     subject: 'user:alice',
     key: 'role',
-  }),
+  })
 );
 ```
 
@@ -376,44 +380,42 @@ Use explicit subpaths:
 @git-stunts/git-warp/storage
 @git-stunts/git-warp/advanced
 @git-stunts/git-warp/diagnostics
-@git-stunts/git-warp/legacy
 ```
 
 The boundaries mean different things:
 
-| Surface | Meaning |
-| --- | --- |
-| Root | first-use product API |
-| `storage` | supported persistence adapters |
-| `advanced` | formal WARP nouns for expert use |
+| Surface       | Meaning                                                 |
+| ------------- | ------------------------------------------------------- |
+| Root          | first-use product API                                   |
+| `storage`     | supported persistence adapters                          |
+| `advanced`    | formal WARP nouns for expert use                        |
 | `diagnostics` | inspection, materialization, replay, and operator tools |
-| `legacy` | deprecated compatibility only, with removal pressure |
 
-Do not turn `advanced` into a junk drawer. If a symbol exists only because old
-code still imports it, it belongs in deprecated `legacy`, not `advanced`.
+Do not turn `advanced` into a junk drawer. Symbols that exist only for removed
+graph-first consumers are not part of the v19 package boundary.
 
 ## Migration Map
 
 Each old root symbol needs one explicit disposition:
 
-| v18 root symbol | v19 disposition |
-| --- | --- |
-| `openWarpWorldline()` | `openWarp().timeline(name)` |
-| `GitGraphAdapter` | `GitStorageAdapter` from `storage` |
-| `InMemoryGraphAdapter` | `MemoryStorageAdapter` from `storage` |
-| `commit((patch) => ...)` | `timeline.write(intent.*)` |
-| `coordinate()` | `tick()` publicly, `Coordinate` in advanced/evidence |
-| `optic()` | `timeline.read(reading.*)` or `advanced` |
-| `openWarpGraph()` | deprecated `legacy`; replace diagnostics with explicit diagnostic APIs |
-| `PatchBuilder` | deprecated `legacy` |
-| `GraphDiff` | `diagnostics` |
-| graph op creators | deprecated `legacy` only |
+| v18 root symbol          | v19 disposition                                            |
+| ------------------------ | ---------------------------------------------------------- |
+| `openWarpWorldline()`    | `openWarp().timeline(name)`                                |
+| `GitGraphAdapter`        | `GitStorageAdapter` from `storage`                         |
+| `InMemoryGraphAdapter`   | `MemoryStorageAdapter` from `storage`                      |
+| `commit((patch) => ...)` | `timeline.write(intent.*)`                                 |
+| `coordinate()`           | `tick()` publicly, `Coordinate` in advanced/evidence       |
+| `optic()`                | `timeline.read(reading.*)` or `advanced`                   |
+| `openWarpGraph()`        | removed; replace diagnostics with explicit diagnostic APIs |
+| `PatchBuilder`           | removed; use intent builders                               |
+| `GraphDiff`              | `diagnostics`                                              |
+| graph op creators        | removed; use intent builders                               |
 
 The compatibility story should be honest:
 
 ```text
 Root is clean.
-Legacy is deprecated and temporary.
+Graph-first compatibility exports are gone.
 Diagnostics are for operators.
 Advanced is for formal WARP work.
 ```

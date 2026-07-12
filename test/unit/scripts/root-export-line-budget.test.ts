@@ -18,10 +18,4 @@ describe('root export line budget', () => {
 
     expect(lines).toBeLessThanOrEqual(SOURCE_LINE_LIMIT);
   });
-
-  it('keeps the legacy compatibility barrel below the source line cap', () => {
-    const lines = lineCount(readRepoFile('../../../legacy.ts'));
-
-    expect(lines).toBeLessThanOrEqual(SOURCE_LINE_LIMIT);
-  });
 });

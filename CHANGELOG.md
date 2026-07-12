@@ -26,23 +26,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Added the v19 `openWarp()` product opener plus `Warp` and `Timeline`
-  facade handles to the package root only; the browser root remains outside
-  the v19 facade surface.
-- Moved graph-shaped, worldline-shaped, optic-shaped, witness-shaped, and
-  diagnostic compatibility exports out of the package root into explicit
-  `legacy`, `storage`, `advanced`, and `diagnostics` subpaths. The package root
-  now rejects those nouns through the v19 public API boundary audit.
+  facade handles to the package root.
+- Moved supported storage, formal WARP, and operator inspection exports out of
+  the package root into the explicit `storage`, `advanced`, and `diagnostics`
+  subpaths. The package root now rejects graph-first compatibility nouns
+  through the v19 public API boundary audit.
 - Added visible-state scope helpers to the `diagnostics` subpath so
   materialized-state inspection has an explicit non-legacy import path.
-- Deprecated the entire graph-first legacy API. `legacy` remains migration-only
-  and is no longer presented as a valid first-use path.
 - Moved receipt canonical JSON and ORSet/full-state wire encoding out of
   domain types and storage adapters into infrastructure codec modules; `ORSet`
   no longer exposes `serialize()` or `deserialize()`.
-- Raised the coverage ratchet from `92.10%` to `92.56%` after adding targeted
-  coverage for bounded query node paging and memory-budget rejection paths.
+- Raised the coverage ratchet from `92.10%` to `92.62%` after adding targeted
+  coverage for bounded query node paging and memory-budget rejection paths and
+  removing retired compatibility surfaces.
 - Upgraded `@git-stunts/git-cas` to `^6.1.0` so Git-backed state caches can use
   the library's crash-safe `RootSet` retention API.
+
+### Removed
+
+- Removed the `browser` and `legacy` package entrypoints, the graph-first
+  compatibility barrel, and their compatibility-only examples and tests.
+- Removed the v18 graph-first package exports rather than carrying a deprecated
+  second application API through v19.
 
 ### Fixed
 

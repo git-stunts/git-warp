@@ -89,4 +89,3 @@ only to the extent that the composed support rule remains bounded.
 - [Querying](querying.md)
 - [Observers](observers.md)
 - [Continuum boundary](continuum-boundary.md)
-- Example: [`examples/optics.ts`](../../examples/optics.ts)

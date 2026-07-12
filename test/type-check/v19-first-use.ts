@@ -2,7 +2,7 @@
  * v19 first-use consumer fixture -- compile-only.
  *
  * This fixture intentionally imports only the root first-use verbs and storage
- * subpath adapter. Advanced, diagnostic, and legacy nouns are out-of-band.
+ * subpath adapter. Graph-first compatibility nouns are not public in v19.
  */
 
 import { intent, openWarp, reading } from '../../index.ts';

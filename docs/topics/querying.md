@@ -1,152 +1,90 @@
-# Deprecated v18 Querying Compatibility
+# Querying
 
-Use this page only while migrating v18 graph-first consumers. New product code,
-agent workflows, and local-first tools should target the v19
-intent/timeline/reading/receipt API.
+The v19 root API exposes bounded application readings. It deliberately does
+not expose the broad graph query, worldline, or materialization handles from
+earlier releases.
 
-The main decision is not which method exists. The main decision is which read
-surface owns the question.
+## Choose The Surface
 
-## Choose the read surface
+| Need                                                 | Surface                              |
+| ---------------------------------------------------- | ------------------------------------ |
+| Read one known property                              | `reading.property(...)`              |
+| Check whether one known node exists                  | `reading.node.exists(...)`           |
+| Inspect comparison or visible-state diagnostics      | `diagnostics` subpath                |
+| Work with formal optics, observers, or support plans | `advanced` subpath                   |
+| Run operator-oriented graph commands                 | `git warp query`, `path`, or `optic` |
 
-| Need | Use | Why |
-| --- | --- | --- |
-| Write and read live admitted history | `openWarpWorldline()` | Deprecated compatibility surface. |
-| Read one known entity or property with bounded evidence | Optic read | Fails closed when the checkpoint-tail basis is unavailable. |
-| Filter visibility for a role, tenant, or review surface | Observer | Applies an aperture over a worldline or projection. |
-| Ask broader graph questions | Query builder | Supports match, predicates, traversal, selection, aggregation, and support plans. |
-| Read an earlier coordinate | `seek(...)` or `graph.query.worldline({ source })` | Pins the read to a coordinate or ceiling. |
-| Read speculative work | Strand source | Keeps proposed work out of live truth. |
-| Inspect provenance or replay internals | Substrate capability | Diagnostic and operator path. |
+The `advanced` and `diagnostics` subpaths expose expert components, not a
+second graph-first application facade.
 
-## Open a Deprecated Worldline
+## Read A Property
 
 ```typescript
-import {
-  GitGraphAdapter,
-  openWarpGraph,
-  openWarpWorldline,
-} from '@git-stunts/git-warp/legacy';
-import GitPlumbing from '@git-stunts/plumbing';
+import { openWarp, reading } from '@git-stunts/git-warp';
+import { GitStorageAdapter } from '@git-stunts/git-warp/storage';
 
-const plumbing = new GitPlumbing({ cwd: './team-repo' });
-const persistence = new GitGraphAdapter({ plumbing });
-
-const team = await openWarpWorldline({
-  persistence,
-  worldlineName: 'team',
-  writerId: 'alice',
+const warp = await openWarp({
+  storage: new GitStorageAdapter({ plumbing }),
+  writer: 'alice',
 });
+const team = await warp.timeline('team');
+
+const status = await team.read(
+  reading.property({
+    subject: 'task:auth',
+    key: 'status',
+  })
+);
+
+console.log(status.value);
+console.log(status.receipt);
 ```
 
-Use `openWarpWorldline()` only while paying down v18 compatibility code. Use
-`openWarpGraph()` only when legacy tooling intentionally needs lower-level
-capability namespaces such as sync, provenance, checkpoints, comparison, or
-strands.
-
-## Write live truth
+## Check Node Existence
 
 ```typescript
-const patchSha = await team.commit((p) => {
-  p.addNode('task:auth')
-    .setProperty('task:auth', 'title', 'Implement OAuth2')
-    .setProperty('task:auth', 'status', 'in-progress');
-});
+const task = await team.read(
+  reading.node.exists({
+    subject: 'task:auth',
+  })
+);
+
+console.log(task.value);
+console.log(task.receipt.outcome);
 ```
 
-The callback builds one WARP patch. The patch lands under WARP refs, not under
-ordinary source-tree branch refs.
+## Unsupported Root Queries
 
-## Read live truth
+The root does not currently provide wildcard matching, arbitrary traversal,
+aggregation, historical coordinate selection, or draft reads. Do not recover
+those APIs by importing internal modules. Use the operator CLI or an explicit
+expert surface where one exists, and keep application code on readings.
 
-```typescript
-const worldline = team.live();
+This boundary is intentional: a broad materialization call must not masquerade
+as a bounded read.
 
-const tasks = await worldline.query()
-  .match('task:*')
-  .select(['id', 'props'])
-  .run();
-```
+## Diagnostics
 
-The query builder supports match predicates, property filters, incoming and
-outgoing traversal, selection, aggregation, support planning, and execution.
-Broad wildcard and traversal shapes can still have provider caveats, so do not
-claim every query is a bounded optic read.
+`@git-stunts/git-warp/diagnostics` exports operator-oriented components such as
+`GraphDiff`, `QueryBuilder`, `TtdMergeInspector`, and visible-state scope
+helpers. Callers are responsible for supplying their required runtime context.
 
-For exact id-only reads with checkpoint-tail evidence, use
-[Optic reads](optic-reads.md).
+## Advanced Read Machinery
 
-## Read through an observer
+`@git-stunts/git-warp/advanced` exports formal concepts such as `Optic`,
+`Observer`, `BoundedSupportRule`, and `CausalIndexPlan`. These are useful for
+proof-oriented or runtime-integration work; they are not first-use query verbs.
 
-```typescript
-const publicAperture = {
-  match: ['task:*', 'user:*'],
-  redact: ['email', 'ssn'],
-};
+## Removed Compatibility Surface
 
-const publicView = await worldline.observer('public-users', publicAperture);
-const users = await publicView.query().match('user:*').run();
-```
+The graph-first `openWarpWorldline()` and `openWarpGraph()` package exports are
+removed in v19. Keep an unmigrated consumer on v18 until it can use readings,
+the CLI, or an explicit expert integration.
 
-Observers are read-only filtered views. Redaction changes what a selected read
-path returns; it is not encryption. Use [Content and CAS](content-and-cas.md)
-when stored bytes need protection at rest.
+## See Also
 
-## Read a historical coordinate
-
-```typescript
-const historical = await team.seek({
-  source: {
-    kind: 'coordinate',
-    frontier: { alice: 'patch-tip-sha' },
-    ceiling: 12,
-  },
-});
-
-const taskAtTick12 = await historical.getNodeProps('task:auth');
-```
-
-Coordinates pin the read. They do not move Git `HEAD`.
-
-## Read a strand
-
-```typescript
-const graph = await openWarpGraph({
-  persistence,
-  graphName: 'team',
-  writerId: 'alice',
-});
-
-const reviewLane = graph.query.worldline({
-  source: { kind: 'strand', strandId: 'review-auth' },
-});
-
-const reviewTask = await reviewLane.getNodeProps('task:auth');
-```
-
-Use [Strands](strands.md) for the full speculative-lane workflow, including
-braids, comparison, diagnostic materialization, and transfer planning.
-
-## Explain a conflict
-
-When you need to explain why a visible value won, inspect provenance:
-
-```typescript
-const patchShas = await graph.provenance.patchesFor('task:auth');
-
-for (const patchSha of patchShas) {
-  const patch = await graph.provenance.loadPatchBySha(patchSha);
-  console.log(patchSha, patch.ops.length);
-}
-```
-
-Use this for diagnostics and conflict UX. Do not build a second graph runtime
-above provenance output.
-
-## See also
-
+- [Getting started](getting-started.md)
+- [v19 Public API](api/)
 - [Optic reads](optic-reads.md)
-- [Observers](observers.md)
 - [Strands](strands.md)
-- [Git substrate](git-substrate.md)
-- [Sync](sync.md)
+- [v19 migration guide](../migrations/v19/)

@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   BoundedSupportRule,
   CausalIndexPlan,
-  QueryBuilder,
   SupportFragmentPlan,
-} from '../../../../../legacy.ts';
+} from '../../../../../advanced.ts';
+import { QueryBuilder } from '../../../../../diagnostics.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import type {
   QueryNeighborEntry,
@@ -44,9 +44,7 @@ function query(): QueryBuilder {
 
 describe('SupportFragmentPlan', () => {
   it('creates a cacheable support fragment plan for exact entity reads', () => {
-    const plan = query()
-      .match('node:a')
-      .supportFragmentPlan();
+    const plan = query().match('node:a').supportFragmentPlan();
 
     expect(plan).toBeInstanceOf(SupportFragmentPlan);
     expect(plan.posture).toBe('support-fragment');
@@ -56,7 +54,7 @@ describe('SupportFragmentPlan', () => {
     expect(plan.canMaterializeSupportFragment()).toBe(true);
     expect(plan.requiresFullGraphFallback()).toBe(false);
     expect(plan.fragmentKeyForCoordinate('frontier:demo')).toBe(
-      'surface:query/kind:entity/roots:node:a/depth:none/directions:none/indexes:entity-patch@frontier:demo',
+      'surface:query/kind:entity/roots:node:a/depth:none/directions:none/indexes:entity-patch@frontier:demo'
     );
     expect(Object.isFrozen(plan)).toBe(true);
     expect(Object.isFrozen(plan.requiredEntityIds)).toBe(true);
@@ -76,9 +74,7 @@ describe('SupportFragmentPlan', () => {
   });
 
   it('marks wildcard discovery as full-graph fallback instead of a fragment key', () => {
-    const plan = query()
-      .match('node:*')
-      .supportFragmentPlan();
+    const plan = query().match('node:*').supportFragmentPlan();
 
     expect(plan.posture).toBe('global-fallback');
     expect(plan.canMaterializeSupportFragment()).toBe(false);
@@ -96,14 +92,18 @@ describe('SupportFragmentPlan', () => {
       nodeIds: ['node:b'],
     });
 
-    expect(() => SupportFragmentPlan.fromSupportAndIndex({
-      supportRule,
-      causalIndexPlan: CausalIndexPlan.fromSupportRule(otherSupportRule),
-    })).toThrow(QueryError);
+    expect(() =>
+      SupportFragmentPlan.fromSupportAndIndex({
+        supportRule,
+        causalIndexPlan: CausalIndexPlan.fromSupportRule(otherSupportRule),
+      })
+    ).toThrow(QueryError);
 
-    expect(() => SupportFragmentPlan.fromSupportRule(
-      // @ts-expect-error runtime guard for JavaScript callers
-      undefined,
-    )).toThrow(QueryError);
+    expect(() =>
+      SupportFragmentPlan.fromSupportRule(
+        // @ts-expect-error runtime guard for JavaScript callers
+        undefined
+      )
+    ).toThrow(QueryError);
   });
 });

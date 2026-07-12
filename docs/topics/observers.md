@@ -54,4 +54,3 @@ encryption when stored bytes need protection at rest; see
 - [Optic reads](optic-reads.md)
 - [Querying](querying.md)
 - [Content and CAS](content-and-cas.md)
-- Example: [`examples/observers.ts`](../../examples/observers.ts)

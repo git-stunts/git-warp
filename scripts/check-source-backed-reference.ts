@@ -239,7 +239,6 @@ function generate(): string {
   const storageSource = new SourceText('storage.ts');
   const advancedSource = new SourceText('advanced.ts');
   const diagnosticsSource = new SourceText('diagnostics.ts');
-  const legacySource = new SourceText('legacy.ts');
   const packageBins = captureObjectEntries(packageSource, 'bin');
   const packageExports = captureExportEntries(packageSource, 'exports').filter((item) => item.name.startsWith('.'));
   const jsrExports = captureExportEntries(jsrSource, 'exports').filter((item) => item.name.startsWith('.'));
@@ -268,8 +267,6 @@ function generate(): string {
     ...exportSurface('Advanced export surface', advancedSource, 'Formal WARP and Continuum concepts for expert use; not first-use root API.'),
     '',
     ...exportSurface('Diagnostics export surface', diagnosticsSource, 'Operator, inspection, comparison, and replay tools.'),
-    '',
-    ...exportSurface('Legacy export surface', legacySource, 'Deprecated compatibility-only imports for migration paydown.'),
     '',
     '## CLI command registry',
     '',

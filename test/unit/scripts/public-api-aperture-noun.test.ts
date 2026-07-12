@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import {
-  Observer,
-  computeTranslationCost,
-} from '../../../legacy.ts';
-import type {
-  Aperture,
-  ObserverConfig,
-} from '../../../legacy.ts';
+import { Observer } from '../../../advanced.ts';
+import { computeTranslationCost } from '../../../src/domain/services/TranslationCost.ts';
+import type { Aperture, ObserverConfig } from '../../../advanced.ts';
 
 function acceptAperture(config: Aperture): ObserverConfig {
   return config;

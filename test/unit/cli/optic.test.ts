@@ -9,12 +9,12 @@ vi.mock('../../../bin/cli/shared.ts', () => ({
   listGraphNames: vi.fn(),
 }));
 
-vi.mock('../../../legacy.ts', () => ({
+vi.mock('../../../src/domain/WarpWorldline.ts', () => ({
   openWarpWorldline: vi.fn(),
 }));
 
 const shared = await import('../../../bin/cli/shared.ts');
-const api = await import('../../../legacy.ts');
+const api = await import('../../../src/domain/WarpWorldline.ts');
 const createPersistence = shared.createPersistence as ReturnType<typeof vi.fn>;
 const resolveGraphName = shared.resolveGraphName as ReturnType<typeof vi.fn>;
 const listGraphNames = shared.listGraphNames as ReturnType<typeof vi.fn>;
@@ -45,7 +45,11 @@ const READ_IDENTITY = Object.freeze({
     Object.freeze({ path: 'props_12.cbor', oid: 'cccccccccccccccccccccccccccccccccccccccc' }),
   ]),
   tailWitnesses: Object.freeze([
-    Object.freeze({ sha: 'dddddddddddddddddddddddddddddddddddddddd', writerId: 'alice', lamport: 3 }),
+    Object.freeze({
+      sha: 'dddddddddddddddddddddddddddddddddddddddd',
+      writerId: 'alice',
+      lamport: 3,
+    }),
   ]),
   reducerVersion: 'checkpoint-tail-locator',
   projectionVersion: 'optic-read-foundation',
@@ -122,10 +126,12 @@ describe('optic command', () => {
 
   it('emits obstruction payloads for bounded-basis failures', async () => {
     openWarpWorldline.mockResolvedValue({
-      prepareOpticBasis: vi.fn().mockRejectedValue(new QueryError('No bounded basis.', {
-        code: 'E_OPTIC_NO_BOUNDED_BASIS',
-        context: { reason: 'missing-checkpoint' },
-      })),
+      prepareOpticBasis: vi.fn().mockRejectedValue(
+        new QueryError('No bounded basis.', {
+          code: 'E_OPTIC_NO_BOUNDED_BASIS',
+          context: { reason: 'missing-checkpoint' },
+        })
+      ),
       coordinate: vi.fn(),
     });
 
@@ -163,10 +169,12 @@ describe('optic command', () => {
       coordinate: vi.fn().mockResolvedValue({
         optic: () => ({
           node: () => ({
-            read: vi.fn().mockRejectedValue(new QueryError('Shard unavailable.', {
-              code: 'E_OPTIC_NO_BOUNDED_BASIS',
-              context: { reason: 'checkpoint-shard-unavailable' },
-            })),
+            read: vi.fn().mockRejectedValue(
+              new QueryError('Shard unavailable.', {
+                code: 'E_OPTIC_NO_BOUNDED_BASIS',
+                context: { reason: 'checkpoint-shard-unavailable' },
+              })
+            ),
           }),
         }),
       }),

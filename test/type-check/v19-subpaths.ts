@@ -1,33 +1,13 @@
 /**
  * v19 explicit subpath consumer fixture -- compile-only.
  *
- * Storage, advanced, diagnostics, and legacy imports stay reachable only from
- * their named compatibility surfaces.
+ * Storage, advanced, and diagnostics imports stay reachable only from their
+ * named expert surfaces.
  */
 
-import {
-  GitStorageAdapter,
-  MemoryStorageAdapter,
-  NodeCryptoAdapter,
-} from '../../storage.ts';
-import {
-  GitWarpTickHologram,
-  Observer,
-  Optic,
-  ProjectionHandle,
-} from '../../advanced.ts';
-import {
-  QueryBuilder,
-  TtdMergeInspector,
-  normalizeVisibleStateScope,
-} from '../../diagnostics.ts';
-import {
-  InMemoryGraphAdapter,
-  PatchBuilder,
-  WarpWorldline,
-  openWarpGraph,
-  openWarpWorldline,
-} from '../../legacy.ts';
+import { GitStorageAdapter, MemoryStorageAdapter, NodeCryptoAdapter } from '../../storage.ts';
+import { GitWarpTickHologram, Observer, Optic, ProjectionHandle } from '../../advanced.ts';
+import { QueryBuilder, TtdMergeInspector, normalizeVisibleStateScope } from '../../diagnostics.ts';
 
 const storageAdapter: typeof MemoryStorageAdapter = MemoryStorageAdapter;
 const gitStorageAdapter: typeof GitStorageAdapter = GitStorageAdapter;
@@ -38,9 +18,6 @@ const projectionHandle: typeof ProjectionHandle = ProjectionHandle;
 const tickHologram: typeof GitWarpTickHologram = GitWarpTickHologram;
 const queryBuilder: typeof QueryBuilder = QueryBuilder;
 const ttdMergeInspector: typeof TtdMergeInspector = TtdMergeInspector;
-const legacyAdapter: typeof InMemoryGraphAdapter = InMemoryGraphAdapter;
-const patchBuilder: typeof PatchBuilder = PatchBuilder;
-const worldline: typeof WarpWorldline = WarpWorldline;
 
 void storageAdapter;
 void gitStorageAdapter;
@@ -52,8 +29,3 @@ void tickHologram;
 void queryBuilder;
 void ttdMergeInspector;
 void normalizeVisibleStateScope;
-void legacyAdapter;
-void patchBuilder;
-void worldline;
-void openWarpGraph;
-void openWarpWorldline;

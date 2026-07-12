@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { openWarpWorldline } from '../../legacy.ts';
+import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import type CommitMessageCodecPort from '../../src/ports/CommitMessageCodecPort.ts';
@@ -29,7 +29,9 @@ class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
     readonly patchSha: string;
     readonly commitMessageCodec: CommitMessageCodecPort;
   }): Promise<void> {
-    const patchMessage = options.commitMessageCodec.decodePatch(await this.showNode(options.patchSha));
+    const patchMessage = options.commitMessageCodec.decodePatch(
+      await this.showNode(options.patchSha)
+    );
     this._forbiddenPatchBlobOids.add(patchMessage.patchOid);
     await this._forbidCheckpointStateBlobReads(options);
     this._forbidWrites = true;
@@ -94,7 +96,7 @@ class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
     readonly commitMessageCodec: CommitMessageCodecPort;
   }): Promise<void> {
     const checkpointMessage = options.commitMessageCodec.decodeCheckpoint(
-      await this.showNode(options.checkpointSha),
+      await this.showNode(options.checkpointSha)
     );
     const rootTreeOids = await this.readTreeOids(checkpointMessage.indexOid);
     const stateTreeOid = rootTreeOids['state'];

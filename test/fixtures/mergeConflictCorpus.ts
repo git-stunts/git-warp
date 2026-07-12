@@ -96,7 +96,7 @@ const variants: readonly CorpusVariant[] = Object.freeze([
   {
     slug: 'type-surface',
     primaryFile: 'index.ts',
-    secondaryFile: 'test/type-check/consumer.ts',
+    secondaryFile: 'test/type-check/v19-consumer.ts',
     writers: Object.freeze(['surface-a', 'surface-b']),
   },
   {

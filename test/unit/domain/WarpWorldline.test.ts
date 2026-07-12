@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { openWarpWorldline } from '../../../legacy.ts';
+import { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain/WarpWorldline.ts';
 import ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
@@ -16,7 +16,7 @@ type ObserverCall = {
 };
 
 function isAperture(
-  value: Aperture | { readonly source: WorldlineSource } | undefined,
+  value: Aperture | { readonly source: WorldlineSource } | undefined
 ): value is Aperture {
   return value !== undefined && 'match' in value;
 }
@@ -27,11 +27,7 @@ function createObserverBacking(calls: ObserverCall[]): ObserverBacking {
     getNodes: async () => [],
     getNodeProps: async () => null,
     getEdges: async () => [],
-    observer: async (
-      name: string,
-      config: Aperture,
-      options: { source: WorldlineSource },
-    ) => {
+    observer: async (name: string, config: Aperture, options: { source: WorldlineSource }) => {
       calls.push({ name, config, source: options.source });
       return createObserver(name, config, calls, options.source);
     },
@@ -42,7 +38,7 @@ function createObserver(
   name: string,
   config: Aperture,
   calls: ObserverCall[],
-  source: WorldlineSource,
+  source: WorldlineSource
 ): Observer {
   return new Observer({
     name,
@@ -58,15 +54,15 @@ function createWorldline(calls: ObserverCall[]): ProjectionHandle {
       observer: async (
         nameOrConfig: string | Aperture,
         configOrOptions?: Aperture | { readonly source: WorldlineSource },
-        maybeOptions?: { readonly source: WorldlineSource },
+        maybeOptions?: { readonly source: WorldlineSource }
       ) => {
         const name = typeof nameOrConfig === 'string' ? nameOrConfig : 'observer';
-        const config = typeof nameOrConfig === 'string'
-          ? requireAperture(configOrOptions)
-          : nameOrConfig;
-        const options = typeof nameOrConfig === 'string'
-          ? requireObserverSource(maybeOptions)
-          : requireObserverSource(configOrOptions);
+        const config =
+          typeof nameOrConfig === 'string' ? requireAperture(configOrOptions) : nameOrConfig;
+        const options =
+          typeof nameOrConfig === 'string'
+            ? requireObserverSource(maybeOptions)
+            : requireObserverSource(configOrOptions);
         calls.push({ name, config, source: options.source });
         return createObserver(name, config, calls, options.source);
       },
@@ -75,7 +71,7 @@ function createWorldline(calls: ObserverCall[]): ProjectionHandle {
 }
 
 function requireAperture(
-  value: Aperture | { readonly source: WorldlineSource } | undefined,
+  value: Aperture | { readonly source: WorldlineSource } | undefined
 ): Aperture {
   if (isAperture(value)) {
     return value;
@@ -84,7 +80,7 @@ function requireAperture(
 }
 
 function requireObserverSource(
-  value: Aperture | { readonly source: WorldlineSource } | undefined,
+  value: Aperture | { readonly source: WorldlineSource } | undefined
 ): { readonly source: WorldlineSource } {
   if (value !== undefined && 'source' in value) {
     return value;
@@ -94,14 +90,18 @@ function requireObserverSource(
 
 function createHandle(
   calls: ObserverCall[] = [],
-  commitPatch: (build: WarpWorldlinePatchBuild) => Promise<string> = async () => 'patch-sha',
+  commitPatch: (build: WarpWorldlinePatchBuild) => Promise<string> = async () => 'patch-sha'
 ): WarpWorldline {
   return new WarpWorldline({
     worldlineName: 'events',
     writerId: 'agent-1',
     commitPatch,
     createWorldline: () => createWorldline(calls),
-    admitIntent: async (descriptor) => ({ admitted: true, sha: 'blob:intent:123', intentId: descriptor.intentId }),
+    admitIntent: async (descriptor) => ({
+      admitted: true,
+      sha: 'blob:intent:123',
+      intentId: descriptor.intentId,
+    }),
   });
 }
 
@@ -143,10 +143,12 @@ describe('WarpWorldline', () => {
       writerId: 'agent-1',
     });
 
-    await expect(handle.commit((patch) => {
-      patch.addNode('user:bob');
-      throw new Error('abort worldline commit');
-    })).rejects.toThrow('abort worldline commit');
+    await expect(
+      handle.commit((patch) => {
+        patch.addNode('user:bob');
+        throw new Error('abort worldline commit');
+      })
+    ).rejects.toThrow('abort worldline commit');
 
     await expect(handle.live().hasNode('user:bob')).resolves.toBe(false);
   });
@@ -209,45 +211,53 @@ describe('WarpWorldline', () => {
   });
 
   it('rejects empty open identities before returning a handle', async () => {
-    await expect(openWarpWorldline({
-      persistence: new InMemoryGraphAdapter(),
-      worldlineName: '',
-      writerId: 'agent-1',
-    })).rejects.toMatchObject({
+    await expect(
+      openWarpWorldline({
+        persistence: new InMemoryGraphAdapter(),
+        worldlineName: '',
+        writerId: 'agent-1',
+      })
+    ).rejects.toMatchObject({
       code: 'E_WARP_WORLDLINE_IDENTITY',
       context: { field: 'worldlineName' },
     });
   });
 
   it('rejects empty writer identity before returning a handle', async () => {
-    await expect(openWarpWorldline({
-      persistence: new InMemoryGraphAdapter(),
-      worldlineName: 'events',
-      writerId: '',
-    })).rejects.toMatchObject({
+    await expect(
+      openWarpWorldline({
+        persistence: new InMemoryGraphAdapter(),
+        worldlineName: 'events',
+        writerId: '',
+      })
+    ).rejects.toMatchObject({
       code: 'E_WARP_WORLDLINE_IDENTITY',
       context: { field: 'writerId' },
     });
   });
 
   it('rejects blank writer identity before returning a handle', async () => {
-    await expect(openWarpWorldline({
-      persistence: new InMemoryGraphAdapter(),
-      worldlineName: 'events',
-      writerId: '   ',
-    })).rejects.toMatchObject({
+    await expect(
+      openWarpWorldline({
+        persistence: new InMemoryGraphAdapter(),
+        worldlineName: 'events',
+        writerId: '   ',
+      })
+    ).rejects.toMatchObject({
       code: 'E_WARP_WORLDLINE_IDENTITY',
       context: { field: 'writerId' },
     });
   });
 
   it('reports malformed JavaScript writer identity as WarpError', async () => {
-    await expect(openWarpWorldline({
-      persistence: new InMemoryGraphAdapter(),
-      worldlineName: 'events',
-      // @ts-expect-error exercising runtime validation for JavaScript callers
-      writerId: 42,
-    })).rejects.toMatchObject({
+    await expect(
+      openWarpWorldline({
+        persistence: new InMemoryGraphAdapter(),
+        worldlineName: 'events',
+        // @ts-expect-error exercising runtime validation for JavaScript callers
+        writerId: 42,
+      })
+    ).rejects.toMatchObject({
       code: 'E_WARP_WORLDLINE_IDENTITY',
       context: { field: 'writerId' },
     });
@@ -322,6 +332,8 @@ describe('WarpWorldline', () => {
   it('preserves bounded optic failure semantics from the live worldline', () => {
     const handle = createHandle();
 
-    expect(() => handle.optic()).toThrow('worldline optic requires a checkpoint-tail bounded basis source');
+    expect(() => handle.optic()).toThrow(
+      'worldline optic requires a checkpoint-tail bounded basis source'
+    );
   });
 });

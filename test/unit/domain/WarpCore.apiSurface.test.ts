@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryGraphAdapter } from '../../../legacy.ts';
+import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 
 describe('WarpCore API surface', () => {
@@ -29,8 +29,14 @@ describe('WarpCore API surface', () => {
   it('keeps effect accessors on the prototype surface', () => {
     const effectPipeline = Object.getOwnPropertyDescriptor(WarpCore.prototype, 'effectPipeline');
     const effectEmissions = Object.getOwnPropertyDescriptor(WarpCore.prototype, 'effectEmissions');
-    const deliveryObservations = Object.getOwnPropertyDescriptor(WarpCore.prototype, 'deliveryObservations');
-    const externalizationPolicy = Object.getOwnPropertyDescriptor(WarpCore.prototype, 'externalizationPolicy');
+    const deliveryObservations = Object.getOwnPropertyDescriptor(
+      WarpCore.prototype,
+      'deliveryObservations'
+    );
+    const externalizationPolicy = Object.getOwnPropertyDescriptor(
+      WarpCore.prototype,
+      'externalizationPolicy'
+    );
 
     expect(typeof effectPipeline?.get).toBe('function');
     expect(typeof effectPipeline?.set).toBe('function');

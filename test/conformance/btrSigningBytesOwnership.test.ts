@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  createBTR,
-  NodeCryptoAdapter,
-  ProvenancePayload,
-  verifyBTR,
-} from '../../legacy.ts';
+import { createBTR, verifyBTR } from '../../src/application/provenance/BtrOperations.ts';
 import BtrCodecAdapter from '../../src/infrastructure/adapters/BtrCodecAdapter.ts';
 import BtrSigningBytes from '../../src/domain/services/provenance/BtrSigningBytes.ts';
 import type BtrSigningEnvelope from '../../src/domain/services/provenance/BtrSigningEnvelope.ts';
+import ProvenancePayload from '../../src/domain/services/provenance/ProvenancePayload.ts';
+import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 import CryptoPort from '../../src/ports/CryptoPort.ts';
 import { createEmptyState, createSamplePatches } from '../helpers/warpGraphTestUtils.ts';
 
@@ -32,7 +30,7 @@ class CapturingCryptoPort extends CryptoPort {
   override async hmac(
     algorithm: string,
     hmacKey: string | Uint8Array,
-    data: string | Uint8Array,
+    data: string | Uint8Array
   ): Promise<Uint8Array> {
     this.#hmacInputs.push(copyData(data));
     return await this.#delegate.hmac(algorithm, hmacKey, data);
@@ -46,7 +44,7 @@ class CapturingCryptoPort extends CryptoPort {
 class AlteredSigningBytesCodec extends BtrCodecAdapter {
   override signingBytes(envelope: BtrSigningEnvelope): BtrSigningBytes {
     return BtrSigningBytes.fromCanonicalBtrSigningEncoder(
-      appendZero(super.signingBytes(envelope).copyBytes()),
+      appendZero(super.signingBytes(envelope).copyBytes())
     );
   }
 }
@@ -94,6 +92,7 @@ describe('BTR signing-byte ownership behavior', () => {
       timestamp,
       crypto,
       btrCodec,
+      stateCodec: defaultCodec,
     });
     const signingBytes = btrCodec.signingBytes(record.envelope);
 
@@ -107,6 +106,7 @@ describe('BTR signing-byte ownership behavior', () => {
       timestamp,
       crypto,
       btrCodec,
+      stateCodec: defaultCodec,
     });
     const signingBytes = btrCodec.signingBytes(record.envelope);
     const exposed = signingBytes.copyBytes();
@@ -124,6 +124,7 @@ describe('BTR signing-byte ownership behavior', () => {
       timestamp,
       crypto: capturingCrypto,
       btrCodec,
+      stateCodec: defaultCodec,
     });
     const hmacInputs = capturingCrypto.hmacInputs();
     const hmacInput = hmacInputs[0];
@@ -141,10 +142,12 @@ describe('BTR signing-byte ownership behavior', () => {
       timestamp,
       crypto,
       btrCodec,
+      stateCodec: defaultCodec,
     });
     const verification = await verifyBTR(record, key, {
       crypto,
       btrCodec: new AlteredSigningBytesCodec(),
+      stateCodec: defaultCodec,
     });
 
     expect(verification.valid).toBe(false);
@@ -152,9 +155,11 @@ describe('BTR signing-byte ownership behavior', () => {
   });
 
   it('rejects raw runtime construction outside the canonical encoder path', () => {
-    expect(() => Reflect.construct(
-      runtimeSigningBytesConstructor(),
-      [new Uint8Array([1]), Symbol('raw-signing-bytes')],
-    )).toThrow('BtrSigningBytes must be created by the canonical BTR signing encoder');
+    expect(() =>
+      Reflect.construct(runtimeSigningBytesConstructor(), [
+        new Uint8Array([1]),
+        Symbol('raw-signing-bytes'),
+      ])
+    ).toThrow('BtrSigningBytes must be created by the canonical BTR signing encoder');
   });
 });

@@ -3,19 +3,13 @@
 Use this page when you need to understand what lives in Git and why replay is
 deterministic.
 
-## Deprecated Compatibility Roots
+## Package boundary
 
-The v18 graph-first roots are deprecated and migration-only:
-
-- `openWarpWorldline()` for application code and agent workflows;
-- `openWarpGraph()` for diagnostics, sync, checkpoints, provenance,
-  comparison, strands, migration, and compatibility;
-- `WarpApp` and `WarpCore` for legacy facade compatibility and substrate
-  tooling.
-
-New application code should not start with these APIs. Use them only to migrate
-existing graph-first consumers or to keep old diagnostic tooling running while
-it moves to explicit diagnostic surfaces.
+The graph composition roots described by older releases are runtime internals in
+v19, not deprecated package exports. Application code starts with `openWarp()`;
+storage, formal machinery, and operator inspection use the explicit `storage`,
+`advanced`, and `diagnostics` subpaths. Keep substrate tooling behind those
+supported boundaries instead of importing `src/domain` modules.
 
 ## WARP refs
 

@@ -42,24 +42,6 @@ const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([
   'GitWarpTickHologramFields',
 ]);
 
-const FORBIDDEN_BROWSER_V19_EXPORTS = Object.freeze([
-  'openWarp',
-  'Warp',
-  'Timeline',
-  'intent',
-  'Intent',
-  'reading',
-  'Reading',
-  'ReadReceipt',
-  'ReadingResult',
-  'WriteReceipt',
-  'DraftTimeline',
-  'JoinReceipt',
-  'JoinResult',
-  'OpenWarpOptions',
-  'WarpStorage',
-]);
-
 function exportedNamesFor(path: string): ReadonlySet<string> {
   const sourceFile = sourceFileFor(path);
   const exportedNames = new Set<string>();
@@ -85,13 +67,7 @@ function allDeclaredNamesFor(path: string): ReadonlySet<string> {
 
 function sourceFileFor(path: string): ts.SourceFile {
   const sourceText = readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
-  return ts.createSourceFile(
-    path,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
+  return ts.createSourceFile(path, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 }
 
 function collectExportDeclarationNames(statement: ts.Statement, exportedNames: Set<string>): void {
@@ -118,11 +94,11 @@ function collectDeclaredStatementName(statement: ts.Statement, declaredNames: Se
   }
 
   if (
-    (ts.isClassDeclaration(statement)
-      || ts.isFunctionDeclaration(statement)
-      || ts.isInterfaceDeclaration(statement)
-      || ts.isTypeAliasDeclaration(statement))
-    && statement.name !== undefined
+    (ts.isClassDeclaration(statement) ||
+      ts.isFunctionDeclaration(statement) ||
+      ts.isInterfaceDeclaration(statement) ||
+      ts.isTypeAliasDeclaration(statement)) &&
+    statement.name !== undefined
   ) {
     declaredNames.add(statement.name.text);
   }
@@ -133,7 +109,10 @@ function collectExportedDeclarationName(statement: ts.Statement, exportedNames: 
     return;
   }
   const modifiers = ts.getModifiers(statement);
-  if (modifiers === undefined || !modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+  if (
+    modifiers === undefined ||
+    !modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
+  ) {
     return;
   }
 
@@ -147,11 +126,11 @@ function collectExportedDeclarationName(statement: ts.Statement, exportedNames: 
   }
 
   if (
-    (ts.isClassDeclaration(statement)
-      || ts.isFunctionDeclaration(statement)
-      || ts.isInterfaceDeclaration(statement)
-      || ts.isTypeAliasDeclaration(statement))
-    && statement.name !== undefined
+    (ts.isClassDeclaration(statement) ||
+      ts.isFunctionDeclaration(statement) ||
+      ts.isInterfaceDeclaration(statement) ||
+      ts.isTypeAliasDeclaration(statement)) &&
+    statement.name !== undefined
   ) {
     exportedNames.add(statement.name.text);
   }
@@ -173,14 +152,6 @@ describe('v19 Warp facade', () => {
     expect(Object.isFrozen(timeline)).toBe(true);
     expect(timeline.name).toBe('events');
     expect(timeline.writer).toBe('agent-1');
-  });
-
-  it('keeps the v19 facade off the browser root', () => {
-    const browserExports = exportedNamesFor('browser.ts');
-
-    for (const name of FORBIDDEN_BROWSER_V19_EXPORTS) {
-      expect(browserExports.has(name)).toBe(false);
-    }
   });
 
   it('keeps substrate graph, worldline, patch, optic, and hologram names off the root', () => {
@@ -212,16 +183,20 @@ describe('v19 Warp facade', () => {
   });
 
   it('rejects missing storage and blank identities', async () => {
-    await expect(openWarp({
-      // @ts-expect-error runtime validation accepts JavaScript callers.
-      storage: null,
-      writer: 'agent-1',
-    })).rejects.toThrow('openWarp requires storage');
+    await expect(
+      openWarp({
+        // @ts-expect-error runtime validation accepts JavaScript callers.
+        storage: null,
+        writer: 'agent-1',
+      })
+    ).rejects.toThrow('openWarp requires storage');
 
-    await expect(openWarp({
-      storage: new MemoryStorageAdapter(),
-      writer: '   ',
-    })).rejects.toThrow('openWarp requires non-empty identity fields');
+    await expect(
+      openWarp({
+        storage: new MemoryStorageAdapter(),
+        writer: '   ',
+      })
+    ).rejects.toThrow('openWarp requires non-empty identity fields');
 
     const warp = await openWarp({
       storage: new MemoryStorageAdapter(),
@@ -232,10 +207,12 @@ describe('v19 Warp facade', () => {
   });
 
   it('rejects invalid non-empty facade identities before opening timelines', async () => {
-    await expect(openWarp({
-      storage: new MemoryStorageAdapter(),
-      writer: 'agent 1',
-    })).rejects.toMatchObject({ code: 'E_INVALID_WRITER_ID' });
+    await expect(
+      openWarp({
+        storage: new MemoryStorageAdapter(),
+        writer: 'agent 1',
+      })
+    ).rejects.toMatchObject({ code: 'E_INVALID_WRITER_ID' });
 
     const openedNames: string[] = [];
     const openTimeline = async (name: string): Promise<Timeline> => {
@@ -243,10 +220,13 @@ describe('v19 Warp facade', () => {
       return new Timeline({ name, writer: 'agent-1' });
     };
 
-    expect(() => new Warp({
-      writer: 'agent/1',
-      openTimeline,
-    })).toThrow('Invalid writer ID: contains forward slash');
+    expect(
+      () =>
+        new Warp({
+          writer: 'agent/1',
+          openTimeline,
+        })
+    ).toThrow('Invalid writer ID: contains forward slash');
 
     const warp = new Warp({
       writer: 'agent-1',
@@ -258,15 +238,21 @@ describe('v19 Warp facade', () => {
     });
     expect(openedNames).toEqual([]);
 
-    expect(() => new Timeline({
-      name: 'bad name',
-      writer: 'agent-1',
-    })).toThrow('Invalid graph name: contains space');
+    expect(
+      () =>
+        new Timeline({
+          name: 'bad name',
+          writer: 'agent-1',
+        })
+    ).toThrow('Invalid graph name: contains space');
 
-    expect(() => new Timeline({
-      name: 'events',
-      writer: 'x'.repeat(MAX_WRITER_ID_LENGTH + 1),
-    })).toThrow('Invalid writer ID: exceeds maximum length');
+    expect(
+      () =>
+        new Timeline({
+          name: 'events',
+          writer: 'x'.repeat(MAX_WRITER_ID_LENGTH + 1),
+        })
+    ).toThrow('Invalid writer ID: exceeds maximum length');
   });
 
   it('writes public intents and returns accepted write receipts', async () => {
@@ -277,11 +263,13 @@ describe('v19 Warp facade', () => {
     const timeline = await warp.timeline('events');
 
     const nodeReceipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
-    const propertyReceipt = await timeline.write(intent.property.set({
-      subject: 'user:alice',
-      key: 'role',
-      value: 'admin',
-    }));
+    const propertyReceipt = await timeline.write(
+      intent.property.set({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'admin',
+      })
+    );
 
     expect(nodeReceipt.outcome).toBe('accepted');
     expect(nodeReceipt.intent.kind).toBe('node.add');
@@ -302,9 +290,7 @@ describe('v19 Warp facade', () => {
     if (!('nodes' in result)) {
       throw new Error('query result must include nodes');
     }
-    expect(result.nodes).toEqual([
-      { id: 'user:alice', props: { role: 'admin' } },
-    ]);
+    expect(result.nodes).toEqual([{ id: 'user:alice', props: { role: 'admin' } }]);
   });
 
   it('reads public readings and returns resolved read receipts', async () => {
@@ -315,19 +301,25 @@ describe('v19 Warp facade', () => {
     const timeline = await warp.timeline('events');
 
     await timeline.write(intent.node.add({ subject: 'user:alice' }));
-    await timeline.write(intent.property.set({
-      subject: 'user:alice',
-      key: 'role',
-      value: 'admin',
-    }));
+    await timeline.write(
+      intent.property.set({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'admin',
+      })
+    );
 
-    const propertyResult = await timeline.read(reading.property({
-      subject: 'user:alice',
-      key: 'role',
-    }));
-    const existsResult = await timeline.read(reading.node.exists({
-      subject: 'user:alice',
-    }));
+    const propertyResult = await timeline.read(
+      reading.property({
+        subject: 'user:alice',
+        key: 'role',
+      })
+    );
+    const existsResult = await timeline.read(
+      reading.node.exists({
+        subject: 'user:alice',
+      })
+    );
 
     expect(propertyResult).toBeInstanceOf(ReadingResult);
     expect(propertyResult.receipt).toBeInstanceOf(ReadReceipt);
@@ -353,27 +345,35 @@ describe('v19 Warp facade', () => {
     await timeline.write(intent.node.add({ subject: 'user:alice' }));
     const draft = await timeline.draft('try-admin-role');
 
-    const draftWrite = await draft.write(intent.property.set({
-      subject: 'user:alice',
-      key: 'role',
-      value: 'admin',
-    }));
-    const beforeJoin = await timeline.read(reading.property({
-      subject: 'user:alice',
-      key: 'role',
-    }));
+    const draftWrite = await draft.write(
+      intent.property.set({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'admin',
+      })
+    );
+    const beforeJoin = await timeline.read(
+      reading.property({
+        subject: 'user:alice',
+        key: 'role',
+      })
+    );
     const preview = await timeline.previewJoin(draft, {
       policy: 'deterministic',
     });
-    const afterPreview = await timeline.read(reading.property({
-      subject: 'user:alice',
-      key: 'role',
-    }));
+    const afterPreview = await timeline.read(
+      reading.property({
+        subject: 'user:alice',
+        key: 'role',
+      })
+    );
     const joined = await timeline.join(draft);
-    const afterJoin = await timeline.read(reading.property({
-      subject: 'user:alice',
-      key: 'role',
-    }));
+    const afterJoin = await timeline.read(
+      reading.property({
+        subject: 'user:alice',
+        key: 'role',
+      })
+    );
 
     expect(draft).toBeInstanceOf(DraftTimeline);
     expect(draft.name).toBe('try-admin-role');
