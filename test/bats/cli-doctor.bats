@@ -33,11 +33,12 @@ data = json.loads(os.environ["JSON"])
 assert data["doctorVersion"] == 1
 assert data["graph"] == "demo"
 assert data["health"] == "ok"
-assert data["summary"]["checksRun"] == 7
+assert data["summary"]["checksRun"] == 8
 assert data["summary"]["fail"] == 0
 assert data["summary"]["ok"] >= 1
 assert isinstance(data["findings"], list)
-assert len(data["findings"]) >= 7
+assert len(data["findings"]) >= 8
+assert "state-cache-retention" in [finding["id"] for finding in data["findings"]]
 assert isinstance(data["policy"], dict)
 assert data["policy"]["clockSkewMs"] == 300000
 PY
@@ -54,6 +55,7 @@ PY
   echo "$output" | grep -q "refs-consistent"
   echo "$output" | grep -q "checkpoint-fresh"
   echo "$output" | grep -q "hooks-installed"
+  echo "$output" | grep -q "state-cache-retention"
 }
 
 @test "doctor --json broken writer ref yields refs-consistent fail" {

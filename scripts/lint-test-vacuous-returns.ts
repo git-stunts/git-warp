@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
@@ -81,12 +81,17 @@ function isNestedExecutableBoundary(node: ts.Node): boolean {
   return ts.isFunctionLike(node) || ts.isClassLike(node);
 }
 
-function testFilesFromRipgrep(): string[] {
-  const output = execFileSync('rg', ['--files', 'test', '-g', '*.ts', '-g', '*.js'], {
-    encoding: 'utf8',
-  });
-  const trimmed = output.trim();
-  return trimmed.length === 0 ? [] : trimmed.split('\n');
+export function testFilesInDirectory(directory: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...testFilesInDirectory(path));
+    } else if (entry.isFile() && (path.endsWith('.ts') || path.endsWith('.js'))) {
+      files.push(path);
+    }
+  }
+  return files.sort();
 }
 
 function collectBareTestReturnsFromFiles(filePaths: string[]): BareTestReturn[] {
@@ -96,7 +101,7 @@ function collectBareTestReturnsFromFiles(filePaths: string[]): BareTestReturn[] 
 }
 
 function runCli(args: string[]): number {
-  const filePaths = args.length > 0 ? args : testFilesFromRipgrep();
+  const filePaths = args.length > 0 ? args : testFilesInDirectory('test');
   const findings = collectBareTestReturnsFromFiles(filePaths);
   if (findings.length === 0) {
     return 0;
