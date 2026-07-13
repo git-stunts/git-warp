@@ -1,11 +1,12 @@
 /**
  * Formal bounded-reading API for expert consumers.
  *
- * Capture a `Coordinate` from a public `Timeline`, then lower reads through
- * its executable `Optic`. A successful read carries a type-only `Witness`
- * through the root receipt evidence contract.
+ * Capture a `Coordinate` from a public `Timeline` with `captureCoordinate()`,
+ * then lower reads through its executable `Optic`. A successful read carries
+ * a type-only `Witness` through the root receipt evidence contract.
  */
 
+export { default as captureCoordinate } from './src/domain/api/captureCoordinate.ts';
 export { default as Coordinate } from './src/domain/WarpWorldlineCoordinate.ts';
 export { default as Optic } from './src/domain/services/optic/WorldlineOptic.ts';
 export type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';

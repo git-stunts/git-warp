@@ -58,8 +58,10 @@ type ModuleSurface = {
   readonly valueExports: readonly string[];
 };
 
-function moduleSurface(relativePath = 'index.ts'): ModuleSurface {
-  const sourceFile = sourceFileFor(relativePath);
+function moduleSurface(relativePath = 'index.ts', source?: string): ModuleSurface {
+  const sourceFile = source === undefined
+    ? sourceFileFor(relativePath)
+    : parseSourceFile(relativePath, source);
   const starExports: string[] = [];
   const typeExports: string[] = [];
   const valueExports: string[] = [];
@@ -70,6 +72,10 @@ function moduleSurface(relativePath = 'index.ts'): ModuleSurface {
       continue;
     }
     if (statement.exportClause === undefined) {
+      starExports.push(statement.moduleSpecifier?.getText(sourceFile) ?? '<local>');
+      continue;
+    }
+    if (ts.isNamespaceExport(statement.exportClause)) {
       starExports.push(statement.moduleSpecifier?.getText(sourceFile) ?? '<local>');
       continue;
     }
@@ -91,6 +97,10 @@ function moduleSurface(relativePath = 'index.ts'): ModuleSurface {
 
 function sourceFileFor(relativePath: string): ts.SourceFile {
   const source = readFileSync(new URL(relativePath, REPO_ROOT), 'utf8');
+  return parseSourceFile(relativePath, source);
+}
+
+function parseSourceFile(relativePath: string, source: string): ts.SourceFile {
   return ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 }
 
@@ -174,7 +184,7 @@ function packageExportNames(relativePath: string): string[] {
 }
 
 function sorted(values: Iterable<string>): string[] {
-  return Array.from(values).sort();
+  return [...values].sort();
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -186,6 +196,15 @@ describe('v19 public API boundary', () => {
     const surface = moduleSurface();
     expect(surface.starExports).toEqual([]);
     expect(surface.valueExports).toEqual(sorted(ROOT_VALUE_EXPORTS));
+  });
+
+  it('classifies namespace re-exports as forbidden star exports', () => {
+    const surface = moduleSurface(
+      'namespace-export.ts',
+      "export * as graph from './graph.ts';"
+    );
+
+    expect(surface.starExports).toEqual(["'./graph.ts'"]);
   });
 
   it('locks the package-root companion types to an explicit contract', () => {
@@ -202,7 +221,7 @@ describe('v19 public API boundary', () => {
   it('keeps the advanced subpath limited to bounded coordinate reads', () => {
     const surface = moduleSurface('advanced.ts');
     expect(surface.starExports).toEqual([]);
-    expect(surface.valueExports).toEqual(['Coordinate', 'Optic']);
+    expect(surface.valueExports).toEqual(['Coordinate', 'Optic', 'captureCoordinate']);
     expect(surface.typeExports).toEqual(
       sorted([
         'NeighborhoodOpticCompleteness',

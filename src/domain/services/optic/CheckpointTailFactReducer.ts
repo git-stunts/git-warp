@@ -11,6 +11,10 @@ import { normalizeRawOp } from '../OpNormalizer.ts';
 import type { CheckpointTailPatchEntry } from './CheckpointTailOpticSource.ts';
 
 type NormalizedTailOperation = ReturnType<typeof normalizeRawOp>;
+type NeighborhoodTailScope = {
+  readonly direction: 'in' | 'out' | 'both';
+  readonly labels: readonly string[];
+};
 
 export default class CheckpointTailFactReducer {
   private readonly _graphName: string;
@@ -41,16 +45,22 @@ export default class CheckpointTailFactReducer {
 
   includesNeighborhood(
     entry: CheckpointTailPatchEntry,
-    options: {
-      readonly nodeId: string;
-      readonly direction: 'in' | 'out' | 'both';
-      readonly labels: readonly string[];
-    },
+    options: NeighborhoodTailScope & { readonly nodeId: string },
   ): boolean {
-    return entry.patch.ops.some((rawOp) => {
-      const op = normalizeRawOp(rawOp);
-      return isTargetNeighborhoodEdge(op, options);
-    });
+    return this.neighborhoodNodeIds(entry, options).includes(options.nodeId);
+  }
+
+  neighborhoodNodeIds(
+    entry: CheckpointTailPatchEntry,
+    options: NeighborhoodTailScope,
+  ): readonly string[] {
+    const nodeIds = new Set<string>();
+    for (const rawOp of entry.patch.ops) {
+      for (const nodeId of neighborhoodNodeIdsForOperation(normalizeRawOp(rawOp), options)) {
+        nodeIds.add(nodeId);
+      }
+    }
+    return Object.freeze([...nodeIds].sort());
   }
 
   reduceNodeLiveness(
@@ -194,21 +204,6 @@ function isTargetNodeRemove(
   return op instanceof NodeRemove && op.node === nodeId;
 }
 
-function isTargetNeighborhoodEdge(
-  op: NormalizedTailOperation,
-  options: {
-    readonly nodeId: string;
-    readonly direction: 'in' | 'out' | 'both';
-    readonly labels: readonly string[];
-  },
-): op is EdgeAdd | EdgeRemove {
-  if (!(op instanceof EdgeAdd) && !(op instanceof EdgeRemove)) {
-    return false;
-  }
-  return matchesNeighborhoodLabel(op, options.labels)
-    && matchesNeighborhoodDirection(op, options.nodeId, options.direction);
-}
-
 function matchesNeighborhoodLabel(
   op: EdgeAdd | EdgeRemove,
   labels: readonly string[],
@@ -216,18 +211,23 @@ function matchesNeighborhoodLabel(
   return labels.length === 0 || labels.includes(op.label);
 }
 
-function matchesNeighborhoodDirection(
-  op: EdgeAdd | EdgeRemove,
-  nodeId: string,
-  direction: 'in' | 'out' | 'both',
-): boolean {
-  if (direction === 'out') {
-    return op.from === nodeId;
+function neighborhoodNodeIdsForOperation(
+  op: NormalizedTailOperation,
+  options: NeighborhoodTailScope,
+): readonly string[] {
+  if (!isEdgeMutation(op) || !matchesNeighborhoodLabel(op, options.labels)) {
+    return [];
   }
-  if (direction === 'in') {
-    return op.to === nodeId;
-  }
-  return op.from === nodeId || op.to === nodeId;
+  const byDirection: Readonly<Record<NeighborhoodTailScope['direction'], readonly string[]>> = {
+    in: [op.to],
+    out: [op.from],
+    both: op.from === op.to ? [op.from] : [op.from, op.to],
+  };
+  return byDirection[options.direction];
+}
+
+function isEdgeMutation(op: NormalizedTailOperation): op is EdgeAdd | EdgeRemove {
+  return op instanceof EdgeAdd || op instanceof EdgeRemove;
 }
 
 function readScalarTailPropertyValue(

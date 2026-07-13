@@ -99,17 +99,26 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
     });
     const reader = new CheckpointShardFactReader({ source });
 
-    await expect(reader.readNeighborhood(basis, {
+    const result = await reader.readNeighborhood(basis, {
       nodeId: NODE_ID,
       direction: 'out',
       labels: [],
-    })).resolves.toMatchObject({
+    });
+
+    expect(result).toEqual({
       cursor: null,
       edges: [{
         direction: 'out',
         neighborId: NEIGHBOR_ID,
         label: EDGE_LABEL,
       }],
+      resumeCursors: [null],
+      checkpointIndexShards: [
+        { path: sourceMetaPath, oid: sourceMetaOid },
+        { path: neighborMetaPath, oid: neighborMetaOid },
+        { path: outgoingPath, oid: outgoingOid },
+        { path: labelsPath, oid: labelsOid },
+      ].sort((left, right) => left.path.localeCompare(right.path)),
     });
   });
 });

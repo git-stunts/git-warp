@@ -17,10 +17,6 @@ export function createTimeline(runtime: WarpWorldline): Timeline {
   const timeline = new Timeline({
     name: runtime.worldlineName,
     writer: runtime.writerId,
-    captureCoordinate: async () => {
-      await runtime.prepareOpticBasis();
-      return await runtime.coordinate();
-    },
     captureTick: async () => await createTick(runtime),
     joinDraft: (draft, options) => joinDraftTimeline(runtime, draft, options),
     openDraft: (name) => createDraftTimeline(runtime, runtime.worldlineName, name),

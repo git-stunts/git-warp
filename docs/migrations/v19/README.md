@@ -40,7 +40,7 @@ Diagnostics and expert WARP terms move to explicit subpaths:
 | ------------- | --------------------------------------------------- |
 | Root          | first-use public API; no graph substrate            |
 | `storage`     | supported persistence adapters                      |
-| `advanced`    | bounded `Coordinate`, `Optic`, and `Witness` access |
+| `advanced`    | bounded coordinate capture, `Optic`, and `Witness` access |
 | `diagnostics` | receipt inspection                                  |
 
 The former `browser` and `legacy` subpaths do not exist in v19. Consumers must
@@ -186,8 +186,8 @@ const historical = await events.at(tick).read(
 );
 ```
 
-Use `Tick` for public time-travel handles. Use `Coordinate` only where formal
-evidence posture matters.
+Use `Tick` for public time-travel handles. Import `captureCoordinate()` from
+the `advanced` subpath only where formal evidence posture matters.
 
 ## Speculative Work Migration
 
@@ -261,7 +261,7 @@ and joins first.
 | `GraphNode`                | removed                               | no public export                                  |
 | `GraphDiff`                | removed                               | no public-handle comparison API ships in v19      |
 | `Optic`                    | `advanced`                            | readings are root                                 |
-| `Coordinate`               | `advanced` or receipt fields          | ticks are root                                    |
+| `Coordinate`               | `advanced` or receipt fields          | capture with advanced `captureCoordinate()`       |
 | `Observer`                 | removed                               | readings are first-use root                       |
 | `Strand`                   | removed                               | drafts are first-use root                         |
 | `Braid`                    | removed                               | joins are first-use root                          |

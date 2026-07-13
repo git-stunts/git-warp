@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the package root into the explicit `storage`, `advanced`, and `diagnostics`
   subpaths. The package root now rejects graph-first compatibility nouns
   through the v19 public API boundary audit.
+- Moved formal coordinate capture to advanced `captureCoordinate()` so the root
+  `Timeline` exposes opaque ticks but no coordinate machinery.
+- Bound ticks to the exact timeline runtime that created them and made bounded
+  traversal reuse one request-scoped checkpoint basis and tail support index.
 - Locked the package root to the v19 facade allowlist so support ports,
   infrastructure adapters, memory helpers, cancellation utilities, sync
   internals, and canonical serialization helpers stay behind explicit subpaths.

@@ -1,5 +1,4 @@
 import WarpError from '../errors/WarpError.ts';
-import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
 import { assertTimelineNameIdentity, assertWriterIdentity } from './assertIdentity.ts';
 import DraftTimeline from './DraftTimeline.ts';
 import Intent from './Intent.ts';
@@ -22,7 +21,6 @@ export type JoinOptions = {
 type TimelineConstructionOptions = {
   readonly name: string;
   readonly writer: string;
-  readonly captureCoordinate?: CaptureCoordinate;
   readonly captureTick?: CaptureTick;
   readonly joinDraft?: JoinDraft;
   readonly openDraft?: OpenDraft;
@@ -33,7 +31,6 @@ type TimelineConstructionOptions = {
 };
 
 type JoinDraft = (draft: DraftTimeline, options: JoinOptions) => Promise<JoinResult>;
-type CaptureCoordinate = () => Promise<WarpWorldlineCoordinate>;
 type CaptureTick = () => Promise<Tick>;
 type OpenDraft = (name: string) => Promise<DraftTimeline>;
 type OpenView = (tick: Tick) => TimelineView;
@@ -41,7 +38,6 @@ type ReadReading = (reading: Reading) => Promise<ReadingResult>;
 type WriteIntent = (intent: Intent) => Promise<WriteReceipt>;
 type TimelinePortErrorCode =
   | 'E_TIMELINE_JOINER'
-  | 'E_TIMELINE_COORDINATE_READER'
   | 'E_TIMELINE_TICK_READER'
   | 'E_TIMELINE_DRAFT_OPENER'
   | 'E_TIMELINE_VIEW_OPENER'
@@ -56,7 +52,6 @@ type TimelinePortErrorCode =
  * root API contract.
  */
 export default class Timeline {
-  readonly #captureCoordinate: CaptureCoordinate | null;
   readonly #captureTick: CaptureTick | null;
   readonly #joinDraft: JoinDraft | null;
   readonly #name: string;
@@ -78,7 +73,6 @@ export default class Timeline {
       code: 'E_TIMELINE_IDENTITY',
     });
     this.#joinDraft = optionalPort(options.joinDraft);
-    this.#captureCoordinate = optionalPort(options.captureCoordinate);
     this.#captureTick = optionalPort(options.captureTick);
     this.#name = options.name;
     this.#openDraft = optionalPort(options.openDraft);
@@ -107,13 +101,6 @@ export default class Timeline {
       throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
     }
     return await this.#openDraft(name);
-  }
-
-  async coordinate(): Promise<WarpWorldlineCoordinate> {
-    if (this.#captureCoordinate === null) {
-      throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
-    }
-    return await this.#captureCoordinate();
   }
 
   async tick(): Promise<Tick> {
@@ -216,21 +203,12 @@ function assertTimelineConstructionOptions(options: TimelineConstructionOptions)
     );
   }
   assertJoinDraft(options.joinDraft);
-  assertCaptureCoordinate(options.captureCoordinate);
   assertCaptureTick(options.captureTick);
   assertOpenDraft(options.openDraft);
   assertOpenView(options.openView);
   assertJoinDraft(options.previewJoinDraft);
   assertReadReading(options.readReading);
   assertWriteIntent(options.writeIntent);
-}
-
-function assertCaptureCoordinate(capture: CaptureCoordinate | undefined): void {
-  assertOptionalFunctionPort(
-    capture,
-    'Timeline requires a coordinate function when provided',
-    'E_TIMELINE_COORDINATE_READER'
-  );
 }
 
 function assertCaptureTick(capture: CaptureTick | undefined): void {

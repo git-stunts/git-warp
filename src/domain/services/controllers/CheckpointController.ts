@@ -387,10 +387,10 @@ export default class CheckpointController {
     this._assertLoadPersistence(persistence);
     const message = await persistence.showNode(checkpointSha);
     if (typeof message !== 'string' || message.length === 0) {
-      return false;
+      throw invalidCheckpointReference(checkpointSha, 'empty-checkpoint-message');
     }
     if (this._host._commitMessageCodec.detectKind(message) !== 'checkpoint') {
-      return false;
+      throw invalidCheckpointReference(checkpointSha, 'non-checkpoint-message');
     }
     const checkpoint = this._host._commitMessageCodec.decodeCheckpoint(message);
     if (isCurrentCheckpointSchema(checkpoint.schema)) {
@@ -599,4 +599,12 @@ export default class CheckpointController {
       lastCompactionLamport: h._lastGCLamport,
     };
   }
+}
+
+function invalidCheckpointReference(checkpointSha: string, reason: string): PersistenceError {
+  return new PersistenceError(
+    `Checkpoint ref resolved to invalid object ${checkpointSha}: ${reason}`,
+    'E_CHECKPOINT_REF_INVALID',
+    { context: { checkpointSha, reason } },
+  );
 }

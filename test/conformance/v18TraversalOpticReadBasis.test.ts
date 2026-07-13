@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import V17CheckpointTailOpticGraphFixture from './fixtures/V17CheckpointTailOpticGraphFixture.ts';
 import V17MaterializationFallbackTrap from './fixtures/V17MaterializationFallbackTrap.ts';
 import V17PublicOpticReadPath from './fixtures/V17PublicOpticReadPath.ts';
@@ -10,6 +10,7 @@ const GAMMA_NODE_ID = 'node:gamma';
 const DELTA_NODE_ID = 'node:delta';
 const MISSING_GOAL_NODE_ID = 'node:missing-goal';
 const LINK_LABEL = 'link';
+const NEIGHBORHOOD_CURSOR_PATTERN = /^git-warp:neighborhood-cursor:1:/;
 
 describe('v18 TraversalOptic checkpoint-tail read basis', () => {
   it('expands deterministic breadth-first traversal and reports goal-found completion', async () => {
@@ -92,6 +93,65 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
     });
   });
 
+  it('loads one checkpoint basis and writer tail per traversal request', async () => {
+    const fixture = await openTraversalFixture('v18-traversal-optic-request-support');
+    const checkpointReads = vi.spyOn(fixture.graph, '_readCheckpointSha');
+    const writerTailReads = vi.spyOn(fixture.graph, '_loadWriterPatches');
+    const readPath = new V17PublicOpticReadPath(fixture.graph.worldline());
+
+    const result = await readPath.readTraversal(ROOT_NODE_ID, {
+      direction: 'out',
+      maxDepth: 2,
+      maxNodes: 10,
+      maxEdges: 10,
+    });
+
+    expect(Reflect.get(result, 'readIdentities')).toHaveLength(3);
+    expect(checkpointReads).toHaveBeenCalledTimes(1);
+    expect(writerTailReads).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when the tail changes a traversed neighborhood', async () => {
+    const fixture = await openTraversalFixture('v18-traversal-optic-tail-change');
+    await fixture.graph.patch((patch) => {
+      patch.addNode('node:tail-neighbor');
+      patch.addEdge(ROOT_NODE_ID, 'node:tail-neighbor', LINK_LABEL);
+    });
+    const readPath = new V17PublicOpticReadPath(fixture.graph.worldline());
+
+    await expect(readPath.readTraversal(ROOT_NODE_ID, {
+      direction: 'out',
+      maxDepth: 1,
+      maxNodes: 10,
+      maxEdges: 10,
+    })).rejects.toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: { cause: 'tail-neighborhood-needs-adjacency-witnesses' },
+    });
+  });
+
+  it('does not contaminate traversal support with unrelated tail edges', async () => {
+    const fixture = await openTraversalFixture('v18-traversal-optic-unrelated-tail');
+    await fixture.graph.patch((patch) => {
+      patch.addNode('node:unrelated-left');
+      patch.addNode('node:unrelated-right');
+      patch.addEdge('node:unrelated-left', 'node:unrelated-right', LINK_LABEL);
+    });
+    const readPath = new V17PublicOpticReadPath(fixture.graph.worldline());
+
+    const result = await readPath.readTraversal(ROOT_NODE_ID, {
+      direction: 'out',
+      maxDepth: 1,
+      maxNodes: 10,
+      maxEdges: 10,
+    });
+
+    expect(result).toMatchObject({
+      completeness: 'complete',
+      visitedNodeIds: [ALPHA_NODE_ID, BETA_NODE_ID, ROOT_NODE_ID],
+    });
+  });
+
   it('resumes a node-budget-open frontier at the blocked edge', async () => {
     const fixture = await openTraversalFixture('v18-traversal-optic-node-budget-cursor');
     const readPath = new V17PublicOpticReadPath(fixture.graph.worldline());
@@ -117,7 +177,7 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
         {
           nodeId: ROOT_NODE_ID,
           depth: 0,
-          edgeCursor: expect.stringMatching(/^git-warp:neighborhood-cursor:1:/),
+          edgeCursor: expect.stringMatching(NEIGHBORHOOD_CURSOR_PATTERN),
         },
         { nodeId: BETA_NODE_ID, depth: 1, edgeCursor: null },
       ],

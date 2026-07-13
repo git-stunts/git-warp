@@ -32,6 +32,34 @@ type WitnessedNeighborhoodPage = TraversalNeighborhoodReadResult & {
   readonly direction: Direction;
 };
 
+type TraversalReadContext = {
+  readonly basis: CheckpointTailIndexBasis;
+  readonly tailByNode: ReadonlyMap<string, TailWitnessScan>;
+};
+
+type TailWitnessScanDraft = {
+  readonly entries: Array<TailWitnessScan['entries'][number]>;
+  readonly witnesses: Array<TailWitnessScan['witnesses'][number]>;
+};
+
+type NeighborhoodReadSupport = {
+  readonly basis: CheckpointTailIndexBasis;
+  readonly tail: TailWitnessScan;
+};
+
+type AddTraversalTailEntryOptions = {
+  readonly drafts: Map<string, TailWitnessScanDraft>;
+  readonly entryIndex: number;
+  readonly reducer: CheckpointTailFactReducer;
+  readonly scope: { readonly direction: Direction; readonly labels: readonly string[] };
+  readonly tail: TailWitnessScan;
+};
+
+const EMPTY_TAIL_WITNESS_SCAN: TailWitnessScan = Object.freeze({
+  entries: Object.freeze([]),
+  witnesses: Object.freeze([]),
+});
+
 export default class CheckpointTailWitnessLocator {
   private readonly _graphName: string;
   private readonly _basisLoader: CheckpointTailBasisLoader;
@@ -199,11 +227,16 @@ export default class CheckpointTailWitnessLocator {
   private async _readWitnessedNeighborhoodPage(
     nodeId: string,
     options: NeighborhoodOpticReadOptions,
+    traversal: TraversalReadContext | null = null,
   ): Promise<WitnessedNeighborhoodPage> {
     const direction = normalizeDirection(options.direction);
     const labels = normalizeLabels(options.labels ?? []);
-    const basis = await this._basisLoader.load();
-    const tail = await this._scanTailForNeighborhood(basis, { nodeId, direction, labels });
+    const { basis, tail } = await this._neighborhoodReadSupport({
+      direction,
+      labels,
+      nodeId,
+      traversal,
+    });
     this._factReducer.assertNeighborhoodTailStable(tail.entries);
     const page = await this._shardReader.readNeighborhood(basis, {
       nodeId,
@@ -213,28 +246,57 @@ export default class CheckpointTailWitnessLocator {
       limit: options.limit ?? null,
     });
     return witnessedNeighborhoodPage({
-      basis,
-      direction,
-      labels,
-      nodeId,
+      basis, direction, labels, nodeId,
       readIdentityBuilder: this._readIdentityBuilder,
-      tail,
-      page,
+      tail, page,
     });
+  }
+
+  private async _neighborhoodReadSupport(options: {
+    readonly direction: Direction;
+    readonly labels: readonly string[];
+    readonly nodeId: string;
+    readonly traversal: TraversalReadContext | null;
+  }): Promise<NeighborhoodReadSupport> {
+    if (options.traversal !== null) {
+      return {
+        basis: options.traversal.basis,
+        tail: options.traversal.tailByNode.get(options.nodeId) ?? EMPTY_TAIL_WITNESS_SCAN,
+      };
+    }
+    const basis = await this._basisLoader.load();
+    const tail = await this._scanTailForNeighborhood(basis, options);
+    return { basis, tail };
   }
 
   private async _readTraversalResult(
     optic: Optic,
     options: TraversalOpticReadOptions,
   ): Promise<TraversalOpticReadResult> {
-    return await this._traversalReader().read(optic.nodeId(), options);
+    const traversal = await this._createTraversalReadContext({
+      direction: normalizeDirection(options.direction),
+      labels: normalizeLabels(options.labels ?? []),
+    });
+    return await this._traversalReader(traversal).read(optic.nodeId(), options);
   }
 
-  private _traversalReader(): CheckpointTailTraversalReader {
+  private _traversalReader(traversal: TraversalReadContext): CheckpointTailTraversalReader {
     return new CheckpointTailTraversalReader({
       readNeighborhood: async (nodeId, readOptions) => (
-        await this._readWitnessedNeighborhoodPage(nodeId, readOptions)
+        await this._readWitnessedNeighborhoodPage(nodeId, readOptions, traversal)
       ),
+    });
+  }
+
+  private async _createTraversalReadContext(options: {
+    readonly direction: Direction;
+    readonly labels: readonly string[];
+  }): Promise<TraversalReadContext> {
+    const basis = await this._basisLoader.load();
+    const tail = await this._tailScan.collect({ basis, includeEntry: () => true });
+    return Object.freeze({
+      basis,
+      tailByNode: indexTraversalNeighborhoodTail(tail, this._factReducer, options),
     });
   }
 
@@ -272,6 +334,55 @@ export default class CheckpointTailWitnessLocator {
       includeEntry: (entry) => this._factReducer.includesNeighborhood(entry, options),
     });
   }
+}
+
+function indexTraversalNeighborhoodTail(
+  tail: TailWitnessScan,
+  reducer: CheckpointTailFactReducer,
+  options: { readonly direction: Direction; readonly labels: readonly string[] },
+): ReadonlyMap<string, TailWitnessScan> {
+  const drafts = new Map<string, TailWitnessScanDraft>();
+  for (let entryIndex = 0; entryIndex < tail.entries.length; entryIndex += 1) {
+    addTraversalTailEntry({ drafts, entryIndex, reducer, scope: options, tail });
+  }
+  return new Map([...drafts.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([nodeId, draft]) => [nodeId, Object.freeze({
+      entries: Object.freeze(draft.entries),
+      witnesses: Object.freeze(draft.witnesses),
+    })]));
+}
+
+function addTraversalTailEntry(options: AddTraversalTailEntryOptions): void {
+  const { entry, witness } = requireTailWitnessPair(options.tail, options.entryIndex);
+  for (const nodeId of options.reducer.neighborhoodNodeIds(entry, options.scope)) {
+    const draft = options.drafts.get(nodeId) ?? { entries: [], witnesses: [] };
+    draft.entries.push(entry);
+    draft.witnesses.push(witness);
+    options.drafts.set(nodeId, draft);
+  }
+}
+
+function requireTailWitnessPair(
+  tail: TailWitnessScan,
+  entryIndex: number,
+): {
+  readonly entry: TailWitnessScan['entries'][number];
+  readonly witness: TailWitnessScan['witnesses'][number];
+} {
+  const entry = tail.entries[entryIndex];
+  const witness = tail.witnesses[entryIndex];
+  if (entry === undefined || witness === undefined) {
+    throw tailWitnessAlignmentError(entryIndex);
+  }
+  return { entry, witness };
+}
+
+function tailWitnessAlignmentError(entryIndex: number): QueryError {
+  return new QueryError('Traversal tail entry is missing its witness.', {
+    code: 'E_OPTIC_READ_IDENTITY',
+    context: { entryIndex },
+  });
 }
 
 function normalizeDirection(direction: Direction | undefined): Direction {

@@ -344,6 +344,12 @@ const roleAtTick = await timeline.at(tick).read(
 Use `Coordinate` for formal evidence and proof posture on advanced surfaces.
 Do not make first-use application examples import coordinate machinery.
 
+```typescript
+import { captureCoordinate } from '@git-stunts/git-warp/advanced';
+
+const coordinate = await captureCoordinate(timeline);
+```
+
 ```text
 public: tick handle
 advanced: coordinate evidence
@@ -388,7 +394,7 @@ The boundaries mean different things:
 | ------------- | --------------------------------------------------- |
 | Root          | first-use product API                               |
 | `storage`     | supported persistence adapters                      |
-| `advanced`    | bounded `Coordinate`, `Optic`, and `Witness` access |
+| `advanced`    | bounded coordinate capture, `Optic`, and `Witness` access |
 | `diagnostics` | receipt inspection                                  |
 
 Do not turn `advanced` into a junk drawer. Symbols that exist only for removed
@@ -404,7 +410,7 @@ Each old root symbol needs one explicit disposition:
 | `GitGraphAdapter`        | `GitStorageAdapter` from `storage`                         |
 | `InMemoryGraphAdapter`   | `MemoryStorageAdapter` from `storage`                      |
 | `commit((patch) => ...)` | `timeline.write(intent.*)`                                 |
-| `coordinate()`           | `tick()` publicly; formal access remains advanced          |
+| `coordinate()`           | `tick()` publicly; use advanced `captureCoordinate()`       |
 | `optic()`                | `timeline.read(reading.*)` or `advanced`                   |
 | `openWarpGraph()`        | removed; replace diagnostics with explicit diagnostic APIs |
 | `PatchBuilder`           | removed; use intent builders                               |

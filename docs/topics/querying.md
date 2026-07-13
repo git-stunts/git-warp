@@ -86,9 +86,9 @@ flow.
 ## Unsupported Root Queries
 
 The root does not currently provide wildcard matching, arbitrary traversal,
-aggregation, arbitrary traversal, or draft reads. Do not recover
-those APIs by importing internal modules. Use the operator CLI or an explicit
-expert surface where one exists, and keep application code on readings.
+aggregation, or draft reads. Do not recover those APIs by importing internal
+modules. Use the operator CLI or an explicit expert surface where one exists,
+and keep application code on readings.
 
 This boundary is intentional: a broad materialization call must not masquerade
 as a bounded read.
@@ -101,9 +101,10 @@ require an internal runtime host.
 
 ## Advanced Read Machinery
 
-`@git-stunts/git-warp/advanced` exports `Coordinate`, executable `Optic`, and
-the type-only `Witness`. Capture a coordinate with `timeline.coordinate()`;
-ordinary application reads should continue to use `reading.*`.
+`@git-stunts/git-warp/advanced` exports `captureCoordinate()`, `Coordinate`,
+executable `Optic`, and the type-only `Witness`. Capture a coordinate with
+`captureCoordinate(timeline)`; ordinary application reads should continue to
+use `reading.*`.
 
 ## Removed Compatibility Surface
 

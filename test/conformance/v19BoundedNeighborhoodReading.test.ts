@@ -180,5 +180,11 @@ function readIdentityShardPaths(result: object): readonly string[] {
   if (!Array.isArray(shards)) {
     throw new Error('expected checkpointIndexShards array');
   }
-  return shards.map((shard) => String(Reflect.get(shard, 'path')));
+  return shards.map((shard) => {
+    const path = Reflect.get(shard, 'path');
+    if (typeof path !== 'string') {
+      throw new Error('expected checkpoint shard path');
+    }
+    return path;
+  });
 }

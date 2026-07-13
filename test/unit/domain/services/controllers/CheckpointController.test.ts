@@ -5,6 +5,7 @@ import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsup
 import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
 import GCExecuteResult from '../../../../../src/domain/services/GCExecuteResult.ts';
 import WarpError from '../../../../../src/domain/errors/WarpError.ts';
+import PersistenceError from '../../../../../src/domain/errors/PersistenceError.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 
 /**
@@ -468,6 +469,35 @@ describe('CheckpointController', () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue([]);
 
       await expect(ctrl._validateMigrationBoundary()).resolves.toBeUndefined();
+    });
+
+    it('rejects a checkpoint ref whose commit message is empty', async () => {
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
+      ((host['_persistence'] as any).showNode as any).mockResolvedValue('');
+      const validation = ctrl._validateMigrationBoundary();
+
+      await expect(validation).rejects.toMatchObject({
+        code: 'E_CHECKPOINT_REF_INVALID',
+        context: {
+          checkpointSha: 'cp-sha',
+          reason: 'empty-checkpoint-message',
+        },
+      });
+      await expect(validation).rejects.toBeInstanceOf(PersistenceError);
+    });
+
+    it('rejects a checkpoint ref whose commit is not a checkpoint', async () => {
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
+      ((host['_persistence'] as any).showNode as any).mockResolvedValue('patch-message');
+      detectMessageKindMock.mockReturnValue('patch');
+
+      await expect(ctrl._validateMigrationBoundary()).rejects.toMatchObject({
+        code: 'E_CHECKPOINT_REF_INVALID',
+        context: {
+          checkpointSha: 'cp-sha',
+          reason: 'non-checkpoint-message',
+        },
+      });
     });
   });
 

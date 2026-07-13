@@ -137,10 +137,11 @@ await draft.write(
 );
 
 const preview = await audit.previewJoin(draft);
-const joined = await audit.join(draft);
-
 console.log(preview.receipt);
-console.log(joined.receipt);
+if (preview.receipt.outcome === 'accepted') {
+  const joined = await audit.join(draft);
+  console.log(joined.receipt);
+}
 ```
 
 Draft writes stay separate until joined. `previewJoin` and `join` are separate

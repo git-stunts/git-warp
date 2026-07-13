@@ -11,8 +11,9 @@ basis posture, support rule, and evidence posture.
 ## The shipped path
 
 ```typescript
-await events.prepareOpticBasis();
-const coordinate = await events.coordinate();
+import { captureCoordinate } from '@git-stunts/git-warp/advanced';
+
+const coordinate = await captureCoordinate(events);
 
 const role = await coordinate
   .optic()
@@ -21,7 +22,7 @@ const role = await coordinate
   .read();
 ```
 
-`prepareOpticBasis()` verifies an existing checkpoint-tail basis. It does not
+`captureCoordinate()` verifies an existing checkpoint-tail basis. It does not
 create one by materializing the whole graph. If the runtime cannot prove a
 bounded basis, the read fails closed with `E_OPTIC_NO_BOUNDED_BASIS`.
 
@@ -77,7 +78,7 @@ could not lawfully establish or preserve the read's evidence boundary.
 
 The useful product version is simple: `S` is the coordinate, `A` is the bounded
 question, and `M` is the rest of history that the read deliberately does not
-materialize. `prepareOpticBasis()` is the witness that the read can factor
+materialize. `captureCoordinate()` verifies that the read can factor
 through a small enough support.
 
 Chaining `.node().prop()` composes optics. The composed read remains bounded

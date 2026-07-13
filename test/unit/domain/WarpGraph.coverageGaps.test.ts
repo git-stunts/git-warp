@@ -1050,7 +1050,9 @@ describe('WarpCore coverage gaps', () => {
       });
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test-graph/writers/writer-1']);
-      persistence.readRef.mockResolvedValue(sha1);
+      persistence.readRef
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(sha1);
       persistence.getNodeInfo
         .mockResolvedValueOnce(mockPatch.nodeInfo)
         .mockResolvedValueOnce({ ...mockPatch.nodeInfo, parents: [] });

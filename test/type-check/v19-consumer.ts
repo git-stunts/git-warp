@@ -49,6 +49,9 @@ const timelineName: string = timeline.name;
 const timelineWriter: string = timeline.writer;
 const tick: Tick = await timeline.tick();
 const historical: TimelineView = timeline.at(tick);
+
+// @ts-expect-error formal coordinate capture lives on the advanced subpath.
+await timeline.coordinate();
 const writeIntent: Intent = intent.property.set({
   subject: 'user:alice',
   key: 'role',

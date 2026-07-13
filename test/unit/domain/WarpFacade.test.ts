@@ -3,6 +3,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import { intent, openWarp, reading } from '../../../index.ts';
+import { captureCoordinate } from '../../../advanced.ts';
 import DraftTimeline from '../../../src/domain/api/DraftTimeline.ts';
 import JoinReceipt from '../../../src/domain/api/JoinReceipt.ts';
 import JoinResult from '../../../src/domain/api/JoinResult.ts';
@@ -184,6 +185,7 @@ describe('v19 Warp facade', () => {
     expect('commit' in timeline).toBe(false);
     expect('live' in timeline).toBe(false);
     expect('optic' in timeline).toBe(false);
+    expect('coordinate' in timeline).toBe(false);
   });
 
   it('keeps worldline openers off the root export surface', async () => {
@@ -433,7 +435,7 @@ describe('v19 Warp facade', () => {
       outcome: 'accepted',
       evidence: { kind: 'checkpoint-tail-read' },
     });
-    const coordinate = await timeline.coordinate();
+    const coordinate = await captureCoordinate(timeline);
     const coordinateRole = await coordinate.optic().node('user:alice').prop('role').read();
     expect(coordinateRole.value).toBe('admin');
     await expect(
@@ -446,6 +448,11 @@ describe('v19 Warp facade', () => {
     ).resolves.toBe('admin');
 
     const tick = await timeline.tick();
+    const secondWarp = await openWarp({ storage, writer: 'agent-2' });
+    const sameNamedForeignTimeline = await secondWarp.timeline('events');
+    expect(() => sameNamedForeignTimeline.at(tick)).toThrow(
+      'Tick does not belong to this Timeline'
+    );
     await timeline.write(
       intent.property.set({
         subject: 'user:alice',

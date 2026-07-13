@@ -11,7 +11,7 @@ import {
   type GitStorageAdapterOptions,
 } from '../../storage.ts';
 import { type Receipt, type Timeline } from '../../index.ts';
-import { Coordinate, Optic, type Witness } from '../../advanced.ts';
+import { captureCoordinate, Coordinate, Optic, type Witness } from '../../advanced.ts';
 import { inspectReceipt, type ReceiptInspection } from '../../diagnostics.ts';
 
 declare const gitStorageOptions: GitStorageAdapterOptions;
@@ -19,7 +19,7 @@ declare const gitStorageOptions: GitStorageAdapterOptions;
 const storageAdapter = new MemoryStorageAdapter();
 const gitStorageAdapter = new GitStorageAdapter(gitStorageOptions);
 declare const timeline: Timeline;
-const coordinate: InstanceType<typeof Coordinate> = await timeline.coordinate();
+const coordinate: InstanceType<typeof Coordinate> = await captureCoordinate(timeline);
 const optic: InstanceType<typeof Optic> = coordinate.optic();
 const node = await optic.node('user:alice').read();
 const witness: Witness = node.readIdentity;

@@ -266,7 +266,7 @@ function generate(): string {
     '',
     ...exportSurface('Storage export surface', storageSource, 'Git-backed and in-memory adapters for first-use applications.'),
     '',
-    ...exportSurface('Advanced export surface', advancedSource, 'Bounded Coordinate, Optic, and Witness concepts for expert use.'),
+    ...exportSurface('Advanced export surface', advancedSource, 'Bounded coordinate capture, Optic, and Witness concepts for expert use.'),
     '',
     ...exportSurface('Diagnostics export surface', diagnosticsSource, 'Operator inspection helpers that consume public receipt handles.'),
     '',
