@@ -14,6 +14,7 @@ import {
   serializeCheckpointStateEnvelope,
 } from './CheckpointSerializer.ts';
 import { serializeFrontier } from '../Frontier.ts';
+import { requireCodec } from '../codec/CodecRequirement.ts';
 import { requireCommitMessageCodec } from '../codec/CommitMessageCodecRequirement.ts';
 import { cloneState } from '../JoinReducer.ts';
 import {
@@ -118,11 +119,17 @@ export async function createCheckpointEnvelope({
   }
 
   // 3–6. Serialize and write current state envelope, frontier, appliedVV.
-  // The previous CheckpointStorePort path wrote a single state.cbor blob;
-  // current checkpoints keep the option for API compatibility but publish the
-  // runtime checkpoint through named envelope artifacts.
+  // Runtime callers route artifact encoding through CheckpointStorePort so the
+  // domain path no longer needs to know the concrete checkpoint blob layout.
   // codecOpt is still needed for envelope/provenance serialization.
   const codecOpt = codec !== undefined && codec !== null ? { codec } : {};
+  let nodeAliveOid: string;
+  let edgeAliveOid: string;
+  let propOid: string;
+  let observedFrontierOid: string;
+  let edgeBirthEventOid: string;
+  let frontierBlobOid: string;
+  let appliedVVBlobOid: string;
   let stateHash: string;
   let provenanceIndexBlobOid: string | null = null;
 
@@ -130,28 +137,47 @@ export async function createCheckpointEnvelope({
   if (stateHashService !== undefined && stateHashService !== null) {
     stateHash = await stateHashService.compute(checkpointState);
   } else {
-    stateHash = await computeStateHash(checkpointState, { ...codecOpt, crypto: crypto as CryptoPort });
+    stateHash = await computeStateHash(checkpointState, {
+      codec: requireCodec(codec, 'createCheckpointEnvelope'),
+      crypto: crypto as CryptoPort,
+    });
   }
 
-  void checkpointStore;
+  if (checkpointStore !== undefined && checkpointStore !== null) {
+    const checkpointWrite = await checkpointStore.writeCheckpoint({
+      state: checkpointState,
+      frontier,
+      appliedVV,
+      stateHash,
+      ...(provenanceIndex !== undefined ? { provenanceIndex } : {}),
+    });
+    nodeAliveOid = checkpointWrite.nodeAliveBlobOid;
+    edgeAliveOid = checkpointWrite.edgeAliveBlobOid;
+    propOid = checkpointWrite.propBlobOid;
+    observedFrontierOid = checkpointWrite.observedFrontierBlobOid;
+    edgeBirthEventOid = checkpointWrite.edgeBirthEventBlobOid;
+    frontierBlobOid = checkpointWrite.frontierBlobOid;
+    appliedVVBlobOid = checkpointWrite.appliedVVBlobOid;
+    provenanceIndexBlobOid = checkpointWrite.provenanceIndexBlobOid;
+  } else {
+    // Current checkpoints publish separate envelope artifacts so the Git tree names
+    // each read basis member.
+    const stateEnvelope = serializeCheckpointStateEnvelope(checkpointState, codecOpt);
+    nodeAliveOid = await persistence.writeBlob(stateEnvelope.nodeAlive);
+    edgeAliveOid = await persistence.writeBlob(stateEnvelope.edgeAlive);
+    propOid = await persistence.writeBlob(stateEnvelope.prop);
+    observedFrontierOid = await persistence.writeBlob(stateEnvelope.observedFrontier);
+    edgeBirthEventOid = await persistence.writeBlob(stateEnvelope.edgeBirthEvent);
 
-  // Current checkpoints publish separate envelope artifacts so the Git tree names
-  // each read basis member.
-  const stateEnvelope = serializeCheckpointStateEnvelope(checkpointState, codecOpt);
-  const nodeAliveOid = await persistence.writeBlob(stateEnvelope.nodeAlive);
-  const edgeAliveOid = await persistence.writeBlob(stateEnvelope.edgeAlive);
-  const propOid = await persistence.writeBlob(stateEnvelope.prop);
-  const observedFrontierOid = await persistence.writeBlob(stateEnvelope.observedFrontier);
-  const edgeBirthEventOid = await persistence.writeBlob(stateEnvelope.edgeBirthEvent);
+    const frontierBuffer = serializeFrontier(frontier, codecOpt);
+    const appliedVVBuffer = serializeAppliedVV(appliedVV, codecOpt);
+    frontierBlobOid = await persistence.writeBlob(frontierBuffer);
+    appliedVVBlobOid = await persistence.writeBlob(appliedVVBuffer);
 
-  const frontierBuffer = serializeFrontier(frontier, codecOpt);
-  const appliedVVBuffer = serializeAppliedVV(appliedVV, codecOpt);
-  const frontierBlobOid = await persistence.writeBlob(frontierBuffer);
-  const appliedVVBlobOid = await persistence.writeBlob(appliedVVBuffer);
-
-  if (provenanceIndex) {
-    const provenanceIndexBuffer = provenanceIndex.serialize(codecOpt);
-    provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
+    if (provenanceIndex) {
+      const provenanceIndexBuffer = provenanceIndex.serialize(codecOpt);
+      provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
+    }
   }
 
   // 6c. Collect content storage OIDs from state properties for GC anchoring.

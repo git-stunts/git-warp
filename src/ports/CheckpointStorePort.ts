@@ -22,7 +22,11 @@ export interface CheckpointRecord {
 }
 
 export interface CheckpointWriteResult {
-  stateBlobOid: string;
+  nodeAliveBlobOid: string;
+  edgeAliveBlobOid: string;
+  propBlobOid: string;
+  observedFrontierBlobOid: string;
+  edgeBirthEventBlobOid: string;
   frontierBlobOid: string;
   appliedVVBlobOid: string;
   provenanceIndexBlobOid: string | null;
