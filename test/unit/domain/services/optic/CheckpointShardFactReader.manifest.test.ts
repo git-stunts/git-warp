@@ -103,13 +103,14 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
       nodeId: NODE_ID,
       direction: 'out',
       labels: [],
-    })).resolves.toEqual([
-      Object.freeze({
+    })).resolves.toMatchObject({
+      cursor: null,
+      edges: [{
         direction: 'out',
         neighborId: NEIGHBOR_ID,
         label: EDGE_LABEL,
-      }),
-    ]);
+      }],
+    });
   });
 });
 

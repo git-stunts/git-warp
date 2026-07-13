@@ -22,6 +22,7 @@ import OpticSupportRule from './OpticSupportRule.ts';
 import type TraversalOpticReadResult from './TraversalOpticReadResult.ts';
 import type { TraversalOpticReadOptions } from './TraversalOptic.ts';
 import type ReadIdentity from './ReadIdentity.ts';
+import type { ReadIdentityIndexShard } from './ReadIdentity.ts';
 
 const DEFAULT_MAX_TAIL_PATCHES = 10_000;
 
@@ -183,8 +184,10 @@ export default class CheckpointTailWitnessLocator {
     const basis = await this._basisLoader.load();
     const tail = await this._scanTailForNeighborhood(basis, { nodeId, direction, labels });
     this._factReducer.assertNeighborhoodTailStable(tail.entries);
-    const allEdges = await this._shardReader.readNeighborhood(basis, { nodeId, direction, labels });
-    const windowed = windowNeighborhoodEdges(allEdges, {
+    const page = await this._shardReader.readNeighborhood(basis, {
+      nodeId,
+      direction,
+      labels,
       cursor: options.cursor ?? null,
       limit: options.limit ?? null,
     });
@@ -194,9 +197,8 @@ export default class CheckpointTailWitnessLocator {
       labels,
       nodeId,
       readIdentityBuilder: this._readIdentityBuilder,
-      shardReader: this._shardReader,
       tail,
-      windowed,
+      page,
     });
   }
 
@@ -311,80 +313,26 @@ function normalizeLabels(labels: readonly string[]): readonly string[] {
   return Object.freeze([...new Set(labels)].sort());
 }
 
-function windowNeighborhoodEdges(
-  edges: readonly NeighborhoodOpticEdge[],
-  options: {
-    readonly cursor: string | null;
-    readonly limit: number | null;
-  },
-): {
-  readonly edges: readonly NeighborhoodOpticEdge[];
-  readonly cursor: string | null;
-} {
-  const start = parseCursor(options.cursor);
-  const limit = parseLimit(options.limit);
-  if (limit === null) {
-    return { edges: Object.freeze(edges.slice(start)), cursor: null };
-  }
-  const end = start + limit;
-  const window = edges.slice(start, end);
-  return {
-    edges: Object.freeze(window),
-    cursor: end < edges.length ? String(end) : null,
-  };
-}
-
-function parseCursor(cursor: string | null): number {
-  if (cursor === null || cursor.length === 0) {
-    return 0;
-  }
-  const parsed = Number.parseInt(cursor, 10);
-  if (!isCanonicalCursor(parsed, cursor)) {
-    throw new QueryError('Neighborhood optic cursor must be a non-negative integer string.', {
-      code: 'E_OPTIC_NEIGHBORHOOD_OPTIONS',
-      context: { field: 'cursor' },
-    });
-  }
-  return parsed;
-}
-
-function isCanonicalCursor(parsed: number, raw: string): boolean {
-  return Number.isInteger(parsed) && parsed >= 0 && String(parsed) === raw;
-}
-
-function parseLimit(limit: number | null): number | null {
-  if (limit === null) {
-    return null;
-  }
-  if (!Number.isInteger(limit) || limit < 1) {
-    throw new QueryError('Neighborhood optic limit must be a positive integer.', {
-      code: 'E_OPTIC_NEIGHBORHOOD_OPTIONS',
-      context: { field: 'limit' },
-    });
-  }
-  return limit;
-}
-
 function neighborhoodReadResult(options: {
   readonly basis: CheckpointTailIndexBasis;
   readonly direction: Direction;
   readonly labels: readonly string[];
   readonly nodeId: string;
   readonly readIdentityBuilder: CheckpointTailReadIdentityBuilder;
-  readonly shardReader: CheckpointShardFactReader;
   readonly tail: TailWitnessScan;
-  readonly windowed: {
+  readonly page: {
     readonly edges: readonly NeighborhoodOpticEdge[];
     readonly cursor: string | null;
+    readonly checkpointIndexShards: readonly ReadIdentityIndexShard[];
   };
 }): NeighborhoodOpticReadResult {
   const readIdentity = neighborhoodReadIdentity(options);
   return new NeighborhoodOpticReadResult({
     nodeId: options.nodeId,
     direction: options.direction,
-    edges: options.windowed.edges,
-    completeness: options.windowed.cursor === null ? 'complete' : 'truncated',
-    cursor: options.windowed.cursor,
+    edges: options.page.edges,
+    completeness: options.page.cursor === null ? 'complete' : 'truncated',
+    cursor: options.page.cursor,
     readIdentity,
   });
 }
@@ -395,19 +343,17 @@ function neighborhoodReadIdentity(options: {
   readonly labels: readonly string[];
   readonly nodeId: string;
   readonly readIdentityBuilder: CheckpointTailReadIdentityBuilder;
-  readonly shardReader: CheckpointShardFactReader;
   readonly tail: TailWitnessScan;
+  readonly page: {
+    readonly checkpointIndexShards: readonly ReadIdentityIndexShard[];
+  };
 }): ReadIdentity {
   return options.readIdentityBuilder.neighborhood({
     basis: options.basis,
     nodeId: options.nodeId,
     direction: options.direction,
     labels: options.labels,
-    checkpointIndexShards: options.shardReader.neighborhoodShardIdentities(options.basis, {
-      nodeId: options.nodeId,
-      direction: options.direction,
-      labels: options.labels,
-    }),
+    checkpointIndexShards: options.page.checkpointIndexShards,
     tailWitnesses: options.tail.witnesses,
   });
 }

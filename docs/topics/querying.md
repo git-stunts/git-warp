@@ -70,6 +70,13 @@ console.log(dependencies.value);
 console.log(dependencies.receipt.evidence);
 ```
 
+Neighborhood reads return one page in deterministic index order; they do not
+promise lexical node-ID ordering. The default page size is 100 and the maximum
+accepted `limit` is 1,000. When `value.cursor` is non-null, pass that opaque
+cursor unchanged with the same subject, direction, and labels to read the next
+page. Cursors are bound to the checkpoint basis and must not be reused after
+that basis advances.
+
 When the required checkpoint-tail basis is absent, a reading returns `null`
 with an `obstructed` receipt and `repairHints`. It never falls back to broad
 materialization. `readValue()` converts that unresolved result into an

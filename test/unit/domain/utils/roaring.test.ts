@@ -46,7 +46,15 @@ class FakeBitmap implements RoaringBitmapSubset {
   }
 
   toArray(): number[] {
-    return [...this._values];
+    return [...this._values].sort((left, right) => left - right);
+  }
+
+  rank(value: number): number {
+    return this.toArray().filter((candidate) => candidate <= value).length;
+  }
+
+  at(index: number): number | undefined {
+    return this.toArray().at(index);
   }
 
   [Symbol.iterator](): Iterator<number> {
