@@ -54,7 +54,7 @@ function deserializeEntriesInto(
   }
   for (const [element, dots] of entries) {
     if (Array.isArray(dots)) {
-      target.set(element, new Set(dots));
+      target.set(element, validatedDots(dots));
     }
   }
 }
@@ -67,6 +67,16 @@ function deserializeTombstonesInto(
     return;
   }
   for (const dot of tombstones) {
+    Dot.decode(dot);
     target.add(dot);
   }
+}
+
+function validatedDots(dots: readonly string[]): Set<string> {
+  const validated = new Set<string>();
+  for (const dot of dots) {
+    Dot.decode(dot);
+    validated.add(dot);
+  }
+  return validated;
 }

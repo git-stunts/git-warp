@@ -1,5 +1,7 @@
 import WarpError from '../../errors/WarpError.ts';
 
+const INVALID_RETENTION_REPORT = 'E_CACHE_RETENTION_REPORT_INVALID';
+
 type WarpStateCacheRetentionReportOptions = {
   readonly liveSnapshotIds: readonly string[];
   readonly anchoredSnapshotIds: readonly string[];
@@ -17,7 +19,7 @@ function normalizedNames(values: readonly string[], field: string): readonly str
     if (value.length === 0) {
       throw new WarpError(
         `State-cache retention report ${field} cannot contain an empty name`,
-        'E_CACHE_RETENTION_REPORT_INVALID',
+        INVALID_RETENTION_REPORT,
       );
     }
     names.add(value);
@@ -39,7 +41,7 @@ export default class WarpStateCacheRetentionReport {
     if (options.rootSetError !== null && options.rootSetError.length === 0) {
       throw new WarpError(
         'State-cache retention report rootSetError cannot be empty',
-        'E_CACHE_RETENTION_REPORT_INVALID',
+        INVALID_RETENTION_REPORT,
       );
     }
     this.liveSnapshotIds = normalizedNames(options.liveSnapshotIds, 'liveSnapshotIds');

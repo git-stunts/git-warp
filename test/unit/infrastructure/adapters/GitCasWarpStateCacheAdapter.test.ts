@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+
+const ERROR_OBJECT_UPDATE_FAILURE = /index update failed after retries: error object failure/;
+const SIMULATED_UPDATE_FAILURE = /index update failed after retries: simulated write failure/;
 import CasContentEncryptionPolicy from '../../../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -29,7 +32,7 @@ const mockRootMutate = vi.fn(async (
     entries: ReadonlyArray<Readonly<RootSetEntry>>,
   ) => Iterable<RootSetEntry> | Promise<Iterable<RootSetEntry>>,
 ): Promise<RootSetMutationResult> => {
-  mockRootEntries = Array.from(await mutator(mockRootEntries));
+  mockRootEntries = [...await mutator(mockRootEntries)];
   return {
     changed: true,
     commitOid: 'b'.repeat(40),
@@ -41,7 +44,7 @@ const mockRootReplace = vi.fn(async (options: {
   entries: Iterable<RootSetEntry>;
   expectedHeadOid?: string | null;
 }): Promise<RootSetMutationResult> => {
-  mockRootEntries = Array.from(options.entries);
+  mockRootEntries = [...options.entries];
   return {
     changed: true,
     commitOid: 'c'.repeat(40),
@@ -55,7 +58,7 @@ const mockRootDoctor = vi.fn(async () => ({
   entries: [...mockRootEntries],
 }));
 const mockRootRepair = vi.fn(async (options: { entries: Iterable<RootSetEntry> }) => {
-  mockRootEntries = Array.from(options.entries);
+  mockRootEntries = [...options.entries];
   return {
     repaired: true as const,
     commitOid: 'c'.repeat(40),
@@ -258,24 +261,42 @@ describe('GitCasWarpStateCacheAdapter', () => {
       expect(idx2).toEqual({ schemaVersion: 1, snapshots: {} });
     });
 
-    it('returns empty index on invalid blob JSON or invalid schemaVersion', async () => {
+    it('fails closed on unreadable or invalid persisted indexes', async () => {
       persistence.readRef.mockResolvedValue('blob-1');
       persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode('invalid-json'));
-      expect(await adapter._readIndex()).toEqual({ schemaVersion: 1, snapshots: {} });
+      await expect(adapter._readIndex()).rejects.toThrow(/malformed state-cache index/);
 
       persistence.readBlob.mockResolvedValueOnce(indexBuffer({}, undefined, 999));
-      expect(await adapter._readIndex()).toEqual({ schemaVersion: 1, snapshots: {} });
+      await expect(adapter._readIndex()).rejects.toThrow(/unsupported state-cache index schema/);
 
       persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode('null'));
-      expect(await adapter._readIndex()).toEqual({ schemaVersion: 1, snapshots: {} });
+      await expect(adapter._readIndex()).rejects.toThrow(/state-cache index must be an object/);
 
       persistence.readBlob.mockRejectedValueOnce(new Error('blob read failed'));
-      expect(await adapter._readIndex()).toEqual({ schemaVersion: 1, snapshots: {} });
+      await expect(adapter._readIndex()).rejects.toThrow(/blob read failed/);
 
       persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode(JSON.stringify({
         schemaVersion: 1,
       })));
       expect(await adapter._readIndex()).toEqual({ schemaVersion: 1, snapshots: {} });
+
+      persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode(JSON.stringify({
+        schemaVersion: 1,
+        snapshots: 'invalid',
+      })));
+      await expect(adapter._readIndex()).rejects.toThrow(/snapshots must be an object/);
+    });
+
+    it('does not publish after a persisted index read fails', async () => {
+      persistence.readRef.mockResolvedValue('blob-1');
+      persistence.readBlob.mockRejectedValue(new Error('blob read failed'));
+
+      await expect(adapter._mutateIndex((idx: any) => idx)).rejects.toThrow(
+        /blob read failed/,
+      );
+
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+      expect(persistence.compareAndSwapRef).not.toHaveBeenCalled();
     });
 
     it('retries index update on failure and throws on max retries', async () => {
@@ -284,14 +305,14 @@ describe('GitCasWarpStateCacheAdapter', () => {
       persistence.writeBlob.mockRejectedValue('simulated write failure');
 
       await expect(adapter._mutateIndex((idx: any) => idx)).rejects.toThrow(
-        /index update failed after retries: simulated write failure/
+        SIMULATED_UPDATE_FAILURE,
       );
       expect(persistence.writeBlob).toHaveBeenCalledTimes(3);
 
       persistence.writeBlob.mockClear();
       persistence.writeBlob.mockRejectedValue(new Error('error object failure'));
       await expect(adapter._mutateIndex((idx: any) => idx)).rejects.toThrow(
-        /index update failed after retries: error object failure/
+        ERROR_OBJECT_UPDATE_FAILURE,
       );
     });
   });

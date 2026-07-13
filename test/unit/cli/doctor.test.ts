@@ -269,6 +269,35 @@ describe('doctor command', () => {
     );
   });
 
+  it('reports a failed state-cache repair without aborting doctor', async () => {
+    const healthy = new WarpStateCacheRetentionReport({
+      liveSnapshotIds: [],
+      anchoredSnapshotIds: [],
+      unanchoredSnapshotIds: [],
+      missingSnapshotIds: [],
+      wrongTypeSnapshotIds: [],
+      staleRootNames: [],
+      mismatchedRootNames: [],
+      rootSetError: null,
+    });
+    mockPersistence.createRuntimeStateCache = vi.fn().mockResolvedValue({
+      repairRetention: vi.fn().mockRejectedValue(new Error('root set unavailable')),
+      inspectRetention: vi.fn().mockResolvedValue(healthy),
+      resolveCheckpointHead: vi.fn().mockResolvedValue(null),
+    });
+
+    const result = await handleDoctor({
+      options: CLI_OPTIONS,
+      args: ['--repair-state-cache'],
+    });
+
+    expect(result.payload.findings).toContainEqual(expect.objectContaining({
+      id: 'state-cache-retention-repair',
+      status: 'fail',
+      code: CODES.CHECK_INTERNAL_ERROR,
+    }));
+  });
+
   it('sorts findings by status > impact > id', async () => {
     // Targeted mock: only break nodeExists for writer refs so that
     // checkRefsConsistent emits a fail, without accidentally affecting

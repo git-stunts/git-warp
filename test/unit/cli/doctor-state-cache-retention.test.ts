@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkStateCacheRetention,
+  stateCacheRepairFailureFinding,
   stateCacheRepairFinding,
 } from '../../../bin/cli/commands/doctor/checksStateCache.ts';
 import { CODES } from '../../../bin/cli/commands/doctor/codes.ts';
@@ -89,5 +90,16 @@ describe('state-cache retention doctor check', () => {
       code: CODES.STATE_CACHE_RETENTION_PARTIAL_REPAIR,
       evidence: expect.objectContaining({ unrecoverableSnapshotIds: ['snapshot-b'] }),
     }));
+  });
+
+  it('settles repair failures as doctor findings', () => {
+    expect(stateCacheRepairFailureFinding(new Error('root set unavailable'))).toEqual(
+      expect.objectContaining({
+        id: 'state-cache-retention-repair',
+        status: 'fail',
+        code: CODES.CHECK_INTERNAL_ERROR,
+        message: 'State-cache retention repair failed: root set unavailable',
+      }),
+    );
   });
 });

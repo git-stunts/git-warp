@@ -4,6 +4,11 @@ import WarpStateCacheRepairResult
 import WarpStateCacheRetentionReport
   from '../../../../../src/domain/services/state/WarpStateCacheRetentionReport.ts';
 
+const EMPTY_NAME_ERROR = /cannot contain an empty name/;
+const EMPTY_ROOT_SET_ERROR = /rootSetError cannot be empty/;
+const INVALID_AFTER_REPORT = /requires a retention report for after/;
+const INVALID_BEFORE_REPORT = /requires a retention report for before/;
+
 function report(options: {
   readonly rootSetError?: string | null;
   readonly unanchoredSnapshotIds?: readonly string[];
@@ -41,8 +46,8 @@ describe('state-cache retention result values', () => {
       staleRootNames: [],
       mismatchedRootNames: [],
       rootSetError: null,
-    })).toThrow(/cannot contain an empty name/);
-    expect(() => report({ rootSetError: '' })).toThrow(/rootSetError cannot be empty/);
+    })).toThrow(EMPTY_NAME_ERROR);
+    expect(() => report({ rootSetError: '' })).toThrow(EMPTY_ROOT_SET_ERROR);
   });
 
   it('normalizes and freezes repair results', () => {
@@ -74,13 +79,13 @@ describe('state-cache retention result values', () => {
 
     expect(() => Reflect.construct(WarpStateCacheRepairResult, [
       { ...base, before: {} },
-    ])).toThrow(/requires a retention report for before/);
+    ])).toThrow(INVALID_BEFORE_REPORT);
     expect(() => Reflect.construct(WarpStateCacheRepairResult, [
       { ...base, after: {} },
-    ])).toThrow(/requires a retention report for after/);
+    ])).toThrow(INVALID_AFTER_REPORT);
     expect(() => new WarpStateCacheRepairResult({
       ...base,
       anchoredSnapshotIds: [''],
-    })).toThrow(/cannot contain an empty name/);
+    })).toThrow(EMPTY_NAME_ERROR);
   });
 });
