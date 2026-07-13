@@ -47,7 +47,9 @@ export default class CheckpointTailFactReducer {
     entry: CheckpointTailPatchEntry,
     options: NeighborhoodTailScope & { readonly nodeId: string },
   ): boolean {
-    return this.neighborhoodNodeIds(entry, options).includes(options.nodeId);
+    return entry.patch.ops.some((rawOp) => (
+      neighborhoodNodeIdsForOperation(normalizeRawOp(rawOp), options).includes(options.nodeId)
+    ));
   }
 
   neighborhoodNodeIds(
