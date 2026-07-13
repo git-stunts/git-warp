@@ -2,6 +2,7 @@ import type BlobStoragePort from './BlobStoragePort.ts';
 import type { PatchStorageRoute } from './CommitMessageCodecPort.ts';
 import type TrieStorePort from '../domain/orset/trie/TrieStorePort.ts';
 import type WarpStateCachePort from './WarpStateCachePort.ts';
+import type WarpStateCacheRetentionPort from './WarpStateCacheRetentionPort.ts';
 import type CodecPort from './CodecPort.ts';
 import type LoggerPort from './LoggerPort.ts';
 
@@ -12,6 +13,6 @@ import type LoggerPort from './LoggerPort.ts';
 export default interface RuntimeStorageCapabilityPort {
   createRuntimeBlobStorage(): Promise<BlobStoragePort>;
   createRuntimeTrieStore(): Promise<TrieStorePort>;
-  createRuntimeStateCache?(opts: { graphName: string; codec: CodecPort; logger?: LoggerPort }): Promise<WarpStateCachePort>;
+  createRuntimeStateCache?(opts: { graphName: string; codec: CodecPort; logger?: LoggerPort }): Promise<WarpStateCachePort & WarpStateCacheRetentionPort>;
   defaultPatchWriteStorage(): PatchStorageRoute;
 }

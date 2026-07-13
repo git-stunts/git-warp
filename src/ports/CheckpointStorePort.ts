@@ -22,7 +22,11 @@ export interface CheckpointRecord {
 }
 
 export interface CheckpointWriteResult {
-  stateBlobOid: string;
+  nodeAliveBlobOid: string;
+  edgeAliveBlobOid: string;
+  propBlobOid: string;
+  observedFrontierBlobOid: string;
+  edgeBirthEventBlobOid: string;
   frontierBlobOid: string;
   appliedVVBlobOid: string;
   provenanceIndexBlobOid: string | null;
@@ -32,8 +36,6 @@ export interface CheckpointData {
   state: WarpState;
   frontier: Map<string, string>;
   appliedVV: VersionVector | null;
-  stateHash: string;
-  schema: number;
   provenanceIndex?: ProvenanceIndex | null;
   indexShardOids: Record<string, string> | null;
 }

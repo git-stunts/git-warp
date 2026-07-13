@@ -60,6 +60,48 @@ const FORBIDDEN_BROWSER_V19_EXPORTS = Object.freeze([
   'WarpStorage',
 ]);
 
+const ALLOWED_ROOT_EXPORTS = Object.freeze([
+  'DraftTimeline',
+  'EdgeIntentFields',
+  'EdgePropertyIntentFields',
+  'Intent',
+  'IntentBuilders',
+  'IntentDescriptor',
+  'IntentKind',
+  'JoinMode',
+  'JoinOptions',
+  'JoinPolicy',
+  'JoinReceipt',
+  'JoinReceiptOptions',
+  'JoinReceiptOutcome',
+  'JoinResult',
+  'JoinResultOptions',
+  'NodeIntentFields',
+  'NodeReadingFields',
+  'OpenWarpOptions',
+  'PropertyIntentFields',
+  'PropertyReadingFields',
+  'ReadReceipt',
+  'ReadReceiptOptions',
+  'ReadReceiptOutcome',
+  'Reading',
+  'ReadingBuilders',
+  'ReadingDescriptor',
+  'ReadingKind',
+  'ReadingResult',
+  'ReadingResultOptions',
+  'ReadingValue',
+  'ReceiptOutcome',
+  'Timeline',
+  'Warp',
+  'WarpStorage',
+  'WriteReceipt',
+  'WriteReceiptOptions',
+  'intent',
+  'openWarp',
+  'reading',
+]);
+
 function exportedNamesFor(path: string): ReadonlySet<string> {
   const sourceFile = sourceFileFor(path);
   const exportedNames = new Set<string>();
@@ -191,6 +233,12 @@ describe('v19 Warp facade', () => {
     }
   });
 
+  it('keeps the root export surface to the v19 facade allowlist', () => {
+    const rootExports = exportedNamesFor('index.ts');
+
+    expect([...rootExports].toSorted()).toEqual(ALLOWED_ROOT_EXPORTS.toSorted());
+  });
+
   it('keeps internal history vocabulary off the public facade objects', async () => {
     const warp = await openWarp({
       storage: new MemoryStorageAdapter(),
@@ -300,7 +348,7 @@ describe('v19 Warp facade', () => {
 
     expect('nodes' in result).toBe(true);
     if (!('nodes' in result)) {
-      return;
+      throw new Error('query result must include nodes');
     }
     expect(result.nodes).toEqual([
       { id: 'user:alice', props: { role: 'admin' } },

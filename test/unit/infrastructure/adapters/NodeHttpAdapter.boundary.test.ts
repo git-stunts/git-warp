@@ -117,7 +117,7 @@ describe('NodeHttpAdapter boundary validation', () => {
     const capturedHandler = httpMock.capturedHandler();
     expect(capturedHandler).toBeDefined();
     if (capturedHandler === undefined) {
-      return;
+      throw new Error('captured HTTP handler must exist');
     }
     capturedHandler(new EmptyRequest({}), res.response);
     await res.done;

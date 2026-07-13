@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `Timeline.draft(name)`, draft writes, `Timeline.previewJoin(draft)`,
   and `Timeline.join(draft)` with join receipts for first-use speculative
   workflows.
+- Added the `lint:test-law` gate to reject conditional bare `return;`
+  statements in test bodies so skipped assertions cannot masquerade as passing
+  tests.
 
 ### Changed
 
@@ -29,10 +32,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   diagnostic compatibility exports out of the package root into explicit
   `legacy`, `storage`, `advanced`, and `diagnostics` subpaths. The package root
   now rejects those nouns through the v19 public API boundary audit.
+- Locked the package root to the v19 facade allowlist so support ports,
+  infrastructure adapters, memory helpers, cancellation utilities, sync
+  internals, and canonical serialization helpers stay behind explicit subpaths.
+- Aligned `CheckpointStorePort` with the schema:5 checkpoint envelope tree. The
+  CBOR adapter now owns the named checkpoint artifact encoding for runtime
+  checkpoint creation and loading instead of exposing a stale single
+  `state.cbor` result.
 - Added visible-state scope helpers to the `diagnostics` subpath so
   materialized-state inspection has an explicit non-legacy import path.
 - Deprecated the entire graph-first legacy API. `legacy` remains migration-only
   and is no longer presented as a valid first-use path.
+- Moved receipt canonical JSON and ORSet/full-state wire encoding out of
+  domain types and storage adapters into infrastructure codec modules; `ORSet`
+  no longer exposes `serialize()` or `deserialize()`.
+- Raised the coverage ratchet from `92.10%` to `92.56%` after adding targeted
+  coverage for bounded query node paging and memory-budget rejection paths.
+- Upgraded `@git-stunts/git-cas` to `^6.1.0` so Git-backed state caches can use
+  the library's crash-safe `RootSet` retention API.
+
+### Fixed
+
+- Git-backed state-cache payload trees are now anchored through a graph-scoped
+  `git-cas` RootSet before their index record is published, then reconciled
+  after publication so live cache entries remain reachable across Git garbage
+  collection without retaining evicted entries forever.
+- Existing state-cache entries are adopted into the RootSet on ordinary reads,
+  and `git warp doctor --repair-state-cache` can rebuild malformed or stale
+  retention metadata while reporting payloads that are missing or have the
+  wrong Git object type.
 
 ## [18.2.1] - 2026-06-30
 

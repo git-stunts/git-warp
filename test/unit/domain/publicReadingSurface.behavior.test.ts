@@ -61,7 +61,7 @@ describe('public reading surfaces', () => {
     const result = await worldline.live().query().match('user:*').select(['id', 'props']).run();
     expect('nodes' in result).toBe(true);
     if (!('nodes' in result)) {
-      return;
+      throw new Error('query result must include nodes');
     }
     expect(result.nodes).toEqual([
       { id: 'user:alice', props: { role: 'admin' } },

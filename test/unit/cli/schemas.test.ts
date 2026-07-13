@@ -63,6 +63,11 @@ describe('doctorSchema', () => {
     expect(result['large-graph']).toBe(true);
   });
 
+  it('accepts explicit state-cache retention repair', () => {
+    const result = doctorSchema.parse({ 'repair-state-cache': true });
+    expect(result['repair-state-cache']).toBe(true);
+  });
+
   it('rejects unknown keys', () => {
     expect(() => doctorSchema.parse({ unknown: true })).toThrow();
   });

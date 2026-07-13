@@ -12,7 +12,6 @@
  */
 
 import WarpError from '../errors/WarpError.ts';
-import { sortedReplacer } from '../utils/canonicalStringify.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 
 // ============================================================================
@@ -223,19 +222,4 @@ function freezeOps(ops: OpOutcome[]): ReadonlyArray<Readonly<OpOutcome>> {
       return Object.freeze(entry);
     }),
   );
-}
-
-// ============================================================================
-// Canonical JSON Serialization
-// ============================================================================
-
-/**
- * Produces a deterministic JSON string for a TickReceipt.
- *
- * Keys are sorted alphabetically at every nesting level, ensuring
- * identical receipts always produce identical byte strings regardless
- * of property insertion order.
- */
-export function canonicalJson(receipt: TickReceipt): string {
-  return JSON.stringify(receipt, sortedReplacer); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
 }

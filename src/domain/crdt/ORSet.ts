@@ -38,18 +38,6 @@ import CrdtError from '../errors/CrdtError.ts';
 
 import type VersionVector from './VersionVector.ts';
 
-/** Serialized form of an ORSet for CBOR encoding. */
-interface SerializedORSet {
-  entries: Array<[string, string[]]>;
-  tombstones: string[];
-}
-
-/** Input for deserialization — entries and tombstones may be absent. */
-interface DeserializeInput {
-  entries?: Array<[string, string[]]>;
-  tombstones?: string[];
-}
-
 /**
  * Throws if the dot is not a well-formed {writerId: string, counter: integer}.
  */
@@ -93,14 +81,6 @@ export default class ORSet {
   /** Creates an empty ORSet. */
   static empty(): ORSet {
     return new ORSet(new Map(), new Set());
-  }
-
-  /** Deserializes a plain object back to an ORSet. */
-  static deserialize(obj: DeserializeInput): ORSet {
-    const set = ORSet.empty();
-    _deserializeEntriesInto(obj.entries, set.entries);
-    _deserializeTombstonesInto(obj.tombstones, set.tombstones);
-    return set;
   }
 
   // ---------------------------------------------------------------------------
@@ -343,18 +323,6 @@ export default class ORSet {
     }
     return result;
   }
-
-  /**
-   * Serializes to a plain object for CBOR encoding.
-   * Entries are sorted by element; dots within entries are sorted.
-   * Tombstones are sorted.
-   */
-  serialize(): SerializedORSet {
-    return {
-      entries: _serializeEntries(this.entries),
-      tombstones: _sortEncodedDots(this.tombstones),
-    };
-  }
 }
 
 // =============================================================================
@@ -414,47 +382,5 @@ function _applyCompaction(set: ORSet, toDelete: Array<{ element: string; dot: st
       }
     }
     set.tombstones.delete(encodedDot);
-  }
-}
-
-/** Sorts encoded dots by their decoded (writerId, counter) order. */
-function _sortEncodedDots(encodedDots: Set<string> | Iterable<string>): string[] {
-  const pairs: Array<{ encoded: string; decoded: Dot }> = [];
-  for (const encoded of encodedDots) {
-    pairs.push({ encoded, decoded: Dot.decode(encoded) });
-  }
-  pairs.sort((a, b) => Dot.compare(a.decoded, b.decoded));
-  return pairs.map((p) => p.encoded);
-}
-
-/** Serializes OR-Set entries as sorted [element, sortedDots[]] pairs. */
-function _serializeEntries(entries: Map<string, Set<string>>): Array<[string, string[]]> {
-  const result: Array<[string, string[]]> = [];
-  for (const [element, dots] of entries) {
-    result.push([element, _sortEncodedDots(dots)]);
-  }
-  result.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  return result;
-}
-
-/** Populates an entries map from a serialized entries array. */
-function _deserializeEntriesInto(entries: Array<[string, string[]]> | undefined, target: Map<string, Set<string>>): void {
-  if (!Array.isArray(entries)) {
-    return;
-  }
-  for (const [element, dots] of entries) {
-    if (Array.isArray(dots)) {
-      target.set(element, new Set(dots));
-    }
-  }
-}
-
-/** Populates a tombstone set from a serialized tombstones array. */
-function _deserializeTombstonesInto(tombstones: string[] | undefined, target: Set<string>): void {
-  if (!Array.isArray(tombstones)) {
-    return;
-  }
-  for (const dot of tombstones) {
-    target.add(dot);
   }
 }

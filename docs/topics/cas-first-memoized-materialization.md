@@ -4,10 +4,11 @@ Use this page when you need to understand how `git-warp` skips redundant
 materialization replay by memoizing WARP-owned state snapshots in
 `@git-stunts/git-cas`.
 
-`git-cas` is only the byte storage substrate. It does not know about WARP
-frontiers, optics, checkpoints, graph state, or materialization rules. `git-warp`
-owns those semantics through `WarpStateCachePort`; the Git-backed adapter stores
-snapshot payloads in `git-cas`.
+`git-cas` provides byte storage and generic Git-reachability primitives. It does
+not know about WARP frontiers, optics, checkpoints, graph state, or
+materialization rules. `git-warp` owns those semantics through
+`WarpStateCachePort`; the Git-backed adapter stores snapshot payloads in
+`git-cas` and declares the live payload trees through a `RootSet`.
 
 ## The Live Materialization Lifecycle
 
@@ -79,6 +80,50 @@ chunk-level reuse where the underlying CAS representation can identify unchanged
 byte ranges. The WARP cache index remains responsible for determining whether a
 snapshot is semantically usable for a materialization coordinate.
 
+## Git Retention and Repair
+
+A payload object ID written as text inside the state-cache index is not a Git
+reachability edge. Without a ref-backed edge, Git sees the payload tree and its
+blobs as unreachable objects and may eventually prune them even while WARP's
+index still names them.
+
+The Git-backed adapter therefore mirrors its live index membership into this
+graph-scoped `git-cas` RootSet:
+
+```text
+refs/cas/rootsets/git-warp/<graph-name>/state-cache
+```
+
+Cache policy and Git retention are separate axes. Both `pinned` and `evictable`
+records must remain Git-reachable while they are live in the index; `pinned`
+only controls WARP eviction policy. Each cache mutation follows this ordering:
+
+1. Publish a RootSet generation that anchors a safe superset of the desired
+   payload trees.
+2. Compare-and-swap the WARP state-cache index.
+3. Guardedly replace the RootSet with the exact recoverable live membership.
+
+An interrupted write can therefore leave extra reachable payloads, but it does
+not publish an index entry whose payload was never anchored. Ordinary reads
+also adopt legacy index entries that predate RootSet retention.
+
+Inspect retention without changing it:
+
+```bash
+git warp doctor --repo ./team-repo
+```
+
+Reconcile the RootSet from the authoritative WARP index:
+
+```bash
+git warp doctor --repo ./team-repo --repair-state-cache
+```
+
+Repair anchors every indexed payload that still exists as a Git tree and
+removes stale RootSet membership. It reports missing payloads and wrong-type
+objects as unrecoverable; it does not delete logical cache records, recreate
+lost payload bytes, or run Git garbage collection.
+
 ## Current Limitations
 
 - Exact state-cache hits bypass replay, but full materialization still hydrates
@@ -87,6 +132,9 @@ snapshot is semantically usable for a materialization coordinate.
   sharded basis format should make optic reads avoid full-state hydration.
 - Cache coordinates must stay schema/version aware. A snapshot is reusable only
   when WARP semantics say the coordinate is compatible.
+- Retention repair cannot restore payload objects that Git has already pruned;
+  those entries remain visible as doctor findings until normal cache lifecycle
+  replacement or explicit operator cleanup.
 
 ## See also
 

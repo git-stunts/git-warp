@@ -14,15 +14,15 @@ import CasContentEncryptionPolicy, { type CasRestoreEncryptionArguments, type Ca
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import { Readable } from 'node:stream';
-import ORSet from '../../domain/crdt/ORSet.ts';
-import VersionVector from '../../domain/crdt/VersionVector.ts';
-import { createEmptyState } from '../../domain/services/JoinReducer.ts';
-import WarpState from '../../domain/services/state/WarpState.ts';
-import type { LWWRegister } from '../../domain/crdt/LWW.ts';
-import type { PropValue } from '../../domain/types/PropValue.ts';
-import type { EventId } from '../../domain/utils/EventId.ts';
+import { decodeWarpFullState, encodeWarpFullState } from '../codecs/WarpStateCborCodec.ts';
+import GitCasStateCacheRootSetCoordinator from './GitCasStateCacheRootSetCoordinator.ts';
+import type WarpStateCacheRetentionReport from '../../domain/services/state/WarpStateCacheRetentionReport.ts';
+import type WarpStateCacheRepairResult from '../../domain/services/state/WarpStateCacheRepairResult.ts';
+import type { RootSet } from '@git-stunts/git-cas';
+import type WarpStateCacheRetentionPort from '../../ports/WarpStateCacheRetentionPort.ts';
 
 interface CasStore {
+  rootSets: { open(opts: { ref: string }): RootSet };
   readManifest(opts: { treeOid: string }): Promise<unknown>;
   restore(opts: { manifest: unknown } & CasRestoreEncryptionArguments): Promise<{ buffer: Uint8Array }>;
   restoreStream?: (opts: { manifest: unknown } & CasRestoreEncryptionArguments) => AsyncIterable<Uint8Array>;
@@ -34,8 +34,9 @@ interface CachePersistence {
   readRef(ref: string): Promise<string | null>;
   readBlob(oid: string): Promise<Uint8Array>;
   writeBlob(data: Uint8Array): Promise<string>;
-  updateRef(ref: string, oid: string): Promise<void>;
-  deleteRef(ref: string): Promise<void>;
+  compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void>;
+  nodeExists(oid: string): Promise<boolean>;
+  readObjectType(oid: string): Promise<string>;
 }
 
 interface CacheIndexEntry {
@@ -56,6 +57,29 @@ interface CacheIndex {
   snapshots: Record<string, CacheIndexEntry>;
 }
 
+interface CacheIndexState {
+  headOid: string | null;
+  index: CacheIndex;
+}
+
+interface CacheIndexCandidate {
+  schemaVersion?: unknown;
+  checkpointHeadId?: unknown;
+  snapshots?: unknown;
+}
+
+interface RetentionRootIdentity {
+  payloadRef: string;
+  retention: WarpStateSnapshotRetention;
+}
+
+interface IndexMutationContext {
+  current: CacheIndexState;
+  currentRoots: Map<string, RetentionRootIdentity>;
+  mutated: CacheIndex;
+  knownTreeOids: readonly string[];
+}
+
 const DEFAULT_MAX_ENTRIES = 200;
 const INDEX_SCHEMA_VERSION = 1;
 const MAX_CAS_RETRIES = 3;
@@ -63,14 +87,56 @@ const MAX_CAS_RETRIES = 3;
 function _emptyIndex(): CacheIndex { return { schemaVersion: INDEX_SCHEMA_VERSION, snapshots: {} }; }
 
 function _validateParsedIndex(parsed: unknown): CacheIndex {
-  if (typeof parsed !== 'object' || parsed === null) { return _emptyIndex(); }
-  const candidate = parsed as { schemaVersion?: unknown; checkpointHeadId?: string; snapshots?: unknown };
-  if (candidate.schemaVersion !== INDEX_SCHEMA_VERSION) { return _emptyIndex(); }
-  return { schemaVersion: INDEX_SCHEMA_VERSION, checkpointHeadId: candidate.checkpointHeadId, snapshots: (candidate.snapshots ?? {}) as Record<string, CacheIndexEntry> };
+  const candidate = cacheIndexCandidate(parsed);
+  validateIndexSchema(candidate.schemaVersion);
+  const checkpointHeadId = validateCheckpointHeadId(candidate.checkpointHeadId);
+  const snapshots = validateSnapshots(candidate.snapshots);
+  const index: CacheIndex = { schemaVersion: INDEX_SCHEMA_VERSION, snapshots };
+  if (checkpointHeadId !== undefined) {
+    index.checkpointHeadId = checkpointHeadId;
+  }
+  return index;
+}
+
+function cacheIndexCandidate(parsed: unknown): CacheIndexCandidate {
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new CacheError('GitCasWarpStateCacheAdapter: state-cache index must be an object');
+  }
+  return parsed as CacheIndexCandidate;
+}
+
+function validateIndexSchema(schemaVersion: unknown): void {
+  if (schemaVersion !== INDEX_SCHEMA_VERSION) {
+    throw new CacheError(
+      `GitCasWarpStateCacheAdapter: unsupported state-cache index schema ${String(schemaVersion)}`,
+    );
+  }
+}
+
+function validateCheckpointHeadId(checkpointHeadId: unknown): string | undefined {
+  if (checkpointHeadId !== undefined && typeof checkpointHeadId !== 'string') {
+    throw new CacheError('GitCasWarpStateCacheAdapter: checkpointHeadId must be a string');
+  }
+  return checkpointHeadId;
+}
+
+function validateSnapshots(value: unknown): Record<string, CacheIndexEntry> {
+  const snapshots = value ?? {};
+  if (typeof snapshots !== 'object' || snapshots === null || Array.isArray(snapshots)) {
+    throw new CacheError('GitCasWarpStateCacheAdapter: snapshots must be an object');
+  }
+  return snapshots as Record<string, CacheIndexEntry>;
 }
 
 function _parseIndexBlob(buf: Uint8Array): CacheIndex {
-  try { return _validateParsedIndex(JSON.parse(textDecode(buf))); } catch { return _emptyIndex(); }
+  try {
+    return _validateParsedIndex(JSON.parse(textDecode(buf)));
+  } catch (error) {
+    if (error instanceof CacheError) { throw error; }
+    throw new CacheError(
+      `GitCasWarpStateCacheAdapter: malformed state-cache index: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 function recordToEntry(record: WarpStateSnapshotRecord): CacheIndexEntry {
@@ -104,8 +170,7 @@ function isCoordinateCompatible(cand: WarpStateCoordinate, tgt: WarpStateCoordin
 function _buildPrunedSnapshotIndex(snapshots: Record<string, CacheIndexEntry>, maxEntries: number): WarpStateSnapshotIndex {
   const snapIndex = new WarpStateSnapshotIndex({ isCoordinateCompatible });
   for (const key of Object.keys(snapshots)) {
-    const entry = snapshots[key];
-    if (entry !== undefined) { snapIndex.upsert(entryToRecord(entry)); }
+    snapIndex.upsert(entryToRecord(snapshots[key]!));
   }
   snapIndex.pruneEvictable({ maxEntries });
   return snapIndex;
@@ -115,8 +180,7 @@ function _filterSnapshotsByIndex(snapshots: Record<string, CacheIndexEntry>, sna
   const pruned: Record<string, CacheIndexEntry> = {};
   for (const key of Object.keys(snapshots)) {
     if (snapIndex.findById(key) !== null) {
-      const val = snapshots[key];
-      if (val !== undefined) { pruned[key] = val; }
+      pruned[key] = snapshots[key]!;
     }
   }
   return pruned;
@@ -128,7 +192,43 @@ function _pruneSnapshotsIndex(index: CacheIndex, maxEntries: number): CacheIndex
   return index;
 }
 
-export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
+function indexRecords(index: CacheIndex): WarpStateSnapshotRecord[] {
+  return Object.values(index.snapshots).map(entryToRecord);
+}
+
+function retentionRoots(index: CacheIndex): Map<string, RetentionRootIdentity> {
+  return new Map(Object.values(index.snapshots).map((entry) => [
+    entry.snapshotId,
+    { payloadRef: entry.payloadRef, retention: entry.retention },
+  ]));
+}
+
+function retentionRootsEqual(
+  left: Map<string, RetentionRootIdentity>,
+  right: Map<string, RetentionRootIdentity>,
+): boolean {
+  if (left.size !== right.size) { return false; }
+  for (const [snapshotId, target] of left) {
+    if (!retentionRootIdentityEqual(target, right.get(snapshotId))) { return false; }
+  }
+  return true;
+}
+
+function retentionRootIdentityEqual(
+  left: RetentionRootIdentity,
+  right: RetentionRootIdentity | undefined,
+): boolean {
+  return right !== undefined
+    && right.payloadRef === left.payloadRef
+    && right.retention === left.retention;
+}
+
+function cacheUpdateFailure(lastErr: unknown): CacheError {
+  const message = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  return new CacheError(`GitCasWarpStateCacheAdapter: index update failed after retries: ${message}`);
+}
+
+export class GitCasWarpStateCacheAdapter extends WarpStateCachePort implements WarpStateCacheRetentionPort {
   private readonly _persistence: CachePersistence;
   private readonly _plumbing: unknown;
   private readonly _maxEntries: number;
@@ -138,6 +238,9 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
   private readonly _logger: LoggerPort | undefined;
   private readonly _codec: CodecPort;
   private readonly _getCas: () => Promise<CasStore>;
+  private readonly _retention: GitCasStateCacheRootSetCoordinator;
+  private _retentionAdoption: Promise<void> | null = null;
+  private _retentionReady = false;
 
   constructor(opts: { persistence: CachePersistence; plumbing: unknown; graphName: string; maxEntries?: number; encryptionKey?: Uint8Array; contentEncryption?: CasContentEncryptionPolicy; logger?: LoggerPort; codec: CodecPort }) {
     super();
@@ -150,34 +253,89 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
     this._logger = opts.logger;
     this._codec = opts.codec;
     this._getCas = createLazyCas(() => createCdcCasStore<CasStore>({ plumbing: this._plumbing, logger: this._logger }));
+    this._retention = new GitCasStateCacheRootSetCoordinator({
+      graphName: opts.graphName,
+      openRootSet: async (ref) => (await this._getCas()).rootSets.open({ ref }),
+      objectProbe: this._persistence,
+    });
+  }
+
+  private async _readIndexState(): Promise<CacheIndexState> {
+    const headOid = await this._persistence.readRef(this._ref);
+    if (typeof headOid !== 'string' || headOid.length === 0) {
+      return { headOid: null, index: _emptyIndex() };
+    }
+    return {
+      headOid,
+      index: _parseIndexBlob(await this._persistence.readBlob(headOid)),
+    };
   }
 
   private async _readIndex(): Promise<CacheIndex> {
-    const oid = await this._persistence.readRef(this._ref);
-    if (typeof oid !== 'string' || oid.length === 0) { return _emptyIndex(); }
-    try { return _parseIndexBlob(await this._persistence.readBlob(oid)); } catch { return _emptyIndex(); }
+    return (await this._readIndexState()).index;
   }
 
-  private async _writeIndex(index: CacheIndex): Promise<void> {
+  private async _readRetainedIndex(): Promise<CacheIndex> {
+    const index = await this._readIndex();
+    await this._adoptLegacyRetention(index);
+    return index;
+  }
+
+  private async _adoptLegacyRetention(index: CacheIndex): Promise<void> {
+    if (this._retentionAdoption === null) {
+      this._retentionAdoption = this._retention.adopt(indexRecords(index));
+    }
+    const adoption = this._retentionAdoption;
+    try {
+      await adoption;
+      this._retentionReady = true;
+    } catch (err) {
+      if (this._retentionAdoption === adoption) {
+        this._retentionAdoption = null;
+      }
+      throw err;
+    }
+  }
+
+  private async _writeIndex(index: CacheIndex, expectedHeadOid: string | null): Promise<void> {
     const oid = await this._persistence.writeBlob(textEncode(JSON.stringify(index)));
-    await this._persistence.updateRef(this._ref, oid);
+    await this._persistence.compareAndSwapRef(this._ref, oid, expectedHeadOid);
   }
 
-  private async _mutateIndex(mutate: (index: CacheIndex) => CacheIndex): Promise<CacheIndex> {
+  private async _mutateIndex(
+    mutate: (index: CacheIndex) => CacheIndex,
+    knownTreeOids: readonly string[] = [],
+  ): Promise<CacheIndex> {
     let lastErr: unknown;
     for (let attempt = 0; attempt < MAX_CAS_RETRIES; attempt++) {
-      const index = await this._readIndex();
-      const mutated = mutate(index);
+      const current = await this._readIndexState();
+      const currentRoots = retentionRoots(current.index);
+      const mutated = mutate(current.index);
       try {
-        await this._writeIndex(mutated);
+        await this._commitIndexMutation({ current, currentRoots, mutated, knownTreeOids });
         return mutated;
       } catch (err) {
         lastErr = err;
-        if (attempt === MAX_CAS_RETRIES - 1) { throw new CacheError(`GitCasWarpStateCacheAdapter: index update failed after retries: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`); }
+        if (attempt === MAX_CAS_RETRIES - 1) { throw cacheUpdateFailure(lastErr); }
       }
     }
     /* c8 ignore next - unreachable */
     throw new CacheError('GitCasWarpStateCacheAdapter: index update failed');
+  }
+
+  private async _commitIndexMutation(context: IndexMutationContext): Promise<void> {
+    const { current, currentRoots, mutated, knownTreeOids } = context;
+    if (this._retentionReady
+      && retentionRootsEqual(currentRoots, retentionRoots(mutated))) {
+      await this._writeIndex(mutated, current.headOid);
+      return;
+    }
+    await this._retention.publishTransition(
+      indexRecords(mutated),
+      () => this._writeIndex(mutated, current.headOid),
+      knownTreeOids,
+    );
+    this._retentionReady = true;
   }
 
   private async _restoreBuffer(cas: CasStore, restoreOpts: { manifest: unknown } & CasRestoreEncryptionArguments): Promise<Uint8Array> {
@@ -192,11 +350,10 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
   }
 
   private async _loadSnapshotState(cas: CasStore, record: WarpStateSnapshotRecord): Promise<WarpStateSnapshotRecord> {
-    if (record.state !== undefined) { return record; }
     const manifest = await cas.readManifest({ treeOid: record.payloadRef });
     const restoreOpts: { manifest: unknown } & CasRestoreEncryptionArguments = { manifest, ...this._contentEncryption.toRestoreOptions() };
     const buffer = await this._restoreBuffer(cas, restoreOpts);
-    const state = _decodeFullState(buffer, this._codec);
+    const state = decodeWarpFullState(buffer, this._codec);
     await this._mutateIndex((idx) => {
       const tracked = idx.snapshots[record.snapshotId];
       if (tracked !== null && tracked !== undefined) { tracked.lastAccessedAt = new Date().toISOString(); }
@@ -207,7 +364,7 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
 
   override async getExact(coordinate: WarpStateCoordinate): Promise<WarpStateSnapshotRecord | null> {
     const cas = await this._getCas();
-    const indexData = await this._readIndex();
+    const indexData = await this._readRetainedIndex();
     const snapIndex = new WarpStateSnapshotIndex({ isCoordinateCompatible });
     for (const entry of Object.values(indexData.snapshots)) { snapIndex.upsert(entryToRecord(entry)); }
     const match = snapIndex.findExact(coordinate);
@@ -222,7 +379,7 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
 
   override async getBestCompatiblePredecessor(coordinate: WarpStateCoordinate): Promise<WarpStateSnapshotRecord | null> {
     const cas = await this._getCas();
-    const indexData = await this._readIndex();
+    const indexData = await this._readRetainedIndex();
     const snapIndex = new WarpStateSnapshotIndex({ isCoordinateCompatible });
     for (const entry of Object.values(indexData.snapshots)) { snapIndex.upsert(entryToRecord(entry)); }
     const match = snapIndex.findBestCompatiblePredecessor(coordinate);
@@ -238,7 +395,7 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
   override async put(snapshot: WarpStateSnapshotRecord): Promise<WarpStateSnapshotRecord> {
     const cas = await this._getCas();
     if (snapshot.state === undefined) { throw new WarpError('Cannot cache snapshot without WarpState', 'E_CACHE_MISSING_STATE'); }
-    const buffer = _encodeFullState(snapshot.state, this._codec);
+    const buffer = encodeWarpFullState(snapshot.state, this._codec);
     const source = Readable.from([buffer]);
     const storeOpts: { source: Readable; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = { source, slug: snapshot.snapshotId, filename: 'state.cbor', ...this._contentEncryption.toStoreOptions() };
     const manifest = await cas.store(storeOpts);
@@ -247,7 +404,7 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
     await this._mutateIndex((index) => {
       index.snapshots[updatedRecord.snapshotId] = recordToEntry(updatedRecord);
       return _pruneSnapshotsIndex(index, this._maxEntries);
-    });
+    }, [treeOid]);
     return updatedRecord;
   }
 
@@ -269,7 +426,7 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
 
   override async resolveCheckpointHead(_graphName: string): Promise<WarpStateSnapshotRecord | null> {
     const cas = await this._getCas();
-    const indexData = await this._readIndex();
+    const indexData = await this._readRetainedIndex();
     if (indexData.checkpointHeadId === undefined) { return null; }
     const entry = indexData.snapshots[indexData.checkpointHeadId];
     if (entry === undefined) { return null; }
@@ -285,105 +442,22 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort {
   override async pruneEvictable(): Promise<void> {
     await this._mutateIndex((index) => _pruneSnapshotsIndex(index, this._maxEntries));
   }
+
+  async inspectRetention(): Promise<WarpStateCacheRetentionReport> {
+    const index = await this._readIndex();
+    return await this._retention.inspect(indexRecords(index));
+  }
+
+  async repairRetention(): Promise<WarpStateCacheRepairResult> {
+    const index = await this._readIndex();
+    const result = await this._retention.repair(indexRecords(index));
+    this._retentionReady = true;
+    return result;
+  }
 }
 
 function resolveContentEncryption(contentEncryption: CasContentEncryptionPolicy | undefined, encryptionKey: Uint8Array | undefined): CasContentEncryptionPolicy {
   if (contentEncryption !== undefined) { return contentEncryption; }
   if (encryptionKey !== undefined) { return CasContentEncryptionPolicy.fromInternalResolvedKey({ encryptionKey }); }
   return CasContentEncryptionPolicy.disabled();
-}
-
-interface DecodedFullState {
-  version?: string;
-  nodeAlive?: { [x: string]: string[] };
-  edgeAlive?: { [x: string]: string[] };
-  prop?: Array<[string, unknown]>;
-  observedFrontier?: { [x: string]: number };
-  edgeBirthEvent?: Array<[string, { writerId?: string; lamport?: number }]>;
-  edgeBirthLamport?: Array<[string, number]>;
-}
-
-function _serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<unknown>]>): Array<[string, unknown]> {
-  const arr: Array<[string, unknown]> = [];
-  for (const [key, register] of propEntries) { arr.push([key, _serializeLWWRegister(register)]); }
-  arr.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  return arr;
-}
-
-function _serializeEdgeBirthArray(edgeBirthEvent: Map<string, EventId> | undefined): Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> {
-  const result: Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> = [];
-  if (edgeBirthEvent !== undefined && edgeBirthEvent !== null) {
-    for (const [key, eventId] of edgeBirthEvent) {
-      result.push([key, { lamport: eventId.lamport, writerId: eventId.writerId, patchSha: eventId.patchSha, opIndex: eventId.opIndex }]);
-    }
-    result.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  }
-  return result;
-}
-
-function _deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> {
-  const prop = new Map<string, LWWRegister<PropValue>>();
-  if (!Array.isArray(propArray)) { return prop; }
-  for (const [key, registerObj] of propArray) {
-    const register = _deserializeLWWRegister(registerObj as { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null);
-    if (register !== null) { prop.set(key, register); }
-  }
-  return prop;
-}
-
-function _extractBirthMetadata(ev: { patchSha?: string; opIndex?: number }): { patchSha: string; opIndex: number } {
-  return { patchSha: ev.patchSha ?? '0000', opIndex: ev.opIndex ?? 0 };
-}
-
-function _extractBirthLamport(ev: { lamport?: number; writerId?: string }): { lamport: number; writerId: string } {
-  return { lamport: ev.lamport ?? 0, writerId: ev.writerId ?? '' };
-}
-
-function _parseBirthEventVal(val: unknown): EventId {
-  if (typeof val === 'number') { return { lamport: val, writerId: '', patchSha: '0000', opIndex: 0 }; }
-  const ev = val as { lamport?: number; writerId?: string; patchSha?: string; opIndex?: number };
-  return { ..._extractBirthLamport(ev), ..._extractBirthMetadata(ev) };
-}
-
-function _deserializeEdgeBirthEvent(obj: DecodedFullState): Map<string, EventId> {
-  const result = new Map<string, EventId>();
-  const birthData = obj.edgeBirthEvent ?? obj.edgeBirthLamport;
-  if (!Array.isArray(birthData)) { return result; }
-  for (const [key, val] of birthData) { result.set(key, _parseBirthEventVal(val)); }
-  return result;
-}
-
-function _serializeLWWRegister(register: LWWRegister<unknown>): { eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string }; value: unknown } | null {
-  if (register === null || register === undefined) { return null; }
-  return { eventId: { lamport: register.eventId.lamport, opIndex: register.eventId.opIndex, patchSha: register.eventId.patchSha, writerId: register.eventId.writerId }, value: register.value };
-}
-
-function _deserializeLWWRegister(obj: { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null): LWWRegister<PropValue> | null {
-  if (obj === null || obj === undefined) { return null; }
-  return { eventId: { lamport: obj.eventId.lamport, writerId: obj.eventId.writerId, patchSha: obj.eventId.patchSha, opIndex: obj.eventId.opIndex }, value: obj.value as PropValue };
-}
-
-function _validateFullStateBuffer(buffer: Uint8Array | null | undefined, codec: CodecPort): DecodedFullState | null {
-  if (buffer === null || buffer === undefined) { return null; }
-  const obj = codec.decode<DecodedFullState | null | undefined>(buffer);
-  return obj === null || obj === undefined ? null : obj;
-}
-
-function _verifyFullStateVersion(version: string | undefined): void {
-  if (version !== undefined && version !== 'full-v5') { throw new WarpError(`Unsupported full state version: expected 'full-v5', got '${JSON.stringify(version)}'`, 'E_UNSUPPORTED_VERSION'); }
-}
-
-function _hydrateStateStructures(obj: DecodedFullState): { nodeAlive: ORSet; edgeAlive: ORSet; observedFrontier: VersionVector } {
-  return { nodeAlive: ORSet.deserialize(obj.nodeAlive ?? {}), edgeAlive: ORSet.deserialize(obj.edgeAlive ?? {}), observedFrontier: VersionVector.from(obj.observedFrontier ?? {}) };
-}
-
-function _encodeFullState(state: WarpState, codec: CodecPort): Uint8Array {
-  return codec.encode({ version: 'full-v5', nodeAlive: state.nodeAlive.serialize(), edgeAlive: state.edgeAlive.serialize(), prop: _serializePropsArray(state.allPropEntries()), observedFrontier: VersionVector.serialize(state.observedFrontier), edgeBirthEvent: _serializeEdgeBirthArray(state.edgeBirthEvent) });
-}
-
-function _decodeFullState(buffer: Uint8Array, codec: CodecPort): WarpState {
-  const obj = _validateFullStateBuffer(buffer, codec);
-  if (obj === null) { return createEmptyState(); }
-  _verifyFullStateVersion(obj.version);
-  return new WarpState({ ..._hydrateStateStructures(obj), prop: _deserializeProps(obj.prop ?? []), edgeBirthEvent: _deserializeEdgeBirthEvent(obj) });
 }

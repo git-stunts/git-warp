@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   createEffectEmission,
-  canonicalEmissionJson,
   DELIVERY_MODES,
   DELIVERY_OUTCOMES,
 } from '../../../../src/domain/types/EffectEmission.ts';
+import { canonicalEmissionJson } from '../../../../src/infrastructure/codecs/EffectEmissionJsonCodec.ts';
 
 const create = (createEffectEmission) as any;
 

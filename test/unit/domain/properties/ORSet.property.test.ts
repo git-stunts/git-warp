@@ -2,6 +2,7 @@ import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { serializeORSet } from '../../../../src/domain/services/state/ORSetWireBoundary.ts';
 
 // ============================================================================
 // Arbitraries for generating random ORSets
@@ -64,7 +65,7 @@ const orsetArb = fc.array(operationArb, { minLength: 0, maxLength: 10 }).map((op
  */
 /** @param {any} a @param {any} b */
 function orsetEqual(a, b) {
-  return JSON.stringify(a.serialize()) === JSON.stringify(b.serialize());
+  return JSON.stringify(serializeORSet(a)) === JSON.stringify(serializeORSet(b));
 }
 
 // ============================================================================
@@ -153,8 +154,8 @@ describe('ORSet property tests', () => {
     it('serialization is deterministic', () => {
       fc.assert(
         fc.property(orsetArb, (set) => {
-          const s1 = JSON.stringify(set.serialize());
-          const s2 = JSON.stringify(set.serialize());
+          const s1 = JSON.stringify(serializeORSet(set));
+          const s2 = JSON.stringify(serializeORSet(set));
           return s1 === s2;
         }),
         { numRuns: 100 }
@@ -168,8 +169,8 @@ describe('ORSet property tests', () => {
           const ab = a.join(b);
           const ba = b.join(a);
 
-          const sAB = JSON.stringify(ab.serialize());
-          const sBA = JSON.stringify(ba.serialize());
+          const sAB = JSON.stringify(serializeORSet(ab));
+          const sBA = JSON.stringify(serializeORSet(ba));
           return sAB === sBA;
         }),
         { numRuns: 100 }

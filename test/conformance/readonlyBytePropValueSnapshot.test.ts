@@ -23,7 +23,7 @@ describe('readonly byte PropValue snapshot contract', () => {
     expect(snapshotValue).toBeInstanceOf(ImmutableBytes);
 
     if (!(snapshotValue instanceof ImmutableBytes)) {
-      return;
+      throw new Error('snapshot value must be ImmutableBytes');
     }
 
     expect([...snapshotValue]).toEqual([1, 2, 3]);

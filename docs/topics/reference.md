@@ -30,100 +30,31 @@ public API export, CLI command, package entrypoint, or public error class.
 
 First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.
 
-### Export modules
-
-| Module | Kind | Source |
-| --- | --- | --- |
-| `./src/domain/memory/index.ts` | export * | `index.ts#L55` |
-
 ### Value exports
 
-Source: `index.ts`. Count: 73.
+Source: `index.ts`. Count: 13.
 
 ```text
-AlfredOperationPolicyAdapter @ index.ts#L68
-AuditError @ index.ts#L71
-BunHttpAdapter @ index.ts#L102
-canonicalEmissionJson @ index.ts#L118
-canonicalObservationJson @ index.ts#L124
-CasContentEncryptionPolicy @ index.ts#L62
-checkAborted @ index.ts#L104
-ChunkEffectSink @ index.ts#L134
-ConsoleEffectSink @ index.ts#L133
-ConsoleLogger @ index.ts#L96
-ContinuumArtifactAuthorityError @ index.ts#L72
-createDeliveryObservation @ index.ts#L123
-createEffectEmission @ index.ts#L117
-createExternalizationPolicy @ index.ts#L127
-createTickReceipt @ index.ts#L108
-createTimeoutSignal @ index.ts#L104
-CryptoPort @ index.ts#L98
-DELIVERY_MODES @ index.ts#L119
-DELIVERY_OUTCOMES @ index.ts#L120
-DenoHttpAdapter @ index.ts#L103
 DraftTimeline @ index.ts#L19
-EffectPipeline @ index.ts#L115
-EffectSinkPort @ index.ts#L113
-EncryptionError @ index.ts#L73
-ForkError @ index.ts#L74
-HealthCheckService @ index.ts#L93
-HealthStatus @ index.ts#L93
-HttpServerPort @ index.ts#L99
-IndexError @ index.ts#L75
-INSPECT_LENS @ index.ts#L130
 intent @ index.ts#L22
 Intent @ index.ts#L23
 JoinReceipt @ index.ts#L24
 JoinResult @ index.ts#L25
-LIVE_LENS @ index.ts#L128
-LoggerPort @ index.ts#L94
-LogLevel @ index.ts#L96
-MemoryBudgetError @ index.ts#L76
-MultiplexSink @ index.ts#L114
-NodeCryptoAdapter @ index.ts#L100
-NoOpEffectSink @ index.ts#L132
-NoOpLogger @ index.ts#L95
-NoopOperationPolicyAdapter @ index.ts#L69
 openWarp @ index.ts#L18
-OperationAbortedError @ index.ts#L77
-OperationPolicyExhaustedError @ index.ts#L78
-OperationPolicyPort @ index.ts#L57
-OperationPolicyTimeoutError @ index.ts#L79
-PatchError @ index.ts#L80
-QueryError @ index.ts#L81
 reading @ index.ts#L26
 Reading @ index.ts#L27
 ReadingResult @ index.ts#L28
 ReadReceipt @ index.ts#L29
-REPLAY_LENS @ index.ts#L129
-SchemaUnsupportedError @ index.ts#L82
-ShardCorruptionError @ index.ts#L83
-ShardLoadError @ index.ts#L84
-ShardValidationError @ index.ts#L85
-StorageError @ index.ts#L86
-StrandError @ index.ts#L87
-SyncError @ index.ts#L88
-SyncSecret @ index.ts#L105
-TICK_RECEIPT_OP_TYPES @ index.ts#L110
-TICK_RECEIPT_RESULT_TYPES @ index.ts#L111
-tickReceiptCanonicalJson @ index.ts#L109
 Timeline @ index.ts#L21
-TraversalError @ index.ts#L89
 Warp @ index.ts#L20
-WebCryptoAdapter @ index.ts#L101
-WormholeError @ index.ts#L90
 WriteReceipt @ index.ts#L30
-WriterError @ index.ts#L97
 ```
 
 ### Type exports
 
-Source: `index.ts`. Count: 32.
+Source: `index.ts`. Count: 26.
 
 ```text
-CasContentEncryptionDiagnostics @ index.ts#L64
-CasContentEncryptionScheme @ index.ts#L65
-CasResolvedVaultKeyOptions @ index.ts#L66
 EdgeIntentFields @ index.ts#L33
 EdgePropertyIntentFields @ index.ts#L34
 IntentBuilders @ index.ts#L40
@@ -138,8 +69,6 @@ JoinResultOptions @ index.ts#L42
 NodeIntentFields @ index.ts#L37
 NodeReadingFields @ index.ts#L45
 OpenWarpOptions @ index.ts#L31
-OperationPolicyExecuteOptions @ index.ts#L59
-OperationRetryDecision @ index.ts#L60
 PropertyIntentFields @ index.ts#L38
 PropertyReadingFields @ index.ts#L46
 ReadingBuilders @ index.ts#L50
@@ -150,7 +79,6 @@ ReadingValue @ index.ts#L51
 ReadReceiptOptions @ index.ts#L52
 ReadReceiptOutcome @ index.ts#L52
 ReceiptOutcome @ index.ts#L53
-SyncRateLimitConfig @ index.ts#L106
 WarpStorage @ index.ts#L31
 WriteReceiptOptions @ index.ts#L53
 ```

@@ -90,7 +90,6 @@ export async function loadCheckpoint(
 
   // Build codec option object once for exactOptionalPropertyTypes compliance
   const loadCodecOpt = codec !== undefined && codec !== null ? { codec } : {};
-  void checkpointStore;
 
   // 3. Read tree entries via the indexOid from the message (points to the tree)
   const rawTreeOids = await persistence.readTreeOids(decoded.indexOid);
@@ -103,6 +102,24 @@ export async function loadCheckpoint(
     treeOids,
     partitionedTree.indexShardOids,
   );
+
+  if (checkpointStore !== undefined && checkpointStore !== null) {
+    const checkpoint = await checkpointStore.readCheckpoint(treeOids);
+    const result: LoadedCheckpoint = {
+      state: checkpoint.state,
+      frontier: checkpoint.frontier,
+      stateHash: decoded.stateHash,
+      schema: decoded.schema,
+      appliedVV: checkpoint.appliedVV,
+      indexShardOids: Object.keys(indexShardOids).length > 0
+        ? indexShardOids
+        : checkpoint.indexShardOids,
+    };
+    if (checkpoint.provenanceIndex !== null && checkpoint.provenanceIndex !== undefined) {
+      result.provenanceIndex = checkpoint.provenanceIndex;
+    }
+    return result;
+  }
 
   // Current path: read each envelope blob individually.
   const frontierOid = treeOids['frontier.cbor'];

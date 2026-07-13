@@ -1,10 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+
+const ERROR_OBJECT_UPDATE_FAILURE = /index update failed after retries: error object failure/;
+const SIMULATED_UPDATE_FAILURE = /index update failed after retries: simulated write failure/;
+const MALFORMED_INDEX_ERROR = /malformed state-cache index/;
+const UNSUPPORTED_SCHEMA_ERROR = /unsupported state-cache index schema/;
+const INDEX_NOT_OBJECT_ERROR = /state-cache index must be an object/;
+const BLOB_READ_FAILED_ERROR = /blob read failed/;
+const SNAPSHOTS_NOT_OBJECT_ERROR = /snapshots must be an object/;
 import CasContentEncryptionPolicy from '../../../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
+import type {
+  RootSetEntry,
+  RootSetMutationResult,
+  RootSetState,
+} from '@git-stunts/git-cas';
 
 // Mock @git-stunts/git-cas (dynamic import used by _initCas)
 const mockReadManifest = vi.fn();
@@ -12,6 +25,59 @@ const mockRestore = vi.fn();
 const mockRestoreStream = vi.fn();
 const mockStore = vi.fn();
 const mockCreateTree = vi.fn();
+let mockRootEntries: RootSetEntry[] = [];
+const mockRootRead = vi.fn(async (): Promise<RootSetState> => ({
+  ref: 'refs/cas/rootsets/git-warp/test-graph/state-cache',
+  headOid: mockRootEntries.length === 0 ? null : 'a'.repeat(40),
+  treeOid: mockRootEntries.length === 0 ? null : 'a'.repeat(40),
+  entries: [...mockRootEntries],
+}));
+const mockRootMutate = vi.fn(async (
+  mutator: (
+    entries: ReadonlyArray<Readonly<RootSetEntry>>,
+  ) => Iterable<RootSetEntry> | Promise<Iterable<RootSetEntry>>,
+): Promise<RootSetMutationResult> => {
+  mockRootEntries = [...await mutator(mockRootEntries)];
+  return {
+    changed: true,
+    commitOid: 'b'.repeat(40),
+    treeOid: 'b'.repeat(40),
+    entries: [...mockRootEntries],
+  };
+});
+const mockRootReplace = vi.fn(async (options: {
+  entries: Iterable<RootSetEntry>;
+  expectedHeadOid?: string | null;
+}): Promise<RootSetMutationResult> => {
+  mockRootEntries = [...options.entries];
+  return {
+    changed: true,
+    commitOid: 'c'.repeat(40),
+    treeOid: 'c'.repeat(40),
+    entries: [...mockRootEntries],
+  };
+});
+const mockRootDoctor = vi.fn(async () => ({
+  healthy: true,
+  ref: 'refs/cas/rootsets/git-warp/test-graph/state-cache',
+  entries: [...mockRootEntries],
+}));
+const mockRootRepair = vi.fn(async (options: { entries: Iterable<RootSetEntry> }) => {
+  mockRootEntries = [...options.entries];
+  return {
+    repaired: true as const,
+    commitOid: 'c'.repeat(40),
+    treeOid: 'c'.repeat(40),
+    entries: [...mockRootEntries],
+  };
+});
+const mockOpenRootSet = vi.fn(() => ({
+  read: mockRootRead,
+  mutate: mockRootMutate,
+  replace: mockRootReplace,
+  doctor: mockRootDoctor,
+  repair: mockRootRepair,
+}));
 
 /** When true, the mock CAS exposes restoreStream. */
 let exposeRestoreStream = false;
@@ -20,6 +86,7 @@ let exposeRestoreStream = false;
 let lastConstructorArgs = {};
 
 class MockContentAddressableStore {
+  rootSets = { open: mockOpenRootSet };
   readManifest: any;
   restore: any;
   store: any;
@@ -63,6 +130,9 @@ function makePersistence() {
     writeBlob: vi.fn().mockResolvedValue('blob-oid-1'),
     updateRef: vi.fn().mockResolvedValue(undefined),
     deleteRef: vi.fn().mockResolvedValue(undefined),
+    compareAndSwapRef: vi.fn().mockResolvedValue(undefined),
+    nodeExists: vi.fn().mockResolvedValue(true),
+    readObjectType: vi.fn().mockResolvedValue('tree'),
   };
 }
 
@@ -119,6 +189,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     exposeRestoreStream = false;
+    mockRootEntries = [];
     persistence = makePersistence();
     plumbing = makePlumbing();
     codec = new CborCodec();
@@ -195,27 +266,59 @@ describe('GitCasWarpStateCacheAdapter', () => {
       expect(idx2).toEqual({ schemaVersion: 1, snapshots: {} });
     });
 
-    it('returns empty index on invalid blob JSON or invalid schemaVersion', async () => {
+    it('fails closed on unreadable or invalid persisted indexes', async () => {
       persistence.readRef.mockResolvedValue('blob-1');
       persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode('invalid-json'));
-      expect(await adapter._readIndex()).toEqual({ schemaVersion: 1, snapshots: {} });
+      await expect(adapter._readIndex()).rejects.toThrow(MALFORMED_INDEX_ERROR);
 
       persistence.readBlob.mockResolvedValueOnce(indexBuffer({}, undefined, 999));
-      expect(await adapter._readIndex()).toEqual({ schemaVersion: 1, snapshots: {} });
+      await expect(adapter._readIndex()).rejects.toThrow(UNSUPPORTED_SCHEMA_ERROR);
 
       persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode('null'));
+      await expect(adapter._readIndex()).rejects.toThrow(INDEX_NOT_OBJECT_ERROR);
+
+      persistence.readBlob.mockRejectedValueOnce(new Error('blob read failed'));
+      await expect(adapter._readIndex()).rejects.toThrow(BLOB_READ_FAILED_ERROR);
+
+      persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode(JSON.stringify({
+        schemaVersion: 1,
+      })));
       expect(await adapter._readIndex()).toEqual({ schemaVersion: 1, snapshots: {} });
+
+      persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode(JSON.stringify({
+        schemaVersion: 1,
+        snapshots: 'invalid',
+      })));
+      await expect(adapter._readIndex()).rejects.toThrow(SNAPSHOTS_NOT_OBJECT_ERROR);
+    });
+
+    it('does not publish after a persisted index read fails', async () => {
+      persistence.readRef.mockResolvedValue('blob-1');
+      persistence.readBlob.mockRejectedValue(new Error('blob read failed'));
+
+      await expect(adapter._mutateIndex((idx: any) => idx)).rejects.toThrow(
+        BLOB_READ_FAILED_ERROR,
+      );
+
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+      expect(persistence.compareAndSwapRef).not.toHaveBeenCalled();
     });
 
     it('retries index update on failure and throws on max retries', async () => {
       persistence.readRef.mockResolvedValue('blob-1');
       persistence.readBlob.mockResolvedValue(indexBuffer({}));
-      persistence.writeBlob.mockRejectedValue(new Error('simulated write failure'));
+      persistence.writeBlob.mockRejectedValue('simulated write failure');
 
       await expect(adapter._mutateIndex((idx: any) => idx)).rejects.toThrow(
-        /index update failed after retries: simulated write failure/
+        SIMULATED_UPDATE_FAILURE,
       );
       expect(persistence.writeBlob).toHaveBeenCalledTimes(3);
+
+      persistence.writeBlob.mockClear();
+      persistence.writeBlob.mockRejectedValue(new Error('error object failure'));
+      await expect(adapter._mutateIndex((idx: any) => idx)).rejects.toThrow(
+        ERROR_OBJECT_UPDATE_FAILURE,
+      );
     });
   });
 
@@ -311,7 +414,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
       expect(await adapter.resolveCheckpointHead(GRAPH_NAME)).toBeNull();
     });
 
-    it('resolves checkpoint head successfully via restoreStream', async () => {
+    it.each([false, true])('resolves checkpoint head via restoreStream with split=%s', async (splitStream) => {
       exposeRestoreStream = true;
       const entry = {
         snapshotId: SAMPLE_SNAPSHOT_ID,
@@ -323,7 +426,9 @@ describe('GitCasWarpStateCacheAdapter', () => {
         createdAt: new Date().toISOString(),
       };
       persistence.readRef.mockResolvedValue('blob-1');
-      persistence.readBlob.mockResolvedValue(indexBuffer({ [SAMPLE_SNAPSHOT_ID]: entry }, SAMPLE_SNAPSHOT_ID));
+      persistence.readBlob
+        .mockResolvedValueOnce(indexBuffer({ [SAMPLE_SNAPSHOT_ID]: entry }, SAMPLE_SNAPSHOT_ID))
+        .mockResolvedValue(indexBuffer({}, SAMPLE_SNAPSHOT_ID));
 
       const encodedState = codec.encode({
         version: 'full-v5',
@@ -336,7 +441,13 @@ describe('GitCasWarpStateCacheAdapter', () => {
 
       mockReadManifest.mockResolvedValueOnce({ some: 'manifest' });
       mockRestoreStream.mockImplementationOnce(async function* () {
-        yield encodedState;
+        if (splitStream) {
+          const midpoint = Math.floor(encodedState.byteLength / 2);
+          yield encodedState.slice(0, midpoint);
+          yield encodedState.slice(midpoint);
+        } else {
+          yield encodedState;
+        }
       });
 
       const resolved = await adapter.resolveCheckpointHead(GRAPH_NAME);
@@ -541,9 +652,27 @@ describe('GitCasWarpStateCacheAdapter', () => {
 
   describe('pruneEvictable', () => {
     it('prunes evictable snapshots successfully', async () => {
+      const prunableAdapter = new GitCasWarpStateCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+        codec,
+        maxEntries: 0,
+      });
+      const entry = {
+        snapshotId: SAMPLE_SNAPSHOT_ID,
+        coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
+        retention: 'evictable',
+        provenancePosture: 'complete',
+        stateHash: 'hash-1',
+        payloadRef: 'tree-1',
+        createdAt: new Date().toISOString(),
+      };
       persistence.readRef.mockResolvedValue('blob-1');
-      persistence.readBlob.mockResolvedValue(indexBuffer({}));
-      await adapter.pruneEvictable();
+      persistence.readBlob.mockResolvedValue(indexBuffer({ [SAMPLE_SNAPSHOT_ID]: entry }));
+
+      await prunableAdapter.pruneEvictable();
+
       expect(persistence.writeBlob).toHaveBeenCalled();
     });
   });

@@ -15,7 +15,10 @@ describe('toBytes', () => {
   });
 
   it('converts Buffer to Uint8Array', () => {
-    if (typeof Buffer === 'undefined') { return; }
+    expect(typeof Buffer).not.toBe('undefined');
+    if (typeof Buffer === 'undefined') {
+      throw new Error('Buffer must exist in this test runtime');
+    }
     const buf = Buffer.from([4, 5, 6]);
     const result = toBytes(buf);
     expect(result).toBeInstanceOf(Uint8Array);

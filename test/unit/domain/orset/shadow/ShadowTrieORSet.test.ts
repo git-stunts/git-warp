@@ -127,7 +127,7 @@ describe("ShadowTrieORSet", () => {
       const result = await engine.flush();
       expect(result.rootOid).not.toBeNull();
       if (result.rootOid === null) {
-        return;
+        throw new Error("rootOid must exist after flush");
       }
 
       const reopened = makeEngine({ rootOid: result.rootOid, store }).engine;

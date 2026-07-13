@@ -74,10 +74,12 @@ import {
 } from './src/domain/services/KeyCodec.ts';
 import {
   createTickReceipt,
-  canonicalJson as tickReceiptCanonicalJson,
   OP_TYPES as TICK_RECEIPT_OP_TYPES,
   RESULT_TYPES as TICK_RECEIPT_RESULT_TYPES,
 } from './src/domain/types/TickReceipt.ts';
+import { tickReceiptCanonicalJson } from './src/infrastructure/codecs/TickReceiptJsonCodec.ts';
+import { canonicalEmissionJson } from './src/infrastructure/codecs/EffectEmissionJsonCodec.ts';
+import { canonicalObservationJson } from './src/infrastructure/codecs/DeliveryObservationJsonCodec.ts';
 
 // Provenance payload (HOLOGRAM)
 import ProvenancePayload from './src/domain/services/provenance/ProvenancePayload.ts';
@@ -112,13 +114,11 @@ import { MultiplexSink } from './src/domain/services/MultiplexSink.ts';
 import { EffectPipeline } from './src/domain/services/EffectPipeline.ts';
 import {
   createEffectEmission,
-  canonicalEmissionJson,
   DELIVERY_MODES,
   DELIVERY_OUTCOMES,
 } from './src/domain/types/EffectEmission.ts';
 import {
   createDeliveryObservation,
-  canonicalObservationJson,
 } from './src/domain/types/DeliveryObservation.ts';
 import {
   createExternalizationPolicy,

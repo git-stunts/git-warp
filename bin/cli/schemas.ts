@@ -128,6 +128,7 @@ export const doctorSchema = z.object({
   strict: z.boolean().default(false),
   'memory-budget': z.string().min(1).optional(),
   'large-graph': z.boolean().default(false),
+  'repair-state-cache': z.boolean().default(false),
 }).strict();
 
 // ============================================================================

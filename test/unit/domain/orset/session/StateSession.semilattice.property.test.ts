@@ -9,6 +9,7 @@ import StateSession from "../../../../../src/domain/orset/session/StateSession.t
 import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
+import { serializeORSet } from "../../../../../src/domain/services/state/ORSetWireBoundary.ts";
 import { InMemoryTrieStore } from "../../../../helpers/trieHelpers.ts";
 
 const PROPERTY_TEST_SEED = 20260422;
@@ -131,8 +132,8 @@ async function joinSessionSets(left: ORSet, right: ORSet): Promise<ORSet> {
 }
 
 function orsetsEqual(left: ORSet, right: ORSet): boolean {
-  const leftSerialized = left.serialize();
-  const rightSerialized = right.serialize();
+  const leftSerialized = serializeORSet(left);
+  const rightSerialized = serializeORSet(right);
   return JSON.stringify(leftSerialized) === JSON.stringify(rightSerialized);
 }
 
@@ -258,7 +259,7 @@ describe("StateSession semilattice proof", () => {
 
       expect(baselineClose.nodeAliveRootOid).not.toBeNull();
       if (baselineClose.nodeAliveRootOid === null) {
-        return;
+        throw new Error('nodeAliveRootOid must exist after close');
       }
 
       const reopened = await openSession({
