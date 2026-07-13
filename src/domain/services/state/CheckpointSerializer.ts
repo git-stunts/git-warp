@@ -266,19 +266,22 @@ interface CurrentEdgeBirthEventPayload {
 }
 
 type CurrentEdgeBirthEventWire = Array<[string, CurrentEdgeBirthEventPayload]>;
+const UNIDENTIFIED_EDGE_BIRTH_KEY = '<unidentified>';
 
 function deserializeCurrentEdgeBirthEvent(value: CurrentEdgeBirthEventWire): Map<string, EventId> {
   if (!Array.isArray(value)) {
-    throw invalidCurrentEdgeBirthEvent('unknown');
+    throw invalidCurrentEdgeBirthEvent(UNIDENTIFIED_EDGE_BIRTH_KEY);
   }
   const edgeBirthEvent = new Map<string, EventId>();
   for (const entry of value) {
     if (!Array.isArray(entry) || entry.length !== 2) {
-      throw invalidCurrentEdgeBirthEvent('unknown');
+      throw invalidCurrentEdgeBirthEvent(UNIDENTIFIED_EDGE_BIRTH_KEY);
     }
     const [key, payload] = entry;
     if (typeof key !== 'string' || !isCurrentEdgeBirthEventPayload(payload)) {
-      throw invalidCurrentEdgeBirthEvent(typeof key === 'string' ? key : 'unknown');
+      throw invalidCurrentEdgeBirthEvent(
+        typeof key === 'string' ? key : UNIDENTIFIED_EDGE_BIRTH_KEY,
+      );
     }
     try {
       edgeBirthEvent.set(
