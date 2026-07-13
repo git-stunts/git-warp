@@ -2,11 +2,9 @@
   "extends": "./tsconfig.base.json",
   "include": [
     "index.ts",
-    "browser.ts",
     "storage.ts",
     "advanced.ts",
     "diagnostics.ts",
-    "legacy.ts",
     "src/**/*.ts",
     "src/globals.d.ts",
     "bin/warp-graph.ts",

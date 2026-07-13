@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import WarpApp, { InMemoryGraphAdapter, WarpCore } from '../../../legacy.ts';
+import WarpApp from '../../../src/domain/WarpApp.ts';
+import WarpCore from '../../../src/domain/WarpCore.ts';
+import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 
 describe('WarpApp facade', () => {
   it('exposes a curated app surface with an explicit core escape hatch', async () => {
@@ -20,7 +22,7 @@ describe('WarpApp facade', () => {
     expect(typeof app.createStrand).toBe('function');
     expect(typeof app.core).toBe('function');
 
-    const appAny = (app);
+    const appAny = app;
     expect((appAny as any).materialize).toBeUndefined();
     expect((appAny as any).materializeCoordinate).toBeUndefined();
     expect((appAny as any).getNodes).toBeUndefined();

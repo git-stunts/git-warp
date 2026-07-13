@@ -1,119 +1,276 @@
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-
-import {
-  extractJsExports,
-  parseExportBlock,
-} from '../../../scripts/check-dts-surface.ts';
 
 const REPO_ROOT = new URL('../../../', import.meta.url);
 
-const ROOT_ERROR_ALLOWLIST = new Set<string>([
-  'PatchError',
-  'QueryError',
-  'StrandError',
-  'WormholeError',
-]);
+const ROOT_VALUE_EXPORTS = ['intent', 'openWarp', 'reading'] as const;
 
-const GRAPH_SUBSTRATE_NOUNS = new Set<string>([
-  'BitmapIndexBuilder',
-  'BitmapIndexReader',
-  'BlobStoragePort',
-  'ContentAttachmentProjection',
-  'EdgeId',
-  'EdgePropertyWriteIntent',
-  'EdgeRecord',
-  'EdgeTypeId',
-  'IndexRebuildService',
-  'InMemoryBlobStorageAdapter',
-  'LegacyEdgePropertyKey',
-  'LegacyNodePropertyKey',
-  'LegacyPropertyProjection',
-  'LegacyPropertyValue',
-  'NodeId',
-  'NodePropertyWriteIntent',
-  'NodeRecord',
-  'NodeTypeId',
-  'VisibleEdgePropertyRecord',
-  'VisibleNodePropertyRecord',
-]);
+const ROOT_TYPE_EXPORTS = [
+  'DraftTimeline',
+  'EdgeIntentFields',
+  'Intent',
+  'IntentBuilders',
+  'IntentDescriptor',
+  'IntentKind',
+  'JoinMode',
+  'JoinOutcome',
+  'JoinOptions',
+  'JoinPolicy',
+  'JoinReceipt',
+  'JoinReceiptOptions',
+  'JoinResult',
+  'JoinResultOptions',
+  'NeighborhoodReadingFields',
+  'NodeIntentFields',
+  'NodeReadingFields',
+  'OpenWarpOptions',
+  'PropertyIntentFields',
+  'PropertyReadingFields',
+  'ReadEvidence',
+  'ReadOutcome',
+  'ReadReceipt',
+  'ReadReceiptOptions',
+  'Reading',
+  'ReadingBuilders',
+  'ReadingDescriptor',
+  'ReadingDirection',
+  'ReadingKind',
+  'ReadingResult',
+  'ReadingResultOptions',
+  'ReadingValue',
+  'Receipt',
+  'ReceiptOutcome',
+  'RepairHint',
+  'Tick',
+  'Timeline',
+  'TimelineView',
+  'Warp',
+  'StorageAdapter',
+  'WriteReceipt',
+  'WriteOutcome',
+  'WriteReceiptOptions',
+] as const;
 
-function collectSourceExports(relativePath: string): string[] {
-  return sorted(collectSourceExportsFrom(new URL(relativePath, REPO_ROOT), new Set<string>()));
-}
+type ModuleSurface = {
+  readonly starExports: readonly string[];
+  readonly typeExports: readonly string[];
+  readonly valueExports: readonly string[];
+};
 
-function collectSourceExportsFrom(sourceUrl: URL, visited: Set<string>): Set<string> {
-  const visitKey = sourceUrl.href;
-  if (visited.has(visitKey)) {
-    return new Set<string>();
-  }
-  visited.add(visitKey);
+function moduleSurface(relativePath = 'index.ts', source?: string): ModuleSurface {
+  const sourceFile = source === undefined
+    ? sourceFileFor(relativePath)
+    : parseSourceFile(relativePath, source);
+  const starExports: string[] = [];
+  const typeExports: string[] = [];
+  const valueExports: string[] = [];
 
-  const source = readFileSync(sourceUrl, 'utf8');
-  const names = extractJsExports(source);
-  for (const match of source.matchAll(/export\s+type\s*\{([^}]+)\}/g)) {
-    for (const name of parseExportBlock(match[1] ?? '')) {
-      names.add(name);
+  for (const statement of sourceFile.statements) {
+    if (!ts.isExportDeclaration(statement)) {
+      collectExportedDeclaration(statement, typeExports, valueExports);
+      continue;
+    }
+    if (statement.exportClause === undefined) {
+      starExports.push(statement.moduleSpecifier?.getText(sourceFile) ?? '<local>');
+      continue;
+    }
+    if (ts.isNamespaceExport(statement.exportClause)) {
+      starExports.push(statement.moduleSpecifier?.getText(sourceFile) ?? '<local>');
+      continue;
+    }
+    if (!ts.isNamedExports(statement.exportClause)) {
+      continue;
+    }
+    for (const element of statement.exportClause.elements) {
+      const target = statement.isTypeOnly || element.isTypeOnly ? typeExports : valueExports;
+      target.push(element.name.text);
     }
   }
-  for (const match of source.matchAll(/export\s+\*\s+from\s+['"]([^'"]+)['"]/g)) {
-    const specifier = match[1];
-    if (specifier !== undefined) {
-      for (const name of collectSourceExportsFrom(new URL(specifier, sourceUrl), visited)) {
-        names.add(name);
+
+  return {
+    starExports: sorted(starExports),
+    typeExports: sorted(typeExports),
+    valueExports: sorted(valueExports),
+  };
+}
+
+function sourceFileFor(relativePath: string): ts.SourceFile {
+  const source = readFileSync(new URL(relativePath, REPO_ROOT), 'utf8');
+  return parseSourceFile(relativePath, source);
+}
+
+function parseSourceFile(relativePath: string, source: string): ts.SourceFile {
+  return ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+}
+
+function importedModules(relativePath: string): readonly string[] {
+  return sourceFileFor(relativePath).statements.flatMap((statement) =>
+    ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)
+      ? [statement.moduleSpecifier.text]
+      : []
+  );
+}
+
+function exportedFunctionCalls(
+  relativePath: string,
+  functionName: string,
+  calledIdentifier: string
+): boolean {
+  const declaration = sourceFileFor(relativePath).statements.find(
+    (statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === functionName
+  );
+  if (declaration === undefined) {
+    return false;
+  }
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      found ||= node.expression.text === calledIdentifier;
+    }
+    if (!found) {
+      ts.forEachChild(node, visit);
+    }
+  };
+  visit(declaration);
+  return found;
+}
+
+function collectExportedDeclaration(
+  statement: ts.Statement,
+  typeExports: string[],
+  valueExports: string[]
+): void {
+  if (!hasExportModifier(statement)) {
+    return;
+  }
+  if (ts.isTypeAliasDeclaration(statement) || ts.isInterfaceDeclaration(statement)) {
+    typeExports.push(statement.name.text);
+    return;
+  }
+  if (
+    (ts.isFunctionDeclaration(statement) ||
+      ts.isClassDeclaration(statement) ||
+      ts.isEnumDeclaration(statement)) &&
+    statement.name !== undefined
+  ) {
+    valueExports.push(statement.name.text);
+    return;
+  }
+  if (ts.isVariableStatement(statement)) {
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name)) {
+        valueExports.push(declaration.name.text);
       }
     }
   }
-  return names;
+}
+
+function hasExportModifier(statement: ts.Statement): boolean {
+  return (
+    ts.canHaveModifiers(statement) &&
+    ts
+      .getModifiers(statement)
+      ?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
+  );
+}
+
+function packageExportNames(relativePath: string): string[] {
+  const value: unknown = JSON.parse(readFileSync(new URL(relativePath, REPO_ROOT), 'utf8'));
+  if (!isRecord(value) || !isRecord(value['exports'])) {
+    throw new Error(`${relativePath} must contain an exports object`);
+  }
+  return sorted(Object.keys(value['exports']));
 }
 
 function sorted(values: Iterable<string>): string[] {
-  return Array.from(values).sort();
+  return [...values].sort();
 }
 
-function hasForbiddenVocabulary(name: string): boolean {
-  if (ROOT_ERROR_ALLOWLIST.has(name)) {
-    return false;
-  }
-
-  return name.includes('Graph')
-    || name.includes('Worldline')
-    || name.includes('Strand')
-    || name.includes('Optic')
-    || name.includes('Hologram')
-    || name.includes('Witness')
-    || name.includes('Braid')
-    || name.includes('Wormhole')
-    || name.includes('Projection')
-    || name.includes('Observer')
-    || name.includes('Query')
-    || name.includes('Coordinate')
-    || name.includes('Selector')
-    || name === 'WarpApp'
-    || name === 'WarpCore'
-    || name === 'PatchBuilder'
-    || name === 'PatchSession'
-    || name.startsWith('createNode')
-    || name.startsWith('createEdge')
-    || name.startsWith('createProp')
-    || name === 'createInlineValue'
-    || name === 'createBlobValue'
-    || name === 'decodeEdgePropKey'
-    || name === 'encodeEdgePropKey'
-    || name === 'isEdgePropKey'
-    || GRAPH_SUBSTRATE_NOUNS.has(name);
-}
-
-function forbiddenExportsFrom(exportNames: readonly string[]): string[] {
-  return sorted(exportNames.filter((name) => hasForbiddenVocabulary(name)));
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 describe('v19 public API boundary', () => {
-  it('keeps graph, optic, worldline, witness, and diagnostic nouns out of package root', () => {
-    expect(forbiddenExportsFrom(collectSourceExports('index.ts'))).toEqual([]);
+  it('exports only the three first-use runtime values from package root', () => {
+    const surface = moduleSurface();
+    expect(surface.starExports).toEqual([]);
+    expect(surface.valueExports).toEqual(sorted(ROOT_VALUE_EXPORTS));
   });
 
-  it('keeps graph, optic, worldline, witness, and diagnostic nouns out of browser root', () => {
-    expect(forbiddenExportsFrom(collectSourceExports('browser.ts'))).toEqual([]);
+  it('classifies namespace re-exports as forbidden star exports', () => {
+    const surface = moduleSurface(
+      'namespace-export.ts',
+      "export * as graph from './graph.ts';"
+    );
+
+    expect(surface.starExports).toEqual(["'./graph.ts'"]);
+  });
+
+  it('locks the package-root companion types to an explicit contract', () => {
+    expect(moduleSurface().typeExports).toEqual(sorted(ROOT_TYPE_EXPORTS));
+  });
+
+  it('keeps the storage subpath limited to application adapters', () => {
+    const surface = moduleSurface('storage.ts');
+    expect(surface.starExports).toEqual([]);
+    expect(surface.valueExports).toEqual(['GitStorageAdapter', 'MemoryStorageAdapter']);
+    expect(surface.typeExports).toEqual(['GitStorageAdapterOptions']);
+  });
+
+  it('keeps the advanced subpath limited to bounded coordinate reads', () => {
+    const surface = moduleSurface('advanced.ts');
+    expect(surface.starExports).toEqual([]);
+    expect(surface.valueExports).toEqual(['Coordinate', 'Optic', 'captureCoordinate']);
+    expect(surface.typeExports).toEqual(
+      sorted([
+        'NeighborhoodOpticCompleteness',
+        'NeighborhoodOpticEdge',
+        'NeighborhoodOpticReadDirection',
+        'NeighborhoodOpticReadOptions',
+        'ReadIdentityFrontierEntry',
+        'ReadIdentityIndexShard',
+        'ReadIdentityOptions',
+        'ReadIdentityTailWitness',
+        'WarpWorldlineCoordinateFrontierEntry',
+        'Witness',
+      ])
+    );
+  });
+
+  it('keeps diagnostics usable from public receipt handles', () => {
+    const surface = moduleSurface('diagnostics.ts');
+    expect(surface.starExports).toEqual([]);
+    expect(surface.valueExports).toEqual(['inspectReceipt']);
+    expect(surface.typeExports).toEqual(['ReceiptInspection']);
+  });
+
+  it('publishes only the supported v19 subpaths', () => {
+    expect(packageExportNames('package.json')).toEqual([
+      '.',
+      './advanced',
+      './diagnostics',
+      './package.json',
+      './storage',
+    ]);
+    expect(packageExportNames('jsr.json')).toEqual([
+      '.',
+      './advanced',
+      './diagnostics',
+      './storage',
+    ]);
+  });
+
+  it('installs Node runtime defaults at openWarp instead of package import time', () => {
+    const defaultsModule = '../../application/RuntimeHostNodeDefaults.ts';
+    expect(importedModules('index.ts')).not.toContain(defaultsModule);
+    expect(importedModules('src/domain/api/openWarp.ts')).toContain(defaultsModule);
+    expect(
+      exportedFunctionCalls(
+        'src/domain/api/openWarp.ts',
+        'openWarp',
+        'installDefaultRuntimeHostNodePorts'
+      )
+    ).toBe(true);
   });
 });

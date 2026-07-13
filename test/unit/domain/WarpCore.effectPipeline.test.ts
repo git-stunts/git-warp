@@ -1,13 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import {
-  WarpCore,
-  InMemoryGraphAdapter,
-  EffectPipeline,
-  MultiplexSink,
-  NoOpEffectSink,
-  LIVE_LENS,
-  REPLAY_LENS,
-} from '../../../legacy.ts';
+import WarpCore from '../../../src/domain/WarpCore.ts';
+import { EffectPipeline } from '../../../src/domain/services/EffectPipeline.ts';
+import { MultiplexSink } from '../../../src/domain/services/MultiplexSink.ts';
+import { LIVE_LENS, REPLAY_LENS } from '../../../src/domain/types/ExternalizationPolicy.ts';
+import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.ts';
 
 async function openCore(extra = {}): Promise<WarpCore> {
   return await WarpCore.open({
@@ -32,7 +29,7 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       const mux = new MultiplexSink();
       mux.addSink(new NoOpEffectSink());
       const pipeline = new EffectPipeline({
-        sink: ((mux) as any),
+        sink: mux as any,
         lens: LIVE_LENS,
       });
 
@@ -57,7 +54,7 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       const mux = new MultiplexSink();
       mux.addSink(new NoOpEffectSink());
       core.effectPipeline = new EffectPipeline({
-        sink: ((mux) as any),
+        sink: mux as any,
         lens: LIVE_LENS,
       });
 
@@ -113,8 +110,12 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
         externalizationPolicy: LIVE_LENS,
       });
 
-      const pipeline = (core.effectPipeline as EffectPipeline);
-      const result = await pipeline.emit('notification', { text: 'hi' }, { id: 'emit-1', timestamp: 42 });
+      const pipeline = core.effectPipeline as EffectPipeline;
+      const result = await pipeline.emit(
+        'notification',
+        { text: 'hi' },
+        { id: 'emit-1', timestamp: 42 }
+      );
 
       expect(result.emission.kind).toBe('notification');
       expect(result.observations).toHaveLength(1);
@@ -126,7 +127,7 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
         externalizationPolicy: LIVE_LENS,
       });
 
-      const pipeline = (core.effectPipeline as EffectPipeline);
+      const pipeline = core.effectPipeline as EffectPipeline;
       await pipeline.emit('a', 1, { id: 'emit-a', timestamp: 1 });
       await pipeline.emit('b', 2, { id: 'emit-b', timestamp: 2 });
       await pipeline.emit('c', 3, { id: 'emit-c', timestamp: 3 });
@@ -141,7 +142,7 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
         externalizationPolicy: REPLAY_LENS,
       });
 
-      const pipeline = (core.effectPipeline as EffectPipeline);
+      const pipeline = core.effectPipeline as EffectPipeline;
       const result = await pipeline.emit('test', null, { id: 'emit-replay', timestamp: 0 });
 
       expect(result.observations[0]?.outcome).toBe('suppressed');

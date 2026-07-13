@@ -1,47 +1,44 @@
 /**
- * Operator diagnostics and migration inspection surface.
- *
- * Diagnostic exports stay separate from the application root so public
- * first-use code does not learn substrate nouns before it needs them.
+ * Operator-facing inspection helpers for the v19 application API.
  */
 
-export {
-  BisectService,
-  CommitDagTraversalService,
-  ContentAttachmentProjection,
-  exportCoordinateComparisonFact,
-  exportCoordinateTransferPlanFact,
-  GraphDiff,
-  GraphOpAlgebraProjection,
-  QueryBuilder,
-  TtdMergeBranch,
-  TtdMergeFootprint,
-  TtdMergeInspection,
-  TtdMergeInspector,
-  TtdMergeLoweringWitness,
-  TtdMergeObstructionWitness,
-  TtdMergePolicyRequirement,
-} from './legacy.ts';
-export type {
-  GraphDiffFields,
-  GraphDiffOptions,
-  TtdMergeBranchFields,
-  TtdMergeFootprintFields,
-  TtdMergeInspectionDomain,
-  TtdMergeInspectionFields,
-  TtdMergeLoweringSurface,
-  TtdMergeLoweringWitnessFields,
-  TtdMergeObjectBranchInput,
-  TtdMergeObjectInspectionInput,
-  TtdMergeObstructionWitnessFields,
-  TtdMergePolicyRequirementFields,
-} from './legacy.ts';
-export {
-  normalizeVisibleStateScope,
-  nodeIdInVisibleStateScope,
-  scopeMaterializedState,
-} from './src/domain/services/VisibleStateScope.ts';
-export type {
-  VisibleStateScope,
-  VisibleStateScopePrefixFilter,
-} from './src/domain/services/VisibleStateScope.ts';
+import type { Receipt } from './src/domain/api/Receipt.ts';
+
+export type ReceiptInspection = {
+  readonly operation: Receipt['operation'];
+  readonly outcome: Receipt['outcome'];
+  readonly timeline: string;
+  readonly writer: string;
+  readonly reason: string | undefined;
+  readonly evidence: 'present' | 'absent';
+  readonly objectIds: readonly string[];
+};
+
+export function inspectReceipt(receipt: Receipt): ReceiptInspection {
+  const objectIds = receiptObjectIds(receipt);
+  return Object.freeze({
+    operation: receipt.operation,
+    outcome: receipt.outcome,
+    timeline: receipt.timeline,
+    writer: receipt.writer,
+    reason: receipt.reason,
+    evidence: receipt.operation === 'read' && receipt.evidence !== undefined ? 'present' : 'absent',
+    objectIds: Object.freeze(objectIds),
+  });
+}
+
+function receiptObjectIds(receipt: Receipt): string[] {
+  if (receipt.operation === 'write') {
+    return receipt.patchSha === undefined ? [] : [receipt.patchSha];
+  }
+  if (receipt.operation === 'join') {
+    return [...receipt.patchShas];
+  }
+  if (receipt.evidence === undefined) {
+    return [];
+  }
+  return [
+    receipt.evidence.checkpointSha,
+    ...receipt.evidence.tailWitnesses.map((witness) => witness.sha),
+  ];
+}

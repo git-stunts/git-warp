@@ -25,13 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Added the v19 `openWarp()` product opener plus `Warp` and `Timeline`
-  facade handles to the package root only; the browser root remains outside
-  the v19 facade surface.
-- Moved graph-shaped, worldline-shaped, optic-shaped, witness-shaped, and
-  diagnostic compatibility exports out of the package root into explicit
-  `legacy`, `storage`, `advanced`, and `diagnostics` subpaths. The package root
-  now rejects those nouns through the v19 public API boundary audit.
+- Added the v19 `openWarp()` product opener. `Warp` and `Timeline` are returned
+  as runtime handles and exported from the root as companion types.
+- Moved supported storage, formal WARP, and operator inspection exports out of
+  the package root into the explicit `storage`, `advanced`, and `diagnostics`
+  subpaths. The package root now rejects graph-first compatibility nouns
+  through the v19 public API boundary audit.
+- Moved formal coordinate capture to advanced `captureCoordinate()` so the root
+  `Timeline` exposes opaque ticks but no coordinate machinery.
+- Bound ticks to the exact timeline runtime that created them and made bounded
+  traversal reuse one request-scoped checkpoint basis and tail support index.
 - Locked the package root to the v19 facade allowlist so support ports,
   infrastructure adapters, memory helpers, cancellation utilities, sync
   internals, and canonical serialization helpers stay behind explicit subpaths.
@@ -39,17 +42,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CBOR adapter now owns the named checkpoint artifact encoding for runtime
   checkpoint creation and loading instead of exposing a stale single
   `state.cbor` result.
-- Added visible-state scope helpers to the `diagnostics` subpath so
-  materialized-state inspection has an explicit non-legacy import path.
-- Deprecated the entire graph-first legacy API. `legacy` remains migration-only
-  and is no longer presented as a valid first-use path.
+- Reduced the `diagnostics` subpath to receipt-based `inspectReceipt()`;
+  graph-diff and materialized-state helpers are no longer public contracts.
 - Moved receipt canonical JSON and ORSet/full-state wire encoding out of
   domain types and storage adapters into infrastructure codec modules; `ORSet`
   no longer exposes `serialize()` or `deserialize()`.
-- Raised the coverage ratchet from `92.10%` to `92.56%` after adding targeted
-  coverage for bounded query node paging and memory-budget rejection paths.
+- Raised the coverage ratchet from `92.10%` to `92.62%` after adding targeted
+  coverage for bounded query node paging and memory-budget rejection paths and
+  removing retired compatibility surfaces.
 - Upgraded `@git-stunts/git-cas` to `^6.1.0` so Git-backed state caches can use
   the library's crash-safe `RootSet` retention API.
+
+### Removed
+
+- Removed the `browser` and `legacy` package entrypoints, the graph-first
+  compatibility barrel, and their compatibility-only examples and tests.
+- Removed the v18 graph-first package exports rather than carrying a deprecated
+  second application API through v19.
 
 ### Fixed
 

@@ -5,10 +5,11 @@ import {
   joinDraftTimeline,
   previewDraftJoin,
 } from './DraftTimelineRuntime.ts';
-import { applyIntentToPatch } from './IntentRuntime.ts';
 import { executeReading } from './ReadingRuntime.ts';
+import { createTick } from './TickRuntime.ts';
 import Timeline from './Timeline.ts';
-import WriteReceipt from './WriteReceipt.ts';
+import { createTimelineView } from './TimelineViewRuntime.ts';
+import { executeIntentWrite } from './WriteRuntime.ts';
 
 const timelineRuntimes = new WeakMap<Timeline, WarpWorldline>();
 
@@ -16,22 +17,14 @@ export function createTimeline(runtime: WarpWorldline): Timeline {
   const timeline = new Timeline({
     name: runtime.worldlineName,
     writer: runtime.writerId,
+    captureTick: async () => await createTick(runtime),
     joinDraft: (draft, options) => joinDraftTimeline(runtime, draft, options),
     openDraft: (name) => createDraftTimeline(runtime, runtime.worldlineName, name),
+    openView: (tick) => createTimelineView(runtime, tick),
     previewJoinDraft: (draft, options) => previewDraftJoin(runtime, draft, options),
     readReading: (reading) => executeReading(runtime, reading),
-    writeIntent: async (intent) => {
-      const patchSha = await runtime.commit((patch) => {
-        applyIntentToPatch(intent, patch);
-      });
-      return new WriteReceipt({
-        timeline: runtime.worldlineName,
-        writer: runtime.writerId,
-        intent,
-        outcome: 'accepted',
-        patchSha,
-      });
-    },
+    writeIntent: async (intent) =>
+      await executeIntentWrite(runtime, intent, runtime.commit.bind(runtime)),
   });
   timelineRuntimes.set(timeline, runtime);
   return timeline;

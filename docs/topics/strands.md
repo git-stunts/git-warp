@@ -1,98 +1,26 @@
 # Strands
 
-This page documents deprecated v18 strand controls. Use it for migration and
-diagnostic context, not as a first-use public API guide.
+Strands are currently an operator workflow exposed through the CLI. The v19
+package does not publish the former graph-first strand capability bag.
 
 A strand is not a Git branch or worktree. It is a WARP coordinate plus an
 overlay patch log. That makes it useful for review lanes, proposed changes,
 experiments, and agent work that should remain outside admitted live truth.
 
-## Create a speculative lane
+## Strand model
 
-```typescript
-const graph = await openWarpGraph({
-  persistence,
-  graphName: 'team',
-  writerId: 'alice',
-});
-
-const strand = await graph.strands.createStrand({
-  strandId: 'review-auth',
-  owner: 'alice',
-  scope: 'OAuth review',
-});
-```
-
-Use `openWarpGraph()` for legacy strand controls only while migrating. New
-application reads and writes should not start with `openWarpWorldline()`.
-
-## Patch a strand
-
-```typescript
-await graph.strands.patchStrand('review-auth', (p) => {
-  p.setProperty('task:auth', 'status', 'ready-for-review');
-});
-```
-
-The patch lands on the strand overlay, not the live writer chain.
-
-## Read a strand
-
-Read a strand through the same projection model as other pinned sources:
-
-```typescript
-const reviewLane = graph.query.worldline({
-  source: { kind: 'strand', strandId: 'review-auth' },
-});
-
-const reviewTask = await reviewLane.getNodeProps('task:auth');
-```
-
-This keeps application reads on a projection handle instead of requiring custom
-strand replay code in the caller.
-
-## Braid strands
-
-Braids let one strand read support overlays from other strands. Use them when a
-review lane needs to see related speculative work without collapsing it into
-live truth.
-
-```typescript
-await graph.strands.braidStrand('review-auth', {
-  braidedStrandIds: ['peer-review'],
-  writable: true,
-});
-```
+A strand patch lands on the strand overlay, not the live writer chain. Braids
+let one strand read support overlays from other strands when a review lane needs
+related speculative work without collapsing it into live truth.
 
 The current implementation records pinned braid support overlays. It is real
 runtime behavior, but common-basis braid validation and live holographic braid
 realization remain future architecture. Keep docs precise: shipped braids are
 pinned overlays, not a general distributed merge protocol.
 
-## Compare and transfer
-
-Use comparison when a strand needs review before transfer:
-
-```typescript
-const diff = await graph.comparison.diff({
-  from: { kind: 'strand', strandId: 'review-auth' },
-  to: 'live',
-});
-```
-
 Transfer planning belongs with comparison and governance workflows. Do not
-model strand transfer as a Git branch merge.
-
-## Inspect diagnostically
-
-`materializeStrand()` is an inspection primitive:
-
-```typescript
-const state = await graph.strands.materializeStrand('review-auth');
-```
-
-Use it for diagnostics, receipts, and review evidence. Do not make
-materialized strand state the normal application read path.
+model strand transfer as a Git branch merge. Materialization is for diagnostics,
+receipts, and review evidence, not the normal application read path.
 
 ## CLI workflow
 
@@ -105,6 +33,10 @@ git warp strand compare review-auth --repo ./team-repo --against live
 git warp strand transfer-plan review-auth --repo ./team-repo --into live
 git warp strand drop review-auth --repo ./team-repo
 ```
+
+There is intentionally no equivalent v19 TypeScript example. Importing
+`src/domain/WarpGraph.ts` would couple application code to an internal
+composition root that can change without package-level compatibility promises.
 
 ## See also
 

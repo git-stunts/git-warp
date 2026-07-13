@@ -22,23 +22,10 @@ operators do not rely on memory.
 
 ## Programmatic sync
 
-Deprecated operator code can use the lower-level graph capability bag when it
-intentionally needs sync status, requests, or serve endpoints:
-
-```typescript
-const graph = await openWarpGraph({
-  persistence,
-  graphName: 'team',
-  writerId: 'alice',
-});
-
-const status = await graph.sync.status();
-const request = await graph.sync.createSyncRequest();
-```
-
-Do not use `openWarpWorldline()` for new application writes and reads. Reach for
-`graph.sync` only when maintaining legacy transport, governance, or diagnostic
-tooling.
+The v19 package does not expose the former graph capability bag. There is no
+supported programmatic sync surface yet. Use the CLI for operator workflows
+instead of importing runtime internals. A future embedded sync API must earn an
+explicit package boundary of its own.
 
 ## CLI sync
 

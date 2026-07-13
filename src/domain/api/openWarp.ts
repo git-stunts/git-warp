@@ -1,4 +1,5 @@
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
+import { installDefaultRuntimeHostNodePorts } from '../../application/RuntimeHostNodeDefaults.ts';
 import type { CorePersistence } from '../types/WarpPersistence.ts';
 import { openWarpWorldline } from '../WarpWorldline.ts';
 import Warp from './Warp.ts';
@@ -7,27 +8,29 @@ import { createTimeline } from './TimelineRuntime.ts';
 import WarpError from '../errors/WarpError.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from './OpenWarpIdentityFailure.ts';
 
-export type WarpStorage = CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+export type StorageAdapter = CorePersistence & Partial<RuntimeStorageCapabilityPort>;
 
 export type OpenWarpOptions = {
-  readonly storage: WarpStorage;
+  readonly storage: StorageAdapter;
   readonly writer: string;
 };
 
 export function openWarp(options: OpenWarpOptions): Promise<Warp> {
   return Promise.resolve().then(() => {
     assertOpenWarpOptions(options);
+    installDefaultRuntimeHostNodePorts();
     const { storage, writer } = options;
 
     return new Warp({
       writer,
-      openTimeline: async (name) => createTimeline(
-        await openWarpWorldline({
-          persistence: storage,
-          worldlineName: name,
-          writerId: writer,
-        }),
-      ),
+      openTimeline: async (name) =>
+        createTimeline(
+          await openWarpWorldline({
+            persistence: storage,
+            worldlineName: name,
+            writerId: writer,
+          })
+        ),
     });
   });
 }

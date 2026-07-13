@@ -6,22 +6,16 @@
   },
   "exports": {
     ".": "./index.ts",
-    "./browser": "./browser.ts",
     "./storage": "./storage.ts",
     "./advanced": "./advanced.ts",
-    "./diagnostics": "./diagnostics.ts",
-    "./legacy": "./legacy.ts",
-    "./sha1sync": "./src/infrastructure/adapters/sha1sync.ts"
+    "./diagnostics": "./diagnostics.ts"
   },
   "publish": {
     "include": [
       "index.ts",
-      "browser.ts",
       "storage.ts",
       "advanced.ts",
       "diagnostics.ts",
-      "legacy.ts",
-      "rootCompatibility.ts",
       "src/**/*.ts",
       "src/**/*.d.ts",
       "README.md",

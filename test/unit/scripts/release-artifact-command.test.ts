@@ -1,4 +1,8 @@
-import { spawnSync, type SpawnSyncOptionsWithStringEncoding, type SpawnSyncReturns } from 'node:child_process';
+import {
+  spawnSync,
+  type SpawnSyncOptionsWithStringEncoding,
+  type SpawnSyncReturns,
+} from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
 const COMMAND_TIMEOUT_MS = 120_000;
@@ -6,7 +10,7 @@ const COMMAND_TIMEOUT_MS = 120_000;
 type CommandRunner = (
   command: string,
   args: readonly string[],
-  options: SpawnSyncOptionsWithStringEncoding,
+  options: SpawnSyncOptionsWithStringEncoding
 ) => SpawnSyncReturns<string>;
 
 type SpawnCall = {
@@ -18,9 +22,13 @@ type SpawnCall = {
 
 type PackSectionName = 'Tarball Contents' | 'Tarball Details';
 
-const defaultCommandRunner: CommandRunner = (command, args, options) => spawnSync(command, [...args], options);
+const defaultCommandRunner: CommandRunner = (command, args, options) =>
+  spawnSync(command, [...args], options);
 
-function runNpmCommand(args: readonly string[], runner: CommandRunner = defaultCommandRunner): string {
+function runNpmCommand(
+  args: readonly string[],
+  runner: CommandRunner = defaultCommandRunner
+): string {
   const result = runner('npm', [...args], {
     encoding: 'utf8',
     timeout: COMMAND_TIMEOUT_MS,
@@ -94,21 +102,25 @@ describe('release artifact command evidence', () => {
 
     runNpmCommand(['--version'], recordingRunner);
 
-    expect(calls).toEqual([{
-      command: 'npm',
-      args: ['--version'],
-      timeout: COMMAND_TIMEOUT_MS,
-      killSignal: 'SIGKILL',
-    }]);
+    expect(calls).toEqual([
+      {
+        command: 'npm',
+        args: ['--version'],
+        timeout: COMMAND_TIMEOUT_MS,
+        killSignal: 'SIGKILL',
+      },
+    ]);
   });
 
   it('parses decorated npm pack section headers', () => {
-    const entries = packEntries([
-      'npm notice === Tarball Contents ===',
-      'npm notice 1.2kB dist/index.js',
-      'npm notice === Tarball Details ===',
-      'npm notice name: @git-stunts/git-warp',
-    ].join('\n'));
+    const entries = packEntries(
+      [
+        'npm notice === Tarball Contents ===',
+        'npm notice 1.2kB dist/index.js',
+        'npm notice === Tarball Details ===',
+        'npm notice name: @git-stunts/git-warp',
+      ].join('\n')
+    );
 
     expect(entries).toEqual(new Set(['dist/index.js']));
   });
@@ -118,7 +130,12 @@ describe('release artifact command evidence', () => {
 
     expect(entries.has('dist/index.js')).toBe(true);
     expect(entries.has('dist/index.d.ts')).toBe(true);
-    expect(entries.has('dist/browser.js')).toBe(true);
+    expect(entries.has('dist/browser.js')).toBe(false);
+    expect(entries.has('dist/browser.d.ts')).toBe(false);
+    expect(entries.has('dist/legacy.js')).toBe(false);
+    expect(entries.has('dist/legacy.d.ts')).toBe(false);
+    expect(entries.has('dist/rootCompatibility.js')).toBe(false);
+    expect(entries.has('dist/rootCompatibility.d.ts')).toBe(false);
     expect(entries.has('dist/bin/warp-graph.js')).toBe(true);
     expect(entries.has('bin/git-warp')).toBe(true);
     expect(entries.has('README.md')).toBe(true);

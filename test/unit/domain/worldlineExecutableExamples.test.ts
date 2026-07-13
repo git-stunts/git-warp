@@ -1,17 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import * as packageRoot from '../../../legacy.ts';
-import {
-  InMemoryGraphAdapter,
-  Observer,
-  WarpApp,
-  WarpWorldline,
-  openWarpGraph,
-  openWarpWorldline,
-} from '../../../legacy.ts';
+import WarpApp from '../../../src/domain/WarpApp.ts';
+import Observer from '../../../src/domain/services/query/Observer.ts';
+import type { Aperture } from '../../../src/domain/types/Aperture.ts';
+import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
+import WarpWorldline, { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
+import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
-
-import type { Aperture } from '../../../legacy.ts';
 
 const PUBLIC_USERS_APERTURE: Aperture = Object.freeze({
   match: 'user:*',
@@ -52,21 +47,8 @@ async function seedGuideGraph(events: WarpWorldline): Promise<void> {
   });
 }
 
-function expectRootExportAbsent(name: string): void {
-  expect(Object.prototype.hasOwnProperty.call(packageRoot, name)).toBe(false);
-}
-
-describe('public API executable examples', () => {
-  it('keeps package-root examples on public nouns without exporting runtime classes', async () => {
-    expect(packageRoot.openWarpWorldline).toBe(openWarpWorldline);
-    expect(packageRoot.openWarpGraph).toBe(openWarpGraph);
-    expect(packageRoot.WarpApp).toBe(WarpApp);
-    expect(packageRoot.WarpWorldline).toBe(WarpWorldline);
-    expect(packageRoot.Observer).toBe(Observer);
-    expectRootExportAbsent('WarpRuntime');
-    expectRootExportAbsent('ObserverView');
-    expectRootExportAbsent('WarpGraph');
-
+describe('internal worldline executable examples', () => {
+  it('opens the internal graph composition root', async () => {
     const graph = await openWarpGraph({
       persistence: new InMemoryGraphAdapter(),
       graphName: 'public-api-smoke',
@@ -195,7 +177,10 @@ describe('public API executable examples', () => {
 
     const liveObserver = await events.observer('public-users', PUBLIC_USERS_APERTURE);
     const historical = await events.seek({ source: { kind: 'live', ceiling: 1 } });
-    const historicalObserver = await historical.observer('public-users-at-first-tick', PUBLIC_USERS_APERTURE);
+    const historicalObserver = await historical.observer(
+      'public-users-at-first-tick',
+      PUBLIC_USERS_APERTURE
+    );
 
     expect(liveObserver).toBeInstanceOf(Observer);
     expect(liveObserver.name).toBe('public-users');
@@ -217,7 +202,7 @@ describe('public API executable examples', () => {
     await expect(historicalObserver.hasNode('user:bob')).resolves.toBe(false);
   });
 
-  it('signals public read costs through runtime capability posture objects', async () => {
+  it('signals worldline read costs through runtime capability posture objects', async () => {
     const events = await openEventsWorldline();
     const report = events.capabilities();
 
@@ -226,12 +211,16 @@ describe('public API executable examples', () => {
     expect(report.diagnosticNames()).toEqual(['graph-wide-materialization']);
     expect(report.legacyNames()).toEqual(['legacy-query-arrays']);
     expect(report.requireCapability('memory-budget-contract').posture.toString()).toBe('safe');
-    expect(report.requireCapability('checkpoint-tail-optics').posture.toString()).toBe('transitional');
-    expect(report.requireCapability('graph-wide-materialization').posture.toString()).toBe('diagnostic');
+    expect(report.requireCapability('checkpoint-tail-optics').posture.toString()).toBe(
+      'transitional'
+    );
+    expect(report.requireCapability('graph-wide-materialization').posture.toString()).toBe(
+      'diagnostic'
+    );
     expect(report.requireCapability('legacy-query-arrays').posture.toString()).toBe('legacy');
   });
 
-  it('uses migrated in-memory test fixtures through the public worldline handle', async () => {
+  it('uses migrated in-memory test fixtures through the worldline handle', async () => {
     const repo = createInMemoryRepo();
     try {
       const events = await openWarpWorldline({

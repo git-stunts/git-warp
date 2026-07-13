@@ -17,14 +17,14 @@ export type PropValue =
 const FORBIDDEN_PROPERTY_VALUE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function isScalarPropValue<T>(
-  value: T,
+  value: T
 ): value is T & (string | number | boolean | null | Uint8Array) {
   return (
-    value === null
-    || typeof value === 'string'
-    || typeof value === 'number'
-    || typeof value === 'boolean'
-    || value instanceof Uint8Array
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    value instanceof Uint8Array
   );
 }
 
@@ -60,7 +60,7 @@ function canTraversePropValueObject<T>(value: T, seen: WeakSet<object>): value i
 
 function isPropValueObject<T>(
   value: T,
-  seen: WeakSet<object>,
+  seen: WeakSet<object>
 ): value is T & { [key: string]: PropValue } {
   if (!canTraversePropValueObject(value, seen)) {
     return false;
@@ -86,16 +86,43 @@ function isNonArrayPlainObject(value: object): boolean {
   if (Array.isArray(value) || value instanceof Uint8Array) {
     return false;
   }
-  return Object.getPrototypeOf(value) === Object.prototype
-    || Object.getPrototypeOf(value) === null;
+  return Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null;
 }
 
 export function isPropValue<T>(value: T): value is T & PropValue {
   return isPropValueWithSeen(value, new WeakSet<object>());
 }
 
+export function copyPropValue(value: PropValue): PropValue {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  return copyCompositePropValue(value);
+}
+
+function copyCompositePropValue(
+  value: Uint8Array | PropValue[] | { [key: string]: PropValue }
+): PropValue {
+  if (value instanceof Uint8Array) {
+    return new Uint8Array(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(copyPropValue);
+  }
+  const copy: { [key: string]: PropValue } = {};
+  for (const [key, entry] of Object.entries(value)) {
+    Object.defineProperty(copy, key, {
+      value: copyPropValue(entry),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+  return copy;
+}
+
 function isPropValueWithSeen<T>(value: T, seen: WeakSet<object>): value is T & PropValue {
-  return isScalarPropValue(value)
-    || isPropValueArray(value, seen)
-    || isPropValueObject(value, seen);
+  return (
+    isScalarPropValue(value) || isPropValueArray(value, seen) || isPropValueObject(value, seen)
+  );
 }

@@ -41,13 +41,9 @@ describe('non-TS tail shape', () => {
     expect(existsSync(`${repoRoot}vitest.config.js`)).toBe(false);
   });
 
-  it('keeps the sha1sync export honest without a standalone declaration file', () => {
-    expect(packageJson.exports['./sha1sync']).toEqual({
-      types: './dist/src/infrastructure/adapters/sha1sync.d.ts',
-      import: './dist/src/infrastructure/adapters/sha1sync.js',
-      default: './dist/src/infrastructure/adapters/sha1sync.js',
-    });
-    expect(jsrJson.exports['./sha1sync']).toBe('./src/infrastructure/adapters/sha1sync.ts');
+  it('keeps sha1sync internal without a standalone declaration file', () => {
+    expect('./sha1sync' in packageJson.exports).toBe(false);
+    expect('./sha1sync' in jsrJson.exports).toBe(false);
     expect(trackedNonTypeScriptTail()).not.toContain('src/infrastructure/adapters/sha1sync.d.ts');
   });
 

@@ -1,20 +1,30 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import DraftTimeline from './DraftTimeline.ts';
-import { RECEIPT_OUTCOMES, type ReceiptOutcome } from './WriteReceipt.ts';
+import { RECEIPT_OUTCOMES, type JoinOutcome } from './ReceiptOutcome.ts';
 
 export type JoinMode = 'preview' | 'join';
-export type JoinReceiptOutcome = ReceiptOutcome;
+export type JoinReceiptOutcome = JoinOutcome;
 
-export type JoinReceiptOptions = {
+type JoinReceiptFields = {
   readonly timeline: string;
   readonly writer: string;
   readonly draft: DraftTimeline;
   readonly mode: JoinMode;
-  readonly outcome: JoinReceiptOutcome;
   readonly patchShas?: readonly string[];
-  readonly reason?: string;
 };
+
+export type JoinReceiptOptions = JoinReceiptFields &
+  (
+    | {
+        readonly outcome: 'accepted';
+        readonly reason?: never;
+      }
+    | {
+        readonly outcome: Exclude<JoinReceiptOutcome, 'accepted'>;
+        readonly reason: string;
+      }
+  );
 
 const JOIN_MODES: ReadonlySet<JoinMode> = new Set(['preview', 'join']);
 const JOIN_RECEIPT_OUTCOMES: ReadonlySet<JoinReceiptOutcome> = RECEIPT_OUTCOMES;
@@ -22,6 +32,7 @@ const JOIN_RECEIPT_OUTCOMES: ReadonlySet<JoinReceiptOutcome> = RECEIPT_OUTCOMES;
 export default class JoinReceipt {
   readonly draft: DraftTimeline;
   readonly mode: JoinMode;
+  readonly operation: 'join' = 'join';
   readonly outcome: JoinReceiptOutcome;
   readonly patchShas: readonly string[];
   readonly reason: string | undefined;
@@ -47,21 +58,47 @@ export default class JoinReceipt {
 function validateJoinReceiptFields(fields: JoinReceiptOptions): void {
   requireNonEmptyString(fields.timeline, 'joinReceipt.timeline');
   requireNonEmptyString(fields.writer, 'joinReceipt.writer');
-  if (!(fields.draft instanceof DraftTimeline)) {
+  validateDraft(fields.draft);
+  validateJoinMode(fields.mode);
+  validateJoinOutcome(fields.outcome);
+  validateJoinReason(fields);
+}
+
+function validateDraft(draft: DraftTimeline): void {
+  if (!(draft instanceof DraftTimeline)) {
     throw new WarpError('JoinReceipt requires a DraftTimeline', 'E_JOIN_RECEIPT_DRAFT');
-  }
-  if (!JOIN_MODES.has(fields.mode)) {
-    throw new WarpError('JoinReceipt mode is unsupported', 'E_JOIN_RECEIPT_MODE');
-  }
-  if (!JOIN_RECEIPT_OUTCOMES.has(fields.outcome)) {
-    throw new WarpError('JoinReceipt outcome is unsupported', 'E_JOIN_RECEIPT_OUTCOME');
-  }
-  if (fields.reason !== undefined) {
-    requireNonEmptyString(fields.reason, 'joinReceipt.reason');
   }
 }
 
-function requireJoinReceiptOptions(options: JoinReceiptOptions | null | undefined): JoinReceiptOptions {
+function validateJoinMode(mode: JoinMode): void {
+  if (!JOIN_MODES.has(mode)) {
+    throw new WarpError('JoinReceipt mode is unsupported', 'E_JOIN_RECEIPT_MODE');
+  }
+}
+
+function validateJoinOutcome(outcome: JoinReceiptOutcome): void {
+  if (!JOIN_RECEIPT_OUTCOMES.has(outcome)) {
+    throw new WarpError('JoinReceipt outcome is unsupported', 'E_JOIN_RECEIPT_OUTCOME');
+  }
+}
+
+function validateJoinReason(fields: JoinReceiptOptions): void {
+  if (fields.outcome === 'accepted') {
+    rejectAcceptedJoinReason(fields.reason);
+    return;
+  }
+  requireNonEmptyString(fields.reason, 'joinReceipt.reason');
+}
+
+function rejectAcceptedJoinReason(reason: string | undefined): void {
+  if (reason !== undefined) {
+    throw new WarpError('Accepted JoinReceipt cannot carry a reason', 'E_JOIN_RECEIPT_REASON');
+  }
+}
+
+function requireJoinReceiptOptions(
+  options: JoinReceiptOptions | null | undefined
+): JoinReceiptOptions {
   if (options === null || options === undefined) {
     throw new WarpError('JoinReceipt options are required', 'E_JOIN_RECEIPT_OPTIONS');
   }

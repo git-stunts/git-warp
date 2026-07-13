@@ -5,6 +5,7 @@ import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsup
 import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
 import GCExecuteResult from '../../../../../src/domain/services/GCExecuteResult.ts';
 import WarpError from '../../../../../src/domain/errors/WarpError.ts';
+import PersistenceError from '../../../../../src/domain/errors/PersistenceError.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 
 /**
@@ -134,6 +135,7 @@ function createMockHost(overrides = {}) {
       updateRef: vi.fn().mockResolvedValue(undefined),
       commitNode: vi.fn().mockResolvedValue('anchor-sha'),
       getNodeInfo: vi.fn().mockResolvedValue({ message: 'msg', parents: [] }),
+      showNode: vi.fn().mockResolvedValue('msg'),
     },
     _cachedState: null,
     _stateDirty: false,
@@ -145,6 +147,7 @@ function createMockHost(overrides = {}) {
     _codec: { decode: vi.fn() },
     _commitMessageCodec: {
       detectKind: detectMessageKindMock,
+      decodeCheckpoint: vi.fn(),
       decodePatch: vi.fn((message: string) => {
         const decoded = decodePatchMessageMock(message) as {
           storage?: { strategy: string; version: string | null; schema: string | null; encrypted: boolean };
@@ -436,7 +439,8 @@ describe('CheckpointController', () => {
   describe('_validateMigrationBoundary', () => {
     it('passes when checkpoint has v5 schema', async () => {
       ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
-      loadCheckpointMock.mockResolvedValue({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 5, appliedVV: null, indexShardOids: null });
+      detectMessageKindMock.mockReturnValue('checkpoint');
+      ((host['_commitMessageCodec'] as any).decodeCheckpoint as any).mockReturnValue({ schema: 5 });
       isCurrentCheckpointSchemaMock.mockReturnValue(true);
 
       await expect(ctrl._validateMigrationBoundary()).resolves.toBeUndefined();
@@ -465,6 +469,35 @@ describe('CheckpointController', () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue([]);
 
       await expect(ctrl._validateMigrationBoundary()).resolves.toBeUndefined();
+    });
+
+    it('rejects a checkpoint ref whose commit message is empty', async () => {
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
+      ((host['_persistence'] as any).showNode as any).mockResolvedValue('');
+      const validation = ctrl._validateMigrationBoundary();
+
+      await expect(validation).rejects.toMatchObject({
+        code: 'E_CHECKPOINT_REF_INVALID',
+        context: {
+          checkpointSha: 'cp-sha',
+          reason: 'empty-checkpoint-message',
+        },
+      });
+      await expect(validation).rejects.toBeInstanceOf(PersistenceError);
+    });
+
+    it('rejects a checkpoint ref whose commit is not a checkpoint', async () => {
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
+      ((host['_persistence'] as any).showNode as any).mockResolvedValue('patch-message');
+      detectMessageKindMock.mockReturnValue('patch');
+
+      await expect(ctrl._validateMigrationBoundary()).rejects.toMatchObject({
+        code: 'E_CHECKPOINT_REF_INVALID',
+        context: {
+          checkpointSha: 'cp-sha',
+          reason: 'non-checkpoint-message',
+        },
+      });
     });
   });
 

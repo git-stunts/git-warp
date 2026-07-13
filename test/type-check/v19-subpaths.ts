@@ -1,59 +1,33 @@
 /**
  * v19 explicit subpath consumer fixture -- compile-only.
  *
- * Storage, advanced, diagnostics, and legacy imports stay reachable only from
- * their named compatibility surfaces.
+ * Storage, advanced, and diagnostics imports stay reachable only from their
+ * named expert surfaces.
  */
 
 import {
   GitStorageAdapter,
   MemoryStorageAdapter,
-  NodeCryptoAdapter,
+  type GitStorageAdapterOptions,
 } from '../../storage.ts';
-import {
-  GitWarpTickHologram,
-  Observer,
-  Optic,
-  ProjectionHandle,
-} from '../../advanced.ts';
-import {
-  QueryBuilder,
-  TtdMergeInspector,
-  normalizeVisibleStateScope,
-} from '../../diagnostics.ts';
-import {
-  InMemoryGraphAdapter,
-  PatchBuilder,
-  WarpWorldline,
-  openWarpGraph,
-  openWarpWorldline,
-} from '../../legacy.ts';
+import { type Receipt, type Timeline } from '../../index.ts';
+import { captureCoordinate, Coordinate, Optic, type Witness } from '../../advanced.ts';
+import { inspectReceipt, type ReceiptInspection } from '../../diagnostics.ts';
 
-const storageAdapter: typeof MemoryStorageAdapter = MemoryStorageAdapter;
-const gitStorageAdapter: typeof GitStorageAdapter = GitStorageAdapter;
-const nodeCryptoAdapter: typeof NodeCryptoAdapter = NodeCryptoAdapter;
-const observer: typeof Observer = Observer;
-const optic: typeof Optic = Optic;
-const projectionHandle: typeof ProjectionHandle = ProjectionHandle;
-const tickHologram: typeof GitWarpTickHologram = GitWarpTickHologram;
-const queryBuilder: typeof QueryBuilder = QueryBuilder;
-const ttdMergeInspector: typeof TtdMergeInspector = TtdMergeInspector;
-const legacyAdapter: typeof InMemoryGraphAdapter = InMemoryGraphAdapter;
-const patchBuilder: typeof PatchBuilder = PatchBuilder;
-const worldline: typeof WarpWorldline = WarpWorldline;
+declare const gitStorageOptions: GitStorageAdapterOptions;
+
+const storageAdapter = new MemoryStorageAdapter();
+const gitStorageAdapter = new GitStorageAdapter(gitStorageOptions);
+declare const timeline: Timeline;
+const coordinate: InstanceType<typeof Coordinate> = await captureCoordinate(timeline);
+const optic: InstanceType<typeof Optic> = coordinate.optic();
+const node = await optic.node('user:alice').read();
+const witness: Witness = node.readIdentity;
+declare const receipt: Receipt;
+const inspection: ReceiptInspection = inspectReceipt(receipt);
 
 void storageAdapter;
 void gitStorageAdapter;
-void nodeCryptoAdapter;
-void observer;
 void optic;
-void projectionHandle;
-void tickHologram;
-void queryBuilder;
-void ttdMergeInspector;
-void normalizeVisibleStateScope;
-void legacyAdapter;
-void patchBuilder;
-void worldline;
-void openWarpGraph;
-void openWarpWorldline;
+void witness;
+void inspection;

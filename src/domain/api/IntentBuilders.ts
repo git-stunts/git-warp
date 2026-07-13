@@ -1,6 +1,5 @@
 import Intent, {
   type EdgeIntentFields,
-  type EdgePropertyIntentFields,
   type NodeIntentFields,
   type PropertyIntentFields,
 } from './Intent.ts';
@@ -17,9 +16,6 @@ export type IntentBuilders = {
   readonly property: {
     readonly set: (fields: PropertyIntentFields) => Intent;
   };
-  readonly edgeProperty: {
-    readonly set: (fields: EdgePropertyIntentFields) => Intent;
-  };
 };
 
 export const intent: IntentBuilders = Object.freeze({
@@ -33,8 +29,5 @@ export const intent: IntentBuilders = Object.freeze({
   }),
   property: Object.freeze({
     set: (fields: PropertyIntentFields) => Intent.setProperty(fields),
-  }),
-  edgeProperty: Object.freeze({
-    set: (fields: EdgePropertyIntentFields) => Intent.setEdgeProperty(fields),
   }),
 });

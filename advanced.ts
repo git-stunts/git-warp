@@ -1,69 +1,25 @@
 /**
- * Formal and support-oriented API surface.
+ * Formal bounded-reading API for expert consumers.
  *
- * These exports keep advanced read/evidence machinery out of the package root.
- * Application code should prefer the root intent/timeline/receipt API as it
- * lands through v19.
+ * Capture a `Coordinate` from a public `Timeline` with `captureCoordinate()`,
+ * then lower reads through its executable `Optic`. A successful read carries
+ * a type-only `Witness` through the root receipt evidence contract.
  */
 
-export {
-  BoundedSupportRule,
-  CausalIndexPlan,
-  composeWormholes,
-  createWormhole,
-  deserializeWormhole,
-  LiveSelector,
-  Observer,
-  ObserverAccumulation,
-  ObserverBasis,
-  ObserverEmission,
-  ObserverPlan,
-  ObserverReadingEnvelope,
-  openAperture,
-  Optic,
-  OpticAperturePosture,
-  OpticBasisPosture,
-  OpticCoordinatePosture,
-  OpticSupportRule,
-  ProjectionHandle,
-  RejectedZKWormhole,
-  replayWormhole,
-  serializeWormhole,
-  StrandSelector,
-  SupportFragmentPlan,
-  VerifiedZKWormhole,
-  verifyZKWormhole,
-  WarpWorldlineCoordinate,
-  WarpWorldlineOpticBasis,
-  WorldlineSelector,
-  ZKWormholeEdge,
-  ZKWormholeProofVerifierPort,
-} from './legacy.ts';
-export * from './src/continuumExports.ts';
+export { default as captureCoordinate } from './src/domain/api/captureCoordinate.ts';
+export { default as Coordinate } from './src/domain/WarpWorldlineCoordinate.ts';
+export { default as Optic } from './src/domain/services/optic/WorldlineOptic.ts';
+export type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
+export type { NeighborhoodOpticReadOptions } from './src/domain/services/optic/NeighborhoodOptic.ts';
 export type {
-  Aperture,
-  ApertureOpeningVerificationResult,
-  BoundedSupportDirection,
-  BoundedSupportKind,
-  BoundedSupportRuleFields,
-  BoundedSupportSurface,
-  CausalIndexFamily,
-  CausalIndexPlanFields,
-  CausalIndexPlanPosture,
-  ObserverConfig,
-  ObserverPlanFields,
-  ObserverReadingEnvelopeBudget,
-  ObserverReadingEnvelopeFields,
-  OpticAperturePostureValue,
-  OpticBasisPostureValue,
-  OpticContextValue,
-  OpticCoordinatePostureValue,
-  OpticFields,
-  OpticPostureFields,
-  OpticSupportRuleValue,
-  SupportFragmentMaterializationPosture,
-  SupportFragmentPlanFields,
-  WarpWorldlineCoordinateFrontierEntry,
-  ZKWormholeEdgeFields,
-  ZKWormholeVerificationResult,
-} from './legacy.ts';
+  NeighborhoodOpticCompleteness,
+  NeighborhoodOpticEdge,
+  NeighborhoodOpticReadDirection,
+} from './src/domain/services/optic/NeighborhoodOpticReadResult.ts';
+export type {
+  default as Witness,
+  ReadIdentityFrontierEntry,
+  ReadIdentityIndexShard,
+  ReadIdentityOptions,
+  ReadIdentityTailWitness,
+} from './src/domain/services/optic/ReadIdentity.ts';

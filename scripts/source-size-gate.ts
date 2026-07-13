@@ -49,7 +49,6 @@ export const SOURCE_SIZE_RELAXATIONS = Object.freeze([
   'src/domain/services/audit/AuditChainVerifier.ts',
   'src/domain/services/controllers/CheckpointController.ts',
   'src/domain/services/optic/CheckpointBasisManifest.ts',
-  'src/domain/services/optic/CheckpointShardFactReader.ts',
   'src/domain/services/state/WarpState.ts',
   'test/unit/domain/WarpGraph.coverageGaps.test.ts',
   'test/unit/domain/services/AuditVerifierService.test.ts',

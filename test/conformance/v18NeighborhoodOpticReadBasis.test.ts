@@ -50,8 +50,8 @@ describe('v18 NeighborhoodOptic checkpoint-tail read basis', () => {
       completeness: 'complete',
       cursor: null,
       edges: [
-        { direction: 'out', neighborId: ALPHA_NODE_ID, label: OWNS_LABEL },
         { direction: 'out', neighborId: BETA_NODE_ID, label: FOLLOWS_LABEL },
+        { direction: 'out', neighborId: ALPHA_NODE_ID, label: OWNS_LABEL },
       ],
     });
     expect(incoming).toMatchObject({
@@ -62,8 +62,8 @@ describe('v18 NeighborhoodOptic checkpoint-tail read basis', () => {
     expect(both).toMatchObject({
       edges: [
         { direction: 'in', neighborId: GAMMA_NODE_ID, label: FOLLOWS_LABEL },
-        { direction: 'out', neighborId: ALPHA_NODE_ID, label: OWNS_LABEL },
         { direction: 'out', neighborId: BETA_NODE_ID, label: FOLLOWS_LABEL },
+        { direction: 'out', neighborId: ALPHA_NODE_ID, label: OWNS_LABEL },
       ],
     });
     expect(ownsOnly).toMatchObject({
@@ -98,24 +98,26 @@ describe('v18 NeighborhoodOptic checkpoint-tail read basis', () => {
     const readPath = new V17PublicOpticReadPath(graph.worldline());
 
     const first = await readPath.readNeighborhood(HUB_NODE_ID, { direction: 'out', limit: 1 });
+    const firstCursor = neighborhoodCursor(first);
+    expect(firstCursor).not.toBeNull();
     const second = await readPath.readNeighborhood(HUB_NODE_ID, {
       direction: 'out',
       limit: 1,
-      cursor: '1',
+      cursor: firstCursor ?? undefined,
     });
 
     expect(first).toMatchObject({
       completeness: 'truncated',
-      cursor: '1',
+      cursor: firstCursor,
       edges: [
-        { direction: 'out', neighborId: ALPHA_NODE_ID, label: OWNS_LABEL },
+        { direction: 'out', neighborId: BETA_NODE_ID, label: FOLLOWS_LABEL },
       ],
     });
     expect(second).toMatchObject({
       completeness: 'complete',
       cursor: null,
       edges: [
-        { direction: 'out', neighborId: BETA_NODE_ID, label: FOLLOWS_LABEL },
+        { direction: 'out', neighborId: ALPHA_NODE_ID, label: OWNS_LABEL },
       ],
     });
   });
@@ -167,4 +169,12 @@ function readIdentityShardPaths(result: object): readonly string[] {
       return path;
     }),
   );
+}
+
+function neighborhoodCursor(result: object): string | null {
+  const cursor = Reflect.get(result, 'cursor');
+  if (cursor !== null && typeof cursor !== 'string') {
+    throw new Error('expected neighborhood cursor');
+  }
+  return cursor;
 }

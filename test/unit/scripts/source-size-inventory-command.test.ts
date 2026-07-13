@@ -20,7 +20,6 @@ const SOURCE_OVER_BUDGET_PATHS = Object.freeze([
   'src/domain/services/audit/AuditChainVerifier.ts',
   'src/domain/services/controllers/CheckpointController.ts',
   'src/domain/services/optic/CheckpointBasisManifest.ts',
-  'src/domain/services/optic/CheckpointShardFactReader.ts',
   'src/domain/services/state/WarpState.ts',
 ]);
 

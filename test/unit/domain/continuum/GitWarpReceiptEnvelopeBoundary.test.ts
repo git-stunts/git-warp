@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { GitWarpReceiptEnvelopeBoundary } from '../../../../legacy.ts';
+import GitWarpReceiptEnvelopeBoundary from '../../../../src/domain/continuum/GitWarpReceiptEnvelopeBoundary.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { TickReceipt } from '../../../../src/domain/types/TickReceipt.ts';
 
@@ -9,20 +9,24 @@ function makeReceipt(): TickReceipt {
     patchSha: 'd'.repeat(40),
     writer: 'writer-a',
     lamport: 11,
-    ops: [{
-      op: 'NodeAdd',
-      target: 'node:a',
-      result: 'applied',
-    }, {
-      op: 'PropSet',
-      target: 'node:a\u0000name',
-      result: 'superseded',
-      reason: 'LWW: writer writer-b at lamport 12 wins',
-    }, {
-      op: 'EdgeAdd',
-      target: 'node:a\u0000node:b\u0000knows',
-      result: 'redundant',
-    }],
+    ops: [
+      {
+        op: 'NodeAdd',
+        target: 'node:a',
+        result: 'applied',
+      },
+      {
+        op: 'PropSet',
+        target: 'node:a\u0000name',
+        result: 'superseded',
+        reason: 'LWW: writer writer-b at lamport 12 wins',
+      },
+      {
+        op: 'EdgeAdd',
+        target: 'node:a\u0000node:b\u0000knows',
+        result: 'redundant',
+      },
+    ],
   });
 }
 
@@ -58,14 +62,20 @@ describe('GitWarpReceiptEnvelopeBoundary', () => {
   });
 
   it('rejects missing or non-receipt carriers at runtime', () => {
-    expect(() => new GitWarpReceiptEnvelopeBoundary(
-      // @ts-expect-error runtime guard for JavaScript callers
-      undefined,
-    )).toThrow(WarpError);
+    expect(
+      () =>
+        new GitWarpReceiptEnvelopeBoundary(
+          // @ts-expect-error runtime guard for JavaScript callers
+          undefined
+        )
+    ).toThrow(WarpError);
 
-    expect(() => new GitWarpReceiptEnvelopeBoundary({
-      // @ts-expect-error runtime guard for JavaScript callers
-      receipt: undefined,
-    })).toThrow(WarpError);
+    expect(
+      () =>
+        new GitWarpReceiptEnvelopeBoundary({
+          // @ts-expect-error runtime guard for JavaScript callers
+          receipt: undefined,
+        })
+    ).toThrow(WarpError);
   });
 });

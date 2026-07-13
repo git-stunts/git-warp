@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { openWarpWorldline } from '../../legacy.ts';
+import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import type { PatchBuilder } from '../../src/domain/services/PatchBuilder.ts';
@@ -21,7 +21,9 @@ async function openWorldlineWithOperatorBasis(options: {
     persistence,
     graphName: options.worldlineName,
     writerId: 'app',
-    ...(options.onDeleteWithData === undefined ? {} : { onDeleteWithData: options.onDeleteWithData }),
+    ...(options.onDeleteWithData === undefined
+      ? {}
+      : { onDeleteWithData: options.onDeleteWithData }),
   });
   await runtime.patch(options.seed);
   await runtime.materialize();
@@ -30,7 +32,9 @@ async function openWorldlineWithOperatorBasis(options: {
     persistence,
     worldlineName: options.worldlineName,
     writerId: 'app',
-    ...(options.onDeleteWithData === undefined ? {} : { onDeleteWithData: options.onDeleteWithData }),
+    ...(options.onDeleteWithData === undefined
+      ? {}
+      : { onDeleteWithData: options.onDeleteWithData }),
   });
 }
 
@@ -184,7 +188,9 @@ describe('v18 coordinate optic public path', () => {
         field: 'nodeId',
       },
     });
-    await expect(async () => coordinate.optic().node(NODE_ID).prop('').read()).rejects.toMatchObject({
+    await expect(async () =>
+      coordinate.optic().node(NODE_ID).prop('').read()
+    ).rejects.toMatchObject({
       code: 'E_OPTIC_FAILURE_SCHEMA',
       context: {
         field: 'propertyKey',

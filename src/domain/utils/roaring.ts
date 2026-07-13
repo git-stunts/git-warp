@@ -9,6 +9,8 @@ export type RoaringBitmapSubset = {
   orInPlace(other: Iterable<number>): void;
   serialize(portable: boolean): Uint8Array;
   toArray(): number[];
+  rank(value: number): number;
+  at(index: number): number | undefined;
   [Symbol.iterator](): Iterator<number>;
 };
 

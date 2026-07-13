@@ -4,7 +4,9 @@ import DraftTimeline from './DraftTimeline.ts';
 import Intent from './Intent.ts';
 import type JoinResult from './JoinResult.ts';
 import Reading from './Reading.ts';
-import type ReadingResult from './ReadingResult.ts';
+import type { default as ReadingResult, ReadingValue } from './ReadingResult.ts';
+import Tick from './Tick.ts';
+import type TimelineView from './TimelineView.ts';
 import type WriteReceipt from './WriteReceipt.ts';
 
 const DETERMINISTIC_JOIN_POLICY: 'deterministic' = 'deterministic';
@@ -19,20 +21,26 @@ export type JoinOptions = {
 type TimelineConstructionOptions = {
   readonly name: string;
   readonly writer: string;
+  readonly captureTick?: CaptureTick;
   readonly joinDraft?: JoinDraft;
   readonly openDraft?: OpenDraft;
+  readonly openView?: OpenView;
   readonly previewJoinDraft?: JoinDraft;
   readonly readReading?: ReadReading;
   readonly writeIntent?: WriteIntent;
 };
 
 type JoinDraft = (draft: DraftTimeline, options: JoinOptions) => Promise<JoinResult>;
+type CaptureTick = () => Promise<Tick>;
 type OpenDraft = (name: string) => Promise<DraftTimeline>;
+type OpenView = (tick: Tick) => TimelineView;
 type ReadReading = (reading: Reading) => Promise<ReadingResult>;
 type WriteIntent = (intent: Intent) => Promise<WriteReceipt>;
 type TimelinePortErrorCode =
   | 'E_TIMELINE_JOINER'
+  | 'E_TIMELINE_TICK_READER'
   | 'E_TIMELINE_DRAFT_OPENER'
+  | 'E_TIMELINE_VIEW_OPENER'
   | 'E_TIMELINE_READER'
   | 'E_TIMELINE_WRITER';
 
@@ -44,9 +52,11 @@ type TimelinePortErrorCode =
  * root API contract.
  */
 export default class Timeline {
+  readonly #captureTick: CaptureTick | null;
   readonly #joinDraft: JoinDraft | null;
   readonly #name: string;
   readonly #openDraft: OpenDraft | null;
+  readonly #openView: OpenView | null;
   readonly #previewJoinDraft: JoinDraft | null;
   readonly #readReading: ReadReading | null;
   readonly #writeIntent: WriteIntent | null;
@@ -63,8 +73,10 @@ export default class Timeline {
       code: 'E_TIMELINE_IDENTITY',
     });
     this.#joinDraft = optionalPort(options.joinDraft);
+    this.#captureTick = optionalPort(options.captureTick);
     this.#name = options.name;
     this.#openDraft = optionalPort(options.openDraft);
+    this.#openView = optionalPort(options.openView);
     this.#previewJoinDraft = optionalPort(options.previewJoinDraft);
     this.#writer = options.writer;
     this.#readReading = optionalPort(options.readReading);
@@ -91,6 +103,23 @@ export default class Timeline {
     return await this.#openDraft(name);
   }
 
+  async tick(): Promise<Tick> {
+    if (this.#captureTick === null) {
+      throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
+    }
+    return await this.#captureTick();
+  }
+
+  at(tick: Tick): TimelineView {
+    if (!(tick instanceof Tick)) {
+      throw new WarpError('Timeline.at requires a Tick', 'E_TIMELINE_AT_TICK');
+    }
+    if (this.#openView === null) {
+      throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
+    }
+    return this.#openView(tick);
+  }
+
   async previewJoin(draft: DraftTimeline, options?: JoinOptions): Promise<JoinResult> {
     assertDraftTimeline(draft);
     if (this.#previewJoinDraft === null) {
@@ -115,6 +144,23 @@ export default class Timeline {
     return await this.#readReading(reading);
   }
 
+  async readValue(reading: Reading): Promise<ReadingValue> {
+    const result = await this.read(reading);
+    if (result.receipt.outcome !== 'accepted') {
+      throw new WarpError(
+        'Timeline.readValue requires an accepted reading',
+        'E_TIMELINE_READ_UNRESOLVED',
+        {
+          context: {
+            outcome: result.receipt.outcome,
+            reason: result.receipt.reason,
+          },
+        }
+      );
+    }
+    return result.value;
+  }
+
   async write(intent: Intent): Promise<WriteReceipt> {
     assertIntentInstance(intent);
     if (this.#writeIntent === null) {
@@ -126,7 +172,10 @@ export default class Timeline {
 
 function assertDraftTimeline(draft: DraftTimeline): void {
   if (!(draft instanceof DraftTimeline)) {
-    throw new WarpError('Timeline join operations require a DraftTimeline', 'E_TIMELINE_JOIN_DRAFT');
+    throw new WarpError(
+      'Timeline join operations require a DraftTimeline',
+      'E_TIMELINE_JOIN_DRAFT'
+    );
   }
 }
 
@@ -150,21 +199,31 @@ function assertTimelineConstructionOptions(options: TimelineConstructionOptions)
   if (options === null || options === undefined) {
     throw new WarpError(
       'Timeline requires construction options',
-      'E_TIMELINE_CONSTRUCTION_OPTIONS',
+      'E_TIMELINE_CONSTRUCTION_OPTIONS'
     );
   }
   assertJoinDraft(options.joinDraft);
+  assertCaptureTick(options.captureTick);
   assertOpenDraft(options.openDraft);
+  assertOpenView(options.openView);
   assertJoinDraft(options.previewJoinDraft);
   assertReadReading(options.readReading);
   assertWriteIntent(options.writeIntent);
+}
+
+function assertCaptureTick(capture: CaptureTick | undefined): void {
+  assertOptionalFunctionPort(
+    capture,
+    'Timeline requires a tick function when provided',
+    'E_TIMELINE_TICK_READER'
+  );
 }
 
 function assertJoinDraft(joinDraft: JoinDraft | undefined): void {
   assertOptionalFunctionPort(
     joinDraft,
     'Timeline requires a join function when provided',
-    'E_TIMELINE_JOINER',
+    'E_TIMELINE_JOINER'
   );
 }
 
@@ -172,7 +231,15 @@ function assertOpenDraft(openDraft: OpenDraft | undefined): void {
   assertOptionalFunctionPort(
     openDraft,
     'Timeline requires an openDraft function when provided',
-    'E_TIMELINE_DRAFT_OPENER',
+    'E_TIMELINE_DRAFT_OPENER'
+  );
+}
+
+function assertOpenView(openView: OpenView | undefined): void {
+  assertOptionalFunctionPort(
+    openView,
+    'Timeline requires an openView function when provided',
+    'E_TIMELINE_VIEW_OPENER'
   );
 }
 
@@ -180,7 +247,7 @@ function assertReadReading(readReading: ReadReading | undefined): void {
   assertOptionalFunctionPort(
     readReading,
     'Timeline requires a readReading function when provided',
-    'E_TIMELINE_READER',
+    'E_TIMELINE_READER'
   );
 }
 
@@ -204,7 +271,10 @@ function assertJoinOptionsObject(options: JoinOptions | null): asserts options i
 
 function assertNoDryRunTrap(options: JoinOptions): void {
   if ('dryRun' in options) {
-    throw new WarpError('Use Timeline.previewJoin() instead of a dryRun option', 'E_TIMELINE_JOIN_DRY_RUN');
+    throw new WarpError(
+      'Use Timeline.previewJoin() instead of a dryRun option',
+      'E_TIMELINE_JOIN_DRY_RUN'
+    );
   }
 }
 
@@ -212,14 +282,14 @@ function assertWriteIntent(writeIntent: WriteIntent | undefined): void {
   assertOptionalFunctionPort(
     writeIntent,
     'Timeline requires a writeIntent function when provided',
-    'E_TIMELINE_WRITER',
+    'E_TIMELINE_WRITER'
   );
 }
 
 function assertOptionalFunctionPort<TPort>(
   port: TPort | undefined,
   message: string,
-  code: TimelinePortErrorCode,
+  code: TimelinePortErrorCode
 ): void {
   if (port !== undefined && typeof port !== 'function') {
     throw new WarpError(message, code);

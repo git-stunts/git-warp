@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
 import process from 'node:process';
+import { installDefaultRuntimeHostNodePorts } from '../src/application/RuntimeHostNodeDefaults.ts';
 import { EXIT_CODES, HELP_TEXT, CliError, parseArgs, usageError } from './cli/infrastructure.ts';
 import { stableStringify, compactStringify } from './presenters/json.ts';
 import { COMMANDS } from './cli/commands/registry.ts';
+
+installDefaultRuntimeHostNodePorts();
 
 // Output format must be captured from raw process.argv BEFORE parseArgs() runs.
 // If parseArgs() itself throws (e.g., unknown flag, malformed input), the `options`

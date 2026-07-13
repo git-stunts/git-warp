@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import process from 'node:process';
+import { directExportName } from './direct-export-name.ts';
 const OUTPUT_PATH = 'docs/topics/reference.md';
 class SourceText {
   readonly path: string;
@@ -131,6 +132,8 @@ function captureExports(indexSource: SourceText, kind: 'values' | 'types'): read
 
   for (let index = 0; index < indexSource.lines.length; index += 1) {
     const line = indexSource.line(index);
+    const directName = directExportName(line, kind);
+    if (directName !== null) { items.push(inventoryItem(directName, kind, indexSource.ref(index))); continue; }
     if (!line.trimStart().startsWith(prefix)) {
       continue;
     }
@@ -234,17 +237,15 @@ function generate(): string {
   const jsrSource = new SourceText('jsr.json');
   const registrySource = new SourceText('bin/cli/commands/registry.ts');
   const cliSource = new SourceText('bin/warp-graph.ts');
-  const errorSource = new SourceText('src/domain/errors/index.ts');
   const rootSource = new SourceText('index.ts');
   const storageSource = new SourceText('storage.ts');
   const advancedSource = new SourceText('advanced.ts');
   const diagnosticsSource = new SourceText('diagnostics.ts');
-  const legacySource = new SourceText('legacy.ts');
   const packageBins = captureObjectEntries(packageSource, 'bin');
   const packageExports = captureExportEntries(packageSource, 'exports').filter((item) => item.name.startsWith('.'));
   const jsrExports = captureExportEntries(jsrSource, 'exports').filter((item) => item.name.startsWith('.'));
   const commands = captureCommands(registrySource);
-  const errors = captureErrorClasses(errorSource);
+  const errors = captureErrorClasses(rootSource);
 
   return `${[
     '# Source-backed reference',
@@ -263,13 +264,11 @@ function generate(): string {
     '',
     ...exportSurface('Root API export surface', rootSource, 'First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.'),
     '',
-    ...exportSurface('Storage export surface', storageSource, 'Supported persistence and crypto adapters for first-use applications.'),
+    ...exportSurface('Storage export surface', storageSource, 'Git-backed and in-memory adapters for first-use applications.'),
     '',
-    ...exportSurface('Advanced export surface', advancedSource, 'Formal WARP and Continuum concepts for expert use; not first-use root API.'),
+    ...exportSurface('Advanced export surface', advancedSource, 'Bounded coordinate capture, Optic, and Witness concepts for expert use.'),
     '',
-    ...exportSurface('Diagnostics export surface', diagnosticsSource, 'Operator, inspection, comparison, and replay tools.'),
-    '',
-    ...exportSurface('Legacy export surface', legacySource, 'Deprecated compatibility-only imports for migration paydown.'),
+    ...exportSurface('Diagnostics export surface', diagnosticsSource, 'Operator inspection helpers that consume public receipt handles.'),
     '',
     '## CLI command registry',
     '',
@@ -282,7 +281,7 @@ function generate(): string {
     '',
     '## Public error classes',
     '',
-    table(['Class', 'Module', 'Source'], errors.map((item) => [`\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``])),
+    ...(errors.length === 0 ? ['The v19 package root does not export error constructors.'] : [table(['Class', 'Module', 'Source'], errors.map((item) => [`\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``]))]),
   ].join('\n')}\n`;
 }
 

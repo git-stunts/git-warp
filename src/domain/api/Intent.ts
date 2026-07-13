@@ -1,14 +1,8 @@
 import WarpError from '../errors/WarpError.ts';
-import { isPropValue, type PropValue } from '../types/PropValue.ts';
+import { copyPropValue, isPropValue, type PropValue } from '../types/PropValue.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 
-export type IntentKind =
-  | 'node.add'
-  | 'node.remove'
-  | 'edge.add'
-  | 'edge.remove'
-  | 'property.set'
-  | 'edgeProperty.set';
+export type IntentKind = 'node.add' | 'node.remove' | 'edge.add' | 'edge.remove' | 'property.set';
 
 export type NodeIntentFields = {
   readonly subject: string;
@@ -26,25 +20,18 @@ export type PropertyIntentFields = {
   readonly value: PropValue;
 };
 
-export type EdgePropertyIntentFields = EdgeIntentFields & {
-  readonly key: string;
-  readonly value: PropValue;
-};
-
 export type IntentDescriptor =
   | (NodeIntentFields & { readonly kind: 'node.add' })
   | (NodeIntentFields & { readonly kind: 'node.remove' })
   | (EdgeIntentFields & { readonly kind: 'edge.add' })
   | (EdgeIntentFields & { readonly kind: 'edge.remove' })
-  | (PropertyIntentFields & { readonly kind: 'property.set' })
-  | (EdgePropertyIntentFields & { readonly kind: 'edgeProperty.set' });
+  | (PropertyIntentFields & { readonly kind: 'property.set' });
 
 const NODE_ADD: 'node.add' = 'node.add';
 const NODE_REMOVE: 'node.remove' = 'node.remove';
 const EDGE_ADD: 'edge.add' = 'edge.add';
 const EDGE_REMOVE: 'edge.remove' = 'edge.remove';
 const PROPERTY_SET: 'property.set' = 'property.set';
-const EDGE_PROPERTY_SET: 'edgeProperty.set' = 'edgeProperty.set';
 
 export default class Intent {
   readonly #descriptor: IntentDescriptor;
@@ -74,16 +61,12 @@ export default class Intent {
     return new Intent(propertyDescriptor(fields));
   }
 
-  static setEdgeProperty(fields: EdgePropertyIntentFields): Intent {
-    return new Intent(edgePropertyDescriptor(fields));
-  }
-
   get kind(): IntentKind {
     return this.#descriptor.kind;
   }
 
   get descriptor(): IntentDescriptor {
-    return this.#descriptor;
+    return normalizeKnownDescriptor(this.#descriptor);
   }
 }
 
@@ -108,31 +91,34 @@ function normalizeKnownDescriptor(descriptor: IntentDescriptor): IntentDescripto
   if (descriptor.kind === PROPERTY_SET) {
     return propertyDescriptor(descriptor);
   }
-  if (descriptor.kind === EDGE_PROPERTY_SET) {
-    return edgePropertyDescriptor(descriptor);
-  }
   throw new WarpError('Intent kind is unsupported', 'E_INTENT_KIND');
 }
 
 function isNodeDescriptor(
-  descriptor: IntentDescriptor,
+  descriptor: IntentDescriptor
 ): descriptor is NodeIntentFields & { readonly kind: 'node.add' | 'node.remove' } {
   return descriptor.kind === NODE_ADD || descriptor.kind === NODE_REMOVE;
 }
 
 function isEdgeDescriptor(
-  descriptor: IntentDescriptor,
+  descriptor: IntentDescriptor
 ): descriptor is EdgeIntentFields & { readonly kind: 'edge.add' | 'edge.remove' } {
   return descriptor.kind === EDGE_ADD || descriptor.kind === EDGE_REMOVE;
 }
 
-function nodeDescriptor(kind: 'node.add' | 'node.remove', fields: NodeIntentFields): IntentDescriptor {
+function nodeDescriptor(
+  kind: 'node.add' | 'node.remove',
+  fields: NodeIntentFields
+): IntentDescriptor {
   const checkedFields = requireIntentFields(fields);
   requireNonEmptyString(checkedFields.subject, 'intent.subject');
   return Object.freeze({ kind, subject: checkedFields.subject });
 }
 
-function edgeDescriptor(kind: 'edge.add' | 'edge.remove', fields: EdgeIntentFields): IntentDescriptor {
+function edgeDescriptor(
+  kind: 'edge.add' | 'edge.remove',
+  fields: EdgeIntentFields
+): IntentDescriptor {
   const checkedFields = requireIntentFields(fields);
   requireNonEmptyString(checkedFields.from, 'intent.from');
   requireNonEmptyString(checkedFields.to, 'intent.to');
@@ -157,22 +143,6 @@ function propertyDescriptor(fields: PropertyIntentFields): IntentDescriptor {
   });
 }
 
-function edgePropertyDescriptor(fields: EdgePropertyIntentFields): IntentDescriptor {
-  const checkedFields = requireIntentFields(fields);
-  requireNonEmptyString(checkedFields.from, 'intent.from');
-  requireNonEmptyString(checkedFields.to, 'intent.to');
-  requireNonEmptyString(checkedFields.label, 'intent.label');
-  requireNonEmptyString(checkedFields.key, 'intent.key');
-  return Object.freeze({
-    kind: EDGE_PROPERTY_SET,
-    from: checkedFields.from,
-    to: checkedFields.to,
-    label: checkedFields.label,
-    key: checkedFields.key,
-    value: requireIntentValue(checkedFields.value),
-  });
-}
-
 function requireIntentFields<TFields>(fields: TFields | null | undefined): TFields {
   if (fields === null || fields === undefined) {
     throw new WarpError('Intent fields are required', 'E_INTENT_FIELDS');
@@ -182,7 +152,7 @@ function requireIntentFields<TFields>(fields: TFields | null | undefined): TFiel
 
 function requireIntentValue(value: PropValue): PropValue {
   if (isPropValue(value)) {
-    return value;
+    return copyPropValue(value);
   }
   throw new WarpError('Intent value must be property-compatible data', 'E_INTENT_VALUE');
 }

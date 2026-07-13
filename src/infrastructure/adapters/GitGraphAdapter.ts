@@ -48,7 +48,7 @@ import type OperationPolicyPort from '../../ports/OperationPolicyPort.ts';
 import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
 export type { GitPlumbing, GitError, CollectableStream } from './gitErrorClassification.ts';
 
-interface GitGraphAdapterOptions {
+export interface GitGraphAdapterOptions {
   readonly plumbing: GitPlumbing;
   readonly retryOptions?: Partial<OperationPolicyExecuteOptions>;
   readonly policy?: OperationPolicyPort;

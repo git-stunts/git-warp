@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  BoundedSupportRule,
-  QueryBuilder,
-} from '../../../../../legacy.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
+import BoundedSupportRule from '../../../../../src/domain/services/query/BoundedSupportRule.ts';
+import QueryBuilder from '../../../../../src/domain/services/query/QueryBuilder.ts';
 import type {
   QueryNeighborEntry,
   QueryReadModel,
@@ -42,9 +40,7 @@ function query(): QueryBuilder {
 
 describe('BoundedSupportRule', () => {
   it('classifies exact node-id queries as entity support', () => {
-    const rule = query()
-      .match('user:alice')
-      .supportRule();
+    const rule = query().match('user:alice').supportRule();
 
     expect(rule).toBeInstanceOf(BoundedSupportRule);
     expect(Object.isFrozen(rule)).toBe(true);
@@ -69,10 +65,7 @@ describe('BoundedSupportRule', () => {
   });
 
   it('classifies wildcard reads as global discovery', () => {
-    const rule = query()
-      .match('task:*')
-      .where({ status: 'todo' })
-      .supportRule();
+    const rule = query().match('task:*').where({ status: 'todo' }).supportRule();
 
     expect(rule.kind).toBe('global-discovery');
     expect(rule.rootNodeIds).toEqual([]);
@@ -93,16 +86,21 @@ describe('BoundedSupportRule', () => {
   });
 
   it('rejects invalid runtime carriers', () => {
-    expect(() => new BoundedSupportRule({
-      surface: 'query',
-      kind: 'entity',
-      reason: 'bad max depth',
-      maxDepth: -1,
-    })).toThrow(QueryError);
+    expect(
+      () =>
+        new BoundedSupportRule({
+          surface: 'query',
+          kind: 'entity',
+          reason: 'bad max depth',
+          maxDepth: -1,
+        })
+    ).toThrow(QueryError);
 
-    expect(() => BoundedSupportRule.fromQueryPlan(
-      // @ts-expect-error runtime guard for JavaScript callers
-      undefined,
-    )).toThrow(QueryError);
+    expect(() =>
+      BoundedSupportRule.fromQueryPlan(
+        // @ts-expect-error runtime guard for JavaScript callers
+        undefined
+      )
+    ).toThrow(QueryError);
   });
 });

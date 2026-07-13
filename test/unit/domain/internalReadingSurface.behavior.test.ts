@@ -1,14 +1,15 @@
 import { TextDecoder } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import WarpAppDefault, {
-  InMemoryGraphAdapter,
-  openWarpGraph,
-  openWarpWorldline,
-  WarpApp,
-  WarpCore,
-} from '../../../legacy.ts';
+import WarpApp from '../../../src/domain/WarpApp.ts';
+import WarpCore from '../../../src/domain/WarpCore.ts';
+import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
+import { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
+import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 
-function openOptions(graphName: string, writerId: string): {
+function openOptions(
+  graphName: string,
+  writerId: string
+): {
   persistence: InMemoryGraphAdapter;
   graphName: string;
   writerId: string;
@@ -20,7 +21,7 @@ function openOptions(graphName: string, writerId: string): {
   };
 }
 
-describe('public reading surfaces', () => {
+describe('internal reading surfaces', () => {
   it('opens WarpGraph as a capability bag without public materialization or runtime escapes', async () => {
     const graph = await openWarpGraph(openOptions('public-reading-graph', 'writer-graph'));
 
@@ -63,9 +64,7 @@ describe('public reading surfaces', () => {
     if (!('nodes' in result)) {
       throw new Error('query result must include nodes');
     }
-    expect(result.nodes).toEqual([
-      { id: 'user:alice', props: { role: 'admin' } },
-    ]);
+    expect(result.nodes).toEqual([{ id: 'user:alice', props: { role: 'admin' } }]);
   });
 
   it('keeps WarpApp curated while WarpCore remains the explicit materialization escape hatch', async () => {
@@ -78,7 +77,6 @@ describe('public reading surfaces', () => {
       });
     });
 
-    expect(WarpAppDefault).toBe(WarpApp);
     expect(app).toBeInstanceOf(WarpApp);
     expect(app.core()).toBeInstanceOf(WarpCore);
     expect('materialize' in app).toBe(false);
