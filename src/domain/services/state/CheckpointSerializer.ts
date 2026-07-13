@@ -12,9 +12,9 @@
  * @see WARP Spec Section 10 (Checkpoints)
  */
 
-import ORSet from '../../crdt/ORSet.ts';
+import type ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
-import { Dot, decodeDot } from '../../crdt/Dot.ts';
+import { decodeDot } from '../../crdt/Dot.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import type { WarpState as WarpStateType } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
@@ -22,22 +22,18 @@ import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
-import type { EventId } from '../../utils/EventId.ts';
+import { EventId } from '../../utils/EventId.ts';
 import type { PropValue } from '../../types/PropValue.ts';
+import { compareStrings } from '../../utils/StringComparison.ts';
+import {
+  deserializeORSet,
+  serializeORSet,
+  type ORSetWire,
+} from './ORSetWireBoundary.ts';
 
 interface SerializedLWWRegister {
   eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string };
   value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-}
-
-interface SerializedORSet {
-  entries: Array<[string, string[]]>;
-  tombstones: string[];
-}
-
-interface ORSetWire {
-  entries?: Array<[string, string[]]>;
-  tombstones?: string[];
 }
 
 // ============================================================================
@@ -74,20 +70,18 @@ function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister
   for (const [key, register] of propEntries) {
     propArray.push([key, serializeLWWRegister(register)]);
   }
-  propArray.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  propArray.sort((left, right) => compareStrings(left[0], right[0]));
   return propArray;
 }
 
 function serializeEdgeBirthArray(
-  edgeBirthEvent: Map<string, EventId> | undefined,
+  edgeBirthEvent: Map<string, EventId>,
 ): Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> {
   const result: Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> = [];
-  if (edgeBirthEvent !== undefined && edgeBirthEvent !== null) {
-    for (const [key, eventId] of edgeBirthEvent) {
-      result.push([key, { lamport: eventId.lamport, writerId: eventId.writerId, patchSha: eventId.patchSha, opIndex: eventId.opIndex }]);
-    }
-    result.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  for (const [key, eventId] of edgeBirthEvent) {
+    result.push([key, { lamport: eventId.lamport, writerId: eventId.writerId, patchSha: eventId.patchSha, opIndex: eventId.opIndex }]);
   }
+  result.sort((left, right) => compareStrings(left[0], right[0]));
   return result;
 }
 
@@ -162,7 +156,7 @@ export function serializeCheckpointStateEnvelope(
 export function deserializeCheckpointStateEnvelope(
   buffers: CheckpointStateEnvelopeBuffers,
   { codec }: { codec?: CodecPort } = {},
-): WarpStateType {
+): WarpState {
   const c = requireCodec(codec, 'deserializeCheckpointStateEnvelope');
   const emptyORSet = { entries: [], tombstones: [] };
   return new WarpState({
@@ -170,9 +164,9 @@ export function deserializeCheckpointStateEnvelope(
     edgeAlive: deserializeORSet(decodeEnvelopeBlob(c, buffers.edgeAlive, emptyORSet)),
     prop: deserializeProps(decodeEnvelopeBlob(c, buffers.prop, [])),
     observedFrontier: VersionVector.from(decodeEnvelopeBlob(c, buffers.observedFrontier, {})),
-    edgeBirthEvent: deserializeEdgeBirthEvent({
-      edgeBirthEvent: decodeEnvelopeBlob(c, buffers.edgeBirthEvent, []),
-    }),
+    edgeBirthEvent: deserializeCurrentEdgeBirthEvent(
+      decodeEnvelopeBlob<CurrentEdgeBirthEventWire>(c, buffers.edgeBirthEvent, []),
+    ),
   });
 }
 
@@ -242,70 +236,6 @@ export function deserializeAppliedVV(
   return VersionVector.from(obj);
 }
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-function serializeORSet(set: ORSet): SerializedORSet {
-  return {
-    entries: serializeORSetEntries(set.entriesIter()),
-    tombstones: sortEncodedDots(set.tombstonesIter()),
-  };
-}
-
-function deserializeORSet(obj: ORSetWire): ORSet {
-  const set = ORSet.empty();
-  deserializeORSetEntriesInto(obj.entries, set.entries);
-  deserializeORSetTombstonesInto(obj.tombstones, set.tombstones);
-  return set;
-}
-
-function serializeORSetEntries(entries: Iterable<[string, ReadonlySet<string>]>): Array<[string, string[]]> {
-  const result: Array<[string, string[]]> = [];
-  for (const [element, dots] of entries) {
-    result.push([element, sortEncodedDots(dots)]);
-  }
-  result.sort((left, right) => (
-    left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0
-  ));
-  return result;
-}
-
-function sortEncodedDots(encodedDots: Iterable<string>): string[] {
-  const pairs: Array<{ encoded: string; decoded: Dot }> = [];
-  for (const encoded of encodedDots) {
-    pairs.push({ encoded, decoded: Dot.decode(encoded) });
-  }
-  pairs.sort((left, right) => Dot.compare(left.decoded, right.decoded));
-  return pairs.map((pair) => pair.encoded);
-}
-
-function deserializeORSetEntriesInto(
-  entries: Array<[string, string[]]> | undefined,
-  target: Map<string, Set<string>>,
-): void {
-  if (!Array.isArray(entries)) {
-    return;
-  }
-  for (const [element, dots] of entries) {
-    if (Array.isArray(dots)) {
-      target.set(element, new Set(dots));
-    }
-  }
-}
-
-function deserializeORSetTombstonesInto(
-  tombstones: string[] | undefined,
-  target: Set<string>,
-): void {
-  if (!Array.isArray(tombstones)) {
-    return;
-  }
-  for (const dot of tombstones) {
-    target.add(dot);
-  }
-}
-
 function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const prop = new Map<string, LWWRegister<PropValue>>();
   if (!Array.isArray(propArray)) { return prop; }
@@ -328,6 +258,59 @@ function deserializeEdgeBirthEvent(obj: DeserializedFullState): Map<string, Even
   return edgeBirthEvent;
 }
 
+interface CurrentEdgeBirthEventPayload {
+  lamport: number;
+  writerId: string;
+  patchSha: string;
+  opIndex: number;
+}
+
+type CurrentEdgeBirthEventWire = Array<[string, CurrentEdgeBirthEventPayload]>;
+
+function deserializeCurrentEdgeBirthEvent(value: CurrentEdgeBirthEventWire): Map<string, EventId> {
+  if (!Array.isArray(value)) {
+    throw invalidCurrentEdgeBirthEvent('unknown');
+  }
+  const edgeBirthEvent = new Map<string, EventId>();
+  for (const entry of value) {
+    if (!Array.isArray(entry) || entry.length !== 2) {
+      throw invalidCurrentEdgeBirthEvent('unknown');
+    }
+    const [key, payload] = entry;
+    if (typeof key !== 'string' || !isCurrentEdgeBirthEventPayload(payload)) {
+      throw invalidCurrentEdgeBirthEvent(typeof key === 'string' ? key : 'unknown');
+    }
+    try {
+      edgeBirthEvent.set(
+        key,
+        new EventId(payload.lamport, payload.writerId, payload.patchSha, payload.opIndex),
+      );
+    } catch {
+      throw invalidCurrentEdgeBirthEvent(key);
+    }
+  }
+  return edgeBirthEvent;
+}
+
+function isCurrentEdgeBirthEventPayload(
+  value: CurrentEdgeBirthEventPayload | null | undefined,
+): value is CurrentEdgeBirthEventPayload {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  return typeof value.lamport === 'number'
+    && typeof value.writerId === 'string'
+    && typeof value.patchSha === 'string'
+    && typeof value.opIndex === 'number';
+}
+
+function invalidCurrentEdgeBirthEvent(key: string): WarpError {
+  return new WarpError(
+    `Checkpoint edgeBirthEvent payload is invalid for ${key}`,
+    'E_INVALID_CHECKPOINT_EDGE_BIRTH_EVENT',
+  );
+}
+
 function deserializeSingleBirthEvent(val: unknown): { lamport: number; writerId: string; patchSha: string; opIndex: number } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof val === 'number') {
     return { lamport: val, writerId: '', patchSha: '0000', opIndex: 0 };
@@ -336,8 +319,7 @@ function deserializeSingleBirthEvent(val: unknown): { lamport: number; writerId:
   return { lamport: ev.lamport, writerId: ev.writerId, patchSha: ev.patchSha, opIndex: ev.opIndex };
 }
 
-function serializeLWWRegister(register: LWWRegister<PropValue>): SerializedLWWRegister | null {
-  if (register === null || register === undefined) { return null; }
+function serializeLWWRegister(register: LWWRegister<PropValue>): SerializedLWWRegister {
   return {
     eventId: {
       lamport: register.eventId.lamport,

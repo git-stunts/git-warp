@@ -15,6 +15,7 @@ import {
 } from './CheckpointSerializer.ts';
 import { serializeFrontier } from '../Frontier.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
+import { requireCrypto } from '../crypto/CryptoRequirement.ts';
 import { requireCommitMessageCodec } from '../codec/CommitMessageCodecRequirement.ts';
 import { cloneState } from '../JoinReducer.ts';
 import {
@@ -32,6 +33,10 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
+import type {
+  CheckpointRecord,
+  CheckpointWriteResult,
+} from '../../../ports/CheckpointStorePort.ts';
 import type StateHashService from './StateHashService.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 
@@ -121,17 +126,7 @@ export async function createCheckpointEnvelope({
   // 3–6. Serialize and write current state envelope, frontier, appliedVV.
   // Runtime callers route artifact encoding through CheckpointStorePort so the
   // domain path no longer needs to know the concrete checkpoint blob layout.
-  // codecOpt is still needed for envelope/provenance serialization.
-  const codecOpt = codec !== undefined && codec !== null ? { codec } : {};
-  let nodeAliveOid: string;
-  let edgeAliveOid: string;
-  let propOid: string;
-  let observedFrontierOid: string;
-  let edgeBirthEventOid: string;
-  let frontierBlobOid: string;
-  let appliedVVBlobOid: string;
   let stateHash: string;
-  let provenanceIndexBlobOid: string | null = null;
 
   // Compute stateHash first via StateHashService (preferred) or direct fallback.
   if (stateHashService !== undefined && stateHashService !== null) {
@@ -139,46 +134,34 @@ export async function createCheckpointEnvelope({
   } else {
     stateHash = await computeStateHash(checkpointState, {
       codec: requireCodec(codec, 'createCheckpointEnvelope'),
-      crypto: crypto as CryptoPort,
+      crypto: requireCrypto(crypto, 'createCheckpointEnvelope'),
     });
   }
 
-  if (checkpointStore !== undefined && checkpointStore !== null) {
-    const checkpointWrite = await checkpointStore.writeCheckpoint({
-      state: checkpointState,
-      frontier,
-      appliedVV,
-      stateHash,
-      ...(provenanceIndex !== undefined ? { provenanceIndex } : {}),
-    });
-    nodeAliveOid = checkpointWrite.nodeAliveBlobOid;
-    edgeAliveOid = checkpointWrite.edgeAliveBlobOid;
-    propOid = checkpointWrite.propBlobOid;
-    observedFrontierOid = checkpointWrite.observedFrontierBlobOid;
-    edgeBirthEventOid = checkpointWrite.edgeBirthEventBlobOid;
-    frontierBlobOid = checkpointWrite.frontierBlobOid;
-    appliedVVBlobOid = checkpointWrite.appliedVVBlobOid;
-    provenanceIndexBlobOid = checkpointWrite.provenanceIndexBlobOid;
-  } else {
-    // Current checkpoints publish separate envelope artifacts so the Git tree names
-    // each read basis member.
-    const stateEnvelope = serializeCheckpointStateEnvelope(checkpointState, codecOpt);
-    nodeAliveOid = await persistence.writeBlob(stateEnvelope.nodeAlive);
-    edgeAliveOid = await persistence.writeBlob(stateEnvelope.edgeAlive);
-    propOid = await persistence.writeBlob(stateEnvelope.prop);
-    observedFrontierOid = await persistence.writeBlob(stateEnvelope.observedFrontier);
-    edgeBirthEventOid = await persistence.writeBlob(stateEnvelope.edgeBirthEvent);
-
-    const frontierBuffer = serializeFrontier(frontier, codecOpt);
-    const appliedVVBuffer = serializeAppliedVV(appliedVV, codecOpt);
-    frontierBlobOid = await persistence.writeBlob(frontierBuffer);
-    appliedVVBlobOid = await persistence.writeBlob(appliedVVBuffer);
-
-    if (provenanceIndex) {
-      const provenanceIndexBuffer = provenanceIndex.serialize(codecOpt);
-      provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
-    }
-  }
+  const checkpointRecord: CheckpointRecord = {
+    state: checkpointState,
+    frontier,
+    appliedVV,
+    stateHash,
+    ...(provenanceIndex !== undefined ? { provenanceIndex } : {}),
+  };
+  const checkpointWrite = checkpointStore !== undefined && checkpointStore !== null
+    ? await checkpointStore.writeCheckpoint(checkpointRecord)
+    : await writeFallbackCheckpointArtifacts(
+      persistence,
+      checkpointRecord,
+      requireCodec(codec, 'createCheckpointEnvelope'),
+    );
+  const {
+    nodeAliveBlobOid: nodeAliveOid,
+    edgeAliveBlobOid: edgeAliveOid,
+    propBlobOid: propOid,
+    observedFrontierBlobOid: observedFrontierOid,
+    edgeBirthEventBlobOid: edgeBirthEventOid,
+    frontierBlobOid,
+    appliedVVBlobOid,
+    provenanceIndexBlobOid,
+  } = checkpointWrite;
 
   // 6c. Collect content storage OIDs from state properties for GC anchoring.
   // If patch commits are ever pruned, content trees remain reachable via
@@ -250,4 +233,44 @@ export async function createCheckpointEnvelope({
   });
 
   return checkpointSha;
+}
+
+async function writeFallbackCheckpointArtifacts(
+  persistence: CheckpointPersistence,
+  record: CheckpointRecord,
+  codec: CodecPort,
+): Promise<CheckpointWriteResult> {
+  const codecOpt = { codec };
+  const envelope = serializeCheckpointStateEnvelope(record.state, codecOpt);
+  const [
+    nodeAliveBlobOid,
+    edgeAliveBlobOid,
+    propBlobOid,
+    observedFrontierBlobOid,
+    edgeBirthEventBlobOid,
+    frontierBlobOid,
+    appliedVVBlobOid,
+    provenanceIndexBlobOid,
+  ] = await Promise.all([
+    persistence.writeBlob(envelope.nodeAlive),
+    persistence.writeBlob(envelope.edgeAlive),
+    persistence.writeBlob(envelope.prop),
+    persistence.writeBlob(envelope.observedFrontier),
+    persistence.writeBlob(envelope.edgeBirthEvent),
+    persistence.writeBlob(serializeFrontier(record.frontier, codecOpt)),
+    persistence.writeBlob(serializeAppliedVV(record.appliedVV, codecOpt)),
+    record.provenanceIndex === undefined || record.provenanceIndex === null
+      ? Promise.resolve(null)
+      : persistence.writeBlob(record.provenanceIndex.serialize(codecOpt)),
+  ]);
+  return {
+    nodeAliveBlobOid,
+    edgeAliveBlobOid,
+    propBlobOid,
+    observedFrontierBlobOid,
+    edgeBirthEventBlobOid,
+    frontierBlobOid,
+    appliedVVBlobOid,
+    provenanceIndexBlobOid,
+  };
 }

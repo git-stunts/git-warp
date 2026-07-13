@@ -1,26 +1,15 @@
 import CheckpointStorePort, { type CheckpointRecord, type CheckpointWriteResult, type CheckpointData } from '../../ports/CheckpointStorePort.ts';
+import type BlobPort from '../../ports/BlobPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
-import WarpState from '../../domain/services/state/WarpState.ts';
+import type WarpState from '../../domain/services/state/WarpState.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.ts';
-import type { LWWRegister } from '../../domain/crdt/LWW.ts';
-import type { PropValue } from '../../domain/types/PropValue.ts';
-import { EventId } from '../../domain/utils/EventId.ts';
-import { deserializeORSet, serializeORSet, type ORSetWire } from '../codecs/ORSetCodec.ts';
-
-interface BlobPort {
-  readBlob(oid: string): Promise<Uint8Array>;
-  writeBlob(content: Uint8Array | string): Promise<string>;
-}
-
-interface CheckpointStateEnvelope {
-  nodeAlive: Uint8Array;
-  edgeAlive: Uint8Array;
-  prop: Uint8Array;
-  observedFrontier: Uint8Array;
-  edgeBirthEvent: Uint8Array;
-}
+import {
+  deserializeCheckpointStateEnvelope,
+  serializeCheckpointStateEnvelope,
+  type CheckpointStateEnvelopeBuffers,
+} from '../../domain/services/state/CheckpointSerializer.ts';
 
 interface CheckpointWritePromises {
   nodeAliveBlobOid: Promise<string>;
@@ -161,8 +150,6 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       state,
       frontier,
       appliedVV,
-      stateHash: '',
-      schema: 5,
       ...(provenanceIndex !== null ? { provenanceIndex } : {}),
       indexShardOids,
     };
@@ -170,14 +157,8 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
   // ── Encode Helpers ──────────────────────────────────────────────────
 
-  private _encodeStateEnvelope(state: WarpState): CheckpointStateEnvelope {
-    return {
-      nodeAlive: this._codec.encode(serializeORSet(state.nodeAlive)),
-      edgeAlive: this._codec.encode(serializeORSet(state.edgeAlive)),
-      prop: this._codec.encode(_serializePropsArray(state.allPropEntries())),
-      observedFrontier: this._codec.encode(VersionVector.serialize(state.observedFrontier)),
-      edgeBirthEvent: this._codec.encode(_serializeEdgeBirthArray(state.edgeBirthEvent)),
-    };
+  private _encodeStateEnvelope(state: WarpState): CheckpointStateEnvelopeBuffers {
+    return serializeCheckpointStateEnvelope(state, { codec: this._codec });
   }
 
   private _encodeFrontier(frontier: Map<string, string>): Uint8Array {
@@ -194,17 +175,8 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
   // ── Decode Helpers ──────────────────────────────────────────────────
 
-  private _decodeStateEnvelope(envelope: CheckpointStateEnvelope): WarpState {
-    const edgeBirthEvent = this._codec.decode<Array<[string, EdgeBirthEventPayload]>>(
-      envelope.edgeBirthEvent,
-    );
-    return new WarpState({
-      nodeAlive: deserializeORSet(this._codec.decode<ORSetWire>(envelope.nodeAlive)),
-      edgeAlive: deserializeORSet(this._codec.decode<ORSetWire>(envelope.edgeAlive)),
-      prop: _deserializeProps(this._codec.decode<Array<[string, unknown]>>(envelope.prop)),
-      observedFrontier: VersionVector.from(this._codec.decode<{ [x: string]: number }>(envelope.observedFrontier)),
-      edgeBirthEvent: _deserializeEdgeBirthEvent({ edgeBirthEvent }),
-    });
+  private _decodeStateEnvelope(envelope: CheckpointStateEnvelopeBuffers): WarpState {
+    return deserializeCheckpointStateEnvelope(envelope, { codec: this._codec });
   }
 
   private _decodeFrontier(buffer: Uint8Array): Map<string, string> {
@@ -302,108 +274,4 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     }
     return oid;
   }
-}
-
-// ── Private Helpers ───────────────────────────────────────────────────
-
-function _serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<unknown>]>): Array<[string, unknown]> {
-  const arr: Array<[string, unknown]> = [];
-  for (const [key, register] of propEntries) {
-    arr.push([key, _serializeLWWRegister(register)]);
-  }
-  arr.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  return arr;
-}
-
-function _serializeEdgeBirthArray(edgeBirthEvent: Map<string, EventId> | undefined): Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> {
-  const result: Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> = [];
-  if (edgeBirthEvent !== undefined && edgeBirthEvent !== null) {
-    for (const [key, eventId] of edgeBirthEvent) {
-      result.push([key, {
-        lamport: eventId.lamport, writerId: eventId.writerId,
-        patchSha: eventId.patchSha, opIndex: eventId.opIndex,
-      }]);
-    }
-    result.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  }
-  return result;
-}
-
-function _deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> {
-  const prop = new Map<string, LWWRegister<PropValue>>();
-  if (!Array.isArray(propArray)) { return prop; }
-  for (const [key, registerObj] of propArray) {
-    const register = _deserializeLWWRegister(
-      registerObj as { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null,
-    );
-    if (register !== null) { prop.set(key, register); }
-  }
-  return prop;
-}
-
-interface EdgeBirthEventPayload {
-  lamport: number;
-  writerId: string;
-  patchSha: string;
-  opIndex: number;
-}
-
-function _deserializeEdgeBirthEvent(obj: { edgeBirthEvent?: Array<[string, EdgeBirthEventPayload]> }): Map<string, EventId> {
-  const result = new Map<string, EventId>();
-  const birthData = obj.edgeBirthEvent;
-  if (birthData === undefined) { return result; }
-  if (!Array.isArray(birthData)) { throw invalidEdgeBirthEventPayload('unknown'); }
-  for (const entry of birthData) {
-    if (!Array.isArray(entry) || entry.length !== 2) {
-      throw invalidEdgeBirthEventPayload('unknown');
-    }
-    const [key, value] = entry;
-    if (typeof key !== 'string' || !isEdgeBirthEventPayload(value)) {
-      throw invalidEdgeBirthEventPayload(typeof key === 'string' ? key : 'unknown');
-    }
-    try {
-      result.set(key, new EventId(value.lamport, value.writerId, value.patchSha, value.opIndex));
-    } catch {
-      throw invalidEdgeBirthEventPayload(key);
-    }
-  }
-  return result;
-}
-
-function isEdgeBirthEventPayload(value: EdgeBirthEventPayload | null | undefined): value is EdgeBirthEventPayload {
-  return value !== null
-    && value !== undefined
-    && typeof value.lamport === 'number'
-    && typeof value.writerId === 'string'
-    && typeof value.patchSha === 'string'
-    && typeof value.opIndex === 'number';
-}
-
-function invalidEdgeBirthEventPayload(key: string): WarpError {
-  return new WarpError(
-    `Checkpoint edgeBirthEvent payload is invalid for ${key}`,
-    'E_INVALID_CHECKPOINT_EDGE_BIRTH_EVENT',
-  );
-}
-
-function _serializeLWWRegister(register: LWWRegister<unknown>): { eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string }; value: unknown } | null {
-  if (register === null || register === undefined) { return null; }
-  return {
-    eventId: {
-      lamport: register.eventId.lamport, opIndex: register.eventId.opIndex,
-      patchSha: register.eventId.patchSha, writerId: register.eventId.writerId,
-    },
-    value: register.value,
-  };
-}
-
-function _deserializeLWWRegister(obj: { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null): LWWRegister<PropValue> | null {
-  if (obj === null || obj === undefined) { return null; }
-  return {
-    eventId: {
-      lamport: obj.eventId.lamport, writerId: obj.eventId.writerId,
-      patchSha: obj.eventId.patchSha, opIndex: obj.eventId.opIndex,
-    },
-    value: obj.value as PropValue,
-  };
 }

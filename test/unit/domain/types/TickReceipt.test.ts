@@ -4,7 +4,7 @@ import {
   OP_TYPES,
   RESULT_TYPES,
 } from '../../../../src/domain/types/TickReceipt.ts';
-import { tickReceiptCanonicalJson as canonicalJson } from '../../../../src/infrastructure/codecs/ReceiptJsonCodec.ts';
+import { tickReceiptCanonicalJson as canonicalJson } from '../../../../src/infrastructure/codecs/TickReceiptJsonCodec.ts';
 
 const createTickReceipt = (_createTickReceipt) as any;
 

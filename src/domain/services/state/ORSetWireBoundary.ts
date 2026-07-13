@@ -1,15 +1,17 @@
-import ORSet from '../../domain/crdt/ORSet.ts';
-import { Dot } from '../../domain/crdt/Dot.ts';
+import ORSet from '../../crdt/ORSet.ts';
+import { Dot } from '../../crdt/Dot.ts';
+import CrdtError from '../../errors/CrdtError.ts';
+import { compareStrings } from '../../utils/StringComparison.ts';
 
-export interface SerializedORSet {
+export type SerializedORSet = {
   entries: Array<[string, string[]]>;
   tombstones: string[];
-}
+};
 
-export interface ORSetWire {
+export type ORSetWire = {
   entries?: Array<[string, string[]]>;
   tombstones?: string[];
-}
+};
 
 export function serializeORSet(set: ORSet): SerializedORSet {
   return {
@@ -18,10 +20,10 @@ export function serializeORSet(set: ORSet): SerializedORSet {
   };
 }
 
-export function deserializeORSet(obj: ORSetWire): ORSet {
+export function deserializeORSet(wire: ORSetWire): ORSet {
   const set = ORSet.empty();
-  deserializeEntriesInto(obj.entries, set.entries);
-  deserializeTombstonesInto(obj.tombstones, set.tombstones);
+  deserializeEntriesInto(wire.entries, set.entries);
+  deserializeTombstonesInto(wire.tombstones, set.tombstones);
   return set;
 }
 
@@ -30,18 +32,18 @@ function sortEncodedDots(encodedDots: Iterable<string>): string[] {
   for (const encoded of encodedDots) {
     pairs.push({ encoded, decoded: Dot.decode(encoded) });
   }
-  pairs.sort((a, b) => Dot.compare(a.decoded, b.decoded));
+  pairs.sort((left, right) => Dot.compare(left.decoded, right.decoded));
   return pairs.map((pair) => pair.encoded);
 }
 
-function serializeEntries(entries: Iterable<[string, ReadonlySet<string>]>): Array<[string, string[]]> {
+function serializeEntries(
+  entries: Iterable<[string, ReadonlySet<string>]>,
+): Array<[string, string[]]> {
   const result: Array<[string, string[]]> = [];
   for (const [element, dots] of entries) {
     result.push([element, sortEncodedDots(dots)]);
   }
-  result.sort((left, right) => (
-    left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0
-  ));
+  result.sort((left, right) => compareStrings(left[0], right[0]));
   return result;
 }
 
@@ -53,9 +55,10 @@ function deserializeEntriesInto(
     return;
   }
   for (const [element, dots] of entries) {
-    if (Array.isArray(dots)) {
-      target.set(element, validatedDots(dots));
+    if (!Array.isArray(dots)) {
+      throw new CrdtError('ORSet entry dots must be an array');
     }
+    target.set(element, validatedDots(dots));
   }
 }
 

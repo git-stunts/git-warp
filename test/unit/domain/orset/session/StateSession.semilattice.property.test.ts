@@ -9,7 +9,7 @@ import StateSession from "../../../../../src/domain/orset/session/StateSession.t
 import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
-import { serializeORSet } from "../../../../../src/infrastructure/codecs/ORSetCodec.ts";
+import { serializeORSet } from "../../../../../src/domain/services/state/ORSetWireBoundary.ts";
 import { InMemoryTrieStore } from "../../../../helpers/trieHelpers.ts";
 
 const PROPERTY_TEST_SEED = 20260422;

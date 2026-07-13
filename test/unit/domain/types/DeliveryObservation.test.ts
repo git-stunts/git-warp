@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createDeliveryObservation,
 } from '../../../../src/domain/types/DeliveryObservation.ts';
-import { canonicalObservationJson } from '../../../../src/infrastructure/codecs/ReceiptJsonCodec.ts';
+import { canonicalObservationJson } from '../../../../src/infrastructure/codecs/DeliveryObservationJsonCodec.ts';
 
 const create = (createDeliveryObservation) as any;
 

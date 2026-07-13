@@ -77,11 +77,9 @@ import {
   OP_TYPES as TICK_RECEIPT_OP_TYPES,
   RESULT_TYPES as TICK_RECEIPT_RESULT_TYPES,
 } from './src/domain/types/TickReceipt.ts';
-import {
-  tickReceiptCanonicalJson,
-  canonicalEmissionJson,
-  canonicalObservationJson,
-} from './src/infrastructure/codecs/ReceiptJsonCodec.ts';
+import { tickReceiptCanonicalJson } from './src/infrastructure/codecs/TickReceiptJsonCodec.ts';
+import { canonicalEmissionJson } from './src/infrastructure/codecs/EffectEmissionJsonCodec.ts';
+import { canonicalObservationJson } from './src/infrastructure/codecs/DeliveryObservationJsonCodec.ts';
 
 // Provenance payload (HOLOGRAM)
 import ProvenancePayload from './src/domain/services/provenance/ProvenancePayload.ts';
