@@ -36,13 +36,12 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
       completeness: 'goal-found',
       cursor: null,
       edges: [
-        { fromNodeId: ROOT_NODE_ID, toNodeId: ALPHA_NODE_ID, label: LINK_LABEL, depth: 1 },
         { fromNodeId: ROOT_NODE_ID, toNodeId: BETA_NODE_ID, label: LINK_LABEL, depth: 1 },
-        { fromNodeId: ALPHA_NODE_ID, toNodeId: GAMMA_NODE_ID, label: LINK_LABEL, depth: 2 },
+        { fromNodeId: ROOT_NODE_ID, toNodeId: ALPHA_NODE_ID, label: LINK_LABEL, depth: 1 },
         { fromNodeId: BETA_NODE_ID, toNodeId: DELTA_NODE_ID, label: LINK_LABEL, depth: 2 },
       ],
     });
-    expect(Reflect.get(result, 'readIdentities')).toHaveLength(3);
+    expect(Reflect.get(result, 'readIdentities')).toHaveLength(2);
     materialization.expectUnused();
   });
 
@@ -68,18 +67,18 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
     expect(first).toMatchObject({
       completeness: 'frontier-open',
       frontier: [
-        { nodeId: ALPHA_NODE_ID, depth: 1, edgeCursor: null },
         { nodeId: BETA_NODE_ID, depth: 1, edgeCursor: null },
+        { nodeId: ALPHA_NODE_ID, depth: 1, edgeCursor: null },
       ],
       edges: [
-        { fromNodeId: ROOT_NODE_ID, toNodeId: ALPHA_NODE_ID, label: LINK_LABEL, depth: 1 },
         { fromNodeId: ROOT_NODE_ID, toNodeId: BETA_NODE_ID, label: LINK_LABEL, depth: 1 },
+        { fromNodeId: ROOT_NODE_ID, toNodeId: ALPHA_NODE_ID, label: LINK_LABEL, depth: 1 },
       ],
     });
     expect(cursor).toMatchObject({
       frontier: [
-        { nodeId: ALPHA_NODE_ID, depth: 1, edgeCursor: null },
         { nodeId: BETA_NODE_ID, depth: 1, edgeCursor: null },
+        { nodeId: ALPHA_NODE_ID, depth: 1, edgeCursor: null },
       ],
       visitedNodeIds: [ALPHA_NODE_ID, BETA_NODE_ID, ROOT_NODE_ID],
     });
@@ -87,8 +86,8 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
       completeness: 'complete',
       cursor: null,
       edges: [
-        { fromNodeId: ALPHA_NODE_ID, toNodeId: GAMMA_NODE_ID, label: LINK_LABEL, depth: 2 },
         { fromNodeId: BETA_NODE_ID, toNodeId: DELTA_NODE_ID, label: LINK_LABEL, depth: 2 },
+        { fromNodeId: ALPHA_NODE_ID, toNodeId: GAMMA_NODE_ID, label: LINK_LABEL, depth: 2 },
       ],
     });
   });
@@ -115,19 +114,19 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
     expect(first).toMatchObject({
       completeness: 'frontier-open',
       frontier: [
-        { nodeId: ROOT_NODE_ID, depth: 0, edgeCursor: '1' },
-        { nodeId: ALPHA_NODE_ID, depth: 1, edgeCursor: null },
+        { nodeId: ROOT_NODE_ID, depth: 0, edgeCursor: expect.stringMatching(/^warp-neighborhood-v1:/) },
+        { nodeId: BETA_NODE_ID, depth: 1, edgeCursor: null },
       ],
       edges: [
-        { fromNodeId: ROOT_NODE_ID, toNodeId: ALPHA_NODE_ID, label: LINK_LABEL, depth: 1 },
+        { fromNodeId: ROOT_NODE_ID, toNodeId: BETA_NODE_ID, label: LINK_LABEL, depth: 1 },
       ],
     });
     expect(second).toMatchObject({
       completeness: 'complete',
       edges: [
-        { fromNodeId: ROOT_NODE_ID, toNodeId: BETA_NODE_ID, label: LINK_LABEL, depth: 1 },
-        { fromNodeId: ALPHA_NODE_ID, toNodeId: GAMMA_NODE_ID, label: LINK_LABEL, depth: 2 },
+        { fromNodeId: ROOT_NODE_ID, toNodeId: ALPHA_NODE_ID, label: LINK_LABEL, depth: 1 },
         { fromNodeId: BETA_NODE_ID, toNodeId: DELTA_NODE_ID, label: LINK_LABEL, depth: 2 },
+        { fromNodeId: ALPHA_NODE_ID, toNodeId: GAMMA_NODE_ID, label: LINK_LABEL, depth: 2 },
       ],
     });
   });

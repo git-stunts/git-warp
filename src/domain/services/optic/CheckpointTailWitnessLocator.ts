@@ -1,30 +1,36 @@
 import CheckpointTailBasisLoader, {
   type CheckpointTailIndexBasis,
 } from './CheckpointTailBasisLoader.ts';
-import CheckpointShardFactReader from './CheckpointShardFactReader.ts';
+import CheckpointShardFactReader, {
+  type CheckpointShardNeighborhoodPage,
+} from './CheckpointShardFactReader.ts';
 import CheckpointTailFactReducer from './CheckpointTailFactReducer.ts';
 import CheckpointTailReadFailure from './CheckpointTailReadFailure.ts';
 import CheckpointTailReadIdentityBuilder from './CheckpointTailReadIdentityBuilder.ts';
-import CheckpointTailTraversalReader from './CheckpointTailTraversalReader.ts';
+import CheckpointTailTraversalReader, {
+  type TraversalNeighborhoodReadResult,
+} from './CheckpointTailTraversalReader.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import NodeOpticReadResult from './NodeOpticReadResult.ts';
 import NodePropertyOpticReadResult from './NodePropertyOpticReadResult.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 import CheckpointTailWitnessScan, { type TailWitnessScan } from './CheckpointTailWitnessScan.ts';
-import NeighborhoodOpticReadResult, {
-  type NeighborhoodOpticEdge,
-} from './NeighborhoodOpticReadResult.ts';
+import NeighborhoodOpticReadResult from './NeighborhoodOpticReadResult.ts';
 import type { NeighborhoodOpticReadOptions } from './NeighborhoodOptic.ts';
 import Optic from './Optic.ts';
-import OpticReadTarget, { type OpticKindValue } from './OpticReadTarget.ts';
-import OpticSupportRule from './OpticSupportRule.ts';
+import type { OpticKindValue } from './OpticReadTarget.ts';
 import type TraversalOpticReadResult from './TraversalOpticReadResult.ts';
 import type { TraversalOpticReadOptions } from './TraversalOptic.ts';
 import type ReadIdentity from './ReadIdentity.ts';
 import type { ReadIdentityIndexShard } from './ReadIdentity.ts';
 
 const DEFAULT_MAX_TAIL_PATCHES = 10_000;
+
+type WitnessedNeighborhoodPage = TraversalNeighborhoodReadResult & {
+  readonly nodeId: string;
+  readonly direction: Direction;
+};
 
 export default class CheckpointTailWitnessLocator {
   private readonly _graphName: string;
@@ -179,6 +185,21 @@ export default class CheckpointTailWitnessLocator {
     nodeId: string,
     options: NeighborhoodOpticReadOptions,
   ): Promise<NeighborhoodOpticReadResult> {
+    const page = await this._readWitnessedNeighborhoodPage(nodeId, options);
+    return new NeighborhoodOpticReadResult({
+      nodeId: page.nodeId,
+      direction: page.direction,
+      edges: page.edges,
+      completeness: page.cursor === null ? 'complete' : 'truncated',
+      cursor: page.cursor,
+      readIdentity: page.readIdentity,
+    });
+  }
+
+  private async _readWitnessedNeighborhoodPage(
+    nodeId: string,
+    options: NeighborhoodOpticReadOptions,
+  ): Promise<WitnessedNeighborhoodPage> {
     const direction = normalizeDirection(options.direction);
     const labels = normalizeLabels(options.labels ?? []);
     const basis = await this._basisLoader.load();
@@ -191,7 +212,7 @@ export default class CheckpointTailWitnessLocator {
       cursor: options.cursor ?? null,
       limit: options.limit ?? null,
     });
-    return neighborhoodReadResult({
+    return witnessedNeighborhoodPage({
       basis,
       direction,
       labels,
@@ -206,14 +227,13 @@ export default class CheckpointTailWitnessLocator {
     optic: Optic,
     options: TraversalOpticReadOptions,
   ): Promise<TraversalOpticReadResult> {
-    return await this._traversalReaderFor(optic).read(optic.nodeId(), options);
+    return await this._traversalReader().read(optic.nodeId(), options);
   }
 
-  private _traversalReaderFor(optic: Optic): CheckpointTailTraversalReader {
+  private _traversalReader(): CheckpointTailTraversalReader {
     return new CheckpointTailTraversalReader({
-      readNeighborhood: async (nodeId, readOptions) => await this.readNeighborhood(
-        optic.withTarget(OpticReadTarget.neighborhood(nodeId), OpticSupportRule.neighborhood()),
-        readOptions,
+      readNeighborhood: async (nodeId, readOptions) => (
+        await this._readWitnessedNeighborhoodPage(nodeId, readOptions)
       ),
     });
   }
@@ -313,27 +333,22 @@ function normalizeLabels(labels: readonly string[]): readonly string[] {
   return Object.freeze([...new Set(labels)].sort());
 }
 
-function neighborhoodReadResult(options: {
+function witnessedNeighborhoodPage(options: {
   readonly basis: CheckpointTailIndexBasis;
   readonly direction: Direction;
   readonly labels: readonly string[];
   readonly nodeId: string;
   readonly readIdentityBuilder: CheckpointTailReadIdentityBuilder;
   readonly tail: TailWitnessScan;
-  readonly page: {
-    readonly edges: readonly NeighborhoodOpticEdge[];
-    readonly cursor: string | null;
-    readonly checkpointIndexShards: readonly ReadIdentityIndexShard[];
-  };
-}): NeighborhoodOpticReadResult {
-  const readIdentity = neighborhoodReadIdentity(options);
-  return new NeighborhoodOpticReadResult({
+  readonly page: CheckpointShardNeighborhoodPage;
+}): WitnessedNeighborhoodPage {
+  return Object.freeze({
     nodeId: options.nodeId,
     direction: options.direction,
     edges: options.page.edges,
-    completeness: options.page.cursor === null ? 'complete' : 'truncated',
     cursor: options.page.cursor,
-    readIdentity,
+    resumeCursors: options.page.resumeCursors,
+    readIdentity: neighborhoodReadIdentity(options),
   });
 }
 

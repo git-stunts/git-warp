@@ -15,7 +15,14 @@ import TraversalOpticReadResult, {
 type TraversalNeighborhoodRead = (
   nodeId: string,
   options: NeighborhoodOpticReadOptions,
-) => Promise<NeighborhoodOpticReadResult>;
+) => Promise<TraversalNeighborhoodReadResult>;
+
+export type TraversalNeighborhoodReadResult = Pick<
+  NeighborhoodOpticReadResult,
+  'edges' | 'cursor' | 'readIdentity'
+> & {
+  readonly resumeCursors: readonly (string | null)[];
+};
 
 type NormalizedTraversalOptions = {
   readonly startNodeId: string;
@@ -98,7 +105,7 @@ export default class CheckpointTailTraversalReader {
     current: TraversalOpticFrontierEntry,
     traversal: NormalizedTraversalOptions,
     resultEdges: readonly TraversalOpticEdge[],
-  ): Promise<NeighborhoodOpticReadResult> {
+  ): Promise<TraversalNeighborhoodReadResult> {
     const remainingEdgeBudget = traversal.maxEdges - resultEdges.length;
     return await this._readNeighborhood(current.nodeId, {
       direction: traversal.direction,
@@ -112,7 +119,7 @@ export default class CheckpointTailTraversalReader {
 function processNeighborhoodRead(
   state: TraversalRunState,
   current: TraversalOpticFrontierEntry,
-  neighborhood: NeighborhoodOpticReadResult,
+  neighborhood: TraversalNeighborhoodReadResult,
 ): TraversalOpticReadResult | null {
   const depth = current.depth + 1;
   for (let edgeIndex = 0; edgeIndex < neighborhood.edges.length; edgeIndex += 1) {
@@ -124,7 +131,7 @@ function processNeighborhoodRead(
       state,
       current,
       neighborId: edge.neighborId,
-      edgeIndex,
+      resumeCursor: resumeCursorForEdge(neighborhood, edgeIndex),
     });
     if (boundaryResult !== null) {
       return boundaryResult;
@@ -142,7 +149,7 @@ function maybeOpenForNodeLimit(options: {
   readonly state: TraversalRunState;
   readonly current: TraversalOpticFrontierEntry;
   readonly neighborId: string;
-  readonly edgeIndex: number;
+  readonly resumeCursor: string | null;
 }): TraversalOpticReadResult | null {
   if (options.state.visited.has(options.neighborId) || options.state.visited.size < options.state.traversal.maxNodes) {
     return null;
@@ -150,7 +157,7 @@ function maybeOpenForNodeLimit(options: {
   options.state.frontier.unshift(frontierEntry(
     options.current.nodeId,
     options.current.depth,
-    blockedEdgeCursor(options.current, options.edgeIndex),
+    options.resumeCursor,
   ));
   return openTraversalResult(options.state);
 }
@@ -192,29 +199,18 @@ function maybeOpenForNeighborhoodCursor(
   return openTraversalResult(state);
 }
 
-function blockedEdgeCursor(
-  current: TraversalOpticFrontierEntry,
+function resumeCursorForEdge(
+  neighborhood: TraversalNeighborhoodReadResult,
   edgeIndex: number,
-): string {
-  return String(traversalEdgeCursorOffset(current.edgeCursor) + edgeIndex);
-}
-
-function traversalEdgeCursorOffset(cursor: string | null): number {
-  if (cursor === null || cursor.length === 0) {
-    return 0;
-  }
-  const parsed = Number.parseInt(cursor, 10);
-  if (!isCanonicalTraversalEdgeCursor(parsed, cursor)) {
-    throw new QueryError('Traversal optic frontier edge cursor must be a non-negative integer string.', {
-      code: 'E_OPTIC_TRAVERSAL_OPTIONS',
-      context: { field: 'cursor.frontier.edgeCursor' },
+): string | null {
+  const cursor = neighborhood.resumeCursors[edgeIndex];
+  if (cursor === undefined) {
+    throw new QueryError('Traversal neighborhood page omitted an edge resume cursor.', {
+      code: 'E_OPTIC_BASIS_INVALID',
+      context: { edgeIndex },
     });
   }
-  return parsed;
-}
-
-function isCanonicalTraversalEdgeCursor(parsed: number, raw: string): boolean {
-  return Number.isInteger(parsed) && parsed >= 0 && String(parsed) === raw;
+  return cursor;
 }
 
 function createTraversalRunState(

@@ -47,21 +47,23 @@ export type NeighborhoodBitmapPageResult = {
   readonly edges: NeighborhoodOpticEdge[];
   readonly hasMore: boolean;
   readonly last: NeighborhoodCandidatePosition | null;
+  readonly resumeAfter: Array<NeighborhoodCandidatePosition | null>;
 };
 
 export async function collectNeighborhoodBitmapPage(
   options: NeighborhoodCollectOptions,
 ): Promise<NeighborhoodBitmapPageResult> {
   const edges: NeighborhoodOpticEdge[] = [];
-  let last: NeighborhoodCandidatePosition | null = null;
+  const resumeAfter: Array<NeighborhoodCandidatePosition | null> = [];
+  let last = options.after;
   for (const direction of readableDirections(options.direction, options.after)) {
-    const result = await collectDirection({ direction, edges, initialLast: last, options });
+    const result = await collectDirection({ direction, edges, initialLast: last, options, resumeAfter });
     if (result.hasMore) {
-      return { edges, ...result };
+      return { edges, resumeAfter, ...result };
     }
     last = result.last;
   }
-  return { edges, hasMore: false, last };
+  return { edges, hasMore: false, last, resumeAfter };
 }
 
 export function createNeighborhoodCandidateHeap(
@@ -87,8 +89,9 @@ async function collectDirection(
     readonly edges: NeighborhoodOpticEdge[];
     readonly initialLast: NeighborhoodCandidatePosition | null;
     readonly options: NeighborhoodCollectOptions;
+    readonly resumeAfter: Array<NeighborhoodCandidatePosition | null>;
   },
-): Promise<Omit<NeighborhoodBitmapPageResult, 'edges'>> {
+): Promise<Omit<NeighborhoodBitmapPageResult, 'edges' | 'resumeAfter'>> {
   const { direction, edges, options } = context;
   const heap = await options.loader.readCandidateHeap({ ...options, direction });
   let last = context.initialLast;
@@ -101,6 +104,7 @@ async function collectDirection(
     if (edges.length === options.limit) {
       return { hasMore: true, last };
     }
+    context.resumeAfter.push(last);
     edges.push(Object.freeze({ direction, neighborId, label: candidate.label }));
     last = candidatePosition(candidate);
   }

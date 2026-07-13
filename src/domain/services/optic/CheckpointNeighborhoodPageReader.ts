@@ -57,6 +57,7 @@ export type CheckpointShardNeighborhoodReadOptions = {
 export type CheckpointShardNeighborhoodPage = {
   readonly edges: readonly NeighborhoodOpticEdge[];
   readonly cursor: string | null;
+  readonly resumeCursors: readonly (string | null)[];
   readonly checkpointIndexShards: readonly ReadIdentityIndexShard[];
 };
 
@@ -256,6 +257,7 @@ function completedPage(
     edges: NeighborhoodOpticEdge[];
     hasMore: boolean;
     last: NeighborhoodCandidatePosition | null;
+    resumeAfter: Array<NeighborhoodCandidatePosition | null>;
   },
 ): CheckpointShardNeighborhoodPage {
   const cursor = collected.hasMore && collected.last !== null
@@ -264,6 +266,9 @@ function completedPage(
   return Object.freeze({
     edges: Object.freeze(collected.edges),
     cursor,
+    resumeCursors: Object.freeze(collected.resumeAfter.map((position) => (
+      position === null ? null : encodeNeighborhoodCursor(scope, position)
+    ))),
     checkpointIndexShards: evidence.values(),
   });
 }
@@ -304,6 +309,7 @@ function emptyPage(evidence: ShardEvidence): CheckpointShardNeighborhoodPage {
   return Object.freeze({
     edges: Object.freeze([]),
     cursor: null,
+    resumeCursors: Object.freeze([]),
     checkpointIndexShards: evidence.values(),
   });
 }
