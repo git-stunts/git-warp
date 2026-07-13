@@ -3,6 +3,11 @@ import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 const ERROR_OBJECT_UPDATE_FAILURE = /index update failed after retries: error object failure/;
 const SIMULATED_UPDATE_FAILURE = /index update failed after retries: simulated write failure/;
+const MALFORMED_INDEX_ERROR = /malformed state-cache index/;
+const UNSUPPORTED_SCHEMA_ERROR = /unsupported state-cache index schema/;
+const INDEX_NOT_OBJECT_ERROR = /state-cache index must be an object/;
+const BLOB_READ_FAILED_ERROR = /blob read failed/;
+const SNAPSHOTS_NOT_OBJECT_ERROR = /snapshots must be an object/;
 import CasContentEncryptionPolicy from '../../../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -264,16 +269,16 @@ describe('GitCasWarpStateCacheAdapter', () => {
     it('fails closed on unreadable or invalid persisted indexes', async () => {
       persistence.readRef.mockResolvedValue('blob-1');
       persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode('invalid-json'));
-      await expect(adapter._readIndex()).rejects.toThrow(/malformed state-cache index/);
+      await expect(adapter._readIndex()).rejects.toThrow(MALFORMED_INDEX_ERROR);
 
       persistence.readBlob.mockResolvedValueOnce(indexBuffer({}, undefined, 999));
-      await expect(adapter._readIndex()).rejects.toThrow(/unsupported state-cache index schema/);
+      await expect(adapter._readIndex()).rejects.toThrow(UNSUPPORTED_SCHEMA_ERROR);
 
       persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode('null'));
-      await expect(adapter._readIndex()).rejects.toThrow(/state-cache index must be an object/);
+      await expect(adapter._readIndex()).rejects.toThrow(INDEX_NOT_OBJECT_ERROR);
 
       persistence.readBlob.mockRejectedValueOnce(new Error('blob read failed'));
-      await expect(adapter._readIndex()).rejects.toThrow(/blob read failed/);
+      await expect(adapter._readIndex()).rejects.toThrow(BLOB_READ_FAILED_ERROR);
 
       persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode(JSON.stringify({
         schemaVersion: 1,
@@ -284,7 +289,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         schemaVersion: 1,
         snapshots: 'invalid',
       })));
-      await expect(adapter._readIndex()).rejects.toThrow(/snapshots must be an object/);
+      await expect(adapter._readIndex()).rejects.toThrow(SNAPSHOTS_NOT_OBJECT_ERROR);
     });
 
     it('does not publish after a persisted index read fails', async () => {
@@ -292,7 +297,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
       persistence.readBlob.mockRejectedValue(new Error('blob read failed'));
 
       await expect(adapter._mutateIndex((idx: any) => idx)).rejects.toThrow(
-        /blob read failed/,
+        BLOB_READ_FAILED_ERROR,
       );
 
       expect(persistence.writeBlob).not.toHaveBeenCalled();
