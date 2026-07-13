@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const repoTsconfigPath = resolve(root, 'tsconfig.base.json');
 
-const IGNORED_DIRS = new Set(['.git', 'node_modules', 'coverage']);
+const IGNORED_DIRS = new Set(['.git', 'node_modules', 'coverage', 'dist']);
 const CODE_SAMPLE_LANGUAGES = new Set(['js', 'javascript', 'ts', 'typescript']);
 const ANY_FENCE_PATTERN = /^ {0,3}([`~]{3,})(.*)$/;
 const OPENING_FENCE_PATTERN = /^ {0,3}((?:`{3,}|~{3,}))(.*)$/;

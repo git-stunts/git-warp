@@ -182,12 +182,14 @@ describe('lintMarkdownCodeSample', () => {
 });
 
 describe('collectMarkdownFiles', () => {
-  it('walks Markdown files and ignores hidden directories', () => {
+  it('walks Markdown files and ignores hidden and generated directories', () => {
     const root = createTempDir();
     mkdirSync(join(root, 'docs'));
+    mkdirSync(join(root, 'dist'));
     mkdirSync(join(root, '.hidden'));
     writeFileSync(join(root, 'README.md'), '# root\n');
     writeFileSync(join(root, 'docs', 'GUIDE.md'), '# guide\n');
+    writeFileSync(join(root, 'dist', 'GENERATED.md'), '# generated\n');
     writeFileSync(join(root, '.hidden', 'SECRET.md'), '# secret\n');
 
     expect(collectMarkdownFiles(root)).toEqual([
