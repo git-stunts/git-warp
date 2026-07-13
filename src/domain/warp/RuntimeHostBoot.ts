@@ -343,7 +343,6 @@ export async function resolveRuntimeHostConstructionOptions(
     resolvedCheckpointStore = new CborCheckpointStoreAdapter({
       codec: resolvedCodec,
       blobPort,
-      blobStorage: resolvedBlobStorage,
     });
   }
 

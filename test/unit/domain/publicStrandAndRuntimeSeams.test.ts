@@ -246,7 +246,11 @@ class RecordingPatchJournalPort extends PatchJournalPort {
 class RecordingCheckpointStorePort extends CheckpointStorePort {
   async writeCheckpoint(_record: CheckpointRecord): Promise<CheckpointWriteResult> {
     return {
-      stateBlobOid: 'state-oid',
+      nodeAliveBlobOid: 'node-alive-oid',
+      edgeAliveBlobOid: 'edge-alive-oid',
+      propBlobOid: 'prop-oid',
+      observedFrontierBlobOid: 'observed-frontier-oid',
+      edgeBirthEventBlobOid: 'edge-birth-event-oid',
       frontierBlobOid: 'frontier-oid',
       appliedVVBlobOid: 'applied-vv-oid',
       provenanceIndexBlobOid: null,

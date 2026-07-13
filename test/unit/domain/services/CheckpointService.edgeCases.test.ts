@@ -845,7 +845,11 @@ describe('CheckpointService edge cases', () => {
       const frontier = createFrontier();
       const checkpointStore = {
         writeCheckpoint: vi.fn(async () => ({
-          stateBlobOid: makeOid('state'),
+          nodeAliveBlobOid: makeOid('nodeAlive'),
+          edgeAliveBlobOid: makeOid('edgeAlive'),
+          propBlobOid: makeOid('prop'),
+          observedFrontierBlobOid: makeOid('observedFrontier'),
+          edgeBirthEventBlobOid: makeOid('edgeBirthEvent'),
           frontierBlobOid: makeOid('frontier'),
           appliedVVBlobOid: makeOid('appliedvv'),
           provenanceIndexBlobOid: null,
@@ -868,8 +872,8 @@ describe('CheckpointService edge cases', () => {
         crypto,
       });
 
-      expect(checkpointStore.writeCheckpoint).not.toHaveBeenCalled();
-      expect(mockPersistence.writeBlob).toHaveBeenCalledTimes(7);
+      expect(checkpointStore.writeCheckpoint).toHaveBeenCalledOnce();
+      expect(mockPersistence.writeBlob).not.toHaveBeenCalled();
       const message = mockPersistence.commitNodeWithTree.mock.calls[0][0].message;
       expect(decodeCheckpointMessage(message).schema).toBe(5);
     });
