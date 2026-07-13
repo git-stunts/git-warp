@@ -10,7 +10,6 @@ import { validateGraphName } from '../../domain/utils/RefLayout.ts';
 import type { WarpStateSnapshotRecord } from '../../ports/WarpStateCachePort.ts';
 
 const ROOT_SET_PREFIX = 'refs/cas/rootsets/git-warp';
-const ROOT_SET_CONFLICT = 'ROOT_SET_CONFLICT';
 
 interface RootSetClient {
   read(): Promise<RootSetState>;
@@ -104,13 +103,6 @@ function mergedEntries(
   return [...byName.values()].sort(compareEntryNames);
 }
 
-function errorCode(error: unknown): string | null {
-  if (typeof error !== 'object' || error === null || !('code' in error)) {
-    return null;
-  }
-  return typeof error.code === 'string' ? error.code : null;
-}
-
 function rootSetError(doctor: RootSetDoctorResult): string | null {
   if (doctor.healthy) { return null; }
   return doctor.error?.message ?? 'Root-set doctor reported integrity issues';
@@ -157,9 +149,20 @@ export default class GitCasStateCacheRootSetCoordinator {
     this.rootSetRef = `${ROOT_SET_PREFIX}/${options.graphName}/state-cache`;
     this._objectProbe = options.objectProbe;
     let rootSetPromise: Promise<RootSetClient> | undefined;
-    this._getRootSet = () => {
-      rootSetPromise ??= options.openRootSet(this.rootSetRef);
-      return rootSetPromise;
+    this._getRootSet = async () => {
+      if (rootSetPromise === undefined) {
+        const opening = options.openRootSet(this.rootSetRef);
+        rootSetPromise = opening;
+        try {
+          return await opening;
+        } catch (error) {
+          if (rootSetPromise === opening) {
+            rootSetPromise = undefined;
+          }
+          throw error;
+        }
+      }
+      return await rootSetPromise;
     };
     Object.freeze(this);
   }
@@ -202,12 +205,12 @@ export default class GitCasStateCacheRootSetCoordinator {
     desired: readonly RootSetEntry[],
   ): Promise<void> {
     if (entryListsEqual(prepared.entries, desired)) { return; }
+    // The index is already committed. Any cleanup failure safely retains a
+    // superset that doctor/repair can reconcile without risking live payloads.
     try {
       await rootSet.replace({ entries: desired, expectedHeadOid: prepared.commitOid });
-    } catch (error) {
-      if (errorCode(error) !== ROOT_SET_CONFLICT) {
-        throw error;
-      }
+    } catch {
+      // The prepared superset remains authoritative and safe.
     }
   }
 

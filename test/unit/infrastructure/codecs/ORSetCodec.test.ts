@@ -3,6 +3,8 @@ import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { deserializeORSet, serializeORSet } from '../../../../src/infrastructure/codecs/ORSetCodec.ts';
 
+const MALFORMED_DOT = /Invalid encoded dot format/;
+
 describe('ORSetCodec', () => {
   it('serializes empty set', () => {
     const set = ORSet.empty();
@@ -110,6 +112,15 @@ describe('ORSetCodec', () => {
 
     expect(deserialized.entries.size).toBe(0);
     expect(deserialized.tombstones.size).toBe(0);
+  });
+
+  it('rejects malformed entry and tombstone dots at the codec boundary', () => {
+    expect(() => deserializeORSet({
+      entries: [['element', ['not-a-dot']]],
+    })).toThrow(MALFORMED_DOT);
+    expect(() => deserializeORSet({
+      tombstones: ['also-not-a-dot'],
+    })).toThrow(MALFORMED_DOT);
   });
 
   it('round-trips without changing serialized structure', () => {

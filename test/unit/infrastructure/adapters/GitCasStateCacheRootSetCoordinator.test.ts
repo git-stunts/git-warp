@@ -13,6 +13,7 @@ import GitCasStateCacheRootSetCoordinator from '../../../../src/infrastructure/a
 const TREE_A = 'a'.repeat(40);
 const TREE_B = 'b'.repeat(40);
 const TREE_C = 'c'.repeat(40);
+const INDEX_CAS_FAILURE = /index compare-and-swap failed/;
 
 function snapshot(
   snapshotId: string,
@@ -69,7 +70,7 @@ class MockRootSet {
     ) => Iterable<RootSetEntry> | Promise<Iterable<RootSetEntry>>,
   ): Promise<RootSetMutationResult> {
     this.events.push('root:prepare');
-    this.entries = Array.from(await mutator(this.entries));
+    this.entries = [...await mutator(this.entries)];
     this.headOid = TREE_B;
     return {
       changed: true,
@@ -84,7 +85,7 @@ class MockRootSet {
     expectedHeadOid?: string | null;
   }): Promise<RootSetMutationResult> {
     this.events.push('root:cleanup');
-    const entries = Array.from(options.entries);
+    const entries = [...options.entries];
     this.replaceCalls.push({ entries, expectedHeadOid: options.expectedHeadOid });
     if (this.cleanupError !== null) {
       throw this.cleanupError;
@@ -131,7 +132,7 @@ class MockRootSet {
     treeOid: string;
     entries: RootSetEntry[];
   }> {
-    const entries = Array.from(options.entries);
+    const entries = [...options.entries];
     this.events.push('root:repair');
     this.repairCalls.push(entries);
     this.entries = entries;
@@ -185,6 +186,25 @@ describe('GitCasStateCacheRootSetCoordinator', () => {
     await coordinator.adopt([]);
 
     expect(openedRefs).toEqual([]);
+  });
+
+  it('retries opening the root set after a transient failure', async () => {
+    const rootSet = new MockRootSet([]);
+    const openRootSet = vi.fn()
+      .mockRejectedValueOnce(new Error('root set unavailable'))
+      .mockResolvedValue(rootSet);
+    const coordinator = new GitCasStateCacheRootSetCoordinator({
+      graphName: 'demo',
+      openRootSet,
+      objectProbe: new MockObjectProbe(),
+    });
+
+    await expect(coordinator.inspect([])).rejects.toThrow(/root set unavailable/);
+    await expect(coordinator.inspect([])).resolves.toBeInstanceOf(
+      WarpStateCacheRetentionReport,
+    );
+
+    expect(openRootSet).toHaveBeenCalledTimes(2);
   });
 
   it('adopts a legacy live payload into the graph root set', async () => {
@@ -283,7 +303,7 @@ describe('GitCasStateCacheRootSetCoordinator', () => {
         events.push('index:publish');
         throw new Error('index compare-and-swap failed');
       }),
-    ).rejects.toThrow(/index compare-and-swap failed/);
+    ).rejects.toThrow(INDEX_CAS_FAILURE);
 
     expect(events).toEqual(['root:prepare', 'index:publish']);
     expect(rootSet.entries).toEqual([
@@ -308,7 +328,7 @@ describe('GitCasStateCacheRootSetCoordinator', () => {
     expect(rootSet.entries.map((entry) => entry.name).sort()).toEqual(['snapshot-a', 'stale']);
   });
 
-  it('surfaces cleanup failures that are not root-set conflicts', async () => {
+  it('retains a harmless superset when post-commit cleanup fails', async () => {
     const { coordinator, objectProbe, rootSet } = coordinatorFixture([
       { name: 'stale', oid: TREE_C, type: 'tree', retention: 'evictable' },
     ]);
@@ -318,13 +338,18 @@ describe('GitCasStateCacheRootSetCoordinator', () => {
     await expect(coordinator.publishTransition(
       [snapshot('snapshot-a', TREE_A)],
       async () => undefined,
-    )).rejects.toThrow(/cleanup failed/);
+    )).resolves.toBeUndefined();
 
     rootSet.cleanupError = { code: 7 };
     await expect(coordinator.publishTransition(
       [snapshot('snapshot-a', TREE_A)],
       async () => undefined,
-    )).rejects.toEqual({ code: 7 });
+    )).resolves.toBeUndefined();
+
+    expect(rootSet.entries.map((entry) => entry.name).sort()).toEqual([
+      'snapshot-a',
+      'stale',
+    ]);
   });
 
   it('reports mismatched roots and malformed doctor output', async () => {

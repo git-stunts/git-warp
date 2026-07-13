@@ -138,3 +138,14 @@ export function stateCacheRepairFinding(result: WarpStateCacheRepairResult): Doc
     },
   };
 }
+
+export function stateCacheRepairFailureFinding(error: unknown): DoctorFinding {
+  return {
+    id: 'state-cache-retention-repair',
+    status: 'fail',
+    code: CODES.CHECK_INTERNAL_ERROR,
+    impact: 'data_integrity',
+    message: `State-cache retention repair failed: ${error instanceof Error ? error.message : String(error)}`,
+    fix: 'Resolve the repository or RootSet error, then rerun `git warp doctor --repair-state-cache`',
+  };
+}

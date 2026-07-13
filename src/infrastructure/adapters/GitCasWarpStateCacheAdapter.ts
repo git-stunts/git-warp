@@ -62,6 +62,12 @@ interface CacheIndexState {
   index: CacheIndex;
 }
 
+interface CacheIndexCandidate {
+  schemaVersion?: unknown;
+  checkpointHeadId?: unknown;
+  snapshots?: unknown;
+}
+
 interface RetentionRootIdentity {
   payloadRef: string;
   retention: WarpStateSnapshotRetention;
@@ -81,14 +87,56 @@ const MAX_CAS_RETRIES = 3;
 function _emptyIndex(): CacheIndex { return { schemaVersion: INDEX_SCHEMA_VERSION, snapshots: {} }; }
 
 function _validateParsedIndex(parsed: unknown): CacheIndex {
-  if (typeof parsed !== 'object' || parsed === null) { return _emptyIndex(); }
-  const candidate = parsed as { schemaVersion?: unknown; checkpointHeadId?: string; snapshots?: unknown };
-  if (candidate.schemaVersion !== INDEX_SCHEMA_VERSION) { return _emptyIndex(); }
-  return { schemaVersion: INDEX_SCHEMA_VERSION, checkpointHeadId: candidate.checkpointHeadId, snapshots: (candidate.snapshots ?? {}) as Record<string, CacheIndexEntry> };
+  const candidate = cacheIndexCandidate(parsed);
+  validateIndexSchema(candidate.schemaVersion);
+  const checkpointHeadId = validateCheckpointHeadId(candidate.checkpointHeadId);
+  const snapshots = validateSnapshots(candidate.snapshots);
+  const index: CacheIndex = { schemaVersion: INDEX_SCHEMA_VERSION, snapshots };
+  if (checkpointHeadId !== undefined) {
+    index.checkpointHeadId = checkpointHeadId;
+  }
+  return index;
+}
+
+function cacheIndexCandidate(parsed: unknown): CacheIndexCandidate {
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new CacheError('GitCasWarpStateCacheAdapter: state-cache index must be an object');
+  }
+  return parsed as CacheIndexCandidate;
+}
+
+function validateIndexSchema(schemaVersion: unknown): void {
+  if (schemaVersion !== INDEX_SCHEMA_VERSION) {
+    throw new CacheError(
+      `GitCasWarpStateCacheAdapter: unsupported state-cache index schema ${String(schemaVersion)}`,
+    );
+  }
+}
+
+function validateCheckpointHeadId(checkpointHeadId: unknown): string | undefined {
+  if (checkpointHeadId !== undefined && typeof checkpointHeadId !== 'string') {
+    throw new CacheError('GitCasWarpStateCacheAdapter: checkpointHeadId must be a string');
+  }
+  return checkpointHeadId;
+}
+
+function validateSnapshots(value: unknown): Record<string, CacheIndexEntry> {
+  const snapshots = value ?? {};
+  if (typeof snapshots !== 'object' || snapshots === null || Array.isArray(snapshots)) {
+    throw new CacheError('GitCasWarpStateCacheAdapter: snapshots must be an object');
+  }
+  return snapshots as Record<string, CacheIndexEntry>;
 }
 
 function _parseIndexBlob(buf: Uint8Array): CacheIndex {
-  try { return _validateParsedIndex(JSON.parse(textDecode(buf))); } catch { return _emptyIndex(); }
+  try {
+    return _validateParsedIndex(JSON.parse(textDecode(buf)));
+  } catch (error) {
+    if (error instanceof CacheError) { throw error; }
+    throw new CacheError(
+      `GitCasWarpStateCacheAdapter: malformed state-cache index: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 function recordToEntry(record: WarpStateSnapshotRecord): CacheIndexEntry {
@@ -217,14 +265,10 @@ export class GitCasWarpStateCacheAdapter extends WarpStateCachePort implements W
     if (typeof headOid !== 'string' || headOid.length === 0) {
       return { headOid: null, index: _emptyIndex() };
     }
-    try {
-      return {
-        headOid,
-        index: _parseIndexBlob(await this._persistence.readBlob(headOid)),
-      };
-    } catch {
-      return { headOid, index: _emptyIndex() };
-    }
+    return {
+      headOid,
+      index: _parseIndexBlob(await this._persistence.readBlob(headOid)),
+    };
   }
 
   private async _readIndex(): Promise<CacheIndex> {

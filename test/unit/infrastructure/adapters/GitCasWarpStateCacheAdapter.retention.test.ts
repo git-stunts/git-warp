@@ -11,6 +11,8 @@ const ROOT_HEAD = 'e'.repeat(40);
 const NEXT_ROOT_HEAD = 'f'.repeat(40);
 const PAYLOAD_TREE = 'a'.repeat(40);
 const INDEX_BLOB = 'b'.repeat(40);
+const OLDER_ADOPTION_FAILURE = /older adoption failed/;
+const ROOT_READ_FAILURE = /root read failed/;
 const events: string[] = [];
 let rootEntries: RootSetEntry[] = [];
 
@@ -26,7 +28,7 @@ const mockRootMutate = vi.fn(async (
   ) => Iterable<RootSetEntry> | Promise<Iterable<RootSetEntry>>,
 ): Promise<RootSetMutationResult> => {
   events.push('root:prepare');
-  rootEntries = Array.from(await mutator(rootEntries));
+  rootEntries = [...await mutator(rootEntries)];
   return {
     changed: true,
     commitOid: NEXT_ROOT_HEAD,
@@ -39,7 +41,7 @@ const mockRootReplace = vi.fn(async (options: {
   expectedHeadOid?: string | null;
 }): Promise<RootSetMutationResult> => {
   events.push('root:cleanup');
-  rootEntries = Array.from(options.entries);
+  rootEntries = [...options.entries];
   return {
     changed: true,
     commitOid: ROOT_HEAD,
@@ -54,7 +56,7 @@ const mockRootDoctor = vi.fn(async () => ({
   entries: [...rootEntries],
 }));
 const mockRootRepair = vi.fn(async (options: { entries: Iterable<RootSetEntry> }) => {
-  rootEntries = Array.from(options.entries);
+  rootEntries = [...options.entries];
   return {
     repaired: true as const,
     commitOid: ROOT_HEAD,
@@ -183,7 +185,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     };
     mockRootRead.mockRejectedValueOnce(new Error('root read failed'));
 
-    await expect(adapter.getExact(coordinate)).rejects.toThrow(/root read failed/);
+    await expect(adapter.getExact(coordinate)).rejects.toThrow(ROOT_READ_FAILURE);
     await expect(adapter.getExact(coordinate)).resolves.toBeNull();
 
     expect(mockRootRead).toHaveBeenCalledTimes(2);
@@ -213,7 +215,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     Reflect.set(adapter, '_retentionAdoption', newerAdoption);
     rejectRead(new Error('older adoption failed'));
 
-    await expect(pending).rejects.toThrow(/older adoption failed/);
+    await expect(pending).rejects.toThrow(OLDER_ADOPTION_FAILURE);
     expect(Reflect.get(adapter, '_retentionAdoption')).toBe(newerAdoption);
   });
 
@@ -290,6 +292,29 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
       ],
       expectedHeadOid: NEXT_ROOT_HEAD,
     });
+  });
+
+  it('does not retry an index mutation after post-commit cleanup fails', async () => {
+    rootEntries = [
+      { name: 'stale', oid: ROOT_HEAD, type: 'tree', retention: 'evictable' },
+    ];
+    const persistence = persistenceFixture();
+    const adapter = new GitCasWarpStateCacheAdapter({
+      persistence,
+      plumbing: {},
+      graphName: 'demo',
+      codec: new CborCodec(),
+    });
+    mockRootReplace.mockRejectedValueOnce(new Error('cleanup failed'));
+
+    await expect(adapter.pruneEvictable()).resolves.toBeUndefined();
+
+    expect(persistence.compareAndSwapRef).toHaveBeenCalledOnce();
+    expect(mockRootMutate).toHaveBeenCalledOnce();
+    expect(rootEntries.map((entry) => entry.name).sort()).toEqual([
+      'snapshot-a',
+      'stale',
+    ]);
   });
 
   it('exposes retention inspection and repair through the cache port', async () => {

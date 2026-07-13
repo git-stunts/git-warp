@@ -412,5 +412,39 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         opIndex: 0,
       });
     });
+
+    it('normalizes missing and partial property event IDs', () => {
+      const codec = {
+          encode(value): Uint8Array {
+            return (value as any);
+          },
+          decode(_bytes: Uint8Array) {
+            return {
+              nodeAlive: {},
+              edgeAlive: {},
+              prop: [
+                ['user:a\x00role', { value: 'admin' }],
+                ['user:b\x00role', { eventId: { lamport: 4 }, value: 'reader' }],
+              ],
+              observedFrontier: {},
+            } as any;
+          },
+        } as any;
+
+      const decoded = decodeWarpFullState(new Uint8Array([1]), codec);
+
+      expect(decoded.getEncodedProp('user:a\x00role')?.eventId).toEqual({
+        lamport: 0,
+        writerId: '',
+        patchSha: '0000',
+        opIndex: 0,
+      });
+      expect(decoded.getEncodedProp('user:b\x00role')?.eventId).toEqual({
+        lamport: 4,
+        writerId: '',
+        patchSha: '0000',
+        opIndex: 0,
+      });
+    });
   });
 });

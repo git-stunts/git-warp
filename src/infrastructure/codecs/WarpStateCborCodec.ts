@@ -9,6 +9,7 @@ import type { EventId } from '../../domain/utils/EventId.ts';
 import { deserializeORSet, serializeORSet, type ORSetWire } from './ORSetCodec.ts';
 
 const FULL_STATE_VERSION = 'full-v5';
+const LEGACY_PATCH_SHA_PLACEHOLDER = '0000';
 
 type EdgeBirthWire = {
   readonly writerId?: string;
@@ -112,9 +113,7 @@ function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWR
     return prop;
   }
   for (const [key, registerObj] of propArray) {
-    const register = deserializeLWWRegister(
-      registerObj as { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null,
-    );
+    const register = deserializeLWWRegister(registerObj);
     if (register !== null) {
       prop.set(key, register);
     }
@@ -146,14 +145,14 @@ function deserializeEdgeBirthValue(value: EdgeBirthWire | number): EventId {
 }
 
 function legacyNumericEdgeBirth(lamport: number): EventId {
-  return { lamport, writerId: '', patchSha: '0000', opIndex: 0 };
+  return { lamport, writerId: '', patchSha: LEGACY_PATCH_SHA_PLACEHOLDER, opIndex: 0 };
 }
 
 function edgeBirthWireToEventId(value: EdgeBirthWire): EventId {
   return {
     lamport: value.lamport ?? 0,
     writerId: value.writerId ?? '',
-    patchSha: value.patchSha ?? '0000',
+    patchSha: value.patchSha ?? LEGACY_PATCH_SHA_PLACEHOLDER,
     opIndex: value.opIndex ?? 0,
   };
 }
@@ -175,19 +174,39 @@ function serializeLWWRegister(
   };
 }
 
-function deserializeLWWRegister(
-  obj: { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null,
-): LWWRegister<PropValue> | null {
-  if (obj === null || obj === undefined) {
+function deserializeLWWRegister(obj: unknown): LWWRegister<PropValue> | null {
+  if (typeof obj !== 'object' || obj === null) {
     return null;
   }
+  const wire = obj as { eventId?: unknown; value?: unknown };
   return {
-    eventId: {
-      lamport: obj.eventId.lamport,
-      writerId: obj.eventId.writerId,
-      patchSha: obj.eventId.patchSha,
-      opIndex: obj.eventId.opIndex,
-    },
-    value: obj.value as PropValue,
+    eventId: eventIdFromUnknown(wire.eventId),
+    value: wire.value as PropValue,
   };
+}
+
+function eventIdFromUnknown(value: unknown): EventId {
+  if (typeof value !== 'object' || value === null) {
+    return legacyNumericEdgeBirth(0);
+  }
+  const wire = value as {
+    lamport?: unknown;
+    writerId?: unknown;
+    patchSha?: unknown;
+    opIndex?: unknown;
+  };
+  return {
+    lamport: numberOrZero(wire.lamport),
+    writerId: stringOr(wire.writerId, ''),
+    patchSha: stringOr(wire.patchSha, LEGACY_PATCH_SHA_PLACEHOLDER),
+    opIndex: numberOrZero(wire.opIndex),
+  };
+}
+
+function numberOrZero(value: unknown): number {
+  return typeof value === 'number' ? value : 0;
+}
+
+function stringOr(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback;
 }

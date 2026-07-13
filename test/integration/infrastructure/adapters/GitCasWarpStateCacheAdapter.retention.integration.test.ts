@@ -24,6 +24,7 @@ interface Harness {
 const PAYLOAD_ENTRY = 'state.cbor';
 const SNAPSHOT_ID = 'legacy-snapshot';
 const WRITER_TIP = 'c'.repeat(40);
+const OID_WHITESPACE_PATTERN = /\s+/;
 const execFileAsync = promisify(execFile);
 
 async function writeBlob(plumbing: PlumbingRuntime, contents: string): Promise<string> {
@@ -72,7 +73,7 @@ async function prunableOids(repoPath: string): Promise<Set<string>> {
   return new Set(
     output
       .split('\n')
-      .map((line) => line.trim().split(/\s+/)[0])
+      .map((line) => line.trim().split(OID_WHITESPACE_PATTERN)[0])
       .filter((oid): oid is string => oid !== undefined && oid.length > 0),
   );
 }
