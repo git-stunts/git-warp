@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
-import { deserializeORSet, serializeORSet } from '../../../../src/infrastructure/codecs/ORSetCodec.ts';
+import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
+import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
+import {
+  deserializeORSet,
+  serializeORSet,
+} from '../../../../../src/domain/services/state/ORSetWireBoundary.ts';
 
 const MALFORMED_DOT = /Invalid encoded dot format/;
 
-describe('ORSetCodec', () => {
+describe('ORSetWireBoundary', () => {
   it('serializes empty set', () => {
     const set = ORSet.empty();
     const serialized = serializeORSet(set);
@@ -121,6 +124,13 @@ describe('ORSetCodec', () => {
     expect(() => deserializeORSet({
       tombstones: ['also-not-a-dot'],
     })).toThrow(MALFORMED_DOT);
+  });
+
+  it('rejects a non-array entry dot collection', () => {
+    expect(() => deserializeORSet({
+      // @ts-expect-error Persisted input can violate the transport declaration.
+      entries: [['element', null]],
+    })).toThrow('ORSet entry dots must be an array');
   });
 
   it('round-trips without changing serialized structure', () => {

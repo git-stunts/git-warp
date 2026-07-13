@@ -36,8 +36,6 @@ export interface CheckpointData {
   state: WarpState;
   frontier: Map<string, string>;
   appliedVV: VersionVector | null;
-  stateHash: string;
-  schema: number;
   provenanceIndex?: ProvenanceIndex | null;
   indexShardOids: Record<string, string> | null;
 }

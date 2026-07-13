@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
-import { serializeORSet } from '../../../../src/infrastructure/codecs/ORSetCodec.ts';
+import { serializeORSet } from '../../../../src/domain/services/state/ORSetWireBoundary.ts';
 
 // ============================================================================
 // Arbitraries for generating random ORSets

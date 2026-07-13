@@ -6,7 +6,11 @@ import { createEmptyState } from '../../domain/services/JoinReducer.ts';
 import WarpState from '../../domain/services/state/WarpState.ts';
 import type { PropValue } from '../../domain/types/PropValue.ts';
 import type { EventId } from '../../domain/utils/EventId.ts';
-import { deserializeORSet, serializeORSet, type ORSetWire } from './ORSetCodec.ts';
+import {
+  deserializeORSet,
+  serializeORSet,
+  type ORSetWire,
+} from '../../domain/services/state/ORSetWireBoundary.ts';
 
 const FULL_STATE_VERSION = 'full-v5';
 const LEGACY_PATCH_SHA_PLACEHOLDER = '0000';

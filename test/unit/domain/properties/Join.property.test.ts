@@ -16,7 +16,7 @@ import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
-import { serializeORSet } from '../../../../src/infrastructure/codecs/ORSetCodec.ts';
+import { serializeORSet } from '../../../../src/domain/services/state/ORSetWireBoundary.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
