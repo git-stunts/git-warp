@@ -10,10 +10,6 @@
  * operator inspection tools live under `@git-stunts/git-warp/diagnostics`.
  */
 
-import { installDefaultRuntimeHostNodePorts } from './src/application/RuntimeHostNodeDefaults.ts';
-
-installDefaultRuntimeHostNodePorts();
-
 export { openWarp } from './src/domain/api/openWarp.ts';
 export { intent } from './src/domain/api/IntentBuilders.ts';
 export { reading } from './src/domain/api/ReadingBuilders.ts';

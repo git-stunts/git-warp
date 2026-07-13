@@ -59,14 +59,7 @@ type ModuleSurface = {
 };
 
 function moduleSurface(relativePath = 'index.ts'): ModuleSurface {
-  const source = readFileSync(new URL(relativePath, REPO_ROOT), 'utf8');
-  const sourceFile = ts.createSourceFile(
-    relativePath,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS
-  );
+  const sourceFile = sourceFileFor(relativePath);
   const starExports: string[] = [];
   const typeExports: string[] = [];
   const valueExports: string[] = [];
@@ -94,6 +87,43 @@ function moduleSurface(relativePath = 'index.ts'): ModuleSurface {
     typeExports: sorted(typeExports),
     valueExports: sorted(valueExports),
   };
+}
+
+function sourceFileFor(relativePath: string): ts.SourceFile {
+  const source = readFileSync(new URL(relativePath, REPO_ROOT), 'utf8');
+  return ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+}
+
+function importedModules(relativePath: string): readonly string[] {
+  return sourceFileFor(relativePath).statements.flatMap((statement) =>
+    ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)
+      ? [statement.moduleSpecifier.text]
+      : []
+  );
+}
+
+function exportedFunctionCalls(
+  relativePath: string,
+  functionName: string,
+  calledIdentifier: string
+): boolean {
+  const declaration = sourceFileFor(relativePath).statements.find(
+    (statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === functionName
+  );
+  if (declaration === undefined) {
+    return false;
+  }
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      found ||= node.expression.text === calledIdentifier;
+    }
+    if (!found) {
+      ts.forEachChild(node, visit);
+    }
+  };
+  visit(declaration);
+  return found;
 }
 
 function collectExportedDeclaration(
@@ -210,5 +240,18 @@ describe('v19 public API boundary', () => {
       './diagnostics',
       './storage',
     ]);
+  });
+
+  it('installs Node runtime defaults at openWarp instead of package import time', () => {
+    const defaultsModule = '../../application/RuntimeHostNodeDefaults.ts';
+    expect(importedModules('index.ts')).not.toContain(defaultsModule);
+    expect(importedModules('src/domain/api/openWarp.ts')).toContain(defaultsModule);
+    expect(
+      exportedFunctionCalls(
+        'src/domain/api/openWarp.ts',
+        'openWarp',
+        'installDefaultRuntimeHostNodePorts'
+      )
+    ).toBe(true);
   });
 });

@@ -4,7 +4,7 @@ import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 export const DEFAULT_NEIGHBORHOOD_PAGE_SIZE = 100;
 export const MAX_NEIGHBORHOOD_PAGE_SIZE = 1_000;
 
-const CURSOR_PREFIX = 'warp-neighborhood-v1:';
+const CURSOR_PREFIX = 'git-warp:neighborhood-cursor:1:';
 
 export type NeighborhoodCursorScope = {
   readonly checkpointSha: string;

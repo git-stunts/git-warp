@@ -194,6 +194,11 @@ describe('v19 Warp facade', () => {
 
   it('rejects missing storage and blank identities', async () => {
     await expect(
+      // @ts-expect-error runtime validation accepts JavaScript callers.
+      openWarp(undefined)
+    ).rejects.toThrow('openWarp options are required');
+
+    await expect(
       openWarp({
         // @ts-expect-error runtime validation accepts JavaScript callers.
         storage: null,
@@ -304,6 +309,38 @@ describe('v19 Warp facade', () => {
     expect(result.nodes).toEqual([{ id: 'user:alice', props: { role: 'admin' } }]);
   });
 
+  it('detaches property intents from caller-owned recursive values', () => {
+    const bytes = new Uint8Array([1, 2]);
+    const source = {
+      roles: ['admin'],
+      evidence: bytes,
+    };
+    const propertyIntent = intent.property.set({
+      subject: 'user:alice',
+      key: 'access',
+      value: source,
+    });
+
+    source.roles[0] = 'owner';
+    bytes[0] = 9;
+    const exposed = propertyIntent.descriptor;
+    expect(exposed).toMatchObject({
+      kind: 'property.set',
+      value: { roles: ['admin'], evidence: new Uint8Array([1, 2]) },
+    });
+    if (exposed.kind !== 'property.set') {
+      throw new Error('property intent descriptor kind must be stable');
+    }
+    const exposedValue = exposed.value as { roles: string[]; evidence: Uint8Array };
+    exposedValue.roles[0] = 'auditor';
+    exposedValue.evidence[0] = 7;
+
+    expect(propertyIntent.descriptor).toMatchObject({
+      kind: 'property.set',
+      value: { roles: ['admin'], evidence: new Uint8Array([1, 2]) },
+    });
+  });
+
   it('returns operational write failures as receipts', async () => {
     const warp = await openWarp({
       storage: new MemoryStorageAdapter(),
@@ -324,7 +361,7 @@ describe('v19 Warp facade', () => {
     ]);
   });
 
-  it('reads public readings and returns resolved read receipts', async () => {
+  it('reads public readings and returns accepted read receipts', async () => {
     const storage = new MemoryStorageAdapter();
     const warp = await openWarp({
       storage,
@@ -372,7 +409,7 @@ describe('v19 Warp facade', () => {
     expect(propertyResult).toBeInstanceOf(ReadingResult);
     expect(propertyResult.receipt).toBeInstanceOf(ReadReceipt);
     expect(propertyResult.value).toBe('admin');
-    expect(propertyResult.receipt.outcome).toBe('resolved');
+    expect(propertyResult.receipt.outcome).toBe('accepted');
     expect(propertyResult.receipt.operation).toBe('read');
     expect(propertyResult.receipt.reading.kind).toBe('property.get');
     expect(propertyResult.receipt.timeline).toBe('events');
@@ -384,7 +421,7 @@ describe('v19 Warp facade', () => {
 
     expect(existsResult).toBeInstanceOf(ReadingResult);
     expect(existsResult.value).toBe(true);
-    expect(existsResult.receipt.outcome).toBe('resolved');
+    expect(existsResult.receipt.outcome).toBe('accepted');
     expect(existsResult.receipt.reading.kind).toBe('node.exists');
     expect(neighborhoodResult.value).toMatchObject({
       subject: 'user:alice',
@@ -393,7 +430,7 @@ describe('v19 Warp facade', () => {
       edges: [{ direction: 'out', neighborId: 'team:ops', label: 'memberOf' }],
     });
     expect(neighborhoodResult.receipt).toMatchObject({
-      outcome: 'resolved',
+      outcome: 'accepted',
       evidence: { kind: 'checkpoint-tail-read' },
     });
     const coordinate = await timeline.coordinate();

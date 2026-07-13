@@ -83,12 +83,16 @@ const preview: JoinResult = await timeline.previewJoin(draft, joinOptions);
 const joined: JoinResult = await timeline.join(draft);
 const joinReceipt: JoinReceipt = joined.receipt;
 const joinOutcome: JoinOutcome = joinReceipt.outcome;
+const acceptedOutcome: ReceiptOutcome = 'accepted';
 
 // @ts-expect-error receipt outcomes do not expose operation names.
 const operationOutcome: ReceiptOutcome = 'write';
 
 // @ts-expect-error read receipt outcomes do not expose operation names.
 const readOperationOutcome: ReadOutcome = 'read';
+
+// @ts-expect-error resolved is not a receipt outcome in the v19 contract.
+const retiredReadOutcome: ReadOutcome = 'resolved';
 
 // @ts-expect-error previewJoin is a dedicated method, not a dryRun boolean trap.
 await timeline.previewJoin(draft, { dryRun: true });
@@ -106,6 +110,7 @@ void timelineName;
 void timelineWriter;
 void historicalResult;
 void outcome;
+void acceptedOutcome;
 void operationOutcome;
 void readValue;
 void convenienceValue;
@@ -113,6 +118,7 @@ void neighborhoodRequest;
 void readOutcome;
 void readEvidence;
 void readOperationOutcome;
+void retiredReadOutcome;
 void repairHints;
 void draftReceipt;
 void preview;

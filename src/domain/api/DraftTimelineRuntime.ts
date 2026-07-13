@@ -26,14 +26,18 @@ type DraftWriteFields = {
   readonly intent: Intent;
 };
 
-type JoinResultFields = {
+type JoinResultFieldsBase = {
   readonly runtime: WarpWorldline;
   readonly draft: DraftTimeline;
   readonly mode: 'preview' | 'join';
-  readonly outcome: 'accepted' | 'rejected';
   readonly patchShas: readonly string[];
-  readonly reason?: string;
 };
+
+type JoinResultFields = JoinResultFieldsBase &
+  (
+    | { readonly outcome: 'accepted'; readonly reason?: never }
+    | { readonly outcome: 'rejected'; readonly reason: string }
+  );
 
 type RejectedJoinFields = {
   readonly runtime: WarpWorldline;
@@ -54,7 +58,7 @@ const draftStates = new WeakMap<DraftTimeline, DraftTimelineState>();
 export async function createDraftTimeline(
   runtime: WarpWorldline,
   timelineName: string,
-  draftName: string,
+  draftName: string
 ): Promise<DraftTimeline> {
   await runtime.createDraft(draftName);
   const state = createDraftState(runtime);
@@ -62,12 +66,13 @@ export async function createDraftTimeline(
     name: draftName,
     timeline: timelineName,
     writer: runtime.writerId,
-    writeDraft: async (intent) => await writeDraftIntent({
-      runtime,
-      draftName,
-      state,
-      intent,
-    }),
+    writeDraft: async (intent) =>
+      await writeDraftIntent({
+        runtime,
+        draftName,
+        state,
+        intent,
+      }),
   });
   draftStates.set(draft, state);
   return draft;
@@ -76,7 +81,7 @@ export async function createDraftTimeline(
 export async function previewDraftJoin(
   runtime: WarpWorldline,
   draft: DraftTimeline,
-  options: JoinOptions,
+  options: JoinOptions
 ): Promise<JoinResult> {
   void options;
   requireDraftState(runtime, draft);
@@ -93,7 +98,7 @@ export async function previewDraftJoin(
 export async function joinDraftTimeline(
   runtime: WarpWorldline,
   draft: DraftTimeline,
-  options: JoinOptions,
+  options: JoinOptions
 ): Promise<JoinResult> {
   void options;
   const state = requireDraftState(runtime, draft);
@@ -117,7 +122,7 @@ export async function joinDraftTimeline(
 function rejectedJoinPrecondition(
   runtime: WarpWorldline,
   draft: DraftTimeline,
-  state: DraftTimelineState,
+  state: DraftTimelineState
 ): JoinResult | null {
   if (state.joined) {
     return rejectedJoin({ runtime, draft, reason: 'Draft has already joined' });
@@ -178,7 +183,7 @@ async function writeDraftIntent(fields: DraftWriteFields): Promise<WriteReceipt>
   const receipt = await executeIntentWrite(
     fields.runtime,
     fields.intent,
-    async (build) => await fields.runtime.patchDraft(fields.draftName, build),
+    async (build) => await fields.runtime.patchDraft(fields.draftName, build)
   );
   if (receipt.outcome !== 'accepted') {
     return receipt;
@@ -205,7 +210,7 @@ function rejectedJoin(fields: RejectedJoinFields): JoinResult {
 
 async function commitDraftIntents(
   runtime: WarpWorldline,
-  state: DraftTimelineState,
+  state: DraftTimelineState
 ): Promise<readonly string[]> {
   for (const intent of state.intents) {
     try {
@@ -223,30 +228,34 @@ async function commitDraftIntents(
 function requireDraftState(runtime: WarpWorldline, draft: DraftTimeline): DraftTimelineState {
   const state = draftStates.get(draft);
   if (state === undefined || state.runtime !== runtime) {
-    throw new WarpError('DraftTimeline was not opened by this Timeline', 'E_DRAFT_RUNTIME_UNAVAILABLE');
+    throw new WarpError(
+      'DraftTimeline was not opened by this Timeline',
+      'E_DRAFT_RUNTIME_UNAVAILABLE'
+    );
   }
   return state;
 }
 
 function joinResult(fields: JoinResultFields): JoinResult {
-  const receipt = fields.reason === undefined
-    ? new JoinReceipt({
-      timeline: fields.runtime.worldlineName,
-      writer: fields.runtime.writerId,
-      draft: fields.draft,
-      mode: fields.mode,
-      outcome: fields.outcome,
-      patchShas: fields.patchShas,
-    })
-    : new JoinReceipt({
-      timeline: fields.runtime.worldlineName,
-      writer: fields.runtime.writerId,
-      draft: fields.draft,
-      mode: fields.mode,
-      outcome: fields.outcome,
-      patchShas: fields.patchShas,
-      reason: fields.reason,
-    });
+  const receipt =
+    fields.outcome === 'accepted'
+      ? new JoinReceipt({
+          timeline: fields.runtime.worldlineName,
+          writer: fields.runtime.writerId,
+          draft: fields.draft,
+          mode: fields.mode,
+          outcome: fields.outcome,
+          patchShas: fields.patchShas,
+        })
+      : new JoinReceipt({
+          timeline: fields.runtime.worldlineName,
+          writer: fields.runtime.writerId,
+          draft: fields.draft,
+          mode: fields.mode,
+          outcome: fields.outcome,
+          patchShas: fields.patchShas,
+          reason: fields.reason,
+        });
   return new JoinResult({
     receipt,
   });

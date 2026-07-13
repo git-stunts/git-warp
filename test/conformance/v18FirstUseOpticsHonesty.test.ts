@@ -182,7 +182,7 @@ describe('v18 first-use Optics honesty gate', () => {
     expect(node).toMatchObject({ nodeId: NODE_ID, alive: true });
     expect(property.value).toBe('open');
     expect(property.receipt).toMatchObject({
-      outcome: 'resolved',
+      outcome: 'accepted',
       evidence: { checkpointSha },
     });
     expect(persistence.forbiddenOperations()).toEqual([]);

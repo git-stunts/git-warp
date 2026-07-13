@@ -1,7 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import Intent from './Intent.ts';
-import type { WriteOutcome } from './ReceiptOutcome.ts';
+import { RECEIPT_OUTCOMES, type WriteOutcome } from './ReceiptOutcome.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
 
 type WriteReceiptFields = {
@@ -24,14 +24,6 @@ export type WriteReceiptOptions = WriteReceiptFields &
         readonly reason: string;
       }
   );
-
-export const RECEIPT_OUTCOMES: ReadonlySet<WriteOutcome> = new Set([
-  'accepted',
-  'obstructed',
-  'conflicted',
-  'underdetermined',
-  'rejected',
-]);
 
 export default class WriteReceipt {
   readonly intent: Intent;

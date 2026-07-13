@@ -1,5 +1,5 @@
 import WarpError from '../errors/WarpError.ts';
-import { isPropValue, type PropValue } from '../types/PropValue.ts';
+import { copyPropValue, isPropValue, type PropValue } from '../types/PropValue.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 
 export type IntentKind = 'node.add' | 'node.remove' | 'edge.add' | 'edge.remove' | 'property.set';
@@ -66,7 +66,7 @@ export default class Intent {
   }
 
   get descriptor(): IntentDescriptor {
-    return this.#descriptor;
+    return normalizeKnownDescriptor(this.#descriptor);
   }
 }
 
@@ -152,7 +152,7 @@ function requireIntentFields<TFields>(fields: TFields | null | undefined): TFiel
 
 function requireIntentValue(value: PropValue): PropValue {
   if (isPropValue(value)) {
-    return value;
+    return copyPropValue(value);
   }
   throw new WarpError('Intent value must be property-compatible data', 'E_INTENT_VALUE');
 }

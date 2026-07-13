@@ -228,30 +228,44 @@ and joins first.
 
 ## Symbol Disposition Table
 
-| v18 or earlier symbol    | v19 path                              | Notes                                             |
-| ------------------------ | ------------------------------------- | ------------------------------------------------- |
-| `openWarpWorldline()`    | root `openWarp().timeline(name)`      | preferred application opener                      |
-| `WarpWorldline`          | root `Timeline`                       | public handle rename                              |
-| `GitGraphAdapter`        | `storage` `GitStorageAdapter`         | graph name removed                                |
-| `InMemoryGraphAdapter`   | `storage` `MemoryStorageAdapter`      | graph name removed                                |
-| `GraphPersistencePort`   | root `StorageAdapter` for app options | old graph-shaped port removed from public API     |
-| `commit((patch) => ...)` | `timeline.write(intent.*)`            | receipt-returning                                 |
-| `PatchBuilder`           | removed                               | replace with intent builders                      |
-| `PatchSession`           | removed                               | replace with receipt-returning writes             |
-| `createNodeAdd()`        | removed                               | use intent builders                               |
-| `createEdgeAdd()`        | removed                               | use intent builders                               |
-| `createPropSet()`        | removed                               | use intent builders                               |
-| `openWarpGraph()`        | removed                               | replace diagnostics with explicit diagnostic APIs |
-| `WarpApp`                | removed                               | no root default export in v19                     |
-| `WarpCore`               | removed                               | replace diagnostics with explicit diagnostic APIs |
-| `GraphNode`              | removed                               | no public export                                  |
-| `GraphDiff`              | removed                               | no public-handle comparison API ships in v19      |
-| `Optic`                  | `advanced`                            | readings are root                                 |
-| `Coordinate`             | `advanced` or receipt fields          | ticks are root                                    |
-| `Observer`               | removed                               | readings are first-use root                       |
-| `Strand`                 | removed                               | drafts are first-use root                         |
-| `Braid`                  | removed                               | joins are first-use root                          |
-| Continuum evidence nouns | removed                               | receipt evidence stays root-facing                |
+| v18 or earlier symbol      | v19 path                              | Notes                                             |
+| -------------------------- | ------------------------------------- | ------------------------------------------------- |
+| `openWarpWorldline()`      | root `openWarp().timeline(name)`      | preferred application opener                      |
+| `WarpWorldline`            | root `Timeline`                       | public handle rename                              |
+| `Warp`                     | root type                             | obtain the runtime handle from `openWarp()`       |
+| `Timeline`                 | root type                             | obtain the runtime handle from `warp.timeline()`  |
+| `DraftTimeline`            | root type                             | obtain the runtime handle from `timeline.draft()` |
+| `Intent`                   | root type                             | construct with the root `intent` builders         |
+| `Reading`                  | root type                             | construct with the root `reading` builders        |
+| `ReadingResult`            | root type                             | returned by `timeline.read()`                     |
+| `WriteReceipt`             | root type                             | returned by `timeline.write()`                    |
+| `ReadReceipt`              | root type                             | returned on `ReadingResult.receipt`               |
+| `JoinReceipt`              | root type                             | returned on `JoinResult.receipt`                  |
+| `JoinResult`               | root type                             | returned by `previewJoin()` and `join()`          |
+| `WarpStorage`              | root `StorageAdapter`                 | storage option contract rename                    |
+| `ReadReceiptOutcome`       | root `ReadOutcome`                    | operation-specific outcome alias rename           |
+| `JoinReceiptOutcome`       | root `JoinOutcome`                    | operation-specific outcome alias rename           |
+| `EdgePropertyIntentFields` | removed                               | no edge-property intent ships in the v19 root     |
+| `GitGraphAdapter`          | `storage` `GitStorageAdapter`         | graph name removed                                |
+| `InMemoryGraphAdapter`     | `storage` `MemoryStorageAdapter`      | graph name removed                                |
+| `GraphPersistencePort`     | root `StorageAdapter` for app options | old graph-shaped port removed from public API     |
+| `commit((patch) => ...)`   | `timeline.write(intent.*)`            | receipt-returning                                 |
+| `PatchBuilder`             | removed                               | replace with intent builders                      |
+| `PatchSession`             | removed                               | replace with receipt-returning writes             |
+| `createNodeAdd()`          | removed                               | use intent builders                               |
+| `createEdgeAdd()`          | removed                               | use intent builders                               |
+| `createPropSet()`          | removed                               | use intent builders                               |
+| `openWarpGraph()`          | removed                               | replace diagnostics with explicit diagnostic APIs |
+| `WarpApp`                  | removed                               | no root default export in v19                     |
+| `WarpCore`                 | removed                               | replace diagnostics with explicit diagnostic APIs |
+| `GraphNode`                | removed                               | no public export                                  |
+| `GraphDiff`                | removed                               | no public-handle comparison API ships in v19      |
+| `Optic`                    | `advanced`                            | readings are root                                 |
+| `Coordinate`               | `advanced` or receipt fields          | ticks are root                                    |
+| `Observer`                 | removed                               | readings are first-use root                       |
+| `Strand`                   | removed                               | drafts are first-use root                         |
+| `Braid`                    | removed                               | joins are first-use root                          |
+| Continuum evidence nouns   | removed                               | receipt evidence stays root-facing                |
 
 ## Receipt Outcome Migration
 

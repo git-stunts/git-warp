@@ -29,9 +29,9 @@ First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.
 Source: `index.ts`. Count: 3.
 
 ```text
-intent @ index.ts#L18
-openWarp @ index.ts#L17
-reading @ index.ts#L19
+intent @ index.ts#L14
+openWarp @ index.ts#L13
+reading @ index.ts#L15
 ```
 
 ### Type exports
@@ -39,49 +39,49 @@ reading @ index.ts#L19
 Source: `index.ts`. Count: 43.
 
 ```text
-DraftTimeline @ index.ts#L20
-EdgeIntentFields @ index.ts#L34
-Intent @ index.ts#L25
-IntentBuilders @ index.ts#L40
-IntentDescriptor @ index.ts#L35
-IntentKind @ index.ts#L36
-JoinMode @ index.ts#L41
-JoinOptions @ index.ts#L43
-JoinOutcome @ index.ts#L57
-JoinPolicy @ index.ts#L43
-JoinReceipt @ index.ts#L26
-JoinReceiptOptions @ index.ts#L41
-JoinResult @ index.ts#L27
-JoinResultOptions @ index.ts#L42
-NeighborhoodReadingFields @ index.ts#L45
-NodeIntentFields @ index.ts#L37
-NodeReadingFields @ index.ts#L46
-OpenWarpOptions @ index.ts#L32
-PropertyIntentFields @ index.ts#L38
-PropertyReadingFields @ index.ts#L47
-ReadEvidence @ index.ts#L55
-Reading @ index.ts#L28
-ReadingBuilders @ index.ts#L52
-ReadingDescriptor @ index.ts#L49
-ReadingDirection @ index.ts#L48
-ReadingKind @ index.ts#L50
-ReadingResult @ index.ts#L29
-ReadingResultOptions @ index.ts#L53
-ReadingValue @ index.ts#L53
-ReadOutcome @ index.ts#L58
-ReadReceipt @ index.ts#L30
-ReadReceiptOptions @ index.ts#L55
-Receipt @ index.ts#L54
-ReceiptOutcome @ index.ts#L59
-RepairHint @ index.ts#L62
-StorageAdapter @ index.ts#L32
-Tick @ index.ts#L23
-Timeline @ index.ts#L22
-TimelineView @ index.ts#L24
-Warp @ index.ts#L21
-WriteOutcome @ index.ts#L60
-WriteReceipt @ index.ts#L31
-WriteReceiptOptions @ index.ts#L63
+DraftTimeline @ index.ts#L16
+EdgeIntentFields @ index.ts#L30
+Intent @ index.ts#L21
+IntentBuilders @ index.ts#L36
+IntentDescriptor @ index.ts#L31
+IntentKind @ index.ts#L32
+JoinMode @ index.ts#L37
+JoinOptions @ index.ts#L39
+JoinOutcome @ index.ts#L53
+JoinPolicy @ index.ts#L39
+JoinReceipt @ index.ts#L22
+JoinReceiptOptions @ index.ts#L37
+JoinResult @ index.ts#L23
+JoinResultOptions @ index.ts#L38
+NeighborhoodReadingFields @ index.ts#L41
+NodeIntentFields @ index.ts#L33
+NodeReadingFields @ index.ts#L42
+OpenWarpOptions @ index.ts#L28
+PropertyIntentFields @ index.ts#L34
+PropertyReadingFields @ index.ts#L43
+ReadEvidence @ index.ts#L51
+Reading @ index.ts#L24
+ReadingBuilders @ index.ts#L48
+ReadingDescriptor @ index.ts#L45
+ReadingDirection @ index.ts#L44
+ReadingKind @ index.ts#L46
+ReadingResult @ index.ts#L25
+ReadingResultOptions @ index.ts#L49
+ReadingValue @ index.ts#L49
+ReadOutcome @ index.ts#L54
+ReadReceipt @ index.ts#L26
+ReadReceiptOptions @ index.ts#L51
+Receipt @ index.ts#L50
+ReceiptOutcome @ index.ts#L55
+RepairHint @ index.ts#L58
+StorageAdapter @ index.ts#L28
+Tick @ index.ts#L19
+Timeline @ index.ts#L18
+TimelineView @ index.ts#L20
+Warp @ index.ts#L17
+WriteOutcome @ index.ts#L56
+WriteReceipt @ index.ts#L27
+WriteReceiptOptions @ index.ts#L59
 ```
 
 ## Storage export surface
@@ -189,7 +189,7 @@ ReceiptInspection @ diagnostics.ts#L7
 Structured CLI errors for `--json` and `--ndjson` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
 
-Source: `bin/warp-graph.ts#L129`.
+Source: `bin/warp-graph.ts#L132`.
 
 ## Public error classes
 

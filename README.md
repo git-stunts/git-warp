@@ -96,7 +96,7 @@ const role = await events.read(
   })
 );
 
-if (role.receipt.outcome === 'resolved') {
+if (role.receipt.outcome === 'accepted') {
   console.log(role.value);
   console.log(role.receipt.evidence);
 } else {

@@ -25,8 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Added the v19 `openWarp()` product opener plus `Warp` and `Timeline`
-  facade handles to the package root.
+- Added the v19 `openWarp()` product opener. `Warp` and `Timeline` are returned
+  as runtime handles and exported from the root as companion types.
 - Moved supported storage, formal WARP, and operator inspection exports out of
   the package root into the explicit `storage`, `advanced`, and `diagnostics`
   subpaths. The package root now rejects graph-first compatibility nouns
@@ -38,8 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CBOR adapter now owns the named checkpoint artifact encoding for runtime
   checkpoint creation and loading instead of exposing a stale single
   `state.cbor` result.
-- Added visible-state scope helpers to the `diagnostics` subpath so
-  materialized-state inspection has an explicit non-legacy import path.
+- Reduced the `diagnostics` subpath to receipt-based `inspectReceipt()`;
+  graph-diff and materialized-state helpers are no longer public contracts.
 - Moved receipt canonical JSON and ORSet/full-state wire encoding out of
   domain types and storage adapters into infrastructure codec modules; `ORSet`
   no longer exposes `serialize()` or `deserialize()`.

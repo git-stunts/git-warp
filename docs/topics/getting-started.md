@@ -82,7 +82,7 @@ console.log(exists.value, exists.receipt);
 ```
 
 Readings ask bounded questions. The receipt records how the runtime supported
-the answer. A resolved receipt carries checkpoint-tail evidence. If no bounded
+the answer. An accepted receipt carries checkpoint-tail evidence. If no bounded
 basis exists, `read()` returns an `obstructed` receipt with repair hints instead
 of materializing the whole timeline.
 

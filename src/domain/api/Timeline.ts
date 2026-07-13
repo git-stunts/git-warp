@@ -159,9 +159,9 @@ export default class Timeline {
 
   async readValue(reading: Reading): Promise<ReadingValue> {
     const result = await this.read(reading);
-    if (result.receipt.outcome !== 'resolved') {
+    if (result.receipt.outcome !== 'accepted') {
       throw new WarpError(
-        'Timeline.readValue requires a resolved reading',
+        'Timeline.readValue requires an accepted reading',
         'E_TIMELINE_READ_UNRESOLVED',
         {
           context: {

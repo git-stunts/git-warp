@@ -135,7 +135,7 @@ const role = await timeline.read(
   })
 );
 
-if (role.receipt.outcome === 'resolved') {
+if (role.receipt.outcome === 'accepted') {
   console.log(role.value);
   console.log(role.receipt.evidence);
 } else {

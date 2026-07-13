@@ -18,7 +18,7 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
     const graph = fixture.graph;
     const materialization = new V17MaterializationFallbackTrap(
       graph,
-      'traversal optic read must not full-materialize',
+      'traversal optic read must not full-materialize'
     );
     const readPath = new V17PublicOpticReadPath(graph.worldline());
 
@@ -114,12 +114,14 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
     expect(first).toMatchObject({
       completeness: 'frontier-open',
       frontier: [
-        { nodeId: ROOT_NODE_ID, depth: 0, edgeCursor: expect.stringMatching(/^warp-neighborhood-v1:/) },
+        {
+          nodeId: ROOT_NODE_ID,
+          depth: 0,
+          edgeCursor: expect.stringMatching(/^git-warp:neighborhood-cursor:1:/),
+        },
         { nodeId: BETA_NODE_ID, depth: 1, edgeCursor: null },
       ],
-      edges: [
-        { fromNodeId: ROOT_NODE_ID, toNodeId: BETA_NODE_ID, label: LINK_LABEL, depth: 1 },
-      ],
+      edges: [{ fromNodeId: ROOT_NODE_ID, toNodeId: BETA_NODE_ID, label: LINK_LABEL, depth: 1 }],
     });
     expect(second).toMatchObject({
       completeness: 'complete',
@@ -175,23 +177,23 @@ describe('v18 TraversalOptic checkpoint-tail read basis', () => {
     const fixture = await openTraversalFixture(graphName);
     const readPath = new V17PublicOpticReadPath(fixture.graph.worldline());
 
-    await expect(readPath.readTraversal(ROOT_NODE_ID, { direction: 'out' }))
-      .rejects
-      .toMatchObject({
-        code: 'E_OPTIC_TRAVERSAL_UNBOUNDED',
-        context: {
-          graphName,
-          opticKind: 'traversal',
-          target: { nodeId: ROOT_NODE_ID },
-          cause: 'requires-global-scan',
-          reason: 'requires-global-scan',
-          recoveryHints: [],
-        },
-      });
+    await expect(readPath.readTraversal(ROOT_NODE_ID, { direction: 'out' })).rejects.toMatchObject({
+      code: 'E_OPTIC_TRAVERSAL_UNBOUNDED',
+      context: {
+        graphName,
+        opticKind: 'traversal',
+        target: { nodeId: ROOT_NODE_ID },
+        cause: 'requires-global-scan',
+        reason: 'requires-global-scan',
+        recoveryHints: [],
+      },
+    });
   });
 });
 
-async function openTraversalFixture(graphName: string): Promise<V17CheckpointTailOpticGraphFixture> {
+async function openTraversalFixture(
+  graphName: string
+): Promise<V17CheckpointTailOpticGraphFixture> {
   const fixture = await V17CheckpointTailOpticGraphFixture.openEmpty(graphName);
   await fixture.graph.patch((patch) => {
     patch.addNode(ROOT_NODE_ID);

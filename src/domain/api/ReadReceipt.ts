@@ -2,20 +2,31 @@ import WarpError from '../errors/WarpError.ts';
 import type ReadIdentity from '../services/optic/ReadIdentity.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import Reading from './Reading.ts';
-import type { ReadOutcome } from './ReceiptOutcome.ts';
+import { RECEIPT_OUTCOMES, type ReadOutcome } from './ReceiptOutcome.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
 
 export type ReadReceiptOutcome = ReadOutcome;
 
-export type ReadReceiptOptions = {
+type ReadReceiptFields = {
   readonly timeline: string;
   readonly writer: string;
   readonly reading: Reading;
-  readonly outcome: ReadReceiptOutcome;
-  readonly evidence?: ReadEvidence;
   readonly repairHints?: readonly RepairHint[];
-  readonly reason?: string;
 };
+
+export type ReadReceiptOptions = ReadReceiptFields &
+  (
+    | {
+        readonly outcome: 'accepted';
+        readonly evidence: ReadEvidence;
+        readonly reason?: never;
+      }
+    | {
+        readonly outcome: Exclude<ReadReceiptOutcome, 'accepted'>;
+        readonly evidence?: ReadEvidence;
+        readonly reason: string;
+      }
+  );
 
 export type ReadEvidence = Readonly<
   Pick<
@@ -33,12 +44,7 @@ export type ReadEvidence = Readonly<
   >
 >;
 
-const READ_RECEIPT_OUTCOMES: ReadonlySet<ReadReceiptOutcome> = new Set([
-  'resolved',
-  'obstructed',
-  'underdetermined',
-  'rejected',
-]);
+const READ_RECEIPT_OUTCOMES: ReadonlySet<ReadReceiptOutcome> = RECEIPT_OUTCOMES;
 
 export default class ReadReceipt {
   readonly evidence: ReadEvidence | undefined;
@@ -87,8 +93,8 @@ function validateReadOutcome(outcome: ReadReceiptOutcome): void {
 
 function validateReadResolution(fields: ReadReceiptOptions): void {
   validateOptionalReason(fields.reason);
-  validateResolvedEvidence(fields);
-  validateUnresolvedReason(fields);
+  validateAcceptedEvidence(fields);
+  validateReadReason(fields);
 }
 
 function validateOptionalReason(reason: string | undefined): void {
@@ -97,15 +103,18 @@ function validateOptionalReason(reason: string | undefined): void {
   }
 }
 
-function validateResolvedEvidence(fields: ReadReceiptOptions): void {
-  if (fields.outcome === 'resolved' && fields.evidence === undefined) {
-    throw new WarpError('Resolved ReadReceipt requires evidence', 'E_READ_RECEIPT_EVIDENCE');
+function validateAcceptedEvidence(fields: ReadReceiptOptions): void {
+  if (fields.outcome === 'accepted' && fields.evidence === undefined) {
+    throw new WarpError('Accepted ReadReceipt requires evidence', 'E_READ_RECEIPT_EVIDENCE');
   }
 }
 
-function validateUnresolvedReason(fields: ReadReceiptOptions): void {
-  if (fields.outcome !== 'resolved' && fields.reason === undefined) {
-    throw new WarpError('Unresolved ReadReceipt requires a reason', 'E_READ_RECEIPT_REASON');
+function validateReadReason(fields: ReadReceiptOptions): void {
+  if (fields.outcome === 'accepted' && fields.reason !== undefined) {
+    throw new WarpError('Accepted ReadReceipt cannot carry a reason', 'E_READ_RECEIPT_REASON');
+  }
+  if (fields.outcome !== 'accepted' && fields.reason === undefined) {
+    throw new WarpError('Unaccepted ReadReceipt requires a reason', 'E_READ_RECEIPT_REASON');
   }
 }
 

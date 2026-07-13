@@ -1,11 +1,18 @@
 export type ReceiptOutcome =
   | 'accepted'
-  | 'resolved'
   | 'obstructed'
   | 'conflicted'
   | 'underdetermined'
   | 'rejected';
 
-export type WriteOutcome = Exclude<ReceiptOutcome, 'resolved'>;
-export type ReadOutcome = Exclude<ReceiptOutcome, 'accepted' | 'conflicted'>;
-export type JoinOutcome = WriteOutcome;
+export type WriteOutcome = ReceiptOutcome;
+export type ReadOutcome = ReceiptOutcome;
+export type JoinOutcome = ReceiptOutcome;
+
+export const RECEIPT_OUTCOMES: ReadonlySet<ReceiptOutcome> = new Set([
+  'accepted',
+  'obstructed',
+  'conflicted',
+  'underdetermined',
+  'rejected',
+]);

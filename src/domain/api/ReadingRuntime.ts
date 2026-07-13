@@ -23,7 +23,7 @@ type ReadingExecutor = (
 ) => Promise<BoundedReading>;
 
 type OperationalReadFailure = {
-  readonly outcome: Exclude<ReadReceiptOutcome, 'resolved' | 'rejected'>;
+  readonly outcome: Exclude<ReadReceiptOutcome, 'accepted' | 'rejected'>;
   readonly reason: string;
   readonly repairHints: readonly RepairHint[];
 };
@@ -160,7 +160,7 @@ function readingResult(
       timeline: runtime.worldlineName,
       writer: runtime.writerId,
       reading,
-      outcome: 'resolved',
+      outcome: 'accepted',
       evidence: result.evidence,
     }),
   });

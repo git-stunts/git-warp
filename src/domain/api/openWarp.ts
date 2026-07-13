@@ -1,4 +1,5 @@
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
+import { installDefaultRuntimeHostNodePorts } from '../../application/RuntimeHostNodeDefaults.ts';
 import type { CorePersistence } from '../types/WarpPersistence.ts';
 import { openWarpWorldline } from '../WarpWorldline.ts';
 import Warp from './Warp.ts';
@@ -17,17 +18,19 @@ export type OpenWarpOptions = {
 export function openWarp(options: OpenWarpOptions): Promise<Warp> {
   return Promise.resolve().then(() => {
     assertOpenWarpOptions(options);
+    installDefaultRuntimeHostNodePorts();
     const { storage, writer } = options;
 
     return new Warp({
       writer,
-      openTimeline: async (name) => createTimeline(
-        await openWarpWorldline({
-          persistence: storage,
-          worldlineName: name,
-          writerId: writer,
-        }),
-      ),
+      openTimeline: async (name) =>
+        createTimeline(
+          await openWarpWorldline({
+            persistence: storage,
+            worldlineName: name,
+            writerId: writer,
+          })
+        ),
     });
   });
 }

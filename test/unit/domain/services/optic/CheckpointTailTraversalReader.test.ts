@@ -9,7 +9,7 @@ const ALPHA = 'node:alpha';
 const BETA = 'node:beta';
 const GAMMA = 'node:gamma';
 const DELTA = 'node:delta';
-const OPAQUE_AFTER_BETA = 'warp-neighborhood-v1:checkpoint|node%3Aroot|out||out|7|link';
+const OPAQUE_AFTER_BETA = 'git-warp:neighborhood-cursor:1:checkpoint|node%3Aroot|out||out|7|link';
 
 const READ_IDENTITY = new ReadIdentity({
   worldline: 'traversal-reader-test',
@@ -45,9 +45,7 @@ describe('CheckpointTailTraversalReader', () => {
         { nodeId: ROOT, depth: 0, edgeCursor: OPAQUE_AFTER_BETA },
         { nodeId: BETA, depth: 1, edgeCursor: null },
       ],
-      edges: [
-        { fromNodeId: ROOT, toNodeId: BETA, label: 'link', depth: 1 },
-      ],
+      edges: [{ fromNodeId: ROOT, toNodeId: BETA, label: 'link', depth: 1 }],
     });
     if (first.cursor === null) {
       throw new Error('expected an open traversal cursor');
@@ -73,37 +71,31 @@ describe('CheckpointTailTraversalReader', () => {
   });
 });
 
-function neighborhoodPage(
-  nodeId: string,
-  cursor: string | null,
-): TraversalNeighborhoodReadResult {
+function neighborhoodPage(nodeId: string, cursor: string | null): TraversalNeighborhoodReadResult {
   if (nodeId === ROOT && cursor === null) {
-    return page([
-      { direction: 'out', neighborId: BETA, label: 'link' },
-      { direction: 'out', neighborId: ALPHA, label: 'link' },
-    ], [null, OPAQUE_AFTER_BETA]);
+    return page(
+      [
+        { direction: 'out', neighborId: BETA, label: 'link' },
+        { direction: 'out', neighborId: ALPHA, label: 'link' },
+      ],
+      [null, OPAQUE_AFTER_BETA]
+    );
   }
   if (nodeId === ROOT && cursor === OPAQUE_AFTER_BETA) {
-    return page([
-      { direction: 'out', neighborId: ALPHA, label: 'link' },
-    ], [OPAQUE_AFTER_BETA]);
+    return page([{ direction: 'out', neighborId: ALPHA, label: 'link' }], [OPAQUE_AFTER_BETA]);
   }
   if (nodeId === BETA) {
-    return page([
-      { direction: 'out', neighborId: DELTA, label: 'link' },
-    ], [null]);
+    return page([{ direction: 'out', neighborId: DELTA, label: 'link' }], [null]);
   }
   if (nodeId === ALPHA) {
-    return page([
-      { direction: 'out', neighborId: GAMMA, label: 'link' },
-    ], [null]);
+    return page([{ direction: 'out', neighborId: GAMMA, label: 'link' }], [null]);
   }
   return page([], []);
 }
 
 function page(
   edges: TraversalNeighborhoodReadResult['edges'],
-  resumeCursors: readonly (string | null)[],
+  resumeCursors: readonly (string | null)[]
 ): TraversalNeighborhoodReadResult {
   return {
     edges,
