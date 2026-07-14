@@ -1,34 +1,22 @@
 import { describe, it, expect, vi } from 'vitest';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
-import { createGitCasPatchStorage } from '../../../src/ports/CommitMessageCodecPort.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
-import type RuntimeStorageCapabilityPort from '../../../src/ports/RuntimeStorageCapabilityPort.ts';
+import MemoryRuntimeStorageAdapter from '../../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
 
 /**
- * Spec tests for OG-014: auto-construction of blob storage.
+ * Spec tests for runtime content storage composition.
  *
- * When no explicit `blobStorage` is provided to `openRuntimeHostProduct()`,
- * the core should auto-construct the appropriate adapter:
- * - `CasBlobAdapter` when persistence has plumbing (Git-backed)
- * - `InMemoryBlobStorageAdapter` when persistence lacks plumbing (in-memory)
- *
- * These tests should all FAIL against the current code (red phase).
+ * Runtime storage is an explicit sibling of timeline history. The provider
+ * owns adapter construction and the domain consumes only semantic services.
  */
 
-type MockBlobStorage = {
-  store: ReturnType<typeof vi.fn>;
-  retrieve: ReturnType<typeof vi.fn>;
-  storeStream: ReturnType<typeof vi.fn>;
-  retrieveStream: ReturnType<typeof vi.fn>;
-};
-
-type MockPersistence = CorePersistence & Partial<RuntimeStorageCapabilityPort> & {
+type MockPersistence = CorePersistence & {
   configGet: ReturnType<typeof vi.fn>;
   configSet: ReturnType<typeof vi.fn>;
 };
 
-function makeMockPersistence({ hasPlumbing = false } = {}): MockPersistence {
-  const persistence: MockPersistence = {
+function makeMockPersistence(): MockPersistence {
+  return {
     commitNode: vi.fn(async () => 'c'.repeat(40)),
     showNode: vi.fn(async () => ''),
     readRef: vi.fn(async () => null),
@@ -53,42 +41,37 @@ function makeMockPersistence({ hasPlumbing = false } = {}): MockPersistence {
     ping: vi.fn(async () => ({ ok: true, latencyMs: 0 })),
     emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
   };
-  if (hasPlumbing) {
-    persistence.createRuntimeBlobStorage = vi.fn(async () => ({
-      store: vi.fn(),
-      retrieve: vi.fn(),
-      storeStream: vi.fn(),
-      retrieveStream: vi.fn(),
-    }));
-    persistence.defaultPatchWriteStorage = vi.fn(() => createGitCasPatchStorage(false));
-  }
-  return persistence;
 }
 
-describe('WarpCore blob storage auto-construction (OG-014)', () => {
-  it('auto-constructs blob storage when none is provided', async () => {
+describe('WarpCore runtime content storage composition', () => {
+  it('obtains content storage from the injected runtime provider', async () => {
+    const persistence = makeMockPersistence();
     const graph = await openRuntimeHostProduct({
-      persistence: makeMockPersistence(),
+      persistence,
+      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
       graphName: 'test',
       writerId: 'w1',
     });
 
-    // _blobStorage should not be null — it should be auto-constructed
-    expect((graph)._blobStorage).not.toBeNull();
+    expect(graph._blobStorage).not.toBeNull();
   });
 
-  it('auto-constructs InMemoryBlobStorageAdapter when persistence lacks plumbing', async () => {
+  it('provides streaming content methods without persistence capability reflection', async () => {
+    const persistence = makeMockPersistence();
     const graph = await openRuntimeHostProduct({
-      persistence: makeMockPersistence({ hasPlumbing: false }),
+      persistence,
+      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
       graphName: 'test',
       writerId: 'w1',
     });
 
-    const bs = (graph as any)._blobStorage;
-    expect(bs).not.toBeNull();
-    // Should have the streaming methods
-    expect(typeof bs!.storeStream).toBe('function');
-    expect(typeof bs!.retrieveStream).toBe('function');
+    const content = graph._blobStorage;
+    expect(content).not.toBeNull();
+    if (content === null) {
+      throw new Error('runtime content storage must be configured');
+    }
+    expect(typeof content.storeStream).toBe('function');
+    expect(typeof content.retrieveStream).toBe('function');
   });
 
   it('preserves explicitly provided blobStorage', async () => {
@@ -98,19 +81,23 @@ describe('WarpCore blob storage auto-construction (OG-014)', () => {
       storeStream: vi.fn(),
       retrieveStream: vi.fn(),
     };
+    const persistence = makeMockPersistence();
     const graph = await openRuntimeHostProduct({
-      persistence: makeMockPersistence(),
+      persistence,
+      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
       graphName: 'test',
       writerId: 'w1',
-      blobStorage: (customStorage),
+      blobStorage: customStorage,
     });
 
-    expect((graph)._blobStorage).toBe(customStorage);
+    expect(graph._blobStorage).toBe(customStorage);
   });
 
-  it('attachContent uses blob storage even when caller did not provide one', async () => {
+  it('attachContent uses provider content storage instead of history blobs', async () => {
+    const persistence = makeMockPersistence();
     const graph = await openRuntimeHostProduct({
-      persistence: makeMockPersistence(),
+      persistence,
+      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
       graphName: 'test',
       writerId: 'w1',
     });
@@ -118,10 +105,8 @@ describe('WarpCore blob storage auto-construction (OG-014)', () => {
     const patch = await graph.createPatch();
     patch.addNode('n1');
 
-    // This should NOT call persistence.writeBlob — it should use auto-constructed blob storage
     await patch.attachContent('n1', 'hello');
 
-    const persistence = (graph)._persistence;
-    expect(persistence.writeBlob).not.toHaveBeenCalled();
+    expect(graph._persistence.writeBlob).not.toHaveBeenCalled();
   });
 });

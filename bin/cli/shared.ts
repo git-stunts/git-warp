@@ -4,45 +4,53 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
 import { textEncode } from '../../src/domain/utils/bytes.ts';
-import _GitPlumbing, { ShellRunnerFactory as _ShellRunnerFactory } from '@git-stunts/plumbing';
-
-const _sfRaw: unknown = _ShellRunnerFactory;
-const TypedShellRunnerFactory = _sfRaw as { create: () => unknown };
-
-const _gpRaw: unknown = _GitPlumbing;
-const TypedGitPlumbing = _gpRaw as new (opts: { cwd: string; runner: unknown }) => unknown;
-import GitGraphAdapter, { type GitPlumbing } from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import {
   REF_PREFIX,
   buildCursorActiveRef,
 } from '../../src/domain/utils/RefLayout.ts';
-import CasSeekCacheAdapter from '../../src/infrastructure/adapters/CasSeekCacheAdapter.ts';
 import { HookInstaller, type FsAdapter } from '../../src/domain/services/HookInstaller.ts';
-import PlumbingHookPathAdapter from '../../src/infrastructure/adapters/PlumbingHookPathAdapter.ts';
 import { parseCursorBlob } from '../../src/domain/utils/parseCursorBlob.ts';
 import { usageError, notFoundError } from './infrastructure.ts';
+import { GitStorage } from '../../storage.ts';
+import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
+import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProviderPort.ts';
+import type SeekCachePort from '../../src/ports/SeekCachePort.ts';
+import type TrustChainPort from '../../src/ports/TrustChainPort.ts';
+import type CryptoPort from '../../src/ports/CryptoPort.ts';
+import type HookPathPort from '../../src/ports/HookPathPort.ts';
 
 import type { Persistence, WarpGraphInstance, CursorBlob, CliOptions, SeekSpec } from './types.ts';
 
-function createPlumbing(repoPath: string): GitPlumbing {
-  const runner = TypedShellRunnerFactory.create();
-  const plumbing = new TypedGitPlumbing({ cwd: repoPath, runner });
-  return plumbing as GitPlumbing;
-}
+export type CliStorageBinding = {
+  readonly persistence: Persistence;
+  readonly runtimeStorage: RuntimeStorageProviderPort;
+  readonly createSeekCache: (timelineName: string) => SeekCachePort;
+  readonly createTrustChain: (crypto: CryptoPort) => TrustChainPort;
+  readonly hookPaths: HookPathPort;
+};
 
 /**
  * Creates a persistence adapter for the given repository path.
  */
-export async function createPersistence(repoPath: string): Promise<{ persistence: Persistence; plumbing: GitPlumbing }> {
-  const plumbing = createPlumbing(repoPath);
-  const persistence = new GitGraphAdapter({ plumbing });
-  const ping = await persistence.ping();
-  if (!ping.ok) {
-    throw usageError(`Repository not accessible: ${repoPath}`);
+export async function createPersistence(repoPath: string): Promise<CliStorageBinding> {
+  const storage = await GitStorage.open({ cwd: repoPath });
+  const binding = resolveWarpStorage(storage);
+  if (!(binding.history instanceof GitTimelineHistoryAdapter)
+    || binding.createSeekCache === undefined
+    || binding.createTrustChain === undefined
+    || binding.hookPaths === undefined) {
+    throw usageError('GitStorage returned an incomplete CLI storage binding');
   }
-  return { persistence, plumbing };
+  return {
+    persistence: binding.history,
+    runtimeStorage: binding.runtimeStorage,
+    createSeekCache: binding.createSeekCache,
+    createTrustChain: binding.createTrustChain,
+    hookPaths: binding.hookPaths,
+  };
 }
 
 /**
@@ -90,8 +98,8 @@ export async function resolveGraphName(persistence: Persistence, explicitGraph: 
 /**
  * Opens a WarpCore for the given CLI options.
  */
-export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence; plumbing: GitPlumbing }> {
-  const { persistence, plumbing } = await createPersistence(options.repo);
+export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence; runtimeStorage: RuntimeStorageProviderPort; createSeekCache: (timelineName: string) => SeekCachePort; hookPaths: HookPathPort }> {
+  const { persistence, runtimeStorage, createSeekCache, hookPaths } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
   if (typeof options.graph === 'string' && options.graph.length > 0) {
     const graphNames = await listGraphNames(persistence);
@@ -101,11 +109,12 @@ export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraph
   }
   const graph = await openRuntimeHostProduct({
     persistence,
+    runtimeStorage,
     graphName,
     writerId: options.writer,
     crypto: new WebCryptoAdapter(),
   });
-  return { graph, graphName, persistence, plumbing };
+  return { graph, graphName, persistence, runtimeStorage, createSeekCache, hookPaths };
 }
 
 /**
@@ -169,17 +178,14 @@ export async function readCheckpointDate(persistence: Persistence, checkpointSha
 /**
  * Create a HookInstaller wired with real filesystem dependencies.
  */
-export function createHookInstaller(): HookInstaller {
+export function createHookInstaller(hookPathPort: HookPathPort): HookInstaller {
   const packageRoot = findPackageRoot(fileURLToPath(new URL('.', import.meta.url)));
   const templateDir = path.join(packageRoot, 'scripts', 'hooks');
   const rawJson = fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8');
   const version = readPackageVersion(rawJson);
   return new HookInstaller({
     fs: fs as unknown as FsAdapter,
-    hookPathPort: new PlumbingHookPathAdapter({
-      plumbingFactory: { create: createPlumbing },
-      path,
-    }),
+    hookPathPort,
     version,
     templateDir,
     path,
@@ -238,19 +244,14 @@ function readPackageVersion(rawJson: string): string {
 /**
  * Attaches a persistent seek cache to a graph instance unless disabled by flags.
  */
-export function wireSeekCache({ graph, persistence, plumbing, graphName, seekSpec }: {
+export function wireSeekCache({ graph, createSeekCache, graphName, seekSpec }: {
   graph: WarpGraphInstance;
-  persistence: Persistence;
-  plumbing: GitPlumbing;
+  createSeekCache: (timelineName: string) => SeekCachePort;
   graphName: string;
   seekSpec: SeekSpec;
 }): void {
   if (seekSpec.noPersistentCache) {
     return;
   }
-  graph.setSeekCache(new CasSeekCacheAdapter({
-    persistence,
-    plumbing,
-    graphName,
-  }));
+  graph.setSeekCache(createSeekCache(graphName));
 }

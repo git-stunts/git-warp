@@ -14,7 +14,8 @@ import {
 import type SnapshotWarpState
   from '../../../../src/domain/services/snapshot/SnapshotWarpState.ts';
 import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import { compareStrings } from '../../../../src/domain/utils/StringComparison.ts';
 import {
   type GraphModelMigrationScratchOperationRecord,
@@ -114,8 +115,11 @@ export async function replayGraphModelMigrationScratchIntoRuntime(
     await plumbing.execute({ args: ['init', '-q'] });
     await plumbing.execute({ args: ['config', 'user.email', 'git-warp@example.invalid'] });
     await plumbing.execute({ args: ['config', 'user.name', 'git-warp migration replay'] });
+    const persistence = new GitTimelineHistoryAdapter({ plumbing });
+    const runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
     const graph = await openRuntimeHostProduct({
-      persistence: new GitGraphAdapter({ plumbing }),
+      persistence,
+      runtimeStorage,
       graphName: request.graphId,
       writerId: request.writerId,
     });

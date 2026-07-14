@@ -2,8 +2,12 @@ import { TextDecoder } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import WarpApp from '../../../src/domain/WarpApp.ts';
 import WarpCore from '../../../src/domain/WarpCore.ts';
-import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
-import { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
+import {
+  openMemoryWarpApp,
+  openMemoryWarpCore,
+  openMemoryWarpGraph as openWarpGraph,
+  openMemoryWarpWorldline as openWarpWorldline,
+} from '../../helpers/MemoryRuntimeHost.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 
 function openOptions(
@@ -68,7 +72,7 @@ describe('internal reading surfaces', () => {
   });
 
   it('keeps WarpApp curated while WarpCore remains the explicit materialization escape hatch', async () => {
-    const app = await WarpApp.open(openOptions('public-reading-app', 'writer-app'));
+    const app = await openMemoryWarpApp(openOptions('public-reading-app', 'writer-app'));
 
     await app.patch(async (patch) => {
       patch.addNode('doc:readme');
@@ -90,7 +94,7 @@ describe('internal reading surfaces', () => {
   });
 
   it('keeps WarpCore as the explicit substrate escape hatch with representative writes and reads', async () => {
-    const core = await WarpCore.open(openOptions('public-reading-core', 'writer-core'));
+    const core = await openMemoryWarpCore(openOptions('public-reading-core', 'writer-core'));
 
     await core.patch((patch) => {
       patch.addNode('core:node');

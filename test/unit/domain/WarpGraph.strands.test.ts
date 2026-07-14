@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import WarpCore from '../../../src/domain/WarpCore.ts';
+import { openMemoryWarpCore } from '../../helpers/MemoryRuntimeHost.ts';
 import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
@@ -152,7 +152,7 @@ describe('WarpCore strand foundation', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = ((await WarpCore.open({
+    graph = ((await openMemoryWarpCore({
       persistence,
       graphName,
       writerId: 'tester',

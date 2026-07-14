@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import WarpCore from '../../../src/domain/WarpCore.ts';
-import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
+import {
+  openMemoryRuntimeHostProduct as openRuntimeHostProduct,
+  openMemoryWarpCore,
+  openMemoryWarpGraph as openWarpGraph,
+} from '../../helpers/MemoryRuntimeHost.ts';
 import StrandError from '../../../src/domain/errors/StrandError.ts';
 import RuntimeDetachedFactory from '../../../src/domain/warp/RuntimeDetachedFactory.ts';
 import RuntimePatchCollector from '../../../src/domain/warp/RuntimePatchCollector.ts';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
 import PatchJournalPort from '../../../src/ports/PatchJournalPort.ts';
 import CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
@@ -45,7 +48,7 @@ describe('strand and runtime host seams', () => {
   });
 
   it('creates, patches, braids, and materializes strands through WarpCore', async () => {
-    const core = await WarpCore.open({
+    const core = await openMemoryWarpCore({
       persistence: new InMemoryGraphAdapter(),
       graphName: 'strand-public-surface',
       writerId: 'agent-1',
@@ -165,8 +168,10 @@ describe('strand and runtime host seams', () => {
 });
 
 function createDetachedHost(): DetachedOpenHost {
+  const persistence = new InMemoryGraphAdapter();
   return {
-    _persistence: new InMemoryGraphAdapter(),
+    _persistence: persistence,
+    _runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
     _graphName: 'detached-runtime',
     _writerId: 'agent-1',
     _gcPolicy: GCPolicy.DEFAULT,

@@ -62,12 +62,13 @@ async function openOpticWorldline(options: CliOptions): Promise<{
   readonly graphName: string;
   readonly worldline: Awaited<ReturnType<typeof openWarpWorldline>>;
 }> {
-  const { persistence } = await createPersistence(options.repo);
+  const { persistence, runtimeStorage } = await createPersistence(options.repo);
   const graphName = await resolveOpticGraphName(persistence, options.graph);
   return {
     graphName,
     worldline: await openWarpWorldline({
       persistence,
+      runtimeStorage,
       worldlineName: graphName,
       writerId: options.writer,
       crypto: new WebCryptoAdapter(),

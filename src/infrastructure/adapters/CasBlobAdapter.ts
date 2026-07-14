@@ -13,33 +13,23 @@
 
 import BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
-import { createLazyCas } from './lazyCasInit.ts';
-import { createCdcCasStore } from './CasStoreFactory.ts';
 import {
   CURRENT_SUBSTRATE_ONLY_POLICY,
   type SubstrateCompatibilityPolicyValue,
 } from './SubstrateCompatibilityPolicy.ts';
 import CasContentEncryptionPolicy, {
   type CasRestoreEncryptionArguments,
-  type CasStoreEncryptionArguments,
   type CasStoreEncryptionOptions,
   mapCasContentEncryptionError,
 } from './CasContentEncryptionPolicy.ts';
-import type LoggerPort from '../../ports/LoggerPort.ts';
 import { Readable } from 'node:stream';
+import type ContentAddressableStore from '@git-stunts/git-cas';
+import type { Manifest } from '@git-stunts/git-cas';
 
-interface CasManifest {
-  entries?: Record<string, unknown>;
-}
-
-interface CasStore {
-  readManifest(opts: { treeOid: string }): Promise<CasManifest>;
-  restore(opts: { manifest: CasManifest } & CasRestoreEncryptionArguments): Promise<{ buffer: Uint8Array }>;
-  restoreStream?: (opts: { manifest: CasManifest } & CasRestoreEncryptionArguments) => AsyncIterable<Uint8Array>;
-  store(opts: { source: unknown; slug: string; filename: string } & CasStoreEncryptionArguments): Promise<CasManifest>;
-  createTree(opts: { manifest: CasManifest }): Promise<string>;
-  has?: (opts: { treeOid: string }) => Promise<boolean>;
-}
+type CasStore = Pick<
+  ContentAddressableStore,
+  'readManifest' | 'restore' | 'restoreStream' | 'store' | 'createTree'
+>;
 
 export interface BlobPersistence {
   readBlob(oid: string): Promise<Uint8Array | null | undefined>;
@@ -65,8 +55,19 @@ function normalizeToUint8Array(buffer: Uint8Array): Uint8Array {
  * deciding whether this is retired legacy content or a genuinely missing OID.
  */
 const LEGACY_BLOB_CODES = new Set(['MANIFEST_NOT_FOUND', 'GIT_ERROR']);
+const CAS_NOT_FOUND_CODES = new Set(['MANIFEST_NOT_FOUND', 'GIT_OBJECT_NOT_FOUND']);
 
-function isLegacyBlobError(err: unknown): boolean {
+function isCasNotFoundError(err: unknown): boolean {
+  return (
+    typeof err === 'object'
+    && err !== null
+    && 'code' in err
+    && typeof err.code === 'string'
+    && CAS_NOT_FOUND_CODES.has(err.code)
+  );
+}
+
+function isLegacyBlobError(err: unknown): err is Error {
   if (err instanceof Error && 'code' in err) {
     const coded = err as Error & { code: unknown };
     if (typeof coded.code === 'string') {
@@ -83,61 +84,42 @@ function hasLegacyBlobMessage(msg: string): boolean {
     || msg.includes('does not exist');
 }
 
-function missingGitObjectError(oid: string, cause: unknown): PersistenceError {
-  if (cause instanceof Error) {
-    return new PersistenceError(
-      `Missing Git object: ${oid}`,
-      PersistenceError.E_MISSING_OBJECT,
-      { cause, context: { oid } },
-    );
-  }
+function missingGitObjectError(oid: string, cause: Error): PersistenceError {
   return new PersistenceError(
     `Missing Git object: ${oid}`,
     PersistenceError.E_MISSING_OBJECT,
-    { context: { oid } },
+    { cause, context: { oid } },
   );
 }
 
 export default class CasBlobAdapter extends BlobStoragePort {
-  private readonly _plumbing: unknown;
+  private readonly _cas: CasStore;
   private readonly _persistence: BlobPersistence;
   private readonly _contentEncryption: CasContentEncryptionPolicy;
-  private readonly _logger: LoggerPort | undefined;
-  private readonly _getCas: () => Promise<CasStore>;
   private readonly _compatibilityPolicy: SubstrateCompatibilityPolicyValue;
 
-  constructor({ plumbing, persistence, encryptionKey, contentEncryption, logger, compatibilityPolicy }: {
-    plumbing: unknown;
+  constructor({ cas, persistence, encryptionKey, contentEncryption, compatibilityPolicy }: {
+    cas: CasStore;
     persistence: BlobPersistence;
     encryptionKey?: Uint8Array;
     contentEncryption?: CasContentEncryptionPolicy;
-    logger?: LoggerPort;
     compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
   }) {
     super();
-    this._plumbing = plumbing;
+    this._cas = cas;
     this._persistence = persistence;
     this._contentEncryption = resolveContentEncryption(contentEncryption, encryptionKey);
-    this._logger = logger;
-    this._getCas = createLazyCas(() => this._initCas());
     this._compatibilityPolicy = compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
   }
 
-  private async _initCas(): Promise<CasStore> {
-    return await createCdcCasStore<CasStore>({
-      plumbing: this._plumbing,
-      logger: this._logger,
-    });
-  }
-
   override async store(content: Uint8Array | string, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string> {
-    const cas = await this._getCas();
+    const cas = this._cas;
     const buf = typeof content === 'string'
       ? new TextEncoder().encode(content)
       : content;
     const source = Readable.from([buf]);
 
-    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
+    const storeOpts: { source: AsyncIterable<Uint8Array>; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
       source,
       slug: options?.slug ?? `blob-${Date.now().toString(36)}`,
       filename: 'content',
@@ -149,20 +131,20 @@ export default class CasBlobAdapter extends BlobStoragePort {
   }
 
   override async has(oid: string): Promise<boolean> {
-    const cas = await this._getCas();
-    if (typeof cas.has === 'function') {
-      return await cas.has({ treeOid: oid });
-    }
+    const cas = this._cas;
     try {
       await cas.readManifest({ treeOid: oid });
       return true;
-    } catch {
-      return false;
+    } catch (err) {
+      if (isCasNotFoundError(err)) {
+        return false;
+      }
+      throw err;
     }
   }
 
   override async retrieve(oid: string): Promise<Uint8Array> {
-    const cas = await this._getCas();
+    const cas = this._cas;
 
     try {
       return await this._restoreFromCas(cas, oid);
@@ -197,15 +179,15 @@ export default class CasBlobAdapter extends BlobStoragePort {
     return blob;
   }
 
-  private _buildRestoreOpts(manifest: CasManifest): { manifest: CasManifest } & CasRestoreEncryptionArguments {
+  private _buildRestoreOpts(manifest: Manifest): { manifest: Manifest } & CasRestoreEncryptionArguments {
     return { manifest, ...this._contentEncryption.toRestoreOptions() };
   }
 
   override async storeStream(source: AsyncIterable<Uint8Array>, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string> {
-    const cas = await this._getCas();
+    const cas = this._cas;
     const readable = Readable.from(source);
 
-    const storeOpts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
+    const storeOpts: { source: AsyncIterable<Uint8Array>; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
       source: readable,
       slug: options?.slug ?? `blob-${Date.now().toString(36)}`,
       filename: 'content',
@@ -221,15 +203,10 @@ export default class CasBlobAdapter extends BlobStoragePort {
     return {
       [Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
         let inner: AsyncIterator<Uint8Array> | null = null;
-        let initialized = false;
         return {
           async next(): Promise<IteratorResult<Uint8Array>> {
-            if (!initialized) {
-              initialized = true;
-              inner = await self._resolveStreamIterator(oid);
-            }
             if (inner === null) {
-              return doneIteratorResult();
+              inner = await self._resolveStreamIterator(oid);
             }
             return await inner.next();
           },
@@ -245,7 +222,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
   }
 
   private async _resolveStreamIterator(oid: string): Promise<AsyncIterator<Uint8Array>> {
-    const cas = await this._getCas();
+    const cas = this._cas;
 
     try {
       return await this._streamFromCas(cas, oid);
@@ -266,16 +243,10 @@ export default class CasBlobAdapter extends BlobStoragePort {
     const manifest = await cas.readManifest({ treeOid: oid });
     const restoreOpts = this._buildRestoreOpts(manifest);
 
-    if (typeof cas.restoreStream === 'function') {
-      const stream = cas.restoreStream(restoreOpts);
-      return stream[Symbol.asyncIterator]();
-    }
-
-    const { buffer } = await cas.restore(restoreOpts);
-    return singleChunkIterator(buffer);
+    return cas.restoreStream(restoreOpts)[Symbol.asyncIterator]();
   }
 
-  private async _readLegacyContentBlobCandidate(oid: string, error: unknown): Promise<Uint8Array> {
+  private async _readLegacyContentBlobCandidate(oid: string, error: Error): Promise<Uint8Array> {
     if (this._compatibilityPolicy.legacyContentBlobReads) {
       return await this._fallbackReadBlob(oid);
     }
@@ -287,7 +258,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
       `Legacy raw blob reads require the substrate migration compatibility policy: ${oid}`,
       'E_LEGACY_SUBSTRATE_DISABLED',
       {
-        ...(error instanceof Error ? { cause: error } : {}),
+        cause: error,
         context: { oid },
       },
     );

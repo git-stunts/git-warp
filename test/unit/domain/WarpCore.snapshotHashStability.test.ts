@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import WarpCore from '../../../src/domain/WarpCore.ts';
+import { openMemoryWarpCore } from '../../helpers/MemoryRuntimeHost.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
@@ -182,7 +182,7 @@ describe('WarpCore public snapshot hash stability', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = ((await WarpCore.open({
+    graph = ((await openMemoryWarpCore({
       persistence,
       graphName,
       writerId: 'tester',

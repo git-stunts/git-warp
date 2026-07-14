@@ -14,7 +14,11 @@ import V17GoldenGraphFixtureManifest
   from './V17GoldenGraphFixtureManifest.ts';
 import { CONTENT_PROPERTY_KEY }
   from '../../../../src/domain/services/KeyCodec.ts';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import type BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
 import { runMigrationGit } from './GitMigrationCommandRunner.ts';
 
 const CONTENT_ATTACHMENT_SUFFIX = `:${CONTENT_PROPERTY_KEY}`;
@@ -122,7 +126,7 @@ class RuntimeContentOidResolver {
   private constructor(
     private readonly repositoryPath: string,
     private readonly shouldCleanup: boolean,
-    private readonly storage: Awaited<ReturnType<GitGraphAdapter['createRuntimeBlobStorage']>>,
+    private readonly storage: BlobStoragePort,
   ) {
   }
 
@@ -135,11 +139,20 @@ class RuntimeContentOidResolver {
     }
     const plumbing = await Plumbing.createDefault({ cwd: runtimeRepositoryPath });
     await plumbing.execute({ args: ['init', '-q'] });
-    const adapter = new GitGraphAdapter({ plumbing });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing });
+    const runtimeStorage = new GitCasRepositoryAdapter({
+      plumbing,
+      history: adapter,
+    });
+    const services = await runtimeStorage.createRuntimeStorageServices({
+      timelineName: 'migration-content',
+      codec: defaultCodec,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    });
     return new RuntimeContentOidResolver(
       runtimeRepositoryPath,
       shouldCleanup,
-      await adapter.createRuntimeBlobStorage(),
+      services.content,
     );
   }
 

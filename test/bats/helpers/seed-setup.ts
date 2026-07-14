@@ -1,6 +1,6 @@
 /**
  * Shared setup for BATS seed scripts.
- * Resolves project root, dynamic-imports WarpCore + GitGraphAdapter +
+ * Resolves project root, dynamic-imports WarpCore + GitTimelineHistoryAdapter +
  * NodeCryptoAdapter + runtime codec defaults, and creates persistence/
  * crypto adapters for the repo at REPO_PATH.
  */
@@ -20,37 +20,48 @@ function moduleUrl(preferredBuiltPath: string, sourcePath: string): string {
 
 const warpCoreUrl = moduleUrl('dist/src/domain/WarpCore.js', 'src/domain/WarpCore.ts');
 const adapterUrl = moduleUrl(
-  'dist/src/infrastructure/adapters/GitGraphAdapter.js',
-  'src/infrastructure/adapters/GitGraphAdapter.ts',
+  'dist/src/infrastructure/adapters/GitTimelineHistoryAdapter.js',
+  'src/infrastructure/adapters/GitTimelineHistoryAdapter.ts',
 );
 const cryptoUrl = moduleUrl(
   'dist/src/infrastructure/adapters/NodeCryptoAdapter.js',
   'src/infrastructure/adapters/NodeCryptoAdapter.ts',
+);
+const repositoryStorageUrl = moduleUrl(
+  'dist/src/infrastructure/adapters/GitCasRepositoryAdapter.js',
+  'src/infrastructure/adapters/GitCasRepositoryAdapter.ts',
 );
 const runtimeNodeDefaultsUrl = moduleUrl(
   'dist/src/application/RuntimeHostNodeDefaults.js',
   'src/application/RuntimeHostNodeDefaults.ts',
 );
 const { default: WarpCore } = await import(warpCoreUrl);
-const { default: GitGraphAdapter } = await import(adapterUrl);
+const { default: GitTimelineHistoryAdapter } = await import(adapterUrl);
 const { default: NodeCryptoAdapter } = await import(cryptoUrl);
+const { default: GitCasRepositoryAdapter } = await import(repositoryStorageUrl);
 const { installDefaultRuntimeHostNodePorts } = await import(runtimeNodeDefaultsUrl);
 
 installDefaultRuntimeHostNodePorts();
 
 const runner = ShellRunnerFactory.create();
 const plumbing = new GitPlumbing({ cwd: repoPath, runner });
-const persistence = new GitGraphAdapter({ plumbing });
+const persistence = new GitTimelineHistoryAdapter({ plumbing });
 const crypto = new NodeCryptoAdapter();
+const runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
 
 async function openGraph(graphName: string, writerId: string, options = {}) {
   return await WarpCore.open({
     ...options,
     persistence,
+    runtimeStorage,
     graphName,
     writerId,
     crypto,
   });
 }
 
-export { openGraph, persistence, crypto, plumbing };
+function createTrustChain() {
+  return runtimeStorage.createTrustChain(crypto);
+}
+
+export { openGraph, persistence, crypto, createTrustChain };

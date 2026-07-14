@@ -46,7 +46,7 @@ const ROOT_TYPE_EXPORTS = [
   'Timeline',
   'TimelineView',
   'Warp',
-  'StorageAdapter',
+  'WarpStorage',
   'WriteReceipt',
   'WriteOutcome',
   'WriteReceiptOptions',
@@ -214,8 +214,8 @@ describe('v19 public API boundary', () => {
   it('keeps the storage subpath limited to application adapters', () => {
     const surface = moduleSurface('storage.ts');
     expect(surface.starExports).toEqual([]);
-    expect(surface.valueExports).toEqual(['GitStorageAdapter', 'MemoryStorageAdapter']);
-    expect(surface.typeExports).toEqual(['GitStorageAdapterOptions']);
+    expect(surface.valueExports).toEqual(['GitStorage', 'MemoryStorage']);
+    expect(surface.typeExports).toEqual(['GitStorageOptions']);
   });
 
   it('keeps the advanced subpath limited to bounded coordinate reads', () => {
@@ -261,16 +261,23 @@ describe('v19 public API boundary', () => {
     ]);
   });
 
-  it('installs Node runtime defaults at openWarp instead of package import time', () => {
-    const defaultsModule = '../../application/RuntimeHostNodeDefaults.ts';
+  it('injects immutable Node runtime defaults without installing ambient ports', () => {
+    const defaultsModule = './RuntimeHostNodeDefaults.ts';
     expect(importedModules('index.ts')).not.toContain(defaultsModule);
-    expect(importedModules('src/domain/api/openWarp.ts')).toContain(defaultsModule);
+    expect(importedModules('src/application/openWarp.ts')).toContain(defaultsModule);
     expect(
       exportedFunctionCalls(
-        'src/domain/api/openWarp.ts',
+        'src/application/openWarp.ts',
+        'openWarp',
+        'getDefaultRuntimeHostNodePorts'
+      )
+    ).toBe(true);
+    expect(
+      exportedFunctionCalls(
+        'src/application/openWarp.ts',
         'openWarp',
         'installDefaultRuntimeHostNodePorts'
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 });

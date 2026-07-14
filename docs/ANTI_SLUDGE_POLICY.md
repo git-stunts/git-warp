@@ -69,10 +69,12 @@ This repository uses **hexagonal architecture**.
 - **Ports** (`src/ports/`): capability interfaces for external work.
 - **Infrastructure / Adapters** (`src/infrastructure/`): port
   implementations and all interaction with external systems.
+- **Application** (`src/application/`): package composition and host-default
+  installation. It wires concrete adapters to semantic ports but owns no
+  domain behavior.
 
-This repo does not have a separate `src/application/` layer. Use-
-case orchestration lives in `src/domain/services/` and
-`src/domain/services/controllers/`.
+Use-case behavior lives in `src/domain/services/` and
+`src/domain/services/controllers/`; application modules only compose it.
 
 ### Dependency rule
 
@@ -83,6 +85,8 @@ Dependencies point inward only.
 - `ports` defines interfaces; may depend on domain *types* only.
 - `infrastructure` may depend on ports, domain, and external
   libraries.
+- `application` may depend on domain, ports, and infrastructure solely to
+  establish an explicit composition root.
 - `domain` and `ports` must **never** import from `infrastructure`.
 - `domain` and `ports` must **never** import Node platform APIs or
   framework libraries.

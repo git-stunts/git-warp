@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { CborCodec } from '@git-stunts/git-cas';
 import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
-import TrustError from '../../../../src/domain/errors/TrustError.ts';
+import GitTrustChainAdapter from '../../../../src/infrastructure/adapters/GitTrustChainAdapter.ts';
+import SubstrateCompatibilityPolicy from '../../../../src/infrastructure/adapters/SubstrateCompatibilityPolicy.ts';
+import CryptoPort from '../../../../src/ports/CryptoPort.ts';
+import TrustChainPort from '../../../../src/ports/TrustChainPort.ts';
 
-// Mock @git-stunts/git-cas
 const mockReadManifest = vi.fn();
 const mockRestore = vi.fn();
 const mockStore = vi.fn();
@@ -14,24 +16,7 @@ class MockContentAddressableStore {
   restore = mockRestore;
   store = mockStore;
   createTree = mockCreateTree;
-  constructor(_opts: any) {}
 }
-
-vi.mock('@git-stunts/git-cas', () => ({
-  default: MockContentAddressableStore,
-  CborCodec: CborCodec,
-}));
-
-// Import after mock setup
-const { default: GitTrustChainAdapter } = await import(
-  '../../../../src/infrastructure/adapters/GitTrustChainAdapter.ts'
-);
-const { default: TrustChainPort } = await import(
-  '../../../../src/ports/TrustChainPort.ts'
-);
-const { default: CryptoPort } = await import(
-  '../../../../src/ports/CryptoPort.ts'
-);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -43,17 +28,26 @@ function makePlumbing() {
   };
 }
 
-function makeCrypto(): InstanceType<typeof CryptoPort> {
-  return {
-    hash: vi.fn().mockResolvedValue('expected-record-id-hash') as any,
-    encrypt: vi.fn() as any,
-    decrypt: vi.fn() as any,
-    generateKey: vi.fn() as any,
-    sign: vi.fn() as any,
-    verify: vi.fn() as any,
-    hmac: vi.fn() as any,
-    timingSafeEqual: vi.fn() as any,
-  } as unknown as InstanceType<typeof CryptoPort>;
+class TestCrypto extends CryptoPort {
+  hash(_algorithm: string, _data: string | Uint8Array): Promise<string> {
+    return Promise.resolve('expected-record-id-hash');
+  }
+
+  hmac(
+    _algorithm: string,
+    _key: string | Uint8Array,
+    _data: string | Uint8Array,
+  ): Promise<Uint8Array> {
+    return Promise.resolve(new Uint8Array());
+  }
+
+  timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
+    return left.length === right.length;
+  }
+}
+
+function makeCrypto(): CryptoPort {
+  return new TestCrypto();
 }
 
 const GRAPH_NAME = 'test-graph';
@@ -81,7 +75,7 @@ const codec = new CborCodec();
 describe('GitTrustChainAdapter', () => {
   let plumbing: ReturnType<typeof makePlumbing>;
   let crypto: ReturnType<typeof makeCrypto>;
-  let adapter: any;
+  let adapter: GitTrustChainAdapter;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -90,6 +84,8 @@ describe('GitTrustChainAdapter', () => {
     adapter = new GitTrustChainAdapter({
       plumbing,
       crypto,
+      cas: new MockContentAddressableStore(),
+      cbor: codec,
     });
   });
 
@@ -102,15 +98,6 @@ describe('GitTrustChainAdapter', () => {
       expect(adapter).toBeInstanceOf(TrustChainPort);
     });
 
-    it('initializes CAS and CborCodec successfully with logger', async () => {
-      const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn() } as any;
-      const withLogger = new GitTrustChainAdapter({ plumbing, crypto, logger });
-      const cas = await (withLogger as any)._getCas();
-      expect(cas).toBeInstanceOf(MockContentAddressableStore);
-
-      const cbor = await (withLogger as any)._getCbor();
-      expect(cbor).toBeInstanceOf(CborCodec);
-    });
   });
 
   // -------------------------------------------------------------------------
@@ -158,7 +145,11 @@ describe('GitTrustChainAdapter', () => {
       const legacyAdapter = new GitTrustChainAdapter({
         plumbing,
         crypto,
-        compatibilityPolicy: { legacyTrustRecordBlobReads: true } as any,
+        cas: new MockContentAddressableStore(),
+        cbor: codec,
+        compatibilityPolicy: new SubstrateCompatibilityPolicy({
+          legacyTrustRecordBlobReads: true,
+        }),
       });
 
       plumbing.execute.mockImplementation(async ({ args }) => {
@@ -182,7 +173,11 @@ describe('GitTrustChainAdapter', () => {
       const legacyAdapter = new GitTrustChainAdapter({
         plumbing,
         crypto,
-        compatibilityPolicy: { legacyTrustRecordBlobReads: true } as any,
+        cas: new MockContentAddressableStore(),
+        cbor: codec,
+        compatibilityPolicy: new SubstrateCompatibilityPolicy({
+          legacyTrustRecordBlobReads: true,
+        }),
       });
 
       plumbing.execute.mockImplementation(async ({ args }) => {
@@ -200,11 +195,41 @@ describe('GitTrustChainAdapter', () => {
       });
     });
 
+    it('ignores blank and malformed legacy tree records', async () => {
+      const legacyAdapter = new GitTrustChainAdapter({
+        plumbing,
+        crypto,
+        cas: new MockContentAddressableStore(),
+        cbor: codec,
+        compatibilityPolicy: new SubstrateCompatibilityPolicy({
+          legacyTrustRecordBlobReads: true,
+        }),
+      });
+      plumbing.execute.mockImplementation(async ({ args }) => {
+        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
+        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\n\ncommit message`;
+        if (args[0] === 'ls-tree') {
+          return 'malformed legacy row\n\n100644 blob blob-oid-1\tother-file.txt\n';
+        }
+        return '';
+      });
+      mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
+
+      await expect(legacyAdapter.readTip(GRAPH_NAME)).resolves.toEqual({
+        tipSha: EXPECTED_TIP_SHA,
+        recordId: null,
+      });
+    });
+
     it('returns tipSha with null recordId in fallback if cat-file blob throws', async () => {
       const legacyAdapter = new GitTrustChainAdapter({
         plumbing,
         crypto,
-        compatibilityPolicy: { legacyTrustRecordBlobReads: true } as any,
+        cas: new MockContentAddressableStore(),
+        cbor: codec,
+        compatibilityPolicy: new SubstrateCompatibilityPolicy({
+          legacyTrustRecordBlobReads: true,
+        }),
       });
 
       plumbing.execute.mockImplementation(async ({ args }) => {
@@ -231,7 +256,7 @@ describe('GitTrustChainAdapter', () => {
   describe('readRecords', () => {
     it('returns empty async iterable if resolveRef returns null', async () => {
       plumbing.execute.mockRejectedValueOnce(new Error('ref not found'));
-      const records: any[] = [];
+      const records: TrustRecord[] = [];
       for await (const rec of adapter.readRecords(GRAPH_NAME)) {
         records.push(rec);
       }
@@ -259,14 +284,14 @@ describe('GitTrustChainAdapter', () => {
         .mockResolvedValueOnce({ buffer: codec.encode(record1Obj) }) // oldest first (PARENT_SHA)
         .mockResolvedValueOnce({ buffer: codec.encode(record2Obj) }); // tip (EXPECTED_TIP_SHA)
 
-      const records: any[] = [];
+      const records: TrustRecord[] = [];
       for await (const rec of adapter.readRecords(GRAPH_NAME)) {
         records.push(rec);
       }
 
       expect(records).toHaveLength(2);
-      expect(records[0].issuerKeyId).toBe('key-parent');
-      expect(records[1].issuerKeyId).toBe('key-tip');
+      expect(records[0]?.issuerKeyId).toBe('key-parent');
+      expect(records[1]?.issuerKeyId).toBe('key-tip');
     });
 
     it('throws TrustError E_TRUST_RECORD_ID_MISMATCH if recordId does not match expected hash', async () => {
@@ -292,7 +317,11 @@ describe('GitTrustChainAdapter', () => {
       const legacyAdapter = new GitTrustChainAdapter({
         plumbing,
         crypto,
-        compatibilityPolicy: { legacyTrustRecordBlobReads: true } as any,
+        cas: new MockContentAddressableStore(),
+        cbor: codec,
+        compatibilityPolicy: new SubstrateCompatibilityPolicy({
+          legacyTrustRecordBlobReads: true,
+        }),
       });
 
       plumbing.execute.mockImplementation(async ({ args }) => {
@@ -305,19 +334,23 @@ describe('GitTrustChainAdapter', () => {
 
       mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
 
-      const records: any[] = [];
+      const records: TrustRecord[] = [];
       for await (const rec of legacyAdapter.readRecords(GRAPH_NAME)) {
         records.push(rec);
       }
       expect(records).toHaveLength(1);
-      expect(records[0].recordId).toBe('expected-record-id-hash');
+      expect(records[0]?.recordId).toBe('expected-record-id-hash');
     });
 
     it('skips commit if fallback blob is missing', async () => {
       const legacyAdapter = new GitTrustChainAdapter({
         plumbing,
         crypto,
-        compatibilityPolicy: { legacyTrustRecordBlobReads: true } as any,
+        cas: new MockContentAddressableStore(),
+        cbor: codec,
+        compatibilityPolicy: new SubstrateCompatibilityPolicy({
+          legacyTrustRecordBlobReads: true,
+        }),
       });
 
       plumbing.execute.mockImplementation(async ({ args }) => {
@@ -329,7 +362,7 @@ describe('GitTrustChainAdapter', () => {
 
       mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
 
-      const records: any[] = [];
+      const records: TrustRecord[] = [];
       for await (const rec of legacyAdapter.readRecords(GRAPH_NAME)) {
         records.push(rec);
       }

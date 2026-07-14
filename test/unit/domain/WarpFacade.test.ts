@@ -14,8 +14,9 @@ import Timeline from '../../../src/domain/api/Timeline.ts';
 import { requireTimelineRuntime } from '../../../src/domain/api/TimelineRuntime.ts';
 import Warp from '../../../src/domain/api/Warp.ts';
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
-import { MemoryStorageAdapter } from '../../../storage.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
+import { resolveWarpStorage } from '../../../src/application/WarpStorageRegistry.ts';
+import { MemoryStorage } from '../../../storage.ts';
 
 const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([
   'openWarpGraph',
@@ -135,11 +136,13 @@ function collectExportedDeclarationName(statement: ts.Statement, exportedNames: 
 }
 
 async function createBoundedReadBasis(
-  storage: InstanceType<typeof MemoryStorageAdapter>,
+  storage: MemoryStorage,
   graphName: string
 ): Promise<void> {
+  const binding = resolveWarpStorage(storage);
   const runtime = await openRuntimeHostProduct({
-    persistence: storage,
+    persistence: binding.history,
+    runtimeStorage: binding.runtimeStorage,
     graphName,
     writerId: 'agent-1',
   });
@@ -150,7 +153,7 @@ async function createBoundedReadBasis(
 describe('v19 Warp facade', () => {
   it('opens named timelines through root application nouns', async () => {
     const warp = await openWarp({
-      storage: new MemoryStorageAdapter(),
+      storage: MemoryStorage.create(),
       writer: 'agent-1',
     });
 
@@ -175,7 +178,7 @@ describe('v19 Warp facade', () => {
 
   it('keeps internal history vocabulary off the public facade objects', async () => {
     const warp = await openWarp({
-      storage: new MemoryStorageAdapter(),
+      storage: MemoryStorage.create(),
       writer: 'agent-1',
     });
     const timeline = await warp.timeline('events');
@@ -206,17 +209,17 @@ describe('v19 Warp facade', () => {
         storage: null,
         writer: 'agent-1',
       })
-    ).rejects.toThrow('openWarp requires storage');
+    ).rejects.toThrow('openWarp requires a WarpStorage handle');
 
     await expect(
       openWarp({
-        storage: new MemoryStorageAdapter(),
+        storage: MemoryStorage.create(),
         writer: '   ',
       })
     ).rejects.toThrow('openWarp requires non-empty identity fields');
 
     const warp = await openWarp({
-      storage: new MemoryStorageAdapter(),
+      storage: MemoryStorage.create(),
       writer: 'agent-1',
     });
 
@@ -226,7 +229,7 @@ describe('v19 Warp facade', () => {
   it('rejects invalid non-empty facade identities before opening timelines', async () => {
     await expect(
       openWarp({
-        storage: new MemoryStorageAdapter(),
+        storage: MemoryStorage.create(),
         writer: 'agent 1',
       })
     ).rejects.toMatchObject({ code: 'E_INVALID_WRITER_ID' });
@@ -274,7 +277,7 @@ describe('v19 Warp facade', () => {
 
   it('writes public intents and returns accepted write receipts', async () => {
     const warp = await openWarp({
-      storage: new MemoryStorageAdapter(),
+      storage: MemoryStorage.create(),
       writer: 'agent-1',
     });
     const timeline = await warp.timeline('events');
@@ -345,7 +348,7 @@ describe('v19 Warp facade', () => {
 
   it('returns operational write failures as receipts', async () => {
     const warp = await openWarp({
-      storage: new MemoryStorageAdapter(),
+      storage: MemoryStorage.create(),
       writer: 'agent-1',
     });
     const timeline = await warp.timeline('events');
@@ -364,7 +367,7 @@ describe('v19 Warp facade', () => {
   });
 
   it('reads public readings and returns accepted read receipts', async () => {
-    const storage = new MemoryStorageAdapter();
+    const storage = MemoryStorage.create();
     const warp = await openWarp({
       storage,
       writer: 'agent-1',
@@ -478,7 +481,7 @@ describe('v19 Warp facade', () => {
 
   it('returns an obstructed receipt instead of materializing a missing read basis', async () => {
     const warp = await openWarp({
-      storage: new MemoryStorageAdapter(),
+      storage: MemoryStorage.create(),
       writer: 'agent-1',
     });
     const timeline = await warp.timeline('events');
@@ -500,7 +503,7 @@ describe('v19 Warp facade', () => {
   });
 
   it('drafts speculative writes, previews joins, and joins with receipts', async () => {
-    const storage = new MemoryStorageAdapter();
+    const storage = MemoryStorage.create();
     const warp = await openWarp({
       storage,
       writer: 'agent-1',

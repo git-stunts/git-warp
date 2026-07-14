@@ -2,18 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockReadManifest = vi.fn();
 const mockRestore = vi.fn();
+const mockRestoreStream = vi.fn();
 const mockStore = vi.fn();
 const mockCreateTree = vi.fn();
 
 class MockContentAddressableStore {
   readManifest: any;
   restore: any;
+  restoreStream: any;
   store: any;
   createTree: any;
 
   constructor() {
     this.readManifest = mockReadManifest;
     this.restore = mockRestore;
+    this.restoreStream = mockRestoreStream;
     this.store = mockStore;
     this.createTree = mockCreateTree;
   }
@@ -40,10 +43,6 @@ function makePersistence() {
   };
 }
 
-function makePlumbing() {
-  return {};
-}
-
 function indexBuffer(entries = {}) {
   return new TextEncoder().encode(JSON.stringify({ schemaVersion: 1, entries }));
 }
@@ -52,18 +51,16 @@ const GRAPH_NAME = 'test-graph';
 
 describe('CasSeekCacheAdapter LRU eviction', () => {
   let persistence;
-  let plumbing;
 
   beforeEach(() => {
     vi.clearAllMocks();
     persistence = makePersistence();
-    plumbing = makePlumbing();
   });
 
   it('does not evict when under maxEntries', () => {
     const smallAdapter = new CasSeekCacheAdapter({
       persistence,
-      plumbing,
+      cas: new MockContentAddressableStore(),
       graphName: GRAPH_NAME,
       maxEntries: 5,
     });
@@ -83,7 +80,7 @@ describe('CasSeekCacheAdapter LRU eviction', () => {
   it('evicts oldest entries when exceeding maxEntries', () => {
     const smallAdapter = new CasSeekCacheAdapter({
       persistence,
-      plumbing,
+      cas: new MockContentAddressableStore(),
       graphName: GRAPH_NAME,
       maxEntries: 2,
     });
@@ -110,7 +107,7 @@ describe('CasSeekCacheAdapter LRU eviction', () => {
   it('evicts exactly the overshoot count', () => {
     const smallAdapter = new CasSeekCacheAdapter({
       persistence,
-      plumbing,
+      cas: new MockContentAddressableStore(),
       graphName: GRAPH_NAME,
       maxEntries: 3,
     });
@@ -133,7 +130,7 @@ describe('CasSeekCacheAdapter LRU eviction', () => {
   it('prefers lastAccessedAt over createdAt for LRU ordering', () => {
     const smallAdapter = new CasSeekCacheAdapter({
       persistence,
-      plumbing,
+      cas: new MockContentAddressableStore(),
       graphName: GRAPH_NAME,
       maxEntries: 2,
     });
@@ -165,7 +162,7 @@ describe('CasSeekCacheAdapter LRU eviction', () => {
   it('handles entries with missing createdAt gracefully', () => {
     const smallAdapter = new CasSeekCacheAdapter({
       persistence,
-      plumbing,
+      cas: new MockContentAddressableStore(),
       graphName: GRAPH_NAME,
       maxEntries: 1,
     });
@@ -185,7 +182,7 @@ describe('CasSeekCacheAdapter LRU eviction', () => {
   it('evicts via set() when maxEntries exceeded', async () => {
     const tinyAdapter = new CasSeekCacheAdapter({
       persistence,
-      plumbing,
+      cas: new MockContentAddressableStore(),
       graphName: GRAPH_NAME,
       maxEntries: 1,
     });

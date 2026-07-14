@@ -13,7 +13,7 @@ The CLI is also the shipped Time Travel Debugger surface. In `git-warp`, debugge
 ## Install and invoke
 
 ```bash
-npm install @git-stunts/git-warp @git-stunts/plumbing
+npm install @git-stunts/git-warp
 ```
 
 You can invoke the CLI in two equivalent ways:

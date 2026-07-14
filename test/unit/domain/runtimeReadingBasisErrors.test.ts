@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { openRuntimeHostProduct, type RuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import type { RuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import ProvenanceController from '../../../src/domain/services/controllers/ProvenanceController.ts';
 import type { ProvenanceReadHost } from '../../../src/domain/services/controllers/ReadGraphHost.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 const READINGS_DOC = 'docs/READINGS_AND_OPTICS.md';

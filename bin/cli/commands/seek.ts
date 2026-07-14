@@ -248,8 +248,8 @@ async function handleSeekStatus({ graph, graphName, persistence, activeCursor, t
 /** Handles the `git warp seek` command across all sub-actions. */
 export default async function handleSeek({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const seekSpec = parseSeekArgs(args);
-  const { graph, graphName, persistence, plumbing } = await openGraph(options);
-  void wireSeekCache({ graph, persistence, plumbing, graphName, seekSpec });
+  const { graph, graphName, persistence, createSeekCache } = await openGraph(options);
+  void wireSeekCache({ graph, createSeekCache, graphName, seekSpec });
 
   // Handle --clear-cache before discovering ticks (no materialization needed)
   if (seekSpec.action === 'clear-cache') {

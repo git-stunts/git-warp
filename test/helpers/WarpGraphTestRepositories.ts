@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 
 type TestPlumbing = Awaited<ReturnType<typeof Plumbing.createDefault>>;
@@ -11,7 +11,7 @@ export class GitRepoFixture {
   constructor(
     readonly tempDir: string,
     readonly plumbing: TestPlumbing,
-    readonly persistence: GitGraphAdapter,
+    readonly persistence: GitTimelineHistoryAdapter,
   ) {}
 
   readonly cleanup = async (): Promise<void> => {
@@ -34,7 +34,7 @@ export async function createGitRepo(label = 'test'): Promise<GitRepoFixture> {
     await plumbing.execute({ args: ['init'] });
     await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
     await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-    return new GitRepoFixture(tempDir, plumbing, new GitGraphAdapter({ plumbing }));
+    return new GitRepoFixture(tempDir, plumbing, new GitTimelineHistoryAdapter({ plumbing }));
   } catch (err) {
     await rm(tempDir, { recursive: true, force: true });
     throw err;

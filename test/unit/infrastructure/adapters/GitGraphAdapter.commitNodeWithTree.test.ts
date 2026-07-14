@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 
-describe('GitGraphAdapter', () => {
+describe('GitTimelineHistoryAdapter', () => {
   describe('commitNodeWithTree()', () => {
         let mockPlumbing;
         let adapter;
@@ -12,7 +12,7 @@ describe('GitGraphAdapter', () => {
         execute: vi.fn(),
         executeStream: vi.fn(),
       };
-      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+      adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
     });
 
     it('creates commit with custom tree (not empty tree)', async () => {

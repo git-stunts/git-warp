@@ -10,7 +10,7 @@ import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import InMemoryBlobStorageAdapter from '../../../../src/domain/utils/defaultBlobStorage.ts';
+import InMemoryBlobStorageAdapter from '../../../../src/infrastructure/adapters/InMemoryBlobStorageAdapter.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';

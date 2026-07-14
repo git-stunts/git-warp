@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import WarpApp from '../../../src/domain/WarpApp.ts';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import { openMemoryWarpApp } from '../../helpers/MemoryRuntimeHost.ts';
 
 describe('WarpApp facade', () => {
   it('exposes a curated app surface with an explicit core escape hatch', async () => {
-    const app = await WarpApp.open({
+    const app = await openMemoryWarpApp({
       persistence: new InMemoryGraphAdapter(),
       graphName: 'app-facade',
       writerId: 'writer-app',
@@ -43,12 +44,12 @@ describe('WarpApp facade', () => {
   });
 
   it('unwraps another WarpApp when syncing', async () => {
-    const appA = await WarpApp.open({
+    const appA = await openMemoryWarpApp({
       persistence: new InMemoryGraphAdapter(),
       graphName: 'sync-demo',
       writerId: 'writer-a',
     });
-    const appB = await WarpApp.open({
+    const appB = await openMemoryWarpApp({
       persistence: new InMemoryGraphAdapter(),
       graphName: 'sync-demo',
       writerId: 'writer-b',

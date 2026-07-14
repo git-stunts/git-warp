@@ -6,10 +6,10 @@
  */
 
 import { intent, openWarp, reading } from '../../index.ts';
-import { MemoryStorageAdapter } from '../../storage.ts';
+import { MemoryStorage } from '../../storage.ts';
 
 const warp = await openWarp({
-  storage: new MemoryStorageAdapter(),
+  storage: MemoryStorage.create(),
   writer: 'agent-1',
 });
 const timeline = await warp.timeline('events');

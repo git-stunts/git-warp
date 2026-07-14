@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../../helpers/MemoryRuntimeHost.ts';
 import { buildWriterRef } from '../../../../src/domain/utils/RefLayout.ts';
 
 const GRAPH_NAME = 'same-writer-race';

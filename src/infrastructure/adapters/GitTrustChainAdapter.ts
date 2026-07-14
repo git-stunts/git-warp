@@ -19,16 +19,14 @@ import { recordIdPayload, signaturePayload } from '../../domain/trust/canonical.
 import { textEncode } from '../../domain/utils/bytes.ts';
 import { buildTrustRecordRef } from '../../domain/utils/RefLayout.ts';
 import TrustError from '../../domain/errors/TrustError.ts';
-import { createLazyCas } from './lazyCasInit.ts';
-import { loadGitCasConstructors } from './gitCasModule.ts';
-import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import {
   CURRENT_SUBSTRATE_ONLY_POLICY,
   type SubstrateCompatibilityPolicyValue,
 } from './SubstrateCompatibilityPolicy.ts';
-import type LoggerPort from '../../ports/LoggerPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import { Readable } from 'node:stream';
+import type ContentAddressableStore from '@git-stunts/git-cas';
+import type { CborCodec } from '@git-stunts/git-cas';
 
 // -- Constants ----------------------------------------------------------------
 
@@ -43,35 +41,18 @@ type Plumbing = {
 
 // -- CAS types (minimal contract from git-cas) --------------------------------
 
-type CasManifest = {
-  readonly slug: string;
-  readonly chunks: readonly { readonly digest: string; readonly blobOid: string }[];
-};
-
-type CasStore = {
-  store(opts: {
-    source: Readable;
-    slug: string;
-    filename: string;
-  }): Promise<CasManifest>;
-  restore(opts: { manifest: CasManifest }): Promise<{ buffer: Buffer }>;
-  readManifest(opts: { treeOid: string }): Promise<CasManifest>;
-  createTree(opts: { manifest: CasManifest }): Promise<string>;
-};
-
-type CasStoreOptions = {
-  plumbing: Plumbing;
-  codec: CborCodecInstance;
-  chunking: { strategy: string };
-  observability?: LoggerObservabilityBridge;
-};
+type CasStore = Pick<
+  ContentAddressableStore,
+  'store' | 'restore' | 'readManifest' | 'createTree'
+>;
 
 // -- Adapter deps -------------------------------------------------------------
 
 type GitTrustChainDeps = {
   readonly plumbing: Plumbing;
   readonly crypto: CryptoPort;
-  readonly logger?: LoggerPort;
+  readonly cas: CasStore;
+  readonly cbor: CborCodecInstance;
   readonly compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
 };
 
@@ -172,61 +153,24 @@ function computeSignaturePayloadBytes(
 
 // -- CBOR codec (uses git-cas's CborCodec) ------------------------------------
 
-type CborCodecInstance = {
-  encode(data: object): Buffer;
-  decode(buf: Buffer): object;
-};
-
-async function loadCborCodec(): Promise<CborCodecInstance> {
-  const { CborCodecCtor } = await loadGitCasConstructors<
-    CasStoreOptions,
-    CasStore,
-    CborCodecInstance
-  >();
-  return new CborCodecCtor();
-}
+type CborCodecInstance = InstanceType<typeof CborCodec>;
 
 // -- Adapter ------------------------------------------------------------------
 
 export default class GitTrustChainAdapter extends TrustChainPort {
   private readonly _plumbing: Plumbing;
   private readonly _crypto: CryptoPort;
-  private readonly _logger: LoggerPort | undefined;
-  private readonly _getCas: () => Promise<CasStore>;
+  private readonly _cas: CasStore;
+  private readonly _cbor: CborCodecInstance;
   private readonly _compatibilityPolicy: SubstrateCompatibilityPolicyValue;
-  private _cbor: CborCodecInstance | null = null;
 
   constructor(deps: GitTrustChainDeps) {
     super();
     this._plumbing = deps.plumbing;
     this._crypto = deps.crypto;
-    this._logger = deps.logger;
-    this._getCas = createLazyCas(() => this._initCas());
+    this._cas = deps.cas;
+    this._cbor = deps.cbor;
     this._compatibilityPolicy = deps.compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
-  }
-
-  private async _initCas(): Promise<CasStore> {
-    const { ContentAddressableStore, CborCodecCtor } = await loadGitCasConstructors<
-      CasStoreOptions,
-      CasStore,
-      CborCodecInstance
-    >();
-    const opts: CasStoreOptions = {
-      plumbing: this._plumbing,
-      codec: new CborCodecCtor(),
-      chunking: { strategy: 'cdc' },
-    };
-    if (this._logger) {
-      opts.observability = new LoggerObservabilityBridge(this._logger);
-    }
-    return new ContentAddressableStore(opts);
-  }
-
-  private async _getCbor(): Promise<CborCodecInstance> {
-    if (!this._cbor) {
-      this._cbor = await loadCborCodec();
-    }
-    return this._cbor;
   }
 
   // -- Port implementation: readTip -------------------------------------------
@@ -243,13 +187,12 @@ export default class GitTrustChainAdapter extends TrustChainPort {
   }
 
   private async _readRecordIdFromCommit(commitSha: string): Promise<string | null> {
-    const cas = await this._getCas();
+    const cas = this._cas;
     const info = await readCommitInfo(this._plumbing, commitSha);
     try {
       const manifest = await cas.readManifest({ treeOid: info.treeSha });
       const restored = await cas.restore({ manifest });
-      const cbor = await this._getCbor();
-      const decoded = cbor.decode(restored.buffer) as Record<string, string>;
+      const decoded = this._cbor.decode(restored.buffer) as Record<string, string>;
       return decoded['recordId'] ?? null;
     } catch {
       this._requireLegacyTrustRecordPolicy(commitSha);
@@ -266,8 +209,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
   private async _readRecordIdRawFallback(blobOid: string): Promise<string | null> {
     try {
       const raw = await this._plumbing.execute({ args: ['cat-file', 'blob', blobOid] });
-      const cbor = await this._getCbor();
-      const decoded = cbor.decode(Buffer.from(raw, 'binary')) as Record<string, string>;
+      const decoded = this._cbor.decode(Buffer.from(raw, 'binary')) as Record<string, string>;
       return decoded['recordId'] ?? null;
     } catch {
       return null;
@@ -304,8 +246,8 @@ export default class GitTrustChainAdapter extends TrustChainPort {
 
   private async _decodeRecordFromCommit(commitSha: string): Promise<TrustRecord | null> {
     const info = await readCommitInfo(this._plumbing, commitSha);
-    const cas = await this._getCas();
-    const cbor = await this._getCbor();
+    const cas = this._cas;
+    const cbor = this._cbor;
 
     let rawRecord: Record<string, string | number | boolean | null | object>;
 
@@ -370,8 +312,8 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     parentTipSha: string | null,
   ): Promise<string> {
     const ref = buildTrustRecordRef(graphName);
-    const cas = await this._getCas();
-    const cbor = await this._getCbor();
+    const cas = this._cas;
+    const cbor = this._cbor;
 
     // Encode record as CBOR → store via git-cas
     const recordObj = {

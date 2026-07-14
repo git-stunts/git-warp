@@ -5,7 +5,9 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts';
 import type WarpStateCacheRetentionPort from '../../../../src/ports/WarpStateCacheRetentionPort.ts';
@@ -85,11 +87,20 @@ async function createHarness(): Promise<Harness> {
     await plumbing.execute({ args: ['init', '-q'] });
     await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
     await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-    const persistence = new GitGraphAdapter({ plumbing });
-    const cache = await persistence.createRuntimeStateCache({
-      graphName: 'demo',
-      codec: new CborCodec(),
+    const persistence = new GitTimelineHistoryAdapter({ plumbing });
+    const runtimeStorage = new GitCasRepositoryAdapter({
+      plumbing,
+      history: persistence,
     });
+    const services = await runtimeStorage.createRuntimeStorageServices({
+      timelineName: 'demo',
+      codec: new CborCodec(),
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    });
+    const cache = services.stateSnapshots;
+    if (cache === undefined) {
+      throw new Error('Git runtime storage must provide state snapshots');
+    }
     return {
       tempDir,
       plumbing,

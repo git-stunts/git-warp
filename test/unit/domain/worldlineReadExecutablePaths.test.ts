@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import {
+  openMemoryRuntimeHostProduct as openRuntimeHostProduct,
+  openMemoryWarpWorldline as openWarpWorldline,
+} from '../../helpers/MemoryRuntimeHost.ts';
 
 describe('worldline read executable paths', () => {
   it('reads live, historical, and observer-filtered worldlines through public handles', async () => {

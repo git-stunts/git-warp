@@ -7,92 +7,13 @@
  * @module domain/runtimeHelpers
  */
 
-import type BlobStoragePort from '../ports/BlobStoragePort.ts';
-import type IndexStorePort from '../ports/IndexStorePort.ts';
-import type CodecPort from '../ports/CodecPort.ts';
 import type EffectSinkPort from '../ports/EffectSinkPort.ts';
-import type { CorePersistence } from './types/WarpPersistence.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { MultiplexSink } from './services/MultiplexSink.ts';
-import type RuntimeStorageCapabilityPort from '../ports/RuntimeStorageCapabilityPort.ts';
-
-import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.ts';
 import WarpError from './errors/WarpError.ts';
-import {
-  LEGACY_EXTERNAL_PATCH_STORAGE,
-  LEGACY_GIT_BLOB_PATCH_STORAGE,
-  type PatchStorageRoute,
-} from '../ports/CommitMessageCodecPort.ts';
 
 export const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
-
-/**
- * Persistence accepted by runtime helper resolution.
- */
-type RuntimeStoragePersistence = CorePersistence & Partial<RuntimeStorageCapabilityPort>;
-
-/**
- * Resolves blob storage from an explicit injection, an adapter capability,
- * or the in-memory fallback used by browser/test paths.
- */
-export async function resolveBlobStorage(
-  blobStorage: BlobStoragePort | undefined | null,
-  persistence: RuntimeStoragePersistence,
-): Promise<BlobStoragePort> {
-  if (blobStorage !== undefined && blobStorage !== null) {
-    return blobStorage;
-  }
-  if (typeof persistence.createRuntimeBlobStorage === 'function') {
-    return await persistence.createRuntimeBlobStorage();
-  }
-  return new InMemoryBlobStorageAdapter();
-}
-
-/**
- * Resolves the default storage route for newly written patches.
- */
-export function resolvePatchWriteStorage(
-  persistence: RuntimeStoragePersistence,
-  patchBlobStorage: BlobStoragePort | undefined | null,
-): PatchStorageRoute {
-  if (typeof persistence.defaultPatchWriteStorage === 'function') {
-    return persistence.defaultPatchWriteStorage();
-  }
-  return patchBlobStorage !== undefined && patchBlobStorage !== null
-    ? LEGACY_EXTERNAL_PATCH_STORAGE
-    : LEGACY_GIT_BLOB_PATCH_STORAGE;
-}
-
-type IndexStoreDeps = {
-  codec: CodecPort;
-  blobPort: {
-    readBlob(oid: string): Promise<Uint8Array>;
-    writeBlob(content: Uint8Array | string): Promise<string>;
-  };
-  treePort: {
-    readTreeOids(treeOid: string): Promise<Record<string, string>>;
-    writeTree(entries: string[]): Promise<string>;
-  };
-  blobStorage?: BlobStoragePort | null;
-};
-
-/**
- * Resolves an IndexStorePort: uses the provided instance if present,
- * otherwise auto-constructs a CborIndexStoreAdapter.
- */
-export async function resolveIndexStore(
-  indexStore: IndexStorePort | undefined | null,
-  deps: IndexStoreDeps,
-): Promise<IndexStorePort> {
-  if (indexStore !== undefined && indexStore !== null) {
-    return indexStore;
-  }
-  const { CborIndexStoreAdapter } = await import(
-    /* webpackIgnore: true */ '../infrastructure/adapters/CborIndexStoreAdapter.ts'
-  );
-  return new CborIndexStoreAdapter(deps);
-}
 
 /**
  * Constructs an EffectPipeline from an array of sinks and an optional externalization lens.

@@ -8,8 +8,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
-import CasBlobAdapter from '../../../../src/infrastructure/adapters/CasBlobAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import WarpCore from '../../../../src/domain/WarpCore.ts';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -30,7 +30,8 @@ export async function createTestRepo(label = 'api-test') {
     await plumbing.execute({ args: ['init'] });
     await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
     await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-    const persistence = new GitGraphAdapter({ plumbing });
+    const persistence = new GitTimelineHistoryAdapter({ plumbing });
+    const runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
 
     /**
      * Opens a graph core with WebCryptoAdapter pre-configured.
@@ -39,8 +40,6 @@ export async function createTestRepo(label = 'api-test') {
      * @param {Object} [opts={}] - Additional options forwarded to WarpCore.open
      * @returns {Promise<Object>} Opened graph core
      */
-    const blobStorage = new CasBlobAdapter({ plumbing, persistence });
-
     /**
      * @param {string} graphName
      * @param {string} writerId
@@ -48,7 +47,7 @@ export async function createTestRepo(label = 'api-test') {
      */
     async function openGraph(graphName, writerId, opts = {}) {
       return WarpCore.open({
-        blobStorage,
+        runtimeStorage,
         stateCache: null,
         ...opts,
         persistence,

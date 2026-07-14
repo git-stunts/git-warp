@@ -21,10 +21,10 @@ Application code should move to:
 import { openWarp, intent, reading } from '@git-stunts/git-warp';
 ```
 
-Storage adapters move to:
+Storage constructors move to:
 
 ```typescript
-import { GitStorageAdapter } from '@git-stunts/git-warp/storage';
+import { GitStorage } from '@git-stunts/git-warp/storage';
 ```
 
 Diagnostics and expert WARP terms move to explicit subpaths:
@@ -39,7 +39,7 @@ Diagnostics and expert WARP terms move to explicit subpaths:
 | Subpath       | Contract                                            |
 | ------------- | --------------------------------------------------- |
 | Root          | first-use public API; no graph substrate            |
-| `storage`     | supported persistence adapters                      |
+| `storage`     | supported opaque storage constructors               |
 | `advanced`    | bounded coordinate capture, `Optic`, and `Witness` access |
 | `diagnostics` | receipt inspection                                  |
 
@@ -69,13 +69,11 @@ After:
 
 ```typescript
 import { openWarp } from '@git-stunts/git-warp';
-import { GitStorageAdapter } from '@git-stunts/git-warp/storage';
-import GitPlumbing from '@git-stunts/plumbing';
+import { GitStorage } from '@git-stunts/git-warp/storage';
 
+const storage = await GitStorage.open({ cwd: '.' });
 const warp = await openWarp({
-  storage: new GitStorageAdapter({
-    plumbing: new GitPlumbing({ cwd: '.' }),
-  }),
+  storage,
   writer: 'agent-1',
 });
 
@@ -242,13 +240,13 @@ and joins first.
 | `ReadReceipt`              | root type                             | returned on `ReadingResult.receipt`               |
 | `JoinReceipt`              | root type                             | returned on `JoinResult.receipt`                  |
 | `JoinResult`               | root type                             | returned by `previewJoin()` and `join()`          |
-| `WarpStorage`              | root `StorageAdapter`                 | storage option contract rename                    |
+| `StorageAdapter`           | root `WarpStorage`                    | opaque storage handle replaces persistence port  |
 | `ReadReceiptOutcome`       | root `ReadOutcome`                    | operation-specific outcome alias rename           |
 | `JoinReceiptOutcome`       | root `JoinOutcome`                    | operation-specific outcome alias rename           |
 | `EdgePropertyIntentFields` | removed                               | no edge-property intent ships in the v19 root     |
-| `GitGraphAdapter`          | `storage` `GitStorageAdapter`         | graph name removed                                |
-| `InMemoryGraphAdapter`     | `storage` `MemoryStorageAdapter`      | graph name removed                                |
-| `GraphPersistencePort`     | root `StorageAdapter` for app options | old graph-shaped port removed from public API     |
+| `GitGraphAdapter`          | `storage` `GitStorage.open({ cwd })`  | plumbing and CAS composition are internal         |
+| `InMemoryGraphAdapter`     | `storage` `MemoryStorage.create()`    | graph name and adapter constructor removed        |
+| `GraphPersistencePort`     | root `WarpStorage` for app options    | old graph-shaped port removed from public API     |
 | `commit((patch) => ...)`   | `timeline.write(intent.*)`            | receipt-returning                                 |
 | `PatchBuilder`             | removed                               | replace with intent builders                      |
 | `PatchSession`             | removed                               | replace with receipt-returning writes             |

@@ -3,8 +3,10 @@ import { mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
-import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import GitCasRepositoryAdapter from '../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import { openRuntimeHostProduct as openRuntimeHostProductBase } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import type { RuntimeHostOpenOptions } from '../../src/domain/warp/RuntimeHostBoot.ts';
 import { computeStateHash, nodeVisible, edgeVisible } from '../../src/domain/services/state/StateSerializer.ts';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -16,6 +18,11 @@ describe('WarpCore Integration', () => {
     let tempDir;
     let plumbing;
     let persistence;
+    let runtimeStorage: GitCasRepositoryAdapter;
+
+  function openRuntimeHostProduct(options: RuntimeHostOpenOptions) {
+    return openRuntimeHostProductBase({ ...options, runtimeStorage });
+  }
 
   beforeEach(async () => {
     // Create temp directory and init git repo
@@ -24,7 +31,8 @@ describe('WarpCore Integration', () => {
     await plumbing.execute({ args: ['init'] });
     await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
     await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-    persistence = new GitGraphAdapter({ plumbing });
+    persistence = new GitTimelineHistoryAdapter({ plumbing });
+    runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
   });
 
   afterEach(async () => {

@@ -11,7 +11,7 @@ import type TreeEntryLimit from '../../../../../src/domain/tree/TreeEntryLimit.t
 import TreeEntryMissing from '../../../../../src/domain/tree/TreeEntryMissing.ts';
 import type TreeEntryPath from '../../../../../src/domain/tree/TreeEntryPath.ts';
 import type TreeEntryPrefixBatch from '../../../../../src/domain/tree/TreeEntryPrefixBatch.ts';
-import GitGraphAdapter from '../../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
@@ -66,7 +66,7 @@ class ProbeFixtureAdapter extends InMemoryGraphAdapter {
   }
 }
 
-class GitPrefixFallbackProbeAdapter extends GitGraphAdapter {
+class GitPrefixFallbackProbeAdapter extends GitTimelineHistoryAdapter {
   readonly readTreeOidsCalls: string[] = [];
   readonly exactProbePaths: string[] = [];
   readonly prefixProbePaths: string[] = [];

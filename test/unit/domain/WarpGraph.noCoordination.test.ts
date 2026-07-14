@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import fc from 'fast-check';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 

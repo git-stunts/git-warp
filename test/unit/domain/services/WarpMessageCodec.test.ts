@@ -881,7 +881,7 @@ eg-schema: 1`;
         lamport: 1,
         patchOid: VALID_OID_SHA1,
         schema: 3,
-        storage: createGitCasPatchStorage(true),
+        storage: createGitCasPatchStorage({ encrypted: true }),
       });
 
       expect(message.split('\n')).toEqual([

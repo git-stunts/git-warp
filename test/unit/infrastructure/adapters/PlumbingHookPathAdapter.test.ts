@@ -23,9 +23,7 @@ function buildAdapter(execute: GitPlumbing['execute']): PlumbingHookPathAdapter 
     },
   };
   return new PlumbingHookPathAdapter({
-    plumbingFactory: {
-      create: (_repoPath: string) => plumbing,
-    },
+    plumbing,
     path,
   });
 }

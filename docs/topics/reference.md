@@ -40,48 +40,48 @@ Source: `index.ts`. Count: 43.
 
 ```text
 DraftTimeline @ index.ts#L16
-EdgeIntentFields @ index.ts#L30
+EdgeIntentFields @ index.ts#L31
 Intent @ index.ts#L21
-IntentBuilders @ index.ts#L36
-IntentDescriptor @ index.ts#L31
-IntentKind @ index.ts#L32
-JoinMode @ index.ts#L37
-JoinOptions @ index.ts#L39
-JoinOutcome @ index.ts#L53
-JoinPolicy @ index.ts#L39
+IntentBuilders @ index.ts#L37
+IntentDescriptor @ index.ts#L32
+IntentKind @ index.ts#L33
+JoinMode @ index.ts#L38
+JoinOptions @ index.ts#L40
+JoinOutcome @ index.ts#L54
+JoinPolicy @ index.ts#L40
 JoinReceipt @ index.ts#L22
-JoinReceiptOptions @ index.ts#L37
+JoinReceiptOptions @ index.ts#L38
 JoinResult @ index.ts#L23
-JoinResultOptions @ index.ts#L38
-NeighborhoodReadingFields @ index.ts#L41
-NodeIntentFields @ index.ts#L33
-NodeReadingFields @ index.ts#L42
+JoinResultOptions @ index.ts#L39
+NeighborhoodReadingFields @ index.ts#L42
+NodeIntentFields @ index.ts#L34
+NodeReadingFields @ index.ts#L43
 OpenWarpOptions @ index.ts#L28
-PropertyIntentFields @ index.ts#L34
-PropertyReadingFields @ index.ts#L43
-ReadEvidence @ index.ts#L51
+PropertyIntentFields @ index.ts#L35
+PropertyReadingFields @ index.ts#L44
+ReadEvidence @ index.ts#L52
 Reading @ index.ts#L24
-ReadingBuilders @ index.ts#L48
-ReadingDescriptor @ index.ts#L45
-ReadingDirection @ index.ts#L44
-ReadingKind @ index.ts#L46
+ReadingBuilders @ index.ts#L49
+ReadingDescriptor @ index.ts#L46
+ReadingDirection @ index.ts#L45
+ReadingKind @ index.ts#L47
 ReadingResult @ index.ts#L25
-ReadingResultOptions @ index.ts#L49
-ReadingValue @ index.ts#L49
-ReadOutcome @ index.ts#L54
+ReadingResultOptions @ index.ts#L50
+ReadingValue @ index.ts#L50
+ReadOutcome @ index.ts#L55
 ReadReceipt @ index.ts#L26
-ReadReceiptOptions @ index.ts#L51
-Receipt @ index.ts#L50
-ReceiptOutcome @ index.ts#L55
-RepairHint @ index.ts#L58
-StorageAdapter @ index.ts#L28
+ReadReceiptOptions @ index.ts#L52
+Receipt @ index.ts#L51
+ReceiptOutcome @ index.ts#L56
+RepairHint @ index.ts#L59
 Tick @ index.ts#L19
 Timeline @ index.ts#L18
 TimelineView @ index.ts#L20
 Warp @ index.ts#L17
-WriteOutcome @ index.ts#L56
+WarpStorage @ index.ts#L29
+WriteOutcome @ index.ts#L57
 WriteReceipt @ index.ts#L27
-WriteReceiptOptions @ index.ts#L59
+WriteReceiptOptions @ index.ts#L60
 ```
 
 ## Storage export surface
@@ -93,8 +93,8 @@ Git-backed and in-memory adapters for first-use applications.
 Source: `storage.ts`. Count: 2.
 
 ```text
-GitStorageAdapter @ storage.ts#L15
-MemoryStorageAdapter @ storage.ts#L21
+GitStorage @ storage.ts#L18
+MemoryStorage @ storage.ts#L43
 ```
 
 ### Type exports
@@ -102,7 +102,7 @@ MemoryStorageAdapter @ storage.ts#L21
 Source: `storage.ts`. Count: 1.
 
 ```text
-GitStorageAdapterOptions @ storage.ts#L13
+GitStorageOptions @ storage.ts#L14
 ```
 
 ## Advanced export surface

@@ -8,6 +8,8 @@ import CommitMessageCodecPort, {
   type PatchCommitMessage,
 } from '../../../../src/ports/CommitMessageCodecPort.ts';
 import TrustCryptoPort, { type TrustSignatureVerification } from '../../../../src/ports/TrustCryptoPort.ts';
+import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
 import { createFakeCodecPort, createMockCrypto } from '../../../helpers/mockPorts.ts';
 
 import type { NormalizedTrustConfig } from '../../../../src/domain/runtimeHelpers.ts';
@@ -94,6 +96,8 @@ describe('RuntimeHostPortResolvers', () => {
     const codec = createFakeCodecPort();
     const crypto = createMockCrypto();
     const trustCrypto = new TestTrustCrypto();
+    const history = new InMemoryGraphAdapter();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history });
 
     await expect(resolvers.resolveConfiguredCommitMessageCodec(commitMessageCodec))
       .resolves.toBe(commitMessageCodec);
@@ -101,6 +105,8 @@ describe('RuntimeHostPortResolvers', () => {
     await expect(resolvers.resolveConfiguredCrypto(crypto)).resolves.toBe(crypto);
     await expect(resolvers.resolveConfiguredTrustCrypto(trustCrypto, TRUST_ENFORCE))
       .resolves.toBe(trustCrypto);
+    await expect(resolvers.resolveConfiguredRuntimeStorage(runtimeStorage))
+      .resolves.toBe(runtimeStorage);
   });
 
   it('rejects missing runtime codec and crypto resolvers', async () => {
@@ -112,6 +118,29 @@ describe('RuntimeHostPortResolvers', () => {
     await expect(resolvers.resolveConfiguredCrypto(undefined)).rejects.toMatchObject({
       code: 'E_CRYPTO_REQUIRED',
     });
+  });
+
+  it.each([undefined, null])('rejects missing runtime storage %s', async (runtimeStorage) => {
+    const resolvers = await loadResolvers();
+
+    await expect(
+      resolvers.resolveConfiguredRuntimeStorage(runtimeStorage),
+    ).rejects.toMatchObject({ code: 'E_RUNTIME_STORAGE_REQUIRED' });
+  });
+
+  it('keeps runtime storage explicit when browser defaults are installed', async () => {
+    const resolvers = await loadResolvers();
+    const { installDefaultRuntimeHostBrowserPorts } = await import(
+      '../../../../src/application/RuntimeHostBrowserDefaults.ts'
+    );
+
+    installDefaultRuntimeHostBrowserPorts();
+
+    await expect(resolvers.resolveConfiguredCodec(undefined)).resolves.toBeDefined();
+    await expect(resolvers.resolveConfiguredCrypto(undefined)).resolves.toBeDefined();
+    await expect(
+      resolvers.resolveConfiguredRuntimeStorage(undefined),
+    ).rejects.toMatchObject({ code: 'E_RUNTIME_STORAGE_REQUIRED' });
   });
 
   it('only requires trust crypto when trust mode is enabled', async () => {

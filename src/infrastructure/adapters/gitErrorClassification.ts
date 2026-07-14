@@ -2,7 +2,7 @@
  * Git error classification and retry configuration for persistence adapters.
  *
  * Pure functions that classify raw Git plumbing errors into typed
- * PersistenceError categories. Extracted from GitGraphAdapter to keep
+ * PersistenceError categories. Extracted from GitTimelineHistoryAdapter to keep
  * the adapter under the 500 LOC limit.
  */
 import PersistenceError from '../../domain/errors/PersistenceError.ts';

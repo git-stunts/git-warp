@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { openWarpGraphRuntime } from '../../../../src/domain/warp/WarpGraphRuntimeBridge.ts';
+import { createMemoryRuntimeStorage } from '../../../helpers/MemoryRuntimeHost.ts';
 import { createInMemoryRepo } from '../../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpGraphRuntimeBridge', () => {
@@ -9,6 +10,7 @@ describe('WarpGraphRuntimeBridge', () => {
     try {
       const runtimeSurface = await openWarpGraphRuntime({
         persistence: repo.persistence,
+        runtimeStorage: createMemoryRuntimeStorage(repo.persistence),
         graphName: 'shared',
         writerId: 'alice',
       });

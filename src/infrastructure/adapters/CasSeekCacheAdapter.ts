@@ -18,26 +18,21 @@
 
 import SeekCachePort, { type SeekCacheEntry, type SeekCacheSetOptions } from '../../ports/SeekCachePort.ts';
 import { buildSeekCacheRef } from '../../domain/utils/RefLayout.ts';
-import { createLazyCas } from './lazyCasInit.ts';
-import { createCdcCasStore } from './CasStoreFactory.ts';
 import CacheError from '../../domain/errors/CacheError.ts';
 import { textEncode, textDecode, concatBytes } from '../../domain/utils/bytes.ts';
 import CasContentEncryptionPolicy, {
   type CasRestoreEncryptionArguments,
-  type CasStoreEncryptionArguments,
   type CasStoreEncryptionOptions,
   mapCasContentEncryptionError,
 } from './CasContentEncryptionPolicy.ts';
-import type LoggerPort from '../../ports/LoggerPort.ts';
 import { Readable } from 'node:stream';
+import type ContentAddressableStore from '@git-stunts/git-cas';
+import type { Manifest } from '@git-stunts/git-cas';
 
-interface CasStore {
-  readManifest(opts: { treeOid: string }): Promise<unknown>;
-  restore(opts: { manifest: unknown } & CasRestoreEncryptionArguments): Promise<{ buffer: Uint8Array }>;
-  restoreStream?: (opts: { manifest: unknown } & CasRestoreEncryptionArguments) => AsyncIterable<Uint8Array>;
-  store(opts: { source: Readable; slug: string; filename: string } & CasStoreEncryptionArguments): Promise<unknown>;
-  createTree(opts: { manifest: unknown }): Promise<string>;
-}
+type CasStore = Pick<
+  ContentAddressableStore,
+  'readManifest' | 'restoreStream' | 'store' | 'createTree'
+>;
 
 interface CachePersistence {
   readRef(ref: string): Promise<string | null>;
@@ -111,39 +106,27 @@ function _parseIndexBlob(buf: Uint8Array): CacheIndex {
 
 export default class CasSeekCacheAdapter extends SeekCachePort {
   private readonly _persistence: CachePersistence;
-  private readonly _plumbing: unknown;
+  private readonly _cas: CasStore;
   private readonly _maxEntries: number;
   private readonly _ref: string;
   private readonly _encryptionKey: Uint8Array | undefined;
   private readonly _contentEncryption: CasContentEncryptionPolicy;
-  private readonly _logger: LoggerPort | undefined;
-  private readonly _getCas: () => Promise<CasStore>;
 
-  constructor({ persistence, plumbing, graphName, maxEntries, encryptionKey, contentEncryption, logger }: {
+  constructor({ persistence, cas, graphName, maxEntries, encryptionKey, contentEncryption }: {
     persistence: CachePersistence;
-    plumbing: unknown;
+    cas: CasStore;
     graphName: string;
     maxEntries?: number;
     encryptionKey?: Uint8Array;
     contentEncryption?: CasContentEncryptionPolicy;
-    logger?: LoggerPort;
   }) {
     super();
     this._persistence = persistence;
-    this._plumbing = plumbing;
+    this._cas = cas;
     this._maxEntries = maxEntries ?? DEFAULT_MAX_ENTRIES;
     this._ref = buildSeekCacheRef(graphName);
     this._encryptionKey = encryptionKey;
     this._contentEncryption = resolveContentEncryption(contentEncryption, this._encryptionKey);
-    this._logger = logger;
-    this._getCas = createLazyCas(() => this._initCas());
-  }
-
-  private async _initCas(): Promise<CasStore> {
-    return await createCdcCasStore<CasStore>({
-      plumbing: this._plumbing,
-      logger: this._logger,
-    });
   }
 
   // ---------------------------------------------------------------------------
@@ -232,20 +215,15 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   // Restore helpers
   // ---------------------------------------------------------------------------
 
-  private async _restoreBuffer(cas: CasStore, restoreOpts: { manifest: unknown } & CasRestoreEncryptionArguments): Promise<Uint8Array> {
-    if (typeof cas.restoreStream === 'function') {
-      const stream = cas.restoreStream(restoreOpts);
-      const chunks: Uint8Array[] = [];
-      for await (const chunk of stream) {
-        chunks.push(chunk);
-      }
-      if (chunks.length === 1 && chunks[0] !== undefined) {
-        return chunks[0];
-      }
-      return concatBytes(...chunks);
+  private async _restoreBuffer(cas: CasStore, restoreOpts: { manifest: Manifest } & CasRestoreEncryptionArguments): Promise<Uint8Array> {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of cas.restoreStream(restoreOpts)) {
+      chunks.push(chunk);
     }
-    const { buffer } = await cas.restore(restoreOpts);
-    return buffer;
+    if (chunks.length === 1 && chunks[0] !== undefined) {
+      return chunks[0];
+    }
+    return concatBytes(...chunks);
   }
 
   // ---------------------------------------------------------------------------
@@ -253,7 +231,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   // ---------------------------------------------------------------------------
 
   override async get(key: string): Promise<SeekCacheEntry | null> {
-    const cas = await this._getCas();
+    const cas = this._cas;
     const index = await this._readIndex();
     const entry = index.entries[key];
     if (entry === null || entry === undefined) {
@@ -277,7 +255,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
 
   private async _getEntry(cas: CasStore, key: string, entry: IndexEntry): Promise<SeekCacheEntry> {
     const manifest = await cas.readManifest({ treeOid: entry.treeOid });
-    const restoreOpts: { manifest: unknown } & CasRestoreEncryptionArguments = {
+    const restoreOpts: { manifest: Manifest } & CasRestoreEncryptionArguments = {
       manifest,
       ...this._contentEncryption.toRestoreOptions(),
     };
@@ -297,7 +275,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   }
 
   override async set(key: string, buffer: Uint8Array, options?: SeekCacheSetOptions): Promise<void> {
-    const cas = await this._getCas();
+    const cas = this._cas;
     const { ceiling, frontierHash } = this._parseKey(key);
 
     const { treeOid } = await this._storeCasAsset(cas, key, buffer);
@@ -320,7 +298,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     });
   }
 
-  private async _storeCasAsset(cas: CasStore, key: string, buffer: Uint8Array): Promise<{ manifest: unknown; treeOid: string }> {
+  private async _storeCasAsset(cas: CasStore, key: string, buffer: Uint8Array): Promise<{ manifest: Manifest; treeOid: string }> {
     const source = Readable.from([buffer]);
     const storeOpts: { source: Readable; slug: string; filename: string; encryptionKey?: Uint8Array; encryption?: CasStoreEncryptionOptions } = {
       source,

@@ -1,6 +1,7 @@
 import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
 import {
   buildCheckpointRef,
   buildCoverageRef,
@@ -12,7 +13,7 @@ import { createPersistence, listGraphNames, readActiveCursor, readCheckpointDate
 import type { CliOptions, Persistence, GraphInfoResult } from '../types.ts';
 
 /** Collects metadata about a single graph (writer count, refs, patches, checkpoint). */
-async function getGraphInfo(persistence: Persistence, graphName: string, {
+async function getGraphInfo(persistence: Persistence, runtimeStorage: RuntimeStorageProviderPort, graphName: string, {
   includeWriterIds = false,
   includeRefs = false,
   includeWriterPatches = false,
@@ -61,6 +62,7 @@ async function getGraphInfo(persistence: Persistence, graphName: string, {
   if (includeWriterPatches && writerIds.length > 0) {
     const graph = await openRuntimeHostProduct({
       persistence: persistence as unknown as CorePersistence,
+      runtimeStorage,
       graphName,
       writerId: 'cli',
       crypto: new WebCryptoAdapter(),
@@ -78,7 +80,7 @@ async function getGraphInfo(persistence: Persistence, graphName: string, {
 
 /** Handles the `info` command: summarizes graphs in the repository. */
 export default async function handleInfo({ options }: { options: CliOptions }): Promise<{ repo: string; graphs: GraphInfoResult[] }> {
-  const { persistence } = await createPersistence(options.repo);
+  const { persistence, runtimeStorage } = await createPersistence(options.repo);
   const graphNames = await listGraphNames(persistence);
 
   if (typeof options.graph === 'string' && options.graph.length > 0 && !graphNames.includes(options.graph)) {
@@ -98,7 +100,7 @@ export default async function handleInfo({ options }: { options: CliOptions }): 
   const graphs: GraphInfoResult[] = [];
   for (const name of graphNames) {
     const includeDetails = detailGraphs.has(name);
-    const info = await getGraphInfo(persistence, name, {
+    const info = await getGraphInfo(persistence, runtimeStorage, name, {
       includeWriterIds: includeDetails || isViewMode,
       includeRefs: includeDetails || isViewMode,
       includeWriterPatches: isViewMode,

@@ -1,14 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock @git-stunts/git-cas (dynamic import used by _initCas)
 const mockReadManifest = vi.fn();
 const mockRestore = vi.fn();
 const mockRestoreStream = vi.fn();
 const mockStore = vi.fn();
 const mockCreateTree = vi.fn();
-
-/** Captures constructor args for assertion. @type {any} */
-let lastConstructorArgs = {};
 
 class MockContentAddressableStore {
   readManifest: typeof mockReadManifest;
@@ -16,8 +12,7 @@ class MockContentAddressableStore {
   restoreStream: typeof mockRestoreStream;
   store: typeof mockStore;
   createTree: typeof mockCreateTree;
-  constructor(/** @type {any} */ opts) {
-    lastConstructorArgs = opts;
+  constructor() {
     this.readManifest = mockReadManifest;
     this.restore = mockRestore;
     this.restoreStream = mockRestoreStream;
@@ -26,14 +21,6 @@ class MockContentAddressableStore {
   }
 }
 
-class MockCborCodec {}
-
-vi.mock('@git-stunts/git-cas', () => ({
-  default: MockContentAddressableStore,
-  CborCodec: MockCborCodec,
-}));
-
-// Import after mock setup
 const { default: CasBlobAdapter } = await import(
   '../../../../src/infrastructure/adapters/CasBlobAdapter.ts'
 );
@@ -61,20 +48,6 @@ function makePersistence() {
   };
 }
 
-function makePlumbing() {
-  return {};
-}
-
-function makeLogger() {
-  return {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(),
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -82,12 +55,11 @@ function makeLogger() {
 describe('CasBlobAdapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    lastConstructorArgs = {};
   });
 
   it('extends BlobStoragePort', () => {
     const adapter = new CasBlobAdapter({
-      plumbing: makePlumbing(),
+      cas: new MockContentAddressableStore(),
       persistence: makePersistence(),
     });
     expect(adapter).toBeInstanceOf(BlobStoragePort);
@@ -100,7 +72,7 @@ describe('CasBlobAdapter', () => {
       mockCreateTree.mockResolvedValue('tree-oid-abc');
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
       });
 
@@ -117,7 +89,7 @@ describe('CasBlobAdapter', () => {
       mockCreateTree.mockResolvedValue('tree-oid-123');
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
       });
 
@@ -133,7 +105,7 @@ describe('CasBlobAdapter', () => {
       mockCreateTree.mockResolvedValue('tree-oid');
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
       });
 
@@ -149,7 +121,7 @@ describe('CasBlobAdapter', () => {
 
       const encKey = new Uint8Array(32);
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
         encryptionKey: encKey,
       });
@@ -181,7 +153,7 @@ describe('CasBlobAdapter', () => {
         },
       });
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
         contentEncryption,
       });
@@ -202,7 +174,7 @@ describe('CasBlobAdapter', () => {
       mockCreateTree.mockResolvedValue('tree-oid');
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
       });
 
@@ -210,6 +182,43 @@ describe('CasBlobAdapter', () => {
 
       const storeCall = (mockStore.mock.calls[0] as any)[0];
       expect(storeCall.encryptionKey).toBeUndefined();
+    });
+  });
+
+  describe('has()', () => {
+    it('checks the injected CAS manifest store', async () => {
+      mockReadManifest.mockResolvedValue({ chunks: [] });
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence: makePersistence(),
+      });
+
+      await expect(adapter.has('tree-oid')).resolves.toBe(true);
+      expect(mockReadManifest).toHaveBeenCalledWith({ treeOid: 'tree-oid' });
+    });
+
+    it.each(['MANIFEST_NOT_FOUND', 'GIT_OBJECT_NOT_FOUND'])(
+      'returns false for explicit CAS not-found code %s',
+      async (code) => {
+        mockReadManifest.mockRejectedValue(Object.assign(new Error('missing manifest'), { code }));
+        const adapter = new CasBlobAdapter({
+          cas: new MockContentAddressableStore(),
+          persistence: makePersistence(),
+        });
+
+        await expect(adapter.has('missing-oid')).resolves.toBe(false);
+      },
+    );
+
+    it('propagates non-not-found CAS failures', async () => {
+      const failure = Object.assign(new Error('backend unavailable'), { code: 'GIT_ERROR' });
+      mockReadManifest.mockRejectedValue(failure);
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence: makePersistence(),
+      });
+
+      await expect(adapter.has('tree-oid')).rejects.toBe(failure);
     });
   });
 
@@ -221,7 +230,7 @@ describe('CasBlobAdapter', () => {
       mockRestore.mockResolvedValue({ buffer: contentBuf });
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
       });
 
@@ -232,6 +241,20 @@ describe('CasBlobAdapter', () => {
       expect(mockRestore).toHaveBeenCalledWith({ manifest });
     });
 
+    it('normalizes Buffer subclasses returned by git-cas', async () => {
+      mockReadManifest.mockResolvedValue({ chunks: [] });
+      mockRestore.mockResolvedValue({ buffer: Buffer.from('restored content') });
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence: makePersistence(),
+      });
+
+      const result = await adapter.retrieve('tree-oid');
+
+      expect(result.constructor).toBe(Uint8Array);
+      expect(new TextDecoder().decode(result)).toBe('restored content');
+    });
+
     it('passes encryptionKey to CAS restore when configured', async () => {
       const manifest = { chunks: ['chunk1'] };
       mockReadManifest.mockResolvedValue(manifest);
@@ -239,7 +262,7 @@ describe('CasBlobAdapter', () => {
 
       const encKey = new Uint8Array(32);
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
         encryptionKey: encKey,
       });
@@ -255,7 +278,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(casErr);
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
       });
 
@@ -271,7 +294,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(new Error('not a tree object'));
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
       });
 
@@ -291,7 +314,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(casErr);
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
         compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
@@ -310,7 +333,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(casErr);
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
         compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
@@ -329,7 +352,7 @@ describe('CasBlobAdapter', () => {
       mockRestore.mockRejectedValue(new Error('not a tree object'));
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
         compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
@@ -347,7 +370,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(new Error('bad object abc123'));
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
         compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
@@ -365,7 +388,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(new Error('path does not exist'));
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
         compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
@@ -383,7 +406,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(casErr);
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
         compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
@@ -402,7 +425,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(casErr);
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
       });
 
@@ -418,7 +441,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(casErr);
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
       });
 
@@ -438,7 +461,7 @@ describe('CasBlobAdapter', () => {
       mockRestore.mockRejectedValue(casErr);
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
       });
 
@@ -456,7 +479,7 @@ describe('CasBlobAdapter', () => {
       mockCreateTree.mockResolvedValue('tree-oid-stream');
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
       });
 
@@ -481,7 +504,7 @@ describe('CasBlobAdapter', () => {
 
       const encKey = new Uint8Array(32);
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
         encryptionKey: encKey,
       });
@@ -511,7 +534,7 @@ describe('CasBlobAdapter', () => {
       })());
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
       });
 
@@ -531,6 +554,112 @@ describe('CasBlobAdapter', () => {
       expect(new TextDecoder().decode(result)).toBe('hello world');
     });
 
+    it('can be cancelled before the CAS stream is opened', async () => {
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence: makePersistence(),
+      });
+      const iterator = adapter.retrieveStream('tree-oid')[Symbol.asyncIterator]();
+
+      await expect(iterator.return?.()).resolves.toMatchObject({ done: true });
+      expect(mockReadManifest).not.toHaveBeenCalled();
+    });
+
+    it('delegates cancellation to an opened CAS stream', async () => {
+      let cancelled = false;
+      mockReadManifest.mockResolvedValue({ chunks: [] });
+      mockRestoreStream.mockReturnValue((async function* () {
+        try {
+          yield new Uint8Array([1]);
+        } finally {
+          cancelled = true;
+        }
+      })());
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence: makePersistence(),
+      });
+      const iterator = adapter.retrieveStream('tree-oid')[Symbol.asyncIterator]();
+
+      await expect(iterator.next()).resolves.toMatchObject({ done: false });
+      await expect(iterator.return?.()).resolves.toMatchObject({ done: true });
+      expect(cancelled).toBe(true);
+    });
+
+    it('maps git-cas encryption failures without probing legacy blobs', async () => {
+      const persistence = makePersistence();
+      mockReadManifest.mockRejectedValue(Object.assign(
+        new Error('Legacy encryption scheme is unsupported'),
+        { code: 'LEGACY_SCHEME' },
+      ));
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence,
+      });
+
+      const iterator = adapter.retrieveStream('encrypted-oid')[Symbol.asyncIterator]();
+
+      await expect(iterator.next()).rejects.toMatchObject({
+        code: 'E_CAS_LEGACY_ENCRYPTION_SCHEME',
+      });
+      expect(persistence.readBlob).not.toHaveBeenCalled();
+    });
+
+    it('rethrows non-legacy CAS stream failures', async () => {
+      const persistence = makePersistence();
+      const failure = new Error('CAS unavailable');
+      mockReadManifest.mockRejectedValue(failure);
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence,
+      });
+
+      const iterator = adapter.retrieveStream('tree-oid')[Symbol.asyncIterator]();
+
+      await expect(iterator.next()).rejects.toBe(failure);
+      expect(persistence.readBlob).not.toHaveBeenCalled();
+    });
+
+    it('maps a legacy probe missing-object failure to E_MISSING_OBJECT', async () => {
+      const persistence = makePersistence();
+      persistence.readBlob.mockRejectedValue(new PersistenceError(
+        'missing',
+        PersistenceError.E_MISSING_OBJECT,
+      ));
+      mockReadManifest.mockRejectedValue(Object.assign(
+        new Error('No manifest entry'),
+        { code: 'MANIFEST_NOT_FOUND' },
+      ));
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence,
+      });
+
+      const iterator = adapter.retrieveStream('missing-oid')[Symbol.asyncIterator]();
+
+      await expect(iterator.next()).rejects.toMatchObject({
+        code: PersistenceError.E_MISSING_OBJECT,
+      });
+    });
+
+    it('preserves unexpected legacy probe failures', async () => {
+      const persistence = makePersistence();
+      const failure = new Error('Git transport failed');
+      persistence.readBlob.mockRejectedValue(failure);
+      mockReadManifest.mockRejectedValue(Object.assign(
+        new Error('No manifest entry'),
+        { code: 'MANIFEST_NOT_FOUND' },
+      ));
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence,
+      });
+
+      const iterator = adapter.retrieveStream('legacy-oid')[Symbol.asyncIterator]();
+
+      await expect(iterator.next()).rejects.toBe(failure);
+    });
+
     it('falls back to single-chunk yield for legacy raw Git blobs under migration policy', async () => {
       const rawBuf = new TextEncoder().encode('legacy blob content');
       const persistence = makePersistence();
@@ -539,7 +668,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(casErr);
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
         compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
@@ -555,6 +684,24 @@ describe('CasBlobAdapter', () => {
       expect(persistence.readBlob).toHaveBeenCalledWith('raw-blob-oid');
     });
 
+    it('closes a legacy single-chunk stream deterministically', async () => {
+      const persistence = makePersistence();
+      mockReadManifest.mockRejectedValue(Object.assign(
+        new Error('No manifest entry'),
+        { code: 'MANIFEST_NOT_FOUND' },
+      ));
+      const adapter = new CasBlobAdapter({
+        cas: new MockContentAddressableStore(),
+        persistence,
+        compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+      });
+      const iterator = adapter.retrieveStream('raw-blob-oid')[Symbol.asyncIterator]();
+
+      await expect(iterator.next()).resolves.toMatchObject({ done: false });
+      await expect(iterator.return?.()).resolves.toMatchObject({ done: true });
+      await expect(iterator.next()).resolves.toMatchObject({ done: true });
+    });
+
     it('passes encryptionKey to CAS restoreStream when configured', async () => {
       const manifest = { chunks: ['chunk1'] };
       mockReadManifest.mockResolvedValue(manifest);
@@ -564,7 +711,7 @@ describe('CasBlobAdapter', () => {
 
       const encKey = new Uint8Array(32);
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
         encryptionKey: encKey,
       });
@@ -584,7 +731,7 @@ describe('CasBlobAdapter', () => {
       mockReadManifest.mockRejectedValue(casErr);
 
       const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
+        cas: new MockContentAddressableStore(),
         persistence,
         compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
@@ -598,69 +745,4 @@ describe('CasBlobAdapter', () => {
     });
   });
 
-  describe('CAS initialization', () => {
-    it('lazily initializes CAS on first store() call', async () => {
-      mockStore.mockResolvedValue({});
-      mockCreateTree.mockResolvedValue('tree-oid');
-
-      const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
-        persistence: makePersistence(),
-      });
-
-      // CAS not yet initialized
-      expect(lastConstructorArgs).toEqual({});
-
-      await adapter.store('data');
-
-      // CAS initialized with correct options
-      expect((lastConstructorArgs as any).chunking).toEqual({ strategy: 'cdc' });
-    });
-
-    it('reuses CAS instance across multiple calls', async () => {
-      mockStore.mockResolvedValue({});
-      mockCreateTree.mockResolvedValue('tree-oid');
-
-      const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
-        persistence: makePersistence(),
-      });
-
-      await adapter.store('data1');
-      const firstArgs = { ...lastConstructorArgs };
-      await adapter.store('data2');
-
-      // Same instance (constructor called only once)
-      expect(lastConstructorArgs).toEqual(firstArgs);
-    });
-
-    it('configures observability bridge when logger is provided', async () => {
-      mockStore.mockResolvedValue({});
-      mockCreateTree.mockResolvedValue('tree-oid');
-
-      const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
-        persistence: makePersistence(),
-        logger: makeLogger(),
-      });
-
-      await adapter.store('data');
-
-      expect((lastConstructorArgs as any).observability).toBeDefined();
-    });
-
-    it('does not configure observability when no logger', async () => {
-      mockStore.mockResolvedValue({});
-      mockCreateTree.mockResolvedValue('tree-oid');
-
-      const adapter = new CasBlobAdapter({
-        plumbing: makePlumbing(),
-        persistence: makePersistence(),
-      });
-
-      await adapter.store('data');
-
-      expect((lastConstructorArgs as any).observability).toBeUndefined();
-    });
-  });
 });

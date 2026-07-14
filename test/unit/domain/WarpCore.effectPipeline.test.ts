@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import WarpCore from '../../../src/domain/WarpCore.ts';
+import { openMemoryWarpCore } from '../../helpers/MemoryRuntimeHost.ts';
+import type WarpCore from '../../../src/domain/WarpCore.ts';
 import { EffectPipeline } from '../../../src/domain/services/EffectPipeline.ts';
 import { MultiplexSink } from '../../../src/domain/services/MultiplexSink.ts';
 import { LIVE_LENS, REPLAY_LENS } from '../../../src/domain/types/ExternalizationPolicy.ts';
@@ -7,7 +8,7 @@ import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryG
 import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.ts';
 
 async function openCore(extra = {}): Promise<WarpCore> {
-  return await WarpCore.open({
+  return await openMemoryWarpCore({
     persistence: new InMemoryGraphAdapter(),
     graphName: 'effect-test',
     writerId: 'writer-1',

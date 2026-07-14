@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain/WarpWorldline.ts';
+import { openMemoryWarpWorldline as openWarpWorldline } from '../../helpers/MemoryRuntimeHost.ts';
 import ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
 import Observer, { type ObserverBacking } from '../../../src/domain/services/query/Observer.ts';
 

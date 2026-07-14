@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.ts';
 import SyncSecret from '../../../src/domain/services/sync/SyncSecret.ts';
 

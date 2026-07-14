@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 
-describe('GitGraphAdapter Concurrency Stress Test', () => {
+describe('GitTimelineHistoryAdapter Concurrency Stress Test', () => {
   it('handles 50 simultaneous createNode calls without corruption', async () => {
     // Track call order to verify all calls complete
     const callLog: Array<{id: number; start?: number; end?: number; args?: any}> = [];
@@ -21,7 +21,7 @@ describe('GitGraphAdapter Concurrency Stress Test', () => {
       executeStream: vi.fn(),
     };
 
-    const adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
 
     // Fire 50 concurrent commits
     const promises = Array.from({ length: 50 }, (_, i) =>
@@ -54,7 +54,7 @@ describe('GitGraphAdapter Concurrency Stress Test', () => {
       executeStream: vi.fn(),
     };
 
-    const adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
 
     // Mix of writes, reads, and ref lookups
     const operations = [

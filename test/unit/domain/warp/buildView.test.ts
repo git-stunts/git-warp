@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../../helpers/MemoryRuntimeHost.ts';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 
 describe('_buildViewFromResult', () => {

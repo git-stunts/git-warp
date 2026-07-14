@@ -2,7 +2,7 @@ import type SeekCachePort from '../../ports/SeekCachePort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
-import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
+import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type { NeighborEdge } from '../../ports/NeighborProviderPort.ts';
 import type QueryCapability from '../capabilities/QueryCapability.ts';
@@ -125,8 +125,9 @@ type RuntimeHostTrustAssessment = {
 
 export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   readonly traverse: LogicalTraversal;
-  readonly persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
-  _persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+  readonly persistence: CorePersistence;
+  _persistence: CorePersistence;
+  _runtimeStorage: RuntimeStorageProviderPort;
   readonly onDeleteWithData: 'reject' | 'cascade' | 'warn';
   readonly gcPolicy: GCPolicy;
   readonly seekCache: SeekCachePort | null;

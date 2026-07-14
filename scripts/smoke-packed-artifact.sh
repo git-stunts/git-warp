@@ -37,13 +37,30 @@ class PackedArtifactSmokeError extends Error {
 }
 
 const mod = await import('@git-stunts/git-warp');
+const storage = await import('@git-stunts/git-warp/storage');
 
-if (!('openWarpGraph' in mod)) {
-  throw new PackedArtifactSmokeError('package root did not export openWarpGraph');
+for (const name of ['openWarp', 'intent', 'reading']) {
+  if (!(name in mod)) {
+    throw new PackedArtifactSmokeError(`package root did not export ${name}`);
+  }
+}
+
+for (const name of ['GitStorage', 'MemoryStorage']) {
+  if (!(name in storage)) {
+    throw new PackedArtifactSmokeError(`storage subpath did not export ${name}`);
+  }
+}
+
+if ('openWarpGraph' in mod) {
+  throw new PackedArtifactSmokeError('package root still exported openWarpGraph');
 }
 NODE
 
 npx --no-install warp-graph --help >/dev/null
 npx --no-install git-warp --help >/dev/null
+
+git init --quiet smoke-repo
+npx --no-install git-warp --repo "$FIXTURE_DIR/smoke-repo" install-hooks --force >/dev/null
+test -x "$FIXTURE_DIR/smoke-repo/.git/hooks/post-merge"
 
 echo "packed artifact smoke passed"

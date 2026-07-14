@@ -25,6 +25,7 @@ import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type GCPolicy from '../GCPolicy.ts';
+import type RuntimeStorageProviderPort from '../../../ports/RuntimeStorageProviderPort.ts';
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 const HEX_CHARS = '0123456789abcdef';
@@ -45,6 +46,7 @@ function randomSuffix(): string {
 
 type ForkHost = {
   _persistence: ForkPersistence;
+  _runtimeStorage: RuntimeStorageProviderPort;
   _graphName: string;
   _gcPolicy: GCPolicy;
   _adjacencyCache: { maxSize?: number } | null;
@@ -155,6 +157,7 @@ export default class ForkController {
     try {
       forkGraph = await openRuntimeHostProduct({
         persistence: host._persistence,
+        runtimeStorage: host._runtimeStorage,
         graphName: resolvedForkName,
         writerId: resolvedForkWriterId,
         gcPolicy: host._gcPolicy,

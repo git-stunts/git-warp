@@ -3,9 +3,13 @@ import { describe, expect, it } from 'vitest';
 import WarpApp from '../../../src/domain/WarpApp.ts';
 import Observer from '../../../src/domain/services/query/Observer.ts';
 import type { Aperture } from '../../../src/domain/types/Aperture.ts';
-import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
-import WarpWorldline, { openWarpWorldline } from '../../../src/domain/WarpWorldline.ts';
+import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import {
+  openMemoryWarpApp,
+  openMemoryWarpGraph as openWarpGraph,
+  openMemoryWarpWorldline as openWarpWorldline,
+} from '../../helpers/MemoryRuntimeHost.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 const PUBLIC_USERS_APERTURE: Aperture = Object.freeze({
@@ -243,7 +247,7 @@ describe('internal worldline executable examples', () => {
   });
 
   it('keeps WarpApp observer labels as runtime identity instead of source text', async () => {
-    const app = await WarpApp.open({
+    const app = await openMemoryWarpApp({
       persistence: new InMemoryGraphAdapter(),
       graphName: 'app-observers',
       writerId: 'agent-1',

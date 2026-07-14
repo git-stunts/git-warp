@@ -2,9 +2,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { openWarp, reading } from '../../index.ts';
+import WarpStorage from '../../src/application/WarpStorage.ts';
+import { bindWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';
-import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../helpers/MemoryRuntimeHost.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
 import type CommitMessageCodecPort from '../../src/ports/CommitMessageCodecPort.ts';
 import type { CommitNodeOptions, CommitNodeWithTreeOptions } from '../../src/ports/CommitPort.ts';
 
@@ -122,6 +125,16 @@ class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
   }
 }
 
+class FirstUseOpticsStorage extends WarpStorage {
+  constructor(
+    history: FirstUseOpticsTrapAdapter,
+    runtimeStorage: MemoryRuntimeStorageAdapter,
+  ) {
+    super();
+    bindWarpStorage(this, { history, runtimeStorage });
+  }
+}
+
 function readRepoFile(path: string): string {
   return readFileSync(`${REPO_ROOT}${path}`, 'utf8');
 }
@@ -139,8 +152,10 @@ function prepareOpticBasisImplementation(): string {
 describe('v18 first-use Optics honesty gate', () => {
   it('verifies an existing checkpoint-tail basis without full-residency operations', async () => {
     const persistence = new FirstUseOpticsTrapAdapter();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
     const runtime = await openRuntimeHostProduct({
       persistence,
+      runtimeStorage,
       graphName: 'v18-first-use-optics-honesty',
       writerId: 'app',
     });
@@ -153,6 +168,7 @@ describe('v18 first-use Optics honesty gate', () => {
 
     const events = await openWarpWorldline({
       persistence,
+      runtimeStorage,
       worldlineName: 'v18-first-use-optics-honesty',
       writerId: 'app',
     });
@@ -162,7 +178,8 @@ describe('v18 first-use Optics honesty gate', () => {
       commitMessageCodec: runtime._commitMessageCodec,
     });
 
-    const warp = await openWarp({ storage: persistence, writer: 'app' });
+    const storage = new FirstUseOpticsStorage(persistence, runtimeStorage);
+    const warp = await openWarp({ storage, writer: 'app' });
     const timeline = await warp.timeline('v18-first-use-optics-honesty');
     const property = await timeline.read(
       reading.property({

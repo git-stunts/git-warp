@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
+import { openMemoryWarpGraph as openWarpGraph } from '../../helpers/MemoryRuntimeHost.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 type SourcePaths = {

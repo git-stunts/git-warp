@@ -10,13 +10,10 @@ If you are learning the product for the first time, start with:
 
 ## Release posture
 
-`v18.2.1` is the current release target. Architecturally, it keeps the v18
-read-model closeout from the current `main` release state while correcting the
-state-cache materialization path: `git-warp` owns frontier coordinates,
-snapshot eligibility, replay, and publication policy; `git-cas` remains the
-storage substrate. This patch reduces redundant live replay through
-coordinate-addressed snapshots, but it does not make full materialization a
-bounded optic read.
+`v18.2.1` is the current published release. Mainline development is preparing
+the v19 application boundary: callers open an opaque storage handle, write
+intents, read timelines, and keep receipts. Git history and git-cas remain
+separate infrastructure concerns composed behind that handle.
 
 The longer release notes live in [CHANGELOG.md](CHANGELOG.md). The runtime
 architecture below describes current implementation boundaries, not aspirational
@@ -26,34 +23,24 @@ roadmap state.
 
 ```text
 ┌──────────────────────────────────────────────────┐
-│       openWarpWorldline() / openWarpGraph()       │
-│  app worldline handle / advanced capability bag   │
-├──────────┬───────────┬───────────┬───────────────┤
+│ openWarp() -> Warp -> Timeline                    │
+│ intent · reading · tick · receipt                 │
+├──────────────────────────────────────────────────┤
+│ Opaque storage composition                        │
+│ GitStorage.open() · MemoryStorage.create()         │
+├──────────┬───────────┬────────────┬──────────────┤
 │  Query   │  Patch    │ Materialize│    Sync      │
 │Controller│Controller │ Controller │  Controller  │
-│          │           │            │              │
 │  Strand  │Checkpoint │ Provenance │ Comparison   │
-│Controller│Controller │ Controller │   Engine     │
-├──────────┴───────────┴───────────┴───────────────┤
-│                  Domain Services                  │
-│  JoinReducer · OpStrategy · Frontier · GCPolicy   │
-│  StrandCoordinator · ConflictAnalyzer · BTR       │
-│  StateHashService · MaterializedViewService       │
-├──────────────────────────────────────────────────┤
-│                     Ports                         │
-│  GraphPersistencePort · BlobPort · TreePort       │
-│  CommitPort · RefPort · CodecPort · CryptoPort    │
-│  ClockPort · LoggerPort · SeekCachePort           │
-├──────────────────────────────────────────────────┤
-│               Infrastructure Adapters             │
-│  GitGraphAdapter · InMemoryGraphAdapter           │
-│  CborCodec · NodeCrypto · WebCrypto · ClockAdapter│
-│  CasBlobAdapter · CasSeekCacheAdapter             │
-├──────────────────────────────────────────────────┤
-│                   Git substrate                   │
-│  @git-stunts/plumbing · @git-stunts/git-cas       │
-│  @git-stunts/alfred · @git-stunts/trailer-codec   │
-└──────────────────────────────────────────────────┘
+├──────────┴───────────┴────────────┴──────────────┤
+│ Domain services and semantic storage ports        │
+│ CorePersistence · RuntimeStorageProviderPort      │
+├───────────────────────┬──────────────────────────┤
+│ GitTimelineHistory    │ GitCasRepositoryAdapter  │
+│ Adapter               │ content/cache/retention  │
+├───────────────────────┼──────────────────────────┤
+│ @git-stunts/plumbing  │ @git-stunts/git-cas      │
+└───────────────────────┴──────────────────────────┘
 ```
 
 ## Architectural principles
@@ -72,10 +59,9 @@ The system decomposes into three moments:
 - **Folding** — re-expresses admitted history (checkpoints, materialization)
 - **Revelation** — exposes truth under bounded rights (queries, observers)
 
-`openWarpWorldline()` gives application code the first-use handle over one
-named admitted causal lane. `openWarpGraph()` returns the advanced frozen
-capability bag organized by these moments, plus governance (sync) for
-distributed admission.
+`openWarp()` gives application code a `Warp` handle. `warp.timeline(name)`
+opens one named admitted causal lane without exposing the internal worldline,
+graph, persistence, or CAS vocabulary.
 
 ### Graph-shaped readings
 
@@ -123,51 +109,40 @@ Full standard: [Systems-Style TypeScript](docs/SYSTEMS_STYLE_TYPESCRIPT.md).
 
 ## Public API surface
 
-### `openWarpWorldline()` (v18+)
+### `openWarp()`
 
-The recommended application entry point. Returns a frozen Worldline-first
-handle:
+The package root accepts an opaque `WarpStorage` and returns a frozen `Warp`:
 
-```text
-const team = await openWarpWorldline({ persistence, worldlineName, writerId });
+```typescript
+import { openWarp } from '@git-stunts/git-warp';
+import { GitStorage } from '@git-stunts/git-warp/storage';
 
-team.commit(...)       // commitment: write one atomic patch
-team.live()            // revelation: current admitted worldline
-team.seek(...)         // revelation: pinned coordinate read
-team.observer(...)     // revelation: bounded aperture
-team.optic()           // revelation: bounded optic question
+const storage = await GitStorage.open({ cwd: '.' });
+const warp = await openWarp({ storage, writer: 'agent-1' });
+const team = await warp.timeline('team');
 ```
 
-### `openWarpGraph()` (compatibility and diagnostics)
+Application code writes with `timeline.write(intent)` and reads with
+`timeline.read(reading)`. Formal coordinate reads and receipt inspection live
+on the explicit `advanced` and `diagnostics` subpaths.
 
-The advanced compatibility entry point. Returns a frozen capability bag for
-tooling, diagnostics, and graph-first integrations that intentionally need the
-lower-level surface:
+### Storage composition
 
-The flat aliases are canonical for user-facing examples. Moment-scoped names
-are available for explicit architecture code and point at the same objects:
-`graph.patches === graph.commitment.patches`,
-`graph.query === graph.revelation.query`, and
-`graph.checkpoint === graph.folding.checkpoint`.
+`GitStorage` is the package composition root, not a Git-shaped persistence
+port. Its runtime storage boundary owns two sibling adapters:
 
-```text
-const graph = await openWarpGraph({ persistence, graphName, writerId });
+- `GitTimelineHistoryAdapter` implements append-only causal history through
+  `@git-stunts/plumbing`.
+- `GitCasRepositoryAdapter` owns one repository-scoped git-cas facade and
+  supplies semantic content, patch-journal, checkpoint, index, state, seek,
+  trie, and trust storage services.
 
-graph.query.*          // revelation: read state
-graph.patches.*        // commitment: write patches
-graph.sync.*           // governance: distributed sync
-graph.strands.*        // commitment: speculative lanes
-graph.checkpoint.*     // folding: history folding
-graph.provenance.*     // revelation: witness access
-graph.comparison.*     // commitment: braid comparison
-graph.subscriptions.*  // revelation: reactive state
-```
+The same composition also supplies repository tooling, such as hook-path
+resolution, through narrow ports backed by the same plumbing instance.
 
-### `WarpApp` / `WarpCore` (legacy, v16 compat)
-
-Still exported for backward compatibility and advanced tooling. New application
-code should prefer `openWarpWorldline()`, and lower-level tooling should prefer
-`openWarpGraph()` unless it deliberately needs the legacy facade shape.
+The domain receives `CorePersistence` and `RuntimeStorageProviderPort`. It does
+not inspect plumbing fields, dynamically import adapters, or construct CAS
+services.
 
 ## Internal engine
 
@@ -240,7 +215,9 @@ Abstract contracts between domain and infrastructure:
 
 Concrete implementations of ports:
 
-- **GitGraphAdapter** — Git plumbing commands via @git-stunts/plumbing
+- **GitTimelineHistoryAdapter** — timeline-history Git commands via
+  @git-stunts/plumbing
+- **GitCasRepositoryAdapter** — repository-scoped git-cas service composition
 - **InMemoryGraphAdapter** — in-memory Maps for testing
 - **CborCodec** — CBOR encoding via cbor-x
 - **NodeCryptoAdapter / WebCryptoAdapter** — hash/sign via node:crypto or SubtleCrypto
@@ -266,8 +243,7 @@ refs/warp/events/checkpoint    → checkpoint-sha
 refs/warp/events/coverage      → coverage-sha
 ```
 
-Reads open a live, pinned, observer, or optic basis over those refs. Diagnostic
-materialization walks visible writer chains, applies patches through
-`JoinReducer` (CRDT merge), and produces a frozen `WarpState`; application code
-should prefer worldlines, observers, query builders, and optics before whole
-graph replay.
+Reads open a bounded timeline basis over those refs. Diagnostic materialization
+walks visible writer chains, applies patches through `JoinReducer` (CRDT merge),
+and produces a frozen `WarpState`; application code should prefer readings and
+receipts before whole-graph replay.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import GitGraphAdapter, { type CollectableStream, type GitPlumbing } from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter, { type CollectableStream, type GitPlumbing } from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import OperationPolicyPort, {
   type OperationPolicyExecuteOptions,
 } from '../../../../src/ports/OperationPolicyPort.ts';
@@ -128,11 +128,11 @@ class RecordingOperationPolicy extends OperationPolicyPort {
   }
 }
 
-describe('GitGraphAdapter git-cas persistence bridge', () => {
+describe('GitTimelineHistoryAdapter git-cas persistence bridge', () => {
   it('delegates blob writes through the git-cas persistence adapter', async () => {
     const oid = 'a'.repeat(40);
     const plumbing = new RecordingPlumbing(oid);
-    const adapter = new GitGraphAdapter({ plumbing });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing });
 
     await expect(adapter.writeBlob(new Uint8Array([1, 2, 3]))).resolves.toBe(oid);
 
@@ -146,7 +146,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
   it('preserves string blob writes through the delegated git-cas path', async () => {
     const oid = 'b'.repeat(40);
     const plumbing = new RecordingPlumbing(oid);
-    const adapter = new GitGraphAdapter({ plumbing });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing });
 
     await expect(adapter.writeBlob('payload')).resolves.toBe(oid);
 
@@ -159,7 +159,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
   it('delegates tree writes through the git-cas persistence adapter', async () => {
     const oid = 'c'.repeat(40);
     const plumbing = new RecordingPlumbing(oid);
-    const adapter = new GitGraphAdapter({ plumbing });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing });
     const entry = `100644 blob ${'d'.repeat(40)}\tpatch.cbor`;
 
     await expect(adapter.writeTree([entry])).resolves.toBe(oid);
@@ -170,10 +170,10 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
     }]);
   });
 
-  it('preserves GitGraphAdapter retry policy around delegated writes', async () => {
+  it('preserves GitTimelineHistoryAdapter retry policy around delegated writes', async () => {
     const oid = 'e'.repeat(40);
     const plumbing = new FlakyPlumbing(oid, 1);
-    const adapter = new GitGraphAdapter({
+    const adapter = new GitTimelineHistoryAdapter({
       plumbing,
       retryOptions: {
         retries: 1,
@@ -194,7 +194,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
     const oid = 'e'.repeat(40);
     const plumbing = new RecordingPlumbing(oid);
     const policy = new RecordingOperationPolicy();
-    const adapter = new GitGraphAdapter({ plumbing, policy });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing, policy });
 
     await expect(adapter.writeBlob('payload')).resolves.toBe(oid);
 
@@ -206,7 +206,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
     const oid = 'f'.repeat(40);
     const plumbing = new BlobStreamPlumbing(oid, [new TextEncoder().encode('commit\0')]);
     const policy = new RecordingOperationPolicy();
-    const adapter = new GitGraphAdapter({ plumbing, policy });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing, policy });
 
     const stream = await adapter.logNodesStream({ ref: 'refs/heads/main', limit: 1 });
 
@@ -227,7 +227,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
       '',
     ].join('\0');
     const plumbing = new TreeListingPlumbing(treeOid, listing);
-    const adapter = new GitGraphAdapter({ plumbing });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing });
 
     await expect(adapter.readTreeOids(treeOid)).resolves.toEqual({
       'patch.cbor': blobOid,
@@ -239,7 +239,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
     const oid = 'f'.repeat(40);
     const payload = new TextEncoder().encode('graph payload');
     const plumbing = new BlobStreamPlumbing(oid, [payload]);
-    const adapter = new GitGraphAdapter({ plumbing });
+    const adapter = new GitTimelineHistoryAdapter({ plumbing });
 
     await expect(adapter.readBlob(oid)).resolves.toEqual(payload);
     expect(plumbing.streamCalls).toEqual([{ args: ['cat-file', 'blob', oid] }]);

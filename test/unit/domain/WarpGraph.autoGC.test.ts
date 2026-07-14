@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { createStateBuilder } from '../../helpers/stateBuilder.ts';
 import { createMockPersistence, createMockLogger } from '../../helpers/warpGraphTestUtils.ts';
 

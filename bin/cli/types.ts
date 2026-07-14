@@ -1,7 +1,7 @@
-import type GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import type GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import type { RuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 
-export type Persistence = GitGraphAdapter;
+export type Persistence = GitTimelineHistoryAdapter;
 export type WarpGraphInstance = RuntimeHostProduct;
 
 export type WriterTickInfo = {

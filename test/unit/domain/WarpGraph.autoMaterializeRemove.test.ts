@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('Remove operations require a reading basis', { timeout: 15000 }, () => {

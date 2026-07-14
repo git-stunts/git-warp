@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { sha1sync } from '../../../../src/infrastructure/adapters/sha1sync.ts';
-import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../../helpers/MemoryRuntimeHost.ts';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 
 describe('InMemoryGraphAdapter with injected hash (browser simulation)', () => {

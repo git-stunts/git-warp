@@ -10,7 +10,9 @@ import { tmpdir } from "node:os";
 // deno-lint-ignore no-explicit-any
 let Plumbing: any;
 // deno-lint-ignore no-explicit-any
-let GitGraphAdapter: any;
+let GitTimelineHistoryAdapter: any;
+// deno-lint-ignore no-explicit-any
+let GitCasRepositoryAdapter: any;
 // deno-lint-ignore no-explicit-any
 let WarpCore: any;
 // deno-lint-ignore no-explicit-any
@@ -30,18 +32,20 @@ export async function loadModules() {
   const root = Deno.cwd();
   const plumbingModule = (await import(join(root, "node_modules/@git-stunts/plumbing/index.js"))).default;
   const runtimeDefaultsModule = await import(join(root, "src/application/RuntimeHostBrowserDefaults.ts"));
-  const gitGraphAdapterModule = (await import(join(root, "src/infrastructure/adapters/GitGraphAdapter.ts"))).default;
+  const gitGraphAdapterModule = (await import(join(root, "src/infrastructure/adapters/GitTimelineHistoryAdapter.ts"))).default;
+  const gitCasRepositoryAdapterModule = (await import(join(root, "src/infrastructure/adapters/GitCasRepositoryAdapter.ts"))).default;
   const warpCoreModule = (await import(join(root, "src/domain/WarpCore.ts"))).default;
   const webCryptoAdapterModule = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.ts"))).default;
   runtimeDefaultsModule.installDefaultRuntimeHostBrowserPorts();
   Plumbing = plumbingModule;
-  GitGraphAdapter = gitGraphAdapterModule;
+  GitTimelineHistoryAdapter = gitGraphAdapterModule;
+  GitCasRepositoryAdapter = gitCasRepositoryAdapterModule;
   WarpCore = warpCoreModule;
   WebCryptoAdapter = webCryptoAdapterModule;
 }
 
 export async function createTestRepo(label = "deno-test") {
-  if (!Plumbing || !GitGraphAdapter || !WarpCore || !WebCryptoAdapter) {
+  if (!Plumbing || !GitTimelineHistoryAdapter || !GitCasRepositoryAdapter || !WarpCore || !WebCryptoAdapter) {
     await loadModules();
   }
 
@@ -52,13 +56,15 @@ export async function createTestRepo(label = "deno-test") {
   await plumbing.execute({ args: ["init"] });
   await plumbing.execute({ args: ["config", "user.email", "test@test.com"] });
   await plumbing.execute({ args: ["config", "user.name", "Test"] });
-  const persistence = new GitGraphAdapter({ plumbing });
+  const persistence = new GitTimelineHistoryAdapter({ plumbing });
+  const runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
 
   // deno-lint-ignore no-explicit-any
   async function openGraph(graphName: string, writerId: string, opts: Record<string, any> = {}) {
     return WarpCore.open({
       ...opts,
       persistence,
+      runtimeStorage,
       graphName,
       writerId,
       crypto,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 
 function streamFromBytes(bytes: Uint8Array): AsyncIterable<Uint8Array> {
@@ -12,10 +12,10 @@ function streamFromBytes(bytes: Uint8Array): AsyncIterable<Uint8Array> {
   };
 }
 
-describe('GitGraphAdapter', () => {
+describe('GitTimelineHistoryAdapter', () => {
   describe('constructor', () => {
     it('requires plumbing', () => {
-      expect(() => new GitGraphAdapter(({ plumbing: null } as any)))
+      expect(() => new GitTimelineHistoryAdapter(({ plumbing: null } as any)))
         .toThrow(/plumbing is required/);
     });
   });
@@ -30,7 +30,7 @@ describe('GitGraphAdapter', () => {
         execute: vi.fn(),
         executeStream: vi.fn(),
       };
-      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+      adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
     });
 
     it('throws E_MISSING_OBJECT when blob stream is empty and object does not exist', async () => {
@@ -100,7 +100,7 @@ describe('GitGraphAdapter', () => {
         execute: vi.fn(),
         executeStream: vi.fn(),
       };
-      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+      adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
     });
 
     it('parses full commit metadata correctly', async () => {
@@ -223,7 +223,7 @@ describe('GitGraphAdapter', () => {
           };
         })
       };
-      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+      adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
     });
 
     it('strips trailing NUL byte from format string', async () => {
@@ -330,7 +330,7 @@ describe('GitGraphAdapter', () => {
         execute: vi.fn(),
         executeStream: vi.fn(),
       };
-      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+      adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
     });
 
     it('returns true when node exists', async () => {
@@ -414,7 +414,7 @@ describe('GitGraphAdapter', () => {
         execute: vi.fn(),
         executeStream: vi.fn(),
       };
-      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+      adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
     });
 
     it('returns count from git rev-list --count', async () => {
@@ -511,7 +511,7 @@ describe('GitGraphAdapter', () => {
         execute: vi.fn(),
         executeStream: vi.fn(),
       };
-      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+      adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
     });
 
     it('returns config value when set', async () => {
@@ -598,7 +598,7 @@ describe('GitGraphAdapter', () => {
         execute: vi.fn(),
         executeStream: vi.fn(),
       };
-      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+      adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
     });
 
     it('sets config value', async () => {
@@ -659,7 +659,7 @@ describe('GitGraphAdapter', () => {
         execute: vi.fn(),
         executeStream: vi.fn(),
       };
-      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+      adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
     });
 
     it('readRef returns null for dangling ref (bad object)', async () => {

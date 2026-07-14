@@ -13,7 +13,7 @@ import type { ListRefsOptions } from './RefPort.ts';
  * Abstract port for graph persistence operations.
  *
  * Defines the contract for reading and writing graph data to a Git-backed
- * storage layer. Concrete adapters (e.g., GitGraphAdapter) implement this
+ * storage layer. Concrete adapters (e.g., GitTimelineHistoryAdapter) implement this
  * interface to provide actual Git operations.
  *
  * This is a **composite port** that implements the union of four focused ports:

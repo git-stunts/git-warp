@@ -1,13 +1,9 @@
-import type { GitPlumbing } from './GitGraphAdapter.ts';
+import type { GitPlumbing } from './GitTimelineHistoryAdapter.ts';
 import HookPathPort from '../../ports/HookPathPort.ts';
 
 type PathUtils = {
   join(...segments: string[]): string;
   resolve(...segments: string[]): string;
-};
-
-type PlumbingFactory = {
-  create(repoPath: string): GitPlumbing;
 };
 
 function resolveHooksPath(customPath: string, repoPath: string, pathUtils: PathUtils): string {
@@ -18,29 +14,28 @@ function resolveHooksPath(customPath: string, repoPath: string, pathUtils: PathU
 }
 
 export default class PlumbingHookPathAdapter extends HookPathPort {
-  private readonly _plumbingFactory: PlumbingFactory;
+  private readonly _plumbing: GitPlumbing;
   private readonly _path: PathUtils;
 
   constructor({
-    plumbingFactory,
+    plumbing,
     path,
   }: {
-    plumbingFactory: PlumbingFactory;
+    plumbing: GitPlumbing;
     path: PathUtils;
   }) {
     super();
-    this._plumbingFactory = plumbingFactory;
+    this._plumbing = plumbing;
     this._path = path;
   }
 
   override async resolveHooksDir(repoPath: string): Promise<string> {
-    const plumbing = this._plumbingFactory.create(repoPath);
-    const customPath = await this._configGet(plumbing, 'core.hooksPath');
+    const customPath = await this._configGet(this._plumbing, 'core.hooksPath');
     if (customPath !== null && customPath.length > 0) {
       return resolveHooksPath(customPath, repoPath, this._path);
     }
 
-    const gitDir = await this._gitDir(plumbing);
+    const gitDir = await this._gitDir(this._plumbing);
     if (gitDir !== null && gitDir.length > 0) {
       return this._path.join(this._path.resolve(repoPath, gitDir), 'hooks');
     }

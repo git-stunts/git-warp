@@ -9,7 +9,7 @@
     "noUnusedParameters": false
   },
   "include": [
-    "runtime-declarations.d.ts",
+    "plumbing-declarations.d.ts",
     "v19-consumer.ts",
     "v19-first-use.ts",
     "v19-subpaths.ts"

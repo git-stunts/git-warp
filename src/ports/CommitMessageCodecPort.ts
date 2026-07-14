@@ -44,12 +44,18 @@ export const LEGACY_EXTERNAL_PATCH_STORAGE: LegacyExternalPatchStorage = Object.
   encrypted: true,
 });
 
-export function createGitCasPatchStorage(encrypted: boolean): GitCasPatchStorage {
+export type GitCasPatchStorageOptions = {
+  readonly encrypted: boolean;
+};
+
+export function createGitCasPatchStorage(
+  options: GitCasPatchStorageOptions,
+): GitCasPatchStorage {
   return Object.freeze({
     strategy: 'git-cas',
     version: PATCH_STORAGE_FORMAT,
     schema: PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH,
-    encrypted,
+    encrypted: options.encrypted,
   });
 }
 
