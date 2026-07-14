@@ -2,7 +2,7 @@ import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import DraftTimeline from './DraftTimeline.ts';
 import type Evidence from './Evidence.ts';
-import { freezeEvidence } from './EvidenceRuntime.ts';
+import { freezeOptionalEvidence } from './EvidenceRuntime.ts';
 import { RECEIPT_OUTCOMES, type JoinOutcome } from './ReceiptOutcome.ts';
 
 export type JoinMode = 'preview' | 'join';
@@ -49,10 +49,7 @@ export default class JoinReceipt {
     this.timeline = fields.timeline;
     this.writer = fields.writer;
     this.draft = fields.draft;
-    this.evidence =
-      fields.evidence === undefined
-        ? undefined
-        : freezeEvidence(fields.evidence, 'joinReceipt.evidence');
+    this.evidence = freezeOptionalEvidence(fields.evidence, 'joinReceipt.evidence');
     this.mode = fields.mode;
     this.outcome = fields.outcome;
     this.reason = fields.reason;

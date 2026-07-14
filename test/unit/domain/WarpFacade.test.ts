@@ -15,9 +15,8 @@ import { requireTimelineRuntime } from '../../../src/domain/api/TimelineRuntime.
 import { requireTickCoordinate } from '../../../src/domain/api/TickRuntime.ts';
 import Warp from '../../../src/domain/api/Warp.ts';
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
-import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
-import { resolveWarpStorage } from '../../../src/application/WarpStorageRegistry.ts';
 import { MemoryStorage } from '../../../storage.ts';
+import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
 
 const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([
   'openWarpGraph',
@@ -134,18 +133,6 @@ function collectExportedDeclarationName(statement: ts.Statement, exportedNames: 
   ) {
     exportedNames.add(statement.name.text);
   }
-}
-
-async function createBoundedReadBasis(storage: MemoryStorage, graphName: string): Promise<void> {
-  const binding = resolveWarpStorage(storage);
-  const runtime = await openRuntimeHostProduct({
-    persistence: binding.history,
-    runtimeStorage: binding.runtimeStorage,
-    graphName,
-    writerId: 'agent-1',
-  });
-  await runtime.materialize();
-  await runtime.createCheckpoint();
 }
 
 describe('v19 Warp facade', () => {

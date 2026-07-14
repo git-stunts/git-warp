@@ -13,6 +13,14 @@ type JoinEvidenceFields = {
   readonly patchShas: readonly string[];
 };
 
+const WRITE_EVIDENCE = 'write';
+const JOIN_EVIDENCE = 'join';
+const READ_EVIDENCE = 'read';
+const PATCH_SUPPORT = 'patch';
+const INDEX_SUPPORT = 'index';
+const RECOVERY_EVIDENCE = 'recovery';
+const recoverySequences = new WeakMap<ApiRuntimeContext, number>();
+
 export async function createWriteEvidence(
   runtime: WarpWorldline,
   context: ApiRuntimeContext,
@@ -20,13 +28,20 @@ export async function createWriteEvidence(
 ): Promise<Evidence> {
   return freezeCreatedEvidence({
     basis: await createHandle(context, [
-      'write',
+      WRITE_EVIDENCE,
       runtime.worldlineName,
       runtime.writerId,
       patchSha,
     ]),
-    support: [await createHandle(context, ['patch', patchSha])],
+    support: [await createHandle(context, [PATCH_SUPPORT, patchSha])],
   });
+}
+
+export async function createWriteRecoveryEvidence(
+  runtime: WarpWorldline,
+  context: ApiRuntimeContext
+): Promise<Evidence> {
+  return await createRecoveryEvidence(runtime, context, [WRITE_EVIDENCE]);
 }
 
 export async function createJoinEvidence(
@@ -35,11 +50,11 @@ export async function createJoinEvidence(
   fields: JoinEvidenceFields
 ): Promise<Evidence> {
   const support = await Promise.all(
-    fields.patchShas.map(async (patchSha) => await createHandle(context, ['patch', patchSha]))
+    fields.patchShas.map(async (patchSha) => await createHandle(context, [PATCH_SUPPORT, patchSha]))
   );
   return freezeCreatedEvidence({
     basis: await createHandle(context, [
-      'join',
+      JOIN_EVIDENCE,
       runtime.worldlineName,
       runtime.writerId,
       fields.draft,
@@ -48,6 +63,14 @@ export async function createJoinEvidence(
     ]),
     support,
   });
+}
+
+export async function createJoinRecoveryEvidence(
+  runtime: WarpWorldline,
+  context: ApiRuntimeContext,
+  fields: Pick<JoinEvidenceFields, 'draft' | 'mode'>
+): Promise<Evidence> {
+  return await createRecoveryEvidence(runtime, context, [JOIN_EVIDENCE, fields.draft, fields.mode]);
 }
 
 export async function createReadEvidence(
@@ -59,7 +82,7 @@ export async function createReadEvidence(
   const frontier = identity.checkpointFrontier.flatMap((entry) => [entry.writerId, entry.patchSha]);
   const evidence = {
     basis: await createHandle(context, [
-      'read',
+      READ_EVIDENCE,
       identity.kind,
       identity.basis,
       identity.worldline,
@@ -82,18 +105,48 @@ export function freezeEvidence(evidence: Evidence, field: string): Evidence {
   return freezeCreatedEvidence(tick === undefined ? { basis, support } : { basis, support, tick });
 }
 
+export function freezeOptionalEvidence(
+  evidence: Evidence | undefined,
+  field: string
+): Evidence | undefined {
+  return evidence === undefined ? undefined : freezeEvidence(evidence, field);
+}
+
 async function createReadSupport(
   context: ApiRuntimeContext,
   identity: ReadIdentity
 ): Promise<readonly EvidenceHandle[]> {
   return await Promise.all([
     ...identity.checkpointIndexShards.map(
-      async (shard) => await createHandle(context, ['index', shard.path, shard.oid])
+      async (shard) => await createHandle(context, [INDEX_SUPPORT, shard.path, shard.oid])
     ),
     ...identity.tailWitnesses.map(
-      async (witness) => await createHandle(context, ['patch', witness.sha])
+      async (witness) => await createHandle(context, [PATCH_SUPPORT, witness.sha])
     ),
   ]);
+}
+
+async function createRecoveryEvidence(
+  runtime: WarpWorldline,
+  context: ApiRuntimeContext,
+  parts: readonly OpaqueIdPart[]
+): Promise<Evidence> {
+  return freezeCreatedEvidence({
+    basis: await createHandle(context, [
+      RECOVERY_EVIDENCE,
+      runtime.worldlineName,
+      runtime.writerId,
+      ...parts,
+      nextRecoverySequence(context),
+    ]),
+    support: [],
+  });
+}
+
+function nextRecoverySequence(context: ApiRuntimeContext): number {
+  const sequence = (recoverySequences.get(context) ?? 0) + 1;
+  recoverySequences.set(context, sequence);
+  return sequence;
 }
 
 function assertEvidenceObject(evidence: Evidence, field: string): void {

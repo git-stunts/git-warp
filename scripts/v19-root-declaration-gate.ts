@@ -62,16 +62,18 @@ export function findForbiddenRootDeclarationVocabulary(
             token,
           });
         }
-        const compound = FORBIDDEN_COMPOUNDS.get(tokens.join(''));
-        if (compound !== undefined) {
-          const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-          violations.push({
-            file: relative(declarationRoot, file),
-            line: position.line + 1,
-            column: position.character + 1,
-            identifier,
-            token: compound,
-          });
+        for (let index = 0; index + 1 < tokens.length; index += 1) {
+          const compound = FORBIDDEN_COMPOUNDS.get(`${tokens[index]}${tokens[index + 1]}`);
+          if (compound !== undefined) {
+            const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+            violations.push({
+              file: relative(declarationRoot, file),
+              line: position.line + 1,
+              column: position.character + 1,
+              identifier,
+              token: compound,
+            });
+          }
         }
       }
       ts.forEachChild(node, visit);

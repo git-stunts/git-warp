@@ -18,7 +18,7 @@ export function createApiRuntimeContext(
 ): ApiRuntimeContext {
   return Object.freeze({
     createOpaqueId: async (namespace, parts) => {
-      const digest = await crypto.hash('sha256', JSON.stringify([namespace, parts]));
+      const digest = await crypto.hash('sha256', opaqueIdPayload(namespace, parts));
       return `${namespace}:${digest}`;
     },
     bindReceipt: (receipt, provenance) => {
@@ -31,6 +31,16 @@ export function createApiRuntimeContext(
       );
     },
   });
+}
+
+function opaqueIdPayload(namespace: string, parts: readonly (string | number)[]): string {
+  return [namespace, ...parts].map(encodeOpaqueIdPart).join('');
+}
+
+function encodeOpaqueIdPart(part: string | number): string {
+  const value = String(part);
+  const type = typeof part === 'number' ? 'n' : 's';
+  return `${type}${value.length}:${value}`;
 }
 
 export function resolveReceiptProvenance(

@@ -1,7 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type Evidence from './Evidence.ts';
-import { freezeEvidence } from './EvidenceRuntime.ts';
+import { freezeOptionalEvidence } from './EvidenceRuntime.ts';
 import Intent from './Intent.ts';
 import { RECEIPT_OUTCOMES, type WriteOutcome } from './ReceiptOutcome.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
@@ -45,10 +45,7 @@ export default class WriteReceipt {
     this.writer = fields.writer;
     this.intent = fields.intent;
     this.outcome = fields.outcome;
-    this.evidence =
-      fields.evidence === undefined
-        ? undefined
-        : freezeEvidence(fields.evidence, 'writeReceipt.evidence');
+    this.evidence = freezeOptionalEvidence(fields.evidence, 'writeReceipt.evidence');
     this.repairHints = freezeRepairHints(fields.repairHints ?? []);
     this.reason = fields.reason;
     Object.freeze(this);

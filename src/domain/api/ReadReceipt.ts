@@ -1,7 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type Evidence from './Evidence.ts';
-import { freezeEvidence } from './EvidenceRuntime.ts';
+import { freezeOptionalEvidence } from './EvidenceRuntime.ts';
 import Reading from './Reading.ts';
 import { RECEIPT_OUTCOMES, type ReadOutcome } from './ReceiptOutcome.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
@@ -49,10 +49,7 @@ export default class ReadReceipt {
     this.writer = fields.writer;
     this.reading = fields.reading;
     this.outcome = fields.outcome;
-    this.evidence =
-      fields.evidence === undefined
-        ? undefined
-        : freezeEvidence(fields.evidence, 'readReceipt.evidence');
+    this.evidence = freezeOptionalEvidence(fields.evidence, 'readReceipt.evidence');
     this.repairHints = freezeRepairHints(fields.repairHints ?? []);
     this.reason = fields.reason;
     Object.freeze(this);

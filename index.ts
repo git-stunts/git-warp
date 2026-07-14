@@ -5,9 +5,10 @@
  *
  * Root users should write intents, read timelines, and keep receipts. The
  * graph-first compatibility surface is no longer publicly exported.
- * Storage adapters live under `@git-stunts/git-warp/storage`; formal read,
- * evidence, and support machinery lives under `@git-stunts/git-warp/advanced`;
- * operator inspection tools live under `@git-stunts/git-warp/diagnostics`.
+ * Opaque evidence is part of this first-use boundary. Storage adapters live
+ * under `@git-stunts/git-warp/storage`; formal optic, coordinate, and witness
+ * machinery lives under `@git-stunts/git-warp/advanced`; operator inspection
+ * tools live under `@git-stunts/git-warp/diagnostics`.
  */
 
 export { openWarp } from './src/application/openWarp.ts';

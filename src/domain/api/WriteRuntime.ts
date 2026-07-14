@@ -1,7 +1,8 @@
 import type { default as WarpWorldline, WarpWorldlinePatchBuild } from '../WarpWorldline.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
-import { createWriteEvidence } from './EvidenceRuntime.ts';
+import type Evidence from './Evidence.ts';
+import { createWriteEvidence, createWriteRecoveryEvidence } from './EvidenceRuntime.ts';
 import type Intent from './Intent.ts';
 import { applyIntentToPatch } from './IntentRuntime.ts';
 import type { WriteOutcome } from './ReceiptOutcome.ts';
@@ -19,6 +20,7 @@ type IntentWriteFields = {
 
 type AcceptedWriteFields = Omit<IntentWriteFields, 'commit'> & {
   readonly patchSha: string;
+  readonly recoveryEvidence: Evidence;
 };
 
 type OperationalWriteFailure = {
@@ -35,11 +37,12 @@ const MATERIALIZE_HINT = Object.freeze([
 ]);
 export async function executeIntentWrite(fields: IntentWriteFields): Promise<WriteReceipt> {
   const { runtime, context, intent, commit } = fields;
+  const recoveryEvidence = await createWriteRecoveryEvidence(runtime, context);
+  let patchSha: string;
   try {
-    const patchSha = await commit((patch) => {
+    patchSha = await commit((patch) => {
       applyIntentToPatch(intent, patch);
     });
-    return await acceptedWriteReceipt({ runtime, context, intent, patchSha });
   } catch (error) {
     if (!(error instanceof WarpError)) {
       throw error;
@@ -57,6 +60,7 @@ export async function executeIntentWrite(fields: IntentWriteFields): Promise<Wri
     context.bindReceipt(receipt, { operation: 'write', patchSha: undefined });
     return receipt;
   }
+  return await acceptedWriteReceipt({ runtime, context, intent, patchSha, recoveryEvidence });
 }
 
 async function acceptedWriteReceipt(fields: AcceptedWriteFields): Promise<WriteReceipt> {
@@ -66,10 +70,19 @@ async function acceptedWriteReceipt(fields: AcceptedWriteFields): Promise<WriteR
     writer: runtime.writerId,
     intent,
     outcome: 'accepted',
-    evidence: await createWriteEvidence(runtime, context, patchSha),
+    evidence: await committedWriteEvidence(fields),
   });
   context.bindReceipt(receipt, { operation: 'write', patchSha });
   return receipt;
+}
+
+async function committedWriteEvidence(fields: AcceptedWriteFields): Promise<Evidence> {
+  try {
+    return await createWriteEvidence(fields.runtime, fields.context, fields.patchSha);
+  } catch {
+    // The patch is durable; return an honest basis without claiming correlated support.
+    return fields.recoveryEvidence;
+  }
 }
 
 function operationalWriteFailure(error: WarpError): OperationalWriteFailure | null {

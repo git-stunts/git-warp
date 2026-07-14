@@ -20,7 +20,16 @@ describe('v19 root declaration vocabulary gate', () => {
     writeFileSync(join(directory, 'index.d.ts'), "export type { Receipt } from './Receipt.ts';\n");
     writeFileSync(
       join(directory, 'Receipt.d.ts'),
-      'export type Receipt = { readonly patchShas: string[]; readonly objectId: string };\n'
+      [
+        'export type Receipt = {',
+        '  readonly patchShas: string[];',
+        '  readonly objectId: string;',
+        '  readonly rootObjectId: string;',
+        '  readonly sourceObjectIds: string[];',
+        '  readonly readObjectIdHex: string;',
+        '};',
+        '',
+      ].join('\n')
     );
 
     expect(findForbiddenRootDeclarationVocabulary(join(directory, 'index.d.ts'))).toEqual(
@@ -29,6 +38,21 @@ describe('v19 root declaration vocabulary gate', () => {
         expect.objectContaining({
           file: 'Receipt.d.ts',
           identifier: 'objectId',
+          token: 'object-id',
+        }),
+        expect.objectContaining({
+          file: 'Receipt.d.ts',
+          identifier: 'rootObjectId',
+          token: 'object-id',
+        }),
+        expect.objectContaining({
+          file: 'Receipt.d.ts',
+          identifier: 'sourceObjectIds',
+          token: 'object-id',
+        }),
+        expect.objectContaining({
+          file: 'Receipt.d.ts',
+          identifier: 'readObjectIdHex',
           token: 'object-id',
         }),
       ])

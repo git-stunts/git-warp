@@ -3,27 +3,26 @@ import { describe, expect, it } from 'vitest';
 import { inspectReceipt } from '../../../diagnostics.ts';
 import { openWarp } from '../../../src/application/openWarp.ts';
 import { createApiRuntimeContext } from '../../../src/application/ReceiptProvenanceRegistry.ts';
-import { resolveWarpStorage } from '../../../src/application/WarpStorageRegistry.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import { reading } from '../../../src/domain/api/ReadingBuilders.ts';
 import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { MemoryStorage } from '../../../storage.ts';
-import { openMemoryRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
-
-async function createBoundedReadBasis(storage: MemoryStorage, graphName: string): Promise<void> {
-  const binding = resolveWarpStorage(storage);
-  const runtime = await openMemoryRuntimeHostProduct({
-    persistence: binding.history,
-    runtimeStorage: binding.runtimeStorage,
-    graphName,
-    writerId: 'agent-1',
-  });
-  await runtime.materialize();
-  await runtime.createCheckpoint();
-}
+import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
 
 describe('receipt diagnostics', () => {
+  it('uses collision-safe typed framing for opaque identity inputs', async () => {
+    const context = createApiRuntimeContext(MemoryStorage.create(), new NodeCryptoAdapter());
+    const ids = await Promise.all([
+      context.createOpaqueId('evidence', ['ab', 'c']),
+      context.createOpaqueId('evidence', ['a', 'bc']),
+      context.createOpaqueId('evidence', [1]),
+      context.createOpaqueId('evidence', ['1']),
+    ]);
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it('recovers exact write provenance only with explicit storage context', async () => {
     const storage = MemoryStorage.create();
     const warp = await openWarp({ storage, writer: 'agent-1' });
