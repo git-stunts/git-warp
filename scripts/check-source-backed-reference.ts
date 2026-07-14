@@ -264,7 +264,7 @@ function generate(): string {
     '',
     ...exportSurface('Root API export surface', rootSource, 'First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.'),
     '',
-    ...exportSurface('Storage export surface', storageSource, 'Git-backed and in-memory adapters for first-use applications.'),
+    ...exportSurface('Storage export surface', storageSource, 'Git-backed storage for first-use applications.'),
     '',
     ...exportSurface('Advanced export surface', advancedSource, 'Bounded coordinate capture, Optic, and Witness concepts for expert use.'),
     '',

@@ -4,7 +4,7 @@ import type WarpCore from '../../../src/domain/WarpCore.ts';
 import { EffectPipeline } from '../../../src/domain/services/EffectPipeline.ts';
 import { MultiplexSink } from '../../../src/domain/services/MultiplexSink.ts';
 import { LIVE_LENS, REPLAY_LENS } from '../../../src/domain/types/ExternalizationPolicy.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.ts';
 
 async function openCore(extra = {}): Promise<WarpCore> {

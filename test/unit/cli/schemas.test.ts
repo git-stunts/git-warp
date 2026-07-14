@@ -240,11 +240,6 @@ describe('seekSchema', () => {
     expect(result.name).toBe('old');
   });
 
-  it('parses --clear-cache', () => {
-    const result = seekSchema.parse({ 'clear-cache': true });
-    expect(result.action).toBe('clear-cache');
-  });
-
   it('parses --diff with --tick', () => {
     const result = seekSchema.parse({ tick: '3', diff: true });
     expect(result.action).toBe('tick');
@@ -256,9 +251,9 @@ describe('seekSchema', () => {
     expect(result.diffLimit).toBe(100);
   });
 
-  it('parses --no-persistent-cache', () => {
-    const result = seekSchema.parse({ 'no-persistent-cache': true });
-    expect(result.noPersistentCache).toBe(true);
+  it('rejects removed WARP-owned cache flags', () => {
+    expect(() => seekSchema.parse({ 'clear-cache': true })).toThrow();
+    expect(() => seekSchema.parse({ 'no-persistent-cache': true })).toThrow();
   });
 
   it('rejects multiple action flags', () => {

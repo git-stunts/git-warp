@@ -87,15 +87,14 @@ WriteReceiptOptions @ index.ts#L62
 
 ## Storage export surface
 
-Git-backed and in-memory adapters for first-use applications.
+Git-backed storage for first-use applications.
 
 ### Value exports
 
-Source: `storage.ts`. Count: 2.
+Source: `storage.ts`. Count: 1.
 
 ```text
-GitStorage @ storage.ts#L18
-MemoryStorage @ storage.ts#L43
+GitStorage @ storage.ts#L16
 ```
 
 ### Type exports
@@ -103,7 +102,7 @@ MemoryStorage @ storage.ts#L43
 Source: `storage.ts`. Count: 1.
 
 ```text
-GitStorageOptions @ storage.ts#L14
+GitStorageOptions @ storage.ts#L12
 ```
 
 ## Advanced export surface
@@ -193,7 +192,7 @@ ReceiptSubstrateInspection @ diagnostics.ts#L15
 Structured CLI errors for `--json` and `--ndjson` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
 
-Source: `bin/warp-graph.ts#L132`.
+Source: `bin/warp-graph.ts#L131`.
 
 ## Public error classes
 

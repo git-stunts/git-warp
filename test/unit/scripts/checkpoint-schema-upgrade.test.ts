@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';

@@ -11,7 +11,6 @@ import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
-import type SeekCachePort from '../../../ports/SeekCachePort.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type { NormalizedTrustConfig } from '../../runtimeHelpers.ts';
 import type GCPolicy from '../GCPolicy.ts';
@@ -31,7 +30,6 @@ export type DetachedOpenOptions = {
   audit: false;
   checkpointPolicy?: { every: number };
   logger?: LoggerPort;
-  seekCache?: SeekCachePort;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
   trust?: NormalizedTrustConfig;
@@ -50,7 +48,6 @@ export type DetachedOpenHost = {
   _gcPolicy: GCPolicy;
   _checkpointPolicy: { every: number } | null;
   _logger: LoggerPort | null;
-  _seekCache: SeekCachePort | null;
   _blobStorage: BlobStoragePort | null;
   _patchBlobStorage: BlobStoragePort | null;
   _trustConfig: NormalizedTrustConfig;
@@ -77,10 +74,9 @@ function coreOptions(graph: DetachedOpenHost): DetachedOpenOptions {
   };
 }
 
-function addCachePorts(opts: DetachedOpenOptions, g: DetachedOpenHost): void {
+function addReadPolicy(opts: DetachedOpenOptions, g: DetachedOpenHost): void {
   if (g._checkpointPolicy) { opts.checkpointPolicy = g._checkpointPolicy; }
   if (g._logger) { opts.logger = g._logger; }
-  if (g._seekCache) { opts.seekCache = g._seekCache; }
 }
 
 function addStoragePorts(opts: DetachedOpenOptions, g: DetachedOpenHost): void {
@@ -104,7 +100,7 @@ export async function openDetachedGraph(
   open: DetachedGraphOpen,
 ): Promise<DetachedGraphInternalReadSurface> {
   const opts = coreOptions(graph);
-  addCachePorts(opts, graph);
+  addReadPolicy(opts, graph);
   addStoragePorts(opts, graph);
   addConfigPorts(opts, graph);
   addStoresPorts(opts, graph);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 
 const BASE_NODE_ID = 'bounded:base';
 const TAIL_NODE_ID = 'bounded:tail';

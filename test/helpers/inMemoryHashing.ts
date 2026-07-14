@@ -4,9 +4,9 @@
  * Computes Git-format SHA-1 hashes for blobs, trees, and commits so that
  * content addresses are deterministic and debuggable against real Git.
  */
-import { concatBytes, hexDecode, textEncode } from '../../domain/utils/bytes.ts';
-import PersistenceError from '../../domain/errors/PersistenceError.ts';
-import WarpError from '../../domain/errors/WarpError.ts';
+import { concatBytes, hexDecode, textEncode } from '../../src/domain/utils/bytes.ts';
+import PersistenceError from '../../src/domain/errors/PersistenceError.ts';
+import WarpError from '../../src/domain/errors/WarpError.ts';
 
 // ---------------------------------------------------------------------------
 // Input coercion

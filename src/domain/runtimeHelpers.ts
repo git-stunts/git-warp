@@ -13,8 +13,6 @@ import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { MultiplexSink } from './services/MultiplexSink.ts';
 import WarpError from './errors/WarpError.ts';
 
-export const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
-
 /**
  * Constructs an EffectPipeline from an array of sinks and an optional externalization lens.
  */

@@ -7,7 +7,7 @@ import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import { reading } from '../../../src/domain/api/ReadingBuilders.ts';
 import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
-import { MemoryStorage } from '../../../storage.ts';
+import MemoryStorage from '../../helpers/MemoryStorage.ts';
 import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
 
 describe('receipt diagnostics', () => {

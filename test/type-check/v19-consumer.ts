@@ -34,9 +34,9 @@ import {
   type WriteReceipt,
   type WriteOutcome,
 } from '../../index.ts';
-import { MemoryStorage } from '../../storage.ts';
+import { GitStorage } from '../../storage.ts';
 
-const storage = MemoryStorage.create();
+const storage = await GitStorage.open({ cwd: '.' });
 const publicStorage: WarpStorage = storage;
 
 const options: OpenWarpOptions = {

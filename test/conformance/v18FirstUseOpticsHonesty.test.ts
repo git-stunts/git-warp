@@ -7,8 +7,8 @@ import WarpStorage from '../../src/application/WarpStorage.ts';
 import { bindWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../helpers/MemoryRuntimeHost.ts';
-import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import MemoryRuntimeStorageAdapter from '../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
+import InMemoryGraphAdapter from '../../test/helpers/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../test/helpers/MemoryRuntimeStorageAdapter.ts';
 import type CommitMessageCodecPort from '../../src/ports/CommitMessageCodecPort.ts';
 import type { CommitNodeOptions, CommitNodeWithTreeOptions } from '../../src/ports/CommitPort.ts';
 

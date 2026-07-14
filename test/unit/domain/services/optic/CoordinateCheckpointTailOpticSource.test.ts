@@ -8,7 +8,7 @@ import CheckpointTailOpticSource, {
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
 import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import WarpApp from '../../../src/domain/WarpApp.ts';
 import WarpCore from '../../../src/domain/WarpCore.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import { openMemoryWarpApp } from '../../helpers/MemoryRuntimeHost.ts';
 
 describe('WarpApp facade', () => {

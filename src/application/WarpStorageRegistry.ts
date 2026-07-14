@@ -2,7 +2,6 @@ import WarpError from '../domain/errors/WarpError.ts';
 import type { CorePersistence } from '../domain/types/WarpPersistence.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
-import type SeekCachePort from '../ports/SeekCachePort.ts';
 import type TrustChainPort from '../ports/TrustChainPort.ts';
 import type HookPathPort from '../ports/HookPathPort.ts';
 import type WarpStorage from './WarpStorage.ts';
@@ -10,7 +9,6 @@ import type WarpStorage from './WarpStorage.ts';
 export type WarpStorageBinding = {
   readonly history: CorePersistence;
   readonly runtimeStorage: RuntimeStorageProviderPort;
-  readonly createSeekCache?: (timelineName: string) => SeekCachePort;
   readonly createTrustChain?: (crypto: CryptoPort) => TrustChainPort;
   readonly hookPaths?: HookPathPort;
 };

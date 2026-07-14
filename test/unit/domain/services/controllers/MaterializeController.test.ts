@@ -129,7 +129,6 @@ function makeDeps({ patchesOverrides = {}, persistenceOverrides = {}, depsOverri
       hmac: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
     },
     persistence,
-    getSeekCache: () => null,
     patches,
     graphCloner: { openReadOnly: vi.fn() },
     graphName: 'test',

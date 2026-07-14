@@ -54,7 +54,6 @@ function createMockHost(overrides = {}) {
     _crypto: null,
     _codec: null,
     _checkpointPolicy: null,
-    _adjacencyCache: { maxSize: 3 },
     ...overrides,
   };
 }

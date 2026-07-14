@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.ts';
-import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';
 
@@ -15,7 +15,7 @@ function encodeBitmap(ids: number[]): Uint8Array {
 
 describe('BitmapIndexReader chunked shard support', () => {
   it('looks up IDs and unions edge bitmaps across chunked shard paths', async () => {
-    const storage = new MockStreamingIndexStorage();
+    const storage = new MockIndexStorage();
     const metaAaChunk0 = await storage.writeBlob(defaultCodec.encode({ aa0001: 0 }));
     const metaBbChunk0 = await storage.writeBlob(defaultCodec.encode({ bb0001: 1 }));
     const metaBbChunk1 = await storage.writeBlob(defaultCodec.encode({ bb0002: 2 }));

@@ -211,7 +211,7 @@ describe('v19 public API boundary', () => {
   it('keeps the storage subpath limited to application adapters', () => {
     const surface = moduleSurface('storage.ts');
     expect(surface.starExports).toEqual([]);
-    expect(surface.valueExports).toEqual(['GitStorage', 'MemoryStorage']);
+    expect(surface.valueExports).toEqual(['GitStorage']);
     expect(surface.typeExports).toEqual(['GitStorageOptions']);
   });
 

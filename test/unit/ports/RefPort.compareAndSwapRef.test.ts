@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 
 describe('compareAndSwapRef', () => {
   it('genesis CAS — null expected, ref does not exist → succeeds', async () => {

@@ -1,5 +1,5 @@
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
-import type { MemoryStorage } from '../../storage.ts';
+import type MemoryStorage from './MemoryStorage.ts';
 import { openMemoryRuntimeHostProduct } from './MemoryRuntimeHost.ts';
 
 export async function createBoundedReadBasis(

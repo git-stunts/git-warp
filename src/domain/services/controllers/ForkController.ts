@@ -27,7 +27,6 @@ import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type GCPolicy from '../GCPolicy.ts';
 import type RuntimeStorageProviderPort from '../../../ports/RuntimeStorageProviderPort.ts';
 
-const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 const HEX_CHARS = '0123456789abcdef';
 type ForkRuntimeOpenOptions = RuntimeHostOpenOptions;
 type ForkedGraph = RuntimeHostProduct;
@@ -49,7 +48,6 @@ type ForkHost = {
   _runtimeStorage: RuntimeStorageProviderPort;
   _graphName: string;
   _gcPolicy: GCPolicy;
-  _adjacencyCache: { maxSize?: number } | null;
   _checkpointPolicy: { every: number } | null;
   _autoMaterialize: boolean;
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
@@ -161,7 +159,6 @@ export default class ForkController {
         graphName: resolvedForkName,
         writerId: resolvedForkWriterId,
         gcPolicy: host._gcPolicy,
-        adjacencyCacheSize: (host._adjacencyCache as { maxSize?: number })?.maxSize ?? DEFAULT_ADJACENCY_CACHE_SIZE,
         ...(host._checkpointPolicy ? { checkpointPolicy: host._checkpointPolicy } : {}),
         autoMaterialize: host._autoMaterialize,
         onDeleteWithData: host._onDeleteWithData,

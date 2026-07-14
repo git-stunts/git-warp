@@ -20,7 +20,7 @@ import { EdgeShard } from '../../../../../src/domain/artifacts/EdgeShard.ts';
 import { MetaShard } from '../../../../../src/domain/artifacts/MetaShard.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import computeShardKey from '../../../../../src/domain/utils/shardKey.ts';
-import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
 import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';

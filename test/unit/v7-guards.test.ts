@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { openMemoryWarpCore } from '../helpers/MemoryRuntimeHost.ts';
 import type WarpCore from '../../src/domain/WarpCore.ts';
 import { PatchBuilder } from '../../src/domain/services/PatchBuilder.ts';
-import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../test/helpers/InMemoryGraphAdapter.ts';
 
 function openCore(graphName: string): Promise<WarpCore> {
   return openMemoryWarpCore({

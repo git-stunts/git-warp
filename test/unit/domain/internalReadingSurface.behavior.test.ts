@@ -8,7 +8,7 @@ import {
   openMemoryWarpGraph as openWarpGraph,
   openMemoryWarpWorldline as openWarpWorldline,
 } from '../../helpers/MemoryRuntimeHost.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 
 function openOptions(
   graphName: string,

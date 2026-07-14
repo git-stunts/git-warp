@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Plumbing from '@git-stunts/plumbing';
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
-import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../test/helpers/InMemoryGraphAdapter.ts';
 
 type TestPlumbing = Awaited<ReturnType<typeof Plumbing.createDefault>>;
 

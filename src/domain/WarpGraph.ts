@@ -31,7 +31,6 @@ import type { CorePersistence } from './types/WarpPersistence.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
-import type SeekCachePort from '../ports/SeekCachePort.ts';
 import type BlobStoragePort from '../ports/BlobStoragePort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
@@ -134,7 +133,7 @@ type TrustMode = 'off' | 'log-only' | 'enforce';
  * - governing policy (trust, GC, checkpoint, onDeleteWithData)
  * - witness infrastructure (crypto, codec, audit)
  * - revelation regime (logger, effectSinks, externalizationPolicy)
- * - optional accelerators (seekCache, blobStorage, indexStore)
+ * - optional semantic storage services (blobStorage, indexStore)
  */
 export interface WarpGraphDeps {
   // Substrate
@@ -165,14 +164,12 @@ export interface WarpGraphDeps {
   readonly effectSinks?: EffectSinkPort[];
   readonly externalizationPolicy?: ExternalizationPolicy;
 
-  // Accelerators (optional — auto-constructed if absent)
-  readonly seekCache?: SeekCachePort;
+  // Semantic storage services (optional — composed when absent)
   readonly blobStorage?: BlobStoragePort;
   readonly patchBlobStorage?: BlobStoragePort;
   readonly patchJournal?: PatchJournalPort | null;
   readonly checkpointStore?: CheckpointStorePort | null;
   readonly indexStore?: IndexStorePort | null;
-  readonly adjacencyCacheSize?: number;
 }
 
 // ---------------------------------------------------------------------------

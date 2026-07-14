@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { openMemoryWarpCore } from '../../helpers/MemoryRuntimeHost.ts';
 import type WarpCore from '../../../src/domain/WarpCore.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import { EFFECT_NODE_PREFIX } from '../../../src/domain/services/KeyCodec.ts';
 
 type WarpCoreWired = Awaited<ReturnType<typeof WarpCore.open>>;

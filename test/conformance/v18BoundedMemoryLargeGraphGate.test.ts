@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import MemoryBudgetError from '../../src/domain/errors/MemoryBudgetError.ts';
 import BoundedQueryReadModel from '../../src/domain/services/query/BoundedQueryReadModel.ts';
-import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../test/helpers/InMemoryGraphAdapter.ts';
 import { openMemoryWarpWorldline as openWarpWorldline } from '../helpers/MemoryRuntimeHost.ts';
 import V18LargeGraphOverSmallPoolFixture from './fixtures/V18LargeGraphOverSmallPoolFixture.ts';
 

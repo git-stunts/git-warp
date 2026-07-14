@@ -3,7 +3,7 @@
 import WarpCore from '../../src/domain/WarpCore.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
-import MemoryRuntimeStorageAdapter from '../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../test/helpers/MemoryRuntimeStorageAdapter.ts';
 
 /** @typedef {any} WarpCoreRuntime */
 

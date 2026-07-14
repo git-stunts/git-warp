@@ -19,7 +19,6 @@ import {
 import nullLogger from './utils/nullLogger.ts';
 import LogicalTraversal from './services/query/LogicalTraversal.ts';
 import LiveQueryReadModelProvider from './services/query/LiveQueryReadModelProvider.ts';
-import LRUCache from './utils/LRUCache.ts';
 import SyncController from './services/controllers/SyncController.ts';
 import StrandController from './services/controllers/StrandController.ts';
 import ComparisonController from './services/controllers/ComparisonController.ts';
@@ -55,7 +54,6 @@ import type LoggerPort from '../ports/LoggerPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type TrustCryptoPort from '../ports/TrustCryptoPort.ts';
-import type SeekCachePort from '../ports/SeekCachePort.ts';
 import type WarpStateCachePort from '../ports/WarpStateCachePort.ts';
 import type BlobStoragePort from '../ports/BlobStoragePort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
@@ -75,7 +73,6 @@ import type QueryCapability from './capabilities/QueryCapability.ts';
 import type AdjacencyMap from './capabilities/AdjacencyMap.ts';
 
 import {
-  DEFAULT_ADJACENCY_CACHE_SIZE,
   normalizeTrustConfig,
   type TrustMode,
   type NormalizedTrustConfig,
@@ -193,7 +190,6 @@ export default class RuntimeHost {
   _autoMaterialize: boolean;
   traverse: LogicalTraversal;
   _materializedGraph: MaterializedGraph | null;
-  _adjacencyCache: LRUCache<string, AdjacencyMapShape> | null;
   _lastFrontier: Map<string, string> | null;
   _logger: LoggerPort | null;
   _crypto: CryptoPort;
@@ -207,7 +203,6 @@ export default class RuntimeHost {
   _seekCeiling: number | null;
   _cachedCeiling: number | null;
   _cachedFrontier: Map<string, string> | null;
-  _seekCache: SeekCachePort | null;
   _stateCache: WarpStateCachePort | null;
   _blobStorage: BlobStoragePort | null;
   _patchBlobStorage: BlobStoragePort | null;
@@ -255,7 +250,6 @@ export default class RuntimeHost {
       graphName,
       writerId,
       gcPolicy = {},
-      adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE,
       checkpointPolicy,
       autoMaterialize = true,
       onDeleteWithData = 'warn',
@@ -263,7 +257,6 @@ export default class RuntimeHost {
       crypto,
       codec,
       trustCrypto,
-      seekCache,
       stateCache,
       audit = false,
       blobStorage,
@@ -297,7 +290,6 @@ export default class RuntimeHost {
     this._checkpointing = false;
     this._autoMaterialize = autoMaterialize;
     this._materializedGraph = null;
-    this._adjacencyCache = adjacencyCacheSize > 0 ? new LRUCache(adjacencyCacheSize) : null;
     this._lastFrontier = null;
     this._logger = logger || null;
     this._crypto = crypto;
@@ -311,7 +303,6 @@ export default class RuntimeHost {
     this._seekCeiling = null;
     this._cachedCeiling = null;
     this._cachedFrontier = null;
-    this._seekCache = seekCache || null;
     this._stateCache = stateCache || null;
     this._blobStorage = blobStorage || null;
     this._patchBlobStorage = patchBlobStorage || null;
@@ -686,20 +677,6 @@ export default class RuntimeHost {
   syncNeeded: SyncController['syncNeeded'] = (...args) => this._syncController.syncNeeded(...args);
   syncWith: SyncController['syncWith'] = (...args) => this._syncController.syncWith(...args);
   serve: SyncController['serve'] = (...args) => this._syncController.serve(...args);
-
-  /**
-   * Returns the attached seek cache, or null if none is set.
-   */
-  get seekCache(): SeekCachePort | null {
-    return this._seekCache;
-  }
-
-  /**
-   * Attaches a persistent seek cache after construction.
-   */
-  setSeekCache(cache: SeekCachePort): void {
-    this._seekCache = cache;
-  }
 
   /**
    * Builds a SyncTrustGate from a resolved trust configuration.

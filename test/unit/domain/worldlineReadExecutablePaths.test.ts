@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import {
   openMemoryRuntimeHostProduct as openRuntimeHostProduct,
   openMemoryWarpWorldline as openWarpWorldline,

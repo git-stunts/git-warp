@@ -41,7 +41,6 @@ export type SeekSpec = {
   action: string;
   tickValue: string | null;
   name: string | null;
-  noPersistentCache: boolean;
   diff: boolean;
   diffLimit: number;
 };

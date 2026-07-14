@@ -245,7 +245,7 @@ and joins first.
 | `JoinReceiptOutcome`       | root `JoinOutcome`                   | operation-specific outcome alias rename           |
 | `EdgePropertyIntentFields` | removed                              | no edge-property intent ships in the v19 root     |
 | `GitGraphAdapter`          | `storage` `GitStorage.open({ cwd })` | plumbing and CAS composition are internal         |
-| `InMemoryGraphAdapter`     | `storage` `MemoryStorage.create()`   | graph name and adapter constructor removed        |
+| `InMemoryGraphAdapter`     | removed                              | tests may use test helpers; apps use `GitStorage` |
 | `GraphPersistencePort`     | root `WarpStorage` for app options   | old graph-shaped port removed from public API     |
 | `commit((patch) => ...)`   | `timeline.write(intent.*)`           | receipt-returning                                 |
 | `PatchBuilder`             | removed                              | replace with intent builders                      |

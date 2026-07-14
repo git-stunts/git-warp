@@ -1,4 +1,3 @@
-import HealthCheckService from '../../../src/domain/services/HealthCheckService.ts';
 import { buildCheckpointRef, buildCoverageRef } from '../../../src/domain/utils/RefLayout.ts';
 import { EXIT_CODES } from '../infrastructure.ts';
 import { openGraph, applyCursorCeiling, emitCursorWarning, readCheckpointDate, createHookInstaller } from '../shared.ts';
@@ -6,9 +5,29 @@ import type { CliOptions, Persistence, WarpGraphInstance } from '../types.ts';
 import type HookPathPort from '../../../src/ports/HookPathPort.ts';
 
 /** Performs a health check on the graph persistence. */
-async function getHealth(persistence: Persistence): Promise<{ status: string; components: { repository: { status: string; latencyMs: number }; index: { status: string; loaded: boolean; shardCount?: number } }; cachedAt?: string }> {
-  const healthService = new HealthCheckService({ persistence });
-  return await healthService.getHealth(0);
+async function getHealth(persistence: Persistence): Promise<{ status: string; components: { repository: { status: string; latencyMs: number }; index: { status: string; loaded: boolean; shardCount?: number } } }> {
+  try {
+    const ping = await persistence.ping();
+    const repositoryStatus = ping.ok ? 'healthy' : 'unhealthy';
+    return {
+      status: ping.ok ? 'degraded' : 'unhealthy',
+      components: {
+        repository: {
+          status: repositoryStatus,
+          latencyMs: Math.round(ping.latencyMs * 100) / 100,
+        },
+        index: { status: 'degraded', loaded: false },
+      },
+    };
+  } catch {
+    return {
+      status: 'unhealthy',
+      components: {
+        repository: { status: 'unhealthy', latencyMs: 0 },
+        index: { status: 'degraded', loaded: false },
+      },
+    };
+  }
 }
 
 /** Collects garbage collection metrics for the graph. */

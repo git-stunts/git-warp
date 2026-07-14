@@ -7,9 +7,7 @@
  * @module cli/commands/doctor/checks
  */
 
-import HealthCheckService from '../../../../src/domain/services/HealthCheckService.ts';
 import type { WarpStateSnapshotRecord } from '../../../../src/ports/WarpStateCachePort.ts';
-import type { CorePersistence } from '../../../../src/domain/types/WarpPersistence.ts';
 import {
   buildCheckpointRef,
   buildCoverageRef,
@@ -35,12 +33,11 @@ function internalError(id: string, err: unknown): DoctorFinding {
 
 // ── repo-accessible ─────────────────────────────────────────────────────────
 
-/** Verify the repository is reachable via HealthCheckService. */
+/** Verify the repository is reachable. */
 export async function checkRepoAccessible(ctx: DoctorContext): Promise<DoctorFinding> {
   try {
-    const svc = new HealthCheckService({ persistence: ctx.persistence as unknown as CorePersistence });
-    const health = await svc.getHealth(0);
-    if (health.components.repository.status === 'unhealthy') {
+    const health = await ctx.persistence.ping();
+    if (!health.ok) {
       return {
         id: 'repo-accessible', status: 'fail', code: CODES.REPO_UNREACHABLE,
         impact: 'operability', message: 'Repository is not accessible',

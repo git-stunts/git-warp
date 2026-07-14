@@ -51,7 +51,6 @@ describe('materialize stale-checkpoint regression', () => {
       codec: defaultCodec,
       crypto: defaultCrypto,
       persistence: {},
-      getSeekCache: () => null,
       graphName: 'test',
       graphCloner: {},
       patches: {

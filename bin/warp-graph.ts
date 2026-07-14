@@ -121,7 +121,6 @@ async function main(): Promise<void> {
     return; // Keep the process alive
   }
 
-  // Use process.exit() to avoid waiting for fire-and-forget I/O (e.g. seek cache writes).
   process.exit(normalized.exitCode);
 }
 

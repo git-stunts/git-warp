@@ -24,7 +24,6 @@ import type { CorePersistence } from '../types/WarpPersistence.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
-import type SeekCachePort from '../../ports/SeekCachePort.ts';
 import type WarpStateCachePort from '../../ports/WarpStateCachePort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
@@ -49,7 +48,6 @@ export type RuntimeHostConstructionOptions = {
   graphName: string;
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
-  adjacencyCacheSize?: number;
   checkpointPolicy?: { every: number };
   autoMaterialize?: boolean;
   onDeleteWithData?: DeletePolicy;
@@ -57,7 +55,6 @@ export type RuntimeHostConstructionOptions = {
   crypto: CryptoPort;
   codec: CodecPort;
   trustCrypto?: TrustCryptoPort;
-  seekCache?: SeekCachePort;
   stateCache?: WarpStateCachePort | null;
   audit?: boolean;
   blobStorage?: BlobStoragePort;
@@ -81,7 +78,6 @@ export type RuntimeHostOpenOptions = {
   graphName: string;
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
-  adjacencyCacheSize?: number;
   checkpointPolicy?: { every: number } | null;
   autoMaterialize?: boolean;
   onDeleteWithData?: DeletePolicy;
@@ -89,7 +85,6 @@ export type RuntimeHostOpenOptions = {
   crypto?: CryptoPort;
   codec?: CodecPort;
   trustCrypto?: TrustCryptoPort;
-  seekCache?: SeekCachePort;
   stateCache?: WarpStateCachePort | null;
   audit?: boolean;
   blobStorage?: BlobStoragePort;
@@ -112,7 +107,6 @@ export class WarpOpenOptions {
   readonly graphName: string;
   readonly writerId: string;
   readonly gcPolicy: GCPolicyConfig | GCPolicy;
-  readonly adjacencyCacheSize?: number;
   readonly checkpointPolicy?: { every: number };
   readonly autoMaterialize?: boolean;
   readonly onDeleteWithData?: DeletePolicy;
@@ -120,7 +114,6 @@ export class WarpOpenOptions {
   readonly crypto?: CryptoPort;
   readonly codec?: CodecPort;
   readonly trustCrypto?: TrustCryptoPort;
-  readonly seekCache?: SeekCachePort;
   readonly stateCache?: WarpStateCachePort | null;
   readonly audit?: boolean;
   readonly blobStorage?: BlobStoragePort;
@@ -154,9 +147,6 @@ export class WarpOpenOptions {
     if (options.codec !== undefined) { this.codec = options.codec; }
     if (options.trustCrypto !== undefined) { this.trustCrypto = options.trustCrypto; }
 
-    if (options.adjacencyCacheSize !== undefined) {
-      this.adjacencyCacheSize = options.adjacencyCacheSize;
-    }
     const checkpointPolicy = normalizeCheckpointPolicy(options.checkpointPolicy);
     if (checkpointPolicy !== undefined) {
       this.checkpointPolicy = checkpointPolicy;
@@ -172,7 +162,6 @@ export class WarpOpenOptions {
       this.onDeleteWithData = normalizeDeletePolicy(options.onDeleteWithData);
     }
     if (options.logger !== undefined) { this.logger = options.logger; }
-    if (options.seekCache !== undefined) { this.seekCache = options.seekCache; }
     if (options.stateCache !== undefined) { this.stateCache = options.stateCache; }
     if (options.audit !== undefined) {
       this.audit = normalizeBooleanOption(options.audit, 'audit', 'E_AUDIT_TYPE');
@@ -280,7 +269,6 @@ export async function resolveRuntimeHostConstructionOptions(
     graphName,
     writerId,
     gcPolicy,
-    adjacencyCacheSize,
     checkpointPolicy,
     autoMaterialize,
     onDeleteWithData,
@@ -288,7 +276,6 @@ export async function resolveRuntimeHostConstructionOptions(
     crypto,
     codec,
     trustCrypto,
-    seekCache,
     stateCache,
     audit,
     blobStorage,
@@ -392,7 +379,6 @@ export async function resolveRuntimeHostConstructionOptions(
       graphName,
       writerId,
       gcPolicy,
-      ...(adjacencyCacheSize !== undefined ? { adjacencyCacheSize } : {}),
       ...(checkpointPolicy !== undefined ? { checkpointPolicy } : {}),
       ...(autoMaterialize !== undefined ? { autoMaterialize } : {}),
       ...(onDeleteWithData !== undefined ? { onDeleteWithData } : {}),
@@ -400,7 +386,6 @@ export async function resolveRuntimeHostConstructionOptions(
       crypto: resolvedCrypto,
       codec: resolvedCodec,
       ...(resolvedTrustCrypto !== undefined ? { trustCrypto: resolvedTrustCrypto } : {}),
-      ...(seekCache !== undefined ? { seekCache } : {}),
       ...(resolvedStateCache !== undefined ? { stateCache: resolvedStateCache } : {}),
       ...(audit !== undefined ? { audit } : {}),
       blobStorage: resolvedBlobStorage,

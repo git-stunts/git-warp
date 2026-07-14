@@ -1,17 +1,17 @@
-import type { CorePersistence } from '../../domain/types/WarpPersistence.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type { CorePersistence } from '../../src/domain/types/WarpPersistence.ts';
+import type BlobStoragePort from '../../src/ports/BlobStoragePort.ts';
 import {
   LEGACY_EXTERNAL_PATCH_STORAGE,
   LEGACY_GIT_BLOB_PATCH_STORAGE,
-} from '../../ports/CommitMessageCodecPort.ts';
-import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
+} from '../../src/ports/CommitMessageCodecPort.ts';
+import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProviderPort.ts';
 import type {
   RuntimeStorageRequest,
   RuntimeStorageServices,
-} from '../../ports/RuntimeStorageProviderPort.ts';
-import { CborCheckpointStoreAdapter } from './CborCheckpointStoreAdapter.ts';
-import { CborIndexStoreAdapter } from './CborIndexStoreAdapter.ts';
-import { CborPatchJournalAdapter } from './CborPatchJournalAdapter.ts';
+} from '../../src/ports/RuntimeStorageProviderPort.ts';
+import { CborCheckpointStoreAdapter } from '../../src/infrastructure/adapters/CborCheckpointStoreAdapter.ts';
+import { CborIndexStoreAdapter } from '../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
+import { CborPatchJournalAdapter } from '../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import InMemoryBlobStorageAdapter from './InMemoryBlobStorageAdapter.ts';
 
 export type MemoryRuntimeStorageAdapterOptions = {

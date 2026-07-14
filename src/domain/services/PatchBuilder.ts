@@ -282,7 +282,7 @@ export class PatchBuilder {
     assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
     this._assertNodeExistsForContent(nodeId);
     if (!this._blobStorage) {
-      throw new WriterError('Cannot attach content without blob storage — inject blobStorage via open() or use InMemoryBlobStorageAdapter', { code: 'NO_BLOB_STORAGE' });
+      throw new WriterError('Cannot attach content without blob storage; configure content storage when opening the runtime', { code: 'NO_BLOB_STORAGE' });
     }
     const slug = `${this._graphName}/${nodeId}`;
     const payload = await storeContentAttachmentPayload({
@@ -320,7 +320,7 @@ export class PatchBuilder {
     assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
     this._assertEdgeExists(from, to, label);
     if (!this._blobStorage) {
-      throw new WriterError('Cannot attach content without blob storage — inject blobStorage via open() or use InMemoryBlobStorageAdapter', { code: 'NO_BLOB_STORAGE' });
+      throw new WriterError('Cannot attach content without blob storage; configure content storage when opening the runtime', { code: 'NO_BLOB_STORAGE' });
     }
     const slug = `${this._graphName}/${from}/${to}/${label}`;
     const payload = await storeContentAttachmentPayload({

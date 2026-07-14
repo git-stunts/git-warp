@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
-import MemoryRuntimeStorageAdapter from '../../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../../test/helpers/MemoryRuntimeStorageAdapter.ts';
 
 /**
  * Spec tests for runtime content storage composition.

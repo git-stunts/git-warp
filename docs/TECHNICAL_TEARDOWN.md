@@ -168,32 +168,24 @@ Application code usually starts with `index.ts`.
 
 At import time, `index.ts` does three major things:
 
-1. Imports the public API classes, functions, ports, adapters, error classes,
-   and compatibility exports.
-2. Calls `installDefaultRuntimeHostNodePorts()`.
-3. Exports the API surface, including `GitGraphAdapter`,
-   `InMemoryGraphAdapter`, `openWarpWorldline()`, `openWarpGraph()`,
-   `WarpApp`, `WarpCore`, `PatchBuilder`, query/observer types, sync helpers,
-   trust and provenance helpers, and error classes.
+1. Exports the first-use values `openWarp`, `intent`, and `reading`.
+2. Exports application types for timelines, intents, readings, receipts, and
+   opaque storage handles.
+3. Leaves storage construction, advanced optics, and diagnostics on explicit
+   package subpaths.
 
 ```mermaid
 flowchart TB
     app["Application import"] --> index["index.ts"]
-    index --> defaults["installDefaultRuntimeHostNodePorts()"]
-    defaults --> codec["default CBOR codec resolver"]
-    defaults --> crypto["NodeCryptoAdapter resolver"]
-    defaults --> trust["TrustCryptoAdapter resolver"]
-    defaults --> message["default commit-message codec"]
     index --> exports["Public exports"]
-    exports --> worldline["openWarpWorldline()"]
-    exports --> graph["openWarpGraph()"]
-    exports --> adapters["GitGraphAdapter / InMemoryGraphAdapter"]
+    exports --> warp["openWarp()"]
+    exports --> intents["intent builders"]
+    exports --> readings["reading builders"]
+    storage["storage subpath"] --> gitStorage["GitStorage"]
 ```
 
-This is a bootstrapping side effect, but a bounded one. The runtime still
-constructs real graph objects only when the caller opens a worldline or graph.
-The import installs resolver defaults so callers do not have to inject a codec
-or crypto implementation in normal Node usage.
+The root import has no storage bootstrap side effect. `GitStorage.open()` owns
+the Node Git and git-cas composition used by first-use applications.
 
 ## System Architecture
 
@@ -281,7 +273,6 @@ classDiagram
       _versionVector
       _materializedGraph
       _lastFrontier
-      _seekCache
       _stateCache
       _patchJournal
       _checkpointStore
@@ -1470,8 +1461,6 @@ ambient environment variables.
 | `autoMaterialize` | Controls runtime eager materialization behavior. | Faster reads versus less background work. |
 | `checkpointPolicy.every` | Auto-create checkpoints after enough patches. | More checkpoint storage for shorter future replay. |
 | `gcPolicy` | Tombstone compaction thresholds and enablement. | Lower storage/scan cost versus risk of doing extra compaction work. |
-| `adjacencyCacheSize` | Size of adjacency cache. Default is `3`. | More memory for fewer rebuilds. |
-| `seekCache` | Persistent seek cache. | Faster time-travel reads versus cache storage. |
 | `stateCache` | Durable materialized snapshot cache. | More CAS storage for faster materialization. |
 | `blobStorage` | Content/CAS storage. | Enables attachments and git-cas patch storage. |
 | `patchJournal` | Patch serialization and storage boundary. | Custom storage can replace default CBOR journal. |
