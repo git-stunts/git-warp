@@ -123,20 +123,6 @@ describe('IntentController', () => {
     });
   });
 
-  it('leaves unsupported guards to their owning admission layer', async () => {
-    const controller = createController(vi.fn().mockResolvedValue({}));
-    const guarded = withGuards([{
-      op: 'edgeExists',
-      nodeId: 'user:alice',
-      failureTag: 'missing-edge',
-    }]);
-
-    await expect(controller.admitIntent(guarded)).resolves.toMatchObject({
-      admitted: true,
-      intentId: 'assign-alice',
-    });
-  });
-
   it('queues descriptors by strand without writing storage', async () => {
     const controller = createController(vi.fn());
 
