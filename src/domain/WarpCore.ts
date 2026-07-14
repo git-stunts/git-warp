@@ -30,7 +30,6 @@ export default class WarpCore {
   declare readonly persistence: WarpCoreRuntimeSurface['persistence'];
   declare readonly onDeleteWithData: WarpCoreRuntimeSurface['onDeleteWithData'];
   declare readonly gcPolicy: WarpCoreRuntimeSurface['gcPolicy'];
-  declare readonly seekCache: WarpCoreRuntimeSurface['seekCache'];
   declare readonly hasNode: WarpCoreRuntimeSurface['hasNode'];
   declare readonly getNodeProps: WarpCoreRuntimeSurface['getNodeProps'];
   declare readonly getEdgeProps: WarpCoreRuntimeSurface['getEdgeProps'];
@@ -134,7 +133,6 @@ export default class WarpCore {
   declare readonly planCoordinateTransfer: WarpCoreRuntimeSurface['planCoordinateTransfer'];
   declare readonly subscribe: WarpCoreRuntimeSurface['subscribe'];
   declare readonly watch: WarpCoreRuntimeSurface['watch'];
-  declare readonly setSeekCache: WarpCoreRuntimeSurface['setSeekCache'];
   declare readonly fork: WarpCoreRuntimeSurface['fork'];
   declare readonly createWormhole: WarpCoreRuntimeSurface['createWormhole'];
   declare _effectPipeline: EffectPipeline | null;

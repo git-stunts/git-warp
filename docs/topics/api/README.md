@@ -428,7 +428,7 @@ Each old root symbol needs one explicit disposition:
 | ------------------------ | ---------------------------------------------------------- |
 | `openWarpWorldline()`    | `openWarp().timeline(name)`                                |
 | `GitGraphAdapter`        | `GitStorage.open({ cwd })` from `storage`                  |
-| `InMemoryGraphAdapter`   | `MemoryStorage.create()` from `storage`                    |
+| `InMemoryGraphAdapter`   | removed; use `GitStorage` with a temporary repository      |
 | `commit((patch) => ...)` | `timeline.write(intent.*)`                                 |
 | `coordinate()`           | `tick()` publicly; use advanced `captureCoordinate()`      |
 | `optic()`                | `timeline.read(reading.*)` or `advanced`                   |

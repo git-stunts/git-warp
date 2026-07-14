@@ -4,7 +4,7 @@ import StrandController, {
   type StrandHost,
 } from '../../../../../src/domain/services/controllers/StrandController.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
 import CryptoPort from '../../../../../src/ports/CryptoPort.ts';
 
 import type Patch from '../../../../../src/domain/types/Patch.ts';

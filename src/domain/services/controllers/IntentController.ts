@@ -11,9 +11,6 @@ import type ProjectionHandle from '../ProjectionHandle.ts';
 export type IntentHost = {
   _graphName: string;
   _writerId: string;
-  _persistence: {
-    writeBlob?: (blob: Uint8Array) => Promise<string>;
-  };
   worldline: () => ProjectionHandle;
 };
 
@@ -37,12 +34,8 @@ export default class IntentController implements IntentCapability {
         return { admitted: false, obstruction, intentId: descriptor.intentId };
       }
     }
-    const jsonBytes = new TextEncoder().encode(JSON.stringify(descriptor));
     this._admitCounter += 1;
-    let sha = `blob:intent:${descriptor.intentId}:${this._host._writerId}:${this._admitCounter}`;
-    if (typeof this._host._persistence.writeBlob === 'function') {
-      sha = await this._host._persistence.writeBlob(jsonBytes);
-    }
+    const sha = `intent:${descriptor.intentId}:${this._host._writerId}:${this._admitCounter}`;
     return { admitted: true, sha, intentId: descriptor.intentId };
   }
 

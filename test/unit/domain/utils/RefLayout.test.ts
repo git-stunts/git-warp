@@ -7,7 +7,6 @@ import {
   buildCheckpointRef,
   buildCoverageRef,
   buildWritersPrefix,
-  buildSeekCacheRef,
   buildCursorActiveRef,
   buildCursorSavedRef,
   buildCursorSavedPrefix,
@@ -399,17 +398,6 @@ describe('RefLayout', () => {
       expect(() => validateGraphName('123')).not.toThrow();
       expect(() => validateWriterId('123')).not.toThrow();
       expect(buildWriterRef('123', '456')).toBe('refs/warp/123/writers/456');
-    });
-  });
-
-  describe('buildSeekCacheRef', () => {
-    it('builds correct ref path', () => {
-      expect(buildSeekCacheRef('events')).toBe('refs/warp/events/seek-cache');
-    });
-
-    it('validates graph name', () => {
-      expect(() => buildSeekCacheRef('')).toThrow();
-      expect(() => buildSeekCacheRef('../bad')).toThrow();
     });
   });
 

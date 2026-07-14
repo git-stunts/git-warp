@@ -4,8 +4,6 @@ import path from 'node:path';
 import GitPlumbing from '@git-stunts/plumbing';
 import GitCasRepositoryAdapter from './src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitTimelineHistoryAdapter from './src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
-import InMemoryGraphAdapter from './src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import MemoryRuntimeStorageAdapter from './src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
 import PlumbingHookPathAdapter from './src/infrastructure/adapters/PlumbingHookPathAdapter.ts';
 import AdapterValidationError from './src/domain/errors/AdapterValidationError.ts';
 import WarpStorage from './src/application/WarpStorage.ts';
@@ -32,24 +30,9 @@ export class GitStorage extends WarpStorage {
     bindWarpStorage(storage, {
       history,
       runtimeStorage: repository,
-      createSeekCache: (timelineName) => repository.createSeekCache(timelineName),
       createTrustChain: (crypto) => repository.createTrustChain(crypto),
       hookPaths: new PlumbingHookPathAdapter({ plumbing, path }),
     });
-    return storage;
-  }
-}
-
-export class MemoryStorage extends WarpStorage {
-  private constructor() {
-    super();
-  }
-
-  static create(): MemoryStorage {
-    const history = new InMemoryGraphAdapter();
-    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history });
-    const storage = new MemoryStorage();
-    bindWarpStorage(storage, { history, runtimeStorage });
     return storage;
   }
 }

@@ -132,11 +132,6 @@ const sourceVersionNameExceptions: readonly SourceVersionNameException[] = Objec
       ')',
     ]),
   }),
-  Object.freeze({
-    name: 'seek-cache-version-token',
-    reason: 'Seek-cache keys use a persisted version prefix to avoid cache-key collisions.',
-    pattern: /src\/domain\/utils\/seekCacheKey\.ts/,
-  }),
 ]);
 
 export const SOURCE_VERSION_NAME_EXCEPTIONS = sourceVersionNameExceptions;

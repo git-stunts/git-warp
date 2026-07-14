@@ -45,10 +45,14 @@ for (const name of ['openWarp', 'intent', 'reading']) {
   }
 }
 
-for (const name of ['GitStorage', 'MemoryStorage']) {
+for (const name of ['GitStorage']) {
   if (!(name in storage)) {
     throw new PackedArtifactSmokeError(`storage subpath did not export ${name}`);
   }
+}
+
+if ('MemoryStorage' in storage) {
+  throw new PackedArtifactSmokeError('storage subpath still exported MemoryStorage');
 }
 
 if ('openWarpGraph' in mod) {

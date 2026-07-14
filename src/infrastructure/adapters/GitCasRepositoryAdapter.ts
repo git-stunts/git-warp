@@ -10,7 +10,6 @@ import type {
 } from '../../ports/RuntimeStorageProviderPort.ts';
 import CasBlobAdapter from './CasBlobAdapter.ts';
 import type CasContentEncryptionPolicy from './CasContentEncryptionPolicy.ts';
-import CasSeekCacheAdapter from './CasSeekCacheAdapter.ts';
 import { CborCheckpointStoreAdapter } from './CborCheckpointStoreAdapter.ts';
 import { CborIndexStoreAdapter } from './CborIndexStoreAdapter.ts';
 import { CborPatchJournalAdapter } from './CborPatchJournalAdapter.ts';
@@ -124,17 +123,6 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       blobPort: this._history,
       treePort: this._history,
       blobStorage: content,
-    });
-  }
-
-  createSeekCache(timelineName: string): CasSeekCacheAdapter {
-    return new CasSeekCacheAdapter({
-      cas: this._cas,
-      persistence: this._history,
-      graphName: timelineName,
-      ...(this._contentEncryption === undefined
-        ? {}
-        : { contentEncryption: this._contentEncryption }),
     });
   }
 

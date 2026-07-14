@@ -15,7 +15,7 @@ import { requireTimelineRuntime } from '../../../src/domain/api/TimelineRuntime.
 import { requireTickCoordinate } from '../../../src/domain/api/TickRuntime.ts';
 import Warp from '../../../src/domain/api/Warp.ts';
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
-import { MemoryStorage } from '../../../storage.ts';
+import MemoryStorage from '../../helpers/MemoryStorage.ts';
 import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
 
 const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([

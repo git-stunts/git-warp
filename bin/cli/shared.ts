@@ -17,17 +17,15 @@ import { usageError, notFoundError } from './infrastructure.ts';
 import { GitStorage } from '../../storage.ts';
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProviderPort.ts';
-import type SeekCachePort from '../../src/ports/SeekCachePort.ts';
 import type TrustChainPort from '../../src/ports/TrustChainPort.ts';
 import type CryptoPort from '../../src/ports/CryptoPort.ts';
 import type HookPathPort from '../../src/ports/HookPathPort.ts';
 
-import type { Persistence, WarpGraphInstance, CursorBlob, CliOptions, SeekSpec } from './types.ts';
+import type { Persistence, WarpGraphInstance, CursorBlob, CliOptions } from './types.ts';
 
 export type CliStorageBinding = {
   readonly persistence: Persistence;
   readonly runtimeStorage: RuntimeStorageProviderPort;
-  readonly createSeekCache: (timelineName: string) => SeekCachePort;
   readonly createTrustChain: (crypto: CryptoPort) => TrustChainPort;
   readonly hookPaths: HookPathPort;
 };
@@ -39,7 +37,6 @@ export async function createPersistence(repoPath: string): Promise<CliStorageBin
   const storage = await GitStorage.open({ cwd: repoPath });
   const binding = resolveWarpStorage(storage);
   if (!(binding.history instanceof GitTimelineHistoryAdapter)
-    || binding.createSeekCache === undefined
     || binding.createTrustChain === undefined
     || binding.hookPaths === undefined) {
     throw usageError('GitStorage returned an incomplete CLI storage binding');
@@ -47,7 +44,6 @@ export async function createPersistence(repoPath: string): Promise<CliStorageBin
   return {
     persistence: binding.history,
     runtimeStorage: binding.runtimeStorage,
-    createSeekCache: binding.createSeekCache,
     createTrustChain: binding.createTrustChain,
     hookPaths: binding.hookPaths,
   };
@@ -98,8 +94,8 @@ export async function resolveGraphName(persistence: Persistence, explicitGraph: 
 /**
  * Opens a WarpCore for the given CLI options.
  */
-export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence; runtimeStorage: RuntimeStorageProviderPort; createSeekCache: (timelineName: string) => SeekCachePort; hookPaths: HookPathPort }> {
-  const { persistence, runtimeStorage, createSeekCache, hookPaths } = await createPersistence(options.repo);
+export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence; runtimeStorage: RuntimeStorageProviderPort; hookPaths: HookPathPort }> {
+  const { persistence, runtimeStorage, hookPaths } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
   if (typeof options.graph === 'string' && options.graph.length > 0) {
     const graphNames = await listGraphNames(persistence);
@@ -114,7 +110,7 @@ export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraph
     writerId: options.writer,
     crypto: new WebCryptoAdapter(),
   });
-  return { graph, graphName, persistence, runtimeStorage, createSeekCache, hookPaths };
+  return { graph, graphName, persistence, runtimeStorage, hookPaths };
 }
 
 /**
@@ -239,19 +235,4 @@ function readPackageVersion(rawJson: string): string {
   const raw: unknown = JSON.parse(rawJson);
   const obj = raw as { version: string };
   return obj.version;
-}
-
-/**
- * Attaches a persistent seek cache to a graph instance unless disabled by flags.
- */
-export function wireSeekCache({ graph, createSeekCache, graphName, seekSpec }: {
-  graph: WarpGraphInstance;
-  createSeekCache: (timelineName: string) => SeekCachePort;
-  graphName: string;
-  seekSpec: SeekSpec;
-}): void {
-  if (seekSpec.noPersistentCache) {
-    return;
-  }
-  graph.setSeekCache(createSeekCache(graphName));
 }

@@ -3,7 +3,7 @@ import WarpApp from '../../src/domain/WarpApp.ts';
 import WarpCore from '../../src/domain/WarpCore.ts';
 import { openWarpGraph as openProductionWarpGraph } from '../../src/domain/WarpGraph.ts';
 import { openWarpWorldline as openProductionWarpWorldline } from '../../src/domain/WarpWorldline.ts';
-import MemoryRuntimeStorageAdapter from '../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../test/helpers/MemoryRuntimeStorageAdapter.ts';
 
 import type { CorePersistence } from '../../src/domain/types/WarpPersistence.ts';
 import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProviderPort.ts';

@@ -130,10 +130,6 @@ describe('GitCasRepositoryAdapter', () => {
     });
 
     await services.content.store('content', { slug: 'content' });
-    await repository.createSeekCache('events').set(
-      'v1:t1-frontier',
-      new Uint8Array([1]),
-    );
     const stateSnapshots = services.stateSnapshots;
     if (stateSnapshots === undefined) {
       throw new Error('Git repository storage must provide state snapshots');
@@ -169,9 +165,8 @@ describe('GitCasRepositoryAdapter', () => {
       null,
     );
 
-    expect(store).toHaveBeenCalledTimes(4);
+    expect(store).toHaveBeenCalledTimes(3);
     expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'content' }));
-    expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'v1:t1-frontier' }));
     expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'snapshot-1' }));
     expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'trust-record-hash' }));
   });

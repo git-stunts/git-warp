@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { openWarp } from '../../../index.ts';
-import { MemoryStorage } from '../../../storage.ts';
+import MemoryStorage from '../../helpers/MemoryStorage.ts';
 import WarpStorage from '../../../src/application/WarpStorage.ts';
 import {
   bindWarpStorage,

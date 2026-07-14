@@ -324,7 +324,6 @@ export default tseslint.config(
   // ── Relaxed complexity for algorithm-heavy modules ─────────────────────────
   {
     files: [
-      "src/domain/services/index/IndexRebuildService.ts",
       "src/domain/services/index/BitmapNeighborProvider.ts",
       "src/domain/services/index/BitmapAccumulator.ts",
       "src/domain/services/index/BitmapIndexBuilder.ts",
@@ -467,10 +466,8 @@ export default tseslint.config(
       "src/infrastructure/adapters/CborPatchJournalAdapter.ts",
       "src/infrastructure/adapters/GitGraphAdapter.ts",
       "src/infrastructure/adapters/GitTrustChainAdapter.ts",
-      "src/infrastructure/adapters/InMemoryGraphAdapter.ts",
       "src/infrastructure/adapters/IndexShardEncodeTransform.ts",
       "src/infrastructure/adapters/gitErrorClassification.ts",
-      "src/infrastructure/adapters/inMemoryHashing.ts",
       // CLI
       "bin/warp-graph.ts",
       "bin/cli/infrastructure.ts",

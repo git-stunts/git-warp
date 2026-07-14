@@ -16,18 +16,6 @@ vi.mock('../../../bin/cli/shared.ts', () => ({
   createHookInstaller: vi.fn(),
 }));
 
-// Mock HealthCheckService
-vi.mock('../../../src/domain/services/HealthCheckService.ts', () => ({
-  default: vi.fn().mockImplementation(function () {
-    return {
-      getHealth: vi.fn().mockResolvedValue({
-        status: 'healthy',
-        components: { repository: { status: 'healthy', latencyMs: 1 } },
-      }),
-    };
-  }),
-}));
-
 // Mock ClockAdapter
 vi.mock('../../../src/infrastructure/adapters/ClockAdapter.ts', () => ({
   default: { global: vi.fn().mockReturnValue({}) },

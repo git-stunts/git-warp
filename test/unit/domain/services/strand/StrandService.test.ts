@@ -306,7 +306,6 @@ function storeDescriptor(descriptor) {
  *   _lastFrontier: Map<string, string>,
  *   _writerId: string,
  *   _checkpointPolicy?: unknown,
- *   _seekCache?: unknown,
  *   getFrontier: ReturnType<typeof vi.fn>,
  *   _loadPatchChainFromSha: ReturnType<typeof vi.fn>,
  *   _setMaterializedState: ReturnType<typeof vi.fn>,

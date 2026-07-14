@@ -3,7 +3,7 @@ import TreeEntryFound from '../../../../src/domain/tree/TreeEntryFound.ts';
 import TreeEntryLimit from '../../../../src/domain/tree/TreeEntryLimit.ts';
 import TreeEntryMissing from '../../../../src/domain/tree/TreeEntryMissing.ts';
 import TreeEntryPath from '../../../../src/domain/tree/TreeEntryPath.ts';
-import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../../test/helpers/InMemoryGraphAdapter.ts';
 import { describeAdapterConformance } from './AdapterConformance.ts';
 
 class TreeOidMapForbiddenAdapter extends InMemoryGraphAdapter {

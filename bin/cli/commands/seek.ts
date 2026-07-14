@@ -14,7 +14,7 @@ import {
 } from '../time-travel-shared.ts';
 import { EXIT_CODES, usageError, notFoundError, parseCommandArgs } from '../infrastructure.ts';
 import { seekSchema } from '../schemas.ts';
-import { openGraph, readActiveCursor, writeActiveCursor, wireSeekCache } from '../shared.ts';
+import { openGraph, readActiveCursor, writeActiveCursor } from '../shared.ts';
 import type { WarpState } from '../../../src/domain/services/JoinReducer.ts';
 import type { CliOptions, Persistence, WarpGraphInstance, WriterTickInfo, CursorBlob, SeekSpec } from '../types.ts';
 
@@ -29,8 +29,6 @@ const SEEK_OPTIONS = {
   load: { type: 'string' },
   list: { type: 'boolean', default: false },
   drop: { type: 'string' },
-  'clear-cache': { type: 'boolean', default: false },
-  'no-persistent-cache': { type: 'boolean', default: false },
   diff: { type: 'boolean', default: false },
   'diff-limit': { type: 'string', default: '2000' },
 };
@@ -248,19 +246,7 @@ async function handleSeekStatus({ graph, graphName, persistence, activeCursor, t
 /** Handles the `git warp seek` command across all sub-actions. */
 export default async function handleSeek({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const seekSpec = parseSeekArgs(args);
-  const { graph, graphName, persistence, createSeekCache } = await openGraph(options);
-  void wireSeekCache({ graph, createSeekCache, graphName, seekSpec });
-
-  // Handle --clear-cache before discovering ticks (no materialization needed)
-  if (seekSpec.action === 'clear-cache') {
-    if (graph.seekCache) {
-      await graph.seekCache.clear();
-    }
-    return {
-      payload: { graph: graphName, action: 'clear-cache', message: 'Seek cache cleared.' },
-      exitCode: EXIT_CODES.OK,
-    };
-  }
+  const { graph, graphName, persistence } = await openGraph(options);
 
   const activeCursor = await readActiveCursor(persistence, graphName);
   const { ticks, maxTick, perWriter } = await graph.discoverTicks();

@@ -4,7 +4,7 @@ import WarpCore from "../../../src/domain/WarpCore.ts";
 import SchemaUnsupportedError from "../../../src/domain/errors/SchemaUnsupportedError.ts";
 import { resolveRuntimeHostConstructionOptions } from "../../../src/domain/warp/RuntimeHostBoot.ts";
 import type { CorePersistence } from "../../../src/domain/types/WarpPersistence.ts";
-import MemoryRuntimeStorageAdapter from "../../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts";
+import MemoryRuntimeStorageAdapter from "../../../test/helpers/MemoryRuntimeStorageAdapter.ts";
 import type RuntimeStorageProviderPort from "../../../src/ports/RuntimeStorageProviderPort.ts";
 import type { RuntimeStorageRequest } from "../../../src/ports/RuntimeStorageProviderPort.ts";
 import WarpStateCachePort, {

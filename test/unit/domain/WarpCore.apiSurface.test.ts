@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import { openMemoryWarpCore } from '../../helpers/MemoryRuntimeHost.ts';
 
 describe('WarpCore API surface', () => {

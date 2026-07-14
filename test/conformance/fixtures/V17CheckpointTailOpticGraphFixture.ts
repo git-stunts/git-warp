@@ -1,4 +1,4 @@
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import {
   type RuntimeHostOpenOptions,
   type RuntimeHostProduct,

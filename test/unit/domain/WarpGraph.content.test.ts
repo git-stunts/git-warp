@@ -227,9 +227,8 @@ describe('WarpCore content attachment (query methods)', () => {
     });
 
     it('uses auto-constructed blobStorage when none explicitly provided', async () => {
-      // OG-014: blob storage is always present (auto-constructed)
-      // The auto-constructed InMemoryBlobStorageAdapter won't have this OID,
-      // so we inject a mock to verify the read path goes through blobStorage
+      // Runtime storage supplies the content port. Inject a mock here to
+      // verify that reads stay behind that port.
       const rawBuf = new TextEncoder().encode('raw blob');
       const blobStorage = {
         store: vi.fn(),

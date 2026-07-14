@@ -4,7 +4,7 @@ import publishTsconfig from '../../../tsconfig.publish.json' with { type: 'json'
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { createFrontier } from '../../../src/domain/services/Frontier.ts';
 import { createCheckpointEnvelope } from '../../../src/domain/services/state/checkpointCreate.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';

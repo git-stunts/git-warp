@@ -16,7 +16,7 @@ import NodePropertyOptic from '../../../../../src/domain/services/optic/NodeProp
 import Optic from '../../../../../src/domain/services/optic/Optic.ts';
 import OpticCoordinatePosture from '../../../../../src/domain/services/optic/OpticCoordinatePosture.ts';
 import WorldlineOptic from '../../../../../src/domain/services/optic/WorldlineOptic.ts';
-import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
 import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';

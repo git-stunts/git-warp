@@ -51,7 +51,6 @@ export interface MockHost {
   _patchJournal: unknown;
   _patchBlobStorage: unknown;
   _blobStorage: unknown;
-  _seekCache: unknown;
   _checkpointStore: unknown;
   _auditService: unknown;
   _auditSkipCount: number;
@@ -141,7 +140,6 @@ export function createMockHost(options: MockHostOptions = {}): MockHost {
     _patchJournal: null,
     _patchBlobStorage: null,
     _blobStorage: null,
-    _seekCache: null,
     _checkpointStore: null,
     _auditService: null,
     _auditSkipCount: 0,

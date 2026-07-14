@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 
 describe('WarpCore — audit mode', () => {
   it('rejects audit: "yes" (non-boolean truthy)', async () => {

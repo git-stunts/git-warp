@@ -27,7 +27,7 @@ roadmap state.
 │ intent · reading · tick · receipt                 │
 ├──────────────────────────────────────────────────┤
 │ Opaque storage composition                        │
-│ GitStorage.open() · MemoryStorage.create()         │
+│ GitStorage.open()                                  │
 ├──────────┬───────────┬────────────┬──────────────┤
 │  Query   │  Patch    │ Materialize│    Sync      │
 │Controller│Controller │ Controller │  Controller  │
@@ -206,7 +206,6 @@ Abstract contracts between domain and infrastructure:
 - **CryptoPort** — hash, hmac, sign, verify
 - **ClockPort** — wall clock (injected, not ambient)
 - **LoggerPort** — structured logging
-- **SeekCachePort** — persistent seek cache for time-travel
 - **PatchJournalPort** — streamed patch-entry scans
 - **CheckpointStorePort** — folded checkpoint state storage
 - **IndexStorePort** — streamed index shard storage
@@ -218,11 +217,12 @@ Concrete implementations of ports:
 - **GitTimelineHistoryAdapter** — timeline-history Git commands via
   @git-stunts/plumbing
 - **GitCasRepositoryAdapter** — repository-scoped git-cas service composition
-- **InMemoryGraphAdapter** — in-memory Maps for testing
 - **CborCodec** — CBOR encoding via cbor-x
 - **NodeCryptoAdapter / WebCryptoAdapter** — hash/sign via node:crypto or SubtleCrypto
 - **CasBlobAdapter** — content-addressable blob storage via @git-stunts/git-cas
-- **CasSeekCacheAdapter** — persistent seek cache on git-cas
+
+In-memory persistence implementations live under `test/helpers/`; they are not
+production adapters or package exports.
 
 ## Git storage model
 

@@ -142,8 +142,6 @@ type SeekInput = {
   load?: string | undefined;
   list: boolean;
   drop?: string | undefined;
-  'clear-cache': boolean;
-  'no-persistent-cache': boolean;
   diff: boolean;
   'diff-limit': number;
 };
@@ -161,7 +159,6 @@ function countSeekActions(val: SeekInput): number {
     val.load !== undefined,
     val.list,
     val.drop !== undefined,
-    val['clear-cache'],
   ].filter(Boolean).length;
 }
 
@@ -186,7 +183,7 @@ function issueIf(ctx: z.RefinementCtx, condition: boolean, message: string): voi
  */
 function refineSeekActions(val: SeekInput, ctx: z.RefinementCtx): void {
   issueIf(ctx, countSeekActions(val) > 1,
-    'Only one seek action flag allowed at a time (--tick, --latest, --save, --load, --list, --drop, --clear-cache)');
+    'Only one seek action flag allowed at a time (--tick, --latest, --save, --load, --list, --drop)');
   issueIf(ctx, val.diff && !hasDiffCompatibleAction(val),
     '--diff cannot be used without --tick, --latest, or --load');
   issueIf(ctx, val['diff-limit'] !== 2000 && !val.diff,
@@ -205,7 +202,6 @@ const SEEK_ACTION_TABLE: Array<{ key: keyof SeekInput; action: string; isBool: b
   { key: 'load', action: 'load', isBool: false },
   { key: 'list', action: 'list', isBool: true },
   { key: 'drop', action: 'drop', isBool: false },
-  { key: 'clear-cache', action: 'clear-cache', isBool: true },
 ];
 
 /**
@@ -244,7 +240,6 @@ function transformSeek(val: SeekInput) {
     action,
     tickValue,
     name,
-    noPersistentCache: val['no-persistent-cache'],
     diff: val.diff,
     diffLimit: val['diff-limit'],
   };
@@ -259,8 +254,6 @@ export const seekSchema = z.object({
   load: z.string().min(1, 'Missing value for --load').optional(),
   list: z.boolean().default(false),
   drop: z.string().min(1, 'Missing value for --drop').optional(),
-  'clear-cache': z.boolean().default(false),
-  'no-persistent-cache': z.boolean().default(false),
   diff: z.boolean().default(false),
   'diff-limit': z.coerce.number().int({ message: '--diff-limit must be a positive integer' }).positive({ message: '--diff-limit must be a positive integer' }).refine(n => Number.isFinite(n), { message: '--diff-limit must be a finite number' }).default(2000),
 }).strict().superRefine(refineSeekActions).transform((val) => transformSeek(val));

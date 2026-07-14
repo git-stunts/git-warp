@@ -8,8 +8,8 @@ import CommitMessageCodecPort, {
   type PatchCommitMessage,
 } from '../../../../src/ports/CommitMessageCodecPort.ts';
 import TrustCryptoPort, { type TrustSignatureVerification } from '../../../../src/ports/TrustCryptoPort.ts';
-import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import MemoryRuntimeStorageAdapter from '../../../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
+import InMemoryGraphAdapter from '../../../../test/helpers/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../../../test/helpers/MemoryRuntimeStorageAdapter.ts';
 import { createFakeCodecPort, createMockCrypto } from '../../../helpers/mockPorts.ts';
 
 import type { NormalizedTrustConfig } from '../../../../src/domain/runtimeHelpers.ts';

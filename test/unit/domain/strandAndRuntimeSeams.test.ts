@@ -8,8 +8,8 @@ import {
 import StrandError from '../../../src/domain/errors/StrandError.ts';
 import RuntimeDetachedFactory from '../../../src/domain/warp/RuntimeDetachedFactory.ts';
 import RuntimePatchCollector from '../../../src/domain/warp/RuntimePatchCollector.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import MemoryRuntimeStorageAdapter from '../../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../../test/helpers/MemoryRuntimeStorageAdapter.ts';
 import PatchJournalPort from '../../../src/ports/PatchJournalPort.ts';
 import CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
@@ -136,7 +136,6 @@ describe('strand and runtime host seams', () => {
       codec: defaultCodec,
       audit: false,
     });
-    expect(options.seekCache).toBeUndefined();
     expect(options.blobStorage).toBeUndefined();
     expect(options.patchBlobStorage).toBeUndefined();
     expect(options.trust).toEqual({ mode: 'off', pin: null });
@@ -177,7 +176,6 @@ function createDetachedHost(): DetachedOpenHost {
     _gcPolicy: GCPolicy.DEFAULT,
     _checkpointPolicy: null,
     _logger: null,
-    _seekCache: null,
     _blobStorage: null,
     _patchBlobStorage: null,
     _trustConfig: { mode: 'off', pin: null },

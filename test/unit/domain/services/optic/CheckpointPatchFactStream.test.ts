@@ -24,7 +24,7 @@ import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
 import Op from '../../../../../src/domain/types/ops/Op.ts';
 import { OP_SCOPE_BOTH } from '../../../../../src/domain/types/ops/OpScope.ts';
 import OpApplied from '../../../../../src/domain/types/ops/OpApplied.ts';
-import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
 import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';

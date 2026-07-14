@@ -376,21 +376,6 @@ export function buildAuditPrefix(graphName: string): string {
 }
 
 /**
- * Builds the seek cache ref path for the given graph.
- *
- * The seek cache ref points to a blob containing a JSON index of
- * cached materialization states, keyed by (ceiling, frontier) tuples.
- *
- * @example
- * buildSeekCacheRef('events');
- * // => 'refs/warp/events/seek-cache'
- */
-export function buildSeekCacheRef(graphName: string): string {
-  validateGraphName(graphName);
-  return `${REF_PREFIX}/${graphName}/seek-cache`;
-}
-
-/**
  * Builds the state cache ref path for the given graph.
  *
  * The state cache ref points to a blob containing a JSON index of

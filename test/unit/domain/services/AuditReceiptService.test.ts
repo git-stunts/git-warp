@@ -18,7 +18,7 @@ import {
 import {
   encode as cborEncode,
 } from '../../../../src/infrastructure/codecs/CborCodec.ts';
-import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../../test/helpers/InMemoryGraphAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 // ── Test crypto adapter ──────────────────────────────────────────────────

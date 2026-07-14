@@ -1,4 +1,3 @@
-import type SeekCachePort from '../../ports/SeekCachePort.ts';
 import type MaterializeCapability from '../capabilities/MaterializeCapability.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { WarpGraphRuntimeSurface } from './WarpGraphRuntimeProduct.ts';
@@ -34,8 +33,6 @@ export type WarpCoreRuntimeSurface = WarpGraphRuntimeSurface & MaterializeCapabi
   readonly persistence: RuntimeHostProduct['persistence'];
   readonly onDeleteWithData: RuntimeHostProduct['onDeleteWithData'];
   readonly gcPolicy: RuntimeHostProduct['gcPolicy'];
-  readonly seekCache: SeekCachePort | null;
-  setSeekCache(cache: SeekCachePort | null): void;
   readonly fork: RuntimeHostProduct['fork'];
   readonly createWormhole: RuntimeHostProduct['createWormhole'];
   _effectPipeline: EffectPipeline | null;
@@ -132,16 +129,6 @@ export function buildWarpCoreRuntimeSurface(runtime: RuntimeHostProduct): WarpCo
     },
     get gcPolicy() {
       return runtime.gcPolicy;
-    },
-    get seekCache() {
-      return runtime.seekCache;
-    },
-    setSeekCache(cache: SeekCachePort | null): void {
-      if (cache === null) {
-        runtime._seekCache = null;
-        return;
-      }
-      runtime.setSeekCache(cache);
     },
     fork: runtime.fork.bind(runtime),
     createWormhole: runtime.createWormhole.bind(runtime),

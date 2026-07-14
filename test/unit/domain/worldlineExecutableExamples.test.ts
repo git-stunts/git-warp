@@ -4,7 +4,7 @@ import WarpApp from '../../../src/domain/WarpApp.ts';
 import Observer from '../../../src/domain/services/query/Observer.ts';
 import type { Aperture } from '../../../src/domain/types/Aperture.ts';
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import {
   openMemoryWarpApp,
   openMemoryWarpGraph as openWarpGraph,

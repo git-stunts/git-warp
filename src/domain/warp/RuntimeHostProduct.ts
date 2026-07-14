@@ -1,4 +1,3 @@
-import type SeekCachePort from '../../ports/SeekCachePort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
@@ -130,8 +129,6 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   _runtimeStorage: RuntimeStorageProviderPort;
   readonly onDeleteWithData: 'reject' | 'cascade' | 'warn';
   readonly gcPolicy: GCPolicy;
-  readonly seekCache: SeekCachePort | null;
-  _seekCache: SeekCachePort | null;
   _cachedState: WarpState | null;
   _stateDirty: boolean;
   _materializedGraph: RuntimeHostMaterializedGraph | null;
@@ -150,7 +147,6 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   readonly _syncController: SyncController;
   readonly provenanceIndex: ProvenanceIndex | null;
   readonly temporal: TemporalQuery;
-  setSeekCache(cache: SeekCachePort): void;
   readonly fork: (_request: RuntimeForkRequest) => Promise<RuntimeHostProduct>;
   readonly createWormhole: (_fromSha: string, _toSha: string) => Promise<RuntimeWormholeRecord>;
   materialize(options: { receipts: true; ceiling?: number | null }): Promise<RuntimeHostMaterializeReceiptsResult>;

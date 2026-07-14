@@ -12,7 +12,7 @@ import TreeEntryMissing from '../../../../../src/domain/tree/TreeEntryMissing.ts
 import type TreeEntryPath from '../../../../../src/domain/tree/TreeEntryPath.ts';
 import type TreeEntryPrefixBatch from '../../../../../src/domain/tree/TreeEntryPrefixBatch.ts';
 import GitTimelineHistoryAdapter from '../../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
-import InMemoryGraphAdapter from '../../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
   encodeCheckpointMessage,

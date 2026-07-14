@@ -1,23 +1,22 @@
-/* eslint-disable @typescript-eslint/require-await -- all async methods match the port contract */
 /**
  * In-memory persistence adapter for WARP graph storage.
  *
  * Implements the same GraphPersistencePort contract as GitTimelineHistoryAdapter
  * but stores all data in Maps. Designed for fast unit/integration tests.
  */
-import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
-import type { ListRefsOptions } from '../../ports/RefPort.ts';
-import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
-import WarpStream from '../../domain/stream/WarpStream.ts';
-import PersistenceError from '../../domain/errors/PersistenceError.ts';
-import WarpError from '../../domain/errors/WarpError.ts';
-import TreeEntryFound from '../../domain/tree/TreeEntryFound.ts';
-import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
-import TreeEntryMissing from '../../domain/tree/TreeEntryMissing.ts';
-import TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
-import TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
-import type { TreeEntryProbeResult } from '../../ports/TreeEntryProbePort.ts';
-import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
+import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../src/ports/CommitPort.ts';
+import type { ListRefsOptions } from '../../src/ports/RefPort.ts';
+import GraphPersistencePort from '../../src/ports/GraphPersistencePort.ts';
+import WarpStream from '../../src/domain/stream/WarpStream.ts';
+import PersistenceError from '../../src/domain/errors/PersistenceError.ts';
+import WarpError from '../../src/domain/errors/WarpError.ts';
+import TreeEntryFound from '../../src/domain/tree/TreeEntryFound.ts';
+import type TreeEntryLimit from '../../src/domain/tree/TreeEntryLimit.ts';
+import TreeEntryMissing from '../../src/domain/tree/TreeEntryMissing.ts';
+import TreeEntryPath from '../../src/domain/tree/TreeEntryPath.ts';
+import TreeEntryPrefixBatch from '../../src/domain/tree/TreeEntryPrefixBatch.ts';
+import type { TreeEntryProbeResult } from '../../src/ports/TreeEntryProbePort.ts';
+import { validateOid, validateRef, validateLimit, validateConfigKey } from '../../src/infrastructure/adapters/adapterValidation.ts';
 import {
   type HashFn,
   type TreeEntry,
