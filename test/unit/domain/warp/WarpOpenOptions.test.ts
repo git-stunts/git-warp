@@ -8,6 +8,7 @@ import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostP
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { createMockPersistence } from '../../../helpers/warpGraphTestUtils.ts';
+import { createMemoryRuntimeStorage } from '../../../helpers/MemoryRuntimeHost.ts';
 
 describe('WarpOpenOptions', () => {
   it('freezes required runtime open options without resolving default ports', () => {
@@ -78,8 +79,10 @@ describe('WarpOpenOptions', () => {
   });
 
   it('keeps raw object compatibility at the construction resolver boundary', async () => {
+    const persistence = createMockPersistence();
     const { options } = await resolveRuntimeHostConstructionOptions({
-      persistence: createMockPersistence(),
+      persistence,
+      runtimeStorage: createMemoryRuntimeStorage(persistence),
       graphName: 'raw-options',
       writerId: 'writer-1',
     });
@@ -91,8 +94,10 @@ describe('WarpOpenOptions', () => {
   });
 
   it('opens runtime products from a parsed options instance', async () => {
+    const persistence = createMockPersistence();
     const runtime = await openRuntimeHostProduct(new WarpOpenOptions({
-      persistence: createMockPersistence(),
+      persistence,
+      runtimeStorage: createMemoryRuntimeStorage(persistence),
       graphName: 'parsed-runtime',
       writerId: 'writer-1',
       onDeleteWithData: 'cascade',
@@ -101,5 +106,20 @@ describe('WarpOpenOptions', () => {
     expect(runtime.graphName).toBe('parsed-runtime');
     expect(runtime.writerId).toBe('writer-1');
     expect(runtime.onDeleteWithData).toBe('cascade');
+  });
+
+  it('treats JavaScript null runtime storage as absent and fails closed', async () => {
+    const options = new WarpOpenOptions({
+      persistence: createMockPersistence(),
+      graphName: 'null-runtime-storage',
+      writerId: 'writer-1',
+      // @ts-expect-error exercising runtime validation for JavaScript callers
+      runtimeStorage: null,
+    });
+
+    expect(options.runtimeStorage).toBeUndefined();
+    await expect(resolveRuntimeHostConstructionOptions(options)).rejects.toMatchObject({
+      code: 'E_RUNTIME_STORAGE_REQUIRED',
+    });
   });
 });

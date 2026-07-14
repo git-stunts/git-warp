@@ -4,7 +4,7 @@ import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailur
 import { createTimeline } from '../domain/api/TimelineRuntime.ts';
 import WarpError from '../domain/errors/WarpError.ts';
 import { openWarpWorldline } from '../domain/WarpWorldline.ts';
-import { installDefaultRuntimeHostNodePorts } from './RuntimeHostNodeDefaults.ts';
+import { getDefaultRuntimeHostNodePorts } from './RuntimeHostNodeDefaults.ts';
 import WarpStorage from './WarpStorage.ts';
 import { resolveWarpStorage } from './WarpStorageRegistry.ts';
 
@@ -16,7 +16,7 @@ export type OpenWarpOptions = {
 export function openWarp(options: OpenWarpOptions): Promise<Warp> {
   return Promise.resolve().then(() => {
     assertOpenWarpOptions(options);
-    installDefaultRuntimeHostNodePorts();
+    const runtimePorts = getDefaultRuntimeHostNodePorts();
     const binding = resolveWarpStorage(options.storage);
 
     return new Warp({
@@ -28,6 +28,10 @@ export function openWarp(options: OpenWarpOptions): Promise<Warp> {
             runtimeStorage: binding.runtimeStorage,
             worldlineName: name,
             writerId: options.writer,
+            codec: runtimePorts.codec,
+            crypto: runtimePorts.crypto,
+            trustCrypto: runtimePorts.trustCrypto,
+            commitMessageCodec: runtimePorts.commitMessageCodec,
           }),
         ),
     });

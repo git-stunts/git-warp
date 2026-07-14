@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { openWarpGraph } from '../../../src/domain/WarpGraph.ts';
+import { openMemoryWarpGraph as openWarpGraph } from '../../helpers/MemoryRuntimeHost.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpGraph public sync seam', { timeout: 20000 }, () => {

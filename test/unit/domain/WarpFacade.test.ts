@@ -14,7 +14,7 @@ import Timeline from '../../../src/domain/api/Timeline.ts';
 import { requireTimelineRuntime } from '../../../src/domain/api/TimelineRuntime.ts';
 import Warp from '../../../src/domain/api/Warp.ts';
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { resolveWarpStorage } from '../../../src/application/WarpStorageRegistry.ts';
 import { MemoryStorage } from '../../../storage.ts';
 

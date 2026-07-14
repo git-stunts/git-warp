@@ -237,7 +237,7 @@ function parsePatchStorageRoute(trailers: Record<string, string>): PatchStorageR
   if (!storage.success) {
     throw messageCodecError(storage.error.issues[0]?.message ?? 'invalid git-cas patch storage trailers');
   }
-  return createGitCasPatchStorage(storage.data.encrypted);
+  return createGitCasPatchStorage({ encrypted: storage.data.encrypted });
 }
 
 export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {

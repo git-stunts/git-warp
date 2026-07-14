@@ -5,7 +5,7 @@ import { openWarp, reading } from '../../index.ts';
 import WarpStorage from '../../src/application/WarpStorage.ts';
 import { bindWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';
-import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../helpers/MemoryRuntimeHost.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
 import type CommitMessageCodecPort from '../../src/ports/CommitMessageCodecPort.ts';

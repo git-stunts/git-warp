@@ -111,7 +111,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       ...(request.patchContentOverride === undefined
         ? {}
         : { legacyPatchBlobStorage: request.patchContentOverride }),
-      writeStorage: createGitCasPatchStorage(false),
+      writeStorage: createGitCasPatchStorage({ encrypted: false }),
     });
   }
 

@@ -296,7 +296,7 @@ describe('CborPatchJournalAdapter', () => {
         codec,
         blobPort,
         blobStorage: createMockBlobStorage(),
-        writeStorage: createGitCasPatchStorage(false),
+        writeStorage: createGitCasPatchStorage({ encrypted: false }),
       });
 
       await expect(adapter.readPatch('legacy_oid', { storage: LEGACY_GIT_BLOB_PATCH_STORAGE }))
@@ -314,7 +314,7 @@ describe('CborPatchJournalAdapter', () => {
         codec,
         blobPort,
         blobStorage: createMockBlobStorage(),
-        writeStorage: createGitCasPatchStorage(false),
+        writeStorage: createGitCasPatchStorage({ encrypted: false }),
         compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
       });
 

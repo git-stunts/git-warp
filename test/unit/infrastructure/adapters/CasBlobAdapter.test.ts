@@ -197,14 +197,28 @@ describe('CasBlobAdapter', () => {
       expect(mockReadManifest).toHaveBeenCalledWith({ treeOid: 'tree-oid' });
     });
 
-    it('returns false when the injected CAS rejects the object', async () => {
-      mockReadManifest.mockRejectedValue(new Error('missing manifest'));
+    it.each(['MANIFEST_NOT_FOUND', 'GIT_OBJECT_NOT_FOUND'])(
+      'returns false for explicit CAS not-found code %s',
+      async (code) => {
+        mockReadManifest.mockRejectedValue(Object.assign(new Error('missing manifest'), { code }));
+        const adapter = new CasBlobAdapter({
+          cas: new MockContentAddressableStore(),
+          persistence: makePersistence(),
+        });
+
+        await expect(adapter.has('missing-oid')).resolves.toBe(false);
+      },
+    );
+
+    it('propagates non-not-found CAS failures', async () => {
+      const failure = Object.assign(new Error('backend unavailable'), { code: 'GIT_ERROR' });
+      mockReadManifest.mockRejectedValue(failure);
       const adapter = new CasBlobAdapter({
         cas: new MockContentAddressableStore(),
         persistence: makePersistence(),
       });
 
-      await expect(adapter.has('missing-oid')).resolves.toBe(false);
+      await expect(adapter.has('tree-oid')).rejects.toBe(failure);
     });
   });
 

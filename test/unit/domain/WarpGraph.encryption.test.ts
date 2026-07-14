@@ -5,7 +5,7 @@
  * BlobStoragePort that simulates encrypted storage in memory.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import BlobStoragePort from '../../../src/ports/BlobStoragePort.ts';
 import EncryptionError from '../../../src/domain/errors/EncryptionError.ts';

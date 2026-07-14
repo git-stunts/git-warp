@@ -2,8 +2,8 @@ import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryG
 import {
   type RuntimeHostOpenOptions,
   type RuntimeHostProduct,
-  openRuntimeHostProduct,
 } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import {
   CHECKPOINT_NODE_ID,
   CHECKPOINT_PROPERTY_VALUE,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { createGitRepo, createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 type RuntimeGraph = Awaited<ReturnType<typeof openRuntimeHostProduct>>;

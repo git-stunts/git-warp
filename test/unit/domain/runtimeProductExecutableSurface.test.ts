@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 
 const HEX_OBJECT_ID = /^[0-9a-f]{40}$/u;

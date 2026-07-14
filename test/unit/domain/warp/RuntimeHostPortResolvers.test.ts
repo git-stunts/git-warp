@@ -105,7 +105,7 @@ describe('RuntimeHostPortResolvers', () => {
     await expect(resolvers.resolveConfiguredCrypto(crypto)).resolves.toBe(crypto);
     await expect(resolvers.resolveConfiguredTrustCrypto(trustCrypto, TRUST_ENFORCE))
       .resolves.toBe(trustCrypto);
-    await expect(resolvers.resolveConfiguredRuntimeStorage(runtimeStorage, history))
+    await expect(resolvers.resolveConfiguredRuntimeStorage(runtimeStorage))
       .resolves.toBe(runtimeStorage);
   });
 
@@ -120,25 +120,12 @@ describe('RuntimeHostPortResolvers', () => {
     });
   });
 
-  it('rejects missing runtime storage resolver', async () => {
+  it.each([undefined, null])('rejects missing runtime storage %s', async (runtimeStorage) => {
     const resolvers = await loadResolvers();
 
     await expect(
-      resolvers.resolveConfiguredRuntimeStorage(undefined, new InMemoryGraphAdapter()),
+      resolvers.resolveConfiguredRuntimeStorage(runtimeStorage),
     ).rejects.toMatchObject({ code: 'E_RUNTIME_STORAGE_REQUIRED' });
-  });
-
-  it('uses the installed runtime storage resolver', async () => {
-    const resolvers = await loadResolvers();
-    const history = new InMemoryGraphAdapter();
-    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history });
-    const storageResolver = vi.fn(() => runtimeStorage);
-
-    resolvers.installRuntimeHostStorageResolver(storageResolver);
-
-    await expect(resolvers.resolveConfiguredRuntimeStorage(undefined, history))
-      .resolves.toBe(runtimeStorage);
-    expect(storageResolver).toHaveBeenCalledWith(history);
   });
 
   it('keeps runtime storage explicit when browser defaults are installed', async () => {
@@ -146,14 +133,13 @@ describe('RuntimeHostPortResolvers', () => {
     const { installDefaultRuntimeHostBrowserPorts } = await import(
       '../../../../src/application/RuntimeHostBrowserDefaults.ts'
     );
-    const history = new InMemoryGraphAdapter();
 
     installDefaultRuntimeHostBrowserPorts();
 
     await expect(resolvers.resolveConfiguredCodec(undefined)).resolves.toBeDefined();
     await expect(resolvers.resolveConfiguredCrypto(undefined)).resolves.toBeDefined();
     await expect(
-      resolvers.resolveConfiguredRuntimeStorage(undefined, history),
+      resolvers.resolveConfiguredRuntimeStorage(undefined),
     ).rejects.toMatchObject({ code: 'E_RUNTIME_STORAGE_REQUIRED' });
   });
 

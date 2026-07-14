@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
 import MemoryRuntimeStorageAdapter from '../../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
 

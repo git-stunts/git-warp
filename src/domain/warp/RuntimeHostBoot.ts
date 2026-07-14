@@ -144,7 +144,7 @@ export class WarpOpenOptions {
     validateWriterId(options.writerId);
 
     this.persistence = options.persistence;
-    if (options.runtimeStorage !== undefined) {
+    if (options.runtimeStorage !== null && options.runtimeStorage !== undefined) {
       this.runtimeStorage = options.runtimeStorage;
     }
     this.graphName = options.graphName;
@@ -311,10 +311,7 @@ export async function resolveRuntimeHostConstructionOptions(
   const resolvedCodec = await resolveConfiguredCodec(codec);
   const resolvedCrypto = await resolveConfiguredCrypto(crypto);
   const resolvedTrustCrypto = await resolveConfiguredTrustCrypto(trustCrypto, normalizedTrust);
-  const resolvedRuntimeStorage = await resolveConfiguredRuntimeStorage(
-    runtimeStorage,
-    persistence,
-  );
+  const resolvedRuntimeStorage = await resolveConfiguredRuntimeStorage(runtimeStorage);
   const storageServices = await resolvedRuntimeStorage.createRuntimeStorageServices({
     timelineName: graphName,
     codec: resolvedCodec,

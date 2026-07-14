@@ -55,6 +55,17 @@ function normalizeToUint8Array(buffer: Uint8Array): Uint8Array {
  * deciding whether this is retired legacy content or a genuinely missing OID.
  */
 const LEGACY_BLOB_CODES = new Set(['MANIFEST_NOT_FOUND', 'GIT_ERROR']);
+const CAS_NOT_FOUND_CODES = new Set(['MANIFEST_NOT_FOUND', 'GIT_OBJECT_NOT_FOUND']);
+
+function isCasNotFoundError(err: unknown): boolean {
+  return (
+    typeof err === 'object'
+    && err !== null
+    && 'code' in err
+    && typeof err.code === 'string'
+    && CAS_NOT_FOUND_CODES.has(err.code)
+  );
+}
 
 function isLegacyBlobError(err: unknown): err is Error {
   if (err instanceof Error && 'code' in err) {
@@ -124,8 +135,11 @@ export default class CasBlobAdapter extends BlobStoragePort {
     try {
       await cas.readManifest({ treeOid: oid });
       return true;
-    } catch {
-      return false;
+    } catch (err) {
+      if (isCasNotFoundError(err)) {
+        return false;
+      }
+      throw err;
     }
   }
 

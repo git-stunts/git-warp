@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import {
+  openMemoryRuntimeHostProduct as openRuntimeHostProduct,
+  openMemoryWarpWorldline as openWarpWorldline,
+} from '../helpers/MemoryRuntimeHost.ts';
 import type { PatchBuilder } from '../../src/domain/services/PatchBuilder.ts';
 
 const NODE_ID = 'event-1';

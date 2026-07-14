@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpCore deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000 }, () => {

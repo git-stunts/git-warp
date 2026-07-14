@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 async function collectNodes(stream: AsyncIterable<string>): Promise<string[]> {

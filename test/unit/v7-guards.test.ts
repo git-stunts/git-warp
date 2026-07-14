@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import WarpCore from '../../src/domain/WarpCore.ts';
+import { openMemoryWarpCore } from '../helpers/MemoryRuntimeHost.ts';
+import type WarpCore from '../../src/domain/WarpCore.ts';
 import { PatchBuilder } from '../../src/domain/services/PatchBuilder.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 
 function openCore(graphName: string): Promise<WarpCore> {
-  return WarpCore.open({
+  return openMemoryWarpCore({
     persistence: new InMemoryGraphAdapter(),
     graphName,
     writerId: 'v7-writer',

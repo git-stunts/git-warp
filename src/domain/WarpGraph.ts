@@ -34,6 +34,7 @@ import type CodecPort from '../ports/CodecPort.ts';
 import type SeekCachePort from '../ports/SeekCachePort.ts';
 import type BlobStoragePort from '../ports/BlobStoragePort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
+import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type EffectSinkPort from '../ports/EffectSinkPort.ts';
@@ -41,6 +42,7 @@ import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type { GCPolicyConfig } from './services/GCPolicy.ts';
 import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
+import type TrustCryptoPort from '../ports/TrustCryptoPort.ts';
 
 // ---------------------------------------------------------------------------
 // WarpGraph — frozen capability bag, organized by architectural moment
@@ -153,6 +155,8 @@ export interface WarpGraphDeps {
   // Witness infrastructure
   readonly crypto?: CryptoPort;
   readonly codec?: CodecPort;
+  readonly trustCrypto?: TrustCryptoPort;
+  readonly commitMessageCodec?: CommitMessageCodecPort;
   readonly audit?: boolean;
 
   // Revelation regime

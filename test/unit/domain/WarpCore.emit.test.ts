@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import WarpCore from '../../../src/domain/WarpCore.ts';
+import { openMemoryWarpCore } from '../../helpers/MemoryRuntimeHost.ts';
+import type WarpCore from '../../../src/domain/WarpCore.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { EFFECT_NODE_PREFIX } from '../../../src/domain/services/KeyCodec.ts';
 
 type WarpCoreWired = Awaited<ReturnType<typeof WarpCore.open>>;
 
 async function openCore(extra = {}): Promise<WarpCoreWired> {
-  return (await WarpCore.open({
+  return (await openMemoryWarpCore({
     persistence: new InMemoryGraphAdapter(),
     graphName: 'emit-test',
     writerId: 'writer-1',
@@ -175,7 +176,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
 
     it('canonical payload serialization is deterministic across instances', async () => {
       const core1 = await openCore();
-      const core2 = (await WarpCore.open({
+      const core2 = (await openMemoryWarpCore({
         persistence: new InMemoryGraphAdapter(),
         graphName: 'emit-test-2',
         writerId: 'writer-1',

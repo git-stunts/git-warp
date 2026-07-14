@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';
 import MemoryBudgetError from '../../src/domain/errors/MemoryBudgetError.ts';
 import BoundedQueryReadModel from '../../src/domain/services/query/BoundedQueryReadModel.ts';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import { openMemoryWarpWorldline as openWarpWorldline } from '../helpers/MemoryRuntimeHost.ts';
 import V18LargeGraphOverSmallPoolFixture from './fixtures/V18LargeGraphOverSmallPoolFixture.ts';
 
 describe('v18 bounded-memory large-graph gate', () => {

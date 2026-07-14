@@ -261,7 +261,7 @@ describe('v19 public API boundary', () => {
     ]);
   });
 
-  it('installs Node runtime defaults at openWarp instead of package import time', () => {
+  it('injects immutable Node runtime defaults without installing ambient ports', () => {
     const defaultsModule = './RuntimeHostNodeDefaults.ts';
     expect(importedModules('index.ts')).not.toContain(defaultsModule);
     expect(importedModules('src/application/openWarp.ts')).toContain(defaultsModule);
@@ -269,8 +269,15 @@ describe('v19 public API boundary', () => {
       exportedFunctionCalls(
         'src/application/openWarp.ts',
         'openWarp',
-        'installDefaultRuntimeHostNodePorts'
+        'getDefaultRuntimeHostNodePorts'
       )
     ).toBe(true);
+    expect(
+      exportedFunctionCalls(
+        'src/application/openWarp.ts',
+        'openWarp',
+        'installDefaultRuntimeHostNodePorts'
+      )
+    ).toBe(false);
   });
 });

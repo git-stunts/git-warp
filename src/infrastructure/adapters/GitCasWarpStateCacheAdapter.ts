@@ -9,7 +9,7 @@ import WarpStateCachePort, {
 import { buildStateCacheRef } from '../../domain/utils/RefLayout.ts';
 import CacheError from '../../domain/errors/CacheError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
-import { textEncode, textDecode, concatBytes } from '../../domain/utils/bytes.ts';
+import { textEncode, concatBytes } from '../../domain/utils/bytes.ts';
 import CasContentEncryptionPolicy, {
   type CasRestoreEncryptionArguments,
   type CasStoreEncryptionOptions,
@@ -34,10 +34,13 @@ import {
   stateCacheIndexRecords,
   stateCacheRetentionRoots,
   stateCacheRetentionRootsEqual,
-  type GitCasStateCacheEntry,
   type GitCasStateCacheIndex,
   type GitCasStateCacheRetentionRoot,
 } from './GitCasStateCacheIndex.ts';
+import {
+  createEmptyGitCasStateCacheIndex,
+  parseGitCasStateCacheIndex,
+} from './GitCasStateCacheIndexCodec.ts';
 
 type CasStore = Pick<
   ContentAddressableStore,
@@ -62,12 +65,6 @@ interface CacheIndexState {
   index: GitCasStateCacheIndex;
 }
 
-interface CacheIndexCandidate {
-  schemaVersion?: unknown;
-  checkpointHeadId?: unknown;
-  snapshots?: unknown;
-}
-
 interface IndexMutationContext {
   current: CacheIndexState;
   currentRoots: Map<string, GitCasStateCacheRetentionRoot>;
@@ -76,66 +73,37 @@ interface IndexMutationContext {
 }
 
 const DEFAULT_MAX_ENTRIES = 200;
-const INDEX_SCHEMA_VERSION = 1;
 const MAX_CAS_RETRIES = 3;
+const EVICTABLE_CAS_PAYLOAD_ERROR_CODES = new Set([
+  'GIT_OBJECT_NOT_FOUND',
+  'MANIFEST_INTEGRITY_ERROR',
+  'MANIFEST_NOT_FOUND',
+]);
 
-function _emptyIndex(): GitCasStateCacheIndex {
-  return { schemaVersion: INDEX_SCHEMA_VERSION, snapshots: {} };
+function isEvictableCasPayloadError(error: unknown): boolean {
+  return (
+    typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && typeof error.code === 'string'
+    && EVICTABLE_CAS_PAYLOAD_ERROR_CODES.has(error.code)
+  );
 }
 
-function _validateParsedIndex(parsed: unknown): GitCasStateCacheIndex {
-  const candidate = cacheIndexCandidate(parsed);
-  validateIndexSchema(candidate.schemaVersion);
-  const checkpointHeadId = validateCheckpointHeadId(candidate.checkpointHeadId);
-  const snapshots = validateSnapshots(candidate.snapshots);
-  const index: GitCasStateCacheIndex = { schemaVersion: INDEX_SCHEMA_VERSION, snapshots };
-  if (checkpointHeadId !== undefined) {
-    index.checkpointHeadId = checkpointHeadId;
+function evictConfirmedSnapshotPayload(
+  index: GitCasStateCacheIndex,
+  record: WarpStateSnapshotRecord,
+  clearCheckpointHead: boolean,
+): GitCasStateCacheIndex {
+  const tracked = index.snapshots[record.snapshotId];
+  if (tracked === undefined || tracked.payloadRef !== record.payloadRef) {
+    return index;
+  }
+  delete index.snapshots[record.snapshotId];
+  if (clearCheckpointHead && index.checkpointHeadId === record.snapshotId) {
+    delete index.checkpointHeadId;
   }
   return index;
-}
-
-function cacheIndexCandidate(parsed: unknown): CacheIndexCandidate {
-  if (typeof parsed !== 'object' || parsed === null) {
-    throw new CacheError('GitCasWarpStateCacheAdapter: state-cache index must be an object');
-  }
-  return parsed as CacheIndexCandidate;
-}
-
-function validateIndexSchema(schemaVersion: unknown): void {
-  if (schemaVersion !== INDEX_SCHEMA_VERSION) {
-    throw new CacheError(
-      `GitCasWarpStateCacheAdapter: unsupported state-cache index schema ${String(schemaVersion)}`
-    );
-  }
-}
-
-function validateCheckpointHeadId(checkpointHeadId: unknown): string | undefined {
-  if (checkpointHeadId !== undefined && typeof checkpointHeadId !== 'string') {
-    throw new CacheError('GitCasWarpStateCacheAdapter: checkpointHeadId must be a string');
-  }
-  return checkpointHeadId;
-}
-
-function validateSnapshots(value: unknown): Record<string, GitCasStateCacheEntry> {
-  const snapshots = value ?? {};
-  if (typeof snapshots !== 'object' || snapshots === null || Array.isArray(snapshots)) {
-    throw new CacheError('GitCasWarpStateCacheAdapter: snapshots must be an object');
-  }
-  return snapshots as Record<string, GitCasStateCacheEntry>;
-}
-
-function _parseIndexBlob(buf: Uint8Array): GitCasStateCacheIndex {
-  try {
-    return _validateParsedIndex(JSON.parse(textDecode(buf)));
-  } catch (error) {
-    if (error instanceof CacheError) {
-      throw error;
-    }
-    throw new CacheError(
-      `GitCasWarpStateCacheAdapter: malformed state-cache index: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
 }
 
 function cacheUpdateFailure(lastErr: unknown): CacheError {
@@ -187,11 +155,11 @@ export class GitCasWarpStateCacheAdapter
   private async _readIndexState(): Promise<CacheIndexState> {
     const headOid = await this._persistence.readRef(this._ref);
     if (typeof headOid !== 'string' || headOid.length === 0) {
-      return { headOid: null, index: _emptyIndex() };
+      return { headOid: null, index: createEmptyGitCasStateCacheIndex() };
     }
     return {
       headOid,
-      index: _parseIndexBlob(await this._persistence.readBlob(headOid)),
+      index: parseGitCasStateCacheIndex(await this._persistence.readBlob(headOid)),
     };
   }
 
@@ -301,6 +269,32 @@ export class GitCasWarpStateCacheAdapter
     return { ...record, state };
   }
 
+  private async _loadTrackedSnapshot(
+    cas: CasStore,
+    record: WarpStateSnapshotRecord,
+    options: { readonly clearCheckpointHead?: boolean } = {},
+  ): Promise<WarpStateSnapshotRecord | null> {
+    try {
+      return await this._loadSnapshotState(cas, record);
+    } catch (err) {
+      const encryptionError = mapCasContentEncryptionError(err, 'state-cache');
+      if (encryptionError !== null) {
+        throw encryptionError;
+      }
+      if (!isEvictableCasPayloadError(err)) {
+        throw err;
+      }
+      await this._mutateIndex((index) =>
+        evictConfirmedSnapshotPayload(
+          index,
+          record,
+          options.clearCheckpointHead === true,
+        )
+      );
+      return null;
+    }
+  }
+
   override async getExact(
     coordinate: WarpStateCoordinate
   ): Promise<WarpStateSnapshotRecord | null> {
@@ -311,19 +305,7 @@ export class GitCasWarpStateCacheAdapter
     if (match === null) {
       return null;
     }
-    try {
-      return await this._loadSnapshotState(cas, match);
-    } catch (err) {
-      const encryptionError = mapCasContentEncryptionError(err, 'state-cache');
-      if (encryptionError !== null) {
-        throw encryptionError;
-      }
-      await this._mutateIndex((idx) => {
-        delete idx.snapshots[match.snapshotId];
-        return idx;
-      });
-      return null;
-    }
+    return await this._loadTrackedSnapshot(cas, match);
   }
 
   override async getBestCompatiblePredecessor(
@@ -336,19 +318,7 @@ export class GitCasWarpStateCacheAdapter
     if (match === null) {
       return null;
     }
-    try {
-      return await this._loadSnapshotState(cas, match);
-    } catch (err) {
-      const encryptionError = mapCasContentEncryptionError(err, 'state-cache');
-      if (encryptionError !== null) {
-        throw encryptionError;
-      }
-      await this._mutateIndex((idx) => {
-        delete idx.snapshots[match.snapshotId];
-        return idx;
-      });
-      return null;
-    }
+    return await this._loadTrackedSnapshot(cas, match);
   }
 
   override async put(snapshot: WarpStateSnapshotRecord): Promise<WarpStateSnapshotRecord> {
@@ -423,20 +393,7 @@ export class GitCasWarpStateCacheAdapter
       return null;
     }
     const match = cacheEntryToSnapshotRecord(entry);
-    try {
-      return await this._loadSnapshotState(cas, match);
-    } catch (err) {
-      const encryptionError = mapCasContentEncryptionError(err, 'state-cache');
-      if (encryptionError !== null) {
-        throw encryptionError;
-      }
-      await this._mutateIndex((idx) => {
-        delete idx.snapshots[match.snapshotId];
-        delete idx.checkpointHeadId;
-        return idx;
-      });
-      return null;
-    }
+    return await this._loadTrackedSnapshot(cas, match, { clearCheckpointHead: true });
   }
 
   override async pruneEvictable(): Promise<void> {

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { openWarpGraphRuntime } from '../../../src/domain/warp/WarpGraphRuntimeBridge.ts';
+import { createMemoryRuntimeStorage } from '../../helpers/MemoryRuntimeHost.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 const bridgePath = fileURLToPath(
@@ -46,6 +47,7 @@ describe('openWarpRuntime bridge closeout', () => {
     try {
       const runtime = await openWarpGraphRuntime({
         persistence: repo.persistence,
+        runtimeStorage: createMemoryRuntimeStorage(repo.persistence),
         graphName: 'bridge-closeout',
         writerId: 'alice',
       });

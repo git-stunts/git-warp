@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { PatchBuilder } from '../../../src/domain/services/PatchBuilder.ts';
 import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifierService.ts';
 import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.ts';

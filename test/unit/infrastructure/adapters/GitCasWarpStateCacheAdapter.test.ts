@@ -140,6 +140,23 @@ function indexBuffer(snapshots = {}, checkpointHeadId?: string, schemaVersion = 
   return new TextEncoder().encode(JSON.stringify({ schemaVersion, checkpointHeadId, snapshots }));
 }
 
+function cacheEntry(overrides: Record<string, unknown> = {}) {
+  return {
+    snapshotId: SAMPLE_SNAPSHOT_ID,
+    coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
+    retention: 'evictable',
+    provenancePosture: 'full',
+    stateHash: 'hash-1',
+    payloadRef: 'tree-1',
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function casFailure(code: string, message = code): Error & { code: string } {
+  return Object.assign(new Error(message), { code });
+}
+
 function createGoldenState() {
   const nodeAlive = ORSet.empty();
   nodeAlive.add('user:alice', Dot.create('w1', 1));
@@ -325,7 +342,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: SAMPLE_COORDINATE,
         retention: 'evictable' as const,
-        provenancePosture: 'complete' as const,
+        provenancePosture: 'full' as const,
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -339,7 +356,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: SAMPLE_COORDINATE,
         retention: 'evictable' as const,
-        provenancePosture: 'complete' as const,
+        provenancePosture: 'full' as const,
         stateHash: 'hash-1',
         payloadRef: '',
         createdAt: new Date().toISOString(),
@@ -373,7 +390,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -412,7 +429,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -452,7 +469,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -460,7 +477,9 @@ describe('GitCasWarpStateCacheAdapter', () => {
       persistence.readRef.mockResolvedValue('blob-1');
       persistence.readBlob.mockResolvedValue(indexBuffer({ [SAMPLE_SNAPSHOT_ID]: entry }, SAMPLE_SNAPSHOT_ID));
 
-      mockReadManifest.mockRejectedValueOnce(new Error('Corrupted CAS object'));
+      mockReadManifest.mockRejectedValueOnce(
+        casFailure('MANIFEST_NOT_FOUND', 'missing checkpoint manifest'),
+      );
 
       const resolved = await adapter.resolveCheckpointHead(GRAPH_NAME);
       expect(resolved).toBeNull();
@@ -472,7 +491,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -505,7 +524,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -535,7 +554,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -543,7 +562,9 @@ describe('GitCasWarpStateCacheAdapter', () => {
       persistence.readRef.mockResolvedValue('blob-1');
       persistence.readBlob.mockResolvedValue(indexBuffer({ [SAMPLE_SNAPSHOT_ID]: entry }));
 
-      mockReadManifest.mockRejectedValueOnce(new Error('Corrupted CAS object'));
+      mockReadManifest.mockRejectedValueOnce(
+        casFailure('MANIFEST_NOT_FOUND', 'missing snapshot manifest'),
+      );
 
       expect(await adapter.getExact(SAMPLE_COORDINATE)).toBeNull();
       expect(persistence.writeBlob).toHaveBeenCalled();
@@ -554,7 +575,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -569,12 +590,44 @@ describe('GitCasWarpStateCacheAdapter', () => {
       await expect(adapter.getExact(SAMPLE_COORDINATE)).rejects.toThrow(/vault passphrase verification failed/);
     });
 
+    it('propagates transient CAS failures without deleting the entry', async () => {
+      const entry = cacheEntry();
+      persistence.readRef.mockResolvedValue('blob-1');
+      persistence.readBlob.mockResolvedValue(indexBuffer({ [SAMPLE_SNAPSHOT_ID]: entry }));
+      const failure = casFailure('GIT_ERROR', 'backend unavailable');
+      mockReadManifest.mockRejectedValueOnce(failure);
+
+      await expect(adapter.getExact(SAMPLE_COORDINATE)).rejects.toBe(failure);
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+    });
+
+    it('propagates last-access index update failures without attempting eviction', async () => {
+      const entry = cacheEntry();
+      persistence.readRef.mockResolvedValue('blob-1');
+      persistence.readBlob.mockResolvedValue(indexBuffer({ [SAMPLE_SNAPSHOT_ID]: entry }));
+      const encodedState = codec.encode({
+        version: 'full-v5',
+        nodeAlive: {},
+        edgeAlive: {},
+        prop: [],
+        observedFrontier: {},
+      });
+      mockReadManifest.mockResolvedValueOnce({ some: 'manifest' });
+      mockRestore.mockResolvedValueOnce({ buffer: encodedState });
+      persistence.writeBlob.mockRejectedValue(new Error('simulated write failure'));
+
+      await expect(adapter.getExact(SAMPLE_COORDINATE)).rejects.toThrow(
+        SIMULATED_UPDATE_FAILURE,
+      );
+      expect(persistence.writeBlob).toHaveBeenCalledTimes(3);
+    });
+
     it('resolves best compatible predecessor successfully', async () => {
       const entry = {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 5 }, // ceiling 5 <= 10
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -598,12 +651,12 @@ describe('GitCasWarpStateCacheAdapter', () => {
       expect(match!.state).toBeInstanceOf(WarpState);
     });
 
-    it('deletes entry on CAS restore failure in getBestCompatiblePredecessor', async () => {
+    it('deletes entry on a missing CAS chunk in getBestCompatiblePredecessor', async () => {
       const entry = {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 5 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -611,7 +664,9 @@ describe('GitCasWarpStateCacheAdapter', () => {
       persistence.readRef.mockResolvedValue('blob-1');
       persistence.readBlob.mockResolvedValue(indexBuffer({ [SAMPLE_SNAPSHOT_ID]: entry }));
 
-      mockReadManifest.mockRejectedValueOnce(new Error('Corrupted CAS object'));
+      mockReadManifest.mockRejectedValueOnce(
+        casFailure('GIT_OBJECT_NOT_FOUND', 'missing snapshot chunk'),
+      );
 
       expect(await adapter.getBestCompatiblePredecessor(SAMPLE_COORDINATE)).toBeNull();
       expect(persistence.writeBlob).toHaveBeenCalled();
@@ -622,7 +677,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 5 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -655,7 +710,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -679,7 +734,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
@@ -694,10 +749,8 @@ describe('GitCasWarpStateCacheAdapter', () => {
       mockReadManifest.mockResolvedValueOnce({ some: 'manifest' });
       mockRestore.mockResolvedValueOnce({ buffer: invalidVersionState });
 
-      // getExact catches non-encryption errors and deletes the entry
-      const match = await adapter.getExact(SAMPLE_COORDINATE);
-      expect(match).toBeNull();
-      expect(persistence.writeBlob).toHaveBeenCalled();
+      await expect(adapter.getExact(SAMPLE_COORDINATE)).rejects.toThrow();
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
     });
 
     it('handles null/empty state buffer gracefully', async () => {
@@ -705,7 +758,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
         retention: 'evictable',
-        provenancePosture: 'complete',
+        provenancePosture: 'full',
         stateHash: 'hash-1',
         payloadRef: 'tree-1',
         createdAt: new Date().toISOString(),
