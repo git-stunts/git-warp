@@ -53,27 +53,24 @@ function walk(directory: string): string[] {
   return files;
 }
 
-function forbiddenReferences(path: string): string[] {
+function forbiddenReferences(
+  path: string,
+  sourceText = readFileSync(path, 'utf8'),
+): string[] {
   const source = ts.createSourceFile(
     path,
-    readFileSync(path, 'utf8'),
+    sourceText,
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TS
   );
   const violations = new Set<string>();
   const visit = (node: ts.Node): void => {
-    if (ts.isIdentifier(node) && REMOVED_PRODUCTION_IDENTIFIERS.has(node.text)) {
-      violations.add(`${relative(REPO_ROOT.pathname, path)} uses ${node.text}`);
-    }
     if (
-      (ts.isClassDeclaration(node) ||
-        ts.isInterfaceDeclaration(node) ||
-        ts.isTypeAliasDeclaration(node)) &&
-      node.name !== undefined &&
-      REMOVED_PRODUCTION_SYMBOLS.has(node.name.text)
+      ts.isIdentifier(node) &&
+      (REMOVED_PRODUCTION_IDENTIFIERS.has(node.text) || REMOVED_PRODUCTION_SYMBOLS.has(node.text))
     ) {
-      violations.add(`${relative(REPO_ROOT.pathname, path)} declares ${node.name.text}`);
+      violations.add(`${relative(REPO_ROOT.pathname, path)} uses ${node.text}`);
     }
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
       const moduleSpecifier = node.moduleSpecifier;
@@ -95,13 +92,29 @@ function forbiddenReferences(path: string): string[] {
 }
 
 describe('storage ownership boundary', () => {
+  it('rejects removed symbols in arbitrary identifier positions', () => {
+    const fixturePath = new URL('storage-ownership-fixture.ts', REPO_ROOT).pathname;
+    const violations = forbiddenReferences(fixturePath, `
+      const CasSeekCacheAdapter = 1;
+      function SeekCachePort() { return CasSeekCacheAdapter; }
+      const active = SeekCachePort;
+      export { active as CachedValue };
+    `).sort();
+
+    expect(violations).toEqual([
+      'storage-ownership-fixture.ts uses CachedValue',
+      'storage-ownership-fixture.ts uses CasSeekCacheAdapter',
+      'storage-ownership-fixture.ts uses SeekCachePort',
+    ]);
+  });
+
   it('keeps removed caches and in-memory storage implementations out of production', () => {
     const productionFiles = [
       ...PRODUCTION_ROOTS.flatMap(productionTypeScriptFiles),
       ...PRODUCTION_ENTRYPOINTS.map((path) => new URL(path, REPO_ROOT).pathname),
     ];
     const violations = productionFiles
-      .flatMap(forbiddenReferences)
+      .flatMap((path) => forbiddenReferences(path))
       .sort();
 
     expect(violations).toEqual([]);
