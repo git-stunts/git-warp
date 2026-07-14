@@ -4,7 +4,7 @@ import TreeEntryFound from '../../../../src/domain/tree/TreeEntryFound.ts';
 import TreeEntryLimit from '../../../../src/domain/tree/TreeEntryLimit.ts';
 import TreeEntryMissing from '../../../../src/domain/tree/TreeEntryMissing.ts';
 import TreeEntryPath from '../../../../src/domain/tree/TreeEntryPath.ts';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.ts';
 import { describeAdapterConformance } from './AdapterConformance.ts';
 
@@ -27,10 +27,10 @@ beforeEach(() => {
     execute: vi.fn(),
     executeStream: vi.fn(),
   };
-  adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+  adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
 });
 
-describe('GitGraphAdapter coverage', () => {
+describe('GitTimelineHistoryAdapter coverage', () => {
   // ── logNodes ────────────────────────────────────────────────────────
 
   describe('logNodes()', () => {
@@ -767,7 +767,7 @@ describe('GitGraphAdapter coverage', () => {
 
 // ── Conformance suite against a real Git repo ─────────────────────────────
 
-describeAdapterConformance('GitGraphAdapter', async () => {
+describeAdapterConformance('GitTimelineHistoryAdapter', async () => {
   const repo = await createGitRepo('conformance');
   return { adapter: repo.persistence, cleanup: repo.cleanup };
 });

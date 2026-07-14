@@ -1,7 +1,8 @@
 import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts';
 import type WarpStateCacheRetentionPort from '../../../../src/ports/WarpStateCacheRetentionPort.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
-import type { Persistence } from '../../types.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import type RuntimeStorageProviderPort from '../../../../src/ports/RuntimeStorageProviderPort.ts';
 import type { DoctorFinding } from './types.ts';
 import {
   stateCacheRepairFailureFinding,
@@ -11,11 +12,15 @@ import {
 export type DoctorStateCache = WarpStateCachePort & WarpStateCacheRetentionPort;
 
 export async function resolveStateCache(
-  persistence: Persistence,
+  runtimeStorage: RuntimeStorageProviderPort,
   graphName: string,
 ): Promise<DoctorStateCache | null> {
-  if (typeof persistence.createRuntimeStateCache !== 'function') { return null; }
-  return await persistence.createRuntimeStateCache({ graphName, codec: defaultCodec });
+  const services = await runtimeStorage.createRuntimeStorageServices({
+    timelineName: graphName,
+    codec: defaultCodec,
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+  });
+  return services.stateSnapshots ?? null;
 }
 
 export async function repairStateCache(

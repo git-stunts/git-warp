@@ -15,6 +15,14 @@ function requireFrontierEntry(frontier: ReadonlyMap<string, string>, writerId: s
 
 class RuntimeProductExecutableSurfaceTestError extends Error {}
 
+function requireRuntimeMethod(runtime: object, name: string): Function {
+  const method = Reflect.get(runtime, name);
+  if (typeof method === 'function') {
+    return method;
+  }
+  throw new RuntimeProductExecutableSurfaceTestError(`missing runtime method ${name}`);
+}
+
 describe('runtime product executable surface', () => {
   it('exposes checkpoint, sync frontier, and observer behavior on one product', async () => {
     const runtime = await openRuntimeHostProduct({
@@ -44,5 +52,23 @@ describe('runtime product executable surface', () => {
     });
     expect(checkpointSha).toMatch(HEX_OBJECT_ID);
     expect(requireFrontierEntry(frontier, 'agent-1')).toMatch(HEX_OBJECT_ID);
+  });
+
+  it('invalidates index metadata and fails closed without cached state', async () => {
+    const runtime = await openRuntimeHostProduct({
+      persistence: new InMemoryGraphAdapter(),
+      graphName: 'runtime-cache-boundaries',
+      writerId: 'agent-1',
+    });
+    Reflect.set(runtime, '_cachedIndexTree', { index: new Uint8Array([1]) });
+    Reflect.set(runtime, '_cachedViewHash', 'cached-view');
+
+    runtime.invalidateIndex();
+
+    expect(Reflect.get(runtime, '_cachedIndexTree')).toBeNull();
+    expect(Reflect.get(runtime, '_cachedViewHash')).toBeNull();
+    await expect(
+      Reflect.apply(requireRuntimeMethod(runtime, '_materializedGraphFromCachedState'), runtime, []),
+    ).rejects.toMatchObject({ code: 'E_NO_STATE' });
   });
 });

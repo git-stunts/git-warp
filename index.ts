@@ -10,7 +10,7 @@
  * operator inspection tools live under `@git-stunts/git-warp/diagnostics`.
  */
 
-export { openWarp } from './src/domain/api/openWarp.ts';
+export { openWarp } from './src/application/openWarp.ts';
 export { intent } from './src/domain/api/IntentBuilders.ts';
 export { reading } from './src/domain/api/ReadingBuilders.ts';
 export type { default as DraftTimeline } from './src/domain/api/DraftTimeline.ts';
@@ -25,7 +25,8 @@ export type { default as Reading } from './src/domain/api/Reading.ts';
 export type { default as ReadingResult } from './src/domain/api/ReadingResult.ts';
 export type { default as ReadReceipt } from './src/domain/api/ReadReceipt.ts';
 export type { default as WriteReceipt } from './src/domain/api/WriteReceipt.ts';
-export type { OpenWarpOptions, StorageAdapter } from './src/domain/api/openWarp.ts';
+export type { OpenWarpOptions } from './src/application/openWarp.ts';
+export type { default as WarpStorage } from './src/application/WarpStorage.ts';
 export type {
   EdgeIntentFields,
   IntentDescriptor,

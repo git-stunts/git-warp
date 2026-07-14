@@ -2,7 +2,7 @@
 /**
  * In-memory persistence adapter for WARP graph storage.
  *
- * Implements the same GraphPersistencePort contract as GitGraphAdapter
+ * Implements the same GraphPersistencePort contract as GitTimelineHistoryAdapter
  * but stores all data in Maps. Designed for fast unit/integration tests.
  */
 import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';

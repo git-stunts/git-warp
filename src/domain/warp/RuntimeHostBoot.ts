@@ -7,9 +7,6 @@ import PageCache from '../orset/trie/PageCache.ts';
 import TrieGeometry from '../orset/trie/TrieGeometry.ts';
 import WarpError from '../errors/WarpError.ts';
 import {
-  resolveBlobStorage,
-  resolvePatchWriteStorage,
-  resolveIndexStore,
   buildEffectPipeline,
   normalizeTrustConfig,
   type TrustMode,
@@ -19,6 +16,7 @@ import {
   resolveConfiguredCodec,
   resolveConfiguredCommitMessageCodec,
   resolveConfiguredCrypto,
+  resolveConfiguredRuntimeStorage,
   resolveConfiguredTrustCrypto,
 } from './RuntimeHostPortResolvers.ts';
 
@@ -34,7 +32,7 @@ import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../../ports/IndexStorePort.ts';
 import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
-import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
+import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
 import type SchedulerPort from '../../ports/SchedulerPort.ts';
 import type TrustCryptoPort from '../../ports/TrustCryptoPort.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
@@ -46,7 +44,8 @@ type DeletePolicy = 'reject' | 'cascade' | 'warn';
 const VALID_DELETE_POLICIES: ReadonlyArray<DeletePolicy> = ['reject', 'cascade', 'warn'];
 
 export type RuntimeHostConstructionOptions = {
-  persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+  persistence: CorePersistence;
+  runtimeStorage: RuntimeStorageProviderPort;
   graphName: string;
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
@@ -77,7 +76,8 @@ export type RuntimeHostConstructionOptions = {
 };
 
 export type RuntimeHostOpenOptions = {
-  persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+  persistence: CorePersistence;
+  runtimeStorage?: RuntimeStorageProviderPort;
   graphName: string;
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
@@ -107,7 +107,8 @@ export type RuntimeHostOpenOptions = {
 };
 
 export class WarpOpenOptions {
-  readonly persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+  readonly persistence: CorePersistence;
+  readonly runtimeStorage?: RuntimeStorageProviderPort;
   readonly graphName: string;
   readonly writerId: string;
   readonly gcPolicy: GCPolicyConfig | GCPolicy;
@@ -143,6 +144,9 @@ export class WarpOpenOptions {
     validateWriterId(options.writerId);
 
     this.persistence = options.persistence;
+    if (options.runtimeStorage !== undefined) {
+      this.runtimeStorage = options.runtimeStorage;
+    }
     this.graphName = options.graphName;
     this.writerId = options.writerId;
     this.gcPolicy = snapshotGCPolicy(options.gcPolicy);
@@ -199,7 +203,7 @@ export class WarpOpenOptions {
   }
 
   static minimal(options: {
-    persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+    persistence: CorePersistence;
     graphName?: string;
     writerId?: string;
   }): WarpOpenOptions {
@@ -272,6 +276,7 @@ export async function resolveRuntimeHostConstructionOptions(
   const options = WarpOpenOptions.from(input);
   const {
     persistence,
+    runtimeStorage,
     graphName,
     writerId,
     gcPolicy,
@@ -302,67 +307,36 @@ export async function resolveRuntimeHostConstructionOptions(
 
   const normalizedTrust = normalizeTrustConfig(trust);
 
-  const resolvedBlobStorage = await resolveBlobStorage(blobStorage, persistence);
   const resolvedCommitMessageCodec = await resolveConfiguredCommitMessageCodec(commitMessageCodec);
   const resolvedCodec = await resolveConfiguredCodec(codec);
   const resolvedCrypto = await resolveConfiguredCrypto(crypto);
   const resolvedTrustCrypto = await resolveConfiguredTrustCrypto(trustCrypto, normalizedTrust);
-  const patchWriteStorage = resolvePatchWriteStorage(persistence, patchBlobStorage);
-
-  const blobPort = persistence;
-  const commitPort = persistence;
-  const treePort = persistence;
-
-  let resolvedPatchJournal: PatchJournalPort;
-  if (patchJournal !== undefined && patchJournal !== null) {
-    resolvedPatchJournal = patchJournal;
-  } else {
-    const { CborPatchJournalAdapter } = await import(
-      /* webpackIgnore: true */ '../../infrastructure/adapters/CborPatchJournalAdapter.ts'
-    );
-    resolvedPatchJournal = new CborPatchJournalAdapter({
-      codec: resolvedCodec,
-      blobPort,
-      commitPort,
-      commitMessageCodec: resolvedCommitMessageCodec,
-      ...(patchWriteStorage.strategy === 'git-cas' ? { blobStorage: resolvedBlobStorage } : {}),
-      ...(patchBlobStorage !== undefined && patchBlobStorage !== null
-        ? { legacyPatchBlobStorage: patchBlobStorage }
-        : {}),
-      writeStorage: patchWriteStorage,
-    });
-  }
-
-  let resolvedCheckpointStore: CheckpointStorePort;
-  if (checkpointStore !== undefined && checkpointStore !== null) {
-    resolvedCheckpointStore = checkpointStore;
-  } else {
-    const { CborCheckpointStoreAdapter } = await import(
-      /* webpackIgnore: true */ '../../infrastructure/adapters/CborCheckpointStoreAdapter.ts'
-    );
-    resolvedCheckpointStore = new CborCheckpointStoreAdapter({
-      codec: resolvedCodec,
-      blobPort,
-    });
-  }
+  const resolvedRuntimeStorage = await resolveConfiguredRuntimeStorage(
+    runtimeStorage,
+    persistence,
+  );
+  const storageServices = await resolvedRuntimeStorage.createRuntimeStorageServices({
+    timelineName: graphName,
+    codec: resolvedCodec,
+    commitMessageCodec: resolvedCommitMessageCodec,
+    ...(logger === undefined ? {} : { logger }),
+    ...(blobStorage === undefined ? {} : { contentOverride: blobStorage }),
+    ...(patchBlobStorage === undefined
+      ? {}
+      : { patchContentOverride: patchBlobStorage }),
+  });
+  const resolvedBlobStorage = storageServices.content;
+  const resolvedPatchJournal = patchJournal ?? storageServices.patchJournal;
+  const resolvedCheckpointStore = checkpointStore ?? storageServices.checkpoints;
 
   let resolvedStateCache: WarpStateCachePort | undefined;
   if (stateCache !== undefined && stateCache !== null) {
     resolvedStateCache = stateCache;
-  } else if (stateCache !== null && typeof persistence.createRuntimeStateCache === 'function') {
-    resolvedStateCache = await persistence.createRuntimeStateCache({
-      graphName,
-      codec: resolvedCodec,
-      ...(logger !== undefined ? { logger } : {}),
-    });
+  } else if (stateCache !== null) {
+    resolvedStateCache = storageServices.stateSnapshots;
   }
 
-  const resolvedIndexStore = await resolveIndexStore(indexStore, {
-    codec: resolvedCodec,
-    blobPort,
-    treePort,
-    blobStorage: resolvedBlobStorage,
-  });
+  const resolvedIndexStore = indexStore ?? storageServices.indexes;
 
   const resolvedStateHashService = new StateHashService({
     codec: resolvedCodec,
@@ -398,8 +372,8 @@ export async function resolveRuntimeHostConstructionOptions(
   let resolvedOpenStateSession: MaterializeSessionOpener | undefined;
   if (openStateSession !== undefined) {
     resolvedOpenStateSession = openStateSession;
-  } else if (typeof persistence.createRuntimeTrieStore === 'function') {
-    const store = await persistence.createRuntimeTrieStore();
+  } else if (storageServices.trie !== undefined) {
+    const store = storageServices.trie;
     const pageCache = new PageCache({ maxResident: 256 });
     const geometry = TrieGeometry.default16way();
     resolvedOpenStateSession = async (roots) =>
@@ -417,6 +391,7 @@ export async function resolveRuntimeHostConstructionOptions(
     normalizedTrust,
     options: {
       persistence,
+      runtimeStorage: resolvedRuntimeStorage,
       graphName,
       writerId,
       gcPolicy,

@@ -11,7 +11,7 @@ import type { WarpStateSnapshotRecord } from '../../ports/WarpStateCachePort.ts'
 
 const ROOT_SET_PREFIX = 'refs/cas/rootsets/git-warp';
 
-interface RootSetClient {
+export type GitCasRootSetClient = {
   read(): Promise<RootSetState>;
   mutate(
     mutator: (
@@ -29,7 +29,7 @@ interface RootSetClient {
     treeOid: string;
     entries: RootSetEntry[];
   }>;
-}
+};
 
 interface GitObjectProbe {
   nodeExists(oid: string): Promise<boolean>;
@@ -50,7 +50,7 @@ type RootComparison = {
 
 type GitCasStateCacheRootSetCoordinatorOptions = {
   readonly graphName: string;
-  readonly openRootSet: (ref: string) => Promise<RootSetClient>;
+  readonly openRootSet: (ref: string) => Promise<GitCasRootSetClient>;
   readonly objectProbe: GitObjectProbe;
 };
 
@@ -140,7 +140,7 @@ function findStaleRootNames(
 
 export default class GitCasStateCacheRootSetCoordinator {
   readonly rootSetRef: string;
-  private readonly _getRootSet: () => Promise<RootSetClient>;
+  private readonly _getRootSet: () => Promise<GitCasRootSetClient>;
   private readonly _objectProbe: GitObjectProbe;
   private readonly _anchoredTreeOids = new Set<string>();
 
@@ -148,7 +148,7 @@ export default class GitCasStateCacheRootSetCoordinator {
     validateGraphName(options.graphName);
     this.rootSetRef = `${ROOT_SET_PREFIX}/${options.graphName}/state-cache`;
     this._objectProbe = options.objectProbe;
-    let rootSetPromise: Promise<RootSetClient> | undefined;
+    let rootSetPromise: Promise<GitCasRootSetClient> | undefined;
     this._getRootSet = async () => {
       if (rootSetPromise === undefined) {
         const opening = options.openRootSet(this.rootSetRef);
@@ -200,7 +200,7 @@ export default class GitCasStateCacheRootSetCoordinator {
   }
 
   private async _cleanupPreparedSuperset(
-    rootSet: RootSetClient,
+    rootSet: GitCasRootSetClient,
     prepared: RootSetMutationResult,
     desired: readonly RootSetEntry[],
   ): Promise<void> {

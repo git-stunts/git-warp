@@ -7,6 +7,7 @@
 import type { Persistence } from '../../types.ts';
 import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts';
 import type WarpStateCacheRetentionPort from '../../../../src/ports/WarpStateCacheRetentionPort.ts';
+import type HookPathPort from '../../../../src/ports/HookPathPort.ts';
 
 // ── JSON-safe recursive value type ──────────────────────────────────────────
 
@@ -70,6 +71,7 @@ export interface DoctorContext {
   writerHeads: Array<{ writerId: string; sha: string | null; ref: string }>;
   policy: DoctorPolicy;
   repoPath: string;
+  hookPaths: HookPathPort;
 }
 
 export type DoctorCheck = (ctx: DoctorContext) => Promise<DoctorFinding | DoctorFinding[] | null>;

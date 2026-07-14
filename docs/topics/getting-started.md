@@ -6,20 +6,18 @@ It does not expose the graph-first compatibility API from earlier releases.
 ## Install
 
 ```bash
-npm install @git-stunts/git-warp @git-stunts/plumbing
+npm install @git-stunts/git-warp
 ```
 
 ## Open WARP
 
 ```typescript
 import { openWarp } from '@git-stunts/git-warp';
-import { GitStorageAdapter } from '@git-stunts/git-warp/storage';
-import GitPlumbing from '@git-stunts/plumbing';
+import { GitStorage } from '@git-stunts/git-warp/storage';
 
+const storage = await GitStorage.open({ cwd: './security-repo' });
 const warp = await openWarp({
-  storage: new GitStorageAdapter({
-    plumbing: new GitPlumbing({ cwd: './security-repo' }),
-  }),
+  storage,
   writer: 'local',
 });
 
@@ -148,6 +146,10 @@ Draft writes stay separate until joined. `previewJoin` and `join` are separate
 methods so there is no boolean dry-run mode.
 
 ## Git Storage
+
+`GitStorage` is one opaque repository-scoped handle. It composes timeline
+history and git-cas services internally; application code does not construct
+plumbing, CAS, cache, or retention adapters.
 
 WARP history lives under `refs/warp/**`, separate from source branches such as
 `refs/heads/main`. Writing a timeline does not create a source-tree commit on

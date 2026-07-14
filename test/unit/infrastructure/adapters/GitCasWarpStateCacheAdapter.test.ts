@@ -8,6 +8,7 @@ const UNSUPPORTED_SCHEMA_ERROR = /unsupported state-cache index schema/;
 const INDEX_NOT_OBJECT_ERROR = /state-cache index must be an object/;
 const BLOB_READ_FAILED_ERROR = /blob read failed/;
 const SNAPSHOTS_NOT_OBJECT_ERROR = /snapshots must be an object/;
+const CHECKPOINT_HEAD_NOT_STRING_ERROR = /checkpointHeadId must be a string/;
 import CasContentEncryptionPolicy from '../../../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -19,7 +20,6 @@ import type {
   RootSetState,
 } from '@git-stunts/git-cas';
 
-// Mock @git-stunts/git-cas (dynamic import used by _initCas)
 const mockReadManifest = vi.fn();
 const mockRestore = vi.fn();
 const mockRestoreStream = vi.fn();
@@ -71,7 +71,7 @@ const mockRootRepair = vi.fn(async (options: { entries: Iterable<RootSetEntry> }
     entries: [...mockRootEntries],
   };
 });
-const mockOpenRootSet = vi.fn(() => ({
+const mockOpenRootSet = vi.fn(async () => ({
   read: mockRootRead,
   mutate: mockRootMutate,
   replace: mockRootReplace,
@@ -79,28 +79,28 @@ const mockOpenRootSet = vi.fn(() => ({
   repair: mockRootRepair,
 }));
 
-/** When true, the mock CAS exposes restoreStream. */
-let exposeRestoreStream = false;
-
-/** Captures constructor args for assertion. @type {any} */
-let lastConstructorArgs = {};
-
 class MockContentAddressableStore {
   rootSets = { open: mockOpenRootSet };
   readManifest: any;
   restore: any;
   store: any;
   createTree: any;
-  restoreStream?: any;
-  constructor(opts: any) {
-    lastConstructorArgs = opts;
+  restoreStream: any;
+  constructor() {
     this.readManifest = mockReadManifest;
     this.restore = mockRestore;
     this.store = mockStore;
     this.createTree = mockCreateTree;
-    if (exposeRestoreStream) {
-      this.restoreStream = mockRestoreStream;
-    }
+    this.restoreStream = (options: any) => {
+      const configured = mockRestoreStream(options);
+      if (configured !== undefined) {
+        return configured;
+      }
+      return (async function* () {
+        const restored = await mockRestore(options);
+        yield restored.buffer;
+      })();
+    };
   }
 }
 
@@ -134,10 +134,6 @@ function makePersistence() {
     nodeExists: vi.fn().mockResolvedValue(true),
     readObjectType: vi.fn().mockResolvedValue('tree'),
   };
-}
-
-function makePlumbing() {
-  return {};
 }
 
 function indexBuffer(snapshots = {}, checkpointHeadId?: string, schemaVersion = 1) {
@@ -182,20 +178,17 @@ const SAMPLE_COORDINATE = {
 
 describe('GitCasWarpStateCacheAdapter', () => {
   let persistence: ReturnType<typeof makePersistence>;
-  let plumbing: any;
   let codec: CborCodec;
   let adapter: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    exposeRestoreStream = false;
     mockRootEntries = [];
     persistence = makePersistence();
-    plumbing = makePlumbing();
     codec = new CborCodec();
     adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing,
+      cas: new MockContentAddressableStore(),
       graphName: GRAPH_NAME,
       codec,
     });
@@ -216,7 +209,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
 
     it('respects custom maxEntries', () => {
       const custom = new GitCasWarpStateCacheAdapter({
-        persistence, plumbing, graphName: GRAPH_NAME, codec, maxEntries: 50,
+        persistence, cas: new MockContentAddressableStore(), graphName: GRAPH_NAME, codec, maxEntries: 50,
       });
       expect((custom as any)._maxEntries).toBe(50);
     });
@@ -228,7 +221,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
     it('configures encryptionKey and contentEncryption when provided', () => {
       const key = new Uint8Array(32).fill(0xab);
       const encrypted = new GitCasWarpStateCacheAdapter({
-        persistence, plumbing, graphName: GRAPH_NAME, codec, encryptionKey: key,
+        persistence, cas: new MockContentAddressableStore(), graphName: GRAPH_NAME, codec, encryptionKey: key,
       });
       expect((encrypted as any)._encryptionKey).toBe(key);
       expect((encrypted as any)._contentEncryption).toBeInstanceOf(CasContentEncryptionPolicy);
@@ -237,18 +230,11 @@ describe('GitCasWarpStateCacheAdapter', () => {
     it('accepts explicit contentEncryption policy', () => {
       const policy = CasContentEncryptionPolicy.disabled();
       const custom = new GitCasWarpStateCacheAdapter({
-        persistence, plumbing, graphName: GRAPH_NAME, codec, contentEncryption: policy,
+        persistence, cas: new MockContentAddressableStore(), graphName: GRAPH_NAME, codec, contentEncryption: policy,
       });
       expect((custom as any)._contentEncryption).toBe(policy);
     });
 
-    it('stores logger when provided', () => {
-      const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn() } as any;
-      const withLogger = new GitCasWarpStateCacheAdapter({
-        persistence, plumbing, graphName: GRAPH_NAME, codec, logger,
-      });
-      expect((withLogger as any)._logger).toBe(logger);
-    });
   });
 
   // -------------------------------------------------------------------------
@@ -290,6 +276,13 @@ describe('GitCasWarpStateCacheAdapter', () => {
         snapshots: 'invalid',
       })));
       await expect(adapter._readIndex()).rejects.toThrow(SNAPSHOTS_NOT_OBJECT_ERROR);
+
+      persistence.readBlob.mockResolvedValueOnce(new TextEncoder().encode(JSON.stringify({
+        schemaVersion: 1,
+        checkpointHeadId: 42,
+        snapshots: {},
+      })));
+      await expect(adapter._readIndex()).rejects.toThrow(CHECKPOINT_HEAD_NOT_STRING_ERROR);
     });
 
     it('does not publish after a persisted index read fails', async () => {
@@ -415,7 +408,6 @@ describe('GitCasWarpStateCacheAdapter', () => {
     });
 
     it.each([false, true])('resolves checkpoint head via restoreStream with split=%s', async (splitStream) => {
-      exposeRestoreStream = true;
       const entry = {
         snapshotId: SAMPLE_SNAPSHOT_ID,
         coordinate: { frontier: { w1: 'a'.repeat(40) }, ceiling: 10 },
@@ -654,7 +646,7 @@ describe('GitCasWarpStateCacheAdapter', () => {
     it('prunes evictable snapshots successfully', async () => {
       const prunableAdapter = new GitCasWarpStateCacheAdapter({
         persistence,
-        plumbing,
+        cas: new MockContentAddressableStore(),
         graphName: GRAPH_NAME,
         codec,
         maxEntries: 0,

@@ -3,7 +3,7 @@ import process from 'node:process';
 import { classifyExistingHook } from '../../../src/domain/services/HookInstaller.ts';
 import { EXIT_CODES, usageError, parseCommandArgs } from '../infrastructure.ts';
 import { installHooksSchema } from '../schemas.ts';
-import { createHookInstaller, isInteractive, promptUser } from '../shared.ts';
+import { createHookInstaller, createPersistence, isInteractive, promptUser } from '../shared.ts';
 import type { CliOptions } from '../types.ts';
 
 const INSTALL_HOOKS_OPTIONS = {
@@ -17,7 +17,7 @@ function parseInstallHooksArgs(args: string[]): { force: boolean } {
 }
 
 /** Decides which installation strategy to use based on the existing hook state. */
-async function resolveStrategy(classification: { kind: string; version?: string; appended?: boolean }, hookOptions: { force: boolean }): Promise<string> {
+async function resolveStrategy(classification: { kind: string; version?: string; appended?: boolean }, hookOptions: { force: boolean }, targetVersion: string): Promise<string> {
   if (hookOptions.force) {
     return 'replace';
   }
@@ -27,7 +27,7 @@ async function resolveStrategy(classification: { kind: string; version?: string;
   }
 
   if (classification.kind === 'ours') {
-    return await promptForOursStrategy(classification);
+    return await promptForOursStrategy(classification, targetVersion);
   }
 
   return await promptForForeignStrategy();
@@ -42,9 +42,8 @@ function formatHookVersion(version: string | undefined): string {
 }
 
 /** Prompts the user to upgrade an existing warp-managed hook. */
-async function promptForOursStrategy(classification: { kind: string; version?: string; appended?: boolean }): Promise<string> {
-  const installer = createHookInstaller();
-  if (classification.version === installer.version) {
+async function promptForOursStrategy(classification: { kind: string; version?: string; appended?: boolean }, targetVersion: string): Promise<string> {
+  if (classification.version === targetVersion) {
     return 'up-to-date';
   }
 
@@ -53,9 +52,9 @@ async function promptForOursStrategy(classification: { kind: string; version?: s
   }
 
   const installedVersion = formatHookVersion(classification.version);
-  const targetVersion = formatHookVersion(installer.version);
+  const formattedTargetVersion = formatHookVersion(targetVersion);
   const answer = await promptUser(
-    `Upgrade hook from ${installedVersion} to ${targetVersion}? [Y/n] `,
+    `Upgrade hook from ${installedVersion} to ${formattedTargetVersion}? [Y/n] `,
   );
   if (answer === '' || answer.toLowerCase() === 'y') {
     return 'upgrade';
@@ -116,11 +115,12 @@ function buildNoOpResponse(strategy: string, status: { hookPath: string }, insta
 /** Handles the `install-hooks` command. */
 export default async function handleInstallHooks({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const hookOptions = parseInstallHooksArgs(args);
-  const installer = createHookInstaller();
+  const { hookPaths } = await createPersistence(options.repo);
+  const installer = createHookInstaller(hookPaths);
   const status = await installer.getHookStatus(options.repo);
   const content = readHookContent(status.hookPath);
   const classification = classifyExistingHook(content);
-  const strategy = await resolveStrategy(classification, hookOptions);
+  const strategy = await resolveStrategy(classification, hookOptions, installer.version);
 
   const noOp = buildNoOpResponse(strategy, status, installer);
   if (noOp !== null) {

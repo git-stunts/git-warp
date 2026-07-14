@@ -1,16 +1,20 @@
 /**
- * Git-backed persistence adapter for WARP graph storage.
+ * Git-backed adapter for WARP timeline history.
  *
  * Translates graph operations into Git plumbing commands. Implements the
  * composite GraphPersistencePort (CommitPort + BlobPort + TreePort +
  * RefPort + ConfigPort).
  */
 import { GitPersistenceAdapter } from '@git-stunts/git-cas';
-import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
+import type {
+  CommitLogChunk,
+  CommitNodeOptions,
+  CommitNodeWithTreeOptions,
+  LogNodesOptions,
+  NodeInfo,
+  PingResult,
+} from '../../ports/CommitPort.ts';
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
-import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
-import type TrieStorePort from '../../domain/orset/trie/TrieStorePort.ts';
 import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
 import type TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
 import type TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
@@ -18,16 +22,9 @@ import type { TreeEntryProbeResult } from '../../ports/TreeEntryProbePort.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
-import CasBlobAdapter from './CasBlobAdapter.ts';
-import type CasContentEncryptionPolicy from './CasContentEncryptionPolicy.ts';
-import { GitCasWarpStateCacheAdapter } from './GitCasWarpStateCacheAdapter.ts';
-import type WarpStateCachePort from '../../ports/WarpStateCachePort.ts';
-import type WarpStateCacheRetentionPort from '../../ports/WarpStateCacheRetentionPort.ts';
-import type CodecPort from '../../ports/CodecPort.ts';
-import type LoggerPort from '../../ports/LoggerPort.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
+import decodeGitCommitNodeInfo from './GitCommitNodeInfoDecoder.ts';
 import GitRecursiveTreeOidReaderAdapter from './GitRecursiveTreeOidReaderAdapter.ts';
-import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
 import AlfredOperationPolicyAdapter from './AlfredOperationPolicyAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
@@ -43,16 +40,14 @@ import {
   toGitError,
   DEFAULT_RETRY_OPTIONS,
 } from './gitErrorClassification.ts';
-import { createGitCasPatchStorage, type PatchStorageRoute } from '../../ports/CommitMessageCodecPort.ts';
 import type OperationPolicyPort from '../../ports/OperationPolicyPort.ts';
 import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
 export type { GitPlumbing, GitError, CollectableStream } from './gitErrorClassification.ts';
 
-export interface GitGraphAdapterOptions {
+export interface GitTimelineHistoryAdapterOptions {
   readonly plumbing: GitPlumbing;
   readonly retryOptions?: Partial<OperationPolicyExecuteOptions>;
   readonly policy?: OperationPolicyPort;
-  readonly casContentEncryption?: CasContentEncryptionPolicy;
 }
 interface GitCasPolicy {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -73,7 +68,7 @@ function toGitCasBlobContent(content: Uint8Array | string): Uint8Array {
  */
 function createGitCasRetryPolicy(
   policy: OperationPolicyPort,
-  retryOptions: OperationPolicyExecuteOptions,
+  retryOptions: OperationPolicyExecuteOptions
 ): GitCasPolicy {
   return Object.freeze({
     async execute<T>(operation: () => Promise<T>): Promise<T> {
@@ -82,40 +77,47 @@ function createGitCasRetryPolicy(
   });
 }
 
-function parseContentAnchorObjectType(
-  value: string,
-  oid: string,
-): ContentAnchorObjectType {
+function parseContentAnchorObjectType(value: string, oid: string): ContentAnchorObjectType {
   if (value === 'blob' || value === 'tree') {
     return value;
   }
   throw new PersistenceError(
     `Unsupported Git object type for content anchor ${oid}: ${value}`,
     'E_UNSUPPORTED_CONTENT_ANCHOR_OBJECT_TYPE',
-    { context: { oid, objectType: value } },
+    { context: { oid, objectType: value } }
   );
 }
 
-export default class GitGraphAdapter extends GraphPersistencePort implements RuntimeStorageCapabilityPort {
-  private readonly plumbing: GitPlumbing;
+function buildListRefsArgs(prefix: string, limit: number | null | undefined): string[] {
+  const args = ['for-each-ref', '--format=%(refname)'];
+  if (limit !== null && limit !== undefined && limit !== 0) {
+    validateLimit(limit);
+    args.push(`--count=${limit}`);
+  }
+  args.push(prefix);
+  return args;
+}
+
+export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
+  readonly plumbing: GitPlumbing;
   private readonly _policy: OperationPolicyPort;
   private readonly _retryOptions: OperationPolicyExecuteOptions;
   private readonly _gitCasPersistence: GitPersistenceAdapter;
   private readonly _gitCasGraphReader: GitCasGraphReaderAdapter;
   private readonly _recursiveTreeOidReader: GitRecursiveTreeOidReaderAdapter;
-  private readonly _casContentEncryption: CasContentEncryptionPolicy | undefined;
 
-  constructor({ plumbing, retryOptions = {}, policy, casContentEncryption }: GitGraphAdapterOptions) {
+  constructor({ plumbing, retryOptions = {}, policy }: GitTimelineHistoryAdapterOptions) {
     super();
     if (plumbing === null || plumbing === undefined) {
       throw new AdapterValidationError('plumbing is required');
     }
     this.plumbing = plumbing;
-    this._casContentEncryption = casContentEncryption;
     this._retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions };
-    this._policy = policy ?? new AlfredOperationPolicyAdapter({
-      retryOptions: this._retryOptions,
-    });
+    this._policy =
+      policy ??
+      new AlfredOperationPolicyAdapter({
+        retryOptions: this._retryOptions,
+      });
     this._gitCasPersistence = new GitPersistenceAdapter({
       plumbing,
       policy: createGitCasRetryPolicy(this._policy, this._retryOptions),
@@ -132,7 +134,10 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     });
   }
 
-  private async _executeWithRetry(options: { args: string[]; input?: string | Buffer }): Promise<string> {
+  private async _executeWithRetry(options: {
+    args: string[];
+    input?: string | Buffer;
+  }): Promise<string> {
     return await this._policy.execute(() => this.plumbing.execute(options), this._retryOptions);
   }
 
@@ -153,18 +158,16 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
         throw new PersistenceError(
           `Missing Git object: ${oid}`,
           PersistenceError.E_MISSING_OBJECT,
-          { cause: err, context: { oid } },
+          { cause: err, context: { oid } }
         );
       }
       throw wrapped;
     }
   }
 
-  get emptyTree(): string { return this.plumbing.emptyTree; }
-  createRuntimeBlobStorage(): Promise<BlobStoragePort> { return Promise.resolve(new CasBlobAdapter({ plumbing: this.plumbing, persistence: this, ...(this._casContentEncryption ? { contentEncryption: this._casContentEncryption } : {}) })); }
-  createRuntimeTrieStore(): Promise<TrieStorePort> { return Promise.resolve(new GitTrieStoreAdapter({ plumbing: this.plumbing })); }
-  createRuntimeStateCache(opts: { graphName: string; codec: CodecPort; logger?: LoggerPort }): Promise<WarpStateCachePort & WarpStateCacheRetentionPort> { return Promise.resolve(new GitCasWarpStateCacheAdapter({ persistence: this, plumbing: this.plumbing, graphName: opts.graphName, codec: opts.codec, ...(opts.logger !== undefined ? { logger: opts.logger } : {}), ...(this._casContentEncryption ? { contentEncryption: this._casContentEncryption } : {}) })); }
-  defaultPatchWriteStorage(): PatchStorageRoute { return createGitCasPatchStorage(false); }
+  get emptyTree(): string {
+    return this.plumbing.emptyTree;
+  }
 
   private async _createCommit(opts: {
     tree: string;
@@ -175,7 +178,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     for (const p of opts.parents) {
       validateOid(p);
     }
-    const parentArgs = opts.parents.flatMap(p => ['-p', p]);
+    const parentArgs = opts.parents.flatMap((p) => ['-p', p]);
     const signArgs = opts.sign ? ['-S'] : [];
     const args = ['commit-tree', opts.tree, ...parentArgs, ...signArgs, '-m', opts.message];
     const oid = await this._executeWithRetry({ args });
@@ -186,7 +189,12 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     return await this._createCommit({ tree: this.emptyTree, parents, message, sign });
   }
 
-  async commitNodeWithTree({ treeOid, parents = [], message, sign = false }: CommitNodeWithTreeOptions): Promise<string> {
+  async commitNodeWithTree({
+    treeOid,
+    parents = [],
+    message,
+    sign = false,
+  }: CommitNodeWithTreeOptions): Promise<string> {
     validateOid(treeOid);
     return await this._createCommit({ tree: treeOid, parents, message, sign });
   }
@@ -210,25 +218,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
       throw wrapGitError(toGitError(raw), { oid: sha });
     }
 
-    const parts = output.split('\x00');
-    if (parts.length < 5) {
-      throw new PersistenceError(
-        `Invalid commit format for SHA ${sha}`,
-        PersistenceError.E_MISSING_OBJECT,
-        { context: { oid: sha } },
-      );
-    }
-
-    const [commitSha, author, date, parentsStr, ...messageParts] = parts;
-    const message = messageParts.join('\x00');
-    const parents = (parentsStr !== undefined && parentsStr.length > 0) ? parentsStr.split(' ').filter(p => p !== '') : [];
-    return {
-      sha: (commitSha ?? '').trim(),
-      message,
-      author: (author ?? '').trim(),
-      date: (date ?? '').trim(),
-      parents,
-    };
+    return decodeGitCommitNodeInfo(output, sha);
   }
 
   async getCommitTree(sha: string): Promise<string> {
@@ -256,7 +246,11 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     }
   }
 
-  async logNodesStream({ ref, limit = 1000000, format }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
+  async logNodesStream({
+    ref,
+    limit = 1000000,
+    format,
+  }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
     validateRef(ref);
     validateLimit(limit);
     const args = ['log', '-z', `-${limit}`];
@@ -269,7 +263,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     args.push(ref);
     const rawStream = await this._policy.stream(
       () => this.plumbing.executeStream({ args }),
-      this._retryOptions,
+      this._retryOptions
     );
     return WarpStream.from<CommitLogChunk>(rawStream);
   }
@@ -319,7 +313,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
   async readTreeEntryPrefix(
     treeOid: string,
     prefix: TreeEntryPath,
-    limit: TreeEntryLimit,
+    limit: TreeEntryLimit
   ): Promise<TreeEntryPrefixBatch> {
     return await this._recursiveTreeOidReader.readTreeEntryPrefix(treeOid, prefix, limit);
   }
@@ -410,20 +404,14 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
 
   async listRefs(prefix: string, options?: ListRefsOptions): Promise<string[]> {
     validateRef(prefix);
-    const limit = options?.limit;
-    const args = ['for-each-ref', '--format=%(refname)'];
-    if (limit !== null && limit !== undefined && limit !== 0) {
-      validateLimit(limit);
-      args.push(`--count=${limit}`);
-    }
-    args.push(prefix);
+    const args = buildListRefsArgs(prefix, options?.limit);
     let output: string;
     try {
       output = await this._executeWithRetry({ args });
     } catch (raw) {
       throw wrapGitError(toGitError(raw), { ref: prefix });
     }
-    return output.split('\n').filter(line => line.trim() !== '');
+    return output.split('\n').filter((line) => line.trim() !== '');
   }
 
   async ping(): Promise<PingResult> {

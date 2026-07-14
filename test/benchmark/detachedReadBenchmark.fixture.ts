@@ -3,6 +3,7 @@
 import WarpCore from '../../src/domain/WarpCore.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
+import MemoryRuntimeStorageAdapter from '../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
 
 /** @typedef {any} WarpCoreRuntime */
 
@@ -16,11 +17,13 @@ export const DETACHED_READ_BENCHMARK_KINDS = ['live', 'coordinate', 'strand'];
  * @returns {Array<{ patchCount: number, kind: 'live'|'coordinate'|'strand', label: string }>}
  */
 export function createDetachedReadBenchmarkPlan(scales = DETACHED_READ_BENCHMARK_SCALES) {
-  return scales.flatMap((patchCount) => DETACHED_READ_BENCHMARK_KINDS.map((kind) => ({
-    patchCount,
-    kind: /** @type {'live'|'coordinate'|'strand'} */ (kind),
-    label: `${kind}:${patchCount}`,
-  })));
+  return scales.flatMap((patchCount) =>
+    DETACHED_READ_BENCHMARK_KINDS.map((kind) => ({
+      patchCount,
+      kind: /** @type {'live'|'coordinate'|'strand'} */ kind,
+      label: `${kind}:${patchCount}`,
+    }))
+  );
 }
 
 /**
@@ -86,12 +89,18 @@ function createMockPersistence() {
       return commit || { message: '', parents: [] };
     },
     writeTree: async (/** @type {unknown} */ entries) => {
-      const oid = hexSha(2000000 + (++treeCounter));
+      const oid = hexSha(2000000 + ++treeCounter);
       trees.set(oid, entries);
       return oid;
     },
-    commitNodeWithTree: async (/** @type {{ treeOid: string, message: string, parents?: string[] }} */ { treeOid, message, parents }) => {
-      const sha = hexSha(3000000 + (++commitCounter));
+    commitNodeWithTree: async (
+      /** @type {{ treeOid: string, message: string, parents?: string[] }} */ {
+        treeOid,
+        message,
+        parents,
+      }
+    ) => {
+      const sha = hexSha(3000000 + ++commitCounter);
       commits.set(sha, { treeOid, message, parents: parents || [] });
       return sha;
     },
@@ -101,8 +110,10 @@ function createMockPersistence() {
       blobs.set(oid, buf);
       return oid;
     },
-    commitNode: async (/** @type {{ message: string, parents?: string[] }} */ { message, parents }) => {
-      const sha = hexSha(1000000 + (++commitCounter));
+    commitNode: async (
+      /** @type {{ message: string, parents?: string[] }} */ { message, parents }
+    ) => {
+      const sha = hexSha(1000000 + ++commitCounter);
       commits.set(sha, { message, parents: parents || [] });
       return sha;
     },
@@ -124,17 +135,13 @@ function createMockPersistence() {
  * }} options
  * @returns {Promise<string>}
  */
-async function simulatePatchCommit(persistence, {
-  graphName,
-  writerId,
-  lamport,
-  ops,
-  reads,
-  writes,
-  context,
-}) {
+async function simulatePatchCommit(
+  persistence,
+  { graphName, writerId, lamport, ops, reads, writes, context }
+) {
   const { encode } = await import('../../src/infrastructure/codecs/CborCodec.ts');
-  const { encodePatchMessage } = await import('../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts');
+  const { encodePatchMessage } =
+    await import('../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts');
   const { buildWriterRef } = await import('../../src/domain/utils/RefLayout.ts');
 
   const patch = {
@@ -186,12 +193,13 @@ export async function seedDetachedReadBenchmarkFixture({
 }) {
   const persistence = createMockPersistence();
   const graphName = `detached-read-bench-${patchCount}`;
-  const graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
+  const graph = /** @type {WarpCoreRuntime} */ await WarpCore.open({
     persistence,
+    runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
     graphName,
     writerId: 'bench',
     autoMaterialize: false,
-  }));
+  });
 
   const captureAt = patchCount;
   const writers = Array.from({ length: writerCount }, (_, index) => `writer-${index}`);
@@ -211,11 +219,15 @@ export async function seedDetachedReadBenchmarkFixture({
       lamport,
       ops: [
         { type: 'NodeAdd', node: `task:${index}`, dot: Dot.create(writerId, lamport) },
-        { type: 'PropSet', node: `task:${index}`, key: 'status', value: index <= captureAt ? 'captured' : 'live' },
+        {
+          type: 'PropSet',
+          node: `task:${index}`,
+          key: 'status',
+          value: index <= captureAt ? 'captured' : 'live',
+        },
         { type: 'PropSet', node: `task:${index}`, key: 'ordinal', value: index },
       ],
     });
-
   }
 
   coordinateFrontier = await graph.getFrontier();

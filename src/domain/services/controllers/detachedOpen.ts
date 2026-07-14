@@ -16,9 +16,11 @@ import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type { NormalizedTrustConfig } from '../../runtimeHelpers.ts';
 import type GCPolicy from '../GCPolicy.ts';
 import type { DetachedGraphInternalReadSurface } from '../../capabilities/DetachedGraphFactory.ts';
+import type RuntimeStorageProviderPort from '../../../ports/RuntimeStorageProviderPort.ts';
 
 export type DetachedOpenOptions = {
   persistence: CorePersistence;
+  runtimeStorage: RuntimeStorageProviderPort;
   graphName: string;
   writerId: string;
   gcPolicy: GCPolicy;
@@ -42,6 +44,7 @@ export type DetachedGraphOpen = (options: DetachedOpenOptions) => Promise<Detach
 
 export type DetachedOpenHost = {
   _persistence: CorePersistence;
+  _runtimeStorage: RuntimeStorageProviderPort;
   _graphName: string;
   _writerId: string;
   _gcPolicy: GCPolicy;
@@ -62,6 +65,7 @@ export type DetachedOpenHost = {
 function coreOptions(graph: DetachedOpenHost): DetachedOpenOptions {
   return {
     persistence: graph._persistence,
+    runtimeStorage: graph._runtimeStorage,
     graphName: graph._graphName,
     writerId: graph._writerId,
     gcPolicy: graph._gcPolicy,

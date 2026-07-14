@@ -66,10 +66,10 @@ The preferred first-use imports are:
 import { openWarp, intent, reading } from '@git-stunts/git-warp';
 ```
 
-Storage adapters belong behind an explicit storage subpath:
+Storage constructors belong behind an explicit storage subpath:
 
 ```typescript
-import { GitStorageAdapter } from '@git-stunts/git-warp/storage';
+import { GitStorage } from '@git-stunts/git-warp/storage';
 ```
 
 Advanced WARP vocabulary remains available where it is genuinely the right
@@ -90,13 +90,11 @@ The v19 quick-start shape should look like this:
 
 ```typescript
 import { openWarp, intent, reading } from '@git-stunts/git-warp';
-import { GitStorageAdapter } from '@git-stunts/git-warp/storage';
-import GitPlumbing from '@git-stunts/plumbing';
+import { GitStorage } from '@git-stunts/git-warp/storage';
 
+const storage = await GitStorage.open({ cwd: '.' });
 const warp = await openWarp({
-  storage: new GitStorageAdapter({
-    plumbing: new GitPlumbing({ cwd: '.' }),
-  }),
+  storage,
   writer: 'agent-1',
 });
 
@@ -393,7 +391,7 @@ The boundaries mean different things:
 | Surface       | Meaning                                             |
 | ------------- | --------------------------------------------------- |
 | Root          | first-use product API                               |
-| `storage`     | supported persistence adapters                      |
+| `storage`     | supported opaque storage constructors                |
 | `advanced`    | bounded coordinate capture, `Optic`, and `Witness` access |
 | `diagnostics` | receipt inspection                                  |
 
@@ -407,8 +405,8 @@ Each old root symbol needs one explicit disposition:
 | v18 root symbol          | v19 disposition                                            |
 | ------------------------ | ---------------------------------------------------------- |
 | `openWarpWorldline()`    | `openWarp().timeline(name)`                                |
-| `GitGraphAdapter`        | `GitStorageAdapter` from `storage`                         |
-| `InMemoryGraphAdapter`   | `MemoryStorageAdapter` from `storage`                      |
+| `GitGraphAdapter`        | `GitStorage.open({ cwd })` from `storage`                  |
+| `InMemoryGraphAdapter`   | `MemoryStorage.create()` from `storage`                    |
 | `commit((patch) => ...)` | `timeline.write(intent.*)`                                 |
 | `coordinate()`           | `tick()` publicly; use advanced `captureCoordinate()`       |
 | `optic()`                | `timeline.read(reading.*)` or `advanced`                   |

@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CODES } from '../../../bin/cli/commands/doctor/codes.ts';
 import { DOCTOR_EXIT_CODES } from '../../../bin/cli/commands/doctor/types.ts';
-import { checkCoverageComplete, checkClockSkew, checkRefsConsistent } from '../../../bin/cli/commands/doctor/checks.ts';
+import {
+  checkCoverageComplete,
+  checkClockSkew,
+  checkRefsConsistent,
+} from '../../../bin/cli/commands/doctor/checks.ts';
 import WarpStateCacheRetentionReport from '../../../src/domain/services/state/WarpStateCacheRetentionReport.ts';
 import WarpStateCacheRepairResult from '../../../src/domain/services/state/WarpStateCacheRepairResult.ts';
 
@@ -30,9 +34,9 @@ vi.mock('../../../src/infrastructure/adapters/ClockAdapter.ts', () => ({
 }));
 
 const _shared = await import('../../../bin/cli/shared.ts');
-const createPersistence = ((_shared.createPersistence as unknown) as any);
-const resolveGraphName = ((_shared.resolveGraphName as unknown) as any);
-const createHookInstaller = ((_shared.createHookInstaller as unknown) as any);
+const createPersistence = _shared.createPersistence as unknown as any;
+const resolveGraphName = _shared.resolveGraphName as unknown as any;
+const createHookInstaller = _shared.createHookInstaller as unknown as any;
 
 /**
  * Builds a mock persistence object that simulates a healthy graph
@@ -75,7 +79,7 @@ function buildMockPersistence() {
   };
 }
 
-const CLI_OPTIONS = (({
+const CLI_OPTIONS = {
   repo: '/tmp/test',
   graph: 'demo',
   json: true,
@@ -83,17 +87,25 @@ const CLI_OPTIONS = (({
   view: null,
   writer: 'cli',
   help: false,
-}) as any);
+} as any;
 
 describe('doctor command', () => {
-    let handleDoctor;
-    let mockPersistence;
+  let handleDoctor;
+  let mockPersistence;
+  let mockRuntimeStorage;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     mockPersistence = buildMockPersistence();
+    mockRuntimeStorage = {
+      createRuntimeStorageServices: vi.fn().mockResolvedValue({}),
+    };
 
-    createPersistence.mockResolvedValue({ persistence: mockPersistence });
+    createPersistence.mockResolvedValue({
+      persistence: mockPersistence,
+      runtimeStorage: mockRuntimeStorage,
+      hookPaths: {},
+    });
     resolveGraphName.mockResolvedValue('demo');
     createHookInstaller.mockReturnValue({
       getHookStatus: vi.fn().mockResolvedValue({
@@ -111,7 +123,7 @@ describe('doctor command', () => {
 
   it('produces valid payload for a healthy graph', async () => {
     const result = await handleDoctor({ options: CLI_OPTIONS, args: [] });
-        const payload = (result.payload) as any;
+    const payload = result.payload as any;
     const { exitCode } = result;
 
     // Exit code
@@ -177,7 +189,7 @@ describe('doctor command', () => {
     expect(result.payload.summary.warn).toBeGreaterThan(0);
 
     const checkpointFinding = result.payload.findings.find(
-      (/** @type {*} */ f) => f.code === CODES.CHECKPOINT_MISSING,
+      (/** @type {*} */ f) => f.code === CODES.CHECKPOINT_MISSING
     );
     expect(checkpointFinding).toBeDefined();
     expect(checkpointFinding.status).toBe('warn');
@@ -204,7 +216,7 @@ describe('doctor command', () => {
       args: ['--memory-budget', '64mb', '--large-graph'],
     });
     const finding = result.payload.findings.find(
-      (/** @type {*} */ f) => f.code === CODES.MEMORY_BUDGET_REPORT,
+      (/** @type {*} */ f) => f.code === CODES.MEMORY_BUDGET_REPORT
     );
 
     expect(result.exitCode).toBe(DOCTOR_EXIT_CODES.OK);
@@ -251,10 +263,12 @@ describe('doctor command', () => {
     });
     const repairRetention = vi.fn().mockResolvedValue(repairResult);
     const inspectRetention = vi.fn().mockResolvedValue(after);
-    mockPersistence.createRuntimeStateCache = vi.fn().mockResolvedValue({
-      repairRetention,
-      inspectRetention,
-      resolveCheckpointHead: vi.fn().mockResolvedValue(null),
+    mockRuntimeStorage.createRuntimeStorageServices.mockResolvedValue({
+      stateSnapshots: {
+        repairRetention,
+        inspectRetention,
+        resolveCheckpointHead: vi.fn().mockResolvedValue(null),
+      },
     });
 
     const result = await handleDoctor({
@@ -265,7 +279,7 @@ describe('doctor command', () => {
     expect(repairRetention).toHaveBeenCalledOnce();
     expect(inspectRetention).toHaveBeenCalledOnce();
     expect(result.payload.findings.map((finding) => finding.code)).toContain(
-      CODES.STATE_CACHE_RETENTION_REPAIRED,
+      CODES.STATE_CACHE_RETENTION_REPAIRED
     );
   });
 
@@ -280,10 +294,12 @@ describe('doctor command', () => {
       mismatchedRootNames: [],
       rootSetError: null,
     });
-    mockPersistence.createRuntimeStateCache = vi.fn().mockResolvedValue({
-      repairRetention: vi.fn().mockRejectedValue(new Error('root set unavailable')),
-      inspectRetention: vi.fn().mockResolvedValue(healthy),
-      resolveCheckpointHead: vi.fn().mockResolvedValue(null),
+    mockRuntimeStorage.createRuntimeStorageServices.mockResolvedValue({
+      stateSnapshots: {
+        repairRetention: vi.fn().mockRejectedValue(new Error('root set unavailable')),
+        inspectRetention: vi.fn().mockResolvedValue(healthy),
+        resolveCheckpointHead: vi.fn().mockResolvedValue(null),
+      },
     });
 
     const result = await handleDoctor({
@@ -291,19 +307,21 @@ describe('doctor command', () => {
       args: ['--repair-state-cache'],
     });
 
-    expect(result.payload.findings).toContainEqual(expect.objectContaining({
-      id: 'state-cache-retention-repair',
-      status: 'fail',
-      code: CODES.CHECK_INTERNAL_ERROR,
-    }));
+    expect(result.payload.findings).toContainEqual(
+      expect.objectContaining({
+        id: 'state-cache-retention-repair',
+        status: 'fail',
+        code: CODES.CHECK_INTERNAL_ERROR,
+      })
+    );
   });
 
   it('sorts findings by status > impact > id', async () => {
     // Targeted mock: only break nodeExists for writer refs so that
     // checkRefsConsistent emits a fail, without accidentally affecting
     // other checks (e.g. probeAuditRefs dangling detection).
-    mockPersistence.nodeExists.mockImplementation(
-      (/** @type {string} */ sha) => Promise.resolve(sha !== 'aaaa000000000000000000000000000000000000'),
+    mockPersistence.nodeExists.mockImplementation((/** @type {string} */ sha) =>
+      Promise.resolve(sha !== 'aaaa000000000000000000000000000000000000')
     );
 
     // Also remove checkpoint to add a warn finding, giving us all three statuses.
@@ -327,11 +345,14 @@ describe('doctor command', () => {
     expect(statuses).toContain('ok');
 
     // Assert full three-key sort invariant: (status, impact, id) ascending.
-        const STATUS_ORDER = ({ fail: 0, warn: 1, ok: 2 }) as Record<string, number>;
-        const IMPACT_ORDER = ({ data_integrity: 0, security: 1, operability: 2, hygiene: 3 }) as Record<string, number>;
+    const STATUS_ORDER = { fail: 0, warn: 1, ok: 2 } as Record<string, number>;
+    const IMPACT_ORDER = { data_integrity: 0, security: 1, operability: 2, hygiene: 3 } as Record<
+      string,
+      number
+    >;
     for (let i = 1; i < findings.length; i++) {
-      const a = (findings[i - 1] as any);
-      const b = (findings[i] as any);
+      const a = findings[i - 1] as any;
+      const b = findings[i] as any;
       const statusCmp = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
       if (statusCmp !== 0) {
         expect(statusCmp).toBeLessThan(0);
@@ -349,18 +370,16 @@ describe('doctor command', () => {
 
 describe('individual check guards', () => {
   it('checkCoverageComplete treats null-sha writer heads as missing', async () => {
-    const ctx = (({
+    const ctx = {
       graphName: 'demo',
-      writerHeads: [
-        { writerId: 'alice', sha: null, ref: 'refs/warp/demo/writers/alice' },
-      ],
+      writerHeads: [{ writerId: 'alice', sha: null, ref: 'refs/warp/demo/writers/alice' }],
       persistence: {
         readRef: vi.fn().mockResolvedValue('cccc000000000000000000000000000000000000'),
         isAncestor: vi.fn(),
       },
-    }) as any);
+    } as any;
 
-    const finding = (await checkCoverageComplete(ctx) as any);
+    const finding = (await checkCoverageComplete(ctx)) as any;
 
     expect(finding.code).toBe(CODES.COVERAGE_MISSING_WRITERS);
     expect(finding.evidence.missingWriters).toContain('alice');
@@ -369,11 +388,15 @@ describe('individual check guards', () => {
   });
 
   it('checkClockSkew skips null-sha writer heads in collectWriterDates', async () => {
-    const ctx = (({
+    const ctx = {
       graphName: 'demo',
       writerHeads: [
         { writerId: 'alice', sha: null, ref: 'refs/warp/demo/writers/alice' },
-        { writerId: 'bob', sha: 'bbbb000000000000000000000000000000000000', ref: 'refs/warp/demo/writers/bob' },
+        {
+          writerId: 'bob',
+          sha: 'bbbb000000000000000000000000000000000000',
+          ref: 'refs/warp/demo/writers/bob',
+        },
       ],
       policy: { clockSkewMs: 300_000 },
       persistence: {
@@ -385,7 +408,7 @@ describe('individual check guards', () => {
           parents: [],
         }),
       },
-    }) as any);
+    } as any;
 
     const finding = await checkClockSkew(ctx);
 
@@ -396,17 +419,21 @@ describe('individual check guards', () => {
   });
 
   it('checkRefsConsistent reports null-sha heads as dangling', async () => {
-    const ctx = (({
+    const ctx = {
       writerHeads: [
-        { writerId: 'alice', sha: 'aaaa000000000000000000000000000000000000', ref: 'refs/warp/demo/writers/alice' },
+        {
+          writerId: 'alice',
+          sha: 'aaaa000000000000000000000000000000000000',
+          ref: 'refs/warp/demo/writers/alice',
+        },
         { writerId: 'bob', sha: null, ref: 'refs/warp/demo/writers/bob' },
       ],
       persistence: {
         nodeExists: vi.fn().mockResolvedValue(true),
       },
-    }) as any);
+    } as any;
 
-    const findings = (await checkRefsConsistent(ctx) as any[]);
+    const findings = (await checkRefsConsistent(ctx)) as any[];
 
     // bob's null sha should produce a REFS_DANGLING_OBJECT finding
     const dangling = findings.find((/** @type {*} */ f) => f.code === CODES.REFS_DANGLING_OBJECT);

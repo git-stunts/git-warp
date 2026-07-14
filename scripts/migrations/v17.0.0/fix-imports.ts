@@ -25,7 +25,7 @@ import { walkMigrationFiles } from './MigrationFileWalker.ts';
 
 const PATH_REWRITES = new Map<string, string | null>([
   // .js → .ts extension changes (infrastructure adapters)
-  ['adapters/GitGraphAdapter.js', 'adapters/GitGraphAdapter.ts'],
+  ['adapters/GitTimelineHistoryAdapter.js', 'adapters/GitTimelineHistoryAdapter.ts'],
   ['adapters/InMemoryGraphAdapter.js', 'adapters/InMemoryGraphAdapter.ts'],
   ['adapters/NoOpLogger.js', 'adapters/NoOpLogger.ts'],
   ['adapters/ConsoleLogger.js', 'adapters/ConsoleLogger.ts'],

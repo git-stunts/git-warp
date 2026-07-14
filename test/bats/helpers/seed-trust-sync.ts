@@ -13,16 +13,14 @@
 
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { openGraph, plumbing, crypto } from './seed-setup.ts';
+import { createTrustChain, openGraph } from './seed-setup.ts';
 
 const projectRoot = process.env['PROJECT_ROOT'] || resolve(import.meta.dirname, '../../..');
 
 const trustRecordServiceUrl = pathToFileURL(resolve(projectRoot, 'src/domain/trust/TrustRecordService.ts')).href;
-const trustChainAdapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitTrustChainAdapter.ts')).href;
 const goldenRecordsUrl = pathToFileURL(resolve(projectRoot, 'test/unit/domain/trust/fixtures/goldenRecords.ts')).href;
 
 const { TrustRecordService } = await import(trustRecordServiceUrl);
-const { default: GitTrustChainAdapter } = await import(trustChainAdapterUrl);
 const { KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE } = await import(goldenRecordsUrl);
 
 // 1. Seed graph data as "alice" (trusted writer)
@@ -37,7 +35,7 @@ await patchAlice
   .commit();
 
 // 2. Seed trust records (use GitTrustChainAdapter for git-cas persistence)
-const trustChain = new GitTrustChainAdapter({ plumbing, crypto });
+const trustChain = createTrustChain();
 const trustService = new TrustRecordService(trustChain);
 
 await trustService.appendRecord('demo', KEY_ADD_1, { skipSignatureVerify: true });

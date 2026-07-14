@@ -60,12 +60,11 @@ compatibility API.
 
 ```typescript
 import { openWarp, intent, reading } from '@git-stunts/git-warp';
-import { GitStorageAdapter } from '@git-stunts/git-warp/storage';
-import GitPlumbing from '@git-stunts/plumbing';
+import { GitStorage } from '@git-stunts/git-warp/storage';
 
-const plumbing = new GitPlumbing({ cwd: '.' });
+const storage = await GitStorage.open({ cwd: '.' });
 const warp = await openWarp({
-  storage: new GitStorageAdapter({ plumbing }),
+  storage,
   writer: 'agent-1',
 });
 
@@ -400,7 +399,7 @@ Yes — independently, even fully offline. Histories converge deterministically 
 ### How do I install and set it up?
 
 ```bash
-npm install @git-stunts/git-warp @git-stunts/plumbing
+npm install @git-stunts/git-warp
 ```
 
 Works alongside any existing Git repo. Full setup: [Getting started](docs/topics/getting-started.md).

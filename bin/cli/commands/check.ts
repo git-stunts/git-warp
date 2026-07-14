@@ -3,6 +3,7 @@ import { buildCheckpointRef, buildCoverageRef } from '../../../src/domain/utils/
 import { EXIT_CODES } from '../infrastructure.ts';
 import { openGraph, applyCursorCeiling, emitCursorWarning, readCheckpointDate, createHookInstaller } from '../shared.ts';
 import type { CliOptions, Persistence, WarpGraphInstance } from '../types.ts';
+import type HookPathPort from '../../../src/ports/HookPathPort.ts';
 
 /** Performs a health check on the graph persistence. */
 async function getHealth(persistence: Persistence): Promise<{ status: string; components: { repository: { status: string; latencyMs: number }; index: { status: string; loaded: boolean; shardCount?: number } }; cachedAt?: string }> {
@@ -115,9 +116,9 @@ function buildCheckPayload(input: CheckPayloadInput): Record<string, unknown> {
 }
 
 /** Returns the status of WARP git hooks for a repository. */
-async function getHookStatusForCheck(repoPath: string): Promise<{ installed: boolean; version?: string; current?: boolean; foreign?: boolean; hookPath: string } | null> {
+async function getHookStatusForCheck(repoPath: string, hookPaths: HookPathPort): Promise<{ installed: boolean; version?: string; current?: boolean; foreign?: boolean; hookPath: string } | null> {
   try {
-    const installer = createHookInstaller();
+    const installer = createHookInstaller(hookPaths);
     return await installer.getHookStatus(repoPath);
   } catch {
     return null;
@@ -126,7 +127,7 @@ async function getHookStatusForCheck(repoPath: string): Promise<{ installed: boo
 
 /** Handles the `check` command: reports graph health, GC, and hook status. */
 export async function handleCheck({ options }: { options: CliOptions }): Promise<{ payload: unknown; exitCode: number }> {
-  const { graph, graphName, persistence } = await openGraph(options);
+  const { graph, graphName, persistence, hookPaths } = await openGraph(options);
   const cursorInfo = await applyCursorCeiling(graph, persistence, graphName);
   emitCursorWarning(cursorInfo, null);
   const health = await getHealth(persistence);
@@ -135,7 +136,7 @@ export async function handleCheck({ options }: { options: CliOptions }): Promise
   const writerHeads = await collectWriterHeads(graph);
   const checkpoint = await loadCheckpointInfo(persistence, graphName);
   const coverage = await loadCoverageInfo(persistence, graphName, writerHeads);
-  const hook = await getHookStatusForCheck(options.repo);
+  const hook = await getHookStatusForCheck(options.repo, hookPaths);
 
   return {
     payload: buildCheckPayload({

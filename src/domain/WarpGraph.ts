@@ -40,6 +40,7 @@ import type EffectSinkPort from '../ports/EffectSinkPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type { GCPolicyConfig } from './services/GCPolicy.ts';
+import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
 
 // ---------------------------------------------------------------------------
 // WarpGraph — frozen capability bag, organized by architectural moment
@@ -136,6 +137,7 @@ type TrustMode = 'off' | 'log-only' | 'enforce';
 export interface WarpGraphDeps {
   // Substrate
   readonly persistence: CorePersistence;
+  readonly runtimeStorage?: RuntimeStorageProviderPort;
 
   // Identity
   readonly graphName: string;

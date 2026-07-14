@@ -1,7 +1,7 @@
 /**
  * Shared input validation for persistence adapters.
  *
- * These functions are extracted from GitGraphAdapter so that both Git-backed
+ * These functions are extracted from GitTimelineHistoryAdapter so that both Git-backed
  * and in-memory adapters apply identical validation rules. This prevents
  * divergence and ensures conformance tests exercise the same constraints.
  *

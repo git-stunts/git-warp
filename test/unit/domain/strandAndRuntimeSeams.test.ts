@@ -7,6 +7,7 @@ import RuntimeDetachedFactory from '../../../src/domain/warp/RuntimeDetachedFact
 import RuntimePatchCollector from '../../../src/domain/warp/RuntimePatchCollector.ts';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../../src/infrastructure/adapters/MemoryRuntimeStorageAdapter.ts';
 import PatchJournalPort from '../../../src/ports/PatchJournalPort.ts';
 import CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
@@ -165,8 +166,10 @@ describe('strand and runtime host seams', () => {
 });
 
 function createDetachedHost(): DetachedOpenHost {
+  const persistence = new InMemoryGraphAdapter();
   return {
-    _persistence: new InMemoryGraphAdapter(),
+    _persistence: persistence,
+    _runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
     _graphName: 'detached-runtime',
     _writerId: 'agent-1',
     _gcPolicy: GCPolicy.DEFAULT,

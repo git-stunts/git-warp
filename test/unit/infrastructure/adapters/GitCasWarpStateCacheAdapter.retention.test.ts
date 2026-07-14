@@ -64,7 +64,7 @@ const mockRootRepair = vi.fn(async (options: { entries: Iterable<RootSetEntry> }
     entries: [...rootEntries],
   };
 });
-const mockOpenRootSet = vi.fn(() => ({
+const mockOpenRootSet = vi.fn(async () => ({
   read: mockRootRead,
   mutate: mockRootMutate,
   replace: mockRootReplace,
@@ -74,6 +74,11 @@ const mockOpenRootSet = vi.fn(() => ({
 
 class MockContentAddressableStore {
   readonly rootSets = { open: mockOpenRootSet };
+  readonly readManifest = vi.fn();
+  readonly restore = vi.fn();
+  readonly restoreStream = vi.fn();
+  readonly store = vi.fn();
+  readonly createTree = vi.fn();
 }
 
 class MockCborCodec {}
@@ -132,7 +137,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     const persistence = persistenceFixture();
     const adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing: {},
+      cas: new MockContentAddressableStore(),
       graphName: 'demo',
       codec: new CborCodec(),
     });
@@ -155,7 +160,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     const persistence = persistenceFixture();
     const adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing: {},
+      cas: new MockContentAddressableStore(),
       graphName: 'demo',
       codec: new CborCodec(),
     });
@@ -175,7 +180,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     const persistence = persistenceFixture();
     const adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing: {},
+      cas: new MockContentAddressableStore(),
       graphName: 'demo',
       codec: new CborCodec(),
     });
@@ -195,7 +200,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     const persistence = persistenceFixture();
     const adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing: {},
+      cas: new MockContentAddressableStore(),
       graphName: 'demo',
       codec: new CborCodec(),
     });
@@ -223,7 +228,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     const persistence = persistenceFixture();
     const adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing: {},
+      cas: new MockContentAddressableStore(),
       graphName: 'demo',
       codec: new CborCodec(),
     });
@@ -246,7 +251,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     const persistence = persistenceFixture();
     const adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing: {},
+      cas: new MockContentAddressableStore(),
       graphName: 'demo',
       codec: new CborCodec(),
     });
@@ -268,7 +273,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     const persistence = persistenceFixture();
     const adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing: {},
+      cas: new MockContentAddressableStore(),
       graphName: 'demo',
       codec: new CborCodec(),
     });
@@ -301,7 +306,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     const persistence = persistenceFixture();
     const adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing: {},
+      cas: new MockContentAddressableStore(),
       graphName: 'demo',
       codec: new CborCodec(),
     });
@@ -321,7 +326,7 @@ describe('GitCasWarpStateCacheAdapter root-set retention', () => {
     const persistence = persistenceFixture();
     const adapter = new GitCasWarpStateCacheAdapter({
       persistence,
-      plumbing: {},
+      cas: new MockContentAddressableStore(),
       graphName: 'demo',
       codec: new CborCodec(),
     });

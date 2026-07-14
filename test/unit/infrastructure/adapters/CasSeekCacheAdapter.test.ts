@@ -1,49 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock @git-stunts/git-cas (dynamic import used by _initCas)
 const mockReadManifest = vi.fn();
 const mockRestore = vi.fn();
 const mockRestoreStream = vi.fn();
 const mockStore = vi.fn();
 const mockCreateTree = vi.fn();
 
-/** When true, the mock CAS exposes restoreStream. */
-let exposeRestoreStream = false;
-
-/** Captures constructor args for assertion. @type {any} */
-let lastConstructorArgs = {};
-
 class MockContentAddressableStore {
   readManifest: any;
   restore: any;
   store: any;
   createTree: any;
-  restoreStream?: any;
-  constructor(opts: any) {
-    lastConstructorArgs = opts;
+  restoreStream: any;
+  constructor() {
     this.readManifest = mockReadManifest;
     this.restore = mockRestore;
     this.store = mockStore;
     this.createTree = mockCreateTree;
-    if (exposeRestoreStream) {
-      this.restoreStream = mockRestoreStream;
-    }
+    this.restoreStream = (options: any) => {
+      const configured = mockRestoreStream(options);
+      if (configured !== undefined) {
+        return configured;
+      }
+      return (async function* () {
+        const restored = await mockRestore(options);
+        yield restored.buffer;
+      })();
+    };
   }
 }
 
-class MockCborCodec {}
-
-vi.mock('@git-stunts/git-cas', () => ({
-  default: MockContentAddressableStore,
-  CborCodec: MockCborCodec,
-}));
-
-// Import after mock setup
 const { default: CasSeekCacheAdapter } = await import(
   '../../../../src/infrastructure/adapters/CasSeekCacheAdapter.ts'
 );
 const { default: SeekCachePort } = await import(
   '../../../../src/ports/SeekCachePort.ts'
+);
+const { default: CasContentEncryptionPolicy } = await import(
+  '../../../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts'
 );
 
 // ---------------------------------------------------------------------------
@@ -59,10 +53,6 @@ function makePersistence() {
     updateRef: vi.fn().mockResolvedValue(undefined),
     deleteRef: vi.fn().mockResolvedValue(undefined),
   };
-}
-
-function makePlumbing() {
-  return {};
 }
 
 /** Builds a JSON index buffer for readBlob to return. */
@@ -81,17 +71,14 @@ const SAMPLE_BUFFER = new TextEncoder().encode('serialized-state-data');
 
 describe('CasSeekCacheAdapter', () => {
     let persistence;
-    let plumbing;
     let adapter;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    exposeRestoreStream = false;
     persistence = makePersistence();
-    plumbing = makePlumbing();
     adapter = new CasSeekCacheAdapter({
       persistence,
-      plumbing,
+      cas: new MockContentAddressableStore(),
       graphName: GRAPH_NAME,
     });
   });
@@ -112,7 +99,7 @@ describe('CasSeekCacheAdapter', () => {
     it('respects custom maxEntries', () => {
       const custom = new CasSeekCacheAdapter({
         persistence,
-        plumbing,
+        cas: new MockContentAddressableStore(),
         graphName: GRAPH_NAME,
         maxEntries: 50,
       });
@@ -123,15 +110,11 @@ describe('CasSeekCacheAdapter', () => {
       expect(adapter._ref).toBe(EXPECTED_REF);
     });
 
-    it('exposes _getCas as a function', () => {
-      expect(typeof (adapter as any)._getCas).toBe('function');
-    });
-
     it('stores encryptionKey when provided', () => {
       const key = new Uint8Array(32).fill(0xab);
       const encrypted = new CasSeekCacheAdapter({
         persistence,
-        plumbing,
+        cas: new MockContentAddressableStore(),
         graphName: GRAPH_NAME,
         encryptionKey: key,
       });
@@ -142,63 +125,6 @@ describe('CasSeekCacheAdapter', () => {
       expect((adapter as any)._encryptionKey).toBeUndefined();
     });
 
-    it('stores logger when provided', () => {
-      const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn() };
-      const withLogger = new CasSeekCacheAdapter({
-        persistence,
-        plumbing,
-        graphName: GRAPH_NAME,
-        logger,
-      });
-      expect((withLogger as any)._logger).toBe(logger);
-    });
-
-    it('defaults logger to undefined', () => {
-      expect((adapter as any)._logger).toBeUndefined();
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // _getCas — lazy CAS initialization
-  // -------------------------------------------------------------------------
-
-  describe('_getCas()', () => {
-    it('creates CAS instance with CDC chunking on first call', async () => {
-      await (adapter as any)._getCas();
-      expect((lastConstructorArgs as any).plumbing).toBe(plumbing);
-      expect((lastConstructorArgs as any).codec).toBeInstanceOf(MockCborCodec);
-      expect((lastConstructorArgs as any).chunking).toEqual({ strategy: 'cdc' });
-    });
-
-    it('caches the CAS promise across multiple calls', async () => {
-      const first = await (adapter as any)._getCas();
-      const second = await (adapter as any)._getCas();
-      expect(first).toBe(second);
-    });
-
-    it('resets cached promise on init error so next call retries', async () => {
-      // Create a fresh adapter whose _initCas will throw
-            const badAdapter = new CasSeekCacheAdapter({
-        persistence,
-        plumbing,
-        graphName: GRAPH_NAME,
-      });
-      // Override _initCas to throw once
-      let throwOnce = true;
-      const origInit = (badAdapter as any)._initCas.bind(badAdapter);
-      (badAdapter as any)._initCas = async () => {
-        if (throwOnce) {
-          throwOnce = false;
-          throw new Error('init failure');
-        }
-        return origInit();
-      };
-
-      await expect((badAdapter as any)._getCas()).rejects.toThrow('init failure');
-
-      // Second call should retry and succeed (promise was reset on failure)
-      await expect((badAdapter as any)._getCas()).resolves.toBeDefined();
-    });
   });
 
   // -------------------------------------------------------------------------
@@ -255,6 +181,24 @@ describe('CasSeekCacheAdapter', () => {
       expect(result).toEqual({ buffer: stateBuffer });
       expect(mockReadManifest).toHaveBeenCalledWith({ treeOid });
       expect(mockRestore).toHaveBeenCalledWith({ manifest });
+    });
+
+    it('returns retained index tree metadata on a cache hit', async () => {
+      persistence.readRef.mockResolvedValue('index-oid');
+      persistence.readBlob.mockResolvedValue(indexBuffer({
+        [SAMPLE_KEY]: {
+          treeOid: 'tree-oid',
+          indexTreeOid: 'index-tree-oid',
+          createdAt: new Date().toISOString(),
+        },
+      }));
+      mockReadManifest.mockResolvedValue({ chunks: [] });
+      mockRestore.mockResolvedValue({ buffer: SAMPLE_BUFFER });
+
+      await expect(adapter.get(SAMPLE_KEY)).resolves.toEqual({
+        buffer: SAMPLE_BUFFER,
+        indexTreeOid: 'index-tree-oid',
+      });
     });
 
     it('updates lastAccessedAt on successful cache hit', async () => {
@@ -317,11 +261,28 @@ describe('CasSeekCacheAdapter', () => {
       expect(result).toBeNull();
     });
 
+    it('preserves encryption failures instead of deleting the cache entry', async () => {
+      persistence.readRef.mockResolvedValue('index-oid');
+      persistence.readBlob.mockResolvedValue(indexBuffer({
+        [SAMPLE_KEY]: { treeOid: 'encrypted-tree', createdAt: new Date().toISOString() },
+      }));
+      mockReadManifest.mockResolvedValue({ chunks: [] });
+      mockRestore.mockRejectedValue(Object.assign(
+        new Error('Vault passphrase verification failed'),
+        { code: 'INTEGRITY_ERROR' },
+      ));
+
+      await expect(adapter.get(SAMPLE_KEY)).rejects.toMatchObject({
+        code: 'E_CAS_VAULT_PASSPHRASE_FAILED',
+      });
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+    });
+
     it('passes encryptionKey to cas.restore when configured', async () => {
       const encKey = new Uint8Array(32).fill(0xab);
       const encAdapter = new CasSeekCacheAdapter({
         persistence,
-        plumbing,
+        cas: new MockContentAddressableStore(),
         graphName: GRAPH_NAME,
         encryptionKey: encKey,
       });
@@ -361,11 +322,9 @@ describe('CasSeekCacheAdapter', () => {
     });
 
     it('uses restoreStream() when available, concatenating chunks', async () => {
-      // Create adapter from CAS that exposes restoreStream
-      exposeRestoreStream = true;
       const streamAdapter = new CasSeekCacheAdapter({
         persistence,
-        plumbing,
+        cas: new MockContentAddressableStore(),
         graphName: GRAPH_NAME,
       });
 
@@ -394,32 +353,6 @@ describe('CasSeekCacheAdapter', () => {
       expect(mockRestore).not.toHaveBeenCalled();
     });
 
-    it('falls back to cas.restore() when restoreStream is not available', async () => {
-      // Create adapter from a CAS without restoreStream
-      exposeRestoreStream = false;
-      const fallbackAdapter = new CasSeekCacheAdapter({
-        persistence,
-        plumbing,
-        graphName: GRAPH_NAME,
-      });
-
-      const treeOid = 'tree-fallback';
-      const manifest = { chunks: ['c1'] };
-      const stateBuffer = new TextEncoder().encode('fallback-state');
-
-      persistence.readRef.mockResolvedValue('index-oid');
-      persistence.readBlob.mockResolvedValue(
-        indexBuffer({ [SAMPLE_KEY]: { treeOid, createdAt: new Date().toISOString() } })
-      );
-      mockReadManifest.mockResolvedValue(manifest);
-      mockRestore.mockResolvedValue({ buffer: stateBuffer });
-
-      const result = await fallbackAdapter.get(SAMPLE_KEY);
-
-      expect(result).toEqual({ buffer: stateBuffer });
-      expect(mockRestore).toHaveBeenCalledWith({ manifest });
-      expect(mockRestoreStream).not.toHaveBeenCalled();
-    });
   });
 
   // -------------------------------------------------------------------------
@@ -507,7 +440,7 @@ describe('CasSeekCacheAdapter', () => {
       const encKey = new Uint8Array(32).fill(0xab);
       const encAdapter = new CasSeekCacheAdapter({
         persistence,
-        plumbing,
+        cas: new MockContentAddressableStore(),
         graphName: GRAPH_NAME,
         encryptionKey: encKey,
       });
@@ -532,6 +465,42 @@ describe('CasSeekCacheAdapter', () => {
 
       const storeArg = (mockStore.mock.calls[0] as any[])[0];
       expect(storeArg.encryptionKey).toBeUndefined();
+    });
+
+    it('stores index metadata with an explicit content-encryption policy', async () => {
+      const contentEncryption = CasContentEncryptionPolicy.fromResolvedVaultKey({
+        encryptionKey: new Uint8Array(32).fill(7),
+        scheme: 'framed',
+        frameBytes: 65536,
+        vault: {
+          vaultSlug: 'graphs/test/seek-cache',
+          keyId: 'seek-key-1',
+          verification: 'verified',
+          rotationEpoch: 1,
+          encryptionCount: 1,
+          encryptionCountLimit: 100,
+          privacyMode: true,
+        },
+      });
+      const encrypted = new CasSeekCacheAdapter({
+        persistence,
+        cas: new MockContentAddressableStore(),
+        graphName: GRAPH_NAME,
+        contentEncryption,
+      });
+      mockStore.mockResolvedValue({ chunks: [] });
+      mockCreateTree.mockResolvedValue('encrypted-tree');
+      persistence.readRef.mockResolvedValue(null);
+
+      await encrypted.set(SAMPLE_KEY, SAMPLE_BUFFER, { indexTreeOid: 'logical-index-tree' });
+
+      expect(mockStore).toHaveBeenCalledWith(expect.objectContaining({
+        encryption: { scheme: 'framed', frameBytes: 65536 },
+      }));
+      const writtenJson = JSON.parse(
+        new TextDecoder().decode(persistence.writeBlob.mock.calls[0][0])
+      );
+      expect(writtenJson.entries[SAMPLE_KEY].indexTreeOid).toBe('logical-index-tree');
     });
   });
 
@@ -754,6 +723,15 @@ describe('CasSeekCacheAdapter', () => {
 
       const result = await adapter._readIndex();
       expect(result).toEqual({ schemaVersion: 1, entries });
+    });
+
+    it('normalizes non-object index entries to an empty index', async () => {
+      persistence.readRef.mockResolvedValue('oid');
+      persistence.readBlob.mockResolvedValue(
+        new TextEncoder().encode(JSON.stringify({ schemaVersion: 1, entries: null }))
+      );
+
+      await expect(adapter._readIndex()).resolves.toEqual({ schemaVersion: 1, entries: {} });
     });
 
     it('returns empty index when readBlob throws', async () => {

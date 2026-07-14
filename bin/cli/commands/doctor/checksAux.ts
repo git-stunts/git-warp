@@ -89,7 +89,7 @@ export async function checkClockSkew(ctx: DoctorContext): Promise<DoctorFinding>
 /** Check whether the warp post-merge hook is installed and current. */
 export async function checkHooksInstalled(ctx: DoctorContext): Promise<DoctorFinding> {
   try {
-    const installer = createHookInstaller();
+    const installer = createHookInstaller(ctx.hookPaths);
     const s = await installer.getHookStatus(ctx.repoPath);
     return buildHookFinding(s);
   } catch (err) {

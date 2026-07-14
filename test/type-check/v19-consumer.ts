@@ -29,14 +29,14 @@ import {
   type Timeline,
   type TimelineView,
   type Warp,
-  type StorageAdapter,
+  type WarpStorage,
   type WriteReceipt,
   type WriteOutcome,
 } from '../../index.ts';
-import { MemoryStorageAdapter } from '../../storage.ts';
+import { MemoryStorage } from '../../storage.ts';
 
-const storage = new MemoryStorageAdapter();
-const publicStorage: StorageAdapter = storage;
+const storage = MemoryStorage.create();
+const publicStorage: WarpStorage = storage;
 
 const options: OpenWarpOptions = {
   storage: publicStorage,

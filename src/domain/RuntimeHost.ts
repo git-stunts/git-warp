@@ -62,7 +62,7 @@ import type PatchJournalPort from '../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../ports/IndexStorePort.ts';
-import type RuntimeStorageCapabilityPort from '../ports/RuntimeStorageCapabilityPort.ts';
+import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type WarpState from './services/state/WarpState.ts';
 import type SnapshotWarpState from './services/snapshot/SnapshotWarpState.ts';
@@ -176,7 +176,8 @@ type Subscriber = {
  * RuntimeHost class for interacting with a WARP multi-writer graph.
  */
 export default class RuntimeHost {
-  _persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+  _persistence: CorePersistence;
+  _runtimeStorage: RuntimeStorageProviderPort;
   _graphName: string;
   _writerId: string;
   _versionVector: VersionVector;
@@ -250,6 +251,7 @@ export default class RuntimeHost {
   constructor(options: RuntimeHostConstructionOptions) {
     const {
       persistence,
+      runtimeStorage,
       graphName,
       writerId,
       gcPolicy = {},
@@ -280,6 +282,7 @@ export default class RuntimeHost {
     } = options;
 
     this._persistence = persistence;
+    this._runtimeStorage = runtimeStorage;
     this._graphName = graphName;
     this._writerId = writerId;
     this._versionVector = VersionVector.empty();
@@ -506,22 +509,6 @@ export default class RuntimeHost {
     this._buildViewFromResult({ state, stateHash, diff });
     this._notifyAfterMaterialize(state);
     return this._materializedGraph;
-  }
-
-  _buildView(): void {
-    // handled by _onMaterialized()
-  }
-
-  _resolveCeiling(): null {
-    return null;
-  }
-
-  async _persistSeekCacheEntry(): Promise<void> {
-    // handled by MaterializeController
-  }
-
-  async _restoreIndexFromCache(): Promise<void> {
-    // handled by MaterializeController
   }
 
   verifyIndex(options?: { seed?: number; sampleRate?: number }) {

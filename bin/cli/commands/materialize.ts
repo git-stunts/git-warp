@@ -1,14 +1,16 @@
 import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
 import { EXIT_CODES, notFoundError } from '../infrastructure.ts';
 import { createPersistence, listGraphNames, readActiveCursor, emitCursorWarning } from '../shared.ts';
 import type { CliOptions, Persistence } from '../types.ts';
 
 /** Materializes a single graph, creates a checkpoint, and returns summary stats. */
-async function materializeOneGraph({ persistence, graphName, writerId, ceiling }: { persistence: Persistence; graphName: string; writerId: string; ceiling?: number }): Promise<{ graph: string; nodes: number; edges: number; properties: number; checkpoint: string | null; writers: Record<string, number>; patchCount: number }> {
+async function materializeOneGraph({ persistence, runtimeStorage, graphName, writerId, ceiling }: { persistence: Persistence; runtimeStorage: RuntimeStorageProviderPort; graphName: string; writerId: string; ceiling?: number }): Promise<{ graph: string; nodes: number; edges: number; properties: number; checkpoint: string | null; writers: Record<string, number>; patchCount: number }> {
   const graph = await openRuntimeHostProduct({
     persistence: persistence as unknown as CorePersistence,
+    runtimeStorage,
     graphName,
     writerId,
     crypto: new WebCryptoAdapter(),
@@ -43,7 +45,7 @@ async function materializeOneGraph({ persistence, graphName, writerId, ceiling }
 
 /** Handles the `materialize` command: materializes and checkpoints all graphs. */
 export default async function handleMaterialize({ options }: { options: CliOptions }): Promise<{ payload: unknown; exitCode: number }> {
-  const { persistence } = await createPersistence(options.repo);
+  const { persistence, runtimeStorage } = await createPersistence(options.repo);
   const graphNames = await listGraphNames(persistence);
 
   if (graphNames.length === 0) {
@@ -73,6 +75,7 @@ export default async function handleMaterialize({ options }: { options: CliOptio
       }
       const result = await materializeOneGraph({
         persistence,
+        runtimeStorage,
         graphName: name,
         writerId: options.writer,
         ...(ceiling !== undefined ? { ceiling } : {}),

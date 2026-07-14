@@ -71,13 +71,13 @@ export default async function handleDoctor({ options, args }: { options: CliOpti
   const { values } = parseCommandArgs(args, DOCTOR_OPTIONS, doctorSchema);
   const commandValues = normalizeCommandValues(values);
   const startMs = Date.now();
-  const { persistence } = await createPersistence(options.repo);
+  const { persistence, runtimeStorage, hookPaths } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
   const policy = { ...DEFAULT_POLICY, strict: commandValues.strict };
   const writerHeads = await collectWriterHeads(persistence, graphName);
 
-  const stateCache = await resolveStateCache(persistence, graphName);
-  const ctx: DoctorContext = { persistence, stateCache, graphName, writerHeads, policy, repoPath: options.repo };
+  const stateCache = await resolveStateCache(runtimeStorage, graphName);
+  const ctx: DoctorContext = { persistence, stateCache, graphName, writerHeads, policy, repoPath: options.repo, hookPaths };
 
   const memoryFindings = memoryBudgetFindings(commandValues);
   const repairFinding = await repairStateCache(commandValues[DOCTOR_OPTION_REPAIR_STATE_CACHE], stateCache);

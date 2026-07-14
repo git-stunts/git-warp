@@ -22,10 +22,11 @@ second graph-first application facade.
 
 ```typescript
 import { openWarp, reading } from '@git-stunts/git-warp';
-import { GitStorageAdapter } from '@git-stunts/git-warp/storage';
+import { GitStorage } from '@git-stunts/git-warp/storage';
 
+const storage = await GitStorage.open({ cwd: '.' });
 const warp = await openWarp({
-  storage: new GitStorageAdapter({ plumbing }),
+  storage,
   writer: 'alice',
 });
 const team = await warp.timeline('team');

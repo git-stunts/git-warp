@@ -5,13 +5,13 @@
  * identical content always produces the same OID. No CDC chunking —
  * its purpose is port conformance, not chunking behavior.
  *
- * @module domain/utils/defaultBlobStorage
+ * @module infrastructure/adapters/InMemoryBlobStorageAdapter
  */
 
-import StorageError from '../errors/StorageError.ts';
+import StorageError from '../../domain/errors/StorageError.ts';
 import BlobStoragePort from '../../ports/BlobStoragePort.ts';
-import { hexEncode } from './bytes.ts';
-import { collectAsyncIterable } from './streamUtils.ts';
+import { hexEncode } from '../../domain/utils/bytes.ts';
+import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 
 const _encoder = new TextEncoder();
 
