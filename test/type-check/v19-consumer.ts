@@ -9,6 +9,8 @@ import {
   openWarp,
   reading,
   type DraftTimeline,
+  type Evidence,
+  type EvidenceHandle,
   type Intent,
   type JoinOutcome,
   type JoinReceipt,
@@ -17,7 +19,6 @@ import {
   type JoinPolicy,
   type NeighborhoodReadingFields,
   type OpenWarpOptions,
-  type ReadEvidence,
   type ReadOutcome,
   type Reading,
   type ReadingResult,
@@ -76,7 +77,8 @@ const convenienceValue: ReadingValue = await timeline.readValue(readRequest);
 const readValue: ReadingValue = readResult.value;
 const readReceipt: ReadReceipt = readResult.receipt;
 const readOutcome: ReadOutcome = readReceipt.outcome;
-const readEvidence: ReadEvidence | undefined = readReceipt.evidence;
+const readEvidence: Evidence | undefined = readReceipt.evidence;
+const evidenceBasis: EvidenceHandle | undefined = readEvidence?.basis;
 const repairHints: readonly RepairHint[] = readReceipt.repairHints;
 const draft: DraftTimeline = await timeline.draft('try-admin-role');
 const draftReceipt: WriteReceipt = await draft.write(writeIntent);
@@ -109,6 +111,15 @@ timeline.writerId;
 // @ts-expect-error timelines do not expose patch commits.
 timeline.commit;
 
+// @ts-expect-error write receipts expose opaque evidence, not substrate ids.
+receipt.patchSha;
+
+// @ts-expect-error join receipts expose opaque evidence, not substrate ids.
+joinReceipt.patchShas;
+
+// @ts-expect-error read evidence does not expose checkpoint object ids.
+readReceipt.evidence?.checkpointSha;
+
 void timelineName;
 void timelineWriter;
 void historicalResult;
@@ -120,6 +131,7 @@ void convenienceValue;
 void neighborhoodRequest;
 void readOutcome;
 void readEvidence;
+void evidenceBasis;
 void readOperationOutcome;
 void retiredReadOutcome;
 void repairHints;

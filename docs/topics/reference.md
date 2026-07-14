@@ -36,52 +36,53 @@ reading @ index.ts#L15
 
 ### Type exports
 
-Source: `index.ts`. Count: 43.
+Source: `index.ts`. Count: 44.
 
 ```text
 DraftTimeline @ index.ts#L16
-EdgeIntentFields @ index.ts#L31
-Intent @ index.ts#L21
-IntentBuilders @ index.ts#L37
-IntentDescriptor @ index.ts#L32
-IntentKind @ index.ts#L33
-JoinMode @ index.ts#L38
-JoinOptions @ index.ts#L40
-JoinOutcome @ index.ts#L54
-JoinPolicy @ index.ts#L40
-JoinReceipt @ index.ts#L22
-JoinReceiptOptions @ index.ts#L38
-JoinResult @ index.ts#L23
-JoinResultOptions @ index.ts#L39
-NeighborhoodReadingFields @ index.ts#L42
-NodeIntentFields @ index.ts#L34
-NodeReadingFields @ index.ts#L43
-OpenWarpOptions @ index.ts#L28
-PropertyIntentFields @ index.ts#L35
-PropertyReadingFields @ index.ts#L44
-ReadEvidence @ index.ts#L52
-Reading @ index.ts#L24
-ReadingBuilders @ index.ts#L49
-ReadingDescriptor @ index.ts#L46
-ReadingDirection @ index.ts#L45
-ReadingKind @ index.ts#L47
-ReadingResult @ index.ts#L25
-ReadingResultOptions @ index.ts#L50
-ReadingValue @ index.ts#L50
-ReadOutcome @ index.ts#L55
-ReadReceipt @ index.ts#L26
-ReadReceiptOptions @ index.ts#L52
-Receipt @ index.ts#L51
-ReceiptOutcome @ index.ts#L56
-RepairHint @ index.ts#L59
+EdgeIntentFields @ index.ts#L32
+Evidence @ index.ts#L21
+EvidenceHandle @ index.ts#L21
+Intent @ index.ts#L22
+IntentBuilders @ index.ts#L38
+IntentDescriptor @ index.ts#L33
+IntentKind @ index.ts#L34
+JoinMode @ index.ts#L39
+JoinOptions @ index.ts#L41
+JoinOutcome @ index.ts#L55
+JoinPolicy @ index.ts#L41
+JoinReceipt @ index.ts#L23
+JoinReceiptOptions @ index.ts#L39
+JoinResult @ index.ts#L24
+JoinResultOptions @ index.ts#L40
+NeighborhoodReadingFields @ index.ts#L43
+NodeIntentFields @ index.ts#L35
+NodeReadingFields @ index.ts#L44
+OpenWarpOptions @ index.ts#L29
+PropertyIntentFields @ index.ts#L36
+PropertyReadingFields @ index.ts#L45
+Reading @ index.ts#L25
+ReadingBuilders @ index.ts#L50
+ReadingDescriptor @ index.ts#L47
+ReadingDirection @ index.ts#L46
+ReadingKind @ index.ts#L48
+ReadingResult @ index.ts#L26
+ReadingResultOptions @ index.ts#L51
+ReadingValue @ index.ts#L51
+ReadOutcome @ index.ts#L56
+ReadReceipt @ index.ts#L27
+ReadReceiptOptions @ index.ts#L53
+Receipt @ index.ts#L52
+ReceiptOutcome @ index.ts#L57
+RepairHint @ index.ts#L60
 Tick @ index.ts#L19
 Timeline @ index.ts#L18
 TimelineView @ index.ts#L20
 Warp @ index.ts#L17
-WarpStorage @ index.ts#L29
-WriteOutcome @ index.ts#L57
-WriteReceipt @ index.ts#L27
-WriteReceiptOptions @ index.ts#L60
+WarpStorage @ index.ts#L30
+WriteOutcome @ index.ts#L58
+WriteReceipt @ index.ts#L28
+WriteReceiptOptions @ index.ts#L61
 ```
 
 ## Storage export surface
@@ -145,15 +146,17 @@ Operator inspection helpers that consume public receipt handles.
 Source: `diagnostics.ts`. Count: 1.
 
 ```text
-inspectReceipt @ diagnostics.ts#L17
+inspectReceipt @ diagnostics.ts#L40
 ```
 
 ### Type exports
 
-Source: `diagnostics.ts`. Count: 1.
+Source: `diagnostics.ts`. Count: 3.
 
 ```text
-ReceiptInspection @ diagnostics.ts#L7
+InspectReceiptOptions @ diagnostics.ts#L11
+ReceiptInspection @ diagnostics.ts#L29
+ReceiptSubstrateInspection @ diagnostics.ts#L15
 ```
 
 ## CLI command registry

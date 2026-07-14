@@ -1,6 +1,8 @@
 import type WarpWorldline from '../WarpWorldline.ts';
 import WarpError from '../errors/WarpError.ts';
+import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
 import DraftTimeline from './DraftTimeline.ts';
+import { createJoinEvidence } from './EvidenceRuntime.ts';
 import type Intent from './Intent.ts';
 import { applyIntentToPatch } from './IntentRuntime.ts';
 import JoinReceipt from './JoinReceipt.ts';
@@ -10,6 +12,7 @@ import type WriteReceipt from './WriteReceipt.ts';
 import { executeIntentWrite } from './WriteRuntime.ts';
 
 type DraftTimelineState = {
+  readonly context: ApiRuntimeContext;
   readonly runtime: WarpWorldline;
   readonly draftPatchShas: string[];
   readonly intents: Intent[];
@@ -26,6 +29,13 @@ type DraftWriteFields = {
   readonly intent: Intent;
 };
 
+type CreateDraftTimelineFields = {
+  readonly runtime: WarpWorldline;
+  readonly context: ApiRuntimeContext;
+  readonly timelineName: string;
+  readonly draftName: string;
+};
+
 type JoinResultFieldsBase = {
   readonly runtime: WarpWorldline;
   readonly draft: DraftTimeline;
@@ -38,6 +48,16 @@ type JoinResultFields = JoinResultFieldsBase &
     | { readonly outcome: 'accepted'; readonly reason?: never }
     | { readonly outcome: 'rejected'; readonly reason: string }
   );
+
+type AcceptedJoinResultFields = JoinResultFieldsBase & {
+  readonly outcome: 'accepted';
+  readonly reason?: never;
+};
+
+type UnacceptedJoinResultFields = JoinResultFieldsBase & {
+  readonly outcome: 'rejected';
+  readonly reason: string;
+};
 
 type RejectedJoinFields = {
   readonly runtime: WarpWorldline;
@@ -56,12 +76,11 @@ type JoinCompletionFields = {
 const draftStates = new WeakMap<DraftTimeline, DraftTimelineState>();
 
 export async function createDraftTimeline(
-  runtime: WarpWorldline,
-  timelineName: string,
-  draftName: string
+  fields: CreateDraftTimelineFields
 ): Promise<DraftTimeline> {
+  const { runtime, context, timelineName, draftName } = fields;
   await runtime.createDraft(draftName);
-  const state = createDraftState(runtime);
+  const state = createDraftState(runtime, context);
   const draft = new DraftTimeline({
     name: draftName,
     timeline: timelineName,
@@ -86,7 +105,7 @@ export async function previewDraftJoin(
   void options;
   requireDraftState(runtime, draft);
   const patchShas = await runtime.previewDraftJoin(draft.name);
-  return joinResult({
+  return await joinResult({
     runtime,
     draft,
     mode: 'preview',
@@ -102,36 +121,36 @@ export async function joinDraftTimeline(
 ): Promise<JoinResult> {
   void options;
   const state = requireDraftState(runtime, draft);
-  const rejected = rejectedJoinPrecondition(runtime, draft, state);
+  const rejected = await rejectedJoinPrecondition(runtime, draft, state);
   if (rejected !== null) {
     return rejected;
   }
 
   state.joining = true;
   const patchShas = await commitDraftIntents(runtime, state);
-  const failed = rejectedIncompleteJoin({ runtime, draft, state, patchShas });
+  const failed = await rejectedIncompleteJoin({ runtime, draft, state, patchShas });
   if (failed !== null) {
     state.joining = false;
     return failed;
   }
   state.joined = true;
   state.joining = false;
-  return acceptedJoin({ runtime, draft, state, patchShas });
+  return await acceptedJoin({ runtime, draft, state, patchShas });
 }
 
-function rejectedJoinPrecondition(
+async function rejectedJoinPrecondition(
   runtime: WarpWorldline,
   draft: DraftTimeline,
   state: DraftTimelineState
-): JoinResult | null {
+): Promise<JoinResult | null> {
   if (state.joined) {
-    return rejectedJoin({ runtime, draft, reason: 'Draft has already joined' });
+    return await rejectedJoin({ runtime, draft, reason: 'Draft has already joined' });
   }
   if (state.joining) {
-    return rejectedJoin({ runtime, draft, reason: 'Draft join is already in progress' });
+    return await rejectedJoin({ runtime, draft, reason: 'Draft join is already in progress' });
   }
   if (state.joinFailed) {
-    return rejectedJoin({
+    return await rejectedJoin({
       runtime,
       draft,
       reason: 'Draft join already has a failed commit attempt',
@@ -139,17 +158,17 @@ function rejectedJoinPrecondition(
     });
   }
   if (state.intents.length === 0) {
-    return rejectedJoin({ runtime, draft, reason: 'Draft has no public intents to join' });
+    return await rejectedJoin({ runtime, draft, reason: 'Draft has no public intents to join' });
   }
   return null;
 }
 
-function rejectedIncompleteJoin(fields: JoinCompletionFields): JoinResult | null {
+async function rejectedIncompleteJoin(fields: JoinCompletionFields): Promise<JoinResult | null> {
   if (fields.patchShas.length === fields.state.intents.length) {
     return null;
   }
   fields.state.joinFailed = true;
-  return rejectedJoin({
+  return await rejectedJoin({
     runtime: fields.runtime,
     draft: fields.draft,
     reason: 'Draft join failed while committing intents',
@@ -157,8 +176,8 @@ function rejectedIncompleteJoin(fields: JoinCompletionFields): JoinResult | null
   });
 }
 
-function acceptedJoin(fields: JoinCompletionFields): JoinResult {
-  return joinResult({
+async function acceptedJoin(fields: JoinCompletionFields): Promise<JoinResult> {
+  return await joinResult({
     runtime: fields.runtime,
     draft: fields.draft,
     mode: 'join',
@@ -167,8 +186,9 @@ function acceptedJoin(fields: JoinCompletionFields): JoinResult {
   });
 }
 
-function createDraftState(runtime: WarpWorldline): DraftTimelineState {
+function createDraftState(runtime: WarpWorldline, context: ApiRuntimeContext): DraftTimelineState {
   return {
+    context,
     runtime,
     draftPatchShas: [],
     intents: [],
@@ -180,25 +200,29 @@ function createDraftState(runtime: WarpWorldline): DraftTimelineState {
 }
 
 async function writeDraftIntent(fields: DraftWriteFields): Promise<WriteReceipt> {
-  const receipt = await executeIntentWrite(
-    fields.runtime,
-    fields.intent,
-    async (build) => await fields.runtime.patchDraft(fields.draftName, build)
-  );
+  let draftPatchSha: string | undefined;
+  const receipt = await executeIntentWrite({
+    runtime: fields.runtime,
+    context: fields.state.context,
+    intent: fields.intent,
+    commit: async (build) => {
+      draftPatchSha = await fields.runtime.patchDraft(fields.draftName, build);
+      return draftPatchSha;
+    },
+  });
   if (receipt.outcome !== 'accepted') {
     return receipt;
   }
-  const { patchSha } = receipt;
-  if (patchSha === undefined) {
+  if (draftPatchSha === undefined) {
     throw new WarpError('Accepted draft write is missing its patch SHA', 'E_DRAFT_WRITE_RECEIPT');
   }
-  fields.state.draftPatchShas.push(patchSha);
+  fields.state.draftPatchShas.push(draftPatchSha);
   fields.state.intents.push(fields.intent);
   return receipt;
 }
 
-function rejectedJoin(fields: RejectedJoinFields): JoinResult {
-  return joinResult({
+async function rejectedJoin(fields: RejectedJoinFields): Promise<JoinResult> {
+  return await joinResult({
     runtime: fields.runtime,
     draft: fields.draft,
     mode: 'join',
@@ -236,27 +260,58 @@ function requireDraftState(runtime: WarpWorldline, draft: DraftTimeline): DraftT
   return state;
 }
 
-function joinResult(fields: JoinResultFields): JoinResult {
+async function joinResult(fields: JoinResultFields): Promise<JoinResult> {
+  const { context } = requireDraftState(fields.runtime, fields.draft);
   const receipt =
     fields.outcome === 'accepted'
-      ? new JoinReceipt({
-          timeline: fields.runtime.worldlineName,
-          writer: fields.runtime.writerId,
-          draft: fields.draft,
-          mode: fields.mode,
-          outcome: fields.outcome,
-          patchShas: fields.patchShas,
-        })
-      : new JoinReceipt({
-          timeline: fields.runtime.worldlineName,
-          writer: fields.runtime.writerId,
-          draft: fields.draft,
-          mode: fields.mode,
-          outcome: fields.outcome,
-          patchShas: fields.patchShas,
-          reason: fields.reason,
-        });
+      ? await acceptedJoinReceipt(fields, context)
+      : await unacceptedJoinReceipt(fields, context);
+  context.bindReceipt(receipt, {
+    operation: 'join',
+    patchShas: fields.patchShas,
+  });
   return new JoinResult({
     receipt,
+  });
+}
+
+async function acceptedJoinReceipt(
+  fields: AcceptedJoinResultFields,
+  context: ApiRuntimeContext
+): Promise<JoinReceipt> {
+  return new JoinReceipt({
+    timeline: fields.runtime.worldlineName,
+    writer: fields.runtime.writerId,
+    draft: fields.draft,
+    mode: fields.mode,
+    outcome: fields.outcome,
+    evidence: await createJoinEvidence(fields.runtime, context, {
+      draft: fields.draft.name,
+      mode: fields.mode,
+      patchShas: fields.patchShas,
+    }),
+  });
+}
+
+async function unacceptedJoinReceipt(
+  fields: UnacceptedJoinResultFields,
+  context: ApiRuntimeContext
+): Promise<JoinReceipt> {
+  const evidence =
+    fields.patchShas.length === 0
+      ? undefined
+      : await createJoinEvidence(fields.runtime, context, {
+          draft: fields.draft.name,
+          mode: fields.mode,
+          patchShas: fields.patchShas,
+        });
+  return new JoinReceipt({
+    timeline: fields.runtime.worldlineName,
+    writer: fields.runtime.writerId,
+    draft: fields.draft,
+    mode: fields.mode,
+    outcome: fields.outcome,
+    ...(evidence === undefined ? {} : { evidence }),
+    reason: fields.reason,
   });
 }

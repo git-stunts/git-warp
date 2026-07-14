@@ -1,0 +1,65 @@
+import WarpError from '../domain/errors/WarpError.ts';
+import type { ApiRuntimeContext, ReceiptProvenance } from '../domain/api/ApiRuntimeContext.ts';
+import type { Receipt } from '../domain/api/Receipt.ts';
+import type CryptoPort from '../ports/CryptoPort.ts';
+import type WarpStorage from './WarpStorage.ts';
+import { resolveWarpStorage } from './WarpStorageRegistry.ts';
+
+type ReceiptProvenanceBinding = {
+  readonly provenance: ReceiptProvenance;
+  readonly storage: WarpStorage;
+};
+
+const RECEIPT_PROVENANCE = new WeakMap<Receipt, ReceiptProvenanceBinding>();
+
+export function createApiRuntimeContext(
+  storage: WarpStorage,
+  crypto: CryptoPort
+): ApiRuntimeContext {
+  return Object.freeze({
+    createOpaqueId: async (namespace, parts) => {
+      const digest = await crypto.hash('sha256', JSON.stringify([namespace, parts]));
+      return `${namespace}:${digest}`;
+    },
+    bindReceipt: (receipt, provenance) => {
+      if (RECEIPT_PROVENANCE.has(receipt)) {
+        throw new WarpError('Receipt provenance is already bound', 'E_RECEIPT_PROVENANCE_BOUND');
+      }
+      RECEIPT_PROVENANCE.set(
+        receipt,
+        Object.freeze({ storage, provenance: freezeProvenance(provenance) })
+      );
+    },
+  });
+}
+
+export function resolveReceiptProvenance(
+  receipt: Receipt,
+  storage: WarpStorage
+): ReceiptProvenance {
+  resolveWarpStorage(storage);
+  const binding = RECEIPT_PROVENANCE.get(receipt);
+  if (binding === undefined) {
+    throw new WarpError(
+      'Receipt was not issued by an openWarp runtime',
+      'E_RECEIPT_PROVENANCE_UNAVAILABLE'
+    );
+  }
+  if (binding.storage !== storage) {
+    throw new WarpError(
+      'Receipt does not belong to the supplied storage',
+      'E_RECEIPT_STORAGE_MISMATCH'
+    );
+  }
+  return binding.provenance;
+}
+
+function freezeProvenance(provenance: ReceiptProvenance): ReceiptProvenance {
+  if (provenance.operation === 'join') {
+    return Object.freeze({
+      operation: provenance.operation,
+      patchShas: Object.freeze([...provenance.patchShas]),
+    });
+  }
+  return Object.freeze({ ...provenance });
+}

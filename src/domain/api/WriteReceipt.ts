@@ -1,5 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
+import type Evidence from './Evidence.ts';
+import { freezeEvidence } from './EvidenceRuntime.ts';
 import Intent from './Intent.ts';
 import { RECEIPT_OUTCOMES, type WriteOutcome } from './ReceiptOutcome.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
@@ -15,21 +17,21 @@ export type WriteReceiptOptions = WriteReceiptFields &
   (
     | {
         readonly outcome: 'accepted';
-        readonly patchSha: string;
+        readonly evidence: Evidence;
         readonly reason?: never;
       }
     | {
         readonly outcome: Exclude<WriteOutcome, 'accepted'>;
-        readonly patchSha?: never;
+        readonly evidence?: never;
         readonly reason: string;
       }
   );
 
 export default class WriteReceipt {
+  readonly evidence: Evidence | undefined;
   readonly intent: Intent;
   readonly operation: 'write' = 'write';
   readonly outcome: WriteOutcome;
-  readonly patchSha: string | undefined;
   readonly repairHints: readonly RepairHint[];
   readonly reason: string | undefined;
   readonly timeline: string;
@@ -43,7 +45,10 @@ export default class WriteReceipt {
     this.writer = fields.writer;
     this.intent = fields.intent;
     this.outcome = fields.outcome;
-    this.patchSha = fields.patchSha;
+    this.evidence =
+      fields.evidence === undefined
+        ? undefined
+        : freezeEvidence(fields.evidence, 'writeReceipt.evidence');
     this.repairHints = freezeRepairHints(fields.repairHints ?? []);
     this.reason = fields.reason;
     Object.freeze(this);
@@ -72,17 +77,19 @@ function validateWriteOutcome(outcome: WriteOutcome): void {
 
 function validateWriteSettlement(fields: WriteReceiptOptions): void {
   if (fields.outcome === 'accepted') {
-    requireNonEmptyString(fields.patchSha, 'writeReceipt.patchSha');
+    if (fields.evidence === undefined) {
+      throw new WarpError('Accepted WriteReceipt requires evidence', 'E_WRITE_RECEIPT_EVIDENCE');
+    }
     if (fields.reason !== undefined) {
       throw new WarpError('Accepted WriteReceipt cannot carry a reason', 'E_WRITE_RECEIPT_REASON');
     }
     return;
   }
   requireNonEmptyString(fields.reason, 'writeReceipt.reason');
-  if (fields.patchSha !== undefined) {
+  if (fields.evidence !== undefined) {
     throw new WarpError(
-      'Unaccepted WriteReceipt cannot carry a patch SHA',
-      'E_WRITE_RECEIPT_PATCH'
+      'Unaccepted WriteReceipt cannot carry evidence',
+      'E_WRITE_RECEIPT_EVIDENCE'
     );
   }
 }

@@ -12,6 +12,7 @@ import ReadReceipt from '../../../src/domain/api/ReadReceipt.ts';
 import ReadingResult from '../../../src/domain/api/ReadingResult.ts';
 import Timeline from '../../../src/domain/api/Timeline.ts';
 import { requireTimelineRuntime } from '../../../src/domain/api/TimelineRuntime.ts';
+import { requireTickCoordinate } from '../../../src/domain/api/TickRuntime.ts';
 import Warp from '../../../src/domain/api/Warp.ts';
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
@@ -135,10 +136,7 @@ function collectExportedDeclarationName(statement: ts.Statement, exportedNames: 
   }
 }
 
-async function createBoundedReadBasis(
-  storage: MemoryStorage,
-  graphName: string
-): Promise<void> {
+async function createBoundedReadBasis(storage: MemoryStorage, graphName: string): Promise<void> {
   const binding = resolveWarpStorage(storage);
   const runtime = await openRuntimeHostProduct({
     persistence: binding.history,
@@ -294,7 +292,9 @@ describe('v19 Warp facade', () => {
     expect(nodeReceipt.outcome).toBe('accepted');
     expect(nodeReceipt.operation).toBe('write');
     expect(nodeReceipt.intent.kind).toBe('node.add');
-    expect(typeof nodeReceipt.patchSha).toBe('string');
+    expect(nodeReceipt.evidence?.basis.id).toMatch(/^evidence:/);
+    expect(nodeReceipt.evidence?.support).toHaveLength(1);
+    expect('patchSha' in nodeReceipt).toBe(false);
     expect(propertyReceipt.outcome).toBe('accepted');
     expect(propertyReceipt.intent.kind).toBe('property.set');
     expect(propertyReceipt.timeline).toBe('events');
@@ -358,7 +358,7 @@ describe('v19 Warp facade', () => {
     expect(receipt).toMatchObject({
       operation: 'write',
       outcome: 'obstructed',
-      patchSha: undefined,
+      evidence: undefined,
       reason: 'missing_write_basis',
     });
     expect(receipt.repairHints).toEqual([
@@ -419,10 +419,8 @@ describe('v19 Warp facade', () => {
     expect(propertyResult.receipt.reading.kind).toBe('property.get');
     expect(propertyResult.receipt.timeline).toBe('events');
     expect(propertyResult.receipt.writer).toBe('agent-1');
-    expect(propertyResult.receipt.evidence).toMatchObject({
-      kind: 'checkpoint-tail-read',
-      worldline: 'events',
-    });
+    expect(propertyResult.receipt.evidence?.basis.id).toMatch(/^evidence:/);
+    expect(propertyResult.receipt.evidence?.tick).toBeUndefined();
 
     expect(existsResult).toBeInstanceOf(ReadingResult);
     expect(existsResult.value).toBe(true);
@@ -436,7 +434,7 @@ describe('v19 Warp facade', () => {
     });
     expect(neighborhoodResult.receipt).toMatchObject({
       outcome: 'accepted',
-      evidence: { kind: 'checkpoint-tail-read' },
+      evidence: { basis: { id: expect.stringMatching(/^evidence:/) } },
     });
     const coordinate = await captureCoordinate(timeline);
     const coordinateRole = await coordinate.optic().node('user:alice').prop('role').read();
@@ -451,6 +449,13 @@ describe('v19 Warp facade', () => {
     ).resolves.toBe('admin');
 
     const tick = await timeline.tick();
+    const tickCoordinate = requireTickCoordinate(requireTimelineRuntime(timeline), tick);
+    const serializedTick = JSON.stringify(tick);
+    expect(tick.id).toMatch(/^tick:/);
+    expect(serializedTick).not.toContain(tickCoordinate.checkpointSha);
+    for (const entry of tickCoordinate.frontierEntries) {
+      expect(serializedTick).not.toContain(entry.patchSha);
+    }
     const secondWarp = await openWarp({ storage, writer: 'agent-2' });
     const sameNamedForeignTimeline = await secondWarp.timeline('events');
     expect(() => sameNamedForeignTimeline.at(tick)).toThrow(
@@ -469,14 +474,16 @@ describe('v19 Warp facade', () => {
         key: 'role',
       })
     );
-    const historicalRole = await timeline.at(tick).readValue(
+    const historicalResult = await timeline.at(tick).read(
       reading.property({
         subject: 'user:alice',
         key: 'role',
       })
     );
+    const historicalRole = historicalResult.value;
     expect(currentRole).toBe('owner');
     expect(historicalRole).toBe('admin');
+    expect(historicalResult.receipt.evidence?.tick).toBe(tick);
   });
 
   it('returns an obstructed receipt instead of materializing a missing read basis', async () => {
@@ -554,12 +561,13 @@ describe('v19 Warp facade', () => {
     expect(preview.receipt).toBeInstanceOf(JoinReceipt);
     expect(preview.receipt.mode).toBe('preview');
     expect(preview.receipt.outcome).toBe('accepted');
-    expect(preview.receipt.patchShas).toContain(draftWrite.patchSha);
+    expect(preview.receipt.evidence?.support).toContainEqual(draftWrite.evidence?.support[0]);
+    expect('patchShas' in preview.receipt).toBe(false);
     expect(afterPreview.value).toBeNull();
     expect(joined).toBeInstanceOf(JoinResult);
     expect(joined.receipt.mode).toBe('join');
     expect(joined.receipt.outcome).toBe('accepted');
-    expect(joined.receipt.patchShas).toHaveLength(1);
+    expect(joined.receipt.evidence?.support).toHaveLength(1);
     expect(afterJoin.value).toBe('admin');
   });
 

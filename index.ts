@@ -18,6 +18,7 @@ export type { default as Warp } from './src/domain/api/Warp.ts';
 export type { default as Timeline } from './src/domain/api/Timeline.ts';
 export type { default as Tick } from './src/domain/api/Tick.ts';
 export type { default as TimelineView } from './src/domain/api/TimelineView.ts';
+export type { default as Evidence, EvidenceHandle } from './src/domain/api/Evidence.ts';
 export type { default as Intent } from './src/domain/api/Intent.ts';
 export type { default as JoinReceipt } from './src/domain/api/JoinReceipt.ts';
 export type { default as JoinResult } from './src/domain/api/JoinResult.ts';
@@ -49,7 +50,7 @@ export type {
 export type { ReadingBuilders } from './src/domain/api/ReadingBuilders.ts';
 export type { ReadingResultOptions, ReadingValue } from './src/domain/api/ReadingResult.ts';
 export type { Receipt } from './src/domain/api/Receipt.ts';
-export type { ReadEvidence, ReadReceiptOptions } from './src/domain/api/ReadReceipt.ts';
+export type { ReadReceiptOptions } from './src/domain/api/ReadReceipt.ts';
 export type {
   JoinOutcome,
   ReadOutcome,

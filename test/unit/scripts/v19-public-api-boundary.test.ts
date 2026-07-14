@@ -9,6 +9,8 @@ const ROOT_VALUE_EXPORTS = ['intent', 'openWarp', 'reading'] as const;
 const ROOT_TYPE_EXPORTS = [
   'DraftTimeline',
   'EdgeIntentFields',
+  'Evidence',
+  'EvidenceHandle',
   'Intent',
   'IntentBuilders',
   'IntentDescriptor',
@@ -27,7 +29,6 @@ const ROOT_TYPE_EXPORTS = [
   'OpenWarpOptions',
   'PropertyIntentFields',
   'PropertyReadingFields',
-  'ReadEvidence',
   'ReadOutcome',
   'ReadReceipt',
   'ReadReceiptOptions',
@@ -59,9 +60,8 @@ type ModuleSurface = {
 };
 
 function moduleSurface(relativePath = 'index.ts', source?: string): ModuleSurface {
-  const sourceFile = source === undefined
-    ? sourceFileFor(relativePath)
-    : parseSourceFile(relativePath, source);
+  const sourceFile =
+    source === undefined ? sourceFileFor(relativePath) : parseSourceFile(relativePath, source);
   const starExports: string[] = [];
   const typeExports: string[] = [];
   const valueExports: string[] = [];
@@ -199,10 +199,7 @@ describe('v19 public API boundary', () => {
   });
 
   it('classifies namespace re-exports as forbidden star exports', () => {
-    const surface = moduleSurface(
-      'namespace-export.ts',
-      "export * as graph from './graph.ts';"
-    );
+    const surface = moduleSurface('namespace-export.ts', "export * as graph from './graph.ts';");
 
     expect(surface.starExports).toEqual(["'./graph.ts'"]);
   });
@@ -242,7 +239,9 @@ describe('v19 public API boundary', () => {
     const surface = moduleSurface('diagnostics.ts');
     expect(surface.starExports).toEqual([]);
     expect(surface.valueExports).toEqual(['inspectReceipt']);
-    expect(surface.typeExports).toEqual(['ReceiptInspection']);
+    expect(surface.typeExports).toEqual(
+      sorted(['InspectReceiptOptions', 'ReceiptInspection', 'ReceiptSubstrateInspection'])
+    );
   });
 
   it('publishes only the supported v19 subpaths', () => {

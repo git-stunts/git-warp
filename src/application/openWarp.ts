@@ -4,6 +4,7 @@ import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailur
 import { createTimeline } from '../domain/api/TimelineRuntime.ts';
 import WarpError from '../domain/errors/WarpError.ts';
 import { openWarpWorldline } from '../domain/WarpWorldline.ts';
+import { createApiRuntimeContext } from './ReceiptProvenanceRegistry.ts';
 import { getDefaultRuntimeHostNodePorts } from './RuntimeHostNodeDefaults.ts';
 import WarpStorage from './WarpStorage.ts';
 import { resolveWarpStorage } from './WarpStorageRegistry.ts';
@@ -21,19 +22,22 @@ export function openWarp(options: OpenWarpOptions): Promise<Warp> {
 
     return new Warp({
       writer: options.writer,
-      openTimeline: async (name) =>
-        createTimeline(
-          await openWarpWorldline({
-            persistence: binding.history,
-            runtimeStorage: binding.runtimeStorage,
-            worldlineName: name,
-            writerId: options.writer,
-            codec: runtimePorts.codec,
-            crypto: runtimePorts.crypto,
-            trustCrypto: runtimePorts.trustCrypto,
-            commitMessageCodec: runtimePorts.commitMessageCodec,
-          }),
-        ),
+      openTimeline: async (name) => {
+        const runtime = await openWarpWorldline({
+          persistence: binding.history,
+          runtimeStorage: binding.runtimeStorage,
+          worldlineName: name,
+          writerId: options.writer,
+          codec: runtimePorts.codec,
+          crypto: runtimePorts.crypto,
+          trustCrypto: runtimePorts.trustCrypto,
+          commitMessageCodec: runtimePorts.commitMessageCodec,
+        });
+        return createTimeline(
+          runtime,
+          createApiRuntimeContext(options.storage, runtimePorts.crypto)
+        );
+      },
     });
   });
 }
@@ -43,10 +47,7 @@ function assertOpenWarpOptions(options: OpenWarpOptions | null | undefined): voi
     throw new WarpError('openWarp options are required', 'E_OPEN_WARP_OPTIONS');
   }
   if (!(options.storage instanceof WarpStorage)) {
-    throw new WarpError(
-      'openWarp requires a WarpStorage handle',
-      'E_OPEN_WARP_STORAGE',
-    );
+    throw new WarpError('openWarp requires a WarpStorage handle', 'E_OPEN_WARP_STORAGE');
   }
   assertWriterIdentity(options.writer, 'writer', OPEN_WARP_IDENTITY_FAILURE);
 }

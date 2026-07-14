@@ -1,6 +1,8 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import DraftTimeline from './DraftTimeline.ts';
+import type Evidence from './Evidence.ts';
+import { freezeEvidence } from './EvidenceRuntime.ts';
 import { RECEIPT_OUTCOMES, type JoinOutcome } from './ReceiptOutcome.ts';
 
 export type JoinMode = 'preview' | 'join';
@@ -11,17 +13,18 @@ type JoinReceiptFields = {
   readonly writer: string;
   readonly draft: DraftTimeline;
   readonly mode: JoinMode;
-  readonly patchShas?: readonly string[];
 };
 
 export type JoinReceiptOptions = JoinReceiptFields &
   (
     | {
         readonly outcome: 'accepted';
+        readonly evidence: Evidence;
         readonly reason?: never;
       }
     | {
         readonly outcome: Exclude<JoinReceiptOutcome, 'accepted'>;
+        readonly evidence?: Evidence;
         readonly reason: string;
       }
   );
@@ -31,10 +34,10 @@ const JOIN_RECEIPT_OUTCOMES: ReadonlySet<JoinReceiptOutcome> = RECEIPT_OUTCOMES;
 
 export default class JoinReceipt {
   readonly draft: DraftTimeline;
+  readonly evidence: Evidence | undefined;
   readonly mode: JoinMode;
   readonly operation: 'join' = 'join';
   readonly outcome: JoinReceiptOutcome;
-  readonly patchShas: readonly string[];
   readonly reason: string | undefined;
   readonly timeline: string;
   readonly writer: string;
@@ -42,14 +45,16 @@ export default class JoinReceipt {
   constructor(options: JoinReceiptOptions | null | undefined) {
     const fields = requireJoinReceiptOptions(options);
     validateJoinReceiptFields(fields);
-    const patchShas = validatePatchShas(fields.patchShas ?? []);
 
     this.timeline = fields.timeline;
     this.writer = fields.writer;
     this.draft = fields.draft;
+    this.evidence =
+      fields.evidence === undefined
+        ? undefined
+        : freezeEvidence(fields.evidence, 'joinReceipt.evidence');
     this.mode = fields.mode;
     this.outcome = fields.outcome;
-    this.patchShas = patchShas;
     this.reason = fields.reason;
     Object.freeze(this);
   }
@@ -84,6 +89,9 @@ function validateJoinOutcome(outcome: JoinReceiptOutcome): void {
 
 function validateJoinReason(fields: JoinReceiptOptions): void {
   if (fields.outcome === 'accepted') {
+    if (fields.evidence === undefined) {
+      throw new WarpError('Accepted JoinReceipt requires evidence', 'E_JOIN_RECEIPT_EVIDENCE');
+    }
     rejectAcceptedJoinReason(fields.reason);
     return;
   }
@@ -103,13 +111,4 @@ function requireJoinReceiptOptions(
     throw new WarpError('JoinReceipt options are required', 'E_JOIN_RECEIPT_OPTIONS');
   }
   return options;
-}
-
-function validatePatchShas(patchShas: readonly string[]): readonly string[] {
-  const checked: string[] = [];
-  for (const patchSha of patchShas) {
-    requireNonEmptyString(patchSha, 'joinReceipt.patchSha');
-    checked.push(patchSha);
-  }
-  return Object.freeze(checked);
 }

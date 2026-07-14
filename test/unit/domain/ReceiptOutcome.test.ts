@@ -6,6 +6,11 @@ import JoinReceipt from '../../../src/domain/api/JoinReceipt.ts';
 import { RECEIPT_OUTCOMES } from '../../../src/domain/api/ReceiptOutcome.ts';
 import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
 
+const EVIDENCE = Object.freeze({
+  basis: Object.freeze({ id: 'evidence:basis' }),
+  support: Object.freeze([]),
+});
+
 describe('receipt outcomes', () => {
   it('locks the canonical outcome axis to the approved five values', () => {
     expect([...RECEIPT_OUTCOMES]).toEqual([
@@ -33,6 +38,7 @@ describe('receipt outcomes', () => {
               draft,
               mode: 'join',
               outcome,
+              evidence: EVIDENCE,
             })
           : new JoinReceipt({
               timeline: 'events',
@@ -63,6 +69,7 @@ describe('receipt outcomes', () => {
           draft,
           mode: 'join',
           outcome: 'accepted',
+          evidence: EVIDENCE,
           // @ts-expect-error runtime validation accepts JavaScript callers.
           reason: 'accepted_with_reason',
         })
@@ -81,7 +88,7 @@ describe('receipt outcomes', () => {
     ).toThrow('joinReceipt.reason must be a non-empty string');
   });
 
-  it('represents rejected writes without inventing patch identities', () => {
+  it('represents rejected writes without inventing causal evidence', () => {
     const receipt = new WriteReceipt({
       timeline: 'events',
       writer: 'agent-1',
@@ -94,7 +101,35 @@ describe('receipt outcomes', () => {
       operation: 'write',
       outcome: 'rejected',
       reason: 'policy_rejected',
-      patchSha: undefined,
+      evidence: undefined,
     });
+  });
+
+  it.each([
+    [null, 'writeReceipt.evidence must be causal evidence'],
+    [
+      { basis: { id: 'evidence:basis' }, support: null },
+      'writeReceipt.evidence.support must be an array',
+    ],
+    [{ basis: null, support: [] }, 'writeReceipt.evidence.basis must be an evidence handle'],
+    [
+      { basis: { id: 'evidence:basis' }, support: [null] },
+      'writeReceipt.evidence.support[0] must be an evidence handle',
+    ],
+    [
+      { basis: { id: 'evidence:basis' }, support: [], tick: {} },
+      'writeReceipt.evidence.tick must be a Tick',
+    ],
+  ])('rejects malformed causal evidence %#', (evidence, message) => {
+    expect(
+      () =>
+        new WriteReceipt({
+          timeline: 'events',
+          writer: 'agent-1',
+          intent: intent.node.add({ subject: 'user:alice' }),
+          outcome: 'accepted',
+          evidence: evidence as never,
+        })
+    ).toThrow(message);
   });
 });

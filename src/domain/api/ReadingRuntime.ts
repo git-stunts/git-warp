@@ -6,11 +6,14 @@ import type NeighborhoodOpticReadResult from '../services/optic/NeighborhoodOpti
 import type WorldlineOptic from '../services/optic/WorldlineOptic.ts';
 import { createSnapshotPropValue } from '../services/ImmutableSnapshot.ts';
 import type { SnapshotPropValue } from '../services/snapshot/SnapshotPropValue.ts';
+import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
+import { createReadEvidence } from './EvidenceRuntime.ts';
 import type Reading from './Reading.ts';
 import type { ReadingDescriptor, ReadingKind } from './Reading.ts';
 import ReadReceipt, { type ReadReceiptOutcome } from './ReadReceipt.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
 import ReadingResult from './ReadingResult.ts';
+import type Tick from './Tick.ts';
 
 type BoundedReading = {
   readonly evidence: ReadIdentity;
@@ -21,6 +24,27 @@ type ReadingExecutor = (
   descriptor: ReadingDescriptor,
   optic: WorldlineOptic
 ) => Promise<BoundedReading>;
+
+type ReadingBasis = {
+  readonly optic: WorldlineOptic;
+  readonly tick: Tick;
+};
+
+type ReadingExecutionFields = {
+  readonly runtime: WarpWorldline;
+  readonly context: ApiRuntimeContext;
+  readonly reading: Reading;
+  readonly basis?: ReadingBasis;
+};
+
+type AcceptedReadingFields = Omit<ReadingExecutionFields, 'basis'> & {
+  readonly basis: ReadingBasis | undefined;
+  readonly result: BoundedReading;
+};
+
+type UnresolvedReadingFields = ReadingExecutionFields & {
+  readonly failure: OperationalReadFailure;
+};
 
 type OperationalReadFailure = {
   readonly outcome: Exclude<ReadReceiptOutcome, 'accepted' | 'rejected'>;
@@ -42,26 +66,30 @@ const readers: ReadonlyMap<ReadingKind, ReadingExecutor> = new Map([
   ['neighborhood', readNeighborhood],
 ]);
 
-export async function executeReading(
-  runtime: WarpWorldline,
-  reading: Reading,
-  optic?: WorldlineOptic
-): Promise<ReadingResult> {
-  const { descriptor } = reading;
-  const reader = requireReader(reading.kind);
+export async function executeReading(fields: ReadingExecutionFields): Promise<ReadingResult> {
   try {
-    const result = await reader(descriptor, optic ?? runtime.optic());
-    return readingResult(runtime, reading, result);
+    return await executeResolvedReading(fields);
   } catch (error) {
     if (!(error instanceof WarpError)) {
       throw error;
     }
-    const failure = operationalReadFailure(error);
-    if (failure === null) {
-      throw error;
-    }
-    return unresolvedReadingResult(runtime, reading, failure);
+    return handleReadingFailure(fields, error);
   }
+}
+
+async function executeResolvedReading(fields: ReadingExecutionFields): Promise<ReadingResult> {
+  const { runtime, context, reading, basis } = fields;
+  const reader = requireReader(reading.kind);
+  const result = await reader(reading.descriptor, basis?.optic ?? runtime.optic());
+  return await readingResult({ runtime, context, reading, basis, result });
+}
+
+function handleReadingFailure(fields: ReadingExecutionFields, error: WarpError): ReadingResult {
+  const failure = operationalReadFailure(error);
+  if (failure === null) {
+    throw error;
+  }
+  return unresolvedReadingResult({ ...fields, failure });
 }
 
 function requireReader(kind: ReadingKind): ReadingExecutor {
@@ -149,36 +177,34 @@ function neighborhoodValue(result: NeighborhoodOpticReadResult): SnapshotPropVal
   });
 }
 
-function readingResult(
-  runtime: WarpWorldline,
-  reading: Reading,
-  result: BoundedReading
-): ReadingResult {
+async function readingResult(fields: AcceptedReadingFields): Promise<ReadingResult> {
+  const { runtime, context, reading, result, basis } = fields;
+  const receipt = new ReadReceipt({
+    timeline: runtime.worldlineName,
+    writer: runtime.writerId,
+    reading,
+    outcome: 'accepted',
+    evidence: await createReadEvidence(context, result.evidence, basis?.tick),
+  });
+  context.bindReceipt(receipt, { operation: 'read', identity: result.evidence });
   return new ReadingResult({
     value: result.value,
-    receipt: new ReadReceipt({
-      timeline: runtime.worldlineName,
-      writer: runtime.writerId,
-      reading,
-      outcome: 'accepted',
-      evidence: result.evidence,
-    }),
+    receipt,
   });
 }
 
-function unresolvedReadingResult(
-  runtime: WarpWorldline,
-  reading: Reading,
-  failure: OperationalReadFailure
-): ReadingResult {
+function unresolvedReadingResult(fields: UnresolvedReadingFields): ReadingResult {
+  const { runtime, context, reading, failure } = fields;
+  const receipt = new ReadReceipt({
+    timeline: runtime.worldlineName,
+    writer: runtime.writerId,
+    reading,
+    ...failure,
+  });
+  context.bindReceipt(receipt, { operation: 'read', identity: undefined });
   return new ReadingResult({
     value: null,
-    receipt: new ReadReceipt({
-      timeline: runtime.worldlineName,
-      writer: runtime.writerId,
-      reading,
-      ...failure,
-    }),
+    receipt,
   });
 }
 

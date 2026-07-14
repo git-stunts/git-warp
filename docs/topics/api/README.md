@@ -116,7 +116,7 @@ const write = await timeline.write(
 
 switch (write.outcome) {
   case 'accepted':
-    console.log(write.patchSha);
+    console.log(write.evidence?.basis.id);
     break;
   case 'obstructed':
   case 'conflicted':
@@ -158,6 +158,28 @@ result.receipt;
 
 A convenience method such as `readValue()` can exist, but it should be clearly
 documented as the provenance-light path.
+
+## Opaque Evidence
+
+Receipts expose storage-neutral evidence handles:
+
+```typescript
+receipt.evidence?.basis.id;
+receipt.evidence?.support.map((handle) => handle.id);
+receipt.evidence?.tick;
+```
+
+`basis` identifies the causal basis used for the operation. `support` contains
+opaque handles for the supporting objects; the same support has the same ID
+across write, preview, join, and read receipts, so callers can correlate it
+without learning a substrate identifier. A historical read also carries the
+exact public `Tick` used for that read. Live reads do not invent a historical
+tick.
+
+Evidence IDs are deliberately opaque. Do not parse them. Operator code that
+needs exact substrate provenance must call
+`inspectReceipt(receipt, { storage })` from the diagnostics subpath with the
+same storage handle that issued the receipt.
 
 ## Intent Builders
 
@@ -238,7 +260,7 @@ read paths can still lower readings to optics internally:
 
 1. validate the `Reading`;
 2. lower `Reading` to `Optic`;
-3. prepare or check an optic basis;
+3. check an optic basis without broad materialization;
 4. capture the observer position;
 5. execute the bounded read;
 6. return `ReadingResult` and `ReadReceipt`.
@@ -256,7 +278,7 @@ const receipt = await timeline.write(assignRole('user:alice', 'admin'));
 
 switch (receipt.outcome) {
   case 'accepted':
-    console.log(receipt.patchSha);
+    console.log(receipt.evidence?.basis.id);
     break;
   case 'obstructed':
   case 'conflicted':
@@ -388,12 +410,12 @@ Use explicit subpaths:
 
 The boundaries mean different things:
 
-| Surface       | Meaning                                             |
-| ------------- | --------------------------------------------------- |
-| Root          | first-use product API                               |
-| `storage`     | supported opaque storage constructors                |
+| Surface       | Meaning                                                   |
+| ------------- | --------------------------------------------------------- |
+| Root          | first-use product API                                     |
+| `storage`     | supported opaque storage constructors                     |
 | `advanced`    | bounded coordinate capture, `Optic`, and `Witness` access |
-| `diagnostics` | receipt inspection                                  |
+| `diagnostics` | receipt inspection                                        |
 
 Do not turn `advanced` into a junk drawer. Symbols that exist only for removed
 graph-first consumers are not part of the v19 package boundary.
@@ -408,7 +430,7 @@ Each old root symbol needs one explicit disposition:
 | `GitGraphAdapter`        | `GitStorage.open({ cwd })` from `storage`                  |
 | `InMemoryGraphAdapter`   | `MemoryStorage.create()` from `storage`                    |
 | `commit((patch) => ...)` | `timeline.write(intent.*)`                                 |
-| `coordinate()`           | `tick()` publicly; use advanced `captureCoordinate()`       |
+| `coordinate()`           | `tick()` publicly; use advanced `captureCoordinate()`      |
 | `optic()`                | `timeline.read(reading.*)` or `advanced`                   |
 | `openWarpGraph()`        | removed; replace diagnostics with explicit diagnostic APIs |
 | `PatchBuilder`           | removed; use intent builders                               |

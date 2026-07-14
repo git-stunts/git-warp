@@ -15,6 +15,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { findForbiddenRootDeclarationVocabulary } from './v19-root-declaration-gate.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -220,8 +221,19 @@ function runSourceSurfaceCheck(): SurfaceErrorReport {
   checkIncludedTargets('package.json files', readStringArray(packageJson['files']), report);
   checkJsrExports(jsrJson, report);
   checkJsrPublish(jsrJson, report);
+  checkRootDeclarationVocabulary(report);
 
   return report;
+}
+
+function checkRootDeclarationVocabulary(report: SurfaceErrorReport): void {
+  const entry = resolve(root, 'dist/index.d.ts');
+  for (const violation of findForbiddenRootDeclarationVocabulary(entry)) {
+    report.errors.push(
+      `root declaration graph contains forbidden ${violation.token} vocabulary at ` +
+        `${violation.file}:${violation.line}:${violation.column} (${violation.identifier})`
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -247,7 +259,7 @@ export function parseExportBlock(blockBody: string): Set<string> {
     const withoutTypeKeyword = trimmed.replace(/^type\s+/, '');
     // Handle `Foo as Bar` — the exported name is Bar
     const asParts = withoutTypeKeyword.split(/\s+as\s+/);
-    const exportedName = (asParts.length > 1 ? asParts[1] ?? '' : asParts[0] ?? '').trim();
+    const exportedName = (asParts.length > 1 ? (asParts[1] ?? '') : (asParts[0] ?? '')).trim();
     if (exportedName) {
       names.add(exportedName);
     }
@@ -348,7 +360,10 @@ const TYPE_ONLY_KINDS = new Set(['interface', 'type']);
  * @param {{ exports?: Record<string, { kind?: string }>, typeExports?: Record<string, { kind?: string }> }} manifest
  * @returns {{ manifestNames: Set<string>, runtimeNames: Set<string>, typeOnlyNames: Set<string>, duplicateNames: Set<string>, invalidRuntimeTypeOnly: Set<string>, invalidTypeSectionRuntime: Set<string> }}
  */
-export function classifyManifestExports(manifest: { exports?: Record<string, { kind?: string }>, typeExports?: Record<string, { kind?: string }> }) {
+export function classifyManifestExports(manifest: {
+  exports?: Record<string, { kind?: string }>;
+  typeExports?: Record<string, { kind?: string }>;
+}) {
   const manifestNames = new Set<string>();
   const runtimeNames = new Set<string>();
   const typeOnlyNames = new Set<string>();
@@ -415,6 +430,6 @@ if (isMain) {
   }
 
   if (!quiet) {
-    process.stdout.write('PASS: package and JSR surface targets exist\n');
+    process.stdout.write('PASS: publication targets and v19 root declarations are clean\n');
   }
 }

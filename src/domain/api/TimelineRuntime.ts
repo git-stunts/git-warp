@@ -1,5 +1,6 @@
 import WarpError from '../errors/WarpError.ts';
 import type WarpWorldline from '../WarpWorldline.ts';
+import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
 import {
   createDraftTimeline,
   joinDraftTimeline,
@@ -13,18 +14,29 @@ import { executeIntentWrite } from './WriteRuntime.ts';
 
 const timelineRuntimes = new WeakMap<Timeline, WarpWorldline>();
 
-export function createTimeline(runtime: WarpWorldline): Timeline {
+export function createTimeline(runtime: WarpWorldline, context: ApiRuntimeContext): Timeline {
   const timeline = new Timeline({
     name: runtime.worldlineName,
     writer: runtime.writerId,
-    captureTick: async () => await createTick(runtime),
+    captureTick: async () => await createTick(runtime, context),
     joinDraft: (draft, options) => joinDraftTimeline(runtime, draft, options),
-    openDraft: (name) => createDraftTimeline(runtime, runtime.worldlineName, name),
-    openView: (tick) => createTimelineView(runtime, tick),
+    openDraft: (name) =>
+      createDraftTimeline({
+        runtime,
+        context,
+        timelineName: runtime.worldlineName,
+        draftName: name,
+      }),
+    openView: (tick) => createTimelineView(runtime, context, tick),
     previewJoinDraft: (draft, options) => previewDraftJoin(runtime, draft, options),
-    readReading: (reading) => executeReading(runtime, reading),
+    readReading: (reading) => executeReading({ runtime, context, reading }),
     writeIntent: async (intent) =>
-      await executeIntentWrite(runtime, intent, runtime.commit.bind(runtime)),
+      await executeIntentWrite({
+        runtime,
+        context,
+        intent,
+        commit: runtime.commit.bind(runtime),
+      }),
   });
   timelineRuntimes.set(timeline, runtime);
   return timeline;

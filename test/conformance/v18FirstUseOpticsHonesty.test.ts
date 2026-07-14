@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { inspectReceipt } from '../../diagnostics.ts';
 import { openWarp, reading } from '../../index.ts';
 import WarpStorage from '../../src/application/WarpStorage.ts';
 import { bindWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
@@ -126,10 +127,7 @@ class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
 }
 
 class FirstUseOpticsStorage extends WarpStorage {
-  constructor(
-    history: FirstUseOpticsTrapAdapter,
-    runtimeStorage: MemoryRuntimeStorageAdapter,
-  ) {
+  constructor(history: FirstUseOpticsTrapAdapter, runtimeStorage: MemoryRuntimeStorageAdapter) {
     super();
     bindWarpStorage(this, { history, runtimeStorage });
   }
@@ -187,6 +185,7 @@ describe('v18 first-use Optics honesty gate', () => {
         key: PROPERTY_KEY,
       })
     );
+    const inspection = inspectReceipt(property.receipt, { storage });
 
     persistence.forbidTreeOidMapReads();
     const basis = await events.prepareOpticBasis();
@@ -200,7 +199,15 @@ describe('v18 first-use Optics honesty gate', () => {
     expect(property.value).toBe('open');
     expect(property.receipt).toMatchObject({
       outcome: 'accepted',
-      evidence: { checkpointSha },
+      evidence: {
+        basis: { id: expect.any(String) },
+        support: expect.any(Array),
+      },
+    });
+    expect(property.receipt.evidence).not.toHaveProperty('checkpointSha');
+    expect(inspection.substrate).toMatchObject({
+      operation: 'read',
+      identity: { checkpointSha },
     });
     expect(persistence.forbiddenOperations()).toEqual([]);
   });

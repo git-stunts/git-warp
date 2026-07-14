@@ -97,8 +97,15 @@ as a bounded read.
 ## Diagnostics
 
 `@git-stunts/git-warp/diagnostics` exports `inspectReceipt()`. It accepts the
-same write, read, and join receipts returned by the root API and does not
-require an internal runtime host.
+same write, read, and join receipts returned by the root API together with the
+opaque storage handle that issued them:
+
+```typescript
+const inspection = inspectReceipt(receipt, { storage });
+```
+
+The explicit storage context lets diagnostics recover exact substrate
+provenance without putting those identifiers on normal receipt objects.
 
 ## Advanced Read Machinery
 

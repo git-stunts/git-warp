@@ -47,15 +47,15 @@ const receipt = await audit.write(
 );
 
 if (receipt.outcome === 'accepted') {
-  console.log(receipt.patchSha);
+  console.log(receipt.evidence?.basis.id);
 } else {
   console.error(receipt.reason);
 }
 ```
 
 Every call writes one intent and returns a `WriteReceipt`. Treat
-`receipt.outcome` as the settlement result instead of treating a returned SHA
-as the only success signal.
+`receipt.outcome` as the settlement result. Accepted writes carry opaque causal
+evidence handles; substrate identities are not part of normal control flow.
 
 ## Read A Bounded Value
 
@@ -80,7 +80,7 @@ console.log(exists.value, exists.receipt);
 ```
 
 Readings ask bounded questions. The receipt records how the runtime supported
-the answer. An accepted receipt carries checkpoint-tail evidence. If no bounded
+the answer. An accepted receipt carries opaque causal evidence. If no bounded
 basis exists, `read()` returns an `obstructed` receipt with repair hints instead
 of materializing the whole timeline.
 
