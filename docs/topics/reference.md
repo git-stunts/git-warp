@@ -29,9 +29,9 @@ First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.
 Source: `index.ts`. Count: 3.
 
 ```text
-intent @ index.ts#L14
-openWarp @ index.ts#L13
-reading @ index.ts#L15
+intent @ index.ts#L15
+openWarp @ index.ts#L14
+reading @ index.ts#L16
 ```
 
 ### Type exports
@@ -39,50 +39,50 @@ reading @ index.ts#L15
 Source: `index.ts`. Count: 44.
 
 ```text
-DraftTimeline @ index.ts#L16
-EdgeIntentFields @ index.ts#L32
-Evidence @ index.ts#L21
-EvidenceHandle @ index.ts#L21
-Intent @ index.ts#L22
-IntentBuilders @ index.ts#L38
-IntentDescriptor @ index.ts#L33
-IntentKind @ index.ts#L34
-JoinMode @ index.ts#L39
-JoinOptions @ index.ts#L41
-JoinOutcome @ index.ts#L55
-JoinPolicy @ index.ts#L41
-JoinReceipt @ index.ts#L23
-JoinReceiptOptions @ index.ts#L39
-JoinResult @ index.ts#L24
-JoinResultOptions @ index.ts#L40
-NeighborhoodReadingFields @ index.ts#L43
-NodeIntentFields @ index.ts#L35
-NodeReadingFields @ index.ts#L44
-OpenWarpOptions @ index.ts#L29
-PropertyIntentFields @ index.ts#L36
-PropertyReadingFields @ index.ts#L45
-Reading @ index.ts#L25
-ReadingBuilders @ index.ts#L50
-ReadingDescriptor @ index.ts#L47
-ReadingDirection @ index.ts#L46
-ReadingKind @ index.ts#L48
-ReadingResult @ index.ts#L26
-ReadingResultOptions @ index.ts#L51
-ReadingValue @ index.ts#L51
-ReadOutcome @ index.ts#L56
-ReadReceipt @ index.ts#L27
-ReadReceiptOptions @ index.ts#L53
-Receipt @ index.ts#L52
-ReceiptOutcome @ index.ts#L57
-RepairHint @ index.ts#L60
-Tick @ index.ts#L19
-Timeline @ index.ts#L18
-TimelineView @ index.ts#L20
-Warp @ index.ts#L17
-WarpStorage @ index.ts#L30
-WriteOutcome @ index.ts#L58
-WriteReceipt @ index.ts#L28
-WriteReceiptOptions @ index.ts#L61
+DraftTimeline @ index.ts#L17
+EdgeIntentFields @ index.ts#L33
+Evidence @ index.ts#L22
+EvidenceHandle @ index.ts#L22
+Intent @ index.ts#L23
+IntentBuilders @ index.ts#L39
+IntentDescriptor @ index.ts#L34
+IntentKind @ index.ts#L35
+JoinMode @ index.ts#L40
+JoinOptions @ index.ts#L42
+JoinOutcome @ index.ts#L56
+JoinPolicy @ index.ts#L42
+JoinReceipt @ index.ts#L24
+JoinReceiptOptions @ index.ts#L40
+JoinResult @ index.ts#L25
+JoinResultOptions @ index.ts#L41
+NeighborhoodReadingFields @ index.ts#L44
+NodeIntentFields @ index.ts#L36
+NodeReadingFields @ index.ts#L45
+OpenWarpOptions @ index.ts#L30
+PropertyIntentFields @ index.ts#L37
+PropertyReadingFields @ index.ts#L46
+Reading @ index.ts#L26
+ReadingBuilders @ index.ts#L51
+ReadingDescriptor @ index.ts#L48
+ReadingDirection @ index.ts#L47
+ReadingKind @ index.ts#L49
+ReadingResult @ index.ts#L27
+ReadingResultOptions @ index.ts#L52
+ReadingValue @ index.ts#L52
+ReadOutcome @ index.ts#L57
+ReadReceipt @ index.ts#L28
+ReadReceiptOptions @ index.ts#L54
+Receipt @ index.ts#L53
+ReceiptOutcome @ index.ts#L58
+RepairHint @ index.ts#L61
+Tick @ index.ts#L20
+Timeline @ index.ts#L19
+TimelineView @ index.ts#L21
+Warp @ index.ts#L18
+WarpStorage @ index.ts#L31
+WriteOutcome @ index.ts#L59
+WriteReceipt @ index.ts#L29
+WriteReceiptOptions @ index.ts#L62
 ```
 
 ## Storage export surface
