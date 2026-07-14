@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain/WarpWorldline.ts';
+import type {
+  ApiRuntimeContext,
+  ReceiptProvenance,
+} from '../../../src/domain/api/ApiRuntimeContext.ts';
 import {
   createDraftTimeline,
   joinDraftTimeline,
@@ -10,8 +14,30 @@ import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 
 type RuntimeOptions = {
   readonly commitPatch?: (build: WarpWorldlinePatchBuild) => Promise<string>;
+  readonly patchDraft?: (name: string, build: WarpWorldlinePatchBuild) => Promise<string>;
   readonly previewDraftJoin?: (name: string) => Promise<readonly string[]>;
 };
+
+type RuntimeContextOptions = {
+  readonly createOpaqueId?: ApiRuntimeContext['createOpaqueId'];
+};
+
+function createRuntimeContext(options: RuntimeContextOptions = {}): {
+  readonly context: ApiRuntimeContext;
+  readonly provenance: ReceiptProvenance[];
+} {
+  const provenance: ReceiptProvenance[] = [];
+  let recoverySequence = 0;
+  return {
+    context: {
+      createOpaqueId:
+        options.createOpaqueId ?? (async (namespace, payload) => `${namespace}:${payload.length}`),
+      reserveRecoveryNonce: () => `test-runtime:${(recoverySequence += 1)}`,
+      bindReceipt: (_receipt, record) => provenance.push(record),
+    },
+    provenance,
+  };
+}
 
 function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
   return new WarpWorldline({
@@ -22,7 +48,7 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
     createWorldline: () => {
       throw new Error('ProjectionHandle is not used by DraftTimelineRuntime tests');
     },
-    patchDraft: async (name) => `${name}-draft-patch`,
+    patchDraft: options.patchDraft ?? (async (name) => `${name}-draft-patch`),
     previewDraftJoin: options.previewDraftJoin ?? (async (name) => [`${name}-preview-patch`]),
     admitIntent: async (descriptor) => ({
       admitted: true,
@@ -53,12 +79,19 @@ describe('DraftTimelineRuntime', () => {
         return `join-patch-${commitAttempts}`;
       },
     });
-    const draft = await createDraftTimeline(runtime, 'events', 'try-admin-role');
+    const { context } = createRuntimeContext();
+    const draft = await createDraftTimeline({
+      runtime,
+      context,
+      timelineName: 'events',
+      draftName: 'try-admin-role',
+    });
 
     await draft.write(intent.node.add({ subject: 'user:alice' }));
     const firstJoin = joinDraftTimeline(runtime, draft, { policy: 'deterministic' });
+    const secondJoinPending = joinDraftTimeline(runtime, draft, { policy: 'deterministic' });
     await firstCommitStarted;
-    const secondJoin = await joinDraftTimeline(runtime, draft, { policy: 'deterministic' });
+    const secondJoin = await secondJoinPending;
     releaseFirstCommit();
     const firstResult = await firstJoin;
 
@@ -68,17 +101,98 @@ describe('DraftTimelineRuntime', () => {
     expect(commitAttempts).toBe(1);
   });
 
-  it('reports preview patch shas from runtime materialization', async () => {
+  it('returns an accepted draft-write receipt when canonical evidence hashing fails', async () => {
+    let draftCommitted = false;
+    let draftCommits = 0;
+    const runtime = createRuntime({
+      patchDraft: async () => {
+        draftCommits += 1;
+        draftCommitted = true;
+        return 'committed-draft-patch';
+      },
+    });
+    const { context, provenance } = createRuntimeContext({
+      createOpaqueId: async (namespace, parts) => {
+        if (draftCommitted && parts[0] !== 'recovery') {
+          throw new Error('canonical evidence hashing failed after commit');
+        }
+        return `${namespace}:opaque-${parts.length}`;
+      },
+    });
+    const draft = await createDraftTimeline({
+      runtime,
+      context,
+      timelineName: 'events',
+      draftName: 'try-admin-role',
+    });
+
+    const receipt = await draft.write(intent.node.add({ subject: 'user:alice' }));
+
+    expect(receipt.outcome).toBe('accepted');
+    expect(receipt.evidence?.support).toEqual([]);
+    expect(draftCommits).toBe(1);
+    expect(provenance.at(-1)).toEqual({
+      operation: 'write',
+      patchSha: 'committed-draft-patch',
+    });
+  });
+
+  it('returns an accepted join receipt when canonical evidence hashing fails after commit', async () => {
+    let joinCommitted = false;
+    const runtime = createRuntime({
+      commitPatch: async () => {
+        joinCommitted = true;
+        return 'committed-join-patch';
+      },
+    });
+    const { context, provenance } = createRuntimeContext({
+      createOpaqueId: async (namespace, parts) => {
+        if (joinCommitted && parts[0] !== 'recovery') {
+          throw new Error('canonical join evidence hashing failed after commit');
+        }
+        return `${namespace}:opaque-${parts.length}`;
+      },
+    });
+    const draft = await createDraftTimeline({
+      runtime,
+      context,
+      timelineName: 'events',
+      draftName: 'try-admin-role',
+    });
+    await draft.write(intent.node.add({ subject: 'user:alice' }));
+
+    const result = await joinDraftTimeline(runtime, draft, { policy: 'deterministic' });
+
+    expect(result.receipt.outcome).toBe('accepted');
+    expect(result.receipt.evidence?.support).toEqual([]);
+    expect(provenance.at(-1)).toEqual({
+      operation: 'join',
+      patchShas: ['committed-join-patch'],
+    });
+  });
+
+  it('keeps preview object identities behind opaque evidence handles', async () => {
     const runtime = createRuntime({
       previewDraftJoin: async () => ['materialized-preview-patch'],
     });
-    const draft = await createDraftTimeline(runtime, 'events', 'try-admin-role');
+    const { context, provenance } = createRuntimeContext();
+    const draft = await createDraftTimeline({
+      runtime,
+      context,
+      timelineName: 'events',
+      draftName: 'try-admin-role',
+    });
 
     await draft.write(intent.node.add({ subject: 'user:alice' }));
     const preview = await previewDraftJoin(runtime, draft, { policy: 'deterministic' });
 
     expect(preview.receipt.outcome).toBe('accepted');
-    expect(preview.receipt.patchShas).toEqual(['materialized-preview-patch']);
+    expect(preview.receipt.evidence?.support).toHaveLength(1);
+    expect('patchShas' in preview.receipt).toBe(false);
+    expect(provenance.at(-1)).toEqual({
+      operation: 'join',
+      patchShas: ['materialized-preview-patch'],
+    });
   });
 
   it('does not replay committed draft intents after a partial join failure', async () => {
@@ -92,24 +206,36 @@ describe('DraftTimelineRuntime', () => {
         return `join-patch-${commitAttempts}`;
       },
     });
-    const draft = await createDraftTimeline(runtime, 'events', 'try-admin-role');
+    const { context, provenance } = createRuntimeContext();
+    const draft = await createDraftTimeline({
+      runtime,
+      context,
+      timelineName: 'events',
+      draftName: 'try-admin-role',
+    });
 
     await draft.write(intent.node.add({ subject: 'user:alice' }));
-    await draft.write(intent.property.set({
-      subject: 'user:alice',
-      key: 'role',
-      value: 'admin',
-    }));
+    await draft.write(
+      intent.property.set({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'admin',
+      })
+    );
 
     const failedJoin = await joinDraftTimeline(runtime, draft, { policy: 'deterministic' });
     const retryJoin = await joinDraftTimeline(runtime, draft, { policy: 'deterministic' });
 
     expect(failedJoin.receipt.outcome).toBe('rejected');
-    expect(failedJoin.receipt.patchShas).toEqual(['join-patch-1']);
+    expect(failedJoin.receipt.evidence?.support).toHaveLength(1);
     expect(failedJoin.receipt.reason).toBe('Draft join failed while committing intents');
     expect(retryJoin.receipt.outcome).toBe('rejected');
-    expect(retryJoin.receipt.patchShas).toEqual(['join-patch-1']);
+    expect(retryJoin.receipt.evidence?.support).toHaveLength(1);
     expect(retryJoin.receipt.reason).toBe('Draft join already has a failed commit attempt');
     expect(commitAttempts).toBe(2);
+    expect(provenance.slice(-2)).toEqual([
+      { operation: 'join', patchShas: ['join-patch-1'] },
+      { operation: 'join', patchShas: ['join-patch-1'] },
+    ]);
   });
 });

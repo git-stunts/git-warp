@@ -5,14 +5,15 @@
  * named expert surfaces.
  */
 
-import {
-  GitStorage,
-  MemoryStorage,
-  type GitStorageOptions,
-} from '../../storage.ts';
+import { GitStorage, MemoryStorage, type GitStorageOptions } from '../../storage.ts';
 import { type Receipt, type Timeline } from '../../index.ts';
 import { captureCoordinate, Coordinate, Optic, type Witness } from '../../advanced.ts';
-import { inspectReceipt, type ReceiptInspection } from '../../diagnostics.ts';
+import {
+  inspectReceipt,
+  type InspectReceiptOptions,
+  type ReceiptInspection,
+  type ReceiptSubstrateInspection,
+} from '../../diagnostics.ts';
 
 declare const gitStorageOptions: GitStorageOptions;
 
@@ -24,10 +25,16 @@ const optic: InstanceType<typeof Optic> = coordinate.optic();
 const node = await optic.node('user:alice').read();
 const witness: Witness = node.readIdentity;
 declare const receipt: Receipt;
-const inspection: ReceiptInspection = inspectReceipt(receipt);
+const inspectionOptions: InspectReceiptOptions = { storage: memoryStorage };
+const inspection: ReceiptInspection = inspectReceipt(receipt, inspectionOptions);
+const substrate: ReceiptSubstrateInspection = inspection.substrate;
+
+// @ts-expect-error diagnostics require explicit storage context.
+inspectReceipt(receipt);
 
 void memoryStorage;
 void gitStorage;
 void optic;
 void witness;
 void inspection;
+void substrate;

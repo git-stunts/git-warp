@@ -5,9 +5,10 @@
  *
  * Root users should write intents, read timelines, and keep receipts. The
  * graph-first compatibility surface is no longer publicly exported.
- * Storage adapters live under `@git-stunts/git-warp/storage`; formal read,
- * evidence, and support machinery lives under `@git-stunts/git-warp/advanced`;
- * operator inspection tools live under `@git-stunts/git-warp/diagnostics`.
+ * Opaque evidence is part of this first-use boundary. Storage adapters live
+ * under `@git-stunts/git-warp/storage`; formal optic, coordinate, and witness
+ * machinery lives under `@git-stunts/git-warp/advanced`; operator inspection
+ * tools live under `@git-stunts/git-warp/diagnostics`.
  */
 
 export { openWarp } from './src/application/openWarp.ts';
@@ -18,6 +19,7 @@ export type { default as Warp } from './src/domain/api/Warp.ts';
 export type { default as Timeline } from './src/domain/api/Timeline.ts';
 export type { default as Tick } from './src/domain/api/Tick.ts';
 export type { default as TimelineView } from './src/domain/api/TimelineView.ts';
+export type { default as Evidence, EvidenceHandle } from './src/domain/api/Evidence.ts';
 export type { default as Intent } from './src/domain/api/Intent.ts';
 export type { default as JoinReceipt } from './src/domain/api/JoinReceipt.ts';
 export type { default as JoinResult } from './src/domain/api/JoinResult.ts';
@@ -49,7 +51,7 @@ export type {
 export type { ReadingBuilders } from './src/domain/api/ReadingBuilders.ts';
 export type { ReadingResultOptions, ReadingValue } from './src/domain/api/ReadingResult.ts';
 export type { Receipt } from './src/domain/api/Receipt.ts';
-export type { ReadEvidence, ReadReceiptOptions } from './src/domain/api/ReadReceipt.ts';
+export type { ReadReceiptOptions } from './src/domain/api/ReadReceipt.ts';
 export type {
   JoinOutcome,
   ReadOutcome,

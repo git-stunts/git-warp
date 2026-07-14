@@ -1,6 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
-import type ReadIdentity from '../services/optic/ReadIdentity.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
+import type Evidence from './Evidence.ts';
+import { freezeOptionalEvidence } from './EvidenceRuntime.ts';
 import Reading from './Reading.ts';
 import { RECEIPT_OUTCOMES, type ReadOutcome } from './ReceiptOutcome.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
@@ -18,36 +19,20 @@ export type ReadReceiptOptions = ReadReceiptFields &
   (
     | {
         readonly outcome: 'accepted';
-        readonly evidence: ReadEvidence;
+        readonly evidence: Evidence;
         readonly reason?: never;
       }
     | {
         readonly outcome: Exclude<ReadReceiptOutcome, 'accepted'>;
-        readonly evidence?: ReadEvidence;
+        readonly evidence?: Evidence;
         readonly reason: string;
       }
   );
 
-export type ReadEvidence = Readonly<
-  Pick<
-    ReadIdentity,
-    | 'kind'
-    | 'basis'
-    | 'worldline'
-    | 'entityAspect'
-    | 'checkpointSha'
-    | 'checkpointFrontier'
-    | 'checkpointIndexShards'
-    | 'tailWitnesses'
-    | 'reducerVersion'
-    | 'projectionVersion'
-  >
->;
-
 const READ_RECEIPT_OUTCOMES: ReadonlySet<ReadReceiptOutcome> = RECEIPT_OUTCOMES;
 
 export default class ReadReceipt {
-  readonly evidence: ReadEvidence | undefined;
+  readonly evidence: Evidence | undefined;
   readonly operation: 'read' = 'read';
   readonly outcome: ReadReceiptOutcome;
   readonly reading: Reading;
@@ -64,7 +49,7 @@ export default class ReadReceipt {
     this.writer = fields.writer;
     this.reading = fields.reading;
     this.outcome = fields.outcome;
-    this.evidence = fields.evidence;
+    this.evidence = freezeOptionalEvidence(fields.evidence, 'readReceipt.evidence');
     this.repairHints = freezeRepairHints(fields.repairHints ?? []);
     this.reason = fields.reason;
     Object.freeze(this);
