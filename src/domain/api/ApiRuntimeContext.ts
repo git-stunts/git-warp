@@ -22,5 +22,6 @@ export type ApiRuntimeContext = {
     namespace: 'tick' | 'evidence',
     parts: readonly OpaqueIdPart[]
   ) => Promise<string>;
+  readonly reserveRecoveryNonce: () => string;
   readonly bindReceipt: (receipt: Receipt, provenance: ReceiptProvenance) => void;
 };

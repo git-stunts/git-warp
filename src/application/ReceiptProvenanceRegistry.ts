@@ -10,7 +10,13 @@ type ReceiptProvenanceBinding = {
   readonly storage: WarpStorage;
 };
 
+type RecoveryNonceState = {
+  readonly nonce: string;
+  sequence: number;
+};
+
 const RECEIPT_PROVENANCE = new WeakMap<Receipt, ReceiptProvenanceBinding>();
+const RECOVERY_NONCES = new WeakMap<WarpStorage, RecoveryNonceState>();
 
 export function createApiRuntimeContext(
   storage: WarpStorage,
@@ -21,6 +27,7 @@ export function createApiRuntimeContext(
       const digest = await crypto.hash('sha256', opaqueIdPayload(namespace, parts));
       return `${namespace}:${digest}`;
     },
+    reserveRecoveryNonce: () => reserveRecoveryNonce(storage),
     bindReceipt: (receipt, provenance) => {
       if (RECEIPT_PROVENANCE.has(receipt)) {
         throw new WarpError('Receipt provenance is already bound', 'E_RECEIPT_PROVENANCE_BOUND');
@@ -31,6 +38,16 @@ export function createApiRuntimeContext(
       );
     },
   });
+}
+
+function reserveRecoveryNonce(storage: WarpStorage): string {
+  let state = RECOVERY_NONCES.get(storage);
+  if (state === undefined) {
+    state = { nonce: globalThis.crypto.randomUUID(), sequence: 0 };
+    RECOVERY_NONCES.set(storage, state);
+  }
+  state.sequence += 1;
+  return `${state.nonce}:${state.sequence}`;
 }
 
 function opaqueIdPayload(namespace: string, parts: readonly (string | number)[]): string {

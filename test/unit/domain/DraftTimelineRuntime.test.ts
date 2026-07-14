@@ -27,10 +27,12 @@ function createRuntimeContext(options: RuntimeContextOptions = {}): {
   readonly provenance: ReceiptProvenance[];
 } {
   const provenance: ReceiptProvenance[] = [];
+  let recoverySequence = 0;
   return {
     context: {
       createOpaqueId:
         options.createOpaqueId ?? (async (namespace, payload) => `${namespace}:${payload.length}`),
+      reserveRecoveryNonce: () => `test-runtime:${(recoverySequence += 1)}`,
       bindReceipt: (_receipt, record) => provenance.push(record),
     },
     provenance,

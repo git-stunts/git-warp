@@ -21,6 +21,20 @@ describe('receipt diagnostics', () => {
     ]);
 
     expect(new Set(ids).size).toBe(ids.length);
+    await expect(context.createOpaqueId('evidence', ['ab', 'c'])).resolves.toBe(ids[0]);
+  });
+
+  it('reserves recovery nonces across contexts sharing one storage', () => {
+    const storage = MemoryStorage.create();
+    const first = createApiRuntimeContext(storage, new NodeCryptoAdapter());
+    const reopened = createApiRuntimeContext(storage, new NodeCryptoAdapter());
+
+    const firstNonce = first.reserveRecoveryNonce();
+    const reopenedNonce = reopened.reserveRecoveryNonce();
+
+    expect(firstNonce).toMatch(/:1$/);
+    expect(reopenedNonce).toMatch(/:2$/);
+    expect(reopenedNonce).not.toBe(firstNonce);
   });
 
   it('recovers exact write provenance only with explicit storage context', async () => {

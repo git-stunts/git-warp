@@ -19,7 +19,6 @@ const READ_EVIDENCE = 'read';
 const PATCH_SUPPORT = 'patch';
 const INDEX_SUPPORT = 'index';
 const RECOVERY_EVIDENCE = 'recovery';
-const recoverySequences = new WeakMap<ApiRuntimeContext, number>();
 
 export async function createWriteEvidence(
   runtime: WarpWorldline,
@@ -137,16 +136,10 @@ async function createRecoveryEvidence(
       runtime.worldlineName,
       runtime.writerId,
       ...parts,
-      nextRecoverySequence(context),
+      context.reserveRecoveryNonce(),
     ]),
     support: [],
   });
-}
-
-function nextRecoverySequence(context: ApiRuntimeContext): number {
-  const sequence = (recoverySequences.get(context) ?? 0) + 1;
-  recoverySequences.set(context, sequence);
-  return sequence;
 }
 
 function assertEvidenceObject(evidence: Evidence, field: string): void {
