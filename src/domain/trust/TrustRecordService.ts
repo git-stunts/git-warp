@@ -97,6 +97,9 @@ class TrustRecordService {
         const result = await this.appendRecord(graphName, currentRecord, { skipSignatureVerify });
         return { ...result, attempts };
       } catch (err) {
+        if (!(err instanceof TrustError)) {
+          throw err;
+        }
         if (!isRetryableConflict(err, resign)) {
           throw err;
         }
@@ -145,12 +148,11 @@ class TrustRecordService {
 // -- Helpers ------------------------------------------------------------------
 
 function isRetryableConflict(
-  error: unknown,
+  error: TrustError,
   resign: RetryOptions['resign'],
-): error is TrustError {
-  return error instanceof TrustError
-    && (error.code === 'E_TRUST_CAS_CONFLICT'
-      || (error.code === 'E_TRUST_PREV_MISMATCH' && resign !== null));
+): boolean {
+  return error.code === 'E_TRUST_CAS_CONFLICT'
+    || (error.code === 'E_TRUST_PREV_MISMATCH' && resign !== null);
 }
 
 function requireRetryPrev(record: TrustRecord, expectedPrev: string | null): void {

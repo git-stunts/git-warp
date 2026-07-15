@@ -74,6 +74,19 @@ describe('GitCasAssetStorageAdapter', () => {
       .resolves.toEqual(new Uint8Array([1, 2, 3, 4]));
   });
 
+  it('rejects a staged asset whose byte count differs from the declared size', async () => {
+    const { adapter } = createFixture();
+
+    await expect(adapter.stage(chunks(), {
+      slug: 'mismatched',
+      expectedSize: 3,
+    })).rejects.toMatchObject({
+      code: 'E_ASSET_SIZE_MISMATCH',
+      expectedSize: 3,
+      actualSize: 4,
+    });
+  });
+
   it('adopts legacy asset-tree OIDs before opening them', async () => {
     const { backing, cas, history } = createFixture();
     const stored = await backing.store('legacy tree');

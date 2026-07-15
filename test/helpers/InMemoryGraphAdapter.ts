@@ -200,7 +200,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return buf;
   }
 
-  async readObjectType(oid: string): Promise<string> {
+  async readObjectType(oid: string): Promise<'blob' | 'tree' | 'commit'> {
     validateOid(oid);
     if (this._blobs.has(oid)) {
       return 'blob';

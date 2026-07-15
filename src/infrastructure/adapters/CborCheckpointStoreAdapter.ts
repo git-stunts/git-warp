@@ -1,3 +1,7 @@
+import type {
+  BundleCapability,
+  PublicationCapability,
+} from '@git-stunts/git-cas';
 import CheckpointStorePort, {
   type CheckpointBasis,
   type CheckpointData,
@@ -7,9 +11,12 @@ import CheckpointStorePort, {
 } from '../../ports/CheckpointStorePort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
-import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
+import {
+  CHECKPOINT_STORAGE_FORMAT,
+  type default as CommitMessageCodecPort,
+} from '../../ports/CommitMessageCodecPort.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
-import WarpError from '../../domain/errors/WarpError.ts';
+import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.ts';
@@ -24,121 +31,127 @@ import {
 } from '../../domain/services/state/checkpointHelpers.ts';
 import { buildCheckpointRef, buildCoverageRef } from '../../domain/utils/RefLayout.ts';
 import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
-import { textDecode, textEncode } from '../../domain/utils/bytes.ts';
+import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
+import { stageCheckpointBundleArtifacts } from './CheckpointBundleArtifactStager.ts';
+import LegacyCheckpointArtifactAdapter from './LegacyCheckpointArtifactAdapter.ts';
+import { classifyCheckpointStorage } from './CheckpointStorageFormatClassifier.ts';
+import { requireAdapterDependency } from './AdapterDependencyGuard.ts';
 
 interface CheckpointHistory {
-  writeBlob(content: Uint8Array | string): Promise<string>;
   readBlob(oid: string): Promise<Uint8Array>;
-  writeTree(entries: string[]): Promise<string>;
   readTreeOids(treeOid: string): Promise<Record<string, string>>;
   commitNode(options: { message: string; parents: string[] }): Promise<string>;
-  commitNodeWithTree(options: {
-    treeOid: string;
-    parents: string[];
-    message: string;
-  }): Promise<string>;
   showNode(sha: string): Promise<string>;
   getCommitTree(sha: string): Promise<string>;
   readRef(ref: string): Promise<string | null>;
   compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void>;
 }
 
+export type GitCasCheckpointFacade = {
+  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
+  readonly publications: Pick<PublicationCapability, 'commit'>;
+};
+
+type CheckpointArtifact =
+  | Readonly<{ kind: 'asset'; handle: AssetHandle }>
+  | Readonly<{ kind: 'legacy-object'; oid: string }>;
+
 type CheckpointLayout = {
   readonly metadata: ReturnType<CommitMessageCodecPort['decodeCheckpoint']>;
-  readonly treeOids: Record<string, string>;
+  readonly artifacts: Readonly<Record<string, CheckpointArtifact>>;
   readonly indexShardHandles: Readonly<Record<string, AssetHandle>>;
 };
 
-const CAS_POINTER_PREFIX = 'git-warp:cas-pointer:v1:';
-const CAS_POINTER_PREFIX_BYTES = textEncode(CAS_POINTER_PREFIX);
-
 /**
- * Compatibility adapter for the schema-5 checkpoint tree.
- *
- * Raw Git layout is deliberately confined here. The checkpoint/index page
- * migration can replace this adapter without changing domain services.
+ * Publishes current checkpoints as retained git-cas bundles and reads the
+ * retired schema-5 Git tree layout behind an explicit adapter boundary.
  */
 export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   private readonly _codec: CodecPort;
   private readonly _messageCodec: CommitMessageCodecPort;
   private readonly _history: CheckpointHistory;
   private readonly _assets: AssetStoragePort;
+  private readonly _cas: GitCasCheckpointFacade;
+  private readonly _legacyArtifacts: LegacyCheckpointArtifactAdapter;
 
   constructor(options: {
     codec: CodecPort;
     commitMessageCodec: CommitMessageCodecPort;
     history: CheckpointHistory;
     assetStorage: AssetStoragePort;
+    cas: GitCasCheckpointFacade;
   }) {
     super();
-    requireDependency(options.codec, 'codec');
-    requireDependency(options.commitMessageCodec, 'commitMessageCodec');
-    requireDependency(options.history, 'history');
-    requireDependency(options.assetStorage, 'assetStorage');
+    requireAdapterDependency(options.codec, 'codec');
+    requireAdapterDependency(options.commitMessageCodec, 'commitMessageCodec');
+    requireAdapterDependency(options.history, 'history');
+    requireAdapterDependency(options.assetStorage, 'assetStorage');
+    requireAdapterDependency(options.cas, 'cas');
     this._codec = options.codec;
     this._messageCodec = options.commitMessageCodec;
     this._history = options.history;
     this._assets = options.assetStorage;
+    this._cas = options.cas;
+    this._legacyArtifacts = new LegacyCheckpointArtifactAdapter({
+      history: options.history,
+      assets: options.assetStorage,
+    });
   }
 
   override async publishCheckpoint(record: CheckpointRecord): Promise<PublishedCheckpoint> {
     const checkpointRef = buildCheckpointRef(record.graphName);
-    const expectedHead = await this._history.readRef(checkpointRef);
+    const expectedHead = record.expectedCheckpointSha === undefined
+      ? await this._history.readRef(checkpointRef)
+      : record.expectedCheckpointSha;
     const stateEnvelope = serializeCheckpointStateEnvelope(record.state, { codec: this._codec });
-    const stateTreeOid = await this._writeStateTree(stateEnvelope);
-    const frontierOid = await this._history.writeBlob(this._encodeFrontier(record.frontier));
-    const appliedVVOid = await this._history.writeBlob(
-      this._codec.encode(VersionVector.serialize(record.appliedVV)),
-    );
-    const provenanceOid = record.provenanceIndex === null || record.provenanceIndex === undefined
-      ? null
-      : await this._history.writeBlob(record.provenanceIndex.serialize({ codec: this._codec }));
-    const indexTreeOid = record.indexShards === null || record.indexShards === undefined
-      ? null
-      : await this._writeIndexTree(record.indexShards);
-
-    const entries = [
-      `100644 blob ${appliedVVOid}\tappliedVV.cbor`,
-      `100644 blob ${frontierOid}\tfrontier.cbor`,
-      `040000 tree ${stateTreeOid}\tstate`,
-    ];
-    if (provenanceOid !== null) {
-      entries.push(`100644 blob ${provenanceOid}\tprovenanceIndex.cbor`);
-    }
-    if (indexTreeOid !== null) {
-      entries.push(`040000 tree ${indexTreeOid}\tindex`);
-    }
-    entries.sort(compareTreeEntriesByPath);
-    const rootTreeOid = await this._history.writeTree(entries);
+    const bundle = await this._cas.bundles.putOrdered({
+      members: stageCheckpointBundleArtifacts({
+        assets: this._assets,
+        codec: this._codec,
+        envelope: stateEnvelope,
+        record,
+      }),
+    });
+    const bundleHandle = new BundleHandle(bundle.handle.toString());
     const message = this._messageCodec.encodeCheckpoint({
       kind: 'checkpoint',
       graph: record.graphName,
       stateHash: record.stateHash,
       schema: CURRENT_CHECKPOINT_SCHEMA,
-      checkpointVersion: null,
+      checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+      bundleHandle,
     });
-    const checkpointSha = await this._history.commitNodeWithTree({
-      treeOid: rootTreeOid,
-      parents: record.parents,
-      message,
+    const publication = await this._cas.publications.commit({
+      root: bundle.handle,
+      commit: { parents: record.parents, message },
+      ref: { name: checkpointRef, expected: expectedHead },
     });
-    await this._history.compareAndSwapRef(checkpointRef, checkpointSha, expectedHead);
-    return Object.freeze({ checkpointSha });
+    requirePublishedBundle(publication.root.toString(), bundleHandle);
+    const retention = adaptGitCasRetentionWitness(publication.witness.toJSON());
+    requireRetainedBundle(retention.handle.toString(), bundleHandle);
+    return Object.freeze({
+      checkpointSha: publication.commitId,
+      bundleHandle,
+      retention,
+    });
   }
 
   override async resolveHead(graphName: string): Promise<string | null> {
     return await this._history.readRef(buildCheckpointRef(graphName));
   }
 
-  override async loadCheckpoint(checkpointSha: string): Promise<CheckpointData> {
-    const layout = await this._readLayout(checkpointSha);
+  override async loadCheckpoint(
+    checkpointSha: string,
+    expectedGraphName?: string,
+  ): Promise<CheckpointData> {
+    const layout = await this._readLayout(checkpointSha, expectedGraphName);
     const state = deserializeCheckpointStateEnvelope(
-      await this._readStateEnvelope(checkpointSha, layout.treeOids),
+      await this._readStateEnvelope(checkpointSha, layout.artifacts),
       { codec: this._codec },
     );
-    const frontier = await this._readFrontier(checkpointSha, layout.treeOids);
-    const appliedVV = await this._readAppliedVV(layout.treeOids);
-    const provenanceIndex = await this._readProvenanceIndex(layout.treeOids);
+    const frontier = await this._readFrontier(checkpointSha, layout.artifacts);
+    const appliedVV = await this._readAppliedVV(layout.artifacts);
+    const provenanceIndex = await this._readProvenanceIndex(layout.artifacts);
     const result: CheckpointData = {
       state,
       frontier,
@@ -155,13 +168,18 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     return result;
   }
 
-  override async readMetadata(checkpointSha: string): Promise<CheckpointMetadata> {
+  override async readMetadata(
+    checkpointSha: string,
+    expectedGraphName?: string,
+  ): Promise<CheckpointMetadata> {
     const metadata = this._messageCodec.decodeCheckpoint(
       await this._history.showNode(checkpointSha),
     );
+    requireCheckpointGraph(checkpointSha, metadata.graph, expectedGraphName);
     if (!isCurrentCheckpointSchema(metadata.schema)) {
       throw unsupportedCheckpointSchema(checkpointSha, metadata.schema);
     }
+    classifyCheckpointStorage(checkpointSha, metadata);
     return Object.freeze({
       checkpointSha,
       stateHash: metadata.stateHash,
@@ -169,8 +187,11 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     });
   }
 
-  override async loadBasis(checkpointSha: string): Promise<CheckpointBasis> {
-    const layout = await this._readLayout(checkpointSha);
+  override async loadBasis(
+    checkpointSha: string,
+    expectedGraphName?: string,
+  ): Promise<CheckpointBasis> {
+    const layout = await this._readLayout(checkpointSha, expectedGraphName);
     if (!hasEntries(layout.indexShardHandles)) {
       throw new PersistenceError(
         `Checkpoint ${checkpointSha} has no bounded index basis`,
@@ -182,7 +203,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       checkpointSha,
       stateHash: layout.metadata.stateHash,
       schema: layout.metadata.schema,
-      frontier: await this._readFrontier(checkpointSha, layout.treeOids),
+      frontier: await this._readFrontier(checkpointSha, layout.artifacts),
       indexShardHandles: layout.indexShardHandles,
     });
   }
@@ -203,28 +224,86 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     return sha;
   }
 
-  private async _readLayout(checkpointSha: string): Promise<CheckpointLayout> {
+  private async _readLayout(
+    checkpointSha: string,
+    expectedGraphName?: string,
+  ): Promise<CheckpointLayout> {
     const metadata = this._messageCodec.decodeCheckpoint(
       await this._history.showNode(checkpointSha),
     );
+    requireCheckpointGraph(checkpointSha, metadata.graph, expectedGraphName);
     if (!isCurrentCheckpointSchema(metadata.schema)) {
       throw unsupportedCheckpointSchema(checkpointSha, metadata.schema);
+    }
+    const storage = classifyCheckpointStorage(checkpointSha, metadata);
+    if (storage.kind === 'bundle') {
+      return await this._readBundleLayout(metadata, storage.handle);
     }
     const rawTreeOids = await this._history.readTreeOids(
       await this._history.getCommitTree(checkpointSha),
     );
-    const treeOids = await this._expandStateTree(rawTreeOids);
-    const indexOids = await this._readIndexOids(treeOids, rawTreeOids);
+    const treeOids = await this._expandLegacyStateTree(rawTreeOids);
+    const indexOids = await this._readLegacyIndexOids(treeOids, rawTreeOids);
+    const artifacts = Object.fromEntries(
+      Object.entries(treeOids).map(([path, oid]) => [
+        path,
+        legacyCheckpointArtifact(oid),
+      ]),
+    );
     return {
       metadata,
-      treeOids,
+      artifacts: Object.freeze(artifacts),
       indexShardHandles: Object.freeze(Object.fromEntries(
         Object.entries(indexOids).map(([path, oid]) => [path, new AssetHandle(oid)]),
       )),
     };
   }
 
-  private async _expandStateTree(
+  private async _readBundleLayout(
+    metadata: CheckpointLayout['metadata'],
+    bundleHandle: BundleHandle,
+  ): Promise<CheckpointLayout> {
+    const artifacts = new Map<string, CheckpointArtifact>();
+    const indexShardHandles = new Map<string, AssetHandle>();
+    for await (const member of this._cas.bundles.iterateMembers({
+      handle: bundleHandle.toString(),
+    })) {
+      if (member.handle.kind !== 'asset') {
+        throw new PersistenceError(
+          `Checkpoint bundle member is not an asset: ${member.path}`,
+          'E_CHECKPOINT_INVALID_BUNDLE_MEMBER',
+          { context: { path: member.path, kind: member.handle.kind } },
+        );
+      }
+      if (artifacts.has(member.path)) {
+        throw new PersistenceError(
+          `Checkpoint bundle contains a duplicate member: ${member.path}`,
+          'E_CHECKPOINT_DUPLICATE_BUNDLE_MEMBER',
+          { context: { path: member.path } },
+        );
+      }
+      const handle = new AssetHandle(member.handle.toString());
+      artifacts.set(member.path, Object.freeze({ kind: 'asset', handle }));
+      if (member.path.startsWith('index/')) {
+        const indexPath = member.path.slice('index/'.length);
+        if (indexPath.length === 0) {
+          throw new PersistenceError(
+            'Checkpoint bundle contains an empty index member path',
+            'E_CHECKPOINT_INVALID_BUNDLE_MEMBER',
+            { context: { path: member.path } },
+          );
+        }
+        indexShardHandles.set(indexPath, handle);
+      }
+    }
+    return {
+      metadata,
+      artifacts: Object.freeze(Object.fromEntries(artifacts)),
+      indexShardHandles: Object.freeze(Object.fromEntries(indexShardHandles)),
+    };
+  }
+
+  private async _expandLegacyStateTree(
     treeOids: Record<string, string>,
   ): Promise<Record<string, string>> {
     if (treeOids['state/nodeAlive'] !== undefined || treeOids['state'] === undefined) {
@@ -239,7 +318,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     return expanded;
   }
 
-  private async _readIndexOids(
+  private async _readLegacyIndexOids(
     treeOids: Record<string, string>,
     rawTreeOids: Record<string, string>,
   ): Promise<Record<string, string>> {
@@ -256,123 +335,100 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
   private async _readStateEnvelope(
     checkpointSha: string,
-    treeOids: Record<string, string>,
+    artifacts: Readonly<Record<string, CheckpointArtifact>>,
   ): Promise<CheckpointStateEnvelopeBuffers> {
     return {
-      nodeAlive: await this._readPayload(requireArtifact(checkpointSha, treeOids, 'state/nodeAlive')),
-      edgeAlive: await this._readPayload(requireArtifact(checkpointSha, treeOids, 'state/edgeAlive')),
-      prop: await this._readPayload(requireArtifact(checkpointSha, treeOids, 'state/prop.cbor')),
+      nodeAlive: await this._readPayload(requireArtifact(checkpointSha, artifacts, 'state/nodeAlive')),
+      edgeAlive: await this._readPayload(requireArtifact(checkpointSha, artifacts, 'state/edgeAlive')),
+      prop: await this._readPayload(requireArtifact(checkpointSha, artifacts, 'state/prop.cbor')),
       observedFrontier: await this._readPayload(
-        requireArtifact(checkpointSha, treeOids, 'state/observedFrontier.cbor'),
+        requireArtifact(checkpointSha, artifacts, 'state/observedFrontier.cbor'),
       ),
       edgeBirthEvent: await this._readPayload(
-        requireArtifact(checkpointSha, treeOids, 'state/edgeBirthEvent.cbor'),
+        requireArtifact(checkpointSha, artifacts, 'state/edgeBirthEvent.cbor'),
       ),
     };
   }
 
   private async _readFrontier(
     checkpointSha: string,
-    treeOids: Record<string, string>,
+    artifacts: Readonly<Record<string, CheckpointArtifact>>,
   ): Promise<Map<string, string>> {
     const bytes = await this._readPayload(
-      requireArtifact(checkpointSha, treeOids, 'frontier.cbor'),
+      requireArtifact(checkpointSha, artifacts, 'frontier.cbor'),
     );
     return decodeFrontier(this._codec.decode(bytes), checkpointSha);
   }
 
-  private async _readAppliedVV(treeOids: Record<string, string>): Promise<VersionVector | null> {
-    const oid = treeOids['appliedVV.cbor'];
-    if (oid === undefined) {
+  private async _readAppliedVV(
+    artifacts: Readonly<Record<string, CheckpointArtifact>>,
+  ): Promise<VersionVector | null> {
+    const artifact = artifacts['appliedVV.cbor'];
+    if (artifact === undefined) {
       return null;
     }
     return VersionVector.from(
-      this._codec.decode<Record<string, number>>(await this._readPayload(oid)),
+      this._codec.decode<Record<string, number>>(await this._readPayload(artifact)),
     );
   }
 
   private async _readProvenanceIndex(
-    treeOids: Record<string, string>,
+    artifacts: Readonly<Record<string, CheckpointArtifact>>,
   ): Promise<ProvenanceIndex | null> {
-    const oid = treeOids['provenanceIndex.cbor'];
-    if (oid === undefined) {
+    const artifact = artifacts['provenanceIndex.cbor'];
+    if (artifact === undefined) {
       return null;
     }
-    return ProvenanceIndex.deserialize(await this._readPayload(oid), { codec: this._codec });
+    return ProvenanceIndex.deserialize(await this._readPayload(artifact), { codec: this._codec });
   }
 
-  private async _readPayload(oid: string): Promise<Uint8Array> {
-    const bytes = await this._history.readBlob(oid);
-    const assetToken = decodeLegacyCasPointer(bytes);
-    if (assetToken === null) {
-      return bytes;
+  private async _readPayload(artifact: CheckpointArtifact): Promise<Uint8Array> {
+    if (artifact.kind === 'asset') {
+      return await collectAsyncIterable(this._assets.open(artifact.handle));
     }
-    return await collectAsyncIterable(this._assets.open(new AssetHandle(assetToken)));
+    return await this._legacyArtifacts.read(artifact.oid);
   }
 
-  private async _writeStateTree(envelope: CheckpointStateEnvelopeBuffers): Promise<string> {
-    const [nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent] = await Promise.all([
-      this._history.writeBlob(envelope.nodeAlive),
-      this._history.writeBlob(envelope.edgeAlive),
-      this._history.writeBlob(envelope.prop),
-      this._history.writeBlob(envelope.observedFrontier),
-      this._history.writeBlob(envelope.edgeBirthEvent),
-    ]);
-    const entries = [
-      `100644 blob ${edgeAlive}\tedgeAlive`,
-      `100644 blob ${edgeBirthEvent}\tedgeBirthEvent.cbor`,
-      `100644 blob ${nodeAlive}\tnodeAlive`,
-      `100644 blob ${observedFrontier}\tobservedFrontier.cbor`,
-      `100644 blob ${prop}\tprop.cbor`,
-    ];
-    entries.sort(compareTreeEntriesByPath);
-    return await this._history.writeTree(entries);
-  }
-
-  private async _writeIndexTree(
-    indexShards: Readonly<Record<string, Uint8Array>>,
-  ): Promise<string> {
-    const entries: string[] = [];
-    for (const path of Object.keys(indexShards).sort()) {
-      const bytes = indexShards[path];
-      if (bytes === undefined) {
-        throw new WarpError(
-          `Missing index shard for path: ${path}`,
-          'E_CHECKPOINT_MISSING_INDEX_SHARD',
-        );
-      }
-      entries.push(`100644 blob ${await this._history.writeBlob(bytes)}\t${path}`);
-    }
-    return await this._history.writeTree(entries);
-  }
-
-  private _encodeFrontier(frontier: Map<string, string>): Uint8Array {
-    return this._codec.encode(Object.fromEntries([...frontier.entries()].sort(([left], [right]) =>
-      left.localeCompare(right)
-    )));
-  }
 }
 
-function compareTreeEntriesByPath(left: string, right: string): number {
-  const leftPath = left.slice(left.indexOf('\t') + 1);
-  const rightPath = right.slice(right.indexOf('\t') + 1);
-  return leftPath.localeCompare(rightPath);
+function legacyCheckpointArtifact(oid: string): CheckpointArtifact {
+  return Object.freeze({ kind: 'legacy-object', oid });
 }
 
 function requireArtifact(
   checkpointSha: string,
-  treeOids: Record<string, string>,
+  artifacts: Readonly<Record<string, CheckpointArtifact>>,
   path: string,
-): string {
-  const oid = treeOids[path];
-  if (oid !== undefined) {
-    return oid;
+): CheckpointArtifact {
+  const artifact = artifacts[path];
+  if (artifact !== undefined) {
+    return artifact;
   }
   throw new PersistenceError(
     `Checkpoint ${checkpointSha} missing ${path}`,
     'E_CHECKPOINT_MISSING_ARTIFACT',
     { context: { checkpointSha, path } },
   );
+}
+
+function requirePublishedBundle(publishedToken: string, expected: BundleHandle): void {
+  if (publishedToken !== expected.toString()) {
+    throw new PersistenceError(
+      'Checkpoint publication returned a different bundle handle',
+      'E_CHECKPOINT_PUBLICATION_MISMATCH',
+      { context: { expected: expected.toString(), actual: publishedToken } },
+    );
+  }
+}
+
+function requireRetainedBundle(retainedToken: string, expected: BundleHandle): void {
+  if (retainedToken !== expected.toString()) {
+    throw new PersistenceError(
+      'Checkpoint retention evidence names a different bundle handle',
+      'E_CHECKPOINT_RETENTION_MISMATCH',
+      { context: { expected: expected.toString(), actual: retainedToken } },
+    );
+  }
 }
 
 function unsupportedCheckpointSchema(checkpointSha: string, schema: number): PersistenceError {
@@ -385,23 +441,19 @@ function unsupportedCheckpointSchema(checkpointSha: string, schema: number): Per
   );
 }
 
-function decodeLegacyCasPointer(bytes: Uint8Array): string | null {
-  if (bytes.length < CAS_POINTER_PREFIX_BYTES.length) {
-    return null;
+function requireCheckpointGraph(
+  checkpointSha: string,
+  actualGraphName: string,
+  expectedGraphName: string | undefined,
+): void {
+  if (expectedGraphName === undefined || actualGraphName === expectedGraphName) {
+    return;
   }
-  for (let index = 0; index < CAS_POINTER_PREFIX_BYTES.length; index += 1) {
-    if (bytes[index] !== CAS_POINTER_PREFIX_BYTES[index]) {
-      return null;
-    }
-  }
-  const token = textDecode(bytes).slice(CAS_POINTER_PREFIX.length);
-  if (token.length === 0) {
-    throw new PersistenceError(
-      'Legacy checkpoint CAS pointer is empty',
-      'E_CHECKPOINT_EMPTY_CAS_POINTER',
-    );
-  }
-  return token;
+  throw new PersistenceError(
+    `Checkpoint ${checkpointSha} belongs to graph ${actualGraphName}, not ${expectedGraphName}`,
+    'E_CHECKPOINT_GRAPH_MISMATCH',
+    { context: { checkpointSha, actualGraphName, expectedGraphName } },
+  );
 }
 
 function hasEntries(record: Readonly<Record<string, unknown>>): boolean {
@@ -435,13 +487,4 @@ function invalidFrontier(checkpointSha: string): PersistenceError {
     'E_CHECKPOINT_INVALID_FRONTIER',
     { context: { checkpointSha } },
   );
-}
-
-function requireDependency(value: unknown, name: string): void {
-  if (value === null || value === undefined) {
-    throw new WarpError(
-      `CborCheckpointStoreAdapter requires ${name}`,
-      'E_INVALID_DEPENDENCY',
-    );
-  }
 }

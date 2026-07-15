@@ -49,8 +49,9 @@ export interface LoadedCheckpoint {
 export async function loadCheckpoint(
   checkpointStore: CheckpointStorePort,
   checkpointSha: string,
+  expectedGraphName?: string,
 ): Promise<LoadedCheckpoint> {
-  const checkpoint = await checkpointStore.loadCheckpoint(checkpointSha);
+  const checkpoint = await checkpointStore.loadCheckpoint(checkpointSha, expectedGraphName);
   const result: LoadedCheckpoint = {
     state: checkpoint.state,
     frontier: checkpoint.frontier,
@@ -92,12 +93,12 @@ export interface MaterializeIncrementalOptions {
  */
 export async function materializeIncremental({
   checkpointStore,
-  graphName: _graphName,
+  graphName,
   checkpointSha,
   targetFrontier,
   patchLoader,
 }: MaterializeIncrementalOptions): Promise<WarpState> {
-  const checkpoint = await loadCheckpoint(checkpointStore, checkpointSha);
+  const checkpoint = await loadCheckpoint(checkpointStore, checkpointSha, graphName);
   const checkpointFrontier = checkpoint.frontier;
 
   // 2. Use checkpoint state directly.

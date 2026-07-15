@@ -19,7 +19,7 @@ import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
 import CheckpointTailBasisVerifier from './services/optic/CheckpointTailBasisVerifier.ts';
 import createBoundedMemoryCapabilityReport from './memory/createBoundedMemoryCapabilityReport.ts';
 import type { WarpIntentDescriptor, WarpIntentOutcome } from './types/WarpIntentDescriptor.ts';
-import type { PatchCommitResult } from './services/PatchCommitter.ts';
+import type { PatchCommitResult } from './types/PatchCommitResult.ts';
 
 export type WarpWorldlineOpenOptions = Omit<WarpGraphDeps, 'graphName'> & {
   readonly worldlineName: string;

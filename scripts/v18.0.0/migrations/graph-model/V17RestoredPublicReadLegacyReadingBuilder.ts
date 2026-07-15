@@ -166,7 +166,6 @@ class RuntimeContentOidResolver {
     const staged = await this.storage.stage(singleChunk(bytes), {
       slug: `${options.graphId}/${options.nodeId}`,
       filename: 'content',
-      mime: 'text/plain',
       expectedSize: bytes.byteLength,
     });
     return staged.handle.toString();

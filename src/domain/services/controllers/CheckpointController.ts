@@ -263,20 +263,7 @@ export default class CheckpointController {
       return null;
     }
 
-    try {
-      return await loadCheckpoint(h._checkpointStore, checkpointSha);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      if (
-        msg.includes('missing') ||
-        msg.includes('not found') ||
-        msg.includes('ENOENT') ||
-        msg.includes('non-empty string')
-      ) {
-        return null;
-      }
-      throw err;
-    }
+    return await loadCheckpoint(h._checkpointStore, checkpointSha, h._graphName);
   }
 
   async _loadPatchesSince(checkpoint: CheckpointFrontier): Promise<Array<{ patch: Patch; sha: string }>> {
@@ -319,7 +306,10 @@ export default class CheckpointController {
     if (typeof checkpointSha !== 'string' || checkpointSha.length === 0) {
       return false;
     }
-    const checkpoint = await this._host._checkpointStore.readMetadata(checkpointSha);
+    const checkpoint = await this._host._checkpointStore.readMetadata(
+      checkpointSha,
+      this._host._graphName,
+    );
     if (isCurrentCheckpointSchema(checkpoint.schema)) {
       return true;
     }
@@ -347,10 +337,7 @@ export default class CheckpointController {
 
       if (kind === 'patch') {
         const patchMeta = h._commitMessageCodec.decodePatch(nodeInfo.message);
-        const decoded = await h._readPatch(patchMeta);
-
-        const legacySchema = (decoded as { readonly schema?: number }).schema;
-        if (legacySchema === 1 || legacySchema === undefined) {
+        if (patchMeta.schema === 1) {
           return true;
         }
       }

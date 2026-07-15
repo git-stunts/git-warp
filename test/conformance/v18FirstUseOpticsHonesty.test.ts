@@ -203,7 +203,8 @@ describe('v18 first-use optics honesty gate', () => {
     const verifier = readRepoFile('src/domain/services/optic/CheckpointTailBasisVerifier.ts');
     const checkedSources = `${implementation}\n${verifier}`;
 
-    expect(checkedSources).toContain('_checkpointStore.loadBasis');
+    expect(implementation).toContain('new CheckpointTailBasisVerifier');
+    expect(verifier).toContain('_checkpointStore.loadBasis');
     expect(checkedSources).not.toMatch(/\bmaterialize\s*\(/u);
     expect(checkedSources).not.toContain('_materializeGraph');
     expect(checkedSources).not.toContain('_setMaterializedState');

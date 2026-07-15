@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
+import PatchPublicationConflictError from '../../../../src/domain/errors/PatchPublicationConflictError.ts';
 import nullLogger from '../../../../src/domain/utils/nullLogger.ts';
 import { commitPatch, type CommitState } from '../../../../src/domain/services/PatchCommitter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
@@ -72,6 +73,22 @@ describe('commitPatch semantic publication contract', () => {
       code: 'WRITER_CAS_CONFLICT',
       expectedSha: null,
       actualSha: 'f'.repeat(40),
+    });
+  });
+
+  it('translates a typed publication conflict when the observed head is unchanged', async () => {
+    const persistence = createPatchBuilderMockPersistence();
+    const journal = createPatchJournal(persistence);
+    journal.failure = new PatchPublicationConflictError();
+
+    await expect(commitPatch(makeState({
+      persistence,
+      journal,
+      onCommitSuccess: null,
+    }))).rejects.toMatchObject({
+      code: 'WRITER_CAS_CONFLICT',
+      expectedSha: null,
+      actualSha: null,
     });
   });
 });

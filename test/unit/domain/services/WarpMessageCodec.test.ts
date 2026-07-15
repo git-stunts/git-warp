@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import {
   CHECKPOINT_STORAGE_FORMAT,
   createGitCasPatchStorage,
@@ -99,10 +100,12 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       stateHash: STATE_HASH,
       schema: 5,
       checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+      bundleHandle: new BundleHandle('bundle:checkpoint'),
     });
     const decoded = codec.decodeCheckpoint(encoded);
 
-    expect(encoded).toContain('eg-checkpoint: v5');
+    expect(encoded).toContain('eg-checkpoint: v19');
+    expect(encoded).toContain('eg-checkpoint-handle: bundle:checkpoint');
     expect(encoded).not.toContain('frontier-oid');
     expect(encoded).not.toContain('index-oid');
     expect(decoded).toEqual({
@@ -110,8 +113,29 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       graph: 'events',
       stateHash: STATE_HASH,
       schema: 5,
-      checkpointVersion: 'v5',
+      checkpointVersion: 'v19',
+      bundleHandle: new BundleHandle('bundle:checkpoint'),
     });
+  });
+
+  it('rejects contradictory checkpoint storage metadata on encode', () => {
+    expect(() => codec.encodeCheckpoint({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: STATE_HASH,
+      schema: 5,
+      checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+      bundleHandle: null,
+    })).toThrow(/requires a bundle handle/u);
+
+    expect(() => codec.encodeCheckpoint({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: STATE_HASH,
+      schema: 5,
+      checkpointVersion: 'v5',
+      bundleHandle: new BundleHandle('bundle:checkpoint'),
+    })).toThrow(/current storage version/u);
   });
 
   it('round-trips anchors', () => {
@@ -139,6 +163,7 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       stateHash: STATE_HASH,
       schema: 5,
       checkpointVersion: 'v5',
+      bundleHandle: null,
     })],
     ['anchor', codec.encodeAnchor({ kind: 'anchor', graph: 'events', schema: 5 })],
   ] as const)('detects %s messages', (kind, message) => {
@@ -181,6 +206,7 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       stateHash: 'short',
       schema: 5,
       checkpointVersion: 'v5',
+      bundleHandle: null,
     })).toThrow(/64 character hex string/u);
   });
 

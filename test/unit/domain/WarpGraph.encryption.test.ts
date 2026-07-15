@@ -30,9 +30,86 @@ describe('git-cas patch encryption composition', () => {
       strategy: 'git-cas-asset',
       encrypted: true,
     });
+    const plaintextPatch = runtime._codec.encode(await runtime.loadPatchBySha(sha));
+    const storedPatch = await runtimeStorage.backing.retrieve(message.patchHandle.toString());
+    expect(storedPatch).not.toEqual(plaintextPatch);
     await runtime.materialize();
     await expect(runtime.hasNode('user:alice')).resolves.toBe(true);
     await expect(runtime.getNodeProps('user:alice')).resolves.toMatchObject({ role: 'admin' });
+  });
+
+  it('rejects encrypted patch history opened with a different key', async () => {
+    const repo = createInMemoryRepo();
+    const writerStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encryptionKey: new Uint8Array(32).fill(0x11),
+    });
+    const writer = await openMemoryRuntimeHostProduct({
+      persistence: repo.persistence,
+      runtimeStorage: writerStorage,
+      graphName: 'encrypted-wrong-key',
+      writerId: 'writer-1',
+    });
+    await writer.patch((patch) => {
+      patch.addNode('private:node');
+    });
+    const readerStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encryptionKey: new Uint8Array(32).fill(0x22),
+      backing: writerStorage.backing,
+    });
+    const reader = await openMemoryRuntimeHostProduct({
+      persistence: repo.persistence,
+      runtimeStorage: readerStorage,
+      graphName: 'encrypted-wrong-key',
+      writerId: 'reader',
+    });
+
+    await expect(reader.materialize()).rejects.toMatchObject({
+      name: 'EncryptionError',
+      code: 'E_CAS_CONTENT_DECRYPTION_FAILED',
+    });
+  });
+
+  it('rejects corrupted encrypted patch bytes', async () => {
+    const repo = createInMemoryRepo();
+    const writerStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encrypted: true,
+    });
+    const writer = await openMemoryRuntimeHostProduct({
+      persistence: repo.persistence,
+      runtimeStorage: writerStorage,
+      graphName: 'encrypted-corrupt',
+      writerId: 'writer-1',
+    });
+    const sha = await writer.patch((patch) => {
+      patch.addNode('private:node');
+    });
+    const message = writer._commitMessageCodec.decodePatch(
+      await repo.persistence.showNode(sha),
+    );
+    const stored = await writerStorage.backing.retrieve(message.patchHandle.toString());
+    const corrupted = stored.slice();
+    const lastIndex = corrupted.length - 1;
+    corrupted[lastIndex] = (corrupted[lastIndex] ?? 0) ^ 0xff;
+    writerStorage.backing.replace(message.patchHandle, corrupted);
+    const readerStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encrypted: true,
+      backing: writerStorage.backing,
+    });
+    const reader = await openMemoryRuntimeHostProduct({
+      persistence: repo.persistence,
+      runtimeStorage: readerStorage,
+      graphName: 'encrypted-corrupt',
+      writerId: 'reader',
+    });
+
+    await expect(reader.materialize()).rejects.toMatchObject({
+      name: 'EncryptionError',
+      code: 'E_CAS_CONTENT_DECRYPTION_FAILED',
+    });
   });
 
   it('reopens encrypted patch history through the same repository storage provider', async () => {

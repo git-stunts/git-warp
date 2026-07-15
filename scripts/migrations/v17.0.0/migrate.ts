@@ -17,6 +17,7 @@ import {
   upgradeCheckpointSchema,
   type CheckpointSchemaUpgradeResult,
 } from './checkpoint-schema-upgrade.ts';
+import { openCheckpointMigrationStore } from './openCheckpointMigrationStore.ts';
 
 class MigrationCliArgumentError extends Error {
   constructor(message: string) {
@@ -101,18 +102,22 @@ function formatHumanResult(result: CheckpointSchemaUpgradeResult): string {
     return `No checkpoint found for graph ${result.graphName}; nothing to upgrade.`;
   }
   if (result.status === 'already-current') {
-    return `Checkpoint ${result.previousCheckpointSha ?? '(none)'} is already schema:${result.currentSchema}.`;
+    return `Checkpoint ${result.previousCheckpointSha ?? '(none)'} is already `
+      + `schema:${result.currentSchema} storage:${result.currentStorageVersion}.`;
   }
   if (result.status === 'would-upgrade') {
     return [
       `Dry run: checkpoint ${result.previousCheckpointSha ?? '(none)'} can be upgraded.`,
-      `Would write schema:${result.currentSchema} checkpoint and leave ${result.checkpointRef} unchanged.`,
+      `Would write schema:${result.currentSchema} storage:${result.currentStorageVersion} `
+        + `and leave ${result.checkpointRef} unchanged.`,
     ].join('\n');
   }
   return [
     `Upgraded graph ${result.graphName} checkpoint.`,
-    `Previous: ${result.previousCheckpointSha ?? '(none)'} schema:${String(result.previousSchema)}`,
-    `Current:  ${result.upgradedCheckpointSha ?? '(none)'} schema:${result.currentSchema}`,
+    `Previous: ${result.previousCheckpointSha ?? '(none)'} schema:${String(result.previousSchema)} `
+      + `storage:${result.previousStorageVersion ?? '(unspecified)'}`,
+    `Current:  ${result.upgradedCheckpointSha ?? '(none)'} schema:${result.currentSchema} `
+      + `storage:${result.currentStorageVersion}`,
     `Updated:  ${result.checkpointRef}`,
   ].join('\n');
 }
@@ -124,13 +129,15 @@ async function run(): Promise<void> {
     return;
   }
 
-  const { persistence } = await createPersistence(args.repo);
+  const { persistence, runtimeStorage } = await createPersistence(args.repo);
   const graphName = await resolveGraphName(persistence, args.graph);
+  const migrationStorage = await openCheckpointMigrationStore(runtimeStorage, graphName);
   const result = await upgradeCheckpointSchema({
     persistence,
     graphName,
     dryRun: args.dryRun,
     crypto: new NodeCryptoAdapter(),
+    ...migrationStorage,
   });
 
   if (args.json) {

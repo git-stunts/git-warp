@@ -10,6 +10,7 @@ import GitCasAuditLogAdapter from '../../src/infrastructure/adapters/GitCasAudit
 import GitCasIntentStoreAdapter from '../../src/infrastructure/adapters/GitCasIntentStoreAdapter.ts';
 import GitCasStrandStoreAdapter from '../../src/infrastructure/adapters/GitCasStrandStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
+import CasContentEncryptionPolicy from '../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
 import SubstrateCompatibilityPolicy from '../../src/infrastructure/adapters/SubstrateCompatibilityPolicy.ts';
 import type AssetStoragePort from '../../src/ports/AssetStoragePort.ts';
 import InMemoryBlobStorageAdapter from './InMemoryBlobStorageAdapter.ts';
@@ -19,6 +20,8 @@ import type InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
 export type MemoryRuntimeStorageAdapterOptions = {
   readonly history: InMemoryGraphAdapter;
   readonly encrypted?: boolean;
+  readonly encryptionKey?: Uint8Array;
+  readonly backing?: InMemoryBlobStorageAdapter;
 };
 
 /** Coherent semantic runtime storage services for in-memory tests. */
@@ -27,20 +30,23 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
   readonly #content: AssetStoragePort;
   readonly #cas: InMemoryGitCasFacade;
   readonly #encrypted: boolean;
+  readonly backing: InMemoryBlobStorageAdapter;
 
   constructor(options: MemoryRuntimeStorageAdapterOptions) {
     this.#history = withFixtureObjectTypeProbe(options.history);
-    const backing = new InMemoryBlobStorageAdapter();
+    this.backing = options.backing ?? new InMemoryBlobStorageAdapter();
+    const contentEncryption = resolveContentEncryption(options);
     this.#cas = new InMemoryGitCasFacade({
       history: this.#history,
-      storage: backing,
+      storage: this.backing,
     });
     this.#content = new GitCasAssetStorageAdapter({
       cas: this.#cas,
-      legacyReader: options.history,
+      legacyReader: this.#history,
+      contentEncryption,
       compatibilityPolicy: TEST_COMPATIBILITY_POLICY,
     });
-    this.#encrypted = options.encrypted ?? false;
+    this.#encrypted = contentEncryption.enabled;
   }
 
   createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
@@ -78,14 +84,31 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         commitMessageCodec: request.commitMessageCodec,
         history: this.#history,
         assetStorage: this.#content,
+        cas: this.#cas,
       }),
       indexes: new CborIndexStoreAdapter({
         codec: request.codec,
-        blobPort: this.#history,
-        treePort: this.#history,
+        assetStorage: this.#content,
+        cas: this.#cas,
       }),
     }));
   }
+}
+
+function resolveContentEncryption(
+  options: MemoryRuntimeStorageAdapterOptions,
+): CasContentEncryptionPolicy {
+  if (options.encryptionKey !== undefined) {
+    return CasContentEncryptionPolicy.fromInternalResolvedKey({
+      encryptionKey: options.encryptionKey,
+    });
+  }
+  if (options.encrypted === true) {
+    return CasContentEncryptionPolicy.fromInternalResolvedKey({
+      encryptionKey: new Uint8Array(32).fill(0x19),
+    });
+  }
+  return CasContentEncryptionPolicy.disabled();
 }
 
 const TEST_COMPATIBILITY_POLICY = new SubstrateCompatibilityPolicy({

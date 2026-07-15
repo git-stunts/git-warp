@@ -14,7 +14,7 @@ import {
   previewDraftJoin,
 } from '../../../src/domain/api/DraftTimelineRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
-import type { PatchCommitResult } from '../../../src/domain/services/PatchCommitter.ts';
+import type { PatchCommitResult } from '../../../src/domain/types/PatchCommitResult.ts';
 import { testRetentionWitness } from '../../helpers/storageRetention.ts';
 
 type RuntimeOptions = {

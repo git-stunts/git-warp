@@ -43,7 +43,7 @@ export default class WarpCore {
   declare readonly observer: WarpCoreRuntimeSurface['observer'];
   declare readonly translationCost: WarpCoreRuntimeSurface['translationCost'];
   /**
-   * Returns the content blob OID attached to a node.
+   * Returns the opaque content asset handle attached to a node.
    */
   declare readonly getContentHandle: WarpCoreRuntimeSurface['getContentHandle'];
   /**
@@ -55,7 +55,7 @@ export default class WarpCore {
    */
   declare readonly getContent: WarpCoreRuntimeSurface['getContent'];
   /**
-   * Returns the content blob OID attached to an edge.
+   * Returns the opaque content asset handle attached to an edge.
    */
   declare readonly getEdgeContentHandle: WarpCoreRuntimeSurface['getEdgeContentHandle'];
   /**

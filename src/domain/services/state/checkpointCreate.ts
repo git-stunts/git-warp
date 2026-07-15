@@ -17,6 +17,7 @@ export interface CreateCheckpointOptions {
   state: WarpState;
   frontier: Map<string, string>;
   parents?: string[];
+  expectedCheckpointSha?: string | null;
   compact?: boolean;
   provenanceIndex?: ProvenanceIndex;
   codec?: CodecPort;
@@ -40,6 +41,7 @@ export async function createCheckpointEnvelope({
   state,
   frontier,
   parents = [],
+  expectedCheckpointSha,
   compact = true,
   provenanceIndex,
   codec,
@@ -69,6 +71,7 @@ export async function createCheckpointEnvelope({
     appliedVV,
     stateHash,
     parents,
+    ...(expectedCheckpointSha === undefined ? {} : { expectedCheckpointSha }),
     ...(provenanceIndex === undefined ? {} : { provenanceIndex }),
     ...(indexTree === undefined ? {} : { indexShards: indexTree }),
   });

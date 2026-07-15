@@ -104,7 +104,7 @@ class PopulatedWarpGraphMockPersistence extends WarpGraphMockPersistence {
     for (const commit of commits) {
       this.#storeCommit(commit, graphName);
     }
-    this.patchJournal = new FixturePatchJournal(this);
+    this.patchJournal = new PopulatedPersistencePatchJournal(this);
   }
 
   #storeCommit(commit: PopulatedCommit, graphName: string): void {
@@ -148,7 +148,7 @@ class PopulatedWarpGraphMockPersistence extends WarpGraphMockPersistence {
   }
 }
 
-class FixturePatchJournal extends PatchJournalPort {
+class PopulatedPersistencePatchJournal extends PatchJournalPort {
   readonly #persistence: PopulatedWarpGraphMockPersistence;
 
   constructor(persistence: PopulatedWarpGraphMockPersistence) {

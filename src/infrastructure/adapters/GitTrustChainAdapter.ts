@@ -19,6 +19,7 @@ import TrustChainPort, {
 import { TrustRecord } from '../../domain/trust/TrustRecord.ts';
 import { recordIdPayload, signaturePayload } from '../../domain/trust/canonical.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
+import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import { buildTrustRecordRef } from '../../domain/utils/RefLayout.ts';
 import TrustError from '../../domain/errors/TrustError.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
@@ -33,6 +34,7 @@ import type {
   PublicationCapability,
   PublicationResult,
 } from '@git-stunts/git-cas';
+import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import {
@@ -300,7 +302,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
 
   private async _readAssetTree(treeOid: string): Promise<Uint8Array> {
     const staged = await this._cas.assets.adopt({ treeOid });
-    return await collectBytes(this._cas.assets.open({ handle: staged.handle }));
+    return await collectAsyncIterable(this._cas.assets.open({ handle: staged.handle }));
   }
 
   // -- Port implementation: persistRecord -------------------------------------
@@ -358,7 +360,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     error: unknown,
   ): Promise<never> {
     const freshTipSha = await resolveRef(this._plumbing, ref);
-    if (freshTipSha === expectedSha && errorCode(error) !== 'PUBLICATION_CONFLICT') {
+    if (freshTipSha === expectedSha && readGitCasErrorCode(error) !== 'PUBLICATION_CONFLICT') {
       throw error;
     }
     const freshRecordId = freshTipSha !== null
@@ -398,31 +400,8 @@ function requireLegacyRecordBlob(
   );
 }
 
-async function collectBytes(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for await (const chunk of source) {
-    chunks.push(chunk);
-    size += chunk.byteLength;
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
-}
-
-function errorCode(error: unknown): string | null {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    return typeof error.code === 'string' ? error.code : null;
-  }
-  return null;
-}
-
 function rethrowUnlessLegacyTrustTree(error: unknown): void {
-  if (errorCode(error) !== 'MANIFEST_NOT_FOUND') {
+  if (readGitCasErrorCode(error) !== 'MANIFEST_NOT_FOUND') {
     throw error;
   }
 }

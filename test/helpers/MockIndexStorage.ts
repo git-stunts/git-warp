@@ -2,10 +2,12 @@ import { vi } from 'vitest';
 import type { IndexShard } from '../../src/domain/artifacts/IndexShard.ts';
 import IndexError from '../../src/domain/errors/IndexError.ts';
 import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../src/domain/storage/BundleHandle.ts';
 import WarpStream from '../../src/domain/stream/WarpStream.ts';
 import type CodecValue from '../../src/domain/types/codec/CodecValue.ts';
 import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 import IndexStorePort from '../../src/ports/IndexStorePort.ts';
+import { IndexShardEncodeTransform } from '../../src/infrastructure/adapters/IndexShardEncodeTransform.ts';
 
 /** Test-only semantic index store with directly writable encoded shards. */
 export default class MockIndexStorage extends IndexStorePort {
@@ -22,18 +24,22 @@ export default class MockIndexStorage extends IndexStorePort {
     return handle;
   });
 
-  override async writeShards(_shardStream: WarpStream<IndexShard>): Promise<AssetHandle> {
-    const handle = new AssetHandle(`test-index:${String(this.#counter++).padStart(8, '0')}`);
-    this.#indexes.set(handle.toString(), Object.freeze({}));
+  override async writeShards(shardStream: WarpStream<IndexShard>): Promise<BundleHandle> {
+    const entries: Array<[string, AssetHandle]> = [];
+    for await (const [path, bytes] of shardStream.pipe(new IndexShardEncodeTransform(defaultCodec))) {
+      entries.push([path, await this.writeBlob(bytes)]);
+    }
+    const handle = new BundleHandle(`test-index:${String(this.#counter++).padStart(8, '0')}`);
+    this.#indexes.set(handle.toString(), Object.freeze(Object.fromEntries(entries)));
     return handle;
   }
 
-  override scanShards(_indexHandle: AssetHandle): WarpStream<IndexShard> {
+  override scanShards(_indexHandle: BundleHandle): WarpStream<IndexShard> {
     return WarpStream.of<IndexShard>();
   }
 
   override async readShardHandles(
-    indexHandle: AssetHandle,
+    indexHandle: BundleHandle,
   ): Promise<Readonly<Record<string, AssetHandle>>> {
     return this.#indexes.get(indexHandle.toString()) ?? Object.freeze({});
   }

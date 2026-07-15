@@ -145,7 +145,7 @@ function readContentSources(source: JsonObject): readonly GraphModelMigrationCon
   return readObjectArray(source, 'contentSources').map((content, index) => {
     const label = `contentSources[${index}]`;
     rejectUnknownKeys(content, ['legacyContentKey', 'contentHandle', 'contentOid'], label);
-    const contentHandle = content['contentHandle'] ?? content['contentOid'];
+    const contentHandle = coalesceContentHandle(content, label);
     return new GraphModelMigrationContentSource({
       legacyContentKey: readRequiredString(content, `${label}.legacyContentKey`, 'legacyContentKey'),
       contentHandle: readRequiredString(
@@ -155,6 +155,16 @@ function readContentSources(source: JsonObject): readonly GraphModelMigrationCon
       ),
     });
   });
+}
+
+function coalesceContentHandle(content: JsonObject, label: string): unknown {
+  const { contentHandle, contentOid } = content;
+  if (contentHandle !== undefined && contentOid !== undefined && contentHandle !== contentOid) {
+    throw new AdapterValidationError(
+      `${label}.contentHandle and ${label}.contentOid must match when both are present`,
+    );
+  }
+  return contentHandle ?? contentOid;
 }
 
 /** Reads node mappings from the request envelope. */

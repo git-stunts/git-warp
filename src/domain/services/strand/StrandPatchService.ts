@@ -16,7 +16,7 @@ import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 import type VersionVector from '../../crdt/VersionVector.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
-import type { PatchCommitResult } from '../PatchCommitter.ts';
+import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 
 export type CommittedPatchResult = { patch: Patch; sha: string };
 export type PatchCommitSuccessHandler = (result: CommittedPatchResult) => Promise<void>;
@@ -200,7 +200,7 @@ export default class StrandPatchService {
     patch: Patch;
     contentAssetHandles: string[];
     lamport: number;
-  }): Promise<{ sha: string; patch: Patch }> {
+  }): Promise<PatchCommitResult> {
     const committedPatch: Patch = {
       ...patch,
       writer: overlayId,
@@ -222,10 +222,7 @@ export default class StrandPatchService {
       parent: parentSha,
       attachments: contentAssetHandles.map((handle) => new AssetHandle(handle)),
     });
-    return {
-      sha: published.sha,
-      patch: committedPatch,
-    };
+    return Object.freeze({ patch: committedPatch, ...published });
   }
 
   private async _createPatchBuilderForDescriptor(descriptor: StrandDescriptor): Promise<PatchBuilder> {

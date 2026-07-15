@@ -38,7 +38,8 @@ import {
   type ContentMetadataInput,
 } from './PatchBuilderContent.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
-import { commitPatch, type PatchCommitResult } from './PatchCommitter.ts';
+import { commitPatch } from './PatchCommitter.ts';
+import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
 import type { WarpState } from './JoinReducer.ts';
 import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';

@@ -6,6 +6,7 @@ import StrandError from '../../domain/errors/StrandError.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
+import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import { buildStrandRef, buildStrandsPrefix } from '../../domain/utils/RefLayout.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import StrandStorePort, {
@@ -74,7 +75,7 @@ export default class GitCasStrandStoreAdapter extends StrandStorePort {
     const node = await this.#history.getNodeInfo(revision);
     const trailers = decodeDescriptorMessage(node.message);
     requireDescriptorIdentity(trailers, { graphName, strandId, revision });
-    return await collectBytes(
+    return await collectAsyncIterable(
       this.#assets.open(new AssetHandle(trailers.descriptorHandle)),
     );
   }
@@ -164,7 +165,6 @@ async function stageDescriptor(
   return await assets.stage(WarpStream.from([request.descriptor]), {
     slug: `strand-${request.graphName}-${request.strandId}`,
     filename: 'descriptor.json',
-    mime: 'application/json',
     expectedSize: request.descriptor.byteLength,
   });
 }
@@ -238,20 +238,4 @@ function requireDescriptorIdentity(
     code: 'E_STRAND_CORRUPT',
     context: expected,
   });
-}
-
-async function collectBytes(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for await (const chunk of source) {
-    chunks.push(chunk);
-    size += chunk.byteLength;
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
 }

@@ -44,5 +44,20 @@ describe('InMemoryBlobStorageAdapter asset semantics', () => {
 
     await expect(collectAsyncIterable(storage.open(new AssetHandle('missing'))))
       .rejects.toThrow(/unknown asset/);
+    await expect(collectAsyncIterable(storage.retrieveStream('missing')))
+      .rejects.toThrow(/unknown asset/);
+  });
+
+  it('rejects content whose staged size differs from its declaration', async () => {
+    const storage = new InMemoryBlobStorageAdapter();
+
+    await expect(storage.stage(chunks('four'), {
+      slug: 'mismatch',
+      expectedSize: 5,
+    })).rejects.toMatchObject({
+      code: 'E_ASSET_SIZE_MISMATCH',
+      expectedSize: 5,
+      actualSize: 4,
+    });
   });
 });

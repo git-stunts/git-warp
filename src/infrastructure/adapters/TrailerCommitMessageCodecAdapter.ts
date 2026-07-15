@@ -4,6 +4,7 @@ import CommitMessageCodecPort, {
   type AnchorCommitMessage,
   type CheckpointCommitMessage,
   CHECKPOINT_STORAGE_FORMAT,
+  LEGACY_CHECKPOINT_STORAGE_FORMAT,
   createLegacyGitCasPatchStorage,
   createGitCasPatchStorage,
   type CommitMessageKind,
@@ -19,6 +20,7 @@ import CommitMessageCodecPort, {
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import { validateGraphName, validateWriterId } from '../../domain/utils/RefLayout.ts';
+import { checkpointBundleTrailer, decodeCheckpointBundleHandle, encodeCheckpointBundleHandle } from './CheckpointCommitMessageBundleCodec.ts';
 
 export type {
   AnchorCommitMessage,
@@ -41,6 +43,7 @@ export const TRAILER_KEYS = Object.freeze({
   indexOid: 'eg-index-oid',
   schema: 'eg-schema',
   checkpointVersion: 'eg-checkpoint',
+  checkpointHandle: 'eg-checkpoint-handle',
   storageVersion: 'eg-storage-version',
   storageSchema: 'eg-storage-schema',
   encrypted: 'eg-encrypted',
@@ -150,6 +153,7 @@ const checkpointCommitMessageSchema = z.object({
   stateHash: sha256Schema,
   schema: positiveIntegerSchema,
   checkpointVersion: z.string().nullable(),
+  bundleHandle: z.string().nullable(),
 });
 
 const anchorCommitMessageSchema = z.object({
@@ -348,23 +352,19 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
   }
 
   override encodeCheckpoint(message: CheckpointCommitMessage): string {
-    const parsed = checkpointCommitMessageSchema.safeParse({
-      ...message,
-      checkpointVersion: message.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
-    });
+    const parsed = checkpointCommitMessageSchema.safeParse(encodeCheckpointBundleHandle(message, CHECKPOINT_STORAGE_FORMAT));
     if (!parsed.success) {
       throw messageCodecError(parsed.error.issues[0]?.message ?? 'invalid checkpoint commit message');
     }
-    return this._codec.encode({
-      title: 'warp:checkpoint',
-      trailers: {
-        [TRAILER_KEYS.kind]: 'checkpoint',
-        [TRAILER_KEYS.graph]: parsed.data.graph,
-        [TRAILER_KEYS.stateHash]: parsed.data.stateHash,
-        [TRAILER_KEYS.schema]: String(parsed.data.schema),
-        [TRAILER_KEYS.checkpointVersion]: parsed.data.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
-      },
-    });
+    const trailers: Record<string, string> = {
+      [TRAILER_KEYS.kind]: 'checkpoint',
+      [TRAILER_KEYS.graph]: parsed.data.graph,
+      [TRAILER_KEYS.stateHash]: parsed.data.stateHash,
+      [TRAILER_KEYS.schema]: String(parsed.data.schema),
+      [TRAILER_KEYS.checkpointVersion]: parsed.data.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
+      ...checkpointBundleTrailer(TRAILER_KEYS.checkpointHandle, parsed.data.bundleHandle),
+    };
+    return this._codec.encode({ title: 'warp:checkpoint', trailers });
   }
 
   override decodeCheckpoint(message: string): CheckpointCommitMessage {
@@ -378,11 +378,12 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
       stateHash: parseSha256Trailer(trailers, TRAILER_KEYS.stateHash, 'stateHash'),
       schema: parsePositiveIntegerTrailer(trailers, TRAILER_KEYS.schema),
       checkpointVersion: trailers[TRAILER_KEYS.checkpointVersion] ?? null,
+      bundleHandle: trailers[TRAILER_KEYS.checkpointHandle] ?? null,
     });
     if (!parsed.success) {
       throw messageCodecError(parsed.error.issues[0]?.message ?? 'invalid checkpoint commit message');
     }
-    return parsed.data;
+    return decodeCheckpointBundleHandle(parsed.data);
   }
 
   override encodeAnchor(message: AnchorCommitMessage): string {
@@ -472,7 +473,8 @@ export function encodeCheckpointMessage(params: EncodeCheckpointCompatParams): s
     graph: params.graph,
     stateHash: params.stateHash,
     schema: params.schema ?? 2,
-    checkpointVersion: params.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
+    checkpointVersion: params.checkpointVersion ?? LEGACY_CHECKPOINT_STORAGE_FORMAT,
+    bundleHandle: null,
   });
 }
 

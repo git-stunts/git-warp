@@ -41,7 +41,7 @@ export type GitCasFacade = Pick<
   | 'store'
 > & {
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
-  readonly bundles: Pick<BundleCapability, 'putOrdered'>;
+  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
   readonly rootSets: {
     open(options: { readonly ref: string }): Promise<GitCasRootSetClient>;
@@ -93,7 +93,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         intents: this._createIntentStore(request, content),
         patchJournal: this._createPatchJournal(request, content),
         checkpoints: this._createCheckpointStore(request, content),
-        indexes: this._createIndexStore(request),
+        indexes: this._createIndexStore(request, content),
         stateSnapshots: this._createStateSnapshots(request),
         trie: new GitTrieStoreAdapter({ plumbing: this._plumbing }),
       })
@@ -137,6 +137,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       commitMessageCodec: request.commitMessageCodec,
       history: this._history,
       assetStorage: content,
+      cas: this._cas,
     });
   }
 
@@ -168,11 +169,12 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
 
   private _createIndexStore(
     request: RuntimeStorageRequest,
+    content: AssetStoragePort,
   ): CborIndexStoreAdapter {
     return new CborIndexStoreAdapter({
       codec: request.codec,
-      blobPort: this._history,
-      treePort: this._history,
+      assetStorage: content,
+      cas: this._cas,
     });
   }
 

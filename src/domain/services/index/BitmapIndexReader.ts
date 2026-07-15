@@ -89,7 +89,7 @@ export default class BitmapIndexReader {
   }
 
   /**
-   * Configures the reader with shard OID mappings for lazy loading.
+   * Configures the reader with opaque shard handles for lazy loading.
    */
   setup(shardHandles: Readonly<Record<string, AssetHandle>>): void {
     const validEntries: Array<[string, AssetHandle]> = [];

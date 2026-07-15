@@ -2,6 +2,8 @@ import type WarpState from '../domain/services/state/WarpState.ts';
 import type VersionVector from '../domain/crdt/VersionVector.ts';
 import type { ProvenanceIndex } from '../domain/services/provenance/ProvenanceIndex.ts';
 import type AssetHandle from '../domain/storage/AssetHandle.ts';
+import type BundleHandle from '../domain/storage/BundleHandle.ts';
+import type StorageRetentionWitness from '../domain/storage/StorageRetentionWitness.ts';
 
 /** Immutable checkpoint state and optional bounded-read index payloads. */
 export interface CheckpointRecord {
@@ -11,6 +13,7 @@ export interface CheckpointRecord {
   appliedVV: VersionVector;
   stateHash: string;
   parents: string[];
+  expectedCheckpointSha?: string | null;
   provenanceIndex?: ProvenanceIndex | null;
   indexShards?: Readonly<Record<string, Uint8Array>> | null;
 }
@@ -18,6 +21,8 @@ export interface CheckpointRecord {
 /** Causal identity returned after a checkpoint is published. */
 export interface PublishedCheckpoint {
   checkpointSha: string;
+  bundleHandle: BundleHandle;
+  retention: StorageRetentionWitness;
 }
 
 /** Complete state loaded from an immutable checkpoint publication. */
@@ -59,11 +64,20 @@ export default abstract class CheckpointStorePort {
 
   abstract resolveHead(_graphName: string): Promise<string | null>;
 
-  abstract loadCheckpoint(_checkpointSha: string): Promise<CheckpointData>;
+  abstract loadCheckpoint(
+    _checkpointSha: string,
+    _expectedGraphName?: string,
+  ): Promise<CheckpointData>;
 
-  abstract readMetadata(_checkpointSha: string): Promise<CheckpointMetadata>;
+  abstract readMetadata(
+    _checkpointSha: string,
+    _expectedGraphName?: string,
+  ): Promise<CheckpointMetadata>;
 
-  abstract loadBasis(_checkpointSha: string): Promise<CheckpointBasis>;
+  abstract loadBasis(
+    _checkpointSha: string,
+    _expectedGraphName?: string,
+  ): Promise<CheckpointBasis>;
 
   abstract publishCoverage(_options: {
     graphName: string;

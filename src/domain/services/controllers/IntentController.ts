@@ -5,7 +5,12 @@
  */
 
 import type IntentCapability from '../../capabilities/IntentCapability.ts';
-import type { WarpIntentDescriptor, WarpIntentOutcome } from '../../types/WarpIntentDescriptor.ts';
+import type { QueryPropertyBag } from '../../capabilities/QueryCapability.ts';
+import type {
+  PrecommitGuard,
+  WarpIntentDescriptor,
+  WarpIntentOutcome,
+} from '../../types/WarpIntentDescriptor.ts';
 import type ProjectionHandle from '../ProjectionHandle.ts';
 import type IntentStorePort from '../../../ports/IntentStorePort.ts';
 
@@ -15,6 +20,10 @@ export type IntentHost = {
   _intentStore: IntentStorePort;
   worldline: () => ProjectionHandle;
 };
+
+type IntentObstruction = Extract<WarpIntentOutcome, { readonly admitted: false }>['obstruction'];
+type StatusGuard = Extract<PrecommitGuard, { readonly op: 'nodeStatus' }>;
+type AgentGuard = Extract<PrecommitGuard, { readonly op: 'nodeUnassignedOrSelf' }>;
 
 export default class IntentController implements IntentCapability {
   _host: IntentHost;
@@ -46,9 +55,9 @@ export default class IntentController implements IntentCapability {
   }
 
   private _checkGuard(
-    guard: WarpIntentDescriptor['precommitGuards'][number],
-    nodeProps: Readonly<{ [key: string]: unknown }> | null,
-  ) {
+    guard: PrecommitGuard,
+    nodeProps: QueryPropertyBag | null,
+  ): IntentObstruction | null {
     if (guard.op === 'nodeStatus') {
       return this._checkStatusGuard(guard, nodeProps);
     }
@@ -59,27 +68,25 @@ export default class IntentController implements IntentCapability {
   }
 
   private _checkStatusGuard(
-    guard: WarpIntentDescriptor['precommitGuards'][number],
-    nodeProps: Readonly<{ [key: string]: unknown }> | null,
-  ) {
+    guard: StatusGuard,
+    nodeProps: QueryPropertyBag | null,
+  ): IntentObstruction | null {
     const raw = nodeProps ? nodeProps['status'] : 'ABSENT';
     const actualStatus = typeof raw === 'string' ? raw : 'ABSENT';
-    const { expected } = guard as unknown as { expected: string };
-    if (actualStatus !== expected) {
+    if (actualStatus !== guard.expected) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: actualStatus };
     }
     return null;
   }
 
   private _checkAgentGuard(
-    guard: WarpIntentDescriptor['precommitGuards'][number],
-    nodeProps: Readonly<{ [key: string]: unknown }> | null,
-  ) {
+    guard: AgentGuard,
+    nodeProps: QueryPropertyBag | null,
+  ): IntentObstruction | null {
     if (!nodeProps) { return null; }
     const raw = nodeProps['agentId'];
     if (typeof raw !== 'string') { return null; }
-    const { agentId } = guard as unknown as { agentId: string };
-    if (raw !== agentId) {
+    if (raw !== guard.agentId) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: raw };
     }
     return null;

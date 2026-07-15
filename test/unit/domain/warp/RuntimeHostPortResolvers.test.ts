@@ -46,6 +46,7 @@ class TestCommitMessageCodec extends CommitMessageCodecPort {
       stateHash: 'b'.repeat(64),
       schema: 1,
       checkpointVersion: null,
+      bundleHandle: null,
     };
   }
 

@@ -19,6 +19,7 @@ import CheckpointTailOpticSource, {
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
 import { CURRENT_CHECKPOINT_SCHEMA } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
+import type CodecValue from '../../../../../src/domain/types/codec/CodecValue.ts';
 import computeShardKey from '../../../../../src/domain/utils/shardKey.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
@@ -80,6 +81,117 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
         reason: 'checkpoint-shard-unavailable',
         path: propPath,
         oid: missingHandle.toString(),
+      },
+    });
+  });
+
+  it('fails closed when a manifest-backed liveness asset is missing', async () => {
+    const indexStore = new MockIndexStorage();
+    const metaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
+    const missingHandle = new AssetHandle('test-index-shard:missing-liveness');
+    const source = new ManifestShardSource(indexStore);
+    const basis = manifestBasis({
+      livenessRoots: new Map([[metaPath, missingHandle]]),
+      propertyRoots: new Map<string, AssetHandle>(),
+    });
+    const reader = new CheckpointShardFactReader({ source });
+
+    await expect(reader.readNodeAlive(basis, NODE_ID)).rejects.toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: {
+        reason: 'checkpoint-shard-unavailable',
+        path: metaPath,
+        oid: missingHandle.toString(),
+      },
+    });
+  });
+
+  it('preserves non-Error shard decode failures without misclassifying them', async () => {
+    const indexStore = new NonErrorDecodeIndexStorage();
+    const metaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
+    const propPath = `props_${computeShardKey(NODE_ID)}.cbor`;
+    const metaHandle = await indexStore.writeBlob(metaShardBytes(NODE_ID));
+    const propHandle = await indexStore.writeBlob(defaultCodec.encode([]));
+    const source = new ManifestShardSource(indexStore);
+    const basis = manifestBasis({
+      livenessRoots: new Map([[metaPath, metaHandle]]),
+      propertyRoots: new Map([[propPath, propHandle]]),
+    });
+    const reader = new CheckpointShardFactReader({ source });
+
+    await expect(reader.readNodeAlive(basis, NODE_ID)).rejects.toBe('decode-failure');
+    await expect(reader.readProperty(basis, NODE_ID, PROPERTY_KEY)).rejects.toBe('decode-failure');
+  });
+
+  it('preserves non-Error neighborhood stream failures without misclassifying them', async () => {
+    const indexStore = new NonErrorOpenIndexStorage();
+    const metaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
+    const metaHandle = await indexStore.writeBlob(metaShardBytes(NODE_ID));
+    const source = new ManifestShardSource(indexStore);
+    const basis = manifestBasis({
+      livenessRoots: new Map([[metaPath, metaHandle]]),
+      propertyRoots: new Map<string, AssetHandle>(),
+    });
+    const reader = new CheckpointShardFactReader({ source });
+
+    await expect(reader.readNeighborhood(basis, {
+      nodeId: NODE_ID,
+      direction: 'out',
+      labels: [],
+    })).rejects.toBe('open-failure');
+  });
+
+  it('fails closed before opening a shard whose manifest and basis handles differ', async () => {
+    const indexStore = new MockIndexStorage();
+    const path = `meta_${computeShardKey(NODE_ID)}.cbor`;
+    const manifestHandle = await indexStore.writeBlob(metaShardBytes(NODE_ID));
+    const differentHandle = await indexStore.writeBlob(metaShardBytes('node:different'));
+    const source = new ManifestShardSource(indexStore);
+    const basis = manifestBasis({
+      livenessRoots: new Map([[path, manifestHandle]]),
+      propertyRoots: new Map<string, AssetHandle>(),
+    });
+    const mismatchedBasis: CheckpointTailIndexBasis = {
+      ...basis,
+      indexHandles: Object.freeze({ ...basis.indexHandles, [path]: differentHandle }),
+    };
+    const reader = new CheckpointShardFactReader({ source });
+
+    await expect(reader.readNodeAlive(mismatchedBasis, NODE_ID)).rejects.toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: {
+        reason: 'checkpoint-shard-invalid',
+        path,
+        manifestHandle: manifestHandle.toString(),
+        basisHandle: differentHandle.toString(),
+      },
+    });
+    expect(indexStore.openedShardHandles).toEqual([]);
+    expect(indexStore.decodedShardHandles).toEqual([]);
+  });
+
+  it('fails closed when a manifest root has no corresponding basis handle', async () => {
+    const indexStore = new MockIndexStorage();
+    const path = `meta_${computeShardKey(NODE_ID)}.cbor`;
+    const manifestHandle = await indexStore.writeBlob(metaShardBytes(NODE_ID));
+    const source = new ManifestShardSource(indexStore);
+    const basis = manifestBasis({
+      livenessRoots: new Map([[path, manifestHandle]]),
+      propertyRoots: new Map<string, AssetHandle>(),
+    });
+    const missingBasisHandle: CheckpointTailIndexBasis = {
+      ...basis,
+      indexHandles: Object.freeze({}),
+    };
+    const reader = new CheckpointShardFactReader({ source });
+
+    await expect(reader.readNodeAlive(missingBasisHandle, NODE_ID)).rejects.toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: {
+        reason: 'checkpoint-shard-invalid',
+        path,
+        manifestHandle: manifestHandle.toString(),
+        basisHandle: null,
       },
     });
   });
@@ -174,6 +286,18 @@ class ManifestShardSource extends CheckpointTailOpticSource {
     _checkpoint: CheckpointTailCheckpointFrontier | null | undefined,
   ): Promise<void> {
     return Promise.resolve();
+  }
+}
+
+class NonErrorDecodeIndexStorage extends MockIndexStorage {
+  override decodeShard<TDecoded extends CodecValue = CodecValue>(): Promise<TDecoded> {
+    return Promise.reject('decode-failure');
+  }
+}
+
+class NonErrorOpenIndexStorage extends MockIndexStorage {
+  override async *openShard(): AsyncIterable<Uint8Array> {
+    yield await Promise.reject<Uint8Array>('open-failure');
   }
 }
 

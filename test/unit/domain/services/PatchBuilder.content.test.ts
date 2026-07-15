@@ -29,7 +29,6 @@ describe('PatchBuilder content attachments', () => {
     expect(assets.calls[0]?.options).toEqual({
       slug: 'events/doc:1',
       filename: 'content',
-      mime: 'text/plain',
       expectedSize: 5,
     });
     expect(builder.build().ops).toEqual(expect.arrayContaining([

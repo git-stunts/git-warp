@@ -7,6 +7,7 @@ import AuditPublicationConflictError from '../../domain/errors/AuditPublicationC
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { buildAuditPrefix, buildAuditRef } from '../../domain/utils/RefLayout.ts';
+import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import AuditLogPort, {
   type AppendAuditRecordRequest,
@@ -14,6 +15,7 @@ import AuditLogPort, {
   type PublishedAuditRecord,
 } from '../../ports/AuditLogPort.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
+import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 import {
   CURRENT_SUBSTRATE_ONLY_POLICY,
   type SubstrateCompatibilityPolicyValue,
@@ -76,7 +78,6 @@ export default class GitCasAuditLogAdapter extends AuditLogPort {
     const stagedReceipt = await this.#assets.stage(WarpStream.from([request.receipt]), {
       slug: `audit-${request.graphName}-${request.writerId}`,
       filename: 'receipt.cbor',
-      mime: 'application/cbor',
       expectedSize: request.receipt.byteLength,
     });
     const publication = await publishAuditRecord(
@@ -105,7 +106,7 @@ export default class GitCasAuditLogAdapter extends AuditLogPort {
   async #readReceiptRoot(treeOid: string): Promise<Uint8Array> {
     try {
       const staged = await this.#cas.assets.adopt({ treeOid });
-      return await collectBytes(
+      return await collectAsyncIterable(
         this.#assets.open(new AssetHandle(staged.handle.toString())),
       );
     } catch (assetError) {
@@ -144,33 +145,10 @@ export default class GitCasAuditLogAdapter extends AuditLogPort {
   }
 }
 
-async function collectBytes(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for await (const chunk of source) {
-    chunks.push(chunk);
-    size += chunk.byteLength;
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
-}
-
 function rethrowUnlessLegacyReceiptTree(error: unknown): void {
-  if (errorCode(error) !== 'MANIFEST_NOT_FOUND') {
+  if (readGitCasErrorCode(error) !== 'MANIFEST_NOT_FOUND') {
     throw error;
   }
-}
-
-function errorCode(error: unknown): string | null {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    return typeof error.code === 'string' ? error.code : null;
-  }
-  return null;
 }
 
 function observedPublicationHead(error: unknown): string | null {
@@ -207,7 +185,7 @@ async function publishAuditRecord(
       },
     });
   } catch (error) {
-    if (errorCode(error) !== 'PUBLICATION_CONFLICT') {
+    if (readGitCasErrorCode(error) !== 'PUBLICATION_CONFLICT') {
       throw error;
     }
     throw new AuditPublicationConflictError(

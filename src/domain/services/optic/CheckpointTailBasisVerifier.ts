@@ -38,11 +38,14 @@ async function verifyCheckpointBasis(
   checkpointSha: string,
 ): Promise<void> {
   try {
-    const basis = await source._checkpointStore.loadBasis(checkpointSha);
+    const basis = await source._checkpointStore.loadBasis(checkpointSha, source.graphName);
     requireCurrentSchema(source.graphName, basis.schema);
     requireIndexShards(source.graphName, basis.indexShardHandles);
   } catch (error) {
-    rethrowBasisFailure(source.graphName, error);
+    if (error instanceof QueryError && error.code === 'E_OPTIC_NO_BOUNDED_BASIS') {
+      throw error;
+    }
+    throwNoBoundedBasis(source.graphName, 'checkpoint-basis-unavailable');
   }
 }
 
@@ -59,13 +62,6 @@ function requireIndexShards(
   if (Object.keys(handles).length === 0) {
     throwNoBoundedBasis(graphName, 'checkpoint-missing-index-shards');
   }
-}
-
-function rethrowBasisFailure(graphName: string, error: unknown): never {
-  if (error instanceof QueryError && error.code === 'E_OPTIC_NO_BOUNDED_BASIS') {
-    throw error;
-  }
-  throwNoBoundedBasis(graphName, 'checkpoint-basis-unavailable');
 }
 
 function throwNoBoundedBasis(graphName: string, reason: string): never {

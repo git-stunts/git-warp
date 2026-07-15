@@ -1,5 +1,6 @@
 import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
+import AssetSizeMismatchError from '../../src/domain/errors/AssetSizeMismatchError.ts';
 import StorageError from '../../src/domain/errors/StorageError.ts';
 import { hexEncode } from '../../src/domain/utils/bytes.ts';
 import { collectAsyncIterable } from '../../src/domain/utils/streamUtils.ts';
@@ -25,6 +26,7 @@ export default class InMemoryBlobStorageAdapter extends AssetStoragePort {
     options: AssetWriteOptions,
   ): Promise<StagedAsset> {
     const bytes = await collectAsyncIterable(source);
+    requireExpectedSize(bytes.byteLength, options.expectedSize);
     const oid = await contentHash(bytes);
     const casHandle = new GitCasAssetHandle({
       codec: 'raw',
@@ -58,7 +60,6 @@ export default class InMemoryBlobStorageAdapter extends AssetStoragePort {
     const staged = await this.stage(singleChunk(bytes), {
       slug: options.slug ?? 'test-asset',
       filename: options.filename ?? 'content',
-      mime: options.mime ?? null,
       expectedSize: options.expectedSize ?? bytes.byteLength,
     });
     return staged.handle;
@@ -70,6 +71,18 @@ export default class InMemoryBlobStorageAdapter extends AssetStoragePort {
     return this.#requireBytes(token).slice();
   }
 
+  /** Replaces staged bytes so boundary tests can exercise corrupt persisted assets. */
+  replace(handle: AssetHandle | string, content: Uint8Array): void {
+    const token = typeof handle === 'string' ? handle : handle.toString();
+    const bytes = content.slice();
+    this.#store.set(token, bytes);
+    try {
+      this.#store.set(GitCasAssetHandle.parse(token).oid, bytes);
+    } catch {
+      // Legacy test handles do not necessarily use the git-cas token grammar.
+    }
+  }
+
   async storeStream(
     source: AsyncIterable<Uint8Array>,
     options: Partial<AssetWriteOptions> = {},
@@ -77,15 +90,14 @@ export default class InMemoryBlobStorageAdapter extends AssetStoragePort {
     const staged = await this.stage(source, {
       slug: options.slug ?? 'test-asset',
       filename: options.filename ?? 'content',
-      mime: options.mime ?? null,
       expectedSize: options.expectedSize ?? null,
     });
     return staged.handle;
   }
 
-  retrieveStream(handle: AssetHandle | string): AsyncIterable<Uint8Array> {
+  async *retrieveStream(handle: AssetHandle | string): AsyncIterable<Uint8Array> {
     const token = typeof handle === 'string' ? handle : handle.toString();
-    return singleChunk(this.#requireBytes(token).slice());
+    yield this.#requireBytes(token).slice();
   }
 
   #requireBytes(token: string): Uint8Array {
@@ -97,6 +109,12 @@ export default class InMemoryBlobStorageAdapter extends AssetStoragePort {
       );
     }
     return bytes;
+  }
+}
+
+function requireExpectedSize(actualSize: number, expectedSize: number | null | undefined): void {
+  if (expectedSize !== null && expectedSize !== undefined && actualSize !== expectedSize) {
+    throw new AssetSizeMismatchError(expectedSize, actualSize);
   }
 }
 

@@ -19,6 +19,8 @@ import {
   type CheckpointMigrationHistory,
 } from './migrations/v17.0.0/checkpoint-schema-upgrade.ts';
 import type CryptoPort from '../src/ports/CryptoPort.ts';
+import type RuntimeStorageProviderPort from '../src/ports/RuntimeStorageProviderPort.ts';
+import { openCheckpointMigrationStore } from './migrations/v17.0.0/openCheckpointMigrationStore.ts';
 
 const LEGACY_REBUILDABLE_CACHE_REF_SUFFIXES = [
   '/coverage/head',
@@ -78,6 +80,7 @@ export interface V16ToV17UpgradeOptions {
   readonly graphNames: readonly string[];
   readonly dryRun?: boolean;
   readonly crypto?: CryptoPort;
+  readonly runtimeStorage: RuntimeStorageProviderPort;
 }
 export interface V16ToV17MigrationHistory extends CheckpointMigrationHistory {
   deleteRef(ref: string): Promise<void>;
@@ -151,11 +154,13 @@ export async function upgradeV16ToV17(
   const graphs: GraphV16ToV17UpgradeResult[] = [];
 
   for (const graphName of options.graphNames) {
+    const migrationStorage = await openCheckpointMigrationStore(options.runtimeStorage, graphName);
     const checkpoint = await upgradeCheckpointSchema({
       persistence: options.persistence,
       graphName,
       dryRun,
       crypto,
+      ...migrationStorage,
     });
     const cacheRefs = await migrateRebuildableCacheRefs({
       persistence: options.persistence,
@@ -198,16 +203,12 @@ async function migrateRebuildableCacheRefs(options: {
 }
 
 function checkpointLine(checkpoint: CheckpointSchemaUpgradeResult): string {
-  if (checkpoint.status === 'missing-checkpoint') {
-    return `checkpoint: none found at ${checkpoint.checkpointRef}`;
-  }
-  if (checkpoint.status === 'already-current') {
-    return `checkpoint: already schema:${checkpoint.currentSchema}`;
-  }
-  if (checkpoint.status === 'would-upgrade') {
-    return `checkpoint: would upgrade schema:${String(checkpoint.previousSchema)} -> schema:${checkpoint.currentSchema}`;
-  }
-  return `checkpoint: upgraded schema:${String(checkpoint.previousSchema)} -> schema:${checkpoint.currentSchema}`;
+  if (checkpoint.status === 'missing-checkpoint') return `checkpoint: none found at ${checkpoint.checkpointRef}`;
+  if (checkpoint.status === 'already-current') return `checkpoint: already schema:${checkpoint.currentSchema} storage:${checkpoint.currentStorageVersion}`;
+  const action = checkpoint.status === 'would-upgrade' ? 'would upgrade' : 'upgraded';
+  return `checkpoint: ${action} schema:${String(checkpoint.previousSchema)} `
+    + `storage:${checkpoint.previousStorageVersion ?? '(unspecified)'} -> `
+    + `schema:${checkpoint.currentSchema} storage:${checkpoint.currentStorageVersion}`;
 }
 
 export function formatHumanResult(result: V16ToV17UpgradeResult): string {
@@ -272,12 +273,13 @@ async function run(): Promise<void> {
     return;
   }
 
-  const { persistence } = await createPersistence(args.repo);
+  const { persistence, runtimeStorage } = await createPersistence(args.repo);
   const graphNames = await resolveGraphNames(persistence, args.graphNames);
   const result = await upgradeV16ToV17({
     persistence,
     graphNames,
     dryRun: args.dryRun,
+    runtimeStorage,
   });
 
   if (args.json) {
@@ -286,14 +288,9 @@ async function run(): Promise<void> {
   }
   process.stdout.write(`${formatHumanResult(result)}\n`);
 }
-
-function errorMessage(err: Error): string {
-  return err.message;
-}
-
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   run().catch((err: Error) => {
-    process.stderr.write(`${errorMessage(err)}\n\n${usage()}\n`);
+    process.stderr.write(`${err.message}\n\n${usage()}\n`);
     process.exitCode = 1;
   });
 }

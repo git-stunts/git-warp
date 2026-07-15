@@ -50,7 +50,7 @@ function descriptor(intentId: string): WarpIntentDescriptor {
     ],
     suffixTransform: {
       op: 'append',
-      payload: { intentId },
+      payload: { intentId, route: ['queued', { intentId }] },
     },
   };
 }
@@ -157,6 +157,29 @@ describe('GitCasIntentStoreAdapter', () => {
         expected: '',
         failureTag: 'bad-optional',
       }],
+    },
+    {
+      ...descriptor('missing-status'),
+      precommitGuards: [{
+        op: 'nodeStatus',
+        nodeId: 'node:a',
+        failureTag: 'missing-status',
+      }],
+    },
+    {
+      ...descriptor('missing-agent'),
+      precommitGuards: [{
+        op: 'nodeUnassignedOrSelf',
+        nodeId: 'node:a',
+        failureTag: 'missing-agent',
+      }],
+    },
+    {
+      ...descriptor('bad-payload'),
+      suffixTransform: {
+        op: 'append',
+        payload: { unsupported: new Set(['unsupported']) },
+      },
     },
   ])('rejects malformed descriptor assets without partial hydration', async (value) => {
     const fixture = createFixture();
