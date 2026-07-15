@@ -131,6 +131,20 @@ describe('CborCheckpointStoreAdapter semantic lifecycle', () => {
       .rejects.toMatchObject({ code: 'E_CHECKPOINT_MISSING_INDEX' });
   });
 
+  it.each([
+    null,
+    [],
+    { w1: 1 },
+    { '': 'a'.repeat(40) },
+    { w1: '' },
+  ])('rejects malformed decoded frontier entries: %j', async (frontier) => {
+    const fixture = createFixture();
+    const checkpointSha = await checkpointWithFrontier(fixture, frontier);
+
+    await expect(fixture.checkpoints.loadCheckpoint(checkpointSha))
+      .rejects.toMatchObject({ code: 'E_CHECKPOINT_INVALID_FRONTIER' });
+  });
+
   it('publishes coverage as a causal anchor of checkpoint parents', async () => {
     const { history, checkpoints } = createFixture();
     const published = await checkpoints.publishCheckpoint(record());
@@ -143,3 +157,23 @@ describe('CborCheckpointStoreAdapter semantic lifecycle', () => {
     expect(DEFAULT_COMMIT_MESSAGE_CODEC.detectKind(await history.showNode(coverageSha))).toBe('anchor');
   });
 });
+
+async function checkpointWithFrontier(
+  fixture: ReturnType<typeof createFixture>,
+  frontier: unknown,
+): Promise<string> {
+  const published = await fixture.checkpoints.publishCheckpoint(record());
+  const originalTree = await fixture.history.getCommitTree(published.checkpointSha);
+  const entries = await fixture.history.readTreeOids(originalTree);
+  entries['frontier.cbor'] = await fixture.history.writeBlob(fixture.codec.encode(frontier));
+  const replacementTree = await fixture.history.writeTree(
+    Object.entries(entries).map(([path, oid]) =>
+      `${path === 'state' || path === 'index' ? '040000 tree' : '100644 blob'} ${oid}\t${path}`
+    ).sort(),
+  );
+  return await fixture.history.commitNodeWithTree({
+    treeOid: replacementTree,
+    parents: [],
+    message: await fixture.history.showNode(published.checkpointSha),
+  });
+}

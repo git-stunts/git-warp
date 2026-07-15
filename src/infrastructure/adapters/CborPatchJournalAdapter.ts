@@ -137,7 +137,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         stack.push({ sha: current, message: adapter.#commitMessageCodec.decodePatch(node.message) });
         current = node.parents[0] ?? null;
       }
-      if (fromSha !== null && current === null) {
+      if (fromSha !== null && current !== fromSha) {
         throw new SyncError(
           `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`,
           { code: 'E_SYNC_DIVERGENCE', context: { writerId, fromSha, toSha } },

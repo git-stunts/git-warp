@@ -31,8 +31,15 @@ import type {
   AssetCapability,
   CborCodec,
   PublicationCapability,
+  PublicationResult,
 } from '@git-stunts/git-cas';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
+import PersistenceError from '../../domain/errors/PersistenceError.ts';
+import {
+  getExitCode,
+  toGitError,
+  wrapGitError,
+} from './gitErrorClassification.ts';
 
 // -- Constants ----------------------------------------------------------------
 
@@ -65,10 +72,19 @@ type GitTrustChainDeps = {
 
 async function resolveRef(plumbing: Plumbing, ref: string): Promise<string | null> {
   try {
-    const sha = await plumbing.execute({ args: ['rev-parse', '--verify', ref] });
+    const sha = await plumbing.execute({ args: ['rev-parse', '--verify', '--quiet', ref] });
     return sha.trim();
-  } catch {
-    return null;
+  } catch (raw) {
+    const error = toGitError(raw);
+    if (getExitCode(error) === 1) {
+      return null;
+    }
+    const classified = wrapGitError(error, { ref });
+    if (classified instanceof PersistenceError
+      && classified.code === PersistenceError.E_REF_NOT_FOUND) {
+      return null;
+    }
+    throw classified;
   }
 }
 
@@ -105,14 +121,24 @@ async function readTreeEntries(
     }
     const tabIdx = line.indexOf('\t');
     if (tabIdx < 0) {
-      continue;
+      throw malformedTrustTreeEntry(line);
     }
     const name = line.slice(tabIdx + 1);
     const parts = line.slice(0, tabIdx).split(' ');
     const oid = parts[2] ?? '';
+    if (name.length === 0 || parts.length !== 3 || oid.length === 0) {
+      throw malformedTrustTreeEntry(line);
+    }
     entries.set(name, oid);
   }
   return entries;
+}
+
+function malformedTrustTreeEntry(entry: string): TrustError {
+  return new TrustError('Malformed legacy trust tree entry', {
+    code: 'E_TRUST_LEGACY_TREE_INVALID',
+    context: { entry },
+  });
 }
 
 // -- Hash helpers (boundary concern) ------------------------------------------
@@ -173,13 +199,10 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     } catch (error) {
       rethrowUnlessLegacyTrustTree(error);
       this._requireLegacyTrustRecordPolicy(commitSha);
-      // Fallback: try reading as raw blob (pre-CAS migration)
       const entries = await readTreeEntries(this._plumbing, info.treeSha);
-      const manifestOid = entries.get(RECORD_BLOB_NAME);
-      if (manifestOid === undefined) {
-        return null;
-      }
-      return await this._readRecordIdRawFallback(manifestOid);
+      return await this._readRecordIdRawFallback(
+        requireLegacyRecordBlob(entries, commitSha),
+      );
     }
   }
 
@@ -232,12 +255,8 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     } catch (error) {
       rethrowUnlessLegacyTrustTree(error);
       this._requireLegacyTrustRecordPolicy(commitSha);
-      // Fallback: pre-CAS raw blob
       const entries = await readTreeEntries(this._plumbing, info.treeSha);
-      const blobOid = entries.get(RECORD_BLOB_NAME);
-      if (blobOid === undefined) {
-        return null;
-      }
+      const blobOid = requireLegacyRecordBlob(entries, commitSha);
       const raw = await this._plumbing.execute({ args: ['cat-file', 'blob', blobOid] });
       rawRecord = cbor.decode(Buffer.from(raw, 'binary')) as typeof rawRecord;
     }
@@ -314,8 +333,9 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       filename: RECORD_BLOB_NAME,
     });
     const message = `trust: ${record.recordType} ${record.recordId.slice(0, 12)}`;
+    let publication: PublicationResult;
     try {
-      const publication = await cas.publications.commit({
+      publication = await cas.publications.commit({
         root: staged.handle,
         commit: {
           message,
@@ -323,13 +343,13 @@ export default class GitTrustChainAdapter extends TrustChainPort {
         },
         ref: { name: ref, expected: parentTipSha },
       });
-      return Object.freeze({
-        commitSha: publication.commitId,
-        retention: adaptGitCasRetentionWitness(publication.witness.toJSON()),
-      });
     } catch (error) {
       return await this._rethrowPublicationConflict(ref, parentTipSha, error);
     }
+    return Object.freeze({
+      commitSha: publication.commitId,
+      retention: adaptGitCasRetentionWitness(publication.witness.toJSON()),
+    });
   }
 
   private async _rethrowPublicationConflict(
@@ -356,6 +376,26 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       },
     );
   }
+}
+
+function requireLegacyRecordBlob(
+  entries: ReadonlyMap<string, string>,
+  commitSha: string,
+): string {
+  const blobOid = entries.get(RECORD_BLOB_NAME);
+  if (entries.size === 1 && blobOid !== undefined && blobOid.length > 0) {
+    return blobOid;
+  }
+  throw new TrustError(
+    `Legacy trust record tree is malformed: ${commitSha}`,
+    {
+      code: 'E_TRUST_LEGACY_TREE_INVALID',
+      context: {
+        commitSha,
+        paths: [...entries.keys()].sort(),
+      },
+    },
+  );
 }
 
 async function collectBytes(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {

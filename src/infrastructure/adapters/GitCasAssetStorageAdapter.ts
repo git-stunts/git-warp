@@ -108,7 +108,6 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
   }
 
   async #openLegacyBlob(oid: string, adoptionError: unknown): Promise<AsyncIterable<Uint8Array>> {
-    const bytes = await this.#readLegacyCandidate(oid, adoptionError);
     if (!this.#compatibilityPolicy.legacyContentBlobReads) {
       throw new PersistenceError(
         `Legacy raw blob reads require the substrate migration compatibility policy: ${oid}`,
@@ -116,6 +115,7 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
         { context: { oid } },
       );
     }
+    const bytes = await this.#readLegacyCandidate(oid, adoptionError);
     return singleChunk(bytes);
   }
 

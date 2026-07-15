@@ -278,8 +278,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     const bytes = await this._readPayload(
       requireArtifact(checkpointSha, treeOids, 'frontier.cbor'),
     );
-    const decoded = this._codec.decode<Record<string, string>>(bytes);
-    return new Map(Object.entries(decoded));
+    return decodeFrontier(this._codec.decode(bytes), checkpointSha);
   }
 
   private async _readAppliedVV(treeOids: Record<string, string>): Promise<VersionVector | null> {
@@ -407,6 +406,35 @@ function decodeLegacyCasPointer(bytes: Uint8Array): string | null {
 
 function hasEntries(record: Readonly<Record<string, unknown>>): boolean {
   return Object.keys(record).length > 0;
+}
+
+function decodeFrontier(value: unknown, checkpointSha: string): Map<string, string> {
+  if (value === null
+    || typeof value !== 'object'
+    || Array.isArray(value)
+    || !isRecordPrototype(Object.getPrototypeOf(value))) {
+    throw invalidFrontier(checkpointSha);
+  }
+  const frontier = new Map<string, string>();
+  for (const [writerId, sha] of Object.entries(value)) {
+    if (writerId.length === 0 || typeof sha !== 'string' || sha.length === 0) {
+      throw invalidFrontier(checkpointSha);
+    }
+    frontier.set(writerId, sha);
+  }
+  return frontier;
+}
+
+function isRecordPrototype(value: object | null): boolean {
+  return value === Object.prototype || value === null;
+}
+
+function invalidFrontier(checkpointSha: string): PersistenceError {
+  return new PersistenceError(
+    `Checkpoint ${checkpointSha} has an invalid frontier`,
+    'E_CHECKPOINT_INVALID_FRONTIER',
+    { context: { checkpointSha } },
+  );
 }
 
 function requireDependency(value: unknown, name: string): void {

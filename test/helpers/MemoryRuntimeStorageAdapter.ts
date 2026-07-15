@@ -50,11 +50,13 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         history: this.#history,
         cas: this.#cas,
         assets: this.#content,
+        compatibilityPolicy: TEST_COMPATIBILITY_POLICY,
       }),
       strands: new GitCasStrandStoreAdapter({
         history: this.#history,
         cas: this.#cas,
         assets: this.#content,
+        compatibilityPolicy: TEST_COMPATIBILITY_POLICY,
       }),
       intents: new GitCasIntentStoreAdapter({
         history: this.#history,
@@ -87,9 +89,11 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
 }
 
 const TEST_COMPATIBILITY_POLICY = new SubstrateCompatibilityPolicy({
+  legacyAuditReceiptTreeReads: true,
   legacyContentBlobReads: true,
   legacyInlinePayloadReads: true,
   legacyPatchStorageReads: true,
+  legacyStrandDescriptorBlobReads: true,
   legacyTrustRecordBlobReads: true,
 });
 

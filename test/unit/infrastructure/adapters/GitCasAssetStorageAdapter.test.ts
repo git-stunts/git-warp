@@ -106,6 +106,7 @@ describe('GitCasAssetStorageAdapter', () => {
 
     await expect(collect(current.open(new AssetHandle(LEGACY_OID))))
       .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+    expect(legacyReader.readBlob).not.toHaveBeenCalled();
     await expect(collect(compatible.open(new AssetHandle(LEGACY_OID))))
       .resolves.toEqual(bytes);
   });

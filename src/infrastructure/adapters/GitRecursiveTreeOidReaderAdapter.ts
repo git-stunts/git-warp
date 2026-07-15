@@ -4,6 +4,7 @@ import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
 import TreeEntryMissing from '../../domain/tree/TreeEntryMissing.ts';
 import TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
 import TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
+import type { TreeEntryProbeResult } from '../../domain/tree/TreeEntryProbeResult.ts';
 import { validateOid } from './adapterValidation.ts';
 import {
   type GitPlumbing,
@@ -300,4 +301,3 @@ function malformedTreeEntry(record: string): PersistenceError {
     { context: { record } },
   );
 }
-export type TreeEntryProbeResult = TreeEntryFound | TreeEntryMissing;

@@ -340,12 +340,11 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
     if (!parsed.success) {
       throw messageCodecError(parsed.error.issues[0]?.message ?? 'invalid patch commit message');
     }
-    return {
-      ...parsed.data,
-      patchHandle: new AssetHandle(
-        'patchHandle' in parsed.data ? parsed.data.patchHandle : parsed.data.patchOid,
-      ),
-    };
+    if ('patchHandle' in parsed.data) {
+      return { ...parsed.data, patchHandle: new AssetHandle(parsed.data.patchHandle) };
+    }
+    const { patchOid, ...legacy } = parsed.data;
+    return { ...legacy, patchHandle: new AssetHandle(patchOid) };
   }
 
   override encodeCheckpoint(message: CheckpointCommitMessage): string {

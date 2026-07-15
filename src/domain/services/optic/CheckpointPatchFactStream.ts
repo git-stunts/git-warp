@@ -12,6 +12,7 @@ import { isPropValue } from '../../types/PropValue.ts';
 import { EventId } from '../../utils/EventId.ts';
 import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';
 import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
+import AssetHandle from '../../storage/AssetHandle.ts';
 import { normalizeRawOp } from '../OpNormalizer.ts';
 import {
   CheckpointAdjacencyFact,
@@ -320,7 +321,7 @@ function factsForContentOperation(
     return factsWithProvenance([
       new CheckpointContentAnchorFact({
         owner: op.node,
-        contentHandle: op.oid,
+        contentHandle: new AssetHandle(op.oid),
         eventId,
       }),
     ], op.node, eventId);

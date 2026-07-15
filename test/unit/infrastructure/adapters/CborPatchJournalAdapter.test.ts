@@ -118,7 +118,7 @@ describe('CborPatchJournalAdapter semantic publication', () => {
   });
 
   it('scans a causal patch range in chronological order and detects divergence', async () => {
-    const { journal } = createFixture();
+    const { history, journal } = createFixture();
     const first = await journal.appendPatch({
       patch: createPatch(1, 'node:a'),
       graph: 'test',
@@ -142,6 +142,13 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     expect(entries.map((entry) => entry.sha)).toEqual([first.sha, second.sha]);
     expect(entries.map((entry) => entry.patch.lamport)).toEqual([1, 2]);
     await expect(journal.scanPatchRange('alice', 'f'.repeat(40), second.sha).collect())
+      .rejects.toBeInstanceOf(SyncError);
+
+    const nonPatch = await history.commitNode({
+      message: 'not a patch publication',
+      parents: [first.sha],
+    });
+    await expect(journal.scanPatchRange('alice', first.sha, nonPatch).collect())
       .rejects.toBeInstanceOf(SyncError);
   });
 

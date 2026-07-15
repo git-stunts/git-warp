@@ -95,18 +95,22 @@ describe('TrailerCommitMessageCodecAdapter storage routing', () => {
   });
 
   it('preserves encrypted legacy external-storage compatibility', () => {
-    const decoded = decodePatchMessage(encodePatchMessage({
+    const encoded = encodePatchMessage({
       graph: 'events',
       writer: 'alice',
       lamport: 1,
       patchOid: OID,
       encrypted: true,
-    }));
+    });
+    const decoded = decodePatchMessage(encoded);
+    const canonical = new TrailerCommitMessageCodecAdapter().decodePatch(encoded);
 
     expect(decoded).toMatchObject({
       encrypted: true,
       storage: { strategy: 'legacy-external-storage' },
     });
+    expect(canonical).not.toHaveProperty('patchOid');
+    expect(canonical.patchHandle.toString()).toBe(OID);
   });
 });
 

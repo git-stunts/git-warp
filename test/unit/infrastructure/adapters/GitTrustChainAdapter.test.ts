@@ -123,8 +123,22 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
 
   it('implements TrustChainPort and returns null for a missing trust ref', async () => {
     expect(adapter).toBeInstanceOf(TrustChainPort);
-    plumbing.execute.mockRejectedValueOnce(new Error('missing ref'));
+    plumbing.execute.mockRejectedValueOnce(missingRefError());
     await expect(adapter.readTip(GRAPH)).resolves.toBeNull();
+  });
+
+  it('propagates rev-parse failures that are not missing refs', async () => {
+    const unavailable = new Error('repository unavailable');
+    plumbing.execute.mockRejectedValueOnce(unavailable);
+    await expect(adapter.readTip(GRAPH)).rejects.toBe(unavailable);
+
+    plumbing.execute.mockRejectedValueOnce(unavailable);
+    const read = async (): Promise<void> => {
+      for await (const _record of adapter.readRecords(GRAPH)) {
+        // No record may be yielded when ref resolution fails.
+      }
+    };
+    await expect(read()).rejects.toBe(unavailable);
   });
 
   it('reads a tip record by adopting and opening its asset tree', async () => {
@@ -214,7 +228,7 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
       if (args[0] === 'rev-parse') return TIP;
       if (args[0] === 'cat-file' && args[1] === '-p') return `tree ${TREE}\n\nmessage`;
       if (args[0] === 'ls-tree') {
-        return `\nmalformed\n100644 blob ${HANDLE.oid}\trecord.cbor\n`;
+        return `100644 blob ${HANDLE.oid}\trecord.cbor\n`;
       }
       if (args[0] === 'cat-file' && args[1] === 'blob') {
         return Buffer.from(codec.encode(recordObject)).toString('binary');
@@ -234,7 +248,7 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
     expect(records[0]?.recordId).toBe('expected-record-id-hash');
   });
 
-  it('returns null when a legacy tree or blob cannot yield a record id', async () => {
+  it('rejects malformed legacy trees and returns null for undecodable legacy records', async () => {
     adapter = new GitTrustChainAdapter({
       plumbing,
       crypto: new TestCrypto(),
@@ -251,7 +265,9 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
       if (args[0] === 'ls-tree') return `100644 blob ${HANDLE.oid}\tother.cbor`;
       return '';
     });
-    await expect(adapter.readTip(GRAPH)).resolves.toEqual({ tipSha: TIP, recordId: null });
+    await expect(adapter.readTip(GRAPH)).rejects.toMatchObject({
+      code: 'E_TRUST_LEGACY_TREE_INVALID',
+    });
 
     plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
       if (args[0] === 'rev-parse') return TIP;
@@ -264,7 +280,7 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
   });
 
   it('rejects tampered record IDs and yields no records for a missing ref', async () => {
-    plumbing.execute.mockRejectedValueOnce(new Error('missing ref'));
+    plumbing.execute.mockRejectedValueOnce(missingRefError());
     const records: TrustRecord[] = [];
     for await (const record of adapter.readRecords(GRAPH)) {
       records.push(record);
@@ -312,3 +328,7 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
       .resolves.toMatchObject({ commitSha: TIP });
   });
 });
+
+function missingRefError(): Error & { readonly exitCode: number } {
+  return Object.assign(new Error('missing ref'), { exitCode: 1 });
+}

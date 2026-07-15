@@ -4,6 +4,7 @@ import MemoryBudgetError from '../../../../../src/domain/errors/MemoryBudgetErro
 import MemoryBudget from '../../../../../src/domain/memory/MemoryBudget.ts';
 import WarpMemoryPool from '../../../../../src/domain/memory/WarpMemoryPool.ts';
 import CheckpointFactResolver from '../../../../../src/domain/services/optic/CheckpointFactResolver.ts';
+import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
 import {
   CheckpointContentAnchorFact,
   CheckpointEdgeFact,
@@ -62,21 +63,28 @@ describe('CheckpointFactResolver', () => {
     expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 1, rejected: 0 });
   });
 
-  it('resolves current content OID from streamed content anchors', async () => {
+  it('resolves the current content handle from streamed content anchors', async () => {
     const { resolver, pool } = resolverFixture();
 
-    await expect(resolver.resolveContentOid(facts([
+    const handle = await resolver.resolveContentHandle(facts([
       contentAnchor('task:1', 'oid-old', 1),
       contentAnchor('task:1', 'oid-current', 5),
       contentAnchor('task:2', 'oid-other', 6),
-    ]), 'task:1')).resolves.toBe('oid-current');
-    await expect(resolver.resolveContentOid(facts([]), 'task:missing')).resolves.toBeNull();
+    ]), 'task:1');
+    expect(handle?.toString()).toBe('oid-current');
+    await expect(resolver.resolveContentHandle(facts([]), 'task:missing')).resolves.toBeNull();
     expect(pool.snapshot()).toMatchObject({ leased: 0, peak: 1, rejected: 0 });
   });
 
   it('rejects malformed constructor fields before field access', () => {
     // @ts-expect-error deliberate malformed constructor fixture
     expect(() => new CheckpointFactResolver(null)).toThrow(MemoryBudgetError);
+    expect(() => new CheckpointContentAnchorFact({
+      owner: 'task:1',
+      // @ts-expect-error deliberate raw-token substitution
+      contentHandle: 'raw-token',
+      eventId: event(1),
+    })).toThrowError(expect.objectContaining({ code: 'E_CHECKPOINT_CONTENT_HANDLE' }));
   });
 });
 
@@ -110,7 +118,11 @@ function nodeProperty(nodeId: string, key: string, value: string | null, lamport
 }
 
 function contentAnchor(owner: string, contentHandle: string, lamport: number): CheckpointContentAnchorFact {
-  return new CheckpointContentAnchorFact({ owner, contentHandle, eventId: event(lamport) });
+  return new CheckpointContentAnchorFact({
+    owner,
+    contentHandle: new AssetHandle(contentHandle),
+    eventId: event(lamport),
+  });
 }
 
 function event(lamport: number): EventId {

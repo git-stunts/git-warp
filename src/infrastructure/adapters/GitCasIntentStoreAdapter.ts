@@ -116,12 +116,24 @@ async function collectIntentHandles(
   while (sha !== null) {
     assertUnseenIntentPublication(seen, sha);
     const node = await history.getNodeInfo(sha);
+    assertLinearIntentPublication(node.parents, sha);
     const message = decodeIntentMessage(node.message);
     assertIntentIdentity(message, identity);
     handles.push(new AssetHandle(message.descriptorHandle));
     sha = node.parents[0] ?? null;
   }
   return Object.freeze(handles);
+}
+
+function assertLinearIntentPublication(parents: readonly string[], sha: string): void {
+  if (parents.length <= 1) {
+    return;
+  }
+  throw new WarpError(
+    'Intent journal publication must have at most one parent',
+    'E_INTENT_JOURNAL_NON_LINEAR',
+    { context: { sha, parentCount: parents.length } },
+  );
 }
 
 async function* streamIntentDescriptors(
