@@ -10,6 +10,7 @@ import {
 } from '../../../../src/domain/services/audit/AuditReceiptService.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryAuditLogAdapter from '../../../helpers/InMemoryAuditLogAdapter.ts';
+import AuditPublicationConflictError from '../../../../src/domain/errors/AuditPublicationConflictError.ts';
 
 const testCrypto = {
   async hash(algorithm: string, data: string | Uint8Array) {
@@ -183,7 +184,7 @@ describe('AuditReceiptService semantic publication', () => {
 
   it('degrades after the retry also conflicts and skips subsequent work', async () => {
     const auditLog = new InMemoryAuditLogAdapter();
-    const conflict = Object.assign(new Error('conflict'), { code: 'PUBLICATION_CONFLICT' });
+    const conflict = new AuditPublicationConflictError(null, 'f'.repeat(40));
     auditLog.failAppendsWith(conflict);
     const subject = service(auditLog, mockLogger());
     await subject.init();
@@ -191,6 +192,22 @@ describe('AuditReceiptService semantic publication', () => {
     await expect(subject.commit(receipt(1))).resolves.toBeNull();
     await expect(subject.commit(receipt(2))).resolves.toBeNull();
     expect(subject.getStats()).toMatchObject({ degraded: true, failed: 1, skipped: 1 });
+  });
+
+  it('does not degrade when a transient failure follows the first publication conflict', async () => {
+    const auditLog = new InMemoryAuditLogAdapter();
+    const realAppend = auditLog.append.bind(auditLog);
+    const append = vi.spyOn(auditLog, 'append');
+    append
+      .mockRejectedValueOnce(new AuditPublicationConflictError(null, 'f'.repeat(40)))
+      .mockRejectedValueOnce(new Error('storage unavailable during retry'))
+      .mockImplementation(realAppend);
+    const subject = service(auditLog, mockLogger());
+    await subject.init();
+
+    await expect(subject.commit(receipt(1))).resolves.toBeNull();
+    await expect(subject.commit(receipt(1))).resolves.not.toBeNull();
+    expect(subject.getStats()).toMatchObject({ committed: 1, failed: 1, degraded: false });
   });
 
   it('records ordinary storage failures without claiming durability', async () => {

@@ -35,12 +35,12 @@ class FixtureAuditLog extends AuditLogPort {
   readonly entries = new Map<string, AuditLogEntry>();
   head: string | null = null;
   movedHead: string | null = null;
-  failHead = false;
+  headFailure: Error | string | null = null;
   readonly #headReads = new Map<string, number>();
 
   override async readHead(_graphName: string, _writerId: string): Promise<string | null> {
-    if (this.failHead) {
-      throw new Error('head unavailable');
+    if (this.headFailure !== null) {
+      throw this.headFailure;
     }
     const key = `${_graphName}:${_writerId}`;
     const reads = this.#headReads.get(key) ?? 0;
@@ -160,15 +160,26 @@ describe('AuditChainVerifier semantic audit-log boundary', () => {
     });
   });
 
-  it('treats absent and temporarily unreadable heads as empty chains', async () => {
+  it('treats an absent head as an empty valid chain', async () => {
     const missing = new FixtureAuditLog();
-    const unavailable = new FixtureAuditLog();
-    unavailable.failHead = true;
 
     await expect(new AuditChainVerifier(missing, codec).verifyChain(GRAPH, WRITER))
       .resolves.toMatchObject({ status: 'VALID', receiptsScanned: 0 });
+  });
+
+  it.each([
+    [new Error('head unavailable'), 'head unavailable'],
+    ['head unavailable without an Error', 'head unavailable without an Error'],
+  ])('reports an unreadable head as an audit verification error', async (failure, message) => {
+    const unavailable = new FixtureAuditLog();
+    unavailable.headFailure = failure;
+
     await expect(new AuditChainVerifier(unavailable, codec).verifyChain(GRAPH, WRITER))
-      .resolves.toMatchObject({ status: 'VALID', receiptsScanned: 0 });
+      .resolves.toMatchObject({
+        status: 'ERROR',
+        receiptsScanned: 0,
+        errors: [{ code: 'AUDIT_HEAD_UNAVAILABLE', message: `Cannot read audit head: ${message}` }],
+      });
   });
 
   it.each([

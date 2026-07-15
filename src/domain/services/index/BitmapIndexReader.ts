@@ -37,15 +37,6 @@ function isChunkedVariant(path: string, basePath: string): boolean {
   return path.startsWith(`${base}.chunk-`) && path.endsWith('.cbor');
 }
 
-function normalizeErrorCause(value: unknown): Error {
-  return value instanceof Error
-    ? value
-    : new IndexError('Shard storage threw a non-error value', {
-        code: 'E_INDEX_STORAGE_THROWABLE',
-        context: { value: String(value) },
-      });
-}
-
 /**
  * Service for querying a loaded bitmap index.
  *
@@ -341,10 +332,16 @@ export default class BitmapIndexReader {
     try {
       return await collectAsyncIterable(this.indexStore.openShard(handle));
     } catch (cause) {
+      const errorCause = cause instanceof Error
+        ? cause
+        : new IndexError('Shard storage threw a non-error value', {
+            code: 'E_INDEX_STORAGE_THROWABLE',
+            context: { value: String(cause) },
+          });
       throw new ShardLoadError('Failed to load shard from storage', {
         shardPath: path,
         oid: handle.toString(),
-        cause: normalizeErrorCause(cause),
+        cause: errorCause,
       });
     }
   }

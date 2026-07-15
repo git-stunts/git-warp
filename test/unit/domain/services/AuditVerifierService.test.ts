@@ -71,6 +71,15 @@ describe('AuditVerifierService semantic chains', () => {
     expect(result).toMatchObject({ status: 'VALID', receiptsVerified: 0, tipCommit: null });
   });
 
+  it('applies configured read failures to writer discovery and entry reads', async () => {
+    const auditLog = new InMemoryAuditLogAdapter();
+    const failure = new Error('audit storage unavailable');
+    auditLog.failReadsWith(failure);
+
+    await expect(verifier(auditLog).verifyAll('events')).rejects.toBe(failure);
+    await expect(auditLog.readEntry('a'.repeat(40))).rejects.toBe(failure);
+  });
+
   it('supports bounded partial verification from a requested publication', async () => {
     const auditLog = new InMemoryAuditLogAdapter();
     const writer = await auditService(auditLog);

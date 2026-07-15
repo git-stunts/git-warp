@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryAuditLogAdapter from '../../../helpers/InMemoryAuditLogAdapter.ts';
+import AuditPublicationConflictError from '../../../../src/domain/errors/AuditPublicationConflictError.ts';
 
 const crypto = {
   async hash(algorithm: string, data: string | Uint8Array) {
@@ -54,7 +55,7 @@ describe('AuditReceiptService statistics', () => {
 
   it('counts work skipped after repeated publication conflicts degrade the service', async () => {
     const auditLog = new InMemoryAuditLogAdapter();
-    auditLog.failAppendsWith(Object.assign(new Error('conflict'), { code: 'PUBLICATION_CONFLICT' }));
+    auditLog.failAppendsWith(new AuditPublicationConflictError(null, 'f'.repeat(40)));
     const subject = createService(auditLog);
     await subject.init();
     await subject.commit(tick(1));

@@ -3,6 +3,7 @@ import type {
   PublicationCapability,
 } from '@git-stunts/git-cas';
 import AuditError from '../../domain/errors/AuditError.ts';
+import AuditPublicationConflictError from '../../domain/errors/AuditPublicationConflictError.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { buildAuditPrefix, buildAuditRef } from '../../domain/utils/RefLayout.ts';
@@ -35,6 +36,8 @@ type AuditCas = {
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
 };
+
+type AuditPublication = Awaited<ReturnType<AuditCas['publications']['commit']>>;
 
 /** git-cas-backed audit receipt publication and legacy-read adapter. */
 export default class GitCasAuditLogAdapter extends AuditLogPort {
@@ -76,17 +79,11 @@ export default class GitCasAuditLogAdapter extends AuditLogPort {
       mime: 'application/cbor',
       expectedSize: request.receipt.byteLength,
     });
-    const publication = await this.#cas.publications.commit({
-      root: stagedReceipt.handle.toString(),
-      commit: {
-        message: request.message,
-        parents: request.parent === null ? [] : [request.parent],
-      },
-      ref: {
-        name: buildAuditRef(request.graphName, request.writerId),
-        expected: request.expectedHead,
-      },
-    });
+    const publication = await publishAuditRecord(
+      this.#cas,
+      request,
+      stagedReceipt.handle.toString(),
+    );
     return Object.freeze({
       sha: publication.commitId,
       stagedReceipt,
@@ -174,4 +171,48 @@ function errorCode(error: unknown): string | null {
     return typeof error.code === 'string' ? error.code : null;
   }
   return null;
+}
+
+function observedPublicationHead(error: unknown): string | null {
+  const meta = publicationErrorMeta(error);
+  if (typeof meta !== 'object' || meta === null || !('observed' in meta)) {
+    return null;
+  }
+  const { observed } = meta;
+  return typeof observed === 'string' ? observed : null;
+}
+
+function publicationErrorMeta(error: unknown): unknown {
+  if (typeof error !== 'object' || error === null || !('meta' in error)) {
+    return null;
+  }
+  return error.meta;
+}
+
+async function publishAuditRecord(
+  cas: AuditCas,
+  request: AppendAuditRecordRequest,
+  root: string,
+): Promise<AuditPublication> {
+  try {
+    return await cas.publications.commit({
+      root,
+      commit: {
+        message: request.message,
+        parents: request.parent === null ? [] : [request.parent],
+      },
+      ref: {
+        name: buildAuditRef(request.graphName, request.writerId),
+        expected: request.expectedHead,
+      },
+    });
+  } catch (error) {
+    if (errorCode(error) !== 'PUBLICATION_CONFLICT') {
+      throw error;
+    }
+    throw new AuditPublicationConflictError(
+      request.expectedHead,
+      observedPublicationHead(error),
+    );
+  }
 }

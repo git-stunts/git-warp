@@ -3,8 +3,9 @@ import WarpError from '../errors/WarpError.ts';
 import type ReadIdentity from '../services/optic/ReadIdentity.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type { ApiRuntimeContext, OpaqueIdPart } from './ApiRuntimeContext.ts';
-import type { Evidence, EvidenceHandle, RetentionEvidence } from './Evidence.ts';
+import type { Evidence, EvidenceHandle } from './Evidence.ts';
 import type StorageRetentionWitness from '../storage/StorageRetentionWitness.ts';
+import RetentionEvidence from './RetentionEvidence.ts';
 import Tick from './Tick.ts';
 
 type JoinEvidenceFields = {
@@ -203,7 +204,7 @@ function freezeRetentionEvidenceEntries(
     if (entry === null || typeof entry !== 'object') {
       throw new WarpError(`${itemField} must be retention evidence`, 'E_RECEIPT_EVIDENCE');
     }
-    return Object.freeze({
+    return new RetentionEvidence({
       witness: freezeHandle(entry.witness, `${itemField}.witness`),
       policy: entry.policy,
       reachability: entry.reachability,
@@ -216,7 +217,7 @@ async function createRetentionEvidence(
   context: ApiRuntimeContext,
   witness: StorageRetentionWitness,
 ): Promise<RetentionEvidence> {
-  return Object.freeze({
+  return new RetentionEvidence({
     witness: await createHandle(context, [
       RETENTION_SUPPORT,
       witness.handle.toString(),

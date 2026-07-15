@@ -143,6 +143,91 @@ describe('GitCasAuditLogAdapter', () => {
     await expect(log.readEntry(sha)).rejects.toBe(corruption);
     expect(readTreeOids).not.toHaveBeenCalled();
   });
+
+  it('maps provider publication conflicts to the audit boundary error', async () => {
+    const { assets, auditCas, history } = createFixture();
+    const log = new GitCasAuditLogAdapter({
+      history,
+      assets,
+      cas: {
+        assets: auditCas.assets,
+        publications: {
+          commit: vi.fn().mockRejectedValue(Object.assign(
+            new Error('publication conflict'),
+            {
+              code: 'PUBLICATION_CONFLICT',
+              meta: { observed: 'f'.repeat(40) },
+            },
+          )),
+        },
+      },
+    });
+
+    await expect(log.append({
+      graphName: 'events',
+      writerId: 'alice',
+      expectedHead: 'a'.repeat(40),
+      parent: 'a'.repeat(40),
+      message: 'audit alice',
+      receipt: encoder.encode('alice receipt'),
+    })).rejects.toMatchObject({
+      code: 'E_AUDIT_PUBLICATION_CONFLICT',
+      expectedHead: 'a'.repeat(40),
+      observedHead: 'f'.repeat(40),
+    });
+  });
+
+  it.each([
+    Object.assign(new Error('missing metadata'), { code: 'PUBLICATION_CONFLICT' }),
+    Object.assign(new Error('null metadata'), { code: 'PUBLICATION_CONFLICT', meta: null }),
+    Object.assign(new Error('missing observation'), { code: 'PUBLICATION_CONFLICT', meta: {} }),
+    Object.assign(new Error('invalid observation'), { code: 'PUBLICATION_CONFLICT', meta: { observed: 42 } }),
+  ])('maps a provider conflict without a usable observed head', async (conflict) => {
+    const { assets, auditCas, history } = createFixture();
+    const log = new GitCasAuditLogAdapter({
+      history,
+      assets,
+      cas: {
+        assets: auditCas.assets,
+        publications: { commit: vi.fn().mockRejectedValue(conflict) },
+      },
+    });
+
+    await expect(log.append({
+      graphName: 'events',
+      writerId: 'alice',
+      expectedHead: null,
+      parent: null,
+      message: 'audit alice',
+      receipt: encoder.encode('alice receipt'),
+    })).rejects.toMatchObject({
+      code: 'E_AUDIT_PUBLICATION_CONFLICT',
+      expectedHead: null,
+      observedHead: null,
+    });
+  });
+
+  it('preserves non-conflict publication failures', async () => {
+    const { assets, auditCas, history } = createFixture();
+    const failure = new Error('publication storage unavailable');
+    const log = new GitCasAuditLogAdapter({
+      history,
+      assets,
+      cas: {
+        assets: auditCas.assets,
+        publications: { commit: vi.fn().mockRejectedValue(failure) },
+      },
+    });
+
+    await expect(log.append({
+      graphName: 'events',
+      writerId: 'alice',
+      expectedHead: null,
+      parent: null,
+      message: 'audit alice',
+      receipt: encoder.encode('alice receipt'),
+    })).rejects.toBe(failure);
+  });
 });
 
 function legacyTreeError(): Error & { readonly code: string } {
