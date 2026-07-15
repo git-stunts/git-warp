@@ -2,7 +2,7 @@ export { default as AttachmentKey } from './AttachmentKey.ts';
 export { default as AttachmentRecord } from './AttachmentRecord.ts';
 export { default as AttachmentSchemaVersion } from './AttachmentSchemaVersion.ts';
 export { default as ContentAttachmentMime } from './ContentAttachmentMime.ts';
-export { default as ContentAttachmentOid } from './ContentAttachmentOid.ts';
+export { default as ContentAttachmentHandle } from './ContentAttachmentHandle.ts';
 export { default as ContentAttachmentPayload } from './ContentAttachmentPayload.ts';
 export { default as ContentAttachmentRecord } from './ContentAttachmentRecord.ts';
 export { default as ContentAttachmentSize } from './ContentAttachmentSize.ts';

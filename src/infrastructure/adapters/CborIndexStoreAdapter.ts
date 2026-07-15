@@ -10,8 +10,7 @@ import { PropertyShard } from '../../domain/artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
 import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
-import { readPayloadBlob, writePayloadBlob } from './CasPayloadPointer.ts';
+import AssetHandle from '../../domain/storage/AssetHandle.ts';
 
 interface BlobPort {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -90,13 +89,11 @@ export class CborIndexStoreAdapter extends IndexStorePort {
   private readonly _codec: CodecPort;
   private readonly _blobPort: BlobPort;
   private readonly _treePort: TreePort;
-  private readonly _blobStorage: BlobStoragePort | null;
 
-  constructor({ codec, blobPort, treePort, blobStorage }: {
+  constructor({ codec, blobPort, treePort }: {
     codec: CodecPort;
     blobPort: BlobPort;
     treePort: TreePort;
-    blobStorage?: BlobStoragePort | null;
   }) {
     super();
     _requireDep(codec, 'codec');
@@ -105,34 +102,24 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     this._codec = codec;
     this._blobPort = blobPort;
     this._treePort = treePort;
-    this._blobStorage = blobStorage ?? null;
   }
 
-  override async writeShards(shardStream: WarpStream<IndexShard>): Promise<string> {
+  override async writeShards(shardStream: WarpStream<IndexShard>): Promise<AssetHandle> {
     const entries: string[] = [];
     await shardStream
       .pipe(new IndexShardEncodeTransform(this._codec))
       .forEach(async ([path, bytes]) => {
-        const oid = await writePayloadBlob({
-          blobPort: this._blobPort,
-          blobStorage: this._blobStorage,
-          bytes,
-          options: {
-            slug: path,
-            mime: 'application/cbor',
-            size: bytes.length,
-          },
-        });
+        const oid = await this._blobPort.writeBlob(bytes);
         entries.push(`100644 blob ${oid}\t${path}`);
       });
     entries.sort();
-    return await this._treePort.writeTree(entries);
+    return new AssetHandle(await this._treePort.writeTree(entries));
   }
 
-  override scanShards(treeOid: string): WarpStream<IndexShard> {
+  override scanShards(indexHandle: AssetHandle): WarpStream<IndexShard> {
     const adapter = this;
     return WarpStream.from((async function* () {
-      const oids = await adapter._treePort.readTreeOids(treeOid);
+      const oids = await adapter._treePort.readTreeOids(indexHandle.toString());
       const paths = Object.keys(oids).sort();
 
       for (const path of paths) {
@@ -141,27 +128,33 @@ export class CborIndexStoreAdapter extends IndexStorePort {
           continue;
         }
         const blobOid = oids[path] as string;
-        const bytes = await readPayloadBlob({
-          blobPort: adapter._blobPort,
-          blobStorage: adapter._blobStorage,
-          oid: blobOid,
-        });
+        const bytes = await adapter._blobPort.readBlob(blobOid);
         const data = adapter._codec.decode(bytes);
         yield shard(data);
       }
     })());
   }
 
-  override async readShardOids(treeOid: string): Promise<Record<string, string>> {
-    return await this._treePort.readTreeOids(treeOid);
+  override async readShardHandles(
+    indexHandle: AssetHandle,
+  ): Promise<Readonly<Record<string, AssetHandle>>> {
+    return Object.freeze(Object.fromEntries(
+      Object.entries(await this._treePort.readTreeOids(indexHandle.toString()))
+        .map(([path, oid]) => [path, new AssetHandle(oid)]),
+    ));
   }
 
-  override async decodeShard<TDecoded extends CodecValue = CodecValue>(blobOid: string): Promise<TDecoded> {
-    const bytes = await readPayloadBlob({
-      blobPort: this._blobPort,
-      blobStorage: this._blobStorage,
-      oid: blobOid,
-    });
+  override openShard(shardHandle: AssetHandle): AsyncIterable<Uint8Array> {
+    const adapter = this;
+    return (async function* () {
+      yield await adapter._blobPort.readBlob(shardHandle.toString());
+    })();
+  }
+
+  override async decodeShard<TDecoded extends CodecValue = CodecValue>(
+    shardHandle: AssetHandle,
+  ): Promise<TDecoded> {
+    const bytes = await this._blobPort.readBlob(shardHandle.toString());
     return this._codec.decode<TDecoded>(bytes);
   }
 }

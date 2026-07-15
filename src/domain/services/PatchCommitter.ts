@@ -18,11 +18,10 @@ import PersistenceError from '../errors/PersistenceError.ts';
 import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
 import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
+import type { PublishedPatch } from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
-import {
-  isGitCasPatchStorage,
-  type default as CommitMessageCodecPort,
-} from '../../ports/CommitMessageCodecPort.ts';
+import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
+import type AssetHandle from '../storage/AssetHandle.ts';
 
 export type CommitState = {
   persistence: WarpKernelPort;
@@ -36,12 +35,14 @@ export type CommitState = {
   hasEdgeProps: boolean;
   expectedParentSha: string | null;
   targetRefPath: string | null;
-  contentBlobs: string[];
+  contentAssets: AssetHandle[];
   patchJournal: PatchJournalPort | null;
   commitMessageCodec: CommitMessageCodecPort;
   logger: LoggerPort;
-  onCommitSuccess: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | null;
+  onCommitSuccess: ((result: PatchCommitResult) => void | Promise<void>) | null;
 };
+
+export type PatchCommitResult = PublishedPatch & Readonly<{ patch: Patch }>;
 
 /**
  * Commits a patch built by PatchBuilder to the Git object store.
@@ -49,7 +50,7 @@ export type CommitState = {
  * Steps: CAS check → lamport resolution → build Patch → persist blob →
  * build tree → create commit → update ref → invoke callback.
  */
-export async function commitPatch(state: CommitState): Promise<string> {
+export async function commitPatch(state: CommitState): Promise<PatchCommitResult> {
   if (state.ops.length === 0) {
     throw new PatchError('Cannot commit empty patch: no operations added', { code: 'E_PATCH_EMPTY' });
   }
@@ -104,53 +105,57 @@ export async function commitPatch(state: CommitState): Promise<string> {
     writes: [...state.writes].sort(),
   });
 
-  // Persist patch blob
+  // Publish one storage-owned bundle rooted by the causal writer ref.
   if (state.patchJournal === null || state.patchJournal === undefined) {
     throw new PersistenceError('patchJournal is required for committing patches', 'E_MISSING_JOURNAL');
   }
-  const patchBlobOid = await state.patchJournal.writePatch(patch);
-  const patchStorage = state.patchJournal.writeStorage;
-
-  // Build tree with patch blob + content blobs
-  const treeEntries = [isGitCasPatchStorage(patchStorage)
-    ? `040000 tree ${patchBlobOid}\tpatch`
-    : `100644 blob ${patchBlobOid}\tpatch.cbor`];
-  const uniqueBlobs = [...new Set(state.contentBlobs)];
-  for (const blobOid of uniqueBlobs) {
-    treeEntries.push(`040000 tree ${blobOid}\t_content_${blobOid}`);
-  }
-  const treeOid = await state.persistence.writeTree(treeEntries);
-
-  // Create commit
-  const message = state.commitMessageCodec.encodePatch({
-    kind: 'patch',
-    graph: state.graphName,
-    writer: state.writerId,
-    lamport,
-    patchOid: patchBlobOid,
-    schema,
-    storage: patchStorage,
-  });
-  const parents = (parentCommit !== null && parentCommit !== '') ? [parentCommit] : [];
-  const newCommitSha = await state.persistence.commitNodeWithTree({
-    treeOid, parents, message,
-  });
-
-  // Atomically update writer ref
-  await compareAndSwapWriterRef(state.persistence, writerRef, newCommitSha, state.expectedParentSha);
-  await assertWriterRefVisible(state.persistence, writerRef, newCommitSha);
+  const published = await publishPatch(
+    state,
+    state.patchJournal,
+    writerRef,
+    parentCommit,
+    patch,
+  );
+  const result: PatchCommitResult = Object.freeze({ patch, ...published });
 
   // Invoke success callback
   if (state.onCommitSuccess) {
     try {
-      await state.onCommitSuccess({ patch, sha: newCommitSha });
+      await state.onCommitSuccess(result);
     } catch (err) {
       const errValue = err instanceof Error ? err : String(err);
-      state.logger.warn(`[warp] onCommitSuccess callback failed (sha=${newCommitSha}):`, { error: errValue });
+      state.logger.warn(`[warp] onCommitSuccess callback failed (sha=${result.sha}):`, { error: errValue });
     }
   }
 
-  return newCommitSha;
+  return result;
+}
+
+async function publishPatch(
+  state: CommitState,
+  patchJournal: PatchJournalPort,
+  writerRef: string,
+  parentCommit: string | null,
+  patch: Patch,
+): Promise<PublishedPatch> {
+  try {
+    return await patchJournal.appendPatch({
+      patch,
+      graph: state.graphName,
+      writer: state.writerId,
+      targetRef: writerRef,
+      expectedHead: state.expectedParentSha,
+      parent: parentCommit,
+      attachments: state.contentAssets,
+    });
+  } catch (error) {
+    return await rethrowPublicationConflict(
+      state.persistence,
+      writerRef,
+      state.expectedParentSha,
+      error,
+    );
+  }
 }
 
 /** Builds a WriterError that preserves expected and actual writer-ref heads. */
@@ -165,46 +170,23 @@ function buildWriterCasConflict(expectedSha: string | null, actualSha: string | 
 }
 
 /** Advances a writer ref atomically and translates stale-head failures. */
-async function compareAndSwapWriterRef(
+async function rethrowPublicationConflict(
   persistence: WarpKernelPort,
   writerRef: string,
-  newCommitSha: string,
   expectedSha: string | null,
-): Promise<void> {
-  try {
-    await persistence.compareAndSwapRef(writerRef, newCommitSha, expectedSha);
-  } catch (err) {
-    const actualSha = await persistence.readRef(writerRef);
-    if (actualSha === newCommitSha) {
-      return;
-    }
-    if (actualSha !== expectedSha) {
-      throw buildWriterCasConflict(expectedSha, actualSha);
-    }
-    throw err;
+  error: unknown,
+): Promise<never> {
+  const actualSha = await persistence.readRef(writerRef);
+  if (actualSha !== expectedSha || errorCode(error) === 'PUBLICATION_CONFLICT') {
+    throw buildWriterCasConflict(expectedSha, actualSha);
   }
+  throw error;
 }
 
-/** Verifies that a successful commit is immediately visible at the writer ref. */
-async function assertWriterRefVisible(
-  persistence: WarpKernelPort,
-  writerRef: string,
-  expectedSha: string,
-): Promise<void> {
-  const actualSha = await persistence.readRef(writerRef);
-  if (actualSha === expectedSha) {
-    return;
+function errorCode(error: unknown): string | null {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const { code } = error;
+    return typeof code === 'string' ? code : null;
   }
-
-  throw new PersistenceError(
-    `Commit ${expectedSha} is not visible at writer ref ${writerRef}`,
-    PersistenceError.E_REF_IO,
-    {
-      context: {
-        writerRef,
-        expectedSha,
-        actualSha: actualSha ?? '(missing)',
-      },
-    },
-  );
+  return null;
 }

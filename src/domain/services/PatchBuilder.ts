@@ -38,13 +38,14 @@ import {
   type ContentMetadataInput,
 } from './PatchBuilderContent.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
-import { commitPatch } from './PatchCommitter.ts';
+import { commitPatch, type PatchCommitResult } from './PatchCommitter.ts';
 import type { WarpState } from './JoinReducer.ts';
 import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
+import type AssetHandle from '../storage/AssetHandle.ts';
 
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
 
@@ -57,12 +58,12 @@ type PatchBuilderOptions = {
   getCurrentState: () => WarpState | null;
   expectedParentSha?: string | null;
   targetRefPath?: string;
-  onCommitSuccess?: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | null;
+  onCommitSuccess?: ((result: PatchCommitResult) => void | Promise<void>) | null;
   onDeleteWithData?: DeletePolicy;
   patchJournal?: PatchJournalPort;
   commitMessageCodec?: CommitMessageCodecPort;
   logger?: LoggerPort;
-  blobStorage?: BlobStoragePort;
+  assetStorage?: AssetStoragePort;
 };
 
 export class PatchBuilder {
@@ -74,18 +75,18 @@ export class PatchBuilder {
   private readonly _vv: VersionVector;
   private readonly _getCurrentState: () => WarpState | null;
   private readonly _expectedParentSha: string | null;
-  private readonly _onCommitSuccess: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | null;
+  private readonly _onCommitSuccess: ((result: PatchCommitResult) => void | Promise<void>) | null;
   private readonly _onDeleteWithData: DeletePolicy;
   private readonly _patchJournal: PatchJournalPort | null;
   private readonly _commitMessageCodec: CommitMessageCodecPort | null;
   private readonly _logger: LoggerPort;
-  private readonly _blobStorage: BlobStoragePort | null;
+  private readonly _assetStorage: AssetStoragePort | null;
   private readonly _ops: PatchOp[] = [];
   private readonly _nodesAdded = new Set<string>();
   private readonly _edgesAdded = new Set<string>();
   private readonly _observedOperands = new Set<string>();
   private readonly _writes = new Set<string>();
-  private readonly _contentBlobs: string[] = [];
+  private readonly _contentAssets: AssetHandle[] = [];
   private _snapshotState: WarpState | null | undefined = undefined;
   private _hasEdgeProps = false;
   private _committed = false;
@@ -106,7 +107,7 @@ export class PatchBuilder {
     this._patchJournal = options.patchJournal ?? null;
     this._commitMessageCodec = options.commitMessageCodec ?? null;
     this._logger = options.logger ?? nullLogger;
-    this._blobStorage = options.blobStorage ?? null;
+    this._assetStorage = options.assetStorage ?? null;
   }
 
   // ── State access ───────────────────────────────────────────────────
@@ -281,19 +282,19 @@ export class PatchBuilder {
     assertNoReservedBytes(nodeId, 'nodeId');
     assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
     this._assertNodeExistsForContent(nodeId);
-    if (!this._blobStorage) {
-      throw new WriterError('Cannot attach content without blob storage; configure content storage when opening the runtime', { code: 'NO_BLOB_STORAGE' });
+    if (this._assetStorage === null) {
+      throw new WriterError('Cannot attach content without asset storage', { code: 'NO_ASSET_STORAGE' });
     }
     const slug = `${this._graphName}/${nodeId}`;
     const payload = await storeContentAttachmentPayload({
-      blobStorage: this._blobStorage,
+      assetStorage: this._assetStorage,
       content,
       metadata,
       slug,
     });
     const intent = ContentAttachmentWriteIntent.forNode(nodeId, payload);
     this._lowerNodeContentIntent(intent);
-    this._contentBlobs.push(intent.oid());
+    this._contentAssets.push(intent.handle());
     return this;
   }
 
@@ -319,19 +320,19 @@ export class PatchBuilder {
     assertNoReservedBytes(label, 'label');
     assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
     this._assertEdgeExists(from, to, label);
-    if (!this._blobStorage) {
-      throw new WriterError('Cannot attach content without blob storage; configure content storage when opening the runtime', { code: 'NO_BLOB_STORAGE' });
+    if (this._assetStorage === null) {
+      throw new WriterError('Cannot attach content without asset storage', { code: 'NO_ASSET_STORAGE' });
     }
     const slug = `${this._graphName}/${from}/${to}/${label}`;
     const payload = await storeContentAttachmentPayload({
-      blobStorage: this._blobStorage,
+      assetStorage: this._assetStorage,
       content,
       metadata,
       slug,
     });
     const intent = ContentAttachmentWriteIntent.forEdge({ from, to, label }, payload);
     this._lowerEdgeContentIntent(intent);
-    this._contentBlobs.push(intent.oid());
+    this._contentAssets.push(intent.handle());
     return this;
   }
 
@@ -350,14 +351,20 @@ export class PatchBuilder {
 
   private _lowerNodeContentIntent(intent: ContentAttachmentWriteIntent): void {
     const nodeId = intent.nodeId();
-    this.setProperty(nodeId, CONTENT_PROPERTY_KEY, intent.oid());
+    this.setProperty(nodeId, CONTENT_PROPERTY_KEY, intent.handle().toString());
     this.setProperty(nodeId, CONTENT_SIZE_PROPERTY_KEY, intent.size());
     this.setProperty(nodeId, CONTENT_MIME_PROPERTY_KEY, intent.mime());
   }
 
   private _lowerEdgeContentIntent(intent: ContentAttachmentWriteIntent): void {
     const target = intent.edgeTarget();
-    this.setEdgeProperty(target.from, target.to, target.label, CONTENT_PROPERTY_KEY, intent.oid());
+    this.setEdgeProperty(
+      target.from,
+      target.to,
+      target.label,
+      CONTENT_PROPERTY_KEY,
+      intent.handle().toString(),
+    );
     this.setEdgeProperty(target.from, target.to, target.label, CONTENT_SIZE_PROPERTY_KEY, intent.size());
     this.setEdgeProperty(target.from, target.to, target.label, CONTENT_MIME_PROPERTY_KEY, intent.mime());
   }
@@ -425,10 +432,15 @@ export class PatchBuilder {
   }
 
   async commit(): Promise<string> {
+    return (await this.commitWithEvidence()).sha;
+  }
+
+  /** Commits and returns the storage-retention evidence for the causal patch. */
+  async commitWithEvidence(): Promise<PatchCommitResult> {
     this._assertNotCommitted();
     this._committing = true;
     try {
-      const sha = await commitPatch({
+      const result = await commitPatch({
         persistence: this._persistence,
         graphName: this._graphName,
         writerId: this._writerId,
@@ -440,14 +452,14 @@ export class PatchBuilder {
         hasEdgeProps: this._hasEdgeProps,
         expectedParentSha: this._expectedParentSha,
         targetRefPath: this._targetRefPath,
-        contentBlobs: this._contentBlobs,
+        contentAssets: this._contentAssets,
         patchJournal: this._patchJournal,
         commitMessageCodec: requireCommitMessageCodec(this._commitMessageCodec),
         logger: this._logger,
         onCommitSuccess: this._onCommitSuccess,
       });
       this._committed = true;
-      return sha;
+      return result;
     } finally {
       this._committing = false;
     }
@@ -461,9 +473,7 @@ export class PatchBuilder {
   get writes(): ReadonlySet<string> { return new Set(this._writes); }
 
   /**
-   * Content-blob OIDs captured via `attachNodeContent` / `attachEdgeContent`.
-   * Exposed for strand-overlay queued-intent assembly, which needs the
-   * snapshot of blob OIDs to persist alongside the patch entry.
+   * Asset handles captured via content attachment operations.
    */
-  get contentBlobs(): readonly string[] { return [...this._contentBlobs]; }
+  get contentAssets(): readonly AssetHandle[] { return [...this._contentAssets]; }
 }

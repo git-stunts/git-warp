@@ -3,6 +3,7 @@ import EdgeRecord from './EdgeRecord.ts';
 import NodeRecord from './NodeRecord.ts';
 import WarpError from '../errors/WarpError.ts';
 import type ContentAttachmentPayload from './ContentAttachmentPayload.ts';
+import type ContentAttachmentHandle from './ContentAttachmentHandle.ts';
 
 export type ContentAttachmentEdgeWriteTarget = {
   readonly from: string;
@@ -59,8 +60,8 @@ export default class ContentAttachmentWriteIntent {
   }
 
   /** Returns the validated content storage reference. */
-  oid(): string {
-    return this.record.payload.oid.toString();
+  handle(): ContentAttachmentHandle {
+    return this.record.payload.handle;
   }
 
   /** Returns the validated MIME hint, when present. */

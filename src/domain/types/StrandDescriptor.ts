@@ -21,7 +21,7 @@ export type StrandIntentDescriptor = {
   patch: Patch;
   reads: string[];
   writes: string[];
-  contentBlobOids: string[];
+  contentAssetHandles: string[];
 };
 
 export type StrandTickCounterfactual = {

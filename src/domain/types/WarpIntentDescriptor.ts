@@ -2,6 +2,8 @@
  * Unmaterialized intent descriptor and admission outcome types.
  */
 
+import type StorageRetentionWitness from '../storage/StorageRetentionWitness.ts';
+
 export type PrecommitGuard = {
   readonly op: 'nodeStatus' | 'nodeUnassignedOrSelf' | 'edgeExists';
   readonly nodeId: string;
@@ -33,6 +35,7 @@ export type WarpIntentOutcome = {
   readonly admitted: true;
   readonly sha: string;
   readonly intentId: string;
+  readonly retention: StorageRetentionWitness;
 } | {
   readonly admitted: false;
   readonly obstruction: {

@@ -17,6 +17,7 @@ import type {
 } from '../types/StrandDescriptor.ts';
 import type ConflictAnalysis from '../types/conflict/ConflictAnalysis.ts';
 import type { ConflictAnalyzeOptions as AnalyzeConflictsOptions } from '../services/strand/ConflictAnalysisRequest.ts';
+import type { PatchCommitResult } from '../services/PatchCommitter.ts';
 
 /** Patch with its content-addressable SHA. */
 export type StrandPatchEntry = {
@@ -62,6 +63,11 @@ export default abstract class StrandCapability {
 
   /** Build and commit one patch to a strand. */
   abstract patchStrand(_strandId: string, _build: (_p: PatchBuilder) => void | Promise<void>): Promise<string>;
+
+  abstract patchStrandWithEvidence(
+    _strandId: string,
+    _build: (_p: PatchBuilder) => void | Promise<void>,
+  ): Promise<PatchCommitResult>;
 
   /** Queue a strand intent for later ticking. */
   abstract queueStrandIntent(_strandId: string, _build: (_p: PatchBuilder) => void | Promise<void>): Promise<StrandIntentDescriptor>;

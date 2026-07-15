@@ -25,7 +25,7 @@ import type { ReadIdentityIndexShard } from './ReadIdentity.ts';
 
 const LABELS_PATH = 'labels.cbor';
 
-type ReadBlob = (path: string, oid: string) => Promise<Uint8Array>;
+type ReadShard = (path: string, handle: string) => Promise<Uint8Array>;
 
 type DecodedMetaShard = {
   readonly nodeToGlobal: Array<[string, number]> | Record<string, number>;
@@ -42,7 +42,7 @@ type LoadedMetaShard = {
 type NeighborhoodPageReadContext = {
   readonly basis: CheckpointTailIndexBasis;
   readonly options: CheckpointShardNeighborhoodReadOptions;
-  readonly readBlob: ReadBlob;
+  readonly readShard: ReadShard;
   readonly source: CheckpointTailOpticSource;
 };
 
@@ -79,19 +79,19 @@ class NeighborhoodShardLoader {
   private readonly _basis: CheckpointTailIndexBasis;
   private readonly _codec: CheckpointTailOpticSource['_codec'];
   private readonly _evidence: ShardEvidence;
-  private readonly _readBlob: ReadBlob;
+  private readonly _readShard: ReadShard;
   private _loadedMeta: { readonly path: string; readonly value: LoadedMetaShard } | null = null;
 
   constructor(options: {
     readonly basis: CheckpointTailIndexBasis;
     readonly codec: CheckpointTailOpticSource['_codec'];
     readonly evidence: ShardEvidence;
-    readonly readBlob: ReadBlob;
+    readonly readShard: ReadShard;
   }) {
     this._basis = options.basis;
     this._codec = options.codec;
     this._evidence = options.evidence;
-    this._readBlob = options.readBlob;
+    this._readShard = options.readShard;
   }
 
   hasAdjacency(direction: Direction, nodeId: string): boolean {
@@ -165,7 +165,7 @@ class NeighborhoodShardLoader {
   }
 
   private async _read(path: string, oid: string): Promise<Uint8Array> {
-    const bytes = await this._readBlob(path, oid);
+    const bytes = await this._readShard(path, oid);
     this._evidence.add(path, oid);
     return bytes;
   }
@@ -173,11 +173,11 @@ class NeighborhoodShardLoader {
 
 export default class CheckpointNeighborhoodPageReader {
   private readonly _source: CheckpointTailOpticSource;
-  private readonly _readBlob: ReadBlob;
+  private readonly _readShard: ReadShard;
 
-  constructor(options: { readonly source: CheckpointTailOpticSource; readonly readBlob: ReadBlob }) {
+  constructor(options: { readonly source: CheckpointTailOpticSource; readonly readShard: ReadShard }) {
     this._source = options.source;
-    this._readBlob = options.readBlob;
+    this._readShard = options.readShard;
     Object.freeze(this);
   }
 
@@ -188,7 +188,7 @@ export default class CheckpointNeighborhoodPageReader {
     return await readCheckpointNeighborhoodPage({
       basis,
       options,
-      readBlob: this._readBlob,
+      readShard: this._readShard,
       source: this._source,
     });
   }
@@ -205,7 +205,7 @@ async function readCheckpointNeighborhoodPage(
     basis: options.basis,
     codec: options.source._codec,
     evidence,
-    readBlob: options.readBlob,
+    readShard: options.readShard,
   });
   const sourceGlobalId = await loader.readSourceGlobalId(options.options.nodeId);
   if (sourceGlobalId === null

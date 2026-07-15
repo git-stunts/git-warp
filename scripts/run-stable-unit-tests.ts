@@ -86,6 +86,7 @@ const UNIT_SHARDS: readonly Shard[] = [
       ...listRecursiveTestFiles('test/unit/domain/orset'),
       ...listRecursiveTestFiles('test/unit/domain/properties'),
       ...listRecursiveTestFiles('test/unit/domain/stream'),
+      ...listRecursiveTestFiles('test/unit/domain/storage'),
       ...listRecursiveTestFiles('test/unit/domain/tree'),
       ...listRecursiveTestFiles('test/unit/domain/trust'),
       ...listRecursiveTestFiles('test/unit/domain/types'),

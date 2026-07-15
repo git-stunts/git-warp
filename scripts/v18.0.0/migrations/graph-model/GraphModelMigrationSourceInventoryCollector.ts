@@ -145,7 +145,7 @@ function collectContentSources(
     .filter((fact) => fact.kind === V17_GOLDEN_CONTENT_FACT)
     .map((fact) => new GraphModelMigrationContentSource({
       legacyContentKey: fact.key,
-      contentOid: `fixture-content:${fact.key}`,
+      contentHandle: `fixture-content:${fact.key}`,
     })));
 }
 

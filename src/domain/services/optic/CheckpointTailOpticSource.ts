@@ -1,7 +1,6 @@
 import type CodecPort from '../../../ports/CodecPort.ts';
-import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
-import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
-import type { CorePersistence } from '../../types/WarpPersistence.ts';
+import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
+import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type Patch from '../../types/Patch.ts';
 
 export type CheckpointTailPatchEntry = {
@@ -16,10 +15,9 @@ export type CheckpointTailCheckpointFrontier = {
 
 export default abstract class CheckpointTailOpticSource {
   abstract readonly graphName: string;
-  abstract readonly _persistence: CorePersistence;
   abstract readonly _codec: CodecPort;
-  abstract readonly _blobStorage: BlobStoragePort | null;
-  abstract readonly _commitMessageCodec: CommitMessageCodecPort;
+  abstract readonly _checkpointStore: CheckpointStorePort;
+  abstract readonly _indexStore: IndexStorePort;
 
   abstract discoverWriters(): Promise<string[]>;
 

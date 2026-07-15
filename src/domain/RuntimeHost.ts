@@ -55,11 +55,14 @@ import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type TrustCryptoPort from '../ports/TrustCryptoPort.ts';
 import type WarpStateCachePort from '../ports/WarpStateCachePort.ts';
-import type BlobStoragePort from '../ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../ports/AssetStoragePort.ts';
+import type AuditLogPort from '../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
+import type StrandStorePort from '../ports/StrandStorePort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../ports/IndexStorePort.ts';
+import type IntentStorePort from '../ports/IntentStorePort.ts';
 import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type WarpState from './services/state/WarpState.ts';
@@ -204,8 +207,8 @@ export default class RuntimeHost {
   _cachedCeiling: number | null;
   _cachedFrontier: Map<string, string> | null;
   _stateCache: WarpStateCachePort | null;
-  _blobStorage: BlobStoragePort | null;
-  _patchBlobStorage: BlobStoragePort | null;
+  _assetStorage: AssetStoragePort;
+  _auditLog: AuditLogPort;
   _commitMessageCodec: CommitMessageCodecPort;
   _patchInProgress: boolean;
   _provenanceDegraded: boolean;
@@ -232,8 +235,10 @@ export default class RuntimeHost {
   _indexDegraded: boolean;
   _effectPipeline: EffectPipeline | null;
   _patchJournal: PatchJournalPort;
+  _strandStore: StrandStorePort;
   _checkpointStore: CheckpointStorePort;
   _indexStore: IndexStorePort;
+  _intentStore: IntentStorePort;
   _stateHashService: StateHashService | null;
   _auditService: AuditReceiptService | null;
 
@@ -259,13 +264,15 @@ export default class RuntimeHost {
       trustCrypto,
       stateCache,
       audit = false,
-      blobStorage,
-      patchBlobStorage,
+      assetStorage,
+      auditLog,
       commitMessageCodec,
       trust,
       patchJournal,
+      strandStore,
       checkpointStore,
       indexStore,
+      intentStore,
       viewService,
       stateHashService,
       auditService,
@@ -304,8 +311,9 @@ export default class RuntimeHost {
     this._cachedCeiling = null;
     this._cachedFrontier = null;
     this._stateCache = stateCache || null;
-    this._blobStorage = blobStorage || null;
-    this._patchBlobStorage = patchBlobStorage || null;
+    this._assetStorage = assetStorage;
+    this._intentStore = intentStore;
+    this._auditLog = auditLog;
     this._commitMessageCodec = requireCommitMessageCodec(commitMessageCodec);
     this._patchInProgress = false;
     this._provenanceDegraded = false;
@@ -376,12 +384,12 @@ export default class RuntimeHost {
       codec: this._codec,
       crypto: this._crypto,
       persistence: this._persistence,
+      checkpointStore,
       getStateCache: () => this._stateCache ?? null,
       ...(openStateSession === undefined ? {} : { openStateSession }),
       patches: new RuntimePatchCollector(this),
       graphCloner: new RuntimeDetachedFactory(this, async (detachedOptions) => await RuntimeHost.open(detachedOptions)),
       graphName: this._graphName,
-      commitMessageCodec: this._commitMessageCodec,
     });
     this._viewService = viewService;
     this._logicalIndex = null;
@@ -391,6 +399,7 @@ export default class RuntimeHost {
     this._indexDegraded = false;
     this._effectPipeline = effectPipeline || null;
     this._patchJournal = patchJournal;
+    this._strandStore = strandStore;
     this._checkpointStore = checkpointStore;
     this._indexStore = indexStore;
     this._auditService = auditService || null;
@@ -593,6 +602,8 @@ export default class RuntimeHost {
 
   createPatch: PatchController['createPatch'] = (...args) => this._patchController.createPatch(...args);
   patch: PatchController['patch'] = (...args) => this._patchController.patch(...args);
+  patchWithEvidence: PatchController['patchWithEvidence'] = (...args) =>
+    this._patchController.patchWithEvidence(...args);
   patchMany: PatchController['patchMany'] = (...args) => this._patchController.patchMany(...args);
   _nextLamport: PatchController['_nextLamport'] = (...args) => this._patchController._nextLamport(...args);
   _loadPatchChainFromSha: PatchController['_loadPatchChainFromSha'] = (...args) => this._patchController._loadPatchChainFromSha(...args);
@@ -601,7 +612,7 @@ export default class RuntimeHost {
   _onPatchCommitted: PatchController['_onPatchCommitted'] = (...args) => this._patchController._onPatchCommitted(...args);
   writer: PatchController['writer'] = (...args) => this._patchController.writer(...args);
   _ensureFreshState: PatchController['_ensureFreshState'] = (...args) => this._patchController._ensureFreshState(...args);
-  _readPatchBlob: PatchController['_readPatchBlob'] = (...args) => this._patchController._readPatchBlob(...args);
+  _readPatch: PatchController['_readPatch'] = (...args) => this._patchController._readPatch(...args);
   discoverWriters: PatchController['discoverWriters'] = (...args) => this._patchController.discoverWriters(...args);
   discoverTicks: PatchController['discoverTicks'] = (...args) => this._patchController.discoverTicks(...args);
   join: PatchController['join'] = (...args) => this._patchController.join(...args);
@@ -616,6 +627,8 @@ export default class RuntimeHost {
   patchesForStrand: StrandController['patchesForStrand'] = (...args) => this._strandController.patchesForStrand(...args);
   createStrandPatch: StrandController['createStrandPatch'] = (...args) => this._strandController.createStrandPatch(...args);
   patchStrand: StrandController['patchStrand'] = (...args) => this._strandController.patchStrand(...args);
+  patchStrandWithEvidence: StrandController['patchStrandWithEvidence'] = (...args) =>
+    this._strandController.patchStrandWithEvidence(...args);
   queueStrandIntent: StrandController['queueStrandIntent'] = (...args) => this._strandController.queueStrandIntent(...args);
   async listStrandIntents(strandId: string) {
     return [...await this._strandController.listStrandIntents(strandId)];
@@ -635,10 +648,10 @@ export default class RuntimeHost {
   worldline: QueryCapability['worldline'] = (...args) => this._queryController.worldline(...args);
   observer: QueryCapability['observer'] = (...args) => this._queryController.observer(...args);
   translationCost: QueryCapability['translationCost'] = (...args) => this._queryController.translationCost(...args);
-  getContentOid: QueryCapability['getContentOid'] = (...args) => this._queryController.getContentOid(...args);
+  getContentHandle: QueryCapability['getContentHandle'] = (...args) => this._queryController.getContentHandle(...args);
   getContentMeta: QueryCapability['getContentMeta'] = (...args) => this._queryController.getContentMeta(...args);
   getContent: QueryCapability['getContent'] = (...args) => this._queryController.getContent(...args);
-  getEdgeContentOid: QueryCapability['getEdgeContentOid'] = (...args) => this._queryController.getEdgeContentOid(...args);
+  getEdgeContentHandle: QueryCapability['getEdgeContentHandle'] = (...args) => this._queryController.getEdgeContentHandle(...args);
   getEdgeContentMeta: QueryCapability['getEdgeContentMeta'] = (...args) => this._queryController.getEdgeContentMeta(...args);
   getEdgeContent: QueryCapability['getEdgeContent'] = (...args) => this._queryController.getEdgeContent(...args);
   getContentStream: QueryCapability['getContentStream'] = (...args) => this._queryController.getContentStream(...args);
@@ -683,7 +696,7 @@ export default class RuntimeHost {
    */
   _buildTrustGate(config: NormalizedTrustConfig): SyncTrustGate {
     const verifier = new AuditVerifierService({
-      persistence: this._persistence,
+      auditLog: this._auditLog,
       codec: this._codec,
       ...(this._trustCrypto === null ? {} : { trustCrypto: this._trustCrypto }),
       ...(this._logger ? { logger: this._logger } : {}),

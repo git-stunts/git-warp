@@ -198,6 +198,9 @@ function validateIntentEntry(intent: Record<string, unknown>, label: string): vo
   if (intent['writes'] !== undefined) {
     validateStringArray(intent['writes'], `Corrupted ${label}: intentQueue.intents[].writes must be a string array when provided`);
   }
+  if (intent['contentAssetHandles'] !== undefined) {
+    validateStringArray(intent['contentAssetHandles'], `Corrupted ${label}: intentQueue.intents[].contentAssetHandles must be a string array when provided`);
+  }
   if (intent['contentBlobOids'] !== undefined) {
     validateStringArray(intent['contentBlobOids'], `Corrupted ${label}: intentQueue.intents[].contentBlobOids must be a string array when provided`);
   }

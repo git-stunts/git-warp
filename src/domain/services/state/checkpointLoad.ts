@@ -8,13 +8,6 @@
  * @see WARP Spec Section 10
  */
 
-import {
-  deserializeAppliedVV,
-  deserializeCheckpointStateEnvelope,
-  type CheckpointStateEnvelopeBuffers,
-} from './CheckpointSerializer.ts';
-import { deserializeFrontier } from '../Frontier.ts';
-import { requireCommitMessageCodec } from '../codec/CommitMessageCodecRequirement.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import { Dot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
@@ -24,23 +17,10 @@ import { reducePatches } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
 import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
-import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
-import PersistenceError from '../../errors/PersistenceError.ts';
-import {
-  CURRENT_CHECKPOINT_SCHEMA,
-  isCurrentCheckpointSchema,
-  partitionTreeOids,
-} from './checkpointHelpers.ts';
-import type CommitPort from '../../../ports/CommitPort.ts';
-import type BlobPort from '../../../ports/BlobPort.ts';
-import type TreePort from '../../../ports/TreePort.ts';
-import type CodecPort from '../../../ports/CodecPort.ts';
-import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
+import type AssetHandle from '../../storage/AssetHandle.ts';
 import type Patch from '../../types/Patch.ts';
-
-/** Combined persistence surface needed for checkpoint loading. */
-export type LoadPersistence = CommitPort & BlobPort & TreePort;
+import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 
 /** The result of loading a checkpoint. */
 export interface LoadedCheckpoint {
@@ -50,14 +30,7 @@ export interface LoadedCheckpoint {
   schema: number;
   appliedVV: VersionVector | null;
   provenanceIndex?: ProvenanceIndex;
-  indexShardOids: Record<string, string> | null;
-}
-
-/** Options for loadCheckpoint. */
-export interface LoadCheckpointOptions {
-  codec?: CodecPort;
-  checkpointStore?: CheckpointStorePort;
-  commitMessageCodec: CommitMessageCodecPort;
+  indexShardHandles: Readonly<Record<string, AssetHandle>> | null;
 }
 
 /**
@@ -74,172 +47,27 @@ export interface LoadCheckpointOptions {
  * @throws {PersistenceError} If checkpoint schema is unsupported
  */
 export async function loadCheckpoint(
-  persistence: LoadPersistence,
+  checkpointStore: CheckpointStorePort,
   checkpointSha: string,
-  { codec, checkpointStore, commitMessageCodec }: LoadCheckpointOptions,
 ): Promise<LoadedCheckpoint> {
-  // 1. Read commit message and decode
-  const messageCodec = requireCommitMessageCodec(commitMessageCodec);
-  const message = await persistence.showNode(checkpointSha);
-  const decoded = messageCodec.decodeCheckpoint(message);
-
-  // 2. Reject unsupported schemas; migration tooling owns retired readers.
-  if (!isCurrentCheckpointSchema(decoded.schema)) {
-    throw unsupportedCheckpointSchema(checkpointSha, decoded.schema);
-  }
-
-  // Build codec option object once for exactOptionalPropertyTypes compliance
-  const loadCodecOpt = codec !== undefined && codec !== null ? { codec } : {};
-
-  // 3. Read tree entries via the indexOid from the message (points to the tree)
-  const rawTreeOids = await persistence.readTreeOids(decoded.indexOid);
-
-  // 3b. Partition: entries with 'index/' prefix are bitmap index shards
-  const partitionedTree = partitionTreeOids(rawTreeOids);
-  const treeOids = await expandCheckpointStateSubtree(persistence, partitionedTree.treeOids);
-  const indexShardOids = await expandCheckpointIndexSubtree(
-    persistence,
-    treeOids,
-    partitionedTree.indexShardOids,
-  );
-
-  if (checkpointStore !== undefined && checkpointStore !== null) {
-    const checkpoint = await checkpointStore.readCheckpoint(treeOids);
-    const result: LoadedCheckpoint = {
-      state: checkpoint.state,
-      frontier: checkpoint.frontier,
-      stateHash: decoded.stateHash,
-      schema: decoded.schema,
-      appliedVV: checkpoint.appliedVV,
-      indexShardOids: Object.keys(indexShardOids).length > 0
-        ? indexShardOids
-        : checkpoint.indexShardOids,
-    };
-    if (checkpoint.provenanceIndex !== null && checkpoint.provenanceIndex !== undefined) {
-      result.provenanceIndex = checkpoint.provenanceIndex;
-    }
-    return result;
-  }
-
-  // Current path: read each envelope blob individually.
-  const frontierOid = treeOids['frontier.cbor'];
-  if (frontierOid === undefined) {
-    throw new PersistenceError(
-      `Checkpoint ${checkpointSha} missing frontier.cbor in tree`,
-      'E_CHECKPOINT_MISSING_FRONTIER',
-      { context: { checkpointSha } },
-    );
-  }
-  const frontierBuffer = await persistence.readBlob(frontierOid);
-  const frontier = deserializeFrontier(frontierBuffer, loadCodecOpt);
-
-  const state = deserializeCheckpointStateEnvelope(
-    await readCheckpointStateEnvelope(persistence, checkpointSha, treeOids),
-    loadCodecOpt,
-  );
-
-  // Load appliedVV if present
-  let appliedVV: VersionVector | null = null;
-  const appliedVVOid = treeOids['appliedVV.cbor'];
-  if (appliedVVOid !== undefined) {
-    const appliedVVBuffer = await persistence.readBlob(appliedVVOid);
-    appliedVV = deserializeAppliedVV(appliedVVBuffer, loadCodecOpt);
-  }
-
-  // Load provenanceIndex if present (HG/IO/2)
-  let provenanceIndex: ProvenanceIndex | null = null;
-  const provenanceIndexOid = treeOids['provenanceIndex.cbor'];
-  if (provenanceIndexOid !== undefined) {
-    const provenanceIndexBuffer = await persistence.readBlob(provenanceIndexOid);
-    provenanceIndex = ProvenanceIndex.deserialize(provenanceIndexBuffer, loadCodecOpt);
-  }
-
+  const checkpoint = await checkpointStore.loadCheckpoint(checkpointSha);
   const result: LoadedCheckpoint = {
-    state,
-    frontier,
-    stateHash: decoded.stateHash,
-    schema: decoded.schema,
-    appliedVV,
-    indexShardOids: Object.keys(indexShardOids).length > 0 ? indexShardOids : null,
+    state: checkpoint.state,
+    frontier: checkpoint.frontier,
+    stateHash: checkpoint.stateHash,
+    schema: checkpoint.schema,
+    appliedVV: checkpoint.appliedVV,
+    indexShardHandles: checkpoint.indexShardHandles,
   };
-  if (provenanceIndex !== null) {
-    result.provenanceIndex = provenanceIndex;
+  if (checkpoint.provenanceIndex !== null && checkpoint.provenanceIndex !== undefined) {
+    result.provenanceIndex = checkpoint.provenanceIndex;
   }
   return result;
 }
 
-function unsupportedCheckpointSchema(checkpointSha: string, schema: number): PersistenceError {
-  return new PersistenceError(
-    `Checkpoint ${checkpointSha} is schema:${schema}. ` +
-      `Only schema:${CURRENT_CHECKPOINT_SCHEMA} checkpoints are supported by the shipped runtime. ` +
-      'Run `npm run upgrade -- --graph <name>` before loading this graph.',
-    'E_CHECKPOINT_UNSUPPORTED_SCHEMA',
-    { context: { checkpointSha, schema } },
-  );
-}
-
-async function readCheckpointStateEnvelope(
-  persistence: LoadPersistence,
-  checkpointSha: string,
-  treeOids: Record<string, string>,
-): Promise<CheckpointStateEnvelopeBuffers> {
-  return {
-    nodeAlive: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/nodeAlive')),
-    edgeAlive: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/edgeAlive')),
-    prop: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/prop.cbor')),
-    observedFrontier: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/observedFrontier.cbor')),
-    edgeBirthEvent: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/edgeBirthEvent.cbor')),
-  };
-}
-
-async function expandCheckpointStateSubtree(
-  persistence: LoadPersistence,
-  treeOids: Record<string, string>,
-): Promise<Record<string, string>> {
-  if (treeOids['state/nodeAlive'] !== undefined || treeOids['state'] === undefined) {
-    return treeOids;
-  }
-
-  const stateTreeOid = treeOids['state'];
-  const stateTreeOids = await persistence.readTreeOids(stateTreeOid);
-  const expanded = { ...treeOids };
-  for (const [path, oid] of Object.entries(stateTreeOids)) {
-    expanded[`state/${path}`] = oid;
-  }
-  return expanded;
-}
-
-async function expandCheckpointIndexSubtree(
-  persistence: LoadPersistence,
-  treeOids: Record<string, string>,
-  indexShardOids: Record<string, string>,
-): Promise<Record<string, string>> {
-  if (Object.keys(indexShardOids).length > 0 || treeOids['index'] === undefined) {
-    return indexShardOids;
-  }
-
-  return await persistence.readTreeOids(treeOids['index']);
-}
-
-function requireCheckpointTreeOid(
-  checkpointSha: string,
-  treeOids: Record<string, string>,
-  path: string,
-): string {
-  const oid = treeOids[path];
-  if (oid !== undefined) {
-    return oid;
-  }
-  throw new PersistenceError(
-    `Checkpoint ${checkpointSha} missing ${path} in tree`,
-    'E_CHECKPOINT_MISSING_STATE',
-    { context: { checkpointSha, path } },
-  );
-}
-
 /** Options for materializeIncremental. */
 export interface MaterializeIncrementalOptions {
-  persistence: LoadPersistence;
+  checkpointStore: CheckpointStorePort;
   graphName: string;
   checkpointSha: string;
   targetFrontier: Map<string, string>;
@@ -248,8 +76,6 @@ export interface MaterializeIncrementalOptions {
     fromSha: string | null,
     toSha: string,
   ) => Promise<Array<{ patch: Patch; sha: string }>>;
-  codec?: CodecPort;
-  commitMessageCodec: CommitMessageCodecPort;
 }
 
 /**
@@ -265,20 +91,13 @@ export interface MaterializeIncrementalOptions {
  * @throws {PersistenceError} If checkpoint is missing required envelope blobs
  */
 export async function materializeIncremental({
-  persistence,
+  checkpointStore,
   graphName: _graphName,
   checkpointSha,
   targetFrontier,
   patchLoader,
-  codec,
-  commitMessageCodec,
 }: MaterializeIncrementalOptions): Promise<WarpState> {
-  // 1. Load checkpoint state and frontier from the current envelope.
-  const loadOpts: LoadCheckpointOptions = {
-    ...(codec !== undefined && codec !== null ? { codec } : {}),
-    commitMessageCodec,
-  };
-  const checkpoint = await loadCheckpoint(persistence, checkpointSha, loadOpts);
+  const checkpoint = await loadCheckpoint(checkpointStore, checkpointSha);
   const checkpointFrontier = checkpoint.frontier;
 
   // 2. Use checkpoint state directly.

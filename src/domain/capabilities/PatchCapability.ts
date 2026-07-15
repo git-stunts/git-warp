@@ -8,6 +8,7 @@ import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type Patch from '../types/Patch.ts';
 import type { Writer } from '../warp/Writer.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
+import type { PatchCommitResult } from '../services/PatchCommitter.ts';
 
 /** Receipt from a CRDT state merge (join). */
 export type JoinReceipt = {
@@ -45,6 +46,11 @@ export default abstract class PatchCapability {
 
   /** Build and commit one patch with the current writer. */
   abstract patch(_build: (_p: PatchBuilder) => void | Promise<void>): Promise<string>;
+
+  /** Build and commit one patch while retaining publication evidence. */
+  abstract patchWithEvidence(
+    _build: (_p: PatchBuilder) => void | Promise<void>,
+  ): Promise<PatchCommitResult>;
 
   /** Build and commit multiple patches in order. */
   abstract patchMany(..._builds: Array<(_p: PatchBuilder) => void | Promise<void>>): Promise<string[]>;

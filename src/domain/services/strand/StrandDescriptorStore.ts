@@ -17,6 +17,7 @@ import {
 } from '../../utils/RefLayout.ts';
 import { parseStrandBlob, type StrandDescriptor as ParsedStrandDescriptor } from '../../utils/parseStrandBlob.ts';
 import { textEncode } from '../../utils/bytes.ts';
+import AssetHandle from '../../storage/AssetHandle.ts';
 import {
   isRawBag,
   normalizeReadOverlays,
@@ -39,6 +40,7 @@ import {
 } from './descriptorNormalization.ts';
 
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
+import type StrandStorePort from '../../../ports/StrandStorePort.ts';
 import type Patch from '../../types/Patch.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -63,6 +65,7 @@ type BaseObservation = ParsedStrandDescriptor['baseObservation'];
 type StrandDescriptorStoreGraph = {
   _graphName: string;
   _persistence: GraphPersistencePort;
+  _strandStore: StrandStorePort;
   _loadPatchChainFromSha: (sha: string) => Promise<readonly PatchChainEntry[]>;
 };
 
@@ -150,15 +153,31 @@ export default class StrandDescriptorStore {
 
   // ── Descriptor I/O ───────────────────────────────────────────────────────
 
-  async readDescriptorByOid(oid: string, strandId: string): Promise<ParsedStrandDescriptor> {
-    const buf = await this._graph._persistence.readBlob(oid);
-    if (buf === null || buf === undefined) {
-      throw new StrandError(`Strand '${strandId}' points to a missing blob`, {
+  async readDescriptor(strandId: string): Promise<ParsedStrandDescriptor | null> {
+    this.buildRef(strandId);
+    const buf = await this.readDescriptorBytes(strandId);
+    return buf === null ? null : this.parseDescriptor(strandId, buf);
+  }
+
+  private async readDescriptorBytes(strandId: string): Promise<Uint8Array | null> {
+    try {
+      return await this._graph._strandStore.readDescriptor(
+        this._graph._graphName,
+        strandId,
+      );
+    } catch (err) {
+      throw new StrandError(`Strand '${strandId}' descriptor could not be read`, {
         code: 'E_STRAND_MISSING_OBJECT',
-        context: { graphName: this._graph._graphName, strandId, oid },
+        context: {
+          graphName: this._graph._graphName,
+          strandId,
+          cause: (err as Error).message,
+        },
       });
     }
+  }
 
+  private parseDescriptor(strandId: string, buf: Uint8Array): ParsedStrandDescriptor {
     try {
       const descriptor = parseStrandBlob(buf, `strand '${strandId}'`);
       if (descriptor.graphName !== this._graph._graphName) {
@@ -173,7 +192,6 @@ export default class StrandDescriptorStore {
         context: {
           graphName: this._graph._graphName,
           strandId,
-          oid,
           cause: (err as Error).message,
         },
       });
@@ -181,11 +199,29 @@ export default class StrandDescriptorStore {
   }
 
   async writeDescriptor(descriptor: StrandDescriptor): Promise<void> {
-    const ref = this.buildRef(descriptor.strandId);
-    const oid = await this._graph._persistence.writeBlob(
-      textEncode(JSON.stringify(descriptor)), // nosemgrep: ts-no-json-stringify-in-core -- 0025B
+    const attachments = descriptor.intentQueue.intents.flatMap((intent) =>
+      intent.contentAssetHandles.map((handle) => new AssetHandle(handle))
     );
-    await this._graph._persistence.updateRef(ref, oid);
+    await this._graph._strandStore.publishDescriptor({
+      graphName: this._graph._graphName,
+      strandId: descriptor.strandId,
+      descriptor: textEncode(JSON.stringify(descriptor)), // nosemgrep: ts-no-json-stringify-in-core -- 0025B
+      attachments,
+    });
+  }
+
+  async listStrandIds(): Promise<string[]> {
+    return await this._graph._strandStore.listStrandIds(this._graph._graphName);
+  }
+
+  async hasDescriptor(strandId: string): Promise<boolean> {
+    this.buildRef(strandId);
+    return await this._graph._strandStore.hasDescriptor(this._graph._graphName, strandId);
+  }
+
+  async deleteDescriptor(strandId: string): Promise<boolean> {
+    this.buildRef(strandId);
+    return await this._graph._strandStore.deleteDescriptor(this._graph._graphName, strandId);
   }
 
   // ── Overlay helpers ──────────────────────────────────────────────────────

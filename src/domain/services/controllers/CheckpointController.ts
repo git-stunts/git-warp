@@ -10,14 +10,14 @@
 import QueryError from '../../errors/QueryError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import { SchemaUnsupportedError } from '../../errors/index.ts';
-import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
+import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.ts';
 import {
   CURRENT_CHECKPOINT_SCHEMA,
   isCurrentCheckpointSchema,
 } from '../state/checkpointHelpers.ts';
-import { loadCheckpoint, type LoadedCheckpoint, type LoadPersistence } from '../state/checkpointLoad.ts';
-import { create as createCheckpointCommit, type CheckpointPersistence } from '../state/checkpointCreate.ts';
+import { loadCheckpoint, type LoadedCheckpoint } from '../state/checkpointLoad.ts';
+import { create as createCheckpointCommit } from '../state/checkpointCreate.ts';
 import executeGC from '../executeGC.ts';
 import GCMetrics from '../GCMetrics.ts';
 import { computeAppliedVV } from '../state/CheckpointSerializer.ts';
@@ -47,15 +47,13 @@ type CheckpointHost = {
   _graphName: string;
   _persistence: {
     readRef(ref: string): Promise<string | null>;
-    updateRef(ref: string, oid: string): Promise<void>;
-    commitNode(options: { message: string; parents: string[] }): Promise<string>;
     getNodeInfo(sha: string): Promise<{ message: string }>;
   };
   _cachedState: WarpState | null;
   _stateDirty: boolean;
   _checkpointing: boolean;
   _viewService: MaterializedViewService | null;
-  _checkpointStore: CheckpointStorePort | null;
+  _checkpointStore: CheckpointStorePort;
   _stateHashService: StateHashService | null;
   _provenanceIndex: ProvenanceIndex | null;
   _materializedGraph?: object | null;
@@ -73,35 +71,9 @@ type CheckpointHost = {
   _lastFrontier: Map<string, string> | null;
   _cachedViewHash: string | null;
   _stateCache: WarpStateCachePort | null;
-  _readPatchBlob(patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>): Promise<Uint8Array>;
+  _readPatch(patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>): Promise<Patch>;
   discoverWriters(): Promise<string[]>;
 };
-
-/**
- * Narrows codec-decode output to `object | null`. CodecPort.decode
- * currently returns a loose type (0025B1); wrapping the call in a
- * dedicated narrowing function keeps that looseness inside this helper.
- */
-function codecDecodeAsObject(
-  codec: CodecPort,
-  bytes: Uint8Array,
-): object | null {
-  const out = codec.decode(bytes);
-  if (out === null || out === undefined || typeof out !== 'object') { return null; }
-  return out;
-}
-
-/**
- * Narrows a decoded patch to just the schema marker this controller
- * needs. `in` check walks the shape defensively — callers branch on a
- * typed `schema` field.
- */
-function decodePatchSchema(decoded: object | null): { schema?: number } {
-  if (decoded === null) { return {}; }
-  if (!('schema' in decoded)) { return {}; }
-  const { schema } = decoded as { schema: number | string | boolean | null };
-  return typeof schema === 'number' ? { schema } : {};
-}
 
 /**
  * CheckpointController expects the host to expose the patch-loader and
@@ -187,12 +159,9 @@ export default class CheckpointController {
       }
     }
 
-    const persistence = h._persistence;
-    this._assertCheckpointCreatePersistence(persistence);
-    const checkpointStore = h._checkpointStore ?? undefined;
     const stateHashService = h._stateHashService ?? null;
     const checkpointSha = await createCheckpointCommit({
-      persistence,
+      checkpointStore: h._checkpointStore,
       graphName: h._graphName,
       state,
       frontier,
@@ -200,20 +169,14 @@ export default class CheckpointController {
       ...(h._provenanceIndex ? { provenanceIndex: h._provenanceIndex } : {}),
       crypto: h._crypto,
       codec: h._codec,
-      commitMessageCodec: h._commitMessageCodec,
       ...(indexTree ? { indexTree } : {}),
-      ...(checkpointStore ? { checkpointStore } : {}),
       ...(stateHashService ? { stateHashService } : {}),
     });
-
-    const checkpointRef = buildCheckpointRef(h._graphName);
-    await h._persistence.updateRef(checkpointRef, checkpointSha);
-
     return checkpointSha;
   }
 
   async _readCheckpointSha(): Promise<string | null> {
-    return await this._host._persistence.readRef(buildCheckpointRef(this._host._graphName));
+    return await this._host._checkpointStore.resolveHead(this._host._graphName);
   }
 
   private _requireCheckpointReadingState(): WarpState {
@@ -257,18 +220,6 @@ export default class CheckpointController {
     return `frontier:${frontierFingerprint(coordinate.frontier)}:${coordinate.ceiling === null ? 'head' : String(coordinate.ceiling)}`;
   }
 
-  private _assertCheckpointCreatePersistence(
-    persistence: CheckpointHost['_persistence'],
-  ): asserts persistence is CheckpointHost['_persistence'] & CheckpointPersistence {
-    void persistence;
-  }
-
-  private _assertLoadPersistence(
-    persistence: CheckpointHost['_persistence'],
-  ): asserts persistence is CheckpointHost['_persistence'] & LoadPersistence {
-    void persistence;
-  }
-
   async syncCoverage(): Promise<void> {
     const h = this._host;
     const writers = await h.discoverWriters();
@@ -286,15 +237,7 @@ export default class CheckpointController {
 
     if (parents.length === 0) { return; }
 
-    const message = h._commitMessageCodec.encodeAnchor({
-      kind: 'anchor',
-      graph: h._graphName,
-      schema: 2,
-    });
-    const anchorSha = await h._persistence.commitNode({ message, parents });
-
-    const coverageRef = buildCoverageRef(h._graphName);
-    await h._persistence.updateRef(coverageRef, anchorSha);
+    await h._checkpointStore.publishCoverage({ graphName: h._graphName, parents });
   }
 
   async _loadLatestCheckpoint(): Promise<LoadedCheckpoint | null> {
@@ -309,26 +252,19 @@ export default class CheckpointController {
           stateHash: snapshotHead.stateHash,
           schema: CURRENT_CHECKPOINT_SCHEMA,
           appliedVV: null,
-          indexShardOids: null,
+          indexShardHandles: null,
         };
       }
     }
 
-    const checkpointRef = buildCheckpointRef(h._graphName);
-    const checkpointSha = await h._persistence.readRef(checkpointRef);
+    const checkpointSha = await h._checkpointStore.resolveHead(h._graphName);
 
     if (typeof checkpointSha !== 'string' || checkpointSha.length === 0) {
       return null;
     }
 
     try {
-      const checkpointStore = h._checkpointStore ?? undefined;
-      this._assertLoadPersistence(h._persistence);
-      return await loadCheckpoint(h._persistence, checkpointSha, {
-        codec: h._codec,
-        ...(checkpointStore ? { checkpointStore } : {}),
-        commitMessageCodec: h._commitMessageCodec,
-      });
+      return await loadCheckpoint(h._checkpointStore, checkpointSha);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (
@@ -383,16 +319,7 @@ export default class CheckpointController {
     if (typeof checkpointSha !== 'string' || checkpointSha.length === 0) {
       return false;
     }
-    const persistence = this._host._persistence;
-    this._assertLoadPersistence(persistence);
-    const message = await persistence.showNode(checkpointSha);
-    if (typeof message !== 'string' || message.length === 0) {
-      throw invalidCheckpointReference(checkpointSha, 'empty-checkpoint-message');
-    }
-    if (this._host._commitMessageCodec.detectKind(message) !== 'checkpoint') {
-      throw invalidCheckpointReference(checkpointSha, 'non-checkpoint-message');
-    }
-    const checkpoint = this._host._commitMessageCodec.decodeCheckpoint(message);
+    const checkpoint = await this._host._checkpointStore.readMetadata(checkpointSha);
     if (isCurrentCheckpointSchema(checkpoint.schema)) {
       return true;
     }
@@ -420,12 +347,10 @@ export default class CheckpointController {
 
       if (kind === 'patch') {
         const patchMeta = h._commitMessageCodec.decodePatch(nodeInfo.message);
-        // Runtime-narrow the decoded patch shape here rather than trusting
-        // the loose CodecPort return surface.
-        const patchBuffer = await h._readPatchBlob(patchMeta);
-        const decoded = decodePatchSchema(codecDecodeAsObject(h._codec, patchBuffer));
+        const decoded = await h._readPatch(patchMeta);
 
-        if (decoded.schema === 1 || decoded.schema === undefined) {
+        const legacySchema = (decoded as { readonly schema?: number }).schema;
+        if (legacySchema === 1 || legacySchema === undefined) {
           return true;
         }
       }
@@ -599,12 +524,4 @@ export default class CheckpointController {
       lastCompactionLamport: h._lastGCLamport,
     };
   }
-}
-
-function invalidCheckpointReference(checkpointSha: string, reason: string): PersistenceError {
-  return new PersistenceError(
-    `Checkpoint ref resolved to invalid object ${checkpointSha}: ${reason}`,
-    'E_CHECKPOINT_REF_INVALID',
-    { context: { checkpointSha, reason } },
-  );
 }

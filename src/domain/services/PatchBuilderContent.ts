@@ -1,31 +1,26 @@
-import type { BlobStorageOptions } from '../../ports/BlobStoragePort.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
-import PatchError from '../errors/PatchError.ts';
+import ContentAttachmentHandle from '../graph/ContentAttachmentHandle.ts';
 import ContentAttachmentMime from '../graph/ContentAttachmentMime.ts';
-import ContentAttachmentOid from '../graph/ContentAttachmentOid.ts';
 import ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
 import ContentAttachmentSize from '../graph/ContentAttachmentSize.ts';
+import PatchError from '../errors/PatchError.ts';
+import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
+import type { AssetWriteOptions } from '../../ports/AssetStoragePort.ts';
 import { isPropValue, type PropValue } from '../types/PropValue.ts';
 import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.ts';
 import { normalizeContentMetadata } from './PatchBuilderValidation.ts';
 
-export type ContentInput = AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string;
+export type ContentInput =
+  | AsyncIterable<Uint8Array>
+  | ReadableStream<Uint8Array>
+  | Uint8Array
+  | string;
 export type ContentMetadataInput = { mime?: string | null; size?: number | null };
 
 export type StoreContentAttachmentPayloadOptions = {
-  readonly blobStorage: BlobStoragePort;
+  readonly assetStorage: AssetStoragePort;
   readonly content: ContentInput;
   readonly metadata: ContentMetadataInput | undefined;
   readonly slug: string;
-};
-
-type BufferedContentAttachmentPayloadOptions = Omit<StoreContentAttachmentPayloadOptions, 'content'> & {
-  readonly content: Uint8Array | string;
-};
-
-type StreamingContentMetadata = {
-  readonly mime: ContentAttachmentMime | null;
-  readonly size: ContentAttachmentSize | null;
 };
 
 /** Validates public patch property values before intent construction. */
@@ -41,91 +36,58 @@ export function requirePatchPropertyValue<T>(value: T): PropValue {
 export async function storeContentAttachmentPayload(
   options: StoreContentAttachmentPayloadOptions,
 ): Promise<ContentAttachmentPayload> {
-  if (isBufferedContent(options.content)) {
-    return await storeBufferedContentAttachmentPayload({
-      blobStorage: options.blobStorage,
-      content: options.content,
-      metadata: options.metadata,
-      slug: options.slug,
-    });
-  }
-  return await storeStreamingContentAttachmentPayload(options);
-}
-
-async function storeBufferedContentAttachmentPayload(
-  options: BufferedContentAttachmentPayloadOptions,
-): Promise<ContentAttachmentPayload> {
-  const normalizedMeta = normalizeContentMetadata(options.content, options.metadata);
-  const storageOptions = contentStorageOptions(options.slug, normalizedMeta.mime, normalizedMeta.size);
-  const oid = await options.blobStorage.store(options.content, storageOptions);
-  return contentAttachmentPayload(oid, normalizedMeta.mime, normalizedMeta.size);
-}
-
-async function storeStreamingContentAttachmentPayload(
-  options: StoreContentAttachmentPayloadOptions,
-): Promise<ContentAttachmentPayload> {
-  const metadata = streamingContentMetadata(options.metadata);
-  const storageOptions = contentStorageOptions(
-    options.slug,
-    contentAttachmentMimeString(metadata.mime),
-    contentAttachmentSizeNumber(metadata.size),
-  );
-  const oid = await options.blobStorage.storeStream(
+  const metadata = contentMetadata(options.content, options.metadata);
+  const staged = await options.assetStorage.stage(
     normalizeToAsyncIterable(options.content),
-    storageOptions,
+    assetWriteOptions(options.slug, metadata.mime, metadata.expectedSize),
   );
   return new ContentAttachmentPayload({
-    oid: new ContentAttachmentOid(oid),
-    mime: metadata.mime,
-    size: metadata.size,
+    handle: new ContentAttachmentHandle(staged.handle.toString()),
+    mime: metadata.mime === null ? null : new ContentAttachmentMime(metadata.mime),
+    size: new ContentAttachmentSize(staged.size),
   });
+}
+
+function contentMetadata(
+  content: ContentInput,
+  metadata: ContentMetadataInput | undefined,
+): { readonly mime: string | null; readonly expectedSize: number | null } {
+  if (!isStreamingInput(content)) {
+    const normalized = normalizeContentMetadata(content, metadata);
+    return { mime: normalized.mime, expectedSize: normalized.size };
+  }
+  return streamingContentMetadata(metadata);
 }
 
 function streamingContentMetadata(
   metadata: ContentMetadataInput | undefined,
-): StreamingContentMetadata {
+): { readonly mime: string | null; readonly expectedSize: number | null } {
   return {
-    mime: contentAttachmentMime(metadata?.mime ?? null),
-    size: contentAttachmentSize(metadata?.size ?? null),
+    mime: optionalMime(metadataMime(metadata)),
+    expectedSize: optionalSize(metadataSize(metadata)),
   };
 }
 
-function contentAttachmentMimeString(mime: ContentAttachmentMime | null): string | null {
-  return mime === null ? null : mime.toString();
+function metadataMime(metadata: ContentMetadataInput | undefined): string | null {
+  return metadata?.mime ?? null;
 }
 
-function contentAttachmentSizeNumber(size: ContentAttachmentSize | null): number | null {
-  return size === null ? null : size.toNumber();
+function metadataSize(metadata: ContentMetadataInput | undefined): number | null {
+  return metadata?.size ?? null;
 }
 
-function isBufferedContent(content: ContentInput): content is Uint8Array | string {
-  return !isStreamingInput(content);
+function optionalMime(value: string | null): string | null {
+  return value === null ? null : new ContentAttachmentMime(value).toString();
 }
 
-function contentAttachmentPayload(
-  oid: string,
-  mime: string | null,
-  size: number | null,
-): ContentAttachmentPayload {
-  return new ContentAttachmentPayload({
-    oid: new ContentAttachmentOid(oid),
-    mime: contentAttachmentMime(mime),
-    size: contentAttachmentSize(size),
-  });
+function optionalSize(value: number | null): number | null {
+  return value === null ? null : new ContentAttachmentSize(value).toNumber();
 }
 
-function contentAttachmentMime(mime: string | null): ContentAttachmentMime | null {
-  return mime === null ? null : new ContentAttachmentMime(mime);
-}
-
-function contentAttachmentSize(size: number | null): ContentAttachmentSize | null {
-  return size === null ? null : new ContentAttachmentSize(size);
-}
-
-function contentStorageOptions(
+function assetWriteOptions(
   slug: string,
   mime: string | null,
-  size: number | null,
-): BlobStorageOptions {
-  return { slug, mime, size };
+  expectedSize: number | null,
+): AssetWriteOptions {
+  return { slug, filename: 'content', mime, expectedSize };
 }

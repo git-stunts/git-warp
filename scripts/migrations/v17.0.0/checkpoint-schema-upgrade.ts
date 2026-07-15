@@ -3,17 +3,18 @@ import { loadCheckpoint } from '../../../src/domain/services/state/checkpointLoa
 import {
   CURRENT_CHECKPOINT_SCHEMA,
   isCurrentCheckpointSchema,
-  partitionTreeOids,
 } from '../../../src/domain/services/state/checkpointHelpers.ts';
 import {
   deserializeFullState,
 } from '../../../src/domain/services/state/CheckpointSerializer.ts';
 import { deserializeFrontier } from '../../../src/domain/services/Frontier.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import { CborCheckpointStoreAdapter } from '../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.ts';
+import type AssetStoragePort from '../../../src/ports/AssetStoragePort.ts';
+import type AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.ts';
-import type GraphPersistencePort from '../../../src/ports/GraphPersistencePort.ts';
 import type CodecPort from '../../../src/ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../../../src/ports/CommitMessageCodecPort.ts';
 import type CryptoPort from '../../../src/ports/CryptoPort.ts';
@@ -29,8 +30,26 @@ export class CheckpointSchemaUpgradeError extends Error {
   }
 }
 
+/** Legacy Git history surface required only by the retired-checkpoint migrator. */
+export interface CheckpointMigrationHistory {
+  writeBlob(content: Uint8Array | string): Promise<string>;
+  readBlob(oid: string): Promise<Uint8Array>;
+  writeTree(entries: string[]): Promise<string>;
+  readTreeOids(treeOid: string): Promise<Record<string, string>>;
+  commitNode(options: { message: string; parents: string[] }): Promise<string>;
+  commitNodeWithTree(options: {
+    treeOid: string;
+    parents: string[];
+    message: string;
+  }): Promise<string>;
+  showNode(sha: string): Promise<string>;
+  getCommitTree(sha: string): Promise<string>;
+  readRef(ref: string): Promise<string | null>;
+  compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void>;
+}
+
 export interface CheckpointSchemaUpgradeOptions {
-  readonly persistence: GraphPersistencePort;
+  readonly persistence: CheckpointMigrationHistory;
   readonly graphName: string;
   readonly dryRun?: boolean;
   readonly codec?: CodecPort;
@@ -60,6 +79,12 @@ export async function upgradeCheckpointSchema(
 ): Promise<CheckpointSchemaUpgradeResult> {
   const commitMessageCodec = options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
   const codec = options.codec ?? defaultCodec;
+  const checkpointStore = new CborCheckpointStoreAdapter({
+    codec,
+    commitMessageCodec,
+    history: options.persistence,
+    assetStorage: legacyMigrationAssetStorage(options.persistence),
+  });
   const checkpointRef = buildCheckpointRef(options.graphName);
   const previousCheckpointSha = await options.persistence.readRef(checkpointRef);
 
@@ -100,7 +125,7 @@ export async function upgradeCheckpointSchema(
 
   const retiredPayload = await loadRetiredCheckpointPayload({
     persistence: options.persistence,
-    indexOid: checkpointMessage.indexOid,
+    indexOid: await options.persistence.getCommitTree(previousCheckpointSha),
     checkpointSha: previousCheckpointSha,
     codec,
   });
@@ -118,23 +143,18 @@ export async function upgradeCheckpointSchema(
   }
 
   const upgradedCheckpointSha = await createCheckpointEnvelope({
-    persistence: options.persistence,
+    checkpointStore,
     graphName: options.graphName,
     state: retiredPayload.state,
     frontier: retiredPayload.frontier,
     parents: [previousCheckpointSha],
-    commitMessageCodec,
     codec,
     ...(options.crypto === undefined ? {} : { crypto: options.crypto }),
     ...(retiredPayload.indexTree === undefined ? {} : { indexTree: retiredPayload.indexTree }),
     ...(retiredPayload.provenanceIndex === undefined ? {} : { provenanceIndex: retiredPayload.provenanceIndex }),
   });
 
-  await loadCheckpoint(options.persistence, upgradedCheckpointSha, {
-    commitMessageCodec,
-    codec,
-  });
-  await options.persistence.updateRef(checkpointRef, upgradedCheckpointSha);
+  await loadCheckpoint(checkpointStore, upgradedCheckpointSha);
 
   return {
     status: 'upgraded',
@@ -147,12 +167,44 @@ export async function upgradeCheckpointSchema(
   };
 }
 
+function legacyMigrationAssetStorage(
+  persistence: CheckpointMigrationHistory,
+): AssetStoragePort {
+  return {
+    stage: () => Promise.reject(new CheckpointSchemaUpgradeError(
+      'Checkpoint migration does not stage standalone assets',
+    )),
+    open: (handle: AssetHandle): AsyncIterable<Uint8Array> => (async function* () {
+      yield await persistence.readBlob(handle.toString());
+    })(),
+  };
+}
+
 function isRetiredCheckpointSchema(schema: number): schema is typeof RETIRED_CHECKPOINT_SCHEMAS[number] {
   return RETIRED_CHECKPOINT_SCHEMAS.some((retiredSchema) => retiredSchema === schema);
 }
 
+function partitionTreeOids(rawOids: Record<string, string>): {
+  treeOids: Record<string, string>;
+  indexShardOids: Record<string, string>;
+} {
+  const treeOids = new Map<string, string>();
+  const indexShardOids = new Map<string, string>();
+  for (const [path, oid] of Object.entries(rawOids)) {
+    if (path.startsWith('index/')) {
+      indexShardOids.set(path.slice('index/'.length), oid);
+    } else {
+      treeOids.set(path, oid);
+    }
+  }
+  return {
+    treeOids: Object.fromEntries(treeOids),
+    indexShardOids: Object.fromEntries(indexShardOids),
+  };
+}
+
 async function loadRetiredCheckpointPayload(options: {
-  readonly persistence: GraphPersistencePort;
+  readonly persistence: CheckpointMigrationHistory;
   readonly indexOid: string;
   readonly checkpointSha: string;
   readonly codec?: CodecPort;
@@ -188,7 +240,7 @@ function requireTreeOid(checkpointSha: string, treeOids: Record<string, string>,
 }
 
 async function readIndexTree(
-  persistence: GraphPersistencePort,
+  persistence: CheckpointMigrationHistory,
   indexShardOids: Record<string, string>,
 ): Promise<Record<string, Uint8Array> | undefined> {
   const paths = Object.keys(indexShardOids).sort();
@@ -208,7 +260,7 @@ async function readIndexTree(
 }
 
 async function readProvenanceIndex(
-  persistence: GraphPersistencePort,
+  persistence: CheckpointMigrationHistory,
   treeOids: Record<string, string>,
   codecOpt: { readonly codec?: CodecPort },
 ): Promise<ProvenanceIndex | undefined> {

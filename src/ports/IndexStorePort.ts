@@ -1,6 +1,7 @@
 import type WarpStream from '../domain/stream/WarpStream.ts';
 import type { IndexShard } from '../domain/artifacts/IndexShard.ts';
 import type CodecValue from '../domain/types/codec/CodecValue.ts';
+import type AssetHandle from '../domain/storage/AssetHandle.ts';
 
 /**
  * IndexStorePort — domain-facing port for index shard persistence.
@@ -32,7 +33,7 @@ export default abstract class IndexStorePort {
    * The adapter internally encodes each shard, writes blobs, and
    * assembles a sorted tree. Returns the tree OID.
    */
-  abstract writeShards(_shardStream: WarpStream<IndexShard>): Promise<string>;
+  abstract writeShards(_shardStream: WarpStream<IndexShard>): Promise<AssetHandle>;
 
   /**
    * Scans all shards in an index tree, yielding `IndexShard`
@@ -43,7 +44,7 @@ export default abstract class IndexStorePort {
    * path pattern, and constructs the appropriate `IndexShard`
    * subclass.
    */
-  abstract scanShards(_treeOid: string): WarpStream<IndexShard>;
+  abstract scanShards(_indexHandle: AssetHandle): WarpStream<IndexShard>;
 
   /**
    * Reads the path-to-OID mapping from an index tree.
@@ -51,7 +52,12 @@ export default abstract class IndexStorePort {
    * Bounded operation — returns the tree directory listing without
    * reading or decoding any blob contents.
    */
-  abstract readShardOids(_treeOid: string): Promise<Record<string, string>>;
+  abstract readShardHandles(
+    _indexHandle: AssetHandle,
+  ): Promise<Readonly<Record<string, AssetHandle>>>;
+
+  /** Streams one encoded shard without opening unrelated index members. */
+  abstract openShard(_shardHandle: AssetHandle): AsyncIterable<Uint8Array>;
 
   /**
    * Reads and decodes a single shard blob by OID.
@@ -64,6 +70,6 @@ export default abstract class IndexStorePort {
    * `decodeShard<PropertyShardPayload>(oid)`.
    */
   abstract decodeShard<TDecoded extends CodecValue = CodecValue>(
-    _blobOid: string,
+    _shardHandle: AssetHandle,
   ): Promise<TDecoded>;
 }

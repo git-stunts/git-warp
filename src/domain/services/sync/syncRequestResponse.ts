@@ -30,7 +30,6 @@ import {
 } from './SyncResponsePaging.ts';
 import type WarpState from '../state/WarpState.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
-import type BlobPort from '../../../ports/BlobPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 
@@ -202,7 +201,7 @@ export function createSyncRequest(
 export async function processSyncRequest(
   request: SyncRequest,
   localFrontier: Map<string, string>,
-  persistence: CommitPort & BlobPort,
+  persistence: CommitPort,
   graphName: string,
   { patchJournal, logger, observedLatencyMs }: ProcessSyncRequestOptions = {},
 ): Promise<SyncResponse> {
@@ -233,7 +232,7 @@ export async function processSyncRequest(
       // Pre-check ancestry to avoid expensive chain walk (B107 / S3 fix).
       // If the persistence layer provides isAncestor, use it to detect
       // divergence early without walking the full commit chain.
-      const persistenceWithIsAncestor = persistence as CommitPort & BlobPort & { isAncestor?: (a: string, b: string) => Promise<boolean> };
+      const persistenceWithIsAncestor = persistence as CommitPort & { isAncestor?: (a: string, b: string) => Promise<boolean> };
       const hasIsAncestor = typeof persistenceWithIsAncestor.isAncestor === 'function';
       if (range.from !== null && range.from !== undefined && range.from.length > 0 && hasIsAncestor) {
         const isAnc = await persistenceWithIsAncestor.isAncestor!(range.from, range.to);

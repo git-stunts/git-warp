@@ -1,4 +1,3 @@
-import type { LoadPersistence } from '../state/checkpointLoad.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
@@ -10,7 +9,6 @@ import type { MaterializePatchSummary } from './MaterializePatchSummary.ts';
 import type { MaterializeSnapshotPublicationOptions } from './MaterializeSnapshotPublication.ts';
 import type {
   MaterializeDeps,
-  MaterializePersistence,
   MaterializeResult,
   MaterializeReduceOutput,
 } from './MaterializeController.ts';
@@ -65,5 +63,4 @@ export type MaterializeStrategyRuntime = {
   ): Promise<MaterializePatchStreamReduction>;
   buildResult(params: MaterializeResultBuildInput): Promise<MaterializeResult>;
   buildProvenance(patches: PatchWithSha[], base?: ProvenanceIndex): ProvenanceIndex;
-  loadPersistence(): MaterializePersistence & LoadPersistence;
 };

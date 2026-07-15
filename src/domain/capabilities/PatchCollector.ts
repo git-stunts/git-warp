@@ -12,7 +12,6 @@ export type CheckpointData = {
   stateHash: string;
   schema: number;
   provenanceIndex?: ProvenanceIndex | undefined;
-  indexShardOids?: Record<string, string> | null | undefined;
 };
 
 async function collectPatchEntries(source: AsyncIterable<PatchWithSha>): Promise<PatchWithSha[]> {

@@ -66,7 +66,7 @@ export type CheckpointProvenanceFactTransport = {
 export type CheckpointContentAnchorFactTransport = {
   readonly kind: 'content-anchor';
   readonly owner: string;
-  readonly contentOid: string;
+  readonly contentHandle: string;
   readonly retainedPayloadByteHash: string | null;
   readonly eventId: CheckpointFactEventTransport;
 };

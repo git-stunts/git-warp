@@ -1,12 +1,7 @@
-import type { CheckpointCommitMessage } from '../../../ports/CommitMessageCodecPort.ts';
 import QueryError from '../../errors/QueryError.ts';
-import { textDecode, textEncode } from '../../utils/bytes.ts';
-import { deserializeFrontier } from '../Frontier.ts';
-import { partitionShardOids } from '../MaterializedViewHelpers.ts';
-import {
-  isCurrentCheckpointSchema,
-  partitionTreeOids,
-} from '../state/checkpointHelpers.ts';
+import type AssetHandle from '../../storage/AssetHandle.ts';
+import { partitionShardHandles } from '../MaterializedViewHelpers.ts';
+import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
 import CheckpointBasisManifest, {
   CheckpointBasisChunking,
   CheckpointBasisCompleteness,
@@ -16,10 +11,7 @@ import CheckpointBasisManifest, {
 } from './CheckpointBasisManifest.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 
-const CAS_POINTER_PREFIX = 'git-warp:cas-pointer:v1:';
-const CAS_POINTER_PREFIX_BYTES = textEncode(CAS_POINTER_PREFIX);
-
-export type CheckpointTailShardOidMap = {
+export type CheckpointTailShardIdentityMap = {
   readonly [path: string]: string;
 };
 
@@ -28,8 +20,8 @@ export type CheckpointTailIndexBasis = {
   readonly schema: number;
   readonly frontier: Map<string, string>;
   readonly manifest: CheckpointBasisManifest;
-  readonly indexOids: CheckpointTailShardOidMap;
-  readonly propOids: CheckpointTailShardOidMap;
+  readonly indexHandles: Readonly<Record<string, AssetHandle>>;
+  readonly propHandles: Readonly<Record<string, AssetHandle>>;
 };
 
 type CheckpointTailManifestRoots = {
@@ -50,31 +42,30 @@ export default class CheckpointTailBasisLoader {
 
   async load(): Promise<CheckpointTailIndexBasis> {
     const checkpointSha = await this._readCheckpointSha();
-    const checkpointMessage = await this._decodeCheckpointMessage(checkpointSha);
-    if (!isCurrentCheckpointSchema(checkpointMessage.schema)) {
+    const basis = await this._source._checkpointStore.loadBasis(checkpointSha);
+    if (!isCurrentCheckpointSchema(basis.schema)) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-without-index-tree');
     }
-    const indexShardOids = await this._loadCheckpointIndexShardOids(checkpointMessage.indexOid);
-    const frontierBytes = await this._readCheckpointPayloadBlob(checkpointMessage.frontierOid);
-    const frontier = deserializeFrontier(frontierBytes, { codec: this._source._codec });
-    const { indexOids, propOids } = partitionShardOids(indexShardOids);
-    if (Object.keys(indexOids).length === 0 && Object.keys(propOids).length === 0) {
+    const { indexHandles, propHandles } = partitionShardHandles(basis.indexShardHandles);
+    if (Object.keys(indexHandles).length === 0 && Object.keys(propHandles).length === 0) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-missing-index-shards');
     }
+    const indexIdentities = handleIdentities(indexHandles);
+    const propIdentities = handleIdentities(propHandles);
     return {
       checkpointSha,
-      schema: checkpointMessage.schema,
-      frontier,
+      schema: basis.schema,
+      frontier: basis.frontier,
       manifest: createManifest({
         graphName: this._source.graphName,
         checkpointSha,
-        frontier,
-        schema: checkpointMessage.schema,
-        indexOids,
-        propOids,
+        frontier: basis.frontier,
+        schema: basis.schema,
+        indexOids: indexIdentities,
+        propOids: propIdentities,
       }),
-      indexOids,
-      propOids,
+      indexHandles,
+      propHandles,
     };
   }
 
@@ -86,38 +77,6 @@ export default class CheckpointTailBasisLoader {
     return checkpointSha;
   }
 
-  private async _decodeCheckpointMessage(checkpointSha: string): Promise<CheckpointCommitMessage> {
-    const commitMessage = await this._source._persistence.showNode(checkpointSha);
-    return this._source._commitMessageCodec.decodeCheckpoint(commitMessage);
-  }
-
-  private async _readCheckpointPayloadBlob(oid: string): Promise<Uint8Array> {
-    const bytes = await this._source._persistence.readBlob(oid);
-    const storageOid = decodeCasPayloadPointer(bytes);
-    if (storageOid === null) {
-      return bytes;
-    }
-    if (this._source._blobStorage === null) {
-      throwNoBoundedBasis(this._source.graphName, 'checkpoint-payload-pointer-without-storage');
-    }
-    return await this._source._blobStorage.retrieve(storageOid);
-  }
-
-  private async _loadCheckpointIndexShardOids(
-    checkpointTreeOid: string,
-  ): Promise<CheckpointTailShardOidMap> {
-    const rawTreeOids = await this._source._persistence.readTreeOids(checkpointTreeOid);
-    const { treeOids, indexShardOids } = partitionTreeOids(rawTreeOids);
-    if (Object.keys(indexShardOids).length > 0) {
-      return indexShardOids;
-    }
-
-    const indexTreeOid = treeOids['index'];
-    if (indexTreeOid === undefined) {
-      return indexShardOids;
-    }
-    return await this._source._persistence.readTreeOids(indexTreeOid);
-  }
 }
 
 function createManifest(options: {
@@ -125,8 +84,8 @@ function createManifest(options: {
   readonly checkpointSha: string;
   readonly frontier: Map<string, string>;
   readonly schema: number;
-  readonly indexOids: CheckpointTailShardOidMap;
-  readonly propOids: CheckpointTailShardOidMap;
+  readonly indexOids: CheckpointTailShardIdentityMap;
+  readonly propOids: CheckpointTailShardIdentityMap;
 }): CheckpointBasisManifest {
   const roots = createManifestRoots(options.indexOids, options.propOids);
   const shardCount = manifestShardCount(roots);
@@ -148,8 +107,8 @@ function createManifest(options: {
 }
 
 function createManifestRoots(
-  indexOids: CheckpointTailShardOidMap,
-  propOids: CheckpointTailShardOidMap,
+  indexOids: CheckpointTailShardIdentityMap,
+  propOids: CheckpointTailShardIdentityMap,
 ): CheckpointTailManifestRoots {
   return {
     livenessRoots: rootsForPrefix('node-liveness', indexOids, 'meta_'),
@@ -189,7 +148,7 @@ function checkpointChunking(shardCount: number): CheckpointBasisChunking {
 
 function rootsForPrefix(
   family: 'node-liveness' | 'outgoing-adjacency' | 'incoming-adjacency',
-  source: CheckpointTailShardOidMap,
+  source: CheckpointTailShardIdentityMap,
   prefix: string,
 ): CheckpointBasisShardRootMap {
   const roots = new Map<string, string>();
@@ -201,7 +160,7 @@ function rootsForPrefix(
   return new CheckpointBasisShardRootMap({ family, roots });
 }
 
-function edgeFactRootsFromIndex(source: CheckpointTailShardOidMap): CheckpointBasisShardRootMap {
+function edgeFactRootsFromIndex(source: CheckpointTailShardIdentityMap): CheckpointBasisShardRootMap {
   const roots = new Map<string, string>();
   for (const [path, oid] of Object.entries(source)) {
     if (!path.startsWith('meta_') && !path.startsWith('fwd_') && !path.startsWith('rev_')) {
@@ -211,7 +170,7 @@ function edgeFactRootsFromIndex(source: CheckpointTailShardOidMap): CheckpointBa
   return new CheckpointBasisShardRootMap({ family: 'edge-fact', roots });
 }
 
-function shardOidMapToMap(source: CheckpointTailShardOidMap): Map<string, string> {
+function shardOidMapToMap(source: CheckpointTailShardIdentityMap): Map<string, string> {
   return new Map(Object.entries(source).sort(([left], [right]) => left.localeCompare(right)));
 }
 
@@ -223,31 +182,12 @@ function appliedVersionVectorFromFrontier(frontier: Map<string, string>): Map<st
   return versionVector;
 }
 
-function decodeCasPayloadPointer(bytes: Uint8Array): string | null {
-  if (!hasCasPointerPrefix(bytes)) {
-    return null;
-  }
-  const decoded = textDecode(bytes);
-  if (!decoded.startsWith(CAS_POINTER_PREFIX)) {
-    return null;
-  }
-  const storageOid = decoded.slice(CAS_POINTER_PREFIX.length);
-  if (storageOid.length === 0) {
-    throwNoBoundedBasis('checkpoint', 'empty-checkpoint-payload-pointer');
-  }
-  return storageOid;
-}
-
-function hasCasPointerPrefix(bytes: Uint8Array): boolean {
-  if (bytes.length < CAS_POINTER_PREFIX_BYTES.length) {
-    return false;
-  }
-  for (let index = 0; index < CAS_POINTER_PREFIX_BYTES.length; index += 1) {
-    if (bytes[index] !== CAS_POINTER_PREFIX_BYTES[index]) {
-      return false;
-    }
-  }
-  return true;
+function handleIdentities(
+  handles: Readonly<Record<string, AssetHandle>>,
+): CheckpointTailShardIdentityMap {
+  return Object.freeze(Object.fromEntries(
+    Object.entries(handles).map(([path, handle]) => [path, handle.toString()]),
+  ));
 }
 
 function throwNoBoundedBasis(graphName: string, reason: string): never {

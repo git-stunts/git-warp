@@ -158,7 +158,7 @@ export function buildNodeAttach(
     op: TRANSFER_OP_ATTACH_NODE_CONTENT,
     nodeId,
     content,
-    contentOid: meta.oid,
+    contentHandle: meta.handle,
     mime: meta.mime,
     size: meta.size,
   } as VisibleStateTransferOperation;
@@ -239,7 +239,7 @@ export function buildEdgeAttach(
     to: edge.to,
     label: edge.label,
     content,
-    contentOid: meta.oid,
+    contentHandle: meta.handle,
     mime: meta.mime,
     size: meta.size,
   } as VisibleStateTransferOperation;

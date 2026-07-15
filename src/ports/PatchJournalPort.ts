@@ -1,61 +1,38 @@
-import type Patch from '../domain/types/Patch.ts';
-import type WarpStream from '../domain/stream/WarpStream.ts';
 import type PatchEntry from '../domain/artifacts/PatchEntry.ts';
-import {
-  LEGACY_GIT_BLOB_PATCH_STORAGE,
-  type PatchStorageRoute,
-} from './CommitMessageCodecPort.ts';
+import type AssetHandle from '../domain/storage/AssetHandle.ts';
+import type BundleHandle from '../domain/storage/BundleHandle.ts';
+import type StorageRetentionWitness from '../domain/storage/StorageRetentionWitness.ts';
+import type WarpStream from '../domain/stream/WarpStream.ts';
+import type Patch from '../domain/types/Patch.ts';
+import type { PatchCommitMessage } from './CommitMessageCodecPort.ts';
+import type { StagedAsset } from './AssetStoragePort.ts';
 
-/**
- * Port for patch journal persistence.
- *
- * Domain-facing port that speaks Patch domain objects. No bytes cross
- * this boundary. The adapter implementation owns the codec and talks to
- * the raw Git ports (BlobPort, BlobStoragePort) internally.
- *
- * This is part of the two-stage persistence boundary (P5 compliance):
- *   Domain Service -> PatchJournalPort (domain objects)
- *     -> Adapter (codec + raw Git ports) -> Git
- *
- * @see CborPatchJournalAdapter - Reference implementation
- */
+export type AppendPatchRequest = Readonly<{
+  patch: Patch;
+  graph: string;
+  writer: string;
+  targetRef: string;
+  expectedHead: string | null;
+  parent: string | null;
+  attachments: readonly AssetHandle[];
+}>;
 
-export interface ReadPatchOptions {
-  storage?: PatchStorageRoute;
-  encrypted?: boolean;
-}
+export type PublishedPatch = Readonly<{
+  sha: string;
+  bundleHandle: BundleHandle;
+  stagedPatch: StagedAsset;
+  retention: StorageRetentionWitness;
+}>;
 
-/** Port for patch journal persistence. */
+/** Semantic persistence boundary for causal patch history. */
 export default abstract class PatchJournalPort {
-  /** Persists a patch and returns its storage OID. */
-  abstract writePatch(_patch: Patch): Promise<string>;
+  /** Stages, bundles, and causally publishes one patch plus its attachments. */
+  abstract appendPatch(_request: AppendPatchRequest): Promise<PublishedPatch>;
 
-  /** Reads a patch by its storage OID. */
-  abstract readPatch(_patchOid: string, _options?: ReadPatchOptions): Promise<Patch>;
+  /** Reads a patch through its decoded commit locator, including legacy routes. */
+  abstract readPatch(_message: PatchCommitMessage): Promise<Patch>;
 
-  /** Describes the storage route used for newly written patches. */
-  get writeStorage(): PatchStorageRoute {
-    return LEGACY_GIT_BLOB_PATCH_STORAGE;
-  }
-
-  /**
-   * Whether this journal uses external blob storage.
-   *
-   * When true, readers must use the `encrypted` flag in the commit
-   * message trailer to retrieve blobs via BlobStoragePort rather than
-   * reading them directly from Git.
-   */
-  get usesExternalStorage(): boolean {
-    return this.writeStorage.strategy !== 'legacy-git-blob';
-  }
-
-  /**
-   * Scans patches in a writer's chain between two SHAs, yielding
-   * PatchEntry instances in chronological order (oldest first).
-   *
-   * This is the unbounded streaming alternative to the legacy
-   * loadPatchRange() which returns a whole array.
-   */
+  /** Streams a writer's chronological patch range. */
   abstract scanPatchRange(
     _writerId: string,
     _fromSha: string | null,

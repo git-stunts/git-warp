@@ -20,7 +20,7 @@ import WarpState from './WarpState.ts';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
-export type ContentMeta = { oid: string; mime: string | null; size: number | null };
+export type ContentMeta = { handle: string; mime: string | null; size: number | null };
 export type NeighborEntry = { nodeId: string; label: string; direction: 'outgoing' | 'incoming' };
 type OutgoingNeighborEntry = { nodeId: string; label: string; direction: 'outgoing' };
 type IncomingNeighborEntry = { nodeId: string; label: string; direction: 'incoming' };
@@ -397,7 +397,7 @@ function edgeKeyFromRecord(record: EdgeRecord): string {
 /** Converts a typed content attachment record into public reader metadata. */
 function contentMetaFromRecord(record: ContentAttachmentRecord): ContentMeta {
   return {
-    oid: record.payload.oid.toString(),
+    handle: record.payload.handle.toString(),
     mime: record.payload.mime?.toString() ?? null,
     size: record.payload.size?.toNumber() ?? null,
   };

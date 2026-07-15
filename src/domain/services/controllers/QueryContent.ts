@@ -11,6 +11,8 @@ import type ContentAttachmentRecord from '../../graph/ContentAttachmentRecord.ts
 import type { ContentMeta } from '../../types/ContentMeta.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { QueryContentHost } from './ReadGraphHost.ts';
+import AssetHandle from '../../storage/AssetHandle.ts';
+import { collectAsyncIterable } from '../../utils/streamUtils.ts';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -27,14 +29,14 @@ export type EdgeId = {
 
 function contentMetaFromRecord(record: ContentAttachmentRecord): ContentMeta {
   return {
-    oid: record.payload.oid.toString(),
+    handle: record.payload.handle.toString(),
     mime: record.payload.mime?.toString() ?? null,
     size: record.payload.size?.toNumber() ?? null,
   };
 }
 
-function contentOidFromRecord(record: ContentAttachmentRecord): string {
-  return record.payload.oid.toString();
+function contentHandleFromRecord(record: ContentAttachmentRecord): string {
+  return record.payload.handle.toString();
 }
 
 function nodeContentAttachment(state: WarpState, nodeId: string): ContentAttachmentRecord | null {
@@ -47,33 +49,15 @@ function edgeContentAttachment(state: WarpState, edge: EdgeId): ContentAttachmen
 
 // ── Blob resolution ─────────────────────────────────────────────────
 
-async function resolveBlob(host: QueryContentHost, oid: string): Promise<Uint8Array> {
-  if (host._blobStorage) {
-    return await host._blobStorage.retrieve(oid);
-  }
-  return await host._persistence.readBlob(oid);
+async function resolveAsset(host: QueryContentHost, handle: string): Promise<Uint8Array> {
+  return await collectAsyncIterable(resolveAssetStream(host, handle));
 }
 
-function resolveBlobStream(host: QueryContentHost, oid: string): AsyncIterable<Uint8Array> | null {
-  if (host._blobStorage && typeof host._blobStorage.retrieveStream === 'function') {
-    return host._blobStorage.retrieveStream(oid);
+function resolveAssetStream(host: QueryContentHost, handle: string): AsyncIterable<Uint8Array> {
+  if (host._assetStorage === null) {
+    throw new QueryError('Content asset storage is unavailable', { code: 'E_CONTENT_STORAGE' });
   }
-  return null;
-}
-
-export function singleChunkIterable(buf: Uint8Array): AsyncIterable<Uint8Array> {
-  return {
-    [Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
-      let done = false;
-      return {
-        next(): Promise<IteratorResult<Uint8Array>> {
-          if (done) { return Promise.resolve({ value: undefined, done: true }); }
-          done = true;
-          return Promise.resolve({ value: buf, done: false });
-        },
-      };
-    },
-  };
+  return host._assetStorage.open(new AssetHandle(handle));
 }
 
 // ── Host-dependent node content ─────────────────────────────────────
@@ -86,10 +70,10 @@ async function ensureAndGetState(host: QueryContentHost): Promise<WarpState> {
   return host._cachedState;
 }
 
-export async function getContentOidImpl(host: QueryContentHost, nodeId: string): Promise<string | null> {
+export async function getContentHandleImpl(host: QueryContentHost, nodeId: string): Promise<string | null> {
   const state = await ensureAndGetState(host);
   const record = nodeContentAttachment(state, nodeId);
-  return record === null ? null : contentOidFromRecord(record);
+  return record === null ? null : contentHandleFromRecord(record);
 }
 
 export async function getContentMetaImpl(host: QueryContentHost, nodeId: string): Promise<ContentMeta | null> {
@@ -102,25 +86,22 @@ export async function getContentImpl(host: QueryContentHost, nodeId: string): Pr
   const state = await ensureAndGetState(host);
   const record = nodeContentAttachment(state, nodeId);
   if (record === null) { return null; }
-  return await resolveBlob(host, contentOidFromRecord(record));
+  return await resolveAsset(host, contentHandleFromRecord(record));
 }
 
 export async function getContentStreamImpl(host: QueryContentHost, nodeId: string): Promise<AsyncIterable<Uint8Array> | null> {
   const state = await ensureAndGetState(host);
   const record = nodeContentAttachment(state, nodeId);
   if (record === null) { return null; }
-  const oid = contentOidFromRecord(record);
-  const stream = resolveBlobStream(host, oid);
-  if (stream) { return stream; }
-  return singleChunkIterable(await resolveBlob(host, oid));
+  return resolveAssetStream(host, contentHandleFromRecord(record));
 }
 
 // ── Host-dependent edge content ─────────────────────────────────────
 
-export async function getEdgeContentOidImpl(host: QueryContentHost, edge: EdgeId): Promise<string | null> {
+export async function getEdgeContentHandleImpl(host: QueryContentHost, edge: EdgeId): Promise<string | null> {
   const state = await ensureAndGetState(host);
   const record = edgeContentAttachment(state, edge);
-  return record === null ? null : contentOidFromRecord(record);
+  return record === null ? null : contentHandleFromRecord(record);
 }
 
 export async function getEdgeContentMetaImpl(host: QueryContentHost, edge: EdgeId): Promise<ContentMeta | null> {
@@ -133,15 +114,12 @@ export async function getEdgeContentImpl(host: QueryContentHost, edge: EdgeId): 
   const state = await ensureAndGetState(host);
   const record = edgeContentAttachment(state, edge);
   if (record === null) { return null; }
-  return await resolveBlob(host, contentOidFromRecord(record));
+  return await resolveAsset(host, contentHandleFromRecord(record));
 }
 
 export async function getEdgeContentStreamImpl(host: QueryContentHost, edge: EdgeId): Promise<AsyncIterable<Uint8Array> | null> {
   const state = await ensureAndGetState(host);
   const record = edgeContentAttachment(state, edge);
   if (record === null) { return null; }
-  const oid = contentOidFromRecord(record);
-  const stream = resolveBlobStream(host, oid);
-  if (stream) { return stream; }
-  return singleChunkIterable(await resolveBlob(host, oid));
+  return resolveAssetStream(host, contentHandleFromRecord(record));
 }

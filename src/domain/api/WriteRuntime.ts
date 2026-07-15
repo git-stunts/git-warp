@@ -8,8 +8,9 @@ import { applyIntentToPatch } from './IntentRuntime.ts';
 import type { WriteOutcome } from './ReceiptOutcome.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
 import WriteReceipt from './WriteReceipt.ts';
+import type { PatchCommitResult } from '../services/PatchCommitter.ts';
 
-type IntentCommit = (build: WarpWorldlinePatchBuild) => Promise<string>;
+type IntentCommit = (build: WarpWorldlinePatchBuild) => Promise<PatchCommitResult>;
 
 type IntentWriteFields = {
   readonly runtime: WarpWorldline;
@@ -19,7 +20,7 @@ type IntentWriteFields = {
 };
 
 type AcceptedWriteFields = Omit<IntentWriteFields, 'commit'> & {
-  readonly patchSha: string;
+  readonly publication: PatchCommitResult;
   readonly recoveryEvidence: Evidence;
 };
 
@@ -38,9 +39,9 @@ const MATERIALIZE_HINT = Object.freeze([
 export async function executeIntentWrite(fields: IntentWriteFields): Promise<WriteReceipt> {
   const { runtime, context, intent, commit } = fields;
   const recoveryEvidence = await createWriteRecoveryEvidence(runtime, context);
-  let patchSha: string;
+  let publication: PatchCommitResult;
   try {
-    patchSha = await commit((patch) => {
+    publication = await commit((patch) => {
       applyIntentToPatch(intent, patch);
     });
   } catch (error) {
@@ -60,11 +61,11 @@ export async function executeIntentWrite(fields: IntentWriteFields): Promise<Wri
     context.bindReceipt(receipt, { operation: 'write', patchSha: undefined });
     return receipt;
   }
-  return await acceptedWriteReceipt({ runtime, context, intent, patchSha, recoveryEvidence });
+  return await acceptedWriteReceipt({ runtime, context, intent, publication, recoveryEvidence });
 }
 
 async function acceptedWriteReceipt(fields: AcceptedWriteFields): Promise<WriteReceipt> {
-  const { runtime, context, intent, patchSha } = fields;
+  const { runtime, context, intent, publication } = fields;
   const receipt = new WriteReceipt({
     timeline: runtime.worldlineName,
     writer: runtime.writerId,
@@ -72,13 +73,18 @@ async function acceptedWriteReceipt(fields: AcceptedWriteFields): Promise<WriteR
     outcome: 'accepted',
     evidence: await committedWriteEvidence(fields),
   });
-  context.bindReceipt(receipt, { operation: 'write', patchSha });
+  context.bindReceipt(receipt, { operation: 'write', patchSha: publication.sha });
   return receipt;
 }
 
 async function committedWriteEvidence(fields: AcceptedWriteFields): Promise<Evidence> {
   try {
-    return await createWriteEvidence(fields.runtime, fields.context, fields.patchSha);
+    return await createWriteEvidence({
+      runtime: fields.runtime,
+      context: fields.context,
+      patchSha: fields.publication.sha,
+      retentionWitness: fields.publication.retention,
+    });
   } catch {
     // The patch is durable; return an honest basis without claiming correlated support.
     return fields.recoveryEvidence;

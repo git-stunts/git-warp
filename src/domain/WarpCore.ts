@@ -45,7 +45,7 @@ export default class WarpCore {
   /**
    * Returns the content blob OID attached to a node.
    */
-  declare readonly getContentOid: WarpCoreRuntimeSurface['getContentOid'];
+  declare readonly getContentHandle: WarpCoreRuntimeSurface['getContentHandle'];
   /**
    * Returns metadata for the content blob attached to a node.
    */
@@ -57,7 +57,7 @@ export default class WarpCore {
   /**
    * Returns the content blob OID attached to an edge.
    */
-  declare readonly getEdgeContentOid: WarpCoreRuntimeSurface['getEdgeContentOid'];
+  declare readonly getEdgeContentHandle: WarpCoreRuntimeSurface['getEdgeContentHandle'];
   /**
    * Returns metadata for the content blob attached to an edge.
    */

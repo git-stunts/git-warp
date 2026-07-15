@@ -1,8 +1,10 @@
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
+import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
+import type IndexStorePort from '../../ports/IndexStorePort.ts';
 import type { NeighborEdge } from '../../ports/NeighborProviderPort.ts';
 import type QueryCapability from '../capabilities/QueryCapability.ts';
 import type PatchCapability from '../capabilities/PatchCapability.ts';
@@ -142,7 +144,9 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   _maxObservedLamport: number;
   _checkpointPolicy: { every: number } | null;
   _autoMaterialize: boolean;
-  _blobStorage: BlobStoragePort | null;
+  _assetStorage: AssetStoragePort;
+  _checkpointStore: CheckpointStorePort;
+  _indexStore: IndexStorePort;
   readonly _viewService: MaterializedViewService;
   readonly _syncController: SyncController;
   readonly provenanceIndex: ProvenanceIndex | null;

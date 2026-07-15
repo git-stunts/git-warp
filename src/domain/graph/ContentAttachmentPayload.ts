@@ -1,23 +1,23 @@
 import ContentAttachmentMime from './ContentAttachmentMime.ts';
-import ContentAttachmentOid from './ContentAttachmentOid.ts';
+import ContentAttachmentHandle from './ContentAttachmentHandle.ts';
 import ContentAttachmentSize from './ContentAttachmentSize.ts';
 import WarpError from '../errors/WarpError.ts';
 
 export type ContentAttachmentPayloadFields = {
-  readonly oid: ContentAttachmentOid;
+  readonly handle: ContentAttachmentHandle;
   readonly mime: ContentAttachmentMime | null;
   readonly size: ContentAttachmentSize | null;
 };
 
 /** Runtime-backed content attachment payload metadata. */
 export default class ContentAttachmentPayload {
-  readonly oid: ContentAttachmentOid;
+  readonly handle: ContentAttachmentHandle;
   readonly mime: ContentAttachmentMime | null;
   readonly size: ContentAttachmentSize | null;
 
   constructor(fields: ContentAttachmentPayloadFields) {
     const checkedFields = requireFields(fields);
-    this.oid = requireOid(checkedFields.oid);
+    this.handle = requireHandle(checkedFields.handle);
     this.mime = requireMime(checkedFields.mime);
     this.size = requireSize(checkedFields.size);
     Object.freeze(this);
@@ -45,9 +45,12 @@ function requireFields(
 }
 
 /** Requires a runtime-backed content storage reference. */
-function requireOid(value: ContentAttachmentOid): ContentAttachmentOid {
-  if (!(value instanceof ContentAttachmentOid)) {
-    throw new WarpError('ContentAttachmentPayload oid must be a ContentAttachmentOid', 'E_VALIDATION');
+function requireHandle(value: ContentAttachmentHandle): ContentAttachmentHandle {
+  if (!(value instanceof ContentAttachmentHandle)) {
+    throw new WarpError(
+      'ContentAttachmentPayload handle must be a ContentAttachmentHandle',
+      'E_VALIDATION',
+    );
   }
   return value;
 }

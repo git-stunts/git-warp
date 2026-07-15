@@ -17,6 +17,7 @@ import IndexError from '../../errors/IndexError.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
+import type AssetHandle from '../../storage/AssetHandle.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
 import {
   buildLogicalIndex,
@@ -80,24 +81,24 @@ export default class LogicalIndexReader {
   /**
    * Loads all shards from OID→blob storage (async).
    */
-  async loadFromOids(
-    shardOids: Record<string, string>,
-    storage: { readBlob(oid: string): Promise<Uint8Array> },
+  async loadFromHandles(
+    shardHandles: Readonly<Record<string, AssetHandle>>,
   ): Promise<this> {
     this._resetState();
-    const entries = Object.entries(shardOids);
-    if (this._indexStore) {
-      const indexStore = this._indexStore;
-      const decoded: DecodedItem[] = await Promise.all(
-        entries.map(async ([path, oid]) => ({ path, data: await indexStore.decodeShard(oid) })),
+    if (this._indexStore === null) {
+      throw new IndexError(
+        'LogicalIndexReader: loadFromHandles() requires an indexStore',
+        { code: 'E_INDEX_NO_STORE' },
       );
-      this._processDecoded(decoded);
-    } else {
-      const items: ShardItem[] = await Promise.all(
-        entries.map(async ([path, oid]) => ({ path, buf: await storage.readBlob(oid) })),
-      );
-      this._processShards(items);
     }
+    const indexStore = this._indexStore;
+    const decoded: DecodedItem[] = await Promise.all(
+      Object.entries(shardHandles).map(async ([path, handle]) => ({
+        path,
+        data: await indexStore.decodeShard(handle),
+      })),
+    );
+    this._processDecoded(decoded);
     return this;
   }
 
@@ -128,14 +129,14 @@ export default class LogicalIndexReader {
    * The adapter reads, decodes, and classifies blobs into IndexShard
    * domain objects. The reader consumes them without touching any codec.
    */
-  async loadFromStore(treeOid: string): Promise<this> {
+  async loadFromStore(indexHandle: AssetHandle): Promise<this> {
     if (!this._indexStore) {
       throw new IndexError(
         'LogicalIndexReader: loadFromStore() requires an indexStore',
         { code: 'E_INDEX_NO_STORE' },
       );
     }
-    const shards = await this._indexStore.scanShards(treeOid).collect();
+    const shards = await this._indexStore.scanShards(indexHandle).collect();
     this.loadFromShards(shards);
     return this;
   }

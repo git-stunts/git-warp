@@ -2,7 +2,6 @@ import type WarpStream from '../domain/stream/WarpStream.ts';
 import type {
   CommitLogChunk,
   CommitNodeOptions,
-  CommitNodeWithTreeOptions,
   LogNodesOptions,
   NodeInfo,
   PingResult,
@@ -16,16 +15,13 @@ import type { ListRefsOptions } from './RefPort.ts';
  * storage layer. Concrete adapters (e.g., GitTimelineHistoryAdapter) implement this
  * interface to provide actual Git operations.
  *
- * This is a **composite port** that implements the union of four focused ports:
+ * This is the causal timeline history boundary:
  *
  * - CommitPort -- commit creation, reading, logging, counting, ping
- * - BlobPort -- blob read/write
- * - TreePort -- tree read/write, emptyTree getter
  * - RefPort -- ref update/read/delete
  *
- * Domain services should document which focused port(s) they actually depend on,
- * even though they accept the full GraphPersistencePort at runtime.
- * This enables future narrowing without breaking backward compatibility.
+ * Immutable assets and materialized indexes use their dedicated semantic
+ * storage ports. Raw object plumbing is infrastructure-only.
  */
 
 /** Composite port for graph persistence operations. */
@@ -50,48 +46,11 @@ export default abstract class GraphPersistencePort {
   /** Counts nodes reachable from a ref without loading them into memory. */
   abstract countNodes(_ref: string): Promise<number>;
 
-  /**
-   * Creates a commit pointing to a specified tree (not the empty tree).
-   * Used by CheckpointService and PatchBuilder for tree-backed commits.
-   */
-  abstract commitNodeWithTree(_options: CommitNodeWithTreeOptions): Promise<string>;
-
   /** Checks whether a commit exists in the repository. */
   abstract nodeExists(_sha: string): Promise<boolean>;
 
-  /** Retrieves the tree OID for a given commit SHA. */
-  abstract getCommitTree(_sha: string): Promise<string>;
-
   /** Pings the repository to verify accessibility. */
   abstract ping(): Promise<PingResult>;
-
-  // -- BlobPort surface --
-
-  /** Writes content as a Git blob and returns its OID. */
-  abstract writeBlob(_content: Uint8Array | string): Promise<string>;
-
-  /** Reads the content of a Git blob by OID. */
-  abstract readBlob(_oid: string): Promise<Uint8Array>;
-
-  // -- TreePort surface --
-
-  /** Creates a Git tree from mktree-formatted entries. */
-  abstract writeTree(_entries: string[]): Promise<string>;
-
-  /** Reads a tree and returns a map of path to content. */
-  abstract readTree(_treeOid: string): Promise<Record<string, Uint8Array>>;
-
-  /**
-   * Reads a tree and returns a map of path to blob OID.
-   * Useful for lazy-loading shards without reading all blob contents.
-   */
-  abstract readTreeOids(_treeOid: string): Promise<Record<string, string>>;
-
-  /**
-   * The well-known SHA for Git's empty tree object.
-   * All WARP graph commits point to this tree so that no files appear in the working directory.
-   */
-  abstract get emptyTree(): string;
 
   // -- RefPort surface --
 

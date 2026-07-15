@@ -144,10 +144,15 @@ function readPatchDescriptors(source: JsonObject): readonly GraphModelMigrationP
 function readContentSources(source: JsonObject): readonly GraphModelMigrationContentSource[] {
   return readObjectArray(source, 'contentSources').map((content, index) => {
     const label = `contentSources[${index}]`;
-    rejectUnknownKeys(content, ['legacyContentKey', 'contentOid'], label);
+    rejectUnknownKeys(content, ['legacyContentKey', 'contentHandle', 'contentOid'], label);
+    const contentHandle = content['contentHandle'] ?? content['contentOid'];
     return new GraphModelMigrationContentSource({
       legacyContentKey: readRequiredString(content, `${label}.legacyContentKey`, 'legacyContentKey'),
-      contentOid: readRequiredString(content, `${label}.contentOid`, 'contentOid'),
+      contentHandle: readRequiredString(
+        { contentHandle },
+        `${label}.contentHandle`,
+        'contentHandle',
+      ),
     });
   });
 }

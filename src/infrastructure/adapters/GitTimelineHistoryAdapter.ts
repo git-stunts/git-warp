@@ -9,7 +9,6 @@ import { GitPersistenceAdapter } from '@git-stunts/git-cas';
 import type {
   CommitLogChunk,
   CommitNodeOptions,
-  CommitNodeWithTreeOptions,
   LogNodesOptions,
   NodeInfo,
   PingResult,
@@ -18,17 +17,17 @@ import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
 import type TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
 import type TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
-import type { TreeEntryProbeResult } from '../../ports/TreeEntryProbePort.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
 import decodeGitCommitNodeInfo from './GitCommitNodeInfoDecoder.ts';
-import GitRecursiveTreeOidReaderAdapter from './GitRecursiveTreeOidReaderAdapter.ts';
+import GitRecursiveTreeOidReaderAdapter, {
+  type TreeEntryProbeResult,
+} from './GitRecursiveTreeOidReaderAdapter.ts';
 import AlfredOperationPolicyAdapter from './AlfredOperationPolicyAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
-import type { ContentAnchorObjectType } from '../../domain/services/state/checkpointHelpers.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
   type GitPlumbing,
@@ -48,6 +47,14 @@ export interface GitTimelineHistoryAdapterOptions {
   readonly plumbing: GitPlumbing;
   readonly retryOptions?: Partial<OperationPolicyExecuteOptions>;
   readonly policy?: OperationPolicyPort;
+}
+
+/** Infrastructure-only tree-backed commit operation. */
+export interface GitTreeCommitOptions {
+  treeOid: string;
+  parents?: string[];
+  message: string;
+  sign?: boolean;
 }
 interface GitCasPolicy {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -77,16 +84,6 @@ function createGitCasRetryPolicy(
   });
 }
 
-function parseContentAnchorObjectType(value: string, oid: string): ContentAnchorObjectType {
-  if (value === 'blob' || value === 'tree') {
-    return value;
-  }
-  throw new PersistenceError(
-    `Unsupported Git object type for content anchor ${oid}: ${value}`,
-    'E_UNSUPPORTED_CONTENT_ANCHOR_OBJECT_TYPE',
-    { context: { oid, objectType: value } }
-  );
-}
 
 function buildListRefsArgs(prefix: string, limit: number | null | undefined): string[] {
   const args = ['for-each-ref', '--format=%(refname)'];
@@ -194,7 +191,7 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     parents = [],
     message,
     sign = false,
-  }: CommitNodeWithTreeOptions): Promise<string> {
+  }: GitTreeCommitOptions): Promise<string> {
     validateOid(treeOid);
     return await this._createCommit({ tree: treeOid, parents, message, sign });
   }
@@ -327,15 +324,13 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     }
   }
 
-  async readObjectType(oid: string): Promise<ContentAnchorObjectType> {
+  async readObjectType(oid: string): Promise<string> {
     validateOid(oid);
-    let output: string;
     try {
-      output = await this._executeWithRetry({ args: ['cat-file', '-t', oid] });
+      return (await this._executeWithRetry({ args: ['cat-file', '-t', oid] })).trim();
     } catch (raw) {
       throw wrapGitError(toGitError(raw), { oid });
     }
-    return parseContentAnchorObjectType(output.trim(), oid);
   }
 
   async updateRef(ref: string, oid: string): Promise<void> {

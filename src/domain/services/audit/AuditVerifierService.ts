@@ -9,14 +9,10 @@
  */
 
 import type CodecPort from '../../../ports/CodecPort.ts';
-import type CommitPort from '../../../ports/CommitPort.ts';
-import type RefPort from '../../../ports/RefPort.ts';
-import type BlobPort from '../../../ports/BlobPort.ts';
-import type TreePort from '../../../ports/TreePort.ts';
+import type AuditLogPort from '../../../ports/AuditLogPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type TrustChainPort from '../../../ports/TrustChainPort.ts';
 import type TrustCryptoPort from '../../../ports/TrustCryptoPort.ts';
-import { buildAuditPrefix } from '../../utils/RefLayout.ts';
 import AuditChainVerifier, { type ChainResult } from './AuditChainVerifier.ts';
 import TrustEvaluationService, { type TrustEvaluationOptions } from './TrustEvaluationService.ts';
 import type { TrustAssessment } from '../../trust/TrustAssessment.ts';
@@ -35,24 +31,22 @@ type VerifyResult = {
   trustWarning: TrustWarning | null;
 };
 
-type Persistence = CommitPort & RefPort & BlobPort & TreePort;
-
 export default class AuditVerifierService {
   private readonly _chainVerifier: AuditChainVerifier;
   private readonly _trustService: TrustEvaluationService;
-  private readonly _persistence: Persistence;
+  private readonly _auditLog: AuditLogPort;
   readonly logger: LoggerPort | null;
 
   constructor(opts: {
-    persistence: Persistence;
+    auditLog: AuditLogPort;
     codec: CodecPort;
     logger?: LoggerPort;
     trustCrypto?: TrustCryptoPort;
     trustChain?: TrustChainPort;
   }) {
-    this._persistence = opts.persistence;
+    this._auditLog = opts.auditLog;
     this.logger = opts.logger ?? null;
-    this._chainVerifier = new AuditChainVerifier(opts.persistence, opts.codec);
+    this._chainVerifier = new AuditChainVerifier(opts.auditLog, opts.codec);
     this._trustService = new TrustEvaluationService({
       listWriterIds: (graphName) => this._listWriterIds(graphName),
       ...(opts.trustChain !== undefined ? { trustChain: opts.trustChain } : {}),
@@ -116,11 +110,7 @@ export default class AuditVerifierService {
   }
 
   private async _listWriterIds(graphName: string): Promise<string[]> {
-    const prefix = buildAuditPrefix(graphName);
-    const refs: string[] = await this._persistence.listRefs(prefix);
-    return refs
-      .map((ref) => ref.slice(prefix.length))
-      .filter((id) => id.length > 0);
+    return await this._auditLog.listWriterIds(graphName);
   }
 }
 

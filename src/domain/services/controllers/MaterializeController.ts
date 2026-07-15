@@ -11,7 +11,6 @@
  */
 
 import { reducePatches as reduceJoinedPatches, createEmptyState } from '../JoinReducer.ts';
-import { type LoadPersistence } from '../state/checkpointLoad.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import { computeStateHash } from '../state/StateSerializer.ts';
 import {
@@ -40,7 +39,7 @@ import {
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
-import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
@@ -56,9 +55,6 @@ import type {
 
 export type MaterializePersistence = {
   readRef(ref: string): Promise<string | null>;
-  showNode(sha: string): Promise<string>;
-  readTreeOids(treeOid: string): Promise<Record<string, string>>;
-  readBlob(oid: string): Promise<Uint8Array>;
 };
 
 // ── Deps ────────────────────────────────────────────────────────────
@@ -69,12 +65,12 @@ export type MaterializeDeps = {
   codec: CodecPort;
   crypto: CryptoPort;
   persistence: MaterializePersistence;
+  checkpointStore: CheckpointStorePort;
   getStateCache?: () => WarpStateCachePort | null;
   openStateSession?: MaterializeSessionOpener;
   patches: PatchCollector;
   graphCloner: DetachedGraphFactory;
   graphName: string;
-  commitMessageCodec: CommitMessageCodecPort;
 };
 
 // ── Result types ────────────────────────────────────────────────────
@@ -207,18 +203,6 @@ export default class MaterializeController {
     return await this._checkpointStrategy.materializeAt(checkpointSha);
   }
 
-  private _assertLoadPersistence(
-    persistence: MaterializePersistence,
-  ): asserts persistence is MaterializePersistence & LoadPersistence {
-    void persistence;
-  }
-
-  private _loadPersistence(): MaterializePersistence & LoadPersistence {
-    const {persistence} = this._deps;
-    this._assertLoadPersistence(persistence);
-    return persistence;
-  }
-
   // ── Result building ───────────────────────────────────────────────
 
   private async _emptyResult(
@@ -342,7 +326,6 @@ export default class MaterializeController {
         await this._reducePatchStream(stream, base, opts, provenanceBase),
       buildResult: async (params) => await this._buildResult(params),
       buildProvenance: (patches, base) => buildProvenance(patches, base),
-      loadPersistence: () => this._loadPersistence(),
     };
   }
 

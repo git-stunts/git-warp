@@ -15,19 +15,19 @@ import type {
 export class CheckpointContentAnchorFact extends CheckpointBasisFact {
   readonly kind = 'content-anchor' as const;
   readonly owner: string;
-  readonly contentOid: string;
+  readonly contentHandle: string;
   readonly retainedPayloadByteHash: string | null;
   readonly eventId: EventId;
 
   constructor(options: {
     readonly owner: string;
-    readonly contentOid: string;
+    readonly contentHandle: string;
     readonly retainedPayloadByteHash?: string | null;
     readonly eventId: EventId;
   }) {
     super();
     this.owner = validateText(options.owner, 'owner');
-    this.contentOid = validateText(options.contentOid, 'contentOid');
+    this.contentHandle = validateText(options.contentHandle, 'contentHandle');
     this.retainedPayloadByteHash = options.retainedPayloadByteHash === undefined
       || options.retainedPayloadByteHash === null
       ? null
@@ -45,14 +45,14 @@ export class CheckpointContentAnchorFact extends CheckpointBasisFact {
   }
 
   sortKey(): string {
-    return `${this.owner}:${this.contentOid}:${eventSortKey(this.eventId)}`;
+    return `${this.owner}:${this.contentHandle}:${eventSortKey(this.eventId)}`;
   }
 
   toTransport(): CheckpointBasisFactTransport {
     return {
       kind: this.kind,
       owner: this.owner,
-      contentOid: this.contentOid,
+      contentHandle: this.contentHandle,
       retainedPayloadByteHash: this.retainedPayloadByteHash,
       eventId: eventTransport(this.eventId),
     };

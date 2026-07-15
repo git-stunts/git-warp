@@ -11,6 +11,7 @@
  */
 
 import type { TrustRecord } from '../domain/trust/TrustRecord.ts';
+import type StorageRetentionWitness from '../domain/storage/StorageRetentionWitness.ts';
 
 /** Result of reading the chain tip. */
 type TrustChainTip = {
@@ -26,6 +27,11 @@ type CasConflictDetail = {
   readonly actualTipSha: string | null;
   readonly actualTipRecordId: string | null;
 };
+
+export type TrustRecordPublication = Readonly<{
+  commitSha: string;
+  retention: StorageRetentionWitness;
+}>;
 
 /** Port for trust record chain persistence. */
 export default abstract class TrustChainPort {
@@ -63,7 +69,7 @@ export default abstract class TrustChainPort {
     graphName: string,
     record: TrustRecord,
     parentTipSha: string | null,
-  ): Promise<string>;
+  ): Promise<TrustRecordPublication>;
 }
 
 export type { TrustChainTip, CasConflictDetail };

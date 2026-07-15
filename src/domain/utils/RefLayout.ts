@@ -55,6 +55,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'strand-braids',
   'audit',
   'trust',
+  'intents',
   'seek-cache',
   'state-cache',
 ]);
@@ -308,6 +309,17 @@ export function buildStrandRef(graphName: string, strandId: string): string {
 export function buildStrandsPrefix(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/strands/`;
+}
+
+/** Builds an admitted or queued intent-journal ref. */
+export function buildIntentRef(
+  graphName: string,
+  channel: 'admitted' | 'queued',
+  ownerId: string,
+): string {
+  validateGraphName(graphName);
+  validateWriterId(ownerId);
+  return `${REF_PREFIX}/${graphName}/intents/${channel}/${ownerId}`;
 }
 
 /**

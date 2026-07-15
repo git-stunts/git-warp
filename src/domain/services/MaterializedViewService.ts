@@ -14,16 +14,12 @@
 
 import LogicalIndexBuildService from './index/LogicalIndexBuildService.ts';
 import LogicalIndexReader from './index/LogicalIndexReader.ts';
-import PropertyIndexReader from './index/PropertyIndexReader.ts';
+import type PropertyIndexReader from './index/PropertyIndexReader.ts';
 import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.ts';
-import WarpError from '../errors/WarpError.ts';
 import { requireCodec } from './codec/CodecRequirement.ts';
-import { buildInMemoryPropertyReader, partitionShardOids, shardToEntry } from './MaterializedViewHelpers.ts';
+import { buildInMemoryPropertyReader, shardToEntry } from './MaterializedViewHelpers.ts';
 import { verifyIndex, type VerifyResult, type VerifyIndexParams } from './MaterializedViewVerifier.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
-import type LoggerPort from '../../ports/LoggerPort.ts';
-import type IndexStorePort from '../../ports/IndexStorePort.ts';
-import type IndexStoragePort from '../../ports/IndexStoragePort.ts';
 import type WarpState from './state/WarpState.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
 import type { IndexShard } from '../artifacts/IndexShard.ts';
@@ -40,27 +36,18 @@ export interface BuildResult {
   receipt: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
-export interface LoadResult {
-  logicalIndex: LogicalIndex;
-  propertyReader: PropertyIndexReader;
-}
-
 // ── Service ───────────────────────────────────────────────────────────────────
 
 export interface MaterializedViewServiceOptions {
   codec?: CodecPort;
-  logger?: LoggerPort;
-  indexStore?: IndexStorePort;
 }
 
 export default class MaterializedViewService {
   private readonly _codec: CodecPort;
-  private readonly _indexStore: IndexStorePort | null;
 
   constructor(options?: MaterializedViewServiceOptions) {
-    const { codec, indexStore } = options ?? {};
+    const { codec } = options ?? {};
     this._codec = requireCodec(codec, 'MaterializedViewService');
-    this._indexStore = indexStore ?? null;
   }
 
   /**
@@ -92,78 +79,6 @@ export default class MaterializedViewService {
         shardCount: receipt.shardCount,
       },
     };
-  }
-
-  /**
-   * Writes each shard as a blob and creates a Git tree object.
-   *
-   * @returns tree OID
-   */
-  async persistIndexTree(
-    tree: Record<string, Uint8Array>,
-    persistence: {
-      writeBlob(buf: Uint8Array): Promise<string>;
-      writeTree(entries: string[]): Promise<string>;
-    },
-  ): Promise<string> {
-    const paths = Object.keys(tree).sort();
-    const oids = await Promise.all(
-      paths.map((p) => {
-        const blob = tree[p];
-        if (!blob) {
-          throw new WarpError(
-            `Missing blob for path: ${p}`,
-            'E_MATERIALIZED_VIEW_MISSING_BLOB',
-            { context: { path: p } },
-          );
-        }
-        return persistence.writeBlob(blob);
-      }),
-    );
-
-    const entries = paths.map((path, i) => {
-      const oid = oids[i];
-      if (oid === undefined) {
-        throw new WarpError(
-          `Missing blob OID for path: ${path}`,
-          'E_MATERIALIZED_VIEW_MISSING_BLOB_OID',
-          { context: { path } },
-        );
-      }
-      return `100644 blob ${oid}\t${path}`;
-    });
-    return await persistence.writeTree(entries);
-  }
-
-  /**
-   * Hydrates a LogicalIndex + PropertyIndexReader from blob OIDs.
-   *
-   * @param shardOids - path to blob OID
-   * @param storage - blob storage backend
-   */
-  async loadFromOids(
-    shardOids: Record<string, string>,
-    storage: { readBlob(oid: string): Promise<Uint8Array> },
-  ): Promise<LoadResult> {
-    const { indexOids, propOids } = partitionShardOids(shardOids);
-
-    const reader = new LogicalIndexReader({
-      codec: this._codec,
-      ...(this._indexStore ? { indexStore: this._indexStore } : {}),
-    });
-    await reader.loadFromOids(indexOids, storage);
-    const logicalIndex = reader.toLogicalIndex();
-
-    // PropertyIndexReader is a .js file that only calls `readBlob` at runtime.
-    // The caller's narrower type satisfies the runtime contract.
-    const propertyReader = new PropertyIndexReader({
-      storage: storage as unknown as IndexStoragePort, // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-      codec: this._codec,
-      ...(this._indexStore ? { indexStore: this._indexStore } : {}),
-    });
-    propertyReader.setup(propOids);
-
-    return { logicalIndex, propertyReader };
   }
 
   /**

@@ -47,7 +47,7 @@ type ServiceOptions = {
     overlayId: string;
     parentSha: string | null;
     patch: Patch;
-    contentBlobOids: string[];
+    contentAssetHandles: string[];
     lamport: number;
   }) => Promise<{ sha: string; patch: Patch }>;
   collectPatchEntries: (
@@ -196,7 +196,7 @@ export default class StrandIntentService {
         overlayId: descriptor.overlay.overlayId,
         parentSha: overlayHeadPatchSha,
         patch: intent.patch,
-        contentBlobOids: intent.contentBlobOids,
+        contentAssetHandles: intent.contentAssetHandles,
         lamport: maxLamport,
       });
       overlayHeadPatchSha = committed.sha;
@@ -268,7 +268,7 @@ export default class StrandIntentService {
       ...intent,
       reads: [...intent.reads],
       writes: [...intent.writes],
-      contentBlobOids: [...intent.contentBlobOids],
+      contentAssetHandles: [...intent.contentAssetHandles],
     }));
   }
 

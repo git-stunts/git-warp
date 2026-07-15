@@ -30,7 +30,9 @@ function isReadableStream(value: unknown): value is ReadableStream<Uint8Array> {
  * Returns true when the content is a streaming input type
  * (AsyncIterable or ReadableStream) rather than a buffered value.
  */
-export function isStreamingInput(content: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+export function isStreamingInput(
+  content: unknown,
+): content is AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   // Buffered types are never streaming, even if a polyfill adds Symbol.asyncIterator
   if (content instanceof Uint8Array || typeof content === 'string') {
     return false;

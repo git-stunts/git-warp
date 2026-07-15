@@ -10,6 +10,7 @@
  */
 
 import type TrustChainPort from '../../ports/TrustChainPort.ts';
+import type { TrustRecordPublication } from '../../ports/TrustChainPort.ts';
 import type { TrustRecord } from './TrustRecord.ts';
 import TrustError from '../errors/TrustError.ts';
 
@@ -19,9 +20,14 @@ type AppendOptions = {
   readonly skipSignatureVerify?: boolean;
 };
 
+export type TrustRetryTip = Readonly<{
+  tipSha: string | null;
+  recordId: string | null;
+}>;
+
 type RetryOptions = {
   readonly maxRetries?: number;
-  readonly resign?: ((record: TrustRecord) => Promise<TrustRecord>) | null;
+  readonly resign?: ((record: TrustRecord, tip: TrustRetryTip) => Promise<TrustRecord>) | null;
   readonly skipSignatureVerify?: boolean;
 };
 
@@ -48,7 +54,7 @@ class TrustRecordService {
     graphName: string,
     record: TrustRecord,
     options: AppendOptions = {},
-  ): Promise<{ commitSha: string }> {
+  ): Promise<TrustRecordPublication> {
     // 1. Signature envelope check (structural, not cryptographic)
     if (options.skipSignatureVerify !== true) {
       verifySignatureEnvelope(record);
@@ -67,8 +73,7 @@ class TrustRecordService {
 
     // 3. Persist via port
     const parentTipSha = tip?.tipSha ?? null;
-    const commitSha = await this._chain.persistRecord(graphName, record, parentTipSha);
-    return { commitSha };
+    return await this._chain.persistRecord(graphName, record, parentTipSha);
   }
 
   /**
@@ -81,7 +86,7 @@ class TrustRecordService {
     graphName: string,
     record: TrustRecord,
     options: RetryOptions = {},
-  ): Promise<{ commitSha: string; attempts: number }> {
+  ): Promise<TrustRecordPublication & { attempts: number }> {
     const { maxRetries = 3, resign = null, skipSignatureVerify = false } = options;
     let currentRecord = record;
     let attempts = 0;
@@ -92,7 +97,7 @@ class TrustRecordService {
         const result = await this.appendRecord(graphName, currentRecord, { skipSignatureVerify });
         return { ...result, attempts };
       } catch (err) {
-        if (!(err instanceof TrustError) || err.code !== 'E_TRUST_CAS_CONFLICT') {
+        if (!isRetryableConflict(err, resign)) {
           throw err;
         }
 
@@ -103,9 +108,16 @@ class TrustRecordService {
           );
         }
 
-        // Re-sign if signer is provided
-        if (resign) {
-          currentRecord = await resign(currentRecord);
+        const freshTip = await this._chain.readTip(graphName);
+        const retryTip = Object.freeze({
+          tipSha: freshTip?.tipSha ?? null,
+          recordId: freshTip?.recordId ?? null,
+        });
+        if (resign !== null) {
+          currentRecord = await resign(currentRecord, retryTip);
+          requireRetryPrev(currentRecord, retryTip.recordId);
+        } else if (currentRecord.prev !== retryTip.recordId) {
+          throw prevMismatch(currentRecord.prev, retryTip.recordId);
         }
       }
     }
@@ -131,6 +143,28 @@ class TrustRecordService {
 }
 
 // -- Helpers ------------------------------------------------------------------
+
+function isRetryableConflict(
+  error: unknown,
+  resign: RetryOptions['resign'],
+): error is TrustError {
+  return error instanceof TrustError
+    && (error.code === 'E_TRUST_CAS_CONFLICT'
+      || (error.code === 'E_TRUST_PREV_MISMATCH' && resign !== null));
+}
+
+function requireRetryPrev(record: TrustRecord, expectedPrev: string | null): void {
+  if (record.prev !== expectedPrev) {
+    throw prevMismatch(record.prev, expectedPrev);
+  }
+}
+
+function prevMismatch(actual: string | null, expected: string | null): TrustError {
+  return new TrustError(
+    `Prev-link mismatch: record.prev=${String(actual)}, chain tip=${String(expected)}`,
+    { code: 'E_TRUST_PREV_MISMATCH' },
+  );
+}
 
 function verifySignatureEnvelope(record: TrustRecord): void {
   if (record.signature.alg !== 'ed25519') {

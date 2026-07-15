@@ -35,7 +35,7 @@ export function createTimeline(runtime: WarpWorldline, context: ApiRuntimeContex
         runtime,
         context,
         intent,
-        commit: runtime.commit.bind(runtime),
+        commit: runtime.commitWithEvidence.bind(runtime),
       }),
   });
   timelineRuntimes.set(timeline, runtime);

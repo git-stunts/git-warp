@@ -25,11 +25,14 @@ import type LoggerPort from '../../ports/LoggerPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type WarpStateCachePort from '../../ports/WarpStateCachePort.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
+import type AuditLogPort from '../../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
+import type StrandStorePort from '../../ports/StrandStorePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../../ports/IndexStorePort.ts';
+import type IntentStorePort from '../../ports/IntentStorePort.ts';
 import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
 import type SchedulerPort from '../../ports/SchedulerPort.ts';
@@ -57,13 +60,15 @@ export type RuntimeHostConstructionOptions = {
   trustCrypto?: TrustCryptoPort;
   stateCache?: WarpStateCachePort | null;
   audit?: boolean;
-  blobStorage?: BlobStoragePort;
-  patchBlobStorage?: BlobStoragePort;
+  assetStorage: AssetStoragePort;
+  auditLog: AuditLogPort;
   commitMessageCodec: CommitMessageCodecPort;
   trust?: { mode?: TrustMode; pin?: string | null };
   patchJournal: PatchJournalPort;
+  strandStore: StrandStorePort;
   checkpointStore: CheckpointStorePort;
   indexStore: IndexStorePort;
+  intentStore: IntentStorePort;
   viewService: MaterializedViewService;
   stateHashService?: StateHashService;
   auditService?: AuditReceiptService;
@@ -87,12 +92,7 @@ export type RuntimeHostOpenOptions = {
   trustCrypto?: TrustCryptoPort;
   stateCache?: WarpStateCachePort | null;
   audit?: boolean;
-  blobStorage?: BlobStoragePort;
-  patchBlobStorage?: BlobStoragePort;
   commitMessageCodec?: CommitMessageCodecPort;
-  patchJournal?: PatchJournalPort | null;
-  checkpointStore?: CheckpointStorePort | null;
-  indexStore?: IndexStorePort | null;
   trust?: { mode?: TrustMode; pin?: string | null };
   effectPipeline?: EffectPipeline;
   effectSinks?: readonly EffectSinkPort[];
@@ -116,12 +116,7 @@ export class WarpOpenOptions {
   readonly trustCrypto?: TrustCryptoPort;
   readonly stateCache?: WarpStateCachePort | null;
   readonly audit?: boolean;
-  readonly blobStorage?: BlobStoragePort;
-  readonly patchBlobStorage?: BlobStoragePort;
   readonly commitMessageCodec?: CommitMessageCodecPort;
-  readonly patchJournal?: PatchJournalPort | null;
-  readonly checkpointStore?: CheckpointStorePort | null;
-  readonly indexStore?: IndexStorePort | null;
   readonly trust?: { mode?: TrustMode; pin?: string | null };
   readonly effectPipeline?: EffectPipeline;
   readonly effectSinks?: readonly EffectSinkPort[];
@@ -166,12 +161,7 @@ export class WarpOpenOptions {
     if (options.audit !== undefined) {
       this.audit = normalizeBooleanOption(options.audit, 'audit', 'E_AUDIT_TYPE');
     }
-    if (options.blobStorage !== undefined) { this.blobStorage = options.blobStorage; }
-    if (options.patchBlobStorage !== undefined) { this.patchBlobStorage = options.patchBlobStorage; }
     if (options.commitMessageCodec !== undefined) { this.commitMessageCodec = options.commitMessageCodec; }
-    if (options.patchJournal !== undefined) { this.patchJournal = options.patchJournal; }
-    if (options.checkpointStore !== undefined) { this.checkpointStore = options.checkpointStore; }
-    if (options.indexStore !== undefined) { this.indexStore = options.indexStore; }
     if (options.trust !== undefined) {
       this.trust = Object.freeze(normalizeTrustConfig(options.trust));
     }
@@ -278,12 +268,7 @@ export async function resolveRuntimeHostConstructionOptions(
     trustCrypto,
     stateCache,
     audit,
-    blobStorage,
-    patchBlobStorage,
     commitMessageCodec,
-    patchJournal,
-    checkpointStore,
-    indexStore,
     trust,
     effectPipeline,
     effectSinks,
@@ -304,14 +289,8 @@ export async function resolveRuntimeHostConstructionOptions(
     codec: resolvedCodec,
     commitMessageCodec: resolvedCommitMessageCodec,
     ...(logger === undefined ? {} : { logger }),
-    ...(blobStorage === undefined ? {} : { contentOverride: blobStorage }),
-    ...(patchBlobStorage === undefined
-      ? {}
-      : { patchContentOverride: patchBlobStorage }),
   });
-  const resolvedBlobStorage = storageServices.content;
-  const resolvedPatchJournal = patchJournal ?? storageServices.patchJournal;
-  const resolvedCheckpointStore = checkpointStore ?? storageServices.checkpoints;
+  const resolvedAssetStorage = storageServices.content;
 
   let resolvedStateCache: WarpStateCachePort | undefined;
   if (stateCache !== undefined && stateCache !== null) {
@@ -320,7 +299,7 @@ export async function resolveRuntimeHostConstructionOptions(
     resolvedStateCache = storageServices.stateSnapshots;
   }
 
-  const resolvedIndexStore = indexStore ?? storageServices.indexes;
+  const resolvedIndexStore = storageServices.indexes;
 
   const resolvedStateHashService = new StateHashService({
     codec: resolvedCodec,
@@ -329,14 +308,12 @@ export async function resolveRuntimeHostConstructionOptions(
 
   const resolvedViewService = new MaterializedViewService({
     codec: resolvedCodec,
-    ...(logger !== undefined ? { logger } : {}),
-    indexStore: resolvedIndexStore,
   });
 
   let resolvedAuditService: AuditReceiptService | undefined;
   if (audit === true) {
     resolvedAuditService = new AuditReceiptService({
-      persistence,
+      auditLog: storageServices.auditLog,
       graphName,
       writerId,
       codec: resolvedCodec,
@@ -388,13 +365,15 @@ export async function resolveRuntimeHostConstructionOptions(
       ...(resolvedTrustCrypto !== undefined ? { trustCrypto: resolvedTrustCrypto } : {}),
       ...(resolvedStateCache !== undefined ? { stateCache: resolvedStateCache } : {}),
       ...(audit !== undefined ? { audit } : {}),
-      blobStorage: resolvedBlobStorage,
-      ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
+      assetStorage: resolvedAssetStorage,
+      auditLog: storageServices.auditLog,
       commitMessageCodec: resolvedCommitMessageCodec,
       ...(trust !== undefined ? { trust } : {}),
-      patchJournal: resolvedPatchJournal,
-      checkpointStore: resolvedCheckpointStore,
+      patchJournal: storageServices.patchJournal,
+      strandStore: storageServices.strands,
+      checkpointStore: storageServices.checkpoints,
       indexStore: resolvedIndexStore,
+      intentStore: storageServices.intents,
       viewService: resolvedViewService,
       stateHashService: resolvedStateHashService,
       ...(resolvedAuditService !== undefined ? { auditService: resolvedAuditService } : {}),

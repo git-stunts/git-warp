@@ -9,15 +9,11 @@
  */
 
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
-import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 import PatchError from '../../errors/PatchError.ts';
-import EncryptionError from '../../errors/EncryptionError.ts';
 import type Patch from '../../types/Patch.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
-import type CodecPort from '../../../ports/CodecPort.ts';
-import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 
 // ── PatchDiscoveryHost ────────────────────────────────────────────────────────
@@ -28,20 +24,13 @@ import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.t
  * Documents the exact WarpRuntime fields accessed during patch-chain
  * traversal, enabling lightweight mocks in unit tests.
  *
- * TODO(0025B1): `_codec` points at `CodecPort` which today parameterizes
- * decode loosely. When cycle 0025B1 lands `CodecPort<T>` /
- * `DecoderPort<T>`, the downstream callers that hydrate a Patch out
- * of the decoded value can drop their parser indirection.
  */
 export interface PatchDiscoveryHost {
   readonly _graphName: string;
   readonly _persistence: CorePersistence;
   readonly _maxObservedLamport: number;
-  readonly _codec: CodecPort;
   readonly _logger: LoggerPort | null;
   readonly _patchJournal: PatchJournalPort | null | undefined;
-  readonly _blobStorage: BlobStoragePort | null | undefined;
-  readonly _patchBlobStorage: BlobStoragePort | null | undefined;
   readonly _commitMessageCodec: CommitMessageCodecPort;
 }
 
@@ -152,26 +141,11 @@ export class PatchDiscovery {
       const patchMeta = h._commitMessageCodec.decodePatch(message);
       const journal = h._patchJournal;
       if (journal === null || journal === undefined) {
-        let raw: Uint8Array;
-        if (patchMeta.storage.strategy === 'git-cas') {
-          if (h._blobStorage === null || h._blobStorage === undefined) {
-            throw new EncryptionError('This graph contains git-cas patches; provide blobStorage for CAS restore');
-          }
-          raw = await h._blobStorage.retrieve(patchMeta.patchOid);
-        } else if (patchMeta.storage.strategy === 'legacy-external-storage') {
-          if (h._patchBlobStorage === null || h._patchBlobStorage === undefined) {
-            throw new EncryptionError('This graph contains encrypted patches in legacy external storage; provide patchBlobStorage with an encryption key');
-          }
-          raw = await h._patchBlobStorage.retrieve(patchMeta.patchOid);
-        } else {
-          raw = await h._persistence.readBlob(patchMeta.patchOid);
-        }
-        const decoded = hydrateDecodedPatch(h._codec.decode(raw));
-        patches.push({ patch: decoded, sha: currentSha });
-      } else {
-        const decoded = await journal.readPatch(patchMeta.patchOid, { storage: patchMeta.storage });
-        patches.push({ patch: decoded, sha: currentSha });
+        throw new PatchError('patchJournal is required for patch discovery', {
+          code: 'E_MISSING_JOURNAL',
+        });
       }
+      patches.push({ patch: await journal.readPatch(patchMeta), sha: currentSha });
 
       if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
         currentSha = nodeInfo.parents[0] ?? '';

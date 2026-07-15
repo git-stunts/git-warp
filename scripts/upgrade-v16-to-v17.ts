@@ -16,15 +16,14 @@ import CliJsonFormatterAdapter from '../src/infrastructure/adapters/CliJsonForma
 import {
   upgradeCheckpointSchema,
   type CheckpointSchemaUpgradeResult,
+  type CheckpointMigrationHistory,
 } from './migrations/v17.0.0/checkpoint-schema-upgrade.ts';
-import type GraphPersistencePort from '../src/ports/GraphPersistencePort.ts';
 import type CryptoPort from '../src/ports/CryptoPort.ts';
 
 const LEGACY_REBUILDABLE_CACHE_REF_SUFFIXES = [
   '/coverage/head',
   '/seek-cache',
 ] as const;
-
 type CacheRefAction = 'absent' | 'would-delete' | 'deleted';
 
 export class V16ToV17UpgradeArgumentError extends Error {
@@ -64,24 +63,25 @@ export interface CacheRefMigrationResult {
   readonly action: CacheRefAction;
   readonly previousOid: string | null;
 }
-
 export interface GraphV16ToV17UpgradeResult {
   readonly graphName: string;
   readonly checkpoint: CheckpointSchemaUpgradeResult;
   readonly cacheRefs: readonly CacheRefMigrationResult[];
 }
-
 export interface V16ToV17UpgradeResult {
   readonly dryRun: boolean;
   readonly graphCount: number;
   readonly graphs: readonly GraphV16ToV17UpgradeResult[];
 }
-
 export interface V16ToV17UpgradeOptions {
-  readonly persistence: GraphPersistencePort;
+  readonly persistence: V16ToV17MigrationHistory;
   readonly graphNames: readonly string[];
   readonly dryRun?: boolean;
   readonly crypto?: CryptoPort;
+}
+export interface V16ToV17MigrationHistory extends CheckpointMigrationHistory {
+  deleteRef(ref: string): Promise<void>;
+  listRefs(prefix?: string): Promise<string[]>;
 }
 
 function usage(): string {
@@ -173,7 +173,7 @@ export async function upgradeV16ToV17(
 }
 
 async function migrateRebuildableCacheRefs(options: {
-  readonly persistence: GraphPersistencePort;
+  readonly persistence: V16ToV17MigrationHistory;
   readonly graphName: string;
   readonly dryRun: boolean;
 }): Promise<readonly CacheRefMigrationResult[]> {
@@ -237,7 +237,7 @@ export function formatHumanResult(result: V16ToV17UpgradeResult): string {
 }
 
 async function resolveGraphNames(
-  persistence: GraphPersistencePort,
+  persistence: V16ToV17MigrationHistory,
   explicitGraphNames: readonly string[],
 ): Promise<readonly string[]> {
   if (explicitGraphNames.length > 0) {
@@ -246,7 +246,7 @@ async function resolveGraphNames(
   return await discoverGraphNames(persistence);
 }
 
-async function discoverGraphNames(persistence: GraphPersistencePort): Promise<readonly string[]> {
+async function discoverGraphNames(persistence: V16ToV17MigrationHistory): Promise<readonly string[]> {
   const refs = await persistence.listRefs(REF_PREFIX);
   const prefix = `${REF_PREFIX}/`;
   const names: Set<string> = new Set();

@@ -320,7 +320,7 @@ function factsForContentOperation(
     return factsWithProvenance([
       new CheckpointContentAnchorFact({
         owner: op.node,
-        contentOid: op.oid,
+        contentHandle: op.oid,
         eventId,
       }),
     ], op.node, eventId);

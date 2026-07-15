@@ -238,8 +238,9 @@ async function writeDraftIntent(fields: DraftWriteFields): Promise<WriteReceipt>
     context: fields.state.context,
     intent: fields.intent,
     commit: async (build) => {
-      draftPatchSha = await fields.runtime.patchDraft(fields.draftName, build);
-      return draftPatchSha;
+      const publication = await fields.runtime.patchDraftWithEvidence(fields.draftName, build);
+      draftPatchSha = publication.sha;
+      return publication;
     },
   });
   if (receipt.outcome !== 'accepted') {

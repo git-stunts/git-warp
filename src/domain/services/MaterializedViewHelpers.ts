@@ -19,8 +19,8 @@ import { ReceiptShard } from '../artifacts/ReceiptShard.ts';
 import IndexError from '../errors/IndexError.ts';
 import PropertyIndexReader from './index/PropertyIndexReader.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
-import type IndexStoragePort from '../../ports/IndexStoragePort.ts';
 import type { IndexShard } from '../artifacts/IndexShard.ts';
+import type AssetHandle from '../storage/AssetHandle.ts';
 
 /** Prefix for property shard paths in the index tree. */
 export const PROPS_PREFIX = 'props_';
@@ -34,23 +34,8 @@ export function buildInMemoryPropertyReader(
   tree: Record<string, Uint8Array>,
   codec: CodecPort,
 ): PropertyIndexReader {
-  const propShardOids = new Map<string, string>();
-  for (const path of Object.keys(tree)) {
-    if (path.startsWith(PROPS_PREFIX)) {
-      propShardOids.set(path, path);
-    }
-  }
-
-  // PropertyIndexReader is a .js file with JSDoc types; only `readBlob` is
-  // called at runtime. The narrower in-memory object satisfies the runtime
-  // contract of IndexStoragePort, so this seam cast is safe.
-  const storage = {
-    /** Reads a shard blob from the in-memory tree map. */
-    readBlob: (oid: string): Promise<Uint8Array> => Promise.resolve(tree[oid] as Uint8Array),
-  } as unknown as IndexStoragePort; // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-
-  const reader = new PropertyIndexReader({ storage, codec });
-  reader.setup(Object.fromEntries(propShardOids));
+  const reader = new PropertyIndexReader({ codec });
+  reader.setupTree(tree);
   return reader;
 }
 
@@ -59,23 +44,25 @@ export function buildInMemoryPropertyReader(
 /**
  * Partitions shard OID entries into index vs property buckets.
  */
-export function partitionShardOids(shardOids: Record<string, string>): {
-  indexOids: Record<string, string>;
-  propOids: Record<string, string>;
+export function partitionShardHandles(
+  shardHandles: Readonly<Record<string, AssetHandle>>,
+): {
+  indexHandles: Readonly<Record<string, AssetHandle>>;
+  propHandles: Readonly<Record<string, AssetHandle>>;
 } {
-  const indexOids = new Map<string, string>();
-  const propOids = new Map<string, string>();
+  const indexHandles = new Map<string, AssetHandle>();
+  const propHandles = new Map<string, AssetHandle>();
 
-  for (const [path, oid] of Object.entries(shardOids)) {
+  for (const [path, handle] of Object.entries(shardHandles)) {
     if (path.startsWith(PROPS_PREFIX)) {
-      propOids.set(path, oid);
+      propHandles.set(path, handle);
     } else {
-      indexOids.set(path, oid);
+      indexHandles.set(path, handle);
     }
   }
   return {
-    indexOids: Object.fromEntries(indexOids),
-    propOids: Object.fromEntries(propOids),
+    indexHandles: Object.freeze(Object.fromEntries(indexHandles)),
+    propHandles: Object.freeze(Object.fromEntries(propHandles)),
   };
 }
 

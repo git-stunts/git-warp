@@ -15,7 +15,6 @@ import VersionVector from '../../crdt/VersionVector.ts';
 import Patch from '../../types/Patch.ts';
 import type { PatchOp } from '../../types/ops/unions.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
-import type BlobPort from '../../../ports/BlobPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 
@@ -91,7 +90,7 @@ export function normalizePatch(patch: DecodedPatch): DecodedPatch {
  * @throws {Error} If the commit or patch blob cannot be read or decoded
  */
 export async function loadPatchFromCommit(
-  persistence: CommitPort & BlobPort,
+  persistence: CommitPort,
   sha: string,
   { patchJournal, commitMessageCodec }: LoadPatchRangeOptions = {},
 ): Promise<DecodedPatch> {
@@ -109,7 +108,7 @@ export async function loadPatchFromCommit(
   const decoded = messageCodec.decodePatch(message);
 
   // Read and decode the patch blob via PatchJournalPort (adapter owns the codec)
-  const patch = await patchJournal.readPatch(decoded.patchOid, { storage: decoded.storage });
+  const patch = await patchJournal.readPatch(decoded);
 
   return normalizePatch(patch);
 }
@@ -147,7 +146,7 @@ export async function loadPatchFromCommit(
  * const patches = await loadPatchRange(persistence, 'events', 'new-writer', null, tipSha);
  */
 export async function loadPatchRange(
-  persistence: CommitPort & BlobPort,
+  persistence: CommitPort,
   _graphName: string,
   writerId: string,
   fromSha: string | null,

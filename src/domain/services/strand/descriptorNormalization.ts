@@ -243,7 +243,7 @@ export type StrandQueuedIntent = {
   patch: Patch;
   reads: string[];
   writes: string[];
-  contentBlobOids: string[];
+  contentAssetHandles: string[];
 };
 
 export type StrandIntentQueue = {
@@ -366,10 +366,22 @@ function buildQueuedIntentFromIdentity(
     intentId,
     enqueuedAt,
     patch,
-    reads: normalizeStringArray(candidate['reads'] ?? patchReads ?? null, 'reads[]'),
-    writes: normalizeStringArray(candidate['writes'] ?? patchWrites ?? null, 'writes[]'),
-    contentBlobOids: normalizeStringArray(candidate['contentBlobOids'], 'contentBlobOids[]'),
+    reads: normalizeStringArray(queuedIntentReads(candidate, patchReads), 'reads[]'),
+    writes: normalizeStringArray(queuedIntentWrites(candidate, patchWrites), 'writes[]'),
+    contentAssetHandles: normalizeStringArray(queuedIntentContentHandles(candidate), 'contentAssetHandles[]'),
   };
+}
+
+function queuedIntentReads(candidate: RawBag, fallback: readonly string[] | null): RawValue {
+  return candidate['reads'] ?? fallback;
+}
+
+function queuedIntentWrites(candidate: RawBag, fallback: readonly string[] | null): RawValue {
+  return candidate['writes'] ?? fallback;
+}
+
+function queuedIntentContentHandles(candidate: RawBag): RawValue {
+  return candidate['contentAssetHandles'] ?? candidate['contentBlobOids'];
 }
 
 function readsFromPatch(patch: Patch): readonly string[] | null {

@@ -1,13 +1,13 @@
-import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
-import type CodecPort from '../../../ports/CodecPort.ts';
+import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
-import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
+import type CommitPort from '../../../ports/CommitPort.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 import type { NeighborEdge } from '../../../ports/NeighborProviderPort.ts';
 import type WarpState from '../state/WarpState.ts';
 import type PropertyIndexReader from '../index/PropertyIndexReader.ts';
 import type { LogicalIndex } from '../index/logicalIndexHelpers.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
+import type Patch from '../../types/Patch.ts';
 
 export type ReadAdjacencyMaps = {
   outgoing: Map<string, readonly NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
@@ -34,15 +34,13 @@ export type QueryReadHost = FreshStateHost & {
 };
 
 export type QueryContentHost = FreshStateHost & {
-  _blobStorage: BlobStoragePort | null;
-  _persistence: Pick<GraphPersistencePort, 'readBlob'>;
+  _assetStorage: AssetStoragePort | null;
 };
 
 export type PatchBlobReadHost = {
-  _persistence: Pick<GraphPersistencePort, 'getNodeInfo'>;
+  _persistence: Pick<CommitPort, 'getNodeInfo'>;
   _commitMessageCodec: Pick<CommitMessageCodecPort, 'detectKind' | 'decodePatch'>;
-  _readPatchBlob(patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>): Promise<Uint8Array>;
-  _codec: CodecPort;
+  _readPatch(patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>): Promise<Patch>;
 };
 
 export type ProvenanceReadHost = FreshStateHost &

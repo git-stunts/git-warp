@@ -18,7 +18,7 @@ import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/G
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
-import type BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../../../../src/ports/AssetStoragePort.ts';
 import { runMigrationGit } from './GitMigrationCommandRunner.ts';
 
 const CONTENT_ATTACHMENT_SUFFIX = `:${CONTENT_PROPERTY_KEY}`;
@@ -126,7 +126,7 @@ class RuntimeContentOidResolver {
   private constructor(
     private readonly repositoryPath: string,
     private readonly shouldCleanup: boolean,
-    private readonly storage: BlobStoragePort,
+    private readonly storage: AssetStoragePort,
   ) {
   }
 
@@ -162,11 +162,14 @@ class RuntimeContentOidResolver {
     readonly nodeId: string;
   }): Promise<string> {
     const content = `migration-source:${options.contentKey}`;
-    return await this.storage.store(content, {
+    const bytes = new TextEncoder().encode(content);
+    const staged = await this.storage.stage(singleChunk(bytes), {
       slug: `${options.graphId}/${options.nodeId}`,
+      filename: 'content',
       mime: 'text/plain',
-      size: new TextEncoder().encode(content).byteLength,
+      expectedSize: bytes.byteLength,
     });
+    return staged.handle.toString();
   }
 
   async close(): Promise<void> {
@@ -174,6 +177,10 @@ class RuntimeContentOidResolver {
       await rm(this.repositoryPath, { recursive: true, force: true });
     }
   }
+}
+
+async function* singleChunk(bytes: Uint8Array): AsyncGenerator<Uint8Array> {
+  yield bytes;
 }
 
 async function gitText(repositoryPath: string, args: readonly string[]): Promise<string> {

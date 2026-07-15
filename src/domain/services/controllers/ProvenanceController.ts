@@ -10,7 +10,6 @@
 import QueryError from '../../errors/QueryError.ts';
 import { createEmptyState, reducePatches, type WarpState } from '../JoinReducer.ts';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.ts';
-import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 import type Patch from '../../types/Patch.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { ProvenanceReadHost } from './ReadGraphHost.ts';
@@ -149,8 +148,7 @@ export default class ProvenanceController {
     }
 
     const patchMeta = host._commitMessageCodec.decodePatch(nodeInfo.message);
-    const patchBuffer = await host._readPatchBlob(patchMeta);
-    return hydrateDecodedPatch(host._codec.decode(patchBuffer));
+    return await host._readPatch(patchMeta);
   }
 
   async _loadPatchesBySha(shas: string[]): Promise<Array<{ patch: Patch; sha: string }>> {

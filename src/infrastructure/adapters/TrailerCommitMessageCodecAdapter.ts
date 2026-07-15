@@ -4,9 +4,12 @@ import CommitMessageCodecPort, {
   type AnchorCommitMessage,
   type CheckpointCommitMessage,
   CHECKPOINT_STORAGE_FORMAT,
+  createLegacyGitCasPatchStorage,
   createGitCasPatchStorage,
   type CommitMessageKind,
   LEGACY_EXTERNAL_PATCH_STORAGE,
+  LEGACY_GIT_CAS_PATCH_STORAGE_FORMAT,
+  LEGACY_GIT_CAS_PATCH_STORAGE_SCHEMA,
   LEGACY_GIT_BLOB_PATCH_STORAGE,
   type PatchCommitMessage,
   PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH,
@@ -14,6 +17,7 @@ import CommitMessageCodecPort, {
   type PatchStorageRoute,
 } from '../../ports/CommitMessageCodecPort.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
+import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import { validateGraphName, validateWriterId } from '../../domain/utils/RefLayout.ts';
 
 export type {
@@ -31,6 +35,7 @@ export const TRAILER_KEYS = Object.freeze({
   writer: 'eg-writer',
   lamport: 'eg-lamport',
   patchOid: 'eg-patch-oid',
+  patchHandle: 'eg-patch-handle',
   stateHash: 'eg-state-hash',
   frontierOid: 'eg-frontier-oid',
   indexOid: 'eg-index-oid',
@@ -99,34 +104,50 @@ const legacyExternalStorageSchema = z.object({
 });
 
 const gitCasStorageSchema = z.object({
-  strategy: z.literal('git-cas'),
+  strategy: z.literal('git-cas-asset'),
   version: z.literal(PATCH_STORAGE_FORMAT),
   schema: z.literal(PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH),
   encrypted: z.boolean(),
 });
 
-const patchStorageSchema = z.union([
-  legacyGitBlobStorageSchema,
-  legacyExternalStorageSchema,
-  gitCasStorageSchema,
-]);
+const legacyGitCasStorageSchema = z.object({
+  strategy: z.literal('legacy-git-cas'),
+  version: z.literal(LEGACY_GIT_CAS_PATCH_STORAGE_FORMAT),
+  schema: z.literal(LEGACY_GIT_CAS_PATCH_STORAGE_SCHEMA),
+  encrypted: z.boolean(),
+});
 
-const patchCommitMessageSchema = z.object({
+const patchCommitMessageBaseSchema = z.object({
   kind: z.literal('patch'),
   graph: graphNameSchema,
   writer: writerIdSchema,
   lamport: positiveIntegerSchema,
-  patchOid: oidSchema,
   schema: positiveIntegerSchema,
-  storage: patchStorageSchema,
 });
+
+const currentPatchCommitMessageSchema = patchCommitMessageBaseSchema.extend({
+  patchHandle: z.string().min(1),
+  storage: gitCasStorageSchema,
+});
+
+const legacyPatchCommitMessageSchema = patchCommitMessageBaseSchema.extend({
+  patchOid: oidSchema,
+  storage: z.union([
+    legacyGitBlobStorageSchema,
+    legacyExternalStorageSchema,
+    legacyGitCasStorageSchema,
+  ]),
+});
+
+const patchCommitMessageSchema = z.union([
+  currentPatchCommitMessageSchema,
+  legacyPatchCommitMessageSchema,
+]);
 
 const checkpointCommitMessageSchema = z.object({
   kind: z.literal('checkpoint'),
   graph: graphNameSchema,
   stateHash: sha256Schema,
-  frontierOid: oidSchema,
-  indexOid: oidSchema,
   schema: positiveIntegerSchema,
   checkpointVersion: z.string().nullable(),
 });
@@ -228,16 +249,19 @@ function parsePatchStorageRoute(trailers: Record<string, string>): PatchStorageR
   if (parsed.data.version === null) {
     return parsed.data.encrypted ? LEGACY_EXTERNAL_PATCH_STORAGE : LEGACY_GIT_BLOB_PATCH_STORAGE;
   }
-  const storage = gitCasStorageSchema.safeParse({
-    strategy: 'git-cas',
-    version: parsed.data.version,
-    schema: parsed.data.schema,
-    encrypted: parsed.data.encrypted,
-  });
-  if (!storage.success) {
-    throw messageCodecError(storage.error.issues[0]?.message ?? 'invalid git-cas patch storage trailers');
+  if (
+    parsed.data.version === LEGACY_GIT_CAS_PATCH_STORAGE_FORMAT
+    && parsed.data.schema === LEGACY_GIT_CAS_PATCH_STORAGE_SCHEMA
+  ) {
+    return createLegacyGitCasPatchStorage({ encrypted: parsed.data.encrypted });
   }
-  return createGitCasPatchStorage({ encrypted: storage.data.encrypted });
+  if (
+    parsed.data.version === PATCH_STORAGE_FORMAT
+    && parsed.data.schema === PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH
+  ) {
+    return createGitCasPatchStorage({ encrypted: parsed.data.encrypted });
+  }
+  throw messageCodecError('invalid git-cas patch storage trailers');
 }
 
 export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
@@ -249,7 +273,14 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
   }
 
   override encodePatch(message: PatchCommitMessage): string {
-    const parsed = patchCommitMessageSchema.safeParse(message);
+    const serializable = message.storage.strategy === 'git-cas-asset'
+      ? { ...message, patchHandle: message.patchHandle.toString() }
+      : {
+          ...message,
+          patchHandle: undefined,
+          patchOid: message.patchHandle.toString(),
+        };
+    const parsed = patchCommitMessageSchema.safeParse(serializable);
     if (!parsed.success) {
       throw messageCodecError(parsed.error.issues[0]?.message ?? 'invalid patch commit message');
     }
@@ -258,12 +289,18 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
       [TRAILER_KEYS.graph]: parsed.data.graph,
       [TRAILER_KEYS.writer]: parsed.data.writer,
       [TRAILER_KEYS.lamport]: String(parsed.data.lamport),
-      [TRAILER_KEYS.patchOid]: parsed.data.patchOid,
       [TRAILER_KEYS.schema]: String(parsed.data.schema),
     };
-    if (parsed.data.storage.strategy === 'git-cas') {
+    if ('patchHandle' in parsed.data) {
+      trailers[TRAILER_KEYS.patchHandle] = parsed.data.patchHandle;
       trailers[TRAILER_KEYS.storageVersion] = parsed.data.storage.version;
       trailers[TRAILER_KEYS.storageSchema] = parsed.data.storage.schema;
+    } else {
+      trailers[TRAILER_KEYS.patchOid] = parsed.data.patchOid;
+      if (parsed.data.storage.strategy === 'legacy-git-cas') {
+        trailers[TRAILER_KEYS.storageVersion] = parsed.data.storage.version;
+        trailers[TRAILER_KEYS.storageSchema] = parsed.data.storage.schema;
+      }
     }
     if (parsed.data.storage.encrypted) {
       trailers[TRAILER_KEYS.encrypted] = 'true';
@@ -279,19 +316,36 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
     if (trailers[TRAILER_KEYS.kind] !== 'patch') {
       throw messageCodecError(`${TRAILER_KEYS.kind} must be 'patch'`);
     }
-    const parsed = patchCommitMessageSchema.safeParse({
-      kind: 'patch',
-      graph: requireTrailer(trailers, TRAILER_KEYS.graph),
-      writer: requireTrailer(trailers, TRAILER_KEYS.writer),
-      lamport: parsePositiveIntegerTrailer(trailers, TRAILER_KEYS.lamport),
-      patchOid: parseOidTrailer(trailers, TRAILER_KEYS.patchOid, 'patchOid'),
-      schema: parsePositiveIntegerTrailer(trailers, TRAILER_KEYS.schema),
-      storage: parsePatchStorageRoute(trailers),
-    });
+    const storage = parsePatchStorageRoute(trailers);
+    const candidate = storage.strategy === 'git-cas-asset'
+      ? {
+          kind: 'patch' as const,
+          graph: requireTrailer(trailers, TRAILER_KEYS.graph),
+          writer: requireTrailer(trailers, TRAILER_KEYS.writer),
+          lamport: parsePositiveIntegerTrailer(trailers, TRAILER_KEYS.lamport),
+          patchHandle: requireTrailer(trailers, TRAILER_KEYS.patchHandle),
+          schema: parsePositiveIntegerTrailer(trailers, TRAILER_KEYS.schema),
+          storage,
+        }
+      : {
+          kind: 'patch' as const,
+          graph: requireTrailer(trailers, TRAILER_KEYS.graph),
+          writer: requireTrailer(trailers, TRAILER_KEYS.writer),
+          lamport: parsePositiveIntegerTrailer(trailers, TRAILER_KEYS.lamport),
+          patchOid: parseOidTrailer(trailers, TRAILER_KEYS.patchOid, 'patchOid'),
+          schema: parsePositiveIntegerTrailer(trailers, TRAILER_KEYS.schema),
+          storage,
+        };
+    const parsed = patchCommitMessageSchema.safeParse(candidate);
     if (!parsed.success) {
       throw messageCodecError(parsed.error.issues[0]?.message ?? 'invalid patch commit message');
     }
-    return parsed.data;
+    return {
+      ...parsed.data,
+      patchHandle: new AssetHandle(
+        'patchHandle' in parsed.data ? parsed.data.patchHandle : parsed.data.patchOid,
+      ),
+    };
   }
 
   override encodeCheckpoint(message: CheckpointCommitMessage): string {
@@ -308,8 +362,6 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
         [TRAILER_KEYS.kind]: 'checkpoint',
         [TRAILER_KEYS.graph]: parsed.data.graph,
         [TRAILER_KEYS.stateHash]: parsed.data.stateHash,
-        [TRAILER_KEYS.frontierOid]: parsed.data.frontierOid,
-        [TRAILER_KEYS.indexOid]: parsed.data.indexOid,
         [TRAILER_KEYS.schema]: String(parsed.data.schema),
         [TRAILER_KEYS.checkpointVersion]: parsed.data.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
       },
@@ -325,8 +377,6 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
       kind: 'checkpoint',
       graph: requireTrailer(trailers, TRAILER_KEYS.graph),
       stateHash: parseSha256Trailer(trailers, TRAILER_KEYS.stateHash, 'stateHash'),
-      frontierOid: parseOidTrailer(trailers, TRAILER_KEYS.frontierOid, 'frontierOid'),
-      indexOid: parseOidTrailer(trailers, TRAILER_KEYS.indexOid, 'indexOid'),
       schema: parsePositiveIntegerTrailer(trailers, TRAILER_KEYS.schema),
       checkpointVersion: trailers[TRAILER_KEYS.checkpointVersion] ?? null,
     });
@@ -394,14 +444,18 @@ function resolveCompatPatchStorage(params: EncodePatchCompatParams): PatchStorag
 }
 
 export function encodePatchMessage(params: EncodePatchCompatParams): string {
+  const storage = resolveCompatPatchStorage(params);
+  if (storage.strategy === 'git-cas-asset') {
+    throw messageCodecError('encodePatchMessage compatibility helper cannot encode asset handles');
+  }
   return DEFAULT_COMMIT_MESSAGE_CODEC.encodePatch({
     kind: 'patch',
     graph: params.graph,
     writer: params.writer,
     lamport: params.lamport,
-    patchOid: params.patchOid,
+    patchHandle: new AssetHandle(params.patchOid),
     schema: params.schema ?? 2,
-    storage: resolveCompatPatchStorage(params),
+    storage,
   });
 }
 
@@ -418,8 +472,6 @@ export function encodeCheckpointMessage(params: EncodeCheckpointCompatParams): s
     kind: 'checkpoint',
     graph: params.graph,
     stateHash: params.stateHash,
-    frontierOid: params.frontierOid,
-    indexOid: params.indexOid,
     schema: params.schema ?? 2,
     checkpointVersion: params.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
   });

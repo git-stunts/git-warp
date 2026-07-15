@@ -1,10 +1,8 @@
 /** Chain verification for tamper-evident audit receipt chains. */
 
 import type CodecPort from '../../../ports/CodecPort.ts';
-import type CommitPort from '../../../ports/CommitPort.ts';
-import type RefPort from '../../../ports/RefPort.ts';
-import type BlobPort from '../../../ports/BlobPort.ts';
-import type TreePort from '../../../ports/TreePort.ts';
+import type AuditLogPort from '../../../ports/AuditLogPort.ts';
+import type { AuditLogEntry } from '../../../ports/AuditLogPort.ts';
 import { buildAuditRef } from '../../utils/RefLayout.ts';
 import { decodeAuditMessage } from '../codec/AuditMessageCodec.ts';
 
@@ -54,8 +52,6 @@ type AuditReceipt = {
   prevAuditCommit: string;
   timestamp: number;
 };
-
-type Persistence = CommitPort & RefPort & BlobPort & TreePort;
 
 function validateOidFormat(value: string): { valid: boolean; normalized: string; error?: string } {
   if (typeof value !== 'string') {
@@ -138,11 +134,11 @@ function validateTrailerConsistency(
  * Verifies a single writer's audit receipt chain from tip to genesis.
  */
 export default class AuditChainVerifier {
-  private readonly _persistence: Persistence;
+  private readonly _auditLog: AuditLogPort;
   private readonly _codec: CodecPort;
 
-  constructor(persistence: Persistence, codec: CodecPort) {
-    this._persistence = persistence;
+  constructor(auditLog: AuditLogPort, codec: CodecPort) {
+    this._auditLog = auditLog;
     this._codec = codec;
   }
 
@@ -168,7 +164,7 @@ export default class AuditChainVerifier {
 
     let tip: string | null;
     try {
-      tip = await this._persistence.readRef(ref);
+      tip = await this._auditLog.readHead(graphName, writerId);
     } catch {
       return result;
     }
@@ -180,7 +176,7 @@ export default class AuditChainVerifier {
     result.tipAtStart = tip;
 
     await this._walkChain(graphName, writerId, tip, since, result);
-    await this._checkTipMoved(ref, result);
+    await this._checkTipMoved(graphName, writerId, result);
 
     return result;
   }
@@ -199,16 +195,16 @@ export default class AuditChainVerifier {
     while (current !== null && current.length > 0) {
       result.receiptsScanned++;
 
-      let commitInfo;
+      let commitInfo: AuditLogEntry;
       try {
-        commitInfo = await this._persistence.getNodeInfo(current);
+        commitInfo = await this._auditLog.readEntry(current);
       } catch (err) {
         this._addError(result, 'MISSING_RECEIPT_BLOB',
           `Cannot read commit ${current}: ${err instanceof Error ? err.message : String(err)}`, current);
         return;
       }
 
-      const receiptResult = await this._readReceipt(current, commitInfo, result);
+      const receiptResult = this._readReceipt(current, commitInfo, result);
       if (!receiptResult) { return; }
 
       const { receipt, decodedTrailers } = receiptResult;
@@ -307,7 +303,7 @@ export default class AuditChainVerifier {
 
   private _handleGenesisOrContinuation(
     receipt: AuditReceipt,
-    commitInfo: { parents: string[] },
+    commitInfo: { parents: readonly string[] },
     since: string | null,
     chainOidLen: number,
     current: string,
@@ -354,55 +350,14 @@ export default class AuditChainVerifier {
     return true;
   }
 
-  private async _readReceipt(
+  private _readReceipt(
     commitSha: string,
-    commitInfo: { message: string },
+    commitInfo: AuditLogEntry,
     result: ChainResult,
-  ): Promise<{ receipt: AuditReceipt; decodedTrailers: { graph: string; writer: string; dataCommit: string; opsDigest: string; schema: number } } | null> {
-    let treeOid: string;
-    try {
-      treeOid = await this._persistence.getCommitTree(commitSha);
-    } catch (err) {
-      this._addError(result, 'MISSING_RECEIPT_BLOB',
-        `Cannot read tree for ${commitSha}: ${err instanceof Error ? err.message : String(err)}`, commitSha);
-      return null;
-    }
-
-    let treeEntries: Record<string, string>;
-    try {
-      treeEntries = await this._persistence.readTreeOids(treeOid);
-    } catch (err) {
-      this._addError(result, 'RECEIPT_TREE_INVALID',
-        `Cannot read tree ${treeOid}: ${err instanceof Error ? err.message : String(err)}`, commitSha);
-      return null;
-    }
-
-    const entryNames = Object.keys(treeEntries);
-    if (entryNames.length !== 1 || entryNames[0] !== 'receipt.cbor') {
-      this._addError(result, 'RECEIPT_TREE_INVALID',
-        `Expected exactly one entry 'receipt.cbor', got [${entryNames.join(', ')}]`, commitSha);
-      result.status = STATUS_BROKEN_CHAIN;
-      return null;
-    }
-
-    const blobOid = treeEntries['receipt.cbor'];
-    if (blobOid === undefined) {
-      this._addError(result, 'MISSING_RECEIPT_BLOB', 'receipt.cbor entry missing from audit tree', commitSha);
-      return null;
-    }
-
-    let blobContent: Uint8Array;
-    try {
-      blobContent = await this._persistence.readBlob(blobOid);
-    } catch (err) {
-      this._addError(result, 'MISSING_RECEIPT_BLOB',
-        `Cannot read receipt blob ${blobOid}: ${err instanceof Error ? err.message : String(err)}`, commitSha);
-      return null;
-    }
-
+  ): { receipt: AuditReceipt; decodedTrailers: { graph: string; writer: string; dataCommit: string; opsDigest: string; schema: number } } | null {
     let receipt: AuditReceipt;
     try {
-      receipt = this._codec.decode(blobContent);
+      receipt = this._codec.decode(commitInfo.receipt);
     } catch (err) {
       this._addError(result, 'CBOR_DECODE_FAILED',
         `CBOR decode failed: ${err instanceof Error ? err.message : String(err)}`, commitSha);
@@ -475,9 +430,13 @@ export default class AuditChainVerifier {
     return true;
   }
 
-  private async _checkTipMoved(ref: string, result: ChainResult): Promise<void> {
+  private async _checkTipMoved(
+    graphName: string,
+    writerId: string,
+    result: ChainResult,
+  ): Promise<void> {
     try {
-      const currentTip = await this._persistence.readRef(ref);
+      const currentTip = await this._auditLog.readHead(graphName, writerId);
       if (typeof currentTip === 'string' && currentTip.length > 0 && currentTip !== result.tipAtStart) {
         result.warnings.push({
           code: 'TIP_MOVED_DURING_VERIFY',

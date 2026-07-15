@@ -1,4 +1,6 @@
 import StrandError from '../../errors/StrandError.ts';
+import PersistenceError from '../../errors/PersistenceError.ts';
+import AssetHandle from '../../storage/AssetHandle.ts';
 import { PatchBuilder } from '../PatchBuilder.ts';
 import {
   maxPatchLamport,
@@ -7,26 +9,20 @@ import {
 import type Patch from '../../types/Patch.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { WarpState } from '../JoinReducer.ts';
-import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import type { StrandDescriptor, StrandIntentQueue, StrandQueuedIntent } from './strandTypes.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
-import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 import type VersionVector from '../../crdt/VersionVector.ts';
-import {
-  isGitCasPatchStorage,
-  LEGACY_EXTERNAL_PATCH_STORAGE,
-  LEGACY_GIT_BLOB_PATCH_STORAGE,
-  type PatchStorageRoute,
-  type default as CommitMessageCodecPort,
-} from '../../../ports/CommitMessageCodecPort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type { PatchCommitResult } from '../PatchCommitter.ts';
 
 export type CommittedPatchResult = { patch: Patch; sha: string };
 export type PatchCommitSuccessHandler = (result: CommittedPatchResult) => Promise<void>;
 
-function readBuilderContentBlobs(builder: PatchBuilder): readonly string[] {
-  return builder.contentBlobs;
+function readBuilderContentHandles(builder: PatchBuilder): readonly string[] {
+  return builder.contentAssets.map((handle) => handle.toString());
 }
 
 /**
@@ -58,11 +54,9 @@ type WarpRuntime = {
   _cachedFrontier: Map<string, string> | null;
   _cachedState: WarpState | null;
   _patchJournal: PatchJournalPort | null | undefined;
-  _patchBlobStorage: BlobStoragePort | null | undefined;
-  _blobStorage: BlobStoragePort | null | undefined;
+  _assetStorage: AssetStoragePort | null | undefined;
   _commitMessageCodec: CommitMessageCodecPort;
   _logger: LoggerPort | null | undefined;
-  _codec: { encode(v: HashablePayload): Uint8Array };
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
 };
 
@@ -121,6 +115,13 @@ export default class StrandPatchService {
    * Build and commit a patch within a reentrancy guard.
    */
   async patch(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<string> {
+    return (await this.patchWithEvidence(strandId, build)).sha;
+  }
+
+  async patchWithEvidence(
+    strandId: string,
+    build: (p: PatchBuilder) => void | Promise<void>,
+  ): Promise<PatchCommitResult> {
     if (this._graph._patchInProgress) {
       throw new StrandError(
         'graph.patchStrand() is not reentrant. Use createStrandPatch() for nested or concurrent patches.',
@@ -131,7 +132,7 @@ export default class StrandPatchService {
     try {
       const builder = await this.createPatchBuilder(strandId);
       await build(builder);
-      return await builder.commit();
+      return await builder.commitWithEvidence();
     } finally {
       this._graph._patchInProgress = false;
     }
@@ -190,14 +191,14 @@ export default class StrandPatchService {
     overlayId,
     parentSha,
     patch,
-    contentBlobOids,
+    contentAssetHandles,
     lamport,
   }: {
     strandId: string;
     overlayId: string;
     parentSha: string | null;
     patch: Patch;
-    contentBlobOids: string[];
+    contentAssetHandles: string[];
     lamport: number;
   }): Promise<{ sha: string; patch: Patch }> {
     const committedPatch: Patch = {
@@ -205,22 +206,24 @@ export default class StrandPatchService {
       writer: overlayId,
       lamport,
     };
-    const patchBlobOid = await this._writeCommittedPatchBlob(committedPatch, overlayId);
-    const patchStorage = this._resolveCommittedPatchStorage();
-    const treeEntries = this._buildPatchTreeEntries(patchBlobOid, contentBlobOids, patchStorage);
-    const treeOid = await this._graph._persistence.writeTree(treeEntries);
-    const sha = await this._commitPatchTree({
-      treeOid,
-      overlayId,
-      lamport,
-      patchBlobOid,
-      patchStorage,
-      schema: committedPatch.schema,
-      parentSha,
+    const journal = this._graph._patchJournal;
+    if (journal === null || journal === undefined) {
+      throw new PersistenceError(
+        'patchJournal is required for committing queued strand patches',
+        'E_MISSING_JOURNAL',
+      );
+    }
+    const published = await journal.appendPatch({
+      patch: committedPatch,
+      graph: this._graph._graphName,
+      writer: overlayId,
+      targetRef: this._buildOverlayRef(strandId),
+      expectedHead: parentSha,
+      parent: parentSha,
+      attachments: contentAssetHandles.map((handle) => new AssetHandle(handle)),
     });
-    await this._graph._persistence.updateRef(this._buildOverlayRef(strandId), sha);
     return {
-      sha,
+      sha: published.sha,
       patch: committedPatch,
     };
   }
@@ -307,79 +310,7 @@ export default class StrandPatchService {
       patch,
       reads: normalizeStringArray(patch.reads, 'reads[]'),
       writes: normalizeStringArray(patch.writes, 'writes[]'),
-      contentBlobOids: normalizeStringArray(readBuilderContentBlobs(builder), 'contentBlobOids[]'),
-    });
-  }
-
-  private async _writeCommittedPatchBlob(committedPatch: Patch, overlayId: string): Promise<string> {
-    const journal = this._graph._patchJournal;
-    if (journal !== undefined && journal !== null) {
-      return await journal.writePatch(committedPatch);
-    }
-    const patchCbor = this._graph._codec.encode(committedPatch);
-    return this._graph._patchBlobStorage
-      ? await this._graph._patchBlobStorage.store(patchCbor, {
-        slug: `${this._graph._graphName}/${overlayId}/patch`,
-      })
-      : await this._graph._persistence.writeBlob(patchCbor);
-  }
-
-  private _resolveCommittedPatchStorage(): PatchStorageRoute {
-    const journal = this._graph._patchJournal;
-    if (journal !== undefined && journal !== null) {
-      return journal.writeStorage ?? LEGACY_GIT_BLOB_PATCH_STORAGE;
-    }
-    return this._graph._patchBlobStorage
-      ? LEGACY_EXTERNAL_PATCH_STORAGE
-      : LEGACY_GIT_BLOB_PATCH_STORAGE;
-  }
-
-  private _buildPatchTreeEntries(
-    patchBlobOid: string,
-    contentBlobOids: string[],
-    patchStorage: PatchStorageRoute,
-  ): string[] {
-    const treeEntries = [isGitCasPatchStorage(patchStorage)
-      ? `040000 tree ${patchBlobOid}\tpatch`
-      : `100644 blob ${patchBlobOid}\tpatch.cbor`];
-    const uniqueBlobOids = [...new Set(contentBlobOids)];
-    for (const blobOid of uniqueBlobOids) {
-      treeEntries.push(`040000 tree ${blobOid}\t_content_${blobOid}`);
-    }
-    return treeEntries;
-  }
-
-  private async _commitPatchTree({
-    treeOid,
-    overlayId,
-    lamport,
-    patchBlobOid,
-    patchStorage,
-    schema,
-    parentSha,
-  }: {
-    treeOid: string;
-    overlayId: string;
-    lamport: number;
-    patchBlobOid: string;
-    patchStorage: PatchStorageRoute;
-    schema: number;
-    parentSha: string | null;
-  }): Promise<string> {
-    const commitMessage = this._graph._commitMessageCodec.encodePatch({
-      kind: 'patch',
-      graph: this._graph._graphName,
-      writer: overlayId,
-      lamport,
-      patchOid: patchBlobOid,
-      schema,
-      storage: patchStorage,
-    });
-    const parents = parentSha !== null ? [parentSha] : [];
-    return await this._graph._persistence.commitNodeWithTree({
-      treeOid,
-      parents,
-      message: commitMessage,
+      contentAssetHandles: normalizeStringArray(readBuilderContentHandles(builder), 'contentAssetHandles[]'),
     });
   }
 
@@ -387,7 +318,7 @@ export default class StrandPatchService {
     this._attachOptionalPatchJournal(pbOpts);
     this._attachOptionalCommitMessageCodec(pbOpts);
     this._attachOptionalLogger(pbOpts);
-    this._attachOptionalBlobStorage(pbOpts);
+    this._attachOptionalAssetStorage(pbOpts);
   }
 
   private _buildOverlayPatchBuilderOptions(
@@ -428,9 +359,9 @@ export default class StrandPatchService {
     }
   }
 
-  private _attachOptionalBlobStorage(pbOpts: MutablePatchBuilderCtorOptions): void {
-    if (this._graph._blobStorage !== null && this._graph._blobStorage !== undefined) {
-      pbOpts.blobStorage = this._graph._blobStorage;
+  private _attachOptionalAssetStorage(pbOpts: MutablePatchBuilderCtorOptions): void {
+    if (this._graph._assetStorage !== null && this._graph._assetStorage !== undefined) {
+      pbOpts.assetStorage = this._graph._assetStorage;
     }
   }
 }

@@ -15,8 +15,6 @@ import { joinStates, applyWithDiff, applyWithReceipt, type WarpState } from '../
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { Writer } from '../../warp/Writer.ts';
 import { resolveWriterId } from '../../utils/WriterId.ts';
-import EncryptionError from '../../errors/EncryptionError.ts';
-import PersistenceError from '../../errors/PersistenceError.ts';
 import PatchError from '../../errors/PatchError.ts';
 import QueryError from '../../errors/QueryError.ts';
 import {
@@ -29,14 +27,14 @@ import {
 import type AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import type VersionVector from '../../crdt/VersionVector.ts';
 import type Patch from '../../types/Patch.ts';
-import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
-import type { PatchStorageRoute } from '../../../ports/CommitMessageCodecPort.ts';
 import type ConfigPort from '../../../ports/ConfigPort.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { LogicalIndex } from '../index/logicalIndexHelpers.ts';
 import type PropertyIndexReader from '../index/PropertyIndexReader.ts';
+import type { PatchCommitResult } from '../PatchCommitter.ts';
 import { E_NO_STATE_MSG, E_STALE_STATE_MSG } from './QueryStateMessages.ts';
 
 // ── PatchHost ─────────────────────────────────────────────────────────────────
@@ -71,15 +69,14 @@ export interface PatchHost extends PatchDiscoveryHost {
   _patchInProgress: boolean;
   _patchesSinceCheckpoint: number;
   _onDeleteWithData: DeletePolicy;
-  _blobStorage: BlobStoragePort | null | undefined;
-  _patchBlobStorage: BlobStoragePort | null | undefined;
+  _assetStorage: AssetStoragePort | null | undefined;
   _commitMessageCodec: CommitMessageCodecPort;
   _provenanceIndex: {
     addPatch: (sha: string, reads: string[] | undefined, writes: string[] | undefined) => void;
   } | null | undefined;
   _lastFrontier: Map<string, string> | null | undefined;
   _auditService: {
-    commit: (receipt: TickReceipt) => Promise<string | null>;
+    commit: (receipt: TickReceipt) => Promise<unknown>;
   } | null | undefined;
   _auditSkipCount: number;
   _cachedViewHash: string | null;
@@ -158,8 +155,8 @@ export default class PatchController {
     if (h._logger !== null && h._logger !== undefined) {
       opts.logger = h._logger;
     }
-    if (h._blobStorage !== null && h._blobStorage !== undefined) {
-      opts.blobStorage = h._blobStorage;
+    if (h._assetStorage !== null && h._assetStorage !== undefined) {
+      opts.assetStorage = h._assetStorage;
     }
 
     return new PatchBuilder(opts);
@@ -169,6 +166,13 @@ export default class PatchController {
    * Convenience wrapper: creates a patch, runs the callback, and commits.
    */
   async patch(build: (p: PatchBuilder) => void | Promise<void>): Promise<string> {
+    return (await this.patchWithEvidence(build)).sha;
+  }
+
+  /** Builds and publishes one patch while preserving storage evidence. */
+  async patchWithEvidence(
+    build: (p: PatchBuilder) => void | Promise<void>,
+  ): Promise<PatchCommitResult> {
     const h = this._host;
     if (h._patchInProgress) {
       throw new PatchError(
@@ -180,7 +184,7 @@ export default class PatchController {
     try {
       const p = await this.createPatch();
       await build(p);
-      return await p.commit();
+      return await p.commitWithEvidence();
     } finally {
       h._patchInProgress = false;
     }
@@ -341,8 +345,8 @@ export default class PatchController {
     if (h._logger !== null && h._logger !== undefined) {
       writerOpts.logger = h._logger;
     }
-    if (h._blobStorage !== null && h._blobStorage !== undefined) {
-      writerOpts.blobStorage = h._blobStorage;
+    if (h._assetStorage !== null && h._assetStorage !== undefined) {
+      writerOpts.assetStorage = h._assetStorage;
     }
     return new Writer(writerOpts);
   }
@@ -363,43 +367,15 @@ export default class PatchController {
     return Promise.resolve();
   }
 
-  /**
-   * Reads a patch blob, using patchBlobStorage for encrypted patches.
-   */
-  async _readPatchBlob(
-    patchMeta: { patchOid: string; storage?: PatchStorageRoute; encrypted?: boolean },
-  ): Promise<Uint8Array> {
-    const h = this._host;
-    const storage = patchMeta.storage ?? (
-      patchMeta.encrypted === true
-        ? { strategy: 'legacy-external-storage', version: null, schema: null, encrypted: true }
-        : { strategy: 'legacy-git-blob', version: null, schema: null, encrypted: false }
-    );
-    if (storage.strategy === 'git-cas') {
-      if (!h._blobStorage) {
-        throw new EncryptionError(
-          'This graph contains git-cas patches; provide blobStorage for CAS restore',
-        );
-      }
-      return await h._blobStorage.retrieve(patchMeta.patchOid);
+  /** Reads a patch through the semantic journal locator. */
+  async _readPatch(
+    patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>,
+  ): Promise<Patch> {
+    const journal = this._host._patchJournal;
+    if (journal === null || journal === undefined) {
+      throw new PatchError('patchJournal is required for patch reads', { code: 'E_MISSING_JOURNAL' });
     }
-    if (storage.strategy === 'legacy-external-storage') {
-      if (!h._patchBlobStorage) {
-        throw new EncryptionError(
-          'This graph contains encrypted patches in legacy external storage; provide patchBlobStorage with an encryption key',
-        );
-      }
-      return await h._patchBlobStorage.retrieve(patchMeta.patchOid);
-    }
-    const blob = await h._persistence.readBlob(patchMeta.patchOid);
-    if (blob === null || blob === undefined) {
-      throw new PersistenceError(
-        `Patch blob not found: ${patchMeta.patchOid}`,
-        PersistenceError.E_MISSING_OBJECT,
-        { context: { oid: patchMeta.patchOid } },
-      );
-    }
-    return blob;
+    return await journal.readPatch(patchMeta);
   }
 
   // ── CRDT join ───────────────────────────────────────────────────────────────
