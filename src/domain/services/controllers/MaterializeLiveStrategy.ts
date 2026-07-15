@@ -239,12 +239,15 @@ export default class MaterializeLiveStrategy {
     stateCache: WarpStateCachePort,
     opts: { coordinate: WarpStateCoordinate; receipts: boolean; wantDiff: boolean },
   ): Promise<MaterializeResult | null> {
-    if (opts.receipts || opts.wantDiff) {
+    if (opts.receipts) {
       return null;
     }
     const exactResult = await this.tryResolveExactSnapshot(stateCache, opts);
     if (exactResult !== null) {
       return exactResult;
+    }
+    if (opts.wantDiff) {
+      return null;
     }
     return await this.tryResolvePredecessorSnapshot(stateCache, opts);
   }

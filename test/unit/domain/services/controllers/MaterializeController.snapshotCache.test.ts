@@ -238,7 +238,7 @@ describe('MaterializeController — unified snapshot cache', () => {
     expect(result.frontier).toEqual(target.frontier);
   });
 
-  it('bypasses live snapshot hits when diff materialization is requested', async () => {
+  it('uses an exact live snapshot hit when diff materialization is requested', async () => {
     const { controller, stateCache, patches } = createControllerFixtures();
     const target: Coordinate = {
       frontier: new Map([['writer-1', 'tip-7']]),
@@ -254,7 +254,36 @@ describe('MaterializeController — unified snapshot cache', () => {
 
     const result = await controller.materialize({ wantDiff: true });
 
-    expect(stateCache.getExact).not.toHaveBeenCalled();
+    expect(stateCache.getExact).toHaveBeenCalledWith(target);
+    expect(stateCache.getBestCompatiblePredecessor).not.toHaveBeenCalled();
+    expect(patches.collectForFrontier).not.toHaveBeenCalled();
+    expect(patches.loadCheckpoint).not.toHaveBeenCalled();
+    expect(stateCache.put).not.toHaveBeenCalled();
+    expect(result.patchCount).toBe(0);
+    expect(result.frontier).toEqual(target.frontier);
+  });
+
+  it('replays with a diff after an exact snapshot miss', async () => {
+    const { controller, stateCache, patches } = createControllerFixtures();
+    const target: Coordinate = {
+      frontier: new Map([['writer-1', 'tip-7']]),
+      ceiling: null,
+    };
+
+    stateCache.getExact.mockResolvedValue(null);
+    stateCache.getBestCompatiblePredecessor.mockResolvedValue(
+      snapshotRecord('snapshot-live-predecessor', {
+        frontier: new Map([['writer-1', 'tip-5']]),
+        ceiling: null,
+      }, 'full'),
+    );
+    patches.collectForFrontier.mockResolvedValue([
+      patchRecord(7, 'sha-7'),
+    ]);
+
+    const result = await controller.materialize({ wantDiff: true });
+
+    expect(stateCache.getExact).toHaveBeenCalledWith(target);
     expect(stateCache.getBestCompatiblePredecessor).not.toHaveBeenCalled();
     expect(patches.collectForFrontier).toHaveBeenCalledWith(
       target.frontier,
