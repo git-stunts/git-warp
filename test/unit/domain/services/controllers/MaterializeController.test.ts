@@ -399,7 +399,7 @@ describe('MaterializeController', () => {
       expect(Array.isArray(result.receipts)).toBe(true);
     });
 
-    it('builds provenance index from checkpoint provenanceIndex + new patches', async () => {
+    it('preserves full provenance from a checkpoint index and new patches', async () => {
       const { ctrl, patches } = setup();
       const ckPI = new ProvenanceIndex();
       ckPI.addPatch('old-sha', ['r1'], ['w1']);
@@ -416,10 +416,14 @@ describe('MaterializeController', () => {
 
       const result = await ctrl.materialize({});
 
-      expect(result.provenanceIndex).toBeInstanceOf(ProvenanceIndex);
+      expect(result.provenanceIndex.patchesFor('r1')).toEqual(['old-sha']);
+      expect(result.provenanceIndex.patchesFor('w1')).toEqual(['old-sha']);
+      expect(result.provenanceIndex.patchesFor('r2')).toEqual(['new-sha']);
+      expect(result.provenanceIndex.patchesFor('w2')).toEqual(['new-sha']);
+      expect(result.provenanceDegraded).toBe(false);
     });
 
-    it('creates fresh provenance index when checkpoint lacks one', async () => {
+    it('marks provenance degraded when the checkpoint lacks its prefix index', async () => {
       const { ctrl, patches } = setup();
       const checkpoint = {
         schema: 5,
@@ -429,11 +433,39 @@ describe('MaterializeController', () => {
         // no provenanceIndex
       };
       patches.loadCheckpoint.mockResolvedValue(checkpoint);
-      patches.loadPatchesSince.mockResolvedValue([fakePatchEntry({ sha: 'sha1' })]);
+      patches.loadPatchesSince.mockResolvedValue([
+        fakePatchEntry({ sha: 'new-sha', reads: ['r2'], writes: ['w2'] }),
+      ]);
 
       const result = await ctrl.materialize({});
 
       expect(result.provenanceIndex).toBeInstanceOf(ProvenanceIndex);
+      expect(result.provenanceIndex.patchesFor('r2')).toEqual(['new-sha']);
+      expect(result.provenanceIndex.patchesFor('w2')).toEqual(['new-sha']);
+      expect(result.provenanceDegraded).toBe(true);
+    });
+  });
+
+  describe('materializeAt() — explicit checkpoint', () => {
+    it('marks provenance degraded because state-only replay omits its support index', async () => {
+      const checkpointStore = {
+        loadCheckpoint: vi.fn().mockResolvedValue({
+          state: emptyState(),
+          frontier: new Map(),
+          stateHash: 'checkpoint-hash',
+          schema: 5,
+          appliedVV: null,
+          provenanceIndex: null,
+          indexShardHandles: null,
+        }),
+      };
+      const { ctrl } = setup({ depsOverrides: { checkpointStore } });
+
+      const result = await ctrl.materializeAt('checkpoint-sha');
+
+      expect(result.provenanceIndex).toBeInstanceOf(ProvenanceIndex);
+      expect(result.provenanceIndex.size).toBe(0);
+      expect(result.provenanceDegraded).toBe(true);
     });
   });
 

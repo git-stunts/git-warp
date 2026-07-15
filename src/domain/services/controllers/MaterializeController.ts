@@ -52,6 +52,7 @@ import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import type {
   MaterializeResultBuildInput,
   MaterializeStrategyRuntime,
+  MaterializeWrappedStateProvenance,
 } from './MaterializeStrategyRuntime.ts';
 
 export type MaterializePersistence = {
@@ -211,13 +212,20 @@ export default class MaterializeController {
     frontier?: Map<string, string> | null,
     options?: MaterializeSnapshotPublicationOptions,
   ): Promise<MaterializeResult> {
-    return await this._wrapState(createEmptyState(), ceiling ?? null, frontier ?? null, options);
+    return await this._wrapState(
+      createEmptyState(),
+      ceiling ?? null,
+      frontier ?? null,
+      'full',
+      options,
+    );
   }
 
   private async _wrapState(
     state: WarpState,
     ceiling: number | null,
     frontier: Map<string, string> | null,
+    provenance: MaterializeWrappedStateProvenance,
     options?: MaterializeSnapshotPublicationOptions,
   ): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, state);
@@ -237,7 +245,7 @@ export default class MaterializeController {
       patchCount: 0,
       maxObservedLamport: maxObservedLamportInState(state),
       provenanceIndex: new ProvenanceIndex(),
-      provenanceDegraded: false,
+      provenanceDegraded: provenance === 'degraded',
       frontier,
       ceiling,
     };
@@ -321,8 +329,8 @@ export default class MaterializeController {
       deps: this._deps,
       emptyResult: async (ceiling, frontier, options) =>
         await this._emptyResult(ceiling, frontier, options),
-      wrapState: async (state, ceiling, frontier, options) =>
-        await this._wrapState(state, ceiling, frontier, options),
+      wrapState: async (state, ceiling, frontier, provenance, options) =>
+        await this._wrapState(state, ceiling, frontier, provenance, options),
       reducePatches: async (patches, base, opts) => await this._reducePatches(patches, base, opts),
       reducePatchStream: async (stream, base, opts, provenanceBase) =>
         await this._reducePatchStream(stream, base, opts, provenanceBase),

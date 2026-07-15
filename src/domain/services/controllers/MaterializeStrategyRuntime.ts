@@ -37,6 +37,8 @@ export type MaterializeResultBuildInput = {
   frontier: Map<string, string> | null;
 };
 
+export type MaterializeWrappedStateProvenance = 'full' | 'degraded';
+
 export type MaterializeStrategyRuntime = {
   deps: MaterializeDeps;
   emptyResult(
@@ -48,6 +50,7 @@ export type MaterializeStrategyRuntime = {
     state: WarpState,
     ceiling: number | null,
     frontier: Map<string, string> | null,
+    provenance: MaterializeWrappedStateProvenance,
     options?: MaterializeSnapshotPublicationOptions,
   ): Promise<MaterializeResult>;
   reducePatches(

@@ -126,16 +126,17 @@ export default class MaterializeLiveStrategy {
     opts: MaterializeLiveOptions,
     frontier: Map<string, string> | null,
   ): Promise<MaterializeResult> {
+    const provenanceBase = checkpoint.provenanceIndex;
     const reduction = await this.runtime.reducePatchStream(
       this.streamPatchesSinceCheckpoint(checkpoint, frontier),
       checkpoint.state,
       opts,
-      checkpoint.provenanceIndex,
+      provenanceBase,
     );
     return await this.runtime.buildResult({
       reduced: reduction.reduced,
       summary: reduction.summary,
-      degraded: false,
+      degraded: provenanceBase === undefined,
       ceiling: null,
       frontier,
     });
