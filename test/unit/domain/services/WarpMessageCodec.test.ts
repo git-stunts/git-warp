@@ -1,932 +1,222 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import {
-  encodePatchMessage,
-  encodeCheckpointMessage,
-  encodeAnchorMessage,
+  CHECKPOINT_STORAGE_FORMAT,
+  createGitCasPatchStorage,
+} from '../../../../src/ports/CommitMessageCodecPort.ts';
+import {
+  TrailerCommitMessageCodecAdapter,
   decodePatchMessage,
-  decodeCheckpointMessage,
-  decodeAnchorMessage,
   detectMessageKind,
+  encodePatchMessage,
 } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import { createGitCasPatchStorage } from '../../../../src/ports/CommitMessageCodecPort.ts';
 
-// Test fixtures
-const VALID_OID_SHA1 = 'a'.repeat(40);
-const VALID_OID_SHA256 = 'b'.repeat(64);
-const VALID_STATE_HASH = 'c'.repeat(64);
+const LEGACY_OID = 'a'.repeat(40);
+const STATE_HASH = 'b'.repeat(64);
 
-describe('WarpMessageCodec', () => {
-  describe('encodePatchMessage', () => {
-    it('encodes a valid patch message with all required fields', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 42,
-        patchOid: VALID_OID_SHA1,
-        schema: 2,
-      });
+describe('TrailerCommitMessageCodecAdapter', () => {
+  const codec = new TrailerCommitMessageCodecAdapter();
 
-      expect(message).toContain('warp:patch');
-      expect(message).toContain('eg-kind: patch');
-      expect(message).toContain('eg-graph: events');
-      expect(message).toContain('eg-writer: node-1');
-      expect(message).toContain('eg-lamport: 42');
-      expect(message).toContain(`eg-patch-oid: ${VALID_OID_SHA1}`);
-      expect(message).toContain('eg-schema: 2');
+  it('round-trips current git-cas patch asset locators', () => {
+    const encoded = codec.encodePatch({
+      kind: 'patch',
+      graph: 'events',
+      writer: 'writer-1',
+      lamport: 42,
+      schema: 3,
+      patchHandle: new AssetHandle('git-cas:asset:patch-42'),
+      storage: createGitCasPatchStorage({ encrypted: false }),
+    });
+    const decoded = codec.decodePatch(encoded);
+
+    expect(encoded).toContain('eg-patch-handle: git-cas:asset:patch-42');
+    expect(encoded).toContain('eg-storage-version: v19');
+    expect(encoded).toContain('eg-storage-schema: git-cas-asset-patch-v1');
+    expect(decoded).toMatchObject({
+      kind: 'patch',
+      graph: 'events',
+      writer: 'writer-1',
+      lamport: 42,
+      schema: 3,
+      storage: { strategy: 'git-cas-asset', encrypted: false },
+    });
+    expect(decoded.patchHandle.toString()).toBe('git-cas:asset:patch-42');
+  });
+
+  it('records current encrypted asset routes without exposing keys', () => {
+    const encoded = codec.encodePatch({
+      kind: 'patch',
+      graph: 'events',
+      writer: 'writer-1',
+      lamport: 1,
+      schema: 2,
+      patchHandle: new AssetHandle('git-cas:asset:encrypted'),
+      storage: createGitCasPatchStorage({ encrypted: true }),
     });
 
-    it('accepts custom schema version', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-        schema: 3,
-      });
-
-      expect(message).toContain('eg-schema: 3');
+    expect(encoded).toContain('eg-encrypted: true');
+    expect(codec.decodePatch(encoded).storage).toMatchObject({
+      strategy: 'git-cas-asset',
+      encrypted: true,
     });
+    expect(encoded).not.toMatch(/key|passphrase/iu);
+  });
 
-    it('accepts SHA-256 OIDs', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA256,
-      });
-
-      expect(message).toContain(`eg-patch-oid: ${VALID_OID_SHA256}`);
+  it('continues to decode supported legacy patch OID messages', () => {
+    const encoded = encodePatchMessage({
+      graph: 'legacy-events',
+      writer: 'writer-1',
+      lamport: 1,
+      patchOid: LEGACY_OID,
+      schema: 2,
     });
+    const decoded = decodePatchMessage(encoded);
 
-    it('rejects invalid graph name', () => {
-      expect(() =>
-        encodePatchMessage({
-          graph: '../etc',
-          writer: 'node-1',
-          lamport: 1,
-          patchOid: VALID_OID_SHA1,
-        })
-      ).toThrow('path traversal');
-    });
+    expect(decoded.patchHandle.toString()).toBe(LEGACY_OID);
+    expect(decoded.storage.strategy).toBe('legacy-git-blob');
+    expect(decoded.encrypted).toBe(false);
+  });
 
-    it('rejects empty graph name', () => {
-      expect(() =>
-        encodePatchMessage({
-          graph: '',
-          writer: 'node-1',
-          lamport: 1,
-          patchOid: VALID_OID_SHA1,
-        })
-      ).toThrow('cannot be empty');
-    });
+  it('classifies encrypted legacy locators as external storage', () => {
+    const decoded = decodePatchMessage(encodePatchMessage({
+      graph: 'legacy-events',
+      writer: 'writer-1',
+      lamport: 1,
+      patchOid: LEGACY_OID,
+      encrypted: true,
+    }));
 
-    it('rejects invalid writer ID', () => {
-      expect(() =>
-        encodePatchMessage({
-          graph: 'events',
-          writer: 'node/1',
-          lamport: 1,
-          patchOid: VALID_OID_SHA1,
-        })
-      ).toThrow('forward slash');
-    });
-
-    it('rejects zero lamport', () => {
-      expect(() =>
-        encodePatchMessage({
-          graph: 'events',
-          writer: 'node-1',
-          lamport: 0,
-          patchOid: VALID_OID_SHA1,
-        })
-      ).toThrow('positive integer');
-    });
-
-    it('rejects negative lamport', () => {
-      expect(() =>
-        encodePatchMessage({
-          graph: 'events',
-          writer: 'node-1',
-          lamport: -1,
-          patchOid: VALID_OID_SHA1,
-        })
-      ).toThrow('positive integer');
-    });
-
-    it('rejects non-integer lamport', () => {
-      expect(() =>
-        encodePatchMessage({
-          graph: 'events',
-          writer: 'node-1',
-          lamport: 1.5,
-          patchOid: VALID_OID_SHA1,
-        })
-      ).toThrow('positive integer');
-    });
-
-    it('rejects invalid OID format', () => {
-      expect(() =>
-        encodePatchMessage({
-          graph: 'events',
-          writer: 'node-1',
-          lamport: 1,
-          patchOid: 'not-a-valid-oid',
-        })
-      ).toThrow('40 or 64 character hex string');
-    });
-
-    it('rejects OID with uppercase characters', () => {
-      expect(() =>
-        encodePatchMessage({
-          graph: 'events',
-          writer: 'node-1',
-          lamport: 1,
-          patchOid: 'A'.repeat(40),
-        })
-      ).toThrow('40 or 64 character hex string');
-    });
-
-    it('includes eg-encrypted trailer when encrypted=true', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-        encrypted: true,
-      });
-
-      expect(message).toContain('eg-encrypted: true');
-    });
-
-    it('omits eg-encrypted trailer when encrypted=false', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-        encrypted: false,
-      });
-
-      expect(message).not.toContain('eg-encrypted');
-    });
-
-    it('omits eg-encrypted trailer by default', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-      });
-
-      expect(message).not.toContain('eg-encrypted');
+    expect(decoded.storage).toMatchObject({
+      strategy: 'legacy-external-storage',
+      encrypted: true,
     });
   });
 
-  describe('encodeCheckpointMessage', () => {
-    it('encodes a valid checkpoint message with all required fields', () => {
-      const message = encodeCheckpointMessage({
-        graph: 'events',
-        stateHash: VALID_STATE_HASH,
-        frontierOid: VALID_OID_SHA1,
-        indexOid: VALID_OID_SHA1,
-        schema: 2,
-      });
-
-      expect(message).toContain('warp:checkpoint');
-      expect(message).toContain('eg-kind: checkpoint');
-      expect(message).toContain('eg-graph: events');
-      expect(message).toContain(`eg-state-hash: ${VALID_STATE_HASH}`);
-      expect(message).toContain(`eg-frontier-oid: ${VALID_OID_SHA1}`);
-      expect(message).toContain(`eg-index-oid: ${VALID_OID_SHA1}`);
-      expect(message).toContain('eg-schema: 2');
+  it('round-trips storage-neutral checkpoint publication metadata', () => {
+    const encoded = codec.encodeCheckpoint({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: STATE_HASH,
+      schema: 5,
+      checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+      bundleHandle: new BundleHandle('bundle:checkpoint'),
     });
+    const decoded = codec.decodeCheckpoint(encoded);
 
-    it('accepts custom schema version', () => {
-      const message = encodeCheckpointMessage({
-        graph: 'events',
-        stateHash: VALID_STATE_HASH,
-        frontierOid: VALID_OID_SHA1,
-        indexOid: VALID_OID_SHA1,
-        schema: 3,
-      });
-
-      expect(message).toContain('eg-schema: 3');
-    });
-
-    it('rejects invalid graph name', () => {
-      expect(() =>
-        encodeCheckpointMessage({
-          graph: 'my graph',
-          stateHash: VALID_STATE_HASH,
-          frontierOid: VALID_OID_SHA1,
-          indexOid: VALID_OID_SHA1,
-        })
-      ).toThrow('contains space');
-    });
-
-    it('rejects invalid stateHash (not 64 chars)', () => {
-      expect(() =>
-        encodeCheckpointMessage({
-          graph: 'events',
-          stateHash: 'a'.repeat(40),
-          frontierOid: VALID_OID_SHA1,
-          indexOid: VALID_OID_SHA1,
-        })
-      ).toThrow('64 character hex string');
-    });
-
-    it('rejects invalid frontierOid', () => {
-      expect(() =>
-        encodeCheckpointMessage({
-          graph: 'events',
-          stateHash: VALID_STATE_HASH,
-          frontierOid: 'invalid',
-          indexOid: VALID_OID_SHA1,
-        })
-      ).toThrow('40 or 64 character hex string');
-    });
-
-    it('rejects invalid indexOid', () => {
-      expect(() =>
-        encodeCheckpointMessage({
-          graph: 'events',
-          stateHash: VALID_STATE_HASH,
-          frontierOid: VALID_OID_SHA1,
-          indexOid: 'invalid',
-        })
-      ).toThrow('40 or 64 character hex string');
+    expect(encoded).toContain('eg-checkpoint: v19');
+    expect(encoded).toContain('eg-checkpoint-handle: bundle:checkpoint');
+    expect(encoded).not.toContain('frontier-oid');
+    expect(encoded).not.toContain('index-oid');
+    expect(decoded).toEqual({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: STATE_HASH,
+      schema: 5,
+      checkpointVersion: 'v19',
+      bundleHandle: new BundleHandle('bundle:checkpoint'),
     });
   });
 
-  describe('encodeAnchorMessage', () => {
-    it('encodes a valid anchor message with required fields', () => {
-      const message = encodeAnchorMessage({ graph: 'events', schema: 2 });
+  it('rejects contradictory checkpoint storage metadata on encode', () => {
+    expect(() => codec.encodeCheckpoint({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: STATE_HASH,
+      schema: 5,
+      checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+      bundleHandle: null,
+    })).toThrow(/requires a bundle handle/u);
 
-      expect(message).toContain('warp:anchor');
-      expect(message).toContain('eg-kind: anchor');
-      expect(message).toContain('eg-graph: events');
-      expect(message).toContain('eg-schema: 2');
-    });
+    expect(() => codec.encodeCheckpoint({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: STATE_HASH,
+      schema: 5,
+      checkpointVersion: 'v5',
+      bundleHandle: new BundleHandle('bundle:checkpoint'),
+    })).toThrow(/current storage version/u);
+  });
 
-    it('accepts custom schema version', () => {
-      const message = encodeAnchorMessage({ graph: 'events', schema: 5 });
-
-      expect(message).toContain('eg-schema: 5');
-    });
-
-    it('rejects invalid graph name', () => {
-      expect(() => encodeAnchorMessage({ graph: '' })).toThrow('cannot be empty');
-    });
-
-    it('rejects zero schema version', () => {
-      expect(() => encodeAnchorMessage({ graph: 'events', schema: 0 })).toThrow('positive integer');
+  it('round-trips anchors', () => {
+    const encoded = codec.encodeAnchor({ kind: 'anchor', graph: 'events', schema: 5 });
+    expect(codec.decodeAnchor(encoded)).toEqual({
+      kind: 'anchor',
+      graph: 'events',
+      schema: 5,
     });
   });
 
-  describe('decodePatchMessage', () => {
-    it('decodes a valid patch message', () => {
-      const encoded = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 42,
-        patchOid: VALID_OID_SHA1,
-        schema: 2,
-      });
-
-      const decoded = decodePatchMessage(encoded);
-
-      expect(decoded.kind).toBe('patch');
-      expect(decoded.graph).toBe('events');
-      expect(decoded.writer).toBe('node-1');
-      expect(decoded.lamport).toBe(42);
-      expect(decoded.patchOid).toBe(VALID_OID_SHA1);
-      expect(decoded.schema).toBe(2);
-    });
-
-    it('throws when eg-kind is not patch', () => {
-      const anchorMessage = encodeAnchorMessage({ graph: 'events' });
-
-      expect(() => decodePatchMessage(anchorMessage)).toThrow("eg-kind must be 'patch'");
-    });
-
-    it('throws when eg-graph is missing', () => {
-      // Manually construct a malformed message
-      const message = `warp:patch
-
-eg-kind: patch
-eg-writer: node-1
-eg-lamport: 1
-eg-patch-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodePatchMessage(message)).toThrow('missing required trailer eg-graph');
-    });
-
-    it('throws when eg-writer is missing', () => {
-      const message = `warp:patch
-
-eg-kind: patch
-eg-graph: events
-eg-lamport: 1
-eg-patch-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodePatchMessage(message)).toThrow('missing required trailer eg-writer');
-    });
-
-    it('throws when eg-lamport is missing', () => {
-      const message = `warp:patch
-
-eg-kind: patch
-eg-graph: events
-eg-writer: node-1
-eg-patch-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodePatchMessage(message)).toThrow('missing required trailer eg-lamport');
-    });
-
-    it('throws when eg-lamport is not a positive integer', () => {
-      const message = `warp:patch
-
-eg-kind: patch
-eg-graph: events
-eg-writer: node-1
-eg-lamport: zero
-eg-patch-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodePatchMessage(message)).toThrow('eg-lamport must be a positive integer');
-    });
-
-    it('throws when eg-lamport is zero', () => {
-      const message = `warp:patch
-
-eg-kind: patch
-eg-graph: events
-eg-writer: node-1
-eg-lamport: 0
-eg-patch-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodePatchMessage(message)).toThrow('eg-lamport must be a positive integer');
-    });
-
-    it('throws when eg-patch-oid is missing', () => {
-      const message = `warp:patch
-
-eg-kind: patch
-eg-graph: events
-eg-writer: node-1
-eg-lamport: 1
-eg-schema: 1`;
-
-      expect(() => decodePatchMessage(message)).toThrow('missing required trailer eg-patch-oid');
-    });
-
-    it('throws when eg-schema is missing', () => {
-      const message = `warp:patch
-
-eg-kind: patch
-eg-graph: events
-eg-writer: node-1
-eg-lamport: 1
-eg-patch-oid: ${VALID_OID_SHA1}`;
-
-      expect(() => decodePatchMessage(message)).toThrow('missing required trailer eg-schema');
-    });
-
-    it('throws when eg-graph contains invalid characters', () => {
-      const message = `warp:patch
-
-eg-kind: patch
-eg-graph: inv alid/name
-eg-writer: node-1
-eg-lamport: 1
-eg-patch-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodePatchMessage(message)).toThrow('Invalid graph name');
-    });
-
-    it('throws when eg-writer contains invalid characters', () => {
-      const message = `warp:patch
-
-eg-kind: patch
-eg-graph: events
-eg-writer: bad writer!
-eg-lamport: 1
-eg-patch-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodePatchMessage(message)).toThrow('Invalid writer ID');
-    });
-
-    it('throws when eg-patch-oid is not a valid hex OID', () => {
-      const message = `warp:patch
-
-eg-kind: patch
-eg-graph: events
-eg-writer: node-1
-eg-lamport: 1
-eg-patch-oid: not-a-valid-oid
-eg-schema: 1`;
-
-      expect(() => decodePatchMessage(message)).toThrow('Invalid patchOid');
-    });
-
-    it('decodes encrypted=true from eg-encrypted trailer', () => {
-      const encoded = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-        encrypted: true,
-      });
-      const decoded = decodePatchMessage(encoded);
-      expect(decoded.encrypted).toBe(true);
-    });
-
-    it('decodes encrypted=false when eg-encrypted trailer is absent', () => {
-      const encoded = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-      });
-      const decoded = decodePatchMessage(encoded);
-      expect(decoded.encrypted).toBe(false);
-    });
-
-    it('roundtrips encrypted flag correctly', () => {
-      for (const encrypted of [true, false]) {
-        const encoded = encodePatchMessage({
-          graph: 'events',
-          writer: 'w1',
-          lamport: 5,
-          patchOid: VALID_OID_SHA1,
-          encrypted,
-        });
-        const decoded = decodePatchMessage(encoded);
-        expect(decoded.encrypted).toBe(encrypted);
-      }
-    });
+  it.each([
+    ['patch', codec.encodePatch({
+      kind: 'patch',
+      graph: 'events',
+      writer: 'writer-1',
+      lamport: 1,
+      schema: 2,
+      patchHandle: new AssetHandle('asset:patch'),
+      storage: createGitCasPatchStorage({ encrypted: false }),
+    })],
+    ['checkpoint', codec.encodeCheckpoint({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: STATE_HASH,
+      schema: 5,
+      checkpointVersion: 'v5',
+      bundleHandle: null,
+    })],
+    ['anchor', codec.encodeAnchor({ kind: 'anchor', graph: 'events', schema: 5 })],
+  ] as const)('detects %s messages', (kind, message) => {
+    expect(codec.detectKind(message)).toBe(kind);
+    expect(detectMessageKind(message)).toBe(kind);
   });
 
-  describe('decodeCheckpointMessage', () => {
-    it('decodes a valid checkpoint message', () => {
-      const encoded = encodeCheckpointMessage({
-        graph: 'events',
-        stateHash: VALID_STATE_HASH,
-        frontierOid: VALID_OID_SHA1,
-        indexOid: VALID_OID_SHA1,
-        schema: 2,
-      });
-
-      const decoded = decodeCheckpointMessage(encoded);
-
-      expect(decoded.kind).toBe('checkpoint');
-      expect(decoded.graph).toBe('events');
-      expect(decoded.stateHash).toBe(VALID_STATE_HASH);
-      expect(decoded.frontierOid).toBe(VALID_OID_SHA1);
-      expect(decoded.indexOid).toBe(VALID_OID_SHA1);
-      expect(decoded.schema).toBe(2);
-    });
-
-    it('throws when eg-kind is not checkpoint', () => {
-      const patchMessage = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-      });
-
-      expect(() => decodeCheckpointMessage(patchMessage)).toThrow(
-        "eg-kind must be 'checkpoint'"
-      );
-    });
-
-    it('throws when eg-graph is missing', () => {
-      const message = `warp:checkpoint
-
-eg-kind: checkpoint
-eg-state-hash: ${VALID_STATE_HASH}
-eg-frontier-oid: ${VALID_OID_SHA1}
-eg-index-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodeCheckpointMessage(message)).toThrow('missing required trailer eg-graph');
-    });
-
-    it('throws when eg-state-hash is missing', () => {
-      const message = `warp:checkpoint
-
-eg-kind: checkpoint
-eg-graph: events
-eg-frontier-oid: ${VALID_OID_SHA1}
-eg-index-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodeCheckpointMessage(message)).toThrow(
-        'missing required trailer eg-state-hash'
-      );
-    });
-
-    it('throws when eg-frontier-oid is missing', () => {
-      const message = `warp:checkpoint
-
-eg-kind: checkpoint
-eg-graph: events
-eg-state-hash: ${VALID_STATE_HASH}
-eg-index-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodeCheckpointMessage(message)).toThrow(
-        'missing required trailer eg-frontier-oid'
-      );
-    });
-
-    it('throws when eg-index-oid is missing', () => {
-      const message = `warp:checkpoint
-
-eg-kind: checkpoint
-eg-graph: events
-eg-state-hash: ${VALID_STATE_HASH}
-eg-frontier-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodeCheckpointMessage(message)).toThrow(
-        'missing required trailer eg-index-oid'
-      );
-    });
-
-    it('throws when eg-schema is missing', () => {
-      const message = `warp:checkpoint
-
-eg-kind: checkpoint
-eg-graph: events
-eg-state-hash: ${VALID_STATE_HASH}
-eg-frontier-oid: ${VALID_OID_SHA1}
-eg-index-oid: ${VALID_OID_SHA1}`;
-
-      expect(() => decodeCheckpointMessage(message)).toThrow(
-        'missing required trailer eg-schema'
-      );
-    });
-
-    it('throws when eg-graph contains invalid characters', () => {
-      const message = `warp:checkpoint
-
-eg-kind: checkpoint
-eg-graph: inv alid/name
-eg-state-hash: ${VALID_STATE_HASH}
-eg-frontier-oid: ${VALID_OID_SHA1}
-eg-index-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodeCheckpointMessage(message)).toThrow('Invalid graph name');
-    });
-
-    it('throws when eg-state-hash is not a valid SHA-256', () => {
-      const message = `warp:checkpoint
-
-eg-kind: checkpoint
-eg-graph: events
-eg-state-hash: not-a-sha256
-eg-frontier-oid: ${VALID_OID_SHA1}
-eg-index-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodeCheckpointMessage(message)).toThrow('Invalid stateHash');
-    });
-
-    it('throws when eg-frontier-oid is not a valid hex OID', () => {
-      const message = `warp:checkpoint
-
-eg-kind: checkpoint
-eg-graph: events
-eg-state-hash: ${VALID_STATE_HASH}
-eg-frontier-oid: not-a-valid-oid
-eg-index-oid: ${VALID_OID_SHA1}
-eg-schema: 1`;
-
-      expect(() => decodeCheckpointMessage(message)).toThrow('Invalid frontierOid');
-    });
-
-    it('throws when eg-index-oid is not a valid hex OID', () => {
-      const message = `warp:checkpoint
-
-eg-kind: checkpoint
-eg-graph: events
-eg-state-hash: ${VALID_STATE_HASH}
-eg-frontier-oid: ${VALID_OID_SHA1}
-eg-index-oid: not-a-valid-oid
-eg-schema: 1`;
-
-      expect(() => decodeCheckpointMessage(message)).toThrow('Invalid indexOid');
-    });
+  it('returns null for non-WARP messages', () => {
+    expect(codec.detectKind('ordinary commit')).toBeNull();
   });
 
-  describe('decodeAnchorMessage', () => {
-    it('decodes a valid anchor message', () => {
-      const encoded = encodeAnchorMessage({ graph: 'events', schema: 2 });
-
-      const decoded = decodeAnchorMessage(encoded);
-
-      expect(decoded.kind).toBe('anchor');
-      expect(decoded.graph).toBe('events');
-      expect(decoded.schema).toBe(2);
-    });
-
-    it('throws when eg-kind is not anchor', () => {
-      const patchMessage = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-      });
-
-      expect(() => decodeAnchorMessage(patchMessage)).toThrow("eg-kind must be 'anchor'");
-    });
-
-    it('throws when eg-graph is missing', () => {
-      const message = `warp:anchor
-
-eg-kind: anchor
-eg-schema: 1`;
-
-      expect(() => decodeAnchorMessage(message)).toThrow('missing required trailer eg-graph');
-    });
-
-    it('throws when eg-schema is missing', () => {
-      const message = `warp:anchor
-
-eg-kind: anchor
-eg-graph: events`;
-
-      expect(() => decodeAnchorMessage(message)).toThrow('missing required trailer eg-schema');
-    });
-
-    it('throws when eg-schema is invalid', () => {
-      const message = `warp:anchor
-
-eg-kind: anchor
-eg-graph: events
-eg-schema: invalid`;
-
-      expect(() => decodeAnchorMessage(message)).toThrow('eg-schema must be a positive integer');
-    });
+  it('rejects malformed graph, writer, lamport, hash, and handles', () => {
+    expect(() => codec.encodePatch({
+      kind: 'patch',
+      graph: '../events',
+      writer: 'writer-1',
+      lamport: 1,
+      schema: 2,
+      patchHandle: new AssetHandle('asset:patch'),
+      storage: createGitCasPatchStorage({ encrypted: false }),
+    })).toThrow(/path traversal/u);
+    expect(() => codec.encodePatch({
+      kind: 'patch',
+      graph: 'events',
+      writer: 'writer/1',
+      lamport: 1,
+      schema: 2,
+      patchHandle: new AssetHandle('asset:patch'),
+      storage: createGitCasPatchStorage({ encrypted: false }),
+    })).toThrow(/forward slash/u);
+    expect(() => encodePatchMessage({
+      graph: 'events',
+      writer: 'writer-1',
+      lamport: 0,
+      patchOid: LEGACY_OID,
+    })).toThrow(/positive integer/u);
+    expect(() => codec.encodeCheckpoint({
+      kind: 'checkpoint',
+      graph: 'events',
+      stateHash: 'short',
+      schema: 5,
+      checkpointVersion: 'v5',
+      bundleHandle: null,
+    })).toThrow(/64 character hex string/u);
   });
 
-  describe('detectMessageKind', () => {
-    it('detects patch messages', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-        schema: 2,
-      });
-
-      expect(detectMessageKind(message)).toBe('patch');
-    });
-
-    it('detects checkpoint messages', () => {
-      const message = encodeCheckpointMessage({
-        graph: 'events',
-        stateHash: VALID_STATE_HASH,
-        frontierOid: VALID_OID_SHA1,
-        indexOid: VALID_OID_SHA1,
-        schema: 2,
-      });
-
-      expect(detectMessageKind(message)).toBe('checkpoint');
-    });
-
-    it('detects anchor messages', () => {
-      const message = encodeAnchorMessage({ graph: 'events', schema: 2 });
-
-      expect(detectMessageKind(message)).toBe('anchor');
-    });
-
-    it('returns null for non-WARP messages', () => {
-      const message = 'Just a regular commit message';
-
-      expect(detectMessageKind(message)).toBeNull();
-    });
-
-    it('returns null for messages with unknown eg-kind', () => {
-      const message = `warp:unknown
-
-eg-kind: unknown
-eg-graph: events
-eg-schema: 1`;
-
-      expect(detectMessageKind(message)).toBeNull();
-    });
-
-    it('returns null for non-string input', () => {
-      expect(detectMessageKind(null as any)).toBeNull();
-      expect(detectMessageKind(undefined as any)).toBeNull();
-      expect(detectMessageKind(123 as any)).toBeNull();
-      expect(detectMessageKind({} as any)).toBeNull();
-    });
-
-    it('returns null for empty string', () => {
-      expect(detectMessageKind('')).toBeNull();
-    });
-
-    it('returns null for malformed messages', () => {
-      expect(detectMessageKind('just\nsome\ntext')).toBeNull();
-    });
-  });
-
-  describe('round-trip encoding/decoding', () => {
-    it('patch message round-trips correctly', () => {
-      const original = {
-        graph: 'my-events',
-        writer: 'producer-1',
-        lamport: 12345,
-        patchOid: VALID_OID_SHA1,
-        schema: 2,
-      };
-
-      const encoded = encodePatchMessage(original);
-      const decoded = decodePatchMessage(encoded);
-
-      expect(decoded.kind).toBe('patch');
-      expect(decoded.graph).toBe(original.graph);
-      expect(decoded.writer).toBe(original.writer);
-      expect(decoded.lamport).toBe(original.lamport);
-      expect(decoded.patchOid).toBe(original.patchOid);
-      expect(decoded.schema).toBe(original.schema);
-    });
-
-    it('checkpoint message round-trips correctly', () => {
-      const original = {
-        graph: 'team/events',
-        stateHash: VALID_STATE_HASH,
-        frontierOid: VALID_OID_SHA1,
-        indexOid: 'd'.repeat(40),
-        schema: 2,
-      };
-
-      const encoded = encodeCheckpointMessage(original);
-      const decoded = decodeCheckpointMessage(encoded);
-
-      expect(decoded.kind).toBe('checkpoint');
-      expect(decoded.graph).toBe(original.graph);
-      expect(decoded.stateHash).toBe(original.stateHash);
-      expect(decoded.frontierOid).toBe(original.frontierOid);
-      expect(decoded.indexOid).toBe(original.indexOid);
-      expect(decoded.schema).toBe(original.schema);
-    });
-
-    it('anchor message round-trips correctly', () => {
-      const original = {
-        graph: 'production',
-        schema: 3,
-      };
-
-      const encoded = encodeAnchorMessage(original);
-      const decoded = decodeAnchorMessage(encoded);
-
-      expect(decoded.kind).toBe('anchor');
-      expect(decoded.graph).toBe(original.graph);
-      expect(decoded.schema).toBe(original.schema);
-    });
-
-    it('handles edge case graph names', () => {
-      const edgeCases = ['a', 'Graph123', 'my-graph_v2', 'team/shared/events'];
-
-      for (const graph of edgeCases) {
-        const encoded = encodeAnchorMessage({ graph, schema: 2 });
-        const decoded = decodeAnchorMessage(encoded);
-        expect(decoded.graph).toBe(graph);
-      }
-    });
-
-    it('handles edge case writer IDs', () => {
-      const edgeCases = ['a', 'Writer_01', 'node-123', 'writer.v2'];
-
-      for (const writer of edgeCases) {
-        const encoded = encodePatchMessage({
-          graph: 'events',
-          writer,
-          lamport: 1,
-          patchOid: VALID_OID_SHA1,
-          schema: 2,
-        });
-        const decoded = decodePatchMessage(encoded);
-        expect(decoded.writer).toBe(writer);
-      }
-    });
-
-    it('handles large lamport values', () => {
-      const largeLamport = Number.MAX_SAFE_INTEGER;
-
-      const encoded = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: largeLamport,
-        patchOid: VALID_OID_SHA1,
-        schema: 2,
-      });
-      const decoded = decodePatchMessage(encoded);
-
-      expect(decoded.lamport).toBe(largeLamport);
-    });
-  });
-
-  describe('message format verification', () => {
-    it('patch message has correct title', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-        schema: 2,
-      });
-
-      const lines = message.split('\n');
-      expect(lines[0]).toBe('warp:patch');
-    });
-
-    it('preserves legacy patch trailer line order', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-        schema: 2,
-      });
-
-      expect(message.split('\n')).toEqual([
-        'warp:patch',
-        '',
-        'eg-kind: patch',
-        'eg-graph: events',
-        'eg-writer: node-1',
-        'eg-lamport: 1',
-        `eg-patch-oid: ${VALID_OID_SHA1}`,
-        'eg-schema: 2',
-        '',
-      ]);
-    });
-
-    it('preserves conditional patch trailer line order', () => {
-      const message = encodePatchMessage({
-        graph: 'events',
-        writer: 'node-1',
-        lamport: 1,
-        patchOid: VALID_OID_SHA1,
-        schema: 3,
-        storage: createGitCasPatchStorage({ encrypted: true }),
-      });
-
-      expect(message.split('\n')).toEqual([
-        'warp:patch',
-        '',
-        'eg-kind: patch',
-        'eg-graph: events',
-        'eg-writer: node-1',
-        'eg-lamport: 1',
-        `eg-patch-oid: ${VALID_OID_SHA1}`,
-        'eg-schema: 3',
-        'eg-storage-version: v17',
-        'eg-storage-schema: git-cas-cbor-patch-v1',
-        'eg-encrypted: true',
-        '',
-      ]);
-    });
-
-    it('checkpoint message has correct title', () => {
-      const message = encodeCheckpointMessage({
-        graph: 'events',
-        stateHash: VALID_STATE_HASH,
-        frontierOid: VALID_OID_SHA1,
-        indexOid: VALID_OID_SHA1,
-        schema: 2,
-      });
-
-      const lines = message.split('\n');
-      expect(lines[0]).toBe('warp:checkpoint');
-    });
-
-    it('anchor message has correct title', () => {
-      const message = encodeAnchorMessage({ graph: 'events', schema: 2 });
-
-      const lines = message.split('\n');
-      expect(lines[0]).toBe('warp:anchor');
-    });
-
-    it('trailers are separated by blank line from title', () => {
-      const message = encodeAnchorMessage({ graph: 'events', schema: 2 });
-
-      const lines = message.split('\n');
-      expect(lines[0]).toBe('warp:anchor');
-      expect(lines[1]).toBe('');
-      expect(lines[2]).toMatch(/^eg-/);
-    });
+  it('rejects locator/type mismatches and missing required trailers', () => {
+    expect(() => codec.decodePatch('warp:patch\n\neg-kind: patch\n'))
+      .toThrow(/missing required trailer/u);
+    expect(() => codec.decodeCheckpoint(codec.encodeAnchor({
+      kind: 'anchor',
+      graph: 'events',
+      schema: 5,
+    }))).toThrow(/must be 'checkpoint'/u);
   });
 });

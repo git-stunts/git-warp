@@ -4,6 +4,7 @@ import type { CliOptions } from '../../../bin/cli/types.ts';
 
 const sharedMocks = vi.hoisted(() => ({
   createPersistence: vi.fn(),
+  createRuntimeStorageServices: vi.fn(),
   resolveGraphName: vi.fn(),
 }));
 
@@ -39,7 +40,15 @@ const CLI_OPTIONS: CliOptions = {
 describe('verify-audit command', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    sharedMocks.createPersistence.mockResolvedValue({ persistence: { kind: 'persistence' } });
+    sharedMocks.createRuntimeStorageServices.mockResolvedValue({
+      auditLog: { kind: 'audit-log' },
+    });
+    sharedMocks.createPersistence.mockResolvedValue({
+      persistence: { kind: 'persistence' },
+      runtimeStorage: {
+        createRuntimeStorageServices: sharedMocks.createRuntimeStorageServices,
+      },
+    });
     sharedMocks.resolveGraphName.mockResolvedValue('demo');
     verifierMocks.verifyAll.mockResolvedValue({
       graph: 'demo',

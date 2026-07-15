@@ -8,6 +8,10 @@
 import TrustChainPort from '../../src/ports/TrustChainPort.ts';
 import type { TrustChainTip } from '../../src/ports/TrustChainPort.ts';
 import { TrustRecord } from '../../src/domain/trust/TrustRecord.ts';
+import StorageHandle from '../../src/domain/storage/StorageHandle.ts';
+import StorageRetentionWitness, {
+  StorageRetentionRoot,
+} from '../../src/domain/storage/StorageRetentionWitness.ts';
 
 class MockTrustChainPort extends TrustChainPort {
   private _records: TrustRecord[] = [];
@@ -43,12 +47,31 @@ class MockTrustChainPort extends TrustChainPort {
   }
 
   async persistRecord(
-    _graphName: string,
+    graphName: string,
     record: TrustRecord,
     _parentTipSha: string | null,
-  ): Promise<string> {
+  ): Promise<Readonly<{
+    commitSha: string;
+    retention: StorageRetentionWitness;
+  }>> {
     this._records.push(record);
-    return `mock-sha-${record.recordId.slice(0, 8)}`;
+    const commitSha = `mock-sha-${record.recordId.slice(0, 8)}`;
+    return Object.freeze({
+      commitSha,
+      retention: new StorageRetentionWitness({
+        handle: new StorageHandle(`mock-trust:${record.recordId}`),
+        policy: 'pinned',
+        reachability: 'anchored',
+        root: new StorageRetentionRoot({
+          kind: 'publication',
+          namespace: graphName,
+          locator: `refs/warp/${graphName}/trust`,
+          generation: commitSha,
+          path: '/',
+        }),
+        observedAt: new Date(0).toISOString(),
+      }),
+    });
   }
 }
 

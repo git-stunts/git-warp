@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
-import { encodePatchMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
+import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
+import InMemoryGraphAdapter from '../../helpers/InMemoryGraphAdapter.ts';
 
 /**
  * AP/INVAL/3 — Writer.commitPatch() and PatchSession.commit() trigger
@@ -13,62 +13,12 @@ import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
  * reflect the new state immediately.
  */
 
-const FAKE_BLOB_OID = 'a'.repeat(40);
-const FAKE_TREE_OID = 'b'.repeat(40);
-const FAKE_COMMIT_SHA = 'c'.repeat(40);
-const FAKE_COMMIT_SHA_2 = 'd'.repeat(40);
-
-/**
- * Configure the mock persistence so that a Writer-based first commit succeeds.
- *
- * Writer flow hits readRef 3 times for a first commit:
- *   1. Writer.beginPatch() reads ref to get expectedOldHead
- *   2. PatchCommitter reads ref for its CAS check
- *   3. PatchCommitter verifies the writer ref advanced after compare-and-swap
- */
-function mockWriterFirstCommit(/** @type {any} */ persistence) {
-  persistence.readRef
-    .mockResolvedValueOnce(null)
-    .mockResolvedValueOnce(null)
-    .mockResolvedValue(FAKE_COMMIT_SHA);
-  persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
-  persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
-  persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
-}
-
-/**
- * Configure the mock persistence so that a Writer-based second commit succeeds.
- *
- * After the first commit, the writer ref points to FAKE_COMMIT_SHA.
- * readRef returns FAKE_COMMIT_SHA until compare-and-swap succeeds, then
- * FAKE_COMMIT_SHA_2 for the post-update visibility check. showNode returns a
- * valid patch message so lamport can be extracted.
- */
-function mockWriterSecondCommit(/** @type {any} */ persistence) {
-  const patchMessage = encodePatchMessage({
-    graph: 'test',
-    writer: 'writer-1',
-    lamport: 1,
-    patchOid: FAKE_BLOB_OID,
-    schema: 2,
-  });
-
-  persistence.readRef
-    .mockResolvedValueOnce(FAKE_COMMIT_SHA)
-    .mockResolvedValueOnce(FAKE_COMMIT_SHA)
-    .mockResolvedValue(FAKE_COMMIT_SHA_2);
-  persistence.showNode.mockResolvedValue(patchMessage);
-  persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
-  persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
-  persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA_2);
-}
-
 describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
-    let persistence;
-    let graph;
+  let persistence: InMemoryGraphAdapter;
+  let graph: Awaited<ReturnType<typeof openRuntimeHostProduct>>;
 
   beforeEach(async () => {
-    persistence = createMockPersistence();
+    persistence = new InMemoryGraphAdapter();
     graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
@@ -81,9 +31,10 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
   it('writer.commitPatch() followed by hasNode() returns true without explicit re-materialize', async () => {
     await graph.materialize();
 
-    mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
-    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
+    await writer.commitPatch((patch) => {
+      patch.addNode('test:node');
+    });
 
     // Query reflects the commit immediately — no explicit materialize needed
     expect(await graph.hasNode('test:node')).toBe(true);
@@ -94,9 +45,10 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
     await graph.materialize();
     expect((graph)._stateDirty).toBe(false);
 
-    mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
-    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
+    await writer.commitPatch((patch) => {
+      patch.addNode('test:node');
+    });
 
     // Eager re-materialize applied the patch, so state is fresh
     expect((graph)._stateDirty).toBe(false);
@@ -107,7 +59,6 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
   it('beginPatch() + patch.commit() followed by hasNode() returns true', async () => {
     await graph.materialize();
 
-    mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
     const patch = await writer.beginPatch();
     patch.addNode('test:node');
@@ -120,7 +71,6 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
   it('beginPatch() + setProperty reflected in getNodeProps() after commit', async () => {
     await graph.materialize();
 
-    mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
     const patch = await writer.beginPatch();
     patch.addNode('test:node');
@@ -129,7 +79,7 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
 
     const props = await graph.getNodeProps('test:node');
     expect(props).not.toBeNull();
-    expect(props.name).toBe('Alice');
+    expect(props?.['name']).toBe('Alice');
   });
 
   // ── Multiple sequential writer commits ───────────────────────────
@@ -137,15 +87,17 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
   it('multiple sequential writer commits keep state fresh', async () => {
     await graph.materialize();
 
-    mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
-    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:a'));
+    await writer.commitPatch((patch) => {
+      patch.addNode('test:a');
+    });
     expect((graph)._stateDirty).toBe(false);
     expect(await graph.hasNode('test:a')).toBe(true);
 
-    mockWriterSecondCommit(persistence);
     const writer2 = await graph.writer('writer-1');
-    await writer2.commitPatch((/** @type {any} */ p) => p.addNode('test:b'));
+    await writer2.commitPatch((patch) => {
+      patch.addNode('test:b');
+    });
     expect((graph)._stateDirty).toBe(false);
     expect(await graph.hasNode('test:b')).toBe(true);
 
@@ -157,9 +109,10 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
 
   it('writer commit without prior materialize sets _stateDirty to true', async () => {
     // No materialize() call — _cachedState is null
-    mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
-    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
+    await writer.commitPatch((patch) => {
+      patch.addNode('test:node');
+    });
 
     // No _cachedState, so can't eagerly apply — dirty
     expect((graph)._stateDirty).toBe(true);
@@ -170,10 +123,11 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
   it('writer(id) path also triggers eager invalidation', async () => {
     await graph.materialize();
 
-    mockWriterFirstCommit(persistence);
     const writer = await graph.writer('fresh-writer');
 
-    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
+    await writer.commitPatch((patch) => {
+      patch.addNode('test:node');
+    });
 
     expect(await graph.hasNode('test:node')).toBe(true);
     expect((graph)._stateDirty).toBe(false);
@@ -185,11 +139,12 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
     await graph.materialize();
     const stateBeforeAttempt = (graph)._cachedState;
 
-    persistence.readRef.mockResolvedValue(null);
-    persistence.writeBlob.mockRejectedValue(new Error('disk full'));
+    vi.spyOn(persistence, 'writeBlob').mockRejectedValueOnce(new Error('disk full'));
 
     const writer = await graph.writer('writer-1');
-    await expect(writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'))).rejects.toThrow('disk full');
+    await expect(writer.commitPatch((patch) => {
+      patch.addNode('test:node');
+    })).rejects.toThrow('disk full');
 
     // State should be unchanged
     expect((graph)._stateDirty).toBe(false);
@@ -200,14 +155,12 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
     await graph.materialize();
     const stateBeforeAttempt = (graph)._cachedState;
 
-    persistence.readRef.mockResolvedValue(null);
-    persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
-    persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
-    persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
-    persistence.compareAndSwapRef.mockRejectedValue(new Error('ref lock failed'));
+    vi.spyOn(persistence, 'compareAndSwapRef').mockRejectedValueOnce(new Error('ref lock failed'));
 
     const writer = await graph.writer('writer-1');
-    await expect(writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'))).rejects.toThrow('ref lock failed');
+    await expect(writer.commitPatch((patch) => {
+      patch.addNode('test:node');
+    })).rejects.toThrow('ref lock failed');
 
     expect((graph)._stateDirty).toBe(false);
     expect((graph)._cachedState).toBe(stateBeforeAttempt);
@@ -217,13 +170,15 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
     await graph.materialize();
     const stateBeforeAttempt = (graph)._cachedState;
 
-    // beginPatch() sees null, but by the time PatchSession.commit() checks, ref has advanced
-    persistence.readRef
-      .mockResolvedValueOnce(null)        // Writer.beginPatch() — get expectedOldHead
-      .mockResolvedValueOnce(FAKE_COMMIT_SHA); // PatchSession.commit() — CAS pre-check
-
     const writer = await graph.writer('writer-1');
-    await expect(writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'))).rejects.toThrow();
+    const patch = await writer.beginPatch();
+    patch.addNode('test:node');
+    const concurrentSha = await persistence.commitNode({
+      message: 'concurrent writer publication',
+    });
+    await persistence.updateRef(buildWriterRef('test', 'writer-1'), concurrentSha);
+
+    await expect(patch.commit()).rejects.toThrow();
 
     expect((graph)._stateDirty).toBe(false);
     expect((graph)._cachedState).toBe(stateBeforeAttempt);

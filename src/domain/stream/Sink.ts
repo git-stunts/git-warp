@@ -8,7 +8,7 @@ import WarpError from '../errors/WarpError.ts';
  * via `_finalize()`. Sinks do not yield values — they end the pipeline.
  *
  * Examples: TreeAssemblerSink accumulates [path, oid] entries and
- * calls writeTree() in finalize(). ArraySink collects all items.
+ * publishes its aggregate in finalize(). ArraySink collects all items.
  */
 export default class Sink<T, R> {
   /**

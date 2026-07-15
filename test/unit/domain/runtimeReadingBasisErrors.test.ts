@@ -4,7 +4,6 @@ import ProvenanceController from '../../../src/domain/services/controllers/Prove
 import type { ProvenanceReadHost } from '../../../src/domain/services/controllers/ReadGraphHost.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
@@ -17,8 +16,9 @@ function createProvenanceReadHost(options: { provenanceDegraded: boolean }): Pro
     _autoMaterialize: false,
     _persistence: createMockPersistence(),
     _commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-    _readPatchBlob: async () => new Uint8Array(),
-    _codec: defaultCodec,
+    _readPatch: async () => {
+      throw new Error('unused patch read');
+    },
     _provenanceDegraded: options.provenanceDegraded,
     _provenanceIndex: null,
   };

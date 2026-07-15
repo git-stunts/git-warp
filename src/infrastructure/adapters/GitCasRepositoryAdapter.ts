@@ -1,6 +1,10 @@
-import ContentAddressableStore, { CborCodec } from '@git-stunts/git-cas';
-import { createGitCasPatchStorage } from '../../ports/CommitMessageCodecPort.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import ContentAddressableStore, {
+  CborCodec,
+  type AssetCapability,
+  type BundleCapability,
+  type PublicationCapability,
+} from '@git-stunts/git-cas';
+import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
@@ -8,7 +12,10 @@ import type {
   RuntimeStorageRequest,
   RuntimeStorageServices,
 } from '../../ports/RuntimeStorageProviderPort.ts';
-import CasBlobAdapter from './CasBlobAdapter.ts';
+import GitCasAssetStorageAdapter from './GitCasAssetStorageAdapter.ts';
+import GitCasAuditLogAdapter from './GitCasAuditLogAdapter.ts';
+import GitCasStrandStoreAdapter from './GitCasStrandStoreAdapter.ts';
+import GitCasIntentStoreAdapter from './GitCasIntentStoreAdapter.ts';
 import type CasContentEncryptionPolicy from './CasContentEncryptionPolicy.ts';
 import { CborCheckpointStoreAdapter } from './CborCheckpointStoreAdapter.ts';
 import { CborIndexStoreAdapter } from './CborIndexStoreAdapter.ts';
@@ -27,8 +34,15 @@ type GitCasPolicy = {
 
 export type GitCasFacade = Pick<
   ContentAddressableStore,
-  'readManifest' | 'restore' | 'restoreStream' | 'store' | 'createTree'
+  | 'createTree'
+  | 'readManifest'
+  | 'restore'
+  | 'restoreStream'
+  | 'store'
 > & {
+  readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
+  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
+  readonly publications: Pick<PublicationCapability, 'commit'>;
   readonly rootSets: {
     open(options: { readonly ref: string }): Promise<GitCasRootSetClient>;
   };
@@ -59,6 +73,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       ContentAddressableStore.createCbor({
         plumbing: options.plumbing,
         chunking: { strategy: 'cdc' },
+        applicationRefPrefixes: ['refs/warp/'],
         ...(options.policy === undefined ? {} : { policy: options.policy }),
         ...(options.logger === undefined
           ? {}
@@ -69,20 +84,61 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   }
 
   createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
-    const content = request.contentOverride ?? this._createContentStorage();
+    const content = this._createContentStorage();
     return Promise.resolve(
       Object.freeze({
         content,
+        auditLog: this._createAuditLog(content),
+        strands: this._createStrandStore(content),
+        intents: this._createIntentStore(request, content),
         patchJournal: this._createPatchJournal(request, content),
-        checkpoints: new CborCheckpointStoreAdapter({
-          codec: request.codec,
-          blobPort: this._history,
-        }),
+        checkpoints: this._createCheckpointStore(request, content),
         indexes: this._createIndexStore(request, content),
         stateSnapshots: this._createStateSnapshots(request),
         trie: new GitTrieStoreAdapter({ plumbing: this._plumbing }),
       })
     );
+  }
+
+  private _createAuditLog(content: AssetStoragePort): GitCasAuditLogAdapter {
+    return new GitCasAuditLogAdapter({
+      history: this._history,
+      cas: this._cas,
+      assets: content,
+    });
+  }
+
+  private _createStrandStore(content: AssetStoragePort): GitCasStrandStoreAdapter {
+    return new GitCasStrandStoreAdapter({
+      history: this._history,
+      cas: this._cas,
+      assets: content,
+    });
+  }
+
+  private _createIntentStore(
+    request: RuntimeStorageRequest,
+    content: AssetStoragePort,
+  ): GitCasIntentStoreAdapter {
+    return new GitCasIntentStoreAdapter({
+      history: this._history,
+      cas: this._cas,
+      assets: content,
+      codec: request.codec,
+    });
+  }
+
+  private _createCheckpointStore(
+    request: RuntimeStorageRequest,
+    content: AssetStoragePort,
+  ): CborCheckpointStoreAdapter {
+    return new CborCheckpointStoreAdapter({
+      codec: request.codec,
+      commitMessageCodec: request.commitMessageCodec,
+      history: this._history,
+      assetStorage: content,
+      cas: this._cas,
+    });
   }
 
   private _createStateSnapshots(request: RuntimeStorageRequest): GitCasWarpStateCacheAdapter {
@@ -99,30 +155,26 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
 
   private _createPatchJournal(
     request: RuntimeStorageRequest,
-    content: BlobStoragePort
+    content: AssetStoragePort
   ): CborPatchJournalAdapter {
     return new CborPatchJournalAdapter({
+      assetStorage: content,
+      cas: this._cas,
       codec: request.codec,
-      blobPort: this._history,
-      commitPort: this._history,
+      commitReader: this._history,
       commitMessageCodec: request.commitMessageCodec,
-      blobStorage: content,
-      ...(request.patchContentOverride === undefined
-        ? {}
-        : { legacyPatchBlobStorage: request.patchContentOverride }),
-      writeStorage: createGitCasPatchStorage({ encrypted: false }),
+      encrypted: this._contentEncryption?.enabled ?? false,
     });
   }
 
   private _createIndexStore(
     request: RuntimeStorageRequest,
-    content: BlobStoragePort
+    content: AssetStoragePort,
   ): CborIndexStoreAdapter {
     return new CborIndexStoreAdapter({
       codec: request.codec,
-      blobPort: this._history,
-      treePort: this._history,
-      blobStorage: content,
+      assetStorage: content,
+      cas: this._cas,
     });
   }
 
@@ -135,10 +187,10 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
     });
   }
 
-  private _createContentStorage(): CasBlobAdapter {
-    return new CasBlobAdapter({
+  private _createContentStorage(): GitCasAssetStorageAdapter {
+    return new GitCasAssetStorageAdapter({
       cas: this._cas,
-      persistence: this._history,
+      legacyReader: this._history,
       ...(this._contentEncryption === undefined
         ? {}
         : { contentEncryption: this._contentEncryption }),

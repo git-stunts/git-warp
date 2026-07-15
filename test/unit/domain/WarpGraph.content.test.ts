@@ -31,7 +31,21 @@ function attachmentEvent(
   return { lamport, writerId, patchSha, opIndex };
 }
 
-describe('WarpCore content attachment (query methods)', () => {
+function assetStorageWith(...chunks: Uint8Array[]) {
+  return {
+    stage: vi.fn(),
+    open: vi.fn().mockImplementation(() => (async function* () {
+      yield* chunks;
+    })()),
+  };
+}
+
+function expectOpenedHandle(assetStorage: ReturnType<typeof assetStorageWith>, token: string) {
+  expect(assetStorage.open).toHaveBeenCalledOnce();
+  expect(assetStorage.open.mock.calls[0]?.[0]?.toString()).toBe(token);
+}
+
+describe('WarpGraph content attachment queries', () => {
     let mockPersistence;
     let graph;
 
@@ -56,7 +70,7 @@ describe('WarpCore content attachment (query methods)', () => {
     });
   });
 
-  describe('getContentOid()', () => {
+  describe('getContentHandle()', () => {
     it('returns the _content property value for a node', async () => {
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -64,8 +78,8 @@ describe('WarpCore content attachment (query methods)', () => {
         state.prop.set(propKey, { eventId: null, value: 'abc123' });
       });
 
-      const oid = await graph.getContentOid('doc:1');
-      expect(oid).toBe('abc123');
+      const handle = await graph.getContentHandle('doc:1');
+      expect(handle).toBe('abc123');
     });
 
     it('returns null when node has no _content property', async () => {
@@ -73,15 +87,15 @@ describe('WarpCore content attachment (query methods)', () => {
         addNode(state, 'doc:1', 1);
       });
 
-      const oid = await graph.getContentOid('doc:1');
-      expect(oid).toBeNull();
+      const handle = await graph.getContentHandle('doc:1');
+      expect(handle).toBeNull();
     });
 
     it('returns null when node does not exist', async () => {
       setupGraphState(graph, () => {});
 
-      const oid = await graph.getContentOid('nonexistent');
-      expect(oid).toBeNull();
+      const handle = await graph.getContentHandle('nonexistent');
+      expect(handle).toBeNull();
     });
 
     it('returns null when _content is not a string', async () => {
@@ -91,8 +105,8 @@ describe('WarpCore content attachment (query methods)', () => {
         state.prop.set(propKey, { eventId: null, value: 42 });
       });
 
-      const oid = await graph.getContentOid('doc:1');
-      expect(oid).toBeNull();
+      const handle = await graph.getContentHandle('doc:1');
+      expect(handle).toBeNull();
     });
   });
 
@@ -108,7 +122,7 @@ describe('WarpCore content attachment (query methods)', () => {
       const meta = await graph.getContentMeta('doc:1');
 
       expect(meta).toEqual({
-        oid: 'abc123',
+        handle: 'abc123',
         mime: 'text/markdown',
         size: 42,
       });
@@ -134,13 +148,13 @@ describe('WarpCore content attachment (query methods)', () => {
       const meta = await graph.getContentMeta('doc:1');
 
       expect(meta).toEqual({
-        oid: 'new456',
+        handle: 'new456',
         mime: null,
         size: null,
       });
     });
 
-    it('returns null metadata fields when only the oid exists', async () => {
+    it('returns null metadata fields when only the handle exists', async () => {
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
         state.prop.set(encodePropKey('doc:1', '_content'), { eventId: null, value: 'abc123' });
@@ -149,7 +163,7 @@ describe('WarpCore content attachment (query methods)', () => {
       const meta = await graph.getContentMeta('doc:1');
 
       expect(meta).toEqual({
-        oid: 'abc123',
+        handle: 'abc123',
         mime: null,
         size: null,
       });
@@ -165,15 +179,10 @@ describe('WarpCore content attachment (query methods)', () => {
   });
 
   describe('getContent()', () => {
-    it('reads and returns the blob buffer', async () => {
+    it('collects and returns bytes from the configured asset store', async () => {
       const buf = new TextEncoder().encode('# ADR 001\n\nSome content');
-      const blobStorage = {
-        store: vi.fn(),
-        retrieve: vi.fn().mockResolvedValue(buf),
-        storeStream: vi.fn(),
-        retrieveStream: vi.fn(),
-      };
-      (graph)._blobStorage = blobStorage;
+      const assetStorage = assetStorageWith(buf);
+      (graph)._assetStorage = assetStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -183,7 +192,7 @@ describe('WarpCore content attachment (query methods)', () => {
 
       const content = await graph.getContent('doc:1');
       expect(content).toEqual(buf);
-      expect(blobStorage.retrieve).toHaveBeenCalledWith('abc123');
+      expectOpenedHandle(assetStorage, 'abc123');
     });
 
     it('returns null when no content attached', async () => {
@@ -204,69 +213,61 @@ describe('WarpCore content attachment (query methods)', () => {
     });
   });
 
-  describe('getContent() with blobStorage', () => {
-    it('uses blobStorage.retrieve() when blobStorage is provided', async () => {
+  describe('getContent() asset storage failures', () => {
+    it('resolves opaque handles through the asset storage port', async () => {
       const casBuf = new TextEncoder().encode('cas-stored content');
-      const blobStorage = {
-        store: vi.fn(),
-        retrieve: vi.fn().mockResolvedValue(casBuf),
-      };
-      (graph)._blobStorage = blobStorage;
+      const assetStorage = assetStorageWith(casBuf);
+      (graph)._assetStorage = assetStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
         const propKey = encodePropKey('doc:1', '_content');
-        state.prop.set(propKey, { eventId: null, value: 'cas-tree-oid' });
+        state.prop.set(propKey, { eventId: null, value: 'asset:document' });
       });
 
       const content = await graph.getContent('doc:1');
 
       expect(content).toEqual(casBuf);
-      expect(blobStorage.retrieve).toHaveBeenCalledWith('cas-tree-oid');
+      expectOpenedHandle(assetStorage, 'asset:document');
       expect(mockPersistence.readBlob).not.toHaveBeenCalled();
     });
 
-    it('uses auto-constructed blobStorage when none explicitly provided', async () => {
-      // Runtime storage supplies the content port. Inject a mock here to
-      // verify that reads stay behind that port.
+    it('uses the runtime-provided asset store without reading Git directly', async () => {
       const rawBuf = new TextEncoder().encode('raw blob');
-      const blobStorage = {
-        store: vi.fn(),
-        retrieve: vi.fn().mockResolvedValue(rawBuf),
-        storeStream: vi.fn(),
-        retrieveStream: vi.fn(),
-      };
-      (graph)._blobStorage = blobStorage;
+      const assetStorage = assetStorageWith(rawBuf);
+      (graph)._assetStorage = assetStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
         const propKey = encodePropKey('doc:1', '_content');
-        state.prop.set(propKey, { eventId: null, value: 'raw-oid' });
+        state.prop.set(propKey, { eventId: null, value: 'asset:runtime-provided' });
       });
 
       const content = await graph.getContent('doc:1');
 
       expect(content).toEqual(rawBuf);
-      expect(blobStorage.retrieve).toHaveBeenCalledWith('raw-oid');
+      expectOpenedHandle(assetStorage, 'asset:runtime-provided');
+      expect(mockPersistence.readBlob).not.toHaveBeenCalled();
     });
 
-    it('preserves E_MISSING_OBJECT from blobStorage.retrieve()', async () => {
-      const blobStorage = {
-        store: vi.fn(),
-        retrieve: vi.fn().mockRejectedValue(
+    it('preserves storage errors from assetStorage.open()', async () => {
+      const assetStorage = {
+        stage: vi.fn(),
+        open: vi.fn().mockImplementation(() => {
+          throw (
           new PersistenceError(
-            'Missing Git object: cas-tree-oid',
+            'Missing stored asset: asset:missing',
             PersistenceError.E_MISSING_OBJECT,
-            { context: { oid: 'cas-tree-oid' } },
-          ),
-        ),
+            { context: { handle: 'asset:missing' } },
+          ));
+        }),
       };
-      (graph)._blobStorage = blobStorage;
+      (graph)._assetStorage = assetStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
         const propKey = encodePropKey('doc:1', '_content');
-        state.prop.set(propKey, { eventId: null, value: 'cas-tree-oid' });
+        state.prop.set(propKey, { eventId: null, value: 'asset:missing' });
       });
 
       await expect(graph.getContent('doc:1'))
@@ -274,42 +275,40 @@ describe('WarpCore content attachment (query methods)', () => {
     });
   });
 
-  describe('getEdgeContent() with blobStorage', () => {
-    it('uses blobStorage.retrieve() when blobStorage is provided', async () => {
+  describe('getEdgeContent() asset storage failures', () => {
+    it('resolves opaque handles through the asset storage port', async () => {
       const casBuf = new TextEncoder().encode('cas-edge content');
-      const blobStorage = {
-        store: vi.fn(),
-        retrieve: vi.fn().mockResolvedValue(casBuf),
-      };
-      (graph)._blobStorage = blobStorage;
+      const assetStorage = assetStorageWith(casBuf);
+      (graph)._assetStorage = assetStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
         addNode(state, 'b', 2);
         addEdge(state, 'a', 'b', 'rel', 3);
         const propKey = encodeEdgePropKey('a', 'b', 'rel', '_content');
-        state.prop.set(propKey, { eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value: 'cas-edge-oid' });
+        state.prop.set(propKey, { eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value: 'asset:edge' });
       });
 
       const content = await graph.getEdgeContent('a', 'b', 'rel');
 
       expect(content).toEqual(casBuf);
-      expect(blobStorage.retrieve).toHaveBeenCalledWith('cas-edge-oid');
+      expectOpenedHandle(assetStorage, 'asset:edge');
       expect(mockPersistence.readBlob).not.toHaveBeenCalled();
     });
 
-    it('preserves E_MISSING_OBJECT from blobStorage.retrieve()', async () => {
-      const blobStorage = {
-        store: vi.fn(),
-        retrieve: vi.fn().mockRejectedValue(
+    it('preserves storage errors from assetStorage.open()', async () => {
+      const assetStorage = {
+        stage: vi.fn(),
+        open: vi.fn().mockImplementation(() => {
+          throw (
           new PersistenceError(
-            'Missing Git object: cas-edge-oid',
+            'Missing stored asset: asset:missing-edge',
             PersistenceError.E_MISSING_OBJECT,
-            { context: { oid: 'cas-edge-oid' } },
-          ),
-        ),
+            { context: { handle: 'asset:missing-edge' } },
+          ));
+        }),
       };
-      (graph)._blobStorage = blobStorage;
+      (graph)._assetStorage = assetStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -318,7 +317,7 @@ describe('WarpCore content attachment (query methods)', () => {
         const propKey = encodeEdgePropKey('a', 'b', 'rel', '_content');
         state.prop.set(propKey, {
           eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 },
-          value: 'cas-edge-oid',
+          value: 'asset:missing-edge',
         });
       });
 
@@ -327,7 +326,7 @@ describe('WarpCore content attachment (query methods)', () => {
     });
   });
 
-  describe('getEdgeContentOid()', () => {
+  describe('getEdgeContentHandle()', () => {
     it('returns the _content property value for an edge', async () => {
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -337,8 +336,8 @@ describe('WarpCore content attachment (query methods)', () => {
         state.prop.set(propKey, { eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value: 'def456' });
       });
 
-      const oid = await graph.getEdgeContentOid('a', 'b', 'rel');
-      expect(oid).toBe('def456');
+      const handle = await graph.getEdgeContentHandle('a', 'b', 'rel');
+      expect(handle).toBe('def456');
     });
 
     it('returns null when edge has no _content', async () => {
@@ -348,15 +347,15 @@ describe('WarpCore content attachment (query methods)', () => {
         addEdge(state, 'a', 'b', 'rel', 3);
       });
 
-      const oid = await graph.getEdgeContentOid('a', 'b', 'rel');
-      expect(oid).toBeNull();
+      const handle = await graph.getEdgeContentHandle('a', 'b', 'rel');
+      expect(handle).toBeNull();
     });
 
     it('returns null when edge does not exist', async () => {
       setupGraphState(graph, () => {});
 
-      const oid = await graph.getEdgeContentOid('a', 'b', 'rel');
-      expect(oid).toBeNull();
+      const handle = await graph.getEdgeContentHandle('a', 'b', 'rel');
+      expect(handle).toBeNull();
     });
   });
 
@@ -383,7 +382,7 @@ describe('WarpCore content attachment (query methods)', () => {
       const meta = await graph.getEdgeContentMeta('a', 'b', 'rel');
 
       expect(meta).toEqual({
-        oid: 'def456',
+        handle: 'def456',
         mime: 'application/octet-stream',
         size: 6,
       });
@@ -396,7 +395,7 @@ describe('WarpCore content attachment (query methods)', () => {
         addEdge(state, 'a', 'b', 'rel', 3);
         state.prop.set(encodeEdgePropKey('a', 'b', 'rel', '_content'), {
           eventId: attachmentEvent(0, 'feedbabe', 3),
-          value: 'new-edge-oid',
+          value: 'new-edge-handle',
         });
         state.prop.set(encodeEdgePropKey('a', 'b', 'rel', '_content.mime'), {
           eventId: attachmentEvent(1),
@@ -411,7 +410,7 @@ describe('WarpCore content attachment (query methods)', () => {
       const meta = await graph.getEdgeContentMeta('a', 'b', 'rel');
 
       expect(meta).toEqual({
-        oid: 'new-edge-oid',
+        handle: 'new-edge-handle',
         mime: null,
         size: null,
       });
@@ -429,15 +428,10 @@ describe('WarpCore content attachment (query methods)', () => {
   });
 
   describe('getEdgeContent()', () => {
-    it('reads and returns the blob buffer', async () => {
+    it('collects and returns bytes from the configured asset store', async () => {
       const buf = new TextEncoder().encode('edge content');
-      const blobStorage = {
-        store: vi.fn(),
-        retrieve: vi.fn().mockResolvedValue(buf),
-        storeStream: vi.fn(),
-        retrieveStream: vi.fn(),
-      };
-      (graph)._blobStorage = blobStorage;
+      const assetStorage = assetStorageWith(buf);
+      (graph)._assetStorage = assetStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -449,7 +443,7 @@ describe('WarpCore content attachment (query methods)', () => {
 
       const content = await graph.getEdgeContent('a', 'b', 'rel');
       expect(content).toEqual(buf);
-      expect(blobStorage.retrieve).toHaveBeenCalledWith('def456');
+      expectOpenedHandle(assetStorage, 'def456');
     });
 
     it('returns null when no content attached', async () => {
@@ -468,21 +462,13 @@ describe('WarpCore content attachment (query methods)', () => {
     it('returns an async iterable of content chunks', async () => {
       const chunk1 = new TextEncoder().encode('hello ');
       const chunk2 = new TextEncoder().encode('world');
-      const blobStorage = {
-        store: vi.fn(),
-        retrieve: vi.fn(),
-        storeStream: vi.fn(),
-        retrieveStream: vi.fn().mockReturnValue((async function* () {
-          yield chunk1;
-          yield chunk2;
-        })()),
-      };
-      (graph)._blobStorage = blobStorage;
+      const assetStorage = assetStorageWith(chunk1, chunk2);
+      (graph)._assetStorage = assetStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
         const propKey = encodePropKey('doc:1', '_content');
-        state.prop.set(propKey, { eventId: null, value: 'cas-tree-oid' });
+        state.prop.set(propKey, { eventId: null, value: 'asset:streamed-document' });
       });
 
       const stream = await graph.getContentStream('doc:1');
@@ -496,7 +482,7 @@ describe('WarpCore content attachment (query methods)', () => {
       expect(chunks).toHaveLength(2);
       expect(chunks[0]).toBe(chunk1);
       expect(chunks[1]).toBe(chunk2);
-      expect(blobStorage.retrieveStream).toHaveBeenCalledWith('cas-tree-oid');
+      expectOpenedHandle(assetStorage, 'asset:streamed-document');
     });
 
     it('returns null when no content is attached', async () => {
@@ -519,15 +505,8 @@ describe('WarpCore content attachment (query methods)', () => {
   describe('getEdgeContentStream()', () => {
     it('returns an async iterable of edge content chunks', async () => {
       const chunk = new TextEncoder().encode('edge stream data');
-      const blobStorage = {
-        store: vi.fn(),
-        retrieve: vi.fn(),
-        storeStream: vi.fn(),
-        retrieveStream: vi.fn().mockReturnValue((async function* () {
-          yield chunk;
-        })()),
-      };
-      (graph)._blobStorage = blobStorage;
+      const assetStorage = assetStorageWith(chunk);
+      (graph)._assetStorage = assetStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -536,7 +515,7 @@ describe('WarpCore content attachment (query methods)', () => {
         const propKey = encodeEdgePropKey('a', 'b', 'rel', '_content');
         state.prop.set(propKey, {
           eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 },
-          value: 'cas-edge-tree-oid',
+          value: 'asset:streamed-edge',
         });
       });
 
@@ -550,7 +529,7 @@ describe('WarpCore content attachment (query methods)', () => {
 
       expect(chunks).toHaveLength(1);
       expect(chunks[0]).toBe(chunk);
-      expect(blobStorage.retrieveStream).toHaveBeenCalledWith('cas-edge-tree-oid');
+      expectOpenedHandle(assetStorage, 'asset:streamed-edge');
     });
 
     it('returns null when no edge content is attached', async () => {

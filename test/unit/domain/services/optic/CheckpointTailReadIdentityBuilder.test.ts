@@ -62,8 +62,8 @@ function indexBasis(): CheckpointTailIndexBasis {
     schema: 5,
     frontier: new Map([['writer-a', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']]),
     manifest: manifest(),
-    indexOids: {},
-    propOids: {},
+    indexHandles: {},
+    propHandles: {},
   };
 }
 

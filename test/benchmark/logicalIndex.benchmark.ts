@@ -135,20 +135,13 @@ describe('Logical Index Benchmarks', () => {
       }
       const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
 
-      // Create mock storage by encoding PropertyShard entries via CBOR
-      const blobs = new Map();
-      /** @type {Record<string, string>} */
-      const oids = {};
-      let oidCounter = 0;
+      const tree: Record<string, Uint8Array> = {};
       for (const shard of shards) {
         const path = `props_${shard.shardKey}.cbor`;
-        const oid = `oid_${oidCounter++}`;
-        blobs.set(oid, codec.encode(shard.entries));
-        oids[path] = oid;
+        tree[path] = codec.encode(shard.entries);
       }
-      const storage = { readBlob: async (oid: string) => blobs.get(oid) } as unknown as import('../../src/ports/IndexStoragePort.ts').default;
-      const reader = new PropertyIndexReader({ storage });
-      reader.setup(oids);
+      const reader = new PropertyIndexReader({ codec });
+      reader.setupTree(tree);
 
       const { median: lookupMs } = await runBenchmark(
         async () => {

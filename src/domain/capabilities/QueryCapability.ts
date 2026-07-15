@@ -108,8 +108,8 @@ export default abstract class QueryCapability {
     _configB: ObserverConfig,
   ): Promise<TranslationCostResult>;
 
-  /** Return the content blob OID attached to a node, if any. */
-  abstract getContentOid(_nodeId: string): Promise<string | null>;
+  /** Return the opaque content asset handle attached to a node, if any. */
+  abstract getContentHandle(_nodeId: string): Promise<string | null>;
 
   /** Return content metadata attached to a node, if any. */
   abstract getContentMeta(_nodeId: string): Promise<ContentMeta | null>;
@@ -117,8 +117,8 @@ export default abstract class QueryCapability {
   /** Return content bytes attached to a node, if any. */
   abstract getContent(_nodeId: string): Promise<Uint8Array | null>;
 
-  /** Return the content blob OID attached to an edge, if any. */
-  abstract getEdgeContentOid(_from: string, _to: string, _label: string): Promise<string | null>;
+  /** Return the opaque content asset handle attached to an edge, if any. */
+  abstract getEdgeContentHandle(_from: string, _to: string, _label: string): Promise<string | null>;
 
   /** Return content metadata attached to an edge, if any. */
   abstract getEdgeContentMeta(_from: string, _to: string, _label: string): Promise<ContentMeta | null>;

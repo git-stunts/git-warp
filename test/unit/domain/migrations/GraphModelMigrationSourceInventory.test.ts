@@ -90,7 +90,7 @@ describe('GraphModelMigrationSourceInventory', () => {
   it('records state and content source facts immutably', () => {
     const contentSource = new GraphModelMigrationContentSource({
       legacyContentKey: 'node:a\0_content',
-      contentOid: 'oid:content:a',
+      contentHandle: 'asset:content:a',
     });
     const stateSnapshot = new GraphModelMigrationStateSnapshotReference({
       snapshotId: 'snapshot:one',

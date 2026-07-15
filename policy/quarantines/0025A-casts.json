@@ -6,9 +6,7 @@
     "ts-no-double-cast"
   ],
   "rationale": "Pre-existing `as unknown as` uses discovered at anti-sludge policy adoption time. Each entry grants file-level exemption from ts-no-double-cast ONLY. Graduate by removing the cast (prefer decoder / type guard / narrower port), not by adding an inline suppression unless the specific line has a documented reason that cannot be refactored away.",
-  "generated_at": "2026-06-28T19:29:18.370Z",
+  "generated_at": "2026-07-15T20:35:31.098Z",
   "generator": "scripts/contamination-map.ts v1",
-  "files": [
-    "src/domain/services/controllers/IntentController.ts"
-  ]
+  "files": []
 }

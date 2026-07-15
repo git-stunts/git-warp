@@ -17,10 +17,8 @@ import { createFrontier, updateFrontier } from '../../../../src/domain/services/
 // createDot reserved for future test expansion
 // import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodePatchMessage } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import FixturePatchJournal from '../../../helpers/FixturePatchJournal.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -70,10 +68,9 @@ function stateSignature(/** @type {any} */ state) {
 }
 
 function createPatchJournal(/** @type {any} */ persistence) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-    commitPort: persistence,
+  return new FixturePatchJournal({
+    commits: persistence.fixtureCommits,
+    patches: persistence.fixturePatches,
   });
 }
 
@@ -261,12 +258,14 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
     const msgB = encodePatchMessage({ graph: 'events', writer: 'w1', lamport: 2, patchOid: OID_B, schema: 2 });
 
     commits[SHA_A] = { message: msgA, parents: [] };
-    blobs[OID_A] = encode(patchA);
+    blobs[OID_A] = patchA;
 
     commits[SHA_B] = { message: msgB, parents: [] }; // No parent — diverged from SHA_A
-    blobs[OID_B] = encode(patchB);
+    blobs[OID_B] = patchB;
 
     const persistence = {
+      fixtureCommits: commits,
+      fixturePatches: blobs,
       showNode: vi.fn(async (/** @type {any} */ sha) => {
         if (commits[sha]?.message) { return commits[sha].message; }
         throw new Error(`Commit not found: ${sha}`);
@@ -282,10 +281,6 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
           };
         }
         throw new Error(`Commit not found: ${sha}`);
-      }),
-      readBlob: vi.fn(async (/** @type {any} */ oid) => {
-        if (blobs[oid]) { return blobs[oid]; }
-        throw new Error(`Blob not found: ${oid}`);
       }),
     };
 

@@ -31,11 +31,7 @@ import type { CorePersistence } from './types/WarpPersistence.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
-import type BlobStoragePort from '../ports/BlobStoragePort.ts';
-import type PatchJournalPort from '../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
-import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
-import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type EffectSinkPort from '../ports/EffectSinkPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
@@ -133,7 +129,7 @@ type TrustMode = 'off' | 'log-only' | 'enforce';
  * - governing policy (trust, GC, checkpoint, onDeleteWithData)
  * - witness infrastructure (crypto, codec, audit)
  * - revelation regime (logger, effectSinks, externalizationPolicy)
- * - optional semantic storage services (blobStorage, indexStore)
+ * - one coherent semantic storage provider
  */
 export interface WarpGraphDeps {
   // Substrate
@@ -164,12 +160,6 @@ export interface WarpGraphDeps {
   readonly effectSinks?: EffectSinkPort[];
   readonly externalizationPolicy?: ExternalizationPolicy;
 
-  // Semantic storage services (optional — composed when absent)
-  readonly blobStorage?: BlobStoragePort;
-  readonly patchBlobStorage?: BlobStoragePort;
-  readonly patchJournal?: PatchJournalPort | null;
-  readonly checkpointStore?: CheckpointStorePort | null;
-  readonly indexStore?: IndexStorePort | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -210,8 +200,8 @@ function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability 
     'hasNode', 'getNodeProps', 'getEdgeProps', 'neighbors',
     'getStateSnapshot', 'getNodes', 'getEdges', 'getPropertyCount',
     'query', 'worldline', 'observer', 'translationCost',
-    'getContentOid', 'getContentMeta', 'getContent',
-    'getEdgeContentOid', 'getEdgeContentMeta', 'getEdgeContent',
+    'getContentHandle', 'getContentMeta', 'getContent',
+    'getEdgeContentHandle', 'getEdgeContentMeta', 'getEdgeContent',
     'getContentStream', 'getEdgeContentStream',
   ]);
   return Object.freeze({
@@ -227,10 +217,10 @@ function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability 
     worldline: runtime.worldline.bind(runtime),
     observer: runtime.observer.bind(runtime),
     translationCost: runtime.translationCost.bind(runtime),
-    getContentOid: runtime.getContentOid.bind(runtime),
+    getContentHandle: runtime.getContentHandle.bind(runtime),
     getContentMeta: runtime.getContentMeta.bind(runtime),
     getContent: runtime.getContent.bind(runtime),
-    getEdgeContentOid: runtime.getEdgeContentOid.bind(runtime),
+    getEdgeContentHandle: runtime.getEdgeContentHandle.bind(runtime),
     getEdgeContentMeta: runtime.getEdgeContentMeta.bind(runtime),
     getEdgeContent: runtime.getEdgeContent.bind(runtime),
     getContentStream: runtime.getContentStream.bind(runtime),
@@ -240,12 +230,13 @@ function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability 
 
 function bindPatchCapability(runtime: WarpGraphRuntimeSurface): PatchCapability {
   requireCapability(runtime, 'patch', [
-    'createPatch', 'patch', 'patchMany', 'getWriterPatches',
+    'createPatch', 'patch', 'patchWithEvidence', 'patchMany', 'getWriterPatches',
     'writer', 'discoverWriters', 'discoverTicks', 'join',
   ]);
   return Object.freeze({
     createPatch: runtime.createPatch.bind(runtime),
     patch: runtime.patch.bind(runtime),
+    patchWithEvidence: runtime.patchWithEvidence.bind(runtime),
     patchMany: runtime.patchMany.bind(runtime),
     getWriterPatches: runtime.getWriterPatches.bind(runtime),
     writer: runtime.writer.bind(runtime),
@@ -281,7 +272,7 @@ function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapabilit
   requireCapability(runtime, 'strand', [
     'createStrand', 'braidStrand', 'getStrand', 'listStrands', 'dropStrand',
     'materializeStrand', 'getStrandPatches', 'patchesForStrand',
-    'createStrandPatch', 'patchStrand', 'queueStrandIntent',
+    'createStrandPatch', 'patchStrand', 'patchStrandWithEvidence', 'queueStrandIntent',
     'listStrandIntents', 'tickStrand', 'analyzeConflicts',
   ]);
   return Object.freeze({
@@ -295,6 +286,7 @@ function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapabilit
     patchesForStrand: runtime.patchesForStrand.bind(runtime),
     createStrandPatch: runtime.createStrandPatch.bind(runtime),
     patchStrand: runtime.patchStrand.bind(runtime),
+    patchStrandWithEvidence: runtime.patchStrandWithEvidence.bind(runtime),
     queueStrandIntent: runtime.queueStrandIntent.bind(runtime),
     listStrandIntents: runtime.listStrandIntents.bind(runtime),
     tickStrand: runtime.tickStrand.bind(runtime),

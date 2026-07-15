@@ -11,6 +11,7 @@ import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
+import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
 
 // ── Mock WarpMessageCodec ───────────────────────────────────────────────
 
@@ -97,8 +98,7 @@ function createHost(overrides = {}) {
         };
       }),
     },
-    _readPatchBlob: vi.fn(async () => new Uint8Array([1, 2, 3])),
-    _codec: { decode: vi.fn(() => ({ ops: [], writer: 'w1', lamport: 1 })) },
+    _readPatch: vi.fn(async () => makePatch()),
     ...overrides,
   };
 }
@@ -178,14 +178,14 @@ describe('ProvenanceController — materializeSlice', () => {
     host = createHost();
     ctrl = new ProvenanceController(host);
 
-    // Default: detectMessageKind returns 'patch', decodePatchMessage returns metadata
+    // Default: the commit codec identifies a semantic patch locator.
     (mockDetectMessageKind as any).mockReturnValue('patch');
     (mockDecodePatchMessage as any).mockReturnValue({
       kind: 'patch',
       graph: 'g',
       writer: 'w1',
       lamport: 1,
-      patchOid: 'abc',
+      patchHandle: new AssetHandle('asset:abc'),
       schema: 2,
       encrypted: false,
     });
@@ -203,7 +203,7 @@ describe('ProvenanceController — materializeSlice', () => {
   it('replays patches via ProvenancePayload by default', async () => {
     const patch = makePatch({ writer: 'w1', lamport: 1 });
     host._provenanceIndex.patchesFor.mockReturnValue(['sha1']);
-    host._codec.decode.mockReturnValue(patch);
+    host._readPatch.mockResolvedValue(patch);
 
     const fakeState = { nodeAlive: new Map([['n1', true]]) };
     mockReplay.mockReturnValue(fakeState);
@@ -226,7 +226,7 @@ describe('ProvenanceController — materializeSlice', () => {
   it('uses reducePatches with receipts when options.receipts is true', async () => {
     const patch = makePatch({ writer: 'w1', lamport: 1 });
     host._provenanceIndex.patchesFor.mockReturnValue(['sha1']);
-    host._codec.decode.mockReturnValue(patch);
+    host._readPatch.mockResolvedValue(patch);
 
     const fakeState = { nodeAlive: new Map() };
     const fakeReceipts = [{ type: 'tick' }];
@@ -288,7 +288,7 @@ describe('ProvenanceController — _computeBackwardCone', () => {
       graph: 'g',
       writer: 'w1',
       lamport: 1,
-      patchOid: 'abc',
+      patchHandle: new AssetHandle('asset:abc'),
       schema: 2,
       encrypted: false,
     });
@@ -305,7 +305,7 @@ describe('ProvenanceController — _computeBackwardCone', () => {
   it('collects patches for a single entity without reads', async () => {
     const patch = makePatch({ writer: 'w1', lamport: 1 });
     host._provenanceIndex.patchesFor.mockReturnValue(['sha1']);
-    host._codec.decode.mockReturnValue(patch);
+    host._readPatch.mockResolvedValue(patch);
 
     const cone = await ctrl._computeBackwardCone('node:x');
 
@@ -321,9 +321,9 @@ describe('ProvenanceController — _computeBackwardCone', () => {
       .mockReturnValueOnce(['sha-a'])   // node:x
       .mockReturnValueOnce(['sha-b']);  // node:b
 
-    host._codec.decode
-      .mockReturnValueOnce(patchA)
-      .mockReturnValueOnce(patchB);
+    host._readPatch
+      .mockResolvedValueOnce(patchA)
+      .mockResolvedValueOnce(patchB);
 
     const cone = await ctrl._computeBackwardCone('node:x');
 
@@ -341,9 +341,9 @@ describe('ProvenanceController — _computeBackwardCone', () => {
       .mockReturnValueOnce(['sha-x'])   // node:x
       .mockReturnValueOnce(['sha-y']);  // node:y
 
-    host._codec.decode
-      .mockReturnValueOnce(patchX)
-      .mockReturnValueOnce(patchY);
+    host._readPatch
+      .mockResolvedValueOnce(patchX)
+      .mockResolvedValueOnce(patchY);
 
     const cone = await ctrl._computeBackwardCone('node:x');
 
@@ -360,9 +360,9 @@ describe('ProvenanceController — _computeBackwardCone', () => {
       .mockReturnValueOnce(['sha-x'])
       .mockReturnValueOnce(['sha-y']);
 
-    host._codec.decode
-      .mockReturnValueOnce(patchX)
-      .mockReturnValueOnce(patchY);
+    host._readPatch
+      .mockResolvedValueOnce(patchX)
+      .mockResolvedValueOnce(patchY);
 
     const cone = await ctrl._computeBackwardCone('node:x');
 
@@ -378,7 +378,7 @@ describe('ProvenanceController — _computeBackwardCone', () => {
       .mockReturnValueOnce(['shared-sha'])   // node:x
       .mockReturnValueOnce(['shared-sha']);  // node:y
 
-    host._codec.decode.mockReturnValue(sharedPatch);
+    host._readPatch.mockResolvedValue(sharedPatch);
 
     const cone = await ctrl._computeBackwardCone('node:x');
 
@@ -412,12 +412,12 @@ describe('ProvenanceController — loadPatchBySha', () => {
   });
 
   it('loads and decodes a patch commit', async () => {
-    const patch = {
+    const patch = new Patch({
       writer: 'w1',
       lamport: 5,
       context: { w1: 0 },
-      ops: [{ type: 'NodeAdd', id: 'n1', dot: ['w1', 1] }],
-    };
+      ops: [new NodeAdd('n1', Dot.create('w1', 1))],
+    });
 
     (mockDetectMessageKind as any).mockReturnValue('patch');
     (mockDecodePatchMessage as any).mockReturnValue({
@@ -425,11 +425,11 @@ describe('ProvenanceController — loadPatchBySha', () => {
       graph: 'g',
       writer: 'w1',
       lamport: 5,
-      patchOid: 'blob-oid',
+      patchHandle: new AssetHandle('asset:patch'),
       schema: 2,
       encrypted: false,
     });
-    host._codec.decode.mockReturnValue(patch);
+    host._readPatch.mockResolvedValue(patch);
 
     const result = await ctrl.loadPatchBySha('abc123');
 
@@ -441,10 +441,9 @@ describe('ProvenanceController — loadPatchBySha', () => {
     expect(host._persistence.getNodeInfo).toHaveBeenCalledWith('abc123');
     expect(mockDetectMessageKind).toHaveBeenCalledWith('patch-message');
     expect(mockDecodePatchMessage).toHaveBeenCalledWith('patch-message');
-    expect(host._readPatchBlob).toHaveBeenCalledWith(
-      expect.objectContaining({ patchOid: 'blob-oid' }),
+    expect(host._readPatch).toHaveBeenCalledWith(
+      expect.objectContaining({ patchHandle: new AssetHandle('asset:patch') }),
     );
-    expect(host._codec.decode).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]));
   });
 
   it('throws when commit is not a patch', async () => {

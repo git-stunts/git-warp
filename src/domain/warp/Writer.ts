@@ -25,7 +25,7 @@ import type Patch from '../types/Patch.ts';
 import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
 
@@ -68,7 +68,7 @@ interface WriterOptions {
   patchJournal: PatchJournalPort;
   commitMessageCodec?: CommitMessageCodecPort;
   logger?: LoggerPort;
-  blobStorage?: BlobStoragePort;
+  assetStorage?: AssetStoragePort;
 }
 
 /**
@@ -85,7 +85,7 @@ export class Writer {
   private _patchJournal: PatchJournalPort;
   private _commitMessageCodec: CommitMessageCodecPort;
   private _logger: LoggerPort;
-  private _blobStorage: BlobStoragePort | null;
+  private _assetStorage: AssetStoragePort | null;
   private _commitInProgress: boolean;
 
   constructor(opts: WriterOptions) {
@@ -101,7 +101,7 @@ export class Writer {
     this._patchJournal = opts.patchJournal;
     this._commitMessageCodec = requireCommitMessageCodec(opts.commitMessageCodec);
     this._logger = opts.logger ?? nullLogger;
-    this._blobStorage = opts.blobStorage ?? null;
+    this._assetStorage = opts.assetStorage ?? null;
     this._commitInProgress = false;
   }
 
@@ -165,7 +165,7 @@ export class Writer {
       logger: this._logger,
     };
     if (this._onCommitSuccess) { opts.onCommitSuccess = this._onCommitSuccess; }
-    if (this._blobStorage) { opts.blobStorage = this._blobStorage; }
+    if (this._assetStorage) { opts.assetStorage = this._assetStorage; }
     return opts;
   }
 

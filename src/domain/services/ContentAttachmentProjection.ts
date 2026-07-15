@@ -1,5 +1,5 @@
 import ContentAttachmentMime from '../graph/ContentAttachmentMime.ts';
-import ContentAttachmentOid from '../graph/ContentAttachmentOid.ts';
+import ContentAttachmentHandle from '../graph/ContentAttachmentHandle.ts';
 import ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
 import ContentAttachmentRecord from '../graph/ContentAttachmentRecord.ts';
 import ContentAttachmentSize from '../graph/ContentAttachmentSize.ts';
@@ -129,7 +129,7 @@ function contentRecordFromRegisters(
   return new ContentAttachmentRecord({
     owner,
     payload: new ContentAttachmentPayload({
-      oid: new ContentAttachmentOid(registers.content.value),
+      handle: new ContentAttachmentHandle(registers.content.value),
       mime: contentMimeFromRegister(registers.content, registers.mime),
       size: contentSizeFromRegister(registers.content, registers.size),
     }),
@@ -140,7 +140,7 @@ function contentRecordFromRegisters(
 function isProjectableContentRegister(register: Register | null | undefined): register is ContentRegister {
   return register !== null
     && register !== undefined
-    && isProjectableContentOidValue(register.value);
+    && isProjectableContentHandleValue(register.value);
 }
 
 /** Filters edge registers hidden by edge rebirth. */
@@ -218,7 +218,7 @@ function isProjectableMimeValue(value: PropValue): value is string {
 }
 
 /** Returns true when a value can become an attachment storage reference. */
-function isProjectableContentOidValue(value: PropValue): value is string {
+function isProjectableContentHandleValue(value: PropValue): value is string {
   return typeof value === 'string' && value.length > 0 && !value.includes('\0');
 }
 

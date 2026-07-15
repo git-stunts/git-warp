@@ -32,6 +32,7 @@ import {
 } from '../../../../src/domain/services/codec/TrailerValidation.ts';
 import { EDGE_PROP_PREFIX } from '../../../../src/domain/services/KeyCodec.ts';
 import SchemaUnsupportedError from '../../../../src/domain/errors/SchemaUnsupportedError.ts';
+import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 
 const OID = 'a'.repeat(40);
@@ -73,20 +74,21 @@ describe('message codec modules', () => {
     });
     const anchorMessage = encodeAnchorMessage({ graph: 'events', schema: 3 });
 
-    expect(decodePatchMessage(patchMessage)).toMatchObject({
+    const decodedPatch = decodePatchMessage(patchMessage);
+    expect(decodedPatch).toMatchObject({
       kind: 'patch',
       graph: 'events',
       writer: 'writer-1',
       lamport: 7,
-      patchOid: OID,
       schema: 3,
     });
+    expect(decodedPatch.patchHandle).toBeInstanceOf(AssetHandle);
+    expect(decodedPatch.patchHandle.toString()).toBe(OID);
+    expect('patchOid' in decodedPatch).toBe(false);
     expect(decodeCheckpointMessage(checkpointMessage)).toMatchObject({
       kind: 'checkpoint',
       graph: 'events',
       stateHash: STATE_HASH,
-      frontierOid: OID,
-      indexOid: OID,
       schema: 3,
     });
     expect(decodeAnchorMessage(anchorMessage)).toMatchObject({

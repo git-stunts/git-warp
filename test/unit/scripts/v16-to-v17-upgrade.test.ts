@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import packageJson from '../../../package.json' with { type: 'json' };
 import publishTsconfig from '../../../tsconfig.publish.json' with { type: 'json' };
+import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { createFrontier } from '../../../src/domain/services/Frontier.ts';
 import { createCheckpointEnvelope } from '../../../src/domain/services/state/checkpointCreate.ts';
-import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
-import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import {
   formatHumanResult,
   parseArgs,
@@ -51,6 +52,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
 
     const result = await upgradeV16ToV17({
       persistence,
+      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
       graphNames: ['alpha'],
       dryRun: true,
     });
@@ -66,21 +68,26 @@ describe('v16 to v17 top-level upgrade utility', () => {
 
   it('deletes rebuildable cache refs while leaving checkpoint refs under checkpoint migration control', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const checkpointSha = await createCheckpointEnvelope({
-      persistence,
-      graphName: 'alpha',
-      state: createEmptyState(),
-      frontier: createFrontier(),
-      crypto: new NodeCryptoAdapter(),
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
+    const services = await runtimeStorage.createRuntimeStorageServices({
+      timelineName: 'alpha',
       codec: defaultCodec,
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
-    await persistence.updateRef('refs/warp/alpha/checkpoints/head', checkpointSha);
+    const checkpointSha = await createCheckpointEnvelope({
+      checkpointStore: services.checkpoints,
+      graphName: 'alpha',
+      state: createEmptyState(),
+      frontier: createFrontier(),
+      codec: defaultCodec,
+      crypto: new NodeCryptoAdapter(),
+    });
     await persistence.updateRef('refs/warp/alpha/coverage/head', oid('a'));
     await persistence.updateRef('refs/warp/alpha/seek-cache', oid('b'));
 
     const result = await upgradeV16ToV17({
       persistence,
+      runtimeStorage,
       graphNames: ['alpha'],
     });
 

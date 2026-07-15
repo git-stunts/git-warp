@@ -3,10 +3,9 @@ import CheckpointTailOpticSource, {
   type CheckpointTailPatchEntry,
 } from './CheckpointTailOpticSource.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
-import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
-import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
+import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import WarpError from '../../errors/WarpError.ts';
-import type { CorePersistence } from '../../types/WarpPersistence.ts';
 
 export type CoordinateCheckpointTailOpticSourceOptions = {
   readonly source: CheckpointTailOpticSource;
@@ -16,10 +15,9 @@ export type CoordinateCheckpointTailOpticSourceOptions = {
 
 export default class CoordinateCheckpointTailOpticSource extends CheckpointTailOpticSource {
   readonly graphName: string;
-  readonly _persistence: CorePersistence;
   readonly _codec: CodecPort;
-  readonly _blobStorage: BlobStoragePort | null;
-  readonly _commitMessageCodec: CommitMessageCodecPort;
+  readonly _checkpointStore: CheckpointStorePort;
+  readonly _indexStore: IndexStorePort;
   private readonly _source: CheckpointTailOpticSource;
   private readonly _checkpointSha: string;
   private readonly _frontier: Map<string, string>;
@@ -29,10 +27,9 @@ export default class CoordinateCheckpointTailOpticSource extends CheckpointTailO
     assertSource(options.source);
     assertFrontier(options.frontier);
     this.graphName = options.source.graphName;
-    this._persistence = options.source._persistence;
     this._codec = options.source._codec;
-    this._blobStorage = options.source._blobStorage;
-    this._commitMessageCodec = options.source._commitMessageCodec;
+    this._checkpointStore = options.source._checkpointStore;
+    this._indexStore = options.source._indexStore;
     this._source = options.source;
     assertNonEmpty(options.checkpointSha, 'checkpointSha');
     this._checkpointSha = options.checkpointSha;
@@ -102,10 +99,9 @@ function hasSourceIdentity(source: CheckpointTailOpticSource): boolean {
 }
 
 function hasSourcePorts(source: CheckpointTailOpticSource): boolean {
-  return hasPersistencePort(source._persistence)
-    && hasCodecPort(source._codec)
-    && hasOptionalBlobStoragePort(source._blobStorage)
-    && hasCommitMessageCodecPort(source._commitMessageCodec);
+  return hasCodecPort(source._codec)
+    && hasCheckpointStorePort(source._checkpointStore)
+    && hasIndexStorePort(source._indexStore);
 }
 
 function hasSourceMethods(source: CheckpointTailOpticSource): boolean {
@@ -119,13 +115,10 @@ function hasSourceMethods(source: CheckpointTailOpticSource): boolean {
   return methodChecks.every((methodExists) => methodExists);
 }
 
-function hasPersistencePort(persistence: CorePersistence): boolean {
+function hasCheckpointStorePort(store: CheckpointStorePort): boolean {
   const methodChecks = [
-    typeof persistence.showNode === 'function',
-    typeof persistence.getNodeInfo === 'function',
-    typeof persistence.readBlob === 'function',
-    typeof persistence.readTreeOids === 'function',
-    typeof persistence.readRef === 'function',
+    typeof store.resolveHead === 'function',
+    typeof store.loadBasis === 'function',
   ] as const;
   return methodChecks.every((methodExists) => methodExists);
 }
@@ -138,22 +131,10 @@ function hasCodecPort(codec: CodecPort): boolean {
   return methodChecks.every((methodExists) => methodExists);
 }
 
-function hasOptionalBlobStoragePort(blobStorage: BlobStoragePort | null): boolean {
-  if (blobStorage === null) {
-    return true;
-  }
+function hasIndexStorePort(indexStore: IndexStorePort): boolean {
   const methodChecks = [
-    typeof blobStorage.retrieve === 'function',
-    typeof blobStorage.retrieveStream === 'function',
-  ] as const;
-  return methodChecks.every((methodExists) => methodExists);
-}
-
-function hasCommitMessageCodecPort(commitMessageCodec: CommitMessageCodecPort): boolean {
-  const methodChecks = [
-    typeof commitMessageCodec.decodeCheckpoint === 'function',
-    typeof commitMessageCodec.decodePatch === 'function',
-    typeof commitMessageCodec.detectKind === 'function',
+    typeof indexStore.openShard === 'function',
+    typeof indexStore.decodeShard === 'function',
   ] as const;
   return methodChecks.every((methodExists) => methodExists);
 }

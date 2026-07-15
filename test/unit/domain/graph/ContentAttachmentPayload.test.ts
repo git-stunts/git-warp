@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
 import ContentAttachmentMime from '../../../../src/domain/graph/ContentAttachmentMime.ts';
-import ContentAttachmentOid from '../../../../src/domain/graph/ContentAttachmentOid.ts';
+import ContentAttachmentHandle from '../../../../src/domain/graph/ContentAttachmentHandle.ts';
 import ContentAttachmentPayload from '../../../../src/domain/graph/ContentAttachmentPayload.ts';
 import ContentAttachmentSize from '../../../../src/domain/graph/ContentAttachmentSize.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 
 describe('ContentAttachmentPayload graph substrate nouns', () => {
-  it('validates content OIDs as runtime-backed attachment references', () => {
-    const oid = new ContentAttachmentOid('abc123');
+  it('validates opaque handles as runtime-backed attachment references', () => {
+    const handle = new ContentAttachmentHandle('abc123');
 
-    expect(oid.toString()).toBe('abc123');
-    expect(oid.equals(new ContentAttachmentOid('abc123'))).toBe(true);
-    expect(oid.equals(new ContentAttachmentOid('def456'))).toBe(false);
-    expect(oid.equals(null)).toBe(false);
-    expect(Object.isFrozen(oid)).toBe(true);
-    expect(() => new ContentAttachmentOid('')).toThrow(WarpError);
-    expect(() => new ContentAttachmentOid('bad\0oid')).toThrow(WarpError);
+    expect(handle.toString()).toBe('abc123');
+    expect(handle.equals(new ContentAttachmentHandle('abc123'))).toBe(true);
+    expect(handle.equals(new ContentAttachmentHandle('def456'))).toBe(false);
+    expect(handle.equals(null)).toBe(false);
+    expect(Object.isFrozen(handle)).toBe(true);
+    expect(() => new ContentAttachmentHandle('')).toThrow(WarpError);
+    expect(() => new ContentAttachmentHandle('bad\0handle')).toThrow(WarpError);
   });
 
   it('validates optional MIME hints as runtime-backed metadata', () => {
@@ -45,12 +45,12 @@ describe('ContentAttachmentPayload graph substrate nouns', () => {
 
   it('represents typed content attachment payload metadata', () => {
     const payload = new ContentAttachmentPayload({
-      oid: new ContentAttachmentOid('abc123'),
+      handle: new ContentAttachmentHandle('abc123'),
       mime: new ContentAttachmentMime('text/markdown'),
       size: new ContentAttachmentSize(42),
     });
 
-    expect(payload.oid.toString()).toBe('abc123');
+    expect(payload.handle.toString()).toBe('abc123');
     expect(payload.mime?.toString()).toBe('text/markdown');
     expect(payload.size?.toNumber()).toBe(42);
     expect(payload.hasMime()).toBe(true);
@@ -58,14 +58,14 @@ describe('ContentAttachmentPayload graph substrate nouns', () => {
     expect(Object.isFrozen(payload)).toBe(true);
   });
 
-  it('allows absent MIME and size metadata without losing the OID', () => {
+  it('allows absent MIME and size metadata without losing the handle', () => {
     const payload = new ContentAttachmentPayload({
-      oid: new ContentAttachmentOid('abc123'),
+      handle: new ContentAttachmentHandle('abc123'),
       mime: null,
       size: null,
     });
 
-    expect(payload.oid.toString()).toBe('abc123');
+    expect(payload.handle.toString()).toBe('abc123');
     expect(payload.mime).toBeNull();
     expect(payload.size).toBeNull();
     expect(payload.hasMime()).toBe(false);
@@ -80,14 +80,14 @@ describe('ContentAttachmentPayload graph substrate nouns', () => {
     expect(() => {
       new ContentAttachmentPayload({
         // @ts-expect-error exercising runtime validation
-        oid: 'abc123',
+        handle: 'abc123',
         mime: null,
         size: null,
       });
     }).toThrow(WarpError);
     expect(() => {
       new ContentAttachmentPayload({
-        oid: new ContentAttachmentOid('abc123'),
+        handle: new ContentAttachmentHandle('abc123'),
         // @ts-expect-error exercising runtime validation
         mime: 'text/plain',
         size: null,
@@ -95,7 +95,7 @@ describe('ContentAttachmentPayload graph substrate nouns', () => {
     }).toThrow(WarpError);
     expect(() => {
       new ContentAttachmentPayload({
-        oid: new ContentAttachmentOid('abc123'),
+        handle: new ContentAttachmentHandle('abc123'),
         mime: null,
         // @ts-expect-error exercising runtime validation
         size: 42,

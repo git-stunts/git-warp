@@ -6,6 +6,7 @@ import {
 } from './strandShared.ts';
 import type { PatchBuilder } from '../PatchBuilder.ts';
 import type Patch from '../../types/Patch.ts';
+import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 import type {
   StrandDescriptor,
   StrandIntentQueue,
@@ -47,9 +48,9 @@ type ServiceOptions = {
     overlayId: string;
     parentSha: string | null;
     patch: Patch;
-    contentBlobOids: string[];
+    contentAssetHandles: string[];
     lamport: number;
-  }) => Promise<{ sha: string; patch: Patch }>;
+  }) => Promise<PatchCommitResult>;
   collectPatchEntries: (
     descriptor: StrandDescriptor,
     options: { ceiling: number | null },
@@ -196,7 +197,7 @@ export default class StrandIntentService {
         overlayId: descriptor.overlay.overlayId,
         parentSha: overlayHeadPatchSha,
         patch: intent.patch,
-        contentBlobOids: intent.contentBlobOids,
+        contentAssetHandles: intent.contentAssetHandles,
         lamport: maxLamport,
       });
       overlayHeadPatchSha = committed.sha;
@@ -268,7 +269,7 @@ export default class StrandIntentService {
       ...intent,
       reads: [...intent.reads],
       writes: [...intent.writes],
-      contentBlobOids: [...intent.contentBlobOids],
+      contentAssetHandles: [...intent.contentAssetHandles],
     }));
   }
 

@@ -7,82 +7,105 @@ import CheckpointTailOpticSource, {
   type CheckpointTailPatchEntry,
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
-import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
-import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
-import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
+import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
+import MockIndexStorage from '../../../../helpers/MockIndexStorage.ts';
 
 class TestCheckpointTailOpticSource extends CheckpointTailOpticSource {
   readonly graphName = 'events';
-  readonly _persistence: CorePersistence = new InMemoryGraphAdapter();
   readonly _codec: CodecPort = defaultCodec;
-  readonly _blobStorage: BlobStoragePort | null = null;
-  readonly _commitMessageCodec: CommitMessageCodecPort = DEFAULT_COMMIT_MESSAGE_CODEC;
+  readonly _checkpointStore = new InMemoryCheckpointStore();
+  readonly _indexStore = new MockIndexStorage();
+  readonly chainCalls: Array<{ readonly tipSha: string; readonly stopAtSha: string | null }> = [];
+  readonly validationCalls: Array<{ readonly writerId: string; readonly incomingSha: string }> = [];
 
   discoverWriters(): Promise<string[]> {
-    return Promise.resolve([]);
+    return Promise.resolve(['live-writer']);
   }
 
   _readCheckpointSha(): Promise<string | null> {
-    return Promise.resolve('checkpoint-sha');
+    return Promise.resolve('live-checkpoint-sha');
   }
 
-  _loadPatchChainFromSha(): Promise<CheckpointTailPatchEntry[]> {
+  _loadPatchChainFromSha(
+    tipSha: string,
+    stopAtSha: string | null = null,
+  ): Promise<CheckpointTailPatchEntry[]> {
+    this.chainCalls.push({ tipSha, stopAtSha });
     return Promise.resolve([]);
   }
 
   _loadWriterPatches(): Promise<CheckpointTailPatchEntry[]> {
-    return Promise.resolve([]);
+    throw new Error('coordinate reads must use the captured frontier');
   }
 
   _validatePatchAgainstCheckpoint(
-    _writerId: string,
-    _incomingSha: string,
-    _checkpoint: CheckpointTailCheckpointFrontier | null | undefined
+    writerId: string,
+    incomingSha: string,
+    _checkpoint: CheckpointTailCheckpointFrontier | null | undefined,
   ): Promise<void> {
+    this.validationCalls.push({ writerId, incomingSha });
     return Promise.resolve();
   }
 }
 
-class MalformedPersistenceSource extends TestCheckpointTailOpticSource {
-  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
-  override readonly _persistence: CorePersistence = {
-    showNode: () => Promise.resolve('checkpoint'),
-  };
-}
-
-class MalformedBlobStorageSource extends TestCheckpointTailOpticSource {
-  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
-  override readonly _blobStorage: BlobStoragePort | null = {
-    store: () => Promise.resolve('storage-oid'),
-  };
-}
-
-class MalformedCodecSource extends TestCheckpointTailOpticSource {
-  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
-  override readonly _codec: CodecPort = {
-    encode: () => new Uint8Array(),
-  };
-}
-
-class MalformedCommitMessageCodecSource extends TestCheckpointTailOpticSource {
-  // @ts-expect-error exercising runtime source-port validation for JavaScript callers
-  override readonly _commitMessageCodec: CommitMessageCodecPort = {
-    decodeCheckpoint: () => ({
-      kind: 'checkpoint',
-      graph: 'events',
-      stateHash: 'state',
-      frontierOid: 'frontier',
-      indexOid: 'index',
-      schema: 5,
-      checkpointVersion: null,
-    }),
-  };
-}
-
 describe('CoordinateCheckpointTailOpticSource', () => {
+  it('captures a sorted frontier and reuses the source semantic ports', async () => {
+    const source = new TestCheckpointTailOpticSource();
+    const frontier = new Map([
+      ['writer-b', 'patch-b'],
+      ['writer-a', 'patch-a'],
+    ]);
+    const coordinate = new CoordinateCheckpointTailOpticSource({
+      source,
+      checkpointSha: 'coordinate-checkpoint-sha',
+      frontier,
+    });
+
+    frontier.set('writer-c', 'patch-c');
+
+    await expect(coordinate.discoverWriters()).resolves.toEqual(['writer-a', 'writer-b']);
+    await expect(coordinate._readCheckpointSha()).resolves.toBe('coordinate-checkpoint-sha');
+    expect(coordinate.graphName).toBe(source.graphName);
+    expect(coordinate._codec).toBe(source._codec);
+    expect(coordinate._checkpointStore).toBe(source._checkpointStore);
+    expect(coordinate._indexStore).toBe(source._indexStore);
+  });
+
+  it('loads writer patches from the captured coordinate tip', async () => {
+    const source = new TestCheckpointTailOpticSource();
+    const coordinate = new CoordinateCheckpointTailOpticSource({
+      source,
+      checkpointSha: 'coordinate-checkpoint-sha',
+      frontier: new Map([['writer-a', 'patch-a']]),
+    });
+
+    await coordinate._loadWriterPatches('writer-a', 'checkpoint-parent');
+    await expect(coordinate._loadWriterPatches('missing-writer')).resolves.toEqual([]);
+    await expect(coordinate._loadWriterPatches('writer-a', 'patch-a')).resolves.toEqual([]);
+
+    expect(source.chainCalls).toEqual([
+      { tipSha: 'patch-a', stopAtSha: 'checkpoint-parent' },
+    ]);
+  });
+
+  it('delegates explicit chain loads and checkpoint validation', async () => {
+    const source = new TestCheckpointTailOpticSource();
+    const coordinate = new CoordinateCheckpointTailOpticSource({
+      source,
+      checkpointSha: 'coordinate-checkpoint-sha',
+      frontier: new Map(),
+    });
+
+    await coordinate._loadPatchChainFromSha('tip-sha', 'stop-sha');
+    await coordinate._validatePatchAgainstCheckpoint('writer-a', 'incoming-sha', null);
+
+    expect(source.chainCalls).toEqual([{ tipSha: 'tip-sha', stopAtSha: 'stop-sha' }]);
+    expect(source.validationCalls).toEqual([
+      { writerId: 'writer-a', incomingSha: 'incoming-sha' },
+    ]);
+  });
+
   it('rejects malformed constructor frontier before copying entries', () => {
     expect(
       () =>
@@ -91,17 +114,7 @@ describe('CoordinateCheckpointTailOpticSource', () => {
           checkpointSha: 'checkpoint-sha',
           // @ts-expect-error exercising runtime validation for JavaScript callers
           frontier: 'not-a-frontier',
-        })
-    ).toThrow(WarpError);
-
-    expect(
-      () =>
-        new CoordinateCheckpointTailOpticSource({
-          source: new TestCheckpointTailOpticSource(),
-          checkpointSha: 'checkpoint-sha',
-          // @ts-expect-error exercising runtime validation for JavaScript callers
-          frontier: 'not-a-frontier',
-        })
+        }),
     ).toThrow('Coordinate checkpoint-tail optic source requires a frontier Map');
   });
 
@@ -112,7 +125,7 @@ describe('CoordinateCheckpointTailOpticSource', () => {
           source: new TestCheckpointTailOpticSource(),
           checkpointSha: '   ',
           frontier: new Map([['writer-1', 'patch-sha']]),
-        })
+        }),
     ).toThrow('Coordinate checkpoint-tail optic source requires non-empty identity fields');
 
     expect(
@@ -121,27 +134,37 @@ describe('CoordinateCheckpointTailOpticSource', () => {
           source: new TestCheckpointTailOpticSource(),
           checkpointSha: 'checkpoint-sha',
           frontier: new Map([['writer-1', '   ']]),
-        })
+        }),
     ).toThrow('Coordinate checkpoint-tail optic source requires non-empty identity fields');
   });
 
-  it('rejects malformed source ports at the constructor boundary', () => {
-    const sources = [
-      new MalformedPersistenceSource(),
-      new MalformedBlobStorageSource(),
-      new MalformedCodecSource(),
-      new MalformedCommitMessageCodecSource(),
-    ] as const;
+  it('rejects malformed semantic source ports at the constructor boundary', () => {
+    const malformedCheckpointStore = new TestCheckpointTailOpticSource();
+    Object.defineProperty(malformedCheckpointStore, '_checkpointStore', {
+      value: { resolveHead: () => Promise.resolve(null) },
+    });
+    const malformedIndexStore = new TestCheckpointTailOpticSource();
+    Object.defineProperty(malformedIndexStore, '_indexStore', {
+      value: { openShard: () => emptyBytes() },
+    });
+    const malformedCodec = new TestCheckpointTailOpticSource();
+    Object.defineProperty(malformedCodec, '_codec', {
+      value: { encode: () => new Uint8Array() },
+    });
 
-    for (const source of sources) {
+    for (const source of [malformedCheckpointStore, malformedIndexStore, malformedCodec]) {
       expect(
         () =>
           new CoordinateCheckpointTailOpticSource({
             source,
             checkpointSha: 'checkpoint-sha',
             frontier: new Map([['writer-1', 'patch-sha']]),
-          })
-      ).toThrow('Coordinate checkpoint-tail optic source requires a checkpoint-tail source');
+          }),
+      ).toThrow(WarpError);
     }
   });
 });
+
+async function* emptyBytes(): AsyncIterable<Uint8Array> {
+  yield new Uint8Array();
+}

@@ -1,6 +1,7 @@
 import MemoryBudgetError from '../../errors/MemoryBudgetError.ts';
 import WarpMemoryPool from '../../memory/WarpMemoryPool.ts';
 import type { PropValue } from '../../types/PropValue.ts';
+import type AssetHandle from '../../storage/AssetHandle.ts';
 import { compareEventIds } from '../../utils/EventId.ts';
 import {
   CheckpointContentAnchorFact,
@@ -95,10 +96,10 @@ export default class CheckpointFactResolver {
     return latest === null ? Object.freeze({ found: false, value: null }) : Object.freeze({ found: true, value: latest.value });
   }
 
-  async resolveContentOid(
+  async resolveContentHandle(
     facts: AsyncIterable<CheckpointBasisFact>,
     owner: string,
-  ): Promise<string | null> {
+  ): Promise<AssetHandle | null> {
     let latest: CheckpointContentAnchorFact | null = null;
     for await (const fact of facts) {
       const lease = this._pool.acquire({ scope: 'checkpoint.fact.content-anchor', amount: 1 });
@@ -108,7 +109,7 @@ export default class CheckpointFactResolver {
         lease.release();
       }
     }
-    return latest?.contentOid ?? null;
+    return latest?.contentHandle ?? null;
   }
 }
 

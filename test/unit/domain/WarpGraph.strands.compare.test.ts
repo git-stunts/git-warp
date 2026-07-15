@@ -519,7 +519,7 @@ describe('WarpCore strand foundation', () => {
     const strandReader = createStateReader(strandState);
     const strandContentMeta = strandReader.getNodeContentMeta('doc:1');
     expect(strandContentMeta).toEqual({
-      oid: expect.any(String),
+      handle: expect.any(String),
       mime: 'text/plain',
       size: 14,
     });
@@ -560,13 +560,13 @@ describe('WarpCore strand foundation', () => {
       value: null,
     });
     const attachOp =
-      /** @type {import('../../../src/domain/types/CoordinateComparison.ts').VisibleStateTransferOperation & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentOid: string, mime?: string|null, size?: number|null }} */ transferPlan.ops.find(
+      /** @type {import('../../../src/domain/types/CoordinateComparison.ts').VisibleStateTransferOperation & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentHandle: string, mime?: string|null, size?: number|null }} */ transferPlan.ops.find(
         (op) => op.op === 'attach_node_content' && op.nodeId === 'doc:1'
       );
     expect(attachOp).toMatchObject({
       op: 'attach_node_content',
       nodeId: 'doc:1',
-      contentOid: expect.any(String),
+      contentHandle: expect.any(String),
       mime: 'text/plain',
       size: 14,
     });
@@ -601,7 +601,7 @@ describe('WarpCore strand foundation', () => {
           {
             op: 'attach_node_content',
             nodeId: 'doc:1',
-            contentOid: attachOp.contentOid,
+            contentHandle: attachOp.contentHandle,
             mime: 'text/plain',
             size: 14,
           },

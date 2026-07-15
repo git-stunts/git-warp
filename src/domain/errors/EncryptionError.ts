@@ -1,14 +1,13 @@
 import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
 /**
- * Error thrown when a patch requires decryption but no patchBlobStorage
- * (with encryption key) is configured.
+ * Error thrown when configured asset decryption cannot satisfy a read.
  *
  * ## Error Codes
  *
  * | Code | Description |
  * |------|-------------|
- * | `E_ENCRYPTED_PATCH` | Patch is encrypted but no decryption key is available |
+ * | `E_ENCRYPTED_PATCH` | Encrypted asset cannot be read with configured keys |
  */
 export default class EncryptionError extends WarpError {
   constructor(message: string, options: WarpErrorOptions = {}) {

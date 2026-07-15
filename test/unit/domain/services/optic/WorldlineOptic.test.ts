@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
-import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
-import {
-  DEFAULT_COMMIT_MESSAGE_CODEC,
-} from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import CheckpointTailWitnessLocator from '../../../../../src/domain/services/optic/CheckpointTailWitnessLocator.ts';
 import CheckpointTailOpticSource, {
@@ -16,17 +12,15 @@ import NodePropertyOptic from '../../../../../src/domain/services/optic/NodeProp
 import Optic from '../../../../../src/domain/services/optic/Optic.ts';
 import OpticCoordinatePosture from '../../../../../src/domain/services/optic/OpticCoordinatePosture.ts';
 import WorldlineOptic from '../../../../../src/domain/services/optic/WorldlineOptic.ts';
-import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
-import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
+import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
+import MockIndexStorage from '../../../../helpers/MockIndexStorage.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
-import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
 
 class TestCheckpointTailOpticSource extends CheckpointTailOpticSource {
   readonly graphName = 'worldline-optic-reification';
-  readonly _persistence: CorePersistence = new InMemoryGraphAdapter();
   readonly _codec: CodecPort = defaultCodec;
-  readonly _blobStorage: BlobStoragePort | null = null;
-  readonly _commitMessageCodec: CommitMessageCodecPort = DEFAULT_COMMIT_MESSAGE_CODEC;
+  readonly _checkpointStore = new InMemoryCheckpointStore();
+  readonly _indexStore = new MockIndexStorage();
 
   discoverWriters(): Promise<string[]> {
     return Promise.resolve([]);

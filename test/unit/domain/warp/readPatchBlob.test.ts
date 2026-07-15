@@ -1,78 +1,55 @@
-/**
- * Tests for _readPatchBlob null-guard on readBlob return value.
- *
- * @see src/domain/services/controllers/PatchController.js
- */
-
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import PatchController from '../../../../src/domain/services/controllers/PatchController.ts';
-import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
+import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import Patch from '../../../../src/domain/types/Patch.ts';
+import { createGitCasPatchStorage } from '../../../../src/ports/CommitMessageCodecPort.ts';
 
-/**
- * Builds a PatchController with a minimal mock host.
- *
- * @param {{ readBlob: import('vitest').Mock }} persistence
- * @param {{ retrieve: import('vitest').Mock }|null} [patchBlobStorage]
- * @returns {PatchController}
- */
-function createController(persistence, patchBlobStorage = null) {
-  const host = ({ _persistence: persistence, _patchBlobStorage: patchBlobStorage } as any);
-  return new PatchController(host);
-}
+const locator = Object.freeze({
+  kind: 'patch' as const,
+  graph: 'events',
+  writer: 'writer-1',
+  lamport: 1,
+  patchHandle: new AssetHandle('asset:patch'),
+  schema: 2,
+  storage: createGitCasPatchStorage({ encrypted: false }),
+});
 
-describe('_readPatchBlob', () => {
-  it('returns blob when readBlob succeeds', async () => {
-    const expected = new Uint8Array([1, 2, 3]);
-    const ctrl = createController({ readBlob: vi.fn().mockResolvedValue(expected) });
-    const result = await ctrl._readPatchBlob({
-      patchOid: 'a'.repeat(40),
-      encrypted: false,
+describe('PatchController semantic patch reads', () => {
+  it('delegates the decoded commit locator to PatchJournalPort', async () => {
+    const patch = new Patch({
+      schema: 2,
+      writer: 'writer-1',
+      lamport: 1,
+      context: {},
+      ops: [],
+      reads: [],
+      writes: [],
     });
-    expect(result).toBe(expected);
+    const readPatch = vi.fn(async () => patch);
+    const controller = createController({ readPatch });
+
+    await expect(controller._readPatch(locator)).resolves.toBe(patch);
+    expect(readPatch).toHaveBeenCalledWith(locator);
   });
 
-  it('throws PersistenceError with E_MISSING_OBJECT when readBlob returns null', async () => {
-    const ctrl = createController({ readBlob: vi.fn().mockResolvedValue(null) });
-    await expect(ctrl._readPatchBlob({
-      patchOid: 'b'.repeat(40),
-      encrypted: false,
-    })).rejects.toThrow(PersistenceError);
-
-    try {
-      await ctrl._readPatchBlob({ patchOid: 'b'.repeat(40), encrypted: false });
-    } catch (err) {
-      expect((err as any).code).toBe(PersistenceError.E_MISSING_OBJECT);
-    }
-  });
-
-  it('throws PersistenceError with E_MISSING_OBJECT when readBlob returns undefined', async () => {
-    const ctrl = createController({ readBlob: vi.fn().mockResolvedValue(undefined) });
-    await expect(ctrl._readPatchBlob({
-      patchOid: 'c'.repeat(40),
-      encrypted: false,
-    })).rejects.toThrow(PersistenceError);
-  });
-
-  it('delegates to patchBlobStorage.retrieve when encrypted', async () => {
-    const expected = new Uint8Array([4, 5, 6]);
-    const patchBlobStorage = { retrieve: vi.fn().mockResolvedValue(expected) };
-    const ctrl = createController(
-      { readBlob: vi.fn().mockResolvedValue(null) },
-      patchBlobStorage as any,
-    );
-    const result = await ctrl._readPatchBlob({
-      patchOid: 'd'.repeat(40),
-      encrypted: true,
+  it('propagates storage-owned read failures unchanged', async () => {
+    const failure = new Error('asset unavailable');
+    const controller = createController({
+      readPatch: vi.fn(async () => await Promise.reject(failure)),
     });
-    expect(result).toBe(expected);
-    expect(patchBlobStorage.retrieve).toHaveBeenCalledWith('d'.repeat(40));
+
+    await expect(controller._readPatch(locator)).rejects.toBe(failure);
   });
 
-  it('throws EncryptionError when encrypted but no patchBlobStorage', async () => {
-    const ctrl = createController({ readBlob: vi.fn() }, null);
-    await expect(ctrl._readPatchBlob({
-      patchOid: 'e'.repeat(40),
-      encrypted: true,
-    })).rejects.toThrow(/encrypted.*patchBlobStorage/i);
+  it('fails explicitly when no semantic journal is configured', async () => {
+    const controller = new PatchController({ _patchJournal: null } as never);
+
+    await expect(controller._readPatch(locator)).rejects.toMatchObject({
+      code: 'E_MISSING_JOURNAL',
+    });
   });
 });
+
+function createController(journal: { readPatch: (message: typeof locator) => Promise<Patch> }): PatchController {
+  return new PatchController({ _patchJournal: journal } as never);
+}

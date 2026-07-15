@@ -24,13 +24,11 @@ export default class MaterializeCheckpointStrategy {
       await this.runtime.deps.patches.loadPatchChain(to, from);
 
     const state = await materializeIncremental({
-      persistence: this.runtime.loadPersistence(),
+      checkpointStore: this.runtime.deps.checkpointStore,
       graphName: this.runtime.deps.graphName,
       checkpointSha,
       targetFrontier: frontier,
       patchLoader,
-      codec: this.runtime.deps.codec,
-      commitMessageCodec: this.runtime.deps.commitMessageCodec,
     });
     return await this.runtime.wrapState(state, null, null);
   }

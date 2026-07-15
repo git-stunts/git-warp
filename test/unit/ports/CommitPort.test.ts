@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import CommitPort, {
   type CommitLogChunk,
   type CommitNodeOptions,
-  type CommitNodeWithTreeOptions,
   type LogNodesOptions,
 } from '../../../src/ports/CommitPort.ts';
 import WarpStream from '../../../src/domain/stream/WarpStream.ts';
@@ -10,8 +9,7 @@ import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 describe('CommitPort', () => {
   const abstractMethods = [
     'commitNode', 'showNode', 'getNodeInfo', 'logNodes',
-    'logNodesStream', 'countNodes', 'commitNodeWithTree',
-    'nodeExists', 'getCommitTree', 'ping',
+    'logNodesStream', 'countNodes', 'nodeExists', 'ping',
   ];
 
   it('abstract methods are not callable on base prototype', () => {
@@ -30,9 +28,7 @@ describe('CommitPort', () => {
         return WarpStream.of<CommitLogChunk>();
       }
       async countNodes(_ref: string) { return 5; }
-      async commitNodeWithTree(_options: CommitNodeWithTreeOptions) { return 'sha2'; }
       async nodeExists(_sha: string) { return true; }
-      async getCommitTree(_sha: string) { return 'tree-oid'; }
       async ping() { return { ok: true, latencyMs: 1 }; }
     }
     const c = new TestCommit();

@@ -44,8 +44,16 @@ function createStrandHost(): StrandHost {
     _cachedViewHash: null,
     _cachedState: null,
     _patchJournal: null,
-    _patchBlobStorage: null,
-    _blobStorage: null,
+    _strandStore: {
+      readDescriptor: async () => null,
+      publishDescriptor: async () => {
+        throw new Error('unused descriptor publication');
+      },
+      listStrandIds: async () => [],
+      hasDescriptor: async () => false,
+      deleteDescriptor: async () => false,
+    },
+    _assetStorage: null,
     _commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     _logger: null,
     _codec: {

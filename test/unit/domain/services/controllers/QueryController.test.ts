@@ -5,6 +5,7 @@ import SnapshotWarpState from '../../../../../src/domain/services/snapshot/Snaps
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
+import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
 import {
   encodePropKey,
   encodeEdgeKey,
@@ -51,6 +52,12 @@ function eventId(lamport, writerId = 'w1', patchSha = 'abc') {
  */
 function lww(value, eid = null) {
   return { value, eventId: eid };
+}
+
+function chunks(...values: Uint8Array[]): AsyncIterable<Uint8Array> {
+  return (async function* (): AsyncGenerator<Uint8Array> {
+    yield* values;
+  })();
 }
 
 /**
@@ -111,10 +118,9 @@ function createHost(state, overrides = {}) {
     _stateDirty: false,
     getFrontier: vi.fn().mockResolvedValue(new Map(frontier)),
     _ensureFreshState: vi.fn().mockResolvedValue(undefined),
-    _persistence: {
-      readBlob: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+    _assetStorage: {
+      open: vi.fn(() => chunks(new Uint8Array([1, 2, 3]))),
     },
-    _blobStorage: null,
     _propertyReader: null,
     _logicalIndex: null,
     _materializedGraph: null,
@@ -592,18 +598,18 @@ describe('QueryController', () => {
 
   // ── Content attachment (node) ────────────────────────────────────────────
 
-  describe('getContentOid()', () => {
+  describe('getContentHandle()', () => {
     it('returns null when node has no content', async () => {
-      const oid = await ctrl.getContentOid('alice');
-      expect(oid).toBeNull();
+      const handle = await ctrl.getContentHandle('alice');
+      expect(handle).toBeNull();
     });
 
     it('returns null when node does not exist', async () => {
-      const oid = await ctrl.getContentOid('nobody');
-      expect(oid).toBeNull();
+      const handle = await ctrl.getContentHandle('nobody');
+      expect(handle).toBeNull();
     });
 
-    it('returns the OID when content is attached', async () => {
+    it('returns the opaque handle when content is attached', async () => {
       const s = buildState({
         nodes: ['alice'],
         props: [
@@ -611,8 +617,8 @@ describe('QueryController', () => {
         ],
       });
       host._cachedState = s;
-      const oid = await ctrl.getContentOid('alice');
-      expect(oid).toBe('deadbeef');
+      const handle = await ctrl.getContentHandle('alice');
+      expect(handle).toBe('deadbeef');
     });
   });
 
@@ -622,7 +628,7 @@ describe('QueryController', () => {
       expect(meta).toBeNull();
     });
 
-    it('returns oid with null mime/size when siblings are absent', async () => {
+    it('returns a handle with null mime/size when siblings are absent', async () => {
       const s = buildState({
         nodes: ['alice'],
         props: [
@@ -631,7 +637,7 @@ describe('QueryController', () => {
       });
       host._cachedState = s;
       const meta = await ctrl.getContentMeta('alice');
-      expect(meta).toEqual({ oid: 'deadbeef', mime: null, size: null });
+      expect(meta).toEqual({ handle: 'deadbeef', mime: null, size: null });
     });
 
     it('includes mime and size when from same lineage', async () => {
@@ -646,7 +652,7 @@ describe('QueryController', () => {
       });
       host._cachedState = s;
       const meta = await ctrl.getContentMeta('alice');
-      expect(meta).toEqual({ oid: 'deadbeef', mime: 'text/plain', size: 42 });
+      expect(meta).toEqual({ handle: 'deadbeef', mime: 'text/plain', size: 42 });
     });
 
     it('returns null mime/size when from different lineage', async () => {
@@ -662,7 +668,7 @@ describe('QueryController', () => {
       });
       host._cachedState = s;
       const meta = await ctrl.getContentMeta('alice');
-      expect(meta).toEqual({ oid: 'deadbeef', mime: null, size: null });
+      expect(meta).toEqual({ handle: 'deadbeef', mime: null, size: null });
     });
 
     it('returns null size when value is not a non-negative integer', async () => {
@@ -676,7 +682,7 @@ describe('QueryController', () => {
       });
       host._cachedState = s;
       const meta = await ctrl.getContentMeta('alice');
-      expect(meta).toEqual({ oid: 'deadbeef', mime: null, size: null });
+      expect(meta).toEqual({ handle: 'deadbeef', mime: null, size: null });
     });
   });
 
@@ -686,7 +692,7 @@ describe('QueryController', () => {
       expect(buf).toBeNull();
     });
 
-    it('reads blob from persistence when no blobStorage', async () => {
+    it('streams the asset through the semantic storage port', async () => {
       const s = buildState({
         nodes: ['alice'],
         props: [
@@ -696,14 +702,14 @@ describe('QueryController', () => {
       host._cachedState = s;
       const buf = await ctrl.getContent('alice');
       expect(buf).toEqual(new Uint8Array([1, 2, 3]));
-      expect(host._persistence.readBlob).toHaveBeenCalledWith('deadbeef');
+      expect(host._assetStorage.open).toHaveBeenCalledWith(new AssetHandle('deadbeef'));
     });
 
-    it('reads blob from blobStorage when available', async () => {
-      const mockBlobStorage = {
-        retrieve: vi.fn().mockResolvedValue(new Uint8Array([4, 5, 6])),
+    it('collects multiple asset chunks without a raw Git fallback', async () => {
+      const assetStorage = {
+        open: vi.fn(() => chunks(new Uint8Array([4]), new Uint8Array([5, 6]))),
       };
-      host._blobStorage = mockBlobStorage;
+      host._assetStorage = assetStorage;
       const s = buildState({
         nodes: ['alice'],
         props: [
@@ -713,24 +719,34 @@ describe('QueryController', () => {
       host._cachedState = s;
       const buf = await ctrl.getContent('alice');
       expect(buf).toEqual(new Uint8Array([4, 5, 6]));
-      expect(mockBlobStorage.retrieve).toHaveBeenCalledWith('deadbeef');
+      expect(assetStorage.open).toHaveBeenCalledWith(new AssetHandle('deadbeef'));
+    });
+
+    it('fails closed when semantic asset storage is unavailable', async () => {
+      host._assetStorage = null;
+      host._cachedState = buildState({
+        nodes: ['alice'],
+        props: [{ nodeId: 'alice', key: CONTENT_PROPERTY_KEY, value: 'deadbeef' }],
+      });
+
+      await expect(ctrl.getContent('alice')).rejects.toMatchObject({ code: 'E_CONTENT_STORAGE' });
     });
   });
 
   // ── Content attachment (edge) ────────────────────────────────────────────
 
-  describe('getEdgeContentOid()', () => {
+  describe('getEdgeContentHandle()', () => {
     it('returns null when edge has no content', async () => {
-      const oid = await ctrl.getEdgeContentOid('alice', 'bob', 'knows');
-      expect(oid).toBeNull();
+      const handle = await ctrl.getEdgeContentHandle('alice', 'bob', 'knows');
+      expect(handle).toBeNull();
     });
 
     it('returns null when edge does not exist', async () => {
-      const oid = await ctrl.getEdgeContentOid('alice', 'carol', 'knows');
-      expect(oid).toBeNull();
+      const handle = await ctrl.getEdgeContentHandle('alice', 'carol', 'knows');
+      expect(handle).toBeNull();
     });
 
-    it('returns the OID when content is attached to an edge', async () => {
+    it('returns the opaque handle when content is attached to an edge', async () => {
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],
@@ -739,8 +755,8 @@ describe('QueryController', () => {
         ],
       });
       host._cachedState = s;
-      const oid = await ctrl.getEdgeContentOid('alice', 'bob', 'knows');
-      expect(oid).toBe('cafebabe');
+      const handle = await ctrl.getEdgeContentHandle('alice', 'bob', 'knows');
+      expect(handle).toBe('cafebabe');
     });
 
     it('returns null when endpoint node is dead', async () => {
@@ -752,8 +768,8 @@ describe('QueryController', () => {
         ],
       });
       host._cachedState = s;
-      const oid = await ctrl.getEdgeContentOid('alice', 'bob', 'knows');
-      expect(oid).toBeNull();
+      const handle = await ctrl.getEdgeContentHandle('alice', 'bob', 'knows');
+      expect(handle).toBeNull();
     });
   });
 
@@ -763,7 +779,7 @@ describe('QueryController', () => {
       expect(meta).toBeNull();
     });
 
-    it('returns oid with mime and size from same lineage', async () => {
+    it('returns a handle with mime and size from the same lineage', async () => {
       const eid = eventId(5, 'w1', 'sha1');
       const s = buildState({
         nodes: ['alice', 'bob'],
@@ -776,7 +792,7 @@ describe('QueryController', () => {
       });
       host._cachedState = s;
       const meta = await ctrl.getEdgeContentMeta('alice', 'bob', 'knows');
-      expect(meta).toEqual({ oid: 'cafebabe', mime: 'image/png', size: 1024 });
+      expect(meta).toEqual({ handle: 'cafebabe', mime: 'image/png', size: 1024 });
     });
 
     it('filters edge content behind birth event', async () => {
@@ -804,7 +820,7 @@ describe('QueryController', () => {
       expect(buf).toBeNull();
     });
 
-    it('reads blob from persistence', async () => {
+    it('streams the edge asset through the semantic storage port', async () => {
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],
@@ -815,14 +831,14 @@ describe('QueryController', () => {
       host._cachedState = s;
       const buf = await ctrl.getEdgeContent('alice', 'bob', 'knows');
       expect(buf).toEqual(new Uint8Array([1, 2, 3]));
-      expect(host._persistence.readBlob).toHaveBeenCalledWith('cafebabe');
+      expect(host._assetStorage.open).toHaveBeenCalledWith(new AssetHandle('cafebabe'));
     });
 
-    it('reads blob from blobStorage when available', async () => {
-      const mockBlobStorage = {
-        retrieve: vi.fn().mockResolvedValue(new Uint8Array([7, 8, 9])),
+    it('collects multiple edge asset chunks', async () => {
+      const assetStorage = {
+        open: vi.fn(() => chunks(new Uint8Array([7, 8]), new Uint8Array([9]))),
       };
-      host._blobStorage = mockBlobStorage;
+      host._assetStorage = assetStorage;
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],
@@ -833,7 +849,7 @@ describe('QueryController', () => {
       host._cachedState = s;
       const buf = await ctrl.getEdgeContent('alice', 'bob', 'knows');
       expect(buf).toEqual(new Uint8Array([7, 8, 9]));
-      expect(mockBlobStorage.retrieve).toHaveBeenCalledWith('cafebabe');
+      expect(assetStorage.open).toHaveBeenCalledWith(new AssetHandle('cafebabe'));
     });
   });
 
@@ -845,7 +861,7 @@ describe('QueryController', () => {
       expect(stream).toBeNull();
     });
 
-    it('returns async iterable wrapping buffered read', async () => {
+    it('returns the asset stream', async () => {
       const s = buildState({
         nodes: ['alice'],
         props: [
@@ -863,16 +879,11 @@ describe('QueryController', () => {
       expect(chunks).toEqual([new Uint8Array([1, 2, 3])]);
     });
 
-    it('uses blobStorage.retrieveStream when available', async () => {
-      const mockStream = (async function* () {
-        yield new Uint8Array([10]);
-        yield new Uint8Array([20]);
-      })();
-      const mockBlobStorage = {
-        retrieve: vi.fn(),
-        retrieveStream: vi.fn().mockReturnValue(mockStream),
+    it('preserves multiple chunks from the asset storage stream', async () => {
+      const assetStorage = {
+        open: vi.fn(() => chunks(new Uint8Array([10]), new Uint8Array([20]))),
       };
-      host._blobStorage = mockBlobStorage;
+      host._assetStorage = assetStorage;
       const s = buildState({
         nodes: ['alice'],
         props: [
@@ -882,7 +893,12 @@ describe('QueryController', () => {
       host._cachedState = s;
       const stream = await ctrl.getContentStream('alice');
       expect(stream).not.toBeNull();
-      expect(mockBlobStorage.retrieveStream).toHaveBeenCalledWith('deadbeef');
+      const observed: Uint8Array[] = [];
+      for await (const chunk of stream as AsyncIterable<Uint8Array>) {
+        observed.push(chunk);
+      }
+      expect(observed).toEqual([new Uint8Array([10]), new Uint8Array([20])]);
+      expect(assetStorage.open).toHaveBeenCalledWith(new AssetHandle('deadbeef'));
     });
   });
 
@@ -892,7 +908,7 @@ describe('QueryController', () => {
       expect(stream).toBeNull();
     });
 
-    it('returns async iterable wrapping buffered read', async () => {
+    it('returns the edge asset stream', async () => {
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],

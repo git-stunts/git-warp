@@ -6,7 +6,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import InMemoryGraphAdapter from '../../../../test/helpers/InMemoryGraphAdapter.ts';
+import InMemoryAuditLogAdapter from '../../../../test/helpers/InMemoryAuditLogAdapter.ts';
 import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.ts';
 import AuditVerifierService from '../../../../src/domain/services/audit/AuditVerifierService.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -26,9 +26,9 @@ const CHAIN_LENGTH = 1000;
 console.log(`Building ${CHAIN_LENGTH}-receipt chain...`);
 const t0 = performance.now();
 
-const persistence = new InMemoryGraphAdapter();
+const auditLog = new InMemoryAuditLogAdapter();
 const service = new AuditReceiptService({
-  persistence,
+  auditLog,
   graphName: 'bench',
   writerId: 'alice',
   codec: defaultCodec,
@@ -57,7 +57,7 @@ console.log(`Verifying ${CHAIN_LENGTH}-receipt chain...`);
 const t1 = performance.now();
 
 const verifier = new AuditVerifierService({
-  persistence,
+  auditLog,
   codec: defaultCodec,
 });
 const result = await verifier.verifyChain('bench', 'alice');

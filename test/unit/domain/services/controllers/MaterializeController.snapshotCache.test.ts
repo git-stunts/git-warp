@@ -4,6 +4,7 @@ import { createEmptyState } from '../../../../../src/domain/services/JoinReducer
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import type { CheckpointData, PatchWithSha } from '../../../../../src/domain/capabilities/PatchCollector.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
 
 type Coordinate = {
   frontier: Map<string, string>;
@@ -120,6 +121,7 @@ function createControllerFixtures() {
       showNode: vi.fn().mockResolvedValue(''),
       readBlob: vi.fn().mockResolvedValue(new Uint8Array([1])),
     },
+    checkpointStore: new InMemoryCheckpointStore(),
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     getStateCache: () => stateCache,
     patches,

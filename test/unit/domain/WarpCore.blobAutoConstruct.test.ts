@@ -1,112 +1,57 @@
-import { describe, it, expect, vi } from 'vitest';
-import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
-import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
-import MemoryRuntimeStorageAdapter from '../../../test/helpers/MemoryRuntimeStorageAdapter.ts';
+import { describe, expect, it } from 'vitest';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import { openMemoryRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
+import InMemoryGraphAdapter from '../../helpers/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
 
-/**
- * Spec tests for runtime content storage composition.
- *
- * Runtime storage is an explicit sibling of timeline history. The provider
- * owns adapter construction and the domain consumes only semantic services.
- */
-
-type MockPersistence = CorePersistence & {
-  configGet: ReturnType<typeof vi.fn>;
-  configSet: ReturnType<typeof vi.fn>;
-};
-
-function makeMockPersistence(): MockPersistence {
-  return {
-    commitNode: vi.fn(async () => 'c'.repeat(40)),
-    showNode: vi.fn(async () => ''),
-    readRef: vi.fn(async () => null),
-    listRefs: vi.fn(async () => []),
-    updateRef: vi.fn(async () => undefined),
-    deleteRef: vi.fn(async () => undefined),
-    compareAndSwapRef: vi.fn(async () => undefined),
-    logNodes: vi.fn(async () => ''),
-    logNodesStream: vi.fn(),
-    countNodes: vi.fn(async () => 0),
-    configGet: vi.fn().mockResolvedValue(null),
-    configSet: vi.fn().mockResolvedValue(undefined),
-    readBlob: vi.fn(async () => new Uint8Array()),
-    writeBlob: vi.fn(async () => 'a'.repeat(40)),
-    readTree: vi.fn(async () => ({})),
-    getNodeInfo: vi.fn(async () => ({ message: '', parents: [], sha: 'a'.repeat(40), author: '', date: '' })),
-    nodeExists: vi.fn(async () => true),
-    getCommitTree: vi.fn(async () => 'b'.repeat(40)),
-    readTreeOids: vi.fn(async () => ({})),
-    writeTree: vi.fn(async () => 'a'.repeat(40)),
-    commitNodeWithTree: vi.fn(async () => 'd'.repeat(40)),
-    ping: vi.fn(async () => ({ ok: true, latencyMs: 0 })),
-    emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
-  };
-}
-
-describe('WarpCore runtime content storage composition', () => {
-  it('obtains content storage from the injected runtime provider', async () => {
-    const persistence = makeMockPersistence();
-    const graph = await openRuntimeHostProduct({
-      persistence,
-      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
-      graphName: 'test',
-      writerId: 'w1',
+describe('runtime storage composition', () => {
+  it('obtains semantic content storage from the repository provider', async () => {
+    const history = new InMemoryGraphAdapter();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history });
+    const services = await runtimeStorage.createRuntimeStorageServices({
+      timelineName: 'events',
+      codec: defaultCodec,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
 
-    expect(graph._blobStorage).not.toBeNull();
+    const runtime = await openMemoryRuntimeHostProduct({
+      persistence: history,
+      runtimeStorage,
+      graphName: 'events',
+      writerId: 'writer-1',
+    });
+
+    expect(runtime._assetStorage).toBe(services.content);
+    expect(runtime._checkpointStore).toBeInstanceOf(services.checkpoints.constructor);
+    expect(runtime._indexStore).toBeInstanceOf(services.indexes.constructor);
   });
 
-  it('provides streaming content methods without persistence capability reflection', async () => {
-    const persistence = makeMockPersistence();
-    const graph = await openRuntimeHostProduct({
-      persistence,
-      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
-      graphName: 'test',
-      writerId: 'w1',
+  it('round-trips attached content through semantic asset storage', async () => {
+    const history = new InMemoryGraphAdapter();
+    const runtime = await openMemoryRuntimeHostProduct({
+      persistence: history,
+      graphName: 'attachments',
+      writerId: 'writer-1',
     });
 
-    const content = graph._blobStorage;
-    expect(content).not.toBeNull();
-    if (content === null) {
-      throw new Error('runtime content storage must be configured');
-    }
-    expect(typeof content.storeStream).toBe('function');
-    expect(typeof content.retrieveStream).toBe('function');
+    await runtime.patch(async (patch) => {
+      patch.addNode('doc:readme');
+      await patch.attachContent('doc:readme', 'hello', { mime: 'text/plain' });
+    });
+    await runtime.materialize();
+
+    const content = await runtime.getContent('doc:readme');
+    expect(new TextDecoder().decode(content ?? new Uint8Array())).toBe('hello');
+    expect(await runtime.getContentHandle('doc:readme')).toMatch(/^git-cas:/u);
   });
 
-  it('preserves explicitly provided blobStorage', async () => {
-    const customStorage = {
-      store: vi.fn(),
-      retrieve: vi.fn(),
-      storeStream: vi.fn(),
-      retrieveStream: vi.fn(),
-    };
-    const persistence = makeMockPersistence();
-    const graph = await openRuntimeHostProduct({
-      persistence,
-      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
-      graphName: 'test',
-      writerId: 'w1',
-      blobStorage: customStorage,
-    });
-
-    expect(graph._blobStorage).toBe(customStorage);
-  });
-
-  it('attachContent uses provider content storage instead of history blobs', async () => {
-    const persistence = makeMockPersistence();
-    const graph = await openRuntimeHostProduct({
-      persistence,
-      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
-      graphName: 'test',
-      writerId: 'w1',
-    });
-
-    const patch = await graph.createPatch();
-    patch.addNode('n1');
-
-    await patch.attachContent('n1', 'hello');
-
-    expect(graph._persistence.writeBlob).not.toHaveBeenCalled();
+  it('rejects production runtime opens without an explicit storage provider', async () => {
+    await expect(openRuntimeHostProduct({
+      persistence: new InMemoryGraphAdapter(),
+      graphName: 'missing-storage',
+      writerId: 'writer-1',
+    })).rejects.toMatchObject({ code: 'E_RUNTIME_STORAGE_REQUIRED' });
   });
 });

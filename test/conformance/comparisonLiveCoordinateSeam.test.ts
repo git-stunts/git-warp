@@ -190,14 +190,16 @@ function poisonHost(): ComparisonHost {
     _crypto: defaultCrypto,
     _codec: defaultCodec,
     _stateHashService: null,
-    _blobStorage: {
-      retrieve: vi.fn(async () => failPoisonHostCall()),
-    },
-    _persistence: {
-      readBlob: vi.fn(async () => failPoisonHostCall()),
+    _assetStorage: {
+      stage: vi.fn(async () => failPoisonHostCall()),
+      open: vi.fn(() => poisonAssetStream()),
     },
     _materializeStrandGraph: vi.fn(async () => failPoisonHostCall()),
   };
+}
+
+async function* poisonAssetStream(): AsyncGenerator<Uint8Array> {
+  yield failPoisonHostCall();
 }
 
 function failPoisonHostCall(): never {

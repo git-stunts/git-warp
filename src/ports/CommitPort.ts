@@ -26,13 +26,6 @@ export interface CommitNodeOptions {
   sign?: boolean;
 }
 
-export interface CommitNodeWithTreeOptions {
-  treeOid: string;
-  parents?: string[];
-  message: string;
-  sign?: boolean;
-}
-
 export interface LogNodesOptions {
   ref: string;
   limit?: number;
@@ -72,17 +65,8 @@ export default abstract class CommitPort {
   /** Counts nodes reachable from a ref without loading them into memory. */
   abstract countNodes(_ref: string): Promise<number>;
 
-  /**
-   * Creates a commit pointing to a specified tree (not the empty tree).
-   * Used by CheckpointService and PatchBuilder for tree-backed commits.
-   */
-  abstract commitNodeWithTree(_options: CommitNodeWithTreeOptions): Promise<string>;
-
   /** Checks whether a commit exists in the repository. */
   abstract nodeExists(_sha: string): Promise<boolean>;
-
-  /** Retrieves the tree OID for a given commit SHA. */
-  abstract getCommitTree(_sha: string): Promise<string>;
 
   /** Pings the repository to verify accessibility. */
   abstract ping(): Promise<PingResult>;

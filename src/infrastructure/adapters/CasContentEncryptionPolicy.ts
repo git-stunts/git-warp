@@ -64,7 +64,34 @@ interface EnabledFieldInput {
   readonly diagnostics: CasContentEncryptionDiagnostics | undefined;
 }
 
-type CasContentEncryptionErrorKind = 'legacy-scheme' | 'wrong-passphrase' | 'missing-vault-metadata' | 'none';
+type CasContentEncryptionErrorKind =
+  | 'legacy-scheme'
+  | 'wrong-passphrase'
+  | 'missing-vault-metadata'
+  | 'decryption-integrity'
+  | 'none';
+
+const CONTENT_ENCRYPTION_ERRORS: Readonly<Record<
+  Exclude<CasContentEncryptionErrorKind, 'none'>,
+  Readonly<{ message: string; code: string }>
+>> = Object.freeze({
+  'legacy-scheme': Object.freeze({
+    message: 'Legacy git-cas encryption schemes require migration before git-warp can restore this CAS content',
+    code: 'E_CAS_LEGACY_ENCRYPTION_SCHEME',
+  }),
+  'wrong-passphrase': Object.freeze({
+    message: 'git-cas vault passphrase verification failed while resolving CAS content encryption',
+    code: 'E_CAS_VAULT_PASSPHRASE_FAILED',
+  }),
+  'missing-vault-metadata': Object.freeze({
+    message: 'git-cas vault metadata is missing or invalid for encrypted CAS content',
+    code: 'E_CAS_VAULT_METADATA_MISSING',
+  }),
+  'decryption-integrity': Object.freeze({
+    message: 'git-cas could not authenticate or decrypt encrypted CAS content',
+    code: 'E_CAS_CONTENT_DECRYPTION_FAILED',
+  }),
+});
 
 const LEGACY_SCHEME_VALUES = new Set([
   'whole-v1',
@@ -179,35 +206,26 @@ export default class CasContentEncryptionPolicy {
   }
 }
 
-export function mapCasContentEncryptionError(error: unknown, surface: string): EncryptionError | null {
+export function mapCasContentEncryptionError(
+  error: unknown,
+  surface: string,
+  encryptedContent = false,
+): EncryptionError | null {
   if (error instanceof EncryptionError) {
     return error;
   }
   const code = errorCode(error);
   const message = errorMessage(error);
-  const kind = classifyCasContentEncryptionError(code, message);
-  if (kind === 'legacy-scheme') {
-    return encryptionPolicyError(
-      'Legacy git-cas encryption schemes require migration before git-warp can restore this CAS content',
-      'E_CAS_LEGACY_ENCRYPTION_SCHEME',
-      { surface, upstreamCode: code, upstreamMessage: message },
-    );
+  const kind = classifyCasContentEncryptionError(code, message, encryptedContent);
+  if (kind === 'none') {
+    return null;
   }
-  if (kind === 'wrong-passphrase') {
-    return encryptionPolicyError(
-      'git-cas vault passphrase verification failed while resolving CAS content encryption',
-      'E_CAS_VAULT_PASSPHRASE_FAILED',
-      { surface, upstreamCode: code, upstreamMessage: message },
-    );
-  }
-  if (kind === 'missing-vault-metadata') {
-    return encryptionPolicyError(
-      'git-cas vault metadata is missing or invalid for encrypted CAS content',
-      'E_CAS_VAULT_METADATA_MISSING',
-      { surface, upstreamCode: code, upstreamMessage: message },
-    );
-  }
-  return null;
+  const mapped = CONTENT_ENCRYPTION_ERRORS[kind];
+  return encryptionPolicyError(mapped.message, mapped.code, {
+    surface,
+    upstreamCode: code,
+    upstreamMessage: message,
+  });
 }
 
 function enabledFields(input: EnabledFieldInput): CasContentEncryptionPolicyFields {
@@ -386,6 +404,7 @@ function isMissingVaultMetadataMessage(message: string): boolean {
 function classifyCasContentEncryptionError(
   code: string | null,
   message: string,
+  encryptedContent: boolean,
 ): CasContentEncryptionErrorKind {
   if (isLegacyCasEncryptionError(code, message)) {
     return 'legacy-scheme';
@@ -396,7 +415,14 @@ function classifyCasContentEncryptionError(
   if (isMissingVaultMetadataError(code, message)) {
     return 'missing-vault-metadata';
   }
-  return 'none';
+  return encryptedContent ? classifyEncryptedContentIntegrity(code) : 'none';
+}
+
+function classifyEncryptedContentIntegrity(code: string | null): CasContentEncryptionErrorKind {
+  const isIntegrityFailure = code === 'INTEGRITY_ERROR'
+    || code === 'MANIFEST_INTEGRITY_ERROR'
+    || code === 'DECRYPTION_BUFFER_EXCEEDED';
+  return isIntegrityFailure ? 'decryption-integrity' : 'none';
 }
 
 function isLegacyCasEncryptionError(code: string | null, message: string): boolean {

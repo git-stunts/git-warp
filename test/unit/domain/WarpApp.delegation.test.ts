@@ -21,12 +21,12 @@ function createMockRuntime() {
     // Content methods — accessed via callInternalRuntimeMethod prototype chain
     getContent: vi.fn(async () => new Uint8Array([1, 2, 3])),
     getContentStream: vi.fn(async function* () { yield new Uint8Array([1]); }),
-    getContentOid: vi.fn(async () => 'a'.repeat(40)),
-    getContentMeta: vi.fn(async () => ({ oid: 'a'.repeat(40), mime: 'text/plain', size: 42 })),
+    getContentHandle: vi.fn(async () => 'asset:node'),
+    getContentMeta: vi.fn(async () => ({ handle: 'asset:node', mime: 'text/plain', size: 42 })),
     getEdgeContent: vi.fn(async () => new Uint8Array([4, 5, 6])),
     getEdgeContentStream: vi.fn(async function* () { yield new Uint8Array([2]); }),
-    getEdgeContentOid: vi.fn(async () => 'b'.repeat(40)),
-    getEdgeContentMeta: vi.fn(async () => ({ oid: 'b'.repeat(40), mime: null, size: 10 })),
+    getEdgeContentHandle: vi.fn(async () => 'asset:edge'),
+    getEdgeContentMeta: vi.fn(async () => ({ handle: 'asset:edge', mime: null, size: 10 })),
   };
 }
 
@@ -259,12 +259,12 @@ describe('WarpApp delegation', () => {
     });
   });
 
-  describe('getContentOid', () => {
-    it('delegates to runtime getContentOid', async () => {
-      const result = await app.getContentOid('node:1');
+  describe('getContentHandle', () => {
+    it('delegates to runtime getContentHandle', async () => {
+      const result = await app.getContentHandle('node:1');
 
-      expect(mockRuntime.getContentOid).toHaveBeenCalledWith('node:1');
-      expect(result).toBe('a'.repeat(40));
+      expect(mockRuntime.getContentHandle).toHaveBeenCalledWith('node:1');
+      expect(result).toBe('asset:node');
     });
   });
 
@@ -273,7 +273,7 @@ describe('WarpApp delegation', () => {
       const result = await app.getContentMeta('node:1');
 
       expect(mockRuntime.getContentMeta).toHaveBeenCalledWith('node:1');
-      expect(result).toEqual({ oid: 'a'.repeat(40), mime: 'text/plain', size: 42 });
+      expect(result).toEqual({ handle: 'asset:node', mime: 'text/plain', size: 42 });
     });
   });
 
@@ -297,12 +297,12 @@ describe('WarpApp delegation', () => {
     });
   });
 
-  describe('getEdgeContentOid', () => {
-    it('delegates to runtime getEdgeContentOid', async () => {
-      const result = await app.getEdgeContentOid('a', 'b', 'knows');
+  describe('getEdgeContentHandle', () => {
+    it('delegates to runtime getEdgeContentHandle', async () => {
+      const result = await app.getEdgeContentHandle('a', 'b', 'knows');
 
-      expect(mockRuntime.getEdgeContentOid).toHaveBeenCalledWith('a', 'b', 'knows');
-      expect(result).toBe('b'.repeat(40));
+      expect(mockRuntime.getEdgeContentHandle).toHaveBeenCalledWith('a', 'b', 'knows');
+      expect(result).toBe('asset:edge');
     });
   });
 
@@ -311,7 +311,7 @@ describe('WarpApp delegation', () => {
       const result = await app.getEdgeContentMeta('a', 'b', 'knows');
 
       expect(mockRuntime.getEdgeContentMeta).toHaveBeenCalledWith('a', 'b', 'knows');
-      expect(result).toEqual({ oid: 'b'.repeat(40), mime: null, size: 10 });
+      expect(result).toEqual({ handle: 'asset:edge', mime: null, size: 10 });
     });
   });
 

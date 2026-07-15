@@ -51,6 +51,10 @@ describe('source version-name policy', () => {
         path: 'src/infrastructure/adapters/BunHttpAdapter.ts',
         source: "const family = host.includes(':') ? 'IPv6' : 'IPv4';",
       },
+      {
+        path: 'src/ports/CommitMessageCodecPort.ts',
+        source: "const schema = 'git-cas-asset-patch-v1';",
+      },
     ]);
 
     expect(violations).toEqual([]);

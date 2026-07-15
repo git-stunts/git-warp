@@ -1,5 +1,12 @@
 # v19 Public API Migration Plan
 
+> **Transitional implementation note:** This guide describes the first v19
+> timeline facade that currently exists in source. The accepted
+> [v19 public vocabulary checkpoint](../../topics/api/) supersedes it as the
+> release target. Do not treat this guide as final v19 migration evidence until
+> it is rewritten for Runtime, Lane, Observer, Observation, Reading, and
+> Receipt.
+
 This migration plan covers consumers moving from v18 or earlier public
 surfaces to the v19 public API. It is intentionally explicit because
 v19 is a major-version boundary: root exports become small and application

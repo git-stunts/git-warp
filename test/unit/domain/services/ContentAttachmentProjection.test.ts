@@ -115,10 +115,10 @@ function describeContent(record: ContentAttachmentRecord | null): string {
   const mime = record.payload.mime?.toString() ?? 'null';
   const size = record.payload.size?.toNumber() ?? 'null';
   if (record.owner instanceof NodeRecord) {
-    return `node:${record.owner.id.toString()}:${record.payload.oid.toString()}:${mime}:${size}`;
+    return `node:${record.owner.id.toString()}:${record.payload.handle.toString()}:${mime}:${size}`;
   }
   if (record.owner instanceof EdgeRecord) {
-    return `edge:${record.owner.id.toString()}:${record.payload.oid.toString()}:${mime}:${size}`;
+    return `edge:${record.owner.id.toString()}:${record.payload.handle.toString()}:${mime}:${size}`;
   }
   return 'unknown';
 }

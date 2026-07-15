@@ -24,7 +24,7 @@ describe('BitmapIndexReader chunked shard support', () => {
     const revChunk0 = await storage.writeBlob(defaultCodec.encode({ bb0001: encodeBitmap([0]) }));
     const revChunk1 = await storage.writeBlob(defaultCodec.encode({ bb0002: encodeBitmap([0]) }));
 
-    const reader = new BitmapIndexReader({ storage, codec: defaultCodec });
+    const reader = new BitmapIndexReader({ indexStore: storage, codec: defaultCodec });
     reader.setup({
       'meta_aa.chunk-000000.cbor': metaAaChunk0,
       'meta_bb.chunk-000000.cbor': metaBbChunk0,

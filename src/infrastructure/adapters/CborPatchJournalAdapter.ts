@@ -1,203 +1,204 @@
-import PatchJournalPort, { type ReadPatchOptions } from '../../ports/PatchJournalPort.ts';
-import WarpError from '../../domain/errors/WarpError.ts';
-import WarpStream from '../../domain/stream/WarpStream.ts';
+import type {
+  BundleCapability,
+  PublicationCapability,
+} from '@git-stunts/git-cas';
 import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
-import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
+import PatchPublicationConflictError from '../../domain/errors/PatchPublicationConflictError.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
-import EncryptionError from '../../domain/errors/EncryptionError.ts';
+import WarpError from '../../domain/errors/WarpError.ts';
+import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
+import type AssetHandle from '../../domain/storage/AssetHandle.ts';
+import BundleHandle from '../../domain/storage/BundleHandle.ts';
+import WarpStream from '../../domain/stream/WarpStream.ts';
 import type Patch from '../../domain/types/Patch.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import {
-  DEFAULT_COMMIT_MESSAGE_CODEC,
-} from './TrailerCommitMessageCodecAdapter.ts';
-import {
-  LEGACY_EXTERNAL_PATCH_STORAGE,
-  LEGACY_GIT_BLOB_PATCH_STORAGE,
-  type PatchStorageRoute,
+  createGitCasPatchStorage,
+  type PatchCommitMessage,
   type default as CommitMessageCodecPort,
 } from '../../ports/CommitMessageCodecPort.ts';
+import PatchJournalPort, {
+  type AppendPatchRequest,
+  type PublishedPatch,
+} from '../../ports/PatchJournalPort.ts';
 import {
   CURRENT_SUBSTRATE_ONLY_POLICY,
   type SubstrateCompatibilityPolicyValue,
 } from './SubstrateCompatibilityPolicy.ts';
+import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from './TrailerCommitMessageCodecAdapter.ts';
+import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
+import { requireAdapterDependency } from './AdapterDependencyGuard.ts';
+import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 
-interface BlobPort {
-  readBlob(oid: string): Promise<Uint8Array>;
-  writeBlob(content: Uint8Array | string): Promise<string>;
-}
+type CommitInfo = {
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
+  parents: string[];
+};
 
-interface CommitPort {
-  getNodeInfo(sha: string): Promise<{ sha: string; message: string; author: string; date: string; parents: string[] }>;
-}
+type CommitReader = {
+  getNodeInfo(sha: string): Promise<CommitInfo>;
+};
 
-/**
- * CBOR-backed implementation of PatchJournalPort.
- *
- * Owns the codec and raw blob persistence. Domain services pass Patch
- * objects in and get Patch objects back — no bytes leak across the
- * port boundary.
- *
- * Supports both plain Git blob storage (BlobPort) and encrypted external
- * storage (BlobStoragePort) via the optional `patchBlobStorage` parameter.
- */
+export type GitCasPatchFacade = {
+  readonly bundles: Pick<BundleCapability, 'putOrdered'>;
+  readonly publications: Pick<PublicationCapability, 'commit'>;
+};
+
+/** CBOR patch codec over git-cas asset, bundle, and publication capabilities. */
 export class CborPatchJournalAdapter extends PatchJournalPort {
-  private readonly _codec: CodecPort;
-  private readonly _blobPort: BlobPort;
-  private readonly _commitPort: CommitPort | null;
-  private readonly _blobStorage: BlobStoragePort | null;
-  private readonly _legacyPatchBlobStorage: BlobStoragePort | null;
-  private readonly _writeStorage: PatchStorageRoute;
-  private readonly _commitMessageCodec: CommitMessageCodecPort;
-  private readonly _compatibilityPolicy: SubstrateCompatibilityPolicyValue;
+  readonly #assetStorage: AssetStoragePort;
+  readonly #cas: GitCasPatchFacade;
+  readonly #codec: CodecPort;
+  readonly #commitMessageCodec: CommitMessageCodecPort;
+  readonly #commitReader: CommitReader;
+  readonly #compatibilityPolicy: SubstrateCompatibilityPolicyValue;
+  readonly #encrypted: boolean;
 
-  constructor({ codec, blobPort, commitPort, patchBlobStorage, blobStorage, legacyPatchBlobStorage, writeStorage, commitMessageCodec, compatibilityPolicy }: {
-    codec: CodecPort;
-    blobPort: BlobPort;
-    commitPort?: CommitPort;
-    patchBlobStorage?: BlobStoragePort | null;
-    blobStorage?: BlobStoragePort | null;
-    legacyPatchBlobStorage?: BlobStoragePort | null;
-    writeStorage?: PatchStorageRoute;
-    commitMessageCodec?: CommitMessageCodecPort;
-    compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
+  constructor(options: {
+    readonly assetStorage: AssetStoragePort;
+    readonly cas: GitCasPatchFacade;
+    readonly codec: CodecPort;
+    readonly commitReader: CommitReader;
+    readonly commitMessageCodec?: CommitMessageCodecPort;
+    readonly compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
+    readonly encrypted?: boolean;
   }) {
     super();
-    if (codec === null || codec === undefined) {
-      throw new WarpError('CborPatchJournalAdapter requires a codec', 'E_INVALID_DEPENDENCY');
-    }
-    if (blobPort === null || blobPort === undefined) {
-      throw new WarpError('CborPatchJournalAdapter requires a blobPort', 'E_INVALID_DEPENDENCY');
-    }
-    this._codec = codec;
-    this._blobPort = blobPort;
-    this._commitPort = commitPort ?? null;
-    this._blobStorage = blobStorage ?? null;
-    this._legacyPatchBlobStorage = legacyPatchBlobStorage ?? patchBlobStorage ?? null;
-    this._writeStorage = writeStorage ?? (patchBlobStorage !== null && patchBlobStorage !== undefined
-      ? LEGACY_EXTERNAL_PATCH_STORAGE
-      : LEGACY_GIT_BLOB_PATCH_STORAGE);
-    this._commitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
-    this._compatibilityPolicy = compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
+    requireAdapterDependency(options.assetStorage, 'assetStorage');
+    requireAdapterDependency(options.cas, 'cas');
+    requireAdapterDependency(options.codec, 'codec');
+    requireAdapterDependency(options.commitReader, 'commitReader');
+    this.#assetStorage = options.assetStorage;
+    this.#cas = options.cas;
+    this.#codec = options.codec;
+    this.#commitReader = options.commitReader;
+    this.#commitMessageCodec = options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+    this.#compatibilityPolicy = options.compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
+    this.#encrypted = options.encrypted ?? false;
   }
 
-  override async writePatch(patch: Patch): Promise<string> {
-    const bytes = this._codec.encode(patch);
-    if (this._writeStorage.strategy === 'git-cas') {
-      if (this._blobStorage === null) {
-        throw new WarpError('CborPatchJournalAdapter requires blobStorage for git-cas patch writes', 'E_INVALID_DEPENDENCY');
-      }
-      return await this._blobStorage.store(bytes, {
-        slug: `patch-${patch.writer}-${patch.lamport}`,
+  override async appendPatch(request: AppendPatchRequest): Promise<PublishedPatch> {
+    const stagedPatch = await this.#assetStorage.stage(WarpStream.from([
+      this.#codec.encode(request.patch),
+    ]), {
+      slug: `patch-${request.writer}-${request.patch.lamport}`,
+      filename: 'patch.cbor',
+    });
+    const bundle = await this.#cas.bundles.putOrdered({
+      members: patchBundleMembers(stagedPatch.handle, request.attachments),
+    });
+    const message = this.#commitMessageCodec.encodePatch({
+      kind: 'patch',
+      graph: request.graph,
+      writer: request.writer,
+      lamport: request.patch.lamport,
+      patchHandle: stagedPatch.handle,
+      schema: request.patch.schema,
+      storage: createGitCasPatchStorage({ encrypted: this.#encrypted }),
+    });
+    const publication = await this.#publishBundle(bundle.handle, message, request);
+    return Object.freeze({
+      sha: publication.commitId,
+      bundleHandle: new BundleHandle(publication.root.toString()),
+      stagedPatch,
+      retention: adaptGitCasRetentionWitness(publication.witness.toJSON()),
+    });
+  }
+
+  async #publishBundle(
+    root: Parameters<PublicationCapability['commit']>[0]['root'],
+    message: string,
+    request: AppendPatchRequest,
+  ): Promise<Awaited<ReturnType<PublicationCapability['commit']>>> {
+    try {
+      return await this.#cas.publications.commit({
+        root,
+        commit: {
+          message,
+          parents: request.parent === null ? [] : [request.parent],
+        },
+        ref: { name: request.targetRef, expected: request.expectedHead },
       });
-    }
-    if (this._writeStorage.strategy === 'legacy-external-storage') {
-      if (this._legacyPatchBlobStorage === null) {
-        throw new WarpError('CborPatchJournalAdapter requires legacyPatchBlobStorage for external patch writes', 'E_INVALID_DEPENDENCY');
+    } catch (error) {
+      if (readGitCasErrorCode(error) !== 'PUBLICATION_CONFLICT') {
+        throw error;
       }
-      return await this._legacyPatchBlobStorage.store(bytes);
+      throw new PatchPublicationConflictError(
+        error instanceof Error ? error : undefined,
+      );
     }
-    return await this._blobPort.writeBlob(bytes);
   }
 
-  override async readPatch(
-    patchOid: string,
-    { storage, encrypted = false }: ReadPatchOptions = {},
-  ): Promise<Patch> {
-    const resolvedStorage = storage ?? (encrypted ? LEGACY_EXTERNAL_PATCH_STORAGE : this._writeStorage);
-    this._requireReadableStorage(resolvedStorage);
-    let bytes: Uint8Array;
-    if (resolvedStorage.strategy === 'git-cas') {
-      if (this._blobStorage === null) {
-        throw new EncryptionError(
-          `Patch ${patchOid} is stored via git-cas but no blobStorage is configured`,
-        );
-      }
-      bytes = await this._blobStorage.retrieve(patchOid);
-    } else if (resolvedStorage.strategy === 'legacy-external-storage') {
-      if (this._legacyPatchBlobStorage === null) {
-        throw new EncryptionError(
-          `Patch ${patchOid} is encrypted but no legacy patchBlobStorage is configured`,
-        );
-      }
-      bytes = await this._legacyPatchBlobStorage.retrieve(patchOid);
-    } else {
-      bytes = await this._blobPort.readBlob(patchOid);
-    }
-    return hydrateDecodedPatch(this._codec.decode(bytes));
+  override async readPatch(message: PatchCommitMessage): Promise<Patch> {
+    this.#requireReadableStorage(message);
+    const handle = message.patchHandle;
+    const bytes = await collectAsyncIterable(this.#assetStorage.open(handle));
+    return hydrateDecodedPatch(this.#codec.decode(bytes));
   }
 
-  private _requireReadableStorage(storage: PatchStorageRoute): void {
-    if (storage.strategy === 'git-cas' || this._isConfiguredWriteRoute(storage)) {
+  override scanPatchRange(
+    writerId: string,
+    fromSha: string | null,
+    toSha: string,
+  ): WarpStream<PatchEntry> {
+    const adapter = this;
+    return WarpStream.from((async function* (): AsyncGenerator<PatchEntry> {
+      const stack: Array<{ sha: string; message: PatchCommitMessage }> = [];
+      let current: string | null = toSha;
+      while (current !== null && current !== fromSha) {
+        const node = await adapter.#commitReader.getNodeInfo(current);
+        if (adapter.#commitMessageCodec.detectKind(node.message) !== 'patch') {
+          break;
+        }
+        stack.push({ sha: current, message: adapter.#commitMessageCodec.decodePatch(node.message) });
+        current = node.parents[0] ?? null;
+      }
+      if (fromSha !== null && current !== fromSha) {
+        throw new SyncError(
+          `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`,
+          { code: 'E_SYNC_DIVERGENCE', context: { writerId, fromSha, toSha } },
+        );
+      }
+      for (let index = stack.length - 1; index >= 0; index--) {
+        const entry = stack[index];
+        if (entry !== undefined) {
+          yield new PatchEntry({ patch: await adapter.readPatch(entry.message), sha: entry.sha });
+        }
+      }
+    })());
+  }
+
+  #requireReadableStorage(message: PatchCommitMessage): void {
+    if (message.storage.strategy === 'git-cas-asset') {
       return;
     }
-    if (this._compatibilityPolicy.legacyPatchStorageReads) {
+    if (this.#compatibilityPolicy.legacyPatchStorageReads) {
       return;
     }
     throw new WarpError(
-      `Legacy patch storage reads require the substrate migration compatibility policy: ${storage.strategy}`,
+      `Legacy patch storage reads require the substrate migration compatibility policy: ${message.storage.strategy}`,
       'E_LEGACY_SUBSTRATE_DISABLED',
     );
   }
+}
 
-  private _isConfiguredWriteRoute(storage: PatchStorageRoute): boolean {
-    return this._writeStorage.strategy === storage.strategy && this._blobStorage === null;
+function patchBundleMembers(
+  patch: AssetHandle,
+  attachments: readonly AssetHandle[],
+): WarpStream<[string, string]> {
+  const members: Array<[string, string]> = [];
+  const unique = [...new Set(attachments.map((handle) => handle.toString()))].sort();
+  for (let index = 0; index < unique.length; index++) {
+    const handle = unique[index];
+    if (handle !== undefined) {
+      members.push([`attachments/${String(index).padStart(8, '0')}`, handle]);
+    }
   }
-
-  override get writeStorage(): PatchStorageRoute {
-    return this._writeStorage;
-  }
-
-  /**
-   * Scans patches in a writer's chain between two SHAs, yielding
-   * PatchEntry instances in chronological order (oldest first).
-   */
-  scanPatchRange(writerId: string, fromSha: string | null, toSha: string): WarpStream<PatchEntry> {
-    const adapter = this;
-    return WarpStream.from(
-      (async function* (): AsyncGenerator<PatchEntry> {
-        if (adapter._commitPort === null) {
-          throw new SyncError('scanPatchRange requires commitPort on the adapter', {
-            code: 'E_MISSING_COMMIT_PORT',
-            context: { writerId },
-          });
-        }
-        const commitPort = adapter._commitPort;
-
-        const stack: Array<{ sha: string; patchOid: string; storage: PatchStorageRoute }> = [];
-        let cur: string | null = toSha;
-
-        while (cur !== null && cur !== fromSha) {
-          const nodeInfo = await commitPort.getNodeInfo(cur);
-          const kind = adapter._commitMessageCodec.detectKind(nodeInfo.message);
-          if (kind !== 'patch') {
-            break;
-          }
-          const meta = adapter._commitMessageCodec.decodePatch(nodeInfo.message);
-          stack.push({ sha: cur, patchOid: meta.patchOid, storage: meta.storage });
-
-          const parent = Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0
-            ? (nodeInfo.parents[0] ?? null)
-            : null;
-          cur = parent;
-        }
-
-        if (fromSha !== null && fromSha !== undefined && fromSha.length > 0 && cur === null) {
-          throw new SyncError(
-            `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`,
-            { code: 'E_SYNC_DIVERGENCE', context: { writerId, fromSha, toSha } },
-          );
-        }
-
-        for (let i = stack.length - 1; i >= 0; i--) {
-          const entry = stack[i];
-          if (entry === undefined) {
-            continue;
-          }
-          const patch = await adapter.readPatch(entry.patchOid, { storage: entry.storage });
-          yield new PatchEntry({ patch, sha: entry.sha });
-        }
-      })(),
-    );
-  }
+  members.push(['patch', patch.toString()]);
+  return WarpStream.from(members);
 }

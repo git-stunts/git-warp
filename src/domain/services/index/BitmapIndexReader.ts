@@ -2,11 +2,12 @@ import { IndexError, ShardLoadError, ShardCorruptionError } from '../../errors/i
 import nullLogger from '../../utils/nullLogger.ts';
 import LRUCache from '../../utils/LRUCache.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
-import { isValidShardOid } from '../../utils/validateShardOid.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
-import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
+import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
+import AssetHandle from '../../storage/AssetHandle.ts';
+import { collectAsyncIterable } from '../../utils/streamUtils.ts';
 
 type LoadedShard = Record<string, number> | Record<string, Uint8Array>;
 
@@ -51,36 +52,36 @@ function isChunkedVariant(path: string, basePath: string): boolean {
  * const parents = await reader.getParents('abc123...');
  */
 export default class BitmapIndexReader {
-  private readonly storage: IndexStoragePort;
+  private readonly indexStore: IndexStorePort;
   private readonly strict: boolean;
   private readonly logger: LoggerPort;
   private readonly _codec: CodecPort | null;
   readonly maxCachedShards: number;
-  private shardOids: Map<string, string>;
+  private shardHandles: Map<string, AssetHandle>;
   private readonly loadedShards: LRUCache<string, LoadedShard>;
   private _idToShaCache: string[] | null;
 
   constructor(options: {
-    storage: IndexStoragePort;
+    indexStore: IndexStorePort;
     strict?: boolean;
     logger?: LoggerPort;
     maxCachedShards?: number;
     codec?: CodecPort;
   }) {
-    const { storage, strict = true, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, codec } = options;
-    BitmapIndexReader._assertStorage(storage);
-    this.storage = storage;
+    const { indexStore, strict = true, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, codec } = options;
+    BitmapIndexReader._assertStorage(indexStore);
+    this.indexStore = indexStore;
     this.strict = strict;
     this.logger = logger;
     this._codec = codec ?? null;
     this.maxCachedShards = maxCachedShards;
-    this.shardOids = new Map();
+    this.shardHandles = new Map();
     this.loadedShards = new LRUCache(maxCachedShards);
     this._idToShaCache = null;
   }
 
-  private static _assertStorage(storage: IndexStoragePort | null | undefined): void {
-    if (storage === null || storage === undefined) {
+  private static _assertStorage(indexStore: IndexStorePort | null | undefined): void {
+    if (indexStore === null || indexStore === undefined) {
       throw new IndexError('BitmapIndexReader requires a storage adapter', {
         code: 'E_INDEX_STORAGE_REQUIRED',
       });
@@ -88,30 +89,29 @@ export default class BitmapIndexReader {
   }
 
   /**
-   * Configures the reader with shard OID mappings for lazy loading.
+   * Configures the reader with opaque shard handles for lazy loading.
    */
-  setup(shardOids: Record<string, string>): void {
-    const entries = Object.entries(shardOids);
-    const validEntries: [string, string][] = [];
-    for (const [path, oid] of entries) {
-      if (isValidShardOid(oid)) {
-        validEntries.push([path, oid]);
+  setup(shardHandles: Readonly<Record<string, AssetHandle>>): void {
+    const validEntries: Array<[string, AssetHandle]> = [];
+    for (const [path, handle] of Object.entries(shardHandles)) {
+      if (handle instanceof AssetHandle) {
+        validEntries.push([path, handle]);
       } else if (this.strict) {
-        throw new ShardCorruptionError('Invalid shard OID', {
+        throw new ShardCorruptionError('Invalid shard handle', {
           shardPath: path,
-          oid,
-          reason: 'invalid_oid',
+          oid: String(handle),
+          reason: 'invalid_handle',
         });
       } else {
-        this.logger.warn('Skipping shard with invalid OID', {
+        this.logger.warn('Skipping shard with invalid handle', {
           operation: 'setup',
           shardPath: path,
-          oid,
-          reason: 'invalid_oid',
+          oid: String(handle),
+          reason: 'invalid_handle',
         });
       }
     }
-    this.shardOids = new Map(validEntries);
+    this.shardHandles = new Map(validEntries);
     this._idToShaCache = null;
     this.loadedShards.clear();
   }
@@ -185,8 +185,8 @@ export default class BitmapIndexReader {
       const bitmap = RoaringBitmap32.deserialize(bitmapBytes, true);
       return bitmap.toArray();
     } catch (err) {
-      const oid = this.shardOids.get(shardPath);
-      const shardOid = isNonEmptyString(oid) ? oid : shardPath;
+      const handle = this.shardHandles.get(shardPath)?.toString();
+      const shardOid = isNonEmptyString(handle) ? handle : shardPath;
       const corruptionError = new ShardCorruptionError('Failed to deserialize bitmap', {
         shardPath,
         oid: shardOid,
@@ -212,7 +212,7 @@ export default class BitmapIndexReader {
     const cache: string[] = [];
     this._idToShaCache = cache;
 
-    for (const [path] of this.shardOids) {
+    for (const [path] of this.shardHandles) {
       if (!isMetaShardPath(path)) {
         continue;
       }
@@ -242,17 +242,17 @@ export default class BitmapIndexReader {
     if (cached !== undefined) {
       return cached;
     }
-    const oid = this.shardOids.get(path);
-    if (!isNonEmptyString(oid)) {
+    const handle = this.shardHandles.get(path);
+    if (handle === undefined) {
       return {};
     }
-    const buffer = await this._loadShardBuffer(path, oid);
-    return this._decodeAndCacheShard(buffer, path, oid);
+    const buffer = await this._loadShardBuffer(path, handle);
+    return this._decodeAndCacheShard(buffer, path, handle.toString());
   }
 
   private _resolveShardPaths(basePath: string): string[] {
-    const exact = this.shardOids.has(basePath) ? [basePath] : [];
-    const chunked = Array.from(this.shardOids.keys())
+    const exact = this.shardHandles.has(basePath) ? [basePath] : [];
+    const chunked = Array.from(this.shardHandles.keys())
       .filter((path) => isChunkedVariant(path, basePath))
       .sort();
     return [...exact, ...chunked];
@@ -308,8 +308,8 @@ export default class BitmapIndexReader {
   }
 
   private _handleInvalidBitmapValue(path: string, sha: string): void {
-    const oid = this.shardOids.get(path);
-    const shardOid = isNonEmptyString(oid) ? oid : path;
+    const handle = this.shardHandles.get(path)?.toString();
+    const shardOid = isNonEmptyString(handle) ? handle : path;
     const corruptionError = new ShardCorruptionError('Invalid bitmap value', {
       shardPath: path,
       oid: shardOid,
@@ -328,14 +328,20 @@ export default class BitmapIndexReader {
     });
   }
 
-  private async _loadShardBuffer(path: string, oid: string): Promise<Uint8Array> {
+  private async _loadShardBuffer(path: string, handle: AssetHandle): Promise<Uint8Array> {
     try {
-      return await this.storage.readBlob(oid);
+      return await collectAsyncIterable(this.indexStore.openShard(handle));
     } catch (cause) {
+      const errorCause = cause instanceof Error
+        ? cause
+        : new IndexError('Shard storage threw a non-error value', {
+            code: 'E_INDEX_STORAGE_THROWABLE',
+            context: { value: String(cause) },
+          });
       throw new ShardLoadError('Failed to load shard from storage', {
         shardPath: path,
-        oid,
-        cause: cause as Error,
+        oid: handle.toString(),
+        cause: errorCause,
       });
     }
   }

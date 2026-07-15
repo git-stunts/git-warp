@@ -53,6 +53,18 @@ function createMockHost(overrides = {}) {
     _logger: null,
     _crypto: null,
     _codec: null,
+    _runtimeStorage: { createRuntimeStorageServices: vi.fn() },
+    _assetStorage: null,
+    _patchJournal: {
+      appendPatch: vi.fn(),
+      readPatch: vi.fn(),
+      scanPatchRange: vi.fn(),
+    },
+    _commitMessageCodec: {
+      detectKind: vi.fn(),
+      decodePatch: vi.fn(),
+      encodePatch: vi.fn(),
+    },
     _checkpointPolicy: null,
     ...overrides,
   };
@@ -449,7 +461,8 @@ describe('ForkController', () => {
         graphName: 'test-graph',
         fromSha: 'sha-a',
         toSha: 'sha-b',
-        codec: host._codec,
+        commitMessageCodec: host._commitMessageCodec,
+        patchJournal: host._patchJournal,
       });
       expect(result).toEqual(wormholeResult);
       expect(result).toBeDefined();

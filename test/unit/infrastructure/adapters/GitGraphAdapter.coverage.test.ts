@@ -479,15 +479,11 @@ describe('GitTimelineHistoryAdapter coverage', () => {
       });
     });
 
-    it('rejects unsupported git object types for content anchors', async () => {
+    it('reports object types without applying content-anchor policy', async () => {
       const oid = 'a'.repeat(40);
       mockPlumbing.execute.mockResolvedValue('commit\n');
 
-      await expect(adapter.readObjectType(oid))
-        .rejects.toMatchObject({
-          code: 'E_UNSUPPORTED_CONTENT_ANCHOR_OBJECT_TYPE',
-          message: `Unsupported Git object type for content anchor ${oid}: commit`,
-        });
+      await expect(adapter.readObjectType(oid)).resolves.toBe('commit');
     });
 
     it('wraps object-type read failures with object context', async () => {

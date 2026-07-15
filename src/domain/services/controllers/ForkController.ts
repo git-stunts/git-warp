@@ -23,9 +23,10 @@ import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.t
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
-import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
+import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type GCPolicy from '../GCPolicy.ts';
 import type RuntimeStorageProviderPort from '../../../ports/RuntimeStorageProviderPort.ts';
+import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 
 const HEX_CHARS = '0123456789abcdef';
 type ForkRuntimeOpenOptions = RuntimeHostOpenOptions;
@@ -54,8 +55,8 @@ type ForkHost = {
   _logger: LoggerPort | null;
   _crypto: CryptoPort;
   _codec: CodecPort;
-  _blobStorage: BlobStoragePort | null;
-  _patchBlobStorage: BlobStoragePort | null;
+  _assetStorage: AssetStoragePort | null;
+  _patchJournal: PatchJournalPort;
   _commitMessageCodec: CommitMessageCodecPort;
   discoverWriters(): Promise<string[]>;
 };
@@ -186,9 +187,7 @@ export default class ForkController {
       fromSha,
       toSha,
       commitMessageCodec: host._commitMessageCodec,
-      codec: host._codec,
-      ...(host._blobStorage ? { blobStorage: host._blobStorage } : {}),
-      ...(host._patchBlobStorage ? { patchBlobStorage: host._patchBlobStorage } : {}),
+      patchJournal: host._patchJournal,
     });
   }
 

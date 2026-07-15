@@ -13,11 +13,9 @@ import {
   validateSyncRequest,
   validateSyncResponse,
 } from '../../../../../src/domain/services/sync/SyncPayloadSchema.ts';
-import BlobPort from '../../../../../src/ports/BlobPort.ts';
 import CommitPort from '../../../../../src/ports/CommitPort.ts';
 import type {
   CommitNodeOptions,
-  CommitNodeWithTreeOptions,
   CommitLogChunk,
   LogNodesOptions,
   NodeInfo,
@@ -25,7 +23,11 @@ import type {
 } from '../../../../../src/ports/CommitPort.ts';
 import LoggerPort from '../../../../../src/ports/LoggerPort.ts';
 import PatchJournalPort from '../../../../../src/ports/PatchJournalPort.ts';
-import type { ReadPatchOptions } from '../../../../../src/ports/PatchJournalPort.ts';
+import type {
+  AppendPatchRequest,
+  PublishedPatch,
+} from '../../../../../src/ports/PatchJournalPort.ts';
+import type { PatchCommitMessage } from '../../../../../src/ports/CommitMessageCodecPort.ts';
 
 const SHA_1 = '1'.repeat(40);
 const SHA_2 = '2'.repeat(40);
@@ -180,11 +182,11 @@ class StreamingPatchJournal extends PatchJournalPort {
     this._entries = Object.freeze([...entries]);
   }
 
-  async writePatch(_patch: Patch): Promise<string> {
-    throw unusedMethod('writePatch');
+  async appendPatch(_request: AppendPatchRequest): Promise<PublishedPatch> {
+    throw unusedMethod('appendPatch');
   }
 
-  async readPatch(_patchOid: string, _options?: ReadPatchOptions): Promise<Patch> {
+  async readPatch(_message: PatchCommitMessage): Promise<Patch> {
     throw unusedMethod('readPatch');
   }
 
@@ -193,7 +195,7 @@ class StreamingPatchJournal extends PatchJournalPort {
   }
 }
 
-class UnusedPersistence extends CommitPort implements BlobPort {
+class UnusedPersistence extends CommitPort {
   async commitNode(_options: CommitNodeOptions): Promise<string> {
     throw unusedMethod('commitNode');
   }
@@ -218,29 +220,14 @@ class UnusedPersistence extends CommitPort implements BlobPort {
     throw unusedMethod('countNodes');
   }
 
-  async commitNodeWithTree(_options: CommitNodeWithTreeOptions): Promise<string> {
-    throw unusedMethod('commitNodeWithTree');
-  }
-
   async nodeExists(_sha: string): Promise<boolean> {
     throw unusedMethod('nodeExists');
-  }
-
-  async getCommitTree(_sha: string): Promise<string> {
-    throw unusedMethod('getCommitTree');
   }
 
   async ping(): Promise<PingResult> {
     throw unusedMethod('ping');
   }
 
-  async writeBlob(_content: Uint8Array | string): Promise<string> {
-    throw unusedMethod('writeBlob');
-  }
-
-  async readBlob(_oid: string): Promise<Uint8Array> {
-    throw unusedMethod('readBlob');
-  }
 }
 
 function patchEntry(writer: string, sha: string, lamport: number): PatchEntry {

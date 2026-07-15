@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain/WarpWorldline.ts';
+import AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
+import Patch from '../../../src/domain/types/Patch.ts';
 import type {
   ApiRuntimeContext,
   ReceiptProvenance,
@@ -11,6 +14,8 @@ import {
   previewDraftJoin,
 } from '../../../src/domain/api/DraftTimelineRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
+import type { PatchCommitResult } from '../../../src/domain/types/PatchCommitResult.ts';
+import { testRetentionWitness } from '../../helpers/storageRetention.ts';
 
 type RuntimeOptions = {
   readonly commitPatch?: (build: WarpWorldlinePatchBuild) => Promise<string>;
@@ -40,20 +45,50 @@ function createRuntimeContext(options: RuntimeContextOptions = {}): {
 }
 
 function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
+  const commitPatch = options.commitPatch ?? (async () => 'commit-1');
+  const patchDraft = options.patchDraft ?? (async (name) => `${name}-draft-patch`);
   return new WarpWorldline({
     worldlineName: 'events',
     writerId: 'agent-1',
-    commitPatch: options.commitPatch ?? (async () => 'commit-1'),
+    commitPatch,
+    commitPatchWithEvidence: async (build) => testPatchPublication(await commitPatch(build)),
     createDraft: async () => undefined,
     createWorldline: () => {
       throw new Error('ProjectionHandle is not used by DraftTimelineRuntime tests');
     },
-    patchDraft: options.patchDraft ?? (async (name) => `${name}-draft-patch`),
+    patchDraft,
+    patchDraftWithEvidence: async (name, build) =>
+      testPatchPublication(await patchDraft(name, build)),
     previewDraftJoin: options.previewDraftJoin ?? (async (name) => [`${name}-preview-patch`]),
     admitIntent: async (descriptor) => ({
       admitted: true,
       sha: 'intent-sha',
       intentId: descriptor.intentId,
+      retention: testRetentionWitness('intent-sha'),
+    }),
+  });
+}
+
+function testPatchPublication(sha: string): PatchCommitResult {
+  const retention = testRetentionWitness(sha);
+  return Object.freeze({
+    sha,
+    bundleHandle: new BundleHandle(`test-bundle:${sha}`),
+    stagedPatch: Object.freeze({
+      handle: new AssetHandle(`test-asset:${sha}`),
+      size: 0,
+      observedAt: retention.observedAt,
+      retention: Object.freeze({
+        reachability: 'unanchored',
+        protection: 'not-established',
+      }),
+    }),
+    retention,
+    patch: new Patch({
+      writer: 'agent-1',
+      lamport: 0,
+      context: {},
+      ops: [],
     }),
   });
 }

@@ -32,6 +32,10 @@ describe('streamUtils', () => {
     expect(isStreamingInput('hello')).toBe(false);
   });
 
+  it('rejects objects with a non-callable async iterator member', () => {
+    expect(isStreamingInput({ [Symbol.asyncIterator]: 1 })).toBe(false);
+  });
+
   it('returns false for readable streams when the global constructor is unavailable', () => {
     globalThis.ReadableStream = (undefined as any);
 

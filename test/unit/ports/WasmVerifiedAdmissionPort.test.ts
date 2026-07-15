@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { WarpIntentDescriptor, WarpIntentOutcome } from '../../../src/domain/types/WarpIntentDescriptor.ts';
 import type WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import WasmVerifiedAdmissionService from '../../../src/domain/services/admission/WasmVerifiedAdmissionService.ts';
+import { testRetentionWitness } from '../../helpers/storageRetention.ts';
 
 function createMockWarpWorldline(outcome: WarpIntentOutcome): WarpWorldline {
   return { admitIntent: async () => outcome } as unknown as WarpWorldline;
@@ -47,6 +48,7 @@ describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {
       admitted: true,
       sha: 'blob:intent:sha123',
       intentId: validIntentDescriptor.intentId,
+      retention: testRetentionWitness('blob:intent:sha123'),
     });
 
     const service = new WasmVerifiedAdmissionService(mockWorldline);
@@ -64,6 +66,7 @@ describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {
       admitted: true,
       sha: 'blob:intent:sha123',
       intentId: validIntentDescriptor.intentId,
+      retention: testRetentionWitness('blob:intent:sha123'),
     });
 
     const service = new WasmVerifiedAdmissionService(mockWorldline);

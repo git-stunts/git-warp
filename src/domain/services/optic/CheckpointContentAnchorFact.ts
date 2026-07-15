@@ -1,4 +1,6 @@
 import type { EventId } from '../../utils/EventId.ts';
+import AssetHandle from '../../storage/AssetHandle.ts';
+import WarpError from '../../errors/WarpError.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import { CheckpointBasisFact } from './CheckpointBasisFactBase.ts';
 import {
@@ -15,19 +17,19 @@ import type {
 export class CheckpointContentAnchorFact extends CheckpointBasisFact {
   readonly kind = 'content-anchor' as const;
   readonly owner: string;
-  readonly contentOid: string;
+  readonly contentHandle: AssetHandle;
   readonly retainedPayloadByteHash: string | null;
   readonly eventId: EventId;
 
   constructor(options: {
     readonly owner: string;
-    readonly contentOid: string;
+    readonly contentHandle: AssetHandle;
     readonly retainedPayloadByteHash?: string | null;
     readonly eventId: EventId;
   }) {
     super();
     this.owner = validateText(options.owner, 'owner');
-    this.contentOid = validateText(options.contentOid, 'contentOid');
+    this.contentHandle = requireAssetHandle(options.contentHandle);
     this.retainedPayloadByteHash = options.retainedPayloadByteHash === undefined
       || options.retainedPayloadByteHash === null
       ? null
@@ -45,16 +47,26 @@ export class CheckpointContentAnchorFact extends CheckpointBasisFact {
   }
 
   sortKey(): string {
-    return `${this.owner}:${this.contentOid}:${eventSortKey(this.eventId)}`;
+    return `${this.owner}:${this.contentHandle.toString()}:${eventSortKey(this.eventId)}`;
   }
 
   toTransport(): CheckpointBasisFactTransport {
     return {
       kind: this.kind,
       owner: this.owner,
-      contentOid: this.contentOid,
+      contentHandle: this.contentHandle.toString(),
       retainedPayloadByteHash: this.retainedPayloadByteHash,
       eventId: eventTransport(this.eventId),
     };
   }
+}
+
+function requireAssetHandle(value: AssetHandle): AssetHandle {
+  if (value instanceof AssetHandle) {
+    return value;
+  }
+  throw new WarpError(
+    'Checkpoint content anchor requires an AssetHandle',
+    'E_CHECKPOINT_CONTENT_HANDLE',
+  );
 }

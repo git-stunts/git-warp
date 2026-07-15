@@ -40,8 +40,8 @@ import {
 } from './QueryReads.ts';
 
 import {
-  getContentOidImpl, getContentMetaImpl, getContentImpl, getContentStreamImpl,
-  getEdgeContentOidImpl, getEdgeContentMetaImpl, getEdgeContentImpl, getEdgeContentStreamImpl,
+  getContentHandleImpl, getContentMetaImpl, getContentImpl, getContentStreamImpl,
+  getEdgeContentHandleImpl, getEdgeContentMetaImpl, getEdgeContentImpl, getEdgeContentStreamImpl,
 } from './QueryContent.ts';
 
 // ── Observer source helpers ─────────────────────────────────────────
@@ -264,10 +264,10 @@ export default class QueryController {
   declare worldline: QueryCapability['worldline'];
   declare observer: QueryCapability['observer'];
   declare translationCost: QueryCapability['translationCost'];
-  declare getContentOid: QueryCapability['getContentOid'];
+  declare getContentHandle: QueryCapability['getContentHandle'];
   declare getContentMeta: QueryCapability['getContentMeta'];
   declare getContent: QueryCapability['getContent'];
-  declare getEdgeContentOid: QueryCapability['getEdgeContentOid'];
+  declare getEdgeContentHandle: QueryCapability['getEdgeContentHandle'];
   declare getEdgeContentMeta: QueryCapability['getEdgeContentMeta'];
   declare getEdgeContent: QueryCapability['getEdgeContent'];
   declare getContentStream: QueryCapability['getContentStream'];
@@ -323,10 +323,9 @@ function hasWorldlineOpticSource(
   graph: MaterializableHost,
 ): graph is MaterializableHost & CheckpointTailOpticSource {
   return typeof graph.graphName === 'string'
-    && graph._persistence !== undefined
     && graph._codec !== undefined
-    && graph._blobStorage !== undefined
-    && graph._commitMessageCodec !== undefined
+    && graph._checkpointStore !== undefined
+    && graph._indexStore !== undefined
     && typeof graph.discoverWriters === 'function'
     && typeof graph._readCheckpointSha === 'function'
     && typeof graph._loadPatchChainFromSha === 'function'
@@ -368,11 +367,11 @@ wire('getEdges', function (this: QueryController) { return getEdgesImpl(host(thi
 wire('getPropertyCount', function (this: QueryController) { return getPropertyCountImpl(host(this)); });
 
 // QueryContent delegates
-wire('getContentOid', function (this: QueryController, nodeId: string) { return getContentOidImpl(host(this), nodeId); });
+wire('getContentHandle', function (this: QueryController, nodeId: string) { return getContentHandleImpl(host(this), nodeId); });
 wire('getContentMeta', function (this: QueryController, nodeId: string) { return getContentMetaImpl(host(this), nodeId); });
 wire('getContent', function (this: QueryController, nodeId: string) { return getContentImpl(host(this), nodeId); });
 wire('getContentStream', function (this: QueryController, nodeId: string) { return getContentStreamImpl(host(this), nodeId); });
-wireEdge('getEdgeContentOid', getEdgeContentOidImpl);
+wireEdge('getEdgeContentHandle', getEdgeContentHandleImpl);
 wireEdge('getEdgeContentMeta', getEdgeContentMetaImpl);
 wireEdge('getEdgeContent', getEdgeContentImpl);
 wireEdge('getEdgeContentStream', getEdgeContentStreamImpl);

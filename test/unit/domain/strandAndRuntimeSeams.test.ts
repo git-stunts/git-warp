@@ -10,13 +10,9 @@ import RuntimeDetachedFactory from '../../../src/domain/warp/RuntimeDetachedFact
 import RuntimePatchCollector from '../../../src/domain/warp/RuntimePatchCollector.ts';
 import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../../test/helpers/MemoryRuntimeStorageAdapter.ts';
-import PatchJournalPort from '../../../src/ports/PatchJournalPort.ts';
-import CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
-import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
 import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import GCPolicy from '../../../src/domain/services/GCPolicy.ts';
-import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 
 import type {
   DetachedGraphOpen,
@@ -24,15 +20,6 @@ import type {
   DetachedOpenOptions,
 } from '../../../src/domain/services/controllers/detachedOpen.ts';
 import type { DetachedGraphInternalReadSurface } from '../../../src/domain/capabilities/DetachedGraphFactory.ts';
-import type Patch from '../../../src/domain/types/Patch.ts';
-import type PatchEntry from '../../../src/domain/artifacts/PatchEntry.ts';
-import type {
-  CheckpointData,
-  CheckpointRecord,
-  CheckpointWriteResult,
-} from '../../../src/ports/CheckpointStorePort.ts';
-import type { IndexShard } from '../../../src/domain/artifacts/IndexShard.ts';
-import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
 
 describe('strand and runtime host seams', () => {
   it('uses StrandError as the public speculative-lane error noun', () => {
@@ -127,6 +114,7 @@ describe('strand and runtime host seams', () => {
     expect(detached).toBe(readSurface);
     expect(options).toMatchObject({
       persistence: host._persistence,
+      runtimeStorage: host._runtimeStorage,
       graphName: 'detached-runtime',
       writerId: 'agent-1',
       gcPolicy: GCPolicy.DEFAULT,
@@ -136,12 +124,7 @@ describe('strand and runtime host seams', () => {
       codec: defaultCodec,
       audit: false,
     });
-    expect(options.blobStorage).toBeUndefined();
-    expect(options.patchBlobStorage).toBeUndefined();
     expect(options.trust).toEqual({ mode: 'off', pin: null });
-    expect(options.patchJournal).toBe(host._patchJournal);
-    expect(options.checkpointStore).toBe(host._checkpointStore);
-    expect(options.indexStore).toBe(host._indexStore);
   });
 
   it('delegates patch collection through a strict runtime host wrapper', async () => {
@@ -176,12 +159,7 @@ function createDetachedHost(): DetachedOpenHost {
     _gcPolicy: GCPolicy.DEFAULT,
     _checkpointPolicy: null,
     _logger: null,
-    _blobStorage: null,
-    _patchBlobStorage: null,
     _trustConfig: { mode: 'off', pin: null },
-    _patchJournal: new RecordingPatchJournalPort(),
-    _checkpointStore: new RecordingCheckpointStorePort(),
-    _indexStore: new RecordingIndexStorePort(),
     _onDeleteWithData: 'reject',
     _crypto: defaultCrypto,
     _codec: defaultCodec,
@@ -220,61 +198,6 @@ function requireDetachedOpenOptions(
     throw new RuntimeSeamTestError('detached opener was not called');
   }
   return call[0];
-}
-
-class RecordingPatchJournalPort extends PatchJournalPort {
-  async writePatch(_patch: Patch): Promise<string> {
-    return 'patch-oid';
-  }
-
-  async readPatch(_patchOid: string): Promise<Patch> {
-    throw new RuntimeSeamTestError('readPatch should not be called');
-  }
-
-  scanPatchRange(
-    _writerId: string,
-    _fromSha: string | null,
-    _toSha: string
-  ): WarpStream<PatchEntry> {
-    return WarpStream.from([]);
-  }
-}
-
-class RecordingCheckpointStorePort extends CheckpointStorePort {
-  async writeCheckpoint(_record: CheckpointRecord): Promise<CheckpointWriteResult> {
-    return {
-      nodeAliveBlobOid: 'node-alive-oid',
-      edgeAliveBlobOid: 'edge-alive-oid',
-      propBlobOid: 'prop-oid',
-      observedFrontierBlobOid: 'observed-frontier-oid',
-      edgeBirthEventBlobOid: 'edge-birth-event-oid',
-      frontierBlobOid: 'frontier-oid',
-      appliedVVBlobOid: 'applied-vv-oid',
-      provenanceIndexBlobOid: null,
-    };
-  }
-
-  async readCheckpoint(_treeOids: Record<string, string>): Promise<CheckpointData> {
-    throw new RuntimeSeamTestError('readCheckpoint should not be called');
-  }
-}
-
-class RecordingIndexStorePort extends IndexStorePort {
-  async writeShards(_shardStream: WarpStream<IndexShard>): Promise<string> {
-    return 'index-tree-oid';
-  }
-
-  scanShards(_treeOid: string): WarpStream<IndexShard> {
-    return WarpStream.from([]);
-  }
-
-  async readShardOids(_treeOid: string): Promise<Record<string, string>> {
-    return {};
-  }
-
-  async decodeShard<TDecoded extends CodecValue = CodecValue>(_blobOid: string): Promise<TDecoded> {
-    throw new RuntimeSeamTestError('decodeShard should not be called');
-  }
 }
 
 class RuntimeSeamTestError extends Error {}

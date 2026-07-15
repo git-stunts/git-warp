@@ -8,9 +8,11 @@ import {
 } from '../../../../src/domain/services/WormholeService.ts';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.ts';
 import WormholeError from '../../../../src/domain/errors/WormholeError.ts';
-import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
-import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
-import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
+import type PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
+import type Patch from '../../../../src/domain/types/Patch.ts';
+import type { PatchCommitMessage } from '../../../../src/ports/CommitMessageCodecPort.ts';
+import type PatchJournalPort from '../../../../src/ports/PatchJournalPort.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
   encodePatchMessage,
@@ -35,18 +37,43 @@ import {
 
 type CreateWormholeOptions = Parameters<typeof createWormholeWithCodec>[0];
 type CreateWormholeTestOptions =
-  Omit<CreateWormholeOptions, 'commitMessageCodec'> &
-  Partial<Pick<CreateWormholeOptions, 'commitMessageCodec'>>;
+  Omit<CreateWormholeOptions, 'commitMessageCodec' | 'patchJournal'> &
+  Partial<Pick<CreateWormholeOptions, 'commitMessageCodec' | 'patchJournal'>>;
 
 async function createWormhole(
   options: CreateWormholeTestOptions,
 ): ReturnType<typeof createWormholeWithCodec> {
   return await createWormholeWithCodec({
     ...options,
-    codec: options.codec ?? defaultCodec,
     commitMessageCodec: options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC,
+    patchJournal: options.patchJournal ?? fixturePatchJournal(options.persistence),
   });
 }
+
+function fixturePatchJournal(persistence: CreateWormholeOptions['persistence']): PatchJournalPort {
+  const fixture = persistence as CreateWormholeOptions['persistence'] & {
+    readonly patchJournal?: PatchJournalPort;
+  };
+  return fixture.patchJournal ?? patchJournalThat(async () => {
+    throw new WormholeTestError('patch journal should not be read by this test');
+  });
+}
+
+function patchJournalThat(
+  readPatch: (message: PatchCommitMessage) => Promise<Patch>,
+): PatchJournalPort {
+  return {
+    async appendPatch() {
+      throw new WormholeTestError('appendPatch is outside this fixture');
+    },
+    readPatch,
+    scanPatchRange(): WarpStream<PatchEntry> {
+      return WarpStream.from([]);
+    },
+  };
+}
+
+class WormholeTestError extends Error {}
 
 describe('WormholeService', () => {
   describe('createWormhole', () => {
@@ -277,11 +304,6 @@ describe('WormholeService', () => {
     it('throws E_WORMHOLE_INVALID_RANGE when a patch belongs to another graph', async () => {
       const sha = generateOid(5000);
       const patchOid = generateOid(5001);
-      const patch = createPatch({
-        writer: 'alice',
-        lamport: 1,
-        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
-      });
       const persistence = {
         nodeExists: vi.fn(async (candidate) => candidate === sha),
         getNodeInfo: vi.fn(async () => ({
@@ -293,7 +315,6 @@ describe('WormholeService', () => {
           }),
           parents: [],
         })),
-        readBlob: vi.fn(async () => defaultCodec.encode(patch)),
       };
 
       await expect(createWormhole({
@@ -307,49 +328,14 @@ describe('WormholeService', () => {
       });
     });
 
-    it('throws EncryptionError for encrypted patches without patchBlobStorage', async () => {
+    it('loads patch payloads through the semantic patch journal', async () => {
       const sha = generateOid(6000);
       const patchOid = generateOid(6001);
-      const readBlob = vi.fn();
-      const persistence = {
-        nodeExists: vi.fn(async (candidate) => candidate === sha),
-        getNodeInfo: vi.fn(async () => ({
-          message: encodePatchMessage({
-            graph: 'test-graph',
-            writer: 'alice',
-            lamport: 1,
-            patchOid,
-            encrypted: true,
-          }),
-          parents: [],
-        })),
-        readBlob,
-      };
-
-      await expect(createWormhole({
-        persistence: (persistence as any),
-        graphName: 'test-graph',
-        fromSha: sha,
-        toSha: sha,
-      })).rejects.toBeInstanceOf(EncryptionError);
-      expect(readBlob).not.toHaveBeenCalled();
-    });
-
-    it('loads encrypted patches from patchBlobStorage when provided', async () => {
-      const sha = generateOid(7000);
-      const patchOid = generateOid(7001);
       const patch = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
-      const patchBlobStorage = {
-        retrieve: vi.fn(async (oid) => {
-          expect(oid).toBe(patchOid);
-          return defaultCodec.encode(patch);
-        }),
-      };
-      const readBlob = vi.fn();
       const persistence = {
         nodeExists: vi.fn(async (candidate) => candidate === sha),
         getNodeInfo: vi.fn(async () => ({
@@ -358,29 +344,30 @@ describe('WormholeService', () => {
             writer: 'alice',
             lamport: 1,
             patchOid,
-            encrypted: true,
           }),
           parents: [],
         })),
-        readBlob,
       };
+      const readPatch = vi.fn(async (message: PatchCommitMessage) => {
+        expect(message.patchHandle.toString()).toBe(patchOid);
+        return patch;
+      });
 
       const wormhole = await createWormhole({
         persistence: (persistence as any),
         graphName: 'test-graph',
         fromSha: sha,
         toSha: sha,
-        patchBlobStorage: (patchBlobStorage as any),
+        patchJournal: patchJournalThat(readPatch),
       });
 
       expect(wormhole.patchCount).toBe(1);
-      expect(patchBlobStorage.retrieve).toHaveBeenCalledTimes(1);
-      expect(readBlob).not.toHaveBeenCalled();
+      expect(readPatch).toHaveBeenCalledTimes(1);
     });
 
-    it('throws PersistenceError when the patch blob is missing', async () => {
-      const sha = generateOid(8000);
-      const patchOid = generateOid(8001);
+    it('propagates semantic patch journal read failures', async () => {
+      const sha = generateOid(7000);
+      const patchOid = generateOid(7001);
       const persistence = {
         nodeExists: vi.fn(async (candidate) => candidate === sha),
         getNodeInfo: vi.fn(async () => ({
@@ -392,15 +379,16 @@ describe('WormholeService', () => {
           }),
           parents: [],
         })),
-        readBlob: vi.fn(async () => null),
       };
+      const failure = new WormholeTestError('asset unavailable');
 
       await expect(createWormhole({
         persistence: (persistence as any),
         graphName: 'test-graph',
         fromSha: sha,
         toSha: sha,
-      })).rejects.toBeInstanceOf(PersistenceError);
+        patchJournal: patchJournalThat(async () => await Promise.reject(failure)),
+      })).rejects.toBe(failure);
     });
   });
 

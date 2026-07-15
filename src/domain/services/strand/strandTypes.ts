@@ -19,7 +19,7 @@ export type StrandQueuedIntent = {
   patch: Patch;
   reads: string[];
   writes: string[];
-  contentBlobOids: string[];
+  contentAssetHandles: string[];
 };
 
 export type StrandRejectedCounterfactual = {

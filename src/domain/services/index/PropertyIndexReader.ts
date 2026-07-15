@@ -1,7 +1,7 @@
 /**
  * Reads property index shards lazily with LRU caching.
  *
- * Loads `props_XX.cbor` shards on demand via IndexStoragePort.readBlob.
+ * Loads `props_XX.cbor` shards on demand through IndexStorePort.
  *
  * @module domain/services/index/PropertyIndexReader
  */
@@ -10,9 +10,9 @@ import computeShardKey from '../../utils/shardKey.ts';
 import LRUCache from '../../utils/LRUCache.ts';
 import IndexError from '../../errors/IndexError.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
-import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
+import type AssetHandle from '../../storage/AssetHandle.ts';
 import { isPropValue, type PropValue } from '../../types/PropValue.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
 
@@ -39,31 +39,38 @@ function isPropertyShardEntry(value: CodecValue): value is PropertyShardEntry {
 }
 
 export default class PropertyIndexReader {
-  private readonly _storage: IndexStoragePort | undefined;
   private readonly _codec: CodecPort | null;
   private readonly _indexStore: IndexStorePort | null;
-  private _shardOids: Map<string, string>;
+  private _shardHandles: Map<string, AssetHandle>;
+  private _inMemoryShards: Map<string, Uint8Array>;
   private readonly _cache: LRUCache<string, PropertyShard>;
 
   constructor(options?: {
-    storage?: IndexStoragePort;
     codec?: CodecPort;
     indexStore?: IndexStorePort;
     maxCachedShards?: number;
   }) {
-    const { storage, codec, indexStore, maxCachedShards = 64 } = options ?? {};
-    this._storage = storage;
+    const { codec, indexStore, maxCachedShards = 64 } = options ?? {};
     this._codec = codec ?? null;
     this._indexStore = indexStore ?? null;
-    this._shardOids = new Map();
+    this._shardHandles = new Map();
+    this._inMemoryShards = new Map();
     this._cache = new LRUCache(maxCachedShards);
   }
 
-  /**
-   * Configures OID mappings for lazy loading.
-   */
-  setup(shardOids: Record<string, string>): void {
-    this._shardOids = new Map(Object.entries(shardOids));
+  /** Configures opaque shard handles for lazy loading. */
+  setupHandles(shardHandles: Readonly<Record<string, AssetHandle>>): void {
+    this._shardHandles = new Map(Object.entries(shardHandles));
+    this._inMemoryShards.clear();
+    this._cache.clear();
+  }
+
+  /** Configures encoded in-memory shards for a freshly built view. */
+  setupTree(tree: Readonly<Record<string, Uint8Array>>): void {
+    this._shardHandles.clear();
+    this._inMemoryShards = new Map(
+      Object.entries(tree).filter(([path]) => path.startsWith('props_')),
+    );
     this._cache.clear();
   }
 
@@ -98,40 +105,41 @@ export default class PropertyIndexReader {
       return cached;
     }
 
-    const oid = this._resolveOid(path);
-    if (oid === null) {
+    const handle = this._shardHandles.get(path);
+    const inMemory = this._inMemoryShards.get(path);
+    if (handle === undefined && inMemory === undefined) {
       return null;
     }
-
-    return await this._fetchAndDecode(oid, path);
+    return await this._fetchAndDecode({ path, handle, inMemory });
   }
 
-  private _resolveOid(path: string): string | null {
-    const oid = this._shardOids.get(path);
-    if (oid === undefined || oid === '') {
-      return null;
-    }
-    if (!this._storage && !this._indexStore) {
-      return null;
-    }
-    return oid;
-  }
-
-  private async _fetchAndDecode(oid: string, path: string): Promise<PropertyShard> {
-    if (this._indexStore) {
-      const decoded = await this._indexStore.decodeShard(oid);
-      return this._parseShard(decoded, path);
-    }
-    const storage = this._storage as { readBlob(oid: string): Promise<Uint8Array | undefined | null> };
-    const buffer = await storage.readBlob(oid);
-    if (buffer === null || buffer === undefined) {
-      throw new IndexError(
-        `PropertyIndexReader: missing blob for OID '${oid}' (${path})`,
-        { code: 'E_INDEX_SHARD_MISSING', context: { oid, path } },
+  private async _fetchAndDecode(options: {
+    path: string;
+    handle: AssetHandle | undefined;
+    inMemory: Uint8Array | undefined;
+  }): Promise<PropertyShard> {
+    if (options.handle !== undefined) {
+      if (this._indexStore === null) {
+        throw new IndexError(
+          `PropertyIndexReader: no index store for '${options.path}'`,
+          { code: 'E_INDEX_NO_STORE', context: { path: options.path } },
+        );
+      }
+      return this._parseShard(
+        await this._indexStore.decodeShard(options.handle),
+        options.path,
       );
     }
-    const decoded = requireCodec(this._codec, 'PropertyIndexReader').decode(buffer);
-    return this._parseShard(decoded, path);
+    if (options.inMemory === undefined) {
+      throw new IndexError(
+        `PropertyIndexReader: missing shard '${options.path}'`,
+        { code: 'E_INDEX_SHARD_MISSING', context: { path: options.path } },
+      );
+    }
+    return this._parseShard(
+      requireCodec(this._codec, 'PropertyIndexReader').decode(options.inMemory),
+      options.path,
+    );
   }
 
   private _parseShard(decoded: CodecValue, path: string): PropertyShard {

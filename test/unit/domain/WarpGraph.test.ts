@@ -581,7 +581,7 @@ describe('WarpCore', () => {
       });
 
       persistence.listRefs.mockResolvedValue(['refs/warp/events/writers/writer-1']);
-      persistence.readRef.mockResolvedValue(commitSha);
+      persistence.readRef.mockImplementation((ref: string) => Promise.resolve(ref.includes('/checkpoints/') ? null : commitSha));
       persistence.getNodeInfo.mockResolvedValue(mockPatch.nodeInfo);
       persistence.readBlob.mockResolvedValue(mockPatch.patchBuffer);
 
@@ -688,7 +688,7 @@ describe('WarpCore', () => {
       });
 
       persistence.listRefs.mockResolvedValue(['refs/warp/events/writers/writer-1']);
-      persistence.readRef.mockResolvedValue(commitSha2); // tip is the second commit
+      persistence.readRef.mockImplementation((ref: string) => Promise.resolve(ref.includes('/checkpoints/') ? null : commitSha2));
 
       // getNodeInfo is called for each commit in the chain (newest first)
       persistence.getNodeInfo

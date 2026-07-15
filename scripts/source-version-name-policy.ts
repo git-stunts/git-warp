@@ -71,6 +71,7 @@ const sourceVersionNameExceptions: readonly SourceVersionNameException[] = Objec
       '|warp-v[0-9]+',
       '|full-v[0-9]+',
       '|git-cas-cbor-patch-v[0-9]+',
+      '|git-cas-asset-patch-v[0-9]+',
       '|cbor-v[0-9]+',
       '|(?:whole|framed|convergent)-v[0-9]+',
       '|wesley\\.realization\\.manifest\\.v[0-9]+',

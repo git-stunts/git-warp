@@ -1,6 +1,12 @@
-# Getting Started
+# Getting Started With The Transitional Facade
 
-The v19 application API opens timelines, writes intents, and returns receipts.
+This page documents the currently implemented transitional v19 facade. The
+accepted [v19 public vocabulary checkpoint](api/) replaces timelines and
+direct readings with Runtime, Lane, Observer, Observation, Reading, and Receipt
+before release. This page remains runtime-honest while that implementation is
+in progress; it is not the final v19 API contract.
+
+The transitional facade opens timelines, writes intents, and returns receipts.
 It does not expose the graph-first compatibility API from earlier releases.
 
 ## Install

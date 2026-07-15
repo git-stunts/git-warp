@@ -5,24 +5,30 @@
  */
 
 import type IntentCapability from '../../capabilities/IntentCapability.ts';
-import type { WarpIntentDescriptor, WarpIntentOutcome } from '../../types/WarpIntentDescriptor.ts';
+import type { QueryPropertyBag } from '../../capabilities/QueryCapability.ts';
+import type {
+  PrecommitGuard,
+  WarpIntentDescriptor,
+  WarpIntentOutcome,
+} from '../../types/WarpIntentDescriptor.ts';
 import type ProjectionHandle from '../ProjectionHandle.ts';
+import type IntentStorePort from '../../../ports/IntentStorePort.ts';
 
 export type IntentHost = {
   _graphName: string;
   _writerId: string;
+  _intentStore: IntentStorePort;
   worldline: () => ProjectionHandle;
 };
 
+type IntentObstruction = Extract<WarpIntentOutcome, { readonly admitted: false }>['obstruction'];
+type StatusGuard = Extract<PrecommitGuard, { readonly op: 'nodeStatus' }>;
+type AgentGuard = Extract<PrecommitGuard, { readonly op: 'nodeUnassignedOrSelf' }>;
+
 export default class IntentController implements IntentCapability {
   _host: IntentHost;
-  private _queuedIntents: Map<string, WarpIntentDescriptor[]>;
-  private _admitCounter: number;
-
   constructor(host: IntentHost) {
     this._host = host;
-    this._queuedIntents = new Map();
-    this._admitCounter = 0;
   }
 
   async admitIntent(descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> {
@@ -34,15 +40,24 @@ export default class IntentController implements IntentCapability {
         return { admitted: false, obstruction, intentId: descriptor.intentId };
       }
     }
-    this._admitCounter += 1;
-    const sha = `intent:${descriptor.intentId}:${this._host._writerId}:${this._admitCounter}`;
-    return { admitted: true, sha, intentId: descriptor.intentId };
+    const published = await this._host._intentStore.publish({
+      graphName: this._host._graphName,
+      channel: 'admitted',
+      ownerId: this._host._writerId,
+      descriptor,
+    });
+    return {
+      admitted: true,
+      sha: published.sha,
+      intentId: descriptor.intentId,
+      retention: published.retention,
+    };
   }
 
   private _checkGuard(
-    guard: WarpIntentDescriptor['precommitGuards'][number],
-    nodeProps: Readonly<{ [key: string]: unknown }> | null,
-  ) {
+    guard: PrecommitGuard,
+    nodeProps: QueryPropertyBag | null,
+  ): IntentObstruction | null {
     if (guard.op === 'nodeStatus') {
       return this._checkStatusGuard(guard, nodeProps);
     }
@@ -53,46 +68,48 @@ export default class IntentController implements IntentCapability {
   }
 
   private _checkStatusGuard(
-    guard: WarpIntentDescriptor['precommitGuards'][number],
-    nodeProps: Readonly<{ [key: string]: unknown }> | null,
-  ) {
+    guard: StatusGuard,
+    nodeProps: QueryPropertyBag | null,
+  ): IntentObstruction | null {
     const raw = nodeProps ? nodeProps['status'] : 'ABSENT';
     const actualStatus = typeof raw === 'string' ? raw : 'ABSENT';
-    const { expected } = guard as unknown as { expected: string };
-    if (actualStatus !== expected) {
+    if (actualStatus !== guard.expected) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: actualStatus };
     }
     return null;
   }
 
   private _checkAgentGuard(
-    guard: WarpIntentDescriptor['precommitGuards'][number],
-    nodeProps: Readonly<{ [key: string]: unknown }> | null,
-  ) {
+    guard: AgentGuard,
+    nodeProps: QueryPropertyBag | null,
+  ): IntentObstruction | null {
     if (!nodeProps) { return null; }
     const raw = nodeProps['agentId'];
     if (typeof raw !== 'string') { return null; }
-    const { agentId } = guard as unknown as { agentId: string };
-    if (raw !== agentId) {
+    if (raw !== guard.agentId) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: raw };
     }
     return null;
   }
 
   async queueIntent(strandId: string, descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> {
-    await Promise.resolve();
-    const list = this._queuedIntents.get(strandId) ?? [];
-    list.push(descriptor);
-    this._queuedIntents.set(strandId, list);
+    const published = await this._host._intentStore.publish({
+      graphName: this._host._graphName,
+      channel: 'queued',
+      ownerId: strandId,
+      descriptor,
+    });
     return {
       admitted: true,
-      sha: `queued:${strandId}:${descriptor.intentId}`,
+      sha: published.sha,
       intentId: descriptor.intentId,
+      retention: published.retention,
     };
   }
 
   async getWriterIntents(writerId: string): Promise<WarpIntentDescriptor[]> {
-    await Promise.resolve();
-    return this._queuedIntents.get(writerId) ?? [];
+    return await this._host._intentStore
+      .scan(this._host._graphName, 'queued', writerId)
+      .collect();
   }
 }

@@ -15,7 +15,6 @@ import VersionVector from '../../crdt/VersionVector.ts';
 import Patch from '../../types/Patch.ts';
 import type { PatchOp } from '../../types/ops/unions.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
-import type BlobPort from '../../../ports/BlobPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 
@@ -77,21 +76,21 @@ export function normalizePatch(patch: DecodedPatch): DecodedPatch {
 /**
  * Loads a patch from a commit.
  *
- * WARP stores patches as Git blobs, with the blob OID embedded in the
- * commit message. This function:
+ * WARP stores patch assets behind opaque handles carried by the commit
+ * message. This function:
  * 1. Reads the commit message via `showNode()`
- * 2. Decodes the message to extract the patch blob OID
- * 3. Reads the blob and CBOR-decodes it via `patchJournal.readPatch()`
+ * 2. Decodes the message to extract the patch asset handle
+ * 3. Opens and CBOR-decodes the asset via `patchJournal.readPatch()`
  * 4. Normalizes the patch (converts context to VersionVector)
  *
- * @param persistence - Git persistence layer (CommitPort + BlobPort)
+ * @param persistence - Causal commit history port
  * @param sha - The 40-character commit SHA to load the patch from
  * @param options - Options including optional patchJournal
  * @throws {PersistenceError} If patchJournal is not provided
- * @throws {Error} If the commit or patch blob cannot be read or decoded
+ * @throws {Error} If the commit or patch asset cannot be read or decoded
  */
 export async function loadPatchFromCommit(
-  persistence: CommitPort & BlobPort,
+  persistence: CommitPort,
   sha: string,
   { patchJournal, commitMessageCodec }: LoadPatchRangeOptions = {},
 ): Promise<DecodedPatch> {
@@ -103,13 +102,13 @@ export async function loadPatchFromCommit(
     );
   }
 
-  // Read commit message to extract patch OID and encrypted flag
+  // Read commit metadata to locate the patch asset.
   const messageCodec = requireCommitMessageCodec(commitMessageCodec);
   const message = await persistence.showNode(sha);
   const decoded = messageCodec.decodePatch(message);
 
   // Read and decode the patch blob via PatchJournalPort (adapter owns the codec)
-  const patch = await patchJournal.readPatch(decoded.patchOid, { storage: decoded.storage });
+  const patch = await patchJournal.readPatch(decoded);
 
   return normalizePatch(patch);
 }
@@ -147,7 +146,7 @@ export async function loadPatchFromCommit(
  * const patches = await loadPatchRange(persistence, 'events', 'new-writer', null, tipSha);
  */
 export async function loadPatchRange(
-  persistence: CommitPort & BlobPort,
+  persistence: CommitPort,
   _graphName: string,
   writerId: string,
   fromSha: string | null,

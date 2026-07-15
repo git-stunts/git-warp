@@ -16,15 +16,16 @@ import CliJsonFormatterAdapter from '../src/infrastructure/adapters/CliJsonForma
 import {
   upgradeCheckpointSchema,
   type CheckpointSchemaUpgradeResult,
+  type CheckpointMigrationHistory,
 } from './migrations/v17.0.0/checkpoint-schema-upgrade.ts';
-import type GraphPersistencePort from '../src/ports/GraphPersistencePort.ts';
 import type CryptoPort from '../src/ports/CryptoPort.ts';
+import type RuntimeStorageProviderPort from '../src/ports/RuntimeStorageProviderPort.ts';
+import { openCheckpointMigrationStore } from './migrations/v17.0.0/openCheckpointMigrationStore.ts';
 
 const LEGACY_REBUILDABLE_CACHE_REF_SUFFIXES = [
   '/coverage/head',
   '/seek-cache',
 ] as const;
-
 type CacheRefAction = 'absent' | 'would-delete' | 'deleted';
 
 export class V16ToV17UpgradeArgumentError extends Error {
@@ -64,24 +65,26 @@ export interface CacheRefMigrationResult {
   readonly action: CacheRefAction;
   readonly previousOid: string | null;
 }
-
 export interface GraphV16ToV17UpgradeResult {
   readonly graphName: string;
   readonly checkpoint: CheckpointSchemaUpgradeResult;
   readonly cacheRefs: readonly CacheRefMigrationResult[];
 }
-
 export interface V16ToV17UpgradeResult {
   readonly dryRun: boolean;
   readonly graphCount: number;
   readonly graphs: readonly GraphV16ToV17UpgradeResult[];
 }
-
 export interface V16ToV17UpgradeOptions {
-  readonly persistence: GraphPersistencePort;
+  readonly persistence: V16ToV17MigrationHistory;
   readonly graphNames: readonly string[];
   readonly dryRun?: boolean;
   readonly crypto?: CryptoPort;
+  readonly runtimeStorage: RuntimeStorageProviderPort;
+}
+export interface V16ToV17MigrationHistory extends CheckpointMigrationHistory {
+  deleteRef(ref: string): Promise<void>;
+  listRefs(prefix?: string): Promise<string[]>;
 }
 
 function usage(): string {
@@ -151,11 +154,13 @@ export async function upgradeV16ToV17(
   const graphs: GraphV16ToV17UpgradeResult[] = [];
 
   for (const graphName of options.graphNames) {
+    const migrationStorage = await openCheckpointMigrationStore(options.runtimeStorage, graphName);
     const checkpoint = await upgradeCheckpointSchema({
       persistence: options.persistence,
       graphName,
       dryRun,
       crypto,
+      ...migrationStorage,
     });
     const cacheRefs = await migrateRebuildableCacheRefs({
       persistence: options.persistence,
@@ -173,7 +178,7 @@ export async function upgradeV16ToV17(
 }
 
 async function migrateRebuildableCacheRefs(options: {
-  readonly persistence: GraphPersistencePort;
+  readonly persistence: V16ToV17MigrationHistory;
   readonly graphName: string;
   readonly dryRun: boolean;
 }): Promise<readonly CacheRefMigrationResult[]> {
@@ -198,16 +203,12 @@ async function migrateRebuildableCacheRefs(options: {
 }
 
 function checkpointLine(checkpoint: CheckpointSchemaUpgradeResult): string {
-  if (checkpoint.status === 'missing-checkpoint') {
-    return `checkpoint: none found at ${checkpoint.checkpointRef}`;
-  }
-  if (checkpoint.status === 'already-current') {
-    return `checkpoint: already schema:${checkpoint.currentSchema}`;
-  }
-  if (checkpoint.status === 'would-upgrade') {
-    return `checkpoint: would upgrade schema:${String(checkpoint.previousSchema)} -> schema:${checkpoint.currentSchema}`;
-  }
-  return `checkpoint: upgraded schema:${String(checkpoint.previousSchema)} -> schema:${checkpoint.currentSchema}`;
+  if (checkpoint.status === 'missing-checkpoint') return `checkpoint: none found at ${checkpoint.checkpointRef}`;
+  if (checkpoint.status === 'already-current') return `checkpoint: already schema:${checkpoint.currentSchema} storage:${checkpoint.currentStorageVersion}`;
+  const action = checkpoint.status === 'would-upgrade' ? 'would upgrade' : 'upgraded';
+  return `checkpoint: ${action} schema:${String(checkpoint.previousSchema)} `
+    + `storage:${checkpoint.previousStorageVersion ?? '(unspecified)'} -> `
+    + `schema:${checkpoint.currentSchema} storage:${checkpoint.currentStorageVersion}`;
 }
 
 export function formatHumanResult(result: V16ToV17UpgradeResult): string {
@@ -237,7 +238,7 @@ export function formatHumanResult(result: V16ToV17UpgradeResult): string {
 }
 
 async function resolveGraphNames(
-  persistence: GraphPersistencePort,
+  persistence: V16ToV17MigrationHistory,
   explicitGraphNames: readonly string[],
 ): Promise<readonly string[]> {
   if (explicitGraphNames.length > 0) {
@@ -246,7 +247,7 @@ async function resolveGraphNames(
   return await discoverGraphNames(persistence);
 }
 
-async function discoverGraphNames(persistence: GraphPersistencePort): Promise<readonly string[]> {
+async function discoverGraphNames(persistence: V16ToV17MigrationHistory): Promise<readonly string[]> {
   const refs = await persistence.listRefs(REF_PREFIX);
   const prefix = `${REF_PREFIX}/`;
   const names: Set<string> = new Set();
@@ -272,12 +273,13 @@ async function run(): Promise<void> {
     return;
   }
 
-  const { persistence } = await createPersistence(args.repo);
+  const { persistence, runtimeStorage } = await createPersistence(args.repo);
   const graphNames = await resolveGraphNames(persistence, args.graphNames);
   const result = await upgradeV16ToV17({
     persistence,
     graphNames,
     dryRun: args.dryRun,
+    runtimeStorage,
   });
 
   if (args.json) {
@@ -286,14 +288,9 @@ async function run(): Promise<void> {
   }
   process.stdout.write(`${formatHumanResult(result)}\n`);
 }
-
-function errorMessage(err: Error): string {
-  return err.message;
-}
-
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   run().catch((err: Error) => {
-    process.stderr.write(`${errorMessage(err)}\n\n${usage()}\n`);
+    process.stderr.write(`${err.message}\n\n${usage()}\n`);
     process.exitCode = 1;
   });
 }

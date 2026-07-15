@@ -7,7 +7,6 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
-import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type SyncTrustGate from '../sync/SyncTrustGate.ts';
 import type SyncCapability from '../../capabilities/SyncCapability.ts';
 import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
@@ -30,7 +29,6 @@ export interface SyncHost {
   _crypto: CryptoPort;
   _logger: LoggerPort | null;
   _patchJournal?: PatchJournalPort | null;
-  _patchBlobStorage?: BlobStoragePort | null;
   _patchesSinceCheckpoint: number;
   _maxObservedLamport: number;
   materialize: () => Promise<SnapshotWarpState>;

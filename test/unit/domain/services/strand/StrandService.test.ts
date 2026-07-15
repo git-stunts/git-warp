@@ -11,10 +11,15 @@ import {
   STRAND_COUNTERFACTUAL_REASON,
 } from '../../../../../src/domain/services/strand/strandShared.ts';
 import StrandError from '../../../../../src/domain/errors/StrandError.ts';
+import PatchPublicationConflictError from '../../../../../src/domain/errors/PatchPublicationConflictError.ts';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.ts';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
+import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../../../../src/domain/storage/BundleHandle.ts';
 import type PatchType from '../../../../../src/domain/types/Patch.ts';
 import type { StrandDescriptor as StrandDescriptorType } from '../../../../../src/domain/services/strand/strandTypes.ts';
+import InMemoryBlobStorageAdapter from '../../../../helpers/InMemoryBlobStorageAdapter.ts';
+import { testRetentionWitness } from '../../../../helpers/storageRetention.ts';
 
 /** @typedef {import('../../../../../src/domain/utils/parseStrandBlob.ts').StrandDescriptor} ParsedStrandBlob */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandQueuedIntent} StrandQueuedIntent */
@@ -68,7 +73,7 @@ const OVERLAY_KIND = (STRAND_OVERLAY_KIND);
  *   _freezeQueuedIntent(
  *     descriptor: StrandDescriptor,
  *     intentQueue: StrandDescriptor['intentQueue'],
- *     builder: { build(): Patch, contentBlobs: unknown[] }
+ *     builder: { build(): Patch, contentAssets: AssetHandle[] }
  *   ): StrandQueuedIntent
  * }} PatchServicePrivate
  */
@@ -97,9 +102,9 @@ const OVERLAY_KIND = (STRAND_OVERLAY_KIND);
  *     overlayId: string,
  *     parentSha: string|null,
  *     patch: Patch,
- *     contentBlobOids: string[],
+ *     contentAssetHandles: string[],
  *     lamport: number
- *   }): Promise<{ sha: string, patch: Patch }>
+ *   }): Promise<import('../../../../../src/domain/types/PatchCommitResult.ts').PatchCommitResult>
  * }} StrandServicePrivate
  */
 
@@ -216,7 +221,7 @@ function makeQueuedIntent(overrides = {}) {
     patch: makePatch(),
     reads: [],
     writes: [],
-    contentBlobOids: [],
+    contentAssetHandles: [],
     ...overrides,
   };
 }
@@ -280,11 +285,7 @@ function storeDescriptor(descriptor) {
  *     readRef: ReturnType<typeof vi.fn>,
  *     updateRef: ReturnType<typeof vi.fn>,
  *     deleteRef: ReturnType<typeof vi.fn>,
- *     writeBlob: ReturnType<typeof vi.fn>,
- *     readBlob: ReturnType<typeof vi.fn>,
  *     listRefs: ReturnType<typeof vi.fn>,
- *     writeTree: ReturnType<typeof vi.fn>,
- *     commitNodeWithTree: ReturnType<typeof vi.fn>,
  *   },
  *   _crypto: { hash: ReturnType<typeof vi.fn> },
  *   _maxObservedLamport: number,
@@ -297,10 +298,10 @@ function storeDescriptor(descriptor) {
  *   _cachedFrontier: Map<string, string>|null,
  *   _provenanceIndex: unknown,
  *   _provenanceDegraded: boolean,
- *   _patchJournal: { writePatch(patch: Patch): Promise<string> }|null,
+ *   _strandStore: object,
+ *   _patchJournal: object|null,
  *   _logger: { info: ReturnType<typeof vi.fn>, warn: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }|null,
- *   _blobStorage: unknown,
- *   _patchBlobStorage: { store(data: Uint8Array, options: { slug: string }): Promise<string> }|null,
+ *   _assetStorage: InMemoryBlobStorageAdapter,
  *   _codec: { encode: ReturnType<typeof vi.fn> },
  *   _onDeleteWithData: unknown,
  *   _lastFrontier: Map<string, string>,
@@ -318,23 +319,95 @@ function createMockGraph() {
   oidCounter = 0;
   clockCounter = 0;
 
+  const strandStore = {
+    readDescriptor: vi.fn((graphName, strandId) => {
+      const ref = `refs/warp/${graphName}/strands/${strandId}`;
+      const revision = refs.get(ref);
+      if (revision === undefined) {
+        return Promise.resolve(null);
+      }
+      const descriptor = blobs.get(revision);
+      if (descriptor === undefined) {
+        return Promise.reject(new Error(`descriptor asset missing: ${revision}`));
+      }
+      return Promise.resolve(descriptor.slice());
+    }),
+    publishDescriptor: vi.fn((request) => {
+      const revision = nextOid();
+      blobs.set(revision, request.descriptor.slice());
+      refs.set(`refs/warp/${request.graphName}/strands/${request.strandId}`, revision);
+      const descriptorHandle = new AssetHandle(`asset:${revision}`);
+      return Promise.resolve({
+        revision,
+        descriptorAsset: Object.freeze({
+          handle: descriptorHandle,
+          size: request.descriptor.byteLength,
+          observedAt: '1970-01-01T00:00:00.000Z',
+          retention: Object.freeze({
+            reachability: 'unanchored' as const,
+            protection: 'not-established' as const,
+          }),
+        }),
+        bundleHandle: new BundleHandle(`bundle:${revision}`),
+        retention: testRetentionWitness(revision),
+      });
+    }),
+    listStrandIds: vi.fn((graphName) => {
+      const prefix = `refs/warp/${graphName}/strands/`;
+      return Promise.resolve([...refs.keys()]
+        .filter((ref) => ref.startsWith(prefix))
+        .map((ref) => ref.slice(prefix.length))
+        .filter((strandId) => !strandId.includes('/'))
+        .sort());
+    }),
+    hasDescriptor: vi.fn((graphName, strandId) => Promise.resolve(
+      refs.has(`refs/warp/${graphName}/strands/${strandId}`),
+    )),
+    deleteDescriptor: vi.fn((graphName, strandId) => Promise.resolve(
+      refs.delete(`refs/warp/${graphName}/strands/${strandId}`),
+    )),
+  };
+
+  const patchJournal = {
+    appendPatch: vi.fn((request) => {
+      const currentHead = refs.get(request.targetRef) ?? null;
+      if (currentHead !== request.expectedHead) {
+        return Promise.reject(new PatchPublicationConflictError());
+      }
+      const sha = nextOid();
+      const parentEntries = request.parent === null
+        ? []
+        : patchChains.get(request.parent) ?? [];
+      patchChains.set(sha, [...parentEntries, { patch: request.patch, sha }]);
+      refs.set(request.targetRef, sha);
+      return Promise.resolve({
+        sha,
+        bundleHandle: new BundleHandle(`bundle:${sha}`),
+        stagedPatch: Object.freeze({
+          handle: new AssetHandle(`asset:${sha}`),
+          size: 0,
+          observedAt: '1970-01-01T00:00:00.000Z',
+          retention: Object.freeze({
+            reachability: 'unanchored' as const,
+            protection: 'not-established' as const,
+          }),
+        }),
+        retention: testRetentionWitness(sha),
+      });
+    }),
+    readPatch: vi.fn(),
+    scanPatchRange: vi.fn(),
+  };
+
   return {
     _graphName: 'test-graph',
     _persistence: {
       readRef: vi.fn(async (ref) => refs.get(ref) ?? null),
       updateRef: vi.fn(async (ref, oid) => { refs.set(ref, oid); }),
       deleteRef: vi.fn(async (ref) => { refs.delete(ref); }),
-      writeBlob: vi.fn(async (/** @type {Uint8Array} */ data) => {
-        const oid = nextOid();
-        blobs.set(oid, data);
-        return oid;
-      }),
-      readBlob: vi.fn(async (oid) => blobs.get(oid) ?? null),
       listRefs: vi.fn(async (prefix) => {
         return [...refs.keys()].filter((ref) => ref.startsWith(prefix));
       }),
-      writeTree: vi.fn(async () => nextOid()),
-      commitNodeWithTree: vi.fn(async () => nextOid()),
     },
     _crypto: {
       hash: vi.fn(async (_algo, data) => `sha256:${typeof data === 'string' ? data.slice(0, 16) : 'bytes'}`),
@@ -348,15 +421,15 @@ function createMockGraph() {
     _cachedFrontier: (null),
     _provenanceIndex: null,
     _provenanceDegraded: true,
-    _patchJournal: /** @type {{ writePatch(patch: Patch): Promise<string> }|null} */ (null),
+    _strandStore: strandStore,
+    _patchJournal: patchJournal,
     _logger: /** @type {{ info: ReturnType<typeof vi.fn>, warn: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }|null} */ (null),
-    _blobStorage: null,
-    _patchBlobStorage: /** @type {{ store(data: Uint8Array, options: { slug: string }): Promise<string> }|null} */ (null),
+    _assetStorage: new InMemoryBlobStorageAdapter(),
     _commitMessageCodec: {
-      encodePatch: vi.fn(({ writer, lamport, patchOid }) => `patch:${writer}:${lamport}:${patchOid}`),
+      encodePatch: vi.fn(({ writer, lamport, patchHandle }) => `patch:${writer}:${lamport}:${String(patchHandle)}`),
     },
     _codec: { encode: vi.fn((patch) => textEncode(JSON.stringify(patch))) },
-    _onDeleteWithData: undefined,
+    _onDeleteWithData: 'reject',
     _lastFrontier: new Map(),
     _writerId: 'writer1',
     getFrontier: vi.fn(async () => new Map([['writer1', 'tip-sha-1']])),
@@ -542,13 +615,13 @@ describe('StrandService', () => {
             reads: [undefined, 'node:b', 'node:a'],
             writes: [null, 'node:c', 'node:a'],
           })) as PatchType),
-          contentBlobs: [undefined, 'blob:b', 'blob:a'],
+          contentAssets: [new AssetHandle('blob:b'), new AssetHandle('blob:a')],
         },
       );
 
       expect(intent.reads).toEqual(['node:a', 'node:b']);
       expect(intent.writes).toEqual(['node:a', 'node:c']);
-      expect(intent.contentBlobOids).toEqual(['blob:a', 'blob:b']);
+      expect(intent.contentAssetHandles).toEqual(['blob:a', 'blob:b']);
     });
 
     it('rejects non-string queued intent footprint entries at the patch service boundary', () => {
@@ -566,7 +639,7 @@ describe('StrandService', () => {
             reads: [42],
             writes: [],
           })) as unknown as PatchType),
-          contentBlobs: [],
+          contentAssets: [],
         },
       )).toThrow(StrandError);
     });
@@ -584,7 +657,7 @@ describe('StrandService', () => {
             reads: ['   '],
             writes: [],
           }))) as PatchType),
-          contentBlobs: [],
+          contentAssets: [],
         },
       )).toThrow(StrandError);
     });
@@ -622,13 +695,17 @@ describe('StrandService', () => {
       expect(descriptor.materialization.cacheAuthority).toBe('derived');
     });
 
-    it('persists the descriptor as a blob and updates the ref', async () => {
+    it('publishes the descriptor through the semantic strand store', async () => {
       await service.create({ strandId: 'alpha' });
 
-      expect(graph._persistence.writeBlob).toHaveBeenCalledTimes(1);
-      expect(graph._persistence.updateRef).toHaveBeenCalledTimes(1);
-      const refPath = requirePresent(graph._persistence.updateRef.mock.calls[0])[0];
-      expect(refPath).toContain('strands/alpha');
+      expect(graph._strandStore.publishDescriptor).toHaveBeenCalledTimes(1);
+      expect(graph._strandStore.publishDescriptor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          graphName: 'test-graph',
+          strandId: 'alpha',
+          attachments: [],
+        }),
+      );
     });
 
     it('generates a strandId when none is provided', async () => {
@@ -1035,9 +1112,8 @@ describe('StrandService', () => {
     beforeEach(() => {
       // Create a mock class constructor with static open()
       detachedGraph = createMockGraph();
-      // Copy refs/blobs from main graph to detached
+      // Share the same semantic in-memory stores with the detached graph.
       detachedGraph._persistence.readRef = graph._persistence.readRef;
-      detachedGraph._persistence.readBlob = graph._persistence.readBlob;
       detachedGraph._persistence.listRefs = graph._persistence.listRefs;
       detachedGraph._loadPatchChainFromSha = graph._loadPatchChainFromSha;
 
@@ -1301,7 +1377,7 @@ describe('StrandService', () => {
       expect(intent.patch).toBeDefined();
       expect(Array.isArray(intent.reads)).toBe(true);
       expect(Array.isArray(intent.writes)).toBe(true);
-      expect(Array.isArray(intent.contentBlobOids)).toBe(true);
+      expect(Array.isArray(intent.contentAssetHandles)).toBe(true);
       expect(Object.isFrozen(intent)).toBe(true);
     });
 
@@ -1377,7 +1453,7 @@ describe('StrandService', () => {
             patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
             reads: ['n1'],
             writes: ['n1'],
-            contentBlobOids: [],
+            contentAssetHandles: [],
           }],
         },
       });
@@ -1439,7 +1515,7 @@ describe('StrandService', () => {
               patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
               reads: ['n1'],
               writes: ['n1'],
-              contentBlobOids: [],
+              contentAssetHandles: [],
             },
             {
               intentId: 'alpha.intent.0002',
@@ -1447,7 +1523,7 @@ describe('StrandService', () => {
               patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 2)] }),
               reads: ['n1'],
               writes: ['n1'],
-              contentBlobOids: [],
+              contentAssetHandles: [],
             },
             {
               intentId: 'alpha.intent.0003',
@@ -1455,7 +1531,7 @@ describe('StrandService', () => {
               patch: makePatch({ ops: [makeNodeAddOp('n2', 'w1', 3)] }),
               reads: ['n2'],
               writes: ['n2'],
-              contentBlobOids: [],
+              contentAssetHandles: [],
             },
           ],
         },
@@ -1485,7 +1561,7 @@ describe('StrandService', () => {
             patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
             reads: ['n1'],
             writes: ['n1'],
-            contentBlobOids: [],
+            contentAssetHandles: [],
           }],
         },
       });
@@ -1906,18 +1982,18 @@ describe('StrandService', () => {
   // ── descriptor store seam ─────────────────────────────────────────────────
 
   describe('descriptor store seam', () => {
-    it('parses valid descriptor blob', async () => {
+    it('parses a valid descriptor from the semantic store', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
-      const oid = nextOid();
-      blobs.set(oid, textEncode(JSON.stringify(desc)));
+      storeDescriptor(desc);
 
-      const result = await service._descriptorStore.readDescriptorByOid(oid, 'alpha');
-      expect(result.strandId).toBe('alpha');
+      const result = await service._descriptorStore.readDescriptor('alpha');
+      expect(requirePresent(result).strandId).toBe('alpha');
     });
 
-    it('throws E_STRAND_MISSING_OBJECT for missing blob', async () => {
+    it('throws E_STRAND_MISSING_OBJECT when descriptor storage cannot open a publication', async () => {
+      refs.set('refs/warp/test-graph/strands/ghost', 'nonexistent');
       try {
-        await service._descriptorStore.readDescriptorByOid('nonexistent', 'ghost');
+        await service._descriptorStore.readDescriptor('ghost');
         expect.unreachable('should have thrown');
       } catch (err) {
         expect(requireStrandError(err).code).toBe('E_STRAND_MISSING_OBJECT');
@@ -1927,9 +2003,10 @@ describe('StrandService', () => {
     it('throws E_STRAND_CORRUPT for invalid JSON', async () => {
       const oid = nextOid();
       blobs.set(oid, textEncode('not json'));
+      refs.set('refs/warp/test-graph/strands/broken', oid);
 
       try {
-        await service._descriptorStore.readDescriptorByOid(oid, 'broken');
+        await service._descriptorStore.readDescriptor('broken');
         expect.unreachable('should have thrown');
       } catch (err) {
         expect(requireStrandError(err).code).toBe('E_STRAND_CORRUPT');
@@ -1940,9 +2017,10 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha', graphName: 'other-graph' });
       const oid = nextOid();
       blobs.set(oid, textEncode(JSON.stringify(desc)));
+      refs.set('refs/warp/test-graph/strands/alpha', oid);
 
       try {
-        await service._descriptorStore.readDescriptorByOid(oid, 'alpha');
+        await service._descriptorStore.readDescriptor('alpha');
         expect.unreachable('should have thrown');
       } catch (err) {
         // Wraps the graph mismatch as corrupt since the inner error is re-thrown
@@ -1954,16 +2032,19 @@ describe('StrandService', () => {
   // ── _writeDescriptor ──────────────────────────────────────────────────────
 
   describe('_writeDescriptor', () => {
-    it('serializes descriptor as JSON blob and updates ref', async () => {
+    it('serializes and publishes a descriptor through StrandStorePort', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
       await strandServicePrivate(service)._writeDescriptor(desc);
 
-      expect(graph._persistence.writeBlob).toHaveBeenCalledTimes(1);
-      expect(graph._persistence.updateRef).toHaveBeenCalledTimes(1);
-
-      // Verify the written blob is valid JSON
-      const writtenData = requirePresent(graph._persistence.writeBlob.mock.calls[0])[0];
+      expect(graph._strandStore.publishDescriptor).toHaveBeenCalledTimes(1);
+      const request = requirePresent(graph._strandStore.publishDescriptor.mock.calls[0])[0];
+      expect(request).toMatchObject({
+        graphName: 'test-graph',
+        strandId: 'alpha',
+        attachments: [],
+      });
+      const writtenData = request.descriptor;
       const parsed = JSON.parse(textDecode(writtenData));
       expect(parsed.strandId).toBe('alpha');
     });
@@ -2509,8 +2590,13 @@ describe('StrandService', () => {
         sha: 'new-head-sha',
       });
 
-      expect(graph._persistence.writeBlob).toHaveBeenCalled();
-      expect(graph._persistence.updateRef).toHaveBeenCalled();
+      expect(graph._strandStore.publishDescriptor).toHaveBeenCalledTimes(1);
+      const request = requirePresent(graph._strandStore.publishDescriptor.mock.calls[0])[0];
+      const published = JSON.parse(textDecode(request.descriptor));
+      expect(published.overlay).toMatchObject({
+        headPatchSha: 'new-head-sha',
+        patchCount: 1,
+      });
     });
 
     it('updates maxObservedLamport when patch lamport exceeds current', async () => {
@@ -2560,144 +2646,131 @@ describe('StrandService', () => {
 
   describe('_commitQueuedPatch', () => {
     it('commits a patch via patch journal when available', async () => {
-      const mockJournal = {
-        writePatch: vi.fn(async () => 'a'.repeat(40)),
-      };
-      graph._patchJournal = mockJournal;
+      const appendPatch = graph._patchJournal.appendPatch;
 
       const result = await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
         patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
-        contentBlobOids: [],
+        contentAssetHandles: [],
         lamport: 5,
       });
 
-      expect(mockJournal.writePatch).toHaveBeenCalledWith(
-        expect.objectContaining({ writer: 'alpha', lamport: 5 }),
+      expect(appendPatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          graph: 'test-graph',
+          writer: 'alpha',
+          targetRef: 'refs/warp/test-graph/strand-overlays/alpha',
+          expectedHead: null,
+          parent: null,
+          attachments: [],
+          patch: expect.objectContaining({ writer: 'alpha', lamport: 5 }),
+        }),
       );
-      expect(result.sha).toBeTruthy();
       expect(result.patch.writer).toBe('alpha');
       expect(result.patch.lamport).toBe(5);
+      expect(result.retention.handle.toString()).toBe(`test-asset:${result.sha}`);
+      expect(result.bundleHandle.toString()).toBe(`bundle:${result.sha}`);
+      expect(result.stagedPatch.handle.toString()).toBe(`asset:${result.sha}`);
     });
 
-    it('falls back to codec + writeBlob when no journal', async () => {
+    it('fails closed when no semantic patch journal is configured', async () => {
       graph._patchJournal = null;
 
-      const result = await strandServicePrivate(service)._commitQueuedPatch({
+      await expect(strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
         patch: makePatch(),
-        contentBlobOids: [],
+        contentAssetHandles: [],
         lamport: 3,
-      });
-
-      expect(graph._codec.encode).toHaveBeenCalled();
-      expect(graph._persistence.writeBlob).toHaveBeenCalled();
-      expect(result.sha).toBeTruthy();
+      })).rejects.toMatchObject({ code: 'E_MISSING_JOURNAL' });
     });
 
-    it('uses patchBlobStorage when available', async () => {
-      graph._patchJournal = null;
-      graph._patchBlobStorage = {
-        store: vi.fn(async () => 'b'.repeat(40)),
-      };
+    it('forwards opaque content handles as journal attachments', async () => {
+      const appendPatch = graph._patchJournal.appendPatch;
 
       await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
         patch: makePatch(),
-        contentBlobOids: [],
+        contentAssetHandles: ['asset:1', 'asset:2'],
         lamport: 1,
       });
 
-      expect(graph._patchBlobStorage.store).toHaveBeenCalled();
+      expect(appendPatch).toHaveBeenCalledWith(expect.objectContaining({
+        attachments: [new AssetHandle('asset:1'), new AssetHandle('asset:2')],
+      }));
     });
 
-    it('creates tree with content blob entries', async () => {
-      graph._patchJournal = null;
+    it('preserves duplicate attachment handles for journal policy', async () => {
+      const appendPatch = graph._patchJournal.appendPatch;
 
       await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
         patch: makePatch(),
-        contentBlobOids: ['blob-1', 'blob-2'],
+        contentAssetHandles: ['asset:1', 'asset:1'],
         lamport: 1,
       });
 
-      const treeEntries = (requirePresent(graph._persistence.writeTree.mock.calls[0])[0] as string[]);
-      expect(treeEntries).toHaveLength(3); // patch.cbor + 2 content blobs
-      expect(treeEntries.some((entry) => entry.includes('_content_blob-1'))).toBe(true);
-      expect(treeEntries.some((entry) => entry.includes('_content_blob-2'))).toBe(true);
+      expect(appendPatch).toHaveBeenCalledWith(expect.objectContaining({
+        attachments: [new AssetHandle('asset:1'), new AssetHandle('asset:1')],
+      }));
     });
 
-    it('deduplicates content blob OIDs', async () => {
-      graph._patchJournal = null;
-
-      await strandServicePrivate(service)._commitQueuedPatch({
-        strandId: 'alpha',
-        overlayId: 'alpha',
-        parentSha: null,
-        patch: makePatch(),
-        contentBlobOids: ['blob-1', 'blob-1', 'blob-1'],
-        lamport: 1,
-      });
-
-      const treeEntries = requirePresent(graph._persistence.writeTree.mock.calls[0])[0];
-      expect(treeEntries).toHaveLength(2); // patch.cbor + 1 unique content blob
-    });
-
-    it('sets parent commit when parentSha is provided', async () => {
-      graph._patchJournal = null;
+    it('passes the expected head and parent to the journal', async () => {
+      const appendPatch = graph._patchJournal.appendPatch;
+      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'parent-sha-abc');
 
       await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: 'parent-sha-abc',
         patch: makePatch(),
-        contentBlobOids: [],
+        contentAssetHandles: [],
         lamport: 1,
       });
 
-      const commitArgs = requirePresent(graph._persistence.commitNodeWithTree.mock.calls[0])[0];
-      expect(commitArgs.parents).toEqual(['parent-sha-abc']);
+      expect(appendPatch).toHaveBeenCalledWith(expect.objectContaining({
+        expectedHead: 'parent-sha-abc',
+        parent: 'parent-sha-abc',
+      }));
     });
 
-    it('uses empty parents when parentSha is null', async () => {
-      graph._patchJournal = null;
+    it('passes a null expected head for the first overlay patch', async () => {
+      const appendPatch = graph._patchJournal.appendPatch;
 
       await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
         patch: makePatch(),
-        contentBlobOids: [],
+        contentAssetHandles: [],
         lamport: 1,
       });
 
-      const commitArgs = requirePresent(graph._persistence.commitNodeWithTree.mock.calls[0])[0];
-      expect(commitArgs.parents).toEqual([]);
+      expect(appendPatch).toHaveBeenCalledWith(expect.objectContaining({
+        expectedHead: null,
+        parent: null,
+      }));
     });
 
-    it('updates overlay ref after commit', async () => {
-      graph._patchJournal = null;
+    it('rejects a stale expected overlay head', async () => {
+      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'advanced-head');
 
-      await strandServicePrivate(service)._commitQueuedPatch({
+      await expect(strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
         patch: makePatch(),
-        contentBlobOids: [],
+        contentAssetHandles: [],
         lamport: 1,
-      });
-
-      expect(graph._persistence.updateRef).toHaveBeenCalled();
-      const refCall = requirePresent(graph._persistence.updateRef.mock.calls[0]);
-      expect(refCall[0]).toContain('overlay');
+      })).rejects.toBeInstanceOf(PatchPublicationConflictError);
+      expect(refs.get('refs/warp/test-graph/strand-overlays/alpha')).toBe('advanced-head');
     });
   });
 
@@ -2765,8 +2838,6 @@ describe('StrandService', () => {
     });
 
     it('commits multiple intents sequentially with incrementing lamport', async () => {
-      graph._patchJournal = null;
-
       const desc = buildValidDescriptor({
         strandId: 'alpha',
         overlay: {
@@ -2785,7 +2856,7 @@ describe('StrandService', () => {
           patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
           reads: ['n1'],
           writes: ['n1'],
-          contentBlobOids: [],
+          contentAssetHandles: [],
           footprint: new Set(['n1']),
         },
         {
@@ -2794,7 +2865,7 @@ describe('StrandService', () => {
           patch: makePatch({ ops: [makeNodeAddOp('n2', 'w1', 2)] }),
           reads: ['n2'],
           writes: ['n2'],
-          contentBlobOids: [],
+          contentAssetHandles: [],
           footprint: new Set(['n2']),
         },
       ];

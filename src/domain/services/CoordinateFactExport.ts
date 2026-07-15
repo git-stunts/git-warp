@@ -118,7 +118,7 @@ function serializeNodeContentOp(op: VisibleStateTransferOperation): VisibleState
   return {
     op: op.op,
     nodeId: op['nodeId'],
-    contentOid: op['contentOid'],
+    contentHandle: op['contentHandle'],
     mime: op['mime'] ?? null,
     size: op['size'] ?? null,
   };
@@ -133,7 +133,7 @@ function serializeEdgeContentOp(op: VisibleStateTransferOperation): VisibleState
     from: op['from'],
     to: op['to'],
     label: op['label'],
-    contentOid: op['contentOid'],
+    contentHandle: op['contentHandle'],
     mime: op['mime'] ?? null,
     size: op['size'] ?? null,
   };

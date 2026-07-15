@@ -1,324 +1,180 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
-import { decodePatchMessage } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import { requirePatchOp } from '../PatchOperationAssertions.ts';
+import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import { createGitCasPatchStorage } from '../../../../src/ports/CommitMessageCodecPort.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import {
   createPatchBuilder,
   createPatchBuilderMockPersistence as createMockPersistence,
   createPatchJournal,
-  decodeWrittenPatch,
 } from './PatchBuilderTestHarness.ts';
 
-describe('PatchBuilder commit', () => {
-  describe('commit()', () => {
-    it('commits a patch and returns the commit SHA', async () => {
-      const persistence = createMockPersistence();
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-      });
-
-      builder.addNode('x');
-      const sha = await builder.commit();
-
-      expect(sha).toBe('c'.repeat(40));
-      expect(persistence.writeBlob).toHaveBeenCalledOnce();
-      expect(persistence.writeTree).toHaveBeenCalledOnce();
-      expect(persistence.commitNodeWithTree).toHaveBeenCalledOnce();
-      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
-        'refs/warp/test-graph/writers/writer1',
-        'c'.repeat(40),
-        null,
-      );
+describe('PatchBuilder semantic commit', () => {
+  it('publishes one causal patch request and returns its commit identity', async () => {
+    const persistence = createMockPersistence();
+    const patchJournal = createPatchJournal(persistence);
+    const builder = createPatchBuilder({
+      persistence,
+      patchJournal,
+      graphName: 'events',
+      writerId: 'writer-1',
+      lamport: 1,
     });
+    builder.addNode('node:a').setProperty('node:a', 'status', 'open');
 
-    it('throws error for empty patch', async () => {
-      const persistence = createMockPersistence();
-      const builder = createPatchBuilder({
-        persistence,
-        graphName: 'test-graph',
-        writerId: 'writer1',
+    await expect(builder.commit()).resolves.toBe('c'.repeat(40));
+
+    expect(patchJournal.requests).toHaveLength(1);
+    expect(patchJournal.requests[0]).toMatchObject({
+      graph: 'events',
+      writer: 'writer-1',
+      targetRef: 'refs/warp/events/writers/writer-1',
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+      patch: {
+        schema: 2,
+        writer: 'writer-1',
         lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-      });
-
-      await expect(builder.commit()).rejects.toThrow('Cannot commit empty patch');
-    });
-
-    it('creates commit with schema:2 in trailers', async () => {
-      const persistence = createMockPersistence();
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-      });
-
-      builder.addNode('x');
-      await builder.commit();
-
-      // Check the commit message passed to commitNodeWithTree
-      const commitCall = persistence.commitNodeWithTree.mock.calls[0]![0];
-      const decoded = decodePatchMessage(commitCall.message);
-
-      expect(decoded.schema).toBe(2);
-      expect(decoded.writer).toBe('writer1');
-      expect(decoded.graph).toBe('test-graph');
-      expect(decoded.lamport).toBe(1);
-    });
-
-    it('increments lamport when continuing from existing ref', async () => {
-      const persistence = createMockPersistence();
-      const existingSha = 'd'.repeat(40);
-      const existingPatchOid = 'e'.repeat(40);
-      // Simulate existing ref with lamport 5
-      persistence.readRef.mockResolvedValue(existingSha);
-      persistence.showNode.mockResolvedValue(
-        `warp:patch\n\neg-kind: patch\neg-graph: test-graph\neg-writer: writer1\neg-lamport: 5\neg-patch-oid: ${existingPatchOid}\neg-schema: 2`
-      );
-
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1, // Constructor lamport is 1, but commit should use 6
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-        expectedParentSha: existingSha, // Race detection: expected parent matches current ref
-      });
-
-      builder.addNode('x');
-      await builder.commit();
-
-      // Check the commit has lamport 6 (5 + 1)
-      const commitCall = persistence.commitNodeWithTree.mock.calls[0]![0];
-      const decoded = decodePatchMessage(commitCall.message);
-      expect(decoded.lamport).toBe(6);
-
-      // Parent should be the existing commit
-      expect(commitCall.parents).toEqual([existingSha]);
-    });
-
-    it('creates tree with patch.cbor blob', async () => {
-      const persistence = createMockPersistence();
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-      });
-
-      builder.addNode('x');
-      await builder.commit();
-
-      // Check writeTree was called with correct format
-      const treeCall = persistence.writeTree.mock.calls[0]![0];
-      expect(treeCall).toHaveLength(1);
-      expect(treeCall[0]).toMatch(/^100644 blob [a-f0-9]+\tpatch\.cbor$/);
-    });
-
-    it('writes patch blob with CBOR encoding', async () => {
-      const persistence = createMockPersistence();
-      const patchJournal = createPatchJournal(persistence);
-      const vv = VersionVector.empty();
-      vv.set('otherWriter', 3);
-
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal,
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: vv,
-        getCurrentState: () => null,
-      });
-
-      builder.addNode('x').setProperty('x', 'name', 'X');
-      await builder.commit();
-
-      // Decode the blob that was written
-      const patch = decodeWrittenPatch(persistence);
-
-      expect(patch.schema).toBe(2);
-      expect(patch.writer).toBe('writer1');
-      expect(patch.lamport).toBe(1);
-      expect(patch.ops).toHaveLength(2);
-      expect(requirePatchOp(patch, 0)).toMatchObject({ type: 'NodeAdd' });
-      expect(requirePatchOp(patch, 1)).toMatchObject({ type: 'PropSet' });
-      // Context should be serialized version vector
-      expect(patch.context).toBeDefined();
-    });
-
-    it('first commit has no parents', async () => {
-      const persistence = createMockPersistence();
-      // No existing ref
-      persistence.readRef.mockResolvedValue(null);
-
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-      });
-
-      builder.addNode('x');
-      await builder.commit();
-
-      const commitCall = persistence.commitNodeWithTree.mock.calls[0]![0];
-      expect(commitCall.parents).toEqual([]);
+        writes: ['node:a'],
+      },
     });
   });
 
-  describe('use-after-commit guard', () => {
-    async function createCommittedBuilder() {
-      const persistence = createMockPersistence();
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-      });
-      builder.addNode('x');
-      await builder.commit();
-      return { builder, persistence };
-    }
+  it('returns publication retention evidence from commitWithEvidence()', async () => {
+    const persistence = createMockPersistence();
+    const patchJournal = createPatchJournal(persistence);
+    const builder = createPatchBuilder({ persistence, patchJournal });
+    builder.addNode('node:a');
 
-    it('throws after commit when calling addNode', async () => {
-      const { builder } = await createCommittedBuilder();
-      expect(() => builder.addNode('y')).toThrow('PatchBuilder already committed — create a new builder');
+    const result = await builder.commitWithEvidence();
+
+    expect(result.sha).toBe('c'.repeat(40));
+    expect(result.bundleHandle.toString()).toBe('bundle:test-patch');
+    expect(result.retention).toMatchObject({
+      policy: 'pinned',
+      reachability: 'anchored',
+      root: { kind: 'publication' },
     });
+    expect(result.patch.ops).toHaveLength(1);
+  });
 
-    it('throws after commit when calling removeNode', async () => {
-      const { builder } = await createCommittedBuilder();
-      expect(() => builder.removeNode('x')).toThrow('PatchBuilder already committed — create a new builder');
+  it('rejects empty patches before calling storage', async () => {
+    const persistence = createMockPersistence();
+    const patchJournal = createPatchJournal(persistence);
+    const builder = createPatchBuilder({ persistence, patchJournal });
+
+    await expect(builder.commit()).rejects.toMatchObject({ code: 'E_PATCH_EMPTY' });
+    expect(patchJournal.requests).toEqual([]);
+  });
+
+  it('advances lamport time and forwards the existing causal parent', async () => {
+    const parent = 'd'.repeat(40);
+    const persistence = createMockPersistence({
+      readRef: createMockPersistence().readRef.mockResolvedValue(parent),
+      showNode: createMockPersistence().showNode.mockResolvedValue(
+        DEFAULT_COMMIT_MESSAGE_CODEC.encodePatch({
+          kind: 'patch',
+          graph: 'events',
+          writer: 'writer-1',
+          lamport: 5,
+          schema: 2,
+          patchHandle: new AssetHandle('asset:parent'),
+          storage: createGitCasPatchStorage({ encrypted: false }),
+        }),
+      ),
     });
-
-    it('throws after commit when calling addEdge', async () => {
-      const { builder } = await createCommittedBuilder();
-      expect(() => builder.addEdge('a', 'b', 'rel')).toThrow('PatchBuilder already committed — create a new builder');
+    const patchJournal = createPatchJournal(persistence);
+    const builder = createPatchBuilder({
+      persistence,
+      patchJournal,
+      graphName: 'events',
+      writerId: 'writer-1',
+      lamport: 1,
+      expectedParentSha: parent,
     });
+    builder.addNode('node:a');
 
-    it('throws after commit when calling removeEdge', async () => {
-      const { builder } = await createCommittedBuilder();
-      expect(() => builder.removeEdge('a', 'b', 'rel')).toThrow('PatchBuilder already committed — create a new builder');
-    });
+    await builder.commit();
 
-    it('throws after commit when calling setProperty', async () => {
-      const { builder } = await createCommittedBuilder();
-      expect(() => builder.setProperty('x', 'name', 'Alice')).toThrow('PatchBuilder already committed — create a new builder');
-    });
-
-    it('throws after commit when calling setEdgeProperty', async () => {
-      const { builder } = await createCommittedBuilder();
-      expect(() => builder.setEdgeProperty('a', 'b', 'rel', 'since', '2026-01-01')).toThrow('PatchBuilder already committed — create a new builder');
-    });
-
-    it('throws after commit when calling attachContent', async () => {
-      const { builder, persistence } = await createCommittedBuilder();
-      const initialWriteBlobCalls = persistence.writeBlob.mock.calls.length;
-      await expect(builder.attachContent('x', 'payload')).rejects.toThrow('PatchBuilder already committed — create a new builder');
-      expect(persistence.writeBlob).toHaveBeenCalledTimes(initialWriteBlobCalls);
-    });
-
-    it('throws after commit when calling attachEdgeContent', async () => {
-      const { builder, persistence } = await createCommittedBuilder();
-      const initialWriteBlobCalls = persistence.writeBlob.mock.calls.length;
-      await expect(builder.attachEdgeContent('a', 'b', 'rel', 'payload')).rejects.toThrow('PatchBuilder already committed — create a new builder');
-      expect(persistence.writeBlob).toHaveBeenCalledTimes(initialWriteBlobCalls);
-    });
-
-    it('throws after commit when calling commit again', async () => {
-      const { builder } = await createCommittedBuilder();
-      await expect(builder.commit()).rejects.toThrow('PatchBuilder already committed — create a new builder');
-    });
-
-    it('throws during an in-flight commit when mutating or committing again', async () => {
-      let releaseReadRef: (value: string | null) => void = () => {};
-      const readRefPromise: Promise<string | null> = new Promise((resolve) => {
-        releaseReadRef = resolve;
-      });
-      const persistence = createMockPersistence();
-      persistence.readRef.mockImplementation(() => readRefPromise);
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-      });
-
-      builder.addNode('x');
-      const pendingCommit = builder.commit();
-
-      expect(() => builder.addNode('y')).toThrow('PatchBuilder already committed — create a new builder');
-      await expect(builder.commit()).rejects.toThrow('PatchBuilder already committed — create a new builder');
-
-      releaseReadRef(null);
-      await expect(pendingCommit).resolves.toBe('c'.repeat(40));
-    });
-
-    it('allows reading ops/reads/writes/versionVector after commit', async () => {
-      const persistence = createMockPersistence();
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-      });
-
-      builder.addEdge('user:alice', 'user:bob', 'follows');
-      await builder.commit();
-
-      const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
-      expect(builder.ops).toHaveLength(1);
-      expect(builder.reads.has('user:alice')).toBe(true);
-      expect(builder.reads.has('user:bob')).toBe(true);
-      expect(builder.writes.has(edgeKey)).toBe(true);
-      expect(builder.versionVector.get('writer1')).toBe(1);
-    });
-
-    it('does NOT set _committed on failed commit (CAS ref advance throws)', async () => {
-      const persistence = createMockPersistence();
-      persistence.compareAndSwapRef.mockRejectedValueOnce(new Error('simulated compareAndSwapRef failure'));
-      const builder = createPatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-      });
-
-      builder.addNode('x');
-      await expect(builder.commit()).rejects.toThrow('simulated compareAndSwapRef failure');
-      await expect(builder.commit()).resolves.toBe('c'.repeat(40));
+    expect(patchJournal.requests[0]).toMatchObject({
+      expectedHead: parent,
+      parent,
+      patch: { lamport: 6 },
     });
   });
 
+  it('preserves attachment handles in the publication request', async () => {
+    const persistence = createMockPersistence();
+    const patchJournal = createPatchJournal(persistence);
+    const builder = createPatchBuilder({ persistence, patchJournal });
+    builder.addNode('node:a');
+    (builder as unknown as { _contentAssets: AssetHandle[] })._contentAssets.push(
+      new AssetHandle('asset:attachment'),
+    );
+
+    await builder.commit();
+
+    expect(patchJournal.requests[0]?.attachments.map(String)).toEqual(['asset:attachment']);
+  });
+
+  it('blocks mutation and repeat publication after a successful commit', async () => {
+    const persistence = createMockPersistence();
+    const patchJournal = createPatchJournal(persistence);
+    const builder = createPatchBuilder({ persistence, patchJournal });
+    builder.addNode('node:a');
+    await builder.commit();
+
+    expect(() => builder.addNode('node:b')).toThrow(/already committed/u);
+    await expect(builder.attachContent('node:a', 'payload')).rejects.toThrow(/already committed/u);
+    await expect(builder.commit()).rejects.toThrow(/already committed/u);
+    expect(patchJournal.requests).toHaveLength(1);
+  });
+
+  it('blocks mutation while publication is in flight', async () => {
+    let releaseRead: (head: string | null) => void = () => {};
+    const read = new Promise<string | null>((resolve) => {
+      releaseRead = resolve;
+    });
+    const persistence = createMockPersistence();
+    persistence.readRef.mockImplementation(async () => await read);
+    const patchJournal = createPatchJournal(persistence);
+    const builder = createPatchBuilder({ persistence, patchJournal });
+    builder.addNode('node:a');
+
+    const pending = builder.commit();
+    expect(() => builder.addNode('node:b')).toThrow(/already committed/u);
+    await expect(builder.commit()).rejects.toThrow(/already committed/u);
+    releaseRead(null);
+    await expect(pending).resolves.toBe('c'.repeat(40));
+  });
+
+  it('allows retry after a storage failure', async () => {
+    const persistence = createMockPersistence();
+    const patchJournal = createPatchJournal(persistence);
+    patchJournal.failure = new Error('publication unavailable');
+    const builder = createPatchBuilder({ persistence, patchJournal });
+    builder.addNode('node:a');
+
+    await expect(builder.commit()).rejects.toThrow('publication unavailable');
+    patchJournal.failure = null;
+    await expect(builder.commit()).resolves.toBe('c'.repeat(40));
+  });
+
+  it('keeps read and write sets observable after publication', async () => {
+    const persistence = createMockPersistence();
+    const builder = createPatchBuilder({
+      persistence,
+      patchJournal: createPatchJournal(persistence),
+      versionVector: VersionVector.empty(),
+    });
+    builder.addEdge('user:alice', 'user:bob', 'follows');
+    await builder.commit();
+
+    expect(builder.reads).toEqual(new Set(['user:alice', 'user:bob']));
+    expect(builder.writes).toEqual(new Set([
+      encodeEdgeKey('user:alice', 'user:bob', 'follows'),
+    ]));
+  });
 });

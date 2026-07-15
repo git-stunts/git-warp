@@ -1,229 +1,84 @@
-import { describe, it, expect, vi } from 'vitest';
-import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
-import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
+import { describe, expect, it } from 'vitest';
+
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { applyPatchOp, createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
+import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildTestState() {
   const state = createEmptyState();
   const writer = 'w1';
   const sha = 'a'.repeat(40);
-  let opIdx = 0;
+  let opIndex = 0;
   let lamport = 1;
 
-  // Add nodes
   for (const nodeId of ['A', 'B', 'C']) {
-    const dot = Dot.create(writer, lamport);
-    const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyPatchOp(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
-    lamport++;
+    applyPatchOp(
+      state,
+      { type: 'NodeAdd', node: nodeId, dot: Dot.create(writer, lamport) },
+      new EventId(lamport, writer, sha, opIndex++),
+    );
+    lamport += 1;
   }
-
-  // Add edges
-  for (const { from, to, label } of [
+  for (const edge of [
     { from: 'A', to: 'B', label: 'manages' },
     { from: 'A', to: 'C', label: 'owns' },
   ]) {
-    const dot = Dot.create(writer, lamport);
-    const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyPatchOp(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
-    lamport++;
+    applyPatchOp(
+      state,
+      { type: 'EdgeAdd', ...edge, dot: Dot.create(writer, lamport) },
+      new EventId(lamport, writer, sha, opIndex++),
+    );
+    lamport += 1;
   }
-
-  // Add properties
-  for (const { nodeId, key, value } of [
-    { nodeId: 'A', key: 'name', value: 'Alice' },
-    { nodeId: 'B', key: 'role', value: 'admin' },
+  for (const property of [
+    { node: 'A', key: 'name', value: 'Alice' },
+    { node: 'B', key: 'role', value: 'admin' },
   ]) {
-    const eventId = new EventId(lamport, writer, sha, opIdx++);
-    applyPatchOp(state, { type: 'PropSet', node: nodeId, key, value }, eventId);
-    lamport++;
+    applyPatchOp(
+      state,
+      { type: 'PropSet', ...property },
+      new EventId(lamport, writer, sha, opIndex++),
+    );
+    lamport += 1;
   }
-
   return state;
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────────
-
 describe('MaterializedViewService', () => {
-  describe('build', () => {
-    it('builds logicalIndex and receipt from state', () => {
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const state = buildTestState();
-      const { tree, logicalIndex, receipt } = service.build(state);
+  it('builds a logical index and receipt from state', () => {
+    const result = new MaterializedViewService({ codec: defaultCodec }).build(buildTestState());
 
-      // tree is populated
-      expect(Object.keys(tree).length).toBeGreaterThan(0);
-
-      // logicalIndex works
-      expect(logicalIndex.isAlive('A')).toBe(true);
-      expect(logicalIndex.isAlive('B')).toBe(true);
-      expect(logicalIndex.isAlive('Z')).toBe(false);
-
-      // receipt has nodeCount
-      expect(/** @type {{ nodeCount: number }} */ (receipt)['nodeCount']).toBe(3);
-    });
-
-    it('builds a working propertyReader from state', async () => {
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const state = buildTestState();
-      const { propertyReader } = service.build(state);
-
-      expect(propertyReader).not.toBeNull();
-
-      // Verify property reader returns correct node properties
-      const propsA = await propertyReader.getNodeProps('A');
-      expect(propsA).toEqual({ name: 'Alice' });
-
-      const propsB = await propertyReader.getNodeProps('B');
-      expect(propsB).toEqual({ role: 'admin' });
-
-      // Node with no properties returns null
-      const propsC = await propertyReader.getNodeProps('C');
-      expect(propsC).toBeNull();
-
-      // Non-existent node returns null
-      const propsZ = await propertyReader.getNodeProps('Z');
-      expect(propsZ).toBeNull();
-    });
-
-    it('logicalIndex getEdges returns correct edges', () => {
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const state = buildTestState();
-      const { logicalIndex } = service.build(state);
-
-      const edges = logicalIndex.getEdges('A', 'out');
-      expect(edges.length).toBe(2);
-      const labels = edges.map((e) => e.label).sort();
-      expect(labels).toEqual(['manages', 'owns']);
-    });
+    expect(Object.keys(result.tree).length).toBeGreaterThan(0);
+    expect(result.logicalIndex.isAlive('A')).toBe(true);
+    expect(result.logicalIndex.isAlive('B')).toBe(true);
+    expect(result.logicalIndex.isAlive('Z')).toBe(false);
+    expect(result.receipt['nodeCount']).toBe(3);
   });
 
-  describe('persistIndexTree', () => {
-    it('writes blobs and creates tree, returns OID', async () => {
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const state = buildTestState();
-      const { tree } = service.build(state);
+  it('builds a lazy property reader for the materialized view', async () => {
+    const { propertyReader } = new MaterializedViewService({ codec: defaultCodec })
+      .build(buildTestState());
 
-      const blobOids = new Map();
-      let blobCounter = 0;
-      const mockPersistence = {
-        writeBlob: vi.fn((buf) => {
-          const oid = `blob_${String(blobCounter++).padStart(4, '0')}${'0'.repeat(35)}`;
-          blobOids.set(oid, buf);
-          return Promise.resolve(oid);
-        }),
-        writeTree: vi.fn(() => Promise.resolve('tree_oid_' + '0'.repeat(31))),
-      };
-
-      const treeOid = await service.persistIndexTree(tree, mockPersistence);
-
-      // writeBlob called for each shard
-      expect(mockPersistence.writeBlob).toHaveBeenCalledTimes(Object.keys(tree).length);
-      // writeTree called once
-      expect(mockPersistence.writeTree).toHaveBeenCalledTimes(1);
-      // Returns the tree OID
-      expect(treeOid).toBe('tree_oid_' + '0'.repeat(31));
-
-      // Tree entries are sorted and have correct format
-      const firstCall = (mockPersistence.writeTree.mock.calls as string[][])[0];
-      if (!firstCall) { throw new Error('expected calls'); }
-      const treeEntries = firstCall[0];
-      if (!treeEntries) { throw new Error('expected treeEntries'); }
-      for (const entry of treeEntries) {
-        expect(entry).toMatch(/^100644 blob [^\s]+\t/);
-      }
-    });
+    await expect(propertyReader.getNodeProps('A')).resolves.toEqual({ name: 'Alice' });
+    await expect(propertyReader.getNodeProps('B')).resolves.toEqual({ role: 'admin' });
+    await expect(propertyReader.getNodeProps('C')).resolves.toBeNull();
+    await expect(propertyReader.getNodeProps('Z')).resolves.toBeNull();
   });
 
-  describe('loadFromOids', () => {
-    it('loads logicalIndex from shard OIDs via storage', async () => {
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const state = buildTestState();
-      const { tree } = service.build(state);
+  it('builds deterministic neighborhood queries', () => {
+    const { logicalIndex } = new MaterializedViewService({ codec: defaultCodec })
+      .build(buildTestState());
 
-      // Simulate OID→buffer mapping (only index shards, not props)
-      /** @type {Record<string, string>} */ const shardOids = {};
-      const blobStore = new Map();
-      let oidCounter = 0;
-      for (const [path, buf] of Object.entries(tree)) {
-        const oid = `oid_${String(oidCounter++).padStart(4, '0')}${'0'.repeat(35)}`;
-        shardOids[path] = oid;
-        blobStore.set(oid, buf);
-      }
-
-      const mockStorage = {
-        readBlob: vi.fn((oid) => Promise.resolve(blobStore.get(oid))),
-      };
-
-      const result = await service.loadFromOids(shardOids, mockStorage);
-
-      expect(result.logicalIndex).toBeDefined();
-      expect(result.logicalIndex.isAlive('A')).toBe(true);
-      expect(result.logicalIndex.isAlive('Z')).toBe(false);
-
-      expect(result.propertyReader).toBeDefined();
-    });
+    expect(logicalIndex.getEdges('A', 'out').map((edge) => edge.label).sort())
+      .toEqual(['manages', 'owns']);
   });
 
-  describe('roundtrip: build → persist → load', () => {
-    it('produces identical query results after roundtrip', async () => {
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const state = buildTestState();
-      const { tree, logicalIndex: origIndex } = service.build(state);
+  it('does not expose physical persistence methods', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec });
 
-      // Persist
-      const blobStore = new Map();
-      let blobCounter = 0;
-      const mockPersistence = {
-        writeBlob: vi.fn((buf) => {
-          const oid = `b${String(blobCounter++).padStart(3, '0')}${'0'.repeat(36)}`;
-          blobStore.set(oid, buf);
-          return Promise.resolve(oid);
-        }),
-        writeTree: vi.fn((_entries) => {
-          // Extract OIDs from entries to build shardOids
-          return Promise.resolve('tree_' + '0'.repeat(35));
-        }),
-      };
-
-      await service.persistIndexTree(tree, mockPersistence);
-
-      // Build shardOids from writeBlob calls
-      /** @type {Record<string, string>} */ const shardOids = {};
-      const firstCall = (mockPersistence.writeTree.mock.calls as string[][])[0];
-      if (!firstCall) { throw new Error('expected calls'); }
-      const treeEntries = firstCall[0];
-      if (!treeEntries) { throw new Error('expected treeEntries'); }
-      for (const entry of treeEntries) {
-        const match = entry.match(/^100644 blob ([^\s]+)\t(.+)$/);
-        if (match && match[2] !== undefined && match[1] !== undefined) {
-          shardOids[match[2]] = match[1];
-        }
-      }
-
-      const mockStorage = {
-        readBlob: vi.fn((oid) => Promise.resolve(blobStore.get(oid))),
-      };
-
-      // Load
-      const { logicalIndex: loadedIndex } = await service.loadFromOids(shardOids, mockStorage);
-
-      // Compare results
-      expect(loadedIndex.isAlive('A')).toBe(origIndex.isAlive('A'));
-      expect(loadedIndex.isAlive('B')).toBe(origIndex.isAlive('B'));
-      expect(loadedIndex.isAlive('Z')).toBe(origIndex.isAlive('Z'));
-
-      const origEdges = origIndex.getEdges('A', 'out');
-      const loadedEdges = loadedIndex.getEdges('A', 'out');
-      expect(loadedEdges.length).toBe(origEdges.length);
-
-      const origLabels = origEdges.map((e) => e.label).sort();
-      const loadedLabels = loadedEdges.map((e) => e.label).sort();
-      expect(loadedLabels).toEqual(origLabels);
-    });
+    expect('persistIndexTree' in service).toBe(false);
+    expect('loadFromOids' in service).toBe(false);
   });
 });

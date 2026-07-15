@@ -11,6 +11,7 @@ import TrustCryptoPort, { type TrustSignatureVerification } from '../../../../sr
 import InMemoryGraphAdapter from '../../../../test/helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../../../test/helpers/MemoryRuntimeStorageAdapter.ts';
 import { createFakeCodecPort, createMockCrypto } from '../../../helpers/mockPorts.ts';
+import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 
 import type { NormalizedTrustConfig } from '../../../../src/domain/runtimeHelpers.ts';
 
@@ -28,7 +29,7 @@ class TestCommitMessageCodec extends CommitMessageCodecPort {
       graph: 'graph',
       writer: 'writer',
       lamport: 1,
-      patchOid: 'a'.repeat(40),
+      patchHandle: new AssetHandle('a'.repeat(40)),
       schema: 1,
       storage: LEGACY_GIT_BLOB_PATCH_STORAGE,
     };
@@ -43,10 +44,9 @@ class TestCommitMessageCodec extends CommitMessageCodecPort {
       kind: 'checkpoint',
       graph: 'graph',
       stateHash: 'b'.repeat(64),
-      frontierOid: 'c'.repeat(40),
-      indexOid: 'd'.repeat(40),
       schema: 1,
       checkpointVersion: null,
+      bundleHandle: null,
     };
   }
 

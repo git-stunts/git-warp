@@ -1,285 +1,131 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
-import { WriterError } from '../../../../src/domain/warp/Writer.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import {
+  createPatchBuilderMockPersistence as createMockPersistence,
+  createPatchJournal,
+} from './PatchBuilderTestHarness.ts';
 
-/**
- * Creates a mock persistence adapter for CAS testing.
- *
- * @param {Object} [overrides] - Method overrides
- * @returns {Object} Mock persistence adapter
- */
-function createMockPersistence(overrides = {}): any {
-  const persistence = {
-    readRef: vi.fn().mockResolvedValue(null),
-    showNode: vi.fn(),
-    writeBlob: vi.fn().mockResolvedValue('a'.repeat(40)),
-    writeTree: vi.fn().mockResolvedValue('b'.repeat(40)),
-    commitNodeWithTree: vi.fn().mockResolvedValue('c'.repeat(40)),
-    updateRef: vi.fn().mockResolvedValue(undefined),
-    compareAndSwapRef: vi.fn(),
-    ...overrides,
-  };
-  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
-    const actualOid = await persistence.readRef(ref);
-    if (actualOid !== expectedOid) {
-      throw new Error(`CAS mismatch for ${ref}`);
-    }
-    persistence.readRef.mockResolvedValue(newOid);
-  });
-  return persistence;
-}
+describe('PatchBuilder causal publication conflicts', () => {
+  it('rejects a stale expected head before calling the journal', async () => {
+    const expected = 'a'.repeat(40);
+    const actual = 'f'.repeat(40);
+    const persistence = createMockPersistence();
+    persistence.readRef.mockResolvedValue(actual);
+    const patchJournal = createPatchJournal(persistence);
+    const builder = createBuilder({ persistence, patchJournal, expectedParentSha: expected });
+    builder.addNode('node:a');
 
-/**
- * Creates a CborPatchJournalAdapter wired to the given persistence's blob ops.
- * @param {ReturnType<typeof createMockPersistence>} persistence
- * @returns {CborPatchJournalAdapter}
- */
-function createPatchJournal(persistence) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-  });
-}
-
-describe('PatchBuilder CAS conflict detection', () => {
-  it('test fixture compareAndSwapRef rejects expected-head mismatches', async () => {
-    const currentSha = 'a'.repeat(40);
-    const nextSha = 'b'.repeat(40);
-    const persistence = createMockPersistence({
-      readRef: vi.fn().mockResolvedValue(currentSha),
+    await expect(builder.commit()).rejects.toMatchObject({
+      code: 'WRITER_CAS_CONFLICT',
+      expectedSha: expected,
+      actualSha: actual,
     });
-
-    await expect(
-      persistence.compareAndSwapRef('refs/warp/test-graph/writers/writer1', nextSha, null)
-    ).rejects.toThrow('CAS mismatch');
+    expect(patchJournal.requests).toEqual([]);
   });
 
-  // ---------------------------------------------------------------
-  // CAS conflict: ref advanced between createPatch and commit
-  // ---------------------------------------------------------------
-  describe('when writer ref advances between createPatch and commit', () => {
-    it('throws WriterError with code WRITER_CAS_CONFLICT', async () => {
-      const expectedParent = 'a'.repeat(40);
-      const advancedSha = 'f'.repeat(40);
-
-      const persistence = createMockPersistence({
-        // Simulate ref having advanced to a different SHA
-        readRef: vi.fn().mockResolvedValue(advancedSha),
-      });
-
-      const builder = new PatchBuilder({
-        persistence,
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-        expectedParentSha: expectedParent,
-        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-      });
-
-      builder.addNode('x');
-
-      await expect(builder.commit()).rejects.toThrow(WriterError);
-      await expect(
-        // Re-create builder since the first commit consumed the rejection
-        new PatchBuilder({
-          persistence,
-          graphName: 'test-graph',
-          writerId: 'writer1',
-          lamport: 1,
-          versionVector: VersionVector.empty(),
-          getCurrentState: () => null,
-          expectedParentSha: expectedParent,
-          commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-        })
-          .addNode('x')
-          .commit()
-      ).rejects.toMatchObject({ code: 'WRITER_CAS_CONFLICT' });
+  it('reports deleted and unexpectedly-created refs symmetrically', async () => {
+    const expected = 'a'.repeat(40);
+    const deletedPersistence = createMockPersistence();
+    deletedPersistence.readRef.mockResolvedValue(null);
+    const deleted = createBuilder({
+      persistence: deletedPersistence,
+      patchJournal: createPatchJournal(deletedPersistence),
+      expectedParentSha: expected,
     });
+    deleted.addNode('node:a');
 
-    it('includes expectedSha and actualSha properties on the error', async () => {
-      const expectedParent = 'a'.repeat(40);
-      const advancedSha = 'f'.repeat(40);
-
-      const persistence = createMockPersistence({
-        readRef: vi.fn().mockResolvedValue(advancedSha),
-      });
-
-      const builder = new PatchBuilder({
-        persistence,
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-        expectedParentSha: expectedParent,
-        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-      });
-
-      builder.addNode('x');
-
-      try {
-        await builder.commit();
-        expect.unreachable('commit() should have thrown');
-      } catch (/** @type {any} */ err) {
-        expect(err).toBeInstanceOf(WriterError);
-        expect((err as any).expectedSha).toBe(expectedParent);
-        expect((err as any).actualSha).toBe(advancedSha);
-      }
+    const createdPersistence = createMockPersistence();
+    createdPersistence.readRef.mockResolvedValue('b'.repeat(40));
+    const created = createBuilder({
+      persistence: createdPersistence,
+      patchJournal: createPatchJournal(createdPersistence),
+      expectedParentSha: null,
     });
+    created.addNode('node:a');
 
-    it('error message contains recovery hint', async () => {
-      const expectedParent = 'a'.repeat(40);
-      const advancedSha = 'f'.repeat(40);
-
-      const persistence = createMockPersistence({
-        readRef: vi.fn().mockResolvedValue(advancedSha),
-      });
-
-      const builder = new PatchBuilder({
-        persistence,
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-        expectedParentSha: expectedParent,
-        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-      });
-
-      builder.addNode('x');
-
-      await expect(builder.commit()).rejects.toThrow(
-        'Commit failed: writer ref was updated by another process. Re-materialize and retry.'
-      );
+    await expect(deleted.commit()).rejects.toMatchObject({
+      expectedSha: expected,
+      actualSha: null,
     });
-
-    it('handles null expectedParentSha vs non-null actual ref', async () => {
-      const advancedSha = 'f'.repeat(40);
-
-      const persistence = createMockPersistence({
-        readRef: vi.fn().mockResolvedValue(advancedSha),
-      });
-
-      const builder = new PatchBuilder({
-        persistence,
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-        expectedParentSha: null, // Writer expected no prior commits
-        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-      });
-
-      builder.addNode('x');
-
-      try {
-        await builder.commit();
-        expect.unreachable('commit() should have thrown');
-      } catch (/** @type {any} */ err) {
-        expect(err).toBeInstanceOf(WriterError);
-        expect((err as any).code).toBe('WRITER_CAS_CONFLICT');
-        expect((err as any).expectedSha).toBeNull();
-        expect((err as any).actualSha).toBe(advancedSha);
-      }
-    });
-
-    it('handles non-null expectedParentSha vs null actual ref', async () => {
-      const expectedParent = 'a'.repeat(40);
-
-      const persistence = createMockPersistence({
-        // Ref was deleted / does not exist
-        readRef: vi.fn().mockResolvedValue(null),
-      });
-
-      const builder = new PatchBuilder({
-        persistence,
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-        expectedParentSha: expectedParent,
-        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-      });
-
-      builder.addNode('x');
-
-      try {
-        await builder.commit();
-        expect.unreachable('commit() should have thrown');
-      } catch (/** @type {any} */ err) {
-        expect(err).toBeInstanceOf(WriterError);
-        expect((err as any).code).toBe('WRITER_CAS_CONFLICT');
-        expect((err as any).expectedSha).toBe(expectedParent);
-        expect((err as any).actualSha).toBeNull();
-      }
+    await expect(created.commit()).rejects.toMatchObject({
+      expectedSha: null,
+      actualSha: 'b'.repeat(40),
     });
   });
 
-  // ---------------------------------------------------------------
-  // No CAS conflict: normal commits still succeed
-  // ---------------------------------------------------------------
-  describe('when no CAS conflict occurs', () => {
-    it('succeeds when expectedParentSha matches current ref (both null)', async () => {
-      const persistence = createMockPersistence({
-        readRef: vi.fn().mockResolvedValue(null),
-      });
-
-      const builder = new PatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-        expectedParentSha: null,
-        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-      });
-
-      builder.addNode('x');
-      const sha = await builder.commit();
-
-      expect(sha).toBe('c'.repeat(40));
-      expect(persistence.commitNodeWithTree).toHaveBeenCalledOnce();
-      expect(persistence.compareAndSwapRef).toHaveBeenCalledOnce();
+  it('maps a publication conflict to WriterError with the observed head', async () => {
+    const actual = 'f'.repeat(40);
+    const persistence = createMockPersistence();
+    persistence.readRef.mockResolvedValueOnce(null).mockResolvedValue(actual);
+    const patchJournal = createPatchJournal(persistence);
+    patchJournal.failure = Object.assign(new Error('publication conflict'), {
+      code: 'PUBLICATION_CONFLICT',
     });
+    const builder = createBuilder({ persistence, patchJournal, expectedParentSha: null });
+    builder.addNode('node:a');
 
-    it('succeeds when expectedParentSha matches current ref (both same SHA)', async () => {
-      const parentSha = 'd'.repeat(40);
-      const patchOid = 'e'.repeat(40);
+    await expect(builder.commit()).rejects.toMatchObject({
+      code: 'WRITER_CAS_CONFLICT',
+      expectedSha: null,
+      actualSha: actual,
+    });
+  });
 
-      const persistence = createMockPersistence({
-        readRef: vi.fn().mockResolvedValue(parentSha),
-        showNode: vi.fn().mockResolvedValue(
-          `warp:patch\n\neg-kind: patch\neg-graph: test-graph\neg-writer: writer1\neg-lamport: 3\neg-patch-oid: ${patchOid}\neg-schema: 2`
-        ),
-      });
+  it('preserves a non-conflict storage failure when the head is unchanged', async () => {
+    const persistence = createMockPersistence();
+    persistence.readRef.mockResolvedValue(null);
+    const patchJournal = createPatchJournal(persistence);
+    const failure = new Error('storage offline');
+    patchJournal.failure = failure;
+    const builder = createBuilder({ persistence, patchJournal, expectedParentSha: null });
+    builder.addNode('node:a');
 
-      const builder = new PatchBuilder({
-        persistence,
-        patchJournal: createPatchJournal(persistence),
-        graphName: 'test-graph',
-        writerId: 'writer1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => null,
-        expectedParentSha: parentSha,
-        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-      });
+    await expect(builder.commit()).rejects.toBe(failure);
+  });
 
-      builder.addNode('x');
-      const sha = await builder.commit();
+  it('forwards a matching head and custom target ref to storage', async () => {
+    const parent = 'a'.repeat(40);
+    const persistence = createMockPersistence();
+    persistence.readRef.mockResolvedValue(parent);
+    persistence.showNode.mockResolvedValue('not-a-patch-message');
+    const patchJournal = createPatchJournal(persistence);
+    const builder = createBuilder({
+      persistence,
+      patchJournal,
+      expectedParentSha: parent,
+      targetRefPath: 'refs/warp/events/strands/review',
+    });
+    builder.addNode('node:a');
 
-      expect(sha).toBe('c'.repeat(40));
-      expect(persistence.commitNodeWithTree).toHaveBeenCalledOnce();
+    await builder.commit();
+
+    expect(persistence.readRef).toHaveBeenCalledWith('refs/warp/events/strands/review');
+    expect(patchJournal.requests[0]).toMatchObject({
+      targetRef: 'refs/warp/events/strands/review',
+      expectedHead: parent,
+      parent,
     });
   });
 });
+
+function createBuilder(options: {
+  persistence: ReturnType<typeof createMockPersistence>;
+  patchJournal: ReturnType<typeof createPatchJournal>;
+  expectedParentSha: string | null;
+  targetRefPath?: string;
+}): PatchBuilder {
+  return new PatchBuilder({
+    persistence: options.persistence,
+    graphName: 'events',
+    writerId: 'writer-1',
+    lamport: 1,
+    versionVector: VersionVector.empty(),
+    getCurrentState: () => null,
+    expectedParentSha: options.expectedParentSha,
+    ...(options.targetRefPath === undefined ? {} : { targetRefPath: options.targetRefPath }),
+    patchJournal: options.patchJournal,
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+  });
+}

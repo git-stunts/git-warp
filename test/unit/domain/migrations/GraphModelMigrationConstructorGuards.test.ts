@@ -162,8 +162,8 @@ describe('graph model migration constructor guards', () => {
     })).toThrow(/legacyContentKey/);
     expect(() => new GraphModelMigrationContentSource({
       legacyContentKey: 'node:a\0_content',
-      contentOid: '',
-    })).toThrow(/contentOid/);
+      contentHandle: '',
+    })).toThrow(/contentHandle/);
     expect(() => new GraphModelMigrationStateSnapshotReference({
       snapshotId: '',
     })).toThrow(/snapshotId/);

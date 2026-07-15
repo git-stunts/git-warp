@@ -226,22 +226,15 @@ export default class StrandCoordinator {
   }
 
   async get(strandId: string): Promise<StrandDescriptor | null> {
-    const ref = this._deps.descriptors.buildRef(strandId);
-    const oid = await this._deps.persistence.readRef(ref);
-    if (oid === null || oid === undefined) {
+    const descriptor = await this._deps.descriptors.readDescriptor(strandId);
+    if (descriptor === null) {
       return null;
     }
-    const descriptor = await this._deps.descriptors.readDescriptorByOid(oid, strandId);
     return await this._deps.descriptors.hydrateDescriptor(descriptor);
   }
 
   async list(): Promise<StrandDescriptor[]> {
-    const prefix = buildStrandsPrefix(this._deps.graphName);
-    const refs = await this._deps.persistence.listRefs(prefix);
-    const ids = refs
-      .map((ref) => ref.slice(prefix.length))
-      .filter(Boolean)
-      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    const ids = await this._deps.descriptors.listStrandIds();
 
     const descriptors: StrandDescriptor[] = [];
     for (const id of ids) {
@@ -254,15 +247,13 @@ export default class StrandCoordinator {
   }
 
   async drop(strandId: string): Promise<boolean> {
-    const ref = this._deps.descriptors.buildRef(strandId);
     const overlayRef = this._deps.descriptors.buildOverlayRef(strandId);
     const braidPrefix = this._deps.descriptors.buildBraidPrefix(strandId);
-    const oid = await this._deps.persistence.readRef(ref);
+    const hasDescriptor = await this._deps.descriptors.hasDescriptor(strandId);
     const overlayHeadSha = await this._deps.persistence.readRef(overlayRef);
     const braidRefs = await this._deps.persistence.listRefs(braidPrefix);
-    const hasOid = oid !== null && oid !== undefined;
     const hasOverlaySha = overlayHeadSha !== null && overlayHeadSha !== undefined;
-    if (!hasOid && !hasOverlaySha && braidRefs.length === 0) {
+    if (!hasDescriptor && !hasOverlaySha && braidRefs.length === 0) {
       return false;
     }
     for (const braidRef of braidRefs) {
@@ -271,8 +262,8 @@ export default class StrandCoordinator {
     if (hasOverlaySha) {
       await this._deps.persistence.deleteRef(overlayRef);
     }
-    if (hasOid) {
-      await this._deps.persistence.deleteRef(ref);
+    if (hasDescriptor) {
+      await this._deps.descriptors.deleteDescriptor(strandId);
     }
     return true;
   }
@@ -343,6 +334,13 @@ export default class StrandCoordinator {
     return await this._deps.patches.patch(strandId, build);
   }
 
+  patchWithEvidence(
+    strandId: string,
+    build: (p: PatchBuilder) => void | Promise<void>,
+  ): ReturnType<StrandPatchService['patchWithEvidence']> {
+    return this._deps.patches.patchWithEvidence(strandId, build);
+  }
+
   async getPatchEntries(strandId: string, options: { ceiling?: number | null } = {}): Promise<StrandPatchEntry[]> {
     const descriptor = await this.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
@@ -387,9 +385,7 @@ export default class StrandCoordinator {
   // ── Private ─────────────────────────────────────────────────────
 
   private async _assertStrandDoesNotExist(strandId: string): Promise<void> {
-    const ref = this._deps.descriptors.buildRef(strandId);
-    const existing = await this._deps.persistence.readRef(ref);
-    if (existing !== null && existing !== undefined) {
+    if (await this._deps.descriptors.hasDescriptor(strandId)) {
       throw new StrandError(`Strand '${strandId}' already exists`, {
         code: 'E_STRAND_ALREADY_EXISTS',
         context: { graphName: this._deps.graphName, strandId },

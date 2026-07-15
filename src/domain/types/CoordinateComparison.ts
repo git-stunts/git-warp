@@ -171,9 +171,9 @@ export type VisibleStateTransferOperation =
   | { op: 'add_edge'; from: string; to: string; label: string }
   | { op: 'remove_edge'; from: string; to: string; label: string }
   | { op: 'set_edge_property'; from: string; to: string; label: string; key: string; value: unknown } // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  | { op: 'attach_node_content'; nodeId: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'attach_node_content'; nodeId: string; content: Uint8Array; contentHandle: string; mime?: string | null; size?: number | null }
   | { op: 'clear_node_content'; nodeId: string }
-  | { op: 'attach_edge_content'; from: string; to: string; label: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'attach_edge_content'; from: string; to: string; label: string; content: Uint8Array; contentHandle: string; mime?: string | null; size?: number | null }
   | { op: 'clear_edge_content'; from: string; to: string; label: string };
 
 export type CoordinateTransferPlanSide = CoordinateComparisonSide;

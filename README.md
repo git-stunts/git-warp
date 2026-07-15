@@ -1,6 +1,6 @@
 <div align="center">
-<p><strong>A Git-native runtime for shared causal history.</strong></p>
-<p><strong>Write intents. Read timelines. Keep receipts.</strong></p>
+<p><strong>Write intents. Observe lanes. Keep receipts.</strong></p>
+<p><strong>A runtime for shared causal history.</strong></p>
 <p>Offline-first, multi-writer, deterministic, and built for provenance-aware applications.</p>
 </div>
 
@@ -16,7 +16,8 @@
 </a>
 </p>
 
-`git-warp` is a Git-native system for storing and reading **causal history**.
+`git-warp` is a runtime for storing and observing **causal history**. Its
+current durable storage substrate is Git.
 
 Instead of treating a graph as one big in-memory object, `git-warp` treats history as the source of truth. Reads are bounded views over that history, and writes are appended as patches. It is one runtime in the [Continuum](https://github.com/flyingrobots/continuum) stack ([more below](#continuum)).
 
@@ -52,11 +53,13 @@ replay-backed so callers receive complete diff and provenance data.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
-## v19 First-Use API
+## Transitional v19 First-Use API
 
-This is the public contract new application code should start from. The
-v18 graph-first package exports are removed rather than carried as a second
-compatibility API.
+The currently implemented v19 facade below is transitional. The accepted
+[`Runtime` / `Lane` / `Observer` vocabulary checkpoint](docs/topics/api/) is
+the release target and must not be described as implemented until its runtime
+and boundary tests land. The v18 graph-first package exports remain removed
+rather than carried as a second compatibility API.
 
 ```typescript
 import { openWarp, intent, reading } from '@git-stunts/git-warp';
@@ -147,7 +150,7 @@ actually used through receipts. The removed `openWarpGraph()` and
 `openWarpWorldline()` paths are migration source material, not a second
 application API.
 
-See the [v19 API reflection](docs/topics/api/), the
+See the [v19 API vocabulary checkpoint](docs/topics/api/), the
 [v19 migration guide](docs/migrations/v19/), and
 [Optic reads](docs/topics/optic-reads.md) for the model.
 

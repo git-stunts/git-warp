@@ -7,9 +7,9 @@ import type { LWWRegister } from '../../../../../src/domain/crdt/LWW.ts';
 import type { QueryContentHost } from '../../../../../src/domain/services/controllers/ReadGraphHost.ts';
 import {
   getContentMetaImpl,
-  getContentOidImpl,
+  getContentHandleImpl,
   getEdgeContentMetaImpl,
-  getEdgeContentOidImpl,
+  getEdgeContentHandleImpl,
 } from '../../../../../src/domain/services/controllers/QueryContent.ts';
 import {
   CONTENT_MIME_PROPERTY_KEY,
@@ -51,7 +51,7 @@ type StateSpec = {
 };
 
 describe('QueryContent projection-backed reads', () => {
-  it('returns null node content OID and metadata for malformed storage references', async () => {
+  it('returns null node content handle and metadata for malformed storage references', async () => {
     const eid = event(5);
     const host = hostWithState(buildState({
       nodes: ['alice'],
@@ -61,11 +61,11 @@ describe('QueryContent projection-backed reads', () => {
       ],
     }));
 
-    await expect(getContentOidImpl(host, 'alice')).resolves.toBeNull();
+    await expect(getContentHandleImpl(host, 'alice')).resolves.toBeNull();
     await expect(getContentMetaImpl(host, 'alice')).resolves.toBeNull();
   });
 
-  it('returns null edge content OID and metadata for malformed storage references', async () => {
+  it('returns null edge content handle and metadata for malformed storage references', async () => {
     const eid = event(5);
     const edge = { from: 'alice', to: 'bob', label: 'knows' };
     const host = hostWithState(buildState({
@@ -77,7 +77,7 @@ describe('QueryContent projection-backed reads', () => {
       ],
     }));
 
-    await expect(getEdgeContentOidImpl(host, edge)).resolves.toBeNull();
+    await expect(getEdgeContentHandleImpl(host, edge)).resolves.toBeNull();
     await expect(getEdgeContentMetaImpl(host, edge)).resolves.toBeNull();
   });
 
@@ -92,7 +92,7 @@ describe('QueryContent projection-backed reads', () => {
     }));
 
     await expect(getContentMetaImpl(host, 'alice')).resolves.toEqual({
-      oid: 'deadbeef',
+      handle: 'deadbeef',
       mime: null,
       size: null,
     });
@@ -111,7 +111,7 @@ describe('QueryContent projection-backed reads', () => {
     }));
 
     await expect(getEdgeContentMetaImpl(host, edge)).resolves.toEqual({
-      oid: 'cafebabe',
+      handle: 'cafebabe',
       mime: null,
       size: null,
     });
@@ -127,10 +127,7 @@ function hostWithState(state: WarpState): QueryContentHost {
     _autoMaterialize: true,
     _cachedState: state,
     _ensureFreshState: vi.fn(async () => undefined),
-    _blobStorage: null,
-    _persistence: {
-      readBlob: vi.fn(async () => new Uint8Array([1, 2, 3])),
-    },
+    _assetStorage: null,
   };
 }
 

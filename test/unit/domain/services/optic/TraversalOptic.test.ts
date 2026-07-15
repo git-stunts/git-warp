@@ -11,15 +11,10 @@ import Optic from '../../../../../src/domain/services/optic/Optic.ts';
 import OpticAperturePosture from '../../../../../src/domain/services/optic/OpticAperturePosture.ts';
 import OpticBasisPosture from '../../../../../src/domain/services/optic/OpticBasisPosture.ts';
 import OpticCoordinatePosture from '../../../../../src/domain/services/optic/OpticCoordinatePosture.ts';
-import {
-  DEFAULT_COMMIT_MESSAGE_CODEC,
-} from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
-import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
-import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
-import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
+import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
+import MockIndexStorage from '../../../../helpers/MockIndexStorage.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
-import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
 
 describe('TraversalOptic', () => {
   it('rejects an empty start node id at construction', () => {
@@ -73,10 +68,9 @@ function traversalOptic(supportRule: 'global-discovery-refused' | 'traversal-win
 
 class TestCheckpointTailOpticSource extends CheckpointTailOpticSource {
   readonly graphName = 'traversal-optic-support-rule';
-  readonly _persistence: CorePersistence = new InMemoryGraphAdapter();
   readonly _codec: CodecPort = defaultCodec;
-  readonly _blobStorage: BlobStoragePort | null = null;
-  readonly _commitMessageCodec: CommitMessageCodecPort = DEFAULT_COMMIT_MESSAGE_CODEC;
+  readonly _checkpointStore = new InMemoryCheckpointStore();
+  readonly _indexStore = new MockIndexStorage();
 
   discoverWriters(): Promise<string[]> {
     return Promise.resolve([]);

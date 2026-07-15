@@ -17,11 +17,8 @@ const RAW_COMPATIBILITY_PATTERN = /decodePropKey|decodeEdgePropKey|state\.prop|(
 const EXPECTED_RAW_COMPATIBILITY_FILES = Object.freeze([
   'src/domain/graph/LegacyContentPropertyKeys.ts',
   'src/domain/services/KeyCodec.ts',
-  'src/domain/services/PatchCommitter.ts',
   'src/domain/services/state/StateDiff.ts',
   'src/domain/services/state/WarpState.ts',
-  'src/domain/services/state/checkpointHelpers.ts',
-  'src/domain/services/strand/StrandPatchService.ts',
 ]);
 
 describe('v18 content/property closeout audit', () => {

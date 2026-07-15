@@ -49,8 +49,20 @@ function readLog(filePath) {
   }
 }
 
-function runPrePushHook(options: { quick?: boolean; failCommand?: string | null; linkcheckAvailable?: boolean } = {}) {
-  const { quick = false, failCommand = null, linkcheckAvailable = true } = options;
+function runPrePushHook(options: {
+  quick?: boolean;
+  failCommand?: string | null;
+  linkcheckAvailable?: boolean;
+  inheritedGitRepositoryRoot?: string | null;
+  assertGitEnvironmentCleared?: boolean;
+} = {}) {
+  const {
+    quick = false,
+    failCommand = null,
+    linkcheckAvailable = true,
+    inheritedGitRepositoryRoot = null,
+    assertGitEnvironmentCleared = false,
+  } = options;
   const binDir = createTempDir();
   const npmBin = join(binDir, 'npm');
   const npmLog = join(binDir, 'npm.log');
@@ -69,6 +81,12 @@ function runPrePushHook(options: { quick?: boolean; failCommand?: string | null;
       'fi',
       "printf '%s\\n' \"$cmd\" >> \"$WARP_NPM_LOG\"",
       "printf 'npm:%s\\n' \"$cmd\" >> \"$WARP_EVENT_LOG\"",
+      'if [ "${WARP_ASSERT_GIT_ENV_CLEARED:-}" = "1" ]; then',
+      '  if [ -n "${GIT_DIR:-}" ] || [ -n "${GIT_WORK_TREE:-}" ] || [ -n "${GIT_COMMON_DIR:-}" ] || [ -n "${GIT_INDEX_FILE:-}" ]; then',
+      '    echo "repository-local Git environment leaked into npm gate" >&2',
+      '    exit 97',
+      '  fi',
+      'fi',
       'if [ "${WARP_FAIL_NPM_CMD:-}" = "$cmd" ]; then',
       '  echo "stub npm failing for $cmd" >&2',
       '  exit 1',
@@ -92,7 +110,7 @@ function runPrePushHook(options: { quick?: boolean; failCommand?: string | null;
     );
   }
 
-    const env = {
+  const env = {
     ...process.env,
     WARP_NPM_LOG: npmLog,
     WARP_LYCHEE_LOG: lycheeLog,
@@ -109,6 +127,17 @@ function runPrePushHook(options: { quick?: boolean; failCommand?: string | null;
 
   if (failCommand) {
     env['WARP_FAIL_NPM_CMD'] = failCommand;
+  }
+
+  if (inheritedGitRepositoryRoot) {
+    env['GIT_DIR'] = join(inheritedGitRepositoryRoot, '.git');
+    env['GIT_WORK_TREE'] = inheritedGitRepositoryRoot;
+    env['GIT_COMMON_DIR'] = join(inheritedGitRepositoryRoot, '.git');
+    env['GIT_INDEX_FILE'] = join(inheritedGitRepositoryRoot, '.git', 'test-index');
+  }
+
+  if (assertGitEnvironmentCleared) {
+    env['WARP_ASSERT_GIT_ENV_CLEARED'] = '1';
   }
 
   const result = spawnSync('sh', [hookPath], {
@@ -132,6 +161,23 @@ function runPrePushHook(options: { quick?: boolean; failCommand?: string | null;
 }
 
 describe('scripts/hooks/pre-push', () => {
+  it('clears inherited repository-local Git environment before running child gates', () => {
+    const inheritedGitRepositoryRoot = createTempDir();
+    const init = spawnSync('git', ['init', '--quiet', inheritedGitRepositoryRoot], {
+      encoding: 'utf8',
+    });
+    expect(init.status, init.stderr).toBe(0);
+
+    const result = runPrePushHook({
+      quick: true,
+      inheritedGitRepositoryRoot,
+      assertGitEnvironmentCleared: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain('pre-push: cleared inherited Git repository environment');
+  });
+
   it('runs the optional link check before the blocking npm gates', () => {
     const result = runPrePushHook({ quick: true });
 

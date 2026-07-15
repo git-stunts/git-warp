@@ -1,6 +1,6 @@
 /**
- * Reads a serialized logical bitmap index from a tree (in-memory buffers)
- * or lazily from OID→blob storage, and produces a LogicalIndex interface.
+ * Reads a serialized logical bitmap index from in-memory buffers or opaque
+ * shard handles and produces a LogicalIndex interface.
  *
  * Extracted from test/helpers/fixtureDsl.js so that production code can
  * hydrate indexes stored inside checkpoints (Phase 3).
@@ -17,13 +17,17 @@ import IndexError from '../../errors/IndexError.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
+import type AssetHandle from '../../storage/AssetHandle.ts';
+import type BundleHandle from '../../storage/BundleHandle.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
+import type CodecValue from '../../types/codec/CodecValue.ts';
 import {
   buildLogicalIndex,
-  classifyDecoded,
   classifyShards,
   type ClassifiedDecoded,
   type DecodedItem,
+  isEdgeShard,
+  isMetaShard,
   type LogicalIndex,
   type ShardItem,
 } from './logicalIndexHelpers.ts';
@@ -71,72 +75,71 @@ export default class LogicalIndexReader {
    * Eagerly decodes all shards from an in-memory tree (Record<path, Uint8Array>).
    */
   loadFromTree(tree: Record<string, Uint8Array>): this {
-    this._resetState();
+    const replacement = this._emptyReplacement();
     const items: ShardItem[] = Object.entries(tree).map(([path, buf]) => ({ path, buf }));
-    this._processShards(items);
+    replacement._processShards(items);
+    this._replaceState(replacement);
     return this;
   }
 
   /**
-   * Loads all shards from OID→blob storage (async).
+   * Loads shards through opaque asset handles. Decoding remains behind
+   * the configured IndexStorePort.
    */
-  async loadFromOids(
-    shardOids: Record<string, string>,
-    storage: { readBlob(oid: string): Promise<Uint8Array> },
+  async loadFromHandles(
+    shardHandles: Readonly<Record<string, AssetHandle>>,
   ): Promise<this> {
-    this._resetState();
-    const entries = Object.entries(shardOids);
-    if (this._indexStore) {
-      const indexStore = this._indexStore;
-      const decoded: DecodedItem[] = await Promise.all(
-        entries.map(async ([path, oid]) => ({ path, data: await indexStore.decodeShard(oid) })),
+    if (this._indexStore === null) {
+      throw new IndexError(
+        'LogicalIndexReader: loadFromHandles() requires an indexStore',
+        { code: 'E_INDEX_NO_STORE' },
       );
-      this._processDecoded(decoded);
-    } else {
-      const items: ShardItem[] = await Promise.all(
-        entries.map(async ([path, oid]) => ({ path, buf: await storage.readBlob(oid) })),
-      );
-      this._processShards(items);
     }
+    const indexStore = this._indexStore;
+    const replacement = new LogicalIndexReader({ indexStore });
+    const Ctor = getRoaringBitmap32();
+    for (const [path, handle] of Object.entries(shardHandles)) {
+      replacement._loadDecodedItem(path, await indexStore.decodeShard(handle), Ctor);
+    }
+    this._replaceState(replacement);
     return this;
   }
 
   /**
    * Populates the reader directly from IndexShard domain objects.
    *
-   * This is the codec-free alternative to loadFromTree() and loadFromOids().
+   * This is the codec-free alternative to loadFromTree() and loadFromHandles().
    * No CBOR decoding is needed — the shards already carry decoded data.
    */
   loadFromShards(shards: Iterable<IndexShard>): this {
-    this._resetState();
+    const replacement = this._emptyReplacement();
     const Ctor = getRoaringBitmap32();
     for (const shard of shards) {
-      if (shard instanceof MetaShard) {
-        this._loadMetaShard(shard, Ctor);
-      } else if (shard instanceof LabelShard) {
-        this._loadLabelShard(shard);
-      } else if (shard instanceof EdgeShard) {
-        this._loadEdgeShard(shard, Ctor);
-      }
+      replacement._loadShard(shard, Ctor);
     }
+    this._replaceState(replacement);
     return this;
   }
 
   /**
    * Loads all shards from an IndexStorePort via scanShards (codec-free).
    *
-   * The adapter reads, decodes, and classifies blobs into IndexShard
+   * The adapter reads, decodes, and classifies asset bytes into IndexShard
    * domain objects. The reader consumes them without touching any codec.
    */
-  async loadFromStore(treeOid: string): Promise<this> {
+  async loadFromStore(indexHandle: BundleHandle): Promise<this> {
     if (!this._indexStore) {
       throw new IndexError(
         'LogicalIndexReader: loadFromStore() requires an indexStore',
         { code: 'E_INDEX_NO_STORE' },
       );
     }
-    const shards = await this._indexStore.scanShards(treeOid).collect();
-    this.loadFromShards(shards);
+    const replacement = this._emptyReplacement();
+    const Ctor = getRoaringBitmap32();
+    for await (const shard of this._indexStore.scanShards(indexHandle)) {
+      replacement._loadShard(shard, Ctor);
+    }
+    this._replaceState(replacement);
     return this;
   }
 
@@ -188,12 +191,6 @@ export default class LogicalIndexReader {
     }
   }
 
-  /** Processes pre-decoded shards (port path — no codec needed). */
-  private _processDecoded(items: DecodedItem[]): void {
-    const classified = classifyDecoded(items);
-    this._loadClassified(classified);
-  }
-
   /** Populates node-to-global and alive bitmap maps from decoded meta data. */
   private _loadDecodedMeta(path: string, raw: unknown, Ctor: RoaringCtor): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const meta = raw as {
@@ -227,17 +224,47 @@ export default class LogicalIndexReader {
     }
   }
 
-  /** Clears all decoded state so the reader can be reused safely. */
-  private _resetState(): void {
-    this._nodeToGlobal.clear();
-    this._globalToNode.clear();
-    this._aliveBitmaps.clear();
-    this._labelRegistry.clear();
-    this._idToLabel.clear();
-    this._edgeFwd.clear();
-    this._edgeRev.clear();
-    this._edgeByOwnerFwd.clear();
-    this._edgeByOwnerRev.clear();
+  /** Replaces every decoded map only after a candidate index loads completely. */
+  private _replaceState(replacement: LogicalIndexReader): void {
+    this._nodeToGlobal = replacement._nodeToGlobal;
+    this._globalToNode = replacement._globalToNode;
+    this._aliveBitmaps = replacement._aliveBitmaps;
+    this._labelRegistry = replacement._labelRegistry;
+    this._idToLabel = replacement._idToLabel;
+    this._edgeFwd = replacement._edgeFwd;
+    this._edgeRev = replacement._edgeRev;
+    this._edgeByOwnerFwd = replacement._edgeByOwnerFwd;
+    this._edgeByOwnerRev = replacement._edgeByOwnerRev;
+  }
+
+  /** Creates an empty reader with the same decoding and storage dependencies. */
+  private _emptyReplacement(): LogicalIndexReader {
+    return new LogicalIndexReader({
+      ...(this._codec === null ? {} : { codec: this._codec }),
+      ...(this._indexStore === null ? {} : { indexStore: this._indexStore }),
+    });
+  }
+
+  /** Loads one decoded shard without retaining the other decoded payloads. */
+  private _loadDecodedItem(path: string, data: CodecValue, Ctor: RoaringCtor): void {
+    if (isMetaShard(path)) {
+      this._loadDecodedMeta(path, data, Ctor);
+    } else if (path === 'labels.cbor') {
+      this._loadDecodedLabels(data);
+    } else if (isEdgeShard(path)) {
+      this._loadDecodedEdges(path.startsWith('fwd_') ? 'fwd' : 'rev', data, Ctor);
+    }
+  }
+
+  /** Loads one classified shard without collecting the surrounding stream. */
+  private _loadShard(shard: IndexShard, Ctor: RoaringCtor): void {
+    if (shard instanceof MetaShard) {
+      this._loadMetaShard(shard, Ctor);
+    } else if (shard instanceof LabelShard) {
+      this._loadLabelShard(shard);
+    } else if (shard instanceof EdgeShard) {
+      this._loadEdgeShard(shard, Ctor);
+    }
   }
 
   /** Populates edge stores from decoded edge shard data. */

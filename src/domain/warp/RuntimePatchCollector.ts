@@ -14,7 +14,6 @@ type RuntimeCheckpointData = {
   stateHash: string;
   schema: number;
   provenanceIndex?: object | null;
-  indexShardOids?: Record<string, string> | null | undefined;
 };
 
 type RuntimePatchCollectorHost = {
@@ -50,7 +49,6 @@ function toCheckpointData(checkpoint: RuntimeCheckpointData | null): CheckpointD
     ...(isProvenanceIndexShape(checkpoint.provenanceIndex)
       ? { provenanceIndex: checkpoint.provenanceIndex }
       : {}),
-    ...(checkpoint.indexShardOids !== undefined ? { indexShardOids: checkpoint.indexShardOids } : {}),
   };
 }
 
@@ -61,7 +59,6 @@ function toRuntimeCheckpointData(checkpoint: CheckpointData): RuntimeCheckpointD
     stateHash: checkpoint.stateHash,
     schema: checkpoint.schema,
     ...(checkpoint.provenanceIndex !== undefined ? { provenanceIndex: checkpoint.provenanceIndex } : {}),
-    ...(checkpoint.indexShardOids !== undefined ? { indexShardOids: checkpoint.indexShardOids } : {}),
   };
 }
 

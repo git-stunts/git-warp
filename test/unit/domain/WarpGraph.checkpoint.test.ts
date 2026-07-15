@@ -124,10 +124,11 @@ describe('WarpCore', () => {
 
       await graph.syncCoverage();
 
-      // Verify updateRef was called with the correct coverage ref
-      expect(persistence.updateRef).toHaveBeenCalledWith(
+      // Verify the coverage head was published with compare-and-swap semantics.
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
         'refs/warp/events/coverage/head',
-        anchorSha
+        anchorSha,
+        writerSha,
       );
     });
 
@@ -257,10 +258,11 @@ describe('WarpCore', () => {
 
       await graph.createCheckpoint();
 
-      // Verify updateRef was called with the correct checkpoint ref
-      expect(persistence.updateRef).toHaveBeenCalledWith(
+      // Verify the checkpoint head was published with compare-and-swap semantics.
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
         'refs/warp/events/checkpoints/head',
-        checkpointSha
+        checkpointSha,
+        writerSha,
       );
     });
 

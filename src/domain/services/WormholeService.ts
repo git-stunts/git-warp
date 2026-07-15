@@ -22,19 +22,14 @@
 
 import ProvenancePayload from './provenance/ProvenancePayload.ts';
 import WormholeError from '../errors/WormholeError.ts';
-import EncryptionError from '../errors/EncryptionError.ts';
-import PersistenceError from '../errors/PersistenceError.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
-import { requireCodec } from './codec/CodecRequirement.ts';
 import type CommitPort from '../../ports/CommitPort.ts';
-import type BlobPort from '../../ports/BlobPort.ts';
-import type CodecPort from '../../ports/CodecPort.ts';
-import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
+import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type Patch from '../types/Patch.ts';
 import type WarpState from './state/WarpState.ts';
 
-type PersistencePort = CommitPort & BlobPort;
+type PersistencePort = CommitPort;
 
 /**
  * Represents a compressed range of patches (wormhole).
@@ -102,15 +97,13 @@ interface ProcessCommitOptions {
   graphName: string;
   expectedWriter: string | null;
   commitMessageCodec: CommitMessageCodecPort;
-  codec?: CodecPort;
-  blobStorage?: BlobStoragePort;
-  patchBlobStorage?: BlobStoragePort;
+  patchJournal: PatchJournalPort;
 }
 
 /**
  * Processes a single commit in the wormhole chain.
  * @throws {WormholeError} On validation errors
- * @throws {EncryptionError} If the patch is encrypted but no patchBlobStorage is provided
+ * @throws {EncryptionError} If configured asset decryption cannot read a patch
  */
 async function processCommit({
   persistence,
@@ -118,11 +111,8 @@ async function processCommit({
   graphName,
   expectedWriter,
   commitMessageCodec,
-  codec: codecOpt,
-  blobStorage,
-  patchBlobStorage,
+  patchJournal,
 }: ProcessCommitOptions): Promise<PatchEntry> {
-  const codec = requireCodec(codecOpt, 'WormholeService.processCommit');
   const messageCodec = requireCommitMessageCodec(commitMessageCodec);
   const nodeInfo = await persistence.getNodeInfo(sha);
   const { message, parents } = nodeInfo;
@@ -152,32 +142,7 @@ async function processCommit({
     });
   }
 
-  let patchBuffer: Uint8Array;
-  if (patchMeta.storage.strategy === 'git-cas') {
-    if (!blobStorage) {
-      throw new EncryptionError(
-        'This graph contains git-cas patches; provide blobStorage for CAS restore',
-      );
-    }
-    patchBuffer = await blobStorage.retrieve(patchMeta.patchOid);
-  } else if (patchMeta.storage.strategy === 'legacy-external-storage') {
-    if (!patchBlobStorage) {
-      throw new EncryptionError(
-        'This graph contains encrypted patches in legacy external storage; provide patchBlobStorage with an encryption key',
-      );
-    }
-    patchBuffer = await patchBlobStorage.retrieve(patchMeta.patchOid);
-  } else {
-    patchBuffer = await persistence.readBlob(patchMeta.patchOid);
-  }
-  if (patchBuffer === null || patchBuffer === undefined) {
-    throw new PersistenceError(
-      `Patch blob not found: ${patchMeta.patchOid}`,
-      PersistenceError.E_MISSING_OBJECT,
-      { context: { oid: patchMeta.patchOid } },
-    );
-  }
-  const patch = codec.decode<Patch>(patchBuffer);
+  const patch = await patchJournal.readPatch(patchMeta);
 
   return {
     patch,
@@ -193,9 +158,7 @@ interface CollectPatchRangeOptions {
   fromSha: string;
   toSha: string;
   commitMessageCodec: CommitMessageCodecPort;
-  codec?: CodecPort;
-  blobStorage?: BlobStoragePort;
-  patchBlobStorage?: BlobStoragePort;
+  patchJournal: PatchJournalPort;
 }
 
 /**
@@ -213,9 +176,7 @@ async function collectPatchRange({
   fromSha,
   toSha,
   commitMessageCodec,
-  codec,
-  blobStorage,
-  patchBlobStorage,
+  patchJournal,
 }: CollectPatchRangeOptions): Promise<Array<{ patch: Patch; sha: string; writerId: string }>> {
   const patches: Array<{ patch: Patch; sha: string; writerId: string }> = [];
   let currentSha: string | null = toSha;
@@ -228,9 +189,7 @@ async function collectPatchRange({
       graphName,
       expectedWriter: writerId,
       commitMessageCodec,
-      ...(codec !== undefined ? { codec } : {}),
-      ...(blobStorage !== undefined ? { blobStorage } : {}),
-      ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
+      patchJournal,
     });
     writerId = result.writerId;
     patches.push({ patch: result.patch, sha: result.sha, writerId: result.writerId });
@@ -271,9 +230,7 @@ interface CreateWormholeOptions {
   fromSha: string;
   toSha: string;
   commitMessageCodec: CommitMessageCodecPort;
-  codec?: CodecPort;
-  blobStorage?: BlobStoragePort;
-  patchBlobStorage?: BlobStoragePort;
+  patchJournal: PatchJournalPort;
 }
 
 /**
@@ -287,7 +244,7 @@ interface CreateWormholeOptions {
  * @throws {WormholeError} If fromSha is not an ancestor of toSha (E_WORMHOLE_INVALID_RANGE)
  * @throws {WormholeError} If commits span multiple writers (E_WORMHOLE_MULTI_WRITER)
  * @throws {WormholeError} If a commit is not a patch commit (E_WORMHOLE_NOT_PATCH)
- * @throws {EncryptionError} If patches are encrypted but no patchBlobStorage is provided
+ * @throws {EncryptionError} If configured asset decryption cannot read a patch
  */
 export async function createWormhole({
   persistence,
@@ -295,9 +252,7 @@ export async function createWormhole({
   fromSha,
   toSha,
   commitMessageCodec,
-  codec,
-  blobStorage,
-  patchBlobStorage,
+  patchJournal,
 }: CreateWormholeOptions): Promise<WormholeEdge> {
   validateSha(fromSha, 'fromSha');
   validateSha(toSha, 'toSha');
@@ -310,9 +265,7 @@ export async function createWormhole({
     fromSha,
     toSha,
     commitMessageCodec,
-    ...(codec !== undefined ? { codec } : {}),
-    ...(blobStorage !== undefined ? { blobStorage } : {}),
-    ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
+    patchJournal,
   });
 
   // Reverse to get oldest-first order (as required by ProvenancePayload)

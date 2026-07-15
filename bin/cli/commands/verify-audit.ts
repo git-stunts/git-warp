@@ -1,6 +1,6 @@
 import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifierService.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
-import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { EXIT_CODES, parseCommandArgs, getEnvVar } from '../infrastructure.ts';
 import { verifyAuditSchema } from '../schemas.ts';
 import { createPersistence, resolveGraphName } from '../shared.ts';
@@ -47,10 +47,15 @@ export function parseVerifyAuditArgs(args: string[]): { since: string | undefine
 /** Handles the verify-audit command: verifies audit receipt chain integrity. */
 export default async function handleVerifyAudit({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const { since, writerFilter, trustMode, trustPin } = parseVerifyAuditArgs(args);
-  const { persistence } = await createPersistence(options.repo);
+  const { persistence, runtimeStorage } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
+  const storage = await runtimeStorage.createRuntimeStorageServices({
+    timelineName: graphName,
+    codec: defaultCodec,
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+  });
   const verifier = new AuditVerifierService({
-    persistence: persistence as unknown as CorePersistence,
+    auditLog: storage.auditLog,
     codec: defaultCodec,
   });
 

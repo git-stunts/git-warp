@@ -17,8 +17,7 @@ import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
   encodePatchMessage,
 } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { RecordingPatchJournal } from '../services/PatchBuilderTestHarness.ts';
 
 /**
  * Creates a minimal mock persistence adapter.
@@ -46,15 +45,32 @@ function createMockPersistence() {
 }
 
 /**
- * Creates a CborPatchJournalAdapter wired to the given persistence's blob ops.
+ * Creates a semantic journal that records published patches.
  * @param {ReturnType<typeof createMockPersistence>} persistence
- * @returns {CborPatchJournalAdapter}
+ * @returns {RecordingPatchJournal}
  */
 function createPatchJournal(persistence) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-  });
+  return new WriterFixtureJournal(persistence);
+}
+
+class WriterFixtureJournal extends RecordingPatchJournal {
+  readonly _persistence;
+
+  constructor(persistence) {
+    super(persistence);
+    this._persistence = persistence;
+    this.sha = 'b'.repeat(40);
+  }
+
+  override async appendPatch(request) {
+    const published = await super.appendPatch(request);
+    await this._persistence.compareAndSwapRef(
+      request.targetRef,
+      published.sha,
+      request.expectedHead,
+    );
+    return published;
+  }
 }
 
 /**
@@ -303,7 +319,7 @@ describe('Writer (WARP schema:2)', () => {
       await expect(patch.commit()).rejects.toMatchObject({ code: 'EMPTY_PATCH' });
     });
 
-    it('creates commit with parent = previous writer head', async () => {
+    it('publishes with parent = previous writer head', async () => {
       const oldHead = 'a'.repeat(40);
       const newSha = 'b'.repeat(40);
 
@@ -314,9 +330,10 @@ describe('Writer (WARP schema:2)', () => {
       persistence.commitNodeWithTree.mockResolvedValue(newSha);
       persistence.updateRef.mockResolvedValue(undefined);
 
+      const patchJournal = createPatchJournal(persistence);
       const writer = new Writer({
         persistence,
-        patchJournal: createPatchJournal(persistence),
+        patchJournal,
         commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
@@ -330,15 +347,17 @@ describe('Writer (WARP schema:2)', () => {
 
       expect(sha).toBe(newSha);
 
-      // Verify commit was called with parent
-      expect(persistence.commitNodeWithTree).toHaveBeenCalledWith(
-        expect.objectContaining({
-          parents: [oldHead],
-        })
-      );
+      expect(patchJournal.requests).toHaveLength(1);
+      expect(patchJournal.requests[0]).toMatchObject({
+        graph: 'events',
+        writer: 'alice',
+        targetRef: 'refs/warp/events/writers/alice',
+        expectedHead: oldHead,
+        parent: oldHead,
+      });
     });
 
-    it('first commit (no existing head) uses no parents', async () => {
+    it('publishes a first patch with no parent', async () => {
       const newSha = 'b'.repeat(40);
 
       persistence.readRef.mockResolvedValue(null);
@@ -347,9 +366,10 @@ describe('Writer (WARP schema:2)', () => {
       persistence.commitNodeWithTree.mockResolvedValue(newSha);
       persistence.updateRef.mockResolvedValue(undefined);
 
+      const patchJournal = createPatchJournal(persistence);
       const writer = new Writer({
         persistence,
-        patchJournal: createPatchJournal(persistence),
+        patchJournal,
         commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
@@ -361,23 +381,23 @@ describe('Writer (WARP schema:2)', () => {
       patch.addNode('x');
       await patch.commit();
 
-      expect(persistence.commitNodeWithTree).toHaveBeenCalledWith(
-        expect.objectContaining({
-          parents: [],
-        })
-      );
+      expect(patchJournal.requests[0]).toMatchObject({
+        expectedHead: null,
+        parent: null,
+      });
     });
 
-    it('atomically advances writer ref after commit', async () => {
+    it('delegates atomic publication coordinates to the patch journal', async () => {
       const newSha = 'b'.repeat(40);
 
       persistence.readRef.mockResolvedValue(null);
       persistence.writeBlob.mockResolvedValue('c'.repeat(40));
       persistence.writeTree.mockResolvedValue('d'.repeat(40));
       persistence.commitNodeWithTree.mockResolvedValue(newSha);
+      const patchJournal = createPatchJournal(persistence);
       const writer = new Writer({
         persistence,
-        patchJournal: createPatchJournal(persistence),
+        patchJournal,
         commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
         graphName: 'events',
         writerId: 'alice',
@@ -389,11 +409,11 @@ describe('Writer (WARP schema:2)', () => {
       patch.addNode('x');
       await patch.commit();
 
-      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
-        'refs/warp/events/writers/alice',
-        newSha,
-        null
-      );
+      expect(patchJournal.requests[0]).toMatchObject({
+        targetRef: 'refs/warp/events/writers/alice',
+        expectedHead: null,
+        parent: null,
+      });
     });
 
     it('prevents double commit', async () => {

@@ -2,18 +2,18 @@ import WarpError from '../errors/WarpError.ts';
 
 export type GraphModelMigrationContentSourceFields = {
   readonly legacyContentKey: string;
-  readonly contentOid: string;
+  readonly contentHandle: string;
 };
 
 /** Runtime-backed source blob fact needed by migration planning. */
 export default class GraphModelMigrationContentSource {
   readonly legacyContentKey: string;
-  readonly contentOid: string;
+  readonly contentHandle: string;
 
   constructor(fields: GraphModelMigrationContentSourceFields) {
     const checkedFields = requireFields(fields);
     this.legacyContentKey = requireNonEmptyString(checkedFields.legacyContentKey, 'legacyContentKey');
-    this.contentOid = requireNonEmptyString(checkedFields.contentOid, 'contentOid');
+    this.contentHandle = requireNonEmptyString(checkedFields.contentHandle, 'contentHandle');
     Object.freeze(this);
   }
 }

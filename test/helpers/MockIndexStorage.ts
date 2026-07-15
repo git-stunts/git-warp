@@ -1,62 +1,72 @@
 import { vi } from 'vitest';
-import IndexStoragePort from '../../src/ports/IndexStoragePort.ts';
+import type { IndexShard } from '../../src/domain/artifacts/IndexShard.ts';
+import IndexError from '../../src/domain/errors/IndexError.ts';
+import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../src/domain/storage/BundleHandle.ts';
+import WarpStream from '../../src/domain/stream/WarpStream.ts';
+import type CodecValue from '../../src/domain/types/codec/CodecValue.ts';
+import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
+import IndexStorePort from '../../src/ports/IndexStorePort.ts';
+import { IndexShardEncodeTransform } from '../../src/infrastructure/adapters/IndexShardEncodeTransform.ts';
 
-function cloneBytes(bytes: Uint8Array): Uint8Array {
-  return new Uint8Array(bytes);
-}
+/** Test-only semantic index store with directly writable encoded shards. */
+export default class MockIndexStorage extends IndexStorePort {
+  readonly #blobs = new Map<string, Uint8Array>();
+  readonly #indexes = new Map<string, Readonly<Record<string, AssetHandle>>>();
+  #counter = 0;
+  readonly openedShardHandles: string[] = [];
+  readonly decodedShardHandles: string[] = [];
 
-const EMPTY_TREE_OID = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
-
-/** Test-only in-memory implementation of the live bitmap index storage port. */
-export default class MockIndexStorage extends IndexStoragePort {
-  private readonly blobStore = new Map<string, Uint8Array>();
-  private readonly treeStore = new Map<string, Record<string, string>>([[EMPTY_TREE_OID, {}]]);
-  private readonly refs = new Map<string, string>();
-  private blobCounter = 0;
-  private treeCounter = 0;
-
-  readonly writeBlob = vi.fn(async (content: Uint8Array | string) => {
-    const oid = String(this.blobCounter++).padStart(40, '0');
+  readonly writeBlob = vi.fn(async (content: Uint8Array | string): Promise<AssetHandle> => {
+    const handle = new AssetHandle(`test-index-shard:${String(this.#counter++).padStart(8, '0')}`);
     const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
-    this.blobStore.set(oid, cloneBytes(bytes));
-    return oid;
+    this.#blobs.set(handle.toString(), bytes.slice());
+    return handle;
   });
 
-  readonly readBlob = vi.fn(async (oid: string) => {
-    const bytes = this.blobStore.get(oid);
+  override async writeShards(shardStream: WarpStream<IndexShard>): Promise<BundleHandle> {
+    const entries: Array<[string, AssetHandle]> = [];
+    for await (const [path, bytes] of shardStream.pipe(new IndexShardEncodeTransform(defaultCodec))) {
+      entries.push([path, await this.writeBlob(bytes)]);
+    }
+    const handle = new BundleHandle(`test-index:${String(this.#counter++).padStart(8, '0')}`);
+    this.#indexes.set(handle.toString(), Object.freeze(Object.fromEntries(entries)));
+    return handle;
+  }
+
+  override scanShards(_indexHandle: BundleHandle): WarpStream<IndexShard> {
+    return WarpStream.of<IndexShard>();
+  }
+
+  override async readShardHandles(
+    indexHandle: BundleHandle,
+  ): Promise<Readonly<Record<string, AssetHandle>>> {
+    return this.#indexes.get(indexHandle.toString()) ?? Object.freeze({});
+  }
+
+  override async *openShard(handle: AssetHandle): AsyncIterable<Uint8Array> {
+    this.openedShardHandles.push(handle.toString());
+    const bytes = this.#blobs.get(handle.toString());
     if (bytes === undefined) {
-      throw new Error(`Blob not found: ${oid}`);
+      throw new IndexError(`Shard not found: ${handle.toString()}`, {
+        code: 'E_INDEX_SHARD_MISSING',
+        context: { handle: handle.toString() },
+      });
     }
-    return cloneBytes(bytes);
-  });
+    yield bytes.slice();
+  }
 
-  readonly writeTree = vi.fn(async (entries: string[]) => {
-    const oid = `tree_${String(this.treeCounter++).padStart(40, '0')}`;
-    const oidMap: Record<string, string> = {};
-    for (const entry of entries) {
-      const tabIndex = entry.indexOf('\t');
-      const path = entry.slice(tabIndex + 1);
-      const blobOid = entry.slice(0, tabIndex).split(' ')[2];
-      if (blobOid === undefined) {
-        throw new Error(`Invalid tree entry: ${entry}`);
-      }
-      oidMap[path] = blobOid;
+  override async decodeShard<TDecoded extends CodecValue = CodecValue>(
+    handle: AssetHandle,
+  ): Promise<TDecoded> {
+    this.decodedShardHandles.push(handle.toString());
+    const bytes = this.#blobs.get(handle.toString());
+    if (bytes === undefined) {
+      throw new IndexError(`Shard not found: ${handle.toString()}`, {
+        code: 'E_INDEX_SHARD_MISSING',
+        context: { handle: handle.toString() },
+      });
     }
-    this.treeStore.set(oid, oidMap);
-    return oid;
-  });
-
-  readonly readTreeOids = vi.fn(async (treeOid: string) => {
-    const tree = this.treeStore.get(treeOid);
-    if (tree === undefined) {
-      throw new Error(`Tree not found: ${treeOid}`);
-    }
-    return { ...tree };
-  });
-
-  readonly updateRef = vi.fn(async (ref: string, oid: string) => {
-    this.refs.set(ref, oid);
-  });
-
-  readonly readRef = vi.fn(async (ref: string) => this.refs.get(ref) ?? null);
+    return defaultCodec.decode<TDecoded>(bytes);
+  }
 }

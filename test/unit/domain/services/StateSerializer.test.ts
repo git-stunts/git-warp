@@ -457,12 +457,12 @@ describe('StateSerializer', () => {
         { nodeId: 'd', label: 'back', direction: 'incoming' },
       ]);
       expect(reader.getNodeContentMeta('a')).toEqual({
-        oid: 'oid:node',
+        handle: 'oid:node',
         mime: 'text/plain',
         size: 12,
       });
       expect(reader.getEdgeContentMeta('a', 'c', 'rel')).toEqual({
-        oid: 'oid:edge',
+        handle: 'oid:edge',
         mime: 'application/json',
         size: 7,
       });
@@ -477,7 +477,7 @@ describe('StateSerializer', () => {
         outgoing: [{ nodeId: 'c', label: 'rel', direction: 'outgoing' }],
         incoming: [{ nodeId: 'd', label: 'back', direction: 'incoming' }],
         content: {
-          oid: 'oid:node',
+          handle: 'oid:node',
           mime: 'text/plain',
           size: 12,
         },

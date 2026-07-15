@@ -19,9 +19,7 @@ import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
   encodePatchMessage,
 } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import FixturePatchJournal from '../../../helpers/FixturePatchJournal.ts';
 
 // -----------------------------------------------------------------------------
 // Test Fixtures and Helpers
@@ -65,6 +63,8 @@ function createNodeAddOp(node: any, dot: any) {
 /** @returns {any} */
 function createMockPersistence(commits: any = {}, blobs: any = {}): any {
   return {
+    fixtureCommits: commits,
+    fixturePatches: blobs,
     showNode: vi.fn(async sha => {
       if (commits[sha]?.message) {
         return commits[sha].message;
@@ -85,26 +85,13 @@ function createMockPersistence(commits: any = {}, blobs: any = {}): any {
       throw new Error(`Commit not found: ${sha}`);
     }),
 
-    readBlob: vi.fn(async oid => {
-      if (blobs[oid]) {
-        return blobs[oid];
-      }
-      throw new Error(`Blob not found: ${oid}`);
-    }),
   };
 }
 
-/**
- * Creates a CborPatchJournalAdapter wired to the given mock persistence's blob ops.
- * @param {ReturnType<typeof createMockPersistence>} persistence
- * @returns {CborPatchJournalAdapter}
- */
 function createPatchJournal(persistence: any) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-    commitPort: persistence,
-    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+  return new FixturePatchJournal({
+    commits: persistence.fixtureCommits,
+    patches: persistence.fixturePatches,
   });
 }
 
@@ -139,7 +126,7 @@ function setupCommit(commits: any, blobs: any, sha: any, patch: any, patchOid: a
   });
 
   commits[sha] = { message, parents };
-  blobs[patchOid] = encode(patch);
+  blobs[patchOid] = patch;
 }
 
 // -----------------------------------------------------------------------------

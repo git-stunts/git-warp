@@ -1,220 +1,113 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
 import PropertyIndexBuilder from '../../../../src/domain/services/index/PropertyIndexBuilder.ts';
 import PropertyIndexReader from '../../../../src/domain/services/index/PropertyIndexReader.ts';
-import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.ts';
-import { createFakeCodecPort } from '../../../helpers/mockPorts.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 
-const codec = createFakeCodecPort();
-
-/**
- * Creates an in-memory mock storage from PropertyShard instances.
- * Encodes each shard's entries so PropertyIndexReader can decode them.
- */
-/** @param {Array<PropertyShard>} shards */
-function mockStorageFromShards(shards) {
-  const blobs = new Map();
-    const oids = ({}) as Record<string, string>;
-  let oidCounter = 0;
-
-  for (const shard of shards) {
-    const path = `props_${shard.shardKey}.cbor`;
-    const oid = `oid_${oidCounter++}`;
-    blobs.set(oid, codec.encode(shard.entries));
-    oids[path] = oid;
+async function storedReader(builder: PropertyIndexBuilder): Promise<PropertyIndexReader> {
+  const storage = new MockIndexStorage();
+  const handles = {} as Record<string, Awaited<ReturnType<MockIndexStorage['writeBlob']>>>;
+  for (const shard of builder.yieldShards()) {
+    handles[`props_${shard.shardKey}.cbor`] = await storage.writeBlob(
+      defaultCodec.encode(shard.entries),
+    );
   }
-
-  return {
-    storage: ({ readBlob: async (/** @type {string} */ oid) => blobs.get(oid) } as any),
-    oids,
-  };
+  const reader = new PropertyIndexReader({ indexStore: storage });
+  reader.setupHandles(handles);
+  return reader;
 }
 
-describe('PropertyIndex', () => {
-  it('build → serialize → load → query matches', async () => {
+describe('PropertyIndex handle-backed reads', () => {
+  it('builds, stores, and queries property shards through opaque handles', async () => {
     const builder = new PropertyIndexBuilder();
     builder.addProperty('user:alice', 'name', 'Alice');
     builder.addProperty('user:alice', 'age', 30);
     builder.addProperty('user:bob', 'name', 'Bob');
+    const reader = await storedReader(builder);
 
-    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
-    const { storage, oids } = mockStorageFromShards(shards);
-
-    const reader = new PropertyIndexReader({ storage, codec });
-    reader.setup(oids);
-
-    const aliceProps = await reader.getNodeProps('user:alice');
-    expect(aliceProps).toEqual({ name: 'Alice', age: 30 });
-
-    const bobName = await reader.getProperty('user:bob', 'name');
-    expect(bobName).toBe('Bob');
+    await expect(reader.getNodeProps('user:alice')).resolves.toEqual({ name: 'Alice', age: 30 });
+    await expect(reader.getProperty('user:bob', 'name')).resolves.toBe('Bob');
+    await expect(reader.getNodeProps('missing')).resolves.toBeNull();
   });
 
-  it('missing node returns null', async () => {
-    const builder = new PropertyIndexBuilder();
-    builder.addProperty('user:alice', 'name', 'Alice');
-
-    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
-    const { storage, oids } = mockStorageFromShards(shards);
-
-    const reader = new PropertyIndexReader({ storage, codec });
-    reader.setup(oids);
-
-    expect(await reader.getNodeProps('nonexistent')).toBeNull();
-    expect(await reader.getProperty('nonexistent', 'name')).toBeUndefined();
-  });
-
-  it('multiple nodes in same shard are correctly isolated', async () => {
-    const builder = new PropertyIndexBuilder();
-    const first = 'a';
-    const shardKey = computeShardKey(first);
-    let second: string | null = null;
-    for (let i = 0; i < 10000; i++) {
-      const candidate = `node:${i}`;
-      if (candidate !== first && computeShardKey(candidate) === shardKey) {
-        second = candidate;
-        break;
-      }
-    }
-    if (!second) {
-      throw new Error('failed to find a same-shard node for test');
-    }
-    builder.addProperty(first, 'x', 1);
-    builder.addProperty(second, 'y', 2);
-
-    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
-    const { storage, oids } = mockStorageFromShards(shards);
-
-    const reader = new PropertyIndexReader({ storage, codec });
-    reader.setup(oids);
-
-    expect(await reader.getNodeProps(first)).toEqual({ x: 1 });
-    expect(await reader.getNodeProps(second)).toEqual({ y: 2 });
-  });
-
-  it('round-trip: build → serialize → reader → values match', async () => {
+  it('reads freshly materialized in-memory shards without a storage adapter', async () => {
     const builder = new PropertyIndexBuilder();
     builder.addProperty('node:1', 'color', 'red');
-    builder.addProperty('node:1', 'weight', 42);
-    builder.addProperty('node:2', 'color', 'blue');
-
-    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
-
-    // Verify PropertyShard entries are well-formed objects
-    for (const shard of shards) {
-      expect(shard).toBeInstanceOf(PropertyShard);
-      expect(Array.isArray(shard.entries)).toBe(true);
+    const tree: Record<string, Uint8Array> = {};
+    for (const shard of builder.yieldShards()) {
+      tree[`props_${shard.shardKey}.cbor`] = defaultCodec.encode(shard.entries);
     }
+    const reader = new PropertyIndexReader({ codec: defaultCodec });
+    reader.setupTree(tree);
 
-    const { storage, oids } = mockStorageFromShards(shards);
-    const reader = new PropertyIndexReader({ storage, codec });
-    reader.setup(oids);
-
-    expect(await reader.getProperty('node:1', 'color')).toBe('red');
-    expect(await reader.getProperty('node:1', 'weight')).toBe(42);
-    expect(await reader.getProperty('node:2', 'color')).toBe('blue');
+    await expect(reader.getProperty('node:1', 'color')).resolves.toBe('red');
   });
 
-  it('proto pollution safety (F10): __proto__ node props do not leak', async () => {
+  it('keeps nodes isolated when they share one shard', async () => {
+    const first = 'a';
+    const shardKey = computeShardKey(first);
+    const second = Array.from({ length: 10_000 }, (_, index) => `node:${index}`)
+      .find((candidate) => candidate !== first && computeShardKey(candidate) === shardKey);
+    if (second === undefined) {
+      throw new Error('failed to find a same-shard node');
+    }
     const builder = new PropertyIndexBuilder();
-    for (const { nodeId, key, value } of (F10_PROTO_POLLUTION.props as any)) {
+    builder.addProperty(first, 'x', 1);
+    builder.addProperty(second, 'y', 2);
+    const reader = await storedReader(builder);
+
+    await expect(reader.getNodeProps(first)).resolves.toEqual({ x: 1 });
+    await expect(reader.getNodeProps(second)).resolves.toEqual({ y: 2 });
+  });
+
+  it('fails when handle-backed reads have no index store', async () => {
+    const storage = new MockIndexStorage();
+    const handle = await storage.writeBlob(defaultCodec.encode([]));
+    const reader = new PropertyIndexReader();
+    reader.setupHandles({ [`props_${computeShardKey('node:1')}.cbor`]: handle });
+
+    await expect(reader.getNodeProps('node:1')).rejects.toMatchObject({ code: 'E_INDEX_NO_STORE' });
+  });
+
+  it('rejects malformed decoded shard payloads', async () => {
+    const storage = new MockIndexStorage();
+    const handle = await storage.writeBlob(defaultCodec.encode({ invalid: true }));
+    const reader = new PropertyIndexReader({ indexStore: storage });
+    reader.setupHandles({ [`props_${computeShardKey('node:1')}.cbor`]: handle });
+
+    await expect(reader.getNodeProps('node:1')).rejects.toMatchObject({
+      code: 'E_INDEX_SHARD_MALFORMED',
+    });
+  });
+
+  it('does not permit __proto__ property data to mutate Object.prototype', async () => {
+    const builder = new PropertyIndexBuilder();
+    for (const { nodeId, key, value } of F10_PROTO_POLLUTION.props) {
       builder.addProperty(nodeId, key, value);
     }
+    const reader = await storedReader(builder);
 
-    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
-    const { storage, oids } = mockStorageFromShards(shards);
-
-    const reader = new PropertyIndexReader({ storage, codec });
-    reader.setup(oids);
-
-    const props = await reader.getNodeProps('__proto__');
-    expect(props).toEqual({ polluted: true });
-    expect((({} as Record<string, unknown>))['polluted']).toBeUndefined();
+    await expect(reader.getNodeProps('__proto__')).resolves.toEqual({ polluted: true });
+    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
   });
 
-  it('throws a descriptive error when a shard OID is missing', async () => {
-    const reader = new PropertyIndexReader({
-      storage: ({ readBlob: async () => undefined } as any),
-      codec,
-    });
-    reader.setup({ 'props_ab.cbor': 'oid_missing' });
-    const abNodeId = `ab${'0'.repeat(38)}`;
+  it('serializes equivalent property sets deterministically across operation order', () => {
+    const first = new PropertyIndexBuilder();
+    first.addProperty('node:alpha', 'name', 'Alice');
+    first.addProperty('node:beta', 'name', 'Bob');
+    first.addProperty('node:alpha', 'role', 'admin');
+    const second = new PropertyIndexBuilder();
+    second.addProperty('node:alpha', 'role', 'admin');
+    second.addProperty('node:beta', 'name', 'Bob');
+    second.addProperty('node:alpha', 'name', 'Alice');
 
-    await expect(reader.getNodeProps(abNodeId)).rejects.toThrow(/missing blob.*oid_missing/i);
-  });
-
-  it('throws when decoded shard payload is not an array', async () => {
-    const abNodeId = `ab${'0'.repeat(38)}`;
-    const shardPath = `props_${computeShardKey(abNodeId)}.cbor`;
-    const reader = new PropertyIndexReader({
-      storage: ({ readBlob: async () => codec.encode({ [abNodeId]: { name: 'Alice' } }) } as any),
-      codec,
-    });
-    reader.setup({ [shardPath]: 'oid_bad_format' });
-
-    await expect(reader.getNodeProps(abNodeId)).rejects.toThrow(/invalid shard format.*expected array.*object/i);
-  });
-
-  it('loads via indexStore.decodeShard — codec-free', async () => {
-    const builder = new PropertyIndexBuilder();
-    builder.addProperty('user:alice', 'name', 'Alice');
-    builder.addProperty('user:alice', 'age', 30);
-    builder.addProperty('user:bob', 'name', 'Bob');
-
-    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
-
-    // Build a mock indexStore that returns decoded shard entries directly
-    const decodedByOid = new Map();
-        const oids = ({}) as Record<string, string>;
-    let oidCounter = 0;
-    for (const shard of shards) {
-      const path = `props_${shard.shardKey}.cbor`;
-      const oid = `oid_${oidCounter++}`;
-      decodedByOid.set(oid, shard.entries);
-      oids[path] = oid;
-    }
-
-    const mockIndexStore = (({
-      decodeShard: async ( oid) => decodedByOid.get(oid),
-    }) as any);
-
-    const reader = new PropertyIndexReader({ indexStore: mockIndexStore });
-    reader.setup(oids);
-
-    const aliceProps = await reader.getNodeProps('user:alice');
-    expect(aliceProps).toEqual({ name: 'Alice', age: 30 });
-
-    const bobName = await reader.getProperty('user:bob', 'name');
-    expect(bobName).toBe('Bob');
-  });
-
-  it('serializes deterministically for equivalent property sets across op orders', () => {
-    const order1 = new PropertyIndexBuilder();
-    order1.addProperty('node:alpha', 'name', 'Alice');
-    order1.addProperty('node:beta', 'name', 'Bob');
-    order1.addProperty('node:alpha', 'role', 'admin');
-    order1.addProperty('node:beta', 'active', true);
-
-    const order2 = new PropertyIndexBuilder();
-    order2.addProperty('node:beta', 'active', true);
-    order2.addProperty('node:alpha', 'role', 'admin');
-    order2.addProperty('node:beta', 'name', 'Bob');
-    order2.addProperty('node:alpha', 'name', 'Alice');
-
-    const shards1 = ([...order1.yieldShards()] as Array<PropertyShard>);
-    const shards2 = ([...order2.yieldShards()] as Array<PropertyShard>);
-
-    // Same number of shards with same shard keys
-    const keys1 = shards1.map((s) => s.shardKey).sort();
-    const keys2 = shards2.map((s) => s.shardKey).sort();
-    expect(keys1).toEqual(keys2);
-
-    // Same entries per shard key
-    for (const shard1 of shards1) {
-      const shard2 = shards2.find((s) => s.shardKey === shard1.shardKey);
-      expect(shard2).toBeDefined();
-      expect(shard1.entries).toEqual((shard2 as any).entries);
-    }
+    const firstShards = [...first.yieldShards()] as PropertyShard[];
+    const secondShards = [...second.yieldShards()] as PropertyShard[];
+    expect(firstShards).toEqual(secondShards);
+    expect(firstShards.map((shard) => defaultCodec.encode(shard.entries)))
+      .toEqual(secondShards.map((shard) => defaultCodec.encode(shard.entries)));
   });
 });

@@ -75,12 +75,12 @@ describe('StateReader property projection routing', () => {
     const reader = createStateReader(state);
 
     expect(reader.getNodeContentMeta('node:1')).toEqual({
-      oid: 'node-oid',
+      handle: 'node-oid',
       mime: null,
       size: 512,
     });
     expect(reader.getEdgeContentMeta('node:1', 'node:2', 'rel')).toEqual({
-      oid: 'edge-oid',
+      handle: 'edge-oid',
       mime: 'text/plain',
       size: null,
     });

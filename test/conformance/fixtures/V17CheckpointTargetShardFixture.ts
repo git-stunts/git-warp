@@ -1,47 +1,49 @@
 import { vi } from 'vitest';
 import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
+import type AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
+import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
 import type { OpticFixtureGraph } from './V17CheckpointTailOpticGraphFixture.ts';
-import V17CheckpointTailOpticFixtureError from './V17CheckpointTailOpticFixtureError.ts';
 
+/** Injects one-shard failures through IndexStorePort. */
 export default class V17CheckpointTargetShardFixture {
   private readonly graph: OpticFixtureGraph;
-  private readonly shardOid: string;
+  private readonly shardHandle: AssetHandle;
 
   constructor(options: {
     readonly graph: OpticFixtureGraph;
-    readonly shardOid: string;
+    readonly shardOid: AssetHandle;
   }) {
-    if (options.shardOid.length === 0) {
-      throw new V17CheckpointTailOpticFixtureError('target checkpoint shard oid must be non-empty');
-    }
-
     this.graph = options.graph;
-    this.shardOid = options.shardOid;
+    this.shardHandle = options.shardOid;
     Object.freeze(this);
   }
 
   makeUnavailable(): void {
-    const originalReadBlob = this.graph._persistence.readBlob.bind(this.graph._persistence);
-    vi.spyOn(this.graph._persistence, 'readBlob').mockImplementation(async (oid: string) => {
-      if (oid === this.shardOid) {
+    const store = this.graph._indexStore;
+    const originalDecode = store.decodeShard.bind(store);
+    vi.spyOn(store, 'decodeShard').mockImplementation(async <
+      TDecoded extends CodecValue = CodecValue,
+    >(handle: AssetHandle): Promise<TDecoded> => {
+      if (handle.equals(this.shardHandle)) {
         throw new PersistenceError(
-          `Blob not found: ${oid}`,
+          `Shard not found: ${handle.toString()}`,
           PersistenceError.E_MISSING_OBJECT,
         );
       }
-
-      return await originalReadBlob(oid);
+      return await originalDecode<TDecoded>(handle);
     });
   }
 
   makeInvalid(): void {
-    const originalReadBlob = this.graph._persistence.readBlob.bind(this.graph._persistence);
-    vi.spyOn(this.graph._persistence, 'readBlob').mockImplementation(async (oid: string) => {
-      if (oid === this.shardOid) {
-        return this.graph._codec.encode(Object.freeze({ invalid: true }));
+    const store = this.graph._indexStore;
+    const originalDecode = store.decodeShard.bind(store);
+    vi.spyOn(store, 'decodeShard').mockImplementation(async <
+      TDecoded extends CodecValue = CodecValue,
+    >(handle: AssetHandle): Promise<TDecoded> => {
+      if (handle.equals(this.shardHandle)) {
+        return Object.freeze({ invalid: true }) as unknown as TDecoded;
       }
-
-      return await originalReadBlob(oid);
+      return await originalDecode<TDecoded>(handle);
     });
   }
 }

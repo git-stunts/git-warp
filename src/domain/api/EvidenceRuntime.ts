@@ -3,8 +3,9 @@ import WarpError from '../errors/WarpError.ts';
 import type ReadIdentity from '../services/optic/ReadIdentity.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type { ApiRuntimeContext, OpaqueIdPart } from './ApiRuntimeContext.ts';
-import type Evidence from './Evidence.ts';
-import type { EvidenceHandle } from './Evidence.ts';
+import type { Evidence, EvidenceHandle } from './Evidence.ts';
+import type StorageRetentionWitness from '../storage/StorageRetentionWitness.ts';
+import RetentionEvidence from './RetentionEvidence.ts';
 import Tick from './Tick.ts';
 
 type JoinEvidenceFields = {
@@ -13,19 +14,26 @@ type JoinEvidenceFields = {
   readonly patchShas: readonly string[];
 };
 
+type WriteEvidenceFields = {
+  readonly runtime: WarpWorldline;
+  readonly context: ApiRuntimeContext;
+  readonly patchSha: string;
+  readonly retentionWitness?: StorageRetentionWitness;
+};
+
 const WRITE_EVIDENCE = 'write';
 const JOIN_EVIDENCE = 'join';
 const READ_EVIDENCE = 'read';
 const PATCH_SUPPORT = 'patch';
 const INDEX_SUPPORT = 'index';
 const RECOVERY_EVIDENCE = 'recovery';
+const RETENTION_SUPPORT = 'retention';
 
 export async function createWriteEvidence(
-  runtime: WarpWorldline,
-  context: ApiRuntimeContext,
-  patchSha: string
+  fields: WriteEvidenceFields,
 ): Promise<Evidence> {
-  return freezeCreatedEvidence({
+  const { runtime, context, patchSha, retentionWitness } = fields;
+  const evidence = {
     basis: await createHandle(context, [
       WRITE_EVIDENCE,
       runtime.worldlineName,
@@ -33,6 +41,13 @@ export async function createWriteEvidence(
       patchSha,
     ]),
     support: [await createHandle(context, [PATCH_SUPPORT, patchSha])],
+  };
+  if (retentionWitness === undefined) {
+    return freezeCreatedEvidence(evidence);
+  }
+  return freezeCreatedEvidence({
+    ...evidence,
+    retention: [await createRetentionEvidence(context, retentionWitness)],
   });
 }
 
@@ -100,8 +115,10 @@ export function freezeEvidence(evidence: Evidence, field: string): Evidence {
   assertEvidenceObject(evidence, field);
   const basis = freezeHandle(evidence.basis, `${field}.basis`);
   const support = freezeSupport(evidence.support, `${field}.support`);
+  const retention = freezeRetentionEvidence(evidence.retention, `${field}.retention`);
   const tick = validateTick(evidence.tick, `${field}.tick`);
-  return freezeCreatedEvidence(tick === undefined ? { basis, support } : { basis, support, tick });
+  const base = retention === undefined ? { basis, support } : { basis, support, retention };
+  return freezeCreatedEvidence(tick === undefined ? base : { ...base, tick });
 }
 
 export function freezeOptionalEvidence(
@@ -158,6 +175,67 @@ function freezeSupport(
   return Object.freeze(support.map((handle, index) => freezeHandle(handle, `${field}[${index}]`)));
 }
 
+function freezeRetentionEvidence(
+  retention: readonly RetentionEvidence[] | undefined,
+  field: string,
+): readonly RetentionEvidence[] | undefined {
+  if (retention === undefined) {
+    return undefined;
+  }
+  assertRetentionEvidenceArray(retention, field);
+  return freezeRetentionEvidenceEntries(retention, field);
+}
+
+function assertRetentionEvidenceArray(
+  retention: readonly RetentionEvidence[],
+  field: string,
+): void {
+  if (!Array.isArray(retention)) {
+    throw new WarpError(`${field} must be an array`, 'E_RECEIPT_EVIDENCE');
+  }
+}
+
+function freezeRetentionEvidenceEntries(
+  retention: readonly RetentionEvidence[],
+  field: string,
+): readonly RetentionEvidence[] {
+  return Object.freeze(retention.map((entry, index) => {
+    const itemField = `${field}[${index}]`;
+    if (entry === null || typeof entry !== 'object') {
+      throw new WarpError(`${itemField} must be retention evidence`, 'E_RECEIPT_EVIDENCE');
+    }
+    return new RetentionEvidence({
+      witness: freezeHandle(entry.witness, `${itemField}.witness`),
+      policy: entry.policy,
+      reachability: entry.reachability,
+      rootKind: entry.rootKind,
+    });
+  }));
+}
+
+async function createRetentionEvidence(
+  context: ApiRuntimeContext,
+  witness: StorageRetentionWitness,
+): Promise<RetentionEvidence> {
+  return new RetentionEvidence({
+    witness: await createHandle(context, [
+      RETENTION_SUPPORT,
+      witness.handle.toString(),
+      witness.policy,
+      witness.reachability,
+      witness.root.kind,
+      witness.root.namespace,
+      witness.root.locator,
+      witness.root.generation,
+      witness.root.path,
+      witness.observedAt,
+    ]),
+    policy: witness.policy,
+    reachability: witness.reachability,
+    rootKind: witness.root.kind,
+  });
+}
+
 function validateTick(tick: Tick | undefined, field: string): Tick | undefined {
   if (tick !== undefined && !(tick instanceof Tick)) {
     throw new WarpError(`${field} must be a Tick`, 'E_RECEIPT_EVIDENCE');
@@ -186,12 +264,16 @@ function freezeCreatedEvidence(evidence: Evidence): Evidence {
     readonly basis: EvidenceHandle;
     readonly support: readonly EvidenceHandle[];
     tick?: Tick;
+    retention?: readonly RetentionEvidence[];
   } = {
     basis: evidence.basis,
     support: Object.freeze([...evidence.support]),
   };
   if (evidence.tick !== undefined) {
     result.tick = evidence.tick;
+  }
+  if (evidence.retention !== undefined) {
+    result.retention = Object.freeze([...evidence.retention]);
   }
   return Object.freeze(result);
 }

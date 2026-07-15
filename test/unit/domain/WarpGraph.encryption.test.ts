@@ -1,295 +1,178 @@
-/**
- * Integration tests for graph encryption at rest (B164).
- *
- * Tests the patchBlobStorage flow end-to-end using a mock
- * BlobStoragePort that simulates encrypted storage in memory.
- */
-import { describe, it, expect, beforeEach } from 'vitest';
-import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
-import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
-import BlobStoragePort from '../../../src/ports/BlobStoragePort.ts';
+import { describe, expect, it } from 'vitest';
 import EncryptionError from '../../../src/domain/errors/EncryptionError.ts';
-import { CborPatchJournalAdapter } from '../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import SubstrateCompatibilityPolicy from '../../../src/infrastructure/adapters/SubstrateCompatibilityPolicy.ts';
+import { openMemoryRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
+import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
 
-// ---------------------------------------------------------------------------
-// Mock BlobStoragePort — stores/retrieves from an in-memory Map
-// ---------------------------------------------------------------------------
-
-class InMemoryBlobStorage extends BlobStoragePort {
-  _blobs: Map<string, Uint8Array>;
-  _counter: number;
-
-  constructor() {
-    super();
-    this._blobs = new Map();
-    this._counter = 0;
-  }
-
-  async store(content: string | Uint8Array) {
-    this._counter++;
-    // Generate a fake OID (40-char hex)
-    const oid = this._counter.toString(16).padStart(40, '0');
-    const buf = typeof content === 'string'
-      ? new TextEncoder().encode(content)
-      : new Uint8Array(content);
-    this._blobs.set(oid, buf);
-    return oid;
-  }
-
-  async retrieve(oid: string) {
-    const buf = this._blobs.get(oid);
-    if (!buf) {
-      throw new Error(`InMemoryBlobStorage: OID not found: ${oid}`);
-    }
-    return buf;
-  }
-
-  async storeStream(_stream: any): Promise<string> {
-    throw new Error('storeStream not implemented');
-  }
-
-  async *retrieveStream(_oid: string): AsyncGenerator<Uint8Array> {
-    yield* ([] as Uint8Array[]);
-    throw new Error('retrieveStream not implemented');
-  }
-}
-
-function createMixedStoragePatchJournal(repo, patchStorage) {
-  return new CborPatchJournalAdapter({
-    codec: defaultCodec,
-    blobPort: repo.persistence,
-    commitPort: repo.persistence,
-    patchBlobStorage: patchStorage,
-    compatibilityPolicy: new SubstrateCompatibilityPolicy({
-      legacyPatchStorageReads: true,
-    }),
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-describe('WarpCore encryption at rest (B164)', () => {
-    let repo;
-    let patchStorage;
-
-  beforeEach(() => {
-    repo = createInMemoryRepo();
-    patchStorage = new InMemoryBlobStorage();
-  });
-
-  it('writes encrypted patches via patchBlobStorage and reads them back', async () => {
-    const graph = await openRuntimeHostProduct({
+describe('git-cas patch encryption composition', () => {
+  it('records encrypted git-cas storage metadata and round-trips the patch', async () => {
+    const repo = createInMemoryRepo();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encrypted: true,
+    });
+    const runtime = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
-      graphName: 'enc-test',
-      writerId: 'writer-1',
-      patchBlobStorage: patchStorage,
-    });
-
-    // Write a patch
-    const sha = await graph.patch(p => {
-      p.addNode('user:alice');
-      p.setProperty('user:alice', 'name', 'Alice');
-    });
-
-    expect(sha).toBeTruthy();
-    // Patch CBOR should be in our mock storage, not raw persistence
-    expect(patchStorage._blobs.size).toBe(1);
-
-    // Materialize should work (reads back via patchBlobStorage)
-    const state = await graph.materialize();
-    expect(state).toBeTruthy();
-
-    // Query to verify data integrity
-    expect(await graph.hasNode('user:alice')).toBe(true);
-    const props = (await graph.getNodeProps('user:alice') as any);
-    expect(props.name).toBe('Alice');
-  });
-
-  it('reads encrypted patches after re-opening with patchBlobStorage', async () => {
-    // Write with encryption
-    const graph1 = await openRuntimeHostProduct({
-      persistence: repo.persistence,
-      graphName: 'enc-test',
-      writerId: 'writer-1',
-      patchBlobStorage: patchStorage,
-    });
-    await graph1.patch(p => {
-      p.addNode('user:bob');
-      p.setProperty('user:bob', 'role', 'admin');
-    });
-
-    // Re-open with same storage (simulating re-open with key)
-    const graph2 = await openRuntimeHostProduct({
-      persistence: repo.persistence,
-      graphName: 'enc-test',
-      writerId: 'writer-2',
-      patchBlobStorage: patchStorage,
-    });
-    await graph2.materialize();
-
-    expect(await graph2.hasNode('user:bob')).toBe(true);
-    const props = (await graph2.getNodeProps('user:bob') as any);
-    expect(props.role).toBe('admin');
-  });
-
-  it('throws EncryptionError when reading encrypted patches without patchBlobStorage', async () => {
-    // Write with encryption
-    const graph1 = await openRuntimeHostProduct({
-      persistence: repo.persistence,
-      graphName: 'enc-test',
-      writerId: 'writer-1',
-      patchBlobStorage: patchStorage,
-    });
-    await graph1.patch(p => {
-      p.addNode('user:charlie');
-    });
-
-    // Re-open WITHOUT patchBlobStorage — should fail during open() or materialize()
-    // (the migration boundary check in open() reads the tip patch)
-    const openPromise = openRuntimeHostProduct({
-      persistence: repo.persistence,
-      graphName: 'enc-test',
-      writerId: 'writer-2',
-    });
-
-    await expect(openPromise).rejects.toThrow(/encrypted patches/);
-  });
-
-  it('handles mixed encrypted and unencrypted patches', async () => {
-    // Write unencrypted patches first
-    const graph1 = await openRuntimeHostProduct({
-      persistence: repo.persistence,
-      graphName: 'mixed-test',
+      runtimeStorage,
+      graphName: 'encrypted-events',
       writerId: 'writer-1',
     });
-    await graph1.patch(p => {
-      p.addNode('user:plain');
-      p.setProperty('user:plain', 'mode', 'clear');
-    });
 
-    // Then write encrypted patches with a different writer
-    const graph2 = await openRuntimeHostProduct({
-      persistence: repo.persistence,
-      graphName: 'mixed-test',
-      writerId: 'writer-2',
-      patchBlobStorage: patchStorage,
-      patchJournal: createMixedStoragePatchJournal(repo, patchStorage),
+    const sha = await runtime.patch((patch) => {
+      patch.addNode('user:alice');
+      patch.setProperty('user:alice', 'role', 'admin');
     });
-    await graph2.patch(p => {
-      p.addNode('user:secret');
-      p.setProperty('user:secret', 'mode', 'encrypted');
-    });
+    const message = runtime._commitMessageCodec.decodePatch(
+      await repo.persistence.showNode(sha),
+    );
 
-    // Re-open with patchBlobStorage — should read both
-    const graph3 = await openRuntimeHostProduct({
+    expect(message.storage).toMatchObject({
+      strategy: 'git-cas-asset',
+      encrypted: true,
+    });
+    const plaintextPatch = runtime._codec.encode(await runtime.loadPatchBySha(sha));
+    const storedPatch = await runtimeStorage.backing.retrieve(message.patchHandle.toString());
+    expect(storedPatch).not.toEqual(plaintextPatch);
+    await runtime.materialize();
+    await expect(runtime.hasNode('user:alice')).resolves.toBe(true);
+    await expect(runtime.getNodeProps('user:alice')).resolves.toMatchObject({ role: 'admin' });
+  });
+
+  it('rejects encrypted patch history opened with a different key', async () => {
+    const repo = createInMemoryRepo();
+    const writerStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encryptionKey: new Uint8Array(32).fill(0x11),
+    });
+    const writer = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
-      graphName: 'mixed-test',
+      runtimeStorage: writerStorage,
+      graphName: 'encrypted-wrong-key',
+      writerId: 'writer-1',
+    });
+    await writer.patch((patch) => {
+      patch.addNode('private:node');
+    });
+    const readerStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encryptionKey: new Uint8Array(32).fill(0x22),
+      backing: writerStorage.backing,
+    });
+    const reader = await openMemoryRuntimeHostProduct({
+      persistence: repo.persistence,
+      runtimeStorage: readerStorage,
+      graphName: 'encrypted-wrong-key',
       writerId: 'reader',
-      patchBlobStorage: patchStorage,
-      patchJournal: createMixedStoragePatchJournal(repo, patchStorage),
     });
-    await graph3.materialize();
 
-    expect(await graph3.hasNode('user:plain')).toBe(true);
-    expect(await graph3.hasNode('user:secret')).toBe(true);
-    const plainProps = (await graph3.getNodeProps('user:plain') as any);
-    expect(plainProps.mode).toBe('clear');
-    const secretProps = (await graph3.getNodeProps('user:secret') as any);
-    expect(secretProps.mode).toBe('encrypted');
+    await expect(reader.materialize()).rejects.toMatchObject({
+      name: 'EncryptionError',
+      code: 'E_CAS_CONTENT_DECRYPTION_FAILED',
+    });
   });
 
-  it('no behavior change when patchBlobStorage is not provided', async () => {
-    const graph = await openRuntimeHostProduct({
+  it('rejects corrupted encrypted patch bytes', async () => {
+    const repo = createInMemoryRepo();
+    const writerStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encrypted: true,
+    });
+    const writer = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
-      graphName: 'plain-test',
+      runtimeStorage: writerStorage,
+      graphName: 'encrypted-corrupt',
       writerId: 'writer-1',
     });
-
-    await graph.patch(p => {
-      p.addNode('user:normal');
-      p.setProperty('user:normal', 'status', 'active');
+    const sha = await writer.patch((patch) => {
+      patch.addNode('private:node');
     });
-
-    // patchBlobStorage should be empty — patches went to persistence directly
-    expect(patchStorage._blobs.size).toBe(0);
-
-    const state = await graph.materialize();
-    expect(state).toBeTruthy();
-
-    expect(await graph.hasNode('user:normal')).toBe(true);
-    const props = (await graph.getNodeProps('user:normal') as any);
-    expect(props.status).toBe('active');
-  });
-
-  it('multiple encrypted patches accumulate correctly', async () => {
-    const graph = await openRuntimeHostProduct({
+    const message = writer._commitMessageCodec.decodePatch(
+      await repo.persistence.showNode(sha),
+    );
+    const stored = await writerStorage.backing.retrieve(message.patchHandle.toString());
+    const corrupted = stored.slice();
+    const lastIndex = corrupted.length - 1;
+    corrupted[lastIndex] = (corrupted[lastIndex] ?? 0) ^ 0xff;
+    writerStorage.backing.replace(message.patchHandle, corrupted);
+    const readerStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encrypted: true,
+      backing: writerStorage.backing,
+    });
+    const reader = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
-      graphName: 'multi-test',
-      writerId: 'writer-1',
-      patchBlobStorage: patchStorage,
+      runtimeStorage: readerStorage,
+      graphName: 'encrypted-corrupt',
+      writerId: 'reader',
     });
 
-    await graph.patch(p => {
-      p.addNode('a');
-      p.setProperty('a', 'v', 1);
+    await expect(reader.materialize()).rejects.toMatchObject({
+      name: 'EncryptionError',
+      code: 'E_CAS_CONTENT_DECRYPTION_FAILED',
     });
-    await graph.patch(p => {
-      p.addNode('b');
-      p.addEdge('a', 'b', 'link');
-    });
-    await graph.patch(p => {
-      p.setProperty('a', 'v', 2);
-    });
-
-    // 3 patches stored
-    expect(patchStorage._blobs.size).toBe(3);
-
-    const state = await graph.materialize();
-    expect(state).toBeTruthy();
-
-    const nodes = await graph.getNodes();
-    expect(nodes.sort()).toEqual(['a', 'b']);
-    const aProps = (await graph.getNodeProps('a') as any);
-    expect(aProps.v).toBe(2); // LWW: latest wins
   });
 
-  it('provenance methods work with encrypted patches', async () => {
-    const graph = await openRuntimeHostProduct({
+  it('reopens encrypted patch history through the same repository storage provider', async () => {
+    const repo = createInMemoryRepo();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encrypted: true,
+    });
+    const writer = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
-      graphName: 'prov-test',
+      runtimeStorage,
+      graphName: 'encrypted-reopen',
       writerId: 'writer-1',
-      patchBlobStorage: patchStorage,
+    });
+    await writer.patch((patch) => {
+      patch.addNode('user:bob');
+      patch.setProperty('user:bob', 'status', 'active');
     });
 
-    await graph.patch(p => {
-      p.addNode('x');
-      p.setProperty('x', 'k', 'v1');
+    const reader = await openMemoryRuntimeHostProduct({
+      persistence: repo.persistence,
+      runtimeStorage,
+      graphName: 'encrypted-reopen',
+      writerId: 'reader',
     });
-    await graph.patch(p => {
-      p.setProperty('x', 'k', 'v2');
-    });
+    await reader.materialize();
 
-    await graph.materialize();
-
-    // patchesFor should work
-    const patches = await graph.patchesFor('x');
-    expect(patches.length).toBeGreaterThanOrEqual(2);
-
-    // loadPatchBySha should work
-    const firstPatch = patches[0] ?? '';
-    const loaded = await graph.loadPatchBySha(firstPatch);
-    expect(loaded).toBeTruthy();
-    expect(loaded.ops).toBeDefined();
+    await expect(reader.hasNode('user:bob')).resolves.toBe(true);
+    await expect(reader.getNodeProps('user:bob')).resolves.toMatchObject({ status: 'active' });
   });
 
-  it('EncryptionError has correct code', () => {
-    const err = new EncryptionError('test');
-    expect(err.code).toBe('E_ENCRYPTED_PATCH');
-    expect(err.name).toBe('EncryptionError');
-    expect(err).toBeInstanceOf(Error);
+  it('keeps provenance reads on the semantic patch journal', async () => {
+    const repo = createInMemoryRepo();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({
+      history: repo.persistence,
+      encrypted: true,
+    });
+    const runtime = await openMemoryRuntimeHostProduct({
+      persistence: repo.persistence,
+      runtimeStorage,
+      graphName: 'encrypted-provenance',
+      writerId: 'writer-1',
+    });
+    await runtime.patch((patch) => {
+      patch.addNode('doc:1');
+    });
+    await runtime.patch((patch) => {
+      patch.setProperty('doc:1', 'version', 2);
+    });
+    await runtime.materialize();
+
+    const shas = await runtime.patchesFor('doc:1');
+    expect(shas).toHaveLength(2);
+    await expect(runtime.loadPatchBySha(shas[0] ?? '')).resolves.toMatchObject({
+      writer: 'writer-1',
+    });
+  });
+
+  it('retains the public encryption error contract', () => {
+    const error = new EncryptionError('asset decryption failed');
+    expect(error).toMatchObject({
+      name: 'EncryptionError',
+      code: 'E_ENCRYPTED_PATCH',
+    });
   });
 });

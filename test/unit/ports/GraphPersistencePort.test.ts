@@ -1,99 +1,48 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import WarpStream from '../../../src/domain/stream/WarpStream.ts';
+import type { CommitNodeOptions, LogNodesOptions } from '../../../src/ports/CommitPort.ts';
 import GraphPersistencePort from '../../../src/ports/GraphPersistencePort.ts';
-import IndexStoragePort from '../../../src/ports/IndexStoragePort.ts';
+import type { ListRefsOptions } from '../../../src/ports/RefPort.ts';
 
-describe('GraphPersistencePort (abstract composite)', () => {
+describe('GraphPersistencePort causal history boundary', () => {
   const expectedMethods = [
-    // CommitPort
     'commitNode', 'showNode', 'getNodeInfo', 'logNodes',
-    'logNodesStream', 'countNodes', 'commitNodeWithTree',
-    'nodeExists', 'getCommitTree', 'ping',
-    // BlobPort
-    'writeBlob', 'readBlob',
-    // TreePort
-    'writeTree', 'readTree', 'readTreeOids',
-    // RefPort
+    'logNodesStream', 'countNodes', 'nodeExists', 'ping',
     'updateRef', 'readRef', 'deleteRef', 'listRefs', 'compareAndSwapRef',
   ];
 
-  it('abstract methods are not on the base prototype (TS abstract)', () => {
-    const proto = GraphPersistencePort.prototype;
+  it('declares only causal commit and ref capabilities', () => {
+    const prototype = GraphPersistencePort.prototype as unknown as Record<string, unknown>;
     for (const method of expectedMethods) {
-      expect(((proto))[method]).toBeUndefined();
+      expect(prototype[method]).toBeUndefined();
     }
+    expect(prototype['writeBlob']).toBeUndefined();
+    expect(prototype['writeTree']).toBeUndefined();
+    expect(prototype['getCommitTree']).toBeUndefined();
   });
 
-  it('does not leak constructor from focused ports', () => {
-    // Even though GraphPersistencePort is abstract, JS allows instantiation
-    const Ctor = GraphPersistencePort as any;
-    const port = new Ctor();
-    expect(port.constructor).toBe(GraphPersistencePort);
-  });
-
-  it('subclass can override methods normally', async () => {
+  it('can be implemented without raw object capabilities', async () => {
     class TestAdapter extends GraphPersistencePort {
-      async commitNode() { return 'sha'; }
-      async showNode() { return 'msg'; }
-      async getNodeInfo() { return ({} as any); }
-      async logNodes() { return 'log'; }
-      async logNodesStream(): Promise<any> { return null; }
-      async countNodes() { return 1; }
-      async commitNodeWithTree() { return 'sha2'; }
-      async nodeExists() { return true; }
-      async getCommitTree() { return 'tree'; }
+      async commitNode(_options: CommitNodeOptions) { return 'sha'; }
+      async showNode(_sha: string) { return 'message'; }
+      async getNodeInfo(_sha: string) {
+        return { sha: 'sha', message: 'message', author: 'a', date: 'd', parents: [] };
+      }
+      async logNodes(_options: LogNodesOptions) { return 'log'; }
+      async logNodesStream(_options: LogNodesOptions) { return WarpStream.of<string>('log'); }
+      async countNodes(_ref: string) { return 1; }
+      async nodeExists(_sha: string) { return true; }
       async ping() { return { ok: true, latencyMs: 0 }; }
-      async writeBlob() { return 'blob'; }
-      async readBlob() { return new Uint8Array(); }
-      async writeTree() { return 'tree-oid'; }
-      async readTree() { return {}; }
-      async readTreeOids() { return {}; }
-      get emptyTree() { return '4b825dc642cb6eb9a060e54bf8d69288fbee4904'; }
-      async updateRef() { /* no-op */ }
-      async readRef() { return null; }
-      async deleteRef() { /* no-op */ }
-      async listRefs() { return []; }
-      async compareAndSwapRef() { /* no-op */ }
+      async updateRef(_ref: string, _oid: string) {}
+      async readRef(_ref: string) { return null; }
+      async deleteRef(_ref: string) {}
+      async listRefs(_prefix: string, _options?: ListRefsOptions) { return []; }
+      async compareAndSwapRef(_ref: string, _newOid: string, _expected: string | null) {}
     }
+
     const adapter = new TestAdapter();
-    expect(adapter).toBeInstanceOf(GraphPersistencePort);
-    const result = await adapter.ping();
-    expect(result).toEqual({ ok: true, latencyMs: 0 });
-  });
-});
-
-describe('IndexStoragePort (abstract subset)', () => {
-  const expectedMethods = [
-    'writeBlob', 'readBlob',
-    'writeTree', 'readTreeOids',
-    'updateRef', 'readRef',
-  ];
-
-  it('abstract methods are not on the base prototype', () => {
-    const proto = IndexStoragePort.prototype;
-    for (const method of expectedMethods) {
-      expect(((proto))[method]).toBeUndefined();
-    }
-  });
-
-  it('does not include methods outside its subset', () => {
-    const Ctor = IndexStoragePort as any;
-    const port = new Ctor();
-    expect(port.deleteRef).toBeUndefined();
-    expect(port.listRefs).toBeUndefined();
-    expect(port.readTree).toBeUndefined();
-  });
-
-  it('subclass satisfies the contract', async () => {
-    class TestStorage extends IndexStoragePort {
-      async writeBlob() { return 'blob-oid'; }
-      async readBlob() { return new Uint8Array(); }
-      async writeTree() { return 'tree-oid'; }
-      async readTreeOids() { return {}; }
-      async updateRef() { /* no-op */ }
-      async readRef() { return null; }
-    }
-    const storage = new TestStorage();
-    expect(storage).toBeInstanceOf(IndexStoragePort);
-    expect(await ((storage as any)).writeBlob(new Uint8Array())).toBe('blob-oid');
+    await expect(adapter.commitNode({ message: 'test' })).resolves.toBe('sha');
+    expect(adapter).not.toHaveProperty('writeBlob');
+    expect(adapter).not.toHaveProperty('writeTree');
   });
 });

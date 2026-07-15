@@ -17,7 +17,6 @@ const SOURCE_OVER_BUDGET_PATHS = Object.freeze([
   'src/domain/RuntimeHost.ts',
   'src/domain/orset/trie/TrieCursor.ts',
   'src/domain/services/JoinReducerSession.ts',
-  'src/domain/services/audit/AuditChainVerifier.ts',
   'src/domain/services/controllers/CheckpointController.ts',
   'src/domain/services/optic/CheckpointBasisManifest.ts',
   'src/domain/services/state/WarpState.ts',

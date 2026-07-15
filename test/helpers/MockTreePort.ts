@@ -4,7 +4,6 @@ import type TreeEntryLimit from '../../src/domain/tree/TreeEntryLimit.ts';
 import TreeEntryMissing from '../../src/domain/tree/TreeEntryMissing.ts';
 import TreeEntryPath from '../../src/domain/tree/TreeEntryPath.ts';
 import TreeEntryPrefixBatch from '../../src/domain/tree/TreeEntryPrefixBatch.ts';
-import TreePort from '../../src/ports/TreePort.ts';
 
 /**
  * In-memory TreePort for tests.
@@ -13,7 +12,7 @@ import TreePort from '../../src/ports/TreePort.ts';
  * writeTree (mktree-formatted entries) and readTreeOids.
  * Methods are Vitest spies so callers can assert on calls.
  */
-export default class MockTreePort extends TreePort {
+export default class MockTreePort {
   store: Map<string, Record<string, string>> = new Map();
 
   _counter: number = 0;

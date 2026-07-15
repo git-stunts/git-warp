@@ -82,10 +82,10 @@ describe('VisibleStateTransferPlanner', () => {
         },
       },
       nodeContentMeta: {
-        beta: { oid: 'node-beta', mime: 'text/plain', size: 4 },
+        beta: { handle: 'node-beta', mime: 'text/plain', size: 4 },
       },
       edgeContentMeta: {
-        [newEdgeKey]: { oid: 'edge-new', mime: 'application/octet-stream', size: 3 },
+        [newEdgeKey]: { handle: 'edge-new', mime: 'application/octet-stream', size: 3 },
       },
     });
 
@@ -116,10 +116,10 @@ describe('VisibleStateTransferPlanner', () => {
         },
       },
       nodeContentMeta: {
-        alpha: { oid: 'node-alpha-old', mime: 'text/plain', size: 8 },
+        alpha: { handle: 'node-alpha-old', mime: 'text/plain', size: 8 },
       },
       edgeContentMeta: {
-        [sharedEdgeKey]: { oid: 'edge-shared-old', mime: 'application/octet-stream', size: 5 },
+        [sharedEdgeKey]: { handle: 'edge-shared-old', mime: 'application/octet-stream', size: 5 },
       },
     });
 
@@ -150,7 +150,7 @@ describe('VisibleStateTransferPlanner', () => {
         op: 'attach_node_content',
         nodeId: 'beta',
         content: new TextEncoder().encode('node:beta'),
-        contentOid: 'node-beta',
+        contentHandle: 'node-beta',
         mime: 'text/plain',
         size: 4,
       },
@@ -164,7 +164,7 @@ describe('VisibleStateTransferPlanner', () => {
         to: 'beta',
         label: 'fresh',
         content: new TextEncoder().encode('edge:alpha->beta:fresh'),
-        contentOid: 'edge-new',
+        contentHandle: 'edge-new',
         mime: 'application/octet-stream',
         size: 3,
       },
@@ -195,11 +195,11 @@ describe('VisibleStateTransferPlanner', () => {
     });
 
     expect(loadNodeContent).toHaveBeenCalledTimes(1);
-    expect(loadNodeContent).toHaveBeenCalledWith('beta', { oid: 'node-beta', mime: 'text/plain', size: 4 });
+    expect(loadNodeContent).toHaveBeenCalledWith('beta', { handle: 'node-beta', mime: 'text/plain', size: 4 });
     expect(loadEdgeContent).toHaveBeenCalledTimes(1);
     expect(loadEdgeContent).toHaveBeenCalledWith(
       { from: 'alpha', to: 'beta', label: 'fresh' },
-      { oid: 'edge-new', mime: 'application/octet-stream', size: 3 },
+      { handle: 'edge-new', mime: 'application/octet-stream', size: 3 },
     );
   });
 
@@ -209,8 +209,8 @@ describe('VisibleStateTransferPlanner', () => {
       edges: [{ from: 'alpha', to: 'alpha', label: 'self' }],
       nodeProps: { alpha: { status: 'ready' } },
       edgeProps: { [makeEdgeKey('alpha', 'alpha', 'self')]: { weight: 1 } },
-      nodeContentMeta: { alpha: { oid: 'same-node', mime: 'text/plain', size: 4 } },
-      edgeContentMeta: { [makeEdgeKey('alpha', 'alpha', 'self')]: { oid: 'same-edge', mime: 'text/plain', size: 4 } },
+      nodeContentMeta: { alpha: { handle: 'same-node', mime: 'text/plain', size: 4 } },
+      edgeContentMeta: { [makeEdgeKey('alpha', 'alpha', 'self')]: { handle: 'same-edge', mime: 'text/plain', size: 4 } },
     });
 
     const loadNodeContent = vi.fn();

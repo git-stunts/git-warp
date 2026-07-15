@@ -15,6 +15,7 @@ import type {
 } from '../../types/CoordinateComparison.ts';
 import type { StrandDescriptor } from '../../types/StrandDescriptor.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 
 export type PatchEntry = { patch: Patch; sha: string };
 
@@ -58,8 +59,7 @@ export type MaterializeStrandOptions = {
  * ComparisonCoordinateSideReadPort instead.
  */
 export type ComparisonHost = ComparisonDigestHost & {
-  _blobStorage: { retrieve(oid: string): Promise<Uint8Array> } | null;
-  _persistence: { readBlob(oid: string): Promise<Uint8Array> };
+  _assetStorage: AssetStoragePort | null;
   _materializeStrandGraph(strandId: string, options?: MaterializeStrandOptions): Promise<ComparisonMaterializedState>;
 };
 

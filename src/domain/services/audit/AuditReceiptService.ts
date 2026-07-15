@@ -1,16 +1,14 @@
 /** AuditReceiptService — persistent, chained, tamper-evident audit receipts. */
 
 import AuditError from '../../errors/AuditError.ts';
-import { buildAuditRef } from '../../utils/RefLayout.ts';
+import AuditPublicationConflictError from '../../errors/AuditPublicationConflictError.ts';
 import { encodeAuditMessage } from '../codec/AuditMessageCodec.ts';
 import type { OpOutcome, TickReceipt } from '../../types/TickReceipt.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
-import type RefPort from '../../../ports/RefPort.ts';
-import type BlobPort from '../../../ports/BlobPort.ts';
-import type TreePort from '../../../ports/TreePort.ts';
-import type CommitPort from '../../../ports/CommitPort.ts';
+import type AuditLogPort from '../../../ports/AuditLogPort.ts';
+import type { PublishedAuditRecord } from '../../../ports/AuditLogPort.ts';
 
 // Constants
 
@@ -191,11 +189,8 @@ export function buildReceiptRecord(fields: AuditReceiptFields): AuditReceipt {
   });
 }
 
-/** Combined persistence interface required by AuditReceiptService. */
-export type AuditPersistence = RefPort & BlobPort & TreePort & CommitPort;
-
 export interface AuditReceiptServiceOptions {
-  persistence: AuditPersistence;
+  auditLog: AuditLogPort;
   graphName: string;
   writerId: string;
   codec: CodecPort;
@@ -224,13 +219,12 @@ export interface AuditStats {
  * are detectable by M4 verification.
  */
 export class AuditReceiptService {
-  private readonly _persistence: AuditPersistence;
+  private readonly _auditLog: AuditLogPort;
   private readonly _graphName: string;
   private readonly _writerId: string;
   private readonly _codec: CodecPort;
   private readonly _crypto: CryptoPort;
   private readonly _logger: LoggerPort | null;
-  private readonly _auditRef: string;
 
   /** Previous audit commit SHA (null = genesis) */
   private _prevAuditCommit: string | null;
@@ -249,14 +243,13 @@ export class AuditReceiptService {
   private _failed: number;
 
   /** Constructs an AuditReceiptService for the given writer audit chain. */
-  constructor({ persistence, graphName, writerId, codec, crypto, logger }: AuditReceiptServiceOptions) {
-    this._persistence = persistence;
+  constructor({ auditLog, graphName, writerId, codec, crypto, logger }: AuditReceiptServiceOptions) {
+    this._auditLog = auditLog;
     this._graphName = graphName;
     this._writerId = writerId;
     this._codec = codec;
     this._crypto = crypto;
     this._logger = logger ?? null;
-    this._auditRef = buildAuditRef(graphName, writerId);
 
     this._prevAuditCommit = null;
     this._expectedOldRef = null;
@@ -274,7 +267,7 @@ export class AuditReceiptService {
    */
   async init(): Promise<void> {
     try {
-      const tip = await this._persistence.readRef(this._auditRef);
+      const tip = await this._auditLog.readHead(this._graphName, this._writerId);
       if (tip !== null && tip !== undefined && tip.length > 0) {
         this._prevAuditCommit = tip;
         this._expectedOldRef = tip;
@@ -286,7 +279,6 @@ export class AuditReceiptService {
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_INIT_READ_FAILED',
         writerId: this._writerId,
-        ref: this._auditRef,
       });
       this._prevAuditCommit = null;
       this._expectedOldRef = null;
@@ -301,9 +293,9 @@ export class AuditReceiptService {
    * has a gap. This is acceptable by design in M3 — gaps are detected
    * by M4 verification coverage rules (receipt count vs data commit count).
    *
-   * @returns The audit commit SHA, or null on failure
+   * @returns The published audit record, or null on failure
    */
-  async commit(tickReceipt: TickReceipt): Promise<string | null> {
+  async commit(tickReceipt: TickReceipt): Promise<PublishedAuditRecord | null> {
     if (this._degraded) {
       this._skipped++;
       this._logger?.warn('[warp:audit]', {
@@ -340,7 +332,7 @@ export class AuditReceiptService {
    * Inner commit logic. Throws on failure (caught by `commit()`).
    * @private
    */
-  private async _commitInner(tickReceipt: TickReceipt): Promise<string> {
+  private async _commitInner(tickReceipt: TickReceipt): Promise<PublishedAuditRecord> {
     const { patchSha, writer, lamport, ops } = tickReceipt;
 
     // Guard: reject cross-writer attribution
@@ -380,37 +372,6 @@ export class AuditReceiptService {
       timestamp,
     });
 
-    // Encode to CBOR
-    const cborBytes = this._codec.encode(receipt);
-
-    // Write blob
-    let blobOid: string;
-    try {
-      blobOid = await this._persistence.writeBlob(cborBytes);
-    } catch (err) {
-      this._logger?.warn('[warp:audit]', {
-        code: 'AUDIT_WRITE_BLOB_FAILED',
-        writerId: this._writerId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      throw err;
-    }
-
-    // Write tree
-    let treeOid: string;
-    try {
-      treeOid = await this._persistence.writeTree([
-        `100644 blob ${blobOid}\treceipt.cbor`,
-      ]);
-    } catch (err) {
-      this._logger?.warn('[warp:audit]', {
-        code: 'AUDIT_WRITE_TREE_FAILED',
-        writerId: this._writerId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      throw err;
-    }
-
     // Encode commit message with trailers
     const message = encodeAuditMessage({
       graph: this._graphName,
@@ -419,52 +380,50 @@ export class AuditReceiptService {
       opsDigest,
     });
 
-    // Determine parents
-    const parents = (this._prevAuditCommit !== null && this._prevAuditCommit.length > 0) ? [this._prevAuditCommit] : [];
-
-    // Create commit
-    const commitSha = await this._persistence.commitNodeWithTree({
-      treeOid,
-      parents,
-      message,
-    });
-
-    // CAS ref update
+    let publication: PublishedAuditRecord;
     try {
-      await this._persistence.compareAndSwapRef(
-        this._auditRef,
-        commitSha,
-        this._expectedOldRef,
-      );
-    } catch {
+      publication = await this._auditLog.append({
+        graphName: this._graphName,
+        writerId: this._writerId,
+        expectedHead: this._expectedOldRef,
+        parent: this._prevAuditCommit,
+        message,
+        receipt: this._codec.encode(receipt),
+      });
+    } catch (error) {
+      if (!(error instanceof AuditPublicationConflictError)) {
+        throw error;
+      }
       if (this._retrying) {
         // Second CAS failure during retry → degrade
-        throw new AuditError('CAS failed during retry', { code: AuditError.E_AUDIT_CAS_FAILED, context: { writerId: this._writerId, ref: this._auditRef } });
+        throw new AuditError('CAS failed during retry', {
+          code: AuditError.E_AUDIT_CAS_FAILED,
+          context: { writerId: this._writerId },
+        });
       }
       // CAS mismatch — retry once with refreshed tip
-      return await this._retryAfterCasConflict(commitSha, tickReceipt);
+      return await this._retryAfterCasConflict(tickReceipt);
     }
 
     // Success — update cached state
-    this._prevAuditCommit = commitSha;
-    this._expectedOldRef = commitSha;
+    this._prevAuditCommit = publication.sha;
+    this._expectedOldRef = publication.sha;
     this._committed++;
-    return commitSha;
+    return publication;
   }
 
   /**
    * Retry-once after CAS conflict. Reads fresh tip, rebuilds receipt, retries.
    * @private
    */
-  private async _retryAfterCasConflict(_failedCommitSha: string, tickReceipt: TickReceipt): Promise<string> {
+  private async _retryAfterCasConflict(tickReceipt: TickReceipt): Promise<PublishedAuditRecord> {
     this._logger?.warn('[warp:audit]', {
       code: 'AUDIT_REF_CAS_CONFLICT',
       writerId: this._writerId,
-      ref: this._auditRef,
     });
 
     // Read fresh tip
-    const freshTip = await this._persistence.readRef(this._auditRef);
+    const freshTip = await this._auditLog.readHead(this._graphName, this._writerId);
     this._prevAuditCommit = freshTip;
     this._expectedOldRef = freshTip;
 
@@ -473,8 +432,11 @@ export class AuditReceiptService {
     try {
       const result = await this._commitInner(tickReceipt);
       return result;
-    } catch {
-      // Second failure → degraded mode
+    } catch (error) {
+      if (!(error instanceof AuditError) || error.code !== AuditError.E_AUDIT_CAS_FAILED) {
+        throw error;
+      }
+      // Second publication conflict → degraded mode
       this._degraded = true;
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_DEGRADED_ACTIVE',
