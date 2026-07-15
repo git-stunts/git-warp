@@ -11,6 +11,7 @@ import type SyncTrustGate from '../sync/SyncTrustGate.ts';
 import type SyncCapability from '../../capabilities/SyncCapability.ts';
 import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
 import type SyncSecret from '../sync/SyncSecret.ts';
+import type { MaterializedStateUpdateOptions } from '../../capabilities/MaterializedStateUpdate.ts';
 
 /**
  * The host interface that SyncController depends on.
@@ -32,7 +33,10 @@ export interface SyncHost {
   _patchesSinceCheckpoint: number;
   _maxObservedLamport: number;
   materialize: () => Promise<SnapshotWarpState>;
-  _setMaterializedState: (state: WarpState) => Promise<object>;
+  _setMaterializedState: (
+    state: WarpState,
+    options?: MaterializedStateUpdateOptions,
+  ) => Promise<object>;
   discoverWriters: () => Promise<string[]>;
   _createSyncTrustGate?: (
     trust: { mode?: 'off' | 'log-only' | 'enforce'; pin?: string | null } | undefined | null,

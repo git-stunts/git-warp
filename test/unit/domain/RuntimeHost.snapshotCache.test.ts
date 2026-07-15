@@ -96,4 +96,27 @@ describe('RuntimeHost snapshot cache', () => {
     expect(applyViewDiff).toHaveBeenCalledTimes(viewDiffsAfterFirstRead);
     expect(second).toEqual(first);
   });
+
+  it('advances the cached causal basis after eager patch application', async () => {
+    const persistence = new InMemoryGraphAdapter();
+    const stateCache = new RecordingStateCache();
+    const runtime = await openMemoryRuntimeHostProduct({
+      persistence,
+      graphName: 'runtime-snapshot-basis',
+      writerId: 'writer-1',
+      stateCache,
+    });
+
+    await runtime.patch((patch) => {
+      patch.addNode('node:one');
+    });
+    await runtime.materialize();
+
+    const patchId = await runtime.patch((patch) => {
+      patch.addNode('node:two');
+    });
+
+    expect(Reflect.get(runtime, '_cachedFrontier')).toEqual(new Map([['writer-1', patchId]]));
+    expect(Reflect.get(runtime, '_cachedCeiling')).toBe(null);
+  });
 });

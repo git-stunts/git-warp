@@ -23,6 +23,7 @@ import type { VerifyResult } from '../services/MaterializedViewService.ts';
 import type LogicalTraversal from '../services/query/LogicalTraversal.ts';
 import type { LoadedCheckpoint } from '../services/state/checkpointLoad.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
+import type { MaterializedStateUpdateOptions } from '../capabilities/MaterializedStateUpdate.ts';
 import type { ProvenanceIndex } from '../services/provenance/ProvenanceIndex.ts';
 import type ProvenancePayload from '../services/provenance/ProvenancePayload.ts';
 import type SyncController from '../services/controllers/SyncController.ts';
@@ -172,7 +173,7 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   readonly _commitMessageCodec: CommitMessageCodecPort;
   _setMaterializedState(
     state: WarpState,
-    optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },
+    optionsOrDiff?: PatchDiff | MaterializedStateUpdateOptions,
   ): Promise<RuntimeHostMaterializedGraph>;
   _materializeGraph(options?: { ceiling?: number | null }): Promise<RuntimeHostMaterializedGraph>;
   _materializeCoordinateGraph(options: RuntimeHostCoordinateGraphOptions): Promise<RuntimeHostMaterializedGraph>;

@@ -42,6 +42,7 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
+import type { WarpStateSnapshotProvenancePosture } from '../../../ports/WarpStateCachePort.ts';
 import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
@@ -52,7 +53,6 @@ import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import type {
   MaterializeResultBuildInput,
   MaterializeStrategyRuntime,
-  MaterializeWrappedStateProvenance,
 } from './MaterializeStrategyRuntime.ts';
 
 export type MaterializePersistence = {
@@ -225,7 +225,7 @@ export default class MaterializeController {
     state: WarpState,
     ceiling: number | null,
     frontier: Map<string, string> | null,
-    provenance: MaterializeWrappedStateProvenance,
+    provenance: WarpStateSnapshotProvenancePosture,
     options?: MaterializeSnapshotPublicationOptions,
   ): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, state);

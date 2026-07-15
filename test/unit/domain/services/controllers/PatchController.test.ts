@@ -114,6 +114,7 @@ function createMockHost(overrides = {}) {
     _patchJournal: null,
     _patchInProgress: false,
     _provenanceIndex: null,
+    _cachedFrontier: null,
     _lastFrontier: null,
     _auditService: null,
     _auditSkipCount: 0,
@@ -502,6 +503,8 @@ describe('PatchController', () => {
       const state = createStateWithNode('n1');
       host['_cachedState'] = state;
       host['_stateDirty'] = false;
+      host['_cachedFrontier'] = new Map([['bob', 'sha-bob']]);
+      host['_lastFrontier'] = new Map([['bob', 'sha-bob']]);
 
       const diff = { nodesAdded: ['n2'], nodesRemoved: [], edgesAdded: [], edgesRemoved: [], propsChanged: [] };
       applyWithDiffMock.mockReturnValue({ diff });
@@ -513,7 +516,16 @@ describe('PatchController', () => {
 
       expect(applyWithDiffMock).toHaveBeenCalledWith(state, patch, 'sha-1');
       const setMat = (host['_setMaterializedState'] as any);
-      expect(setMat).toHaveBeenCalledWith(state, { diff });
+      expect(setMat).toHaveBeenCalledWith(state, {
+        diff,
+        coordinate: {
+          frontier: new Map([
+            ['alice', 'sha-1'],
+            ['bob', 'sha-bob'],
+          ]),
+          ceiling: null,
+        },
+      });
     });
 
     it('uses applyWithReceipt when audit service is present', async () => {

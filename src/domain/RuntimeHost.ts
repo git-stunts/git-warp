@@ -59,6 +59,7 @@ import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type TrustCryptoPort from '../ports/TrustCryptoPort.ts';
 import type WarpStateCachePort from '../ports/WarpStateCachePort.ts';
+import type { WarpStateCoordinate } from '../ports/WarpStateCachePort.ts';
 import type AssetStoragePort from '../ports/AssetStoragePort.ts';
 import type AuditLogPort from '../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
@@ -78,6 +79,7 @@ import type { TickReceipt } from './types/TickReceipt.ts';
 import type PropertyIndexReader from './services/index/PropertyIndexReader.ts';
 import type QueryCapability from './capabilities/QueryCapability.ts';
 import type AdjacencyMap from './capabilities/AdjacencyMap.ts';
+import type { MaterializedStateUpdateOptions } from './capabilities/MaterializedStateUpdate.ts';
 
 import {
   normalizeTrustConfig,
@@ -157,7 +159,7 @@ function canUseCachedMaterializedGraph(
 }
 
 function resolveMaterializedStateDiff(
-  optionsOrDiff: PatchDiff | { diff?: PatchDiff | null } | undefined,
+  optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions | undefined,
 ): PatchDiff | undefined {
   if (optionsOrDiff === null || optionsOrDiff === undefined) {
     return undefined;
@@ -166,6 +168,15 @@ function resolveMaterializedStateDiff(
     return optionsOrDiff;
   }
   return optionsOrDiff.diff ?? undefined;
+}
+
+function resolveMaterializedStateCoordinate(
+  optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions | undefined,
+): WarpStateCoordinate | null {
+  if (optionsOrDiff === null || optionsOrDiff === undefined || 'edgesAdded' in optionsOrDiff) {
+    return null;
+  }
+  return optionsOrDiff.coordinate ?? null;
 }
 
 type Subscriber = {
@@ -501,15 +512,18 @@ export default class RuntimeHost {
 
   async _setMaterializedState(
     state: WarpState,
-    optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },
+    optionsOrDiff?: PatchDiff | MaterializedStateUpdateOptions,
   ): Promise<MaterializedGraph> {
     const stateHash = await computeStateHash(state, { crypto: this._crypto, codec: this._codec });
     const adjacency = this._buildAdjacency(state);
     const diff = resolveMaterializedStateDiff(optionsOrDiff);
+    const coordinate = resolveMaterializedStateCoordinate(optionsOrDiff);
     this._cachedState = state;
     this._stateDirty = false;
     this._versionVector = state.observedFrontier.clone();
     this._materializedGraph = { state, stateHash, adjacency };
+    this._cachedCeiling = coordinate?.ceiling ?? null;
+    this._cachedFrontier = coordinate === null ? null : new Map(coordinate.frontier);
     this._buildViewFromResult({ state, stateHash, diff });
     this._notifyAfterMaterialize(state);
     return this._materializedGraph;

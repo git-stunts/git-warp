@@ -501,7 +501,8 @@ describe('SyncController', () => {
 
     it('calls _setMaterializedState with new state (B105)', async () => {
       const newState = fakeState();
-      applySyncResponseMock.mockReturnValue({ state: newState, frontier: new Map(), applied: 1 });
+      const newFrontier = new Map([['alice', 'sha-2']]);
+      applySyncResponseMock.mockReturnValue({ state: newState, frontier: newFrontier, applied: 1 });
 
       const host = createMockHost({
         _cachedState: fakeState(),
@@ -511,7 +512,9 @@ describe('SyncController', () => {
 
       await ctrl.applySyncResponse((validSyncResponse() as any));
 
-      expect((host['_setMaterializedState'] as any)).toHaveBeenCalledWith(newState);
+      expect((host['_setMaterializedState'] as any)).toHaveBeenCalledWith(newState, {
+        coordinate: { frontier: newFrontier, ceiling: null },
+      });
     });
 
     it('does not advance frontier/counters when _setMaterializedState rejects', async () => {
