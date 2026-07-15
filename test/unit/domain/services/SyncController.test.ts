@@ -390,7 +390,9 @@ describe('SyncController', () => {
       await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] as any[] });
 
       expect((host['_setMaterializedState'] as any)).toHaveBeenCalledOnce();
-      expect((host['_setMaterializedState'] as any)).toHaveBeenCalledWith(newState);
+      expect((host['_setMaterializedState'] as any)).toHaveBeenCalledWith(newState, {
+        coordinate: { frontier: newFrontier, ceiling: null },
+      });
       // _materializedGraph should be rebuilt (not null)
       expect(host['_materializedGraph']).not.toBeNull();
     });

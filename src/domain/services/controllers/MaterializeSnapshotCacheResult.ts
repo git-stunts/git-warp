@@ -1,6 +1,6 @@
 import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
-import { buildAdjacency } from './MaterializeHelpers.ts';
+import { buildAdjacency, maxObservedLamportInState } from './MaterializeHelpers.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { MaterializeResult } from './MaterializeController.ts';
 import type {
@@ -45,9 +45,10 @@ export function snapshotToMaterializeResult(snapshot: UsableSnapshotRecord): Mat
     stateHash: snapshot.stateHash,
     adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
     patchCount: 0,
-    maxObservedLamport: 0,
+    maxObservedLamport: maxObservedLamportInState(snapshot.state),
     provenanceIndex: new ProvenanceIndex(),
-    provenanceDegraded: snapshot.provenancePosture === 'degraded',
+    // State-cache payloads do not yet carry the provenance index itself.
+    provenanceDegraded: true,
     frontier: snapshot.coordinate.frontier,
     ceiling: snapshot.coordinate.ceiling,
   };

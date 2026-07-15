@@ -36,6 +36,7 @@ import type { LogicalIndex } from '../index/logicalIndexHelpers.ts';
 import type PropertyIndexReader from '../index/PropertyIndexReader.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 import type { AuditReceiptService } from '../audit/AuditReceiptService.ts';
+import type { MaterializedStateUpdateOptions } from '../../capabilities/MaterializedStateUpdate.ts';
 import { E_NO_STATE_MSG, E_STALE_STATE_MSG } from './QueryStateMessages.ts';
 
 // ── PatchHost ─────────────────────────────────────────────────────────────────
@@ -47,7 +48,7 @@ type MaterializedAdjacency = {
 };
 type SetMaterializedState = (
   state: WarpState,
-  optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },
+  optionsOrDiff?: PatchDiff | MaterializedStateUpdateOptions,
 ) => Promise<{
   state: WarpState;
   stateHash: string;
@@ -75,6 +76,7 @@ export interface PatchHost extends PatchDiscoveryHost {
   _provenanceIndex: {
     addPatch: (sha: string, reads: string[] | undefined, writes: string[] | undefined) => void;
   } | null | undefined;
+  _cachedFrontier: Map<string, string> | null | undefined;
   _lastFrontier: Map<string, string> | null | undefined;
   _auditService: Pick<AuditReceiptService, 'commit'> | null | undefined;
   _auditSkipCount: number;
@@ -275,7 +277,16 @@ export default class PatchController {
         const result = applyWithDiff(h._cachedState, committed, sha);
         diff = result.diff;
       }
-      await h._setMaterializedState(h._cachedState, { diff });
+      const materializedFrontier = h._cachedFrontier === null || h._cachedFrontier === undefined
+        ? null
+        : new Map(h._cachedFrontier);
+      materializedFrontier?.set(writerId, sha);
+      await h._setMaterializedState(h._cachedState, {
+        diff,
+        ...(materializedFrontier === null
+          ? {}
+          : { coordinate: { frontier: materializedFrontier, ceiling: null } }),
+      });
       if (h._provenanceIndex) {
         h._provenanceIndex.addPatch(
           sha,

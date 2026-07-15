@@ -7,6 +7,7 @@ import type {
 } from './MaterializePatchStreamReducer.ts';
 import type { MaterializePatchSummary } from './MaterializePatchSummary.ts';
 import type { MaterializeSnapshotPublicationOptions } from './MaterializeSnapshotPublication.ts';
+import type { WarpStateSnapshotProvenancePosture } from '../../../ports/WarpStateCachePort.ts';
 import type {
   MaterializeDeps,
   MaterializeResult,
@@ -48,6 +49,7 @@ export type MaterializeStrategyRuntime = {
     state: WarpState,
     ceiling: number | null,
     frontier: Map<string, string> | null,
+    provenance: WarpStateSnapshotProvenancePosture,
     options?: MaterializeSnapshotPublicationOptions,
   ): Promise<MaterializeResult>;
   reducePatches(

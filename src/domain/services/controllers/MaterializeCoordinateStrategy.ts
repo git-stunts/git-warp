@@ -142,7 +142,7 @@ export default class MaterializeCoordinateStrategy {
     return await this.runtime.buildResult({
       reduced: reduction.reduced,
       summary: reduction.summary,
-      degraded: predecessor.provenancePosture === 'degraded',
+      degraded: true,
       ceiling: opts.coordinate.ceiling,
       frontier: opts.coordinate.frontier,
     });

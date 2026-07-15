@@ -30,7 +30,7 @@ export default class MaterializeCheckpointStrategy {
       targetFrontier: frontier,
       patchLoader,
     });
-    return await this.runtime.wrapState(state, null, null);
+    return await this.runtime.wrapState(state, null, null, 'degraded');
   }
 
   private async buildTargetFrontier(): Promise<Map<string, string>> {

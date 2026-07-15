@@ -44,7 +44,11 @@ import RuntimeDetachedFactory from './warp/RuntimeDetachedFactory.ts';
 import BitmapNeighborProvider, { type LogicalIndex } from './services/index/BitmapNeighborProvider.ts';
 import { cloneState } from './services/JoinReducer.ts';
 import { diffStates, isEmptyDiff, type StateDiffResult } from './services/state/StateDiff.ts';
-import { buildAdjacency } from './services/controllers/MaterializeHelpers.ts';
+import {
+  buildAdjacency,
+  maxObservedLamportInState,
+} from './services/controllers/MaterializeHelpers.ts';
+import { selectProvenanceAfterMaterialization } from './services/controllers/MaterializeProvenancePolicy.ts';
 import WarpError from './errors/WarpError.ts';
 import QueryError from './errors/QueryError.ts';
 import { requireCommitMessageCodec } from './services/codec/CommitMessageCodecRequirement.ts';
@@ -55,6 +59,7 @@ import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type TrustCryptoPort from '../ports/TrustCryptoPort.ts';
 import type WarpStateCachePort from '../ports/WarpStateCachePort.ts';
+import type { WarpStateCoordinate } from '../ports/WarpStateCachePort.ts';
 import type AssetStoragePort from '../ports/AssetStoragePort.ts';
 import type AuditLogPort from '../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
@@ -74,6 +79,7 @@ import type { TickReceipt } from './types/TickReceipt.ts';
 import type PropertyIndexReader from './services/index/PropertyIndexReader.ts';
 import type QueryCapability from './capabilities/QueryCapability.ts';
 import type AdjacencyMap from './capabilities/AdjacencyMap.ts';
+import type { MaterializedStateUpdateOptions } from './capabilities/MaterializedStateUpdate.ts';
 
 import {
   normalizeTrustConfig,
@@ -153,7 +159,7 @@ function canUseCachedMaterializedGraph(
 }
 
 function resolveMaterializedStateDiff(
-  optionsOrDiff: PatchDiff | { diff?: PatchDiff | null } | undefined,
+  optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions | undefined,
 ): PatchDiff | undefined {
   if (optionsOrDiff === null || optionsOrDiff === undefined) {
     return undefined;
@@ -162,6 +168,15 @@ function resolveMaterializedStateDiff(
     return optionsOrDiff;
   }
   return optionsOrDiff.diff ?? undefined;
+}
+
+function resolveMaterializedStateCoordinate(
+  optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions | undefined,
+): WarpStateCoordinate | null {
+  if (optionsOrDiff === null || optionsOrDiff === undefined || 'edgesAdded' in optionsOrDiff) {
+    return null;
+  }
+  return optionsOrDiff.coordinate ?? null;
 }
 
 type Subscriber = {
@@ -497,15 +512,18 @@ export default class RuntimeHost {
 
   async _setMaterializedState(
     state: WarpState,
-    optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },
+    optionsOrDiff?: PatchDiff | MaterializedStateUpdateOptions,
   ): Promise<MaterializedGraph> {
     const stateHash = await computeStateHash(state, { crypto: this._crypto, codec: this._codec });
     const adjacency = this._buildAdjacency(state);
     const diff = resolveMaterializedStateDiff(optionsOrDiff);
+    const coordinate = resolveMaterializedStateCoordinate(optionsOrDiff);
     this._cachedState = state;
     this._stateDirty = false;
     this._versionVector = state.observedFrontier.clone();
     this._materializedGraph = { state, stateHash, adjacency };
+    this._cachedCeiling = coordinate?.ceiling ?? null;
+    this._cachedFrontier = coordinate === null ? null : new Map(coordinate.frontier);
     this._buildViewFromResult({ state, stateHash, diff });
     this._notifyAfterMaterialize(state);
     return this._materializedGraph;
@@ -738,11 +756,7 @@ export default class RuntimeHost {
    * Extracts the maximum Lamport timestamp from a WarpState.
    */
   _maxLamportFromState(state: WarpState): number {
-    let max = 0;
-    for (const v of state.observedFrontier.values()) {
-      if (v > max) { max = v; }
-    }
-    return max;
+    return maxObservedLamportInState(state);
   }
 
   /**
@@ -826,6 +840,14 @@ export default class RuntimeHost {
    */
   // eslint-disable-next-line max-lines-per-function -- side-effect callback must apply all post-materialize state in one method
   async _onMaterialized(result: MaterializeResult): Promise<void> {
+    const provenance = selectProvenanceAfterMaterialization({
+      index: this._provenanceIndex,
+      degraded: this._provenanceDegraded,
+      stateHash: this._materializedGraph?.stateHash,
+      frontier: this._cachedFrontier,
+      ceiling: this._cachedCeiling,
+    }, result);
+
     // 1. Cache state + lamport
     this._cachedState = result.state;
     this._stateDirty = false;
@@ -841,8 +863,8 @@ export default class RuntimeHost {
         incoming: new Map(result.adjacency.incoming),
       },
     };
-    this._provenanceIndex = result.provenanceIndex;
-    this._provenanceDegraded = result.provenanceDegraded;
+    this._provenanceIndex = provenance.index;
+    this._provenanceDegraded = provenance.degraded;
     this._cachedCeiling = result.ceiling;
     this._cachedFrontier = result.frontier ? new Map(result.frontier) : null;
 

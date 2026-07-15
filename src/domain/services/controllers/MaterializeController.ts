@@ -17,6 +17,7 @@ import {
   normalizeFrontierInput,
   normalizeExplicitCeiling,
   buildAdjacency,
+  maxObservedLamportInState,
   type MaterializeAdjacency,
 } from './MaterializeHelpers.ts';
 import {
@@ -41,6 +42,7 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
+import type { WarpStateSnapshotProvenancePosture } from '../../../ports/WarpStateCachePort.ts';
 import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
@@ -210,13 +212,20 @@ export default class MaterializeController {
     frontier?: Map<string, string> | null,
     options?: MaterializeSnapshotPublicationOptions,
   ): Promise<MaterializeResult> {
-    return await this._wrapState(createEmptyState(), ceiling ?? null, frontier ?? null, options);
+    return await this._wrapState(
+      createEmptyState(),
+      ceiling ?? null,
+      frontier ?? null,
+      'full',
+      options,
+    );
   }
 
   private async _wrapState(
     state: WarpState,
     ceiling: number | null,
     frontier: Map<string, string> | null,
+    provenance: WarpStateSnapshotProvenancePosture,
     options?: MaterializeSnapshotPublicationOptions,
   ): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, state);
@@ -225,7 +234,6 @@ export default class MaterializeController {
       await this._publishSnapshot({
         state,
         stateHash,
-        degraded: false,
         ceiling,
         frontier,
       });
@@ -235,9 +243,9 @@ export default class MaterializeController {
       stateHash,
       adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
       patchCount: 0,
-      maxObservedLamport: 0,
+      maxObservedLamport: maxObservedLamportInState(state),
       provenanceIndex: new ProvenanceIndex(),
-      provenanceDegraded: false,
+      provenanceDegraded: provenance === 'degraded',
       frontier,
       ceiling,
     };
@@ -250,7 +258,6 @@ export default class MaterializeController {
       await this._publishSnapshot({
         state: params.reduced.state,
         stateHash,
-        degraded: params.degraded,
         ceiling: params.ceiling,
         frontier: params.frontier,
       });
@@ -262,7 +269,10 @@ export default class MaterializeController {
       receipts: params.reduced.receipts,
       diff: params.reduced.diff,
       patchCount: params.summary.patchCount,
-      maxObservedLamport: params.summary.maxObservedLamport,
+      maxObservedLamport: Math.max(
+        params.summary.maxObservedLamport,
+        maxObservedLamportInState(params.reduced.state),
+      ),
       provenanceIndex: params.summary.provenance,
       provenanceDegraded: params.degraded,
       frontier: params.frontier,
@@ -319,8 +329,8 @@ export default class MaterializeController {
       deps: this._deps,
       emptyResult: async (ceiling, frontier, options) =>
         await this._emptyResult(ceiling, frontier, options),
-      wrapState: async (state, ceiling, frontier, options) =>
-        await this._wrapState(state, ceiling, frontier, options),
+      wrapState: async (state, ceiling, frontier, provenance, options) =>
+        await this._wrapState(state, ceiling, frontier, provenance, options),
       reducePatches: async (patches, base, opts) => await this._reducePatches(patches, base, opts),
       reducePatchStream: async (stream, base, opts, provenanceBase) =>
         await this._reducePatchStream(stream, base, opts, provenanceBase),
@@ -332,7 +342,6 @@ export default class MaterializeController {
   private async _publishSnapshot(args: {
     state: WarpState;
     stateHash: string;
-    degraded: boolean;
     ceiling: number | null;
     frontier: Map<string, string> | null;
   }): Promise<void> {
@@ -347,7 +356,7 @@ export default class MaterializeController {
         ceiling: args.ceiling,
       },
       retention: 'evictable',
-      provenancePosture: args.degraded ? 'degraded' : 'full',
+      provenancePosture: 'degraded',
       stateHash: args.stateHash,
       payloadRef: `snapshot:${args.stateHash}`,
       createdAt: 'materialize-controller',

@@ -126,16 +126,17 @@ export default class MaterializeLiveStrategy {
     opts: MaterializeLiveOptions,
     frontier: Map<string, string> | null,
   ): Promise<MaterializeResult> {
+    const provenanceBase = checkpoint.provenanceIndex;
     const reduction = await this.runtime.reducePatchStream(
       this.streamPatchesSinceCheckpoint(checkpoint, frontier),
       checkpoint.state,
       opts,
-      checkpoint.provenanceIndex,
+      provenanceBase,
     );
     return await this.runtime.buildResult({
       reduced: reduction.reduced,
       summary: reduction.summary,
-      degraded: false,
+      degraded: provenanceBase === undefined,
       ceiling: null,
       frontier,
     });
@@ -239,12 +240,15 @@ export default class MaterializeLiveStrategy {
     stateCache: WarpStateCachePort,
     opts: { coordinate: WarpStateCoordinate; receipts: boolean; wantDiff: boolean },
   ): Promise<MaterializeResult | null> {
-    if (opts.receipts || opts.wantDiff) {
+    if (opts.receipts) {
       return null;
     }
     const exactResult = await this.tryResolveExactSnapshot(stateCache, opts);
     if (exactResult !== null) {
       return exactResult;
+    }
+    if (opts.wantDiff) {
+      return null;
     }
     return await this.tryResolvePredecessorSnapshot(stateCache, opts);
   }
@@ -284,7 +288,7 @@ export default class MaterializeLiveStrategy {
     return await this.runtime.buildResult({
       reduced: reduction.reduced,
       summary: reduction.summary,
-      degraded: predecessor.provenancePosture === 'degraded',
+      degraded: true,
       ceiling: opts.coordinate.ceiling,
       frontier: opts.coordinate.frontier,
     });

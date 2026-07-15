@@ -304,7 +304,9 @@ export default class SyncController {
     const result = applySyncResponseImpl(
       response, this._host._cachedState, currentFrontier,
     ) as { state: WarpState; frontier: Map<string, string>; applied: number };
-    await this._host._setMaterializedState(result.state);
+    await this._host._setMaterializedState(result.state, {
+      coordinate: { frontier: result.frontier, ceiling: null },
+    });
     this._host._lastFrontier = result.frontier;
     this._host._patchesSinceGC += result.applied;
     const skippedWriters: SkippedWriter[] = Array.isArray(response.skippedWriters)
