@@ -27,7 +27,6 @@ import type GCExecuteResult from '../GCExecuteResult.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import type {
   WarpStateCoordinate,
-  WarpStateSnapshotProvenancePosture,
   WarpStateSnapshotRecord,
 } from '../../../ports/WarpStateCachePort.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
@@ -138,7 +137,6 @@ export default class CheckpointController {
       const stored = await stateCache.put(await this._buildSnapshotRecord({
         state,
         coordinate,
-        provenancePosture: 'full',
       }));
       const pinned = await stateCache.pin(stored.snapshotId);
       await stateCache.publishCheckpointHead(h._graphName, pinned.snapshotId);
@@ -197,14 +195,13 @@ export default class CheckpointController {
   private async _buildSnapshotRecord(params: {
     state: WarpState;
     coordinate: WarpStateCoordinate;
-    provenancePosture: WarpStateSnapshotProvenancePosture;
   }): Promise<WarpStateSnapshotRecord> {
     const stateHash = await this._computeStateHash(params.state, params.coordinate);
     return {
       snapshotId: `snapshot:${stateHash}`,
       coordinate: params.coordinate,
       retention: 'evictable',
-      provenancePosture: params.provenancePosture,
+      provenancePosture: 'degraded',
       stateHash,
       payloadRef: `snapshot:${stateHash}`,
       createdAt: 'checkpoint-create',

@@ -47,9 +47,16 @@ The runtime asks `WarpStateCachePort` for an exact snapshot at that coordinate.
 On a hit, it returns the cached state without replaying writer patch streams and
 without republishing the same snapshot.
 
+The current payload records state but not the provenance index. A runtime may
+retain its resident provenance index when the cached state has the same hash and
+coordinate. A runtime restored only from the cache reports provenance as
+degraded instead of presenting an empty index as complete evidence.
+
 If no exact snapshot exists, the runtime asks for the best compatible
 predecessor. A predecessor hit lets materialization replay only the suffix after
 that cached coordinate, then publish a fresh snapshot for the current frontier.
+Until cache payloads carry provenance indexes, that derived snapshot retains a
+degraded provenance posture rather than claiming support for the cached prefix.
 
 ### 3. Fall back to replay and publish
 

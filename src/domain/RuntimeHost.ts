@@ -44,7 +44,10 @@ import RuntimeDetachedFactory from './warp/RuntimeDetachedFactory.ts';
 import BitmapNeighborProvider, { type LogicalIndex } from './services/index/BitmapNeighborProvider.ts';
 import { cloneState } from './services/JoinReducer.ts';
 import { diffStates, isEmptyDiff, type StateDiffResult } from './services/state/StateDiff.ts';
-import { buildAdjacency } from './services/controllers/MaterializeHelpers.ts';
+import {
+  buildAdjacency,
+  maxObservedLamportInState,
+} from './services/controllers/MaterializeHelpers.ts';
 import { selectProvenanceAfterMaterialization } from './services/controllers/MaterializeProvenancePolicy.ts';
 import WarpError from './errors/WarpError.ts';
 import QueryError from './errors/QueryError.ts';
@@ -739,11 +742,7 @@ export default class RuntimeHost {
    * Extracts the maximum Lamport timestamp from a WarpState.
    */
   _maxLamportFromState(state: WarpState): number {
-    let max = 0;
-    for (const v of state.observedFrontier.values()) {
-      if (v > max) { max = v; }
-    }
-    return max;
+    return maxObservedLamportInState(state);
   }
 
   /**

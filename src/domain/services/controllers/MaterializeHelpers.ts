@@ -107,6 +107,15 @@ export function maxLamportInPatches(patches: Array<{ patch: { lamport?: number }
   return max;
 }
 
+/** Returns the greatest Lamport time already folded into a materialized state. */
+export function maxObservedLamportInState(state: WarpState): number {
+  let max = 0;
+  for (const lamport of state.observedFrontier.values()) {
+    max = Math.max(max, lamport);
+  }
+  return max;
+}
+
 // ── Adjacency building ──────────────────────────────────────────────
 
 type NeighborEdge = { neighborId: string; label: string };

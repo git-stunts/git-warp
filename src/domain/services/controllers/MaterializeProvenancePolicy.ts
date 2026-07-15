@@ -31,7 +31,6 @@ function shouldPreserveResidentProvenance(
     return false;
   }
   return [
-    !resident.degraded,
     materialized.patchCount === 0,
     materialized.stateHash === resident.stateHash,
     materialized.ceiling === resident.ceiling,

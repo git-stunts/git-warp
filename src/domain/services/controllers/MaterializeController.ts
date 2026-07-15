@@ -17,6 +17,7 @@ import {
   normalizeFrontierInput,
   normalizeExplicitCeiling,
   buildAdjacency,
+  maxObservedLamportInState,
   type MaterializeAdjacency,
 } from './MaterializeHelpers.ts';
 import {
@@ -225,7 +226,6 @@ export default class MaterializeController {
       await this._publishSnapshot({
         state,
         stateHash,
-        degraded: false,
         ceiling,
         frontier,
       });
@@ -235,7 +235,7 @@ export default class MaterializeController {
       stateHash,
       adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
       patchCount: 0,
-      maxObservedLamport: 0,
+      maxObservedLamport: maxObservedLamportInState(state),
       provenanceIndex: new ProvenanceIndex(),
       provenanceDegraded: false,
       frontier,
@@ -250,7 +250,6 @@ export default class MaterializeController {
       await this._publishSnapshot({
         state: params.reduced.state,
         stateHash,
-        degraded: params.degraded,
         ceiling: params.ceiling,
         frontier: params.frontier,
       });
@@ -262,7 +261,10 @@ export default class MaterializeController {
       receipts: params.reduced.receipts,
       diff: params.reduced.diff,
       patchCount: params.summary.patchCount,
-      maxObservedLamport: params.summary.maxObservedLamport,
+      maxObservedLamport: Math.max(
+        params.summary.maxObservedLamport,
+        maxObservedLamportInState(params.reduced.state),
+      ),
       provenanceIndex: params.summary.provenance,
       provenanceDegraded: params.degraded,
       frontier: params.frontier,
@@ -332,7 +334,6 @@ export default class MaterializeController {
   private async _publishSnapshot(args: {
     state: WarpState;
     stateHash: string;
-    degraded: boolean;
     ceiling: number | null;
     frontier: Map<string, string> | null;
   }): Promise<void> {
@@ -347,7 +348,7 @@ export default class MaterializeController {
         ceiling: args.ceiling,
       },
       retention: 'evictable',
-      provenancePosture: args.degraded ? 'degraded' : 'full',
+      provenancePosture: 'degraded',
       stateHash: args.stateHash,
       payloadRef: `snapshot:${args.stateHash}`,
       createdAt: 'materialize-controller',

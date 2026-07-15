@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { openMemoryRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import InMemoryGraphAdapter from '../../helpers/InMemoryGraphAdapter.ts';
@@ -75,8 +75,12 @@ describe('RuntimeHost snapshot cache', () => {
     const patchId = await runtime.patch((patch) => {
       patch.addNode('node:one');
     });
+    const buildView = vi.spyOn(runtime._viewService, 'build');
+    const applyViewDiff = vi.spyOn(runtime._viewService, 'applyDiff');
 
     const first = await runtime.materialize();
+    const viewBuildsAfterFirstRead = buildView.mock.calls.length;
+    const viewDiffsAfterFirstRead = applyViewDiff.mock.calls.length;
     expect(runtime._cachedViewHash).not.toBeNull();
     expect(Reflect.get(runtime, '_cachedIndexTree')).not.toBeNull();
     expect(runtime.provenanceIndex?.patchesFor('node:one')).toEqual([patchId]);
@@ -87,6 +91,9 @@ describe('RuntimeHost snapshot cache', () => {
     expect(stateCache.exactLookups).toHaveLength(2);
     expect(stateCache.publications).toHaveLength(1);
     expect(runtime.provenanceIndex?.patchesFor('node:one')).toEqual([patchId]);
+    expect(Reflect.get(runtime, '_provenanceDegraded')).toBe(false);
+    expect(buildView).toHaveBeenCalledTimes(viewBuildsAfterFirstRead);
+    expect(applyViewDiff).toHaveBeenCalledTimes(viewDiffsAfterFirstRead);
     expect(second).toEqual(first);
   });
 });

@@ -55,6 +55,16 @@ function snapshotRecord(
   };
 }
 
+function snapshotRecordWithObservedLamport(
+  snapshotId: string,
+  coordinate: Coordinate,
+  lamport: number,
+): SnapshotRecord {
+  const snapshot = snapshotRecord(snapshotId, coordinate, 'full');
+  snapshot.state.observedFrontier.set('writer-1', lamport);
+  return snapshot;
+}
+
 async function* streamFromPromise<T>(items: Promise<T[]>): AsyncIterable<T> {
   for (const item of await items) {
     yield item;
@@ -175,13 +185,13 @@ describe('MaterializeController — unified snapshot cache', () => {
       frontier: new Map([['writer-1', 'tip-7']]),
       ceiling: null,
     };
-    const predecessor = snapshotRecord(
+    const predecessor = snapshotRecordWithObservedLamport(
       'snapshot-live-predecessor',
       {
         frontier: new Map([['writer-1', 'tip-5']]),
         ceiling: null,
       },
-      'full',
+      40,
     );
 
     stateCache.getExact.mockResolvedValue(null);
@@ -203,6 +213,8 @@ describe('MaterializeController — unified snapshot cache', () => {
     expect(patches.loadCheckpoint).not.toHaveBeenCalled();
     expect(patches.loadWriterPatches).not.toHaveBeenCalled();
     expect(result.patchCount).toBe(2);
+    expect(result.maxObservedLamport).toBe(40);
+    expect(result.provenanceDegraded).toBe(true);
     expect(result.frontier).toEqual(target.frontier);
   });
 
@@ -229,7 +241,7 @@ describe('MaterializeController — unified snapshot cache', () => {
         snapshotId: 'snapshot:state-hash-1',
         coordinate: target,
         retention: 'evictable',
-        provenancePosture: 'full',
+        provenancePosture: 'degraded',
         stateHash: 'state-hash-1',
         state: result.state,
       }),
@@ -246,7 +258,7 @@ describe('MaterializeController — unified snapshot cache', () => {
     };
 
     stateCache.getExact.mockResolvedValue(
-      snapshotRecord('snapshot-live-exact', target, 'full'),
+      snapshotRecordWithObservedLamport('snapshot-live-exact', target, 41),
     );
     patches.collectForFrontier.mockResolvedValue([
       patchRecord(7, 'sha-7'),
@@ -260,6 +272,8 @@ describe('MaterializeController — unified snapshot cache', () => {
     expect(patches.loadCheckpoint).not.toHaveBeenCalled();
     expect(stateCache.put).not.toHaveBeenCalled();
     expect(result.patchCount).toBe(0);
+    expect(result.maxObservedLamport).toBe(41);
+    expect(result.provenanceDegraded).toBe(true);
     expect(result.frontier).toEqual(target.frontier);
   });
 
@@ -433,7 +447,7 @@ describe('MaterializeController — unified snapshot cache', () => {
     expect(stateCache.put).not.toHaveBeenCalled();
     expect(patches.collectForFrontier).not.toHaveBeenCalled();
     expect(result.patchCount).toBe(0);
-    expect(result.provenanceDegraded).toBe(false);
+    expect(result.provenanceDegraded).toBe(true);
   });
 
   it('replays only the suffix after the best compatible predecessor snapshot', async () => {
@@ -467,6 +481,7 @@ describe('MaterializeController — unified snapshot cache', () => {
     );
     expect(patches.collectForFrontier).not.toHaveBeenCalled();
     expect(result.patchCount).toBe(1);
+    expect(result.provenanceDegraded).toBe(true);
   });
 
   it('bypasses coordinate snapshot hits when receipts are requested', async () => {

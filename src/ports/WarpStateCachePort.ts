@@ -12,6 +12,7 @@ export type WarpStateSnapshotRecord = {
   snapshotId: string;
   coordinate: WarpStateCoordinate;
   retention: WarpStateSnapshotRetention;
+  /** `full` is valid only when the retained payload includes its provenance index. */
   provenancePosture: WarpStateSnapshotProvenancePosture;
   stateHash: string;
   payloadRef: string;

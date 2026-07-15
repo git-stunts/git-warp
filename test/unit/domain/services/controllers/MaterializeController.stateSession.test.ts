@@ -251,7 +251,7 @@ describe("MaterializeController — state session integration", () => {
       expect.objectContaining({
         coordinate: target,
         retention: "evictable",
-        provenancePosture: "full",
+        provenancePosture: "degraded",
       }),
     );
     expect(result.state.nodeAlive.contains("node:base")).toBe(true);

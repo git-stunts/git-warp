@@ -186,7 +186,10 @@ describe('CheckpointController — unified snapshot cache', () => {
 
     expect(snapshotCache.put).toHaveBeenCalledTimes(1);
     expect(snapshotCache.put).toHaveBeenCalledWith(
-      expect.objectContaining({ state: host._cachedState }),
+      expect.objectContaining({
+        provenancePosture: 'degraded',
+        state: host._cachedState,
+      }),
     );
     expect(snapshotCache.pin).toHaveBeenCalledWith('snapshot-new');
     expect(snapshotCache.publishCheckpointHead).toHaveBeenCalledWith('test-graph', 'snapshot-new');
