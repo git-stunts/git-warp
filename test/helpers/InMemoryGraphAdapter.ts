@@ -4,7 +4,7 @@
  * Implements the same GraphPersistencePort contract as GitTimelineHistoryAdapter
  * but stores all data in Maps. Designed for fast unit/integration tests.
  */
-import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../src/ports/CommitPort.ts';
+import type { CommitLogChunk, CommitNodeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../src/ports/CommitPort.ts';
 import type { ListRefsOptions } from '../../src/ports/RefPort.ts';
 import GraphPersistencePort from '../../src/ports/GraphPersistencePort.ts';
 import WarpStream from '../../src/domain/stream/WarpStream.ts';
@@ -15,7 +15,8 @@ import type TreeEntryLimit from '../../src/domain/tree/TreeEntryLimit.ts';
 import TreeEntryMissing from '../../src/domain/tree/TreeEntryMissing.ts';
 import TreeEntryPath from '../../src/domain/tree/TreeEntryPath.ts';
 import TreeEntryPrefixBatch from '../../src/domain/tree/TreeEntryPrefixBatch.ts';
-import type { TreeEntryProbeResult } from '../../src/ports/TreeEntryProbePort.ts';
+import type { TreeEntryProbeResult } from '../../src/infrastructure/adapters/GitRecursiveTreeOidReaderAdapter.ts';
+import type { GitTreeCommitOptions } from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from '../../src/infrastructure/adapters/adapterValidation.ts';
 import {
   type HashFn,
@@ -199,6 +200,20 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return buf;
   }
 
+  async readObjectType(oid: string): Promise<string> {
+    validateOid(oid);
+    if (this._blobs.has(oid)) {
+      return 'blob';
+    }
+    if (oid === EMPTY_TREE_OID || this._trees.has(oid)) {
+      return 'tree';
+    }
+    if (this._commits.has(oid)) {
+      return 'commit';
+    }
+    throw new PersistenceError(`Object not found: ${oid}`, PersistenceError.E_MISSING_OBJECT);
+  }
+
   // -- CommitPort -----------------------------------------------------------
 
   async commitNode({ message, parents = [] }: CommitNodeOptions): Promise<string> {
@@ -208,7 +223,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return await this._createCommit(EMPTY_TREE_OID, parents, message);
   }
 
-  async commitNodeWithTree({ treeOid, parents = [], message }: CommitNodeWithTreeOptions): Promise<string> {
+  async commitNodeWithTree({ treeOid, parents = [], message }: GitTreeCommitOptions): Promise<string> {
     validateOid(treeOid);
     for (const p of parents) {
       validateOid(p);
