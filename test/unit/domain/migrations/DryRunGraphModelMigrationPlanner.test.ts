@@ -165,7 +165,7 @@ function sourceBasis(): GraphModelMigrationBasis {
 
 function contentSource(
   legacyContentKey: string,
-  contentOid: string,
+  contentHandle: string,
 ): GraphModelMigrationContentSource {
-  return new GraphModelMigrationContentSource({ legacyContentKey, contentOid });
+  return new GraphModelMigrationContentSource({ legacyContentKey, contentHandle });
 }

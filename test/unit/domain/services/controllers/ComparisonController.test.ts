@@ -26,6 +26,8 @@ import { encodeEdgeKey, encodePropKey } from '../../../../../src/domain/services
 import { LWWRegister } from '../../../../../src/domain/crdt/LWW.ts';
 import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
+import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
+import WarpStream from '../../../../../src/domain/stream/WarpStream.ts';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
 
@@ -205,9 +207,8 @@ function createMockHost(overrides = {}) {
     _crypto: { hash: vi.fn(async () => 'mock-hash') },
     _codec: {},
     _stateHashService: null,
-    _blobStorage: null,
-    _persistence: {
-      readBlob: vi.fn(async () => new Uint8Array([1, 2, 3])),
+    _assetStorage: {
+      open: vi.fn(() => WarpStream.from([new Uint8Array([1, 2, 3])])),
     },
     getFrontier: vi.fn(async () => new Map([['alice', 'sha-alice-1']])),
     materializeCoordinate: vi.fn(async (_request?: { frontier: Map<string, string>; ceiling?: number }) => emptyState),
@@ -766,14 +767,20 @@ describe('ComparisonController', () => {
       expect(result['scope']).toEqual(scope);
     });
 
-    it('loads content blobs via blobStorage when available', async () => {
-      const blobStorageRetrieve = vi.fn(async () => new Uint8Array([10, 20]));
-      host['_blobStorage'] = { retrieve: blobStorageRetrieve };
+    it('loads content through the semantic asset storage port', async () => {
+      const open = vi.fn(() => WarpStream.from([
+        new Uint8Array([10]),
+        new Uint8Array([20]),
+      ]));
+      host['_assetStorage'] = { open };
 
       planVisibleStateTransferMock.mockImplementationOnce(((async (_src, _tgt, loaders) => {
-          // Simulate the planner calling loadNodeContent
           if (loaders.loadNodeContent) {
-            await loaders.loadNodeContent('n1', { oid: 'blob-oid' });
+            await loaders.loadNodeContent('n1', {
+              handle: 'asset-handle',
+              mime: null,
+              size: 2,
+            });
           }
           return { summary: { opCount: 0 }, ops: [] };
         }) as any));
@@ -783,25 +790,26 @@ describe('ComparisonController', () => {
         target: { kind: 'live' },
       });
 
-      expect(blobStorageRetrieve).toHaveBeenCalledWith('blob-oid');
+      expect(open).toHaveBeenCalledWith(new AssetHandle('asset-handle'));
     });
 
-    it('falls back to persistence.readBlob when blobStorage is null', async () => {
-      host['_blobStorage'] = null;
+    it('fails closed when semantic asset storage is unavailable', async () => {
+      host['_assetStorage'] = null;
 
       planVisibleStateTransferMock.mockImplementationOnce(((async (_src, _tgt, loaders) => {
           if (loaders.loadEdgeContent) {
-            await loaders.loadEdgeContent('e1', { oid: 'blob-oid-2' });
+            await loaders.loadEdgeContent(
+              { from: 'a', to: 'b', label: 'rel' },
+              { handle: 'asset-handle-2', mime: null, size: 1 },
+            );
           }
           return { summary: { opCount: 0 }, ops: [] };
         }) as any));
 
-      await controller.planCoordinateTransfer({
+      await expect(controller.planCoordinateTransfer({
         source: { kind: 'live' },
         target: { kind: 'live' },
-      });
-
-      expect((((host['_persistence']).readBlob) as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith('blob-oid-2');
+      })).rejects.toMatchObject({ code: 'invalid_coordinate' });
     });
   });
 

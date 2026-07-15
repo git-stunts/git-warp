@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import AttachmentKey from '../../../../src/domain/graph/AttachmentKey.ts';
 import AttachmentRecord from '../../../../src/domain/graph/AttachmentRecord.ts';
 import AttachmentSchemaVersion from '../../../../src/domain/graph/AttachmentSchemaVersion.ts';
-import ContentAttachmentOid from '../../../../src/domain/graph/ContentAttachmentOid.ts';
+import ContentAttachmentHandle from '../../../../src/domain/graph/ContentAttachmentHandle.ts';
 import ContentAttachmentPayload from '../../../../src/domain/graph/ContentAttachmentPayload.ts';
 import ContentAttachmentRecord from '../../../../src/domain/graph/ContentAttachmentRecord.ts';
 import EdgeRecord from '../../../../src/domain/graph/EdgeRecord.ts';
@@ -34,7 +34,7 @@ describe('GraphOpAlgebra', () => {
     const contentRecord = new ContentAttachmentRecord({
       owner: nodeRecord,
       payload: new ContentAttachmentPayload({
-        oid: new ContentAttachmentOid('oid-a'),
+        handle: new ContentAttachmentHandle('asset-a'),
         mime: null,
         size: null,
       }),

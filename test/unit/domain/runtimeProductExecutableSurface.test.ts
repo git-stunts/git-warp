@@ -144,11 +144,11 @@ describe('runtime product executable surface', () => {
       admitted: true,
       intentId: 'assign-alice',
     });
-    await expect(runtime.queueIntent('draft:admin', descriptor)).resolves.toMatchObject({
+    await expect(runtime.queueIntent('draft-admin', descriptor)).resolves.toMatchObject({
       admitted: true,
       intentId: 'assign-alice',
     });
-    await expect(runtime.getWriterIntents('draft:admin')).resolves.toEqual([descriptor]);
+    await expect(runtime.getWriterIntents('draft-admin')).resolves.toEqual([descriptor]);
     expect(runtime.buildPatchDivergence([], [], null)).toMatchObject({});
     await expect(runtime.createSyncRequest()).resolves.toMatchObject({ type: 'sync-request' });
 

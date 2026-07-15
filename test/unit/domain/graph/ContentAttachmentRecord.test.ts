@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import ContentAttachmentOid from '../../../../src/domain/graph/ContentAttachmentOid.ts';
+import ContentAttachmentHandle from '../../../../src/domain/graph/ContentAttachmentHandle.ts';
 import ContentAttachmentPayload from '../../../../src/domain/graph/ContentAttachmentPayload.ts';
 import ContentAttachmentRecord from '../../../../src/domain/graph/ContentAttachmentRecord.ts';
 import EdgeRecord from '../../../../src/domain/graph/EdgeRecord.ts';
@@ -12,7 +12,7 @@ describe('ContentAttachmentRecord graph substrate noun', () => {
     const nodeOwner = NodeRecord.fromLegacyNodeId('doc:1');
     const edgeOwner = EdgeRecord.fromLegacyEdge({ from: 'doc:1', to: 'doc:2', label: 'links' });
     const payload = new ContentAttachmentPayload({
-      oid: new ContentAttachmentOid('abc123'),
+      handle: new ContentAttachmentHandle('abc123'),
       mime: null,
       size: null,
     });
@@ -31,7 +31,7 @@ describe('ContentAttachmentRecord graph substrate noun', () => {
   it('rejects fake content attachment record envelopes', () => {
     const owner = NodeRecord.fromLegacyNodeId('doc:1');
     const payload = new ContentAttachmentPayload({
-      oid: new ContentAttachmentOid('abc123'),
+      handle: new ContentAttachmentHandle('abc123'),
       mime: null,
       size: null,
     });

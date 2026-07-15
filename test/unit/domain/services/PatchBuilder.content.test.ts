@@ -1,603 +1,200 @@
-import { describe, it, expect, vi } from 'vitest';
-import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
-import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { describe, expect, it } from 'vitest';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import {
+  encodeEdgeKey,
+  encodeLegacyEdgePropNode,
+} from '../../../../src/domain/services/KeyCodec.ts';
+import WarpState from '../../../../src/domain/services/state/WarpState.ts';
+import {
+  createPatchBuilder,
+  createPatchBuilderMockPersistence,
+  createPatchJournal,
+  RecordingAssetStorage,
+} from './PatchBuilderTestHarness.ts';
 
-/**
- * Creates a mock blob storage with configurable OID return.
- * @param {{ storeOid?: string }} [opts]
- * @returns {any}
- */
-function createMockBlobStorage(opts: { storeOid?: string } = {}) {
-  const oid = opts.storeOid || 'd'.repeat(40);
-  return {
-    store: vi.fn().mockResolvedValue(oid),
-    retrieve: vi.fn(),
-    storeStream: vi.fn().mockResolvedValue(oid),
-    retrieveStream: vi.fn(),
-  };
-}
-
-/**
- * Creates a mock persistence adapter for testing.
- * @param {Object} [overrides]
- * @returns {any}
- */
-function createMockPersistence(overrides = {}) {
-  const persistence = {
-    readRef: vi.fn().mockResolvedValue(null),
-    showNode: vi.fn(),
-    writeBlob: vi.fn().mockResolvedValue('d'.repeat(40)),
-    writeTree: vi.fn().mockResolvedValue('e'.repeat(40)),
-    commitNodeWithTree: vi.fn().mockResolvedValue('f'.repeat(40)),
-    updateRef: vi.fn().mockResolvedValue(undefined),
-    compareAndSwapRef: vi.fn(),
-    ...overrides,
-  };
-  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
-    const actualOid = await persistence.readRef(ref);
-    if (actualOid !== expectedOid) {
-      throw new Error(`CAS mismatch for ${ref}`);
-    }
-    persistence.readRef.mockResolvedValue(newOid);
-  });
-  return persistence;
-}
-
-/**
- * Creates a mock V5 state for testing.
- * @returns {any}
- */
-function createMockState() {
-  return {
-    nodeAlive: ORSet.empty(),
-    edgeAlive: ORSet.empty(),
-    prop: new Map(),
-    observedFrontier: VersionVector.empty(),
-  };
-}
-
-/**
- * Creates a CborPatchJournalAdapter wired to the given persistence's blob ops.
- * @param {ReturnType<typeof createMockPersistence>} persistence
- * @returns {CborPatchJournalAdapter}
- */
-function createPatchJournal(persistence) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-  });
-}
-
-describe('PatchBuilder content attachment', () => {
-  it('test fixture compareAndSwapRef rejects expected-head mismatches', async () => {
-    const persistence = createMockPersistence();
-    const currentSha = 'a'.repeat(40);
-    const nextSha = 'b'.repeat(40);
-    persistence.readRef.mockResolvedValue(currentSha);
-
-    await expect(
-      persistence.compareAndSwapRef('refs/warp/events/writers/writer-1', nextSha, null)
-    ).rejects.toThrow('CAS mismatch');
-  });
-
-  describe('attachContent()', () => {
-    it('writes blob and sets content reference metadata properties', async () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const persistence = createMockPersistence();
-      const blobStorage = createMockBlobStorage({ storeOid: 'abc123' });
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      await builder.attachContent('node:1', 'hello world');
-
-      expect(blobStorage.store).toHaveBeenCalledWith('hello world', { slug: 'g/node:1', mime: null, size: 11 });
-      const patch = builder.build();
-      expect(patch.ops).toHaveLength(3);
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        node: 'node:1',
-        key: '_content',
-        value: 'abc123',
-      }));
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        node: 'node:1',
-        key: '_content.size',
-        value: 11,
-      }));
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        node: 'node:1',
-        key: '_content.mime',
-        value: null,
-      }));
+describe('PatchBuilder content attachments', () => {
+  it('stages node content and lowers its opaque handle and metadata', async () => {
+    const state = stateWithNode('doc:1');
+    const assets = new RecordingAssetStorage(['asset:document']);
+    const builder = createPatchBuilder({
+      graphName: 'events',
+      getCurrentState: () => state,
+      assetStorage: assets,
     });
 
-    it('accepts optional content metadata and persists it alongside the blob oid', async () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const persistence = createMockPersistence();
-      const blobStorage = createMockBlobStorage({ storeOid: 'abc123' });
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
+    await builder.attachContent('doc:1', 'hello', { mime: 'text/plain' });
 
-      await builder.attachContent('node:1', 'hello world', {
-        mime: 'text/plain',
-        size: 11,
-      });
-
-      const patch = builder.build();
-      expect(patch.ops).toContainEqual(expect.objectContaining({
+    expect(assets.calls).toHaveLength(1);
+    expect(new TextDecoder().decode(assets.calls[0]?.bytes)).toBe('hello');
+    expect(assets.calls[0]?.options).toEqual({
+      slug: 'events/doc:1',
+      filename: 'content',
+      mime: 'text/plain',
+      expectedSize: 5,
+    });
+    expect(builder.build().ops).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'PropSet',
+        node: 'doc:1',
+        key: '_content',
+        value: 'asset:document',
+      }),
+      expect.objectContaining({
+        type: 'PropSet',
+        node: 'doc:1',
+        key: '_content.size',
+        value: 5,
+      }),
+      expect.objectContaining({
+        type: 'PropSet',
+        node: 'doc:1',
         key: '_content.mime',
         value: 'text/plain',
-      }));
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        key: '_content.size',
-        value: 11,
-      }));
-    });
-
-    it('tracks blob OID in _contentBlobs', async () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const persistence = createMockPersistence();
-      const blobStorage = createMockBlobStorage({ storeOid: 'abc123' });
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      await builder.attachContent('node:1', 'content');
-
-      expect((builder as any)._contentBlobs).toEqual(['abc123']);
-    });
-
-    it('returns the builder for chaining', async () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const persistence = createMockPersistence();
-      const blobStorage = createMockBlobStorage();
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      const result = await builder.attachContent('node:1', 'content');
-      expect(result).toBe(builder);
-    });
-
-    it('propagates blob storage errors', async () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const persistence = createMockPersistence();
-      const blobStorage = createMockBlobStorage();
-      blobStorage.store = vi.fn().mockRejectedValue(new Error('disk full'));
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      await expect(builder.attachContent('node:1', 'x')).rejects.toThrow('disk full');
-    });
-
-    it('does not write blobs for unknown nodes', async () => {
-      const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
-        persistence,
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => createMockState(),
-      }) as any));
-
-      await expect(builder.attachContent('missing:node', 'content'))
-        .rejects.toThrow("Cannot attach content to unknown node 'missing:node': add the node first");
-      expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect((builder as any)._contentBlobs).toEqual([]);
-    });
-
-    it('rejects mismatched size metadata before writing the blob', async () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const persistence = createMockPersistence();
-      const blobStorage = createMockBlobStorage();
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      await expect(builder.attachContent('node:1', 'hello', { size: 9 }))
-        .rejects.toThrow('content metadata size 9 does not match actual byte size 5');
-      expect(blobStorage.store).not.toHaveBeenCalled();
-      expect((builder as any)._contentBlobs).toEqual([]);
-    });
+      }),
+    ]));
   });
 
-  describe('clearContent()', () => {
-    it('sets reserved content registers to null without writing a blob', () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
-        persistence,
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-      }) as any));
-
-      const result = builder.clearContent('node:1');
-
-      expect(result).toBe(builder);
-      expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect((builder as any)._contentBlobs).toEqual([]);
-      const patch = builder.build();
-      expect(patch.ops).toHaveLength(3);
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        node: 'node:1',
-        key: '_content',
-        value: null,
-      }));
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        node: 'node:1',
-        key: '_content.size',
-        value: null,
-      }));
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        node: 'node:1',
-        key: '_content.mime',
-        value: null,
-      }));
+  it('streams content without buffering it at the public call boundary', async () => {
+    const state = stateWithNode('doc:1');
+    const assets = new RecordingAssetStorage(['asset:stream']);
+    const builder = createPatchBuilder({
+      getCurrentState: () => state,
+      assetStorage: assets,
     });
 
-    it('rejects unknown nodes without writing a blob', () => {
-      const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
-        persistence,
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => createMockState(),
-      }) as any));
+    await builder.attachContent('doc:1', chunks('hello', ' world'), { size: 11 });
 
-      expect(() => builder.clearContent('missing:node'))
-        .toThrow("Cannot attach content to unknown node 'missing:node': add the node first");
-      expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect((builder as any)._contentBlobs).toEqual([]);
-    });
+    expect(new TextDecoder().decode(assets.calls[0]?.bytes)).toBe('hello world');
+    expect(assets.calls[0]?.options.expectedSize).toBe(11);
+    expect(builder.build().ops).toContainEqual(expect.objectContaining({
+      key: '_content.size',
+      value: 11,
+    }));
   });
 
-  describe('attachEdgeContent()', () => {
-    it('writes blob and sets content reference metadata on the edge', async () => {
-      const state = createMockState();
-      const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      state.edgeAlive.add(edgeKey, Dot.create('w1', 1));
-
-      const persistence = createMockPersistence();
-      const blobStorage = createMockBlobStorage({ storeOid: 'def456' });
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      await builder.attachEdgeContent('a', 'b', 'rel', Buffer.from('binary'));
-
-      expect(blobStorage.store).toHaveBeenCalledWith(Buffer.from('binary'), { slug: 'g/a/b/rel', mime: null, size: 6 });
-      const patch = builder.build();
-      expect(patch.ops).toHaveLength(3);
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        key: '_content',
-        value: 'def456',
-      }));
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        key: '_content.size',
-        value: 6,
-      }));
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        key: '_content.mime',
-        value: null,
-      }));
-      // Schema should be 3 (edge properties present)
-      expect(patch.schema).toBe(3);
+  it('stages edge content and lowers edge properties', async () => {
+    const state = WarpState.empty();
+    state.edgeAlive.add(encodeEdgeKey('doc:1', 'doc:2', 'links'), Dot.create('writer-a', 1));
+    const assets = new RecordingAssetStorage(['asset:edge']);
+    const builder = createPatchBuilder({
+      graphName: 'events',
+      getCurrentState: () => state,
+      assetStorage: assets,
     });
 
-    it('tracks blob OID in _contentBlobs', async () => {
-      const state = createMockState();
-      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), Dot.create('w1', 1));
+    await builder.attachEdgeContent('doc:1', 'doc:2', 'links', 'edge-data');
 
-      const persistence = createMockPersistence();
-      const blobStorage = createMockBlobStorage({ storeOid: 'def456' });
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      await builder.attachEdgeContent('a', 'b', 'rel', 'content');
-
-      expect((builder as any)._contentBlobs).toEqual(['def456']);
-    });
-
-    it('returns the builder for chaining', async () => {
-      const state = createMockState();
-      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), Dot.create('w1', 1));
-
-      const persistence = createMockPersistence();
-      const blobStorage = createMockBlobStorage();
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      const result = await builder.attachEdgeContent('a', 'b', 'rel', 'x');
-      expect(result).toBe(builder);
-    });
-
-    it('does not pollute _contentBlobs when edge does not exist', async () => {
-      const persistence = createMockPersistence({
-        writeBlob: vi.fn().mockResolvedValue('def456'),
-      });
-      const builder = new PatchBuilder((({
-        persistence,
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => createMockState(),
-      }) as any));
-
-      await expect(
-        builder.attachEdgeContent('no', 'such', 'edge', 'content')
-      ).rejects.toThrow();
-      expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect((builder as any)._contentBlobs).toEqual([]);
-    });
+    expect(assets.calls[0]?.options.slug).toBe('events/doc:1/doc:2/links');
+    expect(builder.build()).toMatchObject({ schema: 3 });
+    expect(builder.build().ops).toContainEqual(expect.objectContaining({
+      type: 'PropSet',
+      node: encodeLegacyEdgePropNode('doc:1', 'doc:2', 'links'),
+      scope: 2,
+      key: '_content',
+      value: 'asset:edge',
+    }));
   });
 
-  describe('clearEdgeContent()', () => {
-    it('sets reserved edge content registers to null without writing a blob', () => {
-      const state = createMockState();
-      const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      state.edgeAlive.add(edgeKey, Dot.create('w1', 1));
-      const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
-        persistence,
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-      }) as any));
+  it('rejects missing asset storage before lowering attachment properties', async () => {
+    const builder = createPatchBuilder({ getCurrentState: () => stateWithNode('doc:1') });
 
-      const result = builder.clearEdgeContent('a', 'b', 'rel');
-
-      expect(result).toBe(builder);
-      expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect((builder as any)._contentBlobs).toEqual([]);
-      const patch = builder.build();
-      expect(patch.ops).toHaveLength(3);
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        key: '_content',
-        value: null,
-      }));
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        key: '_content.size',
-        value: null,
-      }));
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        key: '_content.mime',
-        value: null,
-      }));
-      expect(patch.schema).toBe(3);
+    await expect(builder.attachContent('doc:1', 'hello')).rejects.toMatchObject({
+      code: 'NO_ASSET_STORAGE',
     });
-
-    it('rejects unknown edges without writing a blob', () => {
-      const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
-        persistence,
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => createMockState(),
-      }) as any));
-
-      expect(() => builder.clearEdgeContent('no', 'such', 'edge')).toThrow();
-      expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect((builder as any)._contentBlobs).toEqual([]);
-    });
+    expect(builder.build().ops).toEqual([]);
   });
 
-  describe('multiple attachments in one patch', () => {
-    it('tracks multiple blob OIDs', async () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      state.nodeAlive.add('node:2', Dot.create('w1', 2));
-      let callCount = 0;
-      const blobStorage = createMockBlobStorage();
-      blobStorage.store = vi.fn().mockImplementation(() => {
-        callCount++;
-        return Promise.resolve(`blob${callCount}`);
-      });
-      const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
-        persistence,
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      await builder.attachContent('node:1', 'first');
-      await builder.attachContent('node:2', 'second');
-
-      expect((builder as any)._contentBlobs).toEqual(['blob1', 'blob2']);
-      expect(blobStorage.store).toHaveBeenCalledTimes(2);
+  it('rejects unknown graph targets without staging content', async () => {
+    const assets = new RecordingAssetStorage();
+    const builder = createPatchBuilder({
+      getCurrentState: () => WarpState.empty(),
+      assetStorage: assets,
     });
+
+    await expect(builder.attachContent('missing', 'hello')).rejects.toMatchObject({
+      code: 'E_PATCH_CONTENT_UNKNOWN_NODE',
+    });
+    await expect(
+      builder.attachEdgeContent('a', 'b', 'links', 'hello'),
+    ).rejects.toMatchObject({ code: 'E_PATCH_EDGE_PROP_UNKNOWN_EDGE' });
+    expect(assets.calls).toEqual([]);
   });
 
-  describe('attachContent() with streaming input', () => {
-    it('accepts an AsyncIterable<Uint8Array> as content', async () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const blobStorage = {
-        store: vi.fn().mockResolvedValue('cas-oid-1'),
-        retrieve: vi.fn(),
-        storeStream: vi.fn().mockResolvedValue('cas-stream-oid'),
-        retrieveStream: vi.fn(),
-      };
-      const builder = new PatchBuilder((({
-        persistence: createMockPersistence(),
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      async function* source() {
-        yield new TextEncoder().encode('hello ');
-        yield new TextEncoder().encode('world');
-      }
-
-      await builder.attachContent('node:1', source(), { size: 11 });
-
-      // Should call storeStream, not store
-      expect(blobStorage.storeStream).toHaveBeenCalledOnce();
-      expect(blobStorage.store).not.toHaveBeenCalled();
-      const patch = builder.build();
-      expect(patch.ops).toContainEqual(expect.objectContaining({
-        type: 'PropSet',
-        node: 'node:1',
-        key: '_content',
-        value: 'cas-stream-oid',
-      }));
+  it('validates MIME and expected size before asking storage to stage bytes', async () => {
+    const state = stateWithNode('doc:1');
+    const assets = new RecordingAssetStorage();
+    const builder = createPatchBuilder({
+      getCurrentState: () => state,
+      assetStorage: assets,
     });
 
-    it('accepts a ReadableStream<Uint8Array> as content', async () => {
-      const state = createMockState();
-      state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const blobStorage = {
-        store: vi.fn().mockResolvedValue('cas-oid-1'),
-        retrieve: vi.fn(),
-        storeStream: vi.fn().mockResolvedValue('cas-rs-oid'),
-        retrieveStream: vi.fn(),
-      };
-      const builder = new PatchBuilder((({
-        persistence: createMockPersistence(),
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      const stream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode('rs content'));
-          controller.close();
-        },
-      });
-
-      await builder.attachContent('node:1', stream, { size: 10 });
-
-      expect(blobStorage.storeStream).toHaveBeenCalledOnce();
-    });
+    await expect(builder.attachContent('doc:1', 'hello', { mime: '' }))
+      .rejects.toThrow(/mime must be a non-empty string/u);
+    await expect(builder.attachContent('doc:1', 'hello', { size: 4 }))
+      .rejects.toThrow(/does not match actual byte size/u);
+    expect(assets.calls).toEqual([]);
+    expect(builder.build().ops).toEqual([]);
   });
 
-  describe('attachEdgeContent() with streaming input', () => {
-    it('accepts an AsyncIterable<Uint8Array> as content', async () => {
-      const state = createMockState();
-      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), Dot.create('w1', 1));
-      const blobStorage = {
-        store: vi.fn().mockResolvedValue('cas-oid-1'),
-        retrieve: vi.fn(),
-        storeStream: vi.fn().mockResolvedValue('cas-edge-stream-oid'),
-        retrieveStream: vi.fn(),
-      };
-      const builder = new PatchBuilder((({
-        persistence: createMockPersistence(),
-        graphName: 'g',
-        writerId: 'w1',
-        lamport: 1,
-        versionVector: VersionVector.empty(),
-        getCurrentState: () => state,
-        blobStorage,
-      }) as any));
-
-      async function* source() {
-        yield new TextEncoder().encode('edge ');
-        yield new TextEncoder().encode('data');
-      }
-
-      await builder.attachEdgeContent('a', 'b', 'rel', source(), { size: 9 });
-
-      expect(blobStorage.storeStream).toHaveBeenCalledOnce();
-      expect(blobStorage.store).not.toHaveBeenCalled();
+  it('does not lower properties when storage fails', async () => {
+    const assets = new RecordingAssetStorage();
+    const failure = new Error('asset storage unavailable');
+    assets.failure = failure;
+    const builder = createPatchBuilder({
+      getCurrentState: () => stateWithNode('doc:1'),
+      assetStorage: assets,
     });
+
+    await expect(builder.attachContent('doc:1', 'hello')).rejects.toBe(failure);
+    expect(builder.build().ops).toEqual([]);
+  });
+
+  it('forwards staged attachment handles to the patch publication bundle', async () => {
+    const persistence = createPatchBuilderMockPersistence();
+    const journal = createPatchJournal(persistence);
+    const assets = new RecordingAssetStorage(['asset:first', 'asset:second']);
+    const builder = createPatchBuilder({
+      persistence,
+      patchJournal: journal,
+      assetStorage: assets,
+    });
+    builder.addNode('doc:1').addNode('doc:2');
+    await builder.attachContent('doc:1', 'first');
+    await builder.attachContent('doc:2', 'second');
+
+    await builder.commit();
+
+    expect(journal.requests[0]?.attachments.map(String)).toEqual([
+      'asset:first',
+      'asset:second',
+    ]);
+  });
+
+  it('clears node and edge content with null property intents and no storage write', () => {
+    const state = stateWithNode('doc:1');
+    state.edgeAlive.add(encodeEdgeKey('doc:1', 'doc:2', 'links'), Dot.create('writer-a', 2));
+    const assets = new RecordingAssetStorage();
+    const builder = createPatchBuilder({
+      getCurrentState: () => state,
+      assetStorage: assets,
+    });
+
+    builder.clearContent('doc:1');
+    builder.clearEdgeContent('doc:1', 'doc:2', 'links');
+
+    expect(assets.calls).toEqual([]);
+    expect(builder.build().ops.filter((op) => 'value' in op && op.value === null)).toHaveLength(6);
   });
 });
+
+function stateWithNode(nodeId: string): WarpState {
+  const state = WarpState.empty();
+  state.nodeAlive.add(nodeId, Dot.create('writer-a', 1));
+  return state;
+}
+
+async function* chunks(...values: string[]): AsyncIterable<Uint8Array> {
+  for (const value of values) {
+    yield new TextEncoder().encode(value);
+  }
+}

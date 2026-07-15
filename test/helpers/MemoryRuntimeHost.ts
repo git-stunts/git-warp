@@ -7,8 +7,11 @@ import MemoryRuntimeStorageAdapter from '../../test/helpers/MemoryRuntimeStorage
 
 import type { CorePersistence } from '../../src/domain/types/WarpPersistence.ts';
 import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProviderPort.ts';
+import type InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
 
 type RuntimeHostOpenInput = Parameters<typeof openProductionRuntimeHostProduct>[0];
+
+const STORAGE_BY_HISTORY = new WeakMap<object, RuntimeStorageProviderPort>();
 
 function withMemoryRuntimeStorage<TOptions extends {
   readonly persistence: CorePersistence;
@@ -25,7 +28,16 @@ function withMemoryRuntimeStorage<TOptions extends {
 export function createMemoryRuntimeStorage(
   history: CorePersistence,
 ): RuntimeStorageProviderPort {
-  return new MemoryRuntimeStorageAdapter({ history });
+  if ((typeof history !== 'object' && typeof history !== 'function') || history === null) {
+    throw new Error('persistence is required');
+  }
+  const cached = STORAGE_BY_HISTORY.get(history);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const storage = new MemoryRuntimeStorageAdapter({ history: history as InMemoryGraphAdapter });
+  STORAGE_BY_HISTORY.set(history, storage);
+  return storage;
 }
 
 export async function openMemoryRuntimeHostProduct(

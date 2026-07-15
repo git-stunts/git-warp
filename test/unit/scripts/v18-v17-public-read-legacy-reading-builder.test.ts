@@ -47,7 +47,7 @@ describe('v18 v17 public-read legacy reading builder', () => {
       'alice',
     ]);
     expect(reading.facts.find((fact) => fact.factKey === 'node:alpha:_content')?.value)
-      .toBe('92c0f5ef3874549768bceef59319608437cfc926');
+      .toBe('git-cas:1:asset:manifest-tree:cbor:sha1:92c0f5ef3874549768bceef59319608437cfc926');
   });
 
   it('fails closed when a restored v17 writer ref drifts after restore', async () => {

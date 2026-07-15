@@ -15,6 +15,8 @@ import { loadCheckpoint } from '../../../src/domain/services/state/checkpointLoa
 import { CURRENT_CHECKPOINT_SCHEMA } from '../../../src/domain/services/state/checkpointHelpers.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
+import { CborCheckpointStoreAdapter } from '../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.ts';
+import type AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import {
   CheckpointSchemaUpgradeError,
@@ -72,8 +74,6 @@ async function writeRetiredCheckpoint(options: {
     kind: 'checkpoint',
     graph: graphName,
     stateHash,
-    frontierOid,
-    indexOid: treeOid,
     schema: 4,
     checkpointVersion: null,
   });
@@ -132,13 +132,10 @@ describe('checkpoint schema upgrade script boundary', () => {
     if (upgradedSha === null) {
       throw new Error('Expected upgraded checkpoint SHA');
     }
-    const loaded = await loadCheckpoint(persistence, upgradedSha, {
-      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-      codec: defaultCodec,
-    });
+    const loaded = await loadCheckpoint(createCheckpointStore(persistence), upgradedSha);
     expect(loaded.schema).toBe(CURRENT_CHECKPOINT_SCHEMA);
     expect(loaded.state.nodeAlive.contains('node:a')).toBe(true);
-    expect(loaded.indexShardOids).toEqual({ 'nodes/shard.cbor': expect.any(String) });
+    expect(Object.keys(loaded.indexShardHandles ?? {})).toEqual(['nodes/shard.cbor']);
   });
 
   it('does not move the checkpoint ref when the retired payload is incomplete', async () => {
@@ -163,15 +160,13 @@ describe('checkpoint schema upgrade script boundary', () => {
     const frontier = createFrontier();
     updateFrontier(frontier, 'writer-a', makeOid('patch-a'));
     const currentCheckpointSha = await createCheckpointEnvelope({
-      persistence,
+      checkpointStore: createCheckpointStore(persistence),
       graphName,
       state,
       frontier,
       crypto,
       codec: defaultCodec,
-      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
-    await persistence.updateRef(checkpointRef, currentCheckpointSha);
 
     const result = await upgradeCheckpointSchema({
       persistence,
@@ -184,3 +179,26 @@ describe('checkpoint schema upgrade script boundary', () => {
     expect(await persistence.readRef(checkpointRef)).toBe(currentCheckpointSha);
   });
 });
+
+function createCheckpointStore(
+  persistence: InMemoryGraphAdapter,
+): CborCheckpointStoreAdapter {
+  return new CborCheckpointStoreAdapter({
+    codec: defaultCodec,
+    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    history: persistence,
+    assetStorage: {
+      stage: async () => {
+        throw new Error('test checkpoint store does not stage external assets');
+      },
+      open: (handle: AssetHandle) => readLegacyAsset(persistence, handle),
+    },
+  });
+}
+
+async function* readLegacyAsset(
+  persistence: InMemoryGraphAdapter,
+  handle: AssetHandle,
+): AsyncGenerator<Uint8Array> {
+  yield await persistence.readBlob(handle.toString());
+}

@@ -1,48 +1,61 @@
-import { describe, it, expect } from 'vitest';
-import CheckpointStorePort, {
-  type CheckpointRecord,
-  type CheckpointData,
-} from '../../../src/ports/CheckpointStorePort.ts';
+import { describe, expect, it } from 'vitest';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import WarpState from '../../../src/domain/services/state/WarpState.ts';
+import CheckpointStorePort, {
+  type CheckpointBasis,
+  type CheckpointData,
+  type CheckpointMetadata,
+  type CheckpointRecord,
+} from '../../../src/ports/CheckpointStorePort.ts';
 
 describe('CheckpointStorePort', () => {
-  it('abstract methods are not callable on base prototype', () => {
-    expect(CheckpointStorePort.prototype.writeCheckpoint).toBeUndefined();
-    expect(CheckpointStorePort.prototype.readCheckpoint).toBeUndefined();
+  it('declares a semantic checkpoint lifecycle', () => {
+    expect(CheckpointStorePort.prototype.publishCheckpoint).toBeUndefined();
+    expect(CheckpointStorePort.prototype.resolveHead).toBeUndefined();
+    expect(CheckpointStorePort.prototype.loadCheckpoint).toBeUndefined();
+    expect(CheckpointStorePort.prototype.readMetadata).toBeUndefined();
+    expect(CheckpointStorePort.prototype.loadBasis).toBeUndefined();
+    expect(CheckpointStorePort.prototype.publishCoverage).toBeUndefined();
   });
 
-  it('concrete subclass satisfies the contract', async () => {
+  it('can publish and load checkpoints without physical tree metadata', async () => {
+    const data: CheckpointData = {
+      state: WarpState.empty(),
+      frontier: new Map(),
+      stateHash: 'state-hash',
+      schema: 5,
+      appliedVV: VersionVector.empty(),
+      indexShardHandles: null,
+    };
     class TestStore extends CheckpointStorePort {
-      async writeCheckpoint(_record: CheckpointRecord) {
-        return {
-          nodeAliveBlobOid: 'nodeAlive',
-          edgeAliveBlobOid: 'edgeAlive',
-          propBlobOid: 'prop',
-          observedFrontierBlobOid: 'observedFrontier',
-          edgeBirthEventBlobOid: 'edgeBirthEvent',
-          frontierBlobOid: 'frontier',
-          appliedVVBlobOid: 'appliedVV',
-          provenanceIndexBlobOid: null,
-        };
+      async publishCheckpoint(_record: CheckpointRecord) { return { checkpointSha: 'checkpoint-sha' }; }
+      async resolveHead(_graphName: string) { return 'checkpoint-sha'; }
+      async loadCheckpoint(_sha: string) { return data; }
+      async readMetadata(_sha: string): Promise<CheckpointMetadata> {
+        return { checkpointSha: 'checkpoint-sha', stateHash: 'state-hash', schema: 5 };
       }
-      async readCheckpoint(_treeOids: Record<string, string>): Promise<CheckpointData> {
+      async loadBasis(_sha: string): Promise<CheckpointBasis> {
         return {
-          state: WarpState.empty(),
+          checkpointSha: 'checkpoint-sha',
+          stateHash: 'state-hash',
+          schema: 5,
           frontier: new Map(),
-          appliedVV: null,
-          indexShardOids: null,
+          indexShardHandles: {},
         };
       }
+      async publishCoverage() { return 'coverage-sha'; }
     }
     const store = new TestStore();
-    expect(store).toBeInstanceOf(CheckpointStorePort);
-    const result = await store.writeCheckpoint({
+
+    const published = await store.publishCheckpoint({
+      graphName: 'g',
       state: WarpState.empty(),
       frontier: new Map(),
       appliedVV: VersionVector.empty(),
       stateHash: 'state-hash',
+      parents: [],
     });
-    expect(result.nodeAliveBlobOid).toBe('nodeAlive');
+    expect(published).toEqual({ checkpointSha: 'checkpoint-sha' });
+    await expect(store.loadCheckpoint(published.checkpointSha)).resolves.toBe(data);
   });
 });

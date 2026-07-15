@@ -130,7 +130,7 @@ function sourceInventory(options: {
     contentSources: [
       new GraphModelMigrationContentSource({
         legacyContentKey: 'node:a\0_content',
-        contentOid: 'oid:a',
+        contentHandle: 'asset:a',
       }),
     ],
     warnings: [],

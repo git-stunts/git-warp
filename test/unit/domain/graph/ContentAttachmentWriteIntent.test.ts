@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import ContentAttachmentMime from '../../../../src/domain/graph/ContentAttachmentMime.ts';
-import ContentAttachmentOid from '../../../../src/domain/graph/ContentAttachmentOid.ts';
+import ContentAttachmentHandle from '../../../../src/domain/graph/ContentAttachmentHandle.ts';
 import ContentAttachmentPayload from '../../../../src/domain/graph/ContentAttachmentPayload.ts';
 import ContentAttachmentSize from '../../../../src/domain/graph/ContentAttachmentSize.ts';
 import ContentAttachmentWriteIntent from '../../../../src/domain/graph/ContentAttachmentWriteIntent.ts';
@@ -11,7 +11,7 @@ describe('ContentAttachmentWriteIntent graph substrate noun', () => {
     const intent = ContentAttachmentWriteIntent.forNode('doc:1', payload());
 
     expect(intent.nodeId()).toBe('doc:1');
-    expect(intent.oid()).toBe('content-oid');
+    expect(intent.handle().toString()).toBe('content-handle');
     expect(intent.mime()).toBe('text/plain');
     expect(intent.size()).toBe(12);
   });
@@ -28,7 +28,7 @@ describe('ContentAttachmentWriteIntent graph substrate noun', () => {
       to: 'doc:2',
       label: 'links',
     });
-    expect(intent.oid()).toBe('content-oid');
+    expect(intent.handle().toString()).toBe('content-handle');
   });
 
   it('rejects reading a node target from an edge write intent', () => {
@@ -44,7 +44,7 @@ describe('ContentAttachmentWriteIntent graph substrate noun', () => {
 
 function payload(): ContentAttachmentPayload {
   return new ContentAttachmentPayload({
-    oid: new ContentAttachmentOid('content-oid'),
+    handle: new ContentAttachmentHandle('content-handle'),
     mime: new ContentAttachmentMime('text/plain'),
     size: new ContentAttachmentSize(12),
   });

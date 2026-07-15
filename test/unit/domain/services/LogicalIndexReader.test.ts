@@ -12,6 +12,8 @@ import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
+import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -139,28 +141,20 @@ describe('LogicalIndexReader', () => {
     });
   });
 
-  describe('loadFromOids', () => {
-    it('loads shards lazily via mock storage', async () => {
+  describe('loadFromHandles', () => {
+    it('loads shards through the semantic index store', async () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
       const service = new MaterializedViewService({ codec: defaultCodec });
       const { tree } = service.build(state);
 
-      // Simulate OID→buffer mapping
-      /** @type {Record<string, string>} */ const shardOids = {};
-      const blobStore = new Map();
-      let oidCounter = 0;
+      const storage = new MockIndexStorage();
+      const shardHandles = {} as Record<string, Awaited<ReturnType<MockIndexStorage['writeBlob']>>>;
       for (const [path, buf] of Object.entries(tree)) {
-        const oid = `oid_${String(oidCounter++).padStart(4, '0')}`;
-        shardOids[path] = oid;
-        blobStore.set(oid, buf);
+        shardHandles[path] = await storage.writeBlob(buf);
       }
 
-      const mockStorage = {
-        readBlob: vi.fn((oid) => Promise.resolve(blobStore.get(oid))),
-      };
-
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
-      await reader.loadFromOids(shardOids, mockStorage);
+      const reader = new LogicalIndexReader({ codec: defaultCodec, indexStore: storage });
+      await reader.loadFromHandles(shardHandles);
       const idx = reader.toLogicalIndex();
 
       expect(idx.isAlive('A')).toBe(true);
@@ -169,8 +163,7 @@ describe('LogicalIndexReader', () => {
       const outEdges = idx.getEdges('A', 'out');
       expect(outEdges.length).toBe(2);
 
-      // Verify storage was called
-      expect(mockStorage.readBlob).toHaveBeenCalled();
+      expect(storage.writeBlob).toHaveBeenCalled();
     });
   });
 
@@ -300,38 +293,30 @@ describe('LogicalIndexReader', () => {
     });
   });
 
-  describe('loadFromOids with indexStore (decodeShard path)', () => {
-    it('uses indexStore.decodeShard instead of storage.readBlob + codec', async () => {
+  describe('loadFromHandles with indexStore', () => {
+    it('uses indexStore.decodeShard for opaque shard handles', async () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
       const service = new MaterializedViewService({ codec: defaultCodec });
       const { tree } = service.build(state);
 
-      // Build shardOids and a decoded-data map (simulating what decodeShard returns)
-      /** @type {Record<string, string>} */ const shardOids = {};
-      /** @type {Map<string, unknown>} */ const decodedByOid = new Map();
+      const shardHandles: Record<string, AssetHandle> = {};
+      const decodedByHandle = new Map<string, unknown>();
       let oidCounter = 0;
       for (const [path, buf] of Object.entries(tree)) {
-        const oid = `oid_${String(oidCounter++).padStart(4, '0')}`;
-        shardOids[path] = oid;
-        decodedByOid.set(oid, defaultCodec.decode(buf));
+        const handle = new AssetHandle(`test-shard:${String(oidCounter++).padStart(4, '0')}`);
+        shardHandles[path] = handle;
+        decodedByHandle.set(handle.toString(), defaultCodec.decode(buf));
       }
 
       const mockIndexStore = ((({
-        decodeShard: vi.fn((oid) => Promise.resolve(decodedByOid.get(oid))),
+        decodeShard: vi.fn((handle: AssetHandle) => Promise.resolve(decodedByHandle.get(handle.toString()))),
       })) as any);
 
-      const mockStorage = {
-        readBlob: vi.fn(),
-      };
-
       const reader = new LogicalIndexReader({ indexStore: mockIndexStore });
-      await reader.loadFromOids(shardOids, mockStorage);
+      await reader.loadFromHandles(shardHandles);
       const idx = reader.toLogicalIndex();
 
-      // indexStore.decodeShard was used
       expect(mockIndexStore.decodeShard).toHaveBeenCalled();
-      // storage.readBlob was NOT used
-      expect(mockStorage.readBlob).not.toHaveBeenCalled();
 
       // Results are correct
       expect(idx.isAlive('A')).toBe(true);
@@ -352,7 +337,8 @@ describe('LogicalIndexReader', () => {
       })) as any);
 
       const reader = new LogicalIndexReader({ indexStore: mockIndexStore });
-      await reader.loadFromStore('fake-tree-oid');
+      const indexHandle = new AssetHandle('test-index');
+      await reader.loadFromStore(indexHandle);
       const idx = reader.toLogicalIndex();
 
       expect(idx.isAlive('A')).toBe(true);
@@ -364,12 +350,12 @@ describe('LogicalIndexReader', () => {
       const labels = outEdges.map((e) => e.label).sort();
       expect(labels).toEqual(['manages', 'owns']);
 
-      expect(mockIndexStore.scanShards).toHaveBeenCalledWith('fake-tree-oid');
+      expect(mockIndexStore.scanShards).toHaveBeenCalledWith(indexHandle);
     });
 
     it('throws when no indexStore is configured', async () => {
       const reader = new LogicalIndexReader({ codec: defaultCodec });
-      await expect(reader.loadFromStore('any-oid')).rejects.toThrow(/indexStore/i);
+      await expect(reader.loadFromStore(new AssetHandle('any-index'))).rejects.toThrow(/indexStore/i);
     });
   });
 

@@ -5,6 +5,8 @@ import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts'
 import defaultCrypto from '../../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
+import type Patch from '../../../../../src/domain/types/Patch.ts';
+import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
 
 const { createCheckpointCommitMock } = vi.hoisted(() => ({
   createCheckpointCommitMock: vi.fn(),
@@ -61,7 +63,7 @@ type HostFixture = {
   _crypto: typeof defaultCrypto;
   _codec: typeof defaultCodec;
   _commitMessageCodec: typeof DEFAULT_COMMIT_MESSAGE_CODEC;
-  _checkpointStore: null;
+  _checkpointStore: InMemoryCheckpointStore;
   _stateHashService: null;
   _logger: {
     warn: (_message: string, _context?: object) => void;
@@ -77,7 +79,7 @@ type HostFixture = {
   _lastFrontier: null;
   _cachedViewHash: null;
   _stateCache: SnapshotCacheFixture;
-  _readPatchBlob: (_patchMeta: ReturnType<typeof DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch>) => Promise<Uint8Array>;
+  _readPatch: (_patchMeta: ReturnType<typeof DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch>) => Promise<Patch>;
   discoverWriters: () => Promise<string[]>;
 };
 
@@ -124,7 +126,7 @@ function createHost(snapshotCache: SnapshotCacheFixture): HostFixture {
     _crypto: defaultCrypto,
     _codec: defaultCodec,
     _commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-    _checkpointStore: null,
+    _checkpointStore: new InMemoryCheckpointStore(),
     _stateHashService: null,
     _logger: logger,
     _gcPolicy: new GCPolicy({ ...GCPolicy.DEFAULT }),
@@ -134,7 +136,9 @@ function createHost(snapshotCache: SnapshotCacheFixture): HostFixture {
     _lastFrontier: null,
     _cachedViewHash: null,
     _stateCache: snapshotCache,
-    _readPatchBlob: vi.fn().mockResolvedValue(new Uint8Array()),
+    _readPatch: vi.fn(async () => {
+      throw new Error('unused patch read');
+    }),
     discoverWriters: vi.fn().mockResolvedValue(['alice']),
   };
 }

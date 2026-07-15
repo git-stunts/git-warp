@@ -1,16 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+
 import { inspectReceipt } from '../../diagnostics.ts';
 import { openWarp, reading } from '../../index.ts';
 import WarpStorage from '../../src/application/WarpStorage.ts';
 import { bindWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';
-import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../helpers/MemoryRuntimeHost.ts';
+import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProviderPort.ts';
+import type {
+  RuntimeStorageRequest,
+  RuntimeStorageServices,
+} from '../../src/ports/RuntimeStorageProviderPort.ts';
 import InMemoryGraphAdapter from '../../test/helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../test/helpers/MemoryRuntimeStorageAdapter.ts';
-import type CommitMessageCodecPort from '../../src/ports/CommitMessageCodecPort.ts';
-import type { CommitNodeOptions, CommitNodeWithTreeOptions } from '../../src/ports/CommitPort.ts';
+import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../helpers/MemoryRuntimeHost.ts';
 
 const NODE_ID = 'event:honesty';
 const PROPERTY_KEY = 'status';
@@ -18,119 +22,109 @@ const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 class ForbiddenFirstUseOpticsOperationError extends Error {
   constructor(operation: string) {
-    super(`first-use Optics path attempted forbidden full-residency operation: ${operation}`);
+    super(`first-use optics path attempted forbidden operation: ${operation}`);
   }
 }
 
-class FirstUseOpticsTrapAdapter extends InMemoryGraphAdapter {
-  private readonly _forbiddenPatchBlobOids = new Set<string>();
-  private readonly _forbiddenStateBlobOids = new Set<string>();
-  private readonly _forbiddenOperations: string[] = [];
-  private _forbidWrites = false;
-  private _forbidTreeOidMapReads = false;
+class FirstUseOpticsTrapStorage implements RuntimeStorageProviderPort {
+  readonly #base: RuntimeStorageProviderPort;
+  readonly #forbiddenOperations: string[] = [];
+  #forbidFullResidency = false;
 
-  async forbidFullResidencyOperations(options: {
-    readonly checkpointSha: string;
-    readonly patchSha: string;
-    readonly commitMessageCodec: CommitMessageCodecPort;
-  }): Promise<void> {
-    const patchMessage = options.commitMessageCodec.decodePatch(
-      await this.showNode(options.patchSha)
-    );
-    this._forbiddenPatchBlobOids.add(patchMessage.patchOid);
-    await this._forbidCheckpointStateBlobReads(options);
-    this._forbidWrites = true;
+  constructor(base: RuntimeStorageProviderPort) {
+    this.#base = base;
   }
 
-  forbidTreeOidMapReads(): void {
-    this._forbidTreeOidMapReads = true;
-  }
-
-  allowTreeOidMapReads(): void {
-    this._forbidTreeOidMapReads = false;
-  }
-
-  override async readBlob(oid: string): Promise<Uint8Array> {
-    if (this._forbiddenStateBlobOids.has(oid)) {
-      this._recordForbiddenOperation(`checkpoint-state-blob-read:${oid}`);
-    }
-    if (this._forbiddenPatchBlobOids.has(oid)) {
-      this._recordForbiddenOperation(`patch-blob-read:${oid}`);
-    }
-    return await super.readBlob(oid);
-  }
-
-  override async readTreeOids(treeOid: string): Promise<Record<string, string>> {
-    if (this._forbidTreeOidMapReads) {
-      this._recordForbiddenOperation(`readTreeOids:${treeOid}`);
-    }
-    return await super.readTreeOids(treeOid);
-  }
-
-  override async writeBlob(content: Uint8Array | string): Promise<string> {
-    this._forbidWriteOperation('writeBlob');
-    return await super.writeBlob(content);
-  }
-
-  override async writeTree(entries: string[]): Promise<string> {
-    this._forbidWriteOperation('writeTree');
-    return await super.writeTree(entries);
-  }
-
-  override async commitNode(options: CommitNodeOptions): Promise<string> {
-    this._forbidWriteOperation('commitNode');
-    return await super.commitNode(options);
-  }
-
-  override async commitNodeWithTree(options: CommitNodeWithTreeOptions): Promise<string> {
-    this._forbidWriteOperation('commitNodeWithTree');
-    return await super.commitNodeWithTree(options);
-  }
-
-  override async updateRef(ref: string, oid: string): Promise<void> {
-    this._forbidWriteOperation(`updateRef:${ref}`);
-    await super.updateRef(ref, oid);
+  forbidFullResidencyOperations(): void {
+    this.#forbidFullResidency = true;
   }
 
   forbiddenOperations(): readonly string[] {
-    return this._forbiddenOperations;
+    return Object.freeze([...this.#forbiddenOperations]);
   }
 
-  private async _forbidCheckpointStateBlobReads(options: {
-    readonly checkpointSha: string;
-    readonly commitMessageCodec: CommitMessageCodecPort;
-  }): Promise<void> {
-    const checkpointMessage = options.commitMessageCodec.decodeCheckpoint(
-      await this.showNode(options.checkpointSha)
-    );
-    const rootTreeOids = await this.readTreeOids(checkpointMessage.indexOid);
-    const stateTreeOid = rootTreeOids['state'];
-    if (stateTreeOid === undefined) {
-      throw new Error('checkpoint fixture must include a state subtree');
-    }
-    const stateTreeOids = await this.readTreeOids(stateTreeOid);
-    for (const oid of Object.values(stateTreeOids)) {
-      this._forbiddenStateBlobOids.add(oid);
-    }
-  }
-
-  private _forbidWriteOperation(operation: string): void {
-    if (this._forbidWrites) {
-      this._recordForbiddenOperation(operation);
-    }
-  }
-
-  private _recordForbiddenOperation(operation: string): never {
-    this._forbiddenOperations.push(operation);
-    throw new ForbiddenFirstUseOpticsOperationError(operation);
+  async createRuntimeStorageServices(
+    request: RuntimeStorageRequest,
+  ): Promise<RuntimeStorageServices> {
+    const services = await this.#base.createRuntimeStorageServices(request);
+    const trap = (operation: string): void => {
+      if (!this.#forbidFullResidency) {
+        return;
+      }
+      this.#forbiddenOperations.push(operation);
+      throw new ForbiddenFirstUseOpticsOperationError(operation);
+    };
+    return Object.freeze({
+      content: trapService(services.content, 'content', ['stage'], trap),
+      auditLog: trapService(services.auditLog, 'auditLog', ['append'], trap),
+      patchJournal: trapService(
+        services.patchJournal,
+        'patchJournal',
+        ['appendPatch', 'scanPatchRange'],
+        trap,
+      ),
+      strands: trapService(
+        services.strands,
+        'strands',
+        ['publishDescriptor', 'deleteDescriptor'],
+        trap,
+      ),
+      checkpoints: trapService(
+        services.checkpoints,
+        'checkpoints',
+        ['publishCheckpoint', 'publishCoverage', 'loadCheckpoint'],
+        trap,
+      ),
+      indexes: trapService(
+        services.indexes,
+        'indexes',
+        ['writeShards', 'scanShards'],
+        trap,
+      ),
+      intents: trapService(services.intents, 'intents', ['publish'], trap),
+      ...(services.stateSnapshots === undefined
+        ? {}
+        : {
+          stateSnapshots: trapService(
+            services.stateSnapshots,
+            'stateSnapshots',
+            ['put', 'pin', 'publishCheckpointHead', 'pruneEvictable'],
+            trap,
+          ),
+        }),
+      ...(services.trie === undefined ? {} : { trie: services.trie }),
+    });
   }
 }
 
 class FirstUseOpticsStorage extends WarpStorage {
-  constructor(history: FirstUseOpticsTrapAdapter, runtimeStorage: MemoryRuntimeStorageAdapter) {
+  constructor(history: InMemoryGraphAdapter, runtimeStorage: RuntimeStorageProviderPort) {
     super();
     bindWarpStorage(this, { history, runtimeStorage });
   }
+}
+
+function trapService<TService extends object>(
+  service: TService,
+  serviceName: string,
+  forbiddenMethods: readonly string[],
+  trap: (operation: string) => void,
+): TService {
+  const forbidden = new Set(forbiddenMethods);
+  return new Proxy(service, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value !== 'function') {
+        return value;
+      }
+      return (...args: unknown[]) => {
+        if (typeof property === 'string' && forbidden.has(property)) {
+          trap(`${serviceName}.${property}`);
+        }
+        return Reflect.apply(value, target, args);
+      };
+    },
+  });
 }
 
 function readRepoFile(path: string): string {
@@ -147,17 +141,19 @@ function prepareOpticBasisImplementation(): string {
   return source.slice(start, end);
 }
 
-describe('v18 first-use Optics honesty gate', () => {
-  it('verifies an existing checkpoint-tail basis without full-residency operations', async () => {
-    const persistence = new FirstUseOpticsTrapAdapter();
-    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
+describe('v18 first-use optics honesty gate', () => {
+  it('reads an existing checkpoint-tail basis without full residency or writes', async () => {
+    const history = new InMemoryGraphAdapter();
+    const runtimeStorage = new FirstUseOpticsTrapStorage(
+      new MemoryRuntimeStorageAdapter({ history }),
+    );
     const runtime = await openRuntimeHostProduct({
-      persistence,
+      persistence: history,
       runtimeStorage,
       graphName: 'v18-first-use-optics-honesty',
       writerId: 'app',
     });
-    const patchSha = await runtime.patch((patch) => {
+    await runtime.patch((patch) => {
       patch.addNode(NODE_ID);
       patch.setProperty(NODE_ID, PROPERTY_KEY, 'open');
     });
@@ -165,31 +161,21 @@ describe('v18 first-use Optics honesty gate', () => {
     const checkpointSha = await runtime.createCheckpoint();
 
     const events = await openWarpWorldline({
-      persistence,
+      persistence: history,
       runtimeStorage,
       worldlineName: 'v18-first-use-optics-honesty',
       writerId: 'app',
     });
-    await persistence.forbidFullResidencyOperations({
-      checkpointSha,
-      patchSha,
-      commitMessageCodec: runtime._commitMessageCodec,
-    });
+    runtimeStorage.forbidFullResidencyOperations();
 
-    const storage = new FirstUseOpticsStorage(persistence, runtimeStorage);
+    const storage = new FirstUseOpticsStorage(history, runtimeStorage);
     const warp = await openWarp({ storage, writer: 'app' });
     const timeline = await warp.timeline('v18-first-use-optics-honesty');
     const property = await timeline.read(
-      reading.property({
-        subject: NODE_ID,
-        key: PROPERTY_KEY,
-      })
+      reading.property({ subject: NODE_ID, key: PROPERTY_KEY }),
     );
     const inspection = inspectReceipt(property.receipt, { storage });
-
-    persistence.forbidTreeOidMapReads();
     const basis = await events.prepareOpticBasis();
-    persistence.allowTreeOidMapReads();
     const coordinate = await events.coordinate();
     const node = await coordinate.optic().node(NODE_ID).read();
 
@@ -209,14 +195,15 @@ describe('v18 first-use Optics honesty gate', () => {
       operation: 'read',
       identity: { checkpointSha },
     });
-    expect(persistence.forbiddenOperations()).toEqual([]);
+    expect(runtimeStorage.forbiddenOperations()).toEqual([]);
   });
 
-  it('keeps prepareOpticBasis source off known full-residency helpers', () => {
+  it('keeps basis preparation source on semantic bounded-read ports', () => {
     const implementation = prepareOpticBasisImplementation();
     const verifier = readRepoFile('src/domain/services/optic/CheckpointTailBasisVerifier.ts');
     const checkedSources = `${implementation}\n${verifier}`;
 
+    expect(checkedSources).toContain('_checkpointStore.loadBasis');
     expect(checkedSources).not.toMatch(/\bmaterialize\s*\(/u);
     expect(checkedSources).not.toContain('_materializeGraph');
     expect(checkedSources).not.toContain('_setMaterializedState');
@@ -226,6 +213,8 @@ describe('v18 first-use Optics honesty gate', () => {
     expect(checkedSources).not.toContain('getEdges');
     expect(checkedSources).not.toContain('observer(');
     expect(checkedSources).not.toContain('cloneState');
+    expect(checkedSources).not.toContain('_persistence');
     expect(checkedSources).not.toContain('readTreeOids');
+    expect(checkedSources).not.toContain('readBlob');
   });
 });

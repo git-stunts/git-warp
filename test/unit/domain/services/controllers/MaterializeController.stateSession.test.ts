@@ -14,6 +14,7 @@ import { InMemoryTrieStore } from "../../../../helpers/trieHelpers.ts";
 import { createEmptyState } from "../../../../../src/domain/services/JoinReducer.ts";
 import Patch from "../../../../../src/domain/types/Patch.ts";
 import type { CheckpointData, PatchWithSha } from "../../../../../src/domain/capabilities/PatchCollector.ts";
+import InMemoryCheckpointStore from "../../../../helpers/InMemoryCheckpointStore.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -162,6 +163,7 @@ function createControllerFixtures() {
       showNode: vi.fn().mockResolvedValue(""),
       readBlob: vi.fn().mockResolvedValue(new Uint8Array([1])),
     },
+    checkpointStore: new InMemoryCheckpointStore(),
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     getStateCache: () => stateCache,
     patches,

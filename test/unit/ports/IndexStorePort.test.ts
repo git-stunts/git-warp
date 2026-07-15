@@ -1,28 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
-import type WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import type { IndexShard } from '../../../src/domain/artifacts/IndexShard.ts';
+import AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
+import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
+import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
 
 describe('IndexStorePort', () => {
-  it('abstract methods are not callable on base prototype', () => {
+  it('declares opaque-handle streaming methods', () => {
     expect(IndexStorePort.prototype.writeShards).toBeUndefined();
     expect(IndexStorePort.prototype.scanShards).toBeUndefined();
-    expect(IndexStorePort.prototype.readShardOids).toBeUndefined();
+    expect(IndexStorePort.prototype.readShardHandles).toBeUndefined();
+    expect(IndexStorePort.prototype.openShard).toBeUndefined();
     expect(IndexStorePort.prototype.decodeShard).toBeUndefined();
   });
 
-  it('concrete subclass satisfies the contract', async () => {
+  it('can be implemented without object IDs', async () => {
     class TestStore extends IndexStorePort {
-      async writeShards(_shardStream: WarpStream<IndexShard>) { return 'tree-oid'; }
-      scanShards(_treeOid: string) { return null as unknown as WarpStream<IndexShard>; }
-      async readShardOids(_treeOid: string) { return { 'shard.cbor': 'blob-oid' }; }
-      async decodeShard<TDecoded extends CodecValue = CodecValue>(_blobOid: string): Promise<TDecoded> {
-        return {} as TDecoded;
+      readonly handle = new AssetHandle('index:test');
+      async writeShards(_shards: WarpStream<IndexShard>) { return this.handle; }
+      scanShards(_handle: AssetHandle) { return WarpStream.of<IndexShard>(); }
+      async readShardHandles(_handle: AssetHandle) { return { 'shard.cbor': this.handle }; }
+      async *openShard(_handle: AssetHandle) { yield new Uint8Array([1]); }
+      async decodeShard<TDecoded extends CodecValue = CodecValue>(
+        _handle: AssetHandle,
+      ): Promise<TDecoded> {
+        return Object.freeze({}) as TDecoded;
       }
     }
+
     const store = new TestStore();
-    expect(store).toBeInstanceOf(IndexStorePort);
-    expect(await store.writeShards(null as unknown as WarpStream<IndexShard>)).toBe('tree-oid');
+    await expect(store.writeShards(WarpStream.of<IndexShard>())).resolves.toBe(store.handle);
+    await expect(store.readShardHandles(store.handle)).resolves.toEqual({
+      'shard.cbor': store.handle,
+    });
   });
 });

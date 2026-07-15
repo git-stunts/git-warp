@@ -137,7 +137,7 @@ describe('GraphModelMigrationDryRunRequestJsonAdapter', () => {
             ],
           }),
         }),
-        message: /contentOid.*required/,
+        message: /contentHandle.*required/,
       },
     ]);
 

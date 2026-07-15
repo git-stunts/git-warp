@@ -825,7 +825,7 @@ describe('WarpCore coverage gaps', () => {
         writerId: 'writer-1',
         lamport: 2,
         patchOid,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: 'writer-1:2' }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('writer-1', 2) }],
         parentSha: fromSha,
       });
 

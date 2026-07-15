@@ -1,39 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { partitionShardOids } from '../../../../src/domain/services/MaterializedViewHelpers.ts';
-import { partitionTreeOids } from '../../../../src/domain/services/state/checkpointHelpers.ts';
 
-describe('path-keyed tree map helpers', () => {
-  it('partitions checkpoint tree paths without trusting object-member names', () => {
-    const result = partitionTreeOids(Object.fromEntries([
-      ['__proto__', 'oid-root'],
-      ['constructor', 'oid-constructor'],
-      ['index/__proto__', 'oid-index-root'],
-      ['index/constructor', 'oid-index-constructor'],
+import { partitionShardHandles } from '../../../../src/domain/services/MaterializedViewHelpers.ts';
+import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+
+describe('path-keyed shard handle maps', () => {
+  it('partitions semantic shard handles without prototype side effects', () => {
+    const indexRoot = new AssetHandle('index:root');
+    const indexConstructor = new AssetHandle('index:constructor');
+    const propRoot = new AssetHandle('property:root');
+    const propConstructor = new AssetHandle('property:constructor');
+
+    const result = partitionShardHandles(Object.fromEntries([
+      ['__proto__', indexRoot],
+      ['constructor', indexConstructor],
+      ['props___proto__', propRoot],
+      ['props_constructor', propConstructor],
     ]));
 
-    expect(Object.hasOwn(result.treeOids, '__proto__')).toBe(true);
-    expect(Object.hasOwn(result.treeOids, 'constructor')).toBe(true);
-    expect(Object.hasOwn(result.indexShardOids, '__proto__')).toBe(true);
-    expect(Object.hasOwn(result.indexShardOids, 'constructor')).toBe(true);
-    expect(result.treeOids['__proto__']).toBe('oid-root');
-    expect(result.indexShardOids['__proto__']).toBe('oid-index-root');
-    expect(Object.prototype).not.toHaveProperty('oid-root');
-  });
-
-  it('partitions index shard paths without prototype side effects', () => {
-    const result = partitionShardOids(Object.fromEntries([
-      ['__proto__', 'oid-index-root'],
-      ['constructor', 'oid-index-constructor'],
-      ['props___proto__', 'oid-prop-root'],
-      ['props_constructor', 'oid-prop-constructor'],
-    ]));
-
-    expect(Object.hasOwn(result.indexOids, '__proto__')).toBe(true);
-    expect(Object.hasOwn(result.indexOids, 'constructor')).toBe(true);
-    expect(Object.hasOwn(result.propOids, 'props___proto__')).toBe(true);
-    expect(Object.hasOwn(result.propOids, 'props_constructor')).toBe(true);
-    expect(result.indexOids['__proto__']).toBe('oid-index-root');
-    expect(result.propOids['props___proto__']).toBe('oid-prop-root');
-    expect(Object.prototype).not.toHaveProperty('oid-index-root');
+    expect(Object.hasOwn(result.indexHandles, '__proto__')).toBe(true);
+    expect(Object.hasOwn(result.indexHandles, 'constructor')).toBe(true);
+    expect(Object.hasOwn(result.propHandles, 'props___proto__')).toBe(true);
+    expect(Object.hasOwn(result.propHandles, 'props_constructor')).toBe(true);
+    expect(result.indexHandles['__proto__']).toBe(indexRoot);
+    expect(result.indexHandles.constructor).toBe(indexConstructor);
+    expect(result.propHandles['props___proto__']).toBe(propRoot);
+    expect(Object.prototype).not.toHaveProperty('index:root');
   });
 });

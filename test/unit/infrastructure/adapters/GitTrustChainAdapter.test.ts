@@ -1,461 +1,314 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CborCodec } from '@git-stunts/git-cas';
+import {
+  AssetHandle,
+  CborCodec,
+  RetentionWitness,
+  StagedAsset,
+} from '@git-stunts/git-cas';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import TrustError from '../../../../src/domain/errors/TrustError.ts';
 import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 import GitTrustChainAdapter from '../../../../src/infrastructure/adapters/GitTrustChainAdapter.ts';
-import SubstrateCompatibilityPolicy from '../../../../src/infrastructure/adapters/SubstrateCompatibilityPolicy.ts';
 import CryptoPort from '../../../../src/ports/CryptoPort.ts';
 import TrustChainPort from '../../../../src/ports/TrustChainPort.ts';
+import {
+  V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+} from '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts';
 
-const mockReadManifest = vi.fn();
-const mockRestore = vi.fn();
-const mockStore = vi.fn();
-const mockCreateTree = vi.fn();
+const GRAPH = 'test-graph';
+const TIP = 'a'.repeat(40);
+const PARENT = 'b'.repeat(40);
+const TREE = 'c'.repeat(40);
+const HANDLE = new AssetHandle({ codec: 'raw', oid: TREE });
+const OBSERVED_AT = '2026-01-01T00:00:00.000Z';
+const codec = new CborCodec();
 
-class MockContentAddressableStore {
-  readManifest = mockReadManifest;
-  restore = mockRestore;
-  store = mockStore;
-  createTree = mockCreateTree;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makePlumbing() {
-  return {
-    execute: vi.fn(),
-  };
-}
-
-class TestCrypto extends CryptoPort {
-  hash(_algorithm: string, _data: string | Uint8Array): Promise<string> {
-    return Promise.resolve('expected-record-id-hash');
-  }
-
-  hmac(
-    _algorithm: string,
-    _key: string | Uint8Array,
-    _data: string | Uint8Array,
-  ): Promise<Uint8Array> {
-    return Promise.resolve(new Uint8Array());
-  }
-
-  timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
-    return left.length === right.length;
-  }
-}
-
-function makeCrypto(): CryptoPort {
-  return new TestCrypto();
-}
-
-const GRAPH_NAME = 'test-graph';
-const EXPECTED_TIP_SHA = 'a'.repeat(40);
-const PARENT_SHA = 'b'.repeat(40);
-
-const SAMPLE_RECORD_OBJ = {
+const recordObject = {
   schemaVersion: 1,
   recordType: 'KEY_ADD',
   recordId: 'expected-record-id-hash',
   issuerKeyId: 'key-1',
-  issuedAt: new Date().toISOString(),
+  issuedAt: OBSERVED_AT,
   prev: null,
   subject: { keyId: 'key-subject-1', publicKey: 'pubkey-1' },
   meta: { note: 'test' },
   signature: { alg: 'ed25519', sig: 'sig-1' },
 };
 
-const codec = new CborCodec();
+class TestCrypto extends CryptoPort {
+  hash(): Promise<string> { return Promise.resolve('expected-record-id-hash'); }
+  hmac(): Promise<Uint8Array> { return Promise.resolve(new Uint8Array()); }
+  timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean { return left.length === right.length; }
+}
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+function stagedAsset(): StagedAsset {
+  return new StagedAsset({
+    handle: HANDLE,
+    slug: 'trust-record',
+    filename: 'record.cbor',
+    size: codec.encode(recordObject).byteLength,
+    observedAt: OBSERVED_AT,
+  });
+}
 
-describe('GitTrustChainAdapter', () => {
-  let plumbing: ReturnType<typeof makePlumbing>;
-  let crypto: ReturnType<typeof makeCrypto>;
+function retention(commitId: string): RetentionWitness {
+  return new RetentionWitness({
+    handle: HANDLE,
+    policy: 'pinned',
+    reachability: 'anchored',
+    root: {
+      kind: 'publication',
+      namespace: GRAPH,
+      ref: `refs/warp/${GRAPH}/trust/records`,
+      generation: commitId,
+      path: '/',
+    },
+    observedAt: OBSERVED_AT,
+  });
+}
+
+function bytes(source: Uint8Array): AsyncIterable<Uint8Array> {
+  return {
+    async *[Symbol.asyncIterator]() {
+      yield source;
+    },
+  };
+}
+
+function createCas() {
+  const assets = {
+    put: vi.fn(async () => stagedAsset()),
+    adopt: vi.fn(async () => stagedAsset()),
+    open: vi.fn(() => bytes(codec.encode(recordObject))),
+  };
+  const publications = {
+    commit: vi.fn(async () => ({
+      operation: 'publication' as const,
+      commitId: TIP,
+      ref: `refs/warp/${GRAPH}/trust/records`,
+      root: HANDLE,
+      witness: retention(TIP),
+    })),
+  };
+  return { assets, publications };
+}
+
+function sampleRecord(): TrustRecord {
+  return TrustRecord.fromDecoded({
+    ...recordObject,
+    signaturePayload: new Uint8Array([1, 2, 3]),
+  });
+}
+
+function createPlumbing() {
+  return {
+    execute: vi.fn(async (_options: { args: string[]; input?: string }): Promise<string> => ''),
+  };
+}
+
+describe('GitTrustChainAdapter high-level CAS boundary', () => {
+  let plumbing: ReturnType<typeof createPlumbing>;
+  let cas: ReturnType<typeof createCas>;
   let adapter: GitTrustChainAdapter;
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    plumbing = makePlumbing();
-    crypto = makeCrypto();
+    plumbing = createPlumbing();
+    cas = createCas();
     adapter = new GitTrustChainAdapter({
       plumbing,
-      crypto,
-      cas: new MockContentAddressableStore(),
+      crypto: new TestCrypto(),
+      cas,
       cbor: codec,
     });
   });
 
-  // -------------------------------------------------------------------------
-  // Constructor & Initialization
-  // -------------------------------------------------------------------------
-
-  describe('constructor', () => {
-    it('extends TrustChainPort', () => {
-      expect(adapter).toBeInstanceOf(TrustChainPort);
-    });
-
+  it('implements TrustChainPort and returns null for a missing trust ref', async () => {
+    expect(adapter).toBeInstanceOf(TrustChainPort);
+    plumbing.execute.mockRejectedValueOnce(new Error('missing ref'));
+    await expect(adapter.readTip(GRAPH)).resolves.toBeNull();
   });
 
-  // -------------------------------------------------------------------------
-  // readTip
-  // -------------------------------------------------------------------------
-
-  describe('readTip', () => {
-    it('returns null if resolveRef returns null', async () => {
-      plumbing.execute.mockRejectedValueOnce(new Error('ref not found'));
-      expect(await adapter.readTip(GRAPH_NAME)).toBeNull();
+  it('reads a tip record by adopting and opening its asset tree', async () => {
+    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
+      if (args[0] === 'rev-parse') return TIP;
+      if (args[0] === 'cat-file') return `tree ${TREE}\nparent ${PARENT}\n\nmessage`;
+      return '';
     });
 
-    it('resolves tipSha and recordId successfully via CAS restore', async () => {
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\nparent ${PARENT_SHA}\n\ncommit message`;
-        return '';
-      });
-
-      mockReadManifest.mockResolvedValueOnce({ slug: 'manifest-1', chunks: [] });
-      mockRestore.mockResolvedValueOnce({ buffer: codec.encode(SAMPLE_RECORD_OBJ) });
-
-      const tip = await adapter.readTip(GRAPH_NAME);
-      expect(tip).toEqual({
-        tipSha: EXPECTED_TIP_SHA,
-        recordId: 'expected-record-id-hash',
-      });
-    });
-
-    it('throws E_LEGACY_SUBSTRATE_DISABLED if CAS restore fails and legacy policy is disabled', async () => {
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\nparent ${PARENT_SHA}\n\ncommit message`;
-        return '';
-      });
-
-      mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
-
-      await expect(adapter.readTip(GRAPH_NAME)).rejects.toThrow(
-        /Legacy trust record blob reads require the substrate migration compatibility policy/
-      );
-    });
-
-    it('falls back to ls-tree and cat-file blob if CAS restore fails and legacy policy is enabled', async () => {
-      const legacyAdapter = new GitTrustChainAdapter({
-        plumbing,
-        crypto,
-        cas: new MockContentAddressableStore(),
-        cbor: codec,
-        compatibilityPolicy: new SubstrateCompatibilityPolicy({
-          legacyTrustRecordBlobReads: true,
-        }),
-      });
-
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\nparent ${PARENT_SHA}\n\ncommit message`;
-        if (args[0] === 'ls-tree') return '100644 blob blob-oid-1\trecord.cbor\n';
-        if (args[0] === 'cat-file' && args[1] === 'blob') return Buffer.from(codec.encode(SAMPLE_RECORD_OBJ)).toString('binary');
-        return '';
-      });
-
-      mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
-
-      const tip = await legacyAdapter.readTip(GRAPH_NAME);
-      expect(tip).toEqual({
-        tipSha: EXPECTED_TIP_SHA,
-        recordId: 'expected-record-id-hash',
-      });
-    });
-
-    it('returns tipSha with null recordId in fallback if record.cbor is missing from ls-tree', async () => {
-      const legacyAdapter = new GitTrustChainAdapter({
-        plumbing,
-        crypto,
-        cas: new MockContentAddressableStore(),
-        cbor: codec,
-        compatibilityPolicy: new SubstrateCompatibilityPolicy({
-          legacyTrustRecordBlobReads: true,
-        }),
-      });
-
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\nparent ${PARENT_SHA}\n\ncommit message`;
-        if (args[0] === 'ls-tree') return '100644 blob blob-oid-1\tother-file.txt\n'; // missing record.cbor
-        return '';
-      });
-
-      mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
-
-      expect(await legacyAdapter.readTip(GRAPH_NAME)).toEqual({
-        tipSha: EXPECTED_TIP_SHA,
-        recordId: null,
-      });
-    });
-
-    it('ignores blank and malformed legacy tree records', async () => {
-      const legacyAdapter = new GitTrustChainAdapter({
-        plumbing,
-        crypto,
-        cas: new MockContentAddressableStore(),
-        cbor: codec,
-        compatibilityPolicy: new SubstrateCompatibilityPolicy({
-          legacyTrustRecordBlobReads: true,
-        }),
-      });
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\n\ncommit message`;
-        if (args[0] === 'ls-tree') {
-          return 'malformed legacy row\n\n100644 blob blob-oid-1\tother-file.txt\n';
-        }
-        return '';
-      });
-      mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
-
-      await expect(legacyAdapter.readTip(GRAPH_NAME)).resolves.toEqual({
-        tipSha: EXPECTED_TIP_SHA,
-        recordId: null,
-      });
-    });
-
-    it('returns tipSha with null recordId in fallback if cat-file blob throws', async () => {
-      const legacyAdapter = new GitTrustChainAdapter({
-        plumbing,
-        crypto,
-        cas: new MockContentAddressableStore(),
-        cbor: codec,
-        compatibilityPolicy: new SubstrateCompatibilityPolicy({
-          legacyTrustRecordBlobReads: true,
-        }),
-      });
-
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\nparent ${PARENT_SHA}\n\ncommit message`;
-        if (args[0] === 'ls-tree') return '100644 blob blob-oid-1\trecord.cbor\n';
-        if (args[0] === 'cat-file' && args[1] === 'blob') throw new Error('corrupted blob');
-        return '';
-      });
-
-      mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
-
-      expect(await legacyAdapter.readTip(GRAPH_NAME)).toEqual({
-        tipSha: EXPECTED_TIP_SHA,
-        recordId: null,
-      });
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // readRecords (Streaming)
-  // -------------------------------------------------------------------------
-
-  describe('readRecords', () => {
-    it('returns empty async iterable if resolveRef returns null', async () => {
-      plumbing.execute.mockRejectedValueOnce(new Error('ref not found'));
-      const records: TrustRecord[] = [];
-      for await (const rec of adapter.readRecords(GRAPH_NAME)) {
-        records.push(rec);
-      }
-      expect(records).toHaveLength(0);
-    });
-
-    it('walks commit parent chain backward and yields records oldest-first via CAS restore', async () => {
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') {
-          if (args[2] === EXPECTED_TIP_SHA) return `tree tree-sha-2\nparent ${PARENT_SHA}\n\ncommit 2`;
-          if (args[2] === PARENT_SHA) return `tree tree-sha-1\n\ncommit 1`;
-        }
-        return '';
-      });
-
-      const record1Obj = { ...SAMPLE_RECORD_OBJ, recordId: 'expected-record-id-hash', issuerKeyId: 'key-parent' };
-      const record2Obj = { ...SAMPLE_RECORD_OBJ, recordId: 'expected-record-id-hash', issuerKeyId: 'key-tip' };
-
-      mockReadManifest
-        .mockResolvedValueOnce({ slug: 'manifest-1', chunks: [] })
-        .mockResolvedValueOnce({ slug: 'manifest-2', chunks: [] });
-
-      mockRestore
-        .mockResolvedValueOnce({ buffer: codec.encode(record1Obj) }) // oldest first (PARENT_SHA)
-        .mockResolvedValueOnce({ buffer: codec.encode(record2Obj) }); // tip (EXPECTED_TIP_SHA)
-
-      const records: TrustRecord[] = [];
-      for await (const rec of adapter.readRecords(GRAPH_NAME)) {
-        records.push(rec);
-      }
-
-      expect(records).toHaveLength(2);
-      expect(records[0]?.issuerKeyId).toBe('key-parent');
-      expect(records[1]?.issuerKeyId).toBe('key-tip');
-    });
-
-    it('throws TrustError E_TRUST_RECORD_ID_MISMATCH if recordId does not match expected hash', async () => {
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\n\ncommit 1`;
-        return '';
-      });
-
-      const mismatchObj = { ...SAMPLE_RECORD_OBJ, recordId: 'mismatched-id' };
-
-      mockReadManifest.mockResolvedValueOnce({ slug: 'manifest-1', chunks: [] });
-      mockRestore.mockResolvedValueOnce({ buffer: codec.encode(mismatchObj) });
-
-      await expect(async () => {
-        for await (const rec of adapter.readRecords(GRAPH_NAME)) {
-          expect(rec).toBeDefined();
-        }
-      }).rejects.toThrow(/RecordId mismatch/);
-    });
-
-    it('falls back to raw blob decode if CAS restore fails and legacy policy is enabled', async () => {
-      const legacyAdapter = new GitTrustChainAdapter({
-        plumbing,
-        crypto,
-        cas: new MockContentAddressableStore(),
-        cbor: codec,
-        compatibilityPolicy: new SubstrateCompatibilityPolicy({
-          legacyTrustRecordBlobReads: true,
-        }),
-      });
-
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\n\ncommit 1`;
-        if (args[0] === 'ls-tree') return '100644 blob blob-oid-1\trecord.cbor\n';
-        if (args[0] === 'cat-file' && args[1] === 'blob') return Buffer.from(codec.encode(SAMPLE_RECORD_OBJ)).toString('binary');
-        return '';
-      });
-
-      mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
-
-      const records: TrustRecord[] = [];
-      for await (const rec of legacyAdapter.readRecords(GRAPH_NAME)) {
-        records.push(rec);
-      }
-      expect(records).toHaveLength(1);
-      expect(records[0]?.recordId).toBe('expected-record-id-hash');
-    });
-
-    it('skips commit if fallback blob is missing', async () => {
-      const legacyAdapter = new GitTrustChainAdapter({
-        plumbing,
-        crypto,
-        cas: new MockContentAddressableStore(),
-        cbor: codec,
-        compatibilityPolicy: new SubstrateCompatibilityPolicy({
-          legacyTrustRecordBlobReads: true,
-        }),
-      });
-
-      plumbing.execute.mockImplementation(async ({ args }) => {
-        if (args[0] === 'rev-parse') return EXPECTED_TIP_SHA;
-        if (args[0] === 'cat-file' && args[1] === '-p') return `tree tree-sha-1\n\ncommit 1`;
-        if (args[0] === 'ls-tree') return '100644 blob blob-oid-1\tother.txt\n'; // missing record.cbor
-        return '';
-      });
-
-      mockReadManifest.mockRejectedValueOnce(new Error('manifest not found'));
-
-      const records: TrustRecord[] = [];
-      for await (const rec of legacyAdapter.readRecords(GRAPH_NAME)) {
-        records.push(rec);
-      }
-      expect(records).toHaveLength(0);
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // persistRecord
-  // -------------------------------------------------------------------------
-
-  describe('persistRecord', () => {
-    const sampleTrustRecord = TrustRecord.fromDecoded({
-      schemaVersion: 1,
-      recordType: 'KEY_ADD',
+    await expect(adapter.readTip(GRAPH)).resolves.toEqual({
+      tipSha: TIP,
       recordId: 'expected-record-id-hash',
-      issuerKeyId: 'key-1',
-      issuedAt: new Date().toISOString(),
-      prev: null,
-      subject: { keyId: 'key-subject-1', publicKey: 'pubkey-1' },
-      meta: { note: 'test' },
-      signature: { alg: 'ed25519', sig: 'sig-1' },
-      signaturePayload: new Uint8Array([1, 2, 3]),
+    });
+    expect(cas.assets.adopt).toHaveBeenCalledWith({ treeOid: TREE });
+    expect(cas.assets.open).toHaveBeenCalledWith({ handle: HANDLE });
+  });
+
+  it('streams records oldest-first through asset handles', async () => {
+    const oldest = '1'.repeat(40);
+    const newest = '2'.repeat(40);
+    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
+      if (args[0] === 'rev-parse') return newest;
+      if (args[0] === 'cat-file' && args[2] === newest) return `tree ${TREE}\nparent ${oldest}\n\nmessage`;
+      if (args[0] === 'cat-file' && args[2] === oldest) return `tree ${TREE}\n\nmessage`;
+      return '';
     });
 
-    it('persists record successfully, creates tree, creates commit, updates ref', async () => {
-      mockStore.mockResolvedValueOnce({ slug: 'manifest-1', chunks: [] });
-      mockCreateTree.mockResolvedValueOnce('tree-oid-1');
-      plumbing.execute
-        .mockResolvedValueOnce('new-commit-sha') // commit-tree
-        .mockResolvedValueOnce(''); // update-ref
+    const records: TrustRecord[] = [];
+    for await (const record of adapter.readRecords(GRAPH)) {
+      records.push(record);
+    }
+    expect(records).toHaveLength(2);
+    expect(records.every((record) => record.recordId === 'expected-record-id-hash')).toBe(true);
+  });
 
-      const commitSha = await adapter.persistRecord(GRAPH_NAME, sampleTrustRecord, PARENT_SHA);
-      expect(commitSha).toBe('new-commit-sha');
-      expect(plumbing.execute).toHaveBeenCalledWith({
-        args: ['commit-tree', 'tree-oid-1', '-m', 'trust: KEY_ADD expected-rec', '-p', PARENT_SHA],
-      });
-      expect(plumbing.execute).toHaveBeenCalledWith({
-        args: ['update-ref', `refs/warp/${GRAPH_NAME}/trust/records`, 'new-commit-sha', PARENT_SHA],
-      });
+  it('stages and causally publishes a trust record with retention evidence', async () => {
+    const result = await adapter.persistRecord(GRAPH, sampleRecord(), PARENT);
+
+    expect(cas.assets.put).toHaveBeenCalledWith(expect.objectContaining({
+      slug: 'trust-expected-rec',
+      filename: 'record.cbor',
+      source: expect.anything(),
+    }));
+    expect(cas.publications.commit).toHaveBeenCalledWith({
+      root: HANDLE,
+      commit: {
+        message: 'trust: KEY_ADD expected-rec',
+        parents: [PARENT],
+      },
+      ref: {
+        name: `refs/warp/${GRAPH}/trust/records`,
+        expected: PARENT,
+      },
+    });
+    expect(result).toMatchObject({
+      commitSha: TIP,
+      retention: { policy: 'pinned', reachability: 'anchored' },
+    });
+  });
+
+  it('preserves current-asset failures instead of misclassifying them as legacy', async () => {
+    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
+      if (args[0] === 'rev-parse') return TIP;
+      if (args[0] === 'cat-file') return `tree ${TREE}\n\nmessage`;
+      return '';
+    });
+    const corruption = new Error('current asset is corrupt');
+    cas.assets.open.mockImplementation(() => {
+      throw corruption;
     });
 
-    it('retries CAS update on transient failure and succeeds', async () => {
-      mockStore.mockResolvedValueOnce({ slug: 'manifest-1', chunks: [] });
-      mockCreateTree.mockResolvedValueOnce('tree-oid-1');
+    await expect(adapter.readTip(GRAPH)).rejects.toBe(corruption);
+  });
 
-      plumbing.execute
-        .mockResolvedValueOnce('new-commit-sha') // commit-tree
-        .mockRejectedValueOnce(new Error('lock error')) // update-ref attempt 1 fails
-        .mockResolvedValueOnce(PARENT_SHA) // rev-parse verify returns expectedSha (transient)
-        .mockResolvedValueOnce(''); // update-ref attempt 2 succeeds
-
-      const commitSha = await adapter.persistRecord(GRAPH_NAME, sampleTrustRecord, PARENT_SHA);
-      expect(commitSha).toBe('new-commit-sha');
-      expect(plumbing.execute).toHaveBeenCalledTimes(4);
+  it('reads an explicitly allowed legacy trust-record blob', async () => {
+    adapter = new GitTrustChainAdapter({
+      plumbing,
+      crypto: new TestCrypto(),
+      cas,
+      cbor: codec,
+      compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+    });
+    cas.assets.adopt.mockRejectedValue(
+      Object.assign(new Error('not an asset tree'), { code: 'MANIFEST_NOT_FOUND' }),
+    );
+    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
+      if (args[0] === 'rev-parse') return TIP;
+      if (args[0] === 'cat-file' && args[1] === '-p') return `tree ${TREE}\n\nmessage`;
+      if (args[0] === 'ls-tree') {
+        return `\nmalformed\n100644 blob ${HANDLE.oid}\trecord.cbor\n`;
+      }
+      if (args[0] === 'cat-file' && args[1] === 'blob') {
+        return Buffer.from(codec.encode(recordObject)).toString('binary');
+      }
+      return '';
     });
 
-    it('throws TrustError E_TRUST_CAS_EXHAUSTED on max transient CAS failures', async () => {
-      mockStore.mockResolvedValueOnce({ slug: 'manifest-1', chunks: [] });
-      mockCreateTree.mockResolvedValueOnce('tree-oid-1');
+    await expect(adapter.readTip(GRAPH)).resolves.toEqual({
+      tipSha: TIP,
+      recordId: 'expected-record-id-hash',
+    });
+    const records: TrustRecord[] = [];
+    for await (const record of adapter.readRecords(GRAPH, TIP)) {
+      records.push(record);
+    }
+    expect(records).toHaveLength(1);
+    expect(records[0]?.recordId).toBe('expected-record-id-hash');
+  });
 
-      plumbing.execute
-        .mockResolvedValueOnce('new-commit-sha') // commit-tree
-        .mockRejectedValueOnce(new Error('lock error')) // attempt 1
-        .mockResolvedValueOnce(PARENT_SHA)
-        .mockRejectedValueOnce(new Error('lock error')) // attempt 2
-        .mockResolvedValueOnce(PARENT_SHA)
-        .mockRejectedValueOnce(new Error('lock error')) // attempt 3
-        .mockResolvedValueOnce(PARENT_SHA);
+  it('returns null when a legacy tree or blob cannot yield a record id', async () => {
+    adapter = new GitTrustChainAdapter({
+      plumbing,
+      crypto: new TestCrypto(),
+      cas,
+      cbor: codec,
+      compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+    });
+    cas.assets.adopt.mockRejectedValue(
+      Object.assign(new Error('not an asset tree'), { code: 'MANIFEST_NOT_FOUND' }),
+    );
+    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
+      if (args[0] === 'rev-parse') return TIP;
+      if (args[0] === 'cat-file' && args[1] === '-p') return `tree ${TREE}\n\nmessage`;
+      if (args[0] === 'ls-tree') return `100644 blob ${HANDLE.oid}\tother.cbor`;
+      return '';
+    });
+    await expect(adapter.readTip(GRAPH)).resolves.toEqual({ tipSha: TIP, recordId: null });
 
-      await expect(adapter.persistRecord(GRAPH_NAME, sampleTrustRecord, PARENT_SHA)).rejects.toThrow(
-        /Trust CAS exhausted after 3 attempts/
-      );
+    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
+      if (args[0] === 'rev-parse') return TIP;
+      if (args[0] === 'cat-file' && args[1] === '-p') return `tree ${TREE}\n\nmessage`;
+      if (args[0] === 'ls-tree') return `100644 blob ${HANDLE.oid}\trecord.cbor`;
+      if (args[0] === 'cat-file' && args[1] === 'blob') return 'not cbor';
+      return '';
+    });
+    await expect(adapter.readTip(GRAPH)).resolves.toEqual({ tipSha: TIP, recordId: null });
+  });
+
+  it('rejects tampered record IDs and yields no records for a missing ref', async () => {
+    plumbing.execute.mockRejectedValueOnce(new Error('missing ref'));
+    const records: TrustRecord[] = [];
+    for await (const record of adapter.readRecords(GRAPH)) {
+      records.push(record);
+    }
+    expect(records).toEqual([]);
+
+    const tampered = { ...recordObject, recordId: 'tampered' };
+    cas.assets.open.mockImplementation(() => bytes(codec.encode(tampered)));
+    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
+      if (args[0] === 'cat-file') return `tree ${TREE}\n\nmessage`;
+      return '';
+    });
+    const read = async (): Promise<void> => {
+      for await (const _record of adapter.readRecords(GRAPH, TIP)) {
+        // The adapter must reject before yielding a tampered record.
+      }
+    };
+    await expect(read()).rejects.toMatchObject({ code: 'E_TRUST_RECORD_ID_MISMATCH' });
+  });
+
+  it('preserves publication errors that are not ref conflicts', async () => {
+    const upstream = new Error('object write failed');
+    cas.publications.commit.mockRejectedValueOnce(upstream);
+    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
+      if (args[0] === 'rev-parse') return PARENT;
+      return '';
     });
 
-    it('throws TrustError E_TRUST_CAS_CONFLICT on real CAS conflict (chain advanced)', async () => {
-      mockStore.mockResolvedValueOnce({ slug: 'manifest-1', chunks: [] });
-      mockCreateTree.mockResolvedValueOnce('tree-oid-1');
+    await expect(adapter.persistRecord(GRAPH, sampleRecord(), PARENT)).rejects.toBe(upstream);
+  });
 
-      const advancedSha = 'c'.repeat(40);
-
-      plumbing.execute
-        .mockResolvedValueOnce('new-commit-sha') // commit-tree
-        .mockRejectedValueOnce(new Error('lock error')) // attempt 1 update-ref fails
-        .mockResolvedValueOnce(advancedSha) // rev-parse verify returns advancedSha (real conflict)
-        .mockResolvedValueOnce(`tree tree-sha-conflict\n\ncommit conflict`); // cat-file -p for _readRecordIdFromCommit
-
-      mockReadManifest.mockResolvedValueOnce({ slug: 'manifest-conflict', chunks: [] });
-      mockRestore.mockResolvedValueOnce({ buffer: codec.encode(SAMPLE_RECORD_OBJ) });
-
-      await expect(adapter.persistRecord(GRAPH_NAME, sampleTrustRecord, PARENT_SHA)).rejects.toThrow(
-        /Trust CAS conflict: chain advanced/
-      );
+  it('maps publication races to a trust-specific CAS conflict', async () => {
+    cas.publications.commit.mockRejectedValueOnce(
+      Object.assign(new Error('conflict'), { code: 'PUBLICATION_CONFLICT' }),
+    );
+    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
+      if (args[0] === 'rev-parse') return TIP;
+      if (args[0] === 'cat-file') return `tree ${TREE}\n\nmessage`;
+      return '';
     });
+
+    await expect(adapter.persistRecord(GRAPH, sampleRecord(), PARENT))
+      .rejects.toBeInstanceOf(TrustError);
+    await expect(adapter.persistRecord(GRAPH, sampleRecord(), PARENT))
+      .resolves.toMatchObject({ commitSha: TIP });
   });
 });

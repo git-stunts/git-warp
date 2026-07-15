@@ -12,6 +12,8 @@ import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/G
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import CryptoPort from '../../../../src/ports/CryptoPort.ts';
+import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
+import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
@@ -107,6 +109,9 @@ describe('GitCasRepositoryAdapter', () => {
     vi.spyOn(history, 'nodeExists').mockResolvedValue(true);
     vi.spyOn(history, 'readObjectType').mockResolvedValue('tree');
 
+    const assetStorage = new InMemoryBlobStorageAdapter();
+    const highLevelCas = new InMemoryGitCasFacade({ history, storage: assetStorage });
+    const putAsset = vi.fn(highLevelCas.assets.put);
     const rootSet = createRootSet();
     const store = vi.fn().mockResolvedValue({ slug: 'manifest', chunks: [] });
     const createTree = vi.fn()
@@ -115,6 +120,13 @@ describe('GitCasRepositoryAdapter', () => {
       .mockResolvedValueOnce('3'.repeat(40))
       .mockResolvedValueOnce('4'.repeat(40));
     const cas = {
+      assets: {
+        put: putAsset,
+        adopt: highLevelCas.assets.adopt,
+        open: highLevelCas.assets.open,
+      },
+      bundles: highLevelCas.bundles,
+      publications: highLevelCas.publications,
       rootSets: { open: vi.fn(async () => rootSet) },
       readManifest: vi.fn(),
       restore: vi.fn(),
@@ -129,7 +141,7 @@ describe('GitCasRepositoryAdapter', () => {
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
 
-    await services.content.store('content', { slug: 'content' });
+    await services.content.stage(singleChunk('content'), { slug: 'content' });
     const stateSnapshots = services.stateSnapshots;
     if (stateSnapshots === undefined) {
       throw new Error('Git repository storage must provide state snapshots');
@@ -165,9 +177,14 @@ describe('GitCasRepositoryAdapter', () => {
       null,
     );
 
-    expect(store).toHaveBeenCalledTimes(3);
-    expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'content' }));
+    expect(putAsset).toHaveBeenCalledTimes(2);
+    expect(putAsset).toHaveBeenCalledWith(expect.objectContaining({ slug: 'content' }));
+    expect(putAsset).toHaveBeenCalledWith(expect.objectContaining({ slug: 'trust-record-hash' }));
+    expect(store).toHaveBeenCalledTimes(1);
     expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'snapshot-1' }));
-    expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'trust-record-hash' }));
   });
 });
+
+async function* singleChunk(value: string): AsyncGenerator<Uint8Array> {
+  yield new TextEncoder().encode(value);
+}

@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'node:child_process';
+import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import { createTestRepo } from './helpers/setup.ts';
 import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
+import {
+  DEFAULT_COMMIT_MESSAGE_CODEC,
+} from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 
 describe('API: Content Attachment', () => {
     let repo;
@@ -28,7 +32,7 @@ describe('API: Content Attachment', () => {
     expect(new TextDecoder().decode(content)).toBe('# Hello World\n\nThis is content.');
   });
 
-  it('getContentOid returns hex OID', async () => {
+  it('getContentHandle returns an opaque storage handle', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
     const patch = await graph.createPatch();
@@ -37,11 +41,9 @@ describe('API: Content Attachment', () => {
     await patch.commit();
 
     await graph.materialize();
-    const oid = await graph.getContentOid('doc:1');
-    expect(oid).not.toBeNull();
-    // Support both SHA-1 (40 chars) and SHA-256 (64 chars)
-    expect(oid).toMatch(/^[0-9a-f]+$/);
-    expect(oid.length).toBeGreaterThanOrEqual(40);
+    const handle = await graph.getContentHandle('doc:1');
+    expect(handle).toEqual(expect.any(String));
+    expect(handle).not.toBe('');
   });
 
   it('persists and reads content metadata for nodes', async () => {
@@ -63,7 +65,7 @@ describe('API: Content Attachment', () => {
       mime: 'text/markdown',
       size: 8,
     });
-    expect(meta?.oid).toMatch(/^[0-9a-f]+$/);
+    expect(meta?.handle).toEqual(expect.any(String));
   });
 
   it('returns null when no content attached', async () => {
@@ -75,7 +77,7 @@ describe('API: Content Attachment', () => {
 
     await graph.materialize();
     expect(await graph.getContent('doc:1')).toBeNull();
-    expect(await graph.getContentOid('doc:1')).toBeNull();
+    expect(await graph.getContentHandle('doc:1')).toBeNull();
   });
 
   it('returns null for nonexistent node', async () => {
@@ -83,7 +85,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
 
     expect(await graph.getContent('nonexistent')).toBeNull();
-    expect(await graph.getContentOid('nonexistent')).toBeNull();
+    expect(await graph.getContentHandle('nonexistent')).toBeNull();
   });
 
   it('clearContent removes node content and metadata through the public patch API', async () => {
@@ -110,7 +112,7 @@ describe('API: Content Attachment', () => {
 
     await graph.materialize();
     expect(await graph.getContent('doc:1')).toBeNull();
-    expect(await graph.getContentOid('doc:1')).toBeNull();
+    expect(await graph.getContentHandle('doc:1')).toBeNull();
     expect(await graph.getContentMeta('doc:1')).toBeNull();
   });
 
@@ -127,8 +129,9 @@ describe('API: Content Attachment', () => {
     expect(content).not.toBeNull();
     expect(new TextDecoder().decode(content)).toBe('edge payload');
 
-    const oid = await graph.getEdgeContentOid('a', 'b', 'rel');
-    expect(oid).toMatch(/^[0-9a-f]+$/);
+    const handle = await graph.getEdgeContentHandle('a', 'b', 'rel');
+    expect(handle).toEqual(expect.any(String));
+    expect(handle).not.toBe('');
   });
 
   it('persists and reads content metadata for edges', async () => {
@@ -144,7 +147,7 @@ describe('API: Content Attachment', () => {
     const meta = await graph.getEdgeContentMeta('a', 'b', 'rel');
 
     expect(meta).toEqual({
-      oid: expect.stringMatching(/^[0-9a-f]+$/),
+      handle: expect.any(String),
       mime: null,
       size: binary.byteLength,
     });
@@ -174,7 +177,7 @@ describe('API: Content Attachment', () => {
 
     await graph.materialize();
     expect(await graph.getEdgeContent('a', 'b', 'rel')).toBeNull();
-    expect(await graph.getEdgeContentOid('a', 'b', 'rel')).toBeNull();
+    expect(await graph.getEdgeContentHandle('a', 'b', 'rel')).toBeNull();
     expect(await graph.getEdgeContentMeta('a', 'b', 'rel')).toBeNull();
   });
 
@@ -281,6 +284,40 @@ describe('API: Content Attachment', () => {
     expect(new TextDecoder().decode(content)).toBe('must survive gc');
   });
 
+  it('causal publication keeps every referenced asset out of immediate-prune output', async () => {
+    const graph = await repo.openGraph('test', 'alice');
+    const patch = await graph.createPatch();
+    patch.addNode('doc:retained');
+    await patch.attachContent('doc:retained', 'retained content');
+    await patch.commit();
+    await graph.materialize();
+
+    const contentHandle = await graph.getContentHandle('doc:retained');
+    const head = await repo.persistence.readRef('refs/warp/test/writers/alice');
+    expect(contentHandle).not.toBeNull();
+    expect(head).not.toBeNull();
+    if (contentHandle === null || head === null) {
+      throw new Error('Expected retained content and a causal publication head');
+    }
+    const message = DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch(
+      await repo.persistence.showNode(head),
+    );
+    const retainedOids = [
+      GitCasAssetHandle.parse(contentHandle).oid,
+      GitCasAssetHandle.parse(message.patchHandle.toString()).oid,
+      await repo.persistence.getCommitTree(head),
+    ];
+    const prunable = execSync('git prune -n --expire=now', {
+      cwd: repo.tempDir,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    for (const oid of retainedOids) {
+      expect(prunable).not.toContain(oid);
+    }
+  });
+
   it('checkpoint anchoring: content survives GC after checkpoint', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
@@ -338,7 +375,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
 
     await expect(graph.getContentMeta('doc:1')).resolves.toEqual({
-      oid: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+      handle: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
       mime: null,
       size: null,
     });
@@ -364,7 +401,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
 
     await expect(graph.getEdgeContentMeta('a', 'b', 'rel')).resolves.toEqual({
-      oid: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+      handle: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
       mime: null,
       size: null,
     });

@@ -5,6 +5,7 @@ import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain
 import { openMemoryWarpWorldline as openWarpWorldline } from '../../helpers/MemoryRuntimeHost.ts';
 import ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
 import Observer, { type ObserverBacking } from '../../../src/domain/services/query/Observer.ts';
+import { testRetentionWitness } from '../../helpers/storageRetention.ts';
 
 import type { Aperture } from '../../../src/domain/types/Aperture.ts';
 import type { WorldlineSource } from '../../../src/domain/capabilities/QueryCapability.ts';
@@ -101,6 +102,7 @@ function createHandle(
       admitted: true,
       sha: 'blob:intent:123',
       intentId: descriptor.intentId,
+      retention: testRetentionWitness('intent-123'),
     }),
   });
 }

@@ -16,7 +16,6 @@ import CheckpointTailOpticSource, {
   type CheckpointTailCheckpointFrontier,
   type CheckpointTailPatchEntry,
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
@@ -24,11 +23,9 @@ import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
 import Op from '../../../../../src/domain/types/ops/Op.ts';
 import { OP_SCOPE_BOTH } from '../../../../../src/domain/types/ops/OpScope.ts';
 import OpApplied from '../../../../../src/domain/types/ops/OpApplied.ts';
-import InMemoryGraphAdapter from '../../../../../test/helpers/InMemoryGraphAdapter.ts';
-import type BlobStoragePort from '../../../../../src/ports/BlobStoragePort.ts';
+import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
+import MockIndexStorage from '../../../../helpers/MockIndexStorage.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
-import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
-import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 const STREAM_SOURCE = 'src/domain/services/optic/CheckpointPatchFactStream.ts';
@@ -310,10 +307,9 @@ describe('CheckpointPatchFactStream', () => {
 
 class TestPatchFactStreamSource extends CheckpointTailOpticSource {
   readonly graphName = 'patch-fact-stream-test';
-  readonly _persistence: CorePersistence = new InMemoryGraphAdapter();
   readonly _codec: CodecPort = defaultCodec;
-  readonly _blobStorage: BlobStoragePort | null = null;
-  readonly _commitMessageCodec: CommitMessageCodecPort = DEFAULT_COMMIT_MESSAGE_CODEC;
+  readonly _checkpointStore = new InMemoryCheckpointStore();
+  readonly _indexStore = new MockIndexStorage();
   readonly loadCalls: Array<{ readonly tipSha: string; readonly stopAtSha: string | null }> = [];
   readonly validationCalls: Array<{ readonly writerId: string; readonly incomingSha: string }> = [];
   private readonly _chains: Map<string, readonly CheckpointTailPatchEntry[]> = new Map();

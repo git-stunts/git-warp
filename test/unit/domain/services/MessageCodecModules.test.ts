@@ -85,8 +85,6 @@ describe('message codec modules', () => {
       kind: 'checkpoint',
       graph: 'events',
       stateHash: STATE_HASH,
-      frontierOid: OID,
-      indexOid: OID,
       schema: 3,
     });
     expect(decodeAnchorMessage(anchorMessage)).toMatchObject({

@@ -1,5 +1,4 @@
 import { vi } from 'vitest';
-import BlobPort from '../../src/ports/BlobPort.ts';
 
 /**
  * In-memory BlobPort for tests.
@@ -7,7 +6,7 @@ import BlobPort from '../../src/ports/BlobPort.ts';
  * Stores blobs in a Map and returns deterministic OIDs.
  * Methods are Vitest spies so callers can assert on calls.
  */
-export default class MockBlobPort extends BlobPort {
+export default class MockBlobPort {
   /** @type {Map<string, Uint8Array>} */
   store = new Map();
 

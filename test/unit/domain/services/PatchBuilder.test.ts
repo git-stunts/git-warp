@@ -5,10 +5,6 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
-import { decodePatchMessage } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import { decode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * Creates a mock V5 state for testing.
@@ -45,18 +41,6 @@ function createMockPersistence() {
     persistence.readRef.mockResolvedValue(newOid);
   });
   return persistence;
-}
-
-/**
- * Creates a CborPatchJournalAdapter wired to the given mock persistence's blob ops.
- * @param {ReturnType<typeof createMockPersistence>} persistence
- * @returns {CborPatchJournalAdapter}
- */
-function createPatchJournal(persistence) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-  });
 }
 
 describe('PatchBuilder', () => {

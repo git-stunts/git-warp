@@ -12,8 +12,8 @@ import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
-import EncryptionError from '../../../../../src/domain/errors/EncryptionError.ts';
-import PersistenceError from '../../../../../src/domain/errors/PersistenceError.ts';
+import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
+import { createGitCasPatchStorage } from '../../../../../src/ports/CommitMessageCodecPort.ts';
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ function createMockHost(overrides = {}) {
     _clock: { now: vi.fn(() => 1000) },
     _maxObservedLamport: 0,
     _versionVector: VersionVector.empty(),
-    _blobStorage: null,
+    _assetStorage: null,
     _effectSink: null,
     _logger: null,
     _commitMessageCodec: {
@@ -112,7 +112,6 @@ function createMockHost(overrides = {}) {
     _patchesSinceCheckpoint: 0,
     _onDeleteWithData: 'reject',
     _patchJournal: null,
-    _patchBlobStorage: null,
     _patchInProgress: false,
     _provenanceIndex: null,
     _lastFrontier: null,
@@ -141,10 +140,6 @@ function createMockPersistence() {
     updateRef: vi.fn(),
     showNode: vi.fn(),
     getNodeInfo: vi.fn(),
-    writeBlob: vi.fn(),
-    writeTree: vi.fn(),
-    commitNodeWithTree: vi.fn(),
-    readBlob: vi.fn(),
     listRefs: vi.fn().mockResolvedValue([]),
     configGet: vi.fn(),
     configSet: vi.fn(),
@@ -203,7 +198,7 @@ describe('PatchController', () => {
       persistence.showNode.mockResolvedValue('patch-message-data');
 
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock.mockReturnValue({ lamport: 5, patchOid: 'oid1' });
+      decodePatchMessageMock.mockReturnValue({ lamport: 5, patchHandle: new AssetHandle('asset:1') });
 
       patchBuilderMock.mockImplementation(function () {
         return {};
@@ -224,7 +219,7 @@ describe('PatchController', () => {
       persistence.showNode.mockResolvedValue('msg');
 
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock.mockReturnValue({ lamport: 3, patchOid: 'oid1' });
+      decodePatchMessageMock.mockReturnValue({ lamport: 3, patchHandle: new AssetHandle('asset:1') });
 
       patchBuilderMock.mockImplementation(function () {
         return {};
@@ -250,7 +245,7 @@ describe('PatchController', () => {
       persistence.showNode.mockResolvedValue('msg');
 
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock.mockReturnValue({ lamport: 1, patchOid: 'oid1' });
+      decodePatchMessageMock.mockReturnValue({ lamport: 1, patchHandle: new AssetHandle('asset:1') });
 
       patchBuilderMock.mockImplementation(function () {
         return {};
@@ -272,7 +267,7 @@ describe('PatchController', () => {
       persistence.showNode.mockResolvedValue('msg');
 
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock.mockReturnValue({ lamport: 1, patchOid: 'oid1' });
+      decodePatchMessageMock.mockReturnValue({ lamport: 1, patchHandle: new AssetHandle('asset:1') });
 
       patchBuilderMock.mockImplementation(function () {
         return {};
@@ -310,7 +305,7 @@ describe('PatchController', () => {
       persistence.showNode.mockResolvedValue('msg');
 
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock.mockReturnValue({ lamport: 1, patchOid: 'oid1' });
+      decodePatchMessageMock.mockReturnValue({ lamport: 1, patchHandle: new AssetHandle('asset:1') });
 
       patchBuilderMock.mockImplementation(function () {
         return {};
@@ -338,10 +333,10 @@ describe('PatchController', () => {
     it('passes optional deps to PatchBuilder when available', async () => {
       const journal = { readPatch: vi.fn(), writePatch: vi.fn() };
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-      const blobStorage = { store: vi.fn(), retrieve: vi.fn() };
+      const assetStorage = { stage: vi.fn(), open: vi.fn() };
       host['_patchJournal'] = journal;
       host['_logger'] = logger;
-      host['_blobStorage'] = blobStorage;
+      host['_assetStorage'] = assetStorage;
 
       const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
@@ -355,13 +350,13 @@ describe('PatchController', () => {
       const args = patchBuilderMock.mock.calls[0]?.[0];
       expect(args.patchJournal).toBe(journal);
       expect(args.logger).toBe(logger);
-      expect(args.blobStorage).toBe(blobStorage);
+      expect(args.assetStorage).toBe(assetStorage);
     });
 
     it('omits optional deps from PatchBuilder when null', async () => {
       host['_patchJournal'] = null;
       host['_logger'] = null;
-      host['_blobStorage'] = null;
+      host['_assetStorage'] = null;
 
       const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
@@ -375,7 +370,7 @@ describe('PatchController', () => {
       const args = patchBuilderMock.mock.calls[0]?.[0];
       expect(args).not.toHaveProperty('patchJournal');
       expect(args).not.toHaveProperty('logger');
-      expect(args).not.toHaveProperty('blobStorage');
+      expect(args).not.toHaveProperty('assetStorage');
     });
   });
 
@@ -388,9 +383,9 @@ describe('PatchController', () => {
       const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
-      const commitMock = vi.fn().mockResolvedValue('sha-abc');
+      const commitMock = vi.fn().mockResolvedValue({ sha: 'sha-abc' });
       patchBuilderMock.mockImplementation(function () {
-        return { commit: commitMock };
+        return { commitWithEvidence: commitMock };
       });
 
       const buildFn = vi.fn();
@@ -412,7 +407,7 @@ describe('PatchController', () => {
       persistence.readRef.mockResolvedValue(null);
 
       patchBuilderMock.mockImplementation(function () {
-        return { commit: vi.fn() };
+        return { commitWithEvidence: vi.fn() };
       });
 
       await expect(ctrl.patch(() => {
@@ -427,7 +422,7 @@ describe('PatchController', () => {
       persistence.readRef.mockResolvedValue(null);
 
       patchBuilderMock.mockImplementation(function () {
-        return { commit: vi.fn().mockRejectedValue(new Error('commit failed')) };
+        return { commitWithEvidence: vi.fn().mockRejectedValue(new Error('commit failed')) };
       });
 
       await expect(ctrl.patch(() => {})).rejects.toThrow('commit failed');
@@ -452,7 +447,7 @@ describe('PatchController', () => {
 
       let callCount = 0;
       patchBuilderMock.mockImplementation(function () {
-        return { commit: vi.fn().mockResolvedValue(`sha-${++callCount}`) };
+        return { commitWithEvidence: vi.fn().mockResolvedValue({ sha: `sha-${++callCount}` }) };
       });
 
       const shas = await ctrl.patchMany(
@@ -713,8 +708,8 @@ describe('PatchController', () => {
 
       detectMessageKindMock.mockReturnValue('patch');
       decodePatchMessageMock
-        .mockReturnValueOnce({ lamport: 2, patchOid: 'oid2', encrypted: false })
-        .mockReturnValueOnce({ lamport: 1, patchOid: 'oid1', encrypted: false });
+        .mockReturnValueOnce({ lamport: 2, patchHandle: new AssetHandle('asset:2') })
+        .mockReturnValueOnce({ lamport: 1, patchHandle: new AssetHandle('asset:1') });
 
       const journal = { readPatch: vi.fn() };
       journal.readPatch
@@ -740,7 +735,7 @@ describe('PatchController', () => {
 
       detectMessageKindMock.mockReturnValue('patch');
       decodePatchMessageMock
-        .mockReturnValueOnce({ lamport: 3, patchOid: 'oid3', encrypted: false });
+        .mockReturnValueOnce({ lamport: 3, patchHandle: new AssetHandle('asset:3') });
 
       const journal = { readPatch: vi.fn().mockResolvedValue({ ops: ['op3'] }) };
       host['_patchJournal'] = journal;
@@ -764,7 +759,7 @@ describe('PatchController', () => {
         .mockReturnValueOnce('checkpoint');
 
       decodePatchMessageMock
-        .mockReturnValueOnce({ lamport: 2, patchOid: 'oid2', encrypted: false });
+        .mockReturnValueOnce({ lamport: 2, patchHandle: new AssetHandle('asset:2') });
 
       const journal = { readPatch: vi.fn().mockResolvedValue({ ops: ['op2'] }) };
       host['_patchJournal'] = journal;
@@ -775,43 +770,23 @@ describe('PatchController', () => {
       expect(result[0]?.sha).toBe('sha-2');
     });
 
-    it('falls back to codec decode when no patchJournal is set', async () => {
+    it('fails closed when no patch journal is configured', async () => {
       host['_patchJournal'] = null;
       const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('sha-1');
-
       persistence.getNodeInfo.mockResolvedValue({ message: 'msg1', parents: [] });
-
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock.mockReturnValue({ lamport: 1, patchOid: 'blob-oid' });
-
-      const rawBytes = new Uint8Array([1, 2, 3]);
-      persistence.readBlob.mockResolvedValue(rawBytes);
-
-      const decodedPatch = {
-        writer: 'alice',
+      decodePatchMessageMock.mockReturnValue({
         lamport: 1,
-        context: { alice: 0 },
-        ops: [{ type: 'NodeAdd', id: 'n1', dot: ['alice', 1] }],
-      };
-      const codec = /** @type {{ decode: import('vitest').Mock }} */ (host['_codec']);
-      codec.decode.mockReturnValue(decodedPatch);
-
-      const result = await ctrl._loadWriterPatches('alice');
-
-      expect(result).toHaveLength(1);
-      expect(result[0]?.patch).toMatchObject({ writer: 'alice', lamport: 1 });
-      expect(result[0]?.patch.ops[0]).toMatchObject({
-        type: 'NodeAdd',
-        node: 'n1',
-        dot: Dot.create('alice', 1),
+        patchHandle: new AssetHandle('asset:1'),
       });
-      expect(persistence.readBlob).toHaveBeenCalledWith('blob-oid');
-      expect(codec.decode).toHaveBeenCalledWith(rawBytes);
+
+      await expect(ctrl._loadWriterPatches('alice')).rejects.toMatchObject({
+        code: 'E_MISSING_JOURNAL',
+      });
     });
 
-    it('continues legacy fallback decoding across parent commits', async () => {
-      host['_patchJournal'] = null;
+    it('reads every parent patch through the semantic journal', async () => {
       const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('sha-2');
       persistence.getNodeInfo
@@ -819,37 +794,30 @@ describe('PatchController', () => {
         .mockResolvedValueOnce({ message: 'msg1', parents: [] });
 
       detectMessageKindMock.mockReturnValue('patch');
+      const newestHandle = new AssetHandle('asset:2');
+      const oldestHandle = new AssetHandle('asset:1');
       decodePatchMessageMock
-        .mockReturnValueOnce({ lamport: 2, patchOid: 'blob-oid-2' })
-        .mockReturnValueOnce({ lamport: 1, patchOid: 'blob-oid-1' });
-
-      const blob2 = new Uint8Array([2]);
-      const blob1 = new Uint8Array([1]);
-      persistence.readBlob
-        .mockResolvedValueOnce(blob2)
-        .mockResolvedValueOnce(blob1);
-
-      const codec = /** @type {{ decode: import('vitest').Mock }} */ (host['_codec']);
-      codec.decode
-        .mockReturnValueOnce({
-          writer: 'alice',
-          lamport: 2,
-          context: { alice: 1 },
-          ops: [{ type: 'NodeAdd', id: 'n2', dot: ['alice', 2] }],
-        })
-        .mockReturnValueOnce({
-          writer: 'alice',
-          lamport: 1,
-          context: { alice: 0 },
-          ops: [{ type: 'NodeAdd', id: 'n1', dot: ['alice', 1] }],
-        });
+        .mockReturnValueOnce({ lamport: 2, patchHandle: newestHandle })
+        .mockReturnValueOnce({ lamport: 1, patchHandle: oldestHandle });
+      const journal = {
+        readPatch: vi.fn()
+          .mockResolvedValueOnce({ writer: 'alice', lamport: 2, ops: [] })
+          .mockResolvedValueOnce({ writer: 'alice', lamport: 1, ops: [] }),
+      };
+      host['_patchJournal'] = journal;
 
       const result = await ctrl._loadWriterPatches('alice');
 
       expect(result).toHaveLength(2);
       expect(result.map((entry) => entry.sha)).toEqual(['sha-1', 'sha-2']);
-      expect(persistence.readBlob).toHaveBeenNthCalledWith(1, 'blob-oid-2');
-      expect(persistence.readBlob).toHaveBeenNthCalledWith(2, 'blob-oid-1');
+      expect(journal.readPatch).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ patchHandle: newestHandle }),
+      );
+      expect(journal.readPatch).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ patchHandle: oldestHandle }),
+      );
     });
   });
 
@@ -914,45 +882,35 @@ describe('PatchController', () => {
   });
 
   // ────────────────────────────────────────────────────────────────────────
-  // _readPatchBlob
+  // _readPatch
   // ────────────────────────────────────────────────────────────────────────
 
-  describe('_readPatchBlob()', () => {
-    it('reads unencrypted blob from persistence', async () => {
-      const blob = new Uint8Array([10, 20, 30]);
-      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
-      persistence.readBlob.mockResolvedValue(blob);
+  describe('_readPatch()', () => {
+    const patchMeta = {
+      kind: 'patch' as const,
+      graph: 'test-graph',
+      writer: 'alice',
+      lamport: 1,
+      schema: 3,
+      patchHandle: new AssetHandle('asset:patch'),
+      storage: createGitCasPatchStorage({ encrypted: false }),
+    };
 
-      const result = await ctrl._readPatchBlob({ patchOid: 'oid1', encrypted: false });
+    it('delegates decoded patch locators to the semantic journal', async () => {
+      const patch = { writer: 'alice', lamport: 1, ops: [] };
+      const journal = { readPatch: vi.fn().mockResolvedValue(patch) };
+      host['_patchJournal'] = journal;
 
-      expect(result).toBe(blob);
-      expect(persistence.readBlob).toHaveBeenCalledWith('oid1');
+      await expect(ctrl._readPatch(patchMeta)).resolves.toBe(patch);
+      expect(journal.readPatch).toHaveBeenCalledWith(patchMeta);
     });
 
-    it('throws PersistenceError when unencrypted blob is missing', async () => {
-      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
-      persistence.readBlob.mockResolvedValue(null);
+    it('fails closed when no semantic journal is configured', async () => {
+      host['_patchJournal'] = null;
 
-      await expect(ctrl._readPatchBlob({ patchOid: 'oid1', encrypted: false }))
-        .rejects.toThrow(PersistenceError);
-    });
-
-    it('reads encrypted blob from patchBlobStorage', async () => {
-      const blob = new Uint8Array([40, 50, 60]);
-      const patchBlobStorage = { retrieve: vi.fn().mockResolvedValue(blob), store: vi.fn() };
-      host['_patchBlobStorage'] = patchBlobStorage;
-
-      const result = await ctrl._readPatchBlob({ patchOid: 'oid1', encrypted: true });
-
-      expect(result).toBe(blob);
-      expect(patchBlobStorage.retrieve).toHaveBeenCalledWith('oid1');
-    });
-
-    it('throws EncryptionError when encrypted but no patchBlobStorage', async () => {
-      host['_patchBlobStorage'] = null;
-
-      await expect(ctrl._readPatchBlob({ patchOid: 'oid1', encrypted: true }))
-        .rejects.toThrow(EncryptionError);
+      await expect(ctrl._readPatch(patchMeta)).rejects.toMatchObject({
+        code: 'E_MISSING_JOURNAL',
+      });
     });
   });
 
@@ -1006,9 +964,9 @@ describe('PatchController', () => {
         .mockResolvedValueOnce({ message: 'msg-b1', parents: [] });  // bob sha-b1
 
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock.mockImplementation((message: string) => (
-        message === 'msg-a1' ? { lamport: 2 } : { lamport: 1 }
-      ));
+      decodePatchMessageMock
+        .mockReturnValueOnce({ lamport: 2, patchHandle: new AssetHandle('asset:a1') })
+        .mockReturnValueOnce({ lamport: 1, patchHandle: new AssetHandle('asset:b1') });
 
       const result = await ctrl.discoverTicks();
 

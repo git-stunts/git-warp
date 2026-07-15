@@ -1,147 +1,48 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import { collectAsyncIterable } from '../../../../src/domain/utils/streamUtils.ts';
+import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 
-import InMemoryBlobStorageAdapter from '../../../../test/helpers/InMemoryBlobStorageAdapter.ts';
-import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Collects an async iterable into a single Uint8Array. */
-async function collect(/** @type {AsyncIterable<Uint8Array>} */ stream) {
-  const chunks: any[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk);
+async function* chunks(...values: string[]): AsyncGenerator<Uint8Array> {
+  const encoder = new TextEncoder();
+  for (const value of values) {
+    yield encoder.encode(value);
   }
-  const totalLength = chunks.reduce((sum, c) => sum + c.byteLength, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+describe('InMemoryBlobStorageAdapter asset semantics', () => {
+  it('stages a streaming asset behind an opaque handle', async () => {
+    const storage = new InMemoryBlobStorageAdapter();
 
-describe('InMemoryBlobStorageAdapter', () => {
-  it('extends BlobStoragePort', () => {
-    const adapter = new InMemoryBlobStorageAdapter();
-    expect(adapter).toBeInstanceOf(BlobStoragePort);
+    const staged = await storage.stage(chunks('hello', ' ', 'world'), {
+      slug: 'greeting',
+      filename: 'greeting.txt',
+      expectedSize: 11,
+    });
+
+    expect(staged.handle).toBeInstanceOf(AssetHandle);
+    expect(staged.size).toBe(11);
+    expect(staged.retention).toEqual({
+      reachability: 'unanchored',
+      protection: 'not-established',
+    });
+    await expect(collectAsyncIterable(storage.open(staged.handle)))
+      .resolves.toEqual(new TextEncoder().encode('hello world'));
   });
 
-  describe('store() + retrieve() round-trip', () => {
-    it('stores and retrieves Uint8Array content', async () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-      const content = new Uint8Array([10, 20, 30, 40]);
-      const oid = await adapter.store(content);
+  it('deduplicates identical bytes to the same immutable handle', async () => {
+    const storage = new InMemoryBlobStorageAdapter();
 
-      expect(typeof oid).toBe('string');
-      expect(oid.length).toBeGreaterThan(0);
+    const first = await storage.stage(chunks('same'), { slug: 'first' });
+    const second = await storage.stage(chunks('same'), { slug: 'second' });
 
-      const result = await adapter.retrieve(oid);
-      expect(result).toEqual(content);
-    });
-
-    it('stores and retrieves string content', async () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-      const oid = await adapter.store('hello world');
-
-      const result = await adapter.retrieve(oid);
-      expect(new TextDecoder().decode(result)).toBe('hello world');
-    });
-
-    it('returns distinct OIDs for distinct content', async () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-      const oid1 = await adapter.store('aaa');
-      const oid2 = await adapter.store('bbb');
-      expect(oid1).not.toBe(oid2);
-    });
-
-    it('returns the same OID for identical content (content-addressed)', async () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-      const oid1 = await adapter.store('same');
-      const oid2 = await adapter.store('same');
-      expect(oid1).toBe(oid2);
-    });
+    expect(second.handle.equals(first.handle)).toBe(true);
   });
 
-  describe('storeStream() + retrieveStream() round-trip', () => {
-    it('stores from an async iterable and retrieves as an async iterable', async () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-      const data = new TextEncoder().encode('streamed content');
+  it('rejects unknown handles when the stream is consumed', async () => {
+    const storage = new InMemoryBlobStorageAdapter();
 
-      async function* source() {
-        // Yield in two chunks
-        yield data.slice(0, 8);
-        yield data.slice(8);
-      }
-
-      const oid = await adapter.storeStream(source());
-
-      expect(typeof oid).toBe('string');
-      expect(oid.length).toBeGreaterThan(0);
-
-      const stream = adapter.retrieveStream(oid);
-      const result = await collect(stream);
-      expect(new TextDecoder().decode(result)).toBe('streamed content');
-    });
-
-    it('stores single-chunk streams', async () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-      const data = new Uint8Array([1, 2, 3]);
-
-      async function* source() {
-        yield data;
-      }
-
-      const oid = await adapter.storeStream(source());
-      const result = await collect(adapter.retrieveStream(oid));
-      expect(result).toEqual(data);
-    });
-  });
-
-  describe('cross-method compatibility', () => {
-    it('content stored via store() is retrievable via retrieveStream()', async () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-      const oid = await adapter.store('buffered write');
-
-      const result = await collect(adapter.retrieveStream(oid));
-      expect(new TextDecoder().decode(result)).toBe('buffered write');
-    });
-
-    it('content stored via storeStream() is retrievable via retrieve()', async () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-
-      async function* source() {
-        yield new TextEncoder().encode('stream write');
-      }
-
-      const oid = await adapter.storeStream(source());
-      const result = await adapter.retrieve(oid);
-      expect(new TextDecoder().decode(result)).toBe('stream write');
-    });
-
-  });
-
-  describe('error cases', () => {
-    it('retrieve() throws for unknown OID', async () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-      await expect(adapter.retrieve('nonexistent')).rejects.toThrow();
-    });
-
-    it('retrieveStream() throws for unknown OID', () => {
-      const adapter = new InMemoryBlobStorageAdapter();
-      // retrieveStream may throw synchronously or yield an error on first iteration
-      expect(() => {
-        const stream = adapter.retrieveStream('nonexistent');
-        // Force iteration if it returns a lazy iterable
-        const iter = stream[Symbol.asyncIterator]();
-        return iter.next();
-      }).toThrow();
-    });
+    await expect(collectAsyncIterable(storage.open(new AssetHandle('missing'))))
+      .rejects.toThrow(/unknown asset/);
   });
 });

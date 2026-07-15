@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import IntentController, {
   type IntentHost,
 } from '../../../../../src/domain/services/controllers/IntentController.ts';
+import WarpStream from '../../../../../src/domain/stream/WarpStream.ts';
 import type { WarpIntentDescriptor } from '../../../../../src/domain/types/WarpIntentDescriptor.ts';
+import type IntentStorePort from '../../../../../src/ports/IntentStorePort.ts';
+import { testRetentionWitness } from '../../../../helpers/storageRetention.ts';
 
 const descriptor: WarpIntentDescriptor = {
   intentId: 'assign-alice',
@@ -29,30 +32,72 @@ function withGuards(
 function createController(
   getNodeProps: ReturnType<typeof vi.fn>,
 ): IntentController {
+  const intentStore = createIntentStore();
   return new IntentController({
     _graphName: 'events',
     _writerId: 'agent-1',
+    _intentStore: intentStore,
     worldline: () => ({ getNodeProps }),
   } as unknown as IntentHost);
 }
 
+function createIntentStore(): IntentStorePort & {
+  publish: ReturnType<typeof vi.fn>;
+} {
+  const queued = new Map<string, WarpIntentDescriptor[]>();
+  let admissionSequence = 0;
+  const publish = vi.fn(async (request: {
+    channel: 'admitted' | 'queued';
+    ownerId: string;
+    descriptor: WarpIntentDescriptor;
+  }) => {
+    if (request.channel === 'queued') {
+      const descriptors = queued.get(request.ownerId) ?? [];
+      descriptors.push(request.descriptor);
+      queued.set(request.ownerId, descriptors);
+    } else {
+      admissionSequence += 1;
+    }
+    const sha = request.channel === 'queued'
+      ? `queued:${request.ownerId}:${request.descriptor.intentId}`
+      : `intent:${request.descriptor.intentId}:${request.ownerId}:${admissionSequence}`;
+    return {
+      sha,
+      retention: testRetentionWitness(sha),
+    };
+  });
+  return {
+    publish,
+    scan: vi.fn((_graphName: string, channel: 'admitted' | 'queued', ownerId: string) => (
+      WarpStream.from(channel === 'queued' ? queued.get(ownerId) ?? [] : [])
+    )),
+  } as unknown as IntentStorePort & { publish: ReturnType<typeof vi.fn> };
+}
+
 describe('IntentController', () => {
-  it('admits a descriptor without writing an unattached persistence blob', async () => {
-    const writeBlob = vi.fn(async () => 'a'.repeat(40));
+  it('publishes an admitted descriptor through the semantic intent store', async () => {
+    const intentStore = createIntentStore();
     const host = {
       _graphName: 'events',
       _writerId: 'agent-1',
-      _persistence: { writeBlob },
+      _intentStore: intentStore,
       worldline: () => ({ getNodeProps: vi.fn() }),
     } as unknown as IntentHost;
     const controller = new IntentController(host);
+    const sha = 'intent:assign-alice:agent-1:1';
 
     await expect(controller.admitIntent(descriptor)).resolves.toEqual({
       admitted: true,
       intentId: 'assign-alice',
-      sha: 'intent:assign-alice:agent-1:1',
+      sha,
+      retention: testRetentionWitness(sha),
     });
-    expect(writeBlob).not.toHaveBeenCalled();
+    expect(intentStore.publish).toHaveBeenCalledWith({
+      graphName: 'events',
+      channel: 'admitted',
+      ownerId: 'agent-1',
+      descriptor,
+    });
   });
 
   it('enforces node status guards without persisting the descriptor', async () => {
@@ -82,6 +127,7 @@ describe('IntentController', () => {
       admitted: true,
       intentId: 'assign-alice',
       sha: 'intent:assign-alice:agent-1:1',
+      retention: testRetentionWitness('intent:assign-alice:agent-1:1'),
     });
     await expect(controller.admitIntent(guarded)).resolves.toMatchObject({
       admitted: false,
@@ -110,6 +156,7 @@ describe('IntentController', () => {
         admitted: true,
         intentId: 'assign-alice',
         sha: `intent:assign-alice:agent-1:${counter}`,
+        retention: testRetentionWitness(`intent:assign-alice:agent-1:${counter}`),
       });
     }
     await expect(controller.admitIntent(guarded)).resolves.toEqual({
@@ -125,13 +172,16 @@ describe('IntentController', () => {
 
   it('queues descriptors by strand without writing storage', async () => {
     const controller = createController(vi.fn());
+    const strandId = 'draft-admin';
+    const sha = `queued:${strandId}:assign-alice`;
 
-    await expect(controller.queueIntent('draft:admin', descriptor)).resolves.toEqual({
+    await expect(controller.queueIntent(strandId, descriptor)).resolves.toEqual({
       admitted: true,
       intentId: 'assign-alice',
-      sha: 'queued:draft:admin:assign-alice',
+      sha,
+      retention: testRetentionWitness(sha),
     });
-    await expect(controller.getWriterIntents('draft:admin')).resolves.toEqual([descriptor]);
+    await expect(controller.getWriterIntents(strandId)).resolves.toEqual([descriptor]);
     await expect(controller.getWriterIntents('missing')).resolves.toEqual([]);
   });
 });

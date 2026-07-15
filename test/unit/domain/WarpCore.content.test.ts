@@ -17,12 +17,12 @@ function createMockCoreSurfaceForAdopt() {
   return {
     getContent: vi.fn(async () => new Uint8Array([1, 2, 3])),
     getContentStream: vi.fn(async () => (async function* () { yield new Uint8Array([1]); })()),
-    getContentOid: vi.fn(async () => 'a'.repeat(40)),
-    getContentMeta: vi.fn(async () => ({ oid: 'a'.repeat(40), mime: 'text/plain', size: 42 })),
+    getContentHandle: vi.fn(async () => 'asset:node'),
+    getContentMeta: vi.fn(async () => ({ handle: 'asset:node', mime: 'text/plain', size: 42 })),
     getEdgeContent: vi.fn(async () => new Uint8Array([4, 5, 6])),
     getEdgeContentStream: vi.fn(async () => (async function* () { yield new Uint8Array([2]); })()),
-    getEdgeContentOid: vi.fn(async () => 'b'.repeat(40)),
-    getEdgeContentMeta: vi.fn(async () => ({ oid: 'b'.repeat(40), mime: null, size: 10 })),
+    getEdgeContentHandle: vi.fn(async () => 'asset:edge'),
+    getEdgeContentMeta: vi.fn(async () => ({ handle: 'asset:edge', mime: null, size: 10 })),
     get _effectPipeline() {
       return effectPipeline;
     },
@@ -115,18 +115,18 @@ describe('WarpCore', () => {
       expect(result).toBeDefined();
     });
 
-    it('getContentOid delegates to the adopted surface method', async () => {
-      const result = await core.getContentOid('node:1');
+    it('getContentHandle delegates to the adopted surface method', async () => {
+      const result = await core.getContentHandle('node:1');
 
-      expect(surface.getContentOid).toHaveBeenCalledWith('node:1');
-      expect(result).toBe('a'.repeat(40));
+      expect(surface.getContentHandle).toHaveBeenCalledWith('node:1');
+      expect(result).toBe('asset:node');
     });
 
     it('getContentMeta delegates to the adopted surface method', async () => {
       const result = await core.getContentMeta('node:1');
 
       expect(surface.getContentMeta).toHaveBeenCalledWith('node:1');
-      expect(result).toEqual({ oid: 'a'.repeat(40), mime: 'text/plain', size: 42 });
+      expect(result).toEqual({ handle: 'asset:node', mime: 'text/plain', size: 42 });
     });
   });
 
@@ -155,18 +155,18 @@ describe('WarpCore', () => {
       expect(result).toBeDefined();
     });
 
-    it('getEdgeContentOid delegates to the adopted surface method', async () => {
-      const result = await core.getEdgeContentOid('a', 'b', 'knows');
+    it('getEdgeContentHandle delegates to the adopted surface method', async () => {
+      const result = await core.getEdgeContentHandle('a', 'b', 'knows');
 
-      expect(surface.getEdgeContentOid).toHaveBeenCalledWith('a', 'b', 'knows');
-      expect(result).toBe('b'.repeat(40));
+      expect(surface.getEdgeContentHandle).toHaveBeenCalledWith('a', 'b', 'knows');
+      expect(result).toBe('asset:edge');
     });
 
     it('getEdgeContentMeta delegates to the adopted surface method', async () => {
       const result = await core.getEdgeContentMeta('a', 'b', 'knows');
 
       expect(surface.getEdgeContentMeta).toHaveBeenCalledWith('a', 'b', 'knows');
-      expect(result).toEqual({ oid: 'b'.repeat(40), mime: null, size: 10 });
+      expect(result).toEqual({ handle: 'asset:edge', mime: null, size: 10 });
     });
   });
 

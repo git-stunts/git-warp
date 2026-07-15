@@ -109,8 +109,8 @@ function nodeProperty(nodeId: string, key: string, value: string | null, lamport
   return new CheckpointNodePropertyFact({ nodeId, key, value, eventId: event(lamport) });
 }
 
-function contentAnchor(owner: string, contentOid: string, lamport: number): CheckpointContentAnchorFact {
-  return new CheckpointContentAnchorFact({ owner, contentOid, eventId: event(lamport) });
+function contentAnchor(owner: string, contentHandle: string, lamport: number): CheckpointContentAnchorFact {
+  return new CheckpointContentAnchorFact({ owner, contentHandle, eventId: event(lamport) });
 }
 
 function event(lamport: number): EventId {

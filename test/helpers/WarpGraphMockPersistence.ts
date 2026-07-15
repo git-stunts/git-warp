@@ -1,11 +1,18 @@
 import { vi } from 'vitest';
-import { encode } from '../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import PatchEntry from '../../src/domain/artifacts/PatchEntry.ts';
+import WarpStream from '../../src/domain/stream/WarpStream.ts';
+import PatchJournalPort, {
+  type AppendPatchRequest,
+  type PublishedPatch,
+} from '../../src/ports/PatchJournalPort.ts';
+import type Patch from '../../src/domain/types/Patch.ts';
+import type { PatchCommitMessage } from '../../src/ports/CommitMessageCodecPort.ts';
 import { generateOidFromNumber } from './WarpGraphObjectIds.ts';
 
 type PopulatedCommit = {
   readonly index: number;
-  readonly patch: object;
+  readonly patch: Patch;
   readonly parentIndex: number | null;
   readonly writerId: string;
   readonly lamport: number;
@@ -74,8 +81,9 @@ class WarpGraphMockPersistence {
 
 class PopulatedWarpGraphMockPersistence extends WarpGraphMockPersistence {
   readonly #commitMap = new Map<string, StoredCommit>();
-  readonly #blobMap = new Map<string, Uint8Array>();
+  readonly #patchMap = new Map<string, Patch>();
   readonly #shaMap = new Map<number, string>();
+  readonly patchJournal: PatchJournalPort;
 
   override readonly nodeExists = vi.fn(async (sha: string) => this.#commitMap.has(sha));
   override readonly getNodeInfo = vi.fn(async (sha: string) => {
@@ -91,19 +99,12 @@ class PopulatedWarpGraphMockPersistence extends WarpGraphMockPersistence {
       parents: commit.parents,
     };
   });
-  override readonly readBlob = vi.fn(async (oid: string) => {
-    const blob = this.#blobMap.get(oid);
-    if (!blob) {
-      throw new MockPersistenceFixtureError(`Blob not found: ${oid}`);
-    }
-    return blob;
-  });
-
   constructor(commits: readonly PopulatedCommit[], graphName: string) {
     super();
     for (const commit of commits) {
       this.#storeCommit(commit, graphName);
     }
+    this.patchJournal = new FixturePatchJournal(this);
   }
 
   #storeCommit(commit: PopulatedCommit, graphName: string): void {
@@ -119,7 +120,7 @@ class PopulatedWarpGraphMockPersistence extends WarpGraphMockPersistence {
     });
 
     this.#shaMap.set(commit.index, sha);
-    this.#blobMap.set(patchOid, encode(commit.patch));
+    this.#patchMap.set(patchOid, commit.patch);
     this.#commitMap.set(sha, {
       sha,
       message,
@@ -136,6 +137,39 @@ class PopulatedWarpGraphMockPersistence extends WarpGraphMockPersistence {
       throw new MockPersistenceFixtureError(`SHA not found for fixture index: ${index}`);
     }
     return sha;
+  }
+
+  readFixturePatch(handle: string): Patch {
+    const patch = this.#patchMap.get(handle);
+    if (patch === undefined) {
+      throw new MockPersistenceFixtureError(`Patch not found: ${handle}`);
+    }
+    return patch;
+  }
+}
+
+class FixturePatchJournal extends PatchJournalPort {
+  readonly #persistence: PopulatedWarpGraphMockPersistence;
+
+  constructor(persistence: PopulatedWarpGraphMockPersistence) {
+    super();
+    this.#persistence = persistence;
+  }
+
+  override appendPatch(_request: AppendPatchRequest): Promise<PublishedPatch> {
+    throw new MockPersistenceFixtureError('appendPatch is outside this fixture');
+  }
+
+  override readPatch(message: PatchCommitMessage): Promise<Patch> {
+    return Promise.resolve(this.#persistence.readFixturePatch(message.patchHandle.toString()));
+  }
+
+  override scanPatchRange(
+    _writerId: string,
+    _fromSha: string | null,
+    _toSha: string,
+  ): WarpStream<PatchEntry> {
+    return WarpStream.from([]);
   }
 }
 

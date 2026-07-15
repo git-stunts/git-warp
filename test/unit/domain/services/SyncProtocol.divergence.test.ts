@@ -8,10 +8,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { processSyncRequest } from '../../../../src/domain/services/sync/SyncProtocol.ts';
 import { encodePatchMessage } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import FixturePatchJournal from '../../../helpers/FixturePatchJournal.ts';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
@@ -32,11 +30,13 @@ function setupCommit(commits: Record<string, any>, blobs: Record<string, any>, s
     schema: 2,
   });
   commits[sha] = { message, parents };
-  blobs[patchOid] = encode(patch);
+  blobs[patchOid] = patch;
 }
 
 function createMockPersistence(/** @type {Record<string, any>} */ commits = {}, /** @type {Record<string, any>} */ blobs = {}) {
   return {
+    fixtureCommits: commits,
+    fixturePatches: blobs,
     showNode: vi.fn(async (/** @type {any} */ sha) => {
       if (commits[sha]?.message) { return commits[sha].message; }
       throw new Error(`Commit not found: ${sha}`);
@@ -47,18 +47,13 @@ function createMockPersistence(/** @type {Record<string, any>} */ commits = {}, 
       }
       throw new Error(`Commit not found: ${sha}`);
     }),
-    readBlob: vi.fn(async (/** @type {any} */ oid) => {
-      if (blobs[oid]) { return blobs[oid]; }
-      throw new Error(`Blob not found: ${oid}`);
-    }),
   };
 }
 
 function createPatchJournal(/** @type {any} */ persistence) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-    commitPort: persistence,
+  return new FixturePatchJournal({
+    commits: persistence.fixtureCommits,
+    patches: persistence.fixturePatches,
   });
 }
 

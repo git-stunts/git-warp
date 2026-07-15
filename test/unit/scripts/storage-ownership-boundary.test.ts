@@ -6,6 +6,24 @@ import { describe, expect, it } from 'vitest';
 const REPO_ROOT = new URL('../../../', import.meta.url);
 const PRODUCTION_ROOTS = ['src', 'bin'] as const;
 const PRODUCTION_ENTRYPOINTS = ['index.ts', 'storage.ts', 'advanced.ts', 'diagnostics.ts'] as const;
+const DOMAIN_STORAGE_ROOTS = ['src/domain', 'src/ports'] as const;
+const FORBIDDEN_DOMAIN_MODULES = new Set([
+  '@git-stunts/git-cas',
+  '@git-stunts/plumbing',
+]);
+const FORBIDDEN_DOMAIN_STORAGE_IDENTIFIERS = new Set([
+  'BlobPort',
+  'BlobStoragePort',
+  'TreePort',
+  'createTree',
+  'hashObject',
+  'readBlob',
+  'readManifest',
+  'readTree',
+  'restoreStream',
+  'writeBlob',
+  'writeTree',
+]);
 const REMOVED_PRODUCTION_SYMBOLS = new Set([
   'CachedValue',
   'CasFirstMemoizationEngine',
@@ -91,6 +109,50 @@ function forbiddenReferences(
   return [...violations];
 }
 
+function forbiddenDomainStorageReferences(
+  path: string,
+  sourceText = readFileSync(path, 'utf8'),
+): string[] {
+  const source = ts.createSourceFile(
+    path,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const relativePath = relative(REPO_ROOT.pathname, path);
+  const violations = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node) && FORBIDDEN_DOMAIN_STORAGE_IDENTIFIERS.has(node.text)) {
+      violations.add(`${relativePath} exposes raw storage capability ${node.text}`);
+    }
+    const moduleName = importedModuleName(node);
+    if (moduleName !== null && FORBIDDEN_DOMAIN_MODULES.has(moduleName)) {
+      violations.add(`${relativePath} imports forbidden storage module ${moduleName}`);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return [...violations];
+}
+
+function importedModuleName(node: ts.Node): string | null {
+  if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node))
+    && node.moduleSpecifier !== undefined
+    && ts.isStringLiteral(node.moduleSpecifier)) {
+    return node.moduleSpecifier.text;
+  }
+  if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)
+    && ts.isStringLiteral(node.argument.literal)) {
+    return node.argument.literal.text;
+  }
+  if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+    const argument = node.arguments[0];
+    return argument !== undefined && ts.isStringLiteral(argument) ? argument.text : null;
+  }
+  return null;
+}
+
 describe('storage ownership boundary', () => {
   it('rejects removed symbols in arbitrary identifier positions', () => {
     const fixturePath = new URL('storage-ownership-fixture.ts', REPO_ROOT).pathname;
@@ -115,6 +177,34 @@ describe('storage ownership boundary', () => {
     ];
     const violations = productionFiles
       .flatMap((path) => forbiddenReferences(path))
+      .sort();
+
+    expect(violations).toEqual([]);
+  });
+
+  it('rejects raw storage imports and capabilities in a mutation fixture', () => {
+    const fixturePath = new URL('domain-storage-boundary-fixture.ts', REPO_ROOT).pathname;
+    const violations = forbiddenDomainStorageReferences(fixturePath, `
+      import type { AssetHandle } from '@git-stunts/git-cas';
+      type Plumbing = import('@git-stunts/plumbing').default;
+      interface LeakyPort {
+        writeBlob(bytes: Uint8Array): Promise<string>;
+        readTree(oid: string): Promise<object>;
+      }
+    `).sort();
+
+    expect(violations).toEqual([
+      'domain-storage-boundary-fixture.ts exposes raw storage capability readTree',
+      'domain-storage-boundary-fixture.ts exposes raw storage capability writeBlob',
+      'domain-storage-boundary-fixture.ts imports forbidden storage module @git-stunts/git-cas',
+      'domain-storage-boundary-fixture.ts imports forbidden storage module @git-stunts/plumbing',
+    ]);
+  });
+
+  it('keeps domain and port modules storage-substrate neutral', () => {
+    const productionFiles = DOMAIN_STORAGE_ROOTS.flatMap(productionTypeScriptFiles);
+    const violations = productionFiles
+      .flatMap((path) => forbiddenDomainStorageReferences(path))
       .sort();
 
     expect(violations).toEqual([]);

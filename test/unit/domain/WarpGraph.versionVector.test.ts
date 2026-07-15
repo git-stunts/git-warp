@@ -11,6 +11,7 @@ import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import type { CommitLogChunk } from '../../../src/ports/CommitPort.ts';
+import InMemoryGraphAdapter from '../../helpers/InMemoryGraphAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();
 
@@ -310,10 +311,7 @@ describe('WarpCore', () => {
       });
 
       it('first builder commits OK, second builder fails with race detection', async () => {
-        const persistence = createMockPersistence();
-
-        persistence.readRef.mockResolvedValueOnce(null); // During open() checkpoint check
-        persistence.listRefs.mockResolvedValue([]);
+        const persistence = new InMemoryGraphAdapter();
 
         const graph = await openRuntimeHostProduct({
           persistence,
@@ -322,32 +320,18 @@ describe('WarpCore', () => {
           schema: 2,
         } as Parameters<typeof openRuntimeHostProduct>[0]);
 
-        // Both builders read ref at creation time (both see null)
-        persistence.readRef.mockResolvedValueOnce(null); // builder1 creation
+        // Both builders capture the same empty writer frontier.
         const builder1 = await graph.createPatch();
         builder1.addNode('user:alice');
 
-        persistence.readRef.mockResolvedValueOnce(null); // builder2 creation
         const builder2 = await graph.createPatch();
         builder2.addNode('user:bob');
 
-        // Setup mocks for builder1's commit
-        persistence.readRef
-          .mockResolvedValueOnce(null) // builder1 commit check - still null
-          .mockResolvedValueOnce(null); // builder1 final CAS compare - still null
-        persistence.writeBlob.mockResolvedValue('a'.repeat(40));
-        persistence.writeTree.mockResolvedValue('b'.repeat(40));
-        const commit1Sha = 'c'.repeat(40);
-        persistence.commitNodeWithTree.mockResolvedValue(commit1Sha);
-        persistence.updateRef.mockResolvedValue(undefined);
-
-        // builder1 commits successfully
+        // The first publication advances the real in-memory ref atomically.
         const sha1 = await builder1.commit();
-        expect(sha1).toBe(commit1Sha);
+        expect(sha1).toMatch(/^[0-9a-f]{40}$/u);
 
-        // Now builder2 tries to commit, but ref has advanced
-        persistence.readRef.mockResolvedValueOnce(commit1Sha); // builder2 commit check - now points to commit1
-
+        // The second builder still carries the old expected head and must fail.
         await expect(builder2.commit()).rejects.toThrow(
           /Commit failed: writer ref was updated by another process.*Re-materialize and retry/
         );

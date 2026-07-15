@@ -8,6 +8,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
+import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
+import defaultCodec, { decode } from '../../../src/infrastructure/codecs/CborCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 
 describe('WarpCore — audit mode', () => {
   it('rejects audit: "yes" (non-boolean truthy)', async () => {
@@ -155,8 +158,15 @@ describe('WarpCore — audit mode', () => {
 
   it('audit commit tree contains receipt.cbor with correct receipt data', async () => {
     const persistence = new InMemoryGraphAdapter();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
+    const storage = await runtimeStorage.createRuntimeStorageServices({
+      timelineName: 'events',
+      codec: defaultCodec,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    });
     const graph = await openRuntimeHostProduct({
       persistence,
+      runtimeStorage,
       graphName: 'events',
       writerId: 'alice',
       audit: true,
@@ -169,25 +179,22 @@ describe('WarpCore — audit mode', () => {
     patch.addNode('user:eve');
     await patch.commit();
 
-    const auditSha = await persistence.readRef('refs/warp/events/audit/alice');
+    const auditSha = await storage.auditLog.readHead('events', 'alice');
     if (!auditSha) {
       throw new Error('audit ref must exist after audited commit');
     }
 
-    const commit = (persistence as any)._commits.get(auditSha);
-    expect(commit).toBeTruthy();
-    const tree = await persistence.readTree((commit as any).treeOid);
-    expect(tree).toHaveProperty('receipt.cbor');
-
-    // Decode and verify
-    const { decode } = await import('../../../src/infrastructure/codecs/CborCodec.ts');
-    const receiptBlob = tree['receipt.cbor'];
-    expect(receiptBlob).toBeDefined();
-    const receipt = (decode((receiptBlob as Uint8Array)) as Record<string, unknown>);
-    expect(receipt['version']).toBe(1);
-    expect(receipt['graphName']).toBe('events');
-    expect(receipt['writerId']).toBe('alice');
-    expect(typeof receipt['timestamp']).toBe('number');
+    const entry = await storage.auditLog.readEntry(auditSha);
+    const receipt = decode(entry.receipt);
+    expect(receipt).toMatchObject({
+      version: 1,
+      graphName: 'events',
+      writerId: 'alice',
+      timestamp: expect.any(Number),
+    });
+    if (!isRecord(receipt) || typeof receipt['timestamp'] !== 'number') {
+      throw new Error('decoded audit receipt must contain a numeric timestamp');
+    }
     expect(Number.isInteger(receipt['timestamp'])).toBe(true);
   });
 
@@ -213,3 +220,7 @@ describe('WarpCore — audit mode', () => {
     expect(hasAlice).toBe(true);
   });
 });
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}

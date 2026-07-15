@@ -9,19 +9,20 @@ function source(relativePath: string): string {
 }
 
 describe('op hydration boundary ratchet', () => {
-  it('keeps decoded patch hydration at storage and provenance boundaries', () => {
+  it('keeps decoded patch hydration at storage and codec boundaries', () => {
     const cborAdapter = source('src/infrastructure/adapters/CborPatchJournalAdapter.ts');
     const btrAdapter = source('src/infrastructure/adapters/BtrCodecAdapter.ts');
     const patchDiscovery = source('src/domain/services/controllers/PatchDiscovery.ts');
 
     expect(cborAdapter).toContain("import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';");
-    expect(cborAdapter).toContain('return hydrateDecodedPatch(this._codec.decode(bytes));');
+    expect(cborAdapter).toContain('return hydrateDecodedPatch(this.#codec.decode(bytes));');
 
     expect(btrAdapter).toContain("import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';");
     expect(btrAdapter).toContain("patch: hydrateDecodedPatch(source['patch']),");
 
-    expect(patchDiscovery).toContain("import { hydrateDecodedPatch } from '../PatchHydrator.ts';");
-    expect(patchDiscovery).toContain('const decoded = hydrateDecodedPatch(h._codec.decode(raw));');
+    expect(patchDiscovery).toContain("import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';");
+    expect(patchDiscovery).toContain('patch: await journal.readPatch(patchMeta)');
+    expect(patchDiscovery).not.toContain('hydrateDecodedPatch');
   });
 
   it('keeps decoded ops runtime-backed before patch construction', () => {

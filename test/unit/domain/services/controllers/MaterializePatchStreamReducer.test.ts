@@ -18,7 +18,7 @@ import MaterializePatchStreamReducer from '../../../../../src/domain/services/co
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import type CodecValue from '../../../../../src/domain/types/codec/CodecValue.ts';
 import type LogFields from '../../../../../src/domain/types/log/LogFields.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
 
 describe('MaterializePatchStreamReducer', () => {
   it('reduces each patch before requesting the next stream item', async () => {
@@ -160,7 +160,7 @@ function materializeDeps(patches: PatchCollector): MaterializeDeps {
     codec: new TestCodec(),
     crypto: new TestCrypto(),
     persistence: new TestPersistence(),
-    commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    checkpointStore: new InMemoryCheckpointStore(),
     patches,
     graphCloner: new UnusedDetachedGraphFactory(),
     graphName: 'stream-memory-witness',

@@ -778,14 +778,14 @@ describe('WarpCore strand foundation', () => {
       outgoing: [{ nodeId: 'n2', label: 'links', direction: 'outgoing' }],
       incoming: [],
       content: {
-        oid: expect.any(String),
+        handle: expect.any(String),
         mime: 'text/plain',
         size: 5,
       },
     });
     expect(reader.getEdgeProps('n1', 'n2', 'links')).toEqual({});
     expect(reader.getNodeContentMeta('n1')).toEqual({
-      oid: expect.any(String),
+      handle: expect.any(String),
       mime: 'text/plain',
       size: 5,
     });
