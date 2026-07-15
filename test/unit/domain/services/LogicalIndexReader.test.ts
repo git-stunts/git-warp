@@ -14,6 +14,7 @@ import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,20 @@ describe('LogicalIndexReader', () => {
       expect(idx.isAlive('X')).toBe(true);
       expect(idx.getEdges('X', 'out')).toEqual([{ neighborId: 'Y', label: 'owns' }]);
     });
+
+    it('preserves the loaded index when a replacement tree cannot be decoded', () => {
+      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
+      const service = new MaterializedViewService({ codec: defaultCodec });
+      const reader = new LogicalIndexReader({ codec: defaultCodec });
+      reader.loadFromTree(service.build(state).tree);
+
+      expect(() => reader.loadFromTree({
+        'meta_ff.cbor': new Uint8Array([0xff]),
+      })).toThrow();
+
+      expect(reader.toLogicalIndex().isAlive('A')).toBe(true);
+      expect(reader.toLogicalIndex().getEdges('A', 'out')).toHaveLength(2);
+    });
   });
 
   describe('loadFromHandles', () => {
@@ -164,6 +179,22 @@ describe('LogicalIndexReader', () => {
       expect(outEdges.length).toBe(2);
 
       expect(storage.writeBlob).toHaveBeenCalled();
+    });
+
+    it('preserves the loaded index when a replacement asset cannot be decoded', async () => {
+      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
+      const service = new MaterializedViewService({ codec: defaultCodec });
+      const { tree } = service.build(state);
+      const storage = new MockIndexStorage();
+      const reader = new LogicalIndexReader({ codec: defaultCodec, indexStore: storage });
+      reader.loadFromTree(tree);
+
+      await expect(reader.loadFromHandles({
+        'meta_ff.cbor': new AssetHandle('missing-replacement-shard'),
+      })).rejects.toMatchObject({ code: 'E_INDEX_SHARD_MISSING' });
+
+      expect(reader.toLogicalIndex().isAlive('A')).toBe(true);
+      expect(reader.toLogicalIndex().getEdges('A', 'out')).toHaveLength(2);
     });
   });
 
@@ -308,8 +339,16 @@ describe('LogicalIndexReader', () => {
         decodedByHandle.set(handle.toString(), defaultCodec.decode(buf));
       }
 
+      let activeDecodes = 0;
+      let maximumConcurrentDecodes = 0;
       const mockIndexStore = ((({
-        decodeShard: vi.fn((handle: AssetHandle) => Promise.resolve(decodedByHandle.get(handle.toString()))),
+        decodeShard: vi.fn(async (handle: AssetHandle) => {
+          activeDecodes += 1;
+          maximumConcurrentDecodes = Math.max(maximumConcurrentDecodes, activeDecodes);
+          await Promise.resolve();
+          activeDecodes -= 1;
+          return decodedByHandle.get(handle.toString());
+        }),
       })) as any);
 
       const reader = new LogicalIndexReader({ indexStore: mockIndexStore });
@@ -317,6 +356,7 @@ describe('LogicalIndexReader', () => {
       const idx = reader.toLogicalIndex();
 
       expect(mockIndexStore.decodeShard).toHaveBeenCalled();
+      expect(maximumConcurrentDecodes).toBe(1);
 
       // Results are correct
       expect(idx.isAlive('A')).toBe(true);
@@ -331,13 +371,15 @@ describe('LogicalIndexReader', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
       const buildService = new LogicalIndexBuildService();
       const { shards } = buildService.buildShards(state);
+      const shardStream = WarpStream.from(shards);
+      const collect = vi.spyOn(shardStream, 'collect');
 
       const mockIndexStore = ((({
-        scanShards: vi.fn(() => WarpStream.from(shards)),
+        scanShards: vi.fn(() => shardStream),
       })) as any);
 
       const reader = new LogicalIndexReader({ indexStore: mockIndexStore });
-      const indexHandle = new AssetHandle('test-index');
+      const indexHandle = new BundleHandle('test-index');
       await reader.loadFromStore(indexHandle);
       const idx = reader.toLogicalIndex();
 
@@ -351,11 +393,13 @@ describe('LogicalIndexReader', () => {
       expect(labels).toEqual(['manages', 'owns']);
 
       expect(mockIndexStore.scanShards).toHaveBeenCalledWith(indexHandle);
+      expect(collect).not.toHaveBeenCalled();
     });
 
     it('throws when no indexStore is configured', async () => {
       const reader = new LogicalIndexReader({ codec: defaultCodec });
-      await expect(reader.loadFromStore(new AssetHandle('any-index'))).rejects.toThrow(/indexStore/i);
+      await expect(reader.loadFromStore(new BundleHandle('any-index')))
+        .rejects.toThrow(/indexStore/i);
     });
   });
 

@@ -24,6 +24,7 @@ describe('path-keyed shard handle maps', () => {
     expect(result.indexHandles['__proto__']).toBe(indexRoot);
     expect(result.indexHandles.constructor).toBe(indexConstructor);
     expect(result.propHandles['props___proto__']).toBe(propRoot);
-    expect(Object.prototype).not.toHaveProperty('index:root');
+    expect(Object.getPrototypeOf(result.indexHandles)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(result.propHandles)).toBe(Object.prototype);
   });
 });

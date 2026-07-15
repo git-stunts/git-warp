@@ -1,10 +1,12 @@
 import type AssetHandle from '../domain/storage/AssetHandle.ts';
+import type BundleHandle from '../domain/storage/BundleHandle.ts';
 
 export const PATCH_STORAGE_FORMAT = 'v19';
 export const PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH = 'git-cas-asset-patch-v1';
 export const LEGACY_GIT_CAS_PATCH_STORAGE_FORMAT = 'v17';
 export const LEGACY_GIT_CAS_PATCH_STORAGE_SCHEMA = 'git-cas-cbor-patch-v1';
-export const CHECKPOINT_STORAGE_FORMAT = 'v5';
+export const CHECKPOINT_STORAGE_FORMAT = 'v19';
+export const LEGACY_CHECKPOINT_STORAGE_FORMAT = 'v5';
 
 export type CommitMessageKind = 'patch' | 'checkpoint' | 'anchor' | 'audit';
 
@@ -113,6 +115,7 @@ export interface CheckpointCommitMessage {
   stateHash: string;
   schema: number;
   checkpointVersion: string | null;
+  bundleHandle: BundleHandle | null;
 }
 
 export interface AnchorCommitMessage {

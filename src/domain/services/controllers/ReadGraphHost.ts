@@ -37,14 +37,14 @@ export type QueryContentHost = FreshStateHost & {
   _assetStorage: AssetStoragePort | null;
 };
 
-export type PatchBlobReadHost = {
+export type PatchReadHost = {
   _persistence: Pick<CommitPort, 'getNodeInfo'>;
   _commitMessageCodec: Pick<CommitMessageCodecPort, 'detectKind' | 'decodePatch'>;
   _readPatch(patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>): Promise<Patch>;
 };
 
 export type ProvenanceReadHost = FreshStateHost &
-  PatchBlobReadHost & {
+  PatchReadHost & {
     _provenanceDegraded: boolean;
     _provenanceIndex: ProvenanceIndex | null;
   };

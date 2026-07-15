@@ -5,10 +5,13 @@ import GitCasAuditLogAdapter from '../../../../src/infrastructure/adapters/GitCa
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
+import {
+  V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+} from '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts';
 
 const encoder = new TextEncoder();
 
-function createFixture() {
+function createFixture(options: { readonly compatibility?: boolean } = {}) {
   const history = new InMemoryGraphAdapter();
   const backing = new InMemoryBlobStorageAdapter();
   const cas = new InMemoryGitCasFacade({ history, storage: backing });
@@ -21,13 +24,20 @@ function createFixture() {
     },
     publications: cas.publications,
   };
-  const log = new GitCasAuditLogAdapter({ history, cas: auditCas, assets });
+  const log = new GitCasAuditLogAdapter({
+    history,
+    cas: auditCas,
+    assets,
+    ...(options.compatibility === true
+      ? { compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY }
+      : {}),
+  });
   return { assets, auditCas, backing, cas, history, log };
 }
 
 describe('GitCasAuditLogAdapter', () => {
   it('publishes, lists, and reads causally retained audit receipts', async () => {
-    const { log } = createFixture();
+    const { auditCas, log } = createFixture();
     const alice = await log.append({
       graphName: 'events',
       writerId: 'alice',
@@ -61,10 +71,11 @@ describe('GitCasAuditLogAdapter', () => {
       parents: [],
       receipt: encoder.encode('alice receipt'),
     });
+    expect(auditCas.assets.open).not.toHaveBeenCalled();
   });
 
   it('reads the legacy single-blob receipt tree through the compatibility path', async () => {
-    const { auditCas, history, log } = createFixture();
+    const { assets, auditCas, history, log } = createFixture();
     auditCas.assets.adopt.mockRejectedValueOnce(legacyTreeError());
     const receiptOid = await history.writeBlob(encoder.encode('legacy receipt'));
     const treeOid = await history.writeTree([
@@ -76,7 +87,20 @@ describe('GitCasAuditLogAdapter', () => {
       message: 'legacy audit',
     });
 
-    await expect(log.readEntry(sha)).resolves.toMatchObject({
+    const readTreeOids = vi.spyOn(history, 'readTreeOids');
+    await expect(log.readEntry(sha)).rejects.toMatchObject({
+      code: 'E_LEGACY_SUBSTRATE_DISABLED',
+    });
+    expect(readTreeOids).not.toHaveBeenCalled();
+
+    auditCas.assets.adopt.mockRejectedValueOnce(legacyTreeError());
+    const compatible = new GitCasAuditLogAdapter({
+      history,
+      cas: auditCas,
+      assets,
+      compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+    });
+    await expect(compatible.readEntry(sha)).resolves.toMatchObject({
       sha,
       message: 'legacy audit',
       receipt: encoder.encode('legacy receipt'),
@@ -84,7 +108,7 @@ describe('GitCasAuditLogAdapter', () => {
   });
 
   it('rejects malformed legacy receipt trees without guessing', async () => {
-    const { auditCas, history, log } = createFixture();
+    const { auditCas, history, log } = createFixture({ compatibility: true });
     auditCas.assets.adopt.mockRejectedValueOnce(legacyTreeError());
     const first = await history.writeBlob(encoder.encode('first'));
     const second = await history.writeBlob(encoder.encode('second'));
@@ -118,6 +142,91 @@ describe('GitCasAuditLogAdapter', () => {
 
     await expect(log.readEntry(sha)).rejects.toBe(corruption);
     expect(readTreeOids).not.toHaveBeenCalled();
+  });
+
+  it('maps provider publication conflicts to the audit boundary error', async () => {
+    const { assets, auditCas, history } = createFixture();
+    const log = new GitCasAuditLogAdapter({
+      history,
+      assets,
+      cas: {
+        assets: auditCas.assets,
+        publications: {
+          commit: vi.fn().mockRejectedValue(Object.assign(
+            new Error('publication conflict'),
+            {
+              code: 'PUBLICATION_CONFLICT',
+              meta: { observed: 'f'.repeat(40) },
+            },
+          )),
+        },
+      },
+    });
+
+    await expect(log.append({
+      graphName: 'events',
+      writerId: 'alice',
+      expectedHead: 'a'.repeat(40),
+      parent: 'a'.repeat(40),
+      message: 'audit alice',
+      receipt: encoder.encode('alice receipt'),
+    })).rejects.toMatchObject({
+      code: 'E_AUDIT_PUBLICATION_CONFLICT',
+      expectedHead: 'a'.repeat(40),
+      observedHead: 'f'.repeat(40),
+    });
+  });
+
+  it.each([
+    Object.assign(new Error('missing metadata'), { code: 'PUBLICATION_CONFLICT' }),
+    Object.assign(new Error('null metadata'), { code: 'PUBLICATION_CONFLICT', meta: null }),
+    Object.assign(new Error('missing observation'), { code: 'PUBLICATION_CONFLICT', meta: {} }),
+    Object.assign(new Error('invalid observation'), { code: 'PUBLICATION_CONFLICT', meta: { observed: 42 } }),
+  ])('maps a provider conflict without a usable observed head', async (conflict) => {
+    const { assets, auditCas, history } = createFixture();
+    const log = new GitCasAuditLogAdapter({
+      history,
+      assets,
+      cas: {
+        assets: auditCas.assets,
+        publications: { commit: vi.fn().mockRejectedValue(conflict) },
+      },
+    });
+
+    await expect(log.append({
+      graphName: 'events',
+      writerId: 'alice',
+      expectedHead: null,
+      parent: null,
+      message: 'audit alice',
+      receipt: encoder.encode('alice receipt'),
+    })).rejects.toMatchObject({
+      code: 'E_AUDIT_PUBLICATION_CONFLICT',
+      expectedHead: null,
+      observedHead: null,
+    });
+  });
+
+  it('preserves non-conflict publication failures', async () => {
+    const { assets, auditCas, history } = createFixture();
+    const failure = new Error('publication storage unavailable');
+    const log = new GitCasAuditLogAdapter({
+      history,
+      assets,
+      cas: {
+        assets: auditCas.assets,
+        publications: { commit: vi.fn().mockRejectedValue(failure) },
+      },
+    });
+
+    await expect(log.append({
+      graphName: 'events',
+      writerId: 'alice',
+      expectedHead: null,
+      parent: null,
+      message: 'audit alice',
+      receipt: encoder.encode('alice receipt'),
+    })).rejects.toBe(failure);
   });
 });
 

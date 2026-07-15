@@ -18,7 +18,7 @@ import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
  * Creates a temporary git repository with persistence adapter, codec, and crypto.
  *
  * @param {string} [label='api-test'] - Label for the temp directory prefix
- * @returns {Promise<{persistence: Object, tempDir: string, codec: typeof defaultCodec, crypto: WebCryptoAdapter, cleanup: () => Promise<void>, openGraph: (graphName: string, writerId: string, opts?: Object) => Promise<Object>}>}
+ * @returns {Promise<{persistence: Object, plumbing: Object, tempDir: string, codec: typeof defaultCodec, crypto: WebCryptoAdapter, cleanup: () => Promise<void>, openGraph: (graphName: string, writerId: string, opts?: Object) => Promise<Object>}>}
  */
 export async function createTestRepo(label = 'api-test') {
   const tempDir = await mkdtemp(join(tmpdir(), `warp-${label}-`));
@@ -60,6 +60,7 @@ export async function createTestRepo(label = 'api-test') {
 
     return {
       persistence,
+      plumbing,
       tempDir,
       codec,
       crypto,

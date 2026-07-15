@@ -43,6 +43,32 @@ function legacyPatchMessage(): string {
 }
 
 describe('TrailerCommitMessageCodecAdapter storage routing', () => {
+  it('round-trips the current git-cas asset route without a legacy OID trailer', () => {
+    const adapter = new TrailerCommitMessageCodecAdapter();
+    const patchHandle = new AssetHandle('asset:current-patch');
+    const encoded = adapter.encodePatch({
+      kind: 'patch',
+      graph: 'events',
+      writer: 'alice',
+      lamport: 1,
+      patchHandle,
+      schema: 2,
+      storage: createGitCasPatchStorage({ encrypted: false }),
+    });
+
+    expect(encoded).toContain(`${TRAILER_KEYS.patchHandle}: ${patchHandle.toString()}`);
+    expect(encoded).not.toContain(`${TRAILER_KEYS.patchOid}:`);
+    expect(adapter.decodePatch(encoded)).toEqual({
+      kind: 'patch',
+      graph: 'events',
+      writer: 'alice',
+      lamport: 1,
+      patchHandle,
+      schema: 2,
+      storage: createGitCasPatchStorage({ encrypted: false }),
+    });
+  });
+
   it('round-trips the explicit legacy git-cas compatibility route', () => {
     const adapter = new TrailerCommitMessageCodecAdapter();
     const encoded = adapter.encodePatch({
@@ -95,18 +121,22 @@ describe('TrailerCommitMessageCodecAdapter storage routing', () => {
   });
 
   it('preserves encrypted legacy external-storage compatibility', () => {
-    const decoded = decodePatchMessage(encodePatchMessage({
+    const encoded = encodePatchMessage({
       graph: 'events',
       writer: 'alice',
       lamport: 1,
       patchOid: OID,
       encrypted: true,
-    }));
+    });
+    const decoded = decodePatchMessage(encoded);
+    const canonical = new TrailerCommitMessageCodecAdapter().decodePatch(encoded);
 
     expect(decoded).toMatchObject({
       encrypted: true,
       storage: { strategy: 'legacy-external-storage' },
     });
+    expect(canonical).not.toHaveProperty('patchOid');
+    expect(canonical.patchHandle.toString()).toBe(OID);
   });
 });
 

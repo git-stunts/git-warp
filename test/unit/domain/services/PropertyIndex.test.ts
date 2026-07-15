@@ -107,5 +107,7 @@ describe('PropertyIndex handle-backed reads', () => {
     const firstShards = [...first.yieldShards()] as PropertyShard[];
     const secondShards = [...second.yieldShards()] as PropertyShard[];
     expect(firstShards).toEqual(secondShards);
+    expect(firstShards.map((shard) => defaultCodec.encode(shard.entries)))
+      .toEqual(secondShards.map((shard) => defaultCodec.encode(shard.entries)));
   });
 });

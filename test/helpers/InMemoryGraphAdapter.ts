@@ -15,7 +15,7 @@ import type TreeEntryLimit from '../../src/domain/tree/TreeEntryLimit.ts';
 import TreeEntryMissing from '../../src/domain/tree/TreeEntryMissing.ts';
 import TreeEntryPath from '../../src/domain/tree/TreeEntryPath.ts';
 import TreeEntryPrefixBatch from '../../src/domain/tree/TreeEntryPrefixBatch.ts';
-import type { TreeEntryProbeResult } from '../../src/infrastructure/adapters/GitRecursiveTreeOidReaderAdapter.ts';
+import type { TreeEntryProbeResult } from '../../src/domain/tree/TreeEntryProbeResult.ts';
 import type { GitTreeCommitOptions } from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from '../../src/infrastructure/adapters/adapterValidation.ts';
 import {
@@ -200,7 +200,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return buf;
   }
 
-  async readObjectType(oid: string): Promise<string> {
+  async readObjectType(oid: string): Promise<'blob' | 'tree' | 'commit'> {
     validateOid(oid);
     if (this._blobs.has(oid)) {
       return 'blob';
@@ -318,6 +318,16 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   async deleteRef(ref: string): Promise<void> {
     validateRef(ref);
     this._refs.delete(ref);
+  }
+
+  async compareAndDeleteRef(ref: string, expectedOid: string): Promise<boolean> {
+    validateRef(ref);
+    validateOid(expectedOid);
+    if ((this._refs.get(ref) ?? null) !== expectedOid) {
+      return false;
+    }
+    this._refs.delete(ref);
+    return true;
   }
 
   async compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void> {

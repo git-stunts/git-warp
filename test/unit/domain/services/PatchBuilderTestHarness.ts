@@ -217,7 +217,6 @@ export function createPatchBuilder(
 
 export function decodeWrittenPatch(
   persistence: PatchBuilderMockPersistence,
-  _callIndex = 0,
 ): Patch {
   const patch = WRITTEN_PATCHES.get(persistence);
   if (patch === undefined) {

@@ -48,6 +48,28 @@ describe('checkpoint domain edge cases', () => {
     expect(patchLoader).not.toHaveBeenCalled();
   });
 
+  it('rejects a checkpoint from a different graph before replaying patches', async () => {
+    const checkpointStore = new InMemoryCheckpointStore();
+    const sha = await createCheckpointEnvelope({
+      checkpointStore,
+      graphName: 'other-events',
+      state: createEmptyState(),
+      frontier: new Map(),
+      compact: false,
+      stateHashService,
+    });
+    const patchLoader = vi.fn(async () => []);
+
+    await expect(materializeIncremental({
+      checkpointStore,
+      graphName: 'events',
+      checkpointSha: sha,
+      targetFrontier: new Map(),
+      patchLoader,
+    })).rejects.toThrow(/belongs to graph other-events, not events/);
+    expect(patchLoader).not.toHaveBeenCalled();
+  });
+
   it('loads a writer absent from the checkpoint from causal genesis', async () => {
     const checkpointStore = new InMemoryCheckpointStore();
     const sha = await createCheckpointEnvelope({

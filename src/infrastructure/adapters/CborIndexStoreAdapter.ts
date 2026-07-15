@@ -1,4 +1,6 @@
+import type { BundleCapability } from '@git-stunts/git-cas';
 import IndexStorePort from '../../ports/IndexStorePort.ts';
+import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type CodecValue from '../../domain/types/codec/CodecValue.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
@@ -11,16 +13,13 @@ import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
 import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
+import BundleHandle from '../../domain/storage/BundleHandle.ts';
+import IndexError from '../../domain/errors/IndexError.ts';
+import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 
-interface BlobPort {
-  readBlob(oid: string): Promise<Uint8Array>;
-  writeBlob(content: Uint8Array | string): Promise<string>;
-}
-
-interface TreePort {
-  readTreeOids(treeOid: string): Promise<Record<string, string>>;
-  writeTree(entries: string[]): Promise<string>;
-}
+export type GitCasIndexFacade = {
+  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
+};
 
 function classifyMeta(match: RegExpMatchArray, data: unknown): MetaShard {
   const d = data as { nodeToGlobal: Array<[string, number]>; nextLocalId: number; alive: Uint8Array };
@@ -74,61 +73,70 @@ const SHARD_CLASSIFIERS: ReadonlyArray<{ pattern: RegExp; classify: (match: RegE
 /**
  * CBOR-backed implementation of IndexStorePort.
  *
- * Owns the codec and raw Git persistence. Domain services produce
- * IndexShard streams; the adapter encodes, writes blobs, and
- * assembles Git trees. On read, the adapter decodes blobs and
+ * Owns the codec while configured asset and bundle capabilities own
+ * persistence. Domain services produce IndexShard streams; the adapter
+ * encodes and stages assets, then assembles their opaque handles into
+ * ordered bundles. On read, the adapter decodes assets and
  * constructs IndexShard subclass instances.
  *
  * Write pipeline reuses existing infrastructure transforms:
  *   WarpStream<IndexShard>
  *     → IndexShardEncodeTransform → [path, bytes]
- *     → GitBlobWriteTransform     → [path, oid]
- *     → TreeAssemblerSink         → tree OID
+ *     → AssetStoragePort.stage    → [path, AssetHandle]
+ *     → bundles.putOrdered        → BundleHandle
  */
 export class CborIndexStoreAdapter extends IndexStorePort {
   private readonly _codec: CodecPort;
-  private readonly _blobPort: BlobPort;
-  private readonly _treePort: TreePort;
+  private readonly _assets: AssetStoragePort;
+  private readonly _cas: GitCasIndexFacade;
 
-  constructor({ codec, blobPort, treePort }: {
+  constructor({ codec, assetStorage, cas }: {
     codec: CodecPort;
-    blobPort: BlobPort;
-    treePort: TreePort;
+    assetStorage: AssetStoragePort;
+    cas: GitCasIndexFacade;
   }) {
     super();
     _requireDep(codec, 'codec');
-    _requireDep(blobPort, 'blobPort');
-    _requireDep(treePort, 'treePort');
+    _requireDep(assetStorage, 'assetStorage');
+    _requireDep(cas, 'cas');
     this._codec = codec;
-    this._blobPort = blobPort;
-    this._treePort = treePort;
+    this._assets = assetStorage;
+    this._cas = cas;
   }
 
-  override async writeShards(shardStream: WarpStream<IndexShard>): Promise<AssetHandle> {
-    const entries: string[] = [];
-    await shardStream
-      .pipe(new IndexShardEncodeTransform(this._codec))
-      .forEach(async ([path, bytes]) => {
-        const oid = await this._blobPort.writeBlob(bytes);
-        entries.push(`100644 blob ${oid}\t${path}`);
+  override async writeShards(shardStream: WarpStream<IndexShard>): Promise<BundleHandle> {
+    const members: Array<[string, string]> = [];
+    for await (const [path, bytes] of shardStream.pipe(new IndexShardEncodeTransform(this._codec))) {
+      const staged = await this._assets.stage(WarpStream.from([bytes]), {
+        slug: `index-shard-${path}`,
+        filename: path,
+        expectedSize: bytes.byteLength,
       });
-    entries.sort();
-    return new AssetHandle(await this._treePort.writeTree(entries));
+      members.push([path, staged.handle.toString()]);
+    }
+    members.sort(([left], [right]) => left.localeCompare(right));
+    const bundle = await this._cas.bundles.putOrdered({ members });
+    return new BundleHandle(bundle.handle.toString());
   }
 
-  override scanShards(indexHandle: AssetHandle): WarpStream<IndexShard> {
+  override scanShards(indexHandle: BundleHandle): WarpStream<IndexShard> {
     const adapter = this;
     return WarpStream.from((async function* () {
-      const oids = await adapter._treePort.readTreeOids(indexHandle.toString());
-      const paths = Object.keys(oids).sort();
-
-      for (const path of paths) {
-        const shard = tryClassifyPath(path);
+      const seenPaths = new Set<string>();
+      for await (const member of adapter._cas.bundles.iterateMembers({
+        handle: indexHandle.toString(),
+      })) {
+        requireUniqueBundleMember(seenPaths, member.path);
+        const handle = requireAssetMember(
+          member.path,
+          member.handle.kind,
+          member.handle.toString(),
+        );
+        const shard = tryClassifyPath(member.path);
         if (shard === null) {
           continue;
         }
-        const blobOid = oids[path] as string;
-        const bytes = await adapter._blobPort.readBlob(blobOid);
+        const bytes = await collectAsyncIterable(adapter._assets.open(handle));
         const data = adapter._codec.decode(bytes);
         yield shard(data);
       }
@@ -136,27 +144,52 @@ export class CborIndexStoreAdapter extends IndexStorePort {
   }
 
   override async readShardHandles(
-    indexHandle: AssetHandle,
+    indexHandle: BundleHandle,
   ): Promise<Readonly<Record<string, AssetHandle>>> {
-    return Object.freeze(Object.fromEntries(
-      Object.entries(await this._treePort.readTreeOids(indexHandle.toString()))
-        .map(([path, oid]) => [path, new AssetHandle(oid)]),
-    ));
+    const entries: Array<[string, AssetHandle]> = [];
+    const seenPaths = new Set<string>();
+    for await (const member of this._cas.bundles.iterateMembers({
+      handle: indexHandle.toString(),
+    })) {
+      requireUniqueBundleMember(seenPaths, member.path);
+      entries.push([
+        member.path,
+        requireAssetMember(member.path, member.handle.kind, member.handle.toString()),
+      ]);
+    }
+    return Object.freeze(Object.fromEntries(entries));
   }
 
   override openShard(shardHandle: AssetHandle): AsyncIterable<Uint8Array> {
-    const adapter = this;
-    return (async function* () {
-      yield await adapter._blobPort.readBlob(shardHandle.toString());
-    })();
+    return this._assets.open(shardHandle);
   }
 
   override async decodeShard<TDecoded extends CodecValue = CodecValue>(
     shardHandle: AssetHandle,
   ): Promise<TDecoded> {
-    const bytes = await this._blobPort.readBlob(shardHandle.toString());
+    const bytes = await collectAsyncIterable(this._assets.open(shardHandle));
     return this._codec.decode<TDecoded>(bytes);
   }
+}
+
+function requireAssetMember(path: string, kind: string, token: string): AssetHandle {
+  if (kind !== 'asset') {
+    throw new IndexError(`Index bundle member is not an asset: ${path}`, {
+      code: 'E_INDEX_INVALID_BUNDLE_MEMBER',
+      context: { path, kind },
+    });
+  }
+  return new AssetHandle(token);
+}
+
+function requireUniqueBundleMember(seenPaths: Set<string>, path: string): void {
+  if (seenPaths.has(path)) {
+    throw new IndexError(`Index bundle contains a duplicate member: ${path}`, {
+      code: 'E_INDEX_DUPLICATE_BUNDLE_MEMBER',
+      context: { path },
+    });
+  }
+  seenPaths.add(path);
 }
 
 function tryClassifyPath(path: string): ((data: unknown) => IndexShard) | null {

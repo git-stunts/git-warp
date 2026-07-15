@@ -17,7 +17,7 @@ import type {
 } from '../types/StrandDescriptor.ts';
 import type ConflictAnalysis from '../types/conflict/ConflictAnalysis.ts';
 import type { ConflictAnalyzeOptions as AnalyzeConflictsOptions } from '../services/strand/ConflictAnalysisRequest.ts';
-import type { PatchCommitResult } from '../services/PatchCommitter.ts';
+import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
 
 /** Patch with its content-addressable SHA. */
 export type StrandPatchEntry = {

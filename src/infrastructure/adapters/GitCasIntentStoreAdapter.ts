@@ -4,6 +4,8 @@ import type {
 import WarpError from '../../domain/errors/WarpError.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
+import type CodecValue from '../../domain/types/codec/CodecValue.ts';
+import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import type {
   IntentNutritionLabel,
   PrecommitGuard,
@@ -61,7 +63,6 @@ export default class GitCasIntentStoreAdapter extends IntentStorePort {
     const descriptorAsset = await this.#assets.stage(WarpStream.from([bytes]), {
       slug: `intent-${request.graphName}-${request.channel}-${request.ownerId}`,
       filename: 'intent.cbor',
-      mime: 'application/cbor',
       expectedSize: bytes.byteLength,
     });
     const publication = await this.#cas.publications.commit({
@@ -116,12 +117,24 @@ async function collectIntentHandles(
   while (sha !== null) {
     assertUnseenIntentPublication(seen, sha);
     const node = await history.getNodeInfo(sha);
+    assertLinearIntentPublication(node.parents, sha);
     const message = decodeIntentMessage(node.message);
     assertIntentIdentity(message, identity);
     handles.push(new AssetHandle(message.descriptorHandle));
     sha = node.parents[0] ?? null;
   }
   return Object.freeze(handles);
+}
+
+function assertLinearIntentPublication(parents: readonly string[], sha: string): void {
+  if (parents.length <= 1) {
+    return;
+  }
+  throw new WarpError(
+    'Intent journal publication must have at most one parent',
+    'E_INTENT_JOURNAL_NON_LINEAR',
+    { context: { sha, parentCount: parents.length } },
+  );
 }
 
 async function* streamIntentDescriptors(
@@ -133,7 +146,7 @@ async function* streamIntentDescriptors(
   for (let index = handles.length - 1; index >= 0; index -= 1) {
     const handle = handles[index];
     if (handle !== undefined) {
-      yield decodeIntentDescriptor(codec.decode(await collectBytes(assets.open(handle))));
+      yield decodeIntentDescriptor(codec.decode(await collectAsyncIterable(assets.open(handle))));
     }
   }
 }
@@ -229,23 +242,63 @@ function decodePrecommitGuards(value: unknown): readonly PrecommitGuard[] {
 
 function decodePrecommitGuard(value: unknown): PrecommitGuard {
   const guard = requireDescriptorRecord(value);
-  const expected = optionalDescriptorString(guard, 'expected');
-  const agentId = optionalDescriptorString(guard, 'agentId');
-  return Object.freeze({
-    op: requireGuardOperation(guard['op']),
+  const base = {
     nodeId: requireDescriptorString(guard, 'nodeId'),
     failureTag: requireDescriptorString(guard, 'failureTag'),
-    ...(expected === undefined ? {} : { expected }),
-    ...(agentId === undefined ? {} : { agentId }),
-  });
+  };
+  const operation = requireGuardOperation(guard['op']);
+  if (operation === 'nodeStatus') {
+    return Object.freeze({
+      ...base,
+      op: operation,
+      expected: requireDescriptorString(guard, 'expected'),
+    });
+  }
+  if (operation === 'nodeUnassignedOrSelf') {
+    return Object.freeze({
+      ...base,
+      op: operation,
+      agentId: requireDescriptorString(guard, 'agentId'),
+    });
+  }
+  return Object.freeze({ ...base, op: operation });
 }
 
 function decodeSuffixTransform(value: unknown): SuffixTransform {
   const transform = requireDescriptorRecord(value);
   return Object.freeze({
     op: requireDescriptorString(transform, 'op'),
-    payload: Object.freeze({ ...requireDescriptorRecord(transform['payload']) }),
+    payload: decodeCodecRecord(transform['payload']),
   });
+}
+
+function decodeCodecRecord(value: unknown): Readonly<{ readonly [key: string]: CodecValue }> {
+  const record = requireDescriptorRecord(value);
+  return Object.freeze(Object.fromEntries(
+    Object.entries(record).map(([key, member]) => [key, decodeCodecValue(member)]),
+  ));
+}
+
+function decodeCodecValue(value: unknown): CodecValue {
+  if (isCodecScalar(value) || isCodecNative(value)) {
+    return value;
+  }
+  if (isUnknownArray(value)) {
+    return Object.freeze(value.map((member) => decodeCodecValue(member)));
+  }
+  return decodeCodecRecord(value);
+}
+
+function isCodecScalar(
+  value: unknown,
+): value is string | number | boolean | bigint | null | undefined {
+  return value === null
+    || value === undefined
+    || ['string', 'number', 'boolean', 'bigint'].includes(typeof value);
+}
+
+function isCodecNative(value: unknown): value is Uint8Array | Date {
+  return value instanceof Uint8Array || value instanceof Date;
 }
 
 function requireGuardOperation(value: unknown): PrecommitGuard['op'] {
@@ -253,14 +306,6 @@ function requireGuardOperation(value: unknown): PrecommitGuard['op'] {
     throw invalidDescriptor();
   }
   return value;
-}
-
-function optionalDescriptorString(
-  record: Readonly<Record<string, unknown>>,
-  key: string,
-): string | undefined {
-  const value = record[key];
-  return value === undefined ? undefined : requireDescriptorString(record, key);
 }
 
 function requireDescriptorString(
@@ -282,7 +327,11 @@ function requireDescriptorRecord(value: unknown): Readonly<Record<string, unknow
 }
 
 function isDescriptorRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Reflect.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function isUnknownArray(value: unknown): value is readonly unknown[] {
@@ -299,20 +348,4 @@ function requireTrailer(trailers: ReadonlyMap<string, string>, key: string): str
     throw new WarpError(`Intent journal publication is missing ${key}`, 'E_INTENT_JOURNAL_MESSAGE');
   }
   return value;
-}
-
-async function collectBytes(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for await (const chunk of source) {
-    chunks.push(chunk);
-    size += chunk.byteLength;
-  }
-  const result = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
 }

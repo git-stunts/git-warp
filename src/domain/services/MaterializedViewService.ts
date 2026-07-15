@@ -2,10 +2,8 @@
  * Orchestrates building, persisting, and loading a MaterializedView
  * composed of a LogicalIndex + PropertyIndexReader.
  *
- * Five entry points:
+ * Three entry points:
  * - `build(state)` — from a WarpState (in-memory)
- * - `persistIndexTree(tree, persistence)` — write shards to Git storage
- * - `loadFromOids(shardOids, storage)` — hydrate from blob OIDs
  * - `applyDiff(existingTree, diff, state)` — incremental update from PatchDiff
  * - `verifyIndex({ state, logicalIndex, options })` — cross-provider verification
  *

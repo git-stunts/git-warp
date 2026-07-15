@@ -5,6 +5,7 @@ import {
   type StagedAsset as GitCasStagedAsset,
 } from '@git-stunts/git-cas';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
+import AssetSizeMismatchError from '../../domain/errors/AssetSizeMismatchError.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import AssetStoragePort, {
@@ -18,6 +19,7 @@ import {
 import CasContentEncryptionPolicy, {
   mapCasContentEncryptionError,
 } from './CasContentEncryptionPolicy.ts';
+import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 
 const OID_PATTERN = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u;
 const LEGACY_REFERENCE_CODES = new Set([
@@ -66,6 +68,7 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
       ...this.#contentEncryption.toStoreOptions(),
     };
     const staged = await this.#cas.assets.put(putOptions);
+    requireExpectedSize(staged.asset.size, options.expectedSize);
     return stagedAsset(staged);
   }
 
@@ -73,7 +76,11 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
     try {
       yield* await this.#openResolved(handle);
     } catch (error) {
-      const encryptionError = mapCasContentEncryptionError(error, 'asset-open');
+      const encryptionError = mapCasContentEncryptionError(
+        error,
+        'asset-open',
+        this.#contentEncryption.enabled,
+      );
       if (encryptionError !== null) {
         throw encryptionError;
       }
@@ -108,7 +115,6 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
   }
 
   async #openLegacyBlob(oid: string, adoptionError: unknown): Promise<AsyncIterable<Uint8Array>> {
-    const bytes = await this.#readLegacyCandidate(oid, adoptionError);
     if (!this.#compatibilityPolicy.legacyContentBlobReads) {
       throw new PersistenceError(
         `Legacy raw blob reads require the substrate migration compatibility policy: ${oid}`,
@@ -116,6 +122,7 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
         { context: { oid } },
       );
     }
+    const bytes = await this.#readLegacyCandidate(oid, adoptionError);
     return singleChunk(bytes);
   }
 
@@ -145,16 +152,9 @@ function rethrowUnexpectedLegacyReadError(error: unknown): void {
 }
 
 function rethrowUnlessLegacyReference(error: unknown): void {
-  if (!LEGACY_REFERENCE_CODES.has(errorCode(error))) {
+  if (!LEGACY_REFERENCE_CODES.has(readGitCasErrorCode(error) ?? '')) {
     throw error;
   }
-}
-
-function errorCode(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    return typeof error.code === 'string' ? error.code : '';
-  }
-  return '';
 }
 
 function missingObject(oid: string, cause: unknown): PersistenceError {
@@ -175,6 +175,12 @@ function stagedAsset(staged: GitCasStagedAsset): StagedAsset {
       protection: staged.retention.protection,
     }),
   });
+}
+
+function requireExpectedSize(actualSize: number, expectedSize: number | null | undefined): void {
+  if (expectedSize !== null && expectedSize !== undefined && actualSize !== expectedSize) {
+    throw new AssetSizeMismatchError(expectedSize, actualSize);
+  }
 }
 
 function singleChunk(bytes: Uint8Array): AsyncIterable<Uint8Array> {

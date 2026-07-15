@@ -165,7 +165,13 @@ export default class AuditChainVerifier {
     let tip: string | null;
     try {
       tip = await this._auditLog.readHead(graphName, writerId);
-    } catch {
+    } catch (error) {
+      this._addError(
+        result,
+        'AUDIT_HEAD_UNAVAILABLE',
+        `Cannot read audit head: ${error instanceof Error ? error.message : String(error)}`,
+        null,
+      );
       return result;
     }
     if (typeof tip !== 'string' || tip.length === 0) {

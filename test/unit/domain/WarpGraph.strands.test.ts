@@ -61,6 +61,11 @@ function createMockPersistence() {
     deleteRef: vi.fn(async (ref) => {
       refs.delete(ref);
     }),
+    compareAndDeleteRef: vi.fn(async (ref, expectedOid) => {
+      if ((refs.get(ref) || null) !== expectedOid) return false;
+      refs.delete(ref);
+      return true;
+    }),
     configGet: vi.fn(async () => null),
     configSet: vi.fn(async () => {}),
     showNode: vi.fn(async (sha) => {

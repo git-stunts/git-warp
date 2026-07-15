@@ -8,7 +8,7 @@ import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type Patch from '../types/Patch.ts';
 import type { Writer } from '../warp/Writer.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
-import type { PatchCommitResult } from '../services/PatchCommitter.ts';
+import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
 
 /** Receipt from a CRDT state merge (join). */
 export type JoinReceipt = {

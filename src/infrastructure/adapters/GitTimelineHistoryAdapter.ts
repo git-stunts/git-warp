@@ -17,14 +17,13 @@ import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
 import type TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
 import type TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
+import type { TreeEntryProbeResult } from '../../domain/tree/TreeEntryProbeResult.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
 import decodeGitCommitNodeInfo from './GitCommitNodeInfoDecoder.ts';
-import GitRecursiveTreeOidReaderAdapter, {
-  type TreeEntryProbeResult,
-} from './GitRecursiveTreeOidReaderAdapter.ts';
+import GitRecursiveTreeOidReaderAdapter from './GitRecursiveTreeOidReaderAdapter.ts';
 import AlfredOperationPolicyAdapter from './AlfredOperationPolicyAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
@@ -372,6 +371,20 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
       await this.plumbing.execute({ args: ['update-ref', ref, newOid, oldArg] });
     } catch (raw) {
       throw wrapGitError(toGitError(raw), { ref, oid: newOid });
+    }
+  }
+
+  async compareAndDeleteRef(ref: string, expectedOid: string): Promise<boolean> {
+    validateRef(ref);
+    validateOid(expectedOid);
+    try {
+      await this.plumbing.execute({ args: ['update-ref', '-d', ref, expectedOid] });
+      return true;
+    } catch (raw) {
+      if (await this.readRef(ref) !== expectedOid) {
+        return false;
+      }
+      throw wrapGitError(toGitError(raw), { ref, oid: expectedOid });
     }
   }
 

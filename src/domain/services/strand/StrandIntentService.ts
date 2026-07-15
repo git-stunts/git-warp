@@ -6,6 +6,7 @@ import {
 } from './strandShared.ts';
 import type { PatchBuilder } from '../PatchBuilder.ts';
 import type Patch from '../../types/Patch.ts';
+import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 import type {
   StrandDescriptor,
   StrandIntentQueue,
@@ -49,7 +50,7 @@ type ServiceOptions = {
     patch: Patch;
     contentAssetHandles: string[];
     lamport: number;
-  }) => Promise<{ sha: string; patch: Patch }>;
+  }) => Promise<PatchCommitResult>;
   collectPatchEntries: (
     descriptor: StrandDescriptor,
     options: { ceiling: number | null },

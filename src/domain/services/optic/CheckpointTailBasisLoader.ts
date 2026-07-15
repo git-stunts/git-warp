@@ -42,7 +42,7 @@ export default class CheckpointTailBasisLoader {
 
   async load(): Promise<CheckpointTailIndexBasis> {
     const checkpointSha = await this._readCheckpointSha();
-    const basis = await this._source._checkpointStore.loadBasis(checkpointSha);
+    const basis = await this._source._checkpointStore.loadBasis(checkpointSha, this._source.graphName);
     if (!isCurrentCheckpointSchema(basis.schema)) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-without-index-tree');
     }

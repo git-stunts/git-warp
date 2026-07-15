@@ -11,6 +11,7 @@ import {
   STRAND_COUNTERFACTUAL_REASON,
 } from '../../../../../src/domain/services/strand/strandShared.ts';
 import StrandError from '../../../../../src/domain/errors/StrandError.ts';
+import PatchPublicationConflictError from '../../../../../src/domain/errors/PatchPublicationConflictError.ts';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.ts';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
 import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
@@ -103,7 +104,7 @@ const OVERLAY_KIND = (STRAND_OVERLAY_KIND);
  *     patch: Patch,
  *     contentAssetHandles: string[],
  *     lamport: number
- *   }): Promise<{ sha: string, patch: Patch }>
+ *   }): Promise<import('../../../../../src/domain/types/PatchCommitResult.ts').PatchCommitResult>
  * }} StrandServicePrivate
  */
 
@@ -369,6 +370,10 @@ function createMockGraph() {
 
   const patchJournal = {
     appendPatch: vi.fn((request) => {
+      const currentHead = refs.get(request.targetRef) ?? null;
+      if (currentHead !== request.expectedHead) {
+        return Promise.reject(new PatchPublicationConflictError());
+      }
       const sha = nextOid();
       const parentEntries = request.parent === null
         ? []
@@ -2641,10 +2646,7 @@ describe('StrandService', () => {
 
   describe('_commitQueuedPatch', () => {
     it('commits a patch via patch journal when available', async () => {
-      const mockJournal = {
-        appendPatch: vi.fn(() => Promise.resolve({ sha: 'a'.repeat(40) })),
-      };
-      graph._patchJournal = mockJournal;
+      const appendPatch = graph._patchJournal.appendPatch;
 
       const result = await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
@@ -2655,7 +2657,7 @@ describe('StrandService', () => {
         lamport: 5,
       });
 
-      expect(mockJournal.appendPatch).toHaveBeenCalledWith(
+      expect(appendPatch).toHaveBeenCalledWith(
         expect.objectContaining({
           graph: 'test-graph',
           writer: 'alpha',
@@ -2666,9 +2668,11 @@ describe('StrandService', () => {
           patch: expect.objectContaining({ writer: 'alpha', lamport: 5 }),
         }),
       );
-      expect(result.sha).toBe('a'.repeat(40));
       expect(result.patch.writer).toBe('alpha');
       expect(result.patch.lamport).toBe(5);
+      expect(result.retention.handle.toString()).toBe(`test-asset:${result.sha}`);
+      expect(result.bundleHandle.toString()).toBe(`bundle:${result.sha}`);
+      expect(result.stagedPatch.handle.toString()).toBe(`asset:${result.sha}`);
     });
 
     it('fails closed when no semantic patch journal is configured', async () => {
@@ -2685,8 +2689,7 @@ describe('StrandService', () => {
     });
 
     it('forwards opaque content handles as journal attachments', async () => {
-      const appendPatch = vi.fn(() => Promise.resolve({ sha: 'attachment-sha' }));
-      graph._patchJournal = { appendPatch };
+      const appendPatch = graph._patchJournal.appendPatch;
 
       await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
@@ -2703,8 +2706,7 @@ describe('StrandService', () => {
     });
 
     it('preserves duplicate attachment handles for journal policy', async () => {
-      const appendPatch = vi.fn(() => Promise.resolve({ sha: 'attachment-sha' }));
-      graph._patchJournal = { appendPatch };
+      const appendPatch = graph._patchJournal.appendPatch;
 
       await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
@@ -2721,8 +2723,8 @@ describe('StrandService', () => {
     });
 
     it('passes the expected head and parent to the journal', async () => {
-      const appendPatch = vi.fn(() => Promise.resolve({ sha: 'child-sha' }));
-      graph._patchJournal = { appendPatch };
+      const appendPatch = graph._patchJournal.appendPatch;
+      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'parent-sha-abc');
 
       await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
@@ -2740,8 +2742,7 @@ describe('StrandService', () => {
     });
 
     it('passes a null expected head for the first overlay patch', async () => {
-      const appendPatch = vi.fn(() => Promise.resolve({ sha: 'first-sha' }));
-      graph._patchJournal = { appendPatch };
+      const appendPatch = graph._patchJournal.appendPatch;
 
       await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
@@ -2756,6 +2757,20 @@ describe('StrandService', () => {
         expectedHead: null,
         parent: null,
       }));
+    });
+
+    it('rejects a stale expected overlay head', async () => {
+      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'advanced-head');
+
+      await expect(strandServicePrivate(service)._commitQueuedPatch({
+        strandId: 'alpha',
+        overlayId: 'alpha',
+        parentSha: null,
+        patch: makePatch(),
+        contentAssetHandles: [],
+        lamport: 1,
+      })).rejects.toBeInstanceOf(PatchPublicationConflictError);
+      expect(refs.get('refs/warp/test-graph/strand-overlays/alpha')).toBe('advanced-head');
     });
   });
 

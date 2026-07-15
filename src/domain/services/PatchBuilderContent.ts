@@ -39,7 +39,7 @@ export async function storeContentAttachmentPayload(
   const metadata = contentMetadata(options.content, options.metadata);
   const staged = await options.assetStorage.stage(
     normalizeToAsyncIterable(options.content),
-    assetWriteOptions(options.slug, metadata.mime, metadata.expectedSize),
+    assetWriteOptions(options.slug, metadata.expectedSize),
   );
   return new ContentAttachmentPayload({
     handle: new ContentAttachmentHandle(staged.handle.toString()),
@@ -86,8 +86,7 @@ function optionalSize(value: number | null): number | null {
 
 function assetWriteOptions(
   slug: string,
-  mime: string | null,
   expectedSize: number | null,
 ): AssetWriteOptions {
-  return { slug, filename: 'content', mime, expectedSize };
+  return { slug, filename: 'content', expectedSize };
 }

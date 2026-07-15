@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import WarpState from '../../../src/domain/services/state/WarpState.ts';
+import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
+import StorageRetentionWitness, {
+  StorageRetentionRoot,
+} from '../../../src/domain/storage/StorageRetentionWitness.ts';
 import CheckpointStorePort, {
   type CheckpointBasis,
   type CheckpointData,
@@ -27,8 +31,24 @@ describe('CheckpointStorePort', () => {
       appliedVV: VersionVector.empty(),
       indexShardHandles: null,
     };
+    const bundleHandle = new BundleHandle('checkpoint-bundle');
+    const retention = new StorageRetentionWitness({
+      handle: bundleHandle,
+      policy: 'pinned',
+      reachability: 'anchored',
+      root: new StorageRetentionRoot({
+        kind: 'publication',
+        namespace: 'g',
+        locator: 'checkpoint:g',
+        generation: 'checkpoint-sha',
+        path: '/',
+      }),
+      observedAt: new Date(0).toISOString(),
+    });
     class TestStore extends CheckpointStorePort {
-      async publishCheckpoint(_record: CheckpointRecord) { return { checkpointSha: 'checkpoint-sha' }; }
+      async publishCheckpoint(_record: CheckpointRecord) {
+        return { checkpointSha: 'checkpoint-sha', bundleHandle, retention };
+      }
       async resolveHead(_graphName: string) { return 'checkpoint-sha'; }
       async loadCheckpoint(_sha: string) { return data; }
       async readMetadata(_sha: string): Promise<CheckpointMetadata> {
@@ -55,7 +75,7 @@ describe('CheckpointStorePort', () => {
       stateHash: 'state-hash',
       parents: [],
     });
-    expect(published).toEqual({ checkpointSha: 'checkpoint-sha' });
+    expect(published).toEqual({ checkpointSha: 'checkpoint-sha', bundleHandle, retention });
     await expect(store.loadCheckpoint(published.checkpointSha)).resolves.toBe(data);
   });
 });

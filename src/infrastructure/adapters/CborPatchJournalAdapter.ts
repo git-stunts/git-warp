@@ -3,6 +3,7 @@ import type {
   PublicationCapability,
 } from '@git-stunts/git-cas';
 import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
+import PatchPublicationConflictError from '../../domain/errors/PatchPublicationConflictError.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
@@ -27,6 +28,9 @@ import {
 } from './SubstrateCompatibilityPolicy.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './TrailerCommitMessageCodecAdapter.ts';
+import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
+import { requireAdapterDependency } from './AdapterDependencyGuard.ts';
+import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 
 type CommitInfo = {
   sha: string;
@@ -65,10 +69,10 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     readonly encrypted?: boolean;
   }) {
     super();
-    requireDependency(options.assetStorage, 'assetStorage');
-    requireDependency(options.cas, 'cas');
-    requireDependency(options.codec, 'codec');
-    requireDependency(options.commitReader, 'commitReader');
+    requireAdapterDependency(options.assetStorage, 'assetStorage');
+    requireAdapterDependency(options.cas, 'cas');
+    requireAdapterDependency(options.codec, 'codec');
+    requireAdapterDependency(options.commitReader, 'commitReader');
     this.#assetStorage = options.assetStorage;
     this.#cas = options.cas;
     this.#codec = options.codec;
@@ -97,14 +101,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
       schema: request.patch.schema,
       storage: createGitCasPatchStorage({ encrypted: this.#encrypted }),
     });
-    const publication = await this.#cas.publications.commit({
-      root: bundle.handle,
-      commit: {
-        message,
-        parents: request.parent === null ? [] : [request.parent],
-      },
-      ref: { name: request.targetRef, expected: request.expectedHead },
-    });
+    const publication = await this.#publishBundle(bundle.handle, message, request);
     return Object.freeze({
       sha: publication.commitId,
       bundleHandle: new BundleHandle(publication.root.toString()),
@@ -113,10 +110,34 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     });
   }
 
+  async #publishBundle(
+    root: Parameters<PublicationCapability['commit']>[0]['root'],
+    message: string,
+    request: AppendPatchRequest,
+  ): Promise<Awaited<ReturnType<PublicationCapability['commit']>>> {
+    try {
+      return await this.#cas.publications.commit({
+        root,
+        commit: {
+          message,
+          parents: request.parent === null ? [] : [request.parent],
+        },
+        ref: { name: request.targetRef, expected: request.expectedHead },
+      });
+    } catch (error) {
+      if (readGitCasErrorCode(error) !== 'PUBLICATION_CONFLICT') {
+        throw error;
+      }
+      throw new PatchPublicationConflictError(
+        error instanceof Error ? error : undefined,
+      );
+    }
+  }
+
   override async readPatch(message: PatchCommitMessage): Promise<Patch> {
     this.#requireReadableStorage(message);
     const handle = message.patchHandle;
-    const bytes = await collectBytes(this.#assetStorage.open(handle));
+    const bytes = await collectAsyncIterable(this.#assetStorage.open(handle));
     return hydrateDecodedPatch(this.#codec.decode(bytes));
   }
 
@@ -137,7 +158,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         stack.push({ sha: current, message: adapter.#commitMessageCodec.decodePatch(node.message) });
         current = node.parents[0] ?? null;
       }
-      if (fromSha !== null && current === null) {
+      if (fromSha !== null && current !== fromSha) {
         throw new SyncError(
           `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`,
           { code: 'E_SYNC_DIVERGENCE', context: { writerId, fromSha, toSha } },
@@ -180,27 +201,4 @@ function patchBundleMembers(
   }
   members.push(['patch', patch.toString()]);
   return WarpStream.from(members);
-}
-
-async function collectBytes(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for await (const chunk of source) {
-    chunks.push(chunk);
-    size += chunk.byteLength;
-  }
-  const result = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
-}
-
-
-function requireDependency(value: unknown, name: string): void {
-  if (value === null || value === undefined) {
-    throw new WarpError(`CborPatchJournalAdapter requires ${name}`, 'E_INVALID_DEPENDENCY');
-  }
 }

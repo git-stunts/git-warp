@@ -34,7 +34,8 @@ import type { PatchDiff } from '../../types/PatchDiff.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { LogicalIndex } from '../index/logicalIndexHelpers.ts';
 import type PropertyIndexReader from '../index/PropertyIndexReader.ts';
-import type { PatchCommitResult } from '../PatchCommitter.ts';
+import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
+import type { AuditReceiptService } from '../audit/AuditReceiptService.ts';
 import { E_NO_STATE_MSG, E_STALE_STATE_MSG } from './QueryStateMessages.ts';
 
 // ── PatchHost ─────────────────────────────────────────────────────────────────
@@ -75,9 +76,7 @@ export interface PatchHost extends PatchDiscoveryHost {
     addPatch: (sha: string, reads: string[] | undefined, writes: string[] | undefined) => void;
   } | null | undefined;
   _lastFrontier: Map<string, string> | null | undefined;
-  _auditService: {
-    commit: (receipt: TickReceipt) => Promise<unknown>;
-  } | null | undefined;
+  _auditService: Pick<AuditReceiptService, 'commit'> | null | undefined;
   _auditSkipCount: number;
   _cachedViewHash: string | null;
   _materializedGraph: { state: WarpState; stateHash: string | null; adjacency: AdjacencyMap } | null;

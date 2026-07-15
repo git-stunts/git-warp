@@ -12,7 +12,7 @@ import CheckpointNeighborhoodPageReader, {
 import type { CheckpointTailIndexBasis } from './CheckpointTailBasisLoader.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 import type { ReadIdentityIndexShard } from './ReadIdentity.ts';
-import AssetHandle from '../../storage/AssetHandle.ts';
+import type AssetHandle from '../../storage/AssetHandle.ts';
 import { collectAsyncIterable } from '../../utils/streamUtils.ts';
 
 export type {
@@ -39,19 +39,9 @@ type CheckpointShardReadFailureContext = {
 
 export default class CheckpointShardFactReader {
   private readonly _source: CheckpointTailOpticSource;
-  private readonly _neighborhoodReader: CheckpointNeighborhoodPageReader;
 
   constructor(options: { readonly source: CheckpointTailOpticSource }) {
     this._source = options.source;
-    this._neighborhoodReader = new CheckpointNeighborhoodPageReader({
-      source: options.source,
-      readShard: async (path, token) => await readShardAsset({
-        graphName: options.source.graphName,
-        indexStore: options.source._indexStore,
-        path,
-        handle: new AssetHandle(token),
-      }),
-    });
     Object.freeze(this);
   }
 
@@ -60,17 +50,20 @@ export default class CheckpointShardFactReader {
     nodeId: string,
   ): Promise<boolean> {
     const path = this._metaPath(nodeId);
-    const oid = basis.manifest.livenessRoots.get(path);
-    const handle = basis.indexHandles[path];
-    if (oid === undefined || handle === undefined) {
+    const token = basis.manifest.livenessRoots.get(path);
+    if (token === undefined) {
       return false;
     }
+    const handle = requireBoundShardHandle(basis, path, token);
     try {
       const reader = await new LogicalIndexReader({ indexStore: this._source._indexStore })
         .loadFromHandles({ [path]: handle });
       return reader.toLogicalIndex().isAlive(nodeId);
     } catch (error) {
-      const context = { graphName: this._source.graphName, path, oid };
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+      const context = { graphName: this._source.graphName, path, oid: token };
       return rethrowLogicalShardReadFailure(error, context);
     }
   }
@@ -81,11 +74,11 @@ export default class CheckpointShardFactReader {
     propertyKey: string,
   ): Promise<PropValue | undefined> {
     const path = this._propertyPath(nodeId);
-    const oid = basis.manifest.propertyRoots.get(path);
-    const handle = basis.propHandles[path];
-    if (oid === undefined || handle === undefined) {
+    const token = basis.manifest.propertyRoots.get(path);
+    if (token === undefined) {
       return undefined;
     }
+    const handle = requireBoundShardHandle(basis, path, token);
     const reader = new PropertyIndexReader({
       indexStore: this._source._indexStore,
       maxCachedShards: MAX_CACHED_CHECKPOINT_PROPERTY_SHARDS,
@@ -94,7 +87,10 @@ export default class CheckpointShardFactReader {
     try {
       return await reader.getProperty(nodeId, propertyKey);
     } catch (error) {
-      const context = { graphName: this._source.graphName, path, oid };
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+      const context = { graphName: this._source.graphName, path, oid: token };
       return rethrowPropertyShardReadFailure(error, context);
     }
   }
@@ -103,9 +99,21 @@ export default class CheckpointShardFactReader {
     basis: CheckpointTailIndexBasis,
     options: CheckpointShardNeighborhoodReadOptions,
   ): Promise<CheckpointShardNeighborhoodPage> {
+    const neighborhoodReader = new CheckpointNeighborhoodPageReader({
+      source: this._source,
+      readShard: async (path, token) => await readShardAsset({
+        graphName: this._source.graphName,
+        indexStore: this._source._indexStore,
+        path,
+        handle: requireBoundShardHandle(basis, path, token),
+      }),
+    });
     try {
-      return await this._neighborhoodReader.read(basis, options);
+      return await neighborhoodReader.read(basis, options);
     } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
       const context = firstShardFailureContext(this._source.graphName);
       return rethrowLogicalShardReadFailure(error, context);
     }
@@ -138,29 +146,56 @@ export default class CheckpointShardFactReader {
 }
 
 function rethrowLogicalShardReadFailure(
-  error: unknown,
+  error: Error,
   context: CheckpointShardReadFailureContext,
 ): never {
-  if (error instanceof Error) {
-    const failure = checkpointLogicalShardReadFailure(error, context);
-    if (failure !== null) {
-      throw failure;
-    }
+  const failure = checkpointLogicalShardReadFailure(error, context);
+  if (failure !== null) {
+    throw failure;
   }
   throw error;
 }
 
 function rethrowPropertyShardReadFailure(
-  error: unknown,
+  error: Error,
   context: CheckpointShardReadFailureContext,
 ): never {
-  if (error instanceof Error) {
-    const failure = checkpointShardReadFailure(error, context);
-    if (failure !== null) {
-      throw failure;
-    }
+  const failure = checkpointShardReadFailure(error, context);
+  if (failure !== null) {
+    throw failure;
   }
   throw error;
+}
+
+function requireBoundShardHandle(
+  basis: CheckpointTailIndexBasis,
+  path: string,
+  manifestToken: string,
+): AssetHandle {
+  const handle = basis.indexHandles[path] ?? basis.propHandles[path];
+  if (handle === undefined) {
+    throwShardIdentityMismatch(path, manifestToken, null);
+  }
+  if (handle.toString() !== manifestToken) {
+    throwShardIdentityMismatch(path, manifestToken, handle.toString());
+  }
+  return handle;
+}
+
+function throwShardIdentityMismatch(
+  path: string,
+  manifestToken: string,
+  basisToken: string | null,
+): never {
+  throw new QueryError('Checkpoint shard identity does not match its bounded basis.', {
+    code: 'E_OPTIC_NO_BOUNDED_BASIS',
+    context: {
+      reason: CHECKPOINT_SHARD_INVALID_CAUSE,
+      path,
+      manifestHandle: manifestToken,
+      basisHandle: basisToken,
+    },
+  });
 }
 
 async function readShardAsset(options: {

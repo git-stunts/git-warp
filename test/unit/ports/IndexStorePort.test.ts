@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { IndexShard } from '../../../src/domain/artifacts/IndexShard.ts';
 import AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
 import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
@@ -16,10 +17,13 @@ describe('IndexStorePort', () => {
 
   it('can be implemented without object IDs', async () => {
     class TestStore extends IndexStorePort {
-      readonly handle = new AssetHandle('index:test');
-      async writeShards(_shards: WarpStream<IndexShard>) { return this.handle; }
-      scanShards(_handle: AssetHandle) { return WarpStream.of<IndexShard>(); }
-      async readShardHandles(_handle: AssetHandle) { return { 'shard.cbor': this.handle }; }
+      readonly bundleHandle = new BundleHandle('index:test');
+      readonly shardHandle = new AssetHandle('index-shard:test');
+      async writeShards(_shards: WarpStream<IndexShard>) { return this.bundleHandle; }
+      scanShards(_handle: BundleHandle) { return WarpStream.of<IndexShard>(); }
+      async readShardHandles(_handle: BundleHandle) {
+        return { 'shard.cbor': this.shardHandle };
+      }
       async *openShard(_handle: AssetHandle) { yield new Uint8Array([1]); }
       async decodeShard<TDecoded extends CodecValue = CodecValue>(
         _handle: AssetHandle,
@@ -29,9 +33,9 @@ describe('IndexStorePort', () => {
     }
 
     const store = new TestStore();
-    await expect(store.writeShards(WarpStream.of<IndexShard>())).resolves.toBe(store.handle);
-    await expect(store.readShardHandles(store.handle)).resolves.toEqual({
-      'shard.cbor': store.handle,
+    await expect(store.writeShards(WarpStream.of<IndexShard>())).resolves.toBe(store.bundleHandle);
+    await expect(store.readShardHandles(store.bundleHandle)).resolves.toEqual({
+      'shard.cbor': store.shardHandle,
     });
   });
 });

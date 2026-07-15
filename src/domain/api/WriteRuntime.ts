@@ -8,7 +8,7 @@ import { applyIntentToPatch } from './IntentRuntime.ts';
 import type { WriteOutcome } from './ReceiptOutcome.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
 import WriteReceipt from './WriteReceipt.ts';
-import type { PatchCommitResult } from '../services/PatchCommitter.ts';
+import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
 
 type IntentCommit = (build: WarpWorldlinePatchBuild) => Promise<PatchCommitResult>;
 

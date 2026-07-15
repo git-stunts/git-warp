@@ -1,5 +1,6 @@
 import {
   AssetHandle,
+  type AssetCapability,
   CborCodec,
   RetentionWitness,
   StagedAsset,
@@ -40,9 +41,9 @@ class TestCrypto extends CryptoPort {
   timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean { return left.length === right.length; }
 }
 
-function stagedAsset(): StagedAsset {
+function stagedAsset(handle = HANDLE): StagedAsset {
   return new StagedAsset({
-    handle: HANDLE,
+    handle,
     slug: 'trust-record',
     filename: 'record.cbor',
     size: codec.encode(recordObject).byteLength,
@@ -76,9 +77,10 @@ function bytes(source: Uint8Array): AsyncIterable<Uint8Array> {
 
 function createCas() {
   const assets = {
-    put: vi.fn(async () => stagedAsset()),
-    adopt: vi.fn(async () => stagedAsset()),
-    open: vi.fn(() => bytes(codec.encode(recordObject))),
+    put: vi.fn(async (_request: Parameters<AssetCapability['put']>[0]) => stagedAsset()),
+    adopt: vi.fn(async (_request: Parameters<AssetCapability['adopt']>[0]) => stagedAsset()),
+    open: vi.fn((_request: Parameters<AssetCapability['open']>[0]) =>
+      bytes(codec.encode(recordObject))),
   };
   const publications = {
     commit: vi.fn(async () => ({
@@ -123,8 +125,22 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
 
   it('implements TrustChainPort and returns null for a missing trust ref', async () => {
     expect(adapter).toBeInstanceOf(TrustChainPort);
-    plumbing.execute.mockRejectedValueOnce(new Error('missing ref'));
+    plumbing.execute.mockRejectedValueOnce(missingRefError());
     await expect(adapter.readTip(GRAPH)).resolves.toBeNull();
+  });
+
+  it('propagates rev-parse failures that are not missing refs', async () => {
+    const unavailable = new Error('repository unavailable');
+    plumbing.execute.mockRejectedValueOnce(unavailable);
+    await expect(adapter.readTip(GRAPH)).rejects.toBe(unavailable);
+
+    plumbing.execute.mockRejectedValueOnce(unavailable);
+    const read = async (): Promise<void> => {
+      for await (const _record of adapter.readRecords(GRAPH)) {
+        // No record may be yielded when ref resolution fails.
+      }
+    };
+    await expect(read()).rejects.toBe(unavailable);
   });
 
   it('reads a tip record by adopting and opening its asset tree', async () => {
@@ -145,19 +161,35 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
   it('streams records oldest-first through asset handles', async () => {
     const oldest = '1'.repeat(40);
     const newest = '2'.repeat(40);
+    const oldestTree = '3'.repeat(40);
+    const newestTree = '4'.repeat(40);
+    const oldestHandle = new AssetHandle({ codec: 'raw', oid: oldestTree });
+    const newestHandle = new AssetHandle({ codec: 'raw', oid: newestTree });
     plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
       if (args[0] === 'rev-parse') return newest;
-      if (args[0] === 'cat-file' && args[2] === newest) return `tree ${TREE}\nparent ${oldest}\n\nmessage`;
-      if (args[0] === 'cat-file' && args[2] === oldest) return `tree ${TREE}\n\nmessage`;
+      if (args[0] === 'cat-file' && args[2] === newest) return `tree ${newestTree}\nparent ${oldest}\n\nmessage`;
+      if (args[0] === 'cat-file' && args[2] === oldest) return `tree ${oldestTree}\n\nmessage`;
       return '';
+    });
+    cas.assets.adopt.mockImplementation(async ({ treeOid }) =>
+      stagedAsset(treeOid === oldestTree ? oldestHandle : newestHandle));
+    cas.assets.open.mockImplementation(({ handle }) => {
+      const parsed = AssetHandle.from(handle);
+      const isOldest = parsed.oid === oldestTree;
+      return bytes(codec.encode({
+        ...recordObject,
+        issuedAt: isOldest ? '2026-01-01T00:00:00.000Z' : '2026-01-02T00:00:00.000Z',
+      }));
     });
 
     const records: TrustRecord[] = [];
     for await (const record of adapter.readRecords(GRAPH)) {
       records.push(record);
     }
-    expect(records).toHaveLength(2);
-    expect(records.every((record) => record.recordId === 'expected-record-id-hash')).toBe(true);
+    expect(records.map((record) => record.issuedAt)).toEqual([
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-02T00:00:00.000Z',
+    ]);
   });
 
   it('stages and causally publishes a trust record with retention evidence', async () => {
@@ -214,7 +246,7 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
       if (args[0] === 'rev-parse') return TIP;
       if (args[0] === 'cat-file' && args[1] === '-p') return `tree ${TREE}\n\nmessage`;
       if (args[0] === 'ls-tree') {
-        return `\nmalformed\n100644 blob ${HANDLE.oid}\trecord.cbor\n`;
+        return `100644 blob ${HANDLE.oid}\trecord.cbor\n`;
       }
       if (args[0] === 'cat-file' && args[1] === 'blob') {
         return Buffer.from(codec.encode(recordObject)).toString('binary');
@@ -234,7 +266,7 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
     expect(records[0]?.recordId).toBe('expected-record-id-hash');
   });
 
-  it('returns null when a legacy tree or blob cannot yield a record id', async () => {
+  it('rejects malformed legacy trees and returns null for undecodable legacy records', async () => {
     adapter = new GitTrustChainAdapter({
       plumbing,
       crypto: new TestCrypto(),
@@ -251,7 +283,9 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
       if (args[0] === 'ls-tree') return `100644 blob ${HANDLE.oid}\tother.cbor`;
       return '';
     });
-    await expect(adapter.readTip(GRAPH)).resolves.toEqual({ tipSha: TIP, recordId: null });
+    await expect(adapter.readTip(GRAPH)).rejects.toMatchObject({
+      code: 'E_TRUST_LEGACY_TREE_INVALID',
+    });
 
     plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
       if (args[0] === 'rev-parse') return TIP;
@@ -264,7 +298,7 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
   });
 
   it('rejects tampered record IDs and yields no records for a missing ref', async () => {
-    plumbing.execute.mockRejectedValueOnce(new Error('missing ref'));
+    plumbing.execute.mockRejectedValueOnce(missingRefError());
     const records: TrustRecord[] = [];
     for await (const record of adapter.readRecords(GRAPH)) {
       records.push(record);
@@ -312,3 +346,7 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
       .resolves.toMatchObject({ commitSha: TIP });
   });
 });
+
+function missingRefError(): Error & { readonly exitCode: number } {
+  return Object.assign(new Error('missing ref'), { exitCode: 1 });
+}

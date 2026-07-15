@@ -11,10 +11,12 @@ import {
   type AssetCapability,
   type BundleHandleInput,
   type BundleCapability,
+  type BundleMember,
   type PageHandleInput,
   type PublicationCapability,
 } from '@git-stunts/git-cas';
 import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
+import { collectAsyncIterable } from '../../src/domain/utils/streamUtils.ts';
 import type { GitTreeCommitOptions } from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import InMemoryBlobStorageAdapter from './InMemoryBlobStorageAdapter.ts';
 
@@ -34,11 +36,13 @@ const BUNDLE_LIMITS = Object.freeze({
   maxFanoutEntries: 1_024,
   maxFanoutDepth: 16,
 });
+const ENCRYPTED_ASSET_MAGIC = new Uint8Array([0x47, 0x57, 0x45, 0x43]);
+const ENCRYPTED_ASSET_NONCE_BYTES = 12;
 
 /** Minimal high-level git-cas facade used to exercise production adapters in memory. */
 export default class InMemoryGitCasFacade {
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
-  readonly bundles: Pick<BundleCapability, 'putOrdered'>;
+  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
 
   readonly #history: PublicationHistory;
@@ -56,10 +60,11 @@ export default class InMemoryGitCasFacade {
     this.assets = Object.freeze({
       put: async (request) => await this.#putAsset(request),
       adopt: async ({ treeOid }) => await this.#adoptAsset(treeOid),
-      open: (request) => this.#openAsset(request.handle),
+      open: (request) => this.#openAsset(request),
     });
     this.bundles = Object.freeze({
       putOrdered: async (request) => await this.#putBundle(request.members),
+      iterateMembers: (request) => this.#iterateBundleMembers(request.handle),
     });
     this.publications = Object.freeze({
       commit: async (request) => await this.#publish(request),
@@ -74,10 +79,22 @@ export default class InMemoryGitCasFacade {
     return this.#publicationRoots.get(commitId) ?? null;
   }
 
+  async readStoredAsset(handle: string): Promise<Uint8Array> {
+    return await this.#readStoredAsset(GitCasAssetHandle.parse(handle));
+  }
+
+  replaceStoredAsset(handle: string, bytes: Uint8Array): void {
+    this.#storage.replace(new AssetHandle(handle), bytes);
+  }
+
   async #putAsset(
     request: Parameters<AssetCapability['put']>[0],
   ): Promise<StagedAsset> {
-    const staged = await this.#storage.stage(request.source, {
+    const sourceBytes = await collectAsyncIterable(request.source);
+    const storedBytes = request.encryptionKey === undefined
+      ? sourceBytes
+      : await encryptAsset(sourceBytes, request.encryptionKey);
+    const staged = await this.#storage.stage(singleChunk(storedBytes), {
       slug: request.slug,
       filename: request.filename ?? 'content',
     });
@@ -85,7 +102,7 @@ export default class InMemoryGitCasFacade {
       handle: GitCasAssetHandle.parse(staged.handle.toString()),
       slug: request.slug,
       filename: request.filename ?? 'content',
-      size: staged.size,
+      size: sourceBytes.byteLength,
       observedAt: staged.observedAt,
     });
     this.#stagedAssetsByOid.set(asset.handle.oid, asset);
@@ -117,12 +134,23 @@ export default class InMemoryGitCasFacade {
     });
   }
 
-  async *#openAsset(handleInput: Parameters<AssetCapability['open']>[0]['handle']): AsyncIterable<Uint8Array> {
-    const handle = GitCasAssetHandle.from(handleInput);
-    const bytes = await this.#storage.retrieve(handle.toString()).catch(
+  async *#openAsset(request: Parameters<AssetCapability['open']>[0]): AsyncIterable<Uint8Array> {
+    const handle = GitCasAssetHandle.from(request.handle);
+    const storedBytes = await this.#readStoredAsset(handle);
+    if (!hasEncryptedAssetMagic(storedBytes)) {
+      yield storedBytes;
+      return;
+    }
+    if (request.encryptionKey === undefined) {
+      throw encryptedAssetIntegrityError();
+    }
+    yield await decryptAsset(storedBytes, request.encryptionKey);
+  }
+
+  async #readStoredAsset(handle: GitCasAssetHandle): Promise<Uint8Array> {
+    return await this.#storage.retrieve(handle.toString()).catch(
       async () => await this.#storage.retrieve(handle.oid),
     );
-    yield bytes;
   }
 
   async #putBundle(
@@ -155,12 +183,39 @@ export default class InMemoryGitCasFacade {
     });
   }
 
+  async *#iterateBundleMembers(
+    handleInput: BundleHandleInput,
+  ): AsyncGenerator<BundleMember> {
+    const handle = BundleHandle.from(handleInput);
+    const members = this.#bundleMembers.get(handle.toString());
+    if (members === undefined) {
+      throw Object.assign(new Error(`Unknown bundle: ${handle.toString()}`), {
+        code: 'BUNDLE_NOT_FOUND',
+      });
+    }
+    for (const [path, token] of members) {
+      const memberHandle = parseApplicationHandle(token);
+      const asset = memberHandle instanceof GitCasAssetHandle
+        ? this.#stagedAssetsByOid.get(memberHandle.oid)
+        : undefined;
+      yield Object.freeze({
+        version: 1,
+        path,
+        handle: memberHandle,
+        type: memberHandle instanceof PageHandle ? 'blob' : 'tree',
+        size: asset?.asset.size ?? null,
+        logicalBytes: asset?.asset.size ?? 0,
+      });
+    }
+  }
+
   async #publish(
     request: Parameters<PublicationCapability['commit']>[0],
   ): Promise<Awaited<ReturnType<PublicationCapability['commit']>>> {
     const root = parseApplicationHandle(request.root);
     const current = await this.#history.readRef(request.ref.name);
     if (current !== request.ref.expected) {
+      // Delegate conflict construction to the history fake's verified CAS path.
       await this.#history.compareAndSwapRef(
         request.ref.name,
         current ?? root.oid,
@@ -195,6 +250,70 @@ export default class InMemoryGitCasFacade {
       witness,
     });
   }
+}
+
+async function encryptAsset(bytes: Uint8Array, keyBytes: Uint8Array): Promise<Uint8Array> {
+  const key = await importAesKey(keyBytes);
+  const nonce = globalThis.crypto.getRandomValues(new Uint8Array(ENCRYPTED_ASSET_NONCE_BYTES));
+  const ciphertext = new Uint8Array(await globalThis.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: nonce },
+    key,
+    exactBytes(bytes),
+  ));
+  const envelope = new Uint8Array(
+    ENCRYPTED_ASSET_MAGIC.byteLength + nonce.byteLength + ciphertext.byteLength,
+  );
+  envelope.set(ENCRYPTED_ASSET_MAGIC, 0);
+  envelope.set(nonce, ENCRYPTED_ASSET_MAGIC.byteLength);
+  envelope.set(ciphertext, ENCRYPTED_ASSET_MAGIC.byteLength + nonce.byteLength);
+  return envelope;
+}
+
+async function decryptAsset(envelope: Uint8Array, keyBytes: Uint8Array): Promise<Uint8Array> {
+  const nonceStart = ENCRYPTED_ASSET_MAGIC.byteLength;
+  const ciphertextStart = nonceStart + ENCRYPTED_ASSET_NONCE_BYTES;
+  try {
+    const key = await importAesKey(keyBytes);
+    return new Uint8Array(await globalThis.crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: envelope.slice(nonceStart, ciphertextStart) },
+      key,
+      envelope.slice(ciphertextStart),
+    ));
+  } catch {
+    throw encryptedAssetIntegrityError();
+  }
+}
+
+async function importAesKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+  return await globalThis.crypto.subtle.importKey(
+    'raw',
+    exactBytes(keyBytes),
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
+function exactBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  const exact = new Uint8Array(bytes.byteLength);
+  exact.set(bytes);
+  return exact;
+}
+
+function hasEncryptedAssetMagic(bytes: Uint8Array): boolean {
+  return bytes.byteLength >= ENCRYPTED_ASSET_MAGIC.byteLength + ENCRYPTED_ASSET_NONCE_BYTES
+    && ENCRYPTED_ASSET_MAGIC.every((value, index) => bytes[index] === value);
+}
+
+function encryptedAssetIntegrityError(): Error & { readonly code: 'INTEGRITY_ERROR' } {
+  return Object.assign<Error, { readonly code: 'INTEGRITY_ERROR' }>(
+    new Error('Decryption failed: Integrity check error'),
+    { code: 'INTEGRITY_ERROR' },
+  );
+}
+
+async function* singleChunk(bytes: Uint8Array): AsyncGenerator<Uint8Array> {
+  yield bytes;
 }
 
 function parseApplicationHandle(input: ApplicationHandleInput): ApplicationHandle {

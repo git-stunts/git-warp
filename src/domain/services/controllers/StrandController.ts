@@ -18,7 +18,7 @@ import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchBuilder } from '../PatchBuilder.ts';
 import type Patch from '../../types/Patch.ts';
-import type { PatchCommitResult } from '../PatchCommitter.ts';
+import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 
 export type StrandHost = StrandCoordinatorGraphRuntime & {
   _loadWriterPatches(writerId: string): Promise<Array<{ patch: Patch; sha: string }>>;

@@ -9,19 +9,26 @@
 
 const _encoder = new TextEncoder();
 
+type StreamInput = AsyncIterable<Uint8Array>
+  | ReadableStream<Uint8Array>
+  | Uint8Array
+  | string;
+type StreamCandidate = StreamInput | object;
+
 /**
  * Returns true when the value is an async iterable (has Symbol.asyncIterator).
  */
-function isAsyncIterable(value: unknown): value is AsyncIterable<Uint8Array> {
+function isAsyncIterable(value: StreamCandidate): value is AsyncIterable<Uint8Array> {
   return value !== null
     && typeof value === 'object'
-    && Symbol.asyncIterator in value;
+    && Symbol.asyncIterator in value
+    && typeof value[Symbol.asyncIterator] === 'function';
 }
 
 /**
  * Returns true when the value is a ReadableStream (Web Streams API).
  */
-function isReadableStream(value: unknown): value is ReadableStream<Uint8Array> {
+function isReadableStream(value: StreamCandidate): value is ReadableStream<Uint8Array> {
   return typeof ReadableStream !== 'undefined'
     && value instanceof ReadableStream;
 }
@@ -31,8 +38,8 @@ function isReadableStream(value: unknown): value is ReadableStream<Uint8Array> {
  * (AsyncIterable or ReadableStream) rather than a buffered value.
  */
 export function isStreamingInput(
-  content: unknown,
-): content is AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  content: StreamCandidate,
+): content is AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> {
   // Buffered types are never streaming, even if a polyfill adds Symbol.asyncIterator
   if (content instanceof Uint8Array || typeof content === 'string') {
     return false;
@@ -49,7 +56,7 @@ export function isStreamingInput(
  * - `Uint8Array` — wrapped as single-element async iterable
  * - `string` — encoded to UTF-8, wrapped as single-element async iterable
  */
-export function normalizeToAsyncIterable(content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string): AsyncIterable<Uint8Array> {
+export function normalizeToAsyncIterable(content: StreamInput): AsyncIterable<Uint8Array> {
   if (isAsyncIterable(content)) {
     return content;
   }

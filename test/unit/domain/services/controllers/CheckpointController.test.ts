@@ -353,6 +353,11 @@ describe('CheckpointController', () => {
       const result = await ctrl._loadLatestCheckpoint();
 
       expect(result).toBe(cpData);
+      expect(loadCheckpointMock).toHaveBeenCalledWith(
+        host['_checkpointStore'],
+        'cp-sha',
+        host['_graphName'],
+      );
     });
 
     it('returns null when ref is empty', async () => {
@@ -371,13 +376,12 @@ describe('CheckpointController', () => {
       expect(result).toBeNull();
     });
 
-    it('returns null for known load errors (missing, not found, ENOENT)', async () => {
+    it('propagates every load failure after resolving a checkpoint head', async () => {
       ((host['_checkpointStore'] as any).resolveHead as any).mockResolvedValue('cp-sha');
 
       for (const msg of ['object missing', 'ref not found', 'ENOENT: no such file', 'non-empty string']) {
         loadCheckpointMock.mockRejectedValueOnce(new Error(msg));
-        const result = await ctrl._loadLatestCheckpoint();
-        expect(result).toBeNull();
+        await expect(ctrl._loadLatestCheckpoint()).rejects.toThrow(msg);
       }
     });
 
@@ -447,7 +451,10 @@ describe('CheckpointController', () => {
       isCurrentCheckpointSchemaMock.mockReturnValue(true);
 
       await expect(ctrl._validateMigrationBoundary()).resolves.toBeUndefined();
-      expect((host['_checkpointStore'] as any).readMetadata).toHaveBeenCalledWith('cp-sha');
+      expect(host['_checkpointStore'].readMetadata).toHaveBeenCalledWith(
+        'cp-sha',
+        host['_graphName'],
+      );
     });
 
     it('throws SchemaUnsupportedError when schema:1 patches exist', async () => {
@@ -457,10 +464,10 @@ describe('CheckpointController', () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice']);
       ((host['_persistence'] as any).getNodeInfo as any).mockResolvedValue({ message: 'patch-msg', parents: [] });
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock.mockReturnValue({ patchHandle: 'asset:patch' });
-      (host['_readPatch'] as any).mockResolvedValue({ schema: 1 });
+      decodePatchMessageMock.mockReturnValue({ schema: 1 });
 
       await expect(ctrl._validateMigrationBoundary()).rejects.toThrow(SchemaUnsupportedError);
+      expect(host['_readPatch']).not.toHaveBeenCalled();
     });
 
     it('passes when no checkpoint and no schema:1 patches', async () => {

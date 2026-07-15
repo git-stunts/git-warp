@@ -89,7 +89,7 @@ export default class BitmapIndexReader {
   }
 
   /**
-   * Configures the reader with shard OID mappings for lazy loading.
+   * Configures the reader with opaque shard handles for lazy loading.
    */
   setup(shardHandles: Readonly<Record<string, AssetHandle>>): void {
     const validEntries: Array<[string, AssetHandle]> = [];
@@ -332,10 +332,16 @@ export default class BitmapIndexReader {
     try {
       return await collectAsyncIterable(this.indexStore.openShard(handle));
     } catch (cause) {
+      const errorCause = cause instanceof Error
+        ? cause
+        : new IndexError('Shard storage threw a non-error value', {
+            code: 'E_INDEX_STORAGE_THROWABLE',
+            context: { value: String(cause) },
+          });
       throw new ShardLoadError('Failed to load shard from storage', {
         shardPath: path,
         oid: handle.toString(),
-        cause: cause as Error,
+        cause: errorCause,
       });
     }
   }

@@ -1,4 +1,5 @@
 import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
+import AuditPublicationConflictError from '../../src/domain/errors/AuditPublicationConflictError.ts';
 import AuditLogPort, {
   type AppendAuditRecordRequest,
   type AuditLogEntry,
@@ -51,6 +52,7 @@ export default class InMemoryAuditLogAdapter extends AuditLogPort {
   }
 
   override async listWriterIds(graphName: string): Promise<string[]> {
+    this.#throwReadFailure();
     const prefix = `${graphName}\0`;
     return [...this.#heads.keys()]
       .filter((entry) => entry.startsWith(prefix))
@@ -65,7 +67,7 @@ export default class InMemoryAuditLogAdapter extends AuditLogPort {
     const headKey = key(request.graphName, request.writerId);
     const current = this.#heads.get(headKey) ?? null;
     if (current !== request.expectedHead) {
-      throw publicationConflict(current, request.expectedHead);
+      throw new AuditPublicationConflictError(request.expectedHead, current);
     }
     const sha = (++this.#sequence).toString(16).padStart(40, '0');
     this.#entries.set(sha, Object.freeze({
@@ -92,21 +94,21 @@ export default class InMemoryAuditLogAdapter extends AuditLogPort {
   }
 
   override async readEntry(sha: string): Promise<AuditLogEntry> {
+    this.#throwReadFailure();
     const entry = this.#entries.get(sha);
     if (entry === undefined) {
       throw new Error(`Audit entry not found: ${sha}`);
     }
     return entry;
   }
+
+  #throwReadFailure(): void {
+    if (this.#readFailure !== null) {
+      throw this.#readFailure;
+    }
+  }
 }
 
 function key(graphName: string, writerId: string): AuditHeadKey {
   return `${graphName}\0${writerId}`;
-}
-
-function publicationConflict(actual: string | null, expected: string | null): Error {
-  return Object.assign(
-    new Error(`Publication conflict: expected ${String(expected)}, got ${String(actual)}`),
-    { code: 'PUBLICATION_CONFLICT' },
-  );
 }

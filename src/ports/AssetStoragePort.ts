@@ -3,7 +3,6 @@ import type AssetHandle from '../domain/storage/AssetHandle.ts';
 export type AssetWriteOptions = {
   readonly slug: string;
   readonly filename?: string;
-  readonly mime?: string | null;
   readonly expectedSize?: number | null;
 };
 

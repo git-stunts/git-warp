@@ -47,6 +47,21 @@ describe('GraphModelMigrationDryRunRequestJsonAdapter', () => {
     expect(request.requiredContentKeys).toEqual(['node:alpha:_content']);
   });
 
+  it('accepts matching current and legacy content-handle aliases', () => {
+    const handle = 'fixture-content:node:alpha:_content';
+    const request = parseGraphModelMigrationDryRunRequest(requestJson({
+      inventory: inventoryJson({
+        contentSources: [{
+          legacyContentKey: 'node:alpha:_content',
+          contentHandle: handle,
+          contentOid: handle,
+        }],
+      }),
+    }));
+
+    expect(request.inventory.contentSources[0]?.contentHandle).toBe(handle);
+  });
+
   it('rejects malformed JSON without leaking a platform SyntaxError', () => {
     expect(() => parseGraphModelMigrationDryRunRequest('{')).toThrow(/valid JSON/);
   });
@@ -138,6 +153,18 @@ describe('GraphModelMigrationDryRunRequestJsonAdapter', () => {
           }),
         }),
         message: /contentHandle.*required/,
+      },
+      {
+        raw: requestJson({
+          inventory: inventoryJson({
+            contentSources: [{
+              legacyContentKey: 'node:alpha:_content',
+              contentHandle: 'asset:current',
+              contentOid: 'asset:legacy',
+            }],
+          }),
+        }),
+        message: /contentHandle.*contentOid.*match/,
       },
     ]);
 

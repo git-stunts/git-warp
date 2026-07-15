@@ -58,9 +58,7 @@ export default class PropertyIndexReader {
     this._cache = new LRUCache(maxCachedShards);
   }
 
-  /**
-   * Configures OID mappings for lazy loading.
-   */
+  /** Configures opaque shard handles for lazy loading. */
   setupHandles(shardHandles: Readonly<Record<string, AssetHandle>>): void {
     this._shardHandles = new Map(Object.entries(shardHandles));
     this._inMemoryShards.clear();

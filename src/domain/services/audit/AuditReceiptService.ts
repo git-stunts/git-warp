@@ -1,6 +1,7 @@
 /** AuditReceiptService — persistent, chained, tamper-evident audit receipts. */
 
 import AuditError from '../../errors/AuditError.ts';
+import AuditPublicationConflictError from '../../errors/AuditPublicationConflictError.ts';
 import { encodeAuditMessage } from '../codec/AuditMessageCodec.ts';
 import type { OpOutcome, TickReceipt } from '../../types/TickReceipt.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
@@ -292,7 +293,7 @@ export class AuditReceiptService {
    * has a gap. This is acceptable by design in M3 — gaps are detected
    * by M4 verification coverage rules (receipt count vs data commit count).
    *
-   * @returns The audit commit SHA, or null on failure
+   * @returns The published audit record, or null on failure
    */
   async commit(tickReceipt: TickReceipt): Promise<PublishedAuditRecord | null> {
     if (this._degraded) {
@@ -390,7 +391,7 @@ export class AuditReceiptService {
         receipt: this._codec.encode(receipt),
       });
     } catch (error) {
-      if (errorCode(error) !== 'PUBLICATION_CONFLICT') {
+      if (!(error instanceof AuditPublicationConflictError)) {
         throw error;
       }
       if (this._retrying) {
@@ -431,8 +432,11 @@ export class AuditReceiptService {
     try {
       const result = await this._commitInner(tickReceipt);
       return result;
-    } catch {
-      // Second failure → degraded mode
+    } catch (error) {
+      if (!(error instanceof AuditError) || error.code !== AuditError.E_AUDIT_CAS_FAILED) {
+        throw error;
+      }
+      // Second publication conflict → degraded mode
       this._degraded = true;
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_DEGRADED_ACTIVE',
@@ -444,11 +448,4 @@ export class AuditReceiptService {
       this._retrying = false;
     }
   }
-}
-
-function errorCode(error: unknown): string | null {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    return typeof error.code === 'string' ? error.code : null;
-  }
-  return null;
 }

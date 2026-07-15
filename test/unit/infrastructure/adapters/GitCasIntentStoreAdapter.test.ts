@@ -50,7 +50,7 @@ function descriptor(intentId: string): WarpIntentDescriptor {
     ],
     suffixTransform: {
       op: 'append',
-      payload: { intentId },
+      payload: { intentId, route: ['queued', { intentId }] },
     },
   };
 }
@@ -81,7 +81,7 @@ describe('GitCasIntentStoreAdapter', () => {
       .resolves.toEqual([descriptor('intent-1'), descriptor('intent-2')]);
   });
 
-  it('rejects parent cycles and publication identity substitution', async () => {
+  it('rejects parent cycles, nonlinear history, and identity substitution', async () => {
     const fixture = createFixture();
     const published = await fixture.intents.publish({
       graphName: 'events',
@@ -102,11 +102,19 @@ describe('GitCasIntentStoreAdapter', () => {
       assets: fixture.assets,
       codec: fixture.codec,
     });
+    const nonlinear = new GitCasIntentStoreAdapter({
+      history: fixedHistory(node.message, [SHA, 'b'.repeat(40)]),
+      cas: fixture.cas,
+      assets: fixture.assets,
+      codec: fixture.codec,
+    });
 
     await expect(cycle.scan('events', 'queued', 'alice').collect())
       .rejects.toMatchObject({ code: 'E_INTENT_JOURNAL_CYCLE' });
     await expect(substituted.scan('events', 'admitted', 'alice').collect())
       .rejects.toMatchObject({ code: 'E_INTENT_JOURNAL_IDENTITY' });
+    await expect(nonlinear.scan('events', 'queued', 'alice').collect())
+      .rejects.toMatchObject({ code: 'E_INTENT_JOURNAL_NON_LINEAR' });
   });
 
   it('rejects malformed journal trailers and channel values', async () => {
@@ -149,6 +157,29 @@ describe('GitCasIntentStoreAdapter', () => {
         expected: '',
         failureTag: 'bad-optional',
       }],
+    },
+    {
+      ...descriptor('missing-status'),
+      precommitGuards: [{
+        op: 'nodeStatus',
+        nodeId: 'node:a',
+        failureTag: 'missing-status',
+      }],
+    },
+    {
+      ...descriptor('missing-agent'),
+      precommitGuards: [{
+        op: 'nodeUnassignedOrSelf',
+        nodeId: 'node:a',
+        failureTag: 'missing-agent',
+      }],
+    },
+    {
+      ...descriptor('bad-payload'),
+      suffixTransform: {
+        op: 'append',
+        payload: { unsupported: new Set(['unsupported']) },
+      },
     },
   ])('rejects malformed descriptor assets without partial hydration', async (value) => {
     const fixture = createFixture();

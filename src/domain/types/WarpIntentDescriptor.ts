@@ -3,18 +3,29 @@
  */
 
 import type StorageRetentionWitness from '../storage/StorageRetentionWitness.ts';
+import type CodecValue from './codec/CodecValue.ts';
 
-export type PrecommitGuard = {
-  readonly op: 'nodeStatus' | 'nodeUnassignedOrSelf' | 'edgeExists';
+type PrecommitGuardBase = {
   readonly nodeId: string;
-  readonly expected?: string;
-  readonly agentId?: string;
   readonly failureTag: string;
 };
 
+export type PrecommitGuard =
+  | (PrecommitGuardBase & {
+      readonly op: 'nodeStatus';
+      readonly expected: string;
+    })
+  | (PrecommitGuardBase & {
+      readonly op: 'nodeUnassignedOrSelf';
+      readonly agentId: string;
+    })
+  | (PrecommitGuardBase & {
+      readonly op: 'edgeExists';
+    });
+
 export type SuffixTransform = {
   readonly op: string;
-  readonly payload: Record<string, unknown>;
+  readonly payload: Readonly<{ readonly [key: string]: CodecValue }>;
 };
 
 export type IntentNutritionLabel = {

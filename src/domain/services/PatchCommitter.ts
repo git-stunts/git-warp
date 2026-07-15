@@ -10,11 +10,13 @@
 
 import VersionVector from '../crdt/VersionVector.ts';
 import Patch from '../types/Patch.ts';
+import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
 import { buildWriterRef } from '../utils/RefLayout.ts';
 import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
+import PatchPublicationConflictError from '../errors/PatchPublicationConflictError.ts';
 import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
 import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
@@ -41,8 +43,6 @@ export type CommitState = {
   logger: LoggerPort;
   onCommitSuccess: ((result: PatchCommitResult) => void | Promise<void>) | null;
 };
-
-export type PatchCommitResult = PublishedPatch & Readonly<{ patch: Patch }>;
 
 /**
  * Commits a patch built by PatchBuilder to the Git object store.
@@ -149,12 +149,12 @@ async function publishPatch(
       attachments: state.contentAssets,
     });
   } catch (error) {
-    return await rethrowPublicationConflict(
-      state.persistence,
-      writerRef,
-      state.expectedParentSha,
-      error,
-    );
+    const actualSha = await state.persistence.readRef(writerRef);
+    if (actualSha !== state.expectedParentSha
+      || error instanceof PatchPublicationConflictError) {
+      throw buildWriterCasConflict(state.expectedParentSha, actualSha);
+    }
+    throw error;
   }
 }
 
@@ -167,26 +167,4 @@ function buildWriterCasConflict(expectedSha: string | null, actualSha: string | 
   err.expectedSha = expectedSha;
   err.actualSha = actualSha;
   return err;
-}
-
-/** Advances a writer ref atomically and translates stale-head failures. */
-async function rethrowPublicationConflict(
-  persistence: WarpKernelPort,
-  writerRef: string,
-  expectedSha: string | null,
-  error: unknown,
-): Promise<never> {
-  const actualSha = await persistence.readRef(writerRef);
-  if (actualSha !== expectedSha || errorCode(error) === 'PUBLICATION_CONFLICT') {
-    throw buildWriterCasConflict(expectedSha, actualSha);
-  }
-  throw error;
-}
-
-function errorCode(error: unknown): string | null {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    const { code } = error;
-    return typeof code === 'string' ? code : null;
-  }
-  return null;
 }

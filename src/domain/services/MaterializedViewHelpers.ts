@@ -1,7 +1,7 @@
 /**
  * Low-level helpers for MaterializedViewService.
  *
- * Provides in-memory property reader construction, shard OID partitioning,
+ * Provides in-memory property reader construction, shard-handle partitioning,
  * and the legacy shard-to-tree-entry mapper.
  *
  * P5-LEGACY: _shardToEntry and buildInMemoryPropertyReader exist to support
@@ -39,10 +39,10 @@ export function buildInMemoryPropertyReader(
   return reader;
 }
 
-// ── Shard OID partitioning ────────────────────────────────────────────────────
+// ── Shard handle partitioning ─────────────────────────────────────────────────
 
 /**
- * Partitions shard OID entries into index vs property buckets.
+ * Partitions shard handles into index vs property buckets.
  */
 export function partitionShardHandles(
   shardHandles: Readonly<Record<string, AssetHandle>>,
