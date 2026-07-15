@@ -72,19 +72,21 @@ describe('RuntimeHost snapshot cache', () => {
       stateCache,
     });
 
-    await runtime.patch((patch) => {
+    const patchId = await runtime.patch((patch) => {
       patch.addNode('node:one');
     });
 
     const first = await runtime.materialize();
     expect(runtime._cachedViewHash).not.toBeNull();
     expect(Reflect.get(runtime, '_cachedIndexTree')).not.toBeNull();
+    expect(runtime.provenanceIndex?.patchesFor('node:one')).toEqual([patchId]);
     expect(stateCache.publications).toHaveLength(1);
 
     const second = await runtime.materialize();
 
     expect(stateCache.exactLookups).toHaveLength(2);
     expect(stateCache.publications).toHaveLength(1);
+    expect(runtime.provenanceIndex?.patchesFor('node:one')).toEqual([patchId]);
     expect(second).toEqual(first);
   });
 });

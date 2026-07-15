@@ -45,6 +45,7 @@ import BitmapNeighborProvider, { type LogicalIndex } from './services/index/Bitm
 import { cloneState } from './services/JoinReducer.ts';
 import { diffStates, isEmptyDiff, type StateDiffResult } from './services/state/StateDiff.ts';
 import { buildAdjacency } from './services/controllers/MaterializeHelpers.ts';
+import { selectProvenanceAfterMaterialization } from './services/controllers/MaterializeProvenancePolicy.ts';
 import WarpError from './errors/WarpError.ts';
 import QueryError from './errors/QueryError.ts';
 import { requireCommitMessageCodec } from './services/codec/CommitMessageCodecRequirement.ts';
@@ -826,6 +827,14 @@ export default class RuntimeHost {
    */
   // eslint-disable-next-line max-lines-per-function -- side-effect callback must apply all post-materialize state in one method
   async _onMaterialized(result: MaterializeResult): Promise<void> {
+    const provenance = selectProvenanceAfterMaterialization({
+      index: this._provenanceIndex,
+      degraded: this._provenanceDegraded,
+      stateHash: this._materializedGraph?.stateHash,
+      frontier: this._cachedFrontier,
+      ceiling: this._cachedCeiling,
+    }, result);
+
     // 1. Cache state + lamport
     this._cachedState = result.state;
     this._stateDirty = false;
@@ -841,8 +850,8 @@ export default class RuntimeHost {
         incoming: new Map(result.adjacency.incoming),
       },
     };
-    this._provenanceIndex = result.provenanceIndex;
-    this._provenanceDegraded = result.provenanceDegraded;
+    this._provenanceIndex = provenance.index;
+    this._provenanceDegraded = provenance.degraded;
     this._cachedCeiling = result.ceiling;
     this._cachedFrontier = result.frontier ? new Map(result.frontier) : null;
 
