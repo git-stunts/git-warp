@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'node:child_process';
 import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import { createTestRepo } from './helpers/setup.ts';
-import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
 } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
@@ -358,7 +357,7 @@ describe('API: Content Attachment', () => {
     expect(content).toEqual(binary);
   });
 
-  it('throws when _content points at a missing blob OID', async () => {
+  it('rejects a legacy raw node-content handle when compatibility is disabled', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
     const patch = await graph.createPatch();
@@ -381,10 +380,10 @@ describe('API: Content Attachment', () => {
     });
 
     await expect(graph.getContent('doc:1'))
-      .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });
+      .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
   });
 
-  it('throws when edge _content points at a missing blob OID', async () => {
+  it('rejects a legacy raw edge-content handle when compatibility is disabled', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
     const patch = await graph.createPatch();
@@ -407,6 +406,6 @@ describe('API: Content Attachment', () => {
     });
 
     await expect(graph.getEdgeContent('a', 'b', 'rel'))
-      .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });
+      .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
   });
 });
