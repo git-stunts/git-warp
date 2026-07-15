@@ -78,6 +78,7 @@ describe('RuntimeHost snapshot cache', () => {
 
     const first = await runtime.materialize();
     expect(runtime._cachedViewHash).not.toBeNull();
+    expect(Reflect.get(runtime, '_cachedIndexTree')).not.toBeNull();
     expect(stateCache.publications).toHaveLength(1);
 
     const second = await runtime.materialize();
