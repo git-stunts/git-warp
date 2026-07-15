@@ -124,7 +124,7 @@ export default class LogicalIndexReader {
   /**
    * Loads all shards from an IndexStorePort via scanShards (codec-free).
    *
-   * The adapter reads, decodes, and classifies blobs into IndexShard
+   * The adapter reads, decodes, and classifies asset bytes into IndexShard
    * domain objects. The reader consumes them without touching any codec.
    */
   async loadFromStore(indexHandle: BundleHandle): Promise<this> {

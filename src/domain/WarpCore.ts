@@ -47,7 +47,7 @@ export default class WarpCore {
    */
   declare readonly getContentHandle: WarpCoreRuntimeSurface['getContentHandle'];
   /**
-   * Returns metadata for the content blob attached to a node.
+   * Returns metadata for the content asset attached to a node.
    */
   declare readonly getContentMeta: WarpCoreRuntimeSurface['getContentMeta'];
   /**
@@ -59,7 +59,7 @@ export default class WarpCore {
    */
   declare readonly getEdgeContentHandle: WarpCoreRuntimeSurface['getEdgeContentHandle'];
   /**
-   * Returns metadata for the content blob attached to an edge.
+   * Returns metadata for the content asset attached to an edge.
    */
   declare readonly getEdgeContentMeta: WarpCoreRuntimeSurface['getEdgeContentMeta'];
   /**
@@ -67,11 +67,11 @@ export default class WarpCore {
    */
   declare readonly getEdgeContent: WarpCoreRuntimeSurface['getEdgeContent'];
   /**
-   * Opens a stream for the content blob attached to a node.
+   * Opens a stream for the content asset attached to a node.
    */
   declare readonly getContentStream: WarpCoreRuntimeSurface['getContentStream'];
   /**
-   * Opens a stream for the content blob attached to an edge.
+   * Opens a stream for the content asset attached to an edge.
    */
   declare readonly getEdgeContentStream: WarpCoreRuntimeSurface['getEdgeContentStream'];
   declare readonly createPatch: WarpCoreRuntimeSurface['createPatch'];
