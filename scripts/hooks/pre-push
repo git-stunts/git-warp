@@ -14,6 +14,18 @@ if [ -z "$ROOT" ]; then
 fi
 cd "$ROOT"
 
+clear_git_repository_environment() {
+  git_local_env_vars="$(git rev-parse --local-env-vars 2>/dev/null)"
+  for git_local_env_var in $git_local_env_vars; do
+    unset "$git_local_env_var"
+  done
+}
+
+# Git exports repository-local routing variables to hooks. Nested Git commands
+# in tests must discover their own repositories instead of inheriting this one.
+clear_git_repository_environment
+echo "pre-push: cleared inherited Git repository environment"
+
 command_exists() {
   launcher="$1"
   cmd="$2"
