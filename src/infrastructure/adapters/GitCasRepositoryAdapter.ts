@@ -25,7 +25,7 @@ import { CborIndexStoreAdapter } from './CborIndexStoreAdapter.ts';
 import { CborPatchJournalAdapter } from './CborPatchJournalAdapter.ts';
 import { GitCasWarpStateCacheAdapter } from './GitCasWarpStateCacheAdapter.ts';
 import type { GitCasRootSetClient } from './GitCasStateCacheRootSetCoordinator.ts';
-import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
+import GitCasTrieStoreAdapter from './GitCasTrieStoreAdapter.ts';
 import GitTrustChainAdapter from './GitTrustChainAdapter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
@@ -44,7 +44,10 @@ export type GitCasFacade = Pick<
   | 'store'
 > & {
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
-  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
+  readonly bundles: Pick<
+    BundleCapability,
+    'getMember' | 'putOrdered' | 'iterateMembers'
+  >;
   readonly caches: GitCasMaterializationFacade['caches'];
   readonly pages: GitCasMaterializationFacade['pages'];
   readonly publications: Pick<PublicationCapability, 'commit'>;
@@ -101,7 +104,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         indexes: this._createIndexStore(request, content),
         materializations: this._createMaterializationStore(request),
         stateSnapshots: this._createStateSnapshots(request),
-        trie: new GitTrieStoreAdapter({ plumbing: this._plumbing }),
+        trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
       })
     );
   }

@@ -1,7 +1,7 @@
 /**
- * Nibble-name parser for `GitTrieStoreAdapter`'s branch tree reads.
+ * Nibble-name parser for trie storage adapter branch reads.
  *
- * Branch tree entries in the shadow-trie ORSet are named by nibble
+ * Branch entries in the shadow-trie ORSet are named by nibble
  * index in lowercase hex, zero-padded to the minimum width required
  * by the branch's fanout. Valid names are non-empty strings
  * consisting only of lowercase hex characters (`0`-`9`, `a`-`f`).
@@ -15,7 +15,7 @@
  * error class and branch on `code` if they care which failure they
  * hit.
  *
- * @see GitTrieStoreAdapter
+ * @see GitCasTrieStoreAdapter
  * @see TrieStoreError
  */
 import TrieStoreError from '../../domain/errors/TrieStoreError.ts';
@@ -35,11 +35,14 @@ const LOWERCASE_HEX_NAME = /^[0-9a-f]+$/;
 export function parseNibbleName(name: string): number {
   assertNonEmpty(name);
   assertLowercaseHex(name);
-  // After the two guards above, `name` is a non-empty lowercase hex
-  // string. `Number.parseInt` over a hex digit-only string always
-  // yields a non-negative integer, so no further range check is
-  // needed — the regex already established the post-condition.
-  return Number.parseInt(name, 16);
+  const nibble = Number.parseInt(name, 16);
+  if (Number.isSafeInteger(nibble) && nibble >= 0) {
+    return nibble;
+  }
+  throw new TrieStoreError(`tree entry name "${name}" exceeds the safe nibble range`, {
+    code: E_TRIE_STORE_CORRUPT,
+    context: { name },
+  });
 }
 
 function assertNonEmpty(name: string): void {

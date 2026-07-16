@@ -9,6 +9,7 @@ import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitCasMaterializationStoreAdapter from '../../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
+import GitCasTrieStoreAdapter from '../../../../src/infrastructure/adapters/GitCasTrieStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -161,6 +162,7 @@ describe('GitCasRepositoryAdapter', () => {
       state: WarpState.empty(),
     });
     expect(services.materializations).toBeInstanceOf(GitCasMaterializationStoreAdapter);
+    expect(services.trie).toBeInstanceOf(GitCasTrieStoreAdapter);
 
     plumbing.execute
       .mockResolvedValueOnce('f'.repeat(40))
