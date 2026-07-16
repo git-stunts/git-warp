@@ -21,6 +21,7 @@ import {
   type MaterializeAdjacency,
 } from './MaterializeHelpers.ts';
 import {
+  materializationSessionOpen,
   reduceSessionBackedState,
   type MaterializeSessionOpener,
 } from './MaterializeSessionBridge.ts';
@@ -42,6 +43,7 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
+import type MaterializationStorePort from '../../../ports/MaterializationStorePort.ts';
 import type { WarpStateSnapshotProvenancePosture } from '../../../ports/WarpStateCachePort.ts';
 import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
@@ -51,6 +53,11 @@ import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
 import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
+import MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
+import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
+import type MaterializationRoots from '../../materialization/MaterializationRoots.ts';
+import WarpError from '../../errors/WarpError.ts';
+import type { UsableSnapshotRecord } from './MaterializeSnapshotCacheResult.ts';
 import type {
   MaterializeResultBuildInput,
   MaterializeStrategyRuntime,
@@ -69,6 +76,7 @@ export type MaterializeDeps = {
   crypto: CryptoPort;
   persistence: MaterializePersistence;
   checkpointStore: CheckpointStorePort;
+  materializations: MaterializationStorePort;
   getStateCache?: () => WarpStateCachePort | null;
   openStateSession?: MaterializeSessionOpener;
   patches: PatchCollector;
@@ -91,6 +99,7 @@ export type MaterializeResult = {
   provenanceDegraded: boolean;
   frontier: Map<string, string> | null;
   ceiling: number | null;
+  materialization?: MaterializationHandle;
 };
 
 // ── Reduce helpers ──────────────────────────────────────────────────
@@ -104,6 +113,7 @@ function toReducerInput(patches: PatchWithSha[]): ReducerInput {
 export type MaterializeReduceOutput = {
   state: WarpState;
   adjacency?: MaterializeAdjacency;
+  roots?: MaterializationRoots;
   receipts?: TickReceipt[];
   diff?: PatchDiff;
 };
@@ -255,7 +265,8 @@ export default class MaterializeController {
   private async _buildResult(params: MaterializeResultBuildInput): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, params.reduced.state);
     const adjacency = params.reduced.adjacency ?? buildAdjacency(params.reduced.state);
-    if (params.reduced.receipts === undefined) {
+    const materialization = await this._resolveMaterialization(params, stateHash);
+    if (params.reduced.receipts === undefined && params.publishSnapshot !== false) {
       await this._publishSnapshot({
         state: params.reduced.state,
         stateHash,
@@ -278,7 +289,68 @@ export default class MaterializeController {
       provenanceDegraded: params.degraded,
       frontier: params.frontier,
       ceiling: params.ceiling,
+      ...(materialization === undefined ? {} : { materialization }),
     };
+  }
+
+  private async _resolveMaterialization(
+    params: MaterializeResultBuildInput,
+    stateHash: string,
+  ): Promise<MaterializationHandle | undefined> {
+    if (params.materialization !== undefined) {
+      if (params.materialization.stateHash !== stateHash) {
+        throw materializationResumeError('retained handle state hash does not match resumed state');
+      }
+      return params.materialization;
+    }
+    if (params.reduced.roots === undefined || params.frontier === null) {
+      return undefined;
+    }
+    return await this._deps.materializations.retain({
+      coordinate: new MaterializationCoordinate({
+        frontier: params.frontier,
+        ceiling: params.ceiling,
+      }),
+      roots: params.reduced.roots,
+      stateHash,
+    });
+  }
+
+  private async _resumeExactMaterialization(
+    snapshot: UsableSnapshotRecord,
+    options: { wantDiff: boolean },
+  ): Promise<MaterializeResult | null> {
+    const { openStateSession } = this._deps;
+    if (openStateSession === undefined) {
+      return null;
+    }
+    const coordinate = new MaterializationCoordinate(snapshot.coordinate);
+    const retained = await this._deps.materializations.findExact(coordinate);
+    if (retained !== null && retained.stateHash !== snapshot.stateHash) {
+      throw materializationResumeError('retained handle and snapshot state hashes differ');
+    }
+    const retainedRoots = retained === null
+      ? null
+      : materializationSessionOpen(retained.roots);
+    const reduced = await reduceSessionBackedState({
+      openStateSession,
+      patches: [],
+      baseState: snapshot.state,
+      ...(retainedRoots === null ? {} : { roots: retainedRoots }),
+      receipts: false,
+      wantDiff: options.wantDiff,
+    });
+    return await this._buildResult({
+      reduced,
+      summary: new MaterializePatchSummaryAccumulator().toSummary(),
+      degraded: true,
+      ceiling: snapshot.coordinate.ceiling,
+      frontier: snapshot.coordinate.frontier,
+      publishSnapshot: false,
+      ...(retained === null || retainedRoots === null
+        ? {}
+        : { materialization: retained }),
+    });
   }
 
   private async _reducePatches(
@@ -345,6 +417,8 @@ export default class MaterializeController {
       reducePatchStream: async (stream, base, opts, provenanceBase) =>
         await this._reducePatchStream(stream, base, opts, provenanceBase),
       buildResult: async (params) => await this._buildResult(params),
+      resumeExactMaterialization: async (snapshot, options) =>
+        await this._resumeExactMaterialization(snapshot, options),
       buildProvenance: (patches, base) => buildProvenance(patches, base),
     };
   }
@@ -373,4 +447,11 @@ export default class MaterializeController {
       state: args.state,
     });
   }
+}
+
+function materializationResumeError(message: string): WarpError {
+  return new WarpError(
+    `Materialization resume ${message}`,
+    'E_MATERIALIZATION_RESUME',
+  );
 }

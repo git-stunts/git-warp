@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CacheStoreResult } from '@git-stunts/git-cas';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
+import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasMaterializationStoreAdapter, {
@@ -56,20 +57,43 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(resolved?.bundle.equals(retained.bundle)).toBe(true);
     expect(resolved?.coordinate.equals(coordinate)).toBe(true);
     expect(resolved?.stateHash).toBe('state-hash');
-    expect(resolved?.roots.entries().map(([name, handle]) => [name, handle.toString()]))
-      .toEqual(roots.entries().map(([name, handle]) => [name, handle.toString()]));
+    expect(resolved?.roots.entries().map(([name, root]) => rootSignature(name, root)))
+      .toEqual(roots.entries().map(([name, root]) => rootSignature(name, root)));
 
     const members = harness.cas.readBundleMembers(retained.bundle.toString());
     expect(members.map(([path]) => path)).toEqual(['meta/descriptor', ...ROOT_PATHS]);
     const cacheKeys = harness.cas.readCacheKeys(CACHE_NAMESPACE);
     expect(cacheKeys).toHaveLength(1);
-    expect(cacheKeys[0]).toMatch(/^v1:[0-9a-f]{64}$/u);
+    expect(cacheKeys[0]).toMatch(/^v2:[0-9a-f]{64}$/u);
     expect(cacheKeys[0]?.length).toBeLessThan(1024);
   });
 
   it('returns null for a coordinate with no retained materialization', async () => {
     const harness = await createHarness();
     expect(await harness.adapter.findExact(exactCoordinate())).toBeNull();
+  });
+
+  it('round-trips partial roots without inventing bundles for empty or unavailable state', async () => {
+    const harness = await createHarness();
+    const page = await harness.cas.pages.put({ source: new Uint8Array([1]) });
+    const nodeBundle = await harness.cas.bundles.putOrdered({
+      members: [['root', page.handle]],
+    });
+    const roots = partialRoots(new BundleHandle(nodeBundle.handle.toString()));
+
+    const retained = await harness.adapter.retain({
+      coordinate: exactCoordinate(),
+      roots,
+      stateHash: 'partial-state-hash',
+    });
+    const resolved = await harness.adapter.findExact(exactCoordinate());
+
+    expect(harness.cas.readBundleMembers(retained.bundle.toString()).map(([path]) => path))
+      .toEqual(['meta/descriptor', 'roots/node-alive']);
+    expect(resolved?.roots.nodeAlive.status).toBe('retained');
+    expect(resolved?.roots.nodeAlive.handle?.toString()).toBe(nodeBundle.handle.toString());
+    expect(resolved?.roots.edgeAlive.status).toBe('empty');
+    expect(resolved?.roots.properties.status).toBe('unavailable');
   });
 
   it('round-trips an unbounded live coordinate with a null ceiling', async () => {
@@ -207,7 +231,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
 
   it.each([
     ['non-object descriptor', null, 'descriptor must be an object'],
-    ['schema', { schemaVersion: 2 }, 'schema is unsupported'],
+    ['schema', { schemaVersion: 3 }, 'schema is unsupported'],
     [
       'coordinate object',
       descriptor({ coordinate: null }),
@@ -248,6 +272,32 @@ describe('GitCasMaterializationStoreAdapter', () => {
       descriptor({ coordinate: { ceiling: -1, frontier: [] } }),
       'coordinate ceiling is invalid',
     ],
+    ['root status collection', descriptor({ roots: {} }), 'roots must be an array'],
+    [
+      'root status tuple',
+      descriptor({ roots: [['adjacency']] }),
+      'invalid root status entry',
+    ],
+    [
+      'root status name',
+      descriptor({ roots: replaceRootStatusName(rootStatusFixture(), 'adjacency', 'unknown') }),
+      'unknown root status name',
+    ],
+    [
+      'root status value',
+      descriptor({ roots: replaceRootStatus(rootStatusFixture(), 'adjacency', 'missing') }),
+      'invalid adjacency root status',
+    ],
+    [
+      'duplicate root status',
+      descriptor({ roots: [...rootStatusFixture(), ['adjacency', 'retained']] }),
+      'duplicate adjacency root status',
+    ],
+    [
+      'missing root status',
+      descriptor({ roots: rootStatusFixture().filter(([name]) => name !== 'adjacency') }),
+      'no adjacency root status',
+    ],
     ['lane', descriptor({ laneName: '' }), 'laneName must be a non-empty string'],
     ['state hash', descriptor({ stateHash: '' }), 'stateHash must be a non-empty string'],
   ])('rejects an invalid %s', async (_case, value, message) => {
@@ -276,6 +326,17 @@ describe('GitCasMaterializationStoreAdapter', () => {
     await expect(harness.adapter.findExact(harness.coordinate)).rejects.toMatchObject({
       code: 'E_MATERIALIZATION_STORAGE',
       message: expect.stringContaining('does not match its cache key'),
+    });
+  });
+
+  it('rejects a bundle member whose descriptor marks that root empty', async () => {
+    const harness = await retainedHarness();
+    replaceDescriptor(harness, descriptor({
+      roots: replaceRootStatus(rootStatusFixture(), 'edge-alive', 'empty'),
+    }));
+    await expect(harness.adapter.findExact(harness.coordinate)).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('unexpected edge-alive root bundle'),
     });
   });
 
@@ -455,14 +516,34 @@ async function createRoots(cas: InMemoryGitCasFacade): Promise<MaterializationRo
     throw new Error('Root fixture did not create every materialization root');
   }
   return new MaterializationRoots({
-    adjacency,
-    edgeAlive,
-    edgeBirths,
-    frontier,
-    nodeAlive,
-    properties,
-    provenanceSupport,
-    roaringIndexes,
+    adjacency: MaterializationRoot.retained(adjacency),
+    edgeAlive: MaterializationRoot.retained(edgeAlive),
+    edgeBirths: MaterializationRoot.retained(edgeBirths),
+    frontier: MaterializationRoot.retained(frontier),
+    nodeAlive: MaterializationRoot.retained(nodeAlive),
+    properties: MaterializationRoot.retained(properties),
+    provenanceSupport: MaterializationRoot.retained(provenanceSupport),
+    roaringIndexes: MaterializationRoot.retained(roaringIndexes),
+  });
+}
+
+function rootSignature(
+  name: string,
+  root: MaterializationRoot,
+): readonly [string, string, string | null] {
+  return [name, root.status, root.handle?.toString() ?? null];
+}
+
+function partialRoots(nodeAlive: BundleHandle): MaterializationRoots {
+  return new MaterializationRoots({
+    adjacency: MaterializationRoot.unavailable(),
+    edgeAlive: MaterializationRoot.empty(),
+    edgeBirths: MaterializationRoot.unavailable(),
+    frontier: MaterializationRoot.unavailable(),
+    nodeAlive: MaterializationRoot.retained(nodeAlive),
+    properties: MaterializationRoot.unavailable(),
+    provenanceSupport: MaterializationRoot.unavailable(),
+    roaringIndexes: MaterializationRoot.unavailable(),
   });
 }
 
@@ -478,15 +559,36 @@ function exactCoordinate(): MaterializationCoordinate {
 
 function descriptor(overrides: Record<string, object | string | number | null> = {}): object {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     laneName: 'events',
     stateHash: 'state-hash',
+    roots: rootStatusFixture(),
     coordinate: {
       ceiling: 12,
       frontier: [['writer-a', 'patch-a'], ['writer-b', 'patch-b']],
     },
     ...overrides,
   };
+}
+
+function rootStatusFixture(): string[][] {
+  return ROOT_PATHS.map((path) => [path.slice('roots/'.length), 'retained']);
+}
+
+function replaceRootStatus(
+  roots: readonly string[][],
+  target: string,
+  status: string,
+): string[][] {
+  return roots.map(([name, current]) => [name ?? '', name === target ? status : current ?? '']);
+}
+
+function replaceRootStatusName(
+  roots: readonly string[][],
+  target: string,
+  replacement: string,
+): string[][] {
+  return roots.map(([name, status]) => [name === target ? replacement : name ?? '', status ?? '']);
 }
 
 function replaceDescriptor(harness: RetainedHarness, value: object | null): void {

@@ -66,6 +66,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Exact state-cache hits now retain and reopen coordinate-keyed materialization
+  descriptors through the `git-cas` cache API. Repeated materialization,
+  including through a fresh runtime adapter, resumes the retained node/edge
+  trie roots without replaying writer patches already covered by the snapshot.
+- Failed state-session reductions no longer flush partial trie roots into
+  unretained CAS objects; roots are flushed only after successful projection.
 - Git-backed state-cache payload trees are now anchored through a graph-scoped
   `git-cas` RootSet before their index record is published, then reconciled
   after publication so live cache entries remain reachable across Git garbage

@@ -25,6 +25,7 @@ import type CodecValue from '../../../../../src/domain/types/codec/CodecValue.ts
 import type LogFields from '../../../../../src/domain/types/log/LogFields.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
 import { InMemoryTrieStore } from '../../../../helpers/trieHelpers.ts';
+import InMemoryMaterializationStore from '../../../../helpers/InMemoryMaterializationStore.ts';
 
 describe('MaterializePatchStreamReducer', () => {
   it('reduces each patch before requesting the next stream item', async () => {
@@ -212,6 +213,7 @@ function materializeDeps(patches: PatchCollector): MaterializeDeps {
     crypto: new TestCrypto(),
     persistence: new TestPersistence(),
     checkpointStore: new InMemoryCheckpointStore(),
+    materializations: new InMemoryMaterializationStore(),
     patches,
     graphCloner: new UnusedDetachedGraphFactory(),
     graphName: 'stream-memory-witness',

@@ -3,6 +3,9 @@ import VersionVector from "../../crdt/VersionVector.ts";
 import { Dot } from "../../crdt/Dot.ts";
 import type PatchEntry from "../../artifacts/PatchEntry.ts";
 import type StateSession from "../../orset/session/StateSession.ts";
+import MaterializationRoot from "../../materialization/MaterializationRoot.ts";
+import MaterializationRoots from "../../materialization/MaterializationRoots.ts";
+import BundleHandle from "../../storage/BundleHandle.ts";
 import type { PatchDiff } from "../../types/PatchDiff.ts";
 import type { TickReceipt } from "../../types/TickReceipt.ts";
 import WarpStateClass from "../state/WarpState.ts";
@@ -32,62 +35,72 @@ export async function reduceSessionBackedState(args: {
   readonly openStateSession: MaterializeSessionOpener;
   readonly patches: MaterializeSessionPatchSource;
   readonly baseState?: WarpStateClass;
+  readonly roots?: MaterializeSessionOpen;
   readonly receipts: boolean;
   readonly wantDiff: boolean;
 }): Promise<{
   readonly state: WarpStateClass;
   readonly adjacency: MaterializeAdjacency;
+  readonly roots: MaterializationRoots;
   readonly receipts?: TickReceipt[];
   readonly diff?: PatchDiff;
 }> {
   const frame = await openReducerSessionFrame(
     args.openStateSession,
     args.baseState,
+    args.roots,
   );
-  try {
-    if (args.receipts) {
-      const result = await reducePatchesInSession(args.patches, frame, {
-        receipts: true,
-      });
-      const adjacency = await buildAdjacencyFromSession(result.frame.session);
-      return {
-        state: await projectFrameToState(result.frame),
-        adjacency,
-        receipts: result.receipts,
-      };
-    }
-    if (args.wantDiff) {
-      const result = await reducePatchesInSession(args.patches, frame, {
-        trackDiff: true,
-      });
-      const adjacency = await buildAdjacencyFromSession(result.frame.session);
-      return {
-        state: await projectFrameToState(result.frame),
-        adjacency,
-        diff: result.diff,
-      };
-    }
+  let reduced: {
+    readonly state: WarpStateClass;
+    readonly adjacency: MaterializeAdjacency;
+    readonly receipts?: TickReceipt[];
+    readonly diff?: PatchDiff;
+  };
+  if (args.receipts) {
+    const result = await reducePatchesInSession(args.patches, frame, {
+      receipts: true,
+    });
+    const adjacency = await buildAdjacencyFromSession(result.frame.session);
+    reduced = {
+      state: await projectFrameToState(result.frame),
+      adjacency,
+      receipts: result.receipts,
+    };
+  } else if (args.wantDiff) {
+    const result = await reducePatchesInSession(args.patches, frame, {
+      trackDiff: true,
+    });
+    const adjacency = await buildAdjacencyFromSession(result.frame.session);
+    reduced = {
+      state: await projectFrameToState(result.frame),
+      adjacency,
+      diff: result.diff,
+    };
+  } else {
     const result = await reducePatchesInSession(args.patches, frame);
     const adjacency = await buildAdjacencyFromSession(result.session);
-    return {
+    reduced = {
       state: await projectFrameToState(result),
       adjacency,
     };
-  } finally {
-    await frame.session.close();
   }
+
+  // close() flushes trie pages, so failed reductions must leave no CAS artifacts.
+  const roots = materializationRootsFromSession(await frame.session.close());
+  return { ...reduced, roots };
 }
 
 async function openReducerSessionFrame(
   openStateSession: MaterializeSessionOpener,
   baseState?: WarpStateClass,
+  roots?: MaterializeSessionOpen,
 ): Promise<ReducerSessionFrame> {
-  const session = await openStateSession({
+  const session = await openStateSession(roots ?? {
     nodeAliveRootOid: null,
     edgeAliveRootOid: null,
   });
 
-  if (baseState !== undefined) {
+  if (baseState !== undefined && roots === undefined) {
     await seedSessionWithORSet({
       session,
       kind: "node",
@@ -106,6 +119,45 @@ async function openReducerSessionFrame(
     observedFrontier: baseState?.observedFrontier.clone() ?? VersionVector.empty(),
     edgeBirthEvent: new Map(baseState?.edgeBirthEvent ?? []),
   });
+}
+
+export function materializationSessionOpen(
+  roots: MaterializationRoots,
+): MaterializeSessionOpen | null {
+  const nodeAliveRootOid = sessionRootToken(roots.nodeAlive);
+  const edgeAliveRootOid = sessionRootToken(roots.edgeAlive);
+  if (nodeAliveRootOid === undefined || edgeAliveRootOid === undefined) {
+    return null;
+  }
+  return Object.freeze({ nodeAliveRootOid, edgeAliveRootOid });
+}
+
+function materializationRootsFromSession(
+  roots: MaterializeSessionOpen,
+): MaterializationRoots {
+  return new MaterializationRoots({
+    adjacency: MaterializationRoot.unavailable(),
+    edgeAlive: sessionMaterializationRoot(roots.edgeAliveRootOid),
+    edgeBirths: MaterializationRoot.unavailable(),
+    frontier: MaterializationRoot.unavailable(),
+    nodeAlive: sessionMaterializationRoot(roots.nodeAliveRootOid),
+    properties: MaterializationRoot.unavailable(),
+    provenanceSupport: MaterializationRoot.unavailable(),
+    roaringIndexes: MaterializationRoot.unavailable(),
+  });
+}
+
+function sessionRootToken(root: MaterializationRoot): string | null | undefined {
+  if (root.status === "unavailable") {
+    return undefined;
+  }
+  return root.handle?.toString() ?? null;
+}
+
+function sessionMaterializationRoot(token: string | null): MaterializationRoot {
+  return token === null
+    ? MaterializationRoot.empty()
+    : MaterializationRoot.retained(new BundleHandle(token));
 }
 
 async function seedSessionWithORSet(args: {

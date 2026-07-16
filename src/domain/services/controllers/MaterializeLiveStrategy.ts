@@ -255,11 +255,13 @@ export default class MaterializeLiveStrategy {
 
   private async tryResolveExactSnapshot(
     stateCache: WarpStateCachePort,
-    opts: { coordinate: WarpStateCoordinate; receipts: boolean },
+    opts: { coordinate: WarpStateCoordinate; receipts: boolean; wantDiff: boolean },
   ): Promise<MaterializeResult | null> {
     const exact = await stateCache.getExact(opts.coordinate);
     if (canUseSnapshot(exact, { receipts: opts.receipts })) {
-      return snapshotToMaterializeResult(exact);
+      return await this.runtime.resumeExactMaterialization(exact, {
+        wantDiff: opts.wantDiff,
+      }) ?? snapshotToMaterializeResult(exact);
     }
     return null;
   }
