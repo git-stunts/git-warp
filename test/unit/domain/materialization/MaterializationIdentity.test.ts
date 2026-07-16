@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import MaterializationHandle from '../../../../src/domain/materialization/MaterializationHandle.ts';
+import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots, {
   MATERIALIZATION_ROOT_NAMES,
   type MaterializationRootsOptions,
@@ -123,7 +124,7 @@ describe('MaterializationRoots', () => {
     'properties',
     'provenanceSupport',
     'roaringIndexes',
-  ])('rejects a non-bundle %s root', (field) => {
+  ])('rejects a non-materialization %s root', (field) => {
     const options = rootsOptions();
     Reflect.set(options, field, new StorageHandle('not-a-bundle'));
     expect(() => construct(MaterializationRoots, options)).toThrowError(
@@ -133,6 +134,30 @@ describe('MaterializationRoots', () => {
 
   it('rejects a missing options object', () => {
     expect(() => construct(MaterializationRoots, null)).toThrowError(/options/u);
+  });
+});
+
+describe('MaterializationRoot', () => {
+  it('distinguishes retained, empty, and unavailable root posture', () => {
+    const handle = bundleHandle('retained');
+    const retained = MaterializationRoot.retained(handle);
+    const empty = MaterializationRoot.empty();
+    const unavailable = MaterializationRoot.unavailable();
+
+    expect(retained).toMatchObject({ status: 'retained', handle });
+    expect(empty).toMatchObject({ status: 'empty', handle: null });
+    expect(unavailable).toMatchObject({ status: 'unavailable', handle: null });
+    expect(Object.isFrozen(retained)).toBe(true);
+    expect(Object.isFrozen(empty)).toBe(true);
+    expect(Object.isFrozen(unavailable)).toBe(true);
+  });
+
+  it('rejects a retained root without bundle identity', () => {
+    expect(() => Reflect.apply(
+      MaterializationRoot.retained,
+      MaterializationRoot,
+      [new StorageHandle('not-a-bundle')],
+    )).toThrowError(/Materialization root/u);
   });
 });
 
@@ -195,15 +220,19 @@ function bundleHandle(name: string): BundleHandle {
 
 function rootsOptions(): MaterializationRootsOptions {
   return {
-    adjacency: bundleHandle('adjacency'),
-    edgeAlive: bundleHandle('edge-alive'),
-    edgeBirths: bundleHandle('edge-births'),
-    frontier: bundleHandle('frontier'),
-    nodeAlive: bundleHandle('node-alive'),
-    properties: bundleHandle('properties'),
-    provenanceSupport: bundleHandle('provenance-support'),
-    roaringIndexes: bundleHandle('roaring-indexes'),
+    adjacency: retainedRoot('adjacency'),
+    edgeAlive: retainedRoot('edge-alive'),
+    edgeBirths: retainedRoot('edge-births'),
+    frontier: retainedRoot('frontier'),
+    nodeAlive: retainedRoot('node-alive'),
+    properties: retainedRoot('properties'),
+    provenanceSupport: retainedRoot('provenance-support'),
+    roaringIndexes: retainedRoot('roaring-indexes'),
   };
+}
+
+function retainedRoot(name: string): MaterializationRoot {
+  return MaterializationRoot.retained(bundleHandle(name));
 }
 
 function materializationRoots(): MaterializationRoots {

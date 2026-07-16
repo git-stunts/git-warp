@@ -10,6 +10,7 @@ import type {
 } from '@git-stunts/git-cas';
 import MaterializationCoordinate from '../../domain/materialization/MaterializationCoordinate.ts';
 import MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
+import type MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots, {
   MATERIALIZATION_ROOT_NAMES,
   type MaterializationRootName,
@@ -23,11 +24,18 @@ import MaterializationStorePort, {
   type RetainMaterializationRequest,
 } from '../../ports/MaterializationStorePort.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
+import {
+  decodeMaterializationDescriptor,
+  MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
+  materializationCoordinateData,
+  materializationDescriptorData,
+  materializationRootsFromDescriptor,
+  type DecodedMaterializationDescriptor,
+} from './GitCasMaterializationDescriptor.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
 const DESCRIPTOR_PATH = 'meta/descriptor';
 const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
-const SCHEMA_VERSION = 1;
 // A root-list change also requires a descriptor schema-version change.
 const MATERIALIZATION_MEMBER_COUNT = MATERIALIZATION_ROOT_NAMES.length + 1;
 
@@ -41,15 +49,9 @@ export type GitCasMaterializationFacade = {
   readonly pages: Pick<PageCapability, 'get' | 'put'>;
 };
 
-type DecodedDescriptor = Readonly<{
-  coordinate: MaterializationCoordinate;
-  stateHash: string;
-  laneName: string;
-}>;
-
 type DecodedMaterializationMembers = Readonly<{
   descriptor: PageHandle;
-  roots: MaterializationRoots;
+  retainedRoots: ReadonlyMap<MaterializationRootName, BundleHandle>;
 }>;
 
 type MaterializationMemberAccumulator = {
@@ -101,10 +103,11 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     request: RetainMaterializationRequest,
     stateHash: string,
   ): Promise<StagedBundle> {
-    const descriptorBytes = this.#codec.encode(descriptorData({
+    const descriptorBytes = this.#codec.encode(materializationDescriptorData({
       coordinate: request.coordinate,
       stateHash,
       laneName: this.#laneName,
+      roots: request.roots,
     }));
     requireDescriptorSize(descriptorBytes);
 
@@ -167,7 +170,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       laneName: descriptor.laneName,
       bundle,
       coordinate: descriptor.coordinate,
-      roots: members.roots,
+      roots: materializationRootsFromDescriptor(descriptor, members.retainedRoots),
       stateHash: descriptor.stateHash,
       retention: adaptGitCasRetentionWitness(hit.evidence.toJSON()),
     });
@@ -175,23 +178,23 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
 
   async #cacheKey(coordinate: MaterializationCoordinate): Promise<string> {
     const encoded = this.#codec.encode({
-      schemaVersion: SCHEMA_VERSION,
+      schemaVersion: MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
       laneName: this.#laneName,
-      coordinate: coordinateData(coordinate),
+      coordinate: materializationCoordinateData(coordinate),
     });
     const digest = requireNonEmpty(
       await this.#crypto.hash('sha256', encoded),
       'coordinate digest',
     );
-    return `v${SCHEMA_VERSION}:${digest}`;
+    return `v${MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION}:${digest}`;
   }
 
-  async #readDescriptor(handle: PageHandle): Promise<DecodedDescriptor> {
+  async #readDescriptor(handle: PageHandle): Promise<DecodedMaterializationDescriptor> {
     const bytes = await this.#cas.pages.get({
       handle,
       maxBytes: MAX_DESCRIPTOR_BYTES,
     });
-    return decodeDescriptor(this.#codec.decode(bytes));
+    return decodeMaterializationDescriptor(this.#codec.decode(bytes));
   }
 
   async #readMembers(bundle: BundleHandle): Promise<DecodedMaterializationMembers> {
@@ -205,87 +208,16 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   }
 }
 
-function descriptorData(descriptor: DecodedDescriptor): object {
-  return {
-    schemaVersion: SCHEMA_VERSION,
-    laneName: descriptor.laneName,
-    stateHash: descriptor.stateHash,
-    coordinate: coordinateData(descriptor.coordinate),
-  };
-}
-
-function coordinateData(coordinate: MaterializationCoordinate): object {
-  return {
-    ceiling: coordinate.ceiling,
-    frontier: coordinate.frontierEntries.map((entry) => [entry.writerId, entry.patchSha]),
-  };
-}
-
 function* materializationMembers(
   descriptorHandle: string,
   roots: MaterializationRoots,
 ): Generator<[string, BundleMemberInput]> {
   yield [DESCRIPTOR_PATH, descriptorHandle];
-  for (const [name, handle] of roots.entries()) {
-    yield [`roots/${name}`, handle.toString()];
-  }
-}
-
-function decodeDescriptor(value: unknown): DecodedDescriptor {
-  requireRecord(value, 'descriptor');
-  const descriptor = value;
-  if (descriptor['schemaVersion'] !== SCHEMA_VERSION) {
-    throw storageError('materialization descriptor schema is unsupported');
-  }
-  const coordinateValue = descriptor['coordinate'];
-  requireRecord(coordinateValue, 'descriptor.coordinate');
-  const frontier = decodeFrontier(coordinateValue['frontier']);
-  return Object.freeze({
-    laneName: requireNonEmpty(descriptor['laneName'], 'descriptor.laneName'),
-    stateHash: requireNonEmpty(descriptor['stateHash'], 'descriptor.stateHash'),
-    coordinate: new MaterializationCoordinate({
-      frontier,
-      ceiling: requireCeiling(coordinateValue['ceiling']),
-    }),
-  });
-}
-
-function decodeFrontier(value: unknown): Map<string, string> {
-  if (!Array.isArray(value)) {
-    throw storageError('descriptor.coordinate.frontier must be an array');
-  }
-  const frontier = new Map<string, string>();
-  for (const entry of value) {
-    const [writerId, patchSha] = decodeFrontierEntry(entry);
-    if (frontier.has(writerId)) {
-      throw storageError('descriptor coordinate contains a duplicate frontier writer');
+  for (const [name, root] of roots.entries()) {
+    if (root.status === 'retained') {
+      yield [`roots/${name}`, requireRetainedHandle(root, name).toString()];
     }
-    frontier.set(writerId, patchSha);
   }
-  return frontier;
-}
-
-function decodeFrontierEntry(value: unknown): readonly [string, string] {
-  if (!Array.isArray(value) || value.length !== 2) {
-    throw storageError('descriptor coordinate contains an invalid frontier entry');
-  }
-  return Object.freeze([
-    requireNonEmpty(value[0], 'descriptor frontier writerId'),
-    requireNonEmpty(value[1], 'descriptor frontier patchSha'),
-  ]);
-}
-
-function rootsFromMap(roots: ReadonlyMap<MaterializationRootName, BundleHandle>): MaterializationRoots {
-  return new MaterializationRoots({
-    adjacency: requireRoot(roots, 'adjacency'),
-    edgeAlive: requireRoot(roots, 'edge-alive'),
-    edgeBirths: requireRoot(roots, 'edge-births'),
-    frontier: requireRoot(roots, 'frontier'),
-    nodeAlive: requireRoot(roots, 'node-alive'),
-    properties: requireRoot(roots, 'properties'),
-    provenanceSupport: requireRoot(roots, 'provenance-support'),
-    roaringIndexes: requireRoot(roots, 'roaring-indexes'),
-  });
 }
 
 function createMemberAccumulator(): MaterializationMemberAccumulator {
@@ -349,19 +281,18 @@ function finishMaterializationMembers(
   }
   return Object.freeze({
     descriptor: accumulator.descriptor,
-    roots: rootsFromMap(accumulator.roots),
+    retainedRoots: new Map(accumulator.roots),
   });
 }
 
-function requireRoot(
-  roots: ReadonlyMap<MaterializationRootName, BundleHandle>,
+function requireRetainedHandle(
+  root: MaterializationRoot,
   name: MaterializationRootName,
 ): BundleHandle {
-  const root = roots.get(name);
-  if (root === undefined) {
-    throw storageError(`materialization bundle has no ${name} root bundle`);
+  if (root.handle === null) {
+    throw storageError(`${name} retained root has no bundle handle`);
   }
-  return root;
+  return root.handle;
 }
 
 function parseRootName(path: string): MaterializationRootName | null {
@@ -371,25 +302,6 @@ function parseRootName(path: string): MaterializationRootName | null {
   }
   const candidate = path.slice(prefix.length);
   return MATERIALIZATION_ROOT_NAMES.find((name) => name === candidate) ?? null;
-}
-
-function requireCeiling(value: unknown): number | null {
-  if (value === null) {
-    return null;
-  }
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw storageError('descriptor coordinate ceiling is invalid');
-  }
-  return value;
-}
-
-function requireRecord(
-  value: unknown,
-  field: string,
-): asserts value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw storageError(`${field} must be an object`);
-  }
 }
 
 function requireRetainRequest(request: RetainMaterializationRequest): void {

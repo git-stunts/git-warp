@@ -4,11 +4,12 @@ Use this page when you need to understand how `git-warp` skips redundant
 materialization replay by memoizing WARP-owned state snapshots in
 `@git-stunts/git-cas`.
 
-`git-cas` provides byte storage and generic Git-reachability primitives. It does
-not know about WARP frontiers, optics, checkpoints, graph state, or
-materialization rules. `git-warp` owns those semantics through
-`WarpStateCachePort`; the Git-backed adapter stores snapshot payloads in
-`git-cas` and declares the live payload trees through a `RootSet`.
+`git-cas` provides byte storage, retained cache entries, and generic
+Git-reachability primitives. It does not know about WARP frontiers, optics,
+checkpoints, graph state, or materialization rules. `git-warp` owns those
+semantics through `WarpStateCachePort` and `MaterializationStorePort`; the
+Git-backed adapters store snapshot payloads and coordinate-keyed retained roots
+through `git-cas`.
 
 ## The Live Materialization Lifecycle
 
@@ -19,7 +20,7 @@ coordinate-first lifecycle:
 [current frontier]
         |
         v
-[state-cache exact hit?] ---- yes ---> [return cached state]
+[state-cache exact hit?] ---- yes ---> [reopen retained roots; zero patch replay]
         |
         no
         v
@@ -44,8 +45,13 @@ This coordinate belongs to `git-warp`; it is not a `git-cas` concept.
 ### 2. Check the WARP state cache
 
 The runtime asks `WarpStateCachePort` for an exact snapshot at that coordinate.
-On a hit, it returns the cached state without replaying writer patch streams and
-without republishing the same snapshot.
+On a hit, it asks `MaterializationStorePort` for the matching retained-root
+descriptor. A descriptor hit reopens the node/edge trie roots and projects the
+result without replaying writer patch streams or republishing the same snapshot.
+The descriptor records every named materialization root as `retained`, `empty`,
+or `unavailable`; only retained roots become bundle members. On the first exact
+snapshot hit without a descriptor, the runtime seeds the trie roots from the
+snapshot and retains the resulting descriptor for later runtime instances.
 
 The current payload records state but not the provenance index. A runtime may
 retain its resident provenance index when the cached state has the same hash and
@@ -67,10 +73,10 @@ equivalent read can hit the cache.
 
 ## Memory Boundaries
 
-State-cache hits avoid redundant CRDT replay and can remove repeated startup
-costs for graph-sized materializations. They do not make legacy full
-materialization an `O(1)` memory API: a caller that asks for a full
-`SnapshotWarpState` still receives a full in-memory state object.
+State-cache hits with retained roots avoid redundant CRDT patch replay across
+runtime instances. They do not make legacy full materialization an `O(1)` time
+or memory API: the current result contract still loads a full snapshot and scans
+the retained node/edge tries to produce a full `WarpState` and adjacency map.
 
 The bounded-memory read path is optic/worldline/query work over a sharded or
 streamed basis. The state cache is the replay-skipping compatibility bridge for
@@ -78,9 +84,13 @@ legacy materialization and checkpoint flows.
 
 ## `git-cas` Encapsulation
 
-All state-cache payload storage routes through the formal `@git-stunts/git-cas`
-library API. Raw Git plumbing remains an adapter concern for WARP refs and Git
-object access; WARP state-cache payloads should not hand-roll a parallel CAS.
+Materialization-root retention routes through the formal
+`@git-stunts/git-cas` `CacheSet` API. The legacy state-cache adapter also routes
+payload bytes through `git-cas`, but still owns its snapshot index and RootSet
+reconciliation. Removing that compatibility cache lifecycle is required before
+the one-cache boundary is complete. Raw Git plumbing remains an adapter concern
+for WARP refs and Git object access; WARP code must not hand-roll a parallel
+CAS.
 
 Routing state snapshots through `git-cas` allows content-addressed storage and
 chunk-level reuse where the underlying CAS representation can identify unchanged
@@ -134,7 +144,14 @@ lost payload bytes, or run Git garbage collection.
 ## Current Limitations
 
 - Exact state-cache hits bypass replay, but full materialization still hydrates
-  a full `WarpState`.
+  a full `WarpState`, scans retained node/edge tries, and builds full adjacency.
+- Retained materialization descriptors currently carry node/edge trie roots;
+  property, frontier, edge-birth, adjacency, provenance-support, and roaring
+  roots are explicitly marked unavailable until their paged representations
+  land.
+- `WarpStateCachePort` remains a legacy full-snapshot compatibility cache with
+  a WARP-owned index. Ordinary bounded observers cannot rely on it as their
+  final storage contract.
 - The Git-backed state-cache adapter stores full-state snapshots today. A future
   sharded basis format should make optic reads avoid full-state hydration.
 - Cache coordinates must stay schema/version aware. A snapshot is reusable only

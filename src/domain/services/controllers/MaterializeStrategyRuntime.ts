@@ -8,6 +8,8 @@ import type {
 import type { MaterializePatchSummary } from './MaterializePatchSummary.ts';
 import type { MaterializeSnapshotPublicationOptions } from './MaterializeSnapshotPublication.ts';
 import type { WarpStateSnapshotProvenancePosture } from '../../../ports/WarpStateCachePort.ts';
+import type { UsableSnapshotRecord } from './MaterializeSnapshotCacheResult.ts';
+import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
 import type {
   MaterializeDeps,
   MaterializeResult,
@@ -36,6 +38,8 @@ export type MaterializeResultBuildInput = {
   degraded: boolean;
   ceiling: number | null;
   frontier: Map<string, string> | null;
+  materialization?: MaterializationHandle;
+  publishSnapshot?: boolean;
 };
 
 export type MaterializeStrategyRuntime = {
@@ -64,5 +68,9 @@ export type MaterializeStrategyRuntime = {
     provenanceBase?: ProvenanceIndex,
   ): Promise<MaterializePatchStreamReduction>;
   buildResult(params: MaterializeResultBuildInput): Promise<MaterializeResult>;
+  resumeExactMaterialization(
+    snapshot: UsableSnapshotRecord,
+    options: { wantDiff: boolean },
+  ): Promise<MaterializeResult | null>;
   buildProvenance(patches: PatchWithSha[], base?: ProvenanceIndex): ProvenanceIndex;
 };

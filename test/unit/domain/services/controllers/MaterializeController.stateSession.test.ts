@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { Dot } from "../../../../../src/domain/crdt/Dot.ts";
+import PatchEntry from "../../../../../src/domain/artifacts/PatchEntry.ts";
 import MaterializeController from "../../../../../src/domain/services/controllers/MaterializeController.ts";
+import { reduceSessionBackedState } from "../../../../../src/domain/services/controllers/MaterializeSessionBridge.ts";
 import NodeAdd from "../../../../../src/domain/types/ops/NodeAdd.ts";
 import EdgeAdd from "../../../../../src/domain/types/ops/EdgeAdd.ts";
 import StateSession from "../../../../../src/domain/orset/session/StateSession.ts";
@@ -15,6 +17,7 @@ import { createEmptyState } from "../../../../../src/domain/services/JoinReducer
 import Patch from "../../../../../src/domain/types/Patch.ts";
 import type { CheckpointData, PatchWithSha } from "../../../../../src/domain/capabilities/PatchCollector.ts";
 import InMemoryCheckpointStore from "../../../../helpers/InMemoryCheckpointStore.ts";
+import InMemoryMaterializationStore from "../../../../helpers/InMemoryMaterializationStore.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -134,6 +137,7 @@ function createControllerFixtures() {
   };
   const store = new InMemoryTrieStore();
   const pageCache = new PageCache({ maxResident: 32 });
+  const materializations = new InMemoryMaterializationStore();
   const openStateSession = vi.fn(
     async (roots: {
       readonly nodeAliveRootOid: string | null;
@@ -170,6 +174,7 @@ function createControllerFixtures() {
       readBlob: vi.fn().mockResolvedValue(new Uint8Array([1])),
     },
     checkpointStore: new InMemoryCheckpointStore(),
+    materializations,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     getStateCache: () => stateCache,
     patches,
@@ -183,12 +188,44 @@ function createControllerFixtures() {
     patches,
     stateCache,
     openStateSession,
+    materializations,
+    deps,
   };
 }
 
 describe("MaterializeController — state session integration", () => {
+  it("does not flush partial trie roots when session reduction fails", async () => {
+    const { openStateSession } = createControllerFixtures();
+    const close = vi.spyOn(StateSession.prototype, "close");
+    const failure = new Error("patch source failed");
+    const partial = new PatchEntry(nodeAddPatchRecord({
+      writer: "writer-1",
+      lamport: 1,
+      sha: "deadbeef",
+      node: "node:partial",
+    }));
+    const patches = {
+      async *[Symbol.asyncIterator]() {
+        yield partial;
+        throw failure;
+      },
+    };
+
+    try {
+      await expect(reduceSessionBackedState({
+        openStateSession,
+        patches,
+        receipts: false,
+        wantDiff: false,
+      })).rejects.toBe(failure);
+      expect(close).not.toHaveBeenCalled();
+    } finally {
+      close.mockRestore();
+    }
+  });
+
   it("replays live materialization through StateSession and returns an explicit WarpState projection bridge", async () => {
-    const { controller, patches, openStateSession } = createControllerFixtures();
+    const { controller, patches, openStateSession, materializations } = createControllerFixtures();
     patches.collectForFrontier.mockResolvedValue([
       nodeAddPatchRecord({
         writer: "writer-1",
@@ -223,6 +260,54 @@ describe("MaterializeController — state session integration", () => {
     expect(result.adjacency.outgoing.get("node:session")).toEqual([
       { neighborId: "node:peer", label: "follows" },
     ]);
+    expect(materializations.retainedRequests).toHaveLength(1);
+    expect(materializations.retainedRequests[0]?.roots.nodeAlive.status).toBe("retained");
+    expect(materializations.retainedRequests[0]?.roots.edgeAlive.status).toBe("retained");
+    expect(materializations.retainedRequests[0]?.roots.properties.status).toBe("unavailable");
+    expect(result.materialization?.roots.nodeAlive.status).toBe("retained");
+  });
+
+  it("reopens exact retained roots with zero covered patch replay after controller restart", async () => {
+    const fixtures = createControllerFixtures();
+    fixtures.patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:retained",
+      }),
+    ]);
+
+    const cold = await fixtures.controller.materialize();
+    const published = fixtures.stateCache.put.mock.calls[0]?.[0];
+    if (published === undefined) {
+      throw new Error("Cold materialization did not publish its state snapshot");
+    }
+    fixtures.stateCache.getExact.mockResolvedValue(published);
+    fixtures.patches.collectForFrontier.mockClear();
+    fixtures.stateCache.put.mockClear();
+    fixtures.openStateSession.mockClear();
+
+    const warm = await fixtures.controller.materialize();
+    const reopened = await new MaterializeController(fixtures.deps).materialize();
+
+    const retained = fixtures.materializations.retainedRequests[0];
+    expect(retained).toBeDefined();
+    expect(fixtures.materializations.retainedRequests).toHaveLength(1);
+    expect(fixtures.materializations.exactLookups).toHaveLength(2);
+    expect(fixtures.patches.collectForFrontier).not.toHaveBeenCalled();
+    expect(fixtures.stateCache.put).not.toHaveBeenCalled();
+    expect(fixtures.openStateSession).toHaveBeenCalledTimes(2);
+    expect(fixtures.openStateSession).toHaveBeenNthCalledWith(1, {
+      nodeAliveRootOid: retained?.roots.nodeAlive.handle?.toString(),
+      edgeAliveRootOid: retained?.roots.edgeAlive.handle?.toString() ?? null,
+    });
+    expect(warm.patchCount).toBe(0);
+    expect(reopened.patchCount).toBe(0);
+    expect(warm.state.nodeAlive.contains("node:retained")).toBe(true);
+    expect(reopened.state.nodeAlive.contains("node:retained")).toBe(true);
+    expect(warm.materialization?.bundle.equals(cold.materialization?.bundle)).toBe(true);
+    expect(reopened.materialization?.bundle.equals(cold.materialization?.bundle)).toBe(true);
   });
 
   it("hydrates a predecessor snapshot into StateSession before replaying the suffix", async () => {

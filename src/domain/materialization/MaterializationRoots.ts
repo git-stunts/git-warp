@@ -1,5 +1,5 @@
 import WarpError from '../errors/WarpError.ts';
-import BundleHandle from '../storage/BundleHandle.ts';
+import MaterializationRoot from './MaterializationRoot.ts';
 
 export const MATERIALIZATION_ROOT_NAMES = defineRootNames(
   'adjacency',
@@ -15,63 +15,63 @@ export const MATERIALIZATION_ROOT_NAMES = defineRootNames(
 export type MaterializationRootName = (typeof MATERIALIZATION_ROOT_NAMES)[number];
 
 export type MaterializationRootsOptions = Readonly<{
-  adjacency: BundleHandle;
-  edgeAlive: BundleHandle;
-  edgeBirths: BundleHandle;
-  frontier: BundleHandle;
-  nodeAlive: BundleHandle;
-  properties: BundleHandle;
-  provenanceSupport: BundleHandle;
-  roaringIndexes: BundleHandle;
+  adjacency: MaterializationRoot;
+  edgeAlive: MaterializationRoot;
+  edgeBirths: MaterializationRoot;
+  frontier: MaterializationRoot;
+  nodeAlive: MaterializationRoot;
+  properties: MaterializationRoot;
+  provenanceSupport: MaterializationRoot;
+  roaringIndexes: MaterializationRoot;
 }>;
 
 /** Independently addressable retained roots for one materialized causal chart. */
 export default class MaterializationRoots {
-  private readonly handles: Readonly<Record<MaterializationRootName, BundleHandle>>;
-  readonly adjacency: BundleHandle;
-  readonly edgeAlive: BundleHandle;
-  readonly edgeBirths: BundleHandle;
-  readonly frontier: BundleHandle;
-  readonly nodeAlive: BundleHandle;
-  readonly properties: BundleHandle;
-  readonly provenanceSupport: BundleHandle;
-  readonly roaringIndexes: BundleHandle;
+  private readonly roots: Readonly<Record<MaterializationRootName, MaterializationRoot>>;
+  readonly adjacency: MaterializationRoot;
+  readonly edgeAlive: MaterializationRoot;
+  readonly edgeBirths: MaterializationRoot;
+  readonly frontier: MaterializationRoot;
+  readonly nodeAlive: MaterializationRoot;
+  readonly properties: MaterializationRoot;
+  readonly provenanceSupport: MaterializationRoot;
+  readonly roaringIndexes: MaterializationRoot;
 
   constructor(options: MaterializationRootsOptions) {
     requireOptions(options);
-    this.handles = Object.freeze({
-      adjacency: requireBundle(options.adjacency, 'adjacency'),
-      'edge-alive': requireBundle(options.edgeAlive, 'edgeAlive'),
-      'edge-births': requireBundle(options.edgeBirths, 'edgeBirths'),
-      frontier: requireBundle(options.frontier, 'frontier'),
-      'node-alive': requireBundle(options.nodeAlive, 'nodeAlive'),
-      properties: requireBundle(options.properties, 'properties'),
-      'provenance-support': requireBundle(options.provenanceSupport, 'provenanceSupport'),
-      'roaring-indexes': requireBundle(options.roaringIndexes, 'roaringIndexes'),
-    } satisfies Record<MaterializationRootName, BundleHandle>);
-    this.adjacency = this.handles.adjacency;
-    this.edgeAlive = this.handles['edge-alive'];
-    this.edgeBirths = this.handles['edge-births'];
-    this.frontier = this.handles.frontier;
-    this.nodeAlive = this.handles['node-alive'];
-    this.properties = this.handles.properties;
-    this.provenanceSupport = this.handles['provenance-support'];
-    this.roaringIndexes = this.handles['roaring-indexes'];
+    this.roots = Object.freeze({
+      adjacency: requireRoot(options.adjacency, 'adjacency'),
+      'edge-alive': requireRoot(options.edgeAlive, 'edgeAlive'),
+      'edge-births': requireRoot(options.edgeBirths, 'edgeBirths'),
+      frontier: requireRoot(options.frontier, 'frontier'),
+      'node-alive': requireRoot(options.nodeAlive, 'nodeAlive'),
+      properties: requireRoot(options.properties, 'properties'),
+      'provenance-support': requireRoot(options.provenanceSupport, 'provenanceSupport'),
+      'roaring-indexes': requireRoot(options.roaringIndexes, 'roaringIndexes'),
+    } satisfies Record<MaterializationRootName, MaterializationRoot>);
+    this.adjacency = this.roots.adjacency;
+    this.edgeAlive = this.roots['edge-alive'];
+    this.edgeBirths = this.roots['edge-births'];
+    this.frontier = this.roots.frontier;
+    this.nodeAlive = this.roots['node-alive'];
+    this.properties = this.roots.properties;
+    this.provenanceSupport = this.roots['provenance-support'];
+    this.roaringIndexes = this.roots['roaring-indexes'];
     Object.freeze(this);
   }
 
-  entries(): readonly (readonly [MaterializationRootName, BundleHandle])[] {
+  entries(): readonly (readonly [MaterializationRootName, MaterializationRoot])[] {
     return Object.freeze(
-      MATERIALIZATION_ROOT_NAMES.map((name) => rootEntry(name, this.handles[name])),
+      MATERIALIZATION_ROOT_NAMES.map((name) => rootEntry(name, this.roots[name])),
     );
   }
 }
 
 function rootEntry(
   name: MaterializationRootName,
-  handle: BundleHandle,
-): readonly [MaterializationRootName, BundleHandle] {
-  return Object.freeze([name, handle]);
+  root: MaterializationRoot,
+): readonly [MaterializationRootName, MaterializationRoot] {
+  return Object.freeze([name, root]);
 }
 
 function defineRootNames<const Names extends readonly string[]>(...names: Names): Names {
@@ -79,11 +79,11 @@ function defineRootNames<const Names extends readonly string[]>(...names: Names)
   return names;
 }
 
-function requireBundle(handle: BundleHandle, field: string): BundleHandle {
-  if (!(handle instanceof BundleHandle)) {
-    throw rootsError(`${field} must be a BundleHandle`);
+function requireRoot(root: MaterializationRoot, field: string): MaterializationRoot {
+  if (!(root instanceof MaterializationRoot)) {
+    throw rootsError(`${field} must be a MaterializationRoot`);
   }
-  return handle;
+  return root;
 }
 
 function requireOptions(options: object): void {

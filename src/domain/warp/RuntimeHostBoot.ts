@@ -33,6 +33,7 @@ import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../../ports/IndexStorePort.ts';
 import type IntentStorePort from '../../ports/IntentStorePort.ts';
+import type MaterializationStorePort from '../../ports/MaterializationStorePort.ts';
 import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
 import type SchedulerPort from '../../ports/SchedulerPort.ts';
@@ -69,6 +70,7 @@ export type RuntimeHostConstructionOptions = {
   checkpointStore: CheckpointStorePort;
   indexStore: IndexStorePort;
   intentStore: IntentStorePort;
+  materializations: MaterializationStorePort;
   viewService: MaterializedViewService;
   stateHashService?: StateHashService;
   auditService?: AuditReceiptService;
@@ -375,6 +377,7 @@ export async function resolveRuntimeHostConstructionOptions(
       checkpointStore: storageServices.checkpoints,
       indexStore: resolvedIndexStore,
       intentStore: storageServices.intents,
+      materializations: storageServices.materializations,
       viewService: resolvedViewService,
       stateHashService: resolvedStateHashService,
       ...(resolvedAuditService !== undefined ? { auditService: resolvedAuditService } : {}),

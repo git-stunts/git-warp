@@ -113,7 +113,9 @@ export default class MaterializeCoordinateStrategy {
   ): Promise<MaterializeResult | null> {
     const exact = await stateCache.getExact(opts.coordinate);
     if (canUseSnapshot(exact, { receipts: opts.receipts })) {
-      return snapshotToMaterializeResult(exact);
+      return await this.runtime.resumeExactMaterialization(exact, {
+        wantDiff: false,
+      }) ?? snapshotToMaterializeResult(exact);
     }
     return null;
   }

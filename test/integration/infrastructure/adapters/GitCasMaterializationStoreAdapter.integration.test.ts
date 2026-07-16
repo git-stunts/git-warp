@@ -9,6 +9,7 @@ import ContentAddressableStore, {
 import Plumbing from '@git-stunts/plumbing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
+import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
@@ -54,8 +55,12 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
     if (resolved === null) {
       throw new Error('Retained materialization was not reopened');
     }
+    const nodeAliveRoot = resolved.roots.nodeAlive.handle;
+    if (nodeAliveRoot === null) {
+      throw new Error('Retained materialization did not expose its node root');
+    }
     const reopenedTrie = new GitCasTrieStoreAdapter({ cas: reopenedCas });
-    const children = await reopenedTrie.readBranch(resolved.roots.nodeAlive.toString());
+    const children = await reopenedTrie.readBranch(nodeAliveRoot.toString());
     const child = children.get(0);
     if (child === undefined) {
       throw new Error('Retained trie root did not contain its leaf child');
@@ -63,8 +68,8 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
     const unreachable = await prunableOids(harness.path);
 
     expect(resolved.bundle.equals(retained.bundle)).toBe(true);
-    expect(resolved.roots.entries().map(([name, handle]) => [name, handle.toString()]))
-      .toEqual(rootFixture.roots.entries().map(([name, handle]) => [name, handle.toString()]));
+    expect(resolved.roots.entries().map(([name, root]) => rootSignature(name, root)))
+      .toEqual(rootFixture.roots.entries().map(([name, root]) => rootSignature(name, root)));
     expect(await reopenedTrie.readLeaf(child)).toEqual(trieFixture.bytes);
     expect(unreachable).not.toContain(GitCasBundleHandle.parse(retained.bundle.toString()).oid);
     for (const oid of rootFixture.retainedOids) {
@@ -197,15 +202,22 @@ function rootsFromHandles(handles: readonly BundleHandle[]): MaterializationRoot
     throw new Error('Root integration fixture did not create every root');
   }
   return new MaterializationRoots({
-    adjacency,
-    edgeAlive,
-    edgeBirths,
-    frontier,
-    nodeAlive,
-    properties,
-    provenanceSupport,
-    roaringIndexes,
+    adjacency: MaterializationRoot.retained(adjacency),
+    edgeAlive: MaterializationRoot.retained(edgeAlive),
+    edgeBirths: MaterializationRoot.retained(edgeBirths),
+    frontier: MaterializationRoot.retained(frontier),
+    nodeAlive: MaterializationRoot.retained(nodeAlive),
+    properties: MaterializationRoot.retained(properties),
+    provenanceSupport: MaterializationRoot.retained(provenanceSupport),
+    roaringIndexes: MaterializationRoot.retained(roaringIndexes),
   });
+}
+
+function rootSignature(
+  name: string,
+  root: MaterializationRoot,
+): readonly [string, string, string | null] {
+  return [name, root.status, root.handle?.toString() ?? null];
 }
 
 async function prunableOids(path: string): Promise<Set<string>> {

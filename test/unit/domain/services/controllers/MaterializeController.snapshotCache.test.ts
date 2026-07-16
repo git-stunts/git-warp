@@ -5,6 +5,7 @@ import Patch from '../../../../../src/domain/types/Patch.ts';
 import type { CheckpointData, PatchWithSha } from '../../../../../src/domain/capabilities/PatchCollector.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
+import InMemoryMaterializationStore from '../../../../helpers/InMemoryMaterializationStore.ts';
 
 type Coordinate = {
   frontier: Map<string, string>;
@@ -132,6 +133,7 @@ function createControllerFixtures() {
       readBlob: vi.fn().mockResolvedValue(new Uint8Array([1])),
     },
     checkpointStore: new InMemoryCheckpointStore(),
+    materializations: new InMemoryMaterializationStore(),
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     getStateCache: () => stateCache,
     patches,
