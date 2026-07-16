@@ -338,16 +338,16 @@ export async function resolveRuntimeHostConstructionOptions(
     resolvedOpenStateSession = openStateSession;
   } else if (storageServices.trie !== undefined) {
     const store = storageServices.trie;
-    const pageCache = new PageCache({ maxResident: 256 });
     const geometry = TrieGeometry.default16way();
-    resolvedOpenStateSession = async (roots) =>
+    resolvedOpenStateSession = async (roots, sessionOptions) =>
       await StateSession.open({
         nodeAliveRootOid: roots.nodeAliveRootOid,
         edgeAliveRootOid: roots.edgeAliveRootOid,
         store,
         codec: resolvedCodec,
         geometry,
-        pageCache,
+        pageCache: new PageCache({ maxResident: 256 }),
+        workspace: sessionOptions.workspace,
       });
   }
 

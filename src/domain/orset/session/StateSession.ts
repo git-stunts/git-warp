@@ -3,16 +3,19 @@ import type VersionVector from "../../crdt/VersionVector.ts";
 import StateSessionError from "../../errors/StateSessionError.ts";
 import type ORSetElementState from "../ORSetElementState.ts";
 import type CodecPort from "../../../ports/CodecPort.ts";
+import type MaterializationWorkspacePort from "../../../ports/MaterializationWorkspacePort.ts";
+import StorageRetentionWitness from "../../storage/StorageRetentionWitness.ts";
 import type TrieStorePort from "../trie/TrieStorePort.ts";
 import PageCache from "../trie/PageCache.ts";
 import TrieCursor from "../trie/TrieCursor.ts";
 import TrieFlusher from "../trie/TrieFlusher.ts";
 import TrieGeometry from "../trie/TrieGeometry.ts";
+import type FlushResult from "../trie/FlushResult.ts";
 import ShadowTrieORSet from "../shadow/ShadowTrieORSet.ts";
 
 import StateSessionCloseResult from "./StateSessionCloseResult.ts";
 
-export type StateSessionOpen = {
+type StateSessionDependencies = {
   readonly nodeAliveRootOid: string | null;
   readonly edgeAliveRootOid: string | null;
   readonly store: TrieStorePort;
@@ -21,17 +24,53 @@ export type StateSessionOpen = {
   readonly pageCache: PageCache;
 };
 
+type BoundedStateSessionOpen = Readonly<{
+  workspace: MaterializationWorkspacePort;
+  maxDirtyPages?: number;
+}>;
+
+type DiagnosticStateSessionOpen = Readonly<{
+  workspace?: undefined;
+  maxDirtyPages?: undefined;
+}>;
+
+export type StateSessionOpen = StateSessionDependencies & (
+  | BoundedStateSessionOpen
+  | DiagnosticStateSessionOpen
+);
+
+export type StateSessionPreparedClose = Readonly<{
+  roots: StateSessionCloseResult;
+  accept(witness: StorageRetentionWitness | null): void;
+}>;
+
+type PreparedSessionFlush = Readonly<{
+  node: FlushResult;
+  edge: FlushResult;
+  roots: StateSessionCloseResult;
+}>;
+
+const DEFAULT_MAX_DIRTY_PAGES = 1024;
+
 export default class StateSession {
   readonly #nodeAlive: ShadowTrieORSet;
   readonly #edgeAlive: ShadowTrieORSet;
+  readonly #workspace: MaterializationWorkspacePort | null;
+  readonly #maxDirtyPages: number;
+  #workspaceCheckpointPending = false;
+  #closePrepared = false;
   #closed = false;
 
   constructor(fields: {
     readonly nodeAlive: ShadowTrieORSet;
     readonly edgeAlive: ShadowTrieORSet;
+    readonly workspace?: MaterializationWorkspacePort;
+    readonly maxDirtyPages: number;
   }) {
     this.#nodeAlive = fields.nodeAlive;
     this.#edgeAlive = fields.edgeAlive;
+    this.#workspace = fields.workspace ?? null;
+    this.#maxDirtyPages = fields.maxDirtyPages;
     Object.freeze(this);
   }
 
@@ -42,6 +81,8 @@ export default class StateSession {
     validateCodec(init.codec);
     validateGeometry(init.geometry);
     validatePageCache(init.pageCache);
+    validateWorkspace(init.workspace);
+    const maxDirtyPages = normalizeMaxDirtyPages(init.maxDirtyPages, init.workspace);
 
     const nodeCursor = new TrieCursor({
       rootOid: init.nodeAliveRootOid,
@@ -75,6 +116,8 @@ export default class StateSession {
         cursor: edgeCursor,
         flusher: edgeFlusher,
       }),
+      ...(init.workspace === undefined ? {} : { workspace: init.workspace }),
+      maxDirtyPages,
     });
   }
 
@@ -111,21 +154,25 @@ export default class StateSession {
   async addNode(id: string, dot: Dot): Promise<void> {
     this.#assertOpen();
     await this.#nodeAlive.add(id, dot);
+    await this.#checkpointIfNeeded();
   }
 
   async addEdge(key: string, dot: Dot): Promise<void> {
     this.#assertOpen();
     await this.#edgeAlive.add(key, dot);
+    await this.#checkpointIfNeeded();
   }
 
   async removeNode(id: string, observedDots: ReadonlySet<string>): Promise<void> {
     this.#assertOpen();
     await this.#nodeAlive.removeElement(id, observedDots);
+    await this.#checkpointIfNeeded();
   }
 
   async removeEdge(key: string, observedDots: ReadonlySet<string>): Promise<void> {
     this.#assertOpen();
     await this.#edgeAlive.removeElement(key, observedDots);
+    await this.#checkpointIfNeeded();
   }
 
   scanNodes(): AsyncIterable<string> {
@@ -150,23 +197,103 @@ export default class StateSession {
 
   async compact(includedVV: VersionVector): Promise<void> {
     this.#assertOpen();
+    if (this.#workspace !== null) {
+      throw new StateSessionError(
+        "Bounded StateSession compaction requires resumable subtree checkpoints",
+        { code: "E_STATE_SESSION_INPUT" },
+      );
+    }
     await this.#nodeAlive.compact(includedVV);
     await this.#edgeAlive.compact(includedVV);
+    await this.#checkpointIfNeeded();
+  }
+
+  /** Mutated pages awaiting flush; this is not a total resident-memory metric. */
+  dirtyPageCount(): number {
+    return this.#nodeAlive.dirtyPageCount() + this.#edgeAlive.dirtyPageCount();
   }
 
   async close(): Promise<StateSessionCloseResult> {
     this.#assertOpen();
-    const nodeFlush = await this.#nodeAlive.flush();
-    const edgeFlush = await this.#edgeAlive.flush();
+    const roots = await this.#flushAndRetain();
     this.#closed = true;
-    return new StateSessionCloseResult({
+    return roots;
+  }
+
+  async prepareClose(): Promise<StateSessionPreparedClose> {
+    this.#assertOpen();
+    this.#closePrepared = true;
+    try {
+      const prepared = await this.#prepareFlush();
+      let accepted = false;
+      return Object.freeze({
+        roots: prepared.roots,
+        accept: (witness: StorageRetentionWitness | null) => {
+          if (accepted) {
+            throw new StateSessionError(
+              "StateSession prepared close was already accepted",
+              { code: "E_STATE_SESSION_CLOSED" },
+            );
+          }
+          requireFinalRetentionWitness(prepared.roots, witness);
+          this.#acceptFlush(prepared);
+          accepted = true;
+          this.#closed = true;
+        },
+      });
+    } catch (raw) {
+      this.#closePrepared = false;
+      throw raw;
+    }
+  }
+
+  async #checkpointIfNeeded(): Promise<void> {
+    if (
+      !this.#workspaceCheckpointPending &&
+      this.dirtyPageCount() < this.#maxDirtyPages
+    ) {
+      return;
+    }
+    await this.#flushAndRetain();
+  }
+
+  async #flushAndRetain(): Promise<StateSessionCloseResult> {
+    const prepared = await this.#prepareFlush();
+    if (this.#workspaceCheckpointPending && this.#workspace !== null) {
+      const witness = await this.#workspace.checkpoint({
+        nodeAliveRoot: prepared.roots.nodeAliveRootOid,
+        edgeAliveRoot: prepared.roots.edgeAliveRootOid,
+      });
+      requireWorkspaceWitness(prepared.roots, witness);
+    }
+    this.#acceptFlush(prepared);
+    return prepared.roots;
+  }
+
+  async #prepareFlush(): Promise<PreparedSessionFlush> {
+    const nodeFlush = await this.#nodeAlive.prepareFlush();
+    if (!nodeFlush.isClean()) {
+      this.#workspaceCheckpointPending = true;
+    }
+    const edgeFlush = await this.#edgeAlive.prepareFlush();
+    if (!edgeFlush.isClean()) {
+      this.#workspaceCheckpointPending = true;
+    }
+    const roots = new StateSessionCloseResult({
       nodeAliveRootOid: nodeFlush.rootOid,
       edgeAliveRootOid: edgeFlush.rootOid,
     });
+    return Object.freeze({ node: nodeFlush, edge: edgeFlush, roots });
+  }
+
+  #acceptFlush(prepared: PreparedSessionFlush): void {
+    this.#nodeAlive.acceptFlush(prepared.node);
+    this.#edgeAlive.acceptFlush(prepared.edge);
+    this.#workspaceCheckpointPending = false;
   }
 
   #assertOpen(): void {
-    if (this.#closed) {
+    if (this.#closed || this.#closePrepared) {
       throw new StateSessionError(
         "StateSession is closed",
         { code: "E_STATE_SESSION_CLOSED" },
@@ -242,6 +369,96 @@ function validatePageCache(pageCache: PageCache): void {
         code: "E_STATE_SESSION_INPUT",
         context: { field: "pageCache" },
       },
+    );
+  }
+}
+
+function validateWorkspace(workspace: MaterializationWorkspacePort | undefined): void {
+  if (workspace === undefined) {
+    return;
+  }
+  if (
+    typeof workspace.checkpoint !== "function" ||
+    typeof workspace.promote !== "function" ||
+    typeof workspace.release !== "function"
+  ) {
+    throw new StateSessionError(
+      "StateSession workspace must provide checkpoint/promote/release methods",
+      {
+        code: "E_STATE_SESSION_INPUT",
+        context: { field: "workspace" },
+      },
+    );
+  }
+}
+
+function normalizeMaxDirtyPages(
+  value: number | undefined,
+  workspace: MaterializationWorkspacePort | undefined,
+): number {
+  if (workspace === undefined && value !== undefined) {
+    throw new StateSessionError(
+      "StateSession maxDirtyPages requires a materialization workspace",
+      {
+        code: "E_STATE_SESSION_INPUT",
+        context: { field: "maxDirtyPages" },
+      },
+    );
+  }
+  const normalized = value ?? (workspace === undefined
+    ? Number.MAX_SAFE_INTEGER
+    : DEFAULT_MAX_DIRTY_PAGES);
+  if (!Number.isSafeInteger(normalized) || normalized <= 0) {
+    throw new StateSessionError(
+      `StateSession maxDirtyPages must be a positive safe integer; received ${String(normalized)}`,
+      {
+        code: "E_STATE_SESSION_INPUT",
+        context: { field: "maxDirtyPages", value: normalized },
+      },
+    );
+  }
+  return normalized;
+}
+
+function requireWorkspaceWitness(
+  roots: StateSessionCloseResult,
+  witness: Awaited<ReturnType<MaterializationWorkspacePort["checkpoint"]>>,
+): void {
+  if (
+    (roots.nodeAliveRootOid !== null || roots.edgeAliveRootOid !== null) &&
+    !isPinnedWorkspaceWitness(witness)
+  ) {
+    throw new StateSessionError(
+      "StateSession workspace did not witness retained non-empty roots",
+      { code: "E_STATE_SESSION_STRUCTURE" },
+    );
+  }
+}
+
+function isPinnedWorkspaceWitness(
+  witness: Awaited<ReturnType<MaterializationWorkspacePort["checkpoint"]>>,
+): witness is StorageRetentionWitness {
+  return witness instanceof StorageRetentionWitness &&
+    witness.policy === "pinned" &&
+    witness.reachability === "anchored" &&
+    witness.root.kind === "cache-set";
+}
+
+function requireFinalRetentionWitness(
+  roots: StateSessionCloseResult,
+  witness: StorageRetentionWitness | null,
+): void {
+  if (roots.nodeAliveRootOid === null && roots.edgeAliveRootOid === null) {
+    return;
+  }
+  if (
+    !(witness instanceof StorageRetentionWitness) ||
+    witness.reachability !== "anchored" ||
+    witness.root.kind !== "cache-set"
+  ) {
+    throw new StateSessionError(
+      "StateSession final materialization did not witness retained non-empty roots",
+      { code: "E_STATE_SESSION_STRUCTURE" },
     );
   }
 }

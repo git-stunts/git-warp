@@ -13,6 +13,11 @@ import MaterializationRoot from '../../../../src/domain/materialization/Material
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import GitCasMaterializationWorkspace from '../../../../src/infrastructure/adapters/GitCasMaterializationWorkspace.ts';
+import type {
+  MaterializationWorkspaceLease,
+  MaterializationWorkspaceLeaseScheduler,
+} from '../../../../src/infrastructure/adapters/GitCasMaterializationWorkspace.ts';
 import GitCasTrieStoreAdapter from '../../../../src/infrastructure/adapters/GitCasTrieStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -79,6 +84,74 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
       args: ['show-ref', '--verify', '--hash', 'refs/cas/caches/git-warp/materializations'],
     })).toMatch(/^[0-9a-f]{40}\n?$/u);
   });
+
+  it('keeps workspace roots readable across aggressive Git pruning', async () => {
+    const trieFixture = await createTrieRoot(harness.cas);
+    const workspace = await harness.materializations.openWorkspace(workspaceCoordinate());
+
+    const witness = await workspace.checkpoint({
+      nodeAliveRoot: trieFixture.root.toString(),
+      edgeAliveRoot: null,
+    });
+    if (witness === null) {
+      throw new Error('Workspace did not witness its non-empty trie root');
+    }
+    expect(witness).toMatchObject({
+      policy: 'pinned',
+      reachability: 'anchored',
+    });
+    expect(await prunableOids(harness.path)).not.toContain(
+      GitCasBundleHandle.parse(trieFixture.root.toString()).oid,
+    );
+
+    await execFileAsync('git', ['-C', harness.path, 'prune', '--expire=now']);
+    const trie = new GitCasTrieStoreAdapter({ cas: harness.cas });
+    const children = await trie.readBranch(trieFixture.root.toString());
+    expect(children.size).toBe(1);
+
+    await workspace.release();
+  });
+
+  it('renews an active workspace across expiry, sweep, and aggressive pruning', async () => {
+    const clock = new MutableClock('2026-07-16T00:00:00.000Z');
+    const leaseHarness = await createHarness(clock);
+    try {
+      const trieFixture = await createTrieRoot(leaseHarness.cas);
+      const cache = await leaseHarness.cas.caches.open({
+        namespace: 'git-warp/materialization-workspaces',
+      });
+      const scheduler = new ManualLeaseScheduler();
+      const workspace = new GitCasMaterializationWorkspace({
+        bundles: leaseHarness.cas.bundles,
+        cache,
+        key: 'active-lease',
+        clock,
+        leaseTtlMs: 1_000,
+        leaseRenewalMs: 500,
+        leaseScheduler: scheduler,
+        promote: rejectPromotion,
+      });
+
+      await workspace.checkpoint({
+        nodeAliveRoot: trieFixture.root.toString(),
+        edgeAliveRoot: null,
+      });
+      clock.advance(600);
+      await scheduler.runNext();
+      clock.advance(500);
+
+      const sweep = await cache.sweep();
+      expect(sweep.removed).toBe(0);
+      expect(await cache.get('active-lease')).not.toBeNull();
+      await execFileAsync('git', ['-C', leaseHarness.path, 'prune', '--expire=now']);
+
+      const trie = new GitCasTrieStoreAdapter({ cas: leaseHarness.cas });
+      expect((await trie.readBranch(trieFixture.root.toString())).size).toBe(1);
+      await workspace.release();
+    } finally {
+      await rm(leaseHarness.path, { recursive: true, force: true });
+    }
+  });
 });
 
 type Harness = Readonly<{
@@ -88,13 +161,13 @@ type Harness = Readonly<{
   plumbing: Awaited<ReturnType<typeof Plumbing.createDefault>>;
 }>;
 
-async function createHarness(): Promise<Harness> {
+async function createHarness(clock?: { readonly now: () => Date }): Promise<Harness> {
   const path = await mkdtemp(join(tmpdir(), 'git-warp-materializations-'));
   const plumbing = await Plumbing.createDefault({ cwd: path });
   await plumbing.execute({ args: ['init', '-q'] });
   await plumbing.execute({ args: ['config', 'user.email', 'test@example.com'] });
   await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-  const cas = createCas(plumbing);
+  const cas = createCas(plumbing, clock);
   return Object.freeze({
     cas,
     path,
@@ -105,11 +178,13 @@ async function createHarness(): Promise<Harness> {
 
 function createCas(
   plumbing: Awaited<ReturnType<typeof Plumbing.createDefault>>,
+  clock?: { readonly now: () => Date },
 ): ContentAddressableStore {
   return ContentAddressableStore.createCbor({
     plumbing,
     chunking: { strategy: 'cdc' },
     applicationRefPrefixes: ['refs/warp/'],
+    ...(clock === undefined ? {} : { clock }),
   });
 }
 
@@ -218,6 +293,57 @@ function rootSignature(
   root: MaterializationRoot,
 ): readonly [string, string, string | null] {
   return [name, root.status, root.handle?.toString() ?? null];
+}
+
+function workspaceCoordinate(): MaterializationCoordinate {
+  return new MaterializationCoordinate({
+    frontier: new Map([['writer-a', 'a'.repeat(40)]]),
+    ceiling: null,
+  });
+}
+
+function rejectPromotion(): Promise<never> {
+  return Promise.reject(new Error('Promotion is not used by the lease integration test'));
+}
+
+class MutableClock {
+  #current: number;
+
+  constructor(iso: string) {
+    this.#current = Date.parse(iso);
+  }
+
+  now(): Date {
+    return new Date(this.#current);
+  }
+
+  advance(milliseconds: number): void {
+    this.#current += milliseconds;
+  }
+}
+
+class ManualLeaseScheduler implements MaterializationWorkspaceLeaseScheduler {
+  #task: (() => Promise<void>) | null = null;
+
+  schedule(task: () => Promise<void>, _delayMs: number): MaterializationWorkspaceLease {
+    this.#task = task;
+    return Object.freeze({
+      cancel: () => {
+        if (this.#task === task) {
+          this.#task = null;
+        }
+      },
+    });
+  }
+
+  async runNext(): Promise<void> {
+    const task = this.#task;
+    if (task === null) {
+      throw new Error('Expected a scheduled lease renewal');
+    }
+    this.#task = null;
+    await task();
+  }
 }
 
 async function prunableOids(path: string): Promise<Set<string>> {

@@ -372,7 +372,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
 
     const checkpointState = createEmptyState();
 
-    // Build 4 fake patch objects for _loadPatchesSince
+    // Build 4 fake patch objects for the checkpoint suffix stream.
     const patches: any[] = [];
     for (let i = 1; i <= 4; i++) {
       patches.push({
@@ -384,9 +384,12 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
     vi.spyOn(graph, ('_loadLatestCheckpoint' as any)).mockResolvedValue({
       schema: 5,
       state: checkpointState,
-      frontier: {},
+      frontier: new Map(),
     });
-    vi.spyOn(graph, ('_loadPatchesSince' as any)).mockResolvedValue(patches);
+    vi.spyOn(graph, 'getFrontier').mockResolvedValue(new Map([
+      ['w1', patches[patches.length - 1].sha],
+    ]));
+    vi.spyOn(graph, ('_loadPatchChainFromSha' as any)).mockResolvedValue(patches);
 
     const spy = vi
       .spyOn(graph, 'createCheckpoint')
@@ -419,9 +422,12 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
     vi.spyOn(graph, ('_loadLatestCheckpoint' as any)).mockResolvedValue({
       schema: 5,
       state: checkpointState,
-      frontier: {},
+      frontier: new Map(),
     });
-    vi.spyOn(graph, ('_loadPatchesSince' as any)).mockResolvedValue(patches);
+    vi.spyOn(graph, 'getFrontier').mockResolvedValue(new Map([
+      ['w1', patches[patches.length - 1].sha],
+    ]));
+    vi.spyOn(graph, ('_loadPatchChainFromSha' as any)).mockResolvedValue(patches);
 
     const spy = vi
       .spyOn(graph, 'createCheckpoint')
@@ -517,7 +523,10 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       frontier: new Map(),
       indexShardOids: null,
     });
-    vi.spyOn(graph, ('_loadPatchesSince' as any)).mockResolvedValue(patches);
+    vi.spyOn(graph, 'getFrontier').mockResolvedValue(new Map([
+      ['w1', patches[patches.length - 1].sha],
+    ]));
+    vi.spyOn(graph, ('_loadPatchChainFromSha' as any)).mockResolvedValue(patches);
 
     const state = await graph.materialize();
 

@@ -20,10 +20,12 @@ import type StorageRetentionWitness from '../../domain/storage/StorageRetentionW
 import WarpError from '../../domain/errors/WarpError.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
+import type MaterializationWorkspacePort from '../../ports/MaterializationWorkspacePort.ts';
 import MaterializationStorePort, {
   type RetainMaterializationRequest,
 } from '../../ports/MaterializationStorePort.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
+import GitCasMaterializationWorkspace from './GitCasMaterializationWorkspace.ts';
 import {
   decodeMaterializationDescriptor,
   MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
@@ -34,12 +36,13 @@ import {
 } from './GitCasMaterializationDescriptor.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
+const WORKSPACE_CACHE_NAMESPACE = 'git-warp/materialization-workspaces';
 const DESCRIPTOR_PATH = 'meta/descriptor';
 const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
 // A root-list change also requires a descriptor schema-version change.
 const MATERIALIZATION_MEMBER_COUNT = MATERIALIZATION_ROOT_NAMES.length + 1;
 
-type MaterializationCacheSet = Pick<CacheSet, 'get' | 'put'>;
+type MaterializationCacheSet = Pick<CacheSet, 'get' | 'put' | 'remove'>;
 
 export type GitCasMaterializationFacade = {
   readonly bundles: Pick<BundleCapability, 'iterateMembers' | 'putOrdered'>;
@@ -82,6 +85,24 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     this.#codec = options.codec;
     this.#crypto = options.crypto;
     this.#laneName = requireNonEmpty(options.laneName, 'laneName');
+  }
+
+  override async openWorkspace(
+    coordinate: MaterializationCoordinate,
+  ): Promise<MaterializationWorkspacePort> {
+    requireCoordinate(coordinate);
+    const cache = await this.#cas.caches.open({ namespace: WORKSPACE_CACHE_NAMESPACE });
+    return new GitCasMaterializationWorkspace({
+      bundles: this.#cas.bundles,
+      cache,
+      key: `workspace:${this.#laneName}:${globalThis.crypto.randomUUID()}`,
+      promote: async (request) => {
+        if (!request.coordinate.equals(coordinate)) {
+          throw storageError('workspace promotion coordinate does not match its open coordinate');
+        }
+        return await this.retain(request);
+      },
+    });
   }
 
   override async retain(request: RetainMaterializationRequest): Promise<MaterializationHandle> {

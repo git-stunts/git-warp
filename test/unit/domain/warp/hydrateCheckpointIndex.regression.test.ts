@@ -39,6 +39,7 @@ function buildState(nodes, edges) {
 
 describe('materialize stale-checkpoint regression', () => {
   it('does not overwrite freshly built index with stale checkpoint index data', async () => {
+    const tipSha = 'a'.repeat(40);
     const latestState = buildState(
       ['A', 'B', 'C'],
       [['A', 'B', 'knows'], ['A', 'C', 'manages']],
@@ -57,14 +58,16 @@ describe('materialize stale-checkpoint regression', () => {
         loadCheckpoint: async () => ({
           schema: 5,
           state: latestState,
-          frontier: new Map(),
+          frontier: new Map([['w1', tipSha]]),
           provenanceIndex: null,
         }),
         loadPatchesSince: async () => [],
         discoverWriters: async () => [],
         loadWriterPatches: async () => [],
         collectForFrontier: async () => [],
-        getFrontier: async () => new Map(),
+        streamForFrontier: async function* () {},
+        streamForFrontierSinceCoordinate: async function* () {},
+        getFrontier: async () => new Map([['w1', tipSha]]),
         loadPatchChain: async () => [],
       },
     }) as any);

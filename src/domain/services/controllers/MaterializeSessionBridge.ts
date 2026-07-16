@@ -3,6 +3,10 @@ import VersionVector from "../../crdt/VersionVector.ts";
 import { Dot } from "../../crdt/Dot.ts";
 import type PatchEntry from "../../artifacts/PatchEntry.ts";
 import type StateSession from "../../orset/session/StateSession.ts";
+import type MaterializationStorePort from "../../../ports/MaterializationStorePort.ts";
+import type MaterializationWorkspacePort from "../../../ports/MaterializationWorkspacePort.ts";
+import type MaterializationCoordinate from "../../materialization/MaterializationCoordinate.ts";
+import type StorageRetentionWitness from "../../storage/StorageRetentionWitness.ts";
 import MaterializationRoot from "../../materialization/MaterializationRoot.ts";
 import MaterializationRoots from "../../materialization/MaterializationRoots.ts";
 import BundleHandle from "../../storage/BundleHandle.ts";
@@ -25,6 +29,7 @@ export type MaterializeSessionOpen = {
 
 export type MaterializeSessionOpener = (
   init: MaterializeSessionOpen,
+  options: { readonly workspace: MaterializationWorkspacePort },
 ) => Promise<StateSession>;
 
 type MaterializeSessionPatchSource =
@@ -33,6 +38,8 @@ type MaterializeSessionPatchSource =
 
 export async function reduceSessionBackedState(args: {
   readonly openStateSession: MaterializeSessionOpener;
+  readonly materializations: MaterializationStorePort;
+  readonly coordinate: MaterializationCoordinate;
   readonly patches: MaterializeSessionPatchSource;
   readonly baseState?: WarpStateClass;
   readonly roots?: MaterializeSessionOpen;
@@ -42,63 +49,81 @@ export async function reduceSessionBackedState(args: {
   readonly state: WarpStateClass;
   readonly adjacency: MaterializeAdjacency;
   readonly roots: MaterializationRoots;
+  readonly workspace: MaterializationWorkspacePort;
+  readonly acceptMaterialization: (witness: StorageRetentionWitness | null) => void;
   readonly receipts?: TickReceipt[];
   readonly diff?: PatchDiff;
 }> {
-  const frame = await openReducerSessionFrame(
-    args.openStateSession,
-    args.baseState,
-    args.roots,
-  );
-  let reduced: {
-    readonly state: WarpStateClass;
-    readonly adjacency: MaterializeAdjacency;
-    readonly receipts?: TickReceipt[];
-    readonly diff?: PatchDiff;
-  };
-  if (args.receipts) {
-    const result = await reducePatchesInSession(args.patches, frame, {
-      receipts: true,
-    });
-    const adjacency = await buildAdjacencyFromSession(result.frame.session);
-    reduced = {
-      state: await projectFrameToState(result.frame),
-      adjacency,
-      receipts: result.receipts,
+  const workspace = await args.materializations.openWorkspace(args.coordinate);
+  try {
+    const frame = await openReducerSessionFrame(
+      args.openStateSession,
+      workspace,
+      args.baseState,
+      args.roots,
+    );
+    let reduced: {
+      readonly state: WarpStateClass;
+      readonly adjacency: MaterializeAdjacency;
+      readonly receipts?: TickReceipt[];
+      readonly diff?: PatchDiff;
     };
-  } else if (args.wantDiff) {
-    const result = await reducePatchesInSession(args.patches, frame, {
-      trackDiff: true,
-    });
-    const adjacency = await buildAdjacencyFromSession(result.frame.session);
-    reduced = {
-      state: await projectFrameToState(result.frame),
-      adjacency,
-      diff: result.diff,
-    };
-  } else {
-    const result = await reducePatchesInSession(args.patches, frame);
-    const adjacency = await buildAdjacencyFromSession(result.session);
-    reduced = {
-      state: await projectFrameToState(result),
-      adjacency,
-    };
-  }
+    if (args.receipts) {
+      const result = await reducePatchesInSession(args.patches, frame, {
+        receipts: true,
+      });
+      const adjacency = await buildAdjacencyFromSession(result.frame.session);
+      reduced = {
+        state: await projectFrameToState(result.frame),
+        adjacency,
+        receipts: result.receipts,
+      };
+    } else if (args.wantDiff) {
+      const result = await reducePatchesInSession(args.patches, frame, {
+        trackDiff: true,
+      });
+      const adjacency = await buildAdjacencyFromSession(result.frame.session);
+      reduced = {
+        state: await projectFrameToState(result.frame),
+        adjacency,
+        diff: result.diff,
+      };
+    } else {
+      const result = await reducePatchesInSession(args.patches, frame);
+      const adjacency = await buildAdjacencyFromSession(result.session);
+      reduced = {
+        state: await projectFrameToState(result),
+        adjacency,
+      };
+    }
 
-  // close() flushes trie pages, so failed reductions must leave no CAS artifacts.
-  const roots = materializationRootsFromSession(await frame.session.close());
-  return { ...reduced, roots };
+    const close = await frame.session.prepareClose();
+    const roots = materializationRootsFromSession(close.roots);
+    return {
+      ...reduced,
+      roots,
+      workspace,
+      acceptMaterialization: close.accept,
+    };
+  } catch (raw) {
+    await workspace.release();
+    throw raw;
+  }
 }
 
 async function openReducerSessionFrame(
   openStateSession: MaterializeSessionOpener,
+  workspace: MaterializationWorkspacePort,
   baseState?: WarpStateClass,
   roots?: MaterializeSessionOpen,
 ): Promise<ReducerSessionFrame> {
-  const session = await openStateSession(roots ?? {
-    nodeAliveRootOid: null,
-    edgeAliveRootOid: null,
-  });
+  const session = await openStateSession(
+    roots ?? {
+      nodeAliveRootOid: null,
+      edgeAliveRootOid: null,
+    },
+    { workspace },
+  );
 
   if (baseState !== undefined && roots === undefined) {
     await seedSessionWithORSet({

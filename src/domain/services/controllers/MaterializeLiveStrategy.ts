@@ -30,39 +30,36 @@ export default class MaterializeLiveStrategy {
   }
 
   async materialize(opts: MaterializeLiveOptions): Promise<MaterializeResult> {
-    const stateCache = this.runtime.deps.getStateCache?.() ?? null;
-    if (stateCache !== null) {
-      return await this.materializeWithStateCache(stateCache, opts);
-    }
-    return await this.materializeWithoutStateCache(opts);
-  }
-
-  private async materializeWithoutStateCache(opts: MaterializeLiveOptions): Promise<MaterializeResult> {
-    const checkpoint = await this.runtime.deps.patches.loadCheckpoint();
-    if (checkpoint !== null && checkpoint !== undefined && isCurrentCheckpointSchema(checkpoint.schema)) {
-      return await this.fromCheckpoint(checkpoint, opts, null);
-    }
-    return await this.fromScratch(opts);
-  }
-
-  private async materializeWithStateCache(
-    stateCache: WarpStateCachePort,
-    opts: MaterializeLiveOptions,
-  ): Promise<MaterializeResult> {
     const frontier = await this.runtime.deps.patches.getFrontier();
     if (frontier.size === 0) {
       return await this.runtime.emptyResult(null, frontier, snapshotPublicationForReceipts(opts));
     }
     const coordinate = this.snapshotCoordinate(frontier);
-    const cacheResolved = await this.tryResolveSnapshotCache(stateCache, {
+    const stateCache = this.runtime.deps.getStateCache?.() ?? null;
+    const cacheResolved = await this.tryResolveConfiguredStateCache(
+      stateCache,
       coordinate,
-      receipts: opts.receipts,
-      wantDiff: opts.wantDiff,
-    });
+      opts,
+    );
     if (cacheResolved !== null) {
       return cacheResolved;
     }
     return await this.replayCurrentCoordinate(coordinate, opts);
+  }
+
+  private async tryResolveConfiguredStateCache(
+    stateCache: WarpStateCachePort | null,
+    coordinate: WarpStateCoordinate,
+    opts: MaterializeLiveOptions,
+  ): Promise<MaterializeResult | null> {
+    if (stateCache === null) {
+      return null;
+    }
+    return await this.tryResolveSnapshotCache(stateCache, {
+      coordinate,
+      receipts: opts.receipts,
+      wantDiff: opts.wantDiff,
+    });
   }
 
   private async replayCurrentCoordinate(
@@ -131,6 +128,7 @@ export default class MaterializeLiveStrategy {
       this.streamPatchesSinceCheckpoint(checkpoint, frontier),
       checkpoint.state,
       opts,
+      this.snapshotCoordinate(frontier ?? checkpoint.frontier),
       provenanceBase,
     );
     return await this.runtime.buildResult({
@@ -174,36 +172,6 @@ export default class MaterializeLiveStrategy {
     }
   }
 
-  private async fromScratch(opts: MaterializeLiveOptions): Promise<MaterializeResult> {
-    const writers = await this.runtime.deps.patches.discoverWriters();
-    if (writers.length === 0) {
-      return await this.runtime.emptyResult(
-        undefined,
-        undefined,
-        snapshotPublicationForReceipts(opts),
-      );
-    }
-    const reduction = await this.runtime.reducePatchStream(
-      this.streamAllPatches(writers),
-      undefined,
-      opts,
-    );
-    if (reduction.summary.patchCount === 0) {
-      return await this.runtime.emptyResult(
-        undefined,
-        undefined,
-        snapshotPublicationForReceipts(opts),
-      );
-    }
-    return await this.runtime.buildResult({
-      reduced: reduction.reduced,
-      summary: reduction.summary,
-      degraded: false,
-      ceiling: null,
-      frontier: null,
-    });
-  }
-
   private async fromFrontier(
     coordinate: WarpStateCoordinate,
     opts: MaterializeLiveOptions,
@@ -212,8 +180,10 @@ export default class MaterializeLiveStrategy {
       this.runtime.deps.patches.streamForFrontier(coordinate.frontier, coordinate.ceiling),
       undefined,
       opts,
+      coordinate,
     );
     if (reduction.summary.patchCount === 0) {
+      await reduction.reduced.workspace?.release();
       return await this.runtime.emptyResult(
         coordinate.ceiling,
         coordinate.frontier,
@@ -286,6 +256,7 @@ export default class MaterializeLiveStrategy {
         receipts: false,
         wantDiff: false,
       },
+      opts.coordinate,
     );
     return await this.runtime.buildResult({
       reduced: reduction.reduced,
@@ -294,11 +265,5 @@ export default class MaterializeLiveStrategy {
       ceiling: opts.coordinate.ceiling,
       frontier: opts.coordinate.frontier,
     });
-  }
-
-  private async *streamAllPatches(writers: string[]): AsyncIterable<PatchWithSha> {
-    for (const writerId of writers) {
-      yield* this.runtime.deps.patches.streamWriterPatches(writerId);
-    }
   }
 }

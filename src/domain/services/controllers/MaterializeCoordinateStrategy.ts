@@ -34,6 +34,7 @@ export default class MaterializeCoordinateStrategy {
     }
     const reduction = await this.reduceFrontierPatches(opts);
     if (reduction.summary.patchCount === 0) {
+      await reduction.reduced.workspace?.release();
       return await this.emptyResult(opts);
     }
     return await this.runtime.buildResult({
@@ -61,6 +62,7 @@ export default class MaterializeCoordinateStrategy {
         receipts: opts.receipts,
         wantDiff: false,
       },
+      { frontier: opts.frontier, ceiling: opts.ceiling },
     );
   }
 
@@ -140,6 +142,7 @@ export default class MaterializeCoordinateStrategy {
         receipts: false,
         wantDiff: false,
       },
+      opts.coordinate,
     );
     return await this.runtime.buildResult({
       reduced: reduction.reduced,

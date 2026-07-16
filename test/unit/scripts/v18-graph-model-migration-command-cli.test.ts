@@ -25,6 +25,7 @@ const ALICE_HEAD = '417fe95095a6feae3042c36505065bbd7b3d2a67';
 const BOB_HEAD = 'd7c3a05b3894d5c3c151e03dd972b6bd6c341b0c';
 const REVIEWED_LIVE_REF = 'refs/warp/v17-golden-graph/live';
 const REVIEWED_ARCHIVE_REF = 'refs/warp-migration-archive/v17-golden-graph/cli/live';
+const SCRATCH_HEAD = 'eb75f3e966f5240f35106952fc42a46872df1300';
 
 describe('v18 graph-model migration command CLI', () => {
   it('prints usage when help is requested', async () => {
@@ -71,12 +72,13 @@ describe('v18 graph-model migration command CLI', () => {
     expect(result.stdout).toBe(report);
     expect(report).toContain('scratch: written');
     expect(report).toContain(`scratchRef: ${SCRATCH_REF}`);
+    expect(report).toContain(`scratchHead: ${SCRATCH_HEAD}`);
     expect(report).toContain('equivalence: passed');
     expect(report).toContain('finalization: skipped');
   });
 
   it('finalizes live refs only when the reviewed request matches command evidence', async () => {
-    const scratchHead = await previewScratchHead();
+    const scratchHead = SCRATCH_HEAD;
 
     const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-finalize-'));
     const restoreResult = await restoreV17GoldenGraphFixture({
@@ -109,7 +111,7 @@ describe('v18 graph-model migration command CLI', () => {
   });
 
   it('blocks finalization when the reviewed live ref head drifts', async () => {
-    const scratchHead = await previewScratchHead();
+    const scratchHead = SCRATCH_HEAD;
     const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-drift-'));
     const restoreResult = await restoreV17GoldenGraphFixture({
       manifestPath: FIXTURE_MANIFEST,
@@ -146,7 +148,7 @@ describe('v18 graph-model migration command CLI', () => {
   });
 
   it('blocks finalization when the archive ref already exists', async () => {
-    const scratchHead = await previewScratchHead();
+    const scratchHead = SCRATCH_HEAD;
     const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-archive-'));
     const restoreResult = await restoreV17GoldenGraphFixture({
       manifestPath: FIXTURE_MANIFEST,
@@ -182,7 +184,7 @@ describe('v18 graph-model migration command CLI', () => {
   });
 
   it('blocks finalization when the reviewed runtime witness differs from observed replay', async () => {
-    const scratchHead = await previewScratchHead();
+    const scratchHead = SCRATCH_HEAD;
     const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-witness-'));
     const restoreResult = await restoreV17GoldenGraphFixture({
       manifestPath: FIXTURE_MANIFEST,
@@ -305,36 +307,6 @@ function finalizationRequestJson(
       fatalErrors: [],
     },
   });
-}
-
-async function previewScratchHead(): Promise<string> {
-  const previewDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-cli-preview-'));
-  const preview = await restoreV17GoldenGraphFixture({
-    manifestPath: FIXTURE_MANIFEST,
-    targetDirectory: join(previewDirectory, 'repo'),
-  });
-  const previewRequestPath = join(previewDirectory, 'request.json');
-  await writeFile(previewRequestPath, canonicalRequestJson(), 'utf8');
-  const previewResult = await runGraphModelMigrationCommandCli([
-    '--repo',
-    preview.repositoryPath,
-    '--request',
-    previewRequestPath,
-    '--legacy-fixture-manifest',
-    FIXTURE_MANIFEST,
-    '--scratch-ref',
-    SCRATCH_REF,
-  ]);
-  expect(previewResult.exitCode).toBe(0);
-  return reportValue(previewResult.stdout, 'scratchHead');
-}
-
-function reportValue(report: string, label: string): string {
-  const line = report.split('\n').find((candidate) => candidate.startsWith(`${label}: `));
-  if (line === undefined) {
-    throw new Error(`report line ${label} is missing`);
-  }
-  return line.slice(`${label}: `.length);
 }
 
 async function refExists(repositoryPath: string, refName: string): Promise<boolean> {

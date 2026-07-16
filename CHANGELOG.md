@@ -50,12 +50,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Raised the coverage ratchet from `92.10%` to `92.62%` after adding targeted
   coverage for bounded query node paging and memory-budget rejection paths and
   removing retired compatibility surfaces.
-- Upgraded `@git-stunts/git-cas` to `^6.1.0` so Git-backed state caches can use
-  the library's crash-safe `RootSet` retention API.
+- Upgraded `@git-stunts/git-cas` to `^6.2.0` so Git-backed materializations can
+  use managed `CacheSet` retention and opaque page and bundle handles.
 - Moved shadow-trie leaf and branch storage from unretained raw Git blobs and
   trees to bounded git-cas pages and composable bundle handles. Production
   storage now shares one git-cas facade with the trie adapter, and the storage
   ownership gate rejects direct raw Git object writers.
+- Bounded state-session dirty-page residency with periodic immutable root
+  checkpoints. In-progress roots are retained only through a renewable,
+  expiring git-cas `CacheSet` workspace, while the page memo is
+  operation-local instead of shared across materializations. This bounds
+  mutated-page residency only; removal of whole-state projection remains
+  tracked by #738.
 
 ### Removed
 
@@ -70,8 +76,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   descriptors through the `git-cas` cache API. Repeated materialization,
   including through a fresh runtime adapter, resumes the retained node/edge
   trie roots without replaying writer patches already covered by the snapshot.
-- Failed state-session reductions no longer flush partial trie roots into
-  unretained CAS objects; roots are flushed only after successful projection.
+- Failed state-session reductions release their git-cas-managed workspace;
+  successful reductions retain the final materialization before releasing the
+  workspace. No in-progress root is left as an abandoned WARP-owned cache.
+- Intermediate state-session flushes require a pinned workspace witness before
+  accepting and forgetting dirty pages. Terminal pages remain dirty until the
+  final materialization returns an anchored retention witness, avoiding a
+  redundant terminal workspace publication and cleanup mutation for ordinary
+  reads. Workspace leases continue renewing during long projection and final
+  retention. Live materialization resolves its coordinate independently of the
+  legacy snapshot cache, so disabling that cache cannot bypass final root
+  retention.
+- Reopened trie inserts now propagate a changed descendant handle through
+  every ancestor. Repeated bounded checkpoints no longer lose untouched
+  sibling branches after a deep leaf update or split.
 - Git-backed state-cache payload trees are now anchored through a graph-scoped
   `git-cas` RootSet before their index record is published, then reconciled
   after publication so live cache entries remain reachable across Git garbage

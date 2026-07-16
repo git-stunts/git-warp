@@ -18,6 +18,8 @@ import Patch from "../../../../../src/domain/types/Patch.ts";
 import type { CheckpointData, PatchWithSha } from "../../../../../src/domain/capabilities/PatchCollector.ts";
 import InMemoryCheckpointStore from "../../../../helpers/InMemoryCheckpointStore.ts";
 import InMemoryMaterializationStore from "../../../../helpers/InMemoryMaterializationStore.ts";
+import type MaterializationWorkspacePort from "../../../../../src/ports/MaterializationWorkspacePort.ts";
+import MaterializationCoordinate from "../../../../../src/domain/materialization/MaterializationCoordinate.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -123,6 +125,7 @@ function createControllerFixtures() {
     loadCheckpoint: vi.fn().mockResolvedValue(null),
     loadPatchesSince: vi.fn<(_checkpoint: CheckpointData) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
     loadPatchChain: vi.fn<(_toSha: string, _fromSha?: string | null) => Promise<PatchWithSha[]>>().mockResolvedValue([]),
+    isAncestor: vi.fn().mockResolvedValue(false),
     getFrontier: vi.fn().mockResolvedValue(new Map([["writer-1", "tip-1"]])),
     streamWriterPatches: vi.fn((writerId: string) => streamFromPromise(patches.loadWriterPatches(writerId))),
     streamForFrontier: vi.fn((frontier: Map<string, string>, ceiling: number | null) =>
@@ -142,7 +145,7 @@ function createControllerFixtures() {
     async (roots: {
       readonly nodeAliveRootOid: string | null;
       readonly edgeAliveRootOid: string | null;
-    }): Promise<StateSession> =>
+    }, options: { readonly workspace: MaterializationWorkspacePort }): Promise<StateSession> =>
       await StateSession.open({
         nodeAliveRootOid: roots.nodeAliveRootOid,
         edgeAliveRootOid: roots.edgeAliveRootOid,
@@ -150,6 +153,8 @@ function createControllerFixtures() {
         codec: cborCodec,
         geometry: GEOMETRY,
         pageCache,
+        maxDirtyPages: 1,
+        workspace: options.workspace,
       }),
   );
 
@@ -194,8 +199,8 @@ function createControllerFixtures() {
 }
 
 describe("MaterializeController — state session integration", () => {
-  it("does not flush partial trie roots when session reduction fails", async () => {
-    const { openStateSession } = createControllerFixtures();
+  it("releases checkpointed workspace roots when session reduction fails", async () => {
+    const { openStateSession, materializations } = createControllerFixtures();
     const close = vi.spyOn(StateSession.prototype, "close");
     const failure = new Error("patch source failed");
     const partial = new PatchEntry(nodeAddPatchRecord({
@@ -214,11 +219,18 @@ describe("MaterializeController — state session integration", () => {
     try {
       await expect(reduceSessionBackedState({
         openStateSession,
+        materializations,
+        coordinate: new MaterializationCoordinate({
+          frontier: new Map([["writer-1", "deadbeef"]]),
+          ceiling: null,
+        }),
         patches,
         receipts: false,
         wantDiff: false,
       })).rejects.toBe(failure);
       expect(close).not.toHaveBeenCalled();
+      expect(materializations.workspaces[0]?.checkpoints).toHaveLength(1);
+      expect(materializations.workspaces[0]?.released).toBe(true);
     } finally {
       close.mockRestore();
     }
@@ -251,10 +263,11 @@ describe("MaterializeController — state session integration", () => {
 
     const result = await controller.materialize({});
 
-    expect(openStateSession).toHaveBeenCalledWith({
+    expect(openStateSession.mock.calls[0]?.[0]).toEqual({
       nodeAliveRootOid: null,
       edgeAliveRootOid: null,
     });
+    expect(openStateSession.mock.calls[0]?.[1]?.workspace).toBeDefined();
     expect(result.state.nodeAlive.contains("node:session")).toBe(true);
     expect(result.patchCount).toBe(3);
     expect(result.adjacency.outgoing.get("node:session")).toEqual([
@@ -265,6 +278,93 @@ describe("MaterializeController — state session integration", () => {
     expect(materializations.retainedRequests[0]?.roots.edgeAlive.status).toBe("retained");
     expect(materializations.retainedRequests[0]?.roots.properties.status).toBe("unavailable");
     expect(result.materialization?.roots.nodeAlive.status).toBe("retained");
+    expect(materializations.workspaces[0]?.released).toBe(true);
+  });
+
+  it("releases checkpointed roots when final materialization retention fails", async () => {
+    const { controller, patches, materializations } = createControllerFixtures();
+    patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:session",
+      }),
+    ]);
+    const failure = new Error("final retention failed");
+    vi.spyOn(materializations, "retain").mockRejectedValue(failure);
+
+    await expect(controller.materialize()).rejects.toBe(failure);
+    expect(materializations.workspaces[0]?.checkpoints).toHaveLength(1);
+    expect(materializations.workspaces[0]?.released).toBe(true);
+  });
+
+  it("releases an unused workspace before returning an empty result", async () => {
+    const { controller, materializations } = createControllerFixtures();
+
+    const result = await controller.materialize();
+
+    expect(result.patchCount).toBe(0);
+    expect(materializations.workspaces[0]?.checkpoints).toEqual([]);
+    expect(materializations.workspaces[0]?.released).toBe(true);
+  });
+
+  it("retains coordinate-keyed roots when the legacy snapshot cache is disabled", async () => {
+    const fixtures = createControllerFixtures();
+    fixtures.patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:no-snapshot-cache",
+      }),
+    ]);
+    const controller = new MaterializeController({
+      ...fixtures.deps,
+      getStateCache: () => null,
+    });
+
+    const result = await controller.materialize();
+
+    expect(result.materialization).toBeDefined();
+    expect(fixtures.materializations.retainedRequests).toHaveLength(1);
+    expect(fixtures.materializations.retainedRequests[0]?.coordinate.frontierEntries)
+      .toEqual([{ writerId: "writer-1", patchSha: "tip-1" }]);
+    expect(fixtures.materializations.workspaces[0]?.released).toBe(true);
+  });
+
+  it("retains checkpoint-suffix roots when the legacy snapshot cache is disabled", async () => {
+    const fixtures = createControllerFixtures();
+    const checkpoint = {
+      schema: 5,
+      state: snapshotRecord({
+        frontier: new Map([["writer-1", "tip-0"]]),
+        ceiling: null,
+      }).state,
+      frontier: new Map([["writer-1", "tip-0"]]),
+      stateHash: "checkpoint-hash",
+    };
+    fixtures.patches.loadCheckpoint.mockResolvedValue(checkpoint);
+    fixtures.patches.collectForFrontierSinceCoordinate.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 2,
+        sha: "b2c3",
+        node: "node:checkpoint-suffix",
+      }),
+    ]);
+    fixtures.patches.isAncestor.mockResolvedValue(true);
+    const controller = new MaterializeController({
+      ...fixtures.deps,
+      getStateCache: () => null,
+    });
+
+    const result = await controller.materialize();
+
+    expect(result.state.nodeAlive.contains("node:base")).toBe(true);
+    expect(result.state.nodeAlive.contains("node:checkpoint-suffix")).toBe(true);
+    expect(fixtures.materializations.retainedRequests).toHaveLength(1);
+    expect(fixtures.materializations.workspaces[0]?.released).toBe(true);
   });
 
   it("reopens exact retained roots with zero covered patch replay after controller restart", async () => {
@@ -301,7 +401,7 @@ describe("MaterializeController — state session integration", () => {
     expect(fixtures.openStateSession).toHaveBeenNthCalledWith(1, {
       nodeAliveRootOid: retained?.roots.nodeAlive.handle?.toString(),
       edgeAliveRootOid: retained?.roots.edgeAlive.handle?.toString() ?? null,
-    });
+    }, expect.objectContaining({ workspace: expect.anything() }));
     expect(warm.patchCount).toBe(0);
     expect(reopened.patchCount).toBe(0);
     expect(warm.state.nodeAlive.contains("node:retained")).toBe(true);
@@ -337,7 +437,7 @@ describe("MaterializeController — state session integration", () => {
     expect(openStateSession).toHaveBeenCalledWith({
       nodeAliveRootOid: null,
       edgeAliveRootOid: null,
-    });
+    }, expect.objectContaining({ workspace: expect.anything() }));
     expect(stateCache.put).toHaveBeenCalledWith(
       expect.objectContaining({
         coordinate: target,

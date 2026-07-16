@@ -135,15 +135,14 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
   it('golden path: checkpoint then 10 patches yields count = 10', async () => {
     const patchCount = 10;
 
-    // We simulate materialization with a checkpoint by mocking _loadLatestCheckpoint
-    // and _loadPatchesSince. The simplest approach: spy on private methods.
+    // Simulate materialization from a checkpoint and an explicit live frontier.
     const { createEmptyState } = await import(
       '../../../src/domain/services/JoinReducer.ts'
     );
 
     const checkpointState = createEmptyState();
 
-    // Build 10 fake patch objects for _loadPatchesSince to return
+    // Build 10 fake patch objects for the checkpoint suffix stream.
     const patches: any[] = [];
     for (let i = 1; i <= patchCount; i++) {
       patches.push({
@@ -156,11 +155,12 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
     vi.spyOn(graph, '_loadLatestCheckpoint').mockResolvedValue({
       schema: 5,
       state: checkpointState,
-      frontier: {},
+      frontier: new Map(),
     });
-
-    // Mock _loadPatchesSince to return the 10 patches
-    vi.spyOn(graph, '_loadPatchesSince').mockResolvedValue(patches);
+    vi.spyOn(graph, 'getFrontier').mockResolvedValue(new Map([
+      ['w1', patches[patches.length - 1].sha],
+    ]));
+    vi.spyOn(graph, '_loadPatchChainFromSha').mockResolvedValue(patches);
 
     await graph.materialize();
 

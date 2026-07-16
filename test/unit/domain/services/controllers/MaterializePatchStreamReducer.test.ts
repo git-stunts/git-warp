@@ -46,7 +46,7 @@ describe('MaterializePatchStreamReducer', () => {
 });
 
 describe('MaterializeController patch streams', () => {
-  it('materializes live graphs from streamWriterPatches without loading writer arrays', async () => {
+  it('materializes live graphs from the declared frontier stream without loading arrays', async () => {
     const collector = new StreamingOnlyPatchCollector([
       patchEntry(1),
       patchEntry(2),
@@ -169,6 +169,27 @@ class StreamingOnlyPatchCollector extends PatchCollector {
   override async *streamWriterPatches(writerId: string): AsyncIterable<PatchWithSha> {
     this.streamedWriters.push(writerId);
     yield* ephemeralEntries(this.#entries);
+  }
+
+  override async *streamForFrontier(
+    frontier: Map<string, string>,
+    ceiling: number | null,
+  ): AsyncIterable<PatchWithSha> {
+    for (const [writerId, tipSha] of frontier) {
+      let reachedTip = false;
+      for await (const entry of this.streamWriterPatches(writerId)) {
+        if (ceiling === null || entry.patch.lamport <= ceiling) {
+          yield entry;
+        }
+        if (entry.sha === tipSha) {
+          reachedTip = true;
+          break;
+        }
+      }
+      if (!reachedTip) {
+        throw new Error(`frontier tip ${tipSha} was not present in the writer stream`);
+      }
+    }
   }
 
   async loadCheckpoint(): Promise<CheckpointData | null> {

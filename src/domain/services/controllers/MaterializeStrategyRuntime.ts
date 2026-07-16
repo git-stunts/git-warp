@@ -7,7 +7,10 @@ import type {
 } from './MaterializePatchStreamReducer.ts';
 import type { MaterializePatchSummary } from './MaterializePatchSummary.ts';
 import type { MaterializeSnapshotPublicationOptions } from './MaterializeSnapshotPublication.ts';
-import type { WarpStateSnapshotProvenancePosture } from '../../../ports/WarpStateCachePort.ts';
+import type {
+  WarpStateCoordinate,
+  WarpStateSnapshotProvenancePosture,
+} from '../../../ports/WarpStateCachePort.ts';
 import type { UsableSnapshotRecord } from './MaterializeSnapshotCacheResult.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
 import type {
@@ -60,11 +63,13 @@ export type MaterializeStrategyRuntime = {
     patches: PatchWithSha[],
     base: WarpState | undefined,
     opts: { receipts: boolean; wantDiff: boolean },
+    coordinate: WarpStateCoordinate,
   ): Promise<MaterializeReduceOutput>;
   reducePatchStream(
     stream: AsyncIterable<PatchWithSha>,
     base: WarpState | undefined,
     opts: MaterializePatchStreamOptions,
+    coordinate: WarpStateCoordinate,
     provenanceBase?: ProvenanceIndex,
   ): Promise<MaterializePatchStreamReduction>;
   buildResult(params: MaterializeResultBuildInput): Promise<MaterializeResult>;

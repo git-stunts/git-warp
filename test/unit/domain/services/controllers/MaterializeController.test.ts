@@ -78,6 +78,39 @@ function makeMockPatches(overrides = {}) {
     getFrontier: vi.fn().mockResolvedValue(new Map()),
     ...overrides,
   };
+  if (!Object.hasOwn(overrides, 'getFrontier')) {
+    patches.getFrontier.mockImplementation(async () => {
+      const checkpoint = await patches.loadCheckpoint();
+      const frontier = new Map<string, string>(checkpoint?.frontier ?? []);
+      if (checkpoint !== null && checkpoint !== undefined) {
+        for (const entry of await patches.loadPatchesSince(checkpoint)) {
+          frontier.set(entry.patch.writer, entry.sha);
+        }
+        return frontier;
+      }
+      for (const writerId of await patches.discoverWriters()) {
+        frontier.set(writerId, `tip-${writerId}`);
+      }
+      return frontier;
+    });
+  }
+  if (!Object.hasOwn(overrides, 'collectForFrontier')) {
+    patches.collectForFrontier.mockImplementation(async (frontier: Map<string, string>) => {
+      const entries: ReturnType<typeof fakePatchEntry>[] = [];
+      for (const writerId of frontier.keys()) {
+        entries.push(...await patches.loadWriterPatches(writerId));
+      }
+      return entries;
+    });
+  }
+  if (!Object.hasOwn(overrides, 'collectForFrontierSinceCoordinate')) {
+    patches.collectForFrontierSinceCoordinate.mockImplementation(async () => {
+      const checkpoint = await patches.loadCheckpoint();
+      return checkpoint === null || checkpoint === undefined
+        ? []
+        : await patches.loadPatchesSince(checkpoint);
+    });
+  }
   return {
     ...patches,
     streamWriterPatches: vi.fn((writerId: string) => streamFromPromise(patches.loadWriterPatches(writerId))),
@@ -209,13 +242,13 @@ describe('MaterializeController', () => {
       expect(result.adjacency).toBeInstanceOf(AdjacencyMap);
     });
 
-    it('returns null frontier and null ceiling for live materialization', async () => {
+    it('returns the observed empty frontier and null ceiling for live materialization', async () => {
       const { ctrl, patches } = setup();
       patches.discoverWriters.mockResolvedValue([]);
 
       const result = await ctrl.materialize({});
 
-      expect(result.frontier).toBeNull();
+      expect(result.frontier).toEqual(new Map());
       expect(result.ceiling).toBeNull();
     });
   });
