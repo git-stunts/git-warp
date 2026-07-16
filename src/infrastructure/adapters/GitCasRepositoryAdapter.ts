@@ -16,6 +16,9 @@ import GitCasAssetStorageAdapter from './GitCasAssetStorageAdapter.ts';
 import GitCasAuditLogAdapter from './GitCasAuditLogAdapter.ts';
 import GitCasStrandStoreAdapter from './GitCasStrandStoreAdapter.ts';
 import GitCasIntentStoreAdapter from './GitCasIntentStoreAdapter.ts';
+import GitCasMaterializationStoreAdapter, {
+  type GitCasMaterializationFacade,
+} from './GitCasMaterializationStoreAdapter.ts';
 import type CasContentEncryptionPolicy from './CasContentEncryptionPolicy.ts';
 import { CborCheckpointStoreAdapter } from './CborCheckpointStoreAdapter.ts';
 import { CborIndexStoreAdapter } from './CborIndexStoreAdapter.ts';
@@ -42,6 +45,8 @@ export type GitCasFacade = Pick<
 > & {
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
   readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
+  readonly caches: GitCasMaterializationFacade['caches'];
+  readonly pages: GitCasMaterializationFacade['pages'];
   readonly publications: Pick<PublicationCapability, 'commit'>;
   readonly rootSets: {
     open(options: { readonly ref: string }): Promise<GitCasRootSetClient>;
@@ -94,6 +99,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         patchJournal: this._createPatchJournal(request, content),
         checkpoints: this._createCheckpointStore(request, content),
         indexes: this._createIndexStore(request, content),
+        materializations: this._createMaterializationStore(request),
         stateSnapshots: this._createStateSnapshots(request),
         trie: new GitTrieStoreAdapter({ plumbing: this._plumbing }),
       })
@@ -175,6 +181,17 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       codec: request.codec,
       assetStorage: content,
       cas: this._cas,
+    });
+  }
+
+  private _createMaterializationStore(
+    request: RuntimeStorageRequest,
+  ): GitCasMaterializationStoreAdapter {
+    return new GitCasMaterializationStoreAdapter({
+      cas: this._cas,
+      codec: request.codec,
+      crypto: request.crypto,
+      laneName: request.timelineName,
     });
   }
 

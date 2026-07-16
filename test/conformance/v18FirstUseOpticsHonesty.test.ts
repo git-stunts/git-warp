@@ -82,6 +82,7 @@ class FirstUseOpticsTrapStorage implements RuntimeStorageProviderPort {
         trap,
       ),
       intents: trapService(services.intents, 'intents', ['publish'], trap),
+      materializations: services.materializations,
       ...(services.stateSnapshots === undefined
         ? {}
         : {

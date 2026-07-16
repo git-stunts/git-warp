@@ -1,6 +1,7 @@
 import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifierService.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import { EXIT_CODES, parseCommandArgs, getEnvVar } from '../infrastructure.ts';
 import { verifyAuditSchema } from '../schemas.ts';
 import { createPersistence, resolveGraphName } from '../shared.ts';
@@ -52,6 +53,7 @@ export default async function handleVerifyAudit({ options, args }: { options: Cl
   const storage = await runtimeStorage.createRuntimeStorageServices({
     timelineName: graphName,
     codec: defaultCodec,
+    crypto: defaultCrypto,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   });
   const verifier = new AuditVerifierService({

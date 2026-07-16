@@ -2,6 +2,7 @@ import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts
 import type WarpStateCacheRetentionPort from '../../../../src/ports/WarpStateCacheRetentionPort.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import type RuntimeStorageProviderPort from '../../../../src/ports/RuntimeStorageProviderPort.ts';
 import type { DoctorFinding } from './types.ts';
 import {
@@ -18,6 +19,7 @@ export async function resolveStateCache(
   const services = await runtimeStorage.createRuntimeStorageServices({
     timelineName: graphName,
     codec: defaultCodec,
+    crypto: defaultCrypto,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   });
   return services.stateSnapshots ?? null;

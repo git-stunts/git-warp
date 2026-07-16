@@ -1,10 +1,12 @@
 import {
   AssetHandle as GitCasAssetHandle,
   BundleHandle,
+  CacheHit,
   PageHandle,
   RetentionWitness,
   StagedAsset,
   StagedBundle,
+  StagedPage,
   type ApplicationHandle,
   type ApplicationHandleInput,
   type AssetHandleInput,
@@ -12,7 +14,9 @@ import {
   type BundleHandleInput,
   type BundleCapability,
   type BundleMember,
+  type CacheSet,
   type PageHandleInput,
+  type PageCapability,
   type PublicationCapability,
 } from '@git-stunts/git-cas';
 import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
@@ -43,13 +47,20 @@ const ENCRYPTED_ASSET_NONCE_BYTES = 12;
 export default class InMemoryGitCasFacade {
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
   readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
+  readonly caches: {
+    open(options: { readonly namespace: string }): Promise<Pick<CacheSet, 'get' | 'put'>>;
+  };
+  readonly pages: Pick<PageCapability, 'get' | 'put'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
 
   readonly #history: PublicationHistory;
   readonly #storage: InMemoryBlobStorageAdapter;
   readonly #stagedAssetsByOid = new Map<string, StagedAsset>();
   readonly #bundleMembers = new Map<string, readonly [string, string][]>();
+  readonly #cacheEntries = new Map<string, Map<string, CacheHit>>();
+  readonly #pageBytes = new Map<string, Uint8Array>();
   readonly #publicationRoots = new Map<string, string>();
+  #cacheGeneration = 0;
 
   constructor(options: {
     history: PublicationHistory;
@@ -66,6 +77,13 @@ export default class InMemoryGitCasFacade {
       putOrdered: async (request) => await this.#putBundle(request.members),
       iterateMembers: (request) => this.#iterateBundleMembers(request.handle),
     });
+    this.caches = Object.freeze({
+      open: async ({ namespace }) => await this.#openCache(namespace),
+    });
+    this.pages = Object.freeze({
+      put: async (request) => await this.#putPage(request),
+      get: async (request) => await this.#getPage(request),
+    });
     this.publications = Object.freeze({
       commit: async (request) => await this.#publish(request),
     });
@@ -73,6 +91,18 @@ export default class InMemoryGitCasFacade {
 
   readBundleMembers(handle: string): readonly [string, string][] {
     return this.#bundleMembers.get(handle) ?? Object.freeze([]);
+  }
+
+  replaceBundleMembers(handle: string, members: readonly [string, string][]): void {
+    this.#bundleMembers.set(handle, Object.freeze([...members]));
+  }
+
+  readCacheKeys(namespace: string): readonly string[] {
+    return Object.freeze([...(this.#cacheEntries.get(namespace)?.keys() ?? [])]);
+  }
+
+  replaceStoredPage(handle: string, bytes: Uint8Array): void {
+    this.#pageBytes.set(handle, bytes.slice());
   }
 
   readPublicationRoot(commitId: string): string | null {
@@ -209,6 +239,91 @@ export default class InMemoryGitCasFacade {
     }
   }
 
+  async #putPage(
+    request: Parameters<PageCapability['put']>[0],
+  ): Promise<Awaited<ReturnType<PageCapability['put']>>> {
+    const bytes = await collectPageSource(request.source);
+    if (request.maxBytes !== undefined && bytes.byteLength > request.maxBytes) {
+      throw Object.assign(new Error('Page exceeds configured maximum'), { code: 'PAGE_TOO_LARGE' });
+    }
+    const oid = await this.#history.writeBlob(bytes);
+    const handle = new PageHandle({
+      oid,
+      hashAlgorithm: oid.length === 64 ? 'sha256' : 'sha1',
+    });
+    this.#pageBytes.set(handle.toString(), bytes.slice());
+    return new StagedPage({
+      handle,
+      size: bytes.byteLength,
+      observedAt: new Date(0).toISOString(),
+    });
+  }
+
+  async #getPage(
+    request: Parameters<PageCapability['get']>[0],
+  ): Promise<Uint8Array> {
+    const handle = PageHandle.from(request.handle);
+    const bytes = this.#pageBytes.get(handle.toString());
+    if (bytes === undefined) {
+      throw Object.assign(new Error(`Unknown page: ${handle.toString()}`), {
+        code: 'HANDLE_TARGET_MISSING',
+      });
+    }
+    if (request.maxBytes !== undefined && bytes.byteLength > request.maxBytes) {
+      throw Object.assign(new Error('Page exceeds configured maximum'), { code: 'PAGE_TOO_LARGE' });
+    }
+    return bytes.slice();
+  }
+
+  async #openCache(namespace: string): Promise<Pick<CacheSet, 'get' | 'put'>> {
+    const entries = this.#cacheEntries.get(namespace) ?? new Map<string, CacheHit>();
+    this.#cacheEntries.set(namespace, entries);
+    return Object.freeze({
+      get: async (key) => entries.get(key) ?? null,
+      put: async (key, handle, options) => {
+        const previous = entries.get(key) ?? null;
+        const target = parseApplicationHandle(handle);
+        this.#cacheGeneration += 1;
+        const generation = this.#cacheGeneration.toString(16).padStart(40, '0');
+        const observedAt = new Date(0).toISOString();
+        const evidence = new RetentionWitness({
+          handle: target,
+          policy: options?.retention ?? 'evictable',
+          reachability: 'anchored',
+          root: {
+            kind: 'cache-set',
+            namespace,
+            ref: `refs/cas/caches/${namespace}`,
+            generation,
+            path: 'root-00000000',
+          },
+          observedAt,
+        });
+        const hit = new CacheHit({
+          key,
+          handle: target,
+          policy: options?.retention ?? 'evictable',
+          expiresAt: null,
+          logicalBytes: 0,
+          createdAt: observedAt,
+          accessedAt: observedAt,
+          generation,
+          evidence,
+        });
+        entries.set(key, hit);
+        return Object.freeze({
+          changed: previous?.handle.toString() !== target.toString(),
+          accepted: true,
+          hit,
+          previous,
+          generation,
+          policy: null,
+          witness: evidence,
+        });
+      },
+    });
+  }
+
   async #publish(
     request: Parameters<PublicationCapability['commit']>[0],
   ): Promise<Awaited<ReturnType<PublicationCapability['commit']>>> {
@@ -314,6 +429,23 @@ function encryptedAssetIntegrityError(): Error & { readonly code: 'INTEGRITY_ERR
 
 async function* singleChunk(bytes: Uint8Array): AsyncGenerator<Uint8Array> {
   yield bytes;
+}
+
+async function collectPageSource(
+  source: Parameters<PageCapability['put']>[0]['source'],
+): Promise<Uint8Array> {
+  if (source instanceof Uint8Array) {
+    return source.slice();
+  }
+  return await collectAsyncIterable(toAsyncIterable(source));
+}
+
+async function* toAsyncIterable(
+  source: Iterable<Uint8Array> | AsyncIterable<Uint8Array>,
+): AsyncGenerator<Uint8Array> {
+  for await (const chunk of source) {
+    yield chunk;
+  }
 }
 
 function parseApplicationHandle(input: ApplicationHandleInput): ApplicationHandle {

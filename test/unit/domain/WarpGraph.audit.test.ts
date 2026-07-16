@@ -11,6 +11,7 @@ import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts'
 import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
 import defaultCodec, { decode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 
 describe('WarpCore — audit mode', () => {
   it('rejects audit: "yes" (non-boolean truthy)', async () => {
@@ -162,6 +163,7 @@ describe('WarpCore — audit mode', () => {
     const storage = await runtimeStorage.createRuntimeStorageServices({
       timelineName: 'events',
       codec: defaultCodec,
+      crypto: defaultCrypto,
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
     const graph = await openRuntimeHostProduct({

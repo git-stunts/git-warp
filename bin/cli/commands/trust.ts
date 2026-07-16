@@ -55,12 +55,14 @@ export default async function handleTrust({ options, args }: { options: CliOptio
   const { mode, trustPin } = parseTrustArgs(args);
   const { persistence, runtimeStorage, createTrustChain } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
+  const crypto = new WebCryptoAdapter();
   const storage = await runtimeStorage.createRuntimeStorageServices({
     timelineName: graphName,
     codec: defaultCodec,
+    crypto,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   });
-  const trustChain = createTrustChain(new WebCryptoAdapter());
+  const trustChain = createTrustChain(crypto);
   const verifier = new AuditVerifierService({
     auditLog: storage.auditLog,
     codec: defaultCodec,

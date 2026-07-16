@@ -8,6 +8,7 @@ import { CborIndexStoreAdapter } from '../../src/infrastructure/adapters/CborInd
 import { CborPatchJournalAdapter } from '../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import GitCasAuditLogAdapter from '../../src/infrastructure/adapters/GitCasAuditLogAdapter.ts';
 import GitCasIntentStoreAdapter from '../../src/infrastructure/adapters/GitCasIntentStoreAdapter.ts';
+import GitCasMaterializationStoreAdapter from '../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
 import GitCasStrandStoreAdapter from '../../src/infrastructure/adapters/GitCasStrandStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import CasContentEncryptionPolicy from '../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
@@ -90,6 +91,12 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         codec: request.codec,
         assetStorage: this.#content,
         cas: this.#cas,
+      }),
+      materializations: new GitCasMaterializationStoreAdapter({
+        cas: this.#cas,
+        codec: request.codec,
+        crypto: request.crypto,
+        laneName: request.timelineName,
       }),
     }));
   }
