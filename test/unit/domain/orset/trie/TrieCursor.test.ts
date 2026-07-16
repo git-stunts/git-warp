@@ -117,6 +117,12 @@ describe("TrieCursor", () => {
         TrieCursorError,
       );
     });
+
+    it("rejects an empty rebase root", () => {
+      const { cursor } = makeCursor();
+
+      expect(() => cursor.rebase("")).toThrow(TrieCursorError);
+    });
   });
 
   describe("single-add insertion", () => {

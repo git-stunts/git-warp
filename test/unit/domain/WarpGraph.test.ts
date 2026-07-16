@@ -631,11 +631,11 @@ describe('WarpCore', () => {
         'refs/warp/events/writers/writer-2',
       ]);
 
-      // materialize() now checks for checkpoint first, then reads writer tips
-      persistence.readRef
-        .mockResolvedValueOnce(null)       // checkpoint ref (none)
-        .mockResolvedValueOnce(commitSha1) // writer-1 tip
-        .mockResolvedValueOnce(commitSha2); // writer-2 tip
+      persistence.readRef.mockImplementation((ref: string) => Promise.resolve(
+        ref.includes('/checkpoints/') ? null
+          : ref.endsWith('/writer-1') ? commitSha1
+            : ref.endsWith('/writer-2') ? commitSha2 : null,
+      ));
 
       persistence.getNodeInfo
         .mockResolvedValueOnce(mockPatch1.nodeInfo)

@@ -48,7 +48,7 @@ export default class InMemoryGitCasFacade {
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
   readonly bundles: Pick<BundleCapability, 'getMember' | 'putOrdered' | 'iterateMembers'>;
   readonly caches: {
-    open(options: { readonly namespace: string }): Promise<Pick<CacheSet, 'get' | 'put'>>;
+    open(options: { readonly namespace: string }): Promise<Pick<CacheSet, 'get' | 'put' | 'remove'>>;
   };
   readonly pages: Pick<PageCapability, 'get' | 'put'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
@@ -100,6 +100,10 @@ export default class InMemoryGitCasFacade {
 
   readCacheKeys(namespace: string): readonly string[] {
     return Object.freeze([...(this.#cacheEntries.get(namespace)?.keys() ?? [])]);
+  }
+
+  readCacheHits(namespace: string): readonly CacheHit[] {
+    return Object.freeze([...(this.#cacheEntries.get(namespace)?.values() ?? [])]);
   }
 
   replaceStoredPage(handle: string, bytes: Uint8Array): void {
@@ -288,7 +292,7 @@ export default class InMemoryGitCasFacade {
     return bytes.slice();
   }
 
-  async #openCache(namespace: string): Promise<Pick<CacheSet, 'get' | 'put'>> {
+  async #openCache(namespace: string): Promise<Pick<CacheSet, 'get' | 'put' | 'remove'>> {
     const entries = this.#cacheEntries.get(namespace) ?? new Map<string, CacheHit>();
     this.#cacheEntries.set(namespace, entries);
     return Object.freeze({
@@ -316,7 +320,7 @@ export default class InMemoryGitCasFacade {
           key,
           handle: target,
           policy: options?.retention ?? 'evictable',
-          expiresAt: null,
+          expiresAt: options?.expiresAt ?? null,
           logicalBytes: 0,
           createdAt: observedAt,
           accessedAt: observedAt,
@@ -332,6 +336,18 @@ export default class InMemoryGitCasFacade {
           generation,
           policy: null,
           witness: evidence,
+        });
+      },
+      remove: async (key) => {
+        const removed = entries.get(key) ?? null;
+        const changed = entries.delete(key);
+        this.#cacheGeneration += 1;
+        return Object.freeze({
+          changed,
+          removed,
+          generation: this.#cacheGeneration.toString(16).padStart(40, '0'),
+          policy: null,
+          witness: null,
         });
       },
     });

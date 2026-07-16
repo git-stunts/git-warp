@@ -76,7 +76,21 @@ export default class ShadowTrieORSet {
     yield* this.#cursor.scanElementStates();
   }
 
-  async flush(): Promise<FlushResult> {
+  dirtyPageCount(): number {
+    return this.#cursor.dirtyPageCount();
+  }
+
+  async prepareFlush(): Promise<FlushResult> {
     return await this.#flusher.flush(this.#cursor.snapshot());
+  }
+
+  acceptFlush(result: FlushResult): void {
+    this.#cursor.rebase(result.rootOid);
+  }
+
+  async flush(): Promise<FlushResult> {
+    const result = await this.prepareFlush();
+    this.acceptFlush(result);
+    return result;
   }
 }

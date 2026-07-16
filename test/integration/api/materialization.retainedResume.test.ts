@@ -6,6 +6,10 @@ import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCas
 import MaterializationStorePort, {
   type RetainMaterializationRequest,
 } from '../../../src/ports/MaterializationStorePort.ts';
+import MaterializationWorkspacePort, {
+  type MaterializationWorkspaceRoots,
+  type PromoteMaterializationRequest,
+} from '../../../src/ports/MaterializationWorkspacePort.ts';
 import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
 import type {
   RuntimeStorageRequest,
@@ -77,6 +81,18 @@ class RecordingMaterializationStore extends MaterializationStorePort {
     this.#delegate = delegate;
   }
 
+  override async openWorkspace(
+    coordinate: MaterializationCoordinate,
+  ): Promise<MaterializationWorkspacePort> {
+    const workspace = await this.#delegate.openWorkspace(coordinate);
+    return new RecordingMaterializationWorkspace(workspace, async (request) => {
+      this.retainRequests.push(request);
+      const retained = await workspace.promote(request);
+      this.retainedHandles.push(retained);
+      return retained;
+    });
+  }
+
   override async retain(request: RetainMaterializationRequest): Promise<MaterializationHandle> {
     this.retainRequests.push(request);
     const retained = await this.#delegate.retain(request);
@@ -93,6 +109,36 @@ class RecordingMaterializationStore extends MaterializationStorePort {
       this.exactHits.push(hit);
     }
     return hit;
+  }
+}
+
+class RecordingMaterializationWorkspace extends MaterializationWorkspacePort {
+  readonly #delegate: MaterializationWorkspacePort;
+  readonly #promote: (
+    request: PromoteMaterializationRequest,
+  ) => Promise<MaterializationHandle>;
+
+  constructor(
+    delegate: MaterializationWorkspacePort,
+    promote: (
+      request: PromoteMaterializationRequest,
+    ) => Promise<MaterializationHandle>,
+  ) {
+    super();
+    this.#delegate = delegate;
+    this.#promote = promote;
+  }
+
+  override checkpoint(roots: MaterializationWorkspaceRoots) {
+    return this.#delegate.checkpoint(roots);
+  }
+
+  override promote(request: PromoteMaterializationRequest): Promise<MaterializationHandle> {
+    return this.#promote(request);
+  }
+
+  override release(): Promise<void> {
+    return this.#delegate.release();
   }
 }
 

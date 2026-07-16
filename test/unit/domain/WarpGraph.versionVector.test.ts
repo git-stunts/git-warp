@@ -134,10 +134,18 @@ describe('WarpCore', () => {
           'refs/warp/events/writers/writer-b',
         ]);
 
-        persistence.readRef
-          .mockResolvedValueOnce(null) // checkpoint ref (none)
-          .mockResolvedValueOnce(commitShaA) // writer-a tip
-          .mockResolvedValueOnce(commitShaB); // writer-b tip
+        persistence.readRef.mockImplementation((ref: string) => {
+          if (ref.includes('/checkpoints/')) {
+            return Promise.resolve(null);
+          }
+          if (ref.endsWith('/writer-a')) {
+            return Promise.resolve(commitShaA);
+          }
+          if (ref.endsWith('/writer-b')) {
+            return Promise.resolve(commitShaB);
+          }
+          return Promise.resolve(null);
+        });
 
         persistence.getNodeInfo
           .mockResolvedValueOnce({

@@ -14,6 +14,7 @@ import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
+const WORKSPACE_CACHE_NAMESPACE = 'git-warp/materialization-workspaces';
 const ROOT_PATHS = Object.freeze([
   'roots/adjacency',
   'roots/edge-alive',
@@ -71,6 +72,53 @@ describe('GitCasMaterializationStoreAdapter', () => {
   it('returns null for a coordinate with no retained materialization', async () => {
     const harness = await createHarness();
     expect(await harness.adapter.findExact(exactCoordinate())).toBeNull();
+  });
+
+  it('promotes terminal roots without installing an unnecessary workspace entry', async () => {
+    const harness = await createHarness();
+    const coordinate = exactCoordinate();
+    const roots = await createRoots(harness.cas);
+    const workspace = await harness.adapter.openWorkspace(coordinate);
+
+    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
+
+    const promoted = await workspace.promote({
+      coordinate,
+      roots,
+      stateHash: 'promoted-state-hash',
+    });
+    await workspace.release();
+
+    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
+    expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toHaveLength(1);
+    expect((await harness.adapter.findExact(coordinate))?.bundle.equals(promoted.bundle)).toBe(true);
+  });
+
+  it('removes an in-progress coordinate after mismatched promotion fails', async () => {
+    const harness = await createHarness();
+    const roots = await createRoots(harness.cas);
+    const workspace = await harness.adapter.openWorkspace(exactCoordinate());
+    await workspace.checkpoint({
+      nodeAliveRoot: roots.nodeAlive.handle?.toString() ?? null,
+      edgeAliveRoot: null,
+    });
+    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toHaveLength(1);
+
+    await expect(workspace.promote({
+      coordinate: new MaterializationCoordinate({
+        frontier: new Map([['writer-c', 'patch-c']]),
+        ceiling: 13,
+      }),
+      roots,
+      stateHash: 'wrong-coordinate',
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('does not match'),
+    });
+    await workspace.release();
+
+    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
+    expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([]);
   });
 
   it('round-trips partial roots without inventing bundles for empty or unavailable state', async () => {
@@ -468,6 +516,7 @@ function withCacheResult(
           put: async (key, handle, entryOptions) => rewrite(
             await cache.put(key, handle, entryOptions),
           ),
+          remove: async (key) => await cache.remove(key),
         };
       },
     },

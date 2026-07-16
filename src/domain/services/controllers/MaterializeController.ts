@@ -9,7 +9,6 @@
  * Dependencies are constructor-injected. No host bag.
  * Side effects (notification, GC, auto-checkpoint) are the caller's job.
  */
-
 import { reducePatches as reduceJoinedPatches, createEmptyState } from '../JoinReducer.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import { computeStateHash } from '../state/StateSerializer.ts';
@@ -42,9 +41,13 @@ import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
-import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
+import type {
+  default as WarpStateCachePort,
+  WarpStateCoordinate,
+  WarpStateSnapshotProvenancePosture,
+} from '../../../ports/WarpStateCachePort.ts';
 import type MaterializationStorePort from '../../../ports/MaterializationStorePort.ts';
-import type { WarpStateSnapshotProvenancePosture } from '../../../ports/WarpStateCachePort.ts';
+import type MaterializationWorkspacePort from '../../../ports/MaterializationWorkspacePort.ts';
 import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
@@ -56,19 +59,17 @@ import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
 import type MaterializationRoots from '../../materialization/MaterializationRoots.ts';
+import type StorageRetentionWitness from '../../storage/StorageRetentionWitness.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type { UsableSnapshotRecord } from './MaterializeSnapshotCacheResult.ts';
 import type {
   MaterializeResultBuildInput,
   MaterializeStrategyRuntime,
 } from './MaterializeStrategyRuntime.ts';
-
+import { releaseWorkspaceAfterFailure } from './MaterializationWorkspaceCleanup.ts';
 export type MaterializePersistence = {
   readRef(ref: string): Promise<string | null>;
 };
-
-// ── Deps ────────────────────────────────────────────────────────────
-
 /** Constructor dependencies for MaterializeController. */
 export type MaterializeDeps = {
   logger: LoggerPort;
@@ -83,8 +84,6 @@ export type MaterializeDeps = {
   graphCloner: DetachedGraphFactory;
   graphName: string;
 };
-
-// ── Result types ────────────────────────────────────────────────────
 
 /** Full result of a materialization, returned to the caller. */
 export type MaterializeResult = {
@@ -102,18 +101,16 @@ export type MaterializeResult = {
   materialization?: MaterializationHandle;
 };
 
-// ── Reduce helpers ──────────────────────────────────────────────────
-
 type ReducerInput = Parameters<typeof reduceJoinedPatches>[0];
-
 function toReducerInput(patches: PatchWithSha[]): ReducerInput {
   return patches as ReducerInput;
 }
-
 export type MaterializeReduceOutput = {
   state: WarpState;
   adjacency?: MaterializeAdjacency;
   roots?: MaterializationRoots;
+  workspace?: MaterializationWorkspacePort;
+  acceptMaterialization?: (witness: StorageRetentionWitness | null) => void;
   receipts?: TickReceipt[];
   diff?: PatchDiff;
 };
@@ -126,7 +123,6 @@ function reduceWithReceipts(patches: PatchWithSha[], base?: WarpState): Material
   ) as { state: WarpState; receipts: TickReceipt[] };
   return { state: r.state, receipts: r.receipts };
 }
-
 function reduceWithDiff(patches: PatchWithSha[], base?: WarpState): MaterializeReduceOutput {
   const r = reduceJoinedPatches(
     toReducerInput(patches),
@@ -135,7 +131,6 @@ function reduceWithDiff(patches: PatchWithSha[], base?: WarpState): MaterializeR
   ) as { state: WarpState; diff: PatchDiff };
   return { state: r.state, diff: r.diff };
 }
-
 function reducePlain(patches: PatchWithSha[], base?: WarpState): MaterializeReduceOutput {
   return { state: reduceJoinedPatches(toReducerInput(patches), base) };
 }
@@ -216,8 +211,6 @@ export default class MaterializeController {
     return await this._checkpointStrategy.materializeAt(checkpointSha);
   }
 
-  // ── Result building ───────────────────────────────────────────────
-
   private async _emptyResult(
     ceiling?: number | null,
     frontier?: Map<string, string> | null,
@@ -263,36 +256,43 @@ export default class MaterializeController {
   }
 
   private async _buildResult(params: MaterializeResultBuildInput): Promise<MaterializeResult> {
-    const stateHash = await computeHash(this._deps, params.reduced.state);
-    const adjacency = params.reduced.adjacency ?? buildAdjacency(params.reduced.state);
-    const materialization = await this._resolveMaterialization(params, stateHash);
-    if (params.reduced.receipts === undefined && params.publishSnapshot !== false) {
-      await this._publishSnapshot({
+    let result: MaterializeResult;
+    try {
+      const stateHash = await computeHash(this._deps, params.reduced.state);
+      const adjacency = params.reduced.adjacency ?? buildAdjacency(params.reduced.state);
+      const materialization = await this._resolveMaterialization(params, stateHash);
+      if (params.reduced.receipts === undefined && params.publishSnapshot !== false) {
+        await this._publishSnapshot({
+          state: params.reduced.state,
+          stateHash,
+          ceiling: params.ceiling,
+          frontier: params.frontier,
+        });
+      }
+      result = {
         state: params.reduced.state,
         stateHash,
-        ceiling: params.ceiling,
+        adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
+        receipts: params.reduced.receipts,
+        diff: params.reduced.diff,
+        patchCount: params.summary.patchCount,
+        maxObservedLamport: Math.max(
+          params.summary.maxObservedLamport,
+          maxObservedLamportInState(params.reduced.state),
+        ),
+        provenanceIndex: params.summary.provenance,
+        provenanceDegraded: params.degraded,
         frontier: params.frontier,
-      });
+        ceiling: params.ceiling,
+        ...(materialization === undefined ? {} : { materialization }),
+      };
+    } catch (raw) {
+      await releaseWorkspaceAfterFailure(params.reduced.workspace, this._deps.logger);
+      throw raw;
     }
-    return {
-      state: params.reduced.state,
-      stateHash,
-      adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
-      receipts: params.reduced.receipts,
-      diff: params.reduced.diff,
-      patchCount: params.summary.patchCount,
-      maxObservedLamport: Math.max(
-        params.summary.maxObservedLamport,
-        maxObservedLamportInState(params.reduced.state),
-      ),
-      provenanceIndex: params.summary.provenance,
-      provenanceDegraded: params.degraded,
-      frontier: params.frontier,
-      ceiling: params.ceiling,
-      ...(materialization === undefined ? {} : { materialization }),
-    };
+    await params.reduced.workspace?.release();
+    return result;
   }
-
   private async _resolveMaterialization(
     params: MaterializeResultBuildInput,
     stateHash: string,
@@ -301,19 +301,46 @@ export default class MaterializeController {
       if (params.materialization.stateHash !== stateHash) {
         throw materializationResumeError('retained handle state hash does not match resumed state');
       }
+      params.reduced.acceptMaterialization?.(params.materialization.retention);
       return params.materialization;
     }
     if (params.reduced.roots === undefined || params.frontier === null) {
+      await this._acceptSessionWithoutMaterialization(params.reduced);
       return undefined;
     }
-    return await this._deps.materializations.retain({
+    const request = {
       coordinate: new MaterializationCoordinate({
         frontier: params.frontier,
         ceiling: params.ceiling,
       }),
       roots: params.reduced.roots,
       stateHash,
+    };
+    const materialization = params.reduced.workspace === undefined
+      ? await this._deps.materializations.retain(request)
+      : await params.reduced.workspace.promote(request);
+    params.reduced.acceptMaterialization?.(materialization.retention);
+    return materialization;
+  }
+
+  private async _acceptSessionWithoutMaterialization(
+    reduced: MaterializeReduceOutput,
+  ): Promise<void> {
+    if (reduced.acceptMaterialization === undefined) {
+      return;
+    }
+    if (reduced.roots === undefined || reduced.workspace === undefined) {
+      throw materializationResumeError('prepared session is missing roots or workspace retention');
+    }
+    const roots = materializationSessionOpen(reduced.roots);
+    if (roots === null) {
+      throw materializationResumeError('prepared session roots cannot be checkpointed');
+    }
+    const witness = await reduced.workspace.checkpoint({
+      nodeAliveRoot: roots.nodeAliveRootOid,
+      edgeAliveRoot: roots.edgeAliveRootOid,
     });
+    reduced.acceptMaterialization(witness);
   }
 
   private async _resumeExactMaterialization(
@@ -334,6 +361,9 @@ export default class MaterializeController {
       : materializationSessionOpen(retained.roots);
     const reduced = await reduceSessionBackedState({
       openStateSession,
+      materializations: this._deps.materializations,
+      logger: this._deps.logger,
+      coordinate,
       patches: [],
       baseState: snapshot.state,
       ...(retainedRoots === null ? {} : { roots: retainedRoots }),
@@ -357,6 +387,7 @@ export default class MaterializeController {
     patches: PatchWithSha[],
     base: WarpState | undefined,
     opts: { receipts: boolean; wantDiff: boolean },
+    coordinate: WarpStateCoordinate,
   ): Promise<MaterializeReduceOutput> {
     const {openStateSession} = this._deps;
     if (openStateSession === undefined) {
@@ -364,6 +395,9 @@ export default class MaterializeController {
     }
     const sessionArgs = {
       openStateSession,
+      materializations: this._deps.materializations,
+      logger: this._deps.logger,
+      coordinate: new MaterializationCoordinate(coordinate),
       patches: patches.map((entry) => new PatchEntry(entry)),
       receipts: opts.receipts,
       wantDiff: opts.wantDiff,
@@ -376,6 +410,7 @@ export default class MaterializeController {
     stream: AsyncIterable<PatchWithSha>,
     base: WarpState | undefined,
     opts: MaterializePatchStreamOptions,
+    coordinate: WarpStateCoordinate,
     provenanceBase?: ProvenanceIndex,
   ): Promise<MaterializePatchStreamReduction> {
     if (this._deps.openStateSession === undefined) {
@@ -395,6 +430,9 @@ export default class MaterializeController {
     };
     const reduced = await reduceSessionBackedState({
       openStateSession: this._deps.openStateSession,
+      materializations: this._deps.materializations,
+      logger: this._deps.logger,
+      coordinate: new MaterializationCoordinate(coordinate),
       patches: recordingStream(),
       receipts: opts.receipts,
       wantDiff: opts.wantDiff,
@@ -413,9 +451,10 @@ export default class MaterializeController {
         await this._emptyResult(ceiling, frontier, options),
       wrapState: async (state, ceiling, frontier, provenance, options) =>
         await this._wrapState(state, ceiling, frontier, provenance, options),
-      reducePatches: async (patches, base, opts) => await this._reducePatches(patches, base, opts),
-      reducePatchStream: async (stream, base, opts, provenanceBase) =>
-        await this._reducePatchStream(stream, base, opts, provenanceBase),
+      reducePatches: async (patches, base, opts, coordinate) =>
+        await this._reducePatches(patches, base, opts, coordinate),
+      reducePatchStream: async (stream, base, opts, coordinate, provenanceBase) =>
+        await this._reducePatchStream(stream, base, opts, coordinate, provenanceBase),
       buildResult: async (params) => await this._buildResult(params),
       resumeExactMaterialization: async (snapshot, options) =>
         await this._resumeExactMaterialization(snapshot, options),

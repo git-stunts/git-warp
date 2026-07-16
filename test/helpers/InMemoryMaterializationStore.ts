@@ -7,13 +7,63 @@ import StorageRetentionWitness, {
 import MaterializationStorePort, {
   type RetainMaterializationRequest,
 } from '../../src/ports/MaterializationStorePort.ts';
+import MaterializationWorkspacePort, {
+  type MaterializationWorkspaceRoots,
+  type PromoteMaterializationRequest,
+} from '../../src/ports/MaterializationWorkspacePort.ts';
+
+export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePort {
+  readonly checkpoints: MaterializationWorkspaceRoots[] = [];
+  readonly #promoteMaterialization: (
+    request: PromoteMaterializationRequest,
+  ) => Promise<MaterializationHandle>;
+  released = false;
+
+  constructor(
+    promoteMaterialization: (
+      request: PromoteMaterializationRequest,
+    ) => Promise<MaterializationHandle>,
+  ) {
+    super();
+    this.#promoteMaterialization = promoteMaterialization;
+  }
+
+  override checkpoint(roots: MaterializationWorkspaceRoots): Promise<StorageRetentionWitness> {
+    this.checkpoints.push(roots);
+    const bundle = new BundleHandle(`test:workspace:${String(this.checkpoints.length)}`);
+    return Promise.resolve(workspaceRetentionWitness(bundle));
+  }
+
+  override release(): Promise<void> {
+    this.released = true;
+    return Promise.resolve();
+  }
+
+  override promote(request: PromoteMaterializationRequest): Promise<MaterializationHandle> {
+    return this.#promoteMaterialization(request);
+  }
+}
 
 /** Behavioral retained-materialization store for controller tests. */
 export default class InMemoryMaterializationStore extends MaterializationStorePort {
   readonly exactLookups: MaterializationCoordinate[] = [];
   readonly retainedRequests: RetainMaterializationRequest[] = [];
+  readonly workspaces: InMemoryMaterializationWorkspace[] = [];
   readonly #handles = new Map<string, MaterializationHandle>();
   #nextHandle = 1;
+
+  override openWorkspace(
+    coordinate: MaterializationCoordinate,
+  ): Promise<MaterializationWorkspacePort> {
+    const workspace = new InMemoryMaterializationWorkspace(async (request) => {
+      if (!request.coordinate.equals(coordinate)) {
+        throw new Error('Workspace promotion coordinate mismatch');
+      }
+      return await this.retain(request);
+    });
+    this.workspaces.push(workspace);
+    return Promise.resolve(workspace);
+  }
 
   override retain(request: RetainMaterializationRequest): Promise<MaterializationHandle> {
     this.retainedRequests.push(request);
@@ -56,6 +106,29 @@ function retentionWitness(handle: BundleHandle): StorageRetentionWitness {
       namespace: 'test/materializations',
       locator: 'test/materializations',
       generation: 'test-generation',
+      path: handle.toString(),
+    }),
+    observedAt: '1970-01-01T00:00:00.000Z',
+  });
+}
+
+export function workspaceRetentionWitness(
+  handle: BundleHandle,
+  options: {
+    readonly namespace?: string;
+    readonly generation?: string;
+  } = {},
+): StorageRetentionWitness {
+  const namespace = options.namespace ?? 'test/materialization-workspaces';
+  return new StorageRetentionWitness({
+    handle,
+    policy: 'pinned',
+    reachability: 'anchored',
+    root: new StorageRetentionRoot({
+      kind: 'cache-set',
+      namespace,
+      locator: namespace,
+      generation: options.generation ?? 'test-workspace-generation',
       path: handle.toString(),
     }),
     observedAt: '1970-01-01T00:00:00.000Z',

@@ -67,7 +67,7 @@ interface SplitContext {
  * contract, split semantics, and error codes.
  */
 export default class TrieCursor {
-  readonly #initialRootOid: string | null;
+  #initialRootOid: string | null;
   readonly #store: TrieStorePort;
   readonly #geometry: TrieGeometry;
   readonly #codec: CodecPort;
@@ -192,6 +192,26 @@ export default class TrieCursor {
       dirtyBranches: new Map(this.#dirtyBranches),
       cleanChildren: new Map(this.#cleanChildren),
     });
+  }
+
+  dirtyPageCount(): number {
+    return this.#dirtyLeaves.size + this.#dirtyBranches.size;
+  }
+
+  rebase(rootOid: string | null): void {
+    if (rootOid !== null && (typeof rootOid !== "string" || rootOid.length === 0)) {
+      throw new TrieCursorError(
+        `TrieCursor rebase root must be null or a non-empty string; received ${String(rootOid)}`,
+        { code: "E_TRIE_CURSOR_STRUCTURE" },
+      );
+    }
+    this.#initialRootOid = rootOid;
+    this.#dirtyLeaves.clear();
+    this.#dirtyBranches.clear();
+    this.#cleanChildren.clear();
+    this.#workingLeaves.clear();
+    this.#workingBranches.clear();
+    this.#rootLoaded = false;
   }
 
   // -- construction helpers --------------------------------------------------
@@ -571,6 +591,7 @@ export default class TrieCursor {
     }
     const nextCtx = advanceCtx(args.ctx);
     await this.#insertBelowBranch(childPath, nextCtx);
+    this.#rebindParentBranch(args.parentPath, args.nibble);
   }
 
   #requireBranchAt(path: readonly number[]): TrieBranch {
