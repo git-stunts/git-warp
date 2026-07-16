@@ -66,7 +66,6 @@ export const SOURCE_SIZE_RELAXATIONS = Object.freeze([
   'test/unit/domain/services/controllers/SyncController.test.ts',
   'test/unit/domain/services/strand/ConflictAnalyzerService.test.ts',
   'test/unit/domain/services/strand/StrandService.test.ts',
-  'test/unit/infrastructure/adapters/GitTrieStoreAdapter.test.ts',
   'test/unit/scripts/visible-state-upgrade.test.ts',
   'test/unit/specs/audit-receipt-vectors.test.ts',
 ]);

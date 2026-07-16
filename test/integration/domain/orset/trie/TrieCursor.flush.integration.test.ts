@@ -1,9 +1,9 @@
 /**
  * Integration test: TrieCursor + TrieFlusher round-trip through a
- * real Git repository via GitTrieStoreAdapter.
+ * real Git repository via GitCasTrieStoreAdapter.
  *
- * Cursor writes pending OIDs into branch entries; flusher resolves
- * those into real Git OIDs. A fresh cursor re-opened at the new
+ * Cursor writes pending roots into branch entries; flusher resolves
+ * those into git-cas bundle handles. A fresh cursor re-opened at the new
  * root must observe every element the source cursor wrote.
  */
 import { mkdtemp, rm } from "node:fs/promises";
@@ -11,27 +11,20 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import ContentAddressableStore, { BundleHandle } from "@git-stunts/git-cas";
 import Plumbing from "@git-stunts/plumbing";
 
 import { Dot } from "../../../../../src/domain/crdt/Dot.ts";
-import GitTrieStoreAdapter from "../../../../../src/infrastructure/adapters/GitTrieStoreAdapter.ts";
+import GitCasTrieStoreAdapter from "../../../../../src/infrastructure/adapters/GitCasTrieStoreAdapter.ts";
 import TrieCursor from "../../../../../src/domain/orset/trie/TrieCursor.ts";
 import TrieFlusher from "../../../../../src/domain/orset/trie/TrieFlusher.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 
-interface PlumbingRuntime {
-  execute(opts: { args: string[]; input?: string | Buffer }): Promise<string>;
-  executeStream(opts: {
-    args: string[];
-  }): Promise<{ collect(opts: { asString: boolean; maxBytes?: number }): Promise<Buffer | string> }>;
-}
-
 interface Harness {
   readonly tempDir: string;
-  readonly plumbing: PlumbingRuntime;
-  readonly adapter: GitTrieStoreAdapter;
+  readonly adapter: GitCasTrieStoreAdapter;
   cleanup(): Promise<void>;
 }
 
@@ -46,10 +39,14 @@ async function createHarness(): Promise<Harness> {
     await plumbing.execute({ args: ["init", "-q"] });
     await plumbing.execute({ args: ["config", "user.email", "test@test.com"] });
     await plumbing.execute({ args: ["config", "user.name", "Test"] });
-    const adapter = new GitTrieStoreAdapter({ plumbing });
+    const cas = ContentAddressableStore.createCbor({
+      plumbing,
+      chunking: { strategy: "cdc" },
+      applicationRefPrefixes: ["refs/warp/"],
+    });
+    const adapter = new GitCasTrieStoreAdapter({ cas });
     return {
       tempDir,
-      plumbing,
       adapter,
       async cleanup(): Promise<void> {
         await rm(tempDir, { recursive: true, force: true });
@@ -61,7 +58,7 @@ async function createHarness(): Promise<Harness> {
   }
 }
 
-describe("TrieCursor + TrieFlusher integration (real Git)", () => {
+describe("TrieCursor + TrieFlusher integration (real git-cas)", () => {
   let harness: Harness;
 
   beforeEach(async () => {
@@ -122,12 +119,7 @@ describe("TrieCursor + TrieFlusher integration (real Git)", () => {
     const result = await flusher.flush(cursor.snapshot());
     expect(result.rootOid).not.toBeNull();
 
-    const rootType = (
-      await harness.plumbing.execute({
-        args: ["cat-file", "-t", result.rootOid ?? ""],
-      })
-    ).trim();
-    expect(rootType).toBe("tree");
+    expect(BundleHandle.parse(result.rootOid ?? "").kind).toBe("bundle");
 
     const replay = new TrieCursor({
       rootOid: result.rootOid,

@@ -55,25 +55,25 @@ import type { TrieBranchEntries } from "./TrieBranchEntries.ts";
  */
 export default interface TrieStorePort {
   /**
-   * Read a leaf blob's raw bytes by OID.
+   * Read a leaf page's raw bytes by opaque root handle.
    *
    * Throws `TrieStoreError` with code `E_TRIE_STORE_MISSING` if the
-   * OID does not exist, or `E_TRIE_STORE_READ` if the backing store
+   * root does not exist, or `E_TRIE_STORE_READ` if the backing store
    * fails for any other reason.
    */
-  readLeaf(oid: string): Promise<Uint8Array>;
+  readLeaf(root: string): Promise<Uint8Array>;
 
   /**
-   * Read a branch tree's nibble-indexed child map by OID.
+   * Read a branch bundle's nibble-indexed child map by opaque root handle.
    *
    * Throws `TrieStoreError` with code `E_TRIE_STORE_MISSING` if the
-   * OID does not exist, `E_TRIE_STORE_CORRUPT` if the stored bytes
-   * fail branch decoding, or `E_TRIE_STORE_READ` otherwise.
+   * root does not exist, `E_TRIE_STORE_CORRUPT` if the stored bundle
+   * fails branch decoding, or `E_TRIE_STORE_READ` otherwise.
    */
-  readBranch(oid: string): Promise<TrieBranchEntries>;
+  readBranch(root: string): Promise<TrieBranchEntries>;
 
   /**
-   * Write a leaf blob and return its content-addressed OID.
+   * Write a leaf page and return its content-addressed root handle.
    *
    * Throws `TrieStoreError` with code `E_TRIE_STORE_WRITE` if the
    * backing store rejects the write.
@@ -81,8 +81,8 @@ export default interface TrieStorePort {
   writeLeaf(data: Uint8Array): Promise<string>;
 
   /**
-   * Write a branch tree from its nibble-indexed child map and return
-   * its content-addressed OID.
+   * Write a branch bundle from its nibble-indexed child map and return
+   * its content-addressed root handle.
    *
    * Throws `TrieStoreError` with code `E_TRIE_STORE_WRITE` if the
    * backing store rejects the write.

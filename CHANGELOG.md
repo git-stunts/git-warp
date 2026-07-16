@@ -52,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removing retired compatibility surfaces.
 - Upgraded `@git-stunts/git-cas` to `^6.1.0` so Git-backed state caches can use
   the library's crash-safe `RootSet` retention API.
+- Moved shadow-trie leaf and branch storage from unretained raw Git blobs and
+  trees to bounded git-cas pages and composable bundle handles. Production
+  storage now shares one git-cas facade with the trie adapter, and the storage
+  ownership gate rejects direct raw Git object writers.
 
 ### Removed
 

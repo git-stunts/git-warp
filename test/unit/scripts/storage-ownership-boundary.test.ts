@@ -24,12 +24,19 @@ const FORBIDDEN_DOMAIN_STORAGE_IDENTIFIERS = new Set([
   'writeBlob',
   'writeTree',
 ]);
+const RAW_GIT_OBJECT_WRITE_COMMANDS = new Set([
+  'hash-object',
+  'mktree',
+  'unpack-objects',
+  'write-tree',
+]);
 const REMOVED_PRODUCTION_SYMBOLS = new Set([
   'CachedValue',
   'CasFirstMemoizationEngine',
   'CasIndexStorageAdapter',
   'CasSeekCacheAdapter',
   'HealthCheckService',
+  'GitTrieStoreAdapter',
   'InMemoryBlobStorageAdapter',
   'InMemoryGraphAdapter',
   'IndexRebuildService',
@@ -136,6 +143,32 @@ function forbiddenDomainStorageReferences(
   return [...violations];
 }
 
+function forbiddenRawGitObjectWrites(
+  path: string,
+  sourceText = readFileSync(path, 'utf8'),
+): string[] {
+  const source = ts.createSourceFile(
+    path,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const relativePath = relative(REPO_ROOT.pathname, path);
+  const violations = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if (
+      (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
+      RAW_GIT_OBJECT_WRITE_COMMANDS.has(node.text)
+    ) {
+      violations.add(`${relativePath} invokes raw Git object writer ${node.text}`);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return [...violations];
+}
+
 function importedModuleName(node: ts.Node): string | null {
   if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node))
     && node.moduleSpecifier !== undefined
@@ -205,6 +238,31 @@ describe('storage ownership boundary', () => {
     const productionFiles = DOMAIN_STORAGE_ROOTS.flatMap(productionTypeScriptFiles);
     const violations = productionFiles
       .flatMap((path) => forbiddenDomainStorageReferences(path))
+      .sort();
+
+    expect(violations).toEqual([]);
+  });
+
+  it('rejects raw Git object writers in an AST mutation fixture', () => {
+    const fixturePath = new URL('raw-git-writer-fixture.ts', REPO_ROOT).pathname;
+    const violations = forbiddenRawGitObjectWrites(fixturePath, `
+      plumbing.execute({ args: ['hash-object', '-w', '--stdin'] });
+      plumbing.execute({ args: [\`mktree\`] });
+    `).sort();
+
+    expect(violations).toEqual([
+      'raw-git-writer-fixture.ts invokes raw Git object writer hash-object',
+      'raw-git-writer-fixture.ts invokes raw Git object writer mktree',
+    ]);
+  });
+
+  it('keeps raw Git object writers out of production', () => {
+    const productionFiles = [
+      ...PRODUCTION_ROOTS.flatMap(productionTypeScriptFiles),
+      ...PRODUCTION_ENTRYPOINTS.map((path) => new URL(path, REPO_ROOT).pathname),
+    ];
+    const violations = productionFiles
+      .flatMap((path) => forbiddenRawGitObjectWrites(path))
       .sort();
 
     expect(violations).toEqual([]);

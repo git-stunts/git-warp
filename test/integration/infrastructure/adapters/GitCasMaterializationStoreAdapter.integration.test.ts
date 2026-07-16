@@ -12,6 +12,7 @@ import MaterializationCoordinate from '../../../../src/domain/materialization/Ma
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import GitCasTrieStoreAdapter from '../../../../src/infrastructure/adapters/GitCasTrieStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
@@ -36,7 +37,8 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
       frontier: new Map([['writer-a', 'a'.repeat(40)]]),
       ceiling: null,
     });
-    const rootFixture = await createRoots(harness.cas);
+    const trieFixture = await createTrieRoot(harness.cas);
+    const rootFixture = await createRoots(harness.cas, trieFixture);
     const retained = await harness.materializations.retain({
       coordinate,
       roots: rootFixture.roots,
@@ -49,11 +51,21 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
       reopenedCas,
     );
     const resolved = await reopened.findExact(coordinate);
+    if (resolved === null) {
+      throw new Error('Retained materialization was not reopened');
+    }
+    const reopenedTrie = new GitCasTrieStoreAdapter({ cas: reopenedCas });
+    const children = await reopenedTrie.readBranch(resolved.roots.nodeAlive.toString());
+    const child = children.get(0);
+    if (child === undefined) {
+      throw new Error('Retained trie root did not contain its leaf child');
+    }
     const unreachable = await prunableOids(harness.path);
 
-    expect(resolved?.bundle.equals(retained.bundle)).toBe(true);
-    expect(resolved?.roots.entries().map(([name, handle]) => [name, handle.toString()]))
+    expect(resolved.bundle.equals(retained.bundle)).toBe(true);
+    expect(resolved.roots.entries().map(([name, handle]) => [name, handle.toString()]))
       .toEqual(rootFixture.roots.entries().map(([name, handle]) => [name, handle.toString()]));
+    expect(await reopenedTrie.readLeaf(child)).toEqual(trieFixture.bytes);
     expect(unreachable).not.toContain(GitCasBundleHandle.parse(retained.bundle.toString()).oid);
     for (const oid of rootFixture.retainedOids) {
       expect(unreachable).not.toContain(oid);
@@ -111,13 +123,50 @@ async function createMaterializations(
   return services.materializations;
 }
 
-async function createRoots(cas: ContentAddressableStore): Promise<Readonly<{
+type TrieRootFixture = Readonly<{
+  bytes: Uint8Array;
+  retainedOids: readonly string[];
+  root: BundleHandle;
+}>;
+
+async function createTrieRoot(cas: ContentAddressableStore): Promise<TrieRootFixture> {
+  const adapter = new GitCasTrieStoreAdapter({ cas });
+  const bytes = new Uint8Array([7, 8, 9]);
+  const leafRoot = await adapter.writeLeaf(bytes);
+  const branchRoot = await adapter.writeBranch(new Map([[0, leafRoot]]));
+  const leafMember = await cas.bundles.getMember({
+    handle: leafRoot,
+    path: 'leaf/data',
+  });
+  if (leafMember === null || leafMember.handle.kind !== 'page') {
+    throw new Error('Trie integration fixture did not create a leaf page');
+  }
+  return Object.freeze({
+    bytes,
+    retainedOids: Object.freeze([
+      GitCasBundleHandle.parse(branchRoot).oid,
+      GitCasBundleHandle.parse(leafRoot).oid,
+      leafMember.handle.oid,
+    ]),
+    root: new BundleHandle(branchRoot),
+  });
+}
+
+async function createRoots(
+  cas: ContentAddressableStore,
+  trie: TrieRootFixture,
+): Promise<Readonly<{
   retainedOids: readonly string[];
   roots: MaterializationRoots;
 }>> {
   const handles: BundleHandle[] = [];
   const retainedOids: string[] = [];
   for (let index = 0; index < 8; index += 1) {
+    if (index === 4) {
+      handles.push(trie.root);
+      retainedOids.push(...trie.retainedOids);
+      continue;
+    }
     const page = await cas.pages.put({ source: new Uint8Array([index]) });
     const bundle = await cas.bundles.put({ members: { root: page.handle } });
     handles.push(new BundleHandle(bundle.handle.toString()));
