@@ -1,11 +1,11 @@
 import ORSet from "../../crdt/ORSet.ts";
 import VersionVector from "../../crdt/VersionVector.ts";
 import { Dot } from "../../crdt/Dot.ts";
+import type PatchEntry from "../../artifacts/PatchEntry.ts";
 import type StateSession from "../../orset/session/StateSession.ts";
 import type { PatchDiff } from "../../types/PatchDiff.ts";
 import type { TickReceipt } from "../../types/TickReceipt.ts";
 import WarpStateClass from "../state/WarpState.ts";
-import type { PatchLike } from "../JoinReducer.ts"; // nosemgrep: ts-no-like-types -- 0025C
 import {
   ReducerSessionFrame,
   reducePatchesInSession,
@@ -24,14 +24,9 @@ export type MaterializeSessionOpener = (
   init: MaterializeSessionOpen,
 ) => Promise<StateSession>;
 
-type MaterializeSessionPatch = Readonly<{
-  patch: PatchLike; // nosemgrep: ts-no-like-types -- 0025C
-  sha: string;
-}>;
-
 type MaterializeSessionPatchSource =
-  | Iterable<MaterializeSessionPatch>
-  | AsyncIterable<MaterializeSessionPatch>;
+  | Iterable<PatchEntry>
+  | AsyncIterable<PatchEntry>;
 
 export async function reduceSessionBackedState(args: {
   readonly openStateSession: MaterializeSessionOpener;

@@ -1,5 +1,5 @@
 import WarpError from '../errors/WarpError.ts';
-import type Patch from '../types/Patch.ts';
+import Patch from '../types/Patch.ts';
 
 /**
  * A patch entry from a patch scan stream.
@@ -12,7 +12,7 @@ export default class PatchEntry {
   readonly sha: string;
 
   constructor({ patch, sha }: { patch: Patch; sha: string }) {
-    if (patch === null || patch === undefined) {
+    if (!(patch instanceof Patch)) {
       throw new WarpError('PatchEntry requires a patch', 'E_INVALID_ENTRY');
     }
     if (typeof sha !== 'string' || sha.length === 0) {

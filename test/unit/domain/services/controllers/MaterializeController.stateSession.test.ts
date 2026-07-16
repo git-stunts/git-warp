@@ -75,6 +75,12 @@ function edgeAddPatchRecord(args: {
 function snapshotRecord(coordinate: Coordinate) {
   const state = createEmptyState();
   state.nodeAlive.add("node:base", Dot.create("seed", 1));
+  const removedNodeDot = Dot.create("seed", 2);
+  state.nodeAlive.add("node:removed", removedNodeDot);
+  state.nodeAlive.remove(new Set([Dot.encode(removedNodeDot)]));
+  const removedEdgeDot = Dot.create("seed", 3);
+  state.edgeAlive.add("node:base\0node:removed\0related", removedEdgeDot);
+  state.edgeAlive.remove(new Set([Dot.encode(removedEdgeDot)]));
   return {
     snapshotId: "snapshot-base",
     coordinate,
@@ -256,6 +262,10 @@ describe("MaterializeController — state session integration", () => {
     );
     expect(result.state.nodeAlive.contains("node:base")).toBe(true);
     expect(result.state.nodeAlive.contains("node:suffix")).toBe(true);
+    expect(result.state.nodeAlive.contains("node:removed")).toBe(false);
+    expect(result.state.nodeAlive.isTombstoned(Dot.encode(Dot.create("seed", 2)))).toBe(true);
+    expect(result.state.edgeAlive.contains("node:base\0node:removed\0related")).toBe(false);
+    expect(result.state.edgeAlive.isTombstoned(Dot.encode(Dot.create("seed", 3)))).toBe(true);
   });
 
   it("fails fast on materializeAt when the controller is on the session-backed runtime line", async () => {

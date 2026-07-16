@@ -15,6 +15,7 @@ import MaterializeController, {
   type MaterializePersistence,
 } from '../../../../../src/domain/services/controllers/MaterializeController.ts';
 import MaterializePatchStreamReducer from '../../../../../src/domain/services/controllers/MaterializePatchStreamReducer.ts';
+import { createEmptyDiff } from '../../../../../src/domain/types/PatchDiff.ts';
 import StateSession from '../../../../../src/domain/orset/session/StateSession.ts';
 import PageCache from '../../../../../src/domain/orset/trie/PageCache.ts';
 import TrieGeometry from '../../../../../src/domain/orset/trie/TrieGeometry.ts';
@@ -66,7 +67,7 @@ describe('MaterializeController patch streams', () => {
     ['plain', { receipts: false, wantDiff: false }],
     ['receipt', { receipts: true, wantDiff: false }],
     ['diff', { receipts: false, wantDiff: true }],
-  ] as const)('reduces session-backed patches incrementally in %s mode', async (_mode, options) => {
+  ] as const)('reduces session-backed patches incrementally in %s mode', async (mode, options) => {
     const collector = new StreamingOnlyPatchCollector(
       Array.from({ length: 128 }, (_, index) => patchEntry(index + 1)),
     );
@@ -92,6 +93,16 @@ describe('MaterializeController patch streams', () => {
     expect(result.provenanceIndex.patchesFor('node-128')).toEqual(['sha-128']);
     expect(result.provenanceIndex.has('poisoned-node')).toBe(false);
     expect(collector.writerLoadCount).toBe(0);
+    if (mode === 'receipt') {
+      expect(result.receipts).toHaveLength(128);
+      expect(result.diff).toBeUndefined();
+    } else if (mode === 'diff') {
+      expect(result.receipts).toBeUndefined();
+      expect(result.diff).toEqual(createEmptyDiff());
+    } else {
+      expect(result.receipts).toBeUndefined();
+      expect(result.diff).toBeUndefined();
+    }
   });
 });
 

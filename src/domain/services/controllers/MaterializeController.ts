@@ -46,6 +46,7 @@ import type { WarpStateSnapshotProvenancePosture } from '../../../ports/WarpStat
 import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
+import PatchEntry from '../../artifacts/PatchEntry.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
@@ -291,7 +292,7 @@ export default class MaterializeController {
     }
     const sessionArgs = {
       openStateSession,
-      patches,
+      patches: patches.map((entry) => new PatchEntry(entry)),
       receipts: opts.receipts,
       wantDiff: opts.wantDiff,
       ...(base === undefined ? {} : { baseState: base }),
@@ -314,10 +315,10 @@ export default class MaterializeController {
       });
     }
     const summary = new MaterializePatchSummaryAccumulator(provenanceBase);
-    const recordingStream = async function* (): AsyncIterable<PatchWithSha> {
+    const recordingStream = async function* (): AsyncIterable<PatchEntry> {
       for await (const entry of stream) {
         summary.record(entry);
-        yield entry;
+        yield new PatchEntry(entry);
       }
     };
     const reduced = await reduceSessionBackedState({
