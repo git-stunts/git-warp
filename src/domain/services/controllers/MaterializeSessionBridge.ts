@@ -24,12 +24,18 @@ export type MaterializeSessionOpener = (
   init: MaterializeSessionOpen,
 ) => Promise<StateSession>;
 
+type MaterializeSessionPatch = Readonly<{
+  patch: PatchLike; // nosemgrep: ts-no-like-types -- 0025C
+  sha: string;
+}>;
+
+type MaterializeSessionPatchSource =
+  | Iterable<MaterializeSessionPatch>
+  | AsyncIterable<MaterializeSessionPatch>;
+
 export async function reduceSessionBackedState(args: {
   readonly openStateSession: MaterializeSessionOpener;
-  readonly patches: ReadonlyArray<{
-    readonly patch: PatchLike; // nosemgrep: ts-no-like-types -- 0025C
-    readonly sha: string;
-  }>;
+  readonly patches: MaterializeSessionPatchSource;
   readonly baseState?: WarpStateClass;
   readonly receipts: boolean;
   readonly wantDiff: boolean;
@@ -113,6 +119,7 @@ async function seedSessionWithORSet(args: {
   readonly source: ORSet;
 }): Promise<void> {
   for (const [element, dots] of args.source.entriesIter()) {
+    const tombstones = new Set<string>();
     for (const encodedDot of dots) {
       const dot = Dot.decode(encodedDot);
       if (args.kind === "node") {
@@ -120,18 +127,18 @@ async function seedSessionWithORSet(args: {
       } else {
         await args.session.addEdge(element, dot);
       }
+      if (args.source.isTombstoned(encodedDot)) {
+        tombstones.add(encodedDot);
+      }
     }
-  }
-
-  if (args.source.tombstones.size === 0) {
-    return;
-  }
-
-  const tombstones = new Set(args.source.tombstones);
-  if (args.kind === "node") {
-    await args.session.removeNodes(tombstones);
-  } else {
-    await args.session.removeEdges(tombstones);
+    if (tombstones.size === 0) {
+      continue;
+    }
+    if (args.kind === "node") {
+      await args.session.removeNode(element, tombstones);
+    } else {
+      await args.session.removeEdge(element, tombstones);
+    }
   }
 }
 

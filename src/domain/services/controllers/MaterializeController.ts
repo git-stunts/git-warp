@@ -32,7 +32,7 @@ import MaterializePatchStreamReducer, {
   type MaterializePatchStreamOptions,
   type MaterializePatchStreamReduction,
 } from './MaterializePatchStreamReducer.ts';
-import { summarizeMaterializePatches } from './MaterializePatchSummary.ts';
+import { MaterializePatchSummaryAccumulator } from './MaterializePatchSummary.ts';
 import {
   shouldPublishMaterializeSnapshot,
   type MaterializeSnapshotPublicationOptions,
@@ -313,14 +313,23 @@ export default class MaterializeController {
         ...(provenanceBase === undefined ? {} : { provenanceBase }),
       });
     }
-    const patches: PatchWithSha[] = [];
-    for await (const entry of stream) {
-      patches.push(entry);
-    }
-    const reduced = await this._reducePatches(patches, base, opts);
+    const summary = new MaterializePatchSummaryAccumulator(provenanceBase);
+    const recordingStream = async function* (): AsyncIterable<PatchWithSha> {
+      for await (const entry of stream) {
+        summary.record(entry);
+        yield entry;
+      }
+    };
+    const reduced = await reduceSessionBackedState({
+      openStateSession: this._deps.openStateSession,
+      patches: recordingStream(),
+      receipts: opts.receipts,
+      wantDiff: opts.wantDiff,
+      ...(base === undefined ? {} : { baseState: base }),
+    });
     return {
       reduced,
-      summary: summarizeMaterializePatches(patches, provenanceBase),
+      summary: summary.toSummary(),
     };
   }
 

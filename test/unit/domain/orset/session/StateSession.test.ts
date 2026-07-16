@@ -200,8 +200,8 @@ describe("StateSession", () => {
 
       await session.addNode("node:1", nodeDot);
       await session.addEdge("edge:1", edgeDot);
-      await session.removeNodes(new Set([Dot.encode(nodeDot)]));
-      await session.removeEdges(new Set([Dot.encode(edgeDot)]));
+      await session.removeNode("node:1", new Set([Dot.encode(nodeDot)]));
+      await session.removeEdge("edge:1", new Set([Dot.encode(edgeDot)]));
       await session.compact(VersionVector.from({ alice: 2 }));
 
       const closeResult = await session.close();
@@ -227,8 +227,8 @@ describe("StateSession", () => {
 
       await session.addNode("node:1", nodeDot);
       await session.addEdge("edge:1", edgeDot);
-      await session.removeNodes(new Set([Dot.encode(nodeDot)]));
-      await session.removeEdges(new Set([Dot.encode(edgeDot)]));
+      await session.removeNode("node:1", new Set([Dot.encode(nodeDot)]));
+      await session.removeEdge("edge:1", new Set([Dot.encode(edgeDot)]));
 
       expect(await session.nodeContains("node:1")).toBe(false);
       expect(await session.edgeContains("edge:1")).toBe(false);

@@ -54,6 +54,13 @@ type ReplayDiffSnapshot =
 
 type ReplayMode = "fast" | "diff" | "receipt";
 
+type SessionPatch = Readonly<{
+  patch: PatchLike; // nosemgrep: ts-no-like-types -- 0025C
+  sha: string;
+}>;
+
+type SessionPatchSource = Iterable<SessionPatch> | AsyncIterable<SessionPatch>;
+
 export class ReducerSessionFrame {
   readonly session: StateSession;
   readonly prop: Map<string, LWWRegister<ReducerPropValue>>;
@@ -125,21 +132,21 @@ export async function applyWithReceiptInSession(
 }
 
 export function reducePatchesInSession(
-  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  patches: SessionPatchSource,
   frame: ReducerSessionFrame,
 ): Promise<ReducerSessionFrame>;
 export function reducePatchesInSession(
-  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  patches: SessionPatchSource,
   frame: ReducerSessionFrame,
   options: { readonly receipts: true },
 ): Promise<{ frame: ReducerSessionFrame; receipts: TickReceipt[] }>;
 export function reducePatchesInSession(
-  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  patches: SessionPatchSource,
   frame: ReducerSessionFrame,
   options: { readonly trackDiff: true },
 ): Promise<{ frame: ReducerSessionFrame; diff: PatchDiff }>;
 export async function reducePatchesInSession(
-  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
+  patches: SessionPatchSource,
   frame: ReducerSessionFrame,
   options?: { readonly receipts?: boolean; readonly trackDiff?: boolean },
 ): Promise<
@@ -147,7 +154,7 @@ export async function reducePatchesInSession(
 > {
   if (options?.receipts === true) {
     const receipts: TickReceipt[] = [];
-    for (const { patch, sha } of patches) {
+    for await (const { patch, sha } of patches) {
       receipts.push(await applyWithReceiptInSession(frame, patch, sha));
     }
     return { frame, receipts };
@@ -155,13 +162,13 @@ export async function reducePatchesInSession(
 
   if (options?.trackDiff === true) {
     let merged = createEmptyDiff();
-    for (const { patch, sha } of patches) {
+    for await (const { patch, sha } of patches) {
       merged = mergeDiffs(merged, await applyWithDiffInSession(frame, patch, sha));
     }
     return { frame, diff: merged };
   }
 
-  for (const { patch, sha } of patches) {
+  for await (const { patch, sha } of patches) {
     await applyFastInSession(frame, patch, sha);
   }
   return frame;
@@ -340,7 +347,7 @@ async function mutateInSession(
     return;
   }
   if (op instanceof NodeRemove) {
-    await frame.session.removeNodes(new Set(op.observedDots));
+    await frame.session.removeNode(op.node, new Set(op.observedDots));
     return;
   }
   if (op instanceof EdgeAdd) {
@@ -353,7 +360,8 @@ async function mutateInSession(
     return;
   }
   if (op instanceof EdgeRemove) {
-    await frame.session.removeEdges(new Set(op.observedDots));
+    const edgeKey = encodeEdgeKey(op.from, op.to, op.label);
+    await frame.session.removeEdge(edgeKey, new Set(op.observedDots));
     return;
   }
   if (op instanceof PropSet) {
@@ -532,7 +540,7 @@ async function mergeLiveNodesInto(
       await target.addNode(nodeState.element, Dot.decode(encodedDot));
     }
     if (nodeState.tombstonedDots.size > 0) {
-      await target.removeNodes(nodeState.tombstonedDots);
+      await target.removeNode(nodeState.element, nodeState.tombstonedDots);
     }
   }
 }
@@ -549,7 +557,7 @@ async function mergeLiveEdgesInto(
       await target.addEdge(edgeState.element, Dot.decode(encodedDot));
     }
     if (edgeState.tombstonedDots.size > 0) {
-      await target.removeEdges(edgeState.tombstonedDots);
+      await target.removeEdge(edgeState.element, edgeState.tombstonedDots);
     }
   }
 }

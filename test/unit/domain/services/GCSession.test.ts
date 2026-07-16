@@ -50,8 +50,8 @@ describe("GCMetrics.fromSession", () => {
     await session.addNode("node:1", nodeDot1);
     await session.addNode("node:2", nodeDot2);
     await session.addEdge("edge:1", edgeDot1);
-    await session.removeNodes(new Set([encodeDot(nodeDot2)]));
-    await session.removeEdges(new Set([encodeDot(edgeDot1)]));
+    await session.removeNode("node:2", new Set([encodeDot(nodeDot2)]));
+    await session.removeEdge("edge:1", new Set([encodeDot(edgeDot1)]));
 
     const syncMetrics = GCMetrics.fromState(syncState);
     const sessionMetrics = await GCMetrics.fromSession(session);
@@ -81,8 +81,8 @@ describe("executeGCInSession", () => {
 
     await session.addNode("node:1", compactableDot);
     await session.addNode("node:2", retainedDot);
-    await session.removeNodes(new Set([encodeDot(compactableDot)]));
-    await session.removeNodes(new Set([encodeDot(retainedDot)]));
+    await session.removeNode("node:1", new Set([encodeDot(compactableDot)]));
+    await session.removeNode("node:2", new Set([encodeDot(retainedDot)]));
 
     const result = await executeGCInSession(
       session,
@@ -132,8 +132,8 @@ describe("executeGCInSession", () => {
 
     await session.addNode("node:1", nodeDot);
     await session.addEdge("edge:1", edgeDot);
-    await session.removeNodes(new Set([encodeDot(nodeDot)]));
-    await session.removeEdges(new Set([encodeDot(edgeDot)]));
+    await session.removeNode("node:1", new Set([encodeDot(nodeDot)]));
+    await session.removeEdge("edge:1", new Set([encodeDot(edgeDot)]));
 
     const result = await executeGCInSession(
       session,
