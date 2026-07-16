@@ -169,6 +169,41 @@ describe("JoinReducer session-backed path", () => {
       );
     });
 
+    it("removes only the named checkpoint entry when synthetic dots are shared", async () => {
+      const { ReducerSessionFrame, reducePatchesInSession } =
+        await loadJoinReducerSessionModule();
+      const { session } = await openSession();
+      const checkpointDot = new Dot("__checkpoint__", 1);
+      const encodedDot = Dot.encode(checkpointDot);
+      const targetEdge = "node:target\x00node:other\x00knows";
+      const retainedEdge = "node:other\x00node:target\x00knows";
+      await session.addNode("node:target", checkpointDot);
+      await session.addNode("node:other", checkpointDot);
+      await session.addEdge(targetEdge, checkpointDot);
+      await session.addEdge(retainedEdge, checkpointDot);
+      const frame = new ReducerSessionFrame({
+        session,
+        prop: new Map(),
+        observedFrontier: VersionVector.empty(),
+        edgeBirthEvent: new Map(),
+      });
+
+      await reducePatchesInSession([
+        {
+          patch: makePatch("alice", 1, [
+            nodeRemove("node:target", [encodedDot]),
+            edgeRemove("node:target", "node:other", "knows", [encodedDot]),
+          ]),
+          sha: "c".repeat(40),
+        },
+      ], frame);
+
+      expect(await session.nodeContains("node:target")).toBe(false);
+      expect(await session.nodeContains("node:other")).toBe(true);
+      expect(await session.edgeContains(targetEdge)).toBe(false);
+      expect(await session.edgeContains(retainedEdge)).toBe(true);
+    });
+
     it("matches the legacy sync reducer in receipt mode", async () => {
       const { ReducerSessionFrame, reducePatchesInSession } =
         await loadJoinReducerSessionModule();
@@ -444,8 +479,14 @@ describe("JoinReducer session-backed path", () => {
 
       await rightOpen.session.addNode("node:shared", sharedNodeDot);
       await rightOpen.session.addEdge("node:a\x00node:b\x00knows", sharedEdgeDot);
-      await rightOpen.session.removeNodes(new Set([Dot.encode(sharedNodeDot)]));
-      await rightOpen.session.removeEdges(new Set([Dot.encode(sharedEdgeDot)]));
+      await rightOpen.session.removeNode(
+        "node:shared",
+        new Set([Dot.encode(sharedNodeDot)]),
+      );
+      await rightOpen.session.removeEdge(
+        "node:a\x00node:b\x00knows",
+        new Set([Dot.encode(sharedEdgeDot)]),
+      );
 
       const left = new ReducerSessionFrame({
         session: leftOpen.session,

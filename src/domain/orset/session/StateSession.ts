@@ -118,14 +118,14 @@ export default class StateSession {
     await this.#edgeAlive.add(key, dot);
   }
 
-  async removeNodes(observedDots: ReadonlySet<string>): Promise<void> {
+  async removeNode(id: string, observedDots: ReadonlySet<string>): Promise<void> {
     this.#assertOpen();
-    await this.#nodeAlive.remove(observedDots);
+    await this.#nodeAlive.removeElement(id, observedDots);
   }
 
-  async removeEdges(observedDots: ReadonlySet<string>): Promise<void> {
+  async removeEdge(key: string, observedDots: ReadonlySet<string>): Promise<void> {
     this.#assertOpen();
-    await this.#edgeAlive.remove(observedDots);
+    await this.#edgeAlive.removeElement(key, observedDots);
   }
 
   scanNodes(): AsyncIterable<string> {

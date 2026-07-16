@@ -1,7 +1,7 @@
 import PatchEntry from '../../src/domain/artifacts/PatchEntry.ts';
 import SyncError from '../../src/domain/errors/SyncError.ts';
 import WarpStream from '../../src/domain/stream/WarpStream.ts';
-import type Patch from '../../src/domain/types/Patch.ts';
+import Patch from '../../src/domain/types/Patch.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import type CommitMessageCodecPort from '../../src/ports/CommitMessageCodecPort.ts';
 import type { PatchCommitMessage } from '../../src/ports/CommitMessageCodecPort.ts';
@@ -43,7 +43,7 @@ export default class FixturePatchJournal extends PatchJournalPort {
     if (patch === undefined) {
       throw new Error(`Fixture patch not found: ${handle}`);
     }
-    return Promise.resolve(patch);
+    return Promise.resolve(patch instanceof Patch ? patch : new Patch(patch));
   }
 
   override scanPatchRange(

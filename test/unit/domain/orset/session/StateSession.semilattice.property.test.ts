@@ -81,12 +81,16 @@ async function seedSessionFromORSet(
   set: ORSet,
 ): Promise<void> {
   for (const [element, dots] of set.entriesIter()) {
+    const tombstones = new Set<string>();
     for (const encodedDot of dots) {
       await session.addNode(element, Dot.decode(encodedDot));
+      if (set.isTombstoned(encodedDot)) {
+        tombstones.add(encodedDot);
+      }
     }
-  }
-  if (set.tombstones.size > 0) {
-    await session.removeNodes(new Set(set.tombstones));
+    if (tombstones.size > 0) {
+      await session.removeNode(element, tombstones);
+    }
   }
 }
 

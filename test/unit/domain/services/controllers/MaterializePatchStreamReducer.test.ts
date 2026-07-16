@@ -15,10 +15,16 @@ import MaterializeController, {
   type MaterializePersistence,
 } from '../../../../../src/domain/services/controllers/MaterializeController.ts';
 import MaterializePatchStreamReducer from '../../../../../src/domain/services/controllers/MaterializePatchStreamReducer.ts';
+import { createEmptyDiff } from '../../../../../src/domain/types/PatchDiff.ts';
+import StateSession from '../../../../../src/domain/orset/session/StateSession.ts';
+import PageCache from '../../../../../src/domain/orset/trie/PageCache.ts';
+import TrieGeometry from '../../../../../src/domain/orset/trie/TrieGeometry.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
+import cborCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import type CodecValue from '../../../../../src/domain/types/codec/CodecValue.ts';
 import type LogFields from '../../../../../src/domain/types/log/LogFields.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
+import { InMemoryTrieStore } from '../../../../helpers/trieHelpers.ts';
 
 describe('MaterializePatchStreamReducer', () => {
   it('reduces each patch before requesting the next stream item', async () => {
@@ -55,6 +61,48 @@ describe('MaterializeController patch streams', () => {
     expect(result.provenanceIndex.patchesFor('node-003')).toEqual(['sha-003']);
     expect(collector.streamedWriters).toEqual(['writer-a']);
     expect(collector.writerLoadCount).toBe(0);
+  });
+
+  it.each([
+    ['plain', { receipts: false, wantDiff: false }],
+    ['receipt', { receipts: true, wantDiff: false }],
+    ['diff', { receipts: false, wantDiff: true }],
+  ] as const)('reduces session-backed patches incrementally in %s mode', async (mode, options) => {
+    const collector = new StreamingOnlyPatchCollector(
+      Array.from({ length: 128 }, (_, index) => patchEntry(index + 1)),
+    );
+    const store = new InMemoryTrieStore();
+    const controller = new MaterializeController({
+      ...materializeDeps(collector),
+      openStateSession: async ({ nodeAliveRootOid, edgeAliveRootOid }) =>
+        await StateSession.open({
+          nodeAliveRootOid,
+          edgeAliveRootOid,
+          store,
+          codec: cborCodec,
+          geometry: TrieGeometry.default16way(),
+          pageCache: new PageCache({ maxResident: 16 }),
+        }),
+    });
+
+    const result = await controller.materialize(options);
+
+    expect(result.patchCount).toBe(128);
+    expect(result.maxObservedLamport).toBe(128);
+    expect(result.provenanceIndex.patchesFor('node-001')).toEqual(['sha-001']);
+    expect(result.provenanceIndex.patchesFor('node-128')).toEqual(['sha-128']);
+    expect(result.provenanceIndex.has('poisoned-node')).toBe(false);
+    expect(collector.writerLoadCount).toBe(0);
+    if (mode === 'receipt') {
+      expect(result.receipts).toHaveLength(128);
+      expect(result.diff).toBeUndefined();
+    } else if (mode === 'diff') {
+      expect(result.receipts).toBeUndefined();
+      expect(result.diff).toEqual(createEmptyDiff());
+    } else {
+      expect(result.receipts).toBeUndefined();
+      expect(result.diff).toBeUndefined();
+    }
   });
 });
 
@@ -135,7 +183,10 @@ class StreamingOnlyPatchCollector extends PatchCollector {
   }
 
   async getFrontier(): Promise<Map<string, string>> {
-    return new Map([['writer-a', 'sha-003']]);
+    const last = this.#entries.at(-1);
+    return last === undefined
+      ? new Map()
+      : new Map([['writer-a', last.sha]]);
   }
 }
 

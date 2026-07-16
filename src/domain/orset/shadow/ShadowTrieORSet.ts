@@ -60,6 +60,10 @@ export default class ShadowTrieORSet {
     await this.#cursor.remove(observedDots);
   }
 
+  async removeElement(element: string, observedDots: ReadonlySet<string>): Promise<void> {
+    await this.#cursor.removeElement(element, observedDots);
+  }
+
   async compact(includedVV: VersionVector): Promise<void> {
     await this.#cursor.compact(includedVV);
   }

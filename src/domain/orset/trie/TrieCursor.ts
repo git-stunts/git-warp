@@ -128,6 +128,21 @@ export default class TrieCursor {
     await this.#tombstoneBelow([], observedDots);
   }
 
+  async removeElement(element: string, observedDots: ReadonlySet<string>): Promise<void> {
+    validateElement(element);
+    if (observedDots.size === 0) {
+      return;
+    }
+    const located = await this.#locateEntry(element);
+    if (located === null) {
+      return;
+    }
+    const next = rewriteElementWithTombstones(located.leaf, element, observedDots);
+    if (next !== null) {
+      this.#markLoadedLeafMutation(located.path, new TrieLeaf(next, this.#geometry));
+    }
+  }
+
   async compact(includedVV: VersionVector): Promise<void> {
     const compactor = new TrieCompactor({
       geometry: this.#geometry,
@@ -254,6 +269,15 @@ export default class TrieCursor {
     const key = encodeDirtyPath(path);
     this.#workingLeaves.set(key, leaf);
     this.#dirtyLeaves.set(key, leaf);
+  }
+
+  #markLoadedLeafMutation(path: readonly number[], leaf: TrieLeaf): void {
+    this.#markLeafDirty(path, leaf);
+    let parentDepth = path.length - 1;
+    for (const nibble of [...path].reverse()) {
+      this.#rebindParentBranch(path.slice(0, parentDepth), nibble);
+      parentDepth -= 1;
+    }
   }
 
   #clearLeafAt(path: readonly number[]): void {
@@ -404,36 +428,60 @@ export default class TrieCursor {
   // -- read path -------------------------------------------------------------
 
   async #lookupEntry(element: string): Promise<TrieLeafEntry | null> {
+    const located = await this.#locateEntry(element);
+    return located?.entry ?? null;
+  }
+
+  async #locateEntry(element: string): Promise<LocatedEntry | null> {
     await this.#loadRootIfNeeded();
     if (!this.#hasRoot()) {
       return null;
     }
     const routeKey = RouteKey.fromElement(element);
     const nibbleBits = nibbleBitsOf(this.#geometry.nibbleBits);
-    return await this.#descendForLookup(routeKey, element, nibbleBits);
+    return await this.#descendForLookup({ routeKey, element, nibbleBits });
   }
 
-  async #descendForLookup(
-    routeKey: RouteKey,
-    element: string,
-    nibbleBits: NibbleBits,
-  ): Promise<TrieLeafEntry | null> {
-    const maxDepth = Math.floor(256 / nibbleBits);
+  async #descendForLookup(target: LookupTarget): Promise<LocatedEntry | null> {
+    const maxDepth = Math.floor(256 / target.nibbleBits);
     let path: readonly number[] = [];
     for (let depth = 0; depth < maxDepth; depth += 1) {
-      const step = await this.#stepLookup({ routeKey, path, depth, nibbleBits });
+      const step = await this.#stepLookup({
+        routeKey: target.routeKey,
+        path,
+        depth,
+        nibbleBits: target.nibbleBits,
+      });
       if (step.kind === "missing") {
         return null;
       }
       if (step.kind === "leaf") {
-        return findEntryInLeaf({ leaf: step.leaf, routeKey, depth: depth + 1, nibbleBits, element });
+        return locateEntryInLeaf({
+          leaf: step.leaf,
+          path: step.path,
+          depth: depth + 1,
+          ...target,
+        });
       }
       path = step.nextPath;
     }
+    return this.#locateTerminalEntry(path, target, maxDepth);
+  }
+
+  #locateTerminalEntry(
+    path: readonly number[],
+    target: LookupTarget,
+    depth: number,
+  ): LocatedEntry | null {
     const terminal = this.#leafAt(path);
     return terminal === null
       ? null
-      : findEntryInLeaf({ leaf: terminal, routeKey, depth: maxDepth, nibbleBits, element });
+      : locateEntryInLeaf({
+          leaf: terminal,
+          path,
+          depth,
+          ...target,
+        });
   }
 
   async #stepLookup(args: {
@@ -466,7 +514,7 @@ export default class TrieCursor {
     const nextPath = [...parentPath, nibble];
     if (kind === "leaf") {
       const leaf = this.#leafAt(nextPath);
-      return leaf === null ? { kind: "missing" } : { kind: "leaf", leaf };
+      return leaf === null ? { kind: "missing" } : { kind: "leaf", leaf, path: nextPath };
     }
     return { kind: "branch", nextPath };
   }
@@ -694,7 +742,7 @@ export default class TrieCursor {
     if (next === null) {
       return;
     }
-    this.#markLeafDirty(leafPath, new TrieLeaf(next, this.#geometry));
+    this.#markLoadedLeafMutation(leafPath, new TrieLeaf(next, this.#geometry));
   }
 
   // -- leaf walk (scan/elements) ---------------------------------------------
@@ -791,6 +839,39 @@ function rewriteLeafWithTombstones(
   return changed ? out : null;
 }
 
+function rewriteElementWithTombstones(
+  leaf: TrieLeaf,
+  element: string,
+  observedDots: ReadonlySet<string>,
+): TrieLeafEntry[] | null {
+  let changed = false;
+  const out: TrieLeafEntry[] = [];
+  for (const entry of leaf.entries()) {
+    if (entry.element !== element) {
+      out.push(entry);
+      continue;
+    }
+    const result = tombstoneEntry(entry, observedDots);
+    if (result.changed) {
+      changed = true;
+    }
+    out.push(result.entry);
+  }
+  return changed ? out : null;
+}
+
+function locateEntryInLeaf(args: {
+  readonly leaf: TrieLeaf;
+  readonly path: readonly number[];
+  readonly routeKey: RouteKey;
+  readonly depth: number;
+  readonly nibbleBits: NibbleBits;
+  readonly element: string;
+}): LocatedEntry | null {
+  const entry = findEntryInLeaf(args);
+  return entry === null ? null : { entry, leaf: args.leaf, path: args.path };
+}
+
 // -- helper: yield elements from a leaf -------------------------------------
 
 function* liveElementsOf(leaf: TrieLeaf): Iterable<string> {
@@ -813,8 +894,20 @@ function elementStateOfEntry(entry: TrieLeafEntry): ORSetElementState {
 
 type LookupStep =
   | { readonly kind: "missing" }
-  | { readonly kind: "leaf"; readonly leaf: TrieLeaf }
+  | { readonly kind: "leaf"; readonly leaf: TrieLeaf; readonly path: readonly number[] }
   | { readonly kind: "branch"; readonly nextPath: readonly number[] };
+
+type LocatedEntry = Readonly<{
+  entry: TrieLeafEntry;
+  leaf: TrieLeaf;
+  path: readonly number[];
+}>;
+
+type LookupTarget = Readonly<{
+  routeKey: RouteKey;
+  element: string;
+  nibbleBits: NibbleBits;
+}>;
 
 // -- non-Error catch escape hatch ------------------------------------------
 

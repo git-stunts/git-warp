@@ -32,7 +32,7 @@ import MaterializePatchStreamReducer, {
   type MaterializePatchStreamOptions,
   type MaterializePatchStreamReduction,
 } from './MaterializePatchStreamReducer.ts';
-import { summarizeMaterializePatches } from './MaterializePatchSummary.ts';
+import { MaterializePatchSummaryAccumulator } from './MaterializePatchSummary.ts';
 import {
   shouldPublishMaterializeSnapshot,
   type MaterializeSnapshotPublicationOptions,
@@ -46,6 +46,7 @@ import type { WarpStateSnapshotProvenancePosture } from '../../../ports/WarpStat
 import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
+import PatchEntry from '../../artifacts/PatchEntry.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
@@ -291,7 +292,7 @@ export default class MaterializeController {
     }
     const sessionArgs = {
       openStateSession,
-      patches,
+      patches: patches.map((entry) => new PatchEntry(entry)),
       receipts: opts.receipts,
       wantDiff: opts.wantDiff,
       ...(base === undefined ? {} : { baseState: base }),
@@ -313,14 +314,23 @@ export default class MaterializeController {
         ...(provenanceBase === undefined ? {} : { provenanceBase }),
       });
     }
-    const patches: PatchWithSha[] = [];
-    for await (const entry of stream) {
-      patches.push(entry);
-    }
-    const reduced = await this._reducePatches(patches, base, opts);
+    const summary = new MaterializePatchSummaryAccumulator(provenanceBase);
+    const recordingStream = async function* (): AsyncIterable<PatchEntry> {
+      for await (const entry of stream) {
+        summary.record(entry);
+        yield new PatchEntry(entry);
+      }
+    };
+    const reduced = await reduceSessionBackedState({
+      openStateSession: this._deps.openStateSession,
+      patches: recordingStream(),
+      receipts: opts.receipts,
+      wantDiff: opts.wantDiff,
+      ...(base === undefined ? {} : { baseState: base }),
+    });
     return {
       reduced,
-      summary: summarizeMaterializePatches(patches, provenanceBase),
+      summary: summary.toSummary(),
     };
   }
 

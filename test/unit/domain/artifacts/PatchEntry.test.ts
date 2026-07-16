@@ -22,7 +22,14 @@ describe('PatchEntry', () => {
   });
 
   it('rejects null patch', () => {
-    expect(() => new PatchEntry({ patch: (null as any), sha: 'abc' })).toThrow('requires a patch');
+    // @ts-expect-error exercising runtime validation
+    expect(() => new PatchEntry({ patch: null, sha: 'abc' })).toThrow('requires a patch');
+  });
+
+  it('rejects structural patch lookalikes', () => {
+    const patch = { schema: 2, writer: 'w1', lamport: 1, context: {}, ops: [] };
+    // @ts-expect-error exercising runtime validation
+    expect(() => new PatchEntry({ patch, sha: 'abc' })).toThrow('requires a patch');
   });
 
   it('rejects empty sha', () => {

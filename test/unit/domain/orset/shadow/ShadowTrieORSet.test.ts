@@ -165,6 +165,33 @@ describe("ShadowTrieORSet", () => {
       );
     });
 
+    it("targets removal by element even when another element carries the same dot", async () => {
+      const { engine } = makeEngine();
+      const sharedDot = new Dot("alice", 1);
+
+      await engine.add("node:target", sharedDot);
+      await engine.add("node:other", sharedDot);
+      await engine.removeElement("node:target", new Set([Dot.encode(sharedDot)]));
+
+      expect(await engine.contains("node:target")).toBe(false);
+      expect(await engine.contains("node:other")).toBe(true);
+    });
+
+    it("treats empty, unknown, and unobserved targeted removals as no-ops", async () => {
+      const { engine } = makeEngine();
+      const dot = new Dot("alice", 1);
+      await engine.add("node:target", dot);
+
+      await engine.removeElement("node:target", new Set());
+      await engine.removeElement("node:missing", new Set([Dot.encode(dot)]));
+      await engine.removeElement(
+        "node:target",
+        new Set([Dot.encode(new Dot("alice", 2))]),
+      );
+
+      expect(await engine.contains("node:target")).toBe(true);
+    });
+
     it("treats remove of an empty observed-dot set as a no-op", async () => {
       const { engine } = makeEngine();
 
@@ -205,6 +232,62 @@ describe("ShadowTrieORSet", () => {
       for (const id of ids) {
         expect(await engine.contains(id)).toBe(true);
       }
+    });
+
+    it("reads only the target route when removing from a persisted split trie", async () => {
+      const tiny = new TrieGeometry({
+        fanout: 16,
+        nibbleBits: 4,
+        leafCapacity: 2,
+        leafFloor: 1,
+      });
+      const store = new InMemoryTrieStore();
+      const { engine } = makeEngine({ geometry: tiny, store });
+      const ids = Array.from({ length: 128 }, (_, index) => `node:${index}`);
+      for (let index = 0; index < ids.length; index += 1) {
+        const id = ids[index];
+        if (id !== undefined) {
+          await engine.add(id, new Dot("writer", index + 1));
+        }
+      }
+      const flushed = await engine.flush();
+      expect(flushed.rootOid).not.toBeNull();
+      if (flushed.rootOid === null) {
+        throw new Error("rootOid must exist after split-trie flush");
+      }
+
+      const target = "node:63";
+      const targetDot = new Dot("writer", 64);
+      const lookup = makeEngine({ rootOid: flushed.rootOid, store, geometry: tiny }).engine;
+      const beforeLookup = store.readCounts();
+      expect(await lookup.contains(target)).toBe(true);
+      const afterLookup = store.readCounts();
+      const lookupReads = {
+        leaf: afterLookup.leaf - beforeLookup.leaf,
+        branch: afterLookup.branch - beforeLookup.branch,
+      };
+
+      const removal = makeEngine({ rootOid: flushed.rootOid, store, geometry: tiny }).engine;
+      const beforeRemoval = store.readCounts();
+      await removal.removeElement(target, new Set([Dot.encode(targetDot)]));
+      const afterRemoval = store.readCounts();
+      const removalReads = {
+        leaf: afterRemoval.leaf - beforeRemoval.leaf,
+        branch: afterRemoval.branch - beforeRemoval.branch,
+      };
+
+      expect(removalReads).toEqual(lookupReads);
+      expect(removalReads.leaf + removalReads.branch).toBeLessThan(10);
+
+      const removed = await removal.flush();
+      expect(removed.rootOid).not.toBeNull();
+      if (removed.rootOid === null) {
+        throw new Error("rootOid must exist after targeted removal flush");
+      }
+      const reopened = makeEngine({ rootOid: removed.rootOid, store, geometry: tiny }).engine;
+      expect(await reopened.contains(target)).toBe(false);
+      expect(await reopened.contains("node:62")).toBe(true);
+      expect(await reopened.contains("node:64")).toBe(true);
     });
 
     it("returns a clean flush result when no writes occurred", async () => {
