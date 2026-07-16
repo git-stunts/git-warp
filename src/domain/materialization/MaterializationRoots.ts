@@ -27,6 +27,7 @@ export type MaterializationRootsOptions = Readonly<{
 
 /** Independently addressable retained roots for one materialized causal chart. */
 export default class MaterializationRoots {
+  private readonly handles: Readonly<Record<MaterializationRootName, BundleHandle>>;
   readonly adjacency: BundleHandle;
   readonly edgeAlive: BundleHandle;
   readonly edgeBirths: BundleHandle;
@@ -38,28 +39,31 @@ export default class MaterializationRoots {
 
   constructor(options: MaterializationRootsOptions) {
     requireOptions(options);
-    this.adjacency = requireBundle(options.adjacency, 'adjacency');
-    this.edgeAlive = requireBundle(options.edgeAlive, 'edgeAlive');
-    this.edgeBirths = requireBundle(options.edgeBirths, 'edgeBirths');
-    this.frontier = requireBundle(options.frontier, 'frontier');
-    this.nodeAlive = requireBundle(options.nodeAlive, 'nodeAlive');
-    this.properties = requireBundle(options.properties, 'properties');
-    this.provenanceSupport = requireBundle(options.provenanceSupport, 'provenanceSupport');
-    this.roaringIndexes = requireBundle(options.roaringIndexes, 'roaringIndexes');
+    this.handles = Object.freeze({
+      adjacency: requireBundle(options.adjacency, 'adjacency'),
+      'edge-alive': requireBundle(options.edgeAlive, 'edgeAlive'),
+      'edge-births': requireBundle(options.edgeBirths, 'edgeBirths'),
+      frontier: requireBundle(options.frontier, 'frontier'),
+      'node-alive': requireBundle(options.nodeAlive, 'nodeAlive'),
+      properties: requireBundle(options.properties, 'properties'),
+      'provenance-support': requireBundle(options.provenanceSupport, 'provenanceSupport'),
+      'roaring-indexes': requireBundle(options.roaringIndexes, 'roaringIndexes'),
+    } satisfies Record<MaterializationRootName, BundleHandle>);
+    this.adjacency = this.handles.adjacency;
+    this.edgeAlive = this.handles['edge-alive'];
+    this.edgeBirths = this.handles['edge-births'];
+    this.frontier = this.handles.frontier;
+    this.nodeAlive = this.handles['node-alive'];
+    this.properties = this.handles.properties;
+    this.provenanceSupport = this.handles['provenance-support'];
+    this.roaringIndexes = this.handles['roaring-indexes'];
     Object.freeze(this);
   }
 
   entries(): readonly (readonly [MaterializationRootName, BundleHandle])[] {
-    return Object.freeze([
-      rootEntry('adjacency', this.adjacency),
-      rootEntry('edge-alive', this.edgeAlive),
-      rootEntry('edge-births', this.edgeBirths),
-      rootEntry('frontier', this.frontier),
-      rootEntry('node-alive', this.nodeAlive),
-      rootEntry('properties', this.properties),
-      rootEntry('provenance-support', this.provenanceSupport),
-      rootEntry('roaring-indexes', this.roaringIndexes),
-    ]);
+    return Object.freeze(
+      MATERIALIZATION_ROOT_NAMES.map((name) => rootEntry(name, this.handles[name])),
+    );
   }
 }
 
