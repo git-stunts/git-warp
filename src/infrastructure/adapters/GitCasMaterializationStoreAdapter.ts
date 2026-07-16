@@ -11,6 +11,7 @@ import type {
 import MaterializationCoordinate from '../../domain/materialization/MaterializationCoordinate.ts';
 import MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
 import MaterializationRoots, {
+  MATERIALIZATION_ROOT_NAMES,
   type MaterializationRootName,
 } from '../../domain/materialization/MaterializationRoots.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
@@ -27,16 +28,7 @@ const CACHE_NAMESPACE = 'git-warp/materializations';
 const DESCRIPTOR_PATH = 'meta/descriptor';
 const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
 const SCHEMA_VERSION = 1;
-const MATERIALIZATION_ROOT_NAMES: readonly MaterializationRootName[] = Object.freeze([
-  'adjacency',
-  'edge-alive',
-  'edge-births',
-  'frontier',
-  'node-alive',
-  'properties',
-  'provenance-support',
-  'roaring-indexes',
-]);
+// A root-list change also requires a descriptor schema-version change.
 const MATERIALIZATION_MEMBER_COUNT = MATERIALIZATION_ROOT_NAMES.length + 1;
 
 type MaterializationCacheSet = Pick<CacheSet, 'get' | 'put'>;

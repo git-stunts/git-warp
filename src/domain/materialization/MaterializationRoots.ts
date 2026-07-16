@@ -1,15 +1,18 @@
 import WarpError from '../errors/WarpError.ts';
 import BundleHandle from '../storage/BundleHandle.ts';
 
-export type MaterializationRootName =
-  | 'adjacency'
-  | 'edge-alive'
-  | 'edge-births'
-  | 'frontier'
-  | 'node-alive'
-  | 'properties'
-  | 'provenance-support'
-  | 'roaring-indexes';
+export const MATERIALIZATION_ROOT_NAMES = defineRootNames(
+  'adjacency',
+  'edge-alive',
+  'edge-births',
+  'frontier',
+  'node-alive',
+  'properties',
+  'provenance-support',
+  'roaring-indexes',
+);
+
+export type MaterializationRootName = (typeof MATERIALIZATION_ROOT_NAMES)[number];
 
 export type MaterializationRootsOptions = Readonly<{
   adjacency: BundleHandle;
@@ -65,6 +68,11 @@ function rootEntry(
   handle: BundleHandle,
 ): readonly [MaterializationRootName, BundleHandle] {
   return Object.freeze([name, handle]);
+}
+
+function defineRootNames<const Names extends readonly string[]>(...names: Names): Names {
+  Object.freeze(names);
+  return names;
 }
 
 function requireBundle(handle: BundleHandle, field: string): BundleHandle {

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import MaterializationHandle from '../../../../src/domain/materialization/MaterializationHandle.ts';
-import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
-import type { MaterializationRootsOptions } from '../../../../src/domain/materialization/MaterializationRoots.ts';
+import MaterializationRoots, {
+  MATERIALIZATION_ROOT_NAMES,
+  type MaterializationRootsOptions,
+} from '../../../../src/domain/materialization/MaterializationRoots.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import StorageHandle from '../../../../src/domain/storage/StorageHandle.ts';
 import StorageRetentionWitness, {
@@ -105,6 +107,8 @@ describe('MaterializationRoots', () => {
       'provenance-support',
       'roaring-indexes',
     ]);
+    expect(MATERIALIZATION_ROOT_NAMES).toEqual(roots.entries().map(([name]) => name));
+    expect(Object.isFrozen(MATERIALIZATION_ROOT_NAMES)).toBe(true);
     expect(Object.isFrozen(roots)).toBe(true);
     expect(Object.isFrozen(roots.entries())).toBe(true);
     expect(Object.isFrozen(roots.entries()[0])).toBe(true);
