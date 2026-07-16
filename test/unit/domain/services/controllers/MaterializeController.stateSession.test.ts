@@ -17,7 +17,9 @@ import { createEmptyState } from "../../../../../src/domain/services/JoinReducer
 import Patch from "../../../../../src/domain/types/Patch.ts";
 import type { CheckpointData, PatchWithSha } from "../../../../../src/domain/capabilities/PatchCollector.ts";
 import InMemoryCheckpointStore from "../../../../helpers/InMemoryCheckpointStore.ts";
-import InMemoryMaterializationStore from "../../../../helpers/InMemoryMaterializationStore.ts";
+import InMemoryMaterializationStore, {
+  InMemoryMaterializationWorkspace,
+} from "../../../../helpers/InMemoryMaterializationStore.ts";
 import type MaterializationWorkspacePort from "../../../../../src/ports/MaterializationWorkspacePort.ts";
 import MaterializationCoordinate from "../../../../../src/domain/materialization/MaterializationCoordinate.ts";
 
@@ -199,10 +201,24 @@ function createControllerFixtures() {
 }
 
 describe("MaterializeController — state session integration", () => {
-  it("releases checkpointed workspace roots when session reduction fails", async () => {
-    const { openStateSession, materializations } = createControllerFixtures();
+  it("preserves a session reduction failure when workspace release also fails", async () => {
+    const { openStateSession, materializations, deps } = createControllerFixtures();
     const close = vi.spyOn(StateSession.prototype, "close");
-    const failure = new Error("patch source failed");
+    const coercionFailure = new Error("primary coercion must not run");
+    const failure = {
+      toString(): never {
+        throw coercionFailure;
+      },
+    };
+    const releaseFailure = new Error("workspace release failed");
+    deps.logger.warn.mockImplementation(() => {
+      throw new Error("cleanup logging failed");
+    });
+    const release = vi.spyOn(InMemoryMaterializationWorkspace.prototype, "release")
+      .mockImplementation(function (this: InMemoryMaterializationWorkspace): Promise<never> {
+        this.released = true;
+        return Promise.reject(releaseFailure);
+      });
     const partial = new PatchEntry(nodeAddPatchRecord({
       writer: "writer-1",
       lamport: 1,
@@ -212,7 +228,7 @@ describe("MaterializeController — state session integration", () => {
     const patches = {
       async *[Symbol.asyncIterator]() {
         yield partial;
-        throw failure;
+        return await Promise.reject(failure);
       },
     };
 
@@ -220,6 +236,7 @@ describe("MaterializeController — state session integration", () => {
       await expect(reduceSessionBackedState({
         openStateSession,
         materializations,
+        logger: deps.logger,
         coordinate: new MaterializationCoordinate({
           frontier: new Map([["writer-1", "deadbeef"]]),
           ceiling: null,
@@ -231,8 +248,13 @@ describe("MaterializeController — state session integration", () => {
       expect(close).not.toHaveBeenCalled();
       expect(materializations.workspaces[0]?.checkpoints).toHaveLength(1);
       expect(materializations.workspaces[0]?.released).toBe(true);
+      expect(deps.logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining("workspace release failed"),
+        { error: releaseFailure.message },
+      );
     } finally {
       close.mockRestore();
+      release.mockRestore();
     }
   });
 
@@ -281,8 +303,8 @@ describe("MaterializeController — state session integration", () => {
     expect(materializations.workspaces[0]?.released).toBe(true);
   });
 
-  it("releases checkpointed roots when final materialization retention fails", async () => {
-    const { controller, patches, materializations } = createControllerFixtures();
+  it("preserves final retention failure when workspace release also fails", async () => {
+    const { controller, patches, materializations, deps } = createControllerFixtures();
     patches.collectForFrontier.mockResolvedValue([
       nodeAddPatchRecord({
         writer: "writer-1",
@@ -293,10 +315,46 @@ describe("MaterializeController — state session integration", () => {
     ]);
     const failure = new Error("final retention failed");
     vi.spyOn(materializations, "retain").mockRejectedValue(failure);
+    const releaseFailure = new Error("workspace release failed");
+    const release = vi.spyOn(InMemoryMaterializationWorkspace.prototype, "release")
+      .mockImplementation(function (this: InMemoryMaterializationWorkspace): Promise<never> {
+        this.released = true;
+        return Promise.reject(releaseFailure);
+      });
 
-    await expect(controller.materialize()).rejects.toBe(failure);
-    expect(materializations.workspaces[0]?.checkpoints).toHaveLength(1);
-    expect(materializations.workspaces[0]?.released).toBe(true);
+    try {
+      await expect(controller.materialize()).rejects.toBe(failure);
+      expect(materializations.workspaces[0]?.checkpoints).toHaveLength(1);
+      expect(materializations.workspaces[0]?.released).toBe(true);
+      expect(deps.logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining("workspace release failed"),
+        { error: releaseFailure.message },
+      );
+    } finally {
+      release.mockRestore();
+    }
+  });
+
+  it("surfaces workspace release failure after successful retention", async () => {
+    const { controller, patches, materializations } = createControllerFixtures();
+    patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:session",
+      }),
+    ]);
+    const releaseFailure = new Error("workspace release failed");
+    const release = vi.spyOn(InMemoryMaterializationWorkspace.prototype, "release")
+      .mockRejectedValue(releaseFailure);
+
+    try {
+      await expect(controller.materialize()).rejects.toBe(releaseFailure);
+      expect(materializations.retainedRequests).toHaveLength(1);
+    } finally {
+      release.mockRestore();
+    }
   });
 
   it("releases an unused workspace before returning an empty result", async () => {

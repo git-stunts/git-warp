@@ -66,12 +66,10 @@ import type {
   MaterializeResultBuildInput,
   MaterializeStrategyRuntime,
 } from './MaterializeStrategyRuntime.ts';
+import { releaseWorkspaceAfterFailure } from './MaterializationWorkspaceCleanup.ts';
 export type MaterializePersistence = {
   readRef(ref: string): Promise<string | null>;
 };
-
-// ── Deps ────────────────────────────────────────────────────────────
-
 /** Constructor dependencies for MaterializeController. */
 export type MaterializeDeps = {
   logger: LoggerPort;
@@ -86,8 +84,6 @@ export type MaterializeDeps = {
   graphCloner: DetachedGraphFactory;
   graphName: string;
 };
-
-// ── Result types ────────────────────────────────────────────────────
 
 /** Full result of a materialization, returned to the caller. */
 export type MaterializeResult = {
@@ -104,8 +100,6 @@ export type MaterializeResult = {
   ceiling: number | null;
   materialization?: MaterializationHandle;
 };
-
-// ── Reduce helpers ──────────────────────────────────────────────────
 
 type ReducerInput = Parameters<typeof reduceJoinedPatches>[0];
 function toReducerInput(patches: PatchWithSha[]): ReducerInput {
@@ -217,8 +211,6 @@ export default class MaterializeController {
     return await this._checkpointStrategy.materializeAt(checkpointSha);
   }
 
-  // ── Result building ───────────────────────────────────────────────
-
   private async _emptyResult(
     ceiling?: number | null,
     frontier?: Map<string, string> | null,
@@ -264,6 +256,7 @@ export default class MaterializeController {
   }
 
   private async _buildResult(params: MaterializeResultBuildInput): Promise<MaterializeResult> {
+    let result: MaterializeResult;
     try {
       const stateHash = await computeHash(this._deps, params.reduced.state);
       const adjacency = params.reduced.adjacency ?? buildAdjacency(params.reduced.state);
@@ -276,7 +269,7 @@ export default class MaterializeController {
           frontier: params.frontier,
         });
       }
-      return {
+      result = {
         state: params.reduced.state,
         stateHash,
         adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
@@ -293,11 +286,13 @@ export default class MaterializeController {
         ceiling: params.ceiling,
         ...(materialization === undefined ? {} : { materialization }),
       };
-    } finally {
-      await params.reduced.workspace?.release();
+    } catch (raw) {
+      await releaseWorkspaceAfterFailure(params.reduced.workspace, this._deps.logger);
+      throw raw;
     }
+    await params.reduced.workspace?.release();
+    return result;
   }
-
   private async _resolveMaterialization(
     params: MaterializeResultBuildInput,
     stateHash: string,
@@ -367,6 +362,7 @@ export default class MaterializeController {
     const reduced = await reduceSessionBackedState({
       openStateSession,
       materializations: this._deps.materializations,
+      logger: this._deps.logger,
       coordinate,
       patches: [],
       baseState: snapshot.state,
@@ -400,6 +396,7 @@ export default class MaterializeController {
     const sessionArgs = {
       openStateSession,
       materializations: this._deps.materializations,
+      logger: this._deps.logger,
       coordinate: new MaterializationCoordinate(coordinate),
       patches: patches.map((entry) => new PatchEntry(entry)),
       receipts: opts.receipts,
@@ -434,6 +431,7 @@ export default class MaterializeController {
     const reduced = await reduceSessionBackedState({
       openStateSession: this._deps.openStateSession,
       materializations: this._deps.materializations,
+      logger: this._deps.logger,
       coordinate: new MaterializationCoordinate(coordinate),
       patches: recordingStream(),
       receipts: opts.receipts,

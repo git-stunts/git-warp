@@ -16,6 +16,7 @@ import BundleHandle from "../../../../../src/domain/storage/BundleHandle.ts";
 import StorageRetentionWitness, {
   StorageRetentionRoot,
 } from "../../../../../src/domain/storage/StorageRetentionWitness.ts";
+import { workspaceRetentionWitness } from "../../../../helpers/InMemoryMaterializationStore.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -457,18 +458,8 @@ class RecordingWorkspace extends MaterializationWorkspacePort {
   override checkpoint(roots: MaterializationWorkspaceRoots): Promise<StorageRetentionWitness> {
     this.checkpoints.push(roots);
     const handle = new BundleHandle(`test:workspace:${String(this.checkpoints.length)}`);
-    return Promise.resolve(new StorageRetentionWitness({
-      handle,
-      policy: "pinned",
-      reachability: "anchored",
-      root: new StorageRetentionRoot({
-        kind: "cache-set",
-        namespace: "test/materialization-workspaces",
-        locator: "test/materialization-workspaces",
-        generation: `generation-${String(this.checkpoints.length)}`,
-        path: handle.toString(),
-      }),
-      observedAt: "1970-01-01T00:00:00.000Z",
+    return Promise.resolve(workspaceRetentionWitness(handle, {
+      generation: `generation-${String(this.checkpoints.length)}`,
     }));
   }
 

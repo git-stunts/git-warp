@@ -112,16 +112,23 @@ function retentionWitness(handle: BundleHandle): StorageRetentionWitness {
   });
 }
 
-function workspaceRetentionWitness(handle: BundleHandle): StorageRetentionWitness {
+export function workspaceRetentionWitness(
+  handle: BundleHandle,
+  options: {
+    readonly namespace?: string;
+    readonly generation?: string;
+  } = {},
+): StorageRetentionWitness {
+  const namespace = options.namespace ?? 'test/materialization-workspaces';
   return new StorageRetentionWitness({
     handle,
     policy: 'pinned',
     reachability: 'anchored',
     root: new StorageRetentionRoot({
       kind: 'cache-set',
-      namespace: 'test/materialization-workspaces',
-      locator: 'test/materialization-workspaces',
-      generation: 'test-workspace-generation',
+      namespace,
+      locator: namespace,
+      generation: options.generation ?? 'test-workspace-generation',
       path: handle.toString(),
     }),
     observedAt: '1970-01-01T00:00:00.000Z',

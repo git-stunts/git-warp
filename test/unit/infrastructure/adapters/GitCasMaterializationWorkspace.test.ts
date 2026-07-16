@@ -220,11 +220,12 @@ describe('GitCasMaterializationWorkspace', () => {
     expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
   });
 
-  it('fails closed after a lease renewal error and still removes the workspace', async () => {
+  it('fails closed after a lease renewal error and releases without masking cleanup', async () => {
     const harness = await createHarness();
     const roots = await createRoots(harness.cas);
     const cache = await harness.cas.caches.open({ namespace: WORKSPACE_CACHE_NAMESPACE });
     const scheduler = new ManualLeaseScheduler();
+    const promote = vi.fn(rejectPromotion);
     let puts = 0;
     const workspace = new GitCasMaterializationWorkspace({
       bundles: harness.cas.bundles,
@@ -242,16 +243,22 @@ describe('GitCasMaterializationWorkspace', () => {
       leaseTtlMs: 100,
       leaseRenewalMs: 40,
       leaseScheduler: scheduler,
-      promote: rejectPromotion,
+      promote,
     });
 
     await workspace.checkpoint(roots);
     await scheduler.runNext();
 
-    await expect(workspace.release()).rejects.toMatchObject({
+    await expect(workspace.checkpoint(roots)).rejects.toMatchObject({
       code: 'E_MATERIALIZATION_STORAGE',
       message: expect.stringContaining('lease renewal failed'),
     });
+    await expect(workspace.promote({} as PromoteMaterializationRequest)).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('lease renewal failed'),
+    });
+    expect(promote).not.toHaveBeenCalled();
+    await expect(workspace.release()).resolves.toBeUndefined();
     expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
   });
 

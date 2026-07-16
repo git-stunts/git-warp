@@ -5,6 +5,7 @@ import type PatchEntry from "../../artifacts/PatchEntry.ts";
 import type StateSession from "../../orset/session/StateSession.ts";
 import type MaterializationStorePort from "../../../ports/MaterializationStorePort.ts";
 import type MaterializationWorkspacePort from "../../../ports/MaterializationWorkspacePort.ts";
+import type LoggerPort from "../../../ports/LoggerPort.ts";
 import type MaterializationCoordinate from "../../materialization/MaterializationCoordinate.ts";
 import type StorageRetentionWitness from "../../storage/StorageRetentionWitness.ts";
 import MaterializationRoot from "../../materialization/MaterializationRoot.ts";
@@ -21,6 +22,7 @@ import {
   buildAdjacencyFromSession,
   type MaterializeAdjacency,
 } from "./MaterializeHelpers.ts";
+import { releaseWorkspaceAfterFailure } from "./MaterializationWorkspaceCleanup.ts";
 
 export type MaterializeSessionOpen = {
   readonly nodeAliveRootOid: string | null;
@@ -39,6 +41,7 @@ type MaterializeSessionPatchSource =
 export async function reduceSessionBackedState(args: {
   readonly openStateSession: MaterializeSessionOpener;
   readonly materializations: MaterializationStorePort;
+  readonly logger?: LoggerPort;
   readonly coordinate: MaterializationCoordinate;
   readonly patches: MaterializeSessionPatchSource;
   readonly baseState?: WarpStateClass;
@@ -106,7 +109,7 @@ export async function reduceSessionBackedState(args: {
       acceptMaterialization: close.accept,
     };
   } catch (raw) {
-    await workspace.release();
+    await releaseWorkspaceAfterFailure(workspace, args.logger);
     throw raw;
   }
 }

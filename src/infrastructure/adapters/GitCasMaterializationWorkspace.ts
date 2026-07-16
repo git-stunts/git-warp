@@ -179,7 +179,6 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
       await this.#cache.remove(this.#key);
     }
     this.#released = true;
-    this.#assertLeaseHealthy();
   }
 
   #expiresAt(): string {
