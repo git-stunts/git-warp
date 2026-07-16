@@ -247,7 +247,10 @@ export default class InMemoryGitCasFacade {
       throw Object.assign(new Error('Page exceeds configured maximum'), { code: 'PAGE_TOO_LARGE' });
     }
     const oid = await this.#history.writeBlob(bytes);
-    const handle = new PageHandle({ oid, hashAlgorithm: 'sha1' });
+    const handle = new PageHandle({
+      oid,
+      hashAlgorithm: oid.length === 64 ? 'sha256' : 'sha1',
+    });
     this.#pageBytes.set(handle.toString(), bytes.slice());
     return new StagedPage({
       handle,
