@@ -1,5 +1,6 @@
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import type AssetStoragePort from '../../../src/ports/AssetStoragePort.ts';
 import type CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
 import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
@@ -17,6 +18,7 @@ export async function openCheckpointMigrationStore(
   const services = await runtimeStorage.createRuntimeStorageServices({
     timelineName: graphName,
     codec: defaultCodec,
+    crypto: defaultCrypto,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   });
   return Object.freeze({

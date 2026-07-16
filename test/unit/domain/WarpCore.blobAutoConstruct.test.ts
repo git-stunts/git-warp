@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import { openMemoryRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import InMemoryGraphAdapter from '../../helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
@@ -13,6 +14,7 @@ describe('runtime storage composition', () => {
     const services = await runtimeStorage.createRuntimeStorageServices({
       timelineName: 'events',
       codec: defaultCodec,
+      crypto: defaultCrypto,
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
 

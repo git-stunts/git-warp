@@ -72,6 +72,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
     const services = await runtimeStorage.createRuntimeStorageServices({
       timelineName: 'alpha',
       codec: defaultCodec,
+      crypto: new NodeCryptoAdapter(),
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
     const checkpointSha = await createCheckpointEnvelope({

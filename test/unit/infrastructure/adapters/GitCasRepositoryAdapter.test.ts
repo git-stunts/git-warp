@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import GitCasMaterializationStoreAdapter from '../../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -126,6 +127,8 @@ describe('GitCasRepositoryAdapter', () => {
         open: highLevelCas.assets.open,
       },
       bundles: highLevelCas.bundles,
+      caches: highLevelCas.caches,
+      pages: highLevelCas.pages,
       publications: highLevelCas.publications,
       rootSets: { open: vi.fn(async () => rootSet) },
       readManifest: vi.fn(),
@@ -138,6 +141,7 @@ describe('GitCasRepositoryAdapter', () => {
     const services = await repository.createRuntimeStorageServices({
       timelineName: 'events',
       codec: defaultCodec,
+      crypto: new TestCrypto(),
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
 
@@ -156,6 +160,7 @@ describe('GitCasRepositoryAdapter', () => {
       createdAt: '2026-07-13T00:00:00.000Z',
       state: WarpState.empty(),
     });
+    expect(services.materializations).toBeInstanceOf(GitCasMaterializationStoreAdapter);
 
     plumbing.execute
       .mockResolvedValueOnce('f'.repeat(40))

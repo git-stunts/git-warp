@@ -4,9 +4,11 @@ import type AuditLogPort from './AuditLogPort.ts';
 import type CheckpointStorePort from './CheckpointStorePort.ts';
 import type CodecPort from './CodecPort.ts';
 import type CommitMessageCodecPort from './CommitMessageCodecPort.ts';
+import type CryptoPort from './CryptoPort.ts';
 import type IndexStorePort from './IndexStorePort.ts';
 import type IntentStorePort from './IntentStorePort.ts';
 import type LoggerPort from './LoggerPort.ts';
+import type MaterializationStorePort from './MaterializationStorePort.ts';
 import type PatchJournalPort from './PatchJournalPort.ts';
 import type StrandStorePort from './StrandStorePort.ts';
 import type WarpStateCachePort from './WarpStateCachePort.ts';
@@ -15,6 +17,7 @@ import type WarpStateCacheRetentionPort from './WarpStateCacheRetentionPort.ts';
 export type RuntimeStorageRequest = {
   readonly timelineName: string;
   readonly codec: CodecPort;
+  readonly crypto: CryptoPort;
   readonly commitMessageCodec: CommitMessageCodecPort;
   readonly logger?: LoggerPort;
 };
@@ -27,6 +30,7 @@ export type RuntimeStorageServices = {
   readonly checkpoints: CheckpointStorePort;
   readonly indexes: IndexStorePort;
   readonly intents: IntentStorePort;
+  readonly materializations: MaterializationStorePort;
   readonly stateSnapshots?: WarpStateCachePort & WarpStateCacheRetentionPort;
   readonly trie?: TrieStorePort;
 };

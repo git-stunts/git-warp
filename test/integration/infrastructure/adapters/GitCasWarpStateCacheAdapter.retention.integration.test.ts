@@ -9,6 +9,7 @@ import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/Git
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts';
 import type WarpStateCacheRetentionPort from '../../../../src/ports/WarpStateCacheRetentionPort.ts';
 
@@ -95,6 +96,7 @@ async function createHarness(): Promise<Harness> {
     const services = await runtimeStorage.createRuntimeStorageServices({
       timelineName: 'demo',
       codec: new CborCodec(),
+      crypto: new NodeCryptoAdapter(),
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
     const cache = services.stateSnapshots;

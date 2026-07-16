@@ -17,6 +17,7 @@ import { CONTENT_PROPERTY_KEY }
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import type AssetStoragePort from '../../../../src/ports/AssetStoragePort.ts';
 import { runMigrationGit } from './GitMigrationCommandRunner.ts';
@@ -147,6 +148,7 @@ class RuntimeContentOidResolver {
     const services = await runtimeStorage.createRuntimeStorageServices({
       timelineName: 'migration-content',
       codec: defaultCodec,
+      crypto: defaultCrypto,
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
     return new RuntimeContentOidResolver(

@@ -287,6 +287,7 @@ export async function resolveRuntimeHostConstructionOptions(
   const storageServices = await resolvedRuntimeStorage.createRuntimeStorageServices({
     timelineName: graphName,
     codec: resolvedCodec,
+    crypto: resolvedCrypto,
     commitMessageCodec: resolvedCommitMessageCodec,
     ...(logger === undefined ? {} : { logger }),
   });
