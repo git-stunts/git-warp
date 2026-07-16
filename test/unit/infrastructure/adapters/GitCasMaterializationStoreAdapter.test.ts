@@ -156,6 +156,18 @@ describe('GitCasMaterializationStoreAdapter', () => {
     }],
     ['missing root', (members: readonly [string, string][]) =>
       members.filter(([path]) => path !== 'roots/properties')],
+    ['unexpected member path', (members: readonly [string, string][]) =>
+      renameMember(members, 'roots/properties', 'unexpected')],
+    ['unknown root', (members: readonly [string, string][]) =>
+      renameMember(members, 'roots/properties', 'roots/unknown')],
+    ['duplicate descriptor', (members: readonly [string, string][]) =>
+      renameMember(members, 'roots/properties', 'meta/descriptor')],
+    ['duplicate root', (members: readonly [string, string][]) =>
+      renameMember(members, 'roots/properties', 'roots/adjacency')],
+    ['too many members', (members: readonly [string, string][]) => [
+      ...members,
+      memberEntry('roots/unknown', requireMember(members, 'roots/adjacency')),
+    ]],
   ])('rejects a materialization bundle with a %s', async (_case, mutate) => {
     const harness = await createHarness();
     const coordinate = exactCoordinate();
@@ -511,4 +523,19 @@ function replaceMember(
     candidate,
     candidate === path ? handle : existing,
   ]);
+}
+
+function renameMember(
+  members: readonly [string, string][],
+  path: string,
+  replacement: string,
+): readonly [string, string][] {
+  return members.map(([candidate, handle]) => memberEntry(
+    candidate === path ? replacement : candidate,
+    handle,
+  ));
+}
+
+function memberEntry(path: string, handle: string): [string, string] {
+  return [path, handle];
 }

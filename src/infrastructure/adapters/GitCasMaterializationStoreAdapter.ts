@@ -1,8 +1,10 @@
 import type {
   BundleCapability,
+  BundleMember,
   BundleMemberInput,
   CacheHit,
   CacheSet,
+  PageHandle,
   PageCapability,
   StagedBundle,
 } from '@git-stunts/git-cas';
@@ -25,11 +27,22 @@ const CACHE_NAMESPACE = 'git-warp/materializations';
 const DESCRIPTOR_PATH = 'meta/descriptor';
 const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
 const SCHEMA_VERSION = 1;
+const MATERIALIZATION_ROOT_NAMES: readonly MaterializationRootName[] = Object.freeze([
+  'adjacency',
+  'edge-alive',
+  'edge-births',
+  'frontier',
+  'node-alive',
+  'properties',
+  'provenance-support',
+  'roaring-indexes',
+]);
+const MATERIALIZATION_MEMBER_COUNT = MATERIALIZATION_ROOT_NAMES.length + 1;
 
 type MaterializationCacheSet = Pick<CacheSet, 'get' | 'put'>;
 
 export type GitCasMaterializationFacade = {
-  readonly bundles: Pick<BundleCapability, 'getMember' | 'putOrdered'>;
+  readonly bundles: Pick<BundleCapability, 'iterateMembers' | 'putOrdered'>;
   readonly caches: {
     open(options: { readonly namespace: string }): Promise<MaterializationCacheSet>;
   };
@@ -42,16 +55,16 @@ type DecodedDescriptor = Readonly<{
   laneName: string;
 }>;
 
-type MaterializationRootHandles = readonly [
-  BundleHandle,
-  BundleHandle,
-  BundleHandle,
-  BundleHandle,
-  BundleHandle,
-  BundleHandle,
-  BundleHandle,
-  BundleHandle,
-];
+type DecodedMaterializationMembers = Readonly<{
+  descriptor: PageHandle;
+  roots: MaterializationRoots;
+}>;
+
+type MaterializationMemberAccumulator = {
+  descriptor: PageHandle | null;
+  memberCount: number;
+  roots: Map<MaterializationRootName, BundleHandle>;
+};
 
 /** git-cas-backed retained materialization lifecycle. */
 export default class GitCasMaterializationStoreAdapter extends MaterializationStorePort {
@@ -149,7 +162,8 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     requestedCoordinate: MaterializationCoordinate,
   ): Promise<MaterializationHandle> {
     const bundle = new BundleHandle(hit.handle.toString());
-    const descriptor = await this.#readDescriptor(bundle);
+    const members = await this.#readMembers(bundle);
+    const descriptor = await this.#readDescriptor(members.descriptor);
     if (descriptor.laneName !== this.#laneName) {
       throw storageError('materialization descriptor belongs to another lane');
     }
@@ -161,7 +175,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       laneName: descriptor.laneName,
       bundle,
       coordinate: descriptor.coordinate,
-      roots: await this.#readRoots(bundle),
+      roots: members.roots,
       stateHash: descriptor.stateHash,
       retention: adaptGitCasRetentionWitness(hit.evidence.toJSON()),
     });
@@ -180,47 +194,22 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     return `v${SCHEMA_VERSION}:${digest}`;
   }
 
-  async #readDescriptor(bundle: BundleHandle): Promise<DecodedDescriptor> {
-    const member = await this.#cas.bundles.getMember({
-      handle: bundle.toString(),
-      path: DESCRIPTOR_PATH,
-    });
-    if (member === null || member.handle.kind !== 'page') {
-      throw storageError('materialization bundle has no descriptor page');
-    }
+  async #readDescriptor(handle: PageHandle): Promise<DecodedDescriptor> {
     const bytes = await this.#cas.pages.get({
-      handle: member.handle,
+      handle,
       maxBytes: MAX_DESCRIPTOR_BYTES,
     });
     return decodeDescriptor(this.#codec.decode(bytes));
   }
 
-  async #readRoots(bundle: BundleHandle): Promise<MaterializationRoots> {
-    const handles = await Promise.all([
-      this.#readRoot(bundle, 'adjacency'),
-      this.#readRoot(bundle, 'edge-alive'),
-      this.#readRoot(bundle, 'edge-births'),
-      this.#readRoot(bundle, 'frontier'),
-      this.#readRoot(bundle, 'node-alive'),
-      this.#readRoot(bundle, 'properties'),
-      this.#readRoot(bundle, 'provenance-support'),
-      this.#readRoot(bundle, 'roaring-indexes'),
-    ]);
-    return rootsFromHandles(handles);
-  }
-
-  async #readRoot(
-    bundle: BundleHandle,
-    rootName: MaterializationRootName,
-  ): Promise<BundleHandle> {
-    const member = await this.#cas.bundles.getMember({
+  async #readMembers(bundle: BundleHandle): Promise<DecodedMaterializationMembers> {
+    const accumulator = createMemberAccumulator();
+    for await (const member of this.#cas.bundles.iterateMembers({
       handle: bundle.toString(),
-      path: `roots/${rootName}`,
-    });
-    if (member === null || member.handle.kind !== 'bundle') {
-      throw storageError(`materialization bundle has no ${rootName} root bundle`);
+    })) {
+      collectMaterializationMember(accumulator, member);
     }
-    return new BundleHandle(member.handle.toString());
+    return finishMaterializationMembers(accumulator);
   }
 }
 
@@ -294,17 +283,102 @@ function decodeFrontierEntry(value: unknown): readonly [string, string] {
   ]);
 }
 
-function rootsFromHandles(handles: MaterializationRootHandles): MaterializationRoots {
+function rootsFromMap(roots: ReadonlyMap<MaterializationRootName, BundleHandle>): MaterializationRoots {
   return new MaterializationRoots({
-    adjacency: handles[0],
-    edgeAlive: handles[1],
-    edgeBirths: handles[2],
-    frontier: handles[3],
-    nodeAlive: handles[4],
-    properties: handles[5],
-    provenanceSupport: handles[6],
-    roaringIndexes: handles[7],
+    adjacency: requireRoot(roots, 'adjacency'),
+    edgeAlive: requireRoot(roots, 'edge-alive'),
+    edgeBirths: requireRoot(roots, 'edge-births'),
+    frontier: requireRoot(roots, 'frontier'),
+    nodeAlive: requireRoot(roots, 'node-alive'),
+    properties: requireRoot(roots, 'properties'),
+    provenanceSupport: requireRoot(roots, 'provenance-support'),
+    roaringIndexes: requireRoot(roots, 'roaring-indexes'),
   });
+}
+
+function createMemberAccumulator(): MaterializationMemberAccumulator {
+  return {
+    descriptor: null,
+    memberCount: 0,
+    roots: new Map<MaterializationRootName, BundleHandle>(),
+  };
+}
+
+function collectMaterializationMember(
+  accumulator: MaterializationMemberAccumulator,
+  member: BundleMember,
+): void {
+  accumulator.memberCount += 1;
+  if (accumulator.memberCount > MATERIALIZATION_MEMBER_COUNT) {
+    throw storageError('materialization bundle has too many members');
+  }
+  if (member.path === DESCRIPTOR_PATH) {
+    collectDescriptorMember(accumulator, member);
+    return;
+  }
+  collectRootMember(accumulator, member);
+}
+
+function collectDescriptorMember(
+  accumulator: MaterializationMemberAccumulator,
+  member: BundleMember,
+): void {
+  if (accumulator.descriptor !== null) {
+    throw storageError('materialization bundle has duplicate descriptor members');
+  }
+  if (member.handle.kind !== 'page') {
+    throw storageError('materialization bundle has no descriptor page');
+  }
+  accumulator.descriptor = member.handle;
+}
+
+function collectRootMember(
+  accumulator: MaterializationMemberAccumulator,
+  member: BundleMember,
+): void {
+  const rootName = parseRootName(member.path);
+  if (rootName === null) {
+    throw storageError(`materialization bundle has an unexpected member: ${member.path}`);
+  }
+  if (accumulator.roots.has(rootName)) {
+    throw storageError(`materialization bundle has duplicate ${rootName} root members`);
+  }
+  if (member.handle.kind !== 'bundle') {
+    throw storageError(`materialization bundle has no ${rootName} root bundle`);
+  }
+  accumulator.roots.set(rootName, new BundleHandle(member.handle.toString()));
+}
+
+function finishMaterializationMembers(
+  accumulator: MaterializationMemberAccumulator,
+): DecodedMaterializationMembers {
+  if (accumulator.descriptor === null) {
+    throw storageError('materialization bundle has no descriptor page');
+  }
+  return Object.freeze({
+    descriptor: accumulator.descriptor,
+    roots: rootsFromMap(accumulator.roots),
+  });
+}
+
+function requireRoot(
+  roots: ReadonlyMap<MaterializationRootName, BundleHandle>,
+  name: MaterializationRootName,
+): BundleHandle {
+  const root = roots.get(name);
+  if (root === undefined) {
+    throw storageError(`materialization bundle has no ${name} root bundle`);
+  }
+  return root;
+}
+
+function parseRootName(path: string): MaterializationRootName | null {
+  const prefix = 'roots/';
+  if (!path.startsWith(prefix)) {
+    return null;
+  }
+  const candidate = path.slice(prefix.length);
+  return MATERIALIZATION_ROOT_NAMES.find((name) => name === candidate) ?? null;
 }
 
 function requireCeiling(value: unknown): number | null {
