@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import TrieMaterializationReader from '../../../../src/domain/materialization/TrieMaterializationReader.ts';
 import StateSession from '../../../../src/domain/orset/session/StateSession.ts';
 import PageCache from '../../../../src/domain/orset/trie/PageCache.ts';
@@ -29,6 +30,7 @@ describe('TrieMaterializationReader', () => {
     const reader = new TrieMaterializationReader({ store, codec: cborCodec });
     const root = new BundleHandle(roots.nodeAliveRootOid);
 
+    expect(Object.isFrozen(reader)).toBe(true);
     await expect(reader.hasNode(root, 'node:present')).resolves.toBe(true);
     await expect(reader.hasNode(root, 'node:missing')).resolves.toBe(false);
 
@@ -36,5 +38,16 @@ describe('TrieMaterializationReader', () => {
     const reads = store.readCounts();
     expect(reads.leaf + reads.branch).toBeGreaterThan(0);
     expect(reads.leaf + reads.branch).toBeLessThanOrEqual(4);
+  });
+
+  it.each([
+    ['options', null],
+    ['store', { store: {}, codec: cborCodec }],
+    ['codec', { store: new InMemoryTrieStore(), codec: {} }],
+    ['geometry', { store: new InMemoryTrieStore(), codec: cborCodec, geometry: {} }],
+  ])('rejects malformed %s with a domain error', (_field, options) => {
+    expect(() => Reflect.construct(TrieMaterializationReader, [options])).toThrowError(
+      expect.objectContaining<Pick<WarpError, 'code'>>({ code: 'E_MATERIALIZATION_RESUME' })
+    );
   });
 });
