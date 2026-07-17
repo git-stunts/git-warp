@@ -22,7 +22,15 @@ import type {
 export type MaterializeLiveOptions = {
   receipts: boolean;
   wantDiff: boolean;
+  publishSnapshot?: boolean;
 };
+
+export type LiveMaterializationResolution = Readonly<{
+  materialization: MaterializationHandle | null;
+  source: 'empty' | 'retained' | 'materialized';
+  replayedPatchCount: number;
+  release(): Promise<void>;
+}>;
 
 export type MaterializeCeilingOptions = {
   ceiling: number;

@@ -1,9 +1,13 @@
 import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
 import type {
+  LiveMaterializationResolution,
   MaterializeLiveOptions,
   MaterializeStrategyRuntime,
 } from './MaterializeStrategyRuntime.ts';
 import type { MaterializeResult } from './MaterializeController.ts';
+import MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
+import WarpError from '../../errors/WarpError.ts';
+import type { MaterializationAcquisition } from '../../../ports/MaterializationStorePort.ts';
 import type {
   CheckpointData,
   PatchWithSha,
@@ -17,6 +21,7 @@ import {
   snapshotToMaterializeResult,
 } from './MaterializeSnapshotCacheResult.ts';
 import { snapshotPublicationForReceipts } from './MaterializeSnapshotPublication.ts';
+import { releaseAcquisitionAfterFailure } from './MaterializationWorkspaceCleanup.ts';
 
 function nonEmptySha(value: string | undefined): value is string {
   return typeof value === 'string' && value.length > 0;
@@ -32,7 +37,7 @@ export default class MaterializeLiveStrategy {
   async materialize(opts: MaterializeLiveOptions): Promise<MaterializeResult> {
     const frontier = await this.runtime.deps.patches.getFrontier();
     if (frontier.size === 0) {
-      return await this.runtime.emptyResult(null, frontier, snapshotPublicationForReceipts(opts));
+      return await this.runtime.emptyResult(null, frontier, snapshotPublicationForLiveOptions(opts));
     }
     const coordinate = this.snapshotCoordinate(frontier);
     const stateCache = this.runtime.deps.getStateCache?.() ?? null;
@@ -45,6 +50,54 @@ export default class MaterializeLiveStrategy {
       return cacheResolved;
     }
     return await this.replayCurrentCoordinate(coordinate, opts);
+  }
+
+  async resolveMaterialization(): Promise<LiveMaterializationResolution> {
+    const frontier = await this.runtime.deps.patches.getFrontier();
+    if (frontier.size === 0) {
+      return emptyResolution();
+    }
+
+    const coordinate = this.snapshotCoordinate(frontier);
+    const materializationCoordinate = new MaterializationCoordinate(coordinate);
+    const retained = await this.runtime.deps.materializations.acquireExact(materializationCoordinate);
+    if (retained !== null) {
+      return await this.resolveRetainedMaterialization(retained, materializationCoordinate);
+    }
+    return await this.materializeAndAcquire(coordinate, materializationCoordinate);
+  }
+
+  private async resolveRetainedMaterialization(
+    retained: MaterializationAcquisition,
+    coordinate: MaterializationCoordinate,
+  ): Promise<LiveMaterializationResolution> {
+    try {
+      return retainedResolution(retained, coordinate);
+    } catch (raw) {
+      await releaseAcquisitionAfterFailure(retained, this.runtime.deps.logger);
+      throw raw;
+    }
+  }
+
+  private async materializeAndAcquire(
+    coordinate: WarpStateCoordinate,
+    materializationCoordinate: MaterializationCoordinate,
+  ): Promise<LiveMaterializationResolution> {
+    const result = await this.replayCurrentCoordinate(coordinate, {
+      receipts: false,
+      wantDiff: false,
+      publishSnapshot: false,
+    });
+    const acquired = await this.runtime.deps.materializations.acquireExact(materializationCoordinate);
+    if (acquired === null) {
+      throw resolutionError('newly retained handle could not be acquired');
+    }
+    try {
+      return materializedResolution(result, acquired);
+    } catch (raw) {
+      await releaseAcquisitionAfterFailure(acquired, this.runtime.deps.logger);
+      throw raw;
+    }
   }
 
   private async tryResolveConfiguredStateCache(
@@ -137,6 +190,9 @@ export default class MaterializeLiveStrategy {
       degraded: provenanceBase === undefined,
       ceiling: null,
       frontier,
+      ...(opts.publishSnapshot === undefined
+        ? {}
+        : { publishSnapshot: opts.publishSnapshot }),
     });
   }
 
@@ -187,7 +243,7 @@ export default class MaterializeLiveStrategy {
       return await this.runtime.emptyResult(
         coordinate.ceiling,
         coordinate.frontier,
-        snapshotPublicationForReceipts(opts),
+        snapshotPublicationForLiveOptions(opts),
       );
     }
     return await this.runtime.buildResult({
@@ -196,6 +252,9 @@ export default class MaterializeLiveStrategy {
       degraded: false,
       ceiling: coordinate.ceiling,
       frontier: coordinate.frontier,
+      ...(opts.publishSnapshot === undefined
+        ? {}
+        : { publishSnapshot: opts.publishSnapshot }),
     });
   }
 
@@ -266,4 +325,62 @@ export default class MaterializeLiveStrategy {
       frontier: opts.coordinate.frontier,
     });
   }
+}
+
+function emptyResolution(): LiveMaterializationResolution {
+  return Object.freeze({
+    materialization: null,
+    source: 'empty',
+    replayedPatchCount: 0,
+    release: () => Promise.resolve(),
+  });
+}
+
+function retainedResolution(
+  acquired: MaterializationAcquisition,
+  coordinate: MaterializationCoordinate,
+): LiveMaterializationResolution {
+  const retained = acquired.materialization;
+  if (!retained.coordinate.equals(coordinate)) {
+    throw resolutionError('retained handle coordinate does not match the requested coordinate');
+  }
+  return Object.freeze({
+    materialization: retained,
+    source: 'retained',
+    replayedPatchCount: 0,
+    release: async () => await acquired.release(),
+  });
+}
+
+function materializedResolution(
+  result: MaterializeResult,
+  acquired: MaterializationAcquisition,
+): LiveMaterializationResolution {
+  if (result.materialization === undefined) {
+    throw resolutionError('non-empty coordinate did not produce a retained handle');
+  }
+  if (!acquired.materialization.bundle.equals(result.materialization.bundle)) {
+    throw resolutionError('newly retained handle changed before it could be acquired');
+  }
+  return Object.freeze({
+    materialization: acquired.materialization,
+    source: 'materialized',
+    replayedPatchCount: result.patchCount,
+    release: async () => await acquired.release(),
+  });
+}
+
+function snapshotPublicationForLiveOptions(
+  opts: MaterializeLiveOptions,
+): ReturnType<typeof snapshotPublicationForReceipts> {
+  return snapshotPublicationForReceipts({
+    receipts: opts.receipts || opts.publishSnapshot === false,
+  });
+}
+
+function resolutionError(message: string): WarpError {
+  return new WarpError(
+    `Materialization resolution ${message}`,
+    'E_MATERIALIZATION_RESUME',
+  );
 }

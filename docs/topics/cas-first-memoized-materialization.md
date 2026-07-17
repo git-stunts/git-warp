@@ -13,6 +13,26 @@ through `git-cas`.
 
 ## The Live Materialization Lifecycle
 
+There are now two deliberately different controller contracts:
+
+- `resolveLiveMaterialization()` returns an operation-scoped retained-handle
+  resolution. An exact coordinate hit uses git-cas `CacheSet.acquire()` and
+  does not open the legacy state cache, patch streams, a state session, or the
+  whole-state projector. The acquisition pins the observed cache generation
+  until the caller invokes `release()`; replacement or eviction cannot collect
+  its roots during that scope. A miss does not publish a legacy full-state
+  snapshot and acquires the newly retained handle before returning it.
+- `materialize()` remains the explicit compatibility and diagnostic operation
+  that returns a complete state projection.
+
+The split prevents callers that need only a durable basis from paying the
+graph-sized cost required by the legacy result shape. On a retained-handle miss,
+handle resolution still performs the cold materialization path until every
+independently addressable root can be produced without a complete state.
+Acquisition release is mandatory on both warm and cold non-empty resolutions;
+release failures remain operational failures, while failure-path cleanup never
+replaces the primary materialization error.
+
 When a Git-backed runtime has a state cache, live materialization follows this
 coordinate-first lifecycle:
 
@@ -143,6 +163,8 @@ lost payload bytes, or run Git garbage collection.
 
 ## Current Limitations
 
+- RuntimeHost and checkpoint creation do not yet consume the handle-first
+  result, so their compatibility path still owns process-resident whole state.
 - Exact state-cache hits bypass replay, but full materialization still hydrates
   a full `WarpState`, scans retained node/edge tries, and builds full adjacency.
 - Retained materialization descriptors currently carry node/edge trie roots;

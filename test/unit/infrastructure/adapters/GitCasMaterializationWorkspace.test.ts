@@ -436,7 +436,7 @@ function withCacheResult(
       open: async (options) => {
         const cache = await cas.caches.open(options);
         return {
-          get: async (key) => await cache.get(key),
+          acquire: async (key) => await cache.acquire(key),
           put: async (key, handle, entryOptions) => rewrite(
             await cache.put(key, handle, entryOptions),
           ),

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CacheStoreResult } from '@git-stunts/git-cas';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
+import type MaterializationHandle from '../../../../src/domain/materialization/MaterializationHandle.ts';
 import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
@@ -37,13 +38,14 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots,
       stateHash: 'state-hash',
     });
-    const resolved = await harness.adapter.findExact(new MaterializationCoordinate({
+    const acquisition = await harness.adapter.acquireExact(new MaterializationCoordinate({
       frontier: new Map([
         ['writer-b', 'patch-b'],
         ['writer-a', 'patch-a'],
       ]),
       ceiling: 12,
     }));
+    const resolved = acquisition?.materialization ?? null;
 
     expect(retained.laneName).toBe('events');
     expect(retained.retention).toMatchObject({
@@ -60,6 +62,10 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(resolved?.stateHash).toBe('state-hash');
     expect(resolved?.roots.entries().map(([name, root]) => rootSignature(name, root)))
       .toEqual(roots.entries().map(([name, root]) => rootSignature(name, root)));
+    expect(resolved?.retention).toMatchObject({
+      policy: 'pinned',
+      reachability: 'anchored',
+    });
 
     const members = harness.cas.readBundleMembers(retained.bundle.toString());
     expect(members.map(([path]) => path)).toEqual(['meta/descriptor', ...ROOT_PATHS]);
@@ -67,11 +73,15 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(cacheKeys).toHaveLength(1);
     expect(cacheKeys[0]).toMatch(/^v2:[0-9a-f]{64}$/u);
     expect(cacheKeys[0]?.length).toBeLessThan(1024);
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
+    await acquisition?.release();
+    await acquisition?.release();
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(0);
   });
 
   it('returns null for a coordinate with no retained materialization', async () => {
     const harness = await createHarness();
-    expect(await harness.adapter.findExact(exactCoordinate())).toBeNull();
+    expect(await harness.adapter.acquireExact(exactCoordinate())).toBeNull();
   });
 
   it('promotes terminal roots without installing an unnecessary workspace entry', async () => {
@@ -91,7 +101,8 @@ describe('GitCasMaterializationStoreAdapter', () => {
 
     expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toHaveLength(1);
-    expect((await harness.adapter.findExact(coordinate))?.bundle.equals(promoted.bundle)).toBe(true);
+    expect((await acquireAndRelease(harness.adapter, coordinate))?.bundle.equals(promoted.bundle))
+      .toBe(true);
   });
 
   it('removes an in-progress coordinate after mismatched promotion fails', async () => {
@@ -134,7 +145,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots,
       stateHash: 'partial-state-hash',
     });
-    const resolved = await harness.adapter.findExact(exactCoordinate());
+    const resolved = await acquireAndRelease(harness.adapter, exactCoordinate());
 
     expect(harness.cas.readBundleMembers(retained.bundle.toString()).map(([path]) => path))
       .toEqual(['meta/descriptor', 'roots/node-alive']);
@@ -152,7 +163,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots: await createRoots(harness.cas),
       stateHash: 'empty-state-hash',
     });
-    expect((await harness.adapter.findExact(coordinate))?.coordinate.ceiling).toBeNull();
+    expect((await acquireAndRelease(harness.adapter, coordinate))?.coordinate.ceiling).toBeNull();
   });
 
   it('fails closed when git-cas declines materialization retention', async () => {
@@ -213,10 +224,11 @@ describe('GitCasMaterializationStoreAdapter', () => {
     const cache = await harness.cas.caches.open({ namespace: CACHE_NAMESPACE });
     await cache.put(cacheKey, page.handle);
 
-    await expect(harness.adapter.findExact(coordinate)).rejects.toMatchObject({
+    await expect(harness.adapter.acquireExact(coordinate)).rejects.toMatchObject({
       code: 'E_MATERIALIZATION_STORAGE',
       message: expect.stringContaining('does not reference a materialization bundle'),
     });
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(0);
   });
 
   it.each([
@@ -251,7 +263,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     const members = harness.cas.readBundleMembers(retained.bundle.toString());
     harness.cas.replaceBundleMembers(retained.bundle.toString(), mutate(members));
 
-    await expect(harness.adapter.findExact(coordinate)).rejects.toMatchObject({
+    await expect(harness.adapter.acquireExact(coordinate)).rejects.toMatchObject({
       code: 'E_MATERIALIZATION_STORAGE',
     });
   });
@@ -271,7 +283,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       replaceMember(members, 'roots/edge-alive', page.handle.toString()),
     );
 
-    await expect(harness.adapter.findExact(coordinate)).rejects.toMatchObject({
+    await expect(harness.adapter.acquireExact(coordinate)).rejects.toMatchObject({
       code: 'E_MATERIALIZATION_STORAGE',
       message: expect.stringContaining('edge-alive root bundle'),
     });
@@ -351,7 +363,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
   ])('rejects an invalid %s', async (_case, value, message) => {
     const harness = await retainedHarness();
     replaceDescriptor(harness, value);
-    await expect(harness.adapter.findExact(harness.coordinate)).rejects.toMatchObject({
+    await expect(harness.adapter.acquireExact(harness.coordinate)).rejects.toMatchObject({
       code: 'E_MATERIALIZATION_STORAGE',
       message: expect.stringContaining(message),
     });
@@ -360,7 +372,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
   it('rejects a descriptor for another lane', async () => {
     const harness = await retainedHarness();
     replaceDescriptor(harness, descriptor({ laneName: 'other' }));
-    await expect(harness.adapter.findExact(harness.coordinate)).rejects.toMatchObject({
+    await expect(harness.adapter.acquireExact(harness.coordinate)).rejects.toMatchObject({
       code: 'E_MATERIALIZATION_STORAGE',
       message: expect.stringContaining('belongs to another lane'),
     });
@@ -371,7 +383,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     replaceDescriptor(harness, descriptor({
       coordinate: { ceiling: 99, frontier: [] },
     }));
-    await expect(harness.adapter.findExact(harness.coordinate)).rejects.toMatchObject({
+    await expect(harness.adapter.acquireExact(harness.coordinate)).rejects.toMatchObject({
       code: 'E_MATERIALIZATION_STORAGE',
       message: expect.stringContaining('does not match its cache key'),
     });
@@ -382,7 +394,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     replaceDescriptor(harness, descriptor({
       roots: replaceRootStatus(rootStatusFixture(), 'edge-alive', 'empty'),
     }));
-    await expect(harness.adapter.findExact(harness.coordinate)).rejects.toMatchObject({
+    await expect(harness.adapter.acquireExact(harness.coordinate)).rejects.toMatchObject({
       code: 'E_MATERIALIZATION_STORAGE',
       message: expect.stringContaining('unexpected edge-alive root bundle'),
     });
@@ -395,7 +407,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       'meta/descriptor',
     );
     harness.cas.replaceStoredPage(descriptorHandle, new Uint8Array(1024 * 1024 + 1));
-    await expect(harness.adapter.findExact(harness.coordinate)).rejects.toMatchObject({
+    await expect(harness.adapter.acquireExact(harness.coordinate)).rejects.toMatchObject({
       code: 'PAGE_TOO_LARGE',
     });
   });
@@ -434,7 +446,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots,
       stateHash: '',
     })).rejects.toMatchObject({ code: 'E_MATERIALIZATION_STORAGE' });
-    await expect(Reflect.apply(harness.adapter.findExact, harness.adapter, [{
+    await expect(Reflect.apply(harness.adapter.acquireExact, harness.adapter, [{
       frontier: new Map(),
       ceiling: null,
     }])).rejects.toMatchObject({ code: 'E_MATERIALIZATION_STORAGE' });
@@ -462,6 +474,21 @@ type RetainedHarness = Harness & Readonly<{
   coordinate: MaterializationCoordinate;
   retainedBundle: BundleHandle;
 }>;
+
+async function acquireAndRelease(
+  adapter: GitCasMaterializationStoreAdapter,
+  coordinate: MaterializationCoordinate,
+): Promise<MaterializationHandle | null> {
+  const acquisition = await adapter.acquireExact(coordinate);
+  if (acquisition === null) {
+    return null;
+  }
+  try {
+    return acquisition.materialization;
+  } finally {
+    await acquisition.release();
+  }
+}
 
 async function createHarness(laneName = 'events'): Promise<Harness> {
   const history = new InMemoryGraphAdapter();
@@ -512,7 +539,7 @@ function withCacheResult(
       open: async (options) => {
         const cache = await cas.caches.open(options);
         return {
-          get: async (key) => await cache.get(key),
+          acquire: async (key) => await cache.acquire(key),
           put: async (key, handle, entryOptions) => rewrite(
             await cache.put(key, handle, entryOptions),
           ),

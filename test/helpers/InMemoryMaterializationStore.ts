@@ -5,6 +5,7 @@ import StorageRetentionWitness, {
   StorageRetentionRoot,
 } from '../../src/domain/storage/StorageRetentionWitness.ts';
 import MaterializationStorePort, {
+  type MaterializationAcquisition,
   type RetainMaterializationRequest,
 } from '../../src/ports/MaterializationStorePort.ts';
 import MaterializationWorkspacePort, {
@@ -44,8 +45,26 @@ export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePo
   }
 }
 
+export class InMemoryMaterializationAcquisition implements MaterializationAcquisition {
+  readonly materialization: MaterializationHandle;
+  readonly acquiredAt = '1970-01-01T00:00:00.000Z';
+  releaseCalls = 0;
+  released = false;
+
+  constructor(materialization: MaterializationHandle) {
+    this.materialization = materialization;
+  }
+
+  release(): Promise<void> {
+    this.releaseCalls += 1;
+    this.released = true;
+    return Promise.resolve();
+  }
+}
+
 /** Behavioral retained-materialization store for controller tests. */
 export default class InMemoryMaterializationStore extends MaterializationStorePort {
+  readonly acquisitions: InMemoryMaterializationAcquisition[] = [];
   readonly exactLookups: MaterializationCoordinate[] = [];
   readonly retainedRequests: RetainMaterializationRequest[] = [];
   readonly workspaces: InMemoryMaterializationWorkspace[] = [];
@@ -81,11 +100,17 @@ export default class InMemoryMaterializationStore extends MaterializationStorePo
     return Promise.resolve(handle);
   }
 
-  override findExact(
+  override acquireExact(
     coordinate: MaterializationCoordinate,
-  ): Promise<MaterializationHandle | null> {
+  ): Promise<MaterializationAcquisition | null> {
     this.exactLookups.push(coordinate);
-    return Promise.resolve(this.#handles.get(coordinateKey(coordinate)) ?? null);
+    const handle = this.#handles.get(coordinateKey(coordinate));
+    if (handle === undefined) {
+      return Promise.resolve(null);
+    }
+    const acquisition = new InMemoryMaterializationAcquisition(handle);
+    this.acquisitions.push(acquisition);
+    return Promise.resolve(acquisition);
   }
 }
 

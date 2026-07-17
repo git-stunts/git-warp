@@ -5,6 +5,12 @@ import type { PromoteMaterializationRequest } from './MaterializationWorkspacePo
 
 export type RetainMaterializationRequest = PromoteMaterializationRequest;
 
+export type MaterializationAcquisition = Readonly<{
+  materialization: MaterializationHandle;
+  acquiredAt: string;
+  release(): Promise<void>;
+}>;
+
 /** Storage-neutral lifecycle for retained, independently addressable materializations. */
 export default abstract class MaterializationStorePort {
   abstract openWorkspace(
@@ -13,7 +19,7 @@ export default abstract class MaterializationStorePort {
 
   abstract retain(_request: RetainMaterializationRequest): Promise<MaterializationHandle>;
 
-  abstract findExact(
+  abstract acquireExact(
     _coordinate: MaterializationCoordinate,
-  ): Promise<MaterializationHandle | null>;
+  ): Promise<MaterializationAcquisition | null>;
 }
