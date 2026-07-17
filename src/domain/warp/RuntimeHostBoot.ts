@@ -353,11 +353,12 @@ export async function resolveRuntimeHostConstructionOptions(
         pageCache: new PageCache({ maxResident: 256 }),
         workspace: sessionOptions.workspace,
       });
-  }
-  if (storageServices.trie !== undefined) {
+    // A custom session opener owns its root encoding; pair this reader only
+    // with the built-in session that shares its store and geometry.
     resolvedMaterializationRead = new TrieMaterializationReader({
-      store: storageServices.trie,
+      store,
       codec: resolvedCodec,
+      geometry,
     });
   }
 
