@@ -13,6 +13,8 @@ import type {
   PatchWithSha,
 } from '../../capabilities/PatchCollector.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
+import type MaterializationReadPort from '../../../ports/MaterializationReadPort.ts';
+import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
 import type {
   WarpStateCoordinate,
 } from '../../../ports/WarpStateCachePort.ts';
@@ -65,6 +67,23 @@ export default class MaterializeLiveStrategy {
       return await this.resolveRetainedMaterialization(retained, materializationCoordinate);
     }
     return await this.materializeAndAcquire(coordinate, materializationCoordinate);
+  }
+
+  async readNodePresence(nodeId: string): Promise<boolean | null> {
+    const reader = this.runtime.deps.materializationRead;
+    if (reader === undefined) {
+      return null;
+    }
+    const resolution = await this.resolveMaterialization();
+    let presence: boolean | null;
+    try {
+      presence = await readNodePresence(reader, resolution.materialization, nodeId);
+    } catch (raw) {
+      await releaseAcquisitionAfterFailure(resolution, this.runtime.deps.logger);
+      throw raw;
+    }
+    await resolution.release();
+    return presence;
   }
 
   private async resolveRetainedMaterialization(
@@ -325,6 +344,27 @@ export default class MaterializeLiveStrategy {
       frontier: opts.coordinate.frontier,
     });
   }
+}
+
+async function readNodePresence(
+  reader: MaterializationReadPort,
+  materialization: MaterializationHandle | null,
+  nodeId: string,
+): Promise<boolean | null> {
+  if (materialization === null) {
+    return false;
+  }
+  const root = materialization.roots.nodeAlive;
+  if (root.status === 'unavailable') {
+    return null;
+  }
+  if (root.status === 'empty') {
+    return false;
+  }
+  if (root.handle === null) {
+    throw resolutionError('retained node-liveness root has no handle');
+  }
+  return await reader.hasNode(root.handle, nodeId);
 }
 
 function emptyResolution(): LiveMaterializationResolution {

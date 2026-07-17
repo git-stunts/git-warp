@@ -91,5 +91,6 @@ describe("WarpCore state-session auto-construction", () => {
 
     expect(resolved.options.stateCache).toBe(stateCache);
     expect(resolved.options.openStateSession).toBe(openStateSession);
+    expect(resolved.options.materializationRead).toBeUndefined();
   });
 });

@@ -122,6 +122,12 @@ async function ensureAndGetState(host: QueryReadHost): Promise<WarpState> {
 // ── Read implementations ────────────────────────────────────────────
 
 export async function hasNodeImpl(host: QueryReadHost, nodeId: string): Promise<boolean> {
+  if (host._readLiveNodePresence !== undefined) {
+    const retainedPresence = await host._readLiveNodePresence(nodeId);
+    if (retainedPresence !== null) {
+      return retainedPresence;
+    }
+  }
   const state = await ensureAndGetState(host);
   return state.nodeAlive.contains(nodeId);
 }

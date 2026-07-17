@@ -1,3 +1,5 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import RuntimeHost from '../../../src/domain/RuntimeHost.ts';
 import type MaterializationCoordinate from '../../../src/domain/materialization/MaterializationCoordinate.ts';
@@ -17,6 +19,8 @@ import type {
   RuntimeStorageServices,
 } from '../../../src/ports/RuntimeStorageProviderPort.ts';
 import { createTestRepo } from './helpers/setup.ts';
+
+const execFileAsync = promisify(execFile);
 
 describe('API: retained materialization resume', () => {
   let repo: Awaited<ReturnType<typeof createTestRepo>> | null = null;
@@ -68,6 +72,43 @@ describe('API: retained materialization resume', () => {
     expect(reopenedStore.exactHits[0]?.bundle.equals(coldHandle?.bundle)).toBe(true);
     expect(reopened.nodeAlive.contains('node:retained')).toBe(true);
   });
+
+  it('answers exact node presence from retained roots after aggressive pruning', async () => {
+    if (repo === null) {
+      throw new Error('Test repository is not initialized');
+    }
+    const firstProvider = recordingProvider(repo);
+    const firstRuntime = await openRuntime(repo, firstProvider);
+    await firstRuntime.patch((patch) => {
+      patch.addNode('node:retained');
+    });
+    await firstRuntime.materialize();
+
+    await execFileAsync('git', [
+      '-C',
+      repo.tempDir,
+      'reflog',
+      'expire',
+      '--expire=now',
+      '--all',
+    ]);
+    await execFileAsync('git', ['-C', repo.tempDir, 'prune', '--expire=now']);
+
+    const reopenedProvider = recordingProvider(repo);
+    const reopenedRuntime = await openRuntime(repo, reopenedProvider);
+    const replay = vi.spyOn(reopenedRuntime, '_loadPatchChainFromSha');
+    const publishWholeState = vi.spyOn(reopenedRuntime, '_onMaterialized');
+
+    await expect(reopenedRuntime.hasNode('node:retained')).resolves.toBe(true);
+
+    const reopenedStore = requireMaterializations(reopenedProvider);
+    expect(replay).not.toHaveBeenCalled();
+    expect(publishWholeState).not.toHaveBeenCalled();
+    expect(reopenedRuntime._cachedState).toBeNull();
+    expect(reopenedStore.exactLookups).toHaveLength(1);
+    expect(reopenedStore.exactHits).toHaveLength(1);
+    expect(reopenedStore.exactReleaseCount).toBe(1);
+  });
 });
 
 class RecordingMaterializationStore extends MaterializationStorePort {
@@ -75,6 +116,7 @@ class RecordingMaterializationStore extends MaterializationStorePort {
   readonly retainedHandles: MaterializationHandle[] = [];
   readonly exactLookups: MaterializationCoordinate[] = [];
   readonly exactHits: MaterializationHandle[] = [];
+  exactReleaseCount = 0;
   readonly #delegate: MaterializationStorePort;
 
   constructor(delegate: MaterializationStorePort) {
@@ -108,8 +150,16 @@ class RecordingMaterializationStore extends MaterializationStorePort {
     const acquisition = await this.#delegate.acquireExact(coordinate);
     if (acquisition !== null) {
       this.exactHits.push(acquisition.materialization);
+      return Object.freeze({
+        materialization: acquisition.materialization,
+        acquiredAt: acquisition.acquiredAt,
+        release: async () => {
+          await acquisition.release();
+          this.exactReleaseCount += 1;
+        },
+      });
     }
-    return acquisition;
+    return null;
   }
 }
 
