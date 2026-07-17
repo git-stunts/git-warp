@@ -24,6 +24,7 @@ import InMemoryMaterializationStore, {
 import type MaterializationWorkspacePort from "../../../../../src/ports/MaterializationWorkspacePort.ts";
 import MaterializationCoordinate from "../../../../../src/domain/materialization/MaterializationCoordinate.ts";
 import MaterializationHandle from "../../../../../src/domain/materialization/MaterializationHandle.ts";
+import type { RetainMaterializationRequest } from "../../../../../src/ports/MaterializationStorePort.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -200,6 +201,40 @@ function createControllerFixtures() {
     materializations,
     deps,
   };
+}
+
+type ChangedMaterializationIdentity = "coordinate" | "stateHash" | "bundle";
+
+async function createMismatchedAcquisition(
+  retained: MaterializationHandle,
+  changedField: ChangedMaterializationIdentity,
+  retain: (request: RetainMaterializationRequest) => Promise<MaterializationHandle>,
+  acquisitions: InMemoryMaterializationAcquisition[],
+): Promise<InMemoryMaterializationAcquisition> {
+  const mismatched = changedField === "bundle"
+    ? await retain({
+      coordinate: retained.coordinate,
+      roots: retained.roots,
+      stateHash: retained.stateHash,
+    })
+    : new MaterializationHandle({
+      laneName: retained.laneName,
+      bundle: retained.bundle,
+      coordinate: changedField === "coordinate"
+        ? new MaterializationCoordinate({
+          frontier: new Map([["writer-1", "changed-tip"]]),
+          ceiling: retained.coordinate.ceiling,
+        })
+        : retained.coordinate,
+      roots: retained.roots,
+      stateHash: changedField === "stateHash"
+        ? `${retained.stateHash}-changed`
+        : retained.stateHash,
+      retention: retained.retention,
+    });
+  const acquisition = new InMemoryMaterializationAcquisition(mismatched);
+  acquisitions.push(acquisition);
+  return acquisition;
 }
 
 describe("MaterializeController — state session integration", () => {
@@ -566,46 +601,45 @@ describe("MaterializeController — state session integration", () => {
     expect(fixtures.materializations.acquisitions[0]?.released).toBe(true);
   });
 
-  it("rejects a newly acquired handle whose state hash changed", async () => {
-    const fixtures = createControllerFixtures();
-    fixtures.patches.collectForFrontier.mockResolvedValue([
-      nodeAddPatchRecord({
-        writer: "writer-1",
-        lamport: 1,
-        sha: "a1b2",
-        node: "node:created",
-      }),
-    ]);
-    const retain = fixtures.materializations.retain.bind(fixtures.materializations);
-    let retained: MaterializationHandle | null = null;
-    const mismatchedAcquisitions: InMemoryMaterializationAcquisition[] = [];
-    vi.spyOn(fixtures.materializations, "retain").mockImplementation(async (request) => {
-      retained = await retain(request);
-      return retained;
-    });
-    vi.spyOn(fixtures.materializations, "acquireExact").mockImplementation(() => {
-      if (retained === null) {
-        return Promise.resolve(null);
-      }
-      const mismatched = new MaterializationHandle({
-        laneName: retained.laneName,
-        bundle: retained.bundle,
-        coordinate: retained.coordinate,
-        roots: retained.roots,
-        stateHash: `${retained.stateHash}-changed`,
-        retention: retained.retention,
+  it.each(["coordinate", "stateHash", "bundle"] as const)(
+    "rejects a newly acquired handle whose %s changed",
+    async (changedField) => {
+      const fixtures = createControllerFixtures();
+      fixtures.patches.collectForFrontier.mockResolvedValue([
+        nodeAddPatchRecord({
+          writer: "writer-1",
+          lamport: 1,
+          sha: "a1b2",
+          node: "node:created",
+        }),
+      ]);
+      const retain = fixtures.materializations.retain.bind(fixtures.materializations);
+      let retained: MaterializationHandle | null = null;
+      const mismatchedAcquisitions: InMemoryMaterializationAcquisition[] = [];
+      vi.spyOn(fixtures.materializations, "retain").mockImplementation(async (request) => {
+        retained = await retain(request);
+        return retained;
       });
-      const acquisition = new InMemoryMaterializationAcquisition(mismatched);
-      mismatchedAcquisitions.push(acquisition);
-      return Promise.resolve(acquisition);
-    });
+      vi.spyOn(fixtures.materializations, "acquireExact").mockImplementation(() => {
+        if (retained === null) {
+          return Promise.resolve(null);
+        }
+        return createMismatchedAcquisition(
+          retained,
+          changedField,
+          retain,
+          mismatchedAcquisitions,
+        );
+      });
 
-    await expect(fixtures.controller.resolveLiveMaterialization()).rejects.toMatchObject({
-      code: "E_MATERIALIZATION_RESUME",
-    });
+      await expect(fixtures.controller.resolveLiveMaterialization()).rejects.toMatchObject({
+        code: "E_MATERIALIZATION_RESUME",
+      });
 
-    expect(mismatchedAcquisitions[0]?.released).toBe(true);
-  });
+      expect(mismatchedAcquisitions[0]?.released).toBe(true);
+      expect(mismatchedAcquisitions[0]?.releaseCalls).toBe(1);
+    },
+  );
 
   it("fails closed without publishing a snapshot when a non-empty coordinate has no patches", async () => {
     const fixtures = createControllerFixtures();
