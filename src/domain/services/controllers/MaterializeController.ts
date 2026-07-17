@@ -1,14 +1,4 @@
-/**
- * MaterializeController — CRDT state replay from patches.
- *
- * Three materialization pipelines:
- * 1. materialize() — full or checkpoint-incremental, live frontier
- * 2. materializeCoordinate() — explicit frontier snapshot
- * 3. materializeAt() — specific checkpoint SHA
- *
- * Dependencies are constructor-injected. No host bag.
- * Side effects (notification, GC, auto-checkpoint) are the caller's job.
- */
+/** CRDT replay and retained-handle resolution across supported coordinates. */
 import { reducePatches as reduceJoinedPatches, createEmptyState } from '../JoinReducer.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import { computeStateHash } from '../state/StateSerializer.ts';
@@ -58,6 +48,7 @@ import type { PatchDiff } from '../../types/PatchDiff.ts';
 import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
+import type LiveMaterializationResolution from '../../materialization/LiveMaterializationResolution.ts';
 import type MaterializationRoots from '../../materialization/MaterializationRoots.ts';
 import type StorageRetentionWitness from '../../storage/StorageRetentionWitness.ts';
 import WarpError from '../../errors/WarpError.ts';
@@ -66,7 +57,10 @@ import type {
   MaterializeResultBuildInput,
   MaterializeStrategyRuntime,
 } from './MaterializeStrategyRuntime.ts';
-import { releaseWorkspaceAfterFailure } from './MaterializationWorkspaceCleanup.ts';
+import {
+  releaseAcquisitionAfterFailure,
+  releaseWorkspaceAfterFailure,
+} from './MaterializationWorkspaceCleanup.ts';
 export type MaterializePersistence = {
   readRef(ref: string): Promise<string | null>;
 };
@@ -145,8 +139,6 @@ function reduceMaterializePatches(
   return reducePlain(patches, base);
 }
 
-// ── Provenance ──────────────────────────────────────────────────────
-
 function buildProvenance(patches: PatchWithSha[], base?: ProvenanceIndex): ProvenanceIndex {
   const index = base ? base.clone() : new ProvenanceIndex();
   for (const { patch, sha } of patches) {
@@ -155,13 +147,9 @@ function buildProvenance(patches: PatchWithSha[], base?: ProvenanceIndex): Prove
   return index;
 }
 
-// ── State hash ──────────────────────────────────────────────────────
-
 async function computeHash(deps: MaterializeDeps, state: WarpState): Promise<string> {
   return await computeStateHash(state, { crypto: deps.crypto, codec: deps.codec });
 }
-
-// ── Controller ──────────────────────────────────────────────────────
 
 export default class MaterializeController {
   private readonly _deps: MaterializeDeps;
@@ -191,6 +179,9 @@ export default class MaterializeController {
       receipts: opts.receipts === true,
       wantDiff: opts.wantDiff === true,
     });
+  }
+  resolveLiveMaterialization(): Promise<LiveMaterializationResolution> {
+    return this._liveStrategy.resolveMaterialization();
   }
 
   /** Coordinate materialization — explicit frontier. */
@@ -352,35 +343,44 @@ export default class MaterializeController {
       return null;
     }
     const coordinate = new MaterializationCoordinate(snapshot.coordinate);
-    const retained = await this._deps.materializations.findExact(coordinate);
-    if (retained !== null && retained.stateHash !== snapshot.stateHash) {
-      throw materializationResumeError('retained handle and snapshot state hashes differ');
+    const acquisition = await this._deps.materializations.acquireExact(coordinate);
+    let result: MaterializeResult;
+    try {
+      const retained = acquisition?.materialization ?? null;
+      if (retained !== null && retained.stateHash !== snapshot.stateHash) {
+        throw materializationResumeError('retained handle and snapshot state hashes differ');
+      }
+      const retainedRoots = retained === null
+        ? null
+        : materializationSessionOpen(retained.roots);
+      const reduced = await reduceSessionBackedState({
+        openStateSession,
+        materializations: this._deps.materializations,
+        logger: this._deps.logger,
+        coordinate,
+        patches: [],
+        baseState: snapshot.state,
+        ...(retainedRoots === null ? {} : { roots: retainedRoots }),
+        receipts: false,
+        wantDiff: options.wantDiff,
+      });
+      result = await this._buildResult({
+        reduced,
+        summary: new MaterializePatchSummaryAccumulator().toSummary(),
+        degraded: true,
+        ceiling: snapshot.coordinate.ceiling,
+        frontier: snapshot.coordinate.frontier,
+        publishSnapshot: false,
+        ...(retained === null || retainedRoots === null
+          ? {}
+          : { materialization: retained }),
+      });
+    } catch (raw) {
+      await releaseAcquisitionAfterFailure(acquisition, this._deps.logger);
+      throw raw;
     }
-    const retainedRoots = retained === null
-      ? null
-      : materializationSessionOpen(retained.roots);
-    const reduced = await reduceSessionBackedState({
-      openStateSession,
-      materializations: this._deps.materializations,
-      logger: this._deps.logger,
-      coordinate,
-      patches: [],
-      baseState: snapshot.state,
-      ...(retainedRoots === null ? {} : { roots: retainedRoots }),
-      receipts: false,
-      wantDiff: options.wantDiff,
-    });
-    return await this._buildResult({
-      reduced,
-      summary: new MaterializePatchSummaryAccumulator().toSummary(),
-      degraded: true,
-      ceiling: snapshot.coordinate.ceiling,
-      frontier: snapshot.coordinate.frontier,
-      publishSnapshot: false,
-      ...(retained === null || retainedRoots === null
-        ? {}
-        : { materialization: retained }),
-    });
+    await acquisition?.release();
+    return result;
   }
 
   private async _reducePatches(

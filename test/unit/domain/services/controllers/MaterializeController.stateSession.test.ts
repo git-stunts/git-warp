@@ -18,10 +18,13 @@ import Patch from "../../../../../src/domain/types/Patch.ts";
 import type { CheckpointData, PatchWithSha } from "../../../../../src/domain/capabilities/PatchCollector.ts";
 import InMemoryCheckpointStore from "../../../../helpers/InMemoryCheckpointStore.ts";
 import InMemoryMaterializationStore, {
+  InMemoryMaterializationAcquisition,
   InMemoryMaterializationWorkspace,
 } from "../../../../helpers/InMemoryMaterializationStore.ts";
 import type MaterializationWorkspacePort from "../../../../../src/ports/MaterializationWorkspacePort.ts";
 import MaterializationCoordinate from "../../../../../src/domain/materialization/MaterializationCoordinate.ts";
+import MaterializationHandle from "../../../../../src/domain/materialization/MaterializationHandle.ts";
+import type { RetainMaterializationRequest } from "../../../../../src/ports/MaterializationStorePort.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -198,6 +201,40 @@ function createControllerFixtures() {
     materializations,
     deps,
   };
+}
+
+type ChangedMaterializationIdentity = "coordinate" | "stateHash" | "bundle";
+
+async function createMismatchedAcquisition(
+  retained: MaterializationHandle,
+  changedField: ChangedMaterializationIdentity,
+  retain: (request: RetainMaterializationRequest) => Promise<MaterializationHandle>,
+  acquisitions: InMemoryMaterializationAcquisition[],
+): Promise<InMemoryMaterializationAcquisition> {
+  const mismatched = changedField === "bundle"
+    ? await retain({
+      coordinate: retained.coordinate,
+      roots: retained.roots,
+      stateHash: retained.stateHash,
+    })
+    : new MaterializationHandle({
+      laneName: retained.laneName,
+      bundle: retained.bundle,
+      coordinate: changedField === "coordinate"
+        ? new MaterializationCoordinate({
+          frontier: new Map([["writer-1", "changed-tip"]]),
+          ceiling: retained.coordinate.ceiling,
+        })
+        : retained.coordinate,
+      roots: retained.roots,
+      stateHash: changedField === "stateHash"
+        ? `${retained.stateHash}-changed`
+        : retained.stateHash,
+      retention: retained.retention,
+    });
+  const acquisition = new InMemoryMaterializationAcquisition(mismatched);
+  acquisitions.push(acquisition);
+  return acquisition;
 }
 
 describe("MaterializeController — state session integration", () => {
@@ -466,6 +503,181 @@ describe("MaterializeController — state session integration", () => {
     expect(reopened.state.nodeAlive.contains("node:retained")).toBe(true);
     expect(warm.materialization?.bundle.equals(cold.materialization?.bundle)).toBe(true);
     expect(reopened.materialization?.bundle.equals(cold.materialization?.bundle)).toBe(true);
+  });
+
+  it("does not retry an exact acquisition release failure", async () => {
+    const fixtures = createControllerFixtures();
+    fixtures.patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:retained",
+      }),
+    ]);
+    const cold = await fixtures.controller.materialize();
+    const published = fixtures.stateCache.put.mock.calls[0]?.[0];
+    if (cold.materialization === undefined || published === undefined) {
+      throw new Error("Cold materialization did not publish retained state");
+    }
+    fixtures.stateCache.getExact.mockResolvedValue(published);
+    const acquisition = new InMemoryMaterializationAcquisition(cold.materialization);
+    const releaseFailure = new Error("acquisition release failed");
+    const release = vi.spyOn(acquisition, "release").mockRejectedValue(releaseFailure);
+    vi.spyOn(fixtures.materializations, "acquireExact").mockResolvedValue(acquisition);
+
+    await expect(fixtures.controller.materialize()).rejects.toBe(releaseFailure);
+
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("resolves an exact retained handle without touching whole-state dependencies", async () => {
+    const fixtures = createControllerFixtures();
+    fixtures.patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:retained",
+      }),
+    ]);
+    const cold = await fixtures.controller.materialize();
+    const workspaceCount = fixtures.materializations.workspaces.length;
+
+    fixtures.patches.getFrontier.mockClear();
+    fixtures.patches.collectForFrontier.mockClear();
+    fixtures.patches.loadCheckpoint.mockClear();
+    fixtures.stateCache.getExact.mockClear();
+    fixtures.stateCache.getBestCompatiblePredecessor.mockClear();
+    fixtures.stateCache.put.mockClear();
+    fixtures.openStateSession.mockClear();
+    fixtures.deps.crypto.hash.mockClear();
+
+    const resolution = await new MaterializeController(fixtures.deps)
+      .resolveLiveMaterialization();
+
+    expect(resolution.source).toBe("retained");
+    expect(resolution.replayedPatchCount).toBe(0);
+    expect(resolution.materialization?.bundle.equals(cold.materialization?.bundle)).toBe(true);
+    expect(fixtures.patches.getFrontier).toHaveBeenCalledOnce();
+    expect(fixtures.materializations.workspaces).toHaveLength(workspaceCount);
+    expect(fixtures.patches.collectForFrontier).not.toHaveBeenCalled();
+    expect(fixtures.patches.loadCheckpoint).not.toHaveBeenCalled();
+    expect(fixtures.stateCache.getExact).not.toHaveBeenCalled();
+    expect(fixtures.stateCache.getBestCompatiblePredecessor).not.toHaveBeenCalled();
+    expect(fixtures.stateCache.put).not.toHaveBeenCalled();
+    expect(fixtures.openStateSession).not.toHaveBeenCalled();
+    expect(fixtures.deps.crypto.hash).not.toHaveBeenCalled();
+    expect(fixtures.materializations.acquisitions).toHaveLength(1);
+    expect(fixtures.materializations.acquisitions[0]?.released).toBe(false);
+    await resolution.release();
+    expect(fixtures.materializations.acquisitions[0]?.released).toBe(true);
+  });
+
+  it("creates and returns a retained handle after a live-coordinate miss", async () => {
+    const fixtures = createControllerFixtures();
+    fixtures.patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:created",
+      }),
+    ]);
+
+    const resolution = await fixtures.controller.resolveLiveMaterialization();
+
+    expect(resolution.source).toBe("materialized");
+    expect(resolution.replayedPatchCount).toBe(1);
+    expect(resolution.materialization).not.toBeNull();
+    expect(fixtures.materializations.retainedRequests).toHaveLength(1);
+    expect(fixtures.patches.collectForFrontier).toHaveBeenCalledOnce();
+    expect(fixtures.stateCache.getExact).not.toHaveBeenCalled();
+    expect(fixtures.stateCache.getBestCompatiblePredecessor).not.toHaveBeenCalled();
+    expect(fixtures.stateCache.put).not.toHaveBeenCalled();
+    expect(fixtures.materializations.acquisitions).toHaveLength(1);
+    expect(fixtures.materializations.acquisitions[0]?.released).toBe(false);
+    await resolution.release();
+    expect(fixtures.materializations.acquisitions[0]?.released).toBe(true);
+  });
+
+  it.each(["coordinate", "stateHash", "bundle"] as const)(
+    "rejects a newly acquired handle whose %s changed",
+    async (changedField) => {
+      const fixtures = createControllerFixtures();
+      fixtures.patches.collectForFrontier.mockResolvedValue([
+        nodeAddPatchRecord({
+          writer: "writer-1",
+          lamport: 1,
+          sha: "a1b2",
+          node: "node:created",
+        }),
+      ]);
+      const retain = fixtures.materializations.retain.bind(fixtures.materializations);
+      let retained: MaterializationHandle | null = null;
+      const mismatchedAcquisitions: InMemoryMaterializationAcquisition[] = [];
+      vi.spyOn(fixtures.materializations, "retain").mockImplementation(async (request) => {
+        retained = await retain(request);
+        return retained;
+      });
+      vi.spyOn(fixtures.materializations, "acquireExact").mockImplementation(() => {
+        if (retained === null) {
+          return Promise.resolve(null);
+        }
+        return createMismatchedAcquisition(
+          retained,
+          changedField,
+          retain,
+          mismatchedAcquisitions,
+        );
+      });
+
+      await expect(fixtures.controller.resolveLiveMaterialization()).rejects.toMatchObject({
+        code: "E_MATERIALIZATION_RESUME",
+      });
+
+      expect(mismatchedAcquisitions[0]?.released).toBe(true);
+      expect(mismatchedAcquisitions[0]?.releaseCalls).toBe(1);
+    },
+  );
+
+  it("fails closed without publishing a snapshot when a non-empty coordinate has no patches", async () => {
+    const fixtures = createControllerFixtures();
+
+    await expect(fixtures.controller.resolveLiveMaterialization()).rejects.toMatchObject({
+      code: "E_MATERIALIZATION_RESUME",
+    });
+
+    expect(fixtures.stateCache.put).not.toHaveBeenCalled();
+    expect(fixtures.materializations.retainedRequests).toHaveLength(0);
+    expect(fixtures.materializations.workspaces[0]?.released).toBe(true);
+  });
+
+  it("rejects a retained handle for a different coordinate", async () => {
+    const fixtures = createControllerFixtures();
+    fixtures.patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:retained",
+      }),
+    ]);
+    const cold = await fixtures.controller.materialize();
+    if (cold.materialization === undefined) {
+      throw new Error("Cold materialization did not retain a handle");
+    }
+    fixtures.patches.getFrontier.mockResolvedValue(new Map([["writer-1", "tip-2"]]));
+    const acquisition = new InMemoryMaterializationAcquisition(cold.materialization);
+    vi.spyOn(fixtures.materializations, "acquireExact").mockResolvedValue(acquisition);
+
+    await expect(fixtures.controller.resolveLiveMaterialization()).rejects.toMatchObject({
+      code: "E_MATERIALIZATION_RESUME",
+    });
+
+    expect(fixtures.patches.collectForFrontier).toHaveBeenCalledTimes(1);
+    expect(fixtures.openStateSession).toHaveBeenCalledTimes(1);
+    expect(acquisition.released).toBe(true);
   });
 
   it("hydrates a predecessor snapshot into StateSession before replaying the suffix", async () => {

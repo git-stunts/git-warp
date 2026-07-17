@@ -56,10 +56,11 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
       harness.plumbing,
       reopenedCas,
     );
-    const resolved = await reopened.findExact(coordinate);
-    if (resolved === null) {
+    const acquisition = await reopened.acquireExact(coordinate);
+    if (acquisition === null) {
       throw new Error('Retained materialization was not reopened');
     }
+    const resolved = acquisition.materialization;
     const nodeAliveRoot = resolved.roots.nodeAlive.handle;
     if (nodeAliveRoot === null) {
       throw new Error('Retained materialization did not expose its node root');
@@ -83,6 +84,52 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
     expect(await harness.plumbing.execute({
       args: ['show-ref', '--verify', '--hash', 'refs/cas/caches/git-warp/materializations'],
     })).toMatch(/^[0-9a-f]{40}\n?$/u);
+    await acquisition.release();
+  });
+
+  it('keeps an acquired generation reachable across replacement until release', async () => {
+    const coordinate = workspaceCoordinate();
+    const firstTrie = await createTrieRoot(harness.cas, 7);
+    const firstRoots = await createRoots(harness.cas, firstTrie, 0);
+    const first = await harness.materializations.retain({
+      coordinate,
+      roots: firstRoots.roots,
+      stateHash: 'first-state-hash',
+    });
+    const acquisition = await harness.materializations.acquireExact(coordinate);
+    if (acquisition === null) {
+      throw new Error('Retained materialization could not be acquired');
+    }
+
+    const secondTrie = await createTrieRoot(harness.cas, 17);
+    const secondRoots = await createRoots(harness.cas, secondTrie, 16);
+    const second = await harness.materializations.retain({
+      coordinate,
+      roots: secondRoots.roots,
+      stateHash: 'second-state-hash',
+    });
+
+    await expireAllReflogs(harness.path);
+    await execFileAsync('git', ['-C', harness.path, 'prune', '--expire=now']);
+    expect(acquisition.materialization.bundle.equals(first.bundle)).toBe(true);
+    expect(acquisition.materialization.retention).toMatchObject({
+      policy: 'pinned',
+      reachability: 'anchored',
+      root: { locator: expect.stringContaining('cache-acquisitions') },
+    });
+    expect(await harness.cas.bundles.getMember({
+      handle: first.bundle.toString(),
+      path: 'meta/descriptor',
+    })).not.toBeNull();
+    expect(await prunableOids(harness.path)).not.toContain(
+      GitCasBundleHandle.parse(first.bundle.toString()).oid,
+    );
+
+    await acquisition.release();
+    await expireAllReflogs(harness.path);
+    const prunable = await prunableOids(harness.path);
+    expect(prunable).toContain(GitCasBundleHandle.parse(first.bundle.toString()).oid);
+    expect(prunable).not.toContain(GitCasBundleHandle.parse(second.bundle.toString()).oid);
   });
 
   it('keeps workspace roots readable across aggressive Git pruning', async () => {
@@ -209,9 +256,12 @@ type TrieRootFixture = Readonly<{
   root: BundleHandle;
 }>;
 
-async function createTrieRoot(cas: ContentAddressableStore): Promise<TrieRootFixture> {
+async function createTrieRoot(
+  cas: ContentAddressableStore,
+  seed = 7,
+): Promise<TrieRootFixture> {
   const adapter = new GitCasTrieStoreAdapter({ cas });
-  const bytes = new Uint8Array([7, 8, 9]);
+  const bytes = new Uint8Array([seed, seed + 1, seed + 2]);
   const leafRoot = await adapter.writeLeaf(bytes);
   const branchRoot = await adapter.writeBranch(new Map([[0, leafRoot]]));
   const leafMember = await cas.bundles.getMember({
@@ -235,6 +285,7 @@ async function createTrieRoot(cas: ContentAddressableStore): Promise<TrieRootFix
 async function createRoots(
   cas: ContentAddressableStore,
   trie: TrieRootFixture,
+  byteOffset = 0,
 ): Promise<Readonly<{
   retainedOids: readonly string[];
   roots: MaterializationRoots;
@@ -247,7 +298,7 @@ async function createRoots(
       retainedOids.push(...trie.retainedOids);
       continue;
     }
-    const page = await cas.pages.put({ source: new Uint8Array([index]) });
+    const page = await cas.pages.put({ source: new Uint8Array([index + byteOffset]) });
     const bundle = await cas.bundles.put({ members: { root: page.handle } });
     handles.push(new BundleHandle(bundle.handle.toString()));
     retainedOids.push(page.handle.oid, bundle.handle.oid);
@@ -357,4 +408,8 @@ async function prunableOids(path: string): Promise<Set<string>> {
       .map((line) => line.trim().split(/\s+/u)[0])
       .filter((oid): oid is string => oid !== undefined && oid.length > 0),
   );
+}
+
+async function expireAllReflogs(path: string): Promise<void> {
+  await execFileAsync('git', ['-C', path, 'reflog', 'expire', '--expire=now', '--all']);
 }

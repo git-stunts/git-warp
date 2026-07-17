@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { releaseWorkspaceAfterFailure } from '../../../../../src/domain/services/controllers/MaterializationWorkspaceCleanup.ts';
+import {
+  releaseAcquisitionAfterFailure,
+  releaseWorkspaceAfterFailure,
+} from '../../../../../src/domain/services/controllers/MaterializationWorkspaceCleanup.ts';
 import MaterializationWorkspacePort from '../../../../../src/ports/MaterializationWorkspacePort.ts';
 import { createMockLogger } from '../../../../helpers/WarpGraphMockLogger.ts';
 
@@ -30,6 +33,21 @@ describe('releaseWorkspaceAfterFailure', () => {
       logger,
     )).resolves.toBeUndefined();
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('releaseAcquisitionAfterFailure', () => {
+  it('preserves an active failure when acquisition release also fails', async () => {
+    const logger = createMockLogger();
+    const acquisition = {
+      release: () => Promise.reject(new Error('acquisition release unavailable')),
+    };
+
+    await expect(releaseAcquisitionAfterFailure(acquisition, logger)).resolves.toBeUndefined();
+    expect(logger.warn).toHaveBeenCalledWith(
+      '[warp] materialization acquisition release failed during error cleanup',
+      { error: 'acquisition release unavailable' },
+    );
   });
 });
 

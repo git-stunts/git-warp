@@ -2,6 +2,7 @@ import type {
   BundleCapability,
   BundleMember,
   BundleMemberInput,
+  CacheAcquisition,
   CacheHit,
   CacheSet,
   PageHandle,
@@ -22,6 +23,7 @@ import type CodecPort from '../../ports/CodecPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type MaterializationWorkspacePort from '../../ports/MaterializationWorkspacePort.ts';
 import MaterializationStorePort, {
+  type MaterializationAcquisition,
   type RetainMaterializationRequest,
 } from '../../ports/MaterializationStorePort.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
@@ -42,7 +44,7 @@ const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
 // A root-list change also requires a descriptor schema-version change.
 const MATERIALIZATION_MEMBER_COUNT = MATERIALIZATION_ROOT_NAMES.length + 1;
 
-type MaterializationCacheSet = Pick<CacheSet, 'get' | 'put' | 'remove'>;
+type MaterializationCacheSet = Pick<CacheSet, 'acquire' | 'put' | 'remove'>;
 
 export type GitCasMaterializationFacade = {
   readonly bundles: Pick<BundleCapability, 'iterateMembers' | 'putOrdered'>;
@@ -158,23 +160,34 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     return adaptGitCasRetentionWitness(stored.witness.toJSON());
   }
 
-  override async findExact(
+  override async acquireExact(
     coordinate: MaterializationCoordinate,
-  ): Promise<MaterializationHandle | null> {
+  ): Promise<MaterializationAcquisition | null> {
     requireCoordinate(coordinate);
     const cache = await this.#cas.caches.open({ namespace: CACHE_NAMESPACE });
-    const hit = await cache.get(await this.#cacheKey(coordinate));
-    if (hit === null) {
+    const acquisition = await cache.acquire(await this.#cacheKey(coordinate));
+    if (acquisition === null) {
       return null;
     }
-    if (hit.handle.kind !== 'bundle') {
-      throw storageError('cache entry does not reference a materialization bundle');
+    try {
+      if (acquisition.hit.handle.kind !== 'bundle') {
+        throw storageError('cache entry does not reference a materialization bundle');
+      }
+      const materialization = await this.#resolveHit(
+        acquisition.hit,
+        acquisition.evidence,
+        coordinate,
+      );
+      return materializationAcquisition(acquisition, materialization);
+    } catch (raw) {
+      await releaseCacheAcquisitionAfterFailure(acquisition);
+      throw raw;
     }
-    return await this.#resolveHit(hit, coordinate);
   }
 
   async #resolveHit(
     hit: CacheHit,
+    retention: CacheAcquisition['evidence'],
     requestedCoordinate: MaterializationCoordinate,
   ): Promise<MaterializationHandle> {
     const bundle = new BundleHandle(hit.handle.toString());
@@ -193,7 +206,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       coordinate: descriptor.coordinate,
       roots: materializationRootsFromDescriptor(descriptor, members.retainedRoots),
       stateHash: descriptor.stateHash,
-      retention: adaptGitCasRetentionWitness(hit.evidence.toJSON()),
+      retention: adaptGitCasRetentionWitness(retention.toJSON()),
     });
   }
 
@@ -226,6 +239,29 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       collectMaterializationMember(accumulator, member);
     }
     return finishMaterializationMembers(accumulator);
+  }
+}
+
+function materializationAcquisition(
+  acquisition: CacheAcquisition,
+  materialization: MaterializationHandle,
+): MaterializationAcquisition {
+  return Object.freeze({
+    materialization,
+    acquiredAt: acquisition.acquiredAt,
+    release: async () => {
+      await acquisition.release();
+    },
+  });
+}
+
+async function releaseCacheAcquisitionAfterFailure(
+  acquisition: CacheAcquisition,
+): Promise<void> {
+  try {
+    await acquisition.release();
+  } catch {
+    // git-cas doctor owns abandoned-acquisition diagnostics; preserve the primary failure.
   }
 }
 

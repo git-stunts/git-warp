@@ -4,6 +4,7 @@ import type MaterializationCoordinate from '../../../src/domain/materialization/
 import type MaterializationHandle from '../../../src/domain/materialization/MaterializationHandle.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import MaterializationStorePort, {
+  type MaterializationAcquisition,
   type RetainMaterializationRequest,
 } from '../../../src/ports/MaterializationStorePort.ts';
 import MaterializationWorkspacePort, {
@@ -100,15 +101,15 @@ class RecordingMaterializationStore extends MaterializationStorePort {
     return retained;
   }
 
-  override async findExact(
+  override async acquireExact(
     coordinate: MaterializationCoordinate,
-  ): Promise<MaterializationHandle | null> {
+  ): Promise<MaterializationAcquisition | null> {
     this.exactLookups.push(coordinate);
-    const hit = await this.#delegate.findExact(coordinate);
-    if (hit !== null) {
-      this.exactHits.push(hit);
+    const acquisition = await this.#delegate.acquireExact(coordinate);
+    if (acquisition !== null) {
+      this.exactHits.push(acquisition.materialization);
     }
-    return hit;
+    return acquisition;
   }
 }
 

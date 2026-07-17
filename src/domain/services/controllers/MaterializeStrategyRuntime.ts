@@ -22,6 +22,7 @@ import type {
 export type MaterializeLiveOptions = {
   receipts: boolean;
   wantDiff: boolean;
+  publishSnapshot?: boolean;
 };
 
 export type MaterializeCeilingOptions = {

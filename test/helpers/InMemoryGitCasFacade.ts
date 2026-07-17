@@ -14,6 +14,7 @@ import {
   type BundleHandleInput,
   type BundleCapability,
   type BundleMember,
+  type CacheAcquisition,
   type CacheSet,
   type PageHandleInput,
   type PageCapability,
@@ -48,7 +49,9 @@ export default class InMemoryGitCasFacade {
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
   readonly bundles: Pick<BundleCapability, 'getMember' | 'putOrdered' | 'iterateMembers'>;
   readonly caches: {
-    open(options: { readonly namespace: string }): Promise<Pick<CacheSet, 'get' | 'put' | 'remove'>>;
+    open(options: {
+      readonly namespace: string;
+    }): Promise<Pick<CacheSet, 'acquire' | 'get' | 'put' | 'remove'>>;
   };
   readonly pages: Pick<PageCapability, 'get' | 'put'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
@@ -57,10 +60,12 @@ export default class InMemoryGitCasFacade {
   readonly #storage: InMemoryBlobStorageAdapter;
   readonly #stagedAssetsByOid = new Map<string, StagedAsset>();
   readonly #bundleMembers = new Map<string, readonly [string, string][]>();
+  readonly #cacheAcquisitions = new Set<string>();
   readonly #cacheEntries = new Map<string, Map<string, CacheHit>>();
   readonly #pageBytes = new Map<string, Uint8Array>();
   readonly #publicationRoots = new Map<string, string>();
   #cacheGeneration = 0;
+  #nextCacheAcquisition = 1;
 
   constructor(options: {
     history: PublicationHistory;
@@ -104,6 +109,10 @@ export default class InMemoryGitCasFacade {
 
   readCacheHits(namespace: string): readonly CacheHit[] {
     return Object.freeze([...(this.#cacheEntries.get(namespace)?.values() ?? [])]);
+  }
+
+  readActiveCacheAcquisitionCount(): number {
+    return this.#cacheAcquisitions.size;
   }
 
   replaceStoredPage(handle: string, bytes: Uint8Array): void {
@@ -292,10 +301,47 @@ export default class InMemoryGitCasFacade {
     return bytes.slice();
   }
 
-  async #openCache(namespace: string): Promise<Pick<CacheSet, 'get' | 'put' | 'remove'>> {
+  async #openCache(
+    namespace: string,
+  ): Promise<Pick<CacheSet, 'acquire' | 'get' | 'put' | 'remove'>> {
     const entries = this.#cacheEntries.get(namespace) ?? new Map<string, CacheHit>();
     this.#cacheEntries.set(namespace, entries);
     return Object.freeze({
+      acquire: async (key): Promise<CacheAcquisition | null> => {
+        const hit = entries.get(key);
+        if (hit === undefined) {
+          return null;
+        }
+        const id = `test-acquisition-${String(this.#nextCacheAcquisition)}`;
+        this.#nextCacheAcquisition += 1;
+        this.#cacheAcquisitions.add(id);
+        const acquiredAt = new Date(0).toISOString();
+        const evidence = new RetentionWitness({
+          handle: hit.handle,
+          policy: 'pinned',
+          reachability: 'anchored',
+          root: {
+            kind: 'cache-set',
+            namespace,
+            ref: `refs/cas/cache-acquisitions/${namespace}/${id}`,
+            generation: hit.generation,
+            path: 'root-00000000',
+          },
+          observedAt: acquiredAt,
+        });
+        return Object.freeze({
+          id,
+          hit,
+          evidence,
+          acquiredAt,
+          release: async () => Object.freeze({
+            id,
+            generation: hit.generation,
+            changed: this.#cacheAcquisitions.delete(id),
+            releasedAt: new Date(0).toISOString(),
+          }),
+        });
+      },
       get: async (key) => entries.get(key) ?? null,
       put: async (key, handle, options) => {
         const previous = entries.get(key) ?? null;
