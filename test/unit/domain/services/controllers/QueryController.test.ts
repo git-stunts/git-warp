@@ -118,6 +118,7 @@ function createHost(state, overrides = {}) {
     _stateDirty: false,
     getFrontier: vi.fn().mockResolvedValue(new Map(frontier)),
     _ensureFreshState: vi.fn().mockResolvedValue(undefined),
+    _readLiveNodePresence: vi.fn().mockResolvedValue(null),
     _assetStorage: {
       open: vi.fn(() => chunks(new Uint8Array([1, 2, 3]))),
     },
@@ -180,6 +181,19 @@ describe('QueryController', () => {
       await ctrl.hasNode('alice');
       expect(host._ensureFreshState).toHaveBeenCalled();
     });
+
+    it.each([true, false])(
+      'returns retained node presence %s without requiring whole state',
+      async (presence) => {
+        host._cachedState = null;
+        host._readLiveNodePresence.mockResolvedValue(presence);
+
+        await expect(ctrl.hasNode('alice')).resolves.toBe(presence);
+
+        expect(host._readLiveNodePresence).toHaveBeenCalledWith('alice');
+        expect(host._ensureFreshState).not.toHaveBeenCalled();
+      },
+    );
   });
 
   // ── getNodes ─────────────────────────────────────────────────────────────

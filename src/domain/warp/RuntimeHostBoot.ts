@@ -5,6 +5,7 @@ import StateHashService from '../services/state/StateHashService.ts';
 import StateSession from '../orset/session/StateSession.ts';
 import PageCache from '../orset/trie/PageCache.ts';
 import TrieGeometry from '../orset/trie/TrieGeometry.ts';
+import TrieMaterializationReader from '../materialization/TrieMaterializationReader.ts';
 import WarpError from '../errors/WarpError.ts';
 import {
   buildEffectPipeline,
@@ -34,6 +35,7 @@ import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../../ports/IndexStorePort.ts';
 import type IntentStorePort from '../../ports/IntentStorePort.ts';
 import type MaterializationStorePort from '../../ports/MaterializationStorePort.ts';
+import type MaterializationReadPort from '../../ports/MaterializationReadPort.ts';
 import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
 import type SchedulerPort from '../../ports/SchedulerPort.ts';
@@ -71,6 +73,7 @@ export type RuntimeHostConstructionOptions = {
   indexStore: IndexStorePort;
   intentStore: IntentStorePort;
   materializations: MaterializationStorePort;
+  materializationRead?: MaterializationReadPort;
   viewService: MaterializedViewService;
   stateHashService?: StateHashService;
   auditService?: AuditReceiptService;
@@ -334,6 +337,7 @@ export async function resolveRuntimeHostConstructionOptions(
   }
 
   let resolvedOpenStateSession: MaterializeSessionOpener | undefined;
+  let resolvedMaterializationRead: MaterializationReadPort | undefined;
   if (openStateSession !== undefined) {
     resolvedOpenStateSession = openStateSession;
   } else if (storageServices.trie !== undefined) {
@@ -349,6 +353,12 @@ export async function resolveRuntimeHostConstructionOptions(
         pageCache: new PageCache({ maxResident: 256 }),
         workspace: sessionOptions.workspace,
       });
+  }
+  if (storageServices.trie !== undefined) {
+    resolvedMaterializationRead = new TrieMaterializationReader({
+      store: storageServices.trie,
+      codec: resolvedCodec,
+    });
   }
 
   return {
@@ -378,6 +388,9 @@ export async function resolveRuntimeHostConstructionOptions(
       indexStore: resolvedIndexStore,
       intentStore: storageServices.intents,
       materializations: storageServices.materializations,
+      ...(resolvedMaterializationRead === undefined
+        ? {}
+        : { materializationRead: resolvedMaterializationRead }),
       viewService: resolvedViewService,
       stateHashService: resolvedStateHashService,
       ...(resolvedAuditService !== undefined ? { auditService: resolvedAuditService } : {}),

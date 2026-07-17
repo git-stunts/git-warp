@@ -12,7 +12,6 @@ import {
 import {
   materializationSessionOpen,
   reduceSessionBackedState,
-  type MaterializeSessionOpener,
 } from './MaterializeSessionBridge.ts';
 import MaterializeLiveStrategy from './MaterializeLiveStrategy.ts';
 import MaterializeCoordinateStrategy from './MaterializeCoordinateStrategy.ts';
@@ -27,20 +26,12 @@ import {
   shouldPublishMaterializeSnapshot,
   type MaterializeSnapshotPublicationOptions,
 } from './MaterializeSnapshotPublication.ts';
-import type LoggerPort from '../../../ports/LoggerPort.ts';
-import type CodecPort from '../../../ports/CodecPort.ts';
-import type CryptoPort from '../../../ports/CryptoPort.ts';
-import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type {
-  default as WarpStateCachePort,
   WarpStateCoordinate,
   WarpStateSnapshotProvenancePosture,
 } from '../../../ports/WarpStateCachePort.ts';
-import type MaterializationStorePort from '../../../ports/MaterializationStorePort.ts';
 import type MaterializationWorkspacePort from '../../../ports/MaterializationWorkspacePort.ts';
-import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
-import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
 import PatchEntry from '../../artifacts/PatchEntry.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
@@ -61,23 +52,9 @@ import {
   releaseAcquisitionAfterFailure,
   releaseWorkspaceAfterFailure,
 } from './MaterializationWorkspaceCleanup.ts';
-export type MaterializePersistence = {
-  readRef(ref: string): Promise<string | null>;
-};
-/** Constructor dependencies for MaterializeController. */
-export type MaterializeDeps = {
-  logger: LoggerPort;
-  codec: CodecPort;
-  crypto: CryptoPort;
-  persistence: MaterializePersistence;
-  checkpointStore: CheckpointStorePort;
-  materializations: MaterializationStorePort;
-  getStateCache?: () => WarpStateCachePort | null;
-  openStateSession?: MaterializeSessionOpener;
-  patches: PatchCollector;
-  graphCloner: DetachedGraphFactory;
-  graphName: string;
-};
+import type { MaterializeDeps } from './MaterializeDeps.ts';
+
+export type { MaterializeDeps, MaterializePersistence } from './MaterializeDeps.ts';
 
 /** Full result of a materialization, returned to the caller. */
 export type MaterializeResult = {
@@ -99,6 +76,7 @@ type ReducerInput = Parameters<typeof reduceJoinedPatches>[0];
 function toReducerInput(patches: PatchWithSha[]): ReducerInput {
   return patches as ReducerInput;
 }
+
 export type MaterializeReduceOutput = {
   state: WarpState;
   adjacency?: MaterializeAdjacency;
@@ -182,6 +160,9 @@ export default class MaterializeController {
   }
   resolveLiveMaterialization(): Promise<LiveMaterializationResolution> {
     return this._liveStrategy.resolveMaterialization();
+  }
+  readLiveNodePresence(nodeId: string): Promise<boolean | null> {
+    return this._liveStrategy.readNodePresence(nodeId);
   }
 
   /** Coordinate materialization — explicit frontier. */

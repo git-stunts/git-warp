@@ -102,6 +102,14 @@ The bounded-memory read path is optic/worldline/query work over a sharded or
 streamed basis. The state cache is the replay-skipping compatibility bridge for
 legacy materialization and checkpoint flows.
 
+`RuntimeHost.hasNode()` is the first compatibility read to consume the
+handle-first path directly. On an exact retained-coordinate hit, it acquires the
+materialization, opens only the node-liveness trie through a bounded page cache,
+answers one membership question, and releases the acquisition. It does not
+hydrate `WarpState`, build adjacency, publish a state snapshot, or populate
+`_cachedState`. A cold handle miss still performs the current materialization
+path before retaining and reading the new root.
+
 ## `git-cas` Encapsulation
 
 Materialization-root retention routes through the formal
@@ -163,8 +171,9 @@ lost payload bytes, or run Git garbage collection.
 
 ## Current Limitations
 
-- RuntimeHost and checkpoint creation do not yet consume the handle-first
-  result, so their compatibility path still owns process-resident whole state.
+- RuntimeHost exact node-liveness reads consume the handle-first result.
+  Properties, neighborhoods, list reads, checkpoint creation, and other
+  compatibility operations still own process-resident whole state.
 - Exact state-cache hits bypass replay, but full materialization still hydrates
   a full `WarpState`, scans retained node/edge tries, and builds full adjacency.
 - Retained materialization descriptors currently carry node/edge trie roots;

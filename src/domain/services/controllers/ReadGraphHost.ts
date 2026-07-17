@@ -28,6 +28,7 @@ export type FreshStateHost = {
 };
 
 export type QueryReadHost = FreshStateHost & {
+  _readLiveNodePresence?(nodeId: string): Promise<boolean | null>;
   _propertyReader: PropertyIndexReader | null;
   _logicalIndex: LogicalIndex | null;
   _materializedGraph: MaterializedReadGraph | null;

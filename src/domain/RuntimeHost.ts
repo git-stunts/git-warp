@@ -402,6 +402,9 @@ export default class RuntimeHost {
       persistence: this._persistence,
       checkpointStore,
       materializations,
+      ...(options.materializationRead === undefined
+        ? {}
+        : { materializationRead: options.materializationRead }),
       getStateCache: () => this._stateCache ?? null,
       ...(openStateSession === undefined ? {} : { openStateSession }),
       patches: new RuntimePatchCollector(this),
@@ -420,6 +423,10 @@ export default class RuntimeHost {
     this._checkpointStore = checkpointStore;
     this._indexStore = indexStore;
     this._auditService = auditService || null;
+  }
+
+  _readLiveNodePresence(nodeId: string): Promise<boolean | null> {
+    return this._materializeController.readLiveNodePresence(nodeId);
   }
 
   /**
