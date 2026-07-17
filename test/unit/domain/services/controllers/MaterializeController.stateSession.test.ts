@@ -5,6 +5,7 @@ import PatchEntry from "../../../../../src/domain/artifacts/PatchEntry.ts";
 import MaterializeController from "../../../../../src/domain/services/controllers/MaterializeController.ts";
 import { reduceSessionBackedState } from "../../../../../src/domain/services/controllers/MaterializeSessionBridge.ts";
 import NodeAdd from "../../../../../src/domain/types/ops/NodeAdd.ts";
+import NodePropSet from "../../../../../src/domain/types/ops/NodePropSet.ts";
 import EdgeAdd from "../../../../../src/domain/types/ops/EdgeAdd.ts";
 import StateSession from "../../../../../src/domain/orset/session/StateSession.ts";
 import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
@@ -25,6 +26,7 @@ import type MaterializationWorkspacePort from "../../../../../src/ports/Material
 import MaterializationCoordinate from "../../../../../src/domain/materialization/MaterializationCoordinate.ts";
 import MaterializationHandle from "../../../../../src/domain/materialization/MaterializationHandle.ts";
 import type { RetainMaterializationRequest } from "../../../../../src/ports/MaterializationStorePort.ts";
+import MockIndexStorage from "../../../../helpers/MockIndexStorage.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -47,6 +49,30 @@ function nodeAddPatchRecord(args: {
       lamport: args.lamport,
       context: {},
       ops: [new NodeAdd(args.node, Dot.create(args.writer, args.lamport))],
+      reads: [],
+      writes: [args.node],
+    }),
+    sha: args.sha,
+  };
+}
+
+function nodePropertyPatchRecord(args: {
+  readonly writer: string;
+  readonly lamport: number;
+  readonly sha: string;
+  readonly node: string;
+  readonly key: string;
+  readonly value: string;
+}): PatchRecord {
+  return {
+    patch: new Patch({
+      writer: args.writer,
+      lamport: args.lamport,
+      context: {},
+      ops: [
+        new NodeAdd(args.node, Dot.create(args.writer, args.lamport)),
+        new NodePropSet(args.node, args.key, args.value),
+      ],
       reads: [],
       writes: [args.node],
     }),
@@ -503,6 +529,43 @@ describe("MaterializeController — state session integration", () => {
     expect(reopened.state.nodeAlive.contains("node:retained")).toBe(true);
     expect(warm.materialization?.bundle.equals(cold.materialization?.bundle)).toBe(true);
     expect(reopened.materialization?.bundle.equals(cold.materialization?.bundle)).toBe(true);
+  });
+
+  it("promotes a newly available property root instead of reusing an incomplete handle", async () => {
+    const fixtures = createControllerFixtures();
+    fixtures.patches.collectForFrontier.mockResolvedValue([
+      nodePropertyPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:retained",
+        key: "status",
+        value: "ready",
+      }),
+    ]);
+    const cold = await fixtures.controller.materialize();
+    const published = fixtures.stateCache.put.mock.calls[0]?.[0];
+    if (cold.materialization === undefined || published === undefined) {
+      throw new Error("Cold materialization did not publish retained state");
+    }
+    expect(cold.materialization.roots.properties.status).toBe("unavailable");
+
+    fixtures.stateCache.getExact.mockResolvedValue(published);
+    const propertyStore = new MockIndexStorage();
+    const upgradedController = new MaterializeController({
+      ...fixtures.deps,
+      propertyStore,
+    });
+    const upgraded = await upgradedController.materialize();
+    const reused = await upgradedController.materialize();
+
+    expect(fixtures.materializations.retainedRequests).toHaveLength(2);
+    expect(upgraded.materialization?.roots.properties.status).toBe("retained");
+    expect(upgraded.materialization?.bundle.equals(cold.materialization.bundle)).toBe(false);
+    expect(reused.materialization?.bundle.equals(upgraded.materialization?.bundle)).toBe(true);
+    expect(propertyStore.writeBlob).toHaveBeenCalledOnce();
+    expect(fixtures.materializations.workspaces[1]?.checkpoints.at(-1)?.propertiesRoot)
+      .toBe(upgraded.materialization?.roots.properties.handle?.toString());
   });
 
   it("does not retry an exact acquisition release failure", async () => {

@@ -6,6 +6,7 @@ import type StateSession from "../../orset/session/StateSession.ts";
 import type MaterializationStorePort from "../../../ports/MaterializationStorePort.ts";
 import type MaterializationWorkspacePort from "../../../ports/MaterializationWorkspacePort.ts";
 import type LoggerPort from "../../../ports/LoggerPort.ts";
+import type IndexStorePort from "../../../ports/IndexStorePort.ts";
 import type MaterializationCoordinate from "../../materialization/MaterializationCoordinate.ts";
 import type StorageRetentionWitness from "../../storage/StorageRetentionWitness.ts";
 import MaterializationRoot from "../../materialization/MaterializationRoot.ts";
@@ -23,6 +24,15 @@ import {
   type MaterializeAdjacency,
 } from "./MaterializeHelpers.ts";
 import { releaseWorkspaceAfterFailure } from "./MaterializationWorkspaceCleanup.ts";
+import PropertyIndexBuilder from "../index/PropertyIndexBuilder.ts";
+import WarpStream from "../../stream/WarpStream.ts";
+import type { IndexShard } from "../../artifacts/IndexShard.ts";
+import {
+  materializationPropertyShardKey,
+  MAX_MATERIALIZATION_PROPERTY_SHARDS,
+  MAX_MATERIALIZATION_PROPERTY_SHARD_BYTES,
+  requireMaterializationPropertyShardCount,
+} from "../../materialization/MaterializationPropertyProfile.ts";
 
 export type MaterializeSessionOpen = {
   readonly nodeAliveRootOid: string | null;
@@ -42,6 +52,8 @@ export async function reduceSessionBackedState(args: {
   readonly openStateSession: MaterializeSessionOpener;
   readonly materializations: MaterializationStorePort;
   readonly logger?: LoggerPort;
+  readonly propertyStore?: IndexStorePort;
+  readonly propertyRoot?: MaterializationRoot;
   readonly coordinate: MaterializationCoordinate;
   readonly patches: MaterializeSessionPatchSource;
   readonly baseState?: WarpStateClass;
@@ -59,6 +71,13 @@ export async function reduceSessionBackedState(args: {
 }> {
   const workspace = await args.materializations.openWorkspace(args.coordinate);
   try {
+    let reducedPatchCount = 0;
+    const patches = (async function* (): AsyncIterable<PatchEntry> {
+      for await (const patch of args.patches) {
+        reducedPatchCount += 1;
+        yield patch;
+      }
+    })();
     const frame = await openReducerSessionFrame(
       args.openStateSession,
       workspace,
@@ -72,7 +91,7 @@ export async function reduceSessionBackedState(args: {
       readonly diff?: PatchDiff;
     };
     if (args.receipts) {
-      const result = await reducePatchesInSession(args.patches, frame, {
+      const result = await reducePatchesInSession(patches, frame, {
         receipts: true,
       });
       const adjacency = await buildAdjacencyFromSession(result.frame.session);
@@ -82,7 +101,7 @@ export async function reduceSessionBackedState(args: {
         receipts: result.receipts,
       };
     } else if (args.wantDiff) {
-      const result = await reducePatchesInSession(args.patches, frame, {
+      const result = await reducePatchesInSession(patches, frame, {
         trackDiff: true,
       });
       const adjacency = await buildAdjacencyFromSession(result.frame.session);
@@ -92,7 +111,7 @@ export async function reduceSessionBackedState(args: {
         diff: result.diff,
       };
     } else {
-      const result = await reducePatchesInSession(args.patches, frame);
+      const result = await reducePatchesInSession(patches, frame);
       const adjacency = await buildAdjacencyFromSession(result.session);
       reduced = {
         state: await projectFrameToState(result),
@@ -101,7 +120,13 @@ export async function reduceSessionBackedState(args: {
     }
 
     const close = await frame.session.prepareClose();
-    const roots = materializationRootsFromSession(close.roots);
+    const properties = await resolvePropertyRoot(
+      reduced.state,
+      args.propertyStore,
+      reducedPatchCount === 0 ? args.propertyRoot : undefined,
+    );
+    await retainPreparedPropertyRoot(workspace, close.roots, properties);
+    const roots = materializationRootsFromSession(close.roots, properties);
     return {
       ...reduced,
       roots,
@@ -162,6 +187,7 @@ export function materializationSessionOpen(
 
 function materializationRootsFromSession(
   roots: MaterializeSessionOpen,
+  properties: MaterializationRoot,
 ): MaterializationRoots {
   return new MaterializationRoots({
     adjacency: MaterializationRoot.unavailable(),
@@ -169,9 +195,69 @@ function materializationRootsFromSession(
     edgeBirths: MaterializationRoot.unavailable(),
     frontier: MaterializationRoot.unavailable(),
     nodeAlive: sessionMaterializationRoot(roots.nodeAliveRootOid),
-    properties: MaterializationRoot.unavailable(),
+    properties,
     provenanceSupport: MaterializationRoot.unavailable(),
     roaringIndexes: MaterializationRoot.unavailable(),
+  });
+}
+
+async function materializePropertyRoot(
+  state: WarpStateClass,
+  store: IndexStorePort | undefined,
+): Promise<MaterializationRoot> {
+  if (store === undefined) {
+    return MaterializationRoot.unavailable();
+  }
+  const builder = new PropertyIndexBuilder({
+    schemaVersion: 2,
+    shardKey: materializationPropertyShardKey,
+  });
+  let propertyCount = 0;
+  for (const entry of state.nodeProperties()) {
+    if (state.nodeAlive.contains(entry.nodeId)) {
+      builder.addProperty(entry.nodeId, entry.key, entry.register.value);
+      propertyCount += 1;
+    }
+  }
+  if (propertyCount === 0) {
+    return MaterializationRoot.empty();
+  }
+  const shardCount = builder.shardCount();
+  requireMaterializationPropertyShardCount(shardCount);
+  const handle = await store.writeShards(
+    WarpStream.from<IndexShard>(builder.yieldShards()),
+    {
+      expectedShardCount: shardCount,
+      maxShardCount: MAX_MATERIALIZATION_PROPERTY_SHARDS,
+      maxShardBytes: MAX_MATERIALIZATION_PROPERTY_SHARD_BYTES,
+    },
+  );
+  return MaterializationRoot.retained(handle);
+}
+
+async function resolvePropertyRoot(
+  state: WarpStateClass,
+  store: IndexStorePort | undefined,
+  existing: MaterializationRoot | undefined,
+): Promise<MaterializationRoot> {
+  if (existing !== undefined && existing.status !== "unavailable") {
+    return existing;
+  }
+  return await materializePropertyRoot(state, store);
+}
+
+async function retainPreparedPropertyRoot(
+  workspace: MaterializationWorkspacePort,
+  roots: MaterializeSessionOpen,
+  properties: MaterializationRoot,
+): Promise<void> {
+  if (properties.status !== 'retained' || properties.handle === null) {
+    return;
+  }
+  await workspace.checkpoint({
+    nodeAliveRoot: roots.nodeAliveRootOid,
+    edgeAliveRoot: roots.edgeAliveRootOid,
+    propertiesRoot: properties.handle.toString(),
   });
 }
 
@@ -223,9 +309,9 @@ async function projectFrameToState(
   return new WarpStateClass({
     nodeAlive: await projectORSet(frame.session.scanNodeElementStates()),
     edgeAlive: await projectORSet(frame.session.scanEdgeElementStates()),
-    prop: new Map(frame.prop),
-    observedFrontier: frame.observedFrontier.clone(),
-    edgeBirthEvent: new Map(frame.edgeBirthEvent),
+    prop: frame.prop,
+    observedFrontier: frame.observedFrontier,
+    edgeBirthEvent: frame.edgeBirthEvent,
   });
 }
 

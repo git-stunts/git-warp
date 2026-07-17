@@ -359,6 +359,7 @@ export async function resolveRuntimeHostConstructionOptions(
       store,
       codec: resolvedCodec,
       geometry,
+      indexStore: resolvedIndexStore,
     });
   }
 

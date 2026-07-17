@@ -41,10 +41,12 @@ const CACHE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_CACHE_NAMESPACE = 'git-warp/materialization-workspaces';
 const DESCRIPTOR_PATH = 'meta/descriptor';
 const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
+const LEGACY_MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 2;
 // A root-list change also requires a descriptor schema-version change.
 const MATERIALIZATION_MEMBER_COUNT = MATERIALIZATION_ROOT_NAMES.length + 1;
 
 type MaterializationCacheSet = Pick<CacheSet, 'acquire' | 'put' | 'remove'>;
+type MaterializationCachePut = Awaited<ReturnType<MaterializationCacheSet['put']>>;
 
 export type GitCasMaterializationFacade = {
   readonly bundles: Pick<BundleCapability, 'iterateMembers' | 'putOrdered'>;
@@ -150,14 +152,20 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   ): Promise<StorageRetentionWitness> {
     const cache = await this.#cas.caches.open({ namespace: CACHE_NAMESPACE });
     const cacheKey = await this.#cacheKey(coordinate);
+    const expectedHandle = bundle.handle.toString();
     const stored = await cache.put(cacheKey, bundle.handle, { retention: 'evictable' });
-    if (!stored.accepted || stored.hit === null || stored.witness === null) {
-      throw storageError('git-cas did not retain the materialization bundle');
+    const retention = requireStoredMaterialization(stored, expectedHandle);
+    const acquisition = await cache.acquire(cacheKey);
+    if (acquisition === null) {
+      throw storageError('git-cas lost the retained materialization before legacy cleanup');
     }
-    if (stored.hit.handle.toString() !== bundle.handle.toString()) {
-      throw storageError('git-cas retained an unexpected materialization handle');
+    try {
+      requireExpectedAcquisition(acquisition, expectedHandle);
+      await this.#removeLegacyEntry(cache, coordinate);
+      return adaptGitCasRetentionWitness(retention.toJSON());
+    } finally {
+      await acquisition.release();
     }
-    return adaptGitCasRetentionWitness(stored.witness.toJSON());
   }
 
   override async acquireExact(
@@ -210,9 +218,12 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     });
   }
 
-  async #cacheKey(coordinate: MaterializationCoordinate): Promise<string> {
+  async #cacheKey(
+    coordinate: MaterializationCoordinate,
+    schemaVersion = MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
+  ): Promise<string> {
     const encoded = this.#codec.encode({
-      schemaVersion: MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
+      schemaVersion,
       laneName: this.#laneName,
       coordinate: materializationCoordinateData(coordinate),
     });
@@ -220,7 +231,18 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       await this.#crypto.hash('sha256', encoded),
       'coordinate digest',
     );
-    return `v${MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION}:${digest}`;
+    return `v${String(schemaVersion)}:${digest}`;
+  }
+
+  async #removeLegacyEntry(
+    cache: MaterializationCacheSet,
+    coordinate: MaterializationCoordinate,
+  ): Promise<void> {
+    const key = await this.#cacheKey(
+      coordinate,
+      LEGACY_MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
+    );
+    await cache.remove(key);
   }
 
   async #readDescriptor(handle: PageHandle): Promise<DecodedMaterializationDescriptor> {
@@ -352,6 +374,28 @@ function requireRetainedHandle(
   return root.handle;
 }
 
+function requireStoredMaterialization(
+  stored: MaterializationCachePut,
+  expectedHandle: string,
+): Exclude<MaterializationCachePut['witness'], null> {
+  if (!stored.accepted || stored.hit === null || stored.witness === null) {
+    throw storageError('git-cas did not retain the materialization bundle');
+  }
+  if (stored.hit.handle.toString() !== expectedHandle) {
+    throw storageError('git-cas retained an unexpected materialization handle');
+  }
+  return stored.witness;
+}
+
+function requireExpectedAcquisition(
+  acquisition: CacheAcquisition,
+  expectedHandle: string,
+): void {
+  if (acquisition.hit.handle.toString() !== expectedHandle) {
+    throw storageError('git-cas acquired an unexpected materialization before legacy cleanup');
+  }
+}
+
 function parseRootName(path: string): MaterializationRootName | null {
   const prefix = 'roots/';
   if (!path.startsWith(prefix)) {
@@ -368,6 +412,13 @@ function requireRetainRequest(request: RetainMaterializationRequest): void {
   requireCoordinate(request.coordinate);
   if (!(request.roots instanceof MaterializationRoots)) {
     throw storageError('retain request roots have an invalid runtime identity');
+  }
+  requireCurrentPropertyRoot(request.roots);
+}
+
+function requireCurrentPropertyRoot(roots: MaterializationRoots): void {
+  if (roots.properties.status === 'unavailable') {
+    throw storageError('current materialization profile requires a property root');
   }
 }
 

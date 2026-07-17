@@ -16,26 +16,254 @@ import type AssetHandle from '../../storage/AssetHandle.ts';
 import { isPropValue, type PropValue } from '../../types/PropValue.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
 
-type IndexedPropertyBag = { [key: string]: PropValue };
-type PropertyShard = { [nodeId: string]: IndexedPropertyBag };
-type PropertyShardEntry = readonly [string, IndexedPropertyBag];
-
-function createNullRecord(): PropertyShard {
-  return {};
-}
+export type IndexedPropertyBag = { [key: string]: PropValue };
+type PropertyShard = ReadonlyMap<string, IndexedPropertyBag>;
+type PropertyShardSchemaVersion = 1 | 2;
+export type DecodedPropertyShardArtifact = Readonly<{
+  readonly schemaVersion: PropertyShardSchemaVersion;
+  readonly entries: PropertyShard;
+}>;
+type PropertyShardDecodeContext = {
+  readonly data: Map<string, IndexedPropertyBag>;
+  readonly path: string;
+  readonly schemaVersion: PropertyShardSchemaVersion;
+};
+type PropertyShardPayload = Readonly<{
+  readonly schemaVersion: PropertyShardSchemaVersion;
+  readonly entries: ReadonlyArray<CodecValue>;
+}>;
+type PropertyShardKeyResolver = (
+  nodeId: string,
+  schemaVersion: PropertyShardSchemaVersion,
+) => string;
 
 function isIndexedPropertyBag(value: CodecValue): value is IndexedPropertyBag {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  if (!isCodecRecord(value)) {
     return false;
   }
-  return Object.values(value).every((entry) => isPropValue(entry));
+  return Object.entries(value).every(
+    ([key, entry]) => isValidPropertyKey(key) && isPropValue(entry),
+  );
 }
 
-function isPropertyShardEntry(value: CodecValue): value is PropertyShardEntry {
-  return Array.isArray(value)
-    && value.length === 2
-    && typeof value[0] === 'string'
-    && isIndexedPropertyBag(value[1]);
+function isValidPropertyKey(value: string): boolean {
+  return value.length > 0 && !value.includes('\0');
+}
+
+/** Validates one decoded property shard without retaining it beyond the caller. */
+export function decodePropertyShard(
+  decoded: CodecValue,
+  path: string,
+  shardKeyForNode: PropertyShardKeyResolver = computeShardKey,
+): PropertyShard {
+  return decodeRoutedPropertyShardArtifact(decoded, path, shardKeyForNode).entries;
+}
+
+/** Validates one current-profile property shard and requires schema v2. */
+export function decodeCurrentPropertyShard(
+  decoded: CodecValue,
+  path: string,
+  shardKeyForNode: PropertyShardKeyResolver,
+): PropertyShard {
+  const artifact = decodeRoutedPropertyShardArtifact(decoded, path, shardKeyForNode);
+  if (artifact.schemaVersion !== 2) {
+    throw malformedPropertyShard(path, 'retained property root requires current schema');
+  }
+  return artifact.entries;
+}
+
+/** Decodes one property artifact and validates its physical routing profile. */
+export function decodeRoutedPropertyShardArtifact(
+  decoded: CodecValue,
+  path: string,
+  shardKeyForNode: PropertyShardKeyResolver = computeShardKey,
+): DecodedPropertyShardArtifact {
+  const artifact = decodePropertyShardArtifact(decoded, path);
+  validatePropertyShardRouting(artifact, path, shardKeyForNode);
+  return artifact;
+}
+
+function validatePropertyShardRouting(
+  artifact: DecodedPropertyShardArtifact,
+  path: string,
+  shardKeyForNode: PropertyShardKeyResolver,
+): void {
+  for (const nodeId of artifact.entries.keys()) {
+    if (path !== `props_${shardKeyForNode(nodeId, artifact.schemaVersion)}.cbor`) {
+      throw malformedPropertyShard(path, 'node entry belongs to another shard');
+    }
+  }
+}
+
+/** Decodes a property artifact without assuming a specific physical routing profile. */
+export function decodePropertyShardArtifact(
+  decoded: CodecValue,
+  path: string,
+): DecodedPropertyShardArtifact {
+  const payload = decodePropertyShardPayload(decoded, path);
+  const data = new Map<string, IndexedPropertyBag>();
+  const context = { data, path, schemaVersion: payload.schemaVersion };
+  for (const entry of payload.entries) {
+    addPropertyShardEntry(context, entry);
+  }
+  return Object.freeze({ schemaVersion: payload.schemaVersion, entries: data });
+}
+
+function decodePropertyShardPayload(decoded: CodecValue, path: string): PropertyShardPayload {
+  if (Array.isArray(decoded)) {
+    return Object.freeze({ schemaVersion: 1, entries: decoded });
+  }
+  return decodeCurrentPropertyShardPayload(decoded, path);
+}
+
+function decodeCurrentPropertyShardPayload(
+  decoded: CodecValue,
+  path: string,
+): PropertyShardPayload {
+  if (!isCodecRecord(decoded)) {
+    throw malformedPropertyShard(path, 'expected a legacy entry array or current schema envelope');
+  }
+  if (!hasPropertyShardEnvelopeKeys(decoded)) {
+    throw malformedPropertyShard(path, 'invalid current property shard envelope');
+  }
+  const { entries, schemaVersion } = decoded;
+  if (schemaVersion !== 2) {
+    throw malformedPropertyShard(path, 'unsupported property shard schema version');
+  }
+  if (!Array.isArray(entries)) {
+    throw malformedPropertyShard(path, 'current property shard entries must be an array');
+  }
+  return Object.freeze({ schemaVersion: 2, entries });
+}
+
+function hasPropertyShardEnvelopeKeys(
+  decoded: { readonly [key: string]: CodecValue },
+): boolean {
+  const keys = Object.keys(decoded).sort();
+  return keys.length === 2 && keys[0] === 'entries' && keys[1] === 'schemaVersion';
+}
+
+function isCodecRecord(
+  value: CodecValue,
+): value is { readonly [key: string]: CodecValue } {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+  if (isNonRecordCodecValue(value)) {
+    return false;
+  }
+  const prototype = Reflect.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function isNonRecordCodecValue(value: object): boolean {
+  return Array.isArray(value) || value instanceof Uint8Array || value instanceof Date;
+}
+
+function addPropertyShardEntry(
+  context: PropertyShardDecodeContext,
+  candidate: CodecValue,
+): void {
+  const [nodeId, bag] = decodePropertyShardEntry(candidate, context.path);
+  if (context.data.has(nodeId)) {
+    throw malformedPropertyShard(context.path, 'duplicate node entry');
+  }
+  context.data.set(nodeId, decodePropertyBag(bag, context.path, context.schemaVersion));
+}
+
+function decodePropertyShardEntry(
+  candidate: CodecValue,
+  path: string,
+): readonly [string, CodecValue] {
+  if (!isPropertyShardTuple(candidate) || !isValidNodeId(candidate[0])) {
+    throw malformedPropertyShard(path, 'invalid node entry');
+  }
+  return [candidate[0], candidate[1]];
+}
+
+function isPropertyShardTuple(
+  candidate: CodecValue,
+): candidate is [string, CodecValue] {
+  return Array.isArray(candidate)
+    && candidate.length === 2
+    && typeof candidate[0] === 'string';
+}
+
+function isValidNodeId(nodeId: string): boolean {
+  return nodeId.length > 0 && !nodeId.includes('\0');
+}
+
+function decodePropertyBag(
+  candidate: CodecValue,
+  path: string,
+  schemaVersion: PropertyShardSchemaVersion,
+): IndexedPropertyBag {
+  if (schemaVersion === 1) {
+    if (!isIndexedPropertyBag(candidate)) {
+      throw malformedPropertyShard(path, 'legacy property bag must be an object');
+    }
+    return createPropertyBag(Object.entries(candidate), path);
+  }
+  if (!Array.isArray(candidate)) {
+    throw malformedPropertyShard(path, 'current property bag must be an entry array');
+  }
+  return decodePropertyBagEntries(candidate, path);
+}
+
+function decodePropertyBagEntries(
+  entries: CodecValue[],
+  path: string,
+): IndexedPropertyBag {
+  return createPropertyBag(entries, path);
+}
+
+function createPropertyBag(
+  entries: ReadonlyArray<CodecValue | readonly [string, PropValue]>,
+  path: string,
+): IndexedPropertyBag {
+  const bag: IndexedPropertyBag = {};
+  Reflect.setPrototypeOf(bag, null);
+  for (const candidate of entries) {
+    addPropertyBagEntry(bag, candidate, path);
+  }
+  return Object.freeze(bag);
+}
+
+function addPropertyBagEntry(
+  bag: IndexedPropertyBag,
+  candidate: CodecValue,
+  path: string,
+): void {
+  if (!isDecodedPropertyBagEntry(candidate)) {
+    throw malformedPropertyShard(path, 'invalid property entry');
+  }
+  const [key, value] = candidate;
+  if (Object.hasOwn(bag, key)) {
+    throw malformedPropertyShard(path, 'duplicate property entry');
+  }
+  Object.defineProperty(bag, key, {
+    value,
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
+}
+
+function isDecodedPropertyBagEntry(
+  candidate: CodecValue,
+): candidate is [string, PropValue] {
+  return Array.isArray(candidate)
+    && candidate.length === 2
+    && typeof candidate[0] === 'string'
+    && isValidPropertyKey(candidate[0])
+    && isPropValue(candidate[1]);
+}
+
+function malformedPropertyShard(path: string, reason: string): IndexError {
+  return new IndexError(`PropertyIndexReader: invalid shard '${path}' (${reason})`, {
+    code: 'E_INDEX_SHARD_MALFORMED',
+    context: { path, reason },
+  });
 }
 
 export default class PropertyIndexReader {
@@ -82,7 +310,7 @@ export default class PropertyIndexReader {
     if (!shard) {
       return null;
     }
-    return shard[nodeId] ?? null;
+    return shard.get(nodeId) ?? null;
   }
 
   /**
@@ -93,7 +321,7 @@ export default class PropertyIndexReader {
     if (!props) {
       return undefined;
     }
-    return props[key];
+    return Object.hasOwn(props, key) ? props[key] : undefined;
   }
 
   private async _loadShard(nodeId: string): Promise<PropertyShard | null> {
@@ -143,24 +371,7 @@ export default class PropertyIndexReader {
   }
 
   private _parseShard(decoded: CodecValue, path: string): PropertyShard {
-    if (!Array.isArray(decoded)) {
-      const shape = decoded === null ? 'null' : typeof decoded;
-      throw new IndexError(
-        `PropertyIndexReader: invalid shard format for '${path}' (expected array, got ${shape})`,
-        { code: 'E_INDEX_SHARD_MALFORMED', context: { path, shape } },
-      );
-    }
-
-    const data = createNullRecord();
-    for (const entry of decoded) {
-      if (!isPropertyShardEntry(entry)) {
-        throw new IndexError(
-          `PropertyIndexReader: invalid shard property bag for '${path}'`,
-          { code: 'E_INDEX_SHARD_MALFORMED', context: { path } },
-        );
-      }
-      data[entry[0]] = entry[1];
-    }
+    const data = decodePropertyShard(decoded, path);
     this._cache.set(path, data);
     return data;
   }

@@ -2,6 +2,7 @@ import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
+import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type MaterializationReadPort from '../../../ports/MaterializationReadPort.ts';
 import type MaterializationStorePort from '../../../ports/MaterializationStorePort.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
@@ -22,6 +23,7 @@ export type MaterializeDeps = {
   checkpointStore: CheckpointStorePort;
   materializations: MaterializationStorePort;
   materializationRead?: MaterializationReadPort;
+  propertyStore?: IndexStorePort;
   getStateCache?: () => WarpStateCachePort | null;
   openStateSession?: MaterializeSessionOpener;
   patches: PatchCollector;

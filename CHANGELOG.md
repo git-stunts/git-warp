@@ -72,6 +72,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Live exact node-property reads now retain collision-safe property shards as
+  an independently addressed materialization root. Each node uses its full
+  BLAKE3 route key and a deterministic schema-v2 entry-bag envelope; writes and
+  reads enforce a 16 MiB shard ceiling, while reads also bound CBOR structure
+  before decoding. Git-backed runtimes resolve one shard through exact `git-cas`
+  bundle lookup and release the acquisition without replaying patches, hydrating
+  `WarpState`, or populating a WARP-owned property cache. Newly built property
+  roots, once assembled, remain pinned by the operation workspace until final
+  promotion.
+  The flat property-root profile also rejects more than 100,000 shards before
+  asset staging. Materialization descriptor/cache schema v3 replaces incomplete
+  v2 entries and removes the
+  corresponding legacy cache anchor through git-cas only after successful v3
+  retention. Schema-v3 materializations require the property root to be either
+  retained or explicitly empty; they reject `unavailable` property roots.
 - Exact state-cache hits now retain and reopen coordinate-keyed materialization
   descriptors through the `git-cas` cache API. Repeated materialization,
   including through a fresh runtime adapter, resumes the retained node/edge

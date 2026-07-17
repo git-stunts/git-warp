@@ -1,5 +1,8 @@
 import type { BundleCapability } from '@git-stunts/git-cas';
-import IndexStorePort from '../../ports/IndexStorePort.ts';
+import IndexStorePort, {
+  type IndexShardDecodeOptions,
+  type IndexShardWriteOptions,
+} from '../../ports/IndexStorePort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type CodecValue from '../../domain/types/codec/CodecValue.ts';
@@ -16,10 +19,20 @@ import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import IndexError from '../../domain/errors/IndexError.ts';
 import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
+import computeShardKey from '../../domain/utils/shardKey.ts';
+import { materializationPropertyShardKey } from '../../domain/materialization/MaterializationPropertyProfile.ts';
+import { validateBoundedCbor } from './BoundedCborValidation.ts';
+import { decodeRoutedPropertyShardArtifact } from '../../domain/services/index/PropertyIndexReader.ts';
 
 export type GitCasIndexFacade = {
-  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
+  readonly bundles: Pick<BundleCapability, 'getMember' | 'putOrdered' | 'iterateMembers'>;
 };
+
+type ValidatedIndexShardWriteLimits = Readonly<{
+  expectedShardCount: number | undefined;
+  maxShardBytes: number | undefined;
+  maxShardCount: number | undefined;
+}>;
 
 function classifyMeta(match: RegExpMatchArray, data: unknown): MetaShard {
   const d = data as { nodeToGlobal: Array<[string, number]>; nextLocalId: number; alive: Uint8Array };
@@ -46,9 +59,21 @@ function classifyLabel(_match: RegExpMatchArray, data: unknown): LabelShard {
 }
 
 function classifyProperty(match: RegExpMatchArray, data: unknown): PropertyShard {
+  const path = match[0];
+  const decoded = decodeRoutedPropertyShardArtifact(
+    data as CodecValue, // nosemgrep: ts-no-unsafe-type-assertion -- validated by decoder
+    path,
+    (nodeId, schemaVersion) => schemaVersion === 2
+      ? materializationPropertyShardKey(nodeId)
+      : computeShardKey(nodeId),
+  );
   return new PropertyShard({
     shardKey: match[1] as string,
-    entries: data as Array<[string, Record<string, unknown>]>,
+    schemaVersion: decoded.schemaVersion,
+    entries: Array.from(
+      decoded.entries,
+      ([nodeId, properties]): [string, Record<string, unknown>] => [nodeId, properties],
+    ),
   });
 }
 
@@ -104,9 +129,19 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     this._cas = cas;
   }
 
-  override async writeShards(shardStream: WarpStream<IndexShard>): Promise<BundleHandle> {
+  override async writeShards(
+    shardStream: WarpStream<IndexShard>,
+    options: IndexShardWriteOptions = {},
+  ): Promise<BundleHandle> {
+    const { expectedShardCount, maxShardBytes, maxShardCount } = validatedWriteLimits(options);
+    requireExpectedShardCountWithinLimit(expectedShardCount, maxShardCount);
     const members: Array<[string, string]> = [];
-    for await (const [path, bytes] of shardStream.pipe(new IndexShardEncodeTransform(this._codec))) {
+    const encoder = new IndexShardEncodeTransform(this._codec, {
+      ...(maxShardBytes === undefined ? {} : { maxBytes: maxShardBytes }),
+    });
+    for await (const [path, bytes] of shardStream.pipe(encoder)) {
+      requireShardCountWithinLimit(members.length + 1, maxShardCount);
+      requireShardSize(path, bytes.byteLength, maxShardBytes);
       const staged = await this._assets.stage(WarpStream.from([bytes]), {
         slug: `index-shard-${path}`,
         filename: path,
@@ -114,8 +149,12 @@ export class CborIndexStoreAdapter extends IndexStorePort {
       });
       members.push([path, staged.handle.toString()]);
     }
-    members.sort(([left], [right]) => left.localeCompare(right));
-    const bundle = await this._cas.bundles.putOrdered({ members });
+    requireExpectedShardCount(members.length, expectedShardCount);
+    members.sort(([left], [right]) => compareStrings(left, right));
+    const bundle = await this._cas.bundles.putOrdered({
+      members,
+      ...(maxShardCount === undefined ? {} : { limits: { maxMembers: maxShardCount } }),
+    });
     return new BundleHandle(bundle.handle.toString());
   }
 
@@ -160,16 +199,216 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     return Object.freeze(Object.fromEntries(entries));
   }
 
+  override async readShardHandle(
+    indexHandle: BundleHandle,
+    path: string,
+  ): Promise<AssetHandle | null> {
+    const member = await this._cas.bundles.getMember({
+      handle: indexHandle.toString(),
+      path,
+    });
+    return member === null
+      ? null
+      : requireAssetMember(path, member.handle.kind, member.handle.toString());
+  }
+
   override openShard(shardHandle: AssetHandle): AsyncIterable<Uint8Array> {
     return this._assets.open(shardHandle);
   }
 
   override async decodeShard<TDecoded extends CodecValue = CodecValue>(
     shardHandle: AssetHandle,
+    options: IndexShardDecodeOptions = {},
   ): Promise<TDecoded> {
-    const bytes = await collectAsyncIterable(this._assets.open(shardHandle));
+    const maxBytes = optionalPositiveInteger(options.maxBytes, 'maxBytes');
+    const bytes = maxBytes === undefined
+      ? await collectAsyncIterable(this._assets.open(shardHandle))
+      : await collectBoundedShard(this._assets.open(shardHandle), maxBytes);
+    validateRequestedStructure(bytes, options);
     return this._codec.decode<TDecoded>(bytes);
   }
+}
+
+async function collectBoundedShard(
+  source: AsyncIterable<Uint8Array>,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for await (const chunk of source) {
+    total = appendBoundedShardChunk(chunks, chunk, { total, maxBytes });
+  }
+  return joinShardChunks(chunks, total);
+}
+
+function appendBoundedShardChunk(
+  chunks: Uint8Array[],
+  chunk: Uint8Array,
+  bounds: { readonly total: number; readonly maxBytes: number },
+): number {
+  if (chunk.byteLength === 0) {
+    return bounds.total;
+  }
+  if (chunk.byteLength > bounds.maxBytes - bounds.total) {
+    throw shardTooLarge(bounds.total + chunk.byteLength, bounds.maxBytes);
+  }
+  requireShardChunkCount(chunks.length + 1);
+  chunks.push(chunk);
+  return bounds.total + chunk.byteLength;
+}
+
+function joinShardChunks(chunks: Uint8Array[], total: number): Uint8Array {
+  if (chunks.length === 1) {
+    return chunks[0]!;
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+function requireShardChunkCount(actual: number): void {
+  const maximum = 4096;
+  if (actual > maximum) {
+    throw new IndexError('Index shard stream exceeds the configured chunk maximum', {
+      code: 'E_INDEX_SHARD_CHUNK_LIMIT',
+      context: { actual, maximum },
+    });
+  }
+}
+
+function compareStrings(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function validateRequestedStructure(
+  bytes: Uint8Array,
+  options: IndexShardDecodeOptions,
+): void {
+  const configured = [
+    options.maxContainerEntries,
+    options.maxDepth,
+    options.maxItems,
+  ].filter((value) => value !== undefined).length;
+  if (configured === 0) {
+    return;
+  }
+  if (configured !== 3) {
+    throw invalidLimit('CBOR structure limits');
+  }
+  const maxContainerEntries = requiredPositiveInteger(
+    options.maxContainerEntries,
+    'maxContainerEntries',
+  );
+  const maxDepth = requiredNonNegativeInteger(options.maxDepth, 'maxDepth');
+  const maxItems = requiredPositiveInteger(options.maxItems, 'maxItems');
+  validateBoundedCbor(bytes, {
+    maxContainerEntries,
+    maxDepth,
+    maxItems,
+  });
+}
+
+function requireShardSize(path: string, actual: number, maximum: number | undefined): void {
+  if (maximum !== undefined && actual > maximum) {
+    throw new IndexError(`Index shard exceeds the configured maximum: ${path}`, {
+      code: 'E_INDEX_SHARD_TOO_LARGE',
+      context: { path, actual, maximum },
+    });
+  }
+}
+
+function validatedWriteLimits(
+  options: IndexShardWriteOptions,
+): ValidatedIndexShardWriteLimits {
+  const expectedShardCount = optionalNonNegativeInteger(
+    options.expectedShardCount,
+    'expectedShardCount',
+  );
+  const maxShardCount = optionalNonNegativeInteger(options.maxShardCount, 'maxShardCount');
+  const maxShardBytes = optionalPositiveInteger(options.maxShardBytes, 'maxShardBytes');
+  return Object.freeze({ expectedShardCount, maxShardBytes, maxShardCount });
+}
+
+function requireExpectedShardCountWithinLimit(
+  expected: number | undefined,
+  maximum: number | undefined,
+): void {
+  if (expected !== undefined) {
+    requireShardCountWithinLimit(expected, maximum);
+  }
+}
+
+function requireShardCountWithinLimit(actual: number, maximum: number | undefined): void {
+  if (maximum !== undefined && actual > maximum) {
+    throw shardCountError(actual, maximum, 'exceeds the configured maximum');
+  }
+}
+
+function requireExpectedShardCount(actual: number, expected: number | undefined): void {
+  if (expected !== undefined && actual !== expected) {
+    throw shardCountError(actual, expected, 'does not match the expected count');
+  }
+}
+
+function shardCountError(actual: number, maximum: number, reason: string): IndexError {
+  return new IndexError(`Index shard count ${reason}`, {
+    code: 'E_INDEX_SHARD_COUNT_LIMIT',
+    context: { actual, maximum },
+  });
+}
+
+function shardTooLarge(actual: number, maximum: number): IndexError {
+  return new IndexError('Index shard exceeds the configured maximum', {
+    code: 'E_INDEX_SHARD_TOO_LARGE',
+    context: { actual, maximum },
+  });
+}
+
+function optionalPositiveInteger(value: number | undefined, name: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw invalidLimit(name);
+  }
+  return value;
+}
+
+function optionalNonNegativeInteger(value: number | undefined, name: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw invalidLimit(name);
+  }
+  return value;
+}
+
+function requiredPositiveInteger(value: number | undefined, name: string): number {
+  const checked = optionalPositiveInteger(value, name);
+  if (checked === undefined) {
+    throw invalidLimit(name);
+  }
+  return checked;
+}
+
+function requiredNonNegativeInteger(value: number | undefined, name: string): number {
+  const checked = optionalNonNegativeInteger(value, name);
+  if (checked === undefined) {
+    throw invalidLimit(name);
+  }
+  return checked;
+}
+
+function invalidLimit(name: string): IndexError {
+  return new IndexError(`Index shard ${name} must be a safe integer within range`, {
+    code: 'E_INDEX_INVALID_LIMIT',
+    context: { name },
+  });
 }
 
 function requireAssetMember(path: string, kind: string, token: string): AssetHandle {

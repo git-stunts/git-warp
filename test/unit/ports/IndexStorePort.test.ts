@@ -11,6 +11,7 @@ describe('IndexStorePort', () => {
     expect(IndexStorePort.prototype.writeShards).toBeUndefined();
     expect(IndexStorePort.prototype.scanShards).toBeUndefined();
     expect(IndexStorePort.prototype.readShardHandles).toBeUndefined();
+    expect(IndexStorePort.prototype.readShardHandle).toBeUndefined();
     expect(IndexStorePort.prototype.openShard).toBeUndefined();
     expect(IndexStorePort.prototype.decodeShard).toBeUndefined();
   });
@@ -23,6 +24,9 @@ describe('IndexStorePort', () => {
       scanShards(_handle: BundleHandle) { return WarpStream.of<IndexShard>(); }
       async readShardHandles(_handle: BundleHandle) {
         return { 'shard.cbor': this.shardHandle };
+      }
+      async readShardHandle(_handle: BundleHandle, path: string) {
+        return path === 'shard.cbor' ? this.shardHandle : null;
       }
       async *openShard(_handle: AssetHandle) { yield new Uint8Array([1]); }
       async decodeShard<TDecoded extends CodecValue = CodecValue>(
@@ -37,5 +41,7 @@ describe('IndexStorePort', () => {
     await expect(store.readShardHandles(store.bundleHandle)).resolves.toEqual({
       'shard.cbor': store.shardHandle,
     });
+    await expect(store.readShardHandle(store.bundleHandle, 'shard.cbor'))
+      .resolves.toBe(store.shardHandle);
   });
 });

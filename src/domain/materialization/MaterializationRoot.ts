@@ -28,6 +28,15 @@ export default class MaterializationRoot {
   static unavailable(): MaterializationRoot {
     return new MaterializationRoot('unavailable', null);
   }
+
+  equals(other: MaterializationRoot): boolean {
+    if (!(other instanceof MaterializationRoot) || other.status !== this.status) {
+      return false;
+    }
+    return this.handle === null
+      ? other.handle === null
+      : other.handle !== null && this.handle.equals(other.handle);
+  }
 }
 
 function rootError(message: string): WarpError {

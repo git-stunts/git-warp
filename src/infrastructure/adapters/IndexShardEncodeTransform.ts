@@ -7,6 +7,11 @@ import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
 import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
+import { requirePropertyShardEncodedSize } from './PropertyShardEncodedSizeGuard.ts';
+
+type IndexShardEncodeOptions = Readonly<{
+  maxBytes?: number;
+}>;
 
 /**
  * Stream transform that maps IndexShard instances to [path, bytes] entries.
@@ -20,13 +25,15 @@ import WarpError from '../../domain/errors/WarpError.ts';
  */
 export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Uint8Array]> {
   private readonly _codec: CodecPort;
+  private readonly _maxBytes: number | undefined;
 
-  constructor(codec: CodecPort) {
+  constructor(codec: CodecPort, options: IndexShardEncodeOptions = {}) {
     super();
     if (codec === null || codec === undefined) {
       throw new WarpError('IndexShardEncodeTransform requires a codec', 'E_INVALID_DEPENDENCY');
     }
     this._codec = codec;
+    this._maxBytes = options.maxBytes;
   }
 
   override async *apply(source: AsyncIterable<IndexShard>): AsyncIterable<[string, Uint8Array]> {
@@ -62,9 +69,13 @@ export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Ui
       ];
     }
     if (shard instanceof PropertyShard) {
+      const path = `props_${shard.shardKey}.cbor`;
+      if (this._maxBytes !== undefined) {
+        requirePropertyShardEncodedSize(shard, path, this._maxBytes);
+      }
       return [
-        `props_${shard.shardKey}.cbor`,
-        this._codec.encode(shard.entries),
+        path,
+        this._codec.encode(propertyShardPayload(shard)),
       ];
     }
     if (shard instanceof ReceiptShard) {
@@ -80,4 +91,32 @@ export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Ui
     }
     throw new WarpError('Unknown IndexShard type', 'E_UNKNOWN_SHARD');
   }
+}
+
+function propertyShardPayload(
+  shard: PropertyShard,
+): PropertyShard['entries'] | {
+  readonly schemaVersion: 2;
+  readonly entries: Array<[string, Array<[string, unknown]>]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+} {
+  if (shard.schemaVersion === 1) {
+    return shard.entries;
+  }
+  if (shard.schemaVersion !== 2) {
+    throw new WarpError(
+      `Unsupported property shard schema version: ${String(shard.schemaVersion)}`,
+      'E_INDEX_SHARD_SCHEMA',
+    );
+  }
+  return {
+    schemaVersion: 2,
+    entries: shard.entries.map(([nodeId, properties]) => [
+      nodeId,
+      Object.entries(properties).sort(([left], [right]) => compareStrings(left, right)),
+    ]),
+  };
+}
+
+function compareStrings(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }

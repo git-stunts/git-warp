@@ -15,6 +15,7 @@ import type {
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type MaterializationReadPort from '../../../ports/MaterializationReadPort.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
+import type { PropValue } from '../../types/PropValue.ts';
 import type {
   WarpStateCoordinate,
 } from '../../../ports/WarpStateCachePort.ts';
@@ -84,6 +85,25 @@ export default class MaterializeLiveStrategy {
     }
     await resolution.release();
     return presence;
+  }
+
+  async readNodeProperties(
+    nodeId: string,
+  ): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
+    const reader = this.runtime.deps.materializationRead;
+    if (reader === undefined) {
+      return undefined;
+    }
+    const resolution = await this.resolveMaterialization();
+    let properties: Readonly<Record<string, PropValue>> | null | undefined;
+    try {
+      properties = await readNodeProperties(reader, resolution.materialization, nodeId);
+    } catch (raw) {
+      await releaseAcquisitionAfterFailure(resolution, this.runtime.deps.logger);
+      throw raw;
+    }
+    await resolution.release();
+    return properties;
   }
 
   private async resolveRetainedMaterialization(
@@ -365,6 +385,51 @@ async function readNodePresence(
     throw resolutionError('retained node-liveness root has no handle');
   }
   return await reader.hasNode(root.handle, nodeId);
+}
+
+async function readNodeProperties(
+  reader: MaterializationReadPort,
+  materialization: MaterializationHandle | null,
+  nodeId: string,
+): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
+  if (materialization === null) {
+    return null;
+  }
+  const presence = await readNodePresence(reader, materialization, nodeId);
+  if (presence === false) {
+    return null;
+  }
+  if (presence === null) {
+    return undefined;
+  }
+  return await readPropertiesRoot(reader, materialization, nodeId);
+}
+
+async function readPropertiesRoot(
+  reader: MaterializationReadPort,
+  materialization: MaterializationHandle,
+  nodeId: string,
+): Promise<Readonly<Record<string, PropValue>> | undefined> {
+  const propertiesRoot = materialization.roots.properties;
+  if (propertiesRoot.status === 'unavailable') {
+    return undefined;
+  }
+  if (propertiesRoot.status === 'empty') {
+    return Object.freeze({});
+  }
+  return await readRetainedPropertiesRoot(reader, propertiesRoot, nodeId);
+}
+
+async function readRetainedPropertiesRoot(
+  reader: MaterializationReadPort,
+  propertiesRoot: MaterializationHandle['roots']['properties'],
+  nodeId: string,
+): Promise<Readonly<Record<string, PropValue>> | undefined> {
+  if (propertiesRoot.handle === null) {
+    throw resolutionError('retained properties root has no handle');
+  }
+  const properties = await reader.getNodeProperties(propertiesRoot.handle, nodeId);
+  return properties === undefined ? undefined : properties ?? Object.freeze({});
 }
 
 function emptyResolution(): LiveMaterializationResolution {

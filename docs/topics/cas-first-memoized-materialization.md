@@ -102,17 +102,34 @@ The bounded-memory read path is optic/worldline/query work over a sharded or
 streamed basis. The state cache is the replay-skipping compatibility bridge for
 legacy materialization and checkpoint flows.
 
-`RuntimeHost.hasNode()` is the first compatibility read to consume the
-handle-first path directly when the runtime uses the built-in trie-backed state
-session and matching materialization reader. On an exact retained-coordinate
-hit, it acquires the materialization, opens only the node-liveness trie through
-a bounded page cache, answers one membership question, and releases the
-acquisition. It does not hydrate `WarpState`, build adjacency, publish a state
-snapshot, or populate `_cachedState`. A cold handle miss still performs the
-current materialization path before retaining and reading the new root. A
-custom state-session opener owns its root storage and encoding, so git-warp does
-not pair it with the default reader and instead preserves the compatibility
-fallback.
+`RuntimeHost.hasNode()` and `RuntimeHost.getNodeProps()` consume the handle-first
+path directly when the runtime uses the built-in trie-backed state session and
+matching materialization reader. On an exact retained-coordinate hit, node
+liveness opens only the required trie path through a bounded page cache. A
+property read uses the node's full BLAKE3 route key to resolve one per-node
+property shard by exact bundle member path. The schema-v2 shard envelope stores
+the property bag as sorted key/value entries, preserving legal keys such as
+`__proto__` without treating them as object structure. Writes reject an encoded
+shard over 16 MiB; reads enforce the same byte ceiling plus CBOR container,
+depth, and item limits before general decoding. The reader owns no cache.
+
+Both exact paths release the acquisition without hydrating `WarpState`, building
+adjacency, publishing a state snapshot, or populating `_cachedState`. A cold
+handle miss still performs the current materialization path before retaining and
+reading the new roots. Once assembled, a newly built property root joins the
+operation's expiring git-cas workspace before state hashing and final promotion,
+so the completed root remains reachable throughout promotion. A custom
+state-session opener owns its root storage and
+encoding, so git-warp does not pair it with the default reader and instead
+preserves the compatibility fallback.
+
+The property-root contract advances the retained-materialization descriptor and
+coordinate cache key to schema v3. A v3 exact miss leaves any corresponding v2
+entry anchored until replacement succeeds. Successful v3 retention then removes
+the incompatible v2 anchor through the git-cas cache API. A v2 descriptor may
+still be structurally valid, but it cannot satisfy the v3 root profile because
+its property root may be unavailable. New v3 descriptors reject an unavailable
+property root; an empty graph records the root as explicitly empty.
 
 ## `git-cas` Encapsulation
 
@@ -175,16 +192,31 @@ lost payload bytes, or run Git garbage collection.
 
 ## Current Limitations
 
-- RuntimeHost exact node-liveness reads consume the handle-first result when
-  the built-in trie session and reader pair is active. Custom session openers,
-  properties, neighborhoods, list reads, checkpoint creation, and other
-  compatibility operations still own process-resident whole state.
+- RuntimeHost exact node-liveness and node-property reads consume the
+  handle-first result when the built-in trie session and reader pair is active.
+  Custom session openers, neighborhoods, list reads, checkpoint creation, and
+  other compatibility operations still own process-resident whole state.
 - Exact state-cache hits bypass replay, but full materialization still hydrates
   a full `WarpState`, scans retained node/edge tries, and builds full adjacency.
-- Retained materialization descriptors currently carry node/edge trie roots;
-  property, frontier, edge-birth, adjacency, provenance-support, and roaring
-  roots are explicitly marked unavailable until their paged representations
-  land.
+- Retained materialization descriptors currently carry node/edge trie roots and
+  a per-node property-shard root. Frontier, edge-birth, adjacency,
+  provenance-support, and roaring roots remain explicitly unavailable until
+  their paged representations land. Cold property-root construction still
+  projects a complete `WarpState`; only exact retained reads avoid that state.
+- One node's complete encoded property bag must currently fit within the 16 MiB
+  shard limit. Property-key pagination or a property trie is not yet available.
+- The first property-root profile stores one bundle member per property-bearing
+  node and therefore inherits the configured git-cas bundle-member ceiling
+  (100,000 by default). The profile preflights this count before staging any
+  shard assets. A hierarchical property root is required to exceed that ceiling
+  without widening a repository-wide safety limit.
+- Individual staged shards remain unanchored until git-cas assembles and the
+  workspace checkpoints their property bundle. Supported operation therefore
+  relies on Git's ordinary unreachable-object grace period; concurrent
+  immediate-expiry pruning is outside the current write contract. A git-cas
+  scoped staging workspace is tracked in
+  [git-cas issue 75](https://github.com/git-stunts/git-cas/issues/75) to shorten
+  that interval without moving CAS lifecycle ownership into git-warp.
 - `WarpStateCachePort` remains a legacy full-snapshot compatibility cache with
   a WARP-owned index. Ordinary bounded observers cannot rely on it as their
   final storage contract.

@@ -6,6 +6,7 @@ import type StorageRetentionWitness from '../domain/storage/StorageRetentionWitn
 export type MaterializationWorkspaceRoots = Readonly<{
   nodeAliveRoot: string | null;
   edgeAliveRoot: string | null;
+  propertiesRoot?: string | null;
 }>;
 
 export type PromoteMaterializationRequest = Readonly<{

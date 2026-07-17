@@ -1,4 +1,5 @@
 import type CodecPort from '../../ports/CodecPort.ts';
+import type IndexStorePort from '../../ports/IndexStorePort.ts';
 import MaterializationReadPort from '../../ports/MaterializationReadPort.ts';
 import BundleHandle from '../storage/BundleHandle.ts';
 import WarpError from '../errors/WarpError.ts';
@@ -6,6 +7,13 @@ import PageCache from '../orset/trie/PageCache.ts';
 import TrieCursor from '../orset/trie/TrieCursor.ts';
 import TrieGeometry from '../orset/trie/TrieGeometry.ts';
 import type TrieStorePort from '../orset/trie/TrieStorePort.ts';
+import { decodeCurrentPropertyShard } from '../services/index/PropertyIndexReader.ts';
+import type { PropValue } from '../types/PropValue.ts';
+import {
+  materializationPropertyShardKey,
+  materializationPropertyShardPath,
+  MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS,
+} from './MaterializationPropertyProfile.ts';
 
 const MAX_RESIDENT_READ_PAGES = 256;
 
@@ -14,11 +22,13 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
   readonly #store: TrieStorePort;
   readonly #codec: CodecPort;
   readonly #geometry: TrieGeometry;
+  readonly #indexStore: IndexStorePort | null;
 
   constructor(options: {
     readonly store: TrieStorePort;
     readonly codec: CodecPort;
     readonly geometry?: TrieGeometry;
+    readonly indexStore?: IndexStorePort;
   }) {
     super();
     requireOptions(options);
@@ -27,6 +37,9 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
     this.#geometry = options.geometry === undefined
       ? TrieGeometry.default16way()
       : requireGeometry(options.geometry);
+    this.#indexStore = options.indexStore === undefined
+      ? null
+      : requireIndexStore(options.indexStore);
     Object.freeze(this);
   }
 
@@ -45,6 +58,29 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
       pageCache: new PageCache({ maxResident: MAX_RESIDENT_READ_PAGES }),
     });
     return await cursor.contains(nodeId);
+  }
+
+  override async getNodeProperties(
+    propertiesRoot: BundleHandle,
+    nodeId: string,
+  ): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
+    if (!(propertiesRoot instanceof BundleHandle)) {
+      throw readerError('properties root must be a BundleHandle');
+    }
+    if (this.#indexStore === null) {
+      return undefined;
+    }
+    const path = materializationPropertyShardPath(nodeId);
+    const handle = await this.#indexStore.readShardHandle(propertiesRoot, path);
+    if (handle === null) {
+      return null;
+    }
+    const shard = decodeCurrentPropertyShard(
+      await this.#indexStore.decodeShard(handle, MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS),
+      path,
+      materializationPropertyShardKey,
+    );
+    return shard.get(nodeId) ?? null;
   }
 }
 
@@ -89,6 +125,18 @@ function requireGeometry(geometry: TrieGeometry): TrieGeometry {
     throw readerError('geometry must be a TrieGeometry instance');
   }
   return geometry;
+}
+
+function requireIndexStore(indexStore: IndexStorePort): IndexStorePort {
+  if (
+    indexStore === null
+    || typeof indexStore !== 'object'
+    || typeof indexStore.readShardHandle !== 'function'
+    || typeof indexStore.decodeShard !== 'function'
+  ) {
+    throw readerError('indexStore must provide exact shard read operations');
+  }
+  return indexStore;
 }
 
 function readerError(message: string): WarpError {

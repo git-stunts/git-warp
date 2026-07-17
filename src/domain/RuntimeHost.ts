@@ -402,6 +402,7 @@ export default class RuntimeHost {
       persistence: this._persistence,
       checkpointStore,
       materializations,
+      propertyStore: indexStore,
       ...(options.materializationRead === undefined
         ? {}
         : { materializationRead: options.materializationRead }),
@@ -427,6 +428,10 @@ export default class RuntimeHost {
 
   _readLiveNodePresence(nodeId: string): Promise<boolean | null> {
     return this._materializeController.readLiveNodePresence(nodeId);
+  }
+
+  _readLiveNodeProperties(nodeId: string) {
+    return this._materializeController.readLiveNodeProperties(nodeId);
   }
 
   /**

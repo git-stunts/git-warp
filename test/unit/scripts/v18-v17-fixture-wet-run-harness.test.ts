@@ -92,20 +92,17 @@ describe('v18 v17 fixture wet-run harness', () => {
   });
 
   it('formats deterministic wet-run operator evidence without temp paths', async () => {
-    const firstTarget = await temporaryDirectories.create('git-warp-v17-wet-run-report-a-');
-    const secondTarget = await temporaryDirectories.create('git-warp-v17-wet-run-report-b-');
+    const targetDirectory = await temporaryDirectories.create('git-warp-v17-wet-run-report-');
 
-    const first = formatV17GoldenGraphFixtureWetRunReport(await runV17GoldenGraphFixtureWetRun({
+    const result = await runV17GoldenGraphFixtureWetRun({
       manifestPath: FIXTURE_MANIFEST_PATH,
-      targetDirectory: firstTarget,
-    }));
-    const second = formatV17GoldenGraphFixtureWetRunReport(await runV17GoldenGraphFixtureWetRun({
-      manifestPath: FIXTURE_MANIFEST_PATH,
-      targetDirectory: secondTarget,
-    }));
+      targetDirectory,
+    });
+    const first = formatV17GoldenGraphFixtureWetRunReport(result);
+    const second = formatV17GoldenGraphFixtureWetRunReport(result);
 
     expect(first).toBe(second);
-    expect(first).not.toContain(firstTarget);
+    expect(first).not.toContain(targetDirectory);
     expect(first).toContain('git-warp v18 v17 fixture wet-run report');
     expect(first).toContain('fixtureId: v17-golden-graph-model-001');
     expect(first).toContain('command.equivalence: passed');

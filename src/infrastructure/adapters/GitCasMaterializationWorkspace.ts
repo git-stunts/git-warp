@@ -255,6 +255,9 @@ function workspaceMembers(
   if (roots.nodeAliveRoot !== null) {
     members.push(['roots/node-alive', parseRoot(roots.nodeAliveRoot)]);
   }
+  if (roots.propertiesRoot !== undefined && roots.propertiesRoot !== null) {
+    members.push(['roots/properties', parseRoot(roots.propertiesRoot)]);
+  }
   return members;
 }
 

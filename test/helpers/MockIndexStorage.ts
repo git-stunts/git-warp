@@ -44,6 +44,13 @@ export default class MockIndexStorage extends IndexStorePort {
     return this.#indexes.get(indexHandle.toString()) ?? Object.freeze({});
   }
 
+  override async readShardHandle(
+    indexHandle: BundleHandle,
+    path: string,
+  ): Promise<AssetHandle | null> {
+    return (this.#indexes.get(indexHandle.toString()) ?? {})[path] ?? null;
+  }
+
   override async *openShard(handle: AssetHandle): AsyncIterable<Uint8Array> {
     this.openedShardHandles.push(handle.toString());
     const bytes = this.#blobs.get(handle.toString());

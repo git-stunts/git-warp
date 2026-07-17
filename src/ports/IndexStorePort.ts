@@ -4,6 +4,19 @@ import type CodecValue from '../domain/types/codec/CodecValue.ts';
 import type AssetHandle from '../domain/storage/AssetHandle.ts';
 import type BundleHandle from '../domain/storage/BundleHandle.ts';
 
+export type IndexShardWriteOptions = Readonly<{
+  expectedShardCount?: number;
+  maxShardCount?: number;
+  maxShardBytes?: number;
+}>;
+
+export type IndexShardDecodeOptions = Readonly<{
+  maxBytes?: number;
+  maxContainerEntries?: number;
+  maxDepth?: number;
+  maxItems?: number;
+}>;
+
 /**
  * IndexStorePort — domain-facing port for index shard persistence.
  *
@@ -34,7 +47,10 @@ export default abstract class IndexStorePort {
    * The adapter internally encodes and stages each shard as an asset,
    * then assembles the opaque handles into a deterministic bundle.
    */
-  abstract writeShards(_shardStream: WarpStream<IndexShard>): Promise<BundleHandle>;
+  abstract writeShards(
+    _shardStream: WarpStream<IndexShard>,
+    _options?: IndexShardWriteOptions,
+  ): Promise<BundleHandle>;
 
   /**
    * Scans all shards in an index bundle, yielding `IndexShard`
@@ -57,6 +73,12 @@ export default abstract class IndexStorePort {
     _indexHandle: BundleHandle,
   ): Promise<Readonly<Record<string, AssetHandle>>>;
 
+  /** Resolves one shard handle by path without enumerating or decoding siblings. */
+  abstract readShardHandle(
+    _indexHandle: BundleHandle,
+    _path: string,
+  ): Promise<AssetHandle | null>;
+
   /** Streams one encoded shard without opening unrelated index members. */
   abstract openShard(_shardHandle: AssetHandle): AsyncIterable<Uint8Array>;
 
@@ -72,5 +94,6 @@ export default abstract class IndexStorePort {
    */
   abstract decodeShard<TDecoded extends CodecValue = CodecValue>(
     _shardHandle: AssetHandle,
+    _options?: IndexShardDecodeOptions,
   ): Promise<TDecoded>;
 }

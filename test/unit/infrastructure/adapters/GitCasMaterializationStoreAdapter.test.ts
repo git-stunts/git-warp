@@ -71,7 +71,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(members.map(([path]) => path)).toEqual(['meta/descriptor', ...ROOT_PATHS]);
     const cacheKeys = harness.cas.readCacheKeys(CACHE_NAMESPACE);
     expect(cacheKeys).toHaveLength(1);
-    expect(cacheKeys[0]).toMatch(/^v2:[0-9a-f]{64}$/u);
+    expect(cacheKeys[0]).toMatch(/^v3:[0-9a-f]{64}$/u);
     expect(cacheKeys[0]?.length).toBeLessThan(1024);
     expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
     await acquisition?.release();
@@ -152,7 +152,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(resolved?.roots.nodeAlive.status).toBe('retained');
     expect(resolved?.roots.nodeAlive.handle?.toString()).toBe(nodeBundle.handle.toString());
     expect(resolved?.roots.edgeAlive.status).toBe('empty');
-    expect(resolved?.roots.properties.status).toBe('unavailable');
+    expect(resolved?.roots.properties.status).toBe('empty');
   });
 
   it('round-trips an unbounded live coordinate with a null ceiling', async () => {
@@ -291,7 +291,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
 
   it.each([
     ['non-object descriptor', null, 'descriptor must be an object'],
-    ['schema', { schemaVersion: 3 }, 'schema is unsupported'],
+    ['schema', { schemaVersion: 2 }, 'schema is unsupported'],
     [
       'coordinate object',
       descriptor({ coordinate: null }),
@@ -357,6 +357,11 @@ describe('GitCasMaterializationStoreAdapter', () => {
       'missing root status',
       descriptor({ roots: rootStatusFixture().filter(([name]) => name !== 'adjacency') }),
       'no adjacency root status',
+    ],
+    [
+      'unavailable current property root',
+      descriptor({ roots: replaceRootStatus(rootStatusFixture(), 'properties', 'unavailable') }),
+      'requires a property root',
     ],
     ['lane', descriptor({ laneName: '' }), 'laneName must be a non-empty string'],
     ['state hash', descriptor({ stateHash: '' }), 'stateHash must be a non-empty string'],
@@ -446,6 +451,18 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots,
       stateHash: '',
     })).rejects.toMatchObject({ code: 'E_MATERIALIZATION_STORAGE' });
+    const nodeAlive = roots.nodeAlive.handle;
+    if (nodeAlive === null) {
+      throw new Error('Expected retained node-alive test root');
+    }
+    await expect(harness.adapter.retain({
+      coordinate: exactCoordinate(),
+      roots: unavailablePropertyRoots(nodeAlive),
+      stateHash: 'state-hash',
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('requires a property root'),
+    });
     await expect(Reflect.apply(harness.adapter.acquireExact, harness.adapter, [{
       frontier: new Map(),
       ceiling: null,
@@ -617,9 +634,23 @@ function partialRoots(nodeAlive: BundleHandle): MaterializationRoots {
     edgeBirths: MaterializationRoot.unavailable(),
     frontier: MaterializationRoot.unavailable(),
     nodeAlive: MaterializationRoot.retained(nodeAlive),
-    properties: MaterializationRoot.unavailable(),
+    properties: MaterializationRoot.empty(),
     provenanceSupport: MaterializationRoot.unavailable(),
     roaringIndexes: MaterializationRoot.unavailable(),
+  });
+}
+
+function unavailablePropertyRoots(nodeAlive: BundleHandle): MaterializationRoots {
+  const roots = partialRoots(nodeAlive);
+  return new MaterializationRoots({
+    adjacency: roots.adjacency,
+    edgeAlive: roots.edgeAlive,
+    edgeBirths: roots.edgeBirths,
+    frontier: roots.frontier,
+    nodeAlive: roots.nodeAlive,
+    properties: MaterializationRoot.unavailable(),
+    provenanceSupport: roots.provenanceSupport,
+    roaringIndexes: roots.roaringIndexes,
   });
 }
 
@@ -635,7 +666,7 @@ function exactCoordinate(): MaterializationCoordinate {
 
 function descriptor(overrides: Record<string, object | string | number | null> = {}): object {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     laneName: 'events',
     stateHash: 'state-hash',
     roots: rootStatusFixture(),

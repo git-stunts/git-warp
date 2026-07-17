@@ -36,6 +36,16 @@ describe('GitCasMaterializationWorkspace', () => {
     });
     expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toHaveLength(1);
     expect(harness.cas.readCacheHits(WORKSPACE_CACHE_NAMESPACE)[0]?.expiresAt).not.toBeNull();
+    const retainedWorkspace = harness.cas.readCacheHits(WORKSPACE_CACHE_NAMESPACE)[0];
+    if (retainedWorkspace === undefined) {
+      throw new Error('Expected a retained workspace');
+    }
+    expect(harness.cas.readBundleMembers(retainedWorkspace.handle.toString()))
+      .toEqual([
+        ['roots/edge-alive', expect.any(String)],
+        ['roots/node-alive', expect.any(String)],
+        ['roots/properties', expect.any(String)],
+      ]);
 
     await workspace.release();
     await workspace.release();
@@ -387,6 +397,7 @@ describe('GitCasMaterializationWorkspace', () => {
 type WorkspaceRoots = Readonly<{
   nodeAliveRoot: string;
   edgeAliveRoot: string;
+  propertiesRoot: string;
 }>;
 
 type Harness = Readonly<{
@@ -408,11 +419,16 @@ async function createHarness(): Promise<Harness> {
 async function createRoots(cas: InMemoryGitCasFacade): Promise<WorkspaceRoots> {
   const nodePage = await cas.pages.put({ source: new Uint8Array([1]) });
   const edgePage = await cas.pages.put({ source: new Uint8Array([2]) });
+  const propertiesPage = await cas.pages.put({ source: new Uint8Array([3]) });
   const nodeBundle = await cas.bundles.putOrdered({ members: [['root', nodePage.handle]] });
   const edgeBundle = await cas.bundles.putOrdered({ members: [['root', edgePage.handle]] });
+  const propertiesBundle = await cas.bundles.putOrdered({
+    members: [['root', propertiesPage.handle]],
+  });
   return Object.freeze({
     nodeAliveRoot: nodeBundle.handle.toString(),
     edgeAliveRoot: edgeBundle.handle.toString(),
+    propertiesRoot: propertiesBundle.handle.toString(),
   });
 }
 
@@ -437,6 +453,7 @@ function withCacheResult(
         const cache = await cas.caches.open(options);
         return {
           acquire: async (key) => await cache.acquire(key),
+          get: async (key) => await cache.get(key),
           put: async (key, handle, entryOptions) => rewrite(
             await cache.put(key, handle, entryOptions),
           ),

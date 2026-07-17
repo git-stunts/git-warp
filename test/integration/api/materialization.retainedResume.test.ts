@@ -50,6 +50,7 @@ describe('API: retained materialization resume', () => {
     const coldHandle = firstStore.retainedHandles[0];
     expect(coldHandle?.roots.nodeAlive.status).toBe('retained');
     expect(coldHandle?.roots.edgeAlive.status).toBe('empty');
+    expect(coldHandle?.roots.properties.status).toBe('empty');
 
     const sameRuntimeReplay = vi.spyOn(firstRuntime, '_loadPatchChainFromSha');
     const warm = await firstRuntime.materialize();
@@ -100,6 +101,54 @@ describe('API: retained materialization resume', () => {
     const publishWholeState = vi.spyOn(reopenedRuntime, '_onMaterialized');
 
     await expect(reopenedRuntime.hasNode('node:retained')).resolves.toBe(true);
+
+    const reopenedStore = requireMaterializations(reopenedProvider);
+    expect(replay).not.toHaveBeenCalled();
+    expect(publishWholeState).not.toHaveBeenCalled();
+    expect(reopenedRuntime._cachedState).toBeNull();
+    expect(reopenedStore.exactLookups).toHaveLength(1);
+    expect(reopenedStore.exactHits).toHaveLength(1);
+    expect(reopenedStore.exactReleaseCount).toBe(1);
+  });
+
+  it('answers exact node properties from one retained shard after aggressive pruning', async () => {
+    if (repo === null) {
+      throw new Error('Test repository is not initialized');
+    }
+    const firstProvider = recordingProvider(repo);
+    const firstRuntime = await openRuntime(repo, firstProvider);
+    await firstRuntime.patch((patch) => {
+      patch
+        .addNode('node:retained')
+        .setProperty('node:retained', 'status', 'ready')
+        .setProperty('node:retained', 'attempts', 2)
+        .setProperty('node:retained', '__proto__', 'retained-data');
+    });
+    await firstRuntime.materialize();
+
+    const coldHandle = requireMaterializations(firstProvider).retainedHandles[0];
+    expect(coldHandle?.roots.properties.status).toBe('retained');
+
+    await execFileAsync('git', [
+      '-C',
+      repo.tempDir,
+      'reflog',
+      'expire',
+      '--expire=now',
+      '--all',
+    ]);
+    await execFileAsync('git', ['-C', repo.tempDir, 'prune', '--expire=now']);
+
+    const reopenedProvider = recordingProvider(repo);
+    const reopenedRuntime = await openRuntime(repo, reopenedProvider);
+    const replay = vi.spyOn(reopenedRuntime, '_loadPatchChainFromSha');
+    const publishWholeState = vi.spyOn(reopenedRuntime, '_onMaterialized');
+
+    await expect(reopenedRuntime.getNodeProps('node:retained')).resolves.toEqual({
+      status: 'ready',
+      attempts: 2,
+      ['__proto__']: 'retained-data',
+    });
 
     const reopenedStore = requireMaterializations(reopenedProvider);
     expect(replay).not.toHaveBeenCalled();

@@ -133,11 +133,24 @@ export async function hasNodeImpl(host: QueryReadHost, nodeId: string): Promise<
 }
 
 export async function getNodePropsImpl(host: QueryReadHost, nodeId: string): Promise<PropertyBag | null> {
+  if (!isLegacyNodePropertyProjectionTarget(nodeId)) { return null; }
+  const retained = await tryRetainedNodeProps(host, nodeId);
+  if (retained !== undefined) { return retained; }
   await host._ensureFreshState();
   const indexed = await tryIndexedNodeProps(host, nodeId);
   if (indexed !== undefined) { return indexed; }
   if (host._cachedState === null) { return null; }
   return linearNodeProps(host._cachedState, nodeId);
+}
+
+async function tryRetainedNodeProps(
+  host: QueryReadHost,
+  nodeId: string,
+): Promise<PropertyBag | null | undefined> {
+  if (host._readLiveNodeProperties === undefined) { return undefined; }
+  const retained = await host._readLiveNodeProperties(nodeId);
+  if (retained === undefined) { return undefined; }
+  return retained === null ? null : createSnapshotPropertyValues(retained);
 }
 
 function hasIndexForNode(host: QueryReadHost, nodeId: string): boolean {
@@ -156,7 +169,6 @@ async function tryIndexedNodeProps(host: QueryReadHost, nodeId: string): Promise
 }
 
 function linearNodeProps(state: WarpState, nodeId: string): PropertyBag | null {
-  if (!isLegacyNodePropertyProjectionTarget(nodeId)) { return null; }
   const owner = state.getNodeRecord(nodeId);
   if (owner === null) { return null; }
   return nodePropertyBagFromRecords(NodePropertyProjection.forNodeRecord(state, owner));
