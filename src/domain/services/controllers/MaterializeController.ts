@@ -48,6 +48,7 @@ import type { PatchDiff } from '../../types/PatchDiff.ts';
 import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
+import type LiveMaterializationResolution from '../../materialization/LiveMaterializationResolution.ts';
 import type MaterializationRoots from '../../materialization/MaterializationRoots.ts';
 import type StorageRetentionWitness from '../../storage/StorageRetentionWitness.ts';
 import WarpError from '../../errors/WarpError.ts';
@@ -179,7 +180,7 @@ export default class MaterializeController {
       wantDiff: opts.wantDiff === true,
     });
   }
-  resolveLiveMaterialization(): ReturnType<MaterializeLiveStrategy['resolveMaterialization']> {
+  resolveLiveMaterialization(): Promise<LiveMaterializationResolution> {
     return this._liveStrategy.resolveMaterialization();
   }
 
@@ -343,6 +344,7 @@ export default class MaterializeController {
     }
     const coordinate = new MaterializationCoordinate(snapshot.coordinate);
     const acquisition = await this._deps.materializations.acquireExact(coordinate);
+    let result: MaterializeResult;
     try {
       const retained = acquisition?.materialization ?? null;
       if (retained !== null && retained.stateHash !== snapshot.stateHash) {
@@ -362,7 +364,7 @@ export default class MaterializeController {
         receipts: false,
         wantDiff: options.wantDiff,
       });
-      const result = await this._buildResult({
+      result = await this._buildResult({
         reduced,
         summary: new MaterializePatchSummaryAccumulator().toSummary(),
         degraded: true,
@@ -373,12 +375,12 @@ export default class MaterializeController {
           ? {}
           : { materialization: retained }),
       });
-      await acquisition?.release();
-      return result;
     } catch (raw) {
       await releaseAcquisitionAfterFailure(acquisition, this._deps.logger);
       throw raw;
     }
+    await acquisition?.release();
+    return result;
   }
 
   private async _reducePatches(

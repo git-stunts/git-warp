@@ -23,6 +23,7 @@ import InMemoryMaterializationStore, {
 } from "../../../../helpers/InMemoryMaterializationStore.ts";
 import type MaterializationWorkspacePort from "../../../../../src/ports/MaterializationWorkspacePort.ts";
 import MaterializationCoordinate from "../../../../../src/domain/materialization/MaterializationCoordinate.ts";
+import MaterializationHandle from "../../../../../src/domain/materialization/MaterializationHandle.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -469,6 +470,32 @@ describe("MaterializeController — state session integration", () => {
     expect(reopened.materialization?.bundle.equals(cold.materialization?.bundle)).toBe(true);
   });
 
+  it("does not retry an exact acquisition release failure", async () => {
+    const fixtures = createControllerFixtures();
+    fixtures.patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:retained",
+      }),
+    ]);
+    const cold = await fixtures.controller.materialize();
+    const published = fixtures.stateCache.put.mock.calls[0]?.[0];
+    if (cold.materialization === undefined || published === undefined) {
+      throw new Error("Cold materialization did not publish retained state");
+    }
+    fixtures.stateCache.getExact.mockResolvedValue(published);
+    const acquisition = new InMemoryMaterializationAcquisition(cold.materialization);
+    const releaseFailure = new Error("acquisition release failed");
+    const release = vi.spyOn(acquisition, "release").mockRejectedValue(releaseFailure);
+    vi.spyOn(fixtures.materializations, "acquireExact").mockResolvedValue(acquisition);
+
+    await expect(fixtures.controller.materialize()).rejects.toBe(releaseFailure);
+
+    expect(release).toHaveBeenCalledOnce();
+  });
+
   it("resolves an exact retained handle without touching whole-state dependencies", async () => {
     const fixtures = createControllerFixtures();
     fixtures.patches.collectForFrontier.mockResolvedValue([
@@ -537,6 +564,47 @@ describe("MaterializeController — state session integration", () => {
     expect(fixtures.materializations.acquisitions[0]?.released).toBe(false);
     await resolution.release();
     expect(fixtures.materializations.acquisitions[0]?.released).toBe(true);
+  });
+
+  it("rejects a newly acquired handle whose state hash changed", async () => {
+    const fixtures = createControllerFixtures();
+    fixtures.patches.collectForFrontier.mockResolvedValue([
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 1,
+        sha: "a1b2",
+        node: "node:created",
+      }),
+    ]);
+    const retain = fixtures.materializations.retain.bind(fixtures.materializations);
+    let retained: MaterializationHandle | null = null;
+    const mismatchedAcquisitions: InMemoryMaterializationAcquisition[] = [];
+    vi.spyOn(fixtures.materializations, "retain").mockImplementation(async (request) => {
+      retained = await retain(request);
+      return retained;
+    });
+    vi.spyOn(fixtures.materializations, "acquireExact").mockImplementation(() => {
+      if (retained === null) {
+        return Promise.resolve(null);
+      }
+      const mismatched = new MaterializationHandle({
+        laneName: retained.laneName,
+        bundle: retained.bundle,
+        coordinate: retained.coordinate,
+        roots: retained.roots,
+        stateHash: `${retained.stateHash}-changed`,
+        retention: retained.retention,
+      });
+      const acquisition = new InMemoryMaterializationAcquisition(mismatched);
+      mismatchedAcquisitions.push(acquisition);
+      return Promise.resolve(acquisition);
+    });
+
+    await expect(fixtures.controller.resolveLiveMaterialization()).rejects.toMatchObject({
+      code: "E_MATERIALIZATION_RESUME",
+    });
+
+    expect(mismatchedAcquisitions[0]?.released).toBe(true);
   });
 
   it("fails closed without publishing a snapshot when a non-empty coordinate has no patches", async () => {

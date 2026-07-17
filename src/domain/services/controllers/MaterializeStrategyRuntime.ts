@@ -25,13 +25,6 @@ export type MaterializeLiveOptions = {
   publishSnapshot?: boolean;
 };
 
-export type LiveMaterializationResolution = Readonly<{
-  materialization: MaterializationHandle | null;
-  source: 'empty' | 'retained' | 'materialized';
-  replayedPatchCount: number;
-  release(): Promise<void>;
-}>;
-
 export type MaterializeCeilingOptions = {
   ceiling: number;
   receipts: boolean;

@@ -1,11 +1,11 @@
 import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
 import type {
-  LiveMaterializationResolution,
   MaterializeLiveOptions,
   MaterializeStrategyRuntime,
 } from './MaterializeStrategyRuntime.ts';
 import type { MaterializeResult } from './MaterializeController.ts';
 import MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
+import LiveMaterializationResolution from '../../materialization/LiveMaterializationResolution.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type { MaterializationAcquisition } from '../../../ports/MaterializationStorePort.ts';
 import type {
@@ -328,7 +328,7 @@ export default class MaterializeLiveStrategy {
 }
 
 function emptyResolution(): LiveMaterializationResolution {
-  return Object.freeze({
+  return new LiveMaterializationResolution({
     materialization: null,
     source: 'empty',
     replayedPatchCount: 0,
@@ -344,7 +344,7 @@ function retainedResolution(
   if (!retained.coordinate.equals(coordinate)) {
     throw resolutionError('retained handle coordinate does not match the requested coordinate');
   }
-  return Object.freeze({
+  return new LiveMaterializationResolution({
     materialization: retained,
     source: 'retained',
     replayedPatchCount: 0,
@@ -359,10 +359,14 @@ function materializedResolution(
   if (result.materialization === undefined) {
     throw resolutionError('non-empty coordinate did not produce a retained handle');
   }
-  if (!acquired.materialization.bundle.equals(result.materialization.bundle)) {
+  if (
+    !acquired.materialization.coordinate.equals(result.materialization.coordinate)
+    || acquired.materialization.stateHash !== result.materialization.stateHash
+    || !acquired.materialization.bundle.equals(result.materialization.bundle)
+  ) {
     throw resolutionError('newly retained handle changed before it could be acquired');
   }
-  return Object.freeze({
+  return new LiveMaterializationResolution({
     materialization: acquired.materialization,
     source: 'materialized',
     replayedPatchCount: result.patchCount,

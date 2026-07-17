@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import MaterializationHandle from '../../../../src/domain/materialization/MaterializationHandle.ts';
+import LiveMaterializationResolution from '../../../../src/domain/materialization/LiveMaterializationResolution.ts';
 import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots, {
   MATERIALIZATION_ROOT_NAMES,
@@ -207,6 +208,52 @@ describe('MaterializationHandle', () => {
   });
 });
 
+describe('LiveMaterializationResolution', () => {
+  it('freezes a valid retained resolution and delegates release', async () => {
+    let releaseCalls = 0;
+    const materialization = materializationHandle();
+    const resolution = new LiveMaterializationResolution({
+      materialization,
+      source: 'retained',
+      replayedPatchCount: 0,
+      release: () => {
+        releaseCalls += 1;
+        return Promise.resolve();
+      },
+    });
+
+    expect(resolution).toMatchObject({
+      materialization,
+      source: 'retained',
+      replayedPatchCount: 0,
+    });
+    expect(Object.isFrozen(resolution)).toBe(true);
+    await resolution.release();
+    expect(releaseCalls).toBe(1);
+  });
+
+  it.each([
+    ['empty materialization', { source: 'empty' }],
+    ['missing retained materialization', { materialization: null }],
+    ['retained replay count', { replayedPatchCount: 1 }],
+    ['invalid source', { source: 'other' }],
+    ['negative replay count', { replayedPatchCount: -1 }],
+    ['missing release', { release: null }],
+  ])('rejects an invalid %s combination', (_case, replacement) => {
+    const options = resolutionOptions();
+    for (const [field, value] of Object.entries(replacement)) {
+      Reflect.set(options, field, value);
+    }
+    expect(() => construct(LiveMaterializationResolution, options)).toThrowError(
+      /Live materialization resolution/u,
+    );
+  });
+
+  it('rejects a missing options object', () => {
+    expect(() => construct(LiveMaterializationResolution, null)).toThrowError(/options/u);
+  });
+});
+
 function exactCoordinate(): MaterializationCoordinate {
   return new MaterializationCoordinate({
     frontier: new Map([['writer-a', 'patch-a']]),
@@ -253,6 +300,27 @@ function retentionWitness(handle: BundleHandle): StorageRetentionWitness {
     }),
     observedAt: '1970-01-01T00:00:00.000Z',
   });
+}
+
+function materializationHandle(): MaterializationHandle {
+  const bundle = bundleHandle('materialization-resolution');
+  return new MaterializationHandle({
+    laneName: 'events',
+    bundle,
+    coordinate: exactCoordinate(),
+    roots: materializationRoots(),
+    stateHash: 'state-hash',
+    retention: retentionWitness(bundle),
+  });
+}
+
+function resolutionOptions(): Record<string, object | string | number | (() => Promise<void>)> {
+  return {
+    materialization: materializationHandle(),
+    source: 'retained',
+    replayedPatchCount: 0,
+    release: () => Promise.resolve(),
+  };
 }
 
 function handleOptions(): Record<string, object | string> {
