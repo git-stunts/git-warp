@@ -33,8 +33,8 @@ Acquisition release is mandatory on both warm and cold non-empty resolutions;
 release failures remain operational failures, while failure-path cleanup never
 replaces the primary materialization error.
 
-When a Git-backed runtime has a state cache, live materialization follows this
-coordinate-first lifecycle:
+When a Git-backed runtime has a state cache, the compatibility `materialize()`
+operation follows this coordinate-first lifecycle:
 
 ```text
 [current frontier]
