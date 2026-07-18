@@ -46,7 +46,7 @@ export type GitCasFacade = Pick<
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
   readonly bundles: Pick<
     BundleCapability,
-    'getMember' | 'putOrdered' | 'iterateMembers'
+    'getMemberReference' | 'putOrdered' | 'iterateMemberReferences'
   >;
   readonly caches: GitCasMaterializationFacade['caches'];
   readonly pages: GitCasMaterializationFacade['pages'];

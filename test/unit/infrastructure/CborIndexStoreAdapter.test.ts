@@ -196,9 +196,9 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     const directIndexes = indexAdapter(assets, {
       pages: cas.pages,
       bundles: {
-        getMember: cas.bundles.getMember,
+        getMemberReference: cas.bundles.getMemberReference,
         putOrdered: cas.bundles.putOrdered,
-        iterateMembers: () => {
+        iterateMemberReferences: () => {
           throw new Error('readShardHandle must not enumerate bundle members');
         },
       },
@@ -539,11 +539,11 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     const duplicateCas: GitCasIndexFacade = {
       pages: cas.pages,
       bundles: {
-        getMember: cas.bundles.getMember,
+        getMemberReference: cas.bundles.getMemberReference,
         putOrdered: cas.bundles.putOrdered,
-        iterateMembers: async function* (request) {
+        iterateMemberReferences: async function* (request) {
           let duplicated = false;
-          for await (const member of cas.bundles.iterateMembers(request)) {
+          for await (const member of cas.bundles.iterateMemberReferences(request)) {
             yield member;
             if (!duplicated) {
               yield member;
@@ -566,10 +566,10 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     const nonAssetCas: GitCasIndexFacade = {
       pages: cas.pages,
       bundles: {
-        getMember: cas.bundles.getMember,
+        getMemberReference: cas.bundles.getMemberReference,
         putOrdered: cas.bundles.putOrdered,
-        iterateMembers: async function* (request) {
-          for await (const member of cas.bundles.iterateMembers(request)) {
+        iterateMemberReferences: async function* (request) {
+          for await (const member of cas.bundles.iterateMemberReferences(request)) {
             yield Object.freeze({
               ...member,
               path: 'unknown.cbor',

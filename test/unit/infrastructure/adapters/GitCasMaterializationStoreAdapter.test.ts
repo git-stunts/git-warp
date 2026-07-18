@@ -27,7 +27,7 @@ const ROOT_PATHS = Object.freeze([
 ]);
 
 describe('GitCasMaterializationStoreAdapter', () => {
-  it('retains deterministic independent roots and resolves the exact coordinate', async () => {
+  it('retains deterministic roots and reuses the exact-coordinate lease', async () => {
     const harness = await createHarness();
     const coordinate = exactCoordinate();
     const roots = await createRoots(harness.cas);
@@ -75,6 +75,39 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
     await acquisition?.release();
     await acquisition?.release();
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
+    const repeated = await harness.adapter.acquireExact(coordinate);
+    expect(repeated?.materialization.bundle.equals(retained.bundle)).toBe(true);
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
+    await repeated?.release();
+    await harness.adapter.close();
+    await harness.adapter.close();
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(0);
+  });
+
+  it('retires a replaced coordinate after its in-flight reader releases', async () => {
+    const harness = await createHarness();
+    const firstCoordinate = exactCoordinate();
+    const secondCoordinate = new MaterializationCoordinate({
+      frontier: new Map([
+        ['writer-a', 'patch-next'],
+        ['writer-b', 'patch-b'],
+      ]),
+      ceiling: 13,
+    });
+    const roots = await createRoots(harness.cas);
+    await harness.adapter.retain({ coordinate: firstCoordinate, roots, stateHash: 'first' });
+    await harness.adapter.retain({ coordinate: secondCoordinate, roots, stateHash: 'second' });
+
+    const first = await harness.adapter.acquireExact(firstCoordinate);
+    const second = await harness.adapter.acquireExact(secondCoordinate);
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(2);
+
+    await first?.release();
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
+    await second?.release();
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
+    await harness.adapter.close();
     expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(0);
   });
 
@@ -100,7 +133,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
 
     expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toHaveLength(1);
-    expect((await acquireAndRelease(harness.adapter, coordinate))?.bundle.equals(promoted.bundle))
+    expect((await acquireReleaseAndClose(harness.adapter, coordinate))?.bundle.equals(promoted.bundle))
       .toBe(true);
   });
 
@@ -144,7 +177,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots,
       stateHash: 'partial-state-hash',
     });
-    const resolved = await acquireAndRelease(harness.adapter, exactCoordinate());
+    const resolved = await acquireReleaseAndClose(harness.adapter, exactCoordinate());
 
     expect(harness.cas.readBundleMembers(retained.bundle.toString()).map(([path]) => path))
       .toEqual(['meta/descriptor', 'roots/node-alive']);
@@ -162,7 +195,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots: await createRoots(harness.cas),
       stateHash: 'empty-state-hash',
     });
-    expect((await acquireAndRelease(harness.adapter, coordinate))?.coordinate.ceiling).toBeNull();
+    expect((await acquireReleaseAndClose(harness.adapter, coordinate))?.coordinate.ceiling).toBeNull();
   });
 
   it('fails closed when git-cas declines materialization retention', async () => {
@@ -491,18 +524,20 @@ type RetainedHarness = Harness & Readonly<{
   retainedBundle: BundleHandle;
 }>;
 
-async function acquireAndRelease(
+async function acquireReleaseAndClose(
   adapter: GitCasMaterializationStoreAdapter,
   coordinate: MaterializationCoordinate,
 ): Promise<MaterializationHandle | null> {
   const acquisition = await adapter.acquireExact(coordinate);
   if (acquisition === null) {
+    await adapter.close();
     return null;
   }
   try {
     return acquisition.materialization;
   } finally {
     await acquisition.release();
+    await adapter.close();
   }
 }
 

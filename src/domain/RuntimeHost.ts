@@ -68,6 +68,7 @@ import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type IntentStorePort from '../ports/IntentStorePort.ts';
+import type MaterializationStorePort from '../ports/MaterializationStorePort.ts';
 import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type WarpState from './services/state/WarpState.ts';
@@ -256,6 +257,8 @@ export default class RuntimeHost {
   _intentStore: IntentStorePort;
   _stateHashService: StateHashService | null;
   _auditService: AuditReceiptService | null;
+  _materializations: MaterializationStorePort;
+  _closePromise: Promise<void> | null;
 
   /**
    * Constructs a RuntimeHost instance with injected dependencies and configuration.
@@ -424,6 +427,8 @@ export default class RuntimeHost {
     this._checkpointStore = checkpointStore;
     this._indexStore = indexStore;
     this._auditService = auditService || null;
+    this._materializations = materializations;
+    this._closePromise = null;
   }
 
   _readLiveNodePresence(nodeId: string): Promise<boolean | null> {
@@ -432,6 +437,12 @@ export default class RuntimeHost {
 
   _readLiveNodeProperties(nodeId: string) {
     return this._materializeController.readLiveNodeProperties(nodeId);
+  }
+
+  /** Releases local runtime resources without changing admitted history. */
+  close(): Promise<void> {
+    this._closePromise ??= this._materializations.close();
+    return this._closePromise;
   }
 
   /**

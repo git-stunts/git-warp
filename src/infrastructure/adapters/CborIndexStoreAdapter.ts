@@ -1,4 +1,8 @@
-import type { BundleCapability, BundleMember, PageCapability } from '@git-stunts/git-cas';
+import type {
+  BundleCapability,
+  BundleMemberReference,
+  PageCapability,
+} from '@git-stunts/git-cas';
 import IndexStorePort, {
   type IndexShardDecodeOptions,
   type IndexShardWriteOptions,
@@ -31,7 +35,10 @@ import {
 } from './IndexShardLimitValidation.ts';
 
 export type GitCasIndexFacade = {
-  readonly bundles: Pick<BundleCapability, 'getMember' | 'putOrdered' | 'iterateMembers'>;
+  readonly bundles: Pick<
+    BundleCapability,
+    'getMemberReference' | 'putOrdered' | 'iterateMemberReferences'
+  >;
   readonly pages: Pick<PageCapability, 'get' | 'put'>;
 };
 
@@ -148,7 +155,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     const adapter = this;
     return WarpStream.from((async function* () {
       const seenPaths = new Set<string>();
-      for await (const member of adapter._cas.bundles.iterateMembers({
+      for await (const member of adapter._cas.bundles.iterateMemberReferences({
         handle: indexHandle.toString(),
       })) {
         requireUniqueBundleMember(seenPaths, member.path);
@@ -173,7 +180,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
   ): Promise<Readonly<Record<string, AssetHandle>>> {
     const entries: Array<[string, AssetHandle]> = [];
     const seenPaths = new Set<string>();
-    for await (const member of this._cas.bundles.iterateMembers({
+    for await (const member of this._cas.bundles.iterateMemberReferences({
       handle: indexHandle.toString(),
     })) {
       requireUniqueBundleMember(seenPaths, member.path);
@@ -189,7 +196,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     indexHandle: BundleHandle,
     path: string,
   ): Promise<AssetHandle | null> {
-    const member = await this._cas.bundles.getMember({
+    const member = await this._cas.bundles.getMemberReference({
       handle: indexHandle.toString(),
       path,
     });
@@ -219,7 +226,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     path: string,
     options: IndexShardDecodeOptions = {},
   ): Promise<TDecoded | null> {
-    const member = await this._cas.bundles.getMember({
+    const member = await this._cas.bundles.getMemberReference({
       handle: indexHandle.toString(),
       path,
     });
@@ -240,7 +247,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
 }
 
 async function readMemberBytes(args: {
-  member: BundleMember;
+  member: BundleMemberReference;
   path: string;
   maxBytes: number | undefined;
   cas: GitCasIndexFacade;

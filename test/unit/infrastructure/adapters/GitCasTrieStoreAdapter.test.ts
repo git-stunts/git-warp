@@ -220,8 +220,8 @@ function failingPages(
 function failingBundleWrites(cas: InMemoryGitCasFacade): GitCasTrieFacade {
   return {
     bundles: {
-      getMember: cas.bundles.getMember,
-      iterateMembers: cas.bundles.iterateMembers,
+      getMemberReference: cas.bundles.getMemberReference,
+      iterateMemberReferences: cas.bundles.iterateMemberReferences,
       putOrdered: async () => { throw new Error('bundle write unavailable'); },
     },
     pages: cas.pages,

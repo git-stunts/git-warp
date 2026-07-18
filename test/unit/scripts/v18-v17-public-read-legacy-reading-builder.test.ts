@@ -49,7 +49,7 @@ describe('v18 v17 public-read legacy reading builder', () => {
     // git-cas package versions are stamped into asset manifests, so dependency bumps
     // intentionally advance this migration-reading golden handle.
     expect(reading.facts.find((fact) => fact.factKey === 'node:alpha:_content')?.value)
-      .toBe('git-cas:1:asset:manifest-tree:cbor:sha1:5453687e3d0e74b5fbf43f347a4403824a52a697');
+      .toBe('git-cas:1:asset:manifest-tree:cbor:sha1:8851a151d100f2faad3a93892dfb83fa6f1345f7');
   });
 
   it('fails closed when a restored v17 writer ref drifts after restore', async () => {

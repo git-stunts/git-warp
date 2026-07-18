@@ -113,12 +113,15 @@ the property bag as sorted key/value entries, preserving legal keys such as
 shard over 16 MiB; reads enforce the same byte ceiling plus CBOR container,
 depth, and item limits before general decoding. The reader owns no cache.
 
-Both exact paths release the acquisition without hydrating `WarpState`, building
-adjacency, publishing a state snapshot, or populating `_cachedState`. A cold
-handle miss still performs the current materialization path before retaining and
-reading the new roots. Once assembled, a newly built property root joins the
-operation's expiring git-cas workspace before state hashing and final promotion,
-so the completed root remains reachable throughout promotion. A custom
+Both exact paths release their operation borrow without hydrating `WarpState`,
+building adjacency, publishing a state snapshot, or populating `_cachedState`.
+The runtime storage adapter keeps one git-cas acquisition for the current
+coordinate, retires it after in-flight readers finish when the coordinate
+changes, and releases it from `RuntimeHost.close()`. A cold handle miss still
+performs the current materialization path before retaining and reading the new
+roots. Once assembled, a newly built property root joins the operation's
+expiring git-cas workspace before state hashing and final promotion, so the
+completed root remains reachable throughout promotion. A custom
 state-session opener owns its root storage and
 encoding, so git-warp does not pair it with the default reader and instead
 preserves the compatibility fallback.

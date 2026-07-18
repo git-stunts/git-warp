@@ -168,7 +168,6 @@ export default class MaterializeController {
   readLiveNodeProperties(nodeId: string): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
     return this._liveStrategy.readNodeProperties(nodeId);
   }
-
   /** Coordinate materialization — explicit frontier. */
   async materializeCoordinate(
     opts: {

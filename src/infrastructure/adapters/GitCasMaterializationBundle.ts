@@ -1,6 +1,6 @@
 import type {
-  BundleMember,
   BundleMemberInput,
+  BundleMemberReference,
   PageHandle,
 } from '@git-stunts/git-cas';
 import WarpError from '../../domain/errors/WarpError.ts';
@@ -39,7 +39,7 @@ export function* materializationMembers(
 }
 
 export async function decodeMaterializationMembers(
-  members: AsyncIterable<BundleMember>,
+  members: AsyncIterable<BundleMemberReference>,
 ): Promise<DecodedMaterializationMembers> {
   const accumulator = createMemberAccumulator();
   for await (const member of members) {
@@ -58,7 +58,7 @@ function createMemberAccumulator(): MaterializationMemberAccumulator {
 
 function collectMaterializationMember(
   accumulator: MaterializationMemberAccumulator,
-  member: BundleMember,
+  member: BundleMemberReference,
 ): void {
   accumulator.memberCount += 1;
   if (accumulator.memberCount > MATERIALIZATION_MEMBER_COUNT) {
@@ -73,7 +73,7 @@ function collectMaterializationMember(
 
 function collectDescriptorMember(
   accumulator: MaterializationMemberAccumulator,
-  member: BundleMember,
+  member: BundleMemberReference,
 ): void {
   if (accumulator.descriptor !== null) {
     throw storageError('materialization bundle has duplicate descriptor members');
@@ -86,7 +86,7 @@ function collectDescriptorMember(
 
 function collectRootMember(
   accumulator: MaterializationMemberAccumulator,
-  member: BundleMember,
+  member: BundleMemberReference,
 ): void {
   const rootName = parseRootName(member.path);
   if (rootName === null) {

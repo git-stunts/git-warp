@@ -53,7 +53,14 @@ const ENCRYPTED_ASSET_NONCE_BYTES = 12;
 /** Minimal high-level git-cas facade used to exercise production adapters in memory. */
 export default class InMemoryGitCasFacade {
   readonly assets: Pick<AssetCapability, 'put' | 'adopt' | 'open'>;
-  readonly bundles: Pick<BundleCapability, 'getMember' | 'putOrdered' | 'iterateMembers'>;
+  readonly bundles: Pick<
+    BundleCapability,
+    | 'getMember'
+    | 'getMemberReference'
+    | 'putOrdered'
+    | 'iterateMembers'
+    | 'iterateMemberReferences'
+  >;
   readonly caches: {
     open(options: {
       readonly namespace: string;
@@ -96,7 +103,11 @@ export default class InMemoryGitCasFacade {
     this.bundles = Object.freeze({
       putOrdered: async (request) => await this.#putBundle(request.members),
       getMember: async (request) => await this.#getBundleMember(request.handle, request.path),
+      getMemberReference: async (request) => (
+        await this.#getBundleMember(request.handle, request.path)
+      ),
       iterateMembers: (request) => this.#iterateBundleMembers(request.handle),
+      iterateMemberReferences: (request) => this.#iterateBundleMembers(request.handle),
     });
     this.caches = Object.freeze({
       open: async ({ namespace }) => await this.#openCache(namespace),

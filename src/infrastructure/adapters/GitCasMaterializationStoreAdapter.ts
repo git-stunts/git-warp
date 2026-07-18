@@ -25,6 +25,7 @@ import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts'
 import GitCasMaterializationWorkspace, {
   type GitCasStagingWorkspace,
 } from './GitCasMaterializationWorkspace.ts';
+import GitCasMaterializationLease from './GitCasMaterializationLease.ts';
 import {
   decodeMaterializationDescriptor,
   MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
@@ -49,7 +50,7 @@ type MaterializationCacheSet = Pick<CacheSet, 'acquire' | 'put' | 'remove' | 're
 type MaterializationCachePut = Awaited<ReturnType<MaterializationCacheSet['put']>>;
 
 export type GitCasMaterializationFacade = {
-  readonly bundles: Pick<BundleCapability, 'iterateMembers' | 'putOrdered'>;
+  readonly bundles: Pick<BundleCapability, 'iterateMemberReferences' | 'putOrdered'>;
   readonly caches: {
     open(options: { readonly namespace: string }): Promise<MaterializationCacheSet>;
   };
@@ -68,6 +69,12 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   readonly #codec: CodecPort;
   readonly #crypto: CryptoPort;
   readonly #laneName: string;
+  #currentLease: GitCasMaterializationLease | null = null;
+  #leaseMutation: Promise<void> = Promise.resolve();
+  readonly #retirements = new Set<Promise<void>>();
+  #retirementFailure: Readonly<{ cause: unknown }> | null = null;
+  #closed = false;
+  #closePromise: Promise<void> | null = null;
 
   constructor(options: {
     readonly cas: GitCasMaterializationFacade;
@@ -203,6 +210,46 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     coordinate: MaterializationCoordinate,
   ): Promise<MaterializationAcquisition | null> {
     requireCoordinate(coordinate);
+    return await this.#withLeaseMutation(
+      async () => await this.#acquireExactLocked(coordinate),
+    );
+  }
+
+  override close(): Promise<void> {
+    this.#closePromise ??= this.#close();
+    return this.#closePromise;
+  }
+
+  async #acquireExactLocked(
+    coordinate: MaterializationCoordinate,
+  ): Promise<MaterializationAcquisition | null> {
+    if (this.#closed) {
+      throw storageError('adapter is closed');
+    }
+    if (this.#currentLease?.coordinate.equals(coordinate) === true) {
+      return this.#currentLease.acquire();
+    }
+
+    const next = await this.#openLease(coordinate);
+    if (next === null) {
+      return null;
+    }
+    return this.#replaceCurrentLease(next);
+  }
+
+  #replaceCurrentLease(next: GitCasMaterializationLease): MaterializationAcquisition {
+    const previous = this.#currentLease;
+    this.#currentLease = next;
+    const acquisition = next.acquire();
+    if (previous !== null) {
+      this.#retireLease(previous);
+    }
+    return acquisition;
+  }
+
+  async #openLease(
+    coordinate: MaterializationCoordinate,
+  ): Promise<GitCasMaterializationLease | null> {
     const cache = await this.#cas.caches.open({ namespace: CACHE_NAMESPACE });
     const acquisition = await cache.acquire(await this.#cacheKey(coordinate));
     if (acquisition === null) {
@@ -217,10 +264,55 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
         acquisition.evidence,
         coordinate,
       );
-      return materializationAcquisition(acquisition, materialization);
+      return new GitCasMaterializationLease({
+        acquisition,
+        coordinate,
+        materialization,
+      });
     } catch (raw) {
       await releaseCacheAcquisitionAfterFailure(acquisition);
       throw raw;
+    }
+  }
+
+  async #close(): Promise<void> {
+    await this.#withLeaseMutation(() => {
+      this.#closed = true;
+      if (this.#currentLease !== null) {
+        this.#retireLease(this.#currentLease);
+        this.#currentLease = null;
+      }
+      return Promise.resolve();
+    });
+    await Promise.allSettled([...this.#retirements]);
+    if (this.#retirementFailure !== null) {
+      throw this.#retirementFailure.cause;
+    }
+  }
+
+  #retireLease(lease: GitCasMaterializationLease): void {
+    const retirement = lease.retire();
+    this.#retirements.add(retirement);
+    void retirement.then(
+      () => {
+        this.#retirements.delete(retirement);
+      },
+      (cause: unknown) => {
+        this.#retirements.delete(retirement);
+        this.#retirementFailure ??= Object.freeze({ cause });
+      },
+    );
+  }
+
+  async #withLeaseMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.#leaseMutation;
+    const turn = Promise.withResolvers<void>();
+    this.#leaseMutation = turn.promise;
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      turn.resolve();
     }
   }
 
@@ -285,23 +377,10 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   }
 
   async #readMembers(bundle: BundleHandle): Promise<DecodedMaterializationMembers> {
-    return await decodeMaterializationMembers(this.#cas.bundles.iterateMembers({
+    return await decodeMaterializationMembers(this.#cas.bundles.iterateMemberReferences({
       handle: bundle.toString(),
     }));
   }
-}
-
-function materializationAcquisition(
-  acquisition: CacheAcquisition,
-  materialization: MaterializationHandle,
-): MaterializationAcquisition {
-  return Object.freeze({
-    materialization,
-    acquiredAt: acquisition.acquiredAt,
-    release: async () => {
-      await acquisition.release();
-    },
-  });
 }
 
 async function releaseCacheAcquisitionAfterFailure(
