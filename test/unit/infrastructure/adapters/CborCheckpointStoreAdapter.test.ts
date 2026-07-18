@@ -255,8 +255,8 @@ describe('CborCheckpointStoreAdapter semantic lifecycle', () => {
     const cas: GitCasCheckpointFacade = {
       bundles: {
         putOrdered: fixture.cas.bundles.putOrdered,
-        iterateMembers: async function* (request) {
-          for await (const member of fixture.cas.bundles.iterateMembers(request)) {
+        iterateMemberReferences: async function* (request) {
+          for await (const member of fixture.cas.bundles.iterateMemberReferences(request)) {
             yield Object.freeze({
               ...member,
               handle: GitCasBundleHandle.parse(published.bundleHandle.toString()),
@@ -277,9 +277,9 @@ describe('CborCheckpointStoreAdapter semantic lifecycle', () => {
     const cas: GitCasCheckpointFacade = {
       bundles: {
         putOrdered: fixture.cas.bundles.putOrdered,
-        iterateMembers: async function* (request) {
+        iterateMemberReferences: async function* (request) {
           let duplicated = false;
-          for await (const member of fixture.cas.bundles.iterateMembers(request)) {
+          for await (const member of fixture.cas.bundles.iterateMemberReferences(request)) {
             yield member;
             if (!duplicated) {
               yield member;
@@ -301,9 +301,9 @@ describe('CborCheckpointStoreAdapter semantic lifecycle', () => {
     const cas: GitCasCheckpointFacade = {
       bundles: {
         putOrdered: fixture.cas.bundles.putOrdered,
-        iterateMembers: async function* (request) {
+        iterateMemberReferences: async function* (request) {
           let replaced = false;
-          for await (const member of fixture.cas.bundles.iterateMembers(request)) {
+          for await (const member of fixture.cas.bundles.iterateMemberReferences(request)) {
             yield replaced ? member : Object.freeze({ ...member, path: 'index/' });
             replaced = true;
           }

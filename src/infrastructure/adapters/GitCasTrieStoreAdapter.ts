@@ -1,13 +1,13 @@
 import {
   BundleHandle,
   type BundleCapability,
-  type BundleMember,
-  type BundleMemberInput,
+  type BundleMemberReference,
   type PageCapability,
 } from '@git-stunts/git-cas';
 import TrieStoreError from '../../domain/errors/TrieStoreError.ts';
 import type { TrieBranchEntries } from '../../domain/orset/trie/TrieBranchEntries.ts';
 import type TrieStorePort from '../../domain/orset/trie/TrieStorePort.ts';
+import type ArtifactStagingPort from '../../ports/ArtifactStagingPort.ts';
 import { parseNibbleName } from './trieNibbleName.ts';
 
 const BRANCH_PREFIX = 'children/';
@@ -28,7 +28,7 @@ const MISSING_CODES = new Set([
 export type GitCasTrieFacade = {
   readonly bundles: Pick<
     BundleCapability,
-    'getMember' | 'iterateMembers' | 'putOrdered'
+    'getMemberReference' | 'iterateMemberReferences' | 'putOrdered'
   >;
   readonly pages: Pick<PageCapability, 'get' | 'put'>;
 };
@@ -51,9 +51,9 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
 
   async readLeaf(root: string): Promise<Uint8Array> {
     const bundle = parseReadRoot(root);
-    let member: BundleMember | null;
+    let member: BundleMemberReference | null;
     try {
-      member = await this.#cas.bundles.getMember({
+      member = await this.#cas.bundles.getMemberReference({
         handle: bundle,
         path: LEAF_PATH,
       });
@@ -80,7 +80,7 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     const bundle = parseReadRoot(root);
     const entries = new Map<number, string>();
     try {
-      for await (const member of this.#cas.bundles.iterateMembers({ handle: bundle })) {
+      for await (const member of this.#cas.bundles.iterateMemberReferences({ handle: bundle })) {
         collectBranchMember(entries, member, root);
       }
     } catch (raw) {
@@ -92,14 +92,19 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     return entries;
   }
 
-  async writeLeaf(data: Uint8Array): Promise<string> {
+  async writeLeaf(data: Uint8Array, staging?: ArtifactStagingPort): Promise<string> {
     try {
-      const page = await this.#cas.pages.put({
-        source: data,
-        maxBytes: MAX_TRIE_LEAF_BYTES,
-      });
+      const pageHandle = staging === undefined
+        ? (await this.#cas.pages.put({
+          source: data,
+          maxBytes: MAX_TRIE_LEAF_BYTES,
+        })).handle.toString()
+        : await staging.stagePage(data, { maxBytes: MAX_TRIE_LEAF_BYTES });
+      if (staging !== undefined) {
+        return (await staging.stageOrderedBundle([[LEAF_PATH, pageHandle]])).toString();
+      }
       const bundle = await this.#cas.bundles.putOrdered({
-        members: [[LEAF_PATH, page.handle]],
+        members: [[LEAF_PATH, pageHandle]],
       });
       return bundle.handle.toString();
     } catch (raw) {
@@ -107,9 +112,15 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     }
   }
 
-  async writeBranch(children: TrieBranchEntries): Promise<string> {
+  async writeBranch(
+    children: TrieBranchEntries,
+    staging?: ArtifactStagingPort,
+  ): Promise<string> {
     const members = branchMembers(children);
     try {
+      if (staging !== undefined) {
+        return (await staging.stageOrderedBundle(members)).toString();
+      }
       const bundle = await this.#cas.bundles.putOrdered({ members });
       return bundle.handle.toString();
     } catch (raw) {
@@ -120,7 +131,7 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
 
 function collectBranchMember(
   entries: Map<number, string>,
-  member: BundleMember,
+  member: BundleMemberReference,
   root: string,
 ): void {
   const name = branchMemberName(member.path, root);
@@ -145,12 +156,12 @@ function branchMemberName(path: string, root: string): string {
   return name;
 }
 
-function branchMembers(children: TrieBranchEntries): Array<[string, BundleMemberInput]> {
+function branchMembers(children: TrieBranchEntries): Array<[string, string]> {
   const ordered = [...children].sort(([left], [right]) => left - right);
   const width = nibbleNameWidth(ordered);
   return ordered.map(([nibble, child]) => [
     `${BRANCH_PREFIX}${formatNibble(nibble, width)}`,
-    parseChildRoot(child),
+    parseChildRoot(child).toString(),
   ]);
 }
 

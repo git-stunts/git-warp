@@ -15,7 +15,6 @@ import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
-const WORKSPACE_CACHE_NAMESPACE = 'git-warp/materialization-workspaces';
 const ROOT_PATHS = Object.freeze([
   'roots/adjacency',
   'roots/edge-alive',
@@ -28,7 +27,7 @@ const ROOT_PATHS = Object.freeze([
 ]);
 
 describe('GitCasMaterializationStoreAdapter', () => {
-  it('retains deterministic independent roots and resolves the exact coordinate', async () => {
+  it('retains deterministic roots and reuses the exact-coordinate lease', async () => {
     const harness = await createHarness();
     const coordinate = exactCoordinate();
     const roots = await createRoots(harness.cas);
@@ -71,11 +70,44 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(members.map(([path]) => path)).toEqual(['meta/descriptor', ...ROOT_PATHS]);
     const cacheKeys = harness.cas.readCacheKeys(CACHE_NAMESPACE);
     expect(cacheKeys).toHaveLength(1);
-    expect(cacheKeys[0]).toMatch(/^v2:[0-9a-f]{64}$/u);
+    expect(cacheKeys[0]).toMatch(/^v3:[0-9a-f]{64}$/u);
     expect(cacheKeys[0]?.length).toBeLessThan(1024);
     expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
     await acquisition?.release();
     await acquisition?.release();
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
+    const repeated = await harness.adapter.acquireExact(coordinate);
+    expect(repeated?.materialization.bundle.equals(retained.bundle)).toBe(true);
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
+    await repeated?.release();
+    await harness.adapter.close();
+    await harness.adapter.close();
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(0);
+  });
+
+  it('retires a replaced coordinate after its in-flight reader releases', async () => {
+    const harness = await createHarness();
+    const firstCoordinate = exactCoordinate();
+    const secondCoordinate = new MaterializationCoordinate({
+      frontier: new Map([
+        ['writer-a', 'patch-next'],
+        ['writer-b', 'patch-b'],
+      ]),
+      ceiling: 13,
+    });
+    const roots = await createRoots(harness.cas);
+    await harness.adapter.retain({ coordinate: firstCoordinate, roots, stateHash: 'first' });
+    await harness.adapter.retain({ coordinate: secondCoordinate, roots, stateHash: 'second' });
+
+    const first = await harness.adapter.acquireExact(firstCoordinate);
+    const second = await harness.adapter.acquireExact(secondCoordinate);
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(2);
+
+    await first?.release();
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
+    await second?.release();
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
+    await harness.adapter.close();
     expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(0);
   });
 
@@ -84,13 +116,13 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(await harness.adapter.acquireExact(exactCoordinate())).toBeNull();
   });
 
-  it('promotes terminal roots without installing an unnecessary workspace entry', async () => {
+  it('promotes terminal roots and releases the git-cas workspace', async () => {
     const harness = await createHarness();
     const coordinate = exactCoordinate();
     const roots = await createRoots(harness.cas);
     const workspace = await harness.adapter.openWorkspace(coordinate);
 
-    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
 
     const promoted = await workspace.promote({
       coordinate,
@@ -99,9 +131,9 @@ describe('GitCasMaterializationStoreAdapter', () => {
     });
     await workspace.release();
 
-    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toHaveLength(1);
-    expect((await acquireAndRelease(harness.adapter, coordinate))?.bundle.equals(promoted.bundle))
+    expect((await acquireReleaseAndClose(harness.adapter, coordinate))?.bundle.equals(promoted.bundle))
       .toBe(true);
   });
 
@@ -113,7 +145,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       nodeAliveRoot: roots.nodeAlive.handle?.toString() ?? null,
       edgeAliveRoot: null,
     });
-    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toHaveLength(1);
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(1);
 
     await expect(workspace.promote({
       coordinate: new MaterializationCoordinate({
@@ -128,7 +160,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     });
     await workspace.release();
 
-    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([]);
   });
 
@@ -145,14 +177,14 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots,
       stateHash: 'partial-state-hash',
     });
-    const resolved = await acquireAndRelease(harness.adapter, exactCoordinate());
+    const resolved = await acquireReleaseAndClose(harness.adapter, exactCoordinate());
 
     expect(harness.cas.readBundleMembers(retained.bundle.toString()).map(([path]) => path))
       .toEqual(['meta/descriptor', 'roots/node-alive']);
     expect(resolved?.roots.nodeAlive.status).toBe('retained');
     expect(resolved?.roots.nodeAlive.handle?.toString()).toBe(nodeBundle.handle.toString());
     expect(resolved?.roots.edgeAlive.status).toBe('empty');
-    expect(resolved?.roots.properties.status).toBe('unavailable');
+    expect(resolved?.roots.properties.status).toBe('empty');
   });
 
   it('round-trips an unbounded live coordinate with a null ceiling', async () => {
@@ -163,7 +195,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots: await createRoots(harness.cas),
       stateHash: 'empty-state-hash',
     });
-    expect((await acquireAndRelease(harness.adapter, coordinate))?.coordinate.ceiling).toBeNull();
+    expect((await acquireReleaseAndClose(harness.adapter, coordinate))?.coordinate.ceiling).toBeNull();
   });
 
   it('fails closed when git-cas declines materialization retention', async () => {
@@ -291,7 +323,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
 
   it.each([
     ['non-object descriptor', null, 'descriptor must be an object'],
-    ['schema', { schemaVersion: 3 }, 'schema is unsupported'],
+    ['schema', { schemaVersion: 2 }, 'schema is unsupported'],
     [
       'coordinate object',
       descriptor({ coordinate: null }),
@@ -357,6 +389,11 @@ describe('GitCasMaterializationStoreAdapter', () => {
       'missing root status',
       descriptor({ roots: rootStatusFixture().filter(([name]) => name !== 'adjacency') }),
       'no adjacency root status',
+    ],
+    [
+      'unavailable current property root',
+      descriptor({ roots: replaceRootStatus(rootStatusFixture(), 'properties', 'unavailable') }),
+      'requires a property root',
     ],
     ['lane', descriptor({ laneName: '' }), 'laneName must be a non-empty string'],
     ['state hash', descriptor({ stateHash: '' }), 'stateHash must be a non-empty string'],
@@ -446,6 +483,18 @@ describe('GitCasMaterializationStoreAdapter', () => {
       roots,
       stateHash: '',
     })).rejects.toMatchObject({ code: 'E_MATERIALIZATION_STORAGE' });
+    const nodeAlive = roots.nodeAlive.handle;
+    if (nodeAlive === null) {
+      throw new Error('Expected retained node-alive test root');
+    }
+    await expect(harness.adapter.retain({
+      coordinate: exactCoordinate(),
+      roots: unavailablePropertyRoots(nodeAlive),
+      stateHash: 'state-hash',
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('requires a property root'),
+    });
     await expect(Reflect.apply(harness.adapter.acquireExact, harness.adapter, [{
       frontier: new Map(),
       ceiling: null,
@@ -475,18 +524,20 @@ type RetainedHarness = Harness & Readonly<{
   retainedBundle: BundleHandle;
 }>;
 
-async function acquireAndRelease(
+async function acquireReleaseAndClose(
   adapter: GitCasMaterializationStoreAdapter,
   coordinate: MaterializationCoordinate,
 ): Promise<MaterializationHandle | null> {
   const acquisition = await adapter.acquireExact(coordinate);
   if (acquisition === null) {
+    await adapter.close();
     return null;
   }
   try {
     return acquisition.materialization;
   } finally {
     await acquisition.release();
+    await adapter.close();
   }
 }
 
@@ -539,6 +590,7 @@ function withCacheResult(
       open: async (options) => {
         const cache = await cas.caches.open(options);
         return {
+          ref: cache.ref,
           acquire: async (key) => await cache.acquire(key),
           put: async (key, handle, entryOptions) => rewrite(
             await cache.put(key, handle, entryOptions),
@@ -547,6 +599,7 @@ function withCacheResult(
         };
       },
     },
+    workspaces: cas.workspaces,
   };
 }
 
@@ -617,9 +670,23 @@ function partialRoots(nodeAlive: BundleHandle): MaterializationRoots {
     edgeBirths: MaterializationRoot.unavailable(),
     frontier: MaterializationRoot.unavailable(),
     nodeAlive: MaterializationRoot.retained(nodeAlive),
-    properties: MaterializationRoot.unavailable(),
+    properties: MaterializationRoot.empty(),
     provenanceSupport: MaterializationRoot.unavailable(),
     roaringIndexes: MaterializationRoot.unavailable(),
+  });
+}
+
+function unavailablePropertyRoots(nodeAlive: BundleHandle): MaterializationRoots {
+  const roots = partialRoots(nodeAlive);
+  return new MaterializationRoots({
+    adjacency: roots.adjacency,
+    edgeAlive: roots.edgeAlive,
+    edgeBirths: roots.edgeBirths,
+    frontier: roots.frontier,
+    nodeAlive: roots.nodeAlive,
+    properties: MaterializationRoot.unavailable(),
+    provenanceSupport: roots.provenanceSupport,
+    roaringIndexes: roots.roaringIndexes,
   });
 }
 
@@ -635,7 +702,7 @@ function exactCoordinate(): MaterializationCoordinate {
 
 function descriptor(overrides: Record<string, object | string | number | null> = {}): object {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     laneName: 'events',
     stateHash: 'state-hash',
     roots: rootStatusFixture(),

@@ -1,8 +1,9 @@
 import { BundleHandle } from '@git-stunts/git-cas';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GitCasTrieStoreAdapter, {
   type GitCasTrieFacade,
 } from '../../../../src/infrastructure/adapters/GitCasTrieStoreAdapter.ts';
+import DomainBundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
@@ -54,6 +55,28 @@ describe('GitCasTrieStoreAdapter', () => {
     await expect(adapter.readLeaf(root)).rejects.toMatchObject({
       code: 'E_TRIE_STORE_MISSING',
     });
+  });
+
+  it('routes every trie page and bundle write through the staging scope', async () => {
+    const stagePage = vi.fn(async (source: Uint8Array) => (
+      await cas.pages.put({ source, maxBytes: 16 * 1024 * 1024 })
+    ).handle.toString());
+    const stageOrderedBundle = vi.fn(async (members: Iterable<[string, string]>) => {
+      const staged = await cas.bundles.putOrdered({ members });
+      return new DomainBundleHandle(staged.handle.toString());
+    });
+    const staging = { stagePage, stageOrderedBundle };
+
+    const leaf = await adapter.writeLeaf(new Uint8Array([1, 2, 3]), staging);
+    const branch = await adapter.writeBranch(new Map([[0, leaf]]), staging);
+
+    expect(stagePage).toHaveBeenCalledOnce();
+    expect(stageOrderedBundle).toHaveBeenCalledTimes(2);
+    expect(cas.readBundleMembers(leaf)[0]).toEqual([
+      'leaf/data',
+      expect.stringMatching(/^git-cas:1:page:/u),
+    ]);
+    expect(cas.readBundleMembers(branch)).toEqual([['children/0', leaf]]);
   });
 
   it('maps an absent bundle to a typed missing-root error', async () => {
@@ -197,8 +220,8 @@ function failingPages(
 function failingBundleWrites(cas: InMemoryGitCasFacade): GitCasTrieFacade {
   return {
     bundles: {
-      getMember: cas.bundles.getMember,
-      iterateMembers: cas.bundles.iterateMembers,
+      getMemberReference: cas.bundles.getMemberReference,
+      iterateMemberReferences: cas.bundles.iterateMemberReferences,
       putOrdered: async () => { throw new Error('bundle write unavailable'); },
     },
     pages: cas.pages,

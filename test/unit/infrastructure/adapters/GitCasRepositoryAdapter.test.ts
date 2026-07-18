@@ -130,6 +130,7 @@ describe('GitCasRepositoryAdapter', () => {
       bundles: highLevelCas.bundles,
       caches: highLevelCas.caches,
       pages: highLevelCas.pages,
+      workspaces: highLevelCas.workspaces,
       publications: highLevelCas.publications,
       rootSets: { open: vi.fn(async () => rootSet) },
       readManifest: vi.fn(),

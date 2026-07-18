@@ -463,6 +463,14 @@ class RecordingWorkspace extends MaterializationWorkspacePort {
     }));
   }
 
+  override stagePage(): Promise<never> {
+    return Promise.reject(new Error("StateSession fake store does not stage through the workspace"));
+  }
+
+  override stageOrderedBundle(): Promise<never> {
+    return Promise.reject(new Error("StateSession fake store does not stage through the workspace"));
+  }
+
   override release(): Promise<void> {
     return Promise.resolve();
   }
@@ -473,6 +481,14 @@ class RecordingWorkspace extends MaterializationWorkspacePort {
 }
 
 class NullWitnessWorkspace extends MaterializationWorkspacePort {
+  override stagePage(): Promise<never> {
+    return Promise.reject(new Error("StateSession fake store does not stage through the workspace"));
+  }
+
+  override stageOrderedBundle(): Promise<never> {
+    return Promise.reject(new Error("StateSession fake store does not stage through the workspace"));
+  }
+
   override checkpoint(): Promise<null> {
     return Promise.resolve(null);
   }

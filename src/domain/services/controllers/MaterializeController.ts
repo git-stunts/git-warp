@@ -36,6 +36,7 @@ import PatchEntry from '../../artifacts/PatchEntry.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
+import type { PropValue } from '../../types/PropValue.ts';
 import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
@@ -164,7 +165,9 @@ export default class MaterializeController {
   readLiveNodePresence(nodeId: string): Promise<boolean | null> {
     return this._liveStrategy.readNodePresence(nodeId);
   }
-
+  readLiveNodeProperties(nodeId: string): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
+    return this._liveStrategy.readNodeProperties(nodeId);
+  }
   /** Coordinate materialization — explicit frontier. */
   async materializeCoordinate(
     opts: {
@@ -273,8 +276,13 @@ export default class MaterializeController {
       if (params.materialization.stateHash !== stateHash) {
         throw materializationResumeError('retained handle state hash does not match resumed state');
       }
-      params.reduced.acceptMaterialization?.(params.materialization.retention);
-      return params.materialization;
+      if (
+        params.reduced.roots === undefined
+        || params.materialization.roots.equals(params.reduced.roots)
+      ) {
+        params.reduced.acceptMaterialization?.(params.materialization.retention);
+        return params.materialization;
+      }
     }
     if (params.reduced.roots === undefined || params.frontier === null) {
       await this._acceptSessionWithoutMaterialization(params.reduced);
@@ -337,11 +345,17 @@ export default class MaterializeController {
       const reduced = await reduceSessionBackedState({
         openStateSession,
         materializations: this._deps.materializations,
+        ...(this._deps.propertyStore === undefined
+          ? {}
+          : { propertyStore: this._deps.propertyStore }),
         logger: this._deps.logger,
         coordinate,
         patches: [],
         baseState: snapshot.state,
         ...(retainedRoots === null ? {} : { roots: retainedRoots }),
+        ...(retainedRoots === null || retained === null
+          ? {}
+          : { propertyRoot: retained.roots.properties }),
         receipts: false,
         wantDiff: options.wantDiff,
       });
@@ -377,6 +391,9 @@ export default class MaterializeController {
     const sessionArgs = {
       openStateSession,
       materializations: this._deps.materializations,
+      ...(this._deps.propertyStore === undefined
+        ? {}
+        : { propertyStore: this._deps.propertyStore }),
       logger: this._deps.logger,
       coordinate: new MaterializationCoordinate(coordinate),
       patches: patches.map((entry) => new PatchEntry(entry)),
@@ -412,6 +429,9 @@ export default class MaterializeController {
     const reduced = await reduceSessionBackedState({
       openStateSession: this._deps.openStateSession,
       materializations: this._deps.materializations,
+      ...(this._deps.propertyStore === undefined
+        ? {}
+        : { propertyStore: this._deps.propertyStore }),
       logger: this._deps.logger,
       coordinate: new MaterializationCoordinate(coordinate),
       patches: recordingStream(),

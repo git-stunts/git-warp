@@ -116,6 +116,17 @@ describe('MaterializationRoots', () => {
     expect(Object.isFrozen(roots.entries()[0])).toBe(true);
   });
 
+  it('compares every root posture and retained handle', () => {
+    const roots = materializationRoots();
+    const changedOptions = {
+      ...rootsOptions(),
+      properties: retainedRoot('other-properties'),
+    };
+
+    expect(roots.equals(materializationRoots())).toBe(true);
+    expect(roots.equals(new MaterializationRoots(changedOptions))).toBe(false);
+  });
+
   it.each([
     'adjacency',
     'edgeAlive',
@@ -159,6 +170,13 @@ describe('MaterializationRoot', () => {
       MaterializationRoot,
       [new StorageHandle('not-a-bundle')],
     )).toThrowError(/Materialization root/u);
+  });
+
+  it('compares posture and retained handle identity', () => {
+    expect(retainedRoot('same').equals(retainedRoot('same'))).toBe(true);
+    expect(retainedRoot('same').equals(retainedRoot('different'))).toBe(false);
+    expect(MaterializationRoot.empty().equals(MaterializationRoot.empty())).toBe(true);
+    expect(MaterializationRoot.empty().equals(MaterializationRoot.unavailable())).toBe(false);
   });
 });
 

@@ -22,4 +22,9 @@ export default abstract class MaterializationStorePort {
   abstract acquireExact(
     _coordinate: MaterializationCoordinate,
   ): Promise<MaterializationAcquisition | null>;
+
+  /** Releases runtime-local materialization resources without changing retained storage. */
+  close(): Promise<void> {
+    return Promise.resolve();
+  }
 }

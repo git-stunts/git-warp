@@ -8,6 +8,7 @@ import type PropertyIndexReader from '../index/PropertyIndexReader.ts';
 import type { LogicalIndex } from '../index/logicalIndexHelpers.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import type Patch from '../../types/Patch.ts';
+import type { PropValue } from '../../types/PropValue.ts';
 
 export type ReadAdjacencyMaps = {
   outgoing: Map<string, readonly NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
@@ -29,6 +30,9 @@ export type FreshStateHost = {
 
 export type QueryReadHost = FreshStateHost & {
   _readLiveNodePresence?(nodeId: string): Promise<boolean | null>;
+  _readLiveNodeProperties?(
+    nodeId: string,
+  ): Promise<Readonly<Record<string, PropValue>> | null | undefined>;
   _propertyReader: PropertyIndexReader | null;
   _logicalIndex: LogicalIndex | null;
   _materializedGraph: MaterializedReadGraph | null;

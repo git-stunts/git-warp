@@ -119,6 +119,7 @@ function createHost(state, overrides = {}) {
     getFrontier: vi.fn().mockResolvedValue(new Map(frontier)),
     _ensureFreshState: vi.fn().mockResolvedValue(undefined),
     _readLiveNodePresence: vi.fn().mockResolvedValue(null),
+    _readLiveNodeProperties: vi.fn().mockResolvedValue(undefined),
     _assetStorage: {
       open: vi.fn(() => chunks(new Uint8Array([1, 2, 3]))),
     },
@@ -227,6 +228,39 @@ describe('QueryController', () => {
     it('returns empty object for a node with no properties', async () => {
       const props = await ctrl.getNodeProps('carol');
       expect(props).toEqual({});
+    });
+
+    it('returns retained properties without requiring whole state', async () => {
+      host._cachedState = null;
+      host._readLiveNodeProperties.mockResolvedValue({ age: 30, name: 'Alice' });
+
+      await expect(ctrl.getNodeProps('alice')).resolves.toEqual({
+        age: 30,
+        name: 'Alice',
+      });
+
+      expect(host._readLiveNodeProperties).toHaveBeenCalledWith('alice');
+      expect(host._ensureFreshState).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid public node target before retained lookup', async () => {
+      host._cachedState = null;
+
+      await expect(ctrl.getNodeProps('')).resolves.toBeNull();
+
+      expect(host._readLiveNodeProperties).not.toHaveBeenCalled();
+      expect(host._ensureFreshState).not.toHaveBeenCalled();
+    });
+
+    it('falls back to whole state only when retained properties are unavailable', async () => {
+      host._readLiveNodeProperties.mockResolvedValue(undefined);
+
+      await expect(ctrl.getNodeProps('alice')).resolves.toEqual({
+        age: 30,
+        name: 'Alice',
+      });
+
+      expect(host._ensureFreshState).toHaveBeenCalledOnce();
     });
 
     it('uses indexed fast path when propertyReader is available', async () => {

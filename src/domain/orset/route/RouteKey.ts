@@ -100,8 +100,8 @@ export default class RouteKey {
   /**
    * Return the route key as a lowercase hex string.
    *
-   * Useful for logging and test assertions. Not for storage — storage
-   * uses the raw bytes.
+   * This is the canonical textual form for deterministic path names,
+   * diagnostics, and test assertions. Trie storage uses the raw bytes.
    */
   toHex(): string {
     let out = "";

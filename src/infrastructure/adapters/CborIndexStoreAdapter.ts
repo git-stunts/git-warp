@@ -1,5 +1,12 @@
-import type { BundleCapability } from '@git-stunts/git-cas';
-import IndexStorePort from '../../ports/IndexStorePort.ts';
+import type {
+  BundleCapability,
+  BundleMemberReference,
+  PageCapability,
+} from '@git-stunts/git-cas';
+import IndexStorePort, {
+  type IndexShardDecodeOptions,
+  type IndexShardWriteOptions,
+} from '../../ports/IndexStorePort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type CodecValue from '../../domain/types/codec/CodecValue.ts';
@@ -11,14 +18,26 @@ import { LabelShard } from '../../domain/artifacts/LabelShard.ts';
 import { PropertyShard } from '../../domain/artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
 import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
-import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
-import BundleHandle from '../../domain/storage/BundleHandle.ts';
+import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import IndexError from '../../domain/errors/IndexError.ts';
 import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
+import computeShardKey from '../../domain/utils/shardKey.ts';
+import { materializationPropertyShardKey } from '../../domain/materialization/MaterializationPropertyProfile.ts';
+import { validateBoundedCbor } from './BoundedCborValidation.ts';
+import { decodeRoutedPropertyShardArtifact } from '../../domain/services/index/PropertyIndexReader.ts';
+import { writeCborIndexShards } from './CborIndexShardWriter.ts';
+import {
+  optionalCborStructureLimits,
+  optionalPositiveInteger,
+} from './IndexShardLimitValidation.ts';
 
 export type GitCasIndexFacade = {
-  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
+  readonly bundles: Pick<
+    BundleCapability,
+    'getMemberReference' | 'putOrdered' | 'iterateMemberReferences'
+  >;
+  readonly pages: Pick<PageCapability, 'get' | 'put'>;
 };
 
 function classifyMeta(match: RegExpMatchArray, data: unknown): MetaShard {
@@ -46,9 +65,21 @@ function classifyLabel(_match: RegExpMatchArray, data: unknown): LabelShard {
 }
 
 function classifyProperty(match: RegExpMatchArray, data: unknown): PropertyShard {
+  const path = match[0];
+  const decoded = decodeRoutedPropertyShardArtifact(
+    data as CodecValue, // nosemgrep: ts-no-unsafe-type-assertion -- validated by decoder
+    path,
+    (nodeId, schemaVersion) => schemaVersion === 2
+      ? materializationPropertyShardKey(nodeId)
+      : computeShardKey(nodeId),
+  );
   return new PropertyShard({
     shardKey: match[1] as string,
-    entries: data as Array<[string, Record<string, unknown>]>,
+    schemaVersion: decoded.schemaVersion,
+    entries: Array.from(
+      decoded.entries,
+      ([nodeId, properties]): [string, Record<string, unknown>] => [nodeId, properties],
+    ),
   });
 }
 
@@ -75,9 +106,10 @@ const SHARD_CLASSIFIERS: ReadonlyArray<{ pattern: RegExp; classify: (match: RegE
  *
  * Owns the codec while configured asset and bundle capabilities own
  * persistence. Domain services produce IndexShard streams; the adapter
- * encodes and stages assets, then assembles their opaque handles into
- * ordered bundles. On read, the adapter decodes assets and
- * constructs IndexShard subclass instances.
+ * encodes and stages immutable members, then assembles their opaque handles
+ * into ordered bundles. General indexes use assets; bounded exact-read roots
+ * may use pages to avoid creating an asset manifest per shard. On read, the
+ * adapter decodes members and constructs IndexShard subclass instances.
  *
  * Write pipeline reuses existing infrastructure transforms:
  *   WarpStream<IndexShard>
@@ -104,26 +136,24 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     this._cas = cas;
   }
 
-  override async writeShards(shardStream: WarpStream<IndexShard>): Promise<BundleHandle> {
-    const members: Array<[string, string]> = [];
-    for await (const [path, bytes] of shardStream.pipe(new IndexShardEncodeTransform(this._codec))) {
-      const staged = await this._assets.stage(WarpStream.from([bytes]), {
-        slug: `index-shard-${path}`,
-        filename: path,
-        expectedSize: bytes.byteLength,
-      });
-      members.push([path, staged.handle.toString()]);
-    }
-    members.sort(([left], [right]) => left.localeCompare(right));
-    const bundle = await this._cas.bundles.putOrdered({ members });
-    return new BundleHandle(bundle.handle.toString());
+  override async writeShards(
+    shardStream: WarpStream<IndexShard>,
+    options: IndexShardWriteOptions = {},
+  ): Promise<BundleHandle> {
+    return await writeCborIndexShards({
+      shardStream,
+      options,
+      codec: this._codec,
+      assets: this._assets,
+      cas: this._cas,
+    });
   }
 
   override scanShards(indexHandle: BundleHandle): WarpStream<IndexShard> {
     const adapter = this;
     return WarpStream.from((async function* () {
       const seenPaths = new Set<string>();
-      for await (const member of adapter._cas.bundles.iterateMembers({
+      for await (const member of adapter._cas.bundles.iterateMemberReferences({
         handle: indexHandle.toString(),
       })) {
         requireUniqueBundleMember(seenPaths, member.path);
@@ -148,7 +178,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
   ): Promise<Readonly<Record<string, AssetHandle>>> {
     const entries: Array<[string, AssetHandle]> = [];
     const seenPaths = new Set<string>();
-    for await (const member of this._cas.bundles.iterateMembers({
+    for await (const member of this._cas.bundles.iterateMemberReferences({
       handle: indexHandle.toString(),
     })) {
       requireUniqueBundleMember(seenPaths, member.path);
@@ -160,26 +190,164 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     return Object.freeze(Object.fromEntries(entries));
   }
 
+  override async readShardHandle(
+    indexHandle: BundleHandle,
+    path: string,
+  ): Promise<AssetHandle | null> {
+    const member = await this._cas.bundles.getMemberReference({
+      handle: indexHandle.toString(),
+      path,
+    });
+    return member === null
+      ? null
+      : requireAssetMember(path, member.handle.kind, member.handle.toString());
+  }
+
   override openShard(shardHandle: AssetHandle): AsyncIterable<Uint8Array> {
     return this._assets.open(shardHandle);
   }
 
   override async decodeShard<TDecoded extends CodecValue = CodecValue>(
     shardHandle: AssetHandle,
+    options: IndexShardDecodeOptions = {},
   ): Promise<TDecoded> {
-    const bytes = await collectAsyncIterable(this._assets.open(shardHandle));
+    const maxBytes = optionalPositiveInteger(options.maxBytes, 'maxBytes');
+    const bytes = maxBytes === undefined
+      ? await collectAsyncIterable(this._assets.open(shardHandle))
+      : await collectBoundedShard(this._assets.open(shardHandle), maxBytes);
+    validateRequestedStructure(bytes, options);
+    return this._codec.decode<TDecoded>(bytes);
+  }
+
+  override async decodeShardAt<TDecoded extends CodecValue = CodecValue>(
+    indexHandle: BundleHandle,
+    path: string,
+    options: IndexShardDecodeOptions = {},
+  ): Promise<TDecoded | null> {
+    const member = await this._cas.bundles.getMemberReference({
+      handle: indexHandle.toString(),
+      path,
+    });
+    if (member === null) {
+      return null;
+    }
+    const maxBytes = optionalPositiveInteger(options.maxBytes, 'maxBytes');
+    const bytes = await readMemberBytes({
+      member,
+      path,
+      maxBytes,
+      cas: this._cas,
+      assets: this._assets,
+    });
+    validateRequestedStructure(bytes, options);
     return this._codec.decode<TDecoded>(bytes);
   }
 }
 
-function requireAssetMember(path: string, kind: string, token: string): AssetHandle {
-  if (kind !== 'asset') {
-    throw new IndexError(`Index bundle member is not an asset: ${path}`, {
-      code: 'E_INDEX_INVALID_BUNDLE_MEMBER',
-      context: { path, kind },
+async function readMemberBytes(args: {
+  member: BundleMemberReference;
+  path: string;
+  maxBytes: number | undefined;
+  cas: GitCasIndexFacade;
+  assets: AssetStoragePort;
+}): Promise<Uint8Array> {
+  if (args.member.handle.kind === 'page') {
+    return await args.cas.pages.get({
+      handle: args.member.handle.toString(),
+      ...(args.maxBytes === undefined ? {} : { maxBytes: args.maxBytes }),
     });
   }
+  if (args.member.handle.kind !== 'asset') {
+    throw invalidBundleMember(args.path, args.member.handle.kind);
+  }
+  const source = args.assets.open(new AssetHandle(args.member.handle.toString()));
+  return args.maxBytes === undefined
+    ? await collectAsyncIterable(source)
+    : await collectBoundedShard(source, args.maxBytes);
+}
+
+async function collectBoundedShard(
+  source: AsyncIterable<Uint8Array>,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
+  let chunkCount = 0;
+  let total = 0;
+  for await (const chunk of source) {
+    chunkCount += 1;
+    requireShardChunkCount(chunkCount);
+    total = appendBoundedShardChunk(chunks, chunk, { total, maxBytes });
+  }
+  return joinShardChunks(chunks, total);
+}
+
+function appendBoundedShardChunk(
+  chunks: Uint8Array[],
+  chunk: Uint8Array,
+  bounds: { readonly total: number; readonly maxBytes: number },
+): number {
+  if (chunk.byteLength === 0) {
+    return bounds.total;
+  }
+  if (chunk.byteLength > bounds.maxBytes - bounds.total) {
+    throw shardTooLarge(bounds.total + chunk.byteLength, bounds.maxBytes);
+  }
+  chunks.push(chunk);
+  return bounds.total + chunk.byteLength;
+}
+
+function joinShardChunks(chunks: Uint8Array[], total: number): Uint8Array {
+  if (chunks.length === 1) {
+    return chunks[0]!;
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+function requireShardChunkCount(actual: number): void {
+  const maximum = 4096;
+  if (actual > maximum) {
+    throw new IndexError('Index shard stream exceeds the configured chunk maximum', {
+      code: 'E_INDEX_SHARD_CHUNK_LIMIT',
+      context: { actual, maximum },
+    });
+  }
+}
+
+function validateRequestedStructure(
+  bytes: Uint8Array,
+  options: IndexShardDecodeOptions,
+): void {
+  const limits = optionalCborStructureLimits(options.structureLimits);
+  if (limits !== undefined) {
+    validateBoundedCbor(bytes, limits);
+  }
+}
+
+function shardTooLarge(actual: number, maximum: number): IndexError {
+  return new IndexError('Index shard exceeds the configured maximum', {
+    code: 'E_INDEX_SHARD_TOO_LARGE',
+    context: { actual, maximum },
+  });
+}
+
+function requireAssetMember(path: string, kind: string, token: string): AssetHandle {
+  if (kind !== 'asset') {
+    throw invalidBundleMember(path, kind);
+  }
   return new AssetHandle(token);
+}
+
+function invalidBundleMember(path: string, kind: string): IndexError {
+  return new IndexError(`Index bundle member is not a readable shard: ${path}`, {
+    code: 'E_INDEX_INVALID_BUNDLE_MEMBER',
+    context: { path, kind },
+  });
 }
 
 function requireUniqueBundleMember(seenPaths: Set<string>, path: string): void {

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
 import PropertyIndexBuilder from '../../../../src/domain/services/index/PropertyIndexBuilder.ts';
 import PropertyIndexReader from '../../../../src/domain/services/index/PropertyIndexReader.ts';
+import { decodePropertyShard } from '../../../../src/domain/services/index/PropertyIndexReader.ts';
+import {
+  MAX_MATERIALIZATION_PROPERTY_SHARDS,
+  requireMaterializationPropertyShardCount,
+} from '../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.ts';
@@ -30,7 +35,10 @@ describe('PropertyIndex handle-backed reads', () => {
 
     await expect(reader.getNodeProps('user:alice')).resolves.toEqual({ name: 'Alice', age: 30 });
     await expect(reader.getProperty('user:bob', 'name')).resolves.toBe('Bob');
+    await expect(reader.getProperty('user:alice', 'constructor')).resolves.toBeUndefined();
+    await expect(reader.getProperty('user:alice', 'toString')).resolves.toBeUndefined();
     await expect(reader.getNodeProps('missing')).resolves.toBeNull();
+    await expect(reader.getProperty('missing', 'name')).resolves.toBeUndefined();
   });
 
   it('reads freshly materialized in-memory shards without a storage adapter', async () => {
@@ -81,6 +89,100 @@ describe('PropertyIndex handle-backed reads', () => {
     await expect(reader.getNodeProps('node:1')).rejects.toMatchObject({
       code: 'E_INDEX_SHARD_MALFORMED',
     });
+  });
+
+  it('rejects duplicate and wrong-bucket node entries', () => {
+    const nodeId = 'node:1';
+    const path = `props_${computeShardKey(nodeId)}.cbor`;
+
+    expect(() => decodePropertyShard([
+      [nodeId, { status: 'first' }],
+      [nodeId, { status: 'second' }],
+    ], path)).toThrowError(expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' }));
+    expect(() => decodePropertyShard(
+      [[nodeId, { status: 'misbucketed' }]],
+      'props_00.cbor',
+    )).toThrowError(expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' }));
+  });
+
+  it('decodes schema-v1 object bags and schema-v2 entry bags explicitly', () => {
+    const nodeId = 'node:1';
+    const path = `props_${computeShardKey(nodeId)}.cbor`;
+    const legacy = decodePropertyShard([[nodeId, { status: 'legacy' }]], path);
+    const current = decodePropertyShard({
+      schemaVersion: 2,
+      entries: [[nodeId, [[
+        '__proto__',
+        'retained-data',
+      ], [
+        'status',
+        'current',
+      ]]]],
+    }, path);
+    const currentBag = current.get(nodeId);
+
+    expect(legacy.get(nodeId)).toEqual({ status: 'legacy' });
+    expect(currentBag?.['status']).toBe('current');
+    expect(Object.hasOwn(currentBag ?? {}, '__proto__')).toBe(true);
+    expect(currentBag?.['__proto__']).toBe('retained-data');
+    expect(Object.getPrototypeOf(currentBag)).toBeNull();
+    expect(Object.isFrozen(currentBag)).toBe(true);
+    expect(({} as Record<string, unknown>)['retained-data']).toBeUndefined();
+  });
+
+  it('rejects ambiguous, duplicate, and invalid schema-v2 property entries', () => {
+    const nodeId = 'node:1';
+    const path = `props_${computeShardKey(nodeId)}.cbor`;
+
+    for (const payload of [
+      null,
+      { schemaVersion: 2, entries: [[nodeId, [['status', 'first'], ['status', 'second']]]] },
+      { schemaVersion: 2, entries: [[nodeId, [['', 'empty-key']]]] },
+      { schemaVersion: 2, entries: [[nodeId, [['bad\0key', 'nul-key']]]] },
+      { schemaVersion: 2, entries: [[nodeId, { status: 'object-bag' }]] },
+      { schemaVersion: 2, entries: 'not-an-array' },
+      { schemaVersion: 2, entries: [['', []]] },
+      { schemaVersion: 3, entries: [] },
+      { schemaVersion: 2, entries: [], extra: true },
+    ]) {
+      expect(() => decodePropertyShard(payload, path)).toThrowError(
+        expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' }),
+      );
+    }
+
+    expect(() => decodePropertyShard(
+      [[nodeId, [['status', 'ambiguous-v1-array-bag']]]],
+      path,
+    )).toThrowError(expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' }));
+  });
+
+  it('uses an injected shard routing profile without changing the default profile', () => {
+    const builder = new PropertyIndexBuilder({ shardKey: () => 'custom' });
+    builder.addProperty('node:1', 'status', 'ready');
+
+    expect([...builder.yieldShards()].map((shard) => shard.shardKey)).toEqual(['custom']);
+    expect(computeShardKey('node:1')).not.toBe('custom');
+  });
+
+  it('accepts only property shard schemas implemented by the encoder', () => {
+    const builder = new PropertyIndexBuilder({ schemaVersion: 2, shardKey: () => 'current' });
+    builder.addProperty('node:1', 'status', 'ready');
+
+    expect([...builder.yieldShards()][0]?.schemaVersion).toBe(2);
+    expect(() => new PropertyIndexBuilder({
+      // @ts-expect-error Runtime guard for JavaScript callers.
+      schemaVersion: 3,
+    })).toThrowError(expect.objectContaining({ code: 'E_INDEX_SHARD_SCHEMA' }));
+    expect(() => new PropertyIndexBuilder({
+      // @ts-expect-error Runtime guard for JavaScript callers.
+      schemaVersion: null,
+    })).toThrowError(expect.objectContaining({ code: 'E_INDEX_SHARD_SCHEMA' }));
+  });
+
+  it('rejects an over-limit flat property root before persistence', () => {
+    expect(() => requireMaterializationPropertyShardCount(
+      MAX_MATERIALIZATION_PROPERTY_SHARDS + 1,
+    )).toThrowError(expect.objectContaining({ code: 'E_INDEX_SHARD_COUNT_LIMIT' }));
   });
 
   it('does not permit __proto__ property data to mutate Object.prototype', async () => {

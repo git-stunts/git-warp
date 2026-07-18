@@ -9,7 +9,7 @@ import MaterializationRoots, {
 import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
-export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 2;
+export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 3;
 
 export type DecodedMaterializationDescriptor = Readonly<{
   coordinate: MaterializationCoordinate;
@@ -121,7 +121,16 @@ function decodeRootStatuses(
   for (const name of MATERIALIZATION_ROOT_NAMES) {
     requireRootStatus(statuses, name);
   }
+  requireCurrentPropertyRoot(statuses);
   return statuses;
+}
+
+function requireCurrentPropertyRoot(
+  statuses: ReadonlyMap<MaterializationRootName, MaterializationRootStatus>,
+): void {
+  if (statuses.get('properties') === 'unavailable') {
+    throw descriptorError('current materialization descriptor requires a property root');
+  }
 }
 
 function decodeRootStatusEntry(

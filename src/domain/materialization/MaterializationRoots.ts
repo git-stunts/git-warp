@@ -65,6 +65,11 @@ export default class MaterializationRoots {
       MATERIALIZATION_ROOT_NAMES.map((name) => rootEntry(name, this.roots[name])),
     );
   }
+
+  equals(other: MaterializationRoots): boolean {
+    return other instanceof MaterializationRoots
+      && MATERIALIZATION_ROOT_NAMES.every((name) => this.roots[name].equals(other.roots[name]));
+  }
 }
 
 function rootEntry(

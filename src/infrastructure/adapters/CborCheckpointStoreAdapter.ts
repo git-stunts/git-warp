@@ -48,7 +48,7 @@ interface CheckpointHistory {
 }
 
 export type GitCasCheckpointFacade = {
-  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMembers'>;
+  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMemberReferences'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
 };
 
@@ -265,7 +265,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   ): Promise<CheckpointLayout> {
     const artifacts = new Map<string, CheckpointArtifact>();
     const indexShardHandles = new Map<string, AssetHandle>();
-    for await (const member of this._cas.bundles.iterateMembers({
+    for await (const member of this._cas.bundles.iterateMemberReferences({
       handle: bundleHandle.toString(),
     })) {
       if (member.handle.kind !== 'asset') {

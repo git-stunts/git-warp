@@ -152,6 +152,86 @@ describe('MaterializeController live node reads', () => {
     expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
     expect(fixture.materializations.acquisitions[0]?.released).toBe(true);
   });
+
+  it('reads retained node properties without projecting whole state', async () => {
+    const fixture = await createFixture({
+      propertyRootStatus: 'retained',
+      properties: { status: 'ready' },
+    });
+
+    await expect(fixture.controller.readLiveNodeProperties('node:retained'))
+      .resolves.toEqual({ status: 'ready' });
+
+    expect(fixture.materializationRead.hasNode).toHaveBeenCalledWith(
+      fixture.nodeRoot,
+      'node:retained',
+    );
+    expect(fixture.materializationRead.getNodeProperties).toHaveBeenCalledWith(
+      fixture.propertyRoot,
+      'node:retained',
+    );
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+    expect(fixture.deps.crypto.hash).not.toHaveBeenCalled();
+  });
+
+  it('returns null properties for a missing retained node', async () => {
+    const fixture = await createFixture({
+      presence: false,
+      propertyRootStatus: 'retained',
+    });
+
+    await expect(fixture.controller.readLiveNodeProperties('node:missing'))
+      .resolves.toBeNull();
+
+    expect(fixture.materializationRead.getNodeProperties).not.toHaveBeenCalled();
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+  });
+
+  it('returns an empty bag from an empty retained properties root', async () => {
+    const fixture = await createFixture({ propertyRootStatus: 'empty' });
+
+    await expect(fixture.controller.readLiveNodeProperties('node:retained'))
+      .resolves.toEqual({});
+
+    expect(fixture.materializationRead.getNodeProperties).not.toHaveBeenCalled();
+  });
+
+  it('falls back after releasing an unavailable retained properties root', async () => {
+    const fixture = await createFixture({ propertyRootStatus: 'unavailable' });
+
+    await expect(fixture.controller.readLiveNodeProperties('node:retained'))
+      .resolves.toBeUndefined();
+
+    expect(fixture.materializationRead.getNodeProperties).not.toHaveBeenCalled();
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+  });
+
+  it('falls back when the configured reader does not support property roots', async () => {
+    const fixture = await createFixture({
+      propertyRootStatus: 'retained',
+      propertyReadUnsupported: true,
+    });
+
+    await expect(fixture.controller.readLiveNodeProperties('node:retained'))
+      .resolves.toBeUndefined();
+
+    expect(fixture.materializationRead.getNodeProperties).toHaveBeenCalledOnce();
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+  });
+
+  it('releases retained roots when the bounded property read fails', async () => {
+    const propertyReadFailure = new Error('property read failed');
+    const fixture = await createFixture({
+      propertyRootStatus: 'retained',
+      propertyReadFailure,
+    });
+
+    await expect(fixture.controller.readLiveNodeProperties('node:retained'))
+      .rejects.toBe(propertyReadFailure);
+
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+    expect(fixture.materializations.acquisitions[0]?.released).toBe(true);
+  });
 });
 
 async function createFixture(
@@ -159,6 +239,10 @@ async function createFixture(
     readonly frontier?: Map<string, string>;
     readonly materializationRead?: boolean;
     readonly presence?: boolean;
+    readonly properties?: Readonly<Record<string, string>>;
+    readonly propertyReadFailure?: Error;
+    readonly propertyReadUnsupported?: boolean;
+    readonly propertyRootStatus?: MaterializationRootStatus;
     readonly readFailure?: Error;
     readonly retain?: boolean;
     readonly rootStatus?: MaterializationRootStatus;
@@ -168,10 +252,16 @@ async function createFixture(
   patches.frontier = new Map(options.frontier ?? FRONTIER);
   const materializations = new InMemoryMaterializationStore();
   const nodeRoot = new BundleHandle('test:node-root');
+  const propertyRoot = new BundleHandle('test:property-root');
   if (options.retain !== false && patches.frontier.size > 0) {
     await materializations.retain({
       coordinate: new MaterializationCoordinate({ frontier: patches.frontier, ceiling: null }),
-      roots: rootsWithNodeStatus(options.rootStatus ?? 'retained', nodeRoot),
+      roots: rootsWithStatus({
+        nodeStatus: options.rootStatus ?? 'retained',
+        nodeRoot,
+        propertyStatus: options.propertyRootStatus ?? 'unavailable',
+        propertyRoot,
+      }),
       stateHash: 'state-hash',
     });
   }
@@ -181,13 +271,31 @@ async function createFixture(
   } else {
     hasNode.mockRejectedValue(options.readFailure);
   }
-  const materializationRead = { hasNode };
+  const getNodeProperties = vi.fn();
+  if (options.propertyReadUnsupported === true) {
+    getNodeProperties.mockResolvedValue(undefined);
+  } else if (options.propertyReadFailure === undefined) {
+    getNodeProperties.mockResolvedValue(options.properties ?? null);
+  } else {
+    getNodeProperties.mockRejectedValue(options.propertyReadFailure);
+  }
+  const materializationRead = {
+    hasNode,
+    getNodeProperties,
+  };
   const deps = createDeps({ materializations, patches, materializationRead });
   const controller =
     options.materializationRead === false
       ? new MaterializeController(withoutMaterializationRead(deps))
       : new MaterializeController(deps);
-  return { controller, deps, materializationRead, materializations, nodeRoot };
+  return {
+    controller,
+    deps,
+    materializationRead,
+    materializations,
+    nodeRoot,
+    propertyRoot,
+  };
 }
 
 function createDeps(options: {
@@ -195,6 +303,10 @@ function createDeps(options: {
   readonly patches: PatchCollector;
   readonly materializationRead: {
     hasNode(nodeAliveRoot: BundleHandle, nodeId: string): Promise<boolean>;
+    getNodeProperties(
+      propertiesRoot: BundleHandle,
+      nodeId: string,
+    ): Promise<Readonly<Record<string, string>> | null | undefined>;
   };
 }): MaterializeDeps {
   return {
@@ -226,10 +338,12 @@ function withoutMaterializationRead(deps: MaterializeDeps): MaterializeDeps {
   return withoutReader;
 }
 
-function rootsWithNodeStatus(
-  status: MaterializationRootStatus,
-  nodeRoot: BundleHandle
-): MaterializationRoots {
+function rootsWithStatus(options: {
+  nodeStatus: MaterializationRootStatus;
+  nodeRoot: BundleHandle;
+  propertyStatus: MaterializationRootStatus;
+  propertyRoot: BundleHandle;
+}): MaterializationRoots {
   const unavailable = MaterializationRoot.unavailable();
   return new MaterializationRoots({
     adjacency: unavailable,
@@ -237,12 +351,17 @@ function rootsWithNodeStatus(
     edgeBirths: unavailable,
     frontier: unavailable,
     nodeAlive:
-      status === 'retained'
-        ? MaterializationRoot.retained(nodeRoot)
-        : status === 'empty'
+      options.nodeStatus === 'retained'
+        ? MaterializationRoot.retained(options.nodeRoot)
+        : options.nodeStatus === 'empty'
           ? MaterializationRoot.empty()
           : unavailable,
-    properties: unavailable,
+    properties:
+      options.propertyStatus === 'retained'
+        ? MaterializationRoot.retained(options.propertyRoot)
+        : options.propertyStatus === 'empty'
+          ? MaterializationRoot.empty()
+          : unavailable,
     provenanceSupport: unavailable,
     roaringIndexes: unavailable,
   });
