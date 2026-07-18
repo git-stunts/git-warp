@@ -31,18 +31,21 @@ export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePo
   }
 
   override checkpoint(roots: MaterializationWorkspaceRoots): Promise<StorageRetentionWitness> {
+    this.#assertMutable();
     this.checkpoints.push(roots);
     const bundle = new BundleHandle(`test:workspace:${String(this.checkpoints.length)}`);
     return Promise.resolve(workspaceRetentionWitness(bundle));
   }
 
   override stagePage(): Promise<string> {
+    this.#assertMutable();
     const handle = `test:workspace-page:${String(this.#nextArtifact)}`;
     this.#nextArtifact += 1;
     return Promise.resolve(handle);
   }
 
   override stageOrderedBundle(): Promise<BundleHandle> {
+    this.#assertMutable();
     const handle = new BundleHandle(`test:workspace-bundle:${String(this.#nextArtifact)}`);
     this.#nextArtifact += 1;
     return Promise.resolve(handle);
@@ -54,7 +57,14 @@ export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePo
   }
 
   override promote(request: PromoteMaterializationRequest): Promise<MaterializationHandle> {
+    this.#assertMutable();
     return this.#promoteMaterialization(request);
+  }
+
+  #assertMutable(): void {
+    if (this.released) {
+      throw new Error('In-memory materialization workspace is released');
+    }
   }
 }
 

@@ -271,8 +271,11 @@ async function collectBoundedShard(
   maxBytes: number,
 ): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
+  let chunkCount = 0;
   let total = 0;
   for await (const chunk of source) {
+    chunkCount += 1;
+    requireShardChunkCount(chunkCount);
     total = appendBoundedShardChunk(chunks, chunk, { total, maxBytes });
   }
   return joinShardChunks(chunks, total);
@@ -289,7 +292,6 @@ function appendBoundedShardChunk(
   if (chunk.byteLength > bounds.maxBytes - bounds.total) {
     throw shardTooLarge(bounds.total + chunk.byteLength, bounds.maxBytes);
   }
-  requireShardChunkCount(chunks.length + 1);
   chunks.push(chunk);
   return bounds.total + chunk.byteLength;
 }
@@ -321,7 +323,7 @@ function validateRequestedStructure(
   bytes: Uint8Array,
   options: IndexShardDecodeOptions,
 ): void {
-  const limits = optionalCborStructureLimits(options);
+  const limits = optionalCborStructureLimits(options.structureLimits);
   if (limits !== undefined) {
     validateBoundedCbor(bytes, limits);
   }

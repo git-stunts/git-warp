@@ -245,9 +245,11 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       memberStorage: 'page',
       maxShardCount: 1,
       maxShardBytes: 1024,
-      maxContainerEntries: 16,
-      maxDepth: 8,
-      maxItems: 64,
+      structureLimits: {
+        maxContainerEntries: 16,
+        maxDepth: 8,
+        maxItems: 64,
+      },
     });
     const token = cas.readBundleMembers(indexHandle.toString())[0]?.[1];
     if (token === undefined) {
@@ -258,9 +260,11 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     expect(stage).not.toHaveBeenCalled();
     await expect(indexes.decodeShardAt(indexHandle, path, {
       maxBytes: 1024,
-      maxContainerEntries: 16,
-      maxDepth: 8,
-      maxItems: 64,
+      structureLimits: {
+        maxContainerEntries: 16,
+        maxDepth: 8,
+        maxItems: 64,
+      },
     })).resolves.toEqual({
       schemaVersion: 2,
       entries: [[nodeId, [['status', 'ready']]]],
@@ -315,9 +319,11 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       memberStorage: 'page',
       maxShardCount: 1,
       maxShardBytes: 1024,
-      maxContainerEntries: 16,
-      maxDepth: 4,
-      maxItems: 64,
+      structureLimits: {
+        maxContainerEntries: 16,
+        maxDepth: 4,
+        maxItems: 64,
+      },
       staging: { stagePage, stageOrderedBundle },
     })).rejects.toMatchObject({ code: 'E_INDEX_SHARD_MALFORMED' });
 
@@ -366,9 +372,11 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       path,
       {
         maxBytes: 1024,
-        maxContainerEntries: 16,
-        maxDepth: 8,
-        maxItems: 64,
+        structureLimits: {
+          maxContainerEntries: 16,
+          maxDepth: 8,
+          maxItems: 64,
+        },
       },
     )).resolves.toEqual(value);
   });
@@ -401,9 +409,11 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     });
     await expect(indexes.decodeShard(staged.handle, {
       maxBytes: 8,
-      maxContainerEntries: 10,
-      maxDepth: 10,
-      maxItems: 100,
+      structureLimits: {
+        maxContainerEntries: 10,
+        maxDepth: 10,
+        maxItems: 100,
+      },
     })).rejects.toMatchObject({ code: 'E_INDEX_SHARD_TOO_LARGE' });
   });
 
@@ -419,6 +429,21 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     });
 
     await expect(indexes.decodeShard(staged.handle, { maxBytes: 5000 }))
+      .rejects.toMatchObject({ code: 'E_INDEX_SHARD_CHUNK_LIMIT' });
+  });
+
+  it('bounds empty chunks in one exact-read stream', async () => {
+    const staged = await assets.stage(WarpStream.from([defaultCodec.encode(['value'])]), {
+      slug: 'empty-fragmented-index-shard',
+      filename: 'props_00.cbor',
+    });
+    vi.spyOn(assets, 'open').mockImplementation(async function* () {
+      for (let index = 0; index < 4097; index += 1) {
+        yield new Uint8Array();
+      }
+    });
+
+    await expect(indexes.decodeShard(staged.handle, { maxBytes: 1 }))
       .rejects.toMatchObject({ code: 'E_INDEX_SHARD_CHUNK_LIMIT' });
   });
 
@@ -441,9 +466,13 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
   });
 
   it('requires an explicit byte limit for page-backed shards', async () => {
-    await expect(indexes.writeShards(WarpStream.of(), {
+    const options = {
       memberStorage: 'page',
-    })).rejects.toMatchObject({ code: 'E_INDEX_INVALID_LIMIT' });
+    } as const;
+
+    // @ts-expect-error Runtime guard for JavaScript callers without a page byte limit.
+    await expect(indexes.writeShards(WarpStream.of(), options))
+      .rejects.toMatchObject({ code: 'E_INDEX_INVALID_LIMIT' });
   });
 
   it('rejects invalid write storage policies before consuming shards', async () => {
@@ -454,6 +483,14 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     await expect(indexes.writeShards(WarpStream.of(), {
       // @ts-expect-error Runtime guard for JavaScript callers.
       staging: { stagePage: null, stageOrderedBundle: null },
+    })).rejects.toMatchObject({ code: 'E_INDEX_INVALID_STORAGE' });
+    await expect(indexes.writeShards(WarpStream.of(), {
+      // @ts-expect-error Runtime guard for JavaScript callers.
+      staging: null,
+    })).rejects.toMatchObject({ code: 'E_INDEX_INVALID_STORAGE' });
+    await expect(indexes.writeShards(WarpStream.of(), {
+      // @ts-expect-error Runtime guard for JavaScript callers.
+      staging: 'workspace',
     })).rejects.toMatchObject({ code: 'E_INDEX_INVALID_STORAGE' });
   });
 
@@ -474,9 +511,11 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     });
     await expect(indexes.decodeShard(declaredArray.handle, {
       maxBytes: 64,
-      maxContainerEntries: 100,
-      maxDepth: 10,
-      maxItems: 1_000,
+      structureLimits: {
+        maxContainerEntries: 100,
+        maxDepth: 10,
+        maxItems: 1_000,
+      },
     })).rejects.toMatchObject({ code: 'E_INDEX_SHARD_MALFORMED' });
 
     const nested = await assets.stage(WarpStream.from([
@@ -487,9 +526,11 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     });
     await expect(indexes.decodeShard(nested.handle, {
       maxBytes: 64,
-      maxContainerEntries: 100,
-      maxDepth: 2,
-      maxItems: 1_000,
+      structureLimits: {
+        maxContainerEntries: 100,
+        maxDepth: 2,
+        maxItems: 1_000,
+      },
     })).rejects.toMatchObject({ code: 'E_INDEX_SHARD_MALFORMED' });
   });
 
@@ -580,12 +621,16 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       filename: 'props_a0.cbor',
     });
 
+    const partial = { structureLimits: { maxContainerEntries: 10 } };
+    // @ts-expect-error Runtime guard for JavaScript callers with partial structure limits.
+    await expect(indexes.decodeShard(staged.handle, partial))
+      .rejects.toMatchObject({ code: 'E_INDEX_INVALID_LIMIT' });
+
     for (const options of [
-      { maxContainerEntries: 10 },
       { maxBytes: 0 },
-      { maxContainerEntries: 0, maxDepth: 10, maxItems: 100 },
-      { maxContainerEntries: 10, maxDepth: -1, maxItems: 100 },
-      { maxContainerEntries: 10, maxDepth: 10, maxItems: 0 },
+      { structureLimits: { maxContainerEntries: 0, maxDepth: 10, maxItems: 100 } },
+      { structureLimits: { maxContainerEntries: 10, maxDepth: -1, maxItems: 100 } },
+      { structureLimits: { maxContainerEntries: 10, maxDepth: 10, maxItems: 0 } },
     ]) {
       await expect(indexes.decodeShard(staged.handle, options))
         .rejects.toMatchObject({ code: 'E_INDEX_INVALID_LIMIT' });
@@ -593,11 +638,15 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
   });
 
   it('rejects partial and invalid write-side structure limits', async () => {
+    const partial = { structureLimits: { maxContainerEntries: 10 } };
+    // @ts-expect-error Runtime guard for JavaScript callers with partial structure limits.
+    await expect(indexes.writeShards(WarpStream.of(), partial))
+      .rejects.toMatchObject({ code: 'E_INDEX_INVALID_LIMIT' });
+
     for (const options of [
-      { maxContainerEntries: 10 },
-      { maxContainerEntries: 0, maxDepth: 10, maxItems: 100 },
-      { maxContainerEntries: 10, maxDepth: -1, maxItems: 100 },
-      { maxContainerEntries: 10, maxDepth: 10, maxItems: 0 },
+      { structureLimits: { maxContainerEntries: 0, maxDepth: 10, maxItems: 100 } },
+      { structureLimits: { maxContainerEntries: 10, maxDepth: -1, maxItems: 100 } },
+      { structureLimits: { maxContainerEntries: 10, maxDepth: 10, maxItems: 0 } },
     ]) {
       await expect(indexes.writeShards(WarpStream.of(), options))
         .rejects.toMatchObject({ code: 'E_INDEX_INVALID_LIMIT' });

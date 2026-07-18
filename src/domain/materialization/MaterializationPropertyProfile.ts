@@ -10,9 +10,11 @@ export const MAX_MATERIALIZATION_PROPERTY_SHARDS = 100_000;
 /** Structural and byte limits every retained property shard must satisfy. */
 export const MATERIALIZATION_PROPERTY_SHARD_LIMITS = Object.freeze({
   maxBytes: MAX_MATERIALIZATION_PROPERTY_SHARD_BYTES,
-  maxContainerEntries: 100_000,
-  maxDepth: 64,
-  maxItems: 1_000_000,
+  structureLimits: Object.freeze({
+    maxContainerEntries: 100_000,
+    maxDepth: 64,
+    maxItems: 1_000_000,
+  }),
 });
 
 /** Full BLAKE3 routing key used by the retained property-root profile. */

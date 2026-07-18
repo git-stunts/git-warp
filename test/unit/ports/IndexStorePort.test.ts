@@ -4,7 +4,10 @@ import AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
 import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
 import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
-import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
+import IndexStorePort, {
+  type IndexShardDecodeOptions,
+  type IndexShardWriteOptions,
+} from '../../../src/ports/IndexStorePort.ts';
 
 describe('IndexStorePort', () => {
   it('declares opaque-handle streaming methods', () => {
@@ -15,6 +18,31 @@ describe('IndexStorePort', () => {
     expect(IndexStorePort.prototype.openShard).toBeUndefined();
     expect(IndexStorePort.prototype.decodeShard).toBeUndefined();
     expect(IndexStorePort.prototype.decodeShardAt).toBeUndefined();
+  });
+
+  it('models page storage and structural limits as complete option states', () => {
+    const pageOptions = {
+      memberStorage: 'page',
+      maxShardBytes: 1024,
+    } satisfies IndexShardWriteOptions;
+    const decodeOptions = {
+      structureLimits: {
+        maxContainerEntries: 16,
+        maxDepth: 8,
+        maxItems: 64,
+      },
+    } satisfies IndexShardDecodeOptions;
+    // @ts-expect-error Page-backed shards require an explicit byte limit.
+    const missingPageLimit: IndexShardWriteOptions = { memberStorage: 'page' };
+    const partialStructureLimits: IndexShardDecodeOptions = {
+      // @ts-expect-error Structural limits are all-or-nothing.
+      structureLimits: { maxDepth: 8 },
+    };
+
+    expect(pageOptions.maxShardBytes).toBe(1024);
+    expect(decodeOptions.structureLimits.maxDepth).toBe(8);
+    expect(missingPageLimit.memberStorage).toBe('page');
+    expect(partialStructureLimits.structureLimits?.maxDepth).toBe(8);
   });
 
   it('can be implemented without object IDs', async () => {

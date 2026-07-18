@@ -4,6 +4,7 @@ import IndexError from '../../domain/errors/IndexError.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
+import type ArtifactStagingPort from '../../ports/ArtifactStagingPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type { IndexShardWriteOptions } from '../../ports/IndexStorePort.ts';
 import type { CborStructureLimits } from './BoundedCborValidation.ts';
@@ -24,7 +25,7 @@ type ValidatedWriteLimits = Readonly<{
   memberStorage: 'asset' | 'page';
   maxShardBytes: number | undefined;
   maxShardCount: number | undefined;
-  staging: IndexShardWriteOptions['staging'];
+  staging: ArtifactStagingPort | undefined;
   structureLimits: CborStructureLimits | undefined;
 }>;
 
@@ -124,7 +125,7 @@ function validatedWriteLimits(options: IndexShardWriteOptions): ValidatedWriteLi
     maxShardCount: optionalNonNegativeInteger(options.maxShardCount, 'maxShardCount'),
     maxShardBytes: optionalPositiveInteger(options.maxShardBytes, 'maxShardBytes'),
     staging: validatedStaging(options.staging),
-    structureLimits: optionalCborStructureLimits(options),
+    structureLimits: optionalCborStructureLimits(options.structureLimits),
   });
   if (limits.memberStorage === 'page') {
     requirePageShardLimit(limits.maxShardBytes);
@@ -133,12 +134,12 @@ function validatedWriteLimits(options: IndexShardWriteOptions): ValidatedWriteLi
 }
 
 function validatedStaging(
-  value: IndexShardWriteOptions['staging'],
-): IndexShardWriteOptions['staging'] {
+  value: unknown,
+): ArtifactStagingPort | undefined {
   if (value === undefined) {
     return undefined;
   }
-  if (typeof value.stagePage !== 'function' || typeof value.stageOrderedBundle !== 'function') {
+  if (!isArtifactStagingPort(value)) {
     throw new IndexError('Index shard staging must provide page and bundle operations', {
       code: 'E_INDEX_INVALID_STORAGE',
     });
@@ -146,7 +147,25 @@ function validatedStaging(
   return value;
 }
 
-function validatedMemberStorage(value: IndexShardWriteOptions['memberStorage']): 'asset' | 'page' {
+function isArtifactStagingPort(value: unknown): value is ArtifactStagingPort {
+  if (value === null) {
+    return false;
+  }
+  if (typeof value !== 'object') {
+    return false;
+  }
+  return hasCallableProperty(value, 'stagePage')
+    && hasCallableProperty(value, 'stageOrderedBundle');
+}
+
+function hasCallableProperty(
+  value: object,
+  property: 'stagePage' | 'stageOrderedBundle',
+): boolean {
+  return property in value && typeof Reflect.get(value, property) === 'function';
+}
+
+function validatedMemberStorage(value: unknown): 'asset' | 'page' {
   if (value === undefined || value === 'asset') {
     return 'asset';
   }

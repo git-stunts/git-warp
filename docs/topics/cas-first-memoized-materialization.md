@@ -213,13 +213,11 @@ lost payload bytes, or run Git garbage collection.
   (100,000 by default). The profile preflights this count before staging any
   shard assets. A hierarchical property root is required to exceed that ceiling
   without widening a repository-wide safety limit.
-- Individual staged shards remain unanchored until git-cas assembles and the
-  workspace checkpoints their property bundle. Supported operation therefore
-  relies on Git's ordinary unreachable-object grace period; concurrent
-  immediate-expiry pruning is outside the current write contract. A git-cas
-  scoped staging workspace is tracked in
-  [git-cas issue 75](https://github.com/git-stunts/git-cas/issues/75) to shorten
-  that interval without moving CAS lifecycle ownership into git-warp.
+- Staged pages and bundles are immediately retained by the active git-cas
+  workspace. Each checkpoint atomically replaces the workspace's active staged
+  roots; promotion transfers the final materialization into the cache policy,
+  and release closes the staging workspace. git-warp never owns raw CAS-object
+  reachability or relies on Git's unreachable-object grace period.
 - `WarpStateCachePort` remains a legacy full-snapshot compatibility cache with
   a WARP-owned index. Ordinary bounded observers cannot rely on it as their
   final storage contract.

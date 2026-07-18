@@ -9,6 +9,9 @@
 
 import computeShardKey from '../../utils/shardKey.ts';
 import { PropertyShard } from '../../artifacts/PropertyShard.ts';
+import WarpError from '../../errors/WarpError.ts';
+
+type PropertyIndexSchemaVersion = 1 | 2;
 
 /**
  * Creates a null-prototype object typed as Record<string, unknown>. // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
@@ -20,16 +23,16 @@ function createNullProtoRecord(): Record<string, unknown> { // nosemgrep: ts-no-
 export default class PropertyIndexBuilder {
   private readonly _shards: Map<string, Map<string, Record<string, unknown>>>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   private readonly _shardKey: (nodeId: string) => string;
-  private readonly _schemaVersion: number;
+  private readonly _schemaVersion: PropertyIndexSchemaVersion;
 
   constructor(options: {
-    readonly schemaVersion?: number;
+    readonly schemaVersion?: PropertyIndexSchemaVersion;
     readonly shardKey?: (nodeId: string) => string;
   } = {}) {
     /** shardKey → (nodeId → props) */
     this._shards = new Map();
     this._shardKey = options.shardKey ?? computeShardKey;
-    this._schemaVersion = options.schemaVersion ?? 1;
+    this._schemaVersion = requirePropertyIndexSchemaVersion(options.schemaVersion);
   }
 
   /**
@@ -66,4 +69,20 @@ export default class PropertyIndexBuilder {
       yield new PropertyShard({ shardKey, schemaVersion: this._schemaVersion, entries });
     }
   }
+}
+
+function requirePropertyIndexSchemaVersion(
+  value: PropertyIndexSchemaVersion | undefined,
+): PropertyIndexSchemaVersion {
+  if (value === undefined) {
+    return 1;
+  }
+  if (typeof value !== 'number' || (value !== 1 && value !== 2)) {
+    throw new WarpError(
+      'Unsupported property index schema version',
+      'E_INDEX_SHARD_SCHEMA',
+      { context: { value } },
+    );
+  }
+  return value;
 }

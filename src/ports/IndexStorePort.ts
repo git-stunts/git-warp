@@ -5,22 +5,40 @@ import type AssetHandle from '../domain/storage/AssetHandle.ts';
 import type BundleHandle from '../domain/storage/BundleHandle.ts';
 import type ArtifactStagingPort from './ArtifactStagingPort.ts';
 
+export type IndexShardStructureLimits = Readonly<{
+  maxContainerEntries: number;
+  maxDepth: number;
+  maxItems: number;
+}>;
+
+/** @deprecated Use `IndexShardStructureLimits` for complete structural policies. */
 export type IndexShardStructureLimitOptions = Readonly<{
   maxContainerEntries?: number;
   maxDepth?: number;
   maxItems?: number;
 }>;
 
-export type IndexShardWriteOptions = IndexShardStructureLimitOptions & Readonly<{
+type CommonIndexShardWriteOptions = Readonly<{
   expectedShardCount?: number;
-  memberStorage?: 'asset' | 'page';
   maxShardCount?: number;
-  maxShardBytes?: number;
   staging?: ArtifactStagingPort;
+  structureLimits?: IndexShardStructureLimits;
 }>;
 
-export type IndexShardDecodeOptions = IndexShardStructureLimitOptions & Readonly<{
+export type IndexShardWriteOptions = CommonIndexShardWriteOptions & (
+  | Readonly<{
+    memberStorage?: 'asset';
+    maxShardBytes?: number;
+  }>
+  | Readonly<{
+    memberStorage: 'page';
+    maxShardBytes: number;
+  }>
+);
+
+export type IndexShardDecodeOptions = Readonly<{
   maxBytes?: number;
+  structureLimits?: IndexShardStructureLimits;
 }>;
 
 /**

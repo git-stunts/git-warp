@@ -233,10 +233,7 @@ async function materializePropertyRoot(
       memberStorage: 'page',
       maxShardCount: MAX_MATERIALIZATION_PROPERTY_SHARDS,
       maxShardBytes: MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxBytes,
-      maxContainerEntries:
-        MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxContainerEntries,
-      maxDepth: MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxDepth,
-      maxItems: MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxItems,
+      structureLimits: MATERIALIZATION_PROPERTY_SHARD_LIMITS.structureLimits,
       staging: workspace,
     },
   );

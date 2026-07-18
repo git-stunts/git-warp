@@ -164,6 +164,21 @@ describe('PropertyIndex handle-backed reads', () => {
     expect(computeShardKey('node:1')).not.toBe('custom');
   });
 
+  it('accepts only property shard schemas implemented by the encoder', () => {
+    const builder = new PropertyIndexBuilder({ schemaVersion: 2, shardKey: () => 'current' });
+    builder.addProperty('node:1', 'status', 'ready');
+
+    expect([...builder.yieldShards()][0]?.schemaVersion).toBe(2);
+    expect(() => new PropertyIndexBuilder({
+      // @ts-expect-error Runtime guard for JavaScript callers.
+      schemaVersion: 3,
+    })).toThrowError(expect.objectContaining({ code: 'E_INDEX_SHARD_SCHEMA' }));
+    expect(() => new PropertyIndexBuilder({
+      // @ts-expect-error Runtime guard for JavaScript callers.
+      schemaVersion: null,
+    })).toThrowError(expect.objectContaining({ code: 'E_INDEX_SHARD_SCHEMA' }));
+  });
+
   it('rejects an over-limit flat property root before persistence', () => {
     expect(() => requireMaterializationPropertyShardCount(
       MAX_MATERIALIZATION_PROPERTY_SHARDS + 1,

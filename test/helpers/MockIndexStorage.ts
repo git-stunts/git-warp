@@ -49,7 +49,10 @@ export default class MockIndexStorage extends IndexStorePort {
     indexHandle: BundleHandle,
     path: string,
   ): Promise<AssetHandle | null> {
-    return (this.#indexes.get(indexHandle.toString()) ?? {})[path] ?? null;
+    const shards = this.#indexes.get(indexHandle.toString());
+    return shards !== undefined && Object.hasOwn(shards, path)
+      ? shards[path] ?? null
+      : null;
   }
 
   override async *openShard(handle: AssetHandle): AsyncIterable<Uint8Array> {

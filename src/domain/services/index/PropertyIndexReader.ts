@@ -16,7 +16,7 @@ import type AssetHandle from '../../storage/AssetHandle.ts';
 import { isPropValue, type PropValue } from '../../types/PropValue.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
 
-export type IndexedPropertyBag = { [key: string]: PropValue };
+export type IndexedPropertyBag = Readonly<{ [key: string]: PropValue }>;
 type PropertyShard = ReadonlyMap<string, IndexedPropertyBag>;
 type PropertyShardSchemaVersion = 1 | 2;
 export type DecodedPropertyShardArtifact = Readonly<{

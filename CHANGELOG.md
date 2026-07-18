@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Raised the coverage ratchet from `92.10%` to `92.62%` after adding targeted
   coverage for bounded query node paging and memory-budget rejection paths and
   removing retired compatibility surfaces.
-- Upgraded `@git-stunts/git-cas` to `^6.2.0` so Git-backed materializations can
+- Upgraded `@git-stunts/git-cas` to `^6.5.0` so Git-backed materializations can
   use managed `CacheSet` retention and opaque page and bundle handles.
 - Moved shadow-trie leaf and branch storage from unretained raw Git blobs and
   trees to bounded git-cas pages and composable bundle handles. Production
