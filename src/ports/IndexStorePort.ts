@@ -5,7 +5,13 @@ import type AssetHandle from '../domain/storage/AssetHandle.ts';
 import type BundleHandle from '../domain/storage/BundleHandle.ts';
 import type ArtifactStagingPort from './ArtifactStagingPort.ts';
 
-export type IndexShardWriteOptions = Readonly<{
+export type IndexShardStructureLimitOptions = Readonly<{
+  maxContainerEntries?: number;
+  maxDepth?: number;
+  maxItems?: number;
+}>;
+
+export type IndexShardWriteOptions = IndexShardStructureLimitOptions & Readonly<{
   expectedShardCount?: number;
   memberStorage?: 'asset' | 'page';
   maxShardCount?: number;
@@ -13,11 +19,8 @@ export type IndexShardWriteOptions = Readonly<{
   staging?: ArtifactStagingPort;
 }>;
 
-export type IndexShardDecodeOptions = Readonly<{
+export type IndexShardDecodeOptions = IndexShardStructureLimitOptions & Readonly<{
   maxBytes?: number;
-  maxContainerEntries?: number;
-  maxDepth?: number;
-  maxItems?: number;
 }>;
 
 /**

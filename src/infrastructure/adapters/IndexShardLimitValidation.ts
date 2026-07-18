@@ -1,4 +1,35 @@
 import IndexError from '../../domain/errors/IndexError.ts';
+import type { CborStructureLimits } from './BoundedCborValidation.ts';
+
+type OptionalCborStructureLimits = Readonly<{
+  maxContainerEntries?: number;
+  maxDepth?: number;
+  maxItems?: number;
+}>;
+
+export function optionalCborStructureLimits(
+  options: OptionalCborStructureLimits,
+): CborStructureLimits | undefined {
+  const configured = [
+    options.maxContainerEntries,
+    options.maxDepth,
+    options.maxItems,
+  ].filter((value) => value !== undefined).length;
+  if (configured === 0) {
+    return undefined;
+  }
+  if (configured !== 3) {
+    throw invalidLimit('CBOR structure limits');
+  }
+  return Object.freeze({
+    maxContainerEntries: positiveInteger(
+      options.maxContainerEntries!,
+      'maxContainerEntries',
+    ),
+    maxDepth: nonNegativeInteger(options.maxDepth!, 'maxDepth'),
+    maxItems: positiveInteger(options.maxItems!, 'maxItems'),
+  });
+}
 
 export function optionalPositiveInteger(
   value: number | undefined,
@@ -7,10 +38,7 @@ export function optionalPositiveInteger(
   if (value === undefined) {
     return undefined;
   }
-  if (!Number.isSafeInteger(value) || value <= 0) {
-    throw invalidLimit(name);
-  }
-  return value;
+  return positiveInteger(value, name);
 }
 
 export function optionalNonNegativeInteger(
@@ -20,26 +48,21 @@ export function optionalNonNegativeInteger(
   if (value === undefined) {
     return undefined;
   }
-  if (!Number.isSafeInteger(value) || value < 0) {
+  return nonNegativeInteger(value, name);
+}
+
+function positiveInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value <= 0) {
     throw invalidLimit(name);
   }
   return value;
 }
 
-export function requiredPositiveInteger(value: number | undefined, name: string): number {
-  const checked = optionalPositiveInteger(value, name);
-  if (checked === undefined) {
+function nonNegativeInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
     throw invalidLimit(name);
   }
-  return checked;
-}
-
-export function requiredNonNegativeInteger(value: number | undefined, name: string): number {
-  const checked = optionalNonNegativeInteger(value, name);
-  if (checked === undefined) {
-    throw invalidLimit(name);
-  }
-  return checked;
+  return value;
 }
 
 export function invalidLimit(name: string): IndexError {

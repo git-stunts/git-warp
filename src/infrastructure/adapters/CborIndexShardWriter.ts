@@ -6,8 +6,10 @@ import WarpStream from '../../domain/stream/WarpStream.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type { IndexShardWriteOptions } from '../../ports/IndexStorePort.ts';
+import type { CborStructureLimits } from './BoundedCborValidation.ts';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
 import {
+  optionalCborStructureLimits,
   optionalNonNegativeInteger,
   optionalPositiveInteger,
 } from './IndexShardLimitValidation.ts';
@@ -23,6 +25,7 @@ type ValidatedWriteLimits = Readonly<{
   maxShardBytes: number | undefined;
   maxShardCount: number | undefined;
   staging: IndexShardWriteOptions['staging'];
+  structureLimits: CborStructureLimits | undefined;
 }>;
 
 export async function writeCborIndexShards(args: {
@@ -56,6 +59,9 @@ async function collectEncodedShardMembers(args: {
     ...(args.limits.maxShardBytes === undefined
       ? {}
       : { maxBytes: args.limits.maxShardBytes }),
+    ...(args.limits.structureLimits === undefined
+      ? {}
+      : { structureLimits: args.limits.structureLimits }),
   });
   for await (const [path, bytes] of args.shardStream.pipe(encoder)) {
     requireShardCountWithinLimit(members.length + 1, args.limits.maxShardCount);
@@ -118,6 +124,7 @@ function validatedWriteLimits(options: IndexShardWriteOptions): ValidatedWriteLi
     maxShardCount: optionalNonNegativeInteger(options.maxShardCount, 'maxShardCount'),
     maxShardBytes: optionalPositiveInteger(options.maxShardBytes, 'maxShardBytes'),
     staging: validatedStaging(options.staging),
+    structureLimits: optionalCborStructureLimits(options),
   });
   if (limits.memberStorage === 'page') {
     requirePageShardLimit(limits.maxShardBytes);

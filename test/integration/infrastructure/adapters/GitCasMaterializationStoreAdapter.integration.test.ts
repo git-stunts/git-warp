@@ -82,7 +82,7 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
     await acquisition.release();
   });
 
-  it('keeps an acquired generation reachable across replacement until release', async () => {
+  it('keeps a replaced generation reachable until its runtime lease closes', async () => {
     const coordinate = workspaceCoordinate();
     const firstTrie = await createTrieRoot(harness.cas, 7);
     const firstRoots = await createRoots(harness.cas, firstTrie, 0);
@@ -121,6 +121,12 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
     );
 
     await acquisition.release();
+    await expireAllReflogs(harness.path);
+    expect(await prunableOids(harness.path)).not.toContain(
+      GitCasBundleHandle.parse(first.bundle.toString()).oid,
+    );
+
+    await harness.materializations.close();
     await expireAllReflogs(harness.path);
     const prunable = await prunableOids(harness.path);
     expect(prunable).toContain(GitCasBundleHandle.parse(first.bundle.toString()).oid);

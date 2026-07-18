@@ -29,8 +29,8 @@ import WarpStream from "../../stream/WarpStream.ts";
 import type { IndexShard } from "../../artifacts/IndexShard.ts";
 import {
   materializationPropertyShardKey,
+  MATERIALIZATION_PROPERTY_SHARD_LIMITS,
   MAX_MATERIALIZATION_PROPERTY_SHARDS,
-  MAX_MATERIALIZATION_PROPERTY_SHARD_BYTES,
   requireMaterializationPropertyShardCount,
 } from "../../materialization/MaterializationPropertyProfile.ts";
 
@@ -232,7 +232,11 @@ async function materializePropertyRoot(
       expectedShardCount: shardCount,
       memberStorage: 'page',
       maxShardCount: MAX_MATERIALIZATION_PROPERTY_SHARDS,
-      maxShardBytes: MAX_MATERIALIZATION_PROPERTY_SHARD_BYTES,
+      maxShardBytes: MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxBytes,
+      maxContainerEntries:
+        MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxContainerEntries,
+      maxDepth: MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxDepth,
+      maxItems: MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxItems,
       staging: workspace,
     },
   );

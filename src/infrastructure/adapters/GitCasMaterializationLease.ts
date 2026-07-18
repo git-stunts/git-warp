@@ -39,8 +39,9 @@ export default class GitCasMaterializationLease {
         }
         released = true;
         this.#borrowers -= 1;
+        const completedLease = this.#borrowers === 0;
         this.#releaseIfReady();
-        if (this.#retirement !== null) {
+        if (completedLease && this.#retirement !== null) {
           await this.#retirement.promise;
         }
       },

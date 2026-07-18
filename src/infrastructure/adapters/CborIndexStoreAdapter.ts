@@ -28,10 +28,8 @@ import { validateBoundedCbor } from './BoundedCborValidation.ts';
 import { decodeRoutedPropertyShardArtifact } from '../../domain/services/index/PropertyIndexReader.ts';
 import { writeCborIndexShards } from './CborIndexShardWriter.ts';
 import {
-  invalidLimit,
+  optionalCborStructureLimits,
   optionalPositiveInteger,
-  requiredNonNegativeInteger,
-  requiredPositiveInteger,
 } from './IndexShardLimitValidation.ts';
 
 export type GitCasIndexFacade = {
@@ -323,28 +321,10 @@ function validateRequestedStructure(
   bytes: Uint8Array,
   options: IndexShardDecodeOptions,
 ): void {
-  const configured = [
-    options.maxContainerEntries,
-    options.maxDepth,
-    options.maxItems,
-  ].filter((value) => value !== undefined).length;
-  if (configured === 0) {
-    return;
+  const limits = optionalCborStructureLimits(options);
+  if (limits !== undefined) {
+    validateBoundedCbor(bytes, limits);
   }
-  if (configured !== 3) {
-    throw invalidLimit('CBOR structure limits');
-  }
-  const maxContainerEntries = requiredPositiveInteger(
-    options.maxContainerEntries,
-    'maxContainerEntries',
-  );
-  const maxDepth = requiredNonNegativeInteger(options.maxDepth, 'maxDepth');
-  const maxItems = requiredPositiveInteger(options.maxItems, 'maxItems');
-  validateBoundedCbor(bytes, {
-    maxContainerEntries,
-    maxDepth,
-    maxItems,
-  });
 }
 
 function shardTooLarge(actual: number, maximum: number): IndexError {

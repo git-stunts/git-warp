@@ -8,9 +8,14 @@ import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import { requirePropertyShardEncodedSize } from './PropertyShardEncodedSizeGuard.ts';
+import {
+  validateBoundedCbor,
+  type CborStructureLimits,
+} from './BoundedCborValidation.ts';
 
 type IndexShardEncodeOptions = Readonly<{
   maxBytes?: number;
+  structureLimits?: CborStructureLimits;
 }>;
 
 /**
@@ -26,6 +31,7 @@ type IndexShardEncodeOptions = Readonly<{
 export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Uint8Array]> {
   private readonly _codec: CodecPort;
   private readonly _maxBytes: number | undefined;
+  private readonly _structureLimits: CborStructureLimits | undefined;
 
   constructor(codec: CodecPort, options: IndexShardEncodeOptions = {}) {
     super();
@@ -34,6 +40,7 @@ export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Ui
     }
     this._codec = codec;
     this._maxBytes = options.maxBytes;
+    this._structureLimits = options.structureLimits;
   }
 
   override async *apply(source: AsyncIterable<IndexShard>): AsyncIterable<[string, Uint8Array]> {
@@ -47,49 +54,51 @@ export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Ui
    */
   private _encode(shard: IndexShard): [string, Uint8Array] {
     if (shard instanceof MetaShard) {
-      return [
+      return this._encodePayload(
         `meta_${shard.shardKey}.cbor`,
-        this._codec.encode({
+        {
           nodeToGlobal: shard.nodeToGlobal,
           nextLocalId: shard.nextLocalId,
           alive: shard.alive,
-        }),
-      ];
+        },
+      );
     }
     if (shard instanceof EdgeShard) {
-      return [
+      return this._encodePayload(
         `${shard.direction}_${shard.shardKey}.cbor`,
-        this._codec.encode(shard.buckets),
-      ];
+        shard.buckets,
+      );
     }
     if (shard instanceof LabelShard) {
-      return [
-        'labels.cbor',
-        this._codec.encode(shard.labels),
-      ];
+      return this._encodePayload('labels.cbor', shard.labels);
     }
     if (shard instanceof PropertyShard) {
       const path = `props_${shard.shardKey}.cbor`;
       if (this._maxBytes !== undefined) {
         requirePropertyShardEncodedSize(shard, path, this._maxBytes);
       }
-      return [
-        path,
-        this._codec.encode(propertyShardPayload(shard)),
-      ];
+      return this._encodePayload(path, propertyShardPayload(shard));
     }
     if (shard instanceof ReceiptShard) {
-      return [
+      return this._encodePayload(
         'receipt.cbor',
-        this._codec.encode({
+        {
           version: shard.version,
           nodeCount: shard.nodeCount,
           labelCount: shard.labelCount,
           shardCount: shard.shardCount,
-        }),
-      ];
+        },
+      );
     }
     throw new WarpError('Unknown IndexShard type', 'E_UNKNOWN_SHARD');
+  }
+
+  private _encodePayload(path: string, payload: unknown): [string, Uint8Array] {
+    const bytes = this._codec.encode(payload);
+    if (this._structureLimits !== undefined) {
+      validateBoundedCbor(bytes, this._structureLimits);
+    }
+    return [path, bytes];
   }
 }
 

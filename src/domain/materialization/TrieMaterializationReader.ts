@@ -12,7 +12,7 @@ import type { PropValue } from '../types/PropValue.ts';
 import {
   materializationPropertyShardKey,
   materializationPropertyShardPath,
-  MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS,
+  MATERIALIZATION_PROPERTY_SHARD_LIMITS,
 } from './MaterializationPropertyProfile.ts';
 
 const MAX_RESIDENT_READ_PAGES = 256;
@@ -74,7 +74,7 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
     const encoded = await this.#indexStore.decodeShardAt(
       propertiesRoot,
       path,
-      MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS,
+      MATERIALIZATION_PROPERTY_SHARD_LIMITS,
     );
     if (encoded === null) {
       return null;

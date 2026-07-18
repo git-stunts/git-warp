@@ -5,7 +5,7 @@ import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import TrieMaterializationReader from '../../../../src/domain/materialization/TrieMaterializationReader.ts';
 import {
   materializationPropertyShardKey,
-  MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS,
+  MATERIALIZATION_PROPERTY_SHARD_LIMITS,
 } from '../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
 import StateSession from '../../../../src/domain/orset/session/StateSession.ts';
 import PageCache from '../../../../src/domain/orset/trie/PageCache.ts';
@@ -86,7 +86,7 @@ describe('TrieMaterializationReader', () => {
     expect(decodeShardAt).toHaveBeenCalledWith(
       root,
       expect.stringContaining('props_'),
-      MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS,
+      MATERIALIZATION_PROPERTY_SHARD_LIMITS,
     );
     await expect(reader.getNodeProperties(root, 'node:missing')).resolves.toBeNull();
   });

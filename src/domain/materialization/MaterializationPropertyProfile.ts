@@ -7,8 +7,8 @@ export const MAX_MATERIALIZATION_PROPERTY_SHARD_BYTES = 16 * 1024 * 1024;
 /** Maximum members admitted by the first flat property-root bundle profile. */
 export const MAX_MATERIALIZATION_PROPERTY_SHARDS = 100_000;
 
-/** Decoder limits applied before a retained property shard reaches the CBOR codec. */
-export const MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS = Object.freeze({
+/** Structural and byte limits every retained property shard must satisfy. */
+export const MATERIALIZATION_PROPERTY_SHARD_LIMITS = Object.freeze({
   maxBytes: MAX_MATERIALIZATION_PROPERTY_SHARD_BYTES,
   maxContainerEntries: 100_000,
   maxDepth: 64,
