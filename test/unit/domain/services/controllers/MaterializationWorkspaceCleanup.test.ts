@@ -63,6 +63,14 @@ class RejectingWorkspace extends MaterializationWorkspacePort {
     return Promise.resolve(null);
   }
 
+  override stagePage(): Promise<never> {
+    return Promise.reject(new Error('staging is not used by this test'));
+  }
+
+  override stageOrderedBundle(): Promise<never> {
+    return Promise.reject(new Error('staging is not used by this test'));
+  }
+
   override promote(): Promise<never> {
     return Promise.reject(new Error('promotion is not used by this test'));
   }

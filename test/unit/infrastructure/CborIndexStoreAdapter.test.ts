@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BundleHandle as GitCasBundleHandle } from '@git-stunts/git-cas';
+import {
+  BundleHandle as GitCasBundleHandle,
+  PageHandle as GitCasPageHandle,
+} from '@git-stunts/git-cas';
 import { EdgeShard } from '../../../src/domain/artifacts/EdgeShard.ts';
 import { LabelShard } from '../../../src/domain/artifacts/LabelShard.ts';
 import { MetaShard } from '../../../src/domain/artifacts/MetaShard.ts';
@@ -191,6 +194,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     const indexHandle = await indexes.writeShards(WarpStream.from(shards()));
     const open = vi.spyOn(assets, 'open');
     const directIndexes = indexAdapter(assets, {
+      pages: cas.pages,
       bundles: {
         getMember: cas.bundles.getMember,
         putOrdered: cas.bundles.putOrdered,
@@ -209,6 +213,74 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       .resolves.toBeNull();
 
     expect(open).not.toHaveBeenCalled();
+  });
+
+  it('stores bounded exact-read shards as pages and decodes one bundle member', async () => {
+    const stage = vi.spyOn(assets, 'stage');
+    const nodeId = 'node:page-backed';
+    const shardKey = materializationPropertyShardKey(nodeId);
+    const path = `props_${shardKey}.cbor`;
+    const indexHandle = await indexes.writeShards(WarpStream.from([
+      new PropertyShard({
+        shardKey,
+        schemaVersion: 2,
+        entries: [[nodeId, { status: 'ready' }]],
+      }),
+    ]), {
+      expectedShardCount: 1,
+      memberStorage: 'page',
+      maxShardCount: 1,
+      maxShardBytes: 1024,
+    });
+    const token = cas.readBundleMembers(indexHandle.toString())[0]?.[1];
+    if (token === undefined) {
+      throw new Error('expected one page-backed bundle member');
+    }
+
+    expect(GitCasPageHandle.from(token)).toBeInstanceOf(GitCasPageHandle);
+    expect(stage).not.toHaveBeenCalled();
+    await expect(indexes.decodeShardAt(indexHandle, path, {
+      maxBytes: 1024,
+      maxContainerEntries: 16,
+      maxDepth: 8,
+      maxItems: 64,
+    })).resolves.toEqual({
+      schemaVersion: 2,
+      entries: [[nodeId, [['status', 'ready']]]],
+    });
+    await expect(indexes.decodeShardAt(indexHandle, 'missing.cbor', {
+      maxBytes: 1024,
+    })).resolves.toBeNull();
+    await expect(indexes.readShardHandles(indexHandle))
+      .rejects.toMatchObject({ code: 'E_INDEX_INVALID_BUNDLE_MEMBER' });
+  });
+
+  it('routes page-backed shards and their bundle through the staging scope', async () => {
+    const bundle = new BundleHandle('test:staged-property-bundle');
+    const stagePage = vi.fn(async () => 'test:staged-property-page');
+    const stageOrderedBundle = vi.fn(async () => bundle);
+    const shardKey = materializationPropertyShardKey('node:staged');
+
+    await expect(indexes.writeShards(WarpStream.from([
+      new PropertyShard({
+        shardKey,
+        schemaVersion: 2,
+        entries: [['node:staged', { status: 'ready' }]],
+      }),
+    ]), {
+      expectedShardCount: 1,
+      memberStorage: 'page',
+      maxShardCount: 1,
+      maxShardBytes: 1024,
+      staging: { stagePage, stageOrderedBundle },
+    })).resolves.toBe(bundle);
+
+    expect(stagePage).toHaveBeenCalledOnce();
+    expect(stagePage).toHaveBeenCalledWith(expect.any(Uint8Array), { maxBytes: 1024 });
+    expect(stageOrderedBundle).toHaveBeenCalledWith(
+      [[`props_${shardKey}.cbor`, 'test:staged-property-page']],
+      { maxMembers: 1 },
+    );
   });
 
   it('opens and decodes exactly one selected shard handle', async () => {
@@ -282,6 +354,12 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       expectedShardCount: 1,
       maxShardCount: 1,
     })).rejects.toMatchObject({ code: 'E_INDEX_SHARD_COUNT_LIMIT' });
+  });
+
+  it('requires an explicit byte limit for page-backed shards', async () => {
+    await expect(indexes.writeShards(WarpStream.of(), {
+      memberStorage: 'page',
+    })).rejects.toMatchObject({ code: 'E_INDEX_INVALID_LIMIT' });
   });
 
   it('rejects dangerous CBOR containers before general decoding', async () => {
@@ -459,6 +537,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
   it('rejects duplicate member paths while listing or scanning an index bundle', async () => {
     const indexHandle = await indexes.writeShards(WarpStream.from(shards()));
     const duplicateCas: GitCasIndexFacade = {
+      pages: cas.pages,
       bundles: {
         getMember: cas.bundles.getMember,
         putOrdered: cas.bundles.putOrdered,
@@ -485,6 +564,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
   it('rejects non-asset members while listing or scanning an index bundle', async () => {
     const indexHandle = await indexes.writeShards(WarpStream.from(shards()));
     const nonAssetCas: GitCasIndexFacade = {
+      pages: cas.pages,
       bundles: {
         getMember: cas.bundles.getMember,
         putOrdered: cas.bundles.putOrdered,

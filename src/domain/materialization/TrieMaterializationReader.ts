@@ -71,12 +71,16 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
       return undefined;
     }
     const path = materializationPropertyShardPath(nodeId);
-    const handle = await this.#indexStore.readShardHandle(propertiesRoot, path);
-    if (handle === null) {
+    const encoded = await this.#indexStore.decodeShardAt(
+      propertiesRoot,
+      path,
+      MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS,
+    );
+    if (encoded === null) {
       return null;
     }
     const shard = decodeCurrentPropertyShard(
-      await this.#indexStore.decodeShard(handle, MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS),
+      encoded,
       path,
       materializationPropertyShardKey,
     );
@@ -131,8 +135,7 @@ function requireIndexStore(indexStore: IndexStorePort): IndexStorePort {
   if (
     indexStore === null
     || typeof indexStore !== 'object'
-    || typeof indexStore.readShardHandle !== 'function'
-    || typeof indexStore.decodeShard !== 'function'
+    || typeof indexStore.decodeShardAt !== 'function'
   ) {
     throw readerError('indexStore must provide exact shard read operations');
   }

@@ -2,12 +2,12 @@ import {
   BundleHandle,
   type BundleCapability,
   type BundleMember,
-  type BundleMemberInput,
   type PageCapability,
 } from '@git-stunts/git-cas';
 import TrieStoreError from '../../domain/errors/TrieStoreError.ts';
 import type { TrieBranchEntries } from '../../domain/orset/trie/TrieBranchEntries.ts';
 import type TrieStorePort from '../../domain/orset/trie/TrieStorePort.ts';
+import type ArtifactStagingPort from '../../ports/ArtifactStagingPort.ts';
 import { parseNibbleName } from './trieNibbleName.ts';
 
 const BRANCH_PREFIX = 'children/';
@@ -92,14 +92,19 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     return entries;
   }
 
-  async writeLeaf(data: Uint8Array): Promise<string> {
+  async writeLeaf(data: Uint8Array, staging?: ArtifactStagingPort): Promise<string> {
     try {
-      const page = await this.#cas.pages.put({
-        source: data,
-        maxBytes: MAX_TRIE_LEAF_BYTES,
-      });
+      const pageHandle = staging === undefined
+        ? (await this.#cas.pages.put({
+          source: data,
+          maxBytes: MAX_TRIE_LEAF_BYTES,
+        })).handle.toString()
+        : await staging.stagePage(data, { maxBytes: MAX_TRIE_LEAF_BYTES });
+      if (staging !== undefined) {
+        return (await staging.stageOrderedBundle([[LEAF_PATH, pageHandle]])).toString();
+      }
       const bundle = await this.#cas.bundles.putOrdered({
-        members: [[LEAF_PATH, page.handle]],
+        members: [[LEAF_PATH, pageHandle]],
       });
       return bundle.handle.toString();
     } catch (raw) {
@@ -107,9 +112,15 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     }
   }
 
-  async writeBranch(children: TrieBranchEntries): Promise<string> {
+  async writeBranch(
+    children: TrieBranchEntries,
+    staging?: ArtifactStagingPort,
+  ): Promise<string> {
     const members = branchMembers(children);
     try {
+      if (staging !== undefined) {
+        return (await staging.stageOrderedBundle(members)).toString();
+      }
       const bundle = await this.#cas.bundles.putOrdered({ members });
       return bundle.handle.toString();
     } catch (raw) {
@@ -145,12 +156,12 @@ function branchMemberName(path: string, root: string): string {
   return name;
 }
 
-function branchMembers(children: TrieBranchEntries): Array<[string, BundleMemberInput]> {
+function branchMembers(children: TrieBranchEntries): Array<[string, string]> {
   const ordered = [...children].sort(([left], [right]) => left - right);
   const width = nibbleNameWidth(ordered);
   return ordered.map(([nibble, child]) => [
     `${BRANCH_PREFIX}${formatNibble(nibble, width)}`,
-    parseChildRoot(child),
+    parseChildRoot(child).toString(),
   ]);
 }
 

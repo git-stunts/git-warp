@@ -50,7 +50,7 @@ describe('TrieMaterializationReader', () => {
   it('decodes only the exact retained property shard without a reader-owned cache', async () => {
     const store = new InMemoryTrieStore();
     const indexStore = new MockIndexStorage();
-    const decodeShard = vi.spyOn(indexStore, 'decodeShard');
+    const decodeShardAt = vi.spyOn(indexStore, 'decodeShardAt');
     const nodeId = 'node:present';
     const properties = Object.create(null) as Record<string, unknown>;
     properties['status'] = 'ready';
@@ -82,8 +82,10 @@ describe('TrieMaterializationReader', () => {
 
     expect(indexStore.openedShardHandles).toEqual([]);
     expect(indexStore.decodedShardHandles).toHaveLength(2);
-    expect(decodeShard).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(indexStore.decodedShardPaths).toHaveLength(2);
+    expect(decodeShardAt).toHaveBeenCalledWith(
+      root,
+      expect.stringContaining('props_'),
       MATERIALIZATION_PROPERTY_SHARD_READ_LIMITS,
     );
     await expect(reader.getNodeProperties(root, 'node:missing')).resolves.toBeNull();

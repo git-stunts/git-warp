@@ -1,236 +1,146 @@
 import {
   BundleHandle as GitCasBundleHandle,
-  type BundleCapability,
-  type BundleMemberInput,
+  type ApplicationHandleInput,
   type CacheSet,
   type RetentionWitness,
+  type StagingWorkspace,
+  type WorkspaceCheckpointResult,
+  type WorkspaceRetainedBundle,
+  type WorkspaceRetainedPage,
 } from '@git-stunts/git-cas';
 import type MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
+import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import type StorageRetentionWitness from '../../domain/storage/StorageRetentionWitness.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
+import type {
+  StagedBundleMember,
+  StageOrderedBundleOptions,
+  StagePageOptions,
+} from '../../ports/ArtifactStagingPort.ts';
 import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
   type PromoteMaterializationRequest,
 } from '../../ports/MaterializationWorkspacePort.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
 
-const WORKSPACE_TTL_MS = 2 * 60 * 60 * 1000;
-const WORKSPACE_RENEWAL_MS = WORKSPACE_TTL_MS / 2;
-
-type WorkspaceCache = Pick<CacheSet, 'put' | 'remove'>;
-type WorkspaceTarget = Parameters<WorkspaceCache['put']>[1];
-type ActiveLeaseTarget = Readonly<{
-  input: WorkspaceTarget;
-  token: string;
-}>;
-
-export type MaterializationWorkspaceLease = Readonly<{
-  cancel(): void;
-}>;
-
-export type MaterializationWorkspaceLeaseScheduler = Readonly<{
-  schedule(
-    task: () => Promise<void>,
-    delayMs: number,
-  ): MaterializationWorkspaceLease;
+export type GitCasStagingWorkspace = Pick<
+  StagingWorkspace,
+  'pages' | 'bundles' | 'checkpoint' | 'release'
+> & Readonly<{
+  promoteToCache(options: {
+    cache: Pick<CacheSet, 'ref' | 'put'>;
+    key: string;
+    handle: ApplicationHandleInput;
+    options?: Parameters<CacheSet['put']>[2];
+  }): ReturnType<StagingWorkspace['promoteToCache']>;
 }>;
 
 export type GitCasMaterializationWorkspaceOptions = Readonly<{
-  bundles: Pick<BundleCapability, 'putOrdered'>;
-  cache: WorkspaceCache;
-  key: string;
-  clock?: { readonly now: () => Date };
-  leaseTtlMs?: number;
-  leaseRenewalMs?: number;
-  leaseScheduler?: MaterializationWorkspaceLeaseScheduler;
-  promote: (request: PromoteMaterializationRequest) => Promise<MaterializationHandle>;
-}>;
-
-const SYSTEM_LEASE_SCHEDULER: MaterializationWorkspaceLeaseScheduler = Object.freeze({
-  schedule(task: () => Promise<void>, delayMs: number): MaterializationWorkspaceLease {
-    const timer = setTimeout(() => {
-      void task().catch(() => undefined);
-    }, delayMs);
-    timer.unref();
-    return Object.freeze({ cancel: () => clearTimeout(timer) });
-  },
-});
-
-/** CacheSet-backed reachability for one in-progress materialization. */
-export default class GitCasMaterializationWorkspace extends MaterializationWorkspacePort {
-  readonly #bundles: Pick<BundleCapability, 'putOrdered'>;
-  readonly #cache: WorkspaceCache;
-  readonly #clock: { readonly now: () => Date };
-  readonly #key: string;
-  readonly #leaseRenewalMs: number;
-  readonly #leaseScheduler: MaterializationWorkspaceLeaseScheduler;
-  readonly #leaseTtlMs: number;
-  readonly #promoteMaterialization: (
+  workspace: GitCasStagingWorkspace;
+  promote: (
+    workspace: GitCasStagingWorkspace,
     request: PromoteMaterializationRequest,
   ) => Promise<MaterializationHandle>;
-  #installationAttempted = false;
-  #leaseTarget: ActiveLeaseTarget | null = null;
-  #leaseFailure: WarpError | null = null;
-  #leaseTimer: MaterializationWorkspaceLease | null = null;
+}>;
+
+/** git-cas-owned retention scope for one in-progress materialization. */
+export default class GitCasMaterializationWorkspace extends MaterializationWorkspacePort {
+  readonly #workspace: GitCasStagingWorkspace;
+  readonly #promoteMaterialization: GitCasMaterializationWorkspaceOptions['promote'];
   #promoting = false;
-  #promotionDone: Promise<void> | null = null;
-  #releasePending = false;
+  #promoted = false;
   #releaseRequested = false;
   #released = false;
+  #releasePromise: Promise<void> | null = null;
   #tail: Promise<void> = Promise.resolve();
 
   constructor(options: GitCasMaterializationWorkspaceOptions) {
     super();
     requireWorkspaceOptions(options);
-    this.#bundles = options.bundles;
-    this.#cache = options.cache;
-    this.#key = requireNonEmpty(options.key, 'key');
-    this.#clock = options.clock ?? { now: () => new Date() };
-    this.#leaseTtlMs = options.leaseTtlMs ?? WORKSPACE_TTL_MS;
-    this.#leaseRenewalMs = options.leaseRenewalMs ?? WORKSPACE_RENEWAL_MS;
-    this.#leaseScheduler = options.leaseScheduler ?? SYSTEM_LEASE_SCHEDULER;
+    this.#workspace = options.workspace;
     this.#promoteMaterialization = options.promote;
+  }
+
+  override stagePage(
+    source: Uint8Array,
+    options: StagePageOptions,
+  ): Promise<string> {
+    this.#assertMutable('stage a page');
+    return this.#serialize(async () => {
+      const staged = await this.#workspace.pages.put({
+        source,
+        maxBytes: options.maxBytes,
+      });
+      requireRetainedStage(staged, staged.handle.toString());
+      return staged.handle.toString();
+    });
+  }
+
+  override stageOrderedBundle(
+    members: Iterable<StagedBundleMember>,
+    options: StageOrderedBundleOptions = {},
+  ): Promise<BundleHandle> {
+    this.#assertMutable('stage a bundle');
+    return this.#serialize(async () => {
+      const staged = await this.#workspace.bundles.putOrdered({
+        members,
+        ...(options.maxMembers === undefined
+          ? {}
+          : { limits: { maxMembers: options.maxMembers } }),
+      });
+      requireRetainedStage(staged, staged.handle.toString());
+      return new BundleHandle(staged.handle.toString());
+    });
   }
 
   override checkpoint(
     roots: MaterializationWorkspaceRoots,
   ): Promise<StorageRetentionWitness | null> {
-    if (this.#releasePending || this.#releaseRequested || this.#promoting) {
-      return Promise.reject(workspaceError('cannot checkpoint a releasing workspace'));
-    }
-    return this.#serialize(async () => await this.#checkpoint(roots));
-  }
-
-  override async release(): Promise<void> {
-    this.#releasePending = true;
-    await this.#promotionDone;
-    this.#releaseRequested = true;
-    this.#cancelLeaseTimer();
-    await this.#serialize(async () => await this.#release());
+    this.#assertMutable('checkpoint');
+    return this.#serialize(async () => {
+      const members = workspaceMembers(roots);
+      if (members.length === 0) {
+        return null;
+      }
+      const staged = await this.#workspace.bundles.putOrdered({ members });
+      requireRetainedStage(staged, staged.handle.toString());
+      const checkpoint = await this.#workspace.checkpoint({ handles: [staged.handle] });
+      return requireCheckpointWitness(checkpoint, staged.handle.toString());
+    });
   }
 
   override promote(
     request: PromoteMaterializationRequest,
   ): Promise<MaterializationHandle> {
-    if (this.#releasePending || this.#releaseRequested || this.#promoting) {
-      return Promise.reject(workspaceError('cannot promote a releasing workspace'));
-    }
+    this.#assertMutable('promote');
     this.#promoting = true;
-    const operation = this.#serialize(() => this.#assertLeaseHealthy())
-      .then(async () => await this.#promoteMaterialization(request))
-      .then(async (materialization) => await this.#finishPromotion(materialization));
-    const done = operation.then(
-      () => undefined,
-      () => undefined,
+    const operation = this.#serialize(
+      async () => await this.#promoteMaterialization(this.#workspace, request),
     );
-    this.#promotionDone = done;
-    return operation.finally(() => {
-      this.#promoting = false;
-      if (this.#promotionDone === done) {
-        this.#promotionDone = null;
-      }
-    });
-  }
-
-  async #checkpoint(
-    roots: MaterializationWorkspaceRoots,
-  ): Promise<StorageRetentionWitness | null> {
-    this.#assertLeaseHealthy();
-    const members = workspaceMembers(roots);
-    if (members.length === 0) {
-      return null;
-    }
-    const bundle = await this.#bundles.putOrdered({ members });
-    const targetToken = bundle.handle.toString();
-    const witness = await this.#retain(bundle.handle, targetToken);
-    const target = Object.freeze({ input: bundle.handle, token: targetToken });
-    this.#leaseTarget = target;
-    this.#scheduleLeaseRenewal(target);
-    return adaptGitCasRetentionWitness(witness.toJSON());
-  }
-
-  async #retain(
-    target: WorkspaceTarget,
-    expectedHandle: string,
-  ): Promise<RetentionWitness> {
-    this.#installationAttempted = true;
-    const retained = await this.#cache.put(this.#key, target, {
-      retention: 'pinned',
-      expiresAt: this.#expiresAt(),
-    });
-    return requireAcceptedCheckpoint(retained, expectedHandle);
-  }
-
-  async #finishPromotion(
-    materialization: MaterializationHandle,
-  ): Promise<MaterializationHandle> {
-    return await this.#serialize(() => {
-      this.#leaseFailure = null;
-      this.#cancelLeaseTimer();
+    return operation.then((materialization) => {
+      this.#promoted = true;
       return materialization;
+    }).finally(() => {
+      this.#promoting = false;
     });
   }
 
-  async #release(): Promise<void> {
-    if (this.#released) {
-      return;
-    }
-    if (this.#installationAttempted) {
-      await this.#cache.remove(this.#key);
-    }
-    this.#released = true;
-  }
-
-  #expiresAt(): string {
-    const now = this.#clock.now();
-    if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
-      throw workspaceError('clock returned an invalid Date');
-    }
-    return new Date(now.getTime() + this.#leaseTtlMs).toISOString();
-  }
-
-  #scheduleLeaseRenewal(target: ActiveLeaseTarget): void {
-    this.#cancelLeaseTimer();
-    if (!this.#leaseIsActive()) {
-      return;
-    }
-    this.#leaseTimer = this.#leaseScheduler.schedule(
-      async () => await this.#renewLease(target),
-      this.#leaseRenewalMs,
-    );
-  }
-
-  async #renewLease(target: ActiveLeaseTarget): Promise<void> {
-    this.#leaseTimer = null;
-    await this.#serialize(async () => {
-      if (!this.#leaseIsActive()) {
-        return;
-      }
-      if (this.#leaseTarget !== target) {
-        return;
-      }
-      try {
-        await this.#retain(target.input, target.token);
-        this.#scheduleLeaseRenewal(target);
-      } catch (raw) {
-        this.#leaseFailure = workspaceError(`lease renewal failed: ${errorMessage(raw)}`);
-        this.#cancelLeaseTimer();
+  override release(): Promise<void> {
+    this.#releaseRequested = true;
+    this.#releasePromise ??= this.#serialize(async () => {
+      if (!this.#released) {
+        await this.#workspace.release();
+        this.#released = true;
       }
     });
+    return this.#releasePromise;
   }
 
-  #cancelLeaseTimer(): void {
-    this.#leaseTimer?.cancel();
-    this.#leaseTimer = null;
-  }
-
-  #leaseIsActive(): boolean {
-    return !this.#releaseRequested && !this.#released;
-  }
-
-  #assertLeaseHealthy(): void {
-    if (this.#leaseFailure !== null) {
-      throw this.#leaseFailure;
+  #assertMutable(operation: string): void {
+    if (
+      this.#releaseRequested || this.#released || this.#promoting || this.#promoted
+    ) {
+      throw workspaceError(`cannot ${operation} on a closed workspace`);
     }
   }
 
@@ -246,9 +156,9 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
 
 function workspaceMembers(
   roots: MaterializationWorkspaceRoots,
-): Array<[string, BundleMemberInput]> {
+): Array<[string, string]> {
   requireRoots(roots);
-  const members: Array<[string, BundleMemberInput]> = [];
+  const members: Array<[string, string]> = [];
   if (roots.edgeAliveRoot !== null) {
     members.push(['roots/edge-alive', parseRoot(roots.edgeAliveRoot)]);
   }
@@ -269,6 +179,56 @@ function parseRoot(token: string): string {
   }
 }
 
+function requireRetainedStage(
+  staged: WorkspaceRetainedPage | WorkspaceRetainedBundle,
+  expectedHandle: string,
+): StorageRetentionWitness {
+  if (
+    staged.state !== 'retained' ||
+    staged.retention.policy !== 'evictable' ||
+    staged.retention.reachability !== 'anchored' ||
+    staged.retention.protection !== 'workspace'
+  ) {
+    throw workspaceError('git-cas returned an unretained staged artifact');
+  }
+  return requireWorkspaceWitness(staged.witness, expectedHandle);
+}
+
+function requireCheckpointWitness(
+  checkpoint: WorkspaceCheckpointResult,
+  expectedHandle: string,
+): StorageRetentionWitness {
+  const exact = [
+    checkpoint.handles.length === 1,
+    checkpoint.handles[0]?.toString() === expectedHandle,
+    checkpoint.witnesses.length === 1,
+  ];
+  if (exact.includes(false)) {
+    throw workspaceError('git-cas checkpoint did not retain the exact workspace root');
+  }
+  const witness = checkpoint.witnesses[0];
+  if (witness === undefined) {
+    throw workspaceError('git-cas checkpoint omitted retention evidence');
+  }
+  return requireWorkspaceWitness(witness, expectedHandle);
+}
+
+function requireWorkspaceWitness(
+  witness: RetentionWitness,
+  expectedHandle: string,
+): StorageRetentionWitness {
+  const adapted = adaptGitCasRetentionWitness(witness.toJSON());
+  if (
+    adapted.handle.toString() !== expectedHandle ||
+    adapted.policy !== 'evictable' ||
+    adapted.reachability !== 'anchored' ||
+    adapted.root.kind !== 'root-set'
+  ) {
+    throw workspaceError('git-cas returned invalid workspace retention evidence');
+  }
+  return adapted;
+}
+
 function requireRoots(value: MaterializationWorkspaceRoots): void {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw workspaceError('checkpoint roots must be an object');
@@ -276,92 +236,36 @@ function requireRoots(value: MaterializationWorkspaceRoots): void {
 }
 
 function requireWorkspaceOptions(options: GitCasMaterializationWorkspaceOptions): void {
-  requireOptionsObject(options);
-  requireBundles(options.bundles);
-  requireCache(options.cache);
-  requireClock(options.clock);
-  requireLeaseTiming(options.leaseTtlMs, options.leaseRenewalMs);
-  requireLeaseScheduler(options.leaseScheduler);
-  requirePromote(options.promote);
-}
-
-function requireAcceptedCheckpoint(
-  retained: Awaited<ReturnType<WorkspaceCache['put']>>,
-  expectedHandle: string,
-): RetentionWitness {
-  if (!retained.accepted || retained.hit === null || retained.witness === null) {
-    throw workspaceError('git-cas did not retain the workspace checkpoint');
-  }
-  if (retained.hit.handle.toString() !== expectedHandle) {
-    throw workspaceError('git-cas retained an unexpected workspace handle');
-  }
-  return retained.witness;
-}
-
-function requireOptionsObject(options: GitCasMaterializationWorkspaceOptions): void {
   if (options === null || typeof options !== 'object' || Array.isArray(options)) {
     throw workspaceError('options must be an object');
   }
+  requireObject(options.workspace, 'git-cas workspace dependency');
+  requireObject(options.workspace.pages, 'git-cas workspace dependency pages');
+  requireObject(options.workspace.bundles, 'git-cas workspace dependency bundles');
+  requireMethod(options.workspace.pages, 'put', 'git-cas workspace pages');
+  requireMethod(options.workspace.bundles, 'putOrdered', 'git-cas workspace bundles');
+  requireMethod(options.workspace, 'checkpoint', 'git-cas workspace');
+  requireMethod(options.workspace, 'promoteToCache', 'git-cas workspace');
+  requireMethod(options.workspace, 'release', 'git-cas workspace');
+  requireFunction(options.promote, 'promote dependency');
 }
 
-function requireBundles(bundles: Pick<BundleCapability, 'putOrdered'>): void {
-  if (typeof bundles?.putOrdered !== 'function') {
-    throw workspaceError('bundles dependency is required');
+function requireObject(value: unknown, field: string): asserts value is object {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw workspaceError(`${field} is required`);
   }
 }
 
-function requireCache(cache: WorkspaceCache): void {
-  if (typeof cache?.put !== 'function' || typeof cache?.remove !== 'function') {
-    throw workspaceError('cache dependency is required');
+function requireMethod(value: object, method: string, field: string): void {
+  if (typeof Reflect.get(value, method) !== 'function') {
+    throw workspaceError(`${field} must provide ${method}()`);
   }
 }
 
-function requireClock(clock: { readonly now: () => Date } | undefined): void {
-  if (clock !== undefined && typeof clock.now !== 'function') {
-    throw workspaceError('clock must provide now()');
+function requireFunction(value: unknown, field: string): void {
+  if (typeof value !== 'function') {
+    throw workspaceError(`${field} is required`);
   }
-}
-
-function requireLeaseTiming(ttlMs: number | undefined, renewalMs: number | undefined): void {
-  const ttl = ttlMs ?? WORKSPACE_TTL_MS;
-  const renewal = renewalMs ?? WORKSPACE_RENEWAL_MS;
-  requirePositiveLeaseTtl(ttl);
-  requireLeaseRenewalBelowTtl(renewal, ttl);
-}
-
-function requirePositiveLeaseTtl(ttl: number): void {
-  if (!Number.isSafeInteger(ttl) || ttl <= 0) {
-    throw workspaceError('leaseTtlMs must be a positive safe integer');
-  }
-}
-
-function requireLeaseRenewalBelowTtl(renewal: number, ttl: number): void {
-  if (!Number.isSafeInteger(renewal) || renewal <= 0 || renewal >= ttl) {
-    throw workspaceError('leaseRenewalMs must be a positive safe integer below leaseTtlMs');
-  }
-}
-
-function requireLeaseScheduler(
-  scheduler: MaterializationWorkspaceLeaseScheduler | undefined,
-): void {
-  if (scheduler !== undefined && typeof scheduler.schedule !== 'function') {
-    throw workspaceError('leaseScheduler must provide schedule()');
-  }
-}
-
-function requirePromote(
-  promote: ((request: PromoteMaterializationRequest) => Promise<MaterializationHandle>) | undefined,
-): void {
-  if (typeof promote !== 'function') {
-    throw workspaceError('promote dependency is required');
-  }
-}
-
-function requireNonEmpty(value: string, field: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw workspaceError(`${field} must be a non-empty string`);
-  }
-  return value;
 }
 
 function errorMessage(raw: unknown): string {

@@ -1,22 +1,23 @@
 import type { TrieBranchEntries } from "./TrieBranchEntries.ts";
+import type ArtifactStagingPort from "../../../ports/ArtifactStagingPort.ts";
 
 /**
- * Storage port for the shadow-trie ORSet's Git-native backing.
+ * Storage port for the shadow-trie ORSet's content-addressed backing.
  *
- * The shadow trie stores its structure as native Git objects: branch
- * nodes are Git trees, leaf nodes are Git blobs. This port is the
- * minimum contract required for the trie cursor, codec, and session
- * layers to exchange those two kinds of object with a concrete
- * backend without knowing anything about Git transports, packfiles,
- * or reference plumbing.
+ * Branch nodes are immutable bundles and leaf nodes are immutable pages.
+ * This port is the minimum contract required for the trie cursor, codec,
+ * and session layers to exchange those two artifact kinds with a concrete
+ * backend without knowing anything about its object model or retention
+ * plumbing. Writes may join an existing staging scope so a complete trie
+ * remains reachable until its final owner is installed.
  *
  * ## Four methods, nothing more
  *
- * - `readLeaf(oid)` — read a leaf blob's raw bytes.
- * - `readBranch(oid)` — read a branch tree as its nibble-indexed
+ * - `readLeaf(root)` — read a leaf page's raw bytes.
+ * - `readBranch(root)` — read a branch bundle as its nibble-indexed
  *   child map.
- * - `writeLeaf(data)` — write a leaf blob and return its OID.
- * - `writeBranch(children)` — write a branch tree and return its OID.
+ * - `writeLeaf(data, staging?)` — write or stage a page and return its handle.
+ * - `writeBranch(children, staging?)` — write or stage a bundle and return its handle.
  *
  * That is the entire port. No batch reads, no batch writes, no
  * page caching, no geometry configuration, no checkpoint envelope
@@ -78,7 +79,7 @@ export default interface TrieStorePort {
    * Throws `TrieStoreError` with code `E_TRIE_STORE_WRITE` if the
    * backing store rejects the write.
    */
-  writeLeaf(data: Uint8Array): Promise<string>;
+  writeLeaf(data: Uint8Array, staging?: ArtifactStagingPort): Promise<string>;
 
   /**
    * Write a branch bundle from its nibble-indexed child map and return
@@ -87,5 +88,5 @@ export default interface TrieStorePort {
    * Throws `TrieStoreError` with code `E_TRIE_STORE_WRITE` if the
    * backing store rejects the write.
    */
-  writeBranch(children: TrieBranchEntries): Promise<string>;
+  writeBranch(children: TrieBranchEntries, staging?: ArtifactStagingPort): Promise<string>;
 }

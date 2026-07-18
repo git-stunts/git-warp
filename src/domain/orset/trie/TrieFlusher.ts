@@ -11,6 +11,7 @@ import type TrieBranch from "./TrieBranch.ts";
 import type { TrieBranchEntries } from "./TrieBranchEntries.ts";
 import TrieLeaf from "./TrieLeaf.ts";
 import type TrieStorePort from "./TrieStorePort.ts";
+import type ArtifactStagingPort from "../../../ports/ArtifactStagingPort.ts";
 
 const PENDING_OID_PREFIX = "pending:";
 
@@ -20,6 +21,7 @@ const PENDING_OID_PREFIX = "pending:";
 export interface TrieFlusherInit {
   readonly store: TrieStorePort;
   readonly codec: CodecPort;
+  readonly staging?: ArtifactStagingPort;
 }
 
 /**
@@ -65,10 +67,12 @@ export interface TrieFlusherInit {
 export default class TrieFlusher {
   readonly #store: TrieStorePort;
   readonly #codec: CodecPort;
+  readonly #staging: ArtifactStagingPort | undefined;
 
   constructor(init: TrieFlusherInit) {
     this.#store = init.store;
     this.#codec = init.codec;
+    this.#staging = init.staging;
   }
 
   async flush(dirty: DirtyPageSet): Promise<FlushResult> {
@@ -169,7 +173,7 @@ export default class TrieFlusher {
     path: readonly number[],
   ): Promise<string> {
     try {
-      return await this.#store.writeLeaf(bytes);
+      return await this.#store.writeLeaf(bytes, this.#staging);
     } catch (raw) {
       if (!(raw instanceof Error)) {
         throw flushNonErrorCaught(String(raw));
@@ -188,7 +192,7 @@ export default class TrieFlusher {
     path: readonly number[],
   ): Promise<string> {
     try {
-      return await this.#store.writeBranch(entries);
+      return await this.#store.writeBranch(entries, this.#staging);
     } catch (raw) {
       if (!(raw instanceof Error)) {
         throw flushNonErrorCaught(String(raw));

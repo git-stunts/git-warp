@@ -13,11 +13,6 @@ import MaterializationRoot from '../../../../src/domain/materialization/Material
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
-import GitCasMaterializationWorkspace from '../../../../src/infrastructure/adapters/GitCasMaterializationWorkspace.ts';
-import type {
-  MaterializationWorkspaceLease,
-  MaterializationWorkspaceLeaseScheduler,
-} from '../../../../src/infrastructure/adapters/GitCasMaterializationWorkspace.ts';
 import GitCasTrieStoreAdapter from '../../../../src/infrastructure/adapters/GitCasTrieStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -133,67 +128,62 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
   });
 
   it('keeps workspace roots readable across aggressive Git pruning', async () => {
-    const trieFixture = await createTrieRoot(harness.cas);
     const workspace = await harness.materializations.openWorkspace(workspaceCoordinate());
+    const trie = new GitCasTrieStoreAdapter({ cas: harness.cas });
+    const bytes = new Uint8Array([7, 8, 9]);
+    const leafRoot = await trie.writeLeaf(bytes, workspace);
+    await execFileAsync('git', ['-C', harness.path, 'prune', '--expire=now']);
+    const branchRoot = await trie.writeBranch(new Map([[0, leafRoot]]), workspace);
+    await execFileAsync('git', ['-C', harness.path, 'prune', '--expire=now']);
 
     const witness = await workspace.checkpoint({
-      nodeAliveRoot: trieFixture.root.toString(),
+      nodeAliveRoot: branchRoot,
       edgeAliveRoot: null,
     });
     if (witness === null) {
       throw new Error('Workspace did not witness its non-empty trie root');
     }
     expect(witness).toMatchObject({
-      policy: 'pinned',
+      policy: 'evictable',
       reachability: 'anchored',
+      root: { kind: 'root-set' },
     });
     expect(await prunableOids(harness.path)).not.toContain(
-      GitCasBundleHandle.parse(trieFixture.root.toString()).oid,
+      GitCasBundleHandle.parse(branchRoot).oid,
     );
 
     await execFileAsync('git', ['-C', harness.path, 'prune', '--expire=now']);
-    const trie = new GitCasTrieStoreAdapter({ cas: harness.cas });
-    const children = await trie.readBranch(trieFixture.root.toString());
+    const children = await trie.readBranch(branchRoot);
     expect(children.size).toBe(1);
+    expect(await trie.readLeaf(leafRoot)).toEqual(bytes);
 
     await workspace.release();
   });
 
-  it('renews an active workspace across expiry, sweep, and aggressive pruning', async () => {
+  it('renews an active workspace on checkpoint without a git-warp lease timer', async () => {
     const clock = new MutableClock('2026-07-16T00:00:00.000Z');
     const leaseHarness = await createHarness(clock);
     try {
-      const trieFixture = await createTrieRoot(leaseHarness.cas);
-      const cache = await leaseHarness.cas.caches.open({
-        namespace: 'git-warp/materialization-workspaces',
-      });
-      const scheduler = new ManualLeaseScheduler();
-      const workspace = new GitCasMaterializationWorkspace({
-        bundles: leaseHarness.cas.bundles,
-        cache,
-        key: 'active-lease',
-        clock,
-        leaseTtlMs: 1_000,
-        leaseRenewalMs: 500,
-        leaseScheduler: scheduler,
-        promote: rejectPromotion,
-      });
+      const workspace = await leaseHarness.materializations.openWorkspace(workspaceCoordinate());
+      const trie = new GitCasTrieStoreAdapter({ cas: leaseHarness.cas });
+      const leafRoot = await trie.writeLeaf(new Uint8Array([1, 2, 3]), workspace);
+      const branchRoot = await trie.writeBranch(new Map([[0, leafRoot]]), workspace);
 
+      clock.advance(90 * 60 * 1_000);
       await workspace.checkpoint({
-        nodeAliveRoot: trieFixture.root.toString(),
+        nodeAliveRoot: branchRoot,
         edgeAliveRoot: null,
       });
-      clock.advance(600);
-      await scheduler.runNext();
-      clock.advance(500);
+      clock.advance(90 * 60 * 1_000);
 
-      const sweep = await cache.sweep();
-      expect(sweep.removed).toBe(0);
-      expect(await cache.get('active-lease')).not.toBeNull();
+      const sweep = await leaseHarness.cas.workspaces.sweep({
+        namespace: 'git-warp/materializations',
+        limit: 10,
+      });
+      expect(sweep.changed).toBe(0);
       await execFileAsync('git', ['-C', leaseHarness.path, 'prune', '--expire=now']);
 
-      const trie = new GitCasTrieStoreAdapter({ cas: leaseHarness.cas });
-      expect((await trie.readBranch(trieFixture.root.toString())).size).toBe(1);
+      expect((await trie.readBranch(branchRoot)).size).toBe(1);
       await workspace.release();
     } finally {
       await rm(leaseHarness.path, { recursive: true, force: true });
@@ -353,10 +343,6 @@ function workspaceCoordinate(): MaterializationCoordinate {
   });
 }
 
-function rejectPromotion(): Promise<never> {
-  return Promise.reject(new Error('Promotion is not used by the lease integration test'));
-}
-
 class MutableClock {
   #current: number;
 
@@ -370,30 +356,6 @@ class MutableClock {
 
   advance(milliseconds: number): void {
     this.#current += milliseconds;
-  }
-}
-
-class ManualLeaseScheduler implements MaterializationWorkspaceLeaseScheduler {
-  #task: (() => Promise<void>) | null = null;
-
-  schedule(task: () => Promise<void>, _delayMs: number): MaterializationWorkspaceLease {
-    this.#task = task;
-    return Object.freeze({
-      cancel: () => {
-        if (this.#task === task) {
-          this.#task = null;
-        }
-      },
-    });
-  }
-
-  async runNext(): Promise<void> {
-    const task = this.#task;
-    if (task === null) {
-      throw new Error('Expected a scheduled lease renewal');
-    }
-    this.#task = null;
-    await task();
   }
 }
 

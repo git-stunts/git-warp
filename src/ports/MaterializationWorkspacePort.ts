@@ -2,6 +2,7 @@ import type MaterializationCoordinate from '../domain/materialization/Materializ
 import type MaterializationHandle from '../domain/materialization/MaterializationHandle.ts';
 import type MaterializationRoots from '../domain/materialization/MaterializationRoots.ts';
 import type StorageRetentionWitness from '../domain/storage/StorageRetentionWitness.ts';
+import ArtifactStagingPort from './ArtifactStagingPort.ts';
 
 export type MaterializationWorkspaceRoots = Readonly<{
   nodeAliveRoot: string | null;
@@ -19,7 +20,7 @@ export type PromoteMaterializationRequest = Readonly<{
  * Operation-scoped retention for materialization roots that are not yet
  * reachable from the final retained materialization handle.
  */
-export default abstract class MaterializationWorkspacePort {
+export default abstract class MaterializationWorkspacePort extends ArtifactStagingPort {
   abstract checkpoint(
     _roots: MaterializationWorkspaceRoots,
   ): Promise<StorageRetentionWitness | null>;

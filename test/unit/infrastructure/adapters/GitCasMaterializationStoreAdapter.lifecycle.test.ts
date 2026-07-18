@@ -113,12 +113,14 @@ function withoutCacheAcquisition(cas: InMemoryGitCasFacade): GitCasMaterializati
       open: async (options) => {
         const cache = await cas.caches.open(options);
         return {
+          ref: cache.ref,
           acquire: async () => null,
           put: async (key, handle, entryOptions) => await cache.put(key, handle, entryOptions),
           remove: async (key) => await cache.remove(key),
         };
       },
     },
+    workspaces: cas.workspaces,
   };
 }
 

@@ -123,6 +123,7 @@ export async function reduceSessionBackedState(args: {
     const properties = await resolvePropertyRoot(
       reduced.state,
       args.propertyStore,
+      workspace,
       reducedPatchCount === 0 ? args.propertyRoot : undefined,
     );
     await retainPreparedPropertyRoot(workspace, close.roots, properties);
@@ -204,6 +205,7 @@ function materializationRootsFromSession(
 async function materializePropertyRoot(
   state: WarpStateClass,
   store: IndexStorePort | undefined,
+  workspace: MaterializationWorkspacePort,
 ): Promise<MaterializationRoot> {
   if (store === undefined) {
     return MaterializationRoot.unavailable();
@@ -228,8 +230,10 @@ async function materializePropertyRoot(
     WarpStream.from<IndexShard>(builder.yieldShards()),
     {
       expectedShardCount: shardCount,
+      memberStorage: 'page',
       maxShardCount: MAX_MATERIALIZATION_PROPERTY_SHARDS,
       maxShardBytes: MAX_MATERIALIZATION_PROPERTY_SHARD_BYTES,
+      staging: workspace,
     },
   );
   return MaterializationRoot.retained(handle);
@@ -238,12 +242,13 @@ async function materializePropertyRoot(
 async function resolvePropertyRoot(
   state: WarpStateClass,
   store: IndexStorePort | undefined,
+  workspace: MaterializationWorkspacePort,
   existing: MaterializationRoot | undefined,
 ): Promise<MaterializationRoot> {
   if (existing !== undefined && existing.status !== "unavailable") {
     return existing;
   }
-  return await materializePropertyRoot(state, store);
+  return await materializePropertyRoot(state, store, workspace);
 }
 
 async function retainPreparedPropertyRoot(

@@ -3,11 +3,14 @@ import type { IndexShard } from '../domain/artifacts/IndexShard.ts';
 import type CodecValue from '../domain/types/codec/CodecValue.ts';
 import type AssetHandle from '../domain/storage/AssetHandle.ts';
 import type BundleHandle from '../domain/storage/BundleHandle.ts';
+import type ArtifactStagingPort from './ArtifactStagingPort.ts';
 
 export type IndexShardWriteOptions = Readonly<{
   expectedShardCount?: number;
+  memberStorage?: 'asset' | 'page';
   maxShardCount?: number;
   maxShardBytes?: number;
+  staging?: ArtifactStagingPort;
 }>;
 
 export type IndexShardDecodeOptions = Readonly<{
@@ -44,8 +47,9 @@ export default abstract class IndexStorePort {
   /**
    * Stages a stream of `IndexShard` records as an ordered bundle.
    *
-   * The adapter internally encodes and stages each shard as an asset,
-   * then assembles the opaque handles into a deterministic bundle.
+   * The adapter internally encodes each shard, stages it under the requested
+   * immutable member policy, then assembles the opaque handles into a
+   * deterministic bundle. Page members require an explicit byte limit.
    */
   abstract writeShards(
     _shardStream: WarpStream<IndexShard>,
@@ -96,4 +100,17 @@ export default abstract class IndexStorePort {
     _shardHandle: AssetHandle,
     _options?: IndexShardDecodeOptions,
   ): Promise<TDecoded>;
+
+  /**
+   * Resolves and decodes one bundle member by path without enumerating siblings.
+   *
+   * Unlike `readShardHandle`, this operation accepts either asset-backed or
+   * page-backed members while keeping the concrete member handle inside the
+   * storage adapter.
+   */
+  abstract decodeShardAt<TDecoded extends CodecValue = CodecValue>(
+    _indexHandle: BundleHandle,
+    _path: string,
+    _options?: IndexShardDecodeOptions,
+  ): Promise<TDecoded | null>;
 }

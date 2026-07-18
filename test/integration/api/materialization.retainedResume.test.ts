@@ -233,6 +233,18 @@ class RecordingMaterializationWorkspace extends MaterializationWorkspacePort {
     return this.#delegate.checkpoint(roots);
   }
 
+  override stagePage(
+    ...args: Parameters<MaterializationWorkspacePort['stagePage']>
+  ): ReturnType<MaterializationWorkspacePort['stagePage']> {
+    return this.#delegate.stagePage(...args);
+  }
+
+  override stageOrderedBundle(
+    ...args: Parameters<MaterializationWorkspacePort['stageOrderedBundle']>
+  ): ReturnType<MaterializationWorkspacePort['stageOrderedBundle']> {
+    return this.#delegate.stageOrderedBundle(...args);
+  }
+
   override promote(request: PromoteMaterializationRequest): Promise<MaterializationHandle> {
     return this.#promote(request);
   }

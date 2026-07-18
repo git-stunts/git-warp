@@ -1,4 +1,4 @@
-import type { BundleCapability } from '@git-stunts/git-cas';
+import type { BundleCapability, BundleMember, PageCapability } from '@git-stunts/git-cas';
 import IndexStorePort, {
   type IndexShardDecodeOptions,
   type IndexShardWriteOptions,
@@ -14,25 +14,26 @@ import { LabelShard } from '../../domain/artifacts/LabelShard.ts';
 import { PropertyShard } from '../../domain/artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
 import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
-import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
-import BundleHandle from '../../domain/storage/BundleHandle.ts';
+import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import IndexError from '../../domain/errors/IndexError.ts';
 import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import computeShardKey from '../../domain/utils/shardKey.ts';
 import { materializationPropertyShardKey } from '../../domain/materialization/MaterializationPropertyProfile.ts';
 import { validateBoundedCbor } from './BoundedCborValidation.ts';
 import { decodeRoutedPropertyShardArtifact } from '../../domain/services/index/PropertyIndexReader.ts';
+import { writeCborIndexShards } from './CborIndexShardWriter.ts';
+import {
+  invalidLimit,
+  optionalPositiveInteger,
+  requiredNonNegativeInteger,
+  requiredPositiveInteger,
+} from './IndexShardLimitValidation.ts';
 
 export type GitCasIndexFacade = {
   readonly bundles: Pick<BundleCapability, 'getMember' | 'putOrdered' | 'iterateMembers'>;
+  readonly pages: Pick<PageCapability, 'get' | 'put'>;
 };
-
-type ValidatedIndexShardWriteLimits = Readonly<{
-  expectedShardCount: number | undefined;
-  maxShardBytes: number | undefined;
-  maxShardCount: number | undefined;
-}>;
 
 function classifyMeta(match: RegExpMatchArray, data: unknown): MetaShard {
   const d = data as { nodeToGlobal: Array<[string, number]>; nextLocalId: number; alive: Uint8Array };
@@ -100,9 +101,10 @@ const SHARD_CLASSIFIERS: ReadonlyArray<{ pattern: RegExp; classify: (match: RegE
  *
  * Owns the codec while configured asset and bundle capabilities own
  * persistence. Domain services produce IndexShard streams; the adapter
- * encodes and stages assets, then assembles their opaque handles into
- * ordered bundles. On read, the adapter decodes assets and
- * constructs IndexShard subclass instances.
+ * encodes and stages immutable members, then assembles their opaque handles
+ * into ordered bundles. General indexes use assets; bounded exact-read roots
+ * may use pages to avoid creating an asset manifest per shard. On read, the
+ * adapter decodes members and constructs IndexShard subclass instances.
  *
  * Write pipeline reuses existing infrastructure transforms:
  *   WarpStream<IndexShard>
@@ -133,29 +135,13 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     shardStream: WarpStream<IndexShard>,
     options: IndexShardWriteOptions = {},
   ): Promise<BundleHandle> {
-    const { expectedShardCount, maxShardBytes, maxShardCount } = validatedWriteLimits(options);
-    requireExpectedShardCountWithinLimit(expectedShardCount, maxShardCount);
-    const members: Array<[string, string]> = [];
-    const encoder = new IndexShardEncodeTransform(this._codec, {
-      ...(maxShardBytes === undefined ? {} : { maxBytes: maxShardBytes }),
+    return await writeCborIndexShards({
+      shardStream,
+      options,
+      codec: this._codec,
+      assets: this._assets,
+      cas: this._cas,
     });
-    for await (const [path, bytes] of shardStream.pipe(encoder)) {
-      requireShardCountWithinLimit(members.length + 1, maxShardCount);
-      requireShardSize(path, bytes.byteLength, maxShardBytes);
-      const staged = await this._assets.stage(WarpStream.from([bytes]), {
-        slug: `index-shard-${path}`,
-        filename: path,
-        expectedSize: bytes.byteLength,
-      });
-      members.push([path, staged.handle.toString()]);
-    }
-    requireExpectedShardCount(members.length, expectedShardCount);
-    members.sort(([left], [right]) => compareStrings(left, right));
-    const bundle = await this._cas.bundles.putOrdered({
-      members,
-      ...(maxShardCount === undefined ? {} : { limits: { maxMembers: maxShardCount } }),
-    });
-    return new BundleHandle(bundle.handle.toString());
   }
 
   override scanShards(indexHandle: BundleHandle): WarpStream<IndexShard> {
@@ -227,6 +213,52 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     validateRequestedStructure(bytes, options);
     return this._codec.decode<TDecoded>(bytes);
   }
+
+  override async decodeShardAt<TDecoded extends CodecValue = CodecValue>(
+    indexHandle: BundleHandle,
+    path: string,
+    options: IndexShardDecodeOptions = {},
+  ): Promise<TDecoded | null> {
+    const member = await this._cas.bundles.getMember({
+      handle: indexHandle.toString(),
+      path,
+    });
+    if (member === null) {
+      return null;
+    }
+    const maxBytes = optionalPositiveInteger(options.maxBytes, 'maxBytes');
+    const bytes = await readMemberBytes({
+      member,
+      path,
+      maxBytes,
+      cas: this._cas,
+      assets: this._assets,
+    });
+    validateRequestedStructure(bytes, options);
+    return this._codec.decode<TDecoded>(bytes);
+  }
+}
+
+async function readMemberBytes(args: {
+  member: BundleMember;
+  path: string;
+  maxBytes: number | undefined;
+  cas: GitCasIndexFacade;
+  assets: AssetStoragePort;
+}): Promise<Uint8Array> {
+  if (args.member.handle.kind === 'page') {
+    return await args.cas.pages.get({
+      handle: args.member.handle.toString(),
+      ...(args.maxBytes === undefined ? {} : { maxBytes: args.maxBytes }),
+    });
+  }
+  if (args.member.handle.kind !== 'asset') {
+    throw invalidBundleMember(args.path, args.member.handle.kind);
+  }
+  const source = args.assets.open(new AssetHandle(args.member.handle.toString()));
+  return args.maxBytes === undefined
+    ? await collectAsyncIterable(source)
+    : await collectBoundedShard(source, args.maxBytes);
 }
 
 async function collectBoundedShard(
@@ -280,10 +312,6 @@ function requireShardChunkCount(actual: number): void {
   }
 }
 
-function compareStrings(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
-}
-
 function validateRequestedStructure(
   bytes: Uint8Array,
   options: IndexShardDecodeOptions,
@@ -312,55 +340,6 @@ function validateRequestedStructure(
   });
 }
 
-function requireShardSize(path: string, actual: number, maximum: number | undefined): void {
-  if (maximum !== undefined && actual > maximum) {
-    throw new IndexError(`Index shard exceeds the configured maximum: ${path}`, {
-      code: 'E_INDEX_SHARD_TOO_LARGE',
-      context: { path, actual, maximum },
-    });
-  }
-}
-
-function validatedWriteLimits(
-  options: IndexShardWriteOptions,
-): ValidatedIndexShardWriteLimits {
-  const expectedShardCount = optionalNonNegativeInteger(
-    options.expectedShardCount,
-    'expectedShardCount',
-  );
-  const maxShardCount = optionalNonNegativeInteger(options.maxShardCount, 'maxShardCount');
-  const maxShardBytes = optionalPositiveInteger(options.maxShardBytes, 'maxShardBytes');
-  return Object.freeze({ expectedShardCount, maxShardBytes, maxShardCount });
-}
-
-function requireExpectedShardCountWithinLimit(
-  expected: number | undefined,
-  maximum: number | undefined,
-): void {
-  if (expected !== undefined) {
-    requireShardCountWithinLimit(expected, maximum);
-  }
-}
-
-function requireShardCountWithinLimit(actual: number, maximum: number | undefined): void {
-  if (maximum !== undefined && actual > maximum) {
-    throw shardCountError(actual, maximum, 'exceeds the configured maximum');
-  }
-}
-
-function requireExpectedShardCount(actual: number, expected: number | undefined): void {
-  if (expected !== undefined && actual !== expected) {
-    throw shardCountError(actual, expected, 'does not match the expected count');
-  }
-}
-
-function shardCountError(actual: number, maximum: number, reason: string): IndexError {
-  return new IndexError(`Index shard count ${reason}`, {
-    code: 'E_INDEX_SHARD_COUNT_LIMIT',
-    context: { actual, maximum },
-  });
-}
-
 function shardTooLarge(actual: number, maximum: number): IndexError {
   return new IndexError('Index shard exceeds the configured maximum', {
     code: 'E_INDEX_SHARD_TOO_LARGE',
@@ -368,57 +347,18 @@ function shardTooLarge(actual: number, maximum: number): IndexError {
   });
 }
 
-function optionalPositiveInteger(value: number | undefined, name: string): number | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!Number.isSafeInteger(value) || value <= 0) {
-    throw invalidLimit(name);
-  }
-  return value;
-}
-
-function optionalNonNegativeInteger(value: number | undefined, name: string): number | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw invalidLimit(name);
-  }
-  return value;
-}
-
-function requiredPositiveInteger(value: number | undefined, name: string): number {
-  const checked = optionalPositiveInteger(value, name);
-  if (checked === undefined) {
-    throw invalidLimit(name);
-  }
-  return checked;
-}
-
-function requiredNonNegativeInteger(value: number | undefined, name: string): number {
-  const checked = optionalNonNegativeInteger(value, name);
-  if (checked === undefined) {
-    throw invalidLimit(name);
-  }
-  return checked;
-}
-
-function invalidLimit(name: string): IndexError {
-  return new IndexError(`Index shard ${name} must be a safe integer within range`, {
-    code: 'E_INDEX_INVALID_LIMIT',
-    context: { name },
-  });
-}
-
 function requireAssetMember(path: string, kind: string, token: string): AssetHandle {
   if (kind !== 'asset') {
-    throw new IndexError(`Index bundle member is not an asset: ${path}`, {
-      code: 'E_INDEX_INVALID_BUNDLE_MEMBER',
-      context: { path, kind },
-    });
+    throw invalidBundleMember(path, kind);
   }
   return new AssetHandle(token);
+}
+
+function invalidBundleMember(path: string, kind: string): IndexError {
+  return new IndexError(`Index bundle member is not a readable shard: ${path}`, {
+    code: 'E_INDEX_INVALID_BUNDLE_MEMBER',
+    context: { path, kind },
+  });
 }
 
 function requireUniqueBundleMember(seenPaths: Set<string>, path: string): void {

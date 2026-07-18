@@ -14,6 +14,7 @@ describe('IndexStorePort', () => {
     expect(IndexStorePort.prototype.readShardHandle).toBeUndefined();
     expect(IndexStorePort.prototype.openShard).toBeUndefined();
     expect(IndexStorePort.prototype.decodeShard).toBeUndefined();
+    expect(IndexStorePort.prototype.decodeShardAt).toBeUndefined();
   });
 
   it('can be implemented without object IDs', async () => {
@@ -34,6 +35,12 @@ describe('IndexStorePort', () => {
       ): Promise<TDecoded> {
         return Object.freeze({}) as TDecoded;
       }
+      async decodeShardAt<TDecoded extends CodecValue = CodecValue>(
+        _handle: BundleHandle,
+        path: string,
+      ): Promise<TDecoded | null> {
+        return path === 'shard.cbor' ? Object.freeze({}) as TDecoded : null;
+      }
     }
 
     const store = new TestStore();
@@ -43,5 +50,7 @@ describe('IndexStorePort', () => {
     });
     await expect(store.readShardHandle(store.bundleHandle, 'shard.cbor'))
       .resolves.toBe(store.shardHandle);
+    await expect(store.decodeShardAt(store.bundleHandle, 'shard.cbor'))
+      .resolves.toEqual({});
   });
 });

@@ -15,7 +15,6 @@ import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
-const WORKSPACE_CACHE_NAMESPACE = 'git-warp/materialization-workspaces';
 const ROOT_PATHS = Object.freeze([
   'roots/adjacency',
   'roots/edge-alive',
@@ -84,13 +83,13 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(await harness.adapter.acquireExact(exactCoordinate())).toBeNull();
   });
 
-  it('promotes terminal roots without installing an unnecessary workspace entry', async () => {
+  it('promotes terminal roots and releases the git-cas workspace', async () => {
     const harness = await createHarness();
     const coordinate = exactCoordinate();
     const roots = await createRoots(harness.cas);
     const workspace = await harness.adapter.openWorkspace(coordinate);
 
-    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
 
     const promoted = await workspace.promote({
       coordinate,
@@ -99,7 +98,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     });
     await workspace.release();
 
-    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toHaveLength(1);
     expect((await acquireAndRelease(harness.adapter, coordinate))?.bundle.equals(promoted.bundle))
       .toBe(true);
@@ -113,7 +112,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
       nodeAliveRoot: roots.nodeAlive.handle?.toString() ?? null,
       edgeAliveRoot: null,
     });
-    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toHaveLength(1);
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(1);
 
     await expect(workspace.promote({
       coordinate: new MaterializationCoordinate({
@@ -128,7 +127,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     });
     await workspace.release();
 
-    expect(harness.cas.readCacheKeys(WORKSPACE_CACHE_NAMESPACE)).toEqual([]);
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([]);
   });
 
@@ -556,6 +555,7 @@ function withCacheResult(
       open: async (options) => {
         const cache = await cas.caches.open(options);
         return {
+          ref: cache.ref,
           acquire: async (key) => await cache.acquire(key),
           put: async (key, handle, entryOptions) => rewrite(
             await cache.put(key, handle, entryOptions),
@@ -564,6 +564,7 @@ function withCacheResult(
         };
       },
     },
+    workspaces: cas.workspaces,
   };
 }
 

@@ -18,6 +18,7 @@ export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePo
   readonly #promoteMaterialization: (
     request: PromoteMaterializationRequest,
   ) => Promise<MaterializationHandle>;
+  #nextArtifact = 1;
   released = false;
 
   constructor(
@@ -33,6 +34,18 @@ export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePo
     this.checkpoints.push(roots);
     const bundle = new BundleHandle(`test:workspace:${String(this.checkpoints.length)}`);
     return Promise.resolve(workspaceRetentionWitness(bundle));
+  }
+
+  override stagePage(): Promise<string> {
+    const handle = `test:workspace-page:${String(this.#nextArtifact)}`;
+    this.#nextArtifact += 1;
+    return Promise.resolve(handle);
+  }
+
+  override stageOrderedBundle(): Promise<BundleHandle> {
+    const handle = new BundleHandle(`test:workspace-bundle:${String(this.#nextArtifact)}`);
+    this.#nextArtifact += 1;
+    return Promise.resolve(handle);
   }
 
   override release(): Promise<void> {
@@ -144,13 +157,13 @@ export function workspaceRetentionWitness(
     readonly generation?: string;
   } = {},
 ): StorageRetentionWitness {
-  const namespace = options.namespace ?? 'test/materialization-workspaces';
+  const namespace = options.namespace ?? 'test/materializations';
   return new StorageRetentionWitness({
     handle,
-    policy: 'pinned',
+    policy: 'evictable',
     reachability: 'anchored',
     root: new StorageRetentionRoot({
-      kind: 'cache-set',
+      kind: 'root-set',
       namespace,
       locator: namespace,
       generation: options.generation ?? 'test-workspace-generation',

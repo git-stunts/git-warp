@@ -16,6 +16,7 @@ export default class MockIndexStorage extends IndexStorePort {
   #counter = 0;
   readonly openedShardHandles: string[] = [];
   readonly decodedShardHandles: string[] = [];
+  readonly decodedShardPaths: string[] = [];
 
   readonly writeBlob = vi.fn(async (content: Uint8Array | string): Promise<AssetHandle> => {
     const handle = new AssetHandle(`test-index-shard:${String(this.#counter++).padStart(8, '0')}`);
@@ -75,5 +76,17 @@ export default class MockIndexStorage extends IndexStorePort {
       });
     }
     return defaultCodec.decode<TDecoded>(bytes);
+  }
+
+  override async decodeShardAt<TDecoded extends CodecValue = CodecValue>(
+    indexHandle: BundleHandle,
+    path: string,
+  ): Promise<TDecoded | null> {
+    this.decodedShardPaths.push(path);
+    const handle = await this.readShardHandle(indexHandle, path);
+    if (handle === null) {
+      return null;
+    }
+    return await this.decodeShard<TDecoded>(handle);
   }
 }

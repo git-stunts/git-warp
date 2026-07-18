@@ -101,10 +101,12 @@ export default class StateSession {
     const nodeFlusher = new TrieFlusher({
       store: init.store,
       codec: init.codec,
+      ...(init.workspace === undefined ? {} : { staging: init.workspace }),
     });
     const edgeFlusher = new TrieFlusher({
       store: init.store,
       codec: init.codec,
+      ...(init.workspace === undefined ? {} : { staging: init.workspace }),
     });
 
     return new StateSession({
@@ -439,9 +441,9 @@ function isPinnedWorkspaceWitness(
   witness: Awaited<ReturnType<MaterializationWorkspacePort["checkpoint"]>>,
 ): witness is StorageRetentionWitness {
   return witness instanceof StorageRetentionWitness &&
-    witness.policy === "pinned" &&
+    witness.policy === "evictable" &&
     witness.reachability === "anchored" &&
-    witness.root.kind === "cache-set";
+    witness.root.kind === "root-set";
 }
 
 function requireFinalRetentionWitness(
