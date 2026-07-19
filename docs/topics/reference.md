@@ -192,7 +192,7 @@ ReceiptSubstrateInspection @ diagnostics.ts#L15
 Structured CLI errors for `--json` and `--ndjson` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
 
-Source: `bin/warp-graph.ts#L145`.
+Source: `bin/warp-graph.ts#L179`.
 
 ## Public error classes
 
