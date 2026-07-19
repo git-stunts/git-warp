@@ -3,10 +3,11 @@ import { spawn } from 'node:child_process';
 import { randomFillSync } from 'node:crypto';
 import { mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
 import { cpus, tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import process from 'node:process';
 import { clearInterval, setInterval } from 'node:timers';
 import { fileURLToPath } from 'node:url';
+import { ALL_BACKEND_NAMES } from './backends.mjs';
 import { FastImportWriter, executeGit, PersistentCatFile } from './git-process.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -37,7 +38,10 @@ const defaultBackends = Object.freeze({
     'isomorphic-git',
   ]),
 });
-const requestedBackends = stringOption('--backend')?.split(',') ?? null;
+const requestedBackends =
+  stringOption('--backend')
+    ?.split(',')
+    .map((backend) => requireChoice('--backend', backend, ALL_BACKEND_NAMES)) ?? null;
 
 await main();
 
@@ -146,8 +150,8 @@ async function profileReads(inputPath, temporaryPath, results) {
 }
 
 async function runWorker({ backend, gitDir, input = null, manifest = null, scenario }) {
-  const args = [
-    '-lp',
+  const timer = timerForPlatform(process.platform);
+  const workerArguments = [
     process.execPath,
     `--max-old-space-size=${settings.heapLimitMb}`,
     WORKER,
@@ -159,13 +163,13 @@ async function runWorker({ backend, gitDir, input = null, manifest = null, scena
     `--scenario=${scenario}`,
   ];
   if (input !== null) {
-    args.push(`--input=${input}`);
+    workerArguments.push(`--input=${input}`);
   }
   if (manifest !== null) {
-    args.push(`--manifest=${manifest}`);
+    workerArguments.push(`--manifest=${manifest}`);
   }
-  const child = spawn('/usr/bin/time', args, {
-    env: { ...process.env, NODE_NO_WARNINGS: '1' },
+  const child = spawn(timer.executable, [...timer.arguments, ...workerArguments], {
+    env: { ...process.env, LC_ALL: 'C', NODE_NO_WARNINGS: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const stdout = collect(child.stdout);
@@ -192,7 +196,7 @@ async function runWorker({ backend, gitDir, input = null, manifest = null, scena
     });
   }
   const worker = JSON.parse(stdoutBytes.toString('utf8'));
-  const usage = parseTimeOutput(diagnostics);
+  const usage = parseTimeOutput(diagnostics, timer.format);
   return {
     backend,
     cpuMs: (usage.userSeconds + usage.systemSeconds) * 1000,
@@ -231,7 +235,7 @@ function monitorProcessTree(rootPid) {
             throw new Error(`Unable to parse ps record: ${JSON.stringify(line)}`);
           }
           return {
-            command: match[4],
+            command: sanitizeCommand(match[4]),
             pid: Number(match[1]),
             ppid: Number(match[2]),
             rss: Number(match[3]),
@@ -367,7 +371,10 @@ async function repositoryStats(gitDir) {
   );
 }
 
-function parseTimeOutput(output) {
+function parseTimeOutput(output, format) {
+  if (format === 'gnu') {
+    return parseGnuTimeOutput(output);
+  }
   const realSeconds = numericLine(output, /^real\s+([0-9.]+)$/mu, 'real');
   const userSeconds = numericLine(output, /^user\s+([0-9.]+)$/mu, 'user');
   const systemSeconds = numericLine(output, /^sys\s+([0-9.]+)$/mu, 'sys');
@@ -384,12 +391,70 @@ function parseTimeOutput(output) {
   });
 }
 
+function parseGnuTimeOutput(output) {
+  const elapsed = textLine(
+    output,
+    /^Elapsed \(wall clock\) time \(h:mm:ss or m:ss\):\s+([0-9:.]+)$/mu,
+    'elapsed wall clock time'
+  );
+  return Object.freeze({
+    maximumResidentSetSize:
+      numericLine(
+        output,
+        /^Maximum resident set size \(kbytes\):\s+([0-9]+)$/mu,
+        'maximum resident set size'
+      ) * 1024,
+    realSeconds: parseElapsedSeconds(elapsed),
+    systemSeconds: numericLine(output, /^System time \(seconds\):\s+([0-9.]+)$/mu, 'system time'),
+    userSeconds: numericLine(output, /^User time \(seconds\):\s+([0-9.]+)$/mu, 'user time'),
+  });
+}
+
+function parseElapsedSeconds(value) {
+  const fields = value.split(':').map(Number);
+  if (fields.some((field) => !Number.isFinite(field)) || fields.length < 2 || fields.length > 3) {
+    throw new Error(`Unable to parse elapsed time: ${JSON.stringify(value)}`);
+  }
+  return fields.reduce((total, field) => total * 60 + field, 0);
+}
+
+function timerForPlatform(platform) {
+  if (platform === 'darwin') {
+    return Object.freeze({
+      arguments: Object.freeze(['-lp']),
+      executable: '/usr/bin/time',
+      format: 'bsd',
+    });
+  }
+  if (platform === 'linux') {
+    return Object.freeze({
+      arguments: Object.freeze(['-v']),
+      executable: '/usr/bin/time',
+      format: 'gnu',
+    });
+  }
+  throw new Error(`Resource profiling is unsupported on ${platform}`);
+}
+
+function sanitizeCommand(command) {
+  const unwrapped = command.match(/^\((.*)\)$/u)?.[1] ?? command;
+  return basename(unwrapped);
+}
+
 function numericLine(output, pattern, label) {
   const match = output.match(pattern);
   if (match === null) {
     throw new Error(`time output is missing ${label}: ${JSON.stringify(output)}`);
   }
   return Number(match[1]);
+}
+
+function textLine(output, pattern, label) {
+  const match = output.match(pattern);
+  if (match === null) {
+    throw new Error(`time output is missing ${label}: ${JSON.stringify(output)}`);
+  }
+  return match[1];
 }
 
 function selectedBackends(scenario) {
@@ -508,4 +573,5 @@ function requireChoice(name, value, choices) {
   if (!choices.includes(value)) {
     throw new Error(`${name} must be one of: ${choices.join(', ')}`);
   }
+  return value;
 }

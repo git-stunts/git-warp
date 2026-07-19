@@ -5,40 +5,42 @@
     "node": "v24.12.0",
     "platform": "darwin"
   },
-  "generatedAt": "2026-07-19T03:22:30.995Z",
+  "generatedAt": "2026-07-19T06:07:10.378Z",
   "results": [
     {
       "backend": "nodegit",
-      "cpuMs": 2510,
-      "processRealMs": 2400,
+      "cpuMs": 2979.9999999999995,
+      "processRealMs": 2810,
       "processTreePeak": {
         "members": [
           {
-            "command": "(time)",
-            "rssBytes": 540672
+            "command": "time",
+            "rssBytes": 1212416
           },
           {
-            "command": "(node)",
-            "rssBytes": 442761216
+            "command": "node",
+            "rssBytes": 439369728
           }
         ],
-        "totalBytes": 443301888
+        "totalBytes": 440582144
       },
-      "processTreePeakRssBytes": 443301888,
+      "processTreePeakRssBytes": 440582144,
       "scenario": "blob-read",
       "status": "measured",
       "worker": {
-        "operationWallMs": 2255.0836670000003,
-        "checksum": 276848403
+        "operationWallMs": 2663.759791,
+        "checksum": 1768115959
       },
-      "workerMaxRssBytes": 444940288,
+      "workerMaxRssBytes": 440877056,
       "sample": 0
     }
   ],
   "settings": {
+    "batchBytes": 262144,
     "heapLimitMb": 64,
     "operationCount": 65536,
     "payloadBytes": 4096,
+    "payloadProfile": "random",
     "samples": 1,
     "corpusBytes": 268435456
   }

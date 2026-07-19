@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import { open, readFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import process from 'node:process';
@@ -17,6 +18,9 @@ const options = Object.freeze({
 
 if (!['blob-read', 'blob-write'].includes(options.scenario)) {
   throw new Error('--scenario must be blob-read or blob-write');
+}
+if (options.payloadBytes < 8) {
+  throw new Error('--payload-bytes must be at least 8 to carry the validation index');
 }
 
 const fixture = Object.freeze({
@@ -74,6 +78,7 @@ async function readCorpus(backendInstance, settings) {
           checksum,
           contents[offset],
           start + offset,
+          oids[offset],
           backendInstance,
           settings
         );
@@ -82,21 +87,35 @@ async function readCorpus(backendInstance, settings) {
       for (let offset = 0; offset < oids.length; offset += 1) {
         const oid = oids[offset];
         const content = await backendInstance.readBlob(oid);
-        checksum = consumeContent(checksum, content, start + offset, backendInstance, settings);
+        checksum = consumeContent(
+          checksum,
+          content,
+          start + offset,
+          oid,
+          backendInstance,
+          settings
+        );
       }
     }
   }
   return Object.freeze({ checksum });
 }
 
-function consumeContent(checksum, content, expectedIndex, backendInstance, settings) {
+function consumeContent(checksum, content, expectedIndex, expectedOid, backendInstance, settings) {
   if (content.length !== settings.payloadBytes) {
     throw new Error(`${backendInstance.name} returned an unexpected blob size`);
   }
   if (content.readBigUInt64BE(0) !== BigInt(expectedIndex)) {
     throw new Error(`${backendInstance.name} returned an unexpected blob at ${expectedIndex}`);
   }
-  return (checksum + content.length + content[0] + content[content.length - 1]) >>> 0;
+  const actualOid = createHash('sha1')
+    .update(`blob ${content.length}\0`, 'ascii')
+    .update(content)
+    .digest('hex');
+  if (actualOid !== expectedOid) {
+    throw new Error(`${backendInstance.name} returned corrupted blob content at ${expectedIndex}`);
+  }
+  return (checksum + content.length + Number.parseInt(actualOid.slice(0, 8), 16)) >>> 0;
 }
 
 async function writeSequentially(backendInstance, contents) {

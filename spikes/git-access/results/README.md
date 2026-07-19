@@ -10,23 +10,23 @@ files retain machine-readable measurements and scenario settings.
 
 ## Backend and operation profiles
 
-- `2026-07-19T02-48-22-302Z`: complete loose and packed microbenchmark matrix.
-- `2026-07-19T03-16-53-714Z-resources`: Git pack-mapping limit matrix.
-- `2026-07-19T03-21-34-452Z-resources`: bounded and unbounded persistent Git
+- `2026-07-19T06-17-15-818Z`: complete loose and packed microbenchmark matrix.
+- `2026-07-19T06-06-10-981Z-resources`: Git pack-mapping limit matrix.
+- `2026-07-19T06-06-33-852Z-resources`: bounded and unbounded persistent Git
   page reads.
-- `2026-07-19T03-22-12-932Z-resources`: NodeGit page reads.
-- `2026-07-19T03-23-45-986Z-resources`: all page-write backends.
-- `2026-07-19T04-19-11-681Z-resources`: 1 MiB buffered read window.
-- `2026-07-19T03-41-40-312Z-resources`: 256 KiB buffered read window.
-- `2026-07-19T03-42-12-121Z-resources`: 64 KiB buffered read window.
-- `2026-07-19T03-45-11-827Z-resources`: 1 GiB bounded-memory page scan.
-- `2026-07-19T03-49-08-410Z-resources`: random 256 KiB git-cas-sized chunks.
-- `2026-07-19T03-51-58-303Z-resources`: uncompressed page write.
-- `2026-07-19T03-53-01-288Z-resources`: compressible 256 KiB chunks.
+- `2026-07-19T06-06-53-334Z-resources`: NodeGit page reads.
+- `2026-07-19T06-07-10-515Z-resources`: all page-write backends.
+- `2026-07-19T06-16-26-166Z-resources`: 1 MiB buffered read window.
+- `2026-07-19T06-12-26-522Z-resources`: 256 KiB buffered read window.
+- `2026-07-19T06-12-39-848Z-resources`: 64 KiB buffered read window.
+- `2026-07-19T06-12-52-837Z-resources`: 1 GiB bounded-memory page scan.
+- `2026-07-19T06-13-49-188Z-resources`: random 256 KiB git-cas-sized chunks.
+- `2026-07-19T06-15-46-212Z-resources`: uncompressed page write.
+- `2026-07-19T06-16-04-863Z-resources`: compressible 256 KiB chunks.
 
 ## Semantic profile
 
-- `2026-07-19T03-57-18-655Z-semantics`: lifecycle, concurrency, maintenance,
+- `2026-07-19T06-33-52-302Z-semantics`: lifecycle, concurrency, maintenance,
   ref transaction, SHA-256, alternate object database, and packed-ref probes.
 
 Run the commands in the [spike README](../README.md) to generate a fresh result

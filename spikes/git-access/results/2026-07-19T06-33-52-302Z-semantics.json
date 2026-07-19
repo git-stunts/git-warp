@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-19T03:57:18.654Z",
+  "generatedAt": "2026-07-19T06:33:52.302Z",
   "results": [
     {
       "backend": "stock-git",
@@ -14,37 +14,32 @@
     {
       "backend": "stock-git",
       "details": {
-        "crashReports": [
-          "fast_import_crash_94204"
-        ],
-        "inventoryAfterGc": {
-          "count": 0,
-          "size": 0,
-          "in-pack": 0,
-          "packs": 0,
-          "size-pack": 0,
-          "prune-packable": 0,
-          "garbage": 0,
-          "size-garbage": 0
-        },
-        "inventoryBeforeGc": {
-          "count": 0,
-          "size": 0,
-          "in-pack": 0,
-          "packs": 0,
-          "size-pack": 0,
-          "prune-packable": 0,
-          "garbage": 1,
-          "size-garbage": 0
-        },
-        "oid": "61fb9d1839999334c0d56a6c8bafb7d6c9db446b",
-        "packFilesAfterGc": [],
-        "packFilesBeforeGc": [
-          "tmp_pack_L3L35F"
-        ],
-        "visibleAfterAbort": false
+        "maxBuffer": 1024,
+        "oid": "dbdcf4b7feebd9fab1c18b1b8c016c8e56f33962",
+        "rejected": true
       },
-      "feature": "aborted fast-import stays unreachable but leaves cleanup residue",
+      "feature": "bounded one-shot output terminates on overflow",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "leftOid": "0b134993a16713c6a2c2e94ef3af94b7ca3c8ecb",
+        "missingOid": "0000000000000000000000000000000000000000",
+        "rejected": true,
+        "rightOid": "b6db82dcb4bf7df05cbb86c36bbf195a9c713fc0"
+      },
+      "feature": "persistent batch reader drains after a missing object",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "oid": "61fb9d1839999334c0d56a6c8bafb7d6c9db446b",
+        "visibleAfterAbort": false,
+        "visibleAfterGc": false
+      },
+      "feature": "aborted fast-import object remains unreachable through Git GC",
       "status": "supported"
     },
     {
@@ -90,7 +85,7 @@
     {
       "backend": "stock-git",
       "details": {
-        "message": "git fast-import exited 128: error: unable to write file /var/folders/1h/qn5740kx131g0sxvgv12vm_m0000gn/T/git-warp-semantics-4xqgBM/fixture.git/objects/pack/pack-40a5f0daa4817f8203fd3233d127c34269e84cac.pack: No such file or directory\nfatal: cannot store pack file\nfast-import: dumping crash report to /var/folders/1h/qn5740kx131g0sxvgv12vm_m0000gn/T/git-warp-semantics-4xqgBM/fixture.git/fast_import_crash_94545\n",
+        "message": "git fast-import exited 128: error: unable to write file <tmp>/git-warp-semantics-g8PgN8/fixture.git/objects/pack/pack-40a5f0daa4817f8203fd3233d127c34269e84cac.pack: No such file or directory\nfatal: cannot store pack file\nfast-import: dumping crash report to <tmp>/git-warp-semantics-g8PgN8/fixture.git/fast_import_crash_5718\n",
         "name": "Error"
       },
       "feature": "active fast-import survives concurrent prune-now Git GC",
@@ -158,7 +153,7 @@
         "name": "InternalError"
       },
       "feature": "sha256",
-      "status": "unsupported"
+      "status": "failed"
     },
     {
       "backend": "git-persistent",
@@ -189,7 +184,7 @@
         "name": "NotFoundError"
       },
       "feature": "alternates",
-      "status": "unsupported"
+      "status": "failed"
     },
     {
       "backend": "git-persistent",
@@ -211,10 +206,7 @@
     },
     {
       "backend": "napi-libgit2",
-      "details": {
-        "message": "Resolved 8d94e02edd308b02224f1d14520dd05fa3de3a62, expected 04c5b7dd6825ca8bcc794f7ce57e145178190053",
-        "name": "Error"
-      },
+      "details": null,
       "feature": "packed-ref",
       "status": "unsupported"
     },

@@ -5,45 +5,46 @@
     "node": "v24.12.0",
     "platform": "darwin"
   },
-  "generatedAt": "2026-07-19T03:41:53.340Z",
+  "generatedAt": "2026-07-19T06:16:39.089Z",
   "results": [
     {
       "backend": "git-persistent-buffered",
-      "cpuMs": 880,
-      "processRealMs": 500,
+      "cpuMs": 1200,
+      "processRealMs": 650,
       "processTreePeak": {
         "members": [
           {
-            "command": "/usr/bin/time",
+            "command": "time",
             "rssBytes": 1212416
           },
           {
-            "command": "(node)",
-            "rssBytes": 123699200
+            "command": "node",
+            "rssBytes": 171016192
           },
           {
-            "command": "(git)",
-            "rssBytes": 33800192
+            "command": "git",
+            "rssBytes": 38518784
           }
         ],
-        "totalBytes": 158711808
+        "totalBytes": 210747392
       },
-      "processTreePeakRssBytes": 158711808,
+      "processTreePeakRssBytes": 210747392,
       "scenario": "blob-read",
       "status": "measured",
       "worker": {
-        "operationWallMs": 445.293208,
-        "checksum": 276777843
+        "operationWallMs": 611.564333,
+        "checksum": 2586709841
       },
-      "workerMaxRssBytes": 124043264,
+      "workerMaxRssBytes": 171360256,
       "sample": 0
     }
   ],
   "settings": {
-    "batchBytes": 262144,
+    "batchBytes": 1048576,
     "heapLimitMb": 64,
     "operationCount": 65536,
     "payloadBytes": 4096,
+    "payloadProfile": "random",
     "samples": 1,
     "corpusBytes": 268435456
   }

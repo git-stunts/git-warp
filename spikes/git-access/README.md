@@ -51,11 +51,13 @@ The resource profile runs each backend in an isolated worker under a bounded V8
 old-space setting. It records operation wall time, aggregate process CPU, the
 worker's maximum RSS, and a sampled sum of RSS across the worker and its Git
 children. Large-corpus write validation happens after the timed region through
-stock Git. The `--payload-profile` option distinguishes random-looking encrypted
-or compressed chunks from compressible materialization pages.
+stock Git. Large-corpus reads recompute every complete blob OID inside the
+measured worker, so corruption in the interior of a page cannot pass as
+successful evidence. The `--payload-profile` option distinguishes random-looking
+encrypted or compressed chunks from compressible materialization pages.
 
-The semantic profile checks checkpoint visibility, abort residue, concurrent
-writers, active-reader repacking, atomic multi-ref compare-and-swap, SHA-256,
-alternates, and packed refs. Unsupported behavior disqualifies a backend from
-being git-cas's canonical Git implementation even when a microbenchmark is
-fast.
+The semantic profile checks checkpoint visibility, bounded-output termination,
+batch-reader recovery, abort residue, concurrent writers, active-reader
+repacking, atomic multi-ref compare-and-swap, SHA-256, alternates, and packed
+refs. Unsupported behavior disqualifies a backend from being git-cas's canonical
+Git implementation even when a microbenchmark is fast.

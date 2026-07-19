@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import process from 'node:process';
@@ -19,7 +19,12 @@ const ROOT = join(HERE, '..');
 const results = [];
 
 await record('fast-import visibility is checkpoint-gated', testCheckpointVisibility);
-await record('aborted fast-import stays unreachable but leaves cleanup residue', testAbortResidue);
+await record('bounded one-shot output terminates on overflow', testBoundedOutputOverflow);
+await record('persistent batch reader drains after a missing object', testBatchReaderDrain);
+await record(
+  'aborted fast-import object remains unreachable through Git GC',
+  testAbortUnreachable
+);
 await record('concurrent fast-import sessions remain readable', testConcurrentWriters);
 await record('active fast-import survives concurrent default Git GC', testWriterAcrossDefaultGc);
 await record('active fast-import survives concurrent prune-now Git GC', testWriterAcrossPruneNowGc);
@@ -60,29 +65,67 @@ async function testCheckpointVisibility() {
   });
 }
 
-async function testAbortResidue() {
+async function testAbortUnreachable() {
   return await withBareRepository('sha1', async (gitDir) => {
     const writer = new FastImportWriter(gitDir, { unpackLimit: 1 });
     const oid = await writer.writeBlob(Buffer.from('abort me\n'));
     await writer.abort();
     const visibleAfterAbort = await objectExists(gitDir, oid);
-    const repositoryFiles = await readdir(gitDir);
-    const crashReports = repositoryFiles.filter((name) => name.startsWith('fast_import_crash_'));
-    const packFilesBeforeGc = await readdir(join(gitDir, 'objects', 'pack'));
-    const inventoryBeforeGc = parseCountObjects(await executeGit(gitDir, ['count-objects', '-v']));
     assert(!visibleAfterAbort, 'Aborted fast-import object became visible');
     await executeGit(gitDir, ['gc', '--prune=now']);
-    const packFilesAfterGc = await readdir(join(gitDir, 'objects', 'pack'));
-    const inventoryAfterGc = parseCountObjects(await executeGit(gitDir, ['count-objects', '-v']));
-    return {
-      crashReports,
-      inventoryAfterGc,
-      inventoryBeforeGc,
-      oid,
-      packFilesAfterGc,
-      packFilesBeforeGc,
-      visibleAfterAbort,
-    };
+    const visibleAfterGc = await objectExists(gitDir, oid);
+    assert(!visibleAfterGc, 'Aborted fast-import object became visible after Git GC');
+    return { oid, visibleAfterAbort, visibleAfterGc };
+  });
+}
+
+async function testBoundedOutputOverflow() {
+  return await withBareRepository('sha1', async (gitDir) => {
+    const oid = (
+      await executeGit(gitDir, ['hash-object', '-w', '--stdin'], {
+        input: Buffer.alloc(64 * 1024, 0x61),
+      })
+    ).trim();
+    let rejected = false;
+    try {
+      await executeGit(gitDir, ['cat-file', 'blob', oid], { encoding: null, maxBuffer: 1024 });
+    } catch (error) {
+      rejected = error instanceof Error && error.message.includes('stdout exceeded 1024 bytes');
+    }
+    assert(rejected, 'Bounded Git output did not reject with the overflow error');
+    return { maxBuffer: 1024, oid, rejected };
+  });
+}
+
+async function testBatchReaderDrain() {
+  return await withBareRepository('sha1', async (gitDir) => {
+    const leftContent = Buffer.from('left batch object\n');
+    const rightContent = Buffer.from('right batch object\n');
+    const leftOid = (
+      await executeGit(gitDir, ['hash-object', '-w', '--stdin'], { input: leftContent })
+    ).trim();
+    const rightOid = (
+      await executeGit(gitDir, ['hash-object', '-w', '--stdin'], { input: rightContent })
+    ).trim();
+    const missingOid = '0'.repeat(40);
+    const reader = new PersistentCatFile(gitDir, { buffered: true });
+    try {
+      let rejected = false;
+      try {
+        await reader.contentsMany([leftOid, missingOid, rightOid]);
+      } catch {
+        rejected = true;
+      }
+      assert(rejected, 'Missing batched object was accepted');
+      const right = await reader.contents(rightOid);
+      assert(
+        right.content.equals(rightContent),
+        'Reader remained desynchronized after the failure'
+      );
+      return { leftOid, missingOid, rejected, rightOid };
+    } finally {
+      await reader.close();
+    }
   });
 }
 
@@ -140,8 +183,13 @@ async function testReaderAcrossRepack() {
   try {
     const first = await reader.contents(fixture.blobs[0].oid);
     await executeGit(fixture.gitDir, ['repack', '-ad']);
+    const firstAfterRepack = await reader.contents(fixture.blobs[0].oid);
     const last = await reader.contents(fixture.blobs.at(-1).oid);
     assert(first.content.equals(fixture.blobs[0].content), 'First read was invalid');
+    assert(
+      firstAfterRepack.content.equals(fixture.blobs[0].content),
+      'Previously-read blob was invalid after repack'
+    );
     assert(last.content.equals(fixture.blobs.at(-1).content), 'Post-repack read was invalid');
     return { firstOid: first.oid, lastOid: last.oid };
   } finally {
@@ -347,14 +395,23 @@ async function probeBackend(feature, backendName, operation, fixture) {
   let backend;
   try {
     backend = await createBackend(backendName, fixture);
+  } catch (error) {
+    results.push(unsupported(feature, backendName, errorSummary(error)));
+    return;
+  }
+  try {
     const details = await operation(backend);
     results.push(
       details.unsupported ? unsupported(feature, backendName) : pass(feature, backendName, details)
     );
   } catch (error) {
-    results.push(unsupported(feature, backendName, errorSummary(error)));
+    results.push(failed(feature, backendName, errorSummary(error)));
   } finally {
-    await backend?.close();
+    try {
+      await backend.close();
+    } catch (error) {
+      results.push(failed(`${feature} cleanup`, backendName, errorSummary(error)));
+    }
   }
 }
 
@@ -440,9 +497,13 @@ function unsupported(feature, backend, details = null) {
   return Object.freeze({ backend, details, feature, status: 'unsupported' });
 }
 
+function failed(feature, backend, details) {
+  return Object.freeze({ backend, details, feature, status: 'failed' });
+}
+
 function errorSummary(error) {
   return error instanceof Error
-    ? { message: error.message, name: error.name }
+    ? { message: error.message.replaceAll(tmpdir(), '<tmp>'), name: error.name }
     : { message: String(error), name: typeof error };
 }
 

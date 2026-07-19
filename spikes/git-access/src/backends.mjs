@@ -23,6 +23,17 @@ export const BACKEND_NAMES = Object.freeze([
   'isomorphic-git',
 ]);
 
+export const ALL_BACKEND_NAMES = Object.freeze([
+  ...BACKEND_NAMES,
+  'git-persistent-mmap-1m',
+  'git-persistent-mmap-8m',
+  'git-persistent-mmap-16m',
+  'git-persistent-buffered',
+  'git-fast-import-no-delta',
+  'git-fast-import-no-delta-zlib1',
+  'git-fast-import-no-delta-uncompressed',
+]);
+
 export async function createBackend(name, fixture) {
   switch (name) {
     case 'git-one-shot':
@@ -333,7 +344,12 @@ async function createNapiBackend(fixture) {
   const NapiGit = await import('@napi-rs/simple-git');
   const repository = new NapiGit.Repository(fixture.gitDir);
   return Object.freeze({
-    capabilities: capabilities({ objectInfo: false, readBlob: false, writeTree: false }),
+    capabilities: capabilities({
+      objectInfo: false,
+      readBlob: false,
+      resolveRef: false,
+      writeTree: false,
+    }),
     close: async () => repository.dispose(),
     name: 'napi-libgit2',
     async readTreeEntry(treeOid, name) {
@@ -352,13 +368,6 @@ async function createNapiBackend(fixture) {
         oid: entry.id(),
         type: napiObjectType(NapiGit, object.kind()),
       });
-    },
-    async resolveRef() {
-      const target = repository.head().target();
-      if (target === null) {
-        throw new Error('NAPI libgit2 HEAD is symbolic or unborn');
-      }
-      return target;
     },
     async writeBlob(content) {
       return repository.blob(content);

@@ -53,13 +53,13 @@ The 128-operation profile makes the distinction concrete:
 
 | Packed workload               | One process per operation | Persistent Git | NodeGit |
 | ----------------------------- | ------------------------: | -------------: | ------: |
-| Object info                   |                2,591.5 ms |         4.0 ms |  5.2 ms |
-| Blob read                     |                2,491.4 ms |         5.5 ms |  5.6 ms |
-| Tree entry, uncached          |                2,379.6 ms |         6.7 ms |  2.9 ms |
-| Tree entry, parsed-tree cache |                2,379.6 ms |        0.14 ms |  2.9 ms |
+| Object info                   |                2,255.7 ms |         3.1 ms |  4.8 ms |
+| Blob read                     |                2,140.6 ms |         4.6 ms |  5.1 ms |
+| Tree entry, uncached          |                2,169.7 ms |         6.2 ms |  2.7 ms |
+| Tree entry, parsed-tree cache |                2,169.7 ms |        0.13 ms |  2.7 ms |
 
 The complete loose and packed matrix is in the
-[backend profile](../../spikes/git-access/results/2026-07-19T02-48-22-302Z.md).
+[backend profile](../../spikes/git-access/results/2026-07-19T06-17-15-818Z.md).
 Persistent Git matches or beats libgit2 for object metadata and packed blob
 reads. Parsing one bounded tree page and caching its immutable entry index beats
 re-entering either Git implementation for every path lookup.
@@ -73,33 +73,33 @@ CPU, the worker's maximum RSS, and a 20 ms sampled sum of RSS across Node and
 its Git children.
 
 Every write is read back through stock Git and byte-compared with the source
-corpus after the timed region. Resource reads assert blob size and the embedded
-per-object sequence identity; the microprofile independently byte-compares each
-backend's complete blob output.
+corpus after the timed region. Resource reads verify the embedded per-object
+sequence and recompute each complete Git blob OID; the microprofile independently
+byte-compares each backend's complete blob output.
 
 For 65,536 pages totaling 256 MiB:
 
 | Backend                              | Read window |     Wall | Peak process-tree RSS |      Throughput |
 | ------------------------------------ | ----------: | -------: | --------------------: | --------------: |
-| Persistent Git, default mmap         |  one object |   1.58 s |             344.0 MiB |  41,445 pages/s |
-| Persistent Git, bounded mmap         |  one object |   1.69 s |             121.2 MiB |  38,836 pages/s |
-| Persistent Git, bounded and buffered |     256 KiB | 445.3 ms |             151.4 MiB | 147,175 pages/s |
-| NodeGit                              |  one object |   2.26 s |             422.8 MiB |  29,061 pages/s |
+| Persistent Git, default mmap         |  one object |   1.99 s |             347.7 MiB |  32,915 pages/s |
+| Persistent Git, bounded mmap         |  one object |   1.89 s |             123.2 MiB |  34,621 pages/s |
+| Persistent Git, bounded and buffered |     256 KiB | 634.8 ms |             179.7 MiB | 103,236 pages/s |
+| NodeGit                              |  one object |   2.66 s |             420.2 MiB |  24,603 pages/s |
 
 Evidence:
 
-- [unbuffered Git comparison](../../spikes/git-access/results/2026-07-19T03-21-34-452Z-resources.md)
-- [bounded buffered Git](../../spikes/git-access/results/2026-07-19T03-41-40-312Z-resources.md)
-- [NodeGit page read](../../spikes/git-access/results/2026-07-19T03-22-12-932Z-resources.md)
+- [unbuffered Git comparison](../../spikes/git-access/results/2026-07-19T06-06-33-852Z-resources.md)
+- [bounded buffered Git](../../spikes/git-access/results/2026-07-19T06-12-26-522Z-resources.md)
+- [NodeGit page read](../../spikes/git-access/results/2026-07-19T06-06-53-334Z-resources.md)
 
-The buffered stock-Git path was about 5.1 times faster than NodeGit and used
-about 64% less peak RSS. It was about 3.8 times faster than the bounded
+The buffered stock-Git path was about 4.2 times faster than NodeGit and used
+about 57% less peak RSS. It was about 3.0 times faster than the bounded
 unbuffered path in this full-corpus scan.
 
-The same bounded buffered path scanned 262,144 pages totaling 1 GiB in 4.49 s
-with 163.5 MiB peak process-tree RSS. The corpus was 16 times the configured V8
+The same bounded buffered path scanned 262,144 pages totaling 1 GiB in 5.63 s
+with 158.7 MiB peak process-tree RSS. The corpus was 16 times the configured V8
 old-space limit and more than six times the measured total RSS. See the
-[1 GiB profile](../../spikes/git-access/results/2026-07-19T03-45-11-827Z-resources.md).
+[1 GiB profile](../../spikes/git-access/results/2026-07-19T06-12-52-837Z-resources.md).
 
 That result demonstrates that the path does not materialize the complete corpus
 in memory. It does not mean a full-corpus scan is a normal optic. A bounded
@@ -118,9 +118,9 @@ core.packedGitLimit=32m
 ```
 
 On a 256 MiB large-object scan, that setting reduced peak process-tree RSS from
-about 385 MiB to 160-167 MiB for a roughly 17% wall-time cost. A 1 MiB mmap
-window reduced RSS only slightly further while making the scan about 86% slower.
-See the [mmap matrix](../../spikes/git-access/results/2026-07-19T03-16-53-714Z-resources.md).
+about 379 MiB to 166-169 MiB for a roughly 12% wall-time cost. A 1 MiB mmap
+window reduced RSS to 143-150 MiB while making the scan about 66% slower. See the
+[mmap matrix](../../spikes/git-access/results/2026-07-19T06-06-10-981Z-resources.md).
 
 These are per-process limits. A reader pool multiplies mapped memory, so the
 default architecture should begin with one serialized reader and add a bounded
@@ -137,14 +137,15 @@ The measured page-window curve was:
 
 |  Window | Wall for 256 MiB |  Peak RSS |
 | ------: | ---------------: | --------: |
-|  64 KiB |         526.5 ms | 143.1 MiB |
-| 256 KiB |         445.3 ms | 151.4 MiB |
-|   1 MiB |         470.5 ms | 196.3 MiB |
+|  64 KiB |         712.9 ms | 162.6 MiB |
+| 256 KiB |         634.8 ms | 179.7 MiB |
+|   1 MiB |         611.6 ms | 201.0 MiB |
 
-The 256 KiB window is the current knee. It was both faster and less
-memory-intensive than the 1 MiB window in the verification run. The production
-API must accept a byte budget, not merely an object count, because one object
-can be much larger than a page.
+The 256 KiB window is the current knee. Moving to 1 MiB improved wall time by
+only about 4% while increasing peak RSS by about 12%; moving down to 64 KiB saved
+about 10% RSS while increasing wall time by about 12%. The production API must
+accept a byte budget, not merely an object count, because one object can be much
+larger than a page.
 
 ## Bulk writes
 
@@ -152,18 +153,18 @@ The page-write workload used 65,536 random 4 KiB objects totaling 256 MiB:
 
 | Backend                                    |    Wall |  Peak RSS | Resulting object layout             |
 | ------------------------------------------ | ------: | --------: | ----------------------------------- |
-| `fast-import`, normal compression          | 10.48 s |  88.8 MiB | one pack, about 259 MiB             |
-| `fast-import`, no delta and no compression |  7.37 s |  88.8 MiB | one pack, about 256 MiB             |
-| NodeGit                                    | 49.71 s | 110.3 MiB | 65,536 loose objects, about 512 MiB |
-| Node-API libgit2                           | 49.55 s |  82.3 MiB | 65,536 loose objects, about 512 MiB |
-| isomorphic-git                             | 25.30 s | 158.1 MiB | 65,536 loose objects, about 512 MiB |
+| `fast-import`, normal compression          | 10.54 s |  94.7 MiB | one pack, about 259 MiB             |
+| `fast-import`, no delta and no compression |  7.29 s |  95.6 MiB | one pack, about 259 MiB             |
+| NodeGit                                    | 49.96 s | 123.2 MiB | 65,536 loose objects, about 512 MiB |
+| Node-API libgit2                           | 49.07 s |  99.6 MiB | 65,536 loose objects, about 512 MiB |
+| isomorphic-git                             | 28.87 s | 144.3 MiB | 65,536 loose objects, about 512 MiB |
 
 Evidence:
 
-- [all page-write backends](../../spikes/git-access/results/2026-07-19T03-23-45-986Z-resources.md)
-- [uncompressed fast-import](../../spikes/git-access/results/2026-07-19T03-51-58-303Z-resources.md)
+- [all page-write backends](../../spikes/git-access/results/2026-07-19T06-07-10-515Z-resources.md)
+- [uncompressed fast-import](../../spikes/git-access/results/2026-07-19T06-15-46-212Z-resources.md)
 
-The fast-import path is the clear materialization writer. It is 3.4-6.7 times
+The fast-import path is the clear materialization writer. It is 4.0-6.9 times
 faster than the alternatives after tuning for incompressible data, uses bounded
 memory, avoids loose-object explosion, and remains stock Git.
 
@@ -172,14 +173,14 @@ random-looking data produced this result:
 
 | Backend                           | Wall for 1,024 chunks |  Peak RSS |
 | --------------------------------- | --------------------: | --------: |
-| `fast-import`, normal compression |               11.68 s |  98.4 MiB |
-| `fast-import`, no compression     |                7.23 s | 101.6 MiB |
-| NodeGit                           |                6.28 s | 120.9 MiB |
-| Node-API libgit2                  |                6.32 s | 107.5 MiB |
-| isomorphic-git                    |                6.03 s | 122.7 MiB |
+| `fast-import`, normal compression |               11.66 s |  98.8 MiB |
+| `fast-import`, no compression     |                7.28 s | 103.6 MiB |
+| NodeGit                           |                6.20 s | 123.2 MiB |
+| Node-API libgit2                  |                6.39 s | 105.2 MiB |
+| isomorphic-git                    |                6.14 s | 124.2 MiB |
 
-See the [256 KiB random-chunk profile](../../spikes/git-access/results/2026-07-19T03-49-08-410Z-resources.md).
-The non-Git implementations are about 13-17% faster in this narrow loose-write
+See the [256 KiB random-chunk profile](../../spikes/git-access/results/2026-07-19T06-13-49-188Z-resources.md).
+The non-Git implementations are about 12-16% faster in this narrow loose-write
 case. That advantage is not enough to make one of them the canonical backend:
 they defer pack creation, do not preserve the full required semantics, and add
 another implementation and distribution surface.
@@ -202,11 +203,11 @@ Compression must follow content posture:
   is wrong for half its objects.
 
 For 256 MiB of repetitive 256 KiB chunks, Git's default delta and compression
-policy completed in 2.26 s and produced an approximately 315 KiB pack. A
-no-delta, level-1 compression session completed in 1.94 s and produced an
-approximately 1.2 MiB pack. No compression took 3.54 s and produced an
+policy completed in 2.28 s and produced an approximately 315 KiB pack. A
+no-delta, level-1 compression session completed in 1.95 s and produced an
+approximately 1.2 MiB pack. No compression took 3.43 s and produced an
 approximately 256 MiB pack. See the
-[compressible profile](../../spikes/git-access/results/2026-07-19T03-53-01-288Z-resources.md).
+[compressible profile](../../spikes/git-access/results/2026-07-19T06-16-04-863Z-resources.md).
 
 Git documents fast-import's checkpoint, pack threshold, delta-depth, and
 large-blob controls in [git-fast-import](https://git-scm.com/docs/git-fast-import/2.51.0.html).
@@ -226,7 +227,7 @@ and preserve object-format, alternate-ODB, ref, and maintenance behavior.
 | Multi-ref transactional CAS        | yes                | no equivalent tested | no                             | no             |
 
 The executable matrix is in
-[semantic compatibility](../../spikes/git-access/results/2026-07-19T03-57-18-655Z-semantics.md).
+[semantic compatibility](../../spikes/git-access/results/2026-07-19T06-33-52-302Z-semantics.md).
 Notable observations:
 
 - stock Git read and write sessions worked in SHA-256 repositories; every
@@ -256,9 +257,9 @@ Keeping stock Git avoids reimplementing or weakening those guarantees.
 3. Retention publication must happen after checkpoint visibility and before a
    caller receives a durable retained result.
 4. Graceful cancellation should finish or checkpoint the valid protocol when
-   possible. A hard kill left one unreachable `tmp_pack_*` plus a
-   `fast_import_crash_*` report. `git gc --prune=now` removed the temporary pack,
-   but doctor must report crash residue before repair.
+   possible. A hard kill can leave an unreachable `tmp_pack_*` plus a
+   `fast_import_crash_*` report; another run exited before creating either.
+   Doctor must report crash residue when present before repair.
 5. Normal concurrent `git gc` survived in the spike. Concurrent
    `git gc --prune=now` deleted an active temporary pack and caused checkpoint to
    fail. Object-write sessions and aggressive maintenance therefore require a
@@ -375,8 +376,9 @@ as a calibration target, not a portable constant.
   Git 2.50.1. Linux CI must reproduce the ordering and establish runner-specific
   gates.
 - The RSS sampler runs every 20 ms and can miss shorter peaks.
-- `/usr/bin/time -lp` provides aggregate process CPU; it is useful for relative
-  comparison but does not attribute CPU between Node and Git.
+- `/usr/bin/time` provides aggregate process CPU using BSD output on macOS and
+  GNU output on Linux; it is useful for relative comparison but does not
+  attribute CPU between Node and Git.
 - Random and repetitive corpora bracket compression behavior but do not replace
   benchmarks over actual encoded WARP pages and encrypted git-cas chunks.
 - The spike validates one reader and bounded request batches. Production

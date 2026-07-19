@@ -8,18 +8,32 @@ export async function executeGit(gitDir, args, options = {}) {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   const maxBuffer = options.maxBuffer ?? 256 * 1024 * 1024;
-  const stdout = collectBoundedStream(child.stdout, maxBuffer, 'stdout');
-  const stderr = collectBoundedStream(child.stderr, maxBuffer, 'stderr');
+  const terminate = () => {
+    child.stdin.destroy();
+    if (!child.killed) {
+      child.kill();
+    }
+  };
+  const stdout = collectBoundedStream(child.stdout, maxBuffer, 'stdout', terminate);
+  const stderr = collectBoundedStream(child.stderr, maxBuffer, 'stderr', terminate);
+  const exit = new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', resolve);
+  });
   if (options.input === undefined) {
     child.stdin.end();
   } else {
     child.stdin.end(options.input);
   }
-  const code = await new Promise((resolve, reject) => {
-    child.once('error', reject);
-    child.once('close', resolve);
-  });
-  const [stdoutBytes, stderrBytes] = await Promise.all([stdout, stderr]);
+  const [exitResult, stdoutResult, stderrResult] = await Promise.allSettled([exit, stdout, stderr]);
+  for (const result of [stdoutResult, stderrResult, exitResult]) {
+    if (result.status === 'rejected') {
+      throw result.reason;
+    }
+  }
+  const code = exitResult.value;
+  const stdoutBytes = stdoutResult.value;
+  const stderrBytes = stderrResult.value;
   if (code !== 0) {
     throw new Error(
       `git ${args.join(' ')} exited ${String(code)}: ${stderrBytes.toString('utf8')}`
@@ -122,8 +136,20 @@ export class PersistentCatFile {
       await this.#write(oids.map((oid) => `contents ${oid}\n`).join(''));
       await this.#flush();
       const objects = [];
-      for (const oid of oids) {
-        objects.push(await this.#readContents(oid));
+      for (let index = 0; index < oids.length; index += 1) {
+        const oid = oids[index];
+        try {
+          objects.push(await this.#readContents(oid));
+        } catch (error) {
+          for (let remaining = index + 1; remaining < oids.length; remaining += 1) {
+            try {
+              await this.#readContents(oids[remaining]);
+            } catch {
+              // Drain every queued response; preserve the original failure.
+            }
+          }
+          throw error;
+        }
       }
       return Object.freeze(objects);
     });
@@ -412,13 +438,15 @@ async function collectStream(stream) {
   return Buffer.concat(chunks);
 }
 
-async function collectBoundedStream(stream, maxBytes, label) {
+async function collectBoundedStream(stream, maxBytes, label, onOverflow) {
   const chunks = [];
   let total = 0;
   for await (const chunk of stream) {
     const bytes = Buffer.from(chunk);
     total += bytes.length;
     if (total > maxBytes) {
+      stream.destroy();
+      onOverflow();
       throw new Error(`Git ${label} exceeded ${maxBytes} bytes`);
     }
     chunks.push(bytes);

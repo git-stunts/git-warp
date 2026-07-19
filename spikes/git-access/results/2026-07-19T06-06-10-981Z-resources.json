@@ -1,0 +1,268 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T06:06:33.718Z",
+  "results": [
+    {
+      "backend": "git-persistent",
+      "cpuMs": 930,
+      "processRealMs": 580,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 137183232
+          },
+          {
+            "command": "git",
+            "rssBytes": 259309568
+          }
+        ],
+        "totalBytes": 397705216
+      },
+      "processTreePeakRssBytes": 397705216,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 537.751542,
+        "checksum": 2801724398
+      },
+      "workerMaxRssBytes": 275103744,
+      "sample": 0
+    },
+    {
+      "backend": "git-persistent",
+      "cpuMs": 930,
+      "processRealMs": 570,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 125222912
+          },
+          {
+            "command": "git",
+            "rssBytes": 270893056
+          }
+        ],
+        "totalBytes": 397328384
+      },
+      "processTreePeakRssBytes": 397328384,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 537.801625,
+        "checksum": 2801724398
+      },
+      "workerMaxRssBytes": 275136512,
+      "sample": 1
+    },
+    {
+      "backend": "git-persistent-mmap-1m",
+      "cpuMs": 1290,
+      "processRealMs": 930,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 125796352
+          },
+          {
+            "command": "git",
+            "rssBytes": 22462464
+          }
+        ],
+        "totalBytes": 149471232
+      },
+      "processTreePeakRssBytes": 149471232,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 893.261833,
+        "checksum": 2801724398
+      },
+      "workerMaxRssBytes": 126320640,
+      "sample": 0
+    },
+    {
+      "backend": "git-persistent-mmap-1m",
+      "cpuMs": 1300,
+      "processRealMs": 930,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 133644288
+          },
+          {
+            "command": "git",
+            "rssBytes": 22396928
+          }
+        ],
+        "totalBytes": 157253632
+      },
+      "processTreePeakRssBytes": 157253632,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 896.5147499999999,
+        "checksum": 2801724398
+      },
+      "workerMaxRssBytes": 134152192,
+      "sample": 1
+    },
+    {
+      "backend": "git-persistent-mmap-8m",
+      "cpuMs": 990,
+      "processRealMs": 640,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 137003008
+          },
+          {
+            "command": "git",
+            "rssBytes": 39239680
+          }
+        ],
+        "totalBytes": 177455104
+      },
+      "processTreePeakRssBytes": 177455104,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 601.539125,
+        "checksum": 2801724398
+      },
+      "workerMaxRssBytes": 137887744,
+      "sample": 0
+    },
+    {
+      "backend": "git-persistent-mmap-8m",
+      "cpuMs": 990,
+      "processRealMs": 640,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 133431296
+          },
+          {
+            "command": "git",
+            "rssBytes": 39223296
+          }
+        ],
+        "totalBytes": 173867008
+      },
+      "processTreePeakRssBytes": 173867008,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 600.201333,
+        "checksum": 2801724398
+      },
+      "workerMaxRssBytes": 134774784,
+      "sample": 1
+    },
+    {
+      "backend": "git-persistent-mmap-16m",
+      "cpuMs": 970,
+      "processRealMs": 600,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 129024000
+          },
+          {
+            "command": "git",
+            "rssBytes": 71712768
+          }
+        ],
+        "totalBytes": 201949184
+      },
+      "processTreePeakRssBytes": 201949184,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 570.302375,
+        "checksum": 2801724398
+      },
+      "workerMaxRssBytes": 133971968,
+      "sample": 0
+    },
+    {
+      "backend": "git-persistent-mmap-16m",
+      "cpuMs": 970,
+      "processRealMs": 610,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 133365760
+          },
+          {
+            "command": "git",
+            "rssBytes": 72794112
+          }
+        ],
+        "totalBytes": 207372288
+      },
+      "processTreePeakRssBytes": 207372288,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 573.793917,
+        "checksum": 2801724398
+      },
+      "workerMaxRssBytes": 138035200,
+      "sample": 1
+    }
+  ],
+  "settings": {
+    "batchBytes": 262144,
+    "heapLimitMb": 64,
+    "operationCount": 256,
+    "payloadBytes": 1048576,
+    "payloadProfile": "random",
+    "samples": 2,
+    "corpusBytes": 268435456
+  }
+}

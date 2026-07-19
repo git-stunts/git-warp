@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
-import { executeGit } from './git-process.mjs';
+import { executeGit, FastImportWriter, PersistentMktree } from './git-process.mjs';
 
 const FIXED_ENV = Object.freeze({
   ...process.env,
@@ -20,42 +20,48 @@ export async function createFixture({ objectCount, payloadBytes, payloadProfile,
   const gitDir = join(temporaryPath, 'fixture.git');
   await executeGit(null, ['init', '--bare', '--object-format=sha1', gitDir]);
 
-  const blobs = [];
+  const contents = [];
   for (let index = 0; index < objectCount; index += 1) {
-    const content = fixturePayload(index, payloadBytes, payloadProfile);
-    const oid = (
-      await executeGit(gitDir, ['hash-object', '-w', '--stdin'], {
-        input: content,
-      })
-    ).trim();
-    blobs.push({
+    contents.push(fixturePayload(index, payloadBytes, payloadProfile));
+  }
+  const blobWriter = new FastImportWriter(gitDir);
+  const blobOids = await blobWriter.writeAll(contents);
+  const blobs = contents.map((content, index) => {
+    const oid = blobOids[index];
+    if (oid === undefined) {
+      throw new Error(`fast-import omitted fixture blob ${index}`);
+    }
+    return {
       content,
       index,
       name: `entry-${index.toString().padStart(6, '0')}.bin`,
       oid,
       size: content.length,
-    });
-  }
+    };
+  });
 
   const leaves = [];
-  for (let start = 0; start < blobs.length; start += fanout) {
-    const entries = blobs.slice(start, start + fanout);
-    const input = entries.map((entry) => `100644 blob ${entry.oid}\t${entry.name}`).join('\n');
-    const oid = (await executeGit(gitDir, ['mktree'], { input: `${input}\n` })).trim();
-    const name = `shard-${leaves.length.toString().padStart(4, '0')}`;
-    leaves.push(Object.freeze({ entries: Object.freeze(entries), name, oid }));
-    for (const entry of entries) {
-      entry.leafName = name;
-      entry.leafOid = oid;
+  const treeWriter = new PersistentMktree(gitDir);
+  let rootTreeOid;
+  try {
+    for (let start = 0; start < blobs.length; start += fanout) {
+      const entries = blobs.slice(start, start + fanout);
+      const oid = await treeWriter.write(
+        entries.map((entry) => `100644 blob ${entry.oid}\t${entry.name}`)
+      );
+      const name = `shard-${leaves.length.toString().padStart(4, '0')}`;
+      leaves.push(Object.freeze({ entries: Object.freeze(entries), name, oid }));
+      for (const entry of entries) {
+        entry.leafName = name;
+        entry.leafOid = oid;
+      }
     }
+    rootTreeOid = await treeWriter.write(
+      leaves.map((leaf) => `040000 tree ${leaf.oid}\t${leaf.name}`)
+    );
+  } finally {
+    await treeWriter.close();
   }
-
-  const rootInput = leaves.map((leaf) => `040000 tree ${leaf.oid}\t${leaf.name}`).join('\n');
-  const rootTreeOid = (
-    await executeGit(gitDir, ['mktree'], {
-      input: `${rootInput}\n`,
-    })
-  ).trim();
   const commitOid = (
     await executeGit(gitDir, ['commit-tree', rootTreeOid], {
       env: FIXED_ENV,

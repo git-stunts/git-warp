@@ -9,6 +9,8 @@ import { BACKEND_NAMES, createBackend } from './backends.mjs';
 import { createFixture, fixturePayload } from './fixture.mjs';
 import { executeGit, parseRawTree, PersistentCatFile } from './git-process.mjs';
 
+const MIN_MEASURABLE_MILLISECONDS = 0.000_001;
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const quick = process.argv.includes('--quick');
@@ -239,10 +241,11 @@ async function measure(operation, options, stable) {
     samples.push(actual.wallMs);
   }
   const medianMs = median(samples);
+  const throughputDurationMs = Math.max(medianMs, MIN_MEASURABLE_MILLISECONDS);
   return Object.freeze({
     firstMs: first.wallMs,
     medianMs,
-    operationsPerSecond: options.operationCount / (medianMs / 1000),
+    operationsPerSecond: options.operationCount / (throughputDurationMs / 1000),
     p95Ms: percentile(samples, 0.95),
     samplesMs: Object.freeze(samples),
   });
@@ -493,7 +496,7 @@ function renderMarkdown(report) {
     `- Git: ${report.environment.git}`,
     `- Platform: ${report.environment.platform} ${report.environment.architecture}`,
     `- CPU: ${report.environment.cpu}`,
-    `- Operations per sample: ${report.settings.operationCount}`,
+    `- Default operations per measured sample: ${report.settings.operationCount}`,
     '',
     '| Fixture | Scenario | Backend | First | Median | p95 | Ops/s |',
     '|---|---|---|---:|---:|---:|---:|',

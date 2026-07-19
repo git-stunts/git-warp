@@ -5,37 +5,37 @@
     "node": "v24.12.0",
     "platform": "darwin"
   },
-  "generatedAt": "2026-07-19T03:51:05.097Z",
+  "generatedAt": "2026-07-19T06:15:46.067Z",
   "results": [
     {
       "backend": "git-fast-import-pack",
-      "cpuMs": 11809.999999999998,
-      "processRealMs": 11710,
+      "cpuMs": 11890,
+      "processRealMs": 11690,
       "processTreePeak": {
         "members": [
           {
-            "command": "/usr/bin/time",
+            "command": "time",
             "rssBytes": 1212416
           },
           {
-            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
-            "rssBytes": 94273536
+            "command": "node",
+            "rssBytes": 94994432
           },
           {
-            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
-            "rssBytes": 7684096
+            "command": "git",
+            "rssBytes": 7340032
           }
         ],
-        "totalBytes": 103170048
+        "totalBytes": 103546880
       },
-      "processTreePeakRssBytes": 103170048,
+      "processTreePeakRssBytes": 103546880,
       "scenario": "blob-write",
       "status": "measured",
       "worker": {
-        "operationWallMs": 11678.109375,
-        "checksum": 1957569788
+        "operationWallMs": 11663.159875000001,
+        "checksum": 1625841239
       },
-      "workerMaxRssBytes": 94486528,
+      "workerMaxRssBytes": 95076352,
       "oidCount": 1024,
       "repository": {
         "count": 0,
@@ -51,33 +51,33 @@
     },
     {
       "backend": "git-fast-import-no-delta",
-      "cpuMs": 11980,
-      "processRealMs": 11930,
+      "cpuMs": 11920,
+      "processRealMs": 11690,
       "processTreePeak": {
         "members": [
           {
-            "command": "/usr/bin/time",
-            "rssBytes": 524288
+            "command": "time",
+            "rssBytes": 1212416
           },
           {
-            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
-            "rssBytes": 90701824
+            "command": "node",
+            "rssBytes": 99270656
           },
           {
-            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
-            "rssBytes": 6619136
+            "command": "git",
+            "rssBytes": 7356416
           }
         ],
-        "totalBytes": 97845248
+        "totalBytes": 107839488
       },
-      "processTreePeakRssBytes": 97845248,
+      "processTreePeakRssBytes": 107839488,
       "scenario": "blob-write",
       "status": "measured",
       "worker": {
-        "operationWallMs": 11898.229375,
-        "checksum": 1957569788
+        "operationWallMs": 11655.805708,
+        "checksum": 1625841239
       },
-      "workerMaxRssBytes": 90767360,
+      "workerMaxRssBytes": 99663872,
       "oidCount": 1024,
       "repository": {
         "count": 0,
@@ -93,33 +93,33 @@
     },
     {
       "backend": "git-fast-import-no-delta-zlib1",
-      "cpuMs": 11820,
-      "processRealMs": 11730,
+      "cpuMs": 11910,
+      "processRealMs": 11680,
       "processTreePeak": {
         "members": [
           {
-            "command": "/usr/bin/time",
+            "command": "time",
             "rssBytes": 1212416
           },
           {
-            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
-            "rssBytes": 95502336
+            "command": "node",
+            "rssBytes": 95338496
           },
           {
-            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
-            "rssBytes": 7421952
+            "command": "git",
+            "rssBytes": 7372800
           }
         ],
-        "totalBytes": 104136704
+        "totalBytes": 103923712
       },
-      "processTreePeakRssBytes": 104136704,
+      "processTreePeakRssBytes": 103923712,
       "scenario": "blob-write",
       "status": "measured",
       "worker": {
-        "operationWallMs": 11699.786875,
-        "checksum": 1957569788
+        "operationWallMs": 11647.549958000001,
+        "checksum": 1625841239
       },
-      "workerMaxRssBytes": 96550912,
+      "workerMaxRssBytes": 95436800,
       "oidCount": 1024,
       "repository": {
         "count": 0,
@@ -135,33 +135,33 @@
     },
     {
       "backend": "git-fast-import-no-delta-uncompressed",
-      "cpuMs": 7380,
-      "processRealMs": 7260,
+      "cpuMs": 7460,
+      "processRealMs": 7320,
       "processTreePeak": {
         "members": [
           {
-            "command": "/usr/bin/time",
+            "command": "time",
             "rssBytes": 1212416
           },
           {
-            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
-            "rssBytes": 97714176
+            "command": "node",
+            "rssBytes": 100024320
           },
           {
-            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
-            "rssBytes": 7569408
+            "command": "git",
+            "rssBytes": 7356416
           }
         ],
-        "totalBytes": 106496000
+        "totalBytes": 108593152
       },
-      "processTreePeakRssBytes": 106496000,
+      "processTreePeakRssBytes": 108593152,
       "scenario": "blob-write",
       "status": "measured",
       "worker": {
-        "operationWallMs": 7230.654209,
-        "checksum": 1957569788
+        "operationWallMs": 7282.477,
+        "checksum": 1625841239
       },
-      "workerMaxRssBytes": 97812480,
+      "workerMaxRssBytes": 100384768,
       "oidCount": 1024,
       "repository": {
         "count": 0,
@@ -176,30 +176,30 @@
       "sample": 0
     },
     {
-      "backend": "nodegit",
-      "cpuMs": 6400,
-      "processRealMs": 6440,
+      "backend": "napi-libgit2",
+      "cpuMs": 6439.999999999999,
+      "processRealMs": 6450,
       "processTreePeak": {
         "members": [
           {
-            "command": "/usr/bin/time",
+            "command": "time",
             "rssBytes": 1212416
           },
           {
-            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
-            "rssBytes": 125599744
+            "command": "node",
+            "rssBytes": 109101056
           }
         ],
-        "totalBytes": 126812160
+        "totalBytes": 110313472
       },
-      "processTreePeakRssBytes": 126812160,
+      "processTreePeakRssBytes": 110313472,
       "scenario": "blob-write",
       "status": "measured",
       "worker": {
-        "operationWallMs": 6277.55375,
-        "checksum": 1957569788
+        "operationWallMs": 6391.311625,
+        "checksum": 1625841239
       },
-      "workerMaxRssBytes": 126337024,
+      "workerMaxRssBytes": 109412352,
       "oidCount": 1024,
       "repository": {
         "count": 1024,
@@ -214,30 +214,30 @@
       "sample": 0
     },
     {
-      "backend": "napi-libgit2",
-      "cpuMs": 6350.000000000001,
-      "processRealMs": 6380,
+      "backend": "nodegit",
+      "cpuMs": 6420,
+      "processRealMs": 6340,
       "processTreePeak": {
         "members": [
           {
-            "command": "/usr/bin/time",
+            "command": "time",
             "rssBytes": 1212416
           },
           {
-            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
-            "rssBytes": 111558656
+            "command": "node",
+            "rssBytes": 127926272
           }
         ],
-        "totalBytes": 112771072
+        "totalBytes": 129138688
       },
-      "processTreePeakRssBytes": 112771072,
+      "processTreePeakRssBytes": 129138688,
       "scenario": "blob-write",
       "status": "measured",
       "worker": {
-        "operationWallMs": 6319.780958,
-        "checksum": 1957569788
+        "operationWallMs": 6197.925208,
+        "checksum": 1625841239
       },
-      "workerMaxRssBytes": 111984640,
+      "workerMaxRssBytes": 128401408,
       "oidCount": 1024,
       "repository": {
         "count": 1024,
@@ -253,29 +253,29 @@
     },
     {
       "backend": "isomorphic-git",
-      "cpuMs": 7530,
-      "processRealMs": 6140,
+      "cpuMs": 7800.000000000001,
+      "processRealMs": 6250,
       "processTreePeak": {
         "members": [
           {
-            "command": "/usr/bin/time",
+            "command": "time",
             "rssBytes": 1212416
           },
           {
-            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
-            "rssBytes": 127467520
+            "command": "node",
+            "rssBytes": 128974848
           }
         ],
-        "totalBytes": 128679936
+        "totalBytes": 130187264
       },
-      "processTreePeakRssBytes": 128679936,
+      "processTreePeakRssBytes": 130187264,
       "scenario": "blob-write",
       "status": "measured",
       "worker": {
-        "operationWallMs": 6032.813541,
-        "checksum": 1957569788
+        "operationWallMs": 6139.860042,
+        "checksum": 1625841239
       },
-      "workerMaxRssBytes": 130269184,
+      "workerMaxRssBytes": 129302528,
       "oidCount": 1024,
       "repository": {
         "count": 1024,
@@ -295,6 +295,7 @@
     "heapLimitMb": 64,
     "operationCount": 1024,
     "payloadBytes": 262144,
+    "payloadProfile": "random",
     "samples": 1,
     "corpusBytes": 268435456
   }
