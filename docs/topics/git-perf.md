@@ -35,8 +35,8 @@ only as a process-startup control; the retained harness invokes it once after
 timed scenarios to record the exact Git build in result metadata. No production
 recommendation invokes it.
 
-The current git-cas adapter starts a fresh process for each blob write, tree
-write, blob stream, tree lookup, and uncached object-info lookup:
+Before git-cas v6.5.2, the adapter started a fresh process for each blob write,
+tree write, blob stream, tree lookup, and uncached object-info lookup:
 
 - `hash-object -w --stdin` is invoked per blob. [cite: `git-cas/src/infrastructure/adapters/GitPersistenceAdapter.js#57-65@49b7d5cb9d589d73fa17d393e48d40bd6f139e57`]
 - `mktree` is invoked per tree. [cite: `git-cas/src/infrastructure/adapters/GitPersistenceAdapter.js#68-79@49b7d5cb9d589d73fa17d393e48d40bd6f139e57`]
@@ -48,6 +48,13 @@ write, blob stream, tree lookup, and uncached object-info lookup:
 On the measured Apple M1 Pro, one Git process had an approximately 18-20 ms
 startup floor. The problem is therefore both process overhead and our use of
 the process boundary: paying that floor once per object is self-inflicted.
+
+git-cas v6.5.2 shipped bounded persistent object sessions, and v6.5.3 corrected
+their visibility/retirement policy: `cat-file` survives successful immutable
+writes, `mktree` survives loose writes, and `mktree` is retired after a bounded
+`fast-import` pack write. The original process-per-object measurements below
+remain the diagnosis and baseline, not a description of the current adapter.
+[cite: `git-cas/src/infrastructure/adapters/GitPersistenceAdapter.js#93-175@7bdcbf1f9eccd16acd324c94d576e1ecd2e11d98`]
 
 The 128-operation profile makes the distinction concrete:
 
@@ -63,6 +70,41 @@ The complete loose and packed matrix is in the
 Persistent Git matches or beats libgit2 for object metadata and packed blob
 reads. Parsing one bounded tree page and caching its immutable entry index beats
 re-entering either Git implementation for every path lookup.
+
+### Published v6.5.3 consumer checkpoint
+
+git-warp consumed the published npm artifact `@git-stunts/git-cas@6.5.3` with
+`@git-stunts/plumbing@3.2.0` and repeated the temporary 128-node cold retained
+materialization diagnostic three times. The injected plumbing counter began
+after repository initialization, so it observed 398 workload Git children per
+run; adding the excluded `git init` and two `git config` setup commands yields
+the same 401 total recorded for the release candidate.
+
+Every run produced the same major command counts:
+
+| Command        | Processes |
+| -------------- | --------: |
+| `hash-object`  |       140 |
+| `rev-parse`    |        87 |
+| `symbolic-ref` |        43 |
+| `update-ref`   |        43 |
+| `commit-tree`  |        39 |
+| `rev-list`     |        37 |
+| `cat-file`     |         4 |
+| `mktree`       |         1 |
+
+The three local cold-materialization timings were 7.02 s, 7.18 s, and 6.67 s.
+They are diagnostics only: this rerun used Node 26, did not capture process-tree
+CPU/RSS, and intentionally did not reproduce the old timing harness. The
+structural process counts are the comparable result. Focused real-Git retained
+materialization, materialization-store, and trie integration tests passed 11/11
+against the registry artifact.
+
+This checkpoint proves that npm v6.5.3 matches the audited session topology. It
+does not satisfy the versioned cold/warm/incremental benchmark contract in
+[#759](https://github.com/git-stunts/git-warp/issues/759): that issue still
+requires a committed corpus, process-tree CPU/RSS, repeated base/head CI runs,
+and blocking regression thresholds.
 
 ## Bounded page reads
 
