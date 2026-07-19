@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-19T06:50:51.540Z",
+  "generatedAt": "2026-07-19T06:56:00.882Z",
   "results": [
     {
       "backend": "stock-git",
@@ -103,7 +103,7 @@
     {
       "backend": "stock-git",
       "details": {
-        "message": "git fast-import exited 128: error: unable to write file <tmp>/git-warp-semantics-3935lR/fixture.git/objects/pack/pack-40a5f0daa4817f8203fd3233d127c34269e84cac.pack: No such file or directory\nfatal: cannot store pack file\nfast-import: dumping crash report to <tmp>/git-warp-semantics-3935lR/fixture.git/fast_import_crash_80456\n",
+        "message": "git fast-import exited 128: error: unable to write file <tmp>/git-warp-semantics-y8hKw5/fixture.git/objects/pack/pack-40a5f0daa4817f8203fd3233d127c34269e84cac.pack: No such file or directory\nfatal: cannot store pack file\nfast-import: dumping crash report to <tmp>/git-warp-semantics-y8hKw5/fixture.git/fast_import_crash_936\n",
         "name": "Error"
       },
       "feature": "active fast-import survives concurrent prune-now Git GC",
@@ -138,7 +138,7 @@
       "status": "supported"
     },
     {
-      "backend": "persistent-git",
+      "backend": "git-persistent",
       "details": {
         "oid": "cb3eb26e214a7ecff1d66c73afaa9a45dc6167f179f40d37a1255444120a918a",
         "treeOid": "e7b80b3b0e11e1bd48974f39e7172e1ad1626fbc8261bb81228be9e6faca1bd6"

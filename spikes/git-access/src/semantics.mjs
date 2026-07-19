@@ -323,7 +323,7 @@ async function probeSha256Support() {
       assert(treeOid.length === 64, 'SHA-256 tree OID has the wrong length');
       assert(object.content.equals(content), 'SHA-256 blob content changed');
       assert(entries[0]?.oid === oid, 'SHA-256 tree entry is invalid');
-      results.push(pass('sha256', 'persistent-git', { oid, treeOid }));
+      results.push(pass('sha256', 'git-persistent', { oid, treeOid }));
     } finally {
       await Promise.all([reader.close(), mktree.close()]);
     }
@@ -566,7 +566,6 @@ function assertRequiredSemantics(actualResults) {
   const required = actualResults.filter(
     (result) =>
       result.backend === 'stock-git' ||
-      result.backend === 'persistent-git' ||
       result.backend === 'git-persistent'
   );
   const violations = required.filter(

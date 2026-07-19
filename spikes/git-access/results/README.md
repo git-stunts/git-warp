@@ -26,7 +26,7 @@ files retain machine-readable measurements and scenario settings.
 
 ## Semantic profile
 
-- `2026-07-19T06-50-51-543Z-semantics`: process and fixture lifecycle,
+- `2026-07-19T06-56-00-883Z-semantics`: process and fixture lifecycle,
   concurrency, maintenance, ref transaction, SHA-256, alternate object
   database, and packed-ref probes.
 
