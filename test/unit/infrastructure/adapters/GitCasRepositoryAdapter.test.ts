@@ -193,12 +193,20 @@ describe('GitCasRepositoryAdapter', () => {
     expect(store).toHaveBeenCalledTimes(1);
     expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'snapshot-1' }));
 
+    const activeServices = await repository.createRuntimeStorageServices({
+      timelineName: 'active-at-close',
+      codec: defaultCodec,
+      crypto: new TestCrypto(),
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    });
     const closeMaterializations = vi.spyOn(services.materializations, 'close');
+    const closeActiveMaterializations = vi.spyOn(activeServices.materializations, 'close');
     await services.materializations.close();
-    await repository.close();
+    await repository[Symbol.asyncDispose]();
     await repository.close();
 
     expect(closeMaterializations).toHaveBeenCalledTimes(1);
+    expect(closeActiveMaterializations).toHaveBeenCalledTimes(1);
     expect(closeCas).not.toHaveBeenCalled();
     expect(() => repository.createRuntimeStorageServices({
       timelineName: 'closed',

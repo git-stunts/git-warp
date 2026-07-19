@@ -55,4 +55,14 @@ describe('WarpStorageRegistry', () => {
     expect(first).toBe(second);
     expect(closeStorage).toHaveBeenCalledTimes(1);
   });
+
+  it('supports asynchronous disposal', async () => {
+    const closeStorage = vi.fn(() => Promise.resolve());
+    const storage = new ClosableStorage(closeStorage);
+
+    await storage[Symbol.asyncDispose]();
+    await storage.close();
+
+    expect(closeStorage).toHaveBeenCalledTimes(1);
+  });
 });

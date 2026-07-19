@@ -256,4 +256,13 @@ describe('GitTimelineHistoryAdapter git-cas persistence bridge', () => {
     expect(first).toBe(second);
     await expect(first).resolves.toBeUndefined();
   });
+
+  it('supports asynchronous disposal of delegated git-cas persistence', async () => {
+    const adapter = new GitTimelineHistoryAdapter({
+      plumbing: new RecordingPlumbing('f'.repeat(40)),
+    });
+
+    await adapter[Symbol.asyncDispose]();
+    await expect(adapter.close()).resolves.toBeUndefined();
+  });
 });
