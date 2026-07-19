@@ -114,6 +114,16 @@ executable `Optic`, and the type-only `Witness`. Capture a coordinate with
 `captureCoordinate(timeline)`; ordinary application reads should continue to
 use `reading.*`.
 
+## Close Storage
+
+After the final reading or diagnostic inspection, close the storage handle to
+release its local Git and git-cas processes. This does not change admitted
+history or retention anchors.
+
+```typescript
+await storage.close();
+```
+
 ## Removed Compatibility Surface
 
 The graph-first `openWarpWorldline()` and `openWarpGraph()` package exports are

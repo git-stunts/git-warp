@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { openWarp } from '../../../index.ts';
 import MemoryStorage from '../../helpers/MemoryStorage.ts';
@@ -11,6 +11,12 @@ import {
 class UnsupportedStorage extends WarpStorage {
   constructor() {
     super();
+  }
+}
+
+class ClosableStorage extends WarpStorage {
+  constructor(closeStorage: () => Promise<void>) {
+    super(closeStorage);
   }
 }
 
@@ -36,5 +42,27 @@ describe('WarpStorageRegistry', () => {
     await expect(
       openWarp({ storage: new UnsupportedStorage(), writer: 'agent-1' })
     ).rejects.toMatchObject({ code: 'E_WARP_STORAGE_UNBOUND' });
+  });
+
+  it('releases local resources idempotently', async () => {
+    const closeStorage = vi.fn(() => Promise.resolve());
+    const storage = new ClosableStorage(closeStorage);
+
+    const first = storage.close();
+    const second = storage.close();
+    await Promise.all([first, second]);
+
+    expect(first).toBe(second);
+    expect(closeStorage).toHaveBeenCalledTimes(1);
+  });
+
+  it('supports asynchronous disposal', async () => {
+    const closeStorage = vi.fn(() => Promise.resolve());
+    const storage = new ClosableStorage(closeStorage);
+
+    await storage[Symbol.asyncDispose]();
+    await storage.close();
+
+    expect(closeStorage).toHaveBeenCalledTimes(1);
   });
 });

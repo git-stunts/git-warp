@@ -46,10 +46,10 @@ describe('v18 v17 public-read legacy reading builder', () => {
       'alice',
       'alice',
     ]);
-    // git-cas package versions are stamped into asset manifests, so dependency bumps
-    // intentionally advance this migration-reading golden handle.
+    // git-cas stamps its package version into the manifest formatVersion, so dependency
+    // bumps intentionally advance this migration-reading golden handle.
     expect(reading.facts.find((fact) => fact.factKey === 'node:alpha:_content')?.value)
-      .toBe('git-cas:1:asset:manifest-tree:cbor:sha1:8851a151d100f2faad3a93892dfb83fa6f1345f7');
+      .toBe('git-cas:1:asset:manifest-tree:cbor:sha1:88b6deeb1a9e0e364f80d244731170f29fbe09a4');
   });
 
   it('fails closed when a restored v17 writer ref drifts after restore', async () => {

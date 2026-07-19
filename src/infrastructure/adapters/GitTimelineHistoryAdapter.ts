@@ -101,6 +101,7 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
   private readonly _gitCasPersistence: GitPersistenceAdapter;
   private readonly _gitCasGraphReader: GitCasGraphReaderAdapter;
   private readonly _recursiveTreeOidReader: GitRecursiveTreeOidReaderAdapter;
+  private _closePromise: Promise<void> | null = null;
 
   constructor({ plumbing, retryOptions = {}, policy }: GitTimelineHistoryAdapterOptions) {
     super();
@@ -128,6 +129,16 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
       assertEmptyBlobExists: (oid) => this._assertBlobExistsForEmptyRead(oid),
       treeOidReader: this._recursiveTreeOidReader,
     });
+  }
+
+  /** Releases local Git object sessions without changing timeline history. */
+  close(): Promise<void> {
+    this._closePromise ??= this._gitCasPersistence.close();
+    return this._closePromise;
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
   }
 
   private async _executeWithRetry(options: {

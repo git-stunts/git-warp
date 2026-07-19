@@ -17,7 +17,11 @@ describe('GitCasTrieStoreAdapter integration', () => {
   });
 
   afterEach(async () => {
-    await rm(harness.path, { recursive: true, force: true });
+    try {
+      await harness.cas.close();
+    } finally {
+      await rm(harness.path, { recursive: true, force: true });
+    }
   });
 
   it('stores leaves as pages wrapped by bundle roots', async () => {

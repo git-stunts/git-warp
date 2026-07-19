@@ -1,9 +1,8 @@
-import fs from 'node:fs';
 import process from 'node:process';
 import readline from 'node:readline';
 
 import { usageError } from '../infrastructure.ts';
-import { openGraph } from '../shared.ts';
+import { openGraph, readCliPackageVersion } from '../shared.ts';
 import {
   handleMcpMessage,
   mcpParseError,
@@ -14,16 +13,8 @@ import type { CliOptions } from '../types.ts';
 type McpCommandResult = {
   readonly payload: undefined;
   readonly close: () => Promise<void>;
+  readonly completion: Promise<void>;
 };
-
-function readPackageVersion(): string {
-  const packageUrl = new URL('../../../package.json', import.meta.url);
-  const packageText = fs.readFileSync(packageUrl, 'utf8');
-  const packageJson = JSON.parse(packageText) as { readonly version?: string };
-  return typeof packageJson.version === 'string' && packageJson.version.length > 0
-    ? packageJson.version
-    : '0.0.0';
-}
 
 function writeResponse(response: McpResponse): void {
   process.stdout.write(`${JSON.stringify(response)}\n`);
@@ -42,23 +33,72 @@ export default async function handleMcp({
   }
 
   const { graph } = await openGraph(options);
-  const serverVersion = readPackageVersion();
+  return createMcpCommandResult(graph, readCliPackageVersion());
+}
+
+function createMcpCommandResult(
+  graph: Parameters<typeof handleMcpMessage>[0],
+  serverVersion: string,
+): McpCommandResult {
   const lines = readline.createInterface({
     input: process.stdin,
     terminal: false,
   });
-
-  lines.on('line', (line) => {
-    void dispatchLine(graph, serverVersion, line);
-  });
+  const completion = trackMcpLines(lines, graph, serverVersion);
 
   return {
     payload: undefined,
-    close: () => {
+    completion,
+    close: async () => {
       lines.close();
-      return Promise.resolve();
+      await completion;
     },
   };
+}
+
+function trackMcpLines(
+  lines: readline.Interface,
+  graph: Parameters<typeof handleMcpMessage>[0],
+  serverVersion: string,
+): Promise<void> {
+  const pending = new Set<Promise<void>>();
+  const completedFailures: unknown[] = [];
+  const completion = Promise.withResolvers<void>();
+
+  lines.on('line', (line) => {
+    const operation = dispatchLine(graph, serverVersion, line);
+    pending.add(operation);
+    void operation.then(
+      () => pending.delete(operation),
+      (error: unknown) => {
+        pending.delete(operation);
+        completedFailures.push(error);
+      },
+    );
+  });
+  lines.on('error', (error: unknown) => {
+    completedFailures.push(error);
+    lines.close();
+  });
+  lines.once('close', () => {
+    void settlePendingDispatches(pending, completedFailures)
+      .then(completion.resolve, completion.reject);
+  });
+  return completion.promise;
+}
+
+async function settlePendingDispatches(
+  pending: ReadonlySet<Promise<void>>,
+  completedFailures: readonly unknown[],
+): Promise<void> {
+  const failures = [...completedFailures];
+  const results = await Promise.allSettled([...pending]);
+  failures.push(...results
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason as unknown));
+  if (failures.length > 0) {
+    throw new AggregateError(failures, 'MCP requests failed while stdin was closing');
+  }
 }
 
 async function dispatchLine(

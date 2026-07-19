@@ -185,7 +185,9 @@ flowchart TB
 ```
 
 The root import has no storage bootstrap side effect. `GitStorage.open()` owns
-the Node Git and git-cas composition used by first-use applications.
+the Node Git and git-cas composition used by first-use applications;
+`GitStorage.close()` releases that composition's local processes without
+changing history or retention.
 
 ## System Architecture
 

@@ -66,7 +66,15 @@ export async function createTestRepo(label = 'api-test') {
       crypto,
       openGraph,
       async cleanup() {
-        await rm(tempDir, { recursive: true, force: true });
+        try {
+          await runtimeStorage.close();
+        } finally {
+          try {
+            await persistence.close();
+          } finally {
+            await rm(tempDir, { recursive: true, force: true });
+          }
+        }
       },
     };
   } catch (err) {

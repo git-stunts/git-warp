@@ -79,7 +79,7 @@ async function readingWithRuntimeContentOids(
   repositoryPath: string | null,
 ): Promise<GenesisEquivalenceReading> {
   const resolver = await RuntimeContentOidResolver.open(repositoryPath);
-  try {
+  const [result] = await Promise.allSettled([(async () => {
     const facts: GenesisEquivalenceReadingFact[] = [];
     for (const fact of reading.facts) {
       facts.push(await factWithRuntimeContentOid(fact, graphId, resolver));
@@ -88,9 +88,21 @@ async function readingWithRuntimeContentOids(
       readingId: reading.readingId,
       facts,
     });
-  } finally {
-    await resolver.close();
+  })()]);
+  const [cleanup] = await Promise.allSettled([resolver.close()]);
+  if (result.status === 'rejected' && cleanup.status === 'rejected') {
+    throw new AggregateError(
+      [result.reason, cleanup.reason],
+      'Legacy reading construction and runtime cleanup both failed',
+    );
   }
+  if (result.status === 'rejected') {
+    throw result.reason;
+  }
+  if (cleanup.status === 'rejected') {
+    throw cleanup.reason;
+  }
+  return result.value;
 }
 
 async function factWithRuntimeContentOid(
@@ -124,38 +136,59 @@ function nodeIdFromContentFactKey(factKey: string): string {
 }
 
 class RuntimeContentOidResolver {
+  private closePromise: Promise<void> | null = null;
+
   private constructor(
     private readonly repositoryPath: string,
     private readonly shouldCleanup: boolean,
     private readonly storage: AssetStoragePort,
+    private readonly runtimeStorage: GitCasRepositoryAdapter,
+    private readonly history: GitTimelineHistoryAdapter,
   ) {
   }
 
   static async open(repositoryPath: string | null): Promise<RuntimeContentOidResolver> {
-    let runtimeRepositoryPath = repositoryPath;
-    let shouldCleanup = false;
-    if (runtimeRepositoryPath === null) {
-      runtimeRepositoryPath = await mkdtemp(join(tmpdir(), 'git-warp-v18-content-oid-'));
-      shouldCleanup = true;
+    const shouldCleanup = repositoryPath === null;
+    const runtimeRepositoryPath = repositoryPath
+      ?? await mkdtemp(join(tmpdir(), 'git-warp-v18-content-oid-'));
+    let history: GitTimelineHistoryAdapter | null = null;
+    let runtimeStorage: GitCasRepositoryAdapter | null = null;
+    try {
+      const plumbing = await Plumbing.createDefault({ cwd: runtimeRepositoryPath });
+      await plumbing.execute({ args: ['init', '-q'] });
+      history = new GitTimelineHistoryAdapter({ plumbing });
+      runtimeStorage = new GitCasRepositoryAdapter({
+        plumbing,
+        history,
+      });
+      const services = await runtimeStorage.createRuntimeStorageServices({
+        timelineName: 'migration-content',
+        codec: defaultCodec,
+        crypto: defaultCrypto,
+        commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+      });
+      return new RuntimeContentOidResolver(
+        runtimeRepositoryPath,
+        shouldCleanup,
+        services.content,
+        runtimeStorage,
+        history,
+      );
+    } catch (error) {
+      try {
+        await closeRuntimeContentOidResources(
+          runtimeStorage,
+          history,
+          shouldCleanup ? runtimeRepositoryPath : null,
+        );
+      } catch (closeError) {
+        throw new AggregateError(
+          [error, closeError],
+          'Runtime content resolver failed to open and clean up',
+        );
+      }
+      throw error;
     }
-    const plumbing = await Plumbing.createDefault({ cwd: runtimeRepositoryPath });
-    await plumbing.execute({ args: ['init', '-q'] });
-    const adapter = new GitTimelineHistoryAdapter({ plumbing });
-    const runtimeStorage = new GitCasRepositoryAdapter({
-      plumbing,
-      history: adapter,
-    });
-    const services = await runtimeStorage.createRuntimeStorageServices({
-      timelineName: 'migration-content',
-      codec: defaultCodec,
-      crypto: defaultCrypto,
-      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-    });
-    return new RuntimeContentOidResolver(
-      runtimeRepositoryPath,
-      shouldCleanup,
-      services.content,
-    );
   }
 
   async oidFor(options: {
@@ -173,10 +206,43 @@ class RuntimeContentOidResolver {
     return staged.handle.toString();
   }
 
-  async close(): Promise<void> {
-    if (this.shouldCleanup) {
-      await rm(this.repositoryPath, { recursive: true, force: true });
+  close(): Promise<void> {
+    this.closePromise ??= closeRuntimeContentOidResources(
+      this.runtimeStorage,
+      this.history,
+      this.shouldCleanup ? this.repositoryPath : null,
+    );
+    return this.closePromise;
+  }
+}
+
+async function closeRuntimeContentOidResources(
+  runtimeStorage: GitCasRepositoryAdapter | null,
+  history: GitTimelineHistoryAdapter | null,
+  temporaryRepositoryPath: string | null,
+): Promise<void> {
+  const failures: unknown[] = [];
+  const cleanups = [
+    async (): Promise<void> => await runtimeStorage?.close(),
+    async (): Promise<void> => await history?.close(),
+    async (): Promise<void> => {
+      if (temporaryRepositoryPath !== null) {
+        await rm(temporaryRepositoryPath, { recursive: true, force: true });
+      }
+    },
+  ];
+  for (const cleanup of cleanups) {
+    try {
+      await cleanup();
+    } catch (error) {
+      failures.push(error);
     }
+  }
+  if (failures.length === 1) {
+    throw failures[0];
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(failures, 'Runtime content resolver failed to close cleanly');
   }
 }
 

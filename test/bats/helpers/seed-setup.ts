@@ -7,7 +7,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
+import GitPlumbing from '@git-stunts/plumbing';
 
 const projectRoot = process.env['PROJECT_ROOT'] || resolve(import.meta.dirname, '../../..');
 const repoPath = process.env['REPO_PATH'];
@@ -43,8 +43,7 @@ const { installDefaultRuntimeHostNodePorts } = await import(runtimeNodeDefaultsU
 
 installDefaultRuntimeHostNodePorts();
 
-const runner = ShellRunnerFactory.create();
-const plumbing = new GitPlumbing({ cwd: repoPath, runner });
+const plumbing = await GitPlumbing.createDefault({ cwd: repoPath });
 const persistence = new GitTimelineHistoryAdapter({ plumbing });
 const crypto = new NodeCryptoAdapter();
 const runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
@@ -64,4 +63,21 @@ function createTrustChain() {
   return runtimeStorage.createTrustChain(crypto);
 }
 
-export { openGraph, persistence, crypto, createTrustChain };
+async function closeSeedRuntime(): Promise<void> {
+  const failures: unknown[] = [];
+  for (const close of [
+    async (): Promise<void> => await runtimeStorage.close(),
+    async (): Promise<void> => await persistence.close(),
+  ]) {
+    try {
+      await close();
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length > 0) {
+    throw new AggregateError(failures, 'Seed runtime failed to close cleanly');
+  }
+}
+
+export { openGraph, persistence, crypto, createTrustChain, closeSeedRuntime };

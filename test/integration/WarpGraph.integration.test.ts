@@ -36,7 +36,15 @@ describe('WarpCore Integration', () => {
   });
 
   afterEach(async () => {
-    await rm(tempDir, { recursive: true, force: true });
+    try {
+      await runtimeStorage.close();
+    } finally {
+      try {
+        await persistence.close();
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
+    }
   });
 
   describe('Single Writer Workflow', () => {

@@ -30,23 +30,51 @@ export type CliStorageBinding = {
   readonly hookPaths: HookPathPort;
 };
 
+const activeCliStorages = new Set<GitStorage>();
+
+/** Releases every storage composition opened by the current CLI invocation. */
+export async function closeCliStorages(): Promise<void> {
+  const storages = [...activeCliStorages];
+  activeCliStorages.clear();
+  const results = await Promise.allSettled(storages.map(async (storage) => await storage.close()));
+  const failures = results
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason as unknown);
+  if (failures.length > 0) {
+    throw new AggregateError(failures, 'CLI storage failed to close cleanly');
+  }
+}
+
 /**
  * Creates a persistence adapter for the given repository path.
  */
 export async function createPersistence(repoPath: string): Promise<CliStorageBinding> {
   const storage = await GitStorage.open({ cwd: repoPath });
-  const binding = resolveWarpStorage(storage);
-  if (!(binding.history instanceof GitTimelineHistoryAdapter)
-    || binding.createTrustChain === undefined
-    || binding.hookPaths === undefined) {
-    throw usageError('GitStorage returned an incomplete CLI storage binding');
+  try {
+    const binding = resolveWarpStorage(storage);
+    if (!(binding.history instanceof GitTimelineHistoryAdapter)
+      || binding.createTrustChain === undefined
+      || binding.hookPaths === undefined) {
+      throw usageError('GitStorage returned an incomplete CLI storage binding');
+    }
+    activeCliStorages.add(storage);
+    return {
+      persistence: binding.history,
+      runtimeStorage: binding.runtimeStorage,
+      createTrustChain: binding.createTrustChain,
+      hookPaths: binding.hookPaths,
+    };
+  } catch (error) {
+    try {
+      await storage.close();
+    } catch (closeError) {
+      throw new AggregateError(
+        [error, closeError],
+        'CLI storage binding failed and local resources did not close cleanly',
+      );
+    }
+    throw error;
   }
-  return {
-    persistence: binding.history,
-    runtimeStorage: binding.runtimeStorage,
-    createTrustChain: binding.createTrustChain,
-    hookPaths: binding.hookPaths,
-  };
 }
 
 /**
@@ -188,6 +216,13 @@ export function createHookInstaller(hookPathPort: HookPathPort): HookInstaller {
   });
 }
 
+/** Reads the package version from either source or built CLI layouts. */
+export function readCliPackageVersion(): string {
+  const packageRoot = findPackageRoot(fileURLToPath(new URL('.', import.meta.url)));
+  const rawJson = fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8');
+  return readPackageVersion(rawJson);
+}
+
 /**
  * Finds the repository/package root from either source or built CLI paths.
  */
@@ -199,7 +234,7 @@ function findPackageRoot(startDir: string): string {
     }
     const parent = path.dirname(current);
     if (parent === current) {
-      throw usageError('Unable to locate package.json for hook installation');
+      throw usageError('Unable to locate the git-warp package root');
     }
     current = parent;
   }

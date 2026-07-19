@@ -116,6 +116,7 @@ describe('GitCasRepositoryAdapter', () => {
     const putAsset = vi.fn(highLevelCas.assets.put);
     const rootSet = createRootSet();
     const store = vi.fn().mockResolvedValue({ slug: 'manifest', chunks: [] });
+    const closeCas = vi.fn().mockResolvedValue(undefined);
     const createTree = vi.fn()
       .mockResolvedValueOnce('1'.repeat(40))
       .mockResolvedValueOnce('2'.repeat(40))
@@ -138,6 +139,7 @@ describe('GitCasRepositoryAdapter', () => {
       restoreStream: vi.fn(),
       store,
       createTree,
+      close: closeCas,
     };
     const repository = new GitCasRepositoryAdapter({ plumbing, history, cas });
     const services = await repository.createRuntimeStorageServices({
@@ -190,6 +192,30 @@ describe('GitCasRepositoryAdapter', () => {
     expect(putAsset).toHaveBeenCalledWith(expect.objectContaining({ slug: 'trust-record-hash' }));
     expect(store).toHaveBeenCalledTimes(1);
     expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'snapshot-1' }));
+
+    const activeServices = await repository.createRuntimeStorageServices({
+      timelineName: 'active-at-close',
+      codec: defaultCodec,
+      crypto: new TestCrypto(),
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    });
+    const closeMaterializations = vi.spyOn(services.materializations, 'close');
+    const closeActiveMaterializations = vi.spyOn(activeServices.materializations, 'close');
+    await services.materializations.close();
+    await repository[Symbol.asyncDispose]();
+    await repository.close();
+
+    expect(closeMaterializations).toHaveBeenCalledTimes(1);
+    expect(closeActiveMaterializations).toHaveBeenCalledTimes(1);
+    expect(closeCas).not.toHaveBeenCalled();
+    expect(() => repository.createRuntimeStorageServices({
+      timelineName: 'closed',
+      codec: defaultCodec,
+      crypto: new TestCrypto(),
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    })).toThrow('Git CAS repository storage is closed');
+    expect(() => repository.createTrustChain(new TestCrypto()))
+      .toThrow('Git CAS repository storage is closed');
   });
 });
 

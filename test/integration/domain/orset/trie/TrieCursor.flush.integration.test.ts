@@ -49,7 +49,11 @@ async function createHarness(): Promise<Harness> {
       tempDir,
       adapter,
       async cleanup(): Promise<void> {
-        await rm(tempDir, { recursive: true, force: true });
+        try {
+          await cas.close();
+        } finally {
+          await rm(tempDir, { recursive: true, force: true });
+        }
       },
     };
   } catch (err) {

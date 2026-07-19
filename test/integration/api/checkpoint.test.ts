@@ -20,16 +20,20 @@ async function readCheckpointArtifacts(repo, checkpointSha) {
     chunking: { strategy: 'cdc' },
     applicationRefPrefixes: ['refs/warp/'],
   });
-  const members: BundleMember[] = [];
-  for await (const member of cas.bundles.iterateMembers({
-    handle: decoded.bundleHandle.toString(),
-  })) {
-    members.push(member);
+  try {
+    const members: BundleMember[] = [];
+    for await (const member of cas.bundles.iterateMembers({
+      handle: decoded.bundleHandle.toString(),
+    })) {
+      members.push(member);
+    }
+    const memberHandles = Object.fromEntries(
+      members.map((member) => [member.path, member.handle.toString()]),
+    );
+    return { decoded, members, memberHandles };
+  } finally {
+    await cas.close();
   }
-  const memberHandles = Object.fromEntries(
-    members.map((member) => [member.path, member.handle.toString()]),
-  );
-  return { decoded, members, memberHandles };
 }
 
 describe('API: Checkpoint', () => {
