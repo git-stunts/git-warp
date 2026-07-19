@@ -1,0 +1,50 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T03:42:25.033Z",
+  "results": [
+    {
+      "backend": "git-persistent-buffered",
+      "cpuMs": 940,
+      "processRealMs": 570,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "/usr/bin/time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
+            "rssBytes": 110641152
+          },
+          {
+            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
+            "rssBytes": 38240256
+          }
+        ],
+        "totalBytes": 150093824
+      },
+      "processTreePeakRssBytes": 150093824,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 526.483625,
+        "checksum": 276775607
+      },
+      "workerMaxRssBytes": 112033792,
+      "sample": 0
+    }
+  ],
+  "settings": {
+    "batchBytes": 65536,
+    "heapLimitMb": 64,
+    "operationCount": 65536,
+    "payloadBytes": 4096,
+    "samples": 1,
+    "corpusBytes": 268435456
+  }
+}

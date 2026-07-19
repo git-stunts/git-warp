@@ -1,0 +1,170 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T03:28:29.692Z",
+  "results": [
+    {
+      "backend": "git-fast-import-pack",
+      "cpuMs": 12580,
+      "processRealMs": 10520,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "/usr/bin/time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
+            "rssBytes": 82149376
+          },
+          {
+            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
+            "rssBytes": 9781248
+          }
+        ],
+        "totalBytes": 93143040
+      },
+      "processTreePeakRssBytes": 93143040,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 10478.54525,
+        "checksum": 1009620510
+      },
+      "workerMaxRssBytes": 98304000,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 65536,
+        "packs": 1,
+        "size-pack": 264833,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "nodegit",
+      "cpuMs": 47239.99999999999,
+      "processRealMs": 49840,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "(time)",
+            "rssBytes": 524288
+          },
+          {
+            "command": "(node)",
+            "rssBytes": 115146752
+          }
+        ],
+        "totalBytes": 115671040
+      },
+      "processTreePeakRssBytes": 115671040,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 49712.509167000004,
+        "checksum": 1009620510
+      },
+      "workerMaxRssBytes": 120995840,
+      "repository": {
+        "count": 65536,
+        "size": 524288,
+        "in-pack": 0,
+        "packs": 0,
+        "size-pack": 0,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "napi-libgit2",
+      "cpuMs": 45790,
+      "processRealMs": 49620,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "/usr/bin/time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
+            "rssBytes": 85065728
+          }
+        ],
+        "totalBytes": 86278144
+      },
+      "processTreePeakRssBytes": 86278144,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 49546.579084,
+        "checksum": 1009620510
+      },
+      "workerMaxRssBytes": 101793792,
+      "repository": {
+        "count": 65536,
+        "size": 524288,
+        "in-pack": 0,
+        "packs": 0,
+        "size-pack": 0,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "isomorphic-git",
+      "cpuMs": 26330,
+      "processRealMs": 25440,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "(time)",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "(node)",
+            "rssBytes": 164593664
+          }
+        ],
+        "totalBytes": 165806080
+      },
+      "processTreePeakRssBytes": 165806080,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 25303.122666,
+        "checksum": 1009620510
+      },
+      "workerMaxRssBytes": 166019072,
+      "repository": {
+        "count": 65536,
+        "size": 524288,
+        "in-pack": 0,
+        "packs": 0,
+        "size-pack": 0,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    }
+  ],
+  "settings": {
+    "heapLimitMb": 64,
+    "operationCount": 65536,
+    "payloadBytes": 4096,
+    "samples": 1,
+    "corpusBytes": 268435456
+  }
+}

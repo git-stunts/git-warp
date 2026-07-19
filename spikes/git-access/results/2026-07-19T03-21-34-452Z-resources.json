@@ -1,0 +1,80 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T03:21:54.566Z",
+  "results": [
+    {
+      "backend": "git-persistent",
+      "cpuMs": 1819.9999999999998,
+      "processRealMs": 1620,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "(time)",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "(node)",
+            "rssBytes": 86786048
+          },
+          {
+            "command": "(git)",
+            "rssBytes": 272678912
+          }
+        ],
+        "totalBytes": 360677376
+      },
+      "processTreePeakRssBytes": 360677376,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 1581.27125,
+        "checksum": 276775667
+      },
+      "workerMaxRssBytes": 275578880,
+      "sample": 0
+    },
+    {
+      "backend": "git-persistent-mmap-8m",
+      "cpuMs": 1920,
+      "processRealMs": 1730,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "/usr/bin/time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
+            "rssBytes": 86278144
+          },
+          {
+            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
+            "rssBytes": 39632896
+          }
+        ],
+        "totalBytes": 127123456
+      },
+      "processTreePeakRssBytes": 127123456,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 1687.511292,
+        "checksum": 276775667
+      },
+      "workerMaxRssBytes": 86622208,
+      "sample": 0
+    }
+  ],
+  "settings": {
+    "heapLimitMb": 64,
+    "operationCount": 65536,
+    "payloadBytes": 4096,
+    "samples": 1,
+    "corpusBytes": 268435456
+  }
+}

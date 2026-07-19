@@ -1,0 +1,45 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T03:22:30.995Z",
+  "results": [
+    {
+      "backend": "nodegit",
+      "cpuMs": 2510,
+      "processRealMs": 2400,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "(time)",
+            "rssBytes": 540672
+          },
+          {
+            "command": "(node)",
+            "rssBytes": 442761216
+          }
+        ],
+        "totalBytes": 443301888
+      },
+      "processTreePeakRssBytes": 443301888,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 2255.0836670000003,
+        "checksum": 276848403
+      },
+      "workerMaxRssBytes": 444940288,
+      "sample": 0
+    }
+  ],
+  "settings": {
+    "heapLimitMb": 64,
+    "operationCount": 65536,
+    "payloadBytes": 4096,
+    "samples": 1,
+    "corpusBytes": 268435456
+  }
+}

@@ -32,6 +32,8 @@ replay-backed. Operator workflows live outside the topic shelf in
 
 - [Git substrate](git-substrate.md): understand WARP refs, patch commits,
   checkpoints, replay, and provenance.
+- [Git performance](git-perf.md): understand the measured persistent Git
+  session design, bounded-memory policy, and rejected native backends.
 - [Content and CAS](content-and-cas.md): handle content attachments,
   content-addressed storage, and encrypted CAS payloads.
 - [WARP state-cache materialization](cas-first-memoized-materialization.md):

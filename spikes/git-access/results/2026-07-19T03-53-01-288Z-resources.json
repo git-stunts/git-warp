@@ -1,0 +1,188 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T03:53:20.777Z",
+  "results": [
+    {
+      "backend": "git-fast-import-pack",
+      "cpuMs": 2489.9999999999995,
+      "processRealMs": 2290,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "/usr/bin/time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
+            "rssBytes": 97714176
+          },
+          {
+            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
+            "rssBytes": 7012352
+          }
+        ],
+        "totalBytes": 105938944
+      },
+      "processTreePeakRssBytes": 105938944,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 2257.952083,
+        "checksum": 1925391253
+      },
+      "workerMaxRssBytes": 97992704,
+      "oidCount": 1024,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 1024,
+        "packs": 1,
+        "size-pack": 315,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "git-fast-import-no-delta",
+      "cpuMs": 2460,
+      "processRealMs": 2280,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "/usr/bin/time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
+            "rssBytes": 98271232
+          },
+          {
+            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
+            "rssBytes": 6586368
+          }
+        ],
+        "totalBytes": 106070016
+      },
+      "processTreePeakRssBytes": 106070016,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 2250.9975,
+        "checksum": 1925391253
+      },
+      "workerMaxRssBytes": 98615296,
+      "oidCount": 1024,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 1024,
+        "packs": 1,
+        "size-pack": 315,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "git-fast-import-no-delta-zlib1",
+      "cpuMs": 2150,
+      "processRealMs": 1970,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "(time)",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "(node)",
+            "rssBytes": 95649792
+          },
+          {
+            "command": "(git)",
+            "rssBytes": 6733824
+          }
+        ],
+        "totalBytes": 103596032
+      },
+      "processTreePeakRssBytes": 103596032,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 1942.513083,
+        "checksum": 1925391253
+      },
+      "workerMaxRssBytes": 97615872,
+      "oidCount": 1024,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 1024,
+        "packs": 1,
+        "size-pack": 1205,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "git-fast-import-no-delta-uncompressed",
+      "cpuMs": 3650,
+      "processRealMs": 3570,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "/usr/bin/time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "/Users/james/.local/share/mise/installs/node/24.12.0/bin/node",
+            "rssBytes": 94420992
+          },
+          {
+            "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
+            "rssBytes": 6537216
+          }
+        ],
+        "totalBytes": 102170624
+      },
+      "processTreePeakRssBytes": 102170624,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 3538.396875,
+        "checksum": 1925391253
+      },
+      "workerMaxRssBytes": 94765056,
+      "oidCount": 1024,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 1024,
+        "packs": 1,
+        "size-pack": 262208,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    }
+  ],
+  "settings": {
+    "batchBytes": 262144,
+    "heapLimitMb": 64,
+    "operationCount": 1024,
+    "payloadBytes": 262144,
+    "payloadProfile": "repetitive",
+    "samples": 1,
+    "corpusBytes": 268435456
+  }
+}
