@@ -64,10 +64,19 @@ function createTrustChain() {
 }
 
 async function closeSeedRuntime(): Promise<void> {
-  try {
-    await runtimeStorage.close();
-  } finally {
-    await persistence.close();
+  const failures: unknown[] = [];
+  for (const close of [
+    async (): Promise<void> => await runtimeStorage.close(),
+    async (): Promise<void> => await persistence.close(),
+  ]) {
+    try {
+      await close();
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length > 0) {
+    throw new AggregateError(failures, 'Seed runtime failed to close cleanly');
   }
 }
 

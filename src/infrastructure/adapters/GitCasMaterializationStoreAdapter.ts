@@ -99,6 +99,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   override async openWorkspace(
     coordinate: MaterializationCoordinate,
   ): Promise<MaterializationWorkspacePort> {
+    this.#assertOpen();
     requireCoordinate(coordinate);
     const workspace = await this.#cas.workspaces.open({
       namespace: WORKSPACE_NAMESPACE,
@@ -116,6 +117,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   }
 
   override async retain(request: RetainMaterializationRequest): Promise<MaterializationHandle> {
+    this.#assertOpen();
     requireRetainRequest(request);
     const workspace = await this.openWorkspace(request.coordinate);
     try {
@@ -212,6 +214,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   override async acquireExact(
     coordinate: MaterializationCoordinate,
   ): Promise<MaterializationAcquisition | null> {
+    this.#assertOpen();
     requireCoordinate(coordinate);
     return await this.#withLeaseMutation(
       async () => await this.#acquireExactLocked(coordinate),
@@ -219,7 +222,10 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   }
 
   override close(): Promise<void> {
-    this.#closePromise ??= this.#close().finally(this.#onClose);
+    if (this.#closePromise === null) {
+      this.#closed = true;
+      this.#closePromise = this.#close().finally(this.#onClose);
+    }
     return this.#closePromise;
   }
 
@@ -280,7 +286,6 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
 
   async #close(): Promise<void> {
     await this.#withLeaseMutation(() => {
-      this.#closed = true;
       if (this.#currentLease !== null) {
         this.#retireLease(this.#currentLease);
         this.#currentLease = null;
@@ -316,6 +321,12 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       return await operation();
     } finally {
       turn.resolve();
+    }
+  }
+
+  #assertOpen(): void {
+    if (this.#closed) {
+      throw storageError('adapter is closed');
     }
   }
 

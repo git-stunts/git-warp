@@ -77,14 +77,20 @@ export async function createTestRepo(label = "deno-test") {
     crypto,
     openGraph,
     async cleanup() {
-      try {
-        await runtimeStorage.close();
-      } finally {
+      const failures: unknown[] = [];
+      for (const cleanup of [
+        async (): Promise<void> => await runtimeStorage.close(),
+        async (): Promise<void> => await persistence.close(),
+        async (): Promise<void> => await rm(tempDir, { recursive: true, force: true }),
+      ]) {
         try {
-          await persistence.close();
-        } finally {
-          await rm(tempDir, { recursive: true, force: true });
+          await cleanup();
+        } catch (error) {
+          failures.push(error);
         }
+      }
+      if (failures.length > 0) {
+        throw new AggregateError(failures, "Deno test repository failed to clean up");
       }
     },
   };

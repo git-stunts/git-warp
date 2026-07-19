@@ -32,10 +32,19 @@ describe('API: retained materialization resume', () => {
   });
 
   afterEach(async () => {
+    const results = await Promise.allSettled(
+      providers.map(async (provider) => await provider.close()),
+    );
+    const failures = results
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map((result) => result.reason as unknown);
     try {
-      await Promise.all(providers.map(async (provider) => await provider.close()));
-    } finally {
       await repo?.cleanup();
+    } catch (error) {
+      failures.push(error);
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(failures, 'Retained materialization test cleanup failed');
     }
   });
 

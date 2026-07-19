@@ -16,7 +16,33 @@ import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 const CACHE_NAMESPACE = 'git-warp/materializations';
 const ROOT_COUNT = 8;
 
-describe('GitCasMaterializationStoreAdapter legacy lifecycle', () => {
+describe('GitCasMaterializationStoreAdapter lifecycle', () => {
+  it('rejects new materialization operations as soon as closure starts', async () => {
+    const harness = await createHarness();
+    const coordinate = exactCoordinate();
+    const roots = await createRoots(harness.cas);
+
+    const closing = harness.adapter.close();
+
+    await expect(harness.adapter.openWorkspace(coordinate)).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('adapter is closed'),
+    });
+    await expect(harness.adapter.retain({ coordinate, roots, stateHash: 'closed' }))
+      .rejects.toMatchObject({
+        code: 'E_MATERIALIZATION_STORAGE',
+        message: expect.stringContaining('adapter is closed'),
+      });
+    await expect(harness.adapter.acquireExact(coordinate)).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('adapter is closed'),
+    });
+    await closing;
+
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
+    expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(0);
+  });
+
   it('keeps the matching v2 cache anchor until the v3 profile is retained', async () => {
     const harness = await createHarness();
     const coordinate = exactCoordinate();

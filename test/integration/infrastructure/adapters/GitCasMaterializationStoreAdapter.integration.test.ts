@@ -19,6 +19,9 @@ import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCrypt
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import type MaterializationStorePort from '../../../../src/ports/MaterializationStorePort.ts';
+import type {
+  MaterializationAcquisition,
+} from '../../../../src/ports/MaterializationStorePort.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -64,8 +67,9 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
       reopenedCas,
     );
     const reopened = reopenedFixture.materializations;
+    let acquisition: MaterializationAcquisition | null = null;
     try {
-      const acquisition = await reopened.acquireExact(coordinate);
+      acquisition = await reopened.acquireExact(coordinate);
       if (acquisition === null) {
         throw new Error('Retained materialization was not reopened');
       }
@@ -93,15 +97,18 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
       expect(await harness.plumbing.execute({
         args: ['show-ref', '--verify', '--hash', 'refs/cas/caches/git-warp/materializations'],
       })).toMatch(/^[0-9a-f]{40}\n?$/u);
-      await acquisition.release();
     } finally {
       try {
-        await reopened.close();
+        await acquisition?.release();
       } finally {
         try {
-          await reopenedCas.close();
+          await reopened.close();
         } finally {
-          await reopenedFixture.history.close();
+          try {
+            await reopenedCas.close();
+          } finally {
+            await reopenedFixture.history.close();
+          }
         }
       }
     }

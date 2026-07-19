@@ -108,7 +108,7 @@ export async function replayGraphModelMigrationScratchIntoRuntime(
   }
   let persistence: GitTimelineHistoryAdapter | null = null;
   let runtimeStorage: GitCasRepositoryAdapter | null = null;
-  try {
+  const replay = (async (): Promise<GraphModelMigrationScratchRuntimeReplayOutput> => {
     const operations = await readGraphModelMigrationScratchOperationRecords({
       repositoryPath: sourceRepositoryPath,
       scratchRefName: request.scratchRef.refName,
@@ -134,19 +134,35 @@ export async function replayGraphModelMigrationScratchIntoRuntime(
       operationCount: operations.length,
       state,
     });
-  } finally {
-    try {
-      await runtimeStorage?.close();
-    } finally {
-      try {
-        await persistence?.close();
-      } finally {
-        if (shouldCleanup && runtimeRepositoryPath !== null) {
-          await rm(runtimeRepositoryPath, { recursive: true, force: true });
-        }
+  })();
+  const [result] = await Promise.allSettled([replay]);
+  const failures: unknown[] = result.status === 'rejected' ? [result.reason] : [];
+  const cleanups = [
+    async (): Promise<void> => await runtimeStorage?.close(),
+    async (): Promise<void> => await persistence?.close(),
+    async (): Promise<void> => {
+      if (shouldCleanup && runtimeRepositoryPath !== null) {
+        await rm(runtimeRepositoryPath, { recursive: true, force: true });
       }
+    },
+  ];
+  for (const cleanup of cleanups) {
+    try {
+      await cleanup();
+    } catch (error) {
+      failures.push(error);
     }
   }
+  if (failures.length === 1) {
+    throw failures[0];
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(failures, 'Runtime replay and cleanup failed');
+  }
+  if (result.status === 'rejected') {
+    throw result.reason;
+  }
+  return result.value;
 }
 
 async function applyOperations(
