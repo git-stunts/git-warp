@@ -216,6 +216,13 @@ export function createHookInstaller(hookPathPort: HookPathPort): HookInstaller {
   });
 }
 
+/** Reads the package version from either source or built CLI layouts. */
+export function readCliPackageVersion(): string {
+  const packageRoot = findPackageRoot(fileURLToPath(new URL('.', import.meta.url)));
+  const rawJson = fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8');
+  return readPackageVersion(rawJson);
+}
+
 /**
  * Finds the repository/package root from either source or built CLI paths.
  */
@@ -227,7 +234,7 @@ function findPackageRoot(startDir: string): string {
     }
     const parent = path.dirname(current);
     if (parent === current) {
-      throw usageError('Unable to locate package.json for hook installation');
+      throw usageError('Unable to locate the git-warp package root');
     }
     current = parent;
   }

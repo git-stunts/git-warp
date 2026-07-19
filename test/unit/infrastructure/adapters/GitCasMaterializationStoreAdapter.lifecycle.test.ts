@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
@@ -6,6 +6,9 @@ import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasMaterializationStoreAdapter, {
   type GitCasMaterializationFacade,
 } from '../../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
+import type {
+  GitCasStagingWorkspace,
+} from '../../../../src/infrastructure/adapters/GitCasMaterializationWorkspace.ts';
 import { materializationCoordinateData } from '../../../../src/infrastructure/adapters/GitCasMaterializationDescriptor.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -41,6 +44,86 @@ describe('GitCasMaterializationStoreAdapter lifecycle', () => {
 
     expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
     expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(0);
+  });
+
+  it('releases active workspaces when the adapter closes', async () => {
+    const harness = await createHarness();
+    const workspace = await harness.adapter.openWorkspace(exactCoordinate());
+    const release = vi.spyOn(workspace, 'release');
+
+    await harness.adapter.close();
+
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(() => workspace.stagePage(new Uint8Array([1]), { maxBytes: 1 }))
+      .toThrow('closed workspace');
+  });
+
+  it('waits for and releases a workspace whose open races with closure', async () => {
+    const harness = await createHarness();
+    const staging = await harness.cas.workspaces.open({ namespace: 'pending-close' });
+    const release = vi.fn(async () => await staging.release());
+    const controlled: GitCasStagingWorkspace = {
+      pages: staging.pages,
+      bundles: staging.bundles,
+      checkpoint: async (options) => await staging.checkpoint(options),
+      promoteToCache: async (options) => await staging.promoteToCache(options),
+      release,
+    };
+    const deferred = Promise.withResolvers<GitCasStagingWorkspace>();
+    const adapter = adapterFor({
+      bundles: harness.cas.bundles,
+      caches: harness.cas.caches,
+      pages: harness.cas.pages,
+      workspaces: { open: async () => await deferred.promise },
+    });
+
+    const opening = adapter.openWorkspace(exactCoordinate());
+    const opened = expect(opening).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('adapter is closed'),
+    });
+    const closing = adapter.close();
+    deferred.resolve(controlled);
+
+    await opened;
+    await closing;
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves promotion and workspace release failures', async () => {
+    const harness = await createHarness();
+    const promotionFailure = new Error('promotion failed');
+    const releaseFailure = new Error('release failed');
+    const staging = await harness.cas.workspaces.open({ namespace: 'failed-retain' });
+    const controlled: GitCasStagingWorkspace = {
+      pages: {
+        put: async () => {
+          throw promotionFailure;
+        },
+      },
+      bundles: staging.bundles,
+      checkpoint: async (options) => await staging.checkpoint(options),
+      promoteToCache: async (options) => await staging.promoteToCache(options),
+      release: async () => {
+        await staging.release();
+        throw releaseFailure;
+      },
+    };
+    const adapter = adapterFor({
+      bundles: harness.cas.bundles,
+      caches: harness.cas.caches,
+      pages: harness.cas.pages,
+      workspaces: { open: async () => controlled },
+    });
+    const roots = await createRoots(harness.cas);
+
+    await expect(adapter.retain({
+      coordinate: exactCoordinate(),
+      roots,
+      stateHash: 'state-hash',
+    })).rejects.toMatchObject({
+      errors: [promotionFailure, releaseFailure],
+    });
   });
 
   it('keeps the matching v2 cache anchor until the v3 profile is retained', async () => {

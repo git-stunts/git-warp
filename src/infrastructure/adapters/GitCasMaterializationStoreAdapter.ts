@@ -8,12 +8,10 @@ import type {
   WorkspaceRetainedBundle,
   WorkspaceRetainedPage,
 } from '@git-stunts/git-cas';
-import MaterializationCoordinate from '../../domain/materialization/MaterializationCoordinate.ts';
+import type MaterializationCoordinate from '../../domain/materialization/MaterializationCoordinate.ts';
 import MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
-import MaterializationRoots from '../../domain/materialization/MaterializationRoots.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import type StorageRetentionWitness from '../../domain/storage/StorageRetentionWitness.ts';
-import WarpError from '../../domain/errors/WarpError.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type MaterializationWorkspacePort from '../../ports/MaterializationWorkspacePort.ts';
@@ -25,7 +23,17 @@ import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts'
 import GitCasMaterializationWorkspace, {
   type GitCasStagingWorkspace,
 } from './GitCasMaterializationWorkspace.ts';
+import GitCasMaterializationWorkspaceOwner from './GitCasMaterializationWorkspaceOwner.ts';
+import {
+  requireAdapterOptions,
+  requireCoordinate,
+  requireDependency,
+  requireNonEmpty,
+  requireRetainRequest,
+  storageError,
+} from './GitCasMaterializationStoreValidation.ts';
 import GitCasMaterializationLease from './GitCasMaterializationLease.ts';
+import { completeWithCleanup } from './OperationCleanup.ts';
 import {
   decodeMaterializationDescriptor,
   MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
@@ -73,6 +81,9 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   #currentLease: GitCasMaterializationLease | null = null;
   #leaseMutation: Promise<void> = Promise.resolve();
   readonly #retirements = new Set<Promise<void>>();
+  readonly #workspaceOwner = new GitCasMaterializationWorkspaceOwner(
+    () => storageError('adapter is closed'),
+  );
   #retirementFailure: Readonly<{ cause: unknown }> | null = null;
   #closed = false;
   #closePromise: Promise<void> | null = null;
@@ -101,18 +112,21 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   ): Promise<MaterializationWorkspacePort> {
     this.#assertOpen();
     requireCoordinate(coordinate);
-    const workspace = await this.#cas.workspaces.open({
-      namespace: WORKSPACE_NAMESPACE,
-      ttlMs: WORKSPACE_TTL_MS,
-    });
-    return new GitCasMaterializationWorkspace({
-      workspace,
-      promote: async (activeWorkspace, request) => {
-        if (!request.coordinate.equals(coordinate)) {
-          throw storageError('workspace promotion coordinate does not match its open coordinate');
-        }
-        return await this.#promoteWorkspace(activeWorkspace, request);
-      },
+    return await this.#workspaceOwner.open({
+      open: async () => await this.#cas.workspaces.open({
+        namespace: WORKSPACE_NAMESPACE,
+        ttlMs: WORKSPACE_TTL_MS,
+      }),
+      create: (workspace, onRelease) => new GitCasMaterializationWorkspace({
+        workspace,
+        promote: async (activeWorkspace, request) => {
+          if (!request.coordinate.equals(coordinate)) {
+            throw storageError('workspace promotion coordinate does not match its open coordinate');
+          }
+          return await this.#promoteWorkspace(activeWorkspace, request);
+        },
+        onRelease,
+      }),
     });
   }
 
@@ -120,11 +134,11 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     this.#assertOpen();
     requireRetainRequest(request);
     const workspace = await this.openWorkspace(request.coordinate);
-    try {
-      return await workspace.promote(request);
-    } finally {
-      await workspace.release();
-    }
+    return await completeWithCleanup(
+      async () => await workspace.promote(request),
+      async () => await workspace.release(),
+      'Materialization promotion and workspace release both failed',
+    );
   }
 
   async #promoteWorkspace(
@@ -203,12 +217,16 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     if (acquisition === null) {
       throw storageError('git-cas lost the retained materialization before legacy cleanup');
     }
-    try {
-      requireExpectedAcquisition(acquisition, args.expectedHandle);
-      await this.#removeLegacyEntry(args.cache, args.coordinate);
-    } finally {
-      await acquisition.release();
-    }
+    await completeWithCleanup(
+      async () => {
+        requireExpectedAcquisition(acquisition, args.expectedHandle);
+        await this.#removeLegacyEntry(args.cache, args.coordinate);
+      },
+      async () => {
+        await acquisition.release();
+      },
+      'Legacy materialization cleanup and acquisition release both failed',
+    );
   }
 
   override async acquireExact(
@@ -285,6 +303,13 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   }
 
   async #close(): Promise<void> {
+    const failures: unknown[] = [];
+    try {
+      await this.#workspaceOwner.close();
+    } catch (error) {
+      failures.push(error);
+    }
+
     await this.#withLeaseMutation(() => {
       if (this.#currentLease !== null) {
         this.#retireLease(this.#currentLease);
@@ -294,7 +319,13 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     });
     await Promise.allSettled([...this.#retirements]);
     if (this.#retirementFailure !== null) {
-      throw this.#retirementFailure.cause;
+      failures.push(this.#retirementFailure.cause);
+    }
+    if (failures.length === 1) {
+      throw failures[0];
+    }
+    if (failures.length > 1) {
+      throw new AggregateError(failures, 'Materialization storage failed to close cleanly');
     }
   }
 
@@ -445,54 +476,8 @@ function requireExpectedAcquisition(
   }
 }
 
-function requireRetainRequest(request: RetainMaterializationRequest): void {
-  if (request === null || typeof request !== 'object' || Array.isArray(request)) {
-    throw storageError('retain request must be an object');
-  }
-  requireCoordinate(request.coordinate);
-  if (!(request.roots instanceof MaterializationRoots)) {
-    throw storageError('retain request roots have an invalid runtime identity');
-  }
-  requireCurrentPropertyRoot(request.roots);
-}
-
-function requireCurrentPropertyRoot(roots: MaterializationRoots): void {
-  if (roots.properties.status === 'unavailable') {
-    throw storageError('current materialization profile requires a property root');
-  }
-}
-
-function requireCoordinate(coordinate: MaterializationCoordinate): void {
-  if (!(coordinate instanceof MaterializationCoordinate)) {
-    throw storageError('coordinate has an invalid runtime identity');
-  }
-}
-
 function requireDescriptorSize(bytes: Uint8Array): void {
   if (bytes.byteLength > MAX_DESCRIPTOR_BYTES) {
     throw storageError('materialization descriptor exceeds its byte limit');
   }
-}
-
-function requireDependency(value: object, field: string): void {
-  if (value === null || typeof value !== 'object') {
-    throw storageError(`${field} dependency is required`);
-  }
-}
-
-function requireAdapterOptions(options: object): void {
-  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
-    throw storageError('adapter options must be an object');
-  }
-}
-
-function requireNonEmpty(value: unknown, field: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw storageError(`${field} must be a non-empty string`);
-  }
-  return value;
-}
-
-function storageError(message: string): WarpError {
-  return new WarpError(`Materialization storage ${message}`, 'E_MATERIALIZATION_STORAGE');
 }

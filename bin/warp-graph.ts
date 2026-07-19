@@ -6,6 +6,7 @@ import { EXIT_CODES, HELP_TEXT, CliError, parseArgs, usageError } from './cli/in
 import { stableStringify, compactStringify } from './presenters/json.ts';
 import { COMMANDS } from './cli/commands/registry.ts';
 import { closeCliStorages } from './cli/shared.ts';
+import { closeCommandResources } from './cli/lifecycle.ts';
 
 installDefaultRuntimeHostNodePorts();
 
@@ -27,10 +28,20 @@ function hasPayload(value: unknown): value is { payload: unknown; exitCode?: num
 }
 
 /** Runtime guard: does this value carry an async `close` function? */
-function hasCloseFn(value: unknown): value is { close: () => Promise<void> } {
+function hasCloseFn(value: unknown): value is {
+  close: () => Promise<void>;
+  completion?: Promise<void>;
+} {
   if (typeof value !== 'object' || value === null) { return false; }
   const rec = value as Record<string, unknown>;
   return typeof rec['close'] === 'function';
+}
+
+function hasCompletion(value: { readonly completion?: Promise<void> }): value is {
+  readonly completion: Promise<void>;
+} {
+  return value.completion !== undefined
+    && typeof value.completion.then === 'function';
 }
 
 /** Normalizes any handler return shape into { payload, exitCode }. */
@@ -72,22 +83,41 @@ function handleEarlyExits(parsed: ParsedInvocation): boolean {
 
 /** Registers SIGINT/SIGTERM handlers that shut down a long-running
  *  command gracefully. */
-function installShutdownHandlers(close: () => Promise<void>): void {
-  let closing = false;
-  const shutdown = async (): Promise<void> => {
-    if (closing) { return; }
-    closing = true;
-    const results = await Promise.allSettled([close(), closeCliStorages()]);
-    const failures = results
-      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-      .map((result) => result.reason as unknown);
-    if (failures.length > 0) {
-      throw new AggregateError(failures, 'CLI shutdown failed');
-    }
-    process.exit(EXIT_CODES.OK);
+function installShutdownHandlers(close: () => Promise<void>): () => Promise<void> {
+  let shutdownPromise: Promise<void> | null = null;
+  const shutdown = (): Promise<void> => {
+    shutdownPromise ??= closeCommandResources(close, closeCliStorages);
+    return shutdownPromise;
   };
-  process.on('SIGINT', () => { shutdown().catch(() => process.exit(1)); });
-  process.on('SIGTERM', () => { shutdown().catch(() => process.exit(1)); });
+  const exitAfterShutdown = (): void => {
+    void shutdown().then(
+      () => process.exit(EXIT_CODES.OK),
+      () => process.exit(EXIT_CODES.INTERNAL),
+    );
+  };
+  process.once('SIGINT', exitAfterShutdown);
+  process.once('SIGTERM', exitAfterShutdown);
+  return shutdown;
+}
+
+async function finishCompletedCommand(
+  completion: Promise<void>,
+  shutdown: () => Promise<void>,
+): Promise<void> {
+  const [operation] = await Promise.allSettled([completion]);
+  const [cleanup] = await Promise.allSettled([shutdown()]);
+  if (operation.status === 'rejected' && cleanup.status === 'rejected') {
+    throw new AggregateError(
+      [operation.reason, cleanup.reason],
+      'CLI command completion and shutdown both failed',
+    );
+  }
+  if (operation.status === 'rejected') {
+    throw operation.reason;
+  }
+  if (cleanup.status === 'rejected') {
+    throw cleanup.reason;
+  }
 }
 
 /** Writes the payload (when present) in the requested stringify
@@ -122,10 +152,14 @@ async function main(): Promise<void> {
   emitPayload(normalized.payload, options.ndjson);
 
   // Long-running commands may return a `close` function.
-  // Wait for SIGINT/SIGTERM instead of exiting immediately.
+  // Wait for normal completion or SIGINT/SIGTERM instead of exiting immediately.
   if (hasCloseFn(result)) {
-    installShutdownHandlers(result.close);
-    return; // Keep the process alive
+    const shutdown = installShutdownHandlers(result.close);
+    if (hasCompletion(result)) {
+      await finishCompletedCommand(result.completion, shutdown);
+      process.exit(normalized.exitCode);
+    }
+    return;
   }
 
   await closeCliStorages();

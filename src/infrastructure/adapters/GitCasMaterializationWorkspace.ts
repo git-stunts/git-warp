@@ -41,12 +41,14 @@ export type GitCasMaterializationWorkspaceOptions = Readonly<{
     workspace: GitCasStagingWorkspace,
     request: PromoteMaterializationRequest,
   ) => Promise<MaterializationHandle>;
+  onRelease?: () => void;
 }>;
 
 /** git-cas-owned retention scope for one in-progress materialization. */
 export default class GitCasMaterializationWorkspace extends MaterializationWorkspacePort {
   readonly #workspace: GitCasStagingWorkspace;
   readonly #promoteMaterialization: GitCasMaterializationWorkspaceOptions['promote'];
+  readonly #onRelease: () => void;
   #promoting = false;
   #promoted = false;
   #releaseRequested = false;
@@ -59,6 +61,7 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
     requireWorkspaceOptions(options);
     this.#workspace = options.workspace;
     this.#promoteMaterialization = options.promote;
+    this.#onRelease = options.onRelease ?? (() => undefined);
   }
 
   override stagePage(
@@ -131,6 +134,7 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
       if (!this.#released) {
         await this.#workspace.release();
         this.#released = true;
+        this.#onRelease();
       }
     });
     return this.#releasePromise;
