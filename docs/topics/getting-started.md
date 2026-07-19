@@ -159,6 +159,10 @@ plumbing, CAS, cache, or retention adapters. Close it when the application is
 finished to release local Git and git-cas processes. Closing storage does not
 delete timelines, rewrite history, or change retention anchors.
 
+```typescript
+await storage.close();
+```
+
 WARP history lives under `refs/warp/**`, separate from source branches such as
 `refs/heads/main`. Writing a timeline does not create a source-tree commit on
 the checked-out branch.

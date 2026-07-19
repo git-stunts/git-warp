@@ -139,3 +139,5 @@ void draftReceipt;
 void preview;
 void joinReceipt;
 void joinOutcome;
+
+await storage.close();

@@ -120,6 +120,9 @@ import { GitStorage } from '@git-stunts/git-warp/storage';
 const storage = await GitStorage.open({ cwd: '.' });
 const warp = await openWarp({ storage, writer: 'agent-1' });
 const team = await warp.timeline('team');
+
+// After the final lane operation:
+await storage.close();
 ```
 
 Application code writes with `timeline.write(intent)` and reads with

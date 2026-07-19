@@ -65,7 +65,14 @@ export async function createPersistence(repoPath: string): Promise<CliStorageBin
       hookPaths: binding.hookPaths,
     };
   } catch (error) {
-    await storage.close();
+    try {
+      await storage.close();
+    } catch (closeError) {
+      throw new AggregateError(
+        [error, closeError],
+        'CLI storage binding failed and local resources did not close cleanly',
+      );
+    }
     throw error;
   }
 }

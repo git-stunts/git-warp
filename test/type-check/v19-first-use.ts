@@ -8,8 +8,9 @@
 import { intent, openWarp, reading } from '../../index.ts';
 import { GitStorage } from '../../storage.ts';
 
+const storage = await GitStorage.open({ cwd: '.' });
 const warp = await openWarp({
-  storage: await GitStorage.open({ cwd: '.' }),
+  storage,
   writer: 'agent-1',
 });
 const timeline = await warp.timeline('events');
@@ -33,3 +34,5 @@ void role.value;
 void role.receipt;
 void userExists.value;
 void userExists.receipt;
+
+await storage.close();

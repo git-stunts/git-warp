@@ -85,6 +85,9 @@ const warp = await openWarp({
 });
 
 const events = await warp.timeline('events');
+
+// After the final lane operation:
+await storage.close();
 ```
 
 The old names are accurate implementation names, but they leak substrate
