@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +20,8 @@ const results = [];
 
 await record('fast-import visibility is checkpoint-gated', testCheckpointVisibility);
 await record('bounded one-shot output terminates on overflow', testBoundedOutputOverflow);
+await record('one-shot input rejects safely after early Git exit', testEarlyExitInput);
+await record('failed fixture setup removes its temporary repository', testFixtureFailureCleanup);
 await record('persistent batch reader drains after a missing object', testBatchReaderDrain);
 await record(
   'aborted fast-import object remains unreachable through Git GC',
@@ -95,6 +97,44 @@ async function testBoundedOutputOverflow() {
     assert(rejected, 'Bounded Git output did not reject with the overflow error');
     return { maxBuffer: 1024, oid, rejected };
   });
+}
+
+async function testEarlyExitInput() {
+  const inputBytes = 16 * 1024 * 1024;
+  let rejection = null;
+  try {
+    await executeGit(null, ['--invalid-git-warp-spike-option'], {
+      input: Buffer.alloc(inputBytes, 0x61),
+    });
+  } catch (error) {
+    rejection = error instanceof Error ? error.message : String(error);
+  }
+  assert(rejection !== null, 'Git accepted an intentionally invalid option');
+  return { inputBytes, rejected: true };
+}
+
+async function testFixtureFailureCleanup() {
+  const before = new Set(await fixtureTemporaryDirectories());
+  let rejected = false;
+  try {
+    await createFixture({
+      fanout: 1,
+      objectCount: 1,
+      packed: false,
+      payloadBytes: 1,
+      payloadProfile: 'repetitive',
+    });
+  } catch {
+    rejected = true;
+  }
+  const leaked = (await fixtureTemporaryDirectories()).filter((name) => !before.has(name));
+  assert(rejected, 'Invalid fixture payload unexpectedly succeeded');
+  assert(leaked.length === 0, `Failed fixture setup leaked: ${leaked.join(', ')}`);
+  return { leaked, rejected };
+}
+
+async function fixtureTemporaryDirectories() {
+  return (await readdir(tmpdir())).filter((name) => name.startsWith('git-warp-git-access-'));
 }
 
 async function testBatchReaderDrain() {
@@ -502,9 +542,17 @@ function failed(feature, backend, details) {
 }
 
 function errorSummary(error) {
-  return error instanceof Error
-    ? { message: error.message.replaceAll(tmpdir(), '<tmp>'), name: error.name }
-    : { message: String(error), name: typeof error };
+  return {
+    message: sanitizeErrorMessage(error instanceof Error ? error.message : String(error)),
+    name: error instanceof Error ? error.name : typeof error,
+  };
+}
+
+function sanitizeErrorMessage(message) {
+  return message
+    .replaceAll(process.cwd(), '<cwd>')
+    .replaceAll(tmpdir(), '<tmp>')
+    .replaceAll(homedir(), '<home>');
 }
 
 function assert(condition, message) {

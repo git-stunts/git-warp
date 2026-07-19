@@ -17,6 +17,28 @@ const FIXED_ENV = Object.freeze({
 
 export async function createFixture({ objectCount, payloadBytes, payloadProfile, fanout, packed }) {
   const temporaryPath = await mkdtemp(join(tmpdir(), 'git-warp-git-access-'));
+  try {
+    return await buildFixture(temporaryPath, {
+      fanout,
+      objectCount,
+      packed,
+      payloadBytes,
+      payloadProfile,
+    });
+  } catch (error) {
+    try {
+      await rm(temporaryPath, { recursive: true, force: true });
+    } catch {
+      // Preserve the setup failure; cleanup is best-effort on this error path.
+    }
+    throw error;
+  }
+}
+
+async function buildFixture(
+  temporaryPath,
+  { objectCount, payloadBytes, payloadProfile, fanout, packed }
+) {
   const gitDir = join(temporaryPath, 'fixture.git');
   await executeGit(null, ['init', '--bare', '--object-format=sha1', gitDir]);
 

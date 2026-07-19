@@ -20,13 +20,26 @@ export async function executeGit(gitDir, args, options = {}) {
     child.once('error', reject);
     child.once('close', resolve);
   });
+  const stdin = new Promise((resolve, reject) => {
+    child.stdin.once('error', (error) => {
+      terminate();
+      reject(error);
+    });
+    child.stdin.once('finish', resolve);
+    child.stdin.once('close', resolve);
+  });
   if (options.input === undefined) {
     child.stdin.end();
   } else {
     child.stdin.end(options.input);
   }
-  const [exitResult, stdoutResult, stderrResult] = await Promise.allSettled([exit, stdout, stderr]);
-  for (const result of [stdoutResult, stderrResult, exitResult]) {
+  const [exitResult, stdoutResult, stderrResult, stdinResult] = await Promise.allSettled([
+    exit,
+    stdout,
+    stderr,
+    stdin,
+  ]);
+  for (const result of [stdinResult, stdoutResult, stderrResult, exitResult]) {
     if (result.status === 'rejected') {
       throw result.reason;
     }

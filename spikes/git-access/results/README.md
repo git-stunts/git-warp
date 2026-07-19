@@ -26,8 +26,9 @@ files retain machine-readable measurements and scenario settings.
 
 ## Semantic profile
 
-- `2026-07-19T06-33-52-302Z-semantics`: lifecycle, concurrency, maintenance,
-  ref transaction, SHA-256, alternate object database, and packed-ref probes.
+- `2026-07-19T06-50-51-543Z-semantics`: process and fixture lifecycle,
+  concurrency, maintenance, ref transaction, SHA-256, alternate object
+  database, and packed-ref probes.
 
 Run the commands in the [spike README](../README.md) to generate a fresh result
 set. Treat these local numbers as architectural evidence, not portable absolute

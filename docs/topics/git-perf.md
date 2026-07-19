@@ -227,7 +227,7 @@ and preserve object-format, alternate-ODB, ref, and maintenance behavior.
 | Multi-ref transactional CAS        | yes                | no equivalent tested | no                             | no             |
 
 The executable matrix is in
-[semantic compatibility](../../spikes/git-access/results/2026-07-19T06-33-52-302Z-semantics.md).
+[semantic compatibility](../../spikes/git-access/results/2026-07-19T06-50-51-543Z-semantics.md).
 Notable observations:
 
 - stock Git read and write sessions worked in SHA-256 repositories; every
