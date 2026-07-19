@@ -1,0 +1,1780 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "git": "git version 2.50.1 (Apple Git-155)",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T06:22:17.646Z",
+  "results": [
+    {
+      "backend": "git-one-shot",
+      "fixture": "loose",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 17.152875000000023,
+      "medianMs": 18.819500000000005,
+      "operationsPerSecond": 53.136374505167495,
+      "p95Ms": 21.987874999999974,
+      "samplesMs": [
+        18.819500000000005,
+        18.35062499999998,
+        17.052750000000003,
+        21.089541999999994,
+        18.562000000000012,
+        21.987874999999974,
+        18.96124999999995
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "fixture": "loose",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 18.688499999999976,
+      "medianMs": 18.05570899999998,
+      "operationsPerSecond": 55.38414470459184,
+      "p95Ms": 19.190334000000007,
+      "samplesMs": [
+        18.05570899999998,
+        16.677333000000033,
+        17.598957999999982,
+        19.190334000000007,
+        17.443375000000003,
+        18.49120800000003,
+        18.268374999999992
+      ]
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "loose",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 86.19966600000004,
+      "medianMs": 0.7044170000000349,
+      "operationsPerSecond": 1419.6136663367727,
+      "p95Ms": 0.7667500000000018,
+      "samplesMs": [
+        0.7123749999999518,
+        0.610416999999984,
+        0.644292000000064,
+        0.7277080000000069,
+        0.6910000000000309,
+        0.7667500000000018,
+        0.7044170000000349
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "loose",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 18.567999999999984,
+      "medianMs": 0.6295410000000174,
+      "operationsPerSecond": 1588.4588930664918,
+      "p95Ms": 0.9244589999999562,
+      "samplesMs": [
+        0.7770409999999401,
+        0.9244589999999562,
+        0.6115000000000919,
+        0.6610829999999623,
+        0.5910420000000158,
+        0.5571250000000418,
+        0.6295410000000174
+      ]
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "loose",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 65.03687500000001,
+      "medianMs": 0.8605420000000095,
+      "operationsPerSecond": 1162.058330679954,
+      "p95Ms": 1.1464580000000524,
+      "samplesMs": [
+        1.0325829999999314,
+        0.8494160000000193,
+        0.8605420000000095,
+        1.1464580000000524,
+        0.9362079999999651,
+        0.7606670000000122,
+        0.8414169999999785
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "object-info",
+      "status": "measured",
+      "firstMs": 2377.155375,
+      "medianMs": 2451.0394159999996,
+      "operationsPerSecond": 52.222742386122455,
+      "p95Ms": 2483.8356669999994,
+      "samplesMs": [
+        2480.2258329999995,
+        2483.8356669999994,
+        2456.4818749999995,
+        2412.1379589999997,
+        2399.222458,
+        2368.2002500000017,
+        2451.0394159999996
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "object-info",
+      "status": "measured",
+      "firstMs": 15.847625000002154,
+      "medianMs": 3.6978330000019923,
+      "operationsPerSecond": 34614.86768059321,
+      "p95Ms": 4.341624999997293,
+      "samplesMs": [
+        4.341624999997293,
+        3.74933400000009,
+        3.7994590000016615,
+        3.286375000003318,
+        3.5565830000014103,
+        3.2612499999995634,
+        3.6978330000019923
+      ]
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "loose",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "object-info",
+      "status": "measured",
+      "firstMs": 5.990249999998923,
+      "medianMs": 5.0902920000007725,
+      "operationsPerSecond": 25145.905185789063,
+      "p95Ms": 6.440041000001656,
+      "samplesMs": [
+        5.040333999997529,
+        4.817542000000685,
+        6.440041000001656,
+        4.8616670000010345,
+        5.23504099999991,
+        5.0902920000007725,
+        5.88012499999968
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "loose",
+      "scenario": "object-info",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "object-info",
+      "status": "measured",
+      "firstMs": 70.68708300000071,
+      "medianMs": 69.27524999999878,
+      "operationsPerSecond": 1847.701740520637,
+      "p95Ms": 71.27766699999847,
+      "samplesMs": [
+        58.0256249999984,
+        64.46429100000023,
+        67.31916700000147,
+        70.80425000000105,
+        71.27766699999847,
+        69.27524999999878,
+        70.95954199999687
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-read",
+      "status": "measured",
+      "firstMs": 2440.746083000002,
+      "medianMs": 2468.343667000001,
+      "operationsPerSecond": 51.85663637979952,
+      "p95Ms": 2607.0260000000053,
+      "samplesMs": [
+        2468.343667000001,
+        2496.782583,
+        2607.0260000000053,
+        2443.142749999999,
+        2451.1247499999954,
+        2453.584624999996,
+        2483.2721669999955
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-read",
+      "status": "measured",
+      "firstMs": 21.436625000002095,
+      "medianMs": 5.126958000000741,
+      "operationsPerSecond": 24966.07149892422,
+      "p95Ms": 5.562958999995317,
+      "samplesMs": [
+        5.3848749999961,
+        5.562958999995317,
+        5.031834000001254,
+        4.720541999995476,
+        5.126958000000741,
+        4.758999999998196,
+        5.265499999994063
+      ]
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "loose",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-read",
+      "status": "measured",
+      "firstMs": 6.323292000000947,
+      "medianMs": 5.892707999999402,
+      "operationsPerSecond": 21721.761879260433,
+      "p95Ms": 6.585124999997788,
+      "samplesMs": [
+        6.520333000000392,
+        6.539042000003974,
+        5.829375000001164,
+        5.892707999999402,
+        5.802917000000889,
+        6.585124999997788,
+        5.679667000003974
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "loose",
+      "scenario": "blob-read",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-read",
+      "status": "measured",
+      "firstMs": 71.15920899999765,
+      "medianMs": 73.84270799999649,
+      "operationsPerSecond": 1733.4142187743992,
+      "p95Ms": 80.36420799999905,
+      "samplesMs": [
+        73.84270799999649,
+        80.36420799999905,
+        70.30545900000288,
+        76.56874999999854,
+        69.44341699999495,
+        77.38133300000482,
+        67.72133300000132
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 2501.8461249999964,
+      "medianMs": 2398.706624999999,
+      "operationsPerSecond": 53.36209049741548,
+      "p95Ms": 2447.5283340000024,
+      "samplesMs": [
+        2436.173582999996,
+        2398.706624999999,
+        2370.6660000000047,
+        2369.133958000006,
+        2382.863333000001,
+        2438.08262500001,
+        2447.5283340000024
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 31.59474999998929,
+      "medianMs": 15.936249999998836,
+      "operationsPerSecond": 8032.002510001371,
+      "p95Ms": 16.738166000010096,
+      "samplesMs": [
+        15.725625000006403,
+        16.682165999998688,
+        15.625333999996656,
+        15.287165999994613,
+        15.936249999998836,
+        16.738166000010096,
+        16.3152090000076
+      ]
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 14.458167000004323,
+      "medianMs": 0.1461249999993015,
+      "operationsPerSecond": 875962.3609964882,
+      "p95Ms": 0.18058299999393057,
+      "samplesMs": [
+        0.1457079999963753,
+        0.14354100001219194,
+        0.18058299999393057,
+        0.13745900000503752,
+        0.14933300000848249,
+        0.1461249999993015,
+        0.1495839999988675
+      ]
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "tree-entry",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "tree-entry",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "tree-entry",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "tree-entry",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 3.609916000001249,
+      "medianMs": 2.9884170000004815,
+      "operationsPerSecond": 42832.041177646686,
+      "p95Ms": 4.600208000003477,
+      "samplesMs": [
+        3.255541999998968,
+        2.806958000001032,
+        3.4318749999947613,
+        4.600208000003477,
+        2.9884170000004815,
+        2.685790999996243,
+        2.60237499998766
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 2.5544170000066515,
+      "medianMs": 1.930500000002212,
+      "operationsPerSecond": 66304.06630399033,
+      "p95Ms": 2.217499999998836,
+      "samplesMs": [
+        1.8189169999968726,
+        1.9671669999952428,
+        1.8896669999958249,
+        2.015207999997074,
+        1.8372079999971902,
+        2.217499999998836,
+        1.930500000002212
+      ]
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 34.201167000006535,
+      "medianMs": 30.655875000011292,
+      "operationsPerSecond": 4175.382369609507,
+      "p95Ms": 32.52741700000479,
+      "samplesMs": [
+        32.52741700000479,
+        30.655875000011292,
+        30.882165999995777,
+        29.89641699999629,
+        29.48320899999817,
+        31.446540999997524,
+        29.463165999986813
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "ref-read",
+      "status": "measured",
+      "firstMs": 2198.1359999999986,
+      "medianMs": 2169.9611250000016,
+      "operationsPerSecond": 58.98723185651536,
+      "p95Ms": 2176.7211249999964,
+      "samplesMs": [
+        2154.809291999991,
+        2169.9611250000016,
+        2176.7211249999964,
+        2157.591499999995,
+        2175.5411250000034,
+        2174.7972080000036,
+        2161.157167000012
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "equivalentTo": "git-one-shot",
+      "fixture": "loose",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "loose",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "ref-read",
+      "status": "measured",
+      "firstMs": 17.46370899998874,
+      "medianMs": 0.03545799999847077,
+      "operationsPerSecond": 3609904.676110339,
+      "p95Ms": 0.03800000000046566,
+      "samplesMs": [
+        0.03333299999940209,
+        0.03545799999847077,
+        0.03616700001293793,
+        0.032915999996475875,
+        0.03800000000046566,
+        0.03566700000374112,
+        0.03495800000382587
+      ]
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "ref-read",
+      "status": "measured",
+      "firstMs": 6.969833000010112,
+      "medianMs": 5.736833000002662,
+      "operationsPerSecond": 22311.962018057802,
+      "p95Ms": 6.798083000001498,
+      "samplesMs": [
+        5.208290999988094,
+        6.307958000004874,
+        5.493166999993264,
+        5.508625000002212,
+        6.798083000001498,
+        5.736833000002662,
+        6.444333000006736
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "loose",
+      "scenario": "ref-read",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "ref-read",
+      "status": "measured",
+      "firstMs": 19.573499999998603,
+      "medianMs": 18.06104200000118,
+      "operationsPerSecond": 7087.077257225339,
+      "p95Ms": 19.482457999998587,
+      "samplesMs": [
+        18.06104200000118,
+        19.482457999998587,
+        18.053249999997206,
+        18.30466599999636,
+        17.738832999995793,
+        18.973333999994793,
+        17.484708000003593
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 2452.4835420000018,
+      "medianMs": 2318.0468330000003,
+      "operationsPerSecond": 55.21890161051806,
+      "p95Ms": 2329.709625000003,
+      "samplesMs": [
+        2318.0468330000003,
+        2311.04729100001,
+        2310.186084000001,
+        2318.972790999993,
+        2320.9902500000026,
+        2303.593417000011,
+        2329.709625000003
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "equivalentTo": "git-one-shot",
+      "fixture": "loose",
+      "scenario": "blob-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "loose",
+      "scenario": "blob-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "blob-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "blob-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 26.370708000002196,
+      "medianMs": 25.797749999997905,
+      "operationsPerSecond": 4961.673014119851,
+      "p95Ms": 25.959415999997873,
+      "samplesMs": [
+        25.731124999991152,
+        25.939790999997058,
+        25.959415999997873,
+        25.80204199999571,
+        25.24649999999383,
+        25.797749999997905,
+        25.713208000001032
+      ]
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 25.80745800001023,
+      "medianMs": 26.530166999989888,
+      "operationsPerSecond": 4824.696354155961,
+      "p95Ms": 27.21349999999802,
+      "samplesMs": [
+        26.39366699999664,
+        27.21349999999802,
+        26.530166999989888,
+        27.19399999998859,
+        26.13758300000336,
+        26.92120799999975,
+        26.233625000008033
+      ]
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 87.1747919999907,
+      "medianMs": 81.48958300000231,
+      "operationsPerSecond": 1570.752914516649,
+      "p95Ms": 83.84066599998914,
+      "samplesMs": [
+        83.84066599998914,
+        81.67262500000652,
+        81.63054200001352,
+        81.48958300000231,
+        81.04954199999338,
+        79.23487499999464,
+        81.23233299999265
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 76.07066599999962,
+      "medianMs": 75.59091699999408,
+      "operationsPerSecond": 1693.3251385217357,
+      "p95Ms": 75.99608399999852,
+      "samplesMs": [
+        74.80387499999779,
+        75.45791699999245,
+        75.99608399999852,
+        75.52650000000722,
+        75.59091699999408,
+        75.70466699999815,
+        75.79095799999777
+      ]
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 78.82150000000547,
+      "medianMs": 45.28820799999812,
+      "operationsPerSecond": 2826.3427866257216,
+      "p95Ms": 49.18158299999777,
+      "samplesMs": [
+        49.18158299999777,
+        46.040750000000116,
+        45.14908300001116,
+        44.21287499999744,
+        43.1461249999993,
+        47.09375,
+        45.28820799999812
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-write",
+      "status": "measured",
+      "firstMs": 2449.0071670000034,
+      "medianMs": 2474.492707999976,
+      "operationsPerSecond": 51.727774176169135,
+      "p95Ms": 2583.1651659999916,
+      "samplesMs": [
+        2474.492707999976,
+        2583.1651659999916,
+        2479.2762500000244,
+        2469.0633329999982,
+        2438.5624580000003,
+        2446.185125000018,
+        2481.4159999999974
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "equivalentTo": "git-one-shot",
+      "fixture": "loose",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "loose",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "loose",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-write",
+      "status": "measured",
+      "firstMs": 107.32870800001547,
+      "medianMs": 94.04929200001061,
+      "operationsPerSecond": 1360.9884484827974,
+      "p95Ms": 97.61054200000945,
+      "samplesMs": [
+        95.66679099999601,
+        97.61054200000945,
+        94.02999999999884,
+        96.29916700001922,
+        94.04929200001061,
+        94.00691699999152,
+        89.88891699997475
+      ]
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "loose",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-write",
+      "status": "measured",
+      "firstMs": 87.33854200001224,
+      "medianMs": 89.14412500002072,
+      "operationsPerSecond": 1435.8770137681001,
+      "p95Ms": 119.10787499998696,
+      "samplesMs": [
+        119.10787499998696,
+        87.30762499998673,
+        90.82291700001224,
+        89.14412500002072,
+        93.80741700000362,
+        87.47650000001886,
+        88.16770799999358
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "loose",
+      "scenario": "tree-write",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "loose",
+      "operationCount": 128,
+      "scenario": "tree-write",
+      "status": "measured",
+      "firstMs": 52.71166599998833,
+      "medianMs": 50.51908299999195,
+      "operationsPerSecond": 2533.696029281062,
+      "p95Ms": 52.78891700002714,
+      "samplesMs": [
+        50.88004199997522,
+        50.51908299999195,
+        52.78891700002714,
+        51.54920800001128,
+        47.59429199999431,
+        50.08200000002398,
+        48.636209000018425
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "packed",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 18.852207999996608,
+      "medianMs": 17.93458400000236,
+      "operationsPerSecond": 55.758193220420864,
+      "p95Ms": 19.27820800000336,
+      "samplesMs": [
+        18.346582999976818,
+        17.93458400000236,
+        17.741125000000466,
+        16.95199999999022,
+        19.27820800000336,
+        17.835542000015266,
+        17.962750000006054
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "fixture": "packed",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 17.63208300000406,
+      "medianMs": 18.20062499999767,
+      "operationsPerSecond": 54.94316816044108,
+      "p95Ms": 19.03533299997798,
+      "samplesMs": [
+        17.57408399999258,
+        18.473125000018626,
+        18.20062499999767,
+        18.067708999995375,
+        18.86395800000173,
+        19.03533299997798,
+        17.96904200001154
+      ]
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "packed",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 0.7425829999847338,
+      "medianMs": 0.6585419999901205,
+      "operationsPerSecond": 1518.5060330472497,
+      "p95Ms": 0.723167000018293,
+      "samplesMs": [
+        0.7178750000020955,
+        0.6187499999941792,
+        0.723167000018293,
+        0.6456669999752194,
+        0.6585419999901205,
+        0.6812499999941792,
+        0.6532500000030268
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "packed",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 0.7138750000158325,
+      "medianMs": 0.5533329999889247,
+      "operationsPerSecond": 1807.230004391597,
+      "p95Ms": 0.9219169999996666,
+      "samplesMs": [
+        0.5533329999889247,
+        0.6098330000240821,
+        0.5548750000016298,
+        0.9219169999996666,
+        0.5345419999794103,
+        0.5138330000045244,
+        0.491042000008747
+      ]
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "packed",
+      "operationCount": 1,
+      "scenario": "session-first-tree",
+      "status": "measured",
+      "firstMs": 1.674417000001995,
+      "medianMs": 1.2379169999912847,
+      "operationsPerSecond": 807.8086010669862,
+      "p95Ms": 1.3220000000146683,
+      "samplesMs": [
+        1.3155419999966398,
+        1.2070420000236481,
+        1.2455000000190921,
+        1.3220000000146683,
+        1.1269580000080168,
+        1.1512079999956768,
+        1.2379169999912847
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "object-info",
+      "status": "measured",
+      "firstMs": 2259.071957999986,
+      "medianMs": 2255.671666999988,
+      "operationsPerSecond": 56.74584731129697,
+      "p95Ms": 2304.498667000007,
+      "samplesMs": [
+        2236.774541999999,
+        2243.5189170000085,
+        2304.498667000007,
+        2255.671666999988,
+        2258.307582999987,
+        2250.725334000017,
+        2270.6633750000037
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "object-info",
+      "status": "measured",
+      "firstMs": 15.607167000009213,
+      "medianMs": 3.073833000002196,
+      "operationsPerSecond": 41641.81983858868,
+      "p95Ms": 3.9795840000151657,
+      "samplesMs": [
+        3.4123750000144355,
+        3.9795840000151657,
+        3.700582999998005,
+        2.4822080000012647,
+        2.354875000019092,
+        3.0041670000064187,
+        3.073833000002196
+      ]
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "packed",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "object-info",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "object-info",
+      "status": "measured",
+      "firstMs": 5.6450000000186265,
+      "medianMs": 4.811374999990221,
+      "operationsPerSecond": 26603.62162588868,
+      "p95Ms": 6.027166000014404,
+      "samplesMs": [
+        4.807375000003958,
+        4.811374999990221,
+        4.94195900001796,
+        4.4701659999846015,
+        5.080667000001995,
+        6.027166000014404,
+        4.800874999986263
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "packed",
+      "scenario": "object-info",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "object-info",
+      "status": "measured",
+      "firstMs": 68.16333300000406,
+      "medianMs": 62.530750000005355,
+      "operationsPerSecond": 2046.9928795031092,
+      "p95Ms": 87.55074999999488,
+      "samplesMs": [
+        62.530750000005355,
+        58.878916999994544,
+        62.258874999999534,
+        59.07554200000595,
+        65.13541700001224,
+        87.55074999999488,
+        64.80958400000236
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-read",
+      "status": "measured",
+      "firstMs": 2245.548624999996,
+      "medianMs": 2140.5949580000015,
+      "operationsPerSecond": 59.79645963456478,
+      "p95Ms": 2275.9095830000006,
+      "samplesMs": [
+        2211.501250000001,
+        2140.5949580000015,
+        2166.4855830000015,
+        2120.146999999997,
+        2110.326375000004,
+        2136.821834000002,
+        2275.9095830000006
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-read",
+      "status": "measured",
+      "firstMs": 16.55858400001307,
+      "medianMs": 4.620667000010144,
+      "operationsPerSecond": 27701.628357923,
+      "p95Ms": 5.191292000003159,
+      "samplesMs": [
+        4.232709000003524,
+        5.191292000003159,
+        4.620667000010144,
+        4.67354200000409,
+        5.103124999994179,
+        4.282999999995809,
+        4.237833999999566
+      ]
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "packed",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "blob-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-read",
+      "status": "measured",
+      "firstMs": 5.767207999975653,
+      "medianMs": 5.147040999989258,
+      "operationsPerSecond": 24868.65754523174,
+      "p95Ms": 5.498416999995243,
+      "samplesMs": [
+        5.498416999995243,
+        5.147040999989258,
+        5.1392090000153985,
+        5.275208999984898,
+        5.13170899997931,
+        5.2335000000020955,
+        5.072875000012573
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "packed",
+      "scenario": "blob-read",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-read",
+      "status": "measured",
+      "firstMs": 59.577874999988126,
+      "medianMs": 54.70091700000921,
+      "operationsPerSecond": 2339.9973349620163,
+      "p95Ms": 58.13454099997762,
+      "samplesMs": [
+        52.8672910000023,
+        52.37491700000828,
+        54.50554199999897,
+        58.13454099997762,
+        58.10308299999451,
+        55.23583300001337,
+        54.70091700000921
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 2180.2146249999932,
+      "medianMs": 2169.663415999996,
+      "operationsPerSecond": 58.995325752407055,
+      "p95Ms": 2404.669958000013,
+      "samplesMs": [
+        2253.7043330000015,
+        2313.1568330000155,
+        2404.669958000013,
+        2165.9498329999915,
+        2169.663415999996,
+        2152.8981670000067,
+        2168.4652910000004
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 19.337832999997772,
+      "medianMs": 6.182292000012239,
+      "operationsPerSecond": 20704.295429550497,
+      "p95Ms": 6.746207999996841,
+      "samplesMs": [
+        5.929917000001296,
+        6.182292000012239,
+        6.746207999996841,
+        5.826000000000931,
+        5.663125000020955,
+        6.229707999998936,
+        6.337040999991586
+      ]
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 13.652750000008382,
+      "medianMs": 0.13120800000615418,
+      "operationsPerSecond": 975550.271279162,
+      "p95Ms": 0.14845800001057796,
+      "samplesMs": [
+        0.13087500000256114,
+        0.1290840000147,
+        0.13687499999650754,
+        0.13229199999477714,
+        0.14845800001057796,
+        0.12895800001570024,
+        0.13120800000615418
+      ]
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "tree-entry",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "tree-entry",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "tree-entry",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "tree-entry",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 2.995208000007551,
+      "medianMs": 2.6695830000098795,
+      "operationsPerSecond": 47947.56334585825,
+      "p95Ms": 3.154292000021087,
+      "samplesMs": [
+        2.784875000012107,
+        2.527874999999767,
+        2.453332999983104,
+        2.6317090000084136,
+        2.8170830000017304,
+        2.6695830000098795,
+        3.154292000021087
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 2.2239170000248123,
+      "medianMs": 1.963292000000365,
+      "operationsPerSecond": 65196.61874034846,
+      "p95Ms": 1.9936249999736901,
+      "samplesMs": [
+        1.9384589999972377,
+        1.986957999994047,
+        1.9683749999967404,
+        1.9287919999915175,
+        1.8581669999985024,
+        1.9936249999736901,
+        1.963292000000365
+      ]
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-entry",
+      "status": "measured",
+      "firstMs": 58.75066599997808,
+      "medianMs": 55.39000000001397,
+      "operationsPerSecond": 2310.886441595373,
+      "p95Ms": 60.14920899999561,
+      "samplesMs": [
+        58.72224999999162,
+        59.30708400000003,
+        55.39000000001397,
+        52.68954200000735,
+        60.14920899999561,
+        55.307583000016166,
+        53.60583299997961
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "ref-read",
+      "status": "measured",
+      "firstMs": 2044.6562080000003,
+      "medianMs": 2066.7365419999987,
+      "operationsPerSecond": 61.93338986309948,
+      "p95Ms": 2097.857958000008,
+      "samplesMs": [
+        2058.8965409999946,
+        2066.7365419999987,
+        2047.7627499999944,
+        2047.0260830000043,
+        2082.649040999997,
+        2097.857958000008,
+        2067.748749999999
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "equivalentTo": "git-one-shot",
+      "fixture": "packed",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "packed",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "ref-read",
+      "status": "measured",
+      "firstMs": 16.331082999997307,
+      "medianMs": 0.02995799999916926,
+      "operationsPerSecond": 4272648.3745092945,
+      "p95Ms": 0.0313750000204891,
+      "samplesMs": [
+        0.03033300000242889,
+        0.03062500001396984,
+        0.0313750000204891,
+        0.02979199998662807,
+        0.0282500000030268,
+        0.02995799999916926,
+        0.028542000014567748
+      ]
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "ref-read",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "ref-read",
+      "status": "measured",
+      "firstMs": 6.257041000004392,
+      "medianMs": 5.702208000002429,
+      "operationsPerSecond": 22447.444919572466,
+      "p95Ms": 6.030666999984533,
+      "samplesMs": [
+        5.714124999998603,
+        5.51104199999827,
+        5.519916999997804,
+        5.702208000002429,
+        5.777750000008382,
+        5.345708000008017,
+        6.030666999984533
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "packed",
+      "scenario": "ref-read",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "ref-read",
+      "status": "measured",
+      "firstMs": 17.11154099999112,
+      "medianMs": 16.804915999993682,
+      "operationsPerSecond": 7616.8187927894505,
+      "p95Ms": 24.74416599998949,
+      "samplesMs": [
+        24.74416599998949,
+        17.217333000007784,
+        16.826042000000598,
+        16.487750000000233,
+        16.804915999993682,
+        16.635917000006884,
+        16.444916999986162
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 2235.1416249999893,
+      "medianMs": 2217.6854579999927,
+      "operationsPerSecond": 57.71783349088473,
+      "p95Ms": 2288.253874999995,
+      "samplesMs": [
+        2231.5037500000035,
+        2214.2413329999836,
+        2217.6854579999927,
+        2215.4892080000136,
+        2233.4803339999635,
+        2211.286458000017,
+        2288.253874999995
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "equivalentTo": "git-one-shot",
+      "fixture": "packed",
+      "scenario": "blob-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "packed",
+      "scenario": "blob-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "blob-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "blob-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 25.473042000026908,
+      "medianMs": 25.256082999985665,
+      "operationsPerSecond": 5068.085973587933,
+      "p95Ms": 27.056540999969002,
+      "samplesMs": [
+        26.43837500002701,
+        27.056540999969002,
+        25.918084000004455,
+        24.58204199996544,
+        24.86466699995799,
+        25.256082999985665,
+        24.909541000030003
+      ]
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 23.531083000008948,
+      "medianMs": 26.302916000015102,
+      "operationsPerSecond": 4866.380594452969,
+      "p95Ms": 30.336750000016764,
+      "samplesMs": [
+        25.844583999947645,
+        30.336750000016764,
+        29.680540999979712,
+        29.165291999990586,
+        26.302916000015102,
+        24.909082999976818,
+        25.714167000027373
+      ]
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 82.92233299999498,
+      "medianMs": 83.64016599999741,
+      "operationsPerSecond": 1530.3652075487746,
+      "p95Ms": 85.6329160000314,
+      "samplesMs": [
+        81.5832909999881,
+        83.4753329999512,
+        82.0491659999825,
+        83.64016599999741,
+        85.6329160000314,
+        85.2019169999985,
+        84.48458400001982
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 78.0259579999838,
+      "medianMs": 77.00224999996135,
+      "operationsPerSecond": 1662.2890889560274,
+      "p95Ms": 77.93570799997542,
+      "samplesMs": [
+        77.93570799997542,
+        77.06762500002515,
+        76.94287500000792,
+        76.97937499999534,
+        77.13362500001676,
+        77.00224999996135,
+        76.37650000001304
+      ]
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "blob-write",
+      "status": "measured",
+      "firstMs": 51.82737499999348,
+      "medianMs": 48.28970800002571,
+      "operationsPerSecond": 2650.6683370280857,
+      "p95Ms": 71.73383300000569,
+      "samplesMs": [
+        46.19291600002907,
+        45.623291999974754,
+        44.28104099998018,
+        49.95504199998686,
+        48.28970800002571,
+        71.73383300000569,
+        54.17133300000569
+      ]
+    },
+    {
+      "backend": "git-one-shot",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-write",
+      "status": "measured",
+      "firstMs": 2488.0260000000126,
+      "medianMs": 2370.5344580000383,
+      "operationsPerSecond": 53.99626213743817,
+      "p95Ms": 2390.3527079999913,
+      "samplesMs": [
+        2360.7248339999933,
+        2388.1241670000018,
+        2337.2334169999813,
+        2381.111042000004,
+        2370.5344580000383,
+        2390.3527079999913,
+        2364.3052920000046
+      ]
+    },
+    {
+      "backend": "git-persistent",
+      "equivalentTo": "git-one-shot",
+      "fixture": "packed",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-tree-cache",
+      "equivalentTo": "git-persistent",
+      "fixture": "packed",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-session-cache",
+      "equivalentTo": "git-persistent-tree-cache",
+      "fixture": "packed",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-persistent-mktree",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-write",
+      "status": "measured",
+      "firstMs": 102.71383299998706,
+      "medianMs": 88.91804200003389,
+      "operationsPerSecond": 1439.5278744436503,
+      "p95Ms": 91.64608299999963,
+      "samplesMs": [
+        89.82787499995902,
+        87.76812500000233,
+        88.91804200003389,
+        88.67179200000828,
+        88.18191699997988,
+        89.05608299997402,
+        91.64608299999963
+      ]
+    },
+    {
+      "backend": "git-fast-import-batch",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "git-fast-import-pack",
+      "equivalentTo": "not applicable",
+      "fixture": "packed",
+      "scenario": "tree-write",
+      "status": "equivalent"
+    },
+    {
+      "backend": "nodegit",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-write",
+      "status": "measured",
+      "firstMs": 83.10625000001164,
+      "medianMs": 83.59245799999917,
+      "operationsPerSecond": 1531.2386196372076,
+      "p95Ms": 85.53816699999152,
+      "samplesMs": [
+        83.17816700000549,
+        83.59245799999917,
+        83.48708300001454,
+        84.1596669999999,
+        85.53816699999152,
+        83.31908400001703,
+        83.66491699998733
+      ]
+    },
+    {
+      "backend": "napi-libgit2",
+      "fixture": "packed",
+      "scenario": "tree-write",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "fixture": "packed",
+      "operationCount": 128,
+      "scenario": "tree-write",
+      "status": "measured",
+      "firstMs": 47.26899999997113,
+      "medianMs": 46.747541999968234,
+      "operationsPerSecond": 2738.111877627426,
+      "p95Ms": 49.10358300001826,
+      "samplesMs": [
+        44.56604199996218,
+        46.747541999968234,
+        48.75787499995204,
+        46.37670899997465,
+        46.787416999985,
+        49.10358300001826,
+        45.72733299998799
+      ]
+    }
+  ],
+  "settings": {
+    "fixtureObjects": 256,
+    "operationCount": 128,
+    "payloadBytes": 4096,
+    "payloadProfile": "repetitive",
+    "samples": 7,
+    "warmups": 2
+  }
+}

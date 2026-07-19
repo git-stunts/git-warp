@@ -1,0 +1,241 @@
+{
+  "generatedAt": "2026-07-19T06:56:00.882Z",
+  "results": [
+    {
+      "backend": "stock-git",
+      "details": {
+        "oid": "63ef4e86bfd167c12d45f9a74aecf53de3a2897d",
+        "visibleAfterCheckpoint": true,
+        "visibleBeforeCheckpoint": false
+      },
+      "feature": "fast-import visibility is checkpoint-gated",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "maxBuffer": 1024,
+        "oid": "dbdcf4b7feebd9fab1c18b1b8c016c8e56f33962",
+        "rejected": true
+      },
+      "feature": "bounded one-shot output terminates on overflow",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "inputBytes": 16777216,
+        "rejected": true
+      },
+      "feature": "one-shot input rejects safely after early Git exit",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "leaked": [],
+        "rejected": true
+      },
+      "feature": "failed fixture setup removes its temporary repository",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "leftOid": "0b134993a16713c6a2c2e94ef3af94b7ca3c8ecb",
+        "missingOid": "0000000000000000000000000000000000000000",
+        "rejected": true,
+        "rightOid": "b6db82dcb4bf7df05cbb86c36bbf195a9c713fc0"
+      },
+      "feature": "persistent batch reader drains after a missing object",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "oid": "61fb9d1839999334c0d56a6c8bafb7d6c9db446b",
+        "visibleAfterAbort": false,
+        "visibleAfterGc": false
+      },
+      "feature": "aborted fast-import object remains unreachable through Git GC",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "inventory": {
+          "count": 2,
+          "size": 8,
+          "in-pack": 0,
+          "packs": 0,
+          "size-pack": 0,
+          "prune-packable": 0,
+          "garbage": 0,
+          "size-garbage": 0
+        },
+        "leftOid": "4bcbee590c80629c58e69ba6da5acb7e8bbeeabf",
+        "rightOid": "225b2c9cbd4a26357525072a48fc4d612fb22748"
+      },
+      "feature": "concurrent fast-import sessions remain readable",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "inventory": {
+          "count": 0,
+          "size": 0,
+          "in-pack": 1,
+          "packs": 1,
+          "size-pack": 1,
+          "prune-packable": 0,
+          "garbage": 0,
+          "size-garbage": 0
+        },
+        "gcArguments": [
+          "gc"
+        ],
+        "oid": "c715d205e9b36ad83549119f7cc54c230d22b378"
+      },
+      "feature": "active fast-import survives concurrent default Git GC",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "message": "git fast-import exited 128: error: unable to write file <tmp>/git-warp-semantics-y8hKw5/fixture.git/objects/pack/pack-40a5f0daa4817f8203fd3233d127c34269e84cac.pack: No such file or directory\nfatal: cannot store pack file\nfast-import: dumping crash report to <tmp>/git-warp-semantics-y8hKw5/fixture.git/fast_import_crash_936\n",
+        "name": "Error"
+      },
+      "feature": "active fast-import survives concurrent prune-now Git GC",
+      "status": "failed"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "firstOid": "d2789120e573f810e14274fd073b5d394b98abb9",
+        "lastOid": "d0d72c3a60bd29929848b4729c9f7118a74caeff"
+      },
+      "feature": "active persistent reader survives repack",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "oid": "233f842082233cfe7771ff46f1368b332594053c"
+      },
+      "feature": "persistent reader discovers post-start objects",
+      "status": "supported"
+    },
+    {
+      "backend": "stock-git",
+      "details": {
+        "anchor": "refs/cas/anchor",
+        "firstCommit": "5ac47e21b1b57b85c3486e8209ce279403bb90a1",
+        "source": "refs/cas/source",
+        "staleTransactionRejected": true
+      },
+      "feature": "stock Git supports atomic multi-ref CAS",
+      "status": "supported"
+    },
+    {
+      "backend": "git-persistent",
+      "details": {
+        "oid": "cb3eb26e214a7ecff1d66c73afaa9a45dc6167f179f40d37a1255444120a918a",
+        "treeOid": "e7b80b3b0e11e1bd48974f39e7172e1ad1626fbc8261bb81228be9e6faca1bd6"
+      },
+      "feature": "sha256",
+      "status": "supported"
+    },
+    {
+      "backend": "nodegit",
+      "details": {
+        "message": "unknown object format 'sha256'",
+        "name": "Error"
+      },
+      "feature": "sha256",
+      "status": "unsupported"
+    },
+    {
+      "backend": "napi-libgit2",
+      "details": {
+        "message": "Failed to open git repo: unknown object format 'sha256'; class=Repository (6); code=Invalid (-21)",
+        "name": "Error"
+      },
+      "feature": "sha256",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "details": {
+        "message": "An internal error caused this command to fail.\n\nIf you're using an application that depends on isomorphic-git, please report this error to that application's developers.\n\nIf you're a developer and you believe this is a bug in isomorphic-git, please file an issue at https://github.com/isomorphic-git/isomorphic-git/issues with a minimal reproduction, version and environment details, and this error message: SHA check failed! Expected cb3eb26e214a7ecff1d66c73afaa9a45dc6167f179f40d37a1255444120a918a, computed c1328a4883cf68f3c73d0e5e4612ed01f8260a24",
+        "name": "InternalError"
+      },
+      "feature": "sha256",
+      "status": "failed"
+    },
+    {
+      "backend": "git-persistent",
+      "details": {
+        "oid": "4aa2cd1ccc052893075d7c2707ca4da2cb6e6bf0"
+      },
+      "feature": "alternates",
+      "status": "supported"
+    },
+    {
+      "backend": "nodegit",
+      "details": {
+        "oid": "4aa2cd1ccc052893075d7c2707ca4da2cb6e6bf0"
+      },
+      "feature": "alternates",
+      "status": "supported"
+    },
+    {
+      "backend": "napi-libgit2",
+      "details": null,
+      "feature": "alternates",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "details": {
+        "message": "Could not find 4aa2cd1ccc052893075d7c2707ca4da2cb6e6bf0.",
+        "name": "NotFoundError"
+      },
+      "feature": "alternates",
+      "status": "failed"
+    },
+    {
+      "backend": "git-persistent",
+      "details": {
+        "actual": "04c5b7dd6825ca8bcc794f7ce57e145178190053",
+        "expected": "04c5b7dd6825ca8bcc794f7ce57e145178190053"
+      },
+      "feature": "packed-ref",
+      "status": "supported"
+    },
+    {
+      "backend": "nodegit",
+      "details": {
+        "actual": "04c5b7dd6825ca8bcc794f7ce57e145178190053",
+        "expected": "04c5b7dd6825ca8bcc794f7ce57e145178190053"
+      },
+      "feature": "packed-ref",
+      "status": "supported"
+    },
+    {
+      "backend": "napi-libgit2",
+      "details": null,
+      "feature": "packed-ref",
+      "status": "unsupported"
+    },
+    {
+      "backend": "isomorphic-git",
+      "details": {
+        "actual": "04c5b7dd6825ca8bcc794f7ce57e145178190053",
+        "expected": "04c5b7dd6825ca8bcc794f7ce57e145178190053"
+      },
+      "feature": "packed-ref",
+      "status": "supported"
+    }
+  ]
+}

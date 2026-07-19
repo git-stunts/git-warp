@@ -1,0 +1,19 @@
+{
+  "name": "git-warp-git-access-spike",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20 <25"
+  },
+  "scripts": {
+    "profile": "node --expose-gc ./src/run.mjs",
+    "profile:resources": "node ./src/resource-profile.mjs",
+    "semantics": "node ./src/semantics.mjs",
+    "smoke": "node --expose-gc ./src/run.mjs --quick"
+  },
+  "dependencies": {
+    "@napi-rs/simple-git": "1.1.0",
+    "isomorphic-git": "1.38.7",
+    "nodegit": "0.28.0-alpha.38"
+  }
+}

@@ -1,0 +1,176 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T06:12:26.338Z",
+  "results": [
+    {
+      "backend": "git-fast-import-pack",
+      "cpuMs": 12890,
+      "processRealMs": 10580,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 85377024
+          },
+          {
+            "command": "git",
+            "rssBytes": 12713984
+          }
+        ],
+        "totalBytes": 99303424
+      },
+      "processTreePeakRssBytes": 99303424,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 10538.903583000001,
+        "checksum": 355555272
+      },
+      "workerMaxRssBytes": 103120896,
+      "oidCount": 65536,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 65536,
+        "packs": 1,
+        "size-pack": 264833,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "isomorphic-git",
+      "cpuMs": 30600,
+      "processRealMs": 28990,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 150093824
+          }
+        ],
+        "totalBytes": 151306240
+      },
+      "processTreePeakRssBytes": 151306240,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 28871.511833,
+        "checksum": 355555272
+      },
+      "workerMaxRssBytes": 167886848,
+      "oidCount": 65536,
+      "repository": {
+        "count": 65536,
+        "size": 524288,
+        "in-pack": 0,
+        "packs": 0,
+        "size-pack": 0,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "napi-libgit2",
+      "cpuMs": 45820,
+      "processRealMs": 49140,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 103235584
+          }
+        ],
+        "totalBytes": 104448000
+      },
+      "processTreePeakRssBytes": 104448000,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 49069.543542,
+        "checksum": 355555272
+      },
+      "workerMaxRssBytes": 115392512,
+      "oidCount": 65536,
+      "repository": {
+        "count": 65536,
+        "size": 524288,
+        "in-pack": 0,
+        "packs": 0,
+        "size-pack": 0,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "nodegit",
+      "cpuMs": 47150,
+      "processRealMs": 50100,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 127942656
+          }
+        ],
+        "totalBytes": 129155072
+      },
+      "processTreePeakRssBytes": 129155072,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 49961.497667,
+        "checksum": 355555272
+      },
+      "workerMaxRssBytes": 141819904,
+      "oidCount": 65536,
+      "repository": {
+        "count": 65536,
+        "size": 524288,
+        "in-pack": 0,
+        "packs": 0,
+        "size-pack": 0,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    }
+  ],
+  "settings": {
+    "batchBytes": 262144,
+    "heapLimitMb": 64,
+    "operationCount": 65536,
+    "payloadBytes": 4096,
+    "payloadProfile": "random",
+    "samples": 1,
+    "corpusBytes": 268435456
+  }
+}

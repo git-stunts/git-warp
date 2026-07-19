@@ -1,0 +1,51 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T06:12:39.783Z",
+  "results": [
+    {
+      "backend": "git-persistent-buffered",
+      "cpuMs": 1220,
+      "processRealMs": 680,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 150487040
+          },
+          {
+            "command": "git",
+            "rssBytes": 36716544
+          }
+        ],
+        "totalBytes": 188416000
+      },
+      "processTreePeakRssBytes": 188416000,
+      "scenario": "blob-read",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 634.817667,
+        "checksum": 2129060742
+      },
+      "workerMaxRssBytes": 151732224,
+      "sample": 0
+    }
+  ],
+  "settings": {
+    "batchBytes": 262144,
+    "heapLimitMb": 64,
+    "operationCount": 65536,
+    "payloadBytes": 4096,
+    "payloadProfile": "random",
+    "samples": 1,
+    "corpusBytes": 268435456
+  }
+}

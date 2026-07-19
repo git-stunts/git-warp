@@ -1,0 +1,188 @@
+{
+  "environment": {
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "node": "v24.12.0",
+    "platform": "darwin"
+  },
+  "generatedAt": "2026-07-19T06:16:26.096Z",
+  "results": [
+    {
+      "backend": "git-fast-import-pack",
+      "cpuMs": 2550,
+      "processRealMs": 2310,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 99450880
+          },
+          {
+            "command": "git",
+            "rssBytes": 6569984
+          }
+        ],
+        "totalBytes": 107233280
+      },
+      "processTreePeakRssBytes": 107233280,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 2278.2774999999997,
+        "checksum": 1925391253
+      },
+      "workerMaxRssBytes": 99549184,
+      "oidCount": 1024,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 1024,
+        "packs": 1,
+        "size-pack": 315,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "git-fast-import-no-delta",
+      "cpuMs": 2490,
+      "processRealMs": 2290,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 95125504
+          },
+          {
+            "command": "git",
+            "rssBytes": 6651904
+          }
+        ],
+        "totalBytes": 102989824
+      },
+      "processTreePeakRssBytes": 102989824,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 2259.241333,
+        "checksum": 1925391253
+      },
+      "workerMaxRssBytes": 95338496,
+      "oidCount": 1024,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 1024,
+        "packs": 1,
+        "size-pack": 315,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "git-fast-import-no-delta-zlib1",
+      "cpuMs": 2180,
+      "processRealMs": 1980,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 96010240
+          },
+          {
+            "command": "git",
+            "rssBytes": 6520832
+          }
+        ],
+        "totalBytes": 103743488
+      },
+      "processTreePeakRssBytes": 103743488,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 1946.4389170000002,
+        "checksum": 1925391253
+      },
+      "workerMaxRssBytes": 96043008,
+      "oidCount": 1024,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 1024,
+        "packs": 1,
+        "size-pack": 1205,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    },
+    {
+      "backend": "git-fast-import-no-delta-uncompressed",
+      "cpuMs": 3640,
+      "processRealMs": 3460,
+      "processTreePeak": {
+        "members": [
+          {
+            "command": "time",
+            "rssBytes": 1212416
+          },
+          {
+            "command": "node",
+            "rssBytes": 99270656
+          },
+          {
+            "command": "git",
+            "rssBytes": 6537216
+          }
+        ],
+        "totalBytes": 107020288
+      },
+      "processTreePeakRssBytes": 107020288,
+      "scenario": "blob-write",
+      "status": "measured",
+      "worker": {
+        "operationWallMs": 3427.882333,
+        "checksum": 1925391253
+      },
+      "workerMaxRssBytes": 99500032,
+      "oidCount": 1024,
+      "repository": {
+        "count": 0,
+        "size": 0,
+        "in-pack": 1024,
+        "packs": 1,
+        "size-pack": 262208,
+        "prune-packable": 0,
+        "garbage": 0,
+        "size-garbage": 0
+      },
+      "sample": 0
+    }
+  ],
+  "settings": {
+    "batchBytes": 262144,
+    "heapLimitMb": 64,
+    "operationCount": 1024,
+    "payloadBytes": 262144,
+    "payloadProfile": "repetitive",
+    "samples": 1,
+    "corpusBytes": 268435456
+  }
+}
