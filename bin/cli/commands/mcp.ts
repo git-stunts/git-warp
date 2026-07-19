@@ -76,6 +76,10 @@ function trackMcpLines(
       },
     );
   });
+  lines.on('error', (error: unknown) => {
+    completedFailures.push(error);
+    lines.close();
+  });
   lines.once('close', () => {
     void settlePendingDispatches(pending, completedFailures)
       .then(completion.resolve, completion.reject);
