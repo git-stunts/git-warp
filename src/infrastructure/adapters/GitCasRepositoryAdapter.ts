@@ -30,6 +30,7 @@ import GitTrustChainAdapter from './GitTrustChainAdapter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import type GitTimelineHistoryAdapter from './GitTimelineHistoryAdapter.ts';
+import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 
 type GitCasPolicy = {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -71,15 +72,18 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   private readonly _plumbing: GitPlumbing;
   private readonly _history: GitTimelineHistoryAdapter;
   private readonly _cas: GitCasFacade;
+  private readonly _closeCas: (() => Promise<void>) | null;
   private readonly _cbor: InstanceType<typeof CborCodec>;
   private readonly _contentEncryption: CasContentEncryptionPolicy | undefined;
+  private readonly _materializations = new Set<GitCasMaterializationStoreAdapter>();
+  private _closePromise: Promise<void> | null = null;
+  private _closed = false;
 
   constructor(options: GitCasRepositoryAdapterOptions) {
     this._plumbing = options.plumbing;
     this._history = options.history;
-    this._cas =
-      options.cas ??
-      ContentAddressableStore.createCbor({
+    if (options.cas === undefined) {
+      const cas = ContentAddressableStore.createCbor({
         plumbing: options.plumbing,
         chunking: { strategy: 'cdc' },
         applicationRefPrefixes: ['refs/warp/'],
@@ -88,12 +92,21 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
           ? {}
           : { observability: new LoggerObservabilityBridge(options.logger) }),
       });
+      this._cas = cas;
+      this._closeCas = async () => await cas.close();
+    } else {
+      this._cas = options.cas;
+      this._closeCas = null;
+    }
     this._cbor = new CborCodec();
     this._contentEncryption = options.contentEncryption;
   }
 
   createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
+    this._assertOpen();
     const content = this._createContentStorage();
+    const materializations = this._createMaterializationStore(request);
+    this._materializations.add(materializations);
     return Promise.resolve(
       Object.freeze({
         content,
@@ -103,7 +116,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         patchJournal: this._createPatchJournal(request, content),
         checkpoints: this._createCheckpointStore(request, content),
         indexes: this._createIndexStore(request, content),
-        materializations: this._createMaterializationStore(request),
+        materializations,
         stateSnapshots: this._createStateSnapshots(request),
         trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
       })
@@ -191,15 +204,18 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   private _createMaterializationStore(
     request: RuntimeStorageRequest,
   ): GitCasMaterializationStoreAdapter {
-    return new GitCasMaterializationStoreAdapter({
+    const materializations = new GitCasMaterializationStoreAdapter({
       cas: this._cas,
       codec: request.codec,
       crypto: request.crypto,
       laneName: request.timelineName,
+      onClose: () => this._materializations.delete(materializations),
     });
+    return materializations;
   }
 
   createTrustChain(crypto: CryptoPort): GitTrustChainAdapter {
+    this._assertOpen();
     return new GitTrustChainAdapter({
       cas: this._cas,
       cbor: this._cbor,
@@ -216,5 +232,44 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         ? {}
         : { contentEncryption: this._contentEncryption }),
     });
+  }
+
+  /** Releases repository-scoped local resources without changing retained data. */
+  close(): Promise<void> {
+    this._closed = true;
+    this._closePromise ??= this._close();
+    return this._closePromise;
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
+  }
+
+  private async _close(): Promise<void> {
+    const materializationResults = await Promise.allSettled(
+      [...this._materializations].map(async (materializations) => await materializations.close()),
+    );
+    this._materializations.clear();
+    const failures = materializationResults
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map((result) => result.reason as unknown);
+
+    if (this._closeCas !== null) {
+      try {
+        await this._closeCas();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new AggregateError(failures, 'Git CAS repository storage failed to close cleanly');
+    }
+  }
+
+  private _assertOpen(): void {
+    if (this._closed) {
+      throw new AdapterValidationError('Git CAS repository storage is closed');
+    }
   }
 }

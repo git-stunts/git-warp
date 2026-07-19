@@ -104,7 +104,12 @@ if (role.receipt.outcome === 'accepted') {
 } else {
   console.error(role.receipt.reason, role.receipt.repairHints);
 }
+
+await storage.close();
 ```
+
+`GitStorage.close()` releases local Git and git-cas processes only. It does not
+delete timelines, rewrite history, or change retention anchors.
 
 The v18 graph-first API is not exported in v19. Migrate uses of
 `openWarpWorldline()`, `openWarpGraph()`, `WarpApp`, `WarpCore`,

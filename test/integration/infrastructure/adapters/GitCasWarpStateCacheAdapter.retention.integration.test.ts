@@ -108,7 +108,15 @@ async function createHarness(): Promise<Harness> {
       plumbing,
       cache,
       async cleanup(): Promise<void> {
-        await rm(tempDir, { recursive: true, force: true });
+        try {
+          await runtimeStorage.close();
+        } finally {
+          try {
+            await persistence.close();
+          } finally {
+            await rm(tempDir, { recursive: true, force: true });
+          }
+        }
       },
     };
   } catch (error) {

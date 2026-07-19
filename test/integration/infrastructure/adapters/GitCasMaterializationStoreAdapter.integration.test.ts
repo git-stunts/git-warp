@@ -30,7 +30,19 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
   });
 
   afterEach(async () => {
-    await rm(harness.path, { recursive: true, force: true });
+    try {
+      await harness.materializations.close();
+    } finally {
+      try {
+        await harness.cas.close();
+      } finally {
+        try {
+          await harness.history.close();
+        } finally {
+          await rm(harness.path, { recursive: true, force: true });
+        }
+      }
+    }
   });
 
   it('retains the materialization graph and resumes from a fresh repository adapter', async () => {
@@ -47,39 +59,52 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
     });
 
     const reopenedCas = createCas(harness.plumbing);
-    const reopened = await createMaterializations(
+    const reopenedFixture = await createMaterializations(
       harness.plumbing,
       reopenedCas,
     );
-    const acquisition = await reopened.acquireExact(coordinate);
-    if (acquisition === null) {
-      throw new Error('Retained materialization was not reopened');
-    }
-    const resolved = acquisition.materialization;
-    const nodeAliveRoot = resolved.roots.nodeAlive.handle;
-    if (nodeAliveRoot === null) {
-      throw new Error('Retained materialization did not expose its node root');
-    }
-    const reopenedTrie = new GitCasTrieStoreAdapter({ cas: reopenedCas });
-    const children = await reopenedTrie.readBranch(nodeAliveRoot.toString());
-    const child = children.get(0);
-    if (child === undefined) {
-      throw new Error('Retained trie root did not contain its leaf child');
-    }
-    const unreachable = await prunableOids(harness.path);
+    const reopened = reopenedFixture.materializations;
+    try {
+      const acquisition = await reopened.acquireExact(coordinate);
+      if (acquisition === null) {
+        throw new Error('Retained materialization was not reopened');
+      }
+      const resolved = acquisition.materialization;
+      const nodeAliveRoot = resolved.roots.nodeAlive.handle;
+      if (nodeAliveRoot === null) {
+        throw new Error('Retained materialization did not expose its node root');
+      }
+      const reopenedTrie = new GitCasTrieStoreAdapter({ cas: reopenedCas });
+      const children = await reopenedTrie.readBranch(nodeAliveRoot.toString());
+      const child = children.get(0);
+      if (child === undefined) {
+        throw new Error('Retained trie root did not contain its leaf child');
+      }
+      const unreachable = await prunableOids(harness.path);
 
-    expect(resolved.bundle.equals(retained.bundle)).toBe(true);
-    expect(resolved.roots.entries().map(([name, root]) => rootSignature(name, root)))
-      .toEqual(rootFixture.roots.entries().map(([name, root]) => rootSignature(name, root)));
-    expect(await reopenedTrie.readLeaf(child)).toEqual(trieFixture.bytes);
-    expect(unreachable).not.toContain(GitCasBundleHandle.parse(retained.bundle.toString()).oid);
-    for (const oid of rootFixture.retainedOids) {
-      expect(unreachable).not.toContain(oid);
+      expect(resolved.bundle.equals(retained.bundle)).toBe(true);
+      expect(resolved.roots.entries().map(([name, root]) => rootSignature(name, root)))
+        .toEqual(rootFixture.roots.entries().map(([name, root]) => rootSignature(name, root)));
+      expect(await reopenedTrie.readLeaf(child)).toEqual(trieFixture.bytes);
+      expect(unreachable).not.toContain(GitCasBundleHandle.parse(retained.bundle.toString()).oid);
+      for (const oid of rootFixture.retainedOids) {
+        expect(unreachable).not.toContain(oid);
+      }
+      expect(await harness.plumbing.execute({
+        args: ['show-ref', '--verify', '--hash', 'refs/cas/caches/git-warp/materializations'],
+      })).toMatch(/^[0-9a-f]{40}\n?$/u);
+      await acquisition.release();
+    } finally {
+      try {
+        await reopened.close();
+      } finally {
+        try {
+          await reopenedCas.close();
+        } finally {
+          await reopenedFixture.history.close();
+        }
+      }
     }
-    expect(await harness.plumbing.execute({
-      args: ['show-ref', '--verify', '--hash', 'refs/cas/caches/git-warp/materializations'],
-    })).toMatch(/^[0-9a-f]{40}\n?$/u);
-    await acquisition.release();
   });
 
   it('keeps a replaced generation reachable until its runtime lease closes', async () => {
@@ -192,7 +217,19 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
       expect((await trie.readBranch(branchRoot)).size).toBe(1);
       await workspace.release();
     } finally {
-      await rm(leaseHarness.path, { recursive: true, force: true });
+      try {
+        await leaseHarness.materializations.close();
+      } finally {
+        try {
+          await leaseHarness.cas.close();
+        } finally {
+          try {
+            await leaseHarness.history.close();
+          } finally {
+            await rm(leaseHarness.path, { recursive: true, force: true });
+          }
+        }
+      }
     }
   });
 });
@@ -200,6 +237,7 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
 type Harness = Readonly<{
   cas: ContentAddressableStore;
   materializations: MaterializationStorePort;
+  history: GitTimelineHistoryAdapter;
   path: string;
   plumbing: Awaited<ReturnType<typeof Plumbing.createDefault>>;
 }>;
@@ -211,11 +249,13 @@ async function createHarness(clock?: { readonly now: () => Date }): Promise<Harn
   await plumbing.execute({ args: ['config', 'user.email', 'test@example.com'] });
   await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
   const cas = createCas(plumbing, clock);
+  const materializationFixture = await createMaterializations(plumbing, cas);
   return Object.freeze({
     cas,
+    history: materializationFixture.history,
     path,
     plumbing,
-    materializations: await createMaterializations(plumbing, cas),
+    materializations: materializationFixture.materializations,
   });
 }
 
@@ -234,7 +274,10 @@ function createCas(
 async function createMaterializations(
   plumbing: Awaited<ReturnType<typeof Plumbing.createDefault>>,
   cas: ContentAddressableStore,
-): Promise<MaterializationStorePort> {
+): Promise<Readonly<{
+  history: GitTimelineHistoryAdapter;
+  materializations: MaterializationStorePort;
+}>> {
   const history = new GitTimelineHistoryAdapter({ plumbing });
   const repository = new GitCasRepositoryAdapter({ plumbing, history, cas });
   const services = await repository.createRuntimeStorageServices({
@@ -243,7 +286,7 @@ async function createMaterializations(
     crypto: new NodeCryptoAdapter(),
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
   });
-  return services.materializations;
+  return Object.freeze({ history, materializations: services.materializations });
 }
 
 type TrieRootFixture = Readonly<{

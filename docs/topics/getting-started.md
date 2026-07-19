@@ -155,7 +155,9 @@ methods so there is no boolean dry-run mode.
 
 `GitStorage` is one opaque repository-scoped handle. It composes timeline
 history and git-cas services internally; application code does not construct
-plumbing, CAS, cache, or retention adapters.
+plumbing, CAS, cache, or retention adapters. Close it when the application is
+finished to release local Git and git-cas processes. Closing storage does not
+delete timelines, rewrite history, or change retention anchors.
 
 WARP history lives under `refs/warp/**`, separate from source branches such as
 `refs/heads/main`. Writing a timeline does not create a source-tree commit on

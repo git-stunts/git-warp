@@ -244,4 +244,16 @@ describe('GitTimelineHistoryAdapter git-cas persistence bridge', () => {
     await expect(adapter.readBlob(oid)).resolves.toEqual(payload);
     expect(plumbing.streamCalls).toEqual([{ args: ['cat-file', 'blob', oid] }]);
   });
+
+  it('closes the delegated git-cas persistence adapter idempotently', async () => {
+    const adapter = new GitTimelineHistoryAdapter({
+      plumbing: new RecordingPlumbing('f'.repeat(40)),
+    });
+
+    const first = adapter.close();
+    const second = adapter.close();
+
+    expect(first).toBe(second);
+    await expect(first).resolves.toBeUndefined();
+  });
 });

@@ -5,6 +5,7 @@ import { installDefaultRuntimeHostNodePorts } from '../src/application/RuntimeHo
 import { EXIT_CODES, HELP_TEXT, CliError, parseArgs, usageError } from './cli/infrastructure.ts';
 import { stableStringify, compactStringify } from './presenters/json.ts';
 import { COMMANDS } from './cli/commands/registry.ts';
+import { closeCliStorages } from './cli/shared.ts';
 
 installDefaultRuntimeHostNodePorts();
 
@@ -76,7 +77,13 @@ function installShutdownHandlers(close: () => Promise<void>): void {
   const shutdown = async (): Promise<void> => {
     if (closing) { return; }
     closing = true;
-    await close();
+    const results = await Promise.allSettled([close(), closeCliStorages()]);
+    const failures = results
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map((result) => result.reason as unknown);
+    if (failures.length > 0) {
+      throw new AggregateError(failures, 'CLI shutdown failed');
+    }
     process.exit(EXIT_CODES.OK);
   };
   process.on('SIGINT', () => { shutdown().catch(() => process.exit(1)); });
@@ -121,10 +128,17 @@ async function main(): Promise<void> {
     return; // Keep the process alive
   }
 
+  await closeCliStorages();
   process.exit(normalized.exitCode);
 }
 
-main().catch((error: unknown) => {
+main().catch(async (caught: unknown) => {
+  let error = caught;
+  try {
+    await closeCliStorages();
+  } catch (closeError) {
+    error = new AggregateError([caught, closeError], 'CLI command and storage cleanup failed');
+  }
   const exitCode = error instanceof CliError ? error.exitCode : EXIT_CODES.INTERNAL;
   const code = error instanceof CliError ? error.code : 'E_INTERNAL';
   const message = error instanceof Error ? error.message : 'Unknown error';

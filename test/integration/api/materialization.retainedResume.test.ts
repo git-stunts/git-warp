@@ -24,20 +24,26 @@ const execFileAsync = promisify(execFile);
 
 describe('API: retained materialization resume', () => {
   let repo: Awaited<ReturnType<typeof createTestRepo>> | null = null;
+  let providers: RecordingRuntimeStorageProvider[] = [];
 
   beforeEach(async () => {
     repo = await createTestRepo('retained-materialization-resume');
+    providers = [];
   });
 
   afterEach(async () => {
-    await repo?.cleanup();
+    try {
+      await Promise.all(providers.map(async (provider) => await provider.close()));
+    } finally {
+      await repo?.cleanup();
+    }
   });
 
   it('reopens exact roots without replay in-process and through a fresh runtime adapter', async () => {
     if (repo === null) {
       throw new Error('Test repository is not initialized');
     }
-    const firstProvider = recordingProvider(repo);
+    const firstProvider = recordingProvider(repo, providers);
     const firstRuntime = await openRuntime(repo, firstProvider);
     await firstRuntime.patch((patch) => {
       patch.addNode('node:retained');
@@ -61,7 +67,7 @@ describe('API: retained materialization resume', () => {
     expect(firstStore.exactHits[0]?.bundle.equals(coldHandle?.bundle)).toBe(true);
     expect(warm).toEqual(cold);
 
-    const reopenedProvider = recordingProvider(repo);
+    const reopenedProvider = recordingProvider(repo, providers);
     const reopenedRuntime = await openRuntime(repo, reopenedProvider);
     const reopenedReplay = vi.spyOn(reopenedRuntime, '_loadPatchChainFromSha');
     const reopened = await reopenedRuntime.materialize();
@@ -78,7 +84,7 @@ describe('API: retained materialization resume', () => {
     if (repo === null) {
       throw new Error('Test repository is not initialized');
     }
-    const firstProvider = recordingProvider(repo);
+    const firstProvider = recordingProvider(repo, providers);
     const firstRuntime = await openRuntime(repo, firstProvider);
     await firstRuntime.patch((patch) => {
       patch.addNode('node:retained');
@@ -95,7 +101,7 @@ describe('API: retained materialization resume', () => {
     ]);
     await execFileAsync('git', ['-C', repo.tempDir, 'prune', '--expire=now']);
 
-    const reopenedProvider = recordingProvider(repo);
+    const reopenedProvider = recordingProvider(repo, providers);
     const reopenedRuntime = await openRuntime(repo, reopenedProvider);
     const replay = vi.spyOn(reopenedRuntime, '_loadPatchChainFromSha');
     const publishWholeState = vi.spyOn(reopenedRuntime, '_onMaterialized');
@@ -115,7 +121,7 @@ describe('API: retained materialization resume', () => {
     if (repo === null) {
       throw new Error('Test repository is not initialized');
     }
-    const firstProvider = recordingProvider(repo);
+    const firstProvider = recordingProvider(repo, providers);
     const firstRuntime = await openRuntime(repo, firstProvider);
     await firstRuntime.patch((patch) => {
       patch
@@ -139,7 +145,7 @@ describe('API: retained materialization resume', () => {
     ]);
     await execFileAsync('git', ['-C', repo.tempDir, 'prune', '--expire=now']);
 
-    const reopenedProvider = recordingProvider(repo);
+    const reopenedProvider = recordingProvider(repo, providers);
     const reopenedRuntime = await openRuntime(repo, reopenedProvider);
     const replay = vi.spyOn(reopenedRuntime, '_loadPatchChainFromSha');
     const publishWholeState = vi.spyOn(reopenedRuntime, '_onMaterialized');
@@ -255,10 +261,10 @@ class RecordingMaterializationWorkspace extends MaterializationWorkspacePort {
 }
 
 class RecordingRuntimeStorageProvider implements RuntimeStorageProviderPort {
-  readonly #delegate: RuntimeStorageProviderPort;
+  readonly #delegate: GitCasRepositoryAdapter;
   materializations: RecordingMaterializationStore | null = null;
 
-  constructor(delegate: RuntimeStorageProviderPort) {
+  constructor(delegate: GitCasRepositoryAdapter) {
     this.#delegate = delegate;
   }
 
@@ -270,15 +276,22 @@ class RecordingRuntimeStorageProvider implements RuntimeStorageProviderPort {
     this.materializations = materializations;
     return Object.freeze({ ...services, materializations });
   }
+
+  close(): Promise<void> {
+    return this.#delegate.close();
+  }
 }
 
 function recordingProvider(
   repo: NonNullable<Awaited<ReturnType<typeof createTestRepo>>>,
+  providers: RecordingRuntimeStorageProvider[],
 ): RecordingRuntimeStorageProvider {
-  return new RecordingRuntimeStorageProvider(new GitCasRepositoryAdapter({
+  const provider = new RecordingRuntimeStorageProvider(new GitCasRepositoryAdapter({
     plumbing: repo.plumbing,
     history: repo.persistence,
   }));
+  providers.push(provider);
+  return provider;
 }
 
 async function openRuntime(

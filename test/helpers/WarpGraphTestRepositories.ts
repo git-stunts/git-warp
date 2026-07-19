@@ -15,7 +15,11 @@ export class GitRepoFixture {
   ) {}
 
   readonly cleanup = async (): Promise<void> => {
-    await rm(this.tempDir, { recursive: true, force: true });
+    try {
+      await this.persistence.close();
+    } finally {
+      await rm(this.tempDir, { recursive: true, force: true });
+    }
   };
 }
 

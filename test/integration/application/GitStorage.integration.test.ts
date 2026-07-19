@@ -17,15 +17,19 @@ describe('GitStorage public composition', () => {
 
   it('opens a real repository and writes through the storage-neutral API', async () => {
     const storage = await GitStorage.open({ cwd: repository.tempDir });
-    const warp = await openWarp({ storage, writer: 'agent-1' });
-    const timeline = await warp.timeline('events');
+    try {
+      const warp = await openWarp({ storage, writer: 'agent-1' });
+      const timeline = await warp.timeline('events');
 
-    const receipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
+      const receipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
 
-    expect(receipt.outcome).toBe('accepted');
-    expect(receipt.timeline).toBe('events');
-    expect(await repository.persistence.listRefs('refs/warp/events/writers/')).toEqual([
-      'refs/warp/events/writers/agent-1',
-    ]);
+      expect(receipt.outcome).toBe('accepted');
+      expect(receipt.timeline).toBe('events');
+      expect(await repository.persistence.listRefs('refs/warp/events/writers/')).toEqual([
+        'refs/warp/events/writers/agent-1',
+      ]);
+    } finally {
+      await storage.close();
+    }
   });
 });

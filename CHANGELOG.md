@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `Timeline.draft(name)`, draft writes, `Timeline.previewJoin(draft)`,
   and `Timeline.join(draft)` with join receipts for first-use speculative
   workflows.
+- Added idempotent `GitStorage.close()` and async-disposal support to release
+  local Git and git-cas processes without changing history or retention.
 - Added the `lint:test-law` gate to reject conditional bare `return;`
   statements in test bodies so skipped assertions cannot masquerade as passing
   tests.
@@ -50,8 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Raised the coverage ratchet from `92.10%` to `92.62%` after adding targeted
   coverage for bounded query node paging and memory-budget rejection paths and
   removing retired compatibility surfaces.
-- Upgraded `@git-stunts/git-cas` to `^6.5.0` so Git-backed materializations can
-  use managed `CacheSet` retention and opaque page and bundle handles.
+- Upgraded `@git-stunts/git-cas` to `^6.5.3` so Git-backed materializations can
+  use managed `CacheSet` retention, opaque page and bundle handles, and
+  persistent Git object sessions.
 - Moved shadow-trie leaf and branch storage from unretained raw Git blobs and
   trees to bounded git-cas pages and composable bundle handles. Production
   storage now shares one git-cas facade with the trie adapter, and the storage
@@ -72,6 +75,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reused repository-scoped Git object sessions across immutable history and
+  CAS operations, then closed history, materialization, and CAS owners at
+  application, CLI, migration, and test boundaries. This removes repeated
+  `cat-file` and `mktree` process startup without leaking subprocesses.
 - Live exact node-property reads now retain collision-safe property shards as
   an independently addressed materialization root. Each node uses its full
   BLAKE3 route key and a deterministic schema-v2 entry-bag envelope; writes and

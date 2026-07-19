@@ -30,23 +30,44 @@ export type CliStorageBinding = {
   readonly hookPaths: HookPathPort;
 };
 
+const activeCliStorages = new Set<GitStorage>();
+
+/** Releases every storage composition opened by the current CLI invocation. */
+export async function closeCliStorages(): Promise<void> {
+  const storages = [...activeCliStorages];
+  activeCliStorages.clear();
+  const results = await Promise.allSettled(storages.map(async (storage) => await storage.close()));
+  const failures = results
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason as unknown);
+  if (failures.length > 0) {
+    throw new AggregateError(failures, 'CLI storage failed to close cleanly');
+  }
+}
+
 /**
  * Creates a persistence adapter for the given repository path.
  */
 export async function createPersistence(repoPath: string): Promise<CliStorageBinding> {
   const storage = await GitStorage.open({ cwd: repoPath });
-  const binding = resolveWarpStorage(storage);
-  if (!(binding.history instanceof GitTimelineHistoryAdapter)
-    || binding.createTrustChain === undefined
-    || binding.hookPaths === undefined) {
-    throw usageError('GitStorage returned an incomplete CLI storage binding');
+  try {
+    const binding = resolveWarpStorage(storage);
+    if (!(binding.history instanceof GitTimelineHistoryAdapter)
+      || binding.createTrustChain === undefined
+      || binding.hookPaths === undefined) {
+      throw usageError('GitStorage returned an incomplete CLI storage binding');
+    }
+    activeCliStorages.add(storage);
+    return {
+      persistence: binding.history,
+      runtimeStorage: binding.runtimeStorage,
+      createTrustChain: binding.createTrustChain,
+      hookPaths: binding.hookPaths,
+    };
+  } catch (error) {
+    await storage.close();
+    throw error;
   }
-  return {
-    persistence: binding.history,
-    runtimeStorage: binding.runtimeStorage,
-    createTrustChain: binding.createTrustChain,
-    hookPaths: binding.hookPaths,
-  };
 }
 
 /**

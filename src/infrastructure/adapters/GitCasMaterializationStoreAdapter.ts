@@ -69,6 +69,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   readonly #codec: CodecPort;
   readonly #crypto: CryptoPort;
   readonly #laneName: string;
+  readonly #onClose: () => void;
   #currentLease: GitCasMaterializationLease | null = null;
   #leaseMutation: Promise<void> = Promise.resolve();
   readonly #retirements = new Set<Promise<void>>();
@@ -81,6 +82,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     readonly codec: CodecPort;
     readonly crypto: CryptoPort;
     readonly laneName: string;
+    readonly onClose?: () => void;
   }) {
     super();
     requireAdapterOptions(options);
@@ -91,6 +93,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     this.#codec = options.codec;
     this.#crypto = options.crypto;
     this.#laneName = requireNonEmpty(options.laneName, 'laneName');
+    this.#onClose = options.onClose ?? (() => undefined);
   }
 
   override async openWorkspace(
@@ -216,7 +219,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   }
 
   override close(): Promise<void> {
-    this.#closePromise ??= this.#close();
+    this.#closePromise ??= this.#close().finally(this.#onClose);
     return this.#closePromise;
   }
 

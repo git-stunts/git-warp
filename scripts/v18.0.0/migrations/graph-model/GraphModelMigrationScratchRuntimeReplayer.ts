@@ -106,6 +106,8 @@ export async function replayGraphModelMigrationScratchIntoRuntime(
     runtimeRepositoryPath = await mkdtemp(join(tmpdir(), 'git-warp-v18-runtime-replay-'));
     shouldCleanup = true;
   }
+  let persistence: GitTimelineHistoryAdapter | null = null;
+  let runtimeStorage: GitCasRepositoryAdapter | null = null;
   try {
     const operations = await readGraphModelMigrationScratchOperationRecords({
       repositoryPath: sourceRepositoryPath,
@@ -115,8 +117,8 @@ export async function replayGraphModelMigrationScratchIntoRuntime(
     await plumbing.execute({ args: ['init', '-q'] });
     await plumbing.execute({ args: ['config', 'user.email', 'git-warp@example.invalid'] });
     await plumbing.execute({ args: ['config', 'user.name', 'git-warp migration replay'] });
-    const persistence = new GitTimelineHistoryAdapter({ plumbing });
-    const runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
+    persistence = new GitTimelineHistoryAdapter({ plumbing });
+    runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
     const graph = await openRuntimeHostProduct({
       persistence,
       runtimeStorage,
@@ -133,8 +135,16 @@ export async function replayGraphModelMigrationScratchIntoRuntime(
       state,
     });
   } finally {
-    if (shouldCleanup && runtimeRepositoryPath !== null) {
-      await rm(runtimeRepositoryPath, { recursive: true, force: true });
+    try {
+      await runtimeStorage?.close();
+    } finally {
+      try {
+        await persistence?.close();
+      } finally {
+        if (shouldCleanup && runtimeRepositoryPath !== null) {
+          await rm(runtimeRepositoryPath, { recursive: true, force: true });
+        }
+      }
     }
   }
 }

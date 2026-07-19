@@ -60,7 +60,27 @@ seed_graph() {
   cd "${PROJECT_ROOT}" || return 1
   NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-strip-types -e '
     import("node:url")
-      .then(({ pathToFileURL }) => import(pathToFileURL(process.argv[1]).href))
+      .then(async ({ pathToFileURL }) => {
+        const seedUrl = pathToFileURL(process.argv[1]).href;
+        const setupUrl = pathToFileURL(process.argv[2]).href;
+        let failure;
+        try {
+          await import(seedUrl);
+        } catch (error) {
+          failure = error;
+        }
+        try {
+          const { closeSeedRuntime } = await import(setupUrl);
+          await closeSeedRuntime();
+        } catch (error) {
+          failure = failure === undefined
+            ? error
+            : new AggregateError([failure, error], "Seed and cleanup failed");
+        }
+        if (failure !== undefined) {
+          throw failure;
+        }
+      })
       .then(
         () => process.exit(0),
         (error) => {
@@ -68,6 +88,6 @@ seed_graph() {
           process.exit(1);
         },
       );
-  ' "${script}"
+  ' "${script}" "${BATS_TEST_DIRNAME}/helpers/seed-setup.ts"
   cd "${TEST_REPO}" || return 1
 }

@@ -31,7 +31,7 @@ const substrate: ReceiptSubstrateInspection = inspection.substrate;
 // @ts-expect-error diagnostics require explicit storage context.
 inspectReceipt(receipt);
 
-void gitStorage;
+await gitStorage.close();
 void optic;
 void witness;
 void inspection;

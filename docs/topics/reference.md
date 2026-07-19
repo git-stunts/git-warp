@@ -94,7 +94,7 @@ Git-backed storage for first-use applications.
 Source: `storage.ts`. Count: 1.
 
 ```text
-GitStorage @ storage.ts#L16
+GitStorage @ storage.ts#L38
 ```
 
 ### Type exports
@@ -192,7 +192,7 @@ ReceiptSubstrateInspection @ diagnostics.ts#L15
 Structured CLI errors for `--json` and `--ndjson` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
 
-Source: `bin/warp-graph.ts#L131`.
+Source: `bin/warp-graph.ts#L145`.
 
 ## Public error classes
 

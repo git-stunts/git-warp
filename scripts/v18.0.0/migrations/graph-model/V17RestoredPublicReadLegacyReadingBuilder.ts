@@ -128,6 +128,8 @@ class RuntimeContentOidResolver {
     private readonly repositoryPath: string,
     private readonly shouldCleanup: boolean,
     private readonly storage: AssetStoragePort,
+    private readonly runtimeStorage: GitCasRepositoryAdapter,
+    private readonly history: GitTimelineHistoryAdapter,
   ) {
   }
 
@@ -155,6 +157,8 @@ class RuntimeContentOidResolver {
       runtimeRepositoryPath,
       shouldCleanup,
       services.content,
+      runtimeStorage,
+      adapter,
     );
   }
 
@@ -174,8 +178,16 @@ class RuntimeContentOidResolver {
   }
 
   async close(): Promise<void> {
-    if (this.shouldCleanup) {
-      await rm(this.repositoryPath, { recursive: true, force: true });
+    try {
+      await this.runtimeStorage.close();
+    } finally {
+      try {
+        await this.history.close();
+      } finally {
+        if (this.shouldCleanup) {
+          await rm(this.repositoryPath, { recursive: true, force: true });
+        }
+      }
     }
   }
 }
