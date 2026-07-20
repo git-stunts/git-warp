@@ -21,9 +21,14 @@ export type IntentAdmissionIdentity = {
 
 export function createDerivedIntentAdmissionReceipt(
   identity: IntentAdmissionIdentity,
-  publication: PublishedIntent
+  publication: PublishedIntent,
+  evaluationCoordinateRef: string,
 ): DerivedIntentAdmissionReceipt {
-  const evaluation = createIntentAdmissionEvaluation(identity, publication.basisRef);
+  const evaluation = createIntentAdmissionEvaluation(
+    identity,
+    publication.basisRef,
+    evaluationCoordinateRef,
+  );
   const witness = new DerivationWitness({
     evaluation,
     admittedSuffixRef: publication.publicationRef,
@@ -43,6 +48,7 @@ export function createObstructedIntentAdmissionReceipt(
   identity: IntentAdmissionIdentity,
   fields: {
     readonly destinationBasisRef: string;
+    readonly evaluationCoordinateRef: string;
     readonly reason: AdmissionObstructionReason;
     readonly suppliedEvidenceRefs: readonly string[];
     readonly requiredEvidenceRefs: readonly string[];
@@ -51,7 +57,11 @@ export function createObstructedIntentAdmissionReceipt(
   }
 ): ObstructedIntentAdmissionReceipt {
   const witness = new ObstructionWitness({
-    evaluation: createIntentAdmissionEvaluation(identity, fields.destinationBasisRef),
+    evaluation: createIntentAdmissionEvaluation(
+      identity,
+      fields.destinationBasisRef,
+      fields.evaluationCoordinateRef,
+    ),
     reason: fields.reason,
     suppliedEvidenceRefs: fields.suppliedEvidenceRefs,
     requiredEvidenceRefs: fields.requiredEvidenceRefs,
@@ -66,7 +76,8 @@ export function createObstructedIntentAdmissionReceipt(
 
 export function createIntentAdmissionEvaluation(
   identity: IntentAdmissionIdentity,
-  destinationBasisRef: string
+  destinationBasisRef: string,
+  evaluationCoordinateRef: string,
 ): AdmissionEvaluation {
   return new AdmissionEvaluation({
     sourceParticipantId: identity.writerId,
@@ -76,7 +87,7 @@ export function createIntentAdmissionEvaluation(
     proposalDigest: identity.descriptor.nutritionLabel.bundleHash,
     lawDigest: identity.descriptor.nutritionLabel.coreHash,
     profileDigest: identity.descriptor.nutritionLabel.profile,
-    evaluationCoordinateRef: destinationBasisRef,
+    evaluationCoordinateRef,
   });
 }
 

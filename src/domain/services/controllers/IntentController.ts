@@ -32,7 +32,6 @@ import {
 } from '../admission/IntentAdmissionReceiptFactory.ts';
 
 export type IntentHost = BoundedIntentGuardSource & {
-  _graphName: string;
   _writerId: string;
   _intentStore: IntentStorePort;
 };
@@ -53,7 +52,12 @@ type GuardReadObstruction = {
 type GuardReadContext = {
   readonly identity: IntentAdmissionIdentity;
   readonly destinationBasisRef: string;
+  readonly evaluationCoordinateRef: string;
 };
+type GuardEvaluation = Readonly<{
+  readonly obstruction: ObstructedIntentAdmissionReceipt | null;
+  readonly evaluationCoordinateRef: string;
+}>;
 
 export default class IntentController implements IntentCapability {
   _host: IntentHost;
@@ -64,9 +68,9 @@ export default class IntentController implements IntentCapability {
   async admitIntent(descriptor: WarpIntentDescriptor): Promise<IntentAdmissionReceipt> {
     const identity = this._identity(descriptor, 'admitted', this._host._writerId);
     const destinationBasisRef = await this._getIntentAdmissionBasis();
-    const obstruction = await this._evaluateGuards(identity, destinationBasisRef);
-    if (obstruction !== null) {
-      return obstruction;
+    const guardResult = await this._evaluateGuards(identity, destinationBasisRef);
+    if (guardResult.obstruction !== null) {
+      return guardResult.obstruction;
     }
     const published = await this._host._intentStore.publish({
       graphName: this._host._graphName,
@@ -74,25 +78,33 @@ export default class IntentController implements IntentCapability {
       ownerId: this._host._writerId,
       descriptor,
     });
-    return createDerivedIntentAdmissionReceipt(identity, published);
+    return createDerivedIntentAdmissionReceipt(
+      identity,
+      published,
+      guardResult.evaluationCoordinateRef,
+    );
   }
 
   private async _evaluateGuards(
     identity: IntentAdmissionIdentity,
     destinationBasisRef: string,
-  ): Promise<ObstructedIntentAdmissionReceipt | null> {
+  ): Promise<GuardEvaluation> {
     if (identity.descriptor.precommitGuards.length === 0) {
-      return null;
+      return createGuardEvaluation(null, destinationBasisRef);
     }
     const guardReader = await captureBoundedIntentGuardReader(this._host);
-    const context = { identity, destinationBasisRef };
+    const context = {
+      identity,
+      destinationBasisRef,
+      evaluationCoordinateRef: guardReader.evaluationCoordinateRef,
+    };
     for (const guard of identity.descriptor.precommitGuards) {
       const obstruction = await this._evaluateGuard(guardReader, guard, context);
       if (obstruction !== null) {
-        return obstruction;
+        return createGuardEvaluation(obstruction, context.evaluationCoordinateRef);
       }
     }
-    return null;
+    return createGuardEvaluation(null, context.evaluationCoordinateRef);
   }
 
   private async _evaluateGuard(
@@ -110,6 +122,7 @@ export default class IntentController implements IntentCapability {
     }
     return createObstructedIntentAdmissionReceipt(context.identity, {
       destinationBasisRef: context.destinationBasisRef,
+      evaluationCoordinateRef: context.evaluationCoordinateRef,
       reason: AdmissionObstructionReason.lawViolation('git-warp.intent-guard'),
       suppliedEvidenceRefs: [
         guardActualEvidenceRef(obstruction),
@@ -138,6 +151,7 @@ export default class IntentController implements IntentCapability {
       }
       return createObstructedIntentAdmissionReceipt(context.identity, {
         destinationBasisRef: context.destinationBasisRef,
+        evaluationCoordinateRef: context.evaluationCoordinateRef,
         ...readObstruction,
         retry: AdmissionRetryDisposition.afterChange(),
       });
@@ -194,7 +208,7 @@ export default class IntentController implements IntentCapability {
       ownerId: strandId,
       descriptor,
     });
-    return createDerivedIntentAdmissionReceipt(identity, published);
+    return createDerivedIntentAdmissionReceipt(identity, published, published.basisRef);
   }
 
   private async _getIntentAdmissionBasis(): Promise<string> {
@@ -248,6 +262,13 @@ function guardReadObstruction(error: QueryError): GuardReadObstruction | null {
     };
   }
   return null;
+}
+
+function createGuardEvaluation(
+  obstruction: ObstructedIntentAdmissionReceipt | null,
+  evaluationCoordinateRef: string,
+): GuardEvaluation {
+  return Object.freeze({ obstruction, evaluationCoordinateRef });
 }
 
 function guardActualEvidenceRef(obstruction: IntentObstruction): string {

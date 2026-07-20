@@ -25,6 +25,10 @@ const descriptor: WarpIntentDescriptor = {
   },
 };
 
+const PINNED_GUARD_COORDINATE =
+  'warp:graph-coordinate:{"checkpointSha":"checkpoint:test",' +
+  '"frontier":[{"patchSha":"patch:tip","writerId":"agent-1"}],"worldline":"events"}';
+
 type TestNodePropsReader = (nodeId: string) => Promise<QueryPropertyBag | null>;
 
 function withGuards(
@@ -159,6 +163,8 @@ describe('IntentController', () => {
               'warp:intent-journal/events/admitted/agent-1/frontier/empty',
             destinationBasisRef:
               'warp:intent-journal/events/admitted/agent-1/frontier/empty',
+            evaluationCoordinateRef:
+              'warp:intent-journal/events/admitted/agent-1/frontier/empty',
           },
         },
       },
@@ -196,7 +202,14 @@ describe('IntentController', () => {
     ]);
 
     await expect(controller.admitIntent(guarded)).resolves.toMatchObject({
-      outcome: { kind: 'derived' },
+      outcome: {
+        kind: 'derived',
+        witness: {
+          evaluation: {
+            evaluationCoordinateRef: PINNED_GUARD_COORDINATE,
+          },
+        },
+      },
     });
     expect(host._readCheckpointSha).toHaveBeenCalledOnce();
     expect(host.getFrontier).toHaveBeenCalledOnce();

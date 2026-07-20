@@ -41,6 +41,7 @@ export default class WasmVerifiedAdmissionService extends WasmVerifiedAdmissionP
     descriptor: WarpIntentDescriptor,
     report: WasmVerifierReport,
   ): Promise<IntentAdmissionReceipt> {
+    const destinationBasisRef = await this._readAdmissionBasis();
     return createObstructedIntentAdmissionReceipt({
       descriptor,
       graphName: this._worldline.worldlineName,
@@ -48,7 +49,8 @@ export default class WasmVerifiedAdmissionService extends WasmVerifiedAdmissionP
       channel: 'admitted',
       ownerId: this._worldline.writerId,
     }, {
-      destinationBasisRef: await this._readAdmissionBasis(),
+      destinationBasisRef,
+      evaluationCoordinateRef: destinationBasisRef,
       reason: AdmissionObstructionReason.invalidDerivation(
         'git-warp.untrusted-wasm-verifier-report'
       ),

@@ -118,6 +118,11 @@ describe('post-v17 blocked witness: graph query bounded read-model provider', ()
             family: 'unsupported-evidence',
             code: 'git-warp.missing-bounded-basis',
           },
+          evaluation: {
+            evaluationCoordinateRef: expect.stringContaining(
+              'warp:graph-coordinate:{"basis":"missing-checkpoint"'
+            ),
+          },
           retry: { value: 'after-change' },
         },
       },

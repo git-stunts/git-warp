@@ -90,6 +90,9 @@ describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {
       family: 'invalid-derivation',
       code: 'git-warp.untrusted-wasm-verifier-report',
     });
+    expect(admission.witness.evaluation.evaluationCoordinateRef).toBe(
+      'frontier:intent-journal:test'
+    );
     expect(admission.witness.suppliedEvidenceRefs).toContain(
       'warp:wasm-module:sha256%3AunknownWasmDigest'
     );

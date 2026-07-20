@@ -4,6 +4,7 @@ import type ReadIdentity from '../optic/ReadIdentity.ts';
 import type { PrecommitGuard } from '../../types/WarpIntentDescriptor.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
+import { compareStrings } from '../../utils/StringComparison.ts';
 import type { WorldlineOptions } from '../../capabilities/QueryCapability.ts';
 import WarpError from '../../errors/WarpError.ts';
 
@@ -13,6 +14,7 @@ export type BoundedIntentGuardReading = Readonly<{
 }>;
 
 export type BoundedIntentGuardSource = {
+  readonly _graphName: string;
   readonly worldline: (options?: WorldlineOptions) => ProjectionHandle;
   readonly _readCheckpointSha: () => Promise<string | null>;
   readonly getFrontier: () => Promise<Map<string, string>>;
@@ -20,12 +22,14 @@ export type BoundedIntentGuardSource = {
 
 /** Reads one guard property through checkpoint-tail causal support only. */
 export default class BoundedIntentGuardReader {
+  readonly evaluationCoordinateRef: string;
   readonly #worldline: ProjectionHandle;
   #optic: WorldlineOptic | null;
 
-  constructor(worldline: ProjectionHandle) {
+  constructor(worldline: ProjectionHandle, evaluationCoordinateRef: string) {
     this.#worldline = worldline;
     this.#optic = null;
+    this.evaluationCoordinateRef = evaluationCoordinateRef;
     Object.freeze(this);
   }
 
@@ -48,12 +52,37 @@ export async function captureBoundedIntentGuardReader(
 ): Promise<BoundedIntentGuardReader> {
   const checkpointSha = await source._readCheckpointSha();
   if (checkpointSha === null) {
-    return new BoundedIntentGuardReader(source.worldline());
+    return new BoundedIntentGuardReader(
+      source.worldline(),
+      missingBoundedBasisCoordinateRef(source._graphName),
+    );
   }
   const frontier = await source.getFrontier();
   return new BoundedIntentGuardReader(source.worldline({
     source: { kind: 'coordinate', checkpointSha, frontier },
-  }));
+  }), checkpointTailCoordinateRef(source._graphName, checkpointSha, frontier));
+}
+
+function checkpointTailCoordinateRef(
+  worldline: string,
+  checkpointSha: string,
+  frontier: ReadonlyMap<string, string>,
+): string {
+  const frontierEntries = [...frontier]
+    .sort(([left], [right]) => compareStrings(left, right))
+    .map(([writerId, patchSha]) => ({ writerId, patchSha }));
+  return `warp:graph-coordinate:${canonicalStringify({
+    worldline,
+    checkpointSha,
+    frontier: frontierEntries,
+  })}`;
+}
+
+function missingBoundedBasisCoordinateRef(worldline: string): string {
+  return `warp:graph-coordinate:${canonicalStringify({
+    worldline,
+    basis: 'missing-checkpoint',
+  })}`;
 }
 
 function guardPropertyKey(guard: PrecommitGuard): string {
