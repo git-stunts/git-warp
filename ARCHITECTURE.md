@@ -157,7 +157,7 @@ dependency bag and owns the orchestration for its domain:
 | Controller | Capability | Key responsibility |
 |-----------|------------|-------------------|
 | QueryController | query | Node/edge reads, observers, worldlines |
-| PatchController | patches | Patch creation, commit, CRDT join |
+| PatchController | patches | Patch creation, commit, deterministic fold |
 | MaterializeController | materialize | Full and incremental materialization |
 | SyncController | sync | Frontier, sync, serve |
 | StrandController | strands | Strand lifecycle, braid, collapse |
@@ -190,7 +190,7 @@ owns folded state persistence rather than live query semantics.
 
 Stateless services that implement domain logic:
 
-- **JoinReducer** — CRDT state merge (the gravitational center)
+- **JoinReducer** — deterministic CRDT fold for laws that admit a semilattice join
 - **OpStrategy** — per-op-type mutation/outcome/snapshot logic
 - **StrandCoordinator** — strand lifecycle orchestration
 - **ConflictAnalyzer** — conflict detection and trace assembly
@@ -247,6 +247,19 @@ refs/warp/events/coverage      → coverage-sha
 ```
 
 Reads open a bounded timeline basis over those refs. Diagnostic materialization
-walks visible writer chains, applies patches through `JoinReducer` (CRDT merge),
+walks visible writer chains, applies admitted patches through `JoinReducer`,
 and produces a frozen `WarpState`; application code should prefer readings and
 receipts before whole-graph replay.
+
+`JoinReducer` is not the admission authority and does not imply that every pair
+of concurrent histories has a least upper bound. Admission first classifies a
+well-formed proposal as `derived`, `plural`, `conflict`, or `obstruction`, with
+a required variant-specific witness. A CRDT join is one possible settlement
+law for a domain that can prove the semilattice obligations. Other domains may
+retain plurality, require explicit conflict resolution, or obstruct admission.
+
+Settlement is a later cross-lane operation. A preview is non-authoritative and
+produces an immutable `SettlementPlan` bound to the exact source and target
+frontiers, proposal, law, and policy. Execution must revalidate those bindings;
+any bound-input change invalidates the plan rather than silently applying it to
+a different history.

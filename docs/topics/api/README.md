@@ -316,9 +316,11 @@ is therefore an interpretation or subtype of Reading, not its replacement.
 `ObservationPage` is not a public causal noun. Paging and batching are
 transport framing.
 
-## Outcomes, Evidence, And Receipts
+## Admission Outcomes, Evidence, And Receipts
 
-The operational outcome algebra is exactly:
+Admission classifies how a well-formed proposed history relates to the
+destination history under an explicit basis and law. The admission outcome
+algebra is exactly:
 
 ```text
 derived
@@ -326,6 +328,53 @@ plural
 conflict
 obstruction
 ```
+
+These variants are disjoint causal relations, not success and failure labels:
+
+| Outcome       | Meaning                                                            | Residual posture               |
+| ------------- | ------------------------------------------------------------------ | ------------------------------ |
+| `derived`     | The proposal directly extends the destination basis                | Destination frontier advanced  |
+| `plural`      | Concurrent histories are non-interfering and both are admitted     | Plural coordinates retained    |
+| `conflict`    | Honest claims overlap an exclusive footprint                       | Conflict remains unsettled     |
+| `obstruction` | Law, authority, evidence, budget, or basis gates prevent admission | Destination frontier unchanged |
+
+`plural` is a lawful terminal posture. It is not a successful conflict or an
+error waiting to be linearized. A settlement policy may later promote a plural
+coordinate, but admission does not choose a winner merely because a
+conventional API expects one value.
+
+For every structurally well-formed proposal evaluated against a resolved
+destination basis and law family, a completed admission produces exactly one
+of these four outcomes. A failed derivation proof is an `obstruction` with the
+stable reason family `invalid-derivation`. An unparseable envelope never enters
+the admission mapping. Process crashes, I/O failures, corruption, and internal
+invariant violations are runtime failures outside this four-way union.
+
+Every outcome requires a distinct runtime-backed witness:
+
+```text
+derived      -> DerivationWitness
+plural       -> PluralityWitness
+conflict     -> ConflictWitness
+obstruction  -> ObstructionWitness
+```
+
+The witnesses bind the decision to source and destination identities, source
+and destination bases, proposal digest, law and profile digests, and the
+evaluation coordinate. Variant-specific evidence records direct extension,
+non-interference, overlap, or the exact obstruction reason. The outcome also
+carries a residual posture so callers do not reconstruct resulting topology
+from a label.
+
+Admission execution is a separate outer union:
+
+```text
+completed -> AdmissionOutcome
+failed    -> AdmissionRuntimeFailure
+```
+
+A runtime failure is not an obstruction. Obstruction is a completed causal
+classification; a runtime failure means classification did not complete.
 
 The operation axis remains separate:
 
@@ -337,9 +386,11 @@ fork
 sync
 ```
 
-Epistemic support remains separate from both. A derived operation does not by
-itself prove that an application claim is supported, and a supported claim does
-not change a conflict into a derived operation.
+Observation cardinality and epistemic support remain separate from both. A
+plural admission may produce one Reading, and a derived admission may produce
+many. A derived admission does not by itself prove that an application claim
+is supported, and a supported claim does not change a conflict into a derived
+admission.
 
 Introductory documentation defines Receipt simply:
 
@@ -355,7 +406,7 @@ Human rendering visually separates operational and epistemic fields:
 Receipt
 ------------------------------
 Operation    write
-Outcome      derived
+Admission    derived
 Lane         events
 Coordinate   @842
 
@@ -372,8 +423,29 @@ machine-readable envelopes.
 
 ## Settlement
 
+Admission and settlement are different phases. Admission classifies how
+histories meet. Settlement is the later, law-governed promotion of a plural or
+resolved coordinate into a canonical shared Lane. A `conflict` has not settled,
+an `obstruction` cannot settle, and a `plural` admission may lawfully remain
+plural forever.
+
+```text
+Proposed suffix
+      |
+      v
+Derivation verification
+      |
+      v
+Destination admission
+  /      |       |          \
+derived plural conflict obstruction
+   |       |       |           |
+advance  retain  resolve     repair/stop
+frontier plurality
+```
+
 Settlement is a cross-lane Runtime operation. Preview presentation and the
-admissible plan are distinct values:
+executable plan are distinct values:
 
 ```typescript
 const preview = await runtime.previewSettlement({
@@ -387,13 +459,33 @@ const receipt = await runtime.settle(preview.plan);
 ```
 
 `SettlementPreview` is inspectable presentation plus evidence. Its `plan` is an
-immutable, runtime-backed `SettlementPlan`. `Runtime.settle()` accepts only a
-validated SettlementPlan, never an arbitrary object that resembles preview
-output.
+immutable, runtime-backed `SettlementPlan` bound to source and target Lane IDs,
+their exact frontiers, proposal digest, law digest, settlement-policy digest,
+and its own plan digest. `Runtime.settle()` accepts only a validated
+SettlementPlan, never an arbitrary object that resembles preview output.
 
 Settlement revalidates the plan against the current source and target
-frontiers. A stale or newly obstructed plan returns the appropriate Receipt; a
-preview is not a promise that later settlement must derive.
+frontiers and law. A preview does not reserve, admit, publish, linearize, or
+mutate canonical history. A stale plan is reclassified as a `stale-basis`
+obstruction or replaced by a newly previewed classification; it never executes
+unchecked against a different basis. Any change to a bound frontier, proposal,
+law, or settlement policy invalidates the plan.
+
+```text
+plural or resolved coordinate
+            |
+            v
+     previewSettlement
+            |
+            v
+      SettlementPlan
+            |
+            v
+         settle()
+            |
+            v
+ canonical promotion receipt
+```
 
 Use `previewSettlement()`, not `settle({ dryRun: true })`. Do not use `merge()`
 as the first-use verb. Braid remains the formal implementation noun until the
