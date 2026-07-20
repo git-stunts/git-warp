@@ -15,10 +15,12 @@ import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
 import type Evidence from './Evidence.ts';
 import type Intent from './Intent.ts';
+import type { IntentKind } from './Intent.ts';
 
 const classifier = new AdmissionClassifier();
 const GRAPH_INTENT_ADMISSION_LAW = 'git-warp:admission-law/graph-intent/v1';
 const TIMELINE_WRITE_ADMISSION_PROFILE = 'git-warp:admission-profile/timeline-write/v1';
+const BASIS_INDEPENDENT_INTENT_KINDS: ReadonlySet<IntentKind> = new Set(['node.add', 'edge.add']);
 
 type WriteAdmissionFields = {
   readonly runtime: WarpWorldline;
@@ -128,7 +130,7 @@ function resolveEvaluationCoordinateRef(
   if (fields.basis.evaluationCoordinateRef !== null) {
     return fields.basis.evaluationCoordinateRef;
   }
-  if (fields.intent.kind === 'node.add' || fields.intent.kind === 'edge.add') {
+  if (BASIS_INDEPENDENT_INTENT_KINDS.has(fields.intent.kind)) {
     return sourceBasisRef;
   }
   return missingBoundedBasisCoordinateRef(fields.runtime.worldlineName);
