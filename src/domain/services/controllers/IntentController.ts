@@ -179,7 +179,11 @@ export default class IntentController implements IntentCapability {
     guard: StatusGuard,
     value: PropValue | undefined,
   ): IntentObstruction | null {
-    const actualStatus = typeof value === 'string' ? value : 'ABSENT';
+    const actualStatus = value === undefined
+      ? 'ABSENT'
+      : typeof value === 'string'
+        ? value
+        : canonicalStringify(value);
     if (actualStatus !== guard.expected) {
       return { tag: guard.failureTag, nodeId: guard.nodeId, actual: actualStatus };
     }

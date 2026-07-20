@@ -258,7 +258,7 @@ describe('IntentController', () => {
         kind: 'obstruction',
         witness: {
           suppliedEvidenceRefs: [
-            expect.stringContaining('warp:intent-guard:actual/user%3Aalice/ABSENT'),
+            expect.stringContaining('warp:intent-guard:actual/user%3Aalice/7'),
             expect.stringContaining('warp:read-identity:'),
           ],
         },
