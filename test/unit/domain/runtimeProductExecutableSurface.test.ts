@@ -141,12 +141,12 @@ describe('runtime product executable surface', () => {
     } satisfies WarpIntentDescriptor;
 
     await expect(runtime.admitIntent(descriptor)).resolves.toMatchObject({
-      admitted: true,
       intentId: 'assign-alice',
+      outcome: { kind: 'derived' },
     });
     await expect(runtime.queueIntent('draft-admin', descriptor)).resolves.toMatchObject({
-      admitted: true,
       intentId: 'assign-alice',
+      outcome: { kind: 'derived' },
     });
     await expect(runtime.getWriterIntents('draft-admin')).resolves.toEqual([descriptor]);
     expect(runtime.buildPatchDivergence([], [], null)).toMatchObject({});

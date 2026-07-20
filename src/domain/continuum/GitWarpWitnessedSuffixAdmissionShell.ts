@@ -1,14 +1,19 @@
 import GitWarpSuffixTransformHologram from './GitWarpSuffixTransformHologram.ts';
-import GitWarpWitnessedSuffixAdmissionOutcome from './GitWarpWitnessedSuffixAdmissionOutcome.ts';
 import GitWarpWitnessedSuffixSourceFacts from './GitWarpWitnessedSuffixSourceFacts.ts';
+import type { AdmissionOutcome } from '../admission/AdmissionOutcome.ts';
+import ConflictAdmission from '../admission/ConflictAdmission.ts';
+import DerivedAdmission from '../admission/DerivedAdmission.ts';
+import ObstructedAdmission from '../admission/ObstructedAdmission.ts';
+import PluralAdmission from '../admission/PluralAdmission.ts';
 import WarpError from '../errors/WarpError.ts';
 import type WarpState from '../services/state/WarpState.ts';
 
 export type GitWarpWitnessedSuffixAdmissionShellFields = {
   readonly laneId: string;
   readonly transportedSiteRef: string;
+  readonly destinationRuntimeId: string;
   readonly admissionLawId: string;
-  readonly outcome: GitWarpWitnessedSuffixAdmissionOutcome;
+  readonly outcome: AdmissionOutcome;
   readonly sourceFacts: GitWarpWitnessedSuffixSourceFacts;
   readonly hologram: GitWarpSuffixTransformHologram;
 };
@@ -18,12 +23,13 @@ export default class GitWarpWitnessedSuffixAdmissionShell {
   readonly graphName: string;
   readonly laneId: string;
   readonly transportedSiteRef: string;
+  readonly destinationRuntimeId: string;
   readonly sourceFrontierRef: string;
   readonly basisFrontierRef: string;
   readonly targetFrontierRef: string;
   readonly admissionLawId: string;
   readonly transportLawId: string;
-  readonly outcome: GitWarpWitnessedSuffixAdmissionOutcome;
+  readonly outcome: AdmissionOutcome;
   readonly sourceFacts: GitWarpWitnessedSuffixSourceFacts;
   readonly hologram: GitWarpSuffixTransformHologram;
   readonly patchRefs: readonly string[];
@@ -33,21 +39,21 @@ export default class GitWarpWitnessedSuffixAdmissionShell {
   readonly proofRef: string;
 
   constructor(fields: GitWarpWitnessedSuffixAdmissionShellFields) {
-    const checkedFields = requireFields(fields);
-    const sourceFacts = requireSourceFacts(checkedFields.sourceFacts);
-    const hologram = requireHologram(checkedFields.hologram);
-    requireMatchingFrontiers(sourceFacts, hologram);
-    requireMatchingPatchCount(sourceFacts, hologram);
+    const { checkedFields, sourceFacts, hologram, outcome } = prepareShellFields(fields);
 
     this.graphName = sourceFacts.graphName;
     this.laneId = requireNonEmptyString(checkedFields.laneId, 'laneId');
     this.transportedSiteRef = requireNonEmptyString(checkedFields.transportedSiteRef, 'transportedSiteRef');
+    this.destinationRuntimeId = requireNonEmptyString(
+      checkedFields.destinationRuntimeId,
+      'destinationRuntimeId'
+    );
     this.sourceFrontierRef = sourceFacts.sourceFrontierRef;
     this.basisFrontierRef = sourceFacts.basisFrontierRef;
     this.targetFrontierRef = sourceFacts.targetFrontierRef;
     this.admissionLawId = requireNonEmptyString(checkedFields.admissionLawId, 'admissionLawId');
     this.transportLawId = hologram.transportLawId;
-    this.outcome = requireOutcome(checkedFields.outcome);
+    this.outcome = outcome;
     this.sourceFacts = sourceFacts;
     this.hologram = hologram;
     this.patchRefs = freezePatchRefs(sourceFacts);
@@ -60,6 +66,12 @@ export default class GitWarpWitnessedSuffixAdmissionShell {
 
   /** Deterministically materializes the admitted target state from a comparable basis. */
   materializeFrom(basis?: WarpState): WarpState {
+    if (!(this.outcome instanceof DerivedAdmission)) {
+      throw new WarpError(
+        'Only a derived suffix admission may materialize a canonical target',
+        'E_SUFFIX_ADMISSION_NOT_DERIVED'
+      );
+    }
     return this.hologram.materializeFrom(basis);
   }
 
@@ -69,12 +81,33 @@ export default class GitWarpWitnessedSuffixAdmissionShell {
   }
 
   isAdmitted(): boolean {
-    return this.outcome.isAdmitted();
+    return this.outcome instanceof DerivedAdmission || this.outcome instanceof PluralAdmission;
   }
 
-  requiresResolution(): boolean {
-    return this.outcome.requiresResolution();
+  requiresConflictResolution(): boolean {
+    return this.outcome instanceof ConflictAdmission;
   }
+
+  isObstructed(): boolean {
+    return this.outcome instanceof ObstructedAdmission;
+  }
+}
+
+function prepareShellFields(fields: GitWarpWitnessedSuffixAdmissionShellFields) {
+  const checkedFields = requireFields(fields);
+  const sourceFacts = requireSourceFacts(checkedFields.sourceFacts);
+  const hologram = requireHologram(checkedFields.hologram);
+  requireMatchingFrontiers(sourceFacts, hologram);
+  requireMatchingPatchCount(sourceFacts, hologram);
+  const outcome = requireOutcome(checkedFields.outcome);
+  requireMatchingEvaluation({
+    outcome,
+    transportedSiteRef: checkedFields.transportedSiteRef,
+    destinationRuntimeId: checkedFields.destinationRuntimeId,
+    admissionLawId: checkedFields.admissionLawId,
+    sourceFacts,
+  });
+  return { checkedFields, sourceFacts, hologram, outcome };
 }
 
 function requireFields(
@@ -103,12 +136,64 @@ function requireHologram(value: GitWarpSuffixTransformHologram): GitWarpSuffixTr
 }
 
 function requireOutcome(
-  value: GitWarpWitnessedSuffixAdmissionOutcome,
-): GitWarpWitnessedSuffixAdmissionOutcome {
-  if (!(value instanceof GitWarpWitnessedSuffixAdmissionOutcome)) {
-    throw new WarpError('outcome must be GitWarpWitnessedSuffixAdmissionOutcome', 'E_VALIDATION');
+  value: AdmissionOutcome,
+): AdmissionOutcome {
+  if (
+    !(value instanceof DerivedAdmission) &&
+    !(value instanceof PluralAdmission) &&
+    !(value instanceof ConflictAdmission) &&
+    !(value instanceof ObstructedAdmission)
+  ) {
+    throw new WarpError('outcome must be an AdmissionOutcome', 'E_VALIDATION');
   }
   return value;
+}
+
+type SuffixEvaluationBinding = {
+  readonly outcome: AdmissionOutcome;
+  readonly transportedSiteRef: string;
+  readonly destinationRuntimeId: string;
+  readonly admissionLawId: string;
+  readonly sourceFacts: GitWarpWitnessedSuffixSourceFacts;
+};
+
+function requireMatchingEvaluation({
+  outcome,
+  transportedSiteRef,
+  destinationRuntimeId,
+  admissionLawId,
+  sourceFacts,
+}: SuffixEvaluationBinding): void {
+  const { evaluation } = outcome.witness;
+  const familyProfile = `${sourceFacts.family.familyId.toString()}@${sourceFacts.family.version}`;
+  const bindings = [
+    [evaluation.sourceParticipantId, transportedSiteRef, 'sourceParticipantId'],
+    [evaluation.destinationRuntimeId, destinationRuntimeId, 'destinationRuntimeId'],
+    [evaluation.sourceBasisRef, sourceFacts.sourceFrontierRef, 'sourceBasisRef'],
+    [evaluation.destinationBasisRef, sourceFacts.basisFrontierRef, 'destinationBasisRef'],
+    [evaluation.proposalDigest, sourceFacts.bundleDigest, 'proposalDigest'],
+    [evaluation.lawDigest, admissionLawId, 'lawDigest'],
+    [evaluation.profileDigest, familyProfile, 'profileDigest'],
+    [evaluation.evaluationCoordinateRef, sourceFacts.basisFrontierRef, 'evaluationCoordinateRef'],
+  ] as const;
+  for (const [actual, expected, field] of bindings) {
+    if (actual !== expected) {
+      throw new WarpError(`admission outcome ${field} does not match suffix shell`, 'E_VALIDATION');
+    }
+  }
+  requireDerivedTarget(outcome, sourceFacts.targetFrontierRef);
+}
+
+function requireDerivedTarget(outcome: AdmissionOutcome, targetFrontierRef: string): void {
+  if (
+    outcome instanceof DerivedAdmission &&
+    outcome.witness.resultingFrontierRef !== targetFrontierRef
+  ) {
+    throw new WarpError(
+      'derived admission result does not match suffix target frontier',
+      'E_VALIDATION'
+    );
+  }
 }
 
 function requireMatchingFrontiers(

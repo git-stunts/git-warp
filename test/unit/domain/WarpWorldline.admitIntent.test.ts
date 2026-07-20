@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
+import type { IntentAdmissionReceipt } from '../../../src/domain/admission/IntentAdmissionReceipt.ts';
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
-import type { WarpIntentDescriptor, WarpIntentOutcome } from '../../../src/domain/types/WarpIntentDescriptor.ts';
+import type { WarpIntentDescriptor } from '../../../src/domain/types/WarpIntentDescriptor.ts';
+import {
+  testDerivedIntentAdmissionReceipt,
+  testObstructedIntentAdmissionReceipt,
+} from '../../helpers/intentAdmission.ts';
 
-function createHandle(admitIntentMock?: (descriptor: WarpIntentDescriptor) => Promise<WarpIntentOutcome>): WarpWorldline {
+function createHandle(
+  admitIntentMock?: (descriptor: WarpIntentDescriptor) => Promise<IntentAdmissionReceipt>,
+): WarpWorldline {
   return new WarpWorldline({
     worldlineName: 'events',
     writerId: 'agent-1',
@@ -16,8 +23,9 @@ function createHandle(admitIntentMock?: (descriptor: WarpIntentDescriptor) => Pr
         },
       },
     }),
-    admitIntent: admitIntentMock ?? (async (desc) => ({ admitted: true, sha: 'intent-sha', intentId: desc.intentId })),
-  } as any);
+    admitIntent: admitIntentMock
+      ?? (async (descriptor) => testDerivedIntentAdmissionReceipt(descriptor.intentId, 'intent-sha')),
+  });
 }
 
 describe('WarpWorldline admitIntent', () => {
@@ -41,17 +49,17 @@ describe('WarpWorldline admitIntent', () => {
       },
     });
 
-    expect(outcome.admitted).toBe(true);
-    expect((outcome as any).sha).toBe('intent-sha');
+    expect(outcome.outcome.kind).toBe('derived');
+    expect(outcome).toMatchObject({ publicationRef: 'intent-sha' });
     expect(outcome.intentId).toBe('intent:xyph:quest:claim:001');
   });
 
   it('fails closed when a precommit guard is obstructed', async () => {
-    const handle = createHandle(async (desc) => ({
-      admitted: false,
-      obstruction: { tag: 'QuestNotReady', nodeId: 'quest:abc', actual: 'SEALED' },
-      intentId: desc.intentId,
-    }));
+    const handle = createHandle(async (descriptor) =>
+      testObstructedIntentAdmissionReceipt(
+        descriptor.intentId,
+        'git-warp.quest-not-ready',
+      ));
 
     const outcome = await (handle as any).admitIntent({
       intentId: 'intent:xyph:quest:claim:002',
@@ -70,8 +78,10 @@ describe('WarpWorldline admitIntent', () => {
       },
     });
 
-    expect(outcome.admitted).toBe(false);
-    expect((outcome as any).obstruction).toEqual({ tag: 'QuestNotReady', nodeId: 'quest:abc', actual: 'SEALED' });
+    expect(outcome.outcome.kind).toBe('obstruction');
+    expect(outcome.outcome.witness).toMatchObject({
+      reason: { code: 'git-warp.quest-not-ready' },
+    });
     expect(outcome.intentId).toBe('intent:xyph:quest:claim:002');
   });
 });

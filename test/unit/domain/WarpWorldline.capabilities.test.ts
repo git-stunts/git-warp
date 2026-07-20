@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import MemoryCapabilityReport from '../../../src/domain/memory/MemoryCapabilityReport.ts';
 import ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
-import { testRetentionWitness } from '../../helpers/storageRetention.ts';
+import { testDerivedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 
 function createHandle(): WarpWorldline {
   return new WarpWorldline({
@@ -17,12 +17,7 @@ function createHandle(): WarpWorldline {
         },
       },
     }),
-    admitIntent: async (descriptor) => ({
-      admitted: true,
-      sha: 'blob:intent:123',
-      intentId: descriptor.intentId,
-      retention: testRetentionWitness('intent-123'),
-    }),
+    admitIntent: async (descriptor) => testDerivedIntentAdmissionReceipt(descriptor.intentId),
   });
 }
 

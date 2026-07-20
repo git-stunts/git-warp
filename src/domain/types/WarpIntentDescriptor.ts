@@ -1,8 +1,7 @@
 /**
- * Unmaterialized intent descriptor and admission outcome types.
+ * Unmaterialized intent descriptor types.
  */
 
-import type StorageRetentionWitness from '../storage/StorageRetentionWitness.ts';
 import type CodecValue from './codec/CodecValue.ts';
 
 type PrecommitGuardBase = {
@@ -18,9 +17,6 @@ export type PrecommitGuard =
   | (PrecommitGuardBase & {
       readonly op: 'nodeUnassignedOrSelf';
       readonly agentId: string;
-    })
-  | (PrecommitGuardBase & {
-      readonly op: 'edgeExists';
     });
 
 export type SuffixTransform = {
@@ -40,19 +36,4 @@ export type WarpIntentDescriptor = {
   readonly nutritionLabel: IntentNutritionLabel;
   readonly precommitGuards: readonly PrecommitGuard[];
   readonly suffixTransform: SuffixTransform;
-};
-
-export type WarpIntentOutcome = {
-  readonly admitted: true;
-  readonly sha: string;
-  readonly intentId: string;
-  readonly retention: StorageRetentionWitness;
-} | {
-  readonly admitted: false;
-  readonly obstruction: {
-    readonly tag: string;
-    readonly nodeId: string;
-    readonly actual: string;
-  };
-  readonly intentId: string;
 };

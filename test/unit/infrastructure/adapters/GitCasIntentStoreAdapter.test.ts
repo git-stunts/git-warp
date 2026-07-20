@@ -42,11 +42,6 @@ function descriptor(intentId: string): WarpIntentDescriptor {
         agentId: 'alice',
         failureTag: 'assigned',
       },
-      {
-        op: 'edgeExists',
-        nodeId: 'node:c',
-        failureTag: 'edge-missing',
-      },
     ],
     suffixTransform: {
       op: 'append',
@@ -76,6 +71,16 @@ describe('GitCasIntentStoreAdapter', () => {
       reachability: 'anchored',
       root: { kind: 'publication', generation: first.sha },
     });
+    expect(first.basisRef).toBe('warp:intent-journal/events/queued/alice/frontier/empty');
+    expect(first.publicationRef).toBe(
+      `warp:intent-journal/events/queued/alice/publication/${first.sha}`
+    );
+    expect(first.resultingFrontierRef).toBe(
+      `warp:intent-journal/events/queued/alice/frontier/${first.sha}`
+    );
+    expect(second.basisRef).toBe(first.resultingFrontierRef);
+    await expect(intents.currentBasisRef('events', 'queued', 'alice'))
+      .resolves.toBe(second.resultingFrontierRef);
     expect(second.sha).not.toBe(first.sha);
     await expect(intents.scan('events', 'queued', 'alice').collect())
       .resolves.toEqual([descriptor('intent-1'), descriptor('intent-2')]);
@@ -147,6 +152,14 @@ describe('GitCasIntentStoreAdapter', () => {
         op: 'unknown',
         nodeId: 'node:a',
         failureTag: 'bad-op',
+      }],
+    },
+    {
+      ...descriptor('removed-edge-guard'),
+      precommitGuards: [{
+        op: 'edgeExists',
+        nodeId: 'node:a',
+        failureTag: 'edge-missing',
       }],
     },
     {

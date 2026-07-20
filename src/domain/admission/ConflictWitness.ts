@@ -1,7 +1,6 @@
-import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
-import AdmissionEvaluation from './AdmissionEvaluation.ts';
-import { freezeAdmissionRefs } from './admissionValidation.ts';
+import type AdmissionEvaluation from './AdmissionEvaluation.ts';
+import { freezeAdmissionRefs, requireAdmissionEvaluation } from './admissionValidation.ts';
 
 export type ConflictWitnessFields = {
   readonly evaluation: AdmissionEvaluation;
@@ -26,29 +25,24 @@ export default class ConflictWitness {
   readonly resolutionProcedureRefs: readonly string[];
 
   constructor(fields: ConflictWitnessFields) {
-    if (fields === null || fields === undefined) {
-      throw new WarpError('ConflictWitness fields are required', 'E_VALIDATION');
-    }
-    if (!(fields.evaluation instanceof AdmissionEvaluation)) {
-      throw new WarpError('evaluation must be an AdmissionEvaluation', 'E_VALIDATION');
-    }
-    requireNonEmptyString(fields.conflictRef, 'conflictRef');
-    requireNonEmptyString(fields.contestedDomain, 'contestedDomain');
-    requireNonEmptyString(fields.derivationEvidenceRef, 'derivationEvidenceRef');
-    requireNonEmptyString(fields.overlapEvidenceRef, 'overlapEvidenceRef');
-    this.evaluation = fields.evaluation;
-    this.conflictRef = fields.conflictRef;
-    this.claimRefs = freezeAdmissionRefs(fields.claimRefs, 'claimRefs', 2);
+    const checked = requireAdmissionEvaluation(fields, 'ConflictWitness');
+    requireNonEmptyString(checked.conflictRef, 'conflictRef');
+    requireNonEmptyString(checked.contestedDomain, 'contestedDomain');
+    requireNonEmptyString(checked.derivationEvidenceRef, 'derivationEvidenceRef');
+    requireNonEmptyString(checked.overlapEvidenceRef, 'overlapEvidenceRef');
+    this.evaluation = checked.evaluation;
+    this.conflictRef = checked.conflictRef;
+    this.claimRefs = freezeAdmissionRefs(checked.claimRefs, 'claimRefs', 2);
     this.overlappingFootprintRefs = freezeAdmissionRefs(
-      fields.overlappingFootprintRefs,
+      checked.overlappingFootprintRefs,
       'overlappingFootprintRefs',
       1
     );
-    this.contestedDomain = fields.contestedDomain;
-    this.derivationEvidenceRef = fields.derivationEvidenceRef;
-    this.overlapEvidenceRef = fields.overlapEvidenceRef;
+    this.contestedDomain = checked.contestedDomain;
+    this.derivationEvidenceRef = checked.derivationEvidenceRef;
+    this.overlapEvidenceRef = checked.overlapEvidenceRef;
     this.resolutionProcedureRefs = freezeAdmissionRefs(
-      fields.resolutionProcedureRefs,
+      checked.resolutionProcedureRefs,
       'resolutionProcedureRefs'
     );
     Object.freeze(this);

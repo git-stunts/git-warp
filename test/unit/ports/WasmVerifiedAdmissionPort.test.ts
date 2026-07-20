@@ -1,11 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import type { WarpIntentDescriptor, WarpIntentOutcome } from '../../../src/domain/types/WarpIntentDescriptor.ts';
+import type { IntentAdmissionReceipt } from '../../../src/domain/admission/IntentAdmissionReceipt.ts';
+import type { WarpIntentDescriptor } from '../../../src/domain/types/WarpIntentDescriptor.ts';
 import type WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import WasmVerifiedAdmissionService from '../../../src/domain/services/admission/WasmVerifiedAdmissionService.ts';
-import { testRetentionWitness } from '../../helpers/storageRetention.ts';
+import {
+  testDerivedIntentAdmissionReceipt,
+  testObstructedIntentAdmissionReceipt,
+} from '../../helpers/intentAdmission.ts';
 
-function createMockWarpWorldline(outcome: WarpIntentOutcome): WarpWorldline {
-  return { admitIntent: async () => outcome } as unknown as WarpWorldline;
+function createMockWarpWorldline(outcome: IntentAdmissionReceipt): WarpWorldline {
+  return {
+    worldlineName: 'events',
+    writerId: 'agent-1',
+    admitIntent: async () => outcome,
+  } as unknown as WarpWorldline;
+}
+
+function createService(worldline: WarpWorldline): WasmVerifiedAdmissionService {
+  return new WasmVerifiedAdmissionService({
+    worldline,
+    readAdmissionBasis: async () => 'frontier:intent-journal:test',
+  });
 }
 
 describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {
@@ -43,60 +58,62 @@ describe('WasmVerifiedAdmissionPort & WasmVerifiedAdmissionService', () => {
     verified: false,
   };
 
-  it('should verify report digest and admit intent through worldline', async () => {
-    const mockWorldline = createMockWarpWorldline({
-      admitted: true,
-      sha: 'blob:intent:sha123',
-      intentId: validIntentDescriptor.intentId,
-      retention: testRetentionWitness('blob:intent:sha123'),
-    });
+  it('admits through the worldline when the verifier report is trusted', async () => {
+    const mockWorldline = createMockWarpWorldline(
+      testDerivedIntentAdmissionReceipt(validIntentDescriptor.intentId, 'blob:intent:sha123')
+    );
 
-    const service = new WasmVerifiedAdmissionService(mockWorldline);
+    const service = createService(mockWorldline);
     const outcome = await service.admitWasmIntent(validIntentDescriptor, validReport);
 
-    expect(outcome.admitted).toBe(true);
-    if (outcome.admitted) {
-      expect(outcome.sha).toBe('blob:intent:sha123');
-      expect(outcome.intentId).toBe('intent:xyph:quest:claim:001');
-    }
+    expect(outcome.outcome.kind).toBe('derived');
+    expect(outcome).toMatchObject({
+      intentId: 'intent:xyph:quest:claim:001',
+      publicationRef: 'blob:intent:sha123',
+    });
   });
 
   it('should reject admission if verifier report is invalid or untrusted', async () => {
-    const mockWorldline = createMockWarpWorldline({
-      admitted: true,
-      sha: 'blob:intent:sha123',
-      intentId: validIntentDescriptor.intentId,
-      retention: testRetentionWitness('blob:intent:sha123'),
-    });
+    const mockWorldline = createMockWarpWorldline(
+      testDerivedIntentAdmissionReceipt(validIntentDescriptor.intentId)
+    );
 
-    const service = new WasmVerifiedAdmissionService(mockWorldline);
+    const service = createService(mockWorldline);
     const outcome = await service.admitWasmIntent(validIntentDescriptor, invalidReport);
+    const admission = outcome.outcome;
 
-    expect(outcome.admitted).toBe(false);
-    if (!outcome.admitted) {
-      expect(outcome.obstruction.tag).toBe('UntrustedWasmVerifierReport');
-      expect(outcome.obstruction.actual).toBe('sha256:unknownWasmDigest');
+    expect(admission.kind).toBe('obstruction');
+    if (admission.kind !== 'obstruction') {
+      throw new Error('expected obstruction admission');
     }
+    expect(admission.witness.reason).toMatchObject({
+      family: 'invalid-derivation',
+      code: 'git-warp.untrusted-wasm-verifier-report',
+    });
+    expect(admission.witness.suppliedEvidenceRefs).toContain(
+      'warp:wasm-module:sha256%3AunknownWasmDigest'
+    );
+    expect(admission.witness.suppliedEvidenceRefs).toContain(
+      'warp:wasm-report-status:unverified'
+    );
   });
 
   it('should reflect precommit guard obstructions encountered during worldline admission', async () => {
-    const mockWorldline = createMockWarpWorldline({
-      admitted: false,
-      obstruction: {
-        tag: 'QuestNotReady',
-        nodeId: 'quest:abc',
-        actual: 'BACKLOG',
-      },
-      intentId: validIntentDescriptor.intentId,
-    });
+    const mockWorldline = createMockWarpWorldline(
+      testObstructedIntentAdmissionReceipt(
+        validIntentDescriptor.intentId,
+        'git-warp.quest-not-ready',
+      )
+    );
 
-    const service = new WasmVerifiedAdmissionService(mockWorldline);
+    const service = createService(mockWorldline);
     const outcome = await service.admitWasmIntent(validIntentDescriptor, validReport);
+    const admission = outcome.outcome;
 
-    expect(outcome.admitted).toBe(false);
-    if (!outcome.admitted) {
-      expect(outcome.obstruction.tag).toBe('QuestNotReady');
-      expect(outcome.obstruction.actual).toBe('BACKLOG');
+    expect(admission.kind).toBe('obstruction');
+    if (admission.kind !== 'obstruction') {
+      throw new Error('expected obstruction admission');
     }
+    expect(admission.witness.reason.code).toBe('git-warp.quest-not-ready');
   });
 });
