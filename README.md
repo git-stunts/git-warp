@@ -25,7 +25,7 @@ If that sounds abstract, the short version is:
 
 - You can work **offline**.
 - Multiple writers can contribute **without central coordination**.
-- Conflicts resolve **deterministically**.
+- Concurrent histories are **classified deterministically** before settlement.
 - Every value keeps **provenance**.
 - Reads are designed to stay **bounded**, not accidentally materialize everything.
 
@@ -236,22 +236,32 @@ than maintained as long-form prose; see the generated
 
 ### Deterministic and offline-first
 
-Writers can make independent changes without a central coordinator. When history converges, the same patches produce the same visible result.
+Writers can make independent changes without a central coordinator. Admission
+first classifies how their histories meet: direct extension, lawful plurality,
+exclusive conflict, or obstruction. For the same admitted patch set and law,
+deterministic reducers produce the same visible result.
 
 <details>
-<summary><h4>For the Nerds™ — Convergence is a join-semilattice</h4></summary>
+<summary><h4>For the Nerds™ — CRDT join is a domain law</h4></summary>
 
-> Deterministic multi-writer merge is the statement that materialized state forms a **join-semilattice** $(L, \sqcup)$: a partial order with a least upper bound for any pair. Each writer's patches push state _up_ the order, and merge is the **join** $\sqcup$ — idempotent, commutative, and associative:
+> When a domain defines a **join-semilattice** $(L, \sqcup)$, its lawful
+> settlement reducer has a least upper bound for each pair in that domain. The
+> join remains idempotent, commutative, and associative:
 >
 > $$x \sqcup x = x \qquad x \sqcup y = y \sqcup x \qquad (x \sqcup y) \sqcup z = x \sqcup (y \sqcup z)$$
 >
-> Those three laws are exactly what "no central coordinator" buys you:
+> Those laws allow that domain to reconcile independently delivered updates:
 >
 > - **commutativity** ⇒ writers can apply each other's patches in any order,
 > - **associativity** ⇒ they can batch them however the network delivers them,
 > - **idempotence** ⇒ re-delivering the same patch is harmless.
 >
-> So convergence isn't luck; it's the **least upper bound** $\bigsqcup_i h_i$ of everyone's observed history $h_i$. This is the CRDT (state-based / CvRDT) guarantee: monotone updates into a semilattice always reconcile to the same join, independent of message order or duplication.
+> Git-warp does not require every pair of concurrent histories to have such a
+> join. It first classifies admission as **derived**, **plural**, **conflict**,
+> or **obstruction**. A settlement law may use a CRDT join for lawful plural
+> histories; another law may preserve plurality or require explicit conflict
+> resolution. Automatic merge is a policy with algebraic obligations, not a
+> universal property of all causal history.
 
 </details>
 
@@ -324,7 +334,7 @@ Each writer appends patch commits under `refs/warp/<graph>/writers/<writerId>`. 
 
 > Git's object store is a **Merkle DAG**: every object is named by the hash of its content, so a commit's id transitively fixes its entire history. That gives **structural sharing** (equal subhistories are stored once — hash-consing) and **tamper-evidence** for free: change one byte upstream and every downstream id changes.
 >
-> `git-warp` leans on two consequences. First, each writer's chain at `refs/warp/<graph>/writers/<writerId>` is the **free monoid** $(W^{*},\, \cdot,\, \varepsilon)$ on that writer's claims $W$ — append-only concatenation $\cdot$, empty history $\varepsilon$ as identity, no rewriting. Second, the commits live on WARP refs rather than source-tree refs, so graph history rides Git's transport and dedup without touching your working tree. Merge law lives one layer above this (see the semilattice note); Git supplies the verifiable spine.
+> `git-warp` leans on two consequences. First, each writer's chain at `refs/warp/<graph>/writers/<writerId>` is the **free monoid** $(W^{*},\, \cdot,\, \varepsilon)$ on that writer's claims $W$ — append-only concatenation $\cdot$, empty history $\varepsilon$ as identity, no rewriting. Second, the commits live on WARP refs rather than source-tree refs, so graph history rides Git's transport and dedup without touching your working tree. Admission and settlement law live one layer above this; Git supplies the verifiable spine.
 
 </details>
 
@@ -347,16 +357,16 @@ In the stack, **git-warp and Echo own runtime truth**, while Continuum owns the 
 
 ## When to use it
 
-| Use case                                    | Fit                             |
-| ------------------------------------------- | ------------------------------- |
-| Offline-first multi-writer convergence      | Strong                          |
-| Agent/tool substrate with causal history    | Strong                          |
-| Graph semantics without inventing merge law | Strong                          |
-| Speculative lanes for what-if exploration   | Strong                          |
-| High-throughput real-time execution         | Use Echo instead                |
-| General-purpose OLTP                        | Use Postgres                    |
-| Full-text search / analytics                | Use purpose-built engines       |
-| Time-travel debugging UI                    | Use warp-ttd on top of git-warp |
+| Use case                                  | Fit                             |
+| ----------------------------------------- | ------------------------------- |
+| Offline-first multi-writer causal history | Strong                          |
+| Agent/tool substrate with causal history  | Strong                          |
+| Graph-shaped views under explicit law     | Strong                          |
+| Speculative lanes for what-if exploration | Strong                          |
+| High-throughput real-time execution       | Use Echo instead                |
+| General-purpose OLTP                      | Use Postgres                    |
+| Full-text search / analytics              | Use purpose-built engines       |
+| Time-travel debugging UI                  | Use warp-ttd on top of git-warp |
 
 ## Runtime posture
 
@@ -392,9 +402,13 @@ It is deliberately "weird": optimized for offline-first, multi-writer, provenanc
 
 ### How does it differ from a normal CRDT or graph database?
 
-It is a **state-based CvRDT substrate** with strong emphasis on bounded reads, perfect provenance, and Git as the transport layer.
+It is a causal-history runtime that can host CRDT reducers where the domain law
+admits an automatic join. It adds bounded reads, explicit admission,
+provenance, plurality, conflict, and obstruction rather than assuming every
+concurrent pair must merge.
 
-This gives you deterministic convergence without a central server, but reads are intentionally scoped (via optics and coordinates) instead of materializing the entire graph.
+Git supplies durable transport and content addressing. Optics and coordinates
+keep reads scoped instead of materializing the entire graph.
 
 ### What does the data model look like?
 
@@ -402,7 +416,10 @@ This gives you deterministic convergence without a central server, but reads are
 
 ### Can multiple people/agents write at the same time?
 
-Yes — independently, even fully offline. Histories converge deterministically via the join-semilattice model. No locking required.
+Yes — independently, even fully offline. Admission classifies concurrent
+histories deterministically. Non-interfering histories may remain plural or be
+settled by a domain law; exclusive conflicts require resolution, and
+obstructions do not enter history. No global lock is required.
 
 ### How do I install and set it up?
 
