@@ -54,6 +54,26 @@ export default class AdmissionObstructionReason {
   static staleBasis(code: string): AdmissionObstructionReason {
     return new AdmissionObstructionReason(STALE_BASIS, code);
   }
+
+  static capabilityDenied(code: string): AdmissionObstructionReason {
+    return new AdmissionObstructionReason(CAPABILITY_DENIED, code);
+  }
+
+  static unsupportedEvidence(code: string): AdmissionObstructionReason {
+    return new AdmissionObstructionReason(UNSUPPORTED_EVIDENCE, code);
+  }
+
+  static lawViolation(code: string): AdmissionObstructionReason {
+    return new AdmissionObstructionReason(LAW_VIOLATION, code);
+  }
+
+  static budgetExceeded(code: string): AdmissionObstructionReason {
+    return new AdmissionObstructionReason(BUDGET_EXCEEDED, code);
+  }
+
+  static unsupportedContract(code: string): AdmissionObstructionReason {
+    return new AdmissionObstructionReason(UNSUPPORTED_CONTRACT, code);
+  }
 }
 
 function requireQualifiedCode(code: string): void {

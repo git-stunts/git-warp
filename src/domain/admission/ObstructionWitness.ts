@@ -1,9 +1,9 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
-import AdmissionEvaluation from './AdmissionEvaluation.ts';
+import type AdmissionEvaluation from './AdmissionEvaluation.ts';
 import AdmissionObstructionReason from './AdmissionObstructionReason.ts';
 import AdmissionRetryDisposition from './AdmissionRetryDisposition.ts';
-import { freezeAdmissionRefs } from './admissionValidation.ts';
+import { freezeAdmissionRefs, requireAdmissionEvaluation } from './admissionValidation.ts';
 
 export type ObstructionWitnessFields = {
   readonly evaluation: AdmissionEvaluation;
@@ -24,8 +24,7 @@ export default class ObstructionWitness {
   readonly retry: AdmissionRetryDisposition;
 
   constructor(fields: ObstructionWitnessFields) {
-    const checked = requirePresentFields(fields);
-    requireEvaluation(checked.evaluation);
+    const checked = requireAdmissionEvaluation(fields, 'ObstructionWitness');
     requireReason(checked.reason);
     requireRetry(checked.retry);
     requireNonEmptyString(checked.failedConditionRef, 'failedConditionRef');
@@ -42,19 +41,6 @@ export default class ObstructionWitness {
     this.failedConditionRef = checked.failedConditionRef;
     this.retry = checked.retry;
     Object.freeze(this);
-  }
-}
-
-function requirePresentFields(fields: ObstructionWitnessFields): ObstructionWitnessFields {
-  if (fields === null || fields === undefined) {
-    throw new WarpError('ObstructionWitness fields are required', 'E_VALIDATION');
-  }
-  return fields;
-}
-
-function requireEvaluation(evaluation: AdmissionEvaluation): void {
-  if (!(evaluation instanceof AdmissionEvaluation)) {
-    throw new WarpError('evaluation must be an AdmissionEvaluation', 'E_VALIDATION');
   }
 }
 

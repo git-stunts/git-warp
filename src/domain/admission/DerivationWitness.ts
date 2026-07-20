@@ -1,6 +1,6 @@
-import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
-import AdmissionEvaluation from './AdmissionEvaluation.ts';
+import type AdmissionEvaluation from './AdmissionEvaluation.ts';
+import { requireAdmissionEvaluation } from './admissionValidation.ts';
 
 export type DerivationWitnessFields = {
   readonly evaluation: AdmissionEvaluation;
@@ -19,21 +19,16 @@ export default class DerivationWitness {
   readonly directExtensionEvidenceRef: string;
 
   constructor(fields: DerivationWitnessFields) {
-    if (fields === null || fields === undefined) {
-      throw new WarpError('DerivationWitness fields are required', 'E_VALIDATION');
-    }
-    if (!(fields.evaluation instanceof AdmissionEvaluation)) {
-      throw new WarpError('evaluation must be an AdmissionEvaluation', 'E_VALIDATION');
-    }
-    requireNonEmptyString(fields.admittedSuffixRef, 'admittedSuffixRef');
-    requireNonEmptyString(fields.resultingFrontierRef, 'resultingFrontierRef');
-    requireNonEmptyString(fields.authorityEvidenceRef, 'authorityEvidenceRef');
-    requireNonEmptyString(fields.directExtensionEvidenceRef, 'directExtensionEvidenceRef');
-    this.evaluation = fields.evaluation;
-    this.admittedSuffixRef = fields.admittedSuffixRef;
-    this.resultingFrontierRef = fields.resultingFrontierRef;
-    this.authorityEvidenceRef = fields.authorityEvidenceRef;
-    this.directExtensionEvidenceRef = fields.directExtensionEvidenceRef;
+    const checked = requireAdmissionEvaluation(fields, 'DerivationWitness');
+    requireNonEmptyString(checked.admittedSuffixRef, 'admittedSuffixRef');
+    requireNonEmptyString(checked.resultingFrontierRef, 'resultingFrontierRef');
+    requireNonEmptyString(checked.authorityEvidenceRef, 'authorityEvidenceRef');
+    requireNonEmptyString(checked.directExtensionEvidenceRef, 'directExtensionEvidenceRef');
+    this.evaluation = checked.evaluation;
+    this.admittedSuffixRef = checked.admittedSuffixRef;
+    this.resultingFrontierRef = checked.resultingFrontierRef;
+    this.authorityEvidenceRef = checked.authorityEvidenceRef;
+    this.directExtensionEvidenceRef = checked.directExtensionEvidenceRef;
     Object.freeze(this);
   }
 }

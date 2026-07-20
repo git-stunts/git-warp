@@ -1,7 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
-import AdmissionEvaluation from './AdmissionEvaluation.ts';
-import { freezeAdmissionRefs } from './admissionValidation.ts';
+import type AdmissionEvaluation from './AdmissionEvaluation.ts';
+import { freezeAdmissionRefs, requireAdmissionEvaluation } from './admissionValidation.ts';
 
 export type PluralityWitnessFields = {
   readonly evaluation: AdmissionEvaluation;
@@ -45,18 +45,13 @@ export default class PluralityWitness {
 }
 
 function requireFields(fields: PluralityWitnessFields): PluralityWitnessFields {
-  if (fields === null || fields === undefined) {
-    throw new WarpError('PluralityWitness fields are required', 'E_VALIDATION');
-  }
-  if (!(fields.evaluation instanceof AdmissionEvaluation)) {
-    throw new WarpError('evaluation must be an AdmissionEvaluation', 'E_VALIDATION');
-  }
-  requireNonEmptyString(fields.localCoordinateRef, 'localCoordinateRef');
-  requireNonEmptyString(fields.incomingCoordinateRef, 'incomingCoordinateRef');
-  if (fields.localCoordinateRef === fields.incomingCoordinateRef) {
+  const checked = requireAdmissionEvaluation(fields, 'PluralityWitness');
+  requireNonEmptyString(checked.localCoordinateRef, 'localCoordinateRef');
+  requireNonEmptyString(checked.incomingCoordinateRef, 'incomingCoordinateRef');
+  if (checked.localCoordinateRef === checked.incomingCoordinateRef) {
     throw new WarpError('Plural admission requires distinct coordinates', 'E_VALIDATION');
   }
-  return fields;
+  return checked;
 }
 
 function requireRetainedCoordinates(fields: PluralityWitnessFields): readonly string[] {

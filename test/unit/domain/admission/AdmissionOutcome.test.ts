@@ -218,23 +218,20 @@ describe('AdmissionOutcome', () => {
     expect(AdmissionObstructionReason.staleBasis('continuum.stale-plan').family).toBe(
       'stale-basis'
     );
+    expect(AdmissionObstructionReason.capabilityDenied('continuum.capability-denied').family).toBe(
+      'capability-denied'
+    );
     expect(
-      new AdmissionObstructionReason('capability-denied', 'continuum.capability-denied').family
-    ).toBe('capability-denied');
-    expect(
-      new AdmissionObstructionReason('unsupported-evidence', 'continuum.unsupported-evidence')
-        .family
+      AdmissionObstructionReason.unsupportedEvidence('continuum.unsupported-evidence').family
     ).toBe('unsupported-evidence');
     expect(
-      new AdmissionObstructionReason('law-violation', 'LabMachine.v1.CooldownBlocksReservation')
-        .family
+      AdmissionObstructionReason.lawViolation('LabMachine.v1.CooldownBlocksReservation').family
     ).toBe('law-violation');
+    expect(AdmissionObstructionReason.budgetExceeded('continuum.budget-exceeded').family).toBe(
+      'budget-exceeded'
+    );
     expect(
-      new AdmissionObstructionReason('budget-exceeded', 'continuum.budget-exceeded').family
-    ).toBe('budget-exceeded');
-    expect(
-      new AdmissionObstructionReason('unsupported-contract', 'continuum.unsupported-contract')
-        .family
+      AdmissionObstructionReason.unsupportedContract('continuum.unsupported-contract').family
     ).toBe('unsupported-contract');
   });
 

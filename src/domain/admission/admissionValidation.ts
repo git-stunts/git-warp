@@ -1,5 +1,18 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
+import AdmissionEvaluation from './AdmissionEvaluation.ts';
+
+export function requireAdmissionEvaluation<
+  Fields extends { readonly evaluation: AdmissionEvaluation },
+>(fields: Fields, witnessName: string): Fields {
+  if (fields === null || fields === undefined) {
+    throw new WarpError(`${witnessName} fields are required`, 'E_VALIDATION');
+  }
+  if (!(fields.evaluation instanceof AdmissionEvaluation)) {
+    throw new WarpError('evaluation must be an AdmissionEvaluation', 'E_VALIDATION');
+  }
+  return fields;
+}
 
 export function freezeAdmissionRefs(
   values: readonly string[],
