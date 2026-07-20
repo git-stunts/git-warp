@@ -19,7 +19,7 @@ flowchart TD
 
 ## Architectural contract
 
-The `WasmVerifiedAdmissionPort` abstract class defines the contract for admitting Wasm-lowered intents accompanied by cryptographic verifier reports:
+The `WasmVerifiedAdmissionPort` abstract class defines the contract for admitting Wasm-lowered intents accompanied by verifier report claims:
 
 ### 1. `admitWasmIntent()`
 
