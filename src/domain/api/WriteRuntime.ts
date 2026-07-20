@@ -33,7 +33,7 @@ type IntentWriteFields = {
   readonly commit: IntentCommit;
 };
 
-type AcceptedWriteFields = Omit<IntentWriteFields, 'commit'> & {
+type PublishedWriteFields = Omit<IntentWriteFields, 'commit'> & {
   readonly publication: PatchCommitResult;
   readonly recoveryEvidence: Evidence;
 };
@@ -160,7 +160,7 @@ function missingPublishedBasisError(): WarpError {
 }
 
 async function derivedWriteReceipt(
-  fields: AcceptedWriteFields & {
+  fields: PublishedWriteFields & {
     readonly basis: PatchBuilderCausalBasis;
     readonly evaluation: AdmissionEvaluation;
   }
@@ -178,7 +178,7 @@ async function derivedWriteReceipt(
   return receipt;
 }
 
-async function committedWriteEvidence(fields: AcceptedWriteFields): Promise<Evidence> {
+async function committedWriteEvidence(fields: PublishedWriteFields): Promise<Evidence> {
   try {
     return await createWriteEvidence({
       runtime: fields.runtime,

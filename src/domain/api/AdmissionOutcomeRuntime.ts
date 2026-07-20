@@ -49,7 +49,7 @@ function createProjectionSession(basis: EvidenceHandle): ProjectionSession {
     typeof basis !== 'object' ||
     basis === null ||
     typeof basis.id !== 'string' ||
-    basis.id.length === 0
+    basis.id.trim().length === 0
   ) {
     throw new WarpError('projection basis must be an evidence handle', 'E_VALIDATION');
   }
