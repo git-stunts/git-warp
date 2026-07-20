@@ -15,7 +15,7 @@ oriented, while graph-shaped compatibility surfaces are removed.
 The migration target is:
 
 ```text
-Write intents. Read timelines. Keep receipts.
+Write intents. Observe lanes. Keep receipts.
 ```
 
 ## Migration Principle
@@ -116,21 +116,25 @@ const receipt = await events.write(
   })
 );
 
-switch (receipt.outcome) {
-  case 'accepted':
-    console.log(receipt.evidence?.basis.id);
+switch (receipt.outcome.kind) {
+  case 'derived':
+    console.log(receipt.evidence.basis.id);
     break;
-  case 'obstructed':
-  case 'conflicted':
-  case 'underdetermined':
-  case 'rejected':
-    console.log(receipt.reason ?? receipt.outcome);
+  case 'plural':
+    console.log('lawful plurality retained', receipt.outcome.witness);
+    break;
+  case 'conflict':
+    console.log('resolution required', receipt.outcome.witness);
+    break;
+  case 'obstruction':
+    console.log('repair or stop', receipt.outcome.witness);
     break;
 }
 ```
 
 `commit((patch) => ...)` is removed from the package contract. The write
-surface is `timeline.write(intent)`.
+surface is `timeline.write(intent)`. Its receipt reports admission, not a later
+settlement operation.
 
 ## Read Migration
 
@@ -251,8 +255,10 @@ and joins first.
 | `JoinReceipt`              | root type                            | returned on `JoinResult.receipt`                  |
 | `JoinResult`               | root type                            | returned by `previewJoin()` and `join()`          |
 | `StorageAdapter`           | root `WarpStorage`                   | opaque storage handle replaces persistence port   |
-| `ReadReceiptOutcome`       | root `ReadOutcome`                   | operation-specific outcome alias rename           |
-| `JoinReceiptOutcome`       | root `JoinOutcome`                   | operation-specific outcome alias rename           |
+| `ReceiptOutcome`           | removed                              | no generic cross-operation outcome axis           |
+| `WriteOutcome`             | root `AdmissionOutcome`              | closed causal classification with typed witnesses |
+| `ReadReceiptOutcome`       | receipt field only                   | transitional read status; no root alias           |
+| `JoinReceiptOutcome`       | receipt field only                   | transitional join status; no root alias           |
 | `EdgePropertyIntentFields` | removed                              | no edge-property intent ships in the v19 root     |
 | `GitGraphAdapter`          | `storage` `GitStorage.open({ cwd })` | plumbing and CAS composition are internal         |
 | `InMemoryGraphAdapter`     | removed                              | tests may use test helpers; apps use `GitStorage` |
@@ -275,7 +281,7 @@ and joins first.
 | `Braid`                    | removed                              | joins are first-use root                          |
 | Continuum evidence nouns   | removed                              | receipt evidence stays root-facing                |
 
-## Receipt Outcome Migration
+## Admission Outcome Migration
 
 Before, consumers often treated write success as a returned commit SHA or a
 thrown exception.
@@ -291,28 +297,31 @@ const receipt = await timeline.write(
   })
 );
 
-switch (receipt.outcome) {
-  case 'accepted':
-    console.log(receipt.evidence?.basis.id);
+switch (receipt.outcome.kind) {
+  case 'derived':
+    console.log(receipt.evidence.basis.id);
     break;
-  case 'obstructed':
-  case 'conflicted':
-  case 'underdetermined':
-  case 'rejected':
-    console.log(receipt.reason ?? receipt.outcome);
+  case 'plural':
+  case 'conflict':
+  case 'obstruction':
+    console.log(receipt.outcome.witness);
     break;
 }
 ```
 
-The allowed receipt outcome axis is:
+The closed admission outcome axis is:
 
 ```text
-accepted
-obstructed
-conflicted
-underdetermined
-rejected
+derived
+plural
+conflict
+obstruction
 ```
+
+Every variant requires its own witness type. Runtime failures such as I/O,
+corruption, and internal invariant violations reject outside this semantic
+union; they are not obstruction outcomes. Read and join receipts retain
+operation-specific transitional statuses until their final v19 surfaces land.
 
 Receipt provenance also changes shape:
 

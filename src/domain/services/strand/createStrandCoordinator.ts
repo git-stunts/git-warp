@@ -56,6 +56,7 @@ type StrandMaterializationDiagnosticBag = object;
  */
 export type StrandCoordinatorGraphRuntime = {
   _graphName: string;
+  _writerId: string;
   _persistence: GraphPersistencePort;
   _crypto: CryptoPort;
   _loadPatchChainFromSha(sha: string): Promise<Array<{ patch: Patch; sha: string }>>;

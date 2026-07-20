@@ -4,9 +4,12 @@ import type ReadIdentity from '../optic/ReadIdentity.ts';
 import type { PrecommitGuard } from '../../types/WarpIntentDescriptor.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
-import { compareStrings } from '../../utils/StringComparison.ts';
 import type { WorldlineOptions } from '../../capabilities/QueryCapability.ts';
 import WarpError from '../../errors/WarpError.ts';
+import {
+  graphFrontierCoordinateRef,
+  missingCheckpointCoordinateRef,
+} from './GraphCoordinateRef.ts';
 
 export type BoundedIntentGuardReading = Readonly<{
   value: PropValue | undefined;
@@ -54,35 +57,16 @@ export async function captureBoundedIntentGuardReader(
   if (checkpointSha === null) {
     return new BoundedIntentGuardReader(
       source.worldline(),
-      missingBoundedBasisCoordinateRef(source._graphName),
+      missingCheckpointCoordinateRef(source._graphName),
     );
   }
   const frontier = await source.getFrontier();
-  return new BoundedIntentGuardReader(source.worldline({
-    source: { kind: 'coordinate', checkpointSha, frontier },
-  }), checkpointTailCoordinateRef(source._graphName, checkpointSha, frontier));
-}
-
-function checkpointTailCoordinateRef(
-  worldline: string,
-  checkpointSha: string,
-  frontier: ReadonlyMap<string, string>,
-): string {
-  const frontierEntries = [...frontier]
-    .sort(([left], [right]) => compareStrings(left, right))
-    .map(([writerId, patchSha]) => ({ writerId, patchSha }));
-  return `warp:graph-coordinate:${canonicalStringify({
-    worldline,
-    checkpointSha,
-    frontier: frontierEntries,
-  })}`;
-}
-
-function missingBoundedBasisCoordinateRef(worldline: string): string {
-  return `warp:graph-coordinate:${canonicalStringify({
-    worldline,
-    basis: 'missing-checkpoint',
-  })}`;
+  return new BoundedIntentGuardReader(
+    source.worldline({
+      source: { kind: 'coordinate', checkpointSha, frontier },
+    }),
+    graphFrontierCoordinateRef(source._graphName, frontier, checkpointSha),
+  );
 }
 
 function guardPropertyKey(guard: PrecommitGuard): string {

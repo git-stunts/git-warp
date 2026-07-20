@@ -8,23 +8,21 @@ import {
   intent,
   openWarp,
   reading,
+  type AdmissionOutcome,
   type DraftTimeline,
   type Evidence,
   type EvidenceHandle,
   type Intent,
-  type JoinOutcome,
   type JoinReceipt,
   type JoinResult,
   type JoinOptions,
   type JoinPolicy,
   type NeighborhoodReadingFields,
   type OpenWarpOptions,
-  type ReadOutcome,
   type Reading,
   type ReadingResult,
   type ReadingValue,
   type ReadReceipt,
-  type ReceiptOutcome,
   type RepairHint,
   type Tick,
   type Timeline,
@@ -32,7 +30,6 @@ import {
   type Warp,
   type WarpStorage,
   type WriteReceipt,
-  type WriteOutcome,
 } from '../../index.ts';
 import { GitStorage } from '../../storage.ts';
 
@@ -59,7 +56,8 @@ const writeIntent: Intent = intent.property.set({
   value: 'admin',
 });
 const receipt: WriteReceipt = await timeline.write(writeIntent);
-const outcome: WriteOutcome = receipt.outcome;
+const outcome: AdmissionOutcome = receipt.outcome;
+const writeEvidence: Evidence = receipt.evidence;
 const readRequest: Reading = reading.property({
   subject: 'user:alice',
   key: 'role',
@@ -76,7 +74,7 @@ const historicalResult: ReadingResult = await historical.read(readRequest);
 const convenienceValue: ReadingValue = await timeline.readValue(readRequest);
 const readValue: ReadingValue = readResult.value;
 const readReceipt: ReadReceipt = readResult.receipt;
-const readOutcome: ReadOutcome = readReceipt.outcome;
+const readOutcome = readReceipt.outcome;
 const readEvidence: Evidence | undefined = readReceipt.evidence;
 const evidenceBasis: EvidenceHandle | undefined = readEvidence?.basis;
 const repairHints: readonly RepairHint[] = readReceipt.repairHints;
@@ -87,17 +85,22 @@ const joinOptions: JoinOptions = { policy: joinPolicy };
 const preview: JoinResult = await timeline.previewJoin(draft, joinOptions);
 const joined: JoinResult = await timeline.join(draft);
 const joinReceipt: JoinReceipt = joined.receipt;
-const joinOutcome: JoinOutcome = joinReceipt.outcome;
-const acceptedOutcome: ReceiptOutcome = 'accepted';
+const joinOutcome = joinReceipt.outcome;
 
-// @ts-expect-error receipt outcomes do not expose operation names.
-const operationOutcome: ReceiptOutcome = 'write';
-
-// @ts-expect-error read receipt outcomes do not expose operation names.
-const readOperationOutcome: ReadOutcome = 'read';
-
-// @ts-expect-error resolved is not a receipt outcome in the v19 contract.
-const retiredReadOutcome: ReadOutcome = 'resolved';
+function admissionWitnessHandle(value: AdmissionOutcome): EvidenceHandle {
+  switch (value.kind) {
+    case 'derived':
+      return value.witness.resultingFrontier;
+    case 'plural':
+      return value.witness.localCoordinate;
+    case 'conflict':
+      return value.witness.conflict;
+    case 'obstruction':
+      return value.witness.failedCondition;
+  }
+  const unreachable: never = value;
+  return unreachable;
+}
 
 // @ts-expect-error previewJoin is a dedicated method, not a dryRun boolean trap.
 await timeline.previewJoin(draft, { dryRun: true });
@@ -124,16 +127,14 @@ void timelineName;
 void timelineWriter;
 void historicalResult;
 void outcome;
-void acceptedOutcome;
-void operationOutcome;
+void admissionWitnessHandle(outcome);
+void writeEvidence;
 void readValue;
 void convenienceValue;
 void neighborhoodRequest;
 void readOutcome;
 void readEvidence;
 void evidenceBasis;
-void readOperationOutcome;
-void retiredReadOutcome;
 void repairHints;
 void draftReceipt;
 void preview;

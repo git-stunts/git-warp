@@ -3,10 +3,13 @@ import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type Evidence from './Evidence.ts';
 import { freezeOptionalEvidence } from './EvidenceRuntime.ts';
 import Reading from './Reading.ts';
-import { RECEIPT_OUTCOMES, type ReadOutcome } from './ReceiptOutcome.ts';
+import {
+  READ_JOIN_RECEIPT_OUTCOMES,
+  type ReadJoinReceiptOutcome,
+} from './ReceiptOutcome.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
 
-export type ReadReceiptOutcome = ReadOutcome;
+export type ReadReceiptOutcome = ReadJoinReceiptOutcome;
 
 type ReadReceiptFields = {
   readonly timeline: string;
@@ -29,7 +32,7 @@ export type ReadReceiptOptions = ReadReceiptFields &
       }
   );
 
-const READ_RECEIPT_OUTCOMES: ReadonlySet<ReadReceiptOutcome> = RECEIPT_OUTCOMES;
+const READ_RECEIPT_OUTCOMES: ReadonlySet<ReadReceiptOutcome> = READ_JOIN_RECEIPT_OUTCOMES;
 
 export default class ReadReceipt {
   readonly evidence: Evidence | undefined;

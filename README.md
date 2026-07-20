@@ -87,8 +87,8 @@ const write = await events.write(
   })
 );
 
-if (write.outcome !== 'accepted') {
-  throw new Error(write.reason);
+if (write.outcome.kind === 'conflict' || write.outcome.kind === 'obstruction') {
+  throw new Error(write.reason ?? `write admission was ${write.outcome.kind}`);
 }
 
 const role = await events.read(

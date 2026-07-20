@@ -17,6 +17,7 @@ import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 import type VersionVector from '../../crdt/VersionVector.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
+import { strandPatchCoordinateRef } from '../admission/GraphCoordinateRef.ts';
 
 export type CommittedPatchResult = { patch: Patch; sha: string };
 export type PatchCommitSuccessHandler = (result: CommittedPatchResult) => Promise<void>;
@@ -38,6 +39,7 @@ type PatchBuilderOptionsParams = {
   lamport: number;
   versionVector: VersionVector;
   getCurrentState: () => WarpState | null;
+  evaluationCoordinateRef?: string;
   expectedParentSha: string | null;
   targetRefPath?: string;
   onCommitSuccess?: PatchCommitSuccessHandler;
@@ -45,6 +47,7 @@ type PatchBuilderOptionsParams = {
 
 type WarpRuntime = {
   _graphName: string;
+  _writerId: string;
   _persistence: GraphPersistencePort;
   _patchInProgress: boolean;
   _maxObservedLamport: number;
@@ -239,6 +242,7 @@ export default class StrandPatchService {
     lamport,
     versionVector,
     getCurrentState,
+    evaluationCoordinateRef,
     expectedParentSha,
     targetRefPath,
     onCommitSuccess,
@@ -247,6 +251,7 @@ export default class StrandPatchService {
       persistence: this._graph._persistence,
       graphName: this._graph._graphName,
       writerId: descriptor.overlay.overlayId,
+      admissionParticipantId: this._graph._writerId,
       lamport,
       versionVector,
       getCurrentState,
@@ -254,6 +259,9 @@ export default class StrandPatchService {
       onDeleteWithData: this._graph._onDeleteWithData,
       commitMessageCodec: this._graph._commitMessageCodec,
     };
+    if (evaluationCoordinateRef !== undefined) {
+      pbOpts.evaluationCoordinateRef = evaluationCoordinateRef;
+    }
     if (targetRefPath !== undefined) {
       pbOpts.targetRefPath = targetRefPath;
     }
@@ -332,6 +340,11 @@ export default class StrandPatchService {
       lamport: maxPatchLamport(allPatches) + 1,
       versionVector: state.observedFrontier,
       getCurrentState: () => strandState,
+      evaluationCoordinateRef: strandPatchCoordinateRef(
+        this._graph._graphName,
+        descriptor.strandId,
+        allPatches.map(({ sha }) => sha)
+      ),
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
       targetRefPath: overlayRef,
       onCommitSuccess: async (result: CommittedPatchResult) => {

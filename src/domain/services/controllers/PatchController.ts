@@ -38,6 +38,7 @@ import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 import type { AuditReceiptService } from '../audit/AuditReceiptService.ts';
 import type { MaterializedStateUpdateOptions } from '../../capabilities/MaterializedStateUpdate.ts';
 import { E_NO_STATE_MSG, E_STALE_STATE_MSG } from './QueryStateMessages.ts';
+import { graphFrontierCoordinateRef } from '../admission/GraphCoordinateRef.ts';
 
 // ── PatchHost ─────────────────────────────────────────────────────────────────
 
@@ -149,6 +150,10 @@ export default class PatchController {
       onCommitSuccess: (commitOpts) => this._onPatchCommitted(h._writerId, commitOpts),
       commitMessageCodec: h._commitMessageCodec,
     };
+
+    if (h._cachedFrontier !== null && h._cachedFrontier !== undefined) {
+      opts.evaluationCoordinateRef = graphFrontierCoordinateRef(h._graphName, h._cachedFrontier);
+    }
 
     if (h._patchJournal !== null && h._patchJournal !== undefined) {
       opts.patchJournal = h._patchJournal;

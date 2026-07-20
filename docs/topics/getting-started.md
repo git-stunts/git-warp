@@ -52,16 +52,25 @@ const receipt = await audit.write(
   })
 );
 
-if (receipt.outcome === 'accepted') {
-  console.log(receipt.evidence?.basis.id);
-} else {
-  console.error(receipt.reason);
+switch (receipt.outcome.kind) {
+  case 'derived':
+    console.log(receipt.evidence.basis.id);
+    break;
+  case 'plural':
+    console.log('lawful plurality retained', receipt.outcome.residual.coordinates);
+    break;
+  case 'conflict':
+  case 'obstruction':
+    console.error(receipt.outcome.kind, receipt.outcome.witness);
+    break;
 }
 ```
 
 Every call writes one intent and returns a `WriteReceipt`. Treat
-`receipt.outcome` as the settlement result. Accepted writes carry opaque causal
-evidence handles; substrate identities are not part of normal control flow.
+`receipt.outcome` as the admission classification, not as completed settlement.
+The closed variants are `derived`, `plural`, `conflict`, and `obstruction`, and
+each carries its required witness. A direct write normally derives from the
+captured lane basis; substrate identities remain outside normal control flow.
 
 ## Read A Bounded Value
 

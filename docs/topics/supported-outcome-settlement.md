@@ -16,7 +16,8 @@ git-warp should be able to expose substrate support for:
 - observer/query evidence posture;
 - strand-neighborhood facts;
 - support-tier fields supplied by higher layers;
-- explicit obstruction or underdetermined posture when support is missing.
+- explicit obstruction or evidence-deficient support posture when support is
+  missing.
 
 The consuming authority decides what those facts mean.
 

@@ -27,6 +27,7 @@ export type { default as Reading } from './src/domain/api/Reading.ts';
 export type { default as ReadingResult } from './src/domain/api/ReadingResult.ts';
 export type { default as ReadReceipt } from './src/domain/api/ReadReceipt.ts';
 export type { default as WriteReceipt } from './src/domain/api/WriteReceipt.ts';
+export type { AdmissionOutcome } from './src/domain/api/AdmissionOutcome.ts';
 export type { OpenWarpOptions } from './src/application/openWarp.ts';
 export type { default as WarpStorage } from './src/application/WarpStorage.ts';
 export type {
@@ -52,11 +53,5 @@ export type { ReadingBuilders } from './src/domain/api/ReadingBuilders.ts';
 export type { ReadingResultOptions, ReadingValue } from './src/domain/api/ReadingResult.ts';
 export type { Receipt } from './src/domain/api/Receipt.ts';
 export type { ReadReceiptOptions } from './src/domain/api/ReadReceipt.ts';
-export type {
-  JoinOutcome,
-  ReadOutcome,
-  ReceiptOutcome,
-  WriteOutcome,
-} from './src/domain/api/ReceiptOutcome.ts';
 export type { RepairHint } from './src/domain/api/ReceiptSupport.ts';
 export type { WriteReceiptOptions } from './src/domain/api/WriteReceipt.ts';

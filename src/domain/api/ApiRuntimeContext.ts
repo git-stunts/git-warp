@@ -19,7 +19,7 @@ export type OpaqueIdPart = string | number;
 
 export type ApiRuntimeContext = {
   readonly createOpaqueId: (
-    namespace: 'tick' | 'evidence',
+    namespace: 'tick' | 'evidence' | 'admission',
     parts: readonly OpaqueIdPart[]
   ) => Promise<string>;
   readonly reserveRecoveryNonce: () => string;

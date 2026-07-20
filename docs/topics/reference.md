@@ -36,53 +36,50 @@ reading @ index.ts#L16
 
 ### Type exports
 
-Source: `index.ts`. Count: 44.
+Source: `index.ts`. Count: 41.
 
 ```text
+AdmissionOutcome @ index.ts#L30
 DraftTimeline @ index.ts#L17
-EdgeIntentFields @ index.ts#L33
+EdgeIntentFields @ index.ts#L34
 Evidence @ index.ts#L22
 EvidenceHandle @ index.ts#L22
 Intent @ index.ts#L23
-IntentBuilders @ index.ts#L39
-IntentDescriptor @ index.ts#L34
-IntentKind @ index.ts#L35
-JoinMode @ index.ts#L40
-JoinOptions @ index.ts#L42
-JoinOutcome @ index.ts#L56
-JoinPolicy @ index.ts#L42
+IntentBuilders @ index.ts#L40
+IntentDescriptor @ index.ts#L35
+IntentKind @ index.ts#L36
+JoinMode @ index.ts#L41
+JoinOptions @ index.ts#L43
+JoinPolicy @ index.ts#L43
 JoinReceipt @ index.ts#L24
-JoinReceiptOptions @ index.ts#L40
+JoinReceiptOptions @ index.ts#L41
 JoinResult @ index.ts#L25
-JoinResultOptions @ index.ts#L41
-NeighborhoodReadingFields @ index.ts#L44
-NodeIntentFields @ index.ts#L36
-NodeReadingFields @ index.ts#L45
-OpenWarpOptions @ index.ts#L30
-PropertyIntentFields @ index.ts#L37
-PropertyReadingFields @ index.ts#L46
+JoinResultOptions @ index.ts#L42
+NeighborhoodReadingFields @ index.ts#L45
+NodeIntentFields @ index.ts#L37
+NodeReadingFields @ index.ts#L46
+OpenWarpOptions @ index.ts#L31
+PropertyIntentFields @ index.ts#L38
+PropertyReadingFields @ index.ts#L47
 Reading @ index.ts#L26
-ReadingBuilders @ index.ts#L51
-ReadingDescriptor @ index.ts#L48
-ReadingDirection @ index.ts#L47
-ReadingKind @ index.ts#L49
+ReadingBuilders @ index.ts#L52
+ReadingDescriptor @ index.ts#L49
+ReadingDirection @ index.ts#L48
+ReadingKind @ index.ts#L50
 ReadingResult @ index.ts#L27
-ReadingResultOptions @ index.ts#L52
-ReadingValue @ index.ts#L52
-ReadOutcome @ index.ts#L57
+ReadingResultOptions @ index.ts#L53
+ReadingValue @ index.ts#L53
 ReadReceipt @ index.ts#L28
-ReadReceiptOptions @ index.ts#L54
-Receipt @ index.ts#L53
-ReceiptOutcome @ index.ts#L58
-RepairHint @ index.ts#L61
+ReadReceiptOptions @ index.ts#L55
+Receipt @ index.ts#L54
+RepairHint @ index.ts#L56
 Tick @ index.ts#L20
 Timeline @ index.ts#L19
 TimelineView @ index.ts#L21
 Warp @ index.ts#L18
-WarpStorage @ index.ts#L31
-WriteOutcome @ index.ts#L59
+WarpStorage @ index.ts#L32
 WriteReceipt @ index.ts#L29
-WriteReceiptOptions @ index.ts#L62
+WriteReceiptOptions @ index.ts#L57
 ```
 
 ## Storage export surface

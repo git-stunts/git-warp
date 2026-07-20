@@ -260,7 +260,7 @@ describe('v19 Warp facade', () => {
     ).toThrow('Invalid writer ID: exceeds maximum length');
   });
 
-  it('writes public intents and returns accepted write receipts', async () => {
+  it('writes public intents and returns basis-bound derived receipts', async () => {
     const warp = await openWarp({
       storage: MemoryStorage.create(),
       writer: 'agent-1',
@@ -276,13 +276,34 @@ describe('v19 Warp facade', () => {
       })
     );
 
-    expect(nodeReceipt.outcome).toBe('accepted');
+    expect(nodeReceipt.outcome.kind).toBe('derived');
+    if (nodeReceipt.outcome.kind !== 'derived') {
+      throw new Error('node write must produce a derived admission');
+    }
     expect(nodeReceipt.operation).toBe('write');
     expect(nodeReceipt.intent.kind).toBe('node.add');
     expect(nodeReceipt.evidence?.basis.id).toMatch(/^evidence:/);
     expect(nodeReceipt.evidence?.support).toHaveLength(1);
     expect('patchSha' in nodeReceipt).toBe(false);
-    expect(propertyReceipt.outcome).toBe('accepted');
+    expect(nodeReceipt.outcome.witness.evaluation).toMatchObject({
+      sourceParticipant: 'agent-1',
+      destinationRuntime: 'warp:timeline-runtime/events/agent-1',
+    });
+    expect(nodeReceipt.outcome.witness.evaluation.sourceBasis.id).toMatch(/^evidence:/);
+    expect(
+      nodeReceipt.outcome.witness.evaluation.sourceBasis.id.startsWith(
+        `${nodeReceipt.evidence.basis.id}/admission/`
+      )
+    ).toBe(true);
+    expect(nodeReceipt.outcome.witness.evaluation.destinationBasis).toEqual(
+      nodeReceipt.outcome.witness.evaluation.sourceBasis
+    );
+    expect(nodeReceipt.outcome.witness.resultingFrontier.id).toMatch(/^evidence:/);
+    expect(nodeReceipt.outcome.witness.resultingFrontier).not.toEqual(
+      nodeReceipt.outcome.witness.evaluation.sourceBasis
+    );
+    expect(propertyReceipt.outcome.kind).toBe('derived');
+    expect(propertyReceipt.outcome.witness.evaluation.coordinate.id).toMatch(/^evidence:/);
     expect(propertyReceipt.intent.kind).toBe('property.set');
     expect(propertyReceipt.timeline).toBe('events');
     expect(propertyReceipt.writer).toBe('agent-1');
@@ -342,12 +363,18 @@ describe('v19 Warp facade', () => {
 
     const receipt = await timeline.write(intent.node.remove({ subject: 'user:alice' }));
 
-    expect(receipt).toMatchObject({
-      operation: 'write',
-      outcome: 'obstructed',
-      evidence: undefined,
-      reason: 'missing_write_basis',
+    expect(receipt.operation).toBe('write');
+    expect(receipt.outcome.kind).toBe('obstruction');
+    if (receipt.outcome.kind !== 'obstruction') {
+      throw new Error('state-dependent write without a basis must produce an obstruction');
+    }
+    expect(receipt.outcome.witness.reason).toMatchObject({
+      family: 'unsupported-evidence',
+      code: 'git-warp.write.missing-bounded-basis',
     });
+    expect(receipt.outcome.witness.retry.disposition).toBe('after-change');
+    expect(receipt.evidence.support).toEqual([]);
+    expect(receipt.reason).toBe('git-warp.write.missing-bounded-basis');
     expect(receipt.repairHints).toEqual([
       expect.objectContaining({ code: 'materialize_write_basis' }),
     ]);
@@ -542,7 +569,7 @@ describe('v19 Warp facade', () => {
     expect(draft.name).toBe('try-admin-role');
     expect(draft.timeline).toBe('events');
     expect(draft.writer).toBe('agent-1');
-    expect(draftWrite.outcome).toBe('accepted');
+    expect(draftWrite.outcome.kind).toBe('derived');
     expect(beforeJoin.value).toBeNull();
     expect(preview).toBeInstanceOf(JoinResult);
     expect(preview.receipt).toBeInstanceOf(JoinReceipt);

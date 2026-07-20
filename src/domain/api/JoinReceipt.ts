@@ -3,10 +3,13 @@ import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import DraftTimeline from './DraftTimeline.ts';
 import type Evidence from './Evidence.ts';
 import { freezeOptionalEvidence } from './EvidenceRuntime.ts';
-import { RECEIPT_OUTCOMES, type JoinOutcome } from './ReceiptOutcome.ts';
+import {
+  READ_JOIN_RECEIPT_OUTCOMES,
+  type ReadJoinReceiptOutcome,
+} from './ReceiptOutcome.ts';
 
 export type JoinMode = 'preview' | 'join';
-export type JoinReceiptOutcome = JoinOutcome;
+export type JoinReceiptOutcome = ReadJoinReceiptOutcome;
 
 type JoinReceiptFields = {
   readonly timeline: string;
@@ -30,7 +33,7 @@ export type JoinReceiptOptions = JoinReceiptFields &
   );
 
 const JOIN_MODES: ReadonlySet<JoinMode> = new Set(['preview', 'join']);
-const JOIN_RECEIPT_OUTCOMES: ReadonlySet<JoinReceiptOutcome> = RECEIPT_OUTCOMES;
+const JOIN_RECEIPT_OUTCOMES: ReadonlySet<JoinReceiptOutcome> = READ_JOIN_RECEIPT_OUTCOMES;
 
 export default class JoinReceipt {
   readonly draft: DraftTimeline;
