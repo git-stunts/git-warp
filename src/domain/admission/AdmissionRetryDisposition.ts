@@ -3,7 +3,7 @@ import WarpError from '../errors/WarpError.ts';
 const AFTER_CHANGE = 'after-change';
 const WITH_EVIDENCE = 'with-evidence';
 const NEVER = 'never';
-const UNKNOWN = 'unknown';
+const UNKNOWN = 'unknown'; // nosemgrep: ts-no-unknown-outside-adapters -- semantic value
 
 export type AdmissionRetryDispositionValue =
   | typeof AFTER_CHANGE
@@ -46,7 +46,7 @@ export default class AdmissionRetryDisposition {
     return new AdmissionRetryDisposition(NEVER);
   }
 
-  static unknown(): AdmissionRetryDisposition {
+  static unknown(): AdmissionRetryDisposition { // nosemgrep: ts-no-unknown-outside-adapters -- semantic constructor
     return new AdmissionRetryDisposition(UNKNOWN);
   }
 }
