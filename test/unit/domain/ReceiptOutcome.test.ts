@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import DraftTimeline from '../../../src/domain/api/DraftTimeline.ts';
+import { projectAdmissionOutcome } from '../../../src/domain/api/AdmissionOutcomeRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import JoinReceipt from '../../../src/domain/api/JoinReceipt.ts';
-import { RECEIPT_OUTCOMES } from '../../../src/domain/api/ReceiptOutcome.ts';
+import { READ_JOIN_RECEIPT_OUTCOMES } from '../../../src/domain/api/ReceiptOutcome.ts';
 import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
+import {
+  testDerivedIntentAdmissionReceipt,
+  testObstructedIntentAdmissionReceipt,
+} from '../../helpers/intentAdmission.ts';
 
 const EVIDENCE = Object.freeze({
   basis: Object.freeze({ id: 'evidence:basis' }),
@@ -12,8 +17,8 @@ const EVIDENCE = Object.freeze({
 });
 
 describe('receipt outcomes', () => {
-  it('locks the canonical outcome axis to the approved five values', () => {
-    expect([...RECEIPT_OUTCOMES]).toEqual([
+  it('quarantines the transitional read/join outcome axis to five values', () => {
+    expect([...READ_JOIN_RECEIPT_OUTCOMES]).toEqual([
       'accepted',
       'obstructed',
       'conflicted',
@@ -22,14 +27,14 @@ describe('receipt outcomes', () => {
     ]);
   });
 
-  it('shares the canonical write receipt outcomes with join receipts', () => {
+  it('keeps transitional join outcomes independent from write admission', () => {
     const draft = new DraftTimeline({
       name: 'try-admin-role',
       timeline: 'events',
       writer: 'agent-1',
     });
 
-    for (const outcome of RECEIPT_OUTCOMES) {
+    for (const outcome of READ_JOIN_RECEIPT_OUTCOMES) {
       const receipt =
         outcome === 'accepted'
           ? new JoinReceipt({
@@ -88,21 +93,37 @@ describe('receipt outcomes', () => {
     ).toThrow('joinReceipt.reason must be a non-empty string');
   });
 
-  it('represents rejected writes without inventing causal evidence', () => {
+  it('represents obstructed writes with typed witnesses and honest recovery evidence', () => {
+    const outcome = projectAdmissionOutcome(
+      testObstructedIntentAdmissionReceipt('manual-write', 'git-warp.test.policy-rejected').outcome,
+      EVIDENCE.basis
+    );
     const receipt = new WriteReceipt({
       timeline: 'events',
       writer: 'agent-1',
       intent: intent.node.add({ subject: 'user:alice' }),
-      outcome: 'rejected',
-      reason: 'policy_rejected',
+      outcome,
+      evidence: EVIDENCE,
     });
 
-    expect(receipt).toMatchObject({
-      operation: 'write',
-      outcome: 'rejected',
-      reason: 'policy_rejected',
-      evidence: undefined,
-    });
+    expect(receipt.operation).toBe('write');
+    expect(receipt.outcome).toBe(outcome);
+    expect(receipt.outcome.kind).toBe('obstruction');
+    expect(receipt.reason).toBe('git-warp.test.policy-rejected');
+    expect(receipt.evidence).toEqual(EVIDENCE);
+  });
+
+  it('rejects legacy string write outcomes at runtime', () => {
+    expect(
+      () =>
+        new WriteReceipt({
+          timeline: 'events',
+          writer: 'agent-1',
+          intent: intent.node.add({ subject: 'user:alice' }),
+          outcome: 'accepted' as never,
+          evidence: EVIDENCE,
+        })
+    ).toThrow('outcome must be an AdmissionOutcome');
   });
 
   it.each([
@@ -121,13 +142,17 @@ describe('receipt outcomes', () => {
       'writeReceipt.evidence.tick must be a Tick',
     ],
   ])('rejects malformed causal evidence %#', (evidence, message) => {
+    const outcome = projectAdmissionOutcome(
+      testDerivedIntentAdmissionReceipt('malformed-evidence').outcome,
+      EVIDENCE.basis
+    );
     expect(
       () =>
         new WriteReceipt({
           timeline: 'events',
           writer: 'agent-1',
           intent: intent.node.add({ subject: 'user:alice' }),
-          outcome: 'accepted',
+          outcome,
           evidence: evidence as never,
         })
     ).toThrow(message);

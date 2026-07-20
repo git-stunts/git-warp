@@ -329,6 +329,11 @@ conflict
 obstruction
 ```
 
+Implementation checkpoint: the transitional `Timeline.write()` surface now
+returns this closed `AdmissionOutcome` union. Transitional read and join
+receipts still have operation-specific status strings; those are not admission
+classifications and are not root outcome aliases.
+
 These variants are disjoint causal relations, not success and failure labels:
 
 | Outcome       | Meaning                                                            | Residual posture               |

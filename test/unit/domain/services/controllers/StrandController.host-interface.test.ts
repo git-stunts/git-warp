@@ -27,6 +27,7 @@ class StrandControllerCrypto extends CryptoPort {
 function createStrandHost(): StrandHost {
   return {
     _graphName: 'strand-host-interface',
+    _writerId: 'writer1',
     _persistence: new InMemoryGraphAdapter(),
     _crypto: new StrandControllerCrypto(),
     _loadPatchChainFromSha: async (_sha: string): Promise<Array<{ patch: Patch; sha: string }>> => [],

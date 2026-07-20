@@ -3,12 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { inspectReceipt } from '../../../diagnostics.ts';
 import { openWarp } from '../../../src/application/openWarp.ts';
 import { createApiRuntimeContext } from '../../../src/application/ReceiptProvenanceRegistry.ts';
+import { projectAdmissionOutcome } from '../../../src/domain/api/AdmissionOutcomeRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import { reading } from '../../../src/domain/api/ReadingBuilders.ts';
 import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import MemoryStorage from '../../helpers/MemoryStorage.ts';
 import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
+import { testObstructedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
+
+const RECOVERY_EVIDENCE = Object.freeze({
+  basis: Object.freeze({ id: 'evidence:recovery' }),
+  support: Object.freeze([]),
+});
 
 describe('receipt diagnostics', () => {
   it('uses collision-safe typed framing for opaque identity inputs', async () => {
@@ -47,7 +54,7 @@ describe('receipt diagnostics', () => {
 
     expect(inspection).toMatchObject({
       operation: 'write',
-      outcome: 'accepted',
+      outcome: receipt.outcome,
       timeline: 'events',
       writer: 'agent-1',
       reason: undefined,
@@ -71,9 +78,10 @@ describe('receipt diagnostics', () => {
 
     const inspection = inspectReceipt(receipt, { storage });
 
-    expect(receipt.outcome).not.toBe('accepted');
+    expect(receipt.outcome.kind).toBe('obstruction');
     expect(inspection.objectIds).toEqual([]);
-    expect(inspection.evidence).toBe('absent');
+    expect(inspection.evidence).toBe('present');
+    expect(receipt.evidence.support).toEqual([]);
   });
 
   it('recovers full bounded-read provenance without exposing it on evidence', async () => {
@@ -153,8 +161,11 @@ describe('receipt diagnostics', () => {
       timeline: 'events',
       writer: 'agent-1',
       intent: intent.node.add({ subject: 'user:alice' }),
-      outcome: 'rejected',
-      reason: 'not_admitted',
+      outcome: projectAdmissionOutcome(
+        testObstructedIntentAdmissionReceipt('manual-receipt').outcome,
+        RECOVERY_EVIDENCE.basis
+      ),
+      evidence: RECOVERY_EVIDENCE,
     });
 
     expect(() => inspectReceipt(receipt, { storage })).toThrow(
@@ -164,14 +175,17 @@ describe('receipt diagnostics', () => {
 
   it('binds raw receipt provenance exactly once', () => {
     const storage = MemoryStorage.create();
+    const context = createApiRuntimeContext(storage, new NodeCryptoAdapter());
     const receipt = new WriteReceipt({
       timeline: 'events',
       writer: 'agent-1',
       intent: intent.node.add({ subject: 'user:alice' }),
-      outcome: 'rejected',
-      reason: 'not_admitted',
+      outcome: projectAdmissionOutcome(
+        testObstructedIntentAdmissionReceipt('manual-receipt').outcome,
+        RECOVERY_EVIDENCE.basis
+      ),
+      evidence: RECOVERY_EVIDENCE,
     });
-    const context = createApiRuntimeContext(storage, new NodeCryptoAdapter());
     const provenance = { operation: 'write' as const, patchSha: undefined };
 
     context.bindReceipt(receipt, provenance);

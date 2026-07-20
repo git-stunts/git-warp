@@ -7,6 +7,7 @@ const REPO_ROOT = new URL('../../../', import.meta.url);
 const ROOT_VALUE_EXPORTS = ['intent', 'openWarp', 'reading'] as const;
 
 const ROOT_TYPE_EXPORTS = [
+  'AdmissionOutcome',
   'DraftTimeline',
   'EdgeIntentFields',
   'Evidence',
@@ -16,7 +17,6 @@ const ROOT_TYPE_EXPORTS = [
   'IntentDescriptor',
   'IntentKind',
   'JoinMode',
-  'JoinOutcome',
   'JoinOptions',
   'JoinPolicy',
   'JoinReceipt',
@@ -29,7 +29,6 @@ const ROOT_TYPE_EXPORTS = [
   'OpenWarpOptions',
   'PropertyIntentFields',
   'PropertyReadingFields',
-  'ReadOutcome',
   'ReadReceipt',
   'ReadReceiptOptions',
   'Reading',
@@ -41,7 +40,6 @@ const ROOT_TYPE_EXPORTS = [
   'ReadingResultOptions',
   'ReadingValue',
   'Receipt',
-  'ReceiptOutcome',
   'RepairHint',
   'Tick',
   'Timeline',
@@ -49,7 +47,6 @@ const ROOT_TYPE_EXPORTS = [
   'Warp',
   'WarpStorage',
   'WriteReceipt',
-  'WriteOutcome',
   'WriteReceiptOptions',
 ] as const;
 

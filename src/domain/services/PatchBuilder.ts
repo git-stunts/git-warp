@@ -37,6 +37,7 @@ import {
   type ContentInput,
   type ContentMetadataInput,
 } from './PatchBuilderContent.ts';
+import { capturePatchBuilderCausalBasis } from './admission/PatchBuilderCausalBasis.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import { commitPatch } from './PatchCommitter.ts';
 import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
@@ -57,6 +58,8 @@ type PatchBuilderOptions = {
   lamport: number;
   versionVector: VersionVector;
   getCurrentState: () => WarpState | null;
+  evaluationCoordinateRef?: string;
+  admissionParticipantId?: string;
   expectedParentSha?: string | null;
   targetRefPath?: string;
   onCommitSuccess?: ((result: PatchCommitResult) => void | Promise<void>) | null;
@@ -109,6 +112,16 @@ export class PatchBuilder {
     this._commitMessageCodec = options.commitMessageCodec ?? null;
     this._logger = options.logger ?? nullLogger;
     this._assetStorage = options.assetStorage ?? null;
+    capturePatchBuilderCausalBasis(
+      this,
+      {
+        graphName: options.graphName,
+        writerId: options.writerId,
+        participantId: options.admissionParticipantId ?? options.writerId,
+        expectedParentSha: this._expectedParentSha,
+        evaluationCoordinateRef: options.evaluationCoordinateRef ?? null,
+      }
+    );
   }
 
   // ── State access ───────────────────────────────────────────────────

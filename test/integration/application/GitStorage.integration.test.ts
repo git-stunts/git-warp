@@ -23,7 +23,7 @@ describe('GitStorage public composition', () => {
 
       const receipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
 
-      expect(receipt.outcome).toBe('accepted');
+      expect(receipt.outcome.kind).toBe('derived');
       expect(receipt.timeline).toBe('events');
       expect(await repository.persistence.listRefs('refs/warp/events/writers/')).toEqual([
         'refs/warp/events/writers/agent-1',

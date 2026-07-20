@@ -17,6 +17,7 @@ import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import type { PatchCommitResult } from '../../../src/domain/types/PatchCommitResult.ts';
 import { testDerivedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 import { testRetentionWitness } from '../../helpers/storageRetention.ts';
+import { createPatchBuilder } from './services/PatchBuilderTestHarness.ts';
 
 type RuntimeOptions = {
   readonly commitPatch?: (build: WarpWorldlinePatchBuild) => Promise<string>;
@@ -48,24 +49,54 @@ function createRuntimeContext(options: RuntimeContextOptions = {}): {
 function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
   const commitPatch = options.commitPatch ?? (async () => 'commit-1');
   const patchDraft = options.patchDraft ?? (async (name) => `${name}-draft-patch`);
+  let liveHead: string | null = null;
+  const draftHeads = new Map<string, string>();
+  const commitLive = async (build: WarpWorldlinePatchBuild): Promise<PatchCommitResult> => {
+    const builder = createPatchBuilder({
+      graphName: 'events',
+      writerId: 'agent-1',
+      expectedParentSha: liveHead,
+      evaluationCoordinateRef: `warp:test-coordinate:live:${liveHead ?? 'empty'}`,
+    });
+    await build(builder);
+    const sha = await commitPatch(build);
+    liveHead = sha;
+    return testPatchPublication(sha, builder.build());
+  };
+  const commitDraft = async (
+    name: string,
+    build: WarpWorldlinePatchBuild
+  ): Promise<PatchCommitResult> => {
+    const expectedHead = draftHeads.get(name) ?? null;
+    const builder = createPatchBuilder({
+      graphName: 'events',
+      writerId: name,
+      admissionParticipantId: 'agent-1',
+      expectedParentSha: expectedHead,
+      evaluationCoordinateRef: `warp:test-coordinate:${name}:${expectedHead ?? 'empty'}`,
+    });
+    await build(builder);
+    const sha = await patchDraft(name, build);
+    draftHeads.set(name, sha);
+    return testPatchPublication(sha, builder.build());
+  };
   return new WarpWorldline({
     worldlineName: 'events',
     writerId: 'agent-1',
-    commitPatch,
-    commitPatchWithEvidence: async (build) => testPatchPublication(await commitPatch(build)),
+    commitPatch: async (build) => (await commitLive(build)).sha,
+    commitPatchWithEvidence: commitLive,
     createDraft: async () => undefined,
     createWorldline: () => {
       throw new Error('ProjectionHandle is not used by DraftTimelineRuntime tests');
     },
-    patchDraft,
-    patchDraftWithEvidence: async (name, build) =>
-      testPatchPublication(await patchDraft(name, build)),
+    patchDraft: async (name, build) => (await commitDraft(name, build)).sha,
+    patchDraftWithEvidence: commitDraft,
     previewDraftJoin: options.previewDraftJoin ?? (async (name) => [`${name}-preview-patch`]),
     admitIntent: async (descriptor) => testDerivedIntentAdmissionReceipt(descriptor.intentId),
   });
 }
 
-function testPatchPublication(sha: string): PatchCommitResult {
+function testPatchPublication(sha: string, patch: Patch): PatchCommitResult {
   const retention = testRetentionWitness(sha);
   return Object.freeze({
     sha,
@@ -80,12 +111,7 @@ function testPatchPublication(sha: string): PatchCommitResult {
       }),
     }),
     retention,
-    patch: new Patch({
-      writer: 'agent-1',
-      lamport: 0,
-      context: {},
-      ops: [],
-    }),
+    patch,
   });
 }
 
@@ -132,7 +158,7 @@ describe('DraftTimelineRuntime', () => {
     expect(commitAttempts).toBe(1);
   });
 
-  it('returns an accepted draft-write receipt when canonical evidence hashing fails', async () => {
+  it('returns a derived draft-write receipt when canonical evidence hashing fails', async () => {
     let draftCommitted = false;
     let draftCommits = 0;
     const runtime = createRuntime({
@@ -159,8 +185,16 @@ describe('DraftTimelineRuntime', () => {
 
     const receipt = await draft.write(intent.node.add({ subject: 'user:alice' }));
 
-    expect(receipt.outcome).toBe('accepted');
+    expect(receipt.outcome.kind).toBe('derived');
+    if (receipt.outcome.kind !== 'derived') {
+      throw new Error('published draft write must remain derived');
+    }
     expect(receipt.evidence?.support).toEqual([]);
+    expect(
+      receipt.outcome.witness.evaluation.sourceBasis.id.startsWith(
+        `${receipt.evidence.basis.id}/admission/`
+      )
+    ).toBe(true);
     expect(draftCommits).toBe(1);
     expect(provenance.at(-1)).toEqual({
       operation: 'write',
@@ -246,13 +280,7 @@ describe('DraftTimelineRuntime', () => {
     });
 
     await draft.write(intent.node.add({ subject: 'user:alice' }));
-    await draft.write(
-      intent.property.set({
-        subject: 'user:alice',
-        key: 'role',
-        value: 'admin',
-      })
-    );
+    await draft.write(intent.node.add({ subject: 'team:ops' }));
 
     const failedJoin = await joinDraftTimeline(runtime, draft, { policy: 'deterministic' });
     const retryJoin = await joinDraftTimeline(runtime, draft, { policy: 'deterministic' });

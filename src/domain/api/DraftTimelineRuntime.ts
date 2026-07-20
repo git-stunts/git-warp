@@ -243,11 +243,11 @@ async function writeDraftIntent(fields: DraftWriteFields): Promise<WriteReceipt>
       return publication;
     },
   });
-  if (receipt.outcome !== 'accepted') {
+  if (receipt.outcome.kind !== 'derived') {
     return receipt;
   }
   if (draftPatchSha === undefined) {
-    throw new WarpError('Accepted draft write is missing its patch SHA', 'E_DRAFT_WRITE_RECEIPT');
+    throw new WarpError('Derived draft write is missing its patch SHA', 'E_DRAFT_WRITE_RECEIPT');
   }
   fields.state.draftPatchShas.push(draftPatchSha);
   fields.state.intents.push(fields.intent);
