@@ -111,7 +111,7 @@ provenance without putting those identifiers on normal receipt objects.
 
 `@git-stunts/git-warp/advanced` exports `captureCoordinate()`, `Coordinate`,
 executable `Optic`, and the type-only `Witness`. Capture a coordinate with
-`captureCoordinate(timeline)`; ordinary application reads should continue to
+`captureCoordinate(lane)`; ordinary application reads should continue to
 use `reading.*`.
 
 ## Close Storage

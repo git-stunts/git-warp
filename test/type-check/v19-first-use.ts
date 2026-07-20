@@ -1,38 +1,23 @@
-/**
- * v19 first-use consumer fixture -- compile-only.
- *
- * This fixture intentionally imports only the root first-use verbs and storage
- * subpath adapter. Graph-first compatibility nouns are not public in v19.
- */
+/** v19 first-use consumer fixture -- compile-only. */
 
-import { intent, openWarp, reading } from '../../index.ts';
-import { GitStorage } from '../../storage.ts';
+import { Runtime } from '../../index.ts';
+import { users } from './generated-users.ts';
 
-const storage = await GitStorage.open({ cwd: '.' });
-const warp = await openWarp({
-  storage,
-  writer: 'agent-1',
-});
-const timeline = await warp.timeline('events');
+const runtime = await Runtime.open({ at: '.', writer: 'agent-1' });
+const lane = await runtime.lane('events');
 
-await timeline.write(intent.node.add({ subject: 'user:alice' }));
-await timeline.write(intent.property.set({
+const writeReceipt = await lane.write(users.intents.assignRole({
   subject: 'user:alice',
-  key: 'role',
-  value: 'admin',
+  role: 'admin',
 }));
 
-const role = await timeline.read(reading.property({
-  subject: 'user:alice',
-  key: 'role',
-}));
-const userExists = await timeline.read(reading.node.exists({
-  subject: 'user:alice',
-}));
+const observation = lane.observe(users.observers.roleOf({ subject: 'user:alice' }));
+for await (const reading of observation) {
+  const role: string = reading.value;
+  void role;
+}
+const observationReceipt = await observation.receipt;
 
-void role.value;
-void role.receipt;
-void userExists.value;
-void userExists.receipt;
-
-await storage.close();
+void writeReceipt.outcome;
+void observationReceipt.status;
+await runtime.close();

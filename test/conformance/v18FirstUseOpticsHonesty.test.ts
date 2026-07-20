@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { inspectReceipt } from '../../diagnostics.ts';
-import { openWarp, reading } from '../../index.ts';
+import { openWarp } from '../../src/application/openWarp.ts';
+import { reading } from '../../src/domain/api/ReadingBuilders.ts';
 import WarpStorage from '../../src/application/WarpStorage.ts';
 import { bindWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import { openWarpWorldline } from '../../src/domain/WarpWorldline.ts';

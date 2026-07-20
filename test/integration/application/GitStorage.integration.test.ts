@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { intent, openWarp } from '../../../index.ts';
-import { GitStorage } from '../../../storage.ts';
+import { Runtime } from '../../../index.ts';
+import Intent from '../../../src/domain/api/Intent.ts';
 import { createGitRepo, type GitRepoFixture } from '../../helpers/WarpGraphTestRepositories.ts';
 
-describe('GitStorage public composition', () => {
+describe('Runtime public composition', () => {
   let repository: GitRepoFixture;
 
   beforeEach(async () => {
@@ -15,21 +15,32 @@ describe('GitStorage public composition', () => {
     await repository.cleanup();
   });
 
-  it('opens a real repository and writes through the storage-neutral API', async () => {
-    const storage = await GitStorage.open({ cwd: repository.tempDir });
+  it('owns a real repository and writes through a Lane', async () => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'agent-1' });
     try {
-      const warp = await openWarp({ storage, writer: 'agent-1' });
-      const timeline = await warp.timeline('events');
+      const lane = await runtime.lane('events');
 
-      const receipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
+      const receipt = await lane.write(Intent.addNode({ subject: 'user:alice' }));
 
       expect(receipt.outcome.kind).toBe('derived');
-      expect(receipt.timeline).toBe('events');
+      expect(receipt.lane).toBe('events');
+      expect(lane.kind).toBe('worldline');
       expect(await repository.persistence.listRefs('refs/warp/events/writers/')).toEqual([
         'refs/warp/events/writers/agent-1',
       ]);
     } finally {
-      await storage.close();
+      await runtime.close();
     }
+  });
+
+  it('closes idempotently and stops new local work', async () => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'agent-1' });
+
+    const firstClose = runtime.close();
+    const secondClose = runtime.close();
+
+    expect(firstClose).toBe(secondClose);
+    await firstClose;
+    await expect(runtime.lane('events')).rejects.toMatchObject({ code: 'E_RUNTIME_CLOSED' });
   });
 });

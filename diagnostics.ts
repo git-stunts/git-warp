@@ -29,7 +29,7 @@ export type ReceiptSubstrateInspection =
 export type ReceiptInspection = {
   readonly operation: Receipt['operation'];
   readonly outcome: Receipt['outcome'];
-  readonly timeline: string;
+  readonly lane: string;
   readonly writer: string;
   readonly reason: string | undefined;
   readonly evidence: 'present' | 'absent';
@@ -51,7 +51,7 @@ export function inspectReceipt(
   return Object.freeze({
     operation: receipt.operation,
     outcome: receipt.outcome,
-    timeline: receipt.timeline,
+    lane: receipt.operation === 'write' ? receipt.lane : receipt.timeline,
     writer: receipt.writer,
     reason: receipt.reason,
     evidence: receipt.evidence === undefined ? 'absent' : 'present',

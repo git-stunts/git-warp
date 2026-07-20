@@ -19,6 +19,13 @@ const FORBIDDEN_COMPOUNDS = new Map([
   ['objectids', 'object-id'],
 ]);
 
+const ALLOWED_FORMAL_IDENTIFIERS = new Set([
+  'WitnessReference',
+  'WitnessReferences',
+  'witnessRef',
+  'witnessRefs',
+]);
+
 export type DeclarationVocabularyViolation = {
   readonly file: string;
   readonly line: number;
@@ -47,6 +54,10 @@ export function findForbiddenRootDeclarationVocabulary(
     const visit = (node: ts.Node): void => {
       if (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) {
         const identifier = node.text;
+        if (ALLOWED_FORMAL_IDENTIFIERS.has(identifier)) {
+          ts.forEachChild(node, visit);
+          return;
+        }
         const tokens = vocabularyTokens(identifier);
         for (const rawToken of tokens) {
           const token = singularForbiddenToken(rawToken);
