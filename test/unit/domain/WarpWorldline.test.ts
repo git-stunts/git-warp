@@ -5,7 +5,7 @@ import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain
 import { openMemoryWarpWorldline as openWarpWorldline } from '../../helpers/MemoryRuntimeHost.ts';
 import ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
 import Observer, { type ObserverBacking } from '../../../src/domain/services/query/Observer.ts';
-import { testRetentionWitness } from '../../helpers/storageRetention.ts';
+import { testDerivedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 
 import type { Aperture } from '../../../src/domain/types/Aperture.ts';
 import type { WorldlineSource } from '../../../src/domain/capabilities/QueryCapability.ts';
@@ -98,12 +98,7 @@ function createHandle(
     writerId: 'agent-1',
     commitPatch,
     createWorldline: () => createWorldline(calls),
-    admitIntent: async (descriptor) => ({
-      admitted: true,
-      sha: 'blob:intent:123',
-      intentId: descriptor.intentId,
-      retention: testRetentionWitness('intent-123'),
-    }),
+    admitIntent: async (descriptor) => testDerivedIntentAdmissionReceipt(descriptor.intentId),
   });
 }
 

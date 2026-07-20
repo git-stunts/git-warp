@@ -14,12 +14,21 @@ export type PublishIntentRequest = Readonly<{
 
 export type PublishedIntent = Readonly<{
   sha: string;
+  publicationRef: string;
+  basisRef: string;
+  resultingFrontierRef: string;
   descriptorAsset: StagedAsset;
   retention: StorageRetentionWitness;
 }>;
 
 /** Durable journal for unmaterialized intent descriptors. */
 export default abstract class IntentStorePort {
+  abstract currentBasisRef(
+    _graphName: string,
+    _channel: IntentChannel,
+    _ownerId: string,
+  ): Promise<string>;
+
   abstract publish(_request: PublishIntentRequest): Promise<PublishedIntent>;
 
   abstract scan(

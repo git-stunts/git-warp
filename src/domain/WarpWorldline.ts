@@ -18,7 +18,8 @@ import type Observer from './services/query/Observer.ts';
 import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
 import CheckpointTailBasisVerifier from './services/optic/CheckpointTailBasisVerifier.ts';
 import createBoundedMemoryCapabilityReport from './memory/createBoundedMemoryCapabilityReport.ts';
-import type { WarpIntentDescriptor, WarpIntentOutcome } from './types/WarpIntentDescriptor.ts';
+import type { IntentAdmissionReceipt } from './admission/IntentAdmissionReceipt.ts';
+import type { WarpIntentDescriptor } from './types/WarpIntentDescriptor.ts';
 import type { PatchCommitResult } from './types/PatchCommitResult.ts';
 
 export type WarpWorldlineOpenOptions = Omit<WarpGraphDeps, 'graphName'> & {
@@ -50,7 +51,7 @@ type DraftWorldlineOptions = Pick<
 type GetFrontier = () => Promise<Map<string, string>>;
 type ReadOpticBasis = () => WarpWorldlineOpticBasis | null;
 type ReadCapabilities = typeof createBoundedMemoryCapabilityReport;
-type AdmitIntent = (descriptor: WarpIntentDescriptor) => Promise<WarpIntentOutcome>;
+type AdmitIntent = (descriptor: WarpIntentDescriptor) => Promise<IntentAdmissionReceipt>;
 
 type WarpWorldlineConstructionOptions = {
   readonly worldlineName: string;
@@ -119,7 +120,7 @@ export default class WarpWorldline {
     return await this._commitPatchWithEvidence(build);
   }
 
-  async admitIntent(descriptor: WarpIntentDescriptor): Promise<WarpIntentOutcome> {
+  async admitIntent(descriptor: WarpIntentDescriptor): Promise<IntentAdmissionReceipt> {
     return await this._admitIntent(descriptor);
   }
 

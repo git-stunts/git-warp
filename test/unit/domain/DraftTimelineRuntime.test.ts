@@ -15,6 +15,7 @@ import {
 } from '../../../src/domain/api/DraftTimelineRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import type { PatchCommitResult } from '../../../src/domain/types/PatchCommitResult.ts';
+import { testDerivedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 import { testRetentionWitness } from '../../helpers/storageRetention.ts';
 
 type RuntimeOptions = {
@@ -60,12 +61,7 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
     patchDraftWithEvidence: async (name, build) =>
       testPatchPublication(await patchDraft(name, build)),
     previewDraftJoin: options.previewDraftJoin ?? (async (name) => [`${name}-preview-patch`]),
-    admitIntent: async (descriptor) => ({
-      admitted: true,
-      sha: 'intent-sha',
-      intentId: descriptor.intentId,
-      retention: testRetentionWitness('intent-sha'),
-    }),
+    admitIntent: async (descriptor) => testDerivedIntentAdmissionReceipt(descriptor.intentId),
   });
 }
 

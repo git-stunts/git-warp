@@ -56,6 +56,18 @@ export default class GitCasIntentStoreAdapter extends IntentStorePort {
     this.#codec = options.codec;
   }
 
+  override async currentBasisRef(
+    graphName: string,
+    channel: IntentChannel,
+    ownerId: string,
+  ): Promise<string> {
+    const ref = buildIntentRef(graphName, channel, ownerId);
+    return buildIntentJournalFrontierRef(
+      { graphName, channel, ownerId },
+      await this.#history.readRef(ref),
+    );
+  }
+
   override async publish(request: PublishIntentRequest): Promise<PublishedIntent> {
     const ref = buildIntentRef(request.graphName, request.channel, request.ownerId);
     const expectedHead = await this.#history.readRef(ref);
@@ -78,11 +90,7 @@ export default class GitCasIntentStoreAdapter extends IntentStorePort {
       },
       ref: { name: ref, expected: expectedHead },
     });
-    return Object.freeze({
-      sha: publication.commitId,
-      descriptorAsset,
-      retention: adaptGitCasRetentionWitness(publication.witness.toJSON()),
-    });
+    return toPublishedIntent({ request, expectedHead, descriptorAsset, publication });
   }
 
   override scan(
@@ -105,6 +113,49 @@ type IntentJournalIdentity = Readonly<{
   channel: IntentChannel;
   ownerId: string;
 }>;
+
+type PublishedIntentFields = {
+  readonly request: PublishIntentRequest;
+  readonly expectedHead: string | null;
+  readonly descriptorAsset: PublishedIntent['descriptorAsset'];
+  readonly publication: Awaited<ReturnType<PublicationCapability['commit']>>;
+};
+
+function toPublishedIntent({
+  request,
+  expectedHead,
+  descriptorAsset,
+  publication,
+}: PublishedIntentFields): PublishedIntent {
+  return Object.freeze({
+    sha: publication.commitId,
+    publicationRef: buildIntentPublicationRef(request, publication.commitId),
+    basisRef: buildIntentJournalFrontierRef(request, expectedHead),
+    resultingFrontierRef: buildIntentJournalFrontierRef(request, publication.commitId),
+    descriptorAsset,
+    retention: adaptGitCasRetentionWitness(publication.witness.toJSON()),
+  });
+}
+
+function buildIntentPublicationRef(identity: IntentJournalIdentity, commitId: string): string {
+  return `${intentJournalIdentityRef(identity)}/publication/${encodeURIComponent(commitId)}`;
+}
+
+function buildIntentJournalFrontierRef(
+  identity: IntentJournalIdentity,
+  commitId: string | null,
+): string {
+  return `${intentJournalIdentityRef(identity)}/frontier/${
+    commitId === null ? 'empty' : encodeURIComponent(commitId)
+  }`;
+}
+
+function intentJournalIdentityRef(identity: IntentJournalIdentity): string {
+  const identityPath = [identity.graphName, identity.channel, identity.ownerId]
+    .map((value) => encodeURIComponent(value))
+    .join('/');
+  return `warp:intent-journal/${identityPath}`;
+}
 
 async function collectIntentHandles(
   history: IntentHistory,
@@ -261,7 +312,7 @@ function decodePrecommitGuard(value: unknown): PrecommitGuard {
       agentId: requireDescriptorString(guard, 'agentId'),
     });
   }
-  return Object.freeze({ ...base, op: operation });
+  throw invalidDescriptor();
 }
 
 function decodeSuffixTransform(value: unknown): SuffixTransform {
@@ -302,7 +353,7 @@ function isCodecNative(value: unknown): value is Uint8Array | Date {
 }
 
 function requireGuardOperation(value: unknown): PrecommitGuard['op'] {
-  if (value !== 'nodeStatus' && value !== 'nodeUnassignedOrSelf' && value !== 'edgeExists') {
+  if (value !== 'nodeStatus' && value !== 'nodeUnassignedOrSelf') {
     throw invalidDescriptor();
   }
   return value;
