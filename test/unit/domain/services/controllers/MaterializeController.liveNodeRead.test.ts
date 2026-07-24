@@ -12,6 +12,7 @@ import MaterializationRoots from '../../../../../src/domain/materialization/Mate
 import MaterializeController, {
   type MaterializeDeps,
 } from '../../../../../src/domain/services/controllers/MaterializeController.ts';
+import { retainBoundedLiveMaterialization } from '../../../../../src/domain/services/controllers/BoundedLiveMaterialization.ts';
 import BundleHandle from '../../../../../src/domain/storage/BundleHandle.ts';
 import cborCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
@@ -141,6 +142,17 @@ describe('MaterializeController live node reads', () => {
     await expect(fixture.controller.readLiveNodePresence('node:retained')).resolves.toBeNull();
 
     expect(fixture.materializations.exactLookups).toHaveLength(0);
+  });
+
+  it('declines bounded cold replay when no state session is configured', async () => {
+    const fixture = await createFixture({ retain: false });
+
+    await expect(retainBoundedLiveMaterialization({
+      deps: fixture.deps,
+      coordinate: new MaterializationCoordinate({ frontier: FRONTIER, ceiling: null }),
+    })).resolves.toBeNull();
+
+    expect(fixture.materializations.workspaces).toHaveLength(0);
   });
 
   it('falls back and releases when the retained node root is unavailable', async () => {

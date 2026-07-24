@@ -131,6 +131,38 @@ export async function applyWithReceiptInSession(
   return result.receipt;
 }
 
+/**
+ * Applies only the page-backed OR-Set portion of a patch.
+ *
+ * This is the bounded cold-read reducer: it deliberately does not allocate
+ * property registers, edge-birth metadata, receipts, diffs, or a frontier
+ * projection.
+ */
+export async function applyLivenessInSession(
+  session: StateSession,
+  patch: PatchLike, // nosemgrep: ts-no-like-types -- 0025C
+): Promise<void> {
+  for (const rawOp of patch.ops) {
+    const op = normalizeRawOp(rawOp);
+    if (!(op instanceof Op)) {
+      continue;
+    }
+    op.validate();
+    if (op instanceof NodeAdd) {
+      await session.addNode(op.node, op.dot);
+    } else if (op instanceof NodeRemove) {
+      await session.removeNode(op.node, new Set(op.observedDots));
+    } else if (op instanceof EdgeAdd) {
+      await session.addEdge(encodeEdgeKey(op.from, op.to, op.label), op.dot);
+    } else if (op instanceof EdgeRemove) {
+      await session.removeEdge(
+        encodeEdgeKey(op.from, op.to, op.label),
+        new Set(op.observedDots),
+      );
+    }
+  }
+}
+
 export function reducePatchesInSession(
   patches: SessionPatchSource,
   frame: ReducerSessionFrame,

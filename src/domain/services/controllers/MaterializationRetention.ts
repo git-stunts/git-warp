@@ -27,17 +27,30 @@ function resolveExistingMaterialization(
   stateHash: string,
 ): MaterializationHandle | undefined {
   const retained = params.materialization;
-  if (retained === undefined) {
+  if (!isWholeStateMaterialization(retained)) {
     return undefined;
   }
-  if (retained.stateHash !== stateHash) {
-    throw retentionError('retained handle state hash does not match resumed state');
-  }
+  requireMatchingStateHash(retained, stateHash);
   if (!rootsMatch(params, retained)) {
     return undefined;
   }
   params.reduced.acceptMaterialization?.(retained.retention);
   return retained;
+}
+
+function isWholeStateMaterialization(
+  retained: MaterializationHandle | undefined,
+): retained is MaterializationHandle & { readonly stateHash: string } {
+  return retained !== undefined && retained.stateHash !== null;
+}
+
+function requireMatchingStateHash(
+  retained: MaterializationHandle & { readonly stateHash: string },
+  stateHash: string,
+): void {
+  if (retained.stateHash !== stateHash) {
+    throw retentionError('retained handle state hash does not match resumed state');
+  }
 }
 
 function rootsMatch(

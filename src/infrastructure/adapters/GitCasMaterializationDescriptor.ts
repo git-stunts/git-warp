@@ -9,18 +9,18 @@ import MaterializationRoots, {
 import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
-export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 4;
+export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 5;
 
 export type DecodedMaterializationDescriptor = Readonly<{
   coordinate: MaterializationCoordinate;
-  stateHash: string;
+  stateHash: string | null;
   laneName: string;
   rootStatuses: ReadonlyMap<MaterializationRootName, MaterializationRootStatus>;
 }>;
 
 export function materializationDescriptorData(input: {
   coordinate: MaterializationCoordinate;
-  stateHash: string;
+  stateHash: string | null;
   laneName: string;
   roots: MaterializationRoots;
 }): object {
@@ -51,10 +51,13 @@ export function decodeMaterializationDescriptor(
   }
   const coordinateValue = value['coordinate'];
   requireRecord(coordinateValue, 'descriptor.coordinate');
+  const stateHash = requireOptionalStateHash(value['stateHash']);
+  const rootStatuses = decodeRootStatuses(value['roots']);
+  requireReplayBasisHash(stateHash, rootStatuses);
   return Object.freeze({
     laneName: requireNonEmpty(value['laneName'], 'descriptor.laneName'),
-    stateHash: requireNonEmpty(value['stateHash'], 'descriptor.stateHash'),
-    rootStatuses: decodeRootStatuses(value['roots']),
+    stateHash,
+    rootStatuses,
     coordinate: new MaterializationCoordinate({
       frontier: decodeFrontier(coordinateValue['frontier']),
       ceiling: requireCeiling(coordinateValue['ceiling']),
@@ -122,15 +125,24 @@ function decodeRootStatuses(
   for (const name of MATERIALIZATION_ROOT_NAMES) {
     requireRootStatus(statuses, name);
   }
-  requireCurrentPropertyRoot(statuses);
+  requireAvailableRoot(statuses);
   return statuses;
 }
 
-function requireCurrentPropertyRoot(
+function requireAvailableRoot(
   statuses: ReadonlyMap<MaterializationRootName, MaterializationRootStatus>,
 ): void {
-  if (statuses.get('properties') === 'unavailable') {
-    throw descriptorError('current materialization descriptor requires a property root');
+  if ([...statuses.values()].every((status) => status === 'unavailable')) {
+    throw descriptorError('descriptor must provide at least one materialization root');
+  }
+}
+
+function requireReplayBasisHash(
+  stateHash: string | null,
+  statuses: ReadonlyMap<MaterializationRootName, MaterializationRootStatus>,
+): void {
+  if (stateHash === null && statuses.get('replay-basis') === 'retained') {
+    throw descriptorError('partial materialization cannot retain a replay basis');
   }
 }
 
@@ -221,6 +233,10 @@ function requireNonEmpty(value: unknown, field: string): string {
     throw descriptorError(`${field} must be a non-empty string`);
   }
   return value;
+}
+
+function requireOptionalStateHash(value: unknown): string | null {
+  return value === null ? null : requireNonEmpty(value, 'descriptor.stateHash');
 }
 
 function arrayValue(values: readonly unknown[], index: number): unknown {

@@ -27,6 +27,8 @@ import { snapshotPublicationForReceipts } from './MaterializeSnapshotPublication
 import { releaseAcquisitionAfterFailure } from './MaterializationWorkspaceCleanup.ts';
 import RetainedMaterializationResumeStrategy from './RetainedMaterializationResumeStrategy.ts';
 import { isNonEmptyPatchSha } from './MaterializeHelpers.ts';
+import { resolveBoundedLiveMaterialization } from './BoundedLiveMaterialization.ts';
+import { materializedResolution } from './MaterializedLiveResolution.ts';
 
 export default class MaterializeLiveStrategy {
   private readonly runtime: MaterializeStrategyRuntime;
@@ -118,6 +120,13 @@ export default class MaterializeLiveStrategy {
     coordinate: WarpStateCoordinate,
     materializationCoordinate: MaterializationCoordinate,
   ): Promise<LiveMaterializationResolution> {
+    const bounded = await resolveBoundedLiveMaterialization({
+      deps: this.runtime.deps,
+      coordinate: materializationCoordinate,
+    });
+    if (bounded !== null) {
+      return bounded;
+    }
     const result = await this.replayCurrentCoordinate(coordinate, {
       receipts: false,
       wantDiff: false,
@@ -452,28 +461,6 @@ function retainedResolution(
     materialization: retained,
     source: 'retained',
     replayedPatchCount: 0,
-    release: async () => await acquired.release(),
-  });
-}
-
-function materializedResolution(
-  result: MaterializeResult,
-  acquired: MaterializationAcquisition,
-): LiveMaterializationResolution {
-  if (result.materialization === undefined) {
-    throw resolutionError('non-empty coordinate did not produce a retained handle');
-  }
-  if (
-    !acquired.materialization.coordinate.equals(result.materialization.coordinate)
-    || acquired.materialization.stateHash !== result.materialization.stateHash
-    || !acquired.materialization.bundle.equals(result.materialization.bundle)
-  ) {
-    throw resolutionError('newly retained handle changed before it could be acquired');
-  }
-  return new LiveMaterializationResolution({
-    materialization: acquired.materialization,
-    source: 'materialized',
-    replayedPatchCount: result.patchCount,
     release: async () => await acquired.release(),
   });
 }

@@ -10,7 +10,14 @@ export default class MaterializationHandle {
   readonly bundle: BundleHandle;
   readonly coordinate: MaterializationCoordinate;
   readonly roots: MaterializationRoots;
-  readonly stateHash: string;
+  /**
+   * Semantic hash of a complete WarpState replay basis.
+   *
+   * Partial materializations intentionally carry `null`: their retained roots
+   * can answer bounded reads, but must never masquerade as a whole-state
+   * snapshot.
+   */
+  readonly stateHash: string | null;
   readonly retention: StorageRetentionWitness;
 
   constructor(options: {
@@ -18,7 +25,7 @@ export default class MaterializationHandle {
     readonly bundle: BundleHandle;
     readonly coordinate: MaterializationCoordinate;
     readonly roots: MaterializationRoots;
-    readonly stateHash: string;
+    readonly stateHash: string | null;
     readonly retention: StorageRetentionWitness;
   }) {
     requireOptions(options);
@@ -30,7 +37,7 @@ export default class MaterializationHandle {
       'coordinate',
     );
     this.roots = requireInstance(options.roots, MaterializationRoots, 'roots');
-    this.stateHash = requireNonEmpty(options.stateHash, 'stateHash');
+    this.stateHash = requireOptionalStateHash(options.stateHash);
     this.retention = requireInstance(
       options.retention,
       StorageRetentionWitness,
@@ -57,6 +64,10 @@ function requireNonEmpty(value: string, field: string): string {
     throw handleError(`${field} must be a non-empty string`);
   }
   return value;
+}
+
+function requireOptionalStateHash(value: string | null): string | null {
+  return value === null ? null : requireNonEmpty(value, 'stateHash');
 }
 
 function requireOptions(options: object): void {

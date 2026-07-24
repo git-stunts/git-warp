@@ -294,6 +294,19 @@ describe("StateSession", () => {
       expect(session.dirtyPageCount()).toBeGreaterThan(0);
       expect(await session.nodeContains("node:retryable")).toBe(true);
     });
+
+    it("aborts a failed session without retaining its pending pages", async () => {
+      const workspace = new RecordingWorkspace();
+      const { session } = await openSession({ workspace, maxDirtyPages: 1_000 });
+      await session.addNode("node:aborted", new Dot("alice", 1));
+
+      session.abort();
+
+      expect(workspace.checkpoints).toEqual([]);
+      await expect(session.nodeContains("node:aborted"))
+        .rejects.toBeInstanceOf(StateSessionError);
+      await expect(session.close()).rejects.toBeInstanceOf(StateSessionError);
+    });
   });
 
   describe("edge cases", () => {
