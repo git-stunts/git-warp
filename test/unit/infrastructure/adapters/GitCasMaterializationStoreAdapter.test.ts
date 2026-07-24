@@ -71,7 +71,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(members.map(([path]) => path)).toEqual(['meta/descriptor', ...ROOT_PATHS]);
     const cacheKeys = harness.cas.readCacheKeys(CACHE_NAMESPACE);
     expect(cacheKeys).toHaveLength(1);
-    expect(cacheKeys[0]).toMatch(/^v4:[0-9a-f]{64}$/u);
+    expect(cacheKeys[0]).toMatch(/^v4:[0-9a-f]{64}:[0-9a-f]{64}$/u);
     expect(cacheKeys[0]?.length).toBeLessThan(1024);
     expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
     await acquisition?.release();

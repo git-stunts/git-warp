@@ -8,11 +8,9 @@ import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import type {
   MaterializationPredecessorPredicate,
 } from '../../ports/MaterializationStorePort.ts';
-import {
-  MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
-  type DecodedMaterializationDescriptor,
+import type {
+  DecodedMaterializationDescriptor,
 } from './GitCasMaterializationDescriptor.ts';
-import { storageError } from './GitCasMaterializationStoreValidation.ts';
 
 const MAX_CACHE_INSPECTION_PAGE = 100;
 const MAX_MATERIALIZATION_CANDIDATES = 1024;
@@ -33,6 +31,7 @@ export default class GitCasMaterializationPredecessorResolver {
     bundle: BundleHandle,
   ) => Promise<DecodedMaterializationDescriptor>;
   readonly #cacheKey: (coordinate: MaterializationCoordinate) => Promise<string>;
+  readonly #cacheKeyPrefix: () => Promise<string>;
 
   constructor(options: {
     readonly openCache: () => Promise<InspectionCache>;
@@ -41,11 +40,13 @@ export default class GitCasMaterializationPredecessorResolver {
       bundle: BundleHandle,
     ) => Promise<DecodedMaterializationDescriptor>;
     readonly cacheKey: (coordinate: MaterializationCoordinate) => Promise<string>;
+    readonly cacheKeyPrefix: () => Promise<string>;
   }) {
     this.#openCache = options.openCache;
     this.#laneName = options.laneName;
     this.#readDescriptor = options.readDescriptor;
     this.#cacheKey = options.cacheKey;
+    this.#cacheKeyPrefix = options.cacheKeyPrefix;
   }
 
   async find(
@@ -53,8 +54,12 @@ export default class GitCasMaterializationPredecessorResolver {
     isCompatible: MaterializationPredecessorPredicate,
   ): Promise<MaterializationCoordinate | null> {
     const cache = await this.#openCache();
+    const entries = await inspectEntries(cache, await this.#cacheKeyPrefix());
+    if (entries === null) {
+      return null;
+    }
     let best: MaterializationCandidate | null = null;
-    for await (const entry of inspectEntries(cache)) {
+    for (const entry of entries) {
       const candidate = await this.#candidateFromEntry(entry, target, isCompatible);
       best = selectBetterCandidate(candidate, best);
     }
@@ -66,9 +71,6 @@ export default class GitCasMaterializationPredecessorResolver {
     target: MaterializationCoordinate,
     isCompatible: MaterializationPredecessorPredicate,
   ): Promise<MaterializationCandidate | null> {
-    if (!entry.key.startsWith(currentSchemaPrefix())) {
-      return null;
-    }
     const descriptor = await this.#readDescriptor(new BundleHandle(entry.handle));
     if (!descriptorCanResume(descriptor, target, this.#laneName)) {
       return null;
@@ -87,25 +89,29 @@ export default class GitCasMaterializationPredecessorResolver {
   }
 }
 
-async function* inspectEntries(
+async function inspectEntries(
   cache: InspectionCache,
-): AsyncGenerator<CacheEntryMetadata> {
+  cacheKeyPrefix: string,
+): Promise<readonly CacheEntryMetadata[] | null> {
+  const entries: CacheEntryMetadata[] = [];
   let cursor: string | null = null;
-  let inspected = 0;
   do {
     const page: CacheInspection = await cache.inspect({
       limit: MAX_CACHE_INSPECTION_PAGE,
       cursor,
     });
     for (const entry of page.entries) {
-      inspected += 1;
-      if (inspected > MAX_MATERIALIZATION_CANDIDATES) {
-        throw storageError('materialization cache exceeds predecessor scan limit');
+      if (!entry.key.startsWith(cacheKeyPrefix)) {
+        continue;
       }
-      yield entry;
+      if (entries.length === MAX_MATERIALIZATION_CANDIDATES) {
+        return null;
+      }
+      entries.push(entry);
     }
     cursor = page.nextCursor;
   } while (cursor !== null);
+  return Object.freeze(entries);
 }
 
 function descriptorCanResume(
@@ -136,8 +142,4 @@ function selectBetterCandidate(
     return current;
   }
   return candidateIsBetter(candidate, current) ? candidate : current;
-}
-
-function currentSchemaPrefix(): string {
-  return `v${String(MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION)}:`;
 }

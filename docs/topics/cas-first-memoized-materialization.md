@@ -40,11 +40,19 @@ operation follows this coordinate-first lifecycle:
 [current frontier]
         |
         v
-[state-cache exact hit?] ---- yes ---> [reopen retained roots; zero patch replay]
+[retained exact hit?] ------- yes ---> [load basis; reuse roots; zero patch replay]
         |
         no
         v
-[compatible predecessor?] --- yes ---> [replay suffix, publish snapshot]
+[retained predecessor?] ----- yes ---> [load basis; replay suffix]
+        |
+        no
+        v
+[state-cache exact hit?] ---- yes ---> [reopen roots; zero patch replay]
+        |
+        no
+        v
+[state-cache predecessor?] -- yes ---> [replay suffix, publish snapshot]
         |
         no
         v
@@ -62,7 +70,12 @@ WARP state coordinate:
 
 This coordinate belongs to `git-warp`; it is not a `git-cas` concept.
 
-### 2. Check the WARP state cache
+### 2. Check retained materializations, then the WARP state cache
+
+The compatibility path first asks `MaterializationStorePort` for an exact
+retained materialization and then for a causally compatible retained
+predecessor. Only when neither retained resume applies does it consult the
+legacy `WarpStateCachePort`.
 
 The runtime asks `WarpStateCachePort` for an exact snapshot at that coordinate.
 On a hit, it asks `MaterializationStorePort` for the matching retained-root

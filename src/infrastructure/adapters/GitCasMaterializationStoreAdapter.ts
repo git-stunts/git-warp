@@ -35,6 +35,7 @@ import GitCasMaterializationPredecessorResolver from './GitCasMaterializationPre
 import GitCasMaterializationReplayBasis, {
   replaceReplayBasisRoot,
 } from './GitCasMaterializationReplayBasis.ts';
+import GitCasMaterializationCacheKey from './GitCasMaterializationCacheKey.ts';
 import type {
   GitCasMaterializationFacade,
   MaterializationCacheSet,
@@ -49,8 +50,6 @@ import {
 import { completeWithCleanup } from './OperationCleanup.ts';
 import {
   decodeMaterializationDescriptor,
-  MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
-  materializationCoordinateData,
   materializationDescriptorData,
   materializationRootsFromDescriptor,
   type DecodedMaterializationDescriptor,
@@ -74,6 +73,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   readonly #cas: GitCasMaterializationFacade;
   readonly #codec: CodecPort;
   readonly #crypto: CryptoPort;
+  readonly #cacheKeys: GitCasMaterializationCacheKey;
   readonly #laneName: string;
   readonly #onClose: () => void;
   readonly #predecessorResolver: GitCasMaterializationPredecessorResolver;
@@ -104,6 +104,11 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     this.#codec = options.codec;
     this.#crypto = options.crypto;
     this.#laneName = requireNonEmpty(options.laneName, 'laneName');
+    this.#cacheKeys = new GitCasMaterializationCacheKey({
+      codec: this.#codec,
+      crypto: this.#crypto,
+      laneName: this.#laneName,
+    });
     this.#onClose = options.onClose ?? (() => undefined);
     this.#replayBasis = new GitCasMaterializationReplayBasis({
       cas: this.#cas,
@@ -121,7 +126,8 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
         const members = await this.#readMembers(bundle);
         return await this.#readDescriptor(members.descriptor);
       },
-      cacheKey: async (coordinate) => await this.#cacheKey(coordinate),
+      cacheKey: async (coordinate) => await this.#cacheKeys.forCoordinate(coordinate),
+      cacheKeyPrefix: async () => await this.#cacheKeys.currentPrefix(),
     });
   }
 
@@ -205,6 +211,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       source: descriptorBytes,
       maxBytes: MAX_DESCRIPTOR_BYTES,
     });
+    requireWorkspaceStage(descriptorPage);
     const bundle = await workspace.bundles.putOrdered({
       members: materializationMembers(descriptorPage.handle.toString(), request.roots),
     });
@@ -218,7 +225,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     coordinate: MaterializationCoordinate,
   ): Promise<StorageRetentionWitness> {
     const cache = await this.#cas.caches.open({ namespace: CACHE_NAMESPACE });
-    const cacheKey = await this.#cacheKey(coordinate);
+    const cacheKey = await this.#cacheKeys.forCoordinate(coordinate);
     const expectedHandle = bundle.handle.toString();
     const promoted = await workspace.promoteToCache({
       cache,
@@ -342,7 +349,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     coordinate: MaterializationCoordinate,
   ): Promise<GitCasMaterializationLease | null> {
     const cache = await this.#cas.caches.open({ namespace: CACHE_NAMESPACE });
-    const acquisition = await cache.acquire(await this.#cacheKey(coordinate));
+    const acquisition = await cache.acquire(await this.#cacheKeys.forCoordinate(coordinate));
     if (acquisition === null) {
       return null;
     }
@@ -450,28 +457,12 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     });
   }
 
-  async #cacheKey(
-    coordinate: MaterializationCoordinate,
-    schemaVersion = MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
-  ): Promise<string> {
-    const encoded = this.#codec.encode({
-      schemaVersion,
-      laneName: this.#laneName,
-      coordinate: materializationCoordinateData(coordinate),
-    });
-    const digest = requireNonEmpty(
-      await this.#crypto.hash('sha256', encoded),
-      'coordinate digest',
-    );
-    return `v${String(schemaVersion)}:${digest}`;
-  }
-
   async #removeLegacyEntries(
     cache: MaterializationCacheSet,
     coordinate: MaterializationCoordinate,
   ): Promise<void> {
     for (const schemaVersion of LEGACY_MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSIONS) {
-      await cache.remove(await this.#cacheKey(coordinate, schemaVersion));
+      await cache.remove(await this.#cacheKeys.forCoordinate(coordinate, schemaVersion));
     }
   }
 

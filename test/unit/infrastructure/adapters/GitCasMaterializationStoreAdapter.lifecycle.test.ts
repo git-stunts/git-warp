@@ -17,6 +17,7 @@ import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
+const CURRENT_CACHE_KEY_PATTERN = /^v4:[0-9a-f]{64}:[0-9a-f]{64}$/u;
 const ROOT_COUNT = 9;
 
 describe('GitCasMaterializationStoreAdapter lifecycle', () => {
@@ -130,34 +131,38 @@ describe('GitCasMaterializationStoreAdapter lifecycle', () => {
     });
   });
 
-  it('keeps the matching v2 cache anchor until the v3 profile is retained', async () => {
+  it('keeps matching legacy cache anchors until the v4 profile is retained', async () => {
     const harness = await createHarness();
     const coordinate = exactCoordinate();
     const roots = await createRoots(harness.cas);
     const retained = await harness.adapter.retain({ coordinate, roots, stateHash: 'state-hash' });
     const cache = await harness.cas.caches.open({ namespace: CACHE_NAMESPACE });
-    const v3Key = requireSingleCacheKey(harness.cas);
+    const v4Key = requireSingleCacheKey(harness.cas);
     const v2Key = await cacheKeyForSchema(coordinate, 2);
+    const v3Key = await cacheKeyForSchema(coordinate, 3);
     await cache.put(v2Key, retained.bundle.toString());
-    await cache.remove(v3Key);
+    await cache.put(v3Key, retained.bundle.toString());
+    await cache.remove(v4Key);
 
     await expect(harness.adapter.acquireExact(coordinate)).resolves.toBeNull();
-    expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([v2Key]);
+    expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([v2Key, v3Key]);
 
     await harness.adapter.retain({ coordinate, roots, stateHash: 'replacement-state-hash' });
-    expect(requireSingleCacheKey(harness.cas)).toMatch(/^v4:[0-9a-f]{64}$/u);
+    expect(requireSingleCacheKey(harness.cas)).toMatch(CURRENT_CACHE_KEY_PATTERN);
   });
 
-  it('removes the matching v2 cache anchor after direct v3 retention', async () => {
+  it('removes matching legacy cache anchors after direct v4 retention', async () => {
     const harness = await createHarness();
     const coordinate = exactCoordinate();
     const roots = await createRoots(harness.cas);
     const retained = await harness.adapter.retain({ coordinate, roots, stateHash: 'state-hash' });
     const cache = await harness.cas.caches.open({ namespace: CACHE_NAMESPACE });
-    const v3Key = requireSingleCacheKey(harness.cas);
+    const v4Key = requireSingleCacheKey(harness.cas);
     const v2Key = await cacheKeyForSchema(coordinate, 2);
+    const v3Key = await cacheKeyForSchema(coordinate, 3);
     await cache.put(v2Key, retained.bundle.toString());
-    await cache.remove(v3Key);
+    await cache.put(v3Key, retained.bundle.toString());
+    await cache.remove(v4Key);
 
     const replacement = await harness.adapter.retain({
       coordinate,
@@ -167,23 +172,25 @@ describe('GitCasMaterializationStoreAdapter lifecycle', () => {
     const acquisition = await harness.adapter.acquireExact(coordinate);
 
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([
-      expect.stringMatching(/^v4:[0-9a-f]{64}$/u),
+      expect.stringMatching(CURRENT_CACHE_KEY_PATTERN),
     ]);
     expect(replacement.retention.root.generation)
       .toBe(acquisition?.materialization.retention.root.generation);
     await acquisition?.release();
   });
 
-  it('keeps the v2 anchor when the exact v3 target cannot be acquired', async () => {
+  it('keeps legacy anchors when the exact v4 target cannot be acquired', async () => {
     const harness = await createHarness();
     const coordinate = exactCoordinate();
     const roots = await createRoots(harness.cas);
     const original = await harness.adapter.retain({ coordinate, roots, stateHash: 'state-hash' });
     const cache = await harness.cas.caches.open({ namespace: CACHE_NAMESPACE });
-    const v3Key = requireSingleCacheKey(harness.cas);
+    const v4Key = requireSingleCacheKey(harness.cas);
     const v2Key = await cacheKeyForSchema(coordinate, 2);
+    const v3Key = await cacheKeyForSchema(coordinate, 3);
     await cache.put(v2Key, original.bundle.toString());
-    await cache.remove(v3Key);
+    await cache.put(v3Key, original.bundle.toString());
+    await cache.remove(v4Key);
 
     await expect(adapterFor(withoutCacheAcquisition(harness.cas)).retain({
       coordinate,
@@ -195,6 +202,7 @@ describe('GitCasMaterializationStoreAdapter lifecycle', () => {
     });
 
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toContain(v2Key);
+    expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toContain(v3Key);
   });
 });
 
