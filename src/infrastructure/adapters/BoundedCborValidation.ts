@@ -6,6 +6,15 @@ export type CborStructureLimits = Readonly<{
   maxItems: number;
 }>;
 
+export type CborValidationErrorFactory = (reason: string) => Error;
+type CborMapKeyPolicy = 'any' | 'unique-text';
+type CborStructureReaderOptions = {
+  readonly bytes: Uint8Array;
+  readonly limits: CborStructureLimits;
+  readonly mapKeyPolicy: CborMapKeyPolicy;
+  readonly malformed: CborValidationErrorFactory;
+};
+
 const ARGUMENT_WIDTHS = new Map<number, number>([
   [24, 1],
   [25, 2],
@@ -17,18 +26,22 @@ const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true });
 class CborStructureReader {
   readonly #bytes: Uint8Array;
   readonly #limits: CborStructureLimits;
+  readonly #mapKeyPolicy: CborMapKeyPolicy;
+  readonly #malformed: CborValidationErrorFactory;
   #offset = 0;
   #items = 0;
 
-  constructor(bytes: Uint8Array, limits: CborStructureLimits) {
-    this.#bytes = bytes;
-    this.#limits = limits;
+  constructor(options: CborStructureReaderOptions) {
+    this.#bytes = options.bytes;
+    this.#limits = options.limits;
+    this.#mapKeyPolicy = options.mapKeyPolicy;
+    this.#malformed = options.malformed;
   }
 
   readDocument(): void {
     this.#readItem(0);
     if (this.#offset !== this.#bytes.byteLength) {
-      throw malformedCbor('trailing bytes after the top-level value');
+      throw this.#malformed('trailing bytes after the top-level value');
     }
   }
 
@@ -47,11 +60,11 @@ class CborStructureReader {
 
   #requireItemBudget(depth: number): void {
     if (depth > this.#limits.maxDepth) {
-      throw malformedCbor('nesting depth exceeds the configured maximum');
+      throw this.#malformed('nesting depth exceeds the configured maximum');
     }
     this.#items += 1;
     if (this.#items > this.#limits.maxItems) {
-      throw malformedCbor('decoded item count exceeds the configured maximum');
+      throw this.#malformed('decoded item count exceeds the configured maximum');
     }
   }
 
@@ -71,12 +84,12 @@ class CborStructureReader {
       this.#readItem(depth + 1);
       return;
     }
-    throw malformedCbor('unsupported major type');
+    throw this.#malformed('unsupported major type');
   }
 
   #readContainer(major: number, length: number, depth: number): void {
     if (length > this.#limits.maxContainerEntries) {
-      throw malformedCbor('container entry count exceeds the configured maximum');
+      throw this.#malformed('container entry count exceeds the configured maximum');
     }
     if (major === 4) {
       this.#readItems(length, depth);
@@ -86,21 +99,36 @@ class CborStructureReader {
   }
 
   #readMapEntries(length: number, depth: number): void {
+    if (this.#mapKeyPolicy === 'any') {
+      this.#readGenericMapEntries(length, depth);
+      return;
+    }
+    this.#readUniqueTextMapEntries(length, depth);
+  }
+
+  #readGenericMapEntries(length: number, depth: number): void {
+    for (let index = 0; index < length; index += 1) {
+      this.#readItem(depth + 1);
+      this.#readItem(depth + 1);
+    }
+  }
+
+  #readUniqueTextMapEntries(length: number, depth: number): void {
     const decodedKeys = new Set<string>();
     for (let index = 0; index < length; index += 1) {
       const keyStart = this.#offset;
       const initial = this.#bytes[keyStart];
       if (initial === undefined) {
-        throw malformedCbor('value is truncated');
+        throw this.#malformed('value is truncated');
       }
       if (initial >>> 5 !== 3) {
-        throw malformedCbor('map key must be a UTF-8 text string');
+        throw this.#malformed('map key must be a UTF-8 text string');
       }
       this.#readItem(depth + 1);
       const payloadStart = keyStart + encodedHeaderWidth(initial);
-      const decodedKey = decodeTextKey(this.#bytes, payloadStart, this.#offset);
+      const decodedKey = this.#decodeTextKey(payloadStart, this.#offset);
       if (decodedKeys.has(decodedKey)) {
-        throw malformedCbor('map contains a duplicate text key');
+        throw this.#malformed('map contains a duplicate text key');
       }
       decodedKeys.add(decodedKey);
       this.#readItem(depth + 1);
@@ -119,21 +147,21 @@ class CborStructureReader {
     }
     const width = ARGUMENT_WIDTHS.get(additional);
     if (width === undefined) {
-      throw malformedCbor('reserved or break simple value is not supported');
+      throw this.#malformed('reserved or break simple value is not supported');
     }
     this.#skip(width);
   }
 
   #readArgument(additional: number): bigint {
     if (additional === 0x1f) {
-      throw malformedCbor('indefinite-length values are not supported');
+      throw this.#malformed('indefinite-length values are not supported');
     }
     if (additional < 24) {
       return BigInt(additional);
     }
     const width = ARGUMENT_WIDTHS.get(additional);
     if (width === undefined) {
-      throw malformedCbor('reserved additional information');
+      throw this.#malformed('reserved additional information');
     }
     return this.#readUnsigned(width);
   }
@@ -148,7 +176,7 @@ class CborStructureReader {
 
   #toLength(value: bigint): number {
     if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
-      throw malformedCbor('declared length exceeds the safe integer range');
+      throw this.#malformed('declared length exceeds the safe integer range');
     }
     return Number(value);
   }
@@ -156,7 +184,7 @@ class CborStructureReader {
   #readByte(): number {
     const value = this.#bytes[this.#offset];
     if (value === undefined) {
-      throw malformedCbor('value is truncated');
+      throw this.#malformed('value is truncated');
     }
     this.#offset += 1;
     return value;
@@ -164,9 +192,17 @@ class CborStructureReader {
 
   #skip(length: number): void {
     if (length > this.#bytes.byteLength - this.#offset) {
-      throw malformedCbor('value is truncated');
+      throw this.#malformed('value is truncated');
     }
     this.#offset += length;
+  }
+
+  #decodeTextKey(start: number, end: number): string {
+    try {
+      return STRICT_UTF8.decode(this.#bytes.subarray(start, end));
+    } catch {
+      throw this.#malformed('map contains an invalid UTF-8 text key');
+    }
   }
 }
 
@@ -174,16 +210,28 @@ class CborStructureReader {
 export function validateBoundedCbor(
   bytes: Uint8Array,
   limits: CborStructureLimits,
+  malformed: CborValidationErrorFactory = malformedCbor,
 ): void {
-  new CborStructureReader(bytes, limits).readDocument();
+  new CborStructureReader({
+    bytes,
+    limits,
+    malformed,
+    mapKeyPolicy: 'unique-text',
+  }).readDocument();
 }
 
-function decodeTextKey(bytes: Uint8Array, start: number, end: number): string {
-  try {
-    return STRICT_UTF8.decode(bytes.subarray(start, end));
-  } catch {
-    throw malformedCbor('map contains an invalid UTF-8 text key');
-  }
+/** Validates generic CBOR structure without narrowing the format's map-key algebra. */
+export function validateGenericBoundedCbor(
+  bytes: Uint8Array,
+  limits: CborStructureLimits,
+  malformed: CborValidationErrorFactory,
+): void {
+  new CborStructureReader({
+    bytes,
+    limits,
+    malformed,
+    mapKeyPolicy: 'any',
+  }).readDocument();
 }
 
 function encodedHeaderWidth(initial: number): number {
