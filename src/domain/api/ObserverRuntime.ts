@@ -3,7 +3,21 @@ import LegacyReading from './Reading.ts';
 import Observer from './Observer.ts';
 import type { ReadingValue } from './ObservedReading.ts';
 
-const OBSERVER_READINGS = new WeakMap<Observer, LegacyReading>();
+export type ObserverReadingSource =
+  | Iterable<LegacyReading>
+  | AsyncIterable<LegacyReading>;
+
+type ObserverPlan =
+  | Readonly<{
+      cardinality: 'exactly-one';
+      reading: LegacyReading;
+    }>
+  | Readonly<{
+      cardinality: 'many';
+      readings: () => ObserverReadingSource;
+    }>;
+
+const OBSERVER_PLANS = new WeakMap<Observer, ObserverPlan>();
 
 export function createObserver<TValue extends ReadingValue>(
   id: string,
@@ -18,7 +32,33 @@ export function createObserver<TValue extends ReadingValue>(
     decode,
     id,
   });
-  OBSERVER_READINGS.set(observer, reading);
+  OBSERVER_PLANS.set(observer, Object.freeze({
+    cardinality: 'exactly-one',
+    reading,
+  }));
+  return observer;
+}
+
+export function createManyObserver<TValue extends ReadingValue>(
+  id: string,
+  readings: () => ObserverReadingSource,
+  decode: (value: ReadingValue) => TValue,
+): Observer<TValue> {
+  if (typeof readings !== 'function') {
+    throw new WarpError(
+      'Many Observer requires a bounded reading-plan factory',
+      'E_OBSERVER_PLAN',
+    );
+  }
+  const observer = new Observer<TValue>({
+    cardinality: 'many',
+    decode,
+    id,
+  });
+  OBSERVER_PLANS.set(observer, Object.freeze({
+    cardinality: 'many',
+    readings,
+  }));
   return observer;
 }
 
@@ -30,12 +70,30 @@ export function decodeObserverValue<TValue extends ReadingValue>(
 }
 
 export function requireObserverReading(observer: Observer): LegacyReading {
-  const reading = OBSERVER_READINGS.get(observer);
-  if (reading === undefined) {
+  const plan = requireObserverPlan(observer);
+  if (plan.cardinality !== 'exactly-one') {
+    throw new WarpError(
+      'Observer does not contain an exactly-one reading plan',
+      'E_OBSERVER_PLAN_UNAVAILABLE',
+    );
+  }
+  return plan.reading;
+}
+
+export function observerReadings(observer: Observer): ObserverReadingSource {
+  const plan = requireObserverPlan(observer);
+  return plan.cardinality === 'exactly-one'
+    ? Object.freeze([plan.reading])
+    : plan.readings();
+}
+
+function requireObserverPlan(observer: Observer): ObserverPlan {
+  const plan = OBSERVER_PLANS.get(observer);
+  if (plan === undefined) {
     throw new WarpError(
       'Observer was not created by a supported SDK or chart builder',
       'E_OBSERVER_PLAN_UNAVAILABLE',
     );
   }
-  return reading;
+  return plan;
 }
