@@ -99,7 +99,7 @@ describe('receipt outcomes', () => {
       EVIDENCE.basis
     );
     const receipt = new WriteReceipt({
-      timeline: 'events',
+      lane: 'events',
       writer: 'agent-1',
       intent: intent.node.add({ subject: 'user:alice' }),
       outcome,
@@ -117,7 +117,7 @@ describe('receipt outcomes', () => {
     expect(
       () =>
         new WriteReceipt({
-          timeline: 'events',
+          lane: 'events',
           writer: 'agent-1',
           intent: intent.node.add({ subject: 'user:alice' }),
           outcome: 'accepted' as never,
@@ -149,7 +149,7 @@ describe('receipt outcomes', () => {
     expect(
       () =>
         new WriteReceipt({
-          timeline: 'events',
+          lane: 'events',
           writer: 'agent-1',
           intent: intent.node.add({ subject: 'user:alice' }),
           outcome,

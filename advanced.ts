@@ -1,7 +1,7 @@
 /**
  * Formal bounded-reading API for expert consumers.
  *
- * Capture a `Coordinate` from a public `Timeline` with `captureCoordinate()`,
+ * Capture a `Coordinate` from a public `Lane` with `captureCoordinate()`,
  * then lower reads through its executable `Optic`. A successful read carries
  * a type-only `Witness` through the root receipt evidence contract.
  */

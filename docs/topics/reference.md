@@ -22,76 +22,57 @@ public API export, CLI command, package entrypoint, or public error class.
 
 ## Root API export surface
 
-First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.
+First-use product API: one `Runtime` value plus Lane, Intent, Observer, Observation, Reading, and Receipt types.
 
 ### Value exports
 
-Source: `index.ts`. Count: 3.
+Source: `index.ts`. Count: 1.
 
 ```text
-intent @ index.ts#L15
-openWarp @ index.ts#L14
-reading @ index.ts#L16
+Runtime @ index.ts#L13
 ```
 
 ### Type exports
 
-Source: `index.ts`. Count: 41.
+Source: `index.ts`. Count: 24.
 
 ```text
-AdmissionOutcome @ index.ts#L30
-DraftTimeline @ index.ts#L17
-EdgeIntentFields @ index.ts#L34
-Evidence @ index.ts#L22
-EvidenceHandle @ index.ts#L22
-Intent @ index.ts#L23
-IntentBuilders @ index.ts#L40
-IntentDescriptor @ index.ts#L35
-IntentKind @ index.ts#L36
-JoinMode @ index.ts#L41
-JoinOptions @ index.ts#L43
-JoinPolicy @ index.ts#L43
-JoinReceipt @ index.ts#L24
-JoinReceiptOptions @ index.ts#L41
-JoinResult @ index.ts#L25
-JoinResultOptions @ index.ts#L42
-NeighborhoodReadingFields @ index.ts#L45
-NodeIntentFields @ index.ts#L37
-NodeReadingFields @ index.ts#L46
-OpenWarpOptions @ index.ts#L31
-PropertyIntentFields @ index.ts#L38
-PropertyReadingFields @ index.ts#L47
-Reading @ index.ts#L26
-ReadingBuilders @ index.ts#L52
-ReadingDescriptor @ index.ts#L49
-ReadingDirection @ index.ts#L48
-ReadingKind @ index.ts#L50
-ReadingResult @ index.ts#L27
-ReadingResultOptions @ index.ts#L53
-ReadingValue @ index.ts#L53
-ReadReceipt @ index.ts#L28
-ReadReceiptOptions @ index.ts#L55
-Receipt @ index.ts#L54
-RepairHint @ index.ts#L56
-Tick @ index.ts#L20
-Timeline @ index.ts#L19
-TimelineView @ index.ts#L21
-Warp @ index.ts#L18
-WarpStorage @ index.ts#L32
-WriteReceipt @ index.ts#L29
-WriteReceiptOptions @ index.ts#L57
+AdmissionOutcome @ index.ts#L38
+CoordinateReference @ index.ts#L19
+Evidence @ index.ts#L15
+EvidenceHandle @ index.ts#L15
+Intent @ index.ts#L16
+Lane @ index.ts#L17
+LaneDescriptor @ index.ts#L20
+LaneKind @ index.ts#L21
+LaneReference @ index.ts#L22
+Observation @ index.ts#L24
+ObservationReceipt @ index.ts#L25
+ObservationStatus @ index.ts#L26
+Observer @ index.ts#L27
+ObserverCardinality @ index.ts#L28
+Reading @ index.ts#L29
+ReadingCoordinate @ index.ts#L31
+ReadingValue @ index.ts#L32
+Receipt @ index.ts#L39
+RepairHint @ index.ts#L40
+RuntimeOpenOptions @ index.ts#L14
+SupportReport @ index.ts#L33
+Tick @ index.ts#L36
+WitnessReference @ index.ts#L34
+WriteReceipt @ index.ts#L37
 ```
 
 ## Storage export surface
 
-Git-backed storage for first-use applications.
+Transitional explicit storage composition; first-use applications use `Runtime.open()`.
 
 ### Value exports
 
 Source: `storage.ts`. Count: 1.
 
 ```text
-GitStorage @ storage.ts#L38
+GitStorage @ storage.ts#L3
 ```
 
 ### Type exports
@@ -99,7 +80,7 @@ GitStorage @ storage.ts#L38
 Source: `storage.ts`. Count: 1.
 
 ```text
-GitStorageOptions @ storage.ts#L12
+GitStorageOptions @ storage.ts#L4
 ```
 
 ## Advanced export surface

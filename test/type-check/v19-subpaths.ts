@@ -6,7 +6,7 @@
  */
 
 import { GitStorage, type GitStorageOptions } from '../../storage.ts';
-import { type Receipt, type Timeline } from '../../index.ts';
+import { type Lane, type WriteReceipt } from '../../index.ts';
 import { captureCoordinate, Coordinate, Optic, type Witness } from '../../advanced.ts';
 import {
   inspectReceipt,
@@ -18,21 +18,26 @@ import {
 declare const gitStorageOptions: GitStorageOptions;
 
 const gitStorage = await GitStorage.open(gitStorageOptions);
-declare const timeline: Timeline;
-const coordinate: InstanceType<typeof Coordinate> = await captureCoordinate(timeline);
+declare const lane: Lane;
+const coordinate: InstanceType<typeof Coordinate> = await captureCoordinate(lane);
 const optic: InstanceType<typeof Optic> = coordinate.optic();
 const node = await optic.node('user:alice').read();
 const witness: Witness = node.readIdentity;
-declare const receipt: Receipt;
+declare const receipt: WriteReceipt;
 const inspectionOptions: InspectReceiptOptions = { storage: gitStorage };
 const inspection: ReceiptInspection = inspectReceipt(receipt, inspectionOptions);
+const inspectedLane: string = inspection.lane;
 const substrate: ReceiptSubstrateInspection = inspection.substrate;
 
 // @ts-expect-error diagnostics require explicit storage context.
 inspectReceipt(receipt);
 
+// @ts-expect-error diagnostic projections use canonical Lane vocabulary.
+inspection.timeline;
+
 await gitStorage.close();
 void optic;
 void witness;
 void inspection;
+void inspectedLane;
 void substrate;

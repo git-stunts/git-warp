@@ -55,7 +55,7 @@ describe('receipt diagnostics', () => {
     expect(inspection).toMatchObject({
       operation: 'write',
       outcome: receipt.outcome,
-      timeline: 'events',
+      lane: 'events',
       writer: 'agent-1',
       reason: undefined,
       evidence: 'present',
@@ -158,7 +158,7 @@ describe('receipt diagnostics', () => {
   it('rejects receipts that were not issued by an openWarp runtime', () => {
     const storage = MemoryStorage.create();
     const receipt = new WriteReceipt({
-      timeline: 'events',
+      lane: 'events',
       writer: 'agent-1',
       intent: intent.node.add({ subject: 'user:alice' }),
       outcome: projectAdmissionOutcome(
@@ -177,7 +177,7 @@ describe('receipt diagnostics', () => {
     const storage = MemoryStorage.create();
     const context = createApiRuntimeContext(storage, new NodeCryptoAdapter());
     const receipt = new WriteReceipt({
-      timeline: 'events',
+      lane: 'events',
       writer: 'agent-1',
       intent: intent.node.add({ subject: 'user:alice' }),
       outcome: projectAdmissionOutcome(

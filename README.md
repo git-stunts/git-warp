@@ -37,7 +37,7 @@ intent-oriented applications.
 It lets you:
 
 - Write intents into a shared causal log.
-- Read the latest visible state through timeline readings.
+- Observe the latest visible state through bounded lane observers.
 - Read historical ticks without rewriting history.
 - Use observers and apertures to control what a reader can see.
 - Keep provenance attached to values and outcomes.
@@ -53,37 +53,26 @@ replay-backed so callers receive complete diff and provenance data.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
-## Transitional v19 First-Use API
+## v19 First-Use API
 
-The currently implemented v19 facade below is transitional. The accepted
-[`Runtime` / `Lane` / `Observer` vocabulary checkpoint](docs/topics/api/) is
-the release target and must not be described as implemented until its runtime
-and boundary tests land. The v18 graph-first package exports remain removed
-rather than carried as a second compatibility API.
+Application code enters through one production composition root. Wesley-generated
+domain modules provide the validated intents and observers for an application.
 
 ```typescript
-import { openWarp, intent, reading } from '@git-stunts/git-warp';
-import { GitStorage } from '@git-stunts/git-warp/storage';
+import { Runtime } from '@git-stunts/git-warp';
+import { users } from './generated/users.js';
 
-const storage = await GitStorage.open({ cwd: '.' });
-const warp = await openWarp({
-  storage,
+const runtime = await Runtime.open({
+  at: '.',
   writer: 'agent-1',
 });
 
-const events = await warp.timeline('events');
-
-await events.write(
-  intent.node.add({
-    subject: 'user:alice',
-  })
-);
+const events = await runtime.lane('events');
 
 const write = await events.write(
-  intent.property.set({
+  users.intents.assignRole({
     subject: 'user:alice',
-    key: 'role',
-    value: 'admin',
+    role: 'admin',
   })
 );
 
@@ -91,25 +80,24 @@ if (write.outcome.kind === 'conflict' || write.outcome.kind === 'obstruction') {
   throw new Error(write.reason ?? `write admission was ${write.outcome.kind}`);
 }
 
-const role = await events.read(
-  reading.property({
-    subject: 'user:alice',
-    key: 'role',
-  })
+const observation = events.observe(
+  users.observers.roleOf({ subject: 'user:alice' })
 );
 
-if (role.receipt.outcome === 'accepted') {
-  console.log(role.value);
-  console.log(role.receipt.evidence);
-} else {
-  console.error(role.receipt.reason, role.receipt.repairHints);
+for await (const reading of observation) {
+  console.log(reading.value);
 }
 
-await storage.close();
+const observeReceipt = await observation.receipt;
+if (observeReceipt.status !== 'completed') {
+  console.error(observeReceipt.reason, observeReceipt.repairHints);
+}
+
+await runtime.close();
 ```
 
-`GitStorage.close()` releases local Git and git-cas processes only. It does not
-delete timelines, rewrite history, or change retention anchors.
+`Runtime.close()` releases local resources only. It does not delete lanes,
+rewrite history, or change retention anchors.
 
 The v18 graph-first API is not exported in v19. Migrate uses of
 `openWarpWorldline()`, `openWarpGraph()`, `WarpApp`, `WarpCore`,
@@ -118,16 +106,19 @@ upgrading.
 
 ### Bounded Reads
 
-The v19 public API names bounded questions as readings. Formal coordinate and
-optic access lives under `advanced`; receipt inspection lives under
-`diagnostics`. Observer, support-plan, and host machinery is internal.
+The v19 public API names reusable bounded questions as observers. Formal
+coordinate and optic access lives under `advanced`; receipt inspection lives
+under `diagnostics`. Support-plan and host machinery stay behind the runtime.
 
-- A **reading** is the bounded question the public API should expose.
+- An **observer** is a reusable bounded execution plan.
+- An **observation** is one execution that streams readings and leaves a
+  receipt.
+- A **reading** is one bounded value emitted by an observation.
 - An **optic** is the formal execution shape used by expert and proof-oriented
   surfaces.
 - A **coordinate** is formal evidence position; first-use code should see
   `tick` and receipt handles before coordinate machinery.
-- Missing support should produce an honest receipt outcome, not a silent
+- Missing support should produce an honest receipt status, not a silent
   whole-history materialization.
 
 Create a missing basis with `git warp checkpoint create`, or reconcile
@@ -150,8 +141,8 @@ state-cache retention with `git warp doctor --repair-state-cache`.
 
 ### Bounded reads in practice
 
-The root API expresses bounded questions as readings and reports the support
-actually used through receipts. The removed `openWarpGraph()` and
+The root API executes bounded observers and reports the support actually used
+through readings and receipts. The removed `openWarpGraph()` and
 `openWarpWorldline()` paths are migration source material, not a second
 application API.
 
@@ -298,11 +289,11 @@ The broader worldline-wide direction is still narrower than the doctrine: live s
 
 ## API surface
 
-The v19 application entry point is the root intent/timeline/reading/receipt
-surface. The v18 `openWarpWorldline()` and `openWarpGraph()` package entry
-points are removed. New application code uses root readings and receipts; new
-operator code uses explicit diagnostic APIs instead of a graph-first
-compatibility bag.
+The v19 application entry point is the root `Runtime` value. Generated SDKs
+provide domain-specific intents and observers; lanes stream readings and leave
+receipts. The v18 `openWarpWorldline()` and `openWarpGraph()` package entry
+points are removed. Operator code uses explicit diagnostic APIs instead of a
+graph-first compatibility bag.
 
 ## Architectural moments
 

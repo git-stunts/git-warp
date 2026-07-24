@@ -182,7 +182,7 @@ function captureErrorClasses(errorSource: SourceText): readonly InventoryItem[] 
   const items: InventoryItem[] = [];
   for (let index = 0; index < errorSource.lines.length; index += 1) {
     const match = /^export \{ default as ([A-Za-z0-9_]+) \} from '([^']+)';$/.exec(errorSource.line(index));
-    if (match) {
+    if (match && match[1]?.endsWith('Error') === true) {
       items.push(inventoryItem(match[1] ?? '', match[2] ?? '', errorSource.ref(index)));
     }
   }
@@ -262,9 +262,9 @@ function generate(): string {
       ...jsrExports.map((item) => ['JSR export', `\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``]),
     ]),
     '',
-    ...exportSurface('Root API export surface', rootSource, 'First-use product API: `openWarp`, `intent`, `reading`, timelines, and receipts.'),
+    ...exportSurface('Root API export surface', rootSource, 'First-use product API: one `Runtime` value plus Lane, Intent, Observer, Observation, Reading, and Receipt types.'),
     '',
-    ...exportSurface('Storage export surface', storageSource, 'Git-backed storage for first-use applications.'),
+    ...exportSurface('Storage export surface', storageSource, 'Transitional explicit storage composition; first-use applications use `Runtime.open()`.'),
     '',
     ...exportSurface('Advanced export surface', advancedSource, 'Bounded coordinate capture, Optic, and Witness concepts for expert use.'),
     '',
