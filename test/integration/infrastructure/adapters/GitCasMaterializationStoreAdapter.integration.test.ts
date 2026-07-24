@@ -11,6 +11,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
+import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitCasTrieStoreAdapter from '../../../../src/infrastructure/adapters/GitCasTrieStoreAdapter.ts';
@@ -55,10 +57,12 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
     });
     const trieFixture = await createTrieRoot(harness.cas);
     const rootFixture = await createRoots(harness.cas, trieFixture);
+    const replayBasis = createEmptyState();
     const retained = await harness.materializations.retain({
       coordinate,
       roots: rootFixture.roots,
-      stateHash: 'state-hash',
+      replayBasis,
+      stateHash: await stateHash(replayBasis),
     });
 
     const reopenedCas = createCas(harness.plumbing);
@@ -88,7 +92,7 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
 
       expect(resolved.bundle.equals(retained.bundle)).toBe(true);
       expect(resolved.roots.entries().map(([name, root]) => rootSignature(name, root)))
-        .toEqual(rootFixture.roots.entries().map(([name, root]) => rootSignature(name, root)));
+        .toEqual(retained.roots.entries().map(([name, root]) => rootSignature(name, root)));
       expect(await reopenedTrie.readLeaf(child)).toEqual(trieFixture.bytes);
       expect(unreachable).not.toContain(GitCasBundleHandle.parse(retained.bundle.toString()).oid);
       for (const oid of rootFixture.retainedOids) {
@@ -116,12 +120,15 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
 
   it('keeps a replaced generation reachable until its runtime lease closes', async () => {
     const coordinate = workspaceCoordinate();
+    const replayBasis = createEmptyState();
+    const retainedStateHash = await stateHash(replayBasis);
     const firstTrie = await createTrieRoot(harness.cas, 7);
     const firstRoots = await createRoots(harness.cas, firstTrie, 0);
     const first = await harness.materializations.retain({
       coordinate,
       roots: firstRoots.roots,
-      stateHash: 'first-state-hash',
+      replayBasis,
+      stateHash: retainedStateHash,
     });
     const acquisition = await harness.materializations.acquireExact(coordinate);
     if (acquisition === null) {
@@ -133,7 +140,8 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
     const second = await harness.materializations.retain({
       coordinate,
       roots: secondRoots.roots,
-      stateHash: 'second-state-hash',
+      replayBasis,
+      stateHash: retainedStateHash,
     });
 
     await expireAllReflogs(harness.path);
@@ -397,6 +405,13 @@ function workspaceCoordinate(): MaterializationCoordinate {
   return new MaterializationCoordinate({
     frontier: new Map([['writer-a', 'a'.repeat(40)]]),
     ceiling: null,
+  });
+}
+
+async function stateHash(state: ReturnType<typeof createEmptyState>): Promise<string> {
+  return await computeStateHash(state, {
+    codec: defaultCodec,
+    crypto: new NodeCryptoAdapter(),
   });
 }
 
