@@ -6,6 +6,7 @@ import { createWorldlineLane } from '../../../src/application/RuntimeLaneAdapter
 import Intent from '../../../src/domain/api/Intent.ts';
 import { createObserver } from '../../../src/domain/api/ObserverRuntime.ts';
 import LegacyReading from '../../../src/domain/api/Reading.ts';
+import captureCoordinate from '../../../src/domain/api/captureCoordinate.ts';
 import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
 import MemoryStorage from '../../helpers/MemoryStorage.ts';
 
@@ -109,6 +110,23 @@ describe('Runtime Lane adapter', () => {
 
       await expect(observation.one()).rejects.toThrow('users.role-of expected a string');
       await expect(observation.receipt).rejects.toThrow('users.role-of expected a string');
+    } finally {
+      await storage.close();
+    }
+  });
+
+  it('guards advanced coordinate capture with the Runtime lifecycle', async () => {
+    const storage = MemoryStorage.create();
+    try {
+      const warp = await openWarp({ storage, writer: 'agent-1' });
+      const timeline = await warp.timeline('events');
+      const activity = new RuntimeActivity();
+      const lane = createWorldlineLane(timeline, activity);
+      await activity.close(async () => {});
+
+      await expect(captureCoordinate(lane)).rejects.toMatchObject({
+        code: 'E_RUNTIME_CLOSED',
+      });
     } finally {
       await storage.close();
     }

@@ -38,6 +38,103 @@ function receipt(plan: Observer): ObservationReceipt {
 }
 
 describe('Observation', () => {
+  it('validates its Observer and execution boundaries', async () => {
+    const plan = observer();
+    expect(() => new Observation({
+      // @ts-expect-error Exercise the JavaScript boundary.
+      observer: {},
+      start: () => ({
+        readings: (async function* () {})(),
+        receipt: Promise.resolve(receipt(plan)),
+      }),
+    })).toThrow(expect.objectContaining({ code: 'E_OBSERVATION_OBSERVER' }));
+    expect(() => new Observation({
+      observer: plan,
+      // @ts-expect-error Exercise the JavaScript boundary.
+      start: 'invalid',
+    })).toThrow(expect.objectContaining({ code: 'E_OBSERVATION_START' }));
+
+    const invalidExecutions = [
+      null,
+      { readings: {}, receipt: Promise.resolve(receipt(plan)) },
+      { readings: (async function* () {})(), receipt: {} },
+    ];
+    for (const execution of invalidExecutions) {
+      const observation = new Observation({
+        observer: plan,
+        // @ts-expect-error Exercise invalid runtime results.
+        start: () => execution,
+      });
+      await expect(observation.receipt).rejects.toMatchObject({
+        code: 'E_OBSERVATION_EXECUTION',
+      });
+    }
+  });
+
+  it('returns cleanly before an iterator starts and delegates an active return', async () => {
+    const plan = observer();
+    const returned: IteratorReturnResult<undefined> = Object.freeze({
+      done: true,
+      value: undefined,
+    });
+    let returnCalls = 0;
+    const readings: AsyncIterable<Reading<string>> = {
+      [Symbol.asyncIterator]: () => ({
+        next: async () => ({ done: false, value: reading('admin') }),
+        return: async () => {
+          returnCalls += 1;
+          return returned;
+        },
+      }),
+    };
+    const observation = new Observation({
+      observer: plan,
+      start: () => ({
+        readings,
+        receipt: Promise.resolve(receipt(plan)),
+      }),
+    });
+
+    await expect(observation[Symbol.asyncIterator]().return?.()).resolves.toEqual(returned);
+    const iterator = observation[Symbol.asyncIterator]();
+    await iterator.next();
+    await expect(iterator.return?.()).resolves.toEqual(returned);
+    expect(returnCalls).toBe(1);
+  });
+
+  it('rejects one() for many-cardinality observers and multiple Readings', async () => {
+    const many = new Observer<string>({
+      cardinality: 'many',
+      decode: (value) => String(value),
+      id: 'users.roles',
+    });
+    const manyObservation = new Observation({
+      observer: many,
+      start: () => ({
+        readings: (async function* () {})(),
+        receipt: Promise.resolve(receipt(many)),
+      }),
+    });
+    await expect(manyObservation.one()).rejects.toMatchObject({
+      code: 'E_OBSERVATION_ONE_CARDINALITY',
+    });
+
+    const plan = observer();
+    const multiple = new Observation({
+      observer: plan,
+      start: () => ({
+        readings: (async function* () {
+          yield reading('admin');
+          yield reading('owner');
+        })(),
+        receipt: Promise.resolve(receipt(plan)),
+      }),
+    });
+    await expect(multiple.one()).rejects.toMatchObject({
+      code: 'E_OBSERVATION_CARDINALITY_INVARIANT',
+    });
+  });
+
   it('stays dormant until its iterator is advanced', async () => {
     const plan = observer();
     let starts = 0;

@@ -88,8 +88,11 @@ async function openHistoryStorage(
     repository = new GitCasRepositoryAdapter({ plumbing, history });
     return bindGitStorage({ ...options, repository });
   } catch (error) {
-    await closeFailedOpen(error, repository, history);
-    throw error;
+    const openFailure = error instanceof Error
+      ? error
+      : new AdapterValidationError(`Git storage open failed: ${String(error)}`);
+    await closeFailedOpen(openFailure, repository, history);
+    throw openFailure;
   }
 }
 
@@ -120,7 +123,7 @@ function bindGitStorage(
 }
 
 async function closeFailedOpen(
-  openError: unknown,
+  openError: Error,
   repository: GitCasRepositoryAdapter | null,
   history: GitTimelineHistoryAdapter,
 ): Promise<void> {

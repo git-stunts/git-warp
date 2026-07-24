@@ -2,7 +2,7 @@ import type ReadingResult from '../domain/api/ReadingResult.ts';
 import type Timeline from '../domain/api/Timeline.ts';
 import { requireTimelineRuntime } from '../domain/api/TimelineRuntime.ts';
 import Lane from '../domain/api/Lane.ts';
-import { bindLaneTimeline } from '../domain/api/LaneRuntime.ts';
+import { bindLaneRuntime } from '../domain/api/LaneRuntime.ts';
 import type { ObservationExecution } from '../domain/api/Observation.ts';
 import type Observer from '../domain/api/Observer.ts';
 import {
@@ -27,7 +27,13 @@ export function createWorldlineLane(
     startObserver: <TValue extends ReadingValue>(observer: Observer<TValue>) =>
       startObserver(timeline, observer, activity),
   });
-  bindLaneTimeline(lane, timeline);
+  bindLaneRuntime(lane, {
+    captureCoordinate: async () => await activity.run(async () => {
+      const runtime = requireTimelineRuntime(timeline);
+      await runtime.prepareOpticBasis();
+      return await runtime.coordinate();
+    }),
+  });
   return lane;
 }
 

@@ -1,23 +1,29 @@
 import WarpError from '../errors/WarpError.ts';
+import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
 import type Lane from './Lane.ts';
-import type Timeline from './Timeline.ts';
 
-const LANE_TIMELINES = new WeakMap<Lane, Timeline>();
+type LaneRuntime = Readonly<{
+  readonly captureCoordinate: () => Promise<WarpWorldlineCoordinate>;
+}>;
 
-export function bindLaneTimeline(lane: Lane, timeline: Timeline): void {
-  if (LANE_TIMELINES.has(lane)) {
+const LANE_RUNTIMES = new WeakMap<Lane, LaneRuntime>();
+
+export function bindLaneRuntime(lane: Lane, runtime: LaneRuntime): void {
+  if (LANE_RUNTIMES.has(lane)) {
     throw new WarpError('Lane runtime is already bound', 'E_LANE_RUNTIME_BOUND');
   }
-  LANE_TIMELINES.set(lane, timeline);
+  LANE_RUNTIMES.set(lane, Object.freeze({
+    captureCoordinate: runtime.captureCoordinate,
+  }));
 }
 
-export function requireLaneTimeline(lane: Lane): Timeline {
-  const timeline = LANE_TIMELINES.get(lane);
-  if (timeline === undefined) {
+export function requireLaneRuntime(lane: Lane): LaneRuntime {
+  const runtime = LANE_RUNTIMES.get(lane);
+  if (runtime === undefined) {
     throw new WarpError(
       'Lane was not opened by a Runtime',
       'E_LANE_RUNTIME_UNAVAILABLE',
     );
   }
-  return timeline;
+  return runtime;
 }
