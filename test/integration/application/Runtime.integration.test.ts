@@ -8,7 +8,7 @@ describe('Runtime public composition', () => {
   let repository: GitRepoFixture;
 
   beforeEach(async () => {
-    repository = await createGitRepo('public-storage');
+    repository = await createGitRepo('public-runtime');
   });
 
   afterEach(async () => {

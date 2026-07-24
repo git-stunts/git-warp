@@ -76,14 +76,8 @@ function readingFrom<TValue extends ReadingValue>(
   if (result.receipt.outcome !== 'accepted') {
     return null;
   }
-  if (result.receipt.evidence === undefined) {
-    throw new WarpError(
-      'Accepted observation is missing evidence',
-      'E_OBSERVATION_EVIDENCE_INVARIANT',
-    );
-  }
   return new Reading<TValue>({
-    evidence: result.receipt.evidence,
+    evidence: requireEvidence(result.receipt),
     lane,
     value: decodeObserverValue(observer, result.value),
   });
@@ -117,19 +111,25 @@ function completedObservationReceipt(
   observer: Observer,
   receipt: ReadReceipt,
 ): ObservationReceipt {
+  return new ObservationReceipt({
+    evidence: requireEvidence(receipt),
+    lane: timeline.name,
+    observer,
+    status: 'completed',
+    writer: timeline.writer,
+  });
+}
+
+function requireEvidence(
+  receipt: ReadReceipt,
+): NonNullable<ReadReceipt['evidence']> {
   if (receipt.evidence === undefined) {
     throw new WarpError(
       'Accepted observation is missing evidence',
       'E_OBSERVATION_EVIDENCE_INVARIANT',
     );
   }
-  return new ObservationReceipt({
-    evidence: receipt.evidence,
-    lane: timeline.name,
-    observer,
-    status: 'completed',
-    writer: timeline.writer,
-  });
+  return receipt.evidence;
 }
 
 function unresolvedObservationReceipt(options: {

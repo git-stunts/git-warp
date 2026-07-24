@@ -4,8 +4,8 @@ import type Evidence from './Evidence.ts';
 import type { EvidenceHandle } from './Evidence.ts';
 import { freezeEvidence } from './EvidenceRuntime.ts';
 import type { ReadingValue } from './ReadingValue.ts';
-import { isReadingValue } from './ReadingValueRuntime.ts';
-import type Tick from './LaneTick.ts';
+import { isReadingValue, snapshotReadingValue } from './ReadingValueRuntime.ts';
+import Tick from './LaneTick.ts';
 
 export type { ReadingValue } from './ReadingValue.ts';
 export type WitnessReference = Readonly<{
@@ -48,7 +48,7 @@ export default class Reading<TValue extends ReadingValue = ReadingValue> {
     const evidence = freezeEvidence(options.evidence, 'reading.evidence');
     const support = Object.freeze([...evidence.support]);
 
-    this.value = options.value;
+    this.value = snapshotReadingValue(options.value);
     this.coordinate = createReadingCoordinate(evidence, options.lane);
     this.support = Object.freeze({ evidence: support, status: 'supported' });
     this.witnessRefs = freezeWitnessReferences(options.witnessRefs);
@@ -69,7 +69,7 @@ function createReadingCoordinate(evidence: Evidence, lane: string): ReadingCoord
   return Object.freeze({
     basis: evidence.basis,
     lane,
-    tick: Object.freeze({ id: evidence.tick.id, lane }),
+    tick: new Tick({ id: evidence.tick.id, lane }),
   });
 }
 

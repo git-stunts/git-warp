@@ -7,6 +7,36 @@ export function isReadingValue<T>(value: T): value is T & ReadingValue {
   return isReadingValueWithSeen(value, new WeakSet<object>());
 }
 
+export function snapshotReadingValue<TValue extends ReadingValue>(
+  value: TValue,
+): TValue {
+  return snapshotReadingValueValue(value) as TValue;
+}
+
+function snapshotReadingValueValue(value: ReadingValue): ReadingValue {
+  if (value instanceof Uint8Array) {
+    return new ImmutableBytes(value);
+  }
+  if (value instanceof ImmutableBytes) {
+    return new ImmutableBytes(value.toUint8Array());
+  }
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map((entry) => snapshotReadingValueValue(entry)));
+  }
+  return snapshotReadingValueObjectOrPrimitive(value);
+}
+
+function snapshotReadingValueObjectOrPrimitive(value: ReadingValue): ReadingValue {
+  if (value !== null && typeof value === 'object') {
+    const snapshot: { [key: string]: ReadingValue } = {};
+    for (const [key, entry] of Object.entries(value)) {
+      snapshot[key] = snapshotReadingValueValue(entry);
+    }
+    return Object.freeze(snapshot);
+  }
+  return value;
+}
+
 function isReadingValueWithSeen<T>(value: T, seen: WeakSet<object>): value is T & ReadingValue {
   return isScalarReadingValue(value)
     || isReadingValueArray(value, seen)

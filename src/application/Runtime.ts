@@ -1,4 +1,5 @@
 import type Lane from '../domain/api/Lane.ts';
+import { LANE_IDENTITY_FAILURE } from '../domain/api/LaneIdentityFailure.ts';
 import type Warp from '../domain/api/Warp.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailure.ts';
 import { assertTimelineNameIdentity, assertWriterIdentity } from '../domain/api/assertIdentity.ts';
@@ -51,7 +52,7 @@ export default class Runtime {
   }
 
   async lane(name: string): Promise<Lane> {
-    assertTimelineNameIdentity(name, 'lane', OPEN_WARP_IDENTITY_FAILURE);
+    assertTimelineNameIdentity(name, 'lane', LANE_IDENTITY_FAILURE);
     return await this.#activity.run(async () => {
       const timeline = await this.#warp.timeline(name);
       return createWorldlineLane(timeline, this.#activity);

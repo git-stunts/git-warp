@@ -80,7 +80,9 @@ describe('Runtime', () => {
     const runtime = await Runtime.open({ at: '/repo', writer: 'agent-1' });
 
     await expect(runtime.lane('')).rejects.toMatchObject({
-      code: 'E_OPEN_WARP_IDENTITY',
+      code: 'E_LANE_IDENTITY',
+      context: { field: 'lane' },
+      message: 'Runtime.lane requires a non-empty Lane name',
     });
     expect(openTimeline).not.toHaveBeenCalled();
   });
