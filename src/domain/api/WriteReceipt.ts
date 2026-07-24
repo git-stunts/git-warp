@@ -8,7 +8,7 @@ import Intent from './Intent.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
 
 type WriteReceiptFields = {
-  readonly timeline: string;
+  readonly lane: string;
   readonly writer: string;
   readonly intent: Intent;
   readonly outcome: AdmissionOutcome;
@@ -25,14 +25,14 @@ export default class WriteReceipt {
   readonly outcome: AdmissionOutcome;
   readonly repairHints: readonly RepairHint[];
   readonly reason: string | undefined;
-  readonly timeline: string;
+  readonly lane: string;
   readonly writer: string;
 
   constructor(options: WriteReceiptOptions | null | undefined) {
     const fields = requireWriteReceiptOptions(options);
     validateWriteReceiptFields(fields);
 
-    this.timeline = fields.timeline;
+    this.lane = fields.lane;
     this.writer = fields.writer;
     this.intent = fields.intent;
     this.outcome = fields.outcome;
@@ -45,7 +45,7 @@ export default class WriteReceipt {
 }
 
 function validateWriteReceiptFields(fields: WriteReceiptOptions): void {
-  requireNonEmptyString(fields.timeline, 'writeReceipt.timeline');
+  requireNonEmptyString(fields.lane, 'writeReceipt.lane');
   requireNonEmptyString(fields.writer, 'writeReceipt.writer');
   validateIntent(fields.intent);
   validateWriteOutcome(fields.outcome);

@@ -3,9 +3,10 @@
 > **Status:** Accepted target for `v19.0.0`.
 >
 > This document is the normative product vocabulary and public-surface design.
-> It is not implementation evidence. Until the Runtime, Lane, Observer, and
-> Observation contracts described here are implemented and covered by boundary
-> tests, the currently exported timeline facade remains transitional.
+> It is not implementation evidence. The Runtime, worldline Lane, Observer,
+> streaming Observation, Reading, and Receipt core is implemented and covered
+> by boundary tests. Fork, settlement, generated SDK publication, charts, and
+> CLI/MCP convergence remain part of the open v19 goalpost.
 
 The product doctrine is:
 
@@ -244,10 +245,10 @@ stream wrapper. Its contract owns:
 - resource budget;
 - single-consumer reading delivery;
 - cancellation and early-termination policy;
-- terminal outcome;
+- terminal operation status;
 - receipt production.
 
-Operational uncertainty terminates through the receipt outcome. Immediate
+Operational uncertainty terminates through the receipt status. Immediate
 throws are reserved for invalid local construction, corruption, violated
 invariants, and implementation defects.
 
@@ -329,10 +330,9 @@ conflict
 obstruction
 ```
 
-Implementation checkpoint: the transitional `Timeline.write()` surface now
-returns this closed `AdmissionOutcome` union. Transitional read and join
-receipts still have operation-specific status strings; those are not admission
-classifications and are not root outcome aliases.
+Implementation checkpoint: `Lane.write()` returns this closed
+`AdmissionOutcome` union. `ObservationReceipt.status` remains an independent
+operation status; it is not an admission classification or root outcome alias.
 
 These variants are disjoint causal relations, not success and failure labels:
 

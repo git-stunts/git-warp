@@ -1,91 +1,42 @@
-/**
- * v19 consumer smoke test -- compile-only.
- *
- * Exercises the root application API plus explicit storage subpath.
- */
+/** v19 root consumer contract -- compile-only. */
 
 import {
-  intent,
-  openWarp,
-  reading,
+  Runtime,
   type AdmissionOutcome,
-  type DraftTimeline,
   type Evidence,
   type EvidenceHandle,
   type Intent,
-  type JoinReceipt,
-  type JoinResult,
-  type JoinOptions,
-  type JoinPolicy,
-  type NeighborhoodReadingFields,
-  type OpenWarpOptions,
+  type Lane,
+  type LaneDescriptor,
+  type Observation,
+  type ObservationReceipt,
+  type Observer,
   type Reading,
-  type ReadingResult,
-  type ReadingValue,
-  type ReadReceipt,
-  type RepairHint,
+  type Receipt,
+  type RuntimeOpenOptions,
+  type SupportReport,
   type Tick,
-  type Timeline,
-  type TimelineView,
-  type Warp,
-  type WarpStorage,
   type WriteReceipt,
 } from '../../index.ts';
-import { GitStorage } from '../../storage.ts';
+import { users } from './generated-users.ts';
 
-const storage = await GitStorage.open({ cwd: '.' });
-const publicStorage: WarpStorage = storage;
-
-const options: OpenWarpOptions = {
-  storage: publicStorage,
-  writer: 'agent-1',
-};
-
-const warp: Warp = await openWarp(options);
-const timeline: Timeline = await warp.timeline('events');
-const timelineName: string = timeline.name;
-const timelineWriter: string = timeline.writer;
-const tick: Tick = await timeline.tick();
-const historical: TimelineView = timeline.at(tick);
-
-// @ts-expect-error formal coordinate capture lives on the advanced subpath.
-await timeline.coordinate();
-const writeIntent: Intent = intent.property.set({
+const options: RuntimeOpenOptions = { at: '.', writer: 'agent-1' };
+const runtime: Runtime = await Runtime.open(options);
+const lane: Lane = await runtime.lane('events');
+const intent: Intent = users.intents.assignRole({
   subject: 'user:alice',
-  key: 'role',
-  value: 'admin',
+  role: 'admin',
 });
-const receipt: WriteReceipt = await timeline.write(writeIntent);
-const outcome: AdmissionOutcome = receipt.outcome;
-const writeEvidence: Evidence = receipt.evidence;
-const readRequest: Reading = reading.property({
-  subject: 'user:alice',
-  key: 'role',
-});
-const neighborhoodFields: NeighborhoodReadingFields = {
-  subject: 'user:alice',
-  direction: 'out',
-  labels: ['memberOf'],
-  limit: 25,
-};
-const neighborhoodRequest: Reading = reading.neighborhood(neighborhoodFields);
-const readResult: ReadingResult = await timeline.read(readRequest);
-const historicalResult: ReadingResult = await historical.read(readRequest);
-const convenienceValue: ReadingValue = await timeline.readValue(readRequest);
-const readValue: ReadingValue = readResult.value;
-const readReceipt: ReadReceipt = readResult.receipt;
-const readOutcome = readReceipt.outcome;
-const readEvidence: Evidence | undefined = readReceipt.evidence;
-const evidenceBasis: EvidenceHandle | undefined = readEvidence?.basis;
-const repairHints: readonly RepairHint[] = readReceipt.repairHints;
-const draft: DraftTimeline = await timeline.draft('try-admin-role');
-const draftReceipt: WriteReceipt = await draft.write(writeIntent);
-const joinPolicy: JoinPolicy = 'deterministic';
-const joinOptions: JoinOptions = { policy: joinPolicy };
-const preview: JoinResult = await timeline.previewJoin(draft, joinOptions);
-const joined: JoinResult = await timeline.join(draft);
-const joinReceipt: JoinReceipt = joined.receipt;
-const joinOutcome = joinReceipt.outcome;
+const write: WriteReceipt = await lane.write(intent);
+const admission: AdmissionOutcome = write.outcome;
+const writeEvidence: Evidence = write.evidence;
+const writeLane: string = write.lane;
+const observer: Observer<string> = users.observers.roleOf({ subject: 'user:alice' });
+const observation: Observation<string> = lane.observe(observer);
+const emitted: Reading<string> = await observation.one();
+const support: SupportReport = emitted.support;
+const observationReceipt: ObservationReceipt = await observation.receipt;
+const receipt: Receipt = observationReceipt;
 
 function admissionWitnessHandle(value: AdmissionOutcome): EvidenceHandle {
   switch (value.kind) {
@@ -102,43 +53,34 @@ function admissionWitnessHandle(value: AdmissionOutcome): EvidenceHandle {
   return unreachable;
 }
 
-// @ts-expect-error previewJoin is a dedicated method, not a dryRun boolean trap.
-await timeline.previewJoin(draft, { dryRun: true });
+function laneName(descriptor: LaneDescriptor): string {
+  if (descriptor.kind === 'worldline') {
+    return descriptor.name;
+  }
+  return `${descriptor.parent.name}/${descriptor.name}@${descriptor.forkedAt.id}`;
+}
 
-// @ts-expect-error timelines do not expose legacy worldline names.
-timeline.worldlineName;
+// @ts-expect-error Runtime does not expose transitional timelines.
+await runtime.timeline('events');
 
-// @ts-expect-error timelines do not expose legacy writer ids.
-timeline.writerId;
+// @ts-expect-error Lane observations require a runtime-backed Observer.
+lane.observe({ id: 'loose-plan' });
 
-// @ts-expect-error timelines do not expose patch commits.
-timeline.commit;
+// @ts-expect-error Observation receipts carry status, not admission outcome.
+observationReceipt.outcome;
 
-// @ts-expect-error write receipts expose opaque evidence, not substrate ids.
-receipt.patchSha;
+// @ts-expect-error Canonical write receipts name their Lane, not a Timeline.
+write.timeline;
 
-// @ts-expect-error join receipts expose opaque evidence, not substrate ids.
-joinReceipt.patchShas;
+const readingTick: Tick | undefined = emitted.coordinate.tick;
 
-// @ts-expect-error read evidence does not expose checkpoint object ids.
-readReceipt.evidence?.checkpointSha;
-
-void timelineName;
-void timelineWriter;
-void historicalResult;
-void outcome;
-void admissionWitnessHandle(outcome);
+void admissionWitnessHandle(admission);
+void laneName(lane.descriptor);
 void writeEvidence;
-void readValue;
-void convenienceValue;
-void neighborhoodRequest;
-void readOutcome;
-void readEvidence;
-void evidenceBasis;
-void repairHints;
-void draftReceipt;
-void preview;
-void joinReceipt;
-void joinOutcome;
-
-await storage.close();
+void writeLane;
+void readingTick;
+void emitted.coordinate;
+void emitted.witnessRefs;
+void support;
+void receipt;
+await runtime.close();

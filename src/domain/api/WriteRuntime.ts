@@ -123,7 +123,7 @@ async function createObstructionReceipt(fields: ObstructionReceiptFields): Promi
   const { write, prepared, recoveryEvidence, obstruction } = fields;
   const { runtime, context, intent } = write;
   return new WriteReceipt({
-    timeline: runtime.worldlineName,
+    lane: runtime.worldlineName,
     writer: runtime.writerId,
     intent,
     outcome: projectAdmissionOutcome(
@@ -168,7 +168,7 @@ async function derivedWriteReceipt(
   const { runtime, context, intent, publication } = fields;
   const evidence = await committedWriteEvidence(fields);
   const receipt = new WriteReceipt({
-    timeline: runtime.worldlineName,
+    lane: runtime.worldlineName,
     writer: runtime.writerId,
     intent,
     outcome: projectAdmissionOutcome(createDerivedWriteAdmission(fields), evidence.basis),

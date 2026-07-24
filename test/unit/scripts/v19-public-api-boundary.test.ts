@@ -4,50 +4,33 @@ import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = new URL('../../../', import.meta.url);
 
-const ROOT_VALUE_EXPORTS = ['intent', 'openWarp', 'reading'] as const;
+const ROOT_VALUE_EXPORTS = ['Runtime'] as const;
 
 const ROOT_TYPE_EXPORTS = [
   'AdmissionOutcome',
-  'DraftTimeline',
-  'EdgeIntentFields',
+  'CoordinateReference',
   'Evidence',
   'EvidenceHandle',
   'Intent',
-  'IntentBuilders',
-  'IntentDescriptor',
-  'IntentKind',
-  'JoinMode',
-  'JoinOptions',
-  'JoinPolicy',
-  'JoinReceipt',
-  'JoinReceiptOptions',
-  'JoinResult',
-  'JoinResultOptions',
-  'NeighborhoodReadingFields',
-  'NodeIntentFields',
-  'NodeReadingFields',
-  'OpenWarpOptions',
-  'PropertyIntentFields',
-  'PropertyReadingFields',
-  'ReadReceipt',
-  'ReadReceiptOptions',
+  'Lane',
+  'LaneDescriptor',
+  'LaneKind',
+  'LaneReference',
+  'Observation',
+  'ObservationReceipt',
+  'ObservationStatus',
+  'Observer',
+  'ObserverCardinality',
   'Reading',
-  'ReadingBuilders',
-  'ReadingDescriptor',
-  'ReadingDirection',
-  'ReadingKind',
-  'ReadingResult',
-  'ReadingResultOptions',
+  'ReadingCoordinate',
   'ReadingValue',
   'Receipt',
   'RepairHint',
+  'RuntimeOpenOptions',
+  'SupportReport',
   'Tick',
-  'Timeline',
-  'TimelineView',
-  'Warp',
-  'WarpStorage',
+  'WitnessReference',
   'WriteReceipt',
-  'WriteReceiptOptions',
 ] as const;
 
 type ModuleSurface = {
@@ -189,7 +172,7 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 }
 
 describe('v19 public API boundary', () => {
-  it('exports only the three first-use runtime values from package root', () => {
+  it('exports Runtime as the only package-root runtime value', () => {
     const surface = moduleSurface();
     expect(surface.starExports).toEqual([]);
     expect(surface.valueExports).toEqual(sorted(ROOT_VALUE_EXPORTS));
@@ -257,9 +240,12 @@ describe('v19 public API boundary', () => {
     ]);
   });
 
-  it('injects immutable Node runtime defaults without installing ambient ports', () => {
+  it('owns production composition without installing ambient ports', () => {
     const defaultsModule = './RuntimeHostNodeDefaults.ts';
     expect(importedModules('index.ts')).not.toContain(defaultsModule);
+    expect(importedModules('src/application/Runtime.ts')).toEqual(
+      expect.arrayContaining(['./GitStorage.ts', './openWarp.ts'])
+    );
     expect(importedModules('src/application/openWarp.ts')).toContain(defaultsModule);
     expect(
       exportedFunctionCalls(

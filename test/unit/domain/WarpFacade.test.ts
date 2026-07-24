@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import { intent, openWarp, reading } from '../../../index.ts';
-import { captureCoordinate } from '../../../advanced.ts';
+import { openWarp } from '../../../src/application/openWarp.ts';
+import { intent } from '../../../src/domain/api/IntentBuilders.ts';
+import { reading } from '../../../src/domain/api/ReadingBuilders.ts';
 import DraftTimeline from '../../../src/domain/api/DraftTimeline.ts';
 import JoinReceipt from '../../../src/domain/api/JoinReceipt.ts';
 import JoinResult from '../../../src/domain/api/JoinResult.ts';
@@ -26,7 +27,6 @@ const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([
   'WarpWorldlineOpticBasis',
   'ProjectionHandle',
   'WorldlineOptic',
-  'Observer',
   'Optic',
   'Patch',
   'PatchBuilder',
@@ -305,7 +305,7 @@ describe('v19 Warp facade', () => {
     expect(propertyReceipt.outcome.kind).toBe('derived');
     expect(propertyReceipt.outcome.witness.evaluation.coordinate.id).toMatch(/^evidence:/);
     expect(propertyReceipt.intent.kind).toBe('property.set');
-    expect(propertyReceipt.timeline).toBe('events');
+    expect(propertyReceipt.lane).toBe('events');
     expect(propertyReceipt.writer).toBe('agent-1');
 
     const result = await requireTimelineRuntime(timeline)
@@ -450,7 +450,9 @@ describe('v19 Warp facade', () => {
       outcome: 'accepted',
       evidence: { basis: { id: expect.stringMatching(/^evidence:/) } },
     });
-    const coordinate = await captureCoordinate(timeline);
+    const timelineRuntime = requireTimelineRuntime(timeline);
+    await timelineRuntime.prepareOpticBasis();
+    const coordinate = await timelineRuntime.coordinate();
     const coordinateRole = await coordinate.optic().node('user:alice').prop('role').read();
     expect(coordinateRole.value).toBe('admin');
     await expect(

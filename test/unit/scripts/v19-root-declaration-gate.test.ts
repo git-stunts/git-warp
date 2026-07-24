@@ -70,4 +70,26 @@ describe('v19 root declaration vocabulary gate', () => {
 
     expect(findForbiddenRootDeclarationVocabulary(join(directory, 'index.d.ts'))).toEqual([]);
   });
+
+  it('permits formal witness references without permitting substrate refs', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'git-warp-v19-dts-'));
+    temporaryDirectories.push(directory);
+    writeFileSync(join(directory, 'index.d.ts'), "export type { Reading } from './Reading.ts';\n");
+    writeFileSync(
+      join(directory, 'Reading.d.ts'),
+      [
+        'export type WitnessReference = { readonly id: string };',
+        'export type Reading = {',
+        '  readonly witnessRefs: readonly WitnessReference[];',
+        '  readonly gitRefs: readonly string[];',
+        '};',
+        '',
+      ].join('\n')
+    );
+
+    expect(findForbiddenRootDeclarationVocabulary(join(directory, 'index.d.ts'))).toEqual([
+      expect.objectContaining({ identifier: 'gitRefs', token: 'git' }),
+      expect.objectContaining({ identifier: 'gitRefs', token: 'ref' }),
+    ]);
+  });
 });
