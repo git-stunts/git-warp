@@ -82,9 +82,17 @@ export function requireObserverReading(observer: Observer): LegacyReading {
 
 export function observerReadings(observer: Observer): ObserverReadingSource {
   const plan = requireObserverPlan(observer);
-  return plan.cardinality === 'exactly-one'
-    ? Object.freeze([plan.reading])
-    : plan.readings();
+  if (plan.cardinality === 'exactly-one') {
+    return Object.freeze([plan.reading]);
+  }
+  const source = plan.readings();
+  if (!isObserverReadingSource(source)) {
+    throw new WarpError(
+      'Many Observer reading-plan factory did not return an iterable source',
+      'E_OBSERVER_PLAN',
+    );
+  }
+  return source;
 }
 
 function requireObserverPlan(observer: Observer): ObserverPlan {
@@ -96,4 +104,17 @@ function requireObserverPlan(observer: Observer): ObserverPlan {
     );
   }
   return plan;
+}
+
+function isObserverReadingSource(
+  source: ObserverReadingSource | null | undefined,
+): source is ObserverReadingSource {
+  if (source === null || source === undefined) {
+    return false;
+  }
+  const candidate = source as Partial<
+    Iterable<LegacyReading> & AsyncIterable<LegacyReading>
+  >;
+  return typeof candidate[Symbol.iterator] === 'function'
+    || typeof candidate[Symbol.asyncIterator] === 'function';
 }

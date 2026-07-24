@@ -69,6 +69,18 @@ describe('ObserverRuntime', () => {
     )).toThrowError(expect.objectContaining({ code: 'E_OBSERVER_PLAN' }));
   });
 
+  it('rejects a many factory that returns a non-iterable source', () => {
+    const observer = createManyObserver(
+      'users.invalid-many',
+      () => undefined as never,
+      (value) => value,
+    );
+
+    expect(() => observerReadings(observer)).toThrowError(
+      expect.objectContaining({ code: 'E_OBSERVER_PLAN' }),
+    );
+  });
+
   it('rejects an Observer that bypasses a supported plan builder', () => {
     const observer = new Observer({
       cardinality: 'exactly-one',
