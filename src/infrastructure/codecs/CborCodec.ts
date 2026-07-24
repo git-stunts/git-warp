@@ -51,6 +51,10 @@
 import { Encoder, decode as cborDecode } from 'cbor-x';
 import CodecPort from '../../ports/CodecPort.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
+import {
+  validateBoundedCbor,
+  type CborStructureLimits,
+} from '../adapters/BoundedCborValidation.ts';
 
 /**
  * Pre-configured cbor-x encoder instance.
@@ -67,6 +71,12 @@ const encoder = new Encoder({
   mapsAsObjects: true,
 });
 
+const MAX_CBOR_DECODE_BYTES = 5 * 1024 * 1024;
+const CBOR_DECODE_STRUCTURE_LIMITS: CborStructureLimits = Object.freeze({
+  maxContainerEntries: 1_000_000,
+  maxDepth: 32,
+  maxItems: 1_000_000,
+});
 
 const CBOR_NATIVE_TYPES: ReadonlyArray<Function> = [Uint8Array, Date, RegExp, Set, Map];
 
@@ -174,11 +184,29 @@ export function encode(data: unknown): Uint8Array {
 /**
  * Decodes CBOR bytes to a JavaScript value.
  *
- * This function deserializes CBOR-encoded data back into JavaScript values.
- * It uses cbor-x's native decoder which is optimized for performance.
+ * This function rejects payloads over five MiB and structurally validates
+ * depth and cardinality before the optimized cbor-x decoder can allocate
+ * containers from untrusted length declarations.
  */
 export function decode(buffer: Uint8Array): unknown {
+  requireBoundedCbor(buffer);
   return cborDecode(buffer);
+}
+
+function requireBoundedCbor(buffer: Uint8Array): void {
+  if (buffer.byteLength > MAX_CBOR_DECODE_BYTES) {
+    throw boundedDecodeError(
+      `encoded byte length ${String(buffer.byteLength)} exceeds ${String(MAX_CBOR_DECODE_BYTES)}`,
+    );
+  }
+  validateBoundedCbor(buffer, CBOR_DECODE_STRUCTURE_LIMITS, boundedDecodeError);
+}
+
+function boundedDecodeError(reason: string): MessageCodecError {
+  return new MessageCodecError(`CBOR decode rejected: ${reason}`, {
+    code: 'E_CBOR_DECODE_BOUNDS',
+    context: { reason },
+  });
 }
 
 /**

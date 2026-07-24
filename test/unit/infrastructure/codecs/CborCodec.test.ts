@@ -2,6 +2,13 @@ import { describe, it, expect } from 'vitest';
 
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
+function nestedSingleItemArrays(depth: number): Uint8Array {
+  const bytes = new Uint8Array(depth + 1);
+  bytes.fill(0x81, 0, depth);
+  bytes[depth] = 0xf6;
+  return bytes;
+}
+
 describe('CborCodec', () => {
   it('sorts map keys and nested object keys deterministically', () => {
     const value = new Map([
@@ -42,5 +49,33 @@ describe('CborCodec', () => {
     expect(decoded.pattern.flags).toContain('i');
     expect(decoded.tags).toBeInstanceOf(Set);
     expect(Array.from(decoded.tags)).toEqual(['alpha', 'beta']);
+  });
+
+  it('accepts CBOR at the configured nesting-depth boundary', () => {
+    expect(() => defaultCodec.decode(nestedSingleItemArrays(32))).not.toThrow();
+  });
+
+  it('rejects CBOR deeper than the configured nesting limit before decoding', () => {
+    expect(() => defaultCodec.decode(nestedSingleItemArrays(33))).toThrowError(
+      expect.objectContaining({
+        code: 'E_CBOR_DECODE_BOUNDS',
+        context: {
+          reason: 'nesting depth exceeds the configured maximum',
+        },
+      }),
+    );
+  });
+
+  it('rejects encoded payloads larger than five MiB before structural decoding', () => {
+    const oversized = new Uint8Array((5 * 1024 * 1024) + 1);
+
+    expect(() => defaultCodec.decode(oversized)).toThrowError(
+      expect.objectContaining({
+        code: 'E_CBOR_DECODE_BOUNDS',
+        context: {
+          reason: expect.stringContaining('encoded byte length'),
+        },
+      }),
+    );
   });
 });
