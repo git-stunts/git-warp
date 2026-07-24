@@ -54,6 +54,10 @@ describe('materialize stale-checkpoint regression', () => {
       persistence: {},
       graphName: 'test',
       graphCloner: {},
+      materializations: {
+        acquireExact: async () => null,
+        acquireBestCompatiblePredecessor: async () => null,
+      },
       patches: {
         loadCheckpoint: async () => ({
           schema: 5,
