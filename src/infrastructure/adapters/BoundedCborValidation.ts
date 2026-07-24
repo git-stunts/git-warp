@@ -7,6 +7,13 @@ export type CborStructureLimits = Readonly<{
 }>;
 
 export type CborValidationErrorFactory = (reason: string) => Error;
+type CborMapKeyPolicy = 'any' | 'unique-text';
+type CborStructureReaderOptions = {
+  readonly bytes: Uint8Array;
+  readonly limits: CborStructureLimits;
+  readonly mapKeyPolicy: CborMapKeyPolicy;
+  readonly malformed: CborValidationErrorFactory;
+};
 
 const ARGUMENT_WIDTHS = new Map<number, number>([
   [24, 1],
@@ -19,18 +26,16 @@ const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true });
 class CborStructureReader {
   readonly #bytes: Uint8Array;
   readonly #limits: CborStructureLimits;
+  readonly #mapKeyPolicy: CborMapKeyPolicy;
   readonly #malformed: CborValidationErrorFactory;
   #offset = 0;
   #items = 0;
 
-  constructor(
-    bytes: Uint8Array,
-    limits: CborStructureLimits,
-    malformed: CborValidationErrorFactory,
-  ) {
-    this.#bytes = bytes;
-    this.#limits = limits;
-    this.#malformed = malformed;
+  constructor(options: CborStructureReaderOptions) {
+    this.#bytes = options.bytes;
+    this.#limits = options.limits;
+    this.#mapKeyPolicy = options.mapKeyPolicy;
+    this.#malformed = options.malformed;
   }
 
   readDocument(): void {
@@ -94,6 +99,21 @@ class CborStructureReader {
   }
 
   #readMapEntries(length: number, depth: number): void {
+    if (this.#mapKeyPolicy === 'any') {
+      this.#readGenericMapEntries(length, depth);
+      return;
+    }
+    this.#readUniqueTextMapEntries(length, depth);
+  }
+
+  #readGenericMapEntries(length: number, depth: number): void {
+    for (let index = 0; index < length; index += 1) {
+      this.#readItem(depth + 1);
+      this.#readItem(depth + 1);
+    }
+  }
+
+  #readUniqueTextMapEntries(length: number, depth: number): void {
     const decodedKeys = new Set<string>();
     for (let index = 0; index < length; index += 1) {
       const keyStart = this.#offset;
@@ -192,7 +212,26 @@ export function validateBoundedCbor(
   limits: CborStructureLimits,
   malformed: CborValidationErrorFactory = malformedCbor,
 ): void {
-  new CborStructureReader(bytes, limits, malformed).readDocument();
+  new CborStructureReader({
+    bytes,
+    limits,
+    malformed,
+    mapKeyPolicy: 'unique-text',
+  }).readDocument();
+}
+
+/** Validates generic CBOR structure without narrowing the format's map-key algebra. */
+export function validateGenericBoundedCbor(
+  bytes: Uint8Array,
+  limits: CborStructureLimits,
+  malformed: CborValidationErrorFactory,
+): void {
+  new CborStructureReader({
+    bytes,
+    limits,
+    malformed,
+    mapKeyPolicy: 'any',
+  }).readDocument();
 }
 
 function encodedHeaderWidth(initial: number): number {

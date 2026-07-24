@@ -55,6 +55,14 @@ describe('CborCodec', () => {
     expect(() => defaultCodec.decode(nestedSingleItemArrays(32))).not.toThrow();
   });
 
+  it('preserves valid generic CBOR maps with non-text keys', () => {
+    const decoded = defaultCodec.decode(
+      Uint8Array.from([0xa1, 0x01, 0x02]),
+    ) as { readonly [key: string]: number };
+
+    expect(decoded).toEqual({ 1: 2 });
+  });
+
   it('rejects CBOR deeper than the configured nesting limit before decoding', () => {
     expect(() => defaultCodec.decode(nestedSingleItemArrays(33))).toThrowError(
       expect.objectContaining({

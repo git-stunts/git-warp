@@ -52,7 +52,7 @@ import { Encoder, decode as cborDecode } from 'cbor-x';
 import CodecPort from '../../ports/CodecPort.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
 import {
-  validateBoundedCbor,
+  validateGenericBoundedCbor,
   type CborStructureLimits,
 } from '../adapters/BoundedCborValidation.ts';
 
@@ -199,7 +199,7 @@ function requireBoundedCbor(buffer: Uint8Array): void {
       `encoded byte length ${String(buffer.byteLength)} exceeds ${String(MAX_CBOR_DECODE_BYTES)}`,
     );
   }
-  validateBoundedCbor(buffer, CBOR_DECODE_STRUCTURE_LIMITS, boundedDecodeError);
+  validateGenericBoundedCbor(buffer, CBOR_DECODE_STRUCTURE_LIMITS, boundedDecodeError);
 }
 
 function boundedDecodeError(reason: string): MessageCodecError {
