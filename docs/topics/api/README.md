@@ -175,6 +175,16 @@ const observer = users.observers.roleOf({
 });
 ```
 
+Finite and streamed domain queries may return a `many` Observer. Generated
+builders represent its work as a lazy reading-plan factory, not as a
+precomputed array of results:
+
+```typescript
+const observer = users.observers.rolesOf({
+  subjects: selectedUserIds,
+});
+```
+
 An Observer contains or references the formal machinery needed to execute the
 request honestly:
 
@@ -208,6 +218,12 @@ An Observation starts when any of the following first demands execution:
 
 All three paths join the same execution. They must never start duplicate
 runtime work.
+
+One Observation pins one causal Tick before it emits its first Reading. A
+`many` Observer advances its reading-plan source once per downstream iterator
+demand, executes that bounded read against the pinned Tick, and yields before
+requesting the next plan. It therefore preserves real async-iteration
+backpressure rather than filling an operation-local result queue.
 
 The first demand also selects Reading delivery:
 

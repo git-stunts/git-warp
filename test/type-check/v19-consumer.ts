@@ -37,6 +37,14 @@ const emitted: Reading<string> = await observation.one();
 const support: SupportReport = emitted.support;
 const observationReceipt: ObservationReceipt = await observation.receipt;
 const receipt: Receipt = observationReceipt;
+const manyObservation: Observation<string> = lane.observe(users.observers.rolesOf({
+  subjects: ['user:alice', 'user:bob'],
+}));
+for await (const reading of manyObservation) {
+  const value: string = reading.value;
+  void value;
+}
+const manyReceipt: ObservationReceipt = await manyObservation.receipt;
 
 function admissionWitnessHandle(value: AdmissionOutcome): EvidenceHandle {
   switch (value.kind) {
@@ -83,4 +91,5 @@ void emitted.coordinate;
 void emitted.witnessRefs;
 void support;
 void receipt;
+void manyReceipt;
 await runtime.close();
