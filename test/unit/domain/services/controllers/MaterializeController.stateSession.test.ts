@@ -515,7 +515,8 @@ describe("MaterializeController — state session integration", () => {
     const retained = fixtures.materializations.retainedRequests[0];
     expect(retained).toBeDefined();
     expect(fixtures.materializations.retainedRequests).toHaveLength(1);
-    expect(fixtures.materializations.exactLookups).toHaveLength(2);
+    expect(fixtures.materializations.exactLookups).toHaveLength(3);
+    expect(fixtures.stateCache.getExact).toHaveBeenCalledTimes(1);
     expect(fixtures.patches.collectForFrontier).not.toHaveBeenCalled();
     expect(fixtures.stateCache.put).not.toHaveBeenCalled();
     expect(fixtures.openStateSession).toHaveBeenCalledTimes(2);

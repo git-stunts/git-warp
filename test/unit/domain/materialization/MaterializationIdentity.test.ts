@@ -107,6 +107,7 @@ describe('MaterializationRoots', () => {
       'node-alive',
       'properties',
       'provenance-support',
+      'replay-basis',
       'roaring-indexes',
     ]);
     expect(MATERIALIZATION_ROOT_NAMES).toEqual(roots.entries().map(([name]) => name));
@@ -292,6 +293,7 @@ function rootsOptions(): MaterializationRootsOptions {
     nodeAlive: retainedRoot('node-alive'),
     properties: retainedRoot('properties'),
     provenanceSupport: retainedRoot('provenance-support'),
+    replayBasis: retainedRoot('replay-basis'),
     roaringIndexes: retainedRoot('roaring-indexes'),
   };
 }

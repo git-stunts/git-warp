@@ -72,6 +72,7 @@ export type MaterializeStrategyRuntime = {
     opts: MaterializePatchStreamOptions,
     coordinate: WarpStateCoordinate,
     provenanceBase?: ProvenanceIndex,
+    resumeFrom?: MaterializationHandle,
   ): Promise<MaterializePatchStreamReduction>;
   buildResult(params: MaterializeResultBuildInput): Promise<MaterializeResult>;
   resumeExactMaterialization(

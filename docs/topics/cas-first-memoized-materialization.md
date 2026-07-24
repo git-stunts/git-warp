@@ -40,11 +40,19 @@ operation follows this coordinate-first lifecycle:
 [current frontier]
         |
         v
-[state-cache exact hit?] ---- yes ---> [reopen retained roots; zero patch replay]
+[retained exact hit?] ------- yes ---> [load basis; reuse roots; zero patch replay]
         |
         no
         v
-[compatible predecessor?] --- yes ---> [replay suffix, publish snapshot]
+[retained predecessor?] ----- yes ---> [load basis; replay suffix]
+        |
+        no
+        v
+[state-cache exact hit?] ---- yes ---> [reopen roots; zero patch replay]
+        |
+        no
+        v
+[state-cache predecessor?] -- yes ---> [replay suffix, publish snapshot]
         |
         no
         v
@@ -62,7 +70,12 @@ WARP state coordinate:
 
 This coordinate belongs to `git-warp`; it is not a `git-cas` concept.
 
-### 2. Check the WARP state cache
+### 2. Check retained materializations, then the WARP state cache
+
+The compatibility path first asks `MaterializationStorePort` for an exact
+retained materialization and then for a causally compatible retained
+predecessor. Only when neither retained resume applies does it consult the
+legacy `WarpStateCachePort`.
 
 The runtime asks `WarpStateCachePort` for an exact snapshot at that coordinate.
 On a hit, it asks `MaterializationStorePort` for the matching retained-root
@@ -83,6 +96,16 @@ predecessor. A predecessor hit lets materialization replay only the suffix after
 that cached coordinate, then publish a fresh snapshot for the current frontier.
 Until cache payloads carry provenance indexes, that derived snapshot retains a
 degraded provenance posture rather than claiming support for the cached prefix.
+
+Retained materializations can now satisfy the same two resume cases without a
+separate state-cache hit. Descriptor schema v4 retains a canonical replay basis
+beside the node, edge, and property roots. An exact retained hit validates and
+loads that basis, reuses the retained roots, and performs no patch replay. When
+there is no exact hit, the adapter inspects at most 1,024 current-schema cache
+entries in pages of 100. It validates their descriptors and coordinates, checks
+causal ancestry, and resumes the newest compatible predecessor by replaying only
+the suffix. Receipt-producing reads still use the ordinary replay path, as do
+diff-producing predecessor reads.
 
 ### 3. Fall back to replay and publish
 
@@ -126,13 +149,14 @@ state-session opener owns its root storage and
 encoding, so git-warp does not pair it with the default reader and instead
 preserves the compatibility fallback.
 
-The property-root contract advances the retained-materialization descriptor and
-coordinate cache key to schema v3. A v3 exact miss leaves any corresponding v2
-entry anchored until replacement succeeds. Successful v3 retention then removes
-the incompatible v2 anchor through the git-cas cache API. A v2 descriptor may
-still be structurally valid, but it cannot satisfy the v3 root profile because
-its property root may be unavailable. New v3 descriptors reject an unavailable
-property root; an empty graph records the root as explicitly empty.
+The replay-basis contract advances the retained-materialization descriptor and
+coordinate cache key to schema v4. A v4 exact miss leaves corresponding legacy
+entries anchored until replacement succeeds. Successful v4 retention then
+removes incompatible v2 and v3 anchors through the git-cas cache API. Legacy
+descriptors may still be structurally valid, but they cannot satisfy the v4 root
+profile because their property or replay-basis root may be unavailable. New v4
+descriptors reject either root as unavailable; an empty graph still records the
+property root as explicitly empty.
 
 ## `git-cas` Encapsulation
 
@@ -201,8 +225,13 @@ lost payload bytes, or run Git garbage collection.
   other compatibility operations still own process-resident whole state.
 - Exact state-cache hits bypass replay, but full materialization still hydrates
   a full `WarpState`, scans retained node/edge tries, and builds full adjacency.
+- Retained exact and predecessor resume load a complete canonical `WarpState`
+  replay basis before they reuse roots or replay a suffix. This eliminates
+  redundant prefix replay but is still a whole-state compatibility bridge, not
+  the bounded-memory observer representation.
 - Retained materialization descriptors currently carry node/edge trie roots and
-  a per-node property-shard root. Frontier, edge-birth, adjacency,
+  a per-node property-shard root plus the full-state replay basis. Frontier,
+  edge-birth, adjacency,
   provenance-support, and roaring roots remain explicitly unavailable until
   their paged representations land. Cold property-root construction still
   projects a complete `WarpState`; only exact retained reads avoid that state.
@@ -225,6 +254,9 @@ lost payload bytes, or run Git garbage collection.
   sharded basis format should make optic reads avoid full-state hydration.
 - Cache coordinates must stay schema/version aware. A snapshot is reusable only
   when WARP semantics say the coordinate is compatible.
+- Compatible-predecessor lookup is deliberately bounded to 1,024 inspected
+  materialization entries. Exceeding that bound fails closed instead of silently
+  selecting from an incomplete cache scan.
 - Retention repair cannot restore payload objects that Git has already pruned;
   those entries remain visible as doctor findings until normal cache lifecycle
   replacement or explicit operator cleanup.

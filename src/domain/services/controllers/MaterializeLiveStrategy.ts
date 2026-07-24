@@ -25,16 +25,16 @@ import {
 } from './MaterializeSnapshotCacheResult.ts';
 import { snapshotPublicationForReceipts } from './MaterializeSnapshotPublication.ts';
 import { releaseAcquisitionAfterFailure } from './MaterializationWorkspaceCleanup.ts';
-
-function nonEmptySha(value: string | undefined): value is string {
-  return typeof value === 'string' && value.length > 0;
-}
+import RetainedMaterializationResumeStrategy from './RetainedMaterializationResumeStrategy.ts';
+import { isNonEmptyPatchSha } from './MaterializeHelpers.ts';
 
 export default class MaterializeLiveStrategy {
   private readonly runtime: MaterializeStrategyRuntime;
+  private readonly retainedResume: RetainedMaterializationResumeStrategy;
 
   constructor(runtime: MaterializeStrategyRuntime) {
     this.runtime = runtime;
+    this.retainedResume = new RetainedMaterializationResumeStrategy(runtime);
   }
 
   async materialize(opts: MaterializeLiveOptions): Promise<MaterializeResult> {
@@ -43,16 +43,12 @@ export default class MaterializeLiveStrategy {
       return await this.runtime.emptyResult(null, frontier, snapshotPublicationForLiveOptions(opts));
     }
     const coordinate = this.snapshotCoordinate(frontier);
-    const stateCache = this.runtime.deps.getStateCache?.() ?? null;
-    const cacheResolved = await this.tryResolveConfiguredStateCache(
-      stateCache,
-      coordinate,
-      opts,
-    );
-    if (cacheResolved !== null) {
-      return cacheResolved;
+    const retainedResolved = await this.retainedResume.tryResume(coordinate, opts);
+    if (retainedResolved !== null) {
+      return retainedResolved;
     }
-    return await this.replayCurrentCoordinate(coordinate, opts);
+    const stateCache = this.runtime.deps.getStateCache?.() ?? null;
+    return await this.resolveConfiguredStateCache(stateCache, coordinate, opts);
   }
 
   async resolveMaterialization(): Promise<LiveMaterializationResolution> {
@@ -139,19 +135,22 @@ export default class MaterializeLiveStrategy {
     }
   }
 
-  private async tryResolveConfiguredStateCache(
+  private async resolveConfiguredStateCache(
     stateCache: WarpStateCachePort | null,
     coordinate: WarpStateCoordinate,
     opts: MaterializeLiveOptions,
-  ): Promise<MaterializeResult | null> {
-    if (stateCache === null) {
-      return null;
+  ): Promise<MaterializeResult> {
+    if (stateCache !== null) {
+      const resolved = await this.tryResolveSnapshotCache(stateCache, {
+        coordinate,
+        receipts: opts.receipts,
+        wantDiff: opts.wantDiff,
+      });
+      if (resolved !== null) {
+        return resolved;
+      }
     }
-    return await this.tryResolveSnapshotCache(stateCache, {
-      coordinate,
-      receipts: opts.receipts,
-      wantDiff: opts.wantDiff,
-    });
+    return await this.replayCurrentCoordinate(coordinate, opts);
   }
 
   private async replayCurrentCoordinate(
@@ -193,7 +192,7 @@ export default class MaterializeLiveStrategy {
     checkpointTip: string,
     targetTip: string | undefined,
   ): Promise<boolean> {
-    if (!nonEmptySha(checkpointTip) || !nonEmptySha(targetTip)) {
+    if (!isNonEmptyPatchSha(checkpointTip) || !isNonEmptyPatchSha(targetTip)) {
       return false;
     }
     return checkpointTip === targetTip || await this.checkpointTipPrecedesTarget(checkpointTip, targetTip);

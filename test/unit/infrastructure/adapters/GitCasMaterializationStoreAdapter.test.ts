@@ -23,6 +23,7 @@ const ROOT_PATHS = Object.freeze([
   'roots/node-alive',
   'roots/properties',
   'roots/provenance-support',
+  'roots/replay-basis',
   'roots/roaring-indexes',
 ]);
 
@@ -70,7 +71,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(members.map(([path]) => path)).toEqual(['meta/descriptor', ...ROOT_PATHS]);
     const cacheKeys = harness.cas.readCacheKeys(CACHE_NAMESPACE);
     expect(cacheKeys).toHaveLength(1);
-    expect(cacheKeys[0]).toMatch(/^v3:[0-9a-f]{64}$/u);
+    expect(cacheKeys[0]).toMatch(/^v4:[0-9a-f]{64}:[0-9a-f]{64}$/u);
     expect(cacheKeys[0]?.length).toBeLessThan(1024);
     expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
     await acquisition?.release();
@@ -584,6 +585,7 @@ function withCacheResult(
   rewrite: (stored: CacheStoreResult) => CacheStoreResult,
 ): GitCasMaterializationFacade {
   return {
+    assets: cas.assets,
     bundles: cas.bundles,
     pages: cas.pages,
     caches: {
@@ -592,6 +594,7 @@ function withCacheResult(
         return {
           ref: cache.ref,
           acquire: async (key) => await cache.acquire(key),
+          inspect: async (inspectOptions) => await cache.inspect(inspectOptions),
           put: async (key, handle, entryOptions) => rewrite(
             await cache.put(key, handle, entryOptions),
           ),
@@ -635,12 +638,13 @@ async function createRoots(cas: InMemoryGitCasFacade): Promise<MaterializationRo
     nodeAlive,
     properties,
     provenanceSupport,
+    replayBasis,
     roaringIndexes,
   ] = handles;
   if (
     adjacency === undefined || edgeAlive === undefined || edgeBirths === undefined ||
     frontier === undefined || nodeAlive === undefined || properties === undefined ||
-    provenanceSupport === undefined || roaringIndexes === undefined
+    provenanceSupport === undefined || replayBasis === undefined || roaringIndexes === undefined
   ) {
     throw new Error('Root fixture did not create every materialization root');
   }
@@ -652,6 +656,7 @@ async function createRoots(cas: InMemoryGitCasFacade): Promise<MaterializationRo
     nodeAlive: MaterializationRoot.retained(nodeAlive),
     properties: MaterializationRoot.retained(properties),
     provenanceSupport: MaterializationRoot.retained(provenanceSupport),
+    replayBasis: MaterializationRoot.retained(replayBasis),
     roaringIndexes: MaterializationRoot.retained(roaringIndexes),
   });
 }
@@ -672,6 +677,7 @@ function partialRoots(nodeAlive: BundleHandle): MaterializationRoots {
     nodeAlive: MaterializationRoot.retained(nodeAlive),
     properties: MaterializationRoot.empty(),
     provenanceSupport: MaterializationRoot.unavailable(),
+    replayBasis: MaterializationRoot.unavailable(),
     roaringIndexes: MaterializationRoot.unavailable(),
   });
 }
@@ -686,6 +692,7 @@ function unavailablePropertyRoots(nodeAlive: BundleHandle): MaterializationRoots
     nodeAlive: roots.nodeAlive,
     properties: MaterializationRoot.unavailable(),
     provenanceSupport: roots.provenanceSupport,
+    replayBasis: roots.replayBasis,
     roaringIndexes: roots.roaringIndexes,
   });
 }
@@ -702,7 +709,7 @@ function exactCoordinate(): MaterializationCoordinate {
 
 function descriptor(overrides: Record<string, object | string | number | null> = {}): object {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     laneName: 'events',
     stateHash: 'state-hash',
     roots: rootStatusFixture(),

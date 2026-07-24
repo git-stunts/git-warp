@@ -52,6 +52,19 @@ export function decodeWarpFullState(buffer: Uint8Array, codec: CodecPort): WarpS
   return hydrateWarpState(obj);
 }
 
+/** Decode only the canonical full-state envelope emitted by encodeWarpFullState. */
+export function decodeCanonicalWarpFullState(buffer: Uint8Array, codec: CodecPort): WarpState {
+  const decoded: unknown = codec.decode(buffer);
+  if (!isRecord(decoded) || decoded.version !== FULL_STATE_VERSION) {
+    throw invalidCanonicalFullState();
+  }
+  const state = hydrateWarpState(decoded);
+  if (!equalBytes(buffer, encodeWarpFullState(state, codec))) {
+    throw invalidCanonicalFullState();
+  }
+  return state;
+}
+
 function decodeFullStatePayload(buffer: Uint8Array | null | undefined, codec: CodecPort): DecodedFullState | null {
   if (buffer === null || buffer === undefined) {
     return null;
@@ -213,4 +226,19 @@ function numberOrZero(value: unknown): number {
 
 function stringOr(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
+}
+
+function isRecord(value: unknown): value is DecodedFullState & Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.byteLength !== right.byteLength) {
+    return false;
+  }
+  return left.every((value, index) => value === right[index]);
+}
+
+function invalidCanonicalFullState(): WarpError {
+  return new WarpError('Full state payload is not canonical', 'E_FULL_STATE_INVALID');
 }

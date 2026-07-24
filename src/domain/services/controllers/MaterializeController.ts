@@ -53,6 +53,9 @@ import {
   releaseAcquisitionAfterFailure,
   releaseWorkspaceAfterFailure,
 } from './MaterializationWorkspaceCleanup.ts';
+import {
+  resolveMaterializationRetention,
+} from './MaterializationRetention.ts';
 import type { MaterializeDeps } from './MaterializeDeps.ts';
 
 export type { MaterializeDeps, MaterializePersistence } from './MaterializeDeps.ts';
@@ -235,7 +238,11 @@ export default class MaterializeController {
     try {
       const stateHash = await computeHash(this._deps, params.reduced.state);
       const adjacency = params.reduced.adjacency ?? buildAdjacency(params.reduced.state);
-      const materialization = await this._resolveMaterialization(params, stateHash);
+      const materialization = await resolveMaterializationRetention({
+        deps: this._deps,
+        params,
+        stateHash,
+      });
       if (params.reduced.receipts === undefined && params.publishSnapshot !== false) {
         await this._publishSnapshot({
           state: params.reduced.state,
@@ -268,61 +275,6 @@ export default class MaterializeController {
     await params.reduced.workspace?.release();
     return result;
   }
-  private async _resolveMaterialization(
-    params: MaterializeResultBuildInput,
-    stateHash: string,
-  ): Promise<MaterializationHandle | undefined> {
-    if (params.materialization !== undefined) {
-      if (params.materialization.stateHash !== stateHash) {
-        throw materializationResumeError('retained handle state hash does not match resumed state');
-      }
-      if (
-        params.reduced.roots === undefined
-        || params.materialization.roots.equals(params.reduced.roots)
-      ) {
-        params.reduced.acceptMaterialization?.(params.materialization.retention);
-        return params.materialization;
-      }
-    }
-    if (params.reduced.roots === undefined || params.frontier === null) {
-      await this._acceptSessionWithoutMaterialization(params.reduced);
-      return undefined;
-    }
-    const request = {
-      coordinate: new MaterializationCoordinate({
-        frontier: params.frontier,
-        ceiling: params.ceiling,
-      }),
-      roots: params.reduced.roots,
-      stateHash,
-    };
-    const materialization = params.reduced.workspace === undefined
-      ? await this._deps.materializations.retain(request)
-      : await params.reduced.workspace.promote(request);
-    params.reduced.acceptMaterialization?.(materialization.retention);
-    return materialization;
-  }
-
-  private async _acceptSessionWithoutMaterialization(
-    reduced: MaterializeReduceOutput,
-  ): Promise<void> {
-    if (reduced.acceptMaterialization === undefined) {
-      return;
-    }
-    if (reduced.roots === undefined || reduced.workspace === undefined) {
-      throw materializationResumeError('prepared session is missing roots or workspace retention');
-    }
-    const roots = materializationSessionOpen(reduced.roots);
-    if (roots === null) {
-      throw materializationResumeError('prepared session roots cannot be checkpointed');
-    }
-    const witness = await reduced.workspace.checkpoint({
-      nodeAliveRoot: roots.nodeAliveRootOid,
-      edgeAliveRoot: roots.edgeAliveRootOid,
-    });
-    reduced.acceptMaterialization(witness);
-  }
-
   private async _resumeExactMaterialization(
     snapshot: UsableSnapshotRecord,
     options: { wantDiff: boolean },
@@ -356,6 +308,9 @@ export default class MaterializeController {
         ...(retainedRoots === null || retained === null
           ? {}
           : { propertyRoot: retained.roots.properties }),
+        ...(retainedRoots === null || retained === null
+          ? {}
+          : { replayBasisRoot: retained.roots.replayBasis }),
         receipts: false,
         wantDiff: options.wantDiff,
       });
@@ -410,6 +365,7 @@ export default class MaterializeController {
     opts: MaterializePatchStreamOptions,
     coordinate: WarpStateCoordinate,
     provenanceBase?: ProvenanceIndex,
+    resumeFrom?: MaterializationHandle,
   ): Promise<MaterializePatchStreamReduction> {
     if (this._deps.openStateSession === undefined) {
       return await MaterializePatchStreamReducer.reduce({
@@ -420,6 +376,9 @@ export default class MaterializeController {
       });
     }
     const summary = new MaterializePatchSummaryAccumulator(provenanceBase);
+    const retainedRoots = resumeFrom === undefined
+      ? null
+      : materializationSessionOpen(resumeFrom.roots);
     const recordingStream = async function* (): AsyncIterable<PatchEntry> {
       for await (const entry of stream) {
         summary.record(entry);
@@ -438,6 +397,13 @@ export default class MaterializeController {
       receipts: opts.receipts,
       wantDiff: opts.wantDiff,
       ...(base === undefined ? {} : { baseState: base }),
+      ...(retainedRoots === null ? {} : { roots: retainedRoots }),
+      ...(retainedRoots === null || resumeFrom === undefined
+        ? {}
+        : {
+          propertyRoot: resumeFrom.roots.properties,
+          replayBasisRoot: resumeFrom.roots.replayBasis,
+        }),
     });
     return {
       reduced,
@@ -454,8 +420,21 @@ export default class MaterializeController {
         await this._wrapState(state, ceiling, frontier, provenance, options),
       reducePatches: async (patches, base, opts, coordinate) =>
         await this._reducePatches(patches, base, opts, coordinate),
-      reducePatchStream: async (stream, base, opts, coordinate, provenanceBase) =>
-        await this._reducePatchStream(stream, base, opts, coordinate, provenanceBase),
+      reducePatchStream: async (
+        stream,
+        base,
+        opts,
+        coordinate,
+        provenanceBase,
+        resumeFrom,
+      ) => await this._reducePatchStream(
+        stream,
+        base,
+        opts,
+        coordinate,
+        provenanceBase,
+        resumeFrom,
+      ),
       buildResult: async (params) => await this._buildResult(params),
       resumeExactMaterialization: async (snapshot, options) =>
         await this._resumeExactMaterialization(snapshot, options),

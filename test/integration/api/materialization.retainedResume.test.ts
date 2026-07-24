@@ -7,8 +7,11 @@ import type MaterializationHandle from '../../../src/domain/materialization/Mate
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import MaterializationStorePort, {
   type MaterializationAcquisition,
+  type MaterializationPredecessorPredicate,
   type RetainMaterializationRequest,
 } from '../../../src/ports/MaterializationStorePort.ts';
+import type WarpState from '../../../src/domain/services/state/WarpState.ts';
+import { encodePropKey } from '../../../src/domain/services/KeyCodec.ts';
 import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
   type PromoteMaterializationRequest,
@@ -71,7 +74,8 @@ describe('API: retained materialization resume', () => {
     const warm = await firstRuntime.materialize();
 
     expect(sameRuntimeReplay).not.toHaveBeenCalled();
-    expect(firstStore.exactLookups).toHaveLength(1);
+    expect(firstStore.exactLookups).toHaveLength(2);
+    expect(firstStore.exactHits).toHaveLength(1);
     expect(firstStore.retainedHandles).toHaveLength(1);
     expect(firstStore.exactHits[0]?.bundle.equals(coldHandle?.bundle)).toBe(true);
     expect(warm).toEqual(cold);
@@ -173,6 +177,50 @@ describe('API: retained materialization resume', () => {
     expect(reopenedStore.exactHits).toHaveLength(1);
     expect(reopenedStore.exactReleaseCount).toBe(1);
   });
+
+  it('resumes a fresh runtime from a retained predecessor and applies only its suffix', async () => {
+    if (repo === null) {
+      throw new Error('Test repository is not initialized');
+    }
+    const firstProvider = recordingProvider(repo, providers);
+    const firstRuntime = await openRuntime(repo, firstProvider);
+    await firstRuntime.patch((patch) => {
+      patch
+        .addNode('node:base')
+        .setProperty('node:base', 'status', 'created');
+    });
+    await firstRuntime.materialize();
+    const coldHandle = requireMaterializations(firstProvider).retainedHandles[0];
+    expect(coldHandle?.roots.replayBasis.status).toBe('retained');
+
+    await firstRuntime.patch((patch) => {
+      patch
+        .setProperty('node:base', 'status', 'updated')
+        .addNode('node:suffix')
+        .setProperty('node:suffix', 'status', 'added');
+    });
+    await firstRuntime.close();
+
+    const reopenedProvider = recordingProvider(repo, providers);
+    const reopenedRuntime = await openRuntime(repo, reopenedProvider);
+    const replay = vi.spyOn(reopenedRuntime, '_loadPatchChainFromSha');
+    const resumed = await reopenedRuntime.materialize();
+    const reopenedStore = requireMaterializations(reopenedProvider);
+    const coldTip = coldHandle?.coordinate.frontier().get('writer-1');
+
+    expect(replay).toHaveBeenCalledTimes(1);
+    expect(coldTip).toBeDefined();
+    expect(replay.mock.calls[0]?.[1]).toBe(coldTip);
+    await expect(replay.mock.results[0]?.value).resolves.toHaveLength(1);
+    expect(resumed.nodeAlive.contains('node:base')).toBe(true);
+    expect(resumed.nodeAlive.contains('node:suffix')).toBe(true);
+    expect(resumed.prop.get(encodePropKey('node:base', 'status'))?.value).toBe('updated');
+    expect(resumed.prop.get(encodePropKey('node:suffix', 'status'))?.value).toBe('added');
+    expect(reopenedStore.predecessorLookups).toHaveLength(1);
+    expect(reopenedStore.predecessorHits[0]?.bundle.equals(coldHandle?.bundle)).toBe(true);
+    expect(reopenedStore.retainRequests).toHaveLength(1);
+    await reopenedRuntime.close();
+  });
 });
 
 class RecordingMaterializationStore extends MaterializationStorePort {
@@ -180,6 +228,8 @@ class RecordingMaterializationStore extends MaterializationStorePort {
   readonly retainedHandles: MaterializationHandle[] = [];
   readonly exactLookups: MaterializationCoordinate[] = [];
   readonly exactHits: MaterializationHandle[] = [];
+  readonly predecessorLookups: MaterializationCoordinate[] = [];
+  readonly predecessorHits: MaterializationHandle[] = [];
   exactReleaseCount = 0;
   readonly #delegate: MaterializationStorePort;
 
@@ -224,6 +274,29 @@ class RecordingMaterializationStore extends MaterializationStorePort {
       });
     }
     return null;
+  }
+
+  override async acquireBestCompatiblePredecessor(
+    coordinate: MaterializationCoordinate,
+    isCompatible: MaterializationPredecessorPredicate,
+  ): Promise<MaterializationAcquisition | null> {
+    this.predecessorLookups.push(coordinate);
+    const acquisition = await this.#delegate.acquireBestCompatiblePredecessor(
+      coordinate,
+      isCompatible,
+    );
+    if (acquisition !== null) {
+      this.predecessorHits.push(acquisition.materialization);
+    }
+    return acquisition;
+  }
+
+  override async loadReplayBasis(materialization: MaterializationHandle): Promise<WarpState | null> {
+    return await this.#delegate.loadReplayBasis(materialization);
+  }
+
+  override async close(): Promise<void> {
+    await this.#delegate.close();
   }
 }
 

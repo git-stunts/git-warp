@@ -162,6 +162,10 @@ function makeDeps({ patchesOverrides = {}, persistenceOverrides = {}, depsOverri
       hmac: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
     },
     persistence,
+    materializations: {
+      acquireExact: vi.fn().mockResolvedValue(null),
+      acquireBestCompatiblePredecessor: vi.fn().mockResolvedValue(null),
+    },
     patches,
     graphCloner: { openReadOnly: vi.fn() },
     graphName: 'test',

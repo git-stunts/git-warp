@@ -381,6 +381,7 @@ function rootsFromHandles(handles: readonly BundleHandle[]): MaterializationRoot
     nodeAlive: MaterializationRoot.retained(nodeAlive),
     properties: MaterializationRoot.retained(properties),
     provenanceSupport: MaterializationRoot.retained(provenanceSupport),
+    replayBasis: MaterializationRoot.unavailable(),
     roaringIndexes: MaterializationRoot.retained(roaringIndexes),
   });
 }
