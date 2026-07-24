@@ -12,6 +12,7 @@ import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
   type PromoteMaterializationRequest,
 } from '../../src/ports/MaterializationWorkspacePort.ts';
+import type WarpState from '../../src/domain/services/state/WarpState.ts';
 
 export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePort {
   readonly checkpoints: MaterializationWorkspaceRoots[] = [];
@@ -92,6 +93,7 @@ export default class InMemoryMaterializationStore extends MaterializationStorePo
   readonly retainedRequests: RetainMaterializationRequest[] = [];
   readonly workspaces: InMemoryMaterializationWorkspace[] = [];
   readonly #handles = new Map<string, MaterializationHandle>();
+  readonly #replayBases = new Map<string, WarpState>();
   #nextHandle = 1;
 
   override openWorkspace(
@@ -120,6 +122,9 @@ export default class InMemoryMaterializationStore extends MaterializationStorePo
       retention: retentionWitness(bundle),
     });
     this.#handles.set(coordinateKey(request.coordinate), handle);
+    if (request.replayBasis !== undefined) {
+      this.#replayBases.set(bundle.toString(), request.replayBasis);
+    }
     return Promise.resolve(handle);
   }
 
@@ -134,6 +139,10 @@ export default class InMemoryMaterializationStore extends MaterializationStorePo
     const acquisition = new InMemoryMaterializationAcquisition(handle);
     this.acquisitions.push(acquisition);
     return Promise.resolve(acquisition);
+  }
+
+  override loadReplayBasis(materialization: MaterializationHandle): Promise<WarpState | null> {
+    return Promise.resolve(this.#replayBases.get(materialization.bundle.toString()) ?? null);
   }
 }
 
