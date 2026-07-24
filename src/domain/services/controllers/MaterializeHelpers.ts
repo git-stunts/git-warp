@@ -19,6 +19,10 @@ import {
   collectVisibleEdgesFromSession,
 } from '../state/SessionVisibleGraph.ts';
 
+export function isNonEmptyPatchSha(value: string | undefined): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
 // ── Public state freezing ───────────────────────────────────────────
 
 /** Wraps materialized state in a frozen defensive copy. */

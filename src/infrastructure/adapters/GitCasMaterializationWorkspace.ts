@@ -25,7 +25,7 @@ import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts'
 
 export type GitCasStagingWorkspace = Pick<
   StagingWorkspace,
-  'pages' | 'bundles' | 'checkpoint' | 'release'
+  'assets' | 'pages' | 'bundles' | 'checkpoint' | 'release'
 > & Readonly<{
   promoteToCache(options: {
     cache: Pick<CacheSet, 'ref' | 'put'>;

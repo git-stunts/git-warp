@@ -2,6 +2,7 @@ import type MaterializationCoordinate from '../domain/materialization/Materializ
 import type MaterializationHandle from '../domain/materialization/MaterializationHandle.ts';
 import type MaterializationRoots from '../domain/materialization/MaterializationRoots.ts';
 import type StorageRetentionWitness from '../domain/storage/StorageRetentionWitness.ts';
+import type WarpState from '../domain/services/state/WarpState.ts';
 import ArtifactStagingPort from './ArtifactStagingPort.ts';
 
 export type MaterializationWorkspaceRoots = Readonly<{
@@ -14,6 +15,7 @@ export type PromoteMaterializationRequest = Readonly<{
   coordinate: MaterializationCoordinate;
   roots: MaterializationRoots;
   stateHash: string;
+  replayBasis?: WarpState;
 }>;
 
 /**
