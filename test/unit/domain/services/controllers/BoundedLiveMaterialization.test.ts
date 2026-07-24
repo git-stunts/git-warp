@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import PatchCollector, {
   type CheckpointData,
@@ -36,6 +36,10 @@ const coordinate = new MaterializationCoordinate({
 });
 
 describe('BoundedLiveMaterialization', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('fails closed when a newly retained handle cannot be acquired', async () => {
     const materializations = new InMemoryMaterializationStore();
     vi.spyOn(materializations, 'acquireExact').mockResolvedValue(null);
@@ -61,6 +65,39 @@ describe('BoundedLiveMaterialization', () => {
       coordinate,
     })).rejects.toBe(failure);
 
+    expect(materializations.workspaces[0]?.released).toBe(true);
+  });
+
+  it('aborts the session and releases its workspace when liveness replay fails', async () => {
+    const materializations = new InMemoryMaterializationStore();
+    const failure = new Error('patch replay failed');
+    const abort = vi.spyOn(StateSession.prototype, 'abort');
+    const deps = createDeps(materializations);
+    vi.spyOn(deps.patches, 'loadPatchChain').mockRejectedValue(failure);
+
+    await expect(retainBoundedLiveMaterialization({ deps, coordinate }))
+      .rejects.toBe(failure);
+
+    expect(abort).toHaveBeenCalledOnce();
+    expect(materializations.workspaces[0]?.released).toBe(true);
+  });
+
+  it('aborts the session and preserves a workspace promotion failure', async () => {
+    const materializations = new InMemoryMaterializationStore();
+    const failure = new Error('workspace promotion failed');
+    const openWorkspace = materializations.openWorkspace.bind(materializations);
+    vi.spyOn(materializations, 'openWorkspace').mockImplementation(async (requested) => {
+      const workspace = await openWorkspace(requested);
+      vi.spyOn(workspace, 'promote').mockRejectedValue(failure);
+      return workspace;
+    });
+    const abort = vi.spyOn(StateSession.prototype, 'abort');
+    const deps = createDeps(materializations);
+
+    await expect(retainBoundedLiveMaterialization({ deps, coordinate }))
+      .rejects.toBe(failure);
+
+    expect(abort).toHaveBeenCalledOnce();
     expect(materializations.workspaces[0]?.released).toBe(true);
   });
 

@@ -653,7 +653,8 @@ describe("MaterializeController — state session integration", () => {
 
     expect(resolution.source).toBe("materialized");
     expect(resolution.replayedPatchCount).toBe(1);
-    expect(resolution.materialization?.stateHash).toBeNull();
+    expect(resolution.materialization).toBeInstanceOf(MaterializationHandle);
+    expect(resolution.materialization).toMatchObject({ stateHash: null });
     expect(fixtures.materializations.retainedRequests).toHaveLength(1);
     expect(fixtures.patches.collectForFrontier).toHaveBeenCalledOnce();
     expect(fixtures.stateCache.getExact).not.toHaveBeenCalled();

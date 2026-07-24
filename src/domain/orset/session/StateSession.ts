@@ -222,6 +222,16 @@ export default class StateSession {
     return roots;
   }
 
+  /**
+   * Terminates a failed session without flushing or retaining its pending pages.
+   *
+   * The workspace owns cleanup for any pages already staged before the failure.
+   */
+  abort(): void {
+    this.#closed = true;
+    this.#closePrepared = false;
+  }
+
   async prepareClose(): Promise<StateSessionPreparedClose> {
     this.#assertOpen();
     this.#closePrepared = true;

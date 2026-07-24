@@ -87,18 +87,23 @@ async function buildBoundedMaterialization(args: {
     { nodeAliveRootOid: null, edgeAliveRootOid: null },
     { workspace },
   );
-  const patchCount = await replayLiveness(session, deps, coordinate);
-  if (patchCount === 0) {
-    await session.close();
-    await workspace.release();
-    return null;
+  try {
+    const patchCount = await replayLiveness(session, deps, coordinate);
+    if (patchCount === 0) {
+      await session.close();
+      await workspace.release();
+      return null;
+    }
+    return await retainPreparedLiveness({
+      session,
+      coordinate,
+      workspace,
+      patchCount,
+    });
+  } catch (raw) {
+    session.abort();
+    throw raw;
   }
-  return await retainPreparedLiveness({
-    session,
-    coordinate,
-    workspace,
-    patchCount,
-  });
 }
 
 async function replayLiveness(

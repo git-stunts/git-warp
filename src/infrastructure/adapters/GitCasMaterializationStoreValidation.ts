@@ -24,10 +24,20 @@ function requireRetainRoots(roots: MaterializationRoots): void {
 function requireRetainStateHash(request: RetainMaterializationRequest): void {
   if (request.stateHash !== null) {
     requireNonEmpty(request.stateHash, 'stateHash');
+    requireCompleteReplayBasis(request);
     return;
   }
   if (request.replayBasis !== undefined || request.roots.replayBasis.status === 'retained') {
     throw storageError('partial materialization cannot retain a whole-state replay basis');
+  }
+}
+
+function requireCompleteReplayBasis(request: RetainMaterializationRequest): void {
+  if (
+    request.replayBasis === undefined
+    && request.roots.replayBasis.status !== 'retained'
+  ) {
+    throw storageError('complete materialization requires a whole-state replay basis');
   }
 }
 

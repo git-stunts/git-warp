@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
+import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import { requireRetainRequest } from '../../../../src/infrastructure/adapters/GitCasMaterializationStoreValidation.ts';
 
@@ -38,6 +39,37 @@ describe('GitCasMaterializationStoreValidation', () => {
       }),
       stateHash: null,
     })).toThrowError(/cannot retain a whole-state replay basis/u);
+  });
+
+  it('accepts a complete materialization with a replay basis to stage', () => {
+    expect(() => requireRetainRequest({
+      coordinate,
+      roots: rootsWith({
+        nodeAlive: MaterializationRoot.retained(new BundleHandle('node-root')),
+      }),
+      replayBasis: createEmptyState(),
+      stateHash: 'state-hash',
+    })).not.toThrow();
+  });
+
+  it('accepts a complete materialization with an already retained replay basis', () => {
+    expect(() => requireRetainRequest({
+      coordinate,
+      roots: rootsWith({
+        replayBasis: MaterializationRoot.retained(new BundleHandle('basis-root')),
+      }),
+      stateHash: 'state-hash',
+    })).not.toThrow();
+  });
+
+  it('rejects a complete materialization without any replay basis', () => {
+    expect(() => requireRetainRequest({
+      coordinate,
+      roots: rootsWith({
+        nodeAlive: MaterializationRoot.retained(new BundleHandle('node-root')),
+      }),
+      stateHash: 'state-hash',
+    })).toThrowError(/requires a whole-state replay basis/u);
   });
 });
 

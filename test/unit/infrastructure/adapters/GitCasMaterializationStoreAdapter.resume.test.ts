@@ -80,12 +80,12 @@ describe('GitCasMaterializationStoreAdapter retained resume', () => {
     await harness.adapter.close();
   });
 
-  it('excludes compatible predecessors without a retained replay basis', async () => {
+  it('excludes partial compatible predecessors without a retained replay basis', async () => {
     const harness = await createHarness();
     await harness.adapter.retain({
       coordinate: exactCoordinate(),
       roots: rootsWithoutReplayBasis(await createRoots(harness.cas)),
-      stateHash: 'predecessor-state-hash',
+      stateHash: null,
     });
 
     const acquisition = await harness.adapter.acquireBestCompatiblePredecessor(
