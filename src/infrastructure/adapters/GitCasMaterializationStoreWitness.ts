@@ -47,15 +47,6 @@ export function requireStoredMaterialization(
   return stored.witness;
 }
 
-export function requireExpectedAcquisition(
-  acquisition: CacheAcquisition,
-  expectedHandle: string,
-): void {
-  if (acquisition.hit.handle.toString() !== expectedHandle) {
-    throw storageError('git-cas acquired an unexpected materialization before legacy cleanup');
-  }
-}
-
 export function requireDescriptorSize(bytes: Uint8Array): void {
   if (bytes.byteLength > 1024 * 1024) {
     throw storageError('materialization descriptor exceeds its byte limit');

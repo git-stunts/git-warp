@@ -285,9 +285,13 @@ export default class MaterializeController {
     }
     const coordinate = new MaterializationCoordinate(snapshot.coordinate);
     const acquisition = await this._deps.materializations.acquireExact(coordinate);
+    const retained = acquisition?.materialization ?? null;
+    if (retained?.stateHash === null) {
+      await acquisition?.release();
+      return null;
+    }
     let result: MaterializeResult;
     try {
-      const retained = acquisition?.materialization ?? null;
       if (retained !== null && retained.stateHash !== snapshot.stateHash) {
         throw materializationResumeError('retained handle and snapshot state hashes differ');
       }

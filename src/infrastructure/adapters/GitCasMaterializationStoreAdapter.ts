@@ -36,14 +36,10 @@ import GitCasMaterializationReplayBasis, {
   replaceReplayBasisRoot,
 } from './GitCasMaterializationReplayBasis.ts';
 import GitCasMaterializationCacheKey from './GitCasMaterializationCacheKey.ts';
-import type {
-  GitCasMaterializationFacade,
-  MaterializationCacheSet,
-} from './GitCasMaterializationStoreTypes.ts';
+import type { GitCasMaterializationFacade } from './GitCasMaterializationStoreTypes.ts';
 import {
   releaseCacheAcquisitionAfterFailure,
   requireDescriptorSize,
-  requireExpectedAcquisition,
   requireStoredMaterialization,
   requireWorkspaceStage,
 } from './GitCasMaterializationStoreWitness.ts';
@@ -64,7 +60,6 @@ const CACHE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_TTL_MS = 2 * 60 * 60 * 1000;
 const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
-const LEGACY_MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSIONS = Object.freeze([2, 3]);
 
 export type { GitCasMaterializationFacade } from './GitCasMaterializationStoreTypes.ts';
 
@@ -170,7 +165,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     request: RetainMaterializationRequest,
   ): Promise<MaterializationHandle> {
     requireRetainRequest(request);
-    const stateHash = requireNonEmpty(request.stateHash, 'stateHash');
+    const { stateHash } = request;
     const roots = request.replayBasis === undefined
       ? request.roots
       : replaceReplayBasisRoot(
@@ -197,7 +192,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   async #stageWorkspaceBundle(
     workspace: GitCasStagingWorkspace,
     request: RetainMaterializationRequest,
-    stateHash: string,
+    stateHash: string | null,
   ): Promise<WorkspaceRetainedBundle> {
     const descriptorBytes = this.#codec.encode(materializationDescriptorData({
       coordinate: request.coordinate,
@@ -234,30 +229,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       options: { retention: 'evictable' },
     });
     const retention = requireStoredMaterialization(promoted.destination, expectedHandle);
-    await this.#cleanLegacyAfterPromotion({ cache, cacheKey, expectedHandle, coordinate });
     return adaptGitCasRetentionWitness(retention.toJSON());
-  }
-
-  async #cleanLegacyAfterPromotion(args: {
-    cache: MaterializationCacheSet;
-    cacheKey: string;
-    expectedHandle: string;
-    coordinate: MaterializationCoordinate;
-  }): Promise<void> {
-    const acquisition = await args.cache.acquire(args.cacheKey);
-    if (acquisition === null) {
-      throw storageError('git-cas lost the retained materialization before legacy cleanup');
-    }
-    await completeWithCleanup(
-      async () => {
-        requireExpectedAcquisition(acquisition, args.expectedHandle);
-        await this.#removeLegacyEntries(args.cache, args.coordinate);
-      },
-      async () => {
-        await acquisition.release();
-      },
-      'Legacy materialization cleanup and acquisition release both failed',
-    );
   }
 
   override async acquireExact(
@@ -455,15 +427,6 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       stateHash: descriptor.stateHash,
       retention: adaptGitCasRetentionWitness(retention.toJSON()),
     });
-  }
-
-  async #removeLegacyEntries(
-    cache: MaterializationCacheSet,
-    coordinate: MaterializationCoordinate,
-  ): Promise<void> {
-    for (const schemaVersion of LEGACY_MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSIONS) {
-      await cache.remove(await this.#cacheKeys.forCoordinate(coordinate, schemaVersion));
-    }
   }
 
   async #readDescriptor(handle: PageHandle): Promise<DecodedMaterializationDescriptor> {

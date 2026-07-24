@@ -9,15 +9,12 @@ import GitCasMaterializationStoreAdapter, {
 import type {
   GitCasStagingWorkspace,
 } from '../../../../src/infrastructure/adapters/GitCasMaterializationWorkspace.ts';
-import { materializationCoordinateData } from '../../../../src/infrastructure/adapters/GitCasMaterializationDescriptor.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
-const CACHE_NAMESPACE = 'git-warp/materializations';
-const CURRENT_CACHE_KEY_PATTERN = /^v4:[0-9a-f]{64}:[0-9a-f]{64}$/u;
 const ROOT_COUNT = 9;
 
 describe('GitCasMaterializationStoreAdapter lifecycle', () => {
@@ -131,79 +128,6 @@ describe('GitCasMaterializationStoreAdapter lifecycle', () => {
     });
   });
 
-  it('keeps matching legacy cache anchors until the v4 profile is retained', async () => {
-    const harness = await createHarness();
-    const coordinate = exactCoordinate();
-    const roots = await createRoots(harness.cas);
-    const retained = await harness.adapter.retain({ coordinate, roots, stateHash: 'state-hash' });
-    const cache = await harness.cas.caches.open({ namespace: CACHE_NAMESPACE });
-    const v4Key = requireSingleCacheKey(harness.cas);
-    const v2Key = await cacheKeyForSchema(coordinate, 2);
-    const v3Key = await cacheKeyForSchema(coordinate, 3);
-    await cache.put(v2Key, retained.bundle.toString());
-    await cache.put(v3Key, retained.bundle.toString());
-    await cache.remove(v4Key);
-
-    await expect(harness.adapter.acquireExact(coordinate)).resolves.toBeNull();
-    expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([v2Key, v3Key]);
-
-    await harness.adapter.retain({ coordinate, roots, stateHash: 'replacement-state-hash' });
-    expect(requireSingleCacheKey(harness.cas)).toMatch(CURRENT_CACHE_KEY_PATTERN);
-  });
-
-  it('removes matching legacy cache anchors after direct v4 retention', async () => {
-    const harness = await createHarness();
-    const coordinate = exactCoordinate();
-    const roots = await createRoots(harness.cas);
-    const retained = await harness.adapter.retain({ coordinate, roots, stateHash: 'state-hash' });
-    const cache = await harness.cas.caches.open({ namespace: CACHE_NAMESPACE });
-    const v4Key = requireSingleCacheKey(harness.cas);
-    const v2Key = await cacheKeyForSchema(coordinate, 2);
-    const v3Key = await cacheKeyForSchema(coordinate, 3);
-    await cache.put(v2Key, retained.bundle.toString());
-    await cache.put(v3Key, retained.bundle.toString());
-    await cache.remove(v4Key);
-
-    const replacement = await harness.adapter.retain({
-      coordinate,
-      roots,
-      stateHash: 'replacement-state-hash',
-    });
-    const acquisition = await harness.adapter.acquireExact(coordinate);
-
-    expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([
-      expect.stringMatching(CURRENT_CACHE_KEY_PATTERN),
-    ]);
-    expect(replacement.retention.root.generation)
-      .toBe(acquisition?.materialization.retention.root.generation);
-    await acquisition?.release();
-  });
-
-  it('keeps legacy anchors when the exact v4 target cannot be acquired', async () => {
-    const harness = await createHarness();
-    const coordinate = exactCoordinate();
-    const roots = await createRoots(harness.cas);
-    const original = await harness.adapter.retain({ coordinate, roots, stateHash: 'state-hash' });
-    const cache = await harness.cas.caches.open({ namespace: CACHE_NAMESPACE });
-    const v4Key = requireSingleCacheKey(harness.cas);
-    const v2Key = await cacheKeyForSchema(coordinate, 2);
-    const v3Key = await cacheKeyForSchema(coordinate, 3);
-    await cache.put(v2Key, original.bundle.toString());
-    await cache.put(v3Key, original.bundle.toString());
-    await cache.remove(v4Key);
-
-    await expect(adapterFor(withoutCacheAcquisition(harness.cas)).retain({
-      coordinate,
-      roots,
-      stateHash: 'replacement-state-hash',
-    })).rejects.toMatchObject({
-      code: 'E_MATERIALIZATION_STORAGE',
-      message: expect.stringContaining('before legacy cleanup'),
-    });
-
-    expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toContain(v2Key);
-    expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toContain(v3Key);
-  });
 });
 
 async function createHarness(): Promise<Readonly<{
@@ -224,27 +148,6 @@ function adapterFor(cas: GitCasMaterializationFacade): GitCasMaterializationStor
     crypto: new NodeCryptoAdapter(),
     laneName: 'events',
   });
-}
-
-function withoutCacheAcquisition(cas: InMemoryGitCasFacade): GitCasMaterializationFacade {
-  return {
-    assets: cas.assets,
-    bundles: cas.bundles,
-    pages: cas.pages,
-    caches: {
-      open: async (options) => {
-        const cache = await cas.caches.open(options);
-        return {
-          ref: cache.ref,
-          acquire: async () => null,
-          inspect: async (inspectOptions) => await cache.inspect(inspectOptions),
-          put: async (key, handle, entryOptions) => await cache.put(key, handle, entryOptions),
-          remove: async (key) => await cache.remove(key),
-        };
-      },
-    },
-    workspaces: cas.workspaces,
-  };
 }
 
 async function createRoots(cas: InMemoryGitCasFacade): Promise<MaterializationRoots> {
@@ -286,25 +189,4 @@ function exactCoordinate(): MaterializationCoordinate {
     ]),
     ceiling: 12,
   });
-}
-
-async function cacheKeyForSchema(
-  coordinate: MaterializationCoordinate,
-  schemaVersion: number,
-): Promise<string> {
-  const encoded = defaultCodec.encode({
-    schemaVersion,
-    laneName: 'events',
-    coordinate: materializationCoordinateData(coordinate),
-  });
-  return `v${String(schemaVersion)}:${await new NodeCryptoAdapter().hash('sha256', encoded)}`;
-}
-
-function requireSingleCacheKey(cas: InMemoryGitCasFacade): string {
-  const keys = cas.readCacheKeys(CACHE_NAMESPACE);
-  const key = keys[0];
-  if (keys.length !== 1 || key === undefined) {
-    throw new Error('Expected exactly one materialization cache key');
-  }
-  return key;
 }

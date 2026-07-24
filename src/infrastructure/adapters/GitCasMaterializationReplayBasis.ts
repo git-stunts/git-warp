@@ -71,6 +71,9 @@ export default class GitCasMaterializationReplayBasis {
     if (root.status !== 'retained' || root.handle === null) {
       return null;
     }
+    if (materialization.stateHash === null) {
+      throw storageError('partial materialization cannot contain a replay basis');
+    }
     const member = await this.#cas.bundles.getMemberReference({
       handle: root.handle.toString(),
       path: REPLAY_BASIS_PATH,

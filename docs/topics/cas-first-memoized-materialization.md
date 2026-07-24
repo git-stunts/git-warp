@@ -98,14 +98,17 @@ Until cache payloads carry provenance indexes, that derived snapshot retains a
 degraded provenance posture rather than claiming support for the cached prefix.
 
 Retained materializations can now satisfy the same two resume cases without a
-separate state-cache hit. Descriptor schema v4 retains a canonical replay basis
-beside the node, edge, and property roots. An exact retained hit validates and
-loads that basis, reuses the retained roots, and performs no patch replay. When
-there is no exact hit, the adapter inspects at most 1,024 current-schema cache
-entries in pages of 100. It validates their descriptors and coordinates, checks
-causal ancestry, and resumes the newest compatible predecessor by replaying only
-the suffix. Receipt-producing reads still use the ordinary replay path, as do
-diff-producing predecessor reads.
+separate state-cache hit. A complete descriptor retains a canonical replay
+basis beside the node, edge, and property roots. An exact retained hit validates
+and loads that basis, reuses the retained roots, and performs no patch replay.
+Descriptor schema v5 also admits explicitly partial handles: `stateHash: null`
+means the roots can answer only the reads whose root status is retained or
+empty, and the handle cannot resume a whole-state snapshot. When there is no
+exact hit, the adapter inspects at most 1,024 current-schema cache entries in
+pages of 100. It validates their descriptors and coordinates, checks causal
+ancestry, and resumes the newest compatible complete predecessor by replaying
+only the suffix. Receipt-producing reads still use the ordinary replay path, as
+do diff-producing predecessor reads.
 
 ### 3. Fall back to replay and publish
 
@@ -140,23 +143,23 @@ Both exact paths release their operation borrow without hydrating `WarpState`,
 building adjacency, publishing a state snapshot, or populating `_cachedState`.
 The runtime storage adapter keeps one git-cas acquisition for the current
 coordinate, retires it after in-flight readers finish when the coordinate
-changes, and releases it from `RuntimeHost.close()`. A cold handle miss still
-performs the current materialization path before retaining and reading the new
-roots. Once assembled, a newly built property root joins the operation's
-expiring git-cas workspace before state hashing and final promotion, so the
-completed root remains reachable throughout promotion. A custom
-state-session opener owns its root storage and
-encoding, so git-warp does not pair it with the default reader and instead
-preserves the compatibility fallback.
+changes, and releases it from `RuntimeHost.close()`. On a cold handle miss, the
+built-in session now streams only node and edge OR-Set operations into bounded
+git-cas pages and retains those roots as a partial handle. It does not construct
+`WarpState`, adjacency, property registers, receipts, diffs, provenance, or a
+state-cache snapshot. A later compatibility or property operation can replace
+that partial entry with a complete descriptor.
 
-The replay-basis contract advances the retained-materialization descriptor and
-coordinate cache key to schema v4. A v4 exact miss leaves corresponding legacy
-entries anchored until replacement succeeds. Successful v4 retention then
-removes incompatible v2 and v3 anchors through the git-cas cache API. Legacy
-descriptors may still be structurally valid, but they cannot satisfy the v4 root
-profile because their property or replay-basis root may be unavailable. New v4
-descriptors reject either root as unavailable; an empty graph still records the
-property root as explicitly empty.
+Once assembled, a newly built property root joins the operation's expiring
+git-cas workspace before state hashing and final promotion, so the completed
+root remains reachable throughout promotion. A custom state-session opener owns
+its root storage and encoding, so git-warp does not pair it with the default
+reader and instead preserves the compatibility fallback.
+
+Schema v5 is the first release contract for retained-materialization
+descriptors. Earlier v2, v3, and v4 profiles were unreleased derived-cache
+formats; v19 does not decode or migrate them. A current-key miss rebuilds from
+authoritative WARP history.
 
 ## `git-cas` Encapsulation
 
@@ -221,20 +224,23 @@ lost payload bytes, or run Git garbage collection.
 
 - RuntimeHost exact node-liveness and node-property reads consume the
   handle-first result when the built-in trie session and reader pair is active.
-  Custom session openers, neighborhoods, list reads, checkpoint creation, and
-  other compatibility operations still own process-resident whole state.
+  Cold node liveness now produces a partial retained handle through bounded
+  node/edge replay. Cold properties, custom session openers, neighborhoods,
+  list reads, checkpoint creation, and other compatibility operations still own
+  process-resident whole state.
 - Exact state-cache hits bypass replay, but full materialization still hydrates
   a full `WarpState`, scans retained node/edge tries, and builds full adjacency.
 - Retained exact and predecessor resume load a complete canonical `WarpState`
   replay basis before they reuse roots or replay a suffix. This eliminates
   redundant prefix replay but is still a whole-state compatibility bridge, not
   the bounded-memory observer representation.
-- Retained materialization descriptors currently carry node/edge trie roots and
-  a per-node property-shard root plus the full-state replay basis. Frontier,
-  edge-birth, adjacency,
-  provenance-support, and roaring roots remain explicitly unavailable until
-  their paged representations land. Cold property-root construction still
-  projects a complete `WarpState`; only exact retained reads avoid that state.
+- Complete retained materialization descriptors carry node/edge trie roots, a
+  per-node property-shard root, and the full-state replay basis. Partial cold
+  handles carry node/edge roots and mark the remaining roots unavailable.
+  Frontier, edge-birth, adjacency, provenance-support, and roaring roots remain
+  explicitly unavailable until their paged representations land. Cold
+  property-root construction still projects a complete `WarpState`; only
+  exact retained property reads avoid that state.
 - One node's complete encoded property bag must currently fit within the 16 MiB
   shard limit. Property-key pagination or a property trie is not yet available.
 - The first property-root profile stores one bundle member per property-bearing

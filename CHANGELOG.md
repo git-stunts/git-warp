@@ -66,6 +66,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operation-local instead of shared across materializations. This bounds
   mutated-page residency only; removal of whole-state projection remains
   tracked by #738.
+- Changed cold live-handle resolution to stream only node and edge liveness
+  into bounded git-cas pages. Partial materialization handles carry
+  `stateHash: null`, cannot masquerade as whole-state snapshots, and avoid
+  constructing `WarpState`, adjacency, properties, receipts, diffs,
+  provenance, or a state-cache snapshot.
 
 ### Removed
 
@@ -73,6 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compatibility barrel, and their compatibility-only examples and tests.
 - Removed the v18 graph-first package exports rather than carrying a deprecated
   second application API through v19.
+- Removed migration and cleanup support for unreleased materialization
+  descriptor schemas v2 through v4. Schema v5 is the first release contract;
+  stale derived-cache entries miss and rebuild from authoritative WARP history.
 
 ### Fixed
 

@@ -14,7 +14,7 @@ export type MaterializationWorkspaceRoots = Readonly<{
 export type PromoteMaterializationRequest = Readonly<{
   coordinate: MaterializationCoordinate;
   roots: MaterializationRoots;
-  stateHash: string;
+  stateHash: string | null;
   replayBasis?: WarpState;
 }>;
 

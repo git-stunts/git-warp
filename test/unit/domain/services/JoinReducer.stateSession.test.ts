@@ -118,6 +118,36 @@ function expectReduceV5State(result: ReturnType<typeof reducePatches>) {
 
 describe("JoinReducer session-backed path", () => {
   describe("golden path", () => {
+    it("replays only page-backed liveness for bounded materialization", async () => {
+      const { applyLivenessInSession } = await loadJoinReducerSessionModule();
+      const { session } = await openSession();
+      const removedNodeDot = new Dot("alice", 1);
+      const liveNodeDot = new Dot("alice", 2);
+      const removedEdgeDot = new Dot("alice", 3);
+
+      await applyLivenessInSession(session, makePatch("alice", 1, [
+        nodeAdd("node:removed", removedNodeDot),
+        nodeAdd("node:live", liveNodeDot),
+        edgeAdd("node:removed", "node:live", "knows", removedEdgeDot),
+        propSet("node:live", "ignored", "no register allocation"),
+      ]));
+      await applyLivenessInSession(session, makePatch("alice", 2, [
+        nodeRemove("node:removed", [Dot.encode(removedNodeDot)]),
+        edgeRemove(
+          "node:removed",
+          "node:live",
+          "knows",
+          [Dot.encode(removedEdgeDot)],
+        ),
+      ]));
+
+      await expect(session.nodeContains("node:removed")).resolves.toBe(false);
+      await expect(session.nodeContains("node:live")).resolves.toBe(true);
+      await expect(session.edgeContains("node:removed\0node:live\0knows"))
+        .resolves.toBe(false);
+      await session.close();
+    });
+
     it("replays mixed patches through one session-backed reducer frame", async () => {
       const { ReducerSessionFrame, reducePatchesInSession } =
         await loadJoinReducerSessionModule();

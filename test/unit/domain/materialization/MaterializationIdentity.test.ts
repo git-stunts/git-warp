@@ -199,6 +199,20 @@ describe('MaterializationHandle', () => {
     expect(Object.isFrozen(handle)).toBe(true);
   });
 
+  it('marks a partial materialization by omitting a whole-state hash', () => {
+    const bundle = bundleHandle('partial-materialization');
+    const handle = new MaterializationHandle({
+      laneName: 'events',
+      bundle,
+      coordinate: exactCoordinate(),
+      roots: materializationRoots(),
+      stateHash: null,
+      retention: retentionWitness(bundle),
+    });
+
+    expect(handle.stateHash).toBeNull();
+  });
+
   it.each([
     ['laneName', ''],
     ['bundle', new StorageHandle('not-a-bundle')],
