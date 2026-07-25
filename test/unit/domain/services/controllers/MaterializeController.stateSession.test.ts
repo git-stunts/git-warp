@@ -550,6 +550,7 @@ describe("MaterializeController — state session integration", () => {
 
     fixtures.stateCache.getExact.mockResolvedValue(published);
     const propertyStore = new MockIndexStorage();
+    const writeShards = vi.spyOn(propertyStore, "writeShards");
     const upgradedController = new MaterializeController({
       ...fixtures.deps,
       propertyStore,
@@ -559,11 +560,15 @@ describe("MaterializeController — state session integration", () => {
 
     expect(fixtures.materializations.retainedRequests).toHaveLength(2);
     expect(upgraded.materialization?.roots.properties.status).toBe("retained");
+    expect(upgraded.materialization?.roots.roaringIndexes.status).toBe("retained");
     expect(upgraded.materialization?.bundle.equals(cold.materialization.bundle)).toBe(false);
     expect(reused.materialization?.bundle.equals(upgraded.materialization?.bundle)).toBe(true);
-    expect(propertyStore.writeBlob).toHaveBeenCalledOnce();
-    expect(fixtures.materializations.workspaces[1]?.checkpoints.at(-1)?.propertiesRoot)
-      .toBe(upgraded.materialization?.roots.properties.handle?.toString());
+    expect(writeShards).toHaveBeenCalledTimes(2);
+    expect(fixtures.materializations.workspaces[1]?.checkpoints.at(-1))
+      .toEqual(expect.objectContaining({
+        propertiesRoot: upgraded.materialization?.roots.properties.handle?.toString(),
+        roaringIndexesRoot: upgraded.materialization?.roots.roaringIndexes.handle?.toString(),
+      }));
   });
 
   it("does not retry an exact acquisition release failure", async () => {

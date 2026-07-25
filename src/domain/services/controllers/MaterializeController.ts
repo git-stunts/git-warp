@@ -317,7 +317,10 @@ export default class MaterializeController {
         ...(retainedRoots === null ? {} : { roots: retainedRoots }),
         ...(retainedRoots === null || retained === null
           ? {}
-          : { propertyRoot: retained.roots.properties }),
+          : {
+            propertyRoot: retained.roots.properties,
+            indexRoot: retained.roots.roaringIndexes,
+          }),
         ...(retainedRoots === null || retained === null
           ? {}
           : { replayBasisRoot: retained.roots.replayBasis }),
@@ -412,6 +415,7 @@ export default class MaterializeController {
         ? {}
         : {
           propertyRoot: resumeFrom.roots.properties,
+          indexRoot: resumeFrom.roots.roaringIndexes,
           replayBasisRoot: resumeFrom.roots.replayBasis,
         }),
     });

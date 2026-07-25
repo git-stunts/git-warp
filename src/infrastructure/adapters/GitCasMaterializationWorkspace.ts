@@ -163,16 +163,21 @@ function workspaceMembers(
 ): Array<[string, string]> {
   requireRoots(roots);
   const members: Array<[string, string]> = [];
-  if (roots.edgeAliveRoot !== null) {
-    members.push(['roots/edge-alive', parseRoot(roots.edgeAliveRoot)]);
-  }
-  if (roots.nodeAliveRoot !== null) {
-    members.push(['roots/node-alive', parseRoot(roots.nodeAliveRoot)]);
-  }
-  if (roots.propertiesRoot !== undefined && roots.propertiesRoot !== null) {
-    members.push(['roots/properties', parseRoot(roots.propertiesRoot)]);
-  }
+  appendWorkspaceRoot(members, 'roots/edge-alive', roots.edgeAliveRoot);
+  appendWorkspaceRoot(members, 'roots/node-alive', roots.nodeAliveRoot);
+  appendWorkspaceRoot(members, 'roots/properties', roots.propertiesRoot);
+  appendWorkspaceRoot(members, 'roots/roaring-indexes', roots.roaringIndexesRoot);
   return members;
+}
+
+function appendWorkspaceRoot(
+  members: Array<[string, string]>,
+  path: string,
+  root: string | null | undefined,
+): void {
+  if (root !== undefined && root !== null) {
+    members.push([path, parseRoot(root)]);
+  }
 }
 
 function parseRoot(token: string): string {

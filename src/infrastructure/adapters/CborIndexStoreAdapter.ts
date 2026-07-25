@@ -5,6 +5,7 @@ import type {
 } from '@git-stunts/git-cas';
 import IndexStorePort, {
   type IndexShardDecodeOptions,
+  type IndexShardReference,
   type IndexShardWriteOptions,
 } from '../../ports/IndexStorePort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
@@ -190,6 +191,26 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     return Object.freeze(Object.fromEntries(entries));
   }
 
+  override async readShardReferences(
+    indexHandle: BundleHandle,
+  ): Promise<Readonly<Record<string, IndexShardReference>>> {
+    const entries: Array<[string, IndexShardReference]> = [];
+    const seenPaths = new Set<string>();
+    for await (const member of this._cas.bundles.iterateMemberReferences({
+      handle: indexHandle.toString(),
+    })) {
+      requireUniqueBundleMember(seenPaths, member.path);
+      entries.push([
+        member.path,
+        Object.freeze({
+          kind: requireShardMemberKind(member.path, member.handle.kind),
+          token: member.handle.toString(),
+        }),
+      ]);
+    }
+    return Object.freeze(Object.fromEntries(entries));
+  }
+
   override async readShardHandle(
     indexHandle: BundleHandle,
     path: string,
@@ -205,6 +226,20 @@ export class CborIndexStoreAdapter extends IndexStorePort {
 
   override openShard(shardHandle: AssetHandle): AsyncIterable<Uint8Array> {
     return this._assets.open(shardHandle);
+  }
+
+  override openShardAt(
+    indexHandle: BundleHandle,
+    path: string,
+    options: Readonly<{ maxBytes?: number }> = {},
+  ): AsyncIterable<Uint8Array> {
+    return streamShardAt({
+      cas: this._cas,
+      assets: this._assets,
+      indexHandle,
+      path,
+      maxBytes: optionalPositiveInteger(options.maxBytes, 'maxBytes'),
+    });
   }
 
   override async decodeShard<TDecoded extends CodecValue = CodecValue>(
@@ -241,6 +276,52 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     });
     validateRequestedStructure(bytes, options);
     return this._codec.decode<TDecoded>(bytes);
+  }
+}
+
+async function* streamShardAt(args: {
+  cas: GitCasIndexFacade;
+  assets: AssetStoragePort;
+  indexHandle: BundleHandle;
+  path: string;
+  maxBytes: number | undefined;
+}): AsyncIterable<Uint8Array> {
+  const member = await args.cas.bundles.getMemberReference({
+    handle: args.indexHandle.toString(),
+    path: args.path,
+  });
+  if (member === null) {
+    throw missingBundleMember(args.path);
+  }
+  if (member.handle.kind === 'page') {
+    yield await args.cas.pages.get({
+      handle: member.handle.toString(),
+      ...(args.maxBytes === undefined ? {} : { maxBytes: args.maxBytes }),
+    });
+    return;
+  }
+  yield* streamAssetShard({
+    assets: args.assets,
+    handle: requireAssetMember(args.path, member.handle.kind, member.handle.toString()),
+    maxBytes: args.maxBytes,
+  });
+}
+
+async function* streamAssetShard(args: {
+  assets: AssetStoragePort;
+  handle: AssetHandle;
+  maxBytes: number | undefined;
+}): AsyncIterable<Uint8Array> {
+  let chunkCount = 0;
+  let total = 0;
+  for await (const chunk of args.assets.open(args.handle)) {
+    chunkCount += 1;
+    requireShardChunkCount(chunkCount);
+    if (args.maxBytes !== undefined && chunk.byteLength > args.maxBytes - total) {
+      throw shardTooLarge(total + chunk.byteLength, args.maxBytes);
+    }
+    total += chunk.byteLength;
+    yield chunk;
   }
 }
 
@@ -341,6 +422,20 @@ function requireAssetMember(path: string, kind: string, token: string): AssetHan
     throw invalidBundleMember(path, kind);
   }
   return new AssetHandle(token);
+}
+
+function requireShardMemberKind(path: string, kind: string): 'asset' | 'page' {
+  if (kind !== 'asset' && kind !== 'page') {
+    throw invalidBundleMember(path, kind);
+  }
+  return kind;
+}
+
+function missingBundleMember(path: string): IndexError {
+  return new IndexError(`Index bundle has no shard member: ${path}`, {
+    code: 'E_INDEX_SHARD_MISSING',
+    context: { path },
+  });
 }
 
 function invalidBundleMember(path: string, kind: string): IndexError {

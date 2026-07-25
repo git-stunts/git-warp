@@ -7,6 +7,7 @@ import WarpStream from '../../src/domain/stream/WarpStream.ts';
 import type CodecValue from '../../src/domain/types/codec/CodecValue.ts';
 import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 import IndexStorePort from '../../src/ports/IndexStorePort.ts';
+import type { IndexShardReference } from '../../src/ports/IndexStorePort.ts';
 import { IndexShardEncodeTransform } from '../../src/infrastructure/adapters/IndexShardEncodeTransform.ts';
 
 /** Test-only semantic index store with directly writable encoded shards. */
@@ -45,6 +46,20 @@ export default class MockIndexStorage extends IndexStorePort {
     return this.#indexes.get(indexHandle.toString()) ?? Object.freeze({});
   }
 
+  override async readShardReferences(
+    indexHandle: BundleHandle,
+  ): Promise<Readonly<Record<string, IndexShardReference>>> {
+    const handles: Readonly<Record<string, AssetHandle>> = (
+      this.#indexes.get(indexHandle.toString()) ?? Object.freeze({})
+    );
+    return Object.freeze(Object.fromEntries(
+      Object.entries(handles).map(([path, handle]) => [
+        path,
+        Object.freeze({ kind: 'asset' as const, token: handle.toString() }),
+      ]),
+    ));
+  }
+
   override async readShardHandle(
     indexHandle: BundleHandle,
     path: string,
@@ -65,6 +80,20 @@ export default class MockIndexStorage extends IndexStorePort {
       });
     }
     yield bytes.slice();
+  }
+
+  override async *openShardAt(
+    indexHandle: BundleHandle,
+    path: string,
+  ): AsyncIterable<Uint8Array> {
+    const handle = await this.readShardHandle(indexHandle, path);
+    if (handle === null) {
+      throw new IndexError(`Shard not found: ${path}`, {
+        code: 'E_INDEX_SHARD_MISSING',
+        context: { path },
+      });
+    }
+    yield* this.openShard(handle);
   }
 
   override async decodeShard<TDecoded extends CodecValue = CodecValue>(

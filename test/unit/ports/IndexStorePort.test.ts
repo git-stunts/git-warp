@@ -14,8 +14,10 @@ describe('IndexStorePort', () => {
     expect(IndexStorePort.prototype.writeShards).toBeUndefined();
     expect(IndexStorePort.prototype.scanShards).toBeUndefined();
     expect(IndexStorePort.prototype.readShardHandles).toBeUndefined();
+    expect(IndexStorePort.prototype.readShardReferences).toBeUndefined();
     expect(IndexStorePort.prototype.readShardHandle).toBeUndefined();
     expect(IndexStorePort.prototype.openShard).toBeUndefined();
+    expect(IndexStorePort.prototype.openShardAt).toBeUndefined();
     expect(IndexStorePort.prototype.decodeShard).toBeUndefined();
     expect(IndexStorePort.prototype.decodeShardAt).toBeUndefined();
   });
@@ -54,10 +56,23 @@ describe('IndexStorePort', () => {
       async readShardHandles(_handle: BundleHandle) {
         return { 'shard.cbor': this.shardHandle };
       }
+      async readShardReferences(_handle: BundleHandle) {
+        return {
+          'shard.cbor': {
+            kind: 'asset' as const,
+            token: this.shardHandle.toString(),
+          },
+        };
+      }
       async readShardHandle(_handle: BundleHandle, path: string) {
         return path === 'shard.cbor' ? this.shardHandle : null;
       }
       async *openShard(_handle: AssetHandle) { yield new Uint8Array([1]); }
+      async *openShardAt(_handle: BundleHandle, path: string) {
+        if (path === 'shard.cbor') {
+          yield new Uint8Array([1]);
+        }
+      }
       async decodeShard<TDecoded extends CodecValue = CodecValue>(
         _handle: AssetHandle,
       ): Promise<TDecoded> {

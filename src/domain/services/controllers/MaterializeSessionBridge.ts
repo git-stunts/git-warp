@@ -11,6 +11,11 @@ import type MaterializationCoordinate from "../../materialization/Materializatio
 import type StorageRetentionWitness from "../../storage/StorageRetentionWitness.ts";
 import MaterializationRoot from "../../materialization/MaterializationRoot.ts";
 import MaterializationRoots from "../../materialization/MaterializationRoots.ts";
+import {
+  MATERIALIZATION_INDEX_SHARD_LIMITS,
+  MAX_MATERIALIZATION_INDEX_SHARDS,
+  requireMaterializationIndexShardCount,
+} from "../../materialization/MaterializationIndexProfile.ts";
 import BundleHandle from "../../storage/BundleHandle.ts";
 import type { PatchDiff } from "../../types/PatchDiff.ts";
 import type { TickReceipt } from "../../types/TickReceipt.ts";
@@ -25,8 +30,10 @@ import {
 } from "./MaterializeHelpers.ts";
 import { releaseWorkspaceAfterFailure } from "./MaterializationWorkspaceCleanup.ts";
 import PropertyIndexBuilder from "../index/PropertyIndexBuilder.ts";
+import LogicalIndexBuildService from "../index/LogicalIndexBuildService.ts";
 import WarpStream from "../../stream/WarpStream.ts";
 import type { IndexShard } from "../../artifacts/IndexShard.ts";
+import { PropertyShard } from "../../artifacts/PropertyShard.ts";
 import {
   materializationPropertyShardKey,
   MATERIALIZATION_PROPERTY_SHARD_LIMITS,
@@ -54,6 +61,7 @@ export async function reduceSessionBackedState(args: {
   readonly logger?: LoggerPort;
   readonly propertyStore?: IndexStorePort;
   readonly propertyRoot?: MaterializationRoot;
+  readonly indexRoot?: MaterializationRoot;
   readonly replayBasisRoot?: MaterializationRoot;
   readonly coordinate: MaterializationCoordinate;
   readonly patches: MaterializeSessionPatchSource;
@@ -127,11 +135,27 @@ export async function reduceSessionBackedState(args: {
       workspace,
       reducedPatchCount === 0 ? args.propertyRoot : undefined,
     );
-    await retainPreparedPropertyRoot(workspace, close.roots, properties);
+    const roaringIndexes = await resolveIndexRoot(
+      reduced.state,
+      args.propertyStore,
+      workspace,
+      reducedPatchCount === 0 ? args.indexRoot : undefined,
+    );
+    await retainPreparedIndexRoots(
+      workspace,
+      close.roots,
+      properties,
+      roaringIndexes,
+    );
     const replayBasis = reducedPatchCount === 0 && args.replayBasisRoot !== undefined
       ? args.replayBasisRoot
       : MaterializationRoot.unavailable();
-    const roots = materializationRootsFromSession(close.roots, properties, replayBasis);
+    const roots = materializationRootsFromSession(
+      close.roots,
+      properties,
+      roaringIndexes,
+      replayBasis,
+    );
     return {
       ...reduced,
       roots,
@@ -193,6 +217,7 @@ export function materializationSessionOpen(
 function materializationRootsFromSession(
   roots: MaterializeSessionOpen,
   properties: MaterializationRoot,
+  roaringIndexes: MaterializationRoot,
   replayBasis: MaterializationRoot,
 ): MaterializationRoots {
   return new MaterializationRoots({
@@ -204,8 +229,47 @@ function materializationRootsFromSession(
     properties,
     provenanceSupport: MaterializationRoot.unavailable(),
     replayBasis,
-    roaringIndexes: MaterializationRoot.unavailable(),
+    roaringIndexes,
   });
+}
+
+async function materializeIndexRoot(
+  state: WarpStateClass,
+  store: IndexStorePort | undefined,
+  workspace: MaterializationWorkspacePort,
+): Promise<MaterializationRoot> {
+  if (store === undefined) {
+    return MaterializationRoot.unavailable();
+  }
+  const shards = new LogicalIndexBuildService()
+    .buildShards(state)
+    .shards
+    .filter((shard) => !(shard instanceof PropertyShard));
+  const shardCount = requireMaterializationIndexShardCount(shards.length);
+  const handle = await store.writeShards(
+    WarpStream.from<IndexShard>(shards),
+    {
+      expectedShardCount: shardCount,
+      memberStorage: 'page',
+      maxShardCount: MAX_MATERIALIZATION_INDEX_SHARDS,
+      maxShardBytes: MATERIALIZATION_INDEX_SHARD_LIMITS.maxBytes,
+      structureLimits: MATERIALIZATION_INDEX_SHARD_LIMITS.structureLimits,
+      staging: workspace,
+    },
+  );
+  return MaterializationRoot.retained(handle);
+}
+
+async function resolveIndexRoot(
+  state: WarpStateClass,
+  store: IndexStorePort | undefined,
+  workspace: MaterializationWorkspacePort,
+  existing: MaterializationRoot | undefined,
+): Promise<MaterializationRoot> {
+  if (existing !== undefined && existing.status !== 'unavailable') {
+    return existing;
+  }
+  return await materializeIndexRoot(state, store, workspace);
 }
 
 async function materializePropertyRoot(
@@ -258,18 +322,26 @@ async function resolvePropertyRoot(
   return await materializePropertyRoot(state, store, workspace);
 }
 
-async function retainPreparedPropertyRoot(
+async function retainPreparedIndexRoots(
   workspace: MaterializationWorkspacePort,
   roots: MaterializeSessionOpen,
   properties: MaterializationRoot,
+  roaringIndexes: MaterializationRoot,
 ): Promise<void> {
-  if (properties.status !== 'retained' || properties.handle === null) {
+  const propertiesRoot = properties.status === 'retained'
+    ? properties.handle?.toString()
+    : undefined;
+  const roaringIndexesRoot = roaringIndexes.status === 'retained'
+    ? roaringIndexes.handle?.toString()
+    : undefined;
+  if (propertiesRoot === undefined && roaringIndexesRoot === undefined) {
     return;
   }
   await workspace.checkpoint({
     nodeAliveRoot: roots.nodeAliveRootOid,
     edgeAliveRoot: roots.edgeAliveRootOid,
-    propertiesRoot: properties.handle.toString(),
+    ...(propertiesRoot === undefined ? {} : { propertiesRoot }),
+    ...(roaringIndexesRoot === undefined ? {} : { roaringIndexesRoot }),
   });
 }
 

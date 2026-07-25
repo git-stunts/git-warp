@@ -9,6 +9,7 @@ export type MaterializationWorkspaceRoots = Readonly<{
   nodeAliveRoot: string | null;
   edgeAliveRoot: string | null;
   propertiesRoot?: string | null;
+  roaringIndexesRoot?: string | null;
 }>;
 
 export type PromoteMaterializationRequest = Readonly<{

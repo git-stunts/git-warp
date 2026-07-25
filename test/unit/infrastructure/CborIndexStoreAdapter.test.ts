@@ -191,6 +191,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     const indexHandle = await indexes.writeShards(WarpStream.from(shards()));
     const open = vi.spyOn(assets, 'open');
     const handles = await indexes.readShardHandles(indexHandle);
+    const references = await indexes.readShardReferences(indexHandle);
 
     expect(Object.keys(handles).sort()).toEqual([
       'fwd_a0.cbor',
@@ -201,6 +202,12 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       'rev_a0.cbor',
     ]);
     expect(Object.values(handles).every((handle) => handle instanceof AssetHandle)).toBe(true);
+    expect(Object.entries(references)).toEqual(
+      Object.entries(handles).map(([path, handle]) => [
+        path,
+        { kind: 'asset', token: handle.toString() },
+      ]),
+    );
     expect(open).not.toHaveBeenCalled();
   });
 
@@ -258,6 +265,18 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
 
     expect(GitCasPageHandle.from(token)).toBeInstanceOf(GitCasPageHandle);
     expect(stage).not.toHaveBeenCalled();
+    await expect(indexes.readShardReferences(indexHandle)).resolves.toEqual({
+      [path]: { kind: 'page', token },
+    });
+    const opened = await collectAsyncIterable(indexes.openShardAt(indexHandle, path, {
+      maxBytes: 1024,
+    }));
+    expect(defaultCodec.decode(opened)).toEqual({
+      schemaVersion: 2,
+      entries: [[nodeId, [['status', 'ready']]]],
+    });
+    await expect(collectAsyncIterable(indexes.openShardAt(indexHandle, 'missing.cbor')))
+      .rejects.toMatchObject({ code: 'E_INDEX_SHARD_MISSING' });
     await expect(indexes.decodeShardAt(indexHandle, path, {
       maxBytes: 1024,
       structureLimits: {
