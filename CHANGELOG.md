@@ -100,6 +100,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operation-local working maps and opaque handles, while repeated independent
   reads cross the storage port so git-cas owns deduplication and warm-hit
   policy.
+- Added a real-repository v19 Observer gate proving property and neighborhood
+  observations reopen the same checkpoint materialization bundle and exact
+  git-cas pages after `Runtime.close()`. The warm path scans no whole index,
+  invokes no full materialization, and reduces no patches already covered by
+  the checkpoint.
 
 ### Removed
 
