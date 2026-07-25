@@ -25,8 +25,6 @@ import type CasContentEncryptionPolicy from './CasContentEncryptionPolicy.ts';
 import { CborCheckpointStoreAdapter } from './CborCheckpointStoreAdapter.ts';
 import { CborIndexStoreAdapter } from './CborIndexStoreAdapter.ts';
 import { CborPatchJournalAdapter } from './CborPatchJournalAdapter.ts';
-import { GitCasWarpStateCacheAdapter } from './GitCasWarpStateCacheAdapter.ts';
-import type { GitCasRootSetClient } from './GitCasStateCacheRootSetCoordinator.ts';
 import GitCasTrieStoreAdapter from './GitCasTrieStoreAdapter.ts';
 import GitTrustChainAdapter from './GitTrustChainAdapter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
@@ -36,6 +34,9 @@ import AdapterValidationError from '../../domain/errors/AdapterValidationError.t
 import GitCasSyncReplayProtectionAdapter from './GitCasSyncReplayProtectionAdapter.ts';
 import GitCasSeekCursorStoreAdapter from './GitCasSeekCursorStoreAdapter.ts';
 import type SeekCursorStorePort from '../../ports/SeekCursorStorePort.ts';
+import GitCasMaterializationCacheDiagnosticsAdapter, {
+  type GitCasMaterializationCacheDiagnosticsFacade,
+} from './GitCasMaterializationCacheDiagnosticsAdapter.ts';
 
 type GitCasPolicy = {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -54,14 +55,12 @@ export type GitCasFacade = Pick<
     BundleCapability,
     'getMemberReference' | 'putOrdered' | 'iterateMemberReferences'
   >;
-  readonly caches: GitCasMaterializationFacade['caches'];
+  readonly caches: GitCasMaterializationFacade['caches']
+    & GitCasMaterializationCacheDiagnosticsFacade['caches'];
   readonly pages: GitCasMaterializationFacade['pages'];
   readonly workspaces: GitCasMaterializationFacade['workspaces'];
   readonly expiringSets: Pick<ExpiringSetCapability, 'open'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
-  readonly rootSets: {
-    open(options: { readonly ref: string }): Promise<GitCasRootSetClient>;
-  };
 };
 
 export type GitCasRepositoryAdapterOptions = {
@@ -124,11 +123,16 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         checkpoints: this._createCheckpointStore(request, content),
         indexes: this._createIndexStore(request, content),
         materializations,
+        materializationCacheDiagnostics: new GitCasMaterializationCacheDiagnosticsAdapter({
+          cas: this._cas,
+          codec: request.codec,
+          crypto: request.crypto,
+          laneName: request.timelineName,
+        }),
         syncReplayProtection: new GitCasSyncReplayProtectionAdapter({
           cas: this._cas,
           graphName: request.timelineName,
         }),
-        stateSnapshots: this._createStateSnapshots(request),
         trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
       })
     );
@@ -189,18 +193,6 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       history: this._history,
       assetStorage: content,
       cas: this._cas,
-    });
-  }
-
-  private _createStateSnapshots(request: RuntimeStorageRequest): GitCasWarpStateCacheAdapter {
-    return new GitCasWarpStateCacheAdapter({
-      cas: this._cas,
-      persistence: this._history,
-      graphName: request.timelineName,
-      codec: request.codec,
-      ...(this._contentEncryption === undefined
-        ? {}
-        : { contentEncryption: this._contentEncryption }),
     });
   }
 

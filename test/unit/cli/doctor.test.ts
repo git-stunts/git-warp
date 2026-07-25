@@ -6,8 +6,8 @@ import {
   checkClockSkew,
   checkRefsConsistent,
 } from '../../../bin/cli/commands/doctor/checks.ts';
-import WarpStateCacheRetentionReport from '../../../src/domain/services/state/WarpStateCacheRetentionReport.ts';
-import WarpStateCacheRepairResult from '../../../src/domain/services/state/WarpStateCacheRepairResult.ts';
+import type { MaterializationCacheInspection }
+  from '../../../src/ports/MaterializationCacheDiagnosticsPort.ts';
 
 // Mock shared.js to avoid real git operations
 vi.mock('../../../bin/cli/shared.ts', () => ({
@@ -76,6 +76,21 @@ const CLI_OPTIONS = {
   writer: 'cli',
   help: false,
 } as any;
+
+function cacheInspection(options: {
+  healthy?: boolean;
+  issues?: ReadonlyArray<{ code: string; message: string | null }>;
+} = {}): MaterializationCacheInspection {
+  return Object.freeze({
+    namespace: 'git-warp/materializations',
+    ref: 'refs/cas/caches/git-warp/materializations',
+    generation: 'generation-1',
+    healthy: options.healthy ?? true,
+    entries: Object.freeze([]),
+    issues: Object.freeze(options.issues ?? []),
+    policy: null,
+  });
+}
 
 describe('doctor command', () => {
   let handleDoctor;
@@ -221,83 +236,56 @@ describe('doctor command', () => {
     });
   });
 
-  it('repairs state-cache roots before checking their resulting health', async () => {
-    const before = new WarpStateCacheRetentionReport({
-      liveSnapshotIds: ['snapshot-a'],
-      anchoredSnapshotIds: [],
-      unanchoredSnapshotIds: ['snapshot-a'],
-      missingSnapshotIds: [],
-      wrongTypeSnapshotIds: [],
-      staleRootNames: [],
-      mismatchedRootNames: [],
-      rootSetError: null,
+  it('delegates materialization-cache repair before checking resulting health', async () => {
+    const before = cacheInspection({
+      healthy: false,
+      issues: [{ code: 'CACHE_INDEX_INVALID', message: 'invalid index' }],
     });
-    const after = new WarpStateCacheRetentionReport({
-      liveSnapshotIds: ['snapshot-a'],
-      anchoredSnapshotIds: ['snapshot-a'],
-      unanchoredSnapshotIds: [],
-      missingSnapshotIds: [],
-      wrongTypeSnapshotIds: [],
-      staleRootNames: [],
-      mismatchedRootNames: [],
-      rootSetError: null,
-    });
-    const repairResult = new WarpStateCacheRepairResult({
+    const after = cacheInspection();
+    const repairResult = Object.freeze({
       before,
       after,
-      anchoredSnapshotIds: ['snapshot-a'],
-      unrecoverableSnapshotIds: [],
-      removedStaleRootNames: [],
+      removedKeys: ['lane/key-a'],
+      generation: 'generation-2',
     });
-    const repairRetention = vi.fn().mockResolvedValue(repairResult);
-    const inspectRetention = vi.fn().mockResolvedValue(after);
+    const repairCache = vi.fn().mockResolvedValue(repairResult);
+    const inspectCache = vi.fn().mockResolvedValue(after);
     mockRuntimeStorage.createRuntimeStorageServices.mockResolvedValue({
-      stateSnapshots: {
-        repairRetention,
-        inspectRetention,
-        resolveCheckpointHead: vi.fn().mockResolvedValue(null),
+      materializationCacheDiagnostics: {
+        repairCache,
+        inspectCache,
       },
     });
 
     const result = await handleDoctor({
       options: CLI_OPTIONS,
-      args: ['--repair-state-cache'],
+      args: ['--repair-materialization-cache'],
     });
 
-    expect(repairRetention).toHaveBeenCalledOnce();
-    expect(inspectRetention).toHaveBeenCalledOnce();
+    expect(repairCache).toHaveBeenCalledOnce();
+    expect(inspectCache).toHaveBeenCalledOnce();
     expect(result.payload.findings.map((finding) => finding.code)).toContain(
-      CODES.STATE_CACHE_RETENTION_REPAIRED
+      CODES.MATERIALIZATION_CACHE_REPAIRED
     );
   });
 
-  it('reports a failed state-cache repair without aborting doctor', async () => {
-    const healthy = new WarpStateCacheRetentionReport({
-      liveSnapshotIds: [],
-      anchoredSnapshotIds: [],
-      unanchoredSnapshotIds: [],
-      missingSnapshotIds: [],
-      wrongTypeSnapshotIds: [],
-      staleRootNames: [],
-      mismatchedRootNames: [],
-      rootSetError: null,
-    });
+  it('reports a failed materialization-cache repair without aborting doctor', async () => {
+    const healthy = cacheInspection();
     mockRuntimeStorage.createRuntimeStorageServices.mockResolvedValue({
-      stateSnapshots: {
-        repairRetention: vi.fn().mockRejectedValue(new Error('root set unavailable')),
-        inspectRetention: vi.fn().mockResolvedValue(healthy),
-        resolveCheckpointHead: vi.fn().mockResolvedValue(null),
+      materializationCacheDiagnostics: {
+        repairCache: vi.fn().mockRejectedValue(new Error('cache unavailable')),
+        inspectCache: vi.fn().mockResolvedValue(healthy),
       },
     });
 
     const result = await handleDoctor({
       options: CLI_OPTIONS,
-      args: ['--repair-state-cache'],
+      args: ['--repair-materialization-cache'],
     });
 
     expect(result.payload.findings).toContainEqual(
       expect.objectContaining({
-        id: 'state-cache-retention-repair',
+        id: 'materialization-cache-repair',
         status: 'fail',
         code: CODES.CHECK_INTERNAL_ERROR,
       })

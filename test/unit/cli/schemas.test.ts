@@ -64,8 +64,8 @@ describe('doctorSchema', () => {
   });
 
   it('accepts explicit state-cache retention repair', () => {
-    const result = doctorSchema.parse({ 'repair-state-cache': true });
-    expect(result['repair-state-cache']).toBe(true);
+    const result = doctorSchema.parse({ 'repair-materialization-cache': true });
+    expect(result['repair-materialization-cache']).toBe(true);
   });
 
   it('rejects unknown keys', () => {

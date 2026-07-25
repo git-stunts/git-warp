@@ -243,7 +243,8 @@ flowchart TB
     subgraph Adapters["Infrastructure adapters"]
       git["GitGraphAdapter"]
       cbor["CborPatchJournalAdapter"]
-      stateCache["GitCasWarpStateCacheAdapter"]
+      retainedCache["GitCasMaterializationStoreAdapter"]
+      cacheDoctor["GitCasMaterializationCacheDiagnosticsAdapter"]
       fetch["FetchSyncHttpClientAdapter"]
       nodeHttp["NodeHttpAdapter"]
       nodeCrypto["NodeCryptoAdapter"]
@@ -1659,7 +1660,8 @@ flowchart TD
 | Checkpoints | `src/domain/services/controllers/CheckpointController.ts`, `src/domain/services/state/checkpointCreate.ts`, `checkpointLoad.ts` |
 | Sync | `src/domain/services/controllers/SyncController.ts`, `src/domain/services/sync/SyncProtocol.ts`, `SyncPayloadSchema.ts`, `HttpSyncServer.ts`, `SyncAuthService.ts` |
 | HTTP adapters | `src/infrastructure/adapters/FetchSyncHttpClientAdapter.ts`, `src/infrastructure/adapters/NodeHttpAdapter.ts`, `BunHttpAdapter.ts`, `DenoHttpAdapter.ts` |
-| Durable state cache | `src/infrastructure/adapters/GitCasWarpStateCacheAdapter.ts`, `src/ports/WarpStateCachePort.ts` |
+| Retained materializations | `src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts`, `src/ports/MaterializationStorePort.ts` |
+| Cache diagnostics | `src/infrastructure/adapters/GitCasMaterializationCacheDiagnosticsAdapter.ts`, `src/ports/MaterializationCacheDiagnosticsPort.ts` |
 
 ## The Core Insight
 

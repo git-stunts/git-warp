@@ -66,7 +66,18 @@ export default class InMemoryGitCasFacade {
   readonly caches: {
     open(options: {
       readonly namespace: string;
-    }): Promise<Pick<CacheSet, 'acquire' | 'get' | 'inspect' | 'put' | 'remove' | 'ref'>>;
+    }): Promise<Pick<
+      CacheSet,
+      | 'acquire'
+      | 'doctor'
+      | 'get'
+      | 'inspect'
+      | 'put'
+      | 'remove'
+      | 'repair'
+      | 'ref'
+      | 'sweep'
+    >>;
   };
   readonly pages: Pick<PageCapability, 'get' | 'put'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
@@ -344,11 +355,43 @@ export default class InMemoryGitCasFacade {
 
   async #openCache(
     namespace: string,
-  ): Promise<Pick<CacheSet, 'acquire' | 'get' | 'inspect' | 'put' | 'remove' | 'ref'>> {
+  ): Promise<Pick<
+    CacheSet,
+    | 'acquire'
+    | 'doctor'
+    | 'get'
+    | 'inspect'
+    | 'put'
+    | 'remove'
+    | 'repair'
+    | 'ref'
+    | 'sweep'
+  >> {
     const entries = this.#cacheEntries.get(namespace) ?? new Map<string, CacheHit>();
     this.#cacheEntries.set(namespace, entries);
+    const ref = `refs/cas/caches/${namespace}`;
+    const nextGeneration = (): string => {
+      this.#cacheGeneration += 1;
+      return this.#cacheGeneration.toString(16).padStart(40, '0');
+    };
+    const witness = (
+      handle: ApplicationHandle,
+      generation: string,
+    ): RetentionWitness => new RetentionWitness({
+      handle,
+      policy: 'evictable',
+      reachability: 'anchored',
+      root: {
+        kind: 'cache-set',
+        namespace,
+        ref,
+        generation,
+        path: 'root-00000000',
+      },
+      observedAt: new Date(0).toISOString(),
+    });
     return Object.freeze({
-      ref: `refs/cas/caches/${namespace}`,
+      ref,
       acquire: async (key): Promise<CacheAcquisition | null> => {
         const hit = entries.get(key);
         if (hit === undefined) {
@@ -384,6 +427,15 @@ export default class InMemoryGitCasFacade {
           }),
         });
       },
+      doctor: async () => Object.freeze({
+        healthy: true,
+        root: Object.freeze({
+          healthy: true,
+          ref,
+          entryCount: entries.size,
+        }),
+        issues: Object.freeze([]),
+      }),
       get: async (key) => entries.get(key) ?? null,
       inspect: async (
         { limit = 100, cursor = null }: { limit?: number; cursor?: string | null } = {},
@@ -419,8 +471,7 @@ export default class InMemoryGitCasFacade {
       put: async (key, handle, options) => {
         const previous = entries.get(key) ?? null;
         const target = parseApplicationHandle(handle);
-        this.#cacheGeneration += 1;
-        const generation = this.#cacheGeneration.toString(16).padStart(40, '0');
+        const generation = nextGeneration();
         const observedAt = new Date(0).toISOString();
         const evidence = new RetentionWitness({
           handle: target,
@@ -439,7 +490,9 @@ export default class InMemoryGitCasFacade {
           key,
           handle: target,
           policy: options?.retention ?? 'evictable',
-          expiresAt: options?.expiresAt ?? null,
+          expiresAt: options?.expiresAt === undefined || options.expiresAt === null
+            ? null
+            : new Date(options.expiresAt).toISOString(),
           logicalBytes: 0,
           createdAt: observedAt,
           accessedAt: observedAt,
@@ -460,13 +513,91 @@ export default class InMemoryGitCasFacade {
       remove: async (key) => {
         const removed = entries.get(key) ?? null;
         const changed = entries.delete(key);
-        this.#cacheGeneration += 1;
+        const generation = nextGeneration();
         return Object.freeze({
           changed,
           removed,
-          generation: this.#cacheGeneration.toString(16).padStart(40, '0'),
+          generation,
           policy: null,
           witness: null,
+        });
+      },
+      repair: async (options) => {
+        const repaired = new Map<string, CacheHit>();
+        let retainedHandle: ApplicationHandle | null = null;
+        const observedAt = new Date(0).toISOString();
+        const generation = nextGeneration();
+        for await (const entry of options.entries) {
+          const handle = parseApplicationHandle(entry.handle);
+          retainedHandle ??= handle;
+          const previous = entries.get(entry.key);
+          const evidence = witness(handle, generation);
+          repaired.set(entry.key, new CacheHit({
+            key: entry.key,
+            handle,
+            policy: entry.retention ?? 'evictable',
+            expiresAt: entry.expiresAt === undefined || entry.expiresAt === null
+              ? null
+              : new Date(entry.expiresAt).toISOString(),
+            logicalBytes: previous?.logicalBytes ?? 0,
+            createdAt: entry.createdAt === undefined
+              ? observedAt
+              : new Date(entry.createdAt).toISOString(),
+            accessedAt: entry.accessedAt === undefined
+              ? observedAt
+              : new Date(entry.accessedAt).toISOString(),
+            generation,
+            evidence,
+          }));
+        }
+        entries.clear();
+        for (const [key, hit] of repaired) {
+          entries.set(key, hit);
+        }
+        const handle = retainedHandle ?? new PageHandle({
+          oid: '0'.repeat(40),
+          hashAlgorithm: 'sha1',
+        });
+        const policy = Object.freeze({
+          satisfied: true,
+          entryCount: entries.size,
+          logicalBytes: [...entries.values()]
+            .reduce((total, entry) => total + entry.logicalBytes, 0),
+          pinnedEntries: [...entries.values()]
+            .filter((entry) => entry.policy === 'pinned').length,
+          evictableEntries: [...entries.values()]
+            .filter((entry) => entry.policy === 'evictable').length,
+          expiredEntries: 0,
+          limits: Object.freeze({
+            maxEntries: options.policy?.maxEntries ?? 10_000,
+            maxBytes: options.policy?.maxBytes ?? null,
+            accessResolutionMs: options.policy?.accessResolutionMs ?? 60_000,
+          }),
+        });
+        return Object.freeze({
+          repaired: true as const,
+          generation,
+          policy,
+          witness: witness(handle, generation),
+        });
+      },
+      sweep: async () => {
+        const removed = [...entries.values()]
+          .filter((entry) => (
+            entry.policy === 'evictable'
+            && entry.expiresAt !== null
+            && Date.parse(entry.expiresAt) <= 0
+          ));
+        for (const entry of removed) {
+          entries.delete(entry.key);
+        }
+        const generation = nextGeneration();
+        return Object.freeze({
+          changed: removed.length > 0,
+          generation,
+          policy: null,
+          witness: null,
+          removed: removed.length,
         });
       },
     });

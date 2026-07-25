@@ -174,44 +174,26 @@ authoritative WARP history.
 ## `git-cas` Encapsulation
 
 Materialization-root retention routes through the formal
-`@git-stunts/git-cas` `CacheSet` API. The legacy state-cache adapter also routes
-payload bytes through `git-cas`, but still owns its snapshot index and RootSet
-reconciliation. Removing that compatibility cache lifecycle is required before
-the one-cache boundary is complete. Raw Git plumbing remains an adapter concern
-for WARP refs and Git object access; WARP code must not hand-roll a parallel
-CAS.
+`@git-stunts/git-cas` `CacheSet` API. v19 removes the parallel WARP-owned state
+snapshot index, graph-scoped RootSet coordinator, and retention repair protocol.
+The retained-materialization descriptor and its lane-scoped cache key are the
+only derived-cache contract. Raw Git plumbing remains an adapter concern for
+authoritative WARP refs and Git object access; WARP code does not hand-roll a
+parallel CAS.
 
-Routing state snapshots through `git-cas` allows content-addressed storage and
-chunk-level reuse where the underlying CAS representation can identify unchanged
-byte ranges. The WARP cache index remains responsible for determining whether a
-snapshot is semantically usable for a materialization coordinate.
+The old `refs/warp/<graph-name>/state-cache` and
+`refs/cas/rootsets/git-warp/<graph-name>/state-cache` corridors are not migrated
+or consulted. They contain derived snapshots, not authoritative history. A
+current retained-materialization miss therefore rebuilds from WARP patch and
+checkpoint history.
 
 ## Git Retention and Repair
 
-A payload object ID written as text inside the state-cache index is not a Git
-reachability edge. Without a ref-backed edge, Git sees the payload tree and its
-blobs as unreachable objects and may eventually prune them even while WARP's
-index still names them.
-
-The Git-backed adapter therefore mirrors its live index membership into this
-graph-scoped `git-cas` RootSet:
-
-```text
-refs/cas/rootsets/git-warp/<graph-name>/state-cache
-```
-
-Cache policy and Git retention are separate axes. Both `pinned` and `evictable`
-records must remain Git-reachable while they are live in the index; `pinned`
-only controls WARP eviction policy. Each cache mutation follows this ordering:
-
-1. Publish a RootSet generation that anchors a safe superset of the desired
-   payload trees.
-2. Compare-and-swap the WARP state-cache index.
-3. Guardedly replace the RootSet with the exact recoverable live membership.
-
-An interrupted write can therefore leave extra reachable payloads, but it does
-not publish an index entry whose payload was never anchored. Ordinary reads
-also adopt legacy index entries that predate RootSet retention.
+git-cas owns the `git-warp/materializations` cache namespace and its RootSet
+reachability. Cache entries retain opaque bundle handles; bundle members retain
+the descriptor and materialization roots. `CacheSet` receipts provide the
+generation, policy, reachability, root ref, and path witness for every retained
+materialization.
 
 Inspect retention without changing it:
 
@@ -219,16 +201,18 @@ Inspect retention without changing it:
 git warp doctor --repo ./team-repo
 ```
 
-Reconcile the RootSet from the authoritative WARP index:
+Ask git-cas to sweep expired entries, discard malformed or missing entries, and
+rebuild its cache metadata from the remaining handles:
 
 ```bash
-git warp doctor --repo ./team-repo --repair-state-cache
+git warp doctor --repo ./team-repo --repair-materialization-cache
 ```
 
-Repair anchors every indexed payload that still exists as a Git tree and
-removes stale RootSet membership. It reports missing payloads and wrong-type
-objects as unrecoverable; it does not delete logical cache records, recreate
-lost payload bytes, or run Git garbage collection.
+Doctor reports git-cas structural issues plus WARP-specific live, stale,
+expired, malformed, missing, and collectible lane-coordinate evidence. Repair
+preserves entries belonging to other lanes in the shared namespace. It does not
+recreate lost bytes, mutate authoritative WARP history, or run Git garbage
+collection.
 
 ## Current Limitations
 

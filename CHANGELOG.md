@@ -90,6 +90,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pinned lifetime; saved cursors remain pinned until explicitly dropped.
   Reads do not extend retention, and bounded opportunistic sweeps collect
   expired active pages.
+- Delegated retained-materialization inspection and repair to git-cas
+  `CacheSet.doctor()`, `sweep()`, and `repair()`. `git warp doctor` composes
+  physical cache, RootSet, handle, policy, age, size, expiry, and reachability
+  evidence with WARP lane and coordinate explanations.
 
 ### Removed
 
@@ -100,6 +104,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed migration and cleanup support for unreleased materialization
   descriptor schemas v2 through v4. Schema v5 is the first release contract;
   stale derived-cache entries miss and rebuild from authoritative WARP history.
+- Removed the WARP-owned mutable state-snapshot index, GitCas state-cache
+  adapter, graph-scoped RootSet coordinator, and retention report/repair
+  protocol. The v19 CLI replaces `--repair-state-cache` with
+  `--repair-materialization-cache`; missing derived bytes are never recreated.
 - Removed `SyncAuthService`'s process-local nonce LRU, `nonceCapacity`,
   `nonceEvictions`, and the inert public `auth.wallClockMs` option. Authenticated
   serving now fails closed unless runtime storage supplies durable replay

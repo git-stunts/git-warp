@@ -39,10 +39,12 @@ git warp check --repo ./team-repo
 git warp doctor --repo ./team-repo --strict
 ```
 
-`doctor` also checks whether live state-cache payload trees are anchored against
-Git garbage collection. Use `--repair-state-cache` to reconcile the retention
-RootSet from the WARP cache index. The repair does not run Git garbage
-collection and reports already-missing payloads instead of hiding them.
+`doctor` also asks git-cas to validate retained materialization cache roots,
+handles, policy, age, size, expiry, and reachability. WARP then explains which
+lane coordinates are live or stale and which entries are collectible. Use
+`--repair-materialization-cache` to delegate sweep and metadata repair to
+git-cas. Repair removes malformed or missing cache entries but does not recreate
+missing bytes or run Git garbage collection.
 
 The old `--view` flag has been removed. Use `warp-ttd` for visualization
 workflows instead of asking `git warp` to render dashboards.

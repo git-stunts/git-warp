@@ -121,8 +121,9 @@ under `diagnostics`. Support-plan and host machinery stay behind the runtime.
 - Missing support should produce an honest receipt status, not a silent
   whole-history materialization.
 
-Create a missing basis with `git warp checkpoint create`, or reconcile
-state-cache retention with `git warp doctor --repair-state-cache`.
+Create a missing basis with `git warp checkpoint create`, or ask git-cas to
+reconcile retained materializations with
+`git warp doctor --repair-materialization-cache`.
 
 <details>
 <summary><h4>For the Nerds™: Optics</h4></summary>
