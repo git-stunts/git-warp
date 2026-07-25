@@ -71,6 +71,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `stateHash: null`, cannot masquerade as whole-state snapshots, and avoid
   constructing `WarpState`, adjacency, properties, receipts, diffs,
   provenance, or a state-cache snapshot.
+- Changed cold live node-property reads to replay only the requested node's
+  `NodePropSet` registers at the partial handle's exact coordinate when no
+  retained property root can answer. The targeted reducer keeps only one
+  node's winning LWW property bag and does not construct `WarpState`, graph
+  adjacency, receipts, diffs, provenance, hashes, or snapshots.
 
 ### Removed
 
@@ -98,11 +103,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   roots, once assembled, remain pinned by the operation workspace until final
   promotion.
   The flat property-root profile also rejects more than 100,000 shards before
-  asset staging. Materialization descriptor/cache schema v3 replaces incomplete
-  v2 entries and removes the
-  corresponding legacy cache anchor through git-cas only after successful v3
-  retention. Schema-v3 materializations require the property root to be either
-  retained or explicitly empty; they reject `unavailable` property roots.
+  asset staging. Complete materializations record the property root as retained
+  or explicitly empty in descriptor schema v5; partial cold-liveness handles
+  may mark it unavailable until a property root is built.
 - Exact state-cache hits now retain and reopen coordinate-keyed materialization
   descriptors through the `git-cas` cache API. Repeated materialization,
   including through a fresh runtime adapter, resumes the retained node/edge

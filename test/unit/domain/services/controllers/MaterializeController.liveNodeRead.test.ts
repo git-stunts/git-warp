@@ -14,6 +14,8 @@ import MaterializeController, {
 } from '../../../../../src/domain/services/controllers/MaterializeController.ts';
 import { retainBoundedLiveMaterialization } from '../../../../../src/domain/services/controllers/BoundedLiveMaterialization.ts';
 import BundleHandle from '../../../../../src/domain/storage/BundleHandle.ts';
+import Patch from '../../../../../src/domain/types/Patch.ts';
+import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
 import cborCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
 import InMemoryMaterializationStore, {
@@ -24,6 +26,9 @@ const FRONTIER = new Map([['writer-1', 'tip-1']]);
 
 class RetainedOnlyPatchCollector extends PatchCollector {
   frontier = new Map(FRONTIER);
+  chain: PatchWithSha[] = [];
+  chainFailure: Error | undefined;
+  readonly loadedTips: string[] = [];
 
   override discoverWriters(): Promise<string[]> {
     return Promise.resolve([]);
@@ -41,8 +46,11 @@ class RetainedOnlyPatchCollector extends PatchCollector {
     return Promise.resolve([]);
   }
 
-  override loadPatchChain(_toSha: string, _fromSha?: string | null): Promise<PatchWithSha[]> {
-    return Promise.resolve([]);
+  override loadPatchChain(toSha: string, _fromSha?: string | null): Promise<PatchWithSha[]> {
+    this.loadedTips.push(toSha);
+    return this.chainFailure === undefined
+      ? Promise.resolve([...this.chain])
+      : Promise.reject(this.chainFailure);
   }
 
   override getFrontier(): Promise<Map<string, string>> {
@@ -208,27 +216,70 @@ describe('MaterializeController live node reads', () => {
     expect(fixture.materializationRead.getNodeProperties).not.toHaveBeenCalled();
   });
 
-  it('falls back after releasing an unavailable retained properties root', async () => {
+  it('returns an empty targeted replay after an unavailable retained properties root', async () => {
     const fixture = await createFixture({ propertyRootStatus: 'unavailable' });
 
     await expect(fixture.controller.readLiveNodeProperties('node:retained'))
-      .resolves.toBeUndefined();
+      .resolves.toEqual({});
 
     expect(fixture.materializationRead.getNodeProperties).not.toHaveBeenCalled();
+    expect(fixture.patches.loadedTips).toEqual(['tip-1']);
     expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
   });
 
-  it('falls back when the configured reader does not support property roots', async () => {
+  it('replays when the configured reader does not support property roots', async () => {
     const fixture = await createFixture({
       propertyRootStatus: 'retained',
       propertyReadUnsupported: true,
     });
 
     await expect(fixture.controller.readLiveNodeProperties('node:retained'))
-      .resolves.toBeUndefined();
+      .resolves.toEqual({});
 
     expect(fixture.materializationRead.getNodeProperties).toHaveBeenCalledOnce();
+    expect(fixture.patches.loadedTips).toEqual(['tip-1']);
     expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+  });
+
+  it('replays one live node property bag without projecting whole state', async () => {
+    const fixture = await createFixture({
+      patchEntries: [
+        patchEntry({
+          lamport: 2,
+          ops: [
+            new NodePropSet('node:retained', 'status', 'ready'),
+            new NodePropSet('node:other', 'status', 'ignored'),
+          ],
+          sha: 'aaaa',
+          writer: 'writer-1',
+        }),
+      ],
+      propertyRootStatus: 'unavailable',
+    });
+
+    await expect(fixture.controller.readLiveNodeProperties('node:retained'))
+      .resolves.toEqual({ status: 'ready' });
+
+    expect(fixture.materializationRead.getNodeProperties).not.toHaveBeenCalled();
+    expect(fixture.patches.loadedTips).toEqual(['tip-1']);
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+    expect(fixture.deps.crypto.hash).not.toHaveBeenCalled();
+    expect(fixture.deps.persistence.readRef).not.toHaveBeenCalled();
+    expect(fixture.deps.graphCloner.openReadOnly).not.toHaveBeenCalled();
+  });
+
+  it('releases retained roots when targeted property replay fails', async () => {
+    const replayFailure = new Error('targeted property replay failed');
+    const fixture = await createFixture({
+      patchReadFailure: replayFailure,
+      propertyRootStatus: 'unavailable',
+    });
+
+    await expect(fixture.controller.readLiveNodeProperties('node:retained'))
+      .rejects.toBe(replayFailure);
+
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+    expect(fixture.materializations.acquisitions[0]?.released).toBe(true);
   });
 
   it('releases retained roots when the bounded property read fails', async () => {
@@ -250,6 +301,8 @@ async function createFixture(
   options: {
     readonly frontier?: Map<string, string>;
     readonly materializationRead?: boolean;
+    readonly patchEntries?: readonly PatchWithSha[];
+    readonly patchReadFailure?: Error;
     readonly presence?: boolean;
     readonly properties?: Readonly<Record<string, string>>;
     readonly propertyReadFailure?: Error;
@@ -262,6 +315,8 @@ async function createFixture(
 ) {
   const patches = new RetainedOnlyPatchCollector();
   patches.frontier = new Map(options.frontier ?? FRONTIER);
+  patches.chain = [...(options.patchEntries ?? [])];
+  patches.chainFailure = options.patchReadFailure;
   const materializations = new InMemoryMaterializationStore();
   const nodeRoot = new BundleHandle('test:node-root');
   const propertyRoot = new BundleHandle('test:property-root');
@@ -274,7 +329,7 @@ async function createFixture(
         propertyStatus: options.propertyRootStatus ?? 'unavailable',
         propertyRoot,
       }),
-      stateHash: 'state-hash',
+      stateHash: null,
     });
   }
   const hasNode = vi.fn<(nodeAliveRoot: BundleHandle, nodeId: string) => Promise<boolean>>();
@@ -306,6 +361,7 @@ async function createFixture(
     materializationRead,
     materializations,
     nodeRoot,
+    patches,
     propertyRoot,
   };
 }
@@ -389,4 +445,22 @@ async function requireRetained(materializations: InMemoryMaterializationStore) {
   await acquisition.release();
   materializations.acquisitions.splice(0);
   return acquisition.materialization;
+}
+
+function patchEntry(options: {
+  readonly lamport: number;
+  readonly ops: Patch['ops'];
+  readonly sha: string;
+  readonly writer: string;
+}): PatchWithSha {
+  return {
+    patch: new Patch({
+      schema: 3,
+      writer: options.writer,
+      lamport: options.lamport,
+      context: {},
+      ops: options.ops,
+    }),
+    sha: options.sha,
+  };
 }
