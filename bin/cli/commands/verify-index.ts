@@ -18,8 +18,8 @@ export default async function handleVerifyIndex({ options, args }: { options: Cl
     VERIFY_INDEX_OPTIONS,
     verifyIndexSchema,
   );
-  const { graph, graphName, persistence } = await openGraph(options);
-  const cursorInfo = await applyCursorCeiling(graph, persistence, graphName);
+  const { graph, graphName, cursorStore } = await openGraph(options);
+  const cursorInfo = await applyCursorCeiling(graph, cursorStore);
   emitCursorWarning(cursorInfo, null);
 
   try {

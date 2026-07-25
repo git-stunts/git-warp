@@ -146,8 +146,8 @@ async function getHookStatusForCheck(repoPath: string, hookPaths: HookPathPort):
 
 /** Handles the `check` command: reports graph health, GC, and hook status. */
 export async function handleCheck({ options }: { options: CliOptions }): Promise<{ payload: unknown; exitCode: number }> {
-  const { graph, graphName, persistence, hookPaths } = await openGraph(options);
-  const cursorInfo = await applyCursorCeiling(graph, persistence, graphName);
+  const { graph, graphName, persistence, cursorStore, hookPaths } = await openGraph(options);
+  const cursorInfo = await applyCursorCeiling(graph, cursorStore);
   emitCursorWarning(cursorInfo, null);
   const health = await getHealth(persistence);
   const gcMetrics = await getGcMetrics(graph);

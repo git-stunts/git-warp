@@ -16,7 +16,8 @@ import { EXIT_CODES, usageError, notFoundError, parseCommandArgs } from '../infr
 import { seekSchema } from '../schemas.ts';
 import { openGraph, readActiveCursor, writeActiveCursor } from '../shared.ts';
 import type { WarpState } from '../../../src/domain/services/JoinReducer.ts';
-import type { CliOptions, Persistence, WarpGraphInstance, WriterTickInfo, CursorBlob, SeekSpec } from '../types.ts';
+import type SeekCursorStorePort from '../../../src/ports/SeekCursorStorePort.ts';
+import type { CliOptions, WarpGraphInstance, WriterTickInfo, CursorBlob, SeekSpec } from '../types.ts';
 
 // ============================================================================
 // Seek Arg Parser
@@ -177,10 +178,10 @@ function applyDiffLimit(diff: StateDiffResult, diffBaseline: string, baselineTic
 // ============================================================================
 
 /** Handles the bare `seek` (no action flags) by returning current cursor status. */
-async function handleSeekStatus({ graph, graphName, persistence, activeCursor, ticks, maxTick, perWriter, frontierHash }: {
+async function handleSeekStatus({ graph, graphName, cursorStore, activeCursor, ticks, maxTick, perWriter, frontierHash }: {
   graph: WarpGraphInstance;
   graphName: string;
-  persistence: Persistence;
+  cursorStore: SeekCursorStorePort;
   activeCursor: CursorBlob | null;
   ticks: number[];
   maxTick: number;
@@ -194,7 +195,7 @@ async function handleSeekStatus({ graph, graphName, persistence, activeCursor, t
     const prevCounts = readSeekCounts(activeCursor);
     const prevFrontierHash = typeof activeCursor.frontierHash === 'string' ? activeCursor.frontierHash : null;
     if (prevCounts.nodes === null || prevCounts.edges === null || prevCounts.nodes !== nodes.length || prevCounts.edges !== edges.length || prevFrontierHash !== frontierHash) {
-      await writeActiveCursor(persistence, graphName, { tick: activeCursor.tick, mode: activeCursor.mode ?? 'lamport', nodes: nodes.length, edges: edges.length, frontierHash });
+      await writeActiveCursor(cursorStore, { tick: activeCursor.tick, mode: activeCursor.mode ?? 'lamport', nodes: nodes.length, edges: edges.length, frontierHash });
     }
     const diff = computeSeekStateDiff(activeCursor, { nodes: nodes.length, edges: edges.length }, frontierHash);
     const tickReceipt = await buildTickReceipt({ tick: activeCursor.tick, perWriter, graph });
@@ -246,13 +247,13 @@ async function handleSeekStatus({ graph, graphName, persistence, activeCursor, t
 /** Handles the `git warp seek` command across all sub-actions. */
 export default async function handleSeek({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const seekSpec = parseSeekArgs(args);
-  const { graph, graphName, persistence } = await openGraph(options);
+  const { graph, graphName, cursorStore } = await openGraph(options);
 
-  const activeCursor = await readActiveCursor(persistence, graphName);
+  const activeCursor = await readActiveCursor(cursorStore);
   const { ticks, maxTick, perWriter } = await graph.discoverTicks();
   const frontierHash = await computeFrontierHash(perWriter);
   if (seekSpec.action === 'list') {
-    const saved = await listSavedCursors(persistence, graphName);
+    const saved = await listSavedCursors(cursorStore);
     return {
       payload: {
         graph: graphName,
@@ -266,11 +267,11 @@ export default async function handleSeek({ options, args }: { options: CliOption
   }
   if (seekSpec.action === 'drop') {
     const dropName = seekSpec.name as string;
-    const existing = await readSavedCursor(persistence, graphName, dropName);
+    const existing = await readSavedCursor(cursorStore, dropName);
     if (!existing) {
       throw notFoundError(`Saved cursor not found: ${dropName}`);
     }
-    await deleteSavedCursor(persistence, graphName, dropName);
+    await deleteSavedCursor(cursorStore, dropName);
     return {
       payload: {
         graph: graphName,
@@ -287,7 +288,7 @@ export default async function handleSeek({ options, args }: { options: CliOption
     if (seekSpec.diff) {
       sdResult = await computeStructuralDiff({ graph, prevTick, currentTick: maxTick, diffLimit: seekSpec.diffLimit });
     }
-    await clearActiveCursor(persistence, graphName);
+    await clearActiveCursor(cursorStore);
     // When --diff already materialized at maxTick, skip redundant re-materialize
     if (!sdResult) {
       await graph.materialize({ ceiling: maxTick });
@@ -319,7 +320,7 @@ export default async function handleSeek({ options, args }: { options: CliOption
     if (!activeCursor) {
       throw usageError('No active cursor to save. Use --tick first.');
     }
-    await writeSavedCursor(persistence, graphName, seekSpec.name as string, activeCursor);
+    await writeSavedCursor(cursorStore, seekSpec.name as string, activeCursor);
     return {
       payload: {
         graph: graphName,
@@ -332,7 +333,7 @@ export default async function handleSeek({ options, args }: { options: CliOption
   }
   if (seekSpec.action === 'load') {
     const loadName = seekSpec.name as string;
-    const saved = await readSavedCursor(persistence, graphName, loadName);
+    const saved = await readSavedCursor(cursorStore, loadName);
     if (!saved) {
       throw notFoundError(`Saved cursor not found: ${loadName}`);
     }
@@ -347,7 +348,7 @@ export default async function handleSeek({ options, args }: { options: CliOption
     }
     const nodes = await graph.getNodes();
     const edges = await graph.getEdges();
-    await writeActiveCursor(persistence, graphName, { tick: saved.tick, mode: saved.mode ?? 'lamport', nodes: nodes.length, edges: edges.length, frontierHash });
+    await writeActiveCursor(cursorStore, { tick: saved.tick, mode: saved.mode ?? 'lamport', nodes: nodes.length, edges: edges.length, frontierHash });
     const diff = computeSeekStateDiff(activeCursor, { nodes: nodes.length, edges: edges.length }, frontierHash);
     const tickReceipt = await buildTickReceipt({ tick: saved.tick, perWriter, graph });
     return {
@@ -383,7 +384,7 @@ export default async function handleSeek({ options, args }: { options: CliOption
     }
     const nodes = await graph.getNodes();
     const edges = await graph.getEdges();
-    await writeActiveCursor(persistence, graphName, { tick: resolvedTick, mode: 'lamport', nodes: nodes.length, edges: edges.length, frontierHash });
+    await writeActiveCursor(cursorStore, { tick: resolvedTick, mode: 'lamport', nodes: nodes.length, edges: edges.length, frontierHash });
     const diff = computeSeekStateDiff(activeCursor, { nodes: nodes.length, edges: edges.length }, frontierHash);
     const tickReceipt = await buildTickReceipt({ tick: resolvedTick, perWriter, graph });
     return {
@@ -407,5 +408,5 @@ export default async function handleSeek({ options, args }: { options: CliOption
   }
 
   // status (bare seek)
-  return await handleSeekStatus({ graph, graphName, persistence, activeCursor, ticks, maxTick, perWriter, frontierHash });
+  return await handleSeekStatus({ graph, graphName, cursorStore, activeCursor, ticks, maxTick, perWriter, frontierHash });
 }

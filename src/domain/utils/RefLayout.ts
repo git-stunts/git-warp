@@ -10,8 +10,6 @@ import WarpError from '../errors/WarpError.ts';
  * - refs/warp/<graph>/writers/<writer_id>
  * - refs/warp/<graph>/checkpoints/head
  * - refs/warp/<graph>/coverage/head
- * - refs/warp/<graph>/cursor/active
- * - refs/warp/<graph>/cursor/saved/<name>
  * - refs/warp/<graph>/strands/<id>
  * - refs/warp/<graph>/strand-overlays/<id>
  * - refs/warp/<graph>/strand-braids/<id>/<support_id>
@@ -241,56 +239,6 @@ export function buildCoverageRef(graphName: string): string {
 export function buildWritersPrefix(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/writers/`;
-}
-
-/**
- * Builds the active cursor ref path for the given graph.
- *
- * The active cursor is a single ref that stores the current time-travel
- * position used by `git warp seek`. It points to a commit SHA representing
- * the materialization frontier the user has seeked to.
- *
- * @example
- * buildCursorActiveRef('events');
- * // => 'refs/warp/events/cursor/active'
- */
-export function buildCursorActiveRef(graphName: string): string {
-  validateGraphName(graphName);
-  return `${REF_PREFIX}/${graphName}/cursor/active`;
-}
-
-/**
- * Builds a saved (named) cursor ref path for the given graph and cursor name.
- *
- * Saved cursors are bookmarks created by `git warp seek --save <name>`.
- * Each saved cursor persists a time-travel position that can be restored
- * later without re-seeking.
- *
- * The cursor name is validated with the same rules as a writer ID
- * (ASCII ref-safe: `[A-Za-z0-9._-]`, 1-64 characters).
- *
- * @example
- * buildCursorSavedRef('events', 'before-tui');
- * // => 'refs/warp/events/cursor/saved/before-tui'
- */
-export function buildCursorSavedRef(graphName: string, name: string): string {
-  validateGraphName(graphName);
-  validateWriterId(name);
-  return `${REF_PREFIX}/${graphName}/cursor/saved/${name}`;
-}
-
-/**
- * Builds the saved cursor prefix path for the given graph.
- * Useful for listing all saved cursor bookmarks under a graph
- * (e.g. via `git for-each-ref`).
- *
- * @example
- * buildCursorSavedPrefix('events');
- * // => 'refs/warp/events/cursor/saved/'
- */
-export function buildCursorSavedPrefix(graphName: string): string {
-  validateGraphName(graphName);
-  return `${REF_PREFIX}/${graphName}/cursor/saved/`;
 }
 
 /**

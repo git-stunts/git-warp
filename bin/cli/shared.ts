@@ -3,16 +3,11 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
-import { textEncode } from '../../src/domain/utils/bytes.ts';
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
-import {
-  REF_PREFIX,
-  buildCursorActiveRef,
-} from '../../src/domain/utils/RefLayout.ts';
+import { REF_PREFIX } from '../../src/domain/utils/RefLayout.ts';
 import { HookInstaller, type FsAdapter } from '../../src/domain/services/HookInstaller.ts';
-import { parseCursorBlob } from '../../src/domain/utils/parseCursorBlob.ts';
 import { usageError, notFoundError } from './infrastructure.ts';
 import { GitStorage } from '../../storage.ts';
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
@@ -20,6 +15,7 @@ import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProvi
 import type TrustChainPort from '../../src/ports/TrustChainPort.ts';
 import type CryptoPort from '../../src/ports/CryptoPort.ts';
 import type HookPathPort from '../../src/ports/HookPathPort.ts';
+import type SeekCursorStorePort from '../../src/ports/SeekCursorStorePort.ts';
 
 import type { Persistence, WarpGraphInstance, CursorBlob, CliOptions } from './types.ts';
 
@@ -122,7 +118,7 @@ export async function resolveGraphName(persistence: Persistence, explicitGraph: 
 /**
  * Opens a WarpCore for the given CLI options.
  */
-export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence; runtimeStorage: RuntimeStorageProviderPort; hookPaths: HookPathPort }> {
+export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence; runtimeStorage: RuntimeStorageProviderPort; cursorStore: SeekCursorStorePort; hookPaths: HookPathPort }> {
   const { persistence, runtimeStorage, hookPaths } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
   if (typeof options.graph === 'string' && options.graph.length > 0) {
@@ -138,15 +134,27 @@ export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraph
     writerId: options.writer,
     crypto: new WebCryptoAdapter(),
   });
-  return { graph, graphName, persistence, runtimeStorage, hookPaths };
+  const cursorStore = createSeekCursorStore(runtimeStorage, graphName);
+  return { graph, graphName, persistence, runtimeStorage, cursorStore, hookPaths };
+}
+
+/** Opens the graph-scoped durable cursor store required by v19 CLI commands. */
+export function createSeekCursorStore(
+  runtimeStorage: RuntimeStorageProviderPort,
+  graphName: string,
+): SeekCursorStorePort {
+  if (runtimeStorage.createSeekCursorStore === undefined) {
+    throw usageError('Runtime storage does not provide durable seek cursor retention');
+  }
+  return runtimeStorage.createSeekCursorStore(graphName);
 }
 
 /**
  * Reads the active cursor and sets `_seekCeiling` on the graph instance
  * so that subsequent materialize calls respect the time-travel boundary.
  */
-export async function applyCursorCeiling(graph: WarpGraphInstance, persistence: Persistence, graphName: string): Promise<{ active: boolean; tick: number | null; maxTick: number | null }> {
-  const cursor = await readActiveCursor(persistence, graphName);
+export async function applyCursorCeiling(graph: WarpGraphInstance, cursorStore: SeekCursorStorePort): Promise<{ active: boolean; tick: number | null; maxTick: number | null }> {
+  const cursor = await readActiveCursor(cursorStore);
   if (cursor) {
     graph._seekCeiling = cursor.tick;
     return { active: true, tick: cursor.tick, maxTick: null };
@@ -166,26 +174,17 @@ export function emitCursorWarning(cursorInfo: { active: boolean; tick: number | 
 }
 
 /**
- * Reads the active seek cursor for a graph from Git ref storage.
+ * Reads the active seek cursor from git-cas retention.
  */
-export async function readActiveCursor(persistence: Persistence, graphName: string): Promise<CursorBlob | null> {
-  const ref = buildCursorActiveRef(graphName);
-  const oid = await persistence.readRef(ref);
-  if (typeof oid !== 'string' || oid.length === 0) {
-    return null;
-  }
-  const buf = await persistence.readBlob(oid);
-  return parseCursorBlob(buf, 'active cursor');
+export async function readActiveCursor(cursorStore: SeekCursorStorePort): Promise<CursorBlob | null> {
+  return await cursorStore.readActive();
 }
 
 /**
- * Writes (creates or overwrites) the active seek cursor for a graph.
+ * Writes (creates or replaces) the active seek cursor in git-cas retention.
  */
-export async function writeActiveCursor(persistence: Persistence, graphName: string, cursor: CursorBlob): Promise<void> {
-  const ref = buildCursorActiveRef(graphName);
-  const json = JSON.stringify(cursor);
-  const oid = await persistence.writeBlob(textEncode(json));
-  await persistence.updateRef(ref, oid);
+export async function writeActiveCursor(cursorStore: SeekCursorStorePort, cursor: CursorBlob): Promise<void> {
+  await cursorStore.writeActive(cursor);
 }
 
 /**

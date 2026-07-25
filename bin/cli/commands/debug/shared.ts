@@ -25,8 +25,8 @@ type WarpCoreRuntime = WarpCore & RuntimeHostProduct;
  * Opens a graph with debug context including cursor state for exploratory analysis.
  */
 export async function openDebugContext(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence; activeCursor: CursorBlob | null }> {
-  const { graph, graphName, persistence } = await openGraph(options);
-  const activeCursor = await readActiveCursor(persistence, graphName);
+  const { graph, graphName, persistence, cursorStore } = await openGraph(options);
+  const activeCursor = await readActiveCursor(cursorStore);
   emitCursorWarning({
     active: activeCursor !== null,
     tick: activeCursor?.tick ?? null,

@@ -1,5 +1,5 @@
 /**
- * Utilities for parsing seek-cursor blobs stored as Git refs.
+ * Utilities for parsing immutable seek-cursor pages retained by git-cas.
  *
  * @module parseCursorBlob
  */

@@ -1,5 +1,6 @@
 import type GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import type { RuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import type { SeekCursorState } from '../../src/ports/SeekCursorStorePort.ts';
 
 export type Persistence = GitTimelineHistoryAdapter;
 export type WarpGraphInstance = RuntimeHostProduct;
@@ -10,13 +11,7 @@ export type WriterTickInfo = {
   tickShas?: Record<number, string>;
 };
 
-export type CursorBlob = {
-  tick: number;
-  mode?: string;
-  nodes?: number;
-  edges?: number;
-  frontierHash?: string;
-};
+export type CursorBlob = SeekCursorState;
 
 export type CliOptions = {
   repo: string;

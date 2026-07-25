@@ -2,6 +2,7 @@ import ContentAddressableStore, {
   CborCodec,
   type AssetCapability,
   type BundleCapability,
+  type CacheCapability,
   type ExpiringSetCapability,
   type PublicationCapability,
 } from '@git-stunts/git-cas';
@@ -33,6 +34,8 @@ import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import type GitTimelineHistoryAdapter from './GitTimelineHistoryAdapter.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import GitCasSyncReplayProtectionAdapter from './GitCasSyncReplayProtectionAdapter.ts';
+import GitCasSeekCursorStoreAdapter from './GitCasSeekCursorStoreAdapter.ts';
+import type SeekCursorStorePort from '../../ports/SeekCursorStorePort.ts';
 
 type GitCasPolicy = {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -79,6 +82,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   private readonly _cbor: InstanceType<typeof CborCodec>;
   private readonly _contentEncryption: CasContentEncryptionPolicy | undefined;
   private readonly _materializations = new Set<GitCasMaterializationStoreAdapter>();
+  private readonly _seekCursors = new Map<string, SeekCursorStorePort>();
   private _closePromise: Promise<void> | null = null;
   private _closed = false;
 
@@ -128,6 +132,23 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
       })
     );
+  }
+
+  createSeekCursorStore(timelineName: string): SeekCursorStorePort {
+    this._assertOpen();
+    const existing = this._seekCursors.get(timelineName);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const created = new GitCasSeekCursorStoreAdapter({
+      cas: {
+        caches: this._cas.caches as Pick<CacheCapability, 'open'>,
+        pages: this._cas.pages,
+      },
+      graphName: timelineName,
+    });
+    this._seekCursors.set(timelineName, created);
+    return created;
   }
 
   private _createAuditLog(content: AssetStoragePort): GitCasAuditLogAdapter {

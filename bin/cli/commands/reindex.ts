@@ -10,8 +10,8 @@ import type { CliOptions } from '../types.ts';
 export default async function handleReindex({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   parseCommandArgs(args, {}, reindexSchema);
 
-  const { graph, graphName, persistence } = await openGraph(options);
-  const cursorInfo = await applyCursorCeiling(graph, persistence, graphName);
+  const { graph, graphName, cursorStore } = await openGraph(options);
+  const cursorInfo = await applyCursorCeiling(graph, cursorStore);
   emitCursorWarning(cursorInfo, null);
 
   // Clear cached index to force full rebuild

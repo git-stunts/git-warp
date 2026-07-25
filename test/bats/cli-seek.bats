@@ -118,6 +118,13 @@ PY
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --save bp1
   assert_success
 
+  run git -C "${TEST_REPO}" for-each-ref --format='%(refname)' refs/warp/demo/cursor/
+  assert_success
+  [ -z "$output" ]
+
+  run git -C "${TEST_REPO}" show-ref --verify --hash refs/cas/caches/git-warp.seek-cursors
+  assert_success
+
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --latest
   assert_success
 

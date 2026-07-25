@@ -157,8 +157,8 @@ function buildQueryBuilder(base: QueryBuilder, values: QueryValues, args: readon
 /** Handles `git warp query`: runs the public query builder from the CLI. */
 export default async function handleQuery({ options, args }: { options: CliOptions; args: string[] }): Promise<QueryCommandResult> {
   const { values } = parseCommandArgs(args, QUERY_OPTIONS, querySchema);
-  const { graph, graphName, persistence } = await openGraph(options);
-  const cursorInfo = await applyCursorCeiling(graph, persistence, graphName);
+  const { graph, graphName, cursorStore } = await openGraph(options);
+  const cursorInfo = await applyCursorCeiling(graph, cursorStore);
   emitCursorWarning(cursorInfo, null);
   await graph.materialize();
 

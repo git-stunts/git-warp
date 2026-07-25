@@ -18,10 +18,9 @@ type CheckpointPayload =
   | { graph: string; status: 'coverage-synced' };
 
 async function assertNoActiveCursor(
-  persistence: Awaited<ReturnType<typeof openGraph>>['persistence'],
-  graphName: string,
+  cursorStore: Awaited<ReturnType<typeof openGraph>>['cursorStore'],
 ): Promise<void> {
-  const cursor = await readActiveCursor(persistence, graphName);
+  const cursor = await readActiveCursor(cursorStore);
   if (cursor !== null) {
     throw usageError('checkpoint create refuses to run while seek cursor is active; run git warp seek --latest first');
   }
@@ -38,8 +37,8 @@ async function checkpointStatus(options: CliOptions): Promise<{ payload: Checkpo
 }
 
 async function createCheckpoint(options: CliOptions): Promise<{ payload: CheckpointPayload; exitCode: number }> {
-  const { graph, graphName, persistence } = await openGraph(options);
-  await assertNoActiveCursor(persistence, graphName);
+  const { graph, graphName, cursorStore } = await openGraph(options);
+  await assertNoActiveCursor(cursorStore);
   await graph.materialize();
   const checkpoint = await graph.createCheckpoint();
   return {
