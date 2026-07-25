@@ -153,29 +153,25 @@ function withFixtureObjectTypeProbe(history: InMemoryGraphAdapter): InMemoryGrap
   const commitNodeWithTree = async (
     options: Parameters<InMemoryGraphAdapter['commitNodeWithTree']>[0],
   ): Promise<string> => {
-    const candidate = await history.commitNodeWithTree(options);
-    const oid = isGitObjectId(candidate)
-      ? candidate
-      : await fallbackObjects.writeBlob(JSON.stringify(options));
+    const oid = await normalizeToGitObjectId(
+      await history.commitNodeWithTree(options),
+      async () => await fallbackObjects.writeBlob(JSON.stringify(options)),
+    );
     publicationCommits.add(oid);
     return oid;
   };
   const writeBlob = async (
     content: Parameters<InMemoryGraphAdapter['writeBlob']>[0],
-  ): Promise<string> => {
-    const candidate = await history.writeBlob(content);
-    return isGitObjectId(candidate)
-      ? candidate
-      : await fallbackObjects.writeBlob(content);
-  };
+  ): Promise<string> => await normalizeToGitObjectId(
+    await history.writeBlob(content),
+    async () => await fallbackObjects.writeBlob(content),
+  );
   const writeTree = async (
     entries: Parameters<InMemoryGraphAdapter['writeTree']>[0],
-  ): Promise<string> => {
-    const candidate = await history.writeTree(entries);
-    return isGitObjectId(candidate)
-      ? candidate
-      : await fallbackObjects.writeTree(entries);
-  };
+  ): Promise<string> => await normalizeToGitObjectId(
+    await history.writeTree(entries),
+    async () => await fallbackObjects.writeTree(entries),
+  );
   return new Proxy(history, {
     get(target, property): unknown {
       if (property === 'readObjectType') {
@@ -194,6 +190,13 @@ function withFixtureObjectTypeProbe(history: InMemoryGraphAdapter): InMemoryGrap
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
+}
+
+async function normalizeToGitObjectId(
+  candidate: string,
+  fallback: () => Promise<string>,
+): Promise<string> {
+  return isGitObjectId(candidate) ? candidate : await fallback();
 }
 
 function isGitObjectId(value: unknown): value is string {

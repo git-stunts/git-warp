@@ -216,13 +216,14 @@ export default class CheckpointController {
     }
     if (h._indexStore !== undefined) {
       const workspace = await h._materializations.openWorkspace(coordinate);
+      let promoted: MaterializationHandle;
       try {
         const prepared = await prepareMaterializationIndexRoots({
           state,
           store: h._indexStore,
           workspace,
         });
-        return await workspace.promote({
+        promoted = await workspace.promote({
           coordinate,
           roots: materializationRootsWithIndexes(prepared),
           stateHash,
@@ -235,6 +236,8 @@ export default class CheckpointController {
         await releaseWorkspaceAfterFailure(workspace, h._logger ?? undefined);
         throw raw;
       }
+      await workspace.release();
+      return promoted;
     }
     return await h._materializations.retain({
       coordinate,

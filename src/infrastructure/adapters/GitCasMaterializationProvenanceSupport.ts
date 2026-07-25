@@ -5,7 +5,7 @@ import type {
   BundleMemberReference,
 } from '@git-stunts/git-cas';
 import MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
-import MaterializationRoots from '../../domain/materialization/MaterializationRoots.ts';
+import type MaterializationRoots from '../../domain/materialization/MaterializationRoots.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
@@ -64,17 +64,7 @@ export function replaceProvenanceSupportRoot(
   roots: MaterializationRoots,
   provenanceSupport: MaterializationRoot,
 ): MaterializationRoots {
-  return new MaterializationRoots({
-    adjacency: roots.adjacency,
-    edgeAlive: roots.edgeAlive,
-    edgeBirths: roots.edgeBirths,
-    frontier: roots.frontier,
-    nodeAlive: roots.nodeAlive,
-    properties: roots.properties,
-    provenanceSupport,
-    replayBasis: roots.replayBasis,
-    roaringIndexes: roots.roaringIndexes,
-  });
+  return roots.withRoot('provenance-support', provenanceSupport);
 }
 
 function requireProvenanceAsset(member: BundleMemberReference | null): AssetHandle {

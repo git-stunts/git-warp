@@ -4,9 +4,6 @@ import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAd
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
-import MaterializationCoordinate from '../../../src/domain/materialization/MaterializationCoordinate.ts';
-import MaterializationRoot from '../../../src/domain/materialization/MaterializationRoot.ts';
-import MaterializationRoots from '../../../src/domain/materialization/MaterializationRoots.ts';
 import { createFrontier, serializeFrontier, updateFrontier } from '../../../src/domain/services/Frontier.ts';
 import {
   computeAppliedVV,
@@ -32,6 +29,7 @@ import {
 import type AssetStoragePort from '../../../src/ports/AssetStoragePort.ts';
 import InMemoryBlobStorageAdapter from '../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from '../../helpers/InMemoryGitCasFacade.ts';
+import retainUnavailableMaterialization from '../../helpers/retainUnavailableMaterialization.ts';
 import {
   CheckpointSchemaUpgradeError,
   upgradeCheckpointSchema,
@@ -404,26 +402,12 @@ async function createCurrentCheckpoint(options: {
   state: ReturnType<typeof buildState>;
   frontier: Map<string, string>;
 }): Promise<string> {
-  const unavailable = () => MaterializationRoot.unavailable();
-  const stateHash = await computeStateHash(options.state, { crypto, codec: defaultCodec });
-  const materialization = await options.storage.materializationStore.retain({
-    coordinate: new MaterializationCoordinate({
-      frontier: options.frontier,
-      ceiling: null,
-    }),
-    roots: new MaterializationRoots({
-      adjacency: unavailable(),
-      edgeAlive: unavailable(),
-      edgeBirths: unavailable(),
-      frontier: unavailable(),
-      nodeAlive: unavailable(),
-      properties: unavailable(),
-      provenanceSupport: unavailable(),
-      replayBasis: unavailable(),
-      roaringIndexes: unavailable(),
-    }),
-    stateHash,
-    replayBasis: options.state,
+  const materialization = await retainUnavailableMaterialization({
+    materializations: options.storage.materializationStore,
+    frontier: options.frontier,
+    state: options.state,
+    crypto,
+    codec: defaultCodec,
   });
   return await createCheckpointEnvelope({
     checkpointStore: options.storage.checkpointStore,

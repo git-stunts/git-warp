@@ -9,16 +9,13 @@ import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAd
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { createFrontier } from '../../../src/domain/services/Frontier.ts';
 import { createCheckpointEnvelope } from '../../../src/domain/services/state/checkpointCreate.ts';
-import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
-import MaterializationCoordinate from '../../../src/domain/materialization/MaterializationCoordinate.ts';
-import MaterializationRoot from '../../../src/domain/materialization/MaterializationRoot.ts';
-import MaterializationRoots from '../../../src/domain/materialization/MaterializationRoots.ts';
 import {
   formatHumanResult,
   parseArgs,
   upgradeV16ToV17,
 } from '../../../scripts/upgrade-v16-to-v17.ts';
 import { parseUpgradeCommandEntrypoint } from '../../helpers/parseUpgradeCommandEntrypoint.ts';
+import retainUnavailableMaterialization from '../../helpers/retainUnavailableMaterialization.ts';
 
 function oid(hex: string): string {
   return hex.repeat(40).slice(0, 40);
@@ -82,22 +79,12 @@ describe('v16 to v17 top-level upgrade utility', () => {
     const state = createEmptyState();
     const frontier = createFrontier();
     const crypto = new NodeCryptoAdapter();
-    const unavailable = () => MaterializationRoot.unavailable();
-    const materialization = await services.materializations.retain({
-      coordinate: new MaterializationCoordinate({ frontier, ceiling: null }),
-      roots: new MaterializationRoots({
-        adjacency: unavailable(),
-        edgeAlive: unavailable(),
-        edgeBirths: unavailable(),
-        frontier: unavailable(),
-        nodeAlive: unavailable(),
-        properties: unavailable(),
-        provenanceSupport: unavailable(),
-        replayBasis: unavailable(),
-        roaringIndexes: unavailable(),
-      }),
-      stateHash: await computeStateHash(state, { codec: defaultCodec, crypto }),
-      replayBasis: state,
+    const materialization = await retainUnavailableMaterialization({
+      materializations: services.materializations,
+      frontier,
+      state,
+      codec: defaultCodec,
+      crypto,
     });
     const checkpointSha = await createCheckpointEnvelope({
       checkpointStore: services.checkpoints,

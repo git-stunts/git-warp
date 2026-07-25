@@ -46,6 +46,7 @@ import {
 import { completeWithCleanup } from './OperationCleanup.ts';
 import {
   decodeMaterializationDescriptor,
+  MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
   materializationDescriptorData,
   materializationRootsFromDescriptor,
   type DecodedMaterializationDescriptor,
@@ -62,7 +63,6 @@ import GitCasMaterializationProvenanceSupport, {
 const CACHE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_TTL_MS = 2 * 60 * 60 * 1000;
-const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
 
 export type { GitCasMaterializationFacade } from './GitCasMaterializationStoreTypes.ts';
 
@@ -221,7 +221,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
 
     const descriptorPage = await workspace.pages.put({
       source: descriptorBytes,
-      maxBytes: MAX_DESCRIPTOR_BYTES,
+      maxBytes: MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
     });
     requireWorkspaceStage(descriptorPage);
     const bundle = await workspace.bundles.putOrdered({
@@ -449,7 +449,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   async #readDescriptor(handle: PageHandle): Promise<DecodedMaterializationDescriptor> {
     const bytes = await this.#cas.pages.get({
       handle,
-      maxBytes: MAX_DESCRIPTOR_BYTES,
+      maxBytes: MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
     });
     return decodeMaterializationDescriptor(this.#codec.decode(bytes));
   }

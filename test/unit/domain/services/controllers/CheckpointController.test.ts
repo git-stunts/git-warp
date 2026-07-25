@@ -50,6 +50,8 @@ const {
   createFrontierMock,
   updateFrontierMock,
   frontierFingerprintMock,
+  materializationRootsWithIndexesMock,
+  prepareMaterializationIndexRootsMock,
 } = vi.hoisted(() => ({
   loadCheckpointMock: vi.fn(),
   createCheckpointCommitMock: vi.fn(),
@@ -63,6 +65,8 @@ const {
   createFrontierMock: vi.fn(),
   updateFrontierMock: vi.fn(),
   frontierFingerprintMock: vi.fn(),
+  materializationRootsWithIndexesMock: vi.fn(),
+  prepareMaterializationIndexRootsMock: vi.fn(),
 }));
 
 vi.mock('../../../../../src/domain/services/state/checkpointLoad.ts', () => ({
@@ -103,6 +107,11 @@ vi.mock('../../../../../src/domain/services/Frontier.ts', () => ({
   createFrontier: createFrontierMock,
   updateFrontier: updateFrontierMock,
   frontierFingerprint: frontierFingerprintMock,
+}));
+
+vi.mock('../../../../../src/domain/services/controllers/MaterializationIndexRoots.ts', () => ({
+  materializationRootsWithIndexes: materializationRootsWithIndexesMock,
+  prepareMaterializationIndexRoots: prepareMaterializationIndexRootsMock,
 }));
 
 /* ------------------------------------------------------------------ */
@@ -201,6 +210,8 @@ describe('CheckpointController', () => {
     createFrontierMock.mockReturnValue(new Map());
     updateFrontierMock.mockReturnValue(undefined);
     frontierFingerprintMock.mockReturnValue('fp-stable');
+    materializationRootsWithIndexesMock.mockReturnValue({});
+    prepareMaterializationIndexRootsMock.mockResolvedValue({});
     collectGCMetricsMock.mockReturnValue({
       nodeLiveDots: 10,
       edgeLiveDots: 5,
@@ -273,6 +284,44 @@ describe('CheckpointController', () => {
         }),
       );
       expect(createCheckpointCommitMock.mock.calls[0]?.[0]).not.toHaveProperty('indexTree');
+    });
+
+    it('releases the workspace after retaining checkpoint index roots', async () => {
+      const state = stubState();
+      const retained = { bundle: 'indexed-materialization' };
+      const promote = vi.fn().mockResolvedValue(retained);
+      const release = vi.fn().mockResolvedValue(undefined);
+      const workspace = { promote, release };
+      const openWorkspace = vi.fn().mockResolvedValue(workspace);
+      const prepared = { properties: 'properties', roaringIndexes: 'indexes' };
+      const roots = { properties: 'properties', roaringIndexes: 'indexes' };
+      prepareMaterializationIndexRootsMock.mockResolvedValue(prepared);
+      materializationRootsWithIndexesMock.mockReturnValue(roots);
+      host['_cachedState'] = state;
+      host['_stateDirty'] = false;
+      host['_materializations'] = { openWorkspace };
+      host['_indexStore'] = {};
+      host['_stateHashService'] = { compute: vi.fn().mockResolvedValue('state-hash') };
+      host['discoverWriters'] = vi.fn().mockResolvedValue([]);
+      createCheckpointCommitMock.mockResolvedValue('cp-sha');
+
+      await expect(ctrl.createCheckpoint()).resolves.toBe('cp-sha');
+
+      expect(openWorkspace).toHaveBeenCalledOnce();
+      expect(prepareMaterializationIndexRootsMock).toHaveBeenCalledWith({
+        state,
+        store: host['_indexStore'],
+        workspace,
+      });
+      expect(promote).toHaveBeenCalledWith(expect.objectContaining({
+        roots,
+        stateHash: 'state-hash',
+        replayBasis: state,
+      }));
+      expect(release).toHaveBeenCalledOnce();
+      expect(createCheckpointCommitMock).toHaveBeenCalledWith(
+        expect.objectContaining({ materialization: retained }),
+      );
     });
 
     it('fails closed when cached state is dirty', async () => {

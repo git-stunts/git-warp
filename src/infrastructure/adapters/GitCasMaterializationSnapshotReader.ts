@@ -13,6 +13,7 @@ import type CodecPort from '../../ports/CodecPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import {
   decodeMaterializationDescriptor,
+  MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
   materializationRootsFromDescriptor,
   type DecodedMaterializationDescriptor,
 } from './GitCasMaterializationDescriptor.ts';
@@ -22,8 +23,6 @@ import {
 import GitCasMaterializationReplayBasis from './GitCasMaterializationReplayBasis.ts';
 import { storageError } from './GitCasMaterializationStoreValidation.ts';
 import GitCasMaterializationProvenanceSupport from './GitCasMaterializationProvenanceSupport.ts';
-
-const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
 
 export type GitCasMaterializationSnapshotFacade = Readonly<{
   assets: Pick<AssetCapability, 'open'>;
@@ -68,7 +67,7 @@ export default class GitCasMaterializationSnapshotReader {
       decodeMaterializationDescriptor(this.#codec.decode(
         await this.#cas.pages.get({
           handle: members.descriptor,
-          maxBytes: MAX_DESCRIPTOR_BYTES,
+          maxBytes: MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
         }),
       )),
     );

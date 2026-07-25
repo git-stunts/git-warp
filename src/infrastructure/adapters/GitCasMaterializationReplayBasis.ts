@@ -6,7 +6,7 @@ import type {
 } from '@git-stunts/git-cas';
 import MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
 import MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
-import MaterializationRoots from '../../domain/materialization/MaterializationRoots.ts';
+import type MaterializationRoots from '../../domain/materialization/MaterializationRoots.ts';
 import type WarpState from '../../domain/services/state/WarpState.ts';
 import { computeStateHash } from '../../domain/services/state/StateSerializer.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
@@ -104,17 +104,7 @@ export function replaceReplayBasisRoot(
   roots: MaterializationRoots,
   replayBasis: MaterializationRoot,
 ): MaterializationRoots {
-  return new MaterializationRoots({
-    adjacency: roots.adjacency,
-    edgeAlive: roots.edgeAlive,
-    edgeBirths: roots.edgeBirths,
-    frontier: roots.frontier,
-    nodeAlive: roots.nodeAlive,
-    properties: roots.properties,
-    provenanceSupport: roots.provenanceSupport,
-    replayBasis,
-    roaringIndexes: roots.roaringIndexes,
-  });
+  return roots.withRoot('replay-basis', replayBasis);
 }
 
 function requireReplayAsset(member: BundleMemberReference | null): AssetHandle {

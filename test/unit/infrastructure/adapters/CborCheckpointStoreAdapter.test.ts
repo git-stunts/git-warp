@@ -103,10 +103,14 @@ function createFixture() {
 
 async function record(
   fixture: ReturnType<typeof createFixture>,
-  options: { indexes?: boolean; parents?: string[] } = {},
+  options: {
+    indexes?: boolean;
+    parents?: string[];
+    frontier?: Map<string, string>;
+  } = {},
 ): Promise<CheckpointRecord> {
   const state = createState();
-  const frontier = new Map([['w1', 'a'.repeat(40)]]);
+  const frontier = options.frontier ?? new Map([['w1', 'a'.repeat(40)]]);
   const coordinate = new MaterializationCoordinate({ frontier, ceiling: null });
   const adjacency = await fixture.cas.bundles.putOrdered({ members: [] });
   const unavailable = () => MaterializationRoot.unavailable();
@@ -313,13 +317,14 @@ describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
 
   it('exposes retained logical and property roots as the bounded basis', async () => {
     const fixture = createFixture();
-    const published = await fixture.checkpoints.publishCheckpoint(
-      await record(fixture, { indexes: true }),
-    );
+    const input = await record(fixture, { indexes: true });
+    const published = await fixture.checkpoints.publishCheckpoint(input);
     const basis = await fixture.checkpoints.loadBasis(published.checkpointSha);
 
-    expect(basis.indexRoot).not.toBeNull();
-    expect(basis.propertyRoot).not.toBeNull();
+    expect(basis.indexRoot?.toString())
+      .toBe(input.materialization?.roots.roaringIndexes.handle?.toString());
+    expect(basis.propertyRoot?.toString())
+      .toBe(input.materialization?.roots.properties.handle?.toString());
     expect(basis.indexShardHandles).toEqual({});
     expect(basis.frontier).toEqual(new Map([['w1', 'a'.repeat(40)]]));
   });
@@ -382,6 +387,28 @@ describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
       ...input,
       materialization: ceiling,
     })).rejects.toMatchObject({ code: 'E_CHECKPOINT_MATERIALIZATION_MISMATCH' });
+
+    await expect(fixture.checkpoints.publishCheckpoint({
+      ...input,
+      frontier: new Map([['w1', 'b'.repeat(40)]]),
+    })).rejects.toMatchObject({ code: 'E_CHECKPOINT_MATERIALIZATION_MISMATCH' });
+  });
+
+  it('compares checkpoint frontiers independent of map insertion order', async () => {
+    const fixture = createFixture();
+    const input = await record(fixture, {
+      frontier: new Map([
+        ['w1', 'a'.repeat(40)],
+        ['w2', 'b'.repeat(40)],
+      ]),
+    });
+
+    await expect(fixture.checkpoints.publishCheckpoint({
+      ...input,
+      frontier: new Map([...input.frontier].reverse()),
+    })).resolves.toMatchObject({
+      bundleHandle: input.materialization?.bundle,
+    });
   });
 
   it('rejects loaded materialization state-hash and coordinate mismatches', async () => {

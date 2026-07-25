@@ -10,6 +10,7 @@ import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
 export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 5;
+export const MATERIALIZATION_DESCRIPTOR_MAX_BYTES = 1024 * 1024;
 
 export type DecodedMaterializationDescriptor = Readonly<{
   coordinate: MaterializationCoordinate;

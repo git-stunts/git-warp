@@ -25,6 +25,7 @@ import {
 } from './GitCasMaterializationBundle.ts';
 import {
   decodeMaterializationDescriptor,
+  MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
 } from './GitCasMaterializationDescriptor.ts';
 import {
   requireDependency,
@@ -33,7 +34,6 @@ import {
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
 const CACHE_INSPECTION_PAGE_SIZE = 100;
-const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
 const MISSING_ERROR_CODES = new Set([
   'BUNDLE_MEMBER_NOT_FOUND',
   'GIT_OBJECT_NOT_FOUND',
@@ -164,7 +164,7 @@ implements MaterializationCacheDiagnosticsPort {
     const descriptor = decodeMaterializationDescriptor(
       this.#codec.decode(await this.#cas.pages.get({
         handle: members.descriptor,
-        maxBytes: MAX_DESCRIPTOR_BYTES,
+        maxBytes: MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
       })),
     );
     const expectedKey = await this.#cacheKeys.forCoordinate(descriptor.coordinate);

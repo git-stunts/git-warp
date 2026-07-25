@@ -44,6 +44,7 @@ import GitCasMaterializationSnapshotReader, {
   type MaterializationSnapshot,
 } from './GitCasMaterializationSnapshotReader.ts';
 import {
+  checkpointMaterializationMismatch,
   requireCheckpointMaterialization,
   requirePublishedBundle,
   requireRetainedBundle,
@@ -303,15 +304,13 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   ): Promise<CheckpointLayout> {
     const materialization = await this._materializationSnapshots.read(bundleHandle);
     if (materialization.stateHash !== metadata.stateHash) {
-      throw new PersistenceError(
+      throw checkpointMaterializationMismatch(
         'Checkpoint metadata does not match its materialization state hash',
-        'E_CHECKPOINT_MATERIALIZATION_MISMATCH',
       );
     }
     if (materialization.coordinate.ceiling !== null) {
-      throw new PersistenceError(
+      throw checkpointMaterializationMismatch(
         'Checkpoint materialization does not represent a live coordinate',
-        'E_CHECKPOINT_MATERIALIZATION_MISMATCH',
       );
     }
     return {

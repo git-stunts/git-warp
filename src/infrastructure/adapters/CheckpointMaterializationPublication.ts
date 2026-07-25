@@ -14,13 +14,18 @@ export function requireCheckpointMaterialization(
     );
   }
   if (materialization.stateHash !== record.stateHash) {
-    throw materializationMismatch(
+    throw checkpointMaterializationMismatch(
       'Checkpoint state hash does not match its retained materialization',
     );
   }
   if (materialization.coordinate.ceiling !== null) {
-    throw materializationMismatch(
+    throw checkpointMaterializationMismatch(
       'Checkpoint materialization must represent the live coordinate',
+    );
+  }
+  if (!frontiersEqual(materialization.coordinate.frontier(), record.frontier)) {
+    throw checkpointMaterializationMismatch(
+      'Checkpoint frontier does not match its retained materialization',
     );
   }
   return materialization;
@@ -52,6 +57,14 @@ export function requireRetainedBundle(
   }
 }
 
-function materializationMismatch(message: string): PersistenceError {
+export function checkpointMaterializationMismatch(message: string): PersistenceError {
   return new PersistenceError(message, 'E_CHECKPOINT_MATERIALIZATION_MISMATCH');
+}
+
+function frontiersEqual(
+  left: ReadonlyMap<string, string>,
+  right: ReadonlyMap<string, string>,
+): boolean {
+  return left.size === right.size
+    && [...left].every(([writerId, patchSha]) => right.get(writerId) === patchSha);
 }
