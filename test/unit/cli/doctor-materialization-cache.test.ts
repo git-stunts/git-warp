@@ -111,6 +111,20 @@ describe('materialization-cache doctor check', () => {
     ]);
   });
 
+  it('fails closed when git-cas reports unhealthy without issue details', async () => {
+    const findings = await checkMaterializationCache(
+      contextWithInspection(inspection({ healthy: false })),
+    );
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        status: 'fail',
+        code: CODES.MATERIALIZATION_CACHE_INVALID,
+        message: 'git-cas reported the materialization cache as unhealthy',
+      }),
+    ]);
+  });
+
   it('reports partial repair when git-cas still finds missing bytes', () => {
     const before = inspection({
       healthy: false,

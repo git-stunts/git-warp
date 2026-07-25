@@ -111,13 +111,15 @@ function invalidCacheFinding(
   inspection: MaterializationCacheInspection,
   evidence: FindingEvidence,
 ): DoctorFinding | null {
-  if (inspection.healthy || inspection.issues.length === 0) { return null; }
+  if (inspection.healthy) { return null; }
   return {
     id: 'materialization-cache-structure',
     status: 'fail',
     code: CODES.MATERIALIZATION_CACHE_INVALID,
     impact: 'data_integrity',
-    message: `git-cas reported ${inspection.issues.length} materialization-cache structural issue(s)`,
+    message: inspection.issues.length === 0
+      ? 'git-cas reported the materialization cache as unhealthy'
+      : `git-cas reported ${inspection.issues.length} materialization-cache structural issue(s)`,
     fix: 'Run `git warp doctor --repair-materialization-cache`; repair will remove invalid cache entries but cannot recreate missing bytes',
     evidence,
   };
