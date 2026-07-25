@@ -70,6 +70,7 @@ import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type IntentStorePort from '../ports/IntentStorePort.ts';
 import type MaterializationStorePort from '../ports/MaterializationStorePort.ts';
 import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
+import type SyncReplayProtectionPort from '../ports/SyncReplayProtectionPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type WarpState from './services/state/WarpState.ts';
 import type SnapshotWarpState from './services/snapshot/SnapshotWarpState.ts';
@@ -258,6 +259,7 @@ export default class RuntimeHost {
   _stateHashService: StateHashService | null;
   _auditService: AuditReceiptService | null;
   _materializations: MaterializationStorePort;
+  _syncReplayProtection: SyncReplayProtectionPort | null;
   _closePromise: Promise<void> | null;
 
   /**
@@ -292,6 +294,7 @@ export default class RuntimeHost {
       indexStore,
       intentStore,
       materializations,
+      syncReplayProtection,
       viewService,
       stateHashService,
       auditService,
@@ -340,6 +343,7 @@ export default class RuntimeHost {
     this._auditSkipCount = 0;
     this._trustConfig = normalizeTrustConfig(trust);
     this._stateHashService = stateHashService || null;
+    this._syncReplayProtection = syncReplayProtection ?? null;
 
     this._createSyncTrustGate = (override) => {
       const config = normalizeTrustConfig(override ?? this._trustConfig);

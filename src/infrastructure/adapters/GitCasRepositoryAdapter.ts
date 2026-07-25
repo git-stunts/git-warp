@@ -2,6 +2,7 @@ import ContentAddressableStore, {
   CborCodec,
   type AssetCapability,
   type BundleCapability,
+  type ExpiringSetCapability,
   type PublicationCapability,
 } from '@git-stunts/git-cas';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
@@ -31,6 +32,7 @@ import type { GitPlumbing } from './gitErrorClassification.ts';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import type GitTimelineHistoryAdapter from './GitTimelineHistoryAdapter.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
+import GitCasSyncReplayProtectionAdapter from './GitCasSyncReplayProtectionAdapter.ts';
 
 type GitCasPolicy = {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -52,6 +54,7 @@ export type GitCasFacade = Pick<
   readonly caches: GitCasMaterializationFacade['caches'];
   readonly pages: GitCasMaterializationFacade['pages'];
   readonly workspaces: GitCasMaterializationFacade['workspaces'];
+  readonly expiringSets: Pick<ExpiringSetCapability, 'open'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
   readonly rootSets: {
     open(options: { readonly ref: string }): Promise<GitCasRootSetClient>;
@@ -117,6 +120,10 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         checkpoints: this._createCheckpointStore(request, content),
         indexes: this._createIndexStore(request, content),
         materializations,
+        syncReplayProtection: new GitCasSyncReplayProtectionAdapter({
+          cas: this._cas,
+          graphName: request.timelineName,
+        }),
         stateSnapshots: this._createStateSnapshots(request),
         trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
       })

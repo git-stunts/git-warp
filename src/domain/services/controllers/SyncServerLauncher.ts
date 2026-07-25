@@ -77,6 +77,7 @@ export async function launchSyncServer(
     ? {
         ...auth,
         crypto: host._crypto,
+        replayProtection: requireReplayProtection(host),
         ...(host._logger ? { logger: host._logger } : {}),
       }
     : undefined;
@@ -94,6 +95,16 @@ export async function launchSyncServer(
   });
 
   return await httpServer.listen(port);
+}
+
+function requireReplayProtection(host: SyncHost) {
+  if (host._syncReplayProtection === null) {
+    throw new SyncError('Authenticated sync requires durable replay protection', {
+      code: 'E_SYNC_AUTH_REPLAY_STORE',
+      context: {},
+    });
+  }
+  return host._syncReplayProtection;
 }
 
 /**

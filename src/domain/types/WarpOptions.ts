@@ -20,7 +20,6 @@ export type ServeOptions = {
     mode?: 'enforce' | 'log-only';
     crypto?: CryptoPort;
     logger?: LoggerPort;
-    wallClockMs?: () => number;
     rateLimit?: SyncRateLimitConfig;
   };
   unsafeAllowUnauthenticatedLocalhost?: boolean;

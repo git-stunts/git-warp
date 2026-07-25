@@ -81,6 +81,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `EdgePropSet` operations at the exact coordinate. The targeted reducer keeps
   one edge's birth event and winning LWW property bag so values from before an
   edge rebirth remain hidden without whole-state projection.
+- Changed authenticated sync replay admission to an atomic, graph-scoped
+  git-cas `ExpiringSet`. Accepted nonces remain retained for WARP's fixed
+  ten-minute acceptance window across process restart, cannot be evicted under
+  capacity pressure, and become collectible only after expiry and sweep.
 
 ### Removed
 
@@ -91,6 +95,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed migration and cleanup support for unreleased materialization
   descriptor schemas v2 through v4. Schema v5 is the first release contract;
   stale derived-cache entries miss and rebuild from authoritative WARP history.
+- Removed `SyncAuthService`'s process-local nonce LRU, `nonceCapacity`,
+  `nonceEvictions`, and the inert public `auth.wallClockMs` option. Authenticated
+  serving now fails closed unless runtime storage supplies durable replay
+  protection.
 
 ### Fixed
 

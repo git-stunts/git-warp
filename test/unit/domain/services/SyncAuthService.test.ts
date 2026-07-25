@@ -5,8 +5,10 @@ import SyncAuthService, {
   signSyncRequest,
   canonicalizePath,
   buildCanonicalPayload,
+  SYNC_REPLAY_ACCEPTANCE_WINDOW_MS,
 } from '../../../../src/domain/services/sync/SyncAuthService.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
+import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
 
 const SECRET_VALUE = 'test-secret-key-1234567890';
 const SECRET = SyncSecret.fromString(SECRET_VALUE);
@@ -63,8 +65,15 @@ async function buildSignedRequest(overrides: Record<string, string> = {}) {
   };
 }
 
-function makeService(opts: Record<string, unknown> = {}) {
+function createService(options: Record<string, unknown> | undefined): SyncAuthService {
   return new SyncAuthService({
+    replayProtection: new InMemorySyncReplayProtection(),
+    ...options,
+  } as unknown as ConstructorParameters<typeof SyncAuthService>[0]);
+}
+
+function makeService(opts: Record<string, unknown> = {}) {
+  return createService({
     keys: KEYS,
     crypto: defaultCrypto,
     ...opts,
@@ -194,7 +203,7 @@ describe('signSyncRequest', () => {
   });
 
   it('produces a signature verifiable by SyncAuthService', async () => {
-    const svc = new SyncAuthService({
+    const svc = createService({
       keys: KEYS,
       crypto: defaultCrypto,
     });
@@ -795,21 +804,6 @@ describe('Metrics', () => {
     expect(snap2.authFailCount).toBe(1);
   });
 
-  it('counts nonce evictions at capacity boundary', async () => {
-    const svc = makeService({ nonceCapacity: 2 });
-
-    // Fill the cache with 2 nonces (each needs increasing lamport)
-    const req1 = await buildSignedRequest();
-    await svc.verify(req1);
-    const req2 = await buildSignedRequest();
-    await svc.verify(req2);
-    expect(svc.getMetrics().nonceEvictions).toBe(0);
-
-    // Third request should trigger eviction
-    const req3 = await buildSignedRequest();
-    await svc.verify(req3);
-    expect(svc.getMetrics().nonceEvictions).toBe(1);
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -848,12 +842,12 @@ describe('verify() nonce ordering', () => {
     const r1 = await svc.verify(badReq);
     expect(r1).toEqual({ ok: false, reason: 'INVALID_SIGNATURE', status: 401 });
 
-    // Now send the original valid request with the same nonce and lamport
-    // Lamport was consumed even on sig failure, so this will get STALE_LAMPORT
-    // unless we build a new request with higher lamport
-    // Actually: _validateFreshness updates lastSeen even on failure? Let's check.
-    // Looking at the source: _validateFreshness sets lastSeen BEFORE returning ok.
-    // So the lamport IS consumed. We need a fresh request with higher lamport.
+    // Signature failures do not consume either the nonce or Lamport coordinate.
+    const r2 = await svc.verify(validReq);
+    expect(r2).toEqual({ ok: true });
+
+    // Reuse the now-reserved nonce with a higher Lamport coordinate so the
+    // replay authority, rather than the freshness gate, makes the decision.
     const body = validReq.body;
     const nonce = validReq.headers['x-warp-nonce'] ?? '';
     const higherLamport = String(Number(validReq.headers['x-warp-timestamp']) + 1);
@@ -870,7 +864,7 @@ describe('verify() nonce ordering', () => {
     const hmacBuf = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
-    const r2 = await svc.verify({
+    const r3 = await svc.verify({
       method: 'POST',
       url: '/sync',
       headers: {
@@ -883,33 +877,70 @@ describe('verify() nonce ordering', () => {
       },
       body,
     });
-    // Nonce was not consumed on the invalid-sig attempt, so this should succeed
-    expect(r2).toEqual({ ok: true });
-
-    // Now replay same nonce with even higher lamport — should be REPLAY
-    const evenHigher = String(Number(higherLamport) + 1);
-    const canonical3 = buildCanonicalPayload({
-      keyId: KEY_ID, method: 'POST', path: '/sync',
-      timestamp: evenHigher, nonce,
-      contentType: 'application/json', bodySha256,
-    });
-    const hmac3 = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical3);
-    const sig3 = Buffer.from(hmac3).toString('hex');
-
-    const r3 = await svc.verify({
-      method: 'POST',
-      url: '/sync',
-      headers: {
-        'content-type': 'application/json',
-        'x-warp-sig-version': '2',
-        'x-warp-key-id': KEY_ID,
-        'x-warp-timestamp': evenHigher,
-        'x-warp-nonce': nonce,
-        'x-warp-signature': sig3,
-      },
-      body,
-    });
     expect(r3).toEqual({ ok: false, reason: 'REPLAY', status: 403 });
+  });
+});
+
+describe('durable replay authority', () => {
+  it('retains an admitted nonce across service restart', async () => {
+    const replayProtection = new InMemorySyncReplayProtection();
+    const request = await buildSignedRequest();
+    const first = makeService({ replayProtection });
+    const restarted = makeService({ replayProtection });
+
+    expect(await first.verify(request)).toEqual({ ok: true });
+    expect(await restarted.verify(request)).toEqual({
+      ok: false,
+      reason: 'REPLAY',
+      status: 403,
+    });
+  });
+
+  it('gives concurrent duplicate admission exactly one winner', async () => {
+    const replayProtection = new InMemorySyncReplayProtection();
+    const request = await buildSignedRequest();
+    const left = makeService({ replayProtection });
+    const right = makeService({ replayProtection });
+
+    const results = await Promise.all([
+      left.verify(request),
+      right.verify(request),
+    ]);
+
+    expect(results.filter(result => result.ok)).toHaveLength(1);
+    expect(results.filter(result => !result.ok && result.reason === 'REPLAY')).toHaveLength(1);
+  });
+
+  it('allows an expired nonce only after the retention authority sweeps it', async () => {
+    const clock = makeManualClock();
+    const replayProtection = new InMemorySyncReplayProtection(clock.now);
+    const request = await buildSignedRequest();
+    const first = makeService({
+      replayProtection,
+    });
+
+    expect(await first.verify(request)).toEqual({ ok: true });
+    clock.advance(SYNC_REPLAY_ACCEPTANCE_WINDOW_MS + 1);
+    expect(await replayProtection.sweep()).toMatchObject({ removed: 1 });
+
+    const restarted = makeService({
+      replayProtection,
+    });
+    expect(await restarted.verify(request)).toEqual({ ok: true });
+  });
+
+  it('fails closed when the replay authority is unavailable', async () => {
+    const request = await buildSignedRequest();
+    const svc = makeService({
+      replayProtection: {
+        reserve: async () => {
+          throw new Error('replay store unavailable');
+        },
+        sweep: async () => ({ removed: 0, generation: null }),
+      },
+    });
+
+    await expect(svc.verify(request)).rejects.toThrow('replay store unavailable');
   });
 });
 
@@ -917,20 +948,29 @@ describe('verify() nonce ordering', () => {
 // Constructor
 // ---------------------------------------------------------------------------
 describe('Constructor', () => {
+  it('rejects missing durable replay protection', () => {
+    expect(() => new SyncAuthService({
+      keys: syncKeys({ k: 's' }),
+      crypto: defaultCrypto,
+    } as ConstructorParameters<typeof SyncAuthService>[0])).toThrow(
+      'requires durable replay protection',
+    );
+  });
+
   it('rejects empty keys map', () => {
-    expect(() => new SyncAuthService({ keys: {} })).toThrow('non-empty keys map');
+    expect(() => createService({ keys: {} })).toThrow('non-empty keys map');
   });
 
   it('rejects missing keys option', () => {
-    expect(() => new SyncAuthService({} as any)).toThrow('non-empty keys map');
+    expect(() => createService({} as any)).toThrow('non-empty keys map');
   });
 
   it('rejects undefined options', () => {
-    expect(() => new SyncAuthService((undefined as any))).toThrow('non-empty keys map');
+    expect(() => createService((undefined as any))).toThrow('non-empty keys map');
   });
 
   it('defaults optional params without throwing', () => {
-    const svc = new SyncAuthService({ keys: syncKeys({ k: 's' }), crypto: defaultCrypto });
+    const svc = createService({ keys: syncKeys({ k: 's' }), crypto: defaultCrypto });
     expect(svc.mode).toBe('enforce');
     expect(svc.getMetrics().authFailCount).toBe(0);
   });
@@ -941,7 +981,7 @@ describe('Constructor', () => {
 // ---------------------------------------------------------------------------
 describe('verifyWriters()', () => {
   it('allows all writers when allowedWriters is not set', async () => {
-    const auth = new SyncAuthService({
+    const auth = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
     });
@@ -950,7 +990,7 @@ describe('verifyWriters()', () => {
   });
 
   it('allows listed writers', async () => {
-    const auth = new SyncAuthService({
+    const auth = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       allowedWriters: ['alice', 'bob'],
@@ -960,7 +1000,7 @@ describe('verifyWriters()', () => {
   });
 
   it('rejects unlisted writers with FORBIDDEN_WRITER 403', async () => {
-    const auth = new SyncAuthService({
+    const auth = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       allowedWriters: ['alice'],
@@ -974,7 +1014,7 @@ describe('verifyWriters()', () => {
   });
 
   it('increments forbiddenWriterRejects metric', async () => {
-    const auth = new SyncAuthService({
+    const auth = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       allowedWriters: ['alice'],
@@ -984,7 +1024,7 @@ describe('verifyWriters()', () => {
   });
 
   it('validates writer IDs at construction time', () => {
-    expect(() => new SyncAuthService({
+    expect(() => createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       allowedWriters: ['valid', 'a/b'],
@@ -992,7 +1032,7 @@ describe('verifyWriters()', () => {
   });
 
   it('rejects empty allowedWriters array', () => {
-    expect(() => new SyncAuthService({
+    expect(() => createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       allowedWriters: [],
@@ -1015,7 +1055,7 @@ describe('mode-agnostic validation', () => {
   });
 
   it('verifyWriters() returns { ok: false } in log-only mode (caller decides enforcement)', () => {
-    const svc = new SyncAuthService({
+    const svc = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       mode: 'log-only',
@@ -1034,7 +1074,7 @@ describe('mode-agnostic validation', () => {
 // ---------------------------------------------------------------------------
 describe('enforceWriters()', () => {
   it('rejects forbidden writers in enforce mode', () => {
-    const svc = new SyncAuthService({
+    const svc = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       mode: 'enforce',
@@ -1049,7 +1089,7 @@ describe('enforceWriters()', () => {
   });
 
   it('allows forbidden writers through in log-only mode', () => {
-    const svc = new SyncAuthService({
+    const svc = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       mode: 'log-only',
@@ -1060,7 +1100,7 @@ describe('enforceWriters()', () => {
   });
 
   it('increments logOnlyPassthroughs in log-only mode', () => {
-    const svc = new SyncAuthService({
+    const svc = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       mode: 'log-only',
@@ -1071,7 +1111,7 @@ describe('enforceWriters()', () => {
   });
 
   it('still increments forbiddenWriterRejects metric in log-only mode', () => {
-    const svc = new SyncAuthService({
+    const svc = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       mode: 'log-only',
@@ -1082,7 +1122,7 @@ describe('enforceWriters()', () => {
   });
 
   it('allows listed writers in any mode', () => {
-    const svc = new SyncAuthService({
+    const svc = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       mode: 'enforce',
@@ -1092,7 +1132,7 @@ describe('enforceWriters()', () => {
   });
 
   it('passes through when no allowedWriters configured', () => {
-    const svc = new SyncAuthService({
+    const svc = createService({
       keys: syncKeys({ default: 'secret123' }),
       crypto: defaultCrypto,
       mode: 'enforce',

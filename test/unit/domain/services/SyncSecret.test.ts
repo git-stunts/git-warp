@@ -6,6 +6,7 @@ import SyncAuthService, {
   signSyncRequest,
 } from '../../../../src/domain/services/sync/SyncAuthService.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
+import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
 
 describe('SyncSecret', () => {
   it('redacts accidental string, JSON, and inspect output', () => {
@@ -22,6 +23,7 @@ describe('SyncSecret', () => {
     const service = new SyncAuthService({
       keys: { default: secret },
       crypto: defaultCrypto,
+      replayProtection: new InMemorySyncReplayProtection(),
     });
     const body = new TextEncoder().encode('verify-me');
     const headers = await signSyncRequest(
@@ -52,6 +54,7 @@ describe('SyncSecret', () => {
       // @ts-expect-error Runtime guard mirrors the public type boundary.
       keys: { default: 'test-secret-key-1234567890' },
       crypto: defaultCrypto,
+      replayProtection: new InMemorySyncReplayProtection(),
     })).toThrow('SyncAuthService requires SyncSecret values');
   });
 });
