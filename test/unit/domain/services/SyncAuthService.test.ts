@@ -9,6 +9,7 @@ import SyncAuthService, {
 } from '../../../../src/domain/services/sync/SyncAuthService.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
+import { createMockLogger } from '../../../helpers/mockPorts.ts';
 
 const SECRET_VALUE = 'test-secret-key-1234567890';
 const SECRET = SyncSecret.fromString(SECRET_VALUE);
@@ -931,7 +932,9 @@ describe('durable replay authority', () => {
 
   it('fails closed when the replay authority is unavailable', async () => {
     const request = await buildSignedRequest();
+    const logger = createMockLogger();
     const svc = makeService({
+      logger,
       replayProtection: {
         reserve: async () => {
           throw new Error('replay store unavailable');
@@ -940,7 +943,19 @@ describe('durable replay authority', () => {
       },
     });
 
-    await expect(svc.verify(request)).rejects.toThrow('replay store unavailable');
+    await expect(svc.verify(request)).resolves.toEqual({
+      ok: false,
+      reason: 'REPLAY_STORE_UNAVAILABLE',
+      status: 503,
+    });
+    expect(svc.getMetrics()).toMatchObject({
+      authFailCount: 1,
+      replayStoreFailures: 1,
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      'sync auth: replay protection unavailable',
+      { keyId: KEY_ID },
+    );
   });
 });
 

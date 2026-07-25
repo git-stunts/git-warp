@@ -106,6 +106,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CAS operations, then closed history, materialization, and CAS owners at
   application, CLI, migration, and test boundaries. This removes repeated
   `cat-file` and `mktree` process startup without leaking subprocesses.
+- Replay-store failures now produce a stable `REPLAY_STORE_UNAVAILABLE` HTTP
+  503 result without exposing adapter errors. Replay retention also sweeps
+  opportunistically on authenticated traffic at a bounded ten-minute cadence.
 - Live exact node-property reads now retain collision-safe property shards as
   an independently addressed materialization root. Each node uses its full
   BLAKE3 route key and a deterministic schema-v2 entry-bag envelope; writes and

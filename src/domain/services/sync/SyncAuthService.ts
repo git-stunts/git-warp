@@ -105,6 +105,7 @@ function fail(reason: string, status: number): FailResult {
 interface AuthMetrics {
   authFailCount: number;
   replayRejectCount: number;
+  replayStoreFailures: number;
   clockSkewRejects: number;
   malformedRejects: number;
   logOnlyPassthroughs: number;
@@ -116,6 +117,7 @@ function _freshMetrics(): AuthMetrics {
   return {
     authFailCount: 0,
     replayRejectCount: 0,
+    replayStoreFailures: 0,
     clockSkewRejects: 0,
     malformedRejects: 0,
     logOnlyPassthroughs: 0,
@@ -281,16 +283,22 @@ export default class SyncAuthService {
   }
 
   private async _reserveNonce(keyId: string, nonce: string): Promise<FailResult | OkResult> {
-    const reservation = await this._replayProtection.reserve({
-      keyId,
-      nonce,
-      ttlMs: SYNC_REPLAY_ACCEPTANCE_WINDOW_MS,
-    });
-    if (!reservation.admitted) {
-      this._metrics.replayRejectCount += 1;
-      return fail('REPLAY', 403);
+    try {
+      const reservation = await this._replayProtection.reserve({
+        keyId,
+        nonce,
+        ttlMs: SYNC_REPLAY_ACCEPTANCE_WINDOW_MS,
+      });
+      if (!reservation.admitted) {
+        this._metrics.replayRejectCount += 1;
+        return fail('REPLAY', 403);
+      }
+      return { ok: true };
+    } catch {
+      this._metrics.replayStoreFailures += 1;
+      this._logger.error('sync auth: replay protection unavailable', { keyId });
+      return fail('REPLAY_STORE_UNAVAILABLE', 503);
     }
-    return { ok: true };
   }
 
   private _resolveKey(keyId: string): FailResult | (OkResult & { secret: SyncSecret }) {
@@ -389,7 +397,10 @@ export default class SyncAuthService {
 
     const nonceResult = await this._reserveNonce(keyId, nonce);
     if (!nonceResult.ok) {
-      return this._fail('replay detected', { keyId, nonce }, nonceResult);
+      if (nonceResult.reason === 'REPLAY') {
+        return this._fail('replay detected', { keyId, nonce }, nonceResult);
+      }
+      return this._fail('replay protection unavailable', { keyId }, nonceResult);
     }
 
     const rateLimitResult = this._consumeRateLimit(keyId);

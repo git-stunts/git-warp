@@ -13,6 +13,7 @@ export type GitCasSyncReplayFacade = {
 type ReplaySet = Awaited<ReturnType<ExpiringSetCapability['open']>>;
 
 const REPLAY_NAMESPACE = 'git-warp.sync-replay';
+const REPLAY_SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 
 /**
  * git-cas ExpiringSet-backed replay admission.
@@ -24,15 +25,20 @@ export default class GitCasSyncReplayProtectionAdapter implements SyncReplayProt
   private readonly _set: Promise<ReplaySet>;
   private readonly _wallClockMs: () => number;
   private readonly _graphName: string;
+  private _nextSweepAtMs = 0;
+  private _sweepInFlight: Promise<SyncReplaySweepResult> | null = null;
 
   constructor(options: {
     readonly cas: GitCasSyncReplayFacade;
     readonly graphName: string;
     readonly wallClockMs?: () => number;
   }) {
-    this._set = options.cas.expiringSets.open({
+    const replaySet = options.cas.expiringSets.open({
       namespace: REPLAY_NAMESPACE,
     });
+    // Mark an eager open failure handled until a reserve or sweep caller awaits it.
+    replaySet.catch(() => {});
+    this._set = replaySet;
     this._wallClockMs = options.wallClockMs ?? Date.now;
     this._graphName = options.graphName;
   }
@@ -40,8 +46,12 @@ export default class GitCasSyncReplayProtectionAdapter implements SyncReplayProt
   async reserve(
     request: SyncReplayReservationRequest,
   ): Promise<SyncReplayReservation> {
+    const nowMs = this._wallClockMs();
+    if (nowMs >= this._nextSweepAtMs) {
+      await this.sweep();
+    }
     const replaySet = await this._set;
-    const expiresAt = new Date(this._wallClockMs() + request.ttlMs).toISOString();
+    const expiresAt = new Date(nowMs + request.ttlMs).toISOString();
     const result = await replaySet.addIfAbsent(replayIdentity(this._graphName, request), {
       expiresAt,
     });
@@ -53,8 +63,19 @@ export default class GitCasSyncReplayProtectionAdapter implements SyncReplayProt
   }
 
   async sweep(): Promise<SyncReplaySweepResult> {
+    if (this._sweepInFlight === null) {
+      this._sweepInFlight = this._sweepRetainedMarkers()
+        .finally(() => {
+          this._sweepInFlight = null;
+        });
+    }
+    return await this._sweepInFlight;
+  }
+
+  private async _sweepRetainedMarkers(): Promise<SyncReplaySweepResult> {
     const replaySet = await this._set;
     const result = await replaySet.sweep();
+    this._nextSweepAtMs = this._wallClockMs() + REPLAY_SWEEP_INTERVAL_MS;
     return Object.freeze({
       removed: result.removed,
       generation: result.generation,

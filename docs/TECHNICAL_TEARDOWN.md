@@ -1438,8 +1438,11 @@ The replay reservation is stored in a graph-scoped git-cas `ExpiringSet`, not
 an in-process LRU. WARP supplies a fixed ten-minute TTL; git-cas atomically
 admits one concurrent writer, retains every live marker across restart without
 capacity eviction, and releases expired markers only when the collection is
-swept. If durable replay storage is unavailable, authenticated serving fails
-closed.
+swept. The adapter sweeps opportunistically before the first authenticated
+admission and again after each ten-minute maintenance interval; concurrent
+admissions share one in-flight sweep. If durable replay storage is unavailable,
+authenticated serving fails closed with `REPLAY_STORE_UNAVAILABLE` and HTTP
+503 without exposing the adapter failure.
 
 Auth mode can be `enforce` or `log-only`. In log-only mode failures are logged
 and counted but the request continues. This is useful for staged rollout, but it
