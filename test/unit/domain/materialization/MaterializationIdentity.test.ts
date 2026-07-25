@@ -145,7 +145,7 @@ describe('MaterializationRoots', () => {
     expect(() => Reflect.apply(materializationRoots().withRoot, materializationRoots(), [
       'future-root',
       retainedRoot('future-root'),
-    ])).toThrowError(/unknown root name/u);
+    ])).toThrowError(/unsupported root name/u);
   });
 
   it.each([

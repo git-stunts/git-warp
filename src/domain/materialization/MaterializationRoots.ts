@@ -110,7 +110,7 @@ export default class MaterializationRoots {
 
 function requireRootName(name: MaterializationRootName): MaterializationRootName {
   if (!MATERIALIZATION_ROOT_NAMES.includes(name)) {
-    throw rootsError(`unknown root name: ${String(name)}`);
+    throw rootsError(`unsupported root name: ${String(name)}`);
   }
   return name;
 }
