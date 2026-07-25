@@ -1,6 +1,5 @@
 import { IndexError, ShardLoadError, ShardCorruptionError } from '../../errors/index.ts';
 import nullLogger from '../../utils/nullLogger.ts';
-import LRUCache from '../../utils/LRUCache.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
@@ -10,11 +9,6 @@ import AssetHandle from '../../storage/AssetHandle.ts';
 import { collectAsyncIterable } from '../../utils/streamUtils.ts';
 
 type LoadedShard = Record<string, number> | Record<string, Uint8Array>;
-
-/** Default maximum number of shards to cache. */
-const DEFAULT_MAX_CACHED_SHARDS = 100;
-const LARGE_ID_CACHE_WARNING_THRESHOLD = 1_000_000;
-const ESTIMATED_ID_CACHE_ENTRY_BYTES = 40;
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
@@ -41,7 +35,8 @@ function isChunkedVariant(path: string, basePath: string): boolean {
  * Service for querying a loaded bitmap index.
  *
  * Provides O(1) lookups for parent/child relationships by lazily loading
- * sharded CBOR bitmap data from storage. Shards are cached after first access.
+ * sharded CBOR bitmap data from storage. Reusable shard residency belongs to
+ * the concrete index store; this reader retains only opaque shard handles.
  *
  * Shard format: plain CBOR (no envelopes). git-cas handles integrity
  * at the storage layer.
@@ -56,28 +51,21 @@ export default class BitmapIndexReader {
   private readonly strict: boolean;
   private readonly logger: LoggerPort;
   private readonly _codec: CodecPort | null;
-  readonly maxCachedShards: number;
   private shardHandles: Map<string, AssetHandle>;
-  private readonly loadedShards: LRUCache<string, LoadedShard>;
-  private _idToShaCache: string[] | null;
 
   constructor(options: {
     indexStore: IndexStorePort;
     strict?: boolean;
     logger?: LoggerPort;
-    maxCachedShards?: number;
     codec?: CodecPort;
   }) {
-    const { indexStore, strict = true, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, codec } = options;
+    const { indexStore, strict = true, logger = nullLogger, codec } = options;
     BitmapIndexReader._assertStorage(indexStore);
     this.indexStore = indexStore;
     this.strict = strict;
     this.logger = logger;
     this._codec = codec ?? null;
-    this.maxCachedShards = maxCachedShards;
     this.shardHandles = new Map();
-    this.loadedShards = new LRUCache(maxCachedShards);
-    this._idToShaCache = null;
   }
 
   private static _assertStorage(indexStore: IndexStorePort | null | undefined): void {
@@ -112,8 +100,6 @@ export default class BitmapIndexReader {
       }
     }
     this.shardHandles = new Map(validEntries);
-    this._idToShaCache = null;
-    this.loadedShards.clear();
   }
 
   /**
@@ -168,15 +154,7 @@ export default class BitmapIndexReader {
         neighborIds.add(id);
       }
     }
-    const idToSha = await this._buildIdToShaMapping();
-    const result: string[] = [];
-    for (const id of neighborIds) {
-      const neighbor = idToSha[id];
-      if (typeof neighbor === 'string') {
-        result.push(neighbor);
-      }
-    }
-    return result;
+    return await this._resolveNeighborShas(neighborIds);
   }
 
   private _deserializeBitmapIds(bitmapBytes: Uint8Array, shardPath: string): number[] {
@@ -205,49 +183,36 @@ export default class BitmapIndexReader {
     }
   }
 
-  private async _buildIdToShaMapping(): Promise<string[]> {
-    if (this._idToShaCache !== null) {
-      return this._idToShaCache;
-    }
-    const cache: string[] = [];
-    this._idToShaCache = cache;
-
+  private async _resolveNeighborShas(neighborIds: ReadonlySet<number>): Promise<string[]> {
+    const matches = new Map<number, string>();
     for (const [path] of this.shardHandles) {
       if (!isMetaShardPath(path)) {
         continue;
       }
       const shard = await this._getOrLoadShard(path) as Record<string, number>;
       for (const [sha, id] of Object.entries(shard)) {
-        cache[id] = sha;
+        if (neighborIds.has(id)) {
+          matches.set(id, sha);
+        }
       }
     }
-
-    this._warnLargeIdCache(cache.length);
-    return cache;
-  }
-
-  private _warnLargeIdCache(entryCount: number): void {
-    if (entryCount < LARGE_ID_CACHE_WARNING_THRESHOLD) {
-      return;
+    const result: string[] = [];
+    for (const id of neighborIds) {
+      const sha = matches.get(id);
+      if (sha !== undefined) {
+        result.push(sha);
+      }
     }
-    this.logger.warn('ID-to-SHA cache has high memory usage', {
-      operation: '_buildIdToShaMapping',
-      entryCount,
-      estimatedMemoryBytes: entryCount * ESTIMATED_ID_CACHE_ENTRY_BYTES,
-    });
+    return result;
   }
 
   private async _getOrLoadShard(path: string): Promise<LoadedShard> {
-    const cached = this.loadedShards.get(path);
-    if (cached !== undefined) {
-      return cached;
-    }
     const handle = this.shardHandles.get(path);
     if (handle === undefined) {
       return {};
     }
     const buffer = await this._loadShardBuffer(path, handle);
-    return this._decodeAndCacheShard(buffer, path, handle.toString());
+    return this._decodeShard(buffer, path, handle.toString());
   }
 
   private _resolveShardPaths(basePath: string): string[] {
@@ -258,13 +223,12 @@ export default class BitmapIndexReader {
     return [...exact, ...chunked];
   }
 
-  private _decodeAndCacheShard(buffer: Uint8Array, path: string, oid: string): LoadedShard {
+  private _decodeShard(buffer: Uint8Array, path: string, oid: string): LoadedShard {
     try {
       const data = requireCodec(this._codec, 'BitmapIndexReader').decode<LoadedShard>(buffer);
       if (!isPlainLoadedShard(data)) {
         return this._handleInvalidShardShape(path, oid, 'shard_not_object');
       }
-      this.loadedShards.set(path, data);
       return data;
     } catch (err) {
       return this._handleDecodeError(err, path, oid);

@@ -18,7 +18,7 @@ describe("Trie geometry profile harness", () => {
       const row = await runTrieGeometryProfileScenario(scenario);
       rows.push(row);
       console.log(
-        `    ${row.label}: build=${row.trieBuildMs.toFixed(2)}ms read=${row.trieReadMs.toFixed(2)}ms heapΔ=${row.heapDeltaMb.toFixed(2)}MB hit=${row.pageHitRatio.toFixed(2)}`,
+        `    ${row.label}: build=${row.trieBuildMs.toFixed(2)}ms read=${row.trieReadMs.toFixed(2)}ms heapΔ=${row.heapDeltaMb.toFixed(2)}MB reads=${String(row.readCount)}`,
       );
     }
 
@@ -39,7 +39,7 @@ describe("Trie geometry profile harness", () => {
       const row = await runTrieGeometryProfileScenario(scenario);
       rows.push(row);
       console.log(
-        `    stress ${row.label}: build=${row.trieBuildMs.toFixed(2)}ms read=${row.trieReadMs.toFixed(2)}ms heapΔ=${row.heapDeltaMb.toFixed(2)}MB hit=${row.pageHitRatio.toFixed(2)}`,
+        `    stress ${row.label}: build=${row.trieBuildMs.toFixed(2)}ms read=${row.trieReadMs.toFixed(2)}ms heapΔ=${row.heapDeltaMb.toFixed(2)}MB reads=${String(row.readCount)}`,
       );
     }
 

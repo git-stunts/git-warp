@@ -3,7 +3,6 @@ import { AuditReceiptService } from '../services/audit/AuditReceiptService.ts';
 import MaterializedViewService from '../services/MaterializedViewService.ts';
 import StateHashService from '../services/state/StateHashService.ts';
 import StateSession from '../orset/session/StateSession.ts';
-import PageCache from '../orset/trie/PageCache.ts';
 import TrieGeometry from '../orset/trie/TrieGeometry.ts';
 import TrieMaterializationReader from '../materialization/TrieMaterializationReader.ts';
 import WarpError from '../errors/WarpError.ts';
@@ -345,7 +344,6 @@ export async function resolveRuntimeHostConstructionOptions(
   } else if (storageServices.trie !== undefined) {
     const store = storageServices.trie;
     const geometry = TrieGeometry.default16way();
-    const pageCache = new PageCache({ maxResident: 256 });
     resolvedOpenStateSession = async (roots, sessionOptions) =>
       await StateSession.open({
         nodeAliveRootOid: roots.nodeAliveRootOid,
@@ -353,7 +351,6 @@ export async function resolveRuntimeHostConstructionOptions(
         store,
         codec: resolvedCodec,
         geometry,
-        pageCache,
         workspace: sessionOptions.workspace,
       });
     // A custom session opener owns its root encoding; pair this reader only
@@ -362,7 +359,6 @@ export async function resolveRuntimeHostConstructionOptions(
       store,
       codec: resolvedCodec,
       geometry,
-      pageCache,
       indexStore: resolvedIndexStore,
     });
   }

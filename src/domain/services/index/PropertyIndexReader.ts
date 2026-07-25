@@ -1,13 +1,13 @@
 /**
- * Reads property index shards lazily with LRU caching.
+ * Reads property index shards lazily through the semantic index store.
  *
- * Loads `props_XX.cbor` shards on demand through IndexStorePort.
+ * Loads `props_XX.cbor` shards on demand through IndexStorePort. Reusable
+ * residency belongs to the concrete storage backend, not this domain reader.
  *
  * @module domain/services/index/PropertyIndexReader
  */
 
 import computeShardKey from '../../utils/shardKey.ts';
-import LRUCache from '../../utils/LRUCache.ts';
 import IndexError from '../../errors/IndexError.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
@@ -271,26 +271,22 @@ export default class PropertyIndexReader {
   private readonly _indexStore: IndexStorePort | null;
   private _shardHandles: Map<string, AssetHandle>;
   private _inMemoryShards: Map<string, Uint8Array>;
-  private readonly _cache: LRUCache<string, PropertyShard>;
 
   constructor(options?: {
     codec?: CodecPort;
     indexStore?: IndexStorePort;
-    maxCachedShards?: number;
   }) {
-    const { codec, indexStore, maxCachedShards = 64 } = options ?? {};
+    const { codec, indexStore } = options ?? {};
     this._codec = codec ?? null;
     this._indexStore = indexStore ?? null;
     this._shardHandles = new Map();
     this._inMemoryShards = new Map();
-    this._cache = new LRUCache(maxCachedShards);
   }
 
   /** Configures opaque shard handles for lazy loading. */
   setupHandles(shardHandles: Readonly<Record<string, AssetHandle>>): void {
     this._shardHandles = new Map(Object.entries(shardHandles));
     this._inMemoryShards.clear();
-    this._cache.clear();
   }
 
   /** Configures encoded in-memory shards for a freshly built view. */
@@ -299,7 +295,6 @@ export default class PropertyIndexReader {
     this._inMemoryShards = new Map(
       Object.entries(tree).filter(([path]) => path.startsWith('props_')),
     );
-    this._cache.clear();
   }
 
   /**
@@ -327,11 +322,6 @@ export default class PropertyIndexReader {
   private async _loadShard(nodeId: string): Promise<PropertyShard | null> {
     const shardKey = computeShardKey(nodeId);
     const path = `props_${shardKey}.cbor`;
-
-    const cached = this._cache.get(path);
-    if (cached !== undefined) {
-      return cached;
-    }
 
     const handle = this._shardHandles.get(path);
     const inMemory = this._inMemoryShards.get(path);
@@ -371,8 +361,6 @@ export default class PropertyIndexReader {
   }
 
   private _parseShard(decoded: CodecValue, path: string): PropertyShard {
-    const data = decodePropertyShard(decoded, path);
-    this._cache.set(path, data);
-    return data;
+    return decodePropertyShard(decoded, path);
   }
 }

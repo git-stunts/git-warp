@@ -94,6 +94,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CacheSet.doctor()`, `sweep()`, and `repair()`. `git warp doctor` composes
   physical cache, RootSet, handle, policy, age, size, expiry, and reachability
   evidence with WARP lane and coordinate explanations.
+- Delegated reusable trie-page, bitmap-shard, property-shard, and traversal
+  residency to the configured storage backend. Domain readers now retain only
+  operation-local working maps and opaque handles, while repeated independent
+  reads cross the storage port so git-cas owns deduplication and warm-hit
+  policy.
 
 ### Removed
 
@@ -115,6 +120,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the `refs/warp/<graph>/cursor/*` protocol and its public ref builders.
   v19 intentionally does not migrate these operator-only v18 cursor refs; they
   are ignored as inert state while authoritative graph history remains intact.
+- Removed WARP's generic `LRUCache`, cross-cursor `PageCache`, cache-size
+  constructor knobs, and cache-shaped trie benchmark variants. The benchmark
+  now reports storage reads directly instead of presenting WARP-local hit,
+  fault, and eviction counters as physical-cache evidence.
 
 ### Fixed
 

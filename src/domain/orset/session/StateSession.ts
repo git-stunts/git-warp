@@ -6,7 +6,6 @@ import type CodecPort from "../../../ports/CodecPort.ts";
 import type MaterializationWorkspacePort from "../../../ports/MaterializationWorkspacePort.ts";
 import StorageRetentionWitness from "../../storage/StorageRetentionWitness.ts";
 import type TrieStorePort from "../trie/TrieStorePort.ts";
-import PageCache from "../trie/PageCache.ts";
 import TrieCursor from "../trie/TrieCursor.ts";
 import TrieFlusher from "../trie/TrieFlusher.ts";
 import TrieGeometry from "../trie/TrieGeometry.ts";
@@ -21,7 +20,6 @@ type StateSessionDependencies = {
   readonly store: TrieStorePort;
   readonly codec: CodecPort;
   readonly geometry: TrieGeometry;
-  readonly pageCache: PageCache;
 };
 
 type BoundedStateSessionOpen = Readonly<{
@@ -80,7 +78,6 @@ export default class StateSession {
     validateStore(init.store);
     validateCodec(init.codec);
     validateGeometry(init.geometry);
-    validatePageCache(init.pageCache);
     validateWorkspace(init.workspace);
     const maxDirtyPages = normalizeMaxDirtyPages(init.maxDirtyPages, init.workspace);
 
@@ -89,14 +86,12 @@ export default class StateSession {
       store: init.store,
       geometry: init.geometry,
       codec: init.codec,
-      pageCache: init.pageCache,
     });
     const edgeCursor = new TrieCursor({
       rootOid: init.edgeAliveRootOid,
       store: init.store,
       geometry: init.geometry,
       codec: init.codec,
-      pageCache: init.pageCache,
     });
     const nodeFlusher = new TrieFlusher({
       store: init.store,
@@ -368,18 +363,6 @@ function validateGeometry(geometry: TrieGeometry): void {
       {
         code: "E_STATE_SESSION_INPUT",
         context: { field: "geometry" },
-      },
-    );
-  }
-}
-
-function validatePageCache(pageCache: PageCache): void {
-  if (!(pageCache instanceof PageCache)) {
-    throw new StateSessionError(
-      "StateSession requires a PageCache",
-      {
-        code: "E_STATE_SESSION_INPUT",
-        context: { field: "pageCache" },
       },
     );
   }

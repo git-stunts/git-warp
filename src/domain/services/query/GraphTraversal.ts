@@ -98,7 +98,6 @@ export default class GraphTraversal {
   constructor(params: {
     provider: NeighborProviderPort;
     logger?: LoggerPort;
-    neighborCacheSize?: number;
   }) {
     this._ctx = new TraversalContext(params);
     this._pathFinding = new GraphPathFinding(this._ctx);

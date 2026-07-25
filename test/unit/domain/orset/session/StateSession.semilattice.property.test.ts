@@ -6,7 +6,6 @@ import { Dot } from "../../../../../src/domain/crdt/Dot.ts";
 import VersionVector from "../../../../../src/domain/crdt/VersionVector.ts";
 import { ReducerSessionFrame, joinFrames } from "../../../../../src/domain/services/JoinReducerSession.ts";
 import StateSession from "../../../../../src/domain/orset/session/StateSession.ts";
-import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 import { serializeORSet } from "../../../../../src/domain/services/state/ORSetWireBoundary.ts";
@@ -58,7 +57,6 @@ async function openSession(args?: {
     store: args?.store ?? new InMemoryTrieStore(),
     codec: cborCodec,
     geometry: GEOMETRY,
-    pageCache: new PageCache({ maxResident: 64 }),
   });
 }
 

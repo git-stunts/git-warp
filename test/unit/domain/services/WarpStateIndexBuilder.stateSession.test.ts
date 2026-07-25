@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { Dot } from "../../../../src/domain/crdt/Dot.ts";
 import StateSession from "../../../../src/domain/orset/session/StateSession.ts";
-import PageCache from "../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../src/domain/orset/trie/TrieGeometry.ts";
 import { encodeEdgeKey } from "../../../../src/domain/services/KeyCodec.ts";
 import WarpStateIndexBuilder from "../../../../src/domain/services/index/WarpStateIndexBuilder.ts";
@@ -18,7 +17,6 @@ async function openSession(): Promise<StateSession> {
     store: new InMemoryTrieStore(),
     codec: cborCodec,
     geometry: GEOMETRY,
-    pageCache: new PageCache({ maxResident: 32 }),
   });
 }
 

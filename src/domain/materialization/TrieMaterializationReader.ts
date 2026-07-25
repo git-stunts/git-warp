@@ -5,7 +5,6 @@ import MaterializationReadPort, {
 } from '../../ports/MaterializationReadPort.ts';
 import BundleHandle from '../storage/BundleHandle.ts';
 import WarpError from '../errors/WarpError.ts';
-import PageCache from '../orset/trie/PageCache.ts';
 import TrieCursor from '../orset/trie/TrieCursor.ts';
 import TrieGeometry from '../orset/trie/TrieGeometry.ts';
 import type TrieStorePort from '../orset/trie/TrieStorePort.ts';
@@ -18,22 +17,18 @@ import {
 } from './MaterializationPropertyProfile.ts';
 import { encodeEdgeKey } from '../services/KeyCodec.ts';
 
-const MAX_RESIDENT_READ_PAGES = 256;
-
 /** Reads retained liveness roots without reconstructing a complete WarpState. */
 export default class TrieMaterializationReader extends MaterializationReadPort {
   readonly #store: TrieStorePort;
   readonly #codec: CodecPort;
   readonly #geometry: TrieGeometry;
   readonly #indexStore: IndexStorePort | null;
-  readonly #pageCache: PageCache;
 
   constructor(options: {
     readonly store: TrieStorePort;
     readonly codec: CodecPort;
     readonly geometry?: TrieGeometry;
     readonly indexStore?: IndexStorePort;
-    readonly pageCache?: PageCache;
   }) {
     super();
     requireOptions(options);
@@ -45,9 +40,6 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
     this.#indexStore = options.indexStore === undefined
       ? null
       : requireIndexStore(options.indexStore);
-    this.#pageCache = options.pageCache === undefined
-      ? new PageCache({ maxResident: MAX_RESIDENT_READ_PAGES })
-      : requirePageCache(options.pageCache);
     Object.freeze(this);
   }
 
@@ -106,7 +98,6 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
       store: this.#store,
       geometry: this.#geometry,
       codec: this.#codec,
-      pageCache: this.#pageCache,
     });
   }
 }
@@ -163,13 +154,6 @@ function requireIndexStore(indexStore: IndexStorePort): IndexStorePort {
     throw readerError('indexStore must provide exact shard read operations');
   }
   return indexStore;
-}
-
-function requirePageCache(pageCache: PageCache): PageCache {
-  if (!(pageCache instanceof PageCache)) {
-    throw readerError('pageCache must be a PageCache instance');
-  }
-  return pageCache;
 }
 
 function readerError(message: string): WarpError {

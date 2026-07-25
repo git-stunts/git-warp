@@ -5,7 +5,6 @@ import VersionVector from "../../../../../src/domain/crdt/VersionVector.ts";
 import StateSession from "../../../../../src/domain/orset/session/StateSession.ts";
 import type StateSessionCloseResult from "../../../../../src/domain/orset/session/StateSessionCloseResult.ts";
 import StateSessionError from "../../../../../src/domain/errors/StateSessionError.ts";
-import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 import { InMemoryTrieStore } from "../../../../helpers/trieHelpers.ts";
@@ -24,24 +23,21 @@ async function openSession(args?: {
   readonly nodeAliveRootOid?: string | null;
   readonly edgeAliveRootOid?: string | null;
   readonly store?: InMemoryTrieStore;
-  readonly pageCache?: PageCache;
   readonly geometry?: TrieGeometry;
   readonly workspace?: MaterializationWorkspacePort;
   readonly maxDirtyPages?: number;
 }) {
   const store = args?.store ?? new InMemoryTrieStore();
-  const pageCache = args?.pageCache ?? new PageCache({ maxResident: 32 });
   const session = await StateSession.open({
     nodeAliveRootOid: args?.nodeAliveRootOid ?? null,
     edgeAliveRootOid: args?.edgeAliveRootOid ?? null,
     store,
     codec: cborCodec,
     geometry: args?.geometry ?? GEOMETRY,
-    pageCache,
     ...(args?.workspace === undefined ? {} : { workspace: args.workspace }),
     ...(args?.maxDirtyPages === undefined ? {} : { maxDirtyPages: args.maxDirtyPages }),
   });
-  return { session, store, pageCache };
+  return { session, store };
 }
 
 async function scanAll(scan: AsyncIterable<string>): Promise<readonly string[]> {
@@ -84,7 +80,6 @@ describe("StateSession", () => {
   describe("construction", () => {
     it("rejects an empty nodeAlive root oid", async () => {
       const store = new InMemoryTrieStore();
-      const pageCache = new PageCache({ maxResident: 8 });
 
       await expect(
         StateSession.open({
@@ -93,14 +88,12 @@ describe("StateSession", () => {
           store,
           codec: cborCodec,
           geometry: GEOMETRY,
-          pageCache,
         }),
       ).rejects.toBeInstanceOf(StateSessionError);
     });
 
     it("rejects a non-geometry constructor argument", async () => {
       const store = new InMemoryTrieStore();
-      const pageCache = new PageCache({ maxResident: 8 });
 
       await expect(
         StateSession.open({
@@ -110,23 +103,6 @@ describe("StateSession", () => {
           codec: cborCodec,
           // @ts-expect-error intentional runtime validation test
           geometry: {},
-          pageCache,
-        }),
-      ).rejects.toBeInstanceOf(StateSessionError);
-    });
-
-    it("rejects a non-page-cache constructor argument", async () => {
-      const store = new InMemoryTrieStore();
-
-      await expect(
-        StateSession.open({
-          nodeAliveRootOid: null,
-          edgeAliveRootOid: null,
-          store,
-          codec: cborCodec,
-          geometry: GEOMETRY,
-          // @ts-expect-error intentional runtime validation test
-          pageCache: {},
         }),
       ).rejects.toBeInstanceOf(StateSessionError);
     });
@@ -163,7 +139,7 @@ describe("StateSession", () => {
     });
 
     it("persists node and edge state across close and reopen", async () => {
-      const { session, store, pageCache } = await openSession();
+      const { session, store } = await openSession();
 
       await session.addNode("node:1", new Dot("alice", 1));
       await session.addEdge("edge:1", new Dot("alice", 2));
@@ -175,7 +151,6 @@ describe("StateSession", () => {
         store,
         codec: cborCodec,
         geometry: GEOMETRY,
-        pageCache,
       });
 
       expect(await reopened.nodeContains("node:1")).toBe(true);
@@ -184,8 +159,8 @@ describe("StateSession", () => {
       expect(await scanAll(reopened.scanEdges())).toEqual(["edge:1"]);
     });
 
-    it("shares one page cache across nodeAlive and edgeAlive engines", async () => {
-      const { session, store, pageCache } = await openSession();
+    it("delegates reusable residency across nodeAlive and edgeAlive engines to the store", async () => {
+      const { session, store } = await openSession();
 
       await session.addNode("shared:1", new Dot("alice", 1));
       await session.addEdge("shared:1", new Dot("alice", 1));
@@ -199,13 +174,15 @@ describe("StateSession", () => {
         store,
         codec: cborCodec,
         geometry: GEOMETRY,
-        pageCache,
       });
 
       expect(await reopened.nodeContains("shared:1")).toBe(true);
       const afterNodeRead = store.readCounts();
       expect(await reopened.edgeContains("shared:1")).toBe(true);
-      expect(store.readCounts()).toEqual(afterNodeRead);
+      const afterEdgeRead = store.readCounts();
+      expect(afterEdgeRead.leaf + afterEdgeRead.branch).toBeGreaterThan(
+        afterNodeRead.leaf + afterNodeRead.branch,
+      );
     });
 
     it("checkpoints and rebases before dirty page residency can grow with the graph", async () => {
@@ -235,7 +212,6 @@ describe("StateSession", () => {
         store,
         codec: cborCodec,
         geometry,
-        pageCache: new PageCache({ maxResident: 32 }),
       });
       expect(await scanAll(reopened.scanNodes())).toHaveLength(100);
     });
@@ -325,7 +301,7 @@ describe("StateSession", () => {
     });
 
     it("compacts both engines through the session surface", async () => {
-      const { session, store, pageCache } = await openSession();
+      const { session, store } = await openSession();
       const nodeDot = new Dot("alice", 1);
       const edgeDot = new Dot("alice", 2);
 
@@ -342,7 +318,6 @@ describe("StateSession", () => {
         store,
         codec: cborCodec,
         geometry: GEOMETRY,
-        pageCache,
       });
 
       expect(await reopened.nodeContains("node:1")).toBe(false);

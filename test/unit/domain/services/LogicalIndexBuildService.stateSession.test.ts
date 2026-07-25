@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { LWWRegister } from "../../../../src/domain/crdt/LWW.ts";
 import { Dot } from "../../../../src/domain/crdt/Dot.ts";
 import StateSession from "../../../../src/domain/orset/session/StateSession.ts";
-import PageCache from "../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../src/domain/orset/trie/TrieGeometry.ts";
 import { ReceiptShard } from "../../../../src/domain/artifacts/ReceiptShard.ts";
 import { PropertyShard } from "../../../../src/domain/artifacts/PropertyShard.ts";
@@ -22,7 +21,6 @@ async function openSession(): Promise<StateSession> {
     store: new InMemoryTrieStore(),
     codec: cborCodec,
     geometry: GEOMETRY,
-    pageCache: new PageCache({ maxResident: 32 }),
   });
 }
 

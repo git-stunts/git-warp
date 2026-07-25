@@ -17,7 +17,6 @@ import MaterializeController, {
 import MaterializePatchStreamReducer from '../../../../../src/domain/services/controllers/MaterializePatchStreamReducer.ts';
 import { createEmptyDiff } from '../../../../../src/domain/types/PatchDiff.ts';
 import StateSession from '../../../../../src/domain/orset/session/StateSession.ts';
-import PageCache from '../../../../../src/domain/orset/trie/PageCache.ts';
 import TrieGeometry from '../../../../../src/domain/orset/trie/TrieGeometry.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import cborCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -82,7 +81,6 @@ describe('MaterializeController patch streams', () => {
           store,
           codec: cborCodec,
           geometry: TrieGeometry.default16way(),
-          pageCache: new PageCache({ maxResident: 16 }),
         }),
     });
 

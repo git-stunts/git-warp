@@ -5,7 +5,6 @@ import TrieCursor from "../../../../../src/domain/orset/trie/TrieCursor.ts";
 import TrieCursorError from "../../../../../src/domain/errors/TrieCursorError.ts";
 import TrieStoreError from "../../../../../src/domain/errors/TrieStoreError.ts";
 import RouteKey from "../../../../../src/domain/orset/route/RouteKey.ts";
-import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import TrieLeaf from "../../../../../src/domain/orset/trie/TrieLeaf.ts";
 import TrieBranch from "../../../../../src/domain/orset/trie/TrieBranch.ts";
@@ -26,7 +25,6 @@ function makeCursor(opts?: {
   readonly rootOid?: string | null;
   readonly store?: InMemoryTrieStore | NeverCallStore | FaultyTrieStore;
   readonly geometry?: TrieGeometry;
-  readonly pageCache?: PageCache;
 }): {
   readonly cursor: TrieCursor;
   readonly store: InMemoryTrieStore | NeverCallStore | FaultyTrieStore;
@@ -37,7 +35,6 @@ function makeCursor(opts?: {
     store,
     geometry: opts?.geometry ?? GEOMETRY_16,
     codec: cborCodec,
-    pageCache: opts?.pageCache ?? new PageCache({ maxResident: 64 }),
   });
   return { cursor, store };
 }

@@ -20,7 +20,6 @@ export type {
   CheckpointShardNeighborhoodReadOptions,
 } from './CheckpointNeighborhoodPageReader.ts';
 
-const MAX_CACHED_CHECKPOINT_PROPERTY_SHARDS = 1;
 const INDEX_SHARD_MISSING_CODE = 'E_INDEX_SHARD_MISSING';
 const INDEX_SHARD_MALFORMED_CODE = 'E_INDEX_SHARD_MALFORMED';
 const CHECKPOINT_SHARD_UNAVAILABLE_CAUSE = 'checkpoint-shard-unavailable';
@@ -79,10 +78,7 @@ export default class CheckpointShardFactReader {
       return undefined;
     }
     const handle = requireBoundShardHandle(basis, path, token);
-    const reader = new PropertyIndexReader({
-      indexStore: this._source._indexStore,
-      maxCachedShards: MAX_CACHED_CHECKPOINT_PROPERTY_SHARDS,
-    });
+    const reader = new PropertyIndexReader({ indexStore: this._source._indexStore });
     reader.setupHandles({ [path]: handle });
     try {
       return await reader.getProperty(nodeId, propertyKey);
