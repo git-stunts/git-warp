@@ -147,6 +147,42 @@ describe('GitCasSeekCursorStoreAdapter', () => {
     expect(sweep).toHaveBeenCalledTimes(2);
   });
 
+  it('isolates failed opportunistic sweeps and throttles retries', async () => {
+    let nowMs = 1_000;
+    const sweepFailure = new Error('sweep failed');
+    const sweep = vi.fn(async () => {
+      throw sweepFailure;
+    });
+    const get = vi.fn(async () => null);
+    const adapter = createAdapter({
+      get,
+      sweep,
+      wallClockMs: () => nowMs,
+    });
+
+    await expect(adapter.readActive()).resolves.toBeNull();
+    expect(sweep).toHaveBeenCalledOnce();
+    expect(get).toHaveBeenCalledOnce();
+
+    nowMs += 5 * 60 * 1000 - 1;
+    await expect(adapter.readActive()).resolves.toBeNull();
+    expect(sweep).toHaveBeenCalledOnce();
+
+    nowMs += 1;
+    await expect(adapter.readActive()).resolves.toBeNull();
+    expect(sweep).toHaveBeenCalledTimes(2);
+    await expect(adapter.sweep()).rejects.toBe(sweepFailure);
+  });
+
+  it('reports saved-cursor name validation in cursor terms', async () => {
+    const adapter = createAdapter({});
+
+    await expect(adapter.readSaved('bad/name')).rejects.toMatchObject({
+      code: 'E_INVALID_CURSOR_NAME',
+      message: expect.stringContaining('Invalid saved cursor name'),
+    });
+  });
+
   it('keeps eager cache-open rejection observable to cursor callers', async () => {
     const openFailure = new Error('open failed');
     const opening = Promise.reject(openFailure);

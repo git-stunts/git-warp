@@ -268,6 +268,32 @@ assert data["diff"] is None, f"expected diff=null due to frontier change, got {d
 PY
 }
 
+@test "seek status does not renew cursor retention after frontier changes" {
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1
+  assert_success
+  local before
+  before=$(
+    NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" GRAPH_NAME=demo \
+      node --experimental-strip-types \
+      "${BATS_TEST_DIRNAME}/helpers/inspect-seek-cursor-expiry.ts"
+  )
+
+  seed_graph "append-patch.js"
+
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek
+  assert_success
+  local after
+  after=$(
+    NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" GRAPH_NAME=demo \
+      node --experimental-strip-types \
+      "${BATS_TEST_DIRNAME}/helpers/inspect-seek-cursor-expiry.ts"
+  )
+  if [ "$before" != "$after" ]; then
+    echo "expected active cursor expiry ${before}, got ${after}" >&2
+    return 1
+  fi
+}
+
 @test "seek --diff --json first seek shows empty baseline with all additions" {
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1 --diff
   assert_success

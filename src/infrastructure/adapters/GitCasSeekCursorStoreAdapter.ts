@@ -5,8 +5,9 @@ import type {
 } from '@git-stunts/git-cas';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
-import { validateGraphName, validateWriterId } from '../../domain/utils/RefLayout.ts';
+import { validateGraphName } from '../../domain/utils/RefLayout.ts';
 import { parseCursorBlob } from '../../domain/utils/parseCursorBlob.ts';
+import { validateSavedCursorName } from '../../domain/utils/validateSavedCursorName.ts';
 import type SeekCursorStorePort from '../../ports/SeekCursorStorePort.ts';
 import type {
   NamedSeekCursorState,
@@ -34,6 +35,7 @@ const SAVED_CURSOR_KEY = 'saved';
 const CACHE_INSPECTION_PAGE_SIZE = 100;
 const MAX_CURSOR_PAGE_BYTES = 16 * 1024;
 const CURSOR_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const CURSOR_SWEEP_RETRY_MS = 5 * 60 * 1000;
 export const ACTIVE_SEEK_CURSOR_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
@@ -84,7 +86,7 @@ export default class GitCasSeekCursorStoreAdapter implements SeekCursorStorePort
   }
 
   async readSaved(name: string): Promise<SeekCursorState | null> {
-    validateWriterId(name);
+    validateSavedCursorName(name);
     return await this._read(
       savedCursorIdentity(this._graphName, name),
       `saved cursor '${name}'`,
@@ -92,13 +94,13 @@ export default class GitCasSeekCursorStoreAdapter implements SeekCursorStorePort
   }
 
   async writeSaved(name: string, cursor: SeekCursorState): Promise<void> {
-    validateWriterId(name);
+    validateSavedCursorName(name);
     await this._maintain(this._wallClockMs());
     await this._write(savedCursorIdentity(this._graphName, name), cursor, null);
   }
 
   async deleteSaved(name: string): Promise<void> {
-    validateWriterId(name);
+    validateSavedCursorName(name);
     await this._remove(savedCursorIdentity(this._graphName, name));
   }
 
@@ -171,7 +173,7 @@ export default class GitCasSeekCursorStoreAdapter implements SeekCursorStorePort
     if (!stored.accepted) {
       throw new PersistenceError(
         'git-cas rejected seek cursor retention',
-        'E_CURSOR_RETENTION',
+        PersistenceError.E_CURSOR_RETENTION,
       );
     }
   }
@@ -184,7 +186,11 @@ export default class GitCasSeekCursorStoreAdapter implements SeekCursorStorePort
 
   private async _maintain(nowMs: number): Promise<void> {
     if (nowMs >= this._nextSweepAtMs) {
-      await this.sweep();
+      try {
+        await this.sweep();
+      } catch {
+        this._nextSweepAtMs = nowMs + CURSOR_SWEEP_RETRY_MS;
+      }
     }
   }
 
@@ -224,7 +230,7 @@ function savedCursorName(key: string, graphName: string): string | null {
   if (savedCursorIdentity(graphName, name) !== key) {
     return null;
   }
-  validateWriterId(name);
+  validateSavedCursorName(name);
   return name;
 }
 
@@ -287,6 +293,6 @@ function optionalString(
 function corruptCursor(label: string, field: string): PersistenceError {
   return new PersistenceError(
     `Corrupted ${label}: invalid ${field}`,
-    'E_CURSOR_CORRUPT',
+    PersistenceError.E_CURSOR_CORRUPT,
   );
 }

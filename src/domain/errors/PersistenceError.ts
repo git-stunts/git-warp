@@ -18,6 +18,8 @@ interface PersistenceErrorOptions {
  * | `E_MISSING_OBJECT` | Stored object (commit, blob, tree) does not exist |
  * | `E_REF_NOT_FOUND` | Ref does not resolve to any object |
  * | `E_REF_IO` | Ref update/delete failed (lock contention, permission, etc.) |
+ * | `E_CURSOR_RETENTION` | git-cas declined durable cursor retention |
+ * | `E_CURSOR_CORRUPT` | Retained cursor metadata is malformed |
  */
 export default class PersistenceError extends WarpError {
   /** Stored object (commit, blob, tree) does not exist. */
@@ -28,6 +30,12 @@ export default class PersistenceError extends WarpError {
 
   /** Ref update/delete failed (lock contention, permission, etc.). */
   static E_REF_IO = 'E_REF_IO';
+
+  /** git-cas declined durable cursor retention. */
+  static E_CURSOR_RETENTION = 'E_CURSOR_RETENTION';
+
+  /** Retained cursor metadata is malformed. */
+  static E_CURSOR_CORRUPT = 'E_CURSOR_CORRUPT';
 
   declare cause: Error | undefined;
 

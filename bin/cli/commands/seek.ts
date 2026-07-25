@@ -16,7 +16,6 @@ import { EXIT_CODES, usageError, notFoundError, parseCommandArgs } from '../infr
 import { seekSchema } from '../schemas.ts';
 import { openGraph, readActiveCursor, writeActiveCursor } from '../shared.ts';
 import type { WarpState } from '../../../src/domain/services/JoinReducer.ts';
-import type SeekCursorStorePort from '../../../src/ports/SeekCursorStorePort.ts';
 import type { CliOptions, WarpGraphInstance, WriterTickInfo, CursorBlob, SeekSpec } from '../types.ts';
 
 // ============================================================================
@@ -178,10 +177,9 @@ function applyDiffLimit(diff: StateDiffResult, diffBaseline: string, baselineTic
 // ============================================================================
 
 /** Handles the bare `seek` (no action flags) by returning current cursor status. */
-async function handleSeekStatus({ graph, graphName, cursorStore, activeCursor, ticks, maxTick, perWriter, frontierHash }: {
+async function handleSeekStatus({ graph, graphName, activeCursor, ticks, maxTick, perWriter, frontierHash }: {
   graph: WarpGraphInstance;
   graphName: string;
-  cursorStore: SeekCursorStorePort;
   activeCursor: CursorBlob | null;
   ticks: number[];
   maxTick: number;
@@ -192,11 +190,6 @@ async function handleSeekStatus({ graph, graphName, cursorStore, activeCursor, t
     await graph.materialize({ ceiling: activeCursor.tick });
     const nodes = await graph.getNodes();
     const edges = await graph.getEdges();
-    const prevCounts = readSeekCounts(activeCursor);
-    const prevFrontierHash = typeof activeCursor.frontierHash === 'string' ? activeCursor.frontierHash : null;
-    if (prevCounts.nodes === null || prevCounts.edges === null || prevCounts.nodes !== nodes.length || prevCounts.edges !== edges.length || prevFrontierHash !== frontierHash) {
-      await writeActiveCursor(cursorStore, { tick: activeCursor.tick, mode: activeCursor.mode ?? 'lamport', nodes: nodes.length, edges: edges.length, frontierHash });
-    }
     const diff = computeSeekStateDiff(activeCursor, { nodes: nodes.length, edges: edges.length }, frontierHash);
     const tickReceipt = await buildTickReceipt({ tick: activeCursor.tick, perWriter, graph });
     return {
@@ -408,5 +401,5 @@ export default async function handleSeek({ options, args }: { options: CliOption
   }
 
   // status (bare seek)
-  return await handleSeekStatus({ graph, graphName, cursorStore, activeCursor, ticks, maxTick, perWriter, frontierHash });
+  return await handleSeekStatus({ graph, graphName, activeCursor, ticks, maxTick, perWriter, frontierHash });
 }
