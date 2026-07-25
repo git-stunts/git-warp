@@ -12,6 +12,7 @@ import type {
   CheckpointData,
   PatchWithSha,
 } from '../../capabilities/PatchCollector.ts';
+import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type MaterializationReadPort from '../../../ports/MaterializationReadPort.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
@@ -29,6 +30,7 @@ import RetainedMaterializationResumeStrategy from './RetainedMaterializationResu
 import { isNonEmptyPatchSha } from './MaterializeHelpers.ts';
 import { resolveBoundedLiveMaterialization } from './BoundedLiveMaterialization.ts';
 import { materializedResolution } from './MaterializedLiveResolution.ts';
+import { replayTargetedNodeProperties } from './TargetedNodePropertyReplay.ts';
 
 export default class MaterializeLiveStrategy {
   private readonly runtime: MaterializeStrategyRuntime;
@@ -95,7 +97,12 @@ export default class MaterializeLiveStrategy {
     const resolution = await this.resolveMaterialization();
     let properties: Readonly<Record<string, PropValue>> | null | undefined;
     try {
-      properties = await readNodeProperties(reader, resolution.materialization, nodeId);
+      properties = await readNodeProperties({
+        materialization: resolution.materialization,
+        nodeId,
+        patches: this.runtime.deps.patches,
+        reader,
+      });
     } catch (raw) {
       await releaseAcquisitionAfterFailure(resolution, this.runtime.deps.logger);
       throw raw;
@@ -395,11 +402,13 @@ async function readNodePresence(
   return await reader.hasNode(root.handle, nodeId);
 }
 
-async function readNodeProperties(
-  reader: MaterializationReadPort,
-  materialization: MaterializationHandle | null,
-  nodeId: string,
-): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
+async function readNodeProperties(options: {
+  readonly materialization: MaterializationHandle | null;
+  readonly nodeId: string;
+  readonly patches: PatchCollector;
+  readonly reader: MaterializationReadPort;
+}): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
+  const { materialization, nodeId, patches, reader } = options;
   if (materialization === null) {
     return null;
   }
@@ -410,7 +419,15 @@ async function readNodeProperties(
   if (presence === null) {
     return undefined;
   }
-  return await readPropertiesRoot(reader, materialization, nodeId);
+  const retained = await readPropertiesRoot(reader, materialization, nodeId);
+  if (retained !== undefined) {
+    return retained;
+  }
+  return await replayTargetedNodeProperties({
+    coordinate: materialization.coordinate,
+    nodeId,
+    patches,
+  });
 }
 
 async function readPropertiesRoot(

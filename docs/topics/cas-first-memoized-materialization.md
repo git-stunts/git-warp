@@ -147,8 +147,13 @@ changes, and releases it from `RuntimeHost.close()`. On a cold handle miss, the
 built-in session now streams only node and edge OR-Set operations into bounded
 git-cas pages and retains those roots as a partial handle. It does not construct
 `WarpState`, adjacency, property registers, receipts, diffs, provenance, or a
-state-cache snapshot. A later compatibility or property operation can replace
-that partial entry with a complete descriptor.
+state-cache snapshot. When that partial handle proves the requested node is
+live but has no usable property root, the runtime streams the handle's exact
+coordinate and reduces only matching `NodePropSet` operations into the
+requested node's LWW property bag. That targeted reducer does not hydrate
+`WarpState`, hash or publish state, or build graph-wide indexes. A later
+compatibility or property-root construction operation can replace the partial
+entry with a complete descriptor.
 
 Once assembled, a newly built property root joins the operation's expiring
 git-cas workspace before state hashing and final promotion, so the completed
@@ -225,9 +230,11 @@ lost payload bytes, or run Git garbage collection.
 - RuntimeHost exact node-liveness and node-property reads consume the
   handle-first result when the built-in trie session and reader pair is active.
   Cold node liveness now produces a partial retained handle through bounded
-  node/edge replay. Cold properties, custom session openers, neighborhoods,
-  list reads, checkpoint creation, and other compatibility operations still own
-  process-resident whole state.
+  node/edge replay. A cold property read reduces one proven-live node's property
+  bag without whole-state projection, but `PatchCollector` can still buffer one
+  writer chain while producing that coordinate stream. Custom session openers,
+  neighborhoods, list reads, checkpoint creation, and other compatibility
+  operations still own process-resident whole state.
 - Exact state-cache hits bypass replay, but full materialization still hydrates
   a full `WarpState`, scans retained node/edge tries, and builds full adjacency.
 - Retained exact and predecessor resume load a complete canonical `WarpState`
