@@ -1,13 +1,9 @@
-import {
-  type RootSetEntry,
-  type RootSetMutationResult,
-  type RootSetState,
-} from '@git-stunts/git-cas';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
-import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import GitCasMaterializationCacheDiagnosticsAdapter
+  from '../../../../src/infrastructure/adapters/GitCasMaterializationCacheDiagnosticsAdapter.ts';
 import GitCasMaterializationStoreAdapter from '../../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
 import GitCasTrieStoreAdapter from '../../../../src/infrastructure/adapters/GitCasTrieStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
@@ -53,53 +49,6 @@ function createPlumbing() {
   };
 }
 
-function createRootSet() {
-  let entries: RootSetEntry[] = [];
-  const state = (): RootSetState => ({
-    ref: 'refs/cas/rootsets/git-warp/events/state-cache',
-    headOid: entries.length === 0 ? null : 'd'.repeat(40),
-    treeOid: entries.length === 0 ? null : 'e'.repeat(40),
-    entries: [...entries],
-  });
-  const mutation = (): RootSetMutationResult => ({
-    changed: true,
-    commitOid: 'd'.repeat(40),
-    treeOid: 'e'.repeat(40),
-    entries: [...entries],
-  });
-  return {
-    read: vi.fn(async () => state()),
-    mutate: vi.fn(async (
-      mutator: (
-        current: ReadonlyArray<Readonly<RootSetEntry>>,
-      ) => Iterable<RootSetEntry> | Promise<Iterable<RootSetEntry>>,
-    ) => {
-      entries = [...await mutator(entries)];
-      return mutation();
-    }),
-    replace: vi.fn(async (options: {
-      entries: Iterable<RootSetEntry>;
-      expectedHeadOid?: string | null;
-    }) => {
-      entries = [...options.entries];
-      return mutation();
-    }),
-    doctor: vi.fn(async () => ({
-      healthy: true as const,
-      ...state(),
-    })),
-    repair: vi.fn(async (options: { entries: Iterable<RootSetEntry> }) => {
-      entries = [...options.entries];
-      return {
-        repaired: true as const,
-        commitOid: 'd'.repeat(40),
-        treeOid: 'e'.repeat(40),
-        entries: [...entries],
-      };
-    }),
-  };
-}
-
 describe('GitCasRepositoryAdapter', () => {
   it('shares one git-cas facade across semantic repository services', async () => {
     const plumbing = createPlumbing();
@@ -114,7 +63,6 @@ describe('GitCasRepositoryAdapter', () => {
     const assetStorage = new InMemoryBlobStorageAdapter();
     const highLevelCas = new InMemoryGitCasFacade({ history, storage: assetStorage });
     const putAsset = vi.fn(highLevelCas.assets.put);
-    const rootSet = createRootSet();
     const store = vi.fn().mockResolvedValue({ slug: 'manifest', chunks: [] });
     const closeCas = vi.fn().mockResolvedValue(undefined);
     const createTree = vi.fn()
@@ -136,7 +84,6 @@ describe('GitCasRepositoryAdapter', () => {
         open: vi.fn(async () => ({} as any)),
       },
       publications: highLevelCas.publications,
-      rootSets: { open: vi.fn(async () => rootSet) },
       readManifest: vi.fn(),
       restore: vi.fn(),
       restoreStream: vi.fn(),
@@ -153,23 +100,16 @@ describe('GitCasRepositoryAdapter', () => {
     });
 
     await services.content.stage(singleChunk('content'), { slug: 'content' });
-    const stateSnapshots = services.stateSnapshots;
-    if (stateSnapshots === undefined) {
-      throw new Error('Git repository storage must provide state snapshots');
-    }
-    await stateSnapshots.put({
-      snapshotId: 'snapshot-1',
-      coordinate: { frontier: new Map(), ceiling: 1 },
-      retention: 'evictable',
-      provenancePosture: 'full',
-      stateHash: 'state-hash',
-      payloadRef: '',
-      createdAt: '2026-07-13T00:00:00.000Z',
-      state: WarpState.empty(),
-    });
     expect(services.materializations).toBeInstanceOf(GitCasMaterializationStoreAdapter);
+    expect(services.materializationCacheDiagnostics)
+      .toBeInstanceOf(GitCasMaterializationCacheDiagnosticsAdapter);
+    expect(await services.materializationCacheDiagnostics?.inspectCache())
+      .toMatchObject({ healthy: true, entries: [] });
+    expect(services.stateSnapshots).toBeUndefined();
     expect(services.trie).toBeInstanceOf(GitCasTrieStoreAdapter);
     expect(services.syncReplayProtection).toBeDefined();
+    const seekCursors = repository.createSeekCursorStore('events');
+    expect(repository.createSeekCursorStore('events')).toBe(seekCursors);
 
     plumbing.execute
       .mockResolvedValueOnce('f'.repeat(40))
@@ -194,8 +134,7 @@ describe('GitCasRepositoryAdapter', () => {
     expect(putAsset).toHaveBeenCalledTimes(2);
     expect(putAsset).toHaveBeenCalledWith(expect.objectContaining({ slug: 'content' }));
     expect(putAsset).toHaveBeenCalledWith(expect.objectContaining({ slug: 'trust-record-hash' }));
-    expect(store).toHaveBeenCalledTimes(1);
-    expect(store).toHaveBeenCalledWith(expect.objectContaining({ slug: 'snapshot-1' }));
+    expect(store).not.toHaveBeenCalled();
 
     const activeServices = await repository.createRuntimeStorageServices({
       timelineName: 'active-at-close',

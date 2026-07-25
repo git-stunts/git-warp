@@ -38,7 +38,7 @@ assert data["summary"]["fail"] == 0
 assert data["summary"]["ok"] >= 1
 assert isinstance(data["findings"], list)
 assert len(data["findings"]) >= 8
-assert "state-cache-retention" in [finding["id"] for finding in data["findings"]]
+assert "materialization-cache" in [finding["id"] for finding in data["findings"]]
 assert isinstance(data["policy"], dict)
 assert data["policy"]["clockSkewMs"] == 300000
 PY
@@ -55,7 +55,7 @@ PY
   echo "$output" | grep -q "refs-consistent"
   echo "$output" | grep -q "checkpoint-fresh"
   echo "$output" | grep -q "hooks-installed"
-  echo "$output" | grep -q "state-cache-retention"
+  echo "$output" | grep -q "materialization-cache"
 }
 
 @test "doctor --json broken writer ref yields refs-consistent fail" {

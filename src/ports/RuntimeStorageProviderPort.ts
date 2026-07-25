@@ -8,11 +8,11 @@ import type CryptoPort from './CryptoPort.ts';
 import type IndexStorePort from './IndexStorePort.ts';
 import type IntentStorePort from './IntentStorePort.ts';
 import type LoggerPort from './LoggerPort.ts';
+import type MaterializationCacheDiagnosticsPort from './MaterializationCacheDiagnosticsPort.ts';
 import type MaterializationStorePort from './MaterializationStorePort.ts';
 import type PatchJournalPort from './PatchJournalPort.ts';
 import type StrandStorePort from './StrandStorePort.ts';
 import type WarpStateCachePort from './WarpStateCachePort.ts';
-import type WarpStateCacheRetentionPort from './WarpStateCacheRetentionPort.ts';
 import type SyncReplayProtectionPort from './SyncReplayProtectionPort.ts';
 import type SeekCursorStorePort from './SeekCursorStorePort.ts';
 
@@ -33,8 +33,9 @@ export type RuntimeStorageServices = {
   readonly indexes: IndexStorePort;
   readonly intents: IntentStorePort;
   readonly materializations: MaterializationStorePort;
+  readonly materializationCacheDiagnostics?: MaterializationCacheDiagnosticsPort;
   readonly syncReplayProtection?: SyncReplayProtectionPort;
-  readonly stateSnapshots?: WarpStateCachePort & WarpStateCacheRetentionPort;
+  readonly stateSnapshots?: WarpStateCachePort;
   readonly trie?: TrieStorePort;
 };
 

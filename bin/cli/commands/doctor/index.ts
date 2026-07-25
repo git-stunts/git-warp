@@ -7,24 +7,25 @@
  * @module cli/commands/doctor
  */
 
-import { buildWritersPrefix } from '../../../../src/domain/utils/RefLayout.ts';
 import createBoundedMemoryCapabilityReport
   from '../../../../src/domain/memory/createBoundedMemoryCapabilityReport.ts';
 import { parseCommandArgs } from '../../infrastructure.ts';
 import { doctorSchema } from '../../schemas.ts';
-import { createPersistence, resolveGraphName } from '../../shared.ts';
 import { ALL_CHECKS } from './checks.ts';
 import { CODES } from './codes.ts';
 import {
-  checkStateCacheRetention,
-} from './checksStateCache.ts';
-import { repairStateCache, resolveStateCache } from './stateCacheCapability.ts';
+  checkMaterializationCache,
+} from './checksMaterializationCache.ts';
+import {
+  createDoctorContext,
+  repairMaterializationCache,
+} from './storageCapabilities.ts';
 import { DOCTOR_EXIT_CODES, type DoctorFinding, type DoctorPolicy, type DoctorPayload, type DoctorContext } from './types.ts';
-import type { CliOptions, Persistence } from '../../types.ts';
+import type { CliOptions } from '../../types.ts';
 
 const DOCTOR_OPTION_MEMORY_BUDGET = 'memory-budget';
 const DOCTOR_OPTION_LARGE_GRAPH = 'large-graph';
-const DOCTOR_OPTION_REPAIR_STATE_CACHE = 'repair-state-cache';
+const DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE = 'repair-materialization-cache';
 
 const MEMORY_BUDGET_FINDING_ID = 'memory-budget';
 const MEMORY_BUDGET_NOT_SPECIFIED = 'not-specified';
@@ -33,7 +34,7 @@ const DOCTOR_OPTIONS = {
   strict: { type: 'boolean', default: false },
   [DOCTOR_OPTION_MEMORY_BUDGET]: { type: 'string' },
   [DOCTOR_OPTION_LARGE_GRAPH]: { type: 'boolean', default: false },
-  [DOCTOR_OPTION_REPAIR_STATE_CACHE]: { type: 'boolean', default: false },
+  [DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE]: { type: 'boolean', default: false },
 };
 
 const DEFAULT_POLICY: DoctorPolicy = {
@@ -56,14 +57,14 @@ type DoctorCommandValues = {
   readonly strict: boolean;
   readonly [DOCTOR_OPTION_MEMORY_BUDGET]: string | undefined;
   readonly [DOCTOR_OPTION_LARGE_GRAPH]: boolean;
-  readonly [DOCTOR_OPTION_REPAIR_STATE_CACHE]: boolean;
+  readonly [DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE]: boolean;
 };
 
 type RawDoctorCommandValues = {
   readonly strict: boolean;
   readonly [DOCTOR_OPTION_MEMORY_BUDGET]?: string | undefined;
   readonly [DOCTOR_OPTION_LARGE_GRAPH]: boolean;
-  readonly [DOCTOR_OPTION_REPAIR_STATE_CACHE]: boolean;
+  readonly [DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE]: boolean;
 };
 
 /** Handles the `git warp doctor` command: runs structural health checks and returns findings. */
@@ -71,30 +72,28 @@ export default async function handleDoctor({ options, args }: { options: CliOpti
   const { values } = parseCommandArgs(args, DOCTOR_OPTIONS, doctorSchema);
   const commandValues = normalizeCommandValues(values);
   const startMs = Date.now();
-  const { persistence, runtimeStorage, hookPaths } = await createPersistence(options.repo);
-  const graphName = await resolveGraphName(persistence, options.graph);
-  const policy = { ...DEFAULT_POLICY, strict: commandValues.strict };
-  const writerHeads = await collectWriterHeads(persistence, graphName);
-
-  const stateCache = await resolveStateCache(runtimeStorage, graphName);
-  const ctx: DoctorContext = { persistence, stateCache, graphName, writerHeads, policy, repoPath: options.repo, hookPaths };
-
+  const ctx = await createDoctorContext(options, {
+    ...DEFAULT_POLICY,
+    strict: commandValues.strict,
+  });
   const memoryFindings = memoryBudgetFindings(commandValues);
-  const repairFinding = await repairStateCache(commandValues[DOCTOR_OPTION_REPAIR_STATE_CACHE], stateCache);
+  const repairFinding = await repairMaterializationCache(
+    commandValues[DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE],
+    ctx.materializationCacheDiagnostics,
+  );
   const { findings, checksRun } = await runChecks(ctx, startMs);
   findings.push(...memoryFindings);
   if (repairFinding !== null) { findings.push(repairFinding); }
   findings.sort(compareFinding);
-
   const payload = assemblePayload({
     repo: options.repo,
-    graph: graphName,
-    policy,
+    graph: ctx.graphName,
+    policy: ctx.policy,
     findings,
     checksRun: checksRun + memoryFindings.length + (repairFinding === null ? 0 : 1),
     startMs,
   });
-  const exitCode = computeExitCode(payload.health, policy.strict);
+  const exitCode = computeExitCode(payload.health, ctx.policy.strict);
   return { payload, exitCode };
 }
 
@@ -103,7 +102,8 @@ function normalizeCommandValues(values: RawDoctorCommandValues): DoctorCommandVa
     strict: values.strict,
     [DOCTOR_OPTION_MEMORY_BUDGET]: values[DOCTOR_OPTION_MEMORY_BUDGET],
     [DOCTOR_OPTION_LARGE_GRAPH]: values[DOCTOR_OPTION_LARGE_GRAPH],
-    [DOCTOR_OPTION_REPAIR_STATE_CACHE]: values[DOCTOR_OPTION_REPAIR_STATE_CACHE],
+    [DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE]:
+      values[DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE],
   };
 }
 
@@ -166,28 +166,6 @@ function assemblePayload({ repo, graph, policy, findings, checksRun, startMs }: 
   };
 }
 
-/** Collects writer heads by listing refs and reading their SHAs. */
-async function collectWriterHeads(persistence: Persistence, graphName: string): Promise<Array<{ writerId: string; sha: string | null; ref: string }>> {
-  const prefix = buildWritersPrefix(graphName);
-  const refs = await persistence.listRefs(prefix);
-  const heads: Array<{ writerId: string; sha: string | null; ref: string }> = [];
-  for (const ref of refs) {
-    const writerId = ref.slice(prefix.length);
-    if (!writerId) {
-      continue;
-    }
-    let sha: string | null = null;
-    try {
-      sha = await persistence.readRef(ref);
-    } catch {
-      // Dangling ref — readRef may fail (e.g. show-ref exits 128 for missing objects).
-      // Include the head with sha=null so downstream checks can report it.
-    }
-    heads.push({ writerId, sha, ref });
-  }
-  return heads.sort((a, b) => a.writerId.localeCompare(b.writerId));
-}
-
 /** Executes a single check and returns its findings. */
 async function executeCheck(check: { id: string; fn: (ctx: DoctorContext) => Promise<DoctorFinding | DoctorFinding[] | null> }, ctx: DoctorContext): Promise<DoctorFinding[]> {
   let checkDuration;
@@ -216,9 +194,12 @@ async function executeCheck(check: { id: string; fn: (ctx: DoctorContext) => Pro
 async function runChecks(ctx: DoctorContext, startMs: number): Promise<{ findings: DoctorFinding[]; checksRun: number }> {
   const findings: DoctorFinding[] = [];
   let checksRun = 0;
-  const checks = ctx.stateCache === null
+  const checks = ctx.materializationCacheDiagnostics === null
     ? ALL_CHECKS
-    : [...ALL_CHECKS, { id: 'state-cache-retention', fn: checkStateCacheRetention }];
+    : [...ALL_CHECKS, {
+        id: 'materialization-cache',
+        fn: checkMaterializationCache,
+      }];
 
   for (const check of checks) {
     const elapsed = Date.now() - startMs;

@@ -6,8 +6,9 @@
 
 import type { Persistence } from '../../types.ts';
 import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts';
-import type WarpStateCacheRetentionPort from '../../../../src/ports/WarpStateCacheRetentionPort.ts';
 import type HookPathPort from '../../../../src/ports/HookPathPort.ts';
+import type MaterializationCacheDiagnosticsPort
+  from '../../../../src/ports/MaterializationCacheDiagnosticsPort.ts';
 
 // ── JSON-safe recursive value type ──────────────────────────────────────────
 
@@ -66,7 +67,8 @@ export interface DoctorSummary {
 
 export interface DoctorContext {
   persistence: Persistence;
-  stateCache: (WarpStateCachePort & WarpStateCacheRetentionPort) | null;
+  stateCache: WarpStateCachePort | null;
+  materializationCacheDiagnostics: MaterializationCacheDiagnosticsPort | null;
   graphName: string;
   writerHeads: Array<{ writerId: string; sha: string | null; ref: string }>;
   policy: DoctorPolicy;

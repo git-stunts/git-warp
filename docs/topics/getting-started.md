@@ -103,7 +103,7 @@ Create or repair the operator-owned basis before retrying:
 
 ```bash
 git warp checkpoint create --repo ./security-repo --graph security-audit
-git warp doctor --repo ./security-repo --repair-state-cache
+git warp doctor --repo ./security-repo --repair-materialization-cache
 ```
 
 Read a bounded neighborhood with the same result-and-receipt shape:
