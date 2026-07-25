@@ -1,5 +1,8 @@
 import QueryError from '../../errors/QueryError.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
+import type BundleHandle from '../../storage/BundleHandle.ts';
+import type { IndexShardReference } from '../../../ports/IndexStorePort.ts';
+import type { CheckpointBasis } from '../../../ports/CheckpointStorePort.ts';
 import { partitionShardHandles } from '../MaterializedViewHelpers.ts';
 import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
 import CheckpointBasisManifest, {
@@ -22,6 +25,10 @@ export type CheckpointTailIndexBasis = {
   readonly manifest: CheckpointBasisManifest;
   readonly indexHandles: Readonly<Record<string, AssetHandle>>;
   readonly propHandles: Readonly<Record<string, AssetHandle>>;
+  readonly indexRoot: BundleHandle | null;
+  readonly propertyRoot: BundleHandle | null;
+  readonly indexReferences: Readonly<Record<string, IndexShardReference>>;
+  readonly propReferences: Readonly<Record<string, IndexShardReference>>;
 };
 
 type CheckpointTailManifestRoots = {
@@ -46,27 +53,16 @@ export default class CheckpointTailBasisLoader {
     if (!isCurrentCheckpointSchema(basis.schema)) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-without-index-tree');
     }
-    const { indexHandles, propHandles } = partitionShardHandles(basis.indexShardHandles);
-    if (Object.keys(indexHandles).length === 0 && Object.keys(propHandles).length === 0) {
+    const shards = await loadBasisShards(this._source, basis);
+    if (shardReferenceCount(shards) === 0) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-missing-index-shards');
     }
-    const indexIdentities = handleIdentities(indexHandles);
-    const propIdentities = handleIdentities(propHandles);
-    return {
+    return createIndexBasis({
+      source: this._source,
       checkpointSha,
-      schema: basis.schema,
-      frontier: basis.frontier,
-      manifest: createManifest({
-        graphName: this._source.graphName,
-        checkpointSha,
-        frontier: basis.frontier,
-        schema: basis.schema,
-        indexOids: indexIdentities,
-        propOids: propIdentities,
-      }),
-      indexHandles,
-      propHandles,
-    };
+      basis,
+      shards,
+    });
   }
 
   private async _readCheckpointSha(): Promise<string> {
@@ -77,6 +73,58 @@ export default class CheckpointTailBasisLoader {
     return checkpointSha;
   }
 
+}
+
+type LoadedBasisShards = Pick<
+  CheckpointTailIndexBasis,
+  'indexHandles' | 'propHandles' | 'indexReferences' | 'propReferences'
+>;
+
+function createIndexBasis(options: {
+  source: CheckpointTailOpticSource;
+  checkpointSha: string;
+  basis: CheckpointBasis;
+  shards: LoadedBasisShards;
+}): CheckpointTailIndexBasis {
+  const { source, checkpointSha, basis, shards } = options;
+  return {
+    checkpointSha,
+    schema: basis.schema,
+    frontier: basis.frontier,
+    manifest: createManifest({
+      graphName: source.graphName,
+      checkpointSha,
+      frontier: basis.frontier,
+      schema: basis.schema,
+      indexOids: referenceIdentities(shards.indexReferences),
+      propOids: referenceIdentities(shards.propReferences),
+    }),
+    ...shards,
+    indexRoot: basis.indexRoot,
+    propertyRoot: basis.propertyRoot,
+  };
+}
+
+async function loadBasisShards(
+  source: CheckpointTailOpticSource,
+  basis: CheckpointBasis,
+): Promise<LoadedBasisShards> {
+  const { indexHandles, propHandles } = partitionShardHandles(basis.indexShardHandles);
+  return {
+    indexHandles,
+    propHandles,
+    indexReferences: basis.indexRoot === null
+      ? handleReferences(indexHandles)
+      : await source._indexStore.readShardReferences(basis.indexRoot),
+    propReferences: basis.propertyRoot === null
+      ? handleReferences(propHandles)
+      : await source._indexStore.readShardReferences(basis.propertyRoot),
+  };
+}
+
+function shardReferenceCount(shards: LoadedBasisShards): number {
+  return Object.keys(shards.indexReferences).length
+    + Object.keys(shards.propReferences).length;
 }
 
 function createManifest(options: {
@@ -182,11 +230,22 @@ function appliedVersionVectorFromFrontier(frontier: Map<string, string>): Map<st
   return versionVector;
 }
 
-function handleIdentities(
+function handleReferences(
   handles: Readonly<Record<string, AssetHandle>>,
+): Readonly<Record<string, IndexShardReference>> {
+  return Object.freeze(Object.fromEntries(
+    Object.entries(handles).map(([path, handle]) => [
+      path,
+      Object.freeze({ kind: 'asset' as const, token: handle.toString() }),
+    ]),
+  ));
+}
+
+function referenceIdentities(
+  references: Readonly<Record<string, IndexShardReference>>,
 ): CheckpointTailShardIdentityMap {
   return Object.freeze(Object.fromEntries(
-    Object.entries(handles).map(([path, handle]) => [path, handle.toString()]),
+    Object.entries(references).map(([path, reference]) => [path, reference.token]),
   ));
 }
 

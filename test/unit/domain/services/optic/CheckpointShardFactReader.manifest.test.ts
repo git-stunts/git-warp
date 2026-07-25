@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EdgeShard } from '../../../../../src/domain/artifacts/EdgeShard.ts';
 import { MetaShard } from '../../../../../src/domain/artifacts/MetaShard.ts';
+import { PropertyShard } from '../../../../../src/domain/artifacts/PropertyShard.ts';
 import { shardToEntry } from '../../../../../src/domain/services/MaterializedViewHelpers.ts';
 import LogicalBitmapIndexBuilder from '../../../../../src/domain/services/index/LogicalBitmapIndexBuilder.ts';
 import CheckpointBasisManifest, {
@@ -19,8 +20,13 @@ import CheckpointTailOpticSource, {
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
 import { CURRENT_CHECKPOINT_SCHEMA } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
+import WarpStream from '../../../../../src/domain/stream/WarpStream.ts';
 import type CodecValue from '../../../../../src/domain/types/codec/CodecValue.ts';
 import computeShardKey from '../../../../../src/domain/utils/shardKey.ts';
+import {
+  materializationPropertyShardKey,
+  materializationPropertyShardPath,
+} from '../../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
@@ -34,6 +40,53 @@ const NEIGHBOR_ID = 'node:manifest-neighbor';
 const EDGE_LABEL = 'owns';
 
 describe('CheckpointShardFactReader manifest-backed routing', () => {
+  it('reads exact bundle members without converting current roots to legacy handles', async () => {
+    const indexStore = new MockIndexStorage();
+    const metaShardKey = computeShardKey(NODE_ID);
+    const propertyShardKey = materializationPropertyShardKey(NODE_ID);
+    const metaPath = `meta_${metaShardKey}.cbor`;
+    const propPath = materializationPropertyShardPath(NODE_ID);
+    const builder = new LogicalBitmapIndexBuilder();
+    builder.registerNode(NODE_ID);
+    builder.markAlive(NODE_ID);
+    const indexRoot = await indexStore.writeShards(WarpStream.from(builder.yieldShards()));
+    const propertyRoot = await indexStore.writeShards(WarpStream.from([
+      new PropertyShard({
+        shardKey: propertyShardKey,
+        schemaVersion: 2,
+        entries: [[NODE_ID, { [PROPERTY_KEY]: PROPERTY_VALUE }]],
+      }),
+    ]));
+    const indexReferences = await indexStore.readShardReferences(indexRoot);
+    const propReferences = await indexStore.readShardReferences(propertyRoot);
+    const metaToken = indexReferences[metaPath]?.token;
+    const propToken = propReferences[propPath]?.token;
+    if (metaToken === undefined || propToken === undefined) {
+      throw new Error('expected retained shard references');
+    }
+    const legacyShape = manifestBasis({
+      livenessRoots: new Map([[metaPath, new AssetHandle(metaToken)]]),
+      propertyRoots: new Map([[propPath, new AssetHandle(propToken)]]),
+    });
+    const basis: CheckpointTailIndexBasis = {
+      ...legacyShape,
+      indexHandles: Object.freeze({}),
+      propHandles: Object.freeze({}),
+      indexRoot,
+      propertyRoot,
+      indexReferences,
+      propReferences,
+    };
+    const reader = new CheckpointShardFactReader({
+      source: new ManifestShardSource(indexStore),
+    });
+
+    await expect(reader.readNodeAlive(basis, NODE_ID)).resolves.toBe(true);
+    await expect(reader.readProperty(basis, NODE_ID, PROPERTY_KEY))
+      .resolves.toBe(PROPERTY_VALUE);
+    expect(indexStore.decodedShardPaths).toEqual([metaPath, propPath]);
+  });
+
   it('reads liveness and properties through their manifest-selected asset handles', async () => {
     const indexStore = new MockIndexStorage();
     const metaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
@@ -357,6 +410,10 @@ function manifestBasis(options: {
       edgeFactRoots,
     ),
     propHandles: handleRecord(options.propertyRoots),
+    indexRoot: null,
+    propertyRoot: null,
+    indexReferences: Object.freeze({}),
+    propReferences: Object.freeze({}),
   };
 }
 

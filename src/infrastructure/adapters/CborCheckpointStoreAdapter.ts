@@ -1,6 +1,9 @@
-import type {
-  BundleCapability,
-  PublicationCapability,
+import {
+  BundleHandle as GitCasBundleHandle,
+  type AssetCapability,
+  type BundleCapability,
+  type PageCapability,
+  type PublicationCapability,
 } from '@git-stunts/git-cas';
 import CheckpointStorePort, {
   type CheckpointBasis,
@@ -11,18 +14,20 @@ import CheckpointStorePort, {
 } from '../../ports/CheckpointStorePort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
+import type CryptoPort from '../../ports/CryptoPort.ts';
 import {
   CHECKPOINT_STORAGE_FORMAT,
   type default as CommitMessageCodecPort,
 } from '../../ports/CommitMessageCodecPort.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
-import BundleHandle from '../../domain/storage/BundleHandle.ts';
+import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.ts';
+import type MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
 import {
+  computeAppliedVV,
   deserializeCheckpointStateEnvelope,
-  serializeCheckpointStateEnvelope,
   type CheckpointStateEnvelopeBuffers,
 } from '../../domain/services/state/CheckpointSerializer.ts';
 import {
@@ -32,10 +37,17 @@ import {
 import { buildCheckpointRef, buildCoverageRef } from '../../domain/utils/RefLayout.ts';
 import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
-import { stageCheckpointBundleArtifacts } from './CheckpointBundleArtifactStager.ts';
 import LegacyCheckpointArtifactAdapter from './LegacyCheckpointArtifactAdapter.ts';
 import { classifyCheckpointStorage } from './CheckpointStorageFormatClassifier.ts';
 import { requireAdapterDependency } from './AdapterDependencyGuard.ts';
+import GitCasMaterializationSnapshotReader, {
+  type MaterializationSnapshot,
+} from './GitCasMaterializationSnapshotReader.ts';
+import {
+  requireCheckpointMaterialization,
+  requirePublishedBundle,
+  requireRetainedBundle,
+} from './CheckpointMaterializationPublication.ts';
 
 interface CheckpointHistory {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -48,7 +60,12 @@ interface CheckpointHistory {
 }
 
 export type GitCasCheckpointFacade = {
-  readonly bundles: Pick<BundleCapability, 'putOrdered' | 'iterateMemberReferences'>;
+  readonly assets: Pick<AssetCapability, 'open'>;
+  readonly pages: Pick<PageCapability, 'get'>;
+  readonly bundles: Pick<
+    BundleCapability,
+    'getMemberReference' | 'iterateMemberReferences' | 'putOrdered'
+  >;
   readonly publications: Pick<PublicationCapability, 'commit'>;
 };
 
@@ -60,6 +77,9 @@ type CheckpointLayout = {
   readonly metadata: ReturnType<CommitMessageCodecPort['decodeCheckpoint']>;
   readonly artifacts: Readonly<Record<string, CheckpointArtifact>>;
   readonly indexShardHandles: Readonly<Record<string, AssetHandle>>;
+  readonly materialization: MaterializationSnapshot | null;
+  readonly indexRoot: BundleHandle | null;
+  readonly propertyRoot: BundleHandle | null;
 };
 
 /**
@@ -73,9 +93,11 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   private readonly _assets: AssetStoragePort;
   private readonly _cas: GitCasCheckpointFacade;
   private readonly _legacyArtifacts: LegacyCheckpointArtifactAdapter;
+  private readonly _materializationSnapshots: GitCasMaterializationSnapshotReader;
 
   constructor(options: {
     codec: CodecPort;
+    crypto: CryptoPort;
     commitMessageCodec: CommitMessageCodecPort;
     history: CheckpointHistory;
     assetStorage: AssetStoragePort;
@@ -83,6 +105,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   }) {
     super();
     requireAdapterDependency(options.codec, 'codec');
+    requireAdapterDependency(options.crypto, 'crypto');
     requireAdapterDependency(options.commitMessageCodec, 'commitMessageCodec');
     requireAdapterDependency(options.history, 'history');
     requireAdapterDependency(options.assetStorage, 'assetStorage');
@@ -96,6 +119,11 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       history: options.history,
       assets: options.assetStorage,
     });
+    this._materializationSnapshots = new GitCasMaterializationSnapshotReader({
+      cas: options.cas,
+      codec: options.codec,
+      crypto: options.crypto,
+    });
   }
 
   override async publishCheckpoint(record: CheckpointRecord): Promise<PublishedCheckpoint> {
@@ -103,16 +131,9 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     const expectedHead = record.expectedCheckpointSha === undefined
       ? await this._history.readRef(checkpointRef)
       : record.expectedCheckpointSha;
-    const stateEnvelope = serializeCheckpointStateEnvelope(record.state, { codec: this._codec });
-    const bundle = await this._cas.bundles.putOrdered({
-      members: stageCheckpointBundleArtifacts({
-        assets: this._assets,
-        codec: this._codec,
-        envelope: stateEnvelope,
-        record,
-      }),
-    });
-    const bundleHandle = new BundleHandle(bundle.handle.toString());
+    const materialization = requireCheckpointMaterialization(record);
+    const bundleHandle = materialization.bundle;
+    const root = GitCasBundleHandle.parse(bundleHandle.toString());
     const message = this._messageCodec.encodeCheckpoint({
       kind: 'checkpoint',
       graph: record.graphName,
@@ -122,7 +143,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       bundleHandle,
     });
     const publication = await this._cas.publications.commit({
-      root: bundle.handle,
+      root,
       commit: { parents: record.parents, message },
       ref: { name: checkpointRef, expected: expectedHead },
     });
@@ -145,13 +166,18 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     expectedGraphName?: string,
   ): Promise<CheckpointData> {
     const layout = await this._readLayout(checkpointSha, expectedGraphName);
-    const state = deserializeCheckpointStateEnvelope(
+    const state = layout.materialization?.state ?? deserializeCheckpointStateEnvelope(
       await this._readStateEnvelope(checkpointSha, layout.artifacts),
       { codec: this._codec },
     );
-    const frontier = await this._readFrontier(checkpointSha, layout.artifacts);
-    const appliedVV = await this._readAppliedVV(layout.artifacts);
-    const provenanceIndex = await this._readProvenanceIndex(layout.artifacts);
+    const frontier = layout.materialization?.coordinate.frontier()
+      ?? await this._readFrontier(checkpointSha, layout.artifacts);
+    const appliedVV = layout.materialization === null
+      ? await this._readAppliedVV(layout.artifacts)
+      : computeAppliedVV(state);
+    const provenanceIndex = layout.materialization === null
+      ? await this._readProvenanceIndex(layout.artifacts)
+      : layout.materialization.provenanceIndex;
     const result: CheckpointData = {
       state,
       frontier,
@@ -161,6 +187,8 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       indexShardHandles: hasEntries(layout.indexShardHandles)
         ? layout.indexShardHandles
         : null,
+      indexRoot: layout.indexRoot,
+      propertyRoot: layout.propertyRoot,
     };
     if (provenanceIndex !== null) {
       result.provenanceIndex = provenanceIndex;
@@ -192,7 +220,11 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     expectedGraphName?: string,
   ): Promise<CheckpointBasis> {
     const layout = await this._readLayout(checkpointSha, expectedGraphName);
-    if (!hasEntries(layout.indexShardHandles)) {
+    if (
+      !hasEntries(layout.indexShardHandles)
+      && layout.indexRoot === null
+      && layout.propertyRoot === null
+    ) {
       throw new PersistenceError(
         `Checkpoint ${checkpointSha} has no bounded index basis`,
         'E_CHECKPOINT_MISSING_INDEX',
@@ -203,8 +235,11 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       checkpointSha,
       stateHash: layout.metadata.stateHash,
       schema: layout.metadata.schema,
-      frontier: await this._readFrontier(checkpointSha, layout.artifacts),
+      frontier: layout.materialization?.coordinate.frontier()
+        ?? await this._readFrontier(checkpointSha, layout.artifacts),
       indexShardHandles: layout.indexShardHandles,
+      indexRoot: layout.indexRoot,
+      propertyRoot: layout.propertyRoot,
     });
   }
 
@@ -256,6 +291,9 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       indexShardHandles: Object.freeze(Object.fromEntries(
         Object.entries(indexOids).map(([path, oid]) => [path, new AssetHandle(oid)]),
       )),
+      materialization: null,
+      indexRoot: null,
+      propertyRoot: null,
     };
   }
 
@@ -263,43 +301,26 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     metadata: CheckpointLayout['metadata'],
     bundleHandle: BundleHandle,
   ): Promise<CheckpointLayout> {
-    const artifacts = new Map<string, CheckpointArtifact>();
-    const indexShardHandles = new Map<string, AssetHandle>();
-    for await (const member of this._cas.bundles.iterateMemberReferences({
-      handle: bundleHandle.toString(),
-    })) {
-      if (member.handle.kind !== 'asset') {
-        throw new PersistenceError(
-          `Checkpoint bundle member is not an asset: ${member.path}`,
-          'E_CHECKPOINT_INVALID_BUNDLE_MEMBER',
-          { context: { path: member.path, kind: member.handle.kind } },
-        );
-      }
-      if (artifacts.has(member.path)) {
-        throw new PersistenceError(
-          `Checkpoint bundle contains a duplicate member: ${member.path}`,
-          'E_CHECKPOINT_DUPLICATE_BUNDLE_MEMBER',
-          { context: { path: member.path } },
-        );
-      }
-      const handle = new AssetHandle(member.handle.toString());
-      artifacts.set(member.path, Object.freeze({ kind: 'asset', handle }));
-      if (member.path.startsWith('index/')) {
-        const indexPath = member.path.slice('index/'.length);
-        if (indexPath.length === 0) {
-          throw new PersistenceError(
-            'Checkpoint bundle contains an empty index member path',
-            'E_CHECKPOINT_INVALID_BUNDLE_MEMBER',
-            { context: { path: member.path } },
-          );
-        }
-        indexShardHandles.set(indexPath, handle);
-      }
+    const materialization = await this._materializationSnapshots.read(bundleHandle);
+    if (materialization.stateHash !== metadata.stateHash) {
+      throw new PersistenceError(
+        'Checkpoint metadata does not match its materialization state hash',
+        'E_CHECKPOINT_MATERIALIZATION_MISMATCH',
+      );
+    }
+    if (materialization.coordinate.ceiling !== null) {
+      throw new PersistenceError(
+        'Checkpoint materialization does not represent a live coordinate',
+        'E_CHECKPOINT_MATERIALIZATION_MISMATCH',
+      );
     }
     return {
       metadata,
-      artifacts: Object.freeze(Object.fromEntries(artifacts)),
-      indexShardHandles: Object.freeze(Object.fromEntries(indexShardHandles)),
+      artifacts: Object.freeze({}),
+      indexShardHandles: Object.freeze({}),
+      materialization,
+      indexRoot: retainedRootHandle(materialization.roots.roaringIndexes),
+      propertyRoot: retainedRootHandle(materialization.roots.properties),
     };
   }
 
@@ -395,6 +416,10 @@ function legacyCheckpointArtifact(oid: string): CheckpointArtifact {
   return Object.freeze({ kind: 'legacy-object', oid });
 }
 
+function retainedRootHandle(root: MaterializationRoot): BundleHandle | null {
+  return root.status === 'retained' ? root.handle : null;
+}
+
 function requireArtifact(
   checkpointSha: string,
   artifacts: Readonly<Record<string, CheckpointArtifact>>,
@@ -409,26 +434,6 @@ function requireArtifact(
     'E_CHECKPOINT_MISSING_ARTIFACT',
     { context: { checkpointSha, path } },
   );
-}
-
-function requirePublishedBundle(publishedToken: string, expected: BundleHandle): void {
-  if (publishedToken !== expected.toString()) {
-    throw new PersistenceError(
-      'Checkpoint publication returned a different bundle handle',
-      'E_CHECKPOINT_PUBLICATION_MISMATCH',
-      { context: { expected: expected.toString(), actual: publishedToken } },
-    );
-  }
-}
-
-function requireRetainedBundle(retainedToken: string, expected: BundleHandle): void {
-  if (retainedToken !== expected.toString()) {
-    throw new PersistenceError(
-      'Checkpoint retention evidence names a different bundle handle',
-      'E_CHECKPOINT_RETENTION_MISMATCH',
-      { context: { expected: expected.toString(), actual: retainedToken } },
-    );
-  }
 }
 
 function unsupportedCheckpointSchema(checkpointSha: string, schema: number): PersistenceError {

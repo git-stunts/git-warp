@@ -6,6 +6,7 @@ import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import AdjacencyMap from '../../../../../src/domain/capabilities/AdjacencyMap.ts';
 import type PatchType from '../../../../../src/domain/types/Patch.ts';
+import InMemoryMaterializationStore from '../../../../helpers/InMemoryMaterializationStore.ts';
 
 /** @typedef {import('../../../../../src/domain/services/state/WarpState.ts').default} WarpState */
 /** @typedef {import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt} TickReceipt */
@@ -162,10 +163,7 @@ function makeDeps({ patchesOverrides = {}, persistenceOverrides = {}, depsOverri
       hmac: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
     },
     persistence,
-    materializations: {
-      acquireExact: vi.fn().mockResolvedValue(null),
-      acquireBestCompatiblePredecessor: vi.fn().mockResolvedValue(null),
-    },
+    materializations: new InMemoryMaterializationStore(),
     patches,
     graphCloner: { openReadOnly: vi.fn() },
     graphName: 'test',

@@ -28,8 +28,10 @@ describe('CheckpointStorePort', () => {
       frontier: new Map(),
       stateHash: 'state-hash',
       schema: 5,
-      appliedVV: VersionVector.empty(),
-      indexShardHandles: null,
+        appliedVV: VersionVector.empty(),
+        indexShardHandles: null,
+        indexRoot: null,
+        propertyRoot: null,
     };
     const bundleHandle = new BundleHandle('checkpoint-bundle');
     const retention = new StorageRetentionWitness({
@@ -59,8 +61,10 @@ describe('CheckpointStorePort', () => {
           checkpointSha: 'checkpoint-sha',
           stateHash: 'state-hash',
           schema: 5,
-          frontier: new Map(),
-          indexShardHandles: {},
+        frontier: new Map(),
+        indexShardHandles: {},
+        indexRoot: null,
+        propertyRoot: null,
         };
       }
       async publishCoverage() { return 'coverage-sha'; }

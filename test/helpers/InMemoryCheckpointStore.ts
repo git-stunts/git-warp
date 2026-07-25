@@ -45,6 +45,8 @@ export default class InMemoryCheckpointStore extends CheckpointStorePort {
       schema: 5,
       appliedVV: record.appliedVV,
       indexShardHandles,
+      indexRoot: null,
+      propertyRoot: null,
       ...(record.provenanceIndex === undefined || record.provenanceIndex === null
         ? {}
         : { provenanceIndex: record.provenanceIndex }),
@@ -119,6 +121,8 @@ export default class InMemoryCheckpointStore extends CheckpointStorePort {
       schema: checkpoint.schema,
       frontier: new Map(checkpoint.frontier),
       indexShardHandles: checkpoint.indexShardHandles,
+      indexRoot: null,
+      propertyRoot: null,
     });
   }
 

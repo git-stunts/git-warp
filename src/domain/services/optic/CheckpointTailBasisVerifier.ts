@@ -40,7 +40,7 @@ async function verifyCheckpointBasis(
   try {
     const basis = await source._checkpointStore.loadBasis(checkpointSha, source.graphName);
     requireCurrentSchema(source.graphName, basis.schema);
-    requireIndexShards(source.graphName, basis.indexShardHandles);
+    requireIndexShards(source.graphName, basis);
   } catch (error) {
     if (error instanceof QueryError && error.code === 'E_OPTIC_NO_BOUNDED_BASIS') {
       throw error;
@@ -57,9 +57,9 @@ function requireCurrentSchema(graphName: string, schema: number): void {
 
 function requireIndexShards(
   graphName: string,
-  handles: CheckpointBasis['indexShardHandles'],
+  basis: CheckpointBasis,
 ): void {
-  if (Object.keys(handles).length === 0) {
+  if (Object.keys(basis.indexShardHandles).length === 0 && basis.indexRoot === null) {
     throwNoBoundedBasis(graphName, 'checkpoint-missing-index-shards');
   }
 }

@@ -244,6 +244,37 @@ describe('CheckpointController', () => {
       );
     });
 
+    it('publishes the exact retained materialization without rebuilding an index tree', async () => {
+      const state = stubState();
+      const retained = { bundle: 'retained-materialization' };
+      const retain = vi.fn().mockResolvedValue(retained);
+      const build = vi.fn(() => {
+        throw new Error('checkpoint must not rebuild the retained index');
+      });
+      host['_cachedState'] = state;
+      host['_stateDirty'] = false;
+      host['_materializations'] = { retain };
+      host['_stateHashService'] = { compute: vi.fn().mockResolvedValue('state-hash') };
+      host['_viewService'] = { build };
+      host['discoverWriters'] = vi.fn().mockResolvedValue([]);
+      createCheckpointCommitMock.mockResolvedValue('cp-sha');
+
+      await expect(ctrl.createCheckpoint()).resolves.toBe('cp-sha');
+
+      expect(retain).toHaveBeenCalledWith(expect.objectContaining({
+        stateHash: 'state-hash',
+        replayBasis: state,
+      }));
+      expect(build).not.toHaveBeenCalled();
+      expect(createCheckpointCommitMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state,
+          materialization: retained,
+        }),
+      );
+      expect(createCheckpointCommitMock.mock.calls[0]?.[0]).not.toHaveProperty('indexTree');
+    });
+
     it('fails closed when cached state is dirty', async () => {
       host['_stateDirty'] = true;
       host['_cachedState'] = stubState();
@@ -284,12 +315,11 @@ describe('CheckpointController', () => {
       expect(materializeGraphTrap).not.toHaveBeenCalled();
     });
 
-    it('logs warning when index build fails and still creates checkpoint', async () => {
+    it('does not rebuild the removed legacy checkpoint index tree', async () => {
       const warnFn = vi.fn();
+      const build = vi.fn(() => { throw new Error('legacy build must not run'); });
       host['_logger'] = { warn: warnFn, info: vi.fn() };
-      host['_viewService'] = {
-        build: vi.fn(() => { throw new Error('boom'); }),
-      };
+      host['_viewService'] = { build };
       host['_cachedIndexTree'] = null;
       host['_cachedState'] = stubState();
       host['discoverWriters'] = vi.fn().mockResolvedValue([]);
@@ -298,10 +328,8 @@ describe('CheckpointController', () => {
       const result = await ctrl.createCheckpoint();
 
       expect(result).toBe('cp-sha');
-      expect(warnFn).toHaveBeenCalledWith(
-        expect.stringContaining('index build failed'),
-        expect.objectContaining({ error: 'boom' }),
-      );
+      expect(build).not.toHaveBeenCalled();
+      expect(warnFn).not.toHaveBeenCalled();
     });
   });
 

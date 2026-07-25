@@ -3,6 +3,7 @@ import type MaterializationHandle from '../domain/materialization/Materializatio
 import type MaterializationRoots from '../domain/materialization/MaterializationRoots.ts';
 import type StorageRetentionWitness from '../domain/storage/StorageRetentionWitness.ts';
 import type WarpState from '../domain/services/state/WarpState.ts';
+import type { ProvenanceIndex } from '../domain/services/provenance/ProvenanceIndex.ts';
 import ArtifactStagingPort from './ArtifactStagingPort.ts';
 
 export type MaterializationWorkspaceRoots = Readonly<{
@@ -17,6 +18,7 @@ export type PromoteMaterializationRequest = Readonly<{
   roots: MaterializationRoots;
   stateHash: string | null;
   replayBasis?: WarpState;
+  provenanceSupport?: ProvenanceIndex;
 }>;
 
 /**

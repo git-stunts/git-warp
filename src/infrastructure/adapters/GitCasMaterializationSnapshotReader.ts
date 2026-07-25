@@ -1,0 +1,113 @@
+import type {
+  AssetCapability,
+  BundleCapability,
+  PageCapability,
+} from '@git-stunts/git-cas';
+import type MaterializationCoordinate from '../../domain/materialization/MaterializationCoordinate.ts';
+import type MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
+import type MaterializationRoots from '../../domain/materialization/MaterializationRoots.ts';
+import type WarpState from '../../domain/services/state/WarpState.ts';
+import type { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.ts';
+import type BundleHandle from '../../domain/storage/BundleHandle.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
+import type CryptoPort from '../../ports/CryptoPort.ts';
+import {
+  decodeMaterializationDescriptor,
+  materializationRootsFromDescriptor,
+  type DecodedMaterializationDescriptor,
+} from './GitCasMaterializationDescriptor.ts';
+import {
+  decodeMaterializationMembers,
+} from './GitCasMaterializationBundle.ts';
+import GitCasMaterializationReplayBasis from './GitCasMaterializationReplayBasis.ts';
+import { storageError } from './GitCasMaterializationStoreValidation.ts';
+import GitCasMaterializationProvenanceSupport from './GitCasMaterializationProvenanceSupport.ts';
+
+const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
+
+export type GitCasMaterializationSnapshotFacade = Readonly<{
+  assets: Pick<AssetCapability, 'open'>;
+  pages: Pick<PageCapability, 'get'>;
+  bundles: Pick<
+    BundleCapability,
+    'getMemberReference' | 'iterateMemberReferences'
+  >;
+}>;
+
+export type MaterializationSnapshot = Readonly<{
+  coordinate: MaterializationCoordinate;
+  roots: MaterializationRoots;
+  state: WarpState;
+  stateHash: string;
+  provenanceIndex: ProvenanceIndex | null;
+}>;
+
+/** Opens the canonical whole-state snapshot already retained by a materialization bundle. */
+export default class GitCasMaterializationSnapshotReader {
+  readonly #cas: GitCasMaterializationSnapshotFacade;
+  readonly #codec: CodecPort;
+  readonly #replayBasis: GitCasMaterializationReplayBasis;
+  readonly #provenanceSupport: GitCasMaterializationProvenanceSupport;
+
+  constructor(options: {
+    cas: GitCasMaterializationSnapshotFacade;
+    codec: CodecPort;
+    crypto: CryptoPort;
+  }) {
+    this.#cas = options.cas;
+    this.#codec = options.codec;
+    this.#replayBasis = new GitCasMaterializationReplayBasis(options);
+    this.#provenanceSupport = new GitCasMaterializationProvenanceSupport(options);
+  }
+
+  async read(bundle: BundleHandle): Promise<MaterializationSnapshot> {
+    const members = await decodeMaterializationMembers(
+      this.#cas.bundles.iterateMemberReferences({ handle: bundle.toString() }),
+    );
+    const descriptor = requireWholeStateDescriptor(
+      decodeMaterializationDescriptor(this.#codec.decode(
+        await this.#cas.pages.get({
+          handle: members.descriptor,
+          maxBytes: MAX_DESCRIPTOR_BYTES,
+        }),
+      )),
+    );
+    const roots = materializationRootsFromDescriptor(descriptor, members.retainedRoots);
+    const state = await this.#replayBasis.loadRoot(
+      requireRetainedRoot(roots.replayBasis, 'replay basis'),
+      descriptor.stateHash,
+    );
+    const provenanceRoot = optionalRetainedRoot(roots.provenanceSupport);
+    const provenanceIndex = provenanceRoot === null
+      ? null
+      : await this.#provenanceSupport.loadRoot(provenanceRoot);
+    return Object.freeze({
+      coordinate: descriptor.coordinate,
+      roots,
+      state,
+      stateHash: descriptor.stateHash,
+      provenanceIndex,
+    });
+  }
+}
+
+function requireWholeStateDescriptor(
+  descriptor: DecodedMaterializationDescriptor,
+): DecodedMaterializationDescriptor & { readonly stateHash: string } {
+  if (descriptor.stateHash === null) {
+    throw storageError('checkpoint materialization is partial');
+  }
+  return descriptor as DecodedMaterializationDescriptor & { readonly stateHash: string };
+}
+
+function requireRetainedRoot(root: MaterializationRoot, name: string): BundleHandle {
+  const retained = optionalRetainedRoot(root);
+  if (retained === null) {
+    throw storageError(`checkpoint materialization has no ${name}`);
+  }
+  return retained;
+}
+
+function optionalRetainedRoot(root: MaterializationRoot): BundleHandle | null {
+  return root.status === 'retained' ? root.handle : null;
+}

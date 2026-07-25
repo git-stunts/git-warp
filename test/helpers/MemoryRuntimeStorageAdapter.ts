@@ -16,7 +16,7 @@ import SubstrateCompatibilityPolicy from '../../src/infrastructure/adapters/Subs
 import type AssetStoragePort from '../../src/ports/AssetStoragePort.ts';
 import InMemoryBlobStorageAdapter from './InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from './InMemoryGitCasFacade.ts';
-import type InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
+import InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
 import InMemorySyncReplayProtection from './InMemorySyncReplayProtection.ts';
 
 export type MemoryRuntimeStorageAdapterOptions = {
@@ -84,6 +84,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
       }),
       checkpoints: new CborCheckpointStoreAdapter({
         codec: request.codec,
+        crypto: request.crypto,
         commitMessageCodec: request.commitMessageCodec,
         history: this.#history,
         assetStorage: this.#content,
@@ -144,6 +145,7 @@ function withFixtureObjectTypeProbe(history: InMemoryGraphAdapter): InMemoryGrap
   if (typeof history.readObjectType === 'function') {
     return history;
   }
+  const fallbackObjects = new InMemoryGraphAdapter();
   const publicationCommits = new Set<string>();
   const readObjectType = (oid: string): Promise<string> => Promise.resolve(
     publicationCommits.has(oid) ? 'commit' : 'blob',
@@ -151,9 +153,28 @@ function withFixtureObjectTypeProbe(history: InMemoryGraphAdapter): InMemoryGrap
   const commitNodeWithTree = async (
     options: Parameters<InMemoryGraphAdapter['commitNodeWithTree']>[0],
   ): Promise<string> => {
-    const oid = await history.commitNodeWithTree(options);
+    const candidate = await history.commitNodeWithTree(options);
+    const oid = isGitObjectId(candidate)
+      ? candidate
+      : await fallbackObjects.writeBlob(JSON.stringify(options));
     publicationCommits.add(oid);
     return oid;
+  };
+  const writeBlob = async (
+    content: Parameters<InMemoryGraphAdapter['writeBlob']>[0],
+  ): Promise<string> => {
+    const candidate = await history.writeBlob(content);
+    return isGitObjectId(candidate)
+      ? candidate
+      : await fallbackObjects.writeBlob(content);
+  };
+  const writeTree = async (
+    entries: Parameters<InMemoryGraphAdapter['writeTree']>[0],
+  ): Promise<string> => {
+    const candidate = await history.writeTree(entries);
+    return isGitObjectId(candidate)
+      ? candidate
+      : await fallbackObjects.writeTree(entries);
   };
   return new Proxy(history, {
     get(target, property): unknown {
@@ -163,8 +184,18 @@ function withFixtureObjectTypeProbe(history: InMemoryGraphAdapter): InMemoryGrap
       if (property === 'commitNodeWithTree') {
         return commitNodeWithTree;
       }
+      if (property === 'writeBlob') {
+        return writeBlob;
+      }
+      if (property === 'writeTree') {
+        return writeTree;
+      }
       const value: unknown = Reflect.get(target, property, target);
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
+}
+
+function isGitObjectId(value: unknown): value is string {
+  return typeof value === 'string' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(value);
 }

@@ -64,6 +64,10 @@ function indexBasis(): CheckpointTailIndexBasis {
     manifest: manifest(),
     indexHandles: {},
     propHandles: {},
+    indexRoot: null,
+    propertyRoot: null,
+    indexReferences: {},
+    propReferences: {},
   };
 }
 

@@ -13,7 +13,10 @@ import type { CheckpointTailIndexBasis } from './CheckpointTailBasisLoader.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 import type { ReadIdentityIndexShard } from './ReadIdentity.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
+import type BundleHandle from '../../storage/BundleHandle.ts';
 import { collectAsyncIterable } from '../../utils/streamUtils.ts';
+import { MAX_MATERIALIZATION_INDEX_SHARD_BYTES } from '../../materialization/MaterializationIndexProfile.ts';
+import { materializationPropertyShardPath } from '../../materialization/MaterializationPropertyProfile.ts';
 
 export type {
   CheckpointShardNeighborhoodPage,
@@ -36,6 +39,10 @@ type CheckpointShardReadFailureContext = {
   readonly oid: string;
 };
 
+type BoundCheckpointShard =
+  | Readonly<{ kind: 'asset'; handle: AssetHandle }>
+  | Readonly<{ kind: 'bundle'; root: BundleHandle }>;
+
 export default class CheckpointShardFactReader {
   private readonly _source: CheckpointTailOpticSource;
 
@@ -53,10 +60,14 @@ export default class CheckpointShardFactReader {
     if (token === undefined) {
       return false;
     }
-    const handle = requireBoundShardHandle(basis, path, token);
+    const shard = requireBoundShard(basis, path, token);
     try {
-      const reader = await new LogicalIndexReader({ indexStore: this._source._indexStore })
-        .loadFromHandles({ [path]: handle });
+      const reader = new LogicalIndexReader({ indexStore: this._source._indexStore });
+      if (shard.kind === 'asset') {
+        await reader.loadFromHandles({ [path]: shard.handle });
+      } else {
+        await reader.loadFromStorePaths(shard.root, [path]);
+      }
       return reader.toLogicalIndex().isAlive(nodeId);
     } catch (error) {
       if (!(error instanceof Error)) {
@@ -72,14 +83,18 @@ export default class CheckpointShardFactReader {
     nodeId: string,
     propertyKey: string,
   ): Promise<PropValue | undefined> {
-    const path = this._propertyPath(nodeId);
+    const path = this._propertyPath(basis, nodeId);
     const token = basis.manifest.propertyRoots.get(path);
     if (token === undefined) {
       return undefined;
     }
-    const handle = requireBoundShardHandle(basis, path, token);
+    const shard = requireBoundShard(basis, path, token);
     const reader = new PropertyIndexReader({ indexStore: this._source._indexStore });
-    reader.setupHandles({ [path]: handle });
+    if (shard.kind === 'asset') {
+      reader.setupHandles({ [path]: shard.handle });
+    } else {
+      reader.setupRoot(shard.root);
+    }
     try {
       return await reader.getProperty(nodeId, propertyKey);
     } catch (error) {
@@ -97,11 +112,11 @@ export default class CheckpointShardFactReader {
   ): Promise<CheckpointShardNeighborhoodPage> {
     const neighborhoodReader = new CheckpointNeighborhoodPageReader({
       source: this._source,
-      readShard: async (path, token) => await readShardAsset({
+      readShard: async (path, token) => await readBoundShard({
         graphName: this._source.graphName,
         indexStore: this._source._indexStore,
         path,
-        handle: requireBoundShardHandle(basis, path, token),
+        shard: requireBoundShard(basis, path, token),
       }),
     });
     try {
@@ -127,7 +142,7 @@ export default class CheckpointShardFactReader {
     basis: CheckpointTailIndexBasis,
     nodeId: string,
   ): readonly ReadIdentityIndexShard[] {
-    const path = this._propertyPath(nodeId);
+    const path = this._propertyPath(basis, nodeId);
     return shardIdentities([{ path, oid: basis.manifest.propertyRoots.get(path) }]);
   }
 
@@ -135,8 +150,10 @@ export default class CheckpointShardFactReader {
     return `meta_${computeShardKey(nodeId)}.cbor`;
   }
 
-  private _propertyPath(nodeId: string): string {
-    return `props_${computeShardKey(nodeId)}.cbor`;
+  private _propertyPath(basis: CheckpointTailIndexBasis, nodeId: string): string {
+    return basis.propertyRoot === null
+      ? `props_${computeShardKey(nodeId)}.cbor`
+      : materializationPropertyShardPath(nodeId);
   }
 
 }
@@ -163,19 +180,59 @@ function rethrowPropertyShardReadFailure(
   throw error;
 }
 
-function requireBoundShardHandle(
+function requireBoundShard(
   basis: CheckpointTailIndexBasis,
   path: string,
   manifestToken: string,
-): AssetHandle {
+): BoundCheckpointShard {
   const handle = basis.indexHandles[path] ?? basis.propHandles[path];
-  if (handle === undefined) {
-    throwShardIdentityMismatch(path, manifestToken, null);
+  if (handle !== undefined) {
+    return requireAssetBinding(path, manifestToken, handle);
   }
+  return requireBundleBinding(basis, path, manifestToken);
+}
+
+function requireAssetBinding(
+  path: string,
+  manifestToken: string,
+  handle: AssetHandle,
+): BoundCheckpointShard {
   if (handle.toString() !== manifestToken) {
     throwShardIdentityMismatch(path, manifestToken, handle.toString());
   }
-  return handle;
+  return Object.freeze({ kind: 'asset', handle });
+}
+
+function requireBundleBinding(
+  basis: CheckpointTailIndexBasis,
+  path: string,
+  manifestToken: string,
+): BoundCheckpointShard {
+  const reference = basis.indexReferences[path] ?? basis.propReferences[path];
+  if (reference === undefined) {
+    throwShardIdentityMismatch(path, manifestToken, null);
+  }
+  if (reference.token !== manifestToken) {
+    throwShardIdentityMismatch(path, manifestToken, reference.token);
+  }
+  return Object.freeze({
+    kind: 'bundle',
+    root: requireBundleRoot(basis, path, manifestToken),
+  });
+}
+
+function requireBundleRoot(
+  basis: CheckpointTailIndexBasis,
+  path: string,
+  manifestToken: string,
+): BundleHandle {
+  const root = basis.indexReferences[path] === undefined
+    ? basis.propertyRoot
+    : basis.indexRoot;
+  if (root === null) {
+    throwShardIdentityMismatch(path, manifestToken, null);
+  }
+  return root;
 }
 
 function throwShardIdentityMismatch(
@@ -194,20 +251,20 @@ function throwShardIdentityMismatch(
   });
 }
 
-async function readShardAsset(options: {
+async function readBoundShard(options: {
   readonly graphName: string;
   readonly indexStore: CheckpointTailOpticSource['_indexStore'];
   readonly path: string;
-  readonly handle: AssetHandle;
+  readonly shard: BoundCheckpointShard;
 }): Promise<Uint8Array> {
   try {
-    return await collectAsyncIterable(options.indexStore.openShard(options.handle));
+    return await collectAsyncIterable(openBoundShard(options));
   } catch (error) {
     const failure = error instanceof Error
       ? checkpointLogicalShardReadFailure(error, {
         graphName: options.graphName,
         path: options.path,
-        oid: options.handle.toString(),
+        oid: boundShardToken(options.shard),
       })
       : null;
     if (failure !== null) {
@@ -215,6 +272,22 @@ async function readShardAsset(options: {
     }
     throw error;
   }
+}
+
+function openBoundShard(options: {
+  readonly indexStore: CheckpointTailOpticSource['_indexStore'];
+  readonly path: string;
+  readonly shard: BoundCheckpointShard;
+}): AsyncIterable<Uint8Array> {
+  return options.shard.kind === 'asset'
+    ? options.indexStore.openShard(options.shard.handle)
+    : options.indexStore.openShardAt(options.shard.root, options.path, {
+      maxBytes: MAX_MATERIALIZATION_INDEX_SHARD_BYTES,
+    });
+}
+
+function boundShardToken(shard: BoundCheckpointShard): string {
+  return shard.kind === 'asset' ? shard.handle.toString() : shard.root.toString();
 }
 
 function firstShardFailureContext(

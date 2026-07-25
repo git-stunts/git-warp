@@ -7,6 +7,7 @@ import CheckpointTailOpticSource, {
 } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
 import { CURRENT_CHECKPOINT_SCHEMA } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../../../../src/domain/storage/BundleHandle.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import type {
   CheckpointBasis,
@@ -133,6 +134,19 @@ describe('CheckpointTailBasisVerifier', () => {
     });
   });
 
+  it('accepts a retained current index root without legacy shard handles', async () => {
+    const source = new TestCheckpointTailOpticSource({
+      result: validBasis({
+        indexShardHandles: Object.freeze({}),
+        indexRoot: new BundleHandle('retained-current-index-root'),
+      }),
+    });
+
+    await expect(new CheckpointTailBasisVerifier({ source }).verify()).resolves.toEqual({
+      checkpointSha: CHECKPOINT_SHA,
+    });
+  });
+
   it('maps checkpoint-store failures to unavailable bounded support', async () => {
     const source = new TestCheckpointTailOpticSource({
       result: new Error('checkpoint publication is unavailable'),
@@ -154,6 +168,8 @@ function validBasis(overrides: Partial<CheckpointBasis> = {}): CheckpointBasis {
     indexShardHandles: Object.freeze({
       'meta_00.cbor': new AssetHandle('checkpoint-index:meta-00'),
     }),
+    indexRoot: null,
+    propertyRoot: null,
     ...overrides,
   };
 }

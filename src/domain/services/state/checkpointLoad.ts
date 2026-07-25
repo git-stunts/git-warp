@@ -19,6 +19,7 @@ import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
+import type BundleHandle from '../../storage/BundleHandle.ts';
 import type Patch from '../../types/Patch.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 
@@ -31,6 +32,8 @@ export interface LoadedCheckpoint {
   appliedVV: VersionVector | null;
   provenanceIndex?: ProvenanceIndex;
   indexShardHandles: Readonly<Record<string, AssetHandle>> | null;
+  indexRoot: BundleHandle | null;
+  propertyRoot: BundleHandle | null;
 }
 
 /**
@@ -59,6 +62,8 @@ export async function loadCheckpoint(
     schema: checkpoint.schema,
     appliedVV: checkpoint.appliedVV,
     indexShardHandles: checkpoint.indexShardHandles,
+    indexRoot: checkpoint.indexRoot,
+    propertyRoot: checkpoint.propertyRoot,
   };
   if (checkpoint.provenanceIndex !== null && checkpoint.provenanceIndex !== undefined) {
     result.provenanceIndex = checkpoint.provenanceIndex;

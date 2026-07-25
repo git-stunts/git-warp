@@ -793,9 +793,7 @@ describe("MaterializeController — state session integration", () => {
 
   it("fails fast on materializeAt when the controller is on the session-backed runtime line", async () => {
     const { controller } = createControllerFixtures();
-
-    await expect(controller.materializeAt("a".repeat(40))).rejects.toBeInstanceOf(
-      SchemaUnsupportedError,
-    );
+    await expect(controller.materializeAt("a".repeat(40)))
+      .rejects.toBeInstanceOf(SchemaUnsupportedError);
   });
 });

@@ -74,14 +74,18 @@ export default class GitCasMaterializationReplayBasis {
     if (materialization.stateHash === null) {
       throw storageError('partial materialization cannot contain a replay basis');
     }
+    return await this.loadRoot(root.handle, materialization.stateHash);
+  }
+
+  async loadRoot(root: BundleHandle, expectedStateHash: string): Promise<WarpState> {
     const member = await this.#cas.bundles.getMemberReference({
-      handle: root.handle.toString(),
+      handle: root.toString(),
       path: REPLAY_BASIS_PATH,
     });
     const asset = requireReplayAsset(member);
     const bytes = await collectAsyncIterable(this.#cas.assets.open({ handle: asset }));
     const state = decodeCanonicalWarpFullState(bytes, this.#codec);
-    await this.#requireMatchingHash(state, materialization.stateHash);
+    await this.#requireMatchingHash(state, expectedStateHash);
     return state;
   }
 

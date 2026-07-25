@@ -9,6 +9,10 @@ import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAd
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { createFrontier } from '../../../src/domain/services/Frontier.ts';
 import { createCheckpointEnvelope } from '../../../src/domain/services/state/checkpointCreate.ts';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
+import MaterializationCoordinate from '../../../src/domain/materialization/MaterializationCoordinate.ts';
+import MaterializationRoot from '../../../src/domain/materialization/MaterializationRoot.ts';
+import MaterializationRoots from '../../../src/domain/materialization/MaterializationRoots.ts';
 import {
   formatHumanResult,
   parseArgs,
@@ -75,13 +79,34 @@ describe('v16 to v17 top-level upgrade utility', () => {
       crypto: new NodeCryptoAdapter(),
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
+    const state = createEmptyState();
+    const frontier = createFrontier();
+    const crypto = new NodeCryptoAdapter();
+    const unavailable = () => MaterializationRoot.unavailable();
+    const materialization = await services.materializations.retain({
+      coordinate: new MaterializationCoordinate({ frontier, ceiling: null }),
+      roots: new MaterializationRoots({
+        adjacency: unavailable(),
+        edgeAlive: unavailable(),
+        edgeBirths: unavailable(),
+        frontier: unavailable(),
+        nodeAlive: unavailable(),
+        properties: unavailable(),
+        provenanceSupport: unavailable(),
+        replayBasis: unavailable(),
+        roaringIndexes: unavailable(),
+      }),
+      stateHash: await computeStateHash(state, { codec: defaultCodec, crypto }),
+      replayBasis: state,
+    });
     const checkpointSha = await createCheckpointEnvelope({
       checkpointStore: services.checkpoints,
       graphName: 'alpha',
-      state: createEmptyState(),
-      frontier: createFrontier(),
+      state,
+      frontier,
       codec: defaultCodec,
-      crypto: new NodeCryptoAdapter(),
+      crypto,
+      materialization,
     });
     await persistence.updateRef('refs/warp/alpha/coverage/head', oid('a'));
     await persistence.updateRef('refs/warp/alpha/seek-cache', oid('b'));

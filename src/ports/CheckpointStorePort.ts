@@ -4,6 +4,7 @@ import type { ProvenanceIndex } from '../domain/services/provenance/ProvenanceIn
 import type AssetHandle from '../domain/storage/AssetHandle.ts';
 import type BundleHandle from '../domain/storage/BundleHandle.ts';
 import type StorageRetentionWitness from '../domain/storage/StorageRetentionWitness.ts';
+import type MaterializationHandle from '../domain/materialization/MaterializationHandle.ts';
 
 /** Immutable checkpoint state and optional bounded-read index payloads. */
 export interface CheckpointRecord {
@@ -14,6 +15,7 @@ export interface CheckpointRecord {
   stateHash: string;
   parents: string[];
   expectedCheckpointSha?: string | null;
+  materialization?: MaterializationHandle;
   provenanceIndex?: ProvenanceIndex | null;
   indexShards?: Readonly<Record<string, Uint8Array>> | null;
 }
@@ -34,6 +36,8 @@ export interface CheckpointData {
   appliedVV: VersionVector | null;
   provenanceIndex?: ProvenanceIndex | null;
   indexShardHandles: Readonly<Record<string, AssetHandle>> | null;
+  indexRoot: BundleHandle | null;
+  propertyRoot: BundleHandle | null;
 }
 
 /** Bounded checkpoint support needed to prepare an optic basis. */
@@ -43,6 +47,8 @@ export interface CheckpointBasis {
   schema: number;
   frontier: Map<string, string>;
   indexShardHandles: Readonly<Record<string, AssetHandle>>;
+  indexRoot: BundleHandle | null;
+  propertyRoot: BundleHandle | null;
 }
 
 /** Metadata readable without opening checkpoint state or index payloads. */

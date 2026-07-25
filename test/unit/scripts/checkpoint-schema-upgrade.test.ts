@@ -4,6 +4,9 @@ import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAd
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
+import MaterializationCoordinate from '../../../src/domain/materialization/MaterializationCoordinate.ts';
+import MaterializationRoot from '../../../src/domain/materialization/MaterializationRoot.ts';
+import MaterializationRoots from '../../../src/domain/materialization/MaterializationRoots.ts';
 import { createFrontier, serializeFrontier, updateFrontier } from '../../../src/domain/services/Frontier.ts';
 import {
   computeAppliedVV,
@@ -19,8 +22,8 @@ import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapte
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { CborCheckpointStoreAdapter } from '../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
+import GitCasMaterializationStoreAdapter from '../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
-import { collectAsyncIterable } from '../../../src/domain/utils/streamUtils.ts';
 import { textEncode } from '../../../src/domain/utils/bytes.ts';
 import {
   CHECKPOINT_STORAGE_FORMAT,
@@ -151,7 +154,8 @@ describe('checkpoint schema upgrade script boundary', () => {
     const loaded = await loadCheckpoint(migrationStorage.checkpointStore, upgradedSha);
     expect(loaded.schema).toBe(CURRENT_CHECKPOINT_SCHEMA);
     expect(loaded.state.nodeAlive.contains('node:a')).toBe(true);
-    expect(Object.keys(loaded.indexShardHandles ?? {})).toEqual(['nodes/shard.cbor']);
+    expect(loaded.indexShardHandles).toBeNull();
+    expect(loaded.indexRoot).toBeNull();
   });
 
   it('does not move the checkpoint ref when the retired payload is incomplete', async () => {
@@ -172,7 +176,7 @@ describe('checkpoint schema upgrade script boundary', () => {
     expect(await persistence.readRef(checkpointRef)).toBe(retiredCheckpointSha);
   });
 
-  it('republishes a schema-5 checkpoint and its pointer-backed index as a v19 bundle', async () => {
+  it('republishes schema-5 state without copying its derived pointer-backed index', async () => {
     const persistence = new InMemoryGraphAdapter();
     const migrationStorage = createCheckpointMigrationStorage(persistence);
     const indexBytes = new Uint8Array([9, 8, 7, 6]);
@@ -214,12 +218,10 @@ describe('checkpoint schema upgrade script boundary', () => {
 
     const loaded = await migrationStorage.checkpointStore.loadCheckpoint(upgradedSha);
     expect(loaded.state.nodeAlive.contains('node:a')).toBe(true);
-    const indexHandle = loaded.indexShardHandles?.['nodes/shard.cbor'];
-    if (indexHandle === undefined) {
-      throw new Error('Expected migrated index shard handle');
-    }
-    expect(await collectAsyncIterable(migrationStorage.assetStorage.open(indexHandle)))
-      .toEqual(indexBytes);
+    expect(loaded.state.nodeAlive.contains('node:a')).toBe(true);
+    expect(loaded.indexShardHandles).toBeNull();
+    expect(loaded.indexRoot).toBeNull();
+    expect(loaded.propertyRoot).toBeNull();
   });
 
   it('dry-runs schema-5 storage migration without moving the checkpoint ref', async () => {
@@ -326,13 +328,11 @@ describe('checkpoint schema upgrade script boundary', () => {
     const state = buildState();
     const frontier = createFrontier();
     updateFrontier(frontier, 'writer-a', makeOid('patch-a'));
-    const currentCheckpointSha = await createCheckpointEnvelope({
-      checkpointStore: migrationStorage.checkpointStore,
+    const currentCheckpointSha = await createCurrentCheckpoint({
+      storage: migrationStorage,
       graphName,
       state,
       frontier,
-      crypto,
-      codec: defaultCodec,
     });
 
     const result = await upgradeCheckpointSchema({
@@ -350,13 +350,11 @@ describe('checkpoint schema upgrade script boundary', () => {
   it('rejects a checkpoint ref that names another graph', async () => {
     const persistence = new InMemoryGraphAdapter();
     const migrationStorage = createCheckpointMigrationStorage(persistence);
-    const foreignCheckpointSha = await createCheckpointEnvelope({
-      checkpointStore: migrationStorage.checkpointStore,
+    const foreignCheckpointSha = await createCurrentCheckpoint({
+      storage: migrationStorage,
       graphName: 'other-graph',
       state: buildState(),
       frontier: createFrontier(),
-      crypto,
-      codec: defaultCodec,
     });
     await persistence.updateRef(checkpointRef, foreignCheckpointSha);
 
@@ -375,20 +373,67 @@ function createCheckpointMigrationStorage(
 ): {
   readonly checkpointStore: CborCheckpointStoreAdapter;
   readonly assetStorage: GitCasAssetStorageAdapter;
+  readonly materializationStore: GitCasMaterializationStoreAdapter;
 } {
   const backing = new InMemoryBlobStorageAdapter();
   const cas = new InMemoryGitCasFacade({ history: persistence, storage: backing });
   const assetStorage = new GitCasAssetStorageAdapter({ cas, legacyReader: persistence });
+  const materializationStore = new GitCasMaterializationStoreAdapter({
+    cas,
+    codec: defaultCodec,
+    crypto: new NodeCryptoAdapter(),
+    laneName: 'test-graph',
+  });
   return {
     checkpointStore: new CborCheckpointStoreAdapter({
       codec: defaultCodec,
+      crypto: new NodeCryptoAdapter(),
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       history: persistence,
       assetStorage,
       cas,
     }),
     assetStorage,
+    materializationStore,
   };
+}
+
+async function createCurrentCheckpoint(options: {
+  storage: ReturnType<typeof createCheckpointMigrationStorage>;
+  graphName: string;
+  state: ReturnType<typeof buildState>;
+  frontier: Map<string, string>;
+}): Promise<string> {
+  const unavailable = () => MaterializationRoot.unavailable();
+  const stateHash = await computeStateHash(options.state, { crypto, codec: defaultCodec });
+  const materialization = await options.storage.materializationStore.retain({
+    coordinate: new MaterializationCoordinate({
+      frontier: options.frontier,
+      ceiling: null,
+    }),
+    roots: new MaterializationRoots({
+      adjacency: unavailable(),
+      edgeAlive: unavailable(),
+      edgeBirths: unavailable(),
+      frontier: unavailable(),
+      nodeAlive: unavailable(),
+      properties: unavailable(),
+      provenanceSupport: unavailable(),
+      replayBasis: unavailable(),
+      roaringIndexes: unavailable(),
+    }),
+    stateHash,
+    replayBasis: options.state,
+  });
+  return await createCheckpointEnvelope({
+    checkpointStore: options.storage.checkpointStore,
+    graphName: options.graphName,
+    state: options.state,
+    frontier: options.frontier,
+    crypto,
+    codec: defaultCodec,
+    materialization,
+  });
 }
 
 async function writeLegacyCurrentCheckpoint(options: {
