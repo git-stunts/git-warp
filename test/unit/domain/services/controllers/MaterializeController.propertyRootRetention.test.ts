@@ -9,7 +9,6 @@ import { Dot } from "../../../../../src/domain/crdt/Dot.ts";
 import MaterializationCoordinate from "../../../../../src/domain/materialization/MaterializationCoordinate.ts";
 import MaterializationRoot from "../../../../../src/domain/materialization/MaterializationRoot.ts";
 import StateSession from "../../../../../src/domain/orset/session/StateSession.ts";
-import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import MaterializeController from "../../../../../src/domain/services/controllers/MaterializeController.ts";
 import { reduceSessionBackedState } from "../../../../../src/domain/services/controllers/MaterializeSessionBridge.ts";
@@ -153,7 +152,6 @@ function propertyPatch(): PatchWithSha {
 
 function createStateSessionOpener() {
   const store = new InMemoryTrieStore();
-  const pageCache = new PageCache({ maxResident: 32 });
   return async (
     roots: {
       readonly nodeAliveRootOid: string | null;
@@ -166,7 +164,6 @@ function createStateSessionOpener() {
     store,
     codec: cborCodec,
     geometry: GEOMETRY,
-    pageCache,
     maxDirtyPages: 1,
     workspace: options.workspace,
   });

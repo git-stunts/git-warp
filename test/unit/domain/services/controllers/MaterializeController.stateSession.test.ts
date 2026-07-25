@@ -8,7 +8,6 @@ import NodeAdd from "../../../../../src/domain/types/ops/NodeAdd.ts";
 import NodePropSet from "../../../../../src/domain/types/ops/NodePropSet.ts";
 import EdgeAdd from "../../../../../src/domain/types/ops/EdgeAdd.ts";
 import StateSession from "../../../../../src/domain/orset/session/StateSession.ts";
-import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from "../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts";
@@ -170,7 +169,6 @@ function createControllerFixtures() {
       streamFromPromise(patches.loadPatchesSince(checkpoint))),
   };
   const store = new InMemoryTrieStore();
-  const pageCache = new PageCache({ maxResident: 32 });
   const materializations = new InMemoryMaterializationStore();
   const openStateSession = vi.fn(
     async (roots: {
@@ -183,7 +181,6 @@ function createControllerFixtures() {
         store,
         codec: cborCodec,
         geometry: GEOMETRY,
-        pageCache,
         maxDirtyPages: 1,
         workspace: options.workspace,
       }),

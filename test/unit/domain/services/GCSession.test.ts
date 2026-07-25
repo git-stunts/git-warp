@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { Dot, encodeDot } from "../../../../src/domain/crdt/Dot.ts";
 import VersionVector from "../../../../src/domain/crdt/VersionVector.ts";
 import StateSession from "../../../../src/domain/orset/session/StateSession.ts";
-import PageCache from "../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../src/domain/orset/trie/TrieGeometry.ts";
 import GCMetrics from "../../../../src/domain/services/GCMetrics.ts";
 import executeGCInSession from "../../../../src/domain/services/executeGCInSession.ts";
@@ -18,19 +17,16 @@ async function openSession(args?: {
   readonly nodeAliveRootOid?: string | null;
   readonly edgeAliveRootOid?: string | null;
   readonly store?: InMemoryTrieStore;
-  readonly pageCache?: PageCache;
 }) {
   const store = args?.store ?? new InMemoryTrieStore();
-  const pageCache = args?.pageCache ?? new PageCache({ maxResident: 32 });
   const session = await StateSession.open({
     nodeAliveRootOid: args?.nodeAliveRootOid ?? null,
     edgeAliveRootOid: args?.edgeAliveRootOid ?? null,
     store,
     codec: cborCodec,
     geometry: GEOMETRY,
-    pageCache,
   });
-  return { session, store, pageCache };
+  return { session, store };
 }
 
 describe("GCMetrics.fromSession", () => {
@@ -75,7 +71,7 @@ describe("GCMetrics.fromSession", () => {
 
 describe("executeGCInSession", () => {
   it("removes compactable tombstoned node dots and persists the compacted roots across close and reopen", async () => {
-    const { session, store, pageCache } = await openSession();
+    const { session, store } = await openSession();
     const compactableDot = Dot.create("alice", 1);
     const retainedDot = Dot.create("alice", 2);
 
@@ -100,7 +96,6 @@ describe("executeGCInSession", () => {
       store,
       codec: cborCodec,
       geometry: GEOMETRY,
-      pageCache,
     });
 
     expect(await reopened.nodeElementState("node:1")).toBeNull();

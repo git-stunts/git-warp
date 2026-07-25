@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { Dot } from "../../../../src/domain/crdt/Dot.ts";
 import { LWWRegister } from "../../../../src/domain/crdt/LWW.ts";
 import VersionVector from "../../../../src/domain/crdt/VersionVector.ts";
-import PageCache from "../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../src/domain/orset/trie/TrieGeometry.ts";
 import StateSession from "../../../../src/domain/orset/session/StateSession.ts";
 import type WarpState from "../../../../src/domain/services/state/WarpState.ts";
@@ -58,19 +57,16 @@ async function openSession(args?: {
   readonly nodeAliveRootOid?: string | null;
   readonly edgeAliveRootOid?: string | null;
   readonly store?: InMemoryTrieStore;
-  readonly pageCache?: PageCache;
 }) {
   const store = args?.store ?? new InMemoryTrieStore();
-  const pageCache = args?.pageCache ?? new PageCache({ maxResident: 32 });
   const session = await StateSession.open({
     nodeAliveRootOid: args?.nodeAliveRootOid ?? null,
     edgeAliveRootOid: args?.edgeAliveRootOid ?? null,
     store,
     codec: cborCodec,
     geometry: GEOMETRY,
-    pageCache,
   });
-  return { session, store, pageCache };
+  return { session, store };
 }
 
 async function loadJoinReducerSessionModule() {
@@ -151,7 +147,7 @@ describe("JoinReducer session-backed path", () => {
     it("replays mixed patches through one session-backed reducer frame", async () => {
       const { ReducerSessionFrame, reducePatchesInSession } =
         await loadJoinReducerSessionModule();
-      const { session, store, pageCache } = await openSession();
+      const { session, store } = await openSession();
       const frame = new ReducerSessionFrame({
         session,
         prop: new Map(),
@@ -190,7 +186,6 @@ describe("JoinReducer session-backed path", () => {
         store,
         codec: cborCodec,
         geometry: GEOMETRY,
-        pageCache,
       });
 
       expect(await reopened.nodeContains("node:1")).toBe(true);

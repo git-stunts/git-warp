@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.ts';
 import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.ts';
 
@@ -846,7 +846,7 @@ describe('GraphTraversal stats', () => {
       get latencyClass() { return 'async-local'; },
     };
 
-    const engine = new GraphTraversal({ provider: (asyncProvider as any), neighborCacheSize: 10 });
+    const engine = new GraphTraversal({ provider: (asyncProvider as any) });
     const { stats } = await engine.bfs({ start: 'a' });
     // First calls are all misses
     expect(stats.cacheMisses).toBeGreaterThan(0);
@@ -859,45 +859,40 @@ describe('GraphTraversal stats', () => {
     expect(stats.cacheMisses).toBe(0);
   });
 
-  it('uses collision-safe label cache keys when labels contain commas', async () => {
-        const provider = {
-      async getNeighbors(
+  it('does not retain neighbor results across bounded traversal runs', async () => {
+    const getNeighbors = vi.fn(
+      async (
         /** @type {string} */ _nodeId,
         /** @type {'out'|'in'|'both'} */ _direction,
-        /** @type {import('../../../../src/ports/NeighborProviderPort.ts').NeighborOptions|undefined} */ options,
-      ) {
-        const labels = options?.labels ?? new Set();
-        const hasAB = labels.has('a,b') && labels.has('c');
-        const hasBC = labels.has('a') && labels.has('b,c');
-        if (hasAB) {
-          return [{ neighborId: 'x', label: 'rel' }];
-        }
-        if (hasBC) {
-          return [{ neighborId: 'y', label: 'rel' }];
-        }
-        return [];
+        /** @type {import('../../../../src/ports/NeighborProviderPort.ts').NeighborOptions|undefined} */ _options,
+      ) => {
+        return [{ neighborId: 'x', label: 'rel' }];
       },
+    );
+    const provider = {
+      getNeighbors,
       async hasNode(/** @type {string} */ nodeId) {
-        return nodeId === 's' || nodeId === 'x' || nodeId === 'y';
+        return nodeId === 's' || nodeId === 'x';
       },
       /** @returns {'async-local'} */
       get latencyClass() { return 'async-local'; },
     };
 
-    const engine = new GraphTraversal({ provider: (provider as any), neighborCacheSize: 16 });
+    const engine = new GraphTraversal({ provider: (provider as any) });
     const first = await engine.bfs({
       start: 's',
-      options: { labels: new Set(['a,b', 'c']) },
       maxDepth: 1,
     });
+    const firstRunCalls = getNeighbors.mock.calls.length;
     const second = await engine.bfs({
       start: 's',
-      options: { labels: new Set(['a', 'b,c']) },
       maxDepth: 1,
     });
 
     expect(first.nodes).toEqual(['s', 'x']);
-    expect(second.nodes).toEqual(['s', 'y']);
+    expect(second.nodes).toEqual(['s', 'x']);
+    expect(firstRunCalls).toBeGreaterThan(0);
+    expect(getNeighbors).toHaveBeenCalledTimes(firstRunCalls * 2);
   });
 });
 

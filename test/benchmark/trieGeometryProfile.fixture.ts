@@ -1,7 +1,6 @@
 import ORSet from "../../src/domain/crdt/ORSet.ts";
 import { Dot } from "../../src/domain/crdt/Dot.ts";
 import StateSession from "../../src/domain/orset/session/StateSession.ts";
-import PageCache from "../../src/domain/orset/trie/PageCache.ts";
 import TrieBranch from "../../src/domain/orset/trie/TrieBranch.ts";
 import TrieGeometry from "../../src/domain/orset/trie/TrieGeometry.ts";
 import TrieLeaf from "../../src/domain/orset/trie/TrieLeaf.ts";
@@ -19,28 +18,25 @@ export const TRIE_GEOMETRY_PROFILE_DEFAULT_SCALES = [
 export const TRIE_GEOMETRY_PROFILE_STRESS_SCALE = 1_000_000;
 export const TRIE_GEOMETRY_PROFILE_VARIANTS = [
   {
-    name: "f16-l64-c128",
+    name: "f16-l64",
     fanout: 16,
     nibbleBits: 4,
     leafCapacity: 64,
     leafFloor: 16,
-    maxResident: 128,
   },
   {
-    name: "f16-l32-c64",
+    name: "f16-l32",
     fanout: 16,
     nibbleBits: 4,
     leafCapacity: 32,
     leafFloor: 8,
-    maxResident: 64,
   },
   {
-    name: "f256-l64-c128",
+    name: "f256-l64",
     fanout: 256,
     nibbleBits: 8,
     leafCapacity: 64,
     leafFloor: 16,
-    maxResident: 128,
   },
 ] as const;
 
@@ -53,7 +49,6 @@ export type TrieGeometryProfileScenario = {
   readonly nibbleBits: number;
   readonly leafCapacity: number;
   readonly leafFloor: number;
-  readonly maxResident: number;
 };
 
 export type TrieGeometryProfileRow = {
@@ -62,15 +57,12 @@ export type TrieGeometryProfileRow = {
   readonly fanout: number;
   readonly leafCapacity: number;
   readonly leafFloor: number;
-  readonly maxResident: number;
   readonly trieBuildMs: number;
   readonly trieReadMs: number;
   readonly baselineBuildMs: number;
   readonly heapDeltaMb: number;
   readonly rssDeltaMb: number;
-  readonly pageHitRatio: number;
-  readonly pageFaultRate: number;
-  readonly evictions: number;
+  readonly readCount: number;
   readonly writeCount: number;
   readonly maxDepth: number;
   readonly averageLeafOccupancy: number;
@@ -81,7 +73,6 @@ export type TrieGeometryProfileRecommendation = {
   readonly fanout: number;
   readonly leafCapacity: number;
   readonly leafFloor: number;
-  readonly maxResident: number;
   readonly testedScales: readonly number[];
   readonly rationale: string;
 };
@@ -108,12 +99,6 @@ type TrieShapeMetrics = {
   readonly leafOccupancies: readonly number[];
 };
 
-type PageCacheSummary = {
-  readonly hitRatio: number;
-  readonly faultRate: number;
-  readonly evictions: number;
-};
-
 export function createTrieGeometryProfilePlan(args?: {
   readonly includeStress?: boolean;
 }): TrieGeometryProfileScenario[] {
@@ -131,7 +116,6 @@ export function createTrieGeometryProfilePlan(args?: {
         nibbleBits: variant.nibbleBits,
         leafCapacity: variant.leafCapacity,
         leafFloor: variant.leafFloor,
-        maxResident: variant.maxResident,
       });
     }
   }
@@ -150,7 +134,6 @@ export function recommendTrieGeometryProfile(
     fanout: winner.fanout,
     leafCapacity: winner.leafCapacity,
     leafFloor: winner.leafFloor,
-    maxResident: winner.maxResident,
     testedScales: winner.testedScales,
     rationale: formatRecommendationRationale(winner, rows),
   };
@@ -166,14 +149,13 @@ export function formatTrieGeometryProfileReport(args: {
     `- Variant: \`${args.recommendation.variantName}\``,
     `- Fanout: \`${String(args.recommendation.fanout)}\``,
     `- Leaf capacity / floor: \`${String(args.recommendation.leafCapacity)} / ${String(args.recommendation.leafFloor)}\``,
-    `- Page cache max resident: \`${String(args.recommendation.maxResident)}\``,
     `- Measured scales: \`${args.recommendation.testedScales.join(", ")}\``,
     `- Rationale: ${args.recommendation.rationale}`,
     "",
     "## Results",
     "",
-    "| Scenario | Entries | Fanout | Leaf cap | Cache | Build ms | Read ms | ORSet ms | Heap Δ MB | RSS Δ MB | Hit ratio | Fault rate | Evictions | Writes | Max depth | Avg leaf occ |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| Scenario | Entries | Fanout | Leaf cap | Build ms | Read ms | ORSet ms | Heap Δ MB | RSS Δ MB | Reads | Writes | Max depth | Avg leaf occ |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
   ];
 
   for (const row of args.rows) {
@@ -182,15 +164,12 @@ export function formatTrieGeometryProfileReport(args: {
       `${row.totalEntries}`,
       `${row.fanout}`,
       `${row.leafCapacity}`,
-      `${row.maxResident}`,
       `${row.trieBuildMs.toFixed(2)}`,
       `${row.trieReadMs.toFixed(2)}`,
       `${row.baselineBuildMs.toFixed(2)}`,
       `${row.heapDeltaMb.toFixed(2)}`,
       `${row.rssDeltaMb.toFixed(2)}`,
-      `${row.pageHitRatio.toFixed(2)}`,
-      `${row.pageFaultRate.toFixed(2)}`,
-      `${row.evictions}`,
+      `${row.readCount}`,
       `${row.writeCount}`,
       `${row.maxDepth}`,
       `${row.averageLeafOccupancy.toFixed(2)} |`,
@@ -214,15 +193,12 @@ export async function runTrieGeometryProfileScenario(
     fanout: scenario.fanout,
     leafCapacity: scenario.leafCapacity,
     leafFloor: scenario.leafFloor,
-    maxResident: scenario.maxResident,
     trieBuildMs: trieRun.buildMs,
     trieReadMs: trieRun.readMs,
     baselineBuildMs,
     heapDeltaMb: toMegabytes(memoryAfter.heapUsed - memoryBefore.heapUsed),
     rssDeltaMb: toMegabytes(memoryAfter.rss - memoryBefore.rss),
-    pageHitRatio: trieRun.cache.hitRatio,
-    pageFaultRate: trieRun.cache.faultRate,
-    evictions: trieRun.cache.evictions,
+    readCount: trieRun.readCount,
     writeCount: trieRun.writeCount,
     maxDepth: trieRun.shape.maxDepth,
     averageLeafOccupancy: average(trieRun.shape.leafOccupancies),
@@ -255,17 +231,15 @@ async function measureTrieScenario(
 ): Promise<{
   readonly buildMs: number;
   readonly readMs: number;
-  readonly cache: PageCacheSummary;
+  readonly readCount: number;
   readonly writeCount: number;
   readonly shape: TrieShapeMetrics;
 }> {
   const store = new InMemoryTrieStore();
   const geometry = createGeometry(scenario);
-  const buildPageCache = new PageCache({ maxResident: scenario.maxResident });
   const buildSession = await openSession({
     store,
     geometry,
-    pageCache: buildPageCache,
     roots: {
       nodeAliveRootOid: null,
       edgeAliveRootOid: null,
@@ -287,11 +261,10 @@ async function measureTrieScenario(
   const roots = await buildSession.close();
   const buildMs = performance.now() - buildStart;
 
-  const readPageCache = new PageCache({ maxResident: scenario.maxResident });
+  const readsBefore = store.readCounts();
   const readSession = await openSession({
     store,
     geometry,
-    pageCache: readPageCache,
     roots,
   });
 
@@ -301,6 +274,11 @@ async function measureTrieScenario(
   const secondPass = await scanSession(readSession);
   const readMs = performance.now() - readStart;
   await readSession.close();
+  const readsAfter = store.readCounts();
+  const readCount = (
+    readsAfter.leaf + readsAfter.branch
+    - readsBefore.leaf - readsBefore.branch
+  );
 
   if (firstPass.nodes !== counts.nodeCount || secondPass.nodes !== counts.nodeCount) {
     throw new Error(
@@ -316,7 +294,7 @@ async function measureTrieScenario(
   return {
     buildMs,
     readMs,
-    cache: summarizePageCache(readPageCache),
+    readCount,
     writeCount: store.writeCounts().leaf + store.writeCounts().branch,
     shape: await collectShapeMetrics(store, roots, geometry),
   };
@@ -336,7 +314,6 @@ function createGeometry(
 async function openSession(args: {
   readonly store: InMemoryTrieStore;
   readonly geometry: TrieGeometry;
-  readonly pageCache: PageCache;
   readonly roots: ScenarioRoots;
 }): Promise<StateSession> {
   return await StateSession.open({
@@ -345,7 +322,6 @@ async function openSession(args: {
     store: args.store,
     codec: cborCodec,
     geometry: args.geometry,
-    pageCache: args.pageCache,
   });
 }
 
@@ -466,23 +442,6 @@ async function readPageAtOid(
   };
 }
 
-function summarizePageCache(pageCache: PageCache): PageCacheSummary {
-  const stats = pageCache.stats();
-  const total = stats.hits + stats.misses;
-  if (total === 0) {
-    return {
-      hitRatio: 1,
-      faultRate: 0,
-      evictions: stats.evictions,
-    };
-  }
-  return {
-    hitRatio: stats.hits / total,
-    faultRate: stats.misses / total,
-    evictions: stats.evictions,
-  };
-}
-
 function fixtureCounts(totalEntries: number): {
   readonly nodeCount: number;
   readonly edgeCount: number;
@@ -532,8 +491,7 @@ function scoreProfileRow(row: TrieGeometryProfileRow): number {
     + row.trieReadMs
     + row.heapDeltaMb * 5
     + row.rssDeltaMb
-    + row.pageFaultRate * 100
-    + row.evictions * 0.1
+    + row.readCount * 0.01
     + row.maxDepth * 2
   );
 }
@@ -543,7 +501,6 @@ type VariantAggregate = {
   readonly fanout: number;
   readonly leafCapacity: number;
   readonly leafFloor: number;
-  readonly maxResident: number;
   readonly testedScales: readonly number[];
   readonly rankTotal: number;
   readonly rawScoreTotal: number;
@@ -561,7 +518,6 @@ function recommendVariantAggregate(
     fanout: number;
     leafCapacity: number;
     leafFloor: number;
-    maxResident: number;
     testedScales: number[];
     rankTotal: number;
     rawScoreTotal: number;
@@ -581,7 +537,6 @@ function recommendVariantAggregate(
         fanout: row.fanout,
         leafCapacity: row.leafCapacity,
         leafFloor: row.leafFloor,
-        maxResident: row.maxResident,
         testedScales: [],
         rankTotal: 0,
         rawScoreTotal: 0,
@@ -599,7 +554,6 @@ function recommendVariantAggregate(
       fanout: aggregate.fanout,
       leafCapacity: aggregate.leafCapacity,
       leafFloor: aggregate.leafFloor,
-      maxResident: aggregate.maxResident,
       testedScales: [...aggregate.testedScales].sort((left, right) => left - right),
       rankTotal: aggregate.rankTotal,
       rawScoreTotal: aggregate.rawScoreTotal,
@@ -624,7 +578,7 @@ function formatRecommendationRationale(
 
   const smallestLeafCapacity = Math.min(...rows.map((row) => row.leafCapacity));
   if (winner.leafCapacity > smallestLeafCapacity) {
-    parts.push("avoids the split and eviction churn of the smaller-leaf variant");
+    parts.push("avoids the split and read churn of the smaller-leaf variant");
   }
 
   const widestFanout = Math.max(...rows.map((row) => row.fanout));

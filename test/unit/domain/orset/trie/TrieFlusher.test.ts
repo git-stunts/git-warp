@@ -8,7 +8,6 @@ import TrieFlushError from "../../../../../src/domain/errors/TrieFlushError.ts";
 import DirtyPageSet, {
   encodeDirtyPath,
 } from "../../../../../src/domain/orset/trie/DirtyPageSet.ts";
-import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieBranch from "../../../../../src/domain/orset/trie/TrieBranch.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import TrieLeaf from "../../../../../src/domain/orset/trie/TrieLeaf.ts";
@@ -36,7 +35,6 @@ function cursorOf(
     store,
     geometry,
     codec: cborCodec,
-    pageCache: new PageCache({ maxResident: 64 }),
   });
 }
 
@@ -194,7 +192,6 @@ describe("TrieFlusher", () => {
         store,
         geometry: tiny,
         codec: cborCodec,
-        pageCache: new PageCache({ maxResident: 64 }),
       });
       for (let i = 0; i < 20; i += 1) {
         expect(await replay.contains(`node:${i}`)).toBe(true);

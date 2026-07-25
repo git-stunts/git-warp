@@ -8,7 +8,6 @@ import {
   MATERIALIZATION_PROPERTY_SHARD_LIMITS,
 } from '../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
 import StateSession from '../../../../src/domain/orset/session/StateSession.ts';
-import PageCache from '../../../../src/domain/orset/trie/PageCache.ts';
 import TrieGeometry from '../../../../src/domain/orset/trie/TrieGeometry.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
@@ -27,7 +26,6 @@ describe('TrieMaterializationReader', () => {
       store,
       codec: cborCodec,
       geometry: TrieGeometry.default16way(),
-      pageCache: new PageCache({ maxResident: 32 }),
     });
     await session.addNode('node:present', Dot.create('writer-1', 1));
     const roots = await session.close();
@@ -45,9 +43,15 @@ describe('TrieMaterializationReader', () => {
 
     expect(store.writeCounts()).toEqual(writesBeforeRead);
     const reads = store.readCounts();
-    expect(reads).toEqual(readsAfterFirstLookup);
+    const secondLookupReads = (
+      reads.leaf + reads.branch
+      - readsAfterFirstLookup.leaf
+      - readsAfterFirstLookup.branch
+    );
+    expect(secondLookupReads).toBeGreaterThan(0);
+    expect(secondLookupReads).toBeLessThanOrEqual(4);
     expect(reads.leaf + reads.branch).toBeGreaterThan(0);
-    expect(reads.leaf + reads.branch).toBeLessThanOrEqual(4);
+    expect(reads.leaf + reads.branch).toBeLessThanOrEqual(8);
   });
 
   it('reads exact edge presence without writing or scanning the full trie', async () => {
@@ -63,7 +67,6 @@ describe('TrieMaterializationReader', () => {
       store,
       codec: cborCodec,
       geometry: TrieGeometry.default16way(),
-      pageCache: new PageCache({ maxResident: 32 }),
     });
     await session.addEdge(
       encodeEdgeKey(edge.from, edge.to, edge.label),
@@ -86,9 +89,15 @@ describe('TrieMaterializationReader', () => {
 
     expect(store.writeCounts()).toEqual(writesBeforeRead);
     const reads = store.readCounts();
-    expect(reads).toEqual(readsAfterFirstLookup);
+    const secondLookupReads = (
+      reads.leaf + reads.branch
+      - readsAfterFirstLookup.leaf
+      - readsAfterFirstLookup.branch
+    );
+    expect(secondLookupReads).toBeGreaterThan(0);
+    expect(secondLookupReads).toBeLessThanOrEqual(4);
     expect(reads.leaf + reads.branch).toBeGreaterThan(0);
-    expect(reads.leaf + reads.branch).toBeLessThanOrEqual(4);
+    expect(reads.leaf + reads.branch).toBeLessThanOrEqual(8);
   });
 
   it('decodes only the exact retained property shard without a reader-owned cache', async () => {
@@ -188,7 +197,6 @@ describe('TrieMaterializationReader', () => {
     ['codec', { store: new InMemoryTrieStore(), codec: {} }],
     ['geometry', { store: new InMemoryTrieStore(), codec: cborCodec, geometry: {} }],
     ['indexStore', { store: new InMemoryTrieStore(), codec: cborCodec, indexStore: {} }],
-    ['pageCache', { store: new InMemoryTrieStore(), codec: cborCodec, pageCache: {} }],
   ])('rejects malformed %s with a domain error', (_field, options) => {
     expect(() => Reflect.construct(TrieMaterializationReader, [options])).toThrowError(
       expect.objectContaining<Pick<WarpError, 'code'>>({ code: 'E_MATERIALIZATION_RESUME' })

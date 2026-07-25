@@ -3,7 +3,6 @@ import { describe, it, expect } from "vitest";
 import { Dot } from "../../../../../src/domain/crdt/Dot.ts";
 import TrieCursor from "../../../../../src/domain/orset/trie/TrieCursor.ts";
 import TrieFlusher from "../../../../../src/domain/orset/trie/TrieFlusher.ts";
-import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import TrieCursorError from "../../../../../src/domain/errors/TrieCursorError.ts";
 import TrieStoreError from "../../../../../src/domain/errors/TrieStoreError.ts";
@@ -33,7 +32,6 @@ function makeEngine(opts?: {
     store,
     geometry: opts?.geometry ?? GEOMETRY_16,
     codec: cborCodec,
-    pageCache: new PageCache({ maxResident: 16 }),
   });
   const flusher = new TrieFlusher({ store, codec: cborCodec });
   const engine = new ShadowTrieORSet({ cursor, flusher });

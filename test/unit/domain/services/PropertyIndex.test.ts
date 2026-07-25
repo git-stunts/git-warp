@@ -54,6 +54,24 @@ describe('PropertyIndex handle-backed reads', () => {
     await expect(reader.getProperty('node:1', 'color')).resolves.toBe('red');
   });
 
+  it('delegates repeated shard residency to the index store', async () => {
+    const storage = new MockIndexStorage();
+    const nodeId = 'node:1';
+    const handle = await storage.writeBlob(defaultCodec.encode([
+      [nodeId, { color: 'red' }],
+    ]));
+    const reader = new PropertyIndexReader({ indexStore: storage });
+    reader.setupHandles({ [`props_${computeShardKey(nodeId)}.cbor`]: handle });
+
+    await expect(reader.getProperty(nodeId, 'color')).resolves.toBe('red');
+    await expect(reader.getProperty(nodeId, 'color')).resolves.toBe('red');
+
+    expect(storage.decodedShardHandles).toEqual([
+      handle.toString(),
+      handle.toString(),
+    ]);
+  });
+
   it('keeps nodes isolated when they share one shard', async () => {
     const first = 'a';
     const shardKey = computeShardKey(first);

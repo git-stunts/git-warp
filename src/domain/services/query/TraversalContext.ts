@@ -1,9 +1,10 @@
 /**
  * TraversalContext — shared infrastructure for graph traversal algorithms.
  *
- * Holds the neighbor provider, LRU cache, logger, and exposes the common
- * operations (neighbor lookup, start validation, stats, weight resolution,
- * path reconstruction) that all algorithm modules need.
+ * Holds the neighbor provider and logger, and exposes the common operations
+ * (neighbor lookup, start validation, stats, weight resolution, path
+ * reconstruction) that all algorithm modules need. Neighbor memoization is
+ * scoped to one bounded algorithm run and is never retained by this context.
  *
  * One instance per GraphTraversal; algorithm modules receive it as a
  * constructor parameter.
@@ -16,7 +17,6 @@ import type { Direction, NeighborEdge, NeighborOptions } from '../../../ports/Ne
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import TraversalError from '../../errors/TraversalError.ts';
-import LRUCache from '../../utils/LRUCache.ts';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -24,6 +24,7 @@ export type RunStats = {
   cacheHits: number;
   cacheMisses: number;
   edgesTraversed: number;
+  neighborResults: Map<string, NeighborEdge[]>;
 };
 
 export type TraversalStats = {
@@ -112,22 +113,22 @@ export function computeTopoHasCycle(params: {
 export default class TraversalContext {
   readonly provider: NeighborProviderPort;
   readonly logger: LoggerPort;
-  private readonly _neighborCache: LRUCache<string, NeighborEdge[]> | null;
 
   constructor(params: {
     provider: NeighborProviderPort;
     logger?: LoggerPort;
-    neighborCacheSize?: number;
   }) {
     this.provider = params.provider;
     this.logger = params.logger ?? nullLogger;
-    this._neighborCache = params.provider.latencyClass === 'sync'
-      ? null
-      : new LRUCache(params.neighborCacheSize ?? 256);
   }
 
   newRunStats(): RunStats {
-    return { cacheHits: 0, cacheMisses: 0, edgesTraversed: 0 };
+    return {
+      cacheHits: 0,
+      cacheMisses: 0,
+      edgesTraversed: 0,
+      neighborResults: new Map(),
+    };
   }
 
   stats(nodesVisited: number, rs: RunStats): TraversalStats {
@@ -145,8 +146,7 @@ export default class TraversalContext {
     rs: RunStats,
     options?: NeighborOptions,
   ): Promise<NeighborEdge[]> {
-    const cache = this._neighborCache;
-    if (!cache) {
+    if (this.provider.latencyClass === 'sync') {
       return await this.provider.getNeighbors(nodeId, direction, options);
     }
 
@@ -154,14 +154,14 @@ export default class TraversalContext {
       ? [...options.labels].sort().join('\0')
       : '*';
     const key = `${nodeId}\0${direction}\0${labelsKey}`;
-    const cached = cache.get(key);
+    const cached = rs.neighborResults.get(key);
     if (cached !== undefined) {
       rs.cacheHits++;
       return cached;
     }
     rs.cacheMisses++;
     const result = await this.provider.getNeighbors(nodeId, direction, options);
-    cache.set(key, result);
+    rs.neighborResults.set(key, result);
     return result;
   }
 

@@ -4,7 +4,6 @@ import { Dot } from "../../../../../src/domain/crdt/Dot.ts";
 import VersionVector from "../../../../../src/domain/crdt/VersionVector.ts";
 import TrieCursor from "../../../../../src/domain/orset/trie/TrieCursor.ts";
 import TrieFlusher from "../../../../../src/domain/orset/trie/TrieFlusher.ts";
-import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import TrieBranch from "../../../../../src/domain/orset/trie/TrieBranch.ts";
 import TrieLeaf from "../../../../../src/domain/orset/trie/TrieLeaf.ts";
@@ -63,7 +62,6 @@ function makeEngine(opts?: {
     store,
     geometry,
     codec: cborCodec,
-    pageCache: new PageCache({ maxResident: 32 }),
   });
   const flusher = new TrieFlusher({ store, codec: cborCodec });
   return {
@@ -79,7 +77,6 @@ function makeNeverCallEngine(): ShadowTrieORSet {
     store,
     geometry: DEFAULT_GEOMETRY,
     codec: cborCodec,
-    pageCache: new PageCache({ maxResident: 32 }),
   });
   const flusher = new TrieFlusher({ store, codec: cborCodec });
   return new ShadowTrieORSet({ cursor, flusher });

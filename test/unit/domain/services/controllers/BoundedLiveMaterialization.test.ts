@@ -7,7 +7,6 @@ import PatchCollector, {
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import MaterializationCoordinate from '../../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import StateSession from '../../../../../src/domain/orset/session/StateSession.ts';
-import PageCache from '../../../../../src/domain/orset/trie/PageCache.ts';
 import TrieGeometry from '../../../../../src/domain/orset/trie/TrieGeometry.ts';
 import {
   resolveBoundedLiveMaterialization,
@@ -145,7 +144,6 @@ function createDeps(
 
 function defaultSessionOpener() {
   const store = new InMemoryTrieStore();
-  const pageCache = new PageCache({ maxResident: 8 });
   return async (
     roots: {
       readonly nodeAliveRootOid: string | null;
@@ -157,7 +155,6 @@ function defaultSessionOpener() {
     store,
     codec: cborCodec,
     geometry: TrieGeometry.default16way(),
-    pageCache,
     maxDirtyPages: 1,
     workspace: options.workspace,
   });

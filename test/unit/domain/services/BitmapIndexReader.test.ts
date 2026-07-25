@@ -34,15 +34,9 @@ describe('BitmapIndexReader bounded shard reads', () => {
     reader = new BitmapIndexReader({ indexStore: storage, codec: defaultCodec });
   });
 
-  it('requires a semantic index store and exposes bounded cache configuration', () => {
+  it('requires a semantic index store', () => {
     // @ts-expect-error Runtime guard for JavaScript callers.
     expect(() => new BitmapIndexReader({ codec: defaultCodec })).toThrow(/storage adapter/);
-    expect(reader.maxCachedShards).toBe(100);
-    expect(new BitmapIndexReader({
-      indexStore: storage,
-      codec: defaultCodec,
-      maxCachedShards: 4,
-    }).maxCachedShards).toBe(4);
   });
 
   it('resolves IDs and edges by opening only configured shard handles', async () => {
@@ -71,6 +65,19 @@ describe('BitmapIndexReader bounded shard reads', () => {
     reader.setup({ 'meta_aa.cbor': second });
     await expect(reader.lookupId('aa0001')).resolves.toBeUndefined();
     await expect(reader.lookupId('aa0002')).resolves.toBe(2);
+  });
+
+  it('delegates repeated shard residency to the index store', async () => {
+    const handle = await storage.writeBlob(defaultCodec.encode({ aa0001: 0 }));
+    reader.setup({ 'meta_aa.cbor': handle });
+
+    await expect(reader.lookupId('aa0001')).resolves.toBe(0);
+    await expect(reader.lookupId('aa0001')).resolves.toBe(0);
+
+    expect(storage.openedShardHandles).toEqual([
+      handle.toString(),
+      handle.toString(),
+    ]);
   });
 
   it('rejects non-handle shard locators in strict mode', () => {
