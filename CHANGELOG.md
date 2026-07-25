@@ -61,6 +61,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   git-cas/plumbing imports at the storage composition root and rejects
   WARP-owned CAS coordination, cache implementations, reflection, and direct
   object writers through mutation-tested CI policy.
+- Added a Node subprocess gate that completes the blessed property and
+  neighborhood Observers across a Runtime reopen under a 64 MiB old-space cap,
+  while hard-failing on full materialization or whole-index scans.
 - Moved shadow-trie leaf and branch storage from unretained raw Git blobs and
   trees to bounded git-cas pages and composable bundle handles. Production
   storage now shares one git-cas facade with the trie adapter, and the storage
