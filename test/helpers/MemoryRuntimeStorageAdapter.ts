@@ -141,14 +141,16 @@ const TEST_COMPATIBILITY_POLICY = new SubstrateCompatibilityPolicy({
   legacyTrustRecordBlobReads: true,
 });
 
-function withFixtureObjectTypeProbe(history: InMemoryGraphAdapter): InMemoryGraphAdapter {
+export function withFixtureObjectTypeProbe(history: InMemoryGraphAdapter): InMemoryGraphAdapter {
   if (typeof history.readObjectType === 'function') {
     return history;
   }
   const fallbackObjects = new InMemoryGraphAdapter();
-  const publicationCommits = new Set<string>();
+  const objectTypes = new Map<string, 'blob' | 'tree' | 'commit'>([
+    [history.emptyTree, 'tree'],
+  ]);
   const readObjectType = (oid: string): Promise<string> => Promise.resolve(
-    publicationCommits.has(oid) ? 'commit' : 'blob',
+    objectTypes.get(oid) ?? 'blob',
   );
   const commitNodeWithTree = async (
     options: Parameters<InMemoryGraphAdapter['commitNodeWithTree']>[0],
@@ -157,21 +159,29 @@ function withFixtureObjectTypeProbe(history: InMemoryGraphAdapter): InMemoryGrap
       await history.commitNodeWithTree(options),
       async () => await fallbackObjects.writeBlob(JSON.stringify(options)),
     );
-    publicationCommits.add(oid);
+    objectTypes.set(oid, 'commit');
     return oid;
   };
   const writeBlob = async (
     content: Parameters<InMemoryGraphAdapter['writeBlob']>[0],
-  ): Promise<string> => await normalizeToGitObjectId(
-    await history.writeBlob(content),
-    async () => await fallbackObjects.writeBlob(content),
-  );
+  ): Promise<string> => {
+    const oid = await normalizeToGitObjectId(
+      await history.writeBlob(content),
+      async () => await fallbackObjects.writeBlob(content),
+    );
+    objectTypes.set(oid, 'blob');
+    return oid;
+  };
   const writeTree = async (
     entries: Parameters<InMemoryGraphAdapter['writeTree']>[0],
-  ): Promise<string> => await normalizeToGitObjectId(
-    await history.writeTree(entries),
-    async () => await fallbackObjects.writeTree(entries),
-  );
+  ): Promise<string> => {
+    const oid = await normalizeToGitObjectId(
+      await history.writeTree(entries),
+      async () => await fallbackObjects.writeTree(entries),
+    );
+    objectTypes.set(oid, 'tree');
+    return oid;
+  };
   return new Proxy(history, {
     get(target, property): unknown {
       if (property === 'readObjectType') {
