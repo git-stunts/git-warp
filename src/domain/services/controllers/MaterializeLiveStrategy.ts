@@ -12,10 +12,8 @@ import type {
   CheckpointData,
   PatchWithSha,
 } from '../../capabilities/PatchCollector.ts';
-import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
-import type MaterializationReadPort from '../../../ports/MaterializationReadPort.ts';
-import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
+import type { MaterializationEdgeTarget } from '../../../ports/MaterializationReadPort.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import type {
   WarpStateCoordinate,
@@ -30,7 +28,11 @@ import RetainedMaterializationResumeStrategy from './RetainedMaterializationResu
 import { isNonEmptyPatchSha } from './MaterializeHelpers.ts';
 import { resolveBoundedLiveMaterialization } from './BoundedLiveMaterialization.ts';
 import { materializedResolution } from './MaterializedLiveResolution.ts';
-import { replayTargetedNodeProperties } from './TargetedNodePropertyReplay.ts';
+import {
+  readMaterializedEdgeProperties,
+  readMaterializedNodePresence,
+  readMaterializedNodeProperties,
+} from './MaterializedLiveRead.ts';
 
 export default class MaterializeLiveStrategy {
   private readonly runtime: MaterializeStrategyRuntime;
@@ -78,7 +80,11 @@ export default class MaterializeLiveStrategy {
     const resolution = await this.resolveMaterialization();
     let presence: boolean | null;
     try {
-      presence = await readNodePresence(reader, resolution.materialization, nodeId);
+      presence = await readMaterializedNodePresence({
+        materialization: resolution.materialization,
+        nodeId,
+        reader,
+      });
     } catch (raw) {
       await releaseAcquisitionAfterFailure(resolution, this.runtime.deps.logger);
       throw raw;
@@ -97,9 +103,33 @@ export default class MaterializeLiveStrategy {
     const resolution = await this.resolveMaterialization();
     let properties: Readonly<Record<string, PropValue>> | null | undefined;
     try {
-      properties = await readNodeProperties({
+      properties = await readMaterializedNodeProperties({
         materialization: resolution.materialization,
         nodeId,
+        patches: this.runtime.deps.patches,
+        reader,
+      });
+    } catch (raw) {
+      await releaseAcquisitionAfterFailure(resolution, this.runtime.deps.logger);
+      throw raw;
+    }
+    await resolution.release();
+    return properties;
+  }
+
+  async readEdgeProperties(
+    edge: MaterializationEdgeTarget,
+  ): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
+    const reader = this.runtime.deps.materializationRead;
+    if (reader === undefined) {
+      return undefined;
+    }
+    const resolution = await this.resolveMaterialization();
+    let properties: Readonly<Record<string, PropValue>> | null | undefined;
+    try {
+      properties = await readMaterializedEdgeProperties({
+        edge,
+        materialization: resolution.materialization,
         patches: this.runtime.deps.patches,
         reader,
       });
@@ -379,82 +409,6 @@ export default class MaterializeLiveStrategy {
       frontier: opts.coordinate.frontier,
     });
   }
-}
-
-async function readNodePresence(
-  reader: MaterializationReadPort,
-  materialization: MaterializationHandle | null,
-  nodeId: string,
-): Promise<boolean | null> {
-  if (materialization === null) {
-    return false;
-  }
-  const root = materialization.roots.nodeAlive;
-  if (root.status === 'unavailable') {
-    return null;
-  }
-  if (root.status === 'empty') {
-    return false;
-  }
-  if (root.handle === null) {
-    throw resolutionError('retained node-liveness root has no handle');
-  }
-  return await reader.hasNode(root.handle, nodeId);
-}
-
-async function readNodeProperties(options: {
-  readonly materialization: MaterializationHandle | null;
-  readonly nodeId: string;
-  readonly patches: PatchCollector;
-  readonly reader: MaterializationReadPort;
-}): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
-  const { materialization, nodeId, patches, reader } = options;
-  if (materialization === null) {
-    return null;
-  }
-  const presence = await readNodePresence(reader, materialization, nodeId);
-  if (presence === false) {
-    return null;
-  }
-  if (presence === null) {
-    return undefined;
-  }
-  const retained = await readPropertiesRoot(reader, materialization, nodeId);
-  if (retained !== undefined) {
-    return retained;
-  }
-  return await replayTargetedNodeProperties({
-    coordinate: materialization.coordinate,
-    nodeId,
-    patches,
-  });
-}
-
-async function readPropertiesRoot(
-  reader: MaterializationReadPort,
-  materialization: MaterializationHandle,
-  nodeId: string,
-): Promise<Readonly<Record<string, PropValue>> | undefined> {
-  const propertiesRoot = materialization.roots.properties;
-  if (propertiesRoot.status === 'unavailable') {
-    return undefined;
-  }
-  if (propertiesRoot.status === 'empty') {
-    return Object.freeze({});
-  }
-  return await readRetainedPropertiesRoot(reader, propertiesRoot, nodeId);
-}
-
-async function readRetainedPropertiesRoot(
-  reader: MaterializationReadPort,
-  propertiesRoot: MaterializationHandle['roots']['properties'],
-  nodeId: string,
-): Promise<Readonly<Record<string, PropValue>> | undefined> {
-  if (propertiesRoot.handle === null) {
-    throw resolutionError('retained properties root has no handle');
-  }
-  const properties = await reader.getNodeProperties(propertiesRoot.handle, nodeId);
-  return properties === undefined ? undefined : properties ?? Object.freeze({});
 }
 
 function emptyResolution(): LiveMaterializationResolution {

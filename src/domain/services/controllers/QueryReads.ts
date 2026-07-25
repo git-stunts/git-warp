@@ -183,8 +183,21 @@ function nodePropertyBagFromRecords(records: readonly VisibleNodePropertyRecord[
 }
 
 export async function getEdgePropsImpl(host: QueryReadHost, edge: { from: string; to: string; label: string }): Promise<PropertyBag | null> {
+  if (!isLegacyEdgePropertyProjectionTarget(edge)) { return null; }
+  const retained = await tryRetainedEdgeProps(host, edge);
+  if (retained !== undefined) { return retained; }
   const state = await ensureAndGetState(host);
   return edgePropsFromState(state, edge);
+}
+
+async function tryRetainedEdgeProps(
+  host: QueryReadHost,
+  edge: { from: string; to: string; label: string },
+): Promise<PropertyBag | null | undefined> {
+  if (host._readLiveEdgeProperties === undefined) { return undefined; }
+  const retained = await host._readLiveEdgeProperties(edge);
+  if (retained === undefined) { return undefined; }
+  return retained === null ? null : createSnapshotPropertyValues(retained);
 }
 
 function edgePropsFromState(state: WarpState, edge: { from: string; to: string; label: string }): PropertyBag | null {

@@ -3,6 +3,7 @@ import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.t
 import type CommitPort from '../../../ports/CommitPort.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 import type { NeighborEdge } from '../../../ports/NeighborProviderPort.ts';
+import type { MaterializationEdgeTarget } from '../../../ports/MaterializationReadPort.ts';
 import type WarpState from '../state/WarpState.ts';
 import type PropertyIndexReader from '../index/PropertyIndexReader.ts';
 import type { LogicalIndex } from '../index/logicalIndexHelpers.ts';
@@ -32,6 +33,9 @@ export type QueryReadHost = FreshStateHost & {
   _readLiveNodePresence?(nodeId: string): Promise<boolean | null>;
   _readLiveNodeProperties?(
     nodeId: string,
+  ): Promise<Readonly<Record<string, PropValue>> | null | undefined>;
+  _readLiveEdgeProperties?(
+    edge: MaterializationEdgeTarget,
   ): Promise<Readonly<Record<string, PropValue>> | null | undefined>;
   _propertyReader: PropertyIndexReader | null;
   _logicalIndex: LogicalIndex | null;

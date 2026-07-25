@@ -4,6 +4,7 @@ import PatchCollector, {
   type CheckpointData,
   type PatchWithSha,
 } from '../../../../../src/domain/capabilities/PatchCollector.ts';
+import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import MaterializationCoordinate from '../../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import MaterializationRoot, {
   type MaterializationRootStatus,
@@ -15,6 +16,8 @@ import MaterializeController, {
 import { retainBoundedLiveMaterialization } from '../../../../../src/domain/services/controllers/BoundedLiveMaterialization.ts';
 import BundleHandle from '../../../../../src/domain/storage/BundleHandle.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
+import EdgeAdd from '../../../../../src/domain/types/ops/EdgeAdd.ts';
+import EdgePropSet from '../../../../../src/domain/types/ops/EdgePropSet.ts';
 import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
 import cborCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
@@ -58,7 +61,7 @@ class RetainedOnlyPatchCollector extends PatchCollector {
   }
 }
 
-describe('MaterializeController live node reads', () => {
+describe('MaterializeController live retained reads', () => {
   it.each([true, false])(
     'reads retained node presence %s without projecting whole state',
     async (presence) => {
@@ -295,10 +298,157 @@ describe('MaterializeController live node reads', () => {
     expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
     expect(fixture.materializations.acquisitions[0]?.released).toBe(true);
   });
+
+  it('replays one live edge property bag without projecting whole state', async () => {
+    const edge = {
+      from: 'node:source',
+      to: 'node:target',
+      label: 'rel',
+    };
+    const fixture = await createFixture({
+      edgePresence: true,
+      edgeRootStatus: 'retained',
+      patchEntries: [
+        patchEntry({
+          lamport: 1,
+          ops: [
+            new EdgePropSet({
+              ...edge,
+              key: 'stale',
+              value: 'hidden',
+            }),
+          ],
+          sha: 'aaaa',
+          writer: 'writer-1',
+        }),
+        patchEntry({
+          lamport: 2,
+          ops: [
+            new EdgeAdd({
+              ...edge,
+              dot: Dot.create('writer-1', 1),
+            }),
+            new EdgePropSet({
+              ...edge,
+              key: 'status',
+              value: 'ready',
+            }),
+          ],
+          sha: 'bbbb',
+          writer: 'writer-1',
+        }),
+      ],
+    });
+
+    await expect(fixture.controller.readLiveEdgeProperties(edge))
+      .resolves.toEqual({ status: 'ready' });
+
+    expect(fixture.materializationRead.hasNode).toHaveBeenCalledTimes(2);
+    expect(fixture.hasEdge).toHaveBeenCalledWith(
+      fixture.edgeRoot,
+      edge,
+    );
+    expect(fixture.patches.loadedTips).toEqual(['tip-1']);
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+    expect(fixture.deps.crypto.hash).not.toHaveBeenCalled();
+    expect(fixture.deps.persistence.readRef).not.toHaveBeenCalled();
+    expect(fixture.deps.graphCloner.openReadOnly).not.toHaveBeenCalled();
+  });
+
+  it('returns null for a missing retained edge without replay', async () => {
+    const edge = {
+      from: 'node:source',
+      to: 'node:target',
+      label: 'rel',
+    };
+    const fixture = await createFixture({
+      edgePresence: false,
+      edgeRootStatus: 'retained',
+    });
+
+    await expect(fixture.controller.readLiveEdgeProperties(edge))
+      .resolves.toBeNull();
+
+    expect(fixture.patches.loadedTips).toEqual([]);
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+  });
+
+  it('returns null when a retained edge endpoint is not live', async () => {
+    const fixture = await createFixture({
+      edgePresence: true,
+      edgeRootStatus: 'retained',
+      presence: false,
+    });
+
+    await expect(fixture.controller.readLiveEdgeProperties({
+      from: 'node:missing',
+      to: 'node:target',
+      label: 'rel',
+    })).resolves.toBeNull();
+
+    expect(fixture.hasEdge).not.toHaveBeenCalled();
+    expect(fixture.patches.loadedTips).toEqual([]);
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+  });
+
+  it('reports edge properties unavailable when the retained edge root is unavailable', async () => {
+    const fixture = await createFixture({
+      edgeRootStatus: 'unavailable',
+    });
+
+    await expect(fixture.controller.readLiveEdgeProperties({
+      from: 'node:source',
+      to: 'node:target',
+      label: 'rel',
+    })).resolves.toBeUndefined();
+
+    expect(fixture.hasEdge).not.toHaveBeenCalled();
+    expect(fixture.patches.loadedTips).toEqual([]);
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+  });
+
+  it('reports an exact edge read as unavailable when the reader has no edge support', async () => {
+    const fixture = await createFixture({
+      edgeReadUnsupported: true,
+      edgeRootStatus: 'retained',
+    });
+
+    await expect(fixture.controller.readLiveEdgeProperties({
+      from: 'node:source',
+      to: 'node:target',
+      label: 'rel',
+    })).resolves.toBeUndefined();
+
+    expect(fixture.hasEdge).not.toHaveBeenCalled();
+    expect(fixture.patches.loadedTips).toEqual([]);
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+  });
+
+  it('releases retained roots when targeted edge replay fails', async () => {
+    const replayFailure = new Error('targeted edge replay failed');
+    const fixture = await createFixture({
+      edgePresence: true,
+      edgeRootStatus: 'retained',
+      patchReadFailure: replayFailure,
+    });
+
+    await expect(fixture.controller.readLiveEdgeProperties({
+      from: 'node:source',
+      to: 'node:target',
+      label: 'rel',
+    })).rejects.toBe(replayFailure);
+
+    expect(fixture.materializations.acquisitions[0]?.releaseCalls).toBe(1);
+    expect(fixture.materializations.acquisitions[0]?.released).toBe(true);
+  });
 });
 
 async function createFixture(
   options: {
+    readonly edgePresence?: boolean;
+    readonly edgeReadFailure?: Error;
+    readonly edgeReadUnsupported?: boolean;
+    readonly edgeRootStatus?: MaterializationRootStatus;
     readonly frontier?: Map<string, string>;
     readonly materializationRead?: boolean;
     readonly patchEntries?: readonly PatchWithSha[];
@@ -319,11 +469,14 @@ async function createFixture(
   patches.chainFailure = options.patchReadFailure;
   const materializations = new InMemoryMaterializationStore();
   const nodeRoot = new BundleHandle('test:node-root');
+  const edgeRoot = new BundleHandle('test:edge-root');
   const propertyRoot = new BundleHandle('test:property-root');
   if (options.retain !== false && patches.frontier.size > 0) {
     await materializations.retain({
       coordinate: new MaterializationCoordinate({ frontier: patches.frontier, ceiling: null }),
       roots: rootsWithStatus({
+        edgeRoot,
+        edgeStatus: options.edgeRootStatus ?? 'empty',
         nodeStatus: options.rootStatus ?? 'retained',
         nodeRoot,
         propertyStatus: options.propertyRootStatus ?? 'unavailable',
@@ -346,7 +499,14 @@ async function createFixture(
   } else {
     getNodeProperties.mockRejectedValue(options.propertyReadFailure);
   }
+  const hasEdge = vi.fn();
+  if (options.edgeReadFailure === undefined) {
+    hasEdge.mockResolvedValue(options.edgePresence ?? false);
+  } else {
+    hasEdge.mockRejectedValue(options.edgeReadFailure);
+  }
   const materializationRead = {
+    ...(options.edgeReadUnsupported === true ? {} : { hasEdge }),
     hasNode,
     getNodeProperties,
   };
@@ -358,6 +518,8 @@ async function createFixture(
   return {
     controller,
     deps,
+    edgeRoot,
+    hasEdge,
     materializationRead,
     materializations,
     nodeRoot,
@@ -370,6 +532,10 @@ function createDeps(options: {
   readonly materializations: InMemoryMaterializationStore;
   readonly patches: PatchCollector;
   readonly materializationRead: {
+    hasEdge?(
+      edgeAliveRoot: BundleHandle,
+      edge: { readonly from: string; readonly to: string; readonly label: string },
+    ): Promise<boolean>;
     hasNode(nodeAliveRoot: BundleHandle, nodeId: string): Promise<boolean>;
     getNodeProperties(
       propertiesRoot: BundleHandle,
@@ -407,6 +573,8 @@ function withoutMaterializationRead(deps: MaterializeDeps): MaterializeDeps {
 }
 
 function rootsWithStatus(options: {
+  edgeStatus: MaterializationRootStatus;
+  edgeRoot: BundleHandle;
   nodeStatus: MaterializationRootStatus;
   nodeRoot: BundleHandle;
   propertyStatus: MaterializationRootStatus;
@@ -415,7 +583,12 @@ function rootsWithStatus(options: {
   const unavailable = MaterializationRoot.unavailable();
   return new MaterializationRoots({
     adjacency: unavailable,
-    edgeAlive: MaterializationRoot.empty(),
+    edgeAlive:
+      options.edgeStatus === 'retained'
+        ? MaterializationRoot.retained(options.edgeRoot)
+        : options.edgeStatus === 'empty'
+          ? MaterializationRoot.empty()
+          : unavailable,
     edgeBirths: unavailable,
     frontier: unavailable,
     nodeAlive:

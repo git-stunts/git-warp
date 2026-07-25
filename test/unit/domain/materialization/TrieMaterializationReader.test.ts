@@ -12,6 +12,7 @@ import PageCache from '../../../../src/domain/orset/trie/PageCache.ts';
 import TrieGeometry from '../../../../src/domain/orset/trie/TrieGeometry.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
+import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import cborCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
@@ -41,6 +42,47 @@ describe('TrieMaterializationReader', () => {
     await expect(reader.hasNode(root, 'node:present')).resolves.toBe(true);
     const readsAfterFirstLookup = store.readCounts();
     await expect(reader.hasNode(root, 'node:missing')).resolves.toBe(false);
+
+    expect(store.writeCounts()).toEqual(writesBeforeRead);
+    const reads = store.readCounts();
+    expect(reads).toEqual(readsAfterFirstLookup);
+    expect(reads.leaf + reads.branch).toBeGreaterThan(0);
+    expect(reads.leaf + reads.branch).toBeLessThanOrEqual(4);
+  });
+
+  it('reads exact edge presence without writing or scanning the full trie', async () => {
+    const store = new InMemoryTrieStore();
+    const edge = {
+      from: 'node:source',
+      to: 'node:target',
+      label: 'rel',
+    };
+    const session = await StateSession.open({
+      nodeAliveRootOid: null,
+      edgeAliveRootOid: null,
+      store,
+      codec: cborCodec,
+      geometry: TrieGeometry.default16way(),
+      pageCache: new PageCache({ maxResident: 32 }),
+    });
+    await session.addEdge(
+      encodeEdgeKey(edge.from, edge.to, edge.label),
+      Dot.create('writer-1', 1),
+    );
+    const roots = await session.close();
+    if (roots.edgeAliveRootOid === null) {
+      throw new Error('Seed session did not write an edge root');
+    }
+    const writesBeforeRead = store.writeCounts();
+    const reader = new TrieMaterializationReader({ store, codec: cborCodec });
+    const root = new BundleHandle(roots.edgeAliveRootOid);
+
+    await expect(reader.hasEdge(root, edge)).resolves.toBe(true);
+    const readsAfterFirstLookup = store.readCounts();
+    await expect(reader.hasEdge(root, {
+      ...edge,
+      to: 'node:missing',
+    })).resolves.toBe(false);
 
     expect(store.writeCounts()).toEqual(writesBeforeRead);
     const reads = store.readCounts();
@@ -122,6 +164,10 @@ describe('TrieMaterializationReader', () => {
 
     await expect(Reflect.apply(reader.hasNode, reader, [null, 'node:present']))
       .rejects.toMatchObject({ code: 'E_MATERIALIZATION_RESUME' });
+    await expect(Reflect.apply(reader.hasEdge, reader, [
+      null,
+      { from: 'node:source', to: 'node:target', label: 'rel' },
+    ])).rejects.toMatchObject({ code: 'E_MATERIALIZATION_RESUME' });
     await expect(Reflect.apply(reader.getNodeProperties, reader, [null, 'node:present']))
       .rejects.toMatchObject({ code: 'E_MATERIALIZATION_RESUME' });
   });
