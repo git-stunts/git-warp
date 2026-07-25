@@ -57,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded `@git-stunts/git-cas` to `^6.5.3` so Git-backed materializations can
   use managed `CacheSet` retention, opaque page and bundle handles, and
   persistent Git object sessions.
+- Replaced the raw-Git grep check with a TypeScript AST gate that keeps
+  git-cas/plumbing imports at the storage composition root and rejects
+  WARP-owned CAS coordination, cache implementations, reflection, and direct
+  object writers through mutation-tested CI policy.
 - Moved shadow-trie leaf and branch storage from unretained raw Git blobs and
   trees to bounded git-cas pages and composable bundle handles. Production
   storage now shares one git-cas facade with the trie adapter, and the storage

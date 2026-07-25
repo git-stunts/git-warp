@@ -1,200 +1,29 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
-import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import {
+  findStorageOwnershipViolations,
+  forbiddenCasManagementImplementations,
+  forbiddenDomainStorageReferences,
+  forbiddenPlumbingReflection,
+  forbiddenRawGitObjectWrites,
+  forbiddenRemovedReferences,
+  forbiddenStorageModulePlacement,
+} from '../../../scripts/check-storage-ownership.ts';
 
-const REPO_ROOT = new URL('../../../', import.meta.url);
-const PRODUCTION_ROOTS = ['src', 'bin'] as const;
-const PRODUCTION_ENTRYPOINTS = ['index.ts', 'storage.ts', 'advanced.ts', 'diagnostics.ts'] as const;
-const DOMAIN_STORAGE_ROOTS = ['src/domain', 'src/ports'] as const;
-const FORBIDDEN_DOMAIN_MODULES = new Set([
-  '@git-stunts/git-cas',
-  '@git-stunts/plumbing',
-]);
-const FORBIDDEN_DOMAIN_STORAGE_IDENTIFIERS = new Set([
-  'BlobPort',
-  'BlobStoragePort',
-  'TreePort',
-  'createTree',
-  'hashObject',
-  'readBlob',
-  'readManifest',
-  'readTree',
-  'restoreStream',
-  'writeBlob',
-  'writeTree',
-]);
-const RAW_GIT_OBJECT_WRITE_COMMANDS = new Set([
-  'hash-object',
-  'mktree',
-  'unpack-objects',
-  'write-tree',
-]);
-const REMOVED_PRODUCTION_SYMBOLS = new Set([
-  'CachedValue',
-  'CasFirstMemoizationEngine',
-  'CasIndexStorageAdapter',
-  'CasSeekCacheAdapter',
-  'HealthCheckService',
-  'GitTrieStoreAdapter',
-  'InMemoryBlobStorageAdapter',
-  'InMemoryGraphAdapter',
-  'IndexRebuildService',
-  'IndexStalenessChecker',
-  'MemoryRuntimeStorageAdapter',
-  'MemoryStorage',
-  'SeekCachePort',
-  'StreamingBitmapIndexBuilder',
-  'StreamingCheckpointBasisBuilder',
-  'StreamingIndexStoragePort',
-]);
-const REMOVED_PRODUCTION_IDENTIFIERS = new Set([
-  '_adjacencyCache',
-  '_seekCache',
-  'adjacencyCacheSize',
-  'buildSeekCacheRef',
-  'createSeekCache',
-  'defaultBlobStorage',
-  'seekCache',
-  'setSeekCache',
-  'wireSeekCache',
-]);
-
-function productionTypeScriptFiles(relativeRoot: string): string[] {
-  const absoluteRoot = new URL(`${relativeRoot}/`, REPO_ROOT).pathname;
-  return walk(absoluteRoot);
-}
-
-function walk(directory: string): string[] {
-  const files: string[] = [];
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...walk(path));
-    } else if (entry.isFile() && entry.name.endsWith('.ts')) {
-      files.push(path);
-    }
-  }
-  return files;
-}
-
-function forbiddenReferences(
-  path: string,
-  sourceText = readFileSync(path, 'utf8'),
-): string[] {
-  const source = ts.createSourceFile(
-    path,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS
-  );
-  const violations = new Set<string>();
-  const visit = (node: ts.Node): void => {
-    if (
-      ts.isIdentifier(node) &&
-      (REMOVED_PRODUCTION_IDENTIFIERS.has(node.text) || REMOVED_PRODUCTION_SYMBOLS.has(node.text))
-    ) {
-      violations.add(`${relative(REPO_ROOT.pathname, path)} uses ${node.text}`);
-    }
-    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
-      const moduleSpecifier = node.moduleSpecifier;
-      if (moduleSpecifier === undefined || !ts.isStringLiteral(moduleSpecifier)) {
-        ts.forEachChild(node, visit);
-        return;
-      }
-      const removed = [...REMOVED_PRODUCTION_SYMBOLS].find((symbol) =>
-        moduleSpecifier.text.includes(symbol)
-      );
-      if (removed !== undefined) {
-        violations.add(`${relative(REPO_ROOT.pathname, path)} imports ${removed}`);
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return [...violations];
-}
-
-function forbiddenDomainStorageReferences(
-  path: string,
-  sourceText = readFileSync(path, 'utf8'),
-): string[] {
-  const source = ts.createSourceFile(
-    path,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
-  const relativePath = relative(REPO_ROOT.pathname, path);
-  const violations = new Set<string>();
-  const visit = (node: ts.Node): void => {
-    if (ts.isIdentifier(node) && FORBIDDEN_DOMAIN_STORAGE_IDENTIFIERS.has(node.text)) {
-      violations.add(`${relativePath} exposes raw storage capability ${node.text}`);
-    }
-    const moduleName = importedModuleName(node);
-    if (moduleName !== null && FORBIDDEN_DOMAIN_MODULES.has(moduleName)) {
-      violations.add(`${relativePath} imports forbidden storage module ${moduleName}`);
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return [...violations];
-}
-
-function forbiddenRawGitObjectWrites(
-  path: string,
-  sourceText = readFileSync(path, 'utf8'),
-): string[] {
-  const source = ts.createSourceFile(
-    path,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
-  const relativePath = relative(REPO_ROOT.pathname, path);
-  const violations = new Set<string>();
-  const visit = (node: ts.Node): void => {
-    if (
-      (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
-      RAW_GIT_OBJECT_WRITE_COMMANDS.has(node.text)
-    ) {
-      violations.add(`${relativePath} invokes raw Git object writer ${node.text}`);
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return [...violations];
-}
-
-function importedModuleName(node: ts.Node): string | null {
-  if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node))
-    && node.moduleSpecifier !== undefined
-    && ts.isStringLiteral(node.moduleSpecifier)) {
-    return node.moduleSpecifier.text;
-  }
-  if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)
-    && ts.isStringLiteral(node.argument.literal)) {
-    return node.argument.literal.text;
-  }
-  if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-    const argument = node.arguments[0];
-    return argument !== undefined && ts.isStringLiteral(argument) ? argument.text : null;
-  }
-  return null;
-}
+const REPO_ROOT = new URL('../../../', import.meta.url).pathname;
 
 describe('storage ownership boundary', () => {
   it('rejects removed symbols in arbitrary identifier positions', () => {
-    const fixturePath = new URL('storage-ownership-fixture.ts', REPO_ROOT).pathname;
-    const violations = forbiddenReferences(fixturePath, `
+    const path = `${REPO_ROOT}storage-ownership-fixture.ts`;
+    const violations = forbiddenRemovedReferences(
+      REPO_ROOT,
+      path,
+      `
       const CasSeekCacheAdapter = 1;
       function SeekCachePort() { return CasSeekCacheAdapter; }
       const active = SeekCachePort;
       export { active as CachedValue };
-    `).sort();
+    `
+    ).sort();
 
     expect(violations).toEqual([
       'storage-ownership-fixture.ts uses CachedValue',
@@ -203,28 +32,20 @@ describe('storage ownership boundary', () => {
     ]);
   });
 
-  it('keeps removed caches and in-memory storage implementations out of production', () => {
-    const productionFiles = [
-      ...PRODUCTION_ROOTS.flatMap(productionTypeScriptFiles),
-      ...PRODUCTION_ENTRYPOINTS.map((path) => new URL(path, REPO_ROOT).pathname),
-    ];
-    const violations = productionFiles
-      .flatMap((path) => forbiddenReferences(path))
-      .sort();
-
-    expect(violations).toEqual([]);
-  });
-
   it('rejects raw storage imports and capabilities in a mutation fixture', () => {
-    const fixturePath = new URL('domain-storage-boundary-fixture.ts', REPO_ROOT).pathname;
-    const violations = forbiddenDomainStorageReferences(fixturePath, `
+    const path = `${REPO_ROOT}domain-storage-boundary-fixture.ts`;
+    const violations = forbiddenDomainStorageReferences(
+      REPO_ROOT,
+      path,
+      `
       import type { AssetHandle } from '@git-stunts/git-cas';
       type Plumbing = import('@git-stunts/plumbing').default;
       interface LeakyPort {
         writeBlob(bytes: Uint8Array): Promise<string>;
         readTree(oid: string): Promise<object>;
       }
-    `).sort();
+    `
+    ).sort();
 
     expect(violations).toEqual([
       'domain-storage-boundary-fixture.ts exposes raw storage capability readTree',
@@ -234,37 +55,77 @@ describe('storage ownership boundary', () => {
     ]);
   });
 
-  it('keeps domain and port modules storage-substrate neutral', () => {
-    const productionFiles = DOMAIN_STORAGE_ROOTS.flatMap(productionTypeScriptFiles);
-    const violations = productionFiles
-      .flatMap((path) => forbiddenDomainStorageReferences(path))
-      .sort();
+  it('rejects storage dependencies outside the adapter composition root', () => {
+    const path = `${REPO_ROOT}src/application/storage-leak-fixture.ts`;
+    const violations = forbiddenStorageModulePlacement(
+      REPO_ROOT,
+      path,
+      `
+      import { PageHandle } from '@git-stunts/git-cas';
+      const load = () => import('@git-stunts/plumbing');
+    `
+    ).sort();
 
-    expect(violations).toEqual([]);
+    expect(violations).toEqual([
+      'src/application/storage-leak-fixture.ts imports @git-stunts/git-cas outside the storage adapter composition root',
+      'src/application/storage-leak-fixture.ts imports @git-stunts/plumbing outside the storage adapter composition root',
+    ]);
+  });
+
+  it('rejects WARP-owned RootSet, cache-index, LRU, and page-cache implementations', () => {
+    const path = `${REPO_ROOT}src/infrastructure/cache-fixture.ts`;
+    const violations = forbiddenCasManagementImplementations(
+      REPO_ROOT,
+      path,
+      `
+      class RootSet {}
+      class CacheIndex {}
+      class PageCache {}
+      const cacheIndex = new Map();
+    `
+    ).sort();
+
+    expect(violations).toEqual([
+      'src/infrastructure/cache-fixture.ts implements forbidden CAS/cache management CacheIndex',
+      'src/infrastructure/cache-fixture.ts implements forbidden CAS/cache management PageCache',
+      'src/infrastructure/cache-fixture.ts implements forbidden CAS/cache management RootSet',
+      'src/infrastructure/cache-fixture.ts implements forbidden CAS/cache management cacheIndex',
+    ]);
   });
 
   it('rejects raw Git object writers in an AST mutation fixture', () => {
-    const fixturePath = new URL('raw-git-writer-fixture.ts', REPO_ROOT).pathname;
-    const violations = forbiddenRawGitObjectWrites(fixturePath, `
+    const path = `${REPO_ROOT}raw-git-writer-fixture.ts`;
+    const violations = forbiddenRawGitObjectWrites(
+      REPO_ROOT,
+      path,
+      `
       plumbing.execute({ args: ['hash-object', '-w', '--stdin'] });
       plumbing.execute({ args: [\`mktree\`] });
-    `).sort();
+      plumbing.execute({ command: 'git write-tree --missing-ok' });
+    `
+    ).sort();
 
     expect(violations).toEqual([
       'raw-git-writer-fixture.ts invokes raw Git object writer hash-object',
       'raw-git-writer-fixture.ts invokes raw Git object writer mktree',
+      'raw-git-writer-fixture.ts invokes raw Git object writer write-tree',
     ]);
   });
 
-  it('keeps raw Git object writers out of production', () => {
-    const productionFiles = [
-      ...PRODUCTION_ROOTS.flatMap(productionTypeScriptFiles),
-      ...PRODUCTION_ENTRYPOINTS.map((path) => new URL(path, REPO_ROOT).pathname),
-    ];
-    const violations = productionFiles
-      .flatMap((path) => forbiddenRawGitObjectWrites(path))
-      .sort();
+  it('rejects reflection over Git plumbing in a mutation fixture', () => {
+    const path = `${REPO_ROOT}plumbing-reflection-fixture.ts`;
+    const violations = forbiddenPlumbingReflection(
+      REPO_ROOT,
+      path,
+      `
+      const execute = Reflect.get(gitPlumbing, operation);
+    `
+    );
 
-    expect(violations).toEqual([]);
+    expect(violations).toEqual(['plumbing-reflection-fixture.ts reflects over Git plumbing']);
+  });
+
+  it('keeps the production tree inside the no-CAS-management boundary', () => {
+    expect(findStorageOwnershipViolations(REPO_ROOT)).toEqual([]);
   });
 });
