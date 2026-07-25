@@ -110,6 +110,7 @@ describe("MaterializeController property-root retention", () => {
   it("rebuilds a supplied property root when the reduction observes a patch", async () => {
     const materializations = new InMemoryMaterializationStore();
     const propertyStore = new MockIndexStorage();
+    const writeShards = vi.spyOn(propertyStore, "writeShards");
     const stale = MaterializationRoot.retained(new BundleHandle("test:stale-properties"));
 
     const reduced = await reduceSessionBackedState({
@@ -128,7 +129,13 @@ describe("MaterializeController property-root retention", () => {
 
     expect(reduced.roots.properties.status).toBe("retained");
     expect(reduced.roots.properties.equals(stale)).toBe(false);
-    expect(propertyStore.writeBlob).toHaveBeenCalledOnce();
+    expect(reduced.roots.roaringIndexes.status).toBe("retained");
+    expect(writeShards).toHaveBeenCalledTimes(2);
+    expect(materializations.workspaces[0]?.checkpoints.at(-1))
+      .toEqual(expect.objectContaining({
+        propertiesRoot: reduced.roots.properties.handle?.toString(),
+        roaringIndexesRoot: reduced.roots.roaringIndexes.handle?.toString(),
+      }));
     await reduced.workspace.release();
   });
 });

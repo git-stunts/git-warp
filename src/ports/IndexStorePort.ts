@@ -41,6 +41,11 @@ export type IndexShardDecodeOptions = Readonly<{
   structureLimits?: IndexShardStructureLimits;
 }>;
 
+export type IndexShardReference = Readonly<{
+  kind: 'asset' | 'page';
+  token: string;
+}>;
+
 /**
  * IndexStorePort — domain-facing port for index shard persistence.
  *
@@ -98,6 +103,11 @@ export default abstract class IndexStorePort {
     _indexHandle: BundleHandle,
   ): Promise<Readonly<Record<string, AssetHandle>>>;
 
+  /** Lists opaque asset/page member identities without opening shard bytes. */
+  abstract readShardReferences(
+    _indexHandle: BundleHandle,
+  ): Promise<Readonly<Record<string, IndexShardReference>>>;
+
   /** Resolves one shard handle by path without enumerating or decoding siblings. */
   abstract readShardHandle(
     _indexHandle: BundleHandle,
@@ -106,6 +116,13 @@ export default abstract class IndexStorePort {
 
   /** Streams one encoded shard without opening unrelated index members. */
   abstract openShard(_shardHandle: AssetHandle): AsyncIterable<Uint8Array>;
+
+  /** Streams one exact asset- or page-backed bundle member by path. */
+  abstract openShardAt(
+    _indexHandle: BundleHandle,
+    _path: string,
+    _options?: Readonly<{ maxBytes?: number }>,
+  ): AsyncIterable<Uint8Array>;
 
   /**
    * Reads and decodes a single shard asset by opaque handle.

@@ -157,6 +157,11 @@ describe('LogicalIndexReader', () => {
   });
 
   describe('loadFromHandles', () => {
+    it('requires an index store', async () => {
+      await expect(new LogicalIndexReader().loadFromHandles({}))
+        .rejects.toMatchObject({ code: 'E_INDEX_NO_STORE' });
+    });
+
     it('loads shards through the semantic index store', async () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
       const service = new MaterializedViewService({ codec: defaultCodec });
@@ -400,6 +405,23 @@ describe('LogicalIndexReader', () => {
       const reader = new LogicalIndexReader({ codec: defaultCodec });
       await expect(reader.loadFromStore(new BundleHandle('any-index')))
         .rejects.toThrow(/indexStore/i);
+    });
+
+    it('fails closed for missing retained bundle members', async () => {
+      const storage = new MockIndexStorage();
+      vi.spyOn(storage, 'decodeShardAt').mockResolvedValue(null);
+      const reader = new LogicalIndexReader({ indexStore: storage });
+      const indexHandle = new BundleHandle('retained-index');
+
+      await expect(reader.loadFromStorePaths(indexHandle, ['meta_ff.cbor']))
+        .rejects.toMatchObject({ code: 'E_INDEX_SHARD_MISSING' });
+    });
+
+    it('requires an index store for retained bundle members', async () => {
+      await expect(new LogicalIndexReader().loadFromStorePaths(
+        new BundleHandle('retained-index'),
+        [],
+      )).rejects.toMatchObject({ code: 'E_INDEX_NO_STORE' });
     });
   });
 

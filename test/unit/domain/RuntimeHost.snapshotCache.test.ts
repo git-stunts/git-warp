@@ -62,7 +62,7 @@ class RecordingStateCache extends WarpStateCachePort {
 }
 
 describe('RuntimeHost snapshot cache', () => {
-  it('uses the exact retained snapshot on an unchanged second materialization', async () => {
+  it('uses the exact retained materialization ahead of the snapshot cache on an unchanged read', async () => {
     const persistence = new InMemoryGraphAdapter();
     const stateCache = new RecordingStateCache();
     const runtime = await openMemoryRuntimeHostProduct({
@@ -88,8 +88,9 @@ describe('RuntimeHost snapshot cache', () => {
 
     const second = await runtime.materialize();
 
-    expect(stateCache.exactLookups).toHaveLength(2);
+    expect(stateCache.exactLookups).toHaveLength(1);
     expect(stateCache.publications).toHaveLength(1);
+    expect(Reflect.get(runtime, '_retainedMaterialization')).not.toBeNull();
     expect(runtime.provenanceIndex?.patchesFor('node:one')).toEqual([patchId]);
     expect(Reflect.get(runtime, '_provenanceDegraded')).toBe(false);
     expect(buildView).toHaveBeenCalledTimes(viewBuildsAfterFirstRead);

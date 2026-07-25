@@ -8,6 +8,7 @@ import PatchJournalPort, {
 } from '../../src/ports/PatchJournalPort.ts';
 import type Patch from '../../src/domain/types/Patch.ts';
 import type { PatchCommitMessage } from '../../src/ports/CommitMessageCodecPort.ts';
+import InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
 import { generateOidFromNumber } from './WarpGraphObjectIds.ts';
 
 type PopulatedCommit = {
@@ -36,11 +37,16 @@ class MockPersistenceFixtureError extends Error {
 
 class WarpGraphMockPersistence {
   readonly #refs = new Map<string, string>();
+  readonly #objects = new InMemoryGraphAdapter();
 
   readonly readRef = vi.fn(async (ref: string) => this.#refs.get(ref) ?? null);
   readonly showNode = vi.fn();
-  readonly writeBlob = vi.fn();
-  readonly writeTree = vi.fn();
+  readonly writeBlob = vi.fn(async (content: Uint8Array | string) => {
+    return await this.#objects.writeBlob(content);
+  });
+  readonly writeTree = vi.fn(async (entries: string[]) => {
+    return await this.#objects.writeTree(entries);
+  });
   readonly readBlob = vi.fn();
   readonly readTreeOids = vi.fn(async (_treeOid: string): Promise<Record<string, string>> => ({}));
   readonly commitNode = vi.fn();

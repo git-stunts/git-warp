@@ -24,15 +24,7 @@ import {
   type MaterializeAdjacency,
 } from "./MaterializeHelpers.ts";
 import { releaseWorkspaceAfterFailure } from "./MaterializationWorkspaceCleanup.ts";
-import PropertyIndexBuilder from "../index/PropertyIndexBuilder.ts";
-import WarpStream from "../../stream/WarpStream.ts";
-import type { IndexShard } from "../../artifacts/IndexShard.ts";
-import {
-  materializationPropertyShardKey,
-  MATERIALIZATION_PROPERTY_SHARD_LIMITS,
-  MAX_MATERIALIZATION_PROPERTY_SHARDS,
-  requireMaterializationPropertyShardCount,
-} from "../../materialization/MaterializationPropertyProfile.ts";
+import { prepareMaterializationIndexRoots } from "./MaterializationIndexRoots.ts";
 
 export type MaterializeSessionOpen = {
   readonly nodeAliveRootOid: string | null;
@@ -54,6 +46,8 @@ export async function reduceSessionBackedState(args: {
   readonly logger?: LoggerPort;
   readonly propertyStore?: IndexStorePort;
   readonly propertyRoot?: MaterializationRoot;
+  readonly indexRoot?: MaterializationRoot;
+  readonly provenanceSupportRoot?: MaterializationRoot;
   readonly replayBasisRoot?: MaterializationRoot;
   readonly coordinate: MaterializationCoordinate;
   readonly patches: MaterializeSessionPatchSource;
@@ -121,17 +115,39 @@ export async function reduceSessionBackedState(args: {
     }
 
     const close = await frame.session.prepareClose();
-    const properties = await resolvePropertyRoot(
-      reduced.state,
-      args.propertyStore,
+    const { properties, roaringIndexes } = await prepareMaterializationIndexRoots({
+      state: reduced.state,
+      store: args.propertyStore,
       workspace,
-      reducedPatchCount === 0 ? args.propertyRoot : undefined,
+      ...(reducedPatchCount === 0 && args.propertyRoot !== undefined
+        ? { existingPropertyRoot: args.propertyRoot }
+        : {}),
+      ...(reducedPatchCount === 0 && args.indexRoot !== undefined
+        ? { existingIndexRoot: args.indexRoot }
+        : {}),
+    });
+    await retainPreparedIndexRoots(
+      workspace,
+      close.roots,
+      properties,
+      roaringIndexes,
     );
-    await retainPreparedPropertyRoot(workspace, close.roots, properties);
     const replayBasis = reducedPatchCount === 0 && args.replayBasisRoot !== undefined
       ? args.replayBasisRoot
       : MaterializationRoot.unavailable();
-    const roots = materializationRootsFromSession(close.roots, properties, replayBasis);
+    const provenanceSupport = (
+      reducedPatchCount === 0
+      && args.provenanceSupportRoot !== undefined
+    )
+      ? args.provenanceSupportRoot
+      : MaterializationRoot.unavailable();
+    const roots = materializationRootsFromSession(
+      close.roots,
+      properties,
+      roaringIndexes,
+      provenanceSupport,
+      replayBasis,
+    );
     return {
       ...reduced,
       roots,
@@ -193,6 +209,8 @@ export function materializationSessionOpen(
 function materializationRootsFromSession(
   roots: MaterializeSessionOpen,
   properties: MaterializationRoot,
+  roaringIndexes: MaterializationRoot,
+  provenanceSupport: MaterializationRoot,
   replayBasis: MaterializationRoot,
 ): MaterializationRoots {
   return new MaterializationRoots({
@@ -202,74 +220,32 @@ function materializationRootsFromSession(
     frontier: MaterializationRoot.unavailable(),
     nodeAlive: sessionMaterializationRoot(roots.nodeAliveRootOid),
     properties,
-    provenanceSupport: MaterializationRoot.unavailable(),
+    provenanceSupport,
     replayBasis,
-    roaringIndexes: MaterializationRoot.unavailable(),
+    roaringIndexes,
   });
 }
 
-async function materializePropertyRoot(
-  state: WarpStateClass,
-  store: IndexStorePort | undefined,
-  workspace: MaterializationWorkspacePort,
-): Promise<MaterializationRoot> {
-  if (store === undefined) {
-    return MaterializationRoot.unavailable();
-  }
-  const builder = new PropertyIndexBuilder({
-    schemaVersion: 2,
-    shardKey: materializationPropertyShardKey,
-  });
-  let propertyCount = 0;
-  for (const entry of state.nodeProperties()) {
-    if (state.nodeAlive.contains(entry.nodeId)) {
-      builder.addProperty(entry.nodeId, entry.key, entry.register.value);
-      propertyCount += 1;
-    }
-  }
-  if (propertyCount === 0) {
-    return MaterializationRoot.empty();
-  }
-  const shardCount = builder.shardCount();
-  requireMaterializationPropertyShardCount(shardCount);
-  const handle = await store.writeShards(
-    WarpStream.from<IndexShard>(builder.yieldShards()),
-    {
-      expectedShardCount: shardCount,
-      memberStorage: 'page',
-      maxShardCount: MAX_MATERIALIZATION_PROPERTY_SHARDS,
-      maxShardBytes: MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxBytes,
-      structureLimits: MATERIALIZATION_PROPERTY_SHARD_LIMITS.structureLimits,
-      staging: workspace,
-    },
-  );
-  return MaterializationRoot.retained(handle);
-}
-
-async function resolvePropertyRoot(
-  state: WarpStateClass,
-  store: IndexStorePort | undefined,
-  workspace: MaterializationWorkspacePort,
-  existing: MaterializationRoot | undefined,
-): Promise<MaterializationRoot> {
-  if (existing !== undefined && existing.status !== "unavailable") {
-    return existing;
-  }
-  return await materializePropertyRoot(state, store, workspace);
-}
-
-async function retainPreparedPropertyRoot(
+async function retainPreparedIndexRoots(
   workspace: MaterializationWorkspacePort,
   roots: MaterializeSessionOpen,
   properties: MaterializationRoot,
+  roaringIndexes: MaterializationRoot,
 ): Promise<void> {
-  if (properties.status !== 'retained' || properties.handle === null) {
+  const propertiesRoot = properties.status === 'retained'
+    ? properties.handle?.toString()
+    : undefined;
+  const roaringIndexesRoot = roaringIndexes.status === 'retained'
+    ? roaringIndexes.handle?.toString()
+    : undefined;
+  if (propertiesRoot === undefined && roaringIndexesRoot === undefined) {
     return;
   }
   await workspace.checkpoint({
     nodeAliveRoot: roots.nodeAliveRootOid,
     edgeAliveRoot: roots.edgeAliveRootOid,
-    propertiesRoot: properties.handle.toString(),
+    ...(propertiesRoot === undefined ? {} : { propertiesRoot }),
+    ...(roaringIndexesRoot === undefined ? {} : { roaringIndexesRoot }),
   });
 }
 

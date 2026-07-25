@@ -1,7 +1,17 @@
 import WarpError from '../errors/WarpError.ts';
 import MaterializationRoot from './MaterializationRoot.ts';
 
-export const MATERIALIZATION_ROOT_NAMES = defineRootNames(
+export const MATERIALIZATION_ROOT_NAMES: readonly [
+  'adjacency',
+  'edge-alive',
+  'edge-births',
+  'frontier',
+  'node-alive',
+  'properties',
+  'provenance-support',
+  'replay-basis',
+  'roaring-indexes',
+] = defineRootNames(
   'adjacency',
   'edge-alive',
   'edge-births',
@@ -27,9 +37,21 @@ export type MaterializationRootsOptions = Readonly<{
   roaringIndexes: MaterializationRoot;
 }>;
 
+type MaterializationRootsByName = Readonly<{
+  adjacency: MaterializationRoot;
+  'edge-alive': MaterializationRoot;
+  'edge-births': MaterializationRoot;
+  frontier: MaterializationRoot;
+  'node-alive': MaterializationRoot;
+  properties: MaterializationRoot;
+  'provenance-support': MaterializationRoot;
+  'replay-basis': MaterializationRoot;
+  'roaring-indexes': MaterializationRoot;
+}>;
+
 /** Independently addressable retained roots for one materialized causal chart. */
 export default class MaterializationRoots {
-  private readonly roots: Readonly<Record<MaterializationRootName, MaterializationRoot>>;
+  private readonly roots: MaterializationRootsByName;
   readonly adjacency: MaterializationRoot;
   readonly edgeAlive: MaterializationRoot;
   readonly edgeBirths: MaterializationRoot;
@@ -52,7 +74,7 @@ export default class MaterializationRoots {
       'provenance-support': requireRoot(options.provenanceSupport, 'provenanceSupport'),
       'replay-basis': requireRoot(options.replayBasis, 'replayBasis'),
       'roaring-indexes': requireRoot(options.roaringIndexes, 'roaringIndexes'),
-    } satisfies Record<MaterializationRootName, MaterializationRoot>);
+    } satisfies MaterializationRootsByName);
     this.adjacency = this.roots.adjacency;
     this.edgeAlive = this.roots['edge-alive'];
     this.edgeBirths = this.roots['edge-births'];
@@ -71,10 +93,36 @@ export default class MaterializationRoots {
     );
   }
 
+  withRoot(name: MaterializationRootName, root: MaterializationRoot): MaterializationRoots {
+    const rootName = requireRootName(name);
+    const replacement = {
+      ...this.roots,
+      [rootName]: requireRoot(root, rootName),
+    };
+    return new MaterializationRoots({
+      adjacency: replacement.adjacency,
+      edgeAlive: replacement['edge-alive'],
+      edgeBirths: replacement['edge-births'],
+      frontier: replacement.frontier,
+      nodeAlive: replacement['node-alive'],
+      properties: replacement.properties,
+      provenanceSupport: replacement['provenance-support'],
+      replayBasis: replacement['replay-basis'],
+      roaringIndexes: replacement['roaring-indexes'],
+    });
+  }
+
   equals(other: MaterializationRoots): boolean {
     return other instanceof MaterializationRoots
       && MATERIALIZATION_ROOT_NAMES.every((name) => this.roots[name].equals(other.roots[name]));
   }
+}
+
+function requireRootName(name: MaterializationRootName): MaterializationRootName {
+  if (!MATERIALIZATION_ROOT_NAMES.includes(name)) {
+    throw rootsError(`unsupported root name: ${String(name)}`);
+  }
+  return name;
 }
 
 function rootEntry(

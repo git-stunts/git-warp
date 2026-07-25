@@ -46,6 +46,7 @@ import {
 import { completeWithCleanup } from './OperationCleanup.ts';
 import {
   decodeMaterializationDescriptor,
+  MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
   materializationDescriptorData,
   materializationRootsFromDescriptor,
   type DecodedMaterializationDescriptor,
@@ -55,13 +56,23 @@ import {
   materializationMembers,
   type DecodedMaterializationMembers,
 } from './GitCasMaterializationBundle.ts';
+import GitCasMaterializationProvenanceSupport, {
+  replaceProvenanceSupportRoot,
+} from './GitCasMaterializationProvenanceSupport.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_TTL_MS = 2 * 60 * 60 * 1000;
-const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
 
 export type { GitCasMaterializationFacade } from './GitCasMaterializationStoreTypes.ts';
+
+type MaterializationStoreOptions = {
+  readonly cas: GitCasMaterializationFacade;
+  readonly codec: CodecPort;
+  readonly crypto: CryptoPort;
+  readonly laneName: string;
+  readonly onClose?: () => void;
+};
 
 /** git-cas-backed retained materialization lifecycle. */
 export default class GitCasMaterializationStoreAdapter extends MaterializationStorePort {
@@ -73,6 +84,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   readonly #onClose: () => void;
   readonly #predecessorResolver: GitCasMaterializationPredecessorResolver;
   readonly #replayBasis: GitCasMaterializationReplayBasis;
+  readonly #provenanceSupport: GitCasMaterializationProvenanceSupport;
   #currentLease: GitCasMaterializationLease | null = null;
   #leaseMutation: Promise<void> = Promise.resolve();
   readonly #retirements = new Set<Promise<void>>();
@@ -83,13 +95,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   #closed = false;
   #closePromise: Promise<void> | null = null;
 
-  constructor(options: {
-    readonly cas: GitCasMaterializationFacade;
-    readonly codec: CodecPort;
-    readonly crypto: CryptoPort;
-    readonly laneName: string;
-    readonly onClose?: () => void;
-  }) {
+  constructor(options: MaterializationStoreOptions) {
     super();
     requireAdapterOptions(options);
     requireDependency(options.cas, 'cas');
@@ -105,11 +111,9 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       laneName: this.#laneName,
     });
     this.#onClose = options.onClose ?? (() => undefined);
-    this.#replayBasis = new GitCasMaterializationReplayBasis({
-      cas: this.#cas,
-      codec: this.#codec,
-      crypto: this.#crypto,
-    });
+    const support = materializationSupport(options);
+    this.#replayBasis = support.replayBasis;
+    this.#provenanceSupport = support.provenance;
     this.#predecessorResolver = this.#createPredecessorResolver();
   }
 
@@ -166,12 +170,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   ): Promise<MaterializationHandle> {
     requireRetainRequest(request);
     const { stateHash } = request;
-    const roots = request.replayBasis === undefined
-      ? request.roots
-      : replaceReplayBasisRoot(
-        request.roots,
-        await this.#replayBasis.stage(workspace, request.replayBasis),
-      );
+    const roots = await this.#prepareRetainedRoots(workspace, request);
     const retainedRequest = { ...request, roots };
     const bundle = await this.#stageWorkspaceBundle(workspace, retainedRequest, stateHash);
     const retention = await this.#promoteWorkspaceBundle(
@@ -189,6 +188,24 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     });
   }
 
+  async #prepareRetainedRoots(
+    workspace: GitCasStagingWorkspace,
+    request: RetainMaterializationRequest,
+  ) {
+    const replayRoots = request.replayBasis === undefined
+      ? request.roots
+      : replaceReplayBasisRoot(
+        request.roots,
+        await this.#replayBasis.stage(workspace, request.replayBasis),
+      );
+    return request.provenanceSupport === undefined
+      ? replayRoots
+      : replaceProvenanceSupportRoot(
+        replayRoots,
+        await this.#provenanceSupport.stage(workspace, request.provenanceSupport),
+      );
+  }
+
   async #stageWorkspaceBundle(
     workspace: GitCasStagingWorkspace,
     request: RetainMaterializationRequest,
@@ -204,7 +221,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
 
     const descriptorPage = await workspace.pages.put({
       source: descriptorBytes,
-      maxBytes: MAX_DESCRIPTOR_BYTES,
+      maxBytes: MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
     });
     requireWorkspaceStage(descriptorPage);
     const bundle = await workspace.bundles.putOrdered({
@@ -432,7 +449,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   async #readDescriptor(handle: PageHandle): Promise<DecodedMaterializationDescriptor> {
     const bytes = await this.#cas.pages.get({
       handle,
-      maxBytes: MAX_DESCRIPTOR_BYTES,
+      maxBytes: MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
     });
     return decodeMaterializationDescriptor(this.#codec.decode(bytes));
   }
@@ -442,4 +459,18 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       handle: bundle.toString(),
     }));
   }
+}
+
+function materializationSupport(options: MaterializationStoreOptions) {
+  return {
+    replayBasis: new GitCasMaterializationReplayBasis({
+      cas: options.cas,
+      codec: options.codec,
+      crypto: options.crypto,
+    }),
+    provenance: new GitCasMaterializationProvenanceSupport({
+      cas: options.cas,
+      codec: options.codec,
+    }),
+  };
 }

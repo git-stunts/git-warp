@@ -15,6 +15,7 @@ import {
   upgradeV16ToV17,
 } from '../../../scripts/upgrade-v16-to-v17.ts';
 import { parseUpgradeCommandEntrypoint } from '../../helpers/parseUpgradeCommandEntrypoint.ts';
+import retainUnavailableMaterialization from '../../helpers/retainUnavailableMaterialization.ts';
 
 function oid(hex: string): string {
   return hex.repeat(40).slice(0, 40);
@@ -75,13 +76,24 @@ describe('v16 to v17 top-level upgrade utility', () => {
       crypto: new NodeCryptoAdapter(),
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     });
+    const state = createEmptyState();
+    const frontier = createFrontier();
+    const crypto = new NodeCryptoAdapter();
+    const materialization = await retainUnavailableMaterialization({
+      materializations: services.materializations,
+      frontier,
+      state,
+      codec: defaultCodec,
+      crypto,
+    });
     const checkpointSha = await createCheckpointEnvelope({
       checkpointStore: services.checkpoints,
       graphName: 'alpha',
-      state: createEmptyState(),
-      frontier: createFrontier(),
+      state,
+      frontier,
       codec: defaultCodec,
-      crypto: new NodeCryptoAdapter(),
+      crypto,
+      materialization,
     });
     await persistence.updateRef('refs/warp/alpha/coverage/head', oid('a'));
     await persistence.updateRef('refs/warp/alpha/seek-cache', oid('b'));

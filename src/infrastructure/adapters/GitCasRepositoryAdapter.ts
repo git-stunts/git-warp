@@ -189,6 +189,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   ): CborCheckpointStoreAdapter {
     return new CborCheckpointStoreAdapter({
       codec: request.codec,
+      crypto: request.crypto,
       commitMessageCodec: request.commitMessageCodec,
       history: this._history,
       assetStorage: content,

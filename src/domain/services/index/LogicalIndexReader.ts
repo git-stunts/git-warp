@@ -19,6 +19,7 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
 import type BundleHandle from '../../storage/BundleHandle.ts';
+import { MATERIALIZATION_INDEX_SHARD_LIMITS } from '../../materialization/MaterializationIndexProfile.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
 import {
@@ -100,6 +101,37 @@ export default class LogicalIndexReader {
     const Ctor = getRoaringBitmap32();
     for (const [path, handle] of Object.entries(shardHandles)) {
       replacement._loadDecodedItem(path, await indexStore.decodeShard(handle), Ctor);
+    }
+    this._replaceState(replacement);
+    return this;
+  }
+
+  /** Loads only the named members from a retained page/asset-backed index bundle. */
+  async loadFromStorePaths(
+    indexHandle: BundleHandle,
+    paths: readonly string[],
+  ): Promise<this> {
+    if (this._indexStore === null) {
+      throw new IndexError(
+        'LogicalIndexReader: loadFromStorePaths() requires an indexStore',
+        { code: 'E_INDEX_NO_STORE' },
+      );
+    }
+    const replacement = new LogicalIndexReader({ indexStore: this._indexStore });
+    const Ctor = getRoaringBitmap32();
+    for (const path of paths) {
+      const decoded = await this._indexStore.decodeShardAt(
+        indexHandle,
+        path,
+        MATERIALIZATION_INDEX_SHARD_LIMITS,
+      );
+      if (decoded === null) {
+        throw new IndexError(`Index shard is missing: ${path}`, {
+          code: 'E_INDEX_SHARD_MISSING',
+          context: { path },
+        });
+      }
+      replacement._loadDecodedItem(path, decoded, Ctor);
     }
     this._replaceState(replacement);
     return this;

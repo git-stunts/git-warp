@@ -13,6 +13,12 @@ import { requireCodec } from '../codec/CodecRequirement.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
+import type BundleHandle from '../../storage/BundleHandle.ts';
+import {
+  MATERIALIZATION_PROPERTY_SHARD_LIMITS,
+  materializationPropertyShardKey,
+  materializationPropertyShardPath,
+} from '../../materialization/MaterializationPropertyProfile.ts';
 import { isPropValue, type PropValue } from '../../types/PropValue.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
 
@@ -271,6 +277,7 @@ export default class PropertyIndexReader {
   private readonly _indexStore: IndexStorePort | null;
   private _shardHandles: Map<string, AssetHandle>;
   private _inMemoryShards: Map<string, Uint8Array>;
+  private _indexRoot: BundleHandle | null;
 
   constructor(options?: {
     codec?: CodecPort;
@@ -281,17 +288,27 @@ export default class PropertyIndexReader {
     this._indexStore = indexStore ?? null;
     this._shardHandles = new Map();
     this._inMemoryShards = new Map();
+    this._indexRoot = null;
   }
 
   /** Configures opaque shard handles for lazy loading. */
   setupHandles(shardHandles: Readonly<Record<string, AssetHandle>>): void {
     this._shardHandles = new Map(Object.entries(shardHandles));
     this._inMemoryShards.clear();
+    this._indexRoot = null;
+  }
+
+  /** Configures a retained page/asset-backed bundle for exact member reads. */
+  setupRoot(indexRoot: BundleHandle): void {
+    this._shardHandles.clear();
+    this._inMemoryShards.clear();
+    this._indexRoot = indexRoot;
   }
 
   /** Configures encoded in-memory shards for a freshly built view. */
   setupTree(tree: Readonly<Record<string, Uint8Array>>): void {
     this._shardHandles.clear();
+    this._indexRoot = null;
     this._inMemoryShards = new Map(
       Object.entries(tree).filter(([path]) => path.startsWith('props_')),
     );
@@ -320,15 +337,39 @@ export default class PropertyIndexReader {
   }
 
   private async _loadShard(nodeId: string): Promise<PropertyShard | null> {
-    const shardKey = computeShardKey(nodeId);
-    const path = `props_${shardKey}.cbor`;
-
+    if (this._indexRoot !== null) {
+      return await this._fetchAndDecodeRoot(
+        this._indexRoot,
+        materializationPropertyShardPath(nodeId),
+      );
+    }
+    const path = `props_${computeShardKey(nodeId)}.cbor`;
     const handle = this._shardHandles.get(path);
     const inMemory = this._inMemoryShards.get(path);
-    if (handle === undefined && inMemory === undefined) {
-      return null;
+    if (handle !== undefined || inMemory !== undefined) {
+      return await this._fetchAndDecode({ path, handle, inMemory });
     }
-    return await this._fetchAndDecode({ path, handle, inMemory });
+    return null;
+  }
+
+  private async _fetchAndDecodeRoot(
+    root: BundleHandle,
+    path: string,
+  ): Promise<PropertyShard | null> {
+    if (this._indexStore === null) {
+      throw new IndexError(`PropertyIndexReader: no index store for '${path}'`, {
+        code: 'E_INDEX_NO_STORE',
+        context: { path },
+      });
+    }
+    const decoded = await this._indexStore.decodeShardAt(
+      root,
+      path,
+      MATERIALIZATION_PROPERTY_SHARD_LIMITS,
+    );
+    return decoded === null
+      ? null
+      : decodePropertyShard(decoded, path, materializationPropertyShardKey);
   }
 
   private async _fetchAndDecode(options: {

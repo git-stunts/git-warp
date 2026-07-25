@@ -4,14 +4,13 @@ import {
   CURRENT_CHECKPOINT_SCHEMA,
   isCurrentCheckpointSchema,
 } from '../../../src/domain/services/state/checkpointHelpers.ts';
-import {
-  deserializeFullState,
-} from '../../../src/domain/services/state/CheckpointSerializer.ts';
+import { deserializeFullState } from '../../../src/domain/services/state/CheckpointSerializer.ts';
 import { deserializeFrontier } from '../../../src/domain/services/Frontier.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.ts';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
 import type AssetStoragePort from '../../../src/ports/AssetStoragePort.ts';
 import type CodecPort from '../../../src/ports/CodecPort.ts';
 import {
@@ -20,19 +19,16 @@ import {
 } from '../../../src/ports/CommitMessageCodecPort.ts';
 import type CryptoPort from '../../../src/ports/CryptoPort.ts';
 import type CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
+import type MaterializationStorePort from '../../../src/ports/MaterializationStorePort.ts';
 import LegacyCheckpointStorageReader, {
   hasCurrentCheckpointStorage,
   requireMigratableLegacyStorage,
 } from './LegacyCheckpointStorageReader.ts';
 import CheckpointSchemaUpgradeError from './CheckpointSchemaUpgradeError.ts';
-
+import { retainMigratedCheckpoint } from './CheckpointMaterializationMigration.ts';
 export { default as CheckpointSchemaUpgradeError } from './CheckpointSchemaUpgradeError.ts';
-
-const RETIRED_CHECKPOINT_SCHEMAS = [2, 3, 4] as const;
-
+const RETIRED_CHECKPOINT_SCHEMAS = [4] as const;
 type UpgradeStatus = 'missing-checkpoint' | 'already-current' | 'would-upgrade' | 'upgraded';
-
-/** Legacy Git history surface required only by the retired-checkpoint migrator. */
 export interface CheckpointMigrationHistory {
   readBlob(oid: string): Promise<Uint8Array>;
   readTreeOids(treeOid: string): Promise<Record<string, string>>;
@@ -50,6 +46,7 @@ export interface CheckpointSchemaUpgradeOptions {
   readonly commitMessageCodec?: CommitMessageCodecPort;
   readonly crypto?: CryptoPort;
   readonly checkpointStore: CheckpointStorePort;
+  readonly materializationStore: MaterializationStorePort;
   readonly assetStorage: AssetStoragePort;
 }
 
@@ -152,6 +149,17 @@ export async function upgradeCheckpointSchema(
     };
   }
 
+  const crypto = requireMigrationCrypto(options.crypto);
+  const stateHash = await computeStateHash(payload.state, { codec, crypto });
+  const materialization = await retainMigratedCheckpoint({
+    materializations: options.materializationStore,
+    state: payload.state,
+    frontier: payload.frontier,
+    stateHash,
+    ...(payload.provenanceIndex === undefined
+      ? {}
+      : { provenanceIndex: payload.provenanceIndex }),
+  });
   const upgradedCheckpointSha = await createCheckpointEnvelope({
     checkpointStore,
     graphName: options.graphName,
@@ -160,8 +168,8 @@ export async function upgradeCheckpointSchema(
     parents: (await options.persistence.getNodeInfo(previousCheckpointSha)).parents,
     expectedCheckpointSha: previousCheckpointSha,
     codec,
-    ...(options.crypto === undefined ? {} : { crypto: options.crypto }),
-    ...(payload.indexTree === undefined ? {} : { indexTree: payload.indexTree }),
+    crypto,
+    materialization,
     ...(payload.provenanceIndex === undefined ? {} : { provenanceIndex: payload.provenanceIndex }),
   });
 
@@ -178,6 +186,15 @@ export async function upgradeCheckpointSchema(
     previousStorageVersion: checkpointMessage.checkpointVersion,
     currentStorageVersion: CHECKPOINT_STORAGE_FORMAT,
   };
+}
+
+function requireMigrationCrypto(crypto: CryptoPort | undefined): CryptoPort {
+  if (crypto === undefined) {
+    throw new CheckpointSchemaUpgradeError(
+      'Checkpoint migration requires the configured cryptographic hash service.',
+    );
+  }
+  return crypto;
 }
 
 function isRetiredCheckpointSchema(schema: number): schema is typeof RETIRED_CHECKPOINT_SCHEMAS[number] {

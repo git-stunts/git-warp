@@ -8,6 +8,7 @@ import {
   requireMaterializationPropertyShardCount,
 } from '../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
+import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
@@ -96,6 +97,14 @@ describe('PropertyIndex handle-backed reads', () => {
     reader.setupHandles({ [`props_${computeShardKey('node:1')}.cbor`]: handle });
 
     await expect(reader.getNodeProps('node:1')).rejects.toMatchObject({ code: 'E_INDEX_NO_STORE' });
+  });
+
+  it('fails when retained-root reads have no index store', async () => {
+    const reader = new PropertyIndexReader();
+    reader.setupRoot(new BundleHandle('retained-properties'));
+
+    await expect(reader.getNodeProps('node:1'))
+      .rejects.toMatchObject({ code: 'E_INDEX_NO_STORE' });
   });
 
   it('rejects malformed decoded shard payloads', async () => {

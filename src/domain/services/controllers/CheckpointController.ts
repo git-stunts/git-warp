@@ -35,10 +35,20 @@ import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.t
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
+import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type StateHashService from '../state/StateHashService.ts';
-import type MaterializedViewService from '../MaterializedViewService.ts';
 import type GCPolicy from '../GCPolicy.ts';
 import { E_NO_STATE_MSG } from './QueryStateMessages.ts';
+import MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
+import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
+import { unavailableMaterializationRoots } from '../../materialization/UnavailableMaterializationRoots.ts';
+import { computeStateHash } from '../state/StateSerializer.ts';
+import type MaterializationStorePort from '../../../ports/MaterializationStorePort.ts';
+import {
+  materializationRootsWithIndexes,
+  prepareMaterializationIndexRoots,
+} from './MaterializationIndexRoots.ts';
+import { releaseWorkspaceAfterFailure } from './MaterializationWorkspaceCleanup.ts';
 
 type CheckpointFrontier = Pick<LoadedCheckpoint, 'schema' | 'frontier'>;
 
@@ -51,8 +61,8 @@ type CheckpointHost = {
   _cachedState: WarpState | null;
   _stateDirty: boolean;
   _checkpointing: boolean;
-  _viewService: MaterializedViewService | null;
   _checkpointStore: CheckpointStorePort;
+  _indexStore?: IndexStorePort;
   _stateHashService: StateHashService | null;
   _provenanceIndex: ProvenanceIndex | null;
   _materializedGraph?: object | null;
@@ -70,6 +80,8 @@ type CheckpointHost = {
   _lastFrontier: Map<string, string> | null;
   _cachedViewHash: string | null;
   _stateCache: WarpStateCachePort | null;
+  _materializations?: MaterializationStorePort;
+  _retainedMaterialization?: MaterializationHandle | null;
   _readPatch(patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>): Promise<Patch>;
   discoverWriters(): Promise<string[]>;
 };
@@ -143,19 +155,7 @@ export default class CheckpointController {
       return pinned.snapshotId;
     }
 
-    let indexTree = h._cachedIndexTree;
-    if ((indexTree === null || indexTree === undefined) && h._viewService !== null && h._viewService !== undefined) {
-      try {
-        const { tree } = h._viewService.build(state);
-        indexTree = tree;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        h._logger?.warn('[warp] checkpoint index build failed; saving checkpoint without index', {
-          error: message,
-        });
-        indexTree = null;
-      }
-    }
+    const materialization = await this._retainCheckpointMaterialization(state, frontier);
 
     const stateHashService = h._stateHashService ?? null;
     const checkpointSha = await createCheckpointCommit({
@@ -167,7 +167,7 @@ export default class CheckpointController {
       ...(h._provenanceIndex ? { provenanceIndex: h._provenanceIndex } : {}),
       crypto: h._crypto,
       codec: h._codec,
-      ...(indexTree ? { indexTree } : {}),
+      ...(materialization === null ? {} : { materialization }),
       ...(stateHashService ? { stateHashService } : {}),
     });
     return checkpointSha;
@@ -190,6 +190,64 @@ export default class CheckpointController {
       frontier,
       ceiling: null,
     };
+  }
+
+  private async _retainCheckpointMaterialization(
+    state: WarpState,
+    frontier: Map<string, string>,
+  ): Promise<MaterializationHandle | null> {
+    const h = this._host;
+    if (h._materializations === undefined) {
+      return null;
+    }
+    const coordinate = new MaterializationCoordinate({ frontier, ceiling: null });
+    const stateHash = h._stateHashService === null
+      ? await computeStateHash(state, { codec: h._codec, crypto: h._crypto })
+      : await h._stateHashService.compute(state);
+    const retained = h._retainedMaterialization ?? null;
+    if (
+      retained !== null
+      && retained.stateHash === stateHash
+      && retained.coordinate.equals(coordinate)
+      && retained.roots.properties.status !== 'unavailable'
+      && retained.roots.roaringIndexes.status !== 'unavailable'
+    ) {
+      return retained;
+    }
+    if (h._indexStore !== undefined) {
+      const workspace = await h._materializations.openWorkspace(coordinate);
+      let promoted: MaterializationHandle;
+      try {
+        const prepared = await prepareMaterializationIndexRoots({
+          state,
+          store: h._indexStore,
+          workspace,
+        });
+        promoted = await workspace.promote({
+          coordinate,
+          roots: materializationRootsWithIndexes(prepared),
+          stateHash,
+          replayBasis: state,
+          ...(h._provenanceIndex === null
+            ? {}
+            : { provenanceSupport: h._provenanceIndex }),
+        });
+      } catch (raw) {
+        await releaseWorkspaceAfterFailure(workspace, h._logger ?? undefined);
+        throw raw;
+      }
+      await workspace.release();
+      return promoted;
+    }
+    return await h._materializations.retain({
+      coordinate,
+      roots: unavailableMaterializationRoots(),
+      stateHash,
+      replayBasis: state,
+      ...(h._provenanceIndex === null
+        ? {}
+        : { provenanceSupport: h._provenanceIndex }),
+    });
   }
 
   private async _buildSnapshotRecord(params: {
@@ -250,6 +308,8 @@ export default class CheckpointController {
           schema: CURRENT_CHECKPOINT_SCHEMA,
           appliedVV: null,
           indexShardHandles: null,
+          indexRoot: null,
+          propertyRoot: null,
         };
       }
     }

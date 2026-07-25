@@ -120,8 +120,18 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
   it('writes and scans every supported shard class through one index handle', async () => {
     const indexHandle = await indexes.writeShards(WarpStream.from(shards()));
     const recovered = await indexes.scanShards(indexHandle).collect();
+    const streamed = await collectAsyncIterable(
+      indexes.openShardAt(indexHandle, 'meta_a0.cbor'),
+    );
 
     expect(indexHandle).toBeInstanceOf(BundleHandle);
+    expect(defaultCodec.decode(streamed)).toMatchObject({
+      nextLocalId: 2,
+      nodeToGlobal: [['node:1', 0], ['node:2', 1]],
+    });
+    await expect(collectAsyncIterable(indexes.openShardAt(indexHandle, 'meta_a0.cbor', {
+      maxBytes: 1,
+    }))).rejects.toMatchObject({ code: 'E_INDEX_SHARD_TOO_LARGE' });
     expect(recovered).toHaveLength(6);
     expect(recovered.some((shard) => shard instanceof MetaShard)).toBe(true);
     expect(recovered.some((shard) => shard instanceof EdgeShard && shard.direction === 'fwd')).toBe(true);
@@ -191,6 +201,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     const indexHandle = await indexes.writeShards(WarpStream.from(shards()));
     const open = vi.spyOn(assets, 'open');
     const handles = await indexes.readShardHandles(indexHandle);
+    const references = await indexes.readShardReferences(indexHandle);
 
     expect(Object.keys(handles).sort()).toEqual([
       'fwd_a0.cbor',
@@ -201,6 +212,12 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       'rev_a0.cbor',
     ]);
     expect(Object.values(handles).every((handle) => handle instanceof AssetHandle)).toBe(true);
+    expect(Object.entries(references)).toEqual(
+      Object.entries(handles).map(([path, handle]) => [
+        path,
+        { kind: 'asset', token: handle.toString() },
+      ]),
+    );
     expect(open).not.toHaveBeenCalled();
   });
 
@@ -258,6 +275,18 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
 
     expect(GitCasPageHandle.from(token)).toBeInstanceOf(GitCasPageHandle);
     expect(stage).not.toHaveBeenCalled();
+    await expect(indexes.readShardReferences(indexHandle)).resolves.toEqual({
+      [path]: { kind: 'page', token },
+    });
+    const opened = await collectAsyncIterable(indexes.openShardAt(indexHandle, path, {
+      maxBytes: 1024,
+    }));
+    expect(defaultCodec.decode(opened)).toEqual({
+      schemaVersion: 2,
+      entries: [[nodeId, [['status', 'ready']]]],
+    });
+    await expect(collectAsyncIterable(indexes.openShardAt(indexHandle, 'missing.cbor')))
+      .rejects.toMatchObject({ code: 'E_INDEX_SHARD_MISSING' });
     await expect(indexes.decodeShardAt(indexHandle, path, {
       maxBytes: 1024,
       structureLimits: {
@@ -386,11 +415,14 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     const bundle = await cas.bundles.putOrdered({
       members: [['nested.cbor', nested.handle.toString()]],
     });
+    const indexHandle = new BundleHandle(bundle.handle.toString());
 
     await expect(indexes.decodeShardAt(
-      new BundleHandle(bundle.handle.toString()),
+      indexHandle,
       'nested.cbor',
     )).rejects.toMatchObject({ code: 'E_INDEX_INVALID_BUNDLE_MEMBER' });
+    await expect(indexes.readShardReferences(indexHandle))
+      .rejects.toMatchObject({ code: 'E_INDEX_INVALID_BUNDLE_MEMBER' });
   });
 
   it('rejects oversized shards on write and exact read', async () => {

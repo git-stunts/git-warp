@@ -69,6 +69,7 @@ import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type IntentStorePort from '../ports/IntentStorePort.ts';
 import type MaterializationStorePort from '../ports/MaterializationStorePort.ts';
+import type MaterializationHandle from './materialization/MaterializationHandle.ts';
 import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
 import type SyncReplayProtectionPort from '../ports/SyncReplayProtectionPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
@@ -181,6 +182,10 @@ function resolveMaterializedStateCoordinate(
   return optionsOrDiff.coordinate ?? null;
 }
 
+function retainedMaterializationFrom(result: MaterializeResult): MaterializationHandle | null {
+  return result.materialization === undefined ? null : result.materialization;
+}
+
 type Subscriber = {
   onChange: (diff: StateDiffResult) => void;
   onError?: (error: Error) => void;
@@ -259,6 +264,7 @@ export default class RuntimeHost {
   _stateHashService: StateHashService | null;
   _auditService: AuditReceiptService | null;
   _materializations: MaterializationStorePort;
+  _retainedMaterialization: MaterializationHandle | null;
   _syncReplayProtection: SyncReplayProtectionPort | null;
   _closePromise: Promise<void> | null;
 
@@ -432,6 +438,7 @@ export default class RuntimeHost {
     this._indexStore = indexStore;
     this._auditService = auditService || null;
     this._materializations = materializations;
+    this._retainedMaterialization = null;
     this._closePromise = null;
   }
 
@@ -555,6 +562,7 @@ export default class RuntimeHost {
     this._stateDirty = false;
     this._versionVector = state.observedFrontier.clone();
     this._materializedGraph = { state, stateHash, adjacency };
+    this._retainedMaterialization = null;
     this._cachedCeiling = coordinate?.ceiling ?? null;
     this._cachedFrontier = coordinate === null ? null : new Map(coordinate.frontier);
     this._buildViewFromResult({ state, stateHash, diff });
@@ -900,6 +908,7 @@ export default class RuntimeHost {
     this._provenanceDegraded = provenance.degraded;
     this._cachedCeiling = result.ceiling;
     this._cachedFrontier = result.frontier ? new Map(result.frontier) : null;
+    this._retainedMaterialization = retainedMaterializationFrom(result);
 
     // 2. Build view (index)
     this._buildViewFromResult(result);

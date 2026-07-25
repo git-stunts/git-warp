@@ -6,6 +6,7 @@ import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import InMemoryMaterializationStore from '../../../helpers/InMemoryMaterializationStore.ts';
 
 /**
  * @param {string[]} nodes
@@ -54,10 +55,7 @@ describe('materialize stale-checkpoint regression', () => {
       persistence: {},
       graphName: 'test',
       graphCloner: {},
-      materializations: {
-        acquireExact: async () => null,
-        acquireBestCompatiblePredecessor: async () => null,
-      },
+      materializations: new InMemoryMaterializationStore(),
       patches: {
         loadCheckpoint: async () => ({
           schema: 5,

@@ -41,10 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Locked the package root to the v19 facade allowlist so support ports,
   infrastructure adapters, memory helpers, cancellation utilities, sync
   internals, and canonical serialization helpers stay behind explicit subpaths.
-- Aligned `CheckpointStorePort` with the schema:5 checkpoint envelope tree. The
-  CBOR adapter now owns the named checkpoint artifact encoding for runtime
-  checkpoint creation and loading instead of exposing a stale single
-  `state.cbor` result.
+- Changed schema:5 checkpoint publication to pin the exact retained
+  materialization bundle. Checkpoints, live reads, logical/property index
+  pages, replay state, and provenance now share one git-cas representation;
+  released legacy Git-tree checkpoints remain readable behind the compatibility
+  adapter without enabling new duplicate checkpoint writes.
 - Reduced the `diagnostics` subpath to receipt-based `inspectReceipt()`;
   graph-diff and materialized-state helpers are no longer public contracts.
 - Moved receipt canonical JSON and ORSet/full-state wire encoding out of
@@ -109,6 +110,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed migration and cleanup support for unreleased materialization
   descriptor schemas v2 through v4. Schema v5 is the first release contract;
   stale derived-cache entries miss and rebuild from authoritative WARP history.
+- Removed checkpoint-schema 2 and 3 upgrade support. The offline bridge accepts
+  schema 4 and released schema-5 Git-tree checkpoints, retains their
+  authoritative state as a v19 materialization, and discards derived legacy
+  index pointers so current page indexes rebuild from authoritative history.
 - Removed the WARP-owned mutable state-snapshot index, GitCas state-cache
   adapter, graph-scoped RootSet coordinator, and retention report/repair
   protocol. The v19 CLI replaces `--repair-state-cache` with

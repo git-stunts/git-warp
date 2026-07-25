@@ -363,7 +363,7 @@ describe('WarpCore', () => {
       );
     });
 
-    it('falls back to checkpoint without index when index build fails', async () => {
+    it('does not rebuild the removed legacy checkpoint index tree', async () => {
       const persistence = createMockPersistence();
       const graph = await openRuntimeHostProduct({
         persistence,
@@ -398,10 +398,7 @@ describe('WarpCore', () => {
       const sha = await graph.createCheckpoint();
 
       expect(sha).toBe(checkpointSha);
-      expect(warn).toHaveBeenCalledWith(
-        '[warp] checkpoint index build failed; saving checkpoint without index',
-        expect.objectContaining({ error: 'roaring unavailable' }),
-      );
+      expect(warn).not.toHaveBeenCalled();
       expect(persistence.commitNodeWithTree).toHaveBeenCalled();
     });
   });

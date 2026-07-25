@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'node:child_process';
 import ContentAddressableStore, {
-  AssetHandle as GitCasAssetHandle,
   BundleHandle as GitCasBundleHandle,
   type BundleMember,
 } from '@git-stunts/git-cas';
@@ -30,10 +29,39 @@ async function readCheckpointArtifacts(repo, checkpointSha) {
     const memberHandles = Object.fromEntries(
       members.map((member) => [member.path, member.handle.toString()]),
     );
-    return { decoded, members, memberHandles };
-  } finally {
+    const memberKinds = Object.fromEntries(
+      members.map((member) => [member.path, member.handle.kind]),
+    );
+    return { cas, decoded, members, memberHandles, memberKinds };
+  } catch (error) {
     await cas.close();
+    throw error;
   }
+}
+
+async function closeCheckpointArtifacts(checkpoint) {
+  await checkpoint.cas.close();
+}
+
+async function collectRetainedOids(cas, rootHandle) {
+  const retainedOids = new Set();
+  const pendingBundles = [rootHandle];
+  const visitedBundles = new Set();
+  while (pendingBundles.length > 0) {
+    const bundle = pendingBundles.pop();
+    if (bundle === undefined || visitedBundles.has(bundle)) {
+      continue;
+    }
+    visitedBundles.add(bundle);
+    retainedOids.add(GitCasBundleHandle.parse(bundle).oid);
+    for await (const member of cas.bundles.iterateMembers({ handle: bundle })) {
+      retainedOids.add(member.handle.oid);
+      if (member.handle.kind === 'bundle') {
+        pendingBundles.push(member.handle.toString());
+      }
+    }
+  }
+  return retainedOids;
 }
 
 describe('API: Checkpoint', () => {
@@ -57,12 +85,19 @@ describe('API: Checkpoint', () => {
     const sha = await graph.createCheckpoint();
     expect(sha).toMatch(/^[0-9a-f]{40}$/);
 
-    const { decoded, memberHandles } = await readCheckpointArtifacts(repo, sha);
-    expect(decoded.schema).toBe(5);
-    expect(decoded.bundleHandle).not.toBeNull();
-    expect(memberHandles['state/nodeAlive']).toBeDefined();
-    expect(memberHandles['state/edgeAlive']).toBeDefined();
-    expect(memberHandles['state.cbor']).toBeUndefined();
+    const checkpoint = await readCheckpointArtifacts(repo, sha);
+    try {
+      expect(checkpoint.decoded.schema).toBe(5);
+      expect(checkpoint.decoded.bundleHandle).not.toBeNull();
+      expect(checkpoint.memberKinds['meta/descriptor']).toBe('page');
+      expect(checkpoint.memberKinds['roots/node-alive']).toBe('bundle');
+      expect(checkpoint.memberKinds['roots/replay-basis']).toBe('bundle');
+      expect(checkpoint.memberKinds['roots/provenance-support']).toBe('bundle');
+      expect(checkpoint.memberHandles['state/nodeAlive']).toBeUndefined();
+      expect(checkpoint.memberHandles['state.cbor']).toBeUndefined();
+    } finally {
+      await closeCheckpointArtifacts(checkpoint);
+    }
   });
 
   it('materializeAt rejects session-backed runtime checkpoints', async () => {
@@ -73,16 +108,20 @@ describe('API: Checkpoint', () => {
     await graph.materialize();
 
     const sha = await graph.createCheckpoint();
-    const { decoded, memberHandles } = await readCheckpointArtifacts(repo, sha);
-    expect(decoded.schema).toBe(5);
-    expect(memberHandles['state/nodeAlive']).toBeDefined();
-    expect(memberHandles['state/edgeAlive']).toBeDefined();
-    expect(memberHandles['state.cbor']).toBeUndefined();
+    const checkpoint = await readCheckpointArtifacts(repo, sha);
+    try {
+      expect(checkpoint.decoded.schema).toBe(5);
+      expect(checkpoint.memberKinds['meta/descriptor']).toBe('page');
+      expect(checkpoint.memberKinds['roots/node-alive']).toBe('bundle');
+      expect(checkpoint.memberHandles['state/nodeAlive']).toBeUndefined();
 
-    await expect(graph.materializeAt(sha)).rejects.toBeInstanceOf(SchemaUnsupportedError);
-    await expect(graph.materializeAt(sha)).rejects.toMatchObject({
-      code: 'E_SCHEMA_UNSUPPORTED',
-    });
+      await expect(graph.materializeAt(sha)).rejects.toBeInstanceOf(SchemaUnsupportedError);
+      await expect(graph.materializeAt(sha)).rejects.toMatchObject({
+        code: 'E_SCHEMA_UNSUPPORTED',
+      });
+    } finally {
+      await closeCheckpointArtifacts(checkpoint);
+    }
   });
 
   it('incremental checkpoint after additional patches', async () => {
@@ -100,41 +139,49 @@ describe('API: Checkpoint', () => {
 
     expect(sha1).not.toBe(sha2);
     expect(sha2).toMatch(/^[0-9a-f]{40}$/);
-    expect(checkpoint1.decoded.schema).toBe(5);
-    expect(checkpoint2.decoded.schema).toBe(5);
-    expect(checkpoint1.memberHandles['state/nodeAlive']).toBeDefined();
-    expect(checkpoint2.memberHandles['state/nodeAlive']).toBeDefined();
-    expect(checkpoint1.memberHandles['state.cbor']).toBeUndefined();
-    expect(checkpoint2.memberHandles['state.cbor']).toBeUndefined();
+    try {
+      expect(checkpoint1.decoded.schema).toBe(5);
+      expect(checkpoint2.decoded.schema).toBe(5);
+      expect(checkpoint1.memberKinds['roots/node-alive']).toBe('bundle');
+      expect(checkpoint2.memberKinds['roots/node-alive']).toBe('bundle');
+      expect(checkpoint1.memberHandles['state/nodeAlive']).toBeUndefined();
+      expect(checkpoint2.memberHandles['state/nodeAlive']).toBeUndefined();
+      expect(checkpoint1.decoded.bundleHandle?.equals(checkpoint2.decoded.bundleHandle))
+        .toBe(false);
+    } finally {
+      await Promise.all([
+        closeCheckpointArtifacts(checkpoint1),
+        closeCheckpointArtifacts(checkpoint2),
+      ]);
+    }
   });
 
-  it('keeps the checkpoint bundle and every asset out of immediate-prune output', async () => {
+  it('keeps the checkpoint bundle graph out of immediate-prune output', async () => {
     const graph = await repo.openGraph('test', 'writer1', { stateCache: null });
     await (await graph.createPatch()).addNode('n1').commit();
     await graph.materialize();
 
     const sha = await graph.createCheckpoint();
-    const { decoded, members } = await readCheckpointArtifacts(repo, sha);
-    if (decoded.bundleHandle === null) {
-      throw new Error('expected current checkpoint bundle handle');
-    }
-    const retainedOids = [
-      GitCasBundleHandle.parse(decoded.bundleHandle.toString()).oid,
-      ...members.map((member) => {
-        if (member.handle.kind !== 'asset') {
-          throw new Error(`expected checkpoint asset member: ${member.path}`);
-        }
-        return GitCasAssetHandle.from(member.handle).oid;
-      }),
-    ];
-    const prunable = execSync('git prune -n --expire=now', {
-      cwd: repo.tempDir,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const checkpoint = await readCheckpointArtifacts(repo, sha);
+    try {
+      if (checkpoint.decoded.bundleHandle === null) {
+        throw new Error('expected current checkpoint bundle handle');
+      }
+      const retainedOids = await collectRetainedOids(
+        checkpoint.cas,
+        checkpoint.decoded.bundleHandle.toString(),
+      );
+      const prunable = execSync('git prune -n --expire=now', {
+        cwd: repo.tempDir,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
 
-    for (const oid of retainedOids) {
-      expect(prunable).not.toContain(oid);
+      for (const oid of retainedOids) {
+        expect(prunable).not.toContain(oid);
+      }
+    } finally {
+      await closeCheckpointArtifacts(checkpoint);
     }
   });
 });

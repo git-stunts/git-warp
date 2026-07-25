@@ -1,5 +1,6 @@
 import MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
+import { unavailableMaterializationRoots } from '../../materialization/UnavailableMaterializationRoots.ts';
 import WarpError from '../../errors/WarpError.ts';
 import {
   materializationSessionOpen,
@@ -67,18 +68,20 @@ async function publishMaterialization(input: {
   readonly stateHash: string;
 }): Promise<MaterializationHandle | undefined> {
   const { params } = input;
-  if (params.reduced.roots === undefined || params.frontier === null) {
+  if (params.frontier === null) {
     await acceptSessionWithoutMaterialization(params.reduced);
     return undefined;
   }
+  const roots = params.reduced.roots ?? unavailableMaterializationRoots();
   const request = {
     coordinate: new MaterializationCoordinate({
       frontier: params.frontier,
       ceiling: params.ceiling,
     }),
-    roots: params.reduced.roots,
+    roots,
     stateHash: input.stateHash,
     replayBasis: params.reduced.state,
+    provenanceSupport: params.summary.provenance,
   };
   const materialization = params.reduced.workspace === undefined
     ? await input.deps.materializations.retain(request)

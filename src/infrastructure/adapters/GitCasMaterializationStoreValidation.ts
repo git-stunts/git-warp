@@ -8,15 +8,19 @@ export function requireRetainRequest(request: RetainMaterializationRequest): voi
     throw storageError('retain request must be an object');
   }
   requireCoordinate(request.coordinate);
-  requireRetainRoots(request.roots);
+  requireRetainRoots(request);
   requireRetainStateHash(request);
 }
 
-function requireRetainRoots(roots: MaterializationRoots): void {
+function requireRetainRoots(request: RetainMaterializationRequest): void {
+  const { roots } = request;
   if (!(roots instanceof MaterializationRoots)) {
     throw storageError('retain request roots have an invalid runtime identity');
   }
-  if (roots.entries().every(([, root]) => root.status === 'unavailable')) {
+  if (
+    request.replayBasis === undefined
+    && roots.entries().every(([, root]) => root.status === 'unavailable')
+  ) {
     throw storageError('retain request must provide at least one materialization root');
   }
 }

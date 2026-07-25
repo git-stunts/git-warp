@@ -10,6 +10,7 @@ import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type StateHashService from './StateHashService.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
+import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
 
 export interface CreateCheckpointOptions {
   checkpointStore: CheckpointStorePort;
@@ -20,6 +21,7 @@ export interface CreateCheckpointOptions {
   expectedCheckpointSha?: string | null;
   compact?: boolean;
   provenanceIndex?: ProvenanceIndex;
+  materialization?: MaterializationHandle;
   codec?: CodecPort;
   crypto?: CryptoPort;
   indexTree?: Readonly<Record<string, Uint8Array>>;
@@ -44,6 +46,7 @@ export async function createCheckpointEnvelope({
   expectedCheckpointSha,
   compact = true,
   provenanceIndex,
+  materialization,
   codec,
   crypto,
   indexTree,
@@ -51,7 +54,7 @@ export async function createCheckpointEnvelope({
 }: CreateCheckpointOptions): Promise<string> {
   const appliedVV = computeAppliedVV(state);
   let checkpointState = state;
-  if (compact) {
+  if (compact && materialization === undefined) {
     checkpointState = cloneState(state);
     checkpointState.nodeAlive.compact(appliedVV);
     checkpointState.edgeAlive.compact(appliedVV);
@@ -71,6 +74,7 @@ export async function createCheckpointEnvelope({
     appliedVV,
     stateHash,
     parents,
+    ...(materialization === undefined ? {} : { materialization }),
     ...(expectedCheckpointSha === undefined ? {} : { expectedCheckpointSha }),
     ...(provenanceIndex === undefined ? {} : { provenanceIndex }),
     ...(indexTree === undefined ? {} : { indexShards: indexTree }),

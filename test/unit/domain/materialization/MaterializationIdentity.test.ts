@@ -128,6 +128,26 @@ describe('MaterializationRoots', () => {
     expect(roots.equals(new MaterializationRoots(changedOptions))).toBe(false);
   });
 
+  it('replaces exactly one named root', () => {
+    const roots = materializationRoots();
+    const original = new Map(roots.entries());
+    const replacement = retainedRoot('replacement-replay-basis');
+    const changed = roots.withRoot('replay-basis', replacement);
+
+    expect(changed.replayBasis).toBe(replacement);
+    expect(changed.entries().filter(([name, root]) => {
+      const previous = original.get(name);
+      return previous === undefined || !root.equals(previous);
+    }).map(([name]) => name)).toEqual(['replay-basis']);
+  });
+
+  it('rejects an unknown replacement root name', () => {
+    expect(() => Reflect.apply(materializationRoots().withRoot, materializationRoots(), [
+      'future-root',
+      retainedRoot('future-root'),
+    ])).toThrowError(/unsupported root name/u);
+  });
+
   it.each([
     'adjacency',
     'edgeAlive',
