@@ -13,6 +13,9 @@ import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
 import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.ts';
+import {
+  serializeCheckpointStateEnvelope,
+} from '../../../../src/domain/services/state/CheckpointSerializer.ts';
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import type { PropValue } from '../../../../src/domain/types/PropValue.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
@@ -23,6 +26,13 @@ import {
 import { CborIndexStoreAdapter } from '../../../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import GitCasMaterializationStoreAdapter from '../../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
+import GitCasMaterializationSnapshotReader from '../../../../src/infrastructure/adapters/GitCasMaterializationSnapshotReader.ts';
+import {
+  materializationDescriptorData,
+} from '../../../../src/infrastructure/adapters/GitCasMaterializationDescriptor.ts';
+import {
+  materializationMembers,
+} from '../../../../src/infrastructure/adapters/GitCasMaterializationBundle.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
@@ -158,6 +168,91 @@ async function record(
   };
 }
 
+function requireMaterialization(record: CheckpointRecord): MaterializationHandle {
+  if (record.materialization === undefined) {
+    throw new Error('expected retained materialization');
+  }
+  return record.materialization;
+}
+
+async function commitBundleCheckpoint(
+  fixture: ReturnType<typeof createFixture>,
+  bundleHandle: BundleHandle,
+  stateHash: string,
+): Promise<string> {
+  return await fixture.history.commitNode({
+    parents: [],
+    message: DEFAULT_COMMIT_MESSAGE_CODEC.encodeCheckpoint({
+      kind: 'checkpoint',
+      graph: 'test',
+      stateHash,
+      schema: 5,
+      checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+      bundleHandle,
+    }),
+  });
+}
+
+async function commitLegacyCheckpoint(
+  fixture: ReturnType<typeof createFixture>,
+  options: {
+    frontier: unknown;
+    nested?: boolean;
+    flattenedIndex?: boolean;
+    provenance?: boolean;
+  },
+): Promise<string> {
+  const state = createState();
+  const stateHash = await computeStateHash(state, {
+    codec: fixture.codec,
+    crypto: fixture.crypto,
+  });
+  const envelope = serializeCheckpointStateEnvelope(state, { codec: fixture.codec });
+  const statePayloads = Object.entries({
+    nodeAlive: envelope.nodeAlive,
+    edgeAlive: envelope.edgeAlive,
+    'prop.cbor': envelope.prop,
+    'observedFrontier.cbor': envelope.observedFrontier,
+    'edgeBirthEvent.cbor': envelope.edgeBirthEvent,
+  });
+  const stateEntries = await Promise.all(statePayloads.map(async ([path, bytes]) => (
+    `100644 blob ${await fixture.history.writeBlob(bytes)}\t${path}`
+  )));
+  const frontierOid = await fixture.history.writeBlob(fixture.codec.encode(options.frontier));
+  const rootEntries: string[] = options.nested === true
+    ? [
+      `040000 tree ${await fixture.history.writeTree(stateEntries)}\tstate`,
+      `040000 tree ${await fixture.history.writeTree([])}\tindex`,
+      `100644 blob ${frontierOid}\tfrontier.cbor`,
+    ]
+    : [
+      ...stateEntries.map((entry) => entry.replace('\t', '\tstate/')),
+      `100644 blob ${frontierOid}\tfrontier.cbor`,
+    ];
+  if (options.flattenedIndex === true) {
+    rootEntries.push(
+      `100644 blob ${await fixture.history.writeBlob(new Uint8Array([1]))}\tindex/meta_ff.cbor`,
+    );
+  }
+  if (options.provenance === true) {
+    rootEntries.push(
+      `100644 blob ${await fixture.history.writeBlob(
+        ProvenanceIndex.empty().serialize({ codec: fixture.codec }),
+      )}\tprovenanceIndex.cbor`,
+    );
+  }
+  const treeOid = await fixture.history.writeTree(rootEntries);
+  const message = DEFAULT_COMMIT_MESSAGE_CODEC.encodeCheckpoint({
+    kind: 'checkpoint',
+    graph: 'test',
+    stateHash,
+    schema: 5,
+    checkpointVersion: LEGACY_CHECKPOINT_STORAGE_FORMAT,
+    bundleHandle: null,
+  });
+  return await fixture.history.commitNodeWithTree({ treeOid, parents: [], message });
+}
+
 describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
   it('is a CheckpointStorePort and requires every semantic dependency', () => {
     const { codec, crypto, history, assets, cas, checkpoints } = createFixture();
@@ -287,6 +382,189 @@ describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
       ...input,
       materialization: ceiling,
     })).rejects.toMatchObject({ code: 'E_CHECKPOINT_MATERIALIZATION_MISMATCH' });
+  });
+
+  it('rejects loaded materialization state-hash and coordinate mismatches', async () => {
+    const fixture = createFixture();
+    const input = await record(fixture);
+    const retained = requireMaterialization(input);
+    const wrongHashCheckpoint = await commitBundleCheckpoint(
+      fixture,
+      retained.bundle,
+      'f'.repeat(64),
+    );
+    await expect(fixture.checkpoints.loadCheckpoint(wrongHashCheckpoint))
+      .rejects.toMatchObject({ code: 'E_CHECKPOINT_MATERIALIZATION_MISMATCH' });
+
+    const ceilingMaterialization = await fixture.materializations.retain({
+      coordinate: new MaterializationCoordinate({
+        frontier: input.frontier,
+        ceiling: 1,
+      }),
+      roots: retained.roots,
+      stateHash: input.stateHash,
+      replayBasis: input.state,
+      provenanceSupport: ProvenanceIndex.empty(),
+    });
+    const ceilingCheckpoint = await commitBundleCheckpoint(
+      fixture,
+      ceilingMaterialization.bundle,
+      input.stateHash,
+    );
+    await expect(fixture.checkpoints.loadCheckpoint(ceilingCheckpoint))
+      .rejects.toMatchObject({ code: 'E_CHECKPOINT_MATERIALIZATION_MISMATCH' });
+  });
+
+  it('rejects a malformed retained provenance support root', async () => {
+    const fixture = createFixture();
+    const input = await record(fixture);
+    const retained = requireMaterialization(input);
+    const provenanceRoot = retained.roots.provenanceSupport;
+    const provenanceHandle = provenanceRoot.handle;
+    if (provenanceRoot.status !== 'retained' || provenanceHandle === null) {
+      throw new Error('expected retained provenance support');
+    }
+    const wrongMember = await fixture.cas.bundles.putOrdered({ members: [] });
+    fixture.cas.replaceBundleMembers(provenanceHandle.toString(), [
+      ['provenance.cbor', wrongMember.handle.toString()],
+    ]);
+    const checkpoint = await commitBundleCheckpoint(
+      fixture,
+      retained.bundle,
+      input.stateHash,
+    );
+
+    await expect(fixture.checkpoints.loadCheckpoint(checkpoint))
+      .rejects.toMatchObject({ code: 'E_MATERIALIZATION_STORAGE' });
+  });
+
+  it('rejects a replay basis whose state hash disagrees with its descriptor', async () => {
+    const fixture = createFixture();
+    const input = await record(fixture);
+    const retained = requireMaterialization(input);
+    const descriptorToken = fixture.cas.readBundleMembers(retained.bundle.toString())
+      .find(([path]) => path === 'meta/descriptor')?.[1];
+    if (descriptorToken === undefined) {
+      throw new Error('expected materialization descriptor page');
+    }
+    const descriptor = fixture.codec.decode<Record<string, unknown>>(
+      await fixture.cas.pages.get({ handle: descriptorToken }),
+    );
+    const wrongStateHash = 'f'.repeat(64);
+    fixture.cas.replaceStoredPage(
+      descriptorToken,
+      fixture.codec.encode({ ...descriptor, stateHash: wrongStateHash }),
+    );
+    const checkpoint = await commitBundleCheckpoint(
+      fixture,
+      retained.bundle,
+      wrongStateHash,
+    );
+
+    await expect(fixture.checkpoints.loadCheckpoint(checkpoint))
+      .rejects.toMatchObject({ code: 'E_MATERIALIZATION_STORAGE' });
+  });
+
+  it.each([
+    [null, 'checkpoint materialization is partial'],
+    ['d'.repeat(64), 'checkpoint materialization has no replay basis'],
+  ])('rejects incomplete materialization snapshots (stateHash=%s)', async (
+    stateHash,
+    message,
+  ) => {
+    const fixture = createFixture();
+    const adjacency = await fixture.cas.bundles.putOrdered({ members: [] });
+    const unavailable = () => MaterializationRoot.unavailable();
+    const roots = new MaterializationRoots({
+      adjacency: MaterializationRoot.retained(new BundleHandle(adjacency.handle.toString())),
+      edgeAlive: unavailable(),
+      edgeBirths: unavailable(),
+      frontier: unavailable(),
+      nodeAlive: unavailable(),
+      properties: unavailable(),
+      provenanceSupport: unavailable(),
+      replayBasis: unavailable(),
+      roaringIndexes: unavailable(),
+    });
+    const descriptor = await fixture.cas.pages.put({
+      source: fixture.codec.encode(materializationDescriptorData({
+        coordinate: new MaterializationCoordinate({ frontier: new Map(), ceiling: null }),
+        laneName: 'test',
+        roots,
+        stateHash,
+      })),
+    });
+    const bundle = await fixture.cas.bundles.putOrdered({
+      members: materializationMembers(descriptor.handle.toString(), roots),
+    });
+    const reader = new GitCasMaterializationSnapshotReader({
+      cas: fixture.cas,
+      codec: fixture.codec,
+      crypto: fixture.crypto,
+    });
+
+    await expect(reader.read(new BundleHandle(bundle.handle.toString())))
+      .rejects.toThrow(message);
+  });
+
+  it.each([false, true])(
+    'loads the released flat/nested schema-5 tree layout (nested=%s)',
+    async (nested) => {
+      const fixture = createFixture();
+      const checkpoint = await commitLegacyCheckpoint(fixture, {
+        frontier: { w1: 'a'.repeat(40) },
+        nested,
+      });
+
+      const loaded = await fixture.checkpoints.loadCheckpoint(checkpoint);
+      expect(loaded.state.nodeAlive.contains('user:alice')).toBe(true);
+      expect(loaded.frontier).toEqual(new Map([['w1', 'a'.repeat(40)]]));
+      expect(loaded.appliedVV).toBeNull();
+      expect(loaded.provenanceIndex).toBeUndefined();
+    },
+  );
+
+  it('loads flattened legacy indexes and serialized provenance', async () => {
+    const fixture = createFixture();
+    const checkpoint = await commitLegacyCheckpoint(fixture, {
+      frontier: { w1: 'a'.repeat(40) },
+      flattenedIndex: true,
+      provenance: true,
+    });
+
+    const loaded = await fixture.checkpoints.loadCheckpoint(checkpoint);
+    expect(loaded.indexShardHandles).toHaveProperty('meta_ff.cbor');
+    expect(loaded.provenanceIndex?.toJSON()).toEqual(ProvenanceIndex.empty().toJSON());
+  });
+
+  it('rejects missing legacy artifacts and invalid legacy frontiers', async () => {
+    const fixture = createFixture();
+    const emptyTreeCheckpoint = await fixture.history.commitNodeWithTree({
+      treeOid: fixture.history.emptyTree,
+      parents: [],
+      message: DEFAULT_COMMIT_MESSAGE_CODEC.encodeCheckpoint({
+        kind: 'checkpoint',
+        graph: 'test',
+        stateHash: 'd'.repeat(64),
+        schema: 5,
+        checkpointVersion: LEGACY_CHECKPOINT_STORAGE_FORMAT,
+        bundleHandle: null,
+      }),
+    });
+    await expect(fixture.checkpoints.loadCheckpoint(emptyTreeCheckpoint))
+      .rejects.toMatchObject({ code: 'E_CHECKPOINT_MISSING_ARTIFACT' });
+
+    const invalidFrontierCheckpoint = await commitLegacyCheckpoint(fixture, {
+      frontier: [],
+    });
+    await expect(fixture.checkpoints.loadCheckpoint(invalidFrontierCheckpoint))
+      .rejects.toMatchObject({ code: 'E_CHECKPOINT_INVALID_FRONTIER' });
+
+    const emptyWriterTipCheckpoint = await commitLegacyCheckpoint(fixture, {
+      frontier: { w1: '' },
+    });
+    await expect(fixture.checkpoints.loadCheckpoint(emptyWriterTipCheckpoint))
+      .rejects.toMatchObject({ code: 'E_CHECKPOINT_INVALID_FRONTIER' });
   });
 
   it('rejects publication and retention witnesses for another bundle', async () => {
