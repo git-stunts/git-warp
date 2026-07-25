@@ -17,6 +17,7 @@ import type AssetStoragePort from '../../src/ports/AssetStoragePort.ts';
 import InMemoryBlobStorageAdapter from './InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from './InMemoryGitCasFacade.ts';
 import type InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
+import InMemorySyncReplayProtection from './InMemorySyncReplayProtection.ts';
 
 export type MemoryRuntimeStorageAdapterOptions = {
   readonly history: InMemoryGraphAdapter;
@@ -31,6 +32,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
   readonly #content: AssetStoragePort;
   readonly #cas: InMemoryGitCasFacade;
   readonly #encrypted: boolean;
+  readonly #syncReplayProtection = new Map<string, InMemorySyncReplayProtection>();
   readonly backing: InMemoryBlobStorageAdapter;
 
   constructor(options: MemoryRuntimeStorageAdapterOptions) {
@@ -98,7 +100,18 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         crypto: request.crypto,
         laneName: request.timelineName,
       }),
+      syncReplayProtection: this.#replayProtection(request.timelineName),
     }));
+  }
+
+  #replayProtection(timelineName: string): InMemorySyncReplayProtection {
+    const existing = this.#syncReplayProtection.get(timelineName);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const created = new InMemorySyncReplayProtection();
+    this.#syncReplayProtection.set(timelineName, created);
+    return created;
   }
 }
 

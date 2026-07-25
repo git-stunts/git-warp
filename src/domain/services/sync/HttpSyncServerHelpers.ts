@@ -17,6 +17,7 @@ import type { SyncRateLimitConfig } from './SyncRateLimiter.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type HttpServerPort from '../../../ports/HttpServerPort.ts';
+import type SyncReplayProtectionPort from '../../../ports/SyncReplayProtectionPort.ts';
 import type { SyncRequest } from './SyncProtocol.ts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -44,7 +45,11 @@ export const authSchema = z.object({
   ),
   crypto: z.custom<CryptoPort | undefined>((v) => v === undefined || (typeof v === 'object' && v !== null)).optional(),
   logger: z.custom<LoggerPort | undefined>((v) => v === undefined || (typeof v === 'object' && v !== null)).optional(),
-  wallClockMs: z.custom<(() => number) | undefined>((v) => v === undefined || typeof v === 'function').optional(),
+  replayProtection: z.custom<SyncReplayProtectionPort>(
+    (v) => v !== null && v !== undefined && typeof v === 'object'
+      && typeof Reflect.get(v, 'reserve') === 'function',
+    'auth.replayProtection must provide atomic reserve()',
+  ),
   rateLimit: z.object({
     capacity: z.number().int().positive(),
     refillTokensPerSecond: z.number().positive(),
@@ -293,7 +298,7 @@ interface AuthConfig {
   mode?: 'enforce' | 'log-only';
   crypto?: CryptoPort;
   logger?: LoggerPort;
-  wallClockMs?: () => number;
+  replayProtection: SyncReplayProtectionPort;
   allowedWriters?: string[];
   rateLimit?: SyncRateLimitConfig;
 }
@@ -304,7 +309,7 @@ function buildAuthConfig(auth: AuthSchemaInput, allowedWriters: string[] | undef
     mode: auth.mode,
     ...cryptoField(auth),
     ...loggerField(auth),
-    ...wallClockField(auth),
+    replayProtection: auth.replayProtection,
     ...rateLimitField(auth),
     ...allowedWritersField(allowedWriters),
   };
@@ -318,11 +323,6 @@ function cryptoField(auth: AuthSchemaInput): { readonly crypto?: CryptoPort } {
 function loggerField(auth: AuthSchemaInput): { readonly logger?: LoggerPort } {
   if (auth.logger === undefined) { return {}; }
   return { logger: auth.logger };
-}
-
-function wallClockField(auth: AuthSchemaInput): { readonly wallClockMs?: () => number } {
-  if (auth.wallClockMs === undefined) { return {}; }
-  return { wallClockMs: auth.wallClockMs };
 }
 
 function rateLimitField(auth: AuthSchemaInput): { readonly rateLimit?: SyncRateLimitConfig } {
@@ -420,7 +420,7 @@ export interface HttpSyncServerOptions {
     mode?: 'enforce' | 'log-only';
     crypto?: CryptoPort;
     logger?: LoggerPort;
-    wallClockMs?: () => number;
+    replayProtection: SyncReplayProtectionPort;
     rateLimit?: SyncRateLimitConfig;
   };
   unsafeAllowUnauthenticatedLocalhost?: boolean;

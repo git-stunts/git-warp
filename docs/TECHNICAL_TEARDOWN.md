@@ -1414,25 +1414,35 @@ The server verifies:
 4. timestamp/Lamport format
 5. nonce format
 6. signature hex format
-7. Lamport freshness per key id
-8. known key id
-9. HMAC signature using timing-safe equality
-10. nonce not previously seen
+7. known key id
+8. HMAC signature using timing-safe equality
+9. Lamport freshness per key id
+10. atomic nonce admission in durable replay storage
 11. rate-limit allowance
 12. optional writer whitelist
 
 ```mermaid
 flowchart TD
     request["HTTP sync request"] --> headers["validate auth headers"]
-    headers --> freshness["validate Lamport freshness"]
-    freshness --> key["resolve key id"]
+    headers --> key["resolve key id"]
     key --> hmac["compute expected HMAC"]
     hmac --> compare["timingSafeEqual"]
-    compare --> nonce["reserve nonce"]
+    compare --> freshness["validate Lamport freshness"]
+    freshness --> nonce["atomically reserve nonce"]
     nonce --> rate["consume rate limit"]
     rate --> writers["check allowed writers"]
     writers --> allow["process sync request"]
 ```
+
+The replay reservation is stored in a graph-scoped git-cas `ExpiringSet`, not
+an in-process LRU. WARP supplies a fixed ten-minute TTL; git-cas atomically
+admits one concurrent writer, retains every live marker across restart without
+capacity eviction, and releases expired markers only when the collection is
+swept. The adapter sweeps opportunistically before the first authenticated
+admission and again after each ten-minute maintenance interval; concurrent
+admissions share one in-flight sweep. If durable replay storage is unavailable,
+authenticated serving fails closed with `REPLAY_STORE_UNAVAILABLE` and HTTP
+503 without exposing the adapter failure.
 
 Auth mode can be `enforce` or `log-only`. In log-only mode failures are logged
 and counted but the request continues. This is useful for staged rollout, but it

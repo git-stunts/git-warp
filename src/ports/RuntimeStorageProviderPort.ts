@@ -13,6 +13,7 @@ import type PatchJournalPort from './PatchJournalPort.ts';
 import type StrandStorePort from './StrandStorePort.ts';
 import type WarpStateCachePort from './WarpStateCachePort.ts';
 import type WarpStateCacheRetentionPort from './WarpStateCacheRetentionPort.ts';
+import type SyncReplayProtectionPort from './SyncReplayProtectionPort.ts';
 
 export type RuntimeStorageRequest = {
   readonly timelineName: string;
@@ -31,6 +32,7 @@ export type RuntimeStorageServices = {
   readonly indexes: IndexStorePort;
   readonly intents: IntentStorePort;
   readonly materializations: MaterializationStorePort;
+  readonly syncReplayProtection?: SyncReplayProtectionPort;
   readonly stateSnapshots?: WarpStateCachePort & WarpStateCacheRetentionPort;
   readonly trie?: TrieStorePort;
 };

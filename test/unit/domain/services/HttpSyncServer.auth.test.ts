@@ -3,6 +3,7 @@ import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.
 import { signSyncRequest } from '../../../../src/domain/services/sync/SyncAuthService.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import { createMockCrypto } from '../../../helpers/mockPorts.ts';
+import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
 
 const SECRET = SyncSecret.fromString('test-secret');
 const KEY_ID = 'default';
@@ -106,7 +107,7 @@ describe('HttpSyncServer auth integration', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO },
+        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
       }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
@@ -174,6 +175,33 @@ describe('HttpSyncServer auth integration', () => {
       expect(second.status).toBe(403);
     });
 
+    it('returns a stable 503 when durable replay storage is unavailable', async () => {
+      const server = new HttpSyncServer((({
+        httpPort: mockPort.port,
+        graph,
+        host: '127.0.0.1',
+        path: '/sync',
+        auth: {
+          keys: KEYS,
+          mode: 'enforce',
+          crypto: TEST_CRYPTO,
+          replayProtection: {
+            reserve: async () => { throw new Error('private adapter failure'); },
+            sweep: async () => ({ removed: 0, generation: null }),
+          },
+        },
+      }) as any));
+      await server.listen(9999);
+      const unavailableHandler = mockPort.getHandler();
+      const { body, headers } = await signedBody(VALID_SYNC_BODY);
+
+      const response = await unavailableHandler({ method: 'POST', url: '/sync', headers, body });
+      expect(response.status).toBe(503);
+      expect(JSON.parse(response.body).error).toBe('REPLAY_STORE_UNAVAILABLE');
+      expect(response.body).not.toContain('private adapter failure');
+      expect(graph.processSyncRequest).not.toHaveBeenCalled();
+    });
+
     it('returns 403 for stale lamport (non-increasing)', async () => {
       // First request succeeds at a high lamport
       const { body: body1, headers: headers1 } = await signedBody(VALID_SYNC_BODY);
@@ -222,7 +250,7 @@ describe('HttpSyncServer auth integration', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
-        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO },
+        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
       }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
@@ -329,7 +357,7 @@ describe('HttpSyncServer auth integration', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
-        auth: { keys: KEYS, crypto: TEST_CRYPTO },
+        auth: { keys: KEYS, crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
       }) as any));
       await server.listen(9999);
       const noModeHandler = noModeMockPort.getHandler();
@@ -351,7 +379,7 @@ describe('HttpSyncServer auth integration', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
-        auth: { keys: KEYS, mode: 'typo', crypto: TEST_CRYPTO },
+        auth: { keys: KEYS, mode: 'typo', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
       }) as any))).toThrow(/HttpSyncServer config/);
     });
   });
@@ -368,7 +396,7 @@ describe('HttpSyncServer auth integration', () => {
         host: '127.0.0.1',
         path: '/sync',
         maxRequestBytes: 10,
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO },
+        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
       }) as any));
       await server.listen(9999);
       const oversizeHandler = oversizeMockPort.getHandler();
@@ -392,7 +420,7 @@ describe('HttpSyncServer auth integration', () => {
         host: '127.0.0.1',
         path: '/sync',
         maxRequestBytes: 10,
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO },
+        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
       }) as any));
       await server.listen(9999);
       const oversizeHandler = oversizeMockPort.getHandler();
@@ -414,7 +442,7 @@ describe('HttpSyncServer auth integration', () => {
       const server = new HttpSyncServer((({
         httpPort: mock.port,
         graph,
-        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO },
+        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
         allowedWriters: ['alice'],
       }) as any));
       await server.listen(9999);
@@ -438,7 +466,7 @@ describe('HttpSyncServer auth integration', () => {
       const server = new HttpSyncServer((({
         httpPort: mock.port,
         graph,
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO },
+        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
         allowedWriters: ['alice'],
       }) as any));
       await server.listen(9999);
@@ -468,6 +496,7 @@ describe('HttpSyncServer auth integration', () => {
           keys: KEYS,
           mode: 'enforce',
           crypto: TEST_CRYPTO,
+          replayProtection: new InMemorySyncReplayProtection(),
           rateLimit: {
             capacity: 1,
             refillTokensPerSecond: 1,
@@ -511,7 +540,13 @@ describe('HttpSyncServer auth integration', () => {
       const server = new HttpSyncServer((({
         httpPort: mock.port,
         graph,
-        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO, logger },
+        auth: {
+          keys: KEYS,
+          mode: 'log-only',
+          crypto: TEST_CRYPTO,
+          replayProtection: new InMemorySyncReplayProtection(),
+          logger,
+        },
         allowedWriters: ['alice'],
       }) as any));
       await server.listen(9999);

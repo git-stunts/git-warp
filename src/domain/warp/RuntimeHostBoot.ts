@@ -40,6 +40,7 @@ import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
 import type SchedulerPort from '../../ports/SchedulerPort.ts';
 import type TrustCryptoPort from '../../ports/TrustCryptoPort.ts';
+import type SyncReplayProtectionPort from '../../ports/SyncReplayProtectionPort.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
 import GCPolicy, { type GCPolicyConfig } from '../services/GCPolicy.ts';
@@ -73,6 +74,7 @@ export type RuntimeHostConstructionOptions = {
   indexStore: IndexStorePort;
   intentStore: IntentStorePort;
   materializations: MaterializationStorePort;
+  syncReplayProtection?: SyncReplayProtectionPort;
   materializationRead?: MaterializationReadPort;
   viewService: MaterializedViewService;
   stateHashService?: StateHashService;
@@ -392,6 +394,9 @@ export async function resolveRuntimeHostConstructionOptions(
       indexStore: resolvedIndexStore,
       intentStore: storageServices.intents,
       materializations: storageServices.materializations,
+      ...(storageServices.syncReplayProtection === undefined
+        ? {}
+        : { syncReplayProtection: storageServices.syncReplayProtection }),
       ...(resolvedMaterializationRead === undefined
         ? {}
         : { materializationRead: resolvedMaterializationRead }),

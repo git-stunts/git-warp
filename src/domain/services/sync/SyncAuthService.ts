@@ -9,7 +9,6 @@
  * @module domain/services/sync/SyncAuthService
  */
 
-import LRUCache from '../../utils/LRUCache.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import { validateWriterId } from '../../utils/RefLayout.ts';
 import { hexEncode, hexDecode } from '../../utils/bytes.ts';
@@ -18,6 +17,7 @@ import { requireCrypto } from '../crypto/CryptoRequirement.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type LogFields from '../../types/log/LogFields.ts';
+import type SyncReplayProtectionPort from '../../../ports/SyncReplayProtectionPort.ts';
 import SyncSecret from './SyncSecret.ts';
 import SyncRateLimiter, { type SyncRateLimitConfig } from './SyncRateLimiter.ts';
 const SIG_VERSION = '2';
@@ -25,7 +25,7 @@ const SIG_PREFIX = 'warp-v2';
 const HMAC_ALGO = 'sha256';
 export const SYNC_AUTH_SCHEME_HEADER = 'x-warp-auth-scheme';
 export const SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME = 'shared-secret-hmac-sha256';
-const DEFAULT_NONCE_CAPACITY = 100_000;
+export const SYNC_REPLAY_ACCEPTANCE_WINDOW_MS = 10 * 60 * 1000;
 const NONCE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SIG_HEX_LENGTH = 64;
 const HEX_PATTERN = /^[0-9a-f]+$/;
@@ -105,7 +105,7 @@ function fail(reason: string, status: number): FailResult {
 interface AuthMetrics {
   authFailCount: number;
   replayRejectCount: number;
-  nonceEvictions: number;
+  replayStoreFailures: number;
   clockSkewRejects: number;
   malformedRejects: number;
   logOnlyPassthroughs: number;
@@ -117,7 +117,7 @@ function _freshMetrics(): AuthMetrics {
   return {
     authFailCount: 0,
     replayRejectCount: 0,
-    nonceEvictions: 0,
+    replayStoreFailures: 0,
     clockSkewRejects: 0,
     malformedRejects: 0,
     logOnlyPassthroughs: 0,
@@ -186,7 +186,7 @@ function _validateAllowedWriters(allowedWriters: string[] | undefined): Set<stri
 export interface SyncAuthServiceOptions {
   keys: Record<string, SyncSecret>;
   mode?: 'enforce' | 'log-only';
-  nonceCapacity?: number;
+  replayProtection: SyncReplayProtectionPort;
   crypto?: CryptoPort;
   logger?: LoggerPort;
   allowedWriters?: string[];
@@ -198,20 +198,36 @@ export default class SyncAuthService {
   private readonly _mode: 'enforce' | 'log-only';
   private readonly _crypto: CryptoPort;
   private readonly _logger: LoggerPort;
-  private readonly _nonceCache: LRUCache<string, boolean>;
+  private readonly _replayProtection: SyncReplayProtectionPort;
   private readonly _lastSeenLamport: Map<string, number>;
   private readonly _allowedWriters: Set<string> | null;
   private readonly _rateLimiter: SyncRateLimiter | null;
   private readonly _metrics: AuthMetrics;
 
   constructor(options: SyncAuthServiceOptions) {
-    const { keys, mode = 'enforce', nonceCapacity, crypto, logger, allowedWriters, rateLimit } = options ?? {};
+    const {
+      keys,
+      mode = 'enforce',
+      replayProtection,
+      crypto,
+      logger,
+      allowedWriters,
+      rateLimit,
+    } = options ?? {};
     _validateKeys(keys);
+    if (replayProtection === null
+      || replayProtection === undefined
+      || typeof replayProtection.reserve !== 'function') {
+      throw new SyncError(
+        'SyncAuthService requires durable replay protection',
+        { code: 'E_SYNC_AUTH_REPLAY_STORE' },
+      );
+    }
     this._keys = keys;
     this._mode = mode;
     this._crypto = requireCrypto(crypto, 'SyncAuthService');
     this._logger = logger ?? nullLogger;
-    this._nonceCache = new LRUCache(typeof nonceCapacity === 'number' && nonceCapacity > 0 ? nonceCapacity : DEFAULT_NONCE_CAPACITY);
+    this._replayProtection = replayProtection;
     this._lastSeenLamport = new Map();
     this._metrics = _freshMetrics();
     this._allowedWriters = _validateAllowedWriters(allowedWriters);
@@ -266,19 +282,23 @@ export default class SyncAuthService {
     return { ok: true };
   }
 
-  private _reserveNonce(nonce: string): FailResult | OkResult {
-    if (this._nonceCache.has(nonce)) {
-      this._metrics.replayRejectCount += 1;
-      return fail('REPLAY', 403);
+  private async _reserveNonce(keyId: string, nonce: string): Promise<FailResult | OkResult> {
+    try {
+      const reservation = await this._replayProtection.reserve({
+        keyId,
+        nonce,
+        ttlMs: SYNC_REPLAY_ACCEPTANCE_WINDOW_MS,
+      });
+      if (!reservation.admitted) {
+        this._metrics.replayRejectCount += 1;
+        return fail('REPLAY', 403);
+      }
+      return { ok: true };
+    } catch {
+      this._metrics.replayStoreFailures += 1;
+      this._logger.error('sync auth: replay protection unavailable', { keyId });
+      return fail('REPLAY_STORE_UNAVAILABLE', 503);
     }
-
-    const sizeBefore = this._nonceCache.size;
-    this._nonceCache.set(nonce, true);
-    if (this._nonceCache.size <= sizeBefore && sizeBefore >= this._nonceCache.maxSize) {
-      this._metrics.nonceEvictions += 1;
-    }
-
-    return { ok: true };
   }
 
   private _resolveKey(keyId: string): FailResult | (OkResult & { secret: SyncSecret }) {
@@ -358,11 +378,6 @@ export default class SyncAuthService {
 
     const { timestamp, nonce, keyId, authScheme } = headerResult;
 
-    const freshnessResult = this._validateFreshness(timestamp, keyId);
-    if (!freshnessResult.ok) {
-      return this._fail('lamport freshness rejected', { keyId, timestamp }, freshnessResult);
-    }
-
     const keyResult = this._resolveKey(keyId);
     if (!keyResult.ok) {
       return this._fail('unrecognized key-id', { keyId }, keyResult);
@@ -375,9 +390,17 @@ export default class SyncAuthService {
       return this._fail('signature mismatch', { keyId }, sigResult);
     }
 
-    const nonceResult = this._reserveNonce(nonce);
+    const freshnessResult = this._validateFreshness(timestamp, keyId);
+    if (!freshnessResult.ok) {
+      return this._fail('lamport freshness rejected', { keyId, timestamp }, freshnessResult);
+    }
+
+    const nonceResult = await this._reserveNonce(keyId, nonce);
     if (!nonceResult.ok) {
-      return this._fail('replay detected', { keyId, nonce }, nonceResult);
+      if (nonceResult.reason === 'REPLAY') {
+        return this._fail('replay detected', { keyId, nonce }, nonceResult);
+      }
+      return this._fail('replay protection unavailable', { keyId }, nonceResult);
     }
 
     const rateLimitResult = this._consumeRateLimit(keyId);

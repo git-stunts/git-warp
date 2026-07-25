@@ -12,6 +12,7 @@ import type SyncCapability from '../../capabilities/SyncCapability.ts';
 import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
 import type SyncSecret from '../sync/SyncSecret.ts';
 import type { MaterializedStateUpdateOptions } from '../../capabilities/MaterializedStateUpdate.ts';
+import type SyncReplayProtectionPort from '../../../ports/SyncReplayProtectionPort.ts';
 
 /**
  * The host interface that SyncController depends on.
@@ -29,6 +30,7 @@ export interface SyncHost {
   _codec: CodecPort;
   _crypto: CryptoPort;
   _logger: LoggerPort | null;
+  _syncReplayProtection: SyncReplayProtectionPort | null;
   _patchJournal?: PatchJournalPort | null;
   _patchesSinceCheckpoint: number;
   _maxObservedLamport: number;

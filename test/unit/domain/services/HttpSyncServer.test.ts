@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import { createMockCrypto } from '../../../helpers/mockPorts.ts';
+import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
 
 const TEST_CRYPTO = createMockCrypto();
+const TEST_REPLAY_PROTECTION = new InMemorySyncReplayProtection();
 
 /** @param {any} value @returns {any} */
 function canonicalizeJson(value) {
@@ -138,6 +140,7 @@ describe('HttpSyncServer', () => {
           keys: { default: SyncSecret.fromString('secret') },
           mode: 'log-only',
           crypto: TEST_CRYPTO,
+          replayProtection: new InMemorySyncReplayProtection(),
         },
       }) as any))).toThrow(/non-local sync hosts require auth.mode "enforce"/);
     });
@@ -151,6 +154,7 @@ describe('HttpSyncServer', () => {
           keys: { default: SyncSecret.fromString('secret') },
           mode: 'enforce',
           crypto: TEST_CRYPTO,
+          replayProtection: new InMemorySyncReplayProtection(),
           rateLimit: {
             capacity: 10,
             refillTokensPerSecond: 1,
@@ -169,6 +173,7 @@ describe('HttpSyncServer', () => {
           keys: { default: SyncSecret.fromString('secret') },
           mode: 'enforce',
           crypto: TEST_CRYPTO,
+          replayProtection: new InMemorySyncReplayProtection(),
         },
       }) as any))).toThrow(/non-local sync hosts require auth.rateLimit/);
     });
@@ -419,7 +424,11 @@ describe('HttpSyncServer', () => {
       expect(() => new HttpSyncServer({
         httpPort: (createMockPort() as any),
         graph: { processSyncRequest: vi.fn() },
-        auth: { keys: { default: SyncSecret.fromString('secret') }, crypto: TEST_CRYPTO },
+        auth: {
+          keys: { default: SyncSecret.fromString('secret') },
+          crypto: TEST_CRYPTO,
+          replayProtection: TEST_REPLAY_PROTECTION,
+        },
         allowedWriters: ['alice'],
       })).not.toThrow();
     });

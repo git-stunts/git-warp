@@ -81,6 +81,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `EdgePropSet` operations at the exact coordinate. The targeted reducer keeps
   one edge's birth event and winning LWW property bag so values from before an
   edge rebirth remain hidden without whole-state projection.
+- Changed authenticated sync replay admission to an atomic, graph-scoped
+  git-cas `ExpiringSet`. Accepted nonces remain retained for WARP's fixed
+  ten-minute acceptance window across process restart, cannot be evicted under
+  capacity pressure, and become collectible only after expiry and sweep.
 
 ### Removed
 
@@ -91,6 +95,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed migration and cleanup support for unreleased materialization
   descriptor schemas v2 through v4. Schema v5 is the first release contract;
   stale derived-cache entries miss and rebuild from authoritative WARP history.
+- Removed `SyncAuthService`'s process-local nonce LRU, `nonceCapacity`,
+  `nonceEvictions`, and the inert public `auth.wallClockMs` option. Authenticated
+  serving now fails closed unless runtime storage supplies durable replay
+  protection.
 
 ### Fixed
 
@@ -98,6 +106,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CAS operations, then closed history, materialization, and CAS owners at
   application, CLI, migration, and test boundaries. This removes repeated
   `cat-file` and `mktree` process startup without leaking subprocesses.
+- Replay-store failures now produce a stable `REPLAY_STORE_UNAVAILABLE` HTTP
+  503 result without exposing adapter errors. Replay retention also sweeps
+  opportunistically on authenticated traffic at a bounded ten-minute cadence.
 - Live exact node-property reads now retain collision-safe property shards as
   an independently addressed materialization root. Each node uses its full
   BLAKE3 route key and a deterministic schema-v2 entry-bag envelope; writes and

@@ -132,6 +132,9 @@ describe('GitCasRepositoryAdapter', () => {
       caches: highLevelCas.caches,
       pages: highLevelCas.pages,
       workspaces: highLevelCas.workspaces,
+      expiringSets: {
+        open: vi.fn(async () => ({} as any)),
+      },
       publications: highLevelCas.publications,
       rootSets: { open: vi.fn(async () => rootSet) },
       readManifest: vi.fn(),
@@ -166,6 +169,7 @@ describe('GitCasRepositoryAdapter', () => {
     });
     expect(services.materializations).toBeInstanceOf(GitCasMaterializationStoreAdapter);
     expect(services.trie).toBeInstanceOf(GitCasTrieStoreAdapter);
+    expect(services.syncReplayProtection).toBeDefined();
 
     plumbing.execute
       .mockResolvedValueOnce('f'.repeat(40))
