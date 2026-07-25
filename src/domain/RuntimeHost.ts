@@ -439,6 +439,10 @@ export default class RuntimeHost {
     return this._materializeController.readLiveNodeProperties(nodeId);
   }
 
+  _readLiveEdgeProperties(edge: { from: string; to: string; label: string }) {
+    return this._materializeController.readLiveEdgeProperties(edge);
+  }
+
   /** Releases local runtime resources without changing admitted history. */
   close(): Promise<void> {
     this._closePromise ??= this._materializations.close();

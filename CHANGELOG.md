@@ -76,6 +76,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retained property root can answer. The targeted reducer keeps only one
   node's winning LWW property bag and does not construct `WarpState`, graph
   adjacency, receipts, diffs, provenance, hashes, or snapshots.
+- Changed cold live edge-property reads to prove both endpoints and the edge
+  through retained liveness roots, then replay only matching `EdgeAdd` and
+  `EdgePropSet` operations at the exact coordinate. The targeted reducer keeps
+  one edge's birth event and winning LWW property bag so values from before an
+  edge rebirth remain hidden without whole-state projection.
 
 ### Removed
 

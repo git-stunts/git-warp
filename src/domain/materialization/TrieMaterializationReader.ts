@@ -1,6 +1,8 @@
 import type CodecPort from '../../ports/CodecPort.ts';
 import type IndexStorePort from '../../ports/IndexStorePort.ts';
-import MaterializationReadPort from '../../ports/MaterializationReadPort.ts';
+import MaterializationReadPort, {
+  type MaterializationEdgeTarget,
+} from '../../ports/MaterializationReadPort.ts';
 import BundleHandle from '../storage/BundleHandle.ts';
 import WarpError from '../errors/WarpError.ts';
 import PageCache from '../orset/trie/PageCache.ts';
@@ -14,6 +16,7 @@ import {
   materializationPropertyShardPath,
   MATERIALIZATION_PROPERTY_SHARD_LIMITS,
 } from './MaterializationPropertyProfile.ts';
+import { encodeEdgeKey } from '../services/KeyCodec.ts';
 
 const MAX_RESIDENT_READ_PAGES = 256;
 
@@ -49,20 +52,16 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
   }
 
   override async hasNode(nodeAliveRoot: BundleHandle, nodeId: string): Promise<boolean> {
-    if (!(nodeAliveRoot instanceof BundleHandle)) {
-      throw new WarpError(
-        'Materialization node-liveness root must be a BundleHandle',
-        'E_MATERIALIZATION_RESUME'
-      );
-    }
-    const cursor = new TrieCursor({
-      rootOid: nodeAliveRoot.toString(),
-      store: this.#store,
-      geometry: this.#geometry,
-      codec: this.#codec,
-      pageCache: this.#pageCache,
-    });
+    const cursor = this.#openLivenessRoot(nodeAliveRoot, 'node');
     return await cursor.contains(nodeId);
+  }
+
+  override async hasEdge(
+    edgeAliveRoot: BundleHandle,
+    edge: MaterializationEdgeTarget,
+  ): Promise<boolean> {
+    const cursor = this.#openLivenessRoot(edgeAliveRoot, 'edge');
+    return await cursor.contains(encodeEdgeKey(edge.from, edge.to, edge.label));
   }
 
   override async getNodeProperties(
@@ -90,6 +89,25 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
       materializationPropertyShardKey,
     );
     return shard.get(nodeId) ?? null;
+  }
+
+  #openLivenessRoot(
+    root: BundleHandle,
+    kind: 'node' | 'edge',
+  ): TrieCursor {
+    if (!(root instanceof BundleHandle)) {
+      throw new WarpError(
+        `Materialization ${kind}-liveness root must be a BundleHandle`,
+        'E_MATERIALIZATION_RESUME',
+      );
+    }
+    return new TrieCursor({
+      rootOid: root.toString(),
+      store: this.#store,
+      geometry: this.#geometry,
+      codec: this.#codec,
+      pageCache: this.#pageCache,
+    });
   }
 }
 

@@ -120,6 +120,7 @@ function createHost(state, overrides = {}) {
     _ensureFreshState: vi.fn().mockResolvedValue(undefined),
     _readLiveNodePresence: vi.fn().mockResolvedValue(null),
     _readLiveNodeProperties: vi.fn().mockResolvedValue(undefined),
+    _readLiveEdgeProperties: vi.fn().mockResolvedValue(undefined),
     _assetStorage: {
       open: vi.fn(() => chunks(new Uint8Array([1, 2, 3]))),
     },
@@ -353,6 +354,39 @@ describe('QueryController', () => {
       host._cachedState = s;
       const props = await ctrl.getEdgeProps('alice', 'bob', 'knows');
       expect(props).toEqual({ since: 2020 });
+    });
+
+    it('returns retained edge properties without requiring whole state', async () => {
+      host._cachedState = null;
+      host._readLiveEdgeProperties.mockResolvedValue({ since: 2020 });
+
+      await expect(ctrl.getEdgeProps('alice', 'bob', 'knows'))
+        .resolves.toEqual({ since: 2020 });
+
+      expect(host._readLiveEdgeProperties).toHaveBeenCalledWith({
+        from: 'alice',
+        to: 'bob',
+        label: 'knows',
+      });
+      expect(host._ensureFreshState).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid public edge target before retained lookup', async () => {
+      host._cachedState = null;
+
+      await expect(ctrl.getEdgeProps('', 'bob', 'knows')).resolves.toBeNull();
+
+      expect(host._readLiveEdgeProperties).not.toHaveBeenCalled();
+      expect(host._ensureFreshState).not.toHaveBeenCalled();
+    });
+
+    it('falls back to whole state when retained edge properties are unavailable', async () => {
+      host._readLiveEdgeProperties.mockResolvedValue(undefined);
+
+      await expect(ctrl.getEdgeProps('alice', 'bob', 'knows'))
+        .resolves.toEqual({});
+
+      expect(host._ensureFreshState).toHaveBeenCalledOnce();
     });
 
     it('filters out edge props older than edgeBirthEvent', async () => {

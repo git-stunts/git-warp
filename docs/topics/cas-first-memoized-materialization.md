@@ -128,16 +128,17 @@ The bounded-memory read path is optic/worldline/query work over a sharded or
 streamed basis. The state cache is the replay-skipping compatibility bridge for
 legacy materialization and checkpoint flows.
 
-`RuntimeHost.hasNode()` and `RuntimeHost.getNodeProps()` consume the handle-first
-path directly when the runtime uses the built-in trie-backed state session and
-matching materialization reader. On an exact retained-coordinate hit, node
-liveness opens only the required trie path through a bounded page cache. A
-property read uses the node's full BLAKE3 route key to resolve one per-node
-property shard by exact bundle member path. The schema-v2 shard envelope stores
-the property bag as sorted key/value entries, preserving legal keys such as
-`__proto__` without treating them as object structure. Writes reject an encoded
-shard over 16 MiB; reads enforce the same byte ceiling plus CBOR container,
-depth, and item limits before general decoding. The reader owns no cache.
+`RuntimeHost.hasNode()`, `RuntimeHost.getNodeProps()`, and
+`RuntimeHost.getEdgeProps()` consume the handle-first path directly when the
+runtime uses the built-in trie-backed state session and matching materialization
+reader. On an exact retained-coordinate hit, node or edge liveness opens only
+the required trie path through a bounded page cache. A node-property read uses
+the node's full BLAKE3 route key to resolve one per-node property shard by exact
+bundle member path. The schema-v2 shard envelope stores the property bag as
+sorted key/value entries, preserving legal keys such as `__proto__` without
+treating them as object structure. Writes reject an encoded shard over 16 MiB;
+reads enforce the same byte ceiling plus CBOR container, depth, and item limits
+before general decoding. The reader owns no cache.
 
 Both exact paths release their operation borrow without hydrating `WarpState`,
 building adjacency, publishing a state snapshot, or populating `_cachedState`.
@@ -153,7 +154,11 @@ coordinate and reduces only matching `NodePropSet` operations into the
 requested node's LWW property bag. That targeted reducer does not hydrate
 `WarpState`, hash or publish state, or build graph-wide indexes. A later
 compatibility or property-root construction operation can replace the partial
-entry with a complete descriptor.
+entry with a complete descriptor. A cold edge-property read similarly proves
+both endpoint nodes and the edge through retained liveness roots, then reduces
+only matching `EdgeAdd` and `EdgePropSet` operations. Tracking the latest
+matching edge birth preserves the existing rule that properties older than an
+edge rebirth are hidden.
 
 Once assembled, a newly built property root joins the operation's expiring
 git-cas workspace before state hashing and final promotion, so the completed
@@ -228,13 +233,15 @@ lost payload bytes, or run Git garbage collection.
 ## Current Limitations
 
 - RuntimeHost exact node-liveness and node-property reads consume the
-  handle-first result when the built-in trie session and reader pair is active.
-  Cold node liveness now produces a partial retained handle through bounded
-  node/edge replay. A cold property read reduces one proven-live node's property
-  bag without whole-state projection, but `PatchCollector` can still buffer one
-  writer chain while producing that coordinate stream. Custom session openers,
-  neighborhoods, list reads, checkpoint creation, and other compatibility
-  operations still own process-resident whole state.
+  handle-first result when the built-in trie session and reader pair is active;
+  exact edge-property reads do the same after proving both endpoint nodes and
+  the edge live. Cold node liveness now produces a partial retained handle
+  through bounded node/edge replay. A cold node- or edge-property read reduces
+  only one proven-live target without whole-state projection, but
+  `PatchCollector` can still buffer one writer chain while producing that
+  coordinate stream. Custom session openers, neighborhoods, list reads,
+  checkpoint creation, and other compatibility operations still own
+  process-resident whole state.
 - Exact state-cache hits bypass replay, but full materialization still hydrates
   a full `WarpState`, scans retained node/edge tries, and builds full adjacency.
 - Retained exact and predecessor resume load a complete canonical `WarpState`

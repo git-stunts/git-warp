@@ -31,6 +31,7 @@ import type {
   WarpStateSnapshotProvenancePosture,
 } from '../../../ports/WarpStateCachePort.ts';
 import type MaterializationWorkspacePort from '../../../ports/MaterializationWorkspacePort.ts';
+import type { MaterializationEdgeTarget } from '../../../ports/MaterializationReadPort.ts';
 import type { PatchWithSha } from '../../capabilities/PatchCollector.ts';
 import PatchEntry from '../../artifacts/PatchEntry.ts';
 import type WarpState from '../state/WarpState.ts';
@@ -170,6 +171,11 @@ export default class MaterializeController {
   }
   readLiveNodeProperties(nodeId: string): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
     return this._liveStrategy.readNodeProperties(nodeId);
+  }
+  readLiveEdgeProperties(
+    edge: MaterializationEdgeTarget,
+  ): Promise<Readonly<Record<string, PropValue>> | null | undefined> {
+    return this._liveStrategy.readEdgeProperties(edge);
   }
   /** Coordinate materialization — explicit frontier. */
   async materializeCoordinate(
