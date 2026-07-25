@@ -14,6 +14,7 @@ import type StrandStorePort from './StrandStorePort.ts';
 import type WarpStateCachePort from './WarpStateCachePort.ts';
 import type WarpStateCacheRetentionPort from './WarpStateCacheRetentionPort.ts';
 import type SyncReplayProtectionPort from './SyncReplayProtectionPort.ts';
+import type SeekCursorStorePort from './SeekCursorStorePort.ts';
 
 export type RuntimeStorageRequest = {
   readonly timelineName: string;
@@ -42,4 +43,5 @@ export default interface RuntimeStorageProviderPort {
   createRuntimeStorageServices(
     request: RuntimeStorageRequest,
   ): Promise<RuntimeStorageServices>;
+  createSeekCursorStore?(timelineName: string): SeekCursorStorePort;
 }

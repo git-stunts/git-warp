@@ -7,9 +7,6 @@ import {
   buildCheckpointRef,
   buildCoverageRef,
   buildWritersPrefix,
-  buildCursorActiveRef,
-  buildCursorSavedRef,
-  buildCursorSavedPrefix,
   parseWriterIdFromRef as _parseWriterIdFromRef,
   validateGraphName as _validateGraphName,
   validateWriterId as _validateWriterId,
@@ -401,84 +398,4 @@ describe('RefLayout', () => {
     });
   });
 
-  describe('buildCursorActiveRef', () => {
-    it('builds correct cursor active ref path', () => {
-      expect(buildCursorActiveRef('events')).toBe('refs/warp/events/cursor/active');
-    });
-
-    it('builds cursor active ref for nested graph names', () => {
-      expect(buildCursorActiveRef('team/events')).toBe(
-        'refs/warp/team/events/cursor/active'
-      );
-    });
-
-    it('throws for invalid graph name', () => {
-      expect(() => buildCursorActiveRef('')).toThrow('cannot be empty');
-      expect(() => buildCursorActiveRef('../etc')).toThrow(
-        "contains path traversal sequence '..'"
-      );
-      expect(() => buildCursorActiveRef('my graph')).toThrow('contains space');
-    });
-  });
-
-  describe('buildCursorSavedRef', () => {
-    it('builds correct cursor saved ref path', () => {
-      expect(buildCursorSavedRef('events', 'before-tui')).toBe(
-        'refs/warp/events/cursor/saved/before-tui'
-      );
-    });
-
-    it('builds saved ref for various valid inputs', () => {
-      expect(buildCursorSavedRef('my-graph', 'snap_01')).toBe(
-        'refs/warp/my-graph/cursor/saved/snap_01'
-      );
-      expect(buildCursorSavedRef('team/events', 'checkpoint.v2')).toBe(
-        'refs/warp/team/events/cursor/saved/checkpoint.v2'
-      );
-    });
-
-    it('throws for invalid graph name', () => {
-      expect(() => buildCursorSavedRef('../etc', 'name')).toThrow(
-        "contains path traversal sequence '..'"
-      );
-      expect(() => buildCursorSavedRef('', 'name')).toThrow('cannot be empty');
-    });
-
-    it('throws for invalid cursor name', () => {
-      expect(() => buildCursorSavedRef('events', '')).toThrow('cannot be empty');
-      expect(() => buildCursorSavedRef('events', 'a/b')).toThrow('contains forward slash');
-      expect(() => buildCursorSavedRef('events', 'x'.repeat(65))).toThrow(
-        'exceeds maximum length'
-      );
-      expect(() => buildCursorSavedRef('events', 'has space')).toThrow(
-        'contains whitespace'
-      );
-    });
-  });
-
-  describe('buildCursorSavedPrefix', () => {
-    it('builds correct cursor saved prefix path', () => {
-      expect(buildCursorSavedPrefix('events')).toBe('refs/warp/events/cursor/saved/');
-    });
-
-    it('builds prefix with trailing slash', () => {
-      const prefix = buildCursorSavedPrefix('my-graph');
-      expect(prefix).toBe('refs/warp/my-graph/cursor/saved/');
-      expect(prefix.endsWith('/')).toBe(true);
-    });
-
-    it('builds prefix for nested graph names', () => {
-      expect(buildCursorSavedPrefix('team/events')).toBe(
-        'refs/warp/team/events/cursor/saved/'
-      );
-    });
-
-    it('throws for invalid graph name', () => {
-      expect(() => buildCursorSavedPrefix('')).toThrow('cannot be empty');
-      expect(() => buildCursorSavedPrefix('../etc')).toThrow(
-        "contains path traversal sequence '..'"
-      );
-      expect(() => buildCursorSavedPrefix('my graph')).toThrow('contains space');
-    });
-  });
 });

@@ -68,8 +68,8 @@ export default async function handlePath({ options, args }: { options: CliOption
   const { values, positionals } = parseCommandArgs(args, PATH_OPTIONS, pathSchema, { allowPositionals: true });
   const from = endpointFrom(values, positionals);
   const to = endpointTo(values, positionals);
-  const { graph, graphName, persistence } = await openGraph(options);
-  const cursorInfo = await applyCursorCeiling(graph, persistence, graphName);
+  const { graph, graphName, cursorStore } = await openGraph(options);
+  const cursorInfo = await applyCursorCeiling(graph, cursorStore);
   emitCursorWarning(cursorInfo, null);
   await graph.materialize();
 

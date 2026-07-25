@@ -9,7 +9,13 @@ import {
   parseWriterIdFromRef,
 } from '../../../src/domain/utils/RefLayout.ts';
 import { notFoundError } from '../infrastructure.ts';
-import { createPersistence, listGraphNames, readActiveCursor, readCheckpointDate } from '../shared.ts';
+import {
+  createPersistence,
+  createSeekCursorStore,
+  listGraphNames,
+  readActiveCursor,
+  readCheckpointDate,
+} from '../shared.ts';
 import type { CliOptions, Persistence, GraphInfoResult } from '../types.ts';
 
 /** Collects metadata about a single graph (writer count, refs, patches, checkpoint). */
@@ -106,7 +112,8 @@ export default async function handleInfo({ options }: { options: CliOptions }): 
       includeWriterPatches: isViewMode,
       includeCheckpointDate: isViewMode,
     });
-    const activeCursor = await readActiveCursor(persistence, name);
+    const cursorStore = createSeekCursorStore(runtimeStorage, name);
+    const activeCursor = await readActiveCursor(cursorStore);
     if (activeCursor) {
       info.cursor = {
         active: true,

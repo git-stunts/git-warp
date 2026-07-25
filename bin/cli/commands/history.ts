@@ -61,8 +61,8 @@ function toHistoryEntry(entry: WriterPatchEntry, writer: string): HistoryEntry {
 /** Handles `git warp history`: lists a writer's patch chain. */
 export default async function handleHistory({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: HistoryPayload; exitCode: number }> {
   const { values } = parseCommandArgs(args, HISTORY_OPTIONS, historySchema);
-  const { graph, graphName, persistence } = await openGraph(options);
-  const cursorInfo = await applyCursorCeiling(graph, persistence, graphName);
+  const { graph, graphName, cursorStore } = await openGraph(options);
+  const cursorInfo = await applyCursorCeiling(graph, cursorStore);
   emitCursorWarning(cursorInfo, null);
 
   const node = values.node ?? null;

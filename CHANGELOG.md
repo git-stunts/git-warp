@@ -85,6 +85,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   git-cas `ExpiringSet`. Accepted nonces remain retained for WARP's fixed
   ten-minute acceptance window across process restart, cannot be evicted under
   capacity pressure, and become collectible only after expiry and sweep.
+- Changed active and named seek cursors from mutable WARP refs to immutable
+  git-cas pages retained by one cache set. Active positions have a 30-day
+  pinned lifetime; saved cursors remain pinned until explicitly dropped.
+  Reads do not extend retention, and bounded opportunistic sweeps collect
+  expired active pages.
 
 ### Removed
 
@@ -99,6 +104,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `nonceEvictions`, and the inert public `auth.wallClockMs` option. Authenticated
   serving now fails closed unless runtime storage supplies durable replay
   protection.
+- Removed the `refs/warp/<graph>/cursor/*` protocol and its public ref builders.
+  v19 intentionally does not migrate these operator-only v18 cursor refs; they
+  are ignored as inert state while authoritative graph history remains intact.
 
 ### Fixed
 

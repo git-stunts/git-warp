@@ -3,7 +3,13 @@ import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
 import { EXIT_CODES, notFoundError } from '../infrastructure.ts';
-import { createPersistence, listGraphNames, readActiveCursor, emitCursorWarning } from '../shared.ts';
+import {
+  createPersistence,
+  createSeekCursorStore,
+  listGraphNames,
+  readActiveCursor,
+  emitCursorWarning,
+} from '../shared.ts';
 import type { CliOptions, Persistence } from '../types.ts';
 
 /** Materializes a single graph, creates a checkpoint, and returns summary stats. */
@@ -67,7 +73,8 @@ export default async function handleMaterialize({ options }: { options: CliOptio
   let cursorWarningEmitted = false;
   for (const name of targets) {
     try {
-      const cursor = await readActiveCursor(persistence, name);
+      const cursorStore = createSeekCursorStore(runtimeStorage, name);
+      const cursor = await readActiveCursor(cursorStore);
       const ceiling = cursor ? cursor.tick : undefined;
       if (cursor && !cursorWarningEmitted) {
         emitCursorWarning({ active: true, tick: cursor.tick, maxTick: null }, null);

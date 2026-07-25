@@ -430,13 +430,15 @@ The source of truth is Git history under WARP refs.
 flowchart TB
     repo[".git directory"] --> branchRefs["refs/heads/*"]
     repo --> warpRefs["refs/warp/<graph>/*"]
+    repo --> casRefs["refs/cas/*"]
 
     branchRefs --> codeCommits["normal source-tree commits"]
 
     warpRefs --> writerRefs["writers/<writerId>"]
     warpRefs --> checkpointRef["checkpoint"]
     warpRefs --> stateCacheRef["state-cache"]
-    warpRefs --> cursorRef["seek cursor refs"]
+    casRefs --> cursorCacheRef["caches/git-warp.seek-cursors"]
+    cursorCacheRef --> cursorPage["immutable active and saved cursor pages"]
 
     writerRefs --> p1["patch commit 1"]
     p1 --> p2["patch commit 2"]
@@ -464,12 +466,20 @@ flowchart TB
 | Adjacency/index provider | `RuntimeHost._materializedGraph`, bitmap index tree | Derived acceleration |
 | Checkpoint | Git checkpoint commit/tree or pinned state-cache snapshot | Derived but durable folded basis |
 | State cache | CAS-backed snapshot records under state-cache refs | Derived acceleration |
-| Seek cursor | Git blob/ref storing CLI cursor position | Operator state, not graph truth |
+| Seek cursor | Immutable git-cas page retained by `git-warp.seek-cursors` | Operator state, not graph truth |
 | Query result | Object returned to API/CLI | Derived reading over a coordinate |
 | Sync request/response | JSON payload crossing HTTP or in-process peer boundary | Transport DTO |
 
 The architecture repeatedly enforces this distinction. Type annotations,
 indexes, caches, and docs do not decide truth. Runtime history does.
+
+In v19, the active seek position is pinned for 30 days and refreshed only by
+an explicit cursor write. Named cursors remain pinned bookmarks until
+`seek --drop`. Cache reads do not extend either lifetime, and opportunistic
+sweeps make expired active pages collectible. The retired
+`refs/warp/<graph>/cursor/*` layout is neither read nor migrated: those refs
+were operator-only state, never authoritative graph history, and become inert
+after upgrading to the v19 major.
 
 ## Golden Path 1: CLI Query
 

@@ -192,8 +192,8 @@ export default async function handleTree({ options, args }: { options: CliOption
   const { values, positionals } = parseCommandArgs(
     args, TREE_OPTIONS, treeSchema, { allowPositionals: true },
   );
-  const { graph, graphName, persistence } = await openGraph(options);
-  const cursorInfo = await applyCursorCeiling(graph, persistence, graphName);
+  const { graph, graphName, cursorStore } = await openGraph(options);
+  const cursorInfo = await applyCursorCeiling(graph, cursorStore);
   emitCursorWarning(cursorInfo, null);
 
   const queryResult = await graph.query().run();

@@ -118,6 +118,13 @@ PY
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --save bp1
   assert_success
 
+  run git -C "${TEST_REPO}" for-each-ref --format='%(refname)' refs/warp/demo/cursor/
+  assert_success
+  [ -z "$output" ]
+
+  run git -C "${TEST_REPO}" show-ref --verify --hash refs/cas/caches/git-warp.seek-cursors
+  assert_success
+
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --latest
   assert_success
 
@@ -259,6 +266,32 @@ assert data["tick"] == 2, f"expected tick=2, got {data['tick']}"
 assert data["maxTick"] == 3, f"expected maxTick=3 after append, got {data['maxTick']}"
 assert data["diff"] is None, f"expected diff=null due to frontier change, got {data['diff']}"
 PY
+}
+
+@test "seek status does not renew cursor retention after frontier changes" {
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1
+  assert_success
+  local before
+  before=$(
+    NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" GRAPH_NAME=demo \
+      node --experimental-strip-types \
+      "${BATS_TEST_DIRNAME}/helpers/inspect-seek-cursor-expiry.ts"
+  )
+
+  seed_graph "append-patch.js"
+
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek
+  assert_success
+  local after
+  after=$(
+    NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" GRAPH_NAME=demo \
+      node --experimental-strip-types \
+      "${BATS_TEST_DIRNAME}/helpers/inspect-seek-cursor-expiry.ts"
+  )
+  if [ "$before" != "$after" ]; then
+    echo "expected active cursor expiry ${before}, got ${after}" >&2
+    return 1
+  fi
 }
 
 @test "seek --diff --json first seek shows empty baseline with all additions" {

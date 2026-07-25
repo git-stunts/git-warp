@@ -18,10 +18,9 @@ type GcPayload =
   | { graph: string; result: ReturnType<Awaited<ReturnType<typeof openGraph>>['graph']['runGC']> };
 
 async function assertNoActiveCursor(
-  persistence: Awaited<ReturnType<typeof openGraph>>['persistence'],
-  graphName: string,
+  cursorStore: Awaited<ReturnType<typeof openGraph>>['cursorStore'],
 ): Promise<void> {
-  const cursor = await readActiveCursor(persistence, graphName);
+  const cursor = await readActiveCursor(cursorStore);
   if (cursor !== null) {
     throw usageError('gc refuses to run while seek cursor is active; run git warp seek --latest first');
   }
@@ -37,8 +36,8 @@ async function gcStatus(options: CliOptions): Promise<{ payload: GcPayload; exit
 }
 
 async function maybeRunGc(options: CliOptions): Promise<{ payload: GcPayload; exitCode: number }> {
-  const { graph, graphName, persistence } = await openGraph(options);
-  await assertNoActiveCursor(persistence, graphName);
+  const { graph, graphName, cursorStore } = await openGraph(options);
+  await assertNoActiveCursor(cursorStore);
   await graph.materialize();
   const result = graph.maybeRunGC();
   return {
@@ -48,8 +47,8 @@ async function maybeRunGc(options: CliOptions): Promise<{ payload: GcPayload; ex
 }
 
 async function runGc(options: CliOptions): Promise<{ payload: GcPayload; exitCode: number }> {
-  const { graph, graphName, persistence } = await openGraph(options);
-  await assertNoActiveCursor(persistence, graphName);
+  const { graph, graphName, cursorStore } = await openGraph(options);
+  await assertNoActiveCursor(cursorStore);
   await graph.materialize();
   const result = graph.runGC();
   return {
