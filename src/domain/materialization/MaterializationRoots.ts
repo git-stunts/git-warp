@@ -1,7 +1,17 @@
 import WarpError from '../errors/WarpError.ts';
 import MaterializationRoot from './MaterializationRoot.ts';
 
-export const MATERIALIZATION_ROOT_NAMES = defineRootNames(
+export const MATERIALIZATION_ROOT_NAMES: readonly [
+  'adjacency',
+  'edge-alive',
+  'edge-births',
+  'frontier',
+  'node-alive',
+  'properties',
+  'provenance-support',
+  'replay-basis',
+  'roaring-indexes',
+] = defineRootNames(
   'adjacency',
   'edge-alive',
   'edge-births',
