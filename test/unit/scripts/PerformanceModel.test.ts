@@ -12,6 +12,10 @@ import {
   type PerformanceScenarioName,
   type ScenarioResult,
 } from '../../../scripts/performance/PerformanceModel.ts';
+import { mergePerformanceResults }
+  from '../../../scripts/performance/PerformanceResultMerge.ts';
+import type { StreamingPerformanceReport }
+  from '../../../scripts/performance/StreamingPerformanceReport.ts';
 
 describe('v19 performance result contract', () => {
   it('accepts a complete result with stable cold/warm semantics and reuse evidence', () => {
@@ -109,6 +113,60 @@ describe('v19 performance result contract', () => {
       .toEqual([]);
   });
 
+  it('fails synthetic RSS and heap regressions deterministically', () => {
+    const base = validResult();
+    const rssRegression = replaceDistribution(
+      base,
+      'cold-materialize',
+      'maxRssBytes',
+      distribution(300 * 1024 * 1024),
+    );
+    const heapRegression = replaceDistribution(
+      base,
+      'warm-materialize',
+      'peakHeapUsedBytes',
+      distribution(200 * 1024 * 1024),
+    );
+
+    expect(evaluatePerformanceGate(rssRegression, null, policy()).failures)
+      .toEqual([
+        'cold-materialize maximum RSS: 300.0 MiB exceeds 256.0 MiB',
+      ]);
+    expect(evaluatePerformanceGate(heapRegression, null, policy()).failures)
+      .toEqual([
+        'warm-materialize peak heap: 200.0 MiB exceeds 128.0 MiB',
+      ]);
+  });
+
+  it('fails synthetic streaming RSS and heap regressions deterministically', () => {
+    const head = validResult();
+    const rssRegression = streamingReport({
+      maxRssBytes: 300 * 1024 * 1024,
+      peakHeapUsedBytes: 40 * 1024 * 1024,
+    });
+    const heapRegression = streamingReport({
+      maxRssBytes: 200 * 1024 * 1024,
+      peakHeapUsedBytes: 110 * 1024 * 1024,
+    });
+
+    expect(evaluatePerformanceGate(
+      head,
+      null,
+      policy(),
+      rssRegression,
+    ).failures).toEqual([
+      'streaming maximum RSS: 300.0 MiB exceeds 256.0 MiB',
+    ]);
+    expect(evaluatePerformanceGate(
+      head,
+      null,
+      policy(),
+      heapRegression,
+    ).failures).toEqual([
+      'streaming peak heap: 110.0 MiB exceeds 96.0 MiB',
+    ]);
+  });
+
   it('refuses to compare different git-cas versions', () => {
     const base = validResult();
     const head: PerformanceResult = {
@@ -121,6 +179,24 @@ describe('v19 performance result contract', () => {
 
     expect(() => evaluatePerformanceGate(head, base, policy()))
       .toThrow('environments are not comparable');
+  });
+
+  it('merges counterbalanced batches without discarding raw samples', () => {
+    const first = validResult();
+    const second = {
+      ...validResult(),
+      generatedAt: '2026-07-25T00:01:00.000Z',
+    };
+    const merged = mergePerformanceResults([first, second]);
+
+    expect(merged.scenarios['cold-materialize'].measuredRuns).toBe(2);
+    expect(merged.scenarios['cold-materialize'].warmupRuns).toBe(2);
+    expect(merged.scenarios['cold-materialize'].cpuTotalMs.samples)
+      .toEqual([100, 100]);
+    expect(() => mergePerformanceResults([
+      first,
+      { ...second, commit: 'different' },
+    ])).toThrow('different commits');
   });
 });
 
@@ -256,7 +332,7 @@ function replaceSample(
 function replaceDistribution(
   result: PerformanceResult,
   scenario: PerformanceScenarioName,
-  metric: 'cpuTotalMs' | 'wallMs',
+  metric: 'cpuTotalMs' | 'maxRssBytes' | 'peakHeapUsedBytes' | 'wallMs',
   value: Distribution,
 ): PerformanceResult {
   const current = result.scenarios[scenario];
@@ -280,6 +356,16 @@ function policy(): PerformancePolicy {
         'incremental-materialize': 1_000,
         'warm-materialize': 1_000,
       },
+      maxRssBytes: {
+        'cold-materialize': 256 * 1024 * 1024,
+        'incremental-materialize': 256 * 1024 * 1024,
+        'warm-materialize': 256 * 1024 * 1024,
+      },
+      peakHeapUsedBytes: {
+        'cold-materialize': 128 * 1024 * 1024,
+        'incremental-materialize': 128 * 1024 * 1024,
+        'warm-materialize': 128 * 1024 * 1024,
+      },
     },
     relative: {
       cpuNoiseFloorMs: {
@@ -290,6 +376,75 @@ function policy(): PerformancePolicy {
       cpuRegressionRatio: 1.15,
     },
     schemaVersion: 1,
+    streaming: {
+      maxRssBytes: 256 * 1024 * 1024,
+      peakHeapUsedBytes: 96 * 1024 * 1024,
+    },
     wallTime: 'diagnostic',
+  };
+}
+
+function streamingReport(metrics: Readonly<{
+  maxRssBytes: number;
+  peakHeapUsedBytes: number;
+}>): StreamingPerformanceReport {
+  return {
+    fixture: {
+      batchNodeCount: 1,
+      expectedFingerprint: 'a'.repeat(64),
+      graphName: 'performance',
+      logicalPropertyBytes: 128 * 1024 * 1024,
+      minimumLogicalToOldSpaceRatio: 4,
+      minimumPropertyPages: 4,
+      nodeCount: 4,
+      persistenceMode: 'streaming-descriptor-checkpoint-v1',
+      propertyBytesPerNode: 32 * 1024 * 1024,
+      seed: 1,
+      writerId: 'benchmark-writer',
+    },
+    generation: {
+      maximumHeapUsedBytes: 96 * 1024 * 1024,
+      maxRssBytes: 160 * 1024 * 1024,
+      peakHeapUsedBytes: 60 * 1024 * 1024,
+    },
+    hostileControl: 'failed-with-memory-exhaustion',
+    profile: 'proof',
+    streaming: {
+      config: {
+        consumerDelayMs: 2,
+        expectedReadingCount: 4,
+        logicalPropertyBytes: 128 * 1024 * 1024,
+        logicalToOldSpaceRatio: 4,
+        maxOldSpaceBytes: 32 * 1024 * 1024,
+        maximumRssBytes: 512 * 1024 * 1024,
+        minimumPropertyPages: 4,
+        observedHeapLimitBytes: 128 * 1024 * 1024,
+      },
+      evidence: {
+        decodedReadings: 4,
+        materializeCalls: 0,
+        maximumPlanningLead: 1,
+        plannedReadings: 4,
+        uniquePropertyPages: 4,
+        wholeIndexScans: 0,
+      },
+      metrics: {
+        ...metrics,
+        throughputPerSecond: 10,
+        timeToFirstReadingMs: 5,
+        wallMs: 400,
+      },
+      receipt: {
+        basisId: 'basis',
+        status: 'completed',
+        tickId: 'tick',
+      },
+      schemaVersion: 1,
+      semantic: {
+        fingerprint: 'a'.repeat(64),
+        readingCount: 4,
+        resultBytes: 128 * 1024 * 1024,
+      },
+    },
   };
 }
