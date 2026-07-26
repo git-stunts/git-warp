@@ -3,26 +3,10 @@ import type BundleHandle from '../domain/storage/BundleHandle.ts';
 
 export const PATCH_STORAGE_FORMAT = 'v19';
 export const PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH = 'git-cas-asset-patch-v1';
-export const LEGACY_GIT_CAS_PATCH_STORAGE_FORMAT = 'v17';
-export const LEGACY_GIT_CAS_PATCH_STORAGE_SCHEMA = 'git-cas-cbor-patch-v1';
 export const CHECKPOINT_STORAGE_FORMAT = 'v19';
 export const LEGACY_CHECKPOINT_STORAGE_FORMAT = 'v5';
 
 export type CommitMessageKind = 'patch' | 'checkpoint' | 'anchor' | 'audit';
-
-export interface LegacyGitBlobPatchStorage {
-  strategy: 'legacy-git-blob';
-  version: null;
-  schema: null;
-  encrypted: false;
-}
-
-export interface LegacyExternalPatchStorage {
-  strategy: 'legacy-external-storage';
-  version: null;
-  schema: null;
-  encrypted: true;
-}
 
 export interface GitCasAssetPatchStorage {
   strategy: 'git-cas-asset';
@@ -31,32 +15,7 @@ export interface GitCasAssetPatchStorage {
   encrypted: boolean;
 }
 
-export interface LegacyGitCasPatchStorage {
-  strategy: 'legacy-git-cas';
-  version: typeof LEGACY_GIT_CAS_PATCH_STORAGE_FORMAT;
-  schema: typeof LEGACY_GIT_CAS_PATCH_STORAGE_SCHEMA;
-  encrypted: boolean;
-}
-
-export type PatchStorageRoute =
-  | LegacyGitBlobPatchStorage
-  | LegacyExternalPatchStorage
-  | LegacyGitCasPatchStorage
-  | GitCasAssetPatchStorage;
-
-export const LEGACY_GIT_BLOB_PATCH_STORAGE: LegacyGitBlobPatchStorage = Object.freeze({
-  strategy: 'legacy-git-blob',
-  version: null,
-  schema: null,
-  encrypted: false,
-});
-
-export const LEGACY_EXTERNAL_PATCH_STORAGE: LegacyExternalPatchStorage = Object.freeze({
-  strategy: 'legacy-external-storage',
-  version: null,
-  schema: null,
-  encrypted: true,
-});
+export type PatchStorageRoute = GitCasAssetPatchStorage;
 
 export type GitCasPatchStorageOptions = {
   readonly encrypted: boolean;
@@ -73,27 +32,10 @@ export function createGitCasPatchStorage(
   });
 }
 
-export function createLegacyGitCasPatchStorage(
-  options: GitCasPatchStorageOptions,
-): LegacyGitCasPatchStorage {
-  return Object.freeze({
-    strategy: 'legacy-git-cas',
-    version: LEGACY_GIT_CAS_PATCH_STORAGE_FORMAT,
-    schema: LEGACY_GIT_CAS_PATCH_STORAGE_SCHEMA,
-    encrypted: options.encrypted,
-  });
-}
-
 export function isGitCasPatchStorage(
   storage: PatchStorageRoute,
 ): storage is GitCasAssetPatchStorage {
   return storage.strategy === 'git-cas-asset';
-}
-
-export function isLegacyGitCasPatchStorage(
-  storage: PatchStorageRoute,
-): storage is LegacyGitCasPatchStorage {
-  return storage.strategy === 'legacy-git-cas';
 }
 
 type PatchCommitMessageBase = {

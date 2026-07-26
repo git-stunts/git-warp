@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import PatchPublicationConflictError from '../../../../src/domain/errors/PatchPublicationConflictError.ts';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
@@ -11,20 +10,14 @@ import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
 } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
-import {
-  LEGACY_GIT_BLOB_PATCH_STORAGE,
-} from '../../../../src/ports/CommitMessageCodecPort.ts';
 import PatchJournalPort from '../../../../src/ports/PatchJournalPort.ts';
-import {
-  V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
-} from '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts';
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const TARGET_REF = 'refs/warp/test/writers/alice';
 
-function createFixture(options: { compatibility?: boolean } = {}) {
+function createFixture() {
   const history = new InMemoryGraphAdapter();
   const assets = new InMemoryBlobStorageAdapter();
   const cas = new InMemoryGitCasFacade({ history, storage: assets });
@@ -34,9 +27,6 @@ function createFixture(options: { compatibility?: boolean } = {}) {
     codec: new CborCodec(),
     commitReader: history,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-    ...(options.compatibility === true
-      ? { compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY }
-      : {}),
   });
   return { history, assets, cas, journal };
 }
@@ -181,30 +171,5 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     });
     await expect(journal.scanPatchRange('alice', first.sha, nonPatch).collect())
       .rejects.toBeInstanceOf(SyncError);
-  });
-
-  it('fails closed for legacy patch storage unless compatibility is explicit', async () => {
-    const current = createFixture();
-    const compatible = createFixture({ compatibility: true });
-    const patch = createPatch(1, 'node:a');
-    const stagedHandle = await compatible.assets.store(new CborCodec().encode(patch));
-    const handle = new AssetHandle(GitCasAssetHandle.parse(stagedHandle.toString()).oid);
-    const message = DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch(
-      DEFAULT_COMMIT_MESSAGE_CODEC.encodePatch({
-        kind: 'patch',
-        graph: 'test',
-        writer: 'alice',
-        lamport: 1,
-        patchHandle: handle,
-        schema: 3,
-        storage: LEGACY_GIT_BLOB_PATCH_STORAGE,
-      }),
-    );
-
-    await expect(current.journal.readPatch(message)).rejects.toThrow(/Legacy patch storage reads/);
-    await expect(compatible.journal.readPatch(message)).resolves.toMatchObject({
-      writer: 'alice',
-      lamport: 1,
-    });
   });
 });

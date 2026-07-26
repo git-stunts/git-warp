@@ -75,7 +75,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     history = new InMemoryGraphAdapter();
     backing = new InMemoryBlobStorageAdapter();
     cas = new InMemoryGitCasFacade({ history, storage: backing });
-    assets = new GitCasAssetStorageAdapter({ cas, legacyReader: history });
+    assets = new GitCasAssetStorageAdapter({ cas });
     indexes = new CborIndexStoreAdapter({
       codec: defaultCodec,
       assetStorage: assets,

@@ -45,9 +45,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
     });
     this.#content = new GitCasAssetStorageAdapter({
       cas: this.#cas,
-      legacyReader: this.#history,
       contentEncryption,
-      compatibilityPolicy: TEST_COMPATIBILITY_POLICY,
     });
     this.#encrypted = contentEncryption.enabled;
   }
@@ -79,7 +77,6 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         codec: request.codec,
         commitReader: this.#history,
         commitMessageCodec: request.commitMessageCodec,
-        compatibilityPolicy: TEST_COMPATIBILITY_POLICY,
         encrypted: this.#encrypted,
       }),
       checkpoints: new CborCheckpointStoreAdapter({

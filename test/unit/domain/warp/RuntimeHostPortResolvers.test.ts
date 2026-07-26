@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import CommitMessageCodecPort, {
-  LEGACY_GIT_BLOB_PATCH_STORAGE,
+  createGitCasPatchStorage,
   type AnchorCommitMessage,
   type CheckpointCommitMessage,
   type CommitMessageKind,
@@ -29,9 +29,11 @@ class TestCommitMessageCodec extends CommitMessageCodecPort {
       graph: 'graph',
       writer: 'writer',
       lamport: 1,
-      patchHandle: new AssetHandle('a'.repeat(40)),
+      patchHandle: new AssetHandle(
+        `git-cas:1:asset:manifest-tree:cbor:sha1:${'a'.repeat(40)}`,
+      ),
       schema: 1,
-      storage: LEGACY_GIT_BLOB_PATCH_STORAGE,
+      storage: createGitCasPatchStorage({ encrypted: false }),
     };
   }
 

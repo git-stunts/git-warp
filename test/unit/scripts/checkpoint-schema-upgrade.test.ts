@@ -375,7 +375,7 @@ function createCheckpointMigrationStorage(
 } {
   const backing = new InMemoryBlobStorageAdapter();
   const cas = new InMemoryGitCasFacade({ history: persistence, storage: backing });
-  const assetStorage = new GitCasAssetStorageAdapter({ cas, legacyReader: persistence });
+  const assetStorage = new GitCasAssetStorageAdapter({ cas });
   const materializationStore = new GitCasMaterializationStoreAdapter({
     cas,
     codec: defaultCodec,

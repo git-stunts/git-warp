@@ -250,7 +250,6 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   private _createContentStorage(): GitCasAssetStorageAdapter {
     return new GitCasAssetStorageAdapter({
       cas: this._cas,
-      legacyReader: this._history,
       ...(this._contentEncryption === undefined
         ? {}
         : { contentEncryption: this._contentEncryption }),

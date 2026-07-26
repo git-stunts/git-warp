@@ -10,9 +10,7 @@ import {
   encodePatchMessage,
 } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import {
-  LEGACY_GIT_BLOB_PATCH_STORAGE,
   createGitCasPatchStorage,
-  createLegacyGitCasPatchStorage,
 } from '../../../../src/ports/CommitMessageCodecPort.ts';
 
 const OID = 'a'.repeat(40);
@@ -33,7 +31,15 @@ function appendTrailer(message: string, key: string, value: string): string {
   return `${message.trimEnd()}\n${key}: ${value}\n`;
 }
 
-function legacyPatchMessage(): string {
+function removeTrailer(message: string, key: string): string {
+  const prefix = `${key}: `;
+  return message
+    .split('\n')
+    .filter((line) => !line.startsWith(prefix))
+    .join('\n');
+}
+
+function currentPatchMessage(): string {
   return encodePatchMessage({
     graph: 'events',
     writer: 'alice',
@@ -69,36 +75,33 @@ describe('TrailerCommitMessageCodecAdapter storage routing', () => {
     });
   });
 
-  it('round-trips the explicit legacy git-cas compatibility route', () => {
+  it('rejects a v18 raw-OID patch message', () => {
     const adapter = new TrailerCommitMessageCodecAdapter();
-    const encoded = adapter.encodePatch({
-      kind: 'patch',
-      graph: 'events',
-      writer: 'alice',
-      lamport: 1,
-      patchHandle: new AssetHandle(OID),
-      schema: 2,
-      storage: createLegacyGitCasPatchStorage({ encrypted: true }),
-    });
+    const encoded = [
+      'warp:patch',
+      '',
+      'eg-kind: patch',
+      'eg-graph: events',
+      'eg-writer: alice',
+      'eg-lamport: 1',
+      `eg-patch-oid: ${OID}`,
+      'eg-schema: 2',
+      '',
+    ].join('\n');
 
-    expect(adapter.decodePatch(encoded)).toMatchObject({
-      storage: {
-        strategy: 'legacy-git-cas',
-        encrypted: true,
-      },
-    });
+    expect(() => adapter.decodePatch(encoded))
+      .toThrow(/current git-cas asset storage trailers/);
   });
 
   it('rejects partial and unknown git-cas storage trailer pairs', () => {
     const adapter = new TrailerCommitMessageCodecAdapter();
-    const partial = appendTrailer(
-      legacyPatchMessage(),
-      TRAILER_KEYS.storageVersion,
-      'git-cas-asset-v1',
+    const partial = removeTrailer(
+      currentPatchMessage(),
+      TRAILER_KEYS.storageSchema,
     );
-    const unknown = appendTrailer(
-      appendTrailer(
-        legacyPatchMessage(),
+    const unknown = replaceTrailer(
+      replaceTrailer(
+        currentPatchMessage(),
         TRAILER_KEYS.storageVersion,
         'unknown-storage',
       ),
@@ -106,21 +109,27 @@ describe('TrailerCommitMessageCodecAdapter storage routing', () => {
       'unknown-schema',
     );
 
-    expect(() => adapter.decodePatch(partial)).toThrow(/must be present together/);
-    expect(() => adapter.decodePatch(unknown)).toThrow(/invalid git-cas patch storage trailers/);
+    expect(() => adapter.decodePatch(partial))
+      .toThrow(/current git-cas asset storage trailers/);
+    expect(() => adapter.decodePatch(unknown))
+      .toThrow(/current git-cas asset storage trailers/);
   });
 
-  it('keeps the legacy helper from accepting opaque asset handles', () => {
-    expect(() => encodePatchMessage({
+  it('encodes the OID helper as an explicit current asset handle', () => {
+    const decoded = new TrailerCommitMessageCodecAdapter().decodePatch(encodePatchMessage({
       graph: 'events',
       writer: 'alice',
       lamport: 1,
       patchOid: OID,
-      storage: createGitCasPatchStorage({ encrypted: false }),
-    })).toThrow(/cannot encode asset handles/);
+    }));
+
+    expect(decoded.patchHandle.toString()).toBe(
+      `git-cas:1:asset:manifest-tree:cbor:sha1:${OID}`,
+    );
+    expect(decoded.storage).toEqual(createGitCasPatchStorage({ encrypted: false }));
   });
 
-  it('preserves encrypted legacy external-storage compatibility', () => {
+  it('round-trips encrypted current asset storage', () => {
     const encoded = encodePatchMessage({
       graph: 'events',
       writer: 'alice',
@@ -133,24 +142,26 @@ describe('TrailerCommitMessageCodecAdapter storage routing', () => {
 
     expect(decoded).toMatchObject({
       encrypted: true,
-      storage: { strategy: 'legacy-external-storage' },
+      storage: { strategy: 'git-cas-asset', encrypted: true },
     });
     expect(canonical).not.toHaveProperty('patchOid');
-    expect(canonical.patchHandle.toString()).toBe(OID);
+    expect(canonical.patchHandle.toString()).toBe(
+      `git-cas:1:asset:manifest-tree:cbor:sha1:${OID}`,
+    );
   });
 });
 
 describe('TrailerCommitMessageCodecAdapter validation', () => {
   it('rejects malformed patch scalar trailers', () => {
     const adapter = new TrailerCommitMessageCodecAdapter();
-    const encoded = legacyPatchMessage();
+    const encoded = currentPatchMessage();
 
     expect(() => adapter.decodePatch(
       replaceTrailer(encoded, TRAILER_KEYS.lamport, '0'),
     )).toThrow(/positive integer/);
     expect(() => adapter.decodePatch(
-      replaceTrailer(encoded, TRAILER_KEYS.patchOid, 'not-an-oid'),
-    )).toThrow(/patchOid/);
+      removeTrailer(encoded, TRAILER_KEYS.patchHandle),
+    )).toThrow(/missing required trailer/);
     expect(() => adapter.decodePatch(
       replaceTrailer(encoded, TRAILER_KEYS.graph, '../events'),
     )).toThrow(/graph/i);
@@ -181,9 +192,11 @@ describe('TrailerCommitMessageCodecAdapter validation', () => {
       graph: '../events',
       writer: 'alice',
       lamport: 1,
-      patchHandle: new AssetHandle(OID),
+      patchHandle: new AssetHandle(
+        `git-cas:1:asset:manifest-tree:cbor:sha1:${OID}`,
+      ),
       schema: 2,
-      storage: LEGACY_GIT_BLOB_PATCH_STORAGE,
+      storage: createGitCasPatchStorage({ encrypted: false }),
     })).toThrow(/graph/i);
     expect(() => adapter.encodeAnchor({
       kind: 'anchor',
@@ -194,7 +207,7 @@ describe('TrailerCommitMessageCodecAdapter validation', () => {
 
   it('rejects wrong-kind and invalid anchor messages', () => {
     const adapter = new TrailerCommitMessageCodecAdapter();
-    const patch = legacyPatchMessage();
+    const patch = currentPatchMessage();
     const anchor = encodeAnchorMessage({ graph: 'events' });
 
     expect(() => adapter.decodePatch(anchor)).toThrow("must be 'patch'");

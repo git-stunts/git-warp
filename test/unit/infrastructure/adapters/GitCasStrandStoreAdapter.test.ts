@@ -16,7 +16,7 @@ function createFixture(options: { readonly compatibility?: boolean } = {}) {
   const history = new InMemoryGraphAdapter();
   const backing = new InMemoryBlobStorageAdapter();
   const cas = new InMemoryGitCasFacade({ history, storage: backing });
-  const assets = new GitCasAssetStorageAdapter({ cas, legacyReader: history });
+  const assets = new GitCasAssetStorageAdapter({ cas });
   const strands = new GitCasStrandStoreAdapter({
     history,
     cas,

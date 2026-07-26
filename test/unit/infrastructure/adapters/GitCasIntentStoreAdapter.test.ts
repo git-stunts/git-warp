@@ -14,7 +14,7 @@ function createFixture() {
   const history = new InMemoryGraphAdapter();
   const backing = new InMemoryBlobStorageAdapter();
   const cas = new InMemoryGitCasFacade({ history, storage: backing });
-  const assets = new GitCasAssetStorageAdapter({ cas, legacyReader: history });
+  const assets = new GitCasAssetStorageAdapter({ cas });
   const codec = new CborCodec();
   const intents = new GitCasIntentStoreAdapter({ history, cas, assets, codec });
   return { assets, backing, cas, codec, history, intents };
