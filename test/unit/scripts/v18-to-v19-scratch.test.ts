@@ -24,6 +24,9 @@ import { v18MigrationGitText } from '../../../scripts/v18-to-v19/V18MigrationGit
 const MANIFEST_PATH = resolve(
   'fixtures/v18/retained-substrate-golden/manifest.json',
 );
+const MEDIUM_MANIFEST_PATH = resolve(
+  'fixtures/v18/retained-substrate-medium/manifest.json',
+);
 
 describe('v18-to-v19 scratch migration', () => {
   const temporaryDirectories: string[] = [];
@@ -144,6 +147,65 @@ describe('v18-to-v19 scratch migration', () => {
       `retained ref requires a pre-v18 migration before v19: ${retiredRef} targets blob`,
     );
   });
+
+  it('replays the translated tail from an authentic v18 checkpoint seed', async () => {
+    const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v18-seed-'));
+    temporaryDirectories.push(targetDirectory);
+    const restored = await restoreV18RetainedSubstrateFixture({
+      manifestPath: MEDIUM_MANIFEST_PATH,
+      targetDirectory,
+    });
+    const sourceHeads = await readHeads(
+      restored.repositoryPath,
+      restored.manifest.refs.map((ref) => ref.refName),
+    );
+    const plan = await planV18ToV19Migration({
+      graph: restored.manifest.graphId,
+      passphraseAvailable: false,
+      repositoryPath: restored.repositoryPath,
+    });
+    const prepared = await prepareV18MigrationScratch({ plan });
+    preparedMigrations.push(prepared);
+
+    await expect(observeProperty(
+      prepared.scratchPath,
+      restored.manifest.graphId,
+      'medium:document:015',
+      'ordinal',
+    )).resolves.toBe(15);
+    await expect(observeProperty(
+      prepared.scratchPath,
+      restored.manifest.graphId,
+      'medium:review:01',
+      'reviewed',
+    )).resolves.toBe(true);
+    const contentHandle = await observeProperty(
+      prepared.scratchPath,
+      restored.manifest.graphId,
+      'medium:document:015',
+      '_content',
+    );
+    expect(typeof contentHandle).toBe('string');
+    if (typeof contentHandle !== 'string') {
+      throw new Error('checkpoint tail content did not use a string handle');
+    }
+    const cas = await ContentAddressableStore.open({
+      cwd: prepared.scratchPath,
+      codec: new GitCasCborCodec(),
+    });
+    try {
+      const content = await collect(cas.assets.open({
+        handle: GitCasAssetHandle.parse(contentHandle),
+      }));
+      expect(content).toHaveLength(128 * 1024);
+    } finally {
+      await cas.close();
+    }
+    expect(await readHeads(
+      restored.repositoryPath,
+      restored.manifest.refs.map((ref) => ref.refName),
+    )).toEqual(sourceHeads);
+  }, 120_000);
 });
 
 async function observeProperty(

@@ -19,6 +19,12 @@ const stateCacheRef = z.object({
   kind: z.literal('state-cache'),
   refName: z.string().startsWith('refs/warp/'),
 }).strict();
+const checkpointRef = z.object({
+  expectedHead: gitOid,
+  expectedObjectType: z.literal('commit'),
+  kind: z.literal('checkpoint'),
+  refName: z.string().startsWith('refs/warp/'),
+}).strict();
 
 export const V18RetainedSubstrateFixtureManifestSchema = z.object({
   bundlePath: z.string().min(1),
@@ -27,6 +33,7 @@ export const V18RetainedSubstrateFixtureManifestSchema = z.object({
   graphId: z.string().min(1),
   refs: z.array(z.discriminatedUnion('kind', [
     writerRef,
+    checkpointRef,
     stateCacheRef,
   ])).min(2),
   retainedState: z.object({

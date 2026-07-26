@@ -22,6 +22,7 @@ export type V18WriterChainRewrite = Readonly<{
 
 /** Recreates one writer chain in order, translating only legacy patch payloads. */
 export async function rewriteV18WriterChain(options: Readonly<{
+  commitMap?: Map<string, string>;
   graph: string;
   progress?: V18MigrationProgressReporter;
   refName: string;
@@ -67,6 +68,7 @@ export async function rewriteV18WriterChain(options: Readonly<{
     }
     previousOld = sha;
     previousNew = newSha;
+    options.commitMap?.set(sha, newSha);
     completed += 1;
     if (shouldReportV18CommitProgress(completed, commits.length)) {
       reportV18MigrationProgress(options.progress, {

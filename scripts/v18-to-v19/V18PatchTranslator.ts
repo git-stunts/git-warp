@@ -104,6 +104,20 @@ export default class V18PatchTranslator {
     return this.#cas.close();
   }
 
+  translatedContentHandle(reference: string): string {
+    if (!OID_PATTERN.test(reference)) {
+      GitCasAssetHandle.parse(reference);
+      return reference;
+    }
+    const translated = this.#contentHandles.get(reference);
+    if (translated === undefined) {
+      throw new Error(
+        `legacy checkpoint content ${reference} was not translated from writer history`,
+      );
+    }
+    return translated;
+  }
+
   async #readLegacyPatch(patch: V18PatchCommit): Promise<Uint8Array> {
     if (patch.storage.kind === 'legacy-blob') {
       return await runV18MigrationGit(

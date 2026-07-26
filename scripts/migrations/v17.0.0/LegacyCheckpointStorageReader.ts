@@ -38,17 +38,23 @@ export default class LegacyCheckpointStorageReader {
     });
   }
 
-  async load(checkpointSha: string): Promise<CheckpointUpgradePayload> {
+  async load(
+    checkpointSha: string,
+    options: Readonly<{ includeDerivedArtifacts?: boolean }> = {},
+  ): Promise<CheckpointUpgradePayload> {
     const rootTreeOid = await this.#persistence.getCommitTree(checkpointSha);
     const rawTreeOids = await this.#persistence.readTreeOids(rootTreeOid);
     const treeOids = await this.#expandStateTree(rawTreeOids);
-    const indexShardOids = await this.#readIndexShardOids(rawTreeOids);
-    const indexTree = await this.#readIndexTree(indexShardOids);
     const state = deserializeCheckpointStateEnvelope(
       await this.#readStateEnvelope(checkpointSha, treeOids),
       { codec: this.#codec },
     );
     const frontier = await this.#readFrontier(checkpointSha, treeOids);
+    if (options.includeDerivedArtifacts === false) {
+      return { state, frontier };
+    }
+    const indexShardOids = await this.#readIndexShardOids(rawTreeOids);
+    const indexTree = await this.#readIndexTree(indexShardOids);
     const provenanceIndex = await this.#readProvenanceIndex(treeOids);
     return {
       state,

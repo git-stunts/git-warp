@@ -2,7 +2,7 @@
   "fixtureId": "v18-retained-substrate-medium-001",
   "graphId": "v18-medium-retained-substrate",
   "bundlePath": "v18-medium-retained-substrate.bundle",
-  "bundleSha256": "e4427266bd4451e2d112172f743bedae392259209e5e7ef98768d503bff75c76",
+  "bundleSha256": "fd549e1bc85ada4bb68ddbf36a317df62c16dfc6d0ebb166cf218d2bcee785fe",
   "source": {
     "gitWarp": {
       "version": "18.2.1",
@@ -35,18 +35,24 @@
       "patchCount": 2
     },
     {
+      "kind": "checkpoint",
+      "refName": "refs/warp/v18-medium-retained-substrate/checkpoints/head",
+      "expectedHead": "4218ce3506404136ca3ef8e6f81a263f64dd5f48",
+      "expectedObjectType": "commit"
+    },
+    {
       "kind": "state-cache",
       "refName": "refs/warp/v18-medium-retained-substrate/state-cache",
-      "expectedHead": "d63631ec6c2d925d11b3a0a3bbed0ce10a658af3",
+      "expectedHead": "f523385e5b18e9089d74256f3a9cc8df6e928746",
       "expectedObjectType": "blob"
     }
   ],
   "retainedState": {
     "refName": "refs/warp/v18-medium-retained-substrate/state-cache",
     "schemaVersion": 1,
-    "snapshotId": "snapshot:81802f427e71edf7fd9174d2c5f3eca10900261ba98b957bdbd7c7dc39baf4a4",
-    "stateHash": "81802f427e71edf7fd9174d2c5f3eca10900261ba98b957bdbd7c7dc39baf4a4",
-    "payloadRoot": "4b719051011cae35c0df475d644464a4dff63656",
+    "snapshotId": "snapshot:7c51c5bf8b0f926734aa85d6af79429c0ce42c62051df81a88272d274dc70dfc",
+    "stateHash": "7c51c5bf8b0f926734aa85d6af79429c0ce42c62051df81a88272d274dc70dfc",
+    "payloadRoot": "f9d152d32c7c3477aa95da533d4cab3cea820baf",
     "payloadRootObjectType": "tree"
   },
   "visibleFacts": [

@@ -10,8 +10,10 @@ The migration has four boundaries:
 2. Recreate the graph in a disposable repository, translating legacy patch
    trailers and raw content OIDs into explicit git-cas asset handles while
    preserving current audit, intent, strand, overlay, braid, and trust refs.
-3. Build a current checkpoint, prove a public v19 read, and prove a disposable
-   v19 append.
+3. Translate a retained v18 checkpoint when available, rebuild current bounded
+   indexes from its authoritative state, replay only the writer tail, then
+   prove a public v19 read and a disposable v19 append. Repositories without a
+   usable checkpoint safely fall back to full writer-history materialization.
 4. Recheck source heads and atomically promote all verified refs while retaining
    old refs and state-cache payload roots below additive recovery refs.
 
@@ -60,7 +62,8 @@ The golden fixture under `fixtures/v18/retained-substrate-golden/` was produced
 with the published `@git-stunts/git-warp@18.2.1` dependency lock. It contains
 no live user or Think data. The medium fixture under
 `fixtures/v18/retained-substrate-medium/` uses the same published dependency
-lock and carries 18 authentic patches plus deterministic binary attachments in
-an approximately 2 MiB Git bundle. It is the routine end-to-end sanity proof;
-the much larger disposable application-store rehearsal is reserved for release
-candidate validation.
+lock and carries 18 authentic patches, deterministic binary attachments, a
+schema-5 checkpoint, and a three-commit replay tail in an approximately 2 MiB
+Git bundle. It is the routine end-to-end sanity proof; the much larger
+disposable application-store rehearsal is reserved for release candidate
+validation.

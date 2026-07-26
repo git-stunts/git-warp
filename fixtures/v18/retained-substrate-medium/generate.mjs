@@ -3,7 +3,11 @@ import { createHash } from 'node:crypto';
 import process from 'node:process';
 import { URL } from 'node:url';
 
-import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
+import {
+  GitGraphAdapter,
+  openWarpWorldline,
+  WarpCore,
+} from '@git-stunts/git-warp';
 import GitPlumbing from '@git-stunts/plumbing';
 
 const repositoryPath = new URL('./repository/', import.meta.url).pathname;
@@ -23,7 +27,7 @@ const alice = await openWarpWorldline({
   worldlineName: graph,
   writerId: 'medium-alice',
 });
-for (let index = 0; index < 16; index += 1) {
+for (let index = 0; index < 14; index += 1) {
   const nodeId = `medium:document:${String(index).padStart(3, '0')}`;
   await alice.commit(async (patch) => {
     patch.addNode(nodeId).setProperty(nodeId, 'ordinal', index);
@@ -38,7 +42,7 @@ const bob = await openWarpWorldline({
   worldlineName: graph,
   writerId: 'medium-bob',
 });
-for (let index = 0; index < 2; index += 1) {
+for (let index = 0; index < 1; index += 1) {
   const nodeId = `medium:review:${String(index).padStart(2, '0')}`;
   await bob.commit((patch) => {
     patch.addNode(nodeId).setProperty(nodeId, 'reviewed', true);
@@ -49,6 +53,35 @@ await alice
   .live()
   .query()
   .match('medium:document:000')
+  .select(['id'])
+  .run();
+const checkpointGraph = await WarpCore.open({
+  persistence,
+  graphName: graph,
+  stateCache: null,
+  writerId: 'medium-alice',
+});
+await checkpointGraph.materialize();
+await checkpointGraph.createCheckpoint();
+
+for (let index = 14; index < 16; index += 1) {
+  const nodeId = `medium:document:${String(index).padStart(3, '0')}`;
+  await alice.commit(async (patch) => {
+    patch.addNode(nodeId).setProperty(nodeId, 'ordinal', index);
+    await patch.attachContent(nodeId, deterministicBytes(index, 128 * 1024), {
+      mime: 'application/octet-stream',
+    });
+  });
+}
+await bob.commit((patch) => {
+  patch
+    .addNode('medium:review:01')
+    .setProperty('medium:review:01', 'reviewed', true);
+});
+await alice
+  .live()
+  .query()
+  .match('medium:document:015')
   .select(['id'])
   .run();
 

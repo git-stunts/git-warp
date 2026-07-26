@@ -5,7 +5,9 @@ import { join } from 'node:path';
 import Runtime from '../../src/application/Runtime.ts';
 import { createObserver } from '../../src/domain/api/ObserverRuntime.ts';
 import Reading from '../../src/domain/api/Reading.ts';
+import { buildCheckpointRef } from '../../src/domain/utils/RefLayout.ts';
 import { CURRENT_SUBSTRATE_MARKER } from '../../src/infrastructure/adapters/SubstrateVersionGate.ts';
+import { seedV18Checkpoint } from './V18CheckpointSeed.ts';
 import type { V18MigrationPlan } from './V18MigrationPlan.ts';
 import {
   listV18MigrationRefs,
@@ -56,9 +58,12 @@ export async function prepareV18MigrationScratch(options: Readonly<{
       ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
     });
     const rewrites: V18WriterChainRewrite[] = [];
+    const commitMap = new Map<string, string>();
+    let seededCheckpointRef: string | null = null;
     try {
       for (const writer of options.plan.writers) {
         rewrites.push(await rewriteV18WriterChain({
+          commitMap,
           graph: options.plan.graph,
           ...(options.progress === undefined ? {} : { progress: options.progress }),
           refName: writer.refName,
@@ -67,16 +72,32 @@ export async function prepareV18MigrationScratch(options: Readonly<{
           writer: writer.writer,
         }));
       }
+      reportV18MigrationProgress(options.progress, {
+        message: 'publishing current substrate marker',
+        phase: 'scratch',
+      });
+      await writeCurrentMarker(scratchPath, options.plan.markerRef);
+      const checkpointRef = buildCheckpointRef(options.plan.graph);
+      const seed = await seedV18Checkpoint({
+        commitMap,
+        graph: options.plan.graph,
+        legacyCheckpointSha: options.plan.derivedRefs[checkpointRef] ?? null,
+        ...(options.progress === undefined ? {} : { progress: options.progress }),
+        repositoryPath: scratchPath,
+        translator,
+      });
+      seededCheckpointRef = seed.status === 'seeded' ? seed.checkpointRef : null;
     } finally {
       await translator.close();
     }
     reportV18MigrationProgress(options.progress, {
-      message: 'publishing current substrate marker and checkpoint',
+      message: 'retiring superseded derived refs',
       phase: 'scratch',
     });
-    await deleteDerivedRefs(scratchPath, options.plan);
-    await writeCurrentMarker(scratchPath, options.plan.markerRef);
-    await createCurrentCheckpoint(scratchPath, options.plan.graph);
+    await deleteDerivedRefs(scratchPath, options.plan, seededCheckpointRef);
+    if (seededCheckpointRef === null) {
+      await createCurrentCheckpoint(scratchPath, options.plan.graph, options.progress);
+    }
     const desiredRefs = await collectDesiredRefs(scratchPath, options.plan.graph);
     reportV18MigrationProgress(options.progress, {
       message: 'proving reopen, append, public reading, and receipt',
@@ -156,8 +177,12 @@ async function fetchPlanRefs(
 async function deleteDerivedRefs(
   scratchPath: string,
   plan: V18MigrationPlan,
+  preservedRef: string | null,
 ): Promise<void> {
   for (const [refName, oid] of Object.entries(plan.derivedRefs)) {
+    if (refName === preservedRef) {
+      continue;
+    }
     await v18MigrationGitText(scratchPath, ['update-ref', '-d', refName, oid]);
   }
 }
@@ -174,10 +199,19 @@ async function writeCurrentMarker(scratchPath: string, markerRef: string): Promi
 async function createCurrentCheckpoint(
   repositoryPath: string,
   graph: string,
+  progress?: V18MigrationProgressReporter,
 ): Promise<void> {
   const opened = await openScratchGraph(repositoryPath, graph, VERIFICATION_WRITER);
   try {
+    reportV18MigrationProgress(progress, {
+      message: 'materializing writer history without a checkpoint seed',
+      phase: 'scratch',
+    });
     await opened.graph.materialize();
+    reportV18MigrationProgress(progress, {
+      message: 'publishing checkpoint from full writer history',
+      phase: 'scratch',
+    });
     await opened.graph.createCheckpoint();
   } finally {
     await opened.close();

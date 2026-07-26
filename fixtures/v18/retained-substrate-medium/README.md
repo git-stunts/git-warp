@@ -2,11 +2,13 @@
 
 This is the repeatable sanity fixture between the 5 KiB golden boundary
 witness and a multi-gigabyte real consumer store. Its Git bundle is about
-2.2 MiB and contains 18 patches:
+2 MiB and contains 18 patches:
 
 - `medium-alice` writes 16 nodes in 16 commits;
 - every Alice node carries a unique deterministic 128 KiB binary attachment;
 - `medium-bob` writes two independent review nodes in two commits;
+- an authentic schema-5 v18 checkpoint covers 14 Alice commits and one Bob
+  commit, leaving a two-Alice/one-Bob replay tail;
 - a public v18 query materializes both writers and publishes the blob-backed
   v18 state-cache ref plus its unadvertised payload tree.
 
@@ -20,15 +22,16 @@ same exact registry lock as the small golden fixture:
 
 `generate.mjs` creates the graph. Run it only from a disposable project that
 has those exact packages installed and an empty `repository/` Git worktree.
-The bundle includes both writer refs, the state-cache ref, and the payload root
-named in the state-cache JSON:
+The bundle includes both writer refs, the checkpoint ref, the state-cache ref,
+and the payload root named in the state-cache JSON:
 
 ```bash
 git -C repository bundle create ../v18-medium-retained-substrate.bundle \
   refs/warp/v18-medium-retained-substrate/writers/medium-alice \
   refs/warp/v18-medium-retained-substrate/writers/medium-bob \
+  refs/warp/v18-medium-retained-substrate/checkpoints/head \
   refs/warp/v18-medium-retained-substrate/state-cache \
-  4b719051011cae35c0df475d644464a4dff63656
+  f9d152d32c7c3477aa95da533d4cab3cea820baf
 ```
 
 The committed bundle SHA-256 is recorded in `manifest.json`. Fixture restore

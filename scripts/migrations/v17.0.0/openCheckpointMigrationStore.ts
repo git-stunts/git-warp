@@ -3,11 +3,13 @@ import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapte
 import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import type AssetStoragePort from '../../../src/ports/AssetStoragePort.ts';
 import type CheckpointStorePort from '../../../src/ports/CheckpointStorePort.ts';
+import type IndexStorePort from '../../../src/ports/IndexStorePort.ts';
 import type MaterializationStorePort from '../../../src/ports/MaterializationStorePort.ts';
 import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
 
 export interface CheckpointMigrationStorage {
   readonly checkpointStore: CheckpointStorePort;
+  readonly indexStore: IndexStorePort;
   readonly materializationStore: MaterializationStorePort;
   readonly assetStorage: AssetStoragePort;
 }
@@ -25,6 +27,7 @@ export async function openCheckpointMigrationStore(
   });
   return Object.freeze({
     checkpointStore: services.checkpoints,
+    indexStore: services.indexes,
     materializationStore: services.materializations,
     assetStorage: services.content,
   });

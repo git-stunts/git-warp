@@ -48,6 +48,11 @@ describe('v18-to-v19 medium standalone migration', () => {
     ]));
     expect(execution.stderr).toMatch(/\[inventory\].*medium-alice 16\/16/u);
     expect(execution.stderr).toMatch(/\[rewrite\].*medium-alice 16\/16/u);
+    expect(execution.stderr).toContain('loading retained v18 checkpoint state');
+    expect(execution.stderr).toContain('building current bounded checkpoint indexes');
+    expect(execution.stderr).not.toContain(
+      'materializing writer history without a checkpoint seed',
+    );
     expect(execution.stderr).toContain('[verify]');
     expect(await readFixtureRefs(
       restored.repositoryPath,

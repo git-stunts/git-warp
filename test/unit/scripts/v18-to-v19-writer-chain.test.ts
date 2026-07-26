@@ -44,10 +44,12 @@ describe('v18-to-v19 writer chain migration', () => {
       repositoryPath: restored.repositoryPath,
     });
     const rewrites: V18WriterChainRewrite[] = [];
+    const commitMap = new Map<string, string>();
     try {
       for (const ref of restored.manifest.refs) {
         if (ref.kind === 'writer') {
           rewrites.push(await rewriteV18WriterChain({
+            commitMap,
             graph: restored.manifest.graphId,
             refName: ref.refName,
             repositoryPath: restored.repositoryPath,
@@ -61,6 +63,9 @@ describe('v18-to-v19 writer chain migration', () => {
     }
 
     expect(rewrites.map((rewrite) => rewrite.translatedCount)).toEqual([2, 1]);
+    for (const rewrite of rewrites) {
+      expect(commitMap.get(rewrite.oldHead)).toBe(rewrite.newHead);
+    }
     const aliceHead = rewrites.find((rewrite) => rewrite.writer === 'alice')?.newHead;
     expect(aliceHead).toBeDefined();
     if (aliceHead === undefined) {
