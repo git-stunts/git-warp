@@ -37,22 +37,40 @@ export async function finalizeV18Migration(options: Readonly<{
       sourceRefs,
       recoveryPrefix,
     );
+    const finalization = Object.freeze({
+      promotedRefs: options.prepared.desiredRefs,
+      recoveryPrefix,
+      recoveryRefs,
+    });
     await applyRefTransaction(
       options.plan.repositoryPath,
       sourceRefs,
       options.prepared.desiredRefs,
       recoveryRefs,
     );
-    await verifyPromotedRefs(
-      options.plan.repositoryPath,
-      sourceRefs,
-      options.prepared.desiredRefs,
-    );
-    return Object.freeze({
-      promotedRefs: options.prepared.desiredRefs,
-      recoveryPrefix,
-      recoveryRefs,
-    });
+    try {
+      await verifyPromotedRefs(
+        options.plan.repositoryPath,
+        sourceRefs,
+        options.prepared.desiredRefs,
+      );
+    } catch (verificationError) {
+      try {
+        await rollbackV18Migration({ finalization, plan: options.plan });
+      } catch (rollbackError) {
+        throw new AggregateError(
+          [verificationError, rollbackError],
+          'promoted ref verification failed and automatic rollback could not complete; '
+            + `use recovery refs below ${recoveryPrefix}`,
+        );
+      }
+      throw new Error(
+        'promoted ref verification failed; authoritative refs were rolled back '
+          + 'and recovery refs retained',
+        { cause: verificationError },
+      );
+    }
+    return finalization;
   } finally {
     await deleteImportRefs(options.plan.repositoryPath, importedRefs);
   }

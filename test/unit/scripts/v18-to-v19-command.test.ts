@@ -11,6 +11,7 @@ import { restoreV18RetainedSubstrateFixture } from '../../../scripts/v18-to-v19/
 import { runV18ToV19Migration } from '../../../scripts/v18-to-v19/V18MigrationCommand.ts';
 import {
   readV18MigrationRef,
+  v18MigrationGitText,
 } from '../../../scripts/v18-to-v19/V18MigrationGit.ts';
 
 const MANIFEST_PATH = resolve(
@@ -27,6 +28,22 @@ describe('v18-to-v19 migration command', () => {
         await rm(directory, { recursive: true, force: true });
       }),
     );
+  });
+
+  it('returns null only for a missing ref and propagates repository failures', async () => {
+    const repositoryPath = await mkdtemp(join(tmpdir(), 'git-warp-ref-read-'));
+    const nonRepositoryPath = await mkdtemp(join(tmpdir(), 'git-warp-ref-failure-'));
+    temporaryDirectories.push(repositoryPath, nonRepositoryPath);
+    await v18MigrationGitText(repositoryPath, ['init', '--bare']);
+
+    await expect(readV18MigrationRef(
+      repositoryPath,
+      'refs/warp/missing',
+    )).resolves.toBeNull();
+    await expect(readV18MigrationRef(
+      nonRepositoryPath,
+      'refs/warp/missing',
+    )).rejects.toThrow(/not a git repository/iu);
   });
 
   it('atomically promotes verified refs and retains complete recovery roots', async () => {

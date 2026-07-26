@@ -5,6 +5,27 @@ export type V18MigrationGitOptions = Readonly<{
   input?: string | Uint8Array;
 }>;
 
+export class V18MigrationGitError extends Error {
+  readonly args: readonly string[];
+  readonly exitCode: number | null;
+  readonly stderr: string;
+
+  constructor(options: {
+    readonly args: readonly string[];
+    readonly exitCode: number | null;
+    readonly stderr: string;
+  }) {
+    const exit = options.exitCode === null
+      ? 'from a signal'
+      : `with exit ${String(options.exitCode)}`;
+    super(`git ${options.args.join(' ')} failed ${exit}: ${options.stderr}`);
+    this.name = 'V18MigrationGitError';
+    this.args = Object.freeze([...options.args]);
+    this.exitCode = options.exitCode;
+    this.stderr = options.stderr;
+  }
+}
+
 /** Runs one Git plumbing command without a shell and returns its exact stdout bytes. */
 export async function runV18MigrationGit(
   cwd: string,
@@ -28,10 +49,11 @@ export async function runV18MigrationGit(
         resolve(Buffer.concat(stdout));
         return;
       }
-      reject(new Error(
-        `git ${args.join(' ')} failed with exit ${String(exitCode ?? 1)}: `
-          + Buffer.concat(stderr).toString('utf8').trim(),
-      ));
+      reject(new V18MigrationGitError({
+        args,
+        exitCode,
+        stderr: Buffer.concat(stderr).toString('utf8').trim(),
+      }));
     });
     if (options.input !== undefined) {
       child.stdin.write(options.input);
@@ -59,10 +81,14 @@ export async function readV18MigrationRef(
       'rev-parse',
       '--verify',
       '--quiet',
+      '--end-of-options',
       refName,
     ]);
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof V18MigrationGitError && error.exitCode === 1) {
+      return null;
+    }
+    throw error;
   }
 }
 
