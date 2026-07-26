@@ -34,14 +34,15 @@ CPU is the blocking regression metric. Wall time remains diagnostic because
 hosted-runner scheduling and filesystem noise are not stable enough for a
 trustworthy wall-time gate. Peak RSS and heap have blocking absolute envelopes.
 The checked-in policy combines a relative CPU ratio with an absolute noise
-floor and reviewed CPU/memory ceilings.
+floor and reviewed materialization and streaming CPU/memory ceilings.
 
 The reviewed CI corpus contains 25 base nodes, a five-node suffix, and 256
 property bytes per node. The earlier 1,500-node bootstrap profile was rejected
 after one worker exceeded the ten-minute timeout. The checked-in
 [`calibration.json`](./calibration.json) records the replacement profile,
-observed medians and dispersion, the exact environment, and the policy
-rationale.
+observed medians and dispersion, the exact GitHub-hosted Ubuntu 24.04/Node 22
+gating environment, and the policy rationale. A local Apple Silicon calibration
+is retained as secondary evidence, not as the source of CI ceilings.
 
 ## Semantic and schema gates
 

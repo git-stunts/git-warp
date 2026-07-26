@@ -56,6 +56,8 @@ describe('v19 performance workflow', () => {
   it('publishes summaries and raw commit-addressed evidence', () => {
     expect(workflow).toContain('RunPerformanceComparison.js');
     expect(workflow).toContain('--comparison performance-results/comparison.json');
+    expect(workflow).toContain('|| gate_status=$?');
+    expect(workflow).toContain('if [[ -f performance-results/summary.md ]]');
     expect(workflow).toContain('cat performance-results/summary.md >> "$GITHUB_STEP_SUMMARY"');
     expect(workflow).toContain(
       'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
@@ -74,16 +76,34 @@ describe('v19 performance workflow', () => {
       'utf8',
     )) as {
       corpus?: { baseNodeCount?: number; suffixNodeCount?: number };
-      policyRationale?: { cpuRegressionRatio?: number };
+      environment?: { node?: string; platform?: string; runner?: string };
+      policyRationale?: {
+        cpuRegressionRatio?: number;
+        streamingMaxRssBytes?: number;
+        streamingPeakHeapUsedBytes?: number;
+      };
       rejectedProfiles?: readonly unknown[];
     };
 
     expect(policy.relative.cpuRegressionRatio).toBe(1.15);
+    expect(policy.streaming).toEqual({
+      maxRssBytes: 256 * 1024 * 1024,
+      peakHeapUsedBytes: 96 * 1024 * 1024,
+    });
     expect(calibration.corpus).toMatchObject({
       baseNodeCount: 25,
       suffixNodeCount: 5,
     });
+    expect(calibration.environment).toMatchObject({
+      node: 'v22.23.1',
+      platform: 'linux',
+      runner: 'github-hosted ubuntu-24.04',
+    });
     expect(calibration.policyRationale?.cpuRegressionRatio).toBe(1.15);
+    expect(calibration.policyRationale?.streamingMaxRssBytes)
+      .toBe(policy.streaming.maxRssBytes);
+    expect(calibration.policyRationale?.streamingPeakHeapUsedBytes)
+      .toBe(policy.streaming.peakHeapUsedBytes);
     expect(calibration.rejectedProfiles).toHaveLength(1);
   });
 
@@ -92,6 +112,7 @@ describe('v19 performance workflow', () => {
     expect(releaseWorkflow).toContain('Verify current v19 performance evidence');
     expect(releaseWorkflow).toContain('actions/workflows/performance.yml/runs');
     expect(releaseWorkflow).toContain('-f head_sha="$HEAD_SHA"');
+    expect(releaseWorkflow).toContain('-f event=push');
     expect(releaseWorkflow).toContain('-f status=success');
   });
 });

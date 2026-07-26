@@ -25,5 +25,9 @@
       "incremental-materialize": 250
     },
     "cpuRegressionRatio": 1.15
+  },
+  "streaming": {
+    "maxRssBytes": 268435456,
+    "peakHeapUsedBytes": 100663296
   }
 }

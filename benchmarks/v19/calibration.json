@@ -1,15 +1,20 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "07f6223cdc52d7d22160c9ff77405356dd60a3a0",
-  "generatedAt": "2026-07-26T02:53:32.821Z",
+  "sourceCommit": "490ffc8c047033531281c58d4b431aa21a52877d",
+  "generatedAt": "2026-07-26T03:30:11.485Z",
+  "evidence": {
+    "artifact": "v19-performance-a166926815bd73e78b546095a4d142db17b2fd1b",
+    "run": "https://github.com/git-stunts/git-warp/actions/runs/30186045644"
+  },
   "environment": {
-    "architecture": "arm64",
-    "cpuCount": 10,
-    "cpuModel": "Apple M1 Pro",
-    "git": "git version 2.50.1 (Apple Git-155)",
+    "architecture": "x64",
+    "cpuCount": 4,
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "git": "git version 2.54.0",
     "gitCas": "6.5.3",
-    "node": "v26.0.0",
-    "platform": "darwin"
+    "node": "v22.23.1",
+    "platform": "linux",
+    "runner": "github-hosted ubuntu-24.04"
   },
   "corpus": {
     "baseNodeCount": 25,
@@ -20,22 +25,59 @@
   },
   "observed": {
     "cold-materialize": {
-      "cpuTotalMedianMs": 3993.154,
-      "cpuTotalMadMs": 11.974,
-      "maximumRssBytes": 152158208,
-      "maximumHeapUsedBytes": 57703656
+      "cpuTotalMedianMs": 11440.000000000002,
+      "cpuTotalMadMs": 300.0000000000018,
+      "maximumRssBytes": 149114880,
+      "maximumHeapUsedBytes": 55814856
     },
     "warm-materialize": {
-      "cpuTotalMedianMs": 834.786,
-      "cpuTotalMadMs": 4.831,
-      "maximumRssBytes": 120930304,
-      "maximumHeapUsedBytes": 39929144
+      "cpuTotalMedianMs": 2889.9999999999995,
+      "cpuTotalMadMs": 90.00000000000045,
+      "maximumRssBytes": 129462272,
+      "maximumHeapUsedBytes": 44256456
     },
     "incremental-materialize": {
-      "cpuTotalMedianMs": 4276.35,
-      "cpuTotalMadMs": 89.092,
-      "maximumRssBytes": 152928256,
-      "maximumHeapUsedBytes": 58384360
+      "cpuTotalMedianMs": 11240,
+      "cpuTotalMadMs": 320,
+      "maximumRssBytes": 151187456,
+      "maximumHeapUsedBytes": 57289656
+    },
+    "streaming": {
+      "generationMaximumRssBytes": 196218880,
+      "generationPeakHeapUsedBytes": 52742016,
+      "maximumRssBytes": 145403904,
+      "peakHeapUsedBytes": 38016568
+    }
+  },
+  "localCalibration": {
+    "environment": {
+      "architecture": "arm64",
+      "cpuCount": 10,
+      "cpuModel": "Apple M1 Pro",
+      "git": "git version 2.50.1 (Apple Git-155)",
+      "gitCas": "6.5.3",
+      "node": "v26.0.0",
+      "platform": "darwin"
+    },
+    "observed": {
+      "cold-materialize": {
+        "cpuTotalMedianMs": 3993.154,
+        "cpuTotalMadMs": 11.974,
+        "maximumRssBytes": 152158208,
+        "maximumHeapUsedBytes": 57703656
+      },
+      "warm-materialize": {
+        "cpuTotalMedianMs": 834.786,
+        "cpuTotalMadMs": 4.831,
+        "maximumRssBytes": 120930304,
+        "maximumHeapUsedBytes": 39929144
+      },
+      "incremental-materialize": {
+        "cpuTotalMedianMs": 4276.35,
+        "cpuTotalMadMs": 89.092,
+        "maximumRssBytes": 152928256,
+        "maximumHeapUsedBytes": 58384360
+      }
     }
   },
   "rejectedProfiles": [
@@ -51,6 +93,8 @@
       "warm-materialize": 50,
       "incremental-materialize": 250
     },
-    "note": "Noise floors exceed observed MAD; absolute CPU and memory ceilings retain substantial hosted-runner headroom while blocking gross regressions."
+    "streamingMaxRssBytes": 268435456,
+    "streamingPeakHeapUsedBytes": 100663296,
+    "note": "CI-runner measurements are primary. Noise floors cover hosted-runner MAD; absolute materialization and streaming ceilings retain reviewed headroom while blocking gross regressions."
   }
 }

@@ -14,6 +14,8 @@ import {
 } from '../../../scripts/performance/PerformanceModel.ts';
 import { mergePerformanceResults }
   from '../../../scripts/performance/PerformanceResultMerge.ts';
+import type { StreamingPerformanceReport }
+  from '../../../scripts/performance/StreamingPerformanceReport.ts';
 
 describe('v19 performance result contract', () => {
   it('accepts a complete result with stable cold/warm semantics and reuse evidence', () => {
@@ -134,6 +136,35 @@ describe('v19 performance result contract', () => {
       .toEqual([
         'warm-materialize peak heap: 200.0 MiB exceeds 128.0 MiB',
       ]);
+  });
+
+  it('fails synthetic streaming RSS and heap regressions deterministically', () => {
+    const head = validResult();
+    const rssRegression = streamingReport({
+      maxRssBytes: 300 * 1024 * 1024,
+      peakHeapUsedBytes: 40 * 1024 * 1024,
+    });
+    const heapRegression = streamingReport({
+      maxRssBytes: 200 * 1024 * 1024,
+      peakHeapUsedBytes: 110 * 1024 * 1024,
+    });
+
+    expect(evaluatePerformanceGate(
+      head,
+      null,
+      policy(),
+      rssRegression,
+    ).failures).toEqual([
+      'streaming maximum RSS: 300.0 MiB exceeds 256.0 MiB',
+    ]);
+    expect(evaluatePerformanceGate(
+      head,
+      null,
+      policy(),
+      heapRegression,
+    ).failures).toEqual([
+      'streaming peak heap: 110.0 MiB exceeds 96.0 MiB',
+    ]);
   });
 
   it('refuses to compare different git-cas versions', () => {
@@ -345,6 +376,75 @@ function policy(): PerformancePolicy {
       cpuRegressionRatio: 1.15,
     },
     schemaVersion: 1,
+    streaming: {
+      maxRssBytes: 256 * 1024 * 1024,
+      peakHeapUsedBytes: 96 * 1024 * 1024,
+    },
     wallTime: 'diagnostic',
+  };
+}
+
+function streamingReport(metrics: Readonly<{
+  maxRssBytes: number;
+  peakHeapUsedBytes: number;
+}>): StreamingPerformanceReport {
+  return {
+    fixture: {
+      batchNodeCount: 1,
+      expectedFingerprint: 'a'.repeat(64),
+      graphName: 'performance',
+      logicalPropertyBytes: 128 * 1024 * 1024,
+      minimumLogicalToOldSpaceRatio: 4,
+      minimumPropertyPages: 4,
+      nodeCount: 4,
+      persistenceMode: 'streaming-descriptor-checkpoint-v1',
+      propertyBytesPerNode: 32 * 1024 * 1024,
+      seed: 1,
+      writerId: 'benchmark-writer',
+    },
+    generation: {
+      maximumHeapUsedBytes: 96 * 1024 * 1024,
+      maxRssBytes: 160 * 1024 * 1024,
+      peakHeapUsedBytes: 60 * 1024 * 1024,
+    },
+    hostileControl: 'failed-with-memory-exhaustion',
+    profile: 'proof',
+    streaming: {
+      config: {
+        consumerDelayMs: 2,
+        expectedReadingCount: 4,
+        logicalPropertyBytes: 128 * 1024 * 1024,
+        logicalToOldSpaceRatio: 4,
+        maxOldSpaceBytes: 32 * 1024 * 1024,
+        maximumRssBytes: 512 * 1024 * 1024,
+        minimumPropertyPages: 4,
+        observedHeapLimitBytes: 128 * 1024 * 1024,
+      },
+      evidence: {
+        decodedReadings: 4,
+        materializeCalls: 0,
+        maximumPlanningLead: 1,
+        plannedReadings: 4,
+        uniquePropertyPages: 4,
+        wholeIndexScans: 0,
+      },
+      metrics: {
+        ...metrics,
+        throughputPerSecond: 10,
+        timeToFirstReadingMs: 5,
+        wallMs: 400,
+      },
+      receipt: {
+        basisId: 'basis',
+        status: 'completed',
+        tickId: 'tick',
+      },
+      schemaVersion: 1,
+      semantic: {
+        fingerprint: 'a'.repeat(64),
+        readingCount: 4,
+        resultBytes: 128 * 1024 * 1024,
+      },
+    },
   };
 }

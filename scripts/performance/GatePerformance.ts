@@ -32,6 +32,10 @@ export const PerformancePolicySchema = z.object({
     cpuRegressionRatio: z.number().finite().gte(1),
   }).strict(),
   schemaVersion: z.literal(1),
+  streaming: z.object({
+    maxRssBytes: z.number().finite().positive(),
+    peakHeapUsedBytes: z.number().finite().positive(),
+  }).strict(),
   wallTime: z.literal('diagnostic'),
 }).strict();
 
@@ -97,6 +101,7 @@ export function evaluatePerformanceGate(
   const failures = [
     ...absoluteFailures(head, policy),
     ...(base === null ? [] : relativeFailures(base, head, policy)),
+    ...(streamingHead === undefined ? [] : streamingFailures(streamingHead, policy)),
   ];
   return Object.freeze({
     failures: Object.freeze(failures),
@@ -159,6 +164,29 @@ function relativeFailures(
     if (headCpu > maximum) {
       failures.push(metricFailure(`${scenario} median CPU regression`, headCpu, maximum));
     }
+  }
+  return failures;
+}
+
+function streamingFailures(
+  head: StreamingPerformanceReport,
+  policy: PerformancePolicy,
+): string[] {
+  const failures: string[] = [];
+  const metrics = head.streaming.metrics;
+  if (metrics.maxRssBytes > policy.streaming.maxRssBytes) {
+    failures.push(byteMetricFailure(
+      'streaming maximum RSS',
+      metrics.maxRssBytes,
+      policy.streaming.maxRssBytes,
+    ));
+  }
+  if (metrics.peakHeapUsedBytes > policy.streaming.peakHeapUsedBytes) {
+    failures.push(byteMetricFailure(
+      'streaming peak heap',
+      metrics.peakHeapUsedBytes,
+      policy.streaming.peakHeapUsedBytes,
+    ));
   }
   return failures;
 }
