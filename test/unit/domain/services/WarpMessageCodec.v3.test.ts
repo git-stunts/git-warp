@@ -150,7 +150,9 @@ describe('WarpMessageCodec schema v3', () => {
       expect(decoded.graph).toBe('events');
       expect(decoded.writer).toBe('node-1');
       expect(decoded.lamport).toBe(42);
-      expect(decoded.patchHandle.toString()).toBe(VALID_OID_SHA1);
+      expect(decoded.patchHandle.toString()).toBe(
+        `git-cas:1:asset:manifest-tree:cbor:sha1:${VALID_OID_SHA1}`,
+      );
       expect(decoded.schema).toBe(3);
     });
 
@@ -187,7 +189,9 @@ describe('WarpMessageCodec schema v3', () => {
       expect(decoded.graph).toBe(original.graph);
       expect(decoded.writer).toBe(original.writer);
       expect(decoded.lamport).toBe(original.lamport);
-      expect(decoded.patchHandle.toString()).toBe(original.patchOid);
+      expect(decoded.patchHandle.toString()).toBe(
+        `git-cas:1:asset:manifest-tree:cbor:sha1:${original.patchOid}`,
+      );
       expect(decoded.schema).toBe(3);
     });
 
@@ -207,7 +211,9 @@ describe('WarpMessageCodec schema v3', () => {
       expect(decoded.graph).toBe(original.graph);
       expect(decoded.writer).toBe(original.writer);
       expect(decoded.lamport).toBe(original.lamport);
-      expect(decoded.patchHandle.toString()).toBe(original.patchOid);
+      expect(decoded.patchHandle.toString()).toBe(
+        `git-cas:1:asset:manifest-tree:cbor:sha1:${original.patchOid}`,
+      );
       expect(decoded.schema).toBe(2);
     });
   });

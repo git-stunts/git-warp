@@ -349,7 +349,9 @@ describe('WormholeService', () => {
         })),
       };
       const readPatch = vi.fn(async (message: PatchCommitMessage) => {
-        expect(message.patchHandle.toString()).toBe(patchOid);
+        expect(message.patchHandle.toString()).toBe(
+          `git-cas:1:asset:manifest-tree:cbor:sha1:${patchOid}`,
+        );
         return patch;
       });
 

@@ -12,7 +12,8 @@ import {
   encodePatchMessage,
 } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 
-const LEGACY_OID = 'a'.repeat(40);
+const OID = 'a'.repeat(40);
+const HANDLE = `git-cas:1:asset:manifest-tree:cbor:sha1:${OID}`;
 const STATE_HASH = 'b'.repeat(64);
 
 describe('TrailerCommitMessageCodecAdapter', () => {
@@ -63,32 +64,32 @@ describe('TrailerCommitMessageCodecAdapter', () => {
     expect(encoded).not.toMatch(/key|passphrase/iu);
   });
 
-  it('continues to decode supported legacy patch OID messages', () => {
+  it('encodes the OID helper as current asset storage', () => {
     const encoded = encodePatchMessage({
-      graph: 'legacy-events',
+      graph: 'events',
       writer: 'writer-1',
       lamport: 1,
-      patchOid: LEGACY_OID,
+      patchOid: OID,
       schema: 2,
     });
     const decoded = decodePatchMessage(encoded);
 
-    expect(decoded.patchHandle.toString()).toBe(LEGACY_OID);
-    expect(decoded.storage.strategy).toBe('legacy-git-blob');
+    expect(decoded.patchHandle.toString()).toBe(HANDLE);
+    expect(decoded.storage.strategy).toBe('git-cas-asset');
     expect(decoded.encrypted).toBe(false);
   });
 
-  it('classifies encrypted legacy locators as external storage', () => {
+  it('classifies encrypted OID-helper messages as current asset storage', () => {
     const decoded = decodePatchMessage(encodePatchMessage({
-      graph: 'legacy-events',
+      graph: 'events',
       writer: 'writer-1',
       lamport: 1,
-      patchOid: LEGACY_OID,
+      patchOid: OID,
       encrypted: true,
     }));
 
     expect(decoded.storage).toMatchObject({
-      strategy: 'legacy-external-storage',
+      strategy: 'git-cas-asset',
       encrypted: true,
     });
   });
@@ -198,7 +199,7 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       graph: 'events',
       writer: 'writer-1',
       lamport: 0,
-      patchOid: LEGACY_OID,
+      patchOid: OID,
     })).toThrow(/positive integer/u);
     expect(() => codec.encodeCheckpoint({
       kind: 'checkpoint',
@@ -212,7 +213,7 @@ describe('TrailerCommitMessageCodecAdapter', () => {
 
   it('rejects locator/type mismatches and missing required trailers', () => {
     expect(() => codec.decodePatch('warp:patch\n\neg-kind: patch\n'))
-      .toThrow(/missing required trailer/u);
+      .toThrow(/current git-cas asset storage trailers/u);
     expect(() => codec.decodeCheckpoint(codec.encodeAnchor({
       kind: 'anchor',
       graph: 'events',

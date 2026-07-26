@@ -8,7 +8,8 @@ The migration has four boundaries:
 
 1. Inventory every graph ref and every writer commit without writing.
 2. Recreate the graph in a disposable repository, translating legacy patch
-   trailers and raw content OIDs into explicit git-cas asset handles.
+   trailers and raw content OIDs into explicit git-cas asset handles while
+   preserving current audit, intent, strand, overlay, braid, and trust refs.
 3. Build a current checkpoint, prove a public v19 read, and prove a disposable
    v19 append.
 4. Recheck source heads and atomically promote all verified refs while retaining
@@ -16,6 +17,11 @@ The migration has four boundaries:
 
 The default command stops after boundary 3. `--apply` explicitly enables
 boundary 4.
+
+Preserved refs must already target publication commits. A blob or tree below a
+current retained-ref family is pre-v18 state; the command stops before scratch
+work and requires that older one-shot migration first. No reader for those
+retired shapes exists in production v19.
 
 The golden fixture under `fixtures/v18/retained-substrate-golden/` was produced
 with the published `@git-stunts/git-warp@18.2.1` dependency lock. It contains

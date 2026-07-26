@@ -102,6 +102,7 @@ function requireUnchangedPlan(
 function planIdentity(plan: V18MigrationPlan): unknown {
   return {
     derivedRefs: plan.derivedRefs,
+    preservedRefs: plan.preservedRefs,
     writers: plan.writers.map((writer) => ({
       head: writer.head,
       refName: writer.refName,

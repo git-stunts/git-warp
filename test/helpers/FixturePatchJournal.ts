@@ -1,3 +1,4 @@
+import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import PatchEntry from '../../src/domain/artifacts/PatchEntry.ts';
 import SyncError from '../../src/domain/errors/SyncError.ts';
 import WarpStream from '../../src/domain/stream/WarpStream.ts';
@@ -39,7 +40,7 @@ export default class FixturePatchJournal extends PatchJournalPort {
 
   override readPatch(message: PatchCommitMessage): Promise<Patch> {
     const handle = message.patchHandle.toString();
-    const patch = this.#patches[handle];
+    const patch = this.#patches[fixturePatchKey(handle)];
     if (patch === undefined) {
       throw new Error(`Fixture patch not found: ${handle}`);
     }
@@ -79,5 +80,13 @@ export default class FixturePatchJournal extends PatchJournalPort {
         }
       }
     })());
+  }
+}
+
+function fixturePatchKey(handle: string): string {
+  try {
+    return GitCasAssetHandle.parse(handle).oid;
+  } catch {
+    return handle;
   }
 }

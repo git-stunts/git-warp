@@ -47,9 +47,18 @@ describe('v18-to-v19 scratch migration', () => {
       manifestPath: MANIFEST_PATH,
       targetDirectory,
     });
+    const preservedRef = `refs/warp/${restored.manifest.graphId}/strand-overlays/fixture`;
+    const preservedHead = restored.manifest.refs[0]?.expectedHead;
+    if (preservedHead === undefined) {
+      throw new Error('authentic fixture has no writer head');
+    }
+    await v18MigrationGitText(
+      restored.repositoryPath,
+      ['update-ref', preservedRef, preservedHead],
+    );
     const sourceHeads = await readHeads(
       restored.repositoryPath,
-      restored.manifest.refs.map((ref) => ref.refName),
+      [...restored.manifest.refs.map((ref) => ref.refName), preservedRef],
     );
     const plan = await planV18ToV19Migration({
       graph: restored.manifest.graphId,
@@ -59,6 +68,7 @@ describe('v18-to-v19 scratch migration', () => {
 
     expect(plan.status).toBe('migration-required');
     expect(plan.writers.map((writer) => writer.legacyCount)).toEqual([2, 1]);
+    expect(plan.preservedRefs).toEqual({ [preservedRef]: preservedHead });
     const prepared = await prepareV18MigrationScratch({ plan });
     preparedMigrations.push(prepared);
 
@@ -66,12 +76,13 @@ describe('v18-to-v19 scratch migration', () => {
       buildCheckpointRef(restored.manifest.graphId),
     );
     expect(prepared.desiredRefs).toHaveProperty(plan.markerRef);
+    expect(prepared.desiredRefs).toHaveProperty(preservedRef, preservedHead);
     expect(Object.keys(prepared.desiredRefs)).not.toContain(
       restored.manifest.retainedState.refName,
     );
     expect(await readHeads(
       restored.repositoryPath,
-      restored.manifest.refs.map((ref) => ref.refName),
+      [...restored.manifest.refs.map((ref) => ref.refName), preservedRef],
     )).toEqual(sourceHeads);
 
     const title = await observeProperty(
@@ -105,6 +116,33 @@ describe('v18-to-v19 scratch migration', () => {
     } finally {
       await cas.close();
     }
+  });
+
+  it('blocks pre-v18 retained refs before scratch mutation', async () => {
+    const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v18-plan-'));
+    temporaryDirectories.push(targetDirectory);
+    const restored = await restoreV18RetainedSubstrateFixture({
+      manifestPath: MANIFEST_PATH,
+      targetDirectory,
+    });
+    const retiredOid = await v18MigrationGitText(
+      restored.repositoryPath,
+      ['hash-object', '-w', '--stdin'],
+      { input: 'retired audit receipt' },
+    );
+    const retiredRef = `refs/warp/${restored.manifest.graphId}/audit/retired`;
+    await v18MigrationGitText(
+      restored.repositoryPath,
+      ['update-ref', retiredRef, retiredOid],
+    );
+
+    await expect(planV18ToV19Migration({
+      graph: restored.manifest.graphId,
+      passphraseAvailable: false,
+      repositoryPath: restored.repositoryPath,
+    })).rejects.toThrow(
+      `retained ref requires a pre-v18 migration before v19: ${retiredRef} targets blob`,
+    );
   });
 });
 

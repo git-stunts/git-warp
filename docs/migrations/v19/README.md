@@ -33,6 +33,12 @@ legacy patch and content references in an isolated repository, builds a fresh
 v19 checkpoint, verifies a public v19 read, and verifies a disposable v19
 append. It leaves authoritative refs unchanged.
 
+Current v18 audit, intent, strand, overlay, braid, and trust publication refs
+are carried through unchanged and included in the compare-and-swap inventory.
+If one of those refs still targets a retired pre-v18 blob or tree shape, the
+command fails before scratch work. Run the older one-shot migration first;
+production v19 contains no fallback reader for that substrate.
+
 After the proof succeeds, rerun it with promotion enabled:
 
 ```bash
@@ -43,8 +49,8 @@ npx git-warp-v18-to-v19 \
 ```
 
 Promotion rechecks every source head and uses one Git ref transaction. The
-transaction preserves the old writer, checkpoint, coverage, and state-cache
-refs below:
+transaction preserves the old writer, checkpoint, coverage, state-cache, and
+carried publication refs below:
 
 ```text
 refs/warp/<graph>/recovery/v18-to-v19/<run-id>/

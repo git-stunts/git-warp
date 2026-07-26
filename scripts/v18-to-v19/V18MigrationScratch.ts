@@ -128,6 +128,7 @@ async function fetchPlanRefs(
   const refs = [
     ...plan.writers.map((writer) => writer.refName),
     ...Object.keys(plan.derivedRefs),
+    ...Object.keys(plan.preservedRefs),
   ];
   for (const refName of refs) {
     await v18MigrationGitText(scratchPath, [

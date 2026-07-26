@@ -63,7 +63,7 @@ describe('TrailerCommitMessageCodecAdapter storage routing', () => {
     });
 
     expect(encoded).toContain(`${TRAILER_KEYS.patchHandle}: ${patchHandle.toString()}`);
-    expect(encoded).not.toContain(`${TRAILER_KEYS.patchOid}:`);
+    expect(encoded).not.toContain('eg-patch-oid:');
     expect(adapter.decodePatch(encoded)).toEqual({
       kind: 'patch',
       graph: 'events',

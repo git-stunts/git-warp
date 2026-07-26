@@ -87,7 +87,10 @@ export async function rollbackV18Migration(options: Readonly<{
 }
 
 function sourceRefsFor(plan: V18MigrationPlan): Readonly<Record<string, string>> {
-  const refs: Record<string, string> = { ...plan.derivedRefs };
+  const refs: Record<string, string> = {
+    ...plan.derivedRefs,
+    ...plan.preservedRefs,
+  };
   for (const writer of plan.writers) {
     refs[writer.refName] = writer.head;
   }

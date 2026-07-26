@@ -437,9 +437,9 @@ describe('WarpCore', () => {
 
       persistence.listRefs.mockResolvedValue([]);
 
-      persistence.showNode.mockResolvedValue(
-        `warp:patch\n\neg-kind: patch\neg-graph: test-graph\neg-writer: writer1\neg-lamport: 7\neg-patch-oid: ${existingPatchOid}\neg-schema: 2`
-      );
+      persistence.showNode.mockResolvedValue(encodePatchMessage(
+        { graph: 'test-graph', writer: 'writer1', lamport: 7, patchOid: existingPatchOid, schema: 2 },
+      ));
 
       const graph = await openRuntimeHostProduct({
         persistence,

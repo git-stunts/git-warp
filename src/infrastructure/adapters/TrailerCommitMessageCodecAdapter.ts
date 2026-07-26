@@ -30,7 +30,6 @@ export const TRAILER_KEYS = Object.freeze({
   graph: 'eg-graph',
   writer: 'eg-writer',
   lamport: 'eg-lamport',
-  patchOid: 'eg-patch-oid',
   patchHandle: 'eg-patch-handle',
   stateHash: 'eg-state-hash',
   frontierOid: 'eg-frontier-oid',

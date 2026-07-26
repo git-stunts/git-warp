@@ -32,6 +32,7 @@ export type V18MigrationPlan = Readonly<{
   derivedRefs: Readonly<Record<string, string>>;
   graph: string;
   markerRef: string;
+  preservedRefs: Readonly<Record<string, string>>;
   repositoryPath: string;
   status: 'current' | 'empty' | 'migration-required';
   writers: readonly V18MigrationWriterPlan[];
@@ -50,10 +51,10 @@ export async function planV18ToV19Migration(options: Readonly<{
   const markerOid = await readV18MigrationRef(options.repositoryPath, markerRef);
   if (markerOid !== null) {
     await requireCurrentMarker(options.repositoryPath, markerOid);
-    return migrationPlan(options, markerRef, 'current', {}, []);
+    return migrationPlan(options, markerRef, 'current', {}, {}, []);
   }
   if (refs.length === 0) {
-    return migrationPlan(options, markerRef, 'empty', {}, []);
+    return migrationPlan(options, markerRef, 'empty', {}, {}, []);
   }
 
   const writerPrefix = buildWritersPrefix(options.graph);
@@ -63,8 +64,17 @@ export async function planV18ToV19Migration(options: Readonly<{
     buildStateCacheRef(options.graph),
   ]);
   const recoveryPrefix = `${graphPrefix}recovery/`;
+  const preservedPrefixes = [
+    `${graphPrefix}audit/`,
+    `${graphPrefix}intents/`,
+    `${graphPrefix}strand-braids/`,
+    `${graphPrefix}strand-overlays/`,
+    `${graphPrefix}strands/`,
+    `${graphPrefix}trust/`,
+  ];
   const writerRefs: string[] = [];
   const derivedRefs: Record<string, string> = {};
+  const preservedRefs: Record<string, string> = {};
   for (const refName of refs) {
     if (refName.startsWith(writerPrefix)) {
       writerRefs.push(refName);
@@ -72,6 +82,10 @@ export async function planV18ToV19Migration(options: Readonly<{
     }
     if (derivedNames.has(refName)) {
       derivedRefs[refName] = await requireRef(options.repositoryPath, refName);
+      continue;
+    }
+    if (preservedPrefixes.some((prefix) => refName.startsWith(prefix))) {
+      preservedRefs[refName] = await requireCommitRef(options.repositoryPath, refName);
       continue;
     }
     if (!refName.startsWith(recoveryPrefix)) {
@@ -93,6 +107,7 @@ export async function planV18ToV19Migration(options: Readonly<{
     markerRef,
     'migration-required',
     derivedRefs,
+    preservedRefs,
     writers,
   );
 }
@@ -175,17 +190,30 @@ async function requireRef(repositoryPath: string, refName: string): Promise<stri
   return oid;
 }
 
+async function requireCommitRef(repositoryPath: string, refName: string): Promise<string> {
+  const oid = await requireRef(repositoryPath, refName);
+  const objectType = await v18MigrationGitText(repositoryPath, ['cat-file', '-t', oid]);
+  if (objectType !== 'commit') {
+    throw new Error(
+      `retained ref requires a pre-v18 migration before v19: ${refName} targets ${objectType}`,
+    );
+  }
+  return oid;
+}
+
 function migrationPlan(
   options: Readonly<{ graph: string; repositoryPath: string }>,
   markerRef: string,
   status: V18MigrationPlan['status'],
   derivedRefs: Readonly<Record<string, string>>,
+  preservedRefs: Readonly<Record<string, string>>,
   writers: readonly V18MigrationWriterPlan[],
 ): V18MigrationPlan {
   return Object.freeze({
     derivedRefs: Object.freeze({ ...derivedRefs }),
     graph: options.graph,
     markerRef,
+    preservedRefs: Object.freeze({ ...preservedRefs }),
     repositoryPath: options.repositoryPath,
     status,
     writers: Object.freeze([...writers]),

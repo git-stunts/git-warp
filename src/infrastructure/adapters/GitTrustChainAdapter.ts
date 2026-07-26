@@ -2,7 +2,7 @@
  * Git-backed trust chain adapter.
  *
  * Uses git-cas assets and causal publications for writes, with plumbing
- * restricted to commit-chain traversal and legacy reads.
+ * restricted to commit-chain traversal.
  *
  * Handles all encoding/decoding at the boundary:
  * - On READ: CBOR decode, recordId hash verification, signaturePayload
@@ -23,10 +23,6 @@ import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import { buildTrustRecordRef } from '../../domain/utils/RefLayout.ts';
 import TrustError from '../../domain/errors/TrustError.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
-import {
-  CURRENT_SUBSTRATE_ONLY_POLICY,
-  type SubstrateCompatibilityPolicyValue,
-} from './SubstrateCompatibilityPolicy.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type {
   AssetCapability,
@@ -67,7 +63,6 @@ type GitTrustChainDeps = {
   readonly crypto: CryptoPort;
   readonly cas: CasStore;
   readonly cbor: CborCodecInstance;
-  readonly compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
 };
 
 // -- Plumbing helpers ---------------------------------------------------------
@@ -111,38 +106,6 @@ async function readCommitInfo(plumbing: Plumbing, commitSha: string): Promise<Co
   return { treeSha, parents };
 }
 
-async function readTreeEntries(
-  plumbing: Plumbing,
-  treeSha: string,
-): Promise<Map<string, string>> {
-  const raw = await plumbing.execute({ args: ['ls-tree', treeSha] });
-  const entries = new Map<string, string>();
-  for (const line of raw.trim().split('\n')) {
-    if (line.length === 0) {
-      continue;
-    }
-    const tabIdx = line.indexOf('\t');
-    if (tabIdx < 0) {
-      throw malformedTrustTreeEntry(line);
-    }
-    const name = line.slice(tabIdx + 1);
-    const parts = line.slice(0, tabIdx).split(' ');
-    const oid = parts[2] ?? '';
-    if (name.length === 0 || parts.length !== 3 || oid.length === 0) {
-      throw malformedTrustTreeEntry(line);
-    }
-    entries.set(name, oid);
-  }
-  return entries;
-}
-
-function malformedTrustTreeEntry(entry: string): TrustError {
-  return new TrustError('Malformed legacy trust tree entry', {
-    code: 'E_TRUST_LEGACY_TREE_INVALID',
-    context: { entry },
-  });
-}
-
 // -- Hash helpers (boundary concern) ------------------------------------------
 
 async function computeRecordIdHash(
@@ -169,7 +132,6 @@ export default class GitTrustChainAdapter extends TrustChainPort {
   private readonly _crypto: CryptoPort;
   private readonly _cas: CasStore;
   private readonly _cbor: CborCodecInstance;
-  private readonly _compatibilityPolicy: SubstrateCompatibilityPolicyValue;
 
   constructor(deps: GitTrustChainDeps) {
     super();
@@ -177,7 +139,6 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     this._crypto = deps.crypto;
     this._cas = deps.cas;
     this._cbor = deps.cbor;
-    this._compatibilityPolicy = deps.compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
   }
 
   // -- Port implementation: readTip -------------------------------------------
@@ -195,27 +156,10 @@ export default class GitTrustChainAdapter extends TrustChainPort {
 
   private async _readRecordIdFromCommit(commitSha: string): Promise<string | null> {
     const info = await readCommitInfo(this._plumbing, commitSha);
-    try {
-      const decoded = this._cbor.decode(await this._readAssetTree(info.treeSha)) as Record<string, string>;
-      return decoded['recordId'] ?? null;
-    } catch (error) {
-      rethrowUnlessLegacyTrustTree(error);
-      this._requireLegacyTrustRecordPolicy(commitSha);
-      const entries = await readTreeEntries(this._plumbing, info.treeSha);
-      return await this._readRecordIdRawFallback(
-        requireLegacyRecordBlob(entries, commitSha),
-      );
-    }
-  }
-
-  private async _readRecordIdRawFallback(blobOid: string): Promise<string | null> {
-    try {
-      const raw = await this._plumbing.execute({ args: ['cat-file', 'blob', blobOid] });
-      const decoded = this._cbor.decode(Buffer.from(raw, 'binary')) as Record<string, string>;
-      return decoded['recordId'] ?? null;
-    } catch {
-      return null;
-    }
+    const decoded = this._cbor.decode(
+      await this._readAssetTree(info.treeSha),
+    ) as Record<string, string>;
+    return decoded['recordId'] ?? null;
   }
 
   // -- Port implementation: readRecords (streaming) ---------------------------
@@ -250,18 +194,9 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     const info = await readCommitInfo(this._plumbing, commitSha);
     const cbor = this._cbor;
 
-    let rawRecord: Record<string, string | number | boolean | null | object>;
-
-    try {
-      rawRecord = cbor.decode(await this._readAssetTree(info.treeSha)) as typeof rawRecord;
-    } catch (error) {
-      rethrowUnlessLegacyTrustTree(error);
-      this._requireLegacyTrustRecordPolicy(commitSha);
-      const entries = await readTreeEntries(this._plumbing, info.treeSha);
-      const blobOid = requireLegacyRecordBlob(entries, commitSha);
-      const raw = await this._plumbing.execute({ args: ['cat-file', 'blob', blobOid] });
-      rawRecord = cbor.decode(Buffer.from(raw, 'binary')) as typeof rawRecord;
-    }
+    const rawRecord = cbor.decode(
+      await this._readAssetTree(info.treeSha),
+    ) as Record<string, string | number | boolean | null | object>;
 
     // Verify recordId at boundary
     const expectedId = await computeRecordIdHash(rawRecord, this._crypto);
@@ -288,16 +223,6 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       signature: rawRecord['signature'] as { readonly alg: string; readonly sig: string },
       signaturePayload: sigPayload,
     });
-  }
-
-  private _requireLegacyTrustRecordPolicy(commitSha: string): void {
-    if (this._compatibilityPolicy.legacyTrustRecordBlobReads) {
-      return;
-    }
-    throw new TrustError(
-      `Legacy trust record blob reads require the substrate migration compatibility policy: ${commitSha}`,
-      { code: 'E_LEGACY_SUBSTRATE_DISABLED', context: { commitSha } },
-    );
   }
 
   private async _readAssetTree(treeOid: string): Promise<Uint8Array> {
@@ -377,31 +302,5 @@ export default class GitTrustChainAdapter extends TrustChainPort {
         },
       },
     );
-  }
-}
-
-function requireLegacyRecordBlob(
-  entries: ReadonlyMap<string, string>,
-  commitSha: string,
-): string {
-  const blobOid = entries.get(RECORD_BLOB_NAME);
-  if (entries.size === 1 && blobOid !== undefined && blobOid.length > 0) {
-    return blobOid;
-  }
-  throw new TrustError(
-    `Legacy trust record tree is malformed: ${commitSha}`,
-    {
-      code: 'E_TRUST_LEGACY_TREE_INVALID',
-      context: {
-        commitSha,
-        paths: [...entries.keys()].sort(),
-      },
-    },
-  );
-}
-
-function rethrowUnlessLegacyTrustTree(error: unknown): void {
-  if (readGitCasErrorCode(error) !== 'MANIFEST_NOT_FOUND') {
-    throw error;
   }
 }

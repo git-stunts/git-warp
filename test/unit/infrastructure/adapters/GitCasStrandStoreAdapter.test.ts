@@ -6,13 +6,10 @@ import GitCasStrandStoreAdapter from '../../../../src/infrastructure/adapters/Gi
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
-import {
-  V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
-} from '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts';
 
 const encoder = new TextEncoder();
 
-function createFixture(options: { readonly compatibility?: boolean } = {}) {
+function createFixture() {
   const history = new InMemoryGraphAdapter();
   const backing = new InMemoryBlobStorageAdapter();
   const cas = new InMemoryGitCasFacade({ history, storage: backing });
@@ -21,9 +18,6 @@ function createFixture(options: { readonly compatibility?: boolean } = {}) {
     history,
     cas,
     assets,
-    ...(options.compatibility === true
-      ? { compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY }
-      : {}),
   });
   return { assets, backing, cas, history, strands };
 }
@@ -77,25 +71,16 @@ describe('GitCasStrandStoreAdapter', () => {
     expect(await strands.hasDescriptor('events', 'alpha')).toBe(false);
   });
 
-  it('reads legacy refs that point directly to descriptor blobs', async () => {
-    const { assets, cas, history, strands } = createFixture();
+  it('rejects descriptor refs that point directly to blobs', async () => {
+    const { history, strands } = createFixture();
     const readObjectType = vi.spyOn(history, 'readObjectType');
     const readBlob = vi.spyOn(history, 'readBlob');
-    const bytes = encoder.encode('legacy descriptor');
-    const blob = await history.writeBlob(bytes);
-    await history.updateRef(buildStrandRef('events', 'legacy'), blob);
+    const blob = await history.writeBlob(encoder.encode('retired descriptor'));
+    await history.updateRef(buildStrandRef('events', 'retired'), blob);
 
-    await expect(strands.readDescriptor('events', 'legacy'))
-      .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+    await expect(strands.readDescriptor('events', 'retired'))
+      .rejects.toMatchObject({ code: 'E_STRAND_CORRUPT' });
     expect(readBlob).not.toHaveBeenCalled();
-
-    const compatible = new GitCasStrandStoreAdapter({
-      history,
-      cas,
-      assets,
-      compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
-    });
-    await expect(compatible.readDescriptor('events', 'legacy')).resolves.toEqual(bytes);
     expect(readObjectType).toHaveBeenCalledWith(blob);
     await expect(strands.readDescriptor('events', 'missing')).resolves.toBeNull();
   });
@@ -120,21 +105,17 @@ describe('GitCasStrandStoreAdapter', () => {
     await expect(history.readRef(ref)).resolves.toBe(replacement);
   });
 
-  it('replaces a legacy blob ref without treating the blob as a commit parent', async () => {
+  it('refuses to publish over a non-commit descriptor head', async () => {
     const { history, strands } = createFixture();
-    const blob = await history.writeBlob(encoder.encode('legacy descriptor'));
-    await history.updateRef(buildStrandRef('events', 'legacy'), blob);
+    const blob = await history.writeBlob(encoder.encode('retired descriptor'));
+    await history.updateRef(buildStrandRef('events', 'retired'), blob);
 
-    const published = await strands.publishDescriptor({
+    await expect(strands.publishDescriptor({
       graphName: 'events',
-      strandId: 'legacy',
+      strandId: 'retired',
       descriptor: encoder.encode('current descriptor'),
       attachments: [],
-    });
-
-    await expect(history.getNodeInfo(published.revision)).resolves.toMatchObject({
-      parents: [],
-    });
+    })).rejects.toMatchObject({ code: 'E_STRAND_CORRUPT' });
   });
 
   it('rejects descriptor refs targeting unsupported object types', async () => {

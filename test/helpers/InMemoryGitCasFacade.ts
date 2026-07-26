@@ -42,6 +42,8 @@ type PublicationHistory = {
   readObjectType(oid: string): Promise<string>;
 };
 
+type FixtureAssetReader = (oid: string) => Promise<Uint8Array | null>;
+
 const BUNDLE_LIMITS = Object.freeze({
   maxMembers: 100_000,
   maxMemberPathBytes: 4_096,
@@ -90,6 +92,7 @@ export default class InMemoryGitCasFacade {
 
   readonly #history: PublicationHistory;
   readonly #storage: InMemoryBlobStorageAdapter;
+  readonly #fixtureAssetReader: FixtureAssetReader | null;
   readonly #stagedAssetsByOid = new Map<string, StagedAsset>();
   readonly #bundleMembers = new Map<string, readonly [string, string][]>();
   readonly #cacheAcquisitions = new Set<string>();
@@ -105,9 +108,11 @@ export default class InMemoryGitCasFacade {
   constructor(options: {
     history: PublicationHistory;
     storage: InMemoryBlobStorageAdapter;
+    fixtureAssetReader?: FixtureAssetReader;
   }) {
     this.#history = options.history;
     this.#storage = options.storage;
+    this.#fixtureAssetReader = options.fixtureAssetReader ?? null;
     this.assets = Object.freeze({
       put: async (request) => await this.#putAsset(request),
       adopt: async ({ treeOid }) => await this.#adoptAsset(treeOid),
@@ -244,9 +249,19 @@ export default class InMemoryGitCasFacade {
   }
 
   async #readStoredAsset(handle: GitCasAssetHandle): Promise<Uint8Array> {
-    return await this.#storage.retrieve(handle.toString()).catch(
-      async () => await this.#storage.retrieve(handle.oid),
-    );
+    try {
+      return await this.#storage.retrieve(handle.toString());
+    } catch {
+      try {
+        return await this.#storage.retrieve(handle.oid);
+      } catch (storageError) {
+        const fixtureBytes = await this.#fixtureAssetReader?.(handle.oid) ?? null;
+        if (fixtureBytes !== null) {
+          return fixtureBytes;
+        }
+        throw storageError;
+      }
+    }
   }
 
   async #putBundle(
