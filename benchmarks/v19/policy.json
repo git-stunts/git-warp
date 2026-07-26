@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "wallTime": "diagnostic",
+  "absolute": {
+    "cpuTotalMedianMs": {
+      "cold-materialize": 180000,
+      "warm-materialize": 30000,
+      "incremental-materialize": 180000
+    }
+  },
+  "relative": {
+    "cpuNoiseFloorMs": {
+      "cold-materialize": 250,
+      "warm-materialize": 50,
+      "incremental-materialize": 250
+    },
+    "cpuRegressionRatio": 1.15
+  }
+}
