@@ -1,0 +1,14 @@
+{
+  "name": "git-warp-v18-medium-fixture-generator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node generate.mjs"
+  },
+  "dependencies": {
+    "@git-stunts/git-cas": "6.0.0",
+    "@git-stunts/git-warp": "18.2.1",
+    "@git-stunts/plumbing": "3.0.3"
+  }
+}

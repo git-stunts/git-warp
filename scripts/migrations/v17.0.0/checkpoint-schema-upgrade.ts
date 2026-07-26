@@ -6,7 +6,6 @@ import {
 } from '../../../src/domain/services/state/checkpointHelpers.ts';
 import { deserializeFullState } from '../../../src/domain/services/state/CheckpointSerializer.ts';
 import { deserializeFrontier } from '../../../src/domain/services/Frontier.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.ts';
@@ -26,6 +25,9 @@ import LegacyCheckpointStorageReader, {
 } from './LegacyCheckpointStorageReader.ts';
 import CheckpointSchemaUpgradeError from './CheckpointSchemaUpgradeError.ts';
 import { retainMigratedCheckpoint } from './CheckpointMaterializationMigration.ts';
+import {
+  decodeCheckpointMigrationMessage,
+} from './LegacyCheckpointCommitMessageCodec.ts';
 export { default as CheckpointSchemaUpgradeError } from './CheckpointSchemaUpgradeError.ts';
 const RETIRED_CHECKPOINT_SCHEMAS = [4] as const;
 type UpgradeStatus = 'missing-checkpoint' | 'already-current' | 'would-upgrade' | 'upgraded';
@@ -72,7 +74,6 @@ export interface CheckpointUpgradePayload {
 export async function upgradeCheckpointSchema(
   options: CheckpointSchemaUpgradeOptions,
 ): Promise<CheckpointSchemaUpgradeResult> {
-  const commitMessageCodec = options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
   const codec = options.codec ?? defaultCodec;
   const checkpointStore = options.checkpointStore;
   const checkpointRef = buildCheckpointRef(options.graphName);
@@ -92,9 +93,12 @@ export async function upgradeCheckpointSchema(
     };
   }
 
-  const checkpointMessage = commitMessageCodec.decodeCheckpoint(
-    await options.persistence.showNode(previousCheckpointSha),
+  const checkpointMessageText = await options.persistence.showNode(
+    previousCheckpointSha,
   );
+  const checkpointMessage = options.commitMessageCodec === undefined
+    ? decodeCheckpointMigrationMessage(checkpointMessageText)
+    : options.commitMessageCodec.decodeCheckpoint(checkpointMessageText);
 
   if (isCurrentCheckpointSchema(checkpointMessage.schema)
     && hasCurrentCheckpointStorage(checkpointMessage)) {
@@ -124,9 +128,8 @@ export async function upgradeCheckpointSchema(
   const payload = isCurrentCheckpointSchema(checkpointMessage.schema)
     ? await new LegacyCheckpointStorageReader({
         persistence: options.persistence,
-        checkpointStore,
         assetStorage: options.assetStorage,
-        graphName: options.graphName,
+        codec,
       }).load(previousCheckpointSha)
     : await loadRetiredCheckpointPayload({
         persistence: options.persistence,

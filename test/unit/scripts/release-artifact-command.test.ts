@@ -41,7 +41,7 @@ function runNpmCommand(
 
 function runNpmPackDryRun(): string {
   runNpmCommand(['run', 'build', '--silent']);
-  return runNpmCommand(['pack', '--dry-run', '--ignore-scripts']);
+  return runNpmCommand(['pack', '--dry-run', '--ignore-scripts', '--no-json']);
 }
 
 function packEntries(output: string): ReadonlySet<string> {

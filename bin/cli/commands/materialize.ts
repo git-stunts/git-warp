@@ -73,7 +73,7 @@ export default async function handleMaterialize({ options }: { options: CliOptio
   let cursorWarningEmitted = false;
   for (const name of targets) {
     try {
-      const cursorStore = createSeekCursorStore(runtimeStorage, name);
+      const cursorStore = await createSeekCursorStore(runtimeStorage, name);
       const cursor = await readActiveCursor(cursorStore);
       const ceiling = cursor ? cursor.tick : undefined;
       if (cursor && !cursorWarningEmitted) {

@@ -150,7 +150,9 @@ describe('WarpMessageCodec schema v3', () => {
       expect(decoded.graph).toBe('events');
       expect(decoded.writer).toBe('node-1');
       expect(decoded.lamport).toBe(42);
-      expect(decoded.patchHandle.toString()).toBe(VALID_OID_SHA1);
+      expect(decoded.patchHandle.toString()).toBe(
+        `git-cas:1:asset:manifest-tree:cbor:sha1:${VALID_OID_SHA1}`,
+      );
       expect(decoded.schema).toBe(3);
     });
 
@@ -187,7 +189,9 @@ describe('WarpMessageCodec schema v3', () => {
       expect(decoded.graph).toBe(original.graph);
       expect(decoded.writer).toBe(original.writer);
       expect(decoded.lamport).toBe(original.lamport);
-      expect(decoded.patchHandle.toString()).toBe(original.patchOid);
+      expect(decoded.patchHandle.toString()).toBe(
+        `git-cas:1:asset:manifest-tree:cbor:sha1:${original.patchOid}`,
+      );
       expect(decoded.schema).toBe(3);
     });
 
@@ -207,7 +211,9 @@ describe('WarpMessageCodec schema v3', () => {
       expect(decoded.graph).toBe(original.graph);
       expect(decoded.writer).toBe(original.writer);
       expect(decoded.lamport).toBe(original.lamport);
-      expect(decoded.patchHandle.toString()).toBe(original.patchOid);
+      expect(decoded.patchHandle.toString()).toBe(
+        `git-cas:1:asset:manifest-tree:cbor:sha1:${original.patchOid}`,
+      );
       expect(decoded.schema).toBe(2);
     });
   });
@@ -251,31 +257,30 @@ describe('WarpMessageCodec schema v3', () => {
   });
 
   describe('checkpoint message with schema v3', () => {
-    it('encodes a schema v3 checkpoint with v5 checkpoint version', () => {
+    it('encodes a schema v3 checkpoint with v19 checkpoint version', () => {
       const message = encodeCheckpointMessage({
         graph: 'events',
         stateHash: VALID_STATE_HASH,
-        frontierOid: VALID_OID_SHA1,
-        indexOid: VALID_OID_SHA1,
+        bundleHandle: `bundle:${VALID_OID_SHA1}`,
         schema: 3,
       });
 
       expect(message).toContain('eg-schema: 3');
-      expect(message).toContain('eg-checkpoint: v5');
+      expect(message).toContain('eg-checkpoint: v19');
+      expect(message).toContain(`eg-checkpoint-handle: bundle:${VALID_OID_SHA1}`);
     });
 
     it('decodes a schema v3 checkpoint', () => {
       const encoded = encodeCheckpointMessage({
         graph: 'events',
         stateHash: VALID_STATE_HASH,
-        frontierOid: VALID_OID_SHA1,
-        indexOid: VALID_OID_SHA1,
+        bundleHandle: `bundle:${VALID_OID_SHA1}`,
         schema: 3,
       });
 
       const decoded = decodeCheckpointMessage(encoded);
       expect(decoded.schema).toBe(3);
-      expect(decoded.checkpointVersion).toBe('v5');
+      expect(decoded.checkpointVersion).toBe('v19');
     });
   });
 
@@ -308,8 +313,7 @@ describe('WarpMessageCodec schema v3', () => {
       const message = encodeCheckpointMessage({
         graph: 'events',
         stateHash: VALID_STATE_HASH,
-        frontierOid: VALID_OID_SHA1,
-        indexOid: VALID_OID_SHA1,
+        bundleHandle: `bundle:${VALID_OID_SHA1}`,
         schema: 3,
       });
       expect(detectMessageKind(message)).toBe('checkpoint');

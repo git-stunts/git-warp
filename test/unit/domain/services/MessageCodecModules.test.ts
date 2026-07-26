@@ -68,8 +68,7 @@ describe('message codec modules', () => {
     const checkpointMessage = encodeCheckpointMessage({
       graph: 'events',
       stateHash: STATE_HASH,
-      frontierOid: OID,
-      indexOid: OID,
+      bundleHandle: `bundle:${OID}`,
       schema: 3,
     });
     const anchorMessage = encodeAnchorMessage({ graph: 'events', schema: 3 });
@@ -83,7 +82,9 @@ describe('message codec modules', () => {
       schema: 3,
     });
     expect(decodedPatch.patchHandle).toBeInstanceOf(AssetHandle);
-    expect(decodedPatch.patchHandle.toString()).toBe(OID);
+    expect(decodedPatch.patchHandle.toString()).toBe(
+      `git-cas:1:asset:manifest-tree:cbor:sha1:${OID}`,
+    );
     expect('patchOid' in decodedPatch).toBe(false);
     expect(decodeCheckpointMessage(checkpointMessage)).toMatchObject({
       kind: 'checkpoint',

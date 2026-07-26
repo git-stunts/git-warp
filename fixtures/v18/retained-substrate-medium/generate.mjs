@@ -1,0 +1,122 @@
+import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import process from 'node:process';
+import { fileURLToPath, URL } from 'node:url';
+
+import {
+  GitGraphAdapter,
+  openWarpWorldline,
+  WarpCore,
+} from '@git-stunts/git-warp';
+import GitPlumbing from '@git-stunts/plumbing';
+
+const EXPECTED_PACKAGES = Object.freeze({
+  '@git-stunts/git-cas': '6.0.0',
+  '@git-stunts/git-warp': '18.2.1',
+  '@git-stunts/plumbing': '3.0.3',
+});
+const lock = JSON.parse(await readFile(new URL('./package-lock.json', import.meta.url), 'utf8'));
+for (const [packageName, expectedVersion] of Object.entries(EXPECTED_PACKAGES)) {
+  const lockedVersion = lock.packages?.[`node_modules/${packageName}`]?.version;
+  if (lockedVersion !== expectedVersion) {
+    throw new Error(
+      `fixture lock mismatch for ${packageName}: expected ${expectedVersion}, `
+        + `got ${String(lockedVersion)}`,
+    );
+  }
+}
+
+const repositoryPath = fileURLToPath(new URL('./repository/', import.meta.url));
+const graph = 'v18-medium-retained-substrate';
+const plumbing = await GitPlumbing.createDefault({ cwd: repositoryPath });
+const persistence = new GitGraphAdapter({ plumbing });
+
+process.env.GIT_AUTHOR_NAME = 'Git Warp Fixture';
+process.env.GIT_AUTHOR_EMAIL = 'fixture@git-warp.local';
+process.env.GIT_AUTHOR_DATE = '2026-01-01T00:00:00Z';
+process.env.GIT_COMMITTER_NAME = 'Git Warp Fixture';
+process.env.GIT_COMMITTER_EMAIL = 'fixture@git-warp.local';
+process.env.GIT_COMMITTER_DATE = '2026-01-01T00:00:00Z';
+
+const alice = await openWarpWorldline({
+  persistence,
+  worldlineName: graph,
+  writerId: 'medium-alice',
+});
+for (let index = 0; index < 14; index += 1) {
+  const nodeId = `medium:document:${String(index).padStart(3, '0')}`;
+  await alice.commit(async (patch) => {
+    patch.addNode(nodeId).setProperty(nodeId, 'ordinal', index);
+    await patch.attachContent(nodeId, deterministicBytes(index, 128 * 1024), {
+      mime: 'application/octet-stream',
+    });
+  });
+}
+
+const bob = await openWarpWorldline({
+  persistence,
+  worldlineName: graph,
+  writerId: 'medium-bob',
+});
+for (let index = 0; index < 1; index += 1) {
+  const nodeId = `medium:review:${String(index).padStart(2, '0')}`;
+  await bob.commit((patch) => {
+    patch.addNode(nodeId).setProperty(nodeId, 'reviewed', true);
+  });
+}
+
+await alice
+  .live()
+  .query()
+  .match('medium:document:000')
+  .select(['id'])
+  .run();
+const checkpointGraph = await WarpCore.open({
+  persistence,
+  graphName: graph,
+  stateCache: null,
+  writerId: 'medium-alice',
+});
+await checkpointGraph.materialize();
+await checkpointGraph.createCheckpoint();
+
+for (let index = 14; index < 16; index += 1) {
+  const nodeId = `medium:document:${String(index).padStart(3, '0')}`;
+  await alice.commit(async (patch) => {
+    patch.addNode(nodeId).setProperty(nodeId, 'ordinal', index);
+    await patch.attachContent(nodeId, deterministicBytes(index, 128 * 1024), {
+      mime: 'application/octet-stream',
+    });
+  });
+}
+await bob.commit((patch) => {
+  patch
+    .addNode('medium:review:01')
+    .setProperty('medium:review:01', 'reviewed', true);
+});
+await alice
+  .live()
+  .query()
+  .match('medium:document:015')
+  .select(['id'])
+  .run();
+
+if (typeof plumbing.close === 'function') {
+  await plumbing.close();
+}
+
+function deterministicBytes(seed, byteLength) {
+  const output = Buffer.alloc(byteLength);
+  let offset = 0;
+  let block = 0;
+  while (offset < output.length) {
+    const digest = createHash('sha256')
+      .update(`git-warp-v18-medium-fixture:${String(seed)}:${String(block)}`)
+      .digest();
+    digest.copy(output, offset);
+    offset += digest.length;
+    block += 1;
+  }
+  return output;
+}

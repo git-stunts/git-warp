@@ -101,6 +101,9 @@ describe('GitCasMaterializationStoreAdapter lifecycle', () => {
         put: async () => {
           throw promotionFailure;
         },
+        putBatch: async () => {
+          throw promotionFailure;
+        },
       },
       bundles: staging.bundles,
       checkpoint: async (options) => await staging.checkpoint(options),

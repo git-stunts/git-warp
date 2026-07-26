@@ -11,9 +11,6 @@ import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 import GitTrustChainAdapter from '../../../../src/infrastructure/adapters/GitTrustChainAdapter.ts';
 import CryptoPort from '../../../../src/ports/CryptoPort.ts';
 import TrustChainPort from '../../../../src/ports/TrustChainPort.ts';
-import {
-  V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
-} from '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts';
 
 const GRAPH = 'test-graph';
 const TIP = 'a'.repeat(40);
@@ -231,70 +228,19 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
     await expect(adapter.readTip(GRAPH)).rejects.toBe(corruption);
   });
 
-  it('reads an explicitly allowed legacy trust-record blob', async () => {
-    adapter = new GitTrustChainAdapter({
-      plumbing,
-      crypto: new TestCrypto(),
-      cas,
-      cbor: codec,
-      compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
-    });
-    cas.assets.adopt.mockRejectedValue(
-      Object.assign(new Error('not an asset tree'), { code: 'MANIFEST_NOT_FOUND' }),
+  it('preserves missing current asset manifests', async () => {
+    const missingManifest = Object.assign(
+      new Error('asset manifest not found'),
+      { code: 'MANIFEST_NOT_FOUND' },
     );
+    cas.assets.adopt.mockRejectedValue(missingManifest);
     plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
       if (args[0] === 'rev-parse') return TIP;
       if (args[0] === 'cat-file' && args[1] === '-p') return `tree ${TREE}\n\nmessage`;
-      if (args[0] === 'ls-tree') {
-        return `100644 blob ${HANDLE.oid}\trecord.cbor\n`;
-      }
-      if (args[0] === 'cat-file' && args[1] === 'blob') {
-        return Buffer.from(codec.encode(recordObject)).toString('binary');
-      }
       return '';
     });
 
-    await expect(adapter.readTip(GRAPH)).resolves.toEqual({
-      tipSha: TIP,
-      recordId: 'expected-record-id-hash',
-    });
-    const records: TrustRecord[] = [];
-    for await (const record of adapter.readRecords(GRAPH, TIP)) {
-      records.push(record);
-    }
-    expect(records).toHaveLength(1);
-    expect(records[0]?.recordId).toBe('expected-record-id-hash');
-  });
-
-  it('rejects malformed legacy trees and returns null for undecodable legacy records', async () => {
-    adapter = new GitTrustChainAdapter({
-      plumbing,
-      crypto: new TestCrypto(),
-      cas,
-      cbor: codec,
-      compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
-    });
-    cas.assets.adopt.mockRejectedValue(
-      Object.assign(new Error('not an asset tree'), { code: 'MANIFEST_NOT_FOUND' }),
-    );
-    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
-      if (args[0] === 'rev-parse') return TIP;
-      if (args[0] === 'cat-file' && args[1] === '-p') return `tree ${TREE}\n\nmessage`;
-      if (args[0] === 'ls-tree') return `100644 blob ${HANDLE.oid}\tother.cbor`;
-      return '';
-    });
-    await expect(adapter.readTip(GRAPH)).rejects.toMatchObject({
-      code: 'E_TRUST_LEGACY_TREE_INVALID',
-    });
-
-    plumbing.execute.mockImplementation(async ({ args }: { args: string[] }) => {
-      if (args[0] === 'rev-parse') return TIP;
-      if (args[0] === 'cat-file' && args[1] === '-p') return `tree ${TREE}\n\nmessage`;
-      if (args[0] === 'ls-tree') return `100644 blob ${HANDLE.oid}\trecord.cbor`;
-      if (args[0] === 'cat-file' && args[1] === 'blob') return 'not cbor';
-      return '';
-    });
-    await expect(adapter.readTip(GRAPH)).resolves.toEqual({ tipSha: TIP, recordId: null });
+    await expect(adapter.readTip(GRAPH)).rejects.toBe(missingManifest);
   });
 
   it('rejects tampered record IDs and yields no records for a missing ref', async () => {

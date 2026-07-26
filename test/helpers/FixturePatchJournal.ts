@@ -10,6 +10,7 @@ import type {
   AppendPatchRequest,
   PublishedPatch,
 } from '../../src/ports/PatchJournalPort.ts';
+import { fixturePatchKey } from './FixturePatchKey.ts';
 
 export type FixturePatchCommit = Readonly<{
   message: string;
@@ -39,7 +40,7 @@ export default class FixturePatchJournal extends PatchJournalPort {
 
   override readPatch(message: PatchCommitMessage): Promise<Patch> {
     const handle = message.patchHandle.toString();
-    const patch = this.#patches[handle];
+    const patch = this.#patches[fixturePatchKey(handle)];
     if (patch === undefined) {
       throw new Error(`Fixture patch not found: ${handle}`);
     }

@@ -1,5 +1,6 @@
 // @ts-nocheck
 
+import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import WarpCore from '../../src/domain/WarpCore.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
@@ -137,6 +138,7 @@ function createMockPersistence() {
  */
 async function simulatePatchCommit(
   persistence,
+  assetStorage,
   { graphName, writerId, lamport, ops, reads, writes, context }
 ) {
   const { encode } = await import('../../src/infrastructure/codecs/CborCodec.ts');
@@ -155,7 +157,8 @@ async function simulatePatchCommit(
   };
 
   const patchBuffer = encode(patch);
-  const patchOid = await persistence.writeBlob(patchBuffer);
+  const stagedHandle = await assetStorage.store(patchBuffer);
+  const patchOid = GitCasAssetHandle.parse(stagedHandle.toString()).oid;
 
   const writerRef = buildWriterRef(graphName, writerId);
   const parentSha = await persistence.readRef(writerRef);
@@ -193,9 +196,10 @@ export async function seedDetachedReadBenchmarkFixture({
 }) {
   const persistence = createMockPersistence();
   const graphName = `detached-read-bench-${patchCount}`;
+  const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
   const graph = /** @type {WarpCoreRuntime} */ await WarpCore.open({
     persistence,
-    runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
+    runtimeStorage,
     graphName,
     writerId: 'bench',
     autoMaterialize: false,
@@ -213,7 +217,7 @@ export async function seedDetachedReadBenchmarkFixture({
     const lamport = (lamports.get(writerId) || 0) + 1;
     lamports.set(writerId, lamport);
 
-    await simulatePatchCommit(persistence, {
+    await simulatePatchCommit(persistence, runtimeStorage.backing, {
       graphName,
       writerId,
       lamport,

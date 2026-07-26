@@ -5,17 +5,14 @@ import GitCasAuditLogAdapter from '../../../../src/infrastructure/adapters/GitCa
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
-import {
-  V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
-} from '../../../../scripts/migrations/v17.0.0/SubstrateMigrationCompatibilityPolicy.ts';
 
 const encoder = new TextEncoder();
 
-function createFixture(options: { readonly compatibility?: boolean } = {}) {
+function createFixture() {
   const history = new InMemoryGraphAdapter();
   const backing = new InMemoryBlobStorageAdapter();
   const cas = new InMemoryGitCasFacade({ history, storage: backing });
-  const assets = new GitCasAssetStorageAdapter({ cas, legacyReader: history });
+  const assets = new GitCasAssetStorageAdapter({ cas });
   const auditCas = {
     assets: {
       put: vi.fn(cas.assets.put),
@@ -28,9 +25,6 @@ function createFixture(options: { readonly compatibility?: boolean } = {}) {
     history,
     cas: auditCas,
     assets,
-    ...(options.compatibility === true
-      ? { compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY }
-      : {}),
   });
   return { assets, auditCas, backing, cas, history, log };
 }
@@ -74,57 +68,21 @@ describe('GitCasAuditLogAdapter', () => {
     expect(auditCas.assets.open).not.toHaveBeenCalled();
   });
 
-  it('reads the legacy single-blob receipt tree through the compatibility path', async () => {
-    const { assets, auditCas, history, log } = createFixture();
-    auditCas.assets.adopt.mockRejectedValueOnce(legacyTreeError());
-    const receiptOid = await history.writeBlob(encoder.encode('legacy receipt'));
-    const treeOid = await history.writeTree([
-      `100644 blob ${receiptOid}\treceipt.cbor`,
-    ]);
-    const sha = await history.commitNodeWithTree({
-      treeOid,
-      parents: [],
-      message: 'legacy audit',
+  it('preserves missing asset manifests without probing Git trees', async () => {
+    const { auditCas, history, log } = createFixture();
+    const missingManifest = Object.assign(new Error('asset manifest not found'), {
+      code: 'MANIFEST_NOT_FOUND',
     });
-
+    auditCas.assets.adopt.mockRejectedValueOnce(missingManifest);
     const readTreeOids = vi.spyOn(history, 'readTreeOids');
-    await expect(log.readEntry(sha)).rejects.toMatchObject({
-      code: 'E_LEGACY_SUBSTRATE_DISABLED',
-    });
-    expect(readTreeOids).not.toHaveBeenCalled();
-
-    auditCas.assets.adopt.mockRejectedValueOnce(legacyTreeError());
-    const compatible = new GitCasAuditLogAdapter({
-      history,
-      cas: auditCas,
-      assets,
-      compatibilityPolicy: V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
-    });
-    await expect(compatible.readEntry(sha)).resolves.toMatchObject({
-      sha,
-      message: 'legacy audit',
-      receipt: encoder.encode('legacy receipt'),
-    });
-  });
-
-  it('rejects malformed legacy receipt trees without guessing', async () => {
-    const { auditCas, history, log } = createFixture({ compatibility: true });
-    auditCas.assets.adopt.mockRejectedValueOnce(legacyTreeError());
-    const first = await history.writeBlob(encoder.encode('first'));
-    const second = await history.writeBlob(encoder.encode('second'));
-    const treeOid = await history.writeTree([
-      `100644 blob ${first}\treceipt.cbor`,
-      `100644 blob ${second}\textra.cbor`,
-    ]);
     const sha = await history.commitNodeWithTree({
-      treeOid,
+      treeOid: 'a'.repeat(40),
       parents: [],
-      message: 'malformed audit',
+      message: 'missing current audit asset',
     });
 
-    await expect(log.readEntry(sha)).rejects.toMatchObject({
-      code: 'E_AUDIT_RECEIPT_TREE',
-    });
+    await expect(log.readEntry(sha)).rejects.toBe(missingManifest);
+    expect(readTreeOids).not.toHaveBeenCalled();
   });
 
   it('preserves current receipt failures without probing legacy trees', async () => {
@@ -229,9 +187,3 @@ describe('GitCasAuditLogAdapter', () => {
     })).rejects.toBe(failure);
   });
 });
-
-function legacyTreeError(): Error & { readonly code: string } {
-  return Object.assign(new Error('asset manifest not found'), {
-    code: 'MANIFEST_NOT_FOUND',
-  });
-}

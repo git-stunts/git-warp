@@ -11,9 +11,9 @@ import {
   parsePerformanceResult,
   type PerformanceResult,
 } from './PerformanceModel.ts';
+import { comparablePerformanceEnvironment } from './PerformanceEnvironment.ts';
 import { renderPerformanceSummary } from './PerformanceSummary.ts';
-import type { StreamingPerformanceReport }
-  from './StreamingPerformanceReport.ts';
+import type { StreamingPerformanceReport } from './StreamingPerformanceReport.ts';
 
 const scenarioThresholds = z.object({
   'cold-materialize': z.number().finite().nonnegative(),
@@ -40,7 +40,6 @@ export const PerformancePolicySchema = z.object({
 }).strict();
 
 export type PerformancePolicy = Readonly<z.infer<typeof PerformancePolicySchema>>;
-
 type GateOptions = Readonly<{
   basePath?: string;
   comparisonPath?: string;
@@ -193,7 +192,8 @@ function streamingFailures(
 
 function requireComparable(base: PerformanceResult, head: PerformanceResult): void {
   if (
-    JSON.stringify(base.environment) !== JSON.stringify(head.environment)
+    JSON.stringify(comparablePerformanceEnvironment(base))
+      !== JSON.stringify(comparablePerformanceEnvironment(head))
     || JSON.stringify(base.instrumentation) !== JSON.stringify(head.instrumentation)
   ) {
     throw new Error('Base and head performance environments are not comparable');

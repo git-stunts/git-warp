@@ -58,6 +58,22 @@ See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 Application code enters through one production composition root. Wesley-generated
 domain modules provide the validated intents and observers for an application.
 
+> [!IMPORTANT]
+> A repository with retained v18 state must be migrated before any v19 process
+> opens it. Stop every v18 writer, back up the repository, install v19 without
+> starting the application, and run the one-shot proof followed by promotion:
+>
+> ```bash
+> npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 --repo /path/to/repository --graph events
+> npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 --repo /path/to/repository --graph events --apply
+> ```
+>
+> The first command is a non-mutating disposable rehearsal. v19 fails closed
+> with `E_SUBSTRATE_MIGRATION_REQUIRED` until promotion succeeds. Keep the
+> additive recovery refs reported by the command until application reads,
+> writes, and backups are independently verified. See the
+> [complete v19 migration guide](docs/migrations/v19/).
+
 ```typescript
 import { Runtime } from '@git-stunts/git-warp';
 import { users } from './generated/users.js';

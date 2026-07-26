@@ -75,7 +75,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     history = new InMemoryGraphAdapter();
     backing = new InMemoryBlobStorageAdapter();
     cas = new InMemoryGitCasFacade({ history, storage: backing });
-    assets = new GitCasAssetStorageAdapter({ cas, legacyReader: history });
+    assets = new GitCasAssetStorageAdapter({ cas });
     indexes = new CborIndexStoreAdapter({
       codec: defaultCodec,
       assetStorage: assets,
@@ -307,7 +307,8 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
 
   it('routes page-backed shards and their bundle through the staging scope', async () => {
     const bundle = new BundleHandle('test:staged-property-bundle');
-    const stagePage = vi.fn(async () => 'test:staged-property-page');
+    const stagePage = vi.fn(async () => 'test:must-not-stage-property-page');
+    const stagePages = vi.fn(async () => ['test:staged-property-page']);
     const stageOrderedBundle = vi.fn(async () => bundle);
     const shardKey = materializationPropertyShardKey('node:staged');
 
@@ -322,11 +323,14 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       memberStorage: 'page',
       maxShardCount: 1,
       maxShardBytes: 1024,
-      staging: { stagePage, stageOrderedBundle },
+      staging: { stagePage, stagePages, stageOrderedBundle },
     })).resolves.toBe(bundle);
 
-    expect(stagePage).toHaveBeenCalledOnce();
-    expect(stagePage).toHaveBeenCalledWith(expect.any(Uint8Array), { maxBytes: 1024 });
+    expect(stagePage).not.toHaveBeenCalled();
+    expect(stagePages).toHaveBeenCalledWith(
+      [expect.any(Uint8Array)],
+      { maxBytes: 1024, maxBatchBytes: 32 * 1024 * 1024, maxBatchPages: 256 },
+    );
     expect(stageOrderedBundle).toHaveBeenCalledWith(
       [[`props_${shardKey}.cbor`, 'test:staged-property-page']],
       { maxMembers: 1 },

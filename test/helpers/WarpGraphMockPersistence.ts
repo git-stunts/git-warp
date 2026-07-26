@@ -9,6 +9,7 @@ import PatchJournalPort, {
 import type Patch from '../../src/domain/types/Patch.ts';
 import type { PatchCommitMessage } from '../../src/ports/CommitMessageCodecPort.ts';
 import InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
+import { fixturePatchKey } from './FixturePatchKey.ts';
 import { generateOidFromNumber } from './WarpGraphObjectIds.ts';
 
 type PopulatedCommit = {
@@ -146,7 +147,7 @@ class PopulatedWarpGraphMockPersistence extends WarpGraphMockPersistence {
   }
 
   readFixturePatch(handle: string): Patch {
-    const patch = this.#patchMap.get(handle);
+    const patch = this.#patchMap.get(fixturePatchKey(handle));
     if (patch === undefined) {
       throw new MockPersistenceFixtureError(`Patch not found: ${handle}`);
     }

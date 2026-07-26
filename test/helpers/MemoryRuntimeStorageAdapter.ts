@@ -12,7 +12,6 @@ import GitCasMaterializationStoreAdapter from '../../src/infrastructure/adapters
 import GitCasStrandStoreAdapter from '../../src/infrastructure/adapters/GitCasStrandStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import CasContentEncryptionPolicy from '../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
-import SubstrateCompatibilityPolicy from '../../src/infrastructure/adapters/SubstrateCompatibilityPolicy.ts';
 import type AssetStoragePort from '../../src/ports/AssetStoragePort.ts';
 import InMemoryBlobStorageAdapter from './InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from './InMemoryGitCasFacade.ts';
@@ -42,12 +41,11 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
     this.#cas = new InMemoryGitCasFacade({
       history: this.#history,
       storage: this.backing,
+      fixtureAssetReader: async (oid) => await this.#readFixtureAsset(oid),
     });
     this.#content = new GitCasAssetStorageAdapter({
       cas: this.#cas,
-      legacyReader: this.#history,
       contentEncryption,
-      compatibilityPolicy: TEST_COMPATIBILITY_POLICY,
     });
     this.#encrypted = contentEncryption.enabled;
   }
@@ -59,13 +57,11 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         history: this.#history,
         cas: this.#cas,
         assets: this.#content,
-        compatibilityPolicy: TEST_COMPATIBILITY_POLICY,
       }),
       strands: new GitCasStrandStoreAdapter({
         history: this.#history,
         cas: this.#cas,
         assets: this.#content,
-        compatibilityPolicy: TEST_COMPATIBILITY_POLICY,
       }),
       intents: new GitCasIntentStoreAdapter({
         history: this.#history,
@@ -79,7 +75,6 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         codec: request.codec,
         commitReader: this.#history,
         commitMessageCodec: request.commitMessageCodec,
-        compatibilityPolicy: TEST_COMPATIBILITY_POLICY,
         encrypted: this.#encrypted,
       }),
       checkpoints: new CborCheckpointStoreAdapter({
@@ -87,7 +82,6 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         crypto: request.crypto,
         commitMessageCodec: request.commitMessageCodec,
         history: this.#history,
-        assetStorage: this.#content,
         cas: this.#cas,
       }),
       indexes: new CborIndexStoreAdapter({
@@ -114,6 +108,11 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
     this.#syncReplayProtection.set(timelineName, created);
     return created;
   }
+
+  async #readFixtureAsset(oid: string): Promise<Uint8Array | null> {
+    const bytes = await this.#history.readBlob(oid);
+    return bytes instanceof Uint8Array ? bytes : null;
+  }
 }
 
 function resolveContentEncryption(
@@ -131,15 +130,6 @@ function resolveContentEncryption(
   }
   return CasContentEncryptionPolicy.disabled();
 }
-
-const TEST_COMPATIBILITY_POLICY = new SubstrateCompatibilityPolicy({
-  legacyAuditReceiptTreeReads: true,
-  legacyContentBlobReads: true,
-  legacyInlinePayloadReads: true,
-  legacyPatchStorageReads: true,
-  legacyStrandDescriptorBlobReads: true,
-  legacyTrustRecordBlobReads: true,
-});
 
 export function withFixtureObjectTypeProbe(history: InMemoryGraphAdapter): InMemoryGraphAdapter {
   if (typeof history.readObjectType === 'function') {

@@ -167,13 +167,26 @@ describe('v19 performance result contract', () => {
     ]);
   });
 
-  it('refuses to compare different git-cas versions', () => {
+  it('allows the git-cas versions under test to differ', () => {
     const base = validResult();
     const head: PerformanceResult = {
       ...base,
       environment: {
         ...base.environment,
         gitCas: '999.0.0',
+      },
+    };
+
+    expect(evaluatePerformanceGate(head, base, policy()).failures).toEqual([]);
+  });
+
+  it('refuses to compare different machine environments', () => {
+    const base = validResult();
+    const head: PerformanceResult = {
+      ...base,
+      environment: {
+        ...base.environment,
+        platform: 'darwin',
       },
     };
 

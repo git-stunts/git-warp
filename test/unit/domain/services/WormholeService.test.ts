@@ -281,8 +281,7 @@ describe('WormholeService', () => {
           message: encodeCheckpointMessage({
             graph: 'test-graph',
             stateHash: 'a'.repeat(64),
-            frontierOid: generateOid(4001),
-            indexOid: generateOid(4002),
+            bundleHandle: `bundle:${generateOid(4001)}`,
             schema: 2,
           }),
           parents: [],
@@ -349,7 +348,9 @@ describe('WormholeService', () => {
         })),
       };
       const readPatch = vi.fn(async (message: PatchCommitMessage) => {
-        expect(message.patchHandle.toString()).toBe(patchOid);
+        expect(message.patchHandle.toString()).toBe(
+          `git-cas:1:asset:manifest-tree:cbor:sha1:${patchOid}`,
+        );
         return patch;
       });
 

@@ -14,10 +14,6 @@ import StrandStorePort, {
   type PublishStrandDescriptorRequest,
 } from '../../ports/StrandStorePort.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
-import {
-  CURRENT_SUBSTRATE_ONLY_POLICY,
-  type SubstrateCompatibilityPolicyValue,
-} from './SubstrateCompatibilityPolicy.ts';
 
 const DESCRIPTOR_HANDLE_TRAILER = 'eg-strand-descriptor-handle';
 const GRAPH_TRAILER = 'eg-graph';
@@ -29,7 +25,6 @@ type StrandHistory = {
   compareAndDeleteRef(ref: string, expectedOid: string): Promise<boolean>;
   readObjectType(oid: string): Promise<string>;
   getNodeInfo(sha: string): Promise<{ message: string }>;
-  readBlob(oid: string): Promise<Uint8Array>;
 };
 
 type StrandCas = {
@@ -42,19 +37,16 @@ export default class GitCasStrandStoreAdapter extends StrandStorePort {
   readonly #history: StrandHistory;
   readonly #cas: StrandCas;
   readonly #assets: AssetStoragePort;
-  readonly #compatibilityPolicy: SubstrateCompatibilityPolicyValue;
 
   constructor(options: {
     readonly history: StrandHistory;
     readonly cas: StrandCas;
     readonly assets: AssetStoragePort;
-    readonly compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
   }) {
     super();
     this.#history = options.history;
     this.#cas = options.cas;
     this.#assets = options.assets;
-    this.#compatibilityPolicy = options.compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
   }
 
   override async readDescriptor(graphName: string, strandId: string): Promise<Uint8Array | null> {
@@ -62,36 +54,17 @@ export default class GitCasStrandStoreAdapter extends StrandStorePort {
     if (revision === null) {
       return null;
     }
-    const objectType = await this.#history.readObjectType(revision);
-    if (objectType === 'blob') {
-      return await this.#readLegacyDescriptor({ graphName, strandId, revision });
-    }
-    if (objectType !== 'commit') {
-      throw new StrandError('strand descriptor ref must target a blob or publication commit', {
-        code: 'E_STRAND_CORRUPT',
-        context: { graphName, strandId, revision, objectType },
-      });
-    }
+    await requirePublicationCommit(this.#history, revision, {
+      graphName,
+      strandId,
+      revision,
+    });
     const node = await this.#history.getNodeInfo(revision);
     const trailers = decodeDescriptorMessage(node.message);
     requireDescriptorIdentity(trailers, { graphName, strandId, revision });
     return await collectAsyncIterable(
       this.#assets.open(new AssetHandle(trailers.descriptorHandle)),
     );
-  }
-
-  async #readLegacyDescriptor(options: {
-    readonly graphName: string;
-    readonly strandId: string;
-    readonly revision: string;
-  }): Promise<Uint8Array> {
-    if (!this.#compatibilityPolicy.legacyStrandDescriptorBlobReads) {
-      throw new StrandError(
-        `Legacy strand descriptor blob reads require the substrate migration compatibility policy: ${options.revision}`,
-        { code: 'E_LEGACY_SUBSTRATE_DISABLED', context: options },
-      );
-    }
-    return await this.#history.readBlob(options.revision);
   }
 
   override async publishDescriptor(
@@ -155,7 +128,22 @@ async function retainedDescriptorParent(
   if (expectedHead === null) {
     return null;
   }
-  return await history.readObjectType(expectedHead) === 'commit' ? expectedHead : null;
+  await requirePublicationCommit(history, expectedHead, { expectedHead });
+  return expectedHead;
+}
+
+async function requirePublicationCommit(
+  history: StrandHistory,
+  oid: string,
+  context: Readonly<Record<string, unknown>>,
+): Promise<void> {
+  const objectType = await history.readObjectType(oid);
+  if (objectType !== 'commit') {
+    throw new StrandError('strand descriptor ref must target a publication commit', {
+      code: 'E_STRAND_CORRUPT',
+      context: { ...context, objectType },
+    });
+  }
 }
 
 async function stageDescriptor(

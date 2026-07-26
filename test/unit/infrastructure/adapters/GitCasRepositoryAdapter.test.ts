@@ -108,8 +108,10 @@ describe('GitCasRepositoryAdapter', () => {
     expect(services.stateSnapshots).toBeUndefined();
     expect(services.trie).toBeInstanceOf(GitCasTrieStoreAdapter);
     expect(services.syncReplayProtection).toBeDefined();
-    const seekCursors = repository.createSeekCursorStore('events');
-    expect(repository.createSeekCursorStore('events')).toBe(seekCursors);
+    await expect(repository.prepareFreshTimeline('fork-events'))
+      .resolves.toBeUndefined();
+    const seekCursors = await repository.createSeekCursorStore('events');
+    expect(await repository.createSeekCursorStore('events')).toBe(seekCursors);
 
     plumbing.execute
       .mockResolvedValueOnce('f'.repeat(40))
@@ -151,12 +153,12 @@ describe('GitCasRepositoryAdapter', () => {
     expect(closeMaterializations).toHaveBeenCalledTimes(1);
     expect(closeActiveMaterializations).toHaveBeenCalledTimes(1);
     expect(closeCas).not.toHaveBeenCalled();
-    expect(() => repository.createRuntimeStorageServices({
+    await expect(repository.createRuntimeStorageServices({
       timelineName: 'closed',
       codec: defaultCodec,
       crypto: new TestCrypto(),
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-    })).toThrow('Git CAS repository storage is closed');
+    })).rejects.toThrow('Git CAS repository storage is closed');
     expect(() => repository.createTrustChain(new TestCrypto()))
       .toThrow('Git CAS repository storage is closed');
   });

@@ -2,7 +2,6 @@ import type {
   AssetCapability,
   PublicationCapability,
 } from '@git-stunts/git-cas';
-import AuditError from '../../domain/errors/AuditError.ts';
 import AuditPublicationConflictError from '../../domain/errors/AuditPublicationConflictError.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
@@ -16,10 +15,6 @@ import AuditLogPort, {
 } from '../../ports/AuditLogPort.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
 import { readGitCasErrorCode } from './GitCasErrorCode.ts';
-import {
-  CURRENT_SUBSTRATE_ONLY_POLICY,
-  type SubstrateCompatibilityPolicyValue,
-} from './SubstrateCompatibilityPolicy.ts';
 
 type AuditHistory = {
   readRef(ref: string): Promise<string | null>;
@@ -30,8 +25,6 @@ type AuditHistory = {
     parents: string[];
   }>;
   getCommitTree(sha: string): Promise<string>;
-  readTreeOids(treeOid: string): Promise<Record<string, string>>;
-  readBlob(oid: string): Promise<Uint8Array>;
 };
 
 type AuditCas = {
@@ -41,24 +34,21 @@ type AuditCas = {
 
 type AuditPublication = Awaited<ReturnType<AuditCas['publications']['commit']>>;
 
-/** git-cas-backed audit receipt publication and legacy-read adapter. */
+/** git-cas-backed audit receipt publication adapter. */
 export default class GitCasAuditLogAdapter extends AuditLogPort {
   readonly #history: AuditHistory;
   readonly #cas: AuditCas;
   readonly #assets: AssetStoragePort;
-  readonly #compatibilityPolicy: SubstrateCompatibilityPolicyValue;
 
   constructor(options: {
     readonly history: AuditHistory;
     readonly cas: AuditCas;
     readonly assets: AssetStoragePort;
-    readonly compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
   }) {
     super();
     this.#history = options.history;
     this.#cas = options.cas;
     this.#assets = options.assets;
-    this.#compatibilityPolicy = options.compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
   }
 
   override async readHead(graphName: string, writerId: string): Promise<string | null> {
@@ -104,50 +94,10 @@ export default class GitCasAuditLogAdapter extends AuditLogPort {
   }
 
   async #readReceiptRoot(treeOid: string): Promise<Uint8Array> {
-    try {
-      const staged = await this.#cas.assets.adopt({ treeOid });
-      return await collectAsyncIterable(
-        this.#assets.open(new AssetHandle(staged.handle.toString())),
-      );
-    } catch (assetError) {
-      rethrowUnlessLegacyReceiptTree(assetError);
-      return await this.#readLegacyReceiptTree(treeOid, assetError);
-    }
-  }
-
-  async #readLegacyReceiptTree(treeOid: string, cause: unknown): Promise<Uint8Array> {
-    if (!this.#compatibilityPolicy.legacyAuditReceiptTreeReads) {
-      throw new AuditError(
-        `Legacy audit receipt tree reads require the substrate migration compatibility policy: ${treeOid}`,
-        {
-          code: 'E_LEGACY_SUBSTRATE_DISABLED',
-          context: { treeOid },
-        },
-      );
-    }
-    const entries = await this.#history.readTreeOids(treeOid);
-    const paths = Object.keys(entries);
-    const receiptOid = entries['receipt.cbor'];
-    if (paths.length !== 1 || receiptOid === undefined) {
-      throw new AuditError(
-        `Expected exactly one audit receipt entry in ${treeOid}`,
-        {
-          code: 'E_AUDIT_RECEIPT_TREE',
-          context: {
-            treeOid,
-            paths,
-            cause: cause instanceof Error ? cause.message : String(cause),
-          },
-        },
-      );
-    }
-    return await this.#history.readBlob(receiptOid);
-  }
-}
-
-function rethrowUnlessLegacyReceiptTree(error: unknown): void {
-  if (readGitCasErrorCode(error) !== 'MANIFEST_NOT_FOUND') {
-    throw error;
+    const staged = await this.#cas.assets.adopt({ treeOid });
+    return await collectAsyncIterable(
+      this.#assets.open(new AssetHandle(staged.handle.toString())),
+    );
   }
 }
 

@@ -112,7 +112,7 @@ export default async function handleInfo({ options }: { options: CliOptions }): 
       includeWriterPatches: isViewMode,
       includeCheckpointDate: isViewMode,
     });
-    const cursorStore = createSeekCursorStore(runtimeStorage, name);
+    const cursorStore = await createSeekCursorStore(runtimeStorage, name);
     const activeCursor = await readActiveCursor(cursorStore);
     if (activeCursor) {
       info.cursor = {

@@ -351,6 +351,14 @@ export function buildStateCacheRef(graphName: string): string {
 }
 
 /**
+ * Builds the exact retained-substrate version marker ref for a graph.
+ */
+export function buildSubstrateVersionRef(graphName: string): string {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/substrate-version`;
+}
+
+/**
  * Builds the trust record chain ref path for the given graph.
  *
  * The trust record ref points to the tip commit of the trust record

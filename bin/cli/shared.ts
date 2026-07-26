@@ -134,19 +134,19 @@ export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraph
     writerId: options.writer,
     crypto: new WebCryptoAdapter(),
   });
-  const cursorStore = createSeekCursorStore(runtimeStorage, graphName);
+  const cursorStore = await createSeekCursorStore(runtimeStorage, graphName);
   return { graph, graphName, persistence, runtimeStorage, cursorStore, hookPaths };
 }
 
 /** Opens the graph-scoped durable cursor store required by v19 CLI commands. */
-export function createSeekCursorStore(
+export async function createSeekCursorStore(
   runtimeStorage: RuntimeStorageProviderPort,
   graphName: string,
-): SeekCursorStorePort {
+): Promise<SeekCursorStorePort> {
   if (runtimeStorage.createSeekCursorStore === undefined) {
     throw usageError('Runtime storage does not provide durable seek cursor retention');
   }
-  return runtimeStorage.createSeekCursorStore(graphName);
+  return await runtimeStorage.createSeekCursorStore(graphName);
 }
 
 /**

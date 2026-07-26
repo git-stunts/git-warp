@@ -5,7 +5,6 @@ import type {
 import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
 import PatchPublicationConflictError from '../../domain/errors/PatchPublicationConflictError.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
-import WarpError from '../../domain/errors/WarpError.ts';
 import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import type AssetHandle from '../../domain/storage/AssetHandle.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
@@ -22,10 +21,6 @@ import PatchJournalPort, {
   type AppendPatchRequest,
   type PublishedPatch,
 } from '../../ports/PatchJournalPort.ts';
-import {
-  CURRENT_SUBSTRATE_ONLY_POLICY,
-  type SubstrateCompatibilityPolicyValue,
-} from './SubstrateCompatibilityPolicy.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './TrailerCommitMessageCodecAdapter.ts';
 import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
@@ -56,7 +51,6 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   readonly #codec: CodecPort;
   readonly #commitMessageCodec: CommitMessageCodecPort;
   readonly #commitReader: CommitReader;
-  readonly #compatibilityPolicy: SubstrateCompatibilityPolicyValue;
   readonly #encrypted: boolean;
 
   constructor(options: {
@@ -65,7 +59,6 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     readonly codec: CodecPort;
     readonly commitReader: CommitReader;
     readonly commitMessageCodec?: CommitMessageCodecPort;
-    readonly compatibilityPolicy?: SubstrateCompatibilityPolicyValue;
     readonly encrypted?: boolean;
   }) {
     super();
@@ -78,7 +71,6 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     this.#codec = options.codec;
     this.#commitReader = options.commitReader;
     this.#commitMessageCodec = options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
-    this.#compatibilityPolicy = options.compatibilityPolicy ?? CURRENT_SUBSTRATE_ONLY_POLICY;
     this.#encrypted = options.encrypted ?? false;
   }
 
@@ -135,7 +127,6 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   }
 
   override async readPatch(message: PatchCommitMessage): Promise<Patch> {
-    this.#requireReadableStorage(message);
     const handle = message.patchHandle;
     const bytes = await collectAsyncIterable(this.#assetStorage.open(handle));
     return hydrateDecodedPatch(this.#codec.decode(bytes));
@@ -171,19 +162,6 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         }
       }
     })());
-  }
-
-  #requireReadableStorage(message: PatchCommitMessage): void {
-    if (message.storage.strategy === 'git-cas-asset') {
-      return;
-    }
-    if (this.#compatibilityPolicy.legacyPatchStorageReads) {
-      return;
-    }
-    throw new WarpError(
-      `Legacy patch storage reads require the substrate migration compatibility policy: ${message.storage.strategy}`,
-      'E_LEGACY_SUBSTRATE_DISABLED',
-    );
   }
 }
 

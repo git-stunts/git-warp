@@ -15,8 +15,7 @@ import V17GoldenGraphFixtureManifest, {
   V17_GOLDEN_CONTENT_FACT,
 } from './V17GoldenGraphFixtureManifest.ts';
 import { compareStrings } from '../../../../src/domain/utils/StringComparison.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC }
-  from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import { decodeV17PatchCommitMessage } from './V17PatchCommitMessageDecoder.ts';
 
 const execFileAsync = promisify(execFile);
 const NO_WRITER_REFS_CODE = 'E_NO_WRITER_REFS';
@@ -114,7 +113,7 @@ async function verifyPatchCommit(
 ): Promise<void> {
   const message = await gitText(repositoryPath, ['show', '-s', '--format=%B', patchId]);
   try {
-    const decoded = DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch(message);
+    const decoded = decodeV17PatchCommitMessage(message);
     if (decoded.graph !== graphId) {
       fatalErrors.push(GraphModelMigrationNotice.fatal(
         WRONG_GRAPH_CODE,
