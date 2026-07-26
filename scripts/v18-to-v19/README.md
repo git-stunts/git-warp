@@ -36,6 +36,10 @@ encrypted v18 patches, provide `GIT_WARP_MIGRATION_PASSPHRASE` in the
 environment; the passphrase is never accepted as an argument or included in
 the report.
 
+Monolithic v18 checkpoint CBOR is decoded only inside this migration with a
+64 MiB byte ceiling plus explicit depth and item limits. The normal v19 runtime
+keeps its stricter 5 MiB decode boundary.
+
 Only after the dry-run reports `verified-dry-run`, promote the verified refs:
 
 ```bash

@@ -25,6 +25,7 @@ import {
   reportV18MigrationProgress,
   type V18MigrationProgressReporter,
 } from './V18MigrationProgress.ts';
+import v18CheckpointMigrationCodec from './V18CheckpointMigrationCodec.ts';
 import V18PatchTranslator from './V18PatchTranslator.ts';
 
 export type V18CheckpointSeedResult = Readonly<{
@@ -75,7 +76,7 @@ export async function seedV18Checkpoint(options: Readonly<{
     const payload = await new LegacyCheckpointStorageReader({
       persistence: history,
       assetStorage: storage.assetStorage,
-      codec: defaultCodec,
+      codec: v18CheckpointMigrationCodec,
     }).load(options.legacyCheckpointSha, { includeDerivedArtifacts: false });
     const state = translateV18CheckpointState(
       payload.state,
