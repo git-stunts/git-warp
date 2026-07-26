@@ -7,9 +7,11 @@
  */
 
 export { graph } from './src/domain/api/GraphChartObservers.ts';
+export { default as GraphNeighborhoodChart } from './src/domain/api/GraphNeighborhoodChart.ts';
+export { default as GraphNeighborhoodEdge } from './src/domain/api/GraphNeighborhoodEdge.ts';
 export type {
   GraphChartObservers,
-  GraphNeighborhoodChart,
-  GraphNeighborhoodEdge,
   GraphNeighborhoodOptions,
 } from './src/domain/api/GraphChartObservers.ts';
+export type { GraphNeighborhoodChartOptions } from './src/domain/api/GraphNeighborhoodChart.ts';
+export type { GraphNeighborhoodEdgeOptions } from './src/domain/api/GraphNeighborhoodEdge.ts';

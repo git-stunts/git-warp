@@ -147,10 +147,12 @@ Bounded graph-shaped derived Observers and Reading values.
 
 ### Value exports
 
-Source: `charts.ts`. Count: 1.
+Source: `charts.ts`. Count: 3.
 
 ```text
 graph @ charts.ts#L9
+GraphNeighborhoodChart @ charts.ts#L10
+GraphNeighborhoodEdge @ charts.ts#L11
 ```
 
 ### Type exports
@@ -158,9 +160,9 @@ graph @ charts.ts#L9
 Source: `charts.ts`. Count: 4.
 
 ```text
-GraphChartObservers @ charts.ts#L11
-GraphNeighborhoodChart @ charts.ts#L12
-GraphNeighborhoodEdge @ charts.ts#L13
+GraphChartObservers @ charts.ts#L13
+GraphNeighborhoodChartOptions @ charts.ts#L16
+GraphNeighborhoodEdgeOptions @ charts.ts#L17
 GraphNeighborhoodOptions @ charts.ts#L14
 ```
 
@@ -170,19 +172,21 @@ Disposable real-Git Runtime harnesses for consumer tests.
 
 ### Value exports
 
-Source: `testing.ts`. Count: 1.
+Source: `testing.ts`. Count: 2.
 
 ```text
-createRuntimeHarness @ testing.ts#L8
+createRuntimeHarness @ testing.ts#L17
+createRuntimeHarnessWithHost @ testing.ts#L23
 ```
 
 ### Type exports
 
-Source: `testing.ts`. Count: 2.
+Source: `testing.ts`. Count: 3.
 
 ```text
-RuntimeHarness @ testing.ts#L10
-RuntimeHarnessOptions @ testing.ts#L11
+RuntimeHarness @ testing.ts#L25
+RuntimeHarnessHost @ testing.ts#L26
+RuntimeHarnessOptions @ testing.ts#L27
 ```
 
 ## CLI command registry

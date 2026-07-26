@@ -227,12 +227,14 @@ describe('v19 public API boundary', () => {
   it('keeps charts limited to bounded derived observers', () => {
     const surface = moduleSurface('charts.ts');
     expect(surface.starExports).toEqual([]);
-    expect(surface.valueExports).toEqual(['graph']);
+    expect(surface.valueExports).toEqual(
+      sorted(['GraphNeighborhoodChart', 'GraphNeighborhoodEdge', 'graph'])
+    );
     expect(surface.typeExports).toEqual(
       sorted([
         'GraphChartObservers',
-        'GraphNeighborhoodChart',
-        'GraphNeighborhoodEdge',
+        'GraphNeighborhoodChartOptions',
+        'GraphNeighborhoodEdgeOptions',
         'GraphNeighborhoodOptions',
       ])
     );
@@ -241,8 +243,12 @@ describe('v19 public API boundary', () => {
   it('keeps testing limited to the explicit Runtime harness', () => {
     const surface = moduleSurface('testing.ts');
     expect(surface.starExports).toEqual([]);
-    expect(surface.valueExports).toEqual(['createRuntimeHarness']);
-    expect(surface.typeExports).toEqual(['RuntimeHarness', 'RuntimeHarnessOptions']);
+    expect(surface.valueExports).toEqual(
+      sorted(['createRuntimeHarness', 'createRuntimeHarnessWithHost'])
+    );
+    expect(surface.typeExports).toEqual(
+      sorted(['RuntimeHarness', 'RuntimeHarnessHost', 'RuntimeHarnessOptions'])
+    );
   });
 
   it('publishes only the supported v19 subpaths', () => {

@@ -8,11 +8,7 @@
 import { GitStorage, type GitStorageOptions } from '../../storage.ts';
 import { type Lane, type WriteReceipt } from '../../index.ts';
 import { captureCoordinate, Coordinate, Optic, type Witness } from '../../advanced.ts';
-import {
-  graph,
-  type GraphNeighborhoodChart,
-  type GraphNeighborhoodOptions,
-} from '../../charts.ts';
+import { graph, GraphNeighborhoodChart, type GraphNeighborhoodOptions } from '../../charts.ts';
 import {
   inspectReceipt,
   type InspectReceiptOptions,
@@ -45,6 +41,7 @@ const neighborhoodOptions: GraphNeighborhoodOptions = {
 };
 const neighborhood = lane.observe(graph.neighborhood(neighborhoodOptions));
 const chart: GraphNeighborhoodChart = (await neighborhood.one()).value;
+const isRuntimeChart: boolean = chart instanceof GraphNeighborhoodChart;
 const harnessOptions: RuntimeHarnessOptions = { writer: 'agent-1' };
 const harness: RuntimeHarness = await createRuntimeHarness(harnessOptions);
 
@@ -62,3 +59,4 @@ void inspection;
 void inspectedLane;
 void substrate;
 void chart;
+void isRuntimeChart;

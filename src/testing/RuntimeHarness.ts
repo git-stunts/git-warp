@@ -1,12 +1,16 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import Runtime from '../application/Runtime.ts';
+import type Runtime from '../application/Runtime.ts';
 import WarpError from '../domain/errors/WarpError.ts';
-import { openDefaultGitPlumbing } from '../infrastructure/adapters/GitPlumbingRuntimeAdapter.ts';
 
 export type RuntimeHarnessOptions = Readonly<{
   readonly writer: string;
+}>;
+
+export type RuntimeHarnessHost = Readonly<{
+  readonly createRepository: () => Promise<string>;
+  readonly openRuntime: (
+    options: RuntimeHarnessOptions & Readonly<{ at: string }>
+  ) => Promise<Runtime>;
+  readonly removeRepository: (at: string) => Promise<void>;
 }>;
 
 export type RuntimeHarness = Readonly<{
@@ -20,32 +24,33 @@ export type RuntimeHarness = Readonly<{
  *
  * The harness writes only inside the temporary repository it creates.
  */
-export async function createRuntimeHarness(
+export async function createRuntimeHarnessWithHost(
   options: RuntimeHarnessOptions,
+  host: RuntimeHarnessHost
 ): Promise<RuntimeHarness> {
   const { writer } = requireRuntimeHarnessOptions(options);
-  const at = await mkdtemp(join(tmpdir(), 'git-warp-runtime-'));
+  const capabilities = requireRuntimeHarnessHost(host);
+  const at = await capabilities.createRepository();
   try {
-    await initializeRepository(at);
-    const runtime = await Runtime.open({ at, writer });
-    let closed = false;
+    const runtime = await capabilities.openRuntime({ at, writer });
+    let closePromise: Promise<void> | undefined;
     return Object.freeze({
       at,
       runtime,
-      close: async (): Promise<void> => {
-        if (closed) {
-          return;
+      close: (): Promise<void> => {
+        if (closePromise !== undefined) {
+          return closePromise;
         }
-        closed = true;
-        try {
-          await runtime.close();
-        } finally {
-          await rm(at, { recursive: true, force: true });
-        }
+        const attempt = closeRuntimeHarness(runtime, at, capabilities);
+        closePromise = attempt.catch((error) => {
+          closePromise = undefined;
+          throw error;
+        });
+        return closePromise;
       },
     });
   } catch (error) {
-    await rm(at, { recursive: true, force: true });
+    await capabilities.removeRepository(at);
     throw error;
   }
 }
@@ -57,9 +62,25 @@ function requireRuntimeHarnessOptions(options: RuntimeHarnessOptions): RuntimeHa
   return options;
 }
 
-async function initializeRepository(at: string): Promise<void> {
-  const plumbing = await openDefaultGitPlumbing(at);
-  await plumbing.execute({ args: ['init', '--quiet'] });
-  await plumbing.execute({ args: ['config', 'user.name', 'git-warp test harness'] });
-  await plumbing.execute({ args: ['config', 'user.email', 'git-warp-testing@invalid'] });
+function requireRuntimeHarnessHost(host: RuntimeHarnessHost): RuntimeHarnessHost {
+  if (host === null || host === undefined) {
+    throw new WarpError('Runtime harness host is required', 'E_RUNTIME_HARNESS_HOST');
+  }
+  const capabilities = [host.createRepository, host.openRuntime, host.removeRepository];
+  if (!capabilities.every((capability) => typeof capability === 'function')) {
+    throw new WarpError('Runtime harness host is invalid', 'E_RUNTIME_HARNESS_HOST');
+  }
+  return host;
+}
+
+async function closeRuntimeHarness(
+  runtime: Runtime,
+  at: string,
+  host: RuntimeHarnessHost
+): Promise<void> {
+  try {
+    await runtime.close();
+  } finally {
+    await host.removeRepository(at);
+  }
 }

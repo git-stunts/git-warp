@@ -1,19 +1,40 @@
 import ImmutableBytes from '../services/snapshot/ImmutableBytes.ts';
+import WarpError from '../errors/WarpError.ts';
 import type { ReadingValue } from './ReadingValue.ts';
 
 const FORBIDDEN_READING_VALUE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const READING_DOMAIN_OBJECTS = new WeakSet<object>();
+
+export function registerReadingDomainObject<TValue extends ReadingValue & object>(
+  value: TValue
+): void {
+  if (!Object.isFrozen(value)) {
+    throw new WarpError(
+      'Reading domain objects must be frozen before registration',
+      'E_READING_DOMAIN_OBJECT_FROZEN'
+    );
+  }
+  if (!readingValueObjectEntriesAreValid(value, new WeakSet<object>())) {
+    throw new WarpError(
+      'Reading domain objects must contain snapshot-compatible data',
+      'E_READING_DOMAIN_OBJECT_VALUE'
+    );
+  }
+  READING_DOMAIN_OBJECTS.add(value);
+}
 
 export function isReadingValue<T>(value: T): value is T & ReadingValue {
   return isReadingValueWithSeen(value, new WeakSet<object>());
 }
 
-export function snapshotReadingValue<TValue extends ReadingValue>(
-  value: TValue,
-): TValue {
+export function snapshotReadingValue<TValue extends ReadingValue>(value: TValue): TValue {
   return snapshotReadingValueValue(value) as TValue;
 }
 
 function snapshotReadingValueValue(value: ReadingValue): ReadingValue {
+  if (isRegisteredReadingDomainObject(value)) {
+    return value;
+  }
   if (value instanceof Uint8Array) {
     return new ImmutableBytes(value);
   }
@@ -38,29 +59,31 @@ function snapshotReadingValueObjectOrPrimitive(value: ReadingValue): ReadingValu
 }
 
 function isReadingValueWithSeen<T>(value: T, seen: WeakSet<object>): value is T & ReadingValue {
-  return isScalarReadingValue(value)
-    || isReadingValueArray(value, seen)
-    || isReadingValueObject(value, seen);
+  return (
+    isScalarReadingValue(value) ||
+    isReadingValueArray(value, seen) ||
+    isReadingValueObject(value, seen)
+  );
 }
 
 function isScalarReadingValue<T>(
-  value: T,
+  value: T
 ): value is T & (string | number | boolean | null | Uint8Array | ImmutableBytes) {
-  return value === null
-    || isPrimitiveReadingValue(value)
-    || value instanceof Uint8Array
-    || value instanceof ImmutableBytes;
+  return (
+    value === null ||
+    isPrimitiveReadingValue(value) ||
+    value instanceof Uint8Array ||
+    value instanceof ImmutableBytes
+  );
 }
 
 function isPrimitiveReadingValue<T>(value: T): value is T & (string | number | boolean) {
-  return typeof value === 'string'
-    || typeof value === 'number'
-    || typeof value === 'boolean';
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
 }
 
 function isReadingValueArray<T>(
   value: T,
-  seen: WeakSet<object>,
+  seen: WeakSet<object>
 ): value is T & readonly ReadingValue[] {
   if (!Array.isArray(value) || seen.has(value)) {
     return false;
@@ -75,7 +98,7 @@ function isReadingValueArray<T>(
 
 function isReadingValueObject<T>(
   value: T,
-  seen: WeakSet<object>,
+  seen: WeakSet<object>
 ): value is T & { readonly [key: string]: ReadingValue } {
   if (!isReadingValueObjectCandidate(value) || seen.has(value)) {
     return false;
@@ -92,7 +115,7 @@ function isReadingValueObjectCandidate<T>(value: T): value is T & object {
   if (value === null || typeof value !== 'object') {
     return false;
   }
-  return isNonArrayPlainObject(value);
+  return isRegisteredReadingDomainObject(value) || isNonArrayPlainObject(value);
 }
 
 function readingValueObjectEntriesAreValid(value: object, seen: WeakSet<object>): boolean {
@@ -105,13 +128,12 @@ function readingValueObjectEntriesAreValid(value: object, seen: WeakSet<object>)
 }
 
 function isNonArrayPlainObject(value: object): boolean {
-  if (
-    Array.isArray(value)
-    || value instanceof Uint8Array
-    || value instanceof ImmutableBytes
-  ) {
+  if (Array.isArray(value) || value instanceof Uint8Array || value instanceof ImmutableBytes) {
     return false;
   }
-  return Object.getPrototypeOf(value) === Object.prototype
-    || Object.getPrototypeOf(value) === null;
+  return Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null;
+}
+
+function isRegisteredReadingDomainObject(value: ReadingValue | object): boolean {
+  return typeof value === 'object' && value !== null && READING_DOMAIN_OBJECTS.has(value);
 }

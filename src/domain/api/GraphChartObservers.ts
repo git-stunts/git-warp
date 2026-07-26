@@ -1,15 +1,10 @@
 import type Observer from './Observer.ts';
-import {
-  createObserver,
-} from './ObserverRuntime.ts';
-import LegacyReading, {
-  type NeighborhoodReadingFields,
-  type ReadingDirection,
-} from './Reading.ts';
-import type {
-  ReadingValue,
-} from './ObservedReading.ts';
+import { createObserver } from './ObserverRuntime.ts';
+import LegacyReading, { type NeighborhoodReadingFields, type ReadingDirection } from './Reading.ts';
+import type { ReadingValue } from './ObservedReading.ts';
 import WarpError from '../errors/WarpError.ts';
+import GraphNeighborhoodChart from './GraphNeighborhoodChart.ts';
+import GraphNeighborhoodEdge from './GraphNeighborhoodEdge.ts';
 
 export type GraphNeighborhoodOptions = {
   readonly around: string;
@@ -18,20 +13,6 @@ export type GraphNeighborhoodOptions = {
   readonly limit?: number;
   readonly cursor?: string;
 };
-
-export type GraphNeighborhoodEdge = Readonly<{
-  readonly direction: 'out' | 'in';
-  readonly neighborId: string;
-  readonly label: string;
-}> & Readonly<Record<string, ReadingValue>>;
-
-export type GraphNeighborhoodChart = Readonly<{
-  readonly subject: string;
-  readonly direction: ReadingDirection;
-  readonly edges: readonly GraphNeighborhoodEdge[];
-  readonly completeness: 'complete' | 'truncated';
-  readonly cursor: string | null;
-}> & Readonly<Record<string, ReadingValue>>;
 
 export type GraphChartObservers = Readonly<{
   neighborhood(options: GraphNeighborhoodOptions): Observer<GraphNeighborhoodChart>;
@@ -43,7 +24,7 @@ export const graph: GraphChartObservers = Object.freeze({
     return createObserver<GraphNeighborhoodChart>(
       'charts.graph.neighborhood',
       neighborhoodReading(options),
-      decodeNeighborhoodChart,
+      decodeNeighborhoodChart
     );
   },
 });
@@ -70,13 +51,13 @@ function decodeNeighborhoodChart(value: ReadingValue): GraphNeighborhoodChart {
   const edges = requireArray(rawEdges, 'chart edges').map(decodeNeighborhoodEdge);
   const completeness = requireCompleteness(rawCompleteness);
   const cursor = requireNullableString(rawCursor, 'chart cursor');
-  return Object.freeze({
+  return new GraphNeighborhoodChart({
     subject,
     direction,
-    edges: Object.freeze(edges),
+    edges,
     completeness,
     cursor,
-  }) as GraphNeighborhoodChart;
+  });
 }
 
 function decodeNeighborhoodEdge(value: ReadingValue): GraphNeighborhoodEdge {
@@ -88,16 +69,16 @@ function decodeNeighborhoodEdge(value: ReadingValue): GraphNeighborhoodEdge {
   const direction = requireEdgeDirection(rawDirection);
   const neighborId = requireString(rawNeighborId, 'chart edge neighborId');
   const label = requireString(rawLabel, 'chart edge label');
-  return Object.freeze({
+  return new GraphNeighborhoodEdge({
     direction,
     neighborId,
     label,
-  }) as GraphNeighborhoodEdge;
+  });
 }
 
 function requireRecord(
   value: ReadingValue | undefined,
-  field: string,
+  field: string
 ): Readonly<Record<string, ReadingValue>> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw chartError(`graph.neighborhood received an invalid ${field}`, 'E_CHART_VALUE');
@@ -105,10 +86,7 @@ function requireRecord(
   return value as Readonly<Record<string, ReadingValue>>;
 }
 
-function requireArray(
-  value: ReadingValue | undefined,
-  field: string,
-): readonly ReadingValue[] {
+function requireArray(value: ReadingValue | undefined, field: string): readonly ReadingValue[] {
   if (!Array.isArray(value)) {
     throw chartError(`graph.neighborhood received invalid ${field}`, 'E_CHART_VALUE');
   }
@@ -122,10 +100,7 @@ function requireString(value: ReadingValue | undefined, field: string): string {
   return value;
 }
 
-function requireNullableString(
-  value: ReadingValue | undefined,
-  field: string,
-): string | null {
+function requireNullableString(value: ReadingValue | undefined, field: string): string | null {
   if (value !== null && typeof value !== 'string') {
     throw chartError(`graph.neighborhood received invalid ${field}`, 'E_CHART_VALUE');
   }
@@ -146,9 +121,7 @@ function requireEdgeDirection(value: ReadingValue | undefined): 'out' | 'in' {
   return value;
 }
 
-function requireCompleteness(
-  value: ReadingValue | undefined,
-): 'complete' | 'truncated' {
+function requireCompleteness(value: ReadingValue | undefined): 'complete' | 'truncated' {
   if (value !== 'complete' && value !== 'truncated') {
     throw chartError('graph.neighborhood received invalid chart completeness', 'E_CHART_VALUE');
   }
