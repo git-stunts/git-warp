@@ -1,8 +1,9 @@
 import type WarpWorldline from '../WarpWorldline.ts';
-import type { WarpStrandOpticBasis } from '../WarpWorldline.ts';
+import type { WarpStrandOpticBasis } from '../WarpStrandOpticBasis.ts';
 import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
+import type { DraftReadingTarget } from './DraftReadingTarget.ts';
 import DraftTimeline from './DraftTimeline.ts';
 import type Evidence from './Evidence.ts';
 import { createJoinEvidence, createJoinRecoveryEvidence } from './EvidenceRuntime.ts';
@@ -11,12 +12,13 @@ import { applyIntentToPatch } from './IntentRuntime.ts';
 import JoinReceipt from './JoinReceipt.ts';
 import JoinResult from './JoinResult.ts';
 import type Reading from './Reading.ts';
-import type ReadingResult from './ReadingResult.ts';
 import { executeReading } from './ReadingRuntime.ts';
 import Tick from './Tick.ts';
 import type { JoinOptions } from './Timeline.ts';
 import type WriteReceipt from './WriteReceipt.ts';
 import { executeIntentWrite } from './WriteRuntime.ts';
+
+export type { DraftReadingTarget } from './DraftReadingTarget.ts';
 
 type DraftTimelineState = {
   readonly context: ApiRuntimeContext;
@@ -45,11 +47,6 @@ type CreateDraftTimelineFields = {
   readonly draftName: string;
   readonly forkedAt?: WarpWorldlineCoordinate;
 };
-
-export type DraftReadingTarget = Readonly<{
-  readonly read: (reading: Reading) => Promise<ReadingResult>;
-  readonly tick: Tick;
-}>;
 
 type JoinResultFieldsBase = {
   readonly runtime: WarpWorldline;

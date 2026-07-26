@@ -75,8 +75,10 @@ describe('Runtime Lane adapter', () => {
       await createBoundedReadBasis(storage, 'events');
 
       const fork = requireLaneRuntime(lane).fork;
-      expect(fork).not.toBeNull();
-      const strand = await fork!('try-admin-role');
+      if (fork === null) {
+        throw new Error('worldline Lane is missing its fork port');
+      }
+      const strand = await fork('try-admin-role');
       expect(strand.descriptor).toMatchObject({
         kind: 'strand',
         name: 'try-admin-role',
@@ -179,15 +181,10 @@ describe('Runtime Lane adapter', () => {
       }));
       const second = await iterator.next();
       expect(second).toMatchObject({ done: false, value: { value: 1 } });
-      expect(
-        first.done === false && second.done === false
-          ? first.value.coordinate.tick?.id
-          : null,
-      ).toBe(
-        first.done === false && second.done === false
-          ? second.value.coordinate.tick?.id
-          : null,
+      const tickIds = [first, second].map((result) =>
+        result.done === false ? result.value.coordinate.tick?.id : undefined
       );
+      expect(new Set(tickIds).size).toBe(1);
       await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
       const latest: unknown[] = [];
       for await (const reading of strand.observe(observer)) {
@@ -457,16 +454,23 @@ describe('Runtime Lane adapter', () => {
     }
   });
 
-  it('guards advanced coordinate capture with the Runtime lifecycle', async () => {
+  it('guards advanced coordinate capture and fork ports with the Runtime lifecycle', async () => {
     const storage = MemoryStorage.create();
     try {
       const warp = await openWarp({ storage, writer: 'agent-1' });
       const timeline = await warp.timeline('events');
       const activity = new RuntimeActivity();
       const lane = createWorldlineLane(timeline, activity);
+      const fork = requireLaneRuntime(lane).fork;
+      if (fork === null) {
+        throw new Error('worldline Lane is missing its fork port');
+      }
       await activity.close(async () => {});
 
       await expect(captureCoordinate(lane)).rejects.toMatchObject({
+        code: 'E_RUNTIME_CLOSED',
+      });
+      await expect(fork('closed-fork')).rejects.toMatchObject({
         code: 'E_RUNTIME_CLOSED',
       });
     } finally {

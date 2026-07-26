@@ -714,19 +714,25 @@ describe('StrandService', () => {
     });
 
     it('rejects malformed explicit parent frontiers with a stable error', async () => {
-      await expect(
-        Reflect.apply(service.create, service, [{
-          strandId: 'invalid-frontier',
-          baseFrontier: { writer: 'sha' },
-        }]),
-      ).rejects.toMatchObject({
+      const coordinator: Pick<
+        ReturnType<typeof createStrandCoordinator>,
+        'create'
+      > = service;
+      await expect(coordinator.create({
+        strandId: 'invalid-frontier',
+        // @ts-expect-error Exercise the JavaScript boundary.
+        baseFrontier: { writer: 'sha' },
+      })).rejects.toMatchObject({
         code: 'E_STRAND_INVALID_ARGS',
         context: { field: 'baseFrontier' },
       });
-      await expect(service.create({
+      await expect(coordinator.create({
         strandId: 'invalid-entry',
         baseFrontier: new Map([['', 'sha']]),
-      })).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
+      })).rejects.toMatchObject({
+        code: 'E_STRAND_INVALID_ARGS',
+        context: { field: 'baseFrontier' },
+      });
     });
 
     it('publishes the descriptor through the semantic strand store', async () => {

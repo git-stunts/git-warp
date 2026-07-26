@@ -80,7 +80,12 @@ export default class Runtime {
     assertTimelineNameIdentity(options.name, 'fork.name', FORK_IDENTITY_FAILURE);
     const binding = requireOwnedLaneRuntime(source, this.#laneOwner);
     const fork = requireWorldlineFork(source, binding);
-    return await this.#activity.run(async () => await fork(options.name));
+    const lease = this.#activity.acquire();
+    try {
+      return await fork(options.name);
+    } finally {
+      lease.release();
+    }
   }
 
   /** Releases local resources only. */

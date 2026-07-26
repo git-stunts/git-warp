@@ -4,6 +4,7 @@ import {
   createDraftReadingTarget,
   createDraftTimeline,
 } from '../domain/api/DraftTimelineRuntime.ts';
+import type { DraftReadingTarget } from '../domain/api/DraftReadingTarget.ts';
 import type Timeline from '../domain/api/Timeline.ts';
 import type TimelineView from '../domain/api/TimelineView.ts';
 import {
@@ -41,6 +42,12 @@ type ObservationLane = Readonly<{
   readonly name: string;
   readonly writer: string;
 }>;
+type WorldlineLaneSource = Readonly<{
+  readonly activity: RuntimeActivity;
+  readonly owner: object;
+  readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
+  readonly timeline: Timeline;
+}>;
 type ReadingStreamOutcome =
   | Readonly<{ kind: 'completed'; receipt: ReadReceipt | null }>
   | Readonly<{ kind: 'settled' }>;
@@ -72,11 +79,17 @@ function bindWorldlineLaneRuntime(options: {
   readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
   readonly timeline: Timeline;
 }): void {
+  const source: WorldlineLaneSource = Object.freeze({
+    activity: options.activity,
+    owner: options.owner,
+    parent: options.parent,
+    timeline: options.timeline,
+  });
   bindLaneRuntime(options.lane, {
     captureCoordinate: async () =>
-      await captureWorldlineCoordinate(options.timeline, options.activity),
-    fork: async (name) => await forkWorldlineLane(options, name),
-    owner: options.owner,
+      await captureWorldlineCoordinate(source.timeline, source.activity),
+    fork: async (name) => await forkWorldlineLane(source, name),
+    owner: source.owner,
   });
 }
 
@@ -92,25 +105,27 @@ async function captureWorldlineCoordinate(
 }
 
 async function forkWorldlineLane(
-  options: Parameters<typeof bindWorldlineLaneRuntime>[0],
+  options: WorldlineLaneSource,
   name: string,
 ): Promise<Lane> {
-  const runtime = requireTimelineRuntime(options.timeline);
-  const context = requireTimelineContext(options.timeline);
-  const tick = await createForkTick(runtime, context);
-  const draft = await createDraftTimeline({
-    runtime,
-    context,
-    timelineName: options.timeline.name,
-    draftName: name,
-    forkedAt: requireTickCoordinate(runtime, tick),
-  });
-  return createStrandLane({
-    activity: options.activity,
-    draft,
-    forkedAt: Object.freeze({ id: tick.id, lane: options.parent }),
-    owner: options.owner,
-    parent: options.parent,
+  return await options.activity.run(async () => {
+    const runtime = requireTimelineRuntime(options.timeline);
+    const context = requireTimelineContext(options.timeline);
+    const tick = await createForkTick(runtime, context);
+    const draft = await createDraftTimeline({
+      runtime,
+      context,
+      timelineName: options.timeline.name,
+      draftName: name,
+      forkedAt: requireTickCoordinate(runtime, tick),
+    });
+    return createStrandLane({
+      activity: options.activity,
+      draft,
+      forkedAt: Object.freeze({ id: tick.id, lane: options.parent }),
+      owner: options.owner,
+      parent: options.parent,
+    });
   });
 }
 
@@ -189,7 +204,7 @@ async function startStrandObserver<TValue extends ReadingValue>(
 ): Promise<ObservationExecution<TValue>> {
   const lease = activity.acquire();
   try {
-    const target = await createDraftReadingTarget(draft);
+    const target: DraftReadingTarget = await createDraftReadingTarget(draft);
     const settlement = createReceiptSettlement();
     return Object.freeze({
       readings: WarpStream.from(streamReadings({

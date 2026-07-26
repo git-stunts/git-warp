@@ -22,6 +22,9 @@ import createBoundedMemoryCapabilityReport from './memory/createBoundedMemoryCap
 import type { IntentAdmissionReceipt } from './admission/IntentAdmissionReceipt.ts';
 import type { WarpIntentDescriptor } from './types/WarpIntentDescriptor.ts';
 import type { PatchCommitResult } from './types/PatchCommitResult.ts';
+import type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
+
+export type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
 
 export type WarpWorldlineOpenOptions = Omit<WarpGraphDeps, 'graphName'> & {
   readonly worldlineName: string;
@@ -65,15 +68,6 @@ type PrepareStrandOptic = (
   name: string,
   checkpointSha: string,
 ) => Promise<WarpStrandOpticBasis>;
-
-export type WarpStrandOpticBasis = Readonly<{
-  readonly checkpointSha: string;
-  readonly frontierEntries: readonly Readonly<{
-    readonly patchSha: string;
-    readonly writerId: string;
-  }>[];
-  readonly optic: WorldlineOptic;
-}>;
 
 type WarpWorldlineConstructionOptions = {
   readonly worldlineName: string;
