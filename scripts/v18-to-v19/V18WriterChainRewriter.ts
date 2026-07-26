@@ -5,6 +5,11 @@ import {
   v18MigrationGitText,
 } from './V18MigrationGit.ts';
 import V18PatchTranslator from './V18PatchTranslator.ts';
+import {
+  reportV18MigrationProgress,
+  shouldReportV18CommitProgress,
+  type V18MigrationProgressReporter,
+} from './V18MigrationProgress.ts';
 
 export type V18WriterChainRewrite = Readonly<{
   commitCount: number;
@@ -18,6 +23,7 @@ export type V18WriterChainRewrite = Readonly<{
 /** Recreates one writer chain in order, translating only legacy patch payloads. */
 export async function rewriteV18WriterChain(options: Readonly<{
   graph: string;
+  progress?: V18MigrationProgressReporter;
   refName: string;
   repositoryPath: string;
   translator: V18PatchTranslator;
@@ -31,6 +37,14 @@ export async function rewriteV18WriterChain(options: Readonly<{
   let previousOld: string | null = null;
   let previousNew: string | null = null;
   let translatedCount = 0;
+  let completed = 0;
+  reportV18MigrationProgress(options.progress, {
+    completed,
+    message: 'translating writer chain',
+    phase: 'rewrite',
+    total: commits.length,
+    writer: options.writer,
+  });
   for (const sha of commits) {
     const patch = await readV18PatchCommit(options.repositoryPath, sha);
     requirePatchIdentity(patch, options.graph, options.writer);
@@ -53,6 +67,16 @@ export async function rewriteV18WriterChain(options: Readonly<{
     }
     previousOld = sha;
     previousNew = newSha;
+    completed += 1;
+    if (shouldReportV18CommitProgress(completed, commits.length)) {
+      reportV18MigrationProgress(options.progress, {
+        completed,
+        message: 'translating writer chain',
+        phase: 'rewrite',
+        total: commits.length,
+        writer: options.writer,
+      });
+    }
   }
   if (previousNew === null) {
     throw new Error(`writer ref has no commits: ${options.refName}`);

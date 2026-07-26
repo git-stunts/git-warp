@@ -32,10 +32,11 @@ describe('v18-to-v19 medium standalone migration', () => {
     });
     const before = await readFixtureRefs(restored.repositoryPath, restored.manifest.refs);
 
-    const report = await runStandaloneMigration({
+    const execution = await runStandaloneMigration({
       graph: restored.manifest.graphId,
       repositoryPath: restored.repositoryPath,
     });
+    const { report } = execution;
 
     expect(report).toMatchObject({
       scratchVerified: true,
@@ -45,6 +46,9 @@ describe('v18-to-v19 medium standalone migration', () => {
       expect.objectContaining({ commitCount: 16, writer: 'medium-alice' }),
       expect.objectContaining({ commitCount: 2, writer: 'medium-bob' }),
     ]));
+    expect(execution.stderr).toMatch(/\[inventory\].*medium-alice 16\/16/u);
+    expect(execution.stderr).toMatch(/\[rewrite\].*medium-alice 16\/16/u);
+    expect(execution.stderr).toContain('[verify]');
     expect(await readFixtureRefs(
       restored.repositoryPath,
       restored.manifest.refs,
@@ -63,7 +67,7 @@ type StandaloneReport = Readonly<{
 async function runStandaloneMigration(options: Readonly<{
   graph: string;
   repositoryPath: string;
-}>): Promise<StandaloneReport> {
+}>): Promise<Readonly<{ report: StandaloneReport; stderr: string }>> {
   const result = await runProcess(process.execPath, [
     'scripts/v18-to-v19/migrate.ts',
     '--repo',
@@ -75,7 +79,10 @@ async function runStandaloneMigration(options: Readonly<{
   if (result.exitCode !== 0) {
     throw new Error(`standalone migration failed: ${result.stderr}`);
   }
-  return JSON.parse(result.stdout) as StandaloneReport;
+  return Object.freeze({
+    report: JSON.parse(result.stdout) as StandaloneReport,
+    stderr: result.stderr,
+  });
 }
 
 async function readFixtureRefs(

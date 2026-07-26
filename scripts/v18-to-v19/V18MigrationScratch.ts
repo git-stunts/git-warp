@@ -2,18 +2,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import Plumbing from '@git-stunts/plumbing';
-
 import Runtime from '../../src/application/Runtime.ts';
 import { createObserver } from '../../src/domain/api/ObserverRuntime.ts';
 import Reading from '../../src/domain/api/Reading.ts';
-import WarpCore from '../../src/domain/WarpCore.ts';
 import { CURRENT_SUBSTRATE_MARKER } from '../../src/infrastructure/adapters/SubstrateVersionGate.ts';
-import GitCasRepositoryAdapter from '../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
-import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
-import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
-import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
-import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 import type { V18MigrationPlan } from './V18MigrationPlan.ts';
 import {
   listV18MigrationRefs,
@@ -24,6 +16,11 @@ import {
   rewriteV18WriterChain,
   type V18WriterChainRewrite,
 } from './V18WriterChainRewriter.ts';
+import {
+  reportV18MigrationProgress,
+  type V18MigrationProgressReporter,
+} from './V18MigrationProgress.ts';
+import { openScratchGraph } from './V18MigrationScratchGraph.ts';
 
 const VERIFICATION_WRITER = 'v19-migration-verifier';
 const VERIFICATION_NODE = 'migration:verification';
@@ -41,12 +38,17 @@ export type V18PreparedMigration = Readonly<{
 export async function prepareV18MigrationScratch(options: Readonly<{
   passphrase?: string;
   plan: V18MigrationPlan;
+  progress?: V18MigrationProgressReporter;
 }>): Promise<V18PreparedMigration> {
   if (options.plan.status !== 'migration-required') {
     throw new Error(`cannot prepare migration with status ${options.plan.status}`);
   }
   const scratchPath = await mkdtemp(join(tmpdir(), 'git-warp-v18-to-v19-'));
   try {
+    reportV18MigrationProgress(options.progress, {
+      message: 'initializing disposable repository',
+      phase: 'scratch',
+    });
     await initializeScratch(scratchPath);
     await fetchPlanRefs(scratchPath, options.plan);
     const translator = await V18PatchTranslator.open({
@@ -58,6 +60,7 @@ export async function prepareV18MigrationScratch(options: Readonly<{
       for (const writer of options.plan.writers) {
         rewrites.push(await rewriteV18WriterChain({
           graph: options.plan.graph,
+          ...(options.progress === undefined ? {} : { progress: options.progress }),
           refName: writer.refName,
           repositoryPath: scratchPath,
           translator,
@@ -67,10 +70,18 @@ export async function prepareV18MigrationScratch(options: Readonly<{
     } finally {
       await translator.close();
     }
+    reportV18MigrationProgress(options.progress, {
+      message: 'publishing current substrate marker and checkpoint',
+      phase: 'scratch',
+    });
     await deleteDerivedRefs(scratchPath, options.plan);
     await writeCurrentMarker(scratchPath, options.plan.markerRef);
     await createCurrentCheckpoint(scratchPath, options.plan.graph);
     const desiredRefs = await collectDesiredRefs(scratchPath, options.plan.graph);
+    reportV18MigrationProgress(options.progress, {
+      message: 'proving reopen, append, public reading, and receipt',
+      phase: 'verify',
+    });
     await verifyPreparedScratch(scratchPath, options.plan.graph);
     return Object.freeze({
       async cleanup(): Promise<void> {
@@ -232,48 +243,6 @@ async function verifyPublicReading(repositoryPath: string, graph: string): Promi
     }
   } finally {
     await runtime.close();
-  }
-}
-
-async function openScratchGraph(
-  repositoryPath: string,
-  graph: string,
-  writer: string,
-): Promise<Readonly<{
-  close(): Promise<void>;
-  graph: Awaited<ReturnType<typeof WarpCore.open>>;
-}>> {
-  const plumbing = await Plumbing.createDefault({ cwd: repositoryPath });
-  const history = new GitTimelineHistoryAdapter({ plumbing });
-  const storage = new GitCasRepositoryAdapter({ plumbing, history });
-  try {
-    const graphRuntime = await WarpCore.open({
-      runtimeStorage: storage,
-      stateCache: null,
-      persistence: history,
-      graphName: graph,
-      writerId: writer,
-      codec: defaultCodec,
-      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
-      crypto: new WebCryptoAdapter(),
-    });
-    return Object.freeze({
-      graph: graphRuntime,
-      async close(): Promise<void> {
-        try {
-          await storage.close();
-        } finally {
-          await history.close();
-        }
-      },
-    });
-  } catch (error) {
-    try {
-      await storage.close();
-    } finally {
-      await history.close();
-    }
-    throw error;
   }
 }
 

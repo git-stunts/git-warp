@@ -13,6 +13,10 @@ import {
   prepareV18MigrationScratch,
   verifyPromotedV19Repository,
 } from './V18MigrationScratch.ts';
+import {
+  reportV18MigrationProgress,
+  type V18MigrationProgressReporter,
+} from './V18MigrationProgress.ts';
 
 export type V18MigrationCommandReport = Readonly<{
   finalization: V18MigrationFinalization | null;
@@ -26,6 +30,7 @@ export async function runV18ToV19Migration(options: Readonly<{
   apply: boolean;
   graph: string;
   passphrase?: string;
+  progress?: V18MigrationProgressReporter;
   recoveryId?: string;
   repositoryPath: string;
 }>): Promise<V18MigrationCommandReport> {
@@ -33,6 +38,7 @@ export async function runV18ToV19Migration(options: Readonly<{
   const plan = await planV18ToV19Migration({
     graph: options.graph,
     passphraseAvailable: options.passphrase !== undefined,
+    ...(options.progress === undefined ? {} : { progress: options.progress }),
     repositoryPath,
   });
   if (plan.status === 'current') {
@@ -46,6 +52,7 @@ export async function runV18ToV19Migration(options: Readonly<{
   const prepared = await prepareV18MigrationScratch({
     plan,
     ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
+    ...(options.progress === undefined ? {} : { progress: options.progress }),
   });
   try {
     if (!options.apply) {
@@ -54,15 +61,24 @@ export async function runV18ToV19Migration(options: Readonly<{
     const refreshed = await planV18ToV19Migration({
       graph: options.graph,
       passphraseAvailable: options.passphrase !== undefined,
+      ...(options.progress === undefined ? {} : { progress: options.progress }),
       repositoryPath,
     });
     requireUnchangedPlan(plan, refreshed);
+    reportV18MigrationProgress(options.progress, {
+      message: 'atomically archiving source refs and promoting verified refs',
+      phase: 'finalize',
+    });
     const finalization = await finalizeV18Migration({
       plan,
       prepared,
       ...(options.recoveryId === undefined ? {} : { recoveryId: options.recoveryId }),
     });
     try {
+      reportV18MigrationProgress(options.progress, {
+        message: 'verifying promoted repository',
+        phase: 'verify',
+      });
       await verifyPromotedV19Repository(repositoryPath, options.graph);
     } catch (verificationError) {
       try {

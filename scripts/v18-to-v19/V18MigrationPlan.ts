@@ -17,6 +17,11 @@ import {
   runV18MigrationGit,
   v18MigrationGitText,
 } from './V18MigrationGit.ts';
+import {
+  reportV18MigrationProgress,
+  shouldReportV18CommitProgress,
+  type V18MigrationProgressReporter,
+} from './V18MigrationProgress.ts';
 
 export type V18MigrationWriterPlan = Readonly<{
   commitCount: number;
@@ -42,6 +47,7 @@ export type V18MigrationPlan = Readonly<{
 export async function planV18ToV19Migration(options: Readonly<{
   graph: string;
   passphraseAvailable: boolean;
+  progress?: V18MigrationProgressReporter;
   repositoryPath: string;
 }>): Promise<V18MigrationPlan> {
   validateGraphName(options.graph);
@@ -120,6 +126,7 @@ export async function planV18ToV19Migration(options: Readonly<{
 async function planWriter(options: Readonly<{
   graph: string;
   passphraseAvailable: boolean;
+  progress?: V18MigrationProgressReporter;
   refName: string;
   repositoryPath: string;
 }>): Promise<V18MigrationWriterPlan> {
@@ -138,6 +145,14 @@ async function planWriter(options: Readonly<{
   let currentCount = 0;
   let encryptedCount = 0;
   let previous: string | null = null;
+  let completed = 0;
+  reportV18MigrationProgress(options.progress, {
+    completed,
+    message: 'validating writer chain',
+    phase: 'inventory',
+    total: commits.length,
+    writer,
+  });
   for (const sha of commits) {
     const patch = await readV18PatchCommit(options.repositoryPath, sha);
     if (
@@ -156,6 +171,16 @@ async function planWriter(options: Readonly<{
       }
     }
     previous = sha;
+    completed += 1;
+    if (shouldReportV18CommitProgress(completed, commits.length)) {
+      reportV18MigrationProgress(options.progress, {
+        completed,
+        message: 'validating writer chain',
+        phase: 'inventory',
+        total: commits.length,
+        writer,
+      });
+    }
   }
   if (previous !== head) {
     throw new Error(`writer chain ${options.refName} did not inventory to its head`);

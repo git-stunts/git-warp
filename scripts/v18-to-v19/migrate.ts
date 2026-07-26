@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { runV18ToV19Migration } from './V18MigrationCommand.ts';
+import type { V18MigrationProgress } from './V18MigrationProgress.ts';
 
 type CliOptions = Readonly<{
   apply: boolean;
@@ -16,6 +17,9 @@ async function main(): Promise<void> {
   const report = await runV18ToV19Migration({
     apply: options.apply,
     graph: options.graph,
+    progress: (progress) => {
+      process.stderr.write(formatProgress(progress));
+    },
     repositoryPath: options.repositoryPath,
     ...(passphrase === undefined ? {} : { passphrase }),
     ...(options.recoveryId === undefined ? {} : { recoveryId: options.recoveryId }),
@@ -25,6 +29,14 @@ async function main(): Promise<void> {
     return;
   }
   process.stdout.write(formatReport(report));
+}
+
+function formatProgress(progress: V18MigrationProgress): string {
+  const writer = progress.writer === undefined ? '' : ` ${progress.writer}`;
+  const count = progress.completed === undefined || progress.total === undefined
+    ? ''
+    : ` ${String(progress.completed)}/${String(progress.total)}`;
+  return `v18-to-v19 [${progress.phase}]${writer}${count}: ${progress.message}\n`;
 }
 
 function parseArgs(args: readonly string[]): CliOptions {
