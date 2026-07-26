@@ -15,11 +15,15 @@ public API export, CLI command, package entrypoint, or public error class.
 | npm export | `./storage` | `types=./dist/storage.d.ts; import=./dist/storage.js; default=./dist/storage.js` | `package.json#L33` |
 | npm export | `./advanced` | `types=./dist/advanced.d.ts; import=./dist/advanced.js; default=./dist/advanced.js` | `package.json#L38` |
 | npm export | `./diagnostics` | `types=./dist/diagnostics.d.ts; import=./dist/diagnostics.js; default=./dist/diagnostics.js` | `package.json#L43` |
-| npm export | `./package.json` | `./package.json` | `package.json#L48` |
+| npm export | `./charts` | `types=./dist/charts.d.ts; import=./dist/charts.js; default=./dist/charts.js` | `package.json#L48` |
+| npm export | `./testing` | `types=./dist/testing.d.ts; import=./dist/testing.js; default=./dist/testing.js` | `package.json#L53` |
+| npm export | `./package.json` | `./package.json` | `package.json#L58` |
 | JSR export | `.` | `./index.ts` | `jsr.json#L8` |
 | JSR export | `./storage` | `./storage.ts` | `jsr.json#L9` |
 | JSR export | `./advanced` | `./advanced.ts` | `jsr.json#L10` |
 | JSR export | `./diagnostics` | `./diagnostics.ts` | `jsr.json#L11` |
+| JSR export | `./charts` | `./charts.ts` | `jsr.json#L12` |
+| JSR export | `./testing` | `./testing.ts` | `jsr.json#L13` |
 
 ## Root API export surface
 
@@ -135,6 +139,50 @@ Source: `diagnostics.ts`. Count: 3.
 InspectReceiptOptions @ diagnostics.ts#L11
 ReceiptInspection @ diagnostics.ts#L29
 ReceiptSubstrateInspection @ diagnostics.ts#L15
+```
+
+## Charts export surface
+
+Bounded graph-shaped derived Observers and Reading values.
+
+### Value exports
+
+Source: `charts.ts`. Count: 1.
+
+```text
+graph @ charts.ts#L9
+```
+
+### Type exports
+
+Source: `charts.ts`. Count: 4.
+
+```text
+GraphChartObservers @ charts.ts#L11
+GraphNeighborhoodChart @ charts.ts#L12
+GraphNeighborhoodEdge @ charts.ts#L13
+GraphNeighborhoodOptions @ charts.ts#L14
+```
+
+## Testing export surface
+
+Disposable real-Git Runtime harnesses for consumer tests.
+
+### Value exports
+
+Source: `testing.ts`. Count: 1.
+
+```text
+createRuntimeHarness @ testing.ts#L8
+```
+
+### Type exports
+
+Source: `testing.ts`. Count: 2.
+
+```text
+RuntimeHarness @ testing.ts#L10
+RuntimeHarnessOptions @ testing.ts#L11
 ```
 
 ## CLI command registry

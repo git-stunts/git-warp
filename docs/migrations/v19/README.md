@@ -2,8 +2,8 @@
 
 > **Status:** Pre-release. The canonical Runtime, worldline Lane, Observer,
 > streaming Observation, Reading, Receipt, and write-admission core has landed.
-> Fork/settlement, generated SDK publication, charts/testing subpaths, and
-> CLI/MCP vocabulary convergence remain tracked by issue #712.
+> Fork/settlement, generated SDK publication, and CLI/MCP vocabulary
+> convergence remain tracked by issue #712.
 
 v19 replaces the transitional storage- and timeline-shaped facade with one
 application grammar:
@@ -304,8 +304,9 @@ The intended v19 expert surfaces are:
 ```
 
 `/charts` provides graph-shaped derived observations. It does not describe the
-durable ontology as a graph. `/testing` owns dependency injection and fakes.
-Both remain open v19 implementation work at the time of this guide.
+durable ontology as a graph. Its first shipped Observer is a one-hop, bounded,
+cursor-page neighborhood chart. `/testing` provides an isolated real-Git
+`Runtime` harness without exposing storage construction at package root.
 
 There is no public `/graph`, `/browser`, or `/legacy` package. The transitional
 `/storage` export remains only until testing and diagnostics no longer require
@@ -341,8 +342,8 @@ the explicit handle; ordinary v19 application code must use `Runtime.open()`.
 6. Move receipt handling from each Reading to the Observation terminal path.
 7. Match all four admission variants exhaustively.
 8. Keep existing cross-lane join code isolated until settlement plans land.
-9. Replace graph-shaped reads with `/charts` once that subpath ships.
-10. Remove imports from `/storage` after diagnostics/testing migration lands.
+9. Replace graph-shaped reads with bounded `/charts` observers.
+10. Remove imports from `/storage` when explicit diagnostics work is complete.
 
 ## Validation
 

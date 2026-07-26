@@ -224,19 +224,44 @@ describe('v19 public API boundary', () => {
     );
   });
 
+  it('keeps charts limited to bounded derived observers', () => {
+    const surface = moduleSurface('charts.ts');
+    expect(surface.starExports).toEqual([]);
+    expect(surface.valueExports).toEqual(['graph']);
+    expect(surface.typeExports).toEqual(
+      sorted([
+        'GraphChartObservers',
+        'GraphNeighborhoodChart',
+        'GraphNeighborhoodEdge',
+        'GraphNeighborhoodOptions',
+      ])
+    );
+  });
+
+  it('keeps testing limited to the explicit Runtime harness', () => {
+    const surface = moduleSurface('testing.ts');
+    expect(surface.starExports).toEqual([]);
+    expect(surface.valueExports).toEqual(['createRuntimeHarness']);
+    expect(surface.typeExports).toEqual(['RuntimeHarness', 'RuntimeHarnessOptions']);
+  });
+
   it('publishes only the supported v19 subpaths', () => {
     expect(packageExportNames('package.json')).toEqual([
       '.',
       './advanced',
+      './charts',
       './diagnostics',
       './package.json',
       './storage',
+      './testing',
     ]);
     expect(packageExportNames('jsr.json')).toEqual([
       '.',
       './advanced',
+      './charts',
       './diagnostics',
       './storage',
+      './testing',
     ]);
   });
 

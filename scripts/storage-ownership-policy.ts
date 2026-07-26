@@ -4,6 +4,8 @@ export const PRODUCTION_ENTRYPOINTS = [
   'storage.ts',
   'advanced.ts',
   'diagnostics.ts',
+  'charts.ts',
+  'testing.ts',
 ] as const;
 export const DOMAIN_STORAGE_ROOTS = ['src/domain', 'src/ports'] as const;
 export const STORAGE_ADAPTER_ROOT = 'src/infrastructure/adapters/';

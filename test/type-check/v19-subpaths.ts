@@ -1,19 +1,29 @@
 /**
  * v19 explicit subpath consumer fixture -- compile-only.
  *
- * Storage, advanced, and diagnostics imports stay reachable only from their
- * named expert surfaces.
+ * Storage, advanced, charts, diagnostics, and testing imports stay reachable
+ * only from their named expert surfaces.
  */
 
 import { GitStorage, type GitStorageOptions } from '../../storage.ts';
 import { type Lane, type WriteReceipt } from '../../index.ts';
 import { captureCoordinate, Coordinate, Optic, type Witness } from '../../advanced.ts';
 import {
+  graph,
+  type GraphNeighborhoodChart,
+  type GraphNeighborhoodOptions,
+} from '../../charts.ts';
+import {
   inspectReceipt,
   type InspectReceiptOptions,
   type ReceiptInspection,
   type ReceiptSubstrateInspection,
 } from '../../diagnostics.ts';
+import {
+  createRuntimeHarness,
+  type RuntimeHarness,
+  type RuntimeHarnessOptions,
+} from '../../testing.ts';
 
 declare const gitStorageOptions: GitStorageOptions;
 
@@ -28,6 +38,15 @@ const inspectionOptions: InspectReceiptOptions = { storage: gitStorage };
 const inspection: ReceiptInspection = inspectReceipt(receipt, inspectionOptions);
 const inspectedLane: string = inspection.lane;
 const substrate: ReceiptSubstrateInspection = inspection.substrate;
+const neighborhoodOptions: GraphNeighborhoodOptions = {
+  around: 'user:alice',
+  direction: 'both',
+  limit: 100,
+};
+const neighborhood = lane.observe(graph.neighborhood(neighborhoodOptions));
+const chart: GraphNeighborhoodChart = (await neighborhood.one()).value;
+const harnessOptions: RuntimeHarnessOptions = { writer: 'agent-1' };
+const harness: RuntimeHarness = await createRuntimeHarness(harnessOptions);
 
 // @ts-expect-error diagnostics require explicit storage context.
 inspectReceipt(receipt);
@@ -36,8 +55,10 @@ inspectReceipt(receipt);
 inspection.timeline;
 
 await gitStorage.close();
+await harness.close();
 void optic;
 void witness;
 void inspection;
 void inspectedLane;
 void substrate;
+void chart;

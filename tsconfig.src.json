@@ -5,6 +5,8 @@
     "storage.ts",
     "advanced.ts",
     "diagnostics.ts",
+    "charts.ts",
+    "testing.ts",
     "src/**/*.ts",
     "src/globals.d.ts",
     "bin/warp-graph.ts",
