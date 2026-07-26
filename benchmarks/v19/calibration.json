@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "07f6223cdc52d7d22160c9ff77405356dd60a3a0",
+  "generatedAt": "2026-07-26T02:53:32.821Z",
+  "environment": {
+    "architecture": "arm64",
+    "cpuCount": 10,
+    "cpuModel": "Apple M1 Pro",
+    "git": "git version 2.50.1 (Apple Git-155)",
+    "gitCas": "6.5.3",
+    "node": "v26.0.0",
+    "platform": "darwin"
+  },
+  "corpus": {
+    "baseNodeCount": 25,
+    "suffixNodeCount": 5,
+    "propertyBytesPerNode": 256,
+    "measuredRuns": 3,
+    "warmupRuns": 1
+  },
+  "observed": {
+    "cold-materialize": {
+      "cpuTotalMedianMs": 3993.154,
+      "cpuTotalMadMs": 11.974,
+      "maximumRssBytes": 152158208,
+      "maximumHeapUsedBytes": 57703656
+    },
+    "warm-materialize": {
+      "cpuTotalMedianMs": 834.786,
+      "cpuTotalMadMs": 4.831,
+      "maximumRssBytes": 120930304,
+      "maximumHeapUsedBytes": 39929144
+    },
+    "incremental-materialize": {
+      "cpuTotalMedianMs": 4276.35,
+      "cpuTotalMadMs": 89.092,
+      "maximumRssBytes": 152928256,
+      "maximumHeapUsedBytes": 58384360
+    }
+  },
+  "rejectedProfiles": [
+    {
+      "baseNodeCount": 1500,
+      "reason": "single worker exceeded the 600000 ms timeout"
+    }
+  ],
+  "policyRationale": {
+    "cpuRegressionRatio": 1.15,
+    "cpuNoiseFloorMs": {
+      "cold-materialize": 250,
+      "warm-materialize": 50,
+      "incremental-materialize": 250
+    },
+    "note": "Noise floors exceed observed MAD; absolute CPU and memory ceilings retain substantial hosted-runner headroom while blocking gross regressions."
+  }
+}

@@ -8,6 +8,10 @@ import { deterministicPayload }
   from '../../../scripts/performance/PerformanceFixture.ts';
 import { isHeapExhaustionFailure }
   from '../../../scripts/performance/StreamingPerformanceProcess.ts';
+import {
+  parseStreamingPerformanceReport,
+  requireStreamingProofReport,
+} from '../../../scripts/performance/StreamingPerformanceReport.ts';
 
 const MEBIBYTE = 1024 * 1024;
 
@@ -39,7 +43,37 @@ describe('StreamingPerformanceModel', () => {
     const candidate = result(override);
     expect(() => validateStreamingPerformanceResult(candidate, manifest())).toThrow();
   });
+
+  it('requires proof-profile hostile OOM and bounded fixture generation', () => {
+    const valid = report();
+    expect(requireStreamingProofReport(valid)).toEqual(valid);
+    expect(() => parseStreamingPerformanceReport({
+      ...valid,
+      hostileControl: 'not-run-mini-profile',
+    })).toThrow('did not exhaust');
+    expect(() => parseStreamingPerformanceReport({
+      ...valid,
+      generation: {
+        ...valid.generation,
+        peakHeapUsedBytes: 97 * MEBIBYTE,
+      },
+    })).toThrow('fixture-generation heap envelope');
+  });
 });
+
+function report() {
+  return {
+    fixture: manifest(),
+    generation: {
+      maximumHeapUsedBytes: 96 * MEBIBYTE,
+      maxRssBytes: 160 * MEBIBYTE,
+      peakHeapUsedBytes: 60 * MEBIBYTE,
+    },
+    hostileControl: 'failed-with-memory-exhaustion',
+    profile: 'proof',
+    streaming: result(),
+  } as const;
+}
 
 function manifest() {
   return StreamingFixtureManifestSchema.parse({

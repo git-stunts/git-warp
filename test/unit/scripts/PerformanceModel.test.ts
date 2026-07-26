@@ -12,6 +12,8 @@ import {
   type PerformanceScenarioName,
   type ScenarioResult,
 } from '../../../scripts/performance/PerformanceModel.ts';
+import { mergePerformanceResults }
+  from '../../../scripts/performance/PerformanceResultMerge.ts';
 
 describe('v19 performance result contract', () => {
   it('accepts a complete result with stable cold/warm semantics and reuse evidence', () => {
@@ -109,6 +111,31 @@ describe('v19 performance result contract', () => {
       .toEqual([]);
   });
 
+  it('fails synthetic RSS and heap regressions deterministically', () => {
+    const base = validResult();
+    const rssRegression = replaceDistribution(
+      base,
+      'cold-materialize',
+      'maxRssBytes',
+      distribution(300 * 1024 * 1024),
+    );
+    const heapRegression = replaceDistribution(
+      base,
+      'warm-materialize',
+      'peakHeapUsedBytes',
+      distribution(200 * 1024 * 1024),
+    );
+
+    expect(evaluatePerformanceGate(rssRegression, null, policy()).failures)
+      .toEqual([
+        'cold-materialize maximum RSS: 300.0 MiB exceeds 256.0 MiB',
+      ]);
+    expect(evaluatePerformanceGate(heapRegression, null, policy()).failures)
+      .toEqual([
+        'warm-materialize peak heap: 200.0 MiB exceeds 128.0 MiB',
+      ]);
+  });
+
   it('refuses to compare different git-cas versions', () => {
     const base = validResult();
     const head: PerformanceResult = {
@@ -121,6 +148,24 @@ describe('v19 performance result contract', () => {
 
     expect(() => evaluatePerformanceGate(head, base, policy()))
       .toThrow('environments are not comparable');
+  });
+
+  it('merges counterbalanced batches without discarding raw samples', () => {
+    const first = validResult();
+    const second = {
+      ...validResult(),
+      generatedAt: '2026-07-25T00:01:00.000Z',
+    };
+    const merged = mergePerformanceResults([first, second]);
+
+    expect(merged.scenarios['cold-materialize'].measuredRuns).toBe(2);
+    expect(merged.scenarios['cold-materialize'].warmupRuns).toBe(2);
+    expect(merged.scenarios['cold-materialize'].cpuTotalMs.samples)
+      .toEqual([100, 100]);
+    expect(() => mergePerformanceResults([
+      first,
+      { ...second, commit: 'different' },
+    ])).toThrow('different commits');
   });
 });
 
@@ -256,7 +301,7 @@ function replaceSample(
 function replaceDistribution(
   result: PerformanceResult,
   scenario: PerformanceScenarioName,
-  metric: 'cpuTotalMs' | 'wallMs',
+  metric: 'cpuTotalMs' | 'maxRssBytes' | 'peakHeapUsedBytes' | 'wallMs',
   value: Distribution,
 ): PerformanceResult {
   const current = result.scenarios[scenario];
@@ -279,6 +324,16 @@ function policy(): PerformancePolicy {
         'cold-materialize': 1_000,
         'incremental-materialize': 1_000,
         'warm-materialize': 1_000,
+      },
+      maxRssBytes: {
+        'cold-materialize': 256 * 1024 * 1024,
+        'incremental-materialize': 256 * 1024 * 1024,
+        'warm-materialize': 256 * 1024 * 1024,
+      },
+      peakHeapUsedBytes: {
+        'cold-materialize': 128 * 1024 * 1024,
+        'incremental-materialize': 128 * 1024 * 1024,
+        'warm-materialize': 128 * 1024 * 1024,
       },
     },
     relative: {

@@ -3,12 +3,17 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import z from 'zod';
 import {
+  parsePerformanceComparison,
+  type PerformanceComparison,
+} from './PerformanceComparisonModel.ts';
+import {
   PERFORMANCE_SCENARIOS,
   parsePerformanceResult,
   type PerformanceResult,
-  type PerformanceScenarioName,
-  type ScenarioResult,
 } from './PerformanceModel.ts';
+import { renderPerformanceSummary } from './PerformanceSummary.ts';
+import type { StreamingPerformanceReport }
+  from './StreamingPerformanceReport.ts';
 
 const scenarioThresholds = z.object({
   'cold-materialize': z.number().finite().nonnegative(),
@@ -19,6 +24,8 @@ const scenarioThresholds = z.object({
 export const PerformancePolicySchema = z.object({
   absolute: z.object({
     cpuTotalMedianMs: scenarioThresholds,
+    maxRssBytes: scenarioThresholds,
+    peakHeapUsedBytes: scenarioThresholds,
   }).strict(),
   relative: z.object({
     cpuNoiseFloorMs: scenarioThresholds,
@@ -32,10 +39,19 @@ export type PerformancePolicy = Readonly<z.infer<typeof PerformancePolicySchema>
 
 type GateOptions = Readonly<{
   basePath?: string;
-  headPath: string;
+  comparisonPath?: string;
+  headPath?: string;
   policyPath: string;
   summaryPath?: string;
 }>;
+
+type MutableGatePaths = {
+  basePath?: string;
+  comparisonPath?: string;
+  headPath?: string;
+  policyPath: string;
+  summaryPath?: string;
+};
 
 export type PerformanceGateEvaluation = Readonly<{
   failures: readonly string[];
@@ -45,11 +61,22 @@ export type PerformanceGateEvaluation = Readonly<{
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   const policy = await readPolicy(options.policyPath);
-  const head = await readResult(options.headPath);
-  const base = options.basePath === undefined
+  const comparison = options.comparisonPath === undefined
     ? null
-    : await readResult(options.basePath);
-  const evaluation = evaluatePerformanceGate(head, base, policy);
+    : await readComparison(options.comparisonPath);
+  const head = comparison === null
+    ? await readResult(requireHeadPath(options))
+    : comparison.head.materialization;
+  const base = comparison?.base.materialization
+    ?? (options.basePath === undefined ? null : await readResult(options.basePath));
+  const evaluation = evaluatePerformanceGate(
+    head,
+    base,
+    policy,
+    comparison?.head.streaming,
+    comparison?.base.streaming,
+    comparison?.executionOrder,
+  );
   process.stdout.write(evaluation.summary);
   if (options.summaryPath !== undefined) {
     await writeFile(options.summaryPath, evaluation.summary, 'utf8');
@@ -63,6 +90,9 @@ export function evaluatePerformanceGate(
   head: PerformanceResult,
   base: PerformanceResult | null,
   policy: PerformancePolicy,
+  streamingHead?: StreamingPerformanceReport,
+  streamingBase?: StreamingPerformanceReport,
+  executionOrder?: readonly string[],
 ): PerformanceGateEvaluation {
   const failures = [
     ...absoluteFailures(head, policy),
@@ -70,7 +100,14 @@ export function evaluatePerformanceGate(
   ];
   return Object.freeze({
     failures: Object.freeze(failures),
-    summary: renderSummary(head, base, failures),
+    summary: renderPerformanceSummary(
+      head,
+      base,
+      failures,
+      streamingHead,
+      streamingBase,
+      executionOrder,
+    ),
   });
 }
 
@@ -84,6 +121,24 @@ function absoluteFailures(
     const maximum = policy.absolute.cpuTotalMedianMs[scenario];
     if (actual > maximum) {
       failures.push(metricFailure(`${scenario} median CPU`, actual, maximum));
+    }
+    const actualRss = head.scenarios[scenario].maxRssBytes.maximum;
+    const maximumRss = policy.absolute.maxRssBytes[scenario];
+    if (actualRss > maximumRss) {
+      failures.push(byteMetricFailure(
+        `${scenario} maximum RSS`,
+        actualRss,
+        maximumRss,
+      ));
+    }
+    const actualHeap = head.scenarios[scenario].peakHeapUsedBytes.maximum;
+    const maximumHeap = policy.absolute.peakHeapUsedBytes[scenario];
+    if (actualHeap > maximumHeap) {
+      failures.push(byteMetricFailure(
+        `${scenario} peak heap`,
+        actualHeap,
+        maximumHeap,
+      ));
     }
   }
   return failures;
@@ -110,11 +165,8 @@ function relativeFailures(
 
 function requireComparable(base: PerformanceResult, head: PerformanceResult): void {
   if (
-    base.environment.architecture !== head.environment.architecture
-    || base.environment.platform !== head.environment.platform
-    || base.environment.git !== head.environment.git
-    || base.environment.gitCas !== head.environment.gitCas
-    || nodeMajor(base.environment.node) !== nodeMajor(head.environment.node)
+    JSON.stringify(base.environment) !== JSON.stringify(head.environment)
+    || JSON.stringify(base.instrumentation) !== JSON.stringify(head.instrumentation)
   ) {
     throw new Error('Base and head performance environments are not comparable');
   }
@@ -127,63 +179,14 @@ function requireComparable(base: PerformanceResult, head: PerformanceResult): vo
   }
 }
 
-function renderSummary(
-  head: PerformanceResult,
-  base: PerformanceResult | null,
-  failures: readonly string[],
-): string {
-  const lines = [
-    '# git-warp materialization performance gate',
-    '',
-    `Result: **${failures.length === 0 ? 'PASS' : 'FAIL'}**`,
-    '',
-    '| Scenario | Head CPU | Base CPU | Head wall | Base wall | Head RSS | CPU MAD |',
-    '|---|---:|---:|---:|---:|---:|---:|',
-  ];
-  for (const scenario of PERFORMANCE_SCENARIOS) {
-    lines.push(summaryRow(
-      scenario,
-      head.scenarios[scenario],
-      base?.scenarios[scenario],
-    ));
-  }
-  lines.push(
-    '',
-    'CPU is blocking. Wall time and RSS are diagnostic in this materialization slice.',
-    '',
-    base === null
-      ? 'Comparison mode: reviewed absolute bootstrap policy.'
-      : 'Comparison mode: same-environment base/head CPU gate plus absolute policy.',
-  );
-  if (failures.length > 0) {
-    lines.push('', '## Failures', '', ...failures.map((failure) => `- ${failure}`));
-  }
-  return `${lines.join('\n')}\n`;
-}
-
-function summaryRow(
-  scenario: PerformanceScenarioName,
-  head: ScenarioResult,
-  base: ScenarioResult | undefined,
-): string {
-  return `| ${scenario} | ${head.cpuTotalMs.median.toFixed(1)} ms | `
-    + `${formatMetric(base?.cpuTotalMs.median, 'ms')} | `
-    + `${head.wallMs.median.toFixed(1)} ms | `
-    + `${formatMetric(base?.wallMs.median, 'ms')} | `
-    + `${formatMebibytes(head.maxRssBytes.maximum)} | `
-    + `${head.cpuTotalMs.mad.toFixed(1)} ms |`;
-}
-
-function formatMetric(value: number | undefined, unit: string): string {
-  return value === undefined ? 'n/a' : `${value.toFixed(1)} ${unit}`;
-}
-
-function formatMebibytes(bytes: number): string {
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
-}
-
 function metricFailure(metric: string, actual: number, maximum: number): string {
   return `${metric}: ${actual.toFixed(1)} ms exceeds ${maximum.toFixed(1)} ms`;
+}
+
+function byteMetricFailure(metric: string, actual: number, maximum: number): string {
+  const mebibyte = 1024 * 1024;
+  return `${metric}: ${(actual / mebibyte).toFixed(1)} MiB exceeds `
+    + `${(maximum / mebibyte).toFixed(1)} MiB`;
 }
 
 async function readResult(path: string): Promise<PerformanceResult> {
@@ -191,48 +194,67 @@ async function readResult(path: string): Promise<PerformanceResult> {
   return parsePerformanceResult(value);
 }
 
+async function readComparison(path: string): Promise<PerformanceComparison> {
+  const value: unknown = JSON.parse(await readFile(path, 'utf8'));
+  return parsePerformanceComparison(value);
+}
+
 async function readPolicy(path: string): Promise<PerformancePolicy> {
   const value: unknown = JSON.parse(await readFile(path, 'utf8'));
   return PerformancePolicySchema.parse(value);
 }
 
-function nodeMajor(version: string): string {
-  return version.replace(/^v/u, '').split('.')[0] ?? version;
-}
-
 function parseOptions(args: readonly string[]): GateOptions {
-  let headPath: string | undefined;
-  let basePath: string | undefined;
-  let summaryPath: string | undefined;
-  let policyPath = resolve('benchmarks/v19/policy.json');
+  const paths: MutableGatePaths = {
+    policyPath: resolve('benchmarks/v19/policy.json'),
+  };
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     const value = args[index + 1];
     if (value === undefined) {
       throw new Error(`Performance gate argument requires a value: ${String(argument)}`);
     }
-    if (argument === '--head') {
-      headPath = resolve(value);
-    } else if (argument === '--base') {
-      basePath = resolve(value);
-    } else if (argument === '--policy') {
-      policyPath = resolve(value);
-    } else if (argument === '--summary') {
-      summaryPath = resolve(value);
-    } else {
-      throw new Error(`Unknown performance gate argument: ${String(argument)}`);
-    }
+    assignPathArgument(paths, argument, value);
     index += 1;
   }
-  if (headPath === undefined) {
+  if (paths.headPath === undefined && paths.comparisonPath === undefined) {
+    throw new Error('Performance gate requires --head or --comparison');
+  }
+  if (paths.headPath !== undefined && paths.comparisonPath !== undefined) {
+    throw new Error('Performance gate accepts either --head or --comparison');
+  }
+  if (paths.basePath !== undefined && paths.comparisonPath !== undefined) {
+    throw new Error('Performance gate comparison input already contains its base');
+  }
+  return Object.freeze({ ...paths });
+}
+
+function assignPathArgument(
+  paths: MutableGatePaths,
+  argument: string | undefined,
+  value: string,
+): void {
+  const path = resolve(value);
+  if (argument === '--head') {
+    paths.headPath = path;
+  } else if (argument === '--base') {
+    paths.basePath = path;
+  } else if (argument === '--comparison') {
+    paths.comparisonPath = path;
+  } else if (argument === '--policy') {
+    paths.policyPath = path;
+  } else if (argument === '--summary') {
+    paths.summaryPath = path;
+  } else {
+    throw new Error(`Unknown performance gate argument: ${String(argument)}`);
+  }
+}
+
+function requireHeadPath(options: GateOptions): string {
+  if (options.headPath === undefined) {
     throw new Error('Performance gate requires --head');
   }
-  return Object.freeze({
-    ...(basePath === undefined ? {} : { basePath }),
-    headPath,
-    policyPath,
-    ...(summaryPath === undefined ? {} : { summaryPath }),
-  });
+  return options.headPath;
 }
 
 function isMainModule(): boolean {
