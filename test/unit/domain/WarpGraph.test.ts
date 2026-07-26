@@ -735,17 +735,16 @@ describe('WarpCore', () => {
       });
 
       const checkpointSha = 'a'.repeat(40);
-      const indexOid = 'e'.repeat(40);
 
-      // Mock checkpoint data (schema:2 required)
+      // Keep storage metadata current so this isolates the retired schema boundary.
       const checkpointMessage = `warp:checkpoint
 
 eg-kind: checkpoint
 eg-graph: events
 eg-state-hash: ${'c'.repeat(64)}
-eg-frontier-oid: ${'d'.repeat(40)}
-eg-index-oid: ${indexOid}
-eg-schema: 2`;
+eg-schema: 2
+eg-checkpoint: v19
+eg-checkpoint-handle: bundle:checkpoint`;
 
       persistence.showNode.mockResolvedValue(checkpointMessage);
       persistence.getNodeInfo.mockResolvedValue({
