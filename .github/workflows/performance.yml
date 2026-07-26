@@ -1,0 +1,119 @@
+name: Performance
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Base ref to compare
+        required: true
+        default: main^
+        type: string
+      head:
+        description: Head ref to compare
+        required: true
+        default: main
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    name: v19 base/head performance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RUNNER_ENVIRONMENT: github-actions-ubuntu-24.04
+    steps:
+      - name: Resolve exact comparison refs
+        id: refs
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}
+          HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event_name == 'push' && github.sha || inputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$BASE_REF" || "$BASE_REF" =~ ^0+$ ]]; then
+            echo "Performance comparison requires a concrete base ref"
+            exit 1
+          fi
+          test -n "$HEAD_REF"
+          echo "base=$BASE_REF" >> "$GITHUB_OUTPUT"
+          echo "head=$HEAD_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Check out base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ steps.refs.outputs.base }}
+          path: base
+          persist-credentials: false
+
+      - name: Check out head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ steps.refs.outputs.head }}
+          path: head
+          persist-credentials: false
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            base/package-lock.json
+            head/package-lock.json
+
+      - name: Install base
+        working-directory: base
+        run: npm ci
+
+      - name: Install head
+        working-directory: head
+        run: npm ci
+
+      - name: Build base and head
+        shell: bash
+        run: |
+          npm --prefix base run build --silent
+          npm --prefix head run build --silent
+
+      - name: Measure counterbalanced base and head
+        shell: bash
+        run: |
+          node head/dist/scripts/performance/RunPerformanceComparison.js \
+            --base-directory base \
+            --head-directory head \
+            --output-directory performance-results \
+            --order-seed "${{ github.event.pull_request.number || github.run_number }}"
+
+      - name: Gate performance evidence
+        shell: bash
+        run: |
+          gate_status=0
+          node head/dist/scripts/performance/GatePerformance.js \
+            --comparison performance-results/comparison.json \
+            --policy head/benchmarks/v19/policy.json \
+            --summary performance-results/summary.md || gate_status=$?
+          if [[ -f performance-results/summary.md ]]; then
+            cat performance-results/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$gate_status"
+
+      - name: Retain raw samples and environment evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v19-performance-${{ github.sha }}
+          path: performance-results
+          if-no-files-found: warn
+          retention-days: 90

@@ -11,6 +11,7 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: read
   issues: read
 
@@ -103,6 +104,34 @@ jobs:
             STAGE="tag-workflow"
           fi
           npm run release:guard -- --stage "$STAGE" --tag "${{ steps.meta.outputs.tag }}"
+
+      - name: Verify current v19 performance evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${{ steps.meta.outputs.tag_version }}"
+          MAJOR="${TAG_VERSION%%.*}"
+          if (( MAJOR < 19 )); then
+            echo "Performance evidence gate begins with v19"
+            exit 0
+          fi
+          HEAD_SHA="$(git rev-parse HEAD)"
+          RUN_COUNT="$(
+            gh api \
+              -X GET \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/performance.yml/runs" \
+              -f head_sha="$HEAD_SHA" \
+              -f event=push \
+              -f status=success \
+              --jq '.total_count'
+          )"
+          if [[ "$RUN_COUNT" -lt 1 ]]; then
+            echo "No successful main Performance workflow found for $HEAD_SHA"
+            exit 1
+          fi
+          echo "Found current green performance evidence for $HEAD_SHA"
 
       - name: Lychee link check
         uses: lycheeverse/lychee-action@v2

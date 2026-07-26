@@ -22,8 +22,8 @@ import {
 } from './PerformanceProcess.ts';
 import { summarizeScenario } from './PerformanceStatistics.ts';
 
-const DEFAULT_BASE_NODES = 1_500;
-const DEFAULT_INCREMENTAL_NODES = 25;
+const DEFAULT_BASE_NODES = 25;
+const DEFAULT_INCREMENTAL_NODES = 5;
 const DEFAULT_MEASURED_RUNS = 5;
 const DEFAULT_PROPERTY_BYTES = 256;
 const DEFAULT_WARMUP_RUNS = 1;

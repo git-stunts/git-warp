@@ -9,6 +9,8 @@ import { validateStreamingPerformanceResult }
   from './StreamingPerformanceModel.ts';
 import { startMemorySampler }
   from './StreamingPerformanceInstrumentation.ts';
+import { parseStreamingPerformanceReport }
+  from './StreamingPerformanceReport.ts';
 import {
   assertCollectingControlExhaustsHeap,
   runStreamingPerformanceProcess,
@@ -64,6 +66,7 @@ async function main(): Promise<void> {
       profile: options.profileName,
       streaming,
     });
+    parseStreamingPerformanceReport(report);
     await mkdir(dirname(options.outputPath), { recursive: true });
     await writeFile(
       options.outputPath,

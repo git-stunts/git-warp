@@ -32,8 +32,17 @@ Node majors, Git versions, git-cas versions, or corpora.
 
 CPU is the blocking regression metric. Wall time remains diagnostic because
 hosted-runner scheduling and filesystem noise are not stable enough for a
-trustworthy wall-time gate. The checked-in policy combines a relative ratio
-with an absolute noise floor and also applies generous bootstrap ceilings.
+trustworthy wall-time gate. Peak RSS and heap have blocking absolute envelopes.
+The checked-in policy combines a relative CPU ratio with an absolute noise
+floor and reviewed materialization and streaming CPU/memory ceilings.
+
+The reviewed CI corpus contains 25 base nodes, a five-node suffix, and 256
+property bytes per node. The earlier 1,500-node bootstrap profile was rejected
+after one worker exceeded the ten-minute timeout. The checked-in
+[`calibration.json`](./calibration.json) records the replacement profile,
+observed medians and dispersion, the exact GitHub-hosted Ubuntu 24.04/Node 22
+gating environment, and the policy rationale. A local Apple Silicon calibration
+is retained as secondary evidence, not as the source of CI ceilings.
 
 ## Semantic and schema gates
 
@@ -82,10 +91,44 @@ npm run performance:streaming -- \
   --output .performance/streaming.json
 ```
 
+To reproduce the CI comparison, build clean base and head worktrees and run:
+
+```sh
+npm run performance:compare -- \
+  --base-directory ../git-warp-base \
+  --head-directory . \
+  --output-directory .performance/comparison \
+  --order-seed 1
+npm run performance:gate -- \
+  --comparison .performance/comparison/comparison.json \
+  --policy benchmarks/v19/policy.json \
+  --summary .performance/comparison/summary.md
+```
+
 Use `GIT_WARP_PERF_RUNS`, `GIT_WARP_PERF_WARMUPS`,
 `GIT_WARP_PERF_BASE_NODES`, `GIT_WARP_PERF_INCREMENTAL_NODES`, and
-`GIT_WARP_PERF_PROPERTY_BYTES` only for local calibration. A base/head CI
-workflow and durable history are tracked separately by
-[#761](https://github.com/git-stunts/git-warp/issues/761). Use
-`--profile mini` only for a fast mechanism check; it deliberately skips the
-hostile OOM control and is not release evidence.
+`GIT_WARP_PERF_PROPERTY_BYTES` only for local calibration. Use `--profile mini`
+only for a fast mechanism check; it deliberately skips the hostile OOM control
+and is not release evidence.
+
+## CI comparison and history
+
+The dedicated `Performance` workflow checks out the exact base and head SHAs
+side by side, installs and builds both under the same pinned Node 22 toolchain,
+and runs materialization in counterbalanced ABBA order. Each ref contributes
+five measured samples and one warmup per scenario. The opposite ref runs first
+for the streaming pair, reducing systematic order bias across the whole job.
+
+Strict parsing and semantic validation happen before comparison. Missing
+evidence, malformed distributions, cardinality failures, storage-evidence
+failures, materialization memory overruns, streaming heap/RSS violations, and
+CPU regressions all fail the check. Wall time and streaming latency/throughput
+remain diagnostic.
+
+Every pull request and main push receives a Markdown job summary with
+cold/warm/incremental and streaming deltas. The workflow retains the combined
+comparison, merged results, every raw batch, both streaming proofs, and the
+summary for 90 days under a commit-addressed artifact name. The
+[`history`](./history/README.md) page describes the browsable publication and
+baseline-review contract. Release workflows for v19 and later refuse to publish
+unless the release commit has a successful main-branch `Performance` run.
