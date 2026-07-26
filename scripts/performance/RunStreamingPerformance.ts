@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { clearInterval, setInterval } from 'node:timers';
 import { pathToFileURL } from 'node:url';
 import {
   prepareStreamingFixture,
@@ -8,6 +7,8 @@ import {
 } from './StreamingFixture.ts';
 import { validateStreamingPerformanceResult }
   from './StreamingPerformanceModel.ts';
+import { startMemorySampler }
+  from './StreamingPerformanceInstrumentation.ts';
 import {
   assertCollectingControlExhaustsHeap,
   runStreamingPerformanceProcess,
@@ -31,7 +32,7 @@ type RunOptions = Readonly<{
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   const profile = streamingProfile(options.profileName);
-  const generationMemory = samplePeakMemory();
+  const generationMemory = startMemorySampler();
   const fixture = await prepareStreamingFixture(profile.corpus);
   generationMemory.stop();
   try {
@@ -128,26 +129,6 @@ function parseOptions(args: readonly string[]): RunOptions {
     index += 1;
   }
   return Object.freeze({ outputPath, profileName });
-}
-
-function samplePeakMemory() {
-  let peakHeapUsedBytes = 0;
-  let peakRssBytes = 0;
-  const sample = (): void => {
-    const memory = process.memoryUsage();
-    peakHeapUsedBytes = Math.max(peakHeapUsedBytes, memory.heapUsed);
-    peakRssBytes = Math.max(peakRssBytes, memory.rss);
-  };
-  const interval = setInterval(sample, 5);
-  interval.unref();
-  sample();
-  return Object.freeze({
-    snapshot: () => Object.freeze({ peakHeapUsedBytes, peakRssBytes }),
-    stop: () => {
-      sample();
-      clearInterval(interval);
-    },
-  });
 }
 
 function printSummary(
