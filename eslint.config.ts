@@ -50,7 +50,9 @@ export default tseslint.config(
       "coverage/**",
       "dist/**",
       "src/infrastructure/adapters/wesley/generated/**",
-      "scripts/**",
+      "scripts/**/*",
+      "!scripts/performance",
+      "!scripts/performance/**",
       ".claude/**",
       ".obsidian/**",
       "test/type-check/**",
@@ -65,6 +67,44 @@ export default tseslint.config(
   // NOTE: strictTypeChecked and stylisticTypeChecked presets are applied
   // only to src/ and bin/ files via the parser/rules block below, not globally.
   // Global application crashes on files without type info (benchmarks, etc.).
+
+  // Performance scripts are merge controls, so they receive their own typed
+  // lint surface without inheriting domain-only error and JSDoc laws.
+  {
+    files: ["scripts/performance/**/*.ts"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      parser: tseslint.parser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: __dirname,
+      },
+      globals: {
+        Buffer: "readonly",
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+    },
+    rules: {
+      "no-undef": "off",
+      "no-duplicate-imports": "error",
+      "eqeqeq": "error",
+      "complexity": ["error", 15],
+      "max-lines-per-function": ["error", 120],
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "@typescript-eslint/require-await": "error",
+    },
+  },
 
   // ── Source + CLI: typed linting (the nuclear option) ────────────────────────
   {
