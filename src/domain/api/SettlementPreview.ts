@@ -3,9 +3,9 @@ import { requireAdmissionOutcome } from './AdmissionOutcomeRuntime.ts';
 import type Evidence from './Evidence.ts';
 import { freezeEvidence } from './EvidenceRuntime.ts';
 import type { LaneReference } from './Lane.ts';
+import { freezeSettlementLaneReference } from './SettlementLaneReference.ts';
 import SettlementPlan from '../settlement/SettlementPlan.ts';
 import WarpError from '../errors/WarpError.ts';
-import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 
 export type SettlementPreviewOptions = {
   readonly evidence: Evidence;
@@ -38,8 +38,8 @@ export default class SettlementPreview {
       );
     }
     requireAdmissionOutcome(options.outcome);
-    this.source = freezeLaneReference(options.source, 'settlementPreview.source');
-    this.target = freezeLaneReference(options.target, 'settlementPreview.target');
+    this.source = freezeSettlementLaneReference(options.source, 'settlementPreview.source');
+    this.target = freezeSettlementLaneReference(options.target, 'settlementPreview.target');
     this.plan = options.plan;
     this.outcome = options.outcome;
     this.evidence = freezeEvidence(
@@ -48,23 +48,4 @@ export default class SettlementPreview {
     );
     Object.freeze(this);
   }
-}
-
-function freezeLaneReference(
-  reference: LaneReference,
-  field: string,
-): LaneReference {
-  if (
-    reference === null
-    || typeof reference !== 'object'
-    || (reference.kind !== 'strand' && reference.kind !== 'worldline')
-  ) {
-    throw new WarpError(
-      'Settlement lane reference is invalid',
-      'E_SETTLEMENT_LANE_REFERENCE',
-      { context: { field } },
-    );
-  }
-  requireNonEmptyString(reference.name, `${field}.name`);
-  return Object.freeze({ kind: reference.kind, name: reference.name });
 }

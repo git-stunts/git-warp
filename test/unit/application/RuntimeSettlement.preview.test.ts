@@ -1,16 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   previewRuntimeSettlement,
   settleRuntimePlan,
 } from '../../../src/application/RuntimeSettlement.ts';
-import Lane, { type LaneDescriptor } from '../../../src/domain/api/Lane.ts';
-import type {
-  SettlementPromotion,
-  SettlementSourceRuntime,
-  SettlementSourceSnapshot,
-} from '../../../src/domain/api/LaneSettlementRuntime.ts';
-import { bindLaneRuntime } from '../../../src/domain/api/LaneRuntime.ts';
+import { settlementHarness } from '../../helpers/SettlementHarness.ts';
 
 describe('Runtime settlement coordination', () => {
   it('previews and promotes an exact derived plan', async () => {
@@ -154,118 +148,3 @@ describe('Runtime settlement coordination', () => {
     });
   });
 });
-
-type SettlementHarnessOptions = Readonly<{
-  readonly parentName?: string;
-  readonly promotion?: SettlementPromotion;
-  readonly snapshot?: Partial<SettlementSourceSnapshot>;
-}>;
-
-function settlementHarness(options: SettlementHarnessOptions = {}) {
-  const owner = Object.freeze({});
-  let snapshot = freezeSnapshot(options.snapshot);
-  const promotion = options.promotion ?? {
-    accepted: true,
-    evidence: {
-      basis: { id: 'admission:promotion' },
-      support: [],
-    },
-    reason: undefined,
-  };
-  const promote = vi.fn(async () => promotion);
-  const digest = vi.fn(async (parts: readonly string[]) =>
-    `admission:${parts.join(':')}`
-  );
-  const sourceRuntime: SettlementSourceRuntime = Object.freeze({
-    kind: 'source',
-    capture: async () => snapshot,
-    digest,
-    runExclusive: async (operation) =>
-      await operation(Object.freeze({
-        capture: async () => snapshot,
-        digest,
-        promote,
-      })),
-  });
-  const target = bindTargetLane(owner);
-  const source = bindSourceLane({
-    owner,
-    parentName: options.parentName ?? target.name,
-    sourceRuntime,
-  });
-  return {
-    options: Object.freeze({ source, target }),
-    owner,
-    promote,
-    setSnapshot: (change: Partial<SettlementSourceSnapshot>) => {
-      snapshot = freezeSnapshot({ ...snapshot, ...change });
-    },
-    source,
-    target,
-  };
-}
-
-function freezeSnapshot(
-  change: Partial<SettlementSourceSnapshot> = {},
-): SettlementSourceSnapshot {
-  return Object.freeze({
-    baseTargetFrontierRef: 'admission:target',
-    frontierRef: 'admission:source',
-    proposalDigest: 'admission:proposal',
-    status: 'ready',
-    targetFrontierRef: 'admission:target',
-    ...change,
-  });
-}
-
-function bindTargetLane(owner: object): Lane {
-  const lane = createLane({ kind: 'worldline', name: 'events' });
-  bindLaneRuntime(lane, {
-    captureCoordinate: unavailableCoordinate,
-    fork: null,
-    owner,
-    settlement: Object.freeze({ kind: 'target' }),
-  });
-  return lane;
-}
-
-function bindSourceLane(options: Readonly<{
-  readonly owner: object;
-  readonly parentName: string;
-  readonly sourceRuntime: SettlementSourceRuntime;
-}>): Lane {
-  const parent = Object.freeze({
-    kind: 'worldline' as const,
-    name: options.parentName,
-  });
-  const lane = createLane({
-    kind: 'strand',
-    name: 'draft',
-    parent,
-    forkedAt: Object.freeze({ id: 'tick:fork', lane: parent }),
-  });
-  bindLaneRuntime(lane, {
-    captureCoordinate: unavailableCoordinate,
-    fork: null,
-    owner: options.owner,
-    settlement: options.sourceRuntime,
-  });
-  return lane;
-}
-
-function createLane(descriptor: LaneDescriptor): Lane {
-  return new Lane({
-    descriptor,
-    writer: 'agent-1',
-    startObserver: async () => {
-      throw new Error('not exercised');
-    },
-    writeIntent: async () => {
-      throw new Error('not exercised');
-    },
-  });
-}
-
-function unavailableCoordinate(): Promise<never> {
-  return Promise.reject(new Error('not exercised'));
-}

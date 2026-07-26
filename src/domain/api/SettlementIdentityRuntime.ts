@@ -1,4 +1,5 @@
 import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
+import { compareStrings } from '../utils/StringComparison.ts';
 
 export type SettlementFrontierEntry = Readonly<{
   readonly patchSha: string;
@@ -54,6 +55,6 @@ function flattenFrontier(
 ): readonly string[] {
   return entries
     .slice()
-    .sort((left, right) => left.writerId.localeCompare(right.writerId))
+    .sort((left, right) => compareStrings(left.writerId, right.writerId))
     .flatMap(({ writerId, patchSha }) => [writerId, patchSha]);
 }

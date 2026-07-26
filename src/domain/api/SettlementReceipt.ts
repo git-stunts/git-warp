@@ -3,13 +3,13 @@ import { requireAdmissionOutcome } from './AdmissionOutcomeRuntime.ts';
 import type Evidence from './Evidence.ts';
 import { freezeEvidence } from './EvidenceRuntime.ts';
 import type { LaneReference } from './Lane.ts';
+import { freezeSettlementLaneReference } from './SettlementLaneReference.ts';
 import {
   freezeRepairHints,
   type RepairHint,
 } from './ReceiptSupport.ts';
 import SettlementPlan from '../settlement/SettlementPlan.ts';
 import WarpError from '../errors/WarpError.ts';
-import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 
 export type SettlementReceiptOptions = {
   readonly evidence: Evidence;
@@ -34,8 +34,8 @@ export default class SettlementReceipt {
   constructor(options: SettlementReceiptOptions | null | undefined) {
     assertSettlementReceiptOptions(options);
     requireAdmissionOutcome(options.outcome);
-    this.source = freezeLaneReference(options.source, 'settlementReceipt.source');
-    this.target = freezeLaneReference(options.target, 'settlementReceipt.target');
+    this.source = freezeSettlementLaneReference(options.source, 'settlementReceipt.source');
+    this.target = freezeSettlementLaneReference(options.target, 'settlementReceipt.target');
     this.plan = options.plan;
     this.outcome = options.outcome;
     this.evidence = freezeEvidence(
@@ -69,23 +69,4 @@ function settlementReason(outcome: AdmissionOutcome): string | undefined {
   return outcome.kind === 'obstruction'
     ? outcome.witness.reason.code
     : undefined;
-}
-
-function freezeLaneReference(
-  reference: LaneReference,
-  field: string,
-): LaneReference {
-  if (
-    reference === null
-    || typeof reference !== 'object'
-    || (reference.kind !== 'strand' && reference.kind !== 'worldline')
-  ) {
-    throw new WarpError(
-      'Settlement lane reference is invalid',
-      'E_SETTLEMENT_LANE_REFERENCE',
-      { context: { field } },
-    );
-  }
-  requireNonEmptyString(reference.name, `${field}.name`);
-  return Object.freeze({ kind: reference.kind, name: reference.name });
 }

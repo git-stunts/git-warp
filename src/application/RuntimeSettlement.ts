@@ -392,7 +392,7 @@ function supportIds(evidence: Evidence): readonly string[] {
 }
 
 function outcomeFields(plan: SettlementPlan): SettlementOutcomeFields {
-  return {
+  return Object.freeze({
     planDigest: plan.planDigest,
     sourceLaneId: plan.sourceLaneId,
     targetLaneId: plan.targetLaneId,
@@ -401,7 +401,7 @@ function outcomeFields(plan: SettlementPlan): SettlementOutcomeFields {
     proposalDigest: plan.proposalDigest,
     lawDigest: plan.lawDigest,
     policyDigest: plan.policyDigest,
-  };
+  });
 }
 
 function createSettlementPlan(
