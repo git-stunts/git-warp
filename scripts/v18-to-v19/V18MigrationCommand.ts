@@ -33,6 +33,7 @@ export async function runV18ToV19Migration(options: Readonly<{
   progress?: V18MigrationProgressReporter;
   recoveryId?: string;
   repositoryPath: string;
+  scratchRoot?: string;
 }>): Promise<V18MigrationCommandReport> {
   const repositoryPath = resolve(options.repositoryPath);
   const plan = await planV18ToV19Migration({
@@ -53,6 +54,7 @@ export async function runV18ToV19Migration(options: Readonly<{
     plan,
     ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
     ...(options.progress === undefined ? {} : { progress: options.progress }),
+    ...(options.scratchRoot === undefined ? {} : { scratchRoot: resolve(options.scratchRoot) }),
   });
   try {
     if (!options.apply) {

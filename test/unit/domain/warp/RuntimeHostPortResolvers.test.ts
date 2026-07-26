@@ -12,6 +12,7 @@ import InMemoryGraphAdapter from '../../../../test/helpers/InMemoryGraphAdapter.
 import MemoryRuntimeStorageAdapter from '../../../../test/helpers/MemoryRuntimeStorageAdapter.ts';
 import { createFakeCodecPort, createMockCrypto } from '../../../helpers/mockPorts.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 
 import type { NormalizedTrustConfig } from '../../../../src/domain/runtimeHelpers.ts';
 
@@ -48,7 +49,7 @@ class TestCommitMessageCodec extends CommitMessageCodecPort {
       stateHash: 'b'.repeat(64),
       schema: 1,
       checkpointVersion: null,
-      bundleHandle: null,
+      bundleHandle: new BundleHandle('bundle:test'),
     };
   }
 

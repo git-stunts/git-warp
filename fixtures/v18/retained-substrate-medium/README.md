@@ -20,8 +20,10 @@ same exact registry lock as the small golden fixture:
 - `@git-stunts/git-cas@6.0.0`;
 - `@git-stunts/plumbing@3.0.3`.
 
-`generate.mjs` creates the graph. Run it only from a disposable project that
-has those exact packages installed and an empty `repository/` Git worktree.
+`generate.mjs` creates the graph. Its adjacent private package manifest and
+lock pin those exact releases, and the generator fails before mutation if the
+lock drifts. Run `npm ci` in this directory, ensure `repository/` is empty,
+then run `npm run generate`.
 The bundle includes both writer refs, the checkpoint ref, the state-cache ref,
 and the payload root named in the state-cache JSON:
 

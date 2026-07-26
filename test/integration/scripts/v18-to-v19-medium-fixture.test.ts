@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { restoreV18RetainedSubstrateFixture } from '../../../scripts/v18-to-v19/V18RetainedSubstrateFixtureRestore.ts';
-import { readV18MigrationRef } from '../../../scripts/v18-to-v19/V18MigrationGit.ts';
+import { readV18MigrationRefMap } from '../../helpers/V18MigrationRefMap.ts';
 
 const MANIFEST_PATH = resolve(
   'fixtures/v18/retained-substrate-medium/manifest.json',
@@ -30,7 +30,8 @@ describe('v18-to-v19 medium standalone migration', () => {
       manifestPath: MANIFEST_PATH,
       targetDirectory,
     });
-    const before = await readFixtureRefs(restored.repositoryPath, restored.manifest.refs);
+    const refNames = restored.manifest.refs.map((ref) => ref.refName);
+    const before = await readV18MigrationRefMap(restored.repositoryPath, refNames);
 
     const execution = await runStandaloneMigration({
       graph: restored.manifest.graphId,
@@ -54,9 +55,9 @@ describe('v18-to-v19 medium standalone migration', () => {
       'materializing writer history without a checkpoint seed',
     );
     expect(execution.stderr).toContain('[verify]');
-    expect(await readFixtureRefs(
+    expect(await readV18MigrationRefMap(
       restored.repositoryPath,
-      restored.manifest.refs,
+      refNames,
     )).toEqual(before);
   }, 120_000);
 });
@@ -88,17 +89,6 @@ async function runStandaloneMigration(options: Readonly<{
     report: JSON.parse(result.stdout) as StandaloneReport,
     stderr: result.stderr,
   });
-}
-
-async function readFixtureRefs(
-  repositoryPath: string,
-  refs: readonly Readonly<{ refName: string }>[],
-): Promise<Readonly<Record<string, string | null>>> {
-  const values: Record<string, string | null> = {};
-  for (const ref of refs) {
-    values[ref.refName] = await readV18MigrationRef(repositoryPath, ref.refName);
-  }
-  return Object.freeze(values);
 }
 
 async function runProcess(

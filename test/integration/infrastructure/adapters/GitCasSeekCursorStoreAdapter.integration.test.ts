@@ -84,7 +84,7 @@ async function openStorage(tempDirectory: string): Promise<OpenedStorage> {
   const history = new GitTimelineHistoryAdapter({ plumbing });
   const repository = new GitCasRepositoryAdapter({ plumbing, history });
   const result: OpenedStorage = {
-    cursorStore: repository.createSeekCursorStore('events'),
+    cursorStore: await repository.createSeekCursorStore('events'),
     history,
     plumbing,
     repository,

@@ -17,6 +17,7 @@ import {
   type V18WriterChainRewrite,
 } from '../../../scripts/v18-to-v19/V18WriterChainRewriter.ts';
 import { v18MigrationGitText } from '../../../scripts/v18-to-v19/V18MigrationGit.ts';
+import { collectAsyncBytes } from '../../helpers/collectAsyncBytes.ts';
 
 const MANIFEST_PATH = resolve(
   'fixtures/v18/retained-substrate-golden/manifest.json',
@@ -92,11 +93,11 @@ describe('v18-to-v19 writer chain migration', () => {
       codec: new GitCasCborCodec(),
     });
     try {
-      const patchBytes = await collect(cas.assets.open({ handle: first.storage.handle }));
+      const patchBytes = await collectAsyncBytes(cas.assets.open({ handle: first.storage.handle }));
       const decoded = warpCborCodec.decode(patchBytes);
       const contentHandle = findContentHandle(decoded);
       const parsed = GitCasAssetHandle.parse(contentHandle);
-      const content = await collect(cas.assets.open({ handle: parsed }));
+      const content = await collectAsyncBytes(cas.assets.open({ handle: parsed }));
       expect(Buffer.from(content).toString('utf8')).toBe(
         'v18 blob-backed content retained for v19 migration proof\n',
       );
@@ -127,12 +128,4 @@ function findContentHandle(decoded: unknown): string {
     }
   }
   throw new Error('rewritten patch has no content handle');
-}
-
-async function collect(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of source) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
 }

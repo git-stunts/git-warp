@@ -491,7 +491,8 @@ describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
         schema: 5,
       }),
     });
-    await expect(fixture.checkpoints.loadCheckpoint(checkpoint)).rejects.toThrow();
+    await expect(fixture.checkpoints.loadCheckpoint(checkpoint))
+      .rejects.toThrow(/expected "v19"/iu);
   });
 
   it('rejects publication and retention witnesses for another bundle', async () => {

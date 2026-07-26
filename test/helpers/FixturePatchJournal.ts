@@ -1,4 +1,3 @@
-import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import PatchEntry from '../../src/domain/artifacts/PatchEntry.ts';
 import SyncError from '../../src/domain/errors/SyncError.ts';
 import WarpStream from '../../src/domain/stream/WarpStream.ts';
@@ -11,6 +10,7 @@ import type {
   AppendPatchRequest,
   PublishedPatch,
 } from '../../src/ports/PatchJournalPort.ts';
+import { fixturePatchKey } from './FixturePatchKey.ts';
 
 export type FixturePatchCommit = Readonly<{
   message: string;
@@ -80,13 +80,5 @@ export default class FixturePatchJournal extends PatchJournalPort {
         }
       }
     })());
-  }
-}
-
-function fixturePatchKey(handle: string): string {
-  try {
-    return GitCasAssetHandle.parse(handle).oid;
-  } catch {
-    return handle;
   }
 }

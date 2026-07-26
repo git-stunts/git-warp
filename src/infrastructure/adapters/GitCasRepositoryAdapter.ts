@@ -140,8 +140,9 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
     });
   }
 
-  createSeekCursorStore(timelineName: string): SeekCursorStorePort {
+  async createSeekCursorStore(timelineName: string): Promise<SeekCursorStorePort> {
     this._assertOpen();
+    await this._substrateVersionGate.ensure(timelineName);
     const existing = this._seekCursors.get(timelineName);
     if (existing !== undefined) {
       return existing;
@@ -155,6 +156,11 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
     });
     this._seekCursors.set(timelineName, created);
     return created;
+  }
+
+  async prepareFreshTimeline(timelineName: string): Promise<void> {
+    this._assertOpen();
+    await this._substrateVersionGate.ensure(timelineName);
   }
 
   private _createAuditLog(content: AssetStoragePort): GitCasAuditLogAdapter {

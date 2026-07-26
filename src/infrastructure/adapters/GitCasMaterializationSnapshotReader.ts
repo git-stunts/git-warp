@@ -65,7 +65,10 @@ export default class GitCasMaterializationSnapshotReader {
   }
 
   async read(bundle: BundleHandle): Promise<MaterializationSnapshot> {
-    const basis = await this.readBasis(bundle);
+    return await this.resolve(await this.readBasis(bundle));
+  }
+
+  async resolve(basis: MaterializationBasisSnapshot): Promise<MaterializationSnapshot> {
     const state = await this.#replayBasis.loadRoot(
       requireRetainedRoot(basis.roots.replayBasis, 'replay basis'),
       basis.stateHash,

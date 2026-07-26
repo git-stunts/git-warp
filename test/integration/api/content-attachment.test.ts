@@ -357,7 +357,7 @@ describe('API: Content Attachment', () => {
     expect(content).toEqual(binary);
   });
 
-  it('rejects a legacy raw node-content handle when compatibility is disabled', async () => {
+  it('rejects a raw node-content OID at the current handle boundary', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
     const patch = await graph.createPatch();
@@ -380,10 +380,10 @@ describe('API: Content Attachment', () => {
     });
 
     await expect(graph.getContent('doc:1'))
-      .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+      .rejects.toMatchObject({ code: 'HANDLE_INVALID' });
   });
 
-  it('rejects a legacy raw edge-content handle when compatibility is disabled', async () => {
+  it('rejects a raw edge-content OID at the current handle boundary', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
     const patch = await graph.createPatch();
@@ -406,6 +406,6 @@ describe('API: Content Attachment', () => {
     });
 
     await expect(graph.getEdgeContent('a', 'b', 'rel'))
-      .rejects.toMatchObject({ code: 'E_LEGACY_SUBSTRATE_DISABLED' });
+      .rejects.toMatchObject({ code: 'HANDLE_INVALID' });
   });
 });

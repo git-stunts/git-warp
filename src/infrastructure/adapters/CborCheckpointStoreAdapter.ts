@@ -144,8 +144,8 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     expectedGraphName?: string,
   ): Promise<CheckpointData> {
     const layout = await this.#readLayout(checkpointSha, expectedGraphName);
-    const materialization = await this.#materializationSnapshots.read(
-      layout.bundleHandle,
+    const materialization = await this.#materializationSnapshots.resolve(
+      layout.materialization,
     );
     const { state } = materialization;
     const result: CheckpointData = {

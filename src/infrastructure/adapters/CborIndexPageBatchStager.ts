@@ -32,8 +32,8 @@ export class CborIndexPageBatchStager {
     this.#batch.push([path, bytes]);
     this.#batchBytes += bytes.byteLength;
     if (
-      this.#batch.length === MAX_BATCH_PAGES
-      || this.#batchBytes === MAX_BATCH_BYTES
+      this.#batch.length >= MAX_BATCH_PAGES
+      || this.#batchBytes >= MAX_BATCH_BYTES
     ) {
       await this.flush(members);
     }

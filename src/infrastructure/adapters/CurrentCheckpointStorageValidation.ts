@@ -22,7 +22,7 @@ export function requireCurrentCheckpointBundle(
 ): BundleHandle {
   if (metadata.checkpointVersion !== CHECKPOINT_STORAGE_FORMAT) {
     throw new PersistenceError(
-      `Checkpoint ${checkpointSha} uses unsupported storage:`
+      `Checkpoint ${checkpointSha} uses unsupported storage: `
         + `${metadata.checkpointVersion ?? '(unspecified)'}`,
       'E_CHECKPOINT_UNSUPPORTED_STORAGE',
       {
@@ -31,13 +31,6 @@ export function requireCurrentCheckpointBundle(
           storageVersion: metadata.checkpointVersion,
         },
       },
-    );
-  }
-  if (metadata.bundleHandle === null) {
-    throw new PersistenceError(
-      `Checkpoint ${checkpointSha} is missing its bundle handle`,
-      'E_CHECKPOINT_MISSING_BUNDLE_HANDLE',
-      { context: { checkpointSha } },
     );
   }
   return metadata.bundleHandle;

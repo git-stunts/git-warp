@@ -11,8 +11,11 @@ import { restoreV18RetainedSubstrateFixture } from '../../../scripts/v18-to-v19/
 import { runV18ToV19Migration } from '../../../scripts/v18-to-v19/V18MigrationCommand.ts';
 import {
   readV18MigrationRef,
+  runV18MigrationGit,
+  V18MigrationGitError,
   v18MigrationGitText,
 } from '../../../scripts/v18-to-v19/V18MigrationGit.ts';
+import { readRequiredV18MigrationRefMap } from '../../helpers/V18MigrationRefMap.ts';
 
 const MANIFEST_PATH = resolve(
   'fixtures/v18/retained-substrate-golden/manifest.json',
@@ -46,6 +49,18 @@ describe('v18-to-v19 migration command', () => {
     )).rejects.toThrow(/not a git repository/iu);
   });
 
+  it('surfaces early-exit stdin failures through the migration Git error', async () => {
+    const repositoryPath = await mkdtemp(join(tmpdir(), 'git-warp-stdin-failure-'));
+    temporaryDirectories.push(repositoryPath);
+    await v18MigrationGitText(repositoryPath, ['init', '--bare']);
+
+    await expect(runV18MigrationGit(
+      repositoryPath,
+      ['cat-file', 'blob', 'f'.repeat(40)],
+      { input: new Uint8Array(8 * 1024 * 1024) },
+    )).rejects.toBeInstanceOf(V18MigrationGitError);
+  });
+
   it('atomically promotes verified refs and retains complete recovery roots', async () => {
     const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v18-command-'));
     temporaryDirectories.push(targetDirectory);
@@ -67,7 +82,7 @@ describe('v18-to-v19 migration command', () => {
       historicalCheckpointRef,
       oldCheckpointSha,
     ]);
-    const sourceHeads = await readHeads(
+    const sourceHeads = await readRequiredV18MigrationRefMap(
       restored.repositoryPath,
       restored.manifest.refs.map((ref) => ref.refName),
     );
@@ -86,7 +101,7 @@ describe('v18-to-v19 migration command', () => {
     } finally {
       await runtime.close();
     }
-    expect(await readHeads(
+    expect(await readRequiredV18MigrationRefMap(
       restored.repositoryPath,
       restored.manifest.refs.map((ref) => ref.refName),
     )).toEqual(sourceHeads);
@@ -149,18 +164,3 @@ describe('v18-to-v19 migration command', () => {
     expect(second.status).toBe('already-current');
   });
 });
-
-async function readHeads(
-  repositoryPath: string,
-  refs: readonly string[],
-): Promise<Readonly<Record<string, string>>> {
-  const heads: Record<string, string> = {};
-  for (const refName of refs) {
-    const oid = await readV18MigrationRef(repositoryPath, refName);
-    if (oid === null) {
-      throw new Error(`missing expected ref: ${refName}`);
-    }
-    heads[refName] = oid;
-  }
-  return Object.freeze(heads);
-}

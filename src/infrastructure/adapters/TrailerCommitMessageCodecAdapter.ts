@@ -1,3 +1,4 @@
+import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import { TrailerCodec, TrailerCodecService, type TrailerCodecFacade } from '@git-stunts/trailer-codec';
 import z from 'zod';
 import CommitMessageCodecPort, {
@@ -243,7 +244,9 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
   override encodeCheckpoint(message: CheckpointCommitMessage): string {
     const parsed = checkpointCommitMessageSchema.safeParse({
       ...message,
-      bundleHandle: message.bundleHandle?.toString() ?? null,
+      bundleHandle: message.bundleHandle instanceof BundleHandle
+        ? message.bundleHandle.toString()
+        : message.bundleHandle,
     });
     if (!parsed.success) {
       throw messageCodecError(parsed.error.issues[0]?.message ?? 'invalid checkpoint commit message');
@@ -336,9 +339,11 @@ export function encodePatchMessage(params: EncodePatchCompatParams): string {
     graph: params.graph,
     writer: params.writer,
     lamport: params.lamport,
-    patchHandle: new AssetHandle(
-      `git-cas:1:asset:manifest-tree:cbor:${hashAlgorithm}:${oid}`,
-    ),
+    patchHandle: new AssetHandle(new GitCasAssetHandle({
+      codec: 'cbor',
+      hashAlgorithm,
+      oid,
+    }).toString()),
     schema: params.schema ?? 2,
     storage: createGitCasPatchStorage({ encrypted: params.encrypted === true }),
   });

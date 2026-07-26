@@ -6,10 +6,17 @@ import { LEGACY_CHECKPOINT_STORAGE_FORMAT } from './LegacyCheckpointFormat.ts';
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 const codec = new TrailerCodec({ service: new TrailerCodecService() });
 
+export type CheckpointMigrationMessage = Omit<
+  CheckpointCommitMessage,
+  'bundleHandle'
+> & {
+  readonly bundleHandle: BundleHandle | null;
+};
+
 /** Decodes checkpoint envelopes needed only by the retired v17 migration. */
 export function decodeCheckpointMigrationMessage(
   message: string,
-): CheckpointCommitMessage {
+): CheckpointMigrationMessage {
   const trailers = codec.decode(message).trailers;
   if (trailers['eg-kind'] !== 'checkpoint') {
     throw new Error("eg-kind must be 'checkpoint'");

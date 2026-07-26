@@ -13,6 +13,7 @@ class MemorySubstrateHistory {
   readonly blobs = new Map<string, Uint8Array>();
   readonly objectTypes = new Map<string, string>();
   readonly refs = new Map<string, string>();
+  listFailures = 0;
   writes = 0;
 
   async compareAndSwapRef(
@@ -28,6 +29,10 @@ class MemorySubstrateHistory {
   }
 
   listRefs(prefix: string, options?: { readonly limit?: number }): Promise<string[]> {
+    if (this.listFailures > 0) {
+      this.listFailures -= 1;
+      return Promise.reject(new Error('transient ref listing failure'));
+    }
     const refs = [...this.refs.keys()].filter((ref) => ref.startsWith(prefix)).sort();
     return Promise.resolve(
       options?.limit === undefined ? refs : refs.slice(0, options.limit),
@@ -84,7 +89,7 @@ describe('SubstrateVersionGate', () => {
     expect(error).toBeInstanceOf(WarpError);
     if (error instanceof WarpError) {
       expect(error.code).toBe('E_SUBSTRATE_MIGRATION_REQUIRED');
-      expect(error.message).toContain('git-warp-v18-to-v19');
+      expect(error.message).toContain('package migration command');
     }
     expect(history.refs.has(MARKER_REF)).toBe(false);
     expect(history.writes).toBe(0);
@@ -103,5 +108,17 @@ describe('SubstrateVersionGate', () => {
     if (error instanceof WarpError) {
       expect(error.code).toBe('E_SUBSTRATE_VERSION_UNSUPPORTED');
     }
+  });
+
+  it('retries a transient failure without discarding successful caching', async () => {
+    const history = new MemorySubstrateHistory();
+    history.listFailures = 1;
+    const gate = new SubstrateVersionGate(history);
+
+    await expect(gate.ensure('events')).rejects.toThrow('transient ref listing failure');
+    await expect(gate.ensure('events')).resolves.toBeUndefined();
+    await expect(gate.ensure('events')).resolves.toBeUndefined();
+
+    expect(history.writes).toBe(1);
   });
 });

@@ -54,13 +54,11 @@ export default class GitCasStrandStoreAdapter extends StrandStorePort {
     if (revision === null) {
       return null;
     }
-    const objectType = await this.#history.readObjectType(revision);
-    if (objectType !== 'commit') {
-      throw new StrandError('strand descriptor ref must target a publication commit', {
-        code: 'E_STRAND_CORRUPT',
-        context: { graphName, strandId, revision, objectType },
-      });
-    }
+    await requirePublicationCommit(this.#history, revision, {
+      graphName,
+      strandId,
+      revision,
+    });
     const node = await this.#history.getNodeInfo(revision);
     const trailers = decodeDescriptorMessage(node.message);
     requireDescriptorIdentity(trailers, { graphName, strandId, revision });
@@ -130,14 +128,22 @@ async function retainedDescriptorParent(
   if (expectedHead === null) {
     return null;
   }
-  const objectType = await history.readObjectType(expectedHead);
+  await requirePublicationCommit(history, expectedHead, { expectedHead });
+  return expectedHead;
+}
+
+async function requirePublicationCommit(
+  history: StrandHistory,
+  oid: string,
+  context: Readonly<Record<string, unknown>>,
+): Promise<void> {
+  const objectType = await history.readObjectType(oid);
   if (objectType !== 'commit') {
     throw new StrandError('strand descriptor ref must target a publication commit', {
       code: 'E_STRAND_CORRUPT',
-      context: { expectedHead, objectType },
+      context: { ...context, objectType },
     });
   }
-  return expectedHead;
 }
 
 async function stageDescriptor(

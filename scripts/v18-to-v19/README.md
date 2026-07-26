@@ -25,7 +25,7 @@ After installing v19 without starting the application, run the disposable
 proof:
 
 ```bash
-npx git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
   --graph events
 ```
@@ -43,7 +43,7 @@ keeps its stricter 5 MiB decode boundary.
 Only after the dry-run reports `verified-dry-run`, promote the verified refs:
 
 ```bash
-npx git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
   --graph events \
   --apply

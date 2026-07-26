@@ -64,8 +64,8 @@ domain modules provide the validated intents and observers for an application.
 > starting the application, and run the one-shot proof followed by promotion:
 >
 > ```bash
-> npx git-warp-v18-to-v19 --repo /path/to/repository --graph events
-> npx git-warp-v18-to-v19 --repo /path/to/repository --graph events --apply
+> npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 --repo /path/to/repository --graph events
+> npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 --repo /path/to/repository --graph events --apply
 > ```
 >
 > The first command is a non-mutating disposable rehearsal. v19 fails closed

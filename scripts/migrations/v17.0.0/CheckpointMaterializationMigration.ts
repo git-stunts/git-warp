@@ -7,7 +7,7 @@ import {
   materializationRootsWithIndexes,
   prepareMaterializationIndexRoots,
 } from '../../../src/domain/services/controllers/MaterializationIndexRoots.ts';
-import { releaseWorkspaceAfterFailure } from '../../../src/domain/services/controllers/MaterializationWorkspaceCleanup.ts';
+import { completeWithCleanup } from '../../../src/infrastructure/adapters/OperationCleanup.ts';
 import type IndexStorePort from '../../../src/ports/IndexStorePort.ts';
 import type MaterializationStorePort from '../../../src/ports/MaterializationStorePort.ts';
 
@@ -26,14 +26,13 @@ export async function retainMigratedCheckpoint(options: {
   });
   if (options.indexStore !== undefined) {
     const workspace = await options.materializations.openWorkspace(coordinate);
-    let promoted: MaterializationHandle;
-    try {
+    return await completeWithCleanup(async () => {
       const prepared = await prepareMaterializationIndexRoots({
         state: options.state,
         store: options.indexStore,
         workspace,
       });
-      promoted = await workspace.promote({
+      return await workspace.promote({
         coordinate,
         roots: materializationRootsWithIndexes(prepared),
         stateHash: options.stateHash,
@@ -42,12 +41,8 @@ export async function retainMigratedCheckpoint(options: {
           ? {}
           : { provenanceSupport: options.provenanceIndex }),
       });
-    } catch (error) {
-      await releaseWorkspaceAfterFailure(workspace);
-      throw error;
-    }
-    await workspace.release();
-    return promoted;
+    }, async () => await workspace.release(),
+    'checkpoint migration and workspace release both failed');
   }
   return await options.materializations.retain({
     coordinate,

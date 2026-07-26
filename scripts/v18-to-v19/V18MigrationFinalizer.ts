@@ -1,4 +1,6 @@
 import { buildStateCacheRef, REF_PREFIX } from '../../src/domain/utils/RefLayout.ts';
+import { textDecode } from '../../src/domain/utils/bytes.ts';
+import { parseV18RetainedStateCacheJson } from './adapters/V18RetainedSubstrateFixtureJsonAdapter.ts';
 import type { V18MigrationPlan } from './V18MigrationPlan.ts';
 import type { V18PreparedMigration } from './V18MigrationScratch.ts';
 import {
@@ -172,7 +174,7 @@ async function readRetainedPayloadOids(
     repositoryPath,
     ['cat-file', 'blob', stateCacheOid],
   );
-  const value: unknown = JSON.parse(Buffer.from(bytes).toString('utf8'));
+  const value = parseV18RetainedStateCacheJson(textDecode(bytes));
   const oids = new Set<string>();
   collectPayloadOids(value, oids);
   for (const oid of oids) {

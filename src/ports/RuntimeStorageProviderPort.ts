@@ -44,5 +44,6 @@ export default interface RuntimeStorageProviderPort {
   createRuntimeStorageServices(
     request: RuntimeStorageRequest,
   ): Promise<RuntimeStorageServices>;
-  createSeekCursorStore?(timelineName: string): SeekCursorStorePort;
+  createSeekCursorStore?(timelineName: string): Promise<SeekCursorStorePort>;
+  prepareFreshTimeline?(timelineName: string): Promise<void>;
 }

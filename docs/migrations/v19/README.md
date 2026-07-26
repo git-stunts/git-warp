@@ -23,7 +23,7 @@ Stop every process that can write to the repository, make a normal repository
 backup, and run the complete disposable proof:
 
 ```bash
-npx git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
   --graph events
 ```
@@ -42,7 +42,7 @@ production v19 contains no fallback reader for that substrate.
 After the proof succeeds, rerun it with promotion enabled:
 
 ```bash
-npx git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
   --graph events \
   --apply

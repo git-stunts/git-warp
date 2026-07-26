@@ -9,6 +9,7 @@ type CliOptions = Readonly<{
   json: boolean;
   recoveryId?: string;
   repositoryPath: string;
+  scratchRoot?: string;
 }>;
 
 async function main(): Promise<void> {
@@ -23,6 +24,7 @@ async function main(): Promise<void> {
     repositoryPath: options.repositoryPath,
     ...(passphrase === undefined ? {} : { passphrase }),
     ...(options.recoveryId === undefined ? {} : { recoveryId: options.recoveryId }),
+    ...(options.scratchRoot === undefined ? {} : { scratchRoot: options.scratchRoot }),
   });
   if (options.json) {
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
@@ -45,6 +47,7 @@ function parseArgs(args: readonly string[]): CliOptions {
   let json = false;
   let recoveryId: string | undefined;
   let repositoryPath: string | null = null;
+  let scratchRoot: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === '--apply') {
@@ -57,6 +60,8 @@ function parseArgs(args: readonly string[]): CliOptions {
       repositoryPath = requireValue(args, index += 1, '--repo');
     } else if (arg === '--recovery-id') {
       recoveryId = requireValue(args, index += 1, '--recovery-id');
+    } else if (arg === '--scratch-root') {
+      scratchRoot = requireValue(args, index += 1, '--scratch-root');
     } else if (arg === '--help' || arg === '-h') {
       process.stdout.write(usage());
       process.exit(0);
@@ -73,6 +78,7 @@ function parseArgs(args: readonly string[]): CliOptions {
     json,
     repositoryPath,
     ...(recoveryId === undefined ? {} : { recoveryId }),
+    ...(scratchRoot === undefined ? {} : { scratchRoot }),
   });
 }
 
@@ -115,6 +121,7 @@ function usage(): string {
     '  --apply                 Atomically promote the scratch-verified migration.',
     '  --json                  Print the machine-readable report.',
     '  --recovery-id <token>   Stable recovery-ref suffix for operator tracking.',
+    '  --scratch-root <path>    Place disposable repositories on this volume.',
     '  -h, --help              Show this help.',
     '',
     'Without --apply, the command performs the complete disposable proof only.',
@@ -124,7 +131,24 @@ function usage(): string {
 }
 
 main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`git-warp-v18-to-v19: ${message}\n`);
+  process.stderr.write(`git-warp-v18-to-v19: ${formatFailure(error)}\n`);
   process.exitCode = 1;
 });
+
+function formatFailure(error: unknown, seen = new Set<unknown>()): string {
+  if (seen.has(error)) {
+    return '[circular failure]';
+  }
+  seen.add(error);
+  const message = error instanceof Error ? error.message : String(error);
+  const nested: string[] = [];
+  if (error instanceof AggregateError) {
+    error.errors.forEach((entry, index) => {
+      nested.push(`failure ${String(index + 1)}: ${formatFailure(entry, seen)}`);
+    });
+  }
+  if (error instanceof Error && error.cause !== undefined) {
+    nested.push(`cause: ${formatFailure(error.cause, seen)}`);
+  }
+  return nested.length === 0 ? message : `${message}\n${nested.join('\n')}`;
+}

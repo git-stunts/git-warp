@@ -1,4 +1,3 @@
-import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import { vi } from 'vitest';
 import { encodePatchMessage } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import PatchEntry from '../../src/domain/artifacts/PatchEntry.ts';
@@ -10,6 +9,7 @@ import PatchJournalPort, {
 import type Patch from '../../src/domain/types/Patch.ts';
 import type { PatchCommitMessage } from '../../src/ports/CommitMessageCodecPort.ts';
 import InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
+import { fixturePatchKey } from './FixturePatchKey.ts';
 import { generateOidFromNumber } from './WarpGraphObjectIds.ts';
 
 type PopulatedCommit = {
@@ -152,14 +152,6 @@ class PopulatedWarpGraphMockPersistence extends WarpGraphMockPersistence {
       throw new MockPersistenceFixtureError(`Patch not found: ${handle}`);
     }
     return patch;
-  }
-}
-
-function fixturePatchKey(handle: string): string {
-  try {
-    return GitCasAssetHandle.parse(handle).oid;
-  } catch {
-    return handle;
   }
 }
 

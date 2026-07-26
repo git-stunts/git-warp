@@ -8,7 +8,6 @@ import type AssetStoragePort from '../../../src/ports/AssetStoragePort.ts';
 import type CodecPort from '../../../src/ports/CodecPort.ts';
 import {
   CHECKPOINT_STORAGE_FORMAT,
-  type CheckpointCommitMessage,
 } from '../../../src/ports/CommitMessageCodecPort.ts';
 import {
   type CheckpointMigrationHistory,
@@ -16,6 +15,9 @@ import {
 } from './checkpoint-schema-upgrade.ts';
 import CheckpointSchemaUpgradeError from './CheckpointSchemaUpgradeError.ts';
 import { LEGACY_CHECKPOINT_STORAGE_FORMAT } from './LegacyCheckpointFormat.ts';
+import type {
+  CheckpointMigrationMessage,
+} from './LegacyCheckpointCommitMessageCodec.ts';
 
 export { LEGACY_CHECKPOINT_STORAGE_FORMAT } from './LegacyCheckpointFormat.ts';
 
@@ -197,14 +199,14 @@ function invalidFrontier(checkpointSha: string): CheckpointSchemaUpgradeError {
   );
 }
 
-export function hasCurrentCheckpointStorage(message: CheckpointCommitMessage): boolean {
+export function hasCurrentCheckpointStorage(message: CheckpointMigrationMessage): boolean {
   return message.checkpointVersion === CHECKPOINT_STORAGE_FORMAT
     && message.bundleHandle !== null;
 }
 
 export function requireMigratableLegacyStorage(
   checkpointSha: string,
-  message: CheckpointCommitMessage,
+  message: CheckpointMigrationMessage,
 ): void {
   if (message.checkpointVersion === CHECKPOINT_STORAGE_FORMAT) {
     throw new CheckpointSchemaUpgradeError(

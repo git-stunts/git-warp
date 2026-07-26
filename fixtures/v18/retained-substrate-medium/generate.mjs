@@ -1,7 +1,8 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import process from 'node:process';
-import { URL } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 
 import {
   GitGraphAdapter,
@@ -10,7 +11,23 @@ import {
 } from '@git-stunts/git-warp';
 import GitPlumbing from '@git-stunts/plumbing';
 
-const repositoryPath = new URL('./repository/', import.meta.url).pathname;
+const EXPECTED_PACKAGES = Object.freeze({
+  '@git-stunts/git-cas': '6.0.0',
+  '@git-stunts/git-warp': '18.2.1',
+  '@git-stunts/plumbing': '3.0.3',
+});
+const lock = JSON.parse(await readFile(new URL('./package-lock.json', import.meta.url), 'utf8'));
+for (const [packageName, expectedVersion] of Object.entries(EXPECTED_PACKAGES)) {
+  const lockedVersion = lock.packages?.[`node_modules/${packageName}`]?.version;
+  if (lockedVersion !== expectedVersion) {
+    throw new Error(
+      `fixture lock mismatch for ${packageName}: expected ${expectedVersion}, `
+        + `got ${String(lockedVersion)}`,
+    );
+  }
+}
+
+const repositoryPath = fileURLToPath(new URL('./repository/', import.meta.url));
 const graph = 'v18-medium-retained-substrate';
 const plumbing = await GitPlumbing.createDefault({ cwd: repositoryPath });
 const persistence = new GitGraphAdapter({ plumbing });

@@ -53,7 +53,10 @@ function createMockHost(overrides = {}) {
     _logger: null,
     _crypto: null,
     _codec: null,
-    _runtimeStorage: { createRuntimeStorageServices: vi.fn() },
+    _runtimeStorage: {
+      createRuntimeStorageServices: vi.fn(),
+      prepareFreshTimeline: vi.fn().mockResolvedValue(undefined),
+    },
     _assetStorage: null,
     _patchJournal: {
       appendPatch: vi.fn(),
@@ -121,6 +124,10 @@ describe('ForkController', () => {
       // Ref was created
       const expectedRef = buildWriterRef('my-fork', 'fork-writer');
       expect(host._persistence.updateRef).toHaveBeenCalledWith(expectedRef, 'base-sha');
+      expect(host._runtimeStorage.prepareFreshTimeline)
+        .toHaveBeenCalledWith('my-fork');
+      expect(host._runtimeStorage.prepareFreshTimeline.mock.invocationCallOrder[0])
+        .toBeLessThan(host._persistence.updateRef.mock.invocationCallOrder[0]);
 
       // host-product opener was called with correct graphName + writerId
       expect(mockRuntimeOpen).toHaveBeenCalledOnce();

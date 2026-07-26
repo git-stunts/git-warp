@@ -14,8 +14,6 @@ export interface GitCasAssetPatchStorage {
   encrypted: boolean;
 }
 
-export type PatchStorageRoute = GitCasAssetPatchStorage;
-
 export type GitCasPatchStorageOptions = {
   readonly encrypted: boolean;
 };
@@ -31,12 +29,6 @@ export function createGitCasPatchStorage(
   });
 }
 
-export function isGitCasPatchStorage(
-  storage: PatchStorageRoute,
-): storage is GitCasAssetPatchStorage {
-  return storage.strategy === 'git-cas-asset';
-}
-
 type PatchCommitMessageBase = {
   kind: 'patch';
   graph: string;
@@ -47,7 +39,7 @@ type PatchCommitMessageBase = {
 
 export type PatchCommitMessage = PatchCommitMessageBase & {
   patchHandle: AssetHandle;
-  storage: PatchStorageRoute;
+  storage: GitCasAssetPatchStorage;
 };
 
 export interface CheckpointCommitMessage {
@@ -56,7 +48,7 @@ export interface CheckpointCommitMessage {
   stateHash: string;
   schema: number;
   checkpointVersion: string | null;
-  bundleHandle: BundleHandle | null;
+  bundleHandle: BundleHandle;
 }
 
 export interface AnchorCommitMessage {

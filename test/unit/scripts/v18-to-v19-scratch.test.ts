@@ -1,6 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import ContentAddressableStore, {
   AssetHandle as GitCasAssetHandle,
@@ -20,6 +20,8 @@ import {
   type V18PreparedMigration,
 } from '../../../scripts/v18-to-v19/V18MigrationScratch.ts';
 import { v18MigrationGitText } from '../../../scripts/v18-to-v19/V18MigrationGit.ts';
+import { collectAsyncBytes } from '../../helpers/collectAsyncBytes.ts';
+import { readRequiredV18MigrationRefMap } from '../../helpers/V18MigrationRefMap.ts';
 
 const MANIFEST_PATH = resolve(
   'fixtures/v18/retained-substrate-golden/manifest.json',
@@ -59,7 +61,7 @@ describe('v18-to-v19 scratch migration', () => {
       restored.repositoryPath,
       ['update-ref', preservedRef, preservedHead],
     );
-    const sourceHeads = await readHeads(
+    const sourceHeads = await readRequiredV18MigrationRefMap(
       restored.repositoryPath,
       [...restored.manifest.refs.map((ref) => ref.refName), preservedRef],
     );
@@ -72,9 +74,12 @@ describe('v18-to-v19 scratch migration', () => {
     expect(plan.status).toBe('migration-required');
     expect(plan.writers.map((writer) => writer.legacyCount)).toEqual([2, 1]);
     expect(plan.preservedRefs).toEqual({ [preservedRef]: preservedHead });
-    const prepared = await prepareV18MigrationScratch({ plan });
+    const scratchRoot = await mkdtemp(join(tmpdir(), 'git-warp-v18-scratch-root-'));
+    temporaryDirectories.push(scratchRoot);
+    const prepared = await prepareV18MigrationScratch({ plan, scratchRoot });
     preparedMigrations.push(prepared);
 
+    expect(dirname(prepared.scratchPath)).toBe(scratchRoot);
     expect(prepared.desiredRefs).toHaveProperty(
       buildCheckpointRef(restored.manifest.graphId),
     );
@@ -83,7 +88,7 @@ describe('v18-to-v19 scratch migration', () => {
     expect(Object.keys(prepared.desiredRefs)).not.toContain(
       restored.manifest.retainedState.refName,
     );
-    expect(await readHeads(
+    expect(await readRequiredV18MigrationRefMap(
       restored.repositoryPath,
       [...restored.manifest.refs.map((ref) => ref.refName), preservedRef],
     )).toEqual(sourceHeads);
@@ -110,7 +115,7 @@ describe('v18-to-v19 scratch migration', () => {
       codec: new GitCasCborCodec(),
     });
     try {
-      const content = await collect(cas.assets.open({
+      const content = await collectAsyncBytes(cas.assets.open({
         handle: GitCasAssetHandle.parse(contentHandle),
       }));
       expect(Buffer.from(content).toString('utf8')).toBe(
@@ -155,7 +160,7 @@ describe('v18-to-v19 scratch migration', () => {
       manifestPath: MEDIUM_MANIFEST_PATH,
       targetDirectory,
     });
-    const sourceHeads = await readHeads(
+    const sourceHeads = await readRequiredV18MigrationRefMap(
       restored.repositoryPath,
       restored.manifest.refs.map((ref) => ref.refName),
     );
@@ -194,14 +199,14 @@ describe('v18-to-v19 scratch migration', () => {
       codec: new GitCasCborCodec(),
     });
     try {
-      const content = await collect(cas.assets.open({
+      const content = await collectAsyncBytes(cas.assets.open({
         handle: GitCasAssetHandle.parse(contentHandle),
       }));
       expect(content).toHaveLength(128 * 1024);
     } finally {
       await cas.close();
     }
-    expect(await readHeads(
+    expect(await readRequiredV18MigrationRefMap(
       restored.repositoryPath,
       restored.manifest.refs.map((ref) => ref.refName),
     )).toEqual(sourceHeads);
@@ -226,26 +231,4 @@ async function observeProperty(
   } finally {
     await runtime.close();
   }
-}
-
-async function readHeads(
-  repositoryPath: string,
-  refs: readonly string[],
-): Promise<Readonly<Record<string, string>>> {
-  const heads: Record<string, string> = {};
-  for (const refName of refs) {
-    heads[refName] = await v18MigrationGitText(
-      repositoryPath,
-      ['rev-parse', '--verify', refName],
-    );
-  }
-  return Object.freeze(heads);
-}
-
-async function collect(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of source) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
 }

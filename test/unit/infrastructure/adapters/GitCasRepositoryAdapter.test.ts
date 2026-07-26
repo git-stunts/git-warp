@@ -108,8 +108,8 @@ describe('GitCasRepositoryAdapter', () => {
     expect(services.stateSnapshots).toBeUndefined();
     expect(services.trie).toBeInstanceOf(GitCasTrieStoreAdapter);
     expect(services.syncReplayProtection).toBeDefined();
-    const seekCursors = repository.createSeekCursorStore('events');
-    expect(repository.createSeekCursorStore('events')).toBe(seekCursors);
+    const seekCursors = await repository.createSeekCursorStore('events');
+    expect(await repository.createSeekCursorStore('events')).toBe(seekCursors);
 
     plumbing.execute
       .mockResolvedValueOnce('f'.repeat(40))

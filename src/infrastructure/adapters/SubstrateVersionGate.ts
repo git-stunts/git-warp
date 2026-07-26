@@ -17,7 +17,7 @@ type SubstrateVersionHistory = {
   writeBlob(content: Uint8Array | string): Promise<string>;
 };
 
-/** Refuses retained state that has not crossed the explicit v19 migration boundary. */
+/** Refuses retained state that has not crossed the current migration boundary. */
 export default class SubstrateVersionGate {
   readonly #checks = new Map<string, Promise<void>>();
   readonly #history: SubstrateVersionHistory;
@@ -34,6 +34,11 @@ export default class SubstrateVersionGate {
     }
     const check = this.#ensureOnce(graphName);
     this.#checks.set(graphName, check);
+    void check.catch(() => {
+      if (this.#checks.get(graphName) === check) {
+        this.#checks.delete(graphName);
+      }
+    });
     return check;
   }
 
@@ -79,9 +84,9 @@ export default class SubstrateVersionGate {
 
 function migrationRequired(graphName: string): WarpError {
   return new WarpError(
-    `Timeline '${graphName}' requires the one-shot v18-to-v19 retained-substrate migration. `
-      + 'Run git-warp-v18-to-v19 before opening it with v19.',
+    `Timeline '${graphName}' requires the one-shot retained-substrate migration. `
+      + 'Run the package migration command before opening it with this runtime.',
     'E_SUBSTRATE_MIGRATION_REQUIRED',
-    { context: { graphName, migration: 'git-warp-v18-to-v19' } },
+    { context: { graphName, migration: 'retained-substrate' } },
   );
 }

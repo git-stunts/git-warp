@@ -150,6 +150,7 @@ export default class ForkController {
     }
 
     const forkWriterRef = buildWriterRef(resolvedForkName, resolvedForkWriterId);
+    await host._runtimeStorage.prepareFreshTimeline?.(resolvedForkName);
     await host._persistence.updateRef(forkWriterRef, at);
 
     let forkGraph: ForkedGraph;

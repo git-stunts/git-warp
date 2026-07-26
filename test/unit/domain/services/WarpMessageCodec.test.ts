@@ -126,6 +126,7 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       stateHash: STATE_HASH,
       schema: 5,
       checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+      // @ts-expect-error exercises the runtime obstruction for untrusted input.
       bundleHandle: null,
     })).toThrow(/received null/u);
 

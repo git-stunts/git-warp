@@ -1,16 +1,16 @@
-import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { promisify } from 'node:util';
 
 import {
   parseV18RetainedStateCacheJson,
   parseV18RetainedSubstrateFixtureManifestJson,
   type V18RetainedSubstrateFixtureManifest,
 } from './adapters/V18RetainedSubstrateFixtureJsonAdapter.ts';
-
-const execFileAsync = promisify(execFile);
+import {
+  runV18MigrationGit,
+  v18MigrationGitText,
+} from './V18MigrationGit.ts';
 
 export type V18RetainedSubstrateRestoredRef = Readonly<{
   head: string;
@@ -122,12 +122,12 @@ function requirePath(value: string, name: string): string {
 }
 
 async function gitText(cwd: string, args: readonly string[]): Promise<string> {
-  return (await runGit(cwd, args)).stdout.trim();
+  return await v18MigrationGitText(cwd, args);
 }
 
 async function runGit(
   cwd: string,
   args: readonly string[],
-): Promise<{ readonly stderr: string; readonly stdout: string }> {
-  return await execFileAsync('git', args, { cwd });
+): Promise<void> {
+  await runV18MigrationGit(cwd, args);
 }

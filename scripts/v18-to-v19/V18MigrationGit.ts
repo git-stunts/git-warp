@@ -41,15 +41,36 @@ export async function runV18MigrationGit(
     });
     const stdout: Uint8Array[] = [];
     const stderr: Uint8Array[] = [];
+    let settled = false;
+    const fail = (error: unknown): void => {
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    };
     child.stdout.on('data', (chunk: Uint8Array) => stdout.push(chunk));
     child.stderr.on('data', (chunk: Uint8Array) => stderr.push(chunk));
-    child.on('error', reject);
+    child.on('error', fail);
+    child.stdin.on('error', (error) => {
+      fail(new V18MigrationGitError({
+        args,
+        exitCode: null,
+        stderr: [
+          Buffer.concat(stderr).toString('utf8').trim(),
+          `stdin: ${error.message}`,
+        ].filter(Boolean).join('\n'),
+      }));
+    });
     child.on('close', (exitCode) => {
+      if (settled) {
+        return;
+      }
       if (exitCode === 0) {
+        settled = true;
         resolve(Buffer.concat(stdout));
         return;
       }
-      reject(new V18MigrationGitError({
+      fail(new V18MigrationGitError({
         args,
         exitCode,
         stderr: Buffer.concat(stderr).toString('utf8').trim(),

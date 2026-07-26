@@ -109,13 +109,22 @@ export default class V18PatchTranslator {
       GitCasAssetHandle.parse(reference);
       return reference;
     }
-    const translated = this.#contentHandles.get(reference);
-    if (translated === undefined) {
+    const translated = new Set(
+      [false, true]
+        .map((encrypted) => this.#contentHandles.get(contentCacheKey(reference, encrypted)))
+        .filter((handle): handle is string => handle !== undefined),
+    );
+    if (translated.size === 0) {
       throw new Error(
         `legacy checkpoint content ${reference} was not translated from writer history`,
       );
     }
-    return translated;
+    if (translated.size > 1) {
+      throw new Error(
+        `legacy checkpoint content ${reference} has ambiguous encryption modes`,
+      );
+    }
+    return [...translated][0] as string;
   }
 
   async #readLegacyPatch(patch: V18PatchCommit): Promise<Uint8Array> {
@@ -161,8 +170,11 @@ export default class V18PatchTranslator {
     attachmentHandles: Set<string>,
   ): Promise<DecodedRecord> {
     const type = op['type'];
-    const contentValue = op['key'] === '_content' ? op['value'] : undefined;
-    if (typeof contentValue === 'string') {
+    if (op['key'] === '_content') {
+      const contentValue = op['value'];
+      if (typeof contentValue !== 'string') {
+        throw new Error('legacy patch content is not a string reference');
+      }
       const handle = await this.#translateContentReference(contentValue, encrypted);
       attachmentHandles.add(handle);
       return Object.freeze({ ...op, value: handle });
@@ -180,7 +192,8 @@ export default class V18PatchTranslator {
       GitCasAssetHandle.parse(reference);
       return reference;
     }
-    const existing = this.#contentHandles.get(reference);
+    const cacheKey = contentCacheKey(reference, encrypted);
+    const existing = this.#contentHandles.get(cacheKey);
     if (existing !== undefined) {
       return existing;
     }
@@ -191,7 +204,7 @@ export default class V18PatchTranslator {
     const handle = objectType === 'tree'
       ? await this.#adoptContentTree(reference, encrypted)
       : await this.#stageContentBlob(reference, objectType, encrypted);
-    this.#contentHandles.set(reference, handle);
+    this.#contentHandles.set(cacheKey, handle);
     return handle;
   }
 
@@ -237,6 +250,10 @@ export default class V18PatchTranslator {
   #encryptionOptions(encrypted: boolean): Readonly<{ passphrase?: string }> {
     return this.#decryptionOptions(encrypted);
   }
+}
+
+function contentCacheKey(reference: string, encrypted: boolean): string {
+  return `${reference}:${String(encrypted)}`;
 }
 
 function requireRecord(value: unknown, label: string): DecodedRecord {
