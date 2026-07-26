@@ -37,6 +37,7 @@ import type SeekCursorStorePort from '../../ports/SeekCursorStorePort.ts';
 import GitCasMaterializationCacheDiagnosticsAdapter, {
   type GitCasMaterializationCacheDiagnosticsFacade,
 } from './GitCasMaterializationCacheDiagnosticsAdapter.ts';
+import SubstrateVersionGate from './SubstrateVersionGate.ts';
 
 type GitCasPolicy = {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -80,6 +81,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   private readonly _closeCas: (() => Promise<void>) | null;
   private readonly _cbor: InstanceType<typeof CborCodec>;
   private readonly _contentEncryption: CasContentEncryptionPolicy | undefined;
+  private readonly _substrateVersionGate: SubstrateVersionGate;
   private readonly _materializations = new Set<GitCasMaterializationStoreAdapter>();
   private readonly _seekCursors = new Map<string, SeekCursorStorePort>();
   private _closePromise: Promise<void> | null = null;
@@ -106,36 +108,36 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
     }
     this._cbor = new CborCodec();
     this._contentEncryption = options.contentEncryption;
+    this._substrateVersionGate = new SubstrateVersionGate(this._history);
   }
 
-  createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
+  async createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
     this._assertOpen();
+    await this._substrateVersionGate.ensure(request.timelineName);
     const content = this._createContentStorage();
     const materializations = this._createMaterializationStore(request);
     this._materializations.add(materializations);
-    return Promise.resolve(
-      Object.freeze({
-        content,
-        auditLog: this._createAuditLog(content),
-        strands: this._createStrandStore(content),
-        intents: this._createIntentStore(request, content),
-        patchJournal: this._createPatchJournal(request, content),
-        checkpoints: this._createCheckpointStore(request, content),
-        indexes: this._createIndexStore(request, content),
-        materializations,
-        materializationCacheDiagnostics: new GitCasMaterializationCacheDiagnosticsAdapter({
-          cas: this._cas,
-          codec: request.codec,
-          crypto: request.crypto,
-          laneName: request.timelineName,
-        }),
-        syncReplayProtection: new GitCasSyncReplayProtectionAdapter({
-          cas: this._cas,
-          graphName: request.timelineName,
-        }),
-        trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
-      })
-    );
+    return Object.freeze({
+      content,
+      auditLog: this._createAuditLog(content),
+      strands: this._createStrandStore(content),
+      intents: this._createIntentStore(request, content),
+      patchJournal: this._createPatchJournal(request, content),
+      checkpoints: this._createCheckpointStore(request, content),
+      indexes: this._createIndexStore(request, content),
+      materializations,
+      materializationCacheDiagnostics: new GitCasMaterializationCacheDiagnosticsAdapter({
+        cas: this._cas,
+        codec: request.codec,
+        crypto: request.crypto,
+        laneName: request.timelineName,
+      }),
+      syncReplayProtection: new GitCasSyncReplayProtectionAdapter({
+        cas: this._cas,
+        graphName: request.timelineName,
+      }),
+      trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
+    });
   }
 
   createSeekCursorStore(timelineName: string): SeekCursorStorePort {

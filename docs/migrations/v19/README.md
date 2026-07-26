@@ -12,6 +12,56 @@ application grammar:
 Write intents. Observe lanes. Keep receipts.
 ```
 
+## Migrate Retained v18 State First
+
+v19 does not read or append to an unmarked v18 retained substrate. Opening a
+non-empty lane before migration fails with
+`E_SUBSTRATE_MIGRATION_REQUIRED`; it does not write a v19 commit onto the v18
+writer chain.
+
+Stop every process that can write to the repository, make a normal repository
+backup, and run the complete disposable proof:
+
+```bash
+npx git-warp-v18-to-v19 \
+  --repo /path/to/repository \
+  --graph events
+```
+
+Without `--apply`, the command inventories every writer commit, translates the
+legacy patch and content references in an isolated repository, builds a fresh
+v19 checkpoint, verifies a public v19 read, and verifies a disposable v19
+append. It leaves authoritative refs unchanged.
+
+After the proof succeeds, rerun it with promotion enabled:
+
+```bash
+npx git-warp-v18-to-v19 \
+  --repo /path/to/repository \
+  --graph events \
+  --apply
+```
+
+Promotion rechecks every source head and uses one Git ref transaction. The
+transaction preserves the old writer, checkpoint, coverage, and state-cache
+refs below:
+
+```text
+refs/warp/<graph>/recovery/v18-to-v19/<run-id>/
+```
+
+It also retains each payload tree named only inside the old blob-backed state
+cache. No old ref is deleted or replaced unless every expected source OID is
+unchanged. Keep the recovery refs until application reads, writes, and backups
+have been independently confirmed.
+
+For an encrypted v18 substrate, provide the passphrase through
+`GIT_WARP_MIGRATION_PASSPHRASE`; never place it in command-line arguments or
+the migration report.
+
+The command is idempotent. Once the exact v19 substrate marker exists, reruns
+verify the current repository and report `already-current`.
+
 ## Breaking Boundary
 
 The package root has exactly one runtime value:
