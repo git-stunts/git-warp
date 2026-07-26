@@ -1,5 +1,9 @@
-import type Lane from '../domain/api/Lane.ts';
+import Lane from '../domain/api/Lane.ts';
 import { LANE_IDENTITY_FAILURE } from '../domain/api/LaneIdentityFailure.ts';
+import {
+  requireLaneRuntime,
+  type LaneRuntime,
+} from '../domain/api/LaneRuntime.ts';
 import type Warp from '../domain/api/Warp.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailure.ts';
 import { assertTimelineNameIdentity, assertWriterIdentity } from '../domain/api/assertIdentity.ts';
@@ -15,9 +19,19 @@ export type RuntimeOpenOptions = {
   readonly writer: string;
 };
 
+export type RuntimeForkOptions = {
+  readonly name: string;
+};
+
+const FORK_IDENTITY_FAILURE = Object.freeze({
+  message: 'Runtime.fork requires a non-empty strand name',
+  code: 'E_RUNTIME_FORK_IDENTITY',
+});
+
 /** Production composition root for one local git-warp runtime. */
 export default class Runtime {
   readonly #activity: RuntimeActivity;
+  readonly #laneOwner: object;
   readonly #storage: GitStorage;
   readonly #warp: Warp;
 
@@ -25,6 +39,7 @@ export default class Runtime {
     this.#warp = warp;
     this.#storage = storage;
     this.#activity = new RuntimeActivity();
+    this.#laneOwner = Object.freeze({});
     Object.freeze(this);
   }
 
@@ -55,8 +70,22 @@ export default class Runtime {
     assertTimelineNameIdentity(name, 'lane', LANE_IDENTITY_FAILURE);
     return await this.#activity.run(async () => {
       const timeline = await this.#warp.timeline(name);
-      return createWorldlineLane(timeline, this.#activity);
+      return createWorldlineLane(timeline, this.#activity, this.#laneOwner);
     });
+  }
+
+  async fork(source: Lane, options: RuntimeForkOptions): Promise<Lane> {
+    assertForkSource(source);
+    assertForkOptions(options);
+    assertTimelineNameIdentity(options.name, 'fork.name', FORK_IDENTITY_FAILURE);
+    const binding = requireOwnedLaneRuntime(source, this.#laneOwner);
+    const fork = requireWorldlineFork(source, binding);
+    const lease = this.#activity.acquire();
+    try {
+      return await fork(options.name);
+    } finally {
+      lease.release();
+    }
   }
 
   /** Releases local resources only. */
@@ -67,6 +96,43 @@ export default class Runtime {
   async [Symbol.asyncDispose](): Promise<void> {
     await this.close();
   }
+}
+
+function assertForkSource(source: Lane): void {
+  if (!(source instanceof Lane)) {
+    throw new WarpError('Runtime.fork requires a Lane', 'E_RUNTIME_FORK_SOURCE');
+  }
+}
+
+function assertForkOptions(options: RuntimeForkOptions): void {
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+    throw new WarpError('Runtime.fork options are required', 'E_RUNTIME_FORK_OPTIONS');
+  }
+}
+
+function requireOwnedLaneRuntime(source: Lane, owner: object): LaneRuntime {
+  const binding = requireLaneRuntime(source);
+  if (binding.owner !== owner) {
+    throw new WarpError(
+      'Runtime.fork requires a Lane owned by this Runtime',
+      'E_RUNTIME_FORK_FOREIGN_LANE',
+    );
+  }
+  return binding;
+}
+
+function requireWorldlineFork(
+  source: Lane,
+  binding: LaneRuntime,
+): NonNullable<LaneRuntime['fork']> {
+  if (source.kind !== 'worldline' || binding.fork === null) {
+    throw new WarpError(
+      'Runtime.fork supports worldline Lane sources only',
+      'E_RUNTIME_FORK_SOURCE_KIND',
+      { context: { kind: source.kind } },
+    );
+  }
+  return binding.fork;
 }
 
 function assertRuntimeOpenOptions(

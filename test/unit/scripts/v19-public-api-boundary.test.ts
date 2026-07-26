@@ -26,6 +26,7 @@ const ROOT_TYPE_EXPORTS = [
   'ReadingValue',
   'Receipt',
   'RepairHint',
+  'RuntimeForkOptions',
   'RuntimeOpenOptions',
   'SupportReport',
   'Tick',

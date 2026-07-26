@@ -135,8 +135,10 @@ function readRepoFile(path: string): string {
 
 function prepareOpticBasisImplementation(): string {
   const source = readRepoFile('src/domain/WarpWorldline.ts');
-  const start = source.indexOf('prepareOpticBasis: async () => {');
-  const end = source.indexOf('    getFrontier:', start);
+  const start = source.indexOf(
+    'const prepareOpticBasis = async (): Promise<WarpWorldlineOpticBasis> => {',
+  );
+  const end = source.indexOf('\n\n  return new WarpWorldline', start);
   if (start < 0 || end < 0) {
     throw new Error('WarpWorldline prepareOpticBasis implementation not found');
   }

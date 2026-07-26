@@ -15,12 +15,16 @@ import type { Aperture } from './types/Aperture.ts';
 import type { PatchBuilder } from './services/PatchBuilder.ts';
 import type ProjectionHandle from './services/ProjectionHandle.ts';
 import type Observer from './services/query/Observer.ts';
-import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
+import WorldlineOptic from './services/optic/WorldlineOptic.ts';
 import CheckpointTailBasisVerifier from './services/optic/CheckpointTailBasisVerifier.ts';
+import CoordinateCheckpointTailOpticSource from './services/optic/CoordinateCheckpointTailOpticSource.ts';
 import createBoundedMemoryCapabilityReport from './memory/createBoundedMemoryCapabilityReport.ts';
 import type { IntentAdmissionReceipt } from './admission/IntentAdmissionReceipt.ts';
 import type { WarpIntentDescriptor } from './types/WarpIntentDescriptor.ts';
 import type { PatchCommitResult } from './types/PatchCommitResult.ts';
+import type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
+
+export type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
 
 export type WarpWorldlineOpenOptions = Omit<WarpGraphDeps, 'graphName'> & {
   readonly worldlineName: string;
@@ -33,7 +37,10 @@ export type WarpWorldlinePatchBuild = (
 
 type CommitPatch = (build: WarpWorldlinePatchBuild) => Promise<string>;
 type CommitPatchWithEvidence = (build: WarpWorldlinePatchBuild) => Promise<PatchCommitResult>;
-type CreateDraft = (name: string) => Promise<void>;
+type CreateDraft = (
+  name: string,
+  coordinate?: WarpWorldlineCoordinate,
+) => Promise<void>;
 type WorldlineOptions = Parameters<ProjectionHandle['seek']>[0];
 type CreateWorldline = (options?: WorldlineOptions) => ProjectionHandle;
 type PatchDraft = (name: string, build: WarpWorldlinePatchBuild) => Promise<string>;
@@ -44,14 +51,23 @@ type PatchDraftWithEvidence = (
 type PreviewDraftJoin = (name: string) => Promise<readonly string[]>;
 type RuntimeGraph = Awaited<ReturnType<typeof openRuntimeHostProduct>>;
 type PrepareOpticBasis = () => Promise<WarpWorldlineOpticBasis>;
+type PrepareForkOpticBasis = () => Promise<WarpWorldlineOpticBasis>;
 type DraftWorldlineOptions = Pick<
   WarpWorldlineConstructionOptions,
-  'createDraft' | 'patchDraft' | 'patchDraftWithEvidence' | 'previewDraftJoin'
+  | 'createDraft'
+  | 'patchDraft'
+  | 'patchDraftWithEvidence'
+  | 'prepareStrandOptic'
+  | 'previewDraftJoin'
 >;
 type GetFrontier = () => Promise<Map<string, string>>;
 type ReadOpticBasis = () => WarpWorldlineOpticBasis | null;
 type ReadCapabilities = typeof createBoundedMemoryCapabilityReport;
 type AdmitIntent = (descriptor: WarpIntentDescriptor) => Promise<IntentAdmissionReceipt>;
+type PrepareStrandOptic = (
+  name: string,
+  checkpointSha: string,
+) => Promise<WarpStrandOpticBasis>;
 
 type WarpWorldlineConstructionOptions = {
   readonly worldlineName: string;
@@ -63,7 +79,9 @@ type WarpWorldlineConstructionOptions = {
   readonly patchDraft?: PatchDraft;
   readonly patchDraftWithEvidence?: PatchDraftWithEvidence;
   readonly previewDraftJoin?: PreviewDraftJoin;
+  readonly prepareStrandOptic?: PrepareStrandOptic;
   readonly prepareOpticBasis?: PrepareOpticBasis;
+  readonly prepareForkOpticBasis?: PrepareForkOpticBasis;
   readonly getFrontier?: GetFrontier;
   readonly readOpticBasis?: ReadOpticBasis;
   readonly readCapabilities?: ReadCapabilities;
@@ -80,7 +98,9 @@ export default class WarpWorldline {
   private readonly _patchDraft: PatchDraft | null;
   private readonly _patchDraftWithEvidence: PatchDraftWithEvidence | null;
   private readonly _previewDraftJoin: PreviewDraftJoin | null;
+  private readonly _prepareStrandOptic: PrepareStrandOptic | null;
   private readonly _prepareOpticBasis: PrepareOpticBasis | null;
+  private readonly _prepareForkOpticBasis: PrepareForkOpticBasis | null;
   private readonly _getFrontier: GetFrontier | null;
   private readonly _readOpticBasis: ReadOpticBasis | null;
   private readonly _readCapabilities: ReadCapabilities;
@@ -98,7 +118,9 @@ export default class WarpWorldline {
     this._patchDraft = optionalPort(options.patchDraft);
     this._patchDraftWithEvidence = optionalPort(options.patchDraftWithEvidence);
     this._previewDraftJoin = optionalPort(options.previewDraftJoin);
+    this._prepareStrandOptic = optionalPort(options.prepareStrandOptic);
     this._prepareOpticBasis = optionalPort(options.prepareOpticBasis);
+    this._prepareForkOpticBasis = optionalPort(options.prepareForkOpticBasis);
     this._getFrontier = optionalPort(options.getFrontier);
     this._readOpticBasis = optionalPort(options.readOpticBasis);
     this._readCapabilities = options.readCapabilities ?? createBoundedMemoryCapabilityReport;
@@ -124,11 +146,14 @@ export default class WarpWorldline {
     return await this._admitIntent(descriptor);
   }
 
-  async createDraft(name: string): Promise<void> {
+  async createDraft(
+    name: string,
+    coordinate?: WarpWorldlineCoordinate,
+  ): Promise<void> {
     if (this._createDraft === null) {
       throw new WarpError('WarpWorldline was not opened with draft support', 'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE');
     }
-    await this._createDraft(name);
+    await this._createDraft(name, coordinate);
   }
 
   async patchDraft(name: string, build: WarpWorldlinePatchBuild): Promise<string> {
@@ -156,6 +181,19 @@ export default class WarpWorldline {
       throw new WarpError('WarpWorldline was not opened with draft support', 'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE');
     }
     return await this._previewDraftJoin(name);
+  }
+
+  async prepareStrandOptic(
+    name: string,
+    checkpointSha: string,
+  ): Promise<WarpStrandOpticBasis> {
+    if (this._prepareStrandOptic === null) {
+      throw new WarpError(
+        'WarpWorldline was not opened with bounded strand read support',
+        'E_WARP_WORLDLINE_STRAND_OPTIC_UNAVAILABLE',
+      );
+    }
+    return await this._prepareStrandOptic(name, checkpointSha);
   }
 
   live(): ProjectionHandle {
@@ -201,6 +239,16 @@ export default class WarpWorldline {
       );
     }
     return await this._prepareOpticBasis();
+  }
+
+  async prepareForkOpticBasis(): Promise<WarpWorldlineOpticBasis> {
+    if (this._prepareForkOpticBasis === null) {
+      throw new WarpError(
+        'WarpWorldline was not opened with fork coordinate support',
+        'E_WARP_WORLDLINE_FORK_BASIS_UNAVAILABLE',
+      );
+    }
+    return await this._prepareForkOpticBasis();
   }
 
   async coordinate(): Promise<WarpWorldlineCoordinate> {
@@ -254,6 +302,14 @@ export async function openWarpWorldline(
 
 function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWorldline {
   let preparedOpticBasis: WarpWorldlineOpticBasis | null = null;
+  const prepareOpticBasis = async (): Promise<WarpWorldlineOpticBasis> => {
+    const basis = await new CheckpointTailBasisVerifier({ source: graph }).verify();
+    preparedOpticBasis = new WarpWorldlineOpticBasis({
+      worldlineName,
+      checkpointSha: basis.checkpointSha,
+    });
+    return preparedOpticBasis;
+  };
 
   return new WarpWorldline({
     worldlineName,
@@ -262,36 +318,120 @@ function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWo
     commitPatchWithEvidence: async (build) => await graph.patchWithEvidence(build),
     ...draftWorldlineOptions(graph),
     createWorldline: (worldlineOptions) => graph.worldline(worldlineOptions),
-    prepareOpticBasis: async () => {
-      const basis = await new CheckpointTailBasisVerifier({ source: graph }).verify();
-      preparedOpticBasis = new WarpWorldlineOpticBasis({
-        worldlineName,
-        checkpointSha: basis.checkpointSha,
-      });
-      return preparedOpticBasis;
-    },
+    prepareOpticBasis,
+    prepareForkOpticBasis: async () =>
+      await prepareForkOpticBasis(graph, prepareOpticBasis),
     getFrontier: async () => await graph.getFrontier(),
     readOpticBasis: () => preparedOpticBasis,
     admitIntent: async (descriptor) => await graph.admitIntent(descriptor),
   });
 }
 
+async function prepareForkOpticBasis(
+  graph: RuntimeGraph,
+  prepare: PrepareOpticBasis,
+): Promise<WarpWorldlineOpticBasis> {
+  try {
+    return await prepare();
+  } catch (error) {
+    if (!(error instanceof QueryError) || error.code !== 'E_OPTIC_NO_BOUNDED_BASIS') {
+      throw error;
+    }
+  }
+  await graph.materialize();
+  await graph.createCheckpoint();
+  return await prepare();
+}
+
 function draftWorldlineOptions(graph: RuntimeGraph): DraftWorldlineOptions {
   return {
-    createDraft: async (name) => {
-      await graph.createStrand({
-        strandId: name,
-        owner: graph.writerId,
-      });
-    },
+    createDraft: async (name, coordinate) =>
+      await createDraft(graph, name, coordinate),
     patchDraft: async (name, build) => await graph.patchStrand(name, build),
     patchDraftWithEvidence: async (name, build) =>
       await graph.patchStrandWithEvidence(name, build),
-    previewDraftJoin: async (name) => {
-      await graph.materializeStrand(name, { receipts: true });
-      return (await graph.getStrandPatches(name)).map((entry) => entry.sha);
-    },
+    previewDraftJoin: async (name) => await previewDraftJoin(graph, name),
+    prepareStrandOptic: async (name, checkpointSha) =>
+      await prepareStrandOpticBasis(graph, name, checkpointSha),
   };
+}
+
+async function createDraft(
+  graph: RuntimeGraph,
+  name: string,
+  coordinate: WarpWorldlineCoordinate | undefined,
+): Promise<void> {
+  await graph.createStrand({
+    strandId: name,
+    owner: graph.writerId,
+    ...(coordinate === undefined ? {} : { baseFrontier: coordinate.frontier() }),
+  });
+}
+
+async function previewDraftJoin(
+  graph: RuntimeGraph,
+  name: string,
+): Promise<readonly string[]> {
+  await graph.materializeStrand(name, { receipts: true });
+  return (await graph.getStrandPatches(name)).map((entry) => entry.sha);
+}
+
+async function prepareStrandOpticBasis(
+  graph: RuntimeGraph,
+  name: string,
+  checkpointSha: string,
+): Promise<WarpStrandOpticBasis> {
+  const descriptor = await graph.getStrand(name);
+  if (descriptor === null) {
+    throw new WarpError(
+      `Strand '${name}' is unavailable`,
+      'E_WARP_WORLDLINE_STRAND_UNAVAILABLE',
+      { context: { name } },
+    );
+  }
+  // A strand overlay already has its own writer identity. Adding its pinned
+  // head to the captured parent frontier lets the checkpoint-tail optic scan
+  // it as one more bounded writer tail, without materializing the graph.
+  const frontier = strandFrontier(descriptor);
+  return Object.freeze({
+    checkpointSha,
+    frontierEntries: freezeFrontierEntries(frontier),
+    optic: new WorldlineOptic({
+      source: new CoordinateCheckpointTailOpticSource({
+        source: graph,
+        checkpointSha,
+        frontier,
+      }),
+    }),
+  });
+}
+
+function strandFrontier(
+  descriptor: NonNullable<Awaited<ReturnType<RuntimeGraph['getStrand']>>>,
+): Map<string, string> {
+  const frontier = new Map(Object.entries(descriptor.baseObservation.frontier));
+  addOverlayHead(frontier, descriptor.overlay);
+  for (const overlay of descriptor.braid.readOverlays) {
+    addOverlayHead(frontier, overlay);
+  }
+  return frontier;
+}
+
+function addOverlayHead(
+  frontier: Map<string, string>,
+  overlay: { readonly overlayId: string; readonly headPatchSha: string | null },
+): void {
+  if (overlay.headPatchSha !== null) {
+    frontier.set(overlay.overlayId, overlay.headPatchSha);
+  }
+}
+
+function freezeFrontierEntries(frontier: Map<string, string>) {
+  return Object.freeze(
+    [...frontier.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([writerId, patchSha]) => Object.freeze({ writerId, patchSha })),
+  );
 }
 
 function assertNonEmpty(value: string | null | undefined, field: string): void {

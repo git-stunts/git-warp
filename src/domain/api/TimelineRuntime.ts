@@ -12,7 +12,12 @@ import Timeline from './Timeline.ts';
 import { createTimelineView } from './TimelineViewRuntime.ts';
 import { executeIntentWrite } from './WriteRuntime.ts';
 
-const timelineRuntimes = new WeakMap<Timeline, WarpWorldline>();
+type TimelineRuntimeBinding = Readonly<{
+  readonly context: ApiRuntimeContext;
+  readonly runtime: WarpWorldline;
+}>;
+
+const timelineRuntimes = new WeakMap<Timeline, TimelineRuntimeBinding>();
 
 export function createTimeline(runtime: WarpWorldline, context: ApiRuntimeContext): Timeline {
   const timeline = new Timeline({
@@ -38,14 +43,22 @@ export function createTimeline(runtime: WarpWorldline, context: ApiRuntimeContex
         commit: runtime.commitWithEvidence.bind(runtime),
       }),
   });
-  timelineRuntimes.set(timeline, runtime);
+  timelineRuntimes.set(timeline, Object.freeze({ context, runtime }));
   return timeline;
 }
 
 export function requireTimelineRuntime(timeline: Timeline): WarpWorldline {
-  const runtime = timelineRuntimes.get(timeline);
-  if (runtime === undefined) {
+  const binding = timelineRuntimes.get(timeline);
+  if (binding === undefined) {
     throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
   }
-  return runtime;
+  return binding.runtime;
+}
+
+export function requireTimelineContext(timeline: Timeline): ApiRuntimeContext {
+  const binding = timelineRuntimes.get(timeline);
+  if (binding === undefined) {
+    throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
+  }
+  return binding.context;
 }

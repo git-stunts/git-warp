@@ -114,6 +114,51 @@ export function normalizeCreateOptions(options: {
   };
 }
 
+/** Copy and validate an explicitly captured parent frontier. */
+export function normalizeBaseFrontier(
+  frontier: ReadonlyMap<string, string> | undefined,
+): Map<string, string> | null {
+  if (frontier === undefined) {
+    return null;
+  }
+  if (!isMap(frontier)) {
+    throw new StrandError('baseFrontier must be a Map', {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: { field: 'baseFrontier' },
+    });
+  }
+  const entries = Array.from(frontier.entries(), normalizeBaseFrontierEntry);
+  const normalized = new Map<string, string>();
+  for (const [writerId, patchSha] of entries.sort(([left], [right]) =>
+    left.localeCompare(right)
+  )) {
+    normalized.set(writerId, patchSha);
+  }
+  return normalized;
+}
+
+function normalizeBaseFrontierEntry(
+  entry: [string, string],
+): [string, string] {
+  const [writerId, patchSha] = entry;
+  if (
+    typeof writerId !== 'string' ||
+    writerId.length === 0 ||
+    typeof patchSha !== 'string' ||
+    patchSha.length === 0
+  ) {
+    throw new StrandError('baseFrontier entries must be non-empty strings', {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: { field: 'baseFrontier' },
+    });
+  }
+  return [writerId, patchSha];
+}
+
+function isMap(value: object): boolean {
+  return value instanceof Map;
+}
+
 /** Check whether a patch touches a given entity in its reads or writes. */
 export function patchTouchesEntity(patch: { reads?: string[]; writes?: string[] }, entityId: string): boolean {
   if (patch.reads !== undefined && patch.reads.includes(entityId)) { return true; }

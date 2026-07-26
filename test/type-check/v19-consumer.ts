@@ -13,6 +13,7 @@ import {
   type Observer,
   type Reading,
   type Receipt,
+  type RuntimeForkOptions,
   type RuntimeOpenOptions,
   type SupportReport,
   type Tick,
@@ -23,6 +24,8 @@ import { users } from './generated-users.ts';
 const options: RuntimeOpenOptions = { at: '.', writer: 'agent-1' };
 const runtime: Runtime = await Runtime.open(options);
 const lane: Lane = await runtime.lane('events');
+const forkOptions: RuntimeForkOptions = { name: 'try-admin-role' };
+const strand: Lane = await runtime.fork(lane, forkOptions);
 const intent: Intent = users.intents.assignRole({
   subject: 'user:alice',
   role: 'admin',
@@ -84,6 +87,7 @@ const readingTick: Tick | undefined = emitted.coordinate.tick;
 
 void admissionWitnessHandle(admission);
 void laneName(lane.descriptor);
+void laneName(strand.descriptor);
 void writeEvidence;
 void writeLane;
 void readingTick;

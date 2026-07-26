@@ -20,6 +20,15 @@ export async function createTick(
   return await createTickFromCoordinate(runtime, context, coordinate);
 }
 
+export async function createForkTick(
+  runtime: WarpWorldline,
+  context: ApiRuntimeContext,
+): Promise<Tick> {
+  await runtime.prepareForkOpticBasis();
+  const coordinate = await runtime.coordinate();
+  return await createTickFromCoordinate(runtime, context, coordinate);
+}
+
 export async function createTickFromCoordinate(
   runtime: WarpWorldline,
   context: ApiRuntimeContext,

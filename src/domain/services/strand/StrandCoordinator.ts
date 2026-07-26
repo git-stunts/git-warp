@@ -14,7 +14,7 @@ import {
   createImmutableWarpStateSnapshot,
 } from '../ImmutableSnapshot.ts';
 import {
-  normalizeCreateOptions, normalizeLamportCeiling,
+  normalizeBaseFrontier, normalizeCreateOptions, normalizeLamportCeiling,
   normalizeWritable, normalizeBraidedStrandIds, patchTouchesEntity,
   frontierToRecord,
   type NormalizedCreateOptions,
@@ -181,11 +181,11 @@ export default class StrandCoordinator {
 
   // ── Lifecycle (owns the logic) ──────────────────────────────────
 
-  async create(options: { strandId?: string; lamportCeiling?: number | null; owner?: string | null; scope?: string | null; leaseExpiresAt?: string | null } = {}): Promise<StrandDescriptor> {
+  async create(options: { strandId?: string; lamportCeiling?: number | null; owner?: string | null; scope?: string | null; leaseExpiresAt?: string | null; baseFrontier?: ReadonlyMap<string, string> } = {}): Promise<StrandDescriptor> {
     const normalized = normalizeCreateOptions(options);
     await this._assertStrandDoesNotExist(normalized.strandId);
 
-    const frontier = await this._getFrontier();
+    const frontier = normalizeBaseFrontier(options.baseFrontier) ?? await this._getFrontier();
     const frontierRecord = frontierToRecord(frontier);
     const frontierDigest = await computeChecksum(frontierRecord, this._deps.crypto);
     const now = String(this._deps.maxObservedLamport());
