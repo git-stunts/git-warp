@@ -15,6 +15,10 @@ import {
   type Receipt,
   type RuntimeForkOptions,
   type RuntimeOpenOptions,
+  type RuntimeSettlementOptions,
+  type SettlementPlan,
+  type SettlementPreview,
+  type SettlementReceipt,
   type SupportReport,
   type Tick,
   type WriteReceipt,
@@ -48,6 +52,16 @@ for await (const reading of manyObservation) {
   void value;
 }
 const manyReceipt: ObservationReceipt = await manyObservation.receipt;
+const settlementOptions: RuntimeSettlementOptions = {
+  source: strand,
+  target: lane,
+};
+const settlementPreview: SettlementPreview =
+  await runtime.previewSettlement(settlementOptions);
+const settlementPlan: SettlementPlan = settlementPreview.plan;
+const settlementReceipt: SettlementReceipt =
+  await runtime.settle(settlementPlan);
+const settlementPublicReceipt: Receipt = settlementReceipt;
 
 function admissionWitnessHandle(value: AdmissionOutcome): EvidenceHandle {
   switch (value.kind) {
@@ -96,4 +110,5 @@ void emitted.witnessRefs;
 void support;
 void receipt;
 void manyReceipt;
+void settlementPublicReceipt;
 await runtime.close();

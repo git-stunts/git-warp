@@ -135,6 +135,58 @@ describe('Runtime Lane adapter', () => {
     }
   });
 
+  it('binds a strand settlement port through the shared mutation gate', async () => {
+    const storage = MemoryStorage.create();
+    try {
+      const warp = await openWarp({ storage, writer: 'agent-1' });
+      const timeline = await warp.timeline('events');
+      const lane = createWorldlineLane(timeline, new RuntimeActivity());
+      await lane.write(Intent.addNode({ subject: 'user:alice' }));
+      const fork = requireLaneRuntime(lane).fork;
+      if (fork === null) {
+        throw new Error('worldline Lane is missing its fork port');
+      }
+      const strand = await fork('try-admin-role');
+      const settlement = requireLaneRuntime(strand).settlement;
+      if (settlement.kind !== 'source') {
+        throw new Error('strand Lane is missing its settlement source port');
+      }
+
+      await expect(settlement.capture()).resolves.toMatchObject({
+        status: 'empty',
+      });
+      await strand.write(Intent.setProperty({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'admin',
+      }));
+      await expect(settlement.capture()).resolves.toMatchObject({
+        baseTargetFrontierRef: expect.stringMatching(/^admission:/u),
+        frontierRef: expect.stringMatching(/^admission:/u),
+        proposalDigest: expect.stringMatching(/^admission:/u),
+        status: 'ready',
+        targetFrontierRef: expect.stringMatching(/^admission:/u),
+      });
+
+      const promotion = await settlement.runExclusive(async (execution) => {
+        const snapshot = await execution.capture();
+        const digest = await execution.digest(['test', 'settlement']);
+        const result = await execution.promote();
+        return { digest, result, snapshot };
+      });
+      expect(promotion).toMatchObject({
+        digest: expect.stringMatching(/^admission:/u),
+        result: { accepted: true },
+        snapshot: { status: 'ready' },
+      });
+      await expect(settlement.capture()).resolves.toMatchObject({
+        status: 'settled',
+      });
+    } finally {
+      await storage.close();
+    }
+  });
+
   it('pins one strand overlay frontier across lazy Observer demand', async () => {
     const storage = MemoryStorage.create();
     try {

@@ -1,10 +1,13 @@
 import Lane from '../domain/api/Lane.ts';
+import type SettlementPreview from '../domain/api/SettlementPreview.ts';
+import type SettlementReceipt from '../domain/api/SettlementReceipt.ts';
 import { LANE_IDENTITY_FAILURE } from '../domain/api/LaneIdentityFailure.ts';
 import {
   requireLaneRuntime,
   type LaneRuntime,
 } from '../domain/api/LaneRuntime.ts';
 import type Warp from '../domain/api/Warp.ts';
+import type SettlementPlan from '../domain/settlement/SettlementPlan.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailure.ts';
 import { assertTimelineNameIdentity, assertWriterIdentity } from '../domain/api/assertIdentity.ts';
 import WarpError from '../domain/errors/WarpError.ts';
@@ -12,7 +15,15 @@ import { requireNonEmptyString } from '../domain/utils/scalarValidation.ts';
 import GitStorage from './GitStorage.ts';
 import RuntimeActivity from './RuntimeActivity.ts';
 import { createWorldlineLane } from './RuntimeLaneAdapter.ts';
+import RuntimeMutationGate from './RuntimeMutationGate.ts';
+import {
+  previewRuntimeSettlement,
+  settleRuntimePlan,
+} from './RuntimeSettlement.ts';
+import type { RuntimeSettlementOptions } from './RuntimeSettlementOptions.ts';
 import { openWarp } from './openWarp.ts';
+
+export type { RuntimeSettlementOptions } from './RuntimeSettlementOptions.ts';
 
 export type RuntimeOpenOptions = {
   readonly at: string;
@@ -32,6 +43,7 @@ const FORK_IDENTITY_FAILURE = Object.freeze({
 export default class Runtime {
   readonly #activity: RuntimeActivity;
   readonly #laneOwner: object;
+  readonly #mutations: RuntimeMutationGate;
   readonly #storage: GitStorage;
   readonly #warp: Warp;
 
@@ -40,6 +52,7 @@ export default class Runtime {
     this.#storage = storage;
     this.#activity = new RuntimeActivity();
     this.#laneOwner = Object.freeze({});
+    this.#mutations = new RuntimeMutationGate();
     Object.freeze(this);
   }
 
@@ -70,7 +83,11 @@ export default class Runtime {
     assertTimelineNameIdentity(name, 'lane', LANE_IDENTITY_FAILURE);
     return await this.#activity.run(async () => {
       const timeline = await this.#warp.timeline(name);
-      return createWorldlineLane(timeline, this.#activity, this.#laneOwner);
+      return createWorldlineLane(
+        timeline,
+        this.#activity,
+        { mutations: this.#mutations, owner: this.#laneOwner },
+      );
     });
   }
 
@@ -86,6 +103,16 @@ export default class Runtime {
     } finally {
       lease.release();
     }
+  }
+
+  async previewSettlement(
+    options: RuntimeSettlementOptions,
+  ): Promise<SettlementPreview> {
+    return await previewRuntimeSettlement(options, this.#laneOwner);
+  }
+
+  async settle(plan: SettlementPlan): Promise<SettlementReceipt> {
+    return await settleRuntimePlan(plan, this.#laneOwner);
   }
 
   /** Releases local resources only. */

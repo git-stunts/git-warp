@@ -31,6 +31,8 @@ import WarpError from '../domain/errors/WarpError.ts';
 import WarpStream from '../domain/stream/WarpStream.ts';
 import type RuntimeActivity from './RuntimeActivity.ts';
 import type { RuntimeActivityLease } from './RuntimeActivity.ts';
+import RuntimeMutationGate from './RuntimeMutationGate.ts';
+import { bindStrandLaneRuntime } from './RuntimeStrandLaneBinding.ts';
 
 type ReceiptSettlement = Readonly<{
   promise: Promise<ObservationReceipt>;
@@ -44,43 +46,74 @@ type ObservationLane = Readonly<{
 }>;
 type WorldlineLaneSource = Readonly<{
   readonly activity: RuntimeActivity;
+  readonly mutations: RuntimeMutationGate;
   readonly owner: object;
   readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
   readonly timeline: Timeline;
 }>;
+type StrandLaneOptions = Readonly<{
+  readonly activity: RuntimeActivity;
+  readonly draft: DraftTimeline;
+  readonly forkedAt: Readonly<{
+    readonly id: string;
+    readonly lane: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
+  }>;
+  readonly mutations: RuntimeMutationGate;
+  readonly owner: object;
+  readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
+}>;
 type ReadingStreamOutcome =
   | Readonly<{ kind: 'completed'; receipt: ReadReceipt | null }>
   | Readonly<{ kind: 'settled' }>;
+type RuntimeLaneOptions = Readonly<{
+  readonly mutations?: RuntimeMutationGate;
+  readonly owner?: object;
+}>;
 
 export function createWorldlineLane(
   timeline: Timeline,
   activity: RuntimeActivity,
-  owner: object = Object.freeze({}),
+  options: RuntimeLaneOptions = {},
 ): Lane {
+  const mutations = options.mutations ?? new RuntimeMutationGate();
+  const owner = options.owner ?? Object.freeze({});
   const lane = new Lane({
     descriptor: { kind: 'worldline', name: timeline.name },
     writer: timeline.writer,
-    writeIntent: async (intent) => await activity.run(async () => await timeline.write(intent)),
+    writeIntent: async (intent) =>
+      await activity.run(async () =>
+        await mutations.run(async () => await timeline.write(intent))
+      ),
     startObserver: <TValue extends ReadingValue>(observer: Observer<TValue>) =>
       startObserver(timeline, observer, activity),
   });
-  const parent = Object.freeze({
-    kind: 'worldline' as const,
-    name: timeline.name,
+  const parent = worldlineParent(timeline.name);
+  bindWorldlineLaneRuntime({
+    activity,
+    lane,
+    mutations,
+    owner,
+    parent,
+    timeline,
   });
-  bindWorldlineLaneRuntime({ activity, lane, owner, parent, timeline });
   return lane;
+}
+
+function worldlineParent(name: string) {
+  return Object.freeze({ kind: 'worldline' as const, name });
 }
 
 function bindWorldlineLaneRuntime(options: {
   readonly activity: RuntimeActivity;
   readonly lane: Lane;
+  readonly mutations: RuntimeMutationGate;
   readonly owner: object;
   readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
   readonly timeline: Timeline;
 }): void {
   const source: WorldlineLaneSource = Object.freeze({
     activity: options.activity,
+    mutations: options.mutations,
     owner: options.owner,
     parent: options.parent,
     timeline: options.timeline,
@@ -90,6 +123,7 @@ function bindWorldlineLaneRuntime(options: {
       await captureWorldlineCoordinate(source.timeline, source.activity),
     fork: async (name) => await forkWorldlineLane(source, name),
     owner: source.owner,
+    settlement: Object.freeze({ kind: 'target' }),
   });
 }
 
@@ -108,38 +142,32 @@ async function forkWorldlineLane(
   options: WorldlineLaneSource,
   name: string,
 ): Promise<Lane> {
-  return await options.activity.run(async () => {
-    const runtime = requireTimelineRuntime(options.timeline);
-    const context = requireTimelineContext(options.timeline);
-    const tick = await createForkTick(runtime, context);
-    const draft = await createDraftTimeline({
-      runtime,
-      context,
-      timelineName: options.timeline.name,
-      draftName: name,
-      forkedAt: requireTickCoordinate(runtime, tick),
-    });
-    return createStrandLane({
-      activity: options.activity,
-      draft,
-      forkedAt: Object.freeze({ id: tick.id, lane: options.parent }),
-      owner: options.owner,
-      parent: options.parent,
-    });
-  });
+  return await options.activity.run(async () =>
+    await options.mutations.run(async () => {
+      const runtime = requireTimelineRuntime(options.timeline);
+      const context = requireTimelineContext(options.timeline);
+      const tick = await createForkTick(runtime, context);
+      const draft = await createDraftTimeline({
+        runtime,
+        context,
+        timelineName: options.timeline.name,
+        draftName: name,
+        forkedAt: requireTickCoordinate(runtime, tick),
+      });
+      return createStrandLane({
+        activity: options.activity,
+        draft,
+        forkedAt: Object.freeze({ id: tick.id, lane: options.parent }),
+        mutations: options.mutations,
+        owner: options.owner,
+        parent: options.parent,
+      });
+    })
+  );
 }
 
-function createStrandLane(options: {
-  readonly activity: RuntimeActivity;
-  readonly draft: DraftTimeline;
-  readonly forkedAt: Readonly<{
-    readonly id: string;
-    readonly lane: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
-  }>;
-  readonly owner: object;
-  readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
-}): Lane {
-  const { activity, draft } = options;
+function createStrandLane(options: StrandLaneOptions): Lane {
+  const { activity, draft, mutations } = options;
   const lane = new Lane({
     descriptor: {
       kind: 'strand',
@@ -148,26 +176,21 @@ function createStrandLane(options: {
       forkedAt: options.forkedAt,
     },
     writer: draft.writer,
-    writeIntent: async (intent) => await activity.run(async () => await draft.write(intent)),
+    writeIntent: async (intent) =>
+      await activity.run(async () =>
+        await mutations.run(async () => await draft.write(intent))
+      ),
     startObserver: <TValue extends ReadingValue>(observer: Observer<TValue>) =>
       startStrandObserver(draft, observer, activity),
   });
-  bindStrandLaneRuntime(lane, options.owner);
-  return lane;
-}
-
-function bindStrandLaneRuntime(lane: Lane, owner: object): void {
-  bindLaneRuntime(lane, {
-    captureCoordinate: () => Promise.reject(
-      new WarpError(
-        'Strand Lane coordinates are not supported by captureCoordinate',
-        'E_LANE_COORDINATE_KIND',
-        { context: { kind: lane.kind } },
-      ),
-    ),
-    fork: null,
-    owner,
+  bindStrandLaneRuntime({
+    activity,
+    draft,
+    lane,
+    mutations,
+    owner: options.owner,
   });
+  return lane;
 }
 
 async function startObserver<TValue extends ReadingValue>(

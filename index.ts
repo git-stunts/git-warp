@@ -14,6 +14,7 @@ export { default as Runtime } from './src/application/Runtime.ts';
 export type {
   RuntimeForkOptions,
   RuntimeOpenOptions,
+  RuntimeSettlementOptions,
 } from './src/application/Runtime.ts';
 export type { default as Evidence, EvidenceHandle } from './src/domain/api/Evidence.ts';
 export type { default as Intent } from './src/domain/api/Intent.ts';
@@ -37,6 +38,9 @@ export type {
   WitnessReference,
 } from './src/domain/api/ObservedReading.ts';
 export type { default as Tick } from './src/domain/api/LaneTick.ts';
+export type { default as SettlementPreview } from './src/domain/api/SettlementPreview.ts';
+export type { default as SettlementReceipt } from './src/domain/api/SettlementReceipt.ts';
+export type { default as SettlementPlan } from './src/domain/settlement/SettlementPlan.ts';
 export type { default as WriteReceipt } from './src/domain/api/WriteReceipt.ts';
 export type { AdmissionOutcome } from './src/domain/api/AdmissionOutcome.ts';
 export type { Receipt } from './src/domain/api/PublicReceipt.ts';

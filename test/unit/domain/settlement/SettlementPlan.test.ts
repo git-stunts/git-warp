@@ -4,16 +4,20 @@ import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import SettlementPlan from '../../../../src/domain/settlement/SettlementPlan.ts';
 
 function plan(): SettlementPlan {
-  return new SettlementPlan({
+  return new SettlementPlan(planFields());
+}
+
+function planFields() {
+  return {
     planDigest: 'sha256:plan',
     sourceLaneId: 'lane:draft',
     targetLaneId: 'lane:main',
-    sourceFrontierRef: 'frontier:draft:7',
-    targetFrontierRef: 'frontier:main:11',
+    sourceFrontier: { id: 'frontier:draft:7' },
+    targetFrontier: { id: 'frontier:main:11' },
     proposalDigest: 'sha256:proposal',
     lawDigest: 'sha256:law',
     policyDigest: 'sha256:policy',
-  });
+  };
 }
 
 describe('SettlementPlan', () => {
@@ -24,8 +28,10 @@ describe('SettlementPlan', () => {
     expect(value.planDigest).toBe('sha256:plan');
     expect(value.sourceLaneId).toBe('lane:draft');
     expect(value.targetLaneId).toBe('lane:main');
-    expect(value.sourceFrontierRef).toBe('frontier:draft:7');
-    expect(value.targetFrontierRef).toBe('frontier:main:11');
+    expect(value.sourceFrontier.id).toBe('frontier:draft:7');
+    expect(value.targetFrontier.id).toBe('frontier:main:11');
+    expect(Object.isFrozen(value.sourceFrontier)).toBe(true);
+    expect(Object.isFrozen(value.targetFrontier)).toBe(true);
     expect(value.proposalDigest).toBe('sha256:proposal');
     expect(value.lawDigest).toBe('sha256:law');
     expect(value.policyDigest).toBe('sha256:policy');
@@ -49,28 +55,29 @@ describe('SettlementPlan', () => {
     ).toThrow(WarpError);
     expect(
       () =>
+        new SettlementPlan({ ...planFields(), planDigest: '' })
+    ).toThrow(WarpError);
+    expect(
+      () =>
         new SettlementPlan({
-          planDigest: '',
-          sourceLaneId: 'lane:draft',
+          ...planFields(),
+          sourceLaneId: 'lane:main',
           targetLaneId: 'lane:main',
-          sourceFrontierRef: 'frontier:draft:7',
-          targetFrontierRef: 'frontier:main:11',
-          proposalDigest: 'sha256:proposal',
-          lawDigest: 'sha256:law',
-          policyDigest: 'sha256:policy',
         })
     ).toThrow(WarpError);
     expect(
       () =>
         new SettlementPlan({
-          planDigest: 'sha256:plan',
-          sourceLaneId: 'lane:main',
-          targetLaneId: 'lane:main',
-          sourceFrontierRef: 'frontier:main:7',
-          targetFrontierRef: 'frontier:main:11',
-          proposalDigest: 'sha256:proposal',
-          lawDigest: 'sha256:law',
-          policyDigest: 'sha256:policy',
+          ...planFields(),
+          // @ts-expect-error runtime guard for JavaScript callers
+          sourceFrontier: null,
+        })
+    ).toThrow(WarpError);
+    expect(
+      () =>
+        new SettlementPlan({
+          ...planFields(),
+          targetFrontier: { id: '' },
         })
     ).toThrow(WarpError);
   });

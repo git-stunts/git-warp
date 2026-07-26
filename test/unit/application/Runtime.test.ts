@@ -39,12 +39,14 @@ describe('Runtime', () => {
     mocks.openStorage.mockResolvedValue(storage);
     mocks.openWarp.mockResolvedValue(warp);
     forkLane.mockReset();
-    mocks.createWorldlineLane.mockImplementation((_timeline, _activity, owner: object) => {
-      runtimeOwner = owner;
+    mocks.createWorldlineLane.mockImplementation((_timeline, _activity, options: {
+      readonly owner: object;
+    }) => {
+      runtimeOwner = options.owner;
       lane = createBoundLane({
         descriptor: { kind: 'worldline', name: 'events' },
         fork: forkLane,
-        owner,
+        owner: options.owner,
       });
       return lane;
     });
@@ -205,6 +207,7 @@ function createBoundLane(options: {
     },
     fork: options.fork,
     owner: options.owner,
+    settlement: Object.freeze({ kind: 'target' }),
   });
   return lane;
 }
