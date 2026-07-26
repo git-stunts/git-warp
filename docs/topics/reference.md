@@ -39,33 +39,34 @@ Runtime @ index.ts#L13
 
 ### Type exports
 
-Source: `index.ts`. Count: 24.
+Source: `index.ts`. Count: 25.
 
 ```text
-AdmissionOutcome @ index.ts#L38
-CoordinateReference @ index.ts#L19
-Evidence @ index.ts#L15
-EvidenceHandle @ index.ts#L15
-Intent @ index.ts#L16
-Lane @ index.ts#L17
-LaneDescriptor @ index.ts#L20
-LaneKind @ index.ts#L21
-LaneReference @ index.ts#L22
-Observation @ index.ts#L24
-ObservationReceipt @ index.ts#L25
-ObservationStatus @ index.ts#L26
-Observer @ index.ts#L27
-ObserverCardinality @ index.ts#L28
-Reading @ index.ts#L29
-ReadingCoordinate @ index.ts#L31
-ReadingValue @ index.ts#L32
-Receipt @ index.ts#L39
-RepairHint @ index.ts#L40
-RuntimeOpenOptions @ index.ts#L14
-SupportReport @ index.ts#L33
-Tick @ index.ts#L36
-WitnessReference @ index.ts#L34
-WriteReceipt @ index.ts#L37
+AdmissionOutcome @ index.ts#L41
+CoordinateReference @ index.ts#L22
+Evidence @ index.ts#L18
+EvidenceHandle @ index.ts#L18
+Intent @ index.ts#L19
+Lane @ index.ts#L20
+LaneDescriptor @ index.ts#L23
+LaneKind @ index.ts#L24
+LaneReference @ index.ts#L25
+Observation @ index.ts#L27
+ObservationReceipt @ index.ts#L28
+ObservationStatus @ index.ts#L29
+Observer @ index.ts#L30
+ObserverCardinality @ index.ts#L31
+Reading @ index.ts#L32
+ReadingCoordinate @ index.ts#L34
+ReadingValue @ index.ts#L35
+Receipt @ index.ts#L42
+RepairHint @ index.ts#L43
+RuntimeForkOptions @ index.ts#L15
+RuntimeOpenOptions @ index.ts#L16
+SupportReport @ index.ts#L36
+Tick @ index.ts#L39
+WitnessReference @ index.ts#L37
+WriteReceipt @ index.ts#L40
 ```
 
 ## Storage export surface

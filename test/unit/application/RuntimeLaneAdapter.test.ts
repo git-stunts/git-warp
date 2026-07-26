@@ -4,6 +4,7 @@ import { openWarp } from '../../../src/application/openWarp.ts';
 import RuntimeActivity from '../../../src/application/RuntimeActivity.ts';
 import { createWorldlineLane } from '../../../src/application/RuntimeLaneAdapter.ts';
 import Intent from '../../../src/domain/api/Intent.ts';
+import { requireLaneRuntime } from '../../../src/domain/api/LaneRuntime.ts';
 import {
   createManyObserver,
   createObserver,
@@ -54,6 +55,148 @@ describe('Runtime Lane adapter', () => {
         writer: 'agent-1',
       });
       expect(receipt.observer).toBe(observer);
+    } finally {
+      await storage.close();
+    }
+  });
+
+  it('forks an exact parent coordinate and observes strand overlays through bounded optics', async () => {
+    const storage = MemoryStorage.create();
+    try {
+      const warp = await openWarp({ storage, writer: 'agent-1' });
+      const timeline = await warp.timeline('events');
+      const lane = createWorldlineLane(timeline, new RuntimeActivity());
+      await lane.write(Intent.addNode({ subject: 'user:alice' }));
+      await lane.write(Intent.setProperty({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'member',
+      }));
+      await createBoundedReadBasis(storage, 'events');
+
+      const fork = requireLaneRuntime(lane).fork;
+      expect(fork).not.toBeNull();
+      const strand = await fork!('try-admin-role');
+      expect(strand.descriptor).toMatchObject({
+        kind: 'strand',
+        name: 'try-admin-role',
+        parent: { kind: 'worldline', name: 'events' },
+        forkedAt: {
+          lane: { kind: 'worldline', name: 'events' },
+        },
+      });
+
+      await lane.write(Intent.setProperty({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'owner',
+      }));
+      const roleObserver = createObserver<string>(
+        'users.role-of',
+        LegacyReading.property({ subject: 'user:alice', key: 'role' }),
+        (value) => {
+          if (typeof value !== 'string') {
+            throw new TypeError('users.role-of expected a string');
+          }
+          return value;
+        },
+      );
+
+      await expect(strand.observe(roleObserver).one()).resolves.toMatchObject({
+        value: 'member',
+        coordinate: { lane: 'try-admin-role' },
+      });
+      await strand.write(Intent.setProperty({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'admin',
+      }));
+      const observation = strand.observe(roleObserver);
+      await expect(observation.one()).resolves.toMatchObject({
+        value: 'admin',
+        coordinate: { lane: 'try-admin-role' },
+      });
+      await expect(observation.receipt).resolves.toMatchObject({
+        lane: 'try-admin-role',
+        status: 'completed',
+        writer: 'agent-1',
+      });
+      await expect(lane.observe(roleObserver).one()).resolves.toMatchObject({
+        value: 'owner',
+        coordinate: { lane: 'events' },
+      });
+      await expect(captureCoordinate(strand)).rejects.toMatchObject({
+        code: 'E_LANE_COORDINATE_KIND',
+      });
+    } finally {
+      await storage.close();
+    }
+  });
+
+  it('pins one strand overlay frontier across lazy Observer demand', async () => {
+    const storage = MemoryStorage.create();
+    try {
+      const warp = await openWarp({ storage, writer: 'agent-1' });
+      const timeline = await warp.timeline('events');
+      const activity = new RuntimeActivity();
+      const lane = createWorldlineLane(timeline, activity);
+      for (const subject of ['user:alice', 'user:bob']) {
+        await lane.write(Intent.addNode({ subject }));
+        await lane.write(Intent.setProperty({
+          subject,
+          key: 'rank',
+          value: 1,
+        }));
+      }
+      await createBoundedReadBasis(storage, 'events');
+      const fork = requireLaneRuntime(lane).fork;
+      if (fork === null) {
+        throw new Error('worldline Lane is missing its fork port');
+      }
+      const strand = await fork('ranking-experiment');
+      const observer = createManyObserver<number>(
+        'users.ranks',
+        function* () {
+          yield LegacyReading.property({ subject: 'user:alice', key: 'rank' });
+          yield LegacyReading.property({ subject: 'user:bob', key: 'rank' });
+        },
+        (value) => {
+          if (typeof value !== 'number') {
+            throw new TypeError('users.ranks expected a number');
+          }
+          return value;
+        },
+      );
+      const observation = strand.observe(observer);
+      const iterator = observation[Symbol.asyncIterator]();
+
+      const first = await iterator.next();
+      expect(first).toMatchObject({ done: false, value: { value: 1 } });
+      await strand.write(Intent.setProperty({
+        subject: 'user:bob',
+        key: 'rank',
+        value: 2,
+      }));
+      const second = await iterator.next();
+      expect(second).toMatchObject({ done: false, value: { value: 1 } });
+      expect(
+        first.done === false && second.done === false
+          ? first.value.coordinate.tick?.id
+          : null,
+      ).toBe(
+        first.done === false && second.done === false
+          ? second.value.coordinate.tick?.id
+          : null,
+      );
+      await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
+      const latest: unknown[] = [];
+      for await (const reading of strand.observe(observer)) {
+        latest.push(reading);
+      }
+      expect(latest).toMatchObject([
+        { value: 1 },
+        { value: 2 },
+      ]);
     } finally {
       await storage.close();
     }

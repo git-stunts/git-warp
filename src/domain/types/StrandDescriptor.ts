@@ -89,6 +89,12 @@ export type StrandCreateOptions = {
   owner?: string | null;
   scope?: string | null;
   leaseExpiresAt?: string | null;
+  /**
+   * Internal composition seam for callers that have already captured the
+   * exact parent coordinate. Ordinary strand creation omits this field and
+   * captures the live frontier.
+   */
+  baseFrontier?: ReadonlyMap<string, string>;
 };
 
 export type StrandBraidOptions = {

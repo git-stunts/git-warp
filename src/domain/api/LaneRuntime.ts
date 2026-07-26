@@ -2,8 +2,10 @@ import WarpError from '../errors/WarpError.ts';
 import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
 import type Lane from './Lane.ts';
 
-type LaneRuntime = Readonly<{
+export type LaneRuntime = Readonly<{
   readonly captureCoordinate: () => Promise<WarpWorldlineCoordinate>;
+  readonly fork: ((name: string) => Promise<Lane>) | null;
+  readonly owner: object;
 }>;
 
 const LANE_RUNTIMES = new WeakMap<Lane, LaneRuntime>();
@@ -14,6 +16,8 @@ export function bindLaneRuntime(lane: Lane, runtime: LaneRuntime): void {
   }
   LANE_RUNTIMES.set(lane, Object.freeze({
     captureCoordinate: runtime.captureCoordinate,
+    fork: runtime.fork,
+    owner: runtime.owner,
   }));
 }
 

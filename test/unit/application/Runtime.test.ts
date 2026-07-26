@@ -19,6 +19,8 @@ vi.mock('../../../src/application/openWarp.ts', () => ({
 }));
 
 import Runtime from '../../../src/application/Runtime.ts';
+import Lane, { type LaneDescriptor } from '../../../src/domain/api/Lane.ts';
+import { bindLaneRuntime } from '../../../src/domain/api/LaneRuntime.ts';
 
 describe('Runtime', () => {
   const closeStorage = vi.fn();
@@ -26,7 +28,9 @@ describe('Runtime', () => {
   const timeline = Object.freeze({ name: 'events' });
   const openTimeline = vi.fn();
   const warp = Object.freeze({ timeline: openTimeline, writer: 'agent-1' });
-  const lane = Object.freeze({ kind: 'worldline', name: 'events' });
+  const forkLane = vi.fn();
+  let lane: Lane;
+  let runtimeOwner: object;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -34,7 +38,16 @@ describe('Runtime', () => {
     openTimeline.mockResolvedValue(timeline);
     mocks.openStorage.mockResolvedValue(storage);
     mocks.openWarp.mockResolvedValue(warp);
-    mocks.createWorldlineLane.mockReturnValue(lane);
+    forkLane.mockReset();
+    mocks.createWorldlineLane.mockImplementation((_timeline, _activity, owner: object) => {
+      runtimeOwner = owner;
+      lane = createBoundLane({
+        descriptor: { kind: 'worldline', name: 'events' },
+        fork: forkLane,
+        owner,
+      });
+      return lane;
+    });
   });
 
   it('validates public open options before acquiring storage', async () => {
@@ -55,12 +68,14 @@ describe('Runtime', () => {
     const runtime = await Runtime.open({ at: '/repo', writer: 'agent-1' });
 
     expect(runtime.writer).toBe('agent-1');
-    await expect(runtime.lane('events')).resolves.toBe(lane);
+    const openedLane = await runtime.lane('events');
+    expect(openedLane).toBe(lane);
     expect(mocks.openStorage).toHaveBeenCalledWith({ cwd: '/repo' });
     expect(mocks.openWarp).toHaveBeenCalledWith({ storage, writer: 'agent-1' });
     expect(openTimeline).toHaveBeenCalledWith('events');
     expect(mocks.createWorldlineLane).toHaveBeenCalledWith(
       timeline,
+      expect.any(Object),
       expect.any(Object),
     );
 
@@ -85,6 +100,61 @@ describe('Runtime', () => {
       message: 'Runtime.lane requires a non-empty Lane name',
     });
     expect(openTimeline).not.toHaveBeenCalled();
+  });
+
+  it('forks only worldline Lanes owned by the same open Runtime', async () => {
+    const runtime = await Runtime.open({ at: '/repo', writer: 'agent-1' });
+    const source = await runtime.lane('events');
+    const strand = createBoundLane({
+      descriptor: {
+        kind: 'strand',
+        name: 'try-admin',
+        parent: source.reference,
+        forkedAt: { id: 'tick:1', lane: source.reference },
+      },
+      fork: null,
+      owner: runtimeOwner,
+    });
+    forkLane.mockResolvedValue(strand);
+
+    await expect(runtime.fork(source, { name: 'try-admin' })).resolves.toBe(strand);
+    expect(forkLane).toHaveBeenCalledWith('try-admin');
+
+    await expect(runtime.fork(strand, { name: 'nested' })).rejects.toMatchObject({
+      code: 'E_RUNTIME_FORK_SOURCE_KIND',
+      context: { kind: 'strand' },
+    });
+    const foreign = createBoundLane({
+      descriptor: { kind: 'worldline', name: 'foreign' },
+      fork: vi.fn(),
+      owner: {},
+    });
+    await expect(runtime.fork(foreign, { name: 'foreign-draft' }))
+      .rejects.toMatchObject({ code: 'E_RUNTIME_FORK_FOREIGN_LANE' });
+  });
+
+  it('validates fork arguments and rejects fork work after close', async () => {
+    const runtime = await Runtime.open({ at: '/repo', writer: 'agent-1' });
+    const source = await runtime.lane('events');
+
+    // @ts-expect-error Exercise the JavaScript boundary.
+    await expect(runtime.fork({}, { name: 'draft' })).rejects.toMatchObject({
+      code: 'E_RUNTIME_FORK_SOURCE',
+    });
+    // @ts-expect-error Exercise the JavaScript boundary.
+    await expect(runtime.fork(source, null)).rejects.toMatchObject({
+      code: 'E_RUNTIME_FORK_OPTIONS',
+    });
+    await expect(runtime.fork(source, { name: '' })).rejects.toMatchObject({
+      code: 'E_RUNTIME_FORK_IDENTITY',
+      context: { field: 'fork.name' },
+    });
+
+    await runtime.close();
+    await expect(runtime.fork(source, { name: 'later' })).rejects.toMatchObject({
+      code: 'E_RUNTIME_CLOSED',
+    });
+    expect(forkLane).not.toHaveBeenCalled();
   });
 
   it('releases storage when Warp composition fails', async () => {
@@ -113,3 +183,28 @@ describe('Runtime', () => {
     });
   });
 });
+
+function createBoundLane(options: {
+  readonly descriptor: LaneDescriptor;
+  readonly fork: ((name: string) => Promise<Lane>) | null;
+  readonly owner: object;
+}): Lane {
+  const lane = new Lane({
+    descriptor: options.descriptor,
+    writer: 'agent-1',
+    startObserver: async () => {
+      throw new Error('not exercised');
+    },
+    writeIntent: async () => {
+      throw new Error('not exercised');
+    },
+  });
+  bindLaneRuntime(lane, {
+    captureCoordinate: async () => {
+      throw new Error('not exercised');
+    },
+    fork: options.fork,
+    owner: options.owner,
+  });
+  return lane;
+}

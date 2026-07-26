@@ -695,6 +695,40 @@ describe('StrandService', () => {
       expect(descriptor.materialization.cacheAuthority).toBe('derived');
     });
 
+    it('persists an explicitly captured parent frontier exactly', async () => {
+      const baseFrontier = new Map([
+        ['writer-a', 'captured-a'],
+        ['writer-b', 'captured-b'],
+      ]);
+
+      const descriptor = await service.create({
+        strandId: 'captured',
+        baseFrontier,
+      });
+      baseFrontier.set('writer-c', 'too-late');
+
+      expect(descriptor.baseObservation.frontier).toEqual({
+        'writer-a': 'captured-a',
+        'writer-b': 'captured-b',
+      });
+    });
+
+    it('rejects malformed explicit parent frontiers with a stable error', async () => {
+      await expect(
+        Reflect.apply(service.create, service, [{
+          strandId: 'invalid-frontier',
+          baseFrontier: { writer: 'sha' },
+        }]),
+      ).rejects.toMatchObject({
+        code: 'E_STRAND_INVALID_ARGS',
+        context: { field: 'baseFrontier' },
+      });
+      await expect(service.create({
+        strandId: 'invalid-entry',
+        baseFrontier: new Map([['', 'sha']]),
+      })).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
+    });
+
     it('publishes the descriptor through the semantic strand store', async () => {
       await service.create({ strandId: 'alpha' });
 

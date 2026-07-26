@@ -1,7 +1,15 @@
 import type ReadingResult from '../domain/api/ReadingResult.ts';
+import type DraftTimeline from '../domain/api/DraftTimeline.ts';
+import {
+  createDraftReadingTarget,
+  createDraftTimeline,
+} from '../domain/api/DraftTimelineRuntime.ts';
 import type Timeline from '../domain/api/Timeline.ts';
 import type TimelineView from '../domain/api/TimelineView.ts';
-import { requireTimelineRuntime } from '../domain/api/TimelineRuntime.ts';
+import {
+  requireTimelineContext,
+  requireTimelineRuntime,
+} from '../domain/api/TimelineRuntime.ts';
 import Lane from '../domain/api/Lane.ts';
 import { bindLaneRuntime } from '../domain/api/LaneRuntime.ts';
 import type { ObservationExecution } from '../domain/api/Observation.ts';
@@ -14,6 +22,10 @@ import ObservationReceipt from '../domain/api/ObservationReceipt.ts';
 import Reading, { type ReadingValue } from '../domain/api/ObservedReading.ts';
 import type ReadReceipt from '../domain/api/ReadReceipt.ts';
 import type Tick from '../domain/api/Tick.ts';
+import {
+  createForkTick,
+  requireTickCoordinate,
+} from '../domain/api/TickRuntime.ts';
 import WarpError from '../domain/errors/WarpError.ts';
 import WarpStream from '../domain/stream/WarpStream.ts';
 import type RuntimeActivity from './RuntimeActivity.ts';
@@ -25,6 +37,10 @@ type ReceiptSettlement = Readonly<{
   resolve(receipt: ObservationReceipt): void;
 }>;
 type ReadTarget = Pick<Timeline, 'read'> | Pick<TimelineView, 'read'>;
+type ObservationLane = Readonly<{
+  readonly name: string;
+  readonly writer: string;
+}>;
 type ReadingStreamOutcome =
   | Readonly<{ kind: 'completed'; receipt: ReadReceipt | null }>
   | Readonly<{ kind: 'settled' }>;
@@ -32,6 +48,7 @@ type ReadingStreamOutcome =
 export function createWorldlineLane(
   timeline: Timeline,
   activity: RuntimeActivity,
+  owner: object = Object.freeze({}),
 ): Lane {
   const lane = new Lane({
     descriptor: { kind: 'worldline', name: timeline.name },
@@ -40,14 +57,102 @@ export function createWorldlineLane(
     startObserver: <TValue extends ReadingValue>(observer: Observer<TValue>) =>
       startObserver(timeline, observer, activity),
   });
-  bindLaneRuntime(lane, {
-    captureCoordinate: async () => await activity.run(async () => {
-      const runtime = requireTimelineRuntime(timeline);
-      await runtime.prepareOpticBasis();
-      return await runtime.coordinate();
-    }),
+  const parent = Object.freeze({
+    kind: 'worldline' as const,
+    name: timeline.name,
   });
+  bindWorldlineLaneRuntime({ activity, lane, owner, parent, timeline });
   return lane;
+}
+
+function bindWorldlineLaneRuntime(options: {
+  readonly activity: RuntimeActivity;
+  readonly lane: Lane;
+  readonly owner: object;
+  readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
+  readonly timeline: Timeline;
+}): void {
+  bindLaneRuntime(options.lane, {
+    captureCoordinate: async () =>
+      await captureWorldlineCoordinate(options.timeline, options.activity),
+    fork: async (name) => await forkWorldlineLane(options, name),
+    owner: options.owner,
+  });
+}
+
+async function captureWorldlineCoordinate(
+  timeline: Timeline,
+  activity: RuntimeActivity,
+) {
+  return await activity.run(async () => {
+    const runtime = requireTimelineRuntime(timeline);
+    await runtime.prepareOpticBasis();
+    return await runtime.coordinate();
+  });
+}
+
+async function forkWorldlineLane(
+  options: Parameters<typeof bindWorldlineLaneRuntime>[0],
+  name: string,
+): Promise<Lane> {
+  const runtime = requireTimelineRuntime(options.timeline);
+  const context = requireTimelineContext(options.timeline);
+  const tick = await createForkTick(runtime, context);
+  const draft = await createDraftTimeline({
+    runtime,
+    context,
+    timelineName: options.timeline.name,
+    draftName: name,
+    forkedAt: requireTickCoordinate(runtime, tick),
+  });
+  return createStrandLane({
+    activity: options.activity,
+    draft,
+    forkedAt: Object.freeze({ id: tick.id, lane: options.parent }),
+    owner: options.owner,
+    parent: options.parent,
+  });
+}
+
+function createStrandLane(options: {
+  readonly activity: RuntimeActivity;
+  readonly draft: DraftTimeline;
+  readonly forkedAt: Readonly<{
+    readonly id: string;
+    readonly lane: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
+  }>;
+  readonly owner: object;
+  readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
+}): Lane {
+  const { activity, draft } = options;
+  const lane = new Lane({
+    descriptor: {
+      kind: 'strand',
+      name: draft.name,
+      parent: options.parent,
+      forkedAt: options.forkedAt,
+    },
+    writer: draft.writer,
+    writeIntent: async (intent) => await activity.run(async () => await draft.write(intent)),
+    startObserver: <TValue extends ReadingValue>(observer: Observer<TValue>) =>
+      startStrandObserver(draft, observer, activity),
+  });
+  bindStrandLaneRuntime(lane, options.owner);
+  return lane;
+}
+
+function bindStrandLaneRuntime(lane: Lane, owner: object): void {
+  bindLaneRuntime(lane, {
+    captureCoordinate: () => Promise.reject(
+      new WarpError(
+        'Strand Lane coordinates are not supported by captureCoordinate',
+        'E_LANE_COORDINATE_KIND',
+        { context: { kind: lane.kind } },
+      ),
+    ),
+    fork: null,
+    owner,
+  });
 }
 
 async function startObserver<TValue extends ReadingValue>(
@@ -77,6 +182,32 @@ async function startObserver<TValue extends ReadingValue>(
   }
 }
 
+async function startStrandObserver<TValue extends ReadingValue>(
+  draft: DraftTimeline,
+  observer: Observer<TValue>,
+  activity: RuntimeActivity,
+): Promise<ObservationExecution<TValue>> {
+  const lease = activity.acquire();
+  try {
+    const target = await createDraftReadingTarget(draft);
+    const settlement = createReceiptSettlement();
+    return Object.freeze({
+      readings: WarpStream.from(streamReadings({
+        lease,
+        observer,
+        settlement,
+        tick: target.tick,
+        timeline: draft,
+        target,
+      })),
+      receipt: settlement.promise,
+    });
+  } catch (error) {
+    lease.release();
+    throw error;
+  }
+}
+
 async function prepareBoundedBasis(timeline: Timeline): Promise<boolean> {
   try {
     await requireTimelineRuntime(timeline).prepareOpticBasis();
@@ -96,7 +227,7 @@ async function* streamReadings<TValue extends ReadingValue>(options: {
   readonly settlement: ReceiptSettlement;
   readonly target: ReadTarget;
   readonly tick: Tick | null;
-  readonly timeline: Timeline;
+  readonly timeline: ObservationLane;
 }): AsyncIterable<Reading<TValue>> {
   let completed = false;
   try {
@@ -117,7 +248,7 @@ async function* acceptedReadings<TValue extends ReadingValue>(options: {
   readonly observer: Observer<TValue>;
   readonly settlement: ReceiptSettlement;
   readonly target: ReadTarget;
-  readonly timeline: Timeline;
+  readonly timeline: ObservationLane;
 }): AsyncGenerator<Reading<TValue>, ReadingStreamOutcome> {
   let lastReceipt: ReadReceipt | null = null;
   for await (const plan of observerReadings(options.observer)) {
@@ -140,7 +271,7 @@ function completeReadingStream<TValue extends ReadingValue>(
     readonly observer: Observer<TValue>;
     readonly settlement: ReceiptSettlement;
     readonly tick: Tick | null;
-    readonly timeline: Timeline;
+    readonly timeline: ObservationLane;
   },
   outcome: ReadingStreamOutcome,
 ): void {
@@ -157,7 +288,7 @@ function finishReadingStream<TValue extends ReadingValue>(
     readonly observer: Observer<TValue>;
     readonly settlement: ReceiptSettlement;
     readonly tick: Tick | null;
-    readonly timeline: Timeline;
+    readonly timeline: ObservationLane;
   },
   completed: boolean,
 ): void {
@@ -199,7 +330,7 @@ function readingFrom<TValue extends ReadingValue>(
 }
 
 function emptyObservationReceipt(
-  timeline: Timeline,
+  timeline: ObservationLane,
   observer: Observer,
   tick: Tick | null,
 ): ObservationReceipt {
@@ -216,7 +347,7 @@ function emptyObservationReceipt(
 }
 
 function cancelledObservationReceipt(
-  timeline: Timeline,
+  timeline: ObservationLane,
   observer: Observer,
   tick: Tick | null,
 ): ObservationReceipt {
@@ -233,7 +364,7 @@ function cancelledObservationReceipt(
 }
 
 function missingBasisObservationReceipt(
-  timeline: Timeline,
+  timeline: ObservationLane,
   observer: Observer,
 ): ObservationReceipt {
   return new ObservationReceipt({
@@ -258,7 +389,7 @@ function tickEvidence(tick: Tick): {
 }
 
 function observationReceiptFrom(
-  timeline: Timeline,
+  timeline: ObservationLane,
   observer: Observer,
   receipt: ReadReceipt,
 ): ObservationReceipt {
@@ -281,7 +412,7 @@ function observationReceiptFrom(
 }
 
 function completedObservationReceipt(
-  timeline: Timeline,
+  timeline: ObservationLane,
   observer: Observer,
   receipt: ReadReceipt,
 ): ObservationReceipt {
@@ -310,7 +441,7 @@ function unresolvedObservationReceipt(options: {
   readonly observer: Observer;
   readonly receipt: ReadReceipt;
   readonly status: 'obstructed' | 'underdetermined';
-  readonly timeline: Timeline;
+  readonly timeline: ObservationLane;
 }): ObservationReceipt {
   const { observer, receipt, status, timeline } = options;
   const fields = {

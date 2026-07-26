@@ -1,4 +1,6 @@
 import type WarpWorldline from '../WarpWorldline.ts';
+import type { WarpStrandOpticBasis } from '../WarpWorldline.ts';
+import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
 import DraftTimeline from './DraftTimeline.ts';
@@ -8,6 +10,10 @@ import type Intent from './Intent.ts';
 import { applyIntentToPatch } from './IntentRuntime.ts';
 import JoinReceipt from './JoinReceipt.ts';
 import JoinResult from './JoinResult.ts';
+import type Reading from './Reading.ts';
+import type ReadingResult from './ReadingResult.ts';
+import { executeReading } from './ReadingRuntime.ts';
+import Tick from './Tick.ts';
 import type { JoinOptions } from './Timeline.ts';
 import type WriteReceipt from './WriteReceipt.ts';
 import { executeIntentWrite } from './WriteRuntime.ts';
@@ -17,6 +23,7 @@ type DraftTimelineState = {
   readonly runtime: WarpWorldline;
   readonly draftPatchShas: string[];
   readonly intents: Intent[];
+  readonly forkedAt: WarpWorldlineCoordinate | null;
   readonly joinPatchShas: string[];
   joinRecoveryEvidence: Evidence | undefined;
   joinFailed: boolean;
@@ -36,7 +43,13 @@ type CreateDraftTimelineFields = {
   readonly context: ApiRuntimeContext;
   readonly timelineName: string;
   readonly draftName: string;
+  readonly forkedAt?: WarpWorldlineCoordinate;
 };
+
+export type DraftReadingTarget = Readonly<{
+  readonly read: (reading: Reading) => Promise<ReadingResult>;
+  readonly tick: Tick;
+}>;
 
 type JoinResultFieldsBase = {
   readonly runtime: WarpWorldline;
@@ -86,8 +99,8 @@ export async function createDraftTimeline(
   fields: CreateDraftTimelineFields
 ): Promise<DraftTimeline> {
   const { runtime, context, timelineName, draftName } = fields;
-  await runtime.createDraft(draftName);
-  const state = createDraftState(runtime, context);
+  await runtime.createDraft(draftName, fields.forkedAt);
+  const state = createDraftState(runtime, context, fields.forkedAt ?? null);
   const draft = new DraftTimeline({
     name: draftName,
     timeline: timelineName,
@@ -102,6 +115,54 @@ export async function createDraftTimeline(
   });
   draftStates.set(draft, state);
   return draft;
+}
+
+export async function createDraftReadingTarget(
+  draft: DraftTimeline,
+): Promise<DraftReadingTarget> {
+  const state = requireDraftStateForReading(draft);
+  const coordinate = state.forkedAt;
+  if (coordinate === null) {
+    throw new WarpError(
+      'DraftTimeline was not forked from a captured Runtime coordinate',
+      'E_DRAFT_TIMELINE_BOUNDED_BASIS_UNAVAILABLE',
+    );
+  }
+  const basis = await state.runtime.prepareStrandOptic(
+    draft.name,
+    coordinate.checkpointSha,
+  );
+  const tick = await createDraftReadingTick(draft, state, basis);
+  return Object.freeze({
+    tick,
+    read: async (reading: Reading) =>
+      await executeReading({
+        runtime: state.runtime,
+        context: state.context,
+        reading,
+        basis: { optic: basis.optic, tick },
+      }),
+  });
+}
+
+async function createDraftReadingTick(
+  draft: DraftTimeline,
+  state: DraftTimelineState,
+  basis: WarpStrandOpticBasis,
+): Promise<Tick> {
+  const frontier = basis.frontierEntries.flatMap(({ writerId, patchSha }) => [
+    writerId,
+    patchSha,
+  ]);
+  return new Tick({
+    timeline: draft.name,
+    id: await state.context.createOpaqueId('tick', [
+      state.runtime.worldlineName,
+      draft.name,
+      basis.checkpointSha,
+      ...frontier,
+    ]),
+  });
 }
 
 export async function previewDraftJoin(
@@ -217,11 +278,16 @@ async function acceptedJoin(fields: JoinCompletionFields): Promise<JoinResult> {
   });
 }
 
-function createDraftState(runtime: WarpWorldline, context: ApiRuntimeContext): DraftTimelineState {
+function createDraftState(
+  runtime: WarpWorldline,
+  context: ApiRuntimeContext,
+  forkedAt: WarpWorldlineCoordinate | null,
+): DraftTimelineState {
   return {
     context,
     runtime,
     draftPatchShas: [],
+    forkedAt,
     intents: [],
     joinPatchShas: [],
     joinRecoveryEvidence: undefined,
@@ -229,6 +295,17 @@ function createDraftState(runtime: WarpWorldline, context: ApiRuntimeContext): D
     joining: false,
     joined: false,
   };
+}
+
+function requireDraftStateForReading(draft: DraftTimeline): DraftTimelineState {
+  const state = draftStates.get(draft);
+  if (state === undefined) {
+    throw new WarpError(
+      'DraftTimeline does not belong to this runtime',
+      'E_DRAFT_TIMELINE_RUNTIME_MISMATCH',
+    );
+  }
+  return state;
 }
 
 async function writeDraftIntent(fields: DraftWriteFields): Promise<WriteReceipt> {

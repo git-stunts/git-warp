@@ -35,7 +35,7 @@ export default class StrandController {
 
   // ── Strand lifecycle ────────────────────────────────────────────────────
 
-  async createStrand(options?: { strandId?: string; lamportCeiling?: number | null; owner?: string | null; scope?: string | null; leaseExpiresAt?: string | null }): Promise<StrandDescriptor> {
+  async createStrand(options?: { strandId?: string; lamportCeiling?: number | null; owner?: string | null; scope?: string | null; leaseExpiresAt?: string | null; baseFrontier?: ReadonlyMap<string, string> }): Promise<StrandDescriptor> {
     return await this._strandService.create(options);
   }
 
