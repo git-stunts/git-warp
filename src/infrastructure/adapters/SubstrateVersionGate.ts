@@ -85,7 +85,7 @@ export default class SubstrateVersionGate {
 function migrationRequired(graphName: string): WarpError {
   return new WarpError(
     `Timeline '${graphName}' requires the one-shot retained-substrate migration. `
-      + 'Run the package migration command before opening it with this runtime.',
+      + 'Run git-warp-v18-to-v19 before opening it with this runtime.',
     'E_SUBSTRATE_MIGRATION_REQUIRED',
     { context: { graphName, migration: 'retained-substrate' } },
   );

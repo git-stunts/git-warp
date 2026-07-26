@@ -89,7 +89,7 @@ describe('SubstrateVersionGate', () => {
     expect(error).toBeInstanceOf(WarpError);
     if (error instanceof WarpError) {
       expect(error.code).toBe('E_SUBSTRATE_MIGRATION_REQUIRED');
-      expect(error.message).toContain('package migration command');
+      expect(error.message).toContain('git-warp-v18-to-v19');
     }
     expect(history.refs.has(MARKER_REF)).toBe(false);
     expect(history.writes).toBe(0);
