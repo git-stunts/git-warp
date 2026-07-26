@@ -20,7 +20,7 @@ import { executeIntentWrite } from './WriteRuntime.ts';
 
 export type { DraftReadingTarget } from './DraftReadingTarget.ts';
 
-type DraftTimelineState = {
+export type DraftTimelineState = {
   readonly context: ApiRuntimeContext;
   readonly runtime: WarpWorldline;
   readonly draftPatchShas: string[];
@@ -294,7 +294,9 @@ function createDraftState(
   };
 }
 
-function requireDraftStateForReading(draft: DraftTimeline): DraftTimelineState {
+export function requireDraftStateForReading(
+  draft: DraftTimeline,
+): DraftTimelineState {
   const state = draftStates.get(draft);
   if (state === undefined) {
     throw new WarpError(
