@@ -57,6 +57,20 @@ describe('v19 performance result contract', () => {
       'cpuTotalMs',
       distribution(999),
     );
+    const mismatchedGitCount = replaceSample(valid, 'cold-materialize', {
+      ...valid.scenarios['cold-materialize'].samples[0],
+      gitCommandHistogram: { 'cat-file:blob': 9 },
+    });
+    const unretainedColdResult = replaceSample(valid, 'cold-materialize', {
+      ...valid.scenarios['cold-materialize'].samples[0],
+      observation: {
+        ...valid.scenarios['cold-materialize'].samples[0]?.observation,
+        materialization: {
+          ...valid.scenarios['cold-materialize'].samples[0]?.observation.materialization,
+          retainRequests: 0,
+        },
+      },
+    });
 
     expect(() => parsePerformanceResult(missingScenario)).toThrow();
     expect(() => parsePerformanceResult(malformedMetric)).toThrow();
@@ -66,6 +80,10 @@ describe('v19 performance result contract', () => {
       .toThrow('did not prove an exact git-cas hit');
     expect(() => parsePerformanceResult(forgedSummary))
       .toThrow('distributions do not match raw samples');
+    expect(() => parsePerformanceResult(mismatchedGitCount))
+      .toThrow('Git-command evidence is inconsistent');
+    expect(() => parsePerformanceResult(unretainedColdResult))
+      .toThrow('did not prove a cold replay');
   });
 
   it('fails a synthetic CPU regression while keeping wall time diagnostic', () => {

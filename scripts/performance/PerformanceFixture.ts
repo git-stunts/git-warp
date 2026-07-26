@@ -6,6 +6,7 @@ import type RuntimeHost from '../../src/domain/RuntimeHost.ts';
 import {
   CorpusProfileSchema,
   PERFORMANCE_CORPUS_VERSION,
+  PERFORMANCE_SCENARIOS,
   type CorpusProfile,
   type PerformanceScenarioName,
 } from './PerformanceModel.ts';
@@ -28,11 +29,7 @@ const manifestSchema = z.object({
   corpus: CorpusProfileSchema,
   expectedPropertyBytes: z.number().int().positive(),
   graphName: z.literal(GRAPH_NAME),
-  scenario: z.enum([
-    'cold-materialize',
-    'warm-materialize',
-    'incremental-materialize',
-  ]),
+  scenario: z.enum(PERFORMANCE_SCENARIOS),
   targetNodeId: z.string().min(1),
   writerId: z.literal(WRITER_ID),
 }).strict();

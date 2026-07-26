@@ -9,6 +9,7 @@ import {
 } from './PerformanceModel.ts';
 
 const RESULT_PREFIX = 'GIT_WARP_PERFORMANCE_SAMPLE=';
+const WORKER_TIMEOUT_MS = 10 * 60 * 1000;
 
 export async function runPerformanceProcess(
   scenario: PerformanceScenarioName,
@@ -22,13 +23,18 @@ export async function runPerformanceProcess(
     '--scenario',
     scenario,
   ];
-  const useGnuTime = process.platform === 'linux' && existsSync('/usr/bin/time');
+  const useGnuTime = supportsGnuTime();
   const timingPath = `${repositoryPath}/gnu-time.tsv`;
   const command = useGnuTime ? '/usr/bin/time' : process.execPath;
   const args = useGnuTime
     ? ['-f', '%U\t%S\t%e\t%M', '-o', timingPath, process.execPath, ...workerArgs]
     : workerArgs;
-  const completed = await spawnAndCollect(command, args, process.env);
+  const completed = await spawnAndCollect(
+    command,
+    args,
+    process.env,
+    WORKER_TIMEOUT_MS,
+  );
   const workerSample = parseWorkerSample(completed.stdout);
   if (!useGnuTime) {
     return workerSample;
@@ -45,28 +51,70 @@ export async function runPerformanceProcess(
   });
 }
 
-async function spawnAndCollect(
+export function supportsGnuTime(): boolean {
+  return process.platform === 'linux' && existsSync('/usr/bin/time');
+}
+
+export async function spawnAndCollect(
   command: string,
   args: readonly string[],
   env: NodeJS.ProcessEnv,
+  timeoutMs: number,
 ): Promise<Readonly<{ stderr: string; stdout: string }>> {
   return await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(command, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const detached = process.platform !== 'win32';
+    const child = spawn(command, args, {
+      detached,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     let stdout = '';
     let stderr = '';
+    let settled = false;
+    const settle = (complete: () => void): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeout);
+      complete();
+    };
+    const timeout = setTimeout(() => {
+      try {
+        if (detached && child.pid !== undefined) {
+          process.kill(-child.pid, 'SIGKILL');
+        } else {
+          child.kill('SIGKILL');
+        }
+      } catch (raw) {
+        const message = raw instanceof Error ? raw.message : String(raw);
+        settle(() => rejectPromise(new Error(
+          `Performance worker timed out and could not be killed: ${message}`,
+        )));
+        return;
+      }
+      settle(() => rejectPromise(new Error(
+        `Performance worker timed out after ${String(timeoutMs)} ms`,
+      )));
+    }, timeoutMs);
+    timeout.unref();
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk: string) => { stdout += chunk; });
     child.stderr.on('data', (chunk: string) => { stderr += chunk; });
-    child.once('error', rejectPromise);
+    child.once('error', (error) => {
+      settle(() => rejectPromise(error));
+    });
     child.once('close', (code, signal) => {
-      if (code !== 0) {
-        rejectPromise(new Error(
-          `Performance worker failed (${String(code)}, ${String(signal)}): ${stderr}`,
-        ));
-        return;
-      }
-      resolvePromise(Object.freeze({ stderr, stdout }));
+      settle(() => {
+        if (code !== 0) {
+          rejectPromise(new Error(
+            `Performance worker failed (${String(code)}, ${String(signal)}): ${stderr}`,
+          ));
+          return;
+        }
+        resolvePromise(Object.freeze({ stderr, stdout }));
+      });
     });
   });
 }

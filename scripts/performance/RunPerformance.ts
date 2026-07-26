@@ -16,7 +16,10 @@ import {
   type PerformanceSample,
   type PerformanceScenarioName,
 } from './PerformanceModel.ts';
-import { runPerformanceProcess } from './PerformanceProcess.ts';
+import {
+  runPerformanceProcess,
+  supportsGnuTime,
+} from './PerformanceProcess.ts';
 import { summarizeScenario } from './PerformanceStatistics.ts';
 
 const DEFAULT_BASE_NODES = 1_500;
@@ -59,7 +62,7 @@ async function main(): Promise<void> {
     options,
   );
   const cpuInfo = cpus();
-  const lifecycleMetrics = process.platform === 'linux' && existsSync('/usr/bin/time');
+  const lifecycleMetrics = supportsGnuTime();
   const result: PerformanceResult = Object.freeze({
     commit: readCommit(),
     environment: Object.freeze({

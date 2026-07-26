@@ -218,6 +218,11 @@ function assertSemanticCompletion(
   corpus: CorpusProfile,
   scenario: PerformanceScenarioName,
 ): void {
+  const histogramCount = Object.values(sample.gitCommandHistogram)
+    .reduce((total, count) => total + count, 0);
+  if (histogramCount !== sample.gitCommandCount) {
+    throw new Error(`Performance Git-command evidence is inconsistent: ${scenario}`);
+  }
   const semantic = sample.observation.semantic;
   if (
     semantic.nodeCount !== corpus.nodeCount
@@ -244,7 +249,8 @@ function assertMaterializationEvidence(
     scenario === 'cold-materialize'
     && (evidence.exactHits !== 0
       || evidence.predecessorHits !== 0
-      || evidence.replayedPatches === 0)
+      || evidence.replayedPatches === 0
+      || evidence.retainRequests === 0)
   ) {
     throw new Error('Cold materialization did not prove a cold replay');
   }
