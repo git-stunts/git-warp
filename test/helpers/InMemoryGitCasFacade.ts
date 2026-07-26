@@ -81,7 +81,7 @@ export default class InMemoryGitCasFacade {
       | 'sweep'
     >>;
   };
-  readonly pages: Pick<PageCapability, 'get' | 'put'>;
+  readonly pages: Pick<PageCapability, 'get' | 'put' | 'putBatch'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
   readonly workspaces: {
     open(options: {
@@ -132,6 +132,7 @@ export default class InMemoryGitCasFacade {
     });
     this.pages = Object.freeze({
       put: async (request) => await this.#putPage(request),
+      putBatch: async (request) => await this.#putPageBatch(request),
       get: async (request) => await this.#getPage(request),
     });
     this.publications = Object.freeze({
@@ -170,6 +171,10 @@ export default class InMemoryGitCasFacade {
     return Object.freeze(
       [...this.#workspaceRoots.values()].map((roots) => Object.freeze([...roots])),
     );
+  }
+
+  readWorkspaceGenerationCount(): number {
+    return this.#workspaceGeneration;
   }
 
   replaceStoredPage(handle: string, bytes: Uint8Array): void {
@@ -350,6 +355,31 @@ export default class InMemoryGitCasFacade {
       size: bytes.byteLength,
       observedAt: new Date(0).toISOString(),
     });
+  }
+
+  async #putPageBatch(
+    request: Parameters<PageCapability['putBatch']>[0],
+  ): Promise<Awaited<ReturnType<PageCapability['putBatch']>>> {
+    const maxBatchBytes = request.maxBatchBytes ?? 32 * 1024 * 1024;
+    const maxBatchPages = request.maxBatchPages ?? 256;
+    if (request.pages.length > maxBatchPages) {
+      throw Object.assign(new Error('Page batch exceeds configured count'), {
+        code: 'PAGE_BATCH_LIMIT',
+      });
+    }
+    const staged: StagedPage[] = [];
+    let totalBytes = 0;
+    for (const page of request.pages) {
+      const result = await this.#putPage(page);
+      totalBytes += result.page.size;
+      if (totalBytes > maxBatchBytes) {
+        throw Object.assign(new Error('Page batch exceeds configured bytes'), {
+          code: 'PAGE_BATCH_LIMIT',
+        });
+      }
+      staged.push(result);
+    }
+    return Object.freeze(staged);
   }
 
   async #getPage(
@@ -705,6 +735,26 @@ export default class InMemoryGitCasFacade {
         put: async (request): Promise<WorkspaceRetainedPage> => {
           const staged = await this.#putPage(request);
           return retainedPage(staged, retain(staged.handle));
+        },
+        putBatch: async (request): Promise<ReadonlyArray<WorkspaceRetainedPage>> => {
+          const staged = await this.#putPageBatch(request);
+          if (staged.length === 0) {
+            return Object.freeze([]);
+          }
+          const checkpoint = install([
+            ...roots.values(),
+            ...staged.map((page) => page.handle),
+          ]);
+          const witnesses = new Map(checkpoint.witnesses.map((entry) => (
+            [entry.handle.toString(), entry]
+          )));
+          return Object.freeze(staged.map((page) => {
+            const evidence = witnesses.get(page.handle.toString());
+            if (evidence === undefined) {
+              throw new Error('In-memory workspace omitted a batched page');
+            }
+            return retainedPage(page, evidence);
+          }));
         },
       }),
       bundles: Object.freeze({

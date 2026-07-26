@@ -17,14 +17,66 @@ describe('GitCasMaterializationWorkspace', () => {
     const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
 
     const page = await workspace.stagePage(new Uint8Array([1, 2, 3]), { maxBytes: 3 });
+    const generationBeforeBatch = harness.cas.readWorkspaceGenerationCount();
+    const pages = await workspace.stagePages!(
+      [new Uint8Array([4]), new Uint8Array([5])],
+      { maxBytes: 1, maxBatchBytes: 2, maxBatchPages: 2 },
+    );
+    const generationAfterBatch = harness.cas.readWorkspaceGenerationCount();
     const bundle = await workspace.stageOrderedBundle([['value', page]], { maxMembers: 1 });
 
+    expect(pages).toHaveLength(2);
+    expect(generationAfterBatch - generationBeforeBatch).toBe(1);
     expect(harness.cas.readActiveWorkspaceCount()).toBe(1);
-    expect(harness.cas.readWorkspaceRoots()).toEqual([[page, bundle.toString()]]);
+    expect(harness.cas.readWorkspaceRoots()).toEqual([[
+      page,
+      ...pages,
+      bundle.toString(),
+    ]]);
     expect(harness.cas.readBundleMembers(bundle.toString())).toEqual([['value', page]]);
 
     await workspace.release();
     expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
+  });
+
+  it('keeps empty page batches side-effect free', async () => {
+    const harness = await createHarness();
+    const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
+    const generationBefore = harness.cas.readWorkspaceGenerationCount();
+
+    await expect(workspace.stagePages!([], {
+      maxBytes: 1,
+      maxBatchBytes: 1,
+      maxBatchPages: 1,
+    })).resolves.toEqual([]);
+
+    expect(harness.cas.readWorkspaceGenerationCount()).toBe(generationBefore);
+    expect(harness.cas.readWorkspaceRoots()).toEqual([]);
+  });
+
+  it('fails closed when git-cas returns the wrong page-batch count', async () => {
+    const harness = await createHarness();
+    const raw = await harness.cas.workspaces.open({ namespace: 'malformed-batch' });
+    const workspace = new GitCasMaterializationWorkspace({
+      workspace: {
+        ...raw,
+        pages: {
+          ...raw.pages,
+          putBatch: async () => Object.freeze([]),
+        },
+      },
+      promote: rejectPromotion,
+    });
+
+    await expect(workspace.stagePages!([new Uint8Array([1])], {
+      maxBytes: 1,
+      maxBatchBytes: 1,
+      maxBatchPages: 1,
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('wrong staged page count'),
+    });
+    await workspace.release();
   });
 
   it('checkpoints a transitive aggregate and returns RootSet evidence', async () => {
@@ -99,6 +151,21 @@ describe('GitCasMaterializationWorkspace', () => {
       workspace: {},
       promote: rejectPromotion,
     }])).toThrowError(/workspace dependency/u);
+  });
+
+  it('requires the git-cas workspace page-batch capability', async () => {
+    const harness = await createHarness();
+    const raw = await harness.cas.workspaces.open({ namespace: 'missing-batch' });
+
+    expect(() => Reflect.construct(GitCasMaterializationWorkspace, [{
+      workspace: {
+        ...raw,
+        pages: { put: raw.pages.put },
+      },
+      promote: rejectPromotion,
+    }])).toThrowError(/pages must provide putBatch/u);
+
+    await raw.release();
   });
 });
 

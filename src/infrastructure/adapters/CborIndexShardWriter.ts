@@ -8,6 +8,10 @@ import type ArtifactStagingPort from '../../ports/ArtifactStagingPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type { IndexShardWriteOptions } from '../../ports/IndexStorePort.ts';
 import type { CborStructureLimits } from './BoundedCborValidation.ts';
+import {
+  createCborIndexPageBatchStager,
+  type CborIndexPageBatchStager,
+} from './CborIndexPageBatchStager.ts';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
 import {
   optionalCborStructureLimits,
@@ -29,6 +33,14 @@ type ValidatedWriteLimits = Readonly<{
   structureLimits: CborStructureLimits | undefined;
 }>;
 
+type ShardCollectionArgs = Readonly<{
+  shardStream: WarpStream<IndexShard>;
+  codec: CodecPort;
+  assets: AssetStoragePort;
+  cas: IndexWriteFacade;
+  limits: ValidatedWriteLimits;
+}>;
+
 export async function writeCborIndexShards(args: {
   shardStream: WarpStream<IndexShard>;
   options: IndexShardWriteOptions;
@@ -48,28 +60,62 @@ function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-async function collectEncodedShardMembers(args: {
-  shardStream: WarpStream<IndexShard>;
-  codec: CodecPort;
-  assets: AssetStoragePort;
-  cas: IndexWriteFacade;
-  limits: ValidatedWriteLimits;
-}): Promise<Array<[string, string]>> {
+async function collectEncodedShardMembers(
+  args: ShardCollectionArgs,
+): Promise<Array<[string, string]>> {
   const members: Array<[string, string]> = [];
-  const encoder = new IndexShardEncodeTransform(args.codec, {
-    ...(args.limits.maxShardBytes === undefined
-      ? {}
-      : { maxBytes: args.limits.maxShardBytes }),
-    ...(args.limits.structureLimits === undefined
-      ? {}
-      : { structureLimits: args.limits.structureLimits }),
-  });
+  const pageBatch = optionalPageBatch(args.limits);
+  let shardCount = 0;
+  const encoder = shardEncoder(args.codec, args.limits);
   for await (const [path, bytes] of args.shardStream.pipe(encoder)) {
-    requireShardCountWithinLimit(members.length + 1, args.limits.maxShardCount);
+    shardCount += 1;
+    requireShardCountWithinLimit(shardCount, args.limits.maxShardCount);
     requireShardSize(path, bytes.byteLength, args.limits.maxShardBytes);
-    members.push([path, await stageEncodedShard(path, bytes, args)]);
+    await appendShardMember({ path, bytes, collection: args, pageBatch, members });
   }
+  await pageBatch?.flush(members);
   return members;
+}
+
+function optionalPageBatch(
+  limits: ValidatedWriteLimits,
+): CborIndexPageBatchStager | undefined {
+  if (limits.memberStorage !== 'page') {
+    return undefined;
+  }
+  return createCborIndexPageBatchStager(
+    limits.staging,
+    requirePageShardLimit(limits.maxShardBytes),
+  );
+}
+
+function shardEncoder(
+  codec: CodecPort,
+  limits: ValidatedWriteLimits,
+): IndexShardEncodeTransform {
+  return new IndexShardEncodeTransform(codec, {
+    ...(limits.maxShardBytes === undefined ? {} : { maxBytes: limits.maxShardBytes }),
+    ...(limits.structureLimits === undefined
+      ? {}
+      : { structureLimits: limits.structureLimits }),
+  });
+}
+
+async function appendShardMember(args: Readonly<{
+  path: string;
+  bytes: Uint8Array;
+  collection: ShardCollectionArgs;
+  pageBatch: CborIndexPageBatchStager | undefined;
+  members: Array<[string, string]>;
+}>): Promise<void> {
+  if (args.pageBatch !== undefined) {
+    await args.pageBatch.append(args.path, args.bytes, args.members);
+    return;
+  }
+  args.members.push([
+    args.path,
+    await stageEncodedShard(args.path, args.bytes, args.collection),
+  ]);
 }
 
 async function stageEncodedShard(

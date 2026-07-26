@@ -16,12 +16,16 @@ import type {
   StagedBundleMember,
   StageOrderedBundleOptions,
   StagePageOptions,
+  StagePagesOptions,
 } from '../../ports/ArtifactStagingPort.ts';
 import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
   type PromoteMaterializationRequest,
 } from '../../ports/MaterializationWorkspacePort.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
+import {
+  requireWorkspaceOptions,
+} from './GitCasMaterializationWorkspaceValidation.ts';
 
 export type GitCasStagingWorkspace = Pick<
   StagingWorkspace,
@@ -76,6 +80,37 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
       });
       requireRetainedStage(staged, staged.handle.toString());
       return staged.handle.toString();
+    });
+  }
+
+  override stagePages(
+    sources: readonly Uint8Array[],
+    options: StagePagesOptions,
+  ): Promise<readonly string[]> {
+    this.#assertMutable('stage pages');
+    return this.#serialize(async () => {
+      const staged = await this.#workspace.pages.putBatch({
+        pages: sources.map((source) => ({ source, maxBytes: options.maxBytes })),
+        maxBatchBytes: options.maxBatchBytes,
+        maxBatchPages: options.maxBatchPages,
+      });
+      if (staged.length !== sources.length) {
+        throw workspaceError('git-cas returned the wrong staged page count');
+      }
+      if (staged.length === 0) {
+        return Object.freeze([]);
+      }
+      const generations = new Set<string>();
+      const handles = staged.map((page) => {
+        const handle = page.handle.toString();
+        const witness = requireRetainedStage(page, handle);
+        generations.add(witness.root.generation);
+        return handle;
+      });
+      if (generations.size !== 1) {
+        throw workspaceError('git-cas page batch did not share one generation');
+      }
+      return Object.freeze(handles);
     });
   }
 
@@ -241,39 +276,6 @@ function requireWorkspaceWitness(
 function requireRoots(value: MaterializationWorkspaceRoots): void {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw workspaceError('checkpoint roots must be an object');
-  }
-}
-
-function requireWorkspaceOptions(options: GitCasMaterializationWorkspaceOptions): void {
-  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
-    throw workspaceError('options must be an object');
-  }
-  requireObject(options.workspace, 'git-cas workspace dependency');
-  requireObject(options.workspace.pages, 'git-cas workspace dependency pages');
-  requireObject(options.workspace.bundles, 'git-cas workspace dependency bundles');
-  requireMethod(options.workspace.pages, 'put', 'git-cas workspace pages');
-  requireMethod(options.workspace.bundles, 'putOrdered', 'git-cas workspace bundles');
-  requireMethod(options.workspace, 'checkpoint', 'git-cas workspace');
-  requireMethod(options.workspace, 'promoteToCache', 'git-cas workspace');
-  requireMethod(options.workspace, 'release', 'git-cas workspace');
-  requireFunction(options.promote, 'promote dependency');
-}
-
-function requireObject(value: unknown, field: string): asserts value is object {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw workspaceError(`${field} is required`);
-  }
-}
-
-function requireMethod(value: object, method: string, field: string): void {
-  if (typeof Reflect.get(value, method) !== 'function') {
-    throw workspaceError(`${field} must provide ${method}()`);
-  }
-}
-
-function requireFunction(value: unknown, field: string): void {
-  if (typeof value !== 'function') {
-    throw workspaceError(`${field} is required`);
   }
 }
 
