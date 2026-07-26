@@ -1,0 +1,94 @@
+{
+  "fixtureId": "v18-retained-substrate-001",
+  "graphId": "v18-retained-substrate",
+  "bundlePath": "v18-retained-substrate.bundle",
+  "bundleSha256": "d088986c3da235a91b86ae0548976de5d66e9a843ebf9c0c5d4f35cc89ecb629",
+  "source": {
+    "gitWarp": {
+      "version": "18.2.1",
+      "integrity": "sha512-M84jOC3Uukio+DlX6ARbCzpl4lfyCB9eodN5pR1hmzHkOSIJyaGCaYPPAafcnSTUYUwUd3z2p3rA9Sq3WoJeOQ=="
+    },
+    "gitCas": {
+      "version": "6.0.0",
+      "integrity": "sha512-NyTOaCHq6VBGCbL6HKR0bmX3uarumLAR+s2R8pofMGC3WX3YaS1pNdwTJOOzpvcZGWu3FKWAUVU9U0rdEyRoaw=="
+    },
+    "plumbing": {
+      "version": "3.0.3",
+      "integrity": "sha512-LmPaq9c51bYA1Ta0KJrmewFTlAwueQv4EdguiI4/TNK9LOeJkkchC2RaOX09WXubauvUeEk8Z32rG8zxdk491g=="
+    }
+  },
+  "refs": [
+    {
+      "kind": "writer",
+      "writerId": "alice",
+      "refName": "refs/warp/v18-retained-substrate/writers/alice",
+      "expectedHead": "2e7cc2cba64a6685d654b31d03775094771119f4",
+      "expectedObjectType": "commit",
+      "patchCount": 2
+    },
+    {
+      "kind": "writer",
+      "writerId": "bob",
+      "refName": "refs/warp/v18-retained-substrate/writers/bob",
+      "expectedHead": "6ec532e9f78e85c9a37959b3214200d2a5e0e43b",
+      "expectedObjectType": "commit",
+      "patchCount": 1
+    },
+    {
+      "kind": "state-cache",
+      "refName": "refs/warp/v18-retained-substrate/state-cache",
+      "expectedHead": "184107f007c4760057803460307c8a9e7cea6d44",
+      "expectedObjectType": "blob"
+    }
+  ],
+  "retainedState": {
+    "refName": "refs/warp/v18-retained-substrate/state-cache",
+    "schemaVersion": 1,
+    "snapshotId": "snapshot:d709321cba75c69ad390b43b7025e034a5386e7af419c46892ee41d9d05da04c",
+    "stateHash": "d709321cba75c69ad390b43b7025e034a5386e7af419c46892ee41d9d05da04c",
+    "payloadRoot": "369ada79ceb9bf744f3d6fc94184490d6e888bda",
+    "payloadRootObjectType": "tree"
+  },
+  "visibleFacts": [
+    {
+      "kind": "node",
+      "key": "doc:fixture",
+      "description": "Alice creates the retained document node."
+    },
+    {
+      "kind": "node",
+      "key": "topic:migration",
+      "description": "Alice creates the migration topic node."
+    },
+    {
+      "kind": "node",
+      "key": "review:fixture",
+      "description": "Bob creates an independent review node."
+    },
+    {
+      "kind": "edge",
+      "key": "doc:fixture->topic:migration:documents",
+      "description": "The retained document links to its migration topic."
+    },
+    {
+      "kind": "property",
+      "key": "doc:fixture:title",
+      "description": "The document title proves node-property retention."
+    },
+    {
+      "kind": "edge-property",
+      "key": "doc:fixture->topic:migration:documents:priority",
+      "description": "The release-blocker priority proves edge-property retention."
+    },
+    {
+      "kind": "content",
+      "key": "doc:fixture:_content",
+      "description": "The document carries a real git-cas content attachment."
+    },
+    {
+      "kind": "multi-writer",
+      "key": "writers:alice+bob",
+      "description": "Independent v18 writer chains prove multi-writer migration."
+    }
+  ]
+}
