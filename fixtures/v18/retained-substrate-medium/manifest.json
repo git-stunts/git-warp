@@ -1,0 +1,74 @@
+{
+  "fixtureId": "v18-retained-substrate-medium-001",
+  "graphId": "v18-medium-retained-substrate",
+  "bundlePath": "v18-medium-retained-substrate.bundle",
+  "bundleSha256": "e4427266bd4451e2d112172f743bedae392259209e5e7ef98768d503bff75c76",
+  "source": {
+    "gitWarp": {
+      "version": "18.2.1",
+      "integrity": "sha512-M84jOC3Uukio+DlX6ARbCzpl4lfyCB9eodN5pR1hmzHkOSIJyaGCaYPPAafcnSTUYUwUd3z2p3rA9Sq3WoJeOQ=="
+    },
+    "gitCas": {
+      "version": "6.0.0",
+      "integrity": "sha512-NyTOaCHq6VBGCbL6HKR0bmX3uarumLAR+s2R8pofMGC3WX3YaS1pNdwTJOOzpvcZGWu3FKWAUVU9U0rdEyRoaw=="
+    },
+    "plumbing": {
+      "version": "3.0.3",
+      "integrity": "sha512-LmPaq9c51bYA1Ta0KJrmewFTlAwueQv4EdguiI4/TNK9LOeJkkchC2RaOX09WXubauvUeEk8Z32rG8zxdk491g=="
+    }
+  },
+  "refs": [
+    {
+      "kind": "writer",
+      "writerId": "medium-alice",
+      "refName": "refs/warp/v18-medium-retained-substrate/writers/medium-alice",
+      "expectedHead": "c8c97c4a86d067ff90691b621213d83ece9c6951",
+      "expectedObjectType": "commit",
+      "patchCount": 16
+    },
+    {
+      "kind": "writer",
+      "writerId": "medium-bob",
+      "refName": "refs/warp/v18-medium-retained-substrate/writers/medium-bob",
+      "expectedHead": "37936b3f70e945a2fe611562e9d6208fd39fbfc5",
+      "expectedObjectType": "commit",
+      "patchCount": 2
+    },
+    {
+      "kind": "state-cache",
+      "refName": "refs/warp/v18-medium-retained-substrate/state-cache",
+      "expectedHead": "d63631ec6c2d925d11b3a0a3bbed0ce10a658af3",
+      "expectedObjectType": "blob"
+    }
+  ],
+  "retainedState": {
+    "refName": "refs/warp/v18-medium-retained-substrate/state-cache",
+    "schemaVersion": 1,
+    "snapshotId": "snapshot:81802f427e71edf7fd9174d2c5f3eca10900261ba98b957bdbd7c7dc39baf4a4",
+    "stateHash": "81802f427e71edf7fd9174d2c5f3eca10900261ba98b957bdbd7c7dc39baf4a4",
+    "payloadRoot": "4b719051011cae35c0df475d644464a4dff63656",
+    "payloadRootObjectType": "tree"
+  },
+  "visibleFacts": [
+    {
+      "kind": "node",
+      "key": "medium:document:000",
+      "description": "Alice creates the first retained document node."
+    },
+    {
+      "kind": "content",
+      "key": "medium:document:000:_content",
+      "description": "The first document carries deterministic binary content."
+    },
+    {
+      "kind": "node",
+      "key": "medium:review:00",
+      "description": "Bob creates an independent retained review node."
+    },
+    {
+      "kind": "multi-writer",
+      "key": "writers:medium-alice+medium-bob",
+      "description": "Two v18 writer chains prove medium multi-writer migration."
+    }
+  ]
+}

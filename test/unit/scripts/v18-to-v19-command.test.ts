@@ -53,6 +53,20 @@ describe('v18-to-v19 migration command', () => {
       manifestPath: MANIFEST_PATH,
       targetDirectory,
     });
+    const writerFixtureRef = restored.manifest.refs.find(
+      (ref) => ref.kind === 'writer',
+    );
+    if (writerFixtureRef === undefined) {
+      throw new Error('fixture has no writer commit for a historical checkpoint ref');
+    }
+    const oldCheckpointSha = writerFixtureRef.expectedHead;
+    const historicalCheckpointRef = `refs/warp/${restored.manifest.graphId}`
+      + '/checkpoints/pre-rehearsal';
+    await v18MigrationGitText(restored.repositoryPath, [
+      'update-ref',
+      historicalCheckpointRef,
+      oldCheckpointSha,
+    ]);
     const sourceHeads = await readHeads(
       restored.repositoryPath,
       restored.manifest.refs.map((ref) => ref.refName),
@@ -118,6 +132,14 @@ describe('v18-to-v19 migration command', () => {
       restored.repositoryPath,
       buildCheckpointRef(restored.manifest.graphId),
     )).not.toBeNull();
+    expect(await readV18MigrationRef(
+      restored.repositoryPath,
+      historicalCheckpointRef,
+    )).toBeNull();
+    expect(await readV18MigrationRef(
+      restored.repositoryPath,
+      `${report.finalization?.recoveryPrefix}/refs/checkpoints/pre-rehearsal`,
+    )).toBe(oldCheckpointSha);
 
     const second = await runV18ToV19Migration({
       apply: true,

@@ -64,6 +64,7 @@ export async function planV18ToV19Migration(options: Readonly<{
     buildStateCacheRef(options.graph),
   ]);
   const recoveryPrefix = `${graphPrefix}recovery/`;
+  const retiredCheckpointPrefix = `${graphPrefix}checkpoints/`;
   const preservedPrefixes = [
     `${graphPrefix}audit/`,
     `${graphPrefix}intents/`,
@@ -82,6 +83,10 @@ export async function planV18ToV19Migration(options: Readonly<{
     }
     if (derivedNames.has(refName)) {
       derivedRefs[refName] = await requireRef(options.repositoryPath, refName);
+      continue;
+    }
+    if (refName.startsWith(retiredCheckpointPrefix)) {
+      derivedRefs[refName] = await requireCommitRef(options.repositoryPath, refName);
       continue;
     }
     if (preservedPrefixes.some((prefix) => refName.startsWith(prefix))) {
