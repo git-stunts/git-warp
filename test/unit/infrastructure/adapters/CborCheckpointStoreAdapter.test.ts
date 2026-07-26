@@ -257,7 +257,14 @@ describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
     const fixture = createFixture();
     const input = await record(fixture, { indexes: true });
     const published = await fixture.checkpoints.publishCheckpoint(input);
-    const basis = await fixture.checkpoints.loadBasis(published.checkpointSha);
+    const open = vi.fn(fixture.cas.assets.open);
+    const basisReader = checkpointAdapter(fixture, {
+      assets: { open },
+      pages: fixture.cas.pages,
+      bundles: fixture.cas.bundles,
+      publications: fixture.cas.publications,
+    });
+    const basis = await basisReader.loadBasis(published.checkpointSha);
 
     expect(basis.indexRoot?.toString())
       .toBe(input.materialization?.roots.roaringIndexes.handle?.toString());
@@ -265,6 +272,7 @@ describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
       .toBe(input.materialization?.roots.properties.handle?.toString());
     expect(basis.indexShardHandles).toEqual({});
     expect(basis.frontier).toEqual(new Map([['w1', 'a'.repeat(40)]]));
+    expect(open).not.toHaveBeenCalled();
   });
 
   it('fails closed when a retained materialization has no bounded indexes', async () => {

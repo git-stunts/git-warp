@@ -38,7 +38,7 @@ import {
 } from './CurrentCheckpointStorageValidation.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
 import GitCasMaterializationSnapshotReader, {
-  type MaterializationSnapshot,
+  type MaterializationBasisSnapshot,
 } from './GitCasMaterializationSnapshotReader.ts';
 
 interface CheckpointHistory {
@@ -63,8 +63,9 @@ export type GitCasCheckpointFacade = {
 };
 
 type CheckpointLayout = {
+  readonly bundleHandle: BundleHandle;
   readonly metadata: ReturnType<CommitMessageCodecPort['decodeCheckpoint']>;
-  readonly materialization: MaterializationSnapshot;
+  readonly materialization: MaterializationBasisSnapshot;
   readonly indexRoot: BundleHandle | null;
   readonly propertyRoot: BundleHandle | null;
 };
@@ -143,10 +144,13 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     expectedGraphName?: string,
   ): Promise<CheckpointData> {
     const layout = await this.#readLayout(checkpointSha, expectedGraphName);
-    const { state } = layout.materialization;
+    const materialization = await this.#materializationSnapshots.read(
+      layout.bundleHandle,
+    );
+    const { state } = materialization;
     const result: CheckpointData = {
       state,
-      frontier: layout.materialization.coordinate.frontier(),
+      frontier: materialization.coordinate.frontier(),
       stateHash: layout.metadata.stateHash,
       schema: layout.metadata.schema,
       appliedVV: computeAppliedVV(state),
@@ -154,8 +158,8 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       indexRoot: layout.indexRoot,
       propertyRoot: layout.propertyRoot,
     };
-    if (layout.materialization.provenanceIndex !== null) {
-      result.provenanceIndex = layout.materialization.provenanceIndex;
+    if (materialization.provenanceIndex !== null) {
+      result.provenanceIndex = materialization.provenanceIndex;
     }
     return result;
   }
@@ -232,7 +236,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       checkpointSha,
       metadata,
     );
-    const materialization = await this.#materializationSnapshots.read(
+    const materialization = await this.#materializationSnapshots.readBasis(
       bundleHandle,
     );
     if (materialization.stateHash !== metadata.stateHash) {
@@ -246,6 +250,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       );
     }
     return {
+      bundleHandle,
       metadata,
       materialization,
       indexRoot: retainedRootHandle(materialization.roots.roaringIndexes),

@@ -41,6 +41,11 @@ export type MaterializationSnapshot = Readonly<{
   provenanceIndex: ProvenanceIndex | null;
 }>;
 
+export type MaterializationBasisSnapshot = Pick<
+  MaterializationSnapshot,
+  'coordinate' | 'roots' | 'stateHash'
+>;
+
 /** Opens the canonical whole-state snapshot already retained by a materialization bundle. */
 export default class GitCasMaterializationSnapshotReader {
   readonly #cas: GitCasMaterializationSnapshotFacade;
@@ -60,6 +65,23 @@ export default class GitCasMaterializationSnapshotReader {
   }
 
   async read(bundle: BundleHandle): Promise<MaterializationSnapshot> {
+    const basis = await this.readBasis(bundle);
+    const state = await this.#replayBasis.loadRoot(
+      requireRetainedRoot(basis.roots.replayBasis, 'replay basis'),
+      basis.stateHash,
+    );
+    const provenanceRoot = optionalRetainedRoot(basis.roots.provenanceSupport);
+    const provenanceIndex = provenanceRoot === null
+      ? null
+      : await this.#provenanceSupport.loadRoot(provenanceRoot);
+    return Object.freeze({
+      ...basis,
+      state,
+      provenanceIndex,
+    });
+  }
+
+  async readBasis(bundle: BundleHandle): Promise<MaterializationBasisSnapshot> {
     const members = await decodeMaterializationMembers(
       this.#cas.bundles.iterateMemberReferences({ handle: bundle.toString() }),
     );
@@ -72,20 +94,10 @@ export default class GitCasMaterializationSnapshotReader {
       )),
     );
     const roots = materializationRootsFromDescriptor(descriptor, members.retainedRoots);
-    const state = await this.#replayBasis.loadRoot(
-      requireRetainedRoot(roots.replayBasis, 'replay basis'),
-      descriptor.stateHash,
-    );
-    const provenanceRoot = optionalRetainedRoot(roots.provenanceSupport);
-    const provenanceIndex = provenanceRoot === null
-      ? null
-      : await this.#provenanceSupport.loadRoot(provenanceRoot);
     return Object.freeze({
       coordinate: descriptor.coordinate,
       roots,
-      state,
       stateHash: descriptor.stateHash,
-      provenanceIndex,
     });
   }
 }
