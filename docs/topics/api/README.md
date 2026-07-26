@@ -524,14 +524,19 @@ import { graph } from '@git-stunts/git-warp/charts';
 const observation = events.observe(
   graph.neighborhood({
     around: 'user:alice',
-    depth: 2,
+    direction: 'both',
+    limit: 100,
   })
 );
 ```
 
-This surface may expose node, edge, neighborhood, topology, and graph-diff
-Observers. It must describe their results as charts or readings, not as the
-durable territory or a mutable graph store.
+The shipped neighborhood chart is one hop and cursor-page bounded: it defaults
+to 100 edges and accepts at most 1,000. Follow `Reading.value.cursor` with
+another Observer when `Reading.value.completeness` is `truncated`.
+
+This surface may grow node, edge, topology, and graph-diff Observers. It must
+describe their results as charts or readings, not as the durable territory or
+a mutable graph store.
 
 `/charts` is absent from the first-use README path. It exists for users who
 actually need graph-shaped correlation and coordination.

@@ -8,7 +8,9 @@
     ".": "./index.ts",
     "./storage": "./storage.ts",
     "./advanced": "./advanced.ts",
-    "./diagnostics": "./diagnostics.ts"
+    "./diagnostics": "./diagnostics.ts",
+    "./charts": "./charts.ts",
+    "./testing": "./testing.ts"
   },
   "publish": {
     "include": [
@@ -16,6 +18,8 @@
       "storage.ts",
       "advanced.ts",
       "diagnostics.ts",
+      "charts.ts",
+      "testing.ts",
       "src/**/*.ts",
       "src/**/*.d.ts",
       "README.md",

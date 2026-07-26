@@ -229,6 +229,7 @@ function exportSurface(title: string, source: SourceText, contract: string): rea
     `Source: \`${source.path}\`. Count: ${typeExports.length}.`,
     '',
     codeList(typeExports),
+    '',
   ];
 }
 
@@ -241,6 +242,8 @@ function generate(): string {
   const storageSource = new SourceText('storage.ts');
   const advancedSource = new SourceText('advanced.ts');
   const diagnosticsSource = new SourceText('diagnostics.ts');
+  const chartsSource = new SourceText('charts.ts');
+  const testingSource = new SourceText('testing.ts');
   const packageBins = captureObjectEntries(packageSource, 'bin');
   const packageExports = captureExportEntries(packageSource, 'exports').filter((item) => item.name.startsWith('.'));
   const jsrExports = captureExportEntries(jsrSource, 'exports').filter((item) => item.name.startsWith('.'));
@@ -263,13 +266,11 @@ function generate(): string {
     ]),
     '',
     ...exportSurface('Root API export surface', rootSource, 'First-use product API: one `Runtime` value plus Lane, Intent, Observer, Observation, Reading, and Receipt types.'),
-    '',
     ...exportSurface('Storage export surface', storageSource, 'Transitional explicit storage composition; first-use applications use `Runtime.open()`.'),
-    '',
     ...exportSurface('Advanced export surface', advancedSource, 'Bounded coordinate capture, Optic, and Witness concepts for expert use.'),
-    '',
     ...exportSurface('Diagnostics export surface', diagnosticsSource, 'Operator inspection helpers that consume public receipt handles.'),
-    '',
+    ...exportSurface('Charts export surface', chartsSource, 'Bounded graph-shaped derived Observers and Reading values.'),
+    ...exportSurface('Testing export surface', testingSource, 'Disposable real-Git Runtime harnesses for consumer tests.'),
     '## CLI command registry',
     '',
     table(['Command', 'Handler', 'Source'], commands.map((item) => [`\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``])),
