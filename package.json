@@ -91,6 +91,7 @@
     "benchmark:trie-geometry": "GIT_WARP_PROFILE=1 vitest run test/unit/benchmark/TrieGeometryProfile.profile.test.ts",
     "performance:measure": "npm run build --silent && node dist/scripts/performance/RunPerformance.js",
     "performance:gate": "npm run build --silent && node dist/scripts/performance/GatePerformance.js",
+    "performance:streaming": "npm run build --silent && node dist/scripts/performance/RunStreamingPerformance.js",
     "setup:hooks": "node scripts/setup-hooks.ts",
     "prepare": "patch-package && node scripts/setup-hooks.ts",
     "prepack": "npm run build && npm run lint && npm run test:local && npm run typecheck:consumer",

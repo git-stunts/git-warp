@@ -134,20 +134,25 @@ async function appendCorpus(
   });
 }
 
-function deterministicPayload(index: number, byteLength: number, seed: number): string {
+export function deterministicPayload(
+  index: number,
+  byteLength: number,
+  seed: number,
+): string {
   const prefix = `${index.toString(16).padStart(12, '0')}:`;
   if (byteLength < prefix.length) {
     throw new Error('Performance property size is smaller than its deterministic prefix');
   }
   let state = (seed ^ index) >>> 0;
-  let payload = prefix;
-  while (payload.length < byteLength) {
+  const payload = Buffer.allocUnsafe(byteLength);
+  payload.write(prefix, 0, 'ascii');
+  for (let offset = prefix.length; offset < byteLength; offset += 1) {
     state ^= state << 13;
     state ^= state >>> 17;
     state ^= state << 5;
-    payload += String.fromCharCode(97 + ((state >>> 0) % 26));
+    payload[offset] = 97 + ((state >>> 0) % 26);
   }
-  return payload;
+  return payload.toString('ascii');
 }
 
 function fixtureManifest(
@@ -181,6 +186,6 @@ function fixtureManifest(
   });
 }
 
-function performanceNodeId(index: number): string {
+export function performanceNodeId(index: number): string {
   return `node:${index.toString().padStart(8, '0')}`;
 }
