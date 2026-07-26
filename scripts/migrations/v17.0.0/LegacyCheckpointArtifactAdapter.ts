@@ -1,8 +1,8 @@
-import AssetHandle from '../../domain/storage/AssetHandle.ts';
-import PersistenceError from '../../domain/errors/PersistenceError.ts';
-import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
-import { textDecode, textEncode } from '../../domain/utils/bytes.ts';
-import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
+import AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
+import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
+import { collectAsyncIterable } from '../../../src/domain/utils/streamUtils.ts';
+import { textDecode, textEncode } from '../../../src/domain/utils/bytes.ts';
+import type AssetStoragePort from '../../../src/ports/AssetStoragePort.ts';
 
 const CAS_POINTER_PREFIX = 'git-warp:cas-pointer:v1:';
 const CAS_POINTER_PREFIX_BYTES = textEncode(CAS_POINTER_PREFIX);

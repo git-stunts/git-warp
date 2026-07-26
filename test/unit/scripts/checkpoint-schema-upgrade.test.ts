@@ -24,7 +24,6 @@ import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { textEncode } from '../../../src/domain/utils/bytes.ts';
 import {
   CHECKPOINT_STORAGE_FORMAT,
-  LEGACY_CHECKPOINT_STORAGE_FORMAT,
 } from '../../../src/ports/CommitMessageCodecPort.ts';
 import type AssetStoragePort from '../../../src/ports/AssetStoragePort.ts';
 import InMemoryBlobStorageAdapter from '../../helpers/InMemoryBlobStorageAdapter.ts';
@@ -34,6 +33,12 @@ import {
   CheckpointSchemaUpgradeError,
   upgradeCheckpointSchema,
 } from '../../../scripts/migrations/v17.0.0/checkpoint-schema-upgrade.ts';
+import {
+  encodeLegacyCheckpointMessage,
+} from '../../../scripts/migrations/v17.0.0/LegacyCheckpointCommitMessageCodec.ts';
+import {
+  LEGACY_CHECKPOINT_STORAGE_FORMAT,
+} from '../../../scripts/migrations/v17.0.0/LegacyCheckpointFormat.ts';
 import type WarpState from '../../../src/domain/services/state/WarpState.ts';
 
 const crypto = new NodeCryptoAdapter();
@@ -82,13 +87,10 @@ async function writeRetiredCheckpoint(options: {
 
   treeEntries.sort();
   const treeOid = await options.persistence.writeTree(treeEntries);
-  const message = DEFAULT_COMMIT_MESSAGE_CODEC.encodeCheckpoint({
-    kind: 'checkpoint',
+  const message = encodeLegacyCheckpointMessage({
     graph: graphName,
     stateHash,
     schema: 4,
-    checkpointVersion: LEGACY_CHECKPOINT_STORAGE_FORMAT,
-    bundleHandle: null,
   });
   const checkpointSha = await options.persistence.commitNodeWithTree({
     treeOid,
@@ -388,7 +390,6 @@ function createCheckpointMigrationStorage(
       crypto: new NodeCryptoAdapter(),
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       history: persistence,
-      assetStorage,
       cas,
     }),
     assetStorage,
@@ -455,13 +456,10 @@ async function writeLegacyCurrentCheckpoint(options: {
   const checkpointSha = await options.persistence.commitNodeWithTree({
     treeOid: rootTreeOid,
     parents: options.parents ?? [],
-    message: DEFAULT_COMMIT_MESSAGE_CODEC.encodeCheckpoint({
-      kind: 'checkpoint',
+    message: encodeLegacyCheckpointMessage({
       graph: graphName,
       stateHash,
       schema: CURRENT_CHECKPOINT_SCHEMA,
-      checkpointVersion: LEGACY_CHECKPOINT_STORAGE_FORMAT,
-      bundleHandle: null,
     }),
   });
   await options.persistence.updateRef(checkpointRef, checkpointSha);
@@ -516,12 +514,9 @@ function malformedCurrentCheckpointMessage(): string {
 }
 
 function legacyCheckpointMessage(): string {
-  return DEFAULT_COMMIT_MESSAGE_CODEC.encodeCheckpoint({
-    kind: 'checkpoint',
+  return encodeLegacyCheckpointMessage({
     graph: graphName,
     stateHash: '0'.repeat(64),
     schema: CURRENT_CHECKPOINT_SCHEMA,
-    checkpointVersion: LEGACY_CHECKPOINT_STORAGE_FORMAT,
-    bundleHandle: null,
   });
 }

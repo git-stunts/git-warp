@@ -127,7 +127,7 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       schema: 5,
       checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
       bundleHandle: null,
-    })).toThrow(/requires a bundle handle/u);
+    })).toThrow(/received null/u);
 
     expect(() => codec.encodeCheckpoint({
       kind: 'checkpoint',
@@ -136,7 +136,7 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       schema: 5,
       checkpointVersion: 'v5',
       bundleHandle: new BundleHandle('bundle:checkpoint'),
-    })).toThrow(/current storage version/u);
+    })).toThrow(/expected "v19"/iu);
   });
 
   it('round-trips anchors', () => {
@@ -163,8 +163,8 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       graph: 'events',
       stateHash: STATE_HASH,
       schema: 5,
-      checkpointVersion: 'v5',
-      bundleHandle: null,
+      checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+      bundleHandle: new BundleHandle('bundle:checkpoint'),
     })],
     ['anchor', codec.encodeAnchor({ kind: 'anchor', graph: 'events', schema: 5 })],
   ] as const)('detects %s messages', (kind, message) => {
@@ -206,8 +206,8 @@ describe('TrailerCommitMessageCodecAdapter', () => {
       graph: 'events',
       stateHash: 'short',
       schema: 5,
-      checkpointVersion: 'v5',
-      bundleHandle: null,
+      checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+      bundleHandle: new BundleHandle('bundle:checkpoint'),
     })).toThrow(/64 character hex string/u);
   });
 

@@ -82,7 +82,6 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         crypto: request.crypto,
         commitMessageCodec: request.commitMessageCodec,
         history: this.#history,
-        assetStorage: this.#content,
         cas: this.#cas,
       }),
       indexes: new CborIndexStoreAdapter({

@@ -4,7 +4,6 @@ import CommitMessageCodecPort, {
   type AnchorCommitMessage,
   type CheckpointCommitMessage,
   CHECKPOINT_STORAGE_FORMAT,
-  LEGACY_CHECKPOINT_STORAGE_FORMAT,
   createGitCasPatchStorage,
   type CommitMessageKind,
   type PatchCommitMessage,
@@ -13,8 +12,8 @@ import CommitMessageCodecPort, {
 } from '../../ports/CommitMessageCodecPort.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
+import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import { validateGraphName, validateWriterId } from '../../domain/utils/RefLayout.ts';
-import { checkpointBundleTrailer, decodeCheckpointBundleHandle, encodeCheckpointBundleHandle } from './CheckpointCommitMessageBundleCodec.ts';
 
 export type {
   AnchorCommitMessage,
@@ -32,8 +31,6 @@ export const TRAILER_KEYS = Object.freeze({
   lamport: 'eg-lamport',
   patchHandle: 'eg-patch-handle',
   stateHash: 'eg-state-hash',
-  frontierOid: 'eg-frontier-oid',
-  indexOid: 'eg-index-oid',
   schema: 'eg-schema',
   checkpointVersion: 'eg-checkpoint',
   checkpointHandle: 'eg-checkpoint-handle',
@@ -110,8 +107,8 @@ const checkpointCommitMessageSchema = z.object({
   graph: graphNameSchema,
   stateHash: sha256Schema,
   schema: positiveIntegerSchema,
-  checkpointVersion: z.string().nullable(),
-  bundleHandle: z.string().nullable(),
+  checkpointVersion: z.literal(CHECKPOINT_STORAGE_FORMAT),
+  bundleHandle: z.string().min(1),
 });
 
 const anchorCommitMessageSchema = z.object({
@@ -134,10 +131,8 @@ export type DecodePatchCompatMessage = PatchCommitMessage & { encrypted: boolean
 export type EncodeCheckpointCompatParams = {
   graph: string;
   stateHash: string;
-  frontierOid: string;
-  indexOid: string;
+  bundleHandle: string;
   schema?: number;
-  checkpointVersion?: string | null;
 };
 
 export type EncodeAnchorCompatParams = {
@@ -246,7 +241,10 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
   }
 
   override encodeCheckpoint(message: CheckpointCommitMessage): string {
-    const parsed = checkpointCommitMessageSchema.safeParse(encodeCheckpointBundleHandle(message, CHECKPOINT_STORAGE_FORMAT));
+    const parsed = checkpointCommitMessageSchema.safeParse({
+      ...message,
+      bundleHandle: message.bundleHandle?.toString() ?? null,
+    });
     if (!parsed.success) {
       throw messageCodecError(parsed.error.issues[0]?.message ?? 'invalid checkpoint commit message');
     }
@@ -255,8 +253,8 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
       [TRAILER_KEYS.graph]: parsed.data.graph,
       [TRAILER_KEYS.stateHash]: parsed.data.stateHash,
       [TRAILER_KEYS.schema]: String(parsed.data.schema),
-      [TRAILER_KEYS.checkpointVersion]: parsed.data.checkpointVersion ?? CHECKPOINT_STORAGE_FORMAT,
-      ...checkpointBundleTrailer(TRAILER_KEYS.checkpointHandle, parsed.data.bundleHandle),
+      [TRAILER_KEYS.checkpointVersion]: parsed.data.checkpointVersion,
+      [TRAILER_KEYS.checkpointHandle]: parsed.data.bundleHandle,
     };
     return this._codec.encode({ title: 'warp:checkpoint', trailers });
   }
@@ -277,7 +275,10 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
     if (!parsed.success) {
       throw messageCodecError(parsed.error.issues[0]?.message ?? 'invalid checkpoint commit message');
     }
-    return decodeCheckpointBundleHandle(parsed.data);
+    return {
+      ...parsed.data,
+      bundleHandle: new BundleHandle(parsed.data.bundleHandle),
+    };
   }
 
   override encodeAnchor(message: AnchorCommitMessage): string {
@@ -357,8 +358,8 @@ export function encodeCheckpointMessage(params: EncodeCheckpointCompatParams): s
     graph: params.graph,
     stateHash: params.stateHash,
     schema: params.schema ?? 2,
-    checkpointVersion: params.checkpointVersion ?? LEGACY_CHECKPOINT_STORAGE_FORMAT,
-    bundleHandle: null,
+    checkpointVersion: CHECKPOINT_STORAGE_FORMAT,
+    bundleHandle: new BundleHandle(params.bundleHandle),
   });
 }
 

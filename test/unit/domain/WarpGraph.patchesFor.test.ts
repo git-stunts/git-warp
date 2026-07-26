@@ -471,8 +471,7 @@ describe('WarpCore.patchesFor() (HG/IO/2)', () => {
       const checkpointMessage = encodeCheckpointMessage({
         graph: 'test',
         stateHash,
-        frontierOid: oidGen.next(),
-        indexOid: oidGen.next(),
+        bundleHandle: `bundle:${oidGen.next()}`,
         schema: 2,
       });
 

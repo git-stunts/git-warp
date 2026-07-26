@@ -172,8 +172,7 @@ describe('TrailerCommitMessageCodecAdapter validation', () => {
     const encoded = encodeCheckpointMessage({
       graph: 'events',
       stateHash: STATE_HASH,
-      frontierOid: OID,
-      indexOid: OID,
+      bundleHandle: `bundle:${OID}`,
     });
 
     expect(() => adapter.decodeCheckpoint(

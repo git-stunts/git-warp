@@ -448,8 +448,7 @@ describe('WarpCore', () => {
         const checkpointMessage = encodeCheckpointMessage({
           graph: 'events',
           stateHash: 'e'.repeat(64),
-          frontierOid: 'f'.repeat(40),
-          indexOid,
+          bundleHandle: `bundle:${indexOid}`,
           schema: 2,
         });
 

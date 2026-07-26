@@ -123,7 +123,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       strands: this._createStrandStore(content),
       intents: this._createIntentStore(request, content),
       patchJournal: this._createPatchJournal(request, content),
-      checkpoints: this._createCheckpointStore(request, content),
+      checkpoints: this._createCheckpointStore(request),
       indexes: this._createIndexStore(request, content),
       materializations,
       materializationCacheDiagnostics: new GitCasMaterializationCacheDiagnosticsAdapter({
@@ -187,14 +187,12 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
 
   private _createCheckpointStore(
     request: RuntimeStorageRequest,
-    content: AssetStoragePort,
   ): CborCheckpointStoreAdapter {
     return new CborCheckpointStoreAdapter({
       codec: request.codec,
       crypto: request.crypto,
       commitMessageCodec: request.commitMessageCodec,
       history: this._history,
-      assetStorage: content,
       cas: this._cas,
     });
   }

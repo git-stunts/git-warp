@@ -29,7 +29,7 @@ export default abstract class PatchJournalPort {
   /** Stages, bundles, and causally publishes one patch plus its attachments. */
   abstract appendPatch(_request: AppendPatchRequest): Promise<PublishedPatch>;
 
-  /** Reads a patch through its decoded commit locator, including legacy routes. */
+  /** Reads a patch through its decoded current git-cas locator. */
   abstract readPatch(_message: PatchCommitMessage): Promise<Patch>;
 
   /** Streams a writer's chronological patch range. */

@@ -13,9 +13,6 @@ import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
 import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.ts';
-import {
-  serializeCheckpointStateEnvelope,
-} from '../../../../src/domain/services/state/CheckpointSerializer.ts';
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import type { PropValue } from '../../../../src/domain/types/PropValue.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
@@ -43,12 +40,14 @@ import CheckpointStorePort, {
 } from '../../../../src/ports/CheckpointStorePort.ts';
 import {
   CHECKPOINT_STORAGE_FORMAT,
-  LEGACY_CHECKPOINT_STORAGE_FORMAT,
 } from '../../../../src/ports/CommitMessageCodecPort.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
+import {
+  encodeLegacyCheckpointMessage,
+} from '../../../../scripts/migrations/v17.0.0/LegacyCheckpointCommitMessageCodec.ts';
 
 function createState(): WarpState {
   const nodeAlive = ORSet.empty();
@@ -85,7 +84,6 @@ function createFixture() {
     crypto,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     history,
-    assetStorage: assets,
     cas,
   });
   return {
@@ -197,79 +195,19 @@ async function commitBundleCheckpoint(
   });
 }
 
-async function commitLegacyCheckpoint(
-  fixture: ReturnType<typeof createFixture>,
-  options: {
-    frontier: unknown;
-    nested?: boolean;
-    flattenedIndex?: boolean;
-    provenance?: boolean;
-  },
-): Promise<string> {
-  const state = createState();
-  const stateHash = await computeStateHash(state, {
-    codec: fixture.codec,
-    crypto: fixture.crypto,
-  });
-  const envelope = serializeCheckpointStateEnvelope(state, { codec: fixture.codec });
-  const statePayloads = Object.entries({
-    nodeAlive: envelope.nodeAlive,
-    edgeAlive: envelope.edgeAlive,
-    'prop.cbor': envelope.prop,
-    'observedFrontier.cbor': envelope.observedFrontier,
-    'edgeBirthEvent.cbor': envelope.edgeBirthEvent,
-  });
-  const stateEntries = await Promise.all(statePayloads.map(async ([path, bytes]) => (
-    `100644 blob ${await fixture.history.writeBlob(bytes)}\t${path}`
-  )));
-  const frontierOid = await fixture.history.writeBlob(fixture.codec.encode(options.frontier));
-  const rootEntries: string[] = options.nested === true
-    ? [
-      `040000 tree ${await fixture.history.writeTree(stateEntries)}\tstate`,
-      `040000 tree ${await fixture.history.writeTree([])}\tindex`,
-      `100644 blob ${frontierOid}\tfrontier.cbor`,
-    ]
-    : [
-      ...stateEntries.map((entry) => entry.replace('\t', '\tstate/')),
-      `100644 blob ${frontierOid}\tfrontier.cbor`,
-    ];
-  if (options.flattenedIndex === true) {
-    rootEntries.push(
-      `100644 blob ${await fixture.history.writeBlob(new Uint8Array([1]))}\tindex/meta_ff.cbor`,
-    );
-  }
-  if (options.provenance === true) {
-    rootEntries.push(
-      `100644 blob ${await fixture.history.writeBlob(
-        ProvenanceIndex.empty().serialize({ codec: fixture.codec }),
-      )}\tprovenanceIndex.cbor`,
-    );
-  }
-  const treeOid = await fixture.history.writeTree(rootEntries);
-  const message = DEFAULT_COMMIT_MESSAGE_CODEC.encodeCheckpoint({
-    kind: 'checkpoint',
-    graph: 'test',
-    stateHash,
-    schema: 5,
-    checkpointVersion: LEGACY_CHECKPOINT_STORAGE_FORMAT,
-    bundleHandle: null,
-  });
-  return await fixture.history.commitNodeWithTree({ treeOid, parents: [], message });
-}
-
 describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
   it('is a CheckpointStorePort and requires every semantic dependency', () => {
     const { codec, crypto, history, assets, cas, checkpoints } = createFixture();
     expect(checkpoints).toBeInstanceOf(CheckpointStorePort);
 
     // @ts-expect-error Runtime dependency guard for JavaScript callers.
-    expect(() => new CborCheckpointStoreAdapter({ crypto, commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC, history, assetStorage: assets, cas }))
+    expect(() => new CborCheckpointStoreAdapter({ crypto, commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC, history, cas }))
       .toThrow(/codec/);
     // @ts-expect-error Runtime dependency guard for JavaScript callers.
-    expect(() => new CborCheckpointStoreAdapter({ codec, commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC, history, assetStorage: assets, cas }))
+    expect(() => new CborCheckpointStoreAdapter({ codec, commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC, history, cas }))
       .toThrow(/crypto/);
     // @ts-expect-error Runtime dependency guard for JavaScript callers.
-    expect(() => new CborCheckpointStoreAdapter({ codec, crypto, history, assetStorage: assets, cas }))
+    expect(() => new CborCheckpointStoreAdapter({ codec, crypto, history, cas }))
       .toThrow(/commitMessageCodec/);
   });
 
@@ -534,64 +472,18 @@ describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
       .rejects.toThrow(message);
   });
 
-  it.each([false, true])(
-    'loads the released flat/nested schema-5 tree layout (nested=%s)',
-    async (nested) => {
-      const fixture = createFixture();
-      const checkpoint = await commitLegacyCheckpoint(fixture, {
-        frontier: { w1: 'a'.repeat(40) },
-        nested,
-      });
-
-      const loaded = await fixture.checkpoints.loadCheckpoint(checkpoint);
-      expect(loaded.state.nodeAlive.contains('user:alice')).toBe(true);
-      expect(loaded.frontier).toEqual(new Map([['w1', 'a'.repeat(40)]]));
-      expect(loaded.appliedVV).toBeNull();
-      expect(loaded.provenanceIndex).toBeUndefined();
-    },
-  );
-
-  it('loads flattened legacy indexes and serialized provenance', async () => {
+  it('rejects retired checkpoint envelopes', async () => {
     const fixture = createFixture();
-    const checkpoint = await commitLegacyCheckpoint(fixture, {
-      frontier: { w1: 'a'.repeat(40) },
-      flattenedIndex: true,
-      provenance: true,
-    });
-
-    const loaded = await fixture.checkpoints.loadCheckpoint(checkpoint);
-    expect(loaded.indexShardHandles).toHaveProperty('meta_ff.cbor');
-    expect(loaded.provenanceIndex?.toJSON()).toEqual(ProvenanceIndex.empty().toJSON());
-  });
-
-  it('rejects missing legacy artifacts and invalid legacy frontiers', async () => {
-    const fixture = createFixture();
-    const emptyTreeCheckpoint = await fixture.history.commitNodeWithTree({
+    const checkpoint = await fixture.history.commitNodeWithTree({
       treeOid: fixture.history.emptyTree,
       parents: [],
-      message: DEFAULT_COMMIT_MESSAGE_CODEC.encodeCheckpoint({
-        kind: 'checkpoint',
+      message: encodeLegacyCheckpointMessage({
         graph: 'test',
         stateHash: 'd'.repeat(64),
         schema: 5,
-        checkpointVersion: LEGACY_CHECKPOINT_STORAGE_FORMAT,
-        bundleHandle: null,
       }),
     });
-    await expect(fixture.checkpoints.loadCheckpoint(emptyTreeCheckpoint))
-      .rejects.toMatchObject({ code: 'E_CHECKPOINT_MISSING_ARTIFACT' });
-
-    const invalidFrontierCheckpoint = await commitLegacyCheckpoint(fixture, {
-      frontier: [],
-    });
-    await expect(fixture.checkpoints.loadCheckpoint(invalidFrontierCheckpoint))
-      .rejects.toMatchObject({ code: 'E_CHECKPOINT_INVALID_FRONTIER' });
-
-    const emptyWriterTipCheckpoint = await commitLegacyCheckpoint(fixture, {
-      frontier: { w1: '' },
-    });
-    await expect(fixture.checkpoints.loadCheckpoint(emptyWriterTipCheckpoint))
-      .rejects.toMatchObject({ code: 'E_CHECKPOINT_INVALID_FRONTIER' });
+    await expect(fixture.checkpoints.loadCheckpoint(checkpoint)).rejects.toThrow();
   });
 
   it('rejects publication and retention witnesses for another bundle', async () => {
@@ -642,18 +534,6 @@ describe('CborCheckpointStoreAdapter materialization lifecycle', () => {
       .rejects.toMatchObject({ code: 'E_CHECKPOINT_RETENTION_MISMATCH' });
   });
 
-  it.each([
-    [CHECKPOINT_STORAGE_FORMAT, 'E_CHECKPOINT_MISSING_BUNDLE_HANDLE'],
-    ['future-checkpoint-layout', 'E_CHECKPOINT_UNSUPPORTED_STORAGE'],
-  ])('rejects unsupported storage metadata %s', async (storageVersion, code) => {
-    const fixture = createFixture();
-    const sha = await fixture.history.commitNode({
-      parents: [],
-      message: malformedCheckpointMessage(storageVersion),
-    });
-    await expect(fixture.checkpoints.readMetadata(sha)).rejects.toMatchObject({ code });
-  });
-
   it('publishes coverage as a causal anchor of checkpoint parents', async () => {
     const fixture = createFixture();
     const published = await fixture.checkpoints.publishCheckpoint(await record(fixture));
@@ -676,22 +556,6 @@ function checkpointAdapter(
     crypto: fixture.crypto,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     history: fixture.history,
-    assetStorage: fixture.assets,
     cas,
   });
-}
-
-function malformedCheckpointMessage(storageVersion: string): string {
-  const legacy = DEFAULT_COMMIT_MESSAGE_CODEC.encodeCheckpoint({
-    kind: 'checkpoint',
-    graph: 'test',
-    stateHash: 'd'.repeat(64),
-    schema: 5,
-    checkpointVersion: LEGACY_CHECKPOINT_STORAGE_FORMAT,
-    bundleHandle: null,
-  });
-  return legacy.replace(
-    `eg-checkpoint: ${LEGACY_CHECKPOINT_STORAGE_FORMAT}`,
-    `eg-checkpoint: ${storageVersion}`,
-  );
 }

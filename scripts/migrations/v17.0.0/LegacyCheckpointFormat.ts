@@ -1,0 +1,1 @@
+export const LEGACY_CHECKPOINT_STORAGE_FORMAT = 'v5';

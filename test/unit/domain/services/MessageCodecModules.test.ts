@@ -68,8 +68,7 @@ describe('message codec modules', () => {
     const checkpointMessage = encodeCheckpointMessage({
       graph: 'events',
       stateHash: STATE_HASH,
-      frontierOid: OID,
-      indexOid: OID,
+      bundleHandle: `bundle:${OID}`,
       schema: 3,
     });
     const anchorMessage = encodeAnchorMessage({ graph: 'events', schema: 3 });

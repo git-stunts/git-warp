@@ -281,8 +281,7 @@ describe('WormholeService', () => {
           message: encodeCheckpointMessage({
             graph: 'test-graph',
             stateHash: 'a'.repeat(64),
-            frontierOid: generateOid(4001),
-            indexOid: generateOid(4002),
+            bundleHandle: `bundle:${generateOid(4001)}`,
             schema: 2,
           }),
           parents: [],
