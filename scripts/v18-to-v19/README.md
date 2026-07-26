@@ -18,6 +18,39 @@ The migration has four boundaries:
 The default command stops after boundary 3. `--apply` explicitly enables
 boundary 4.
 
+Stop every process that can write to the repository and make a normal backup.
+After installing v19 without starting the application, run the disposable
+proof:
+
+```bash
+npx git-warp-v18-to-v19 \
+  --repo /path/to/repository \
+  --graph events
+```
+
+Progress is written to standard error so long writer chains remain observable.
+Use `--json` when a machine-readable report is needed on standard output. For
+encrypted v18 patches, provide `GIT_WARP_MIGRATION_PASSPHRASE` in the
+environment; the passphrase is never accepted as an argument or included in
+the report.
+
+Only after the dry-run reports `verified-dry-run`, promote the verified refs:
+
+```bash
+npx git-warp-v18-to-v19 \
+  --repo /path/to/repository \
+  --graph events \
+  --apply
+```
+
+Promotion re-inventories the source, detects concurrent ref movement, and uses
+one compare-and-swap Git ref transaction. Original refs and blob-backed
+state-cache payload roots remain reachable below
+`refs/warp/<graph>/recovery/v18-to-v19/<run-id>/`. Keep those recovery refs
+until application reads, writes, and backups have been independently verified.
+Rerunning the command after promotion verifies the current repository and
+reports `already-current`.
+
 Preserved refs must already target publication commits. A blob or tree below a
 current retained-ref family is pre-v18 state; the command stops before scratch
 work and requires that older one-shot migration first. No reader for those
@@ -25,4 +58,9 @@ retired shapes exists in production v19.
 
 The golden fixture under `fixtures/v18/retained-substrate-golden/` was produced
 with the published `@git-stunts/git-warp@18.2.1` dependency lock. It contains
-no live user or Think data.
+no live user or Think data. The medium fixture under
+`fixtures/v18/retained-substrate-medium/` uses the same published dependency
+lock and carries 18 authentic patches plus deterministic binary attachments in
+an approximately 2 MiB Git bundle. It is the routine end-to-end sanity proof;
+the much larger disposable application-store rehearsal is reserved for release
+candidate validation.

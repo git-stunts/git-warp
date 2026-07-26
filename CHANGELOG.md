@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   workflows.
 - Added idempotent `GitStorage.close()` and async-disposal support to release
   local Git and git-cas processes without changing history or retention.
+- Added the one-shot `git-warp-v18-to-v19` retained-substrate migrator. It
+  inventories without mutation, translates published-v18 blob-backed patches
+  through git-cas asset handles in disposable repositories, proves v19 reopen,
+  read, append, and receipts, then promotes through a compare-and-swap ref
+  transaction while retaining additive recovery refs. Authentic published-v18
+  fixtures cover both a small semantic proof and an approximately 2 MiB
+  standalone operator sanity check.
 - Added the `lint:test-law` gate to reject conditional bare `return;`
   statements in test bodies so skipped assertions cannot masquerade as passing
   tests.
