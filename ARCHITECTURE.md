@@ -10,10 +10,10 @@ If you are learning the product for the first time, start with:
 
 ## Release posture
 
-`v18.2.1` is the current published release. Mainline development is preparing
-the v19 application boundary: callers open an opaque storage handle, write
-intents, read timelines, and keep receipts. Git history and git-cas remain
-separate infrastructure concerns composed behind that handle.
+`v19.0.0` is the current release. Applications open a `Runtime`, address
+causal `Lane`s, write validated `Intent`s, consume bounded `Observation`
+streams of `Reading`s, and keep `Receipt`s. Git history and git-cas remain
+separate infrastructure concerns composed behind the Runtime.
 
 The longer release notes live in [CHANGELOG.md](CHANGELOG.md). The runtime
 architecture below describes current implementation boundaries, not aspirational
@@ -23,18 +23,19 @@ roadmap state.
 
 ```text
 ┌──────────────────────────────────────────────────┐
-│ openWarp() -> Warp -> Timeline                    │
-│ intent · reading · tick · receipt                 │
+│ Runtime.open() -> Runtime -> Lane                │
+│ Intent · Observer · Observation                  │
+│ Reading · Receipt                                │
 ├──────────────────────────────────────────────────┤
-│ Opaque storage composition                        │
-│ GitStorage.open()                                  │
+│ Runtime-owned storage composition                │
+│ GitStorage.open() behind the Runtime boundary    │
 ├──────────┬───────────┬────────────┬──────────────┤
 │  Query   │  Patch    │ Materialize│    Sync      │
 │Controller│Controller │ Controller │  Controller  │
 │  Strand  │Checkpoint │ Provenance │ Comparison   │
 ├──────────┴───────────┴────────────┴──────────────┤
-│ Domain services and semantic storage ports        │
-│ CorePersistence · RuntimeStorageProviderPort      │
+│ Domain services and semantic storage ports       │
+│ CorePersistence · RuntimeStorageProviderPort     │
 ├───────────────────────┬──────────────────────────┤
 │ GitTimelineHistory    │ GitCasRepositoryAdapter  │
 │ Adapter               │ content/cache/retention  │
@@ -59,9 +60,9 @@ The system decomposes into three moments:
 - **Folding** — re-expresses admitted history (checkpoints, materialization)
 - **Revelation** — exposes truth under bounded rights (queries, observers)
 
-`openWarp()` gives application code a `Warp` handle. `warp.timeline(name)`
-opens one named admitted causal lane without exposing the internal worldline,
-graph, persistence, or CAS vocabulary.
+`Runtime.open()` gives application code a `Runtime` handle.
+`runtime.lane(name)` opens one named admitted causal lane without exposing the
+internal worldline, graph, persistence, or CAS vocabulary.
 
 ### Graph-shaped readings
 
@@ -153,17 +154,17 @@ services.
 9 controllers, one per capability namespace. Each accepts a typed
 dependency bag and owns the orchestration for its domain:
 
-| Controller | Capability | Key responsibility |
-|-----------|------------|-------------------|
-| QueryController | query | Node/edge reads, observers, worldlines |
-| PatchController | patches | Patch creation, commit, deterministic fold |
-| MaterializeController | materialize | Full and incremental materialization |
-| SyncController | sync | Frontier, sync, serve |
-| StrandController | strands | Strand lifecycle, braid, collapse |
-| CheckpointController | checkpoint | Checkpoint create/restore |
-| ProvenanceController | provenance | Provenance index, BTR access |
-| ComparisonController | comparison | Coordinate comparison, transfer planning |
-| SubscriptionController | subscriptions | Reactive state change notification |
+| Controller             | Capability    | Key responsibility                         |
+| ---------------------- | ------------- | ------------------------------------------ |
+| QueryController        | query         | Node/edge reads, observers, worldlines     |
+| PatchController        | patches       | Patch creation, commit, deterministic fold |
+| MaterializeController  | materialize   | Full and incremental materialization       |
+| SyncController         | sync          | Frontier, sync, serve                      |
+| StrandController       | strands       | Strand lifecycle, braid, collapse          |
+| CheckpointController   | checkpoint    | Checkpoint create/restore                  |
+| ProvenanceController   | provenance    | Provenance index, BTR access               |
+| ComparisonController   | comparison    | Coordinate comparison, transfer planning   |
+| SubscriptionController | subscriptions | Reactive state change notification         |
 
 ### Streams and bounded storage ports
 
@@ -175,11 +176,11 @@ arrays, cursors, or generated records into `WarpStream` at the boundary.
 The stream layer keeps large reads from pretending to be ordinary in-memory
 arrays. Current advanced ports that use this boundary include:
 
-| Port | Streamed surface | Role |
-| --- | --- | --- |
-| `CommitPort` | `logNodesStream(...)` | Git commit-log chunks without loading the full log |
-| `PatchJournalPort` | `scanPatchRange(...)` | Patch journal entries over a writer/range |
-| `IndexStorePort` | `writeShards(...)`, `scanShards(...)` | Bitmap/index shards as bounded stream units |
+| Port               | Streamed surface                      | Role                                               |
+| ------------------ | ------------------------------------- | -------------------------------------------------- |
+| `CommitPort`       | `logNodesStream(...)`                 | Git commit-log chunks without loading the full log |
+| `PatchJournalPort` | `scanPatchRange(...)`                 | Patch journal entries over a writer/range          |
+| `IndexStorePort`   | `writeShards(...)`, `scanShards(...)` | Bitmap/index shards as bounded stream units        |
 
 `CheckpointStorePort` is the checkpoint storage boundary. It does not expose a
 general stream API today, but it sits beside the streamed stores because it
