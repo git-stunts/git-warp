@@ -10,6 +10,7 @@ import {
   listV18MigrationRefs,
   v18MigrationGitText,
 } from './V18MigrationGit.ts';
+import { V18MigrationGitCommitWriter } from './V18MigrationGitCommitWriter.ts';
 import { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 import V18PatchTranslator from './V18PatchTranslator.ts';
 import {
@@ -57,12 +58,14 @@ export async function prepareV18MigrationScratch(options: Readonly<{
       ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
     });
     const objectReader = new V18MigrationGitObjectReader(scratchPath);
+    const commitWriter = new V18MigrationGitCommitWriter(scratchPath);
     const rewrites: V18WriterChainRewrite[] = [];
     const commitMap = new Map<string, string>();
     let seededCheckpointRef: string | null = null;
     try {
       for (const writer of options.plan.writers) {
         rewrites.push(await rewriteV18WriterChain({
+          commitWriter,
           commitMap,
           graph: options.plan.graph,
           objectReader,
@@ -89,7 +92,11 @@ export async function prepareV18MigrationScratch(options: Readonly<{
       });
       seededCheckpointRef = seed.status === 'seeded' ? seed.checkpointRef : null;
     } finally {
-      await Promise.all([objectReader.close(), translator.close()]);
+      await Promise.all([
+        commitWriter.close(),
+        objectReader.close(),
+        translator.close(),
+      ]);
     }
     reportV18MigrationProgress(options.progress, {
       message: 'retiring superseded derived refs',
