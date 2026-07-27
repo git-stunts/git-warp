@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "minimumWallImprovementRatio": 0.2,
+  "minimumWallImprovementMs": 100,
+  "minimumGitCommandImprovementRatio": 0.2,
+  "maximumCpuRatio": 1.15,
+  "cpuNoiseFloorMs": 100,
+  "maximumHeapRatio": 1.25,
+  "maximumRssRatio": 1.25
+}

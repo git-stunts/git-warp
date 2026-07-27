@@ -125,10 +125,32 @@ failures, materialization memory overruns, streaming heap/RSS violations, and
 CPU regressions all fail the check. Wall time and streaming latency/throughput
 remain diagnostic.
 
+## Published-v18 migrated-read release gate
+
+The release gate also restores the checked-in 2 MiB
+`v18-retained-substrate-medium-001` bundle under the exact published
+`@git-stunts/git-warp@18.2.1` and `@git-stunts/git-cas@6.0.0` lock. It reads
+`medium:document:015.ordinal` through the v18 checkpoint-tail optic, migrates a
+separate restored copy once, and reads the same value through the v19 public
+Runtime, Lane, generated-SDK construction surface, Reading, and Receipt path.
+
+Fixture restore and the one-shot migration are excluded from steady-state
+samples. Migration duration is reported separately. Cold and second-process
+warm reads run from isolated copies in counterbalanced v18/v19 order. Every
+sample records operation and worker wall time, CPU, heap, RSS, Git command
+counts, the exact semantic value, and retained-basis evidence.
+
+[`migrated-read-policy.json`](./migrated-read-policy.json) requires v19 to
+improve median operation wall time by at least 20% and 100 ms, and to reduce
+Git commands by at least 20%, for both cold and warm reads. CPU may not regress
+beyond a 15% ratio outside a 100 ms noise floor; heap and RSS have 1.25×
+ceilings. A v19-to-v19 no-regression comparison cannot satisfy this gate.
+
 Every pull request and main push receives a Markdown job summary with
-cold/warm/incremental and streaming deltas. The workflow retains the combined
-comparison, merged results, every raw batch, both streaming proofs, and the
-summary for 90 days under a commit-addressed artifact name. The
+cold/warm/incremental, streaming, and migrated-v18 deltas. The workflow retains
+the combined comparison, merged results, every raw batch, both streaming
+proofs, the migrated-read report, and both summaries for 90 days under a
+commit-addressed artifact name. The
 [`history`](./history/README.md) page describes the browsable publication and
 baseline-review contract. Release workflows for v19 and later refuse to publish
 unless the release commit has a successful main-branch `Performance` run.

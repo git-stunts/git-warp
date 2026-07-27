@@ -72,6 +72,7 @@ jobs:
           cache-dependency-path: |
             base/package-lock.json
             head/package-lock.json
+            head/fixtures/v18/retained-substrate-medium/package-lock.json
 
       - name: Install base
         working-directory: base
@@ -80,6 +81,10 @@ jobs:
       - name: Install head
         working-directory: head
         run: npm ci
+
+      - name: Install published v18 fixture runtime
+        working-directory: head/fixtures/v18/retained-substrate-medium
+        run: npm ci --ignore-scripts
 
       - name: Build base and head
         shell: bash
@@ -108,6 +113,25 @@ jobs:
             cat performance-results/summary.md >> "$GITHUB_STEP_SUMMARY"
           fi
           exit "$gate_status"
+
+      - name: Gate migrated published-v18 retained reads
+        env:
+          GIT_WARP_MIGRATED_READ_RUNS: '5'
+          GIT_WARP_MIGRATED_READ_WARMUPS: '1'
+        shell: bash
+        run: |
+          migrated_status=0
+          node head/dist/scripts/v18-to-v19/performance/RunMigratedReadPerformance.js \
+            --output performance-results/migrated-read/report.json \
+            --policy head/benchmarks/v19/migrated-read-policy.json \
+            --manifest head/fixtures/v18/retained-substrate-medium/manifest.json \
+            --fixture-package head/fixtures/v18/retained-substrate-medium \
+            || migrated_status=$?
+          if [[ -f performance-results/migrated-read/summary.md ]]; then
+            cat performance-results/migrated-read/summary.md \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$migrated_status"
 
       - name: Retain raw samples and environment evidence
         if: ${{ always() }}
