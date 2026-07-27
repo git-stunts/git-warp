@@ -1,87 +1,85 @@
 # Operations
 
-Use this page when you are maintaining or diagnosing a live repository rather
-than writing product code against the worldline API.
+Use this page when maintaining or diagnosing a live v19 repository. For
+application code, start with [Getting started](../topics/getting-started.md).
 
-For ordinary application reads and writes, start with
-[Getting started](../topics/getting-started.md),
-[Querying](../topics/querying.md), and
-[Optic reads](../topics/optic-reads.md).
+## Health
 
-## Health checks
-
-Start with health and visibility:
+Run the bounded Runtime diagnostic for each affected Lane:
 
 ```bash
-git warp info --repo ./team-repo
-git warp check --repo ./team-repo
-git warp doctor --repo ./team-repo --strict
+git warp doctor --repo ./team-repo --lane users
 ```
 
-These commands answer whether expected graphs, writers, frontiers, indexes,
-checkpoints, and cursors are visible enough to continue.
+Doctor reports structural, audit, hook, and retained-materialization findings.
+It does not mutate authoritative history or silently repair git-cas.
 
-## Checkpoints and GC
+## Prepare a bounded basis
 
-Checkpoints are substrate acceleration and evidence points. They are not the
-source of truth. Patch history remains authoritative.
+When an Observation reports that no bounded basis is available:
 
 ```bash
-git warp checkpoint status --repo ./team-repo
-git warp checkpoint create --repo ./team-repo
-git warp checkpoint sync-coverage --repo ./team-repo
-git warp gc status --repo ./team-repo
-git warp gc maybe-run --repo ./team-repo
-git warp gc run --repo ./team-repo
+git warp repair \
+  --repo ./team-repo \
+  --lane users \
+  --action materialization
 ```
 
-Use checkpoint and GC commands during maintenance windows, release validation,
-or when bounded-read evidence depends on a checkpoint-tail basis.
+This is an explicit local repair. Patch history remains authoritative;
+materializations and checkpoints are derived acceleration/evidence structures.
 
-## Index maintenance
+## Audit
 
 ```bash
-git warp verify-index --repo ./team-repo
-git warp reindex --repo ./team-repo
+git warp audit --repo ./team-repo --lane users
+git warp audit --repo ./team-repo --lane users --writer local
 ```
 
-Use index verification when query posture, bitmap indexes, or bounded support
-planning are suspect. Reindexing is an operator action, not a normal app read.
+Audit verifies the Lane's local Runtime trail. It does not replace deterministic
+replay or grant trust to a writer.
 
-## Audit and trust
+## Inspect a Receipt
 
 ```bash
-git warp verify-audit --repo ./team-repo
-git warp trust list --repo ./team-repo
+git warp receipt show --input receipt.json
 ```
 
-Audit receipts and trust records help prove what was admitted and who should be
-trusted. They do not replace deterministic replay; they add durable evidence
-around it.
+The CLI uses the same canonical Receipt renderer as write and observe. Keep the
+machine envelope when a later incident may need exact operation, outcome,
+support, or repair evidence.
 
-## Diagnostic materialization
+## Review and Settlement
+
+Always separate preview from apply:
 
 ```bash
-git warp materialize --repo ./team-repo
+git warp settle preview \
+  --repo ./team-repo \
+  --source users \
+  --strand review-auth \
+  --target users \
+  --out settlement.json
+
+git warp settle apply \
+  --repo ./team-repo \
+  --plan settlement.json
 ```
 
-Use materialization for inspection, repair, migration, and evidence collection.
-Do not make it the normal first-use read path. Prefer worldlines, observers,
-and optic reads for application behavior.
+The apply step revalidates a fresh Runtime-owned plan. A moved source or target
+requires a new preview and review.
 
-## Hooks
+## Storage incidents
 
-```bash
-git warp install-hooks --repo ./team-repo
-```
+Derived materialization repair may remove invalid entries; it cannot recreate
+missing bytes. Physical cache/page residency belongs to git-cas. Preserve WARP
+writer refs and content objects before attempting storage recovery.
 
-Install hooks only when the repository's operators agree that local Git events
-should trigger git-warp maintenance. Keep hook behavior visible in project
-setup docs rather than relying on developer machine state.
+Do not move an authoritative writer ref backward without an isolated rehearsal,
+an additive recovery ref, and an exact replay plan.
 
 ## See also
 
 - [CLI](../topics/cli.md)
 - [Git substrate](../topics/git-substrate.md)
-- [Sync](../topics/sync.md)
 - [Troubleshooting](../topics/troubleshooting.md)
+- [v18-to-v19 migration](../migrations/v19/README.md)

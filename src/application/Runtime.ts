@@ -34,9 +34,18 @@ export type RuntimeForkOptions = {
   readonly name: string;
 };
 
+export type RuntimeStrandOptions = {
+  readonly name: string;
+};
+
 const FORK_IDENTITY_FAILURE = Object.freeze({
   message: 'Runtime.fork requires a non-empty strand name',
   code: 'E_RUNTIME_FORK_IDENTITY',
+});
+
+const STRAND_IDENTITY_FAILURE = Object.freeze({
+  message: 'Runtime.strand requires a non-empty strand name',
+  code: 'E_RUNTIME_STRAND_IDENTITY',
 });
 
 /** Production composition root for one local git-warp runtime. */
@@ -105,6 +114,24 @@ export default class Runtime {
     }
   }
 
+  async strand(parent: Lane, options: RuntimeStrandOptions): Promise<Lane> {
+    assertStrandParent(parent);
+    assertStrandOptions(options);
+    assertTimelineNameIdentity(
+      options.name,
+      'strand.name',
+      STRAND_IDENTITY_FAILURE,
+    );
+    const binding = requireOwnedLaneRuntime(parent, this.#laneOwner);
+    const openStrand = requireWorldlineStrand(parent, binding);
+    const lease = this.#activity.acquire();
+    try {
+      return await openStrand(options.name);
+    } finally {
+      lease.release();
+    }
+  }
+
   async previewSettlement(
     options: RuntimeSettlementOptions,
   ): Promise<SettlementPreview> {
@@ -137,6 +164,24 @@ function assertForkOptions(options: RuntimeForkOptions): void {
   }
 }
 
+function assertStrandParent(parent: Lane): void {
+  if (!(parent instanceof Lane)) {
+    throw new WarpError(
+      'Runtime.strand requires a parent Lane',
+      'E_RUNTIME_STRAND_PARENT',
+    );
+  }
+}
+
+function assertStrandOptions(options: RuntimeStrandOptions): void {
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+    throw new WarpError(
+      'Runtime.strand options are required',
+      'E_RUNTIME_STRAND_OPTIONS',
+    );
+  }
+}
+
 function requireOwnedLaneRuntime(source: Lane, owner: object): LaneRuntime {
   const binding = requireLaneRuntime(source);
   if (binding.owner !== owner) {
@@ -160,6 +205,20 @@ function requireWorldlineFork(
     );
   }
   return binding.fork;
+}
+
+function requireWorldlineStrand(
+  parent: Lane,
+  binding: LaneRuntime,
+): NonNullable<LaneRuntime['openStrand']> {
+  if (parent.kind !== 'worldline' || binding.openStrand === null) {
+    throw new WarpError(
+      'Runtime.strand requires a worldline parent Lane',
+      'E_RUNTIME_STRAND_PARENT_KIND',
+      { context: { kind: parent.kind } },
+    );
+  }
+  return binding.openStrand;
 }
 
 function assertRuntimeOpenOptions(

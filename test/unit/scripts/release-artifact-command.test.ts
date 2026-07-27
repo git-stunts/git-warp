@@ -136,8 +136,9 @@ describe('release artifact command evidence', () => {
     expect(entries.has('dist/legacy.d.ts')).toBe(false);
     expect(entries.has('dist/rootCompatibility.js')).toBe(false);
     expect(entries.has('dist/rootCompatibility.d.ts')).toBe(false);
-    expect(entries.has('dist/bin/warp-graph.js')).toBe(true);
+    expect(entries.has('dist/bin/git-warp.js')).toBe(true);
     expect(entries.has('bin/git-warp')).toBe(true);
+    expect(entries.has('dist/bin/warp-graph.js')).toBe(false);
     expect(entries.has('README.md')).toBe(true);
     expect(entries.has('CHANGELOG.md')).toBe(true);
     expect(entries.has('LICENSE')).toBe(true);

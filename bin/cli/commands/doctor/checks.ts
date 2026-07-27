@@ -152,7 +152,7 @@ function buildCoverageNoRef(): DoctorFinding {
   return {
     id: 'coverage-complete', status: 'warn', code: CODES.COVERAGE_NO_REF,
     impact: 'operability', message: 'No coverage ref found',
-    fix: 'Run `git warp materialize` to create a coverage anchor',
+    fix: 'Run `git warp repair --lane <name> --action materialization` to create a bounded basis',
   };
 }
 
@@ -163,7 +163,7 @@ function buildCoverageFinding(missing: string[]): DoctorFinding {
       id: 'coverage-complete', status: 'warn', code: CODES.COVERAGE_MISSING_WRITERS,
       impact: 'operability',
       message: `Coverage anchor is missing ${missing.length} writer(s): ${missing.join(', ')}`,
-      fix: 'Run `git warp materialize` to update the coverage anchor',
+      fix: 'Run `git warp repair --lane <name> --action materialization` to update the bounded basis',
       evidence: { missingWriters: missing },
     };
   }
@@ -228,7 +228,7 @@ export async function checkCheckpointFresh(ctx: DoctorContext): Promise<DoctorFi
       return {
         id: 'checkpoint-fresh', status: 'warn', code: CODES.CHECKPOINT_MISSING,
         impact: 'operability', message: 'No checkpoint found',
-        fix: 'Run `git warp materialize` to create a checkpoint',
+        fix: 'Run `git warp repair --lane <name> --action materialization` to create a bounded basis',
       };
     }
 
@@ -253,7 +253,7 @@ function buildCheckpointFinding({ sha, date, ageHours, maxAge }: { sha: string; 
       id: 'checkpoint-fresh', status: 'warn', code: CODES.CHECKPOINT_STALE,
       impact: 'operability',
       message: `Checkpoint is ${Math.round(ageHours)} hours old (threshold: ${maxAge}h)`,
-      fix: 'Run `git warp materialize` to refresh the checkpoint',
+      fix: 'Run `git warp repair --lane <name> --action materialization` to refresh the bounded basis',
       evidence: { sha, date, ageHours: Math.round(ageHours) },
     };
   }

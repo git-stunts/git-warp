@@ -51,6 +51,7 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
   const patchDraft = options.patchDraft ?? (async (name) => `${name}-draft-patch`);
   let liveHead: string | null = null;
   const draftHeads = new Map<string, string>();
+  const draftEntries = new Map<string, PatchCommitResult[]>();
   const commitLive = async (build: WarpWorldlinePatchBuild): Promise<PatchCommitResult> => {
     const builder = createPatchBuilder({
       graphName: 'events',
@@ -78,7 +79,11 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
     await build(builder);
     const sha = await patchDraft(name, build);
     draftHeads.set(name, sha);
-    return testPatchPublication(sha, builder.build());
+    const publication = testPatchPublication(sha, builder.build());
+    const entries = draftEntries.get(name) ?? [];
+    entries.push(publication);
+    draftEntries.set(name, entries);
+    return publication;
   };
   return new WarpWorldline({
     worldlineName: 'events',
@@ -86,6 +91,8 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
     commitPatch: async (build) => (await commitLive(build)).sha,
     commitPatchWithEvidence: commitLive,
     createDraft: async () => undefined,
+    loadDraftPatchEntries: async (name) =>
+      (draftEntries.get(name) ?? []).map(({ patch, sha }) => ({ patch, sha })),
     createWorldline: () => {
       throw new Error('ProjectionHandle is not used by DraftTimelineRuntime tests');
     },

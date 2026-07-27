@@ -59,6 +59,7 @@ export type StrandDescriptor = {
     frontier: Record<string, string>;
     frontierDigest: string;
     lamportCeiling: number | null;
+    checkpointSha?: string | null;
   };
   overlay: {
     overlayId: string;
@@ -95,6 +96,12 @@ export type StrandCreateOptions = {
    * captures the live frontier.
    */
   baseFrontier?: ReadonlyMap<string, string>;
+  /**
+   * Internal composition seam paired with `baseFrontier`. Runtime-created
+   * strands persist the bounded checkpoint so a later Runtime can reopen the
+   * same coordinate without recapturing live state.
+   */
+  baseCheckpointSha?: string;
 };
 
 export type StrandBraidOptions = {

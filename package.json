@@ -20,7 +20,6 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "warp-graph": "./dist/bin/warp-graph.js",
     "git-warp": "./bin/git-warp",
     "git-warp-v18-to-v19": "./dist/scripts/v18-to-v19/migrate.js"
   },
@@ -73,6 +72,8 @@
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.publish.json",
+    "generate:capabilities": "node scripts/GenerateV19CapabilityContract.ts",
+    "check:capabilities": "node scripts/GenerateV19CapabilityContract.ts --check",
     "generate:sdk-fixture": "node scripts/generated-sdk/GenerateUsersSdkFixture.ts",
     "check:sdk-fixture": "node scripts/generated-sdk/GenerateUsersSdkFixture.ts --check",
     "lint": "sh -c 'eslint . \"$@\" && npm run lint:test-law && npm run lint:source-size && npm run lint:cas-invariants' --",

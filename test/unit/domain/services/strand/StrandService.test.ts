@@ -687,6 +687,7 @@ describe('StrandService', () => {
       expect(descriptor.graphName).toBe('test-graph');
       expect(descriptor.baseObservation.coordinateVersion).toBe(STRAND_COORDINATE_VERSION);
       expect(descriptor.baseObservation.frontier).toEqual({ writer1: 'tip-sha-1' });
+      expect(descriptor.baseObservation.checkpointSha).toBeNull();
       expect(descriptor.overlay.overlayId).toBe('alpha');
       expect(descriptor.overlay.kind).toBe(STRAND_OVERLAY_KIND);
       expect(descriptor.overlay.headPatchSha).toBeNull();
@@ -703,6 +704,7 @@ describe('StrandService', () => {
 
       const descriptor = await service.create({
         strandId: 'captured',
+        baseCheckpointSha: 'checkpoint-captured',
         baseFrontier,
       });
       baseFrontier.set('writer-c', 'too-late');
@@ -711,6 +713,8 @@ describe('StrandService', () => {
         'writer-a': 'captured-a',
         'writer-b': 'captured-b',
       });
+      expect(descriptor.baseObservation.checkpointSha)
+        .toBe('checkpoint-captured');
     });
 
     it('rejects malformed explicit parent frontiers with a stable error', async () => {

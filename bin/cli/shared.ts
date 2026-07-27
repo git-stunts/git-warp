@@ -1,8 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import readline from 'node:readline';
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
@@ -15,9 +13,8 @@ import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProvi
 import type TrustChainPort from '../../src/ports/TrustChainPort.ts';
 import type CryptoPort from '../../src/ports/CryptoPort.ts';
 import type HookPathPort from '../../src/ports/HookPathPort.ts';
-import type SeekCursorStorePort from '../../src/ports/SeekCursorStorePort.ts';
 
-import type { Persistence, WarpGraphInstance, CursorBlob, CliOptions } from './types.ts';
+import type { Persistence, WarpGraphInstance, CliOptions } from './types.ts';
 
 export type CliStorageBinding = {
   readonly persistence: Persistence;
@@ -101,30 +98,30 @@ export async function listGraphNames(persistence: Persistence): Promise<string[]
 /**
  * Resolves the graph name from an explicit flag or auto-detects a single graph.
  */
-export async function resolveGraphName(persistence: Persistence, explicitGraph: string | null): Promise<string> {
-  if (typeof explicitGraph === 'string' && explicitGraph.length > 0) {
-    return explicitGraph;
+export async function resolveGraphName(persistence: Persistence, explicitLane: string | null): Promise<string> {
+  if (typeof explicitLane === 'string' && explicitLane.length > 0) {
+    return explicitLane;
   }
   const graphNames = await listGraphNames(persistence);
   if (graphNames.length === 1) {
     return graphNames[0] as string;
   }
   if (graphNames.length === 0) {
-    throw notFoundError('No graphs found in repo; specify --graph');
+    throw notFoundError('No Lanes found in repo; specify --lane');
   }
-  throw usageError('Multiple graphs found; specify --graph');
+  throw usageError('Multiple Lanes found; specify --lane');
 }
 
 /**
- * Opens a WarpCore for the given CLI options.
+ * Opens the substrate diagnostic host for the selected Lane.
  */
-export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence; runtimeStorage: RuntimeStorageProviderPort; cursorStore: SeekCursorStorePort; hookPaths: HookPathPort }> {
-  const { persistence, runtimeStorage, hookPaths } = await createPersistence(options.repo);
-  const graphName = await resolveGraphName(persistence, options.graph);
-  if (typeof options.graph === 'string' && options.graph.length > 0) {
+export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance }> {
+  const { persistence, runtimeStorage } = await createPersistence(options.repo);
+  const graphName = await resolveGraphName(persistence, options.lane);
+  if (typeof options.lane === 'string' && options.lane.length > 0) {
     const graphNames = await listGraphNames(persistence);
-    if (!graphNames.includes(options.graph)) {
-      throw notFoundError(`Graph not found: ${options.graph}`);
+    if (!graphNames.includes(options.lane)) {
+      throw notFoundError(`Lane not found: ${options.lane}`);
     }
   }
   const graph = await openRuntimeHostProduct({
@@ -134,68 +131,7 @@ export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraph
     writerId: options.writer,
     crypto: new WebCryptoAdapter(),
   });
-  const cursorStore = await createSeekCursorStore(runtimeStorage, graphName);
-  return { graph, graphName, persistence, runtimeStorage, cursorStore, hookPaths };
-}
-
-/** Opens the graph-scoped durable cursor store required by v19 CLI commands. */
-export async function createSeekCursorStore(
-  runtimeStorage: RuntimeStorageProviderPort,
-  graphName: string,
-): Promise<SeekCursorStorePort> {
-  if (runtimeStorage.createSeekCursorStore === undefined) {
-    throw usageError('Runtime storage does not provide durable seek cursor retention');
-  }
-  return await runtimeStorage.createSeekCursorStore(graphName);
-}
-
-/**
- * Reads the active cursor and sets `_seekCeiling` on the graph instance
- * so that subsequent materialize calls respect the time-travel boundary.
- */
-export async function applyCursorCeiling(graph: WarpGraphInstance, cursorStore: SeekCursorStorePort): Promise<{ active: boolean; tick: number | null; maxTick: number | null }> {
-  const cursor = await readActiveCursor(cursorStore);
-  if (cursor) {
-    graph._seekCeiling = cursor.tick;
-    return { active: true, tick: cursor.tick, maxTick: null };
-  }
-  return { active: false, tick: null, maxTick: null };
-}
-
-/**
- * Prints a seek cursor warning banner to stderr when a cursor is active.
- */
-export function emitCursorWarning(cursorInfo: { active: boolean; tick: number | null; maxTick: number | null }, maxTick: number | null): void {
-  if (cursorInfo.active) {
-    const tickLabel = cursorInfo.tick !== null ? String(cursorInfo.tick) : 'not set';
-    const maxLabel = maxTick !== null && maxTick !== undefined ? ` of ${maxTick}` : '';
-    process.stderr.write(`\u26A0 seek active (tick ${tickLabel}${maxLabel}) \u2014 run "git warp seek --latest" to return to present\n`);
-  }
-}
-
-/**
- * Reads the active seek cursor from git-cas retention.
- */
-export async function readActiveCursor(cursorStore: SeekCursorStorePort): Promise<CursorBlob | null> {
-  return await cursorStore.readActive();
-}
-
-/**
- * Writes (creates or replaces) the active seek cursor in git-cas retention.
- */
-export async function writeActiveCursor(cursorStore: SeekCursorStorePort, cursor: CursorBlob): Promise<void> {
-  await cursorStore.writeActive(cursor);
-}
-
-/**
- * Reads the commit date from a checkpoint SHA, if available.
- */
-export async function readCheckpointDate(persistence: Persistence, checkpointSha: string | null): Promise<string | null> {
-  if (typeof checkpointSha !== 'string' || checkpointSha.length === 0) {
-    return null;
-  }
-  const info = await persistence.getNodeInfo(checkpointSha);
-  return (typeof info.date === 'string' && info.date.length > 0) ? info.date : null;
+  return { graph };
 }
 
 /**
@@ -237,29 +173,6 @@ function findPackageRoot(startDir: string): string {
     }
     current = parent;
   }
-}
-
-/**
- * Check whether stderr is a TTY (interactive terminal).
- */
-export function isInteractive(): boolean {
-  return Boolean(process.stderr.isTTY);
-}
-
-/**
- * Prompts the user for input via stderr and returns the trimmed response.
- */
-export function promptUser(question: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stderr,
-  });
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
 }
 
 /**

@@ -112,7 +112,7 @@ function buildInstalledHookFinding(s: { version?: string; current?: boolean }): 
     return {
       id: 'hooks-installed', status: 'warn', code: CODES.HOOKS_OUTDATED,
       impact: 'hygiene', message: `Hook is outdated (${versionLabel})`,
-      fix: 'Run `git warp install-hooks` to upgrade',
+      fix: 'Restore the current packaged post-merge hook',
       evidence: { version: s.version ?? null },
     };
   }
@@ -128,12 +128,12 @@ function buildUninstalledHookFinding(isForeign: boolean): DoctorFinding {
     return {
       id: 'hooks-installed', status: 'warn', code: CODES.HOOKS_MISSING,
       impact: 'hygiene', message: 'Foreign hook present; warp hook not installed',
-      fix: 'Run `git warp install-hooks` (use --force to replace existing hook)',
+      fix: 'Replace the existing hook with the current packaged post-merge hook',
     };
   }
   return {
     id: 'hooks-installed', status: 'warn', code: CODES.HOOKS_MISSING,
     impact: 'hygiene', message: 'Post-merge hook is not installed',
-    fix: 'Run `git warp install-hooks`',
+    fix: 'Install the current packaged post-merge hook',
   };
 }

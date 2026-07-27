@@ -29,6 +29,7 @@ describe('Runtime', () => {
   const openTimeline = vi.fn();
   const warp = Object.freeze({ timeline: openTimeline, writer: 'agent-1' });
   const forkLane = vi.fn();
+  const openStrandLane = vi.fn();
   let lane: Lane;
   let runtimeOwner: object;
 
@@ -39,6 +40,7 @@ describe('Runtime', () => {
     mocks.openStorage.mockResolvedValue(storage);
     mocks.openWarp.mockResolvedValue(warp);
     forkLane.mockReset();
+    openStrandLane.mockReset();
     mocks.createWorldlineLane.mockImplementation((_timeline, _activity, options: {
       readonly owner: object;
     }) => {
@@ -46,6 +48,7 @@ describe('Runtime', () => {
       lane = createBoundLane({
         descriptor: { kind: 'worldline', name: 'events' },
         fork: forkLane,
+        openStrand: openStrandLane,
         owner: options.owner,
       });
       return lane;
@@ -115,6 +118,7 @@ describe('Runtime', () => {
         forkedAt: { id: 'tick:1', lane: source.reference },
       },
       fork: null,
+      openStrand: null,
       owner: runtimeOwner,
     });
     forkLane.mockResolvedValue(strand);
@@ -129,10 +133,39 @@ describe('Runtime', () => {
     const foreign = createBoundLane({
       descriptor: { kind: 'worldline', name: 'foreign' },
       fork: vi.fn(),
+      openStrand: vi.fn(),
       owner: {},
     });
     await expect(runtime.fork(foreign, { name: 'foreign-draft' }))
       .rejects.toMatchObject({ code: 'E_RUNTIME_FORK_FOREIGN_LANE' });
+  });
+
+  it('opens persisted strands only under an owned worldline Lane', async () => {
+    const runtime = await Runtime.open({ at: '/repo', writer: 'agent-1' });
+    const parent = await runtime.lane('events');
+    const strand = createBoundLane({
+      descriptor: {
+        kind: 'strand',
+        name: 'try-admin',
+        parent: parent.reference,
+        forkedAt: { id: 'tick:1', lane: parent.reference },
+      },
+      fork: null,
+      openStrand: null,
+      owner: runtimeOwner,
+    });
+    openStrandLane.mockResolvedValue(strand);
+
+    await expect(runtime.strand(parent, { name: 'try-admin' }))
+      .resolves.toBe(strand);
+    expect(openStrandLane).toHaveBeenCalledWith('try-admin');
+    await expect(runtime.strand(strand, { name: 'nested' }))
+      .rejects.toMatchObject({ code: 'E_RUNTIME_STRAND_PARENT_KIND' });
+    await expect(runtime.strand(parent, { name: '' }))
+      .rejects.toMatchObject({
+        code: 'E_RUNTIME_STRAND_IDENTITY',
+        context: { field: 'strand.name' },
+      });
   });
 
   it('validates fork arguments and rejects fork work after close', async () => {
@@ -189,6 +222,7 @@ describe('Runtime', () => {
 function createBoundLane(options: {
   readonly descriptor: LaneDescriptor;
   readonly fork: ((name: string) => Promise<Lane>) | null;
+  readonly openStrand?: ((name: string) => Promise<Lane>) | null;
   readonly owner: object;
 }): Lane {
   const lane = new Lane({
@@ -206,6 +240,7 @@ function createBoundLane(options: {
       throw new Error('not exercised');
     },
     fork: options.fork,
+    openStrand: options.openStrand ?? null,
     owner: options.owner,
     settlement: Object.freeze({ kind: 'target' }),
   });

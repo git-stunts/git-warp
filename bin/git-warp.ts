@@ -1,0 +1,224 @@
+#!/usr/bin/env node
+
+import process from 'node:process';
+import { installDefaultRuntimeHostNodePorts } from '../src/application/RuntimeHostNodeDefaults.ts';
+import { EXIT_CODES, HELP_TEXT, CliError, parseArgs, usageError } from './cli/infrastructure.ts';
+import { stableStringify, compactStringify } from './presenters/json.ts';
+import { COMMANDS } from './cli/commands/registry.ts';
+import { closeCliStorages } from './cli/shared.ts';
+import { closeCommandResources } from './cli/lifecycle.ts';
+
+installDefaultRuntimeHostNodePorts();
+
+// Output format must be captured from raw process.argv before parseArgs() runs.
+// If parseArgs() itself throws (e.g., unknown flag, malformed input), the `options`
+// object will not exist, so the error handler cannot read `options.json`. By
+// pre-scanning argv, the error handler can still emit structured output.
+const hasJsonFlag = process.argv.includes('--json');
+const hasJsonlFlag = process.argv.includes('--jsonl');
+
+interface NormalizedCommandResult {
+  readonly payload: unknown;
+  readonly human: string | undefined;
+  readonly lines: readonly unknown[] | undefined;
+  readonly exitCode: number;
+}
+
+/** Runtime guard: does this value carry a `payload` field? */
+function hasPayload(value: unknown): value is {
+  payload: unknown;
+  human?: string;
+  lines?: readonly unknown[];
+  exitCode?: number;
+} {
+  return typeof value === 'object' && value !== null && 'payload' in value;
+}
+
+/** Runtime guard: does this value carry an async `close` function? */
+function hasCloseFn(value: unknown): value is {
+  close: () => Promise<void>;
+  completion?: Promise<void>;
+} {
+  if (typeof value !== 'object' || value === null) { return false; }
+  const rec = value as Record<string, unknown>;
+  return typeof rec['close'] === 'function';
+}
+
+function hasCompletion(value: { readonly completion?: Promise<void> }): value is {
+  readonly completion: Promise<void>;
+} {
+  return value.completion !== undefined
+    && typeof value.completion.then === 'function';
+}
+
+/** Normalizes any handler return shape into { payload, exitCode }. */
+function normalizeResult(result: unknown): NormalizedCommandResult {
+  if (hasPayload(result)) {
+    return {
+      payload: result.payload,
+      human: typeof result.human === 'string' ? result.human : undefined,
+      lines: Array.isArray(result.lines) ? result.lines : undefined,
+      exitCode: typeof result.exitCode === 'number' ? result.exitCode : EXIT_CODES.OK,
+    };
+  }
+  return {
+    payload: result,
+    human: undefined,
+    lines: undefined,
+    exitCode: EXIT_CODES.OK,
+  };
+}
+
+type ParsedInvocation = ReturnType<typeof parseArgs>;
+
+/** Short-circuit the various early-exit conditions (help, removed
+ *  flags, mutual exclusion, empty command). Returns true iff the
+ *  caller should stop. */
+function handleEarlyExits(parsed: ParsedInvocation): boolean {
+  const { options, command } = parsed;
+  if (options.help) {
+    process.stdout.write(HELP_TEXT);
+    process.exitCode = EXIT_CODES.OK;
+    return true;
+  }
+  if (options.json && options.jsonl) {
+    throw usageError('--json and --jsonl are mutually exclusive');
+  }
+  if (command === undefined || command === '') {
+    process.stderr.write(HELP_TEXT);
+    process.exitCode = EXIT_CODES.USAGE;
+    return true;
+  }
+  return false;
+}
+
+/** Registers SIGINT/SIGTERM handlers that shut down a long-running
+ *  command gracefully. */
+function installShutdownHandlers(close: () => Promise<void>): () => Promise<void> {
+  let shutdownPromise: Promise<void> | null = null;
+  const shutdown = (): Promise<void> => {
+    shutdownPromise ??= closeCommandResources(close, closeCliStorages);
+    return shutdownPromise;
+  };
+  const exitAfterShutdown = (): void => {
+    void shutdown().then(
+      () => process.exit(EXIT_CODES.OK),
+      () => process.exit(EXIT_CODES.INTERNAL),
+    );
+  };
+  process.once('SIGINT', exitAfterShutdown);
+  process.once('SIGTERM', exitAfterShutdown);
+  return shutdown;
+}
+
+async function finishCompletedCommand(
+  completion: Promise<void>,
+  shutdown: () => Promise<void>,
+): Promise<void> {
+  const [operation] = await Promise.allSettled([completion]);
+  const [cleanup] = await Promise.allSettled([shutdown()]);
+  if (operation.status === 'rejected' && cleanup.status === 'rejected') {
+    throw new AggregateError(
+      [operation.reason, cleanup.reason],
+      'CLI command completion and shutdown both failed',
+    );
+  }
+  if (operation.status === 'rejected') {
+    throw operation.reason;
+  }
+  if (cleanup.status === 'rejected') {
+    throw cleanup.reason;
+  }
+}
+
+/** Writes canonical machine output or the shared human rendering. */
+function emitResult(
+  result: NormalizedCommandResult,
+  options: ParsedInvocation['options'],
+): void {
+  if (options.jsonl) {
+    const lines = result.lines ?? (
+      result.payload === undefined ? [] : [result.payload]
+    );
+    for (const line of lines) {
+      process.stdout.write(`${compactStringify(line)}\n`);
+    }
+    return;
+  }
+  if (options.json) {
+    if (result.payload !== undefined) {
+      process.stdout.write(`${stableStringify(result.payload)}\n`);
+    }
+    return;
+  }
+  if (result.human !== undefined) {
+    process.stdout.write(`${result.human}\n`);
+    return;
+  }
+  if (result.payload !== undefined) {
+    process.stdout.write(`${stableStringify(result.payload)}\n`);
+  }
+}
+
+/**
+ * CLI entry point. Parses arguments, dispatches to the appropriate command handler,
+ * and emits the result to stdout (JSON or human-readable).
+ */
+async function main(): Promise<void> {
+  const parsed = parseArgs(process.argv.slice(2));
+  if (handleEarlyExits(parsed)) { return; }
+
+  const { options, command, commandArgs } = parsed;
+  // handleEarlyExits already returned for empty/undefined commands.
+  // Re-narrow here for the compiler since early-exit propagation
+  // doesn't survive the function boundary.
+  if (command === undefined || command === '') { return; }
+
+  const handler = COMMANDS.get(command);
+  if (!handler) {
+    throw usageError(`Unknown command: ${command}`);
+  }
+
+  const result = await handler({ args: commandArgs, options });
+  const normalized = normalizeResult(result);
+  emitResult(normalized, options);
+
+  // Long-running commands may return a `close` function.
+  // Wait for normal completion or SIGINT/SIGTERM instead of exiting immediately.
+  if (hasCloseFn(result)) {
+    const shutdown = installShutdownHandlers(result.close);
+    if (hasCompletion(result)) {
+      await finishCompletedCommand(result.completion, shutdown);
+      process.exit(normalized.exitCode);
+    }
+    return;
+  }
+
+  await closeCliStorages();
+  process.exit(normalized.exitCode);
+}
+
+main().catch(async (caught: unknown) => {
+  let error = caught;
+  try {
+    await closeCliStorages();
+  } catch (closeError) {
+    error = new AggregateError([caught, closeError], 'CLI command and storage cleanup failed');
+  }
+  const exitCode = error instanceof CliError ? error.exitCode : EXIT_CODES.INTERNAL;
+  const code = error instanceof CliError ? error.code : 'E_INTERNAL';
+  const message = error instanceof Error ? error.message : 'Unknown error';
+  const payload: { error: { code: string; message: string; cause?: unknown } } = { error: { code, message } };
+
+  if (error instanceof Error && error.cause !== undefined) {
+    payload.error.cause = error.cause instanceof Error ? error.cause.message : error.cause;
+  }
+
+  if (hasJsonFlag || hasJsonlFlag) {
+    const stringify = hasJsonlFlag ? compactStringify : stableStringify;
+    process.stdout.write(`${stringify(payload)}\n`);
+  } else {
+    process.stderr.write(`Error: ${payload.error.message}\n`);
+  }
+  process.exit(exitCode);
+});

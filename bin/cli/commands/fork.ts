@@ -1,58 +1,67 @@
 import { z } from 'zod';
 
-import { EXIT_CODES, parseCommandArgs } from '../infrastructure.ts';
-import { openGraph } from '../shared.ts';
+import { parseCommandArgs } from '../infrastructure.ts';
 import type { CliOptions } from '../types.ts';
+import { openRequiredLane, withRuntime } from '../v19/V19Runtime.ts';
+import type Runtime from '../../../src/application/Runtime.ts';
+import type Lane from '../../../src/domain/api/Lane.ts';
+import type { McpJsonValue } from './mcp/McpJsonValue.ts';
 
 const FORK_OPTIONS = {
-  from: { type: 'string' },
-  at: { type: 'string' },
-  'fork-name': { type: 'string' },
-  'fork-writer': { type: 'string' },
+  name: { type: 'string' },
 };
 
-const forkSchema = z.object({
-  from: z.string().min(1, 'Missing value for --from'),
-  at: z.string().min(1, 'Missing value for --at'),
-  'fork-name': z.string().min(1, 'Missing value for --fork-name').optional(),
-  'fork-writer': z.string().min(1, 'Missing value for --fork-writer').optional(),
-}).strict().transform((val) => ({
-  from: val.from,
-  at: val.at,
-  forkName: val['fork-name'] ?? null,
-  forkWriter: val['fork-writer'] ?? null,
-}));
+const FORK_SCHEMA = z.object({
+  name: z.string().min(1),
+});
 
-type ForkPayload = {
-  graph: string;
-  forkGraph: string;
-  forkWriter: string;
-  from: string;
-  at: string;
-  status: 'created';
-};
+export default async function handleFork({
+  options,
+  args,
+}: {
+  readonly options: CliOptions;
+  readonly args: string[];
+}): Promise<{
+  readonly payload: McpJsonValue;
+  readonly human: string;
+}> {
+  const { values } = parseCommandArgs(
+    args,
+    FORK_OPTIONS,
+    FORK_SCHEMA,
+  );
+  return await withRuntime(
+    options,
+    async (runtime) =>
+      await forkLane(runtime, options.lane, values.name),
+  );
+}
 
-export default async function handleFork(
-  { options, args }: { options: CliOptions; args: string[] },
-): Promise<{ payload: ForkPayload; exitCode: number }> {
-  const { values } = parseCommandArgs(args, FORK_OPTIONS, forkSchema);
-  const { graph, graphName } = await openGraph(options);
-  const forked = await graph.fork({
-    from: values.from,
-    at: values.at,
-    ...(values.forkName !== null ? { forkName: values.forkName } : {}),
-    ...(values.forkWriter !== null ? { forkWriterId: values.forkWriter } : {}),
+async function forkLane(
+  runtime: Runtime,
+  laneName: string | null,
+  forkName: string,
+) {
+  const source = await openRequiredLane(runtime, laneName);
+  const fork = await runtime.fork(source, { name: forkName });
+  return forkResult(source, fork);
+}
+
+function forkResult(source: Lane, fork: Lane) {
+  const payload: McpJsonValue = Object.freeze({
+    type: 'Lane',
+    kind: fork.kind,
+    name: fork.name,
+    writer: fork.writer,
+    source: source.reference,
   });
-
   return {
-    payload: {
-      graph: graphName,
-      forkGraph: forked.graphName,
-      forkWriter: forked.writerId,
-      from: values.from,
-      at: values.at,
-      status: 'created',
-    },
-    exitCode: EXIT_CODES.OK,
+    payload,
+    human: [
+      `Lane: ${fork.name}`,
+      `kind: ${fork.kind}`,
+      `source: ${source.name}`,
+      `writer: ${fork.writer}`,
+    ].join('\n'),
   };
 }

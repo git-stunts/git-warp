@@ -187,6 +187,7 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   _readCheckpointSha(): Promise<string | null>;
   _loadPatchChainFromSha(tipSha: string, stopAtSha?: string | null): Promise<RuntimeHostPatchEntry[]>;
   _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<RuntimeHostPatchEntry[]>;
+  getStrandOverlayPatches(strandId: string): Promise<RuntimeHostPatchEntry[]>;
   _ensureFreshState(): Promise<void>;
   _maybeRunGC(state: WarpState): void;
   _isAncestor(ancestorSha: string, descendantSha: string): Promise<boolean>;

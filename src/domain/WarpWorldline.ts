@@ -23,6 +23,11 @@ import type { IntentAdmissionReceipt } from './admission/IntentAdmissionReceipt.
 import type { WarpIntentDescriptor } from './types/WarpIntentDescriptor.ts';
 import type { PatchCommitResult } from './types/PatchCommitResult.ts';
 import type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
+import type Patch from './types/Patch.ts';
+import {
+  createWorldlineDraft,
+  openWorldlineDraftCoordinate,
+} from './WarpWorldlineDraftStorage.ts';
 
 export type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
 
@@ -41,6 +46,14 @@ type CreateDraft = (
   name: string,
   coordinate?: WarpWorldlineCoordinate,
 ) => Promise<void>;
+type OpenDraftCoordinate = (name: string) => Promise<WarpWorldlineCoordinate>;
+export type WarpDraftPatchEntry = Readonly<{
+  readonly patch: Patch;
+  readonly sha: string;
+}>;
+type LoadDraftPatchEntries = (
+  name: string,
+) => Promise<readonly WarpDraftPatchEntry[]>;
 type WorldlineOptions = Parameters<ProjectionHandle['seek']>[0];
 type CreateWorldline = (options?: WorldlineOptions) => ProjectionHandle;
 type PatchDraft = (name: string, build: WarpWorldlinePatchBuild) => Promise<string>;
@@ -55,6 +68,8 @@ type PrepareForkOpticBasis = () => Promise<WarpWorldlineOpticBasis>;
 type DraftWorldlineOptions = Pick<
   WarpWorldlineConstructionOptions,
   | 'createDraft'
+  | 'openDraftCoordinate'
+  | 'loadDraftPatchEntries'
   | 'patchDraft'
   | 'patchDraftWithEvidence'
   | 'prepareStrandOptic'
@@ -75,6 +90,8 @@ type WarpWorldlineConstructionOptions = {
   readonly commitPatch: CommitPatch;
   readonly commitPatchWithEvidence?: CommitPatchWithEvidence;
   readonly createDraft?: CreateDraft;
+  readonly openDraftCoordinate?: OpenDraftCoordinate;
+  readonly loadDraftPatchEntries?: LoadDraftPatchEntries;
   readonly createWorldline: CreateWorldline;
   readonly patchDraft?: PatchDraft;
   readonly patchDraftWithEvidence?: PatchDraftWithEvidence;
@@ -95,6 +112,8 @@ export default class WarpWorldline {
   private readonly _commitPatchWithEvidence: CommitPatchWithEvidence | null;
   private readonly _createDraft: CreateDraft | null;
   private readonly _createWorldline: CreateWorldline;
+  private readonly _openDraftCoordinate: OpenDraftCoordinate | null;
+  private readonly _loadDraftPatchEntries: LoadDraftPatchEntries | null;
   private readonly _patchDraft: PatchDraft | null;
   private readonly _patchDraftWithEvidence: PatchDraftWithEvidence | null;
   private readonly _previewDraftJoin: PreviewDraftJoin | null;
@@ -115,6 +134,8 @@ export default class WarpWorldline {
     this._commitPatchWithEvidence = optionalPort(options.commitPatchWithEvidence);
     this._createDraft = optionalPort(options.createDraft);
     this._createWorldline = options.createWorldline;
+    this._openDraftCoordinate = optionalPort(options.openDraftCoordinate);
+    this._loadDraftPatchEntries = optionalPort(options.loadDraftPatchEntries);
     this._patchDraft = optionalPort(options.patchDraft);
     this._patchDraftWithEvidence = optionalPort(options.patchDraftWithEvidence);
     this._previewDraftJoin = optionalPort(options.previewDraftJoin);
@@ -154,6 +175,28 @@ export default class WarpWorldline {
       throw new WarpError('WarpWorldline was not opened with draft support', 'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE');
     }
     await this._createDraft(name, coordinate);
+  }
+
+  async openDraftCoordinate(name: string): Promise<WarpWorldlineCoordinate> {
+    if (this._openDraftCoordinate === null) {
+      throw new WarpError(
+        'WarpWorldline was not opened with persisted draft coordinate support',
+        'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE',
+      );
+    }
+    return await this._openDraftCoordinate(name);
+  }
+
+  async loadDraftPatchEntries(
+    name: string,
+  ): Promise<readonly WarpDraftPatchEntry[]> {
+    if (this._loadDraftPatchEntries === null) {
+      throw new WarpError(
+        'WarpWorldline was not opened with persisted draft patch support',
+        'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE',
+      );
+    }
+    return await this._loadDraftPatchEntries(name);
   }
 
   async patchDraft(name: string, build: WarpWorldlinePatchBuild): Promise<string> {
@@ -346,7 +389,11 @@ async function prepareForkOpticBasis(
 function draftWorldlineOptions(graph: RuntimeGraph): DraftWorldlineOptions {
   return {
     createDraft: async (name, coordinate) =>
-      await createDraft(graph, name, coordinate),
+      await createWorldlineDraft(graph, name, coordinate),
+    openDraftCoordinate: async (name) =>
+      await openWorldlineDraftCoordinate(graph, name),
+    loadDraftPatchEntries: async (name) =>
+      await graph.getStrandOverlayPatches(name),
     patchDraft: async (name, build) => await graph.patchStrand(name, build),
     patchDraftWithEvidence: async (name, build) =>
       await graph.patchStrandWithEvidence(name, build),
@@ -354,18 +401,6 @@ function draftWorldlineOptions(graph: RuntimeGraph): DraftWorldlineOptions {
     prepareStrandOptic: async (name, checkpointSha) =>
       await prepareStrandOpticBasis(graph, name, checkpointSha),
   };
-}
-
-async function createDraft(
-  graph: RuntimeGraph,
-  name: string,
-  coordinate: WarpWorldlineCoordinate | undefined,
-): Promise<void> {
-  await graph.createStrand({
-    strandId: name,
-    owner: graph.writerId,
-    ...(coordinate === undefined ? {} : { baseFrontier: coordinate.frontier() }),
-  });
 }
 
 async function previewDraftJoin(

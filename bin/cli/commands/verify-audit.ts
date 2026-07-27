@@ -49,7 +49,7 @@ export function parseVerifyAuditArgs(args: string[]): { since: string | undefine
 export default async function handleVerifyAudit({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const { since, writerFilter, trustMode, trustPin } = parseVerifyAuditArgs(args);
   const { persistence, runtimeStorage } = await createPersistence(options.repo);
-  const graphName = await resolveGraphName(persistence, options.graph);
+  const graphName = await resolveGraphName(persistence, options.lane);
   const storage = await runtimeStorage.createRuntimeStorageServices({
     timelineName: graphName,
     codec: defaultCodec,

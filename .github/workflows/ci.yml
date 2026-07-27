@@ -124,6 +124,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: 'Gate 5a: v19 capability contract drift'
+        run: npm run check:capabilities
       - name: 'Gate 5b: Install pinned Wesley generator'
         run: >-
           cargo install

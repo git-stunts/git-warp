@@ -47,10 +47,12 @@ git init --quiet runtime-repo
   --project tsconfig.json \
   --typeRoots "$ROOT/node_modules/@types"
 node dist/consumer-write.js
-npx --no-install warp-graph \
+npx --no-install git-warp \
   --repo "$CONSUMER_DIR/runtime-repo" \
-  --graph users \
-  checkpoint create \
+  repair \
+  --lane users \
+  --writer generated-sdk-smoke \
+  --action materialization \
   >/dev/null
 node dist/consumer-read.js
 

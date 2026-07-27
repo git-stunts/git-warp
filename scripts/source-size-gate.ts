@@ -34,8 +34,6 @@ const SCAN_ROOTS = Object.freeze([
 
 export const SOURCE_SIZE_RELAXATIONS = Object.freeze([
   'bin/cli/commands/doctor/checks.ts',
-  'bin/cli/commands/seek.ts',
-  'bin/cli/infrastructure.ts',
   'scripts/check-dts-surface.ts',
   'scripts/contamination-map.ts',
   'scripts/dead-export-report.ts',

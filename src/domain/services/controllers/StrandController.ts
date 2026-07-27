@@ -19,6 +19,7 @@ import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchBuilder } from '../PatchBuilder.ts';
 import type Patch from '../../types/Patch.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
+import type { StrandCreateOptions } from '../../types/StrandDescriptor.ts';
 
 export type StrandHost = StrandCoordinatorGraphRuntime & {
   _loadWriterPatches(writerId: string): Promise<Array<{ patch: Patch; sha: string }>>;
@@ -35,7 +36,7 @@ export default class StrandController {
 
   // ── Strand lifecycle ────────────────────────────────────────────────────
 
-  async createStrand(options?: { strandId?: string; lamportCeiling?: number | null; owner?: string | null; scope?: string | null; leaseExpiresAt?: string | null; baseFrontier?: ReadonlyMap<string, string> }): Promise<StrandDescriptor> {
+  async createStrand(options?: StrandCreateOptions): Promise<StrandDescriptor> {
     return await this._strandService.create(options);
   }
 
@@ -71,6 +72,10 @@ export default class StrandController {
 
   async getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {
     return await this._strandService.getPatchEntries(strandId, options) as Array<{ patch: Patch; sha: string }>;
+  }
+
+  async getStrandOverlayPatches(strandId: string): Promise<Array<{ patch: Patch; sha: string }>> {
+    return await this._strandService.getOverlayPatchEntries(strandId);
   }
 
   async patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]> {

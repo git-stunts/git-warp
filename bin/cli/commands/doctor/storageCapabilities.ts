@@ -11,13 +11,8 @@ import { createPersistence, resolveGraphName } from '../../shared.ts';
 import type { CliOptions, Persistence } from '../../types.ts';
 import type {
   DoctorContext,
-  DoctorFinding,
   DoctorPolicy,
 } from './types.ts';
-import {
-  materializationCacheRepairFailureFinding,
-  materializationCacheRepairFinding,
-} from './checksMaterializationCache.ts';
 
 export type DoctorStorageCapabilities = Readonly<{
   stateCache: WarpStateCachePort | null;
@@ -29,7 +24,7 @@ export async function createDoctorContext(
   policy: DoctorPolicy,
 ): Promise<DoctorContext> {
   const { persistence, runtimeStorage, hookPaths } = await createPersistence(options.repo);
-  const graphName = await resolveGraphName(persistence, options.graph);
+  const graphName = await resolveGraphName(persistence, options.lane);
   const storage = await resolveStorageCapabilities(runtimeStorage, graphName);
   return {
     persistence,
@@ -57,18 +52,6 @@ export async function resolveStorageCapabilities(
     stateCache: services.stateSnapshots ?? null,
     materializationCacheDiagnostics: services.materializationCacheDiagnostics ?? null,
   });
-}
-
-export async function repairMaterializationCache(
-  requested: boolean,
-  diagnostics: MaterializationCacheDiagnosticsPort | null,
-): Promise<DoctorFinding | null> {
-  if (!requested || diagnostics === null) { return null; }
-  try {
-    return materializationCacheRepairFinding(await diagnostics.repairCache());
-  } catch (error) {
-    return materializationCacheRepairFailureFinding(error);
-  }
 }
 
 async function collectWriterHeads(

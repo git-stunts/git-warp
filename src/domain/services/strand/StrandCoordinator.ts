@@ -39,6 +39,7 @@ import type { PatchBuilder } from '../PatchBuilder.ts';
 import type { StrandDescriptor } from './strandTypes.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
+import type { StrandCreateOptions } from '../../types/StrandDescriptor.ts';
 
 // Re-export constants that were on StrandService
 export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND };
@@ -116,6 +117,7 @@ function buildStrandDescriptor({
       frontier: frontierRecord,
       frontierDigest,
       lamportCeiling: normalized.lamportCeiling,
+      checkpointSha: normalized.baseCheckpointSha,
     },
     overlay: {
       overlayId: normalized.strandId,
@@ -181,7 +183,7 @@ export default class StrandCoordinator {
 
   // ── Lifecycle (owns the logic) ──────────────────────────────────
 
-  async create(options: { strandId?: string; lamportCeiling?: number | null; owner?: string | null; scope?: string | null; leaseExpiresAt?: string | null; baseFrontier?: ReadonlyMap<string, string> } = {}): Promise<StrandDescriptor> {
+  async create(options: StrandCreateOptions = {}): Promise<StrandDescriptor> {
     const normalized = normalizeCreateOptions(options);
     await this._assertStrandDoesNotExist(normalized.strandId);
 
@@ -348,6 +350,11 @@ export default class StrandCoordinator {
       ceiling,
       parentBasis: this._readParentBasisFor(descriptor),
     });
+  }
+
+  async getOverlayPatchEntries(strandId: string): Promise<StrandPatchEntry[]> {
+    const descriptor = await this.getOrThrow(strandId);
+    return await this._deps.materializer.collectOverlayPatches(descriptor);
   }
 
   async patchesFor(strandId: string, entityId: string, options: { ceiling?: number | null } = {}): Promise<string[]> {

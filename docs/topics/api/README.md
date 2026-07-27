@@ -145,6 +145,18 @@ const events = await runtime.lane('events');
 const draft = await runtime.fork(events, { name: 'try-admin-role' });
 ```
 
+A later Runtime reopens that persisted child under its parent rather than
+creating a lookalike strand:
+
+```typescript
+const events = await runtime.lane('events');
+const draft = await runtime.strand(events, { name: 'try-admin-role' });
+```
+
+Runtime-created strand descriptors retain the bounded checkpoint and frontier
+needed to reconstruct the original fork coordinate. A generic strand without
+that coordinate is not silently promoted into a Runtime Lane.
+
 ## Intents And Generated SDKs
 
 Application authors should normally use Wesley-generated domain SDKs:
@@ -584,6 +596,20 @@ Each CLI invocation opens and closes local Runtime resources internally. CLI
 help does not teach sessions, Git adapters, OIDs, graph stores, or cache
 management for ordinary operations.
 
+`--lane <name>` selects a worldline Lane. Adding `--strand <name>` selects its
+named child for write and observe operations. Settlement is explicit about all
+three participants:
+
+```text
+git warp settle preview --source <lane> --strand <name> --target <lane>
+git warp settle apply --plan <path>
+```
+
+The preview artifact contains the selector and immutable plan fields. Apply
+reopens the lanes, derives a fresh Runtime-owned plan, compares every reviewed
+field, and settles only that fresh plan. Stale or mismatched artifacts fail
+closed.
+
 Human output defaults to the shared Reading and Receipt renderers. `--json`
 emits one canonical envelope; streaming commands support `--jsonl` without
 renaming transport batches as pages.
@@ -606,6 +632,11 @@ warp_doctor
 warp_repair
 warp_audit
 ```
+
+Lane-oriented MCP inputs likewise use `lane` plus an optional `strand`.
+`warp_settlement_preview` requires `sourceLane`, `sourceStrand`, and
+`targetLane`; `warp_settlement_apply` re-previews the retained record in a new
+Runtime operation before mutation.
 
 Observation tools exchange Observation identities, Readings, terminal state,
 and Receipt references. MCP cursors and batches are transport details. They do

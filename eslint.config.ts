@@ -509,7 +509,7 @@ export default tseslint.config(
       "src/infrastructure/adapters/IndexShardEncodeTransform.ts",
       "src/infrastructure/adapters/gitErrorClassification.ts",
       // CLI
-      "bin/warp-graph.ts",
+      "bin/git-warp.ts",
       "bin/cli/infrastructure.ts",
       "bin/cli/shared.ts",
       "bin/cli/commands/info.ts",

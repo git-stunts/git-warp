@@ -1,35 +1,27 @@
 #!/usr/bin/env bash
-# Shared BATS test helpers for git-warp CLI tests.
 
-# Sets up a fresh temporary git repo and PROJECT_ROOT.
-# Usage: call setup_test_repo in your setup() function.
 setup_test_repo() {
   _BATS_T0=$(date +%s)
-  echo "STARTING TEST: ${BATS_TEST_DESCRIPTION}" >&3
   PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
-  export PROJECT_ROOT
-  export TEST_REPO
   TEST_REPO="$(mktemp -d)"
-  cd "${TEST_REPO}" || return 1
+  CLI=(node "${PROJECT_ROOT}/bin/git-warp.ts" --repo "${TEST_REPO}")
+  export PROJECT_ROOT TEST_REPO
 
-  git init -b main >/dev/null
-  git config user.email "test@test.com"
-  git config user.name "Test"
-  export GIT_AUTHOR_NAME="Test"
-  export GIT_AUTHOR_EMAIL="test@test.com"
-  export GIT_COMMITTER_NAME="Test"
-  export GIT_COMMITTER_EMAIL="test@test.com"
+  git -C "${TEST_REPO}" init -q
+  git -C "${TEST_REPO}" config user.email "test@git-warp.local"
+  git -C "${TEST_REPO}" config user.name "Git Warp Test"
+  export GIT_AUTHOR_NAME="Git Warp Test"
+  export GIT_AUTHOR_EMAIL="test@git-warp.local"
+  export GIT_COMMITTER_NAME="Git Warp Test"
+  export GIT_COMMITTER_EMAIL="test@git-warp.local"
 }
 
-# Removes the temporary repo.
-# Usage: call teardown_test_repo in your teardown() function.
 teardown_test_repo() {
   rm -rf "${TEST_REPO}"
   local elapsed=$(( $(date +%s) - _BATS_T0 ))
   echo "ENDED TEST: ${BATS_TEST_DESCRIPTION} took ${elapsed}s" >&3
 }
 
-# Assert that the last command succeeded (exit code 0).
 assert_success() {
   if [ "$status" -ne 0 ]; then
     echo "FAILED (exit $status):" >&2
@@ -38,56 +30,25 @@ assert_success() {
   [ "$status" -eq 0 ]
 }
 
-# Assert that the last command failed (exit code != 0).
 assert_failure() {
   [ "$status" -ne 0 ]
 }
 
-assert_view_removed() {
-  [ "$status" -eq 1 ]
-  echo "$output" | grep -q -- "--view has been removed"
-  echo "$output" | grep -q "warp-ttd"
+write_user() {
+  run "${CLI[@]}" write \
+    --lane users \
+    --writer bats \
+    --json \
+    --intent '{"kind":"node.add","subject":"user:alice"}'
+  assert_success
 }
 
-# Seeds a standard demo graph via a helper TypeScript script.
-# Args: $1 = seed script name. Legacy ".js" names are mapped to ".ts".
-seed_graph() {
-  local script_name="${1}"
-  local script="${BATS_TEST_DIRNAME}/helpers/${script_name}"
-  if [[ ! -f "${script}" && "${script_name}" == *.js ]]; then
-    script="${BATS_TEST_DIRNAME}/helpers/${script_name%.js}.ts"
-  fi
-  cd "${PROJECT_ROOT}" || return 1
-  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-strip-types -e '
-    import("node:url")
-      .then(async ({ pathToFileURL }) => {
-        const seedUrl = pathToFileURL(process.argv[1]).href;
-        const setupUrl = pathToFileURL(process.argv[2]).href;
-        let failure;
-        try {
-          await import(seedUrl);
-        } catch (error) {
-          failure = error;
-        }
-        try {
-          const { closeSeedRuntime } = await import(setupUrl);
-          await closeSeedRuntime();
-        } catch (error) {
-          failure = failure === undefined
-            ? error
-            : new AggregateError([failure, error], "Seed and cleanup failed");
-        }
-        if (failure !== undefined) {
-          throw failure;
-        }
-      })
-      .then(
-        () => process.exit(0),
-        (error) => {
-          console.error(error);
-          process.exit(1);
-        },
-      );
-  ' "${script}" "${BATS_TEST_DIRNAME}/helpers/seed-setup.ts"
-  cd "${TEST_REPO}" || return 1
+prepare_user_reading() {
+  write_user
+  run "${CLI[@]}" repair \
+    --lane users \
+    --writer bats \
+    --json \
+    --action materialization
+  assert_success
 }

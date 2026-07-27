@@ -9,7 +9,7 @@
     "testing.ts",
     "src/**/*.ts",
     "src/globals.d.ts",
-    "bin/warp-graph.ts",
+    "bin/git-warp.ts",
     "bin/**/*.ts",
     "scripts/**/*.ts"
   ],

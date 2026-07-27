@@ -1,13 +1,13 @@
-# Getting Started With The Transitional Facade
+# Getting Started
 
-This page documents the currently implemented transitional v19 facade. The
-accepted [v19 public vocabulary checkpoint](api/) replaces timelines and
-direct readings with Runtime, Lane, Observer, Observation, Reading, and Receipt
-before release. This page remains runtime-honest while that implementation is
-in progress; it is not the final v19 API contract.
+git-warp v19 has one root runtime value:
 
-The transitional facade opens timelines, writes intents, and returns receipts.
-It does not expose the graph-first compatibility API from earlier releases.
+```text
+Runtime
+```
+
+Applications write validated Intents to Lanes, run generated Observers, consume
+Readings, and retain Receipts.
 
 ## Install
 
@@ -15,176 +15,115 @@ It does not expose the graph-first compatibility API from earlier releases.
 npm install @git-stunts/git-warp
 ```
 
-## Open WARP
+Generate your domain SDK with Wesley. The generated module supplies validated
+`*.intents` and `*.observers`; git-warp owns their execution.
+
+## Open a Runtime and Lane
 
 ```typescript
-import { openWarp } from '@git-stunts/git-warp';
-import { GitStorage } from '@git-stunts/git-warp/storage';
+import { Runtime } from '@git-stunts/git-warp';
+import { users } from './users.generated.js';
 
-const storage = await GitStorage.open({ cwd: './security-repo' });
-const warp = await openWarp({
-  storage,
+const runtime = await Runtime.open({
+  at: './application-repo',
   writer: 'local',
 });
 
-const audit = await warp.timeline('security-audit');
+try {
+  const lane = await runtime.lane('users');
+
+  const writeReceipt = await lane.write(
+    users.intents.registerUser({ subject: 'user:alice' }),
+  );
+
+  console.log(writeReceipt.outcome.kind);
+} finally {
+  await runtime.close();
+}
 ```
 
 Use a stable writer identity for each independent clone or process that writes
-to the same timeline.
+to the same Lane.
 
 ## Write Intents
 
-```typescript
-import { intent } from '@git-stunts/git-warp';
+Each `lane.write(intent)` admits one validated Intent and returns a
+`WriteReceipt`. The closed admission outcomes are:
 
-await audit.write(
-  intent.node.add({
-    subject: 'finding:oauth-state-mismatch',
-  })
-);
+- `derived`
+- `plural`
+- `conflict`
+- `obstruction`
 
-const receipt = await audit.write(
-  intent.property.set({
-    subject: 'finding:oauth-state-mismatch',
-    key: 'severity',
-    value: 'critical',
-  })
-);
+Operational outcomes and epistemic support are separate. Do not infer that an
+accepted write has settled a strand.
 
-switch (receipt.outcome.kind) {
-  case 'derived':
-    console.log(receipt.evidence.basis.id);
-    break;
-  case 'plural':
-    console.log('lawful plurality retained', receipt.outcome.residual.coordinates);
-    break;
-  case 'conflict':
-  case 'obstruction':
-    console.error(receipt.outcome.kind, receipt.outcome.witness);
-    break;
-}
-```
+## Observe bounded values
 
-Every call writes one intent and returns a `WriteReceipt`. Treat
-`receipt.outcome` as the admission classification, not as completed settlement.
-The closed variants are `derived`, `plural`, `conflict`, and `obstruction`, and
-each carries its required witness. A direct write normally derives from the
-captured lane basis; substrate identities remain outside normal control flow.
-
-## Read A Bounded Value
-
-```typescript
-import { reading } from '@git-stunts/git-warp';
-
-const severity = await audit.read(
-  reading.property({
-    subject: 'finding:oauth-state-mismatch',
-    key: 'severity',
-  })
-);
-
-const exists = await audit.read(
-  reading.node.exists({
-    subject: 'finding:oauth-state-mismatch',
-  })
-);
-
-console.log(severity.value, severity.receipt);
-console.log(exists.value, exists.receipt);
-```
-
-Readings ask bounded questions. The receipt records how the runtime supported
-the answer. An accepted receipt carries opaque causal evidence. If no bounded
-basis exists, `read()` returns an `obstructed` receipt with repair hints instead
-of materializing the whole timeline.
-
-Create or repair the operator-owned basis before retrying:
+Prepare a missing local basis explicitly:
 
 ```bash
-git warp checkpoint create --repo ./security-repo --graph security-audit
-git warp doctor --repo ./security-repo --repair-materialization-cache
+git warp repair \
+  --repo ./application-repo \
+  --lane users \
+  --writer local \
+  --action materialization
 ```
 
-Read a bounded neighborhood with the same result-and-receipt shape:
+Then run a generated Observer:
 
 ```typescript
-const related = await audit.read(
-  reading.neighborhood({
-    subject: 'finding:oauth-state-mismatch',
-    direction: 'out',
-    limit: 50,
-  })
-);
-```
+const runtime = await Runtime.open({
+  at: './application-repo',
+  writer: 'local',
+});
 
-Use `readValue()` only when unresolved readings should throw instead of
-participating in receipt-based control flow.
+try {
+  const lane = await runtime.lane('users');
+  const observation = lane.observe(
+    users.observers.roleOf({ subject: 'user:alice' }),
+  );
 
-## Read At A Tick
+  const reading = await observation.one();
+  const receipt = await observation.receipt;
 
-```typescript
-const tick = await audit.tick();
-const historical = await audit.at(tick).read(
-  reading.property({
-    subject: 'finding:oauth-state-mismatch',
-    key: 'severity',
-  })
-);
-```
-
-`TimelineView` is read-only. Formal coordinate and optic access lives under the
-`advanced` subpath.
-
-## Work In A Draft
-
-```typescript
-const draft = await audit.draft('review-severity');
-
-await draft.write(
-  intent.property.set({
-    subject: 'finding:oauth-state-mismatch',
-    key: 'severity',
-    value: 'high',
-  })
-);
-
-const preview = await audit.previewJoin(draft);
-console.log(preview.receipt);
-if (preview.receipt.outcome === 'accepted') {
-  const joined = await audit.join(draft);
-  console.log(joined.receipt);
+  console.log(reading.value);
+  console.log(receipt.status);
+} finally {
+  await runtime.close();
 }
 ```
 
-Draft writes stay separate until joined. `previewJoin` and `join` are separate
-methods so there is no boolean dry-run mode.
+`lane.observe(observer)` constructs one dormant Observation synchronously.
+Iterator demand, convenience methods such as `one()`, and awaiting `receipt`
+share exactly one execution.
 
-## Git Storage
-
-`GitStorage` is one opaque repository-scoped handle. It composes timeline
-history and git-cas services internally; application code does not construct
-plumbing, CAS, cache, or retention adapters. Close it when the application is
-finished to release local Git and git-cas processes. Closing storage does not
-delete timelines, rewrite history, or change retention anchors.
+For multi-value Observers, consume the Observation as an async iterable:
 
 ```typescript
-await storage.close();
+const observation = lane.observe(
+  users.observers.rolesOf({
+    subjects: ['user:alice', 'user:bob'],
+  }),
+);
+
+for await (const reading of observation) {
+  console.log(reading.value);
+}
+
+console.log((await observation.receipt).status);
 ```
 
-WARP history lives under `refs/warp/**`, separate from source branches such as
-`refs/heads/main`. Writing a timeline does not create a source-tree commit on
-the checked-out branch.
+## Keep Receipts
 
-## Removed Imports
+Receipts are the stable operational record of writes, observations, and
+settlements. Application code should retain them when it needs auditability,
+support evidence, or a later diagnostic handoff.
 
-The `@git-stunts/git-warp/browser` and `@git-stunts/git-warp/legacy` subpaths
-are not part of v19. Migrate graph-first consumers before upgrading.
+## Next steps
 
-## Next Steps
-
-- [v19 Public API](api/)
-- [Querying](querying.md)
-- [Content and CAS](content-and-cas.md)
-- [Git substrate](git-substrate.md)
-- [v19 migration guide](../migrations/v19/)
+- [v19 API](api/README.md)
+- [Generated SDK fixture](../../test/fixtures/generated-sdk/README.md)
+- [CLI](cli.md)
+- [Strands and Settlement](strands.md)
+- [v18-to-v19 migration](../migrations/v19/README.md)

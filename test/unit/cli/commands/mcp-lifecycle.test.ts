@@ -34,9 +34,16 @@ describe('MCP command lifecycle', () => {
     const inputFailure = new Error('stdin failed');
 
     const result = await handleMcp({
-      options: { repo: '.', graph: 'demo', writer: 'cli' } as Parameters<
-        typeof handleMcp
-      >[0]['options'],
+      options: {
+        repo: '.',
+        lane: 'demo',
+        strand: null,
+        writer: 'cli',
+        writerExplicit: true,
+        json: false,
+        jsonl: false,
+        help: false,
+      },
       args: [],
     });
     lines.emit('error', inputFailure);

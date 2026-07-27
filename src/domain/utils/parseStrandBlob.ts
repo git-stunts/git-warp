@@ -108,6 +108,13 @@ function validateBaseObservationFields(baseObservation: Record<string, unknown>,
     baseObservation['frontierDigest'],
     `Corrupted ${label}: missing baseObservation.frontierDigest`,
   );
+  const { checkpointSha } = baseObservation;
+  invariant(
+    checkpointSha === null ||
+      checkpointSha === undefined ||
+      (typeof checkpointSha === 'string' && checkpointSha.length > 0),
+    `Corrupted ${label}: baseObservation.checkpointSha must be a non-empty string or null`,
+  );
 }
 
 /**
@@ -300,6 +307,7 @@ export interface StrandDescriptor {
     readonly frontier: Record<string, string>;
     readonly frontierDigest: string;
     readonly lamportCeiling: number | null;
+    readonly checkpointSha?: string | null;
   };
   readonly overlay: {
     readonly overlayId: string;

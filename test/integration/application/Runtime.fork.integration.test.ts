@@ -82,4 +82,74 @@ describe('Runtime fork composition', () => {
       await runtime.close();
     }
   });
+
+  it('reopens and settles a persisted strand in a later Runtime', async () => {
+    const first = await Runtime.open({
+      at: repository.tempDir,
+      writer: 'agent-1',
+    });
+    let forkTickId: string;
+    try {
+      const events = await first.lane('events');
+      await events.write(Intent.addNode({ subject: 'user:alice' }));
+      await events.write(Intent.setProperty({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'member',
+      }));
+      const strand = await first.fork(events, { name: 'try-admin-role' });
+      forkTickId = strand.descriptor.kind === 'strand'
+        ? strand.descriptor.forkedAt.id
+        : '';
+      await strand.write(Intent.setProperty({
+        subject: 'user:alice',
+        key: 'role',
+        value: 'admin',
+      }));
+    } finally {
+      await first.close();
+    }
+
+    const second = await Runtime.open({
+      at: repository.tempDir,
+      writer: 'agent-1',
+    });
+    try {
+      const events = await second.lane('events');
+      const strand = await second.strand(events, { name: 'try-admin-role' });
+      expect(strand.descriptor).toMatchObject({
+        kind: 'strand',
+        name: 'try-admin-role',
+        parent: events.reference,
+        forkedAt: { id: forkTickId, lane: events.reference },
+      });
+      const observer = createObserver<string>(
+        'users.role-of',
+        LegacyReading.property({ subject: 'user:alice', key: 'role' }),
+        (value) => {
+          if (typeof value !== 'string') {
+            throw new TypeError('users.role-of expected a string');
+          }
+          return value;
+        },
+      );
+      await expect(strand.observe(observer).one()).resolves.toMatchObject({
+        value: 'admin',
+      });
+
+      const preview = await second.previewSettlement({
+        source: strand,
+        target: events,
+      });
+      await expect(second.settle(preview.plan)).resolves.toMatchObject({
+        operation: 'settle',
+        outcome: { kind: 'derived' },
+      });
+      await expect(events.observe(observer).one()).resolves.toMatchObject({
+        value: 'admin',
+      });
+    } finally {
+      await second.close();
+    }
+  });
 });

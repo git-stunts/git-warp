@@ -29,6 +29,7 @@ const ROOT_TYPE_EXPORTS = [
   'RuntimeForkOptions',
   'RuntimeOpenOptions',
   'RuntimeSettlementOptions',
+  'RuntimeStrandOptions',
   'SettlementPlan',
   'SettlementPreview',
   'SettlementReceipt',

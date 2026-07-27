@@ -1,4 +1,5 @@
 import type WarpWorldline from '../WarpWorldline.ts';
+import type { WarpDraftPatchEntry } from '../WarpWorldline.ts';
 import type { WarpStrandOpticBasis } from '../WarpStrandOpticBasis.ts';
 import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
 import WarpError from '../errors/WarpError.ts';
@@ -8,7 +9,7 @@ import DraftTimeline from './DraftTimeline.ts';
 import type Evidence from './Evidence.ts';
 import { createJoinEvidence, createJoinRecoveryEvidence } from './EvidenceRuntime.ts';
 import type Intent from './Intent.ts';
-import { applyIntentToPatch } from './IntentRuntime.ts';
+import { applyIntentToPatch, intentFromPatch } from './IntentRuntime.ts';
 import JoinReceipt from './JoinReceipt.ts';
 import JoinResult from './JoinResult.ts';
 import type Reading from './Reading.ts';
@@ -47,6 +48,13 @@ type CreateDraftTimelineFields = {
   readonly draftName: string;
   readonly forkedAt?: WarpWorldlineCoordinate;
 };
+
+type DraftStateFields = Readonly<{
+  readonly context: ApiRuntimeContext;
+  readonly forkedAt: WarpWorldlineCoordinate | null;
+  readonly persisted: readonly WarpDraftPatchEntry[];
+  readonly runtime: WarpWorldline;
+}>;
 
 type JoinResultFieldsBase = {
   readonly runtime: WarpWorldline;
@@ -95,9 +103,21 @@ const draftStates = new WeakMap<DraftTimeline, DraftTimelineState>();
 export async function createDraftTimeline(
   fields: CreateDraftTimelineFields
 ): Promise<DraftTimeline> {
+  await fields.runtime.createDraft(fields.draftName, fields.forkedAt);
+  return await openDraftTimeline(fields);
+}
+
+export async function openDraftTimeline(
+  fields: CreateDraftTimelineFields
+): Promise<DraftTimeline> {
   const { runtime, context, timelineName, draftName } = fields;
-  await runtime.createDraft(draftName, fields.forkedAt);
-  const state = createDraftState(runtime, context, fields.forkedAt ?? null);
+  const persisted = await runtime.loadDraftPatchEntries(draftName);
+  const state = createDraftState({
+    runtime,
+    context,
+    forkedAt: fields.forkedAt ?? null,
+    persisted,
+  });
   const draft = new DraftTimeline({
     name: draftName,
     timeline: timelineName,
@@ -275,17 +295,14 @@ async function acceptedJoin(fields: JoinCompletionFields): Promise<JoinResult> {
   });
 }
 
-function createDraftState(
-  runtime: WarpWorldline,
-  context: ApiRuntimeContext,
-  forkedAt: WarpWorldlineCoordinate | null,
-): DraftTimelineState {
+function createDraftState(fields: DraftStateFields): DraftTimelineState {
+  const { context, forkedAt, persisted, runtime } = fields;
   return {
     context,
     runtime,
-    draftPatchShas: [],
+    draftPatchShas: persisted.map(({ sha }) => sha),
     forkedAt,
-    intents: [],
+    intents: persisted.map(({ patch }) => intentFromPatch(patch)),
     joinPatchShas: [],
     joinRecoveryEvidence: undefined,
     joinFailed: false,
