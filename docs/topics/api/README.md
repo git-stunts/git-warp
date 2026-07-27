@@ -1,13 +1,13 @@
 # v19 Public Vocabulary Checkpoint
 
-> **Status:** Accepted target for `v19.0.0`.
+> **Status:** Implemented checkpoint for `v19.0.0`.
 >
 > This document is the normative product vocabulary and public-surface design.
-> It is not implementation evidence. The Runtime, worldline Lane, Observer,
-> streaming Observation, Reading, and Receipt core is implemented and covered
-> by boundary tests. Fork, settlement, charts, and the generated SDK fixture
-> are implemented. CLI/MCP convergence and release evidence remain part of the
-> open v19 goalpost.
+> The Runtime, Lane, Intent, Observer, streaming Observation, Reading, Receipt,
+> settlement, charts, generated SDK, CLI, and MCP surfaces are implemented.
+> One generated contract drives their public vocabulary and all twelve
+> acceptance gates execute in CI. The release witness remains the final
+> publication evidence.
 
 The product doctrine is:
 
@@ -724,5 +724,6 @@ following:
 12. Legacy vocabulary is rejected from public surfaces with explicit migration
     and substrate exceptions.
 
-Until those gates pass, this document is a frozen target and the v19 public API
-goalpost remains open.
+The executable mapping for these gates lives in
+`scripts/RunV19AcceptanceGates.ts`; CI and the release witness must run the
+mapping without omissions before v19 publication.

@@ -18,6 +18,8 @@ replay-backed. Operator workflows live outside the topic shelf in
   write a patch, read it back, and sync WARP refs.
 - [v19 public vocabulary checkpoint](api/): follow the accepted Runtime, Lane,
   Intent, Observer, Observation, Reading, and Receipt contract.
+- [Generated v19 public vocabulary](vocabulary.generated.md): use the canonical
+  noun summaries lowered from the Wesley/GraphQL registry.
 - [Querying](querying.md): choose between worldlines, observers, optic reads,
   query builders, and strand sources.
 

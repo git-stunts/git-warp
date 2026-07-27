@@ -124,19 +124,23 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - name: 'Gate 5a: v19 capability contract drift'
-        run: npm run check:capabilities
-      - name: 'Gate 5b: Install pinned Wesley generator'
+      - name: 'Gate 5a: Install pinned Wesley generator'
         run: >-
           cargo install
           --git https://github.com/flyingrobots/wesley.git
           --rev 4891a631f888c5b2f70e117e3704538dd1362c2f
           --locked
           wesley-cli
-      - name: 'Gate 5c: Generated SDK source and reference drift'
+      - name: 'Gate 5b: Wesley vocabulary IR drift'
+        run: npm run check:vocabulary-ir
+      - name: 'Gate 5c: v19 capability artifact drift'
+        run: npm run check:capabilities
+      - name: 'Gate 5d: Generated SDK source and reference drift'
         run: npm run check:sdk-fixture
-      - name: 'Gate 5d: Packed generated SDK with disposable real Git'
+      - name: 'Gate 5e: Packed generated SDK with disposable real Git'
         run: npm run test:sdk-fixture
+      - name: 'Gate 5f: All twelve v19 acceptance gates'
+        run: npm run test:v19-acceptance
 
   type-firewall-docs:
     runs-on: ubuntu-latest

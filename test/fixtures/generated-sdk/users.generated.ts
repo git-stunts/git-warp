@@ -1,5 +1,6 @@
 /* @generated from users.graphql by Wesley and the git-warp SDK fixture renderer. */
 
+/** Generated SDKs construct validated Intent and Observer values for Runtime Lane workflows. */
 import type {
   Intent,
   Observer,

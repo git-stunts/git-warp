@@ -109,25 +109,24 @@ Full standard: [Systems-Style TypeScript](docs/SYSTEMS_STYLE_TYPESCRIPT.md).
 
 ## Public API surface
 
-### `openWarp()`
+### `Runtime`
 
-The package root accepts an opaque `WarpStorage` and returns a frozen `Warp`:
+The package root exports exactly one runtime value. `Runtime.open()` owns
+production storage composition:
 
 ```typescript
-import { openWarp } from '@git-stunts/git-warp';
-import { GitStorage } from '@git-stunts/git-warp/storage';
+import { Runtime } from '@git-stunts/git-warp';
 
-const storage = await GitStorage.open({ cwd: '.' });
-const warp = await openWarp({ storage, writer: 'agent-1' });
-const team = await warp.timeline('team');
+const runtime = await Runtime.open({ at: '.', writer: 'agent-1' });
+const team = await runtime.lane('team');
 
 // After the final lane operation:
-await storage.close();
+await runtime.close();
 ```
 
-Application code writes with `timeline.write(intent)` and reads with
-`timeline.read(reading)`. Formal coordinate reads and receipt inspection live
-on the explicit `advanced` and `diagnostics` subpaths.
+Application code writes validated Intents with `lane.write(intent)` and runs
+Observers with `lane.observe(observer)`. Formal coordinate reads and Receipt
+inspection live on the explicit `/advanced` and `/diagnostics` subpaths.
 
 ### Storage composition
 

@@ -11,18 +11,16 @@ public API export, CLI command, package entrypoint, or public error class.
 | npm bin | `git-warp` | `./bin/git-warp` | `package.json#L23` |
 | npm bin | `git-warp-v18-to-v19` | `./dist/scripts/v18-to-v19/migrate.js` | `package.json#L24` |
 | npm export | `.` | `types=./dist/index.d.ts; import=./dist/index.js; default=./dist/index.js` | `package.json#L27` |
-| npm export | `./storage` | `types=./dist/storage.d.ts; import=./dist/storage.js; default=./dist/storage.js` | `package.json#L32` |
-| npm export | `./advanced` | `types=./dist/advanced.d.ts; import=./dist/advanced.js; default=./dist/advanced.js` | `package.json#L37` |
-| npm export | `./diagnostics` | `types=./dist/diagnostics.d.ts; import=./dist/diagnostics.js; default=./dist/diagnostics.js` | `package.json#L42` |
-| npm export | `./charts` | `types=./dist/charts.d.ts; import=./dist/charts.js; default=./dist/charts.js` | `package.json#L47` |
-| npm export | `./testing` | `types=./dist/testing.d.ts; import=./dist/testing.js; default=./dist/testing.js` | `package.json#L52` |
-| npm export | `./package.json` | `./package.json` | `package.json#L57` |
+| npm export | `./advanced` | `types=./dist/advanced.d.ts; import=./dist/advanced.js; default=./dist/advanced.js` | `package.json#L32` |
+| npm export | `./diagnostics` | `types=./dist/diagnostics.d.ts; import=./dist/diagnostics.js; default=./dist/diagnostics.js` | `package.json#L37` |
+| npm export | `./charts` | `types=./dist/charts.d.ts; import=./dist/charts.js; default=./dist/charts.js` | `package.json#L42` |
+| npm export | `./testing` | `types=./dist/testing.d.ts; import=./dist/testing.js; default=./dist/testing.js` | `package.json#L47` |
+| npm export | `./package.json` | `./package.json` | `package.json#L52` |
 | JSR export | `.` | `./index.ts` | `jsr.json#L8` |
-| JSR export | `./storage` | `./storage.ts` | `jsr.json#L9` |
-| JSR export | `./advanced` | `./advanced.ts` | `jsr.json#L10` |
-| JSR export | `./diagnostics` | `./diagnostics.ts` | `jsr.json#L11` |
-| JSR export | `./charts` | `./charts.ts` | `jsr.json#L12` |
-| JSR export | `./testing` | `./testing.ts` | `jsr.json#L13` |
+| JSR export | `./advanced` | `./advanced.ts` | `jsr.json#L9` |
+| JSR export | `./diagnostics` | `./diagnostics.ts` | `jsr.json#L10` |
+| JSR export | `./charts` | `./charts.ts` | `jsr.json#L11` |
+| JSR export | `./testing` | `./testing.ts` | `jsr.json#L12` |
 
 ## Root API export surface
 
@@ -73,26 +71,6 @@ WitnessReference @ index.ts#L39
 WriteReceipt @ index.ts#L45
 ```
 
-## Storage export surface
-
-Transitional explicit storage composition; first-use applications use `Runtime.open()`.
-
-### Value exports
-
-Source: `storage.ts`. Count: 1.
-
-```text
-GitStorage @ storage.ts#L3
-```
-
-### Type exports
-
-Source: `storage.ts`. Count: 1.
-
-```text
-GitStorageOptions @ storage.ts#L4
-```
-
 ## Advanced export surface
 
 Bounded formal reads and runtime-backed construction for generated SDK infrastructure.
@@ -137,17 +115,16 @@ Operator inspection helpers that consume public receipt handles.
 Source: `diagnostics.ts`. Count: 1.
 
 ```text
-inspectReceipt @ diagnostics.ts#L40
+inspectReceipt @ diagnostics.ts#L35
 ```
 
 ### Type exports
 
-Source: `diagnostics.ts`. Count: 3.
+Source: `diagnostics.ts`. Count: 2.
 
 ```text
-InspectReceiptOptions @ diagnostics.ts#L11
-ReceiptInspection @ diagnostics.ts#L29
-ReceiptSubstrateInspection @ diagnostics.ts#L15
+ReceiptInspection @ diagnostics.ts#L24
+ReceiptSubstrateInspection @ diagnostics.ts#L10
 ```
 
 ## Charts export surface

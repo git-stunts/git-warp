@@ -44,13 +44,13 @@ describe('receipt diagnostics', () => {
     expect(reopenedNonce).not.toBe(firstNonce);
   });
 
-  it('recovers exact write provenance only with explicit storage context', async () => {
+  it('recovers exact write provenance from the Receipt identity', async () => {
     const storage = MemoryStorage.create();
     const warp = await openWarp({ storage, writer: 'agent-1' });
     const timeline = await warp.timeline('events');
     const receipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
 
-    const inspection = inspectReceipt(receipt, { storage });
+    const inspection = inspectReceipt(receipt);
 
     expect(inspection).toMatchObject({
       operation: 'write',
@@ -76,7 +76,7 @@ describe('receipt diagnostics', () => {
     const timeline = await warp.timeline('events');
     const receipt = await timeline.write(intent.node.remove({ subject: 'user:alice' }));
 
-    const inspection = inspectReceipt(receipt, { storage });
+    const inspection = inspectReceipt(receipt);
 
     expect(receipt.outcome.kind).toBe('obstruction');
     expect(inspection.objectIds).toEqual([]);
@@ -95,7 +95,7 @@ describe('receipt diagnostics', () => {
     );
     const result = await timeline.read(reading.property({ subject: 'user:alice', key: 'role' }));
 
-    const inspection = inspectReceipt(result.receipt, { storage });
+    const inspection = inspectReceipt(result.receipt);
 
     expect(result.receipt.outcome).toBe('accepted');
     expect(result.receipt.evidence).not.toHaveProperty('checkpointSha');
@@ -119,7 +119,7 @@ describe('receipt diagnostics', () => {
     );
     const preview = await timeline.previewJoin(draft);
 
-    const inspection = inspectReceipt(preview.receipt, { storage });
+    const inspection = inspectReceipt(preview.receipt);
 
     expect(preview.receipt.evidence?.support).toContainEqual(draftWrite.evidence?.support[0]);
     expect('patchShas' in preview.receipt).toBe(false);
@@ -132,31 +132,35 @@ describe('receipt diagnostics', () => {
     expect(inspection.objectIds).toEqual(inspection.substrate.patchShas);
   });
 
-  it('rejects diagnostics requests made with a different storage handle', async () => {
-    const storage = MemoryStorage.create();
-    const otherStorage = MemoryStorage.create();
-    const warp = await openWarp({ storage, writer: 'agent-1' });
-    const timeline = await warp.timeline('events');
-    const receipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
-
-    expect(() => inspectReceipt(receipt, { storage: otherStorage })).toThrow(
-      'Receipt does not belong to the supplied storage'
-    );
-  });
-
-  it('requires an explicit diagnostics storage context', async () => {
+  it('keeps Receipt provenance available after storage closes', async () => {
     const storage = MemoryStorage.create();
     const warp = await openWarp({ storage, writer: 'agent-1' });
     const timeline = await warp.timeline('events');
     const receipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
 
-    expect(() => inspectReceipt(receipt, undefined as never)).toThrow(
-      'Receipt inspection requires an explicit storage context'
-    );
+    await storage.close();
+
+    expect(inspectReceipt(receipt)).toMatchObject({
+      operation: 'write',
+      lane: 'events',
+      writer: 'agent-1',
+    });
   });
 
-  it('rejects receipts that were not issued by an openWarp runtime', () => {
+  it('returns frozen diagnostic projections', async () => {
     const storage = MemoryStorage.create();
+    const warp = await openWarp({ storage, writer: 'agent-1' });
+    const timeline = await warp.timeline('events');
+    const receipt = await timeline.write(intent.node.add({ subject: 'user:alice' }));
+
+    const inspection = inspectReceipt(receipt);
+
+    expect(Object.isFrozen(inspection)).toBe(true);
+    expect(Object.isFrozen(inspection.objectIds)).toBe(true);
+    expect(Object.isFrozen(inspection.substrate)).toBe(true);
+  });
+
+  it('rejects receipts that were not issued by a Runtime', () => {
     const receipt = new WriteReceipt({
       lane: 'events',
       writer: 'agent-1',
@@ -168,9 +172,7 @@ describe('receipt diagnostics', () => {
       evidence: RECOVERY_EVIDENCE,
     });
 
-    expect(() => inspectReceipt(receipt, { storage })).toThrow(
-      'Receipt was not issued by an openWarp runtime'
-    );
+    expect(() => inspectReceipt(receipt)).toThrow('Receipt was not issued by a Runtime');
   });
 
   it('binds raw receipt provenance exactly once', () => {

@@ -6,6 +6,9 @@ import {
   queryRoleOfOperation,
   queryRolesOfOperation,
 } from '../../test/fixtures/generated-sdk/users.wesley.generated.ts';
+import {
+  V19_CAPABILITY_CONTRACT,
+} from '../../bin/cli/capabilities/V19CapabilityContract.generated.ts';
 
 class GeneratedSdkContractError extends Error {
   constructor(operation: string) {
@@ -96,6 +99,7 @@ function requireRolesOfContract(): void {
 
 const SDK_SOURCE = `/* @generated from users.graphql by Wesley and the git-warp SDK fixture renderer. */
 
+/** ${V19_CAPABILITY_CONTRACT.sdkSummary} */
 import type {
   Intent,
   Observer,
