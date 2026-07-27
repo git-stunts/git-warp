@@ -1,7 +1,6 @@
 export const PRODUCTION_ROOTS = ['src', 'bin'] as const;
 export const PRODUCTION_ENTRYPOINTS = [
   'index.ts',
-  'storage.ts',
   'advanced.ts',
   'diagnostics.ts',
   'charts.ts',

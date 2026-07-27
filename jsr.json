@@ -6,7 +6,6 @@
   },
   "exports": {
     ".": "./index.ts",
-    "./storage": "./storage.ts",
     "./advanced": "./advanced.ts",
     "./diagnostics": "./diagnostics.ts",
     "./charts": "./charts.ts",
@@ -15,7 +14,6 @@
   "publish": {
     "include": [
       "index.ts",
-      "storage.ts",
       "advanced.ts",
       "diagnostics.ts",
       "charts.ts",

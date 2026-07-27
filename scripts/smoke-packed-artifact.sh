@@ -37,7 +37,6 @@ class PackedArtifactSmokeError extends Error {
 }
 
 const mod = await import('@git-stunts/git-warp');
-const storage = await import('@git-stunts/git-warp/storage');
 
 const rootValues = Object.keys(mod).sort();
 if (rootValues.length !== 1 || rootValues[0] !== 'Runtime') {
@@ -46,14 +45,15 @@ if (rootValues.length !== 1 || rootValues[0] !== 'Runtime') {
   );
 }
 
-for (const name of ['GitStorage']) {
-  if (!(name in storage)) {
-    throw new PackedArtifactSmokeError(`storage subpath did not export ${name}`);
-  }
+let storageSubpathImported = false;
+try {
+  await import('@git-stunts/git-warp/storage');
+  storageSubpathImported = true;
+} catch {
+  // The v19 export map intentionally hides production storage composition.
 }
-
-if ('MemoryStorage' in storage) {
-  throw new PackedArtifactSmokeError('storage subpath still exported MemoryStorage');
+if (storageSubpathImported) {
+  throw new PackedArtifactSmokeError('storage subpath remained publicly importable');
 }
 
 NODE

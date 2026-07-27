@@ -3,14 +3,9 @@
  */
 
 import { resolveReceiptProvenance } from './src/application/ReceiptProvenanceRegistry.ts';
-import type WarpStorage from './src/application/WarpStorage.ts';
 import WarpError from './src/domain/errors/WarpError.ts';
 import type ReadIdentity from './src/domain/services/optic/ReadIdentity.ts';
 import type { Receipt } from './src/domain/api/Receipt.ts';
-
-export type InspectReceiptOptions = {
-  readonly storage: WarpStorage;
-};
 
 export type ReceiptSubstrateInspection =
   | {
@@ -37,11 +32,8 @@ export type ReceiptInspection = {
   readonly substrate: ReceiptSubstrateInspection;
 };
 
-export function inspectReceipt(
-  receipt: Receipt,
-  options: InspectReceiptOptions
-): ReceiptInspection {
-  const provenance = resolveReceiptProvenance(receipt, requireInspectStorage(options));
+export function inspectReceipt(receipt: Receipt): ReceiptInspection {
+  const provenance = resolveReceiptProvenance(receipt);
   if (provenance.operation !== receipt.operation) {
     throw new WarpError(
       'Receipt provenance operation does not match the receipt',
@@ -58,16 +50,6 @@ export function inspectReceipt(
     objectIds: Object.freeze(receiptObjectIds(provenance)),
     substrate: provenance,
   });
-}
-
-function requireInspectStorage(options: InspectReceiptOptions): WarpStorage {
-  if (typeof options !== 'object' || options === null || !('storage' in options)) {
-    throw new WarpError(
-      'Receipt inspection requires an explicit storage context',
-      'E_RECEIPT_INSPECTION_OPTIONS'
-    );
-  }
-  return options.storage;
 }
 
 function receiptObjectIds(provenance: ReceiptSubstrateInspection): string[] {

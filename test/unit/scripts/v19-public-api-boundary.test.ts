@@ -194,13 +194,6 @@ describe('v19 public API boundary', () => {
     expect(moduleSurface().typeExports).toEqual(sorted(ROOT_TYPE_EXPORTS));
   });
 
-  it('keeps the storage subpath limited to application adapters', () => {
-    const surface = moduleSurface('storage.ts');
-    expect(surface.starExports).toEqual([]);
-    expect(surface.valueExports).toEqual(['GitStorage']);
-    expect(surface.typeExports).toEqual(['GitStorageOptions']);
-  });
-
   it('keeps the advanced subpath limited to bounded reads and SDK construction', () => {
     const surface = moduleSurface('advanced.ts');
     expect(surface.starExports).toEqual([]);
@@ -236,7 +229,7 @@ describe('v19 public API boundary', () => {
     expect(surface.starExports).toEqual([]);
     expect(surface.valueExports).toEqual(['inspectReceipt']);
     expect(surface.typeExports).toEqual(
-      sorted(['InspectReceiptOptions', 'ReceiptInspection', 'ReceiptSubstrateInspection'])
+      sorted(['ReceiptInspection', 'ReceiptSubstrateInspection'])
     );
   });
 
@@ -274,7 +267,6 @@ describe('v19 public API boundary', () => {
       './charts',
       './diagnostics',
       './package.json',
-      './storage',
       './testing',
     ]);
     expect(packageExportNames('jsr.json')).toEqual([
@@ -282,7 +274,6 @@ describe('v19 public API boundary', () => {
       './advanced',
       './charts',
       './diagnostics',
-      './storage',
       './testing',
     ]);
   });

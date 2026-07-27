@@ -6,8 +6,8 @@ import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import { REF_PREFIX } from '../../src/domain/utils/RefLayout.ts';
 import { HookInstaller, type FsAdapter } from '../../src/domain/services/HookInstaller.ts';
+import GitStorage from '../../src/application/GitStorage.ts';
 import { usageError, notFoundError } from './infrastructure.ts';
-import { GitStorage } from '../../storage.ts';
 import {
   resolveWarpStorage,
   type WarpStorageBinding,

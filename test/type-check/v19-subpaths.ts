@@ -1,11 +1,10 @@
 /**
  * v19 explicit subpath consumer fixture -- compile-only.
  *
- * Storage, advanced, charts, diagnostics, and testing imports stay reachable
- * only from their named expert surfaces.
+ * Advanced, charts, diagnostics, and testing imports stay reachable only from
+ * their named expert surfaces.
  */
 
-import { GitStorage, type GitStorageOptions } from '../../storage.ts';
 import {
   type Intent,
   type Lane,
@@ -24,7 +23,6 @@ import {
 import { graph, GraphNeighborhoodChart, type GraphNeighborhoodOptions } from '../../charts.ts';
 import {
   inspectReceipt,
-  type InspectReceiptOptions,
   type ReceiptInspection,
   type ReceiptSubstrateInspection,
 } from '../../diagnostics.ts';
@@ -34,9 +32,6 @@ import {
   type RuntimeHarnessOptions,
 } from '../../testing.ts';
 
-declare const gitStorageOptions: GitStorageOptions;
-
-const gitStorage = await GitStorage.open(gitStorageOptions);
 declare const lane: Lane;
 const coordinate: InstanceType<typeof Coordinate> = await captureCoordinate(lane);
 const optic: InstanceType<typeof Optic> = coordinate.optic();
@@ -58,8 +53,7 @@ const advancedObserver: Observer<string> = createObserver(
   },
 );
 declare const receipt: WriteReceipt;
-const inspectionOptions: InspectReceiptOptions = { storage: gitStorage };
-const inspection: ReceiptInspection = inspectReceipt(receipt, inspectionOptions);
+const inspection: ReceiptInspection = inspectReceipt(receipt);
 const inspectedLane: string = inspection.lane;
 const substrate: ReceiptSubstrateInspection = inspection.substrate;
 const neighborhoodOptions: GraphNeighborhoodOptions = {
@@ -73,13 +67,12 @@ const isRuntimeChart: boolean = chart instanceof GraphNeighborhoodChart;
 const harnessOptions: RuntimeHarnessOptions = { writer: 'agent-1' };
 const harness: RuntimeHarness = await createRuntimeHarness(harnessOptions);
 
-// @ts-expect-error diagnostics require explicit storage context.
-inspectReceipt(receipt);
+// @ts-expect-error receipt inspection accepts no storage composition option.
+inspectReceipt(receipt, { storage: null });
 
 // @ts-expect-error diagnostic projections use canonical Lane vocabulary.
 inspection.timeline;
 
-await gitStorage.close();
 await harness.close();
 void optic;
 void witness;

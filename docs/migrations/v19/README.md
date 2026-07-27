@@ -308,9 +308,9 @@ durable ontology as a graph. Its first shipped Observer is a one-hop, bounded,
 cursor-page neighborhood chart. `/testing` provides an isolated real-Git
 `Runtime` harness without exposing storage construction at package root.
 
-There is no public `/graph`, `/browser`, or `/legacy` package. The transitional
-`/storage` export remains only until testing and diagnostics no longer require
-the explicit handle; ordinary v19 application code must use `Runtime.open()`.
+There is no public `/graph`, `/browser`, `/legacy`, or `/storage` package.
+Production storage composition belongs to `Runtime.open()`; tests use the
+explicit `/testing` harness.
 
 ## Symbol Map
 
@@ -343,7 +343,7 @@ the explicit handle; ordinary v19 application code must use `Runtime.open()`.
 7. Match all four admission variants exhaustively.
 8. Keep existing cross-lane join code isolated until settlement plans land.
 9. Replace graph-shaped reads with bounded `/charts` observers.
-10. Remove imports from `/storage` when explicit diagnostics work is complete.
+10. Verify that no import from the removed `/storage` subpath remains.
 
 ## Validation
 

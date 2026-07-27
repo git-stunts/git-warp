@@ -29,11 +29,6 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./storage": {
-      "types": "./dist/storage.d.ts",
-      "import": "./dist/storage.js",
-      "default": "./dist/storage.js"
-    },
     "./advanced": {
       "types": "./dist/advanced.d.ts",
       "import": "./dist/advanced.js",

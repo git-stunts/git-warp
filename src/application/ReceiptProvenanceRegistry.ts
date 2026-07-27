@@ -3,11 +3,9 @@ import type { ApiRuntimeContext, ReceiptProvenance } from '../domain/api/ApiRunt
 import type { Receipt } from '../domain/api/Receipt.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type WarpStorage from './WarpStorage.ts';
-import { resolveWarpStorage } from './WarpStorageRegistry.ts';
 
 type ReceiptProvenanceBinding = {
   readonly provenance: ReceiptProvenance;
-  readonly storage: WarpStorage;
 };
 
 type RecoveryNonceState = {
@@ -34,7 +32,7 @@ export function createApiRuntimeContext(
       }
       RECEIPT_PROVENANCE.set(
         receipt,
-        Object.freeze({ storage, provenance: freezeProvenance(provenance) })
+        Object.freeze({ provenance: freezeProvenance(provenance) })
       );
     },
   });
@@ -60,22 +58,12 @@ function encodeOpaqueIdPart(part: string | number): string {
   return `${type}${value.length}:${value}`;
 }
 
-export function resolveReceiptProvenance(
-  receipt: Receipt,
-  storage: WarpStorage
-): ReceiptProvenance {
-  resolveWarpStorage(storage);
+export function resolveReceiptProvenance(receipt: Receipt): ReceiptProvenance {
   const binding = RECEIPT_PROVENANCE.get(receipt);
   if (binding === undefined) {
     throw new WarpError(
-      'Receipt was not issued by an openWarp runtime',
+      'Receipt was not issued by a Runtime',
       'E_RECEIPT_PROVENANCE_UNAVAILABLE'
-    );
-  }
-  if (binding.storage !== storage) {
-    throw new WarpError(
-      'Receipt does not belong to the supplied storage',
-      'E_RECEIPT_STORAGE_MISMATCH'
     );
   }
   return binding.provenance;

@@ -178,7 +178,7 @@ describe('v18 first-use optics honesty gate', () => {
     const property = await timeline.read(
       reading.property({ subject: NODE_ID, key: PROPERTY_KEY }),
     );
-    const inspection = inspectReceipt(property.receipt, { storage });
+    const inspection = inspectReceipt(property.receipt);
     const basis = await events.prepareOpticBasis();
     const coordinate = await events.coordinate();
     const node = await coordinate.optic().node(NODE_ID).read();
