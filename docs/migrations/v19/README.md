@@ -1,9 +1,9 @@
 # v19 Public API Migration Guide
 
-> **Status:** Pre-release. The canonical Runtime, worldline Lane, Observer,
-> streaming Observation, Reading, Receipt, and write-admission core has landed.
-> Fork/settlement, generated SDK publication, and CLI/MCP vocabulary
-> convergence remain tracked by issue #712.
+> **Status:** The public grammar shipped in `v19.0.0`. The retained-state
+> migration described below requires `v19.0.1`; do not use the `v19.0.0`
+> migrator on an authoritative repository. General generated-SDK publication
+> remains future work.
 
 v19 replaces the transitional storage- and timeline-shaped facade with one
 application grammar:
@@ -20,18 +20,72 @@ non-empty lane before migration fails with
 writer chain.
 
 Stop every process that can write to the repository, make a normal repository
-backup, and run the complete disposable proof:
+backup, and identify the graph name used by the application. Graph names are
+not fixed: one Git repository may contain several independent WARP graphs.
+
+Run the migration once:
 
 ```bash
-npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.0.1 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
-  --graph events
+  --graph <graph-name>
 ```
 
-Without `--apply`, the command inventories every writer commit, translates the
-legacy patch and content references in an isolated repository, builds a fresh
-v19 checkpoint, verifies a public v19 read, and verifies a disposable v19
-append. It leaves authoritative refs unchanged.
+The command first discovers every graph namespace in the repository. If the
+requested name does not exist, it stops with `Graph not found` and lists each
+graph it did find, its version posture, writer count, and ref count.
+
+In an interactive terminal, a framed summary asks for confirmation before the
+inventory begins. After confirmation, the command completes the migration in
+one pass. It reports the current phase, writer, item count, and progress bar.
+Use `--yes` for non-interactive automation and `--json` for a machine-readable
+final report.
+
+### What the command does
+
+The source repository is read-only until the final ref transaction:
+
+```mermaid
+flowchart LR
+  source["Source repository<br/>authoritative refs"]
+  inventory["Inventory<br/>refs + writer commits"]
+  scratch["Scratch repository<br/>translated objects"]
+  verify["Scratch verification<br/>reopen + append + read"]
+  compare["Recheck source heads"]
+  promote["Atomic ref transaction"]
+  recovery["Recovery refs<br/>old objects retained"]
+
+  source --> inventory
+  inventory --> scratch
+  scratch --> verify
+  verify --> compare
+  compare -->|all OIDs unchanged| promote
+  compare -->|any OID changed| abort["Abort without cutover"]
+  promote --> source
+  promote --> recovery
+```
+
+At the Git level, migration does not edit commits in place. Git objects are
+immutable:
+
+1. It inventories refs below `refs/warp/<graph>/` and walks every writer
+   commit from its ref toward its root.
+2. It creates new blobs and trees for v19 git-cas asset handles.
+3. It writes a new commit chain. Preserved author, committer, timestamp, tree,
+   and message bytes can still produce a different commit OID because a
+   translated commit names a different parent OID.
+4. It builds a bounded v19 checkpoint and substrate marker in the scratch
+   repository.
+5. It proves that the scratch graph can reopen, accept a disposable append,
+   return a bounded public reading, and produce a valid receipt.
+6. It fetches the verified scratch objects into private import refs in the
+   source repository.
+7. One `git update-ref --stdin` transaction compares every original ref with
+   its inventoried OID, archives the original refs, and promotes the verified
+   refs. If any expected OID moved, the transaction fails as a unit.
+8. It verifies the promoted graph. If that proof fails, another guarded ref
+   transaction restores the original authoritative refs while retaining
+   recovery refs for diagnosis.
 
 Current v18 audit, intent, strand, overlay, braid, and trust publication refs
 are carried through unchanged and included in the compare-and-swap inventory.
@@ -39,27 +93,58 @@ If one of those refs still targets a retired pre-v18 blob or tree shape, the
 command fails before scratch work. Run the older one-shot migration first;
 production v19 contains no fallback reader for that substrate.
 
-After the proof succeeds, rerun it with promotion enabled:
-
-```bash
-npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 \
-  --repo /path/to/repository \
-  --graph events \
-  --apply
-```
-
-Promotion rechecks every source head and uses one Git ref transaction. The
-transaction preserves the old writer, checkpoint, coverage, state-cache, and
-carried publication refs below:
+The old refs and blob-backed state-cache payload roots remain reachable below:
 
 ```text
 refs/warp/<graph>/recovery/v18-to-v19/<run-id>/
 ```
 
-It also retains each payload tree named only inside the old blob-backed state
-cache. No old ref is deleted or replaced unless every expected source OID is
-unchanged. Keep the recovery refs until application reads, writes, and backups
-have been independently confirmed.
+Keep those recovery refs until application reads, writes, and backups have
+been independently confirmed. They are deliberately additive: migration does
+not immediately reclaim old objects.
+
+### Time, memory, and disk
+
+Migration time scales mainly with writer-commit count, retained checkpoint
+size, and Git process overhead. The command may look idle while Git is writing
+or packing objects; follow the phase and progress display instead of the size
+of the source repository alone.
+
+The scratch repository defaults to the operating system's temporary volume.
+Use `--scratch-root <path>` to place it on a volume with more space. Keep at
+least twice the source repository's current on-disk size free on that volume.
+That is an operating minimum, not a mathematical upper bound: object reuse,
+pack layout, retained checkpoint state, and repository-local Git configuration
+all affect the result.
+
+The source repository can also grow because recovery refs keep the old graph
+reachable while the promoted graph becomes authoritative. Do not expect the
+source repository to shrink during migration. A later, separately approved
+retention and garbage-collection decision is what can make old objects
+collectable.
+
+Production v19 public reads are bounded and do not decode a full graph state.
+The one-shot migration has one explicit legacy bridge: it may decode a
+monolithic v18 checkpoint, with a 64 MiB encoded-byte ceiling plus depth and
+item limits, to seed bounded v19 indexes. Repositories without a usable
+checkpoint fall back to replaying the complete writer history.
+
+### Rehearse only when you mean to
+
+The normal command performs the scratch proof and promotion in one invocation.
+Use `--dry-run` only when you explicitly want a rehearsal whose result will be
+discarded:
+
+```bash
+npm exec --package=@git-stunts/git-warp@19.0.1 -- git-warp-v18-to-v19 \
+  --repo /path/to/repository \
+  --graph <graph-name> \
+  --dry-run
+```
+
+Because the scratch repository is intentionally deleted, a later normal run
+must repeat the work. `--apply` remains accepted as a compatibility alias for
+the normal one-pass behavior; it is no longer required.
 
 For an encrypted v18 substrate, provide the passphrase through
 `GIT_WARP_MIGRATION_PASSPHRASE`; never place it in command-line arguments or
@@ -151,6 +236,37 @@ const roleOfAlice = users.observers.roleOf({
 
 Generated builders return validated, runtime-backed `Intent` and `Observer`
 objects. Loose JSON envelopes are not accepted at Lane boundaries.
+
+Wesley is a schema compiler. The application authors a GraphQL schema whose
+directives describe domain operations; Wesley turns that schema into typed
+operation metadata. A git-warp SDK renderer then binds that metadata to
+runtime-backed `Intent` and `Observer` builders.
+
+The checked-in `users` example is a reference fixture, not yet a published
+general-purpose SDK generator. Its authored source is
+`test/fixtures/generated-sdk/users.graphql`. In a git-warp checkout with
+Wesley `0.3.0-alpha.1` on `PATH`, reproduce it with:
+
+```bash
+npm run generate:sdk-fixture
+```
+
+The command is equivalent to these two conceptual stages:
+
+```bash
+wesley emit typescript \
+  --schema test/fixtures/generated-sdk/users.graphql \
+  --out test/fixtures/generated-sdk/users.wesley.generated.ts
+
+node scripts/generated-sdk/RenderUsersSdkFixture.ts \
+  --out test/fixtures/generated-sdk/users.generated.ts
+```
+
+The second command is deliberately fixture-specific: it validates the exact
+`registerUser`, `assignRole`, `roleOf`, and `rolesOf` contract. Consumers
+cannot yet point it at an arbitrary domain and receive a supported SDK. Until
+general SDK generation is published, use the fixture as an executable contract
+for the intended shape, but do not describe it as a consumer CLI.
 
 ## Write Migration
 
