@@ -1,11 +1,15 @@
 import WarpError from '../domain/errors/WarpError.ts';
-import type { WarpStorageBinding } from './WarpStorageRegistry.ts';
+import type WarpStorage from './WarpStorage.ts';
+import {
+  resolveWarpStorage,
+  type WarpStorageBinding,
+} from './WarpStorageRegistry.ts';
 
-const RUNTIME_STORAGE = new WeakMap<object, WarpStorageBinding>();
+const RUNTIME_STORAGE = new WeakMap<object, WarpStorage>();
 
 export function bindRuntimeStorage(
   runtime: object,
-  storage: WarpStorageBinding,
+  storage: WarpStorage,
 ): void {
   RUNTIME_STORAGE.set(runtime, storage);
 }
@@ -18,5 +22,5 @@ export function resolveRuntimeStorage(runtime: object): WarpStorageBinding {
       'E_RUNTIME_STORAGE_UNAVAILABLE',
     );
   }
-  return storage;
+  return resolveWarpStorage(storage);
 }
