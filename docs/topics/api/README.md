@@ -114,6 +114,20 @@ Read the diagram from left to right:
 4. An observation executes an `Observer`, streams bounded `Reading` values,
    and leaves its own terminal `Receipt`.
 
+Each diagram noun is anchored to its current implementation or executable
+reference:
+
+| Diagram noun  | Source                                                                          |
+| ------------- | ------------------------------------------------------------------------------- |
+| `Runtime`     | [`src/application/Runtime.ts`](../../../src/application/Runtime.ts)             |
+| `Lane`        | [`src/domain/api/Lane.ts`](../../../src/domain/api/Lane.ts)                     |
+| `Intent`      | [`src/domain/api/Intent.ts`](../../../src/domain/api/Intent.ts)                 |
+| `Observer`    | [`src/domain/api/Observer.ts`](../../../src/domain/api/Observer.ts)             |
+| `Observation` | [`src/domain/api/Observation.ts`](../../../src/domain/api/Observation.ts)       |
+| `Reading`     | [`src/domain/api/Reading.ts`](../../../src/domain/api/Reading.ts)               |
+| `Receipt`     | [`src/domain/api/Receipt.ts`](../../../src/domain/api/Receipt.ts)               |
+| Generated SDK | [`users.generated.ts`](../../../test/fixtures/generated-sdk/users.generated.ts) |
+
 ## Disclosure Order
 
 Documentation, generated APIs, CLI help, and MCP descriptions must disclose
