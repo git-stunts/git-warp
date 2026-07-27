@@ -1,10 +1,16 @@
 import Runtime from '../../../src/application/Runtime.ts';
+import { resolveRuntimeStorage } from '../../../src/application/RuntimeStorageAccess.ts';
 import type Lane from '../../../src/domain/api/Lane.ts';
 import { usageError } from '../infrastructure.ts';
+import {
+  requireCliStorageBinding,
+  type CliStorageBinding,
+} from '../shared.ts';
 import type { CliOptions } from '../types.ts';
 
 export type RuntimeTask<TResult> = (
   runtime: Runtime,
+  storage: CliStorageBinding,
 ) => Promise<TResult>;
 
 export async function withRuntime<TResult>(
@@ -16,7 +22,8 @@ export async function withRuntime<TResult>(
     writer: options.writer,
   });
   try {
-    return await task(runtime);
+    const storage = requireCliStorageBinding(resolveRuntimeStorage(runtime));
+    return await task(runtime, storage);
   } finally {
     await runtime.close();
   }

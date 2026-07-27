@@ -8,7 +8,10 @@ import { REF_PREFIX } from '../../src/domain/utils/RefLayout.ts';
 import { HookInstaller, type FsAdapter } from '../../src/domain/services/HookInstaller.ts';
 import { usageError, notFoundError } from './infrastructure.ts';
 import { GitStorage } from '../../storage.ts';
-import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
+import {
+  resolveWarpStorage,
+  type WarpStorageBinding,
+} from '../../src/application/WarpStorageRegistry.ts';
 import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProviderPort.ts';
 import type TrustChainPort from '../../src/ports/TrustChainPort.ts';
 import type CryptoPort from '../../src/ports/CryptoPort.ts';
@@ -44,19 +47,9 @@ export async function closeCliStorages(): Promise<void> {
 export async function createPersistence(repoPath: string): Promise<CliStorageBinding> {
   const storage = await GitStorage.open({ cwd: repoPath });
   try {
-    const binding = resolveWarpStorage(storage);
-    if (!(binding.history instanceof GitTimelineHistoryAdapter)
-      || binding.createTrustChain === undefined
-      || binding.hookPaths === undefined) {
-      throw usageError('GitStorage returned an incomplete CLI storage binding');
-    }
+    const binding = requireCliStorageBinding(resolveWarpStorage(storage));
     activeCliStorages.add(storage);
-    return {
-      persistence: binding.history,
-      runtimeStorage: binding.runtimeStorage,
-      createTrustChain: binding.createTrustChain,
-      hookPaths: binding.hookPaths,
-    };
+    return binding;
   } catch (error) {
     try {
       await storage.close();
@@ -68,6 +61,22 @@ export async function createPersistence(repoPath: string): Promise<CliStorageBin
     }
     throw error;
   }
+}
+
+export function requireCliStorageBinding(
+  binding: WarpStorageBinding,
+): CliStorageBinding {
+  if (!(binding.history instanceof GitTimelineHistoryAdapter)
+    || binding.createTrustChain === undefined
+    || binding.hookPaths === undefined) {
+    throw usageError('GitStorage returned an incomplete CLI storage binding');
+  }
+  return {
+    persistence: binding.history,
+    runtimeStorage: binding.runtimeStorage,
+    createTrustChain: binding.createTrustChain,
+    hookPaths: binding.hookPaths,
+  };
 }
 
 /**

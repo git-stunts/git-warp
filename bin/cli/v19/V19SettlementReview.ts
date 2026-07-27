@@ -7,6 +7,7 @@ import type SettlementPlan from '../../../src/domain/settlement/SettlementPlan.t
 import type { SettlementPlanFields } from '../../../src/domain/settlement/SettlementPlan.ts';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 import type { McpJsonValue } from '../commands/mcp/McpJsonValue.ts';
+import { usageErrorFrom } from '../infrastructure.ts';
 
 export type SettlementSelector = Readonly<{
   readonly sourceLane: string;
@@ -16,7 +17,11 @@ export type SettlementSelector = Readonly<{
 
 export type ReviewedSettlement = Readonly<{
   readonly selector: SettlementSelector;
-  readonly plan: SettlementPlanFields;
+  readonly plan: ReviewedSettlementPlanFields;
+}>;
+
+type ReviewedSettlementPlanFields = SettlementPlanFields & Readonly<{
+  readonly invalidationRule: 'any-bound-input-change';
 }>;
 
 const SELECTOR_SCHEMA = z.object({
@@ -26,7 +31,7 @@ const SELECTOR_SCHEMA = z.object({
 }).strict();
 
 const PLAN_SCHEMA = z.object({
-  invalidationRule: z.literal('any-bound-input-change').optional(),
+  invalidationRule: z.literal('any-bound-input-change'),
   planDigest: z.string().min(1),
   sourceLaneId: z.string().min(1),
   targetLaneId: z.string().min(1),
@@ -69,7 +74,12 @@ export function reviewSettlement(
 export function reviewedSettlementFromValue(
   value: McpJsonValue,
 ): ReviewedSettlement {
-  const reviewed = REVIEW_SCHEMA.parse(value);
+  let reviewed: z.infer<typeof REVIEW_SCHEMA>;
+  try {
+    reviewed = REVIEW_SCHEMA.parse(value);
+  } catch (error) {
+    throw usageErrorFrom('Invalid reviewed Settlement', error);
+  }
   return Object.freeze({
     selector: freezeSelector(reviewed.selector),
     plan: freezePlanFields(reviewed.plan),
@@ -98,12 +108,17 @@ function freezeSelector(selector: SettlementSelector): SettlementSelector {
   });
 }
 
-function settlementPlanFields(plan: SettlementPlan): SettlementPlanFields {
+function settlementPlanFields(
+  plan: SettlementPlan,
+): ReviewedSettlementPlanFields {
   return freezePlanFields(plan);
 }
 
-function freezePlanFields(plan: SettlementPlanFields): SettlementPlanFields {
+function freezePlanFields(
+  plan: ReviewedSettlementPlanFields,
+): ReviewedSettlementPlanFields {
   return Object.freeze({
+    invalidationRule: plan.invalidationRule,
     planDigest: plan.planDigest,
     sourceLaneId: plan.sourceLaneId,
     targetLaneId: plan.targetLaneId,
@@ -116,7 +131,7 @@ function freezePlanFields(plan: SettlementPlanFields): SettlementPlanFields {
 }
 
 function plansEqual(
-  reviewed: SettlementPlanFields,
+  reviewed: ReviewedSettlementPlanFields,
   current: SettlementPlan,
 ): boolean {
   const reviewedParts = planParts(reviewed);
@@ -126,8 +141,9 @@ function plansEqual(
   );
 }
 
-function planParts(plan: SettlementPlanFields): readonly string[] {
+function planParts(plan: ReviewedSettlementPlanFields): readonly string[] {
   return [
+    plan.invalidationRule,
     plan.planDigest,
     plan.sourceLaneId,
     plan.targetLaneId,

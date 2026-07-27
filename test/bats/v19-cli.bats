@@ -210,7 +210,7 @@ request = json.dumps({
 result = subprocess.run(
     [
         "node",
-        os.path.join(sys.argv[1], "bin", "git-warp.ts"),
+        os.path.join(sys.argv[1], "dist", "bin", "git-warp.js"),
         "mcp",
         "--repo",
         sys.argv[2],

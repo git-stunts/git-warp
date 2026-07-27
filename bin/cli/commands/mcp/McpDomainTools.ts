@@ -118,39 +118,26 @@ async function startObservation(
   const observation = lane.observe(
     observerFromValue(input.observerId, input.reading),
   );
-  const readings: McpJsonValue[] = [];
-  for await (const observed of observation) {
-    readings.push(readingEnvelope(observed));
-  }
-  const receipt = receiptEnvelope(await observation.receipt);
-  const receiptRef = session.retainReceipt(receipt);
-  const observationId = session.retainObservation(
-    readings,
-    receiptRef,
-  );
-  return Object.freeze({
-    observationId,
-    terminal: readings.length === 0,
-    receiptRef: readings.length === 0 ? receiptRef : null,
+  return await session.retainObservation({
+    readings: readingEnvelopes(observation),
+    receipt: async () => receiptEnvelope(await observation.receipt),
   });
 }
 
-function readObservation(
+async function readObservation(
   _runtime: Runtime,
   session: McpRuntimeSession,
   args: McpJsonObject,
 ): Promise<McpJsonValue> {
   const input = parseMcpToolInput(OBSERVATION_READ_SCHEMA, args);
-  return Promise.resolve(
-    session.readObservation(
-      input.observationId,
-      input.cursor,
-      input.limit ?? 64,
-    ),
+  return await session.readObservation(
+    input.observationId,
+    input.cursor,
+    input.limit ?? 64,
   );
 }
 
-function cancelObservation(
+async function cancelObservation(
   _runtime: Runtime,
   session: McpRuntimeSession,
   args: McpJsonObject,
@@ -159,7 +146,15 @@ function cancelObservation(
     OBSERVATION_ID_SCHEMA,
     args,
   );
-  return Promise.resolve(session.cancelObservation(observationId));
+  return await session.cancelObservation(observationId);
+}
+
+async function* readingEnvelopes(
+  readings: AsyncIterable<Parameters<typeof readingEnvelope>[0]>,
+): AsyncIterable<McpJsonValue> {
+  for await (const observed of readings) {
+    yield readingEnvelope(observed);
+  }
 }
 
 function getReceipt(

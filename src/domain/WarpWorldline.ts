@@ -23,13 +23,14 @@ import type { IntentAdmissionReceipt } from './admission/IntentAdmissionReceipt.
 import type { WarpIntentDescriptor } from './types/WarpIntentDescriptor.ts';
 import type { PatchCommitResult } from './types/PatchCommitResult.ts';
 import type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
-import type Patch from './types/Patch.ts';
+import WarpDraftPatchEntry from './WarpDraftPatchEntry.ts';
 import {
   createWorldlineDraft,
   openWorldlineDraftCoordinate,
 } from './WarpWorldlineDraftStorage.ts';
 
 export type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
+export { WarpDraftPatchEntry };
 
 export type WarpWorldlineOpenOptions = Omit<WarpGraphDeps, 'graphName'> & {
   readonly worldlineName: string;
@@ -47,10 +48,6 @@ type CreateDraft = (
   coordinate?: WarpWorldlineCoordinate,
 ) => Promise<void>;
 type OpenDraftCoordinate = (name: string) => Promise<WarpWorldlineCoordinate>;
-export type WarpDraftPatchEntry = Readonly<{
-  readonly patch: Patch;
-  readonly sha: string;
-}>;
 type LoadDraftPatchEntries = (
   name: string,
 ) => Promise<readonly WarpDraftPatchEntry[]>;
@@ -196,7 +193,12 @@ export default class WarpWorldline {
         'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE',
       );
     }
-    return await this._loadDraftPatchEntries(name);
+    const entries = await this._loadDraftPatchEntries(name);
+    return Object.freeze(entries.map((entry) =>
+      entry instanceof WarpDraftPatchEntry
+        ? entry
+        : new WarpDraftPatchEntry(entry)
+    ));
   }
 
   async patchDraft(name: string, build: WarpWorldlinePatchBuild): Promise<string> {
@@ -393,7 +395,10 @@ function draftWorldlineOptions(graph: RuntimeGraph): DraftWorldlineOptions {
     openDraftCoordinate: async (name) =>
       await openWorldlineDraftCoordinate(graph, name),
     loadDraftPatchEntries: async (name) =>
-      await graph.getStrandOverlayPatches(name),
+      Object.freeze(
+        (await graph.getStrandOverlayPatches(name))
+          .map((entry) => new WarpDraftPatchEntry(entry)),
+      ),
     patchDraft: async (name, build) => await graph.patchStrand(name, build),
     patchDraftWithEvidence: async (name, build) =>
       await graph.patchStrandWithEvidence(name, build),

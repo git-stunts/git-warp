@@ -5,10 +5,19 @@ import type { McpJsonValue } from './McpJsonValue.ts';
 import McpProtocolError from './McpProtocolError.ts';
 
 type ObservationTransport = {
-  readonly readings: readonly McpJsonValue[];
-  readonly receiptRef: string;
+  readonly buffered: McpJsonValue[];
+  readonly iterator: AsyncIterator<McpJsonValue>;
+  readonly receipt: () => Promise<McpJsonValue>;
   cursor: number;
+  receiptRef: string | null;
+  terminal: boolean;
 };
+
+type RetainedObservation = Readonly<{
+  readonly observationId: string;
+  readonly terminal: boolean;
+  readonly receiptRef: string | null;
+}>;
 
 export default class McpRuntimeSession {
   readonly #at: string;
@@ -19,6 +28,7 @@ export default class McpRuntimeSession {
   #nextObservation = 1;
   #nextPlan = 1;
   #nextReceipt = 1;
+  #runtime: Promise<Runtime> | null = null;
   #tail: Promise<void> = Promise.resolve();
 
   constructor(options: {
@@ -33,15 +43,8 @@ export default class McpRuntimeSession {
     task: (runtime: Runtime) => Promise<TResult>,
   ): Promise<TResult> {
     const result = this.#tail.then(async () => {
-      const runtime = await Runtime.open({
-        at: this.#at,
-        writer: this.#writer,
-      });
-      try {
-        return await task(runtime);
-      } finally {
-        await runtime.close();
-      }
+      const runtime = await this.runtime();
+      return await task(runtime);
     });
     this.#tail = result.then(
       () => undefined,
@@ -86,26 +89,52 @@ export default class McpRuntimeSession {
     return plan;
   }
 
-  retainObservation(
-    readings: readonly McpJsonValue[],
-    receiptRef: string,
-  ): string {
+  async retainObservation(options: {
+    readonly readings: AsyncIterable<McpJsonValue>;
+    readonly receipt: () => Promise<McpJsonValue>;
+  }): Promise<RetainedObservation> {
     const identifier = `observation-${this.#nextObservation}`;
     this.#nextObservation += 1;
-    this.#observations.set(identifier, {
-      readings: Object.freeze([...readings]),
-      receiptRef,
+    const transport: ObservationTransport = {
+      buffered: [],
+      iterator: options.readings[Symbol.asyncIterator](),
+      receipt: options.receipt,
       cursor: 0,
+      receiptRef: null,
+      terminal: false,
+    };
+    this.#observations.set(identifier, transport);
+    await this.pullObservation(transport);
+    return Object.freeze({
+      observationId: identifier,
+      terminal: transport.terminal,
+      receiptRef: transport.receiptRef,
     });
-    return identifier;
   }
 
-  readObservation(
+  async readObservation(
     identifier: string,
     cursor: string | undefined,
     limit: number,
-  ): McpJsonValue {
+  ): Promise<McpJsonValue> {
     const observation = this.requireObservation(identifier);
+    this.assertObservationCursor(observation, cursor);
+    const readings = await this.readObservationPage(observation, limit);
+    await this.pullObservation(observation);
+    observation.cursor += readings.length;
+    return Object.freeze({
+      observationId: identifier,
+      readings: Object.freeze(readings),
+      cursor: observation.terminal ? null : String(observation.cursor),
+      terminal: observation.terminal,
+      receiptRef: observation.receiptRef,
+    });
+  }
+
+  private assertObservationCursor(
+    observation: ObservationTransport,
+    cursor: string | undefined,
+  ): void {
     const expectedCursor = String(observation.cursor);
     if (cursor !== undefined && cursor !== expectedCursor) {
       throw new McpProtocolError(
@@ -113,21 +142,27 @@ export default class McpRuntimeSession {
         `Observation cursor mismatch: expected ${expectedCursor}`,
       );
     }
-    const start = observation.cursor;
-    const end = Math.min(start + limit, observation.readings.length);
-    observation.cursor = end;
-    const complete = end === observation.readings.length;
-    return Object.freeze({
-      observationId: identifier,
-      readings: Object.freeze(observation.readings.slice(start, end)),
-      cursor: complete ? null : String(end),
-      terminal: complete,
-      receiptRef: complete ? observation.receiptRef : null,
-    });
   }
 
-  cancelObservation(identifier: string): McpJsonValue {
-    this.requireObservation(identifier);
+  private async readObservationPage(
+    observation: ObservationTransport,
+    limit: number,
+  ): Promise<McpJsonValue[]> {
+    const readings: McpJsonValue[] = [];
+    while (readings.length < limit) {
+      await this.pullObservation(observation);
+      const reading = observation.buffered.shift();
+      if (reading === undefined) {
+        break;
+      }
+      readings.push(reading);
+    }
+    return readings;
+  }
+
+  async cancelObservation(identifier: string): Promise<McpJsonValue> {
+    const observation = this.requireObservation(identifier);
+    await observation.iterator.return?.();
     this.#observations.delete(identifier);
     return Object.freeze({
       observationId: identifier,
@@ -150,12 +185,44 @@ export default class McpRuntimeSession {
 
   async close(): Promise<void> {
     await this.#tail;
+    await Promise.all(
+      [...this.#observations.values()].map(
+        async (observation) => await observation.iterator.return?.(),
+      ),
+    );
     this.#observations.clear();
     this.#plans.clear();
     this.#receipts.clear();
+    if (this.#runtime !== null) {
+      await (await this.#runtime).close();
+      this.#runtime = null;
+    }
   }
 
-  requireObservation(identifier: string): ObservationTransport {
+  private runtime(): Promise<Runtime> {
+    this.#runtime ??= Runtime.open({
+      at: this.#at,
+      writer: this.#writer,
+    });
+    return this.#runtime;
+  }
+
+  private async pullObservation(
+    observation: ObservationTransport,
+  ): Promise<void> {
+    if (observation.terminal || observation.buffered.length > 0) {
+      return;
+    }
+    const next = await observation.iterator.next();
+    if (next.done !== true) {
+      observation.buffered.push(next.value);
+      return;
+    }
+    observation.terminal = true;
+    observation.receiptRef = this.retainReceipt(await observation.receipt());
+  }
+
+  private requireObservation(identifier: string): ObservationTransport {
     const observation = this.#observations.get(identifier);
     if (observation === undefined) {
       throw new McpProtocolError(

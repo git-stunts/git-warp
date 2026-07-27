@@ -16,6 +16,8 @@ import GitStorage from './GitStorage.ts';
 import RuntimeActivity from './RuntimeActivity.ts';
 import { createWorldlineLane } from './RuntimeLaneAdapter.ts';
 import RuntimeMutationGate from './RuntimeMutationGate.ts';
+import { bindRuntimeStorage } from './RuntimeStorageAccess.ts';
+import { resolveWarpStorage } from './WarpStorageRegistry.ts';
 import {
   previewRuntimeSettlement,
   settleRuntimePlan,
@@ -62,6 +64,7 @@ export default class Runtime {
     this.#activity = new RuntimeActivity();
     this.#laneOwner = Object.freeze({});
     this.#mutations = new RuntimeMutationGate();
+    bindRuntimeStorage(this, resolveWarpStorage(storage));
     Object.freeze(this);
   }
 

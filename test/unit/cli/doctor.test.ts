@@ -8,6 +8,7 @@ import {
 } from '../../../bin/cli/commands/doctor/checks.ts';
 import type { MaterializationCacheInspection }
   from '../../../src/ports/MaterializationCacheDiagnosticsPort.ts';
+import type { CliOptions } from '../../../bin/cli/types.ts';
 
 // Mock shared.js to avoid real git operations
 vi.mock('../../../bin/cli/shared.ts', () => ({
@@ -67,15 +68,16 @@ function buildMockPersistence() {
   };
 }
 
-const CLI_OPTIONS = {
+const CLI_OPTIONS: CliOptions = {
   repo: '/tmp/test',
-  graph: 'demo',
+  lane: 'demo',
+  strand: null,
   json: true,
-  ndjson: false,
-  view: null,
+  jsonl: false,
   writer: 'cli',
+  writerExplicit: false,
   help: false,
-} as any;
+};
 
 function cacheInspection(options: {
   healthy?: boolean;

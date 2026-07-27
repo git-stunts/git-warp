@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain/WarpWorldline.ts';
+import WarpWorldline, {
+  WarpDraftPatchEntry,
+  type WarpWorldlinePatchBuild,
+} from '../../../src/domain/WarpWorldline.ts';
 import AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
 import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
 import Patch from '../../../src/domain/types/Patch.ts';
@@ -123,6 +126,24 @@ function testPatchPublication(sha: string, patch: Patch): PatchCommitResult {
 }
 
 describe('DraftTimelineRuntime', () => {
+  it('hydrates immutable validated draft patch entries', async () => {
+    const worldline = createRuntime();
+    await worldline.patchDraft('review', (patch) => {
+      patch.addNode('user:alice');
+    });
+
+    const entries = await worldline.loadDraftPatchEntries('review');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toBeInstanceOf(WarpDraftPatchEntry);
+    expect(Object.isFrozen(entries[0])).toBe(true);
+    expect(() => new WarpDraftPatchEntry({
+      patch: entries[0]!.patch,
+      sha: '',
+    })).toThrowError(expect.objectContaining({
+      code: 'E_WARP_WORLDLINE_DRAFT_PATCH',
+    }));
+  });
+
   it('rejects concurrent joins without double-committing draft intents', async () => {
     let commitAttempts = 0;
     let releaseFirstCommit = (): void => undefined;

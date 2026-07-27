@@ -1,12 +1,25 @@
 import { readFileSync } from 'node:fs';
+import { z } from 'zod';
 
-import { usageError } from '../infrastructure.ts';
+import {
+  parseCommandArgs,
+  usageError,
+  usageErrorFrom,
+} from '../infrastructure.ts';
 import type { CliOptions } from '../types.ts';
 import { parseMcpJson } from '../../presenters/V19Json.ts';
 import { renderReceipt } from '../../presenters/V19ReadingReceipt.ts';
 import type { McpJsonValue } from './mcp/McpJsonValue.ts';
 
-export default function handleReceipt({
+const RECEIPT_OPTIONS = {
+  input: { type: 'string' },
+};
+
+const RECEIPT_SCHEMA = z.object({
+  input: z.string().min(1),
+});
+
+export default async function handleReceipt({
   args,
 }: {
   readonly options: CliOptions;
@@ -15,7 +28,7 @@ export default function handleReceipt({
   readonly payload: McpJsonValue;
   readonly human: string;
 }> {
-  return Promise.resolve(receiptResult(args));
+  return await Promise.resolve(receiptResult(args));
 }
 
 function receiptResult(args: readonly string[]): {
@@ -23,20 +36,24 @@ function receiptResult(args: readonly string[]): {
   readonly human: string;
 } {
   const inputPath = receiptInputPath(args);
-  const text = readFileSync(inputPath === '-' ? 0 : inputPath, 'utf8');
-  const payload = parseMcpJson(JSON.parse(text));
-  return { payload, human: renderReceipt(payload) };
+  try {
+    const text = readFileSync(inputPath === '-' ? 0 : inputPath, 'utf8');
+    const payload = parseMcpJson(JSON.parse(text));
+    return { payload, human: renderReceipt(payload) };
+  } catch (error) {
+    throw usageErrorFrom(`Unable to read Receipt from ${inputPath}`, error);
+  }
 }
 
 function receiptInputPath(args: readonly string[]): string {
-  const [subcommand, inputFlag, inputPath, ...rest] = args;
-  if (
-    subcommand !== 'show'
-    || inputFlag !== '--input'
-    || inputPath === undefined
-    || rest.length > 0
-  ) {
+  const { values, positionals } = parseCommandArgs(
+    args,
+    RECEIPT_OPTIONS,
+    RECEIPT_SCHEMA,
+    { allowPositionals: true },
+  );
+  if (positionals.length !== 1 || positionals[0] !== 'show') {
     throw usageError('Usage: git warp receipt show --input <path|->');
   }
-  return inputPath;
+  return values.input;
 }

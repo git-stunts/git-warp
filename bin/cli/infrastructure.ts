@@ -69,6 +69,20 @@ export function usageError(message: string): CliError {
   });
 }
 
+export function usageErrorFrom(context: string, error: unknown): CliError {
+  if (error instanceof CliError && error.code === 'E_USAGE') {
+    return error;
+  }
+  const cause = error instanceof Error
+    ? error
+    : new CliError(String(error));
+  return new CliError(`${context}: ${cause.message}`, {
+    code: 'E_USAGE',
+    exitCode: EXIT_CODES.USAGE,
+    cause,
+  });
+}
+
 export function notFoundError(message: string): CliError {
   return new CliError(message, {
     code: 'E_NOT_FOUND',

@@ -4,7 +4,11 @@ import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapte
 import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import { EXIT_CODES, parseCommandArgs, getEnvVar } from '../infrastructure.ts';
 import { verifyAuditSchema } from '../schemas.ts';
-import { createPersistence, resolveGraphName } from '../shared.ts';
+import {
+  createPersistence,
+  resolveGraphName,
+  type CliStorageBinding,
+} from '../shared.ts';
 import type { CliOptions } from '../types.ts';
 
 /**
@@ -46,9 +50,18 @@ export function parseVerifyAuditArgs(args: string[]): { since: string | undefine
 }
 
 /** Handles the verify-audit command: verifies audit receipt chain integrity. */
-export default async function handleVerifyAudit({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
+export default async function handleVerifyAudit({
+  options,
+  args,
+  storage: suppliedStorage,
+}: {
+  options: CliOptions;
+  args: string[];
+  storage?: CliStorageBinding;
+}): Promise<{ payload: unknown; exitCode: number }> {
   const { since, writerFilter, trustMode, trustPin } = parseVerifyAuditArgs(args);
-  const { persistence, runtimeStorage } = await createPersistence(options.repo);
+  const { persistence, runtimeStorage } =
+    suppliedStorage ?? await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.lane);
   const storage = await runtimeStorage.createRuntimeStorageServices({
     timelineName: graphName,
