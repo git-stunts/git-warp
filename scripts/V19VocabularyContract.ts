@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 
+import {
+  CapabilityContractError,
+  parseCapabilityMetadata,
+  type CapabilityMetadata,
+} from './V19CapabilityMetadata.ts';
+
+export { CapabilityContractError } from './V19CapabilityMetadata.ts';
 export type JsonValue =
   | null
   | boolean
@@ -73,15 +80,10 @@ export const NOUN_SCHEMA = z.object({
   summary: z.string().min(1),
 });
 
-const CAPABILITY_SCHEMA = z.object({
-  cliOrder: z.number().int().positive().optional(),
-  cliCommand: z.string().min(1).optional(),
-  cliSummary: z.string().min(1).optional(),
-  cliUsage: z.string().min(1).optional(),
-  mcpOrder: z.number().int().positive().optional(),
-  mcpName: z.string().regex(/^warp_[a-z_]+$/u).optional(),
-  mcpDescription: z.string().min(1).optional(),
-});
+type CapabilityField = Readonly<{
+  readonly field: z.infer<typeof FIELD_SCHEMA>;
+  readonly metadata: CapabilityMetadata;
+}>;
 
 const FORBIDDEN_SCHEMA = z.object({
   phrase: z.string().min(1),
@@ -93,16 +95,9 @@ const RANGE_SCHEMA = z.object({
   maximum: z.number().int(),
 });
 
-const ONE_OF_SCHEMA = z.object({
+const ALLOWED_VALUES_SCHEMA = z.object({
   values: z.array(z.string().min(1)).min(1),
 });
-
-export class CapabilityContractError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CapabilityContractError';
-  }
-}
 
 function requiredType(
   types: z.infer<typeof LOWERED_TYPE_SCHEMA>[],
@@ -135,11 +130,11 @@ function argumentJsonSchema(
     return { type: 'object' };
   }
   if (argument.type.base === 'String') {
-    const oneOf = argument.directives['oneOf'];
-    if (oneOf !== undefined) {
+    const allowedValues = argument.directives['allowedValues'];
+    if (allowedValues !== undefined) {
       return {
         type: 'string',
-        enum: ONE_OF_SCHEMA.parse(oneOf).values,
+        enum: ALLOWED_VALUES_SCHEMA.parse(allowedValues).values,
       };
     }
     return { type: 'string', minLength: 1 };
@@ -181,9 +176,9 @@ function mcpInputSchema(
 }
 
 function orderedCli(
-  field: z.infer<typeof FIELD_SCHEMA>,
+  capability: CapabilityField,
 ): OrderedEntry | null {
-  const metadata = CAPABILITY_SCHEMA.parse(field.directives['capability']);
+  const { field, metadata } = capability;
   if (metadata.cliOrder === undefined) {
     return null;
   }
@@ -206,9 +201,9 @@ function orderedCli(
 }
 
 function orderedMcp(
-  field: z.infer<typeof FIELD_SCHEMA>,
+  capability: CapabilityField,
 ): OrderedEntry | null {
-  const metadata = CAPABILITY_SCHEMA.parse(field.directives['capability']);
+  const { field, metadata } = capability;
   if (metadata.mcpOrder === undefined) {
     return null;
   }
@@ -227,8 +222,8 @@ function orderedMcp(
 }
 
 function orderedEntries(
-  fields: z.infer<typeof FIELD_SCHEMA>[],
-  project: (field: z.infer<typeof FIELD_SCHEMA>) => OrderedEntry | null,
+  fields: CapabilityField[],
+  project: (field: CapabilityField) => OrderedEntry | null,
   kind: string,
 ): JsonObject[] {
   const entries = fields.flatMap((field) => {
@@ -243,6 +238,16 @@ function orderedEntries(
       );
     }
     return entry.payload;
+  });
+}
+
+function capabilityField(field: z.infer<typeof FIELD_SCHEMA>): CapabilityField {
+  return Object.freeze({
+    field,
+    metadata: parseCapabilityMetadata(
+      field.name,
+      field.directives['capability'],
+    ),
   });
 }
 
@@ -271,8 +276,9 @@ export function readV19VocabularyContract(irPath: string): JsonObject {
   const registry = REGISTRY_SCHEMA.parse(vocabulary.directives['registry']);
   const capabilities = requiredType(lowered.types, 'PublicCapabilities');
   const rejected = requiredType(lowered.types, 'RejectedVocabulary');
-  const cli = orderedEntries(capabilities.fields, orderedCli, 'CLI');
-  const mcp = orderedEntries(capabilities.fields, orderedMcp, 'MCP');
+  const capabilityFields = capabilities.fields.map(capabilityField);
+  const cli = orderedEntries(capabilityFields, orderedCli, 'CLI');
+  const mcp = orderedEntries(capabilityFields, orderedMcp, 'MCP');
   requireUnique(cli, 'command');
   requireUnique(mcp, 'name');
   return {

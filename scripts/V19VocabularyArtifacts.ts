@@ -89,9 +89,14 @@ function renderGlossary(contract: JsonObject): string {
 }
 
 function requireCurrent(path: string, expected: string): void {
-  if (!existsSync(path) || readFileSync(path, 'utf8') !== expected) {
+  if (!existsSync(path)) {
     throw new CapabilityContractError(
-      'v19 vocabulary artifacts drifted; run npm run generate:capabilities',
+      `v19 vocabulary artifact is missing: ${path}; run npm run generate:capabilities`,
+    );
+  }
+  if (readFileSync(path, 'utf8') !== expected) {
+    throw new CapabilityContractError(
+      `v19 vocabulary artifact drifted: ${path}; run npm run generate:capabilities`,
     );
   }
 }

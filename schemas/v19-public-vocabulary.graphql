@@ -31,7 +31,7 @@ directive @range(
   maximum: Int!
 ) on ARGUMENT_DEFINITION
 
-directive @oneOf(
+directive @allowedValues(
   values: [String!]!
 ) on ARGUMENT_DEFINITION
 
@@ -229,7 +229,7 @@ type PublicCapabilities {
 
   repair(
     lane: String!
-    action: String! @oneOf(values: ["materialization"])
+    action: String! @allowedValues(values: ["materialization"])
   ): CapabilityResult
     @capability(
       cliOrder: 7

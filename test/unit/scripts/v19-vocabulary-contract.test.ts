@@ -1,7 +1,14 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import ts from 'typescript';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   V19_CAPABILITY_CONTRACT,
@@ -9,15 +16,30 @@ import {
 import {
   findForbiddenPublicVocabulary,
 } from '../../../scripts/V19VocabularyConformance.ts';
+import {
+  emitV19VocabularyArtifacts,
+} from '../../../scripts/V19VocabularyArtifacts.ts';
 import type {
   JsonObject,
 } from '../../../scripts/V19VocabularyContract.ts';
+import {
+  readV19VocabularyContract,
+} from '../../../scripts/V19VocabularyContract.ts';
+import {
+  containsVocabularyPhrase,
+  vocabularyTokens,
+} from '../../../scripts/V19VocabularyMatching.ts';
 import { COMMANDS } from '../../../bin/cli/commands/registry.ts';
 import {
   listMcpTools,
 } from '../../../bin/cli/commands/mcp/McpToolCatalog.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../..');
+const VOCABULARY_IR = resolve(
+  ROOT,
+  'schemas/v19-public-vocabulary.wesley.generated.json',
+);
+const temporaryDirectories: string[] = [];
 const CANONICAL_NOUNS = [
   'Runtime',
   'Lane',
@@ -28,6 +50,12 @@ const CANONICAL_NOUNS = [
   'Receipt',
   'Settlement',
 ] as const;
+
+afterEach(() => {
+  for (const directory of temporaryDirectories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 describe('generated v19 vocabulary contract', () => {
   it('publishes the accepted registry identity and noun order', () => {
@@ -70,6 +98,68 @@ describe('generated v19 vocabulary contract', () => {
       'utf8',
     ));
     expect(json).toEqual(V19_CAPABILITY_CONTRACT);
+  });
+
+  it('uses a project-scoped allowed-values directive', () => {
+    const schema = readFileSync(
+      resolve(ROOT, 'schemas/v19-public-vocabulary.graphql'),
+      'utf8',
+    );
+    expect(schema).toContain('directive @allowedValues(');
+    expect(schema).not.toContain('directive @oneOf(');
+  });
+
+  it('identifies the exact missing generated artifact', () => {
+    const root = makeTemporaryDirectory();
+    const expectedPath = resolve(
+      root,
+      'bin/cli/capabilities/v19-capabilities.json',
+    );
+    expect(() => emitV19VocabularyArtifacts({
+      root,
+      contract: readV19VocabularyContract(VOCABULARY_IR),
+      mode: 'check',
+    })).toThrowError(expect.objectContaining({
+      message: expect.stringContaining(expectedPath),
+    }));
+  });
+
+  it('names capability fields with missing metadata', () => {
+    const lowered = JSON.parse(
+      readFileSync(VOCABULARY_IR, 'utf8'),
+    ) as LoweredVocabularyFixture;
+    const capabilities = lowered.types.find(
+      (type) => type.name === 'PublicCapabilities',
+    );
+    const field = capabilities?.fields[0];
+    expect(field).toBeDefined();
+    if (field === undefined) {
+      throw new Error('PublicCapabilities requires at least one field');
+    }
+    delete field.directives['capability'];
+    const path = join(makeTemporaryDirectory(), 'missing-capability.json');
+    writeFileSync(path, JSON.stringify(lowered));
+
+    expect(() => readV19VocabularyContract(path)).toThrowError(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          `${field.name} is missing required capability metadata`,
+        ),
+      }),
+    );
+  });
+
+  it('shares camel-case and plural-tolerant vocabulary matching', () => {
+    const candidate = vocabularyTokens('legacyGraphStores');
+    expect(candidate).toEqual(['legacy', 'graph', 'stores']);
+    expect(containsVocabularyPhrase(
+      candidate,
+      vocabularyTokens('graph store'),
+    )).toBe(true);
+    expect(containsVocabularyPhrase(
+      candidate,
+      vocabularyTokens('graph storage'),
+    )).toBe(false);
   });
 
   it('generates glossary and SDK documentation from registry summaries', () => {
@@ -146,3 +236,19 @@ describe('generated v19 vocabulary contract', () => {
     }
   });
 });
+
+type LoweredVocabularyFixture = {
+  readonly types: Array<{
+    readonly name: string;
+    readonly fields: Array<{
+      readonly name: string;
+      readonly directives: Record<string, unknown>;
+    }>;
+  }>;
+};
+
+function makeTemporaryDirectory(): string {
+  const directory = mkdtempSync(join(tmpdir(), 'warp-vocabulary-'));
+  temporaryDirectories.push(directory);
+  return directory;
+}

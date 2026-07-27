@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 import type { JsonObject } from './V19VocabularyContract.ts';
 import { CapabilityContractError } from './V19VocabularyContract.ts';
+import {
+  containsVocabularyPhrase,
+  vocabularyTokens,
+} from './V19VocabularyMatching.ts';
 
 const CONTRACT_SCHEMA = z.object({
   moduleSummary: z.string(),
@@ -45,7 +49,10 @@ export function findForbiddenPublicVocabulary(
   );
   return publicText(parsed).flatMap((candidate) =>
     forbidden
-      .filter((term) => containsPhrase(candidate.value, term.phrase))
+      .filter((term) => containsVocabularyPhrase(
+        vocabularyTokens(candidate.value),
+        vocabularyTokens(term.phrase),
+      ))
       .map((term) => Object.freeze({
         field: candidate.field,
         phrase: term.phrase,
@@ -90,37 +97,4 @@ function publicText(
       },
     ]),
   ];
-}
-
-function containsPhrase(value: string, phrase: string): boolean {
-  const tokens = vocabularyTokens(value);
-  const forbidden = vocabularyTokens(phrase);
-  for (
-    let start = 0;
-    start + forbidden.length <= tokens.length;
-    start += 1
-  ) {
-    if (forbidden.every(
-      (token, offset) => tokenMatches(tokens[start + offset], token),
-    )) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function tokenMatches(candidate: string | undefined, forbidden: string): boolean {
-  return candidate === forbidden
-    || (
-      candidate?.endsWith('s') === true
-      && candidate.slice(0, -1) === forbidden
-    );
-}
-
-function vocabularyTokens(value: string): readonly string[] {
-  return value
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .split(/[^A-Za-z0-9]+/)
-    .filter((token) => token.length > 0)
-    .map((token) => token.toLowerCase());
 }

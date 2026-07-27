@@ -44,7 +44,11 @@ function lowerVocabularySchema(binary: string): string {
   const output = execFileSync(
     binary,
     ['schema', 'lower', '--schema', SCHEMA_PATH, '--json'],
-    { encoding: 'utf8' },
+    {
+      encoding: 'utf8',
+      maxBuffer: 32 * 1024 * 1024,
+      timeout: 60_000,
+    },
   );
   return output.endsWith('\n') ? output : `${output}\n`;
 }

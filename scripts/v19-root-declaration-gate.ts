@@ -5,6 +5,10 @@ import ts from 'typescript';
 import {
   V19_CAPABILITY_CONTRACT,
 } from '../bin/cli/capabilities/V19CapabilityContract.generated.ts';
+import {
+  containsVocabularyPhrase,
+  vocabularyTokens,
+} from './V19VocabularyMatching.ts';
 
 type ForbiddenPhrase = Readonly<{
   readonly display: string;
@@ -82,40 +86,11 @@ function forbiddenMatches(
 ): readonly string[] {
   const matches: string[] = [];
   for (const forbidden of FORBIDDEN_PHRASES) {
-    if (containsForbiddenPhrase(tokens, forbidden.tokens)) {
+    if (containsVocabularyPhrase(tokens, forbidden.tokens)) {
       matches.push(forbidden.display);
     }
   }
   return matches;
-}
-
-function containsForbiddenPhrase(
-  tokens: readonly string[],
-  forbidden: readonly string[],
-): boolean {
-  for (
-    let start = 0;
-    start + forbidden.length <= tokens.length;
-    start += 1
-  ) {
-    if (forbidden.every(
-      (token, offset) => vocabularyTokenMatches(tokens[start + offset], token),
-    )) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function vocabularyTokenMatches(
-  candidate: string | undefined,
-  forbidden: string,
-): boolean {
-  return candidate === forbidden
-    || (
-      candidate?.endsWith('s') === true
-      && candidate.slice(0, -1) === forbidden
-    );
 }
 
 function declarationClosure(entry: string, root: string): readonly string[] {
@@ -192,12 +167,4 @@ function resolveDeclarationDependency(
     throw new Error(`Declaration dependency escapes the package: ${dependency}`);
   }
   return dependency;
-}
-
-function vocabularyTokens(identifier: string): readonly string[] {
-  return identifier
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .split(/[^A-Za-z0-9]+/)
-    .filter((token) => token.length > 0)
-    .map((token) => token.toLowerCase());
 }

@@ -406,7 +406,7 @@
                 "isList": false
               },
               "directives": {
-                "oneOf": {
+                "allowedValues": {
                   "values": [
                     "materialization"
                   ]
