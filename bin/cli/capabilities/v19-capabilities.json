@@ -1,5 +1,160 @@
 {
   "version": "git-warp.capabilities/v19",
+  "moduleSummary": "Write intents. Observe lanes. Keep receipts.",
+  "sdkSummary": "Generated SDKs construct validated Intent and Observer values for Runtime Lane workflows.",
+  "formalIdentifiers": [
+    "WitnessReference",
+    "WitnessReferences",
+    "witnessRef",
+    "witnessRefs"
+  ],
+  "exceptionPaths": [
+    "docs/migrations/",
+    "docs/topics/api/README.md",
+    "docs/topics/git-perf.md",
+    "docs/topics/git-substrate.md",
+    "scripts/v18-to-v19/",
+    "src/infrastructure/"
+  ],
+  "nouns": [
+    {
+      "name": "Runtime",
+      "summary": "Opens local resources and owns Lane lifecycles."
+    },
+    {
+      "name": "Lane",
+      "summary": "Names one causal application history."
+    },
+    {
+      "name": "Intent",
+      "summary": "Describes one validated application write."
+    },
+    {
+      "name": "Observer",
+      "summary": "Defines one bounded read over a Lane."
+    },
+    {
+      "name": "Observation",
+      "summary": "Executes an Observer once and streams Readings."
+    },
+    {
+      "name": "Reading",
+      "summary": "Carries a canonical value with bounded support."
+    },
+    {
+      "name": "Receipt",
+      "summary": "Records the durable outcome of an operation."
+    },
+    {
+      "name": "Settlement",
+      "summary": "Revalidates and applies an immutable plan between Lanes."
+    }
+  ],
+  "forbiddenTerms": [
+    {
+      "phrase": "blob",
+      "scopes": [
+        "ROOT_DECLARATION"
+      ]
+    },
+    {
+      "phrase": "cas",
+      "scopes": [
+        "ROOT_DECLARATION"
+      ]
+    },
+    {
+      "phrase": "commit",
+      "scopes": [
+        "ROOT_DECLARATION"
+      ]
+    },
+    {
+      "phrase": "git",
+      "scopes": [
+        "ROOT_DECLARATION"
+      ]
+    },
+    {
+      "phrase": "object id",
+      "scopes": [
+        "ROOT_DECLARATION"
+      ]
+    },
+    {
+      "phrase": "oid",
+      "scopes": [
+        "ROOT_DECLARATION",
+        "PUBLIC_SURFACE"
+      ]
+    },
+    {
+      "phrase": "plumbing",
+      "scopes": [
+        "ROOT_DECLARATION"
+      ]
+    },
+    {
+      "phrase": "ref",
+      "scopes": [
+        "ROOT_DECLARATION"
+      ]
+    },
+    {
+      "phrase": "sha",
+      "scopes": [
+        "ROOT_DECLARATION"
+      ]
+    },
+    {
+      "phrase": "tree",
+      "scopes": [
+        "ROOT_DECLARATION"
+      ]
+    },
+    {
+      "phrase": "timeline",
+      "scopes": [
+        "PUBLIC_SURFACE"
+      ]
+    },
+    {
+      "phrase": "merge",
+      "scopes": [
+        "PUBLIC_SURFACE"
+      ]
+    },
+    {
+      "phrase": "graph store",
+      "scopes": [
+        "PUBLIC_SURFACE"
+      ]
+    },
+    {
+      "phrase": "generic event",
+      "scopes": [
+        "PUBLIC_SURFACE"
+      ]
+    },
+    {
+      "phrase": "dry run",
+      "scopes": [
+        "PUBLIC_SURFACE"
+      ]
+    },
+    {
+      "phrase": "session",
+      "scopes": [
+        "PUBLIC_SURFACE"
+      ]
+    },
+    {
+      "phrase": "query result page",
+      "scopes": [
+        "PUBLIC_SURFACE"
+      ]
+    }
+  ],
   "cli": [
     {
       "command": "write",
@@ -39,7 +194,7 @@
     {
       "command": "audit",
       "summary": "Verify the local Runtime audit trail.",
-      "usage": "git warp audit --lane <name> [--writer <id>]"
+      "usage": "git warp audit --lane <name>"
     },
     {
       "command": "mcp",
@@ -54,10 +209,18 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "lane": { "type": "string", "minLength": 1 },
-          "strand": { "type": "string", "minLength": 1 }
+          "lane": {
+            "type": "string",
+            "minLength": 1
+          },
+          "strand": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "required": ["lane"],
+        "required": [
+          "lane"
+        ],
         "additionalProperties": false
       }
     },
@@ -67,11 +230,22 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "lane": { "type": "string", "minLength": 1 },
-          "strand": { "type": "string", "minLength": 1 },
-          "intent": { "type": "object" }
+          "lane": {
+            "type": "string",
+            "minLength": 1
+          },
+          "strand": {
+            "type": "string",
+            "minLength": 1
+          },
+          "intent": {
+            "type": "object"
+          }
         },
-        "required": ["lane", "intent"],
+        "required": [
+          "lane",
+          "intent"
+        ],
         "additionalProperties": false
       }
     },
@@ -81,12 +255,27 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "lane": { "type": "string", "minLength": 1 },
-          "strand": { "type": "string", "minLength": 1 },
-          "observerId": { "type": "string", "minLength": 1 },
-          "reading": { "type": "object" }
+          "lane": {
+            "type": "string",
+            "minLength": 1
+          },
+          "strand": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observerId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reading": {
+            "type": "object"
+          }
         },
-        "required": ["lane", "observerId", "reading"],
+        "required": [
+          "lane",
+          "observerId",
+          "reading"
+        ],
         "additionalProperties": false
       }
     },
@@ -96,11 +285,23 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "observationId": { "type": "string", "minLength": 1 },
-          "cursor": { "type": "string", "minLength": 1 },
-          "limit": { "type": "integer", "minimum": 1, "maximum": 256 }
+          "observationId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          }
         },
-        "required": ["observationId"],
+        "required": [
+          "observationId"
+        ],
         "additionalProperties": false
       }
     },
@@ -110,9 +311,14 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "observationId": { "type": "string", "minLength": 1 }
+          "observationId": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "required": ["observationId"],
+        "required": [
+          "observationId"
+        ],
         "additionalProperties": false
       }
     },
@@ -122,9 +328,14 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "receiptRef": { "type": "string", "minLength": 1 }
+          "receiptRef": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "required": ["receiptRef"],
+        "required": [
+          "receiptRef"
+        ],
         "additionalProperties": false
       }
     },
@@ -134,11 +345,24 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "sourceLane": { "type": "string", "minLength": 1 },
-          "sourceStrand": { "type": "string", "minLength": 1 },
-          "targetLane": { "type": "string", "minLength": 1 }
+          "sourceLane": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceStrand": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetLane": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "required": ["sourceLane", "sourceStrand", "targetLane"],
+        "required": [
+          "sourceLane",
+          "sourceStrand",
+          "targetLane"
+        ],
         "additionalProperties": false
       }
     },
@@ -148,9 +372,14 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "planRef": { "type": "string", "minLength": 1 }
+          "planRef": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "required": ["planRef"],
+        "required": [
+          "planRef"
+        ],
         "additionalProperties": false
       }
     },
@@ -160,9 +389,14 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "lane": { "type": "string", "minLength": 1 }
+          "lane": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "required": ["lane"],
+        "required": [
+          "lane"
+        ],
         "additionalProperties": false
       }
     },
@@ -172,10 +406,21 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "lane": { "type": "string", "minLength": 1 },
-          "action": { "type": "string", "enum": ["materialization"] }
+          "lane": {
+            "type": "string",
+            "minLength": 1
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "materialization"
+            ]
+          }
         },
-        "required": ["lane", "action"],
+        "required": [
+          "lane",
+          "action"
+        ],
         "additionalProperties": false
       }
     },
@@ -185,10 +430,18 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "lane": { "type": "string", "minLength": 1 },
-          "writer": { "type": "string", "minLength": 1 }
+          "lane": {
+            "type": "string",
+            "minLength": 1
+          },
+          "writer": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "required": ["lane"],
+        "required": [
+          "lane"
+        ],
         "additionalProperties": false
       }
     }

@@ -1,0 +1,304 @@
+directive @registry(
+  version: String!
+  moduleSummary: String!
+  sdkSummary: String!
+  formalIdentifiers: [String!]!
+  exceptionPaths: [String!]!
+) on OBJECT
+
+directive @noun(
+  name: String!
+  summary: String!
+) on FIELD_DEFINITION
+
+directive @capability(
+  cliOrder: Int
+  cliCommand: String
+  cliSummary: String
+  cliUsage: String
+  mcpOrder: Int
+  mcpName: String
+  mcpDescription: String
+) on FIELD_DEFINITION
+
+directive @forbidden(
+  phrase: String!
+  scopes: [VocabularyScope!]!
+) on FIELD_DEFINITION
+
+directive @range(
+  minimum: Int!
+  maximum: Int!
+) on ARGUMENT_DEFINITION
+
+directive @oneOf(
+  values: [String!]!
+) on ARGUMENT_DEFINITION
+
+enum VocabularyScope {
+  ROOT_DECLARATION
+  PUBLIC_SURFACE
+}
+
+scalar CapabilityResult
+scalar JsonObject
+scalar RegistryEntry
+
+type PublicVocabulary
+  @registry(
+    version: "git-warp.capabilities/v19"
+    moduleSummary: "Write intents. Observe lanes. Keep receipts."
+    sdkSummary: "Generated SDKs construct validated Intent and Observer values for Runtime Lane workflows."
+    formalIdentifiers: [
+      "WitnessReference"
+      "WitnessReferences"
+      "witnessRef"
+      "witnessRefs"
+    ]
+    exceptionPaths: [
+      "docs/migrations/"
+      "docs/topics/api/README.md"
+      "docs/topics/git-perf.md"
+      "docs/topics/git-substrate.md"
+      "scripts/v18-to-v19/"
+      "src/infrastructure/"
+    ]
+  ) {
+  runtime: RegistryEntry
+    @noun(
+      name: "Runtime"
+      summary: "Opens local resources and owns Lane lifecycles."
+    )
+  lane: RegistryEntry
+    @noun(
+      name: "Lane"
+      summary: "Names one causal application history."
+    )
+  intent: RegistryEntry
+    @noun(
+      name: "Intent"
+      summary: "Describes one validated application write."
+    )
+  observer: RegistryEntry
+    @noun(
+      name: "Observer"
+      summary: "Defines one bounded read over a Lane."
+    )
+  observation: RegistryEntry
+    @noun(
+      name: "Observation"
+      summary: "Executes an Observer once and streams Readings."
+    )
+  reading: RegistryEntry
+    @noun(
+      name: "Reading"
+      summary: "Carries a canonical value with bounded support."
+    )
+  receipt: RegistryEntry
+    @noun(
+      name: "Receipt"
+      summary: "Records the durable outcome of an operation."
+    )
+  settlement: RegistryEntry
+    @noun(
+      name: "Settlement"
+      summary: "Revalidates and applies an immutable plan between Lanes."
+    )
+}
+
+type PublicCapabilities {
+  laneDescribe(
+    lane: String!
+    strand: String
+  ): CapabilityResult
+    @capability(
+      mcpOrder: 1
+      mcpName: "warp_lane_describe"
+      mcpDescription: "Describe one Runtime Lane."
+    )
+
+  write(
+    lane: String!
+    strand: String
+    intent: JsonObject!
+  ): CapabilityResult
+    @capability(
+      cliOrder: 1
+      cliCommand: "write"
+      cliSummary: "Write one Intent to a Lane."
+      cliUsage: "git warp write --lane <name> [--strand <name>] --intent <json>"
+      mcpOrder: 2
+      mcpName: "warp_intent_write"
+      mcpDescription: "Write one validated Intent to a Lane and return its canonical Receipt."
+    )
+
+  observeStart(
+    lane: String!
+    strand: String
+    observerId: String!
+    reading: JsonObject!
+  ): CapabilityResult
+    @capability(
+      cliOrder: 2
+      cliCommand: "observe"
+      cliSummary: "Run one bounded Observer over a Lane."
+      cliUsage: "git warp observe --lane <name> [--strand <name>] --observer <id> --reading <json>"
+      mcpOrder: 3
+      mcpName: "warp_observation_start"
+      mcpDescription: "Start one bounded Observation and retain its Readings for transport."
+    )
+
+  observationRead(
+    observationId: String!
+    cursor: String
+    limit: Int @range(minimum: 1, maximum: 256)
+  ): CapabilityResult
+    @capability(
+      mcpOrder: 4
+      mcpName: "warp_observation_read"
+      mcpDescription: "Read the next bounded transport batch from an Observation."
+    )
+
+  observationCancel(
+    observationId: String!
+  ): CapabilityResult
+    @capability(
+      mcpOrder: 5
+      mcpName: "warp_observation_cancel"
+      mcpDescription: "Cancel and discard one retained Observation transport."
+    )
+
+  fork: CapabilityResult
+    @capability(
+      cliOrder: 3
+      cliCommand: "fork"
+      cliSummary: "Fork a Lane into a named strand Lane."
+      cliUsage: "git warp fork --lane <source> --name <strand>"
+    )
+
+  receiptGet(
+    receiptRef: String!
+  ): CapabilityResult
+    @capability(
+      cliOrder: 5
+      cliCommand: "receipt"
+      cliSummary: "Render a canonical Receipt envelope."
+      cliUsage: "git warp receipt show --input <path|->"
+      mcpOrder: 6
+      mcpName: "warp_receipt_get"
+      mcpDescription: "Return one canonical Receipt retained by this MCP server."
+    )
+
+  settlementPreview(
+    sourceLane: String!
+    sourceStrand: String!
+    targetLane: String!
+  ): CapabilityResult
+    @capability(
+      cliOrder: 4
+      cliCommand: "settle"
+      cliSummary: "Preview or apply an immutable Settlement plan."
+      cliUsage: "git warp settle preview --source <lane> --strand <name> --target <lane> | settle apply --plan <path>"
+      mcpOrder: 7
+      mcpName: "warp_settlement_preview"
+      mcpDescription: "Preview an immutable Settlement plan between two Lanes."
+    )
+
+  settlementApply(
+    planRef: String!
+  ): CapabilityResult
+    @capability(
+      mcpOrder: 8
+      mcpName: "warp_settlement_apply"
+      mcpDescription: "Revalidate and apply one retained immutable Settlement plan."
+    )
+
+  doctor(
+    lane: String!
+  ): CapabilityResult
+    @capability(
+      cliOrder: 6
+      cliCommand: "doctor"
+      cliSummary: "Diagnose the local Runtime and Lane."
+      cliUsage: "git warp doctor --lane <name>"
+      mcpOrder: 9
+      mcpName: "warp_doctor"
+      mcpDescription: "Diagnose one local Runtime Lane."
+    )
+
+  repair(
+    lane: String!
+    action: String! @oneOf(values: ["materialization"])
+  ): CapabilityResult
+    @capability(
+      cliOrder: 7
+      cliCommand: "repair"
+      cliSummary: "Apply one explicit Runtime repair."
+      cliUsage: "git warp repair --lane <name> --action materialization"
+      mcpOrder: 10
+      mcpName: "warp_repair"
+      mcpDescription: "Apply one explicit local Runtime repair."
+    )
+
+  audit(
+    lane: String!
+    writer: String
+  ): CapabilityResult
+    @capability(
+      cliOrder: 8
+      cliCommand: "audit"
+      cliSummary: "Verify the local Runtime audit trail."
+      cliUsage: "git warp audit --lane <name>"
+      mcpOrder: 11
+      mcpName: "warp_audit"
+      mcpDescription: "Verify the local Runtime audit trail."
+    )
+
+  serveMcp: CapabilityResult
+    @capability(
+      cliOrder: 9
+      cliCommand: "mcp"
+      cliSummary: "Serve the v19 capabilities over MCP stdio."
+      cliUsage: "git warp mcp --repo <path> --writer <id>"
+    )
+}
+
+type RejectedVocabulary {
+  blob: RegistryEntry
+    @forbidden(phrase: "blob", scopes: [ROOT_DECLARATION])
+  cas: RegistryEntry
+    @forbidden(phrase: "cas", scopes: [ROOT_DECLARATION])
+  commit: RegistryEntry
+    @forbidden(phrase: "commit", scopes: [ROOT_DECLARATION])
+  git: RegistryEntry
+    @forbidden(phrase: "git", scopes: [ROOT_DECLARATION])
+  objectId: RegistryEntry
+    @forbidden(phrase: "object id", scopes: [ROOT_DECLARATION])
+  oid: RegistryEntry
+    @forbidden(
+      phrase: "oid"
+      scopes: [ROOT_DECLARATION, PUBLIC_SURFACE]
+    )
+  plumbing: RegistryEntry
+    @forbidden(phrase: "plumbing", scopes: [ROOT_DECLARATION])
+  ref: RegistryEntry
+    @forbidden(phrase: "ref", scopes: [ROOT_DECLARATION])
+  sha: RegistryEntry
+    @forbidden(phrase: "sha", scopes: [ROOT_DECLARATION])
+  tree: RegistryEntry
+    @forbidden(phrase: "tree", scopes: [ROOT_DECLARATION])
+  timeline: RegistryEntry
+    @forbidden(phrase: "timeline", scopes: [PUBLIC_SURFACE])
+  merge: RegistryEntry
+    @forbidden(phrase: "merge", scopes: [PUBLIC_SURFACE])
+  graphStore: RegistryEntry
+    @forbidden(phrase: "graph store", scopes: [PUBLIC_SURFACE])
+  genericEvent: RegistryEntry
+    @forbidden(phrase: "generic event", scopes: [PUBLIC_SURFACE])
+  dryRun: RegistryEntry
+    @forbidden(phrase: "dry run", scopes: [PUBLIC_SURFACE])
+  session: RegistryEntry
+    @forbidden(phrase: "session", scopes: [PUBLIC_SURFACE])
+  queryResultPage: RegistryEntry
+    @forbidden(phrase: "query result page", scopes: [PUBLIC_SURFACE])
+}

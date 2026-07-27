@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { findForbiddenRootDeclarationVocabulary } from '../../../scripts/v19-root-declaration-gate.ts';
+import {
+  V19_CAPABILITY_CONTRACT,
+} from '../../../bin/cli/capabilities/V19CapabilityContract.generated.ts';
 
 const temporaryDirectories: string[] = [];
 
@@ -14,6 +17,35 @@ afterEach(() => {
 });
 
 describe('v19 root declaration vocabulary gate', () => {
+  it('enforces every root term from the generated registry', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'git-warp-v19-dts-'));
+    temporaryDirectories.push(directory);
+    const rootTerms = V19_CAPABILITY_CONTRACT.forbiddenTerms
+      .filter((term) => term.scopes.some(
+        (scope) => scope === 'ROOT_DECLARATION',
+      ));
+    writeFileSync(
+      join(directory, 'index.d.ts'),
+      [
+        'export type Leaks = {',
+        ...rootTerms.map((term) =>
+          `  readonly leaked${pascalIdentifier(term.phrase)}: string;`
+        ),
+        '};',
+        '',
+      ].join('\n'),
+    );
+
+    const found = new Set(
+      findForbiddenRootDeclarationVocabulary(
+        join(directory, 'index.d.ts'),
+      ).map((violation) => violation.token),
+    );
+    expect(found).toEqual(new Set(
+      rootTerms.map((term) => term.phrase.replaceAll(' ', '-')),
+    ));
+  });
+
   it('walks transitive declaration imports and reports substrate identifiers', () => {
     const directory = mkdtempSync(join(tmpdir(), 'git-warp-v19-dts-'));
     temporaryDirectories.push(directory);
@@ -93,3 +125,10 @@ describe('v19 root declaration vocabulary gate', () => {
     ]);
   });
 });
+
+function pascalIdentifier(phrase: string): string {
+  return phrase
+    .split(' ')
+    .map((part) => `${part[0]?.toUpperCase() ?? ''}${part.slice(1)}`)
+    .join('');
+}

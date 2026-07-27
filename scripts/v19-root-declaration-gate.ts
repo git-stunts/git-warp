@@ -2,29 +2,28 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import ts from 'typescript';
 
-const FORBIDDEN_TOKENS = new Set([
-  'blob',
-  'cas',
-  'commit',
-  'git',
-  'oid',
-  'plumbing',
-  'ref',
-  'sha',
-  'tree',
-]);
+import {
+  V19_CAPABILITY_CONTRACT,
+} from '../bin/cli/capabilities/V19CapabilityContract.generated.ts';
 
-const FORBIDDEN_COMPOUNDS = new Map([
-  ['objectid', 'object-id'],
-  ['objectids', 'object-id'],
-]);
+type ForbiddenPhrase = Readonly<{
+  readonly display: string;
+  readonly tokens: readonly string[];
+}>;
 
-const ALLOWED_FORMAL_IDENTIFIERS = new Set([
-  'WitnessReference',
-  'WitnessReferences',
-  'witnessRef',
-  'witnessRefs',
-]);
+const FORBIDDEN_PHRASES: readonly ForbiddenPhrase[] =
+  V19_CAPABILITY_CONTRACT.forbiddenTerms
+    .filter((term) => term.scopes.some(
+      (scope) => scope === 'ROOT_DECLARATION',
+    ))
+    .map((term) => Object.freeze({
+      display: term.phrase.replaceAll(' ', '-'),
+      tokens: vocabularyTokens(term.phrase),
+    }));
+
+const ALLOWED_FORMAL_IDENTIFIERS = new Set<string>(
+  V19_CAPABILITY_CONTRACT.formalIdentifiers,
+);
 
 export type DeclarationVocabularyViolation = {
   readonly file: string;
@@ -59,11 +58,7 @@ export function findForbiddenRootDeclarationVocabulary(
           return;
         }
         const tokens = vocabularyTokens(identifier);
-        for (const rawToken of tokens) {
-          const token = singularForbiddenToken(rawToken);
-          if (token === null) {
-            continue;
-          }
+        for (const token of forbiddenMatches(tokens)) {
           const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
           violations.push({
             file: relative(declarationRoot, file),
@@ -72,19 +67,6 @@ export function findForbiddenRootDeclarationVocabulary(
             identifier,
             token,
           });
-        }
-        for (let index = 0; index + 1 < tokens.length; index += 1) {
-          const compound = FORBIDDEN_COMPOUNDS.get(`${tokens[index]}${tokens[index + 1]}`);
-          if (compound !== undefined) {
-            const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-            violations.push({
-              file: relative(declarationRoot, file),
-              line: position.line + 1,
-              column: position.character + 1,
-              identifier,
-              token: compound,
-            });
-          }
         }
       }
       ts.forEachChild(node, visit);
@@ -95,14 +77,45 @@ export function findForbiddenRootDeclarationVocabulary(
   return violations;
 }
 
-function singularForbiddenToken(token: string): string | null {
-  if (FORBIDDEN_TOKENS.has(token)) {
-    return token;
+function forbiddenMatches(
+  tokens: readonly string[],
+): readonly string[] {
+  const matches: string[] = [];
+  for (const forbidden of FORBIDDEN_PHRASES) {
+    if (containsForbiddenPhrase(tokens, forbidden.tokens)) {
+      matches.push(forbidden.display);
+    }
   }
-  if (token.endsWith('s') && FORBIDDEN_TOKENS.has(token.slice(0, -1))) {
-    return token.slice(0, -1);
+  return matches;
+}
+
+function containsForbiddenPhrase(
+  tokens: readonly string[],
+  forbidden: readonly string[],
+): boolean {
+  for (
+    let start = 0;
+    start + forbidden.length <= tokens.length;
+    start += 1
+  ) {
+    if (forbidden.every(
+      (token, offset) => vocabularyTokenMatches(tokens[start + offset], token),
+    )) {
+      return true;
+    }
   }
-  return null;
+  return false;
+}
+
+function vocabularyTokenMatches(
+  candidate: string | undefined,
+  forbidden: string,
+): boolean {
+  return candidate === forbidden
+    || (
+      candidate?.endsWith('s') === true
+      && candidate.slice(0, -1) === forbidden
+    );
 }
 
 function declarationClosure(entry: string, root: string): readonly string[] {

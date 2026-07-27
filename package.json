@@ -72,6 +72,8 @@
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.publish.json",
+    "generate:vocabulary-ir": "node scripts/GenerateV19VocabularyIr.ts",
+    "check:vocabulary-ir": "node scripts/GenerateV19VocabularyIr.ts --check",
     "generate:capabilities": "node scripts/GenerateV19CapabilityContract.ts",
     "check:capabilities": "node scripts/GenerateV19CapabilityContract.ts --check",
     "generate:sdk-fixture": "node scripts/generated-sdk/GenerateUsersSdkFixture.ts",
@@ -98,6 +100,7 @@
     "test:watch": "vitest",
     "test:coverage": "GIT_WARP_UPDATE_COVERAGE_RATCHET=1 vitest run --coverage test/unit test/conformance/v18*Optic*.test.ts",
     "test:coverage:ci": "vitest run --coverage test/unit test/conformance/v18*Optic*.test.ts",
+    "test:v19-acceptance": "node scripts/RunV19AcceptanceGates.ts",
     "test:sdk-fixture": "bash scripts/smoke-generated-sdk.sh",
     "benchmark": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest bench --run test/benchmark \"$@\"; else docker compose -f docker/docker-compose.yml run --build --rm test npm run benchmark:local -- \"$@\"; fi' --",
     "benchmark:local": "vitest bench --run test/benchmark",
