@@ -131,8 +131,9 @@ export async function prepareV18MigrationScratch(options: Readonly<{
 export async function verifyPromotedV19Repository(
   repositoryPath: string,
   graph: string,
+  scratchRoot = tmpdir(),
 ): Promise<void> {
-  await verifyRepositoryInDisposableCopy(repositoryPath, graph, tmpdir());
+  await verifyRepositoryInDisposableCopy(repositoryPath, graph, scratchRoot);
 }
 
 async function initializeScratch(scratchPath: string): Promise<void> {

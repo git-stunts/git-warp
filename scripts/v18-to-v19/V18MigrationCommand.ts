@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 
 import {
@@ -33,6 +34,7 @@ export async function runV18ToV19Migration(
   }>
 ): Promise<V18MigrationCommandReport> {
   const repositoryPath = resolve(options.repositoryPath);
+  const scratchRoot = resolve(options.scratchRoot ?? tmpdir());
   const plan = await planV18ToV19Migration({
     graph: options.graph,
     passphraseAvailable: options.passphrase !== undefined,
@@ -40,7 +42,7 @@ export async function runV18ToV19Migration(
     repositoryPath,
   });
   if (plan.status === 'current') {
-    await verifyPromotedV19Repository(repositoryPath, options.graph);
+    await verifyPromotedV19Repository(repositoryPath, options.graph, scratchRoot);
     return report(plan, 'already-current', false, null);
   }
   if (plan.status === 'empty') {
@@ -51,7 +53,7 @@ export async function runV18ToV19Migration(
     plan,
     ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
     ...(options.progress === undefined ? {} : { progress: options.progress }),
-    ...(options.scratchRoot === undefined ? {} : { scratchRoot: resolve(options.scratchRoot) }),
+    scratchRoot,
   });
   try {
     if (!options.mode.promotesVerifiedRefs()) {
@@ -78,7 +80,7 @@ export async function runV18ToV19Migration(
         message: 'verifying promoted refs through a disposable append and bounded reading',
         phase: 'verify',
       });
-      await verifyPromotedV19Repository(repositoryPath, options.graph);
+      await verifyPromotedV19Repository(repositoryPath, options.graph, scratchRoot);
     } catch (verificationError) {
       try {
         await rollbackV18Migration({ finalization, plan });

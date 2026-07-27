@@ -38,13 +38,14 @@ count. A repository may contain any number of independently named graphs.
 In an interactive terminal, the command displays the selected graph and exact
 mode in a framed application, then waits for confirmation before inventory or
 scratch work. The preflight reads `git count-objects -v` and filesystem
-capacity, reports the complete Git object-store size, source and scratch free
-space, and a scratch operating budget of twice the object-store size. Counting
-the complete store is conservative for a repository with several graphs,
-because shared and blob-indirected objects cannot be attributed reliably
-before inventory. After confirmation, the normal command completes all five
-boundaries in one pass. Long writer chains remain observable through the
-current phase, writer, count, and progress bar.
+capacity, reports the complete Git object-store byte size and object count,
+source and scratch free space, and a scratch operating budget that accounts
+for both byte volume and loose-object allocation blocks. Counting the complete
+store is conservative for a repository with several graphs, because shared
+and blob-indirected objects cannot be attributed reliably before inventory.
+After confirmation, the normal command completes all five boundaries in one
+pass. Long writer chains remain observable through the current phase, writer,
+count, and progress bar.
 
 For automation, pass `--yes`; progress is written to standard error and the
 final report to standard output. Add `--json` for a machine-readable report.
@@ -52,14 +53,15 @@ For encrypted v18 patches, provide `GIT_WARP_MIGRATION_PASSPHRASE` in the
 environment; the passphrase is never accepted as an argument or included in
 the report.
 
-The scratch repository defaults to the operating system's temporary volume.
-Use `--scratch-root <path>` to place it on a volume with more space. The exact
-size depends on reachable Git objects and checkpoint state; as a conservative
-operating budget, keep free space equal to at least twice the source
-repository's current on-disk size on the scratch volume. The scratch
-repository is deleted after success or failure. Promotion retains recovery
-refs in the source repository, so do not expect the source repository to
-shrink during migration.
+The scratch and disposable verification repositories default to the operating
+system's temporary volume. Use `--scratch-root <path>` to place all migration
+temporaries on a volume with more space. The exact size depends on reachable
+Git objects and checkpoint state. The reported operating budget is the greater
+of four times the current object-store bytes and the object-store bytes plus
+one scratch-filesystem allocation block for every current Git object. Scratch
+and verifier repositories are deleted after success or failure. Promotion
+retains recovery refs in the source repository, so do not expect the source
+repository to shrink during migration.
 
 Monolithic v18 checkpoint CBOR is decoded only inside this migration with a
 64 MiB byte ceiling plus explicit depth and item limits. Promoted verification

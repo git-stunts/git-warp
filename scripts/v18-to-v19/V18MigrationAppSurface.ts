@@ -84,7 +84,9 @@ function migrationLines(
     lines.push(
       { text: 'Nothing changes before you confirm.', token: warning },
       {
-        text: `Git object storage: ${formatV18MigrationBytes(options.preflight.repositoryObjectBytes)}`,
+        text:
+          `Git object storage: ${formatV18MigrationBytes(options.preflight.repositoryObjectBytes)}` +
+          ` across ${String(options.preflight.repositoryObjectCount)} objects`,
         token: body,
       },
       ...wrapStyled(
@@ -93,7 +95,9 @@ function migrationLines(
         body
       ),
       {
-        text: `Operating budget: ${formatV18MigrationBytes(options.preflight.scratchMinimumBytes)} minimum (2x object storage)`,
+        text:
+          `Operating budget: ${formatV18MigrationBytes(options.preflight.scratchMinimumBytes)}` +
+          ' minimum (byte volume and loose-object allocation)',
         token: options.preflight.scratchSufficient ? success : warning,
       },
       {

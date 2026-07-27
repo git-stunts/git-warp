@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  estimateV18MigrationScratchBytes,
   formatV18MigrationBytes,
   formatV18MigrationPreflight,
   parseV18MigrationObjectBytes,
+  parseV18MigrationObjectCount,
 } from '../../../scripts/v18-to-v19/V18MigrationPreflight.ts';
 
 describe('v18 migration preflight', () => {
@@ -24,6 +26,33 @@ describe('v18 migration preflight', () => {
     ).toBe(19n * 1_024n);
   });
 
+  it('counts loose and packed objects', () => {
+    expect(
+      parseV18MigrationObjectCount(
+        [
+          'count: 7',
+          'size: 3',
+          'in-pack: 10',
+          'packs: 1',
+          'size-pack: 11',
+          'prune-packable: 0',
+          'garbage: 0',
+          'size-garbage: 0',
+        ].join('\n')
+      )
+    ).toBe(17n);
+  });
+
+  it('budgets for both byte volume and loose-object allocation', () => {
+    expect(
+      estimateV18MigrationScratchBytes({
+        repositoryObjectBytes: 100n,
+        repositoryObjectCount: 17n,
+        scratchBlockBytes: 4_096n,
+      })
+    ).toBe(69_732n);
+  });
+
   it('formats binary byte units without floating point', () => {
     expect(formatV18MigrationBytes(0n)).toBe('0 B');
     expect(formatV18MigrationBytes(1_536n)).toBe('1.5 KiB');
@@ -34,6 +63,7 @@ describe('v18 migration preflight', () => {
     expect(
       formatV18MigrationPreflight({
         repositoryObjectBytes: 100n,
+        repositoryObjectCount: 17n,
         scratchAvailableBytes: 150n,
         scratchMinimumBytes: 200n,
         scratchPath: '/scratch',

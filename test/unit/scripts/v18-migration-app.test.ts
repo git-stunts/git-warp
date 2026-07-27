@@ -9,6 +9,7 @@ import { V18_MIGRATION_THEME } from '../../../scripts/v18-to-v19/V18MigrationThe
 
 const PREFLIGHT: V18MigrationPreflight = Object.freeze({
   repositoryObjectBytes: 80n * 1_048_576n,
+  repositoryObjectCount: 2_000n,
   scratchAvailableBytes: 400n * 1_048_576n,
   scratchMinimumBytes: 160n * 1_048_576n,
   scratchPath: '/tmp',

@@ -112,13 +112,34 @@ size, and Git process overhead. The command may look idle while Git is writing
 or packing objects; follow the phase and progress display instead of the size
 of the source repository alone.
 
-The scratch repository defaults to the operating system's temporary volume.
-Use `--scratch-root <path>` to place it on a volume with more space. The
-preflight operating budget is twice the source repository's current Git object
-storage. It deliberately counts the complete object database, even when only
+The scratch and disposable verification repositories default to the operating
+system's temporary volume. Use `--scratch-root <path>` to place all of them on
+a volume with more space.
+
+The preflight operating budget is the greater of:
+
+```text
+4 × current Git object-storage bytes
+
+current Git object-storage bytes
+  + current object count × scratch-filesystem allocation block size
+```
+
+The second term matters because migration writes many small loose objects. A
+packed source object may occupy only a few bytes in a pack delta, while its
+replacement still consumes at least one filesystem allocation block before
+later Git maintenance packs it.
+
+The preflight deliberately counts the complete object database, even when only
 one of several graph namespaces is selected: shared and blob-indirected
 objects cannot always be attributed reliably to one graph before inventory.
 That makes the estimate conservative for multi-graph repositories.
+
+In the 11,708-commit Think rehearsal, the source object database was about
+78.5 MiB across 172,644 objects. A naive 2× estimate reported only 157 MiB,
+but scratch exceeded 300 MiB while the new objects were loose. The
+count-and-allocation formula recommends about 753 MiB on a 4 KiB-block
+filesystem.
 
 The budget is an operating minimum, not a mathematical upper bound. Object
 reuse, pack layout, retained checkpoint state, and repository-local Git

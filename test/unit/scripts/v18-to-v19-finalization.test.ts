@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -148,9 +148,12 @@ describe('v18-to-v19 finalization boundaries', () => {
       await eagerControl.close();
     }
 
+    const verificationRoot = await mkdtemp(join(tmpdir(), 'git-warp-v18-verify-root-'));
+    temporaryDirectories.push(verificationRoot);
     await expect(
-      verifyPromotedV19Repository(migration.prepared.scratchPath, migration.graph)
+      verifyPromotedV19Repository(migration.prepared.scratchPath, migration.graph, verificationRoot)
     ).resolves.toBeUndefined();
+    expect(await readdir(verificationRoot)).toEqual([]);
   });
 
   async function prepareFixtureMigration(): Promise<
