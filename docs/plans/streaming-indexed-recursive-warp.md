@@ -10,6 +10,12 @@ Decision owner: git-warp maintainers
 
 Incident date: 2026-07-27
 
+Parent tracker:
+[GitHub Issue #824](https://github.com/git-stunts/git-warp/issues/824)
+
+Design review:
+[GitHub Pull Request #813](https://github.com/git-stunts/git-warp/pull/813)
+
 ## Decision
 
 git-warp will not require a process-resident, complete graph state for any
@@ -828,6 +834,22 @@ The checked-in fixture budget remains measured in low megabytes.
 - Cut the release only after all parent acceptance checks are green.
 
 ## Existing GitHub Issue Cross-Reference
+
+### Derived implementation trackers
+
+| Issue | Slice |
+| --- | --- |
+| [#814](https://github.com/git-stunts/git-warp/issues/814) | Eliminate production full-state materialization contracts |
+| [#815](https://github.com/git-stunts/git-warp/issues/815) | Define retained graph manifests and bounded ordinal address pages |
+| [#816](https://github.com/git-stunts/git-warp/issues/816) | Remix Roaring indexes as the retained-state selection plane |
+| [#817](https://github.com/git-stunts/git-warp/issues/817) | Stream causal reduction and replace state hashes with root commitments |
+| [#818](https://github.com/git-stunts/git-warp/issues/818) | Make attachment APIs stream-only and bound all byte collection |
+| [#819](https://github.com/git-stunts/git-warp/issues/819) | Add typed recursive WARP graph attachment references |
+| [#820](https://github.com/git-stunts/git-warp/issues/820) | Traverse recursive WARP graphs with cycle-safe bounded receipts |
+| [#821](https://github.com/git-stunts/git-warp/issues/821) | Retain and diagnose recursive graph references across CAS boundaries |
+| [#822](https://github.com/git-stunts/git-warp/issues/822) | Migrate retained substrates directly into indexed graph roots |
+| [#823](https://github.com/git-stunts/git-warp/issues/823) | Prove bounded memory across global jobs, attachments, migration, and recursion |
+| [#824](https://github.com/git-stunts/git-warp/issues/824) | Parent release goalpost |
 
 ### Direct predecessors
 
