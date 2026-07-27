@@ -45,11 +45,17 @@ It lets you:
 
 ## Latest release
 
-`v18.2.1` corrects the WARP-owned state-cache materialization path introduced
-in `v18.2.0`. Live materialization now uses current writer-frontier coordinates
-for exact and compatible predecessor snapshot reuse, publishes replay results
-under their real coordinate, and keeps diff-producing or receipt-producing reads
-replay-backed so callers receive complete diff and provenance data.
+`v19.0.0` replaces the graph-first application API with one public runtime
+boundary: open `Runtime`, address causal `Lane`s, write validated `Intent`s,
+consume bounded `Observation` streams of `Reading`s, and retain `Receipt`s.
+Existing repositories with retained v18 state require the packaged one-shot
+migration below before any v19 process opens them.
+
+The exact merged-main release gate's representative migrated-v18 retained scan
+was 31.1% faster cold, 32.1% faster warm, used 20.1–21.3% less operation CPU,
+and issued 46.6% fewer Git commands than published v18.2.1. These measurements
+cover the bounded 16-property fixture workload; they are not a universal
+workload claim.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
@@ -96,9 +102,7 @@ if (write.outcome.kind === 'conflict' || write.outcome.kind === 'obstruction') {
   throw new Error(write.reason ?? `write admission was ${write.outcome.kind}`);
 }
 
-const observation = events.observe(
-  users.observers.roleOf({ subject: 'user:alice' })
-);
+const observation = events.observe(users.observers.roleOf({ subject: 'user:alice' }));
 
 for await (const reading of observation) {
   console.log(reading.value);
@@ -452,7 +456,13 @@ Check [CHANGELOG.md](CHANGELOG.md), the topic docs, and the package registry for
 
 ### What about performance and scale?
 
-Strong for offline/moderate causal workloads thanks to bounded support and holographic slices. Not for high-frequency real-time (use **[Echo](https://github.com/flyingrobots/echo)**).
+The exact merged-main v19 release gate measured its representative migrated-v18
+retained scan at 31.1–32.1% lower wall time, 20.1–21.3% lower operation CPU,
+and 46.6% fewer Git commands than v18.2.1. A separate 256 MiB logical Observer
+stream completes under a 64 MiB old-space cap. These are bounded workload
+contracts, not a claim that every repository or query has the same speedup. For
+high-frequency real-time execution, use
+**[Echo](https://github.com/flyingrobots/echo)**.
 
 ### How does it relate to Echo and Continuum?
 

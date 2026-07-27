@@ -5,17 +5,16 @@ specific task.
 
 ## Current release
 
-`v18.2.1` keeps the public docs focused around the shipped v18 read model and
-corrects the WARP state-cache materialization topic: live materialization can
-reuse coordinate-addressed snapshots, while diff and receipt reads remain
-replay-backed. Operator workflows live outside the topic shelf in
-[Operations](../operations/). The full release narrative lives in the root
-[CHANGELOG](../../CHANGELOG.md).
+`v19.0.0` ships the Runtime, Lane, Intent, Observer, Observation, Reading, and
+Receipt application vocabulary, bounded retained reads, and the one-shot
+v18-to-v19 substrate migration. Operator workflows live outside the topic
+shelf in [Operations](../operations/). The full breaking-change, migration,
+and performance narrative lives in the root [CHANGELOG](../../CHANGELOG.md).
 
 ## Start here
 
-- [Getting started](getting-started.md): install the package, open a worldline,
-  write a patch, read it back, and sync WARP refs.
+- [Getting started](getting-started.md): install the package, open a Runtime and
+  Lane, write an Intent, observe a bounded value, and keep its Receipt.
 - [v19 public vocabulary checkpoint](api/): follow the accepted Runtime, Lane,
   Intent, Observer, Observation, Reading, and Receipt contract.
 - [Generated v19 public vocabulary](vocabulary.generated.md): use the canonical

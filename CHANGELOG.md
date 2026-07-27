@@ -7,19 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0] - 2026-07-27
+
+### Release notes
+
+`v19.0.0` replaces the graph-first v18 application surface with one
+intent-and-observer runtime boundary. Applications open `Runtime`, address
+causal `Lane`s, write validated `Intent`s, consume bounded `Observation`
+streams of `Reading`s, and retain `Receipt`s. Formal coordinates and optics,
+receipt inspection, charts, and test harnesses live on explicit package
+subpaths rather than widening the root.
+
+This is an intentional breaking release. A repository with retained v18 state
+must be migrated once, while all writers are stopped, with the packaged
+`git-warp-v18-to-v19` command. The migration rehearses in a disposable
+repository before a compare-and-swap promotion and preserves additive recovery
+refs. No v18 compatibility runtime remains in the product code.
+
+The exact merged-main Node 22/Linux release gate measured a representative
+16-property scan over the authentic approximately 2 MiB migrated-v18 fixture at
+31.1% lower cold wall time, 32.1% lower warm wall time, 20.1–21.3% lower
+operation CPU, and 46.6% fewer Git commands than published v18.2.1. The
+one-shot migration cost is measured and reported separately from steady-state
+reads.
+
 ### Added
 
-- Added root `intent` builders, the runtime-backed `Intent` noun,
-  `Timeline.write(intent)`, and `WriteReceipt` results with the public
+- Added the root `Runtime` value plus type-only contracts for `Lane`, `Intent`,
+  `Observer`, `Observation`, `Reading`, `Evidence`, `Tick`, settlement, and
+  `Receipt`.
+- Added Wesley-generated domain `Intent` and `Observer` builders,
+  `Lane.write(intent)`, and `WriteReceipt` results with the public
   `AdmissionOutcome` axis: `derived`, `plural`, `conflict`, and `obstruction`.
   Each variant carries its required typed witness and reports admission rather
   than completed settlement.
-- Added root `reading` builders, the runtime-backed `Reading` noun,
-  `Timeline.read(reading)`, and receipt-bearing `ReadingResult` values for
-  first-use property and node-existence reads.
-- Added `Timeline.draft(name)`, draft writes, `Timeline.previewJoin(draft)`,
-  and `Timeline.join(draft)` with join receipts for first-use speculative
-  workflows.
+- Added synchronous `Lane.observe(observer)` construction, lazy single-execution
+  `Observation` streams, strict bounded convenience consumers, and completed
+  `ObservationReceipt`s.
+- Added persisted `Runtime.fork()` and `Runtime.strand()` lanes plus immutable,
+  revalidated `Runtime.previewSettlement()` plans and `Runtime.settle()`
+  receipts for speculative workflows.
 - Added idempotent `GitStorage.close()` and async-disposal support to release
   local Git and git-cas processes without changing history or retention.
 - Added the one-shot `git-warp-v18-to-v19` retained-substrate migrator. It
@@ -35,14 +62,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Added the v19 `openWarp()` product opener. `Warp` and `Timeline` are returned
-  as runtime handles and exported from the root as companion types.
-- Moved supported storage, formal WARP, and operator inspection exports out of
-  the package root into the explicit `storage`, `advanced`, and `diagnostics`
-  subpaths. The package root now rejects graph-first compatibility nouns
-  through the v19 public API boundary audit.
+- Made `Runtime.open()` the sole production composition root and `Lane` the
+  public causal-history handle, replacing `openWarp()`, `Warp`, and `Timeline`
+  application vocabulary.
+- Kept storage composition behind `Runtime`, moved formal WARP and operator
+  inspection exports to the explicit `advanced` and `diagnostics` subpaths,
+  and locked npm and JSR publication to the same root, charts, diagnostics,
+  advanced, and testing contract. The package root rejects graph-first
+  compatibility nouns through the v19 public API boundary audit.
 - Moved formal coordinate capture to advanced `captureCoordinate()` so the root
-  `Timeline` exposes opaque ticks but no coordinate machinery.
+  contracts expose opaque tick and coordinate-reference types but no coordinate
+  machinery.
 - Bound ticks to the exact timeline runtime that created them and made bounded
   traversal reuse one request-scoped checkpoint basis and tail support index.
 - Locked the package root to the v19 facade allowlist so support ports,
@@ -61,7 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Raised the coverage ratchet from `92.10%` to `92.62%` after adding targeted
   coverage for bounded query node paging and memory-budget rejection paths and
   removing retired compatibility surfaces.
-- Upgraded `@git-stunts/git-cas` to `^6.5.3` so Git-backed materializations can
+- Upgraded `@git-stunts/git-cas` to `^6.5.5` so Git-backed materializations can
   use managed `CacheSet` retention, opaque page and bundle handles, and
   persistent Git object sessions.
 - Replaced the raw-Git grep check with a TypeScript AST gate that keeps
@@ -151,6 +181,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Prepared each Observation's timeline basis once, reused one coordinate optic
+  across its readings, and cached the immutable checkpoint basis for captured
+  coordinates. Live optics remain uncached so they continue to observe current
+  history.
 - Reused repository-scoped Git object sessions across immutable history and
   CAS operations, then closed history, materialization, and CAS owners at
   application, CLI, migration, and test boundaries. This removes repeated
