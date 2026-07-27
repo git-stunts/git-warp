@@ -15,6 +15,7 @@ export const V19_PUBLIC_VOCABULARY = {
     "docs/topics/api/README.md",
     "docs/topics/git-perf.md",
     "docs/topics/git-substrate.md",
+    "diagnostics.ts",
     "scripts/v18-to-v19/",
     "src/infrastructure/"
   ],

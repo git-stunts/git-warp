@@ -6,6 +6,12 @@ import { describe, expect, it } from 'vitest';
 import {
   V19_CAPABILITY_CONTRACT,
 } from '../../../bin/cli/capabilities/V19CapabilityContract.generated.ts';
+import {
+  findForbiddenPublicVocabulary,
+} from '../../../scripts/V19VocabularyConformance.ts';
+import type {
+  JsonObject,
+} from '../../../scripts/V19VocabularyContract.ts';
 import { COMMANDS } from '../../../bin/cli/commands/registry.ts';
 import {
   listMcpTools,
@@ -107,5 +113,36 @@ describe('generated v19 vocabulary contract', () => {
       .not.toContain('src/domain/');
     expect(V19_CAPABILITY_CONTRACT.exceptionPaths)
       .not.toContain('bin/');
+  });
+
+  it('keeps generated public metadata free of legacy vocabulary', () => {
+    expect(findForbiddenPublicVocabulary(
+      V19_CAPABILITY_CONTRACT,
+    )).toEqual([]);
+  });
+
+  it('enforces every public-surface term from the generated registry', () => {
+    const artifact = readFileSync(
+      resolve(ROOT, 'bin/cli/capabilities/v19-capabilities.json'),
+      'utf8',
+    );
+    const publicTerms = V19_CAPABILITY_CONTRACT.forbiddenTerms.filter(
+      (term) => term.scopes.some(
+        (scope) => scope === 'PUBLIC_SURFACE',
+      ),
+    );
+    for (const term of publicTerms) {
+      const parsed = JSON.parse(artifact) as JsonObject;
+      const contract: JsonObject = {
+        ...parsed,
+        moduleSummary: `Legacy ${term.phrase} surface`,
+      };
+      expect(findForbiddenPublicVocabulary(contract)).toEqual([
+        expect.objectContaining({
+          field: 'moduleSummary',
+          phrase: term.phrase,
+        }),
+      ]);
+    }
   });
 });
