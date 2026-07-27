@@ -95,6 +95,12 @@ describe('v19 CLI input errors', () => {
     expect(() => toMcpJson({ invalid: undefined })).toThrowError(
       expect.objectContaining({ code: 'E_V19_JSON_VALUE' }),
     );
+    expect(() => toMcpJson(new Date(0))).toThrowError(
+      expect.objectContaining({ code: 'E_V19_JSON_VALUE' }),
+    );
+    expect(() => toMcpJson(new Map())).toThrowError(
+      expect.objectContaining({ code: 'E_V19_JSON_VALUE' }),
+    );
   });
 
   it('accepts receipt --input=value and reports malformed files as usage', async () => {

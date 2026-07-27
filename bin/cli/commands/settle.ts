@@ -12,10 +12,12 @@ import {
   applyReviewedSettlement,
   previewReviewedSettlement,
   reviewedSettlementFromValue,
+  settlementPlanFields,
   type ReviewedSettlement,
   type SettlementSelector,
 } from '../v19/V19SettlementReview.ts';
 import {
+  evidenceEnvelope,
   receiptEnvelope,
   renderReceipt,
 } from '../../presenters/V19ReadingReceipt.ts';
@@ -98,9 +100,9 @@ function previewResult(
     operation: preview.operation,
     source: toMcpJson(preview.source),
     target: toMcpJson(preview.target),
-    plan: toMcpJson(preview.plan),
+    plan: toMcpJson(settlementPlanFields(preview.plan)),
     outcome: toMcpJson(preview.outcome),
-    evidence: toMcpJson(preview.evidence),
+    evidence: evidenceEnvelope(preview.evidence),
   });
   return {
     payload,

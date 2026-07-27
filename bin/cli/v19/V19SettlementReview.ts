@@ -20,7 +20,7 @@ export type ReviewedSettlement = Readonly<{
   readonly plan: ReviewedSettlementPlanFields;
 }>;
 
-type ReviewedSettlementPlanFields = SettlementPlanFields & Readonly<{
+export type ReviewedSettlementPlanFields = SettlementPlanFields & Readonly<{
   readonly invalidationRule: 'any-bound-input-change';
 }>;
 
@@ -108,7 +108,7 @@ function freezeSelector(selector: SettlementSelector): SettlementSelector {
   });
 }
 
-function settlementPlanFields(
+export function settlementPlanFields(
   plan: SettlementPlan,
 ): ReviewedSettlementPlanFields {
   return freezePlanFields(plan);

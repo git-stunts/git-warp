@@ -37,5 +37,9 @@ function isJsonScalar(
 function isPlainObject(
   value: unknown,
 ): value is { readonly [key: string]: unknown } {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value) as object | null;
+  return prototype === Object.prototype || prototype === null;
 }

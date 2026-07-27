@@ -147,7 +147,7 @@ describe('MCP command protocol', () => {
       terminal: false,
       receiptRef: null,
     });
-    expect(pulls).toBe(1);
+    expect(pulls).toBe(0);
 
     expect(await session.readObservation(observationId, undefined, 1))
       .toEqual({

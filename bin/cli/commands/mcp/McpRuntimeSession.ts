@@ -89,10 +89,10 @@ export default class McpRuntimeSession {
     return plan;
   }
 
-  async retainObservation(options: {
+  retainObservation(options: {
     readonly readings: AsyncIterable<McpJsonValue>;
     readonly receipt: () => Promise<McpJsonValue>;
-  }): Promise<RetainedObservation> {
+  }): RetainedObservation {
     const identifier = `observation-${this.#nextObservation}`;
     this.#nextObservation += 1;
     const transport: ObservationTransport = {
@@ -104,11 +104,10 @@ export default class McpRuntimeSession {
       terminal: false,
     };
     this.#observations.set(identifier, transport);
-    await this.pullObservation(transport);
     return Object.freeze({
       observationId: identifier,
-      terminal: transport.terminal,
-      receiptRef: transport.receiptRef,
+      terminal: false,
+      receiptRef: null,
     });
   }
 

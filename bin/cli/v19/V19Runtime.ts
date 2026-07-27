@@ -21,12 +21,30 @@ export async function withRuntime<TResult>(
     at: options.repo,
     writer: options.writer,
   });
+  let result: TResult;
   try {
     const storage = requireCliStorageBinding(resolveRuntimeStorage(runtime));
-    return await task(runtime, storage);
-  } finally {
-    await runtime.close();
+    result = await task(runtime, storage);
+  } catch (error) {
+    return await closeAfterTaskFailure(runtime, error);
   }
+  await runtime.close();
+  return result;
+}
+
+async function closeAfterTaskFailure(
+  runtime: Runtime,
+  taskFailure: unknown,
+): Promise<never> {
+  try {
+    await runtime.close();
+  } catch (closeError) {
+    throw new AggregateError(
+      [taskFailure, closeError],
+      'Runtime task and cleanup both failed',
+    );
+  }
+  throw taskFailure;
 }
 
 export async function openRequiredLane(

@@ -49,6 +49,21 @@ const STRAND_IDENTITY_FAILURE = Object.freeze({
   code: 'E_RUNTIME_STRAND_IDENTITY',
 });
 
+type LaneOwnershipFailure = Readonly<{
+  readonly message: string;
+  readonly code: string;
+}>;
+
+const FORK_LANE_OWNERSHIP_FAILURE = Object.freeze({
+  message: 'Runtime.fork requires a Lane owned by this Runtime',
+  code: 'E_RUNTIME_FORK_FOREIGN_LANE',
+});
+
+const STRAND_LANE_OWNERSHIP_FAILURE = Object.freeze({
+  message: 'Runtime.strand requires a Lane owned by this Runtime',
+  code: 'E_RUNTIME_STRAND_FOREIGN_LANE',
+});
+
 /** Production composition root for one local git-warp runtime. */
 export default class Runtime {
   readonly #activity: RuntimeActivity;
@@ -106,7 +121,11 @@ export default class Runtime {
     assertForkSource(source);
     assertForkOptions(options);
     assertTimelineNameIdentity(options.name, 'fork.name', FORK_IDENTITY_FAILURE);
-    const binding = requireOwnedLaneRuntime(source, this.#laneOwner);
+    const binding = requireOwnedLaneRuntime(
+      source,
+      this.#laneOwner,
+      FORK_LANE_OWNERSHIP_FAILURE,
+    );
     const fork = requireWorldlineFork(source, binding);
     const lease = this.#activity.acquire();
     try {
@@ -124,7 +143,11 @@ export default class Runtime {
       'strand.name',
       STRAND_IDENTITY_FAILURE,
     );
-    const binding = requireOwnedLaneRuntime(parent, this.#laneOwner);
+    const binding = requireOwnedLaneRuntime(
+      parent,
+      this.#laneOwner,
+      STRAND_LANE_OWNERSHIP_FAILURE,
+    );
     const openStrand = requireWorldlineStrand(parent, binding);
     const lease = this.#activity.acquire();
     try {
@@ -184,13 +207,14 @@ function assertStrandOptions(options: RuntimeStrandOptions): void {
   }
 }
 
-function requireOwnedLaneRuntime(source: Lane, owner: object): LaneRuntime {
+function requireOwnedLaneRuntime(
+  source: Lane,
+  owner: object,
+  failure: LaneOwnershipFailure,
+): LaneRuntime {
   const binding = requireLaneRuntime(source);
   if (binding.owner !== owner) {
-    throw new WarpError(
-      'Runtime.fork requires a Lane owned by this Runtime',
-      'E_RUNTIME_FORK_FOREIGN_LANE',
-    );
+    throw new WarpError(failure.message, failure.code);
   }
   return binding;
 }

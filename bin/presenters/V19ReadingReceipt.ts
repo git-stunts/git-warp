@@ -2,9 +2,12 @@ import type ObservedReading from '../../src/domain/api/ObservedReading.ts';
 import type ObservationReceipt from '../../src/domain/api/ObservationReceipt.ts';
 import type SettlementReceipt from '../../src/domain/api/SettlementReceipt.ts';
 import type WriteReceipt from '../../src/domain/api/WriteReceipt.ts';
+import type Evidence from '../../src/domain/api/Evidence.ts';
+import type RetentionEvidence from '../../src/domain/api/RetentionEvidence.ts';
 import type { ReadingValue } from '../../src/domain/api/ReadingValue.ts';
 import ImmutableBytes from '../../src/domain/services/snapshot/ImmutableBytes.ts';
 import type { McpJsonValue } from '../cli/commands/mcp/McpJsonValue.ts';
+import { settlementPlanFields } from '../cli/v19/V19SettlementReview.ts';
 import { stableStringify } from './json.ts';
 import { toMcpJson } from './V19Json.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
@@ -20,7 +23,7 @@ export function readingEnvelope(
   return Object.freeze({
     type: 'Reading',
     value: readingValueToJson(reading.value),
-    coordinate: toMcpJson(reading.coordinate),
+    coordinate: readingCoordinateEnvelope(reading.coordinate),
     support: toMcpJson(reading.support),
     witnessRefs: toMcpJson([...reading.witnessRefs]),
   });
@@ -45,7 +48,7 @@ function writeReceiptEnvelope(receipt: WriteReceipt): McpJsonValue {
     intent: toMcpJson(receipt.intent.descriptor),
     outcome: toMcpJson(receipt.outcome),
     reason: receipt.reason ?? null,
-    evidence: toMcpJson(receipt.evidence),
+    evidence: evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
   });
 }
@@ -65,7 +68,7 @@ function observationReceiptEnvelope(
     status: receipt.status,
     reason: receipt.reason ?? null,
     evidence:
-      receipt.evidence === undefined ? null : toMcpJson(receipt.evidence),
+      receipt.evidence === undefined ? null : evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
   });
 }
@@ -78,11 +81,62 @@ function settlementReceiptEnvelope(
     operation: receipt.operation,
     source: toMcpJson(receipt.source),
     target: toMcpJson(receipt.target),
-    plan: toMcpJson(receipt.plan),
+    plan: toMcpJson(settlementPlanFields(receipt.plan)),
     outcome: toMcpJson(receipt.outcome),
     reason: receipt.reason ?? null,
-    evidence: toMcpJson(receipt.evidence),
+    evidence: evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
+  });
+}
+
+export function evidenceEnvelope(evidence: Evidence): McpJsonValue {
+  const envelope: { [key: string]: McpJsonValue } = {
+    basis: evidenceHandleEnvelope(evidence.basis),
+    support: Object.freeze(evidence.support.map(evidenceHandleEnvelope)),
+  };
+  if (evidence.retention !== undefined) {
+    envelope['retention'] = Object.freeze(
+      evidence.retention.map(retentionEvidenceEnvelope),
+    );
+  }
+  if (evidence.tick !== undefined) {
+    envelope['tick'] = Object.freeze({
+      id: evidence.tick.id,
+      timeline: evidence.tick.timeline,
+    });
+  }
+  return Object.freeze(envelope);
+}
+
+function readingCoordinateEnvelope(
+  coordinate: ObservedReading['coordinate'],
+): McpJsonValue {
+  return Object.freeze({
+    basis: evidenceHandleEnvelope(coordinate.basis),
+    lane: coordinate.lane,
+    ...(coordinate.tick === undefined
+      ? {}
+      : { tick: Object.freeze({
+          id: coordinate.tick.id,
+          lane: coordinate.tick.lane,
+        }) }),
+  });
+}
+
+function evidenceHandleEnvelope(
+  handle: Readonly<{ readonly id: string }>,
+): McpJsonValue {
+  return Object.freeze({ id: handle.id });
+}
+
+function retentionEvidenceEnvelope(
+  retention: RetentionEvidence,
+): McpJsonValue {
+  return Object.freeze({
+    witness: evidenceHandleEnvelope(retention.witness),
+    policy: retention.policy,
+    reachability: retention.reachability,
+    rootKind: retention.rootKind,
   });
 }
 

@@ -108,10 +108,13 @@ export async function listGraphNames(persistence: Persistence): Promise<string[]
  * Resolves the graph name from an explicit flag or auto-detects a single graph.
  */
 export async function resolveGraphName(persistence: Persistence, explicitLane: string | null): Promise<string> {
+  const graphNames = await listGraphNames(persistence);
   if (typeof explicitLane === 'string' && explicitLane.length > 0) {
+    if (!graphNames.includes(explicitLane)) {
+      throw notFoundError(`Lane not found: ${explicitLane}`);
+    }
     return explicitLane;
   }
-  const graphNames = await listGraphNames(persistence);
   if (graphNames.length === 1) {
     return graphNames[0] as string;
   }
@@ -127,12 +130,6 @@ export async function resolveGraphName(persistence: Persistence, explicitLane: s
 export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance }> {
   const { persistence, runtimeStorage } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.lane);
-  if (typeof options.lane === 'string' && options.lane.length > 0) {
-    const graphNames = await listGraphNames(persistence);
-    if (!graphNames.includes(options.lane)) {
-      throw notFoundError(`Lane not found: ${options.lane}`);
-    }
-  }
   const graph = await openRuntimeHostProduct({
     persistence,
     runtimeStorage,

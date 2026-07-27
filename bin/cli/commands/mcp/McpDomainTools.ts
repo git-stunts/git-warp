@@ -10,8 +10,10 @@ import {
   applyReviewedSettlement,
   previewReviewedSettlement,
   reviewSettlement,
+  settlementPlanFields,
 } from '../../v19/V19SettlementReview.ts';
 import {
+  evidenceEnvelope,
   readingEnvelope,
   receiptEnvelope,
 } from '../../../presenters/V19ReadingReceipt.ts';
@@ -118,7 +120,7 @@ async function startObservation(
   const observation = lane.observe(
     observerFromValue(input.observerId, input.reading),
   );
-  return await session.retainObservation({
+  return session.retainObservation({
     readings: readingEnvelopes(observation),
     receipt: async () => receiptEnvelope(await observation.receipt),
   });
@@ -186,9 +188,9 @@ async function previewSettlement(
     planRef,
     source: toMcpJson(preview.source),
     target: toMcpJson(preview.target),
-    plan: toMcpJson(preview.plan),
+    plan: toMcpJson(settlementPlanFields(preview.plan)),
     outcome: toMcpJson(preview.outcome),
-    evidence: toMcpJson(preview.evidence),
+    evidence: evidenceEnvelope(preview.evidence),
   });
 }
 
