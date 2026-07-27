@@ -17,6 +17,7 @@ import {
   runV18MigrationGit,
   v18MigrationGitText,
 } from './V18MigrationGit.ts';
+import { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 import {
   reportV18MigrationProgress,
   shouldReportV18CommitProgress,
@@ -107,11 +108,17 @@ export async function planV18ToV19Migration(options: Readonly<{
     throw new Error(`timeline '${options.graph}' has retained state but no writer refs`);
   }
   const writers: V18MigrationWriterPlan[] = [];
-  for (const refName of writerRefs.sort()) {
-    writers.push(await planWriter({
-      ...options,
-      refName,
-    }));
+  const objectReader = new V18MigrationGitObjectReader(options.repositoryPath);
+  try {
+    for (const refName of writerRefs.sort()) {
+      writers.push(await planWriter({
+        ...options,
+        objectReader,
+        refName,
+      }));
+    }
+  } finally {
+    await objectReader.close();
   }
   return migrationPlan(
     options,
@@ -127,6 +134,7 @@ async function planWriter(options: Readonly<{
   graph: string;
   passphraseAvailable: boolean;
   progress?: V18MigrationProgressReporter;
+  objectReader: V18MigrationGitObjectReader;
   refName: string;
   repositoryPath: string;
 }>): Promise<V18MigrationWriterPlan> {
@@ -154,7 +162,11 @@ async function planWriter(options: Readonly<{
     writer,
   });
   for (const sha of commits) {
-    const patch = await readV18PatchCommit(options.repositoryPath, sha);
+    const patch = await readV18PatchCommit(
+      options.repositoryPath,
+      sha,
+      options.objectReader,
+    );
     if (
       patch.graph !== options.graph
       || patch.writer !== writer

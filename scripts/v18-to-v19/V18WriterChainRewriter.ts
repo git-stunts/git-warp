@@ -4,6 +4,7 @@ import {
   readV18MigrationRef,
   v18MigrationGitText,
 } from './V18MigrationGit.ts';
+import type { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 import V18PatchTranslator from './V18PatchTranslator.ts';
 import {
   reportV18MigrationProgress,
@@ -24,6 +25,7 @@ export type V18WriterChainRewrite = Readonly<{
 export async function rewriteV18WriterChain(options: Readonly<{
   commitMap?: Map<string, string>;
   graph: string;
+  objectReader?: V18MigrationGitObjectReader;
   progress?: V18MigrationProgressReporter;
   refName: string;
   repositoryPath: string;
@@ -47,7 +49,11 @@ export async function rewriteV18WriterChain(options: Readonly<{
     writer: options.writer,
   });
   for (const sha of commits) {
-    const patch = await readV18PatchCommit(options.repositoryPath, sha);
+    const patch = await readV18PatchCommit(
+      options.repositoryPath,
+      sha,
+      options.objectReader,
+    );
     requirePatchIdentity(patch, options.graph, options.writer);
     requireLinearParent(patch, previousOld);
     const translated = patch.storage.kind === 'current'

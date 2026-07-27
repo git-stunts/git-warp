@@ -10,6 +10,7 @@ import {
   listV18MigrationRefs,
   v18MigrationGitText,
 } from './V18MigrationGit.ts';
+import { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 import V18PatchTranslator from './V18PatchTranslator.ts';
 import {
   rewriteV18WriterChain,
@@ -55,6 +56,7 @@ export async function prepareV18MigrationScratch(options: Readonly<{
       repositoryPath: scratchPath,
       ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
     });
+    const objectReader = new V18MigrationGitObjectReader(scratchPath);
     const rewrites: V18WriterChainRewrite[] = [];
     const commitMap = new Map<string, string>();
     let seededCheckpointRef: string | null = null;
@@ -63,6 +65,7 @@ export async function prepareV18MigrationScratch(options: Readonly<{
         rewrites.push(await rewriteV18WriterChain({
           commitMap,
           graph: options.plan.graph,
+          objectReader,
           ...(options.progress === undefined ? {} : { progress: options.progress }),
           refName: writer.refName,
           repositoryPath: scratchPath,
@@ -86,7 +89,7 @@ export async function prepareV18MigrationScratch(options: Readonly<{
       });
       seededCheckpointRef = seed.status === 'seeded' ? seed.checkpointRef : null;
     } finally {
-      await translator.close();
+      await Promise.all([objectReader.close(), translator.close()]);
     }
     reportV18MigrationProgress(options.progress, {
       message: 'retiring superseded derived refs',
