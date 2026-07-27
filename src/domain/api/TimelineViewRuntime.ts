@@ -11,6 +11,7 @@ export function createTimelineView(
   tick: Tick
 ): TimelineView {
   const coordinate = requireTickCoordinate(runtime, tick);
+  const optic = coordinate.optic();
   return new TimelineView({
     name: runtime.worldlineName,
     writer: runtime.writerId,
@@ -20,7 +21,7 @@ export function createTimelineView(
         runtime,
         context,
         reading,
-        basis: { optic: coordinate.optic(), tick },
+        basis: { optic, tick },
       }),
   });
 }

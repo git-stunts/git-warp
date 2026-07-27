@@ -130,15 +130,22 @@ remain diagnostic.
 The release gate also restores the checked-in 2 MiB
 `v18-retained-substrate-medium-001` bundle under the exact published
 `@git-stunts/git-warp@18.2.1` and `@git-stunts/git-cas@6.0.0` lock. It reads
-`medium:document:015.ordinal` through the v18 checkpoint-tail optic, migrates a
-separate restored copy once, and reads the same value through the v19 public
-Runtime, Lane, generated-SDK construction surface, Reading, and Receipt path.
+all 16 `medium:document:000..015.ordinal` values on one pinned coordinate
+through the v18 checkpoint-tail optic, migrates a separate restored copy once,
+and performs the same retained scan through the v19 public Runtime, Lane,
+generated-SDK construction surface, Reading, and Receipt path.
 
 Fixture restore and the one-shot migration are excluded from steady-state
 samples. Migration duration is reported separately. Cold and second-process
 warm reads run from isolated copies in counterbalanced v18/v19 order. Every
 sample records operation and worker wall time, CPU, heap, RSS, Git command
 counts, the exact semantic value, and retained-basis evidence.
+The report fails closed unless both runtimes produce 16 readings, checksum
+`120`, and final value `15`, while v19 also completes its Receipt.
+Operation-scoped CPU, heap, and RSS always come from the worker's timed
+boundary. When GNU `time` is available, whole-process CPU and RSS are retained
+in separate diagnostic fields and never replace the operation-scoped gate
+inputs.
 
 [`migrated-read-policy.json`](./migrated-read-policy.json) requires v19 to
 improve median operation wall time by at least 20% and 100 ms, and to reduce

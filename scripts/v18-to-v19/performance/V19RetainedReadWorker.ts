@@ -1,11 +1,13 @@
 import { Runtime } from '../../../index.ts';
 import {
-  createObserver,
+  createManyObserver,
   reading,
 } from '../../../advanced.ts';
 import type { ReadingValue } from '../../../index.ts';
 import {
+  MIGRATED_READ_DOCUMENT_COUNT,
   measureMigratedRead,
+  migratedReadSubject,
   printMigratedReadResult,
   requiredArgument,
 } from './MigratedReadWorkerCommon.ts';
@@ -19,25 +21,55 @@ const result = await measureMigratedRead(async () => {
   });
   try {
     const lane = await runtime.lane('v18-medium-retained-substrate');
-    const observation = lane.observe(createObserver(
+    const observation = lane.observe(createManyObserver(
       'v18-to-v19.performance',
-      reading.property({
-        key: 'ordinal',
-        subject: 'medium:document:015',
-      }),
+      function* () {
+        for (
+          let ordinal = 0;
+          ordinal < MIGRATED_READ_DOCUMENT_COUNT;
+          ordinal += 1
+        ) {
+          yield reading.property({
+            key: 'ordinal',
+            subject: migratedReadSubject(ordinal),
+          });
+        }
+      },
       requireOrdinal,
     ));
-    const observed = await observation.one();
+    let checksum = 0;
+    let count = 0;
+    let basisId: string | null = null;
+    let supportStatus: 'supported' | null = null;
+    for await (const observed of observation) {
+      if (observed.value !== count) {
+        throw new Error(`v19 retained scan expected ordinal ${String(count)}`);
+      }
+      checksum += observed.value;
+      count += 1;
+      basisId = observed.coordinate.basis.id;
+      supportStatus = observed.support.status;
+    }
     const receipt = await observation.receipt;
     if (receipt.status !== 'completed') {
       throw new Error(`v19 retained property Receipt is ${receipt.status}`);
     }
+    if (
+      count !== MIGRATED_READ_DOCUMENT_COUNT
+      || checksum !== 120
+      || basisId === null
+      || supportStatus === null
+    ) {
+      throw new Error('v19 retained scan cardinality or checksum is invalid');
+    }
     return Object.freeze({
-      basisId: observed.coordinate.basis.id,
+      basisId,
       basisKind: 'opaque-evidence' as const,
+      readingCount: MIGRATED_READ_DOCUMENT_COUNT,
       receiptStatus: receipt.status,
-      supportStatus: observed.support.status,
-      value: observed.value,
+      supportStatus,
+      value: 15 as const,
+      valueChecksum: 120 as const,
     });
   } finally {
     await runtime.close();
@@ -45,9 +77,9 @@ const result = await measureMigratedRead(async () => {
 });
 printMigratedReadResult(result);
 
-function requireOrdinal(value: ReadingValue): 15 {
-  if (value !== 15) {
-    throw new Error('v19 retained property read did not return ordinal 15');
+function requireOrdinal(value: ReadingValue): number {
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    throw new Error('v19 retained property read did not return an ordinal');
   }
-  return 15;
+  return value;
 }

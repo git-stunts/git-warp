@@ -40,9 +40,10 @@ Candidate commit: \`${report.environment.v19Commit}\` with package metadata
 
 Each runtime contributed ${String(report.measuredRuns)} cold and ${
   String(report.measuredRuns)
-} warm samples after ${String(report.warmupRuns)} warmup pair(s). The worker
-reads \`medium:document:015.ordinal\` and must return the semantic value
-\`15\`; v19 must also leave a completed Receipt.
+} warm samples after ${String(report.warmupRuns)} warmup pair(s). Each worker
+scans all 16 \`medium:document:000..015.ordinal\` values on one pinned
+coordinate, must report cardinality \`16\`, checksum \`120\`, and final value
+\`15\`; v19 must also leave one completed Receipt.
 ${failures}`;
 }
 
@@ -62,7 +63,10 @@ function renderRow(
     )} | ${formatMebibytes(v19.peakHeapUsedBytes.median)} |`;
 }
 
-function formatImprovement(v18: number, v19: number): string {
+export function formatImprovement(v18: number, v19: number): string {
+  if (v18 <= 0) {
+    return 'n/a';
+  }
   return `${((1 - (v19 / v18)) * 100).toFixed(1)}%`;
 }
 

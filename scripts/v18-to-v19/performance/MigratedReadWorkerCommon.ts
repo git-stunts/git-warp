@@ -3,6 +3,11 @@ import { clearInterval, setInterval } from 'node:timers';
 import { z } from 'zod';
 
 export const MIGRATED_READ_RESULT_PREFIX = 'GIT_WARP_MIGRATED_READ_SAMPLE=';
+export const MIGRATED_READ_DOCUMENT_COUNT = 16;
+
+export function migratedReadSubject(index: number): string {
+  return `medium:document:${String(index).padStart(3, '0')}`;
+}
 
 export const MigratedReadWorkerResultSchema = z.object({
   basisId: z.string().min(1),
@@ -13,10 +18,12 @@ export const MigratedReadWorkerResultSchema = z.object({
   key: z.literal('ordinal'),
   maxRssBytes: z.number().int().positive(),
   peakHeapUsedBytes: z.number().int().positive(),
+  readingCount: z.literal(MIGRATED_READ_DOCUMENT_COUNT),
   receiptStatus: z.literal('completed').nullable(),
   subject: z.literal('medium:document:015'),
   supportStatus: z.enum(['checkpoint-tail', 'supported']),
   value: z.literal(15),
+  valueChecksum: z.literal(120),
   wallMs: z.number().positive(),
 });
 
@@ -29,8 +36,10 @@ export async function measureMigratedRead(
     basisId: string;
     basisKind: 'checkpoint-tail' | 'opaque-evidence';
     receiptStatus: 'completed' | null;
+    readingCount: typeof MIGRATED_READ_DOCUMENT_COUNT;
     supportStatus: 'checkpoint-tail' | 'supported';
     value: 15;
+    valueChecksum: 120;
   }>>,
 ): Promise<MigratedReadWorkerResult> {
   const memory = startMemorySampler();
@@ -48,10 +57,12 @@ export async function measureMigratedRead(
       cpuUserMs: cpu.user / 1000,
       key: 'ordinal',
       ...memory.snapshot(),
+      readingCount: result.readingCount,
       receiptStatus: result.receiptStatus,
       subject: 'medium:document:015',
       supportStatus: result.supportStatus,
       value: result.value,
+      valueChecksum: result.valueChecksum,
       wallMs: performance.now() - started,
     });
   } finally {

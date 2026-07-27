@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -11,6 +14,12 @@ import type {
 import {
   MigratedReadPerformanceReportSchema,
 } from '../../../scripts/v18-to-v19/performance/MigratedReadPerformanceModel.ts';
+import {
+  readCommandEvidence,
+} from '../../../scripts/v18-to-v19/performance/MigratedReadPerformanceProcess.ts';
+import {
+  formatImprovement,
+} from '../../../scripts/v18-to-v19/performance/MigratedReadPerformanceSummary.ts';
 import {
   summarizeMigratedReadRuntime,
 } from '../../../scripts/v18-to-v19/performance/MigratedReadPerformanceStatistics.ts';
@@ -56,6 +65,32 @@ describe('migrated v18-to-v19 retained-read performance', () => {
       expect.stringContaining('wall improvement'),
       expect.stringContaining('Git command improvement'),
     ]));
+  });
+
+  it('fails closed when the v18 Git command baseline is zero', () => {
+    const samples = comparisonSamples({
+      v18Commands: 0,
+      v18WallMs: 800,
+      v19Commands: 0,
+      v19WallMs: 550,
+    });
+    expect(evaluateMigratedReadPerformance(
+      summarizeMigratedReadRuntime('v18', samples),
+      summarizeMigratedReadRuntime('v19', samples),
+      POLICY,
+    )).toContain('cold v18 Git command baseline must be positive; received 0');
+    expect(formatImprovement(0, 0)).toBe('n/a');
+  });
+
+  it('reports zero Git commands when the wrapper log is absent', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'git-warp-command-evidence-'));
+    try {
+      await expect(
+        readCommandEvidence(join(root, 'missing.log')),
+      ).resolves.toEqual({ count: 0, histogram: {} });
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
   });
 
   it('fails closed when retained storage evidence is absent', () => {
@@ -165,12 +200,18 @@ function sample(
     key: 'ordinal',
     maxRssBytes: 128 * 1024 * 1024,
     peakHeapUsedBytes: 32 * 1024 * 1024,
+    processCpuSystemMs: null,
+    processCpuTotalMs: null,
+    processCpuUserMs: null,
+    processMaxRssBytes: null,
+    readingCount: 16,
     receiptStatus: runtime === 'v18' ? null : 'completed',
     runtime,
     scenario,
     subject: 'medium:document:015',
     supportStatus: runtime === 'v18' ? 'checkpoint-tail' : 'supported',
     value: 15,
+    valueChecksum: 120,
     wallMs,
     workerLifecycleWallMs: wallMs + 200,
   };

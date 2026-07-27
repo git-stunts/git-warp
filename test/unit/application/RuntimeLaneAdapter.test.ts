@@ -11,6 +11,7 @@ import {
 } from '../../../src/domain/api/ObserverRuntime.ts';
 import LegacyReading from '../../../src/domain/api/Reading.ts';
 import captureCoordinate from '../../../src/domain/api/captureCoordinate.ts';
+import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
 import MemoryStorage from '../../helpers/MemoryStorage.ts';
 
@@ -39,10 +40,15 @@ describe('Runtime Lane adapter', () => {
         },
       );
 
+      const prepareOpticBasis = vi.spyOn(
+        WarpWorldline.prototype,
+        'prepareOpticBasis',
+      );
       const observation = lane.observe(observer);
       const reading = await observation.one();
       const receipt = await observation.receipt;
 
+      expect(prepareOpticBasis).toHaveBeenCalledTimes(1);
       expect(reading.value).toBe('admin');
       expect(reading.coordinate.lane).toBe('events');
       expect(reading.coordinate.basis.id).toMatch(/^evidence:/u);

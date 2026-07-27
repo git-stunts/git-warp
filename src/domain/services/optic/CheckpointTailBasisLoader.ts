@@ -31,6 +31,11 @@ export type CheckpointTailIndexBasis = {
   readonly propReferences: Readonly<Record<string, IndexShardReference>>;
 };
 
+const capturedBasisLoads = new WeakMap<
+  CheckpointTailBasisLoader,
+  Promise<CheckpointTailIndexBasis>
+>();
+
 type CheckpointTailManifestRoots = {
   readonly livenessRoots: CheckpointBasisShardRootMap;
   readonly propertyRoots: CheckpointBasisShardRootMap;
@@ -40,14 +45,37 @@ type CheckpointTailManifestRoots = {
 };
 
 export default class CheckpointTailBasisLoader {
+  private readonly _cache: boolean;
   private readonly _source: CheckpointTailOpticSource;
 
-  constructor(options: { readonly source: CheckpointTailOpticSource }) {
+  constructor(options: {
+    readonly cache?: boolean;
+    readonly source: CheckpointTailOpticSource;
+  }) {
+    this._cache = options.cache ?? false;
     this._source = options.source;
     Object.freeze(this);
   }
 
   async load(): Promise<CheckpointTailIndexBasis> {
+    if (!this._cache) {
+      return await this._loadFresh();
+    }
+    const cached = capturedBasisLoads.get(this);
+    if (cached !== undefined) {
+      return await cached;
+    }
+    const pending = this._loadFresh();
+    capturedBasisLoads.set(this, pending);
+    try {
+      return await pending;
+    } catch (error) {
+      capturedBasisLoads.delete(this);
+      throw error;
+    }
+  }
+
+  private async _loadFresh(): Promise<CheckpointTailIndexBasis> {
     const checkpointSha = await this._readCheckpointSha();
     const basis = await this._source._checkpointStore.loadBasis(checkpointSha, this._source.graphName);
     if (!isCurrentCheckpointSchema(basis.schema)) {

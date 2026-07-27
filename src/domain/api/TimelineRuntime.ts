@@ -7,7 +7,8 @@ import {
   previewDraftJoin,
 } from './DraftTimelineRuntime.ts';
 import { executeReading } from './ReadingRuntime.ts';
-import { createTick } from './TickRuntime.ts';
+import { createTick, createTickFromCoordinate } from './TickRuntime.ts';
+import type Tick from './Tick.ts';
 import Timeline from './Timeline.ts';
 import { createTimelineView } from './TimelineViewRuntime.ts';
 import { executeIntentWrite } from './WriteRuntime.ts';
@@ -48,17 +49,28 @@ export function createTimeline(runtime: WarpWorldline, context: ApiRuntimeContex
 }
 
 export function requireTimelineRuntime(timeline: Timeline): WarpWorldline {
-  const binding = timelineRuntimes.get(timeline);
-  if (binding === undefined) {
-    throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
-  }
-  return binding.runtime;
+  return requireTimelineBinding(timeline).runtime;
 }
 
 export function requireTimelineContext(timeline: Timeline): ApiRuntimeContext {
+  return requireTimelineBinding(timeline).context;
+}
+
+export async function capturePreparedTimelineTick(
+  timeline: Timeline,
+): Promise<Tick> {
+  const binding = requireTimelineBinding(timeline);
+  return await createTickFromCoordinate(
+    binding.runtime,
+    binding.context,
+    await binding.runtime.coordinate(),
+  );
+}
+
+function requireTimelineBinding(timeline: Timeline): TimelineRuntimeBinding {
   const binding = timelineRuntimes.get(timeline);
   if (binding === undefined) {
     throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
   }
-  return binding.context;
+  return binding;
 }

@@ -10,8 +10,9 @@ workflow. Every successful main-branch run publishes:
 - the merged five-sample result for each ref;
 - every raw ABBA batch;
 - both hostile-control streaming proof reports;
-- the five-sample cold/warm published-v18 versus migrated-v19 retained-read
-  report, including one-shot migration duration and Git command evidence; and
+- the five-sample cold/warm published-v18 versus migrated-v19 16-property
+  retained-scan report, including one-shot migration duration, exact
+  cardinality/checksum, and Git command evidence; and
 - the exact environment, corpus, execution order, and Git/git-cas versions.
 
 Artifacts are named `v19-performance-<commit>` and retained for 90 days.

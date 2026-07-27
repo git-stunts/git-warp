@@ -4,7 +4,10 @@ import { createDraftReadingTarget } from '../domain/api/DraftTimelineRuntime.ts'
 import type { DraftReadingTarget } from '../domain/api/DraftReadingTarget.ts';
 import type Timeline from '../domain/api/Timeline.ts';
 import type TimelineView from '../domain/api/TimelineView.ts';
-import { requireTimelineRuntime } from '../domain/api/TimelineRuntime.ts';
+import {
+  capturePreparedTimelineTick,
+  requireTimelineRuntime,
+} from '../domain/api/TimelineRuntime.ts';
 import Lane from '../domain/api/Lane.ts';
 import { bindLaneRuntime } from '../domain/api/LaneRuntime.ts';
 import type { ObservationExecution } from '../domain/api/Observation.ts';
@@ -154,7 +157,9 @@ async function startObserver<TValue extends ReadingValue>(
   const lease = activity.acquire();
   try {
     const hasBoundedBasis = await prepareBoundedBasis(timeline);
-    const tick = hasBoundedBasis ? await timeline.tick() : null;
+    const tick = hasBoundedBasis
+      ? await capturePreparedTimelineTick(timeline)
+      : null;
     const settlement = createReceiptSettlement();
     return Object.freeze({
       readings: WarpStream.from(streamReadings({

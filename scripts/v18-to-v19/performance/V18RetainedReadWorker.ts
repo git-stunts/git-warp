@@ -2,7 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
+  MIGRATED_READ_DOCUMENT_COUNT,
   measureMigratedRead,
+  migratedReadSubject,
   printMigratedReadResult,
   requiredArgument,
 } from './MigratedReadWorkerCommon.ts';
@@ -63,18 +65,32 @@ const result = await measureMigratedRead(async () => {
     });
     await worldline.prepareOpticBasis();
     const coordinate = await worldline.coordinate();
-    const reading = await coordinate
-      .optic()
-      .node('medium:document:015')
-      .prop('ordinal')
-      .read();
-    const verified = requireOrdinalReading(reading);
+    let basisId: string | null = null;
+    let checksum = 0;
+    for (let ordinal = 0; ordinal < MIGRATED_READ_DOCUMENT_COUNT; ordinal += 1) {
+      const reading = await coordinate
+        .optic()
+        .node(migratedReadSubject(ordinal))
+        .prop('ordinal')
+        .read();
+      const verified = requireOrdinalReading(reading, ordinal);
+      basisId ??= verified.basisId;
+      if (verified.basisId !== basisId) {
+        throw new Error('v18 retained scan crossed checkpoint bases');
+      }
+      checksum += verified.value;
+    }
+    if (checksum !== 120 || basisId === null) {
+      throw new Error('v18 retained scan checksum is invalid');
+    }
     return Object.freeze({
-      basisId: verified.basisId,
+      basisId,
       basisKind: 'checkpoint-tail' as const,
+      readingCount: MIGRATED_READ_DOCUMENT_COUNT,
       receiptStatus: null,
       supportStatus: 'checkpoint-tail' as const,
-      value: verified.value,
+      value: 15 as const,
+      valueChecksum: 120 as const,
     });
   } finally {
     await plumbing.close?.();
@@ -111,9 +127,12 @@ function isPackageManifest(
     && typeof value.version === 'string';
 }
 
-function requireOrdinalReading(value: unknown): Readonly<{
+function requireOrdinalReading(
+  value: unknown,
+  expected: number,
+): Readonly<{
   basisId: string;
-  value: 15;
+  value: number;
 }> {
   if (
     typeof value !== 'object'
@@ -121,7 +140,7 @@ function requireOrdinalReading(value: unknown): Readonly<{
     || !('exists' in value)
     || value.exists !== true
     || !('value' in value)
-    || value.value !== 15
+    || value.value !== expected
     || !('readIdentity' in value)
     || typeof value.readIdentity !== 'object'
     || value.readIdentity === null
@@ -131,10 +150,10 @@ function requireOrdinalReading(value: unknown): Readonly<{
     || typeof value.readIdentity.checkpointSha !== 'string'
     || value.readIdentity.checkpointSha.length === 0
   ) {
-    throw new Error('v18 retained property read did not return ordinal 15');
+    throw new Error(`v18 retained property read did not return ordinal ${String(expected)}`);
   }
   return Object.freeze({
     basisId: value.readIdentity.checkpointSha,
-    value: 15,
+    value: expected,
   });
 }

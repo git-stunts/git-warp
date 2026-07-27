@@ -40,14 +40,32 @@ function scenarioFailures(
         + `${policy.minimumWallImprovementMs.toFixed(1)} ms`,
     );
   }
-  const gitRatio = v19.gitCommandCount.median / v18.gitCommandCount.median;
-  const maximumGitRatio = 1 - policy.minimumGitCommandImprovementRatio;
-  if (gitRatio > maximumGitRatio) {
+  const v18GitCommands = v18.gitCommandCount.median;
+  if (v18GitCommands <= 0) {
     failures.push(
-      `${scenario} Git command improvement was ${formatPercent(1 - gitRatio)}; `
-        + `required ${formatPercent(policy.minimumGitCommandImprovementRatio)}`,
+      `${scenario} v18 Git command baseline must be positive; received `
+        + `${v18GitCommands.toFixed(0)}`,
     );
+  } else {
+    const gitRatio = v19.gitCommandCount.median / v18GitCommands;
+    const maximumGitRatio = 1 - policy.minimumGitCommandImprovementRatio;
+    if (gitRatio > maximumGitRatio) {
+      failures.push(
+        `${scenario} Git command improvement was ${formatPercent(1 - gitRatio)}; `
+          + `required ${formatPercent(policy.minimumGitCommandImprovementRatio)}`,
+      );
+    }
   }
+  return resourceFailures(failures, scenario, v18, v19, policy);
+}
+
+function resourceFailures(
+  failures: string[],
+  scenario: MigratedReadScenario,
+  v18: MigratedReadScenarioSummary,
+  v19: MigratedReadScenarioSummary,
+  policy: MigratedReadPerformancePolicy,
+): string[] {
   const cpuDelta = v19.cpuTotalMs.median - v18.cpuTotalMs.median;
   const cpuRatio = v19.cpuTotalMs.median / v18.cpuTotalMs.median;
   if (

@@ -66,20 +66,14 @@ export async function runMigratedReadProcess(options: Readonly<{
     const commands = await readCommandEvidence(instrumentation.commandLog);
     return MigratedReadSampleSchema.parse({
       ...worker,
-      cpuSystemMs: timing === null
-        ? worker.cpuSystemMs
-        : timing.systemSeconds * 1000,
-      cpuTotalMs: timing === null
-        ? worker.cpuTotalMs
-        : (timing.userSeconds + timing.systemSeconds) * 1000,
-      cpuUserMs: timing === null
-        ? worker.cpuUserMs
-        : timing.userSeconds * 1000,
       gitCommandCount: commands.count,
       gitCommandHistogram: commands.histogram,
-      maxRssBytes: timing === null
-        ? worker.maxRssBytes
-        : Math.max(worker.maxRssBytes, timing.maxRssKib * 1024),
+      processCpuSystemMs: timing === null ? null : timing.systemSeconds * 1000,
+      processCpuTotalMs: timing === null
+        ? null
+        : (timing.userSeconds + timing.systemSeconds) * 1000,
+      processCpuUserMs: timing === null ? null : timing.userSeconds * 1000,
+      processMaxRssBytes: timing === null ? null : timing.maxRssKib * 1024,
       runtime: options.runtime,
       scenario: options.scenario,
       workerLifecycleWallMs: timing?.wallSeconds === undefined
@@ -149,11 +143,19 @@ function parseWorkerResult(stdout: string) {
   );
 }
 
-async function readCommandEvidence(path: string): Promise<Readonly<{
+export async function readCommandEvidence(path: string): Promise<Readonly<{
   count: number;
   histogram: Readonly<Record<string, number>>;
 }>> {
-  const commands = (await readFile(path, 'utf8'))
+  const contents = await readFile(path, 'utf8').catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') {
+        return '';
+      }
+      throw error;
+    },
+  );
+  const commands = contents
     .split('\n')
     .filter((command) => command.length > 0);
   const histogram: Record<string, number> = {};
