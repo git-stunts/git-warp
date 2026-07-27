@@ -333,6 +333,42 @@ Required invariants:
 - A graph exceeding one page, one bundle, or one bitmap container continues by
   adding pages rather than widening global decoder limits.
 
+### Why CAS addresses do not live directly in Roaring
+
+Roaring Bitmap 32 stores unsigned 32-bit integers. A 64-bit Roaring variant
+would enlarge the ordinal space, but it would not hold a complete
+collision-resistant CAS address. Git object and content hashes are commonly
+160 or 256 bits before handle-kind, codec, and schema information is included.
+
+Truncating a CAS hash to 64 bits would require collision verification against a
+full-handle table, which restores the same indirection with weaker first-stage
+identity. Splitting one hash across several bitmap integers loses tuple
+boundaries and makes bitmap union, intersection, and difference semantically
+incorrect for handles.
+
+Cryptographic hashes are also deliberately uniform. A hypothetical
+wide-integer Roaring structure would see little run or container locality and
+would behave more like a sorted fixed-width hash set or radix trie. Those
+structures may be appropriate for CAS-handle membership, but they do not
+replace Roaring's compact set algebra over logical graph identities.
+
+The indirection is valuable independently of integer width:
+
+```text
+stable logical ordinal -> current immutable CAS payload
+```
+
+A property or attachment update changes its payload handle. With a stable
+ordinal, only the corresponding address page and semantically affected indexes
+change. If indexes contained payload hashes, a record update could force every
+adjacency, label, liveness, or application index that refers to the logical
+entity to replace the old content identity.
+
+The 32-bit namespace permits 4,294,967,296 ordinals per retained geometry. If a
+single materialization approaches that ceiling, extend the manifest with
+segmented ordinal namespaces or a 64-bit `(segment, local ordinal)` coordinate.
+Do not turn content hashes into logical entity identities.
+
 ### Selection and resolution
 
 The ordinary read path is:
