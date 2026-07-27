@@ -9,6 +9,12 @@
 export { default as captureCoordinate } from './src/domain/api/captureCoordinate.ts';
 export { default as Coordinate } from './src/domain/WarpWorldlineCoordinate.ts';
 export { default as Optic } from './src/domain/services/optic/WorldlineOptic.ts';
+export { intent } from './src/domain/api/IntentBuilders.ts';
+export { reading } from './src/domain/api/ReadingBuilders.ts';
+export {
+  createManyObserver,
+  createObserver,
+} from './src/domain/api/ObserverRuntime.ts';
 export type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
 export type { NeighborhoodOpticReadOptions } from './src/domain/services/optic/NeighborhoodOptic.ts';
 export type {

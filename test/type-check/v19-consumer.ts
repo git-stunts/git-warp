@@ -23,7 +23,7 @@ import {
   type Tick,
   type WriteReceipt,
 } from '../../index.ts';
-import { users } from './generated-users.ts';
+import { users } from '../fixtures/generated-sdk/users.generated.ts';
 
 const options: RuntimeOpenOptions = { at: '.', writer: 'agent-1' };
 const runtime: Runtime = await Runtime.open(options);

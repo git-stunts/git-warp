@@ -200,10 +200,20 @@ describe('v19 public API boundary', () => {
     expect(surface.typeExports).toEqual(['GitStorageOptions']);
   });
 
-  it('keeps the advanced subpath limited to bounded coordinate reads', () => {
+  it('keeps the advanced subpath limited to bounded reads and SDK construction', () => {
     const surface = moduleSurface('advanced.ts');
     expect(surface.starExports).toEqual([]);
-    expect(surface.valueExports).toEqual(['Coordinate', 'Optic', 'captureCoordinate']);
+    expect(surface.valueExports).toEqual(
+      sorted([
+        'Coordinate',
+        'Optic',
+        'captureCoordinate',
+        'createManyObserver',
+        'createObserver',
+        'intent',
+        'reading',
+      ])
+    );
     expect(surface.typeExports).toEqual(
       sorted([
         'NeighborhoodOpticCompleteness',

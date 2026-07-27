@@ -112,6 +112,30 @@ jobs:
       - name: 'Gate 5: Declaration surface validator (manifest vs index.d.ts vs index.js)'
         run: npm run typecheck:surface
 
+  type-firewall-generated-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: 'Gate 5b: Install pinned Wesley generator'
+        run: >-
+          cargo install
+          --git https://github.com/flyingrobots/wesley.git
+          --rev 4891a631f888c5b2f70e117e3704538dd1362c2f
+          --locked
+          wesley-cli
+      - name: 'Gate 5c: Generated SDK source and reference drift'
+        run: npm run check:sdk-fixture
+      - name: 'Gate 5d: Packed generated SDK with disposable real Git'
+        run: npm run test:sdk-fixture
+
   type-firewall-docs:
     runs-on: ubuntu-latest
     steps:
@@ -155,6 +179,7 @@ jobs:
       - type-firewall-semgrep
       - type-firewall-quarantine
       - type-firewall-surface
+      - type-firewall-generated-sdk
       - type-firewall-docs
     if: ${{ always() }}
     steps:
@@ -165,6 +190,7 @@ jobs:
           echo "semgrep:    ${{ needs['type-firewall-semgrep'].result }}"
           echo "quarantine: ${{ needs['type-firewall-quarantine'].result }}"
           echo "surface:    ${{ needs['type-firewall-surface'].result }}"
+          echo "sdk:        ${{ needs['type-firewall-generated-sdk'].result }}"
           echo "docs:       ${{ needs['type-firewall-docs'].result }}"
 
           test "${{ needs['type-firewall-types'].result }}" = "success"
@@ -172,6 +198,7 @@ jobs:
           test "${{ needs['type-firewall-semgrep'].result }}" = "success"
           test "${{ needs['type-firewall-quarantine'].result }}" = "success"
           test "${{ needs['type-firewall-surface'].result }}" = "success"
+          test "${{ needs['type-firewall-generated-sdk'].result }}" = "success"
           test "${{ needs['type-firewall-docs'].result }}" = "success"
 
   typecheck-test-advisory:
