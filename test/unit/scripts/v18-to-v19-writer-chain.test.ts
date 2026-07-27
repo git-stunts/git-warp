@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import warpCborCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { restoreV18RetainedSubstrateFixture } from '../../../scripts/v18-to-v19/V18RetainedSubstrateFixtureRestore.ts';
+import { V18MigrationGitObjectReader } from '../../../scripts/v18-to-v19/V18MigrationGitObjectReader.ts';
 import { readV18PatchCommit } from '../../../scripts/v18-to-v19/V18PatchCommit.ts';
 import V18PatchTranslator from '../../../scripts/v18-to-v19/V18PatchTranslator.ts';
 import {
@@ -41,7 +42,9 @@ describe('v18-to-v19 writer chain migration', () => {
       manifestPath: MANIFEST_PATH,
       targetDirectory,
     });
+    const objectReader = new V18MigrationGitObjectReader(restored.repositoryPath);
     const translator = await V18PatchTranslator.open({
+      objectReader,
       repositoryPath: restored.repositoryPath,
     });
     const rewrites: V18WriterChainRewrite[] = [];
@@ -60,7 +63,7 @@ describe('v18-to-v19 writer chain migration', () => {
         }
       }
     } finally {
-      await translator.close();
+      await Promise.all([objectReader.close(), translator.close()]);
     }
 
     expect(rewrites.map((rewrite) => rewrite.translatedCount)).toEqual([2, 1]);

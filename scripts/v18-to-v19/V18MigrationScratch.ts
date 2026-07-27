@@ -53,11 +53,12 @@ export async function prepareV18MigrationScratch(options: Readonly<{
     });
     await initializeScratch(scratchPath);
     await fetchPlanRefs(scratchPath, options.plan);
+    const objectReader = new V18MigrationGitObjectReader(scratchPath);
     const translator = await V18PatchTranslator.open({
+      objectReader,
       repositoryPath: scratchPath,
       ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
     });
-    const objectReader = new V18MigrationGitObjectReader(scratchPath);
     const commitWriter = new V18MigrationGitCommitWriter(scratchPath);
     const rewrites: V18WriterChainRewrite[] = [];
     const commitMap = new Map<string, string>();
