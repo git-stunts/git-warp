@@ -13,6 +13,7 @@ import { runV18ToV19Migration, type V18MigrationCommandReport } from './V18Migra
 import type V18MigrationExecutionMode from './V18MigrationExecutionMode.ts';
 import type V18MigrationGraph from './V18MigrationGraph.ts';
 import type { V18MigrationProgress } from './V18MigrationProgress.ts';
+import type { V18MigrationPreflight } from './V18MigrationPreflight.ts';
 import {
   renderV18MigrationApp,
   type V18MigrationAppModel,
@@ -36,6 +37,7 @@ export type RunV18MigrationAppOptions = Readonly<{
   graph: V18MigrationGraph;
   mode: V18MigrationExecutionMode;
   passphrase?: string;
+  preflight: V18MigrationPreflight;
   recoveryId?: string;
   repositoryPath: string;
   scratchRoot?: string;

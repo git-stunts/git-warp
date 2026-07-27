@@ -39,7 +39,9 @@ In an interactive terminal, a framed summary asks for confirmation before the
 inventory begins. After confirmation, the command completes the migration in
 one pass. It reports the current phase, writer, item count, and progress bar.
 Use `--yes` for non-interactive automation and `--json` for a machine-readable
-final report.
+final report. Before confirmation, the summary also reports current Git object
+storage, the scratch path, free space on the scratch and source Git volumes,
+and whether scratch free space meets the operating budget.
 
 ### What the command does
 
@@ -111,11 +113,16 @@ or packing objects; follow the phase and progress display instead of the size
 of the source repository alone.
 
 The scratch repository defaults to the operating system's temporary volume.
-Use `--scratch-root <path>` to place it on a volume with more space. Keep at
-least twice the source repository's current on-disk size free on that volume.
-That is an operating minimum, not a mathematical upper bound: object reuse,
-pack layout, retained checkpoint state, and repository-local Git configuration
-all affect the result.
+Use `--scratch-root <path>` to place it on a volume with more space. The
+preflight operating budget is twice the source repository's current Git object
+storage. It deliberately counts the complete object database, even when only
+one of several graph namespaces is selected: shared and blob-indirected
+objects cannot always be attributed reliably to one graph before inventory.
+That makes the estimate conservative for multi-graph repositories.
+
+The budget is an operating minimum, not a mathematical upper bound. Object
+reuse, pack layout, retained checkpoint state, and repository-local Git
+configuration all affect the result.
 
 The source repository can also grow because recovery refs keep the old graph
 reachable while the promoted graph becomes authoritative. Do not expect the
@@ -237,10 +244,11 @@ const roleOfAlice = users.observers.roleOf({
 Generated builders return validated, runtime-backed `Intent` and `Observer`
 objects. Loose JSON envelopes are not accepted at Lane boundaries.
 
-Wesley is a schema compiler. The application authors a GraphQL schema whose
-directives describe domain operations; Wesley turns that schema into typed
-operation metadata. A git-warp SDK renderer then binds that metadata to
-runtime-backed `Intent` and `Observer` builders.
+[Wesley](https://github.com/flyingrobots/wesley) is a domain-free GraphQL-to-IR
+compiler. The application authors a GraphQL schema whose directives describe
+domain operations; Wesley turns that schema into deterministic typed operation
+metadata. A git-warp SDK renderer then binds that metadata to runtime-backed
+`Intent` and `Observer` builders.
 
 The checked-in `users` example is a reference fixture, not yet a published
 general-purpose SDK generator. Its authored source is
@@ -267,6 +275,19 @@ The second command is deliberately fixture-specific: it validates the exact
 cannot yet point it at an arbitrary domain and receive a supported SDK. Until
 general SDK generation is published, use the fixture as an executable contract
 for the intended shape, but do not describe it as a consumer CLI.
+
+These are two separate migrations:
+
+- the retained-substrate command rewrites Git objects and refs once; it does
+  not modify application source;
+- the Wesley and SDK generation path produces TypeScript source; it does not
+  open or mutate a retained WARP graph.
+
+The fixture pipeline produces
+`test/fixtures/generated-sdk/users.wesley.generated.ts` followed by
+`test/fixtures/generated-sdk/users.generated.ts`. The import at the beginning
+of this section consumes the second file. The write and observation examples
+below then show the complete application-side use of its generated builders.
 
 ## Write Migration
 

@@ -37,7 +37,12 @@ count. A repository may contain any number of independently named graphs.
 
 In an interactive terminal, the command displays the selected graph and exact
 mode in a framed application, then waits for confirmation before inventory or
-scratch work. After confirmation, the normal command completes all five
+scratch work. The preflight reads `git count-objects -v` and filesystem
+capacity, reports the complete Git object-store size, source and scratch free
+space, and a scratch operating budget of twice the object-store size. Counting
+the complete store is conservative for a repository with several graphs,
+because shared and blob-indirected objects cannot be attributed reliably
+before inventory. After confirmation, the normal command completes all five
 boundaries in one pass. Long writer chains remain observable through the
 current phase, writer, count, and progress bar.
 
