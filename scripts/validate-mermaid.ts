@@ -46,6 +46,9 @@ async function main(): Promise<void> {
     try {
       await run(inputPath, outputPath, {
         artefacts: temporaryDirectory,
+        puppeteerConfig: {
+          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        },
         quiet: true,
       });
     } catch (error: unknown) {
