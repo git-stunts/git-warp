@@ -9,6 +9,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import handleReceipt from '../../../bin/cli/commands/receipt.ts';
 import handleSettle from '../../../bin/cli/commands/settle.ts';
+import {
+  V19_PUBLIC_NOUNS,
+} from '../../../bin/cli/capabilities/V19CapabilityContract.generated.ts';
 import type { CliOptions } from '../../../bin/cli/types.ts';
 import {
   intentFromText,
@@ -44,13 +47,17 @@ describe('v19 CLI input errors', () => {
     expect(() => intentFromText('{')).toThrowError(
       expect.objectContaining({
         code: 'E_USAGE',
-        message: expect.stringContaining('Invalid Intent JSON'),
+        message: expect.stringContaining(
+          `Invalid ${V19_PUBLIC_NOUNS.Intent} JSON`,
+        ),
       }),
     );
     expect(() => observerFromText('users.role', '{')).toThrowError(
       expect.objectContaining({
         code: 'E_USAGE',
-        message: expect.stringContaining('Invalid Observer JSON'),
+        message: expect.stringContaining(
+          `Invalid ${V19_PUBLIC_NOUNS.Observer} JSON`,
+        ),
       }),
     );
   });

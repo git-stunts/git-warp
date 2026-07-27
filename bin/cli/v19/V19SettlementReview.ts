@@ -7,6 +7,9 @@ import type SettlementPlan from '../../../src/domain/settlement/SettlementPlan.t
 import type { SettlementPlanFields } from '../../../src/domain/settlement/SettlementPlan.ts';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 import type { McpJsonValue } from '../commands/mcp/McpJsonValue.ts';
+import {
+  V19_PUBLIC_NOUNS,
+} from '../capabilities/V19CapabilityContract.generated.ts';
 import { usageErrorFrom } from '../infrastructure.ts';
 
 export type SettlementSelector = Readonly<{
@@ -78,7 +81,10 @@ export function reviewedSettlementFromValue(
   try {
     reviewed = REVIEW_SCHEMA.parse(value);
   } catch (error) {
-    throw usageErrorFrom('Invalid reviewed Settlement', error);
+    throw usageErrorFrom(
+      `Invalid reviewed ${V19_PUBLIC_NOUNS.Settlement}`,
+      error,
+    );
   }
   return Object.freeze({
     selector: freezeSelector(reviewed.selector),
@@ -93,7 +99,7 @@ export async function applyReviewedSettlement(
   const current = await previewReviewedSettlement(runtime, reviewed.selector);
   if (!plansEqual(reviewed.plan, current.plan)) {
     throw new WarpError(
-      'Reviewed Settlement plan no longer matches the current Runtime preview',
+      `Reviewed ${V19_PUBLIC_NOUNS.Settlement} plan no longer matches the current ${V19_PUBLIC_NOUNS.Runtime} preview`,
       'E_RUNTIME_SETTLEMENT_REVIEW_MISMATCH',
     );
   }

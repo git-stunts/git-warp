@@ -5,6 +5,9 @@ import type Intent from '../../../src/domain/api/Intent.ts';
 import type Observer from '../../../src/domain/api/Observer.ts';
 import type { ReadingValue } from '../../../src/domain/api/ReadingValue.ts';
 import type { McpJsonValue } from '../commands/mcp/McpJsonValue.ts';
+import {
+  V19_PUBLIC_NOUNS,
+} from '../capabilities/V19CapabilityContract.generated.ts';
 import { usageErrorFrom } from '../infrastructure.ts';
 
 type JsonInput =
@@ -79,7 +82,10 @@ export function intentFromText(text: string): Intent {
   try {
     return intentFromValue(JSON.parse(text));
   } catch (error) {
-    throw usageErrorFrom('Invalid Intent JSON', error);
+    throw usageErrorFrom(
+      `Invalid ${V19_PUBLIC_NOUNS.Intent} JSON`,
+      error,
+    );
   }
 }
 
@@ -106,7 +112,7 @@ function parseIntentDescriptor(
   try {
     return INTENT_SCHEMA.parse(value);
   } catch (error) {
-    throw usageErrorFrom('Invalid Intent', error);
+    throw usageErrorFrom(`Invalid ${V19_PUBLIC_NOUNS.Intent}`, error);
   }
 }
 
@@ -117,7 +123,10 @@ export function observerFromText(
   try {
     return observerFromValue(observerId, JSON.parse(text));
   } catch (error) {
-    throw usageErrorFrom('Invalid Observer JSON', error);
+    throw usageErrorFrom(
+      `Invalid ${V19_PUBLIC_NOUNS.Observer} JSON`,
+      error,
+    );
   }
 }
 
@@ -141,7 +150,10 @@ function parseReadingDescriptor(
   try {
     return READING_SCHEMA.parse(value);
   } catch (error) {
-    throw usageErrorFrom('Invalid Observer reading', error);
+    throw usageErrorFrom(
+      `Invalid ${V19_PUBLIC_NOUNS.Observer} ${V19_PUBLIC_NOUNS.Reading}`,
+      error,
+    );
   }
 }
 
