@@ -5,8 +5,9 @@
 > This document is the normative product vocabulary and public-surface design.
 > It is not implementation evidence. The Runtime, worldline Lane, Observer,
 > streaming Observation, Reading, and Receipt core is implemented and covered
-> by boundary tests. Fork, settlement, generated SDK publication, charts, and
-> CLI/MCP convergence remain part of the open v19 goalpost.
+> by boundary tests. Fork, settlement, charts, and the generated SDK fixture
+> are implemented. CLI/MCP convergence and release evidence remain part of the
+> open v19 goalpost.
 
 The product doctrine is:
 
@@ -550,11 +551,14 @@ The intended package families are:
 | root | `Runtime` plus type-only core contracts |
 | `/charts` | Derived graph-shaped Observers and Readings |
 | `/diagnostics` | `doctor`, repair planning, audit, and Receipt inspection |
-| `/advanced` | Optics, Coordinates, Witnesses, Holograms, and formal composition |
+| `/advanced` | Formal reads and generic constructors for generated SDK infrastructure |
 | `/testing` | Explicit fake ports, fixtures, and Runtime harnesses |
 
 `/advanced` is not a holding area for everything removed from root. Legacy
 graph-first APIs are removed rather than hidden under a new public contract.
+Its generic `intent`, `reading`, and Observer constructors exist so generated
+domain modules can return runtime-backed root contracts without importing
+graph or storage substrate.
 
 WARP DRIVE, WARP-TTD, offline bundles, and other ecosystem products are not
 advertised as shipped git-warp surfaces until their implementations and

@@ -12,6 +12,7 @@
   ],
   "exclude": [
     "node_modules",
+    "test/fixtures/generated-sdk",
     "test/type-check",
     "test/runtime/deno"
   ]

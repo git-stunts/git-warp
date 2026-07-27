@@ -267,7 +267,7 @@ function generate(): string {
     '',
     ...exportSurface('Root API export surface', rootSource, 'First-use product API: one `Runtime` value plus Lane, Intent, Observer, Observation, Reading, and Receipt types.'),
     ...exportSurface('Storage export surface', storageSource, 'Transitional explicit storage composition; first-use applications use `Runtime.open()`.'),
-    ...exportSurface('Advanced export surface', advancedSource, 'Bounded coordinate capture, Optic, and Witness concepts for expert use.'),
+    ...exportSurface('Advanced export surface', advancedSource, 'Bounded formal reads and runtime-backed construction for generated SDK infrastructure.'),
     ...exportSurface('Diagnostics export surface', diagnosticsSource, 'Operator inspection helpers that consume public receipt handles.'),
     ...exportSurface('Charts export surface', chartsSource, 'Bounded graph-shaped derived Observers and Reading values.'),
     ...exportSurface('Testing export surface', testingSource, 'Disposable real-Git Runtime harnesses for consumer tests.'),

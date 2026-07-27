@@ -1,8 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "baseUrl": "../..",
     "module": "ES2022",
     "moduleResolution": "bundler",
+    "paths": {
+      "@git-stunts/git-warp": ["index.ts"],
+      "@git-stunts/git-warp/advanced": ["advanced.ts"]
+    },
     "skipLibCheck": false,
     "types": ["node"],
     "noUnusedLocals": false,
@@ -10,6 +15,8 @@
   },
   "include": [
     "plumbing-declarations.d.ts",
+    "../fixtures/generated-sdk/users.generated.ts",
+    "../fixtures/generated-sdk/users.wesley.generated.ts",
     "v19-consumer.ts",
     "v19-first-use.ts",
     "v19-subpaths.ts"

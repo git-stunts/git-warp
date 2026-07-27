@@ -1,0 +1,74 @@
+directive @intent(
+  kind: IntentKind!
+  subject: String!
+  key: String
+  value: String
+) on FIELD_DEFINITION
+
+directive @observer(
+  id: String!
+  reading: ReadingKind!
+  subject: String!
+  key: String
+  cardinality: ObserverCardinality!
+  decoder: ValueDecoder!
+  maxReadings: Int
+) on FIELD_DEFINITION
+
+enum IntentKind {
+  NODE_ADD
+  PROPERTY_SET
+}
+
+enum ReadingKind {
+  PROPERTY
+}
+
+enum ObserverCardinality {
+  EXACTLY_ONE
+  MANY
+}
+
+enum ValueDecoder {
+  STRING
+}
+
+type IntentBinding {
+  operation: String!
+}
+
+type Mutation {
+  registerUser(subject: ID!): IntentBinding!
+    @intent(kind: NODE_ADD, subject: "subject")
+
+  assignRole(subject: ID!, role: String!): IntentBinding!
+    @intent(
+      kind: PROPERTY_SET
+      subject: "subject"
+      key: "role"
+      value: "role"
+    )
+}
+
+type Query {
+  roleOf(subject: ID!): String!
+    @observer(
+      id: "users.role-of"
+      reading: PROPERTY
+      subject: "subject"
+      key: "role"
+      cardinality: EXACTLY_ONE
+      decoder: STRING
+    )
+
+  rolesOf(subjects: [ID!]!): [String!]!
+    @observer(
+      id: "users.roles-of"
+      reading: PROPERTY
+      subject: "subjects"
+      key: "role"
+      cardinality: MANY
+      decoder: STRING
+      maxReadings: 256
+    )
+}

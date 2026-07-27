@@ -6,8 +6,21 @@
  */
 
 import { GitStorage, type GitStorageOptions } from '../../storage.ts';
-import { type Lane, type WriteReceipt } from '../../index.ts';
-import { captureCoordinate, Coordinate, Optic, type Witness } from '../../advanced.ts';
+import {
+  type Intent,
+  type Lane,
+  type Observer,
+  type WriteReceipt,
+} from '../../index.ts';
+import {
+  captureCoordinate,
+  Coordinate,
+  createObserver,
+  intent,
+  Optic,
+  reading,
+  type Witness,
+} from '../../advanced.ts';
 import { graph, GraphNeighborhoodChart, type GraphNeighborhoodOptions } from '../../charts.ts';
 import {
   inspectReceipt,
@@ -29,6 +42,21 @@ const coordinate: InstanceType<typeof Coordinate> = await captureCoordinate(lane
 const optic: InstanceType<typeof Optic> = coordinate.optic();
 const node = await optic.node('user:alice').read();
 const witness: Witness = node.readIdentity;
+const advancedIntent: Intent = intent.property.set({
+  subject: 'user:alice',
+  key: 'role',
+  value: 'admin',
+});
+const advancedObserver: Observer<string> = createObserver(
+  'users.role-of',
+  reading.property({ subject: 'user:alice', key: 'role' }),
+  (value) => {
+    if (typeof value !== 'string') {
+      throw new TypeError('users.role-of expected a string');
+    }
+    return value;
+  },
+);
 declare const receipt: WriteReceipt;
 const inspectionOptions: InspectReceiptOptions = { storage: gitStorage };
 const inspection: ReceiptInspection = inspectReceipt(receipt, inspectionOptions);
@@ -55,6 +83,8 @@ await gitStorage.close();
 await harness.close();
 void optic;
 void witness;
+void advancedIntent;
+void advancedObserver;
 void inspection;
 void inspectedLane;
 void substrate;

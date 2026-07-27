@@ -95,16 +95,20 @@ GitStorageOptions @ storage.ts#L4
 
 ## Advanced export surface
 
-Bounded coordinate capture, Optic, and Witness concepts for expert use.
+Bounded formal reads and runtime-backed construction for generated SDK infrastructure.
 
 ### Value exports
 
-Source: `advanced.ts`. Count: 3.
+Source: `advanced.ts`. Count: 7.
 
 ```text
 captureCoordinate @ advanced.ts#L9
 Coordinate @ advanced.ts#L10
+createManyObserver @ advanced.ts#L15
+createObserver @ advanced.ts#L16
+intent @ advanced.ts#L12
 Optic @ advanced.ts#L11
+reading @ advanced.ts#L13
 ```
 
 ### Type exports
@@ -112,16 +116,16 @@ Optic @ advanced.ts#L11
 Source: `advanced.ts`. Count: 10.
 
 ```text
-NeighborhoodOpticCompleteness @ advanced.ts#L15
-NeighborhoodOpticEdge @ advanced.ts#L16
-NeighborhoodOpticReadDirection @ advanced.ts#L17
-NeighborhoodOpticReadOptions @ advanced.ts#L13
-ReadIdentityFrontierEntry @ advanced.ts#L21
-ReadIdentityIndexShard @ advanced.ts#L22
-ReadIdentityOptions @ advanced.ts#L23
-ReadIdentityTailWitness @ advanced.ts#L24
-WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L12
-Witness @ advanced.ts#L20
+NeighborhoodOpticCompleteness @ advanced.ts#L21
+NeighborhoodOpticEdge @ advanced.ts#L22
+NeighborhoodOpticReadDirection @ advanced.ts#L23
+NeighborhoodOpticReadOptions @ advanced.ts#L19
+ReadIdentityFrontierEntry @ advanced.ts#L27
+ReadIdentityIndexShard @ advanced.ts#L28
+ReadIdentityOptions @ advanced.ts#L29
+ReadIdentityTailWitness @ advanced.ts#L30
+WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L18
+Witness @ advanced.ts#L26
 ```
 
 ## Diagnostics export surface

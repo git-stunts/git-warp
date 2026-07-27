@@ -1,7 +1,7 @@
 /** v19 first-use consumer fixture -- compile-only. */
 
 import { Runtime } from '../../index.ts';
-import { users } from './generated-users.ts';
+import { users } from '../fixtures/generated-sdk/users.generated.ts';
 
 const runtime = await Runtime.open({ at: '.', writer: 'agent-1' });
 const lane = await runtime.lane('events');
