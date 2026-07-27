@@ -2,7 +2,6 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import Runtime from '../../src/application/Runtime.ts';
 import { buildCheckpointRef } from '../../src/domain/utils/RefLayout.ts';
 import { CURRENT_SUBSTRATE_MARKER } from '../../src/infrastructure/adapters/SubstrateVersionGate.ts';
 import { seedV18Checkpoint } from './V18CheckpointSeed.ts';
@@ -102,7 +101,7 @@ export async function prepareV18MigrationScratch(options: Readonly<{
       message: 'proving reopen, append, public reading, and receipt',
       phase: 'verify',
     });
-    await verifyPreparedScratch(scratchPath, options.plan.graph, scratchRoot);
+    await verifyRepositoryInDisposableCopy(scratchPath, options.plan.graph, scratchRoot);
     return Object.freeze({
       async cleanup(): Promise<void> {
         await rm(scratchPath, { recursive: true, force: true });
@@ -117,30 +116,12 @@ export async function prepareV18MigrationScratch(options: Readonly<{
   }
 }
 
-/** Replays every promoted patch and opens the public v19 lane without appending. */
+/** Verifies promoted refs through a disposable append and bounded public reading. */
 export async function verifyPromotedV19Repository(
   repositoryPath: string,
   graph: string,
 ): Promise<void> {
-  const opened = await openScratchGraph(
-    repositoryPath,
-    graph,
-    V18_MIGRATION_VERIFICATION_WRITER,
-  );
-  try {
-    await opened.graph.materialize();
-  } finally {
-    await opened.close();
-  }
-  const runtime = await Runtime.open({
-    at: repositoryPath,
-    writer: V18_MIGRATION_VERIFICATION_WRITER,
-  });
-  try {
-    await runtime.lane(graph);
-  } finally {
-    await runtime.close();
-  }
+  await verifyRepositoryInDisposableCopy(repositoryPath, graph, tmpdir());
 }
 
 async function initializeScratch(scratchPath: string): Promise<void> {
@@ -225,7 +206,7 @@ async function createCurrentCheckpoint(
   }
 }
 
-async function verifyPreparedScratch(
+async function verifyRepositoryInDisposableCopy(
   sourcePath: string,
   graph: string,
   scratchRoot: string,

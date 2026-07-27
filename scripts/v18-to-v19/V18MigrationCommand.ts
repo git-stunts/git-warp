@@ -75,7 +75,7 @@ export async function runV18ToV19Migration(
     });
     try {
       reportV18MigrationProgress(options.progress, {
-        message: 'verifying promoted repository',
+        message: 'verifying promoted refs through a disposable append and bounded reading',
         phase: 'verify',
       });
       await verifyPromotedV19Repository(repositoryPath, options.graph);
