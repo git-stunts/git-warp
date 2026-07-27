@@ -6,11 +6,17 @@ import { buildCheckpointRef } from '../../src/domain/utils/RefLayout.ts';
 import { CURRENT_SUBSTRATE_MARKER } from '../../src/infrastructure/adapters/SubstrateVersionGate.ts';
 import { seedV18Checkpoint } from './V18CheckpointSeed.ts';
 import type { V18MigrationPlan } from './V18MigrationPlan.ts';
-import { listV18MigrationRefs, v18MigrationGitText } from './V18MigrationGit.ts';
+import {
+  listV18MigrationRefs,
+  v18MigrationGitText,
+} from './V18MigrationGit.ts';
 import { V18MigrationGitCommitWriter } from './V18MigrationGitCommitWriter.ts';
 import { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 import V18PatchTranslator from './V18PatchTranslator.ts';
-import { rewriteV18WriterChain, type V18WriterChainRewrite } from './V18WriterChainRewriter.ts';
+import {
+  rewriteV18WriterChain,
+  type V18WriterChainRewrite,
+} from './V18WriterChainRewriter.ts';
 import {
   reportV18MigrationProgress,
   type V18MigrationProgressReporter,
@@ -29,14 +35,12 @@ export type V18PreparedMigration = Readonly<{
 }>;
 
 /** Builds and verifies the complete migration in disposable repositories. */
-export async function prepareV18MigrationScratch(
-  options: Readonly<{
-    passphrase?: string;
-    plan: V18MigrationPlan;
-    progress?: V18MigrationProgressReporter;
-    scratchRoot?: string;
-  }>
-): Promise<V18PreparedMigration> {
+export async function prepareV18MigrationScratch(options: Readonly<{
+  passphrase?: string;
+  plan: V18MigrationPlan;
+  progress?: V18MigrationProgressReporter;
+  scratchRoot?: string;
+}>): Promise<V18PreparedMigration> {
   if (options.plan.status !== 'migration-required') {
     throw new Error(`cannot prepare migration with status ${options.plan.status}`);
   }
@@ -49,31 +53,28 @@ export async function prepareV18MigrationScratch(
     });
     await initializeScratch(scratchPath);
     await fetchPlanRefs(scratchPath, options.plan);
-    const objectReader = new V18MigrationGitObjectReader(scratchPath);
     const translator = await V18PatchTranslator.open({
-      objectReader,
       repositoryPath: scratchPath,
       ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
     });
+    const objectReader = new V18MigrationGitObjectReader(scratchPath);
     const commitWriter = new V18MigrationGitCommitWriter(scratchPath);
     const rewrites: V18WriterChainRewrite[] = [];
     const commitMap = new Map<string, string>();
     let seededCheckpointRef: string | null = null;
     try {
       for (const writer of options.plan.writers) {
-        rewrites.push(
-          await rewriteV18WriterChain({
-            commitWriter,
-            commitMap,
-            graph: options.plan.graph,
-            objectReader,
-            ...(options.progress === undefined ? {} : { progress: options.progress }),
-            refName: writer.refName,
-            repositoryPath: scratchPath,
-            translator,
-            writer: writer.writer,
-          })
-        );
+        rewrites.push(await rewriteV18WriterChain({
+          commitWriter,
+          commitMap,
+          graph: options.plan.graph,
+          objectReader,
+          ...(options.progress === undefined ? {} : { progress: options.progress }),
+          refName: writer.refName,
+          repositoryPath: scratchPath,
+          translator,
+          writer: writer.writer,
+        }));
       }
       reportV18MigrationProgress(options.progress, {
         message: 'publishing current substrate marker',
@@ -91,7 +92,11 @@ export async function prepareV18MigrationScratch(
       });
       seededCheckpointRef = seed.status === 'seeded' ? seed.checkpointRef : null;
     } finally {
-      await Promise.all([commitWriter.close(), objectReader.close(), translator.close()]);
+      await Promise.all([
+        commitWriter.close(),
+        objectReader.close(),
+        translator.close(),
+      ]);
     }
     reportV18MigrationProgress(options.progress, {
       message: 'retiring superseded derived refs',
@@ -124,18 +129,29 @@ export async function prepareV18MigrationScratch(
 /** Verifies promoted refs through a disposable append and bounded public reading. */
 export async function verifyPromotedV19Repository(
   repositoryPath: string,
-  graph: string
+  graph: string,
 ): Promise<void> {
   await verifyRepositoryInDisposableCopy(repositoryPath, graph, tmpdir());
 }
 
 async function initializeScratch(scratchPath: string): Promise<void> {
   await v18MigrationGitText(scratchPath, ['init', '-q']);
-  await v18MigrationGitText(scratchPath, ['config', 'user.name', 'git-warp v18-to-v19 migration']);
-  await v18MigrationGitText(scratchPath, ['config', 'user.email', 'git-warp@example.invalid']);
+  await v18MigrationGitText(scratchPath, [
+    'config',
+    'user.name',
+    'git-warp v18-to-v19 migration',
+  ]);
+  await v18MigrationGitText(scratchPath, [
+    'config',
+    'user.email',
+    'git-warp@example.invalid',
+  ]);
 }
 
-async function fetchPlanRefs(scratchPath: string, plan: V18MigrationPlan): Promise<void> {
+async function fetchPlanRefs(
+  scratchPath: string,
+  plan: V18MigrationPlan,
+): Promise<void> {
   const refs = [
     ...plan.writers.map((writer) => writer.refName),
     ...Object.keys(plan.derivedRefs),
@@ -155,7 +171,7 @@ async function fetchPlanRefs(scratchPath: string, plan: V18MigrationPlan): Promi
 async function deleteDerivedRefs(
   scratchPath: string,
   plan: V18MigrationPlan,
-  preservedRef: string | null
+  preservedRef: string | null,
 ): Promise<void> {
   for (const [refName, oid] of Object.entries(plan.derivedRefs)) {
     if (refName === preservedRef) {
@@ -166,18 +182,24 @@ async function deleteDerivedRefs(
 }
 
 async function writeCurrentMarker(scratchPath: string, markerRef: string): Promise<void> {
-  const markerOid = await v18MigrationGitText(scratchPath, ['hash-object', '-w', '--stdin'], {
-    input: CURRENT_SUBSTRATE_MARKER,
-  });
+  const markerOid = await v18MigrationGitText(
+    scratchPath,
+    ['hash-object', '-w', '--stdin'],
+    { input: CURRENT_SUBSTRATE_MARKER },
+  );
   await v18MigrationGitText(scratchPath, ['update-ref', markerRef, markerOid]);
 }
 
 async function createCurrentCheckpoint(
   repositoryPath: string,
   graph: string,
-  progress?: V18MigrationProgressReporter
+  progress?: V18MigrationProgressReporter,
 ): Promise<void> {
-  const opened = await openScratchGraph(repositoryPath, graph, V18_MIGRATION_VERIFICATION_WRITER);
+  const opened = await openScratchGraph(
+    repositoryPath,
+    graph,
+    V18_MIGRATION_VERIFICATION_WRITER,
+  );
   try {
     reportV18MigrationProgress(progress, {
       message: 'materializing writer history without a checkpoint seed',
@@ -197,12 +219,15 @@ async function createCurrentCheckpoint(
 async function verifyRepositoryInDisposableCopy(
   sourcePath: string,
   graph: string,
-  scratchRoot: string
+  scratchRoot: string,
 ): Promise<void> {
   const verificationPath = await mkdtemp(join(scratchRoot, 'git-warp-v19-verify-'));
   try {
     await initializeScratch(verificationPath);
-    for (const refName of await listV18MigrationRefs(sourcePath, `refs/warp/${graph}/`)) {
+    for (const refName of await listV18MigrationRefs(
+      sourcePath,
+      `refs/warp/${graph}/`,
+    )) {
       await v18MigrationGitText(verificationPath, [
         'fetch',
         '-q',
@@ -219,11 +244,17 @@ async function verifyRepositoryInDisposableCopy(
 
 async function collectDesiredRefs(
   scratchPath: string,
-  graph: string
+  graph: string,
 ): Promise<Readonly<Record<string, string>>> {
   const desired: Record<string, string> = {};
-  for (const refName of await listV18MigrationRefs(scratchPath, `refs/warp/${graph}/`)) {
-    desired[refName] = await v18MigrationGitText(scratchPath, ['rev-parse', '--verify', refName]);
+  for (const refName of await listV18MigrationRefs(
+    scratchPath,
+    `refs/warp/${graph}/`,
+  )) {
+    desired[refName] = await v18MigrationGitText(
+      scratchPath,
+      ['rev-parse', '--verify', refName],
+    );
   }
   return Object.freeze(desired);
 }
