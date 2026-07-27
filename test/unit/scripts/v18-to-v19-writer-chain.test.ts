@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import warpCborCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { restoreV18RetainedSubstrateFixture } from '../../../scripts/v18-to-v19/V18RetainedSubstrateFixtureRestore.ts';
+import { V18MigrationGitObjectReader } from '../../../scripts/v18-to-v19/V18MigrationGitObjectReader.ts';
 import { readV18PatchCommit } from '../../../scripts/v18-to-v19/V18PatchCommit.ts';
 import V18PatchTranslator from '../../../scripts/v18-to-v19/V18PatchTranslator.ts';
 import {
@@ -19,9 +20,7 @@ import {
 import { v18MigrationGitText } from '../../../scripts/v18-to-v19/V18MigrationGit.ts';
 import { collectAsyncBytes } from '../../helpers/collectAsyncBytes.ts';
 
-const MANIFEST_PATH = resolve(
-  'fixtures/v18/retained-substrate-golden/manifest.json',
-);
+const MANIFEST_PATH = resolve('fixtures/v18/retained-substrate-golden/manifest.json');
 
 describe('v18-to-v19 writer chain migration', () => {
   const temporaryDirectories: string[] = [];
@@ -30,7 +29,7 @@ describe('v18-to-v19 writer chain migration', () => {
     await Promise.all(
       temporaryDirectories.splice(0).map(async (directory) => {
         await rm(directory, { recursive: true, force: true });
-      }),
+      })
     );
   });
 
@@ -41,7 +40,9 @@ describe('v18-to-v19 writer chain migration', () => {
       manifestPath: MANIFEST_PATH,
       targetDirectory,
     });
+    const objectReader = new V18MigrationGitObjectReader(restored.repositoryPath);
     const translator = await V18PatchTranslator.open({
+      objectReader,
       repositoryPath: restored.repositoryPath,
     });
     const rewrites: V18WriterChainRewrite[] = [];
@@ -49,18 +50,20 @@ describe('v18-to-v19 writer chain migration', () => {
     try {
       for (const ref of restored.manifest.refs) {
         if (ref.kind === 'writer') {
-          rewrites.push(await rewriteV18WriterChain({
-            commitMap,
-            graph: restored.manifest.graphId,
-            refName: ref.refName,
-            repositoryPath: restored.repositoryPath,
-            translator,
-            writer: ref.writerId,
-          }));
+          rewrites.push(
+            await rewriteV18WriterChain({
+              commitMap,
+              graph: restored.manifest.graphId,
+              refName: ref.refName,
+              repositoryPath: restored.repositoryPath,
+              translator,
+              writer: ref.writerId,
+            })
+          );
         }
       }
     } finally {
-      await translator.close();
+      await Promise.all([objectReader.close(), translator.close()]);
     }
 
     expect(rewrites.map((rewrite) => rewrite.translatedCount)).toEqual([2, 1]);
@@ -73,11 +76,7 @@ describe('v18-to-v19 writer chain migration', () => {
       throw new Error('missing rewritten alice head');
     }
     const firstSha = (
-      await v18MigrationGitText(restored.repositoryPath, [
-        'rev-list',
-        '--reverse',
-        aliceHead,
-      ])
+      await v18MigrationGitText(restored.repositoryPath, ['rev-list', '--reverse', aliceHead])
     ).split('\n')[0];
     expect(firstSha).toBeDefined();
     if (firstSha === undefined) {
@@ -99,7 +98,7 @@ describe('v18-to-v19 writer chain migration', () => {
       const parsed = GitCasAssetHandle.parse(contentHandle);
       const content = await collectAsyncBytes(cas.assets.open({ handle: parsed }));
       expect(Buffer.from(content).toString('utf8')).toBe(
-        'v18 blob-backed content retained for v19 migration proof\n',
+        'v18 blob-backed content retained for v19 migration proof\n'
       );
     } finally {
       await cas.close();
@@ -117,12 +116,12 @@ function findContentHandle(decoded: unknown): string {
   }
   for (const op of ops) {
     if (
-      op !== null
-      && typeof op === 'object'
-      && 'key' in op
-      && op.key === '_content'
-      && 'value' in op
-      && typeof op.value === 'string'
+      op !== null &&
+      typeof op === 'object' &&
+      'key' in op &&
+      op.key === '_content' &&
+      'value' in op &&
+      typeof op.value === 'string'
     ) {
       return op.value;
     }
