@@ -30,7 +30,7 @@ function surface(hex: string, background = PALETTE.ink): TokenValue {
 }
 
 /** High-contrast semantic theme for the interactive v18-to-v19 migration shell. */
-export const V18_MIGRATION_THEME: Theme = {
+const MIGRATION_THEME: Theme = {
   name: 'git-warp-v18-to-v19',
   status: {
     active: foreground(PALETTE.accent),
@@ -86,3 +86,20 @@ export const V18_MIGRATION_THEME: Theme = {
     secondary: surface(PALETTE.paper),
   },
 };
+
+export const V18_MIGRATION_THEME: Theme = deepFreeze(MIGRATION_THEME);
+
+/** Return the mutable copy Bijou enriches while resolving a runtime context. */
+export function createV18MigrationTheme(): Theme {
+  return structuredClone(V18_MIGRATION_THEME);
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const nested of Object.values(value)) {
+      deepFreeze(nested);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}

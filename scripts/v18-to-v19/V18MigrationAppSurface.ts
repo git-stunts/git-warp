@@ -1,9 +1,16 @@
-import { createSurface, type Cell, type Surface, type TokenValue } from '@flyingrobots/bijou';
+import {
+  createSurface,
+  type BijouContext,
+  type Cell,
+  type Surface,
+  type TokenValue,
+} from '@flyingrobots/bijou';
 
 import type { V18MigrationCommandReport } from './V18MigrationCommand.ts';
 import type V18MigrationExecutionMode from './V18MigrationExecutionMode.ts';
 import type V18MigrationGraph from './V18MigrationGraph.ts';
-import type { V18MigrationProgress } from './V18MigrationProgress.ts';
+import { type V18MigrationProgress, v18MigrationProgressPercent } from './V18MigrationProgress.ts';
+import { renderV18MigrationProgressBar } from './V18MigrationProgressBar.ts';
 import { formatV18MigrationBytes, type V18MigrationPreflight } from './V18MigrationPreflight.ts';
 import { V18_MIGRATION_THEME } from './V18MigrationTheme.ts';
 
@@ -17,6 +24,7 @@ export type V18MigrationAppModel = Readonly<{
 }>;
 
 export type V18MigrationAppViewOptions = Readonly<{
+  context: BijouContext;
   graph: V18MigrationGraph;
   mode: V18MigrationExecutionMode;
   preflight: V18MigrationPreflight;
@@ -37,7 +45,7 @@ export function renderV18MigrationApp(
     cellFrom(surfaceToken, ' ')
   );
   const lines = migrationLines(options, model, width);
-  lines.slice(0, surface.height).forEach((line, row) => {
+  visibleLines(lines, model.phase, surface.height).forEach((line, row) => {
     writeLine(surface, row, line.text, line.token);
   });
   return surface;
@@ -74,54 +82,59 @@ function migrationLines(
     { text: '', token: body },
     ...wrapStyled(`Repository: ${options.repositoryPath}`, width, body),
     ...wrapStyled(`Selected graph: ${options.graph.summary()}`, width, body),
-    {
-      text: `Mode: ${options.mode.promotesVerifiedRefs() ? 'verified migration and atomic promotion' : 'disposable rehearsal'}`,
-      token: accent,
-    },
+    ...wrapStyled(
+      `Mode: ${options.mode.promotesVerifiedRefs() ? 'verified migration and atomic promotion' : 'disposable rehearsal'}`,
+      width,
+      accent
+    ),
     { text: '', token: body },
   ];
   if (model.phase === 'confirm') {
     lines.push(
       { text: 'Nothing changes before you confirm.', token: warning },
-      {
-        text:
-          `Git object storage: ${formatV18MigrationBytes(options.preflight.repositoryObjectBytes)}` +
+      ...wrapStyled(
+        `Git object storage: ${formatV18MigrationBytes(options.preflight.repositoryObjectBytes)}` +
           ` across ${String(options.preflight.repositoryObjectCount)} objects`,
-        token: body,
-      },
+        width,
+        body
+      ),
       ...wrapStyled(
         `Scratch: ${options.preflight.scratchPath} · ${formatV18MigrationBytes(options.preflight.scratchAvailableBytes)} free`,
         width,
         body
       ),
-      {
-        text:
-          `Operating budget: ${formatV18MigrationBytes(options.preflight.scratchMinimumBytes)}` +
+      ...wrapStyled(
+        `Operating budget: ${formatV18MigrationBytes(options.preflight.scratchMinimumBytes)}` +
           ' minimum (byte volume and loose-object allocation)',
-        token: options.preflight.scratchSufficient ? success : warning,
-      },
-      {
-        text: `Source Git volume free: ${formatV18MigrationBytes(options.preflight.sourceAvailableBytes)}`,
-        token: body,
-      },
-      {
-        text: options.preflight.scratchSufficient
+        width,
+        options.preflight.scratchSufficient ? success : warning
+      ),
+      ...wrapStyled(
+        `Source Git volume free: ${formatV18MigrationBytes(options.preflight.sourceAvailableBytes)}`,
+        width,
+        body
+      ),
+      ...wrapStyled(
+        options.preflight.scratchSufficient
           ? 'Scratch capacity check: sufficient.'
           : 'Scratch capacity check: BELOW OPERATING BUDGET.',
-        token: options.preflight.scratchSufficient ? success : warning,
-      },
-      {
-        text: 'The tool builds and verifies a disposable repository before promoting refs.',
-        token: body,
-      },
-      {
-        text: options.mode.promotesVerifiedRefs()
+        width,
+        options.preflight.scratchSufficient ? success : warning
+      ),
+      ...wrapStyled(
+        'The tool builds and verifies a disposable repository before promoting refs.',
+        width,
+        body
+      ),
+      ...wrapStyled(
+        options.mode.promotesVerifiedRefs()
           ? 'Promotion archives source refs under recovery refs and can roll back atomically.'
           : 'This rehearsal discards its scratch repository and never changes authoritative refs.',
-        token: body,
-      },
+        width,
+        body
+      ),
       { text: '', token: body },
-      { text: 'Press Y or Enter to continue. Press N, Esc, or Q to cancel.', token: primary }
+      ...wrapStyled('Press Y or Enter to continue. Press N, Esc, or Q to cancel.', width, primary)
     );
     return lines;
   }
@@ -138,9 +151,15 @@ function migrationLines(
       ...wrapStyled(progress?.message ?? 'Preparing migration command', width, body)
     );
     if (progress?.completed !== undefined && progress.total !== undefined) {
-      const percent = progressPercent(progress.completed, progress.total);
+      const percent = v18MigrationProgressPercent(progress.completed, progress.total);
       lines.push({
-        text: progressLine(percent, progress.completed, progress.total, width),
+        text: renderV18MigrationProgressBar(
+          options.context,
+          percent,
+          progress.completed,
+          progress.total,
+          width
+        ),
         token: success,
       });
     }
@@ -171,28 +190,44 @@ function migrationLines(
     lines.push({ text: '', token: body }, { text: 'Press Enter or Q to close.', token: primary });
     return lines;
   }
+  if (model.phase === 'failed') {
+    lines.push(
+      { text: 'Migration failed.', token: error },
+      ...wrapStyled(model.failure ?? 'Unknown failure', width, body),
+      { text: '', token: body },
+      ...wrapStyled(
+        'Authoritative promotion failures are rolled back; retained recovery refs are not deleted.',
+        width,
+        warning
+      ),
+      ...wrapStyled('Press Enter or Q to close and inspect the error.', width, primary)
+    );
+    return lines;
+  }
   lines.push(
-    { text: 'Migration failed.', token: error },
-    ...wrapStyled(model.failure ?? 'Unknown failure', width, body),
-    { text: '', token: body },
-    {
-      text: 'Authoritative promotion failures are rolled back; retained recovery refs are not deleted.',
-      token: warning,
-    },
-    { text: 'Press Enter or Q to close and inspect the error.', token: primary }
+    { text: 'Internal migration UI state is incomplete.', token: error },
+    ...wrapStyled(
+      'No success report is available. Close the application and inspect the command output.',
+      width,
+      body
+    ),
+    ...wrapStyled('Press Enter or Q to close.', width, primary)
   );
   return lines;
 }
 
-function progressPercent(completed: number, total: number): number {
-  return total === 0 ? 100 : Math.min(100, Math.max(0, (completed / total) * 100));
-}
-
-function progressLine(percent: number, completed: number, total: number, width: number): string {
-  const label = ` ${String(completed)}/${String(total)} ${percent.toFixed(1)}%`;
-  const barWidth = Math.max(4, Math.min(42, width - label.length - 3));
-  const filled = Math.round((percent / 100) * barWidth);
-  return `[${'█'.repeat(filled)}${'░'.repeat(barWidth - filled)}]${label}`;
+function visibleLines(
+  lines: readonly StyledLine[],
+  phase: V18MigrationAppPhase,
+  height: number
+): readonly StyledLine[] {
+  if (height <= 0 || lines.length <= height) {
+    return lines.slice(0, Math.max(0, height));
+  }
+  if (phase !== 'confirm') {
+    return lines.slice(0, height);
+  }
+  return [...lines.slice(0, Math.max(0, height - 1)), lines.at(-1)!];
 }
 
 function wrapStyled(text: string, width: number, token: TokenValue): StyledLine[] {

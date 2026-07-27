@@ -67,6 +67,29 @@ describe('v18-to-v19 Git object reader', () => {
       await reader.close();
     }
   });
+
+  it('reads a multi-chunk payload and the following object without buffer copying drift', async () => {
+    const repositoryPath = await createRepository(temporaryDirectories);
+    const payload = Buffer.alloc(4 * 1_048_576, 0xa5);
+    const largeBlob = await v18MigrationGitText(repositoryPath, ['hash-object', '-w', '--stdin'], {
+      input: payload,
+    });
+    const smallBlob = await v18MigrationGitText(repositoryPath, ['hash-object', '-w', '--stdin'], {
+      input: 'after-large-object\n',
+    });
+    const reader = new V18MigrationGitObjectReader(repositoryPath);
+    try {
+      const largeBytes = await reader.readObject(largeBlob, 'blob');
+      expect(largeBytes).toHaveLength(payload.length);
+      expect(largeBytes[0]).toBe(0xa5);
+      expect(largeBytes.at(-1)).toBe(0xa5);
+      expect(Buffer.from(await reader.readObject(smallBlob, 'blob')).toString('utf8')).toBe(
+        'after-large-object\n'
+      );
+    } finally {
+      await reader.close();
+    }
+  });
 });
 
 async function createRepository(temporaryDirectories: string[]): Promise<string> {

@@ -25,7 +25,8 @@ export class V18MigrationGitObjectReader {
   readonly #exit: Promise<number | null>;
   readonly #iterator: AsyncIterator<Uint8Array>;
   readonly #stderr: Uint8Array[] = [];
-  #buffer = Buffer.alloc(0);
+  readonly #chunks: Buffer[] = [];
+  #bufferedBytes = 0;
   #closePromise: Promise<void> | null = null;
   #closed = false;
   #tail: Promise<void> = Promise.resolve();
@@ -41,6 +42,7 @@ export class V18MigrationGitObjectReader {
       this.#child.once('error', reject);
       this.#child.once('close', resolve);
     });
+    void this.#exit.catch(() => undefined);
   }
 
   readObject(oid: string, expectedType: string): Promise<Uint8Array> {
@@ -109,10 +111,10 @@ export class V18MigrationGitObjectReader {
 
   async #readLine(): Promise<string> {
     while (true) {
-      const newline = this.#buffer.indexOf(0x0a);
+      const newline = this.#newlineOffset();
       if (newline >= 0) {
-        const line = this.#buffer.subarray(0, newline);
-        this.#buffer = this.#buffer.subarray(newline + 1);
+        const line = this.#consume(newline);
+        this.#consume(1);
         return line.toString('utf8');
       }
       await this.#readMore();
@@ -120,12 +122,10 @@ export class V18MigrationGitObjectReader {
   }
 
   async #readBytes(size: number): Promise<Uint8Array> {
-    while (this.#buffer.length < size) {
+    while (this.#bufferedBytes < size) {
       await this.#readMore();
     }
-    const bytes = Buffer.from(this.#buffer.subarray(0, size));
-    this.#buffer = this.#buffer.subarray(size);
-    return bytes;
+    return this.#consume(size);
   }
 
   async #readMore(): Promise<void> {
@@ -138,7 +138,41 @@ export class V18MigrationGitObjectReader {
       );
     }
     const chunk = Buffer.from(next.value);
-    this.#buffer = this.#buffer.length === 0 ? chunk : Buffer.concat([this.#buffer, chunk]);
+    this.#chunks.push(chunk);
+    this.#bufferedBytes += chunk.length;
+  }
+
+  #consume(size: number): Buffer {
+    const output = Buffer.allocUnsafe(size);
+    let copied = 0;
+    while (copied < size) {
+      const chunk = this.#chunks[0];
+      if (chunk === undefined) {
+        throw new Error('Git object reader buffer accounting failed');
+      }
+      const length = Math.min(chunk.length, size - copied);
+      chunk.copy(output, copied, 0, length);
+      copied += length;
+      this.#bufferedBytes -= length;
+      if (length === chunk.length) {
+        this.#chunks.shift();
+      } else {
+        this.#chunks[0] = chunk.subarray(length);
+      }
+    }
+    return output;
+  }
+
+  #newlineOffset(): number {
+    let offset = 0;
+    for (const chunk of this.#chunks) {
+      const index = chunk.indexOf(0x0a);
+      if (index >= 0) {
+        return offset + index;
+      }
+      offset += chunk.length;
+    }
+    return -1;
   }
 
   async #close(): Promise<void> {

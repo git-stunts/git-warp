@@ -9,6 +9,7 @@ import {
   type FramePageMsg,
 } from '@flyingrobots/bijou-tui';
 
+import { formatFailure } from '../formatFailure.ts';
 import { runV18ToV19Migration, type V18MigrationCommandReport } from './V18MigrationCommand.ts';
 import type V18MigrationExecutionMode from './V18MigrationExecutionMode.ts';
 import type V18MigrationGraph from './V18MigrationGraph.ts';
@@ -70,7 +71,16 @@ export async function runV18MigrationApp(
       });
     }
   };
-  const page = migrationPage(options, execute);
+  const page = migrationPage(
+    Object.freeze({
+      context: options.context,
+      graph: options.graph,
+      mode: options.mode,
+      preflight: options.preflight,
+      repositoryPath: options.repositoryPath,
+    }),
+    execute
+  );
   const app = createFramedApp({
     ctx: options.context,
     defaultPageId: page.id,
@@ -85,7 +95,7 @@ export async function runV18MigrationApp(
 }
 
 function migrationPage(
-  options: RunV18MigrationAppOptions,
+  options: Parameters<typeof renderV18MigrationApp>[0],
   execute: Cmd<V18MigrationAppMsg>
 ): FramePage<V18MigrationAppModel, V18MigrationAppMsg> {
   return {
@@ -157,22 +167,4 @@ function updateMigrationApp(
     case 'pulse':
       return [model, []];
   }
-}
-
-function formatFailure(error: unknown, seen = new Set<unknown>()): string {
-  if (seen.has(error)) {
-    return '[circular failure]';
-  }
-  seen.add(error);
-  const message = error instanceof Error ? error.message : String(error);
-  const nested: string[] = [];
-  if (error instanceof AggregateError) {
-    error.errors.forEach((entry, index) => {
-      nested.push(`failure ${String(index + 1)}: ${formatFailure(entry, seen)}`);
-    });
-  }
-  if (error instanceof Error && error.cause !== undefined) {
-    nested.push(`cause: ${formatFailure(error.cause, seen)}`);
-  }
-  return nested.length === 0 ? message : `${message}\n${nested.join('\n')}`;
 }

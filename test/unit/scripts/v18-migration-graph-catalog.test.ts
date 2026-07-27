@@ -31,9 +31,10 @@ describe('v18 migration graph catalog', () => {
     expect(catalog.graphs.map((graph) => graph.summary())).toEqual([
       'future — unsupported marker (future-marker); 1 writer; 2 refs',
       'notes — upgrade required (legacy unmarked substrate); 1 writer; 1 ref',
-      'team — upgrade required (legacy unmarked substrate); 1 writer; 2 refs',
+      'team — upgrade required (legacy unmarked substrate); 1 writer; 1 ref',
       'team/events — v19 current; 2 writers; 3 refs',
     ]);
+    expect(catalog.require('team').refCount).toBe(1);
     expect(catalog.require('team/events').writerCount).toBe(2);
   });
 

@@ -54,6 +54,7 @@ export class V18MigrationGitCommitWriter {
       this.#child.once('error', reject);
       this.#child.once('close', resolve);
     });
+    void this.#exit.catch(() => undefined);
   }
 
   writeCommit(record: V18MigrationCommitRecord): Promise<string> {
@@ -63,7 +64,7 @@ export class V18MigrationGitCommitWriter {
     const operation = this.#tail.then(async () => await this.#writeCommit(record));
     this.#tail = operation.then(
       () => undefined,
-      () => undefined,
+      () => undefined
     );
     return operation;
   }
@@ -89,10 +90,7 @@ export class V18MigrationGitCommitWriter {
         if (error === null || error === undefined) {
           resolve();
         } else {
-          reject(this.#error(
-            `failed to write hash-object request: ${error.message}`,
-            null,
-          ));
+          reject(this.#error(`failed to write hash-object request: ${error.message}`, null));
         }
       });
     });
@@ -111,13 +109,11 @@ export class V18MigrationGitCommitWriter {
         const exitCode = await this.#exit;
         throw this.#error(
           `hash-object closed unexpectedly with exit ${String(exitCode)}`,
-          exitCode,
+          exitCode
         );
       }
       const chunk = Buffer.from(next.value);
-      this.#buffer = this.#buffer.length === 0
-        ? chunk
-        : Buffer.concat([this.#buffer, chunk]);
+      this.#buffer = this.#buffer.length === 0 ? chunk : Buffer.concat([this.#buffer, chunk]);
     }
   }
 
@@ -127,10 +123,7 @@ export class V18MigrationGitCommitWriter {
       this.#child.stdin.end();
       const exitCode = await this.#exit;
       if (exitCode !== 0) {
-        throw this.#error(
-          `hash-object failed with exit ${String(exitCode)}`,
-          exitCode,
-        );
+        throw this.#error(`hash-object failed with exit ${String(exitCode)}`, exitCode);
       }
     } finally {
       await rm(this.#commitPath, { force: true });
@@ -152,22 +145,25 @@ function serializeCommit(record: V18MigrationCommitRecord): Uint8Array {
   if (record.parent !== null) {
     requireOid(record.parent, 'parent');
   }
-  return Buffer.from([
-    `tree ${record.tree}`,
-    ...(record.parent === null ? [] : [`parent ${record.parent}`]),
-    `author ${formatIdentity(record.author, 'author')}`,
-    `committer ${formatIdentity(record.committer, 'committer')}`,
-    '',
-    record.message,
-  ].join('\n'), 'utf8');
+  return Buffer.from(
+    [
+      `tree ${record.tree}`,
+      ...(record.parent === null ? [] : [`parent ${record.parent}`]),
+      `author ${formatIdentity(record.author, 'author')}`,
+      `committer ${formatIdentity(record.committer, 'committer')}`,
+      '',
+      record.message,
+    ].join('\n'),
+    'utf8'
+  );
 }
 
 function formatIdentity(identity: V18CommitIdentity, label: string): string {
   if (
-    /[\u0000\n\r]/u.test(identity.name)
-    || /[\u0000\n\r<>]/u.test(identity.email)
-    || !/^[0-9]+$/u.test(identity.timestamp)
-    || !/^[+-][0-9]{4}$/u.test(identity.timezone)
+    /[\u0000\n\r]/u.test(identity.name) ||
+    /[\u0000\n\r<>]/u.test(identity.email) ||
+    !/^[0-9]+$/u.test(identity.timestamp) ||
+    !/^[+-][0-9]{4}$/u.test(identity.timezone)
   ) {
     throw new Error(`unsupported ${label} identity for Git commit serialization`);
   }

@@ -2,9 +2,11 @@
 
 import { progressBar, type BijouContext } from '@flyingrobots/bijou';
 import { createNodeContext } from '@flyingrobots/bijou-node';
+import { realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { formatFailure } from '../formatFailure.ts';
 import { runV18MigrationApp } from './V18MigrationApp.ts';
 import { runV18ToV19Migration, type V18MigrationCommandReport } from './V18MigrationCommand.ts';
 import V18MigrationExecutionMode from './V18MigrationExecutionMode.ts';
@@ -13,8 +15,8 @@ import {
   formatV18MigrationPreflight,
   inspectV18MigrationPreflight,
 } from './V18MigrationPreflight.ts';
-import type { V18MigrationProgress } from './V18MigrationProgress.ts';
-import { V18_MIGRATION_THEME } from './V18MigrationTheme.ts';
+import { type V18MigrationProgress, v18MigrationProgressPercent } from './V18MigrationProgress.ts';
+import { createV18MigrationTheme } from './V18MigrationTheme.ts';
 
 export type V18MigrationCliOptions = Readonly<{
   assumeYes: boolean;
@@ -88,7 +90,7 @@ function migrationContext(): BijouContext {
       stderr: process.stderr,
       stdout: process.stderr,
     },
-    theme: V18_MIGRATION_THEME,
+    theme: createV18MigrationTheme(),
   });
 }
 
@@ -110,15 +112,11 @@ function formatProgress(progress: V18MigrationProgress, ctx: BijouContext): stri
   const bar =
     progress.completed === undefined || progress.total === undefined
       ? ''
-      : `\n  ${progressBar(progressPercent(progress.completed, progress.total), {
+      : `\n  ${progressBar(v18MigrationProgressPercent(progress.completed, progress.total), {
           ctx,
           width: 28,
         })}`;
   return `v18-to-v19 [${progress.phase}]${writer}${count}: ${progress.message}${bar}\n`;
-}
-
-function progressPercent(completed: number, total: number): number {
-  return total === 0 ? 100 : (completed / total) * 100;
 }
 
 export function parseV18MigrationCliOptions(args: readonly string[]): V18MigrationCliOptions {
@@ -226,23 +224,13 @@ if (isMainModule()) {
 
 function isMainModule(): boolean {
   const invokedPath = process.argv[1];
-  return invokedPath !== undefined && import.meta.url === pathToFileURL(resolve(invokedPath)).href;
-}
-
-function formatFailure(error: unknown, seen = new Set<unknown>()): string {
-  if (seen.has(error)) {
-    return '[circular failure]';
+  if (invokedPath === undefined) {
+    return false;
   }
-  seen.add(error);
-  const message = error instanceof Error ? error.message : String(error);
-  const nested: string[] = [];
-  if (error instanceof AggregateError) {
-    error.errors.forEach((entry, index) => {
-      nested.push(`failure ${String(index + 1)}: ${formatFailure(entry, seen)}`);
-    });
+  const resolvedPath = resolve(invokedPath);
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(resolvedPath)).href;
+  } catch {
+    return import.meta.url === pathToFileURL(resolvedPath).href;
   }
-  if (error instanceof Error && error.cause !== undefined) {
-    nested.push(`cause: ${formatFailure(error.cause, seen)}`);
-  }
-  return nested.length === 0 ? message : `${message}\n${nested.join('\n')}`;
 }

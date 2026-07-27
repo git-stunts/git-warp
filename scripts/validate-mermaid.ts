@@ -4,10 +4,12 @@ import { extname, join, relative, resolve } from 'node:path';
 
 import { run } from '@mermaid-js/mermaid-cli';
 
+import { formatFailure } from './formatFailure.ts';
+
 const ROOT = resolve('.');
 const SKIPPED_DIRECTORIES = new Set(['.git', 'coverage', 'dist', 'node_modules']);
-const OPENING_FENCE = /^```mermaid[ \t]*$/u;
-const CLOSING_FENCE = /^```[ \t]*$/u;
+const OPENING_FENCE = /^( {0,3})```mermaid[ \t]*$/u;
+const CLOSING_FENCE = /^ {0,3}```[ \t]*$/u;
 
 type MermaidBlock = Readonly<{
   line: number;
@@ -46,9 +48,7 @@ async function main(): Promise<void> {
     try {
       await run(inputPath, outputPath, {
         artefacts: temporaryDirectory,
-        puppeteerConfig: {
-          args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        },
+        puppeteerConfig: mermaidPuppeteerConfig(),
         quiet: true,
       });
     } catch (error: unknown) {
@@ -68,14 +68,16 @@ function extractMermaidBlocks(markdown: string, path: string): MermaidBlock[] {
   const lines = markdown.split('\n');
   const blocks: MermaidBlock[] = [];
   for (let index = 0; index < lines.length; index += 1) {
-    if (!OPENING_FENCE.test(lines[index] ?? '')) {
+    const opening = (lines[index] ?? '').match(OPENING_FENCE);
+    if (opening === null) {
       continue;
     }
+    const indentation = opening[1]?.length ?? 0;
     const start = index + 2;
     const source: string[] = [];
     index += 1;
     while (index < lines.length && !CLOSING_FENCE.test(lines[index] ?? '')) {
-      source.push(lines[index] ?? '');
+      source.push(removeSupportedIndent(lines[index] ?? '', indentation));
       index += 1;
     }
     if (index >= lines.length) {
@@ -102,11 +104,18 @@ async function listMarkdownFiles(directory: string): Promise<readonly string[]> 
   return Object.freeze(paths.sort());
 }
 
-function formatFailure(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message.replaceAll('\n', ' ');
+function mermaidPuppeteerConfig(): { args?: string[] } {
+  return process.env['GIT_WARP_MERMAID_DISABLE_SANDBOX'] === '1'
+    ? { args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+    : {};
+}
+
+function removeSupportedIndent(line: string, indentation: number): string {
+  let offset = 0;
+  while (offset < indentation && line[offset] === ' ') {
+    offset += 1;
   }
-  return String(error);
+  return line.slice(offset);
 }
 
 await main();

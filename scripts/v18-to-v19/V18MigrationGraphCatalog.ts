@@ -87,6 +87,9 @@ function assignRefsToGraphs(
   const assignments = new Map(names.map((name) => [name, [] as string[]]));
   const longestFirst = [...names].sort((left, right) => right.length - left.length);
   for (const refName of refs) {
+    if (refName.slice(WARP_REF_PREFIX.length).includes(RECOVERY_SEGMENT)) {
+      continue;
+    }
     const name = assignedGraphName(refName, longestFirst);
     if (name !== null) {
       assignments.get(name)?.push(refName);
