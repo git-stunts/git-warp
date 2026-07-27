@@ -14,6 +14,13 @@ class GeneratedSdkContractError extends Error {
   }
 }
 
+class GeneratedSdkUsageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GeneratedSdkUsageError';
+  }
+}
+
 function requireRegisterUserContract(): void {
   const operation = mutationRegisterUserOperation;
   const directive = operation.directives.intent;
@@ -222,9 +229,12 @@ export const users = Object.freeze({
 
 function requireOutputPath(): string {
   const index = process.argv.indexOf('--out');
+  if (index === -1) {
+    throw new GeneratedSdkUsageError('missing required --out <path> argument');
+  }
   const output = process.argv[index + 1];
-  if (index === -1 || output === undefined) {
-    throw new GeneratedSdkContractError('--out');
+  if (output === undefined) {
+    throw new GeneratedSdkUsageError('--out flag requires a path argument');
   }
   return output;
 }
