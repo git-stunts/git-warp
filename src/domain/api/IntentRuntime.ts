@@ -49,7 +49,13 @@ function isCascadingNodeRemoval(
 ): terminal is Extract<PatchOp, { readonly type: 'NodeRemove' }> {
   return terminal.type === 'NodeRemove'
     && operations.slice(0, -1)
-      .every((operation) => operation.type === 'EdgeRemove');
+      .every((operation) =>
+        operation.type === 'EdgeRemove'
+        && (
+          operation.from === terminal.node
+          || operation.to === terminal.node
+        )
+      );
 }
 
 function intentFromOperation(operation: PatchOp): Intent {

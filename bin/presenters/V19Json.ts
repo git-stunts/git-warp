@@ -2,7 +2,7 @@ import type { McpJsonValue } from '../cli/commands/mcp/McpJsonValue.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
 
 export function toMcpJson(value: object): McpJsonValue {
-  return parseMcpJson(JSON.parse(JSON.stringify(value)));
+  return parseMcpJson(value);
 }
 
 export function parseMcpJson(value: unknown): McpJsonValue {
@@ -37,5 +37,9 @@ function isJsonScalar(
 function isPlainObject(
   value: unknown,
 ): value is { readonly [key: string]: unknown } {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value) as object | null;
+  return prototype === Object.prototype || prototype === null;
 }

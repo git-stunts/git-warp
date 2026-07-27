@@ -185,9 +185,14 @@ export default class StrandCoordinator {
 
   async create(options: StrandCreateOptions = {}): Promise<StrandDescriptor> {
     const normalized = normalizeCreateOptions(options);
+    const baseFrontier = normalizeBaseFrontier(options.baseFrontier);
+    assertCapturedCoordinatePair(
+      normalized.baseCheckpointSha,
+      baseFrontier,
+    );
     await this._assertStrandDoesNotExist(normalized.strandId);
 
-    const frontier = normalizeBaseFrontier(options.baseFrontier) ?? await this._getFrontier();
+    const frontier = baseFrontier ?? await this._getFrontier();
     const frontierRecord = frontierToRecord(frontier);
     const frontierDigest = await computeChecksum(frontierRecord, this._deps.crypto);
     const now = String(this._deps.maxObservedLamport());
@@ -412,4 +417,22 @@ export default class StrandCoordinator {
     void prefix;
     return new Map();
   }
+}
+
+function assertCapturedCoordinatePair(
+  checkpointSha: string | null,
+  frontier: ReadonlyMap<string, string> | null,
+): void {
+  if ((checkpointSha === null) === (frontier === null)) {
+    return;
+  }
+  throw new StrandError(
+    'baseCheckpointSha and baseFrontier must be provided together',
+    {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: {
+        fields: ['baseCheckpointSha', 'baseFrontier'],
+      },
+    },
+  );
 }

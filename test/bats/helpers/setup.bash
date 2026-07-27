@@ -4,7 +4,7 @@ setup_test_repo() {
   _BATS_T0=$(date +%s)
   PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
   TEST_REPO="$(mktemp -d)"
-  CLI=(node "${PROJECT_ROOT}/bin/git-warp.ts" --repo "${TEST_REPO}")
+  CLI=(node "${PROJECT_ROOT}/dist/bin/git-warp.js" --repo "${TEST_REPO}")
   export PROJECT_ROOT TEST_REPO
 
   git -C "${TEST_REPO}" init -q

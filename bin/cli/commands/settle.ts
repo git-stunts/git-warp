@@ -1,16 +1,23 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 
-import { parseCommandArgs, usageError } from '../infrastructure.ts';
+import {
+  parseCommandArgs,
+  usageError,
+  usageErrorFrom,
+} from '../infrastructure.ts';
 import type { CliOptions } from '../types.ts';
 import { withRuntime } from '../v19/V19Runtime.ts';
 import {
   applyReviewedSettlement,
   previewReviewedSettlement,
   reviewedSettlementFromValue,
+  settlementPlanFields,
+  type ReviewedSettlement,
   type SettlementSelector,
 } from '../v19/V19SettlementReview.ts';
 import {
+  evidenceEnvelope,
   receiptEnvelope,
   renderReceipt,
 } from '../../presenters/V19ReadingReceipt.ts';
@@ -93,9 +100,9 @@ function previewResult(
     operation: preview.operation,
     source: toMcpJson(preview.source),
     target: toMcpJson(preview.target),
-    plan: toMcpJson(preview.plan),
+    plan: toMcpJson(settlementPlanFields(preview.plan)),
     outcome: toMcpJson(preview.outcome),
-    evidence: toMcpJson(preview.evidence),
+    evidence: evidenceEnvelope(preview.evidence),
   });
   return {
     payload,
@@ -130,10 +137,7 @@ async function applySettlement(
     APPLY_OPTIONS,
     APPLY_SCHEMA,
   );
-  const parsed = parseMcpJson(
-    JSON.parse(readFileSync(values.plan, 'utf8')),
-  );
-  const reviewed = reviewedSettlementFromValue(parsed);
+  const reviewed = readReviewedSettlement(values.plan);
   const receipt = await withRuntime(
     options,
     async (runtime) => await applyReviewedSettlement(runtime, reviewed),
@@ -143,6 +147,20 @@ async function applySettlement(
     payload,
     human: renderReceipt(payload),
   };
+}
+
+function readReviewedSettlement(path: string): ReviewedSettlement {
+  try {
+    const parsed = parseMcpJson(
+      JSON.parse(readFileSync(path, 'utf8')),
+    );
+    return reviewedSettlementFromValue(parsed);
+  } catch (error) {
+    throw usageErrorFrom(
+      `Unable to read reviewed Settlement from ${path}`,
+      error,
+    );
+  }
 }
 
 function requireSourceStrand(strand: string | null): string {

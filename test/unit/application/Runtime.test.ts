@@ -166,6 +166,17 @@ describe('Runtime', () => {
         code: 'E_RUNTIME_STRAND_IDENTITY',
         context: { field: 'strand.name' },
       });
+    const foreign = createBoundLane({
+      descriptor: { kind: 'worldline', name: 'foreign' },
+      fork: vi.fn(),
+      openStrand: vi.fn(),
+      owner: {},
+    });
+    await expect(runtime.strand(foreign, { name: 'foreign-strand' }))
+      .rejects.toMatchObject({
+        code: 'E_RUNTIME_STRAND_FOREIGN_LANE',
+        message: 'Runtime.strand requires a Lane owned by this Runtime',
+      });
   });
 
   it('validates fork arguments and rejects fork work after close', async () => {

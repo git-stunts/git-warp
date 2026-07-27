@@ -1,10 +1,16 @@
 import Runtime from '../../../src/application/Runtime.ts';
+import { resolveRuntimeStorage } from '../../../src/application/RuntimeStorageAccess.ts';
 import type Lane from '../../../src/domain/api/Lane.ts';
 import { usageError } from '../infrastructure.ts';
+import {
+  requireCliStorageBinding,
+  type CliStorageBinding,
+} from '../shared.ts';
 import type { CliOptions } from '../types.ts';
 
 export type RuntimeTask<TResult> = (
   runtime: Runtime,
+  storage: CliStorageBinding,
 ) => Promise<TResult>;
 
 export async function withRuntime<TResult>(
@@ -15,11 +21,30 @@ export async function withRuntime<TResult>(
     at: options.repo,
     writer: options.writer,
   });
+  let result: TResult;
   try {
-    return await task(runtime);
-  } finally {
-    await runtime.close();
+    const storage = requireCliStorageBinding(resolveRuntimeStorage(runtime));
+    result = await task(runtime, storage);
+  } catch (error) {
+    return await closeAfterTaskFailure(runtime, error);
   }
+  await runtime.close();
+  return result;
+}
+
+async function closeAfterTaskFailure(
+  runtime: Runtime,
+  taskFailure: unknown,
+): Promise<never> {
+  try {
+    await runtime.close();
+  } catch (closeError) {
+    throw new AggregateError(
+      [taskFailure, closeError],
+      'Runtime task and cleanup both failed',
+    );
+  }
+  throw taskFailure;
 }
 
 export async function openRequiredLane(

@@ -17,6 +17,7 @@ import {
 } from './storageCapabilities.ts';
 import { DOCTOR_EXIT_CODES, type DoctorFinding, type DoctorPolicy, type DoctorPayload, type DoctorContext } from './types.ts';
 import type { CliOptions } from '../../types.ts';
+import type { CliStorageBinding } from '../../shared.ts';
 
 const DEFAULT_POLICY: DoctorPolicy = {
   strict: false,
@@ -35,9 +36,15 @@ const IMPACT_ORDER = {
 } as const;
 
 /** Handles the `git warp doctor` command: runs structural health checks and returns findings. */
-export default async function handleDoctor({ options }: { options: CliOptions }): Promise<{ payload: DoctorPayload; exitCode: number }> {
+export default async function handleDoctor({
+  options,
+  storage,
+}: {
+  options: CliOptions;
+  storage?: CliStorageBinding;
+}): Promise<{ payload: DoctorPayload; exitCode: number }> {
   const startMs = Date.now();
-  const ctx = await createDoctorContext(options, DEFAULT_POLICY);
+  const ctx = await createDoctorContext(options, DEFAULT_POLICY, storage);
   const { findings, checksRun } = await runChecks(ctx, startMs);
   findings.sort(compareFinding);
   const payload = assemblePayload({

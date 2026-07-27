@@ -717,6 +717,22 @@ describe('StrandService', () => {
         .toBe('checkpoint-captured');
     });
 
+    it('rejects partial captured coordinates before persistence', async () => {
+      await expect(service.create({
+        strandId: 'checkpoint-only',
+        baseCheckpointSha: 'checkpoint-captured',
+      })).rejects.toMatchObject({
+        code: 'E_STRAND_INVALID_ARGS',
+      });
+      await expect(service.create({
+        strandId: 'frontier-only',
+        baseFrontier: new Map([['writer-a', 'captured-a']]),
+      })).rejects.toMatchObject({
+        code: 'E_STRAND_INVALID_ARGS',
+      });
+      expect(graph._strandStore.publishDescriptor).not.toHaveBeenCalled();
+    });
+
     it('rejects malformed explicit parent frontiers with a stable error', async () => {
       const coordinator: Pick<
         ReturnType<typeof createStrandCoordinator>,

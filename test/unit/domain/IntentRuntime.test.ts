@@ -87,6 +87,17 @@ describe('IntentRuntime persisted hydration', () => {
     ]))).toThrowError(expect.objectContaining({
       code: 'E_DRAFT_INTENT_HYDRATION',
     }));
+    expect(() => intentFromPatch(patch([
+      new EdgeRemove({
+        from: 'user:bob',
+        to: 'team:ops',
+        label: 'member-of',
+        observedDots: ['review:2'],
+      }),
+      new NodeRemove('user:alice', ['review:1']),
+    ]))).toThrowError(expect.objectContaining({
+      code: 'E_DRAFT_INTENT_HYDRATION',
+    }));
   });
 
   it('round-trips a property Intent through a real PatchBuilder', () => {

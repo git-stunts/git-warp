@@ -5,6 +5,7 @@ import type Intent from '../../../src/domain/api/Intent.ts';
 import type Observer from '../../../src/domain/api/Observer.ts';
 import type { ReadingValue } from '../../../src/domain/api/ReadingValue.ts';
 import type { McpJsonValue } from '../commands/mcp/McpJsonValue.ts';
+import { usageErrorFrom } from '../infrastructure.ts';
 
 type JsonInput =
   | null
@@ -75,11 +76,15 @@ const READING_SCHEMA = z.discriminatedUnion('kind', [
 ]);
 
 export function intentFromText(text: string): Intent {
-  return intentFromValue(JSON.parse(text));
+  try {
+    return intentFromValue(JSON.parse(text));
+  } catch (error) {
+    throw usageErrorFrom('Invalid Intent JSON', error);
+  }
 }
 
 export function intentFromValue(value: McpJsonValue): Intent {
-  const descriptor = INTENT_SCHEMA.parse(value);
+  const descriptor = parseIntentDescriptor(value);
   if (descriptor.kind === 'node.add') {
     return intent.node.add(descriptor);
   }
@@ -95,18 +100,32 @@ export function intentFromValue(value: McpJsonValue): Intent {
   return intent.property.set(descriptor);
 }
 
+function parseIntentDescriptor(
+  value: McpJsonValue,
+): z.infer<typeof INTENT_SCHEMA> {
+  try {
+    return INTENT_SCHEMA.parse(value);
+  } catch (error) {
+    throw usageErrorFrom('Invalid Intent', error);
+  }
+}
+
 export function observerFromText(
   observerId: string,
   text: string,
 ): Observer<ReadingValue> {
-  return observerFromValue(observerId, JSON.parse(text));
+  try {
+    return observerFromValue(observerId, JSON.parse(text));
+  } catch (error) {
+    throw usageErrorFrom('Invalid Observer JSON', error);
+  }
 }
 
 export function observerFromValue(
   observerId: string,
   value: McpJsonValue,
 ): Observer<ReadingValue> {
-  const descriptor = READING_SCHEMA.parse(value);
+  const descriptor = parseReadingDescriptor(value);
   if (descriptor.kind === 'property.get') {
     return propertyObserver(observerId, descriptor);
   }
@@ -114,6 +133,16 @@ export function observerFromValue(
     return nodeObserver(observerId, descriptor);
   }
   return neighborhoodObserver(observerId, descriptor);
+}
+
+function parseReadingDescriptor(
+  value: McpJsonValue,
+): z.infer<typeof READING_SCHEMA> {
+  try {
+    return READING_SCHEMA.parse(value);
+  } catch (error) {
+    throw usageErrorFrom('Invalid Observer reading', error);
+  }
 }
 
 function propertyObserver(

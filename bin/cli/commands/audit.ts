@@ -18,13 +18,12 @@ export default async function handleAudit({
   if (args.length > 0) {
     throw usageError('audit accepts only global v19 options');
   }
-  return await withRuntime(options, async (runtime) => {
+  return await withRuntime(options, async (runtime, storage) => {
     await openRequiredLane(runtime, options.lane);
     const result = await handleSubstrateAudit({
       options,
-      args: options.writerExplicit
-        ? ['--writer', options.writer]
-        : [],
+      args: [],
+      storage,
     });
     return {
       payload: requireObject(result.payload),

@@ -127,20 +127,29 @@ describe('MCP command protocol', () => {
     });
   });
 
-  it('keeps observation cursors as transport details', () => {
-    const receiptRef = session.retainReceipt({
-      type: 'Receipt',
-      operation: 'observe',
+  it('keeps observation cursors over a lazy bounded transport', async () => {
+    let pulls = 0;
+    const retained = await session.retainObservation({
+      readings: (async function* () {
+        pulls += 1;
+        yield { type: 'Reading', value: 'first' };
+        pulls += 1;
+        yield { type: 'Reading', value: 'second' };
+      })(),
+      receipt: () => Promise.resolve({
+        type: 'Receipt',
+        operation: 'observe',
+      }),
     });
-    const observationId = session.retainObservation(
-      [
-        { type: 'Reading', value: 'first' },
-        { type: 'Reading', value: 'second' },
-      ],
-      receiptRef,
-    );
+    const { observationId } = retained;
+    expect(retained).toEqual({
+      observationId,
+      terminal: false,
+      receiptRef: null,
+    });
+    expect(pulls).toBe(0);
 
-    expect(session.readObservation(observationId, undefined, 1))
+    expect(await session.readObservation(observationId, undefined, 1))
       .toEqual({
         observationId,
         readings: [{ type: 'Reading', value: 'first' }],
@@ -148,14 +157,19 @@ describe('MCP command protocol', () => {
         terminal: false,
         receiptRef: null,
       });
-    expect(session.readObservation(observationId, '1', 1))
+    expect(pulls).toBe(2);
+    expect(await session.readObservation(observationId, '1', 1))
       .toEqual({
         observationId,
         readings: [{ type: 'Reading', value: 'second' }],
         cursor: null,
         terminal: true,
-        receiptRef,
+        receiptRef: 'receipt-1',
       });
+    expect(session.getReceipt('receipt-1')).toEqual({
+      type: 'Receipt',
+      operation: 'observe',
+    });
   });
 
   it('re-previews and applies a retained plan across Runtime calls', async () => {

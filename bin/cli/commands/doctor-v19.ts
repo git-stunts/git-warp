@@ -20,9 +20,9 @@ export default async function handleDoctor({
   readonly exitCode: number;
 }> {
   parseCommandArgs(args, {}, DOCTOR_SCHEMA);
-  return await withRuntime(options, async (runtime) => {
+  return await withRuntime(options, async (runtime, storage) => {
     await openRequiredLane(runtime, options.lane);
-    const result = await handleSubstrateDoctor({ options });
+    const result = await handleSubstrateDoctor({ options, storage });
     return {
       ...result,
       human: stableStringify(result.payload),
