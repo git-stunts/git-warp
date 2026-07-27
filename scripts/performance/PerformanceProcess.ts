@@ -128,7 +128,7 @@ function parseWorkerSample(stdout: string): PerformanceSample {
   return PerformanceSampleSchema.parse(parsed);
 }
 
-function parseGnuTime(value: string): Readonly<{
+export function parseGnuTime(value: string): Readonly<{
   maxRssKib: number;
   systemSeconds: number;
   userSeconds: number;

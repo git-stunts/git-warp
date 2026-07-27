@@ -22,9 +22,17 @@ export default class WorldlineOptic {
   private readonly _posture: OpticPostureFields;
 
   constructor(options: WorldlineOpticOptions) {
-    this._locator = new CheckpointTailWitnessLocator({ source: options.source });
+    const coordinatePosture = options.coordinatePosture instanceof OpticCoordinatePosture
+      ? options.coordinatePosture
+      : new OpticCoordinatePosture(
+        options.coordinatePosture ?? OpticCoordinatePosture.liveOneOff().value,
+      );
+    this._locator = new CheckpointTailWitnessLocator({
+      source: options.source,
+      cacheBasis: coordinatePosture.isCapturedCoordinate(),
+    });
     this._posture = Object.freeze({
-      coordinatePosture: options.coordinatePosture ?? OpticCoordinatePosture.liveOneOff(),
+      coordinatePosture,
       aperturePosture: OpticAperturePosture.defaultFullRead(),
       basisPosture: OpticBasisPosture.checkpointTailBasisVerified(),
       evidencePosture: ContinuumEvidencePosture.translatedGitWarpEvidence(),

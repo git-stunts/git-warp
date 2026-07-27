@@ -70,10 +70,14 @@ export default class CheckpointTailWitnessLocator {
 
   constructor(options: {
     readonly source: CheckpointTailOpticSource;
+    readonly cacheBasis?: boolean;
     readonly maxTailPatches?: number;
   }) {
     this._graphName = options.source.graphName;
-    this._basisLoader = new CheckpointTailBasisLoader({ source: options.source });
+    this._basisLoader = new CheckpointTailBasisLoader({
+      source: options.source,
+      cache: options.cacheBasis ?? false,
+    });
     this._shardReader = new CheckpointShardFactReader({ source: options.source });
     this._factReducer = new CheckpointTailFactReducer({ graphName: options.source.graphName });
     this._readIdentityBuilder = new CheckpointTailReadIdentityBuilder({
