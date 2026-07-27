@@ -36,20 +36,7 @@ if [ "$CHANGED" -eq 0 ]; then
   exit 0
 fi
 
-AUTO_MAT=$(git config --bool warp.autoMaterialize 2>/dev/null) || true
-
-if [ "$AUTO_MAT" = "true" ]; then
-  echo "[warp] Refs changed — auto-materializing..."
-  if command -v git-warp >/dev/null 2>&1; then
-    git-warp materialize || echo "[warp] Warning: auto-materialize failed."
-  elif command -v warp-graph >/dev/null 2>&1; then
-    warp-graph materialize || echo "[warp] Warning: auto-materialize failed."
-  else
-    echo "[warp] Warning: neither git-warp nor warp-graph found in PATH."
-  fi
-else
-  echo "[warp] Writer refs changed during merge. Call materialize() to see updates."
-fi
+echo "[warp] Runtime refs changed during merge. Reopen affected Lanes before observing."
 
 exit 0
 # --- end @git-stunts/git-warp ---

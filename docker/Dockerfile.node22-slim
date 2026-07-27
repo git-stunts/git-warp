@@ -19,9 +19,8 @@ RUN git init -q \
   && git config user.name "Git Warp Container" \
   && git add -A \
   && git commit --allow-empty -m "seed git-warp" >/dev/null
-RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /app/dist/bin/warp-graph.js "$@"' > /usr/local/bin/warp-graph
-RUN chmod +x /usr/local/bin/warp-graph \
-  && install -m 0755 /app/bin/git-warp /usr/local/bin/git-warp
+RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /app/dist/bin/git-warp.js "$@"' > /usr/local/bin/git-warp \
+  && chmod +x /usr/local/bin/git-warp
 ENV GIT_STUNTS_DOCKER=1
 # Default to tests, but can be overridden for benchmark
 CMD ["npm", "test"]

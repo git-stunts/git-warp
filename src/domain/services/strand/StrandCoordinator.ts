@@ -39,6 +39,7 @@ import type { PatchBuilder } from '../PatchBuilder.ts';
 import type { StrandDescriptor } from './strandTypes.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
+import type { StrandCreateOptions } from '../../types/StrandDescriptor.ts';
 
 // Re-export constants that were on StrandService
 export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND };
@@ -116,6 +117,7 @@ function buildStrandDescriptor({
       frontier: frontierRecord,
       frontierDigest,
       lamportCeiling: normalized.lamportCeiling,
+      checkpointSha: normalized.baseCheckpointSha,
     },
     overlay: {
       overlayId: normalized.strandId,
@@ -181,11 +183,16 @@ export default class StrandCoordinator {
 
   // ── Lifecycle (owns the logic) ──────────────────────────────────
 
-  async create(options: { strandId?: string; lamportCeiling?: number | null; owner?: string | null; scope?: string | null; leaseExpiresAt?: string | null; baseFrontier?: ReadonlyMap<string, string> } = {}): Promise<StrandDescriptor> {
+  async create(options: StrandCreateOptions = {}): Promise<StrandDescriptor> {
     const normalized = normalizeCreateOptions(options);
+    const baseFrontier = normalizeBaseFrontier(options.baseFrontier);
+    assertCapturedCoordinatePair(
+      normalized.baseCheckpointSha,
+      baseFrontier,
+    );
     await this._assertStrandDoesNotExist(normalized.strandId);
 
-    const frontier = normalizeBaseFrontier(options.baseFrontier) ?? await this._getFrontier();
+    const frontier = baseFrontier ?? await this._getFrontier();
     const frontierRecord = frontierToRecord(frontier);
     const frontierDigest = await computeChecksum(frontierRecord, this._deps.crypto);
     const now = String(this._deps.maxObservedLamport());
@@ -350,6 +357,11 @@ export default class StrandCoordinator {
     });
   }
 
+  async getOverlayPatchEntries(strandId: string): Promise<StrandPatchEntry[]> {
+    const descriptor = await this.getOrThrow(strandId);
+    return await this._deps.materializer.collectOverlayPatches(descriptor);
+  }
+
   async patchesFor(strandId: string, entityId: string, options: { ceiling?: number | null } = {}): Promise<string[]> {
     const id = normalizeOptionalString(entityId, 'entityId');
     if (id === null) {
@@ -405,4 +417,22 @@ export default class StrandCoordinator {
     void prefix;
     return new Map();
   }
+}
+
+function assertCapturedCoordinatePair(
+  checkpointSha: string | null,
+  frontier: ReadonlyMap<string, string> | null,
+): void {
+  if ((checkpointSha === null) === (frontier === null)) {
+    return;
+  }
+  throw new StrandError(
+    'baseCheckpointSha and baseFrontier must be provided together',
+    {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: {
+        fields: ['baseCheckpointSha', 'baseFrontier'],
+      },
+    },
+  );
 }

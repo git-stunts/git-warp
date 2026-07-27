@@ -24,10 +24,9 @@ RUN git init -q \
   && git config user.name "Git Warp Container" \
   && git add -A \
   && git commit --allow-empty -m "seed git-warp" >/dev/null
-# Install CLI shims so `git warp` and `warp-graph` work in BATS tests.
-RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /app/dist/bin/warp-graph.js "$@"' > /usr/local/bin/warp-graph
-RUN chmod +x /usr/local/bin/warp-graph \
-  && install -m 0755 /app/bin/git-warp /usr/local/bin/git-warp
+# Install the `git warp` CLI shim for BATS tests.
+RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /app/dist/bin/git-warp.js "$@"' > /usr/local/bin/git-warp \
+  && chmod +x /usr/local/bin/git-warp
 # Run tests as non-root to mirror CI and catch permission issues.
 RUN useradd -m warp && chown -R warp:warp /app
 USER warp

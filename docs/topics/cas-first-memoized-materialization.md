@@ -198,15 +198,12 @@ materialization.
 Inspect retention without changing it:
 
 ```bash
-git warp doctor --repo ./team-repo
+git warp doctor --repo ./team-repo --lane users
 ```
 
 Ask git-cas to sweep expired entries, discard malformed or missing entries, and
-rebuild its cache metadata from the remaining handles:
-
-```bash
-git warp doctor --repo ./team-repo --repair-materialization-cache
-```
+rebuild cache metadata through the git-cas repair interface. git-warp v19
+reports this posture but does not expose a second physical cache-repair path.
 
 Doctor reports git-cas structural issues plus WARP-specific live, stale,
 expired, malformed, missing, and collectible lane-coordinate evidence. Repair

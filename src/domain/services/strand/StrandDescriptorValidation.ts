@@ -95,6 +95,7 @@ export type NormalizedCreateOptions = {
   owner: string | null;
   scope: string | null;
   leaseExpiresAt: string | null;
+  baseCheckpointSha: string | null;
 };
 
 /** Normalize raw create options into validated form. */
@@ -104,6 +105,7 @@ export function normalizeCreateOptions(options: {
   owner?: string | null;
   scope?: string | null;
   leaseExpiresAt?: string | null;
+  baseCheckpointSha?: string;
 }): NormalizedCreateOptions {
   return {
     strandId: resolveStrandId(options.strandId),
@@ -111,6 +113,10 @@ export function normalizeCreateOptions(options: {
     owner: normalizeOptionalString(options.owner, 'owner'),
     scope: normalizeOptionalString(options.scope, 'scope'),
     leaseExpiresAt: normalizeLeaseExpiresAt(options.leaseExpiresAt),
+    baseCheckpointSha: normalizeOptionalString(
+      options.baseCheckpointSha,
+      'baseCheckpointSha',
+    ),
   };
 }
 

@@ -683,6 +683,8 @@ export default class RuntimeHost {
   listStrands: StrandController['listStrands'] = (...args) => this._strandController.listStrands(...args);
   dropStrand: StrandController['dropStrand'] = (...args) => this._strandController.dropStrand(...args);
   getStrandPatches: StrandController['getStrandPatches'] = (...args) => this._strandController.getStrandPatches(...args);
+  getStrandOverlayPatches: StrandController['getStrandOverlayPatches'] = (...args) =>
+    this._strandController.getStrandOverlayPatches(...args);
   patchesForStrand: StrandController['patchesForStrand'] = (...args) => this._strandController.patchesForStrand(...args);
   createStrandPatch: StrandController['createStrandPatch'] = (...args) => this._strandController.createStrandPatch(...args);
   patchStrand: StrandController['patchStrand'] = (...args) => this._strandController.patchStrand(...args);

@@ -8,6 +8,7 @@ import {
 } from '../../../bin/cli/commands/doctor/checks.ts';
 import type { MaterializationCacheInspection }
   from '../../../src/ports/MaterializationCacheDiagnosticsPort.ts';
+import type { CliOptions } from '../../../bin/cli/types.ts';
 
 // Mock shared.js to avoid real git operations
 vi.mock('../../../bin/cli/shared.ts', () => ({
@@ -67,15 +68,16 @@ function buildMockPersistence() {
   };
 }
 
-const CLI_OPTIONS = {
+const CLI_OPTIONS: CliOptions = {
   repo: '/tmp/test',
-  graph: 'demo',
+  lane: 'demo',
+  strand: null,
   json: true,
-  ndjson: false,
-  view: null,
+  jsonl: false,
   writer: 'cli',
+  writerExplicit: false,
   help: false,
-} as any;
+};
 
 function cacheInspection(options: {
   healthy?: boolean;
@@ -125,7 +127,7 @@ describe('doctor command', () => {
   });
 
   it('produces valid payload for a healthy graph', async () => {
-    const result = await handleDoctor({ options: CLI_OPTIONS, args: [] });
+    const result = await handleDoctor({ options: CLI_OPTIONS });
     const payload = result.payload as any;
     const { exitCode } = result;
 
@@ -185,7 +187,7 @@ describe('doctor command', () => {
       return Promise.resolve(null);
     });
 
-    const result = await handleDoctor({ options: CLI_OPTIONS, args: [] });
+    const result = await handleDoctor({ options: CLI_OPTIONS });
 
     expect(result.exitCode).toBe(DOCTOR_EXIT_CODES.FINDINGS);
     expect(result.payload.health).toBe('degraded');
@@ -196,100 +198,6 @@ describe('doctor command', () => {
     );
     expect(checkpointFinding).toBeDefined();
     expect(checkpointFinding.status).toBe('warn');
-  });
-
-  it('returns exit 4 in strict mode with warnings', async () => {
-    mockPersistence.readRef.mockImplementation((/** @type {string} */ ref) => {
-      if (ref.includes('writers/alice')) {
-        return Promise.resolve('aaaa000000000000000000000000000000000000');
-      }
-      if (ref.includes('coverage/head')) {
-        return Promise.resolve('cccc000000000000000000000000000000000000');
-      }
-      return Promise.resolve(null);
-    });
-
-    const result = await handleDoctor({ options: CLI_OPTIONS, args: ['--strict'] });
-    expect(result.exitCode).toBe(DOCTOR_EXIT_CODES.STRICT_FINDINGS);
-  });
-
-  it('reports memory-budget posture for large-graph doctor runs', async () => {
-    const result = await handleDoctor({
-      options: CLI_OPTIONS,
-      args: ['--memory-budget', '64mb', '--large-graph'],
-    });
-    const finding = result.payload.findings.find(
-      (/** @type {*} */ f) => f.code === CODES.MEMORY_BUDGET_REPORT
-    );
-
-    expect(result.exitCode).toBe(DOCTOR_EXIT_CODES.OK);
-    expect(result.payload.summary.checksRun).toBe(8);
-    expect(finding).toBeDefined();
-    expect(finding?.status).toBe('ok');
-    expect(finding?.evidence).toMatchObject({
-      requestedBudget: '64mb',
-      largeGraph: true,
-      safe: ['memory-budget-contract'],
-      transitional: ['checkpoint-tail-optics'],
-      diagnostic: ['graph-wide-materialization'],
-      legacy: ['legacy-query-arrays'],
-    });
-  });
-
-  it('delegates materialization-cache repair before checking resulting health', async () => {
-    const before = cacheInspection({
-      healthy: false,
-      issues: [{ code: 'CACHE_INDEX_INVALID', message: 'invalid index' }],
-    });
-    const after = cacheInspection();
-    const repairResult = Object.freeze({
-      before,
-      after,
-      removedKeys: ['lane/key-a'],
-      generation: 'generation-2',
-    });
-    const repairCache = vi.fn().mockResolvedValue(repairResult);
-    const inspectCache = vi.fn().mockResolvedValue(after);
-    mockRuntimeStorage.createRuntimeStorageServices.mockResolvedValue({
-      materializationCacheDiagnostics: {
-        repairCache,
-        inspectCache,
-      },
-    });
-
-    const result = await handleDoctor({
-      options: CLI_OPTIONS,
-      args: ['--repair-materialization-cache'],
-    });
-
-    expect(repairCache).toHaveBeenCalledOnce();
-    expect(inspectCache).toHaveBeenCalledOnce();
-    expect(result.payload.findings.map((finding) => finding.code)).toContain(
-      CODES.MATERIALIZATION_CACHE_REPAIRED
-    );
-  });
-
-  it('reports a failed materialization-cache repair without aborting doctor', async () => {
-    const healthy = cacheInspection();
-    mockRuntimeStorage.createRuntimeStorageServices.mockResolvedValue({
-      materializationCacheDiagnostics: {
-        repairCache: vi.fn().mockRejectedValue(new Error('cache unavailable')),
-        inspectCache: vi.fn().mockResolvedValue(healthy),
-      },
-    });
-
-    const result = await handleDoctor({
-      options: CLI_OPTIONS,
-      args: ['--repair-materialization-cache'],
-    });
-
-    expect(result.payload.findings).toContainEqual(
-      expect.objectContaining({
-        id: 'materialization-cache-repair',
-        status: 'fail',
-        code: CODES.CHECK_INTERNAL_ERROR,
-      })
-    );
   });
 
   it('sorts findings by status > impact > id', async () => {
@@ -311,7 +219,7 @@ describe('doctor command', () => {
       return Promise.resolve(null);
     });
 
-    const result = await handleDoctor({ options: CLI_OPTIONS, args: [] });
+    const result = await handleDoctor({ options: CLI_OPTIONS });
     const findings = result.payload.findings;
 
     // Precondition: the mocks must produce all three status tiers.

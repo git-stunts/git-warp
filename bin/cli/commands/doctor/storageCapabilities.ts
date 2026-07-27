@@ -7,17 +7,16 @@ import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import type RuntimeStorageProviderPort from '../../../../src/ports/RuntimeStorageProviderPort.ts';
-import { createPersistence, resolveGraphName } from '../../shared.ts';
+import {
+  createPersistence,
+  resolveGraphName,
+  type CliStorageBinding,
+} from '../../shared.ts';
 import type { CliOptions, Persistence } from '../../types.ts';
 import type {
   DoctorContext,
-  DoctorFinding,
   DoctorPolicy,
 } from './types.ts';
-import {
-  materializationCacheRepairFailureFinding,
-  materializationCacheRepairFinding,
-} from './checksMaterializationCache.ts';
 
 export type DoctorStorageCapabilities = Readonly<{
   stateCache: WarpStateCachePort | null;
@@ -27,9 +26,11 @@ export type DoctorStorageCapabilities = Readonly<{
 export async function createDoctorContext(
   options: CliOptions,
   policy: DoctorPolicy,
+  suppliedStorage?: CliStorageBinding,
 ): Promise<DoctorContext> {
-  const { persistence, runtimeStorage, hookPaths } = await createPersistence(options.repo);
-  const graphName = await resolveGraphName(persistence, options.graph);
+  const { persistence, runtimeStorage, hookPaths } =
+    suppliedStorage ?? await createPersistence(options.repo);
+  const graphName = await resolveGraphName(persistence, options.lane);
   const storage = await resolveStorageCapabilities(runtimeStorage, graphName);
   return {
     persistence,
@@ -57,18 +58,6 @@ export async function resolveStorageCapabilities(
     stateCache: services.stateSnapshots ?? null,
     materializationCacheDiagnostics: services.materializationCacheDiagnostics ?? null,
   });
-}
-
-export async function repairMaterializationCache(
-  requested: boolean,
-  diagnostics: MaterializationCacheDiagnosticsPort | null,
-): Promise<DoctorFinding | null> {
-  if (!requested || diagnostics === null) { return null; }
-  try {
-    return materializationCacheRepairFinding(await diagnostics.repairCache());
-  } catch (error) {
-    return materializationCacheRepairFailureFinding(error);
-  }
 }
 
 async function collectWriterHeads(

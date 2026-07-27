@@ -7,10 +7,6 @@
  * @module cli/commands/doctor
  */
 
-import createBoundedMemoryCapabilityReport
-  from '../../../../src/domain/memory/createBoundedMemoryCapabilityReport.ts';
-import { parseCommandArgs } from '../../infrastructure.ts';
-import { doctorSchema } from '../../schemas.ts';
 import { ALL_CHECKS } from './checks.ts';
 import { CODES } from './codes.ts';
 import {
@@ -18,24 +14,10 @@ import {
 } from './checksMaterializationCache.ts';
 import {
   createDoctorContext,
-  repairMaterializationCache,
 } from './storageCapabilities.ts';
 import { DOCTOR_EXIT_CODES, type DoctorFinding, type DoctorPolicy, type DoctorPayload, type DoctorContext } from './types.ts';
 import type { CliOptions } from '../../types.ts';
-
-const DOCTOR_OPTION_MEMORY_BUDGET = 'memory-budget';
-const DOCTOR_OPTION_LARGE_GRAPH = 'large-graph';
-const DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE = 'repair-materialization-cache';
-
-const MEMORY_BUDGET_FINDING_ID = 'memory-budget';
-const MEMORY_BUDGET_NOT_SPECIFIED = 'not-specified';
-
-const DOCTOR_OPTIONS = {
-  strict: { type: 'boolean', default: false },
-  [DOCTOR_OPTION_MEMORY_BUDGET]: { type: 'string' },
-  [DOCTOR_OPTION_LARGE_GRAPH]: { type: 'boolean', default: false },
-  [DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE]: { type: 'boolean', default: false },
-};
+import type { CliStorageBinding } from '../../shared.ts';
 
 const DEFAULT_POLICY: DoctorPolicy = {
   strict: false,
@@ -53,88 +35,28 @@ const IMPACT_ORDER = {
   hygiene: 3,
 } as const;
 
-type DoctorCommandValues = {
-  readonly strict: boolean;
-  readonly [DOCTOR_OPTION_MEMORY_BUDGET]: string | undefined;
-  readonly [DOCTOR_OPTION_LARGE_GRAPH]: boolean;
-  readonly [DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE]: boolean;
-};
-
-type RawDoctorCommandValues = {
-  readonly strict: boolean;
-  readonly [DOCTOR_OPTION_MEMORY_BUDGET]?: string | undefined;
-  readonly [DOCTOR_OPTION_LARGE_GRAPH]: boolean;
-  readonly [DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE]: boolean;
-};
-
 /** Handles the `git warp doctor` command: runs structural health checks and returns findings. */
-export default async function handleDoctor({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: DoctorPayload; exitCode: number }> {
-  const { values } = parseCommandArgs(args, DOCTOR_OPTIONS, doctorSchema);
-  const commandValues = normalizeCommandValues(values);
+export default async function handleDoctor({
+  options,
+  storage,
+}: {
+  options: CliOptions;
+  storage?: CliStorageBinding;
+}): Promise<{ payload: DoctorPayload; exitCode: number }> {
   const startMs = Date.now();
-  const ctx = await createDoctorContext(options, {
-    ...DEFAULT_POLICY,
-    strict: commandValues.strict,
-  });
-  const memoryFindings = memoryBudgetFindings(commandValues);
-  const repairFinding = await repairMaterializationCache(
-    commandValues[DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE],
-    ctx.materializationCacheDiagnostics,
-  );
+  const ctx = await createDoctorContext(options, DEFAULT_POLICY, storage);
   const { findings, checksRun } = await runChecks(ctx, startMs);
-  findings.push(...memoryFindings);
-  if (repairFinding !== null) { findings.push(repairFinding); }
   findings.sort(compareFinding);
   const payload = assemblePayload({
     repo: options.repo,
     graph: ctx.graphName,
     policy: ctx.policy,
     findings,
-    checksRun: checksRun + memoryFindings.length + (repairFinding === null ? 0 : 1),
+    checksRun,
     startMs,
   });
   const exitCode = computeExitCode(payload.health, ctx.policy.strict);
   return { payload, exitCode };
-}
-
-function normalizeCommandValues(values: RawDoctorCommandValues): DoctorCommandValues {
-  return {
-    strict: values.strict,
-    [DOCTOR_OPTION_MEMORY_BUDGET]: values[DOCTOR_OPTION_MEMORY_BUDGET],
-    [DOCTOR_OPTION_LARGE_GRAPH]: values[DOCTOR_OPTION_LARGE_GRAPH],
-    [DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE]:
-      values[DOCTOR_OPTION_REPAIR_MATERIALIZATION_CACHE],
-  };
-}
-
-function memoryBudgetFindings(values: DoctorCommandValues): DoctorFinding[] {
-  if (values[DOCTOR_OPTION_MEMORY_BUDGET] === undefined && !values[DOCTOR_OPTION_LARGE_GRAPH]) {
-    return [];
-  }
-  const report = createBoundedMemoryCapabilityReport();
-  return [{
-    id: MEMORY_BUDGET_FINDING_ID,
-    status: 'ok',
-    code: CODES.MEMORY_BUDGET_REPORT,
-    impact: 'operability',
-    message: 'Memory-budget posture reported for large-graph operation.',
-    evidence: {
-      requestedBudget: values[DOCTOR_OPTION_MEMORY_BUDGET] ?? MEMORY_BUDGET_NOT_SPECIFIED,
-      largeGraph: values[DOCTOR_OPTION_LARGE_GRAPH],
-      safe: mutableNames(report.safeNames()),
-      transitional: mutableNames(report.transitionalNames()),
-      diagnostic: mutableNames(report.diagnosticNames()),
-      legacy: mutableNames(report.legacyNames()),
-    },
-  }];
-}
-
-function mutableNames(names: readonly string[]): string[] {
-  const result: string[] = [];
-  for (const name of names) {
-    result.push(name);
-  }
-  return result;
 }
 
 /** Assembles the final DoctorPayload from sorted findings. */

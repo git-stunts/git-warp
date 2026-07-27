@@ -31,6 +31,7 @@ export function bindStrandLaneRuntime(
   bindLaneRuntime(lane, {
     captureCoordinate: strandCoordinateUnavailable,
     fork: null,
+    openStrand: null,
     owner,
     settlement: Object.freeze({
       kind: 'source',

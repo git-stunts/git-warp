@@ -8,16 +8,15 @@ public API export, CLI command, package entrypoint, or public error class.
 
 | Surface | Name | Target | Source |
 | --- | --- | --- | --- |
-| npm bin | `warp-graph` | `./dist/bin/warp-graph.js` | `package.json#L23` |
-| npm bin | `git-warp` | `./bin/git-warp` | `package.json#L24` |
-| npm bin | `git-warp-v18-to-v19` | `./dist/scripts/v18-to-v19/migrate.js` | `package.json#L25` |
-| npm export | `.` | `types=./dist/index.d.ts; import=./dist/index.js; default=./dist/index.js` | `package.json#L28` |
-| npm export | `./storage` | `types=./dist/storage.d.ts; import=./dist/storage.js; default=./dist/storage.js` | `package.json#L33` |
-| npm export | `./advanced` | `types=./dist/advanced.d.ts; import=./dist/advanced.js; default=./dist/advanced.js` | `package.json#L38` |
-| npm export | `./diagnostics` | `types=./dist/diagnostics.d.ts; import=./dist/diagnostics.js; default=./dist/diagnostics.js` | `package.json#L43` |
-| npm export | `./charts` | `types=./dist/charts.d.ts; import=./dist/charts.js; default=./dist/charts.js` | `package.json#L48` |
-| npm export | `./testing` | `types=./dist/testing.d.ts; import=./dist/testing.js; default=./dist/testing.js` | `package.json#L53` |
-| npm export | `./package.json` | `./package.json` | `package.json#L58` |
+| npm bin | `git-warp` | `./bin/git-warp` | `package.json#L23` |
+| npm bin | `git-warp-v18-to-v19` | `./dist/scripts/v18-to-v19/migrate.js` | `package.json#L24` |
+| npm export | `.` | `types=./dist/index.d.ts; import=./dist/index.js; default=./dist/index.js` | `package.json#L27` |
+| npm export | `./storage` | `types=./dist/storage.d.ts; import=./dist/storage.js; default=./dist/storage.js` | `package.json#L32` |
+| npm export | `./advanced` | `types=./dist/advanced.d.ts; import=./dist/advanced.js; default=./dist/advanced.js` | `package.json#L37` |
+| npm export | `./diagnostics` | `types=./dist/diagnostics.d.ts; import=./dist/diagnostics.js; default=./dist/diagnostics.js` | `package.json#L42` |
+| npm export | `./charts` | `types=./dist/charts.d.ts; import=./dist/charts.js; default=./dist/charts.js` | `package.json#L47` |
+| npm export | `./testing` | `types=./dist/testing.d.ts; import=./dist/testing.js; default=./dist/testing.js` | `package.json#L52` |
+| npm export | `./package.json` | `./package.json` | `package.json#L57` |
 | JSR export | `.` | `./index.ts` | `jsr.json#L8` |
 | JSR export | `./storage` | `./storage.ts` | `jsr.json#L9` |
 | JSR export | `./advanced` | `./advanced.ts` | `jsr.json#L10` |
@@ -39,38 +38,39 @@ Runtime @ index.ts#L13
 
 ### Type exports
 
-Source: `index.ts`. Count: 29.
+Source: `index.ts`. Count: 30.
 
 ```text
-AdmissionOutcome @ index.ts#L45
-CoordinateReference @ index.ts#L23
-Evidence @ index.ts#L19
-EvidenceHandle @ index.ts#L19
-Intent @ index.ts#L20
-Lane @ index.ts#L21
-LaneDescriptor @ index.ts#L24
-LaneKind @ index.ts#L25
-LaneReference @ index.ts#L26
-Observation @ index.ts#L28
-ObservationReceipt @ index.ts#L29
-ObservationStatus @ index.ts#L30
-Observer @ index.ts#L31
-ObserverCardinality @ index.ts#L32
-Reading @ index.ts#L33
-ReadingCoordinate @ index.ts#L35
-ReadingValue @ index.ts#L36
-Receipt @ index.ts#L46
-RepairHint @ index.ts#L47
+AdmissionOutcome @ index.ts#L46
+CoordinateReference @ index.ts#L24
+Evidence @ index.ts#L20
+EvidenceHandle @ index.ts#L20
+Intent @ index.ts#L21
+Lane @ index.ts#L22
+LaneDescriptor @ index.ts#L25
+LaneKind @ index.ts#L26
+LaneReference @ index.ts#L27
+Observation @ index.ts#L29
+ObservationReceipt @ index.ts#L30
+ObservationStatus @ index.ts#L31
+Observer @ index.ts#L32
+ObserverCardinality @ index.ts#L33
+Reading @ index.ts#L34
+ReadingCoordinate @ index.ts#L36
+ReadingValue @ index.ts#L37
+Receipt @ index.ts#L47
+RepairHint @ index.ts#L48
 RuntimeForkOptions @ index.ts#L15
 RuntimeOpenOptions @ index.ts#L16
 RuntimeSettlementOptions @ index.ts#L17
-SettlementPlan @ index.ts#L43
-SettlementPreview @ index.ts#L41
-SettlementReceipt @ index.ts#L42
-SupportReport @ index.ts#L37
-Tick @ index.ts#L40
-WitnessReference @ index.ts#L38
-WriteReceipt @ index.ts#L44
+RuntimeStrandOptions @ index.ts#L18
+SettlementPlan @ index.ts#L44
+SettlementPreview @ index.ts#L42
+SettlementReceipt @ index.ts#L43
+SupportReport @ index.ts#L38
+Tick @ index.ts#L41
+WitnessReference @ index.ts#L39
+WriteReceipt @ index.ts#L45
 ```
 
 ## Storage export surface
@@ -202,37 +202,20 @@ RuntimeHarnessOptions @ testing.ts#L27
 
 | Command | Handler | Source |
 | --- | --- | --- |
-| `info` | `handleInfo` | `bin/cli/commands/registry.ts#L42` |
-| `check` | `handleCheck` | `bin/cli/commands/registry.ts#L43` |
-| `doctor` | `handleDoctor` | `bin/cli/commands/registry.ts#L44` |
-| `materialize` | `handleMaterialize` | `bin/cli/commands/registry.ts#L45` |
-| `seek` | `handleSeek` | `bin/cli/commands/registry.ts#L46` |
-| `query` | `handleQuery` | `bin/cli/commands/registry.ts#L47` |
-| `path` | `handlePath` | `bin/cli/commands/registry.ts#L48` |
-| `optic` | `handleOptic` | `bin/cli/commands/registry.ts#L49` |
-| `history` | `handleHistory` | `bin/cli/commands/registry.ts#L50` |
-| `debug` | `handleDebug` | `bin/cli/commands/registry.ts#L51` |
-| `strand` | `handleStrand` | `bin/cli/commands/registry.ts#L52` |
-| `verify-audit` | `handleVerifyAudit` | `bin/cli/commands/registry.ts#L53` |
-| `verify-index` | `handleVerifyIndex` | `bin/cli/commands/registry.ts#L54` |
-| `reindex` | `handleReindex` | `bin/cli/commands/registry.ts#L55` |
-| `trust` | `handleTrust` | `bin/cli/commands/registry.ts#L56` |
-| `patch` | `handlePatch` | `bin/cli/commands/registry.ts#L57` |
-| `tree` | `handleTree` | `bin/cli/commands/registry.ts#L58` |
-| `bisect` | `handleBisect` | `bin/cli/commands/registry.ts#L59` |
-| `install-hooks` | `handleInstallHooks` | `bin/cli/commands/registry.ts#L60` |
-| `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L61` |
-| `sync` | `handleSync` | `bin/cli/commands/registry.ts#L62` |
-| `serve` | `handleServe` | `bin/cli/commands/registry.ts#L63` |
-| `fork` | `handleFork` | `bin/cli/commands/registry.ts#L64` |
-| `checkpoint` | `handleCheckpoint` | `bin/cli/commands/registry.ts#L65` |
-| `gc` | `handleGc` | `bin/cli/commands/registry.ts#L66` |
-| `watch` | `handleWatch` | `bin/cli/commands/registry.ts#L67` |
+| `write` | `handleWrite` | `bin/cli/commands/registry.ts#L24` |
+| `observe` | `handleObserve` | `bin/cli/commands/registry.ts#L25` |
+| `fork` | `handleFork` | `bin/cli/commands/registry.ts#L26` |
+| `settle` | `handleSettle` | `bin/cli/commands/registry.ts#L27` |
+| `receipt` | `handleReceipt` | `bin/cli/commands/registry.ts#L28` |
+| `doctor` | `handleDoctor` | `bin/cli/commands/registry.ts#L29` |
+| `repair` | `handleRepair` | `bin/cli/commands/registry.ts#L30` |
+| `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L31` |
+| `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L32` |
 
-Structured CLI errors for `--json` and `--ndjson` use the payload shape
+Structured CLI errors for `--json` and `--jsonl` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
 
-Source: `bin/warp-graph.ts#L179`.
+Source: `bin/git-warp.ts#L211`.
 
 ## Public error classes
 

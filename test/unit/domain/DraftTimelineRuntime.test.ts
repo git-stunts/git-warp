@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain/WarpWorldline.ts';
+import WarpWorldline, {
+  WarpDraftPatchEntry,
+  type WarpWorldlinePatchBuild,
+} from '../../../src/domain/WarpWorldline.ts';
 import AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
 import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
 import Patch from '../../../src/domain/types/Patch.ts';
@@ -51,6 +54,7 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
   const patchDraft = options.patchDraft ?? (async (name) => `${name}-draft-patch`);
   let liveHead: string | null = null;
   const draftHeads = new Map<string, string>();
+  const draftEntries = new Map<string, PatchCommitResult[]>();
   const commitLive = async (build: WarpWorldlinePatchBuild): Promise<PatchCommitResult> => {
     const builder = createPatchBuilder({
       graphName: 'events',
@@ -78,7 +82,11 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
     await build(builder);
     const sha = await patchDraft(name, build);
     draftHeads.set(name, sha);
-    return testPatchPublication(sha, builder.build());
+    const publication = testPatchPublication(sha, builder.build());
+    const entries = draftEntries.get(name) ?? [];
+    entries.push(publication);
+    draftEntries.set(name, entries);
+    return publication;
   };
   return new WarpWorldline({
     worldlineName: 'events',
@@ -86,6 +94,8 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
     commitPatch: async (build) => (await commitLive(build)).sha,
     commitPatchWithEvidence: commitLive,
     createDraft: async () => undefined,
+    loadDraftPatchEntries: async (name) =>
+      (draftEntries.get(name) ?? []).map(({ patch, sha }) => ({ patch, sha })),
     createWorldline: () => {
       throw new Error('ProjectionHandle is not used by DraftTimelineRuntime tests');
     },
@@ -116,6 +126,24 @@ function testPatchPublication(sha: string, patch: Patch): PatchCommitResult {
 }
 
 describe('DraftTimelineRuntime', () => {
+  it('hydrates immutable validated draft patch entries', async () => {
+    const worldline = createRuntime();
+    await worldline.patchDraft('review', (patch) => {
+      patch.addNode('user:alice');
+    });
+
+    const entries = await worldline.loadDraftPatchEntries('review');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toBeInstanceOf(WarpDraftPatchEntry);
+    expect(Object.isFrozen(entries[0])).toBe(true);
+    expect(() => new WarpDraftPatchEntry({
+      patch: entries[0]!.patch,
+      sha: '',
+    })).toThrowError(expect.objectContaining({
+      code: 'E_WARP_WORLDLINE_DRAFT_PATCH',
+    }));
+  });
+
   it('rejects concurrent joins without double-committing draft intents', async () => {
     let commitAttempts = 0;
     let releaseFirstCommit = (): void => undefined;

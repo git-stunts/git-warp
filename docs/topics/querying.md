@@ -13,7 +13,7 @@ handles from earlier releases.
 | Inspect an observation outcome | `Observation.receipt` |
 | Inspect lower-level substrate provenance | `diagnostics` subpath |
 | Capture a formal coordinate and optic | `advanced` subpath |
-| Run operator-oriented graph commands | `git warp query`, `path`, or `optic` |
+| Render a graph-shaped derived view | `charts` subpath |
 
 The `advanced` and `diagnostics` subpaths expose expert components, not a
 second graph-first application facade.

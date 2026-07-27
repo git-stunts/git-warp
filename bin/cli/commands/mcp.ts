@@ -2,12 +2,13 @@ import process from 'node:process';
 import readline from 'node:readline';
 
 import { usageError } from '../infrastructure.ts';
-import { openGraph, readCliPackageVersion } from '../shared.ts';
+import { readCliPackageVersion } from '../shared.ts';
 import {
   handleMcpMessage,
   mcpParseError,
   type McpResponse,
 } from './mcp/McpProtocol.ts';
+import McpRuntimeSession from './mcp/McpRuntimeSession.ts';
 import type { CliOptions } from '../types.ts';
 
 type McpCommandResult = {
@@ -16,12 +17,12 @@ type McpCommandResult = {
   readonly completion: Promise<void>;
 };
 
-function writeResponse(response: McpResponse): void {
-  process.stdout.write(`${JSON.stringify(response)}\n`);
-}
+type McpLineTracker = {
+  readonly completedFailures: unknown[];
+  readonly pending: Set<Promise<void>>;
+};
 
-/** Handles `git warp mcp`: starts a local stdio MCP server. */
-export default async function handleMcp({
+export default function handleMcp({
   options,
   args,
 }: {
@@ -29,62 +30,89 @@ export default async function handleMcp({
   readonly args: string[];
 }): Promise<McpCommandResult> {
   if (args.length > 0) {
-    throw usageError('mcp does not accept positional args; use --repo, --graph, and --writer');
+    throw usageError(
+      'mcp does not accept positional arguments; use --repo and --writer',
+    );
   }
-
-  const { graph } = await openGraph(options);
-  return createMcpCommandResult(graph, readCliPackageVersion());
+  const session = new McpRuntimeSession({
+    at: options.repo,
+    writer: options.writer,
+  });
+  return Promise.resolve(
+    createMcpCommandResult(session, readCliPackageVersion()),
+  );
 }
 
 function createMcpCommandResult(
-  graph: Parameters<typeof handleMcpMessage>[0],
+  session: McpRuntimeSession,
   serverVersion: string,
 ): McpCommandResult {
   const lines = readline.createInterface({
     input: process.stdin,
     terminal: false,
   });
-  const completion = trackMcpLines(lines, graph, serverVersion);
-
+  const completion = trackMcpLines(
+    lines,
+    session,
+    serverVersion,
+  );
   return {
     payload: undefined,
     completion,
     close: async () => {
       lines.close();
       await completion;
+      await session.close();
     },
   };
 }
 
 function trackMcpLines(
   lines: readline.Interface,
-  graph: Parameters<typeof handleMcpMessage>[0],
+  session: McpRuntimeSession,
   serverVersion: string,
 ): Promise<void> {
   const pending = new Set<Promise<void>>();
   const completedFailures: unknown[] = [];
+  const tracker = { pending, completedFailures };
   const completion = Promise.withResolvers<void>();
 
-  lines.on('line', (line) => {
-    const operation = dispatchLine(graph, serverVersion, line);
-    pending.add(operation);
-    void operation.then(
-      () => pending.delete(operation),
-      (error: unknown) => {
-        pending.delete(operation);
-        completedFailures.push(error);
-      },
-    );
-  });
-  lines.on('error', (error: unknown) => {
-    completedFailures.push(error);
-    lines.close();
-  });
+  lines.on('line', (line) =>
+    trackLine(tracker, dispatchLine(session, serverVersion, line))
+  );
+  lines.on('error', (error: unknown) =>
+    trackInputError(lines, tracker, error)
+  );
   lines.once('close', () => {
-    void settlePendingDispatches(pending, completedFailures)
-      .then(completion.resolve, completion.reject);
+    void settlePendingDispatches(
+      pending,
+      completedFailures,
+    ).then(completion.resolve, completion.reject);
   });
   return completion.promise;
+}
+
+function trackLine(
+  tracker: McpLineTracker,
+  operation: Promise<void>,
+): void {
+  tracker.pending.add(operation);
+  void operation.then(
+    () => tracker.pending.delete(operation),
+    (error: unknown) => {
+      tracker.pending.delete(operation);
+      tracker.completedFailures.push(error);
+    },
+  );
+}
+
+function trackInputError(
+  lines: readline.Interface,
+  tracker: McpLineTracker,
+  error: unknown,
+): void {
+  tracker.completedFailures.push(error);
+  lines.close();
 }
 
 async function settlePendingDispatches(
@@ -93,16 +121,21 @@ async function settlePendingDispatches(
 ): Promise<void> {
   const failures = [...completedFailures];
   const results = await Promise.allSettled([...pending]);
-  failures.push(...results
-    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-    .map((result) => result.reason as unknown));
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      failures.push(result.reason);
+    }
+  }
   if (failures.length > 0) {
-    throw new AggregateError(failures, 'MCP requests failed while stdin was closing');
+    throw new AggregateError(
+      failures,
+      'MCP requests failed while stdin was closing',
+    );
   }
 }
 
 async function dispatchLine(
-  graph: Parameters<typeof handleMcpMessage>[0],
+  session: McpRuntimeSession,
   serverVersion: string,
   line: string,
 ): Promise<void> {
@@ -110,12 +143,19 @@ async function dispatchLine(
     return;
   }
   try {
-    const parsed = JSON.parse(line) as unknown;
-    const response = await handleMcpMessage(graph, parsed, { serverVersion });
+    const response = await handleMcpMessage(
+      session,
+      JSON.parse(line),
+      { serverVersion },
+    );
     if (response !== null) {
       writeResponse(response);
     }
   } catch {
     writeResponse(mcpParseError());
   }
+}
+
+function writeResponse(response: McpResponse): void {
+  process.stdout.write(`${JSON.stringify(response)}\n`);
 }

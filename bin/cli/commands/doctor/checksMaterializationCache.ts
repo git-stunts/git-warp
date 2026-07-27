@@ -2,7 +2,6 @@
 import type {
   MaterializationCacheEntryDiagnostic,
   MaterializationCacheInspection,
-  MaterializationCacheRepair,
 } from '../../../../src/ports/MaterializationCacheDiagnosticsPort.ts';
 import type { DoctorFinding, FindingEvidence } from './types.ts';
 import { CODES } from './codes.ts';
@@ -120,7 +119,7 @@ function invalidCacheFinding(
     message: inspection.issues.length === 0
       ? 'git-cas reported the materialization cache as unhealthy'
       : `git-cas reported ${inspection.issues.length} materialization-cache structural issue(s)`,
-    fix: 'Run `git warp doctor --repair-materialization-cache`; repair will remove invalid cache entries but cannot recreate missing bytes',
+    fix: 'Ask git-cas to remove invalid materialization entries; missing bytes must come from authoritative history',
     evidence,
   };
 }
@@ -139,7 +138,7 @@ function brokenEntriesFinding(
       : CODES.MATERIALIZATION_CACHE_ENTRY_MALFORMED,
     impact: 'data_integrity',
     message: `${entries.length} retained materialization cache entr${entries.length === 1 ? 'y is' : 'ies are'} ${status}`,
-    fix: 'Run `git warp doctor --repair-materialization-cache`; authoritative WARP history remains the recovery source',
+    fix: 'Ask git-cas to repair retained materializations; authoritative history remains the recovery source',
     evidence,
   };
 }
@@ -155,7 +154,7 @@ function expiredEntriesFinding(
     code: CODES.MATERIALIZATION_CACHE_ENTRY_EXPIRED,
     impact: 'hygiene',
     message: `${entries.length} retained materialization cache entr${entries.length === 1 ? 'y is' : 'ies are'} expired and collectible`,
-    fix: 'Run `git warp doctor --repair-materialization-cache` to ask git-cas to sweep expired entries',
+    fix: 'Ask git-cas to sweep expired retained materialization entries',
     evidence,
   };
 }
@@ -175,51 +174,5 @@ function healthyCacheFinding(
       `${groups.collectible.length} collectible entr${groups.collectible.length === 1 ? 'y' : 'ies'}`,
     ].join('; '),
     evidence,
-  };
-}
-
-export function materializationCacheRepairFinding(
-  result: MaterializationCacheRepair,
-): DoctorFinding {
-  const partial = repairIsPartial(result.after);
-  return {
-    id: 'materialization-cache-repair',
-    status: partial ? 'warn' : 'ok',
-    code: partial
-      ? CODES.MATERIALIZATION_CACHE_PARTIAL_REPAIR
-      : CODES.MATERIALIZATION_CACHE_REPAIRED,
-    impact: 'data_integrity',
-    message: repairMessage(partial, result.removedKeys.length),
-    evidence: {
-      removedKeys: [...result.removedKeys],
-      generation: result.generation,
-      beforeHealthy: result.before.healthy,
-      afterHealthy: result.after.healthy,
-      afterIssues: [...result.after.issues],
-    },
-  };
-}
-
-function repairIsPartial(inspection: MaterializationCacheInspection): boolean {
-  return !inspection.healthy || inspection.entries.some(
-    (entry) => entry.status === 'missing' || entry.status === 'malformed',
-  );
-}
-
-function repairMessage(partial: boolean, removed: number): string {
-  if (partial) {
-    return 'git-cas repaired recoverable materialization-cache metadata; unrecoverable entries remain reported';
-  }
-  return `git-cas repaired the materialization cache and removed ${removed} collectible entr${removed === 1 ? 'y' : 'ies'}`;
-}
-
-export function materializationCacheRepairFailureFinding(error: unknown): DoctorFinding {
-  return {
-    id: 'materialization-cache-repair',
-    status: 'fail',
-    code: CODES.CHECK_INTERNAL_ERROR,
-    impact: 'data_integrity',
-    message: `Materialization-cache repair failed: ${error instanceof Error ? error.message : String(error)}`,
-    fix: 'Resolve the repository or git-cas error, then rerun `git warp doctor --repair-materialization-cache`',
   };
 }

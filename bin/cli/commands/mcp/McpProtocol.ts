@@ -1,8 +1,8 @@
 import {
   callMcpTool,
   listMcpTools,
-  type McpGraphReadSurface,
 } from './McpToolCatalog.ts';
+import type McpRuntimeSession from './McpRuntimeSession.ts';
 import McpProtocolError from './McpProtocolError.ts';
 import {
   isMcpJsonObject,
@@ -12,7 +12,6 @@ import {
 
 export {
   listMcpTools,
-  type McpGraphReadSurface,
 } from './McpToolCatalog.ts';
 
 type McpRequestId = string | number | null;
@@ -50,7 +49,7 @@ type ToolCallInput = {
 };
 
 type MethodHandler = (
-  graph: McpGraphReadSurface,
+  session: McpRuntimeSession,
   request: McpRequest,
   options: McpOptions,
 ) => Promise<McpJsonValue>;
@@ -68,7 +67,7 @@ export function mcpParseError(): McpResponse {
 }
 
 export async function handleMcpMessage(
-  graph: McpGraphReadSurface,
+  session: McpRuntimeSession,
   message: unknown,
   options: McpOptions,
 ): Promise<McpResponse | null> {
@@ -80,7 +79,7 @@ export async function handleMcpMessage(
     return null;
   }
   try {
-    const result = await dispatchRequest(graph, request, options);
+    const result = await dispatchRequest(session, request, options);
     return resultResponse(request.id, result);
   } catch (error) {
     return errorResponse(request.id, normalizeError(error));
@@ -88,19 +87,19 @@ export async function handleMcpMessage(
 }
 
 async function dispatchRequest(
-  graph: McpGraphReadSurface,
+  session: McpRuntimeSession,
   request: McpRequest,
   options: McpOptions,
 ): Promise<McpJsonValue> {
   const handler = METHOD_HANDLERS.get(request.method);
   if (handler !== undefined) {
-    return await handler(graph, request, options);
+    return await handler(session, request, options);
   }
   throw new McpProtocolError(-32601, `Method not found: ${request.method}`);
 }
 
 function handleInitialize(
-  _graph: McpGraphReadSurface,
+  _session: McpRuntimeSession,
   request: McpRequest,
   options: McpOptions,
 ): Promise<McpJsonValue> {
@@ -119,11 +118,11 @@ function handleToolsList(): Promise<McpJsonValue> {
 }
 
 async function handleToolsCall(
-  graph: McpGraphReadSurface,
+  session: McpRuntimeSession,
   request: McpRequest,
 ): Promise<McpJsonValue> {
   const input = readToolCallInput(request.params);
-  return await callMcpTool(graph, input.name, input.arguments);
+  return await callMcpTool(session, input.name, input.arguments);
 }
 
 function handleResourcesList(): Promise<McpJsonValue> {

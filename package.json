@@ -20,7 +20,6 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "warp-graph": "./dist/bin/warp-graph.js",
     "git-warp": "./bin/git-warp",
     "git-warp-v18-to-v19": "./dist/scripts/v18-to-v19/migrate.js"
   },
@@ -73,6 +72,8 @@
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.publish.json",
+    "generate:capabilities": "node scripts/GenerateV19CapabilityContract.ts",
+    "check:capabilities": "node scripts/GenerateV19CapabilityContract.ts --check",
     "generate:sdk-fixture": "node scripts/generated-sdk/GenerateUsersSdkFixture.ts",
     "check:sdk-fixture": "node scripts/generated-sdk/GenerateUsersSdkFixture.ts --check",
     "lint": "sh -c 'eslint . \"$@\" && npm run lint:test-law && npm run lint:source-size && npm run lint:cas-invariants' --",
@@ -121,7 +122,8 @@
     "uninstall:git-warp": "bash scripts/uninstall-git-warp.sh",
     "test:node20": "docker compose -f docker/docker-compose.test.yml --profile node20 run --build --rm test-node20",
     "test:node22": "docker compose -f docker/docker-compose.test.yml --profile node22 run --build --rm test-node22",
-    "test:node22:ci": "GIT_STUNTS_DOCKER=1 sh -c 'npx vitest run test/unit test/integration && bats test/bats/'",
+    "test:integration:ci": "vitest run test/integration --exclude test/integration/api/content-attachment.test.ts --maxWorkers=2 && vitest run test/integration/api/content-attachment.test.ts --maxWorkers=1",
+    "test:node22:ci": "GIT_STUNTS_DOCKER=1 sh -c 'npm run test:local && npm run test:integration:ci && bats test/bats/'",
     "test:bun": "docker compose -f docker/docker-compose.test.yml --profile bun run --build --rm test-bun",
     "test:deno": "docker compose -f docker/docker-compose.test.yml --profile deno run --build --rm test-deno",
     "test:matrix": "docker compose -f docker/docker-compose.test.yml --profile full up --build --abort-on-container-exit",

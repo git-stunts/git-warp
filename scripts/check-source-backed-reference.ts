@@ -237,7 +237,7 @@ function generate(): string {
   const packageSource = new SourceText('package.json');
   const jsrSource = new SourceText('jsr.json');
   const registrySource = new SourceText('bin/cli/commands/registry.ts');
-  const cliSource = new SourceText('bin/warp-graph.ts');
+  const cliSource = new SourceText('bin/git-warp.ts');
   const rootSource = new SourceText('index.ts');
   const storageSource = new SourceText('storage.ts');
   const advancedSource = new SourceText('advanced.ts');
@@ -275,7 +275,7 @@ function generate(): string {
     '',
     table(['Command', 'Handler', 'Source'], commands.map((item) => [`\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``])),
     '',
-    'Structured CLI errors for `--json` and `--ndjson` use the payload shape',
+    'Structured CLI errors for `--json` and `--jsonl` use the payload shape',
     '`{ error: { code, message, cause? } }` from the CLI entry point.',
     '',
     `Source: \`${requireLineRef(cliSource, 'const payload:')}\`.`,

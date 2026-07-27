@@ -16,6 +16,7 @@ import GitStorage from './GitStorage.ts';
 import RuntimeActivity from './RuntimeActivity.ts';
 import { createWorldlineLane } from './RuntimeLaneAdapter.ts';
 import RuntimeMutationGate from './RuntimeMutationGate.ts';
+import { bindRuntimeStorage } from './RuntimeStorageAccess.ts';
 import {
   previewRuntimeSettlement,
   settleRuntimePlan,
@@ -34,9 +35,33 @@ export type RuntimeForkOptions = {
   readonly name: string;
 };
 
+export type RuntimeStrandOptions = {
+  readonly name: string;
+};
+
 const FORK_IDENTITY_FAILURE = Object.freeze({
   message: 'Runtime.fork requires a non-empty strand name',
   code: 'E_RUNTIME_FORK_IDENTITY',
+});
+
+const STRAND_IDENTITY_FAILURE = Object.freeze({
+  message: 'Runtime.strand requires a non-empty strand name',
+  code: 'E_RUNTIME_STRAND_IDENTITY',
+});
+
+type LaneOwnershipFailure = Readonly<{
+  readonly message: string;
+  readonly code: string;
+}>;
+
+const FORK_LANE_OWNERSHIP_FAILURE = Object.freeze({
+  message: 'Runtime.fork requires a Lane owned by this Runtime',
+  code: 'E_RUNTIME_FORK_FOREIGN_LANE',
+});
+
+const STRAND_LANE_OWNERSHIP_FAILURE = Object.freeze({
+  message: 'Runtime.strand requires a Lane owned by this Runtime',
+  code: 'E_RUNTIME_STRAND_FOREIGN_LANE',
 });
 
 /** Production composition root for one local git-warp runtime. */
@@ -53,6 +78,7 @@ export default class Runtime {
     this.#activity = new RuntimeActivity();
     this.#laneOwner = Object.freeze({});
     this.#mutations = new RuntimeMutationGate();
+    bindRuntimeStorage(this, storage);
     Object.freeze(this);
   }
 
@@ -95,11 +121,37 @@ export default class Runtime {
     assertForkSource(source);
     assertForkOptions(options);
     assertTimelineNameIdentity(options.name, 'fork.name', FORK_IDENTITY_FAILURE);
-    const binding = requireOwnedLaneRuntime(source, this.#laneOwner);
+    const binding = requireOwnedLaneRuntime(
+      source,
+      this.#laneOwner,
+      FORK_LANE_OWNERSHIP_FAILURE,
+    );
     const fork = requireWorldlineFork(source, binding);
     const lease = this.#activity.acquire();
     try {
       return await fork(options.name);
+    } finally {
+      lease.release();
+    }
+  }
+
+  async strand(parent: Lane, options: RuntimeStrandOptions): Promise<Lane> {
+    assertStrandParent(parent);
+    assertStrandOptions(options);
+    assertTimelineNameIdentity(
+      options.name,
+      'strand.name',
+      STRAND_IDENTITY_FAILURE,
+    );
+    const binding = requireOwnedLaneRuntime(
+      parent,
+      this.#laneOwner,
+      STRAND_LANE_OWNERSHIP_FAILURE,
+    );
+    const openStrand = requireWorldlineStrand(parent, binding);
+    const lease = this.#activity.acquire();
+    try {
+      return await openStrand(options.name);
     } finally {
       lease.release();
     }
@@ -137,13 +189,32 @@ function assertForkOptions(options: RuntimeForkOptions): void {
   }
 }
 
-function requireOwnedLaneRuntime(source: Lane, owner: object): LaneRuntime {
+function assertStrandParent(parent: Lane): void {
+  if (!(parent instanceof Lane)) {
+    throw new WarpError(
+      'Runtime.strand requires a parent Lane',
+      'E_RUNTIME_STRAND_PARENT',
+    );
+  }
+}
+
+function assertStrandOptions(options: RuntimeStrandOptions): void {
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+    throw new WarpError(
+      'Runtime.strand options are required',
+      'E_RUNTIME_STRAND_OPTIONS',
+    );
+  }
+}
+
+function requireOwnedLaneRuntime(
+  source: Lane,
+  owner: object,
+  failure: LaneOwnershipFailure,
+): LaneRuntime {
   const binding = requireLaneRuntime(source);
   if (binding.owner !== owner) {
-    throw new WarpError(
-      'Runtime.fork requires a Lane owned by this Runtime',
-      'E_RUNTIME_FORK_FOREIGN_LANE',
-    );
+    throw new WarpError(failure.message, failure.code);
   }
   return binding;
 }
@@ -160,6 +231,20 @@ function requireWorldlineFork(
     );
   }
   return binding.fork;
+}
+
+function requireWorldlineStrand(
+  parent: Lane,
+  binding: LaneRuntime,
+): NonNullable<LaneRuntime['openStrand']> {
+  if (parent.kind !== 'worldline' || binding.openStrand === null) {
+    throw new WarpError(
+      'Runtime.strand requires a worldline parent Lane',
+      'E_RUNTIME_STRAND_PARENT_KIND',
+      { context: { kind: parent.kind } },
+    );
+  }
+  return binding.openStrand;
 }
 
 function assertRuntimeOpenOptions(

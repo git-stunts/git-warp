@@ -1,109 +1,101 @@
 # Troubleshooting
 
-Use this page when something observable is wrong and you need the next check.
+Use this page when an observable v19 behavior is wrong and you need the next
+bounded check.
 
-## A read is empty
+## An Observation has no Readings
 
-Check the source first:
+Run the same generated Observer with `--json` or `--jsonl` and inspect the
+Observation Receipt:
 
 ```bash
-git warp info --repo ./team-repo
-git warp check --repo ./team-repo
+git warp observe \
+  --repo ./team-repo \
+  --lane users \
+  --observer users.exists \
+  --reading '{"kind":"node.exists","subject":"user:alice"}' \
+  --json
 ```
 
-If the writer is missing, fetch the WARP refs explicitly:
+An empty accepted Observation is different from an obstructed Observation. The
+Receipt records that distinction.
+
+## A bounded basis is unavailable
+
+`E_OPTIC_NO_BOUNDED_BASIS` means the Runtime could not prove the bounded basis
+needed by the Observer. It is not a missing-value result.
+
+Prepare the local materialization basis explicitly:
+
+```bash
+git warp repair \
+  --repo ./team-repo \
+  --lane users \
+  --action materialization
+```
+
+Then retry the Observation. Use `git warp doctor --lane users` if repair fails.
+
+## Fetched changes are missing
+
+Normal branch fetches do not always include WARP refs. Fetch the repository's
+WARP ref namespace explicitly, then reopen the Runtime:
 
 ```bash
 git fetch origin 'refs/warp/team/*:refs/warp/team/*'
+git warp doctor --repo ./team-repo --lane users
+git warp audit --repo ./team-repo --lane users
 ```
 
-If refs are present, check whether an observer aperture is filtering the entity
-or property out of view.
-
-## Optic basis is unavailable
-
-`E_OPTIC_NO_BOUNDED_BASIS` means the runtime could not prove the checkpoint-tail
-basis needed for the bounded read. It is not a missing-node result.
-
-Run checkpoint diagnostics and decide whether to create or sync the needed
-checkpoint evidence:
-
-```bash
-git warp checkpoint status --repo ./team-repo
-git warp checkpoint create --repo ./team-repo
-git warp checkpoint sync-coverage --repo ./team-repo
-```
-
-Then retry the optic read.
-
-## Sync completed but changes are missing
-
-Confirm the refspec. Normal branch fetches do not always include
-`refs/warp/...`.
-
-```bash
-git fetch origin 'refs/warp/team/*:refs/warp/team/*'
-git warp info --repo ./team-repo
-git warp history --repo ./team-repo --node task:auth
-```
-
-If refs are visible but state still differs, check trust and audit diagnostics.
+If refs are present but the same bounded Observer still differs, preserve the
+repository before attempting any repair.
 
 ## State differs across clones
 
-Check the same graph name, same WARP refs, same visible writers, and same trust
-posture on both clones:
+Compare the same Lane, WARP refs, visible writers, and audit posture:
 
 ```bash
-git warp doctor --repo ./clone-a --strict
-git warp doctor --repo ./clone-b --strict
-git warp verify-audit --repo ./clone-a
-git warp verify-audit --repo ./clone-b
+git warp doctor --repo ./clone-a --lane users
+git warp doctor --repo ./clone-b --lane users
+git warp audit --repo ./clone-a --lane users
+git warp audit --repo ./clone-b --lane users
 ```
 
-If both clones have the same refs and replay still differs, treat it as a
-runtime defect and preserve the repository state before repairing it.
+Do not rewrite authoritative writer refs as a diagnostic shortcut.
 
-## Observer hides more than expected
+## A strand cannot reopen
 
-Inspect the aperture:
+`E_WARP_WORLDLINE_STRAND_COORDINATE_UNAVAILABLE` means the retained strand does
+not contain the checkpoint needed to reconstruct its parent coordinate. Run the
+one-shot v18-to-v19 migration for legacy repositories. Do not invent a
+coordinate from current live state.
 
-- `match` controls which entities enter the view;
-- `expose` is a property allow-list;
-- `redact` wins over `expose`;
-- edge visibility depends on both endpoints being visible.
+## A Settlement artifact is stale
 
-If bytes must be hidden from a local operator, observer redaction is the wrong
-tool. Use CAS content encryption.
+`settle apply` derives a fresh Runtime-owned plan and compares it with the saved
+review artifact. If the source or target moved, preview again and review the new
+artifact. Never edit a plan digest to bypass revalidation.
 
 ## CAS content cannot be restored
 
-Common causes:
+Missing content bytes are a git-cas/storage problem, not an Observer problem.
+Repair may remove invalid derived entries, but it cannot recreate missing
+authoritative bytes. Preserve history and repair the storage boundary first.
 
-- blob storage was not configured;
-- a CAS payload pointer references missing content;
-- vault metadata is missing;
-- the passphrase is wrong;
-- the encryption scheme is legacy and needs migration;
-- the vault rotation limit has been reached.
+## The CLI cannot find a Lane
 
-Fix the storage or vault boundary first. Query changes will not repair missing
-content storage.
-
-## CLI cannot find the graph
-
-Pass the graph name explicitly when a repository has more than one graph:
+Pass the Lane explicitly when a repository contains more than one:
 
 ```bash
-git warp info --repo ./team-repo --graph team
+git warp doctor --repo ./team-repo --lane users
 ```
 
-Also confirm that the command is pointed at the repository that owns the WARP
+Also confirm that `--repo` identifies the Git repository that owns the WARP
 refs.
 
 ## See also
 
-- [Operations](../operations/)
 - [CLI](cli.md)
-- [Sync](sync.md)
+- [Strands](strands.md)
+- [Git substrate](git-substrate.md)
 - [Content and CAS](content-and-cas.md)

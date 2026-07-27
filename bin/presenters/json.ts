@@ -2,7 +2,7 @@
  * JSON / NDJSON serialization utilities for CLI output.
  *
  * - stableStringify: pretty-printed, sorted-key JSON (--json)
- * - compactStringify: single-line, sorted-key JSON (--ndjson)
+ * - compactStringify: single-line, sorted-key JSON (--jsonl)
  * - sanitizePayload: strips internal _-prefixed keys before serialization
  */
 

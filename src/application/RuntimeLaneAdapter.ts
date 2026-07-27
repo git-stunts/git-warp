@@ -1,16 +1,10 @@
 import type ReadingResult from '../domain/api/ReadingResult.ts';
 import type DraftTimeline from '../domain/api/DraftTimeline.ts';
-import {
-  createDraftReadingTarget,
-  createDraftTimeline,
-} from '../domain/api/DraftTimelineRuntime.ts';
+import { createDraftReadingTarget } from '../domain/api/DraftTimelineRuntime.ts';
 import type { DraftReadingTarget } from '../domain/api/DraftReadingTarget.ts';
 import type Timeline from '../domain/api/Timeline.ts';
 import type TimelineView from '../domain/api/TimelineView.ts';
-import {
-  requireTimelineContext,
-  requireTimelineRuntime,
-} from '../domain/api/TimelineRuntime.ts';
+import { requireTimelineRuntime } from '../domain/api/TimelineRuntime.ts';
 import Lane from '../domain/api/Lane.ts';
 import { bindLaneRuntime } from '../domain/api/LaneRuntime.ts';
 import type { ObservationExecution } from '../domain/api/Observation.ts';
@@ -23,16 +17,18 @@ import ObservationReceipt from '../domain/api/ObservationReceipt.ts';
 import Reading, { type ReadingValue } from '../domain/api/ObservedReading.ts';
 import type ReadReceipt from '../domain/api/ReadReceipt.ts';
 import type Tick from '../domain/api/Tick.ts';
-import {
-  createForkTick,
-  requireTickCoordinate,
-} from '../domain/api/TickRuntime.ts';
 import WarpError from '../domain/errors/WarpError.ts';
 import WarpStream from '../domain/stream/WarpStream.ts';
 import type RuntimeActivity from './RuntimeActivity.ts';
 import type { RuntimeActivityLease } from './RuntimeActivity.ts';
 import RuntimeMutationGate from './RuntimeMutationGate.ts';
 import { bindStrandLaneRuntime } from './RuntimeStrandLaneBinding.ts';
+import {
+  forkWorldlineLane,
+  openWorldlineStrandLane,
+  type StrandLaneOptions,
+  type WorldlineLaneSource,
+} from './RuntimeStrandLaneOpening.ts';
 
 type ReceiptSettlement = Readonly<{
   promise: Promise<ObservationReceipt>;
@@ -43,24 +39,6 @@ type ReadTarget = Pick<Timeline, 'read'> | Pick<TimelineView, 'read'>;
 type ObservationLane = Readonly<{
   readonly name: string;
   readonly writer: string;
-}>;
-type WorldlineLaneSource = Readonly<{
-  readonly activity: RuntimeActivity;
-  readonly mutations: RuntimeMutationGate;
-  readonly owner: object;
-  readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
-  readonly timeline: Timeline;
-}>;
-type StrandLaneOptions = Readonly<{
-  readonly activity: RuntimeActivity;
-  readonly draft: DraftTimeline;
-  readonly forkedAt: Readonly<{
-    readonly id: string;
-    readonly lane: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
-  }>;
-  readonly mutations: RuntimeMutationGate;
-  readonly owner: object;
-  readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
 }>;
 type ReadingStreamOutcome =
   | Readonly<{ kind: 'completed'; receipt: ReadReceipt | null }>
@@ -121,7 +99,10 @@ function bindWorldlineLaneRuntime(options: {
   bindLaneRuntime(options.lane, {
     captureCoordinate: async () =>
       await captureWorldlineCoordinate(source.timeline, source.activity),
-    fork: async (name) => await forkWorldlineLane(source, name),
+    fork: async (name) =>
+      await forkWorldlineLane(source, name, createStrandLane),
+    openStrand: async (name) =>
+      await openWorldlineStrandLane(source, name, createStrandLane),
     owner: source.owner,
     settlement: Object.freeze({ kind: 'target' }),
   });
@@ -136,34 +117,6 @@ async function captureWorldlineCoordinate(
     await runtime.prepareOpticBasis();
     return await runtime.coordinate();
   });
-}
-
-async function forkWorldlineLane(
-  options: WorldlineLaneSource,
-  name: string,
-): Promise<Lane> {
-  return await options.activity.run(async () =>
-    await options.mutations.run(async () => {
-      const runtime = requireTimelineRuntime(options.timeline);
-      const context = requireTimelineContext(options.timeline);
-      const tick = await createForkTick(runtime, context);
-      const draft = await createDraftTimeline({
-        runtime,
-        context,
-        timelineName: options.timeline.name,
-        draftName: name,
-        forkedAt: requireTickCoordinate(runtime, tick),
-      });
-      return createStrandLane({
-        activity: options.activity,
-        draft,
-        forkedAt: Object.freeze({ id: tick.id, lane: options.parent }),
-        mutations: options.mutations,
-        owner: options.owner,
-        parent: options.parent,
-      });
-    })
-  );
 }
 
 function createStrandLane(options: StrandLaneOptions): Lane {

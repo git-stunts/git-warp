@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkMaterializationCache,
-  materializationCacheRepairFailureFinding,
-  materializationCacheRepairFinding,
 } from '../../../bin/cli/commands/doctor/checksMaterializationCache.ts';
 import { CODES } from '../../../bin/cli/commands/doctor/codes.ts';
 import type {
@@ -125,37 +123,4 @@ describe('materialization-cache doctor check', () => {
     ]);
   });
 
-  it('reports partial repair when git-cas still finds missing bytes', () => {
-    const before = inspection({
-      healthy: false,
-      entries: [entry('missing', 'missing')],
-    });
-    const after = inspection({
-      healthy: false,
-      entries: [entry('missing', 'missing')],
-    });
-    const result = Object.freeze({
-      before,
-      after,
-      removedKeys: [],
-      generation: 'generation-2',
-    });
-
-    expect(materializationCacheRepairFinding(result)).toEqual(expect.objectContaining({
-      status: 'warn',
-      code: CODES.MATERIALIZATION_CACHE_PARTIAL_REPAIR,
-      evidence: expect.objectContaining({ afterHealthy: false }),
-    }));
-  });
-
-  it('settles repair failures as doctor findings', () => {
-    expect(materializationCacheRepairFailureFinding(new Error('cache unavailable'))).toEqual(
-      expect.objectContaining({
-        id: 'materialization-cache-repair',
-        status: 'fail',
-        code: CODES.CHECK_INTERNAL_ERROR,
-        message: 'Materialization-cache repair failed: cache unavailable',
-      }),
-    );
-  });
 });

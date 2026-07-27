@@ -687,6 +687,7 @@ describe('StrandService', () => {
       expect(descriptor.graphName).toBe('test-graph');
       expect(descriptor.baseObservation.coordinateVersion).toBe(STRAND_COORDINATE_VERSION);
       expect(descriptor.baseObservation.frontier).toEqual({ writer1: 'tip-sha-1' });
+      expect(descriptor.baseObservation.checkpointSha).toBeNull();
       expect(descriptor.overlay.overlayId).toBe('alpha');
       expect(descriptor.overlay.kind).toBe(STRAND_OVERLAY_KIND);
       expect(descriptor.overlay.headPatchSha).toBeNull();
@@ -703,6 +704,7 @@ describe('StrandService', () => {
 
       const descriptor = await service.create({
         strandId: 'captured',
+        baseCheckpointSha: 'checkpoint-captured',
         baseFrontier,
       });
       baseFrontier.set('writer-c', 'too-late');
@@ -711,6 +713,24 @@ describe('StrandService', () => {
         'writer-a': 'captured-a',
         'writer-b': 'captured-b',
       });
+      expect(descriptor.baseObservation.checkpointSha)
+        .toBe('checkpoint-captured');
+    });
+
+    it('rejects partial captured coordinates before persistence', async () => {
+      await expect(service.create({
+        strandId: 'checkpoint-only',
+        baseCheckpointSha: 'checkpoint-captured',
+      })).rejects.toMatchObject({
+        code: 'E_STRAND_INVALID_ARGS',
+      });
+      await expect(service.create({
+        strandId: 'frontier-only',
+        baseFrontier: new Map([['writer-a', 'captured-a']]),
+      })).rejects.toMatchObject({
+        code: 'E_STRAND_INVALID_ARGS',
+      });
+      expect(graph._strandStore.publishDescriptor).not.toHaveBeenCalled();
     });
 
     it('rejects malformed explicit parent frontiers with a stable error', async () => {

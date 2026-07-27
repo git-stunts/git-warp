@@ -1,50 +1,16 @@
 import type GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import type { RuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
-import type { SeekCursorState } from '../../src/ports/SeekCursorStorePort.ts';
 
 export type Persistence = GitTimelineHistoryAdapter;
 export type WarpGraphInstance = RuntimeHostProduct;
 
-export type WriterTickInfo = {
-  ticks: number[];
-  tipSha: string | null;
-  tickShas?: Record<number, string>;
-};
-
-export type CursorBlob = SeekCursorState;
-
 export type CliOptions = {
   repo: string;
+  lane: string | null;
+  strand: string | null;
   json: boolean;
-  ndjson: boolean;
-  view: string | null;
-  graph: string | null;
+  jsonl: boolean;
   writer: string;
+  writerExplicit: boolean;
   help: boolean;
-};
-
-export type GraphInfoResult = {
-  name: string;
-  writers: { count: number; ids?: string[] };
-  checkpoint?: { ref: string; sha: string | null; date?: string | null };
-  coverage?: { ref: string; sha: string | null };
-  writerPatches?: Record<string, number>;
-  cursor?: { active: boolean; tick?: number; mode?: string };
-};
-
-export type SeekSpec = {
-  action: string;
-  tickValue: string | null;
-  name: string | null;
-  diff: boolean;
-  diffLimit: number;
-};
-
-export type QueryBuilderLike = {
-  outgoing: (label?: string) => QueryBuilderLike;
-  incoming: (label?: string) => QueryBuilderLike;
-  where: (fn: Function) => QueryBuilderLike;
-  match: (pattern: string) => QueryBuilderLike;
-  select: (fields: string[]) => QueryBuilderLike;
-  run: () => Promise<{ nodes: Array<{ id: string; props?: Record<string, unknown> }>; stateHash?: string }>;
 };

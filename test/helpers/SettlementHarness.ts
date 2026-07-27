@@ -116,6 +116,7 @@ function bindTargetLane(owner: object): Lane {
   bindLaneRuntime(lane, {
     captureCoordinate: unavailableCoordinate,
     fork: null,
+    openStrand: null,
     owner,
     settlement: Object.freeze({ kind: 'target' }),
   });
@@ -142,6 +143,7 @@ function bindSourceLane(
   bindLaneRuntime(lane, {
     captureCoordinate: unavailableCoordinate,
     fork: null,
+    openStrand: null,
     owner: options.owner,
     settlement: options.sourceRuntime,
   });

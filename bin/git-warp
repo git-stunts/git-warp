@@ -7,19 +7,18 @@ import { fileURLToPath } from 'node:url';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const cliCandidates = [
-  resolve(dir, '../dist/bin/warp-graph.js'),
-  resolve(dir, 'warp-graph.ts'),
+  resolve(dir, '../dist/bin/git-warp.js'),
+  resolve(dir, 'git-warp.ts'),
 ];
 const cliPath = cliCandidates.find((candidate) => existsSync(candidate));
 const args = process.argv.slice(2);
 
-let result;
-if (cliPath !== undefined) {
-  result = spawnSync(process.execPath, [cliPath, ...args], { stdio: 'inherit' });
-} else {
-  result = spawnSync('warp-graph', args, { stdio: 'inherit' });
+if (cliPath === undefined) {
+  process.stderr.write('git-warp CLI entry point is unavailable\n');
+  process.exit(1);
 }
 
+const result = spawnSync(process.execPath, [cliPath, ...args], { stdio: 'inherit' });
 if (result.error) {
   process.stderr.write(result.error.message + '\n');
   process.exit(result.error.code || 1);
