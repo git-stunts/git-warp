@@ -1,4 +1,5 @@
 <div align="center">
+  <img alt="git-warp" src="https://github.com/user-attachments/assets/355c82d9-88f1-4477-b9dd-5d8d855598ec" />
 <p><strong>Write intents. Observe lanes. Keep receipts.</strong></p>
 <p><strong>A runtime for shared causal history.</strong></p>
 <p>Offline-first, multi-writer, deterministic, and built for provenance-aware applications.</p>
