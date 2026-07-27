@@ -4,6 +4,7 @@ import type { V18MigrationCommandReport } from './V18MigrationCommand.ts';
 import type V18MigrationExecutionMode from './V18MigrationExecutionMode.ts';
 import type V18MigrationGraph from './V18MigrationGraph.ts';
 import type { V18MigrationProgress } from './V18MigrationProgress.ts';
+import { formatV18MigrationBytes, type V18MigrationPreflight } from './V18MigrationPreflight.ts';
 import { V18_MIGRATION_THEME } from './V18MigrationTheme.ts';
 
 export type V18MigrationAppPhase = 'confirm' | 'failed' | 'running' | 'succeeded';
@@ -18,6 +19,7 @@ export type V18MigrationAppModel = Readonly<{
 export type V18MigrationAppViewOptions = Readonly<{
   graph: V18MigrationGraph;
   mode: V18MigrationExecutionMode;
+  preflight: V18MigrationPreflight;
   repositoryPath: string;
 }>;
 
@@ -81,6 +83,29 @@ function migrationLines(
   if (model.phase === 'confirm') {
     lines.push(
       { text: 'Nothing changes before you confirm.', token: warning },
+      {
+        text: `Git object storage: ${formatV18MigrationBytes(options.preflight.repositoryObjectBytes)}`,
+        token: body,
+      },
+      ...wrapStyled(
+        `Scratch: ${options.preflight.scratchPath} · ${formatV18MigrationBytes(options.preflight.scratchAvailableBytes)} free`,
+        width,
+        body
+      ),
+      {
+        text: `Operating budget: ${formatV18MigrationBytes(options.preflight.scratchMinimumBytes)} minimum (2x object storage)`,
+        token: options.preflight.scratchSufficient ? success : warning,
+      },
+      {
+        text: `Source Git volume free: ${formatV18MigrationBytes(options.preflight.sourceAvailableBytes)}`,
+        token: body,
+      },
+      {
+        text: options.preflight.scratchSufficient
+          ? 'Scratch capacity check: sufficient.'
+          : 'Scratch capacity check: BELOW OPERATING BUDGET.',
+        token: options.preflight.scratchSufficient ? success : warning,
+      },
       {
         text: 'The tool builds and verifies a disposable repository before promoting refs.',
         token: body,

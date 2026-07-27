@@ -9,6 +9,10 @@ import { runV18MigrationApp } from './V18MigrationApp.ts';
 import { runV18ToV19Migration, type V18MigrationCommandReport } from './V18MigrationCommand.ts';
 import V18MigrationExecutionMode from './V18MigrationExecutionMode.ts';
 import V18MigrationGraphCatalog from './V18MigrationGraphCatalog.ts';
+import {
+  formatV18MigrationPreflight,
+  inspectV18MigrationPreflight,
+} from './V18MigrationPreflight.ts';
 import type { V18MigrationProgress } from './V18MigrationProgress.ts';
 import { V18_MIGRATION_THEME } from './V18MigrationTheme.ts';
 
@@ -31,6 +35,10 @@ async function main(): Promise<void> {
   const repositoryPath = resolve(options.repositoryPath);
   const catalog = await V18MigrationGraphCatalog.discover(repositoryPath);
   const graph = catalog.require(options.graph);
+  const preflight = await inspectV18MigrationPreflight({
+    repositoryPath,
+    ...(options.scratchRoot === undefined ? {} : { scratchRoot: options.scratchRoot }),
+  });
   const ctx = migrationContext();
   const passphrase = process.env['GIT_WARP_MIGRATION_PASSPHRASE'];
   const sharedOptions = {
@@ -46,6 +54,7 @@ async function main(): Promise<void> {
     const result = await runV18MigrationApp({
       context: ctx,
       graph,
+      preflight,
       ...sharedOptions,
     });
     if (result.status === 'cancelled') {
@@ -57,7 +66,7 @@ async function main(): Promise<void> {
     }
     report = result.report;
   } else {
-    process.stderr.write(`${catalog.summary()}\n`);
+    process.stderr.write(`${catalog.summary()}\n${formatV18MigrationPreflight(preflight)}\n`);
     report = await runV18ToV19Migration({
       ...sharedOptions,
       graph: options.graph,

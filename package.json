@@ -75,7 +75,8 @@
     "check:sdk-fixture": "node scripts/generated-sdk/GenerateUsersSdkFixture.ts --check",
     "lint": "sh -c 'eslint . \"$@\" && npm run lint:test-law && npm run lint:source-size && npm run lint:cas-invariants' --",
     "lint:ratchet": "sh scripts/lint-ratchet.sh",
-    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules --ignore \"**/node_modules/**\"",
+    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules --ignore \"**/node_modules/**\" && npm run lint:mermaid",
+    "lint:mermaid": "node scripts/validate-mermaid.ts",
     "lint:md:code": "node scripts/lint-markdown-code-samples.ts",
     "lint:docs-topology": "bash scripts/check-docs-topology.sh && npm run lint:source-backed-reference",
     "lint:links": "lychee --config .lychee.toml --include-fragments '**/*.md'",
@@ -158,6 +159,7 @@
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@git-stunts/docker-guard": "^0.1.0",
+    "@mermaid-js/mermaid-cli": "^11.16.0",
     "@types/node": "^22.15.29",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
