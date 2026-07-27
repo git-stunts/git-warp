@@ -121,8 +121,8 @@ This is corrective completion, not a wholly new direction.
 - #630 required a builder that accepts fact streams and never accepts a full
   `WarpState`.
 - #631 required patch-to-fact streaming.
-- #632 through #634 required bounded node, property, neighborhood, and traversal
-  reads.
+- #632 through #634 required node, property, neighborhood, and traversal reads
+  to be bounded.
 - #734 made git-cas the sole CAS and cache owner.
 - #737 required streaming content round trips without full buffering.
 - #738 stated that the default runtime must not require a complete `WarpState`
@@ -512,6 +512,12 @@ locator once per execution, pins the observed root, and records the resolution
 in its receipt. One traversal must not observe the same live locator at
 different roots unless the API explicitly requests a new execution.
 
+A continuation is part of the same execution. Its cursor is bound to the root
+manifest, every resolved live-locator root, the visited-basis set, the pending
+work root, and the result-order position recorded by the preceding receipt.
+Resuming never resolves a live locator again. If a caller wants current live
+roots, it starts a new reading with a new receipt.
+
 ### Recursive traversal
 
 Recursive traversal uses an explicit async work queue rather than JavaScript
@@ -541,6 +547,20 @@ flowchart TD
 
 Each graph keeps its own ordinal namespace. The traversal never treats an
 ordinal from one graph as meaningful in another.
+
+The ready queue has declared item and encoded-byte capacities. Enqueuing a child
+applies admission backpressure when either capacity is reached. Fan-out that
+does not fit in the ready queue is appended, in traversal order, to a bounded-
+buffer external work log in the operation workspace; the scheduler refills the
+ready queue from that log as capacity becomes available. The spill writer,
+worker pool, and result sink all participate in the same cancellation and
+backpressure chain.
+
+No producer may accumulate rejected or not-yet-admitted children in a
+JavaScript array. A child is admitted to the ready queue, durably appended to
+the external work log, or the traversal stops with a typed obstruction. Queue
+capacity, spill bytes, spill root, and the next dequeue position are part of the
+budget and receipt.
 
 ### Cycles, sharing, and identity
 
@@ -581,6 +601,12 @@ A recursive receipt records:
 - pending frontier or continuation cursor;
 - completeness, redaction, and obstruction posture.
 
+A continuation cursor names immutable operation-workspace roots for the
+visited-basis set and pending work log, plus the pinned graph-root table and
+next result sequence. Cursor validation fails closed if any root, ordering
+position, budget posture, or receipt commitment disagrees. This makes resumption
+stable even when a referenced live locator advances between calls.
+
 ### Retention and garbage collection
 
 Graph references affect reachability.
@@ -607,7 +633,16 @@ It does not copy a second state representation.
 
 Export performs a deterministic ordered scan of identifier dictionaries and
 address pages, opens payloads under bounded concurrency, and writes to a
-streaming sink.
+streaming sink. Every scan item receives a monotonic sequence number. A bounded
+worker pool may prefetch bounded records, but completions enter a reorder buffer
+capped by worker count and encoded bytes. A single writer emits only the next
+sequence and stops admitting work when the reorder buffer is full.
+
+Unbounded attachment bodies are never prefetched into that buffer. The writer
+opens and pipes an attachment stream only when its sequence reaches the head,
+then resumes bounded record prefetch after downstream backpressure permits it.
+Concurrency therefore cannot change export order or turn a slow early payload
+into an unbounded collection of later results.
 
 ### Comparison
 
@@ -649,8 +684,8 @@ The retained-substrate migrator will:
 2. Preflight repository, Git executable, free space, source refs, legacy
    artifact sizes, and execution budgets.
 3. Ask for confirmation before expensive work.
-4. Stream legacy checkpoint components and writer patches through
-   migration-only decoders.
+4. Stream legacy checkpoint components and writer patches through a
+   migration-only incremental CBOR event reader.
 5. Lower decoded values into canonical state-record streams.
 6. Build dictionaries, address pages, Roaring roots, causal roots, attachment
    roots, and graph-reference roots directly.
@@ -662,6 +697,22 @@ The retained-substrate migrator will:
 9. Refresh the source plan and compare every authoritative ref.
 10. Promote through compare-and-swap, retain recovery refs, and repeat the
     runtime verification against the promoted repository.
+
+The legacy event reader consumes `AsyncIterable<Uint8Array>` input and emits
+container, key, scalar, and byte-range events without constructing the top-level
+map or arrays. Its parser stack, token buffer, text/key length, and scalar
+allocation all have explicit limits. Completed node, edge, property, attachment,
+and causal records are written immediately to bounded record spools and released
+before the next record. Oversized byte strings are copied directly to asset
+streams; oversized structured legacy values are kept as external byte ranges
+and converted by a second bounded pass rather than assembled as JavaScript
+objects.
+
+This is not ordinary runtime compatibility. The incremental legacy grammar and
+its semantic lowering live under `scripts/v18-to-v19/`, accept only the
+documented v18 shapes, verify canonical lengths and nesting while consuming
+them, and fail with a source-coordinate diagnostic on unknown input. The
+ordinary v20 runtime only opens the indexed roots produced by that script.
 
 The migration must not:
 
@@ -684,7 +735,7 @@ Expected typed obstructions include:
 
 | Obstruction | Meaning | Recovery |
 | --- | --- | --- |
-| `retained-root-unavailable` | Required retained root is absent | Rebuild or migrate |
+| `retained-root-unavailable` | A retained root required by the manifest is absent | Rebuild or migrate |
 | `ordinal-address-missing` | Selected ordinal has no address | Repair or rebuild |
 | `ordinal-address-kind-mismatch` | Address resolves to the wrong handle kind | Repair or rebuild |
 | `page-budget-exceeded` | One structured page violates its contract | Re-shard or migrate |
@@ -728,7 +779,11 @@ Required tests:
   migrates, reopens, appends, and answers bounded readings.
 - A retained graph whose encoded logical state exceeds 5 MiB never sends a
   value larger than the configured page/shard limit to the CBOR decoder.
-- A multi-gigabyte generated attachment streams through a byte-counting sink
+- A deterministic generator emits the same oversized legacy replay-basis shape
+  and exact 23,995,927-byte encoded length observed in the Think failure; the
+  migration-only event reader converts it under the heap cap without one
+  23,995,927-byte allocation or synchronous full-value decode.
+- A multi-gigabyte, generated attachment streams through a byte-counting sink
   under a small heap cap without constructing the bytes in the test process.
 - A deliberately eager attachment control fails under the same heap cap.
 - A large graph checkpoint builds through repeated bounded flushes and never
@@ -742,6 +797,13 @@ Required tests:
   cycle, indirect cycle, live locator, missing capability, and redacted child.
 - Recursive traversal honors slow-consumer backpressure and every declared
   budget.
+- Recursive traversal holds its ready queue below both configured capacities,
+  spills excess fan-out, and resumes from the spill root without duplicate,
+  skipped, or reordered results.
+- A continuation preserves its pinned live-locator roots, visited set, pending
+  queue, and ordering position when the underlying live locator advances.
+- Concurrent export emits byte-identical deterministic order when payloads
+  finish in adversarial order and never exceeds its reorder-buffer caps.
 - Recursive retention and doctor remain cycle-safe.
 - The real Think migration is rehearsed on a disposable copy before any
   authoritative retry.
