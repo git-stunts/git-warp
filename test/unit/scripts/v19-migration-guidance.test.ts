@@ -18,10 +18,16 @@ function generatedSdkSection(): string {
 describe('v19 migration guidance', () => {
   it('keeps the root README on the safe one-pass v19.0.1 migration', () => {
     expect(ROOT_README).toContain('@git-stunts/git-warp@19.0.1');
+    expect(ROOT_README).toContain('--repo /path/to/repository');
     expect(ROOT_README).toContain('--graph <graph-name>');
+    expect(ROOT_README).toContain('--dry-run');
+    expect(ROOT_README).toContain('E_SUBSTRATE_MIGRATION_REQUIRED');
+    expect(ROOT_README).toContain('recovery refs');
+    expect(ROOT_README).toContain('asks for confirmation');
     expect(ROOT_README).not.toContain('@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19');
     expect(ROOT_README.match(/git-warp-v18-to-v19/gu)).toHaveLength(1);
     expect(ROOT_README).not.toContain('--apply');
+    expect(ROOT_README).not.toMatch(/two-pass/iu);
     expect(ROOT_README).toContain('one pass');
   });
 
@@ -30,13 +36,25 @@ describe('v19 migration guidance', () => {
 
     expect(section).toMatch(/not a\s+human account/u);
     expect(section).toContain('application-owned renderer');
+    expect(section).toContain('Node.js 22.18 or newer');
     expect(section).toContain('cargo install wesley-cli --version 0.3.0-alpha.1 --locked');
-    expect(section).toContain('"generate:users"');
-    expect(section).toContain('npm run generate:users');
+    expect(section).toContain(
+      '"generate:users:wesley": "wesley emit typescript --schema src/warp/users.graphql --out src/generated/users.wesley.generated.ts"',
+    );
+    expect(section).toContain(
+      '"generate:users:sdk": "node scripts/RenderUsersSdk.ts --out src/generated/users.generated.ts"',
+    );
+    expect(section).toContain(
+      '"check:users": "npm run generate:users && git diff --exit-code -- src/generated"',
+    );
     expect(section).toContain('users.graphql');
     expect(section).toContain('users.wesley.generated.ts');
     expect(section).toContain('users.generated.ts');
     expect(section).toContain("import { users } from './generated/users.generated.js';");
+    expect(section).toContain('const runtime = await Runtime.open({');
+    expect(section).toContain('await lane.write(');
+    expect(section).toContain('const observation = lane.observe(');
+    expect(section).toContain('await runtime.close();');
     expect(section).toMatch(/does not open or\s+mutate/u);
   });
 

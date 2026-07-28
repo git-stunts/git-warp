@@ -308,7 +308,7 @@ meaning.
 
 ### Prerequisites
 
-Use Node.js 22 or newer, install `@git-stunts/git-warp@19.0.1` in the
+Use Node.js 22.18 or newer, install `@git-stunts/git-warp@19.0.1` in the
 application, and install the exact Wesley version used by the executable
 reference. Wesley is a native Rust CLI; install the
 [Rust toolchain and Cargo](https://rustup.rs/) first when `cargo` is not
