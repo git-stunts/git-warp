@@ -14,6 +14,47 @@ git warp doctor --repo ./team-repo --lane users
 Doctor reports structural, audit, hook, and retained-materialization findings.
 It does not mutate authoritative history or silently repair git-cas.
 
+## Migrate retained v18 state
+
+Use only the v19.0.1 migrator on an authoritative repository. The v19.0.0
+migrator is unsafe for retained v18 state.
+
+Prepare and test the v19 application without opening the authoritative
+repository. During the maintenance window, stop every writer and make an
+independent mirror backup:
+
+```bash
+REPOSITORY=/path/to/repository
+BACKUP=/path/to/git-warp-backup.git
+
+git clone --mirror --no-hardlinks "$REPOSITORY" "$BACKUP"
+git -C "$BACKUP" fsck --full
+```
+
+Run the migration without `--dry-run`; the framed application discovers graph
+names, reports source and scratch capacity, and asks for confirmation:
+
+```bash
+GRAPH_NAME=your-graph-name
+
+npm exec --package=@git-stunts/git-warp@19.0.1 -- \
+  git-warp-v18-to-v19 \
+  --repo "$REPOSITORY" \
+  --graph "$GRAPH_NAME"
+```
+
+After a successful cutover, rerun with `--yes --json`. The idempotent
+verification must report `already-current`. Then start the already-tested v19
+application and verify a bounded read, one write, its Receipt, restart
+behavior, and the next backup.
+
+Keep the recovery refs reported by the command until those checks and a
+separate retention decision are complete. Do not move writer refs backward or
+run garbage collection as part of the migration window. The
+[complete migration guide](../migrations/v19/README.md) explains the Git object
+rewrite, capacity formula, compare-and-swap promotion, automatic rollback, and
+recovery topology.
+
 ## Prepare a bounded basis
 
 When an Observation reports that no bounded basis is available:

@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "19.0.0",
+  "version": "19.0.1",
   "imports": {
     "roaring": "npm:roaring@^2.7.0"
   },
@@ -20,6 +20,7 @@
       "testing.ts",
       "src/**/*.ts",
       "src/**/*.d.ts",
+      "docs/**/*.md",
       "README.md",
       "CHANGELOG.md",
       "LICENSE",

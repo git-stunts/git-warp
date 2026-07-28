@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.1] - 2026-07-28
+
+### Release notes
+
+`v19.0.1` replaces the unsafe retained-state migrator published in v19.0.0.
+Do not use the v19.0.0 migrator on an authoritative repository. The corrected
+command discovers every WARP graph, presents version and capacity posture,
+asks for confirmation, translates and verifies in disposable repositories,
+and promotes through one guarded ref transaction in the same invocation.
+
+This patch does not change the v19 application grammar. Applications must
+still replace the removed v18 graph-first API with `Runtime`, `Lane`, generated
+`Intent` and `Observer` builders, bounded `Observation` streams, and retained
+`Receipt`s before cutting over their authoritative data.
+
+### Fixed
+
+- Made `git-warp-v18-to-v19` discover graph namespaces instead of assuming a
+  graph name. A missing selection now reports `Graph not found` and lists every
+  discovered graph with its version posture, writer count, and ref count.
+- Replaced the two-command rehearsal/apply experience with a one-pass default.
+  Interactive execution uses Bijou 7's framed application, displays source and
+  scratch capacity, renders per-writer progress, and requires confirmation
+  before inventory. `--yes` supports automation; `--dry-run` remains an
+  explicitly disposable full rehearsal; `--apply` is only a compatibility
+  alias.
+- Corrected scratch-space preflight to account for both complete object-store
+  bytes and loose-object filesystem allocation. `--scratch-root` places the
+  scratch and disposable verification repositories on an operator-selected
+  volume.
+- Isolated legacy v18 checkpoint decoding behind a migration-only 64 MiB
+  encoded-byte ceiling with depth and item limits. Promoted verification no
+  longer routes the retained full-state checkpoint through the normal 5 MiB
+  application CBOR boundary.
+- Batched v18 commit reads, patch-blob reads, and commit writes through
+  persistent Git plumbing while preserving exact commit metadata and
+  translation order.
+- Bounded promoted-repository verification through reopen, disposable append,
+  public reading, and Receipt evidence. Failed verification rolls authoritative
+  refs back through a guarded transaction while retaining additive recovery
+  refs.
+- Rechecked every inventoried source ref after scratch verification and used
+  compare-and-swap expectations during final promotion so concurrent writer
+  movement aborts the cutover.
+
+### Documentation
+
+- Added the complete Git-level migration flow, scratch capacity formula,
+  measured Think-shaped rehearsal, recovery-ref posture, one-pass semantics,
+  and application-versus-substrate cutover order.
+- Added an executable no-hardlink backup and maintenance-window checklist for
+  operators, including idempotent `already-current` verification.
+- Included the current topic, operation, and v19 migration documentation in npm
+  and JSR publication so installed-package README links resolve locally.
+- Added the public API class diagram and source anchors for Runtime, Lane,
+  Intent, Observer, Observation, Reading, Receipt, and generated SDK ownership.
+- Explained Wesley's domain-free compiler role, application-owned renderer
+  boundary, pinned installation, generated files, executable `users` fixture,
+  and why source generation does not migrate retained Git data.
+- Corrected stale settlement guidance: `Runtime.previewSettlement()` and
+  `Runtime.settle()` are implemented v19 surfaces with immutable,
+  basis-revalidated plans.
+
 ## [19.0.0] - 2026-07-27
 
 ### Release notes

@@ -1,13 +1,12 @@
 # v19 Public Vocabulary Checkpoint
 
-> **Status:** Implemented checkpoint for `v19.0.0`.
+> **Status:** Current in `v19.0.1`; introduced in `v19.0.0`.
 >
 > This document is the normative product vocabulary and public-surface design.
 > The Runtime, Lane, Intent, Observer, streaming Observation, Reading, Receipt,
 > settlement, charts, generated SDK, CLI, and MCP surfaces are implemented.
 > One generated contract drives their public vocabulary and all twelve
-> acceptance gates execute in CI. The release witness remains the final
-> publication evidence.
+> acceptance gates execute in CI and release preflight.
 
 The product doctrine is:
 
@@ -34,12 +33,12 @@ An Observation emits Readings and leaves a Receipt.
 
 The four observation nouns are not aliases:
 
-| Noun | Responsibility |
-| --- | --- |
-| `Observer` | Reusable immutable executable observation plan |
+| Noun          | Responsibility                                               |
+| ------------- | ------------------------------------------------------------ |
+| `Observer`    | Reusable immutable executable observation plan               |
 | `Observation` | One resource-bounded execution of an Observer against a Lane |
-| `Reading` | One bounded semantic result emitted by an Observation |
-| `Receipt` | Durable terminal record of an operation |
+| `Reading`     | One bounded semantic result emitted by an Observation        |
+| `Receipt`     | Durable terminal record of an operation                      |
 
 The canonical sentence is:
 
@@ -638,15 +637,15 @@ actually need graph-shaped correlation and coordination.
 
 ## Supported Package Surfaces
 
-The intended package families are:
+The shipped package families are:
 
-| Surface | Role |
-| --- | --- |
-| root | `Runtime` plus type-only core contracts |
-| `/charts` | Derived graph-shaped Observers and Readings |
-| `/diagnostics` | `doctor`, repair planning, audit, and Receipt inspection |
-| `/advanced` | Formal reads and generic constructors for generated SDK infrastructure |
-| `/testing` | Explicit fake ports, fixtures, and Runtime harnesses |
+| Surface        | Role                                                                   |
+| -------------- | ---------------------------------------------------------------------- |
+| root           | `Runtime` plus type-only core contracts                                |
+| `/charts`      | Derived graph-shaped Observers and Readings                            |
+| `/diagnostics` | `doctor`, repair planning, audit, and Receipt inspection               |
+| `/advanced`    | Formal reads and generic constructors for generated SDK infrastructure |
+| `/testing`     | Explicit fake ports, fixtures, and Runtime harnesses                   |
 
 `/advanced` is not a holding area for everything removed from root. Legacy
 graph-first APIs are removed rather than hidden under a new public contract.
@@ -699,7 +698,7 @@ renaming transport batches as pages.
 ## MCP Grammar
 
 MCP exposes the same model through tools and resources rather than inventing a
-second ontology. The target capability families are:
+second ontology. The shipped capability families are:
 
 ```text
 warp_lane_describe
@@ -767,19 +766,19 @@ formal explanations.
 
 The superseded pre-checkpoint v19 facade has these dispositions:
 
-| Transitional v19 symbol | Canonical disposition |
-| --- | --- |
-| `openWarp()` | `Runtime.open()` |
-| `Warp` | `Runtime` |
-| `Timeline` | `Lane` |
-| `DraftTimeline` | `Lane` with `kind: 'strand'` |
-| `timeline.read(reading)` | `lane.observe(observer)` |
-| root `reading` builders | Wesley-generated `*.observers` or `/charts` |
-| root `intent` builders | Wesley-generated `*.intents` |
-| `previewJoin()` | `Runtime.previewSettlement()` |
-| `join()` | `Runtime.settle(plan)` |
-| `/storage` constructors | internal Runtime composition; testing injection under `/testing` |
-| graph package proposals | `/charts` |
+| Transitional v19 symbol  | Canonical disposition                                            |
+| ------------------------ | ---------------------------------------------------------------- |
+| `openWarp()`             | `Runtime.open()`                                                 |
+| `Warp`                   | `Runtime`                                                        |
+| `Timeline`               | `Lane`                                                           |
+| `DraftTimeline`          | `Lane` with `kind: 'strand'`                                     |
+| `timeline.read(reading)` | `lane.observe(observer)`                                         |
+| root `reading` builders  | Wesley-generated `*.observers` or `/charts`                      |
+| root `intent` builders   | Wesley-generated `*.intents`                                     |
+| `previewJoin()`          | `Runtime.previewSettlement()`                                    |
+| `join()`                 | `Runtime.settle(plan)`                                           |
+| `/storage` constructors  | internal Runtime composition; testing injection under `/testing` |
+| graph package proposals  | `/charts`                                                        |
 
 The v18 graph-first API remains removed. This checkpoint does not revive
 `browser`, `legacy`, `openWarpGraph`, `WarpApp`, `WarpCore`, patch builders, or
@@ -807,5 +806,5 @@ following:
     and substrate exceptions.
 
 The executable mapping for these gates lives in
-`scripts/RunV19AcceptanceGates.ts`; CI and the release witness must run the
-mapping without omissions before v19 publication.
+`scripts/RunV19AcceptanceGates.ts`; CI and release preflight run the mapping
+without omissions.
