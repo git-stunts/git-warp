@@ -140,6 +140,11 @@ describe('release artifact command evidence', () => {
     expect(entries.has('bin/git-warp')).toBe(true);
     expect(entries.has('dist/bin/warp-graph.js')).toBe(false);
     expect(entries.has('README.md')).toBe(true);
+    expect(entries.has('docs/migrations/v19/README.md')).toBe(true);
+    expect(entries.has('docs/operations/README.md')).toBe(true);
+    expect(entries.has('docs/topics/README.md')).toBe(true);
+    expect(entries.has('docs/topics/api/README.md')).toBe(true);
+    expect(entries.has('docs/topics/getting-started.md')).toBe(true);
     expect(entries.has('CHANGELOG.md')).toBe(true);
     expect(entries.has('LICENSE')).toBe(true);
     expect(entries.has('docs/GUIDE.md')).toBe(false);

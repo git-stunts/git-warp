@@ -46,12 +46,13 @@ It lets you:
 
 ## Latest release
 
-`v19.0.0` replaces the graph-first application API with one public runtime
-boundary: open `Runtime`, address causal `Lane`s, write validated `Intent`s,
-consume bounded `Observation` streams of `Reading`s, and retain `Receipt`s.
-Existing repositories with retained v18 state require the corrected v19.0.1
-one-shot migration below before any v19 process opens them. Do not use the
-v19.0.0 migrator on an authoritative repository.
+`v19.0.1` is the current release. It keeps the public runtime boundary
+introduced in v19.0.0—open `Runtime`, address causal `Lane`s, write validated
+`Intent`s, consume bounded `Observation` streams of `Reading`s, and retain
+`Receipt`s—and replaces the unsafe v19.0.0 retained-state migrator. Existing
+repositories with retained v18 state require the v19.0.1 one-shot migration
+below before any v19 process opens them. Do not use the v19.0.0 migrator on an
+authoritative repository.
 
 The exact merged-main release gate's representative migrated-v18 retained scan
 was 31.1% faster cold, 32.1% faster warm, used 20.1–21.3% less operation CPU,

@@ -2,8 +2,9 @@
 
 > **Status:** The public grammar shipped in `v19.0.0`. The retained-state
 > migration described below requires `v19.0.1`; do not use the `v19.0.0`
-> migrator on an authoritative repository. General generated-SDK publication
-> remains future work.
+> migrator on an authoritative repository. v19.0.1 ships the generic
+> constructors and an executable generated-SDK reference; each application
+> still owns the renderer that assigns domain meaning.
 
 v19 replaces the transitional storage- and timeline-shaped facade with one
 application grammar:
@@ -43,9 +44,57 @@ final report. Before confirmation, the summary also reports current Git object
 storage, the scratch path, free space on the scratch and source Git volumes,
 and whether scratch free space meets the operating budget.
 
+### Maintenance-window checklist
+
+Prepare the v19 application before this window. Do not let either a v18 or v19
+application open the authoritative repository while the retained substrate is
+being migrated.
+
+1. Stop and disable every process that can write to any graph in the
+   repository.
+2. Create an independent mirror backup. `--no-hardlinks` matters for a local
+   source: it prevents the backup and source from sharing loose-object files.
+
+   ```bash
+   REPOSITORY=/path/to/repository
+   BACKUP=/path/to/git-warp-backup.git
+
+   git clone --mirror --no-hardlinks "$REPOSITORY" "$BACKUP"
+   git -C "$BACKUP" fsck --full
+   ```
+
+3. Record the selected graph's starting refs somewhere outside the repository.
+
+   ```bash
+   GRAPH_NAME=your-graph-name
+   REF_SNAPSHOT=/path/to/warp-refs.before.txt
+
+   git -C "$REPOSITORY" for-each-ref \
+     --format='%(refname) %(objectname)' \
+     "refs/warp/${GRAPH_NAME}/" > "$REF_SNAPSHOT"
+   ```
+
+4. Choose a scratch volume with at least the displayed operating budget. Pass
+   `--scratch-root <path>` when the system temporary volume is not suitable.
+5. Run the normal command without `--dry-run`, inspect the graph and capacity
+   summary, and confirm once.
+6. Save the final report and its recovery-ref prefix. A successful report says
+   `migrated` and `scratch verified: yes`.
+7. Rerun with `--yes --json`. It must verify the promoted repository and
+   report `already-current`; it must not move the promoted refs.
+8. Start only the already-tested v19 application. Verify a bounded read, one
+   application write, its Receipt, restart behavior, and the next backup.
+9. Keep the recovery refs until those checks and the application's retention
+   policy have been independently reviewed. Do not run Git garbage collection
+   as part of the cutover.
+
 ### What the command does
 
-The source repository is read-only until the final ref transaction:
+Discovery, preflight, inventory, scratch translation, and scratch verification
+do not change the source graph. After that proof, the source object database
+receives verified objects under temporary private import refs.
+**Authoritative WARP refs remain unchanged until the final compare-and-swap
+transaction.**
 
 ```mermaid
 flowchart LR
@@ -54,6 +103,7 @@ flowchart LR
   scratch["Scratch repository<br/>translated objects"]
   verify["Scratch verification<br/>reopen + append + read"]
   compare["Recheck source heads"]
+  import["Private import refs<br/>verified objects"]
   promote["Atomic ref transaction"]
   recovery["Recovery refs<br/>old objects retained"]
 
@@ -61,7 +111,8 @@ flowchart LR
   inventory --> scratch
   scratch --> verify
   verify --> compare
-  compare -->|all OIDs unchanged| promote
+  compare -->|all OIDs unchanged| import
+  import --> promote
   compare -->|any OID changed| abort["Abort without cutover"]
   promote --> source
   promote --> recovery
@@ -80,14 +131,22 @@ immutable:
    repository.
 5. It proves that the scratch graph can reopen, accept a disposable append,
    return a bounded public reading, and produce a valid receipt.
-6. It fetches the verified scratch objects into private import refs in the
-   source repository.
-7. One `git update-ref --stdin` transaction compares every original ref with
+6. It re-inventories the source refs and aborts if anything changed during the
+   scratch proof.
+7. It fetches verified scratch objects under temporary
+   `refs/warp-migration-import/v18-to-v19/` refs in the source repository.
+8. One `git update-ref --stdin` transaction compares every original ref with
    its inventoried OID, archives the original refs, and promotes the verified
    refs. If any expected OID moved, the transaction fails as a unit.
-8. It verifies the promoted graph. If that proof fails, another guarded ref
-   transaction restores the original authoritative refs while retaining
-   recovery refs for diagnosis.
+9. It deletes the temporary private import refs. Imported objects may remain
+   physically present, but no import ref remains part of the repository's
+   public or recovery topology.
+10. It verifies the promoted graph. If that proof fails, another guarded ref
+    transaction restores the original authoritative refs while retaining
+    recovery refs for diagnosis.
+
+After finalization, the temporary private import refs are deleted whether the
+promotion succeeds or fails.
 
 Current v18 audit, intent, strand, overlay, braid, and trust publication refs
 are carried through unchanged and included in the compare-and-swap inventory.
@@ -430,18 +489,16 @@ try {
   await lane.write(
     users.intents.registerUser({
       subject: 'user:alice',
-    }),
+    })
   );
   await lane.write(
     users.intents.assignRole({
       subject: 'user:alice',
       role: 'admin',
-    }),
+    })
   );
 
-  const observation = lane.observe(
-    users.observers.roleOf({ subject: 'user:alice' }),
-  );
+  const observation = lane.observe(users.observers.roleOf({ subject: 'user:alice' }));
 
   console.log((await observation.one()).value);
   console.log((await observation.receipt).status);
@@ -526,9 +583,7 @@ remain outside this four-way causal union.
 Before:
 
 ```typescript
-const result = await timeline.read(
-  reading.property({ subject: 'user:alice', key: 'role' })
-);
+const result = await timeline.read(reading.property({ subject: 'user:alice', key: 'role' }));
 
 console.log(result.value);
 console.log(result.receipt);
@@ -537,9 +592,7 @@ console.log(result.receipt);
 After:
 
 ```typescript
-const observation = events.observe(
-  users.observers.roleOf({ subject: 'user:alice' })
-);
+const observation = events.observe(users.observers.roleOf({ subject: 'user:alice' }));
 
 for await (const reading of observation) {
   console.log(reading.value);
@@ -594,7 +647,7 @@ derived | plural | conflict | obstruction
 Settlement is a later cross-lane operation. It is not another spelling of
 admission and it does not automatically linearize lawful plurality.
 
-The final v19 settlement contract is:
+The implemented v19 settlement contract is:
 
 ```typescript
 const preview = await runtime.previewSettlement({
@@ -610,13 +663,14 @@ The preview is non-authoritative. Its immutable plan is bound to exact source
 and target frontiers, proposal, law, and policy. `settle()` revalidates those
 bindings and must obstruct or reclassify a stale plan.
 
-This settlement surface is still open implementation work. Do not ship code
-that calls it until the corresponding v19 source and conformance evidence has
-landed.
+`Runtime.previewSettlement()` and `Runtime.settle()` are implemented, exported,
+type-checked public surfaces. Preview does not mutate the destination. Settle
+accepts only the immutable plan issued by preview, revalidates its bound basis,
+and returns a settlement Receipt.
 
 ## Expert Subpaths
 
-The intended v19 expert surfaces are:
+The shipped v19 expert surfaces are:
 
 ```text
 @git-stunts/git-warp/advanced
@@ -636,23 +690,23 @@ explicit `/testing` harness.
 
 ## Symbol Map
 
-| Before                         | v19 replacement                         |
-| ------------------------------ | --------------------------------------- |
-| `openWarp(options)`            | `Runtime.open({ at, writer })`          |
-| `warp.timeline(name)`          | `runtime.lane(name)`                    |
-| `timeline.write(intent.*)`     | `lane.write(generated.intents.*)`       |
-| `timeline.read(reading.*)`     | `lane.observe(generated.observers.*)`   |
-| `ReadingResult.value`          | streamed `Reading.value`                |
-| `ReadingResult.receipt`        | `await Observation.receipt`             |
-| `timeline.draft(name)`         | `runtime.fork(lane, { name })`          |
-| `timeline.previewJoin(draft)`  | `runtime.previewSettlement(...)`        |
-| `timeline.join(draft)`         | `runtime.settle(preview.plan)`           |
-| `GitStorage.open({ cwd })`     | internal to `Runtime.open({ at })`       |
-| `storage.close()`              | `runtime.close()`                        |
-| `accepted` write status        | `derived` or `plural` admission          |
-| `conflicted` write status      | `conflict` admission with witness        |
-| `obstructed`/`rejected` write  | `obstruction` admission with reason      |
-| root graph/query builders      | generated SDK or `/charts` observer      |
+| Before                        | v19 replacement                       |
+| ----------------------------- | ------------------------------------- |
+| `openWarp(options)`           | `Runtime.open({ at, writer })`        |
+| `warp.timeline(name)`         | `runtime.lane(name)`                  |
+| `timeline.write(intent.*)`    | `lane.write(generated.intents.*)`     |
+| `timeline.read(reading.*)`    | `lane.observe(generated.observers.*)` |
+| `ReadingResult.value`         | streamed `Reading.value`              |
+| `ReadingResult.receipt`       | `await Observation.receipt`           |
+| `timeline.draft(name)`        | `runtime.fork(lane, { name })`        |
+| `timeline.previewJoin(draft)` | `runtime.previewSettlement(...)`      |
+| `timeline.join(draft)`        | `runtime.settle(preview.plan)`        |
+| `GitStorage.open({ cwd })`    | internal to `Runtime.open({ at })`    |
+| `storage.close()`             | `runtime.close()`                     |
+| `accepted` write status       | `derived` or `plural` admission       |
+| `conflicted` write status     | `conflict` admission with witness     |
+| `obstructed`/`rejected` write | `obstruction` admission with reason   |
+| root graph/query builders     | generated SDK or `/charts` observer   |
 
 ## Upgrade Sequence
 
@@ -663,7 +717,8 @@ explicit `/testing` harness.
 5. Replace eager `read()` calls with streaming `observe()` consumption.
 6. Move receipt handling from each Reading to the Observation terminal path.
 7. Match all four admission variants exhaustively.
-8. Keep existing cross-lane join code isolated until settlement plans land.
+8. Replace cross-lane join code with `Runtime.previewSettlement()` followed by
+   `Runtime.settle(preview.plan)`.
 9. Replace graph-shaped reads with bounded `/charts` observers.
 10. Verify that no import from the removed `/storage` subpath remains.
 
