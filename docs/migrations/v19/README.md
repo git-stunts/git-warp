@@ -436,10 +436,13 @@ try {
     users.intents.assignRole({
       subject: 'user:alice',
       role: 'admin',
-    })
+    }),
   );
 
-  const observation = lane.observe(users.observers.roleOf({ subject: 'user:alice' }));
+  const observation = lane.observe(
+    users.observers.roleOf({ subject: 'user:alice' }),
+  );
+
   console.log((await observation.one()).value);
   console.log((await observation.receipt).status);
 } finally {
