@@ -98,6 +98,7 @@ jobs:
       - name: Final release preflight
         if: steps.release_pr.outputs.should_release == 'true' && steps.metadata.outputs.tag_exists != 'true'
         env:
+          GIT_WARP_MERMAID_DISABLE_SANDBOX: "1"
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.metadata.outputs.tag }}
           WARP_LINKCHECK_EXTERNAL_OK: "1"

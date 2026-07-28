@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 
 import {
@@ -5,18 +6,13 @@ import {
   rollbackV18Migration,
   type V18MigrationFinalization,
 } from './V18MigrationFinalizer.ts';
-import {
-  planV18ToV19Migration,
-  type V18MigrationPlan,
-} from './V18MigrationPlan.ts';
-import {
-  prepareV18MigrationScratch,
-  verifyPromotedV19Repository,
-} from './V18MigrationScratch.ts';
+import { planV18ToV19Migration, type V18MigrationPlan } from './V18MigrationPlan.ts';
+import { prepareV18MigrationScratch, verifyPromotedV19Repository } from './V18MigrationScratch.ts';
 import {
   reportV18MigrationProgress,
   type V18MigrationProgressReporter,
 } from './V18MigrationProgress.ts';
+import V18MigrationExecutionMode from './V18MigrationExecutionMode.ts';
 
 export type V18MigrationCommandReport = Readonly<{
   finalization: V18MigrationFinalization | null;
@@ -26,16 +22,19 @@ export type V18MigrationCommandReport = Readonly<{
 }>;
 
 /** Runs the fail-closed one-shot migration command. */
-export async function runV18ToV19Migration(options: Readonly<{
-  apply: boolean;
-  graph: string;
-  passphrase?: string;
-  progress?: V18MigrationProgressReporter;
-  recoveryId?: string;
-  repositoryPath: string;
-  scratchRoot?: string;
-}>): Promise<V18MigrationCommandReport> {
+export async function runV18ToV19Migration(
+  options: Readonly<{
+    graph: string;
+    mode: V18MigrationExecutionMode;
+    passphrase?: string;
+    progress?: V18MigrationProgressReporter;
+    recoveryId?: string;
+    repositoryPath: string;
+    scratchRoot?: string;
+  }>
+): Promise<V18MigrationCommandReport> {
   const repositoryPath = resolve(options.repositoryPath);
+  const scratchRoot = resolve(options.scratchRoot ?? tmpdir());
   const plan = await planV18ToV19Migration({
     graph: options.graph,
     passphraseAvailable: options.passphrase !== undefined,
@@ -43,7 +42,7 @@ export async function runV18ToV19Migration(options: Readonly<{
     repositoryPath,
   });
   if (plan.status === 'current') {
-    await verifyPromotedV19Repository(repositoryPath, options.graph);
+    await verifyPromotedV19Repository(repositoryPath, options.graph, scratchRoot);
     return report(plan, 'already-current', false, null);
   }
   if (plan.status === 'empty') {
@@ -54,10 +53,10 @@ export async function runV18ToV19Migration(options: Readonly<{
     plan,
     ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
     ...(options.progress === undefined ? {} : { progress: options.progress }),
-    ...(options.scratchRoot === undefined ? {} : { scratchRoot: resolve(options.scratchRoot) }),
+    scratchRoot,
   });
   try {
-    if (!options.apply) {
+    if (!options.mode.promotesVerifiedRefs()) {
       return report(plan, 'verified-dry-run', true, null);
     }
     const refreshed = await planV18ToV19Migration({
@@ -78,23 +77,23 @@ export async function runV18ToV19Migration(options: Readonly<{
     });
     try {
       reportV18MigrationProgress(options.progress, {
-        message: 'verifying promoted repository',
+        message: 'verifying promoted refs through a disposable append and bounded reading',
         phase: 'verify',
       });
-      await verifyPromotedV19Repository(repositoryPath, options.graph);
+      await verifyPromotedV19Repository(repositoryPath, options.graph, scratchRoot);
     } catch (verificationError) {
       try {
         await rollbackV18Migration({ finalization, plan });
       } catch (rollbackError) {
         throw new AggregateError(
           [verificationError, rollbackError],
-          `v19 verification failed and automatic rollback could not complete; `
-            + `use recovery refs below ${finalization.recoveryPrefix}`,
+          `v19 verification failed and automatic rollback could not complete; ` +
+            `use recovery refs below ${finalization.recoveryPrefix}`
         );
       }
       throw new Error(
         'v19 verification failed; authoritative refs were rolled back and recovery refs retained',
-        { cause: verificationError },
+        { cause: verificationError }
       );
     }
     return report(plan, 'migrated', true, finalization);
@@ -103,16 +102,13 @@ export async function runV18ToV19Migration(options: Readonly<{
   }
 }
 
-function requireUnchangedPlan(
-  before: V18MigrationPlan,
-  after: V18MigrationPlan,
-): void {
+function requireUnchangedPlan(before: V18MigrationPlan, after: V18MigrationPlan): void {
   if (
-    after.status !== 'migration-required'
-    || JSON.stringify(planIdentity(after)) !== JSON.stringify(planIdentity(before))
+    after.status !== 'migration-required' ||
+    JSON.stringify(planIdentity(after)) !== JSON.stringify(planIdentity(before))
   ) {
     throw new Error(
-      'retained state changed after scratch verification; no authoritative refs were updated',
+      'retained state changed after scratch verification; no authoritative refs were updated'
     );
   }
 }
@@ -132,7 +128,7 @@ function report(
   plan: V18MigrationPlan,
   status: V18MigrationCommandReport['status'],
   scratchVerified: boolean,
-  finalization: V18MigrationFinalization | null,
+  finalization: V18MigrationFinalization | null
 ): V18MigrationCommandReport {
   return Object.freeze({
     finalization,

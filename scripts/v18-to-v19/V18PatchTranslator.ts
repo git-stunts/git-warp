@@ -14,6 +14,7 @@ import {
 } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import type { V18PatchCommit } from './V18PatchCommit.ts';
 import { runV18MigrationGit, v18MigrationGitText } from './V18MigrationGit.ts';
+import type { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 
 const OID_PATTERN = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u;
 const messageCodec = new TrailerCommitMessageCodecAdapter();
@@ -31,20 +32,24 @@ export type V18TranslatedPatch = Readonly<{
 export default class V18PatchTranslator {
   readonly #cas: ContentAddressableStore;
   readonly #contentHandles = new Map<string, string>();
+  readonly #objectReader: V18MigrationGitObjectReader;
   readonly #passphrase: string | null;
   readonly #repositoryPath: string;
 
   private constructor(
     repositoryPath: string,
     cas: ContentAddressableStore,
+    objectReader: V18MigrationGitObjectReader,
     passphrase: string | null,
   ) {
     this.#repositoryPath = repositoryPath;
     this.#cas = cas;
+    this.#objectReader = objectReader;
     this.#passphrase = passphrase;
   }
 
   static async open(options: Readonly<{
+    objectReader: V18MigrationGitObjectReader;
     passphrase?: string;
     repositoryPath: string;
   }>): Promise<V18PatchTranslator> {
@@ -56,6 +61,7 @@ export default class V18PatchTranslator {
     return new V18PatchTranslator(
       options.repositoryPath,
       cas,
+      options.objectReader,
       options.passphrase ?? null,
     );
   }
@@ -129,10 +135,7 @@ export default class V18PatchTranslator {
 
   async #readLegacyPatch(patch: V18PatchCommit): Promise<Uint8Array> {
     if (patch.storage.kind === 'legacy-blob') {
-      return await runV18MigrationGit(
-        this.#repositoryPath,
-        ['cat-file', 'blob', patch.storage.oid],
-      );
+      return await this.#objectReader.readObject(patch.storage.oid, 'blob');
     }
     if (patch.storage.kind === 'current') {
       throw new Error(`commit ${patch.commit.sha} is already current`);

@@ -1,11 +1,6 @@
 const COMMIT_PROGRESS_INTERVAL = 250;
 
-export type V18MigrationPhase =
-  | 'finalize'
-  | 'inventory'
-  | 'rewrite'
-  | 'scratch'
-  | 'verify';
+export type V18MigrationPhase = 'finalize' | 'inventory' | 'rewrite' | 'scratch' | 'verify';
 
 export type V18MigrationProgress = Readonly<{
   completed?: number;
@@ -15,20 +10,20 @@ export type V18MigrationProgress = Readonly<{
   writer?: string;
 }>;
 
-export type V18MigrationProgressReporter = (
-  progress: V18MigrationProgress,
-) => void;
+export type V18MigrationProgressReporter = (progress: V18MigrationProgress) => void;
 
 export function reportV18MigrationProgress(
   reporter: V18MigrationProgressReporter | undefined,
-  progress: V18MigrationProgress,
+  progress: V18MigrationProgress
 ): void {
   reporter?.(Object.freeze({ ...progress }));
 }
 
-export function shouldReportV18CommitProgress(
-  completed: number,
-  total: number,
-): boolean {
+export function shouldReportV18CommitProgress(completed: number, total: number): boolean {
   return completed === total || completed % COMMIT_PROGRESS_INTERVAL === 0;
+}
+
+/** Convert bounded work counts into the percentage expected by Bijou. */
+export function v18MigrationProgressPercent(completed: number, total: number): number {
+  return total === 0 ? 100 : Math.min(100, Math.max(0, (completed / total) * 100));
 }

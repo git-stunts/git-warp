@@ -155,6 +155,8 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - name: 'Gate 6: Markdown lint (fenced code blocks require language)'
+        env:
+          GIT_WARP_MERMAID_DISABLE_SANDBOX: "1"
         run: npm run lint:md
       - name: 'Gate 7: Markdown JS/TS code-sample syntax check'
         run: npm run lint:md:code

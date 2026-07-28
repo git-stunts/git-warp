@@ -46,6 +46,88 @@ The canonical sentence is:
 > An Observer runs against a Lane, producing an Observation that emits
 > Readings and leaves a Receipt.
 
+The following class diagram shows ownership and operation results. It is a
+vocabulary map, not a claim that every noun is implemented as a concrete
+class:
+
+```mermaid
+classDiagram
+  direction LR
+
+  class Runtime {
+    +open(options) Runtime
+    +lane(name) Lane
+    +fork(source, options) Lane
+    +strand(parent, options) Lane
+    +close()
+  }
+
+  class Lane {
+    +write(intent) Receipt
+    +observe(observer) Observation
+  }
+
+  class Intent {
+    <<validated write proposal>>
+  }
+
+  class Observer {
+    <<immutable observation plan>>
+  }
+
+  class Observation {
+    <<AsyncIterable of Reading>>
+    +one() Reading
+    +receipt ObservationReceiptPromise
+  }
+
+  class Reading {
+    <<bounded semantic result>>
+  }
+
+  class Receipt {
+    <<durable terminal record>>
+  }
+
+  class GeneratedDomainSDK {
+    +intents
+    +observers
+  }
+
+  Runtime "1" *-- "0..*" Lane : owns access
+  GeneratedDomainSDK ..> Intent : builds
+  GeneratedDomainSDK ..> Observer : builds
+  Lane ..> Intent : admits
+  Lane ..> Receipt : write returns
+  Lane ..> Observer : executes
+  Lane ..> Observation : creates
+  Observation --> Reading : emits
+  Observation --> Receipt : leaves
+```
+
+Read the diagram from left to right:
+
+1. Open one `Runtime`, then obtain one or more named or forked `Lane` handles.
+2. Use a generated domain SDK to construct validated `Intent` and `Observer`
+   values.
+3. A write admits an `Intent` and returns a terminal `Receipt`.
+4. An observation executes an `Observer`, streams bounded `Reading` values,
+   and leaves its own terminal `Receipt`.
+
+Each diagram noun is anchored to its current implementation or executable
+reference:
+
+| Diagram noun  | Source                                                                          |
+| ------------- | ------------------------------------------------------------------------------- |
+| `Runtime`     | [`src/application/Runtime.ts`](../../../src/application/Runtime.ts)             |
+| `Lane`        | [`src/domain/api/Lane.ts`](../../../src/domain/api/Lane.ts)                     |
+| `Intent`      | [`src/domain/api/Intent.ts`](../../../src/domain/api/Intent.ts)                 |
+| `Observer`    | [`src/domain/api/Observer.ts`](../../../src/domain/api/Observer.ts)             |
+| `Observation` | [`src/domain/api/Observation.ts`](../../../src/domain/api/Observation.ts)       |
+| `Reading`     | [`src/domain/api/Reading.ts`](../../../src/domain/api/Reading.ts)               |
+| `Receipt`     | [`src/domain/api/Receipt.ts`](../../../src/domain/api/Receipt.ts)               |
+| Generated SDK | [`users.generated.ts`](../../../test/fixtures/generated-sdk/users.generated.ts) |
+
 ## Disclosure Order
 
 Documentation, generated APIs, CLI help, and MCP descriptions must disclose

@@ -146,6 +146,8 @@ jobs:
           jobSummary: true
 
       - name: Verify release tests and docs
+        env:
+          GIT_WARP_MERMAID_DISABLE_SANDBOX: "1"
         run: |
           npm run lint
           npm run lint:md

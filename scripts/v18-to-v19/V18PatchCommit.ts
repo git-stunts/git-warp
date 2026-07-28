@@ -1,6 +1,7 @@
 import { TrailerCodec, TrailerCodecService } from '@git-stunts/trailer-codec';
 
 import { runV18MigrationGit } from './V18MigrationGit.ts';
+import type { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 
 const OID_PATTERN = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u;
 const codec = new TrailerCodec({ service: new TrailerCodecService() });
@@ -39,11 +40,12 @@ export type V18PatchCommit = Readonly<{
 export async function readV18PatchCommit(
   repositoryPath: string,
   sha: string,
+  objectReader?: V18MigrationGitObjectReader,
 ): Promise<V18PatchCommit> {
-  const raw = Buffer.from(await runV18MigrationGit(
-    repositoryPath,
-    ['cat-file', 'commit', sha],
-  )).toString('utf8');
+  const bytes = objectReader === undefined
+    ? await runV18MigrationGit(repositoryPath, ['cat-file', 'commit', sha])
+    : await objectReader.readObject(sha, 'commit');
+  const raw = Buffer.from(bytes).toString('utf8');
   const commit = parseGitCommit(sha, raw);
   return parsePatchMessage(commit);
 }
