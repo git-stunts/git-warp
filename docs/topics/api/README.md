@@ -244,7 +244,7 @@ that coordinate is not silently promoted into a Runtime Lane.
 Application authors should normally use Wesley-generated domain SDKs:
 
 ```typescript
-import { users } from './generated/users.js';
+import { users } from './generated/users.generated.js';
 
 const receipt = await events.write(
   users.intents.assignRole({
