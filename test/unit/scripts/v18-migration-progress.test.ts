@@ -35,6 +35,23 @@ describe('v18 migration progress', () => {
     expect(rendered.map((event) => event.completed)).toEqual([0, 1]);
   });
 
+  it('does not let terminal rendering failure replace the migration outcome', () => {
+    vi.useFakeTimers();
+    const reporter = vi.fn((update: V18MigrationProgress) => {
+      if (update.completed === 1) {
+        throw new Error('terminal renderer failed');
+      }
+    });
+    const coalescer = new V18MigrationProgressCoalescer(reporter, 100);
+
+    coalescer.report(progress(0));
+    coalescer.report(progress(1));
+
+    expect(() => coalescer.flushBestEffort()).not.toThrow();
+    vi.advanceTimersByTime(100);
+    expect(reporter).toHaveBeenCalledTimes(2);
+  });
+
   it('flushes the previous writer before rendering the next writer', () => {
     vi.useFakeTimers();
     const rendered: V18MigrationProgress[] = [];

@@ -51,6 +51,14 @@ export default class V18MigrationProgressCoalescer {
     this.#finishWindow();
   }
 
+  flushBestEffort(): void {
+    try {
+      this.flush();
+    } catch {
+      // Terminal progress rendering must not replace the migration outcome.
+    }
+  }
+
   #changesStream(progress: V18MigrationProgress): boolean {
     return (
       this.#hasStream

@@ -64,11 +64,11 @@ export async function runV18MigrationApp(
         ...(options.recoveryId === undefined ? {} : { recoveryId: options.recoveryId }),
         ...(options.scratchRoot === undefined ? {} : { scratchRoot: options.scratchRoot }),
       });
-      progress.flush();
+      progress.flushBestEffort();
       result = Object.freeze({ report, status: 'completed' });
       return Object.freeze({ report, type: 'succeeded' });
     } catch (error: unknown) {
-      progress.flush();
+      progress.flushBestEffort();
       result = Object.freeze({ error, status: 'failed' });
       return Object.freeze({
         error,

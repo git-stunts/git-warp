@@ -83,7 +83,7 @@ async function main(): Promise<void> {
         progress: (update) => progress.report(update),
       });
     } finally {
-      progress.flush();
+      progress.flushBestEffort();
     }
   }
   if (usedInteractiveApp) {
