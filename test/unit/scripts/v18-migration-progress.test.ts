@@ -52,6 +52,23 @@ describe('v18 migration progress', () => {
     expect(reporter).toHaveBeenCalledTimes(2);
   });
 
+  it('contains rendering failures from scheduled progress delivery', () => {
+    vi.useFakeTimers();
+    const reporter = vi.fn((update: V18MigrationProgress) => {
+      if (update.completed === 1) {
+        throw new Error('scheduled renderer failed');
+      }
+    });
+    const coalescer = new V18MigrationProgressCoalescer(reporter, 100);
+
+    coalescer.report(progress(0));
+    coalescer.report(progress(1));
+
+    expect(() => vi.advanceTimersByTime(100)).not.toThrow();
+    vi.advanceTimersByTime(100);
+    expect(reporter).toHaveBeenCalledTimes(2);
+  });
+
   it('flushes the previous writer before rendering the next writer', () => {
     vi.useFakeTimers();
     const rendered: V18MigrationProgress[] = [];

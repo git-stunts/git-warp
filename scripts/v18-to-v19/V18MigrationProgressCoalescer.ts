@@ -91,7 +91,11 @@ export default class V18MigrationProgressCoalescer {
     this.#timer = setTimeout(() => {
       this.#timer = null;
       if (this.#pending !== null) {
-        this.#deliverPending();
+        try {
+          this.#deliverPending();
+        } catch {
+          // Scheduled progress rendering must not terminate the migration.
+        }
         this.#scheduleWindow();
       }
     }, this.#intervalMs);
