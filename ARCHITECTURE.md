@@ -10,11 +10,12 @@ If you are learning the product for the first time, start with:
 
 ## Release posture
 
-`v19.0.1` is the current release. Applications open a `Runtime`, address causal
+`v19.0.2` is the current release. Applications open a `Runtime`, address causal
 `Lane`s, write validated `Intent`s, consume bounded `Observation` streams of
-`Reading`s, and keep `Receipt`s. The patch adds the safe one-shot retained-v18
-migration without changing the v19 application grammar. Git history and
-git-cas remain separate infrastructure concerns composed behind the Runtime.
+`Reading`s, and keep `Receipt`s. The patch makes the safe one-shot retained-v18
+migration observable at per-commit granularity and durable after the TUI exits,
+without changing the v19 application grammar. Git history and git-cas remain
+separate infrastructure concerns composed behind the Runtime.
 
 The longer release notes live in [CHANGELOG.md](CHANGELOG.md). The runtime
 architecture below describes current implementation boundaries, not aspirational

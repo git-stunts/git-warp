@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.2] - 2026-07-29
+
+### Release notes
+
+`v19.0.2` makes the safe v18-to-v19 migration observable and unambiguous
+throughout long inventories and rewrites. It emits progress for every commit,
+keeps terminal rendering bounded without hiding phase, writer, or final
+transitions, and prints durable success, authority-change, scratch-verification,
+and recovery-ref evidence after the framed application exits.
+
+This patch does not change the v19 runtime API, storage format, package
+entrypoints, or application grammar.
+
+### Fixed
+
+- Published inventory and rewrite progress for every migrated commit while
+  coalescing only terminal redraws on a bounded cadence.
+- Preserved phase, writer, named-step, and final progress at rendering
+  boundaries so long migrations no longer appear frozen.
+- Printed an explicit post-TUI report with migration status, repository, graph,
+  writer count, scratch verification, authoritative-ref change status, and
+  recovery-ref prefix.
+- Contained terminal and scheduled renderer failures so display I/O cannot
+  replace, mask, or asynchronously terminate the migration outcome.
+
+### Documentation
+
+- Added the streaming indexed recursive WARP architecture plan as future design
+  evidence; it does not claim that the runtime implementation has landed.
+
 ## [19.0.1] - 2026-07-28
 
 ### Release notes

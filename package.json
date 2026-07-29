@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "19.0.1",
+  "version": "19.0.2",
   "description": "Git-native causal history runtime for intent writes, timeline reads, and receipts.",
   "type": "module",
   "license": "Apache-2.0",

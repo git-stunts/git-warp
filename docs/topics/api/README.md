@@ -1,6 +1,6 @@
 # v19 Public Vocabulary Checkpoint
 
-> **Status:** Current in `v19.0.1`; introduced in `v19.0.0`.
+> **Status:** Current in `v19.0.2`; introduced in `v19.0.0`.
 >
 > This document is the normative product vocabulary and public-surface design.
 > The Runtime, Lane, Intent, Observer, streaming Observation, Reading, Receipt,
