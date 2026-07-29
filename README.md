@@ -46,19 +46,21 @@ It lets you:
 
 ## Latest release
 
-`v19.0.1` is the current release. It keeps the public runtime boundary
+`v19.0.2` is the current release. It keeps the public runtime boundary
 introduced in v19.0.0—open `Runtime`, address causal `Lane`s, write validated
 `Intent`s, consume bounded `Observation` streams of `Reading`s, and retain
-`Receipt`s—and replaces the unsafe v19.0.0 retained-state migrator. Existing
-repositories with retained v18 state require the v19.0.1 one-shot migration
-below before any v19 process opens them. Do not use the v19.0.0 migrator on an
-authoritative repository.
+`Receipt`s—and includes the safe retained-state migrator introduced in v19.0.1.
+The patch publishes per-commit progress during long inventory and rewrite
+phases and prints durable completion and recovery evidence after the TUI exits.
+Existing repositories with retained v18 state require the v19.0.2 one-shot
+migration below before any v19 process opens them. Do not use the v19.0.0
+migrator on an authoritative repository.
 
-The exact merged-main release gate's representative migrated-v18 retained scan
-was 31.1% faster cold, 32.1% faster warm, used 20.1–21.3% less operation CPU,
-and issued 46.6% fewer Git commands than published v18.2.1. These measurements
-cover the bounded 16-property fixture workload; they are not a universal
-workload claim.
+The v19.0.1 merged-main release gate's representative migrated-v18 retained
+scan was 31.1% faster cold, 32.1% faster warm, used 20.1–21.3% less operation
+CPU, and issued 46.6% fewer Git commands than published v18.2.1. These
+measurements cover the bounded 16-property fixture workload; they are not a
+universal workload claim.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
 
@@ -73,7 +75,7 @@ domain modules provide the validated intents and observers for an application.
 > starting the application, and run the confirmed migration:
 >
 > ```bash
-> npm exec --package=@git-stunts/git-warp@19.0.1 -- \
+> npm exec --package=@git-stunts/git-warp@19.0.2 -- \
 >   git-warp-v18-to-v19 \
 >   --repo /path/to/repository \
 >   --graph <graph-name>

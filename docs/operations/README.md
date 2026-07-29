@@ -16,8 +16,9 @@ It does not mutate authoritative history or silently repair git-cas.
 
 ## Migrate retained v18 state
 
-Use only the v19.0.1 migrator on an authoritative repository. The v19.0.0
-migrator is unsafe for retained v18 state.
+Use the v19.0.2 migrator on an authoritative repository. The v19.0.1 migrator
+is safe but lacks complete per-commit progress and durable post-TUI completion
+evidence. The v19.0.0 migrator is unsafe for retained v18 state.
 
 Prepare and test the v19 application without opening the authoritative
 repository. During the maintenance window, stop every writer and make an
@@ -37,7 +38,7 @@ names, reports source and scratch capacity, and asks for confirmation:
 ```bash
 GRAPH_NAME=your-graph-name
 
-npm exec --package=@git-stunts/git-warp@19.0.1 -- \
+npm exec --package=@git-stunts/git-warp@19.0.2 -- \
   git-warp-v18-to-v19 \
   --repo "$REPOSITORY" \
   --graph "$GRAPH_NAME"

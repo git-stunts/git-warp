@@ -10,6 +10,8 @@ const MIGRATION_GUIDE = readFileSync(join(ROOT, 'docs/migrations/v19/README.md')
 const OPERATIONS_GUIDE = readFileSync(join(ROOT, 'docs/operations/README.md'), 'utf8');
 const ROOT_README = readFileSync(join(ROOT, 'README.md'), 'utf8');
 const TOPICS_INDEX = readFileSync(join(ROOT, 'docs/topics/README.md'), 'utf8');
+const SAFE_MIGRATION_COMMAND =
+  /npm exec --package=@git-stunts\/git-warp@19\.0\.2 -- \\\r?\n(?:> )?[ \t]+git-warp-v18-to-v19/u;
 
 function generatedSdkSection(): string {
   const start = MIGRATION_GUIDE.indexOf('## Generated Domain SDKs');
@@ -20,15 +22,15 @@ function generatedSdkSection(): string {
 }
 
 describe('v19 migration guidance', () => {
-  it('keeps every public release signpost on v19.0.1', () => {
-    expect(ROOT_README).toContain('`v19.0.1` is the current release');
-    expect(ARCHITECTURE).toContain('`v19.0.1` is the current release');
-    expect(TOPICS_INDEX).toContain('`v19.0.1` is the current release');
-    expect(API_GUIDE).toContain('Current in `v19.0.1`');
+  it('keeps every public release signpost on v19.0.2', () => {
+    expect(ROOT_README).toContain('`v19.0.2` is the current release');
+    expect(ARCHITECTURE).toContain('`v19.0.2` is the current release');
+    expect(TOPICS_INDEX).toContain('`v19.0.2` is the current release');
+    expect(API_GUIDE).toContain('Current in `v19.0.2`');
   });
 
-  it('keeps the root README on the safe one-pass v19.0.1 migration', () => {
-    expect(ROOT_README).toContain('@git-stunts/git-warp@19.0.1');
+  it('keeps the root README on the safe one-pass v19.0.2 migration', () => {
+    expect(ROOT_README).toMatch(SAFE_MIGRATION_COMMAND);
     expect(ROOT_README).toContain('--repo /path/to/repository');
     expect(ROOT_README).toContain('--graph <graph-name>');
     expect(ROOT_README).toContain('--dry-run');
@@ -54,7 +56,7 @@ describe('v19 migration guidance', () => {
 
   it('gives operators one complete maintenance-window checklist', () => {
     expect(OPERATIONS_GUIDE).toContain('## Migrate retained v18 state');
-    expect(OPERATIONS_GUIDE).toContain('@git-stunts/git-warp@19.0.1');
+    expect(OPERATIONS_GUIDE).toMatch(SAFE_MIGRATION_COMMAND);
     expect(OPERATIONS_GUIDE).toContain('git clone --mirror --no-hardlinks');
     expect(OPERATIONS_GUIDE).toContain('already-current');
     expect(OPERATIONS_GUIDE).toContain('Keep the recovery refs');
