@@ -15,8 +15,13 @@ Readings, and retain Receipts.
 npm install @git-stunts/git-warp
 ```
 
-Generate your domain SDK with Wesley. The generated module supplies validated
-`*.intents` and `*.observers`; git-warp owns their execution.
+Generate your domain SDK with Wesley and an application-owned renderer. The
+generated module supplies validated `*.intents` and `*.observers`; git-warp
+owns their execution. The
+[v19 migration guide](../migrations/v19/README.md#generated-domain-sdks)
+explains what Wesley owns, installs the pinned compiler, shows the exact
+two-stage generation scripts and expected files, and runs the small executable
+`users` reference.
 
 ## Open a Runtime and Lane
 

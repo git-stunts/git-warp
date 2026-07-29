@@ -10,6 +10,7 @@ import {
 } from '../../src/domain/utils/RefLayout.ts';
 import { textDecode } from '../../src/domain/utils/bytes.ts';
 import { CURRENT_SUBSTRATE_MARKER } from '../../src/infrastructure/adapters/SubstrateVersionGate.ts';
+import { completeWithCleanup } from '../../src/infrastructure/adapters/OperationCleanup.ts';
 import { readV18PatchCommit } from './V18PatchCommit.ts';
 import {
   listV18MigrationRefs,
@@ -17,6 +18,7 @@ import {
   runV18MigrationGit,
   v18MigrationGitText,
 } from './V18MigrationGit.ts';
+import { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 import {
   reportV18MigrationProgress,
   shouldReportV18CommitProgress,
@@ -44,12 +46,14 @@ export type V18MigrationPlan = Readonly<{
 }>;
 
 /** Inventories every graph ref and validates all writer commits before scratch work. */
-export async function planV18ToV19Migration(options: Readonly<{
-  graph: string;
-  passphraseAvailable: boolean;
-  progress?: V18MigrationProgressReporter;
-  repositoryPath: string;
-}>): Promise<V18MigrationPlan> {
+export async function planV18ToV19Migration(
+  options: Readonly<{
+    graph: string;
+    passphraseAvailable: boolean;
+    progress?: V18MigrationProgressReporter;
+    repositoryPath: string;
+  }>
+): Promise<V18MigrationPlan> {
   validateGraphName(options.graph);
   const markerRef = buildSubstrateVersionRef(options.graph);
   const graphPrefix = `${REF_PREFIX}/${options.graph}/`;
@@ -106,30 +110,46 @@ export async function planV18ToV19Migration(options: Readonly<{
   if (writerRefs.length === 0) {
     throw new Error(`timeline '${options.graph}' has retained state but no writer refs`);
   }
-  const writers: V18MigrationWriterPlan[] = [];
-  for (const refName of writerRefs.sort()) {
-    writers.push(await planWriter({
-      ...options,
-      refName,
-    }));
-  }
+  const objectReader = new V18MigrationGitObjectReader(options.repositoryPath);
+  const writers = await completeWithCleanup(
+    async () => {
+      const plannedWriters: V18MigrationWriterPlan[] = [];
+      for (const refName of writerRefs.sort()) {
+        plannedWriters.push(
+          await planWriter({
+            ...options,
+            objectReader,
+            refName,
+          })
+        );
+      }
+      return plannedWriters;
+    },
+    async () => {
+      await objectReader.close();
+    },
+    'v18 migration planning and Git object reader cleanup both failed'
+  );
   return migrationPlan(
     options,
     markerRef,
     'migration-required',
     derivedRefs,
     preservedRefs,
-    writers,
+    writers
   );
 }
 
-async function planWriter(options: Readonly<{
-  graph: string;
-  passphraseAvailable: boolean;
-  progress?: V18MigrationProgressReporter;
-  refName: string;
-  repositoryPath: string;
-}>): Promise<V18MigrationWriterPlan> {
+async function planWriter(
+  options: Readonly<{
+    graph: string;
+    passphraseAvailable: boolean;
+    progress?: V18MigrationProgressReporter;
+    objectReader: V18MigrationGitObjectReader;
+    refName: string;
+    repositoryPath: string;
+  }>
+): Promise<V18MigrationWriterPlan> {
   const writer = parseWriterIdFromRef(options.refName);
   if (writer === null) {
     throw new Error(`invalid writer ref: ${options.refName}`);
@@ -154,11 +174,11 @@ async function planWriter(options: Readonly<{
     writer,
   });
   for (const sha of commits) {
-    const patch = await readV18PatchCommit(options.repositoryPath, sha);
+    const patch = await readV18PatchCommit(options.repositoryPath, sha, options.objectReader);
     if (
-      patch.graph !== options.graph
-      || patch.writer !== writer
-      || (patch.commit.parents[0] ?? null) !== previous
+      patch.graph !== options.graph ||
+      patch.writer !== writer ||
+      (patch.commit.parents[0] ?? null) !== previous
     ) {
       throw new Error(`writer chain identity or parent mismatch at ${sha}`);
     }
@@ -187,8 +207,8 @@ async function planWriter(options: Readonly<{
   }
   if (encryptedCount > 0 && !options.passphraseAvailable) {
     throw new Error(
-      `${options.refName} contains encrypted legacy patches; set `
-        + 'GIT_WARP_MIGRATION_PASSPHRASE before retrying',
+      `${options.refName} contains encrypted legacy patches; set ` +
+        'GIT_WARP_MIGRATION_PASSPHRASE before retrying'
     );
   }
   return Object.freeze({
@@ -204,9 +224,8 @@ async function planWriter(options: Readonly<{
 
 async function requireCurrentMarker(repositoryPath: string, oid: string): Promise<void> {
   const type = await v18MigrationGitText(repositoryPath, ['cat-file', '-t', oid]);
-  const bytes = type === 'blob'
-    ? await runV18MigrationGit(repositoryPath, ['cat-file', 'blob', oid])
-    : null;
+  const bytes =
+    type === 'blob' ? await runV18MigrationGit(repositoryPath, ['cat-file', 'blob', oid]) : null;
   if (bytes === null || textDecode(bytes) !== CURRENT_SUBSTRATE_MARKER) {
     throw new Error(`unsupported retained-substrate marker: ${oid}`);
   }
@@ -225,7 +244,7 @@ async function requireCommitRef(repositoryPath: string, refName: string): Promis
   const objectType = await v18MigrationGitText(repositoryPath, ['cat-file', '-t', oid]);
   if (objectType !== 'commit') {
     throw new Error(
-      `retained ref requires a pre-v18 migration before v19: ${refName} targets ${objectType}`,
+      `retained ref requires a pre-v18 migration before v19: ${refName} targets ${objectType}`
     );
   }
   return oid;
@@ -237,7 +256,7 @@ function migrationPlan(
   status: V18MigrationPlan['status'],
   derivedRefs: Readonly<Record<string, string>>,
   preservedRefs: Readonly<Record<string, string>>,
-  writers: readonly V18MigrationWriterPlan[],
+  writers: readonly V18MigrationWriterPlan[]
 ): V18MigrationPlan {
   return Object.freeze({
     derivedRefs: Object.freeze({ ...derivedRefs }),

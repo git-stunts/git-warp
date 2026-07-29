@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "19.0.0",
+  "version": "19.0.1",
   "description": "Git-native causal history runtime for intent writes, timeline reads, and receipts.",
   "type": "module",
   "license": "Apache-2.0",
@@ -54,6 +54,7 @@
   "files": [
     "dist",
     "bin/git-warp",
+    "docs",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
@@ -75,7 +76,8 @@
     "check:sdk-fixture": "node scripts/generated-sdk/GenerateUsersSdkFixture.ts --check",
     "lint": "sh -c 'eslint . \"$@\" && npm run lint:test-law && npm run lint:source-size && npm run lint:cas-invariants' --",
     "lint:ratchet": "sh scripts/lint-ratchet.sh",
-    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules --ignore \"**/node_modules/**\"",
+    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules --ignore \"**/node_modules/**\" && npm run lint:mermaid",
+    "lint:mermaid": "node scripts/validate-mermaid.ts",
     "lint:md:code": "node scripts/lint-markdown-code-samples.ts",
     "lint:docs-topology": "bash scripts/check-docs-topology.sh && npm run lint:source-backed-reference",
     "lint:links": "lychee --config .lychee.toml --include-fragments '**/*.md'",
@@ -136,6 +138,9 @@
     "ratchet:delta": "node scripts/ratchet-delta.ts"
   },
   "dependencies": {
+    "@flyingrobots/bijou": "^7.2.0",
+    "@flyingrobots/bijou-node": "^7.2.0",
+    "@flyingrobots/bijou-tui": "^7.2.0",
     "@git-stunts/alfred": "^0.10.4",
     "@git-stunts/git-cas": "^6.5.5",
     "@git-stunts/plumbing": "^3.2.0",
@@ -155,6 +160,7 @@
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@git-stunts/docker-guard": "^0.1.0",
+    "@mermaid-js/mermaid-cli": "^11.16.0",
     "@types/node": "^22.15.29",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",

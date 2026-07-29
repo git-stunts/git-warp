@@ -1,13 +1,12 @@
 # v19 Public Vocabulary Checkpoint
 
-> **Status:** Implemented checkpoint for `v19.0.0`.
+> **Status:** Current in `v19.0.1`; introduced in `v19.0.0`.
 >
 > This document is the normative product vocabulary and public-surface design.
 > The Runtime, Lane, Intent, Observer, streaming Observation, Reading, Receipt,
 > settlement, charts, generated SDK, CLI, and MCP surfaces are implemented.
 > One generated contract drives their public vocabulary and all twelve
-> acceptance gates execute in CI. The release witness remains the final
-> publication evidence.
+> acceptance gates execute in CI and release preflight.
 
 The product doctrine is:
 
@@ -34,17 +33,99 @@ An Observation emits Readings and leaves a Receipt.
 
 The four observation nouns are not aliases:
 
-| Noun | Responsibility |
-| --- | --- |
-| `Observer` | Reusable immutable executable observation plan |
+| Noun          | Responsibility                                               |
+| ------------- | ------------------------------------------------------------ |
+| `Observer`    | Reusable immutable executable observation plan               |
 | `Observation` | One resource-bounded execution of an Observer against a Lane |
-| `Reading` | One bounded semantic result emitted by an Observation |
-| `Receipt` | Durable terminal record of an operation |
+| `Reading`     | One bounded semantic result emitted by an Observation        |
+| `Receipt`     | Durable terminal record of an operation                      |
 
 The canonical sentence is:
 
 > An Observer runs against a Lane, producing an Observation that emits
 > Readings and leaves a Receipt.
+
+The following class diagram shows ownership and operation results. It is a
+vocabulary map, not a claim that every noun is implemented as a concrete
+class:
+
+```mermaid
+classDiagram
+  direction LR
+
+  class Runtime {
+    +open(options) Runtime
+    +lane(name) Lane
+    +fork(source, options) Lane
+    +strand(parent, options) Lane
+    +close()
+  }
+
+  class Lane {
+    +write(intent) Receipt
+    +observe(observer) Observation
+  }
+
+  class Intent {
+    <<validated write proposal>>
+  }
+
+  class Observer {
+    <<immutable observation plan>>
+  }
+
+  class Observation {
+    <<AsyncIterable of Reading>>
+    +one() Reading
+    +receipt ObservationReceiptPromise
+  }
+
+  class Reading {
+    <<bounded semantic result>>
+  }
+
+  class Receipt {
+    <<durable terminal record>>
+  }
+
+  class GeneratedDomainSDK {
+    +intents
+    +observers
+  }
+
+  Runtime "1" *-- "0..*" Lane : owns access
+  GeneratedDomainSDK ..> Intent : builds
+  GeneratedDomainSDK ..> Observer : builds
+  Lane ..> Intent : admits
+  Lane ..> Receipt : write returns
+  Lane ..> Observer : executes
+  Lane ..> Observation : creates
+  Observation --> Reading : emits
+  Observation --> Receipt : leaves
+```
+
+Read the diagram from left to right:
+
+1. Open one `Runtime`, then obtain one or more named or forked `Lane` handles.
+2. Use a generated domain SDK to construct validated `Intent` and `Observer`
+   values.
+3. A write admits an `Intent` and returns a terminal `Receipt`.
+4. An observation executes an `Observer`, streams bounded `Reading` values,
+   and leaves its own terminal `Receipt`.
+
+Each diagram noun is anchored to its current implementation or executable
+reference:
+
+| Diagram noun  | Source                                                                          |
+| ------------- | ------------------------------------------------------------------------------- |
+| `Runtime`     | [`src/application/Runtime.ts`](../../../src/application/Runtime.ts)             |
+| `Lane`        | [`src/domain/api/Lane.ts`](../../../src/domain/api/Lane.ts)                     |
+| `Intent`      | [`src/domain/api/Intent.ts`](../../../src/domain/api/Intent.ts)                 |
+| `Observer`    | [`src/domain/api/Observer.ts`](../../../src/domain/api/Observer.ts)             |
+| `Observation` | [`src/domain/api/Observation.ts`](../../../src/domain/api/Observation.ts)       |
+| `Reading`     | [`src/domain/api/Reading.ts`](../../../src/domain/api/Reading.ts)               |
+| `Receipt`     | [`src/domain/api/Receipt.ts`](../../../src/domain/api/Receipt.ts)               |
+| Generated SDK | [`users.generated.ts`](../../../test/fixtures/generated-sdk/users.generated.ts) |
 
 ## Disclosure Order
 
@@ -162,7 +243,7 @@ that coordinate is not silently promoted into a Runtime Lane.
 Application authors should normally use Wesley-generated domain SDKs:
 
 ```typescript
-import { users } from './generated/users.js';
+import { users } from './generated/users.generated.js';
 
 const receipt = await events.write(
   users.intents.assignRole({
@@ -556,15 +637,15 @@ actually need graph-shaped correlation and coordination.
 
 ## Supported Package Surfaces
 
-The intended package families are:
+The shipped package families are:
 
-| Surface | Role |
-| --- | --- |
-| root | `Runtime` plus type-only core contracts |
-| `/charts` | Derived graph-shaped Observers and Readings |
-| `/diagnostics` | `doctor`, repair planning, audit, and Receipt inspection |
-| `/advanced` | Formal reads and generic constructors for generated SDK infrastructure |
-| `/testing` | Explicit fake ports, fixtures, and Runtime harnesses |
+| Surface        | Role                                                                   |
+| -------------- | ---------------------------------------------------------------------- |
+| root           | `Runtime` plus type-only core contracts                                |
+| `/charts`      | Derived graph-shaped Observers and Readings                            |
+| `/diagnostics` | `doctor`, repair planning, audit, and Receipt inspection               |
+| `/advanced`    | Formal reads and generic constructors for generated SDK infrastructure |
+| `/testing`     | Explicit fake ports, fixtures, and Runtime harnesses                   |
 
 `/advanced` is not a holding area for everything removed from root. Legacy
 graph-first APIs are removed rather than hidden under a new public contract.
@@ -617,7 +698,7 @@ renaming transport batches as pages.
 ## MCP Grammar
 
 MCP exposes the same model through tools and resources rather than inventing a
-second ontology. The target capability families are:
+second ontology. The shipped capability families are:
 
 ```text
 warp_lane_describe
@@ -685,19 +766,19 @@ formal explanations.
 
 The superseded pre-checkpoint v19 facade has these dispositions:
 
-| Transitional v19 symbol | Canonical disposition |
-| --- | --- |
-| `openWarp()` | `Runtime.open()` |
-| `Warp` | `Runtime` |
-| `Timeline` | `Lane` |
-| `DraftTimeline` | `Lane` with `kind: 'strand'` |
-| `timeline.read(reading)` | `lane.observe(observer)` |
-| root `reading` builders | Wesley-generated `*.observers` or `/charts` |
-| root `intent` builders | Wesley-generated `*.intents` |
-| `previewJoin()` | `Runtime.previewSettlement()` |
-| `join()` | `Runtime.settle(plan)` |
-| `/storage` constructors | internal Runtime composition; testing injection under `/testing` |
-| graph package proposals | `/charts` |
+| Transitional v19 symbol  | Canonical disposition                                            |
+| ------------------------ | ---------------------------------------------------------------- |
+| `openWarp()`             | `Runtime.open()`                                                 |
+| `Warp`                   | `Runtime`                                                        |
+| `Timeline`               | `Lane`                                                           |
+| `DraftTimeline`          | `Lane` with `kind: 'strand'`                                     |
+| `timeline.read(reading)` | `lane.observe(observer)`                                         |
+| root `reading` builders  | Wesley-generated `*.observers` or `/charts`                      |
+| root `intent` builders   | Wesley-generated `*.intents`                                     |
+| `previewJoin()`          | `Runtime.previewSettlement()`                                    |
+| `join()`                 | `Runtime.settle(plan)`                                           |
+| `/storage` constructors  | internal Runtime composition; testing injection under `/testing` |
+| graph package proposals  | `/charts`                                                        |
 
 The v18 graph-first API remains removed. This checkpoint does not revive
 `browser`, `legacy`, `openWarpGraph`, `WarpApp`, `WarpCore`, patch builders, or
@@ -725,5 +806,5 @@ following:
     and substrate exceptions.
 
 The executable mapping for these gates lives in
-`scripts/RunV19AcceptanceGates.ts`; CI and the release witness must run the
-mapping without omissions before v19 publication.
+`scripts/RunV19AcceptanceGates.ts`; CI and release preflight run the mapping
+without omissions.

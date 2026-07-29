@@ -1,9 +1,10 @@
 # v19 Public API Migration Guide
 
-> **Status:** Pre-release. The canonical Runtime, worldline Lane, Observer,
-> streaming Observation, Reading, Receipt, and write-admission core has landed.
-> Fork/settlement, generated SDK publication, and CLI/MCP vocabulary
-> convergence remain tracked by issue #712.
+> **Status:** The public grammar shipped in `v19.0.0`. The retained-state
+> migration described below requires `v19.0.1`; do not use the `v19.0.0`
+> migrator on an authoritative repository. v19.0.1 ships the generic
+> constructors and an executable generated-SDK reference; each application
+> still owns the renderer that assigns domain meaning.
 
 v19 replaces the transitional storage- and timeline-shaped facade with one
 application grammar:
@@ -20,18 +21,132 @@ non-empty lane before migration fails with
 writer chain.
 
 Stop every process that can write to the repository, make a normal repository
-backup, and run the complete disposable proof:
+backup, and identify the graph name used by the application. Graph names are
+not fixed: one Git repository may contain several independent WARP graphs.
+
+Run the migration once:
 
 ```bash
-npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.0.1 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
-  --graph events
+  --graph <graph-name>
 ```
 
-Without `--apply`, the command inventories every writer commit, translates the
-legacy patch and content references in an isolated repository, builds a fresh
-v19 checkpoint, verifies a public v19 read, and verifies a disposable v19
-append. It leaves authoritative refs unchanged.
+The command first discovers every graph namespace in the repository. If the
+requested name does not exist, it stops with `Graph not found` and lists each
+graph it did find, its version posture, writer count, and ref count.
+
+In an interactive terminal, a framed summary asks for confirmation before the
+inventory begins. After confirmation, the command completes the migration in
+one pass. It reports the current phase, writer, item count, and progress bar.
+Use `--yes` for non-interactive automation and `--json` for a machine-readable
+final report. Before confirmation, the summary also reports current Git object
+storage, the scratch path, free space on the scratch and source Git volumes,
+and whether scratch free space meets the operating budget.
+
+### Maintenance-window checklist
+
+Prepare the v19 application before this window. Do not let either a v18 or v19
+application open the authoritative repository while the retained substrate is
+being migrated.
+
+1. Stop and disable every process that can write to any graph in the
+   repository.
+2. Create an independent mirror backup. `--no-hardlinks` matters for a local
+   source: it prevents the backup and source from sharing loose-object files.
+
+   ```bash
+   REPOSITORY=/path/to/repository
+   BACKUP=/path/to/git-warp-backup.git
+
+   git clone --mirror --no-hardlinks "$REPOSITORY" "$BACKUP"
+   git -C "$BACKUP" fsck --full
+   ```
+
+3. Record the selected graph's starting refs somewhere outside the repository.
+
+   ```bash
+   GRAPH_NAME=your-graph-name
+   REF_SNAPSHOT=/path/to/warp-refs.before.txt
+
+   git -C "$REPOSITORY" for-each-ref \
+     --format='%(refname) %(objectname)' \
+     "refs/warp/${GRAPH_NAME}/" > "$REF_SNAPSHOT"
+   ```
+
+4. Choose a scratch volume with at least the displayed operating budget. Pass
+   `--scratch-root <path>` when the system temporary volume is not suitable.
+5. Run the normal command without `--dry-run`, inspect the graph and capacity
+   summary, and confirm once.
+6. Save the final report and its recovery-ref prefix. A successful report says
+   `migrated` and `scratch verified: yes`.
+7. Rerun with `--yes --json`. It must verify the promoted repository and
+   report `already-current`; it must not move the promoted refs.
+8. Start only the already-tested v19 application. Verify a bounded read, one
+   application write, its Receipt, restart behavior, and the next backup.
+9. Keep the recovery refs until those checks and the application's retention
+   policy have been independently reviewed. Do not run Git garbage collection
+   as part of the cutover.
+
+### What the command does
+
+Discovery, preflight, inventory, scratch translation, and scratch verification
+do not change the source graph. After that proof, the source object database
+receives verified objects under temporary private import refs.
+**Authoritative WARP refs remain unchanged until the final compare-and-swap
+transaction.**
+
+```mermaid
+flowchart LR
+  source["Source repository<br/>authoritative refs"]
+  inventory["Inventory<br/>refs + writer commits"]
+  scratch["Scratch repository<br/>translated objects"]
+  verify["Scratch verification<br/>reopen + append + read"]
+  compare["Recheck source heads"]
+  import["Private import refs<br/>verified objects"]
+  promote["Atomic ref transaction"]
+  recovery["Recovery refs<br/>old objects retained"]
+
+  source --> inventory
+  inventory --> scratch
+  scratch --> verify
+  verify --> compare
+  compare -->|all OIDs unchanged| import
+  import --> promote
+  compare -->|any OID changed| abort["Abort without cutover"]
+  promote --> source
+  promote --> recovery
+```
+
+At the Git level, migration does not edit commits in place. Git objects are
+immutable:
+
+1. It inventories refs below `refs/warp/<graph>/` and walks every writer
+   commit from its ref toward its root.
+2. It creates new blobs and trees for v19 git-cas asset handles.
+3. It writes a new commit chain. Preserved author, committer, timestamp, tree,
+   and message bytes can still produce a different commit OID because a
+   translated commit names a different parent OID.
+4. It builds a bounded v19 checkpoint and substrate marker in the scratch
+   repository.
+5. It proves that the scratch graph can reopen, accept a disposable append,
+   return a bounded public reading, and produce a valid receipt.
+6. It re-inventories the source refs and aborts if anything changed during the
+   scratch proof.
+7. It fetches verified scratch objects under temporary
+   `refs/warp-migration-import/v18-to-v19/` refs in the source repository.
+8. One `git update-ref --stdin` transaction compares every original ref with
+   its inventoried OID, archives the original refs, and promotes the verified
+   refs. If any expected OID moved, the transaction fails as a unit.
+9. It deletes the temporary private import refs. Imported objects may remain
+   physically present, but no import ref remains part of the repository's
+   public or recovery topology.
+10. It verifies the promoted graph. If that proof fails, another guarded ref
+    transaction restores the original authoritative refs while retaining
+    recovery refs for diagnosis.
+
+After finalization, the temporary private import refs are deleted whether the
+promotion succeeds or fails.
 
 Current v18 audit, intent, strand, overlay, braid, and trust publication refs
 are carried through unchanged and included in the compare-and-swap inventory.
@@ -39,27 +154,84 @@ If one of those refs still targets a retired pre-v18 blob or tree shape, the
 command fails before scratch work. Run the older one-shot migration first;
 production v19 contains no fallback reader for that substrate.
 
-After the proof succeeds, rerun it with promotion enabled:
-
-```bash
-npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 \
-  --repo /path/to/repository \
-  --graph events \
-  --apply
-```
-
-Promotion rechecks every source head and uses one Git ref transaction. The
-transaction preserves the old writer, checkpoint, coverage, state-cache, and
-carried publication refs below:
+The old refs and blob-backed state-cache payload roots remain reachable below:
 
 ```text
 refs/warp/<graph>/recovery/v18-to-v19/<run-id>/
 ```
 
-It also retains each payload tree named only inside the old blob-backed state
-cache. No old ref is deleted or replaced unless every expected source OID is
-unchanged. Keep the recovery refs until application reads, writes, and backups
-have been independently confirmed.
+Keep those recovery refs until application reads, writes, and backups have
+been independently confirmed. They are deliberately additive: migration does
+not immediately reclaim old objects.
+
+### Time, memory, and disk
+
+Migration time scales mainly with writer-commit count, retained checkpoint
+size, and Git process overhead. The command may look idle while Git is writing
+or packing objects; follow the phase and progress display instead of the size
+of the source repository alone.
+
+The scratch and disposable verification repositories default to the operating
+system's temporary volume. Use `--scratch-root <path>` to place all of them on
+a volume with more space.
+
+The preflight operating budget is the greater of:
+
+```text
+4 × current Git object-storage bytes
+
+current Git object-storage bytes
+  + current object count × scratch-filesystem allocation block size
+```
+
+The second term matters because migration writes many small loose objects. A
+packed source object may occupy only a few bytes in a pack delta, while its
+replacement still consumes at least one filesystem allocation block before
+later Git maintenance packs it.
+
+The preflight deliberately counts the complete object database, even when only
+one of several graph namespaces is selected: shared and blob-indirected
+objects cannot always be attributed reliably to one graph before inventory.
+That makes the estimate conservative for multi-graph repositories.
+
+In the 11,708-commit Think rehearsal, the source object database was about
+78.5 MiB across 172,644 objects. A naive 2× estimate reported only 157 MiB,
+but scratch exceeded 300 MiB while the new objects were loose. The
+count-and-allocation formula recommends about 753 MiB on a 4 KiB-block
+filesystem.
+
+The budget is an operating minimum, not a mathematical upper bound. Object
+reuse, pack layout, retained checkpoint state, and repository-local Git
+configuration all affect the result.
+
+The source repository can also grow because recovery refs keep the old graph
+reachable while the promoted graph becomes authoritative. Do not expect the
+source repository to shrink during migration. A later, separately approved
+retention and garbage-collection decision is what can make old objects
+collectable.
+
+Production v19 public reads are bounded and do not decode a full graph state.
+The one-shot migration has one explicit legacy bridge: it may decode a
+monolithic v18 checkpoint, with a 64 MiB encoded-byte ceiling plus depth and
+item limits, to seed bounded v19 indexes. Repositories without a usable
+checkpoint fall back to replaying the complete writer history.
+
+### Rehearse only when you mean to
+
+The normal command performs the scratch proof and promotion in one invocation.
+Use `--dry-run` only when you explicitly want a rehearsal whose result will be
+discarded:
+
+```bash
+npm exec --package=@git-stunts/git-warp@19.0.1 -- git-warp-v18-to-v19 \
+  --repo /path/to/repository \
+  --graph <graph-name> \
+  --dry-run
+```
+
+Because the scratch repository is intentionally deleted, a later normal run
+must repeat the work. `--apply` remains accepted as a compatibility alias for
+the normal one-pass behavior; it is no longer required.
 
 For an encrypted v18 substrate, provide the passphrase through
 `GIT_WARP_MIGRATION_PASSPHRASE`; never place it in command-line arguments or
@@ -133,11 +305,17 @@ terminal state, and rejects new work.
 
 ## Generated Domain SDKs
 
-Generic root builders are gone. Application code should import a
-Wesley-generated domain module:
+A generated "user" is an application-facing domain SDK module. It is not a
+human account, login, authorization record, WARP writer, or Git identity. The
+example module is named `users` because its application domain manages user
+roles; another application might generate `orders`, `devices`, or
+`deployments`.
+
+Generic root builders are gone. Application code imports its generated domain
+module:
 
 ```typescript
-import { users } from './generated/users.js';
+import { users } from './generated/users.generated.js';
 
 const assignRole = users.intents.assignRole({
   subject: 'user:alice',
@@ -151,6 +329,207 @@ const roleOfAlice = users.observers.roleOf({
 
 Generated builders return validated, runtime-backed `Intent` and `Observer`
 objects. Loose JSON envelopes are not accepted at Lane boundaries.
+
+### What Wesley owns
+
+[Wesley](https://github.com/flyingrobots/wesley) is a domain-free
+GraphQL-to-IR compiler. "Domain-free" is the important boundary: Wesley reads
+GraphQL structure, preserves directive arguments, and emits deterministic
+TypeScript request types and operation metadata. It does not decide what an
+intent means, how a Lane executes, or how git-warp stores data. See the pinned
+[Wesley quick start](https://github.com/flyingrobots/wesley/blob/v0.3.0-alpha.1/README.md#quick-start)
+for its compiler-level commands.
+
+The application owns the semantic step. Its application-owned renderer checks
+the directives it supports and binds them to the runtime-backed constructors
+under `@git-stunts/git-warp/advanced`. The resulting domain module exposes only
+validated `*.intents` and bounded `*.observers` to ordinary application code.
+
+```mermaid
+flowchart LR
+  schema["Authored GraphQL schema<br/>domain operations + directives"]
+  wesley["Wesley<br/>structure to deterministic metadata"]
+  metadata["Generated request types<br/>and operation metadata"]
+  renderer["Application-owned renderer<br/>validate + assign git-warp meaning"]
+  sdk["Generated domain SDK<br/>intents + observers"]
+  runtime["Runtime and Lane<br/>execute validated values"]
+
+  schema --> wesley
+  wesley --> metadata
+  metadata --> renderer
+  renderer --> sdk
+  sdk --> runtime
+```
+
+This two-stage boundary prevents either tool from claiming knowledge it does
+not have: Wesley owns structure, while the application renderer owns domain
+meaning.
+
+### Prerequisites
+
+Use Node.js 22.18 or newer, install `@git-stunts/git-warp@19.0.1` in the
+application, and install the exact Wesley version used by the executable
+reference. Wesley is a native Rust CLI; install the
+[Rust toolchain and Cargo](https://rustup.rs/) first when `cargo` is not
+already available:
+
+```bash
+cargo install wesley-cli --version 0.3.0-alpha.1 --locked
+wesley --version
+```
+
+The second command must report `0.3.0-alpha.1`. Pinning matters because Wesley
+is pre-1.0 and its emitted metadata remains release-scoped.
+
+### Reproduce the small reference first
+
+The repository contains a small, non-Think example with two intents and two
+observers:
+
+- authored schema:
+  `test/fixtures/generated-sdk/users.graphql`
+- Wesley output:
+  `test/fixtures/generated-sdk/users.wesley.generated.ts`
+- application renderer:
+  `scripts/generated-sdk/RenderUsersSdkFixture.ts`
+- generated domain SDK:
+  `test/fixtures/generated-sdk/users.generated.ts`
+- write consumer:
+  `test/fixtures/generated-sdk/consumer-write.ts`
+- read consumer:
+  `test/fixtures/generated-sdk/consumer-read.ts`
+- packed-package, disposable-Git proof:
+  `scripts/smoke-generated-sdk.sh`
+
+From a git-warp checkout, reproduce and verify every generated byte:
+
+```bash
+npm ci
+npm run generate:sdk-fixture
+npm run check:sdk-fixture
+npm run test:sdk-fixture
+```
+
+The final command packs git-warp, installs that tarball in a temporary Node
+project, creates a disposable Git repository, writes through generated Intents,
+repairs its bounded materialization basis, and reads through generated
+Observers. It does not use or copy the Think database.
+
+### Add the same workflow to an application
+
+Keep one authored schema and one application renderer beside two checked-in
+generated files:
+
+```text
+scripts/
+  RenderUsersSdk.ts                    # authored application semantics
+src/
+  warp/
+    users.graphql                      # authored domain structure
+  generated/
+    users.wesley.generated.ts          # generated by Wesley
+    users.generated.ts                 # generated by the renderer
+```
+
+Add deterministic scripts to the application's `package.json`:
+
+```json
+{
+  "scripts": {
+    "generate:users:wesley": "wesley emit typescript --schema src/warp/users.graphql --out src/generated/users.wesley.generated.ts",
+    "generate:users:sdk": "node scripts/RenderUsersSdk.ts --out src/generated/users.generated.ts",
+    "generate:users": "npm run generate:users:wesley && npm run generate:users:sdk",
+    "check:users": "npm run generate:users && git diff --exit-code -- src/generated"
+  }
+}
+```
+
+Start the application's schema and renderer from the executable reference
+above:
+
+1. Copy the directive vocabulary and required operations from
+   `test/fixtures/generated-sdk/users.graphql`, then rename and extend them for
+   the application domain.
+2. Copy the pattern from
+   `scripts/generated-sdk/RenderUsersSdkFixture.ts` into
+   `scripts/RenderUsersSdk.ts`.
+3. Change the renderer's Wesley-metadata import to the application's
+   `src/generated/users.wesley.generated.ts`.
+4. Keep explicit contract checks for every supported intent kind, reading kind,
+   field binding, cardinality, decoder, and maximum reading count.
+5. Emit runtime validation and only the supported root and `/advanced`
+   imports shown by the reference.
+6. Run generation and commit both generated files:
+
+   ```bash
+   npm run generate:users
+   npm run check:users
+   ```
+
+git-warp v19.0.1 does not ship a universal renderer that guesses arbitrary
+application semantics. The renderer is deliberately application-owned. The
+checked-in reference supports `NODE_ADD`, `PROPERTY_SET`, bounded `PROPERTY`
+Observers, string decoding, and the exact `registerUser`, `assignRole`,
+`roleOf`, and `rolesOf` contracts. Add a new renderer mapping only when its
+runtime meaning and bounds are explicit.
+
+Application code consumes only the final generated module:
+
+```typescript
+import { Runtime } from '@git-stunts/git-warp';
+import { users } from './generated/users.generated.js';
+
+const runtime = await Runtime.open({
+  at: './application-repo',
+  writer: 'local',
+});
+
+try {
+  const lane = await runtime.lane('users');
+  await lane.write(
+    users.intents.registerUser({
+      subject: 'user:alice',
+    })
+  );
+  await lane.write(
+    users.intents.assignRole({
+      subject: 'user:alice',
+      role: 'admin',
+    })
+  );
+
+  const observation = lane.observe(users.observers.roleOf({ subject: 'user:alice' }));
+
+  console.log((await observation.one()).value);
+  console.log((await observation.receipt).status);
+} finally {
+  await runtime.close();
+}
+```
+
+### Code generation is not retained-data migration
+
+These are two separate migrations:
+
+- the retained-substrate command rewrites Git objects and refs once; it does
+  not modify application source;
+- the Wesley and renderer path produces TypeScript source and does not open or
+  mutate a retained WARP graph.
+
+Application SDK generation may be completed and tested in a source branch
+before the maintenance window. For cutover:
+
+1. Build and test the v19 application and its generated SDK without opening the
+   authoritative retained repository.
+2. Stop every v18 and v19 process that can write the repository.
+3. Back up the repository and run the one-shot retained-substrate migration.
+4. Verify that the selected graph is current and keep its recovery refs.
+5. Deploy the already-tested v19 application, then verify one application read,
+   write, and Receipt.
+
+Never start the v19 application against retained v18 data and expect source
+generation to migrate it. Conversely, rerunning source generation never
+rewrites Git refs or graph history.
 
 ## Write Migration
 
@@ -204,9 +583,7 @@ remain outside this four-way causal union.
 Before:
 
 ```typescript
-const result = await timeline.read(
-  reading.property({ subject: 'user:alice', key: 'role' })
-);
+const result = await timeline.read(reading.property({ subject: 'user:alice', key: 'role' }));
 
 console.log(result.value);
 console.log(result.receipt);
@@ -215,9 +592,7 @@ console.log(result.receipt);
 After:
 
 ```typescript
-const observation = events.observe(
-  users.observers.roleOf({ subject: 'user:alice' })
-);
+const observation = events.observe(users.observers.roleOf({ subject: 'user:alice' }));
 
 for await (const reading of observation) {
   console.log(reading.value);
@@ -272,7 +647,7 @@ derived | plural | conflict | obstruction
 Settlement is a later cross-lane operation. It is not another spelling of
 admission and it does not automatically linearize lawful plurality.
 
-The final v19 settlement contract is:
+The implemented v19 settlement contract is:
 
 ```typescript
 const preview = await runtime.previewSettlement({
@@ -288,13 +663,14 @@ The preview is non-authoritative. Its immutable plan is bound to exact source
 and target frontiers, proposal, law, and policy. `settle()` revalidates those
 bindings and must obstruct or reclassify a stale plan.
 
-This settlement surface is still open implementation work. Do not ship code
-that calls it until the corresponding v19 source and conformance evidence has
-landed.
+`Runtime.previewSettlement()` and `Runtime.settle()` are implemented, exported,
+type-checked public surfaces. Preview does not mutate the destination. Settle
+accepts only the immutable plan issued by preview, revalidates its bound basis,
+and returns a settlement Receipt.
 
 ## Expert Subpaths
 
-The intended v19 expert surfaces are:
+The shipped v19 expert surfaces are:
 
 ```text
 @git-stunts/git-warp/advanced
@@ -314,23 +690,23 @@ explicit `/testing` harness.
 
 ## Symbol Map
 
-| Before                         | v19 replacement                         |
-| ------------------------------ | --------------------------------------- |
-| `openWarp(options)`            | `Runtime.open({ at, writer })`          |
-| `warp.timeline(name)`          | `runtime.lane(name)`                    |
-| `timeline.write(intent.*)`     | `lane.write(generated.intents.*)`       |
-| `timeline.read(reading.*)`     | `lane.observe(generated.observers.*)`   |
-| `ReadingResult.value`          | streamed `Reading.value`                |
-| `ReadingResult.receipt`        | `await Observation.receipt`             |
-| `timeline.draft(name)`         | `runtime.fork(lane, { name })`          |
-| `timeline.previewJoin(draft)`  | `runtime.previewSettlement(...)`        |
-| `timeline.join(draft)`         | `runtime.settle(preview.plan)`           |
-| `GitStorage.open({ cwd })`     | internal to `Runtime.open({ at })`       |
-| `storage.close()`              | `runtime.close()`                        |
-| `accepted` write status        | `derived` or `plural` admission          |
-| `conflicted` write status      | `conflict` admission with witness        |
-| `obstructed`/`rejected` write  | `obstruction` admission with reason      |
-| root graph/query builders      | generated SDK or `/charts` observer      |
+| Before                        | v19 replacement                       |
+| ----------------------------- | ------------------------------------- |
+| `openWarp(options)`           | `Runtime.open({ at, writer })`        |
+| `warp.timeline(name)`         | `runtime.lane(name)`                  |
+| `timeline.write(intent.*)`    | `lane.write(generated.intents.*)`     |
+| `timeline.read(reading.*)`    | `lane.observe(generated.observers.*)` |
+| `ReadingResult.value`         | streamed `Reading.value`              |
+| `ReadingResult.receipt`       | `await Observation.receipt`           |
+| `timeline.draft(name)`        | `runtime.fork(lane, { name })`        |
+| `timeline.previewJoin(draft)` | `runtime.previewSettlement(...)`      |
+| `timeline.join(draft)`        | `runtime.settle(preview.plan)`        |
+| `GitStorage.open({ cwd })`    | internal to `Runtime.open({ at })`    |
+| `storage.close()`             | `runtime.close()`                     |
+| `accepted` write status       | `derived` or `plural` admission       |
+| `conflicted` write status     | `conflict` admission with witness     |
+| `obstructed`/`rejected` write | `obstruction` admission with reason   |
+| root graph/query builders     | generated SDK or `/charts` observer   |
 
 ## Upgrade Sequence
 
@@ -341,7 +717,8 @@ explicit `/testing` harness.
 5. Replace eager `read()` calls with streaming `observe()` consumption.
 6. Move receipt handling from each Reading to the Observation terminal path.
 7. Match all four admission variants exhaustively.
-8. Keep existing cross-lane join code isolated until settlement plans land.
+8. Replace cross-lane join code with `Runtime.previewSettlement()` followed by
+   `Runtime.settle(preview.plan)`.
 9. Replace graph-shaped reads with bounded `/charts` observers.
 10. Verify that no import from the removed `/storage` subpath remains.
 

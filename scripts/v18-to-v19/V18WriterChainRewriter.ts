@@ -4,6 +4,8 @@ import {
   readV18MigrationRef,
   v18MigrationGitText,
 } from './V18MigrationGit.ts';
+import type { V18MigrationGitCommitWriter } from './V18MigrationGitCommitWriter.ts';
+import type { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 import V18PatchTranslator from './V18PatchTranslator.ts';
 import {
   reportV18MigrationProgress,
@@ -22,8 +24,10 @@ export type V18WriterChainRewrite = Readonly<{
 
 /** Recreates one writer chain in order, translating only legacy patch payloads. */
 export async function rewriteV18WriterChain(options: Readonly<{
+  commitWriter?: V18MigrationGitCommitWriter;
   commitMap?: Map<string, string>;
   graph: string;
+  objectReader?: V18MigrationGitObjectReader;
   progress?: V18MigrationProgressReporter;
   refName: string;
   repositoryPath: string;
@@ -47,7 +51,11 @@ export async function rewriteV18WriterChain(options: Readonly<{
     writer: options.writer,
   });
   for (const sha of commits) {
-    const patch = await readV18PatchCommit(options.repositoryPath, sha);
+    const patch = await readV18PatchCommit(
+      options.repositoryPath,
+      sha,
+      options.objectReader,
+    );
     requirePatchIdentity(patch, options.graph, options.writer);
     requireLinearParent(patch, previousOld);
     const translated = patch.storage.kind === 'current'
@@ -62,6 +70,7 @@ export async function rewriteV18WriterChain(options: Readonly<{
       translated.tree,
       translated.message,
       previousNew,
+      options.commitWriter,
     );
     if (patch.storage.kind === 'current' && previousNew === previousOld && newSha !== sha) {
       throw new Error(`current commit ${sha} was not recreated byte-identically`);
@@ -138,7 +147,17 @@ async function createCommit(
   tree: string,
   message: string,
   parent: string | null,
+  commitWriter?: V18MigrationGitCommitWriter,
 ): Promise<string> {
+  if (commitWriter !== undefined) {
+    return await commitWriter.writeCommit({
+      author: patch.commit.author,
+      committer: patch.commit.committer,
+      message,
+      parent,
+      tree,
+    });
+  }
   const args = ['commit-tree', tree, '-F', '-'];
   if (parent !== null) {
     args.push('-p', parent);

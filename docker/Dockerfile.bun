@@ -10,6 +10,7 @@ WORKDIR /app
 COPY git-warp/package*.json ./
 COPY git-warp/scripts ./scripts
 COPY git-warp/patches ./patches
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 RUN bun install
 COPY git-warp .
 # Init a git repo so plumbing operations work inside the container.

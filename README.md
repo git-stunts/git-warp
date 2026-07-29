@@ -46,11 +46,13 @@ It lets you:
 
 ## Latest release
 
-`v19.0.0` replaces the graph-first application API with one public runtime
-boundary: open `Runtime`, address causal `Lane`s, write validated `Intent`s,
-consume bounded `Observation` streams of `Reading`s, and retain `Receipt`s.
-Existing repositories with retained v18 state require the packaged one-shot
-migration below before any v19 process opens them.
+`v19.0.1` is the current release. It keeps the public runtime boundary
+introduced in v19.0.0—open `Runtime`, address causal `Lane`s, write validated
+`Intent`s, consume bounded `Observation` streams of `Reading`s, and retain
+`Receipt`s—and replaces the unsafe v19.0.0 retained-state migrator. Existing
+repositories with retained v18 state require the v19.0.1 one-shot migration
+below before any v19 process opens them. Do not use the v19.0.0 migrator on an
+authoritative repository.
 
 The exact merged-main release gate's representative migrated-v18 retained scan
 was 31.1% faster cold, 32.1% faster warm, used 20.1–21.3% less operation CPU,
@@ -68,22 +70,27 @@ domain modules provide the validated intents and observers for an application.
 > [!IMPORTANT]
 > A repository with retained v18 state must be migrated before any v19 process
 > opens it. Stop every v18 writer, back up the repository, install v19 without
-> starting the application, and run the one-shot proof followed by promotion:
+> starting the application, and run the confirmed migration:
 >
 > ```bash
-> npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 --repo /path/to/repository --graph events
-> npm exec --package=@git-stunts/git-warp@19.0.0 -- git-warp-v18-to-v19 --repo /path/to/repository --graph events --apply
+> npm exec --package=@git-stunts/git-warp@19.0.1 -- \
+>   git-warp-v18-to-v19 \
+>   --repo /path/to/repository \
+>   --graph <graph-name>
 > ```
 >
-> The first command is a non-mutating disposable rehearsal. v19 fails closed
-> with `E_SUBSTRATE_MIGRATION_REQUIRED` until promotion succeeds. Keep the
-> additive recovery refs reported by the command until application reads,
-> writes, and backups are independently verified. See the
+> The command discovers graph namespaces, previews capacity and mutations, and
+> asks for confirmation before completing its scratch proof and guarded
+> promotion in one pass. Use `--dry-run` only for a disposable rehearsal; a
+> later migration must repeat that work. v19 fails closed with
+> `E_SUBSTRATE_MIGRATION_REQUIRED` until promotion succeeds. Keep the additive
+> recovery refs until application reads, writes, and backups are independently
+> verified. See the
 > [complete v19 migration guide](docs/migrations/v19/).
 
 ```typescript
 import { Runtime } from '@git-stunts/git-warp';
-import { users } from './generated/users.js';
+import { users } from './generated/users.generated.js';
 
 const runtime = await Runtime.open({
   at: '.',

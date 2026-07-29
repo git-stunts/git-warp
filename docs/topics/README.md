@@ -5,11 +5,13 @@ specific task.
 
 ## Current release
 
-`v19.0.0` ships the Runtime, Lane, Intent, Observer, Observation, Reading, and
-Receipt application vocabulary, bounded retained reads, and the one-shot
-v18-to-v19 substrate migration. Operator workflows live outside the topic
-shelf in [Operations](../operations/). The full breaking-change, migration,
-and performance narrative lives in the root [CHANGELOG](../../CHANGELOG.md).
+`v19.0.1` is the current release. It ships the Runtime, Lane, Intent, Observer,
+Observation, Reading, and Receipt application vocabulary, bounded retained
+reads, and the safe one-shot v18-to-v19 substrate migration. Do not use the
+v19.0.0 migrator on an authoritative repository. Operator workflows live
+outside the topic shelf in [Operations](../operations/). The full
+breaking-change, migration, and performance narrative lives in the root
+[CHANGELOG](../../CHANGELOG.md).
 
 ## Start here
 
