@@ -601,11 +601,21 @@ A recursive receipt records:
 - pending frontier or continuation cursor;
 - completeness, redaction, and obstruction posture.
 
-A continuation cursor names immutable operation-workspace roots for the
-visited-basis set and pending work log, plus the pinned graph-root table and
-next result sequence. Cursor validation fails closed if any root, ordering
-position, budget posture, or receipt commitment disagrees. This makes resumption
-stable even when a referenced live locator advances between calls.
+Before issuing a continuation, the scheduler stops admission and normalizes all
+remaining work into one new immutable continuation log. It writes the bounded
+ready queue first in exact dequeue order, then streams the unread suffix of the
+existing external work log without collecting that suffix. After the new root
+is flushed, no admitted work remains represented only in process memory.
+
+The continuation cursor names immutable operation-workspace roots for the
+visited-basis set and normalized continuation log, the log's exact next-read
+and committed-end offsets, the pinned graph-root table, and the next result
+sequence. Resume reconstructs its ready queue only from that closed log
+interval. Cursor validation fails closed if either offset is outside the named
+root, if the interval does not match the preceding receipt, or if any root,
+ordering position, budget posture, or receipt commitment disagrees. This makes
+resumption stable without dropped, replayed, or reordered work even when a
+referenced live locator advances between calls.
 
 ### Retention and garbage collection
 
@@ -678,13 +688,53 @@ results. They never silently switch to a heap-resident graph.
 
 Legacy compatibility remains under `scripts/`, never under `src/`.
 
-The retained-substrate migrator will:
+### Manifest schema transition
+
+The v20 `RetainedGraphManifest` uses a new schema version whose root set omits
+`replayBasis`; it is neither optional nor represented by an unavailable
+sentinel. Manifest construction requires the dictionary, address, Roaring,
+causal, attachment, graph-reference, and commitment roots. No v20 builder,
+checkpoint, or resume path accepts a complete state object or emits a
+`replayBasis` root.
+
+A v19 materialization descriptor containing
+`MaterializationRoots.replayBasis` is classified as legacy substrate.
+Production v20 fails with `legacy-substrate-required` before opening it.
+`GitCasMaterializationReplayBasis.loadRoot` and its full-state codec are removed
+from `src/`; the version-pinned reader needed to interpret an existing v19
+checkpoint lives only under `scripts/v19-to-v20/`. Migration streams that
+legacy asset into the incremental reader, or streams authoritative writer
+history when no usable checkpoint exists, and constructs only v20 indexed
+roots. Existing v19 checkpoints remain valid recovery inputs behind recovery
+refs, but no promoted v20 manifest names them.
+
+### Source routes
+
+The primary retained-substrate migrator lives under `scripts/v19-to-v20/` and
+accepts the documented authoritative v19 descriptor, checkpoint, patch, and
+writer-ref shapes. The Think-sized 23,995,927-byte replay basis is a v19 input
+fixture for this boundary.
+
+An authoritative v18 repository takes an explicit two-stage route:
+
+1. the released `scripts/v18-to-v19/` migrator produces and verifies canonical
+   v19.0.1 substrate;
+2. `scripts/v19-to-v20/` inventories that exact result and produces v20 indexed
+   roots.
+
+The combined migration command may orchestrate both stages in one maintenance
+window, but each stage keeps its own versioned grammar, canonical validation,
+source-coordinate diagnostics, ref inventory, scratch proof, and
+compare-and-swap boundary. Tests cover direct v19 input and the complete
+v18-to-v19.0.1-to-v20 chain; neither grammar guesses shapes owned by the other.
+
+The v19-to-v20 retained-substrate migrator will:
 
 1. Discover and classify graph namespaces.
 2. Preflight repository, Git executable, free space, source refs, legacy
    artifact sizes, and execution budgets.
 3. Ask for confirmation before expensive work.
-4. Stream legacy checkpoint components and writer patches through a
+4. Stream v19 checkpoint components and writer patches through a
    migration-only incremental CBOR event reader.
 5. Lower decoded values into canonical state-record streams.
 6. Build dictionaries, address pages, Roaring roots, causal roots, attachment
@@ -708,9 +758,9 @@ streams; oversized structured legacy values are kept as external byte ranges
 and converted by a second bounded pass rather than assembled as JavaScript
 objects.
 
-This is not ordinary runtime compatibility. The incremental legacy grammar and
-its semantic lowering live under `scripts/v18-to-v19/`, accept only the
-documented v18 shapes, verify canonical lengths and nesting while consuming
+This is not ordinary runtime compatibility. The incremental v19 grammar and
+its semantic lowering live under `scripts/v19-to-v20/`, accept only the
+documented v19 shapes, verify canonical lengths and nesting while consuming
 them, and fail with a source-coordinate diagnostic on unknown input. The
 ordinary v20 runtime only opens the indexed roots produced by that script.
 
@@ -797,11 +847,13 @@ Required tests:
   cycle, indirect cycle, live locator, missing capability, and redacted child.
 - Recursive traversal honors slow-consumer backpressure and every declared
   budget.
-- Recursive traversal holds its ready queue below both configured capacities,
-  spills excess fan-out, and resumes from the spill root without duplicate,
-  skipped, or reordered results.
-- A continuation preserves its pinned live-locator roots, visited set, pending
-  queue, and ordering position when the underlying live locator advances.
+- Recursive traversal permits ready-queue item and encoded-byte usage to reach,
+  but never exceed, their configured capacities; it spills excess fan-out and
+  resumes from the spill root without duplicate, skipped, or reordered results.
+- A continuation normalizes its complete ready queue and unread spill suffix
+  into one immutable log, persists exact read/end offsets, and preserves its
+  pinned live-locator roots, visited set, and ordering position when the
+  underlying live locator advances.
 - Concurrent export emits byte-identical deterministic order when payloads
   finish in adversarial order and never exceeds its reorder-buffer caps.
 - Recursive retention and doctor remain cycle-safe.
