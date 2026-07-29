@@ -16,6 +16,8 @@ import {
   inspectV18MigrationPreflight,
 } from './V18MigrationPreflight.ts';
 import { type V18MigrationProgress, v18MigrationProgressPercent } from './V18MigrationProgress.ts';
+import V18MigrationProgressCoalescer from './V18MigrationProgressCoalescer.ts';
+import { formatV18MigrationReport } from './V18MigrationReport.ts';
 import { createV18MigrationTheme } from './V18MigrationTheme.ts';
 
 export type V18MigrationCliOptions = Readonly<{
@@ -51,8 +53,10 @@ async function main(): Promise<void> {
     ...(options.scratchRoot === undefined ? {} : { scratchRoot: options.scratchRoot }),
   };
   let report: V18MigrationCommandReport;
+  let usedInteractiveApp = false;
   if (!options.assumeYes) {
     requireInteractiveConfirmation(catalog.summary());
+    usedInteractiveApp = true;
     const result = await runV18MigrationApp({
       context: ctx,
       graph,
@@ -69,19 +73,29 @@ async function main(): Promise<void> {
     report = result.report;
   } else {
     process.stderr.write(`${catalog.summary()}\n${formatV18MigrationPreflight(preflight)}\n`);
-    report = await runV18ToV19Migration({
-      ...sharedOptions,
-      graph: options.graph,
-      progress: (progress) => {
-        process.stderr.write(formatProgress(progress, ctx));
-      },
+    const progress = new V18MigrationProgressCoalescer((update) => {
+      process.stderr.write(formatProgress(update, ctx));
     });
+    try {
+      report = await runV18ToV19Migration({
+        ...sharedOptions,
+        graph: options.graph,
+        progress: (update) => progress.report(update),
+      });
+    } finally {
+      progress.flush();
+    }
+  }
+  if (usedInteractiveApp) {
+    process.stderr.write(formatV18MigrationReport(report));
   }
   if (options.json) {
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     return;
   }
-  process.stdout.write(formatReport(report));
+  if (!usedInteractiveApp) {
+    process.stdout.write(formatV18MigrationReport(report));
+  }
 }
 
 function migrationContext(): BijouContext {
@@ -175,23 +189,6 @@ function requireValue(args: readonly string[], index: number, option: string): s
     throw new Error(`${option} requires a value`);
   }
   return value;
-}
-
-function formatReport(report: Awaited<ReturnType<typeof runV18ToV19Migration>>): string {
-  const lines = [
-    `v18-to-v19 retained-substrate migration: ${report.status}`,
-    `repository: ${report.plan.repositoryPath}`,
-    `graph: ${report.plan.graph}`,
-    `writers: ${String(report.plan.writers.length)}`,
-    `scratch verified: ${report.scratchVerified ? 'yes' : 'no'}`,
-  ];
-  if (report.finalization !== null) {
-    lines.push(`recovery refs: ${report.finalization.recoveryPrefix}`);
-  }
-  if (report.status === 'verified-dry-run') {
-    lines.push('no authoritative refs changed; a later promotion reruns the migration');
-  }
-  return `${lines.join('\n')}\n`;
 }
 
 function usage(): string {

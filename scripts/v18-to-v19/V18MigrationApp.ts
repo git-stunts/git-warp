@@ -14,6 +14,7 @@ import { runV18ToV19Migration, type V18MigrationCommandReport } from './V18Migra
 import type V18MigrationExecutionMode from './V18MigrationExecutionMode.ts';
 import type V18MigrationGraph from './V18MigrationGraph.ts';
 import type { V18MigrationProgress } from './V18MigrationProgress.ts';
+import V18MigrationProgressCoalescer from './V18MigrationProgressCoalescer.ts';
 import type { V18MigrationPreflight } from './V18MigrationPreflight.ts';
 import {
   renderV18MigrationApp,
@@ -50,19 +51,24 @@ export async function runV18MigrationApp(
 ): Promise<V18MigrationAppResult> {
   let result: V18MigrationAppResult = Object.freeze({ status: 'cancelled' });
   const execute: Cmd<V18MigrationAppMsg> = async (emit) => {
+    const progress = new V18MigrationProgressCoalescer((update) => {
+      emit(Object.freeze({ progress: update, type: 'progress' }));
+    });
     try {
       const report = await runV18ToV19Migration({
         graph: options.graph.name,
         mode: options.mode,
-        progress: (progress) => emit(Object.freeze({ progress, type: 'progress' })),
+        progress: (update) => progress.report(update),
         repositoryPath: options.repositoryPath,
         ...(options.passphrase === undefined ? {} : { passphrase: options.passphrase }),
         ...(options.recoveryId === undefined ? {} : { recoveryId: options.recoveryId }),
         ...(options.scratchRoot === undefined ? {} : { scratchRoot: options.scratchRoot }),
       });
+      progress.flush();
       result = Object.freeze({ report, status: 'completed' });
       return Object.freeze({ report, type: 'succeeded' });
     } catch (error: unknown) {
+      progress.flush();
       result = Object.freeze({ error, status: 'failed' });
       return Object.freeze({
         error,

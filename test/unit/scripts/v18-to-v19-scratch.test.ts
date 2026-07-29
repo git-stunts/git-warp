@@ -15,6 +15,7 @@ import type { SnapshotPropValue } from '../../../src/domain/services/snapshot/Sn
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { restoreV18RetainedSubstrateFixture } from '../../../scripts/v18-to-v19/V18RetainedSubstrateFixtureRestore.ts';
 import { planV18ToV19Migration } from '../../../scripts/v18-to-v19/V18MigrationPlan.ts';
+import type { V18MigrationProgress } from '../../../scripts/v18-to-v19/V18MigrationProgress.ts';
 import {
   prepareV18MigrationScratch,
   type V18PreparedMigration,
@@ -23,12 +24,8 @@ import { v18MigrationGitText } from '../../../scripts/v18-to-v19/V18MigrationGit
 import { collectAsyncBytes } from '../../helpers/collectAsyncBytes.ts';
 import { readRequiredV18MigrationRefMap } from '../../helpers/V18MigrationRefMap.ts';
 
-const MANIFEST_PATH = resolve(
-  'fixtures/v18/retained-substrate-golden/manifest.json',
-);
-const MEDIUM_MANIFEST_PATH = resolve(
-  'fixtures/v18/retained-substrate-medium/manifest.json',
-);
+const MANIFEST_PATH = resolve('fixtures/v18/retained-substrate-golden/manifest.json');
+const MEDIUM_MANIFEST_PATH = resolve('fixtures/v18/retained-substrate-medium/manifest.json');
 
 describe('v18-to-v19 scratch migration', () => {
   const temporaryDirectories: string[] = [];
@@ -36,12 +33,12 @@ describe('v18-to-v19 scratch migration', () => {
 
   afterEach(async () => {
     await Promise.all(
-      preparedMigrations.splice(0).map(async (prepared) => await prepared.cleanup()),
+      preparedMigrations.splice(0).map(async (prepared) => await prepared.cleanup())
     );
     await Promise.all(
       temporaryDirectories.splice(0).map(async (directory) => {
         await rm(directory, { recursive: true, force: true });
-      }),
+      })
     );
   });
 
@@ -57,14 +54,11 @@ describe('v18-to-v19 scratch migration', () => {
     if (preservedHead === undefined) {
       throw new Error('authentic fixture has no writer head');
     }
-    await v18MigrationGitText(
-      restored.repositoryPath,
-      ['update-ref', preservedRef, preservedHead],
-    );
-    const sourceHeads = await readRequiredV18MigrationRefMap(
-      restored.repositoryPath,
-      [...restored.manifest.refs.map((ref) => ref.refName), preservedRef],
-    );
+    await v18MigrationGitText(restored.repositoryPath, ['update-ref', preservedRef, preservedHead]);
+    const sourceHeads = await readRequiredV18MigrationRefMap(restored.repositoryPath, [
+      ...restored.manifest.refs.map((ref) => ref.refName),
+      preservedRef,
+    ]);
     const plan = await planV18ToV19Migration({
       graph: restored.manifest.graphId,
       passphraseAvailable: false,
@@ -80,31 +74,31 @@ describe('v18-to-v19 scratch migration', () => {
     preparedMigrations.push(prepared);
 
     expect(dirname(prepared.scratchPath)).toBe(scratchRoot);
-    expect(prepared.desiredRefs).toHaveProperty(
-      buildCheckpointRef(restored.manifest.graphId),
-    );
+    expect(prepared.desiredRefs).toHaveProperty(buildCheckpointRef(restored.manifest.graphId));
     expect(prepared.desiredRefs).toHaveProperty(plan.markerRef);
     expect(prepared.desiredRefs).toHaveProperty(preservedRef, preservedHead);
     expect(Object.keys(prepared.desiredRefs)).not.toContain(
-      restored.manifest.retainedState.refName,
+      restored.manifest.retainedState.refName
     );
-    expect(await readRequiredV18MigrationRefMap(
-      restored.repositoryPath,
-      [...restored.manifest.refs.map((ref) => ref.refName), preservedRef],
-    )).toEqual(sourceHeads);
+    expect(
+      await readRequiredV18MigrationRefMap(restored.repositoryPath, [
+        ...restored.manifest.refs.map((ref) => ref.refName),
+        preservedRef,
+      ])
+    ).toEqual(sourceHeads);
 
     const title = await observeProperty(
       prepared.scratchPath,
       restored.manifest.graphId,
       'doc:fixture',
-      'title',
+      'title'
     );
     expect(title).toBe('Authentic v18 retained state');
     const contentHandle = await observeProperty(
       prepared.scratchPath,
       restored.manifest.graphId,
       'doc:fixture',
-      '_content',
+      '_content'
     );
     expect(typeof contentHandle).toBe('string');
     if (typeof contentHandle !== 'string') {
@@ -115,11 +109,13 @@ describe('v18-to-v19 scratch migration', () => {
       codec: new GitCasCborCodec(),
     });
     try {
-      const content = await collectAsyncBytes(cas.assets.open({
-        handle: GitCasAssetHandle.parse(contentHandle),
-      }));
+      const content = await collectAsyncBytes(
+        cas.assets.open({
+          handle: GitCasAssetHandle.parse(contentHandle),
+        })
+      );
       expect(Buffer.from(content).toString('utf8')).toBe(
-        'v18 blob-backed content retained for v19 migration proof\n',
+        'v18 blob-backed content retained for v19 migration proof\n'
       );
     } finally {
       await cas.close();
@@ -136,20 +132,19 @@ describe('v18-to-v19 scratch migration', () => {
     const retiredOid = await v18MigrationGitText(
       restored.repositoryPath,
       ['hash-object', '-w', '--stdin'],
-      { input: 'retired audit receipt' },
+      { input: 'retired audit receipt' }
     );
     const retiredRef = `refs/warp/${restored.manifest.graphId}/audit/retired`;
-    await v18MigrationGitText(
-      restored.repositoryPath,
-      ['update-ref', retiredRef, retiredOid],
-    );
+    await v18MigrationGitText(restored.repositoryPath, ['update-ref', retiredRef, retiredOid]);
 
-    await expect(planV18ToV19Migration({
-      graph: restored.manifest.graphId,
-      passphraseAvailable: false,
-      repositoryPath: restored.repositoryPath,
-    })).rejects.toThrow(
-      `retained ref requires a pre-v18 migration before v19: ${retiredRef} targets blob`,
+    await expect(
+      planV18ToV19Migration({
+        graph: restored.manifest.graphId,
+        passphraseAvailable: false,
+        repositoryPath: restored.repositoryPath,
+      })
+    ).rejects.toThrow(
+      `retained ref requires a pre-v18 migration before v19: ${retiredRef} targets blob`
     );
   });
 
@@ -162,33 +157,43 @@ describe('v18-to-v19 scratch migration', () => {
     });
     const sourceHeads = await readRequiredV18MigrationRefMap(
       restored.repositoryPath,
-      restored.manifest.refs.map((ref) => ref.refName),
+      restored.manifest.refs.map((ref) => ref.refName)
     );
+    const progress: V18MigrationProgress[] = [];
     const plan = await planV18ToV19Migration({
       graph: restored.manifest.graphId,
       passphraseAvailable: false,
+      progress: (event) => progress.push(event),
       repositoryPath: restored.repositoryPath,
     });
+    expect(inventoryCounts(progress, 'medium-alice')).toEqual(
+      Array.from({ length: 17 }, (_, completed) => completed)
+    );
+    expect(inventoryCounts(progress, 'medium-bob')).toEqual([0, 1, 2]);
     const prepared = await prepareV18MigrationScratch({ plan });
     preparedMigrations.push(prepared);
 
-    await expect(observeProperty(
-      prepared.scratchPath,
-      restored.manifest.graphId,
-      'medium:document:015',
-      'ordinal',
-    )).resolves.toBe(15);
-    await expect(observeProperty(
-      prepared.scratchPath,
-      restored.manifest.graphId,
-      'medium:review:01',
-      'reviewed',
-    )).resolves.toBe(true);
+    await expect(
+      observeProperty(
+        prepared.scratchPath,
+        restored.manifest.graphId,
+        'medium:document:015',
+        'ordinal'
+      )
+    ).resolves.toBe(15);
+    await expect(
+      observeProperty(
+        prepared.scratchPath,
+        restored.manifest.graphId,
+        'medium:review:01',
+        'reviewed'
+      )
+    ).resolves.toBe(true);
     const contentHandle = await observeProperty(
       prepared.scratchPath,
       restored.manifest.graphId,
       'medium:document:015',
-      '_content',
+      '_content'
     );
     expect(typeof contentHandle).toBe('string');
     if (typeof contentHandle !== 'string') {
@@ -199,34 +204,46 @@ describe('v18-to-v19 scratch migration', () => {
       codec: new GitCasCborCodec(),
     });
     try {
-      const content = await collectAsyncBytes(cas.assets.open({
-        handle: GitCasAssetHandle.parse(contentHandle),
-      }));
+      const content = await collectAsyncBytes(
+        cas.assets.open({
+          handle: GitCasAssetHandle.parse(contentHandle),
+        })
+      );
       expect(content).toHaveLength(128 * 1024);
     } finally {
       await cas.close();
     }
-    expect(await readRequiredV18MigrationRefMap(
-      restored.repositoryPath,
-      restored.manifest.refs.map((ref) => ref.refName),
-    )).toEqual(sourceHeads);
+    expect(
+      await readRequiredV18MigrationRefMap(
+        restored.repositoryPath,
+        restored.manifest.refs.map((ref) => ref.refName)
+      )
+    ).toEqual(sourceHeads);
   }, 120_000);
 });
+
+function inventoryCounts(progress: readonly V18MigrationProgress[], writer: string): number[] {
+  return progress
+    .filter((event) => event.phase === 'inventory' && event.writer === writer)
+    .flatMap((event) => (event.completed === undefined ? [] : [event.completed]));
+}
 
 async function observeProperty(
   repositoryPath: string,
   graph: string,
   subject: string,
-  key: string,
+  key: string
 ): Promise<SnapshotPropValue> {
   const runtime = await Runtime.open({ at: repositoryPath, writer: 'fixture-reader' });
   try {
     const lane = await runtime.lane(graph);
-    const observation = lane.observe(createObserver<SnapshotPropValue>(
-      `fixture.${key}`,
-      Reading.property({ subject, key }),
-      (value) => value,
-    ));
+    const observation = lane.observe(
+      createObserver<SnapshotPropValue>(
+        `fixture.${key}`,
+        Reading.property({ subject, key }),
+        (value) => value
+      )
+    );
     return (await observation.one()).value;
   } finally {
     await runtime.close();

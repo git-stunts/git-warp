@@ -13,6 +13,7 @@ import { restoreV18RetainedSubstrateFixture } from '../../../scripts/v18-to-v19/
 import { V18MigrationGitObjectReader } from '../../../scripts/v18-to-v19/V18MigrationGitObjectReader.ts';
 import { readV18PatchCommit } from '../../../scripts/v18-to-v19/V18PatchCommit.ts';
 import V18PatchTranslator from '../../../scripts/v18-to-v19/V18PatchTranslator.ts';
+import type { V18MigrationProgress } from '../../../scripts/v18-to-v19/V18MigrationProgress.ts';
 import {
   rewriteV18WriterChain,
   type V18WriterChainRewrite,
@@ -20,9 +21,7 @@ import {
 import { v18MigrationGitText } from '../../../scripts/v18-to-v19/V18MigrationGit.ts';
 import { collectAsyncBytes } from '../../helpers/collectAsyncBytes.ts';
 
-const MANIFEST_PATH = resolve(
-  'fixtures/v18/retained-substrate-golden/manifest.json',
-);
+const MANIFEST_PATH = resolve('fixtures/v18/retained-substrate-golden/manifest.json');
 
 describe('v18-to-v19 writer chain migration', () => {
   const temporaryDirectories: string[] = [];
@@ -31,7 +30,7 @@ describe('v18-to-v19 writer chain migration', () => {
     await Promise.all(
       temporaryDirectories.splice(0).map(async (directory) => {
         await rm(directory, { recursive: true, force: true });
-      }),
+      })
     );
   });
 
@@ -49,17 +48,21 @@ describe('v18-to-v19 writer chain migration', () => {
     });
     const rewrites: V18WriterChainRewrite[] = [];
     const commitMap = new Map<string, string>();
+    const progress: V18MigrationProgress[] = [];
     try {
       for (const ref of restored.manifest.refs) {
         if (ref.kind === 'writer') {
-          rewrites.push(await rewriteV18WriterChain({
-            commitMap,
-            graph: restored.manifest.graphId,
-            refName: ref.refName,
-            repositoryPath: restored.repositoryPath,
-            translator,
-            writer: ref.writerId,
-          }));
+          rewrites.push(
+            await rewriteV18WriterChain({
+              commitMap,
+              graph: restored.manifest.graphId,
+              progress: (event) => progress.push(event),
+              refName: ref.refName,
+              repositoryPath: restored.repositoryPath,
+              translator,
+              writer: ref.writerId,
+            })
+          );
         }
       }
     } finally {
@@ -67,6 +70,8 @@ describe('v18-to-v19 writer chain migration', () => {
     }
 
     expect(rewrites.map((rewrite) => rewrite.translatedCount)).toEqual([2, 1]);
+    expect(rewriteCounts(progress, 'alice')).toEqual([0, 1, 2]);
+    expect(rewriteCounts(progress, 'bob')).toEqual([0, 1]);
     for (const rewrite of rewrites) {
       expect(commitMap.get(rewrite.oldHead)).toBe(rewrite.newHead);
     }
@@ -76,11 +81,7 @@ describe('v18-to-v19 writer chain migration', () => {
       throw new Error('missing rewritten alice head');
     }
     const firstSha = (
-      await v18MigrationGitText(restored.repositoryPath, [
-        'rev-list',
-        '--reverse',
-        aliceHead,
-      ])
+      await v18MigrationGitText(restored.repositoryPath, ['rev-list', '--reverse', aliceHead])
     ).split('\n')[0];
     expect(firstSha).toBeDefined();
     if (firstSha === undefined) {
@@ -102,13 +103,19 @@ describe('v18-to-v19 writer chain migration', () => {
       const parsed = GitCasAssetHandle.parse(contentHandle);
       const content = await collectAsyncBytes(cas.assets.open({ handle: parsed }));
       expect(Buffer.from(content).toString('utf8')).toBe(
-        'v18 blob-backed content retained for v19 migration proof\n',
+        'v18 blob-backed content retained for v19 migration proof\n'
       );
     } finally {
       await cas.close();
     }
   });
 });
+
+function rewriteCounts(progress: readonly V18MigrationProgress[], writer: string): number[] {
+  return progress
+    .filter((event) => event.phase === 'rewrite' && event.writer === writer)
+    .flatMap((event) => (event.completed === undefined ? [] : [event.completed]));
+}
 
 function findContentHandle(decoded: unknown): string {
   if (decoded === null || typeof decoded !== 'object' || !('ops' in decoded)) {
@@ -120,12 +127,12 @@ function findContentHandle(decoded: unknown): string {
   }
   for (const op of ops) {
     if (
-      op !== null
-      && typeof op === 'object'
-      && 'key' in op
-      && op.key === '_content'
-      && 'value' in op
-      && typeof op.value === 'string'
+      op !== null &&
+      typeof op === 'object' &&
+      'key' in op &&
+      op.key === '_content' &&
+      'value' in op &&
+      typeof op.value === 'string'
     ) {
       return op.value;
     }

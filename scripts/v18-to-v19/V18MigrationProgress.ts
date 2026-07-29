@@ -1,5 +1,3 @@
-const COMMIT_PROGRESS_INTERVAL = 250;
-
 export type V18MigrationPhase = 'finalize' | 'inventory' | 'rewrite' | 'scratch' | 'verify';
 
 export type V18MigrationProgress = Readonly<{
@@ -17,10 +15,6 @@ export function reportV18MigrationProgress(
   progress: V18MigrationProgress
 ): void {
   reporter?.(Object.freeze({ ...progress }));
-}
-
-export function shouldReportV18CommitProgress(completed: number, total: number): boolean {
-  return completed === total || completed % COMMIT_PROGRESS_INTERVAL === 0;
 }
 
 /** Convert bounded work counts into the percentage expected by Bijou. */
