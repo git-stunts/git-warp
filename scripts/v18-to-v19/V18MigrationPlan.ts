@@ -21,7 +21,6 @@ import {
 import { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 import {
   reportV18MigrationProgress,
-  shouldReportV18CommitProgress,
   type V18MigrationProgressReporter,
 } from './V18MigrationProgress.ts';
 
@@ -192,15 +191,13 @@ async function planWriter(
     }
     previous = sha;
     completed += 1;
-    if (shouldReportV18CommitProgress(completed, commits.length)) {
-      reportV18MigrationProgress(options.progress, {
-        completed,
-        message: 'validating writer chain',
-        phase: 'inventory',
-        total: commits.length,
-        writer,
-      });
-    }
+    reportV18MigrationProgress(options.progress, {
+      completed,
+      message: 'validating writer chain',
+      phase: 'inventory',
+      total: commits.length,
+      writer,
+    });
   }
   if (previous !== head) {
     throw new Error(`writer chain ${options.refName} did not inventory to its head`);

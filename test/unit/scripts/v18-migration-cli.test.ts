@@ -2,8 +2,10 @@ import { spawn } from 'node:child_process';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { V18MigrationCommandReport } from '../../../scripts/v18-to-v19/V18MigrationCommand.ts';
 import V18MigrationExecutionMode from '../../../scripts/v18-to-v19/V18MigrationExecutionMode.ts';
 import { parseV18MigrationCliOptions } from '../../../scripts/v18-to-v19/migrate.ts';
+import { formatV18MigrationReport } from '../../../scripts/v18-to-v19/V18MigrationReport.ts';
 import { gitOk, MigrationTestDirectories } from './migrationTestEnvironment.ts';
 
 describe('v18 migration CLI', () => {
@@ -54,6 +56,41 @@ describe('v18 migration CLI', () => {
     expect(execution.stderr).toContain('confirmation requires an interactive terminal');
     expect(execution.stderr).not.toContain('[inventory]');
     expect(await gitOk(repositoryPath, ['rev-parse', writerRef])).toBe(before);
+  });
+
+  it('formats a durable success report with authority and recovery outcomes', () => {
+    const report = Object.freeze({
+      finalization: Object.freeze({
+        promotedRefs: Object.freeze({ 'refs/warp/think/writers/local': 'b'.repeat(40) }),
+        recoveryPrefix: 'refs/warp/think/recovery/v18-to-v19/manual',
+        recoveryRefs: Object.freeze({ 'refs/warp/think/recovery/source': 'a'.repeat(40) }),
+      }),
+      plan: Object.freeze({
+        derivedRefs: Object.freeze({}),
+        graph: 'think',
+        markerRef: 'refs/warp/think/substrate-version',
+        preservedRefs: Object.freeze({}),
+        repositoryPath: '/tmp/think-copy',
+        status: 'migration-required',
+        writers: Object.freeze([]),
+      }),
+      scratchVerified: true,
+      status: 'migrated',
+    }) satisfies V18MigrationCommandReport;
+
+    expect(formatV18MigrationReport(report)).toBe(
+      [
+        'git-warp v18-to-v19 migration completed successfully',
+        'status: migrated',
+        'repository: /tmp/think-copy',
+        'graph: think',
+        'writers: 0',
+        'scratch verified: yes',
+        'authoritative refs changed: yes',
+        'recovery refs: refs/warp/think/recovery/v18-to-v19/manual',
+        '',
+      ].join('\n')
+    );
   });
 });
 

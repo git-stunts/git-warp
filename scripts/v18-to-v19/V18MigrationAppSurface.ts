@@ -175,10 +175,15 @@ function migrationLines(
   if (model.phase === 'succeeded' && model.report !== undefined) {
     const report = model.report;
     lines.push(
-      { text: `Migration ${report.status}.`, token: success },
+      { text: 'Migration completed successfully.', token: success },
+      { text: `Status: ${report.status}`, token: success },
       { text: `Writers: ${String(report.plan.writers.length)}`, token: body },
       {
         text: `Scratch verified: ${report.scratchVerified ? 'yes' : 'no'}`,
+        token: body,
+      },
+      {
+        text: `Authoritative refs changed: ${report.finalization === null ? 'no' : 'yes'}`,
         token: body,
       }
     );

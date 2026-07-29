@@ -1,15 +1,11 @@
 import type { V18CommitIdentity, V18PatchCommit } from './V18PatchCommit.ts';
 import { readV18PatchCommit } from './V18PatchCommit.ts';
-import {
-  readV18MigrationRef,
-  v18MigrationGitText,
-} from './V18MigrationGit.ts';
+import { readV18MigrationRef, v18MigrationGitText } from './V18MigrationGit.ts';
 import type { V18MigrationGitCommitWriter } from './V18MigrationGitCommitWriter.ts';
 import type { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
 import V18PatchTranslator from './V18PatchTranslator.ts';
 import {
   reportV18MigrationProgress,
-  shouldReportV18CommitProgress,
   type V18MigrationProgressReporter,
 } from './V18MigrationProgress.ts';
 
@@ -23,17 +19,19 @@ export type V18WriterChainRewrite = Readonly<{
 }>;
 
 /** Recreates one writer chain in order, translating only legacy patch payloads. */
-export async function rewriteV18WriterChain(options: Readonly<{
-  commitWriter?: V18MigrationGitCommitWriter;
-  commitMap?: Map<string, string>;
-  graph: string;
-  objectReader?: V18MigrationGitObjectReader;
-  progress?: V18MigrationProgressReporter;
-  refName: string;
-  repositoryPath: string;
-  translator: V18PatchTranslator;
-  writer: string;
-}>): Promise<V18WriterChainRewrite> {
+export async function rewriteV18WriterChain(
+  options: Readonly<{
+    commitWriter?: V18MigrationGitCommitWriter;
+    commitMap?: Map<string, string>;
+    graph: string;
+    objectReader?: V18MigrationGitObjectReader;
+    progress?: V18MigrationProgressReporter;
+    refName: string;
+    repositoryPath: string;
+    translator: V18PatchTranslator;
+    writer: string;
+  }>
+): Promise<V18WriterChainRewrite> {
   const oldHead = await readV18MigrationRef(options.repositoryPath, options.refName);
   if (oldHead === null) {
     throw new Error(`writer ref disappeared: ${options.refName}`);
@@ -51,16 +49,13 @@ export async function rewriteV18WriterChain(options: Readonly<{
     writer: options.writer,
   });
   for (const sha of commits) {
-    const patch = await readV18PatchCommit(
-      options.repositoryPath,
-      sha,
-      options.objectReader,
-    );
+    const patch = await readV18PatchCommit(options.repositoryPath, sha, options.objectReader);
     requirePatchIdentity(patch, options.graph, options.writer);
     requireLinearParent(patch, previousOld);
-    const translated = patch.storage.kind === 'current'
-      ? { message: patch.commit.message, tree: patch.commit.tree }
-      : await options.translator.translate(patch);
+    const translated =
+      patch.storage.kind === 'current'
+        ? { message: patch.commit.message, tree: patch.commit.tree }
+        : await options.translator.translate(patch);
     if (patch.storage.kind !== 'current') {
       translatedCount += 1;
     }
@@ -70,7 +65,7 @@ export async function rewriteV18WriterChain(options: Readonly<{
       translated.tree,
       translated.message,
       previousNew,
-      options.commitWriter,
+      options.commitWriter
     );
     if (patch.storage.kind === 'current' && previousNew === previousOld && newSha !== sha) {
       throw new Error(`current commit ${sha} was not recreated byte-identically`);
@@ -79,15 +74,13 @@ export async function rewriteV18WriterChain(options: Readonly<{
     previousNew = newSha;
     options.commitMap?.set(sha, newSha);
     completed += 1;
-    if (shouldReportV18CommitProgress(completed, commits.length)) {
-      reportV18MigrationProgress(options.progress, {
-        completed,
-        message: 'translating writer chain',
-        phase: 'rewrite',
-        total: commits.length,
-        writer: options.writer,
-      });
-    }
+    reportV18MigrationProgress(options.progress, {
+      completed,
+      message: 'translating writer chain',
+      phase: 'rewrite',
+      total: commits.length,
+      writer: options.writer,
+    });
   }
   if (previousNew === null) {
     throw new Error(`writer ref has no commits: ${options.refName}`);
@@ -110,34 +103,22 @@ export async function rewriteV18WriterChain(options: Readonly<{
 
 async function listWriterCommits(
   repositoryPath: string,
-  refName: string,
+  refName: string
 ): Promise<readonly string[]> {
-  const output = await v18MigrationGitText(repositoryPath, [
-    'rev-list',
-    '--reverse',
-    refName,
-  ]);
+  const output = await v18MigrationGitText(repositoryPath, ['rev-list', '--reverse', refName]);
   return Object.freeze(output === '' ? [] : output.split('\n').filter(Boolean));
 }
 
-function requirePatchIdentity(
-  patch: V18PatchCommit,
-  graph: string,
-  writer: string,
-): void {
+function requirePatchIdentity(patch: V18PatchCommit, graph: string, writer: string): void {
   if (patch.graph !== graph || patch.writer !== writer) {
-    throw new Error(
-      `commit ${patch.commit.sha} identity does not match ${graph}/${writer}`,
-    );
+    throw new Error(`commit ${patch.commit.sha} identity does not match ${graph}/${writer}`);
   }
 }
 
 function requireLinearParent(patch: V18PatchCommit, previousOld: string | null): void {
   const parent = patch.commit.parents[0] ?? null;
   if (parent !== previousOld) {
-    throw new Error(
-      `writer commit ${patch.commit.sha} does not form one complete linear chain`,
-    );
+    throw new Error(`writer commit ${patch.commit.sha} does not form one complete linear chain`);
   }
 }
 
@@ -147,7 +128,7 @@ async function createCommit(
   tree: string,
   message: string,
   parent: string | null,
-  commitWriter?: V18MigrationGitCommitWriter,
+  commitWriter?: V18MigrationGitCommitWriter
 ): Promise<string> {
   if (commitWriter !== undefined) {
     return await commitWriter.writeCommit({
@@ -170,7 +151,7 @@ async function createCommit(
 
 function commitEnvironment(
   author: V18CommitIdentity,
-  committer: V18CommitIdentity,
+  committer: V18CommitIdentity
 ): Readonly<Record<string, string>> {
   return Object.freeze({
     GIT_AUTHOR_NAME: author.name,

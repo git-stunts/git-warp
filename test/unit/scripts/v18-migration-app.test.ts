@@ -2,6 +2,7 @@ import { themeContrastRatio } from '@flyingrobots/bijou';
 import { createTestContext } from '@flyingrobots/bijou/adapters/test';
 import { describe, expect, it } from 'vitest';
 
+import type { V18MigrationCommandReport } from '../../../scripts/v18-to-v19/V18MigrationCommand.ts';
 import { renderV18MigrationApp } from '../../../scripts/v18-to-v19/V18MigrationAppSurface.ts';
 import V18MigrationExecutionMode from '../../../scripts/v18-to-v19/V18MigrationExecutionMode.ts';
 import V18MigrationGraph from '../../../scripts/v18-to-v19/V18MigrationGraph.ts';
@@ -26,6 +27,24 @@ const CONTEXT = createTestContext({
   noColor: true,
   theme: createV18MigrationTheme(),
 });
+const SUCCESS_REPORT = Object.freeze({
+  finalization: Object.freeze({
+    promotedRefs: Object.freeze({ 'refs/warp/think/writers/local': 'b'.repeat(40) }),
+    recoveryPrefix: 'refs/warp/think/recovery/v18-to-v19/manual',
+    recoveryRefs: Object.freeze({ 'refs/warp/think/recovery/source': 'a'.repeat(40) }),
+  }),
+  plan: Object.freeze({
+    derivedRefs: Object.freeze({}),
+    graph: 'think',
+    markerRef: 'refs/warp/think/substrate-version',
+    preservedRefs: Object.freeze({}),
+    repositoryPath: '/tmp/think',
+    status: 'migration-required',
+    writers: Object.freeze([]),
+  }),
+  scratchVerified: true,
+  status: 'migrated',
+}) satisfies V18MigrationCommandReport;
 
 describe('v18 migration framed app', () => {
   it('keeps every rendered foreground above WCAG AAA on the primary surface', () => {
@@ -170,6 +189,33 @@ describe('v18 migration framed app', () => {
     expect(text).toContain('[rewrite] local.cli');
     expect(text).toContain('250/1000 25.0%');
     expect(text).toContain('███████████');
+  });
+
+  it('states successful completion without requiring status interpretation', () => {
+    const surface = renderV18MigrationApp(
+      {
+        context: CONTEXT,
+        graph: new V18MigrationGraph({
+          name: 'think',
+          refCount: 4,
+          version: 'upgrade required (legacy unmarked substrate)',
+          writerCount: 2,
+        }),
+        mode: V18MigrationExecutionMode.promote(),
+        preflight: PREFLIGHT,
+        repositoryPath: '/tmp/think',
+      },
+      { phase: 'succeeded', report: SUCCESS_REPORT },
+      100,
+      24
+    );
+
+    const text = surfaceText(surface);
+    expect(text).toContain('Migration completed successfully.');
+    expect(text).toContain('Status: migrated');
+    expect(text).toContain('Scratch verified: yes');
+    expect(text).toContain('Authoritative refs changed: yes');
+    expect(text).toContain('Recovery refs: refs/warp/think/recovery/v18-to-v19/manual');
   });
 
   it('does not describe an incomplete success model as a migration failure', () => {
