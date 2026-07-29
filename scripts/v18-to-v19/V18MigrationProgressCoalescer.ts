@@ -6,14 +6,16 @@ export const V18_MIGRATION_PROGRESS_RENDER_INTERVAL_MS = 100;
  * Preserves per-item progress truth while bounding host rendering work.
  *
  * The first event is delivered immediately. During each render window, the
- * newest event replaces older pending events. Phase and writer transitions
- * flush the prior stream. Flush delivers the final pending event synchronously
- * and cancels scheduled work before a terminal result.
+ * newest event replaces older pending events. Phase, writer, and message
+ * transitions flush the prior stream so named migration steps are never
+ * hidden. Flush delivers the final pending event synchronously and cancels
+ * scheduled work before a terminal result.
  */
 export default class V18MigrationProgressCoalescer {
   readonly #intervalMs: number;
   readonly #reporter: V18MigrationProgressReporter;
   #hasStream = false;
+  #message: string | null = null;
   #phase: V18MigrationProgress['phase'] | null = null;
   #pending: V18MigrationProgress | null = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
@@ -35,6 +37,7 @@ export default class V18MigrationProgressCoalescer {
       this.#finishWindow();
     }
     this.#hasStream = true;
+    this.#message = progress.message;
     this.#phase = progress.phase;
     this.#writer = progress.writer;
     this.#pending = progress;
@@ -49,7 +52,14 @@ export default class V18MigrationProgressCoalescer {
   }
 
   #changesStream(progress: V18MigrationProgress): boolean {
-    return this.#hasStream && (progress.phase !== this.#phase || progress.writer !== this.#writer);
+    return (
+      this.#hasStream
+      && (
+        progress.message !== this.#message
+        || progress.phase !== this.#phase
+        || progress.writer !== this.#writer
+      )
+    );
   }
 
   #finishWindow(): void {

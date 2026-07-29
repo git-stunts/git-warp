@@ -51,6 +51,27 @@ describe('v18 migration progress', () => {
     ]);
   });
 
+  it('renders every named step while coalescing repeated item updates', () => {
+    vi.useFakeTimers();
+    const rendered: V18MigrationProgress[] = [];
+    const coalescer = new V18MigrationProgressCoalescer((update) => rendered.push(update), 100);
+
+    coalescer.report(progress(0));
+    coalescer.report(progress(1));
+    coalescer.report(Object.freeze({
+      completed: 0,
+      message: 'building current bounded checkpoint indexes',
+      phase: 'scratch',
+      total: 2,
+    }));
+
+    expect(rendered.map((event) => [event.message, event.completed])).toEqual([
+      ['translating writer chain', 0],
+      ['translating writer chain', 1],
+      ['building current bounded checkpoint indexes', 0],
+    ]);
+  });
+
   it('rejects a non-positive render interval', () => {
     expect(() => new V18MigrationProgressCoalescer(() => undefined, 0)).toThrow(
       'migration progress render interval must be a positive integer'
