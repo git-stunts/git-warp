@@ -54,7 +54,7 @@ export type RuntimeHostConstructionOptions = {
   graphName: string;
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
-  checkpointPolicy?: { every: number };
+  checkpointPolicy?: { every: number } | null;
   autoMaterialize?: boolean;
   onDeleteWithData?: DeletePolicy;
   logger?: LoggerPort;
@@ -113,7 +113,7 @@ export class WarpOpenOptions {
   readonly graphName: string;
   readonly writerId: string;
   readonly gcPolicy: GCPolicyConfig | GCPolicy;
-  readonly checkpointPolicy?: { every: number };
+  readonly checkpointPolicy?: { every: number } | null;
   readonly autoMaterialize?: boolean;
   readonly onDeleteWithData?: DeletePolicy;
   readonly logger?: LoggerPort;
@@ -202,6 +202,20 @@ export class WarpOpenOptions {
 
 export type RuntimeHostOpenInput = RuntimeHostOpenOptions | WarpOpenOptions;
 
+/**
+ * Auto-checkpoint cadence applied when a caller supplies no `checkpointPolicy`.
+ *
+ * `every` is compared against the replay depth reported by a materialize (the
+ * patch count since the last checkpoint), not against writes performed by the
+ * current process, so short-lived callers still compact once the backlog
+ * crosses the threshold.
+ *
+ * Pass `checkpointPolicy: null` to disable auto-checkpointing entirely.
+ */
+export const DEFAULT_CHECKPOINT_POLICY: { every: number } = Object.freeze({
+  every: 64,
+});
+
 function normalizeBooleanOption(value: boolean, label: string, code: string): boolean {
   if (typeof value !== 'boolean') {
     throw new WarpError(`${label} must be a boolean`, code);
@@ -211,9 +225,17 @@ function normalizeBooleanOption(value: boolean, label: string, code: string): bo
 
 function normalizeCheckpointPolicy(
   checkpointPolicy: { every: number } | null | undefined,
-): { every: number } | undefined {
-  if (checkpointPolicy === null || checkpointPolicy === undefined) {
-    return undefined;
+): { every: number } | null {
+  // An omitted policy takes the default. Auto-checkpointing is what bounds
+  // replay depth, so leaving it off by default made every caller that never
+  // supplied a policy replay its entire patch history on each materialize,
+  // growing without limit. `null` remains the explicit opt-out for callers
+  // that genuinely want no compaction.
+  if (checkpointPolicy === undefined) {
+    return DEFAULT_CHECKPOINT_POLICY;
+  }
+  if (checkpointPolicy === null) {
+    return null;
   }
   if (typeof checkpointPolicy !== 'object') {
     throw new WarpError('checkpointPolicy must be an object with { every: number }', 'E_CHECKPOINT_POLICY_TYPE');

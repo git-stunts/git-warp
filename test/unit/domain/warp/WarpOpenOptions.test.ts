@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DEFAULT_CHECKPOINT_POLICY,
   resolveRuntimeHostConstructionOptions,
   WarpOpenOptions,
 } from '../../../../src/domain/warp/RuntimeHostBoot.ts';
@@ -26,7 +27,9 @@ describe('WarpOpenOptions', () => {
     expect(options.gcPolicy).toEqual({});
     expect(options.codec).toBeUndefined();
     expect(options.crypto).toBeUndefined();
-    expect(options.checkpointPolicy).toBeUndefined();
+    // Ports stay unresolved, but the checkpoint cadence is a policy rather than
+    // a port: omitting it must not silently disable compaction.
+    expect(options.checkpointPolicy).toEqual(DEFAULT_CHECKPOINT_POLICY);
   });
 
   it('normalizes checkpointPolicy into a frozen value object', () => {
