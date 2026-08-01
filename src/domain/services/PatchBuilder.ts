@@ -21,22 +21,23 @@ import ContentAttachmentWriteIntent from '../graph/ContentAttachmentWriteIntent.
 import EdgePropertyWriteIntent from '../graph/EdgePropertyWriteIntent.ts';
 import NodePropertyWriteIntent from '../graph/NodePropertyWriteIntent.ts';
 import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
-import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
+import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY } from './KeyCodec.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
-import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import {
   findAttachedData,
   assertNoReservedBytes,
   assertObservedDotsForRemove,
+  resolveEffectId,
 } from './PatchBuilderValidation.ts';
 import {
   requirePatchPropertyValue,
-  storeContentAttachmentPayload,
+  stageContentAttachment,
   type ContentInput,
   type ContentMetadataInput,
 } from './PatchBuilderContent.ts';
+import { planEntityCapturePayload, type EntityCapturePayload } from './PatchBuilderEntity.ts';
 import { capturePatchBuilderCausalBasis } from './admission/PatchBuilderCausalBasis.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import { commitPatch } from './PatchCommitter.ts';
@@ -151,6 +152,17 @@ export class PatchBuilder {
     return this;
   }
 
+  /** Creates one entity and its complete payload in a single dependency-pure patch. */
+  addEntity(nodeId: string, properties: EntityCapturePayload): PatchBuilder {
+    const payload = planEntityCapturePayload(nodeId, properties, {
+      added: this._nodesAdded,
+      state: this._getSnapshotState(),
+    });
+    this.addNode(nodeId);
+    this._ops.push(...payload);
+    return this;
+  }
+
   removeNode(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
     const state = this._getSnapshotState();
@@ -235,14 +247,11 @@ export class PatchBuilder {
 
   emitEffect(kind: string, payload?: unknown, options?: { effectId?: string }): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._assertNotCommitted();
-    if (typeof kind !== 'string' || kind.length === 0) {
-      throw new PatchError('emitEffect: kind must be a non-empty string', {
-        code: 'E_EFFECT_INVALID_KIND', context: { kind },
-      });
-    }
-    const effectId = (options?.effectId !== undefined && options.effectId !== '')
-      ? options.effectId
-      : `${EFFECT_NODE_PREFIX}${this._writerId}-${this._lamport}-${this._ops.length}`;
+    const effectId = resolveEffectId(kind, options?.effectId, {
+      writerId: this._writerId,
+      lamport: this._lamport,
+      sequence: this._ops.length,
+    });
     this.addNode(effectId);
     this.setProperty(effectId, 'kind', kind);
     this.setProperty(effectId, 'writer', this._writerId);
@@ -296,15 +305,11 @@ export class PatchBuilder {
     assertNoReservedBytes(nodeId, 'nodeId');
     assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
     this._assertNodeExistsForContent(nodeId);
-    if (this._assetStorage === null) {
-      throw new WriterError('Cannot attach content without asset storage', { code: 'NO_ASSET_STORAGE' });
-    }
-    const slug = `${this._graphName}/${nodeId}`;
-    const payload = await storeContentAttachmentPayload({
+    const payload = await stageContentAttachment({
       assetStorage: this._assetStorage,
+      slug: `${this._graphName}/${nodeId}`,
       content,
       metadata,
-      slug,
     });
     const intent = ContentAttachmentWriteIntent.forNode(nodeId, payload);
     this._lowerNodeContentIntent(intent);
@@ -334,15 +339,11 @@ export class PatchBuilder {
     assertNoReservedBytes(label, 'label');
     assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
     this._assertEdgeExists(from, to, label);
-    if (this._assetStorage === null) {
-      throw new WriterError('Cannot attach content without asset storage', { code: 'NO_ASSET_STORAGE' });
-    }
-    const slug = `${this._graphName}/${from}/${to}/${label}`;
-    const payload = await storeContentAttachmentPayload({
+    const payload = await stageContentAttachment({
       assetStorage: this._assetStorage,
+      slug: `${this._graphName}/${from}/${to}/${label}`,
       content,
       metadata,
-      slug,
     });
     const intent = ContentAttachmentWriteIntent.forEdge({ from, to, label }, payload);
     this._lowerEdgeContentIntent(intent);

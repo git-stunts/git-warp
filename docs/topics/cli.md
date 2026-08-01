@@ -39,7 +39,22 @@ git warp write \
 ```
 
 `write` returns a canonical Receipt. Supported public Intent kinds are
-`node.add`, `node.remove`, `edge.add`, `edge.remove`, and `property.set`.
+`node.add`, `node.remove`, `edge.add`, `edge.remove`, `property.set`, and
+`entity.add`.
+
+`entity.add` creates one entity and its complete payload in a single patch:
+
+```bash
+git warp write \
+  --lane users \
+  --writer local \
+  --json \
+  --intent '{"kind":"entity.add","subject":"user:alice","properties":{"role":"admin"}}'
+```
+
+That patch reads nothing and writes exactly one fresh id, so its footprint is
+exact by construction and the entity's cone is a singleton. It requires at least
+one property, and fails if the subject already exists.
 
 ## Prepare and observe a Lane
 

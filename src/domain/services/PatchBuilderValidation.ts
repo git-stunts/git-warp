@@ -5,10 +5,29 @@
  * @module domain/services/PatchBuilderValidation
  */
 
-import { FIELD_SEPARATOR, EDGE_PROP_PREFIX } from './KeyCodec.ts';
+import { FIELD_SEPARATOR, EDGE_PROP_PREFIX, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
 import PatchError from '../errors/PatchError.ts';
 import type { WarpState } from './JoinReducer.ts';
 import WarpStateClass from './state/WarpState.ts';
+
+/**
+ * Validates an effect kind and resolves the node id the effect is recorded
+ * under, falling back to a writer-scoped derivation when none was requested.
+ */
+export function resolveEffectId(
+  kind: string,
+  requestedId: string | undefined,
+  origin: { readonly writerId: string; readonly lamport: number; readonly sequence: number },
+): string {
+  if (typeof kind !== 'string' || kind.length === 0) {
+    throw new PatchError('emitEffect: kind must be a non-empty string', {
+      code: 'E_EFFECT_INVALID_KIND', context: { kind },
+    });
+  }
+  return (requestedId !== undefined && requestedId !== '')
+    ? requestedId
+    : `${EFFECT_NODE_PREFIX}${origin.writerId}-${origin.lamport}-${origin.sequence}`;
+}
 
 /**
  * Inspects materialized state for edges and properties attached to a node.

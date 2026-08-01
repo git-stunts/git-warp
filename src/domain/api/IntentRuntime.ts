@@ -1,6 +1,6 @@
 import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type Patch from '../types/Patch.ts';
-import { isPropValue } from '../types/PropValue.ts';
+import { isPropValue, type PropValue } from '../types/PropValue.ts';
 import Intent, { type IntentDescriptor, type IntentKind } from './Intent.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
@@ -13,6 +13,7 @@ const lowerers: ReadonlyMap<IntentKind, IntentLowerer> = new Map([
   ['edge.add', lowerEdgeAdd],
   ['edge.remove', lowerEdgeRemove],
   ['property.set', lowerPropertySet],
+  ['entity.add', lowerEntityAdd],
 ]);
 
 export function applyIntentToPatch(intent: Intent, patch: PatchBuilder): void {
@@ -28,6 +29,10 @@ export function intentFromPatch(patch: Patch): Intent {
   const terminal = requireTerminalOperation(patch);
   if (isCascadingNodeRemoval(patch.ops, terminal)) {
     return Intent.removeNode({ subject: terminal.node });
+  }
+  const entity = entityIntent(patch.ops);
+  if (entity !== null) {
+    return entity;
   }
   if (patch.ops.length !== 1) {
     throw hydrationError('persisted Runtime intent patch has multiple operations');
@@ -56,6 +61,48 @@ function isCascadingNodeRemoval(
           || operation.to === terminal.node
         )
       );
+}
+
+/**
+ * Recovers an entity capture: one NodeAdd carrying its own payload.
+ *
+ * Recognised only when every following operation sets a property on the very
+ * node the leading NodeAdd created. Anything else — a second node, a property
+ * that precedes its node — is not an entity capture, and falls through to the
+ * one-operation rule so it is rejected rather than silently reinterpreted.
+ */
+function entityIntent(operations: readonly PatchOp[]): Intent | null {
+  const [leading, ...payload] = operations;
+  if (leading?.type !== 'NodeAdd' || payload.length === 0) {
+    return null;
+  }
+  const properties = entityPayload(leading.node, payload);
+  return properties === null
+    ? null
+    : Intent.addEntity({ subject: leading.node, properties });
+}
+
+function entityPayload(
+  subject: string,
+  payload: readonly PatchOp[],
+): Record<string, PropValue> | null {
+  const properties: Record<string, PropValue> = {};
+  for (const operation of payload) {
+    if (!isNodePropertyOperation(operation) || operation.node !== subject) {
+      return null;
+    }
+    if (!isPropValue(operation.value)) {
+      throw hydrationError('persisted Runtime entity Intent has an invalid value');
+    }
+    properties[operation.key] = operation.value;
+  }
+  return properties;
+}
+
+function isNodePropertyOperation(
+  operation: PatchOp,
+): operation is Extract<PatchOp, { readonly type: 'NodePropSet' | 'PropSet' }> {
+  return operation.type === 'NodePropSet' || operation.type === 'PropSet';
 }
 
 function intentFromOperation(operation: PatchOp): Intent {
@@ -140,6 +187,11 @@ function lowerEdgeRemove(descriptor: IntentDescriptor, patch: PatchBuilder): voi
 function lowerPropertySet(descriptor: IntentDescriptor, patch: PatchBuilder): void {
   assertDescriptorKind(descriptor, 'property.set');
   patch.setProperty(descriptor.subject, descriptor.key, descriptor.value);
+}
+
+function lowerEntityAdd(descriptor: IntentDescriptor, patch: PatchBuilder): void {
+  assertDescriptorKind(descriptor, 'entity.add');
+  patch.addEntity(descriptor.subject, descriptor.properties);
 }
 
 function assertDescriptorKind<K extends IntentKind>(

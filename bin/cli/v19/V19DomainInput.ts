@@ -56,6 +56,14 @@ const INTENT_SCHEMA = z.discriminatedUnion('kind', [
     key: z.string().min(1),
     value: JSON_INPUT_SCHEMA,
   }).strict(),
+  z.object({
+    kind: z.literal('entity.add'),
+    subject: z.string().min(1),
+    properties: z.record(z.string().min(1), JSON_INPUT_SCHEMA).refine(
+      (properties) => Object.keys(properties).length > 0,
+      { message: 'entity.add requires at least one property' },
+    ),
+  }).strict(),
 ]);
 
 const READING_SCHEMA = z.discriminatedUnion('kind', [
@@ -91,6 +99,14 @@ export function intentFromText(text: string): Intent {
 
 export function intentFromValue(value: McpJsonValue): Intent {
   const descriptor = parseIntentDescriptor(value);
+  return descriptor.kind === 'entity.add'
+    ? intent.entity.add(descriptor)
+    : elementIntentFrom(descriptor);
+}
+
+function elementIntentFrom(
+  descriptor: Exclude<z.infer<typeof INTENT_SCHEMA>, { kind: 'entity.add' }>,
+): Intent {
   if (descriptor.kind === 'node.add') {
     return intent.node.add(descriptor);
   }

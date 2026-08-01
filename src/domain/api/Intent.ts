@@ -2,10 +2,31 @@ import WarpError from '../errors/WarpError.ts';
 import { copyPropValue, isPropValue, type PropValue } from '../types/PropValue.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 
-export type IntentKind = 'node.add' | 'node.remove' | 'edge.add' | 'edge.remove' | 'property.set';
+export type IntentKind =
+  | 'node.add'
+  | 'node.remove'
+  | 'edge.add'
+  | 'edge.remove'
+  | 'property.set'
+  | 'entity.add';
 
 export type NodeIntentFields = {
   readonly subject: string;
+};
+
+/**
+ * One entity and its complete initial payload, stated as a single fact.
+ *
+ * This is the dependency-pure capture shape: the lowered patch reads nothing
+ * and writes exactly one fresh id, so its syntactic footprint is exact by
+ * construction and its cone is a singleton. See `docs/READINGS_AND_OPTICS.md`
+ * §4. A payload is mandatory — an entity created as an empty shell and filled
+ * by later property writes is precisely the shape this intent exists to
+ * replace.
+ */
+export type EntityIntentFields = {
+  readonly subject: string;
+  readonly properties: Readonly<Record<string, PropValue>>;
 };
 
 export type EdgeIntentFields = {
@@ -25,13 +46,15 @@ export type IntentDescriptor =
   | (NodeIntentFields & { readonly kind: 'node.remove' })
   | (EdgeIntentFields & { readonly kind: 'edge.add' })
   | (EdgeIntentFields & { readonly kind: 'edge.remove' })
-  | (PropertyIntentFields & { readonly kind: 'property.set' });
+  | (PropertyIntentFields & { readonly kind: 'property.set' })
+  | (EntityIntentFields & { readonly kind: 'entity.add' });
 
 const NODE_ADD: 'node.add' = 'node.add';
 const NODE_REMOVE: 'node.remove' = 'node.remove';
 const EDGE_ADD: 'edge.add' = 'edge.add';
 const EDGE_REMOVE: 'edge.remove' = 'edge.remove';
 const PROPERTY_SET: 'property.set' = 'property.set';
+const ENTITY_ADD: 'entity.add' = 'entity.add';
 
 export default class Intent {
   readonly #descriptor: IntentDescriptor;
@@ -59,6 +82,10 @@ export default class Intent {
 
   static setProperty(fields: PropertyIntentFields): Intent {
     return new Intent(propertyDescriptor(fields));
+  }
+
+  static addEntity(fields: EntityIntentFields): Intent {
+    return new Intent(entityDescriptor(fields));
   }
 
   get kind(): IntentKind {
@@ -90,6 +117,9 @@ function normalizeKnownDescriptor(descriptor: IntentDescriptor): IntentDescripto
   }
   if (descriptor.kind === PROPERTY_SET) {
     return propertyDescriptor(descriptor);
+  }
+  if (descriptor.kind === ENTITY_ADD) {
+    return entityDescriptor(descriptor);
   }
   throw new WarpError('Intent kind is unsupported', 'E_INTENT_KIND');
 }
@@ -140,6 +170,28 @@ function propertyDescriptor(fields: PropertyIntentFields): IntentDescriptor {
     subject: checkedFields.subject,
     key: checkedFields.key,
     value: requireIntentValue(checkedFields.value),
+  });
+}
+
+function entityDescriptor(fields: EntityIntentFields): IntentDescriptor {
+  const checkedFields = requireIntentFields(fields);
+  requireNonEmptyString(checkedFields.subject, 'intent.subject');
+  const entries = Object.entries(requireIntentFields(checkedFields.properties));
+  if (entries.length === 0) {
+    throw new WarpError(
+      'Intent entity requires at least one property',
+      'E_INTENT_ENTITY_EMPTY'
+    );
+  }
+  const properties: Record<string, PropValue> = {};
+  for (const [key, value] of entries) {
+    requireNonEmptyString(key, 'intent.properties key');
+    properties[key] = requireIntentValue(value);
+  }
+  return Object.freeze({
+    kind: ENTITY_ADD,
+    subject: checkedFields.subject,
+    properties: Object.freeze(properties),
   });
 }
 

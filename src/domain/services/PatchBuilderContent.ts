@@ -3,6 +3,7 @@ import ContentAttachmentMime from '../graph/ContentAttachmentMime.ts';
 import ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
 import ContentAttachmentSize from '../graph/ContentAttachmentSize.ts';
 import PatchError from '../errors/PatchError.ts';
+import WriterError from '../errors/WriterError.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type { AssetWriteOptions } from '../../ports/AssetStoragePort.ts';
 import { isPropValue, type PropValue } from '../types/PropValue.ts';
@@ -23,6 +24,10 @@ export type StoreContentAttachmentPayloadOptions = {
   readonly slug: string;
 };
 
+export type StageContentAttachmentOptions =
+  Omit<StoreContentAttachmentPayloadOptions, 'assetStorage'>
+  & { readonly assetStorage: AssetStoragePort | null };
+
 /** Validates public patch property values before intent construction. */
 export function requirePatchPropertyValue<T>(value: T): PropValue {
   if (isPropValue(value)) {
@@ -31,6 +36,22 @@ export function requirePatchPropertyValue<T>(value: T): PropValue {
   throw new PatchError('Property value must be property-compatible data', {
     code: 'E_PATCH_INVALID_PROPERTY_VALUE',
   });
+}
+
+/**
+ * Requires asset storage, then stages one content attachment.
+ *
+ * Shared by node and edge attachment so the storage precondition is stated
+ * once rather than duplicated per target shape.
+ */
+export async function stageContentAttachment(
+  options: StageContentAttachmentOptions,
+): Promise<ContentAttachmentPayload> {
+  const { assetStorage } = options;
+  if (assetStorage === null) {
+    throw new WriterError('Cannot attach content without asset storage', { code: 'NO_ASSET_STORAGE' });
+  }
+  return await storeContentAttachmentPayload({ ...options, assetStorage });
 }
 
 export async function storeContentAttachmentPayload(

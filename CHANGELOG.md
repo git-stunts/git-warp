@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `intent.entity.add({ subject, properties })` creates one entity and its
+  complete initial payload in a single patch. The lowered patch reads nothing
+  and writes exactly one fresh id, so its syntactic footprint is exact by
+  construction and the entity's cone is a singleton. Previously the only way to
+  create a node with properties was `node.add` followed by `property.set`, which
+  costs two patches and records a self-read on the payload patch.
+- `PatchBuilder.addEntity(nodeId, properties)` lowers that intent. It rejects an
+  id that already exists in the patch or the graph (`E_PATCH_ENTITY_EXISTS`) and
+  an entity created without a payload (`E_PATCH_ENTITY_EMPTY`), so the empty
+  shell filled by later property writes is not representable.
+- `intentFromPatch` recovers an entity capture from its persisted operations: a
+  leading `NodeAdd` followed by property writes on that same node. Any other
+  multi-operation shape still fails hydration rather than being reinterpreted.
+
+### Changed
+
+- Node and edge content attachment share one staging helper, so the asset
+  storage precondition is stated once instead of duplicated per target shape.
+- Effect id validation and derivation moved to `PatchBuilderValidation`.
+
 ## [19.0.2] - 2026-07-29
 
 ### Release notes
