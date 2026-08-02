@@ -52,22 +52,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   storage precondition is stated once instead of duplicated per target shape.
 - Effect id validation and derivation moved to `PatchBuilderValidation`.
 
-### Release impact — unresolved
+### Breaking
 
-`entity.add` is a new member of the `Intent` discriminated union. `IntentKind`
-and `IntentDescriptor` are not exported by name, but both are structurally
-reachable through `Intent['kind']` and `Intent['descriptor']`, so a consumer
-that switches exhaustively over intent kinds stops compiling. Measured against
-this branch's published surface:
+- **`entity.add` widens the `Intent` discriminated union.** `IntentKind` and
+  `IntentDescriptor` are not exported by name, but both are structurally
+  reachable through `Intent['kind']` and `Intent['descriptor']`, so a consumer
+  that switches exhaustively over intent kinds stops compiling. Measured against
+  this branch's published surface:
 
-```text
-error TS2345: Argument of type '"entity.add"'
-              is not assignable to parameter of type 'never'.
-```
+  ```text
+  error TS2345: Argument of type '"entity.add"'
+                is not assignable to parameter of type 'never'.
+  ```
 
-The repository's own consumer contract (`test/type-check`) still compiles, since
-it does not switch exhaustively. Whether that makes this a minor or a major
-release is a policy call this entry does not decide.
+  The runtime surface is purely additive, and this repository's own consumer
+  contract (`test/type-check`) still compiles because it does not switch
+  exhaustively. The type-level break is nonetheless real for any consumer that
+  opted into exhaustiveness checking, so this release targets **20.0.0**.
+
+  Migration: add a `case 'entity.add':` arm, or stop treating the union as
+  closed.
 
 ## [19.0.2] - 2026-07-29
 
