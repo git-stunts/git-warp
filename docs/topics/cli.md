@@ -56,11 +56,15 @@ That patch reads nothing and writes exactly one fresh id, so its footprint is
 exact by construction and the creation gives the entity an initial singleton
 cone. It requires at least one property.
 
-It also fails when the subject is one the writer can already see — added earlier
-in the same patch, or alive in the materialized basis. That is a local guard,
-not distributed uniqueness: a writer that has not materialized has no basis to
-check, and two writers from the same frontier are both admitted and merged.
-Choose collision-resistant subjects if one-creation-per-id matters.
+It does **not** check that the subject is new. `git warp write` goes through a
+lane, and a lane writer never materializes, so the uniqueness guard has no basis
+in which to observe an existing id and never fires. Writing the same subject
+twice is admitted both times, whether from one lane or from two writers, and the
+join merges the results into one entity with a two-patch cone. The guard exists
+for a directly constructed `PatchBuilder` opened against a materialized state.
+
+Choose collision-resistant subjects. One-creation-per-id is your invariant to
+keep, and nothing on this path will keep it for you.
 
 ## Prepare and observe a Lane
 

@@ -18,8 +18,9 @@
  *   writes the id. `property.set` and `node.remove` remain available, so an
  *   immutable-entity lifetime is a law an application must adopt, not one this
  *   constructor imposes.
- * - **Local, not distributed.** The uniqueness guard refuses ids the builder
- *   can see. See {@link assertEntityAbsent}.
+ * - **Local, not distributed — and inert on the lane path.** The uniqueness
+ *   guard refuses ids the builder can see, and a lane writer can see nothing.
+ *   See {@link assertEntityAbsent}.
  *
  * See `docs/READINGS_AND_OPTICS.md` §4 and §8.
  *
@@ -91,11 +92,21 @@ function requirePayloadEntries(
  * Refuses an id the builder can already see.
  *
  * "Can see" is the whole promise: an id added earlier in this same patch, or
- * one alive in the materialized basis the builder was opened against. A writer
- * with no materialized basis has nothing to check against, and two writers
- * from the same frontier cannot see each other, so both are admitted and the
- * join merges them. Applications that need one-creation-per-id must supply
- * collision-resistant ids; this guard catches mistakes, not races.
+ * one alive in the materialized basis the builder was opened against.
+ *
+ * **On the `Runtime` → `Lane.write` path this guard never fires**, because a
+ * lane writer has neither. `Runtime` exposes no materialization, so the basis
+ * is always null; and one intent lowers to one patch, with validation running
+ * before the node is added, so nothing precedes the entity in its own patch
+ * either. Both arms are therefore unreachable there — measured, not inferred:
+ * see `test/integration/application/Runtime.entityCapture.concurrent.test.ts`,
+ * where one writer re-creates the same id on one lane and is admitted.
+ *
+ * What remains is a guard for a direct `PatchBuilder` opened against a
+ * materialized state, which is the advanced and testing surface. It catches a
+ * mistake a caller could have seen; it is not uniqueness, and it is not a
+ * race detector. Applications that need one-creation-per-id must supply
+ * collision-resistant ids and treat that as their own invariant.
  */
 function assertEntityAbsent(nodeId: string, scope: EntityCaptureScope): void {
   if (!scope.added.has(nodeId) && !(scope.state?.nodeAlive.contains(nodeId) ?? false)) {

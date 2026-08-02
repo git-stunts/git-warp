@@ -39,12 +39,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     writes the id. `property.set` and `node.remove` remain available, so an
     immutable-entity lifetime is a law an application adopts, not one this
     constructor imposes.
-  - **Local guard, not distributed uniqueness.** `E_PATCH_ENTITY_EXISTS` fires
-    only for an id the builder can see: added earlier in the same patch, or
-    alive in the materialized basis it was opened against. A writer that has
-    not materialized has no basis to check, and two writers from the same
-    frontier cannot see each other, so both are admitted and the join merges
-    them. Collision-resistant ids remain the application's responsibility.
+  - **No uniqueness on the lane path.** `E_PATCH_ENTITY_EXISTS` fires only for
+    an id the builder can see: added earlier in the same patch, or alive in the
+    materialized basis it was opened against. A `Runtime` lane writer has
+    neither — nothing on `Runtime` materializes, and one intent lowers to one
+    patch — so the guard never fires there. Re-creating a subject is admitted
+    on one lane by one writer, across writers sharing a frontier, and by a
+    writer opening after the first creation is durable; the join merges them
+    into one entity with a multi-patch cone. The guard is a mistake-catcher for
+    a directly constructed `PatchBuilder` opened against a materialized state.
+    Collision-resistant ids remain the application's responsibility.
 
 ### Changed
 
