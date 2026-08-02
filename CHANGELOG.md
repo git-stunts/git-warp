@@ -10,24 +10,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `intent.entity.add({ subject, properties })` creates one entity and its
-  complete initial payload in a single patch. The lowered patch reads nothing
-  and writes exactly one fresh id, so its syntactic footprint is exact by
-  construction and the entity's cone is a singleton. Previously the only way to
-  create a node with properties was `node.add` followed by `property.set`, which
-  costs two patches and records a self-read on the payload patch.
-- `PatchBuilder.addEntity(nodeId, properties)` lowers that intent. It rejects an
-  id that already exists in the patch or the graph (`E_PATCH_ENTITY_EXISTS`) and
-  an entity created without a payload (`E_PATCH_ENTITY_EMPTY`), so the empty
-  shell filled by later property writes is not representable.
-- `intentFromPatch` recovers an entity capture from its persisted operations: a
-  leading `NodeAdd` followed by property writes on that same node. Any other
-  multi-operation shape still fails hydration rather than being reinterpreted.
+  initial payload in a single patch. The lowered patch reads nothing and writes
+  exactly one fresh id, so its syntactic footprint is exact by construction and
+  the creation gives the entity an initial singleton cone. Previously the only
+  way to create a node with properties was `node.add` followed by
+  `property.set`, which costs two patches and records a self-read on the payload
+  patch.
+- `PatchBuilder.addEntity(nodeId, properties)` lowers that intent. It requires a
+  non-empty payload (`E_PATCH_ENTITY_EMPTY`) and refuses an id the builder can
+  already see (`E_PATCH_ENTITY_EXISTS`).
+- `intentFromPatch` recovers an entity capture from its persisted evidence: a
+  leading `NodeAdd`, property writes on that same node, no repeated key, and a
+  recorded footprint of no reads and exactly one write naming the created
+  subject. A patch that merely resembles the shape without declaring that
+  footprint is not recognised; it falls through to the one-operation rule and
+  fails hydration rather than being promoted to a stronger claim.
+
+  Payload keys are ordered canonically at both ends, so two payloads differing
+  only in construction order produce identical operations. Property maps are
+  built with a null prototype, so a key such as `__proto__` stays ordinary data.
+
+  Scope of these guarantees, stated because the shape is easy to over-read:
+
+  - **Initial payload, not complete entity.** Which fields make an entity
+    complete is an application schema concern; the substrate checks only that
+    properties exist.
+  - **Creation, not lifetime.** The cone is a singleton until something else
+    writes the id. `property.set` and `node.remove` remain available, so an
+    immutable-entity lifetime is a law an application adopts, not one this
+    constructor imposes.
+  - **Local guard, not distributed uniqueness.** `E_PATCH_ENTITY_EXISTS` fires
+    only for an id the builder can see: added earlier in the same patch, or
+    alive in the materialized basis it was opened against. A writer that has
+    not materialized has no basis to check, and two writers from the same
+    frontier cannot see each other, so both are admitted and the join merges
+    them. Collision-resistant ids remain the application's responsibility.
 
 ### Changed
 
 - Node and edge content attachment share one staging helper, so the asset
   storage precondition is stated once instead of duplicated per target shape.
 - Effect id validation and derivation moved to `PatchBuilderValidation`.
+
+### Release impact — unresolved
+
+`entity.add` is a new member of the `Intent` discriminated union. `IntentKind`
+and `IntentDescriptor` are not exported by name, but both are structurally
+reachable through `Intent['kind']` and `Intent['descriptor']`, so a consumer
+that switches exhaustively over intent kinds stops compiling. Measured against
+this branch's published surface:
+
+```text
+error TS2345: Argument of type '"entity.add"'
+              is not assignable to parameter of type 'never'.
+```
+
+The repository's own consumer contract (`test/type-check`) still compiles, since
+it does not switch exhaustively. Whether that makes this a minor or a major
+release is a policy call this entry does not decide.
 
 ## [19.0.2] - 2026-07-29
 

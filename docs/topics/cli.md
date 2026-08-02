@@ -42,7 +42,7 @@ git warp write \
 `node.add`, `node.remove`, `edge.add`, `edge.remove`, `property.set`, and
 `entity.add`.
 
-`entity.add` creates one entity and its complete payload in a single patch:
+`entity.add` creates one entity and its initial payload in a single patch:
 
 ```bash
 git warp write \
@@ -53,8 +53,14 @@ git warp write \
 ```
 
 That patch reads nothing and writes exactly one fresh id, so its footprint is
-exact by construction and the entity's cone is a singleton. It requires at least
-one property, and fails if the subject already exists.
+exact by construction and the creation gives the entity an initial singleton
+cone. It requires at least one property.
+
+It also fails when the subject is one the writer can already see — added earlier
+in the same patch, or alive in the materialized basis. That is a local guard,
+not distributed uniqueness: a writer that has not materialized has no basis to
+check, and two writers from the same frontier are both admitted and merged.
+Choose collision-resistant subjects if one-creation-per-id matters.
 
 ## Prepare and observe a Lane
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import Intent from '../../../src/domain/api/Intent.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
+import type { PropValue } from '../../../src/domain/types/PropValue.ts';
 
 describe('Intent entity descriptors', () => {
   it('describes one entity creation with its complete payload', () => {
@@ -65,6 +66,56 @@ describe('Intent entity descriptors', () => {
       properties: { '': 'capture' },
     })).toThrow();
   });
+
+  it('describes payloads that differ only in key order identically', () => {
+    expect(Intent.addEntity({
+      subject: 'entry:1',
+      properties: { kind: 'capture', text: 'hello' },
+    }).descriptor).toEqual(Intent.addEntity({
+      subject: 'entry:1',
+      properties: { text: 'hello', kind: 'capture' },
+    }).descriptor);
+  });
+
+  it('orders payload keys canonically rather than by insertion', () => {
+    const created = Intent.addEntity({
+      subject: 'entry:1',
+      properties: { c: 3, a: 1, b: 2 },
+    });
+
+    expect(Object.keys(entityProperties(created))).toEqual(['a', 'b', 'c']);
+  });
+
+  it('keeps a prototype-shaped key as ordinary data', () => {
+    const created = Intent.addEntity({
+      subject: 'entry:1',
+      properties: { ['__proto__']: 'polluted', kind: 'capture' },
+    });
+
+    const properties = entityProperties(created);
+    expect(Object.hasOwn(properties, '__proto__')).toBe(true);
+    expect(properties['__proto__']).toBe('polluted');
+    expect({}.constructor).toBe(Object);
+    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+  });
+
+  it('keeps constructor and prototype keys as ordinary data', () => {
+    const properties = entityProperties(Intent.addEntity({
+      subject: 'entry:1',
+      properties: { constructor: 'not-a-function', prototype: 'inert' },
+    }));
+
+    expect(properties['constructor']).toBe('not-a-function');
+    expect(properties['prototype']).toBe('inert');
+  });
 });
+
+function entityProperties(created: Intent): Record<string, PropValue> {
+  const { descriptor } = created;
+  if (descriptor.kind !== 'entity.add') {
+    throw new Error('expected an entity.add descriptor');
+  }
+  return descriptor.properties;
+}
 
 class InvalidPropertyCarrier {}

@@ -1,12 +1,25 @@
 /**
  * Entity capture — the dependency-pure single-patch shape.
  *
- * One entity is created by exactly one patch carrying its complete initial
- * payload. Unlike `addNode` followed by `setProperty`, that patch records
- * **no** read: the NodeAdd in the same patch is what brings the node into
- * existence, so the payload depends on nothing that precedes the patch. The
- * footprint (`reads` empty, `writes` exactly the new id) is therefore exact
- * rather than an under-approximation, and the entity's cone is a singleton.
+ * One patch creates the entity and carries its initial payload. Unlike
+ * `addNode` followed by `setProperty`, that patch records **no** read: the
+ * NodeAdd in the same patch is what brings the node into existence, so the
+ * payload depends on nothing that precedes the patch. The footprint (`reads`
+ * empty, `writes` exactly the new id) is therefore exact rather than an
+ * under-approximation, and the creation gives the entity an initial singleton
+ * cone.
+ *
+ * Three limits, stated because the shape is easy to over-read:
+ *
+ * - **Initial, not complete.** This module enforces a non-empty payload. Which
+ *   fields make an entity *complete* is an application schema concern; the
+ *   substrate cannot know it.
+ * - **Creation, not lifetime.** The cone is a singleton until something else
+ *   writes the id. `property.set` and `node.remove` remain available, so an
+ *   immutable-entity lifetime is a law an application must adopt, not one this
+ *   constructor imposes.
+ * - **Local, not distributed.** The uniqueness guard refuses ids the builder
+ *   can see. See {@link assertEntityAbsent}.
  *
  * See `docs/READINGS_AND_OPTICS.md` §4 and §8.
  *
@@ -69,15 +82,27 @@ function requirePayloadEntries(
       { code: 'E_PATCH_ENTITY_EMPTY', context: { nodeId } },
     );
   }
-  return entries;
+  // Key order is not evidence. Sorting keeps two payloads that differ only in
+  // construction order lowering to byte-identical operations.
+  return entries.sort(([left], [right]) => (left === right ? 0 : (left < right ? -1 : 1)));
 }
 
+/**
+ * Refuses an id the builder can already see.
+ *
+ * "Can see" is the whole promise: an id added earlier in this same patch, or
+ * one alive in the materialized basis the builder was opened against. A writer
+ * with no materialized basis has nothing to check against, and two writers
+ * from the same frontier cannot see each other, so both are admitted and the
+ * join merges them. Applications that need one-creation-per-id must supply
+ * collision-resistant ids; this guard catches mistakes, not races.
+ */
 function assertEntityAbsent(nodeId: string, scope: EntityCaptureScope): void {
   if (!scope.added.has(nodeId) && !(scope.state?.nodeAlive.contains(nodeId) ?? false)) {
     return;
   }
   throw new PatchError(
-    `Cannot capture entity '${nodeId}': the id already exists, and an entity is created exactly once`,
+    `Cannot capture entity '${nodeId}': this writer can already see that id`,
     { code: 'E_PATCH_ENTITY_EXISTS', context: { nodeId } },
   );
 }

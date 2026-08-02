@@ -152,7 +152,7 @@ export class PatchBuilder {
     return this;
   }
 
-  /** Creates one entity and its complete payload in a single dependency-pure patch. */
+  /** Creates one entity and its initial payload in a single dependency-pure patch. */
   addEntity(nodeId: string, properties: EntityCapturePayload): PatchBuilder {
     const payload = planEntityCapturePayload(nodeId, properties, {
       added: this._nodesAdded,

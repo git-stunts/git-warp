@@ -15,14 +15,19 @@ export type NodeIntentFields = {
 };
 
 /**
- * One entity and its complete initial payload, stated as a single fact.
+ * One entity and its initial payload, stated as a single fact.
  *
  * This is the dependency-pure capture shape: the lowered patch reads nothing
  * and writes exactly one fresh id, so its syntactic footprint is exact by
- * construction and its cone is a singleton. See `docs/READINGS_AND_OPTICS.md`
- * §4. A payload is mandatory — an entity created as an empty shell and filled
- * by later property writes is precisely the shape this intent exists to
- * replace.
+ * construction and the creation gives the entity an initial singleton cone.
+ * See `docs/READINGS_AND_OPTICS.md` §4.
+ *
+ * A payload is mandatory, so this intent cannot itself produce the empty shell
+ * that later property writes fill in. It does not withdraw `property.set`, so
+ * whether an entity stays immutable after creation is a law the application
+ * adopts rather than one this intent enforces. Payload *completeness* is
+ * likewise an application schema concern: the substrate checks that properties
+ * exist, not which ones an entity requires.
  */
 export type EntityIntentFields = {
   readonly subject: string;
@@ -183,8 +188,11 @@ function entityDescriptor(fields: EntityIntentFields): IntentDescriptor {
       'E_INTENT_ENTITY_EMPTY'
     );
   }
-  const properties: Record<string, PropValue> = {};
-  for (const [key, value] of entries) {
+  // Sorted so that payloads differing only in construction order describe the
+  // same entity, and a null prototype so that a caller-controlled key such as
+  // `__proto__` stays ordinary data.
+  const properties = emptyPropertyMap();
+  for (const [key, value] of entries.sort(compareEntityKeys)) {
     requireNonEmptyString(key, 'intent.properties key');
     properties[key] = requireIntentValue(value);
   }
@@ -193,6 +201,21 @@ function entityDescriptor(fields: EntityIntentFields): IntentDescriptor {
     subject: checkedFields.subject,
     properties: Object.freeze(properties),
   });
+}
+
+/** A property map with no prototype, so hostile keys stay ordinary data. */
+function emptyPropertyMap(): Record<string, PropValue> {
+  return Object.create(null) as Record<string, PropValue>;
+}
+
+function compareEntityKeys(
+  [left]: readonly [string, PropValue],
+  [right]: readonly [string, PropValue],
+): number {
+  if (left === right) {
+    return 0;
+  }
+  return left < right ? -1 : 1;
 }
 
 function requireIntentFields<TFields>(fields: TFields | null | undefined): TFields {

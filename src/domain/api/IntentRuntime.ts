@@ -30,7 +30,7 @@ export function intentFromPatch(patch: Patch): Intent {
   if (isCascadingNodeRemoval(patch.ops, terminal)) {
     return Intent.removeNode({ subject: terminal.node });
   }
-  const entity = entityIntent(patch.ops);
+  const entity = entityIntent(patch);
   if (entity !== null) {
     return entity;
   }
@@ -66,37 +66,69 @@ function isCascadingNodeRemoval(
 /**
  * Recovers an entity capture: one NodeAdd carrying its own payload.
  *
- * Recognised only when every following operation sets a property on the very
- * node the leading NodeAdd created. Anything else — a second node, a property
- * that precedes its node — is not an entity capture, and falls through to the
- * one-operation rule so it is rejected rather than silently reinterpreted.
+ * Operation shape alone is not sufficient evidence. The patch must also
+ * *declare* the dependency-pure footprint — an empty read set and a write set
+ * that is exactly the created subject — because a legacy `PropSet` sequence
+ * can present the same operations while recording the very self-read that
+ * entity capture exists to eliminate. A patch whose recorded footprint does
+ * not match is not recognised here; it falls through to the one-operation
+ * rule and is rejected rather than laundered into a stronger claim.
  */
-function entityIntent(operations: readonly PatchOp[]): Intent | null {
-  const [leading, ...payload] = operations;
-  if (leading?.type !== 'NodeAdd' || payload.length === 0) {
+function entityIntent(patch: Patch): Intent | null {
+  const [leading, ...payload] = patch.ops;
+  if (leading === undefined || leading.type !== 'NodeAdd') {
     return null;
   }
-  const properties = entityPayload(leading.node, payload);
-  return properties === null
-    ? null
-    : Intent.addEntity({ subject: leading.node, properties });
+  return entityIntentFor(patch, leading.node, payload);
+}
+
+function entityIntentFor(
+  patch: Patch,
+  subject: string,
+  payload: readonly PatchOp[],
+): Intent | null {
+  if (payload.length === 0 || !declaresEntityFootprint(patch, subject)) {
+    return null;
+  }
+  const properties = entityPayload(subject, payload);
+  return properties === null ? null : Intent.addEntity({ subject, properties });
+}
+
+/** Whether the patch records reads {} and writes exactly {subject}. */
+function declaresEntityFootprint(patch: Patch, subject: string): boolean {
+  const writes = patch.writes ?? [];
+  return (patch.reads ?? []).length === 0
+    && writes.length === 1
+    && writes[0] === subject;
 }
 
 function entityPayload(
   subject: string,
   payload: readonly PatchOp[],
 ): Record<string, PropValue> | null {
-  const properties: Record<string, PropValue> = {};
+  const properties = Object.create(null) as Record<string, PropValue>;
   for (const operation of payload) {
     if (!isNodePropertyOperation(operation) || operation.node !== subject) {
       return null;
     }
-    if (!isPropValue(operation.value)) {
-      throw hydrationError('persisted Runtime entity Intent has an invalid value');
-    }
-    properties[operation.key] = operation.value;
+    admitEntityProperty(properties, operation);
   }
   return properties;
+}
+
+function admitEntityProperty(
+  properties: Record<string, PropValue>,
+  operation: Extract<PatchOp, { readonly type: 'NodePropSet' | 'PropSet' }>,
+): void {
+  if (Object.hasOwn(properties, operation.key)) {
+    throw hydrationError(
+      'persisted Runtime entity Intent sets the same property key more than once',
+    );
+  }
+  if (!isPropValue(operation.value)) {
+    throw hydrationError('persisted Runtime entity Intent has an invalid value');
+  }
+  properties[operation.key] = operation.value;
 }
 
 function isNodePropertyOperation(
