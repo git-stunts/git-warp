@@ -68,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   storage precondition is stated once instead of duplicated per target shape.
 - Effect id validation and derivation moved to `PatchBuilderValidation`.
 
+### Fixed
+
+- Live strand settlement now replays the canonical Intent recovered from the
+  published draft patch. An auto-allocated entity therefore keeps the subject
+  named by its write receipt, matching settlement after a Runtime reopen.
+
 ### Breaking
 
 - **`entity.add` widens the `Intent` discriminated union.** `IntentKind` and

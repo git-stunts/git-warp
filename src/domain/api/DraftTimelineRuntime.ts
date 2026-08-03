@@ -325,25 +325,25 @@ export function requireDraftStateForReading(
 }
 
 async function writeDraftIntent(fields: DraftWriteFields): Promise<WriteReceipt> {
-  let draftPatchSha: string | undefined;
+  let draftPatch: WarpDraftPatchEntry | undefined;
   const receipt = await executeIntentWrite({
     runtime: fields.runtime,
     context: fields.state.context,
     intent: fields.intent,
     commit: async (build) => {
       const publication = await fields.runtime.patchDraftWithEvidence(fields.draftName, build);
-      draftPatchSha = publication.sha;
+      draftPatch = publication;
       return publication;
     },
   });
   if (receipt.outcome.kind === 'conflict' || receipt.outcome.kind === 'obstruction') {
     return receipt;
   }
-  if (draftPatchSha === undefined) {
+  if (draftPatch === undefined) {
     throw new WarpError('Admitted draft write is missing its patch SHA', 'E_DRAFT_WRITE_RECEIPT');
   }
-  fields.state.draftPatchShas.push(draftPatchSha);
-  fields.state.intents.push(fields.intent);
+  fields.state.draftPatchShas.push(draftPatch.sha);
+  fields.state.intents.push(intentFromPatch(draftPatch.patch));
   return receipt;
 }
 

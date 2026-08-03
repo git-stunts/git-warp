@@ -84,6 +84,33 @@ describe('Runtime entity occurrence receipts', () => {
       await runtime.close();
     }
   });
+
+  it('settles the auto-allocated strand subject without reminting it', async () => {
+    let runtime: Runtime | null = await Runtime.open({
+      at: repository.tempDir,
+      writer: 'writer-a',
+    });
+    try {
+      const parent = await runtime.lane(LANE);
+      const strand = await runtime.fork(parent, { name: 'candidate' });
+      const occurrence = requireOccurrence(await strand.write(capture()));
+
+      const preview = await runtime.previewSettlement({ source: strand, target: parent });
+      await expect(runtime.settle(preview.plan)).resolves.toMatchObject({
+        outcome: { kind: 'derived' },
+      });
+      await runtime.close();
+      runtime = null;
+
+      const graph = await repository.openGraph(LANE, 'writer-a');
+      const state = await graph.materialize();
+      expect(state.nodeAlive.contains(occurrence.subject)).toBe(true);
+    } finally {
+      if (runtime !== null) {
+        await runtime.close();
+      }
+    }
+  });
 });
 
 function capture() {
