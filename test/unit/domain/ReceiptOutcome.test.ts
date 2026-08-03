@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import AdmissionEvaluation from '../../../src/domain/admission/AdmissionEvaluation.ts';
+import ConflictAdmission from '../../../src/domain/admission/ConflictAdmission.ts';
+import ConflictWitness from '../../../src/domain/admission/ConflictWitness.ts';
 import DraftTimeline from '../../../src/domain/api/DraftTimeline.ts';
 import { projectAdmissionOutcome } from '../../../src/domain/api/AdmissionOutcomeRuntime.ts';
 import EntityOccurrence from '../../../src/domain/api/EntityOccurrence.ts';
@@ -132,6 +135,21 @@ describe('receipt outcomes', () => {
     })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
   });
 
+  it('forbids occurrences on entity conflict receipts without requiring one', () => {
+    const outcome = conflictOutcome();
+    const fields = {
+      lane: 'events',
+      writer: 'agent-1',
+      intent: intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
+      outcome,
+      evidence: EVIDENCE,
+    };
+
+    expect(new WriteReceipt(fields).occurrence).toBeUndefined();
+    expect(() => new WriteReceipt({ ...fields, occurrence: entityOccurrence() }))
+      .toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+  });
+
   it('rejects occurrences on non-entity and obstructed receipts', () => {
     const occurrence = entityOccurrence();
     const admitted = projectAdmissionOutcome(
@@ -256,4 +274,29 @@ function entityOccurrence() {
     subject: 'entry:1',
     worldline: 'events',
   });
+}
+
+function conflictOutcome() {
+  return projectAdmissionOutcome(
+    new ConflictAdmission(new ConflictWitness({
+      evaluation: new AdmissionEvaluation({
+        sourceParticipantId: 'agent-1',
+        destinationRuntimeId: 'runtime:events',
+        sourceBasisRef: 'frontier:source',
+        destinationBasisRef: 'frontier:destination',
+        proposalDigest: 'proposal:entity',
+        lawDigest: 'law:entity',
+        profileDigest: 'profile:test',
+        evaluationCoordinateRef: 'coordinate:destination',
+      }),
+      conflictRef: 'conflict:entity',
+      claimRefs: ['claim:local', 'claim:incoming'],
+      overlappingFootprintRefs: ['footprint:entity'],
+      contestedDomain: 'entity',
+      derivationEvidenceRef: 'evidence:derivation',
+      overlapEvidenceRef: 'evidence:overlap',
+      resolutionProcedureRefs: ['procedure:settle'],
+    })),
+    EVIDENCE.basis
+  );
 }

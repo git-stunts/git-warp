@@ -90,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   entity capture and binds supplied subjects back to the requested Intent. A
   publication callback cannot substitute an unrelated node or payload while
   retaining the original receipt Intent.
+- Entity conflict receipts no longer require or accept an occurrence. Only
+  `derived` and `plural` outcomes identify admitted entity writes.
 
 ### Breaking
 

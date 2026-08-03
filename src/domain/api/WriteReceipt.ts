@@ -54,7 +54,8 @@ function validateOccurrence(
   outcome: AdmissionOutcome,
   occurrence: EntityOccurrence | undefined
 ): EntityOccurrence | undefined {
-  if (intent.kind === 'entity.add' && outcome.kind !== 'obstruction') {
+  const admitted = outcome.kind === 'derived' || outcome.kind === 'plural';
+  if (intent.kind === 'entity.add' && admitted) {
     return requireEntityOccurrence(occurrence);
   }
   if (occurrence !== undefined) {
