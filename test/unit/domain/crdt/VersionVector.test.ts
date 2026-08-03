@@ -61,6 +61,15 @@ describe('VersionVector', () => {
       expect(dot.writerId).toBe('alice');
       expect(dot.counter).toBe(1);
     });
+
+    it('refuses exhaustion without reissuing the terminal writer Dot', () => {
+      const vv = VersionVector.from({ alice: Number.MAX_SAFE_INTEGER });
+
+      expect(() => vv.increment('alice')).toThrowError(expect.objectContaining({
+        code: 'E_CRDT_INVALID_COUNTER',
+      }));
+      expect(vv.get('alice')).toBe(Number.MAX_SAFE_INTEGER);
+    });
   });
 
   describe('merge', () => {
@@ -347,6 +356,8 @@ describe('VersionVector', () => {
       expect(() => VersionVector.from(({ alice: 'not a number' } as any))).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: 1.5 })).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: -1 })).toThrow('Invalid counter');
+      expect(() => VersionVector.from({ alice: Number.MAX_SAFE_INTEGER + 1 }))
+        .toThrow('Invalid counter');
     });
 
     it('roundtrips', () => {

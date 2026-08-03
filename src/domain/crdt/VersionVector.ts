@@ -36,9 +36,9 @@ function _isValidWriterId(writerId: string): boolean {
   return typeof writerId === 'string' && writerId.length > 0;
 }
 
-/** Checks if counter is a non-negative integer. */
+/** Checks if counter is a non-negative safe integer. */
 function _isValidCounter(counter: number): boolean {
-  return typeof counter === 'number' && Number.isInteger(counter) && counter >= 0;
+  return typeof counter === 'number' && Number.isSafeInteger(counter) && counter >= 0;
 }
 
 /** Validates a (writerId, counter) entry. */

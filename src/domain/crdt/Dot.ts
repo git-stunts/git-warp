@@ -66,14 +66,14 @@ export class Dot {
   /** Writer identifier (non-empty string) */
   readonly writerId: string;
 
-  /** Monotonic counter (positive integer) */
+  /** Monotonic counter (positive safe integer) */
   readonly counter: number;
 
   /**
    * Creates a validated Dot.
    *
    * @param writerId - Must be non-empty string
-   * @param counter - Must be positive integer (> 0)
+   * @param counter - Must be a positive safe integer (> 0)
    */
   constructor(writerId: string, counter: number) {
     if (typeof writerId !== 'string' || writerId.length === 0) {
@@ -83,7 +83,7 @@ export class Dot {
       });
     }
 
-    if (!Number.isInteger(counter) || counter <= 0) {
+    if (!Number.isSafeInteger(counter) || counter <= 0) {
       throw new CrdtError('counter must be a positive integer', {
         code: 'E_CRDT_INVALID_COUNTER',
         context: { writerId, counter },

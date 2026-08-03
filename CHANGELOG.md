@@ -77,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Equal writer dots in independent worldlines are concurrent instead of being
   misreported as the same occurrence; cross-worldline lists order the worldline
   before applying canonical `EventId` order.
+- Dots and version-vector counters now reject integers beyond JavaScript's exact
+  range. Counter exhaustion fails before mutation instead of reissuing a writer
+  Dot and colliding an auto-allocated entity subject.
 
 ### Breaking
 

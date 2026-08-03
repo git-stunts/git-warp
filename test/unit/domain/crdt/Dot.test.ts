@@ -288,6 +288,11 @@ describe('Dot', () => {
       expect(dotsEqual(dot, decoded)).toBe(true);
     });
 
+    it('rejects counters beyond exact integer representation', () => {
+      expect(() => Dot.create('alice', Number.MAX_SAFE_INTEGER + 1))
+        .toThrowError(expect.objectContaining({ code: 'E_CRDT_INVALID_COUNTER' }));
+    });
+
     it('handles unicode writerId', () => {
       const dot = Dot.create('writer-\u4e2d\u6587', 1);
 
