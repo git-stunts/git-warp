@@ -12,7 +12,7 @@ import { projectAdmissionOutcome } from './AdmissionOutcomeRuntime.ts';
 import type Evidence from './Evidence.ts';
 import { createWriteEvidence, createWriteRecoveryEvidence } from './EvidenceRuntime.ts';
 import type Intent from './Intent.ts';
-import { applyIntentToPatch } from './IntentRuntime.ts';
+import { applyIntentToPatch, intentFromPatch } from './IntentRuntime.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
 import WriteReceipt from './WriteReceipt.ts';
 import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
@@ -190,20 +190,44 @@ function publishedEntityOccurrence(fields: PublishedWriteFields): EntityOccurren
     return undefined;
   }
   const { patch, sha } = fields.publication;
+  const subject = publishedEntitySubject(fields.intent, publishedEntityIntent(patch));
   const leading = patch.ops[0];
   if (!(leading instanceof NodeAdd) || !(leading.dot instanceof Dot)) {
-    throw new WarpError(
-      'Published entity write does not begin with a causally identified NodeAdd',
-      'E_WRITE_ENTITY_OCCURRENCE'
+    throw entityOccurrenceError(
+      'Published entity write does not begin with a causally identified NodeAdd'
     );
   }
   return createEntityOccurrence({
     context: patch.context,
     dot: leading.dot,
     eventId: new EventId(patch.lamport, patch.writer, sha, 0),
-    subject: leading.node,
+    subject,
     worldline: fields.runtime.worldlineName,
   });
+}
+
+function publishedEntitySubject(requested: Intent, published: Intent): string {
+  const publishedDescriptor = published.descriptor;
+  if (publishedDescriptor.kind !== 'entity.add' || !('subject' in publishedDescriptor)) {
+    throw entityOccurrenceError('Published entity write is not an entity capture');
+  }
+  const requestedDescriptor = requested.descriptor;
+  if ('subject' in requestedDescriptor && requestedDescriptor.subject !== publishedDescriptor.subject) {
+    throw entityOccurrenceError('Published entity write does not match the requested entity');
+  }
+  return publishedDescriptor.subject;
+}
+
+function publishedEntityIntent(patch: PublishedWriteFields['publication']['patch']): Intent {
+  try {
+    return intentFromPatch(patch);
+  } catch {
+    throw entityOccurrenceError('Published entity write is not a complete entity capture');
+  }
+}
+
+function entityOccurrenceError(message: string): WarpError {
+  return new WarpError(message, 'E_WRITE_ENTITY_OCCURRENCE');
 }
 
 async function committedWriteEvidence(fields: PublishedWriteFields): Promise<Evidence> {

@@ -86,6 +86,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admitted entity receipts now require the occurrence coordinate retained by
   the substrate runtime. An arbitrary `EntityOccurrence` instance can no longer
   forge authoritative receipt identity with caller-supplied callbacks.
+- Entity occurrence issuance now hydrates the complete published patch as an
+  entity capture and binds supplied subjects back to the requested Intent. A
+  publication callback cannot substitute an unrelated node or payload while
+  retaining the original receipt Intent.
 
 ### Breaking
 

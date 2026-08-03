@@ -65,6 +65,43 @@ describe('WriteRuntime admission classification', () => {
     })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
 
+  it('refuses a published entity receipt whose patch is not an entity capture', async () => {
+    await expect(executeIntentWrite({
+      runtime: createRuntime(),
+      context: createContext().context,
+      intent: intent.entity.add({
+        subject: 'entry:1',
+        properties: { kind: 'capture' },
+      }),
+      commit: async (build) => {
+        const capture = committableBuilder();
+        await build(capture);
+        const publication = await capture.commitWithEvidence();
+        return Object.freeze({ ...publication, patch: builder().addNode('entry:1').build() });
+      },
+    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+  });
+
+  it('refuses a published entity receipt whose supplied subject changed', async () => {
+    await expect(executeIntentWrite({
+      runtime: createRuntime(),
+      context: createContext().context,
+      intent: intent.entity.add({
+        subject: 'entry:1',
+        properties: { kind: 'capture' },
+      }),
+      commit: async (build) => {
+        const capture = committableBuilder();
+        await build(capture);
+        const publication = await capture.commitWithEvidence();
+        return Object.freeze({
+          ...publication,
+          patch: builder().addEntity('entry:2', { kind: 'capture' }).build(),
+        });
+      },
+    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+  });
+
   it('classifies writer CAS races as stale-basis obstructions', async () => {
     const { context, provenance } = createContext();
     const receipt = await executeIntentWrite({
