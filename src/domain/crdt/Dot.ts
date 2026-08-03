@@ -84,7 +84,7 @@ export class Dot {
     }
 
     if (!Number.isSafeInteger(counter) || counter <= 0) {
-      throw new CrdtError('counter must be a positive integer', {
+      throw new CrdtError('counter must be a positive safe integer', {
         code: 'E_CRDT_INVALID_COUNTER',
         context: { writerId, counter },
       });

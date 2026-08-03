@@ -98,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Entity Intent identity selection treats explicitly `undefined` optional
   `subject` or `namespace` fields as absent, matching ordinary optional-field
   semantics for spread-built inputs.
+- Invalid Dot counters now report the enforced positive-safe-integer constraint
+  instead of describing the weaker integer-only rule.
 
 ### Breaking
 

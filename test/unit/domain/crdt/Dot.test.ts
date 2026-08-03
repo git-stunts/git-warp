@@ -37,19 +37,19 @@ describe('Dot', () => {
     });
 
     it('throws on non-positive counter', () => {
-      expect(() => Dot.create('alice', 0)).toThrow('counter must be a positive integer');
-      expect(() => Dot.create('alice', -1)).toThrow('counter must be a positive integer');
+      expect(() => Dot.create('alice', 0)).toThrow('counter must be a positive safe integer');
+      expect(() => Dot.create('alice', -1)).toThrow('counter must be a positive safe integer');
     });
 
     it('throws on non-integer counter', () => {
-      expect(() => Dot.create('alice', 1.5)).toThrow('counter must be a positive integer');
-      expect(() => Dot.create('alice', NaN)).toThrow('counter must be a positive integer');
-      expect(() => Dot.create('alice', Infinity)).toThrow('counter must be a positive integer');
+      expect(() => Dot.create('alice', 1.5)).toThrow('counter must be a positive safe integer');
+      expect(() => Dot.create('alice', NaN)).toThrow('counter must be a positive safe integer');
+      expect(() => Dot.create('alice', Infinity)).toThrow('counter must be a positive safe integer');
     });
 
     it('throws on non-number counter', () => {
-      expect(() => Dot.create('alice', ('1' as any))).toThrow('counter must be a positive integer');
-      expect(() => Dot.create('alice', (null as any))).toThrow('counter must be a positive integer');
+      expect(() => Dot.create('alice', ('1' as any))).toThrow('counter must be a positive safe integer');
+      expect(() => Dot.create('alice', (null as any))).toThrow('counter must be a positive safe integer');
     });
   });
 
