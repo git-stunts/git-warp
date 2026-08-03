@@ -129,6 +129,7 @@ describe('EntityOccurrence', () => {
       dot: {},
       eventId: new EventId(1, 'writer', 'aaaa', 0),
       subject: 'entry:1',
+      worldline: 'events',
     })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_DOT' }));
     expect(() => createEntityOccurrence({
       context: {},
@@ -136,7 +137,15 @@ describe('EntityOccurrence', () => {
       // @ts-expect-error Exercise the JavaScript boundary.
       eventId: {},
       subject: 'entry:1',
+      worldline: 'events',
     })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_EVENT' }));
+    expect(() => createEntityOccurrence({
+      context: {},
+      dot: Dot.create('writer', 1),
+      eventId: new EventId(1, 'writer', 'aaaa', 0),
+      subject: 'entry:1',
+      worldline: '',
+    })).toThrowError(expect.objectContaining({ code: 'E_VALIDATION' }));
   });
 });
 
@@ -147,6 +156,7 @@ function occurrence(fields: {
   readonly patchSha: string;
   readonly subject: string;
   readonly writer?: string;
+  readonly worldline?: string;
 }): EntityOccurrence {
   const writer = fields.writer ?? 'writer';
   return createEntityOccurrence({
@@ -154,5 +164,6 @@ function occurrence(fields: {
     dot: Dot.create(writer, fields.counter),
     eventId: new EventId(fields.lamport, writer, fields.patchSha, 0),
     subject: fields.subject,
+    worldline: fields.worldline ?? 'events',
   });
 }

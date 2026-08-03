@@ -13,9 +13,10 @@ type EntityOccurrenceOptions = {
 /**
  * One admitted entity creation and its opaque substrate coordinate.
  *
- * `id` is occurrence identity, `relationTo` answers causal questions, and
- * `compare` supplies git-warp's deterministic event linearization. None of
- * those meanings come from the entity subject or application timestamps.
+ * `id` is occurrence identity, `relationTo` answers causal questions within a
+ * worldline, and `compare` supplies git-warp's deterministic worldline/event
+ * linearization. Independent worldlines are concurrent. None of those meanings
+ * come from the entity subject or application timestamps.
  */
 export default class EntityOccurrence {
   readonly #compare: (other: EntityOccurrence) => number;

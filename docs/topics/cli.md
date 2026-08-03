@@ -78,10 +78,12 @@ git warp write \
 ```
 
 The admitted `WriteReceipt` returns `occurrence.subject` and an opaque
-`occurrence.id`. Its `relationTo` method answers causal partial-order questions;
-its `compare` method uses git-warp's canonical `EventId` linearization for a
-deterministic list. Do not parse the allocated subject or occurrence id. Do not
-use a payload timestamp for uniqueness or causal order.
+`occurrence.id`. Its `relationTo` method answers causal partial-order questions
+within a worldline; occurrences from independent worldlines are concurrent. Its
+`compare` method orders the worldline first, then uses git-warp's canonical
+`EventId` linearization for a deterministic list. Do not parse the allocated
+subject or occurrence id. Do not use a payload timestamp for uniqueness or
+causal order.
 
 ## Prepare and observe a Lane
 

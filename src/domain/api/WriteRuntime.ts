@@ -202,6 +202,7 @@ function publishedEntityOccurrence(fields: PublishedWriteFields): EntityOccurren
     dot: leading.dot,
     eventId: new EventId(patch.lamport, patch.writer, sha, 0),
     subject: leading.node,
+    worldline: fields.runtime.worldlineName,
   });
 }
 

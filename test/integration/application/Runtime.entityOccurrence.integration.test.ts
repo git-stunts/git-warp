@@ -65,6 +65,24 @@ describe('Runtime entity occurrence receipts', () => {
     }
   });
 
+  it('scopes colliding writer dots to their independent worldlines', async () => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
+    try {
+      const leftLane = await runtime.lane('left');
+      const rightLane = await runtime.lane('right');
+      const left = requireOccurrence(await leftLane.write(capture()));
+      const right = requireOccurrence(await rightLane.write(capture()));
+
+      expect(left.subject).toBe(right.subject);
+      expect(left.id).not.toBe(right.id);
+      expect(left.relationTo(right)).toBe('concurrent');
+      expect(right.relationTo(left)).toBe('concurrent');
+      expect(left.compare(right)).not.toBe(0);
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it('returns a new occurrence for every supplied-subject admission', async () => {
     const runtime = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
     try {

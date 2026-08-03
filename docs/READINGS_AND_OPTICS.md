@@ -143,7 +143,8 @@ owns the distinct ordering questions:
 - a version vector answers causal partial-order questions, and concurrent
   vectors are incomparable;
 - an `EventId` supplies the canonical deterministic linearization
-  `lamport → writerId → patchSha → opIndex` when a list must be stable.
+  `lamport → writerId → patchSha → opIndex` within one worldline; a reading
+  spanning independent worldlines orders the worldline before the `EventId`.
 
 Retrieval optics fold admitted occurrences in that substrate order. A field
 such as `capturedAt` may remain application payload for human chronology and

@@ -73,6 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Live strand settlement now replays the canonical Intent recovered from the
   published draft patch. An auto-allocated entity therefore keeps the subject
   named by its write receipt, matching settlement after a Runtime reopen.
+- Entity occurrence identity and ordering now include their worldline scope.
+  Equal writer dots in independent worldlines are concurrent instead of being
+  misreported as the same occurrence; cross-worldline lists order the worldline
+  before applying canonical `EventId` order.
 
 ### Breaking
 

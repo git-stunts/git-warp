@@ -229,5 +229,6 @@ function entityOccurrence() {
     dot: Dot.create('agent-1', 1),
     eventId: new EventId(1, 'agent-1', 'aaaa', 0),
     subject: 'entry:1',
+    worldline: 'events',
   });
 }
