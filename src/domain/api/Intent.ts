@@ -18,8 +18,9 @@ export type NodeIntentFields = {
  * One entity and its initial payload, stated as a single fact.
  *
  * This is the dependency-pure capture shape: the lowered patch reads nothing
- * and writes exactly one fresh id, so its syntactic footprint is exact by
- * construction and the creation gives the entity an initial singleton cone.
+ * and writes exactly one subject, so its syntactic footprint is exact by
+ * construction. A caller may supply a semantic subject, or ask git-warp to
+ * allocate one from the NodeAdd's writer-local dot with `addEntityAuto`.
  * See `docs/READINGS_AND_OPTICS.md` §4.
  *
  * A payload is mandatory, so this intent cannot itself produce the empty shell
@@ -27,11 +28,20 @@ export type NodeIntentFields = {
  * whether an entity stays immutable after creation is a law the application
  * adopts rather than one this intent enforces. Payload *completeness* is
  * likewise an application schema concern: the substrate checks that properties
- * exist, not which ones an entity requires.
+ * exist, not which ones an entity requires. Subject identity, occurrence
+ * identity, causal relation, deterministic event order, and application time
+ * remain separate concepts.
  */
-export type EntityIntentFields = {
-  readonly subject: string;
+type EntityPayloadFields = {
   readonly properties: Readonly<Record<string, PropValue>>;
+};
+
+export type EntityIntentFields = EntityPayloadFields & {
+  readonly subject: string;
+};
+
+export type AutoEntityIntentFields = EntityPayloadFields & {
+  readonly namespace: string;
 };
 
 export type EdgeIntentFields = {
@@ -52,7 +62,8 @@ export type IntentDescriptor =
   | (EdgeIntentFields & { readonly kind: 'edge.add' })
   | (EdgeIntentFields & { readonly kind: 'edge.remove' })
   | (PropertyIntentFields & { readonly kind: 'property.set' })
-  | (EntityIntentFields & { readonly kind: 'entity.add' });
+  | (EntityIntentFields & { readonly kind: 'entity.add' })
+  | (AutoEntityIntentFields & { readonly kind: 'entity.add' });
 
 const NODE_ADD: 'node.add' = 'node.add';
 const NODE_REMOVE: 'node.remove' = 'node.remove';
@@ -90,6 +101,10 @@ export default class Intent {
   }
 
   static addEntity(fields: EntityIntentFields): Intent {
+    return new Intent(entityDescriptor(fields));
+  }
+
+  static addEntityAuto(fields: AutoEntityIntentFields): Intent {
     return new Intent(entityDescriptor(fields));
   }
 
@@ -178,9 +193,8 @@ function propertyDescriptor(fields: PropertyIntentFields): IntentDescriptor {
   });
 }
 
-function entityDescriptor(fields: EntityIntentFields): IntentDescriptor {
+function entityDescriptor(fields: EntityIntentFields | AutoEntityIntentFields): IntentDescriptor {
   const checkedFields = requireIntentFields(fields);
-  requireNonEmptyString(checkedFields.subject, 'intent.subject');
   const entries = Object.entries(requireIntentFields(checkedFields.properties));
   if (entries.length === 0) {
     throw new WarpError(
@@ -196,11 +210,27 @@ function entityDescriptor(fields: EntityIntentFields): IntentDescriptor {
     requireNonEmptyString(key, 'intent.properties key');
     properties[key] = requireIntentValue(value);
   }
-  return Object.freeze({
-    kind: ENTITY_ADD,
-    subject: checkedFields.subject,
-    properties: Object.freeze(properties),
-  });
+  const identity = entityIdentity(checkedFields);
+  return Object.freeze({ kind: ENTITY_ADD, ...identity, properties: Object.freeze(properties) });
+}
+
+function entityIdentity(
+  fields: EntityIntentFields | AutoEntityIntentFields,
+): Readonly<{ subject: string }> | Readonly<{ namespace: string }> {
+  const hasSubject = 'subject' in fields;
+  const hasNamespace = 'namespace' in fields;
+  if (hasSubject === hasNamespace) {
+    throw new WarpError(
+      'Intent entity requires exactly one of subject or namespace',
+      'E_INTENT_ENTITY_IDENTITY'
+    );
+  }
+  if (hasSubject) {
+    requireNonEmptyString(fields.subject, 'intent.subject');
+    return Object.freeze({ subject: fields.subject });
+  }
+  requireNonEmptyString(fields.namespace, 'intent.namespace');
+  return Object.freeze({ namespace: fields.namespace });
 }
 
 /** A property map with no prototype, so hostile keys stay ordinary data. */

@@ -26,6 +26,18 @@ describe('v19 CLI entity Intent input', () => {
     })).kind).toBe('entity.add');
   });
 
+  it('accepts substrate allocation in an application namespace', () => {
+    expect(intentFromValue({
+      kind: 'entity.add',
+      namespace: 'entry',
+      properties: { kind: 'capture', capturedAt: '2026-08-03T20:00:00.000Z' },
+    }).descriptor).toEqual({
+      kind: 'entity.add',
+      namespace: 'entry',
+      properties: { capturedAt: '2026-08-03T20:00:00.000Z', kind: 'capture' },
+    });
+  });
+
   it('rejects an entity capture with no payload', () => {
     expect(() => intentFromValue({
       kind: 'entity.add',
@@ -38,6 +50,15 @@ describe('v19 CLI entity Intent input', () => {
     expect(() => intentFromValue({
       kind: 'entity.add',
       subject: '',
+      properties: { kind: 'capture' },
+    })).toThrow();
+  });
+
+  it('rejects an entity capture with both supplied and allocated identity', () => {
+    expect(() => intentFromValue({
+      kind: 'entity.add',
+      subject: 'entry:1',
+      namespace: 'entry',
       properties: { kind: 'capture' },
     })).toThrow();
   });

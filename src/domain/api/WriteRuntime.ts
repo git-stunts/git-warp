@@ -17,6 +17,11 @@ import type { RepairHint } from './ReceiptSupport.ts';
 import WriteReceipt from './WriteReceipt.ts';
 import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
 import type AdmissionEvaluation from '../admission/AdmissionEvaluation.ts';
+import type EntityOccurrence from './EntityOccurrence.ts';
+import { createEntityOccurrence } from './EntityOccurrenceRuntime.ts';
+import { Dot } from '../crdt/Dot.ts';
+import NodeAdd from '../types/ops/NodeAdd.ts';
+import { EventId } from '../utils/EventId.ts';
 import {
   createDerivedWriteAdmission,
   createObstructedWriteAdmission,
@@ -167,15 +172,37 @@ async function derivedWriteReceipt(
 ): Promise<WriteReceipt> {
   const { runtime, context, intent, publication } = fields;
   const evidence = await committedWriteEvidence(fields);
+  const occurrence = publishedEntityOccurrence(fields);
   const receipt = new WriteReceipt({
     lane: runtime.worldlineName,
     writer: runtime.writerId,
     intent,
     outcome: projectAdmissionOutcome(createDerivedWriteAdmission(fields), evidence.basis),
     evidence,
+    ...(occurrence === undefined ? {} : { occurrence }),
   });
   context.bindReceipt(receipt, { operation: 'write', patchSha: publication.sha });
   return receipt;
+}
+
+function publishedEntityOccurrence(fields: PublishedWriteFields): EntityOccurrence | undefined {
+  if (fields.intent.kind !== 'entity.add') {
+    return undefined;
+  }
+  const { patch, sha } = fields.publication;
+  const leading = patch.ops[0];
+  if (!(leading instanceof NodeAdd) || !(leading.dot instanceof Dot)) {
+    throw new WarpError(
+      'Published entity write does not begin with a causally identified NodeAdd',
+      'E_WRITE_ENTITY_OCCURRENCE'
+    );
+  }
+  return createEntityOccurrence({
+    context: patch.context,
+    dot: leading.dot,
+    eventId: new EventId(patch.lamport, patch.writer, sha, 0),
+    subject: leading.node,
+  });
 }
 
 async function committedWriteEvidence(fields: PublishedWriteFields): Promise<Evidence> {

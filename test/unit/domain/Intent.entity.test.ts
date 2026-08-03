@@ -26,6 +26,39 @@ describe('Intent entity descriptors', () => {
     }).kind).toBe('entity.add');
   });
 
+  it('describes substrate allocation without inventing an application subject', () => {
+    const created = Intent.addEntityAuto({
+      namespace: 'entry',
+      properties: { kind: 'capture', capturedAt: '2026-08-03T20:00:00.000Z' },
+    });
+
+    expect(created.kind).toBe('entity.add');
+    expect(created.descriptor).toEqual({
+      kind: 'entity.add',
+      namespace: 'entry',
+      properties: { capturedAt: '2026-08-03T20:00:00.000Z', kind: 'capture' },
+    });
+    expect('subject' in created.descriptor).toBe(false);
+  });
+
+  it('exposes substrate allocation through a distinct public builder', () => {
+    expect(intent.entity.addAuto({
+      namespace: 'entry',
+      properties: { kind: 'capture' },
+    }).descriptor).toEqual({
+      kind: 'entity.add',
+      namespace: 'entry',
+      properties: { kind: 'capture' },
+    });
+  });
+
+  it('rejects an empty allocation namespace', () => {
+    expect(() => Intent.addEntityAuto({
+      namespace: '',
+      properties: { kind: 'capture' },
+    })).toThrow();
+  });
+
   it('copies the payload so the descriptor cannot be mutated after the fact', () => {
     const properties = { tags: ['first'] };
     const created = Intent.addEntity({ subject: 'entry:1', properties });

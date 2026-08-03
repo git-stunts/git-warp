@@ -13,9 +13,58 @@ import type { PatchBuilder } from '../../../src/domain/services/PatchBuilder.ts'
 import WarpState from '../../../src/domain/services/state/WarpState.ts';
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import { testDerivedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
-import { createPatchBuilder } from './services/PatchBuilderTestHarness.ts';
+import {
+  createPatchBuilder,
+  createPatchBuilderMockPersistence,
+  createPatchJournal,
+} from './services/PatchBuilderTestHarness.ts';
 
 describe('WriteRuntime admission classification', () => {
+  it('issues the substrate occurrence from the causally published entity patch', async () => {
+    const { context, provenance } = createContext();
+    const receipt = await executeIntentWrite({
+      runtime: createRuntime(),
+      context,
+      intent: intent.entity.addAuto({
+        namespace: 'entry',
+        properties: { kind: 'capture', capturedAt: '2026-08-03T20:00:00.000Z' },
+      }),
+      commit: async (build) => {
+        const capture = committableBuilder();
+        await build(capture);
+        return await capture.commitWithEvidence();
+      },
+    });
+
+    const occurrence = receipt.occurrence;
+    expect(occurrence).toBeDefined();
+    if (occurrence === undefined) {
+      throw new Error('entity write must return an occurrence');
+    }
+    expect(occurrence.subject).toMatch(/^entry:[0-9a-f]+$/);
+    expect(occurrence.id).toMatch(/^occurrence:[0-9a-f]+$/);
+    expect(occurrence.relationTo(occurrence)).toBe('same');
+    expect(occurrence.compare(occurrence)).toBe(0);
+    expect(provenance).toEqual([{ operation: 'write', patchSha: expect.any(String) }]);
+  });
+
+  it('refuses a published entity receipt whose patch lost its NodeAdd coordinate', async () => {
+    await expect(executeIntentWrite({
+      runtime: createRuntime(),
+      context: createContext().context,
+      intent: intent.entity.add({
+        subject: 'entry:1',
+        properties: { kind: 'capture' },
+      }),
+      commit: async (build) => {
+        const capture = committableBuilder();
+        await build(capture);
+        const publication = await capture.commitWithEvidence();
+        return Object.freeze({ ...publication, patch: builder().build() });
+      },
+    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+  });
+
   it('classifies writer CAS races as stale-basis obstructions', async () => {
     const { context, provenance } = createContext();
     const receipt = await executeIntentWrite({
@@ -138,6 +187,11 @@ function builder(overrides: Parameters<typeof createPatchBuilder>[0] = {}): Patc
     evaluationCoordinateRef: 'warp:test-coordinate:events',
     ...overrides,
   });
+}
+
+function committableBuilder(): PatchBuilder {
+  const persistence = createPatchBuilderMockPersistence();
+  return builder({ persistence, patchJournal: createPatchJournal(persistence) });
 }
 
 function stateWithAttachedEdge(): WarpState {

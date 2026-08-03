@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import DraftTimeline from '../../../src/domain/api/DraftTimeline.ts';
 import { projectAdmissionOutcome } from '../../../src/domain/api/AdmissionOutcomeRuntime.ts';
+import { createEntityOccurrence } from '../../../src/domain/api/EntityOccurrenceRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import JoinReceipt from '../../../src/domain/api/JoinReceipt.ts';
 import { READ_JOIN_RECEIPT_OUTCOMES } from '../../../src/domain/api/ReceiptOutcome.ts';
 import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../src/domain/utils/EventId.ts';
 import {
   testDerivedIntentAdmissionReceipt,
   testObstructedIntentAdmissionReceipt,
@@ -113,6 +116,67 @@ describe('receipt outcomes', () => {
     expect(receipt.evidence).toEqual(EVIDENCE);
   });
 
+  it('requires every admitted entity receipt to carry an occurrence', () => {
+    const outcome = projectAdmissionOutcome(
+      testDerivedIntentAdmissionReceipt('manual-entity').outcome,
+      EVIDENCE.basis
+    );
+
+    expect(() => new WriteReceipt({
+      lane: 'events',
+      writer: 'agent-1',
+      intent: intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
+      outcome,
+      evidence: EVIDENCE,
+    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+  });
+
+  it('rejects occurrences on non-entity and obstructed receipts', () => {
+    const occurrence = entityOccurrence();
+    const admitted = projectAdmissionOutcome(
+      testDerivedIntentAdmissionReceipt('manual-node').outcome,
+      EVIDENCE.basis
+    );
+    const obstructed = projectAdmissionOutcome(
+      testObstructedIntentAdmissionReceipt('manual-entity-obstruction').outcome,
+      EVIDENCE.basis
+    );
+
+    expect(() => new WriteReceipt({
+      lane: 'events',
+      writer: 'agent-1',
+      intent: intent.node.add({ subject: 'entry:1' }),
+      outcome: admitted,
+      evidence: EVIDENCE,
+      occurrence,
+    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+    expect(() => new WriteReceipt({
+      lane: 'events',
+      writer: 'agent-1',
+      intent: intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
+      outcome: obstructed,
+      evidence: EVIDENCE,
+      occurrence,
+    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+  });
+
+  it('retains the substrate occurrence on an admitted entity receipt', () => {
+    const occurrence = entityOccurrence();
+    const receipt = new WriteReceipt({
+      lane: 'events',
+      writer: 'agent-1',
+      intent: intent.entity.add({ subject: occurrence.subject, properties: { kind: 'capture' } }),
+      outcome: projectAdmissionOutcome(
+        testDerivedIntentAdmissionReceipt('manual-entity').outcome,
+        EVIDENCE.basis
+      ),
+      evidence: EVIDENCE,
+      occurrence,
+    });
+
+    expect(receipt.occurrence).toBe(occurrence);
+  });
+
   it('rejects legacy string write outcomes at runtime', () => {
     expect(
       () =>
@@ -158,3 +222,12 @@ describe('receipt outcomes', () => {
     ).toThrow(message);
   });
 });
+
+function entityOccurrence() {
+  return createEntityOccurrence({
+    context: { 'agent-1': 1 },
+    dot: Dot.create('agent-1', 1),
+    eventId: new EventId(1, 'agent-1', 'aaaa', 0),
+    subject: 'entry:1',
+  });
+}

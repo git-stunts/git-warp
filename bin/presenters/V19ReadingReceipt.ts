@@ -48,6 +48,12 @@ function writeReceiptEnvelope(receipt: WriteReceipt): McpJsonValue {
     intent: toMcpJson(receipt.intent.descriptor),
     outcome: toMcpJson(receipt.outcome),
     reason: receipt.reason ?? null,
+    occurrence: receipt.occurrence === undefined
+      ? null
+      : Object.freeze({
+        id: receipt.occurrence.id,
+        subject: receipt.occurrence.subject,
+      }),
     evidence: evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
   });

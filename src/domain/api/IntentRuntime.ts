@@ -223,7 +223,11 @@ function lowerPropertySet(descriptor: IntentDescriptor, patch: PatchBuilder): vo
 
 function lowerEntityAdd(descriptor: IntentDescriptor, patch: PatchBuilder): void {
   assertDescriptorKind(descriptor, 'entity.add');
-  patch.addEntity(descriptor.subject, descriptor.properties);
+  if ('subject' in descriptor) {
+    patch.addEntity(descriptor.subject, descriptor.properties);
+    return;
+  }
+  patch.addEntityAuto(descriptor.namespace, descriptor.properties);
 }
 
 function assertDescriptorKind<K extends IntentKind>(

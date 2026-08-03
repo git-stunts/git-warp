@@ -58,7 +58,8 @@ const INTENT_SCHEMA = z.discriminatedUnion('kind', [
   }).strict(),
   z.object({
     kind: z.literal('entity.add'),
-    subject: z.string().min(1),
+    subject: z.string().min(1).optional(),
+    namespace: z.string().min(1).optional(),
     properties: z.record(z.string().min(1), JSON_INPUT_SCHEMA).refine(
       (properties) => Object.keys(properties).length > 0,
       { message: 'entity.add requires at least one property' },
@@ -100,8 +101,29 @@ export function intentFromText(text: string): Intent {
 export function intentFromValue(value: McpJsonValue): Intent {
   const descriptor = parseIntentDescriptor(value);
   return descriptor.kind === 'entity.add'
-    ? intent.entity.add(descriptor)
+    ? entityIntentFrom(descriptor)
     : elementIntentFrom(descriptor);
+}
+
+function entityIntentFrom(
+  descriptor: Extract<z.infer<typeof INTENT_SCHEMA>, { kind: 'entity.add' }>,
+): Intent {
+  if (descriptor.subject !== undefined && descriptor.namespace === undefined) {
+    return intent.entity.add({
+      subject: descriptor.subject,
+      properties: descriptor.properties,
+    });
+  }
+  if (descriptor.namespace !== undefined && descriptor.subject === undefined) {
+    return intent.entity.addAuto({
+      namespace: descriptor.namespace,
+      properties: descriptor.properties,
+    });
+  }
+  throw usageErrorFrom(
+    'Invalid Intent entity.add identity',
+    'exactly one of subject or namespace is required',
+  );
 }
 
 function elementIntentFrom(

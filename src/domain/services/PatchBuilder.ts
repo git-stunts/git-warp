@@ -37,7 +37,7 @@ import {
   type ContentInput,
   type ContentMetadataInput,
 } from './PatchBuilderContent.ts';
-import { planEntityCapturePayload, type EntityCapturePayload } from './PatchBuilderEntity.ts';
+import { allocateEntityCapture, planEntityCapturePayload, type EntityCapturePayload } from './PatchBuilderEntity.ts';
 import { capturePatchBuilderCausalBasis } from './admission/PatchBuilderCausalBasis.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import { commitPatch } from './PatchCommitter.ts';
@@ -154,15 +154,20 @@ export class PatchBuilder {
 
   /** Creates one entity and its initial payload in a single dependency-pure patch. */
   addEntity(nodeId: string, properties: EntityCapturePayload): PatchBuilder {
-    const payload = planEntityCapturePayload(nodeId, properties, {
-      added: this._nodesAdded,
-      state: this._getSnapshotState(),
-    });
+    const scope = { added: this._nodesAdded, state: this._getSnapshotState() };
+    const payload = planEntityCapturePayload(nodeId, properties, scope);
     this.addNode(nodeId);
     this._ops.push(...payload);
     return this;
   }
-
+  addEntityAuto(namespace: string, properties: EntityCapturePayload): PatchBuilder {
+    this._assertNotCommitted();
+    const capture = allocateEntityCapture({ namespace, properties, scope: { added: this._nodesAdded, state: this._getSnapshotState() }, writerId: this._writerId, versionVector: this._vv });
+    this._ops.push(new NodeAdd(capture.nodeId, capture.dot), ...capture.payload);
+    this._nodesAdded.add(capture.nodeId);
+    this._writes.add(capture.nodeId);
+    return this;
+  }
   removeNode(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
     const state = this._getSnapshotState();

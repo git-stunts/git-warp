@@ -1,4 +1,5 @@
 import Intent, {
+  type AutoEntityIntentFields,
   type EdgeIntentFields,
   type EntityIntentFields,
   type NodeIntentFields,
@@ -12,6 +13,7 @@ export type IntentBuilders = {
   };
   readonly entity: {
     readonly add: (fields: EntityIntentFields) => Intent;
+    readonly addAuto: (fields: AutoEntityIntentFields) => Intent;
   };
   readonly edge: {
     readonly add: (fields: EdgeIntentFields) => Intent;
@@ -29,6 +31,7 @@ export const intent: IntentBuilders = Object.freeze({
   }),
   entity: Object.freeze({
     add: (fields: EntityIntentFields) => Intent.addEntity(fields),
+    addAuto: (fields: AutoEntityIntentFields) => Intent.addEntityAuto(fields),
   }),
   edge: Object.freeze({
     add: (fields: EdgeIntentFields) => Intent.addEdge(fields),

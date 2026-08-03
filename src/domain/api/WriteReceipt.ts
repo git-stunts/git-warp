@@ -5,6 +5,7 @@ import { requireAdmissionOutcome } from './AdmissionOutcomeRuntime.ts';
 import type Evidence from './Evidence.ts';
 import { freezeEvidence } from './EvidenceRuntime.ts';
 import Intent from './Intent.ts';
+import EntityOccurrence from './EntityOccurrence.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
 
 type WriteReceiptFields = {
@@ -13,6 +14,7 @@ type WriteReceiptFields = {
   readonly intent: Intent;
   readonly outcome: AdmissionOutcome;
   readonly evidence: Evidence;
+  readonly occurrence?: EntityOccurrence;
   readonly repairHints?: readonly RepairHint[];
 };
 
@@ -23,6 +25,7 @@ export default class WriteReceipt {
   readonly intent: Intent;
   readonly operation: 'write' = 'write';
   readonly outcome: AdmissionOutcome;
+  readonly occurrence: EntityOccurrence | undefined;
   readonly repairHints: readonly RepairHint[];
   readonly reason: string | undefined;
   readonly lane: string;
@@ -37,11 +40,41 @@ export default class WriteReceipt {
     this.intent = fields.intent;
     this.outcome = fields.outcome;
     this.evidence = freezeEvidence(fields.evidence, 'writeReceipt.evidence');
+    this.occurrence = validateOccurrence(fields.intent, fields.outcome, fields.occurrence);
     this.repairHints = freezeRepairHints(fields.repairHints ?? []);
     this.reason =
       fields.outcome.kind === 'obstruction' ? fields.outcome.witness.reason.code : undefined;
     Object.freeze(this);
   }
+}
+
+function validateOccurrence(
+  intent: Intent,
+  outcome: AdmissionOutcome,
+  occurrence: EntityOccurrence | undefined
+): EntityOccurrence | undefined {
+  if (intent.kind === 'entity.add' && outcome.kind !== 'obstruction') {
+    return requireEntityOccurrence(occurrence);
+  }
+  if (occurrence !== undefined) {
+    throw new WarpError(
+      'Only an admitted entity WriteReceipt can carry an EntityOccurrence',
+      'E_WRITE_RECEIPT_ENTITY_OCCURRENCE'
+    );
+  }
+  return undefined;
+}
+
+function requireEntityOccurrence(
+  occurrence: EntityOccurrence | undefined
+): EntityOccurrence {
+  if (!(occurrence instanceof EntityOccurrence)) {
+    throw new WarpError(
+      'Admitted entity WriteReceipt requires an EntityOccurrence',
+      'E_WRITE_RECEIPT_ENTITY_OCCURRENCE'
+    );
+  }
+  return occurrence;
 }
 
 function validateWriteReceiptFields(fields: WriteReceiptOptions): void {

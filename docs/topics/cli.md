@@ -52,9 +52,8 @@ git warp write \
   --intent '{"kind":"entity.add","subject":"user:alice","properties":{"role":"admin"}}'
 ```
 
-That patch reads nothing and writes exactly one fresh id, so its footprint is
-exact by construction and the creation gives the entity an initial singleton
-cone. It requires at least one property.
+That patch reads nothing and writes exactly one subject, so its footprint is
+exact by construction. It requires at least one property.
 
 It does **not** check that the subject is new. `git warp write` goes through a
 lane, and a lane writer never materializes, so the uniqueness guard has no basis
@@ -63,8 +62,26 @@ twice is admitted both times, whether from one lane or from two writers, and the
 join merges the results into one entity with a two-patch cone. The guard exists
 for a directly constructed `PatchBuilder` opened against a materialized state.
 
-Choose collision-resistant subjects. One-creation-per-id is your invariant to
-keep, and nothing on this path will keep it for you.
+Use the supplied-subject form only when the application already owns a semantic
+identity. Repeated admissions of that subject remain distinct occurrences even
+though their provenance cones share one address.
+
+When the fact has no independent semantic key, ask git-warp to allocate the
+subject from the same writer-local dot that creates it:
+
+```bash
+git warp write \
+  --lane users \
+  --writer local \
+  --json \
+  --intent '{"kind":"entity.add","namespace":"entry","properties":{"role":"admin"}}'
+```
+
+The admitted `WriteReceipt` returns `occurrence.subject` and an opaque
+`occurrence.id`. Its `relationTo` method answers causal partial-order questions;
+its `compare` method uses git-warp's canonical `EventId` linearization for a
+deterministic list. Do not parse the allocated subject or occurrence id. Do not
+use a payload timestamp for uniqueness or causal order.
 
 ## Prepare and observe a Lane
 

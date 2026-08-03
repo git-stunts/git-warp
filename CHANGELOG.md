@@ -9,16 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `intent.entity.add({ subject, properties })` creates one entity and its
-  initial payload in a single patch. The lowered patch reads nothing and writes
-  exactly one fresh id, so its syntactic footprint is exact by construction and
-  the creation gives the entity an initial singleton cone. Previously the only
+- `intent.entity.add({ subject, properties })` creates one entity occurrence and
+  its initial payload in a single patch. The lowered patch reads nothing and
+  writes exactly one subject, so its syntactic footprint is exact by
+  construction. An application-supplied semantic subject may intentionally
+  receive more than one occurrence. Previously the only
   way to create a node with properties was `node.add` followed by
   `property.set`, which costs two patches and records a self-read on the payload
   patch.
 - `PatchBuilder.addEntity(nodeId, properties)` lowers that intent. It requires a
   non-empty payload (`E_PATCH_ENTITY_EMPTY`) and refuses an id the builder can
   already see (`E_PATCH_ENTITY_EXISTS`).
+- `intent.entity.addAuto({ namespace, properties })` and the CLI's
+  `entity.add` namespace form allocate an opaque subject from the same
+  writer-local dot used by `NodeAdd`. Applications without an independent
+  semantic key no longer need to mint a timestamp/counter tuple or maintain a
+  shadow writer counter.
+- Admitted entity `WriteReceipt`s carry an `EntityOccurrence` with the resolved
+  subject and opaque occurrence id. `relationTo` uses version-vector context for
+  `before`/`after`/`concurrent`; `compare` uses the canonical `EventId` order for
+  deterministic listing. Application timestamps remain payload metadata only.
 - `intentFromPatch` recovers an entity capture from its persisted evidence: a
   leading `NodeAdd`, property writes on that same node, no repeated key, and a
   recorded footprint of no reads and exactly one write naming the created
@@ -35,10 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Initial payload, not complete entity.** Which fields make an entity
     complete is an application schema concern; the substrate checks only that
     properties exist.
-  - **Creation, not lifetime.** The cone is a singleton until something else
-    writes the id. `property.set` and `node.remove` remain available, so an
-    immutable-entity lifetime is a law an application adopts, not one this
-    constructor imposes.
+  - **Creation, not lifetime.** An auto-allocated subject's cone is a singleton
+    until something else writes the id. `property.set` and `node.remove` remain
+    available, so an immutable-entity lifetime is a law an application adopts,
+    not one this constructor imposes.
   - **No uniqueness on the lane path.** `E_PATCH_ENTITY_EXISTS` fires only for
     an id the builder can see: added earlier in the same patch, or alive in the
     materialized basis it was opened against. A `Runtime` lane writer has
@@ -48,7 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     writer opening after the first creation is durable; the join merges them
     into one entity with a multi-patch cone. The guard is a mistake-catcher for
     a directly constructed `PatchBuilder` opened against a materialized state.
-    Collision-resistant ids remain the application's responsibility.
+    Supplied semantic-subject uniqueness remains the application's invariant;
+    substrate allocation is available when no such semantic key exists. Every
+    admitted addition still has a distinct substrate occurrence.
 
 ### Changed
 

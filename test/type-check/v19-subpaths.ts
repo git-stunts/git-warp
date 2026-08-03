@@ -6,6 +6,8 @@
  */
 
 import {
+  type EntityCausalRelation,
+  type EntityOccurrence,
   type Intent,
   type Lane,
   type Observer,
@@ -42,6 +44,10 @@ const advancedIntent: Intent = intent.property.set({
   key: 'role',
   value: 'admin',
 });
+const allocatedEntityIntent: Intent = intent.entity.addAuto({
+  namespace: 'entry',
+  properties: { kind: 'capture', capturedAt: '2026-08-03T20:00:00.000Z' },
+});
 const advancedObserver: Observer<string> = createObserver(
   'users.role-of',
   reading.property({ subject: 'user:alice', key: 'role' }),
@@ -53,6 +59,11 @@ const advancedObserver: Observer<string> = createObserver(
   },
 );
 declare const receipt: WriteReceipt;
+declare const otherOccurrence: EntityOccurrence;
+const occurrenceRelation: EntityCausalRelation | undefined =
+  receipt.occurrence?.relationTo(otherOccurrence);
+const occurrenceOrder: number | undefined = receipt.occurrence?.compare(otherOccurrence);
+const occurrenceSubject: string | undefined = receipt.occurrence?.subject;
 const inspection: ReceiptInspection = inspectReceipt(receipt);
 const inspectedLane: string = inspection.lane;
 const substrate: ReceiptSubstrateInspection = inspection.substrate;
@@ -77,9 +88,13 @@ await harness.close();
 void optic;
 void witness;
 void advancedIntent;
+void allocatedEntityIntent;
 void advancedObserver;
 void inspection;
 void inspectedLane;
 void substrate;
+void occurrenceRelation;
+void occurrenceOrder;
+void occurrenceSubject;
 void chart;
 void isRuntimeChart;

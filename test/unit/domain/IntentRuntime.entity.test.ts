@@ -26,6 +26,26 @@ describe('IntentRuntime entity capture', () => {
     expect(builder.build().ops).toHaveLength(3);
   });
 
+  it('allocates an opaque subject from the NodeAdd dot', () => {
+    const builder = createPatchBuilder({ graphName: 'think', writerId: 'claude' });
+
+    applyIntentToPatch(Intent.addEntityAuto({
+      namespace: 'entry',
+      properties: { kind: 'capture', capturedAt: '2026-08-03T20:00:00.000Z' },
+    }), builder);
+
+    const built = builder.build();
+    const leading = built.ops[0];
+    expect(leading).toBeInstanceOf(NodeAdd);
+    if (!(leading instanceof NodeAdd)) {
+      throw new Error('expected allocated entity to begin with NodeAdd');
+    }
+    expect(leading.node).toMatch(/^entry:[0-9a-f]+$/);
+    expect([...builder.reads]).toEqual([]);
+    expect([...builder.writes]).toEqual([leading.node]);
+    expect(built.ops).toHaveLength(3);
+  });
+
   it('recovers an entity Intent from its persisted operations', () => {
     expect(intentFromPatch(entityPatch('entry:1', [
       new NodeAdd('entry:1', Dot.create('claude', 1)),

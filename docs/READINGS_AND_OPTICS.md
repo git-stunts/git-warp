@@ -1,7 +1,7 @@
 # Readings & Optics
 
-*The reference pattern for modelling data in a WARP graph. Written after the
-Think census. Kept short on purpose. Every rule here has a body count.*
+_The reference pattern for modelling data in a WARP graph. Written after the
+Think census. Kept short on purpose. Every rule here has a body count._
 
 ---
 
@@ -14,8 +14,8 @@ facts**. Every one of them evaporates the moment you hand it a coarse mutable
 container.
 
 The Think census (see §12) is what that evaporation looks like measured: 274
-patches touching **4 nodes**, **0 edges**, cones indistinguishable from *no
-history*, one 8.57 MiB decoded object against a 5 MiB ceiling, a store that
+patches touching **4 nodes**, **0 edges**, cones indistinguishable from _no
+history_, one 8.57 MiB decoded object against a 5 MiB ceiling, a store that
 could not be compacted and could not be repaired. The substrate did nothing
 wrong. It faithfully recorded what the application wrote. What the application
 wrote was **a read model, stored inside the event log, in place of facts**.
@@ -53,7 +53,7 @@ writing state, not facts.
 ## 3. What is an entity?
 
 An entity is anything a user, an operator, or a downstream computation ever
-wants to ask a *targeted* question about. If someone might ever ask
+wants to ask a _targeted_ question about. If someone might ever ask
 `patchesFor("entry:...")`, `slice("entry:...")`, or "when did this happen and
 what changed it?" — it is an entity.
 
@@ -61,31 +61,42 @@ what changed it?" — it is an entity.
 history-bearing cone, then `id` is an entity and it must be a node.
 
 The four IDs in the Think census that looked like entities but resolved to
-`patchesFor(...) → []` were, in the substrate's honest opinion, *not
-entities*. They were property keys of container nodes. The substrate was
+`patchesFor(...) → []` were, in the substrate's honest opinion, _not
+entities_. They were property keys of container nodes. The substrate was
 telling the truth. Nobody was listening.
 
 ---
 
-## 4. Rule: entity per node, one patch per fact
+## 4. Rule: entity occurrence per patch, one patch per fact
 
-Every entity is created by exactly one `NodeAdd` patch. That patch:
+Every captured fact is admitted by one `NodeAdd` occurrence. That patch:
 
-- carries the entity's complete initial payload as properties,
+- carries the entity's non-empty initial payload as properties,
 - reads **nothing** from the graph,
-- writes **exactly one** id: the entity's own fresh id.
+- writes **exactly one** subject.
 
-This is the *dependency-pure capture* shape. Under it — and only under it —
-the syntactic footprint (§8) is exact by construction, cones are singletons,
-and checkpoints replay in bounded time.
+The subject and the occurrence are different identities. A subject may be a
+semantic id supplied by the application, in which case several admissions can
+legitimately name it. When the fact has no independent semantic key, git-warp
+allocates an opaque subject from the same writer-local dot used by `NodeAdd`.
+In both forms, the receipt carries the distinct substrate occurrence.
+
+This is the _dependency-pure capture_ shape. Its syntactic footprint (§8) is
+exact by construction. An allocated subject has a singleton cone until another
+patch names it; a reused semantic subject has one cone containing its several
+occurrences. Neither case changes the exactness of the footprint.
 
 The corresponding lint (which the substrate should enforce, see §11):
 
 ```text
 REJECT any capture patch whose read set is non-empty,
-       whose write set is not exactly one fresh id,
-       or whose id already exists.
+       whose write set is not exactly one subject,
+       or whose initial payload is empty.
 ```
+
+Do not infer semantic-subject uniqueness from this shape. Dots identify CRDT
+operations; occurrence coordinates identify admissions; neither turns the
+subject into a distributed uniqueness constraint.
 
 ---
 
@@ -108,8 +119,8 @@ correction is:
 
 ```text
 NODE bucket:2026-08-01                    // created once
-NODE entry:2026-08-01T05:13:00Z-abc123    // created once, per capture
-EDGE bucket:2026-08-01 → entry:2026-...   // added once, per capture
+NODE entry:<opaque-allocated-subject>      // created once, per capture
+EDGE bucket:2026-08-01 → entry:<opaque>    // added once, per capture
 ```
 
 Each edge is an **immutable fact whose cone is Θ(1)**. Enumeration of a
@@ -122,14 +133,24 @@ ever added.
 
 ---
 
-## 6. Rule: order is a fold, not a link
+## 6. Rule: order is a substrate fold, not an application clock
 
 Do not store `next` / `prev` / `previousKindId` pointers as **authoritative**
-ordering. Order is what you get by sorting facts on a key you chose when you
-made them (a `sortKey` embedding a timestamp, a `(lamport, replicaId)` pair, a
-monotone counter under a single writer — pick one and be consistent).
+ordering. Do not invent an application tuple to replace them. git-warp already
+owns the distinct ordering questions:
 
-Prev-pointers as denormalized *hints* are permissible; prev-pointers as the
+- a dot is unique operation identity, not a timestamp;
+- a version vector answers causal partial-order questions, and concurrent
+  vectors are incomparable;
+- an `EventId` supplies the canonical deterministic linearization
+  `lamport → writerId → patchSha → opIndex` when a list must be stable.
+
+Retrieval optics fold admitted occurrences in that substrate order. A field
+such as `capturedAt` may remain application payload for human chronology and
+time-window filtering, but it establishes neither identity, causality,
+admission order, nor correctness.
+
+Prev-pointers as denormalized _hints_ are permissible; prev-pointers as the
 source of truth for order are not, for two reasons:
 
 1. Writing entry N with a pointer to entry N−1 is a **read-then-write of
@@ -138,8 +159,8 @@ source of truth for order are not, for two reasons:
    the pointer is trusting something the provenance graph does not know
    about.
 2. Order-by-link is O(chain-length) to reconstruct and O(everything) to
-   repair if a link goes bad. Order-by-key-sort is O(k log k) and repairs
-   itself.
+   repair if a link goes bad. An optic over canonical occurrence coordinates
+   repairs itself from retained substrate evidence.
 
 If you must denormalize a prev-pointer for a hot query, do it — and write
 down, out loud, that no consumer may treat it as authoritative. Kindly assume
@@ -161,7 +182,7 @@ overwritten property.
 
 The commit trailer footprint discussion in Paper III is the same rule applied
 recursively: a trailer footprint is a stored read-model too, redeemed only
-because it stays *derived*, *adjacent*, *verifiable*, and *deletable* — the
+because it stays _derived_, _adjacent_, _verifiable_, and _deletable_ — the
 same design as git's own [changed-path Bloom
 filters](https://devblogs.microsoft.com/devops/super-charging-the-git-commit-graph-iv-bloom-filters/).
 
@@ -172,14 +193,15 @@ filters](https://devblogs.microsoft.com/devops/super-charging-the-git-commit-gra
 `PatchBuilder` derives each patch's `reads` / `writes` footprints from the
 **operand ids literally mentioned in the patch's ops**. This is exact
 whenever a patch's dependency structure is fully expressed as reads and
-writes on named ids. It is an *under-approximation* whenever a patch depends
+writes on named ids. It is an _under-approximation_ whenever a patch depends
 on a value it did not name — for example, whenever the application code
 loaded state from the graph, computed something, and wrote the result as an
 opaque property value.
 
-For the append-only single-writer capture shape defined in §4, exactness is
-guaranteed **by construction**: one patch, one fresh entity, no cross-entity
-read, nothing to under-approximate. For anything more complex, the footprint
+For the dependency-pure capture shape defined in §4, exactness is guaranteed
+**by construction**: one patch, one subject, no cross-entity read, nothing to
+under-approximate. Subject allocation and occurrence ordering are substrate
+operations, not hidden graph reads. For anything more complex, the footprint
 is a lower bound on truth. The API should surface this distinction as a value,
 not hide it in prose:
 
@@ -196,20 +218,20 @@ explicitly. There is no third door.
 
 ## Provenance and diagnostics
 
-*Deliberately unnumbered: `ProvenanceController` links here as
+_Deliberately unnumbered: `ProvenanceController` links here as
 `docs/READINGS_AND_OPTICS.md#provenance-and-diagnostics`, and a numeric prefix
 would change the slug. If you renumber this document, do not number this
-heading.*
+heading._
 
 ### Enumeration is not provenance
 
 Two operations answer two different questions. Conflating them is the fastest
 way to make the word "cone" mean nothing.
 
-| Question | Operation | Answers |
-|---|---|---|
-| *Which entities belong to this group?* | `edgesFrom(bucket)`, range scan over ids | **membership** |
-| *Which patches produced this fact?* | `patchesFor(id)`, `materializeSlice(id)` | **causation** |
+| Question                               | Operation                                | Answers        |
+| -------------------------------------- | ---------------------------------------- | -------------- |
+| _Which entities belong to this group?_ | `edgesFrom(bucket)`, range scan over ids | **membership** |
+| _Which patches produced this fact?_    | `patchesFor(id)`, `materializeSlice(id)` | **causation**  |
 
 An edge from a bucket to an entry is an immutable membership fact whose own
 cone is Θ(1). That does **not** make the bucket's graph descendants part of the
@@ -252,16 +274,16 @@ Provenance requires a live index. The index is built from patch footprints
 carrying no index cannot rebuild it for the patches they skipped. Those report
 **degraded** rather than presenting an empty index as complete evidence.
 
-| Condition | Code | Meaning |
-|---|---|---|
-| No reading basis open | `E_NO_STATE` | Open a worldline or a checkpoint-backed reading first. |
+| Condition                        | Code                    | Meaning                                                         |
+| -------------------------------- | ----------------------- | --------------------------------------------------------------- |
+| No reading basis open            | `E_NO_STATE`            | Open a worldline or a checkpoint-backed reading first.          |
 | Index does not cover the history | `E_PROVENANCE_DEGRADED` | The answer would be silently incomplete, so no answer is given. |
 
 Refusing is correct. The alternative — returning `[]` — is
-indistinguishable from *"this entity has no history,"* and that ambiguity is
+indistinguishable from _"this entity has no history,"_ and that ambiguity is
 exactly what let the Think census (§12) go unnoticed: four container ids
-resolved to empty cones, and nothing anywhere said *"empty because absent"*
-rather than *"empty because never recorded."*
+resolved to empty cones, and nothing anywhere said _"empty because absent"_
+rather than _"empty because never recorded."_
 
 **Corollary for callers:** treat an empty cone as a question, not an answer.
 Ask whether the id is an entity at all (§3) before concluding it has no past.
@@ -276,11 +298,12 @@ stored — it can be materialized on demand, cached, thrown away, rebuilt.
 
 Common shapes:
 
-- **Range scan by key prefix.** If ids embed a sortable key (`entry:<sortKey>`
-  where `sortKey` is ISO-8601 or `YYYYMMDDHHMMSS...`), then "entries between
-  X and Y" is a prefix range over ids. No index node exists.
-- **Temporal trie.** Group entries by `YYYY/MM/DD/HH` for time-bucketed
-  enumeration. Ideally derived from the sortKey. If materialized for
+- **Occurrence-order scan.** Fold entity occurrences by git-warp's canonical
+  event ordering and stop when the requested bound is satisfied. The subject
+  remains identity, not an application-owned clock disguised as an id.
+- **Temporal trie.** Group entries by `YYYY/MM/DD/HH` for human-time filtering.
+  Derive it from optional application metadata such as `capturedAt`, never from
+  causal identity. If materialized for
   performance, use **immutable bucket nodes plus `EdgeAdd` membership** —
   never `PropSet` a bucket. See §5.
 - **Kind scan.** Enumerate all entities of a given kind. This is O(entities-of-that-kind)
@@ -289,7 +312,7 @@ Common shapes:
   index and it becomes the O(N) read reborn under a different name.
 - **Content-addressed body.** For entities whose payload is a large blob
   (attachments, transcripts, embeddings), store the body as a content-addressed
-  blob and keep only `{hash, sortKey, meta}` on the node. Identical bodies
+  blob and keep only `{hash, capturedAt?, meta}` on the node. Identical bodies
   deduplicate for free. This also keeps entity patches small enough to stay
   well under any per-object decode ceiling regardless of future feature drift.
 
@@ -301,7 +324,7 @@ contract. Today's hour-bucket is tomorrow's hot page.
 
 ## 10. Checkpoints, and the difference between a bounded tail and a bounded cone
 
-A **checkpoint** bounds the *replay tail*: given a stable checkpoint at
+A **checkpoint** bounds the _replay tail_: given a stable checkpoint at
 coordinate C, materialization needs to replay only patches after C. Set a
 default policy (`{ every: 64 }` is a reasonable start) and — critically —
 **make sure the trigger fires on the actual read path your application uses**.
@@ -338,13 +361,17 @@ enforceable at write time:
 
 - **Capture-shape lint.** Reject patches that claim to create an entity but
   read from other nodes or write to more than one id. (See §4.)
+- **Substrate allocation and receipts.** Allocate subjects for facts without an
+  independent semantic key from writer-local causal machinery, and return an
+  opaque occurrence coordinate whose causal relation and deterministic order
+  remain owned by git-warp.
 - **Amplification lint.** Warn when a single patch's byte size exceeds a
   factor of its payload — e.g. a 15-byte capture producing a 33 KiB patch.
 - **Hot-node lint.** Warn when a single node absorbs a disproportionate
   share of writes over a rolling window. In the Think census one node had
   49.6% of all writes; that is a signal, not noise.
 - **Decode-boundary invariant.** Track the largest independently decoded
-  object; alarm when it approaches the ceiling *before* it hits.
+  object; alarm when it approaches the ceiling _before_ it hits.
 - **`warp census`.** Ship the forensic harness (§12) as a first-class
   diagnostic command any application can run against its own store, with
   the properties in §12 reified as machine-checkable checks. An app that
@@ -405,21 +432,21 @@ The six failed promises the census made testable (and the properties every
 application's own census should check):
 
 1. **Cone ≪ universe.** The cone of any addressable id is a strict subset
-   of the total patch set. *In Think: false. Cone of a page node was every
-   patch that touched it. `patchesFor("entry:...")` returned `[]`.*
+   of the total patch set. _In Think: false. Cone of a page node was every
+   patch that touched it. `patchesFor("entry:...")` returned `[]`._
 2. **Cost ∝ query.** Read cost scales with what was asked for, not with
-   what has ever been written. *In Think: false. `--limit=1 ≡ --limit=50`.*
+   what has ever been written. _In Think: false. `--limit=1 ≡ --limit=50`._
 3. **Tail bounded.** The replay tail past the latest checkpoint is bounded
-   by policy. *In Think: false. Checkpoint frozen for two days, 262
-   unreplayed patches, +2 per write.*
-4. **Compaction feasible.** State can always be re-materialized. *In Think:
-   false. One object exceeded the decode ceiling.*
+   by policy. _In Think: false. Checkpoint frozen for two days, 262
+   unreplayed patches, +2 per write._
+4. **Compaction feasible.** State can always be re-materialized. _In Think:
+   false. One object exceeded the decode ceiling._
 5. **Ops are facts.** Patches record what happened, not what the read model
-   is. *In Think: false. 272 of 274 ops were `PropSet` overwrites of a
-   read-model cache.*
+   is. _In Think: false. 272 of 274 ops were `PropSet` overwrites of a
+   read-model cache._
 6. **Writes ∝ payload.** Patch bytes scale with the fact being recorded, not
-   with the size of the accumulated container. *In Think: false. 15 bytes
-   in, 33,624 bytes out.*
+   with the size of the accumulated container. _In Think: false. 15 bytes
+   in, 33,624 bytes out._
 
 Each of these is machine-checkable. Each of these is what `warp census`
 should ship as a named test.
@@ -428,12 +455,14 @@ should ship as a named test.
 
 ## 13. The short version, for posting above the desk
 
-- **Entities are nodes.** One node, one entity. Ever.
+- **Entities are nodes.** One subject, one addressable entity; repeated
+  admissions remain distinct occurrences.
 - **Facts, not state.** Each capture is one `NodeAdd`. It reads nothing. It
-  writes one fresh id.
+  writes one subject and returns one substrate occurrence.
 - **Containers are edges.** Never put a growing collection in a property.
   `EdgeAdd(container → member)` per member. Never `PropSet` the container.
-- **Order is a fold.** Sort a key; do not chase a pointer.
+- **Order is a substrate fold.** Version vectors answer causality; canonical
+  event order answers deterministic listing; application time stays metadata.
 - **Derived lives outside.** Caches, indexes, projections — anywhere but the
   log. If you cannot regenerate it from the log, it is a fact; make it one.
 - **Cones by construction.** Build bounded cones into the shape. Do not rely
@@ -468,6 +497,6 @@ should ship as a named test.
 
 ---
 
-*This document exists because it did not exist when Think was written. Keep
+_This document exists because it did not exist when Think was written. Keep
 it up to date. If a future application's census fails a property in §12, the
-correction goes here first, and only then into code.*
+correction goes here first, and only then into code._
