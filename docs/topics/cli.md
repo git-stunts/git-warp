@@ -77,13 +77,14 @@ git warp write \
   --intent '{"kind":"entity.add","namespace":"entry","properties":{"role":"admin"}}'
 ```
 
-The admitted `WriteReceipt` returns `occurrence.subject` and an opaque
-`occurrence.id`. Its `relationTo` method answers causal partial-order questions
-within a worldline; occurrences from independent worldlines are concurrent. Its
-`compare` method orders the worldline first, then uses git-warp's canonical
-`EventId` linearization for a deterministic list. Do not parse the allocated
-subject or occurrence id. Do not use a payload timestamp for uniqueness or
-causal order.
+The CLI JSON envelope exposes only `occurrence.subject` and the opaque
+`occurrence.id`; JSON has no comparison methods.
+The in-process TypeScript `EntityOccurrence` additionally provides `relationTo`
+for causal partial-order questions within a worldline; occurrences from
+independent worldlines are concurrent. Its `compare` method orders the worldline
+first, then uses git-warp's canonical `EventId` linearization for a deterministic
+list. Do not parse the allocated subject or occurrence id. Do not use a payload
+timestamp for uniqueness or causal order.
 
 ## Prepare and observe a Lane
 

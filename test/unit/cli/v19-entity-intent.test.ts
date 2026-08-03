@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,6 +7,13 @@ import {
 } from '../../../bin/cli/v19/V19DomainInput.ts';
 
 describe('v19 CLI entity Intent input', () => {
+  it('documents the JSON and TypeScript occurrence surfaces separately', () => {
+    const guide = readFileSync(new URL('../../../docs/topics/cli.md', import.meta.url), 'utf8');
+
+    expect(guide).toContain('The CLI JSON envelope exposes only');
+    expect(guide).toContain('The in-process TypeScript `EntityOccurrence`');
+  });
+
   it('accepts an entity capture with its complete payload', () => {
     expect(intentFromValue({
       kind: 'entity.add',
