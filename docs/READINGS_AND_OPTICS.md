@@ -205,7 +205,7 @@ operations, not hidden graph reads. For anything more complex, the footprint
 is a lower bound on truth. The API should surface this distinction as a value,
 not hide it in prose:
 
-```ts
+```text
 type ConeExactness = "exact" | "under-approximate"
 patchesFor(id): { patches: [...], exactness: ConeExactness }
 ```
@@ -250,7 +250,7 @@ inherit the confusion rather than the distinction.
 capture shape and an under-approximation otherwise. That distinction must
 travel with the answer:
 
-```ts
+```text
 type ConeExactness = "exact" | "under-approximate"
 
 patchesFor(id): { patches: [...], exactness: ConeExactness }
@@ -263,7 +263,7 @@ a diagnostic becomes a false guarantee.
 
 Extend the same honesty to any reading built on top:
 
-```ts
+```text
 ReadingEvidence { result, basis, aperture, derivation, exactness }
 ```
 
