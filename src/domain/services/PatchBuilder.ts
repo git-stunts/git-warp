@@ -154,6 +154,7 @@ export class PatchBuilder {
 
   /** Creates one entity and its initial payload in a single dependency-pure patch. */
   addEntity(nodeId: string, properties: EntityCapturePayload): PatchBuilder {
+    this._assertNotCommitted();
     const scope = { added: this._nodesAdded, state: this._getSnapshotState() };
     const payload = planEntityCapturePayload(nodeId, properties, scope);
     this.addNode(nodeId);

@@ -80,6 +80,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dots and version-vector counters now reject integers beyond JavaScript's exact
   range. Counter exhaustion fails before mutation instead of reissuing a writer
   Dot and colliding an auto-allocated entity subject.
+- `PatchBuilder.addEntity` now enforces the committed-builder lifecycle before
+  reading snapshot state or validating entity input, matching every other
+  builder mutation.
 
 ### Breaking
 

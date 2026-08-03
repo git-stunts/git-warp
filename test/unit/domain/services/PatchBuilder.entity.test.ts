@@ -7,6 +7,11 @@ import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import {
+  createPatchBuilder,
+  createPatchBuilderMockPersistence,
+  createPatchJournal,
+} from './PatchBuilderTestHarness.ts';
 
 const TEST_SHA = 'a'.repeat(40);
 
@@ -105,6 +110,20 @@ describe('PatchBuilder entity capture', () => {
     const op = requirePropSet(builder.build().ops[1]);
     expect(op.key).toBe('tags');
     expect(op.value).toEqual(['first']);
+  });
+
+  it('enforces the committed lifecycle before validating entity input', async () => {
+    const persistence = createPatchBuilderMockPersistence();
+    const builder = createPatchBuilder({
+      persistence,
+      patchJournal: createPatchJournal(persistence),
+    });
+    builder.addNode('seed');
+    await builder.commitWithEvidence();
+
+    expect(() => builder.addEntity('entry:1', {})).toThrowError(expect.objectContaining({
+      code: 'E_PATCH_ALREADY_COMMITTED',
+    }));
   });
 });
 
