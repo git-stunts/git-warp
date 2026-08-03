@@ -46,7 +46,7 @@ describe('WesleyDotCodecAdapter', () => {
   });
 
   it('rejects generated transport shapes that violate Dot invariants', () => {
-    expect(() => codec.decode(aliceDotBytes(0))).toThrow('counter must be a positive integer');
+    expect(() => codec.decode(aliceDotBytes(0))).toThrow('counter must be a positive safe integer');
   });
 
   it('fails closed when a valid Dot exceeds Wesley GraphQL Int range', () => {
