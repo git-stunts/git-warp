@@ -52,6 +52,22 @@ describe('Intent entity descriptors', () => {
     });
   });
 
+  it('treats explicitly undefined optional identities as absent', () => {
+    const autoFields = {
+      subject: undefined,
+      namespace: 'entry',
+      properties: { kind: 'capture' },
+    };
+    const suppliedFields = {
+      subject: 'entry:1',
+      namespace: undefined,
+      properties: { kind: 'capture' },
+    };
+
+    expect(Intent.addEntityAuto(autoFields).descriptor).toMatchObject({ namespace: 'entry' });
+    expect(Intent.addEntity(suppliedFields).descriptor).toMatchObject({ subject: 'entry:1' });
+  });
+
   it('rejects an empty allocation namespace', () => {
     expect(() => Intent.addEntityAuto({
       namespace: '',

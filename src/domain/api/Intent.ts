@@ -215,8 +215,10 @@ function entityDescriptor(fields: EntityIntentFields | AutoEntityIntentFields): 
 function entityIdentity(
   fields: EntityIntentFields | AutoEntityIntentFields,
 ): Readonly<{ subject: string }> | Readonly<{ namespace: string }> {
-  const hasSubject = 'subject' in fields;
-  const hasNamespace = 'namespace' in fields;
+  const subject = 'subject' in fields ? fields.subject : undefined;
+  const namespace = 'namespace' in fields ? fields.namespace : undefined;
+  const hasSubject = subject !== undefined;
+  const hasNamespace = namespace !== undefined;
   if (hasSubject === hasNamespace) {
     throw new WarpError(
       'Intent entity requires exactly one of subject or namespace',
@@ -224,11 +226,20 @@ function entityIdentity(
     );
   }
   if (hasSubject) {
-    requireNonEmptyString(fields.subject, 'intent.subject');
-    return Object.freeze({ subject: fields.subject });
+    return Object.freeze({ subject: entityIdentityValue(subject, 'intent.subject') });
   }
-  requireNonEmptyString(fields.namespace, 'intent.namespace');
-  return Object.freeze({ namespace: fields.namespace });
+  return Object.freeze({ namespace: entityIdentityValue(namespace, 'intent.namespace') });
+}
+
+function entityIdentityValue(value: string | undefined, name: string): string {
+  if (value === undefined) {
+    throw new WarpError(
+      'Intent entity requires exactly one of subject or namespace',
+      'E_INTENT_ENTITY_IDENTITY'
+    );
+  }
+  requireNonEmptyString(value, name);
+  return value;
 }
 
 function normalizeEntityProperty(
