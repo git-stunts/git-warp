@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import DraftTimeline from '../../../src/domain/api/DraftTimeline.ts';
 import { projectAdmissionOutcome } from '../../../src/domain/api/AdmissionOutcomeRuntime.ts';
+import EntityOccurrence from '../../../src/domain/api/EntityOccurrence.ts';
 import { createEntityOccurrence } from '../../../src/domain/api/EntityOccurrenceRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import JoinReceipt from '../../../src/domain/api/JoinReceipt.ts';
@@ -175,6 +176,30 @@ describe('receipt outcomes', () => {
     });
 
     expect(receipt.occurrence).toBe(occurrence);
+  });
+
+  it('rejects an occurrence that was not issued by the substrate', () => {
+    const occurrence = new EntityOccurrence({
+      compare: () => 0,
+      id: 'occurrence:forged',
+      relationTo: () => 'same',
+      subject: 'entry:forged',
+    });
+
+    expect(() => new WriteReceipt({
+      lane: 'events',
+      writer: 'agent-1',
+      intent: intent.entity.add({
+        subject: occurrence.subject,
+        properties: { kind: 'capture' },
+      }),
+      outcome: projectAdmissionOutcome(
+        testDerivedIntentAdmissionReceipt('forged-entity').outcome,
+        EVIDENCE.basis
+      ),
+      evidence: EVIDENCE,
+      occurrence,
+    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_UNAVAILABLE' }));
   });
 
   it('rejects legacy string write outcomes at runtime', () => {

@@ -83,6 +83,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PatchBuilder.addEntity` now enforces the committed-builder lifecycle before
   reading snapshot state or validating entity input, matching every other
   builder mutation.
+- Admitted entity receipts now require the occurrence coordinate retained by
+  the substrate runtime. An arbitrary `EntityOccurrence` instance can no longer
+  forge authoritative receipt identity with caller-supplied callbacks.
 
 ### Breaking
 

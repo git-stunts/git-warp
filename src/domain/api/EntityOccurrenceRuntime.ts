@@ -36,6 +36,12 @@ export function createEntityOccurrence(fields: EntityOccurrenceFields): EntityOc
   return occurrence;
 }
 
+/** Requires the opaque coordinate retained for a substrate-issued occurrence. */
+export function requireIssuedEntityOccurrence(occurrence: EntityOccurrence): EntityOccurrence {
+  requireCoordinate(occurrence);
+  return occurrence;
+}
+
 function normalizeCoordinate(fields: EntityOccurrenceFields): EntityOccurrenceCoordinate {
   if (!(fields.dot instanceof Dot)) {
     throw new WarpError('EntityOccurrence requires a Dot', 'E_ENTITY_OCCURRENCE_DOT');

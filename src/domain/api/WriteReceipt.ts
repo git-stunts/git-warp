@@ -6,6 +6,7 @@ import type Evidence from './Evidence.ts';
 import { freezeEvidence } from './EvidenceRuntime.ts';
 import Intent from './Intent.ts';
 import EntityOccurrence from './EntityOccurrence.ts';
+import { requireIssuedEntityOccurrence } from './EntityOccurrenceRuntime.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
 
 type WriteReceiptFields = {
@@ -74,7 +75,7 @@ function requireEntityOccurrence(
       'E_WRITE_RECEIPT_ENTITY_OCCURRENCE'
     );
   }
-  return occurrence;
+  return requireIssuedEntityOccurrence(occurrence);
 }
 
 function validateWriteReceiptFields(fields: WriteReceiptOptions): void {
