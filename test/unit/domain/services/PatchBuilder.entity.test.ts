@@ -78,6 +78,21 @@ describe('PatchBuilder entity capture', () => {
     expect(builder.build().ops).toEqual([]);
   });
 
+  it.each([
+    null,
+    'capture',
+    ['capture'],
+    new EntityPayloadCarrier(),
+  ])('rejects non-record entity payload %# before appending any operation', (payload) => {
+    const builder = createBuilder(null);
+
+    expect(() => {
+      // @ts-expect-error Exercise the JavaScript boundary.
+      builder.addEntity('entry:1', payload);
+    }).toThrowError(expect.objectContaining({ code: 'E_PATCH_ENTITY_PAYLOAD' }));
+    expect(builder.build().ops).toEqual([]);
+  });
+
   it('rejects invalid property values before appending any operation', () => {
     const builder = createBuilder(null);
 
@@ -188,3 +203,7 @@ function unusedPersistence() {
 }
 
 class InvalidPropertyCarrier {}
+
+class EntityPayloadCarrier {
+  readonly kind = 'capture';
+}

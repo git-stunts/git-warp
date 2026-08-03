@@ -123,7 +123,8 @@ function requirePayloadEntries(
   nodeId: string,
   properties: EntityCapturePayload,
 ): readonly (readonly [string, PropValue])[] {
-  const entries = Object.entries(properties ?? {});
+  requirePayloadRecord(nodeId, properties);
+  const entries = Object.entries(properties);
   if (entries.length === 0) {
     throw new PatchError(
       `Cannot capture entity '${nodeId}' without a payload: an entity created empty is a shell, not a fact`,
@@ -133,6 +134,30 @@ function requirePayloadEntries(
   // Key order is not evidence. Sorting keeps two payloads that differ only in
   // construction order lowering to byte-identical operations.
   return entries.sort(([left], [right]) => (left === right ? 0 : (left < right ? -1 : 1)));
+}
+
+function requirePayloadRecord(nodeId: string, properties: EntityCapturePayload): void {
+  if (!isRecordObject(properties)) {
+    throw invalidPayloadError(nodeId);
+  }
+  if (!isPlainPrototype(Reflect.getPrototypeOf(properties))) {
+    throw invalidPayloadError(nodeId);
+  }
+}
+
+function isRecordObject(properties: EntityCapturePayload): boolean {
+  return properties !== null && typeof properties === 'object' && !Array.isArray(properties);
+}
+
+function isPlainPrototype(prototype: object | null): boolean {
+  return prototype === Object.prototype || prototype === null;
+}
+
+function invalidPayloadError(nodeId: string): PatchError {
+  return new PatchError('Entity payload must be a property record', {
+    code: 'E_PATCH_ENTITY_PAYLOAD',
+    context: { nodeId },
+  });
 }
 
 /**
