@@ -141,7 +141,6 @@ export class PatchBuilder {
   }
 
   // ── Graph operations ───────────────────────────────────────────────
-
   addNode(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
     assertNoReservedBytes(nodeId, 'nodeId');
