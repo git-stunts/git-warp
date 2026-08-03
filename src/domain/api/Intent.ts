@@ -205,11 +205,9 @@ function entityDescriptor(fields: EntityIntentFields | AutoEntityIntentFields): 
   // Sorted so that payloads differing only in construction order describe the
   // same entity, and a null prototype so that a caller-controlled key such as
   // `__proto__` stays ordinary data.
-  const properties = emptyPropertyMap();
-  for (const [key, value] of entries.sort(compareEntityKeys)) {
-    requireNonEmptyString(key, 'intent.properties key');
-    properties[key] = requireIntentValue(value);
-  }
+  const properties = nullPrototypePropertyMap(
+    entries.sort(compareEntityKeys).map(normalizeEntityProperty),
+  );
   const identity = entityIdentity(checkedFields);
   return Object.freeze({ kind: ENTITY_ADD, ...identity, properties: Object.freeze(properties) });
 }
@@ -233,9 +231,20 @@ function entityIdentity(
   return Object.freeze({ namespace: fields.namespace });
 }
 
+function normalizeEntityProperty(
+  [key, value]: readonly [string, PropValue],
+): readonly [string, PropValue] {
+  requireNonEmptyString(key, 'intent.properties key');
+  return [key, requireIntentValue(value)];
+}
+
 /** A property map with no prototype, so hostile keys stay ordinary data. */
-function emptyPropertyMap(): Record<string, PropValue> {
-  return Object.create(null) as Record<string, PropValue>;
+function nullPrototypePropertyMap(
+  entries: Iterable<readonly [string, PropValue]>,
+): Record<string, PropValue> {
+  const properties: Record<string, PropValue> = Object.fromEntries(entries);
+  Object.setPrototypeOf(properties, null);
+  return properties;
 }
 
 function compareEntityKeys(

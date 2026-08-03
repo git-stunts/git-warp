@@ -92,7 +92,9 @@ export default class VersionVector {
    * - A Map<string, number> (validates and copies)
    * - A plain object {writerId: counter} (boundary parse — skips zero counters)
    */
-  static from(source: VersionVector | Map<string, number> | Record<string, number>): VersionVector {
+  static from(
+    source: VersionVector | Map<string, number> | Readonly<Record<string, number>>
+  ): VersionVector {
     if (source instanceof VersionVector) {
       return source.clone();
     }
@@ -119,7 +121,7 @@ export default class VersionVector {
    * Zero counters are elided: a counter of 0 carries no causal
    * information and wastes space.
    */
-  static _fromPlainObject(source: Record<string, number>): VersionVector {
+  static _fromPlainObject(source: Readonly<Record<string, number>>): VersionVector {
     const map = new Map<string, number>();
     for (const [writerId, counter] of Object.entries(source)) {
       _validateEntry(writerId, counter);

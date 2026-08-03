@@ -51,7 +51,7 @@ function normalizeCoordinate(fields: EntityOccurrenceFields): EntityOccurrenceCo
   }
   requireNonEmptyString(fields.worldline, 'entityOccurrence.worldline');
   return Object.freeze({
-    context: VersionVector.from(fields.context as Record<string, number>),
+    context: VersionVector.from(fields.context),
     dot: fields.dot,
     eventId: fields.eventId,
     worldline: fields.worldline,

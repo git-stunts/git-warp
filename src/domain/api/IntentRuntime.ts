@@ -106,21 +106,21 @@ function entityPayload(
   subject: string,
   payload: readonly PatchOp[],
 ): Record<string, PropValue> | null {
-  const properties = Object.create(null) as Record<string, PropValue>;
+  const properties = new Map<string, PropValue>();
   for (const operation of payload) {
     if (!isNodePropertyOperation(operation) || operation.node !== subject) {
       return null;
     }
     admitEntityProperty(properties, operation);
   }
-  return properties;
+  return nullPrototypePropertyMap(properties);
 }
 
 function admitEntityProperty(
-  properties: Record<string, PropValue>,
+  properties: Map<string, PropValue>,
   operation: Extract<PatchOp, { readonly type: 'NodePropSet' | 'PropSet' }>,
 ): void {
-  if (Object.hasOwn(properties, operation.key)) {
+  if (properties.has(operation.key)) {
     throw hydrationError(
       'persisted Runtime entity Intent sets the same property key more than once',
     );
@@ -128,7 +128,15 @@ function admitEntityProperty(
   if (!isPropValue(operation.value)) {
     throw hydrationError('persisted Runtime entity Intent has an invalid value');
   }
-  properties[operation.key] = operation.value;
+  properties.set(operation.key, operation.value);
+}
+
+function nullPrototypePropertyMap(
+  entries: Iterable<readonly [string, PropValue]>,
+): Record<string, PropValue> {
+  const properties: Record<string, PropValue> = Object.fromEntries(entries);
+  Object.setPrototypeOf(properties, null);
+  return properties;
 }
 
 function isNodePropertyOperation(
