@@ -93,12 +93,7 @@ describe('EntityOccurrence', () => {
       patchSha: 'aaaa',
       subject: 'entry:issued',
     });
-    const forged = new EntityOccurrence({
-      compare: () => 0,
-      id: 'occurrence:forged',
-      relationTo: () => 'same',
-      subject: 'entry:forged',
-    });
+    const forged = Object.create(EntityOccurrence.prototype);
 
     expect(() => issued.compare(forged)).toThrowError(expect.objectContaining({
       code: 'E_ENTITY_OCCURRENCE_UNAVAILABLE',
@@ -109,26 +104,7 @@ describe('EntityOccurrence', () => {
     }));
   });
 
-  it('validates public and substrate construction boundaries', () => {
-    expect(() => new EntityOccurrence({
-      compare: () => 0,
-      id: '',
-      relationTo: () => 'same',
-      subject: 'entry:1',
-    })).toThrow();
-    expect(() => new EntityOccurrence({
-      compare: () => 0,
-      id: 'occurrence:1',
-      relationTo: () => 'same',
-      subject: '',
-    })).toThrow();
-    expect(() => new EntityOccurrence({
-      // @ts-expect-error Exercise the JavaScript boundary.
-      compare: null,
-      id: 'occurrence:1',
-      relationTo: () => 'same',
-      subject: 'entry:1',
-    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_COORDINATE' }));
+  it('validates the substrate construction boundary', () => {
     expect(() => createEntityOccurrence({
       context: {},
       // @ts-expect-error Exercise the JavaScript boundary.

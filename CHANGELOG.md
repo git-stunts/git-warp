@@ -83,13 +83,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PatchBuilder.addEntity` now enforces the committed-builder lifecycle before
   reading snapshot state or validating entity input, matching every other
   builder mutation.
-- Admitted entity receipts now require the occurrence coordinate retained by
-  the substrate runtime and bound to the exact Intent, causal Evidence, lane,
-  and writer for which it was issued. Neither an arbitrary `EntityOccurrence`
-  instance nor a genuine occurrence transplanted from another receipt can forge
-  authoritative receipt identity. Receipt binding records that public writer
-  separately from the Dot/EventId writer, so a strand overlay remains a valid
-  causal coordinate without impersonating the receipt writer. Evidence
+- Admitted entity receipts now require the occurrence-owned causal coordinate,
+  bound to the exact Intent, causal Evidence, lane, and writer for which it was
+  issued. The runtime adapter retains no ambient occurrence registry, and the
+  domain object owns its comparison and relation behavior instead of accepting
+  injected callbacks. Neither an arbitrary `EntityOccurrence` instance nor a
+  genuine occurrence transplanted from another receipt can forge authoritative
+  receipt identity. Receipt binding records that public writer separately from
+  the Dot/EventId writer, so a strand overlay remains a valid causal coordinate
+  without impersonating the receipt writer. Evidence
   canonicalization is idempotent, and occurrence validation uses the exact
   frozen Evidence exposed by the receipt, so the genuine public pair remains
   self-authenticating after construction.

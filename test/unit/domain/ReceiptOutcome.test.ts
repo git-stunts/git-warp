@@ -262,11 +262,10 @@ describe('receipt outcomes', () => {
   });
 
   it('rejects an occurrence that was not issued by the substrate', () => {
-    const occurrence = new EntityOccurrence({
-      compare: () => 0,
-      id: 'occurrence:forged',
-      relationTo: () => 'same',
-      subject: 'entry:forged',
+    const occurrence = Object.create(EntityOccurrence.prototype);
+    Object.defineProperties(occurrence, {
+      id: { value: 'occurrence:forged' },
+      subject: { value: 'entry:forged' },
     });
 
     expect(() => new WriteReceipt({

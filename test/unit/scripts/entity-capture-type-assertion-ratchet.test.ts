@@ -33,6 +33,21 @@ describe('entity capture type-assertion ratchet', () => {
 
     expect(violations).toEqual([]);
   });
+
+  it('keeps occurrence authority on the occurrence object', () => {
+    const runtime = readFileSync(
+      join(process.cwd(), 'src/domain/api/EntityOccurrenceRuntime.ts'),
+      'utf8'
+    );
+    const occurrence = readFileSync(
+      join(process.cwd(), 'src/domain/api/EntityOccurrence.ts'),
+      'utf8'
+    );
+
+    expect(runtime).not.toMatch(/\bWeakMap\b/);
+    expect(occurrence).not.toContain('readonly #compare');
+    expect(occurrence).not.toContain('readonly #relationTo');
+  });
 });
 
 function typeSludgeIn(relativePath: string): string[] {
