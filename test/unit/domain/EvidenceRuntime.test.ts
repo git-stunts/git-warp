@@ -22,6 +22,15 @@ describe('freezeEvidence', () => {
     expect(freezeEvidence(canonical, 'test.evidence')).toBe(canonical);
   });
 
+  it('recognizes canonical evidence without process-local membership', () => {
+    const canonical = Object.freeze({
+      basis: Object.freeze({ id: 'evidence:basis' }),
+      support: Object.freeze([Object.freeze({ id: 'evidence:support' })]),
+    });
+
+    expect(freezeEvidence(canonical, 'test.evidence')).toBe(canonical);
+  });
+
   it('retains a validated Tick while canonicalizing retention evidence', () => {
     const tick = new Tick({ id: 'tick:1', timeline: 'events' });
     const retention = new RetentionEvidence({

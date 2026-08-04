@@ -28,7 +28,6 @@ const PATCH_SUPPORT = 'patch';
 const INDEX_SUPPORT = 'index';
 const RECOVERY_EVIDENCE = 'recovery';
 const RETENTION_SUPPORT = 'retention';
-const CANONICAL_EVIDENCE = new WeakSet<Evidence>();
 
 export async function createWriteEvidence(
   fields: WriteEvidenceFields,
@@ -114,7 +113,7 @@ export async function createReadEvidence(
 
 export function freezeEvidence(evidence: Evidence, field: string): Evidence {
   assertEvidenceObject(evidence, field);
-  if (CANONICAL_EVIDENCE.has(evidence)) {
+  if (isCanonicalEvidence(evidence)) {
     return evidence;
   }
   const basis = freezeHandle(evidence.basis, `${field}.basis`);
@@ -167,6 +166,97 @@ function assertEvidenceObject(evidence: Evidence, field: string): void {
   if (typeof evidence !== 'object' || evidence === null) {
     throw new WarpError(`${field} must be causal evidence`, 'E_RECEIPT_EVIDENCE');
   }
+}
+
+function isCanonicalEvidence(evidence: Evidence): boolean {
+  return [
+    isFrozenPlainObject(evidence),
+    hasOnlyKeys(evidence, canonicalEvidenceKeys(evidence)),
+    isCanonicalHandle(evidence.basis),
+    isCanonicalArray(evidence.support, isCanonicalHandle),
+    isCanonicalRetentionCollection(evidence.retention),
+    isCanonicalOptionalTick(evidence.tick),
+  ].every(Boolean);
+}
+
+function canonicalEvidenceKeys(evidence: Evidence): string[] {
+  return [
+    'basis',
+    'support',
+    ...(evidence.retention === undefined ? [] : ['retention']),
+    ...(evidence.tick === undefined ? [] : ['tick']),
+  ];
+}
+
+function isCanonicalHandle(handle: EvidenceHandle): boolean {
+  if (typeof handle !== 'object' || handle === null) {
+    return false;
+  }
+  return [
+    isFrozenPlainObject(handle),
+    hasOnlyKeys(handle, ['id']),
+    typeof handle.id === 'string',
+    handle.id.length > 0,
+  ].every(Boolean);
+}
+
+function isCanonicalRetentionEvidence(evidence: RetentionEvidence): boolean {
+  if (!(evidence instanceof RetentionEvidence)) {
+    return false;
+  }
+  return [
+    Object.isFrozen(evidence),
+    hasOnlyKeys(evidence, ['witness', 'policy', 'reachability', 'rootKind']),
+    isCanonicalHandle(evidence.witness),
+  ].every(Boolean);
+}
+
+function isCanonicalRetentionCollection(
+  retention: readonly RetentionEvidence[] | undefined,
+): boolean {
+  return retention === undefined
+    ? true
+    : isCanonicalArray(retention, isCanonicalRetentionEvidence);
+}
+
+function isCanonicalOptionalTick(tick: Tick | undefined): boolean {
+  return tick === undefined ? true : isCanonicalTick(tick);
+}
+
+function isCanonicalTick(tick: Tick): boolean {
+  if (!(tick instanceof Tick)) {
+    return false;
+  }
+  return [
+    Object.isFrozen(tick),
+    hasOnlyKeys(tick, ['id', 'timeline']),
+  ].every(Boolean);
+}
+
+function isCanonicalArray<T>(
+  values: readonly T[],
+  isCanonical: (value: T) => boolean,
+): boolean {
+  if (!Array.isArray(values)) {
+    return false;
+  }
+  return [
+    Object.isFrozen(values),
+    Object.keys(values).length === values.length,
+    values.every(isCanonical),
+  ].every(Boolean);
+}
+
+function isFrozenPlainObject(value: object): boolean {
+  return Object.isFrozen(value) && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function hasOnlyKeys(value: object, expected: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return [
+    keys.length === expected.length,
+    keys.every((key) => expected.includes(key)),
+  ].every(Boolean);
 }
 
 function freezeSupport(
@@ -279,7 +369,5 @@ function freezeCreatedEvidence(evidence: Evidence): Evidence {
   if (evidence.retention !== undefined) {
     result.retention = Object.freeze([...evidence.retention]);
   }
-  const canonical = Object.freeze(result);
-  CANONICAL_EVIDENCE.add(canonical);
-  return canonical;
+  return Object.freeze(result);
 }
