@@ -81,4 +81,24 @@ describe('freezeEvidence', () => {
       )
     ).toThrowError(expect.objectContaining({ code: 'E_RECEIPT_EVIDENCE' }));
   });
+
+  it('rejects forged canonical retention evidence with invalid fields', () => {
+    const forgedRetention = Object.freeze(
+      Object.assign(Object.create(RetentionEvidence.prototype), {
+        witness: Object.freeze({ id: 'evidence:retention' }),
+        policy: 'expired',
+        reachability: 'anchored',
+        rootKind: 'publication',
+      })
+    );
+    const forgedEvidence = Object.freeze({
+      basis: Object.freeze({ id: 'evidence:basis' }),
+      support: Object.freeze([]),
+      retention: Object.freeze([forgedRetention]),
+    });
+
+    expect(() => freezeEvidence(forgedEvidence, 'test.evidence')).toThrowError(
+      expect.objectContaining({ code: 'E_RECEIPT_EVIDENCE' })
+    );
+  });
 });

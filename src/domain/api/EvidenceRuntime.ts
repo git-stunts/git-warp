@@ -206,6 +206,7 @@ function isCanonicalRetentionEvidence(evidence: RetentionEvidence): boolean {
     Object.isFrozen(evidence),
     hasOnlyKeys(evidence, ['witness', 'policy', 'reachability', 'rootKind']),
     isCanonicalHandle(evidence.witness),
+    RetentionEvidence.hasValidFields(evidence),
   ].every(Boolean);
 }
 

@@ -105,6 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   structurally idempotent without a process-local membership registry, and
   occurrence validation uses the exact frozen Evidence exposed by the receipt,
   so the genuine public pair remains self-authenticating after construction.
+- Canonical retention evidence now revalidates policy, reachability, and root
+  kind before preserving object identity. A frozen forged prototype cannot
+  bypass the same field invariants enforced by `RetentionEvidence` construction.
 - Entity occurrence issuance now hydrates the complete published patch as an
   entity capture and binds every normalized payload value, plus any supplied
   subject, back to the requested Intent. A publication callback cannot

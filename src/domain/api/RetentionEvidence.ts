@@ -28,6 +28,15 @@ export default class RetentionEvidence {
     this.rootKind = requireRootKind(options.rootKind);
     Object.freeze(this);
   }
+
+  /** Reports whether the storage-neutral retention fields satisfy this type's invariants. */
+  static hasValidFields(options: RetentionEvidenceOptions): boolean {
+    return (
+      isPolicy(options.policy) &&
+      isReachability(options.reachability) &&
+      isRootKind(options.rootKind)
+    );
+  }
 }
 
 function requireOptions(options: RetentionEvidenceOptions): void {
@@ -47,27 +56,41 @@ function freezeWitness(witness: EvidenceHandle): EvidenceHandle {
 }
 
 function requirePolicy(policy: StorageRetentionPolicy): StorageRetentionPolicy {
-  if (policy !== 'pinned' && policy !== 'evictable') {
+  if (!isPolicy(policy)) {
     throw evidenceError('policy is invalid');
   }
   return policy;
 }
 
 function requireReachability(reachability: StorageReachability): StorageReachability {
-  if (reachability !== 'anchored' && reachability !== 'orphaned' && reachability !== 'volatile') {
+  if (!isReachability(reachability)) {
     throw evidenceError('reachability is invalid');
   }
   return reachability;
 }
 
 function requireRootKind(rootKind: StorageRetentionRootKind): StorageRetentionRootKind {
-  if (rootKind !== 'root-set'
-    && rootKind !== 'publication'
-    && rootKind !== 'cache-set'
-    && rootKind !== 'expiring-set') {
+  if (!isRootKind(rootKind)) {
     throw evidenceError('rootKind is invalid');
   }
   return rootKind;
+}
+
+function isPolicy(policy: string): policy is StorageRetentionPolicy {
+  return policy === 'pinned' || policy === 'evictable';
+}
+
+function isReachability(reachability: string): reachability is StorageReachability {
+  return reachability === 'anchored' || reachability === 'orphaned' || reachability === 'volatile';
+}
+
+function isRootKind(rootKind: string): rootKind is StorageRetentionRootKind {
+  return (
+    rootKind === 'root-set' ||
+    rootKind === 'publication' ||
+    rootKind === 'cache-set' ||
+    rootKind === 'expiring-set'
+  );
 }
 
 function evidenceError(message: string): WarpError {
