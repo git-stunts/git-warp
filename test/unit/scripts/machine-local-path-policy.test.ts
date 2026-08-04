@@ -36,6 +36,9 @@ describe('machine-local path policy', () => {
     expect(policy.containsMachineLocalPath(windowsPath('Users', 'example', 'git', 'project'))).toBe(
       true
     );
+    expect(policy.containsMachineLocalPath(windowsPath('users', 'example', 'git', 'project'))).toBe(
+      true
+    );
     expect(
       policy.containsMachineLocalPath(posixPath('private', 'var', 'folders', 'xy', 'session'))
     ).toBe(true);
