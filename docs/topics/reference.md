@@ -6,21 +6,21 @@ public API export, CLI command, package entrypoint, or public error class.
 
 ## Package entrypoints
 
-| Surface    | Name                  | Target                                                                                       | Source             |
-| ---------- | --------------------- | -------------------------------------------------------------------------------------------- | ------------------ |
-| npm bin    | `git-warp`            | `./bin/git-warp`                                                                             | `package.json#L23` |
-| npm bin    | `git-warp-v18-to-v19` | `./dist/scripts/v18-to-v19/migrate.js`                                                       | `package.json#L24` |
-| npm export | `.`                   | `types=./dist/index.d.ts; import=./dist/index.js; default=./dist/index.js`                   | `package.json#L27` |
-| npm export | `./advanced`          | `types=./dist/advanced.d.ts; import=./dist/advanced.js; default=./dist/advanced.js`          | `package.json#L32` |
-| npm export | `./diagnostics`       | `types=./dist/diagnostics.d.ts; import=./dist/diagnostics.js; default=./dist/diagnostics.js` | `package.json#L37` |
-| npm export | `./charts`            | `types=./dist/charts.d.ts; import=./dist/charts.js; default=./dist/charts.js`                | `package.json#L42` |
-| npm export | `./testing`           | `types=./dist/testing.d.ts; import=./dist/testing.js; default=./dist/testing.js`             | `package.json#L47` |
-| npm export | `./package.json`      | `./package.json`                                                                             | `package.json#L52` |
-| JSR export | `.`                   | `./index.ts`                                                                                 | `jsr.json#L8`      |
-| JSR export | `./advanced`          | `./advanced.ts`                                                                              | `jsr.json#L9`      |
-| JSR export | `./diagnostics`       | `./diagnostics.ts`                                                                           | `jsr.json#L10`     |
-| JSR export | `./charts`            | `./charts.ts`                                                                                | `jsr.json#L11`     |
-| JSR export | `./testing`           | `./testing.ts`                                                                               | `jsr.json#L12`     |
+| Surface | Name | Target | Source |
+| --- | --- | --- | --- |
+| npm bin | `git-warp` | `./bin/git-warp` | `package.json#L23` |
+| npm bin | `git-warp-v18-to-v19` | `./dist/scripts/v18-to-v19/migrate.js` | `package.json#L24` |
+| npm export | `.` | `types=./dist/index.d.ts; import=./dist/index.js; default=./dist/index.js` | `package.json#L27` |
+| npm export | `./advanced` | `types=./dist/advanced.d.ts; import=./dist/advanced.js; default=./dist/advanced.js` | `package.json#L32` |
+| npm export | `./diagnostics` | `types=./dist/diagnostics.d.ts; import=./dist/diagnostics.js; default=./dist/diagnostics.js` | `package.json#L37` |
+| npm export | `./charts` | `types=./dist/charts.d.ts; import=./dist/charts.js; default=./dist/charts.js` | `package.json#L42` |
+| npm export | `./testing` | `types=./dist/testing.d.ts; import=./dist/testing.js; default=./dist/testing.js` | `package.json#L47` |
+| npm export | `./package.json` | `./package.json` | `package.json#L52` |
+| JSR export | `.` | `./index.ts` | `jsr.json#L8` |
+| JSR export | `./advanced` | `./advanced.ts` | `jsr.json#L9` |
+| JSR export | `./diagnostics` | `./diagnostics.ts` | `jsr.json#L10` |
+| JSR export | `./charts` | `./charts.ts` | `jsr.json#L11` |
+| JSR export | `./testing` | `./testing.ts` | `jsr.json#L12` |
 
 ## Root API export surface
 
@@ -179,17 +179,17 @@ RuntimeHarnessOptions @ testing.ts#L27
 
 ## CLI command registry
 
-| Command   | Handler         | Source                             |
-| --------- | --------------- | ---------------------------------- |
-| `write`   | `handleWrite`   | `bin/cli/commands/registry.ts#L24` |
+| Command | Handler | Source |
+| --- | --- | --- |
+| `write` | `handleWrite` | `bin/cli/commands/registry.ts#L24` |
 | `observe` | `handleObserve` | `bin/cli/commands/registry.ts#L25` |
-| `fork`    | `handleFork`    | `bin/cli/commands/registry.ts#L26` |
-| `settle`  | `handleSettle`  | `bin/cli/commands/registry.ts#L27` |
+| `fork` | `handleFork` | `bin/cli/commands/registry.ts#L26` |
+| `settle` | `handleSettle` | `bin/cli/commands/registry.ts#L27` |
 | `receipt` | `handleReceipt` | `bin/cli/commands/registry.ts#L28` |
-| `doctor`  | `handleDoctor`  | `bin/cli/commands/registry.ts#L29` |
-| `repair`  | `handleRepair`  | `bin/cli/commands/registry.ts#L30` |
-| `audit`   | `handleAudit`   | `bin/cli/commands/registry.ts#L31` |
-| `mcp`     | `handleMcp`     | `bin/cli/commands/registry.ts#L32` |
+| `doctor` | `handleDoctor` | `bin/cli/commands/registry.ts#L29` |
+| `repair` | `handleRepair` | `bin/cli/commands/registry.ts#L30` |
+| `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L31` |
+| `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L32` |
 
 Structured CLI errors for `--json` and `--jsonl` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
