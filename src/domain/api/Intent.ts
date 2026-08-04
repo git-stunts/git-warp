@@ -1,4 +1,8 @@
 import WarpError from '../errors/WarpError.ts';
+import {
+  isEntityCapturePayloadRecord,
+  type EntityCapturePayload,
+} from '../types/EntityCapturePayload.ts';
 import { copyPropValue, isPropValue, type PropValue } from '../types/PropValue.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 
@@ -33,7 +37,7 @@ export type NodeIntentFields = {
  * remain separate concepts.
  */
 type EntityPayloadFields = {
-  readonly properties: Readonly<Record<string, PropValue>>;
+  readonly properties: EntityCapturePayload;
 };
 
 export type EntityIntentFields = EntityPayloadFields & {
@@ -195,7 +199,14 @@ function propertyDescriptor(fields: PropertyIntentFields): IntentDescriptor {
 
 function entityDescriptor(fields: EntityIntentFields | AutoEntityIntentFields): IntentDescriptor {
   const checkedFields = requireIntentFields(fields);
-  const entries = Object.entries(requireIntentFields(checkedFields.properties));
+  const propertiesInput = requireIntentFields(checkedFields.properties);
+  if (!isEntityCapturePayloadRecord(propertiesInput)) {
+    throw new WarpError(
+      'Intent entity payload must be a property record',
+      'E_INTENT_ENTITY_PAYLOAD'
+    );
+  }
+  const entries = Object.entries(propertiesInput);
   if (entries.length === 0) {
     throw new WarpError(
       'Intent entity requires at least one property',

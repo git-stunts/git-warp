@@ -92,9 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retaining the original receipt Intent.
 - Entity conflict receipts no longer require or accept an occurrence. Only
   `derived` and `plural` outcomes identify admitted entity writes.
-- Entity capture payloads now reject arrays, primitives, and class instances at
-  the JavaScript boundary. Only plain or null-prototype property records are
-  admitted.
+- Entity Intent construction and direct PatchBuilder capture now share one
+  payload-record boundary: both reject arrays, primitives, and class instances.
+  Only plain or null-prototype property records are admitted.
 - Entity Intent identity selection treats explicitly `undefined` optional
   `subject` or `namespace` fields as absent, matching ordinary optional-field
   semantics for spread-built inputs.

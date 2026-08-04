@@ -96,6 +96,14 @@ describe('Intent entity descriptors', () => {
       .toThrowError(expect.objectContaining({ code: 'E_INTENT_ENTITY_EMPTY' }));
   });
 
+  it('rejects a non-record payload at the public JavaScript boundary', () => {
+    expect(() => Intent.addEntity({
+      subject: 'entry:1',
+      // @ts-expect-error Exercise the JavaScript boundary.
+      properties: 'capture',
+    })).toThrowError(expect.objectContaining({ code: 'E_INTENT_ENTITY_PAYLOAD' }));
+  });
+
   it('rejects a missing subject', () => {
     expect(() => Intent.addEntity({ subject: '', properties: { kind: 'capture' } }))
       .toThrow();

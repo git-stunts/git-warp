@@ -1,6 +1,5 @@
 /**
  * PatchBuilder — fluent API for building schema:2 WARP patches.
- *
  * Maintains a VersionVector per writer, assigns dots on add operations,
  * reads current state to populate observedDots for removes, and includes
  * context VersionVector in the patch.
@@ -37,7 +36,8 @@ import {
   type ContentInput,
   type ContentMetadataInput,
 } from './PatchBuilderContent.ts';
-import { allocateEntityCapture, planEntityCapturePayload, type EntityCapturePayload } from './PatchBuilderEntity.ts';
+import { allocateEntityCapture, planEntityCapturePayload } from './PatchBuilderEntity.ts';
+import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
 import { capturePatchBuilderCausalBasis } from './admission/PatchBuilderCausalBasis.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import { commitPatch } from './PatchCommitter.ts';

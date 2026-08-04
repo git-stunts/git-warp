@@ -34,6 +34,10 @@ import type VersionVector from '../crdt/VersionVector.ts';
 import NodePropertyWriteIntent from '../graph/NodePropertyWriteIntent.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import type { PropValue } from '../types/PropValue.ts';
+import {
+  isEntityCapturePayloadRecord,
+  type EntityCapturePayload,
+} from '../types/EntityCapturePayload.ts';
 import type { WarpState } from './JoinReducer.ts';
 import { requirePatchPropertyValue } from './PatchBuilderContent.ts';
 import { assertNoReservedBytes } from './PatchBuilderValidation.ts';
@@ -47,8 +51,6 @@ import { hexEncode, textEncode } from '../utils/bytes.ts';
  * validates before anything reaches the builder. `requirePatchPropertyValue`
  * still re-checks each value so a JavaScript caller cannot slip past the type.
  */
-export type EntityCapturePayload = Readonly<Record<string, PropValue>>;
-
 /** Where an id may already exist: earlier in this patch, or in the graph. */
 export type EntityCaptureScope = {
   readonly added: ReadonlySet<string>;
@@ -137,20 +139,9 @@ function requirePayloadEntries(
 }
 
 function requirePayloadRecord(nodeId: string, properties: EntityCapturePayload): void {
-  if (!isRecordObject(properties)) {
+  if (!isEntityCapturePayloadRecord(properties)) {
     throw invalidPayloadError(nodeId);
   }
-  if (!isPlainPrototype(Reflect.getPrototypeOf(properties))) {
-    throw invalidPayloadError(nodeId);
-  }
-}
-
-function isRecordObject(properties: EntityCapturePayload): boolean {
-  return properties !== null && typeof properties === 'object' && !Array.isArray(properties);
-}
-
-function isPlainPrototype(prototype: object | null): boolean {
-  return prototype === Object.prototype || prototype === null;
 }
 
 function invalidPayloadError(nodeId: string): PatchError {
