@@ -67,12 +67,13 @@ function isCascadingNodeRemoval(
  * Recovers an entity capture: one NodeAdd carrying its own payload.
  *
  * Operation shape alone is not sufficient evidence. The patch must also
- * *declare* the dependency-pure footprint — an empty read set and a write set
- * that is exactly the created subject — because a legacy `PropSet` sequence
- * can present the same operations while recording the very self-read that
- * entity capture exists to eliminate. A patch whose recorded footprint does
- * not match is not recognised here; it falls through to the one-operation
- * rule and is rejected rather than laundered into a stronger claim.
+ * declare the entity-capture footprint — an empty read set and a write set that
+ * is exactly the created subject — because a legacy `PropSet` sequence can
+ * present the same operations while recording a self-read. This recognition is
+ * syntactic classification only; it does not prove that application code made
+ * no prior graph read before constructing the patch payload. A patch whose
+ * recorded footprint does not match is not recognised here and falls through
+ * to the one-operation rule.
  */
 function entityIntent(patch: Patch): Intent | null {
   const [leading, ...payload] = patch.ops;

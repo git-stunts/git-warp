@@ -151,7 +151,7 @@ export class PatchBuilder {
     return this;
   }
 
-  /** Creates one entity and its initial payload in a single dependency-pure patch. */
+  /** Creates one entity and its initial payload in a single-subject patch. */
   addEntity(nodeId: string, properties: EntityCapturePayload): PatchBuilder {
     this._assertNotCommitted();
     const scope = { added: this._nodesAdded, state: this._getSnapshotState() };

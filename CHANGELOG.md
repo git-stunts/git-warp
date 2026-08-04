@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
-  its initial payload in a single patch. The lowered patch reads nothing and
-  writes exactly one subject, so its syntactic footprint is exact by
-  construction. An application-supplied semantic subject may intentionally
-  receive more than one occurrence. Previously the only
+  its initial payload in a single patch. The lowered patch declares an empty
+  read set and exactly one subject write. That declaration describes the
+  operands encoded by the patch; it does not prove that the caller made no
+  prior graph read to choose the subject or payload. An application-supplied
+  semantic subject may intentionally receive more than one occurrence.
+  Previously the only
   way to create a node with properties was `node.add` followed by
   `property.set`, which costs two patches and records a self-read on the payload
   patch.

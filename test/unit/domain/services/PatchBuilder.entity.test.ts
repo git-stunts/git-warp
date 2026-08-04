@@ -36,7 +36,7 @@ describe('PatchBuilder entity capture', () => {
     expect(requirePropSet(patch.ops[3]).value).toBe('probe write two');
   });
 
-  it('declares an empty read set so the syntactic footprint is exact', () => {
+  it('declares an empty read set and exactly one subject write', () => {
     const builder = createBuilder(null);
 
     builder.addEntity('entry:1', { kind: 'capture', text: 'a fact' });

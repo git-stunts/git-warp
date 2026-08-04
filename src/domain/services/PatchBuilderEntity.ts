@@ -1,14 +1,14 @@
 /**
- * Entity capture — the dependency-pure single-patch shape.
+ * Entity capture — the single-subject, single-patch shape.
  *
  * One patch creates the entity and carries its initial payload. Unlike
- * `addNode` followed by `setProperty`, that patch records **no** read: the
- * NodeAdd in the same patch is what brings the node into existence, so the
- * payload depends on nothing that precedes the patch. The footprint (`reads`
- * empty, `writes` exactly the subject) is therefore exact rather than an
- * under-approximation. An auto-allocated subject gives the entity an initial
- * singleton cone; a supplied semantic subject may deliberately collect more
- * than one causally distinct occurrence.
+ * `addNode` followed by `setProperty`, that patch records no self-read: the
+ * `NodeAdd` in the same patch brings the node into existence. Its declared
+ * footprint is therefore `reads` empty and `writes` exactly the subject. That
+ * declaration describes encoded operands only; caller code may still have read
+ * graph state before choosing the subject or payload. An auto-allocated subject
+ * gives the entity an initial singleton cone; a supplied semantic subject may
+ * deliberately collect more than one causally distinct occurrence.
  *
  * Three limits, stated because the shape is easy to over-read:
  *

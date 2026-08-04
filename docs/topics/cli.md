@@ -52,8 +52,11 @@ git warp write \
   --intent '{"kind":"entity.add","subject":"user:alice","properties":{"role":"admin"}}'
 ```
 
-That patch reads nothing and writes exactly one subject, so its footprint is
-exact by construction. It requires at least one property.
+That patch declares an empty read set and exactly one subject write. This
+describes the operands encoded by the patch, not every dependency in the
+calling application. If the caller read graph state before constructing the
+JSON payload, that dependency remains undeclared. The intent requires at least
+one property.
 
 It does **not** check that the subject is new. `git warp write` goes through a
 lane, and a lane writer never materializes, so the uniqueness guard has no basis

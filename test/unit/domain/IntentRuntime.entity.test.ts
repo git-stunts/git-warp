@@ -13,7 +13,7 @@ import type { PatchOp } from '../../../src/domain/types/ops/unions.ts';
 import { createPatchBuilder } from './services/PatchBuilderTestHarness.ts';
 
 describe('IntentRuntime entity capture', () => {
-  it('lowers one entity Intent into one dependency-pure patch', () => {
+  it('lowers one entity Intent into one single-subject patch', () => {
     const builder = createPatchBuilder({ graphName: 'think', writerId: 'claude' });
 
     applyIntentToPatch(Intent.addEntity({

@@ -21,10 +21,11 @@ export type NodeIntentFields = {
 /**
  * One entity and its initial payload, stated as a single fact.
  *
- * This is the dependency-pure capture shape: the lowered patch reads nothing
- * and writes exactly one subject, so its syntactic footprint is exact by
- * construction. A caller may supply a semantic subject, or ask git-warp to
- * allocate one from the NodeAdd's writer-local dot with `addEntityAuto`.
+ * The lowered patch declares an empty read set and exactly one subject write.
+ * That is a guarantee about the encoded patch operands, not proof that caller
+ * code made no prior graph read before choosing the subject or payload. A
+ * caller may supply a semantic subject, or ask git-warp to allocate one from
+ * the NodeAdd's writer-local dot with `addEntityAuto`.
  * See `docs/READINGS_AND_OPTICS.md` §4.
  *
  * A payload is mandatory, so this intent cannot itself produce the empty shell

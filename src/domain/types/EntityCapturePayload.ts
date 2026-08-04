@@ -1,6 +1,6 @@
 import { propValuesEqual, type PropValue } from './PropValue.ts';
 
-/** Property record carried by one dependency-pure entity capture. */
+/** Property record carried by one single-patch entity capture. */
 export type EntityCapturePayload = Readonly<Record<string, PropValue>>;
 
 /** Whether an entity payload has a plain or null-prototype record boundary. */

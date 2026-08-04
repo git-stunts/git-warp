@@ -72,8 +72,8 @@ telling the truth. Nobody was listening.
 Every captured fact is admitted by one `NodeAdd` occurrence. That patch:
 
 - carries the entity's non-empty initial payload as properties,
-- reads **nothing** from the graph,
-- writes **exactly one** subject.
+- declares an empty graph-read set,
+- declares **exactly one** subject write.
 
 The subject and the occurrence are different identities. A subject may be a
 semantic id supplied by the application, in which case several admissions can
@@ -81,10 +81,13 @@ legitimately name it. When the fact has no independent semantic key, git-warp
 allocates an opaque subject from the same writer-local dot used by `NodeAdd`.
 In both forms, the receipt carries the distinct substrate occurrence.
 
-This is the _dependency-pure capture_ shape. Its syntactic footprint (§8) is
-exact by construction. An allocated subject has a singleton cone until another
-patch names it; a reused semantic subject has one cone containing its several
-occurrences. Neither case changes the exactness of the footprint.
+This is the _single-subject capture_ shape. Its recorded footprint (§8)
+describes exactly the operands encoded by the patch. It does not prove that
+application code made no prior graph read before choosing the subject or
+payload; such a dependency is absent from the patch unless the caller declares
+it. An allocated subject has a singleton cone until another patch names it; a
+reused semantic subject has one cone containing its several occurrences.
+Neither case changes the declared patch shape.
 
 The corresponding lint (which the substrate should enforce, see §11):
 
@@ -191,29 +194,31 @@ filters](https://devblogs.microsoft.com/devops/super-charging-the-git-commit-gra
 
 ## 8. The syntactic footprint honesty constraint
 
-`PatchBuilder` derives each patch's `reads` / `writes` footprints from the
-**operand ids literally mentioned in the patch's ops**. This is exact
-whenever a patch's dependency structure is fully expressed as reads and
-writes on named ids. It is an _under-approximation_ whenever a patch depends
-on a value it did not name — for example, whenever the application code
-loaded state from the graph, computed something, and wrote the result as an
-opaque property value.
+`PatchBuilder` derives each patch's `reads` / `writes` footprint from the
+**operand ids literally mentioned in the patch's ops**. That footprint is a
+complete description of the encoded operands. It is not necessarily a complete
+description of semantic dependency: `PatchBuilder` cannot observe state that
+application code read before constructing an intent or payload.
 
-For the dependency-pure capture shape defined in §4, exactness is guaranteed
-**by construction**: one patch, one subject, no cross-entity read, nothing to
-under-approximate. Subject allocation and occurrence ordering are substrate
-operations, not hidden graph reads. For anything more complex, the footprint
-is a lower bound on truth. The API should surface this distinction as a value,
-not hide it in prose:
+The capture constructor guarantees one declared subject write and an empty
+declared read set. It does not prove that application code made no prior graph
+read. If a caller loads graph state, computes a payload, and then submits
+`entity.add`, the recorded footprint under-approximates that dependency just as
+it would for any other patch. Subject allocation and occurrence ordering are
+substrate operations rather than hidden graph reads, but they cannot attest to
+how an application chose its payload. Treat recorded footprints as a lower
+bound unless semantic reads are declared or a stronger capability supplies
+evidence that there were none. The API should surface this distinction as a
+value, not hide it in prose:
 
 ```text
 type ConeExactness = "exact" | "under-approximate"
 patchesFor(id): { patches: [...], exactness: ConeExactness }
 ```
 
-Applications that need general-purpose exact slicing must either constrain
-themselves to the dependency-pure shape or declare their semantic reads
-explicitly. There is no third door.
+Applications that need exact slicing must declare semantic reads explicitly or
+use an API that tracks and attests their absence. Choosing the entity-capture
+shape alone is not such an attestation.
 
 ---
 
@@ -247,9 +252,10 @@ inherit the confusion rather than the distinction.
 
 ### Cone exactness is a value, not a footnote
 
-§8 establishes that syntactic footprints are exact for the dependency-pure
-capture shape and an under-approximation otherwise. That distinction must
-travel with the answer:
+§8 establishes that the entity-capture constructor constrains the recorded
+shape but cannot establish semantic dependency completeness. An exactness
+classification must come from evidence about the entire application operation,
+not from the `entity.add` discriminator alone, and must travel with the answer:
 
 ```text
 type ConeExactness = "exact" | "under-approximate"
@@ -258,9 +264,10 @@ patchesFor(id): { patches: [...], exactness: ConeExactness }
 ```
 
 An `under-approximate` cone is still useful — it is a lower bound on truth, and
-lower bounds are fine as long as nobody mistakes them for the truth. A cone
-returned without its exactness label is an unlabelled lower bound, which is how
-a diagnostic becomes a false guarantee.
+lower bounds are fine as long as nobody mistakes them for the truth. Without
+evidence establishing semantic completeness, `under-approximate` is the honest
+classification. A cone returned without its exactness label is an unlabelled
+lower bound, which is how a diagnostic becomes a false guarantee.
 
 Extend the same honesty to any reading built on top:
 
@@ -458,8 +465,8 @@ should ship as a named test.
 
 - **Entities are nodes.** One subject, one addressable entity; repeated
   admissions remain distinct occurrences.
-- **Facts, not state.** Each capture is one `NodeAdd`. It reads nothing. It
-  writes one subject and returns one substrate occurrence.
+- **Facts, not state.** Each capture is one `NodeAdd`. It declares no graph
+  reads, declares one subject write, and returns one substrate occurrence.
 - **Containers are edges.** Never put a growing collection in a property.
   `EdgeAdd(container → member)` per member. Never `PropSet` the container.
 - **Order is a substrate fold.** Version vectors answer causality; canonical
