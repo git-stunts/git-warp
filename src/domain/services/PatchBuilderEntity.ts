@@ -43,14 +43,6 @@ import { requirePatchPropertyValue } from './PatchBuilderContent.ts';
 import { assertNoReservedBytes } from './PatchBuilderValidation.ts';
 import { hexEncode, textEncode } from '../utils/bytes.ts';
 
-/**
- * An entity's complete initial payload.
- *
- * Typed as domain property values rather than raw transport data: the
- * boundary that admits arbitrary caller input is `Intent.addEntity`, which
- * validates before anything reaches the builder. `requirePatchPropertyValue`
- * still re-checks each value so a JavaScript caller cannot slip past the type.
- */
 /** Where an id may already exist: earlier in this patch, or in the graph. */
 export type EntityCaptureScope = {
   readonly added: ReadonlySet<string>;

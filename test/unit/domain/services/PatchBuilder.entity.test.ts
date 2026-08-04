@@ -16,7 +16,7 @@ import {
 const TEST_SHA = 'a'.repeat(40);
 
 describe('PatchBuilder entity capture', () => {
-  it('lowers one entity to a NodeAdd followed by its complete payload', () => {
+  it('lowers one entity to a NodeAdd followed by its provided initial payload', () => {
     const builder = createBuilder(null);
 
     builder.addEntity('entry:1785597386985-c538d1bd', {

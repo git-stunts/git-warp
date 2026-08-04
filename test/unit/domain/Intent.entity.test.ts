@@ -5,7 +5,7 @@ import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import type { PropValue } from '../../../src/domain/types/PropValue.ts';
 
 describe('Intent entity descriptors', () => {
-  it('describes one entity creation with its complete payload', () => {
+  it('describes one entity creation with its provided initial payload', () => {
     const created = Intent.addEntity({
       subject: 'entry:1',
       properties: { kind: 'capture', text: 'a fact' },

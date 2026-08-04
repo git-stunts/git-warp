@@ -15,6 +15,12 @@ const DOCTRINE_FILES = Object.freeze([
   'test/unit/domain/services/PatchBuilder.entity.test.ts',
 ]);
 
+const PAYLOAD_WORDING_FILES = Object.freeze([
+  'src/domain/services/PatchBuilderEntity.ts',
+  'test/unit/domain/Intent.entity.test.ts',
+  'test/unit/domain/services/PatchBuilder.entity.test.ts',
+]);
+
 describe('entity capture doctrine', () => {
   it.each(DOCTRINE_FILES)('%s does not overclaim semantic dependency exactness', (path) => {
     expect(read(path)).not.toMatch(
@@ -26,6 +32,10 @@ describe('entity capture doctrine', () => {
     expect(read('docs/READINGS_AND_OPTICS.md')).toMatch(
       /does not prove that\s+application code made no prior graph read/
     );
+  });
+
+  it.each(PAYLOAD_WORDING_FILES)('%s does not claim application payload completeness', (path) => {
+    expect(read(path)).not.toMatch(/complete (?:initial )?payload/i);
   });
 });
 
