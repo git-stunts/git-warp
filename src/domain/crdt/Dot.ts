@@ -57,6 +57,8 @@
 
 import CrdtError from '../errors/CrdtError.ts';
 
+const CANONICAL_COUNTER = /^[1-9][0-9]*$/;
+
 /**
  * Dot — unique operation identity for CRDT semantics.
  * A (writerId, counter) pair that serves as a "birth certificate"
@@ -122,8 +124,7 @@ export class Dot {
    *
    * Writer IDs are parsed using lastIndexOf(':') as separator. Writer IDs
    * containing colons are supported because the counter (after the last colon)
-   * is always numeric. However, empty writer IDs or IDs ending with a colon
-   * may produce unexpected results.
+   * is a canonical positive decimal integer without a sign or leading zero.
    *
    * @param encoded - Format: "writerId:counter"
    */
@@ -138,7 +139,6 @@ export class Dot {
 
     const writerId = encoded.slice(0, lastColonIndex);
     const counterStr = encoded.slice(lastColonIndex + 1);
-    const counter = parseInt(counterStr, 10);
 
     if (writerId.length === 0) {
       throw new CrdtError('Invalid encoded dot format: empty writerId', {
@@ -147,13 +147,14 @@ export class Dot {
       });
     }
 
-    if (isNaN(counter) || counter <= 0) {
+    if (!CANONICAL_COUNTER.test(counterStr)) {
       throw new CrdtError('Invalid encoded dot format: invalid counter', {
         code: 'E_CRDT_INVALID_COUNTER',
         context: { encoded },
       });
     }
 
+    const counter = Number(counterStr);
     return new Dot(writerId, counter);
   }
 

@@ -80,8 +80,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   misreported as the same occurrence; cross-worldline lists order the worldline
   before applying canonical `EventId` order.
 - Dots and version-vector counters now reject integers beyond JavaScript's exact
-  range. Counter exhaustion fails before mutation instead of reissuing a writer
-  Dot and colliding an auto-allocated entity subject.
+  range. `Dot.decode` also rejects counter spellings that `Dot.encode` cannot
+  produce, so suffixes, decimal points, exponents, signs, leading zeroes, and
+  whitespace cannot alias a canonical Dot. Counter exhaustion fails before
+  mutation instead of reissuing a writer Dot and colliding an auto-allocated
+  entity subject.
 - `PatchBuilder.addEntity` now enforces the committed-builder lifecycle before
   reading snapshot state or validating entity input, matching every other
   builder mutation.

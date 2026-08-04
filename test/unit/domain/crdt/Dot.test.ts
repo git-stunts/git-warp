@@ -181,6 +181,20 @@ describe('Dot', () => {
       expect(() => decodeDot('alice:-1')).toThrow('Invalid encoded dot format: invalid counter');
     });
 
+    it.each([
+      'alice:1garbage',
+      'alice:1.5',
+      'alice:1e3',
+      'alice:+1',
+      'alice:01',
+      'alice: 1',
+      'alice:1 ',
+    ])('rejects non-canonical counter spelling %s', (encoded) => {
+      expect(() => decodeDot(encoded)).toThrowError(expect.objectContaining({
+        code: 'E_CRDT_INVALID_COUNTER',
+      }));
+    });
+
     it('roundtrips with encodeDot', () => {
       const original = Dot.create('alice', 42);
       const encoded = encodeDot(original);
