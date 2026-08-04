@@ -7,6 +7,8 @@ const ENTITY_CAPTURE_FILES = Object.freeze([
   'src/domain/api/EntityOccurrenceRuntime.ts',
   'src/domain/api/Intent.ts',
   'src/domain/api/IntentRuntime.ts',
+  'src/domain/types/EntityCapturePayload.ts',
+  'src/domain/types/PropValue.ts',
   'test/integration/application/Runtime.entityCapture.integration.test.ts',
   'test/unit/domain/Intent.entity.test.ts',
   'test/unit/domain/IntentRuntime.entity.test.ts',
@@ -19,6 +21,13 @@ const ENTITY_CAPTURE_FILES = Object.freeze([
 ]);
 
 describe('entity capture type-assertion ratchet', () => {
+  it('covers the payload comparison implementations', () => {
+    expect(ENTITY_CAPTURE_FILES).toEqual(expect.arrayContaining([
+      'src/domain/types/EntityCapturePayload.ts',
+      'src/domain/types/PropValue.ts',
+    ]));
+  });
+
   it('keeps entity implementation and test evidence free of type sludge', () => {
     const violations = ENTITY_CAPTURE_FILES.flatMap(typeSludgeIn);
 
