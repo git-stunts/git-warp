@@ -63,6 +63,15 @@ describe('v19 CLI entity Intent input', () => {
     ).toThrow();
   });
 
+  it('rejects an entity capture with no identity', () => {
+    expect(() =>
+      intentFromValue({
+        kind: 'entity.add',
+        properties: { kind: 'capture' },
+      })
+    ).toThrow();
+  });
+
   it('rejects an entity capture with both supplied and allocated identity', () => {
     expect(() =>
       intentFromValue({
