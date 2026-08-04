@@ -49,6 +49,7 @@ describe('entity capture type-assertion ratchet', () => {
     expect(runtime).not.toMatch(/\bWeakMap\b/);
     expect(occurrence).not.toContain('readonly #compare');
     expect(occurrence).not.toContain('readonly #relationTo');
+    expect(occurrence).not.toContain('issued.subject === occurrence.subject');
   });
 
   it('keeps the opaque occurrence declaration detached from internal coordinates', () => {

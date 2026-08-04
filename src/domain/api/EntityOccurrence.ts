@@ -74,7 +74,6 @@ export default class EntityOccurrence {
     requireReceiptBinding(issued.#intent === receipt.intent);
     requireReceiptBinding(issued.#worldline === receipt.lane);
     requireReceiptBinding(issued.#receiptWriter === receipt.writer);
-    requireReceiptBinding(issued.subject === occurrence.subject);
     return issued;
   }
 
