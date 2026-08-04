@@ -18,7 +18,7 @@ const MEMORY = {
   schemaVersion: 1,
   sortKey: '1785597386985-c538d1bd',
   text: 'probe write two',
-} as const;
+};
 
 describe('Runtime entity capture provenance', () => {
   let repository: Awaited<ReturnType<typeof createTestRepo>>;

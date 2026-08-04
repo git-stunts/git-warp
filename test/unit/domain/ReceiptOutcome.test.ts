@@ -266,7 +266,8 @@ describe('receipt outcomes', () => {
           lane: 'events',
           writer: 'agent-1',
           intent: intent.node.add({ subject: 'user:alice' }),
-          outcome: 'accepted' as never,
+          // @ts-expect-error Exercise the JavaScript boundary with a legacy value.
+          outcome: 'accepted',
           evidence: EVIDENCE,
         })
     ).toThrow('outcome must be an AdmissionOutcome');
@@ -299,7 +300,8 @@ describe('receipt outcomes', () => {
           writer: 'agent-1',
           intent: intent.node.add({ subject: 'user:alice' }),
           outcome,
-          evidence: evidence as never,
+          // @ts-expect-error Exercise the JavaScript boundary with malformed evidence.
+          evidence,
         })
     ).toThrow(message);
   });

@@ -353,7 +353,8 @@ describe('VersionVector', () => {
     });
 
     it('throws on invalid counter', () => {
-      expect(() => VersionVector.from(({ alice: 'not a number' } as any))).toThrow('Invalid counter');
+      // @ts-expect-error Exercise the JavaScript boundary with a string counter.
+      expect(() => VersionVector.from({ alice: 'not a number' })).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: 1.5 })).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: -1 })).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: Number.MAX_SAFE_INTEGER + 1 }))

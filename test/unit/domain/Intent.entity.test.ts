@@ -153,7 +153,7 @@ describe('Intent entity descriptors', () => {
     expect(Object.hasOwn(properties, '__proto__')).toBe(true);
     expect(properties['__proto__']).toBe('polluted');
     expect({}.constructor).toBe(Object);
-    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+    expect(Object.getOwnPropertyDescriptor(Object.prototype, 'polluted')).toBeUndefined();
   });
 
   it('keeps constructor and prototype keys as ordinary data', () => {

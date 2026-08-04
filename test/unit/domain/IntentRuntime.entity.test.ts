@@ -151,12 +151,12 @@ describe('IntentRuntime entity capture', () => {
         kind: 'entity.add',
         subject: 'entry:1',
       }));
-      expect(Object.hasOwn(
-        (recovered as { properties: Record<string, unknown> }).properties,
-        '__proto__',
-      )).toBe(true);
+      if (recovered.kind !== 'entity.add') {
+        throw new Error('expected an entity.add descriptor');
+      }
+      expect(Object.hasOwn(recovered.properties, '__proto__')).toBe(true);
       expect({}.constructor).toBe(Object);
-      expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+      expect(Object.getOwnPropertyDescriptor(Object.prototype, 'polluted')).toBeUndefined();
     });
   });
 
@@ -173,7 +173,7 @@ describe('IntentRuntime entity capture', () => {
   });
 });
 
-function opSignature(properties: Record<string, string | number>): unknown[] {
+function opSignature(properties: Record<string, string | number>) {
   const builder = createPatchBuilder({ graphName: 'think', writerId: 'claude' });
   applyIntentToPatch(Intent.addEntity({ subject: 'entry:1', properties }), builder);
   return builder.build().ops.map((op) => ({ ...op }));

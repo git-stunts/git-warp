@@ -28,7 +28,7 @@ describe('PatchBuilder entity capture', () => {
     const patch = builder.build();
     expect(patch.ops).toHaveLength(4);
     expect(patch.ops[0]).toBeInstanceOf(NodeAdd);
-    expect((patch.ops[0] as NodeAdd).node).toBe('entry:1785597386985-c538d1bd');
+    expect(requireNodeAdd(patch.ops[0]).node).toBe('entry:1785597386985-c538d1bd');
     expect(patch.ops.slice(1).map((op) => requirePropSet(op).key))
       .toEqual(['kind', 'sortKey', 'text']);
     expect(patch.ops.slice(1).map((op) => requirePropSet(op).node))
@@ -164,6 +164,13 @@ function requirePropSet(op: object | undefined): PropSet {
     return op;
   }
   throw new PatchError('Expected PropSet in test output', { code: 'E_TEST_EXPECTED_PROP_SET' });
+}
+
+function requireNodeAdd(op: object | undefined): NodeAdd {
+  if (op instanceof NodeAdd) {
+    return op;
+  }
+  throw new PatchError('Expected NodeAdd in test output', { code: 'E_TEST_EXPECTED_NODE_ADD' });
 }
 
 function unusedPersistence() {

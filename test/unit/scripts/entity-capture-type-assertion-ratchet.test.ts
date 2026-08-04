@@ -3,21 +3,28 @@ import { join } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-const DOMAIN_FILES = Object.freeze([
+const ENTITY_CAPTURE_FILES = Object.freeze([
   'src/domain/api/EntityOccurrenceRuntime.ts',
   'src/domain/api/Intent.ts',
   'src/domain/api/IntentRuntime.ts',
+  'test/integration/application/Runtime.entityCapture.integration.test.ts',
+  'test/unit/domain/Intent.entity.test.ts',
+  'test/unit/domain/IntentRuntime.entity.test.ts',
+  'test/unit/domain/ReceiptOutcome.test.ts',
+  'test/unit/domain/crdt/Dot.test.ts',
+  'test/unit/domain/crdt/VersionVector.test.ts',
+  'test/unit/domain/services/PatchBuilder.entity.test.ts',
 ]);
 
 describe('entity capture type-assertion ratchet', () => {
-  it('keeps new entity domain paths free of compile-time shape assertions', () => {
-    const violations = DOMAIN_FILES.flatMap(typeAssertionsIn);
+  it('keeps entity implementation and test evidence free of type sludge', () => {
+    const violations = ENTITY_CAPTURE_FILES.flatMap(typeSludgeIn);
 
     expect(violations).toEqual([]);
   });
 });
 
-function typeAssertionsIn(relativePath: string): string[] {
+function typeSludgeIn(relativePath: string): string[] {
   const source = readFileSync(join(process.cwd(), relativePath), 'utf8');
   const sourceFile = ts.createSourceFile(
     relativePath,
@@ -31,10 +38,17 @@ function typeAssertionsIn(relativePath: string): string[] {
   return violations;
 
   function visit(node: ts.Node): void {
-    if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)) {
+    if (isTypeSludge(node)) {
       const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
       violations.push(`${relativePath}:${line + 1}:${character + 1}`);
     }
     ts.forEachChild(node, visit);
   }
+}
+
+function isTypeSludge(node: ts.Node): boolean {
+  return ts.isAsExpression(node)
+    || ts.isTypeAssertionExpression(node)
+    || node.kind === ts.SyntaxKind.AnyKeyword
+    || node.kind === ts.SyntaxKind.UnknownKeyword;
 }
