@@ -127,10 +127,9 @@ jobs:
       - name: 'Gate 5a: Install pinned Wesley generator'
         run: >-
           cargo install
-          --git https://github.com/flyingrobots/wesley.git
-          --rev 4891a631f888c5b2f70e117e3704538dd1362c2f
-          --locked
           wesley-cli
+          --version 0.3.0-alpha.1
+          --locked
       - name: 'Gate 5b: Wesley vocabulary IR drift'
         run: npm run check:vocabulary-ir
       - name: 'Gate 5c: v19 capability artifact drift'
