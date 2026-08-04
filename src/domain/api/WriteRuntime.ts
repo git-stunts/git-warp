@@ -207,6 +207,7 @@ function publishedEntityOccurrence(
     evidence,
     eventId: new EventId(patch.lamport, patch.writer, sha, 0),
     intent: fields.intent,
+    receiptWriter: fields.runtime.writerId,
     subject,
     worldline: fields.runtime.worldlineName,
   });

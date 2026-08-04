@@ -152,6 +152,15 @@ describe('EntityOccurrence', () => {
       dot: Dot.create('writer', 1),
       ...receiptBinding('entry:1'),
       eventId: new EventId(1, 'writer', 'aaaa', 0),
+      receiptWriter: '',
+      subject: 'entry:1',
+      worldline: 'events',
+    })).toThrowError(expect.objectContaining({ code: 'E_VALIDATION' }));
+    expect(() => createEntityOccurrence({
+      context: {},
+      dot: Dot.create('writer', 1),
+      ...receiptBinding('entry:1'),
+      eventId: new EventId(1, 'writer', 'aaaa', 0),
       subject: 'entry:1',
       worldline: '',
     })).toThrowError(expect.objectContaining({ code: 'E_VALIDATION' }));
@@ -187,16 +196,17 @@ function occurrence(fields: {
   return createEntityOccurrence({
     context: fields.context,
     dot: Dot.create(writer, fields.counter),
-    ...receiptBinding(fields.subject),
+    ...receiptBinding(fields.subject, writer),
     eventId: new EventId(fields.lamport, writer, fields.patchSha, 0),
     subject: fields.subject,
     worldline: fields.worldline ?? 'events',
   });
 }
 
-function receiptBinding(subject: string) {
+function receiptBinding(subject: string, receiptWriter = 'writer') {
   return {
     evidence: EVIDENCE,
     intent: intent.entity.add({ subject, properties: { kind: 'capture' } }),
+    receiptWriter,
   };
 }

@@ -197,6 +197,27 @@ describe('receipt outcomes', () => {
     expect(receipt.occurrence).toBe(occurrence);
   });
 
+  it('distinguishes the causal coordinate writer from the receipt writer', () => {
+    const entityIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } });
+    const occurrence = entityOccurrence(entityIntent, {
+      coordinateWriter: 'strand-overlay',
+      receiptWriter: 'agent-1',
+    });
+    const receipt = new WriteReceipt({
+      lane: 'events',
+      writer: 'agent-1',
+      intent: entityIntent,
+      outcome: projectAdmissionOutcome(
+        testDerivedIntentAdmissionReceipt('strand-entity').outcome,
+        EVIDENCE.basis
+      ),
+      evidence: EVIDENCE,
+      occurrence,
+    });
+
+    expect(receipt.occurrence).toBe(occurrence);
+  });
+
   it('rejects a substrate occurrence transplanted to another entity receipt', () => {
     const issuedIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } });
     const occurrence = entityOccurrence(issuedIntent);
@@ -309,13 +330,19 @@ describe('receipt outcomes', () => {
 
 function entityOccurrence(
   entityIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
+  writers: {
+    readonly coordinateWriter?: string;
+    readonly receiptWriter?: string;
+  } = {},
 ) {
+  const coordinateWriter = writers.coordinateWriter ?? 'agent-1';
   return createEntityOccurrence({
     context: { 'agent-1': 1 },
-    dot: Dot.create('agent-1', 1),
+    dot: Dot.create(coordinateWriter, 1),
     evidence: EVIDENCE,
-    eventId: new EventId(1, 'agent-1', 'aaaa', 0),
+    eventId: new EventId(1, coordinateWriter, 'aaaa', 0),
     intent: entityIntent,
+    receiptWriter: writers.receiptWriter ?? coordinateWriter,
     subject: 'entry:1',
     worldline: 'events',
   });

@@ -31,6 +31,7 @@ type EntityOccurrenceFields = {
   readonly evidence: Evidence;
   readonly eventId: EventId;
   readonly intent: Intent;
+  readonly receiptWriter: string;
   readonly subject: string;
   readonly worldline: string;
 };
@@ -77,6 +78,7 @@ function normalizeCoordinate(fields: EntityOccurrenceFields): EntityOccurrenceCo
       'E_ENTITY_OCCURRENCE_WRITER'
     );
   }
+  requireNonEmptyString(fields.receiptWriter, 'entityOccurrence.receiptWriter');
   requireNonEmptyString(fields.worldline, 'entityOccurrence.worldline');
   return Object.freeze({
     context: VersionVector.from(fields.context),
@@ -86,7 +88,7 @@ function normalizeCoordinate(fields: EntityOccurrenceFields): EntityOccurrenceCo
       evidence: fields.evidence,
       intent: fields.intent,
       lane: fields.worldline,
-      writer: fields.dot.writerId,
+      writer: fields.receiptWriter,
     }),
     subject: fields.subject,
     worldline: fields.worldline,

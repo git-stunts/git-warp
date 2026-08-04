@@ -87,7 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the substrate runtime and bound to the exact Intent, causal Evidence, lane,
   and writer for which it was issued. Neither an arbitrary `EntityOccurrence`
   instance nor a genuine occurrence transplanted from another receipt can forge
-  authoritative receipt identity.
+  authoritative receipt identity. Receipt binding records that public writer
+  separately from the Dot/EventId writer, so a strand overlay remains a valid
+  causal coordinate without impersonating the receipt writer.
 - Entity occurrence issuance now hydrates the complete published patch as an
   entity capture and binds every normalized payload value, plus any supplied
   subject, back to the requested Intent. A publication callback cannot
