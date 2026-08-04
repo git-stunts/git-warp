@@ -6,18 +6,31 @@ import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import { compareEventIds, EventId } from '../utils/EventId.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import EntityOccurrence, { type EntityCausalRelation } from './EntityOccurrence.ts';
+import type Evidence from './Evidence.ts';
+import Intent from './Intent.ts';
+
+type EntityOccurrenceReceiptBinding = {
+  readonly evidence: Evidence;
+  readonly intent: Intent;
+  readonly lane: string;
+  readonly writer: string;
+};
 
 type EntityOccurrenceCoordinate = {
   readonly context: VersionVector;
   readonly dot: Dot;
   readonly eventId: EventId;
+  readonly receipt: EntityOccurrenceReceiptBinding;
+  readonly subject: string;
   readonly worldline: string;
 };
 
 type EntityOccurrenceFields = {
   readonly context: VersionVector | Readonly<Record<string, number>>;
   readonly dot: Dot;
+  readonly evidence: Evidence;
   readonly eventId: EventId;
+  readonly intent: Intent;
   readonly subject: string;
   readonly worldline: string;
 };
@@ -37,8 +50,16 @@ export function createEntityOccurrence(fields: EntityOccurrenceFields): EntityOc
 }
 
 /** Requires the opaque coordinate retained for a substrate-issued occurrence. */
-export function requireIssuedEntityOccurrence(occurrence: EntityOccurrence): EntityOccurrence {
-  requireCoordinate(occurrence);
+export function requireIssuedEntityOccurrence(
+  occurrence: EntityOccurrence,
+  receipt: EntityOccurrenceReceiptBinding,
+): EntityOccurrence {
+  const coordinate = requireCoordinate(occurrence);
+  requireReceiptBinding(coordinate.receipt.evidence === receipt.evidence);
+  requireReceiptBinding(coordinate.receipt.intent === receipt.intent);
+  requireReceiptBinding(coordinate.receipt.lane === receipt.lane);
+  requireReceiptBinding(coordinate.receipt.writer === receipt.writer);
+  requireReceiptBinding(coordinate.subject === occurrence.subject);
   return occurrence;
 }
 
@@ -49,13 +70,49 @@ function normalizeCoordinate(fields: EntityOccurrenceFields): EntityOccurrenceCo
   if (!(fields.eventId instanceof EventId)) {
     throw new WarpError('EntityOccurrence requires an EventId', 'E_ENTITY_OCCURRENCE_EVENT');
   }
+  requireOccurrenceIntent(fields.intent, fields.subject);
+  if (fields.dot.writerId !== fields.eventId.writerId) {
+    throw new WarpError(
+      'EntityOccurrence Dot and EventId require the same writer',
+      'E_ENTITY_OCCURRENCE_WRITER'
+    );
+  }
   requireNonEmptyString(fields.worldline, 'entityOccurrence.worldline');
   return Object.freeze({
     context: VersionVector.from(fields.context),
     dot: fields.dot,
     eventId: fields.eventId,
+    receipt: Object.freeze({
+      evidence: fields.evidence,
+      intent: fields.intent,
+      lane: fields.worldline,
+      writer: fields.dot.writerId,
+    }),
+    subject: fields.subject,
     worldline: fields.worldline,
   });
+}
+
+function requireOccurrenceIntent(intent: Intent, subject: string): void {
+  if (!(intent instanceof Intent) || intent.kind !== 'entity.add') {
+    throw new WarpError('EntityOccurrence requires an entity Intent', 'E_ENTITY_OCCURRENCE_INTENT');
+  }
+  const { descriptor } = intent;
+  if ('subject' in descriptor && descriptor.subject !== subject) {
+    throw new WarpError(
+      'EntityOccurrence subject does not match its issued Intent',
+      'E_ENTITY_OCCURRENCE_SUBJECT'
+    );
+  }
+}
+
+function requireReceiptBinding(matches: boolean): void {
+  if (!matches) {
+    throw new WarpError(
+      'EntityOccurrence does not belong to this WriteReceipt',
+      'E_ENTITY_OCCURRENCE_RECEIPT_MISMATCH'
+    );
+  }
 }
 
 function requireCoordinate(occurrence: EntityOccurrence): EntityOccurrenceCoordinate {

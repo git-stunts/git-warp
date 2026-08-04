@@ -2,8 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import EntityOccurrence from '../../../src/domain/api/EntityOccurrence.ts';
 import { createEntityOccurrence } from '../../../src/domain/api/EntityOccurrenceRuntime.ts';
+import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../src/domain/utils/EventId.ts';
+
+const EVIDENCE = Object.freeze({
+  basis: Object.freeze({ id: 'evidence:entity-occurrence' }),
+  support: Object.freeze([]),
+});
 
 describe('EntityOccurrence', () => {
   it('keeps occurrence identity, subject identity, and application time separate', () => {
@@ -127,6 +133,7 @@ describe('EntityOccurrence', () => {
       context: {},
       // @ts-expect-error Exercise the JavaScript boundary.
       dot: {},
+      ...receiptBinding('entry:1'),
       eventId: new EventId(1, 'writer', 'aaaa', 0),
       subject: 'entry:1',
       worldline: 'events',
@@ -134,6 +141,7 @@ describe('EntityOccurrence', () => {
     expect(() => createEntityOccurrence({
       context: {},
       dot: Dot.create('writer', 1),
+      ...receiptBinding('entry:1'),
       // @ts-expect-error Exercise the JavaScript boundary.
       eventId: {},
       subject: 'entry:1',
@@ -142,10 +150,27 @@ describe('EntityOccurrence', () => {
     expect(() => createEntityOccurrence({
       context: {},
       dot: Dot.create('writer', 1),
+      ...receiptBinding('entry:1'),
       eventId: new EventId(1, 'writer', 'aaaa', 0),
       subject: 'entry:1',
       worldline: '',
     })).toThrowError(expect.objectContaining({ code: 'E_VALIDATION' }));
+    expect(() => createEntityOccurrence({
+      context: {},
+      dot: Dot.create('writer', 1),
+      ...receiptBinding('entry:other'),
+      eventId: new EventId(1, 'writer', 'aaaa', 0),
+      subject: 'entry:1',
+      worldline: 'events',
+    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_SUBJECT' }));
+    expect(() => createEntityOccurrence({
+      context: {},
+      dot: Dot.create('writer', 1),
+      ...receiptBinding('entry:1'),
+      eventId: new EventId(1, 'other-writer', 'aaaa', 0),
+      subject: 'entry:1',
+      worldline: 'events',
+    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_WRITER' }));
   });
 });
 
@@ -162,8 +187,16 @@ function occurrence(fields: {
   return createEntityOccurrence({
     context: fields.context,
     dot: Dot.create(writer, fields.counter),
+    ...receiptBinding(fields.subject),
     eventId: new EventId(fields.lamport, writer, fields.patchSha, 0),
     subject: fields.subject,
     worldline: fields.worldline ?? 'events',
   });
+}
+
+function receiptBinding(subject: string) {
+  return {
+    evidence: EVIDENCE,
+    intent: intent.entity.add({ subject, properties: { kind: 'capture' } }),
+  };
 }

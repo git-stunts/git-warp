@@ -173,7 +173,7 @@ async function derivedWriteReceipt(
 ): Promise<WriteReceipt> {
   const { runtime, context, intent, publication } = fields;
   const evidence = await committedWriteEvidence(fields);
-  const occurrence = publishedEntityOccurrence(fields);
+  const occurrence = publishedEntityOccurrence(fields, evidence);
   const receipt = new WriteReceipt({
     lane: runtime.worldlineName,
     writer: runtime.writerId,
@@ -186,7 +186,10 @@ async function derivedWriteReceipt(
   return receipt;
 }
 
-function publishedEntityOccurrence(fields: PublishedWriteFields): EntityOccurrence | undefined {
+function publishedEntityOccurrence(
+  fields: PublishedWriteFields,
+  evidence: Evidence,
+): EntityOccurrence | undefined {
   if (fields.intent.kind !== 'entity.add') {
     return undefined;
   }
@@ -201,7 +204,9 @@ function publishedEntityOccurrence(fields: PublishedWriteFields): EntityOccurren
   return createEntityOccurrence({
     context: patch.context,
     dot: leading.dot,
+    evidence,
     eventId: new EventId(patch.lamport, patch.writer, sha, 0),
+    intent: fields.intent,
     subject,
     worldline: fields.runtime.worldlineName,
   });

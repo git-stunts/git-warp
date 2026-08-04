@@ -180,11 +180,12 @@ describe('receipt outcomes', () => {
   });
 
   it('retains the substrate occurrence on an admitted entity receipt', () => {
-    const occurrence = entityOccurrence();
+    const entityIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } });
+    const occurrence = entityOccurrence(entityIntent);
     const receipt = new WriteReceipt({
       lane: 'events',
       writer: 'agent-1',
-      intent: intent.entity.add({ subject: occurrence.subject, properties: { kind: 'capture' } }),
+      intent: entityIntent,
       outcome: projectAdmissionOutcome(
         testDerivedIntentAdmissionReceipt('manual-entity').outcome,
         EVIDENCE.basis
@@ -194,6 +195,44 @@ describe('receipt outcomes', () => {
     });
 
     expect(receipt.occurrence).toBe(occurrence);
+  });
+
+  it('rejects a substrate occurrence transplanted to another entity receipt', () => {
+    const issuedIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } });
+    const occurrence = entityOccurrence(issuedIntent);
+    const outcome = projectAdmissionOutcome(
+      testDerivedIntentAdmissionReceipt('transplanted-entity').outcome,
+      EVIDENCE.basis
+    );
+    const fields = {
+      lane: 'events',
+      writer: 'agent-1',
+      intent: issuedIntent,
+      outcome,
+      evidence: EVIDENCE,
+      occurrence,
+    };
+    const mismatches = [
+      { ...fields, lane: 'other' },
+      { ...fields, writer: 'agent-2' },
+      {
+        ...fields,
+        intent: intent.entity.add({ subject: 'entry:other', properties: { kind: 'capture' } }),
+      },
+      {
+        ...fields,
+        evidence: Object.freeze({
+          basis: Object.freeze({ id: 'evidence:other' }),
+          support: Object.freeze([]),
+        }),
+      },
+    ];
+
+    for (const mismatch of mismatches) {
+      expect(() => new WriteReceipt(mismatch)).toThrowError(expect.objectContaining({
+        code: 'E_ENTITY_OCCURRENCE_RECEIPT_MISMATCH',
+      }));
+    }
   });
 
   it('rejects an occurrence that was not issued by the substrate', () => {
@@ -266,11 +305,15 @@ describe('receipt outcomes', () => {
   });
 });
 
-function entityOccurrence() {
+function entityOccurrence(
+  entityIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
+) {
   return createEntityOccurrence({
     context: { 'agent-1': 1 },
     dot: Dot.create('agent-1', 1),
+    evidence: EVIDENCE,
     eventId: new EventId(1, 'agent-1', 'aaaa', 0),
+    intent: entityIntent,
     subject: 'entry:1',
     worldline: 'events',
   });
