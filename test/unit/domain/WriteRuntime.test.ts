@@ -11,6 +11,11 @@ import WriterError from '../../../src/domain/errors/WriterError.ts';
 import { encodeEdgeKey } from '../../../src/domain/services/KeyCodec.ts';
 import type { PatchBuilder } from '../../../src/domain/services/PatchBuilder.ts';
 import WarpState from '../../../src/domain/services/state/WarpState.ts';
+import Patch from '../../../src/domain/types/Patch.ts';
+import NodeAdd from '../../../src/domain/types/ops/NodeAdd.ts';
+import NodePropSet from '../../../src/domain/types/ops/NodePropSet.ts';
+import PropSet from '../../../src/domain/types/ops/PropSet.ts';
+import type { PatchOp } from '../../../src/domain/types/ops/unions.ts';
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import { testDerivedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 import {
@@ -60,7 +65,9 @@ describe('WriteRuntime admission classification', () => {
         const capture = committableBuilder();
         await build(capture);
         const publication = await capture.commitWithEvidence();
-        return Object.freeze({ ...publication, patch: builder().build() });
+        const replacement = patchWithOps(publication.patch, []);
+        expectPreservedPatchMetadata(replacement, publication.patch);
+        return Object.freeze({ ...publication, patch: replacement });
       },
     })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
@@ -77,7 +84,11 @@ describe('WriteRuntime admission classification', () => {
         const capture = committableBuilder();
         await build(capture);
         const publication = await capture.commitWithEvidence();
-        return Object.freeze({ ...publication, patch: builder().addNode('entry:1').build() });
+        const leading = requireNodeAdd(publication.patch.ops[0]);
+        const replacement = patchWithOps(publication.patch, [leading]);
+        expect(replacement.ops[0]).toBe(leading);
+        expectPreservedPatchMetadata(replacement, publication.patch);
+        return Object.freeze({ ...publication, patch: replacement });
       },
     })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
@@ -94,9 +105,13 @@ describe('WriteRuntime admission classification', () => {
         const capture = committableBuilder();
         await build(capture);
         const publication = await capture.commitWithEvidence();
+        const replacement = renameEntitySubject(publication.patch, 'entry:1', 'entry:2');
+        expect(requireNodeAdd(replacement.ops[0]).dot)
+          .toBe(requireNodeAdd(publication.patch.ops[0]).dot);
+        expectPreservedPatchMetadata(replacement, publication.patch, ['entry:2']);
         return Object.freeze({
           ...publication,
-          patch: builder().addEntity('entry:2', { kind: 'capture' }).build(),
+          patch: replacement,
         });
       },
     })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
@@ -114,9 +129,12 @@ describe('WriteRuntime admission classification', () => {
         const capture = committableBuilder();
         await build(capture);
         const publication = await capture.commitWithEvidence();
+        const replacement = replaceEntityProperty(publication.patch, 'kind', 'substituted');
+        expect(replacement.ops[0]).toBe(publication.patch.ops[0]);
+        expectPreservedPatchMetadata(replacement, publication.patch);
         return Object.freeze({
           ...publication,
-          patch: builder().addEntity('entry:1', { kind: 'substituted' }).build(),
+          patch: replacement,
         });
       },
     })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
@@ -134,9 +152,12 @@ describe('WriteRuntime admission classification', () => {
         const capture = committableBuilder();
         await build(capture);
         const publication = await capture.commitWithEvidence();
+        const replacement = replaceEntityProperty(publication.patch, 'kind', 'substituted');
+        expect(replacement.ops[0]).toBe(publication.patch.ops[0]);
+        expectPreservedPatchMetadata(replacement, publication.patch);
         return Object.freeze({
           ...publication,
-          patch: builder().addEntity('entry:substitute', { kind: 'substituted' }).build(),
+          patch: replacement,
         });
       },
     })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
@@ -269,6 +290,77 @@ function builder(overrides: Parameters<typeof createPatchBuilder>[0] = {}): Patc
 function committableBuilder(): PatchBuilder {
   const persistence = createPatchBuilderMockPersistence();
   return builder({ persistence, patchJournal: createPatchJournal(persistence) });
+}
+
+function requireNodeAdd(op: object | undefined): NodeAdd {
+  if (op instanceof NodeAdd) {
+    return op;
+  }
+  throw new Error('expected a leading NodeAdd');
+}
+
+function patchWithOps(
+  patch: Patch,
+  ops: PatchOp[],
+  writes: string[] | undefined = patch.writes,
+): Patch {
+  return new Patch({
+    schema: patch.schema,
+    writer: patch.writer,
+    lamport: patch.lamport,
+    context: patch.context,
+    ops,
+    reads: patch.reads,
+    writes,
+  });
+}
+
+function renameEntitySubject(patch: Patch, from: string, to: string): Patch {
+  const ops = patch.ops.map((op) => renameEntityOperation(op, from, to));
+  const writes = patch.writes?.map((subject) => subject === from ? to : subject);
+  return patchWithOps(patch, ops, writes);
+}
+
+function renameEntityOperation(op: PatchOp, from: string, to: string): PatchOp {
+  if (op instanceof NodeAdd && op.node === from) {
+    return new NodeAdd(to, op.dot);
+  }
+  if (op instanceof NodePropSet && op.node === from) {
+    return new NodePropSet(to, op.key, op.value);
+  }
+  if (op instanceof PropSet && op.node === from) {
+    return new PropSet(to, op.key, op.value);
+  }
+  return op;
+}
+
+function replaceEntityProperty(patch: Patch, key: string, value: string): Patch {
+  return patchWithOps(patch, patch.ops.map((op) =>
+    replaceEntityPropertyOperation(op, key, value)
+  ));
+}
+
+function replaceEntityPropertyOperation(op: PatchOp, key: string, value: string): PatchOp {
+  if (op instanceof NodePropSet && op.key === key) {
+    return new NodePropSet(op.node, op.key, value);
+  }
+  if (op instanceof PropSet && op.key === key) {
+    return new PropSet(op.node, op.key, value);
+  }
+  return op;
+}
+
+function expectPreservedPatchMetadata(
+  replacement: Patch,
+  publication: Patch,
+  writes: string[] | undefined = publication.writes,
+): void {
+  expect(replacement.schema).toBe(publication.schema);
+  expect(replacement.writer).toBe(publication.writer);
+  expect(replacement.lamport).toBe(publication.lamport);
+  expect(replacement.context).toEqual(publication.context);
+  expect(replacement.reads).toEqual(publication.reads);
+  expect(replacement.writes).toEqual(writes);
 }
 
 function stateWithAttachedEdge(): WarpState {
