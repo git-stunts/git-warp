@@ -23,6 +23,7 @@ import { Dot } from '../crdt/Dot.ts';
 import NodeAdd from '../types/ops/NodeAdd.ts';
 import { EventId } from '../utils/EventId.ts';
 import { entityCapturePayloadsEqual } from '../types/EntityCapturePayload.ts';
+import { allocateEntitySubject } from '../services/PatchBuilderEntity.ts';
 import {
   createDerivedWriteAdmission,
   createObstructedWriteAdmission,
@@ -194,13 +195,17 @@ function publishedEntityOccurrence(
     return undefined;
   }
   const { patch, sha } = fields.publication;
-  const subject = publishedEntitySubject(fields.intent, publishedEntityIntent(patch));
   const leading = patch.ops[0];
   if (!(leading instanceof NodeAdd) || !(leading.dot instanceof Dot)) {
     throw entityOccurrenceError(
       'Published entity write does not begin with a causally identified NodeAdd'
     );
   }
+  const subject = publishedEntitySubject(
+    fields.intent,
+    publishedEntityIntent(patch),
+    leading.dot
+  );
   return createEntityOccurrence({
     context: patch.context,
     dot: leading.dot,
@@ -213,11 +218,14 @@ function publishedEntityOccurrence(
   });
 }
 
-function publishedEntitySubject(requested: Intent, published: Intent): string {
+function publishedEntitySubject(requested: Intent, published: Intent, dot: Dot): string {
   const publishedDescriptor = publishedEntityDescriptor(published);
   const requestedDescriptor = requestedEntityDescriptor(requested);
   requirePublishedEntityPayload(requestedDescriptor, publishedDescriptor);
-  if (suppliedSubjectChanged(requestedDescriptor, publishedDescriptor.subject)) {
+  const expectedSubject = 'subject' in requestedDescriptor
+    ? requestedDescriptor.subject
+    : allocateEntitySubject(requestedDescriptor.namespace, dot);
+  if (publishedDescriptor.subject !== expectedSubject) {
     throw entityOccurrenceError('Published entity write does not match the requested entity');
   }
   return publishedDescriptor.subject;
@@ -246,13 +254,6 @@ function requirePublishedEntityPayload(
   if (!entityCapturePayloadsEqual(requested.properties, published.properties)) {
     throw entityOccurrenceError('Published entity write does not match the requested payload');
   }
-}
-
-function suppliedSubjectChanged(
-  requested: ReturnType<typeof requestedEntityDescriptor>,
-  publishedSubject: string,
-): boolean {
-  return 'subject' in requested && requested.subject !== publishedSubject;
 }
 
 function publishedEntityIntent(patch: PublishedWriteFields['publication']['patch']): Intent {

@@ -117,6 +117,37 @@ describe('WriteRuntime admission classification', () => {
     })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
 
+  it('refuses a published entity receipt whose allocated subject changed', async () => {
+    await expect(executeIntentWrite({
+      runtime: createRuntime(),
+      context: createContext().context,
+      intent: intent.entity.addAuto({
+        namespace: 'entry',
+        properties: { kind: 'capture' },
+      }),
+      commit: async (build) => {
+        const capture = committableBuilder();
+        await build(capture);
+        const publication = await capture.commitWithEvidence();
+        const originalSubject = requireNodeAdd(publication.patch.ops[0]).node;
+        const replacement = renameEntitySubject(
+          publication.patch,
+          originalSubject,
+          'entry:attacker-selected'
+        );
+        expect(requireNodeAdd(replacement.ops[0]).dot)
+          .toBe(requireNodeAdd(publication.patch.ops[0]).dot);
+        expectPreservedPatchMetadata(replacement, publication.patch, [
+          'entry:attacker-selected',
+        ]);
+        return Object.freeze({
+          ...publication,
+          patch: replacement,
+        });
+      },
+    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+  });
+
   it('refuses a supplied-subject publication whose payload changed', async () => {
     await expect(executeIntentWrite({
       runtime: createRuntime(),

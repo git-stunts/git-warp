@@ -98,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subject, back to the requested Intent. A publication callback cannot
   substitute an unrelated node or payload while retaining the original receipt
   Intent.
+- Auto-allocated entity receipts now bind the published subject to the
+  requested namespace and the published `NodeAdd` Dot. A publication callback
+  cannot substitute another subject while retaining the legitimate causal
+  coordinate.
 - Entity conflict receipts no longer require or accept an occurrence. Only
   `derived` and `plural` outcomes identify admitted entity writes.
 - Entity Intent construction and direct PatchBuilder capture now share one
