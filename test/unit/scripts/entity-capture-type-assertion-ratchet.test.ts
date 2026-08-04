@@ -11,6 +11,7 @@ const ENTITY_CAPTURE_FILES = Object.freeze([
   'test/unit/domain/Intent.entity.test.ts',
   'test/unit/domain/IntentRuntime.entity.test.ts',
   'test/unit/domain/ReceiptOutcome.test.ts',
+  'test/unit/domain/types/EntityCapturePayload.test.ts',
   'test/unit/domain/crdt/Dot.test.ts',
   'test/unit/domain/crdt/VersionVector.test.ts',
   'test/unit/domain/services/PatchBuilder.entity.test.ts',
