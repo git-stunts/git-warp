@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { MachineLocalPathPolicy } from './MachineLocalPathPolicy.ts';
 
 const MAX_INSPECTED_BLOB_BYTES = 512 * 1024 * 1024;
+const OBJECT_ID_PATTERN = /^[0-9a-f]{40,64}$/u;
+const ZERO_OBJECT_PATTERN = /^0+$/u;
 
 export class GitMachineLocalPathGuard {
   readonly #repository: string;
@@ -54,6 +56,89 @@ export class GitMachineLocalPathGuard {
       });
       return this.#containsMachineLocalPath(bytes);
     });
+  }
+
+  findOutgoingObjects(pushUpdates: string, remoteName: string): string[] {
+    const outgoingObjectIds = new Set<string>();
+    const remoteTips = this.#findRemoteTips(remoteName);
+
+    for (const line of pushUpdates.split('\n')) {
+      if (line.trim().length === 0) {
+        continue;
+      }
+      const fields = line.trim().split(/\s+/u);
+      const localObject = fields[1];
+      const remoteObject = fields[3];
+      if (fields.length !== 4 || localObject === undefined || remoteObject === undefined) {
+        throw new Error('Malformed pre-push update');
+      }
+      if (!OBJECT_ID_PATTERN.test(localObject) || !OBJECT_ID_PATTERN.test(remoteObject)) {
+        throw new Error('Malformed pre-push object id');
+      }
+      if (ZERO_OBJECT_PATTERN.test(localObject)) {
+        continue;
+      }
+
+      const exclusions = ZERO_OBJECT_PATTERN.test(remoteObject) ? remoteTips : [remoteObject];
+      const revisionArguments = [localObject, ...exclusions.map((objectId) => `^${objectId}`)];
+      const inventory = execFileSync(
+        'git',
+        ['rev-list', '--objects', '--no-object-names', ...revisionArguments],
+        { cwd: this.#repository, encoding: 'utf8' }
+      );
+      for (const objectId of inventory.split('\n')) {
+        if (objectId.length === 0) {
+          continue;
+        }
+        if (!OBJECT_ID_PATTERN.test(objectId)) {
+          throw new Error('Git returned a malformed outgoing object id');
+        }
+        outgoingObjectIds.add(objectId);
+      }
+    }
+
+    const offenders: string[] = [];
+    for (const objectId of outgoingObjectIds) {
+      const objectType = execFileSync('git', ['cat-file', '-t', objectId], {
+        cwd: this.#repository,
+        encoding: 'utf8',
+      }).trim();
+      if (objectType === 'tree') {
+        continue;
+      }
+      if (objectType !== 'blob' && objectType !== 'commit' && objectType !== 'tag') {
+        throw new Error(`Unsupported outgoing Git object type: ${objectType}`);
+      }
+      const bytes = execFileSync('git', ['cat-file', objectType, objectId], {
+        cwd: this.#repository,
+        maxBuffer: MAX_INSPECTED_BLOB_BYTES,
+      });
+      if (this.#containsMachineLocalPath(bytes)) {
+        offenders.push(`${objectType}:${objectId}`);
+      }
+    }
+
+    return offenders.sort();
+  }
+
+  #findRemoteTips(remoteName: string): string[] {
+    if (remoteName.length === 0) {
+      return [];
+    }
+    const tips = execFileSync(
+      'git',
+      ['for-each-ref', '--format=%(objectname)', `refs/remotes/${remoteName}/`],
+      { cwd: this.#repository, encoding: 'utf8' }
+    );
+    return tips
+      .split('\n')
+      .filter((objectId) => objectId.length > 0)
+      .map((objectId) => {
+        if (!OBJECT_ID_PATTERN.test(objectId)) {
+          throw new Error('Git returned a malformed remote object id');
+        }
+        return objectId;
+      });
   }
 
   #containsMachineLocalPath(bytes: Buffer): boolean {

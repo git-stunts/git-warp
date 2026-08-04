@@ -15,10 +15,16 @@ function git(repository: string, ...args: readonly string[]): void {
   execFileSync('git', args, { cwd: repository, stdio: 'pipe' });
 }
 
+function gitText(repository: string, ...args: readonly string[]): string {
+  return execFileSync('git', args, { cwd: repository, encoding: 'utf8' }).trim();
+}
+
 function createRepository(): string {
   const repository = mkdtempSync(join(tmpdir(), 'git-warp-path-guard-'));
   tempDirs.push(repository);
   git(repository, 'init', '--quiet');
+  git(repository, 'config', 'user.name', 'Path Guard Test');
+  git(repository, 'config', 'user.email', 'path-guard@example.invalid');
   return repository;
 }
 
@@ -70,5 +76,35 @@ describe('Git machine-local path guard', () => {
 
     expect(guard.findWorkingTreePaths()).toEqual(['fixture.bin']);
     expect(guard.findStagedPaths()).toEqual(['fixture.bin']);
+  });
+
+  it('finds leaked objects even when a later commit makes the branch tip safe', () => {
+    const repository = createRepository();
+    const fixturePath = join(repository, 'fixture.txt');
+    writeFileSync(fixturePath, 'portable base', 'utf8');
+    git(repository, 'add', 'fixture.txt');
+    git(repository, 'commit', '--quiet', '-m', 'safe base');
+    const remoteObject = gitText(repository, 'rev-parse', 'HEAD');
+
+    writeFileSync(fixturePath, personalHome('git', 'project'), 'utf8');
+    git(repository, 'add', 'fixture.txt');
+    git(repository, 'commit', '--quiet', '-m', 'unsafe middle');
+    const leakedBlob = gitText(repository, 'rev-parse', 'HEAD:fixture.txt');
+
+    writeFileSync(fixturePath, 'portable tip', 'utf8');
+    git(repository, 'add', 'fixture.txt');
+    git(repository, 'commit', '--quiet', '-m', 'safe tip');
+    const localObject = gitText(repository, 'rev-parse', 'HEAD');
+    const pushUpdate = `refs/heads/main ${localObject} refs/heads/main ${remoteObject}\n`;
+    const guard = new GitMachineLocalPathGuard(repository, new MachineLocalPathPolicy());
+
+    expect(guard.findOutgoingObjects(pushUpdate, 'origin')).toContain(`blob:${leakedBlob}`);
+  });
+
+  it('runs the exact outgoing-object scanner from the pre-push hook', () => {
+    const hookPath = fileURLToPath(new URL('../../../scripts/hooks/pre-push', import.meta.url));
+    const hook = readFileSync(hookPath, 'utf8');
+
+    expect(hook).toContain('node scripts/check-machine-local-paths.ts --pre-push "$REMOTE_NAME"');
   });
 });

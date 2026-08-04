@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { GitMachineLocalPathGuard } from './GitMachineLocalPathGuard.ts';
@@ -13,6 +14,8 @@ if (mode === '--working-tree') {
   offenders = guard.findWorkingTreePaths();
 } else if (mode === '--staged') {
   offenders = guard.findStagedPaths();
+} else if (mode === '--pre-push') {
+  offenders = guard.findOutgoingObjects(readFileSync(0, 'utf8'), process.argv[3] ?? '');
 } else {
   process.stderr.write(`Unknown machine-local path scan mode: ${mode}\n`);
   process.exit(2);

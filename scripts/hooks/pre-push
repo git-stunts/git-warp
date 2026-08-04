@@ -7,13 +7,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
 set -e
 
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
-if [ -z "$ROOT" ]; then
-  echo "pre-push: unable to locate repo root" >&2
-  exit 1
-fi
-cd "$ROOT"
-
 clear_git_repository_environment() {
   git_local_env_vars="$(git rev-parse --local-env-vars 2>/dev/null)"
   for git_local_env_var in $git_local_env_vars; do
@@ -25,6 +18,21 @@ clear_git_repository_environment() {
 # in tests must discover their own repositories instead of inheriting this one.
 clear_git_repository_environment
 echo "pre-push: cleared inherited Git repository environment"
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$ROOT" ]; then
+  echo "pre-push: unable to locate repo root" >&2
+  exit 1
+fi
+cd "$ROOT"
+
+REMOTE_NAME="${1:-}"
+PUSH_INPUT=$(mktemp)
+trap 'rm -f "$PUSH_INPUT"' EXIT
+cat > "$PUSH_INPUT"
+
+echo "[Gate P] Scanning exact outgoing Git objects for machine-local paths..."
+node scripts/check-machine-local-paths.ts --pre-push "$REMOTE_NAME" < "$PUSH_INPUT"
 
 command_exists() {
   launcher="$1"

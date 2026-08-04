@@ -68,8 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository lint now rejects personal-home and Darwin temporary absolute
   paths in tracked or unignored text and binary files, and the pre-commit hook
   inspects exact staged additions and modifications rather than mutable
-  working-tree bytes. Contributor doctrine also forbids publishing machine-local
-  paths in generated evidence, issues, pull requests, comments, or reviews.
+  working-tree bytes. The pre-push hook inspects every outgoing Git object, so a
+  later safe branch tip cannot conceal an earlier leaking blob or commit.
+  Contributor doctrine also forbids publishing machine-local paths in generated
+  evidence, issues, pull requests, comments, or reviews.
 - Node and edge content attachment share one staging helper, so the asset
   storage precondition is stated once instead of duplicated per target shape.
 - Effect id validation and derivation moved to `PatchBuilderValidation`.
