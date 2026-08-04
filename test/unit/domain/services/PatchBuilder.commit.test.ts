@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import type { StagedAsset } from '../../../../src/ports/AssetStoragePort.ts';
 import { createGitCasPatchStorage } from '../../../../src/ports/CommitMessageCodecPort.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import {
@@ -151,6 +152,37 @@ describe('PatchBuilder semantic commit', () => {
     await expect(builder.commit()).rejects.toThrow(/already committed/u);
     releaseRead(null);
     await expect(pending).resolves.toBe('c'.repeat(40));
+  });
+
+  it('blocks attachment lowering when publication overtakes asset staging', async () => {
+    const staged = Promise.withResolvers<StagedAsset>();
+    const assets = new RecordingAssetStorage();
+    const stage = vi.spyOn(assets, 'stage').mockImplementation(async () => await staged.promise);
+    const persistence = createMockPersistence();
+    const builder = createPatchBuilder({
+      persistence,
+      patchJournal: createPatchJournal(persistence),
+      assetStorage: assets,
+    });
+    builder.addNode('node:a');
+
+    const attachment = builder.attachContent('node:a', 'content');
+    await vi.waitFor(() => expect(stage).toHaveBeenCalledOnce());
+    await builder.commit();
+    staged.resolve(
+      Object.freeze({
+        handle: new AssetHandle('asset:late'),
+        size: 7,
+        observedAt: '1970-01-01T00:00:00.000Z',
+        retention: Object.freeze({
+          reachability: 'unanchored',
+          protection: 'not-established',
+        }),
+      })
+    );
+
+    await expect(attachment).rejects.toMatchObject({ code: 'E_PATCH_ALREADY_COMMITTED' });
+    expect(builder.ops).toHaveLength(1);
   });
 
   it('allows retry after a storage failure', async () => {

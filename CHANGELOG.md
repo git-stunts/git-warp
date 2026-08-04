@@ -74,6 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Content attachment now rechecks the builder lifecycle after asynchronous
+  asset staging. Publication that overtakes staging can no longer be followed
+  by late property operations or attachment handles on an already committed
+  patch.
 - Live strand settlement now replays the canonical Intent recovered from the
   published draft patch. An auto-allocated entity therefore keeps the subject
   named by its write receipt, matching settlement after a Runtime reopen.

@@ -24,6 +24,7 @@ import type { WarpState } from './JoinReducer.ts';
 
 type PatchBuilderPropertyRuntimeOptions = {
   readonly assetStorage: AssetStoragePort | null;
+  readonly assertMutable: () => void;
   readonly edgesAdded: ReadonlySet<string>;
   readonly getSnapshotState: () => WarpState | null;
   readonly graphName: string;
@@ -111,6 +112,7 @@ export default class PatchBuilderPropertyRuntime {
       content,
       metadata,
     });
+    this.#options.assertMutable();
     const intent = ContentAttachmentWriteIntent.forNode(nodeId, payload);
     this.#lowerNodeContentIntent(intent);
     this.#contentAssets.push(intent.handle());
@@ -138,6 +140,7 @@ export default class PatchBuilderPropertyRuntime {
       content,
       metadata,
     });
+    this.#options.assertMutable();
     const intent = ContentAttachmentWriteIntent.forEdge({ from, to, label }, payload);
     this.#lowerEdgeContentIntent(intent);
     this.#contentAssets.push(intent.handle());

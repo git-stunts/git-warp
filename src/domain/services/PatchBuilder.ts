@@ -105,6 +105,7 @@ export class PatchBuilder {
     this._logger = options.logger ?? nullLogger;
     this._properties = new PatchBuilderPropertyRuntime({
       assetStorage: options.assetStorage ?? null,
+      assertMutable: () => this._assertNotCommitted(),
       edgesAdded: this._edgesAdded,
       getSnapshotState: () => this._getSnapshotState(),
       graphName: this._graphName,
