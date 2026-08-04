@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Dot,
+import {
+  Dot,
   dotsEqual,
   encodeDot,
   decodeDot,
@@ -31,25 +32,32 @@ describe('Dot', () => {
     });
 
     it('throws on non-string writerId', () => {
-      expect(() => Dot.create((123 as any), 1)).toThrow('writerId must be a non-empty string');
-      expect(() => Dot.create((null as any), 1)).toThrow('writerId must be a non-empty string');
-      expect(() => Dot.create((undefined as any), 1)).toThrow('writerId must be a non-empty string');
+      // @ts-expect-error Exercise the JavaScript boundary with a number.
+      expect(() => Dot.create(123, 1)).toThrow('writerId must be a non-empty string');
+      // @ts-expect-error Exercise the JavaScript boundary with null.
+      expect(() => Dot.create(null, 1)).toThrow('writerId must be a non-empty string');
+      // @ts-expect-error Exercise the JavaScript boundary with undefined.
+      expect(() => Dot.create(undefined, 1)).toThrow('writerId must be a non-empty string');
     });
 
     it('throws on non-positive counter', () => {
-      expect(() => Dot.create('alice', 0)).toThrow('counter must be a positive integer');
-      expect(() => Dot.create('alice', -1)).toThrow('counter must be a positive integer');
+      expect(() => Dot.create('alice', 0)).toThrow('counter must be a positive safe integer');
+      expect(() => Dot.create('alice', -1)).toThrow('counter must be a positive safe integer');
     });
 
     it('throws on non-integer counter', () => {
-      expect(() => Dot.create('alice', 1.5)).toThrow('counter must be a positive integer');
-      expect(() => Dot.create('alice', NaN)).toThrow('counter must be a positive integer');
-      expect(() => Dot.create('alice', Infinity)).toThrow('counter must be a positive integer');
+      expect(() => Dot.create('alice', 1.5)).toThrow('counter must be a positive safe integer');
+      expect(() => Dot.create('alice', NaN)).toThrow('counter must be a positive safe integer');
+      expect(() => Dot.create('alice', Infinity)).toThrow(
+        'counter must be a positive safe integer'
+      );
     });
 
     it('throws on non-number counter', () => {
-      expect(() => Dot.create('alice', ('1' as any))).toThrow('counter must be a positive integer');
-      expect(() => Dot.create('alice', (null as any))).toThrow('counter must be a positive integer');
+      // @ts-expect-error Exercise the JavaScript boundary with a string.
+      expect(() => Dot.create('alice', '1')).toThrow('counter must be a positive safe integer');
+      // @ts-expect-error Exercise the JavaScript boundary with null.
+      expect(() => Dot.create('alice', null)).toThrow('counter must be a positive safe integer');
     });
   });
 
@@ -176,6 +184,22 @@ describe('Dot', () => {
       expect(() => decodeDot('alice:-1')).toThrow('Invalid encoded dot format: invalid counter');
     });
 
+    it.each([
+      'alice:1garbage',
+      'alice:1.5',
+      'alice:1e3',
+      'alice:+1',
+      'alice:01',
+      'alice: 1',
+      'alice:1 ',
+    ])('rejects non-canonical counter spelling %s', (encoded) => {
+      expect(() => decodeDot(encoded)).toThrowError(
+        expect.objectContaining({
+          code: 'E_CRDT_INVALID_COUNTER',
+        })
+      );
+    });
+
     it('roundtrips with encodeDot', () => {
       const original = Dot.create('alice', 42);
       const encoded = encodeDot(original);
@@ -286,6 +310,12 @@ describe('Dot', () => {
       const decoded = decodeDot(encoded);
 
       expect(dotsEqual(dot, decoded)).toBe(true);
+    });
+
+    it('rejects counters beyond exact integer representation', () => {
+      expect(() => Dot.create('alice', Number.MAX_SAFE_INTEGER + 1)).toThrowError(
+        expect.objectContaining({ code: 'E_CRDT_INVALID_COUNTER' })
+      );
     });
 
     it('handles unicode writerId', () => {

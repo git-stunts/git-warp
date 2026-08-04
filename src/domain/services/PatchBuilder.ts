@@ -1,6 +1,5 @@
 /**
  * PatchBuilder — fluent API for building schema:2 WARP patches.
- *
  * Maintains a VersionVector per writer, assigns dots on add operations,
  * reads current state to populate observedDots for removes, and includes
  * context VersionVector in the patch.
@@ -15,28 +14,21 @@ import NodeAdd from '../types/ops/NodeAdd.ts';
 import NodeRemove from '../types/ops/NodeRemove.ts';
 import EdgeAdd from '../types/ops/EdgeAdd.ts';
 import EdgeRemove from '../types/ops/EdgeRemove.ts';
-import NodePropSet from '../types/ops/NodePropSet.ts';
-import EdgePropSet from '../types/ops/EdgePropSet.ts';
-import ContentAttachmentWriteIntent from '../graph/ContentAttachmentWriteIntent.ts';
-import EdgePropertyWriteIntent from '../graph/EdgePropertyWriteIntent.ts';
-import NodePropertyWriteIntent from '../graph/NodePropertyWriteIntent.ts';
 import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
-import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
+import { encodeEdgeKey } from './KeyCodec.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
-import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import {
   findAttachedData,
   assertNoReservedBytes,
   assertObservedDotsForRemove,
+  resolveEffectId,
 } from './PatchBuilderValidation.ts';
-import {
-  requirePatchPropertyValue,
-  storeContentAttachmentPayload,
-  type ContentInput,
-  type ContentMetadataInput,
-} from './PatchBuilderContent.ts';
+import type { ContentInput, ContentMetadataInput } from './PatchBuilderContent.ts';
+import { allocateEntityCapture, planEntityCapturePayload } from './PatchBuilderEntity.ts';
+import PatchBuilderPropertyRuntime from './PatchBuilderPropertyRuntime.ts';
+import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
 import { capturePatchBuilderCausalBasis } from './admission/PatchBuilderCausalBasis.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import { commitPatch } from './PatchCommitter.ts';
@@ -84,15 +76,13 @@ export class PatchBuilder {
   private readonly _patchJournal: PatchJournalPort | null;
   private readonly _commitMessageCodec: CommitMessageCodecPort | null;
   private readonly _logger: LoggerPort;
-  private readonly _assetStorage: AssetStoragePort | null;
+  private readonly _properties: PatchBuilderPropertyRuntime;
   private readonly _ops: PatchOp[] = [];
   private readonly _nodesAdded = new Set<string>();
   private readonly _edgesAdded = new Set<string>();
   private readonly _observedOperands = new Set<string>();
   private readonly _writes = new Set<string>();
-  private readonly _contentAssets: AssetHandle[] = [];
   private _snapshotState: WarpState | null | undefined = undefined;
-  private _hasEdgeProps = false;
   private _committed = false;
   private _committing = false;
 
@@ -100,8 +90,10 @@ export class PatchBuilder {
     this._persistence = options.persistence;
     this._graphName = options.graphName;
     this._writerId = options.writerId;
-    this._targetRefPath = typeof options.targetRefPath === 'string' && options.targetRefPath.length > 0
-      ? options.targetRefPath : null;
+    this._targetRefPath =
+      typeof options.targetRefPath === 'string' && options.targetRefPath.length > 0
+        ? options.targetRefPath
+        : null;
     this._lamport = options.lamport;
     this._vv = options.versionVector.clone();
     this._getCurrentState = options.getCurrentState;
@@ -111,17 +103,24 @@ export class PatchBuilder {
     this._patchJournal = options.patchJournal ?? null;
     this._commitMessageCodec = options.commitMessageCodec ?? null;
     this._logger = options.logger ?? nullLogger;
-    this._assetStorage = options.assetStorage ?? null;
-    capturePatchBuilderCausalBasis(
-      this,
-      {
-        graphName: options.graphName,
-        writerId: options.writerId,
-        participantId: options.admissionParticipantId ?? options.writerId,
-        expectedParentSha: this._expectedParentSha,
-        evaluationCoordinateRef: options.evaluationCoordinateRef ?? null,
-      }
-    );
+    this._properties = new PatchBuilderPropertyRuntime({
+      assetStorage: options.assetStorage ?? null,
+      assertMutable: () => this._assertNotCommitted(),
+      edgesAdded: this._edgesAdded,
+      getSnapshotState: () => this._getSnapshotState(),
+      graphName: this._graphName,
+      nodesAdded: this._nodesAdded,
+      observedOperands: this._observedOperands,
+      ops: this._ops,
+      writes: this._writes,
+    });
+    capturePatchBuilderCausalBasis(this, {
+      graphName: options.graphName,
+      writerId: options.writerId,
+      participantId: options.admissionParticipantId ?? options.writerId,
+      expectedParentSha: this._expectedParentSha,
+      evaluationCoordinateRef: options.evaluationCoordinateRef ?? null,
+    });
   }
 
   // ── State access ───────────────────────────────────────────────────
@@ -135,12 +134,13 @@ export class PatchBuilder {
 
   private _assertNotCommitted(): void {
     if (this._committed || this._committing) {
-      throw new PatchError('PatchBuilder already committed — create a new builder', { code: 'E_PATCH_ALREADY_COMMITTED' });
+      throw new PatchError('PatchBuilder already committed — create a new builder', {
+        code: 'E_PATCH_ALREADY_COMMITTED',
+      });
     }
   }
 
   // ── Graph operations ───────────────────────────────────────────────
-
   addNode(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
     assertNoReservedBytes(nodeId, 'nodeId');
@@ -151,6 +151,29 @@ export class PatchBuilder {
     return this;
   }
 
+  /** Creates one entity and its initial payload in a single-subject patch. */
+  addEntity(nodeId: string, properties: EntityCapturePayload): PatchBuilder {
+    this._assertNotCommitted();
+    const scope = { added: this._nodesAdded, state: this._getSnapshotState() };
+    const payload = planEntityCapturePayload(nodeId, properties, scope);
+    this.addNode(nodeId);
+    this._ops.push(...payload);
+    return this;
+  }
+  addEntityAuto(namespace: string, properties: EntityCapturePayload): PatchBuilder {
+    this._assertNotCommitted();
+    const capture = allocateEntityCapture({
+      namespace,
+      properties,
+      scope: { added: this._nodesAdded, state: this._getSnapshotState() },
+      writerId: this._writerId,
+      versionVector: this._vv,
+    });
+    this._ops.push(new NodeAdd(capture.nodeId, capture.dot), ...capture.payload);
+    this._nodesAdded.add(capture.nodeId);
+    this._writes.add(capture.nodeId);
+    return this;
+  }
   removeNode(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
     const state = this._getSnapshotState();
@@ -160,7 +183,14 @@ export class PatchBuilder {
       for (const edgeKey of edges) {
         const parts = edgeKey.split('\0');
         const edgeDots = [...state.edgeAlive.getDots(edgeKey)];
-        this._ops.push(new EdgeRemove({ from: parts[0]!, to: parts[1]!, label: parts[2]!, observedDots: edgeDots }));
+        this._ops.push(
+          new EdgeRemove({
+            from: parts[0]!,
+            to: parts[1]!,
+            label: parts[2]!,
+            observedDots: edgeDots,
+          })
+        );
         this._observedOperands.add(edgeKey);
       }
     }
@@ -169,20 +199,27 @@ export class PatchBuilder {
       const { edges, props, hasData } = findAttachedData(state, nodeId);
       if (hasData) {
         const details: string[] = [];
-        if (edges.length > 0) { details.push(`${edges.length} edge(s)`); }
-        if (props.length > 0) { details.push(`${props.length} propert${props.length === 1 ? 'y' : 'ies'}`); }
+        if (edges.length > 0) {
+          details.push(`${edges.length} edge(s)`);
+        }
+        if (props.length > 0) {
+          details.push(`${props.length} propert${props.length === 1 ? 'y' : 'ies'}`);
+        }
         const summary = details.join(' and ');
 
         if (this._onDeleteWithData === 'reject') {
           throw new PatchError(
             `Cannot delete node '${nodeId}': node has attached data (${summary}). ` +
-            `Remove edges and properties first, or set onDeleteWithData to 'cascade'.`,
-            { code: 'E_PATCH_DELETE_WITH_DATA', context: { nodeId, edges: edges.length, props: props.length } },
+              `Remove edges and properties first, or set onDeleteWithData to 'cascade'.`,
+            {
+              code: 'E_PATCH_DELETE_WITH_DATA',
+              context: { nodeId, edges: edges.length, props: props.length },
+            }
           );
         }
         if (this._onDeleteWithData === 'warn') {
           this._logger.warn(
-            `[warp] Deleting node '${nodeId}' which has attached data (${summary}). Orphaned data will remain in state.`,
+            `[warp] Deleting node '${nodeId}' which has attached data (${summary}). Orphaned data will remain in state.`
           );
         }
       }
@@ -191,7 +228,7 @@ export class PatchBuilder {
     if (!state) {
       throw new PatchError(
         `Cannot remove node '${nodeId}': graph must be materialized before removing nodes`,
-        { code: 'E_PATCH_NO_STATE' },
+        { code: 'E_PATCH_NO_STATE' }
       );
     }
     const observedDots = [...state.nodeAlive.getDots(nodeId)];
@@ -223,7 +260,7 @@ export class PatchBuilder {
     if (!state) {
       throw new PatchError(
         `Cannot remove edge '${from}->${to}' (${label}): graph must be materialized before removing edges`,
-        { code: 'E_PATCH_NO_STATE' },
+        { code: 'E_PATCH_NO_STATE' }
       );
     }
     const observedDots = [...state.edgeAlive.getDots(edgeKey)];
@@ -233,16 +270,13 @@ export class PatchBuilder {
     return this;
   }
 
-  emitEffect(kind: string, payload?: unknown, options?: { effectId?: string }): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  emitEffect<T>(kind: string, payload?: T, options?: { effectId?: string }): string {
     this._assertNotCommitted();
-    if (typeof kind !== 'string' || kind.length === 0) {
-      throw new PatchError('emitEffect: kind must be a non-empty string', {
-        code: 'E_EFFECT_INVALID_KIND', context: { kind },
-      });
-    }
-    const effectId = (options?.effectId !== undefined && options.effectId !== '')
-      ? options.effectId
-      : `${EFFECT_NODE_PREFIX}${this._writerId}-${this._lamport}-${this._ops.length}`;
+    const effectId = resolveEffectId(kind, options?.effectId, {
+      writerId: this._writerId,
+      lamport: this._lamport,
+      sequence: this._ops.length,
+    });
     this.addNode(effectId);
     this.setProperty(effectId, 'kind', kind);
     this.setProperty(effectId, 'writer', this._writerId);
@@ -252,36 +286,15 @@ export class PatchBuilder {
     return effectId;
   }
 
-  setProperty(nodeId: string, key: string, value: unknown): PatchBuilder { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  setProperty<T>(nodeId: string, key: string, value: T): PatchBuilder {
     this._assertNotCommitted();
-    assertNoReservedBytes(nodeId, 'nodeId');
-    assertNoReservedBytes(key, 'key');
-    const intent = NodePropertyWriteIntent.fromLegacyProperty(
-      nodeId,
-      key,
-      requirePatchPropertyValue(value),
-    );
-    this._lowerNodePropertyIntent(intent);
+    this._properties.setNodeProperty(nodeId, key, value);
     return this;
   }
 
-  setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilder { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  setEdgeProperty<T>(from: string, to: string, label: string, key: string, value: T): PatchBuilder {
     this._assertNotCommitted();
-    assertNoReservedBytes(from, 'from node ID');
-    assertNoReservedBytes(to, 'to node ID');
-    assertNoReservedBytes(label, 'edge label');
-    assertNoReservedBytes(key, 'key');
-    const intent = EdgePropertyWriteIntent.fromLegacyProperty({
-      from,
-      to,
-      label,
-      key,
-      value: requirePatchPropertyValue(value),
-    });
-    const ek = this._assertEdgeExists(from, to, label);
-    this._lowerEdgePropertyIntent(intent);
-    this._observedOperands.add(ek);
-    this._writes.add(ek);
+    this._properties.setEdgeProperty({ from, to, label, key, value });
     return this;
   }
 
@@ -290,149 +303,41 @@ export class PatchBuilder {
   async attachContent(
     nodeId: string,
     content: ContentInput,
-    metadata?: ContentMetadataInput,
+    metadata?: ContentMetadataInput
   ): Promise<PatchBuilder> {
     this._assertNotCommitted();
-    assertNoReservedBytes(nodeId, 'nodeId');
-    assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
-    this._assertNodeExistsForContent(nodeId);
-    if (this._assetStorage === null) {
-      throw new WriterError('Cannot attach content without asset storage', { code: 'NO_ASSET_STORAGE' });
-    }
-    const slug = `${this._graphName}/${nodeId}`;
-    const payload = await storeContentAttachmentPayload({
-      assetStorage: this._assetStorage,
-      content,
-      metadata,
-      slug,
-    });
-    const intent = ContentAttachmentWriteIntent.forNode(nodeId, payload);
-    this._lowerNodeContentIntent(intent);
-    this._contentAssets.push(intent.handle());
+    await this._properties.attachNodeContent(nodeId, content, metadata);
     return this;
   }
 
   clearContent(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
-    assertNoReservedBytes(nodeId, 'nodeId');
-    assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
-    this._assertNodeExistsForContent(nodeId);
-    this.setProperty(nodeId, CONTENT_PROPERTY_KEY, null);
-    this.setProperty(nodeId, CONTENT_SIZE_PROPERTY_KEY, null);
-    this.setProperty(nodeId, CONTENT_MIME_PROPERTY_KEY, null);
+    this._properties.clearNodeContent(nodeId);
     return this;
   }
 
   async attachEdgeContent(
-    from: string, to: string, label: string,
+    from: string,
+    to: string,
+    label: string,
     content: ContentInput,
-    metadata?: ContentMetadataInput,
+    metadata?: ContentMetadataInput
   ): Promise<PatchBuilder> {
     this._assertNotCommitted();
-    assertNoReservedBytes(from, 'from');
-    assertNoReservedBytes(to, 'to');
-    assertNoReservedBytes(label, 'label');
-    assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
-    this._assertEdgeExists(from, to, label);
-    if (this._assetStorage === null) {
-      throw new WriterError('Cannot attach content without asset storage', { code: 'NO_ASSET_STORAGE' });
-    }
-    const slug = `${this._graphName}/${from}/${to}/${label}`;
-    const payload = await storeContentAttachmentPayload({
-      assetStorage: this._assetStorage,
-      content,
-      metadata,
-      slug,
-    });
-    const intent = ContentAttachmentWriteIntent.forEdge({ from, to, label }, payload);
-    this._lowerEdgeContentIntent(intent);
-    this._contentAssets.push(intent.handle());
+    await this._properties.attachEdgeContent({ from, to, label, content, metadata });
     return this;
   }
 
   clearEdgeContent(from: string, to: string, label: string): PatchBuilder {
     this._assertNotCommitted();
-    assertNoReservedBytes(from, 'from');
-    assertNoReservedBytes(to, 'to');
-    assertNoReservedBytes(label, 'label');
-    assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
-    this._assertEdgeExists(from, to, label);
-    this.setEdgeProperty(from, to, label, CONTENT_PROPERTY_KEY, null);
-    this.setEdgeProperty(from, to, label, CONTENT_SIZE_PROPERTY_KEY, null);
-    this.setEdgeProperty(from, to, label, CONTENT_MIME_PROPERTY_KEY, null);
+    this._properties.clearEdgeContent(from, to, label);
     return this;
-  }
-
-  private _lowerNodeContentIntent(intent: ContentAttachmentWriteIntent): void {
-    const nodeId = intent.nodeId();
-    this.setProperty(nodeId, CONTENT_PROPERTY_KEY, intent.handle().toString());
-    this.setProperty(nodeId, CONTENT_SIZE_PROPERTY_KEY, intent.size());
-    this.setProperty(nodeId, CONTENT_MIME_PROPERTY_KEY, intent.mime());
-  }
-
-  private _lowerEdgeContentIntent(intent: ContentAttachmentWriteIntent): void {
-    const target = intent.edgeTarget();
-    this.setEdgeProperty(
-      target.from,
-      target.to,
-      target.label,
-      CONTENT_PROPERTY_KEY,
-      intent.handle().toString(),
-    );
-    this.setEdgeProperty(target.from, target.to, target.label, CONTENT_SIZE_PROPERTY_KEY, intent.size());
-    this.setEdgeProperty(target.from, target.to, target.label, CONTENT_MIME_PROPERTY_KEY, intent.mime());
-  }
-
-  private _lowerNodePropertyIntent(intent: NodePropertyWriteIntent): void {
-    const nodeId = intent.nodeId();
-    this._ops.push(new NodePropSet(nodeId, intent.propertyKey(), intent.propertyValue()));
-    this._observedOperands.add(nodeId);
-    this._writes.add(nodeId);
-  }
-
-  private _lowerEdgePropertyIntent(intent: EdgePropertyWriteIntent): void {
-    const target = intent.edgeTarget();
-    this._ops.push(new EdgePropSet({
-      from: target.from,
-      to: target.to,
-      label: target.label,
-      key: intent.propertyKey(),
-      value: intent.propertyValue(),
-    }));
-    this._hasEdgeProps = true;
-  }
-
-  // ── Existence guards ───────────────────────────────────────────────
-
-  private _assertNodeExistsForContent(nodeId: string): void {
-    if (this._nodesAdded.has(nodeId)) { return; }
-    const state = this._getSnapshotState();
-    if (!state || !state.nodeAlive.contains(nodeId)) {
-      throw new PatchError(
-        `Cannot attach content to unknown node '${nodeId}': add the node first`, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-        { code: 'E_PATCH_CONTENT_UNKNOWN_NODE', context: { nodeId } },
-      );
-    }
-  }
-
-  private _assertEdgeExists(from: string, to: string, label: string): string {
-    const ek = encodeEdgeKey(from, to, label);
-    if (!this._edgesAdded.has(ek)) {
-      const state = this._getSnapshotState();
-      if (!state || !state.edgeAlive.contains(ek)) {
-        throw new PatchError(
-          `Cannot set property on unknown edge (${from} → ${to} [${label}]): add the edge first`, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-          { code: 'E_PATCH_EDGE_PROP_UNKNOWN_EDGE', context: { from, to, label } },
-        );
-      }
-    }
-    return ek;
   }
 
   // ── Build & Commit ─────────────────────────────────────────────────
 
   build(): Patch {
-    const schema = this._hasEdgeProps ? 3 : 2;
+    const schema = this._properties.hasEdgeProperties ? 3 : 2;
     const rawOps = this._ops.map((op) => lowerCanonicalOp(op as CanonicalPatchOp));
     return new Patch({
       schema,
@@ -463,10 +368,10 @@ export class PatchBuilder {
         ops: this._ops,
         observedOperands: this._observedOperands,
         writes: this._writes,
-        hasEdgeProps: this._hasEdgeProps,
+        hasEdgeProps: this._properties.hasEdgeProperties,
         expectedParentSha: this._expectedParentSha,
         targetRefPath: this._targetRefPath,
-        contentAssets: this._contentAssets,
+        contentAssets: this._properties.contentAssets,
         patchJournal: this._patchJournal,
         commitMessageCodec: requireCommitMessageCodec(this._commitMessageCodec),
         logger: this._logger,
@@ -481,13 +386,23 @@ export class PatchBuilder {
 
   // ── Accessors ──────────────────────────────────────────────────────
 
-  get ops(): PatchOp[] { return this._ops; }
-  get versionVector(): VersionVector { return this._vv; }
-  get reads(): ReadonlySet<string> { return new Set(this._observedOperands); }
-  get writes(): ReadonlySet<string> { return new Set(this._writes); }
+  get ops(): PatchOp[] {
+    return this._ops;
+  }
+  get versionVector(): VersionVector {
+    return this._vv;
+  }
+  get reads(): ReadonlySet<string> {
+    return new Set(this._observedOperands);
+  }
+  get writes(): ReadonlySet<string> {
+    return new Set(this._writes);
+  }
 
   /**
    * Asset handles captured via content attachment operations.
    */
-  get contentAssets(): readonly AssetHandle[] { return [...this._contentAssets]; }
+  get contentAssets(): readonly AssetHandle[] {
+    return this._properties.contentAssets;
+  }
 }

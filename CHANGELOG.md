@@ -7,6 +7,160 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `intent.entity.add({ subject, properties })` creates one entity occurrence and
+  its initial payload in a single patch. The lowered patch declares an empty
+  read set and exactly one subject write. That declaration describes the
+  operands encoded by the patch; it does not prove that the caller made no
+  prior graph read to choose the subject or payload. An application-supplied
+  semantic subject may intentionally receive more than one occurrence.
+  Previously the only
+  way to create a node with properties was `node.add` followed by
+  `property.set`, which costs two patches and records a self-read on the payload
+  patch.
+- `PatchBuilder.addEntity(nodeId, properties)` lowers that intent. It requires a
+  non-empty payload (`E_PATCH_ENTITY_EMPTY`) and refuses an id the builder can
+  already see (`E_PATCH_ENTITY_EXISTS`).
+- `intent.entity.addAuto({ namespace, properties })` and the CLI's
+  `entity.add` namespace form allocate an opaque subject from the same
+  writer-local dot used by `NodeAdd`. Applications without an independent
+  semantic key no longer need to mint a timestamp/counter tuple or maintain a
+  shadow writer counter.
+- Admitted entity `WriteReceipt`s carry an `EntityOccurrence` with the resolved
+  subject and opaque occurrence id. `relationTo` uses version-vector context for
+  `before`/`after`/`concurrent`; `compare` uses the canonical `EventId` order for
+  deterministic listing. Application timestamps remain payload metadata only.
+- `intentFromPatch` recovers an entity capture from its persisted evidence: a
+  leading `NodeAdd`, property writes on that same node, no repeated key, and a
+  recorded footprint of no reads and exactly one write naming the created
+  subject. A patch that merely resembles the shape without declaring that
+  footprint is not recognised; it falls through to the one-operation rule and
+  fails hydration rather than being promoted to a stronger claim.
+
+  Payload keys are ordered canonically at both ends, so two payloads differing
+  only in construction order produce identical operations. Property maps are
+  built with a null prototype, so a key such as `__proto__` stays ordinary data.
+
+  Scope of these guarantees, stated because the shape is easy to over-read:
+  - **Initial payload, not complete entity.** Which fields make an entity
+    complete is an application schema concern; the substrate checks only that
+    properties exist.
+  - **Creation, not lifetime.** An auto-allocated subject's cone is a singleton
+    until something else writes the id. `property.set` and `node.remove` remain
+    available, so an immutable-entity lifetime is a law an application adopts,
+    not one this constructor imposes.
+  - **No uniqueness on the lane path.** `E_PATCH_ENTITY_EXISTS` fires only for
+    an id the builder can see: added earlier in the same patch, or alive in the
+    materialized basis it was opened against. A `Runtime` lane writer has
+    neither — nothing on `Runtime` materializes, and one intent lowers to one
+    patch — so the guard never fires there. Re-creating a subject is admitted
+    on one lane by one writer, across writers sharing a frontier, and by a
+    writer opening after the first creation is durable; the join merges them
+    into one entity with a multi-patch cone. The guard is a mistake-catcher for
+    a directly constructed `PatchBuilder` opened against a materialized state.
+    Supplied semantic-subject uniqueness remains the application's invariant;
+    substrate allocation is available when no such semantic key exists. Every
+    admitted addition still has a distinct substrate occurrence.
+
+### Changed
+
+- Repository lint now rejects personal-home and Darwin temporary absolute
+  paths in tracked or unignored text and binary files, and the pre-commit hook
+  inspects exact staged additions and modifications rather than mutable
+  working-tree bytes. The pre-push hook inspects every outgoing Git object, so a
+  later safe branch tip cannot conceal an earlier leaking blob or commit.
+  A dedicated required CI lane independently inspects the exact commit tree
+  before merge. Contributor doctrine also forbids publishing machine-local paths
+  in generated evidence, issues, pull requests, comments, or reviews.
+- Node and edge content attachment share one staging helper, so the asset
+  storage precondition is stated once instead of duplicated per target shape.
+- Effect id validation and derivation moved to `PatchBuilderValidation`.
+- Permissive `PatchBuilder` effect and property values now use method type
+  parameters instead of leaking boundary-level `unknown` into the domain API.
+  Runtime validation and accepted JavaScript inputs are unchanged.
+
+### Fixed
+
+- Content attachment now rechecks the builder lifecycle after asynchronous
+  asset staging. Publication that overtakes staging can no longer be followed
+  by late property operations or attachment handles on an already committed
+  patch.
+- Live strand settlement now replays the canonical Intent recovered from the
+  published draft patch. An auto-allocated entity therefore keeps the subject
+  named by its write receipt, matching settlement after a Runtime reopen.
+- Entity occurrence identity and ordering now include their worldline scope.
+  Equal writer dots in independent worldlines are concurrent instead of being
+  misreported as the same occurrence; cross-worldline lists order the worldline
+  before applying canonical `EventId` order.
+- Dots and version-vector counters now reject integers beyond JavaScript's exact
+  range. `Dot.decode` also rejects counter spellings that `Dot.encode` cannot
+  produce, so suffixes, decimal points, exponents, signs, leading zeroes, and
+  whitespace cannot alias a canonical Dot. Counter exhaustion fails before
+  mutation instead of reissuing a writer Dot and colliding an auto-allocated
+  entity subject.
+- Version-vector serialization now preserves prototype-named writers such as
+  `__proto__` as own data properties instead of invoking inherited object
+  setters and silently dropping their causal coordinates.
+- `PatchBuilder.addEntity` now enforces the committed-builder lifecycle before
+  reading snapshot state or validating entity input, matching every other
+  builder mutation.
+- Admitted entity receipts now require the occurrence-owned causal coordinate,
+  bound to the exact Intent, causal Evidence, lane, and writer for which it was
+  issued. The runtime adapter retains no ambient occurrence registry, and the
+  domain object owns its comparison and relation behavior instead of accepting
+  injected callbacks. Neither an arbitrary `EntityOccurrence` instance nor a
+  genuine occurrence transplanted from another receipt can forge authoritative
+  receipt identity. Receipt binding records that public writer separately from
+  the Dot/EventId writer, so a strand overlay remains a valid causal coordinate
+  without impersonating the receipt writer. Evidence canonicalization is
+  structurally idempotent without a process-local membership registry, and
+  occurrence validation uses the exact frozen Evidence exposed by the receipt,
+  so the genuine public pair remains self-authenticating after construction.
+- Canonical retention evidence now revalidates policy, reachability, and root
+  kind before preserving object identity. A frozen forged prototype cannot
+  bypass the same field invariants enforced by `RetentionEvidence` construction.
+- Entity occurrence issuance now hydrates the complete published patch as an
+  entity capture and binds every normalized payload value, plus any supplied
+  subject, back to the requested Intent. A publication callback cannot
+  substitute an unrelated node or payload while retaining the original receipt
+  Intent.
+- Auto-allocated entity receipts now bind the published subject to the
+  requested namespace and the published `NodeAdd` Dot. A publication callback
+  cannot substitute another subject while retaining the legitimate causal
+  coordinate.
+- Entity conflict receipts no longer require or accept an occurrence. Only
+  `derived` and `plural` outcomes identify admitted entity writes.
+- Entity Intent construction and direct PatchBuilder capture now share one
+  payload-record boundary: both reject arrays, primitives, and class instances.
+  Only plain or null-prototype property records are admitted.
+- Entity Intent identity selection treats explicitly `undefined` optional
+  `subject` or `namespace` fields as absent, matching ordinary optional-field
+  semantics for spread-built inputs.
+- Invalid Dot counters now report the enforced positive-safe-integer constraint
+  instead of describing the weaker integer-only rule.
+
+### Breaking
+
+- **`entity.add` widens the `Intent` discriminated union.** `IntentKind` and
+  `IntentDescriptor` are not exported by name, but both are structurally
+  reachable through `Intent['kind']` and `Intent['descriptor']`, so a consumer
+  that switches exhaustively over intent kinds stops compiling. Measured against
+  this branch's published surface:
+
+  ```text
+  error TS2345: Argument of type '"entity.add"'
+                is not assignable to parameter of type 'never'.
+  ```
+
+  The runtime surface is purely additive, and this repository's own consumer
+  contract (`test/type-check`) still compiles because it does not switch
+  exhaustively. The type-level break is nonetheless real for any consumer that
+  opted into exhaustiveness checking, so this release targets **20.0.0**.
+
+  Migration: add a `case 'entity.add':` arm, or stop treating the union as
+  closed.
+
 ## [19.0.2] - 2026-07-29
 
 ### Release notes

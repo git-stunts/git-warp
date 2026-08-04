@@ -12,14 +12,9 @@ import { stableStringify } from './json.ts';
 import { toMcpJson } from './V19Json.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
 
-export type V19Receipt =
-  | WriteReceipt
-  | ObservationReceipt
-  | SettlementReceipt;
+export type V19Receipt = WriteReceipt | ObservationReceipt | SettlementReceipt;
 
-export function readingEnvelope(
-  reading: ObservedReading,
-): McpJsonValue {
+export function readingEnvelope(reading: ObservedReading): McpJsonValue {
   return Object.freeze({
     type: 'Reading',
     value: readingValueToJson(reading.value),
@@ -48,14 +43,19 @@ function writeReceiptEnvelope(receipt: WriteReceipt): McpJsonValue {
     intent: toMcpJson(receipt.intent.descriptor),
     outcome: toMcpJson(receipt.outcome),
     reason: receipt.reason ?? null,
+    occurrence:
+      receipt.occurrence === undefined
+        ? null
+        : Object.freeze({
+            id: receipt.occurrence.id,
+            subject: receipt.occurrence.subject,
+          }),
     evidence: evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
   });
 }
 
-function observationReceiptEnvelope(
-  receipt: ObservationReceipt,
-): McpJsonValue {
+function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
   return Object.freeze({
     type: 'Receipt',
     operation: receipt.operation,
@@ -67,15 +67,12 @@ function observationReceiptEnvelope(
     }),
     status: receipt.status,
     reason: receipt.reason ?? null,
-    evidence:
-      receipt.evidence === undefined ? null : evidenceEnvelope(receipt.evidence),
+    evidence: receipt.evidence === undefined ? null : evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
   });
 }
 
-function settlementReceiptEnvelope(
-  receipt: SettlementReceipt,
-): McpJsonValue {
+function settlementReceiptEnvelope(receipt: SettlementReceipt): McpJsonValue {
   return Object.freeze({
     type: 'Receipt',
     operation: receipt.operation,
@@ -95,9 +92,7 @@ export function evidenceEnvelope(evidence: Evidence): McpJsonValue {
     support: Object.freeze(evidence.support.map(evidenceHandleEnvelope)),
   };
   if (evidence.retention !== undefined) {
-    envelope['retention'] = Object.freeze(
-      evidence.retention.map(retentionEvidenceEnvelope),
-    );
+    envelope['retention'] = Object.freeze(evidence.retention.map(retentionEvidenceEnvelope));
   }
   if (evidence.tick !== undefined) {
     envelope['tick'] = Object.freeze({
@@ -108,30 +103,26 @@ export function evidenceEnvelope(evidence: Evidence): McpJsonValue {
   return Object.freeze(envelope);
 }
 
-function readingCoordinateEnvelope(
-  coordinate: ObservedReading['coordinate'],
-): McpJsonValue {
+function readingCoordinateEnvelope(coordinate: ObservedReading['coordinate']): McpJsonValue {
   return Object.freeze({
     basis: evidenceHandleEnvelope(coordinate.basis),
     lane: coordinate.lane,
     ...(coordinate.tick === undefined
       ? {}
-      : { tick: Object.freeze({
-          id: coordinate.tick.id,
-          lane: coordinate.tick.lane,
-        }) }),
+      : {
+          tick: Object.freeze({
+            id: coordinate.tick.id,
+            lane: coordinate.tick.lane,
+          }),
+        }),
   });
 }
 
-function evidenceHandleEnvelope(
-  handle: Readonly<{ readonly id: string }>,
-): McpJsonValue {
+function evidenceHandleEnvelope(handle: Readonly<{ readonly id: string }>): McpJsonValue {
   return Object.freeze({ id: handle.id });
 }
 
-function retentionEvidenceEnvelope(
-  retention: RetentionEvidence,
-): McpJsonValue {
+function retentionEvidenceEnvelope(retention: RetentionEvidence): McpJsonValue {
   return Object.freeze({
     witness: evidenceHandleEnvelope(retention.witness),
     policy: retention.policy,
@@ -186,32 +177,25 @@ function readingValueToJson(value: ReadingValue): McpJsonValue {
 }
 
 function isReadingValueObject(
-  value: ReadingValue,
+  value: ReadingValue
 ): value is { readonly [key: string]: ReadingValue } {
   return (
-    value !== null
-    && typeof value === 'object'
-    && !isReadingValueArray(value)
-    && !(value instanceof ImmutableBytes)
+    value !== null &&
+    typeof value === 'object' &&
+    !isReadingValueArray(value) &&
+    !(value instanceof ImmutableBytes)
   );
 }
 
-function isReadingValueArray(
-  value: ReadingValue,
-): value is readonly ReadingValue[] {
+function isReadingValueArray(value: ReadingValue): value is readonly ReadingValue[] {
   return Array.isArray(value);
 }
 
-function isJsonObject(
-  value: McpJsonValue,
-): value is { readonly [key: string]: McpJsonValue } {
+function isJsonObject(value: McpJsonValue): value is { readonly [key: string]: McpJsonValue } {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function requireString(
-  value: McpJsonValue | undefined,
-  field: string,
-): string {
+function requireString(value: McpJsonValue | undefined, field: string): string {
   if (typeof value !== 'string' || value.length === 0) {
     throw presentationError(`${field} must be a non-empty string`);
   }

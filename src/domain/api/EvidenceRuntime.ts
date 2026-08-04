@@ -29,9 +29,7 @@ const INDEX_SUPPORT = 'index';
 const RECOVERY_EVIDENCE = 'recovery';
 const RETENTION_SUPPORT = 'retention';
 
-export async function createWriteEvidence(
-  fields: WriteEvidenceFields,
-): Promise<Evidence> {
+export async function createWriteEvidence(fields: WriteEvidenceFields): Promise<Evidence> {
   const { runtime, context, patchSha, retentionWitness } = fields;
   const evidence = {
     basis: await createHandle(context, [
@@ -113,6 +111,9 @@ export async function createReadEvidence(
 
 export function freezeEvidence(evidence: Evidence, field: string): Evidence {
   assertEvidenceObject(evidence, field);
+  if (isCanonicalEvidence(evidence)) {
+    return evidence;
+  }
   const basis = freezeHandle(evidence.basis, `${field}.basis`);
   const support = freezeSupport(evidence.support, `${field}.support`);
   const retention = freezeRetentionEvidence(evidence.retention, `${field}.retention`);
@@ -165,6 +166,89 @@ function assertEvidenceObject(evidence: Evidence, field: string): void {
   }
 }
 
+function isCanonicalEvidence(evidence: Evidence): boolean {
+  return [
+    isFrozenPlainObject(evidence),
+    hasOnlyKeys(evidence, canonicalEvidenceKeys(evidence)),
+    isCanonicalHandle(evidence.basis),
+    isCanonicalArray(evidence.support, isCanonicalHandle),
+    isCanonicalRetentionCollection(evidence.retention),
+    isCanonicalOptionalTick(evidence.tick),
+  ].every(Boolean);
+}
+
+function canonicalEvidenceKeys(evidence: Evidence): string[] {
+  return [
+    'basis',
+    'support',
+    ...(evidence.retention === undefined ? [] : ['retention']),
+    ...(evidence.tick === undefined ? [] : ['tick']),
+  ];
+}
+
+function isCanonicalHandle(handle: EvidenceHandle): boolean {
+  if (typeof handle !== 'object' || handle === null) {
+    return false;
+  }
+  return [
+    isFrozenPlainObject(handle),
+    hasOnlyKeys(handle, ['id']),
+    typeof handle.id === 'string',
+    handle.id.length > 0,
+  ].every(Boolean);
+}
+
+function isCanonicalRetentionEvidence(evidence: RetentionEvidence): boolean {
+  if (!(evidence instanceof RetentionEvidence)) {
+    return false;
+  }
+  return [
+    Object.isFrozen(evidence),
+    hasOnlyKeys(evidence, ['witness', 'policy', 'reachability', 'rootKind']),
+    isCanonicalHandle(evidence.witness),
+    RetentionEvidence.hasValidFields(evidence),
+  ].every(Boolean);
+}
+
+function isCanonicalRetentionCollection(
+  retention: readonly RetentionEvidence[] | undefined
+): boolean {
+  return retention === undefined ? true : isCanonicalArray(retention, isCanonicalRetentionEvidence);
+}
+
+function isCanonicalOptionalTick(tick: Tick | undefined): boolean {
+  return tick === undefined ? true : isCanonicalTick(tick);
+}
+
+function isCanonicalTick(tick: Tick): boolean {
+  if (!(tick instanceof Tick)) {
+    return false;
+  }
+  return [Object.isFrozen(tick), hasOnlyKeys(tick, ['id', 'timeline'])].every(Boolean);
+}
+
+function isCanonicalArray<T>(values: readonly T[], isCanonical: (value: T) => boolean): boolean {
+  if (!Array.isArray(values)) {
+    return false;
+  }
+  return [
+    Object.isFrozen(values),
+    Object.keys(values).length === values.length,
+    values.every(isCanonical),
+  ].every(Boolean);
+}
+
+function isFrozenPlainObject(value: object): boolean {
+  return Object.isFrozen(value) && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function hasOnlyKeys(value: object, expected: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return [keys.length === expected.length, keys.every((key) => expected.includes(key))].every(
+    Boolean
+  );
+}
+
 function freezeSupport(
   support: readonly EvidenceHandle[],
   field: string
@@ -177,7 +261,7 @@ function freezeSupport(
 
 function freezeRetentionEvidence(
   retention: readonly RetentionEvidence[] | undefined,
-  field: string,
+  field: string
 ): readonly RetentionEvidence[] | undefined {
   if (retention === undefined) {
     return undefined;
@@ -188,7 +272,7 @@ function freezeRetentionEvidence(
 
 function assertRetentionEvidenceArray(
   retention: readonly RetentionEvidence[],
-  field: string,
+  field: string
 ): void {
   if (!Array.isArray(retention)) {
     throw new WarpError(`${field} must be an array`, 'E_RECEIPT_EVIDENCE');
@@ -197,25 +281,27 @@ function assertRetentionEvidenceArray(
 
 function freezeRetentionEvidenceEntries(
   retention: readonly RetentionEvidence[],
-  field: string,
+  field: string
 ): readonly RetentionEvidence[] {
-  return Object.freeze(retention.map((entry, index) => {
-    const itemField = `${field}[${index}]`;
-    if (entry === null || typeof entry !== 'object') {
-      throw new WarpError(`${itemField} must be retention evidence`, 'E_RECEIPT_EVIDENCE');
-    }
-    return new RetentionEvidence({
-      witness: freezeHandle(entry.witness, `${itemField}.witness`),
-      policy: entry.policy,
-      reachability: entry.reachability,
-      rootKind: entry.rootKind,
-    });
-  }));
+  return Object.freeze(
+    retention.map((entry, index) => {
+      const itemField = `${field}[${index}]`;
+      if (entry === null || typeof entry !== 'object') {
+        throw new WarpError(`${itemField} must be retention evidence`, 'E_RECEIPT_EVIDENCE');
+      }
+      return new RetentionEvidence({
+        witness: freezeHandle(entry.witness, `${itemField}.witness`),
+        policy: entry.policy,
+        reachability: entry.reachability,
+        rootKind: entry.rootKind,
+      });
+    })
+  );
 }
 
 async function createRetentionEvidence(
   context: ApiRuntimeContext,
-  witness: StorageRetentionWitness,
+  witness: StorageRetentionWitness
 ): Promise<RetentionEvidence> {
   return new RetentionEvidence({
     witness: await createHandle(context, [

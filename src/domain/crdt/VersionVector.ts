@@ -36,9 +36,9 @@ function _isValidWriterId(writerId: string): boolean {
   return typeof writerId === 'string' && writerId.length > 0;
 }
 
-/** Checks if counter is a non-negative integer. */
+/** Checks if counter is a non-negative safe integer. */
 function _isValidCounter(counter: number): boolean {
-  return typeof counter === 'number' && Number.isInteger(counter) && counter >= 0;
+  return typeof counter === 'number' && Number.isSafeInteger(counter) && counter >= 0;
 }
 
 /** Validates a (writerId, counter) entry. */
@@ -92,7 +92,9 @@ export default class VersionVector {
    * - A Map<string, number> (validates and copies)
    * - A plain object {writerId: counter} (boundary parse — skips zero counters)
    */
-  static from(source: VersionVector | Map<string, number> | Record<string, number>): VersionVector {
+  static from(
+    source: VersionVector | Map<string, number> | Readonly<Record<string, number>>
+  ): VersionVector {
     if (source instanceof VersionVector) {
       return source.clone();
     }
@@ -119,7 +121,7 @@ export default class VersionVector {
    * Zero counters are elided: a counter of 0 carries no causal
    * information and wastes space.
    */
-  static _fromPlainObject(source: Record<string, number>): VersionVector {
+  static _fromPlainObject(source: Readonly<Record<string, number>>): VersionVector {
     const map = new Map<string, number>();
     for (const [writerId, counter] of Object.entries(source)) {
       _validateEntry(writerId, counter);
@@ -136,21 +138,24 @@ export default class VersionVector {
    * type provides iteration, the codec decides the wire format.
    */
   static serialize(vv: VersionVector): Record<string, number> {
-    const obj: Record<string, number> = {};
+    const entries: [string, number][] = [];
     const sortedKeys = [...vv.keys()].sort();
 
     for (const key of sortedKeys) {
       const val = vv.get(key);
       if (val === undefined || val === 0) {
-        throw new CrdtError(`VersionVector.serialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`, {
-          code: 'E_CRDT_ZERO_COUNTER',
-          context: { writerId: key },
-        });
+        throw new CrdtError(
+          `VersionVector.serialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`,
+          {
+            code: 'E_CRDT_ZERO_COUNTER',
+            context: { writerId: key },
+          }
+        );
       }
-      obj[key] = val;
+      entries.push([key, val]);
     }
 
-    return obj;
+    return Object.fromEntries(entries);
   }
 
   // ---------------------------------------------------------------------------
@@ -167,7 +172,9 @@ export default class VersionVector {
    */
   set(writerId: string, counter: number): this {
     if (Object.isFrozen(this)) {
-      throw new CrdtError('Cannot mutate a frozen VersionVector', { code: 'E_CRDT_FROZEN_MUTATION' });
+      throw new CrdtError('Cannot mutate a frozen VersionVector', {
+        code: 'E_CRDT_FROZEN_MUTATION',
+      });
     }
     _validateEntry(writerId, counter);
     if (counter === 0) {
@@ -218,7 +225,9 @@ export default class VersionVector {
    */
   increment(writerId: string): Dot {
     if (Object.isFrozen(this)) {
-      throw new CrdtError('Cannot mutate a frozen VersionVector', { code: 'E_CRDT_FROZEN_MUTATION' });
+      throw new CrdtError('Cannot mutate a frozen VersionVector', {
+        code: 'E_CRDT_FROZEN_MUTATION',
+      });
     }
     // Validate before mutating to avoid partial corruption
     const dot = new Dot(writerId, (this.#entries.get(writerId) ?? 0) + 1);

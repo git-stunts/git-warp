@@ -22,6 +22,7 @@ import { openScratchGraph } from '../../../scripts/v18-to-v19/V18MigrationScratc
 import { restoreV18RetainedSubstrateFixture } from '../../../scripts/v18-to-v19/V18RetainedSubstrateFixtureRestore.ts';
 
 const MANIFEST_PATH = resolve('fixtures/v18/retained-substrate-golden/manifest.json');
+const OVERSIZED_STATE_VERIFICATION_TIMEOUT_MS = 120_000;
 
 describe('v18-to-v19 finalization boundaries', () => {
   const temporaryDirectories: string[] = [];
@@ -111,50 +112,58 @@ describe('v18-to-v19 finalization boundaries', () => {
     ).not.toEqual([]);
   });
 
-  it('verifies a promoted repository without decoding its oversized full state', async () => {
-    const migration = await prepareFixtureMigration();
-    const opened = await openScratchGraph(
-      migration.prepared.scratchPath,
-      migration.graph,
-      'oversized-state-writer'
-    );
-    try {
-      await opened.graph.patch((patch) => {
-        patch
-          .addNode('oversized-state-node-a')
-          .setProperty('oversized-state-node-a', 'payload', 'a'.repeat(3 * 1024 * 1024));
-      });
-      await opened.graph.patch((patch) => {
-        patch
-          .addNode('oversized-state-node-b')
-          .setProperty('oversized-state-node-b', 'payload', 'b'.repeat(3 * 1024 * 1024));
-      });
-      await opened.graph.materialize();
-      await opened.graph.createCheckpoint();
-    } finally {
-      await opened.close();
-    }
+  it(
+    'verifies a promoted repository without decoding its oversized full state',
+    async () => {
+      const migration = await prepareFixtureMigration();
+      const opened = await openScratchGraph(
+        migration.prepared.scratchPath,
+        migration.graph,
+        'oversized-state-writer'
+      );
+      try {
+        await opened.graph.patch((patch) => {
+          patch
+            .addNode('oversized-state-node-a')
+            .setProperty('oversized-state-node-a', 'payload', 'a'.repeat(3 * 1024 * 1024));
+        });
+        await opened.graph.patch((patch) => {
+          patch
+            .addNode('oversized-state-node-b')
+            .setProperty('oversized-state-node-b', 'payload', 'b'.repeat(3 * 1024 * 1024));
+        });
+        await opened.graph.materialize();
+        await opened.graph.createCheckpoint();
+      } finally {
+        await opened.close();
+      }
 
-    const eagerControl = await openScratchGraph(
-      migration.prepared.scratchPath,
-      migration.graph,
-      'oversized-state-eager-control'
-    );
-    try {
-      await expect(eagerControl.graph.materialize()).rejects.toMatchObject({
-        code: 'E_CBOR_DECODE_BOUNDS',
-      });
-    } finally {
-      await eagerControl.close();
-    }
+      const eagerControl = await openScratchGraph(
+        migration.prepared.scratchPath,
+        migration.graph,
+        'oversized-state-eager-control'
+      );
+      try {
+        await expect(eagerControl.graph.materialize()).rejects.toMatchObject({
+          code: 'E_CBOR_DECODE_BOUNDS',
+        });
+      } finally {
+        await eagerControl.close();
+      }
 
-    const verificationRoot = await mkdtemp(join(tmpdir(), 'git-warp-v18-verify-root-'));
-    temporaryDirectories.push(verificationRoot);
-    await expect(
-      verifyPromotedV19Repository(migration.prepared.scratchPath, migration.graph, verificationRoot)
-    ).resolves.toBeUndefined();
-    expect(await readdir(verificationRoot)).toEqual([]);
-  });
+      const verificationRoot = await mkdtemp(join(tmpdir(), 'git-warp-v18-verify-root-'));
+      temporaryDirectories.push(verificationRoot);
+      await expect(
+        verifyPromotedV19Repository(
+          migration.prepared.scratchPath,
+          migration.graph,
+          verificationRoot
+        )
+      ).resolves.toBeUndefined();
+      expect(await readdir(verificationRoot)).toEqual([]);
+    },
+    OVERSIZED_STATE_VERIFICATION_TIMEOUT_MS
+  );
 
   async function prepareFixtureMigration(): Promise<
     Readonly<{

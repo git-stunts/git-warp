@@ -5,10 +5,30 @@
  * @module domain/services/PatchBuilderValidation
  */
 
-import { FIELD_SEPARATOR, EDGE_PROP_PREFIX } from './KeyCodec.ts';
+import { FIELD_SEPARATOR, EDGE_PROP_PREFIX, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
 import PatchError from '../errors/PatchError.ts';
 import type { WarpState } from './JoinReducer.ts';
 import WarpStateClass from './state/WarpState.ts';
+
+/**
+ * Validates an effect kind and resolves the node id the effect is recorded
+ * under, falling back to a writer-scoped derivation when none was requested.
+ */
+export function resolveEffectId(
+  kind: string,
+  requestedId: string | undefined,
+  origin: { readonly writerId: string; readonly lamport: number; readonly sequence: number }
+): string {
+  if (typeof kind !== 'string' || kind.length === 0) {
+    throw new PatchError('emitEffect: kind must be a non-empty string', {
+      code: 'E_EFFECT_INVALID_KIND',
+      context: { kind },
+    });
+  }
+  return requestedId !== undefined && requestedId !== ''
+    ? requestedId
+    : `${EFFECT_NODE_PREFIX}${origin.writerId}-${origin.lamport}-${origin.sequence}`;
+}
 
 /**
  * Inspects materialized state for edges and properties attached to a node.
@@ -16,7 +36,7 @@ import WarpStateClass from './state/WarpState.ts';
  */
 export function findAttachedData(
   state: WarpState,
-  nodeId: string,
+  nodeId: string
 ): { edges: string[]; props: string[]; hasData: boolean } {
   const edges: string[] = [];
   const props: string[] = [];
@@ -45,21 +65,21 @@ export function findAttachedData(
  */
 export function assertNoReservedBytes(value: string, label: string): void {
   if (typeof value !== 'string') {
-    throw new PatchError(
-      `${label} must be a string, got ${typeof value}`,
-      { code: 'E_PATCH_IDENTIFIER_TYPE', context: { label, actual: typeof value } },
-    );
+    throw new PatchError(`${label} must be a string, got ${typeof value}`, {
+      code: 'E_PATCH_IDENTIFIER_TYPE',
+      context: { label, actual: typeof value },
+    });
   }
   if (value.includes(FIELD_SEPARATOR)) {
     throw new PatchError(
       `${label} must not contain null bytes (\\0): ${JSON.stringify(value)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
-      { code: 'E_PATCH_IDENTIFIER_NULL_BYTE', context: { label } },
+      { code: 'E_PATCH_IDENTIFIER_NULL_BYTE', context: { label } }
     );
   }
   if (value.length > 0 && value[0] === EDGE_PROP_PREFIX) {
     throw new PatchError(
       `${label} must not start with reserved prefix \\x01: ${JSON.stringify(value)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
-      { code: 'E_PATCH_IDENTIFIER_RESERVED_PREFIX', context: { label } },
+      { code: 'E_PATCH_IDENTIFIER_RESERVED_PREFIX', context: { label } }
     );
   }
 }
@@ -67,13 +87,15 @@ export function assertNoReservedBytes(value: string, label: string): void {
 export function assertObservedDotsForRemove(
   observedDots: readonly string[],
   targetKind: 'node' | 'edge',
-  context: { readonly nodeId?: string; readonly edgeKey?: string },
+  context: { readonly nodeId?: string; readonly edgeKey?: string }
 ): void {
-  if (observedDots.length > 0) { return; }
+  if (observedDots.length > 0) {
+    return;
+  }
   const target = targetKind === 'node' ? context.nodeId : context.edgeKey;
   throw new PatchError(
     `Cannot remove missing ${targetKind} '${target ?? 'unresolved'}': entity is not alive in current state`,
-    { code: 'E_PATCH_ENTITY_NOT_FOUND', context: { targetKind, ...context } },
+    { code: 'E_PATCH_ENTITY_NOT_FOUND', context: { targetKind, ...context } }
   );
 }
 
@@ -91,28 +113,30 @@ export function byteSizeOfContent(content: Uint8Array | string): number {
  */
 export function normalizeContentMetadata(
   content: Uint8Array | string,
-  metadata: { mime?: string | null; size?: number | null } | undefined,
+  metadata: { mime?: string | null; size?: number | null } | undefined
 ): { mime: string | null; size: number } {
-  if (metadata !== undefined && (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata))) {
-    throw new PatchError(
-      'content metadata must be an object when provided',
-      { code: 'E_PATCH_CONTENT_METADATA_TYPE' },
-    );
+  if (
+    metadata !== undefined &&
+    (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata))
+  ) {
+    throw new PatchError('content metadata must be an object when provided', {
+      code: 'E_PATCH_CONTENT_METADATA_TYPE',
+    });
   }
 
   const actualSize = byteSizeOfContent(content);
   const providedSize = metadata?.size;
   if (providedSize !== undefined && providedSize !== null) {
     if (!Number.isInteger(providedSize) || providedSize < 0) {
-      throw new PatchError(
-        'content metadata size must be a non-negative integer',
-        { code: 'E_PATCH_CONTENT_SIZE_TYPE', context: { providedSize } },
-      );
+      throw new PatchError('content metadata size must be a non-negative integer', {
+        code: 'E_PATCH_CONTENT_SIZE_TYPE',
+        context: { providedSize },
+      });
     }
     if (providedSize !== actualSize) {
       throw new PatchError(
         `content metadata size ${providedSize} does not match actual byte size ${actualSize}`,
-        { code: 'E_PATCH_CONTENT_SIZE_MISMATCH', context: { providedSize, actualSize } },
+        { code: 'E_PATCH_CONTENT_SIZE_MISMATCH', context: { providedSize, actualSize } }
       );
     }
   }
@@ -120,10 +144,9 @@ export function normalizeContentMetadata(
   const providedMime = metadata?.mime;
   if (providedMime !== undefined && providedMime !== null) {
     if (typeof providedMime !== 'string' || providedMime.trim() === '') {
-      throw new PatchError(
-        'content metadata mime must be a non-empty string when provided',
-        { code: 'E_PATCH_CONTENT_MIME_TYPE' },
-      );
+      throw new PatchError('content metadata mime must be a non-empty string when provided', {
+        code: 'E_PATCH_CONTENT_MIME_TYPE',
+      });
     }
   }
 

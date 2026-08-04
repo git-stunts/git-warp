@@ -54,6 +54,19 @@ jobs:
       - name: 'Gate 4c: Anti-sludge shell checks (junk-drawer filenames)'
         run: npm run lint:sludge
 
+  type-firewall-path-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+      - name: 'Gate 4p: Exact committed-tree machine-path hygiene'
+        run: node scripts/check-machine-local-paths.ts --tree "$GITHUB_SHA"
+
   type-firewall-semgrep:
     runs-on: ubuntu-latest
     steps:
@@ -127,10 +140,9 @@ jobs:
       - name: 'Gate 5a: Install pinned Wesley generator'
         run: >-
           cargo install
-          --git https://github.com/flyingrobots/wesley.git
-          --rev 4891a631f888c5b2f70e117e3704538dd1362c2f
-          --locked
           wesley-cli
+          --version 0.3.0-alpha.1
+          --locked
       - name: 'Gate 5b: Wesley vocabulary IR drift'
         run: npm run check:vocabulary-ir
       - name: 'Gate 5c: v19 capability artifact drift'
@@ -184,6 +196,7 @@ jobs:
     needs:
       - type-firewall-types
       - type-firewall-lint
+      - type-firewall-path-hygiene
       - type-firewall-semgrep
       - type-firewall-quarantine
       - type-firewall-surface
@@ -195,6 +208,7 @@ jobs:
         run: |
           echo "types:      ${{ needs['type-firewall-types'].result }}"
           echo "lint:       ${{ needs['type-firewall-lint'].result }}"
+          echo "paths:      ${{ needs['type-firewall-path-hygiene'].result }}"
           echo "semgrep:    ${{ needs['type-firewall-semgrep'].result }}"
           echo "quarantine: ${{ needs['type-firewall-quarantine'].result }}"
           echo "surface:    ${{ needs['type-firewall-surface'].result }}"
@@ -203,6 +217,7 @@ jobs:
 
           test "${{ needs['type-firewall-types'].result }}" = "success"
           test "${{ needs['type-firewall-lint'].result }}" = "success"
+          test "${{ needs['type-firewall-path-hygiene'].result }}" = "success"
           test "${{ needs['type-firewall-semgrep'].result }}" = "success"
           test "${{ needs['type-firewall-quarantine'].result }}" = "success"
           test "${{ needs['type-firewall-surface'].result }}" = "success"

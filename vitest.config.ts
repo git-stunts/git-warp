@@ -9,16 +9,8 @@ export default defineConfig({
   },
   test: {
     setupFiles: ['./test/helpers/runtimeHostCommitMessageCodecSetup.ts'],
-    include: [
-      '**/*.{test,spec}.?(c|m)[jt]s?(x)',
-      '**/benchmark/*.benchmark.ts',
-    ],
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      'test/runtime/deno/**',
-      '.claude/**',
-    ],
+    include: ['**/*.{test,spec}.?(c|m)[jt]s?(x)', '**/benchmark/*.benchmark.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'test/runtime/deno/**', '.claude/**'],
     testTimeout: 60000, // 60s timeout for benchmark tests
     server: {
       deps: {
@@ -30,7 +22,7 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/ports/**/*.ts', 'src/**/*.d.ts'],
       thresholds: {
-        lines: 92.97,
+        lines: 92.99,
         autoUpdate: shouldAutoUpdateCoverageRatchet(),
       },
     },

@@ -12,6 +12,11 @@ if [ -z "$ROOT" ]; then
 fi
 cd "$ROOT"
 
+# ── Gate 0: Machine-local path policy on exact staged blobs ────────────────
+
+echo "[IRONCLAD] Scanning exact staged blobs for machine-local paths..."
+node scripts/check-machine-local-paths.ts --staged
+
 # ── Gate 1: ESLint on staged JS files ──────────────────────────────────────
 
 # Get staged JS files using NUL-delimited output for safe filename handling

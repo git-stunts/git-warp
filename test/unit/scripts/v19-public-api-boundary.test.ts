@@ -11,6 +11,8 @@ const ROOT_TYPE_EXPORTS = [
   'CoordinateReference',
   'Evidence',
   'EvidenceHandle',
+  'EntityCausalRelation',
+  'EntityOccurrence',
   'Intent',
   'Lane',
   'LaneDescriptor',
