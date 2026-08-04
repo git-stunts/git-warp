@@ -8,6 +8,7 @@ import {
   createPatchBuilder,
   createPatchBuilderMockPersistence as createMockPersistence,
   createPatchJournal,
+  RecordingAssetStorage,
 } from './PatchBuilderTestHarness.ts';
 
 describe('PatchBuilder semantic commit', () => {
@@ -82,7 +83,7 @@ describe('PatchBuilder semantic commit', () => {
           schema: 2,
           patchHandle: new AssetHandle('asset:parent'),
           storage: createGitCasPatchStorage({ encrypted: false }),
-        }),
+        })
       ),
     });
     const patchJournal = createPatchJournal(persistence);
@@ -108,11 +109,13 @@ describe('PatchBuilder semantic commit', () => {
   it('preserves attachment handles in the publication request', async () => {
     const persistence = createMockPersistence();
     const patchJournal = createPatchJournal(persistence);
-    const builder = createPatchBuilder({ persistence, patchJournal });
+    const builder = createPatchBuilder({
+      persistence,
+      patchJournal,
+      assetStorage: new RecordingAssetStorage(['asset:attachment']),
+    });
     builder.addNode('node:a');
-    (builder as unknown as { _contentAssets: AssetHandle[] })._contentAssets.push(
-      new AssetHandle('asset:attachment'),
-    );
+    await builder.attachContent('node:a', 'content');
 
     await builder.commit();
 
@@ -173,8 +176,6 @@ describe('PatchBuilder semantic commit', () => {
     await builder.commit();
 
     expect(builder.reads).toEqual(new Set(['user:alice', 'user:bob']));
-    expect(builder.writes).toEqual(new Set([
-      encodeEdgeKey('user:alice', 'user:bob', 'follows'),
-    ]));
+    expect(builder.writes).toEqual(new Set([encodeEdgeKey('user:alice', 'user:bob', 'follows')]));
   });
 });
