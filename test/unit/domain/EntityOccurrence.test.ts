@@ -80,9 +80,11 @@ describe('EntityOccurrence', () => {
       writer: 'bob',
     });
 
-    expect(() => left.relationTo(right)).toThrowError(expect.objectContaining({
-      code: 'E_ENTITY_OCCURRENCE_CAUSAL_CYCLE',
-    }));
+    expect(() => left.relationTo(right)).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_OCCURRENCE_CAUSAL_CYCLE',
+      })
+    );
   });
 
   it('admits only substrate-issued occurrences into coordinate operations', () => {
@@ -95,67 +97,83 @@ describe('EntityOccurrence', () => {
     });
     const forged = Object.create(EntityOccurrence.prototype);
 
-    expect(() => issued.compare(forged)).toThrowError(expect.objectContaining({
-      code: 'E_ENTITY_OCCURRENCE_UNAVAILABLE',
-    }));
+    expect(() => issued.compare(forged)).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_OCCURRENCE_UNAVAILABLE',
+      })
+    );
     // @ts-expect-error Exercise the JavaScript boundary.
-    expect(() => issued.compare(null)).toThrowError(expect.objectContaining({
-      code: 'E_ENTITY_OCCURRENCE_TYPE',
-    }));
+    expect(() => issued.compare(null)).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_OCCURRENCE_TYPE',
+      })
+    );
   });
 
   it('validates the substrate construction boundary', () => {
-    expect(() => createEntityOccurrence({
-      context: {},
-      // @ts-expect-error Exercise the JavaScript boundary.
-      dot: {},
-      ...receiptBinding('entry:1'),
-      eventId: new EventId(1, 'writer', 'aaaa', 0),
-      subject: 'entry:1',
-      worldline: 'events',
-    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_DOT' }));
-    expect(() => createEntityOccurrence({
-      context: {},
-      dot: Dot.create('writer', 1),
-      ...receiptBinding('entry:1'),
-      // @ts-expect-error Exercise the JavaScript boundary.
-      eventId: {},
-      subject: 'entry:1',
-      worldline: 'events',
-    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_EVENT' }));
-    expect(() => createEntityOccurrence({
-      context: {},
-      dot: Dot.create('writer', 1),
-      ...receiptBinding('entry:1'),
-      eventId: new EventId(1, 'writer', 'aaaa', 0),
-      receiptWriter: '',
-      subject: 'entry:1',
-      worldline: 'events',
-    })).toThrowError(expect.objectContaining({ code: 'E_VALIDATION' }));
-    expect(() => createEntityOccurrence({
-      context: {},
-      dot: Dot.create('writer', 1),
-      ...receiptBinding('entry:1'),
-      eventId: new EventId(1, 'writer', 'aaaa', 0),
-      subject: 'entry:1',
-      worldline: '',
-    })).toThrowError(expect.objectContaining({ code: 'E_VALIDATION' }));
-    expect(() => createEntityOccurrence({
-      context: {},
-      dot: Dot.create('writer', 1),
-      ...receiptBinding('entry:other'),
-      eventId: new EventId(1, 'writer', 'aaaa', 0),
-      subject: 'entry:1',
-      worldline: 'events',
-    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_SUBJECT' }));
-    expect(() => createEntityOccurrence({
-      context: {},
-      dot: Dot.create('writer', 1),
-      ...receiptBinding('entry:1'),
-      eventId: new EventId(1, 'other-writer', 'aaaa', 0),
-      subject: 'entry:1',
-      worldline: 'events',
-    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_WRITER' }));
+    expect(() =>
+      createEntityOccurrence({
+        context: {},
+        // @ts-expect-error Exercise the JavaScript boundary.
+        dot: {},
+        ...receiptBinding('entry:1'),
+        eventId: new EventId(1, 'writer', 'aaaa', 0),
+        subject: 'entry:1',
+        worldline: 'events',
+      })
+    ).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_DOT' }));
+    expect(() =>
+      createEntityOccurrence({
+        context: {},
+        dot: Dot.create('writer', 1),
+        ...receiptBinding('entry:1'),
+        // @ts-expect-error Exercise the JavaScript boundary.
+        eventId: {},
+        subject: 'entry:1',
+        worldline: 'events',
+      })
+    ).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_EVENT' }));
+    expect(() =>
+      createEntityOccurrence({
+        context: {},
+        dot: Dot.create('writer', 1),
+        ...receiptBinding('entry:1'),
+        eventId: new EventId(1, 'writer', 'aaaa', 0),
+        receiptWriter: '',
+        subject: 'entry:1',
+        worldline: 'events',
+      })
+    ).toThrowError(expect.objectContaining({ code: 'E_VALIDATION' }));
+    expect(() =>
+      createEntityOccurrence({
+        context: {},
+        dot: Dot.create('writer', 1),
+        ...receiptBinding('entry:1'),
+        eventId: new EventId(1, 'writer', 'aaaa', 0),
+        subject: 'entry:1',
+        worldline: '',
+      })
+    ).toThrowError(expect.objectContaining({ code: 'E_VALIDATION' }));
+    expect(() =>
+      createEntityOccurrence({
+        context: {},
+        dot: Dot.create('writer', 1),
+        ...receiptBinding('entry:other'),
+        eventId: new EventId(1, 'writer', 'aaaa', 0),
+        subject: 'entry:1',
+        worldline: 'events',
+      })
+    ).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_SUBJECT' }));
+    expect(() =>
+      createEntityOccurrence({
+        context: {},
+        dot: Dot.create('writer', 1),
+        ...receiptBinding('entry:1'),
+        eventId: new EventId(1, 'other-writer', 'aaaa', 0),
+        subject: 'entry:1',
+        worldline: 'events',
+      })
+    ).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_WRITER' }));
   });
 });
 

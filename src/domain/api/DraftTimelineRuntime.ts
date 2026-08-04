@@ -107,9 +107,7 @@ export async function createDraftTimeline(
   return await openDraftTimeline(fields);
 }
 
-export async function openDraftTimeline(
-  fields: CreateDraftTimelineFields
-): Promise<DraftTimeline> {
+export async function openDraftTimeline(fields: CreateDraftTimelineFields): Promise<DraftTimeline> {
   const { runtime, context, timelineName, draftName } = fields;
   const persisted = await runtime.loadDraftPatchEntries(draftName);
   const state = createDraftState({
@@ -134,21 +132,16 @@ export async function openDraftTimeline(
   return draft;
 }
 
-export async function createDraftReadingTarget(
-  draft: DraftTimeline,
-): Promise<DraftReadingTarget> {
+export async function createDraftReadingTarget(draft: DraftTimeline): Promise<DraftReadingTarget> {
   const state = requireDraftStateForReading(draft);
   const coordinate = state.forkedAt;
   if (coordinate === null) {
     throw new WarpError(
       'DraftTimeline was not forked from a captured Runtime coordinate',
-      'E_DRAFT_TIMELINE_BOUNDED_BASIS_UNAVAILABLE',
+      'E_DRAFT_TIMELINE_BOUNDED_BASIS_UNAVAILABLE'
     );
   }
-  const basis = await state.runtime.prepareStrandOptic(
-    draft.name,
-    coordinate.checkpointSha,
-  );
+  const basis = await state.runtime.prepareStrandOptic(draft.name, coordinate.checkpointSha);
   const tick = await createDraftReadingTick(draft, state, basis);
   return Object.freeze({
     tick,
@@ -165,12 +158,9 @@ export async function createDraftReadingTarget(
 async function createDraftReadingTick(
   draft: DraftTimeline,
   state: DraftTimelineState,
-  basis: WarpStrandOpticBasis,
+  basis: WarpStrandOpticBasis
 ): Promise<Tick> {
-  const frontier = basis.frontierEntries.flatMap(({ writerId, patchSha }) => [
-    writerId,
-    patchSha,
-  ]);
+  const frontier = basis.frontierEntries.flatMap(({ writerId, patchSha }) => [writerId, patchSha]);
   return new Tick({
     timeline: draft.name,
     id: await state.context.createOpaqueId('tick', [
@@ -311,14 +301,12 @@ function createDraftState(fields: DraftStateFields): DraftTimelineState {
   };
 }
 
-export function requireDraftStateForReading(
-  draft: DraftTimeline,
-): DraftTimelineState {
+export function requireDraftStateForReading(draft: DraftTimeline): DraftTimelineState {
   const state = draftStates.get(draft);
   if (state === undefined) {
     throw new WarpError(
       'DraftTimeline does not belong to this runtime',
-      'E_DRAFT_TIMELINE_RUNTIME_MISMATCH',
+      'E_DRAFT_TIMELINE_RUNTIME_MISMATCH'
     );
   }
   return state;

@@ -56,7 +56,7 @@ export default class WriteReceipt {
 
 function validateOccurrence(
   fields: WriteReceiptOccurrenceFields,
-  evidence: Evidence,
+  evidence: Evidence
 ): EntityOccurrence | undefined {
   const admitted = fields.outcome.kind === 'derived' || fields.outcome.kind === 'plural';
   if (fields.intent.kind === 'entity.add' && admitted) {
@@ -78,7 +78,7 @@ function validateOccurrence(
 
 function requireEntityOccurrence(
   occurrence: EntityOccurrence | undefined,
-  receipt: Pick<WriteReceiptFields, 'evidence' | 'intent' | 'lane' | 'writer'>,
+  receipt: Pick<WriteReceiptFields, 'evidence' | 'intent' | 'lane' | 'writer'>
 ): EntityOccurrence {
   if (!(occurrence instanceof EntityOccurrence)) {
     throw new WarpError(

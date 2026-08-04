@@ -209,23 +209,20 @@ function entityDescriptor(fields: EntityIntentFields | AutoEntityIntentFields): 
   }
   const entries = Object.entries(propertiesInput);
   if (entries.length === 0) {
-    throw new WarpError(
-      'Intent entity requires at least one property',
-      'E_INTENT_ENTITY_EMPTY'
-    );
+    throw new WarpError('Intent entity requires at least one property', 'E_INTENT_ENTITY_EMPTY');
   }
   // Sorted so that payloads differing only in construction order describe the
   // same entity, and a null prototype so that a caller-controlled key such as
   // `__proto__` stays ordinary data.
   const properties = nullPrototypePropertyMap(
-    entries.sort(compareEntityKeys).map(normalizeEntityProperty),
+    entries.sort(compareEntityKeys).map(normalizeEntityProperty)
   );
   const identity = entityIdentity(checkedFields);
   return Object.freeze({ kind: ENTITY_ADD, ...identity, properties: Object.freeze(properties) });
 }
 
 function entityIdentity(
-  fields: EntityIntentFields | AutoEntityIntentFields,
+  fields: EntityIntentFields | AutoEntityIntentFields
 ): Readonly<{ subject: string }> | Readonly<{ namespace: string }> {
   const subject = 'subject' in fields ? fields.subject : undefined;
   const namespace = 'namespace' in fields ? fields.namespace : undefined;
@@ -254,16 +251,17 @@ function entityIdentityValue(value: string | undefined, name: string): string {
   return value;
 }
 
-function normalizeEntityProperty(
-  [key, value]: readonly [string, PropValue],
-): readonly [string, PropValue] {
+function normalizeEntityProperty([key, value]: readonly [string, PropValue]): readonly [
+  string,
+  PropValue,
+] {
   requireNonEmptyString(key, 'intent.properties key');
   return [key, requireIntentValue(value)];
 }
 
 /** A property map with no prototype, so hostile keys stay ordinary data. */
 function nullPrototypePropertyMap(
-  entries: Iterable<readonly [string, PropValue]>,
+  entries: Iterable<readonly [string, PropValue]>
 ): Record<string, PropValue> {
   const properties: Record<string, PropValue> = Object.fromEntries(entries);
   Object.setPrototypeOf(properties, null);
@@ -272,7 +270,7 @@ function nullPrototypePropertyMap(
 
 function compareEntityKeys(
   [left]: readonly [string, PropValue],
-  [right]: readonly [string, PropValue],
+  [right]: readonly [string, PropValue]
 ): number {
   if (left === right) {
     return 0;

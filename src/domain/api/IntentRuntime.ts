@@ -50,17 +50,18 @@ function requireTerminalOperation(patch: Patch): PatchOp {
 
 function isCascadingNodeRemoval(
   operations: readonly PatchOp[],
-  terminal: PatchOp,
+  terminal: PatchOp
 ): terminal is Extract<PatchOp, { readonly type: 'NodeRemove' }> {
-  return terminal.type === 'NodeRemove'
-    && operations.slice(0, -1)
-      .every((operation) =>
-        operation.type === 'EdgeRemove'
-        && (
-          operation.from === terminal.node
-          || operation.to === terminal.node
-        )
-      );
+  return (
+    terminal.type === 'NodeRemove' &&
+    operations
+      .slice(0, -1)
+      .every(
+        (operation) =>
+          operation.type === 'EdgeRemove' &&
+          (operation.from === terminal.node || operation.to === terminal.node)
+      )
+  );
 }
 
 /**
@@ -86,7 +87,7 @@ function entityIntent(patch: Patch): Intent | null {
 function entityIntentFor(
   patch: Patch,
   subject: string,
-  payload: readonly PatchOp[],
+  payload: readonly PatchOp[]
 ): Intent | null {
   if (payload.length === 0 || !declaresEntityFootprint(patch, subject)) {
     return null;
@@ -98,14 +99,12 @@ function entityIntentFor(
 /** Whether the patch records reads {} and writes exactly {subject}. */
 function declaresEntityFootprint(patch: Patch, subject: string): boolean {
   const writes = patch.writes ?? [];
-  return (patch.reads ?? []).length === 0
-    && writes.length === 1
-    && writes[0] === subject;
+  return (patch.reads ?? []).length === 0 && writes.length === 1 && writes[0] === subject;
 }
 
 function entityPayload(
   subject: string,
-  payload: readonly PatchOp[],
+  payload: readonly PatchOp[]
 ): Record<string, PropValue> | null {
   const properties = new Map<string, PropValue>();
   for (const operation of payload) {
@@ -119,11 +118,11 @@ function entityPayload(
 
 function admitEntityProperty(
   properties: Map<string, PropValue>,
-  operation: Extract<PatchOp, { readonly type: 'NodePropSet' | 'PropSet' }>,
+  operation: Extract<PatchOp, { readonly type: 'NodePropSet' | 'PropSet' }>
 ): void {
   if (properties.has(operation.key)) {
     throw hydrationError(
-      'persisted Runtime entity Intent sets the same property key more than once',
+      'persisted Runtime entity Intent sets the same property key more than once'
     );
   }
   if (!isPropValue(operation.value)) {
@@ -133,7 +132,7 @@ function admitEntityProperty(
 }
 
 function nullPrototypePropertyMap(
-  entries: Iterable<readonly [string, PropValue]>,
+  entries: Iterable<readonly [string, PropValue]>
 ): Record<string, PropValue> {
   const properties: Record<string, PropValue> = Object.fromEntries(entries);
   Object.setPrototypeOf(properties, null);
@@ -141,7 +140,7 @@ function nullPrototypePropertyMap(
 }
 
 function isNodePropertyOperation(
-  operation: PatchOp,
+  operation: PatchOp
 ): operation is Extract<PatchOp, { readonly type: 'NodePropSet' | 'PropSet' }> {
   return operation.type === 'NodePropSet' || operation.type === 'PropSet';
 }
@@ -160,7 +159,7 @@ function intentFromOperation(operation: PatchOp): Intent {
     return property;
   }
   throw hydrationError(
-    `persisted Runtime intent patch uses unsupported operation ${operation.type}`,
+    `persisted Runtime intent patch uses unsupported operation ${operation.type}`
   );
 }
 
@@ -168,9 +167,7 @@ function nodeIntent(operation: PatchOp): Intent | null {
   if (operation.type === 'NodeAdd') {
     return Intent.addNode({ subject: operation.node });
   }
-  return operation.type === 'NodeRemove'
-    ? Intent.removeNode({ subject: operation.node })
-    : null;
+  return operation.type === 'NodeRemove' ? Intent.removeNode({ subject: operation.node }) : null;
 }
 
 function edgeIntent(operation: PatchOp): Intent | null {
@@ -182,9 +179,7 @@ function edgeIntent(operation: PatchOp): Intent | null {
     to: operation.to,
     label: operation.label,
   };
-  return operation.type === 'EdgeAdd'
-    ? Intent.addEdge(fields)
-    : Intent.removeEdge(fields);
+  return operation.type === 'EdgeAdd' ? Intent.addEdge(fields) : Intent.removeEdge(fields);
 }
 
 function propertyIntent(operation: PatchOp): Intent | null {

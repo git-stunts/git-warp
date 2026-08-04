@@ -22,10 +22,13 @@ import {
   testObstructedIntentAdmissionReceipt,
 } from '../../helpers/intentAdmission.ts';
 
-const EVIDENCE = freezeEvidence({
-  basis: { id: 'evidence:basis' },
-  support: [],
-}, 'test.evidence');
+const EVIDENCE = freezeEvidence(
+  {
+    basis: { id: 'evidence:basis' },
+    support: [],
+  },
+  'test.evidence'
+);
 
 describe('receipt outcomes', () => {
   it('quarantines the transitional read/join outcome axis to five values', () => {
@@ -130,13 +133,16 @@ describe('receipt outcomes', () => {
       EVIDENCE.basis
     );
 
-    expect(() => new WriteReceipt({
-      lane: 'events',
-      writer: 'agent-1',
-      intent: intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
-      outcome,
-      evidence: EVIDENCE,
-    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+    expect(
+      () =>
+        new WriteReceipt({
+          lane: 'events',
+          writer: 'agent-1',
+          intent: intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
+          outcome,
+          evidence: EVIDENCE,
+        })
+    ).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
   });
 
   it('forbids occurrences on entity conflict receipts without requiring one', () => {
@@ -150,8 +156,9 @@ describe('receipt outcomes', () => {
     };
 
     expect(new WriteReceipt(fields).occurrence).toBeUndefined();
-    expect(() => new WriteReceipt({ ...fields, occurrence: entityOccurrence() }))
-      .toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+    expect(() => new WriteReceipt({ ...fields, occurrence: entityOccurrence() })).toThrowError(
+      expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' })
+    );
   });
 
   it('rejects occurrences on non-entity and obstructed receipts', () => {
@@ -165,22 +172,28 @@ describe('receipt outcomes', () => {
       EVIDENCE.basis
     );
 
-    expect(() => new WriteReceipt({
-      lane: 'events',
-      writer: 'agent-1',
-      intent: intent.node.add({ subject: 'entry:1' }),
-      outcome: admitted,
-      evidence: EVIDENCE,
-      occurrence,
-    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
-    expect(() => new WriteReceipt({
-      lane: 'events',
-      writer: 'agent-1',
-      intent: intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
-      outcome: obstructed,
-      evidence: EVIDENCE,
-      occurrence,
-    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+    expect(
+      () =>
+        new WriteReceipt({
+          lane: 'events',
+          writer: 'agent-1',
+          intent: intent.node.add({ subject: 'entry:1' }),
+          outcome: admitted,
+          evidence: EVIDENCE,
+          occurrence,
+        })
+    ).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+    expect(
+      () =>
+        new WriteReceipt({
+          lane: 'events',
+          writer: 'agent-1',
+          intent: intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
+          outcome: obstructed,
+          evidence: EVIDENCE,
+          occurrence,
+        })
+    ).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
   });
 
   it('retains the substrate occurrence on an admitted entity receipt', () => {
@@ -255,9 +268,11 @@ describe('receipt outcomes', () => {
     ];
 
     for (const mismatch of mismatches) {
-      expect(() => new WriteReceipt(mismatch)).toThrowError(expect.objectContaining({
-        code: 'E_ENTITY_OCCURRENCE_RECEIPT_MISMATCH',
-      }));
+      expect(() => new WriteReceipt(mismatch)).toThrowError(
+        expect.objectContaining({
+          code: 'E_ENTITY_OCCURRENCE_RECEIPT_MISMATCH',
+        })
+      );
     }
   });
 
@@ -268,20 +283,23 @@ describe('receipt outcomes', () => {
       subject: { value: 'entry:forged' },
     });
 
-    expect(() => new WriteReceipt({
-      lane: 'events',
-      writer: 'agent-1',
-      intent: intent.entity.add({
-        subject: occurrence.subject,
-        properties: { kind: 'capture' },
-      }),
-      outcome: projectAdmissionOutcome(
-        testDerivedIntentAdmissionReceipt('forged-entity').outcome,
-        EVIDENCE.basis
-      ),
-      evidence: EVIDENCE,
-      occurrence,
-    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_UNAVAILABLE' }));
+    expect(
+      () =>
+        new WriteReceipt({
+          lane: 'events',
+          writer: 'agent-1',
+          intent: intent.entity.add({
+            subject: occurrence.subject,
+            properties: { kind: 'capture' },
+          }),
+          outcome: projectAdmissionOutcome(
+            testDerivedIntentAdmissionReceipt('forged-entity').outcome,
+            EVIDENCE.basis
+          ),
+          evidence: EVIDENCE,
+          occurrence,
+        })
+    ).toThrowError(expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_UNAVAILABLE' }));
   });
 
   it('rejects legacy string write outcomes at runtime', () => {
@@ -337,7 +355,7 @@ function entityOccurrence(
   writers: {
     readonly coordinateWriter?: string;
     readonly receiptWriter?: string;
-  } = {},
+  } = {}
 ) {
   const coordinateWriter = writers.coordinateWriter ?? 'agent-1';
   return createEntityOccurrence({
@@ -354,25 +372,27 @@ function entityOccurrence(
 
 function conflictOutcome() {
   return projectAdmissionOutcome(
-    new ConflictAdmission(new ConflictWitness({
-      evaluation: new AdmissionEvaluation({
-        sourceParticipantId: 'agent-1',
-        destinationRuntimeId: 'runtime:events',
-        sourceBasisRef: 'frontier:source',
-        destinationBasisRef: 'frontier:destination',
-        proposalDigest: 'proposal:entity',
-        lawDigest: 'law:entity',
-        profileDigest: 'profile:test',
-        evaluationCoordinateRef: 'coordinate:destination',
-      }),
-      conflictRef: 'conflict:entity',
-      claimRefs: ['claim:local', 'claim:incoming'],
-      overlappingFootprintRefs: ['footprint:entity'],
-      contestedDomain: 'entity',
-      derivationEvidenceRef: 'evidence:derivation',
-      overlapEvidenceRef: 'evidence:overlap',
-      resolutionProcedureRefs: ['procedure:settle'],
-    })),
+    new ConflictAdmission(
+      new ConflictWitness({
+        evaluation: new AdmissionEvaluation({
+          sourceParticipantId: 'agent-1',
+          destinationRuntimeId: 'runtime:events',
+          sourceBasisRef: 'frontier:source',
+          destinationBasisRef: 'frontier:destination',
+          proposalDigest: 'proposal:entity',
+          lawDigest: 'law:entity',
+          profileDigest: 'profile:test',
+          evaluationCoordinateRef: 'coordinate:destination',
+        }),
+        conflictRef: 'conflict:entity',
+        claimRefs: ['claim:local', 'claim:incoming'],
+        overlappingFootprintRefs: ['footprint:entity'],
+        contestedDomain: 'entity',
+        derivationEvidenceRef: 'evidence:derivation',
+        overlapEvidenceRef: 'evidence:overlap',
+        resolutionProcedureRefs: ['procedure:settle'],
+      })
+    ),
     EVIDENCE.basis
   );
 }

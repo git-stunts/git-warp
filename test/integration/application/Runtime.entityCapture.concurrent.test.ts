@@ -88,8 +88,7 @@ describe('entity capture uniqueness on the lane write path', () => {
 
     // The merged property is one of the two, decided by the register's
     // conflict rule — not a blend, and not an error.
-    expect(['from a', 'from b'])
-      .toContain(propertiesOf(slice.state, SUBJECT)['text']);
+    expect(['from a', 'from b']).toContain(propertiesOf(slice.state, SUBJECT)['text']);
   });
 
   it('admits a writer that opens only after the first creation is durable', async () => {
@@ -104,10 +103,12 @@ describe('entity capture uniqueness on the lane write path', () => {
   });
 
   async function write(lane: Lane, text: string): Promise<void> {
-    await lane.write(Intent.addEntity({
-      subject: SUBJECT,
-      properties: { kind: 'capture', text },
-    }));
+    await lane.write(
+      Intent.addEntity({
+        subject: SUBJECT,
+        properties: { kind: 'capture', text },
+      })
+    );
   }
 
   async function captureThroughOwnRuntime(writer: string, text: string): Promise<void> {

@@ -20,10 +20,12 @@ describe('Intent entity descriptors', () => {
   });
 
   it('is reachable through the public intent builders', () => {
-    expect(intent.entity.add({
-      subject: 'entry:1',
-      properties: { kind: 'capture' },
-    }).kind).toBe('entity.add');
+    expect(
+      intent.entity.add({
+        subject: 'entry:1',
+        properties: { kind: 'capture' },
+      }).kind
+    ).toBe('entity.add');
   });
 
   it('describes substrate allocation without inventing an application subject', () => {
@@ -42,10 +44,12 @@ describe('Intent entity descriptors', () => {
   });
 
   it('exposes substrate allocation through a distinct public builder', () => {
-    expect(intent.entity.addAuto({
-      namespace: 'entry',
-      properties: { kind: 'capture' },
-    }).descriptor).toEqual({
+    expect(
+      intent.entity.addAuto({
+        namespace: 'entry',
+        properties: { kind: 'capture' },
+      }).descriptor
+    ).toEqual({
       kind: 'entity.add',
       namespace: 'entry',
       properties: { kind: 'capture' },
@@ -69,10 +73,12 @@ describe('Intent entity descriptors', () => {
   });
 
   it('rejects an empty allocation namespace', () => {
-    expect(() => Intent.addEntityAuto({
-      namespace: '',
-      properties: { kind: 'capture' },
-    })).toThrow();
+    expect(() =>
+      Intent.addEntityAuto({
+        namespace: '',
+        properties: { kind: 'capture' },
+      })
+    ).toThrow();
   });
 
   it('copies the payload so the descriptor cannot be mutated after the fact', () => {
@@ -92,46 +98,56 @@ describe('Intent entity descriptors', () => {
   });
 
   it('rejects an entity with no properties', () => {
-    expect(() => Intent.addEntity({ subject: 'entry:1', properties: {} }))
-      .toThrowError(expect.objectContaining({ code: 'E_INTENT_ENTITY_EMPTY' }));
+    expect(() => Intent.addEntity({ subject: 'entry:1', properties: {} })).toThrowError(
+      expect.objectContaining({ code: 'E_INTENT_ENTITY_EMPTY' })
+    );
   });
 
   it('rejects a non-record payload at the public JavaScript boundary', () => {
-    expect(() => Intent.addEntity({
-      subject: 'entry:1',
-      // @ts-expect-error Exercise the JavaScript boundary.
-      properties: 'capture',
-    })).toThrowError(expect.objectContaining({ code: 'E_INTENT_ENTITY_PAYLOAD' }));
+    expect(() =>
+      Intent.addEntity({
+        subject: 'entry:1',
+        // @ts-expect-error Exercise the JavaScript boundary.
+        properties: 'capture',
+      })
+    ).toThrowError(expect.objectContaining({ code: 'E_INTENT_ENTITY_PAYLOAD' }));
   });
 
   it('rejects a missing subject', () => {
-    expect(() => Intent.addEntity({ subject: '', properties: { kind: 'capture' } }))
-      .toThrow();
+    expect(() => Intent.addEntity({ subject: '', properties: { kind: 'capture' } })).toThrow();
   });
 
   it('rejects payload values that are not property-compatible', () => {
-    expect(() => Intent.addEntity({
-      subject: 'entry:1',
-      // @ts-expect-error Exercise the JavaScript boundary.
-      properties: { broken: new InvalidPropertyCarrier() },
-    })).toThrowError(expect.objectContaining({ code: 'E_INTENT_VALUE' }));
+    expect(() =>
+      Intent.addEntity({
+        subject: 'entry:1',
+        // @ts-expect-error Exercise the JavaScript boundary.
+        properties: { broken: new InvalidPropertyCarrier() },
+      })
+    ).toThrowError(expect.objectContaining({ code: 'E_INTENT_VALUE' }));
   });
 
   it('rejects an empty property key', () => {
-    expect(() => Intent.addEntity({
-      subject: 'entry:1',
-      properties: { '': 'capture' },
-    })).toThrow();
+    expect(() =>
+      Intent.addEntity({
+        subject: 'entry:1',
+        properties: { '': 'capture' },
+      })
+    ).toThrow();
   });
 
   it('describes payloads that differ only in key order identically', () => {
-    expect(Intent.addEntity({
-      subject: 'entry:1',
-      properties: { kind: 'capture', text: 'hello' },
-    }).descriptor).toEqual(Intent.addEntity({
-      subject: 'entry:1',
-      properties: { text: 'hello', kind: 'capture' },
-    }).descriptor);
+    expect(
+      Intent.addEntity({
+        subject: 'entry:1',
+        properties: { kind: 'capture', text: 'hello' },
+      }).descriptor
+    ).toEqual(
+      Intent.addEntity({
+        subject: 'entry:1',
+        properties: { text: 'hello', kind: 'capture' },
+      }).descriptor
+    );
   });
 
   it('orders payload keys canonically rather than by insertion', () => {
@@ -157,10 +173,12 @@ describe('Intent entity descriptors', () => {
   });
 
   it('keeps constructor and prototype keys as ordinary data', () => {
-    const properties = entityProperties(Intent.addEntity({
-      subject: 'entry:1',
-      properties: { constructor: 'not-a-function', prototype: 'inert' },
-    }));
+    const properties = entityProperties(
+      Intent.addEntity({
+        subject: 'entry:1',
+        properties: { constructor: 'not-a-function', prototype: 'inert' },
+      })
+    );
 
     expect(properties['constructor']).toBe('not-a-function');
     expect(properties['prototype']).toBe('inert');

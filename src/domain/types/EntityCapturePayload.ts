@@ -15,7 +15,7 @@ export function isEntityCapturePayloadRecord(properties: EntityCapturePayload): 
 /** Exact equality over normalized entity property records. */
 export function entityCapturePayloadsEqual(
   left: EntityCapturePayload,
-  right: EntityCapturePayload,
+  right: EntityCapturePayload
 ): boolean {
   const leftKeys = Object.keys(left).sort();
   const rightKeys = Object.keys(right).sort();
@@ -26,9 +26,11 @@ export function entityCapturePayloadsEqual(
     const rightKey = rightKeys[index];
     const leftValue = left[key];
     const rightValue = right[key];
-    return rightKey === key
-      && leftValue !== undefined
-      && rightValue !== undefined
-      && propValuesEqual(leftValue, rightValue);
+    return (
+      rightKey === key &&
+      leftValue !== undefined &&
+      rightValue !== undefined &&
+      propValuesEqual(leftValue, rightValue)
+    );
   });
 }

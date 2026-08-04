@@ -24,10 +24,12 @@ describe('EntityCapturePayload', () => {
   });
 
   it('compares payload keys independently of construction order', () => {
-    expect(entityCapturePayloadsEqual(
-      { kind: 'capture', text: 'hello' },
-      { text: 'hello', kind: 'capture' },
-    )).toBe(true);
+    expect(
+      entityCapturePayloadsEqual(
+        { kind: 'capture', text: 'hello' },
+        { text: 'hello', kind: 'capture' }
+      )
+    ).toBe(true);
     expect(entityCapturePayloadsEqual({ kind: 'capture' }, {})).toBe(false);
     expect(entityCapturePayloadsEqual({ kind: 'capture' }, { text: 'capture' })).toBe(false);
     expect(entityCapturePayloadsEqual({ kind: 'capture' }, { kind: 'other' })).toBe(false);
@@ -52,10 +54,12 @@ describe('propValuesEqual', () => {
   });
 
   it('compares arrays recursively and in order', () => {
-    expect(propValuesEqual(
-      ['capture', [1, true], { nested: null }],
-      ['capture', [1, true], { nested: null }],
-    )).toBe(true);
+    expect(
+      propValuesEqual(
+        ['capture', [1, true], { nested: null }],
+        ['capture', [1, true], { nested: null }]
+      )
+    ).toBe(true);
     expect(propValuesEqual([1], [1, 2])).toBe(false);
     expect(propValuesEqual([1, 2], [1, 3])).toBe(false);
     expect(propValuesEqual([1], 1)).toBe(false);
@@ -63,10 +67,9 @@ describe('propValuesEqual', () => {
   });
 
   it('compares record keys and values recursively', () => {
-    expect(propValuesEqual(
-      { b: { nested: true }, a: [1, 2] },
-      { a: [1, 2], b: { nested: true } },
-    )).toBe(true);
+    expect(
+      propValuesEqual({ b: { nested: true }, a: [1, 2] }, { a: [1, 2], b: { nested: true } })
+    ).toBe(true);
     expect(propValuesEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
     expect(propValuesEqual({ a: 1 }, { b: 1 })).toBe(false);
     expect(propValuesEqual({ a: { nested: true } }, { a: { nested: false } })).toBe(false);

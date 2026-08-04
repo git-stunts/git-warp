@@ -29,9 +29,7 @@ const INDEX_SUPPORT = 'index';
 const RECOVERY_EVIDENCE = 'recovery';
 const RETENTION_SUPPORT = 'retention';
 
-export async function createWriteEvidence(
-  fields: WriteEvidenceFields,
-): Promise<Evidence> {
+export async function createWriteEvidence(fields: WriteEvidenceFields): Promise<Evidence> {
   const { runtime, context, patchSha, retentionWitness } = fields;
   const evidence = {
     basis: await createHandle(context, [
@@ -212,11 +210,9 @@ function isCanonicalRetentionEvidence(evidence: RetentionEvidence): boolean {
 }
 
 function isCanonicalRetentionCollection(
-  retention: readonly RetentionEvidence[] | undefined,
+  retention: readonly RetentionEvidence[] | undefined
 ): boolean {
-  return retention === undefined
-    ? true
-    : isCanonicalArray(retention, isCanonicalRetentionEvidence);
+  return retention === undefined ? true : isCanonicalArray(retention, isCanonicalRetentionEvidence);
 }
 
 function isCanonicalOptionalTick(tick: Tick | undefined): boolean {
@@ -227,16 +223,10 @@ function isCanonicalTick(tick: Tick): boolean {
   if (!(tick instanceof Tick)) {
     return false;
   }
-  return [
-    Object.isFrozen(tick),
-    hasOnlyKeys(tick, ['id', 'timeline']),
-  ].every(Boolean);
+  return [Object.isFrozen(tick), hasOnlyKeys(tick, ['id', 'timeline'])].every(Boolean);
 }
 
-function isCanonicalArray<T>(
-  values: readonly T[],
-  isCanonical: (value: T) => boolean,
-): boolean {
+function isCanonicalArray<T>(values: readonly T[], isCanonical: (value: T) => boolean): boolean {
   if (!Array.isArray(values)) {
     return false;
   }
@@ -253,10 +243,9 @@ function isFrozenPlainObject(value: object): boolean {
 
 function hasOnlyKeys(value: object, expected: readonly string[]): boolean {
   const keys = Object.keys(value);
-  return [
-    keys.length === expected.length,
-    keys.every((key) => expected.includes(key)),
-  ].every(Boolean);
+  return [keys.length === expected.length, keys.every((key) => expected.includes(key))].every(
+    Boolean
+  );
 }
 
 function freezeSupport(
@@ -271,7 +260,7 @@ function freezeSupport(
 
 function freezeRetentionEvidence(
   retention: readonly RetentionEvidence[] | undefined,
-  field: string,
+  field: string
 ): readonly RetentionEvidence[] | undefined {
   if (retention === undefined) {
     return undefined;
@@ -282,7 +271,7 @@ function freezeRetentionEvidence(
 
 function assertRetentionEvidenceArray(
   retention: readonly RetentionEvidence[],
-  field: string,
+  field: string
 ): void {
   if (!Array.isArray(retention)) {
     throw new WarpError(`${field} must be an array`, 'E_RECEIPT_EVIDENCE');
@@ -291,25 +280,27 @@ function assertRetentionEvidenceArray(
 
 function freezeRetentionEvidenceEntries(
   retention: readonly RetentionEvidence[],
-  field: string,
+  field: string
 ): readonly RetentionEvidence[] {
-  return Object.freeze(retention.map((entry, index) => {
-    const itemField = `${field}[${index}]`;
-    if (entry === null || typeof entry !== 'object') {
-      throw new WarpError(`${itemField} must be retention evidence`, 'E_RECEIPT_EVIDENCE');
-    }
-    return new RetentionEvidence({
-      witness: freezeHandle(entry.witness, `${itemField}.witness`),
-      policy: entry.policy,
-      reachability: entry.reachability,
-      rootKind: entry.rootKind,
-    });
-  }));
+  return Object.freeze(
+    retention.map((entry, index) => {
+      const itemField = `${field}[${index}]`;
+      if (entry === null || typeof entry !== 'object') {
+        throw new WarpError(`${itemField} must be retention evidence`, 'E_RECEIPT_EVIDENCE');
+      }
+      return new RetentionEvidence({
+        witness: freezeHandle(entry.witness, `${itemField}.witness`),
+        policy: entry.policy,
+        reachability: entry.reachability,
+        rootKind: entry.rootKind,
+      });
+    })
+  );
 }
 
 async function createRetentionEvidence(
   context: ApiRuntimeContext,
-  witness: StorageRetentionWitness,
+  witness: StorageRetentionWitness
 ): Promise<RetentionEvidence> {
   return new RetentionEvidence({
     witness: await createHandle(context, [

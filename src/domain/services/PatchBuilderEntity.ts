@@ -105,7 +105,7 @@ export function allocateEntityCapture(fields: {
 export function planEntityCapturePayload(
   nodeId: string,
   properties: EntityCapturePayload,
-  scope: EntityCaptureScope,
+  scope: EntityCaptureScope
 ): readonly NodePropSet[] {
   assertNoReservedBytes(nodeId, 'nodeId');
   const entries = requirePayloadEntries(nodeId, properties);
@@ -115,19 +115,19 @@ export function planEntityCapturePayload(
 
 function requirePayloadEntries(
   nodeId: string,
-  properties: EntityCapturePayload,
+  properties: EntityCapturePayload
 ): readonly (readonly [string, PropValue])[] {
   requirePayloadRecord(nodeId, properties);
   const entries = Object.entries(properties);
   if (entries.length === 0) {
     throw new PatchError(
       `Cannot capture entity '${nodeId}' without a payload: an entity created empty is a shell, not a fact`,
-      { code: 'E_PATCH_ENTITY_EMPTY', context: { nodeId } },
+      { code: 'E_PATCH_ENTITY_EMPTY', context: { nodeId } }
     );
   }
   // Key order is not evidence. Sorting keeps two payloads that differ only in
   // construction order lowering to byte-identical operations.
-  return entries.sort(([left], [right]) => (left === right ? 0 : (left < right ? -1 : 1)));
+  return entries.sort(([left], [right]) => (left === right ? 0 : left < right ? -1 : 1));
 }
 
 function requirePayloadRecord(nodeId: string, properties: EntityCapturePayload): void {
@@ -169,10 +169,10 @@ function assertEntityAbsent(nodeId: string, scope: EntityCaptureScope): void {
   if (!scope.added.has(nodeId) && !(scope.state?.nodeAlive.contains(nodeId) ?? false)) {
     return;
   }
-  throw new PatchError(
-    `Cannot capture entity '${nodeId}': this writer can already see that id`,
-    { code: 'E_PATCH_ENTITY_EXISTS', context: { nodeId } },
-  );
+  throw new PatchError(`Cannot capture entity '${nodeId}': this writer can already see that id`, {
+    code: 'E_PATCH_ENTITY_EXISTS',
+    context: { nodeId },
+  });
 }
 
 function entityProperty(nodeId: string, key: string, value: PropValue): NodePropSet {
@@ -180,7 +180,7 @@ function entityProperty(nodeId: string, key: string, value: PropValue): NodeProp
   const intent = NodePropertyWriteIntent.fromLegacyProperty(
     nodeId,
     key,
-    requirePatchPropertyValue(value),
+    requirePatchPropertyValue(value)
   );
   return new NodePropSet(nodeId, intent.propertyKey(), intent.propertyValue());
 }

@@ -40,12 +40,15 @@ describe('freezeEvidence', () => {
       rootKind: 'publication',
     });
 
-    const canonical = freezeEvidence({
-      basis: { id: 'evidence:basis' },
-      support: [],
-      retention: [retention],
-      tick,
-    }, 'test.evidence');
+    const canonical = freezeEvidence(
+      {
+        basis: { id: 'evidence:basis' },
+        support: [],
+        retention: [retention],
+        tick,
+      },
+      'test.evidence'
+    );
 
     expect(canonical.tick).toBe(tick);
     expect(canonical.retention).toHaveLength(1);
@@ -55,17 +58,27 @@ describe('freezeEvidence', () => {
   });
 
   it('rejects malformed retention evidence before canonicalization', () => {
-    expect(() => freezeEvidence({
-      basis: { id: 'evidence:basis' },
-      support: [],
-      // @ts-expect-error Exercise the JavaScript boundary with a scalar.
-      retention: 'persistent',
-    }, 'test.evidence')).toThrowError(expect.objectContaining({ code: 'E_RECEIPT_EVIDENCE' }));
-    expect(() => freezeEvidence({
-      basis: { id: 'evidence:basis' },
-      support: [],
-      // @ts-expect-error Exercise the JavaScript boundary with null.
-      retention: [null],
-    }, 'test.evidence')).toThrowError(expect.objectContaining({ code: 'E_RECEIPT_EVIDENCE' }));
+    expect(() =>
+      freezeEvidence(
+        {
+          basis: { id: 'evidence:basis' },
+          support: [],
+          // @ts-expect-error Exercise the JavaScript boundary with a scalar.
+          retention: 'persistent',
+        },
+        'test.evidence'
+      )
+    ).toThrowError(expect.objectContaining({ code: 'E_RECEIPT_EVIDENCE' }));
+    expect(() =>
+      freezeEvidence(
+        {
+          basis: { id: 'evidence:basis' },
+          support: [],
+          // @ts-expect-error Exercise the JavaScript boundary with null.
+          retention: [null],
+        },
+        'test.evidence'
+      )
+    ).toThrowError(expect.objectContaining({ code: 'E_RECEIPT_EVIDENCE' }));
   });
 });

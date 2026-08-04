@@ -43,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   built with a null prototype, so a key such as `__proto__` stays ordinary data.
 
   Scope of these guarantees, stated because the shape is easy to over-read:
-
   - **Initial payload, not complete entity.** Which fields make an entity
     complete is an application schema concern; the substrate checks only that
     properties exist.

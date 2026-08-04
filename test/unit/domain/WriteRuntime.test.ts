@@ -54,144 +54,156 @@ describe('WriteRuntime admission classification', () => {
   });
 
   it('refuses a published entity receipt whose patch lost its NodeAdd coordinate', async () => {
-    await expect(executeIntentWrite({
-      runtime: createRuntime(),
-      context: createContext().context,
-      intent: intent.entity.add({
-        subject: 'entry:1',
-        properties: { kind: 'capture' },
-      }),
-      commit: async (build) => {
-        const capture = committableBuilder();
-        await build(capture);
-        const publication = await capture.commitWithEvidence();
-        const replacement = patchWithOps(publication.patch, []);
-        expectPreservedPatchMetadata(replacement, publication.patch);
-        return Object.freeze({ ...publication, patch: replacement });
-      },
-    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+    await expect(
+      executeIntentWrite({
+        runtime: createRuntime(),
+        context: createContext().context,
+        intent: intent.entity.add({
+          subject: 'entry:1',
+          properties: { kind: 'capture' },
+        }),
+        commit: async (build) => {
+          const capture = committableBuilder();
+          await build(capture);
+          const publication = await capture.commitWithEvidence();
+          const replacement = patchWithOps(publication.patch, []);
+          expectPreservedPatchMetadata(replacement, publication.patch);
+          return Object.freeze({ ...publication, patch: replacement });
+        },
+      })
+    ).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
 
   it('refuses a published entity receipt whose patch is not an entity capture', async () => {
-    await expect(executeIntentWrite({
-      runtime: createRuntime(),
-      context: createContext().context,
-      intent: intent.entity.add({
-        subject: 'entry:1',
-        properties: { kind: 'capture' },
-      }),
-      commit: async (build) => {
-        const capture = committableBuilder();
-        await build(capture);
-        const publication = await capture.commitWithEvidence();
-        const leading = requireNodeAdd(publication.patch.ops[0]);
-        const replacement = patchWithOps(publication.patch, [leading]);
-        expect(replacement.ops[0]).toBe(leading);
-        expectPreservedPatchMetadata(replacement, publication.patch);
-        return Object.freeze({ ...publication, patch: replacement });
-      },
-    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+    await expect(
+      executeIntentWrite({
+        runtime: createRuntime(),
+        context: createContext().context,
+        intent: intent.entity.add({
+          subject: 'entry:1',
+          properties: { kind: 'capture' },
+        }),
+        commit: async (build) => {
+          const capture = committableBuilder();
+          await build(capture);
+          const publication = await capture.commitWithEvidence();
+          const leading = requireNodeAdd(publication.patch.ops[0]);
+          const replacement = patchWithOps(publication.patch, [leading]);
+          expect(replacement.ops[0]).toBe(leading);
+          expectPreservedPatchMetadata(replacement, publication.patch);
+          return Object.freeze({ ...publication, patch: replacement });
+        },
+      })
+    ).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
 
   it('refuses a published entity receipt whose supplied subject changed', async () => {
-    await expect(executeIntentWrite({
-      runtime: createRuntime(),
-      context: createContext().context,
-      intent: intent.entity.add({
-        subject: 'entry:1',
-        properties: { kind: 'capture' },
-      }),
-      commit: async (build) => {
-        const capture = committableBuilder();
-        await build(capture);
-        const publication = await capture.commitWithEvidence();
-        const replacement = renameEntitySubject(publication.patch, 'entry:1', 'entry:2');
-        expect(requireNodeAdd(replacement.ops[0]).dot)
-          .toBe(requireNodeAdd(publication.patch.ops[0]).dot);
-        expectPreservedPatchMetadata(replacement, publication.patch, ['entry:2']);
-        return Object.freeze({
-          ...publication,
-          patch: replacement,
-        });
-      },
-    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+    await expect(
+      executeIntentWrite({
+        runtime: createRuntime(),
+        context: createContext().context,
+        intent: intent.entity.add({
+          subject: 'entry:1',
+          properties: { kind: 'capture' },
+        }),
+        commit: async (build) => {
+          const capture = committableBuilder();
+          await build(capture);
+          const publication = await capture.commitWithEvidence();
+          const replacement = renameEntitySubject(publication.patch, 'entry:1', 'entry:2');
+          expect(requireNodeAdd(replacement.ops[0]).dot).toBe(
+            requireNodeAdd(publication.patch.ops[0]).dot
+          );
+          expectPreservedPatchMetadata(replacement, publication.patch, ['entry:2']);
+          return Object.freeze({
+            ...publication,
+            patch: replacement,
+          });
+        },
+      })
+    ).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
 
   it('refuses a published entity receipt whose allocated subject changed', async () => {
-    await expect(executeIntentWrite({
-      runtime: createRuntime(),
-      context: createContext().context,
-      intent: intent.entity.addAuto({
-        namespace: 'entry',
-        properties: { kind: 'capture' },
-      }),
-      commit: async (build) => {
-        const capture = committableBuilder();
-        await build(capture);
-        const publication = await capture.commitWithEvidence();
-        const originalSubject = requireNodeAdd(publication.patch.ops[0]).node;
-        const replacement = renameEntitySubject(
-          publication.patch,
-          originalSubject,
-          'entry:attacker-selected'
-        );
-        expect(requireNodeAdd(replacement.ops[0]).dot)
-          .toBe(requireNodeAdd(publication.patch.ops[0]).dot);
-        expectPreservedPatchMetadata(replacement, publication.patch, [
-          'entry:attacker-selected',
-        ]);
-        return Object.freeze({
-          ...publication,
-          patch: replacement,
-        });
-      },
-    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+    await expect(
+      executeIntentWrite({
+        runtime: createRuntime(),
+        context: createContext().context,
+        intent: intent.entity.addAuto({
+          namespace: 'entry',
+          properties: { kind: 'capture' },
+        }),
+        commit: async (build) => {
+          const capture = committableBuilder();
+          await build(capture);
+          const publication = await capture.commitWithEvidence();
+          const originalSubject = requireNodeAdd(publication.patch.ops[0]).node;
+          const replacement = renameEntitySubject(
+            publication.patch,
+            originalSubject,
+            'entry:attacker-selected'
+          );
+          expect(requireNodeAdd(replacement.ops[0]).dot).toBe(
+            requireNodeAdd(publication.patch.ops[0]).dot
+          );
+          expectPreservedPatchMetadata(replacement, publication.patch, ['entry:attacker-selected']);
+          return Object.freeze({
+            ...publication,
+            patch: replacement,
+          });
+        },
+      })
+    ).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
 
   it('refuses a supplied-subject publication whose payload changed', async () => {
-    await expect(executeIntentWrite({
-      runtime: createRuntime(),
-      context: createContext().context,
-      intent: intent.entity.add({
-        subject: 'entry:1',
-        properties: { kind: 'requested' },
-      }),
-      commit: async (build) => {
-        const capture = committableBuilder();
-        await build(capture);
-        const publication = await capture.commitWithEvidence();
-        const replacement = replaceEntityProperty(publication.patch, 'kind', 'substituted');
-        expect(replacement.ops[0]).toBe(publication.patch.ops[0]);
-        expectPreservedPatchMetadata(replacement, publication.patch);
-        return Object.freeze({
-          ...publication,
-          patch: replacement,
-        });
-      },
-    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+    await expect(
+      executeIntentWrite({
+        runtime: createRuntime(),
+        context: createContext().context,
+        intent: intent.entity.add({
+          subject: 'entry:1',
+          properties: { kind: 'requested' },
+        }),
+        commit: async (build) => {
+          const capture = committableBuilder();
+          await build(capture);
+          const publication = await capture.commitWithEvidence();
+          const replacement = replaceEntityProperty(publication.patch, 'kind', 'substituted');
+          expect(replacement.ops[0]).toBe(publication.patch.ops[0]);
+          expectPreservedPatchMetadata(replacement, publication.patch);
+          return Object.freeze({
+            ...publication,
+            patch: replacement,
+          });
+        },
+      })
+    ).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
 
   it('refuses an auto-allocated publication whose payload changed', async () => {
-    await expect(executeIntentWrite({
-      runtime: createRuntime(),
-      context: createContext().context,
-      intent: intent.entity.addAuto({
-        namespace: 'entry',
-        properties: { kind: 'requested' },
-      }),
-      commit: async (build) => {
-        const capture = committableBuilder();
-        await build(capture);
-        const publication = await capture.commitWithEvidence();
-        const replacement = replaceEntityProperty(publication.patch, 'kind', 'substituted');
-        expect(replacement.ops[0]).toBe(publication.patch.ops[0]);
-        expectPreservedPatchMetadata(replacement, publication.patch);
-        return Object.freeze({
-          ...publication,
-          patch: replacement,
-        });
-      },
-    })).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
+    await expect(
+      executeIntentWrite({
+        runtime: createRuntime(),
+        context: createContext().context,
+        intent: intent.entity.addAuto({
+          namespace: 'entry',
+          properties: { kind: 'requested' },
+        }),
+        commit: async (build) => {
+          const capture = committableBuilder();
+          await build(capture);
+          const publication = await capture.commitWithEvidence();
+          const replacement = replaceEntityProperty(publication.patch, 'kind', 'substituted');
+          expect(replacement.ops[0]).toBe(publication.patch.ops[0]);
+          expectPreservedPatchMetadata(replacement, publication.patch);
+          return Object.freeze({
+            ...publication,
+            patch: replacement,
+          });
+        },
+      })
+    ).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
 
   it('classifies writer CAS races as stale-basis obstructions', async () => {
@@ -333,7 +345,7 @@ function requireNodeAdd(op: object | undefined): NodeAdd {
 function patchWithOps(
   patch: Patch,
   ops: PatchOp[],
-  writes: string[] | undefined = patch.writes,
+  writes: string[] | undefined = patch.writes
 ): Patch {
   return new Patch({
     schema: patch.schema,
@@ -348,7 +360,7 @@ function patchWithOps(
 
 function renameEntitySubject(patch: Patch, from: string, to: string): Patch {
   const ops = patch.ops.map((op) => renameEntityOperation(op, from, to));
-  const writes = patch.writes?.map((subject) => subject === from ? to : subject);
+  const writes = patch.writes?.map((subject) => (subject === from ? to : subject));
   return patchWithOps(patch, ops, writes);
 }
 
@@ -366,9 +378,10 @@ function renameEntityOperation(op: PatchOp, from: string, to: string): PatchOp {
 }
 
 function replaceEntityProperty(patch: Patch, key: string, value: string): Patch {
-  return patchWithOps(patch, patch.ops.map((op) =>
-    replaceEntityPropertyOperation(op, key, value)
-  ));
+  return patchWithOps(
+    patch,
+    patch.ops.map((op) => replaceEntityPropertyOperation(op, key, value))
+  );
 }
 
 function replaceEntityPropertyOperation(op: PatchOp, key: string, value: string): PatchOp {
@@ -384,7 +397,7 @@ function replaceEntityPropertyOperation(op: PatchOp, key: string, value: string)
 function expectPreservedPatchMetadata(
   replacement: Patch,
   publication: Patch,
-  writes: string[] | undefined = publication.writes,
+  writes: string[] | undefined = publication.writes
 ): void {
   expect(replacement.schema).toBe(publication.schema);
   expect(replacement.writer).toBe(publication.writer);

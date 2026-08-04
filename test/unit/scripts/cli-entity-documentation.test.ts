@@ -5,7 +5,7 @@ describe('CLI entity documentation boundary', () => {
   it('keeps parser behavior tests independent from filesystem prose checks', () => {
     const parserSuite = readFileSync(
       new URL('../cli/v19-entity-intent.test.ts', import.meta.url),
-      'utf8',
+      'utf8'
     );
 
     expect(parserSuite).not.toContain("from 'node:fs'");

@@ -189,7 +189,7 @@ async function derivedWriteReceipt(
 
 function publishedEntityOccurrence(
   fields: PublishedWriteFields,
-  evidence: Evidence,
+  evidence: Evidence
 ): EntityOccurrence | undefined {
   if (fields.intent.kind !== 'entity.add') {
     return undefined;
@@ -201,11 +201,7 @@ function publishedEntityOccurrence(
       'Published entity write does not begin with a causally identified NodeAdd'
     );
   }
-  const subject = publishedEntitySubject(
-    fields.intent,
-    publishedEntityIntent(patch),
-    leading.dot
-  );
+  const subject = publishedEntitySubject(fields.intent, publishedEntityIntent(patch), leading.dot);
   return createEntityOccurrence({
     context: patch.context,
     dot: leading.dot,
@@ -222,9 +218,10 @@ function publishedEntitySubject(requested: Intent, published: Intent, dot: Dot):
   const publishedDescriptor = publishedEntityDescriptor(published);
   const requestedDescriptor = requestedEntityDescriptor(requested);
   requirePublishedEntityPayload(requestedDescriptor, publishedDescriptor);
-  const expectedSubject = 'subject' in requestedDescriptor
-    ? requestedDescriptor.subject
-    : allocateEntitySubject(requestedDescriptor.namespace, dot);
+  const expectedSubject =
+    'subject' in requestedDescriptor
+      ? requestedDescriptor.subject
+      : allocateEntitySubject(requestedDescriptor.namespace, dot);
   if (publishedDescriptor.subject !== expectedSubject) {
     throw entityOccurrenceError('Published entity write does not match the requested entity');
   }
@@ -249,7 +246,7 @@ function requestedEntityDescriptor(requested: Intent) {
 
 function requirePublishedEntityPayload(
   requested: ReturnType<typeof requestedEntityDescriptor>,
-  published: ReturnType<typeof publishedEntityDescriptor>,
+  published: ReturnType<typeof publishedEntityDescriptor>
 ): void {
   if (!entityCapturePayloadsEqual(requested.properties, published.properties)) {
     throw entityOccurrenceError('Published entity write does not match the requested payload');

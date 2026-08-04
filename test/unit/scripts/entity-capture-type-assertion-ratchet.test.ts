@@ -22,10 +22,12 @@ const ENTITY_CAPTURE_FILES = Object.freeze([
 
 describe('entity capture type-assertion ratchet', () => {
   it('covers the payload comparison implementations', () => {
-    expect(ENTITY_CAPTURE_FILES).toEqual(expect.arrayContaining([
-      'src/domain/types/EntityCapturePayload.ts',
-      'src/domain/types/PropValue.ts',
-    ]));
+    expect(ENTITY_CAPTURE_FILES).toEqual(
+      expect.arrayContaining([
+        'src/domain/types/EntityCapturePayload.ts',
+        'src/domain/types/PropValue.ts',
+      ])
+    );
   });
 
   it('keeps entity implementation and test evidence free of type sludge', () => {
@@ -57,7 +59,7 @@ function typeSludgeIn(relativePath: string): string[] {
     source,
     ts.ScriptTarget.Latest,
     true,
-    ts.ScriptKind.TS,
+    ts.ScriptKind.TS
   );
   const violations: string[] = [];
   visit(sourceFile);
@@ -73,8 +75,10 @@ function typeSludgeIn(relativePath: string): string[] {
 }
 
 function isTypeSludge(node: ts.Node): boolean {
-  return ts.isAsExpression(node)
-    || ts.isTypeAssertionExpression(node)
-    || node.kind === ts.SyntaxKind.AnyKeyword
-    || node.kind === ts.SyntaxKind.UnknownKeyword;
+  return (
+    ts.isAsExpression(node) ||
+    ts.isTypeAssertionExpression(node) ||
+    node.kind === ts.SyntaxKind.AnyKeyword ||
+    node.kind === ts.SyntaxKind.UnknownKeyword
+  );
 }

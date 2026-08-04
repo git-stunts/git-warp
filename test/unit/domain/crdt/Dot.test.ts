@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Dot,
+import {
+  Dot,
   dotsEqual,
   encodeDot,
   decodeDot,
@@ -47,7 +48,9 @@ describe('Dot', () => {
     it('throws on non-integer counter', () => {
       expect(() => Dot.create('alice', 1.5)).toThrow('counter must be a positive safe integer');
       expect(() => Dot.create('alice', NaN)).toThrow('counter must be a positive safe integer');
-      expect(() => Dot.create('alice', Infinity)).toThrow('counter must be a positive safe integer');
+      expect(() => Dot.create('alice', Infinity)).toThrow(
+        'counter must be a positive safe integer'
+      );
     });
 
     it('throws on non-number counter', () => {
@@ -190,9 +193,11 @@ describe('Dot', () => {
       'alice: 1',
       'alice:1 ',
     ])('rejects non-canonical counter spelling %s', (encoded) => {
-      expect(() => decodeDot(encoded)).toThrowError(expect.objectContaining({
-        code: 'E_CRDT_INVALID_COUNTER',
-      }));
+      expect(() => decodeDot(encoded)).toThrowError(
+        expect.objectContaining({
+          code: 'E_CRDT_INVALID_COUNTER',
+        })
+      );
     });
 
     it('roundtrips with encodeDot', () => {
@@ -308,8 +313,9 @@ describe('Dot', () => {
     });
 
     it('rejects counters beyond exact integer representation', () => {
-      expect(() => Dot.create('alice', Number.MAX_SAFE_INTEGER + 1))
-        .toThrowError(expect.objectContaining({ code: 'E_CRDT_INVALID_COUNTER' }));
+      expect(() => Dot.create('alice', Number.MAX_SAFE_INTEGER + 1)).toThrowError(
+        expect.objectContaining({ code: 'E_CRDT_INVALID_COUNTER' })
+      );
     });
 
     it('handles unicode writerId', () => {

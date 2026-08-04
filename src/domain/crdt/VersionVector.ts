@@ -136,7 +136,7 @@ export default class VersionVector {
    * Converts a VersionVector to a plain object with sorted keys for
    * deterministic encoding. This is a codec-layer concern — the domain
    * type provides iteration, the codec decides the wire format.
-  */
+   */
   static serialize(vv: VersionVector): Record<string, number> {
     const entries: [string, number][] = [];
     const sortedKeys = [...vv.keys()].sort();
@@ -144,10 +144,13 @@ export default class VersionVector {
     for (const key of sortedKeys) {
       const val = vv.get(key);
       if (val === undefined || val === 0) {
-        throw new CrdtError(`VersionVector.serialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`, {
-          code: 'E_CRDT_ZERO_COUNTER',
-          context: { writerId: key },
-        });
+        throw new CrdtError(
+          `VersionVector.serialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`,
+          {
+            code: 'E_CRDT_ZERO_COUNTER',
+            context: { writerId: key },
+          }
+        );
       }
       entries.push([key, val]);
     }
@@ -169,7 +172,9 @@ export default class VersionVector {
    */
   set(writerId: string, counter: number): this {
     if (Object.isFrozen(this)) {
-      throw new CrdtError('Cannot mutate a frozen VersionVector', { code: 'E_CRDT_FROZEN_MUTATION' });
+      throw new CrdtError('Cannot mutate a frozen VersionVector', {
+        code: 'E_CRDT_FROZEN_MUTATION',
+      });
     }
     _validateEntry(writerId, counter);
     if (counter === 0) {
@@ -220,7 +225,9 @@ export default class VersionVector {
    */
   increment(writerId: string): Dot {
     if (Object.isFrozen(this)) {
-      throw new CrdtError('Cannot mutate a frozen VersionVector', { code: 'E_CRDT_FROZEN_MUTATION' });
+      throw new CrdtError('Cannot mutate a frozen VersionVector', {
+        code: 'E_CRDT_FROZEN_MUTATION',
+      });
     }
     // Validate before mutating to avoid partial corruption
     const dot = new Dot(writerId, (this.#entries.get(writerId) ?? 0) + 1);

@@ -69,7 +69,7 @@ export default class EntityOccurrence {
   /** Requires an occurrence to carry the exact binding used by its receipt. */
   static requireReceiptBinding(
     occurrence: EntityOccurrence,
-    receipt: EntityOccurrenceReceiptBinding,
+    receipt: EntityOccurrenceReceiptBinding
   ): EntityOccurrence {
     const issued = EntityOccurrence.#requireIssued(occurrence);
     requireReceiptBinding(issued.#evidence === receipt.evidence);
@@ -98,10 +98,7 @@ export default class EntityOccurrence {
     if (Dot.equals(this.#dot, right.#dot)) {
       return 'same';
     }
-    return distinctRelation(
-      this.#context.contains(right.#dot),
-      right.#context.contains(this.#dot),
-    );
+    return distinctRelation(this.#context.contains(right.#dot), right.#context.contains(this.#dot));
   }
 
   static #requireIssued(value: EntityOccurrence): EntityOccurrence {
@@ -163,7 +160,7 @@ function requireReceiptBinding(matches: boolean): void {
 
 function distinctRelation(
   leftObservedRight: boolean,
-  rightObservedLeft: boolean,
+  rightObservedLeft: boolean
 ): Exclude<EntityCausalRelation, 'same'> {
   if (leftObservedRight && rightObservedLeft) {
     throw new WarpError(

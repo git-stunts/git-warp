@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 
-
 describe('VersionVector', () => {
   describe('empty', () => {
     it('creates an empty version vector', () => {
@@ -65,9 +64,11 @@ describe('VersionVector', () => {
     it('refuses exhaustion without reissuing the terminal writer Dot', () => {
       const vv = VersionVector.from({ alice: Number.MAX_SAFE_INTEGER });
 
-      expect(() => vv.increment('alice')).toThrowError(expect.objectContaining({
-        code: 'E_CRDT_INVALID_COUNTER',
-      }));
+      expect(() => vv.increment('alice')).toThrowError(
+        expect.objectContaining({
+          code: 'E_CRDT_INVALID_COUNTER',
+        })
+      );
       expect(vv.get('alice')).toBe(Number.MAX_SAFE_INTEGER);
     });
   });
@@ -341,7 +342,7 @@ describe('VersionVector', () => {
     it('deserializes empty object', () => {
       const obj = {};
 
-      const vv = VersionVector.from((obj));
+      const vv = VersionVector.from(obj);
 
       expect(vv.size).toBe(0);
     });
@@ -375,8 +376,9 @@ describe('VersionVector', () => {
       expect(() => VersionVector.from({ alice: 'not a number' })).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: 1.5 })).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: -1 })).toThrow('Invalid counter');
-      expect(() => VersionVector.from({ alice: Number.MAX_SAFE_INTEGER + 1 }))
-        .toThrow('Invalid counter');
+      expect(() => VersionVector.from({ alice: Number.MAX_SAFE_INTEGER + 1 })).toThrow(
+        'Invalid counter'
+      );
     });
 
     it('roundtrips', () => {

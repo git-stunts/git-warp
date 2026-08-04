@@ -56,7 +56,7 @@ const advancedObserver: Observer<string> = createObserver(
       throw new TypeError('users.role-of expected a string');
     }
     return value;
-  },
+  }
 );
 declare const receipt: WriteReceipt;
 declare const otherOccurrence: EntityOccurrence;

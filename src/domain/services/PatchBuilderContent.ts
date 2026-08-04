@@ -24,9 +24,10 @@ export type StoreContentAttachmentPayloadOptions = {
   readonly slug: string;
 };
 
-export type StageContentAttachmentOptions =
-  Omit<StoreContentAttachmentPayloadOptions, 'assetStorage'>
-  & { readonly assetStorage: AssetStoragePort | null };
+export type StageContentAttachmentOptions = Omit<
+  StoreContentAttachmentPayloadOptions,
+  'assetStorage'
+> & { readonly assetStorage: AssetStoragePort | null };
 
 /** Validates public patch property values before intent construction. */
 export function requirePatchPropertyValue<T>(value: T): PropValue {
@@ -45,22 +46,24 @@ export function requirePatchPropertyValue<T>(value: T): PropValue {
  * once rather than duplicated per target shape.
  */
 export async function stageContentAttachment(
-  options: StageContentAttachmentOptions,
+  options: StageContentAttachmentOptions
 ): Promise<ContentAttachmentPayload> {
   const { assetStorage } = options;
   if (assetStorage === null) {
-    throw new WriterError('Cannot attach content without asset storage', { code: 'NO_ASSET_STORAGE' });
+    throw new WriterError('Cannot attach content without asset storage', {
+      code: 'NO_ASSET_STORAGE',
+    });
   }
   return await storeContentAttachmentPayload({ ...options, assetStorage });
 }
 
 export async function storeContentAttachmentPayload(
-  options: StoreContentAttachmentPayloadOptions,
+  options: StoreContentAttachmentPayloadOptions
 ): Promise<ContentAttachmentPayload> {
   const metadata = contentMetadata(options.content, options.metadata);
   const staged = await options.assetStorage.stage(
     normalizeToAsyncIterable(options.content),
-    assetWriteOptions(options.slug, metadata.expectedSize),
+    assetWriteOptions(options.slug, metadata.expectedSize)
   );
   return new ContentAttachmentPayload({
     handle: new ContentAttachmentHandle(staged.handle.toString()),
@@ -71,7 +74,7 @@ export async function storeContentAttachmentPayload(
 
 function contentMetadata(
   content: ContentInput,
-  metadata: ContentMetadataInput | undefined,
+  metadata: ContentMetadataInput | undefined
 ): { readonly mime: string | null; readonly expectedSize: number | null } {
   if (!isStreamingInput(content)) {
     const normalized = normalizeContentMetadata(content, metadata);
@@ -80,9 +83,10 @@ function contentMetadata(
   return streamingContentMetadata(metadata);
 }
 
-function streamingContentMetadata(
-  metadata: ContentMetadataInput | undefined,
-): { readonly mime: string | null; readonly expectedSize: number | null } {
+function streamingContentMetadata(metadata: ContentMetadataInput | undefined): {
+  readonly mime: string | null;
+  readonly expectedSize: number | null;
+} {
   return {
     mime: optionalMime(metadataMime(metadata)),
     expectedSize: optionalSize(metadataSize(metadata)),
@@ -105,9 +109,6 @@ function optionalSize(value: number | null): number | null {
   return value === null ? null : new ContentAttachmentSize(value).toNumber();
 }
 
-function assetWriteOptions(
-  slug: string,
-  expectedSize: number | null,
-): AssetWriteOptions {
+function assetWriteOptions(slug: string, expectedSize: number | null): AssetWriteOptions {
   return { slug, filename: 'content', expectedSize };
 }

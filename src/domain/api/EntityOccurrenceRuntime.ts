@@ -11,7 +11,7 @@ export function createEntityOccurrence(fields: EntityOccurrenceFields): EntityOc
 /** Requires the causal coordinate owned by a substrate-issued occurrence. */
 export function requireIssuedEntityOccurrence(
   occurrence: EntityOccurrence,
-  receipt: EntityOccurrenceReceiptBinding,
+  receipt: EntityOccurrenceReceiptBinding
 ): EntityOccurrence {
   return EntityOccurrence.requireReceiptBinding(occurrence, receipt);
 }

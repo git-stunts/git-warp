@@ -29,10 +29,14 @@ describe('PatchBuilder entity capture', () => {
     expect(patch.ops).toHaveLength(4);
     expect(patch.ops[0]).toBeInstanceOf(NodeAdd);
     expect(requireNodeAdd(patch.ops[0]).node).toBe('entry:1785597386985-c538d1bd');
-    expect(patch.ops.slice(1).map((op) => requirePropSet(op).key))
-      .toEqual(['kind', 'sortKey', 'text']);
-    expect(patch.ops.slice(1).map((op) => requirePropSet(op).node))
-      .toEqual(Array.from({ length: 3 }, () => 'entry:1785597386985-c538d1bd'));
+    expect(patch.ops.slice(1).map((op) => requirePropSet(op).key)).toEqual([
+      'kind',
+      'sortKey',
+      'text',
+    ]);
+    expect(patch.ops.slice(1).map((op) => requirePropSet(op).node)).toEqual(
+      Array.from({ length: 3 }, () => 'entry:1785597386985-c538d1bd')
+    );
     expect(requirePropSet(patch.ops[3]).value).toBe('probe write two');
   });
 
@@ -50,9 +54,11 @@ describe('PatchBuilder entity capture', () => {
 
     expect(() => {
       builder.addEntity('entry:1', { kind: 'capture' });
-    }).toThrowError(expect.objectContaining({
-      code: 'E_PATCH_ENTITY_EXISTS',
-    }));
+    }).toThrowError(
+      expect.objectContaining({
+        code: 'E_PATCH_ENTITY_EXISTS',
+      })
+    );
     expect(builder.build().ops).toEqual([]);
   });
 
@@ -62,9 +68,11 @@ describe('PatchBuilder entity capture', () => {
 
     expect(() => {
       builder.addEntity('entry:1', { kind: 'capture' });
-    }).toThrowError(expect.objectContaining({
-      code: 'E_PATCH_ENTITY_EXISTS',
-    }));
+    }).toThrowError(
+      expect.objectContaining({
+        code: 'E_PATCH_ENTITY_EXISTS',
+      })
+    );
   });
 
   it('requires at least one property so an entity is never an empty shell', () => {
@@ -72,26 +80,26 @@ describe('PatchBuilder entity capture', () => {
 
     expect(() => {
       builder.addEntity('entry:1', {});
-    }).toThrowError(expect.objectContaining({
-      code: 'E_PATCH_ENTITY_EMPTY',
-    }));
+    }).toThrowError(
+      expect.objectContaining({
+        code: 'E_PATCH_ENTITY_EMPTY',
+      })
+    );
     expect(builder.build().ops).toEqual([]);
   });
 
-  it.each([
-    null,
-    'capture',
-    ['capture'],
-    new EntityPayloadCarrier(),
-  ])('rejects non-record entity payload %# before appending any operation', (payload) => {
-    const builder = createBuilder(null);
+  it.each([null, 'capture', ['capture'], new EntityPayloadCarrier()])(
+    'rejects non-record entity payload %# before appending any operation',
+    (payload) => {
+      const builder = createBuilder(null);
 
-    expect(() => {
-      // @ts-expect-error Exercise the JavaScript boundary.
-      builder.addEntity('entry:1', payload);
-    }).toThrowError(expect.objectContaining({ code: 'E_PATCH_ENTITY_PAYLOAD' }));
-    expect(builder.build().ops).toEqual([]);
-  });
+      expect(() => {
+        // @ts-expect-error Exercise the JavaScript boundary.
+        builder.addEntity('entry:1', payload);
+      }).toThrowError(expect.objectContaining({ code: 'E_PATCH_ENTITY_PAYLOAD' }));
+      expect(builder.build().ops).toEqual([]);
+    }
+  );
 
   it('rejects invalid property values before appending any operation', () => {
     const builder = createBuilder(null);
@@ -136,9 +144,11 @@ describe('PatchBuilder entity capture', () => {
     builder.addNode('seed');
     await builder.commitWithEvidence();
 
-    expect(() => builder.addEntity('entry:1', {})).toThrowError(expect.objectContaining({
-      code: 'E_PATCH_ALREADY_COMMITTED',
-    }));
+    expect(() => builder.addEntity('entry:1', {})).toThrowError(
+      expect.objectContaining({
+        code: 'E_PATCH_ALREADY_COMMITTED',
+      })
+    );
   });
 });
 
