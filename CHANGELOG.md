@@ -65,6 +65,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Repository lint now rejects personal-home and Darwin temporary absolute
+  paths in tracked or unignored files. Contributor doctrine also forbids
+  publishing machine-local paths in generated evidence, issues, pull requests,
+  comments, or reviews.
 - Node and edge content attachment share one staging helper, so the asset
   storage precondition is stated once instead of duplicated per target shape.
 - Effect id validation and derivation moved to `PatchBuilderValidation`.
