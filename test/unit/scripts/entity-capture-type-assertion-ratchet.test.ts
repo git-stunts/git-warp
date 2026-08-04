@@ -50,6 +50,16 @@ describe('entity capture type-assertion ratchet', () => {
     expect(occurrence).not.toContain('readonly #compare');
     expect(occurrence).not.toContain('readonly #relationTo');
   });
+
+  it('keeps the opaque occurrence declaration detached from internal coordinates', () => {
+    const occurrence = readFileSync(
+      join(process.cwd(), 'src/domain/api/EntityOccurrence.ts'),
+      'utf8'
+    );
+
+    expect(occurrence).not.toContain("from '../crdt/Dot.ts'");
+    expect(occurrence).not.toContain("from '../utils/EventId.ts'");
+  });
 });
 
 function typeSludgeIn(relativePath: string): string[] {

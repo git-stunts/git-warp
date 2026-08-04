@@ -1,27 +1,25 @@
-import { Dot } from '../crdt/Dot.ts';
 import VersionVector from '../crdt/VersionVector.ts';
 import WarpError from '../errors/WarpError.ts';
 import { hexEncode, textEncode } from '../utils/bytes.ts';
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
-import { compareEventIds, EventId } from '../utils/EventId.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type Evidence from './Evidence.ts';
 import Intent from './Intent.ts';
 
 export type EntityCausalRelation = 'same' | 'before' | 'after' | 'concurrent';
 
-export type EntityOccurrenceReceiptBinding = {
+type EntityOccurrenceReceiptBinding = {
   readonly evidence: Evidence;
   readonly intent: Intent;
   readonly lane: string;
   readonly writer: string;
 };
 
-export type EntityOccurrenceFields = {
-  readonly context: VersionVector | Readonly<Record<string, number>>;
-  readonly dot: Dot;
+type EntityOccurrenceFields = {
+  readonly context: Readonly<Record<string, number>>;
+  readonly dot: readonly [string, number];
   readonly evidence: Evidence;
-  readonly eventId: EventId;
+  readonly eventOrder: readonly [number, string, string, number];
   readonly intent: Intent;
   readonly receiptWriter: string;
   readonly subject: string;
@@ -38,8 +36,8 @@ export type EntityOccurrenceFields = {
  */
 export default class EntityOccurrence {
   readonly #context: VersionVector;
-  readonly #dot: Dot;
-  readonly #eventId: EventId;
+  readonly #dot: readonly [string, number];
+  readonly #eventOrder: readonly [number, string, string, number];
   readonly #evidence: Evidence;
   readonly #intent: Intent;
   readonly #receiptWriter: string;
@@ -50,13 +48,13 @@ export default class EntityOccurrence {
   private constructor(fields: EntityOccurrenceFields) {
     requireCoordinateFields(fields);
     this.#context = VersionVector.from(fields.context);
-    this.#dot = fields.dot;
-    this.#eventId = fields.eventId;
+    this.#dot = freezeDot(fields.dot);
+    this.#eventOrder = freezeEventOrder(fields.eventOrder);
     this.#evidence = fields.evidence;
     this.#intent = fields.intent;
     this.#receiptWriter = fields.receiptWriter;
     this.#worldline = fields.worldline;
-    this.id = entityOccurrenceId(fields.worldline, fields.eventId);
+    this.id = entityOccurrenceId(fields.worldline, fields.eventOrder);
     this.subject = fields.subject;
     Object.freeze(this);
   }
@@ -86,7 +84,7 @@ export default class EntityOccurrence {
     if (this.#worldline !== right.#worldline) {
       return this.#worldline < right.#worldline ? -1 : 1;
     }
-    return compareEventIds(this.#eventId, right.#eventId);
+    return compareEventOrder(this.#eventOrder, right.#eventOrder);
   }
 
   /** Causal partial-order relation backed by substrate vector context. */
@@ -95,10 +93,13 @@ export default class EntityOccurrence {
     if (this.#worldline !== right.#worldline) {
       return 'concurrent';
     }
-    if (Dot.equals(this.#dot, right.#dot)) {
+    if (dotsEqual(this.#dot, right.#dot)) {
       return 'same';
     }
-    return distinctRelation(this.#context.contains(right.#dot), right.#context.contains(this.#dot));
+    return distinctRelation(
+      containsDot(this.#context, right.#dot),
+      containsDot(right.#context, this.#dot)
+    );
   }
 
   static #requireIssued(value: EntityOccurrence): EntityOccurrence {
@@ -119,14 +120,8 @@ export default class EntityOccurrence {
 }
 
 function requireCoordinateFields(fields: EntityOccurrenceFields): void {
-  if (!(fields.dot instanceof Dot)) {
-    throw new WarpError('EntityOccurrence requires a Dot', 'E_ENTITY_OCCURRENCE_DOT');
-  }
-  if (!(fields.eventId instanceof EventId)) {
-    throw new WarpError('EntityOccurrence requires an EventId', 'E_ENTITY_OCCURRENCE_EVENT');
-  }
   requireOccurrenceIntent(fields.intent, fields.subject);
-  if (fields.dot.writerId !== fields.eventId.writerId) {
+  if (fields.dot[0] !== fields.eventOrder[1]) {
     throw new WarpError(
       'EntityOccurrence Dot and EventId require the same writer',
       'E_ENTITY_OCCURRENCE_WRITER'
@@ -134,6 +129,52 @@ function requireCoordinateFields(fields: EntityOccurrenceFields): void {
   }
   requireNonEmptyString(fields.receiptWriter, 'entityOccurrence.receiptWriter');
   requireNonEmptyString(fields.worldline, 'entityOccurrence.worldline');
+}
+
+function freezeDot(dot: readonly [string, number]): readonly [string, number] {
+  const copy: [string, number] = [dot[0], dot[1]];
+  return Object.freeze(copy);
+}
+
+function freezeEventOrder(
+  eventOrder: readonly [number, string, string, number]
+): readonly [number, string, string, number] {
+  const copy: [number, string, string, number] = [
+    eventOrder[0],
+    eventOrder[1],
+    eventOrder[2],
+    eventOrder[3],
+  ];
+  return Object.freeze(copy);
+}
+
+function dotsEqual(left: readonly [string, number], right: readonly [string, number]): boolean {
+  return left[0] === right[0] && left[1] === right[1];
+}
+
+function containsDot(context: VersionVector, dot: readonly [string, number]): boolean {
+  return dot[1] <= (context.get(dot[0]) ?? 0);
+}
+
+function compareEventOrder(
+  left: readonly [number, string, string, number],
+  right: readonly [number, string, string, number]
+): number {
+  const comparisons = [
+    compareNumber(left[0], right[0]),
+    compareString(left[1], right[1]),
+    compareString(left[2], right[2]),
+    compareNumber(left[3], right[3]),
+  ];
+  return comparisons.find((comparison) => comparison !== 0) ?? 0;
+}
+
+function compareNumber(left: number, right: number): number {
+  return left === right ? 0 : left < right ? -1 : 1;
+}
+
+function compareString(left: string, right: string): number {
+  return left === right ? 0 : left < right ? -1 : 1;
 }
 
 function requireOccurrenceIntent(intent: Intent, subject: string): void {
@@ -175,16 +216,9 @@ function distinctRelation(
 }
 
 /** Stable opaque encoding of git-warp's worldline-scoped event coordinate. */
-function entityOccurrenceId(worldline: string, eventId: EventId): string {
-  return `occurrence:${hexEncode(
-    textEncode(
-      canonicalStringify([
-        worldline,
-        eventId.lamport,
-        eventId.writerId,
-        eventId.patchSha,
-        eventId.opIndex,
-      ])
-    )
-  )}`;
+function entityOccurrenceId(
+  worldline: string,
+  eventOrder: readonly [number, string, string, number]
+): string {
+  return `occurrence:${hexEncode(textEncode(canonicalStringify([worldline, ...eventOrder])))}`;
 }
