@@ -68,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Node and edge content attachment share one staging helper, so the asset
   storage precondition is stated once instead of duplicated per target shape.
 - Effect id validation and derivation moved to `PatchBuilderValidation`.
+- Permissive `PatchBuilder` effect and property values now use method type
+  parameters instead of leaking boundary-level `unknown` into the domain API.
+  Runtime validation and accepted JavaScript inputs are unchanged.
 
 ### Fixed
 

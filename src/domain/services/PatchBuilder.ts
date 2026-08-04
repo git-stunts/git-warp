@@ -269,8 +269,7 @@ export class PatchBuilder {
     return this;
   }
 
-  emitEffect(kind: string, payload?: unknown, options?: { effectId?: string }): string {
-    // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  emitEffect<T>(kind: string, payload?: T, options?: { effectId?: string }): string {
     this._assertNotCommitted();
     const effectId = resolveEffectId(kind, options?.effectId, {
       writerId: this._writerId,
@@ -286,21 +285,13 @@ export class PatchBuilder {
     return effectId;
   }
 
-  setProperty(nodeId: string, key: string, value: unknown): PatchBuilder {
-    // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  setProperty<T>(nodeId: string, key: string, value: T): PatchBuilder {
     this._assertNotCommitted();
     this._properties.setNodeProperty(nodeId, key, value);
     return this;
   }
 
-  setEdgeProperty(
-    from: string,
-    to: string,
-    label: string,
-    key: string,
-    value: unknown
-  ): PatchBuilder {
-    // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  setEdgeProperty<T>(from: string, to: string, label: string, key: string, value: T): PatchBuilder {
     this._assertNotCommitted();
     this._properties.setEdgeProperty({ from, to, label, key, value });
     return this;

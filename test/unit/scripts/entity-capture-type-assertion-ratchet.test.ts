@@ -60,7 +60,42 @@ describe('entity capture type-assertion ratchet', () => {
     expect(occurrence).not.toContain("from '../crdt/Dot.ts'");
     expect(occurrence).not.toContain("from '../utils/EventId.ts'");
   });
+
+  it('keeps permissive PatchBuilder values method-generic', () => {
+    const sourceFile = sourceFileFor('src/domain/services/PatchBuilder.ts');
+    const builder = sourceFile.statements.find(
+      (statement): statement is ts.ClassDeclaration =>
+        ts.isClassDeclaration(statement) && statement.name?.text === 'PatchBuilder'
+    );
+
+    expect(builder).toBeDefined();
+    expect(genericValueType(builder, 'emitEffect', 'payload')).toBe('T');
+    expect(genericValueType(builder, 'setProperty', 'value')).toBe('T');
+    expect(genericValueType(builder, 'setEdgeProperty', 'value')).toBe('T');
+  });
 });
+
+function sourceFileFor(relativePath: string): ts.SourceFile {
+  const source = readFileSync(join(process.cwd(), relativePath), 'utf8');
+  return ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+}
+
+function genericValueType(
+  declaration: ts.ClassDeclaration | undefined,
+  methodName: string,
+  parameterName: string
+): string | undefined {
+  const method = declaration?.members.find(
+    (member): member is ts.MethodDeclaration =>
+      ts.isMethodDeclaration(member) && member.name.getText() === methodName
+  );
+  const parameter = method?.parameters.find(
+    (candidate) => candidate.name.getText() === parameterName
+  );
+  const typeParameter = method?.typeParameters?.[0]?.name.text;
+  const parameterType = parameter?.type?.getText();
+  return typeParameter === parameterType ? parameterType : undefined;
+}
 
 function typeSludgeIn(relativePath: string): string[] {
   const source = readFileSync(join(process.cwd(), relativePath), 'utf8');
