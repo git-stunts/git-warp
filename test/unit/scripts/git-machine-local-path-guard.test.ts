@@ -54,4 +54,21 @@ describe('Git machine-local path guard', () => {
 
     expect(hook).toContain('node scripts/check-machine-local-paths.ts --staged');
   });
+
+  it('detects machine-local paths embedded in binary blobs', () => {
+    const repository = createRepository();
+    const fixturePath = join(repository, 'fixture.bin');
+    const fixture = Buffer.concat([
+      Buffer.from([0]),
+      Buffer.from(personalHome('build', 'artifact'), 'utf8'),
+      Buffer.from([0]),
+    ]);
+    writeFileSync(fixturePath, fixture);
+    git(repository, 'add', 'fixture.bin');
+
+    const guard = new GitMachineLocalPathGuard(repository, new MachineLocalPathPolicy());
+
+    expect(guard.findWorkingTreePaths()).toEqual(['fixture.bin']);
+    expect(guard.findStagedPaths()).toEqual(['fixture.bin']);
+  });
 });

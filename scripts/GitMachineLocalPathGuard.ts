@@ -57,9 +57,6 @@ export class GitMachineLocalPathGuard {
   }
 
   #containsMachineLocalPath(bytes: Buffer): boolean {
-    if (bytes.includes(0)) {
-      return false;
-    }
     return this.#policy.containsMachineLocalPath(bytes.toString('utf8'));
   }
 }
