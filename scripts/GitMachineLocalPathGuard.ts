@@ -121,6 +121,91 @@ export class GitMachineLocalPathGuard {
     return offenders.sort();
   }
 
+  findTreePaths(revision: string): string[] {
+    if (!OBJECT_ID_PATTERN.test(revision)) {
+      throw new Error('Committed-tree scan requires an exact object id');
+    }
+    const inventory = execFileSync('git', ['ls-tree', '-r', '-z', '--full-tree', revision], {
+      cwd: this.#repository,
+      encoding: 'utf8',
+      maxBuffer: MAX_INSPECTED_BLOB_BYTES,
+    });
+    const pathsByObjectId = new Map<string, string[]>();
+
+    for (const record of inventory.split('\0')) {
+      if (record.length === 0) {
+        continue;
+      }
+      const tab = record.indexOf('\t');
+      if (tab < 0) {
+        throw new Error('Git returned a malformed tree record');
+      }
+      const metadata = record.slice(0, tab).split(' ');
+      const objectType = metadata[1];
+      const objectId = metadata[2];
+      if (objectType !== 'blob' || objectId === undefined || !OBJECT_ID_PATTERN.test(objectId)) {
+        throw new Error('Git returned a malformed tree blob record');
+      }
+      const path = record.slice(tab + 1);
+      const paths = pathsByObjectId.get(objectId) ?? [];
+      paths.push(path);
+      pathsByObjectId.set(objectId, paths);
+    }
+
+    const leakingObjectIds = this.#findLeakingBlobIds([...pathsByObjectId.keys()]);
+    return [...leakingObjectIds]
+      .flatMap((objectId) => pathsByObjectId.get(objectId) ?? [])
+      .sort();
+  }
+
+  #findLeakingBlobIds(objectIds: readonly string[]): Set<string> {
+    if (objectIds.length === 0) {
+      return new Set();
+    }
+    const batch = execFileSync('git', ['cat-file', '--batch'], {
+      cwd: this.#repository,
+      input: objectIds.join('\n') + '\n',
+      maxBuffer: MAX_INSPECTED_BLOB_BYTES,
+    });
+    const offenders = new Set<string>();
+    let offset = 0;
+
+    for (const expectedObjectId of objectIds) {
+      const headerEnd = batch.indexOf(10, offset);
+      if (headerEnd < 0) {
+        throw new Error('Git returned a truncated batch header');
+      }
+      const header = batch.subarray(offset, headerEnd).toString('utf8').split(' ');
+      const actualObjectId = header[0];
+      const objectType = header[1];
+      const sizeText = header[2];
+      const size = Number(sizeText);
+      if (
+        actualObjectId !== expectedObjectId ||
+        objectType !== 'blob' ||
+        sizeText === undefined ||
+        !Number.isSafeInteger(size) ||
+        size < 0
+      ) {
+        throw new Error('Git returned a malformed batch blob header');
+      }
+      const contentStart = headerEnd + 1;
+      const contentEnd = contentStart + size;
+      if (contentEnd >= batch.length || batch[contentEnd] !== 10) {
+        throw new Error('Git returned a truncated batch blob');
+      }
+      if (this.#containsMachineLocalPath(batch.subarray(contentStart, contentEnd))) {
+        offenders.add(expectedObjectId);
+      }
+      offset = contentEnd + 1;
+    }
+
+    if (offset !== batch.length) {
+      throw new Error('Git returned trailing batch blob data');
+    }
+    return offenders;
+  }
+
   #findRemoteTips(remoteName: string): string[] {
     if (remoteName.length === 0) {
       return [];

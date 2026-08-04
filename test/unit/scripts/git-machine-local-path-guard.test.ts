@@ -9,6 +9,7 @@ import { GitMachineLocalPathGuard } from '../../../scripts/GitMachineLocalPathGu
 import { MachineLocalPathPolicy } from '../../../scripts/MachineLocalPathPolicy.ts';
 
 const hookPath = fileURLToPath(new URL('../../../scripts/hooks/pre-commit', import.meta.url));
+const ciPath = fileURLToPath(new URL('../../../.github/workflows/ci.yml', import.meta.url));
 const tempDirs: string[] = [];
 
 function git(repository: string, ...args: readonly string[]): void {
@@ -106,5 +107,29 @@ describe('Git machine-local path guard', () => {
     const hook = readFileSync(hookPath, 'utf8');
 
     expect(hook).toContain('node scripts/check-machine-local-paths.ts --pre-push "$REMOTE_NAME"');
+  });
+
+  it('scans an exact committed tree instead of mutable working-tree bytes', () => {
+    const repository = createRepository();
+    const fixturePath = join(repository, 'fixture.txt');
+    writeFileSync(fixturePath, personalHome('git', 'project'), 'utf8');
+    git(repository, 'add', 'fixture.txt');
+    git(repository, 'commit', '--quiet', '-m', 'committed leak');
+    const committedObject = gitText(repository, 'rev-parse', 'HEAD');
+    writeFileSync(fixturePath, 'portable working tree', 'utf8');
+
+    const guard = new GitMachineLocalPathGuard(repository, new MachineLocalPathPolicy());
+
+    expect(guard.findTreePaths(committedObject)).toEqual(['fixture.txt']);
+    expect(guard.findWorkingTreePaths()).toEqual([]);
+  });
+
+  it('makes exact-tree path hygiene a dedicated required CI lane', () => {
+    const workflow = readFileSync(ciPath, 'utf8');
+
+    expect(workflow).toContain('type-firewall-path-hygiene:');
+    expect(workflow).toContain('node scripts/check-machine-local-paths.ts --tree "$GITHUB_SHA"');
+    expect(workflow).toContain('- type-firewall-path-hygiene');
+    expect(workflow).toContain("needs['type-firewall-path-hygiene'].result");
   });
 });
