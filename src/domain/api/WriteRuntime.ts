@@ -22,6 +22,7 @@ import { createEntityOccurrence } from './EntityOccurrenceRuntime.ts';
 import { Dot } from '../crdt/Dot.ts';
 import NodeAdd from '../types/ops/NodeAdd.ts';
 import { EventId } from '../utils/EventId.ts';
+import { entityCapturePayloadsEqual } from '../types/EntityCapturePayload.ts';
 import {
   createDerivedWriteAdmission,
   createObstructedWriteAdmission,
@@ -207,15 +208,45 @@ function publishedEntityOccurrence(fields: PublishedWriteFields): EntityOccurren
 }
 
 function publishedEntitySubject(requested: Intent, published: Intent): string {
-  const publishedDescriptor = published.descriptor;
-  if (publishedDescriptor.kind !== 'entity.add' || !('subject' in publishedDescriptor)) {
-    throw entityOccurrenceError('Published entity write is not an entity capture');
-  }
-  const requestedDescriptor = requested.descriptor;
-  if ('subject' in requestedDescriptor && requestedDescriptor.subject !== publishedDescriptor.subject) {
+  const publishedDescriptor = publishedEntityDescriptor(published);
+  const requestedDescriptor = requestedEntityDescriptor(requested);
+  requirePublishedEntityPayload(requestedDescriptor, publishedDescriptor);
+  if (suppliedSubjectChanged(requestedDescriptor, publishedDescriptor.subject)) {
     throw entityOccurrenceError('Published entity write does not match the requested entity');
   }
   return publishedDescriptor.subject;
+}
+
+function publishedEntityDescriptor(published: Intent) {
+  const { descriptor } = published;
+  if (descriptor.kind !== 'entity.add' || !('subject' in descriptor)) {
+    throw entityOccurrenceError('Published entity write is not an entity capture');
+  }
+  return descriptor;
+}
+
+function requestedEntityDescriptor(requested: Intent) {
+  const { descriptor } = requested;
+  if (descriptor.kind !== 'entity.add') {
+    throw entityOccurrenceError('Requested write is not an entity capture');
+  }
+  return descriptor;
+}
+
+function requirePublishedEntityPayload(
+  requested: ReturnType<typeof requestedEntityDescriptor>,
+  published: ReturnType<typeof publishedEntityDescriptor>,
+): void {
+  if (!entityCapturePayloadsEqual(requested.properties, published.properties)) {
+    throw entityOccurrenceError('Published entity write does not match the requested payload');
+  }
+}
+
+function suppliedSubjectChanged(
+  requested: ReturnType<typeof requestedEntityDescriptor>,
+  publishedSubject: string,
+): boolean {
+  return 'subject' in requested && requested.subject !== publishedSubject;
 }
 
 function publishedEntityIntent(patch: PublishedWriteFields['publication']['patch']): Intent {

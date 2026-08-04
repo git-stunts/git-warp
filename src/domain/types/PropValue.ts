@@ -100,6 +100,94 @@ export function copyPropValue(value: PropValue): PropValue {
   return copyCompositePropValue(value);
 }
 
+/** Exact recursive equality for property-register values. */
+export function propValuesEqual(left: PropValue, right: PropValue): boolean {
+  if (Object.is(left, right)) {
+    return true;
+  }
+  const byteEquality = propValueByteEquality(left, right);
+  if (byteEquality !== null) {
+    return byteEquality;
+  }
+  const arrayEquality = propValueArrayEquality(left, right);
+  if (arrayEquality !== null) {
+    return arrayEquality;
+  }
+  return propValueRecordEquality(left, right);
+}
+
+function propValueByteEquality(left: PropValue, right: PropValue): boolean | null {
+  if (!(left instanceof Uint8Array)) {
+    return null;
+  }
+  return right instanceof Uint8Array ? propValueBytesEqual(left, right) : false;
+}
+
+function propValueBytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  return left.byteLength === right.byteLength
+    && left.every((value, index) => value === right[index]);
+}
+
+function propValueArrayEquality(left: PropValue, right: PropValue): boolean | null {
+  if (!Array.isArray(left)) {
+    return null;
+  }
+  return Array.isArray(right) ? propValueArraysEqual(left, right) : false;
+}
+
+function propValueArraysEqual(left: PropValue[], right: PropValue[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (!propValueArrayEntriesEqual(left[index], right[index])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function propValueArrayEntriesEqual(
+  left: PropValue | undefined,
+  right: PropValue | undefined,
+): boolean {
+  return left !== undefined && right !== undefined && propValuesEqual(left, right);
+}
+
+function isPropValueRecord(value: PropValue): value is { [key: string]: PropValue } {
+  return value !== null
+    && typeof value === 'object'
+    && !(value instanceof Uint8Array)
+    && !Array.isArray(value);
+}
+
+function propValueRecordEquality(left: PropValue, right: PropValue): boolean {
+  if (!isPropValueRecord(left)) {
+    return false;
+  }
+  return isPropValueRecord(right) ? propValueRecordsEqual(left, right) : false;
+}
+
+function propValueRecordsEqual(
+  left: { [key: string]: PropValue },
+  right: { [key: string]: PropValue },
+): boolean {
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+  return leftKeys.every((key, index) => {
+    const rightKey = rightKeys[index];
+    const leftValue = left[key];
+    const rightValue = right[key];
+    return rightKey === key
+      && leftValue !== undefined
+      && rightValue !== undefined
+      && propValuesEqual(leftValue, rightValue);
+  });
+}
+
 function copyCompositePropValue(
   value: Uint8Array | PropValue[] | { [key: string]: PropValue }
 ): PropValue {

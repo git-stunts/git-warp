@@ -1,4 +1,4 @@
-import type { PropValue } from './PropValue.ts';
+import { propValuesEqual, type PropValue } from './PropValue.ts';
 
 /** Property record carried by one dependency-pure entity capture. */
 export type EntityCapturePayload = Readonly<Record<string, PropValue>>;
@@ -10,4 +10,25 @@ export function isEntityCapturePayloadRecord(properties: EntityCapturePayload): 
   }
   const prototype = Reflect.getPrototypeOf(properties);
   return prototype === Object.prototype || prototype === null;
+}
+
+/** Exact equality over normalized entity property records. */
+export function entityCapturePayloadsEqual(
+  left: EntityCapturePayload,
+  right: EntityCapturePayload,
+): boolean {
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+  return leftKeys.every((key, index) => {
+    const rightKey = rightKeys[index];
+    const leftValue = left[key];
+    const rightValue = right[key];
+    return rightKey === key
+      && leftValue !== undefined
+      && rightValue !== undefined
+      && propValuesEqual(leftValue, rightValue);
+  });
 }
