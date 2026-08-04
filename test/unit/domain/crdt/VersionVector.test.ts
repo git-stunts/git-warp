@@ -330,11 +330,11 @@ describe('VersionVector', () => {
 
       expect(Object.keys(serialized)).toEqual(['__proto__', 'constructor', 'prototype']);
       expect(Object.hasOwn(serialized, '__proto__')).toBe(true);
-      expect(serialized.__proto__).toBe(1);
+      expect(serialized['__proto__']).toBe(1);
       expect(Object.hasOwn(serialized, 'constructor')).toBe(true);
       expect(serialized.constructor).toBe(2);
       expect(Object.hasOwn(serialized, 'prototype')).toBe(true);
-      expect(serialized.prototype).toBe(3);
+      expect(serialized['prototype']).toBe(3);
       expect(VersionVector.from(serialized).equals(vv)).toBe(true);
     });
 
