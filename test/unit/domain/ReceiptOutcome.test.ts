@@ -6,8 +6,12 @@ import ConflictWitness from '../../../src/domain/admission/ConflictWitness.ts';
 import DraftTimeline from '../../../src/domain/api/DraftTimeline.ts';
 import { projectAdmissionOutcome } from '../../../src/domain/api/AdmissionOutcomeRuntime.ts';
 import EntityOccurrence from '../../../src/domain/api/EntityOccurrence.ts';
-import { createEntityOccurrence } from '../../../src/domain/api/EntityOccurrenceRuntime.ts';
+import {
+  createEntityOccurrence,
+  requireIssuedEntityOccurrence,
+} from '../../../src/domain/api/EntityOccurrenceRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
+import { freezeEvidence } from '../../../src/domain/api/EvidenceRuntime.ts';
 import JoinReceipt from '../../../src/domain/api/JoinReceipt.ts';
 import { READ_JOIN_RECEIPT_OUTCOMES } from '../../../src/domain/api/ReceiptOutcome.ts';
 import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
@@ -18,10 +22,10 @@ import {
   testObstructedIntentAdmissionReceipt,
 } from '../../helpers/intentAdmission.ts';
 
-const EVIDENCE = Object.freeze({
-  basis: Object.freeze({ id: 'evidence:basis' }),
-  support: Object.freeze([]),
-});
+const EVIDENCE = freezeEvidence({
+  basis: { id: 'evidence:basis' },
+  support: [],
+}, 'test.evidence');
 
 describe('receipt outcomes', () => {
   it('quarantines the transitional read/join outcome axis to five values', () => {
@@ -195,6 +199,7 @@ describe('receipt outcomes', () => {
     });
 
     expect(receipt.occurrence).toBe(occurrence);
+    expect(requireIssuedEntityOccurrence(occurrence, receipt)).toBe(occurrence);
   });
 
   it('distinguishes the causal coordinate writer from the receipt writer', () => {

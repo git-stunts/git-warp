@@ -28,6 +28,7 @@ const PATCH_SUPPORT = 'patch';
 const INDEX_SUPPORT = 'index';
 const RECOVERY_EVIDENCE = 'recovery';
 const RETENTION_SUPPORT = 'retention';
+const CANONICAL_EVIDENCE = new WeakSet<Evidence>();
 
 export async function createWriteEvidence(
   fields: WriteEvidenceFields,
@@ -113,6 +114,9 @@ export async function createReadEvidence(
 
 export function freezeEvidence(evidence: Evidence, field: string): Evidence {
   assertEvidenceObject(evidence, field);
+  if (CANONICAL_EVIDENCE.has(evidence)) {
+    return evidence;
+  }
   const basis = freezeHandle(evidence.basis, `${field}.basis`);
   const support = freezeSupport(evidence.support, `${field}.support`);
   const retention = freezeRetentionEvidence(evidence.retention, `${field}.retention`);
@@ -275,5 +279,7 @@ function freezeCreatedEvidence(evidence: Evidence): Evidence {
   if (evidence.retention !== undefined) {
     result.retention = Object.freeze([...evidence.retention]);
   }
-  return Object.freeze(result);
+  const canonical = Object.freeze(result);
+  CANONICAL_EVIDENCE.add(canonical);
+  return canonical;
 }
