@@ -85,6 +85,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whitespace cannot alias a canonical Dot. Counter exhaustion fails before
   mutation instead of reissuing a writer Dot and colliding an auto-allocated
   entity subject.
+- Version-vector serialization now preserves prototype-named writers such as
+  `__proto__` as own data properties instead of invoking inherited object
+  setters and silently dropping their causal coordinates.
 - `PatchBuilder.addEntity` now enforces the committed-builder lifecycle before
   reading snapshot state or validating entity input, matching every other
   builder mutation.

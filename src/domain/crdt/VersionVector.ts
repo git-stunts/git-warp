@@ -136,9 +136,9 @@ export default class VersionVector {
    * Converts a VersionVector to a plain object with sorted keys for
    * deterministic encoding. This is a codec-layer concern — the domain
    * type provides iteration, the codec decides the wire format.
-   */
+  */
   static serialize(vv: VersionVector): Record<string, number> {
-    const obj: Record<string, number> = {};
+    const entries: [string, number][] = [];
     const sortedKeys = [...vv.keys()].sort();
 
     for (const key of sortedKeys) {
@@ -149,10 +149,10 @@ export default class VersionVector {
           context: { writerId: key },
         });
       }
-      obj[key] = val;
+      entries.push([key, val]);
     }
 
-    return obj;
+    return Object.fromEntries(entries);
   }
 
   // ---------------------------------------------------------------------------
