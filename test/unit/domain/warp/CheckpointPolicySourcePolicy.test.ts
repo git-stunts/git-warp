@@ -12,4 +12,10 @@ describe('checkpoint policy test source', () => {
 
     expect(source.match(/\bany\b/u)).toBeNull();
   });
+
+  it('pins the public default cadence to exactly 64 patches', () => {
+    const source = readFileSync(CHECKPOINT_POLICY_TEST_PATH, 'utf8');
+
+    expect(source).toContain('expect(DEFAULT_CHECKPOINT_POLICY.every).toBe(64)');
+  });
 });

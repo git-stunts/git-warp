@@ -37,7 +37,7 @@ describe('WarpCore checkpointPolicy (AP/CKPT/1)', () => {
     // default: a caller that never supplied a policy accumulated every patch
     // since its last explicit checkpoint forever, with reads paying for it.
     expect((graph)._checkpointPolicy).toEqual(DEFAULT_CHECKPOINT_POLICY);
-    expect(DEFAULT_CHECKPOINT_POLICY.every).toBeGreaterThan(0);
+    expect(DEFAULT_CHECKPOINT_POLICY.every).toBe(64);
   });
 
   it('rejects every: 0', async () => {
