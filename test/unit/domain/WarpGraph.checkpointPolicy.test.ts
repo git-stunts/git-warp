@@ -68,7 +68,10 @@ describe('WarpCore checkpointPolicy (AP/CKPT/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        checkpointPolicy: { every: ('foo' as any) },
+        checkpointPolicy: {
+          // @ts-expect-error exercising runtime validation for JavaScript callers
+          every: 'foo',
+        },
       })
     ).rejects.toThrow('checkpointPolicy.every must be a positive integer');
   });
@@ -90,7 +93,8 @@ describe('WarpCore checkpointPolicy (AP/CKPT/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        checkpointPolicy: ('auto' as any),
+        // @ts-expect-error exercising runtime validation for JavaScript callers
+        checkpointPolicy: 'auto',
       })
     ).rejects.toThrow('checkpointPolicy must be an object with { every: number }');
   });
@@ -100,7 +104,7 @@ describe('WarpCore checkpointPolicy (AP/CKPT/1)', () => {
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
-      checkpointPolicy: (null as any),
+      checkpointPolicy: null,
     });
 
     expect((graph)._checkpointPolicy).toBeNull();
@@ -115,7 +119,7 @@ describe('WarpCore checkpointPolicy (AP/CKPT/1)', () => {
     const optedOut = await openRuntimeHostProduct({
       ...base,
       persistence: createMockPersistence(),
-      checkpointPolicy: (null as any),
+      checkpointPolicy: null,
     });
     const defaulted = await openRuntimeHostProduct({
       ...base,
