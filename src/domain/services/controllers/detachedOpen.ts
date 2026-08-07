@@ -62,7 +62,7 @@ function coreOptions(graph: DetachedOpenHost): DetachedOpenOptions {
 }
 
 function addReadPolicy(opts: DetachedOpenOptions, g: DetachedOpenHost): void {
-  if (g._checkpointPolicy) { opts.checkpointPolicy = g._checkpointPolicy; }
+  opts.checkpointPolicy = g._checkpointPolicy;
   if (g._logger) { opts.logger = g._logger; }
 }
 

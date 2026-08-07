@@ -27,6 +27,7 @@ import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type GCPolicy from '../GCPolicy.ts';
 import type RuntimeStorageProviderPort from '../../../ports/RuntimeStorageProviderPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
+import type CheckpointPolicy from '../../warp/CheckpointPolicy.ts';
 
 const HEX_CHARS = '0123456789abcdef';
 type ForkRuntimeOpenOptions = RuntimeHostOpenOptions;
@@ -49,7 +50,7 @@ type ForkHost = {
   _runtimeStorage: RuntimeStorageProviderPort;
   _graphName: string;
   _gcPolicy: GCPolicy;
-  _checkpointPolicy: { every: number } | null;
+  _checkpointPolicy: CheckpointPolicy | null;
   _autoMaterialize: boolean;
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
   _logger: LoggerPort | null;
@@ -161,7 +162,7 @@ export default class ForkController {
         graphName: resolvedForkName,
         writerId: resolvedForkWriterId,
         gcPolicy: host._gcPolicy,
-        ...(host._checkpointPolicy ? { checkpointPolicy: host._checkpointPolicy } : {}),
+        checkpointPolicy: host._checkpointPolicy,
         autoMaterialize: host._autoMaterialize,
         onDeleteWithData: host._onDeleteWithData,
         ...(host._logger ? { logger: host._logger } : {}),
