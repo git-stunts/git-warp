@@ -124,10 +124,13 @@ export default class ForkController {
       forkName ?? `${host._graphName}-fork-${randomSuffix()}`;
     try {
       validateGraphName(resolvedForkName);
-    } catch {
-      throw new ForkError(`Invalid fork name: ${resolvedForkName}`, {
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+      throw new ForkError(`Invalid fork name: ${error.message}`, {
         code: 'E_FORK_NAME_INVALID',
-        context: { forkName: resolvedForkName },
+        context: { forkName: resolvedForkName, originalError: error.message },
       });
     }
 
@@ -143,10 +146,13 @@ export default class ForkController {
     const resolvedForkWriterId = (forkWriterId !== undefined && forkWriterId !== null && forkWriterId !== '') ? forkWriterId : generateWriterId();
     try {
       validateWriterId(resolvedForkWriterId);
-    } catch {
-      throw new ForkError(`Invalid fork writer ID: ${resolvedForkWriterId}`, {
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+      throw new ForkError(`Invalid fork writer ID: ${error.message}`, {
         code: 'E_FORK_WRITER_ID_INVALID',
-        context: { forkWriterId: resolvedForkWriterId },
+        context: { forkWriterId: resolvedForkWriterId, originalError: error.message },
       });
     }
 
