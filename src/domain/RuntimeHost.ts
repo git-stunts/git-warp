@@ -94,6 +94,7 @@ import {
   type RuntimeHostOpenInput,
   type RuntimeHostConstructionOptions,
 } from './warp/RuntimeHostBoot.ts';
+import type CheckpointPolicy from './warp/CheckpointPolicy.ts';
 
 import type { NeighborEdge } from '../ports/NeighborProviderPort.ts';
 
@@ -210,7 +211,7 @@ export default class RuntimeHost {
   _patchesSinceGC: number;
   _patchesSinceCheckpoint: number;
   _maxObservedLamport: number;
-  _checkpointPolicy: { every: number } | null;
+  _checkpointPolicy: CheckpointPolicy | null;
   _checkpointing: boolean;
   _autoMaterialize: boolean;
   traverse: LogicalTraversal;
@@ -321,7 +322,7 @@ export default class RuntimeHost {
     this._patchesSinceGC = 0;
     this._patchesSinceCheckpoint = 0;
     this._maxObservedLamport = 0;
-    this._checkpointPolicy = checkpointPolicy || null;
+    this._checkpointPolicy = checkpointPolicy;
     this._checkpointing = false;
     this._autoMaterialize = autoMaterialize;
     this._materializedGraph = null;

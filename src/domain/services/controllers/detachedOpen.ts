@@ -12,6 +12,7 @@ import type { NormalizedTrustConfig } from '../../runtimeHelpers.ts';
 import type GCPolicy from '../GCPolicy.ts';
 import type { DetachedGraphInternalReadSurface } from '../../capabilities/DetachedGraphFactory.ts';
 import type RuntimeStorageProviderPort from '../../../ports/RuntimeStorageProviderPort.ts';
+import type CheckpointPolicy from '../../warp/CheckpointPolicy.ts';
 
 export type DetachedOpenOptions = {
   persistence: CorePersistence;
@@ -24,7 +25,7 @@ export type DetachedOpenOptions = {
   crypto: CryptoPort;
   codec: CodecPort;
   audit: false;
-  checkpointPolicy?: { every: number };
+  checkpointPolicy?: CheckpointPolicy | null;
   logger?: LoggerPort;
   trust?: NormalizedTrustConfig;
 };
@@ -37,7 +38,7 @@ export type DetachedOpenHost = {
   _graphName: string;
   _writerId: string;
   _gcPolicy: GCPolicy;
-  _checkpointPolicy: { every: number } | null;
+  _checkpointPolicy: CheckpointPolicy | null;
   _logger: LoggerPort | null;
   _trustConfig: NormalizedTrustConfig;
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
@@ -61,7 +62,7 @@ function coreOptions(graph: DetachedOpenHost): DetachedOpenOptions {
 }
 
 function addReadPolicy(opts: DetachedOpenOptions, g: DetachedOpenHost): void {
-  if (g._checkpointPolicy) { opts.checkpointPolicy = g._checkpointPolicy; }
+  opts.checkpointPolicy = g._checkpointPolicy;
   if (g._logger) { opts.logger = g._logger; }
 }
 
