@@ -22,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compaction keep it by asking for it rather than by forgetting.
 
   This alters observable write behaviour for any consumer that never supplied a
-  policy: such graphs will begin writing checkpoint commits once their replay
-  depth crosses the threshold. State hashes are unaffected — a checkpoint is a
-  snapshot, not a semantic change.
+  policy: such graphs will begin writing checkpoint commits
+  once their replay depth reaches or exceeds 64 patches. State hashes are
+  unaffected — a checkpoint is a snapshot, not a semantic change.
 
 ## [19.0.2] - 2026-07-29
 
