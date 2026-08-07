@@ -44,6 +44,7 @@ import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
 import GCPolicy, { type GCPolicyConfig } from '../services/GCPolicy.ts';
 import type { MaterializeSessionOpener } from '../services/controllers/MaterializeSessionBridge.ts';
+import CheckpointPolicy, { type CheckpointPolicyConfig } from './CheckpointPolicy.ts';
 
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
 const VALID_DELETE_POLICIES: ReadonlyArray<DeletePolicy> = ['reject', 'cascade', 'warn'];
@@ -54,7 +55,7 @@ export type RuntimeHostConstructionOptions = {
   graphName: string;
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
-  checkpointPolicy?: { every: number } | null;
+  checkpointPolicy: CheckpointPolicy | null;
   autoMaterialize?: boolean;
   onDeleteWithData?: DeletePolicy;
   logger?: LoggerPort;
@@ -89,7 +90,7 @@ export type RuntimeHostOpenOptions = {
   graphName: string;
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
-  checkpointPolicy?: { every: number } | null;
+  checkpointPolicy?: CheckpointPolicyConfig | CheckpointPolicy | null;
   autoMaterialize?: boolean;
   onDeleteWithData?: DeletePolicy;
   logger?: LoggerPort;
@@ -113,7 +114,7 @@ export class WarpOpenOptions {
   readonly graphName: string;
   readonly writerId: string;
   readonly gcPolicy: GCPolicyConfig | GCPolicy;
-  readonly checkpointPolicy?: { every: number } | null;
+  readonly checkpointPolicy: CheckpointPolicy | null;
   readonly autoMaterialize?: boolean;
   readonly onDeleteWithData?: DeletePolicy;
   readonly logger?: LoggerPort;
@@ -148,10 +149,7 @@ export class WarpOpenOptions {
     if (options.codec !== undefined) { this.codec = options.codec; }
     if (options.trustCrypto !== undefined) { this.trustCrypto = options.trustCrypto; }
 
-    const checkpointPolicy = normalizeCheckpointPolicy(options.checkpointPolicy);
-    if (checkpointPolicy !== undefined) {
-      this.checkpointPolicy = checkpointPolicy;
-    }
+    this.checkpointPolicy = normalizeCheckpointPolicy(options.checkpointPolicy);
     if (options.autoMaterialize !== undefined) {
       this.autoMaterialize = normalizeBooleanOption(
         options.autoMaterialize,
@@ -212,9 +210,7 @@ export type RuntimeHostOpenInput = RuntimeHostOpenOptions | WarpOpenOptions;
  *
  * Pass `checkpointPolicy: null` to disable auto-checkpointing entirely.
  */
-export const DEFAULT_CHECKPOINT_POLICY: { every: number } = Object.freeze({
-  every: 64,
-});
+export const DEFAULT_CHECKPOINT_POLICY: CheckpointPolicy = CheckpointPolicy.DEFAULT;
 
 function normalizeBooleanOption(value: boolean, label: string, code: string): boolean {
   if (typeof value !== 'boolean') {
@@ -224,8 +220,8 @@ function normalizeBooleanOption(value: boolean, label: string, code: string): bo
 }
 
 function normalizeCheckpointPolicy(
-  checkpointPolicy: { every: number } | null | undefined,
-): { every: number } | null {
+  checkpointPolicy: CheckpointPolicyConfig | CheckpointPolicy | null | undefined,
+): CheckpointPolicy | null {
   // An omitted policy takes the default. Auto-checkpointing is what bounds
   // replay depth, so leaving it off by default made every caller that never
   // supplied a policy replay its entire patch history on each materialize,
@@ -237,13 +233,7 @@ function normalizeCheckpointPolicy(
   if (checkpointPolicy === null) {
     return null;
   }
-  if (typeof checkpointPolicy !== 'object') {
-    throw new WarpError('checkpointPolicy must be an object with { every: number }', 'E_CHECKPOINT_POLICY_TYPE');
-  }
-  if (!Number.isInteger(checkpointPolicy.every) || checkpointPolicy.every <= 0) {
-    throw new WarpError('checkpointPolicy.every must be a positive integer', 'E_CHECKPOINT_POLICY_EVERY');
-  }
-  return Object.freeze({ every: checkpointPolicy.every });
+  return CheckpointPolicy.from(checkpointPolicy);
 }
 
 function snapshotGCPolicy(value: GCPolicyConfig | GCPolicy | undefined): GCPolicyConfig | GCPolicy {
@@ -393,7 +383,7 @@ export async function resolveRuntimeHostConstructionOptions(
       graphName,
       writerId,
       gcPolicy,
-      ...(checkpointPolicy !== undefined ? { checkpointPolicy } : {}),
+      checkpointPolicy,
       ...(autoMaterialize !== undefined ? { autoMaterialize } : {}),
       ...(onDeleteWithData !== undefined ? { onDeleteWithData } : {}),
       ...(logger !== undefined ? { logger } : {}),

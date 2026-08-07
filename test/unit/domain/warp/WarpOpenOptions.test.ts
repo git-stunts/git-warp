@@ -5,6 +5,7 @@ import {
   resolveRuntimeHostConstructionOptions,
   WarpOpenOptions,
 } from '../../../../src/domain/warp/RuntimeHostBoot.ts';
+import CheckpointPolicy from '../../../../src/domain/warp/CheckpointPolicy.ts';
 import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -42,6 +43,7 @@ describe('WarpOpenOptions', () => {
     });
 
     expect(options.checkpointPolicy).toEqual({ every: 5 });
+    expect(options.checkpointPolicy).toBeInstanceOf(CheckpointPolicy);
     expect(options.checkpointPolicy).not.toBe(checkpointPolicy);
     expect(Object.isFrozen(options.checkpointPolicy)).toBe(true);
   });

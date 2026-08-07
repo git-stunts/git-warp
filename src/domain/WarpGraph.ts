@@ -38,6 +38,8 @@ import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type { GCPolicyConfig } from './services/GCPolicy.ts';
 import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
 import type TrustCryptoPort from '../ports/TrustCryptoPort.ts';
+import type CheckpointPolicy from './warp/CheckpointPolicy.ts';
+import type { CheckpointPolicyConfig } from './warp/CheckpointPolicy.ts';
 
 // ---------------------------------------------------------------------------
 // WarpGraph — frozen capability bag, organized by architectural moment
@@ -143,7 +145,7 @@ export interface WarpGraphDeps {
   // Governing policy
   readonly trust?: { mode?: TrustMode; pin?: string | null };
   readonly gcPolicy?: GCPolicyConfig;
-  readonly checkpointPolicy?: { every: number };
+  readonly checkpointPolicy?: CheckpointPolicyConfig | CheckpointPolicy | null;
   readonly onDeleteWithData?: 'reject' | 'cascade' | 'warn';
   readonly autoMaterialize?: boolean;
 
