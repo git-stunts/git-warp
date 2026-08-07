@@ -146,7 +146,6 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   _maxObservedLamport: number;
   _checkpointPolicy: CheckpointPolicy | null;
   _autoMaterialize: boolean;
-  _tryAutoCheckpoint(patchCount: number): Promise<void>;
   _assetStorage: AssetStoragePort;
   _checkpointStore: CheckpointStorePort;
   _indexStore: IndexStorePort;

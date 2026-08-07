@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import CheckpointPolicy from '../../../../src/domain/warp/CheckpointPolicy.ts';
 import { openMemoryRuntimeHostProduct } from '../../../helpers/MemoryRuntimeHost.ts';
-import { createMockPersistence } from '../../../helpers/warpGraphTestUtils.ts';
+import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 describe('CheckpointPolicy', () => {
   it('provides an immutable default cadence of exactly 64 patches', () => {
@@ -32,17 +32,27 @@ describe('CheckpointPolicy', () => {
   });
 
   it('checkpoints at exactly the default threshold, but not before it', async () => {
+    const persistence = new InMemoryGraphAdapter();
     const graph = await openMemoryRuntimeHostProduct({
-      persistence: createMockPersistence(),
+      persistence,
       graphName: 'test',
       writerId: 'writer-1',
+      autoMaterialize: false,
     });
+    for (let patchNumber = 1; patchNumber < 64; patchNumber += 1) {
+      await graph.patch((patch) => {
+        patch.addNode(`node:${patchNumber}`);
+      });
+    }
     const createCheckpoint = vi.spyOn(graph, 'createCheckpoint').mockResolvedValue('checkpoint-sha');
 
-    await graph._tryAutoCheckpoint(63);
+    await graph.materialize();
     expect(createCheckpoint).not.toHaveBeenCalled();
 
-    await graph._tryAutoCheckpoint(64);
+    await graph.patch((patch) => {
+      patch.addNode('node:64');
+    });
+    await graph.materialize();
     expect(createCheckpoint).toHaveBeenCalledOnce();
   });
 });
