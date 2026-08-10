@@ -49,7 +49,15 @@ describe('entity capture type-assertion ratchet', () => {
     expect(runtime).not.toMatch(/\bWeakMap\b/);
     expect(occurrence).not.toContain('readonly #compare');
     expect(occurrence).not.toContain('readonly #relationTo');
-    expect(occurrence).not.toContain('issued.subject === occurrence.subject');
+    expect(hasOccurrenceAuthorityEquality(occurrence)).toBe(false);
+  });
+
+  it.each([
+    'issued.subject === occurrence.subject',
+    'occurrence.subject===issued.subject',
+    '(issued.subject) === ((occurrence.subject))',
+  ])('detects syntax-independent occurrence authority: %s', (expression) => {
+    expect(hasOccurrenceAuthorityEquality(`const forbidden = ${expression};`)).toBe(true);
   });
 
   it('keeps the opaque occurrence declaration detached from internal coordinates', () => {
@@ -127,4 +135,56 @@ function isTypeSludge(node: ts.Node): boolean {
     node.kind === ts.SyntaxKind.AnyKeyword ||
     node.kind === ts.SyntaxKind.UnknownKeyword
   );
+}
+
+function hasOccurrenceAuthorityEquality(source: string): boolean {
+  const sourceFile = ts.createSourceFile(
+    'EntityOccurrence.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+  let found = false;
+  visit(sourceFile);
+  return found;
+
+  function visit(node: ts.Node): void {
+    if (isOccurrenceAuthorityEquality(node)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+}
+
+function isOccurrenceAuthorityEquality(node: ts.Node): boolean {
+  if (!ts.isBinaryExpression(node) || !isEqualityOperator(node.operatorToken.kind)) {
+    return false;
+  }
+  return (
+    (isSubjectAccess(node.left, 'issued') && isSubjectAccess(node.right, 'occurrence')) ||
+    (isSubjectAccess(node.left, 'occurrence') && isSubjectAccess(node.right, 'issued'))
+  );
+}
+
+function isEqualityOperator(kind: ts.SyntaxKind): boolean {
+  return kind === ts.SyntaxKind.EqualsEqualsEqualsToken || kind === ts.SyntaxKind.EqualsEqualsToken;
+}
+
+function isSubjectAccess(node: ts.Expression, owner: string): boolean {
+  const expression = unwrapParentheses(node);
+  if (!ts.isPropertyAccessExpression(expression) || expression.name.text !== 'subject') {
+    return false;
+  }
+  const receiver = unwrapParentheses(expression.expression);
+  return ts.isIdentifier(receiver) && receiver.text === owner;
+}
+
+function unwrapParentheses(node: ts.Expression): ts.Expression {
+  let expression = node;
+  while (ts.isParenthesizedExpression(expression)) {
+    expression = expression.expression;
+  }
+  return expression;
 }
