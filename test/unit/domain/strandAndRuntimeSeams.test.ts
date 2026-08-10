@@ -125,6 +125,7 @@ describe('strand and runtime host seams', () => {
       audit: false,
     });
     expect(options.trust).toEqual({ mode: 'off', pin: null });
+    expect(options.checkpointPolicy).toBeNull();
   });
 
   it('delegates patch collection through a strict runtime host wrapper', async () => {
