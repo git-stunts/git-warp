@@ -38,6 +38,7 @@ import type {
   RuntimeHostOpenInput as RuntimeHostBootOpenInput,
   RuntimeHostOpenOptions as RuntimeHostBootOpenOptions,
 } from './RuntimeHostBoot.ts';
+import type CheckpointPolicy from './CheckpointPolicy.ts';
 import { openRuntimeHost } from '../RuntimeHost.ts';
 
 export type RuntimeCapabilitySurface =
@@ -143,7 +144,7 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   _patchesSinceGC: number;
   _patchesSinceCheckpoint: number;
   _maxObservedLamport: number;
-  _checkpointPolicy: { every: number } | null;
+  _checkpointPolicy: CheckpointPolicy | null;
   _autoMaterialize: boolean;
   _assetStorage: AssetStoragePort;
   _checkpointStore: CheckpointStorePort;

@@ -65,6 +65,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `checkpointPolicy` now defaults to `{ every: 64 }` instead of
+  being disabled. Auto-checkpointing is what bounds replay depth, so leaving it
+  off unless a caller opted in made unbounded growth the default: a graph opened
+  without a policy replayed every patch since its last explicit checkpoint on
+  each materialize, forever, and reads paid for it. Observed in practice at 262
+  unreplayed patches, where a single read spawned 5,267 Git subprocesses and the
+  backlog grew by two commits per write with no upper bound.
+
+  An omitted policy now takes the default. `checkpointPolicy: null` remains the
+  explicit opt-out and is unchanged, so callers that genuinely want no
+  compaction keep it by asking for it rather than by forgetting.
+
+  This alters observable write behaviour for any consumer that never supplied a
+  policy: such graphs will begin writing checkpoint commits
+  once their replay depth reaches or exceeds 64 patches. State hashes are
+  unaffected — a checkpoint is a snapshot, not a semantic change.
 - Repository lint now rejects personal-home and Darwin temporary absolute
   paths in tracked or unignored text and binary files, and the pre-commit hook
   inspects exact staged additions and modifications rather than mutable
