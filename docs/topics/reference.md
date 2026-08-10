@@ -36,11 +36,13 @@ Runtime @ index.ts#L13
 
 ### Type exports
 
-Source: `index.ts`. Count: 30.
+Source: `index.ts`. Count: 32.
 
 ```text
-AdmissionOutcome @ index.ts#L46
+AdmissionOutcome @ index.ts#L50
 CoordinateReference @ index.ts#L24
+EntityCausalRelation @ index.ts#L48
+EntityOccurrence @ index.ts#L47
 Evidence @ index.ts#L20
 EvidenceHandle @ index.ts#L20
 Intent @ index.ts#L21
@@ -56,8 +58,8 @@ ObserverCardinality @ index.ts#L33
 Reading @ index.ts#L34
 ReadingCoordinate @ index.ts#L36
 ReadingValue @ index.ts#L37
-Receipt @ index.ts#L47
-RepairHint @ index.ts#L48
+Receipt @ index.ts#L51
+RepairHint @ index.ts#L52
 RuntimeForkOptions @ index.ts#L15
 RuntimeOpenOptions @ index.ts#L16
 RuntimeSettlementOptions @ index.ts#L17

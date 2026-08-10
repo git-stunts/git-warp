@@ -106,6 +106,10 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - NEVER force any git operation.
 - NEVER use destructive cleanup or history rewrite commands like `git reset --hard`, `git clean -f`, `git checkout .`, or `git restore .`.
 - This repo stores graph data as Git commits; rewriting history can destroy user data.
+- NEVER publish machine-local absolute paths. This applies to tracked files,
+  generated evidence, PR and issue bodies, comments, and reviews. Use
+  repository-relative paths, `~`, `$HOME`, or an explicit placeholder such as
+  `<HOME>`.
 - At the end of each turn, stage only the specific files written in that turn. Do not use `git add -A` by default.
 - If you wrote files in the turn, commit them in that turn. Do not leave your own edits staged but uncommitted.
 - Cycle-start draft pull requests are allowed and expected. After the design

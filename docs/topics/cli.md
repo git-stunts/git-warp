@@ -39,7 +39,55 @@ git warp write \
 ```
 
 `write` returns a canonical Receipt. Supported public Intent kinds are
-`node.add`, `node.remove`, `edge.add`, `edge.remove`, and `property.set`.
+`node.add`, `node.remove`, `edge.add`, `edge.remove`, `property.set`, and
+`entity.add`.
+
+`entity.add` creates one entity and its initial payload in a single patch:
+
+```bash
+git warp write \
+  --lane users \
+  --writer local \
+  --json \
+  --intent '{"kind":"entity.add","subject":"user:alice","properties":{"role":"admin"}}'
+```
+
+That patch declares an empty read set and exactly one subject write. This
+describes the operands encoded by the patch, not every dependency in the
+calling application. If the caller read graph state before constructing the
+JSON payload, that dependency remains undeclared. The intent requires at least
+one property.
+
+It does **not** check that the subject is new. `git warp write` goes through a
+lane, and a lane writer never materializes, so the uniqueness guard has no basis
+in which to observe an existing id and never fires. Writing the same subject
+twice is admitted both times, whether from one lane or from two writers, and the
+join merges the results into one entity with a two-patch cone. The guard exists
+for a directly constructed `PatchBuilder` opened against a materialized state.
+
+Use the supplied-subject form only when the application already owns a semantic
+identity. Repeated admissions of that subject remain distinct occurrences even
+though their provenance cones share one address.
+
+When the fact has no independent semantic key, ask git-warp to allocate the
+subject from the same writer-local dot that creates it:
+
+```bash
+git warp write \
+  --lane users \
+  --writer local \
+  --json \
+  --intent '{"kind":"entity.add","namespace":"entry","properties":{"role":"admin"}}'
+```
+
+The CLI JSON envelope exposes only `occurrence.subject` and the opaque
+`occurrence.id`; JSON has no comparison methods.
+The in-process TypeScript `EntityOccurrence` additionally provides `relationTo`
+for causal partial-order questions within a worldline; occurrences from
+independent worldlines are concurrent. Its `compare` method orders the worldline
+first, then uses git-warp's canonical `EventId` linearization for a deterministic
+list. Do not parse the allocated subject or occurrence id. Do not use a payload
+timestamp for uniqueness or causal order.
 
 ## Prepare and observe a Lane
 

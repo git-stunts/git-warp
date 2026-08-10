@@ -1,13 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import type { StagedAsset } from '../../../../src/ports/AssetStoragePort.ts';
 import { createGitCasPatchStorage } from '../../../../src/ports/CommitMessageCodecPort.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import {
   createPatchBuilder,
   createPatchBuilderMockPersistence as createMockPersistence,
   createPatchJournal,
+  RecordingAssetStorage,
 } from './PatchBuilderTestHarness.ts';
 
 describe('PatchBuilder semantic commit', () => {
@@ -82,7 +84,7 @@ describe('PatchBuilder semantic commit', () => {
           schema: 2,
           patchHandle: new AssetHandle('asset:parent'),
           storage: createGitCasPatchStorage({ encrypted: false }),
-        }),
+        })
       ),
     });
     const patchJournal = createPatchJournal(persistence);
@@ -108,11 +110,13 @@ describe('PatchBuilder semantic commit', () => {
   it('preserves attachment handles in the publication request', async () => {
     const persistence = createMockPersistence();
     const patchJournal = createPatchJournal(persistence);
-    const builder = createPatchBuilder({ persistence, patchJournal });
+    const builder = createPatchBuilder({
+      persistence,
+      patchJournal,
+      assetStorage: new RecordingAssetStorage(['asset:attachment']),
+    });
     builder.addNode('node:a');
-    (builder as unknown as { _contentAssets: AssetHandle[] })._contentAssets.push(
-      new AssetHandle('asset:attachment'),
-    );
+    await builder.attachContent('node:a', 'content');
 
     await builder.commit();
 
@@ -150,6 +154,37 @@ describe('PatchBuilder semantic commit', () => {
     await expect(pending).resolves.toBe('c'.repeat(40));
   });
 
+  it('blocks attachment lowering when publication overtakes asset staging', async () => {
+    const staged = Promise.withResolvers<StagedAsset>();
+    const assets = new RecordingAssetStorage();
+    const stage = vi.spyOn(assets, 'stage').mockImplementation(async () => await staged.promise);
+    const persistence = createMockPersistence();
+    const builder = createPatchBuilder({
+      persistence,
+      patchJournal: createPatchJournal(persistence),
+      assetStorage: assets,
+    });
+    builder.addNode('node:a');
+
+    const attachment = builder.attachContent('node:a', 'content');
+    await vi.waitFor(() => expect(stage).toHaveBeenCalledOnce());
+    await builder.commit();
+    staged.resolve(
+      Object.freeze({
+        handle: new AssetHandle('asset:late'),
+        size: 7,
+        observedAt: '1970-01-01T00:00:00.000Z',
+        retention: Object.freeze({
+          reachability: 'unanchored',
+          protection: 'not-established',
+        }),
+      })
+    );
+
+    await expect(attachment).rejects.toMatchObject({ code: 'E_PATCH_ALREADY_COMMITTED' });
+    expect(builder.ops).toHaveLength(1);
+  });
+
   it('allows retry after a storage failure', async () => {
     const persistence = createMockPersistence();
     const patchJournal = createPatchJournal(persistence);
@@ -173,8 +208,6 @@ describe('PatchBuilder semantic commit', () => {
     await builder.commit();
 
     expect(builder.reads).toEqual(new Set(['user:alice', 'user:bob']));
-    expect(builder.writes).toEqual(new Set([
-      encodeEdgeKey('user:alice', 'user:bob', 'follows'),
-    ]));
+    expect(builder.writes).toEqual(new Set([encodeEdgeKey('user:alice', 'user:bob', 'follows')]));
   });
 });

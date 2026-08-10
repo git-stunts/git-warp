@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 
-
 describe('VersionVector', () => {
   describe('empty', () => {
     it('creates an empty version vector', () => {
@@ -60,6 +59,17 @@ describe('VersionVector', () => {
 
       expect(dot.writerId).toBe('alice');
       expect(dot.counter).toBe(1);
+    });
+
+    it('refuses exhaustion without reissuing the terminal writer Dot', () => {
+      const vv = VersionVector.from({ alice: Number.MAX_SAFE_INTEGER });
+
+      expect(() => vv.increment('alice')).toThrowError(
+        expect.objectContaining({
+          code: 'E_CRDT_INVALID_COUNTER',
+        })
+      );
+      expect(vv.get('alice')).toBe(Number.MAX_SAFE_INTEGER);
     });
   });
 
@@ -311,10 +321,28 @@ describe('VersionVector', () => {
       expect(keys).toEqual(['alice', 'bob', 'charlie']);
     });
 
+    it('preserves prototype-named writers as own data properties', () => {
+      const vv = VersionVector.empty();
+      vv.set('__proto__', 1);
+      vv.set('constructor', 2);
+      vv.set('prototype', 3);
+
+      const serialized = VersionVector.serialize(vv);
+
+      expect(Object.keys(serialized)).toEqual(['__proto__', 'constructor', 'prototype']);
+      expect(Object.hasOwn(serialized, '__proto__')).toBe(true);
+      expect(serialized['__proto__']).toBe(1);
+      expect(Object.hasOwn(serialized, 'constructor')).toBe(true);
+      expect(serialized.constructor).toBe(2);
+      expect(Object.hasOwn(serialized, 'prototype')).toBe(true);
+      expect(serialized['prototype']).toBe(3);
+      expect(VersionVector.from(serialized).equals(vv)).toBe(true);
+    });
+
     it('deserializes empty object', () => {
       const obj = {};
 
-      const vv = VersionVector.from((obj));
+      const vv = VersionVector.from(obj);
 
       expect(vv.size).toBe(0);
     });
@@ -344,9 +372,13 @@ describe('VersionVector', () => {
     });
 
     it('throws on invalid counter', () => {
-      expect(() => VersionVector.from(({ alice: 'not a number' } as any))).toThrow('Invalid counter');
+      // @ts-expect-error Exercise the JavaScript boundary with a string counter.
+      expect(() => VersionVector.from({ alice: 'not a number' })).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: 1.5 })).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: -1 })).toThrow('Invalid counter');
+      expect(() => VersionVector.from({ alice: Number.MAX_SAFE_INTEGER + 1 })).toThrow(
+        'Invalid counter'
+      );
     });
 
     it('roundtrips', () => {

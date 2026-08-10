@@ -13,9 +13,19 @@ const codec = new WesleyDotCodecAdapter();
  */
 function aliceDotBytes(counter: number): Uint8Array {
   return new Uint8Array([
-    0x05, 0x00, 0x00, 0x00,
-    0x61, 0x6c, 0x69, 0x63, 0x65,
-    counter, 0x00, 0x00, 0x00,
+    0x05,
+    0x00,
+    0x00,
+    0x00,
+    0x61,
+    0x6c,
+    0x69,
+    0x63,
+    0x65,
+    counter,
+    0x00,
+    0x00,
+    0x00,
   ]);
 }
 
@@ -46,13 +56,15 @@ describe('WesleyDotCodecAdapter', () => {
   });
 
   it('rejects generated transport shapes that violate Dot invariants', () => {
-    expect(() => codec.decode(aliceDotBytes(0))).toThrow('counter must be a positive integer');
+    expect(() => codec.decode(aliceDotBytes(0))).toThrow('counter must be a positive safe integer');
   });
 
   it('fails closed when a valid Dot exceeds Wesley GraphQL Int range', () => {
     const tooLargeForCurrentWesleyInt = new Dot('alice', 0x8000_0000);
 
-    expect(() => codec.encode(tooLargeForCurrentWesleyInt)).toThrow('Wesley LE-binary i32 out of range');
+    expect(() => codec.encode(tooLargeForCurrentWesleyInt)).toThrow(
+      'Wesley LE-binary i32 out of range'
+    );
   });
 });
 
