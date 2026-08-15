@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { GitBatchReadWindow } from './GitBatchReadWindow.ts';
 import { MachineLocalPathPolicy } from './MachineLocalPathPolicy.ts';
 
 const MAX_INSPECTED_BLOB_BYTES = 512 * 1024 * 1024;
@@ -12,7 +13,11 @@ export class GitMachineLocalPathGuard {
   readonly #repository: string;
   readonly #policy: MachineLocalPathPolicy;
 
-  constructor(repository: string, policy: MachineLocalPathPolicy) {
+  constructor(
+    repository: string,
+    policy: MachineLocalPathPolicy,
+    _readWindow: GitBatchReadWindow = GitBatchReadWindow.standard()
+  ) {
     this.#repository = repository;
     this.#policy = policy;
   }
@@ -121,7 +126,7 @@ export class GitMachineLocalPathGuard {
     return offenders.sort();
   }
 
-  findTreePaths(revision: string): string[] {
+  async findTreePaths(revision: string): Promise<string[]> {
     if (!OBJECT_ID_PATTERN.test(revision)) {
       throw new Error('Committed-tree scan requires an exact object id');
     }
