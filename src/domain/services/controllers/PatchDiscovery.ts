@@ -10,11 +10,48 @@
 
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
 import PatchError from '../../errors/PatchError.ts';
+import GitLogParser from '../GitLogParser.ts';
 import type Patch from '../../types/Patch.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type { PatchCommitMessage } from '../../../ports/CommitMessageCodecPort.ts';
+
+/** Log format matching GitLogParser's record contract: sha, author, date, parents, message. */
+const CHAIN_LOG_FORMAT = '%H%n%an <%ae>%n%aI%n%P%n%B';
+
+/** Upper bound on concurrent patch payload reads during chain loading. */
+const PATCH_READ_CONCURRENCY = 8;
+
+/** The subset of commit metadata a chain walk consumes. */
+interface ChainNode {
+  sha: string;
+  message: string;
+  parents: readonly string[];
+}
+
+/**
+ * Maps items to results with bounded concurrency, preserving input order.
+ */
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await fn(items[index] as T);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
 // ── PatchDiscoveryHost ────────────────────────────────────────────────────────
 
@@ -120,6 +157,11 @@ export class PatchDiscovery {
   /**
    * Loads a patch chain walking backwards from a tip SHA.
    * Returns patches in chronological order (oldest first).
+   *
+   * Chain metadata is fetched with a single bulk history read
+   * (`logNodesStream`) instead of one `getNodeInfo` call per commit, so a
+   * Git-backed persistence spawns one subprocess for the whole chain rather
+   * than one per patch. Payload reads run with bounded concurrency.
    */
   async loadPatchChainFromSha(tipSha: string, stopAtSha: string | null = null): Promise<PatchEntry[]> {
     if (typeof tipSha !== 'string' || tipSha.length === 0) {
@@ -127,34 +169,98 @@ export class PatchDiscovery {
     }
 
     const h = this._host;
-    const patches: PatchEntry[] = [];
-    let currentSha: string = tipSha;
+    const pending: Array<{ sha: string; patchMeta: PatchCommitMessage }> = [];
 
-    while (currentSha && currentSha !== stopAtSha) {
-      const nodeInfo = await h._persistence.getNodeInfo(currentSha);
-      const { message } = nodeInfo;
-      const kind = h._commitMessageCodec.detectKind(message);
+    for await (const node of this._chainNodes(tipSha, stopAtSha)) {
+      const kind = h._commitMessageCodec.detectKind(node.message);
       if (kind !== 'patch') {
         break;
       }
+      const patchMeta = h._commitMessageCodec.decodePatch(node.message);
+      this._requireJournal();
+      pending.push({ sha: node.sha, patchMeta });
+    }
 
-      const patchMeta = h._commitMessageCodec.decodePatch(message);
-      const journal = h._patchJournal;
-      if (journal === null || journal === undefined) {
-        throw new PatchError('patchJournal is required for patch discovery', {
-          code: 'E_MISSING_JOURNAL',
-        });
-      }
-      patches.push({ patch: await journal.readPatch(patchMeta), sha: currentSha });
+    if (pending.length === 0) {
+      return [];
+    }
 
-      if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
-        currentSha = nodeInfo.parents[0] ?? '';
+    const journal = this._requireJournal();
+    const patches = await mapWithConcurrency(pending, PATCH_READ_CONCURRENCY, async ({ sha, patchMeta }) => ({
+      patch: await journal.readPatch(patchMeta),
+      sha,
+    }));
+
+    return patches.reverse();
+  }
+
+  /**
+   * Returns the patch journal or throws the discovery contract error.
+   */
+  private _requireJournal(): PatchJournalPort {
+    const journal = this._host._patchJournal;
+    if (journal === null || journal === undefined) {
+      throw new PatchError('patchJournal is required for patch discovery', {
+        code: 'E_MISSING_JOURNAL',
+      });
+    }
+    return journal;
+  }
+
+  /**
+   * Walks a commit chain from a tip SHA following first parents, yielding
+   * each node until `stopAtSha` or a root commit is reached.
+   *
+   * Prefers one bulk `logNodesStream` read for the whole chain; any commit
+   * missing from the bulk read (or a persistence without a usable bulk
+   * surface) is fetched via per-commit `getNodeInfo`, preserving the legacy
+   * error surface for missing objects.
+   */
+  private async *_chainNodes(tipSha: string, stopAtSha: string | null): AsyncGenerator<ChainNode> {
+    const persistence = this._host._persistence;
+    const chainIndex = await this._loadChainIndex(tipSha, persistence);
+    let currentSha: string = tipSha;
+
+    while (currentSha && currentSha !== stopAtSha) {
+      const node = chainIndex?.get(currentSha) ?? (await persistence.getNodeInfo(currentSha));
+      // Yield the sha we resolved, not node.sha: the legacy walk tracked the
+      // sha itself, and some persistence doubles omit sha from getNodeInfo.
+      yield { sha: currentSha, message: node.message, parents: node.parents };
+
+      const nextSha = node.parents[0];
+      if (typeof nextSha === 'string' && nextSha.length > 0) {
+        currentSha = nextSha;
       } else {
         break;
       }
     }
+  }
 
-    return patches.reverse();
+  /**
+   * Reads the full history reachable from `tipSha` in one bulk read and
+   * indexes it by SHA. Returns null when the persistence does not expose a
+   * bulk log surface (or the bulk read fails), signalling the caller to walk
+   * per-commit instead.
+   */
+  private async _loadChainIndex(
+    tipSha: string,
+    persistence: CorePersistence,
+  ): Promise<Map<string, ChainNode> | null> {
+    const bulk = persistence as Partial<CorePersistence>;
+    if (typeof bulk.logNodesStream !== 'function') {
+      return null;
+    }
+
+    try {
+      const stream = await bulk.logNodesStream({ ref: tipSha, format: CHAIN_LOG_FORMAT });
+      const index = new Map<string, ChainNode>();
+      for await (const node of new GitLogParser().parse(stream)) {
+        index.set(node.sha, { sha: node.sha, message: node.message, parents: node.parents });
+      }
+      return index;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -205,20 +311,18 @@ export class PatchDiscovery {
       const tickShas: Record<number, string> = {};
 
       if (typeof tipSha === 'string' && tipSha.length > 0) {
-        let currentSha: string = tipSha;
         let lastLamport = Infinity;
 
-        while (currentSha) {
-          const nodeInfo = await h._persistence.getNodeInfo(currentSha);
-          const kind = h._commitMessageCodec.detectKind(nodeInfo.message);
+        for await (const node of this._chainNodes(tipSha, null)) {
+          const kind = h._commitMessageCodec.detectKind(node.message);
           if (kind !== 'patch') {
             break;
           }
 
-          const patchMeta = h._commitMessageCodec.decodePatch(nodeInfo.message);
+          const patchMeta = h._commitMessageCodec.decodePatch(node.message);
           globalTickSet.add(patchMeta.lamport);
           writerTicks.push(patchMeta.lamport);
-          tickShas[patchMeta.lamport] = currentSha;
+          tickShas[patchMeta.lamport] = node.sha;
 
           if (patchMeta.lamport > lastLamport && h._logger) {
             h._logger.warn(
@@ -226,12 +330,6 @@ export class PatchDiscovery {
             );
           }
           lastLamport = patchMeta.lamport;
-
-          if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
-            currentSha = nodeInfo.parents[0] ?? '';
-          } else {
-            break;
-          }
         }
       }
 
