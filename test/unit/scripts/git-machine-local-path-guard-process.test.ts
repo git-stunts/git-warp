@@ -26,7 +26,14 @@ vi.mock('node:child_process', async (importOriginal) => {
             '  });',
             '});',
           ].join('\n')
-        : [
+        : spawnBehavior.current === 'silent-hanging'
+          ? [
+              "process.stdin.on('end', () => {",
+              '  setInterval(() => undefined, 1_000);',
+              '});',
+              'process.stdin.resume();',
+            ].join('\n')
+          : [
             "process.stdin.on('end', () => {",
             "  process.stdout.write('malformed\\n');",
             '  setInterval(() => undefined, 1_000);',
@@ -38,6 +45,8 @@ vi.mock('node:child_process', async (importOriginal) => {
   };
 });
 
+import { GitBatchReadWindow } from '../../../scripts/GitBatchReadWindow.ts';
+import { GitBatchScanDeadline } from '../../../scripts/GitBatchScanDeadline.ts';
 import { GitMachineLocalPathGuard } from '../../../scripts/GitMachineLocalPathGuard.ts';
 import { MachineLocalPathPolicy } from '../../../scripts/MachineLocalPathPolicy.ts';
 
@@ -98,5 +107,26 @@ describe('Git machine-local path guard batch process', () => {
     const guard = new GitMachineLocalPathGuard(repository, new MachineLocalPathPolicy());
 
     await expect(guard.findTreePaths(revision)).rejects.toThrow();
+  });
+
+  it('terminates a silent batch producer at the configured deadline', async () => {
+    spawnBehavior.current = 'silent-hanging';
+    const repository = createCommittedRepository();
+    const revision = gitText(repository, 'rev-parse', 'HEAD');
+    const guard = new GitMachineLocalPathGuard(
+      repository,
+      new MachineLocalPathPolicy(),
+      GitBatchReadWindow.standard(),
+      new GitBatchScanDeadline(100)
+    );
+
+    await expect(guard.findTreePaths(revision)).rejects.toThrow(
+      'git cat-file --batch scan exceeded 100 ms deadline'
+    );
+  });
+
+  it('rejects invalid batch scan deadlines', () => {
+    expect(() => new GitBatchScanDeadline(0)).toThrow('positive safe integer');
+    expect(() => new GitBatchScanDeadline(Number.NaN)).toThrow('positive safe integer');
   });
 });

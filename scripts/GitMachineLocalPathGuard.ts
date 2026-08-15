@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import { GitBatchBlobStreamScanner } from './GitBatchBlobStreamScanner.ts';
 import { GitBatchReadWindow } from './GitBatchReadWindow.ts';
+import { GitBatchScanDeadline } from './GitBatchScanDeadline.ts';
 import { MachineLocalPathPolicy } from './MachineLocalPathPolicy.ts';
 
 const MAX_INSPECTED_BLOB_BYTES = 512 * 1024 * 1024;
@@ -14,15 +15,18 @@ export class GitMachineLocalPathGuard {
   readonly #repository: string;
   readonly #policy: MachineLocalPathPolicy;
   readonly #readWindow: GitBatchReadWindow;
+  readonly #scanDeadline: GitBatchScanDeadline;
 
   constructor(
     repository: string,
     policy: MachineLocalPathPolicy,
-    readWindow: GitBatchReadWindow = GitBatchReadWindow.standard()
+    readWindow: GitBatchReadWindow = GitBatchReadWindow.standard(),
+    scanDeadline: GitBatchScanDeadline = GitBatchScanDeadline.standard()
   ) {
     this.#repository = repository;
     this.#policy = policy;
     this.#readWindow = readWindow;
+    this.#scanDeadline = scanDeadline;
   }
 
   findWorkingTreePaths(): string[] {
@@ -179,14 +183,32 @@ export class GitMachineLocalPathGuard {
     });
     child.stdin.end(objectIds.join('\n') + '\n');
     const scanner = new GitBatchBlobStreamScanner(child.stdout, this.#policy, this.#readWindow);
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      deadlineTimer = setTimeout(() => {
+        child.kill();
+        reject(
+          new Error(
+            `git cat-file --batch scan exceeded ${String(this.#scanDeadline.milliseconds)} ms deadline`
+          )
+        );
+      }, this.#scanDeadline.milliseconds);
+      deadlineTimer.unref();
+    });
     try {
-      const offenders = await scanner.findLeakingBlobIds(objectIds);
+      const offenders = await Promise.race([
+        scanner.findLeakingBlobIds(objectIds),
+        deadline,
+      ]);
       const exitCode = await exit;
       if (exitCode !== 0) {
         throw new Error(`git cat-file --batch failed with exit ${String(exitCode)}`);
       }
       return offenders;
     } finally {
+      if (deadlineTimer !== undefined) {
+        clearTimeout(deadlineTimer);
+      }
       if (child.exitCode === null) {
         child.kill();
         await exit;
