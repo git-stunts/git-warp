@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { GitBatchReadWindow } from '../../../scripts/GitBatchReadWindow.ts';
 import { GitMachineLocalPathGuard } from '../../../scripts/GitMachineLocalPathGuard.ts';
 import { MachineLocalPathPolicy } from '../../../scripts/MachineLocalPathPolicy.ts';
 
@@ -109,7 +110,7 @@ describe('Git machine-local path guard', () => {
     expect(hook).toContain('node scripts/check-machine-local-paths.ts --pre-push "$REMOTE_NAME"');
   });
 
-  it('scans an exact committed tree instead of mutable working-tree bytes', () => {
+  it('scans an exact committed tree instead of mutable working-tree bytes', async () => {
     const repository = createRepository();
     const fixturePath = join(repository, 'fixture.txt');
     writeFileSync(fixturePath, personalHome('git', 'project'), 'utf8');
@@ -120,8 +121,68 @@ describe('Git machine-local path guard', () => {
 
     const guard = new GitMachineLocalPathGuard(repository, new MachineLocalPathPolicy());
 
-    expect(guard.findTreePaths(committedObject)).toEqual(['fixture.txt']);
+    await expect(guard.findTreePaths(committedObject)).resolves.toEqual(['fixture.txt']);
     expect(guard.findWorkingTreePaths()).toEqual([]);
+  });
+
+  it('bounds exact-tree scan memory independently of aggregate blob bytes', async () => {
+    const repository = createRepository();
+    writeFileSync(join(repository, 'first.txt'), 'portable first payload', 'utf8');
+    writeFileSync(join(repository, 'second.txt'), 'portable second payload', 'utf8');
+    git(repository, 'add', 'first.txt', 'second.txt');
+    git(repository, 'commit', '--quiet', '-m', 'clean aggregate');
+    const committedObject = gitText(repository, 'rev-parse', 'HEAD');
+    const guard = new GitMachineLocalPathGuard(
+      repository,
+      new MachineLocalPathPolicy(),
+      new GitBatchReadWindow(5)
+    );
+
+    await expect(guard.findTreePaths(committedObject)).resolves.toEqual([]);
+  });
+
+  it('accepts an exact empty tree without spawning a blob batch', async () => {
+    const repository = createRepository();
+    git(repository, 'commit', '--allow-empty', '--quiet', '-m', 'empty tree');
+    const committedObject = gitText(repository, 'rev-parse', 'HEAD');
+    const guard = new GitMachineLocalPathGuard(repository, new MachineLocalPathPolicy());
+
+    await expect(guard.findTreePaths(committedObject)).resolves.toEqual([]);
+  });
+
+  it('detects a machine-local path split across exact-tree read windows', async () => {
+    const repository = createRepository();
+    writeFileSync(join(repository, 'fixture.txt'), personalHome('build', 'artifact'), 'utf8');
+    git(repository, 'add', 'fixture.txt');
+    git(repository, 'commit', '--quiet', '-m', 'split leak');
+    const committedObject = gitText(repository, 'rev-parse', 'HEAD');
+    const guard = new GitMachineLocalPathGuard(
+      repository,
+      new MachineLocalPathPolicy(),
+      new GitBatchReadWindow(3)
+    );
+
+    await expect(guard.findTreePaths(committedObject)).resolves.toEqual(['fixture.txt']);
+  });
+
+  it('preserves binary blob and symlink target inspection for exact trees', async () => {
+    const repository = createRepository();
+    const binary = Buffer.concat([
+      Buffer.from([0xff, 0]),
+      Buffer.from(personalHome('build', 'artifact'), 'utf8'),
+      Buffer.from([0]),
+    ]);
+    writeFileSync(join(repository, 'fixture.bin'), binary);
+    symlinkSync(personalHome('git', 'project'), join(repository, 'fixture.link'));
+    git(repository, 'add', 'fixture.bin', 'fixture.link');
+    git(repository, 'commit', '--quiet', '-m', 'binary and symlink leaks');
+    const committedObject = gitText(repository, 'rev-parse', 'HEAD');
+    const guard = new GitMachineLocalPathGuard(repository, new MachineLocalPathPolicy());
+
+    await expect(guard.findTreePaths(committedObject)).resolves.toEqual([
+      'fixture.bin',
+      'fixture.link',
+    ]);
   });
 
   it('makes exact-tree path hygiene a dedicated required CI lane', () => {

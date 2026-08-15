@@ -17,7 +17,7 @@ if (mode === '--working-tree') {
 } else if (mode === '--pre-push') {
   offenders = guard.findOutgoingObjects(readFileSync(0, 'utf8'), process.argv[3] ?? '');
 } else if (mode === '--tree') {
-  offenders = guard.findTreePaths(process.argv[3] ?? '');
+  offenders = await guard.findTreePaths(process.argv[3] ?? '');
 } else {
   process.stderr.write(`Unknown machine-local path scan mode: ${mode}\n`);
   process.exit(2);

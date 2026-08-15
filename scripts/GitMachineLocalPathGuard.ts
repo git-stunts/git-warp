@@ -1,7 +1,10 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { GitBatchBlobStreamScanner } from './GitBatchBlobStreamScanner.ts';
+import { GitBatchReadWindow } from './GitBatchReadWindow.ts';
+import { GitBatchScanDeadline } from './GitBatchScanDeadline.ts';
 import { MachineLocalPathPolicy } from './MachineLocalPathPolicy.ts';
 
 const MAX_INSPECTED_BLOB_BYTES = 512 * 1024 * 1024;
@@ -11,10 +14,19 @@ const ZERO_OBJECT_PATTERN = /^0+$/u;
 export class GitMachineLocalPathGuard {
   readonly #repository: string;
   readonly #policy: MachineLocalPathPolicy;
+  readonly #readWindow: GitBatchReadWindow;
+  readonly #scanDeadline: GitBatchScanDeadline;
 
-  constructor(repository: string, policy: MachineLocalPathPolicy) {
+  constructor(
+    repository: string,
+    policy: MachineLocalPathPolicy,
+    readWindow: GitBatchReadWindow = GitBatchReadWindow.standard(),
+    scanDeadline: GitBatchScanDeadline = GitBatchScanDeadline.standard()
+  ) {
     this.#repository = repository;
     this.#policy = policy;
+    this.#readWindow = readWindow;
+    this.#scanDeadline = scanDeadline;
   }
 
   findWorkingTreePaths(): string[] {
@@ -121,7 +133,7 @@ export class GitMachineLocalPathGuard {
     return offenders.sort();
   }
 
-  findTreePaths(revision: string): string[] {
+  async findTreePaths(revision: string): Promise<string[]> {
     if (!OBJECT_ID_PATTERN.test(revision)) {
       throw new Error('Committed-tree scan requires an exact object id');
     }
@@ -152,58 +164,56 @@ export class GitMachineLocalPathGuard {
       pathsByObjectId.set(objectId, paths);
     }
 
-    const leakingObjectIds = this.#findLeakingBlobIds([...pathsByObjectId.keys()]);
+    const leakingObjectIds = await this.#findLeakingBlobIds([...pathsByObjectId.keys()]);
     return [...leakingObjectIds]
       .flatMap((objectId) => pathsByObjectId.get(objectId) ?? [])
       .sort();
   }
 
-  #findLeakingBlobIds(objectIds: readonly string[]): Set<string> {
+  async #findLeakingBlobIds(objectIds: readonly string[]): Promise<Set<string>> {
     if (objectIds.length === 0) {
       return new Set();
     }
-    const batch = execFileSync('git', ['cat-file', '--batch'], {
-      cwd: this.#repository,
-      input: objectIds.join('\n') + '\n',
-      maxBuffer: MAX_INSPECTED_BLOB_BYTES,
+    const child = spawn('git', ['cat-file', '--batch'], { cwd: this.#repository });
+    child.stderr.resume();
+    child.stdin.on('error', child.kill.bind(child));
+    const exit = new Promise<number | null>((resolve) => {
+      child.once('error', () => resolve(null));
+      child.once('close', resolve);
     });
-    const offenders = new Set<string>();
-    let offset = 0;
-
-    for (const expectedObjectId of objectIds) {
-      const headerEnd = batch.indexOf(10, offset);
-      if (headerEnd < 0) {
-        throw new Error('Git returned a truncated batch header');
+    child.stdin.end(objectIds.join('\n') + '\n');
+    const scanner = new GitBatchBlobStreamScanner(child.stdout, this.#policy, this.#readWindow);
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      deadlineTimer = setTimeout(() => {
+        child.kill();
+        reject(
+          new Error(
+            `git cat-file --batch scan exceeded ${String(this.#scanDeadline.milliseconds)} ms deadline`
+          )
+        );
+      }, this.#scanDeadline.milliseconds);
+      deadlineTimer.unref();
+    });
+    try {
+      const offenders = await Promise.race([
+        scanner.findLeakingBlobIds(objectIds),
+        deadline,
+      ]);
+      const exitCode = await exit;
+      if (exitCode !== 0) {
+        throw new Error(`git cat-file --batch failed with exit ${String(exitCode)}`);
       }
-      const header = batch.subarray(offset, headerEnd).toString('utf8').split(' ');
-      const actualObjectId = header[0];
-      const objectType = header[1];
-      const sizeText = header[2];
-      const size = Number(sizeText);
-      if (
-        actualObjectId !== expectedObjectId ||
-        objectType !== 'blob' ||
-        sizeText === undefined ||
-        !Number.isSafeInteger(size) ||
-        size < 0
-      ) {
-        throw new Error('Git returned a malformed batch blob header');
+      return offenders;
+    } finally {
+      if (deadlineTimer !== undefined) {
+        clearTimeout(deadlineTimer);
       }
-      const contentStart = headerEnd + 1;
-      const contentEnd = contentStart + size;
-      if (contentEnd >= batch.length || batch[contentEnd] !== 10) {
-        throw new Error('Git returned a truncated batch blob');
+      if (child.exitCode === null) {
+        child.kill();
+        await exit;
       }
-      if (this.#containsMachineLocalPath(batch.subarray(contentStart, contentEnd))) {
-        offenders.add(expectedObjectId);
-      }
-      offset = contentEnd + 1;
     }
-
-    if (offset !== batch.length) {
-      throw new Error('Git returned trailing batch blob data');
-    }
-    return offenders;
   }
 
   #findRemoteTips(remoteName: string): string[] {
