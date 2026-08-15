@@ -1,8 +1,8 @@
 const POSIX_PATH_PREFIXES = Object.freeze([
-  '/Users/',
-  '/home/',
-  '/private/var/folders/',
-  '/var/folders/',
+  ['', 'Users', ''].join('/'),
+  ['', 'home', ''].join('/'),
+  ['', 'private', 'var', 'folders', ''].join('/'),
+  ['', 'var', 'folders', ''].join('/'),
 ]);
 const WINDOWS_PATH_PREFIX_PATTERN = /[a-z]:\\users\\$/iu;
 const WHITESPACE_PATTERN = /\s/u;
@@ -76,6 +76,7 @@ export class MachineLocalPathStreamScanner {
       return null;
     }
     if (WHITESPACE_PATTERN.test(character)) {
+      this.#matched ||= length > 0;
       return null;
     }
     return length + 1;

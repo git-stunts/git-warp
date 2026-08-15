@@ -60,7 +60,7 @@ describe('machine-local path policy', () => {
     expect(policy.containsMachineLocalPath(posixPath('Users', 'example'))).toBe(true);
     expect(policy.containsMachineLocalPath(windowsPath('Users', 'example'))).toBe(true);
     expect(policy.containsMachineLocalPath(`${posixPath('Users', 'example')} portable`)).toBe(
-      false
+      true
     );
     expect(policy.containsMachineLocalPath(posixPath('Users', ''))).toBe(false);
   });
