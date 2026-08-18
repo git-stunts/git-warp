@@ -278,10 +278,10 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return this._countReachable(tip);
   }
 
-  async logNodes({ ref, limit = 50, format: _format }: LogNodesOptions): Promise<string> {
+  async logNodes({ ref, limit = 50, format: _format, firstParent }: LogNodesOptions): Promise<string> {
     validateRef(ref);
     validateLimit(limit);
-    const records = this._walkLog(ref, limit);
+    const records = this._walkLog({ ref, limit, firstParent: firstParent === true });
     if (typeof _format !== 'string' || _format.length === 0) {
       return records.map(c =>
         `commit ${c.sha}\nAuthor: ${c.author}\nDate:   ${c.date}\n\n    ${c.message}\n`,
@@ -290,10 +290,10 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return records.map(c => this._formatCommitRecord(c)).join('\0') + (records.length > 0 ? '\0' : '');
   }
 
-  async logNodesStream({ ref, limit = 1000000, format: _format }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
+  async logNodesStream({ ref, limit = 1000000, format: _format, firstParent }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
     validateRef(ref);
     validateLimit(limit);
-    const records = this._walkLog(ref, limit);
+    const records = this._walkLog({ ref, limit, firstParent: firstParent === true });
     const formatted = records.map(c => this._formatCommitRecord(c)).join('\0') + (records.length > 0 ? '\0' : '');
     return WarpStream.of<CommitLogChunk>(formatted);
   }
@@ -414,12 +414,16 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return null;
   }
 
-  private _walkLog(ref: string, limit: number): (CommitRecord & { sha: string })[] {
+  private _walkLog({ ref, limit, firstParent }: {
+    ref: string;
+    limit: number;
+    firstParent: boolean;
+  }): (CommitRecord & { sha: string })[] {
     const tip = this._resolveRef(ref);
     if (tip === null) {
       return [];
     }
-    const all = this._collectCommits(tip);
+    const all = this._collectCommits({ startSha: tip, firstParent });
     all.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     return all.slice(0, limit);
   }
@@ -445,7 +449,17 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return count;
   }
 
-  private _collectCommits(startSha: string): (CommitRecord & { sha: string })[] {
+  /**
+   * Collects commits reachable from `startSha`.
+   *
+   * With `firstParent`, traversal follows only each commit's first parent, so
+   * a merge's side branch is never collected — matching `git log --first-parent`
+   * and the `LogNodesOptions.firstParent` contract.
+   */
+  private _collectCommits({ startSha, firstParent }: {
+    startSha: string;
+    firstParent: boolean;
+  }): (CommitRecord & { sha: string })[] {
     const all: (CommitRecord & { sha: string })[] = [];
     const visited = new Set<string>();
     const queue = [startSha];
@@ -459,7 +473,8 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
       const commit = this._commits.get(sha);
       if (commit !== undefined) {
         all.push({ sha, ...commit });
-        for (const p of commit.parents) {
+        const parents = firstParent ? commit.parents.slice(0, 1) : commit.parents;
+        for (const p of parents) {
           if (!visited.has(p)) {
             queue.push(p);
           }
