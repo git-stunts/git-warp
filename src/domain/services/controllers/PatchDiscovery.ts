@@ -270,8 +270,10 @@ export class PatchDiscovery {
   }
 
   /**
-   * Reads the full history reachable from `tipSha` in one bulk read and
-   * indexes it by SHA. Returns null when the persistence does not expose a
+   * Reads the first-parent history from `tipSha` in one bulk read and
+   * indexes it by SHA. The walk follows first parents, so the bulk read is
+   * constrained the same way: a merge's side branch is neither indexed nor
+   * paid for. Returns null when the persistence does not expose a
    * bulk log surface (or the bulk read fails), signalling the caller to walk
    * per-commit instead.
    */
@@ -280,7 +282,11 @@ export class PatchDiscovery {
     persistence: CorePersistence,
   ): Promise<Map<string, ChainNode> | null> {
     try {
-      const stream = await persistence.logNodesStream({ ref: tipSha, format: CHAIN_LOG_FORMAT });
+      const stream = await persistence.logNodesStream({
+        ref: tipSha,
+        format: CHAIN_LOG_FORMAT,
+        firstParent: true,
+      });
       const index = new Map<string, ChainNode>();
       for await (const node of new GitLogParser().parse(stream)) {
         index.set(node.sha, new ChainNode(node));

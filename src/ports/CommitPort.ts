@@ -30,6 +30,8 @@ export interface LogNodesOptions {
   ref: string;
   limit?: number;
   format?: string;
+  /** Follow only first parents, excluding side branches of any merge. */
+  firstParent?: boolean;
 }
 
 export interface NodeInfo {

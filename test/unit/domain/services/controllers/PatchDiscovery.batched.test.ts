@@ -306,6 +306,38 @@ describe('PatchDiscovery batched chain reads', () => {
     expect(persistence.lastLogOptions?.format).toBe(CHAIN_LOG_FORMAT);
   });
 
+  it('requests first-parent traversal so merge side branches are never read', async () => {
+    const persistence = new FakePersistence({ commits: linearChain(4) });
+    const discovery = new PatchDiscovery(hostWith(persistence));
+
+    await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(persistence.lastLogOptions?.firstParent).toBe(true);
+  });
+
+  it('excludes side-parent commits when a chain commit is a merge', async () => {
+    // shaFor(1) is a merge: first parent shaFor(2) continues the chain, and
+    // sideSha is a patch commit reachable only through the second parent.
+    const sideSha = 'f'.repeat(40);
+    const commits = linearChain(4);
+    const merge = commits[1];
+    if (merge === undefined) {
+      throw new Error('fixture chain too short');
+    }
+    merge.parents = [shaFor(2), sideSha];
+    // A real `git log --first-parent` would not emit the side branch at all;
+    // this double is deliberately laxer and emits it, proving the walk itself
+    // never follows a second parent even when the bulk read is over-broad.
+    commits.push({ sha: sideSha, parents: [], message: 'patch:99' });
+    const persistence = new FakePersistence({ commits });
+    const discovery = new PatchDiscovery(hostWith(persistence));
+
+    const entries = await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(entries.map((entry) => entry.sha)).not.toContain(sideSha);
+    expect(entries.map((entry) => entry.sha)).toEqual([shaFor(3), shaFor(2), shaFor(1), shaFor(0)]);
+  });
+
   it('returns patches in chronological order identical to the per-commit walk', async () => {
     const commits = linearChain(7);
     const batched = new FakePersistence({ commits });

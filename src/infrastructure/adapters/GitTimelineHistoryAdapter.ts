@@ -13,6 +13,7 @@ import type {
   NodeInfo,
   PingResult,
 } from '../../ports/CommitPort.ts';
+import { buildLogArgs } from './GitLogArgs.ts';
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
 import type TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
@@ -238,14 +239,16 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     }
   }
 
-  async logNodes({ ref, limit = 50, format }: LogNodesOptions): Promise<string> {
+  async logNodes({ ref, limit = 50, format, firstParent }: LogNodesOptions): Promise<string> {
     validateRef(ref);
     validateLimit(limit);
-    const args = ['log', `-${limit}`];
-    if (typeof format === 'string' && format.length > 0) {
-      args.push(`--format=${format}`);
-    }
-    args.push(ref);
+    const args = buildLogArgs({
+      base: ['log', `-${limit}`],
+      ref,
+      format,
+      firstParent: firstParent === true,
+      stripNulFormat: false,
+    });
     try {
       return await this._executeWithRetry({ args });
     } catch (raw) {
@@ -257,17 +260,17 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     ref,
     limit = 1000000,
     format,
+    firstParent,
   }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
     validateRef(ref);
     validateLimit(limit);
-    const args = ['log', '-z', `-${limit}`];
-    if (typeof format === 'string' && format.length > 0) {
-      // Strip NUL bytes — Git -z uses NUL as record terminator.
-      // eslint-disable-next-line no-control-regex
-      const cleanFormat = format.replace(/\x00/g, '');
-      args.push(`--format=${cleanFormat}`);
-    }
-    args.push(ref);
+    const args = buildLogArgs({
+      base: ['log', '-z', `-${limit}`],
+      ref,
+      format,
+      firstParent: firstParent === true,
+      stripNulFormat: true,
+    });
     const rawStream = await this._policy.stream(
       () => this.plumbing.executeStream({ args }),
       this._retryOptions
