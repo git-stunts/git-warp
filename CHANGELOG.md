@@ -21,10 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than whichever rejected first in wall-clock time, so the failure a
   caller observes is deterministic. Persistences without a usable bulk log
   surface (or commits missing from the bulk read) fall back to the legacy
-  per-commit walk and its error surface. Measured on a real 500-thought
-  graph with ~1,750 patch commits across 7 writer chains: a cold read went from
-  82.9 s (3,505 git subprocesses) to 8.9 s (1,792, now dominated by per-blob
-  payload reads).
+  per-commit walk and its error surface, and that fallback is now logged so a
+  silent return to per-commit cost is observable. Measured against a real graph
+  whose largest writer chain holds 705 patch commits: `--recent --count=5` went
+  from 96.0 s to 9.2-9.7 s, and a single capture from 55-69 s to 15.5-15.9 s.
+
+### Changed
+
+- `LogNodesOptions` gains `firstParent` and `stopAt`. Chain readers advance by
+  first parent and stop at a known boundary, so the history read is now
+  constrained the same way: a merge's side branch is never streamed, and the
+  read is bounded to `stopAt..ref` rather than running to the root of history.
+  Both options are opt-in and default to the previous behaviour.
 
 ### Added
 

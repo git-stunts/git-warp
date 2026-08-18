@@ -13,7 +13,6 @@ import type {
   NodeInfo,
   PingResult,
 } from '../../ports/CommitPort.ts';
-import { buildLogArgs } from './GitLogArgs.ts';
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import type TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
 import type TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
@@ -22,13 +21,14 @@ import type { TreeEntryProbeResult } from '../../domain/tree/TreeEntryProbeResul
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
+import { buildLogArgs } from './GitLogArgs.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
 import decodeGitCommitNodeInfo from './GitCommitNodeInfoDecoder.ts';
 import GitRecursiveTreeOidReaderAdapter from './GitRecursiveTreeOidReaderAdapter.ts';
 import AlfredOperationPolicyAdapter from './AlfredOperationPolicyAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
-import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
+import { validateOid, validateRef, validateLimit, validateConfigKey, validateLogRequest } from './adapterValidation.ts';
 import {
   type GitPlumbing,
   type GitError,
@@ -239,15 +239,15 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     }
   }
 
-  async logNodes({ ref, limit = 50, format, firstParent }: LogNodesOptions): Promise<string> {
-    validateRef(ref);
-    validateLimit(limit);
+  async logNodes({ ref, limit = 50, format, firstParent, stopAt }: LogNodesOptions): Promise<string> {
+    validateLogRequest({ ref, limit, stopAt });
     const args = buildLogArgs({
       base: ['log', `-${limit}`],
       ref,
       format,
-      firstParent: firstParent === true,
+      firstParent: firstParent ?? false,
       stripNulFormat: false,
+      stopAt,
     });
     try {
       return await this._executeWithRetry({ args });
@@ -261,15 +261,16 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     limit = 1000000,
     format,
     firstParent,
+    stopAt,
   }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
-    validateRef(ref);
-    validateLimit(limit);
+    validateLogRequest({ ref, limit, stopAt });
     const args = buildLogArgs({
       base: ['log', '-z', `-${limit}`],
       ref,
       format,
-      firstParent: firstParent === true,
+      firstParent: firstParent ?? false,
       stripNulFormat: true,
+      stopAt,
     });
     const rawStream = await this._policy.stream(
       () => this.plumbing.executeStream({ args }),

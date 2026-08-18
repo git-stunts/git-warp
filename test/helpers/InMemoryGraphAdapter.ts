@@ -278,10 +278,10 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return this._countReachable(tip);
   }
 
-  async logNodes({ ref, limit = 50, format: _format, firstParent }: LogNodesOptions): Promise<string> {
+  async logNodes({ ref, limit = 50, format: _format, firstParent, stopAt }: LogNodesOptions): Promise<string> {
     validateRef(ref);
     validateLimit(limit);
-    const records = this._walkLog({ ref, limit, firstParent: firstParent === true });
+    const records = this._walkLog({ ref, limit, firstParent: firstParent ?? false, stopAt });
     if (typeof _format !== 'string' || _format.length === 0) {
       return records.map(c =>
         `commit ${c.sha}\nAuthor: ${c.author}\nDate:   ${c.date}\n\n    ${c.message}\n`,
@@ -290,10 +290,10 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return records.map(c => this._formatCommitRecord(c)).join('\0') + (records.length > 0 ? '\0' : '');
   }
 
-  async logNodesStream({ ref, limit = 1000000, format: _format, firstParent }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
+  async logNodesStream({ ref, limit = 1000000, format: _format, firstParent, stopAt }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
     validateRef(ref);
     validateLimit(limit);
-    const records = this._walkLog({ ref, limit, firstParent: firstParent === true });
+    const records = this._walkLog({ ref, limit, firstParent: firstParent ?? false, stopAt });
     const formatted = records.map(c => this._formatCommitRecord(c)).join('\0') + (records.length > 0 ? '\0' : '');
     return WarpStream.of<CommitLogChunk>(formatted);
   }
@@ -414,16 +414,17 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return null;
   }
 
-  private _walkLog({ ref, limit, firstParent }: {
+  private _walkLog({ ref, limit, firstParent, stopAt }: {
     ref: string;
     limit: number;
     firstParent: boolean;
+    stopAt: string | undefined;
   }): (CommitRecord & { sha: string })[] {
     const tip = this._resolveRef(ref);
     if (tip === null) {
       return [];
     }
-    const all = this._collectCommits({ startSha: tip, firstParent });
+    const all = this._collectCommits({ startSha: tip, firstParent, stopAt });
     all.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     return all.slice(0, limit);
   }
@@ -449,24 +450,48 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return count;
   }
 
+  /** Every commit reachable from `sha`, used to exclude a `stopAt` boundary. */
+  private _reachableFrom(sha: string): Set<string> {
+    const seen = new Set<string>();
+    const queue = [sha];
+    let head = 0;
+    while (head < queue.length) {
+      const current = queue[head++]!;
+      if (seen.has(current)) {
+        continue;
+      }
+      seen.add(current);
+      const commit = this._commits.get(current);
+      if (commit !== undefined) {
+        queue.push(...commit.parents);
+      }
+    }
+    return seen;
+  }
+
   /**
    * Collects commits reachable from `startSha`.
    *
    * With `firstParent`, traversal follows only each commit's first parent, so
    * a merge's side branch is never collected — matching `git log --first-parent`
    * and the `LogNodesOptions.firstParent` contract.
+   *
+   * `stopAt` excludes that commit and everything reachable from it, matching
+   * the `stopAt..ref` range semantics of `LogNodesOptions.stopAt`.
    */
-  private _collectCommits({ startSha, firstParent }: {
+  private _collectCommits({ startSha, firstParent, stopAt }: {
     startSha: string;
     firstParent: boolean;
+    stopAt: string | undefined;
   }): (CommitRecord & { sha: string })[] {
+    const excluded = stopAt === undefined ? new Set<string>() : this._reachableFrom(stopAt);
     const all: (CommitRecord & { sha: string })[] = [];
     const visited = new Set<string>();
     const queue = [startSha];
     let head = 0;
     while (head < queue.length) {
       const sha = queue[head++]!;
-      if (visited.has(sha)) {
+      if (visited.has(sha) || excluded.has(sha)) {
         continue;
       }
       visited.add(sha);

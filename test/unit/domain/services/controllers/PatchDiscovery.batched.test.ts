@@ -168,6 +168,7 @@ type FakePersistenceOptions = {
 class FakePersistence implements CorePersistence {
   getNodeInfoCalls = 0;
   logNodesStreamCalls = 0;
+  bulkRecordsEmitted = 0;
   lastLogOptions: LogNodesOptions | null = null;
 
   readonly #commits: FakeCommit[];
@@ -213,7 +214,37 @@ class FakePersistence implements CorePersistence {
     if (this.#logStreamFailure === 'reject') {
       throw new Error('bulk history read failed');
     }
-    return toLogStream(this.#commits.filter((commit) => !this.#withheld.has(commit.sha)));
+    const emitted = this.#visibleCommits(options);
+    this.bulkRecordsEmitted = emitted.length;
+    return toLogStream(emitted);
+  }
+
+  /**
+   * Applies the LogNodesOptions contract this double is asked to honour.
+   *
+   * A double that ignored `stopAt` would let an unbounded read pass review, so
+   * it implements the same range semantics as a conforming persistence.
+   */
+  #visibleCommits(options: LogNodesOptions): FakeCommit[] {
+    const available = this.#commits.filter((commit) => !this.#withheld.has(commit.sha));
+    const stopAt = options.stopAt;
+    if (stopAt === undefined) {
+      return available;
+    }
+    const excluded = new Set<string>();
+    const queue = [stopAt];
+    while (queue.length > 0) {
+      const sha = queue.shift();
+      if (sha === undefined || excluded.has(sha)) {
+        continue;
+      }
+      excluded.add(sha);
+      const commit = available.find((candidate) => candidate.sha === sha);
+      if (commit !== undefined) {
+        queue.push(...commit.parents);
+      }
+    }
+    return available.filter((commit) => !excluded.has(commit.sha));
   }
 
   async readRef(_ref: string): Promise<string | null> {
@@ -356,6 +387,30 @@ describe('PatchDiscovery batched chain reads', () => {
     const entries = await discovery.loadPatchChainFromSha(shaFor(0), shaFor(4));
 
     expect(entries.map((entry) => entry.sha)).toEqual([shaFor(3), shaFor(2), shaFor(1), shaFor(0)]);
+    // The walk stopping is not enough: an unbounded bulk read would fetch and
+    // index all ten commits and still produce these four. Bound the read too.
+    expect(persistence.lastLogOptions?.stopAt).toBe(shaFor(4));
+    expect(persistence.bulkRecordsEmitted).toBe(4);
+  });
+
+  it('bounds the bulk read even when the persistence ignores stopAt', async () => {
+    // A non-conforming persistence emits the whole chain regardless of stopAt.
+    // Parsing must still stop at the boundary, or one bad adapter reinstates
+    // the unbounded read this class exists to avoid.
+    const commits = linearChain(10);
+    const persistence = new (class extends FakePersistence {
+      override async logNodesStream(options: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
+        this.logNodesStreamCalls += 1;
+        this.lastLogOptions = options;
+        return toLogStream(commits);
+      }
+    })({ commits });
+    const discovery = new PatchDiscovery(hostWith(persistence));
+
+    const entries = await discovery.loadPatchChainFromSha(shaFor(0), shaFor(4));
+
+    expect(entries.map((entry) => entry.sha)).toEqual([shaFor(3), shaFor(2), shaFor(1), shaFor(0)]);
+    expect(persistence.getNodeInfoCalls).toBe(0);
   });
 
   it('stops at the first non-patch commit', async () => {

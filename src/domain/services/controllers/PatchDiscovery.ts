@@ -56,16 +56,14 @@ async function mapWithConcurrency<T, R>(
   fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
   const started = new Array<Promise<R> | null>(items.length).fill(null);
-  let nextIndex = 0;
+  // Workers pull from one shared iterator, so every item is dispatched exactly
+  // once and no result slot is skipped. Indexing `items` directly would widen
+  // each element to `T | undefined` and silently drop a legitimately undefined
+  // item, returning fewer results than inputs.
+  const pending = items.entries();
 
   const drain = async (): Promise<void> => {
-    while (nextIndex < items.length) {
-      const index = nextIndex;
-      nextIndex += 1;
-      const item = items[index];
-      if (item === undefined) {
-        continue;
-      }
+    for (const [index, item] of pending) {
       const inFlight = fn(item);
       started[index] = inFlight;
       // Swallow here so a worker never dies on a rejection; the real error is
@@ -210,7 +208,11 @@ export class PatchDiscovery {
         break;
       }
       const patchMeta = h._commitMessageCodec.decodePatch(node.message);
-      this._requireJournal();
+      if (pending.length === 0) {
+        // Legacy ordering: the contract error surfaces after the first patch
+        // decodes, not after the whole chain is walked. Checking once suffices.
+        this._requireJournal();
+      }
       pending.push({ sha: node.sha, patchMeta });
     }
 
@@ -251,10 +253,17 @@ export class PatchDiscovery {
    */
   private async *_chainNodes(tipSha: string, stopAtSha: string | null): AsyncGenerator<ChainNode> {
     const persistence = this._host._persistence;
-    const chainIndex = await this._loadChainIndex(tipSha, persistence);
+    const chainIndex = await this._loadChainIndex(tipSha, stopAtSha, persistence);
+    const seen = new Set<string>();
     let currentSha: string = tipSha;
 
     while (currentSha && currentSha !== stopAtSha) {
+      if (seen.has(currentSha)) {
+        // A parent cycle is corrupt history. Stopping keeps a malformed chain
+        // from spinning forever now that the walk needs no I/O per step.
+        break;
+      }
+      seen.add(currentSha);
       const node = chainIndex?.get(currentSha) ?? (await persistence.getNodeInfo(currentSha));
       // Yield the sha we resolved, not node.sha: the legacy walk tracked the
       // sha itself, and some persistence doubles omit sha from getNodeInfo.
@@ -270,15 +279,21 @@ export class PatchDiscovery {
   }
 
   /**
-   * Reads the first-parent history from `tipSha` in one bulk read and
-   * indexes it by SHA. The walk follows first parents, so the bulk read is
-   * constrained the same way: a merge's side branch is neither indexed nor
-   * paid for. Returns null when the persistence does not expose a
-   * bulk log surface (or the bulk read fails), signalling the caller to walk
+   * Reads the first-parent history from `tipSha` in one bulk read and indexes
+   * it by SHA.
+   *
+   * The read is bounded exactly as the walk is: `firstParent` keeps a merge's
+   * side branch out, and `stopAtSha` bounds the range so history the walk will
+   * never visit is neither fetched nor held in memory. Parsing also stops at
+   * the boundary, so a persistence that ignores `stopAt` still cannot force an
+   * unbounded index.
+   *
+   * Returns null when the bulk read is unusable, signalling the caller to walk
    * per-commit instead.
    */
   private async _loadChainIndex(
     tipSha: string,
+    stopAtSha: string | null,
     persistence: CorePersistence,
   ): Promise<Map<string, ChainNode> | null> {
     try {
@@ -286,15 +301,24 @@ export class PatchDiscovery {
         ref: tipSha,
         format: CHAIN_LOG_FORMAT,
         firstParent: true,
+        ...(stopAtSha === null ? {} : { stopAt: stopAtSha }),
       });
       const index = new Map<string, ChainNode>();
       for await (const node of new GitLogParser().parse(stream)) {
+        if (node.sha === stopAtSha) {
+          break;
+        }
         index.set(node.sha, new ChainNode(node));
       }
       return index;
-    } catch {
-      // Covers both a persistence that omits the bulk surface entirely and a
-      // bulk read that fails; either way the caller walks per-commit instead.
+    } catch (error) {
+      // Falling back is correct for a persistence with no usable bulk surface,
+      // but it silently restores the per-commit cost this class exists to
+      // avoid — so it must be observable rather than invisible.
+      this._host._logger?.warn(
+        'bulk chain read unavailable; falling back to per-commit walk',
+        { error: error instanceof Error ? error.message : String(error) },
+      );
       return null;
     }
   }

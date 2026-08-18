@@ -56,6 +56,36 @@ async function drain(stream: AsyncIterable<string | Uint8Array>): Promise<string
   return chunks.join('');
 }
 
+describe('InMemoryGraphAdapter stopAt range', () => {
+  it('excludes the stopAt commit and its ancestors', async () => {
+    const { adapter, shas } = await mergeDag();
+
+    const emitted = emittedShas(
+      await adapter.logNodes({
+        ref: 'refs/heads/main',
+        limit: 50,
+        format: RECORD_FORMAT,
+        firstParent: true,
+        stopAt: shas.mainline,
+      }),
+    );
+
+    expect(emitted).toContain(shas.merge);
+    expect(emitted).not.toContain(shas.mainline);
+    expect(emitted).not.toContain(shas.root);
+  });
+
+  it('emits the whole chain when stopAt is absent', async () => {
+    const { adapter, shas } = await mergeDag();
+
+    const emitted = emittedShas(
+      await adapter.logNodes({ ref: 'refs/heads/main', limit: 50, format: RECORD_FORMAT, firstParent: true }),
+    );
+
+    expect(emitted).toEqual(expect.arrayContaining([shas.merge, shas.mainline, shas.root]));
+  });
+});
+
 describe('InMemoryGraphAdapter first-parent traversal', () => {
   it('logNodes emits only the first-parent chain when firstParent is true', async () => {
     const { adapter, shas } = await mergeDag();

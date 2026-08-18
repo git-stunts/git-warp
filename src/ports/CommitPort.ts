@@ -32,6 +32,13 @@ export interface LogNodesOptions {
   format?: string;
   /** Follow only first parents, excluding side branches of any merge. */
   firstParent?: boolean;
+  /**
+   * Exclude this commit and everything reachable from it, bounding the read to
+   * the range `stopAt..ref`. A chain reader that stops walking at a known
+   * boundary must also stop *reading* there, or it pays for history it will
+   * never visit.
+   */
+  stopAt?: string;
 }
 
 export interface NodeInfo {

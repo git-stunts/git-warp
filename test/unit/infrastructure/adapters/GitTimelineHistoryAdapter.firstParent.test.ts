@@ -47,6 +47,34 @@ describe('GitTimelineHistoryAdapter first-parent traversal', () => {
     expect(args.indexOf('--first-parent')).toBeLessThan(args.indexOf('refs/warp/think/writers/w'));
   });
 
+  it('bounds logNodes to a rev range when stopAt is given', async () => {
+    await adapter.logNodes({ ref: 'refs/warp/think/writers/w', limit: 5, stopAt: 'refs/warp/think/checkpoints/head' });
+
+    const { args } = mockPlumbing.execute.mock.calls[0][0];
+    expect(args).toContain('refs/warp/think/checkpoints/head..refs/warp/think/writers/w');
+    expect(args).not.toContain('refs/warp/think/writers/w');
+  });
+
+  it('bounds logNodesStream to a rev range when stopAt is given', async () => {
+    await adapter.logNodesStream({ ref: 'refs/warp/think/writers/w', limit: 10, stopAt: 'refs/warp/think/checkpoints/head' });
+
+    const { args } = mockPlumbing.executeStream.mock.calls[0][0];
+    expect(args).toContain('refs/warp/think/checkpoints/head..refs/warp/think/writers/w');
+    expect(args).not.toContain('refs/warp/think/writers/w');
+  });
+
+  it('passes the bare ref when stopAt is absent', async () => {
+    await adapter.logNodesStream({ ref: 'refs/warp/think/writers/w', limit: 10 });
+
+    expect(mockPlumbing.executeStream.mock.calls[0][0].args).toContain('refs/warp/think/writers/w');
+  });
+
+  it('rejects a stopAt that would reach the command line unvalidated', async () => {
+    await expect(
+      adapter.logNodesStream({ ref: 'refs/warp/think/writers/w', limit: 10, stopAt: '--upload-pack=evil' }),
+    ).rejects.toThrow();
+  });
+
   it('omits --first-parent from logNodesStream by default', async () => {
     await adapter.logNodesStream({ ref: 'refs/warp/think/writers/w', limit: 10 });
 
