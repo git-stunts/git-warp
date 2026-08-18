@@ -19,37 +19,70 @@ import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.t
 import type { PatchCommitMessage } from '../../../ports/CommitMessageCodecPort.ts';
 
 /** Log format matching GitLogParser's record contract: sha, author, date, parents, message. */
-const CHAIN_LOG_FORMAT = '%H%n%an <%ae>%n%aI%n%P%n%B';
+export const CHAIN_LOG_FORMAT = '%H%n%an <%ae>%n%aI%n%P%n%B';
 
 /** Upper bound on concurrent patch payload reads during chain loading. */
 const PATCH_READ_CONCURRENCY = 8;
 
 /** The subset of commit metadata a chain walk consumes. */
-interface ChainNode {
-  sha: string;
-  message: string;
-  parents: readonly string[];
+class ChainNode {
+  readonly sha: string;
+  readonly message: string;
+  readonly parents: readonly string[];
+
+  constructor({ sha, message, parents }: {
+    sha: string;
+    message: string;
+    parents: readonly string[];
+  }) {
+    this.sha = sha;
+    this.message = message;
+    this.parents = parents;
+  }
 }
 
 /**
  * Maps items to results with bounded concurrency, preserving input order.
+ *
+ * Work is dispatched by a bounded worker pool, but results are collected by
+ * awaiting each item's promise in input order. A rejection therefore surfaces
+ * the earliest failing item by index rather than whichever rejected first in
+ * wall-clock time, so callers see a deterministic error regardless of the
+ * relative latency of concurrent reads.
  */
 async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,
   fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
-  const results = new Array<R>(items.length);
+  const started = new Array<Promise<R> | null>(items.length).fill(null);
   let nextIndex = 0;
-  const workerCount = Math.max(1, Math.min(limit, items.length));
-  const workers = Array.from({ length: workerCount }, async () => {
+
+  const drain = async (): Promise<void> => {
     while (nextIndex < items.length) {
       const index = nextIndex;
       nextIndex += 1;
-      results[index] = await fn(items[index] as T);
+      const item = items[index];
+      if (item === undefined) {
+        continue;
+      }
+      const inFlight = fn(item);
+      started[index] = inFlight;
+      // Swallow here so a worker never dies on a rejection; the real error is
+      // rethrown below in index order, where the caller can observe it.
+      await inFlight.catch(() => undefined);
     }
-  });
-  await Promise.all(workers);
+  };
+
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: workerCount }, drain));
+
+  const results: R[] = [];
+  for (const inFlight of started) {
+    if (inFlight !== null) {
+      results.push(await inFlight);
+    }
+  }
   return results;
 }
 
@@ -225,7 +258,7 @@ export class PatchDiscovery {
       const node = chainIndex?.get(currentSha) ?? (await persistence.getNodeInfo(currentSha));
       // Yield the sha we resolved, not node.sha: the legacy walk tracked the
       // sha itself, and some persistence doubles omit sha from getNodeInfo.
-      yield { sha: currentSha, message: node.message, parents: node.parents };
+      yield new ChainNode({ sha: currentSha, message: node.message, parents: node.parents });
 
       const nextSha = node.parents[0];
       if (typeof nextSha === 'string' && nextSha.length > 0) {
@@ -246,19 +279,16 @@ export class PatchDiscovery {
     tipSha: string,
     persistence: CorePersistence,
   ): Promise<Map<string, ChainNode> | null> {
-    const bulk = persistence as Partial<CorePersistence>;
-    if (typeof bulk.logNodesStream !== 'function') {
-      return null;
-    }
-
     try {
-      const stream = await bulk.logNodesStream({ ref: tipSha, format: CHAIN_LOG_FORMAT });
+      const stream = await persistence.logNodesStream({ ref: tipSha, format: CHAIN_LOG_FORMAT });
       const index = new Map<string, ChainNode>();
       for await (const node of new GitLogParser().parse(stream)) {
-        index.set(node.sha, { sha: node.sha, message: node.message, parents: node.parents });
+        index.set(node.sha, new ChainNode(node));
       }
       return index;
     } catch {
+      // Covers both a persistence that omits the bulk surface entirely and a
+      // bulk read that fails; either way the caller walks per-commit instead.
       return null;
     }
   }

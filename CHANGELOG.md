@@ -16,9 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subprocess, so materializing a graph previously spawned one subprocess per
   patch commit, serially — O(history × spawn latency) for every read. Patch
   payload reads now run with bounded concurrency (8) while preserving
-  chronological order and read-error behavior. Persistences without a usable
-  bulk log surface (or commits missing from the bulk read) fall back to the
-  legacy per-commit walk and its error surface. Measured on a real 500-thought
+  chronological order and read-error behavior. When several payload reads fail,
+  the error raised is the one belonging to the earliest patch in chain order
+  rather than whichever rejected first in wall-clock time, so the failure a
+  caller observes is deterministic. Persistences without a usable bulk log
+  surface (or commits missing from the bulk read) fall back to the legacy
+  per-commit walk and its error surface. Measured on a real 500-thought
   graph with ~1,750 patch commits across 7 writer chains: a cold read went from
   82.9 s (3,505 git subprocesses) to 8.9 s (1,792, now dominated by per-blob
   payload reads).

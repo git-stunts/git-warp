@@ -1,14 +1,34 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { PatchDiscovery, type PatchDiscoveryHost } from '../../../../../src/domain/services/controllers/PatchDiscovery.ts';
+import {
+  CHAIN_LOG_FORMAT,
+  PatchDiscovery,
+  type PatchDiscoveryHost,
+} from '../../../../../src/domain/services/controllers/PatchDiscovery.ts';
 import WarpStream from '../../../../../src/domain/stream/WarpStream.ts';
 import PatchError from '../../../../../src/domain/errors/PatchError.ts';
+import Patch from '../../../../../src/domain/types/Patch.ts';
+import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
+import CommitMessageCodecPort, {
+  createGitCasPatchStorage,
+  type AnchorCommitMessage,
+  type CheckpointCommitMessage,
+  type CommitMessageKind,
+  type PatchCommitMessage,
+} from '../../../../../src/ports/CommitMessageCodecPort.ts';
+import PatchJournalPort, {
+  type AppendPatchRequest,
+  type PublishedPatch,
+} from '../../../../../src/ports/PatchJournalPort.ts';
+import type PatchEntry from '../../../../../src/domain/artifacts/PatchEntry.ts';
 import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
-import type { CommitLogChunk, LogNodesOptions, NodeInfo } from '../../../../../src/ports/CommitPort.ts';
-import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
-import type { PatchCommitMessage } from '../../../../../src/ports/CommitMessageCodecPort.ts';
-import type PatchJournalPort from '../../../../../src/ports/PatchJournalPort.ts';
-import type Patch from '../../../../../src/domain/types/Patch.ts';
+import type {
+  CommitLogChunk,
+  CommitNodeOptions,
+  LogNodesOptions,
+  NodeInfo,
+  PingResult,
+} from '../../../../../src/ports/CommitPort.ts';
 
 /**
  * Spawn-count law for patch-chain traversal.
@@ -19,22 +39,29 @@ import type Patch from '../../../../../src/domain/types/Patch.ts';
  * per-commit walk makes every materialization O(history × spawn latency).
  */
 
-interface FakeCommit {
+const TEST_GRAPH = 'think';
+const TEST_WRITER = 'writer-a';
+const UNIMPLEMENTED = 'not implemented in this test double';
+
+type FakeCommit = {
   sha: string;
   parents: string[];
   message: string;
+};
+
+function shaFor(index: number): string {
+  return index.toString(16).padStart(40, 'a');
 }
 
 /** Builds a linear chain: chain[0] is the tip, last element is the root. */
 function linearChain(length: number, options: { rootKind?: string } = {}): FakeCommit[] {
   const commits: FakeCommit[] = [];
   for (let index = 0; index < length; index += 1) {
-    const sha = shaFor(index);
     const parentSha = index + 1 < length ? shaFor(index + 1) : null;
     const isRoot = index === length - 1;
     const kind = isRoot && options.rootKind !== undefined ? options.rootKind : 'patch';
     commits.push({
-      sha,
+      sha: shaFor(index),
       parents: parentSha === null ? [] : [parentSha],
       message: `${kind}:${length - index}`,
     });
@@ -42,137 +69,257 @@ function linearChain(length: number, options: { rootKind?: string } = {}): FakeC
   return commits;
 }
 
-function shaFor(index: number): string {
-  return index.toString(16).padStart(40, 'a');
-}
-
 /** Formats commits the way GitLogParser expects logNodesStream records. */
 function toLogStream(commits: FakeCommit[]): WarpStream<CommitLogChunk> {
   const records = commits.map(
-    (commit) => `${commit.sha}\nAuthor <author@test>\n2026-08-15T00:00:00Z\n${commit.parents.join(' ')}\n${commit.message}`,
+    (commit) =>
+      `${commit.sha}\nAuthor <author@test>\n2026-08-15T00:00:00Z\n${commit.parents.join(' ')}\n${commit.message}`,
   );
   const joined = records.join('\0') + (records.length > 0 ? '\0' : '');
   return WarpStream.of<CommitLogChunk>(joined);
 }
 
-interface CountingPersistenceOptions {
-  commits: FakeCommit[];
-  omitLogNodesStream?: boolean;
-}
-
-interface CountingPersistence {
-  persistence: CorePersistence;
-  getNodeInfoCalls: () => number;
-  logNodesStreamCalls: () => number;
-}
-
-function countingPersistence({ commits, omitLogNodesStream = false }: CountingPersistenceOptions): CountingPersistence {
-  const bySha = new Map(commits.map((commit) => [commit.sha, commit]));
-  let getNodeInfoCount = 0;
-  let logNodesStreamCount = 0;
-
-  const base = {
-    async getNodeInfo(sha: string): Promise<NodeInfo> {
-      getNodeInfoCount += 1;
-      const commit = bySha.get(sha);
-      if (commit === undefined) {
-        throw new Error(`missing commit: ${sha}`);
-      }
-      return {
-        sha: commit.sha,
-        message: commit.message,
-        author: 'Author <author@test>',
-        date: '2026-08-15T00:00:00Z',
-        parents: [...commit.parents],
-      };
-    },
-    async readRef(_ref: string): Promise<string | null> {
-      return commits[0]?.sha ?? null;
-    },
-    async listRefs(_prefix: string): Promise<string[]> {
-      return [];
-    },
-  };
-
-  const withStream = omitLogNodesStream
-    ? base
-    : {
-        ...base,
-        async logNodesStream(_options: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
-          logNodesStreamCount += 1;
-          return toLogStream(commits);
-        },
-      };
-
+function patchMessageFor(lamport: number): PatchCommitMessage {
   return {
-    persistence: withStream as unknown as CorePersistence,
-    getNodeInfoCalls: () => getNodeInfoCount,
-    logNodesStreamCalls: () => logNodesStreamCount,
+    kind: 'patch',
+    graph: TEST_GRAPH,
+    writer: TEST_WRITER,
+    lamport,
+    schema: 2,
+    patchHandle: new AssetHandle(`asset-${lamport}`),
+    storage: createGitCasPatchStorage({ encrypted: false }),
   };
+}
+
+function patchFor(lamport: number): Patch {
+  return new Patch({ writer: TEST_WRITER, lamport, context: {}, ops: [] });
 }
 
 /** Codec for `<kind>:<lamport>` fake messages. */
-const fakeCodec = {
-  detectKind(message: string): string {
-    const kind = message.split(':')[0];
-    return kind === 'patch' ? 'patch' : 'other';
-  },
-  decodePatch(message: string): PatchCommitMessage {
-    const lamport = Number(message.split(':')[1]);
-    return { kind: 'patch', lamport } as unknown as PatchCommitMessage;
-  },
-} as unknown as CommitMessageCodecPort;
+class FakeCodec extends CommitMessageCodecPort {
+  detectKind(message: string): CommitMessageKind | null {
+    return message.split(':')[0] === 'patch' ? 'patch' : 'checkpoint';
+  }
 
-function fakeJournal(): PatchJournalPort {
-  return {
-    async readPatch(message: PatchCommitMessage): Promise<Patch> {
-      return { lamport: message.lamport, ops: [] } as unknown as Patch;
-    },
-  } as unknown as PatchJournalPort;
+  decodePatch(message: string): PatchCommitMessage {
+    return patchMessageFor(Number(message.split(':')[1]));
+  }
+
+  encodePatch(_message: PatchCommitMessage): string {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  encodeCheckpoint(_message: CheckpointCommitMessage): string {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  decodeCheckpoint(_message: string): CheckpointCommitMessage {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  encodeAnchor(_message: AnchorCommitMessage): string {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  decodeAnchor(_message: string): AnchorCommitMessage {
+    throw new Error(UNIMPLEMENTED);
+  }
 }
 
-function hostWith(persistence: CorePersistence, journal: PatchJournalPort | null = fakeJournal()): PatchDiscoveryHost {
+type ReadPatchHook = (message: PatchCommitMessage) => Promise<Patch>;
+
+class FakeJournal extends PatchJournalPort {
+  readonly reads: number[] = [];
+  readonly #hook: ReadPatchHook | null;
+
+  constructor(hook: ReadPatchHook | null = null) {
+    super();
+    this.#hook = hook;
+  }
+
+  async readPatch(message: PatchCommitMessage): Promise<Patch> {
+    if (this.#hook !== null) {
+      const patch = await this.#hook(message);
+      this.reads.push(message.lamport);
+      return patch;
+    }
+    this.reads.push(message.lamport);
+    return patchFor(message.lamport);
+  }
+
+  appendPatch(_request: AppendPatchRequest): Promise<PublishedPatch> {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  scanPatchRange(_writerId: string, _fromSha: string | null, _toSha: string): WarpStream<PatchEntry> {
+    throw new Error(UNIMPLEMENTED);
+  }
+}
+
+type FakePersistenceOptions = {
+  commits: FakeCommit[];
+  /** Simulates a persistence whose bulk history surface is unusable. */
+  logStreamFailure?: 'omit' | 'reject';
+  /** SHAs deliberately withheld from the bulk read to force per-commit fallback. */
+  withholdFromBulk?: readonly string[];
+  writerRefs?: readonly string[];
+};
+
+class FakePersistence implements CorePersistence {
+  getNodeInfoCalls = 0;
+  logNodesStreamCalls = 0;
+  lastLogOptions: LogNodesOptions | null = null;
+
+  readonly #commits: FakeCommit[];
+  readonly #bySha: Map<string, FakeCommit>;
+  readonly #logStreamFailure: 'omit' | 'reject' | null;
+  readonly #withheld: ReadonlySet<string>;
+  readonly #writerRefs: readonly string[];
+
+  constructor({
+    commits,
+    logStreamFailure,
+    withholdFromBulk = [],
+    writerRefs = [],
+  }: FakePersistenceOptions) {
+    this.#commits = commits;
+    this.#bySha = new Map(commits.map((commit) => [commit.sha, commit]));
+    this.#logStreamFailure = logStreamFailure ?? null;
+    this.#withheld = new Set(withholdFromBulk);
+    this.#writerRefs = writerRefs;
+  }
+
+  async getNodeInfo(sha: string): Promise<NodeInfo> {
+    this.getNodeInfoCalls += 1;
+    const commit = this.#bySha.get(sha);
+    if (commit === undefined) {
+      throw new Error(`missing commit: ${sha}`);
+    }
+    return {
+      sha: commit.sha,
+      message: commit.message,
+      author: 'Author <author@test>',
+      date: '2026-08-15T00:00:00Z',
+      parents: [...commit.parents],
+    };
+  }
+
+  async logNodesStream(options: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
+    this.logNodesStreamCalls += 1;
+    this.lastLogOptions = options;
+    if (this.#logStreamFailure === 'omit') {
+      throw new TypeError('persistence.logNodesStream is not a function');
+    }
+    if (this.#logStreamFailure === 'reject') {
+      throw new Error('bulk history read failed');
+    }
+    return toLogStream(this.#commits.filter((commit) => !this.#withheld.has(commit.sha)));
+  }
+
+  async readRef(_ref: string): Promise<string | null> {
+    return this.#commits[0]?.sha ?? null;
+  }
+
+  async listRefs(prefix: string): Promise<string[]> {
+    return this.#writerRefs.map((writer) => `${prefix}${writer}`);
+  }
+
+  commitNode(_options: CommitNodeOptions): Promise<string> {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  showNode(_sha: string): Promise<string> {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  logNodes(_options: LogNodesOptions): Promise<string> {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  countNodes(_ref: string): Promise<number> {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  nodeExists(_sha: string): Promise<boolean> {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  ping(): Promise<PingResult> {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  updateRef(_ref: string, _oid: string): Promise<void> {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  deleteRef(_ref: string): Promise<void> {
+    throw new Error(UNIMPLEMENTED);
+  }
+
+  compareAndSwapRef(_ref: string, _newOid: string, _expectedOid: string | null): Promise<void> {
+    throw new Error(UNIMPLEMENTED);
+  }
+}
+
+function hostWith(
+  persistence: CorePersistence,
+  journal: PatchJournalPort | null = new FakeJournal(),
+): PatchDiscoveryHost {
   return {
-    _graphName: 'think',
+    _graphName: TEST_GRAPH,
     _persistence: persistence,
     _maxObservedLamport: 0,
     _logger: null,
     _patchJournal: journal,
-    _commitMessageCodec: fakeCodec,
+    _commitMessageCodec: new FakeCodec(),
   };
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 describe('PatchDiscovery batched chain reads', () => {
   it('loads a patch chain with one bulk history read and zero per-commit reads', async () => {
-    const commits = linearChain(50);
-    const counting = countingPersistence({ commits });
-    const discovery = new PatchDiscovery(hostWith(counting.persistence));
+    const persistence = new FakePersistence({ commits: linearChain(50) });
+    const discovery = new PatchDiscovery(hostWith(persistence));
 
     const entries = await discovery.loadPatchChainFromSha(shaFor(0));
 
     expect(entries).toHaveLength(50);
     expect(entries[0]?.sha).toBe(shaFor(49));
     expect(entries[49]?.sha).toBe(shaFor(0));
-    expect((entries[0]?.patch as unknown as { lamport: number }).lamport).toBe(1);
-    expect(counting.logNodesStreamCalls()).toBe(1);
-    expect(counting.getNodeInfoCalls()).toBe(0);
+    expect(entries[0]?.patch.lamport).toBe(1);
+    expect(persistence.logNodesStreamCalls).toBe(1);
+    expect(persistence.getNodeInfoCalls).toBe(0);
+  });
+
+  it('requests the bulk history read with the chain log format', async () => {
+    const persistence = new FakePersistence({ commits: linearChain(4) });
+    const discovery = new PatchDiscovery(hostWith(persistence));
+
+    await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(persistence.lastLogOptions?.ref).toBe(shaFor(0));
+    expect(persistence.lastLogOptions?.format).toBe(CHAIN_LOG_FORMAT);
   });
 
   it('returns patches in chronological order identical to the per-commit walk', async () => {
     const commits = linearChain(7);
-    const batched = countingPersistence({ commits });
-    const legacy = countingPersistence({ commits, omitLogNodesStream: true });
+    const batched = new FakePersistence({ commits });
+    const legacy = new FakePersistence({ commits, logStreamFailure: 'omit' });
 
-    const batchedEntries = await new PatchDiscovery(hostWith(batched.persistence)).loadPatchChainFromSha(shaFor(0));
-    const legacyEntries = await new PatchDiscovery(hostWith(legacy.persistence)).loadPatchChainFromSha(shaFor(0));
+    const batchedEntries = await new PatchDiscovery(hostWith(batched)).loadPatchChainFromSha(shaFor(0));
+    const legacyEntries = await new PatchDiscovery(hostWith(legacy)).loadPatchChainFromSha(shaFor(0));
 
     expect(batchedEntries.map((entry) => entry.sha)).toEqual(legacyEntries.map((entry) => entry.sha));
   });
 
   it('stops at stopAtSha without reading past it', async () => {
-    const commits = linearChain(10);
-    const counting = countingPersistence({ commits });
-    const discovery = new PatchDiscovery(hostWith(counting.persistence));
+    const persistence = new FakePersistence({ commits: linearChain(10) });
+    const discovery = new PatchDiscovery(hostWith(persistence));
 
     const entries = await discovery.loadPatchChainFromSha(shaFor(0), shaFor(4));
 
@@ -180,9 +327,8 @@ describe('PatchDiscovery batched chain reads', () => {
   });
 
   it('stops at the first non-patch commit', async () => {
-    const commits = linearChain(5, { rootKind: 'checkpoint' });
-    const counting = countingPersistence({ commits });
-    const discovery = new PatchDiscovery(hostWith(counting.persistence));
+    const persistence = new FakePersistence({ commits: linearChain(5, { rootKind: 'checkpoint' }) });
+    const discovery = new PatchDiscovery(hostWith(persistence));
 
     const entries = await discovery.loadPatchChainFromSha(shaFor(0));
 
@@ -191,59 +337,104 @@ describe('PatchDiscovery batched chain reads', () => {
   });
 
   it('throws E_MISSING_JOURNAL when the journal is absent and patches exist', async () => {
-    const commits = linearChain(3);
-    const counting = countingPersistence({ commits });
-    const discovery = new PatchDiscovery(hostWith(counting.persistence, null));
+    const persistence = new FakePersistence({ commits: linearChain(3) });
+    const discovery = new PatchDiscovery(hostWith(persistence, null));
 
     await expect(discovery.loadPatchChainFromSha(shaFor(0))).rejects.toThrowError(PatchError);
   });
 
   it('falls back to per-commit reads when the persistence lacks logNodesStream', async () => {
-    const commits = linearChain(6);
-    const counting = countingPersistence({ commits, omitLogNodesStream: true });
-    const discovery = new PatchDiscovery(hostWith(counting.persistence));
+    const persistence = new FakePersistence({ commits: linearChain(6), logStreamFailure: 'omit' });
+    const discovery = new PatchDiscovery(hostWith(persistence));
 
     const entries = await discovery.loadPatchChainFromSha(shaFor(0));
 
     expect(entries).toHaveLength(6);
-    expect(counting.getNodeInfoCalls()).toBe(6);
+    expect(persistence.getNodeInfoCalls).toBe(6);
   });
 
-  it('preserves journal read order oldest-first regardless of read concurrency', async () => {
-    const commits = linearChain(20);
-    const counting = countingPersistence({ commits });
-    const resolved: number[] = [];
-    const journal = {
-      async readPatch(message: PatchCommitMessage): Promise<Patch> {
-        await new Promise((resolve) => setTimeout(resolve, (message.lamport % 3) * 2));
-        resolved.push(message.lamport);
-        return { lamport: message.lamport, ops: [] } as unknown as Patch;
-      },
-    } as unknown as PatchJournalPort;
-    const discovery = new PatchDiscovery(hostWith(counting.persistence, journal));
+  it('falls back to per-commit reads when the bulk history read rejects', async () => {
+    const persistence = new FakePersistence({ commits: linearChain(6), logStreamFailure: 'reject' });
+    const discovery = new PatchDiscovery(hostWith(persistence));
 
     const entries = await discovery.loadPatchChainFromSha(shaFor(0));
 
-    expect(entries.map((entry) => (entry.patch as unknown as { lamport: number }).lamport)).toEqual(
+    expect(entries).toHaveLength(6);
+    expect(persistence.logNodesStreamCalls).toBe(1);
+    expect(persistence.getNodeInfoCalls).toBe(6);
+  });
+
+  it('reads per-commit only for commits the bulk history read omitted', async () => {
+    const persistence = new FakePersistence({
+      commits: linearChain(6),
+      withholdFromBulk: [shaFor(3)],
+    });
+    const discovery = new PatchDiscovery(hostWith(persistence));
+
+    const entries = await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(entries).toHaveLength(6);
+    expect(entries.map((entry) => entry.sha)).toEqual([
+      shaFor(5),
+      shaFor(4),
+      shaFor(3),
+      shaFor(2),
+      shaFor(1),
+      shaFor(0),
+    ]);
+    expect(persistence.logNodesStreamCalls).toBe(1);
+    expect(persistence.getNodeInfoCalls).toBe(1);
+  });
+
+  it('preserves journal read order oldest-first regardless of read concurrency', async () => {
+    const persistence = new FakePersistence({ commits: linearChain(20) });
+    const journal = new FakeJournal(async (message) => {
+      await delay((message.lamport % 3) * 2);
+      return patchFor(message.lamport);
+    });
+    const discovery = new PatchDiscovery(hostWith(persistence, journal));
+
+    const entries = await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(entries.map((entry) => entry.patch.lamport)).toEqual(
       Array.from({ length: 20 }, (_unused, index) => index + 1),
     );
-    expect(resolved).toHaveLength(20);
+    expect(journal.reads).toHaveLength(20);
+  });
+
+  it('reports the earliest pending failure when several payload reads reject', async () => {
+    // pending is tip-to-root, so lamport 4 precedes lamport 2. Lamport 4 is
+    // made the SLOWER rejection: index order must beat rejection timing.
+    const persistence = new FakePersistence({ commits: linearChain(5) });
+    const journal = new FakeJournal(async (message) => {
+      if (message.lamport === 4) {
+        await delay(30);
+        throw new Error('slow failure at lamport 4');
+      }
+      if (message.lamport === 2) {
+        throw new Error('fast failure at lamport 2');
+      }
+      return patchFor(message.lamport);
+    });
+    const discovery = new PatchDiscovery(hostWith(persistence, journal));
+
+    await expect(discovery.loadPatchChainFromSha(shaFor(0))).rejects.toThrowError(
+      'slow failure at lamport 4',
+    );
   });
 
   it('discovers ticks with one bulk history read per writer', async () => {
-    const commits = linearChain(30);
-    const counting = countingPersistence({ commits });
-    const persistence = counting.persistence as unknown as {
-      listRefs(prefix: string): Promise<string[]>;
-    };
-    persistence.listRefs = vi.fn(async (prefix: string) => [`${prefix}writer-a`]);
-    const discovery = new PatchDiscovery(hostWith(counting.persistence));
+    const persistence = new FakePersistence({
+      commits: linearChain(30),
+      writerRefs: [TEST_WRITER],
+    });
+    const discovery = new PatchDiscovery(hostWith(persistence));
 
     const result = await discovery.discoverTicks();
 
     expect(result.maxTick).toBe(30);
-    expect(result.perWriter.get('writer-a')?.ticks).toHaveLength(30);
-    expect(counting.logNodesStreamCalls()).toBe(1);
-    expect(counting.getNodeInfoCalls()).toBe(0);
+    expect(result.perWriter.get(TEST_WRITER)?.ticks).toHaveLength(30);
+    expect(persistence.logNodesStreamCalls).toBe(1);
+    expect(persistence.getNodeInfoCalls).toBe(0);
   });
 });
