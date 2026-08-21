@@ -432,7 +432,7 @@ function policy(): PerformancePolicy {
       cpuRegressionRatio: 1.15,
       gitCommandRegressionRatio: 1.05,
     },
-    schemaVersion: 1,
+    schemaVersion: 2,
     streaming: {
       maxRssBytes: 256 * 1024 * 1024,
       peakHeapUsedBytes: 96 * 1024 * 1024,

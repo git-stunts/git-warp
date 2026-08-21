@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import z from 'zod';
 import { PerformancePolicySchema }
   from '../../../scripts/performance/GatePerformance.ts';
+import { PERFORMANCE_SCENARIOS }
+  from '../../../scripts/performance/PerformanceModel.ts';
 import { validatePerformanceExecutionOrder }
   from '../../../scripts/performance/PerformanceComparisonModel.ts';
 
@@ -15,6 +17,23 @@ const root = process.cwd();
  * These files are the evidence a threshold change is reviewed against, so a
  * malformed one should fail loudly here instead of silently satisfying a cast.
  */
+const ObservedCountsSchema = z.object({
+  gitCommandMedian: z.number().int().nonnegative(),
+});
+
+/**
+ * Command counts per scenario.
+ *
+ * Keyed by the three scenario names rather than by string: the top-level
+ * `observed` block also carries a `streaming` entry that has no command count,
+ * and a permissive record would either reject it or let a missing scenario pass.
+ */
+const ScenarioCountsSchema = z.object({
+  'cold-materialize': ObservedCountsSchema,
+  'incremental-materialize': ObservedCountsSchema,
+  'warm-materialize': ObservedCountsSchema,
+});
+
 const CalibrationSchema = z.object({
   corpus: z.object({
     baseNodeCount: z.number(),
@@ -26,17 +45,19 @@ const CalibrationSchema = z.object({
     runner: z.string(),
   }),
   localCalibration: z.object({
-    observed: z.record(z.string(), z.object({
-      gitCommandMedian: z.number().int().nonnegative(),
-    })),
+    observed: ScenarioCountsSchema,
   }),
+  observed: ScenarioCountsSchema,
   policyRationale: z.object({
     cpuRegressionRatio: z.number(),
     gitCommandRegressionRatio: z.number(),
     streamingMaxRssBytes: z.number(),
     streamingPeakHeapUsedBytes: z.number(),
   }),
-  rejectedProfiles: z.array(z.unknown()),
+  rejectedProfiles: z.array(z.object({
+    baseNodeCount: z.number().int().positive(),
+    reason: z.string().min(1),
+  })),
 });
 
 function readBenchmarkJson(name: string): unknown {
@@ -139,16 +160,20 @@ describe('v19 performance workflow', () => {
     expect(calibration.rejectedProfiles).toHaveLength(1);
   });
 
-  it('keeps every absolute Git-command ceiling above its calibrated observation', () => {
+  it('keeps every Git-command ceiling above both calibrated observations', () => {
+    // The reference runner is primary: the gate runs there, so a ceiling below
+    // the CI observation would pass a local-only check and then fail on merge.
     const policy = readPolicy();
-    const observed = readCalibration().localCalibration.observed;
+    const calibration = readCalibration();
 
-    for (const [scenario, ceiling] of Object.entries(policy.absolute.gitCommandMedian)) {
-      const measured = observed[scenario]?.gitCommandMedian;
-      expect(measured, `${scenario} has a calibrated Git-command count`)
-        .toBeTypeOf('number');
-      expect(ceiling, `${scenario} ceiling exceeds its calibrated count`)
-        .toBeGreaterThan(measured ?? Number.POSITIVE_INFINITY);
+    // Iterating the canonical scenario list, not the policy's own keys, so a
+    // scenario dropped from the policy fails here instead of silently passing.
+    for (const scenario of PERFORMANCE_SCENARIOS) {
+      const ceiling = policy.absolute.gitCommandMedian[scenario];
+      expect(ceiling, `${scenario} ceiling clears the reference-runner count`)
+        .toBeGreaterThan(calibration.observed[scenario].gitCommandMedian);
+      expect(ceiling, `${scenario} ceiling clears the local count`)
+        .toBeGreaterThan(calibration.localCalibration.observed[scenario].gitCommandMedian);
     }
   });
 

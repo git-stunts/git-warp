@@ -1,5 +1,12 @@
 import z from 'zod';
 
+/**
+ * Version 2 added the structural Git-command thresholds
+ * (`absolute.gitCommandMedian`, `relative.gitCommandRegressionRatio`). Both are
+ * required, so a version-1 policy no longer parses and must not claim to.
+ */
+export const PERFORMANCE_POLICY_SCHEMA_VERSION = 2;
+
 const scenarioThresholds = z.object({
   'cold-materialize': z.number().finite().nonnegative(),
   'incremental-materialize': z.number().finite().nonnegative(),
@@ -24,7 +31,7 @@ export const PerformancePolicySchema = z.object({
     cpuRegressionRatio: z.number().finite().gte(1),
     gitCommandRegressionRatio: z.number().finite().gte(1),
   }).strict(),
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(PERFORMANCE_POLICY_SCHEMA_VERSION),
   streaming: z.object({
     maxRssBytes: z.number().finite().positive(),
     peakHeapUsedBytes: z.number().finite().positive(),
