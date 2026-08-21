@@ -37,6 +37,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The v19 performance gate now blocks on Git command counts as well as CPU.
+  `benchmarks/v19/policy.json` gains `absolute.gitCommandMedian` per scenario and
+  `relative.gitCommandRegressionRatio`, and the gate summary reports head and base
+  counts. Command counts are structural: they are decided by which code paths run,
+  not by how fast the runner is. Three measured runs of each scenario returned an
+  identical count (MAD 0), so the relative check carries no noise floor and needs
+  no reference recalibration to be actionable — it catches a subprocess-count
+  regression that leaves the CPU envelope untouched on a fast machine.
+  Scope, stated plainly: the current corpus writes each segment as a single
+  patch, so every scenario replays a one-patch chain. These counts therefore
+  gate object and payload traffic, not chain-traversal depth, and they would not
+  by themselves have caught the per-commit walk fixed above. Giving the fixture a
+  multi-patch chain is tracked separately.
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
   its initial payload in a single patch. The lowered patch declares an empty
   read set and exactly one subject write. That declaration describes the

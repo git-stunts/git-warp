@@ -64,21 +64,29 @@
         "cpuTotalMedianMs": 3993.154,
         "cpuTotalMadMs": 11.974,
         "maximumRssBytes": 152158208,
-        "maximumHeapUsedBytes": 57703656
+        "maximumHeapUsedBytes": 57703656,
+        "gitCommandMedian": 2758,
+        "gitCommandMadCount": 0
       },
       "warm-materialize": {
         "cpuTotalMedianMs": 834.786,
         "cpuTotalMadMs": 4.831,
         "maximumRssBytes": 120930304,
-        "maximumHeapUsedBytes": 39929144
+        "maximumHeapUsedBytes": 39929144,
+        "gitCommandMedian": 543,
+        "gitCommandMadCount": 0
       },
       "incremental-materialize": {
         "cpuTotalMedianMs": 4276.35,
         "cpuTotalMadMs": 89.092,
         "maximumRssBytes": 152928256,
-        "maximumHeapUsedBytes": 58384360
+        "maximumHeapUsedBytes": 58384360,
+        "gitCommandMedian": 2788,
+        "gitCommandMadCount": 0
       }
-    }
+    },
+    "measuredRuns": 3,
+    "warmupRuns": 1
   },
   "rejectedProfiles": [
     {
@@ -95,6 +103,13 @@
     },
     "streamingMaxRssBytes": 268435456,
     "streamingPeakHeapUsedBytes": 100663296,
-    "note": "CI-runner measurements are primary. Noise floors cover hosted-runner MAD; absolute materialization and streaming ceilings retain reviewed headroom while blocking gross regressions."
+    "note": "CI-runner measurements are primary. Noise floors cover hosted-runner MAD; absolute materialization and streaming ceilings retain reviewed headroom while blocking gross regressions.",
+    "gitCommandRegressionRatio": 1.05,
+    "gitCommandMedian": {
+      "cold-materialize": 4500,
+      "warm-materialize": 1000,
+      "incremental-materialize": 4500
+    },
+    "gitCommandNote": "Git command counts are structural, not timing: three measured runs on the local arm64 profile returned an identical count per scenario (MAD 0), so the relative ratio carries no noise floor. The absolute ceilings are provisional. They sit roughly 1.6x above the local observation because no reference-runner count has been recorded yet; retighten them from the first green ubuntu-24.04 performance run. Until then the relative same-runner ratio is the precise instrument and the absolute ceiling is a gross-blowup backstop."
   }
 }

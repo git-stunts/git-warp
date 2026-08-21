@@ -22,8 +22,9 @@ export function renderPerformanceSummary(
     '',
     '## Materialization',
     '',
-    '| Scenario | Head CPU | Base CPU | CPU delta | Head wall | Base wall | Head RSS | CPU MAD |',
-    '|---|---:|---:|---:|---:|---:|---:|---:|',
+    '| Scenario | Head CPU | Base CPU | CPU delta | Head Git cmds | Base Git cmds '
+      + '| Head wall | Head RSS | CPU MAD |',
+    '|---|---:|---:|---:|---:|---:|---:|---:|---:|',
   ];
   for (const scenario of PERFORMANCE_SCENARIOS) {
     lines.push(materializationRow(
@@ -35,7 +36,8 @@ export function renderPerformanceSummary(
   lines.push(
     '',
     'CPU is blocking. Wall time remains diagnostic. Peak RSS and heap are '
-      + 'blocking absolute envelopes.',
+      + 'blocking absolute envelopes. Git command counts are structural: they do '
+      + 'not vary with machine speed, so they gate both absolutely and relatively.',
     '',
     base === null
       ? 'Comparison mode: reviewed absolute bootstrap policy.'
@@ -93,8 +95,9 @@ function materializationRow(
   return `| ${scenario} | ${head.cpuTotalMs.median.toFixed(1)} ms | `
     + `${formatMetric(base?.cpuTotalMs.median, 'ms')} | `
     + `${formatDelta(head.cpuTotalMs.median, base?.cpuTotalMs.median)} | `
+    + `${formatCount(head.gitCommandCount.median)} | `
+    + `${formatCount(base?.gitCommandCount.median)} | `
     + `${head.wallMs.median.toFixed(1)} ms | `
-    + `${formatMetric(base?.wallMs.median, 'ms')} | `
     + `${formatMebibytes(head.maxRssBytes.maximum)} | `
     + `${head.cpuTotalMs.mad.toFixed(1)} ms |`;
 }
@@ -117,6 +120,10 @@ function streamingByteRow(
   return `| ${name} | ${formatMebibytes(head)} | `
     + `${base === undefined ? 'n/a' : formatMebibytes(base)} | `
     + `${formatDelta(head, base)} |`;
+}
+
+function formatCount(value: number | undefined): string {
+  return value === undefined ? 'n/a' : String(value);
 }
 
 function formatMetric(value: number | undefined, unit: string): string {

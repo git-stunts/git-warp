@@ -7,6 +7,11 @@
       "warm-materialize": 10000,
       "incremental-materialize": 30000
     },
+    "gitCommandMedian": {
+      "cold-materialize": 4500,
+      "warm-materialize": 1000,
+      "incremental-materialize": 4500
+    },
     "maxRssBytes": {
       "cold-materialize": 402653184,
       "warm-materialize": 268435456,
@@ -24,7 +29,8 @@
       "warm-materialize": 50,
       "incremental-materialize": 250
     },
-    "cpuRegressionRatio": 1.15
+    "cpuRegressionRatio": 1.15,
+    "gitCommandRegressionRatio": 1.05
   },
   "streaming": {
     "maxRssBytes": 268435456,

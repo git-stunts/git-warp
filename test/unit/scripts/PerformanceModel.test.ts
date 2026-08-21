@@ -167,6 +167,40 @@ describe('v19 performance result contract', () => {
     ]);
   });
 
+  it('fails a Git-command blowup the CPU envelope would absorb', () => {
+    const blowup = replaceDistribution(
+      validResult(),
+      'cold-materialize',
+      'gitCommandCount',
+      distribution(3_505),
+    );
+
+    expect(evaluatePerformanceGate(blowup, null, policy()).failures).toEqual([
+      'cold-materialize median Git commands: 3505 exceeds 12',
+    ]);
+  });
+
+  it('fails Git-command creep that stays inside every absolute ceiling', () => {
+    const base = validResult();
+    const creep = replaceDistribution(
+      base,
+      'warm-materialize',
+      'gitCommandCount',
+      distribution(11),
+    );
+
+    expect(evaluatePerformanceGate(creep, base, policy()).failures).toEqual([
+      'warm-materialize median Git command regression: 11 exceeds 10',
+    ]);
+  });
+
+  it('accepts an unchanged Git-command count', () => {
+    const base = validResult();
+
+    expect(evaluatePerformanceGate(validResult(), base, policy()).failures)
+      .toEqual([]);
+  });
+
   it('allows the git-cas versions under test to differ', () => {
     const base = validResult();
     const head: PerformanceResult = {
@@ -345,7 +379,11 @@ function replaceSample(
 function replaceDistribution(
   result: PerformanceResult,
   scenario: PerformanceScenarioName,
-  metric: 'cpuTotalMs' | 'maxRssBytes' | 'peakHeapUsedBytes' | 'wallMs',
+  metric: 'cpuTotalMs'
+    | 'gitCommandCount'
+    | 'maxRssBytes'
+    | 'peakHeapUsedBytes'
+    | 'wallMs',
   value: Distribution,
 ): PerformanceResult {
   const current = result.scenarios[scenario];
@@ -369,6 +407,11 @@ function policy(): PerformancePolicy {
         'incremental-materialize': 1_000,
         'warm-materialize': 1_000,
       },
+      gitCommandMedian: {
+        'cold-materialize': 12,
+        'incremental-materialize': 12,
+        'warm-materialize': 12,
+      },
       maxRssBytes: {
         'cold-materialize': 256 * 1024 * 1024,
         'incremental-materialize': 256 * 1024 * 1024,
@@ -387,6 +430,7 @@ function policy(): PerformancePolicy {
         'warm-materialize': 50,
       },
       cpuRegressionRatio: 1.15,
+      gitCommandRegressionRatio: 1.05,
     },
     schemaVersion: 1,
     streaming: {

@@ -77,8 +77,12 @@ describe('v19 performance workflow', () => {
     )) as {
       corpus?: { baseNodeCount?: number; suffixNodeCount?: number };
       environment?: { node?: string; platform?: string; runner?: string };
+      localCalibration?: {
+        observed?: Readonly<Record<string, { gitCommandMedian?: number }>>;
+      };
       policyRationale?: {
         cpuRegressionRatio?: number;
+        gitCommandRegressionRatio?: number;
         streamingMaxRssBytes?: number;
         streamingPeakHeapUsedBytes?: number;
       };
@@ -100,11 +104,38 @@ describe('v19 performance workflow', () => {
       runner: 'github-hosted ubuntu-24.04',
     });
     expect(calibration.policyRationale?.cpuRegressionRatio).toBe(1.15);
+    expect(calibration.policyRationale?.gitCommandRegressionRatio)
+      .toBe(policy.relative.gitCommandRegressionRatio);
     expect(calibration.policyRationale?.streamingMaxRssBytes)
       .toBe(policy.streaming.maxRssBytes);
     expect(calibration.policyRationale?.streamingPeakHeapUsedBytes)
       .toBe(policy.streaming.peakHeapUsedBytes);
     expect(calibration.rejectedProfiles).toHaveLength(1);
+  });
+
+  it('keeps every absolute Git-command ceiling above its calibrated observation', () => {
+    const policy = PerformancePolicySchema.parse(JSON.parse(readFileSync(
+      resolve(root, 'benchmarks/v19/policy.json'),
+      'utf8',
+    )) as unknown);
+    const calibration = JSON.parse(readFileSync(
+      resolve(root, 'benchmarks/v19/calibration.json'),
+      'utf8',
+    )) as {
+      localCalibration?: {
+        observed?: Readonly<Record<string, { gitCommandMedian?: number }>>;
+      };
+    };
+    const observed = calibration.localCalibration?.observed;
+
+    expect(observed).toBeDefined();
+    for (const [scenario, ceiling] of Object.entries(policy.absolute.gitCommandMedian)) {
+      const measured = observed?.[scenario]?.gitCommandMedian;
+      expect(measured, `${scenario} has a calibrated Git-command count`)
+        .toBeTypeOf('number');
+      expect(ceiling, `${scenario} ceiling exceeds its calibrated count`)
+        .toBeGreaterThan(measured ?? Number.POSITIVE_INFINITY);
+    }
   });
 
   it('requires current green main performance evidence for v19 releases', () => {
