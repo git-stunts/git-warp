@@ -9,6 +9,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import GitLogParser from '../../../../src/domain/services/GitLogParser.ts';
 
+/** The record format GitLogParser expects: sha, author, date, parents, body. */
+const LOG_NODE_FORMAT = '%H%n%an <%ae>%n%aI%n%P%n%B';
+
+/** Comfortably above every chain these tests build, so `limit` never truncates. */
+const LOG_NODE_LIMIT = 50;
+
 /**
  * @param {string} name - Adapter display name for describe blocks
  * @param {() => Promise<{adapter: any, cleanup?: () => Promise<void>}>} factory
@@ -110,11 +116,10 @@ export function describeAdapterConformance(name, factory) {
         const b = await adapter.commitNode({ message: 'second commit', parents: [a] });
         await adapter.updateRef('refs/warp/test/writers/log', b);
 
-        const format = '%H%n%an <%ae>%n%aI%n%P%n%B';
         const stream = await adapter.logNodesStream({
           ref: 'refs/warp/test/writers/log',
-          limit: 10,
-          format,
+          limit: LOG_NODE_LIMIT,
+          format: LOG_NODE_FORMAT,
         });
 
         const parser = new GitLogParser();
@@ -143,8 +148,8 @@ export function describeAdapterConformance(name, factory) {
       }): Promise<string[]> {
         const stream = await adapter.logNodesStream({
           ref: options.ref,
-          limit: 50,
-          format: '%H%n%an <%ae>%n%aI%n%P%n%B',
+          limit: LOG_NODE_LIMIT,
+          format: LOG_NODE_FORMAT,
           ...(options.firstParent === undefined ? {} : { firstParent: options.firstParent }),
           ...(options.stopAt === undefined ? {} : { stopAt: options.stopAt }),
         });
