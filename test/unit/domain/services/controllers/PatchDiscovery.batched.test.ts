@@ -568,6 +568,38 @@ describe('PatchDiscovery batched chain reads', () => {
     expect(logger.warnings).toEqual([]);
   });
 
+  it('warns when a successful bulk read turns out to be incomplete', async () => {
+    // The louder failure — a bulk read that throws — is already reported. This
+    // is the quiet one: the read succeeds, omits commits, and the walk silently
+    // pays per-commit for every gap.
+    const logger = new RecordingLogger();
+    const persistence = new FakePersistence({
+      commits: linearChain(6),
+      withholdFromBulk: [shaFor(3)],
+    });
+    const discovery = new PatchDiscovery(hostWith(persistence, new FakeJournal(), logger));
+
+    const entries = await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(entries).toHaveLength(6);
+    expect(logger.warnings).toHaveLength(1);
+    expect(logger.warnings[0]).toMatch(/bulk chain read incomplete/i);
+  });
+
+  it('warns once no matter how many commits the bulk read omitted', async () => {
+    // One line per missing commit would turn a degraded read into a log flood.
+    const logger = new RecordingLogger();
+    const persistence = new FakePersistence({
+      commits: linearChain(6),
+      withholdFromBulk: [shaFor(1), shaFor(2), shaFor(3), shaFor(4)],
+    });
+    const discovery = new PatchDiscovery(hostWith(persistence, new FakeJournal(), logger));
+
+    await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(logger.warnings).toHaveLength(1);
+  });
+
   it('stops instead of spinning when the chain contains a parent cycle', async () => {
     // Corrupt history: the root points back at the tip. The walk needs no I/O
     // per step now, so an unguarded cycle would spin the event loop forever.

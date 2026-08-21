@@ -255,6 +255,7 @@ export class PatchDiscovery {
     const persistence = this._host._persistence;
     const chainIndex = await this._loadChainIndex(tipSha, stopAtSha, persistence);
     const seen = new Set<string>();
+    let gapCount = 0;
     let currentSha: string = tipSha;
 
     while (currentSha && currentSha !== stopAtSha) {
@@ -264,7 +265,12 @@ export class PatchDiscovery {
         break;
       }
       seen.add(currentSha);
-      const node = chainIndex?.get(currentSha) ?? (await persistence.getNodeInfo(currentSha));
+      const indexed = chainIndex?.get(currentSha);
+      if (indexed === undefined) {
+        gapCount += 1;
+        this._warnFirstChainIndexGap(chainIndex, gapCount, tipSha, currentSha);
+      }
+      const node = indexed ?? (await persistence.getNodeInfo(currentSha));
       // Yield the sha we resolved, not node.sha: the legacy walk tracked the
       // sha itself, and some persistence doubles omit sha from getNodeInfo.
       yield new ChainNode({ sha: currentSha, message: node.message, parents: node.parents });
@@ -276,6 +282,29 @@ export class PatchDiscovery {
         break;
       }
     }
+  }
+
+  /**
+   * Warns once when a successful bulk read turns out to be incomplete.
+   *
+   * A bulk read that throws is already reported by `_loadChainIndex`. A bulk
+   * read that succeeds but omits commits is the quieter failure: the walk keeps
+   * working, per-commit `getNodeInfo` covers every gap, and the serial cost this
+   * class exists to remove comes back with nothing in the log to say so.
+   */
+  private _warnFirstChainIndexGap(
+    chainIndex: Map<string, ChainNode> | null,
+    gapCount: number,
+    tipSha: string,
+    missingSha: string,
+  ): void {
+    if (chainIndex === null || gapCount !== 1) {
+      return;
+    }
+    this._host._logger?.warn(
+      'bulk chain read incomplete; falling back to per-commit reads',
+      { tipSha, missingSha },
+    );
   }
 
   /**

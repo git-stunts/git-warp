@@ -484,7 +484,13 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     firstParent: boolean;
     stopAt: string | undefined;
   }): (CommitRecord & { sha: string })[] {
-    const excluded = stopAt === undefined ? new Set<string>() : this._reachableFrom(stopAt);
+    // `stopAt` accepts a ref name as well as a SHA, exactly as the Git adapter
+    // does when it builds a `stopAt..ref` range. Resolving first keeps a
+    // boundary ref from silently excluding nothing here but everything there.
+    const excludedTip = stopAt === undefined ? null : this._resolveRef(stopAt);
+    const excluded = excludedTip === null
+      ? new Set<string>()
+      : this._reachableFrom(excludedTip);
     const all: (CommitRecord & { sha: string })[] = [];
     const visited = new Set<string>();
     const queue = [startSha];

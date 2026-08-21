@@ -97,6 +97,28 @@ describe('InMemoryGraphAdapter stopAt range', () => {
     expect(emitted).not.toContain(shas.root);
   });
 
+  it('resolves a stopAt ref name, not just a SHA', async () => {
+    // Callers bound reads with a checkpoint ref, not a raw SHA. An adapter that
+    // only understood SHAs would silently exclude nothing and let an unbounded
+    // read pass review here while the Git adapter bounded it correctly.
+    const { adapter, shas } = await mergeDag();
+    await adapter.updateRef('refs/warp/checkpoints/head', shas.mainline);
+
+    const emitted = emittedShas(
+      await adapter.logNodes({
+        ref: 'refs/heads/main',
+        limit: 50,
+        format: RECORD_FORMAT,
+        firstParent: true,
+        stopAt: 'refs/warp/checkpoints/head',
+      }),
+    );
+
+    expect(emitted).toContain(shas.merge);
+    expect(emitted).not.toContain(shas.mainline);
+    expect(emitted).not.toContain(shas.root);
+  });
+
   it('emits the whole chain when stopAt is absent', async () => {
     const { adapter, shas } = await mergeDag();
 
