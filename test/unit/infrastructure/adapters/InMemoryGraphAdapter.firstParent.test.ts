@@ -75,6 +75,28 @@ describe('InMemoryGraphAdapter stopAt range', () => {
     expect(emitted).not.toContain(shas.root);
   });
 
+  it('excludes nothing when stopAt is not an ancestor', async () => {
+    // `X..Y` excludes only what is reachable from X. A stopAt on an unrelated
+    // branch must therefore leave Y's history intact — over-exclusion would
+    // drop commits the caller still needs.
+    const { adapter, shas } = await mergeDag();
+
+    const emitted = emittedShas(
+      await adapter.logNodes({
+        ref: 'refs/heads/main',
+        limit: 50,
+        format: RECORD_FORMAT,
+        firstParent: true,
+        stopAt: shas.side,
+      }),
+    );
+
+    expect(emitted).toContain(shas.merge);
+    expect(emitted).toContain(shas.mainline);
+    // `root` IS reachable from `side`, so it is correctly excluded.
+    expect(emitted).not.toContain(shas.root);
+  });
+
   it('emits the whole chain when stopAt is absent', async () => {
     const { adapter, shas } = await mergeDag();
 

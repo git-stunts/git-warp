@@ -22,6 +22,7 @@ import PatchJournalPort, {
 } from '../../../../../src/ports/PatchJournalPort.ts';
 import type PatchEntry from '../../../../../src/domain/artifacts/PatchEntry.ts';
 import type { CorePersistence } from '../../../../../src/domain/types/WarpPersistence.ts';
+import LoggerPort from '../../../../../src/ports/LoggerPort.ts';
 import type {
   CommitLogChunk,
   CommitNodeOptions,
@@ -295,15 +296,33 @@ class FakePersistence implements CorePersistence {
 function hostWith(
   persistence: CorePersistence,
   journal: PatchJournalPort | null = new FakeJournal(),
+  logger: LoggerPort | null = null,
 ): PatchDiscoveryHost {
   return {
     _graphName: TEST_GRAPH,
     _persistence: persistence,
     _maxObservedLamport: 0,
-    _logger: null,
+    _logger: logger,
     _patchJournal: journal,
     _commitMessageCodec: new FakeCodec(),
   };
+}
+
+/** Captures warn() calls so a silent fallback can be asserted against. */
+class RecordingLogger extends LoggerPort {
+  readonly warnings: string[] = [];
+
+  override warn(message: string): void {
+    this.warnings.push(message);
+  }
+
+  override debug(): void { /* unused by these tests */ }
+  override info(): void { /* unused by these tests */ }
+  override error(): void { /* unused by these tests */ }
+
+  override child(): LoggerPort {
+    return this;
+  }
 }
 
 function delay(ms: number): Promise<void> {
@@ -508,6 +527,62 @@ describe('PatchDiscovery batched chain reads', () => {
     await expect(discovery.loadPatchChainFromSha(shaFor(0))).rejects.toThrowError(
       'slow failure at lamport 4',
     );
+  });
+
+  it('returns the whole chain when stopAtSha is not part of it', async () => {
+    // A stale checkpoint frontier can name a commit that is not an ancestor of
+    // this tip. Bounding the read must never drop patches the walk still needs:
+    // over-exclusion loses history silently, which is worse than reading too much.
+    const unrelated = 'e'.repeat(40);
+    const persistence = new FakePersistence({ commits: linearChain(6) });
+    const discovery = new PatchDiscovery(hostWith(persistence));
+
+    const entries = await discovery.loadPatchChainFromSha(shaFor(0), unrelated);
+
+    expect(entries.map((entry) => entry.sha)).toEqual([
+      shaFor(5), shaFor(4), shaFor(3), shaFor(2), shaFor(1), shaFor(0),
+    ]);
+  });
+
+  it('warns when the bulk read is unusable so the slow path is not silent', async () => {
+    // A silent fallback restores the per-commit cost this class exists to
+    // remove. The degradation must be observable, not merely correct.
+    const logger = new RecordingLogger();
+    const persistence = new FakePersistence({ commits: linearChain(4), logStreamFailure: 'reject' });
+    const discovery = new PatchDiscovery(hostWith(persistence, new FakeJournal(), logger));
+
+    const entries = await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(entries).toHaveLength(4);
+    expect(logger.warnings).toHaveLength(1);
+    expect(logger.warnings[0]).toMatch(/falling back to per-commit/i);
+  });
+
+  it('does not warn when the bulk read succeeds', async () => {
+    const logger = new RecordingLogger();
+    const persistence = new FakePersistence({ commits: linearChain(4) });
+    const discovery = new PatchDiscovery(hostWith(persistence, new FakeJournal(), logger));
+
+    await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(logger.warnings).toEqual([]);
+  });
+
+  it('stops instead of spinning when the chain contains a parent cycle', async () => {
+    // Corrupt history: the root points back at the tip. The walk needs no I/O
+    // per step now, so an unguarded cycle would spin the event loop forever.
+    const commits = linearChain(4);
+    const root = commits[3];
+    if (root === undefined) {
+      throw new Error('fixture chain too short');
+    }
+    root.parents = [shaFor(0)];
+    const persistence = new FakePersistence({ commits });
+    const discovery = new PatchDiscovery(hostWith(persistence));
+
+    const entries = await discovery.loadPatchChainFromSha(shaFor(0));
+
+    expect(entries.map((entry) => entry.sha)).toEqual([shaFor(3), shaFor(2), shaFor(1), shaFor(0)]);
   });
 
   it('discovers ticks with one bulk history read per writer', async () => {

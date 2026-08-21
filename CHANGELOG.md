@@ -22,9 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller observes is deterministic. Persistences without a usable bulk log
   surface (or commits missing from the bulk read) fall back to the legacy
   per-commit walk and its error surface, and that fallback is now logged so a
-  silent return to per-commit cost is observable. Measured against a real graph
-  whose largest writer chain holds 705 patch commits: `--recent --count=5` went
-  from 96.0 s to 9.2-9.7 s, and a single capture from 55-69 s to 15.5-15.9 s.
+  silent return to per-commit cost is observable. Measured as an A/B on two
+  fresh copies of one real graph whose largest writer chain holds 745 patch
+  commits, three reads and two captures each: median read time went from
+  80.0 s to 9.3 s, and median capture from 59.0 s to 17.1 s.
 
 ### Changed
 
