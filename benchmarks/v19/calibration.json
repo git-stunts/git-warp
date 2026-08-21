@@ -28,19 +28,25 @@
       "cpuTotalMedianMs": 11440.000000000002,
       "cpuTotalMadMs": 300.0000000000018,
       "maximumRssBytes": 149114880,
-      "maximumHeapUsedBytes": 55814856
+      "maximumHeapUsedBytes": 55814856,
+      "gitCommandMedian": 2758,
+      "gitCommandMadCount": 0
     },
     "warm-materialize": {
       "cpuTotalMedianMs": 2889.9999999999995,
       "cpuTotalMadMs": 90.00000000000045,
       "maximumRssBytes": 129462272,
-      "maximumHeapUsedBytes": 44256456
+      "maximumHeapUsedBytes": 44256456,
+      "gitCommandMedian": 543,
+      "gitCommandMadCount": 0
     },
     "incremental-materialize": {
       "cpuTotalMedianMs": 11240,
       "cpuTotalMadMs": 320,
       "maximumRssBytes": 151187456,
-      "maximumHeapUsedBytes": 57289656
+      "maximumHeapUsedBytes": 57289656,
+      "gitCommandMedian": 2788,
+      "gitCommandMadCount": 0
     },
     "streaming": {
       "generationMaximumRssBytes": 196218880,
@@ -106,10 +112,10 @@
     "note": "CI-runner measurements are primary. Noise floors cover hosted-runner MAD; absolute materialization and streaming ceilings retain reviewed headroom while blocking gross regressions.",
     "gitCommandRegressionRatio": 1.05,
     "gitCommandMedian": {
-      "cold-materialize": 4500,
-      "warm-materialize": 1000,
-      "incremental-materialize": 4500
+      "cold-materialize": 3200,
+      "warm-materialize": 650,
+      "incremental-materialize": 3250
     },
-    "gitCommandNote": "Git command counts are structural, not timing: three measured runs on the local arm64 profile returned an identical count per scenario (MAD 0), so the relative ratio carries no noise floor. The absolute ceilings are provisional. They sit roughly 1.6x above the local observation because no reference-runner count has been recorded yet; retighten them from the first green ubuntu-24.04 performance run. Until then the relative same-runner ratio is the precise instrument and the absolute ceiling is a gross-blowup backstop."
+    "gitCommandNote": "Git command counts are structural, not timing. The reference runner and a local arm64 machine report identical counts per scenario (2758 / 543 / 2788) despite differing in architecture, OS, Node version (v22.23.1 vs v26.0.0) and Git version (2.54.0 vs 2.50.1), while their CPU medians differ by roughly 2.3x. Three measured runs returned the same count each time (MAD 0). Machine independence is therefore measured, not assumed, which is why the relative ratio carries no noise floor. Absolute ceilings sit ~1.15x above the observed count \u2014 tight enough that a structural change to the read path must be reviewed, loose enough to absorb a small legitimate addition. Evidence: https://github.com/git-stunts/git-warp/actions/runs/32493429207"
   }
 }
