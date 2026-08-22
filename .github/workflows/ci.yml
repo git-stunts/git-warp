@@ -89,6 +89,13 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          # Full history. quarantine-graduate-check resolves
+          # `git merge-base origin/main HEAD`, and a shallow clone does not
+          # contain the branch point whenever the branch diverged before the
+          # base tip — the ordinary case for a PR. The gate now fails closed
+          # on an unresolvable basis, so this is load-bearing, not an
+          # optimisation.
+          fetch-depth: 0
           persist-credentials: false
       - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -101,10 +108,11 @@ jobs:
           npm run lint:contamination
           git diff --exit-code -- policy/quarantines/
       - name: 'Gate 4g: Fetch base branch for quarantine-graduate-check'
-        # Required for `git merge-base origin/main HEAD` on shallow
-        # CI clones. If the fetch fails (e.g. PR from a fork with
-        # limited perms), the graduate-check will skip gracefully.
-        run: git fetch --no-tags --depth=1 origin main || true
+        # Unshallowed fetch of the base branch. This must not be
+        # error-suppressed: if the base cannot be fetched, the gate has no
+        # diff basis, and a gate with no diff basis must fail rather than
+        # wave the change through.
+        run: git fetch --no-tags origin main
       - name: 'Gate 4h: Quarantine graduate-check (touched quarantined files must graduate or narrow)'
         env:
           GIT_WARP_QUARANTINE_BASE: origin/main
