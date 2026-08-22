@@ -53,6 +53,11 @@ export default tseslint.config(
       "scripts/**/*",
       "!scripts/performance",
       "!scripts/performance/**",
+      // Policy tooling decides what the type firewall permits. Leaving it
+      // unlinted let `as` assertions and Record<string, unknown> into the
+      // very modules that exist to forbid them.
+      "!scripts/policy",
+      "!scripts/policy/**",
       ".claude/**",
       ".obsidian/**",
       "test/type-check/**",
@@ -71,7 +76,7 @@ export default tseslint.config(
   // Performance scripts are merge controls, so they receive their own typed
   // lint surface without inheriting domain-only error and JSDoc laws.
   {
-    files: ["scripts/performance/**/*.ts"],
+    files: ["scripts/performance/**/*.ts", "scripts/policy/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
