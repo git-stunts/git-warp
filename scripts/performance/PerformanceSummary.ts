@@ -41,7 +41,8 @@ export function renderPerformanceSummary(
     '',
     base === null
       ? 'Comparison mode: reviewed absolute bootstrap policy.'
-      : 'Comparison mode: same-runner base/head CPU gate plus absolute policy.',
+      : 'Comparison mode: same-runner base/head CPU and Git-command gates '
+        + 'plus absolute policy.',
   );
   if (streamingHead !== undefined) {
     lines.push(

@@ -201,6 +201,16 @@ describe('v19 performance result contract', () => {
       .toEqual([]);
   });
 
+  it('describes comparison mode as both CPU and Git-command gated', () => {
+    const base = validResult();
+
+    expect(evaluatePerformanceGate(validResult(), base, policy()).summary)
+      .toContain(
+        'Comparison mode: same-runner base/head CPU and Git-command gates '
+          + 'plus absolute policy.',
+      );
+  });
+
   it('allows the git-cas versions under test to differ', () => {
     const base = validResult();
     const head: PerformanceResult = {

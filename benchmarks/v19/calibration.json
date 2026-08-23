@@ -1,58 +1,58 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "490ffc8c047033531281c58d4b431aa21a52877d",
-  "generatedAt": "2026-07-26T03:30:11.485Z",
+  "sourceCommit": "6fd42cc7ae33b02a4370236010a67cde08a655e4",
+  "generatedAt": "2026-08-23T18:22:04.400Z",
   "evidence": {
-    "artifact": "v19-performance-a166926815bd73e78b546095a4d142db17b2fd1b",
-    "run": "https://github.com/git-stunts/git-warp/actions/runs/30186045644"
+    "artifact": "v19-performance-cbf17fc96555c9799043a24f0af522718c378caa",
+    "run": "https://github.com/git-stunts/git-warp/actions/runs/32657452817"
   },
   "environment": {
     "architecture": "x64",
     "cpuCount": 4,
     "cpuModel": "AMD EPYC 7763 64-Core Processor",
-    "git": "git version 2.54.0",
-    "gitCas": "6.5.3",
-    "node": "v22.23.1",
+    "git": "git version 2.55.0",
+    "gitCas": "6.5.7",
+    "node": "v22.23.2",
     "platform": "linux",
-    "runner": "github-hosted ubuntu-24.04"
+    "runner": "github-hosted"
   },
   "corpus": {
     "baseNodeCount": 25,
     "suffixNodeCount": 5,
     "propertyBytesPerNode": 256,
-    "measuredRuns": 3,
+    "measuredRuns": 5,
     "warmupRuns": 1
   },
   "observed": {
     "cold-materialize": {
-      "cpuTotalMedianMs": 11440.000000000002,
-      "cpuTotalMadMs": 300.0000000000018,
-      "maximumRssBytes": 149114880,
-      "maximumHeapUsedBytes": 55814856,
-      "gitCommandMedian": 2758,
+      "cpuTotalMedianMs": 7020,
+      "cpuTotalMadMs": 70,
+      "maximumRssBytes": 147722240,
+      "maximumHeapUsedBytes": 53719200,
+      "gitCommandMedian": 1521,
       "gitCommandMadCount": 0
     },
     "warm-materialize": {
-      "cpuTotalMedianMs": 2889.9999999999995,
-      "cpuTotalMadMs": 90.00000000000045,
-      "maximumRssBytes": 129462272,
-      "maximumHeapUsedBytes": 44256456,
-      "gitCommandMedian": 543,
+      "cpuTotalMedianMs": 980,
+      "cpuTotalMadMs": 30,
+      "maximumRssBytes": 128880640,
+      "maximumHeapUsedBytes": 39450024,
+      "gitCommandMedian": 30,
       "gitCommandMadCount": 0
     },
     "incremental-materialize": {
-      "cpuTotalMedianMs": 11240,
-      "cpuTotalMadMs": 320,
-      "maximumRssBytes": 151187456,
-      "maximumHeapUsedBytes": 57289656,
-      "gitCommandMedian": 2788,
+      "cpuTotalMedianMs": 6550.000000000001,
+      "cpuTotalMadMs": 49.99999999999909,
+      "maximumRssBytes": 147767296,
+      "maximumHeapUsedBytes": 54754208,
+      "gitCommandMedian": 1409,
       "gitCommandMadCount": 0
     },
     "streaming": {
-      "generationMaximumRssBytes": 196218880,
-      "generationPeakHeapUsedBytes": 52742016,
-      "maximumRssBytes": 145403904,
-      "peakHeapUsedBytes": 38016568
+      "generationMaximumRssBytes": 204263424,
+      "generationPeakHeapUsedBytes": 61427008,
+      "maximumRssBytes": 150323200,
+      "peakHeapUsedBytes": 37747672
     }
   },
   "localCalibration": {
@@ -61,37 +61,37 @@
       "cpuCount": 10,
       "cpuModel": "Apple M1 Pro",
       "git": "git version 2.50.1 (Apple Git-155)",
-      "gitCas": "6.5.3",
+      "gitCas": "6.5.7",
       "node": "v26.0.0",
       "platform": "darwin"
     },
     "observed": {
       "cold-materialize": {
-        "cpuTotalMedianMs": 3993.154,
-        "cpuTotalMadMs": 11.974,
-        "maximumRssBytes": 152158208,
-        "maximumHeapUsedBytes": 57703656,
-        "gitCommandMedian": 2758,
+        "cpuTotalMedianMs": 2543.928,
+        "cpuTotalMadMs": 21.105000000000018,
+        "maximumRssBytes": 161824768,
+        "maximumHeapUsedBytes": 59778136,
+        "gitCommandMedian": 1521,
         "gitCommandMadCount": 0
       },
       "warm-materialize": {
-        "cpuTotalMedianMs": 834.786,
-        "cpuTotalMadMs": 4.831,
-        "maximumRssBytes": 120930304,
-        "maximumHeapUsedBytes": 39929144,
-        "gitCommandMedian": 543,
+        "cpuTotalMedianMs": 142.252,
+        "cpuTotalMadMs": 1.6859999999999786,
+        "maximumRssBytes": 118980608,
+        "maximumHeapUsedBytes": 37857744,
+        "gitCommandMedian": 30,
         "gitCommandMadCount": 0
       },
       "incremental-materialize": {
-        "cpuTotalMedianMs": 4276.35,
-        "cpuTotalMadMs": 89.092,
-        "maximumRssBytes": 152928256,
-        "maximumHeapUsedBytes": 58384360,
-        "gitCommandMedian": 2788,
+        "cpuTotalMedianMs": 2359.879,
+        "cpuTotalMadMs": 12.159000000000106,
+        "maximumRssBytes": 159940608,
+        "maximumHeapUsedBytes": 58520568,
+        "gitCommandMedian": 1409,
         "gitCommandMadCount": 0
       }
     },
-    "measuredRuns": 3,
+    "measuredRuns": 5,
     "warmupRuns": 1
   },
   "rejectedProfiles": [
@@ -112,10 +112,10 @@
     "note": "CI-runner measurements are primary. Noise floors cover hosted-runner MAD; absolute materialization and streaming ceilings retain reviewed headroom while blocking gross regressions.",
     "gitCommandRegressionRatio": 1.05,
     "gitCommandMedian": {
-      "cold-materialize": 3200,
-      "warm-materialize": 650,
-      "incremental-materialize": 3250
+      "cold-materialize": 1750,
+      "warm-materialize": 35,
+      "incremental-materialize": 1625
     },
-    "gitCommandNote": "Git command counts are structural, not timing. The reference runner and a local arm64 machine report identical counts per scenario (2758 / 543 / 2788) despite differing in architecture, OS, Node version (v22.23.1 vs v26.0.0) and Git version (2.54.0 vs 2.50.1), while their CPU medians differ by roughly 2.3x. Three measured runs returned the same count each time (MAD 0). Machine independence is therefore measured, not assumed, which is why the relative ratio carries no noise floor. Absolute ceilings sit ~1.15x above the observed count \u2014 tight enough that a structural change to the read path must be reviewed, loose enough to absorb a small legitimate addition. Evidence: https://github.com/git-stunts/git-warp/actions/runs/32493429207"
+    "gitCommandNote": "Git command counts are structural, not timing. The reference runner and a local arm64 machine report identical session-aware counts per scenario (1521 / 30 / 1409) despite differing in architecture, OS, Node version (v22.23.2 vs v26.0.0), and Git version (2.55.0 vs 2.50.1), while their CPU medians differ materially. Five measured runs on each machine returned the same count every time (MAD 0). Machine independence is therefore measured, not assumed, which is why the relative ratio carries no noise floor. Absolute ceilings sit about 1.15x above the observed count \u2014 tight enough that a structural change to the storage path must be reviewed, loose enough to absorb a small legitimate addition. Evidence: https://github.com/git-stunts/git-warp/actions/runs/32657452817"
   }
 }

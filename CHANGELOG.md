@@ -54,16 +54,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The v19 performance gate now blocks on Git command counts as well as CPU.
   `benchmarks/v19/policy.json` gains `absolute.gitCommandMedian` per scenario and
   `relative.gitCommandRegressionRatio`, and the gate summary reports head and base
-  counts. Command counts are structural: they are decided by which code paths run,
-  not by how fast the runner is. This is measured rather than assumed: the
-  ubuntu-24.04 reference runner and a local arm64 machine report identical counts
-  per scenario (2758 / 543 / 2788) despite differing in architecture, OS, Node
-  version and Git version, while their CPU medians differ by roughly 2.3x. Three
-  measured runs returned the same count each time (MAD 0). The checks therefore
-  carry no noise floor, and the absolute ceilings sit ~1.15x above the observed
-  count — tight enough to force review of a structural change to the read path,
-  loose enough to absorb a small legitimate addition. Together they catch a
-  subprocess-count regression that leaves the CPU envelope untouched.
+  counts. The benchmark plumbing delegates and counts persistent `cat-file`,
+  `mktree`, and `fast-import` sessions, so instrumentation preserves the same
+  session topology as production instead of degrading a session-capable adapter
+  into one-shot commands. Command counts are structural: they are decided by
+  which code paths run, not by how fast the runner is. This is measured rather
+  than assumed: the ubuntu-24.04 reference runner and a local arm64 machine report
+  identical counts per scenario (1521 / 30 / 1409) despite differing in
+  architecture, OS, Node version, and Git version, while their CPU medians differ
+  materially. Five measured runs on each machine returned the same count every
+  time (MAD 0). The checks therefore carry no noise floor, and the absolute
+  ceilings sit about 1.15x above the observed count — tight enough to force review
+  of a structural change to the storage path, loose enough to absorb a small
+  legitimate addition. On the reference runner, the dependency and benchmark
+  plumbing change reduced cold/warm/incremental Git commands from
+  2758 / 543 / 2788 to 1521 / 30 / 1409 and CPU medians by
+  28.4% / 59.0% / 33.5%. Together the gates catch a subprocess-count regression
+  that leaves the CPU envelope untouched.
   Scope, stated plainly: the current corpus writes each segment as a single
   patch, so every scenario replays a one-patch chain. These counts therefore
   gate object and payload traffic, not chain-traversal depth, and they would not

@@ -40,6 +40,7 @@ const CalibrationSchema = z.object({
     suffixNodeCount: z.number(),
   }),
   environment: z.object({
+    gitCas: z.string(),
     node: z.string(),
     platform: z.string(),
     runner: z.string(),
@@ -146,9 +147,10 @@ describe('v19 performance workflow', () => {
       suffixNodeCount: 5,
     });
     expect(calibration.environment).toMatchObject({
-      node: 'v22.23.1',
+      gitCas: '6.5.7',
+      node: 'v22.23.2',
       platform: 'linux',
-      runner: 'github-hosted ubuntu-24.04',
+      runner: 'github-hosted',
     });
     expect(calibration.policyRationale.cpuRegressionRatio).toBe(1.15);
     expect(calibration.policyRationale.gitCommandRegressionRatio)
