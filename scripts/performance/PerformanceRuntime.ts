@@ -42,6 +42,14 @@ export type OpenPerformanceRuntime = Readonly<{
   runtime: RuntimeHost;
 }>;
 
+/** Session-capable plumbing surface required to preserve production process topology. */
+export type PerformanceGitPlumbing = GitPlumbing &
+  Readonly<{
+    openCatFileSession(): Promise<unknown>;
+    openFastImportSession(): Promise<unknown>;
+    openMktreeSession(): Promise<unknown>;
+  }>;
+
 export async function openPerformanceRuntime(
   repositoryPath: string,
 ): Promise<OpenPerformanceRuntime> {
@@ -80,13 +88,13 @@ export async function openPerformanceRuntime(
   });
 }
 
-class CountingPlumbing implements GitPlumbing {
+export class CountingPlumbing implements GitPlumbing {
   readonly emptyTree: string;
   commandCount = 0;
   readonly #commands = new Map<string, number>();
-  readonly #delegate: GitPlumbing;
+  readonly #delegate: PerformanceGitPlumbing;
 
-  constructor(delegate: GitPlumbing) {
+  constructor(delegate: PerformanceGitPlumbing) {
     this.#delegate = delegate;
     this.emptyTree = delegate.emptyTree;
   }
@@ -103,13 +111,31 @@ class CountingPlumbing implements GitPlumbing {
     return await this.#delegate.executeStream(options);
   }
 
+  async openCatFileSession(): Promise<unknown> {
+    this.#recordCategory('session:cat-file');
+    return await this.#delegate.openCatFileSession();
+  }
+
+  async openFastImportSession(): Promise<unknown> {
+    this.#recordCategory('session:fast-import');
+    return await this.#delegate.openFastImportSession();
+  }
+
+  async openMktreeSession(): Promise<unknown> {
+    this.#recordCategory('session:mktree');
+    return await this.#delegate.openMktreeSession();
+  }
+
   commandHistogram(): Readonly<Record<string, number>> {
     return Object.freeze(Object.fromEntries(this.#commands));
   }
 
   #record(args: readonly string[]): void {
+    this.#recordCategory(commandCategory(args));
+  }
+
+  #recordCategory(command: string): void {
     this.commandCount += 1;
-    const command = commandCategory(args);
     this.#commands.set(command, (this.#commands.get(command) ?? 0) + 1);
   }
 }
