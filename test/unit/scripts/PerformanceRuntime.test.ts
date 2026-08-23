@@ -3,7 +3,12 @@ import type { CollectableStream } from '../../../src/infrastructure/adapters/Git
 import {
   CountingPlumbing,
   type PerformanceGitPlumbing,
+  RecordingMaterializationWorkspace,
 } from '../../../scripts/performance/PerformanceRuntime.ts';
+import MaterializationWorkspacePort
+  from '../../../src/ports/MaterializationWorkspacePort.ts';
+import type { StagePagesOptions }
+  from '../../../src/ports/ArtifactStagingPort.ts';
 
 class RecordingSessionPlumbing implements PerformanceGitPlumbing {
   readonly emptyTree = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
@@ -62,5 +67,43 @@ describe('performance plumbing session fidelity', () => {
       'session:fast-import': 1,
       'session:mktree': 1,
     });
+  });
+
+  it('preserves bounded page staging through the recording workspace', async () => {
+    const sources = Object.freeze([
+      Uint8Array.of(1, 2),
+      Uint8Array.of(3, 4),
+    ]);
+    const options: StagePagesOptions = Object.freeze({
+      maxBytes: 16,
+      maxBatchBytes: 32,
+      maxBatchPages: 2,
+    });
+    const handles = Object.freeze(['page:sha1:one', 'page:sha1:two']);
+    const calls: Array<readonly [readonly Uint8Array[], StagePagesOptions]> = [];
+    const delegate: MaterializationWorkspacePort = {
+      checkpoint: async () => null,
+      promote: async () => {
+        throw new Error('promote is outside this page-batch delegation test');
+      },
+      release: async () => undefined,
+      stageOrderedBundle: async () => {
+        throw new Error('bundle staging is outside this page-batch delegation test');
+      },
+      stagePage: async () => {
+        throw new Error('single-page staging is outside this page-batch delegation test');
+      },
+      stagePages: async (pageSources, pageOptions) => {
+        calls.push([pageSources, pageOptions]);
+        return handles;
+      },
+    };
+    const workspace = new RecordingMaterializationWorkspace(
+      delegate,
+      delegate.promote,
+    );
+
+    await expect(workspace.stagePages(sources, options)).resolves.toBe(handles);
+    expect(calls).toEqual([[sources, options]]);
   });
 });

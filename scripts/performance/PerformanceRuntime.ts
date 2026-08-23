@@ -24,6 +24,8 @@ import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
   type PromoteMaterializationRequest,
 } from '../../src/ports/MaterializationWorkspacePort.ts';
+import type { StagePagesOptions }
+  from '../../src/ports/ArtifactStagingPort.ts';
 import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProviderPort.ts';
 import type {
   RuntimeStorageRequest,
@@ -221,7 +223,7 @@ class RecordingMaterializationStore extends MaterializationStorePort {
   }
 }
 
-class RecordingMaterializationWorkspace extends MaterializationWorkspacePort {
+export class RecordingMaterializationWorkspace extends MaterializationWorkspacePort {
   readonly #delegate: MaterializationWorkspacePort;
   readonly #promote: MaterializationWorkspacePort['promote'];
 
@@ -242,6 +244,17 @@ class RecordingMaterializationWorkspace extends MaterializationWorkspacePort {
     ...args: Parameters<MaterializationWorkspacePort['stagePage']>
   ): ReturnType<MaterializationWorkspacePort['stagePage']> {
     return this.#delegate.stagePage(...args);
+  }
+
+  override stagePages(
+    sources: readonly Uint8Array[],
+    options: StagePagesOptions,
+  ): Promise<readonly string[]> {
+    const stagePages = this.#delegate.stagePages;
+    if (stagePages === undefined) {
+      throw new Error('Performance runtime requires batched materialization page staging');
+    }
+    return stagePages.call(this.#delegate, sources, options);
   }
 
   override stageOrderedBundle(
