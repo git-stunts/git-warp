@@ -3,8 +3,9 @@ import type { CollectableStream } from '../../../src/infrastructure/adapters/Git
 import {
   CountingPlumbing,
   type PerformanceGitPlumbing,
-  RecordingMaterializationWorkspace,
 } from '../../../scripts/performance/PerformanceRuntime.ts';
+import RecordingMaterializationWorkspace
+  from '../../../scripts/performance/RecordingMaterializationWorkspace.ts';
 import MaterializationWorkspacePort
   from '../../../src/ports/MaterializationWorkspacePort.ts';
 import type { StagePagesOptions }
