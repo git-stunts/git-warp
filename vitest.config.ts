@@ -22,7 +22,7 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/ports/**/*.ts', 'src/**/*.d.ts'],
       thresholds: {
-        lines: 92.99,
+        lines: 93.03,
         autoUpdate: shouldAutoUpdateCoverageRatchet(),
       },
     },
