@@ -26,10 +26,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   silent return to per-commit cost is observable rather than merely correct. Measured as an A/B on two
   fresh copies of one real graph whose largest writer chain holds 745 patch
   commits, three reads and two captures each: median read time went from
-  80.0 s to 9.3 s, and median capture from 59.0 s to 17.1 s.
+  80.0 s to 9.3 s, and median capture from 59.0 s to 17.1 s. Upgrading the
+  runtime dependency from `@git-stunts/git-cas` 6.5.5 to 6.5.7 also completes
+  the payload half of the fix: on twin disposable copies of the same current
+  Think mind, a consumer-level spawn census on this branch fell from 3,205 Git
+  child starts to 27. All 3,179 one-shot `git cat-file blob` children became
+  zero; two bounded persistent `git cat-file --batch-command` sessions covered
+  the object-read path instead. The 54 emitted JSON events had the same semantic
+  digest after removing only their per-run timestamps. This is process-topology
+  and output-equivalence evidence, not a claim that arbitrary large payloads
+  are buffered or that every Git process has been eliminated.
 
 ### Changed
 
+- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.7. Because
+  git-cas includes its package version in newly written manifest metadata, the
+  verified v17 migration-reading fixture's content handle advances with the
+  dependency while its legacy equivalence facts remain unchanged.
 - `LogNodesOptions` gains `firstParent` and `stopAt`. Chain readers advance by
   first parent and stop at a known boundary, so the history read is now
   constrained the same way: a merge's side branch is never streamed, and the
