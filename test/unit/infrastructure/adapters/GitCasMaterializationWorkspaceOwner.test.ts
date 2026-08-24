@@ -100,7 +100,7 @@ function createWorkspace(
 function stagingWorkspace(release: () => Promise<void>): GitCasStagingWorkspace {
   return {
     pages: { put: vi.fn(), putBatch: vi.fn() },
-    bundles: { putOrdered: vi.fn() },
+    bundles: { putOrdered: vi.fn(), putOrderedBatch: vi.fn() },
     checkpoint: vi.fn(),
     promoteToCache: vi.fn(),
     release,
