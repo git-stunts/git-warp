@@ -1,11 +1,16 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "wallTime": "diagnostic",
   "absolute": {
     "cpuTotalMedianMs": {
       "cold-materialize": 30000,
       "warm-materialize": 10000,
       "incremental-materialize": 30000
+    },
+    "gitCommandMedian": {
+      "cold-materialize": 1750,
+      "warm-materialize": 35,
+      "incremental-materialize": 1625
     },
     "maxRssBytes": {
       "cold-materialize": 402653184,
@@ -24,7 +29,8 @@
       "warm-materialize": 50,
       "incremental-materialize": 250
     },
-    "cpuRegressionRatio": 1.15
+    "cpuRegressionRatio": 1.15,
+    "gitCommandRegressionRatio": 1.05
   },
   "streaming": {
     "maxRssBytes": 268435456,

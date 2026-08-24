@@ -7,8 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance
+
+- Patch-chain traversal (`PatchDiscovery.loadPatchChainFromSha`,
+  `PatchDiscovery.discoverTicks`) now reads chain metadata with a single bulk
+  `logNodesStream` history read per chain instead of one `getNodeInfo` call per
+  commit. On the Git adapter every `getNodeInfo` call is a `git show`
+  subprocess, so materializing a graph previously spawned one subprocess per
+  patch commit, serially — O(history × spawn latency) for every read. Patch
+  payload reads now run with bounded concurrency (8) while preserving
+  chronological order and read-error behavior. When several payload reads fail,
+  the error raised is the one belonging to the earliest patch in chain order
+  rather than whichever rejected first in wall-clock time, so the failure a
+  caller observes is deterministic. Persistences without a usable bulk log
+  surface (or commits missing from the bulk read) fall back to the legacy
+  per-commit walk and its error surface. Both degradations are logged — a bulk
+  read that throws, and a bulk read that succeeds while omitting commits — so a
+  silent return to per-commit cost is observable rather than merely correct. Measured as an A/B on two
+  fresh copies of one real graph whose largest writer chain holds 745 patch
+  commits, three reads and two captures each: median read time went from
+  80.0 s to 9.3 s, and median capture from 59.0 s to 17.1 s. Upgrading the
+  runtime dependency from `@git-stunts/git-cas` 6.5.5 to 6.5.7 also completes
+  the payload half of the fix: on twin disposable copies of the same current
+  Think mind, a consumer-level spawn census on this branch fell from 3,205 Git
+  child starts to 27. All 3,179 one-shot `git cat-file blob` children became
+  zero; two bounded persistent `git cat-file --batch-command` sessions covered
+  the object-read path instead. The 54 emitted JSON events had the same semantic
+  digest after removing only their per-run timestamps. This is process-topology
+  and output-equivalence evidence, not a claim that arbitrary large payloads
+  are buffered or that every Git process has been eliminated.
+
+### Changed
+
+- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.7. Because
+  git-cas includes its package version in newly written manifest metadata, the
+  verified v17 migration-reading fixture's content handle advances with the
+  dependency while its legacy equivalence facts remain unchanged.
+- `LogNodesOptions` gains `firstParent` and `stopAt`. Chain readers advance by
+  first parent and stop at a known boundary, so the history read is now
+  constrained the same way: a merge's side branch is never streamed, and the
+  read is bounded to `stopAt..ref` rather than running to the root of history.
+  Both options are opt-in and default to the previous behaviour.
+
 ### Added
 
+- The v19 performance gate now blocks on Git command counts as well as CPU.
+  `benchmarks/v19/policy.json` gains `absolute.gitCommandMedian` per scenario and
+  `relative.gitCommandRegressionRatio`, and the gate summary reports head and base
+  counts. The benchmark plumbing delegates and counts persistent `cat-file`,
+  `mktree`, and `fast-import` sessions, so instrumentation preserves the same
+  session topology as production instead of degrading a session-capable adapter
+  into one-shot commands. Command counts are structural: they are decided by
+  which code paths run, not by how fast the runner is. This is measured rather
+  than assumed: the ubuntu-24.04 reference runner and a local arm64 machine report
+  identical counts per scenario (1521 / 30 / 1409) despite differing in
+  architecture, OS, Node version, and Git version, while their CPU medians differ
+  materially. Five measured runs on each machine returned the same count every
+  time (MAD 0). The checks therefore carry no noise floor, and the absolute
+  ceilings sit about 1.15x above the observed count — tight enough to force review
+  of a structural change to the storage path, loose enough to absorb a small
+  legitimate addition. On the reference runner, the dependency and benchmark
+  plumbing change reduced cold/warm/incremental Git commands from
+  2758 / 543 / 2788 to 1521 / 30 / 1409 and CPU medians by
+  28.4% / 59.0% / 33.5%. Together the gates catch a subprocess-count regression
+  that leaves the CPU envelope untouched.
+  Scope, stated plainly: the current corpus writes each segment as a single
+  patch, so every scenario replays a one-patch chain. These counts therefore
+  gate object and payload traffic, not chain-traversal depth, and they would not
+  by themselves have caught the per-commit walk fixed above. Giving the fixture a
+  multi-patch chain is tracked separately.
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
   its initial payload in a single patch. The lowered patch declares an empty
   read set and exactly one subject write. That declaration describes the

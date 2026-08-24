@@ -1,12 +1,79 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import z from 'zod';
 import { PerformancePolicySchema }
   from '../../../scripts/performance/GatePerformance.ts';
+import { PERFORMANCE_SCENARIOS }
+  from '../../../scripts/performance/PerformanceModel.ts';
 import { validatePerformanceExecutionOrder }
   from '../../../scripts/performance/PerformanceComparisonModel.ts';
 
 const root = process.cwd();
+
+/**
+ * The calibration record, validated rather than asserted.
+ *
+ * These files are the evidence a threshold change is reviewed against, so a
+ * malformed one should fail loudly here instead of silently satisfying a cast.
+ */
+const ObservedCountsSchema = z.object({
+  gitCommandMedian: z.number().int().nonnegative(),
+});
+
+/**
+ * Command counts per scenario.
+ *
+ * Keyed by the three scenario names rather than by string: the top-level
+ * `observed` block also carries a `streaming` entry that has no command count,
+ * and a permissive record would either reject it or let a missing scenario pass.
+ */
+const ScenarioCountsSchema = z.object({
+  'cold-materialize': ObservedCountsSchema,
+  'incremental-materialize': ObservedCountsSchema,
+  'warm-materialize': ObservedCountsSchema,
+});
+
+const CalibrationSchema = z.object({
+  corpus: z.object({
+    baseNodeCount: z.number(),
+    suffixNodeCount: z.number(),
+  }),
+  environment: z.object({
+    gitCas: z.string(),
+    node: z.string(),
+    platform: z.string(),
+    runner: z.string(),
+  }),
+  localCalibration: z.object({
+    observed: ScenarioCountsSchema,
+  }),
+  observed: ScenarioCountsSchema,
+  policyRationale: z.object({
+    cpuRegressionRatio: z.number(),
+    gitCommandRegressionRatio: z.number(),
+    streamingMaxRssBytes: z.number(),
+    streamingPeakHeapUsedBytes: z.number(),
+  }),
+  rejectedProfiles: z.array(z.object({
+    baseNodeCount: z.number().int().positive(),
+    reason: z.string().min(1),
+  })),
+});
+
+function readBenchmarkJson(name: string): unknown {
+  const text = readFileSync(resolve(root, `benchmarks/v19/${name}`), 'utf8');
+  const parsed: unknown = JSON.parse(text);
+  return parsed;
+}
+
+function readPolicy(): z.infer<typeof PerformancePolicySchema> {
+  return PerformancePolicySchema.parse(readBenchmarkJson('policy.json'));
+}
+
+function readCalibration(): z.infer<typeof CalibrationSchema> {
+  return CalibrationSchema.parse(readBenchmarkJson('calibration.json'));
+}
 const workflow = readFileSync(
   resolve(root, '.github/workflows/performance.yml'),
   'utf8',
@@ -67,23 +134,8 @@ describe('v19 performance workflow', () => {
   });
 
   it('keeps calibration and threshold changes in ordinary source review', () => {
-    const policy = PerformancePolicySchema.parse(JSON.parse(readFileSync(
-      resolve(root, 'benchmarks/v19/policy.json'),
-      'utf8',
-    )) as unknown);
-    const calibration = JSON.parse(readFileSync(
-      resolve(root, 'benchmarks/v19/calibration.json'),
-      'utf8',
-    )) as {
-      corpus?: { baseNodeCount?: number; suffixNodeCount?: number };
-      environment?: { node?: string; platform?: string; runner?: string };
-      policyRationale?: {
-        cpuRegressionRatio?: number;
-        streamingMaxRssBytes?: number;
-        streamingPeakHeapUsedBytes?: number;
-      };
-      rejectedProfiles?: readonly unknown[];
-    };
+    const policy = readPolicy();
+    const calibration = readCalibration();
 
     expect(policy.relative.cpuRegressionRatio).toBe(1.15);
     expect(policy.streaming).toEqual({
@@ -95,16 +147,36 @@ describe('v19 performance workflow', () => {
       suffixNodeCount: 5,
     });
     expect(calibration.environment).toMatchObject({
-      node: 'v22.23.1',
+      gitCas: '6.5.7',
+      node: 'v22.23.2',
       platform: 'linux',
-      runner: 'github-hosted ubuntu-24.04',
+      runner: 'github-hosted',
     });
-    expect(calibration.policyRationale?.cpuRegressionRatio).toBe(1.15);
-    expect(calibration.policyRationale?.streamingMaxRssBytes)
+    expect(calibration.policyRationale.cpuRegressionRatio).toBe(1.15);
+    expect(calibration.policyRationale.gitCommandRegressionRatio)
+      .toBe(policy.relative.gitCommandRegressionRatio);
+    expect(calibration.policyRationale.streamingMaxRssBytes)
       .toBe(policy.streaming.maxRssBytes);
-    expect(calibration.policyRationale?.streamingPeakHeapUsedBytes)
+    expect(calibration.policyRationale.streamingPeakHeapUsedBytes)
       .toBe(policy.streaming.peakHeapUsedBytes);
     expect(calibration.rejectedProfiles).toHaveLength(1);
+  });
+
+  it('keeps every Git-command ceiling above both calibrated observations', () => {
+    // The reference runner is primary: the gate runs there, so a ceiling below
+    // the CI observation would pass a local-only check and then fail on merge.
+    const policy = readPolicy();
+    const calibration = readCalibration();
+
+    // Iterating the canonical scenario list, not the policy's own keys, so a
+    // scenario dropped from the policy fails here instead of silently passing.
+    for (const scenario of PERFORMANCE_SCENARIOS) {
+      const ceiling = policy.absolute.gitCommandMedian[scenario];
+      expect(ceiling, `${scenario} ceiling clears the reference-runner count`)
+        .toBeGreaterThan(calibration.observed[scenario].gitCommandMedian);
+      expect(ceiling, `${scenario} ceiling clears the local count`)
+        .toBeGreaterThan(calibration.localCalibration.observed[scenario].gitCommandMedian);
+    }
   });
 
   it('requires current green main performance evidence for v19 releases', () => {

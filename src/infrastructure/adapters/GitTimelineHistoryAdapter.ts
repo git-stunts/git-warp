@@ -21,13 +21,14 @@ import type { TreeEntryProbeResult } from '../../domain/tree/TreeEntryProbeResul
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
+import { buildLogArgs } from './GitLogArgs.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
 import decodeGitCommitNodeInfo from './GitCommitNodeInfoDecoder.ts';
 import GitRecursiveTreeOidReaderAdapter from './GitRecursiveTreeOidReaderAdapter.ts';
 import AlfredOperationPolicyAdapter from './AlfredOperationPolicyAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
-import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
+import { validateOid, validateRef, validateLimit, validateConfigKey, validateLogRequest } from './adapterValidation.ts';
 import {
   type GitPlumbing,
   type GitError,
@@ -238,14 +239,16 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     }
   }
 
-  async logNodes({ ref, limit = 50, format }: LogNodesOptions): Promise<string> {
-    validateRef(ref);
-    validateLimit(limit);
-    const args = ['log', `-${limit}`];
-    if (typeof format === 'string' && format.length > 0) {
-      args.push(`--format=${format}`);
-    }
-    args.push(ref);
+  async logNodes({ ref, limit = 50, format, firstParent, stopAt }: LogNodesOptions): Promise<string> {
+    validateLogRequest({ ref, limit, stopAt });
+    const args = buildLogArgs({
+      base: ['log', `-${limit}`],
+      ref,
+      format,
+      firstParent: firstParent ?? false,
+      stripNulFormat: false,
+      stopAt,
+    });
     try {
       return await this._executeWithRetry({ args });
     } catch (raw) {
@@ -257,17 +260,18 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     ref,
     limit = 1000000,
     format,
+    firstParent,
+    stopAt,
   }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
-    validateRef(ref);
-    validateLimit(limit);
-    const args = ['log', '-z', `-${limit}`];
-    if (typeof format === 'string' && format.length > 0) {
-      // Strip NUL bytes — Git -z uses NUL as record terminator.
-      // eslint-disable-next-line no-control-regex
-      const cleanFormat = format.replace(/\x00/g, '');
-      args.push(`--format=${cleanFormat}`);
-    }
-    args.push(ref);
+    validateLogRequest({ ref, limit, stopAt });
+    const args = buildLogArgs({
+      base: ['log', '-z', `-${limit}`],
+      ref,
+      format,
+      firstParent: firstParent ?? false,
+      stripNulFormat: true,
+      stopAt,
+    });
     const rawStream = await this._policy.stream(
       () => this.plumbing.executeStream({ args }),
       this._retryOptions

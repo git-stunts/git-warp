@@ -20,16 +20,16 @@ import MaterializationStorePort, {
   type MaterializationPredecessorPredicate,
   type RetainMaterializationRequest,
 } from '../../src/ports/MaterializationStorePort.ts';
-import MaterializationWorkspacePort, {
-  type MaterializationWorkspaceRoots,
-  type PromoteMaterializationRequest,
-} from '../../src/ports/MaterializationWorkspacePort.ts';
+import type MaterializationWorkspacePort
+  from '../../src/ports/MaterializationWorkspacePort.ts';
 import type RuntimeStorageProviderPort from '../../src/ports/RuntimeStorageProviderPort.ts';
 import type {
   RuntimeStorageRequest,
   RuntimeStorageServices,
 } from '../../src/ports/RuntimeStorageProviderPort.ts';
 import type { MaterializationEvidence } from './PerformanceModel.ts';
+import RecordingMaterializationWorkspace
+  from './RecordingMaterializationWorkspace.ts';
 
 const GRAPH_NAME = 'performance';
 const WRITER_ID = 'benchmark-writer';
@@ -41,6 +41,14 @@ export type OpenPerformanceRuntime = Readonly<{
   materializationEvidence: () => MaterializationEvidence;
   runtime: RuntimeHost;
 }>;
+
+/** Session-capable plumbing surface required to preserve production process topology. */
+export type PerformanceGitPlumbing = GitPlumbing &
+  Readonly<{
+    openCatFileSession(): Promise<unknown>;
+    openFastImportSession(): Promise<unknown>;
+    openMktreeSession(): Promise<unknown>;
+  }>;
 
 export async function openPerformanceRuntime(
   repositoryPath: string,
@@ -80,13 +88,13 @@ export async function openPerformanceRuntime(
   });
 }
 
-class CountingPlumbing implements GitPlumbing {
+export class CountingPlumbing implements GitPlumbing {
   readonly emptyTree: string;
   commandCount = 0;
   readonly #commands = new Map<string, number>();
-  readonly #delegate: GitPlumbing;
+  readonly #delegate: PerformanceGitPlumbing;
 
-  constructor(delegate: GitPlumbing) {
+  constructor(delegate: PerformanceGitPlumbing) {
     this.#delegate = delegate;
     this.emptyTree = delegate.emptyTree;
   }
@@ -103,13 +111,31 @@ class CountingPlumbing implements GitPlumbing {
     return await this.#delegate.executeStream(options);
   }
 
+  async openCatFileSession(): Promise<unknown> {
+    this.#recordCategory('session:cat-file');
+    return await this.#delegate.openCatFileSession();
+  }
+
+  async openFastImportSession(): Promise<unknown> {
+    this.#recordCategory('session:fast-import');
+    return await this.#delegate.openFastImportSession();
+  }
+
+  async openMktreeSession(): Promise<unknown> {
+    this.#recordCategory('session:mktree');
+    return await this.#delegate.openMktreeSession();
+  }
+
   commandHistogram(): Readonly<Record<string, number>> {
     return Object.freeze(Object.fromEntries(this.#commands));
   }
 
   #record(args: readonly string[]): void {
+    this.#recordCategory(commandCategory(args));
+  }
+
+  #recordCategory(command: string): void {
     this.commandCount += 1;
-    const command = commandCategory(args);
     this.#commands.set(command, (this.#commands.get(command) ?? 0) + 1);
   }
 }
@@ -192,46 +218,6 @@ class RecordingMaterializationStore extends MaterializationStorePort {
 
   override async close(): Promise<void> {
     await this.#delegate.close();
-  }
-}
-
-class RecordingMaterializationWorkspace extends MaterializationWorkspacePort {
-  readonly #delegate: MaterializationWorkspacePort;
-  readonly #promote: MaterializationWorkspacePort['promote'];
-
-  constructor(
-    delegate: MaterializationWorkspacePort,
-    promote: MaterializationWorkspacePort['promote'],
-  ) {
-    super();
-    this.#delegate = delegate;
-    this.#promote = promote;
-  }
-
-  override checkpoint(roots: MaterializationWorkspaceRoots) {
-    return this.#delegate.checkpoint(roots);
-  }
-
-  override stagePage(
-    ...args: Parameters<MaterializationWorkspacePort['stagePage']>
-  ): ReturnType<MaterializationWorkspacePort['stagePage']> {
-    return this.#delegate.stagePage(...args);
-  }
-
-  override stageOrderedBundle(
-    ...args: Parameters<MaterializationWorkspacePort['stageOrderedBundle']>
-  ): ReturnType<MaterializationWorkspacePort['stageOrderedBundle']> {
-    return this.#delegate.stageOrderedBundle(...args);
-  }
-
-  override promote(
-    request: PromoteMaterializationRequest,
-  ): Promise<MaterializationHandle> {
-    return this.#promote(request);
-  }
-
-  override release(): Promise<void> {
-    return this.#delegate.release();
   }
 }
 

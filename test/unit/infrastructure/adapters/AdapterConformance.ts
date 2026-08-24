@@ -9,6 +9,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import GitLogParser from '../../../../src/domain/services/GitLogParser.ts';
 
+/** The record format GitLogParser expects: sha, author, date, parents, body. */
+const LOG_NODE_FORMAT = '%H%n%an <%ae>%n%aI%n%P%n%B';
+
+/** Comfortably above every chain these tests build, so `limit` never truncates. */
+const LOG_NODE_LIMIT = 50;
+
 /**
  * @param {string} name - Adapter display name for describe blocks
  * @param {() => Promise<{adapter: any, cleanup?: () => Promise<void>}>} factory
@@ -110,11 +116,10 @@ export function describeAdapterConformance(name, factory) {
         const b = await adapter.commitNode({ message: 'second commit', parents: [a] });
         await adapter.updateRef('refs/warp/test/writers/log', b);
 
-        const format = '%H%n%an <%ae>%n%aI%n%P%n%B';
         const stream = await adapter.logNodesStream({
           ref: 'refs/warp/test/writers/log',
-          limit: 10,
-          format,
+          limit: LOG_NODE_LIMIT,
+          format: LOG_NODE_FORMAT,
         });
 
         const parser = new GitLogParser();
@@ -125,6 +130,85 @@ export function describeAdapterConformance(name, factory) {
         expect(nodes.length).toBe(2);
         expect(nodes[0]?.sha).toBe(b);
         expect(nodes[1]?.sha).toBe(a);
+      });
+
+      // ── LogNodesOptions traversal contract ──────────────────────
+      //
+      // `firstParent` and `stopAt` are persistence contracts, not caller
+      // conventions. An adapter that accepts them and ignores them silently
+      // reads history its caller will never use, and — because a side branch
+      // consumes `limit` — can truncate the very chain it was asked for.
+      // Both are asserted here so no adapter can opt out.
+
+      /** Reads a chain and returns the SHA of each emitted commit. */
+      async function emittedShas(options: {
+        readonly ref: string;
+        readonly firstParent?: boolean;
+        readonly stopAt?: string;
+      }): Promise<string[]> {
+        const stream = await adapter.logNodesStream({
+          ref: options.ref,
+          limit: LOG_NODE_LIMIT,
+          format: LOG_NODE_FORMAT,
+          ...(options.firstParent === undefined ? {} : { firstParent: options.firstParent }),
+          ...(options.stopAt === undefined ? {} : { stopAt: options.stopAt }),
+        });
+        const shas: string[] = [];
+        for await (const node of new GitLogParser().parse(stream)) {
+          shas.push(node.sha);
+        }
+        return shas;
+      }
+
+      /** root <- mainline <- merge, with `side` reachable only as a 2nd parent. */
+      async function mergeChain(): Promise<{
+        root: string; mainline: string; side: string; merge: string;
+      }> {
+        const root = await adapter.commitNode({ message: 'root' });
+        const mainline = await adapter.commitNode({ message: 'mainline', parents: [root] });
+        const side = await adapter.commitNode({ message: 'side', parents: [root] });
+        const merge = await adapter.commitNode({ message: 'merge', parents: [mainline, side] });
+        await adapter.updateRef('refs/warp/test/writers/merge', merge);
+        return { root, mainline, side, merge };
+      }
+
+      it('logNodesStream honours firstParent by excluding merge side branches', async () => {
+        const { root, mainline, side, merge } = await mergeChain();
+
+        const shas = await emittedShas({ ref: 'refs/warp/test/writers/merge', firstParent: true });
+
+        expect(shas).toEqual(expect.arrayContaining([merge, mainline, root]));
+        expect(shas).not.toContain(side);
+      });
+
+      it('logNodesStream includes merge side branches by default', async () => {
+        const { side } = await mergeChain();
+
+        const shas = await emittedShas({ ref: 'refs/warp/test/writers/merge' });
+
+        expect(shas).toContain(side);
+      });
+
+      it('logNodesStream honours stopAt by excluding it and its ancestors', async () => {
+        const { root, mainline, merge } = await mergeChain();
+
+        const shas = await emittedShas({
+          ref: 'refs/warp/test/writers/merge',
+          firstParent: true,
+          stopAt: mainline,
+        });
+
+        expect(shas).toContain(merge);
+        expect(shas).not.toContain(mainline);
+        expect(shas).not.toContain(root);
+      });
+
+      it('logNodesStream reads the whole chain when stopAt is absent', async () => {
+        const { root, mainline, merge } = await mergeChain();
+
+        const shas = await emittedShas({ ref: 'refs/warp/test/writers/merge', firstParent: true });
+
+        expect(shas).toEqual(expect.arrayContaining([merge, mainline, root]));
       });
     });
 
