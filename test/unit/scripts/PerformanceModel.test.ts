@@ -90,6 +90,42 @@ describe('v19 performance result contract', () => {
       .toThrow('did not prove a cold replay');
   });
 
+  it('requires version 2 replay evidence to match declared patch counts', () => {
+    const valid = multiPatchResult();
+    const coldSample = firstSample(valid, 'cold-materialize');
+    const incrementalSample = firstSample(valid, 'incremental-materialize');
+    const wrongColdReplay = replaceSample(valid, 'cold-materialize', {
+      ...coldSample,
+      observation: {
+        ...coldSample.observation,
+        materialization: {
+          ...coldSample.observation.materialization,
+          replayedPatches: 2,
+        },
+      },
+    });
+    const wrongIncrementalReplay = replaceSample(
+      valid,
+      'incremental-materialize',
+      {
+        ...incrementalSample,
+        observation: {
+          ...incrementalSample.observation,
+          materialization: {
+            ...incrementalSample.observation.materialization,
+            replayedPatches: 2,
+          },
+        },
+      },
+    );
+
+    expect(parsePerformanceResult(valid)).toEqual(valid);
+    expect(() => parsePerformanceResult(wrongColdReplay))
+      .toThrow('replay count does not match corpus');
+    expect(() => parsePerformanceResult(wrongIncrementalReplay))
+      .toThrow('replay count does not match corpus');
+  });
+
   it('fails a synthetic CPU regression while keeping wall time diagnostic', () => {
     const base = validResult();
     const cpuRegression = replaceDistribution(
@@ -356,6 +392,67 @@ function corpus(scenario: PerformanceScenarioName): CorpusProfile {
     topology: 'directed-chain',
     version: 1,
   };
+}
+
+function multiPatchResult(): PerformanceResult {
+  const valid = validResult();
+  return {
+    ...valid,
+    scenarios: {
+      'cold-materialize': multiPatchScenario(
+        valid.scenarios['cold-materialize'],
+        0,
+      ),
+      'incremental-materialize': multiPatchScenario(
+        valid.scenarios['incremental-materialize'],
+        1,
+      ),
+      'warm-materialize': multiPatchScenario(
+        valid.scenarios['warm-materialize'],
+        0,
+      ),
+    },
+  };
+}
+
+function multiPatchScenario(
+  scenario: ScenarioResult,
+  suffixPatchCount: number,
+): ScenarioResult {
+  const replayedPatches = scenario.scenario === 'cold-materialize'
+    ? 3
+    : suffixPatchCount;
+  return {
+    ...scenario,
+    corpus: {
+      ...scenario.corpus,
+      basePatchCount: 3,
+      format: 'git-warp.performance.corpus/v2',
+      suffixPatchCount,
+      version: 2,
+    },
+    samples: scenario.samples.map((value) => ({
+      ...value,
+      observation: {
+        ...value.observation,
+        materialization: {
+          ...value.observation.materialization,
+          replayedPatches,
+        },
+      },
+    })),
+  };
+}
+
+function firstSample(
+  result: PerformanceResult,
+  scenario: PerformanceScenarioName,
+): PerformanceSample {
+  const value = result.scenarios[scenario].samples[0];
+  if (value === undefined) {
+    throw new Error(`Missing performance sample: ${scenario}`);
+  }
+  return value;
 }
 
 function distribution(value: number): Distribution {

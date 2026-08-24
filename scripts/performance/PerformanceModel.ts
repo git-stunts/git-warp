@@ -1,8 +1,20 @@
 import z from 'zod';
+import {
+  assertCorpusShape,
+  CorpusProfileSchema,
+  PERFORMANCE_CORPUS_VERSION,
+  type CorpusProfile,
+} from './PerformanceCorpusModel.ts';
+import { assertMaterializationEvidence }
+  from './PerformanceMaterializationEvidence.ts';
 import { summarizeDistribution } from './PerformanceStatistics.ts';
 
 export const PERFORMANCE_SCHEMA_VERSION = 1;
-export const PERFORMANCE_CORPUS_VERSION = 1;
+export {
+  CorpusProfileSchema,
+  PERFORMANCE_CORPUS_VERSION,
+  type CorpusProfile,
+};
 
 export const PERFORMANCE_SCENARIOS = Object.freeze([
   'cold-materialize',
@@ -15,20 +27,6 @@ export type PerformanceScenarioName = (typeof PERFORMANCE_SCENARIOS)[number];
 const nonNegativeFinite = z.number().finite().nonnegative();
 const nonNegativeInteger = z.number().int().nonnegative();
 const positiveInteger = z.number().int().positive();
-
-export const CorpusProfileSchema = z.object({
-  baseNodeCount: positiveInteger,
-  edgeCount: nonNegativeInteger,
-  format: z.literal('git-warp.performance.corpus/v1'),
-  logicalPropertyBytes: nonNegativeInteger,
-  nodeCount: positiveInteger,
-  propertyBytesPerNode: positiveInteger,
-  propertyCount: positiveInteger,
-  seed: nonNegativeInteger,
-  suffixNodeCount: nonNegativeInteger,
-  topology: z.literal('directed-chain'),
-  version: z.literal(PERFORMANCE_CORPUS_VERSION),
-}).strict();
 
 const materializationEvidenceSchema = z.object({
   exactHits: nonNegativeInteger,
@@ -130,7 +128,6 @@ export const PerformanceResultSchema = z.object({
   schemaVersion: z.literal(PERFORMANCE_SCHEMA_VERSION),
 }).strict();
 
-export type CorpusProfile = Readonly<z.infer<typeof CorpusProfileSchema>>;
 export type MaterializationEvidence = Readonly<
   z.infer<typeof materializationEvidenceSchema>
 >;
@@ -188,31 +185,6 @@ export function validatePerformanceResult(result: PerformanceResult): void {
   }
 }
 
-function assertCorpusShape(
-  corpus: CorpusProfile,
-  scenario: PerformanceScenarioName,
-): void {
-  if (corpus.nodeCount !== corpus.baseNodeCount + corpus.suffixNodeCount) {
-    throw new Error(`Performance corpus node counts are inconsistent: ${scenario}`);
-  }
-  if (corpus.edgeCount !== Math.max(0, corpus.nodeCount - 1)) {
-    throw new Error(`Performance corpus edge count is inconsistent: ${scenario}`);
-  }
-  if (corpus.propertyCount !== corpus.nodeCount) {
-    throw new Error(`Performance corpus property count is inconsistent: ${scenario}`);
-  }
-  if (corpus.logicalPropertyBytes !== corpus.nodeCount * corpus.propertyBytesPerNode) {
-    throw new Error(`Performance corpus logical size is inconsistent: ${scenario}`);
-  }
-  if (
-    scenario === 'incremental-materialize'
-      ? corpus.suffixNodeCount === 0
-      : corpus.suffixNodeCount !== 0
-  ) {
-    throw new Error(`Performance corpus suffix does not match its scenario: ${scenario}`);
-  }
-}
-
 function assertSemanticCompletion(
   sample: PerformanceSample,
   corpus: CorpusProfile,
@@ -232,42 +204,11 @@ function assertSemanticCompletion(
   ) {
     throw new Error(`Performance sample did not complete semantically: ${scenario}`);
   }
-  assertMaterializationEvidence(sample.observation.materialization, scenario);
-}
-
-function assertMaterializationEvidence(
-  evidence: MaterializationEvidence,
-  scenario: PerformanceScenarioName,
-): void {
-  if (
-    evidence.exactHits > evidence.exactLookups
-    || evidence.predecessorHits > evidence.predecessorLookups
-  ) {
-    throw new Error(`Performance git-cas evidence is inconsistent: ${scenario}`);
-  }
-  if (
-    scenario === 'cold-materialize'
-    && (evidence.exactHits !== 0
-      || evidence.predecessorHits !== 0
-      || evidence.replayedPatches === 0
-      || evidence.retainRequests === 0)
-  ) {
-    throw new Error('Cold materialization did not prove a cold replay');
-  }
-  if (
-    scenario === 'warm-materialize'
-    && (evidence.exactHits === 0
-      || evidence.replayedPatches !== 0
-      || evidence.retainRequests !== 0)
-  ) {
-    throw new Error('Warm materialization did not prove an exact git-cas hit');
-  }
-  if (
-    scenario === 'incremental-materialize'
-    && (evidence.predecessorHits === 0 || evidence.replayedPatches === 0)
-  ) {
-    throw new Error('Incremental materialization did not prove git-cas predecessor reuse');
-  }
+  assertMaterializationEvidence(
+    sample.observation.materialization,
+    scenario,
+    corpus,
+  );
 }
 
 function assertDistributions(

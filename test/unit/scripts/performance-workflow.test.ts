@@ -82,6 +82,14 @@ const releaseWorkflow = readFileSync(
   resolve(root, '.github/workflows/release.yml'),
   'utf8',
 );
+const performanceRunner = readFileSync(
+  resolve(root, 'scripts/performance/RunPerformance.ts'),
+  'utf8',
+);
+const comparisonRunner = readFileSync(
+  resolve(root, 'scripts/performance/RunPerformanceComparison.ts'),
+  'utf8',
+);
 
 describe('v19 performance workflow', () => {
   it('runs exact base/head refs in one bounded pinned-toolchain job', () => {
@@ -118,6 +126,13 @@ describe('v19 performance workflow', () => {
       'head-streaming',
       'base-streaming',
     ])).toThrow('ABBA');
+  });
+
+  it('keeps multi-patch corpora opt-in until both comparison refs support them', () => {
+    expect(performanceRunner).toContain('GIT_WARP_PERF_BASE_PATCHES');
+    expect(performanceRunner).toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
+    expect(comparisonRunner).not.toContain('GIT_WARP_PERF_BASE_PATCHES');
+    expect(comparisonRunner).not.toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
   });
 
   it('publishes summaries and raw commit-addressed evidence', () => {

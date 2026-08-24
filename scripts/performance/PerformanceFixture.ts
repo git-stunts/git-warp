@@ -20,9 +20,29 @@ export const PERFORMANCE_CORPUS_SEED = 0x19c0ffee;
 
 export type CorpusSpec = Readonly<{
   baseNodeCount: number;
+  basePatchCount?: number;
   propertyBytesPerNode: number;
   seed?: number;
   suffixNodeCount?: number;
+  suffixPatchCount?: number;
+}>;
+
+type ResolvedCorpusSpec = Readonly<{
+  baseNodeCount: number;
+  basePatchCount: number;
+  propertyBytesPerNode: number;
+  seed: number;
+  suffixNodeCount: number;
+  suffixPatchCount: number;
+  version: 1 | 2;
+}>;
+
+type CorpusSegment = Readonly<{
+  nodeCount: number;
+  patchCount: number;
+  propertyBytesPerNode: number;
+  seed: number;
+  start: number;
 }>;
 
 const manifestSchema = z.object({
@@ -48,42 +68,33 @@ export async function preparePerformanceFixture(
 ): Promise<PreparedPerformanceFixture> {
   const repositoryPath = await mkdtemp(join(tmpdir(), `git-warp-${scenario}-`));
   try {
-    const suffixNodeCount = scenario === 'incremental-materialize'
-      ? spec.suffixNodeCount ?? 1
-      : 0;
-    const seed = spec.seed ?? PERFORMANCE_CORPUS_SEED;
+    const corpusSpec = resolveCorpusSpec(scenario, spec);
     const opened = await openPerformanceRuntime(repositoryPath);
     try {
-      await appendCorpus(
-        opened.runtime,
-        0,
-        spec.baseNodeCount,
-        spec.propertyBytesPerNode,
-        seed,
-      );
+      await appendCorpus(opened.runtime, Object.freeze({
+        nodeCount: corpusSpec.baseNodeCount,
+        patchCount: corpusSpec.basePatchCount,
+        propertyBytesPerNode: corpusSpec.propertyBytesPerNode,
+        seed: corpusSpec.seed,
+        start: 0,
+      }));
       if (scenario === 'warm-materialize' || scenario === 'incremental-materialize') {
         await opened.runtime.materialize();
       }
       if (scenario === 'incremental-materialize') {
-        await appendCorpus(
-          opened.runtime,
-          spec.baseNodeCount,
-          suffixNodeCount,
-          spec.propertyBytesPerNode,
-          seed,
-        );
+        await appendCorpus(opened.runtime, Object.freeze({
+          nodeCount: corpusSpec.suffixNodeCount,
+          patchCount: corpusSpec.suffixPatchCount,
+          propertyBytesPerNode: corpusSpec.propertyBytesPerNode,
+          seed: corpusSpec.seed,
+          start: corpusSpec.baseNodeCount,
+        }));
       }
     } finally {
       await opened.close();
     }
 
-    const manifest = fixtureManifest(
-      scenario,
-      spec.baseNodeCount,
-      suffixNodeCount,
-      spec.propertyBytesPerNode,
-      seed,
-    );
+    const manifest = fixtureManifest(scenario, corpusSpec);
     await writeFile(
       join(repositoryPath, MANIFEST_NAME),
       `${JSON.stringify(manifest, null, 2)}\n`,
@@ -111,27 +122,48 @@ export async function readPerformanceFixtureManifest(
 
 async function appendCorpus(
   runtime: RuntimeHost,
-  start: number,
-  count: number,
-  propertyBytesPerNode: number,
-  seed: number,
+  segment: CorpusSegment,
+): Promise<void> {
+  let start = segment.start;
+  for (const nodeCount of partitionNodeCounts(segment)) {
+    await appendPatch(runtime, Object.freeze({ ...segment, nodeCount, start }));
+    start += nodeCount;
+  }
+}
+
+async function appendPatch(
+  runtime: RuntimeHost,
+  segment: CorpusSegment,
 ): Promise<void> {
   await runtime.patch((patch) => {
-    for (let offset = 0; offset < count; offset += 1) {
-      const index = start + offset;
+    for (let offset = 0; offset < segment.nodeCount; offset += 1) {
+      const index = segment.start + offset;
       const nodeId = performanceNodeId(index);
       patch
         .addNode(nodeId)
         .setProperty(
           nodeId,
           'payload',
-          deterministicPayload(index, propertyBytesPerNode, seed),
+          deterministicPayload(
+            index,
+            segment.propertyBytesPerNode,
+            segment.seed,
+          ),
         );
       if (index > 0) {
         patch.addEdge(performanceNodeId(index - 1), nodeId, 'next');
       }
     }
   });
+}
+
+function partitionNodeCounts(segment: CorpusSegment): readonly number[] {
+  const baseSize = Math.floor(segment.nodeCount / segment.patchCount);
+  const remainder = segment.nodeCount % segment.patchCount;
+  return Object.freeze(Array.from(
+    { length: segment.patchCount },
+    (_, index) => baseSize + (index < remainder ? 1 : 0),
+  ));
 }
 
 export function deterministicPayload(
@@ -157,33 +189,86 @@ export function deterministicPayload(
 
 function fixtureManifest(
   scenario: PerformanceScenarioName,
-  baseNodeCount: number,
-  suffixNodeCount: number,
-  propertyBytesPerNode: number,
-  seed: number,
+  spec: ResolvedCorpusSpec,
 ): PerformanceFixtureManifest {
-  const nodeCount = baseNodeCount + suffixNodeCount;
-  const corpus: CorpusProfile = Object.freeze({
-    baseNodeCount,
+  const nodeCount = spec.baseNodeCount + spec.suffixNodeCount;
+  const common = Object.freeze({
+    baseNodeCount: spec.baseNodeCount,
     edgeCount: Math.max(0, nodeCount - 1),
-    format: 'git-warp.performance.corpus/v1',
-    logicalPropertyBytes: nodeCount * propertyBytesPerNode,
+    logicalPropertyBytes: nodeCount * spec.propertyBytesPerNode,
     nodeCount,
-    propertyBytesPerNode,
+    propertyBytesPerNode: spec.propertyBytesPerNode,
     propertyCount: nodeCount,
-    seed,
-    suffixNodeCount,
+    seed: spec.seed,
+    suffixNodeCount: spec.suffixNodeCount,
     topology: 'directed-chain',
-    version: PERFORMANCE_CORPUS_VERSION,
   });
+  const corpus: CorpusProfile = spec.version === PERFORMANCE_CORPUS_VERSION
+    ? Object.freeze({
+      ...common,
+      basePatchCount: spec.basePatchCount,
+      format: 'git-warp.performance.corpus/v2',
+      suffixPatchCount: spec.suffixPatchCount,
+      version: PERFORMANCE_CORPUS_VERSION,
+    })
+    : Object.freeze({
+      ...common,
+      format: 'git-warp.performance.corpus/v1',
+      version: 1,
+    });
   return Object.freeze({
     corpus,
-    expectedPropertyBytes: propertyBytesPerNode,
+    expectedPropertyBytes: spec.propertyBytesPerNode,
     graphName: GRAPH_NAME,
     scenario,
     targetNodeId: performanceNodeId(nodeCount - 1),
     writerId: WRITER_ID,
   });
+}
+
+function resolveCorpusSpec(
+  scenario: PerformanceScenarioName,
+  spec: CorpusSpec,
+): ResolvedCorpusSpec {
+  const version = spec.basePatchCount === undefined && spec.suffixPatchCount === undefined
+    ? 1
+    : 2;
+  const suffixNodeCount = scenario === 'incremental-materialize'
+    ? spec.suffixNodeCount ?? 1
+    : 0;
+  const basePatchCount = version === 1 ? 1 : spec.basePatchCount ?? 1;
+  const suffixPatchCount = scenario === 'incremental-materialize'
+    ? version === 1 ? 1 : spec.suffixPatchCount ?? 1
+    : 0;
+  assertSegmentCardinality('base', spec.baseNodeCount, basePatchCount);
+  if (scenario === 'incremental-materialize') {
+    assertSegmentCardinality('suffix', suffixNodeCount, suffixPatchCount);
+  }
+  return Object.freeze({
+    baseNodeCount: spec.baseNodeCount,
+    basePatchCount,
+    propertyBytesPerNode: spec.propertyBytesPerNode,
+    seed: spec.seed ?? PERFORMANCE_CORPUS_SEED,
+    suffixNodeCount,
+    suffixPatchCount,
+    version,
+  });
+}
+
+function assertSegmentCardinality(
+  name: 'base' | 'suffix',
+  nodeCount: number,
+  patchCount: number,
+): void {
+  if (!Number.isSafeInteger(nodeCount) || nodeCount <= 0) {
+    throw new Error(`Performance ${name} node count must be a positive safe integer`);
+  }
+  if (!Number.isSafeInteger(patchCount) || patchCount <= 0) {
+    throw new Error(`Performance ${name} patch count must be a positive safe integer`);
+  }
+  if (patchCount > nodeCount) {
+    throw new Error(`Performance ${name} patch count cannot exceed its node count`);
+  }
 }
 
 export function performanceNodeId(index: number): string {

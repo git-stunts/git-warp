@@ -36,23 +36,8 @@ type RunOptions = Readonly<{
 
 async function main(): Promise<void> {
   const options = parseRunOptions(process.argv.slice(2));
-  const baseSpec = Object.freeze({
-    baseNodeCount: readPositiveInteger(
-      'GIT_WARP_PERF_BASE_NODES',
-      DEFAULT_BASE_NODES,
-    ),
-    propertyBytesPerNode: readPositiveInteger(
-      'GIT_WARP_PERF_PROPERTY_BYTES',
-      DEFAULT_PROPERTY_BYTES,
-    ),
-  });
-  const incrementalSpec = Object.freeze({
-    ...baseSpec,
-    suffixNodeCount: readPositiveInteger(
-      'GIT_WARP_PERF_INCREMENTAL_NODES',
-      DEFAULT_INCREMENTAL_NODES,
-    ),
-  });
+  const baseSpec = readBaseCorpusSpec();
+  const incrementalSpec = readIncrementalCorpusSpec(baseSpec);
 
   const cold = await measureScenario('cold-materialize', baseSpec, options);
   const warm = await measureScenario('warm-materialize', baseSpec, options);
@@ -94,6 +79,39 @@ async function main(): Promise<void> {
   await mkdir(dirname(options.outputPath), { recursive: true });
   await writeFile(options.outputPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
   printSummary(result, options.outputPath);
+}
+
+function readBaseCorpusSpec(): CorpusSpec {
+  const values = Object.freeze({
+    baseNodeCount: readPositiveInteger(
+      'GIT_WARP_PERF_BASE_NODES',
+      DEFAULT_BASE_NODES,
+    ),
+    propertyBytesPerNode: readPositiveInteger(
+      'GIT_WARP_PERF_PROPERTY_BYTES',
+      DEFAULT_PROPERTY_BYTES,
+    ),
+  });
+  const basePatchCount = readOptionalPositiveInteger('GIT_WARP_PERF_BASE_PATCHES');
+  return basePatchCount === undefined
+    ? values
+    : Object.freeze({ ...values, basePatchCount });
+}
+
+function readIncrementalCorpusSpec(baseSpec: CorpusSpec): CorpusSpec {
+  const values = Object.freeze({
+    ...baseSpec,
+    suffixNodeCount: readPositiveInteger(
+      'GIT_WARP_PERF_INCREMENTAL_NODES',
+      DEFAULT_INCREMENTAL_NODES,
+    ),
+  });
+  const suffixPatchCount = readOptionalPositiveInteger(
+    'GIT_WARP_PERF_INCREMENTAL_PATCHES',
+  );
+  return suffixPatchCount === undefined
+    ? values
+    : Object.freeze({ ...values, suffixPatchCount });
 }
 
 async function measureScenario(
@@ -177,6 +195,18 @@ function readNonNegativeInteger(name: string, fallback: number): number {
   const value = readInteger(name, fallback);
   if (value < 0) {
     throw new Error(`${name} must be non-negative`);
+  }
+  return value;
+}
+
+function readOptionalPositiveInteger(name: string): number | undefined {
+  const raw = process.env[name];
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive safe integer`);
   }
   return value;
 }
