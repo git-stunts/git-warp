@@ -18,7 +18,12 @@ const root = process.cwd();
  * malformed one should fail loudly here instead of silently satisfying a cast.
  */
 const ObservedCountsSchema = z.object({
+  cpuTotalMadMs: z.number().nonnegative(),
+  cpuTotalMedianMs: z.number().nonnegative(),
   gitCommandMedian: z.number().int().nonnegative(),
+  gitCommandMadCount: z.number().int().nonnegative(),
+  maximumHeapUsedBytes: z.number().int().positive(),
+  maximumRssBytes: z.number().int().positive(),
 });
 
 /**
@@ -40,27 +45,59 @@ const ScenarioCommandCeilingsSchema = z.object({
   'warm-materialize': z.number().int().positive(),
 });
 
+const CalibrationEnvironmentSchema = z.object({
+  architecture: z.string().min(1),
+  cpuCount: z.number().int().positive(),
+  cpuModel: z.string().min(1),
+  git: z.string().min(1),
+  gitCas: z.string().min(1),
+  node: z.string().min(1),
+  platform: z.string().min(1),
+});
+
+const StreamingCalibrationSchema = z.object({
+  generationMaximumRssBytes: z.number().int().positive(),
+  generationPeakHeapUsedBytes: z.number().int().positive(),
+  maximumRssBytes: z.number().int().positive(),
+  peakHeapUsedBytes: z.number().int().positive(),
+});
+
 const CalibrationSchema = z.object({
+  schemaVersion: z.literal(1),
+  sourceCommit: z.string().regex(/^[0-9a-f]{40}$/u),
+  generatedAt: z.string().datetime(),
+  evidence: z.object({
+    artifact: z.string().min(1),
+    run: z.string().url(),
+  }),
   corpus: z.object({
     baseNodeCount: z.number().int().positive(),
     basePatchCount: z.number().int().positive(),
+    measuredRuns: z.number().int().positive(),
+    propertyBytesPerNode: z.number().int().positive(),
     suffixNodeCount: z.number().int().positive(),
     suffixPatchCount: z.number().int().positive(),
+    warmupRuns: z.number().int().nonnegative(),
   }),
-  environment: z.object({
-    gitCas: z.string(),
-    node: z.string(),
-    platform: z.string(),
-    runner: z.string(),
+  environment: CalibrationEnvironmentSchema.extend({
+    runner: z.literal('github-hosted'),
   }),
   localCalibration: z.object({
+    environment: CalibrationEnvironmentSchema,
+    measuredRuns: z.number().int().positive(),
     observed: ScenarioCountsSchema,
+    warmupRuns: z.number().int().nonnegative(),
   }),
-  observed: ScenarioCountsSchema,
+  observed: ScenarioCountsSchema.extend({
+    streaming: StreamingCalibrationSchema,
+  }),
   policyRationale: z.object({
+    cpuNoiseFloorMs: ScenarioCommandCeilingsSchema,
     cpuRegressionRatio: z.number(),
     gitCommandRegressionRatio: z.number(),
     gitCommandMedian: ScenarioCommandCeilingsSchema,
+    gitCommandNote: z.string().min(1),
+    note: z.string().min(1),
     streamingMaxRssBytes: z.number(),
     streamingPeakHeapUsedBytes: z.number(),
   }),
@@ -188,11 +225,22 @@ describe('v19 performance workflow', () => {
       suffixPatchCount: 5,
     });
     expect(calibration.environment).toMatchObject({
-      gitCas: '6.5.7',
+      gitCas: '6.5.8',
       node: 'v22.23.2',
       platform: 'linux',
       runner: 'github-hosted',
     });
+    expect(calibration.localCalibration.environment.gitCas).toBe('6.5.8');
+    expect(calibration.sourceCommit)
+      .toBe('84a33e7163ea6fe028383bb02f8bda6e6fae5905');
+    expect(calibration.evidence).toEqual({
+      artifact: 'v19-performance-2a45bb6722d3b14035dc1069c83e09f96db2bde8',
+      run: 'https://github.com/git-stunts/git-warp/actions/runs/32752394842',
+    });
+    expect(() => CalibrationSchema.parse({
+      ...calibration,
+      sourceCommit: undefined,
+    })).toThrow();
     expect(calibration.policyRationale.cpuRegressionRatio).toBe(1.15);
     expect(calibration.policyRationale.gitCommandRegressionRatio)
       .toBe(policy.relative.gitCommandRegressionRatio);

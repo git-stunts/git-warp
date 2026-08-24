@@ -16,7 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applies its tighter member, object, and byte limits. Stores without the
   optional batch capabilities retain the existing ordered singleton fallback.
   Root identity, publication authority, and the v19 storage format are
-  unchanged; existing v19 repositories require no migration.
+  unchanged; existing v19 repositories require no migration. On the hosted
+  reference runner, cold/warm/incremental Git commands fell from
+  `781 / 30 / 372` to `139 / 25 / 149`; CPU medians fell by
+  `57.9% / 1.6% / 32.9%`. A five-run local arm64 comparison reproduced the
+  exact command counts and measured CPU improvements of
+  `66.4% / 8.0% / 41.3%`. Both comparisons retained exact `65 / 0 / 5`
+  replay evidence and identical semantic fingerprints.
 - Patch-chain traversal (`PatchDiscovery.loadPatchChainFromSha`,
   `PatchDiscovery.discoverTicks`) now reads chain metadata with a single bulk
   `logNodesStream` history read per chain instead of one `getNodeInfo` call per
@@ -97,10 +103,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compatibility corpus: they measure object and payload traffic, not traversal
   depth, and would not by themselves have caught the per-commit walk fixed
   above. The version 2 release gate adds the independently calibrated 65-patch
-  base and five-patch suffix. The reference runner reports `781 / 30 / 372`
-  cold, warm, and incremental Git commands; reviewed ceilings of
-  `900 / 35 / 430` preserve about 15% structural headroom. Raw absolute counts
-  are not compared across the two different corpora.
+  base and five-patch suffix. The first calibrated reference run reported
+  `781 / 30 / 372` cold, warm, and incremental Git commands. Ordered retained
+  write waves reduce those counts to `139 / 25 / 149`; reviewed ceilings of
+  `160 / 30 / 175` preserve about 15% structural headroom. Raw absolute counts
+  are not compared across different corpus versions.
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
   its initial payload in a single patch. The lowered patch declares an empty
   read set and exactly one subject write. That declaration describes the
