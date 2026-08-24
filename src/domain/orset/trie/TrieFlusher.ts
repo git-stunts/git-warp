@@ -7,7 +7,7 @@ import {
   type default as DirtyPageSet,
 } from "./DirtyPageSet.ts";
 import FlushResult from "./FlushResult.ts";
-import type TrieBranch from "./TrieBranch.ts";
+import TrieBranch from "./TrieBranch.ts";
 import type { TrieBranchEntries } from "./TrieBranchEntries.ts";
 import TrieLeaf from "./TrieLeaf.ts";
 import type TrieStorePort from "./TrieStorePort.ts";
@@ -85,9 +85,9 @@ export default class TrieFlusher {
       });
     }
     const state = createFlushState();
-    for (const entry of dirty.enumerateBottomUp()) {
-      await this.#processEntry({ entry, dirty, state });
-    }
+    const entries = [...dirty.enumerateBottomUp()];
+    await this.#writeLeafWave(entries, state);
+    await this.#writeBranchWaves(entries, dirty, state);
     return new FlushResult({
       rootOid: state.rootOid,
       blobsWritten: state.blobsWritten,
@@ -96,60 +96,130 @@ export default class TrieFlusher {
     });
   }
 
-  async #processEntry(args: {
-    readonly entry: DirtyPageEntry;
-    readonly dirty: DirtyPageSet;
-    readonly state: FlushState;
-  }): Promise<void> {
-    if (args.entry.node instanceof TrieLeaf) {
-      await this.#processLeaf({
-        path: args.entry.path,
-        leaf: args.entry.node,
-        state: args.state,
+  async #writeLeafWave(entries: readonly DirtyPageEntry[], state: FlushState): Promise<void> {
+    const paths: Array<readonly number[]> = [];
+    const leaves: Uint8Array[] = [];
+    for (const entry of entries) {
+      if (entry.node instanceof TrieLeaf) {
+        paths.push(entry.path);
+        leaves.push(this.#serializeLeaf(entry.node, entry.path));
+      }
+    }
+    const roots = await this.#writeLeaves(leaves, paths);
+    requireWriteCardinality("leaf", paths.length, roots.length);
+    for (let index = 0; index < paths.length; index += 1) {
+      const bytes = requireLeaf(leaves, index);
+      recordRoot(state, requirePath(paths, index), requireRoot(roots, index));
+      recordLeafMetrics(state, bytes.length);
+    }
+  }
+
+  async #writeBranchWaves(
+    entries: readonly DirtyPageEntry[],
+    dirty: DirtyPageSet,
+    state: FlushState,
+  ): Promise<void> {
+    let depth = -1;
+    let wave: DirtyPageEntry[] = [];
+    for (const entry of entries) {
+      if (!(entry.node instanceof TrieBranch)) { continue; }
+      if (depth !== -1 && entry.path.length !== depth) {
+        await this.#writeBranchWave(wave, dirty, state);
+        wave = [];
+      }
+      depth = entry.path.length;
+      wave.push(entry);
+    }
+    await this.#writeBranchWave(wave, dirty, state);
+  }
+
+  async #writeBranchWave(
+    wave: readonly DirtyPageEntry[],
+    dirty: DirtyPageSet,
+    state: FlushState,
+  ): Promise<void> {
+    const paths: Array<readonly number[]> = [];
+    const branches: TrieBranchEntries[] = [];
+    for (const entry of wave) {
+      if (!(entry.node instanceof TrieBranch)) { throw invalidBranchWave(); }
+      paths.push(entry.path);
+      branches.push(resolveBranchChildren({ branch: entry.node, path: entry.path, dirty, state }));
+    }
+    const roots = await this.#writeBranches(branches, paths);
+    requireWriteCardinality("branch", paths.length, roots.length);
+    for (let index = 0; index < paths.length; index += 1) {
+      recordBranchRoot(state, requirePath(paths, index), requireRoot(roots, index));
+    }
+  }
+
+  async #writeLeaves(
+    leaves: readonly Uint8Array[],
+    paths: readonly (readonly number[])[],
+  ): Promise<readonly string[]> {
+    if (leaves.length === 0) { return []; }
+    if (this.#store.writeLeaves === undefined) {
+      return await this.#writeLeavesIndividually(leaves, paths);
+    }
+    try {
+      return await this.#store.writeLeaves(leaves, this.#staging);
+    } catch (raw) {
+      if (!(raw instanceof Error)) { throw flushNonErrorCaught(String(raw)); }
+      throw wrapFlushError({
+        raw,
+        op: "writeLeaves",
+        path: requirePath(paths, 0),
+        code: "E_TRIE_FLUSH_STORE",
       });
-      return;
-    }
-    await this.#processBranch({
-      path: args.entry.path,
-      branch: args.entry.node,
-      dirty: args.dirty,
-      state: args.state,
-    });
-  }
-
-  async #processLeaf(args: {
-    readonly path: readonly number[];
-    readonly leaf: TrieLeaf;
-    readonly state: FlushState;
-  }): Promise<void> {
-    const bytes = this.#serializeLeaf(args.leaf, args.path);
-    const oid = await this.#writeLeafBytes(bytes, args.path);
-    args.state.newOidByPath.set(encodeDirtyPath(args.path), oid);
-    args.state.blobsWritten += 1;
-    args.state.bytesWritten += bytes.length;
-    if (args.path.length === 0) {
-      args.state.rootOid = oid;
     }
   }
 
-  async #processBranch(args: {
-    readonly path: readonly number[];
-    readonly branch: TrieBranch;
-    readonly dirty: DirtyPageSet;
-    readonly state: FlushState;
-  }): Promise<void> {
-    const resolved = resolveBranchChildren({
-      branch: args.branch,
-      path: args.path,
-      dirty: args.dirty,
-      state: args.state,
-    });
-    const oid = await this.#writeBranchEntries(resolved, args.path);
-    args.state.newOidByPath.set(encodeDirtyPath(args.path), oid);
-    args.state.treesWritten += 1;
-    if (args.path.length === 0) {
-      args.state.rootOid = oid;
+  async #writeLeavesIndividually(
+    leaves: readonly Uint8Array[],
+    paths: readonly (readonly number[])[],
+  ): Promise<readonly string[]> {
+    const roots: string[] = [];
+    for (let index = 0; index < leaves.length; index += 1) {
+      roots.push(await this.#writeLeafBytes(
+        requireLeaf(leaves, index),
+        requirePath(paths, index),
+      ));
     }
+    return roots;
+  }
+
+  async #writeBranches(
+    branches: readonly TrieBranchEntries[],
+    paths: readonly (readonly number[])[],
+  ): Promise<readonly string[]> {
+    if (branches.length === 0) { return []; }
+    if (this.#store.writeBranches === undefined) {
+      return await this.#writeBranchesIndividually(branches, paths);
+    }
+    try {
+      return await this.#store.writeBranches(branches, this.#staging);
+    } catch (raw) {
+      if (!(raw instanceof Error)) { throw flushNonErrorCaught(String(raw)); }
+      throw wrapFlushError({
+        raw,
+        op: "writeBranches",
+        path: requirePath(paths, 0),
+        code: "E_TRIE_FLUSH_STORE",
+      });
+    }
+  }
+
+  async #writeBranchesIndividually(
+    branches: readonly TrieBranchEntries[],
+    paths: readonly (readonly number[])[],
+  ): Promise<readonly string[]> {
+    const roots: string[] = [];
+    for (let index = 0; index < branches.length; index += 1) {
+      roots.push(await this.#writeBranchEntries(
+        requireBranch(branches, index),
+        requirePath(paths, index),
+      ));
+    }
+    return roots;
   }
 
   #serializeLeaf(leaf: TrieLeaf, path: readonly number[]): Uint8Array {
@@ -225,6 +295,78 @@ function createFlushState(): FlushState {
     bytesWritten: 0,
     newOidByPath: new Map<string, string>(),
   };
+}
+
+function recordLeafMetrics(state: FlushState, byteLength: number): void {
+  state.blobsWritten += 1;
+  state.bytesWritten += byteLength;
+}
+
+function recordBranchRoot(
+  state: FlushState,
+  path: readonly number[],
+  root: string,
+): void {
+  recordRoot(state, path, root);
+  state.treesWritten += 1;
+}
+
+function recordRoot(state: FlushState, path: readonly number[], root: string): void {
+  state.newOidByPath.set(encodeDirtyPath(path), root);
+  if (path.length === 0) {
+    state.rootOid = root;
+  }
+}
+
+function requireWriteCardinality(kind: string, expected: number, actual: number): void {
+  if (expected === actual) { return; }
+  throw new TrieFlushError(`TrieFlusher ${kind} wave returned ${actual} roots for ${expected} writes`, {
+    code: "E_TRIE_FLUSH_STORE",
+    context: { kind, expected, actual },
+  });
+}
+
+function requirePath(
+  paths: readonly (readonly number[])[],
+  index: number,
+): readonly number[] {
+  const path = paths[index];
+  if (path === undefined) { throw invalidWaveEntry("path", index); }
+  return path;
+}
+
+function requireLeaf(leaves: readonly Uint8Array[], index: number): Uint8Array {
+  const leaf = leaves[index];
+  if (leaf === undefined) { throw invalidWaveEntry("leaf", index); }
+  return leaf;
+}
+
+function requireBranch(
+  branches: readonly TrieBranchEntries[],
+  index: number,
+): TrieBranchEntries {
+  const branch = branches[index];
+  if (branch === undefined) { throw invalidWaveEntry("branch", index); }
+  return branch;
+}
+
+function requireRoot(roots: readonly string[], index: number): string {
+  const root = roots[index];
+  if (root === undefined || root.length === 0) { throw invalidWaveEntry("root", index); }
+  return root;
+}
+
+function invalidBranchWave(): TrieFlushError {
+  return new TrieFlushError("TrieFlusher branch wave contains a non-branch entry", {
+    code: "E_TRIE_FLUSH_STRUCTURE",
+  });
+}
+
+function invalidWaveEntry(kind: string, index: number): TrieFlushError {
+  return new TrieFlushError(`TrieFlusher wave omitted ${kind} at index ${index}`, {
+    code: "E_TRIE_FLUSH_STRUCTURE",
+    context: { kind, index },
+  });
 }
 
 // -- branch resolution ------------------------------------------------------

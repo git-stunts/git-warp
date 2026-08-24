@@ -82,6 +82,16 @@ export default interface TrieStorePort {
   writeLeaf(data: Uint8Array, staging?: ArtifactStagingPort): Promise<string>;
 
   /**
+   * Optionally write an input-ordered leaf wave through one bounded storage
+   * operation. Implementations must return one root per input in the same
+   * order. Callers fall back to {@link writeLeaf} when this method is absent.
+   */
+  writeLeaves?(
+    leaves: readonly Uint8Array[],
+    staging?: ArtifactStagingPort,
+  ): Promise<readonly string[]>;
+
+  /**
    * Write a branch bundle from its nibble-indexed child map and return
    * its content-addressed root handle.
    *
@@ -89,4 +99,14 @@ export default interface TrieStorePort {
    * backing store rejects the write.
    */
   writeBranch(children: TrieBranchEntries, staging?: ArtifactStagingPort): Promise<string>;
+
+  /**
+   * Optionally write one input-ordered branch dependency wave. Every child
+   * root in the wave must already exist. Callers fall back to
+   * {@link writeBranch} when this method is absent.
+   */
+  writeBranches?(
+    branches: readonly TrieBranchEntries[],
+    staging?: ArtifactStagingPort,
+  ): Promise<readonly string[]>;
 }
