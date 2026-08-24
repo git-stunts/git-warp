@@ -24,6 +24,7 @@ class RecordingSessionPlumbing implements PerformanceGitPlumbing {
     catFile: Object.freeze({ protocol: 'cat-file' }),
     fastImport: Object.freeze({ protocol: 'fast-import' }),
     mktree: Object.freeze({ protocol: 'mktree' }),
+    updateRef: Object.freeze({ protocol: 'update-ref' }),
   });
 
   async execute(): Promise<string> {
@@ -48,6 +49,11 @@ class RecordingSessionPlumbing implements PerformanceGitPlumbing {
     this.opened.push('mktree');
     return this.sessions.mktree;
   }
+
+  async openUpdateRefSession(): Promise<unknown> {
+    this.opened.push('update-ref');
+    return this.sessions.updateRef;
+  }
 }
 
 describe('performance plumbing session fidelity', () => {
@@ -60,19 +66,22 @@ describe('performance plumbing session fidelity', () => {
         plumbing.openCatFileSession(),
         plumbing.openFastImportSession(),
         plumbing.openMktreeSession(),
+        plumbing.openUpdateRefSession(),
       ])
     ).resolves.toEqual([
       delegate.sessions.catFile,
       delegate.sessions.fastImport,
       delegate.sessions.mktree,
+      delegate.sessions.updateRef,
     ]);
 
-    expect(delegate.opened).toEqual(['cat-file', 'fast-import', 'mktree']);
-    expect(plumbing.commandCount).toBe(3);
+    expect(delegate.opened).toEqual(['cat-file', 'fast-import', 'mktree', 'update-ref']);
+    expect(plumbing.commandCount).toBe(4);
     expect(plumbing.commandHistogram()).toEqual({
       'session:cat-file': 1,
       'session:fast-import': 1,
       'session:mktree': 1,
+      'session:update-ref': 1,
     });
   });
 
