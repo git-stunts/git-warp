@@ -34,10 +34,18 @@ const ScenarioCountsSchema = z.object({
   'warm-materialize': ObservedCountsSchema,
 });
 
+const ScenarioCommandCeilingsSchema = z.object({
+  'cold-materialize': z.number().int().positive(),
+  'incremental-materialize': z.number().int().positive(),
+  'warm-materialize': z.number().int().positive(),
+});
+
 const CalibrationSchema = z.object({
   corpus: z.object({
-    baseNodeCount: z.number(),
-    suffixNodeCount: z.number(),
+    baseNodeCount: z.number().int().positive(),
+    basePatchCount: z.number().int().positive(),
+    suffixNodeCount: z.number().int().positive(),
+    suffixPatchCount: z.number().int().positive(),
   }),
   environment: z.object({
     gitCas: z.string(),
@@ -52,6 +60,7 @@ const CalibrationSchema = z.object({
   policyRationale: z.object({
     cpuRegressionRatio: z.number(),
     gitCommandRegressionRatio: z.number(),
+    gitCommandMedian: ScenarioCommandCeilingsSchema,
     streamingMaxRssBytes: z.number(),
     streamingPeakHeapUsedBytes: z.number(),
   }),
@@ -160,8 +169,10 @@ describe('v19 performance workflow', () => {
       peakHeapUsedBytes: 96 * 1024 * 1024,
     });
     expect(calibration.corpus).toMatchObject({
-      baseNodeCount: 25,
+      baseNodeCount: 65,
+      basePatchCount: 65,
       suffixNodeCount: 5,
+      suffixPatchCount: 5,
     });
     expect(calibration.environment).toMatchObject({
       gitCas: '6.5.7',
@@ -172,6 +183,8 @@ describe('v19 performance workflow', () => {
     expect(calibration.policyRationale.cpuRegressionRatio).toBe(1.15);
     expect(calibration.policyRationale.gitCommandRegressionRatio)
       .toBe(policy.relative.gitCommandRegressionRatio);
+    expect(calibration.policyRationale.gitCommandMedian)
+      .toEqual(policy.absolute.gitCommandMedian);
     expect(calibration.policyRationale.streamingMaxRssBytes)
       .toBe(policy.streaming.maxRssBytes);
     expect(calibration.policyRationale.streamingPeakHeapUsedBytes)

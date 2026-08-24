@@ -87,8 +87,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compatibility corpus: they measure object and payload traffic, not traversal
   depth, and would not by themselves have caught the per-commit walk fixed
   above. The version 2 release gate adds the independently calibrated 65-patch
-  base and five-patch suffix; raw absolute counts are not compared across the
-  two different corpora.
+  base and five-patch suffix. The reference runner reports `781 / 30 / 372`
+  cold, warm, and incremental Git commands; reviewed ceilings of
+  `900 / 35 / 430` preserve about 15% structural headroom. Raw absolute counts
+  are not compared across the two different corpora.
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
   its initial payload in a single patch. The lowered patch declares an empty
   read set and exactly one subject write. That declaration describes the

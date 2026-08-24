@@ -53,6 +53,10 @@ timeout. The checked-in
 observed medians and dispersion, the exact GitHub-hosted Ubuntu 24.04/Node 22
 gating environment, and the policy rationale. A local Apple Silicon calibration
 is retained as secondary evidence, not as the source of CI ceilings.
+The reference runner measured `781 / 30 / 372` Git commands and
+`3920 / 890 / 2380` ms CPU for cold, warm, and incremental materialization.
+The command ceilings are `900 / 35 / 430`, about 1.15 times the observed
+structural counts.
 
 ## Semantic and schema gates
 
