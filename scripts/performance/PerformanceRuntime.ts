@@ -48,6 +48,7 @@ export type PerformanceGitPlumbing = GitPlumbing &
     openCatFileSession(): Promise<unknown>;
     openFastImportSession(): Promise<unknown>;
     openMktreeSession(): Promise<unknown>;
+    openUpdateRefSession(): Promise<unknown>;
   }>;
 
 export async function openPerformanceRuntime(
@@ -124,6 +125,11 @@ export class CountingPlumbing implements GitPlumbing {
   async openMktreeSession(): Promise<unknown> {
     this.#recordCategory('session:mktree');
     return await this.#delegate.openMktreeSession();
+  }
+
+  async openUpdateRefSession(): Promise<unknown> {
+    this.#recordCategory('session:update-ref');
+    return await this.#delegate.openUpdateRefSession();
   }
 
   commandHistogram(): Readonly<Record<string, number>> {
