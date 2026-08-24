@@ -15,12 +15,29 @@ export type StageOrderedBundleOptions = Readonly<{
   maxMembers?: number;
 }>;
 
+export type StageOrderedBundleRequest = Readonly<{
+  members: Iterable<StagedBundleMember>;
+  options?: StageOrderedBundleOptions;
+}>;
+
+export type StageOrderedBundlesOptions = Readonly<{
+  maxBatchBundles: number;
+  maxBatchMembers: number;
+  maxBatchObjects: number;
+  maxBatchBytes: number;
+}>;
+
 /** Optional bounded page-batch staging capability. */
 export interface ArtifactStagingPort {
   stagePages?(
     _sources: readonly Uint8Array[],
     _options: StagePagesOptions,
   ): Promise<readonly string[]>;
+
+  stageOrderedBundles?(
+    _bundles: readonly StageOrderedBundleRequest[],
+    _options: StageOrderedBundlesOptions,
+  ): Promise<readonly BundleHandle[]>;
 }
 
 /** Operation-scoped retention for immutable artifacts under construction. */

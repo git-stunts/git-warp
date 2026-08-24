@@ -39,6 +39,71 @@ describe('GitCasMaterializationWorkspace', () => {
     expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
   });
 
+  it('stages an ordered bundle batch under one git-cas workspace generation', async () => {
+    const harness = await createHarness();
+    const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
+    const left = await workspace.stagePage(new Uint8Array([1]), { maxBytes: 1 });
+    const right = await workspace.stagePage(new Uint8Array([2]), { maxBytes: 1 });
+    const generationBefore = harness.cas.readWorkspaceGenerationCount();
+
+    const bundles = await workspace.stageOrderedBundles!([
+      { members: [['left', left]], options: { maxMembers: 1 } },
+      { members: [['right', right]], options: { maxMembers: 1 } },
+    ], {
+      maxBatchBundles: 2,
+      maxBatchMembers: 2,
+      maxBatchObjects: 4,
+      maxBatchBytes: 1024,
+    });
+
+    expect(harness.cas.readWorkspaceGenerationCount() - generationBefore).toBe(1);
+    expect(bundles.map((bundle) => bundle.toString())).toHaveLength(2);
+    expect(harness.cas.readBundleMembers(bundles[0]!.toString())).toEqual([['left', left]]);
+    expect(harness.cas.readBundleMembers(bundles[1]!.toString())).toEqual([['right', right]]);
+    await workspace.release();
+  });
+
+  it('keeps empty bundle batches side-effect free', async () => {
+    const harness = await createHarness();
+    const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
+    const generationBefore = harness.cas.readWorkspaceGenerationCount();
+
+    await expect(workspace.stageOrderedBundles!([], {
+      maxBatchBundles: 1,
+      maxBatchMembers: 1,
+      maxBatchObjects: 1,
+      maxBatchBytes: 1,
+    })).resolves.toEqual([]);
+
+    expect(harness.cas.readWorkspaceGenerationCount()).toBe(generationBefore);
+    await workspace.release();
+  });
+
+  it('fails closed when git-cas returns the wrong bundle-batch count', async () => {
+    const harness = await createHarness();
+    const raw = await harness.cas.workspaces.open({ namespace: 'malformed-bundle-batch' });
+    const workspace = new GitCasMaterializationWorkspace({
+      workspace: {
+        ...raw,
+        bundles: { ...raw.bundles, putOrderedBatch: async () => Object.freeze([]) },
+      },
+      promote: rejectPromotion,
+    });
+
+    await expect(workspace.stageOrderedBundles!([{
+      members: [],
+    }], {
+      maxBatchBundles: 1,
+      maxBatchMembers: 1,
+      maxBatchObjects: 1,
+      maxBatchBytes: 1,
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('wrong staged bundle count'),
+    });
+    await workspace.release();
+  });
+
   it('keeps empty page batches side-effect free', async () => {
     const harness = await createHarness();
     const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
@@ -164,6 +229,24 @@ describe('GitCasMaterializationWorkspace', () => {
       },
       promote: rejectPromotion,
     }])).toThrowError(/pages must provide putBatch/u);
+
+    await raw.release();
+  });
+
+  it('requires the git-cas workspace bundle-batch capability', async () => {
+    const harness = await createHarness();
+    const raw = await harness.cas.workspaces.open({ namespace: 'missing-bundle-batch' });
+
+    expect(() => Reflect.construct(GitCasMaterializationWorkspace, [{
+      workspace: {
+        ...raw,
+        bundles: {
+          put: raw.bundles.put,
+          putOrdered: raw.bundles.putOrdered,
+        },
+      },
+      promote: rejectPromotion,
+    }])).toThrowError(/bundles must provide putOrderedBatch/u);
 
     await raw.release();
   });

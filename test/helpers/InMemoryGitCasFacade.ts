@@ -62,6 +62,7 @@ export default class InMemoryGitCasFacade {
     | 'getMember'
     | 'getMemberReference'
     | 'putOrdered'
+    | 'putOrderedBatch'
     | 'iterateMembers'
     | 'iterateMemberReferences'
   >;
@@ -120,6 +121,7 @@ export default class InMemoryGitCasFacade {
     });
     this.bundles = Object.freeze({
       putOrdered: async (request) => await this.#putBundle(request.members),
+      putOrderedBatch: async (request) => await this.#putBundleBatch(request),
       getMember: async (request) => await this.#getBundleMember(request.handle, request.path),
       getMemberReference: async (request) => (
         await this.#getBundleMember(request.handle, request.path)
@@ -297,6 +299,16 @@ export default class InMemoryGitCasFacade {
       limits: BUNDLE_LIMITS,
       observedAt: new Date(0).toISOString(),
     });
+  }
+
+  async #putBundleBatch(
+    request: Parameters<BundleCapability['putOrderedBatch']>[0],
+  ): Promise<Awaited<ReturnType<BundleCapability['putOrderedBatch']>>> {
+    const staged: StagedBundle[] = [];
+    for (const bundle of request.bundles) {
+      staged.push(await this.#putBundle(bundle.members));
+    }
+    return Object.freeze(staged);
   }
 
   async *#iterateBundleMembers(
@@ -726,6 +738,27 @@ export default class InMemoryGitCasFacade {
           const staged = await this.#putAsset(request);
           return retainedAsset(staged, retain(staged.handle));
         },
+        putBatch: async (request): Promise<ReadonlyArray<WorkspaceRetainedAsset>> => {
+          const staged: StagedAsset[] = [];
+          for (const asset of request.assets) {
+            staged.push(await this.#putAsset(asset));
+          }
+          if (staged.length === 0) { return Object.freeze([]); }
+          const checkpoint = install([
+            ...roots.values(),
+            ...staged.map((asset) => asset.handle),
+          ]);
+          const witnesses = new Map(checkpoint.witnesses.map((entry) => (
+            [entry.handle.toString(), entry]
+          )));
+          return Object.freeze(staged.map((asset) => {
+            const evidence = witnesses.get(asset.handle.toString());
+            if (evidence === undefined) {
+              throw new Error('In-memory workspace omitted a batched asset');
+            }
+            return retainedAsset(asset, evidence);
+          }));
+        },
         adopt: async ({ treeOid }): Promise<WorkspaceRetainedAsset> => {
           const staged = await this.#adoptAsset(treeOid);
           return retainedAsset(staged, retain(staged.handle));
@@ -765,6 +798,24 @@ export default class InMemoryGitCasFacade {
         putOrdered: async (request): Promise<WorkspaceRetainedBundle> => {
           const staged = await this.#putBundle(request.members);
           return retainedBundle(staged, retain(staged.handle));
+        },
+        putOrderedBatch: async (request): Promise<ReadonlyArray<WorkspaceRetainedBundle>> => {
+          const staged = await this.#putBundleBatch(request);
+          if (staged.length === 0) { return Object.freeze([]); }
+          const checkpoint = install([
+            ...roots.values(),
+            ...staged.map((bundle) => bundle.handle),
+          ]);
+          const witnesses = new Map(checkpoint.witnesses.map((entry) => (
+            [entry.handle.toString(), entry]
+          )));
+          return Object.freeze(staged.map((bundle) => {
+            const evidence = witnesses.get(bundle.handle.toString());
+            if (evidence === undefined) {
+              throw new Error('In-memory workspace omitted a batched bundle');
+            }
+            return retainedBundle(bundle, evidence);
+          }));
         },
       }),
       checkpoint: async ({ handles }) => install(handles),

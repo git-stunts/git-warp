@@ -15,6 +15,8 @@ import WarpError from '../../domain/errors/WarpError.ts';
 import type {
   StagedBundleMember,
   StageOrderedBundleOptions,
+  StageOrderedBundleRequest,
+  StageOrderedBundlesOptions,
   StagePageOptions,
   StagePagesOptions,
 } from '../../ports/ArtifactStagingPort.ts';
@@ -94,23 +96,7 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
         maxBatchBytes: options.maxBatchBytes,
         maxBatchPages: options.maxBatchPages,
       });
-      if (staged.length !== sources.length) {
-        throw workspaceError('git-cas returned the wrong staged page count');
-      }
-      if (staged.length === 0) {
-        return Object.freeze([]);
-      }
-      const generations = new Set<string>();
-      const handles = staged.map((page) => {
-        const handle = page.handle.toString();
-        const witness = requireRetainedStage(page, handle);
-        generations.add(witness.root.generation);
-        return handle;
-      });
-      if (generations.size !== 1) {
-        throw workspaceError('git-cas page batch did not share one generation');
-      }
-      return Object.freeze(handles);
+      return retainedBatchHandles(staged, sources.length, 'page');
     });
   }
 
@@ -128,6 +114,21 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
       });
       requireRetainedStage(staged, staged.handle.toString());
       return new BundleHandle(staged.handle.toString());
+    });
+  }
+
+  override stageOrderedBundles(
+    bundles: readonly StageOrderedBundleRequest[],
+    options: StageOrderedBundlesOptions,
+  ): Promise<readonly BundleHandle[]> {
+    this.#assertMutable('stage bundles');
+    return this.#serialize(async () => {
+      const staged = await this.#workspace.bundles.putOrderedBatch({
+        bundles: bundles.map(gitCasBundleRequest),
+        ...options,
+      });
+      return retainedBatchHandles(staged, bundles.length, 'bundle')
+        .map((handle) => new BundleHandle(handle));
     });
   }
 
@@ -191,6 +192,41 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
     );
     return result;
   }
+}
+
+type RetainedStage = WorkspaceRetainedPage | WorkspaceRetainedBundle;
+
+function retainedBatchHandles(
+  staged: readonly RetainedStage[],
+  expectedCount: number,
+  kind: 'page' | 'bundle',
+): readonly string[] {
+  if (staged.length !== expectedCount) {
+    throw workspaceError(`git-cas returned the wrong staged ${kind} count`);
+  }
+  if (staged.length === 0) { return Object.freeze([]); }
+  const generations = new Set<string>();
+  const handles = staged.map((entry) => {
+    const handle = entry.handle.toString();
+    generations.add(requireRetainedStage(entry, handle).root.generation);
+    return handle;
+  });
+  if (generations.size !== 1) {
+    throw workspaceError(`git-cas ${kind} batch did not share one generation`);
+  }
+  return Object.freeze(handles);
+}
+
+function gitCasBundleRequest(request: StageOrderedBundleRequest): {
+  members: Iterable<StagedBundleMember>;
+  limits?: Readonly<{ maxMembers?: number }>;
+} {
+  return {
+    members: request.members,
+    ...(request.options?.maxMembers === undefined
+      ? {}
+      : { limits: { maxMembers: request.options.maxMembers } }),
+  };
 }
 
 function workspaceMembers(
