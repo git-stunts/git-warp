@@ -99,6 +99,10 @@ const comparisonRunner = readFileSync(
   resolve(root, 'scripts/performance/RunPerformanceComparison.ts'),
   'utf8',
 );
+const performanceReadme = readFileSync(
+  resolve(root, 'benchmarks/v19/README.md'),
+  'utf8',
+);
 
 describe('v19 performance workflow', () => {
   it('runs exact base/head refs in one bounded pinned-toolchain job', () => {
@@ -144,6 +148,15 @@ describe('v19 performance workflow', () => {
     expect(comparisonRunner).toContain('const CI_INCREMENTAL_PATCHES = 5;');
     expect(comparisonRunner).toContain('GIT_WARP_PERF_BASE_PATCHES');
     expect(comparisonRunner).toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
+  });
+
+  it('documents the incremental scenario as a suffix patch chain', () => {
+    expect(performanceReadme).toContain(
+      'A retained base plus a bounded suffix patch chain',
+    );
+    expect(performanceReadme).not.toContain(
+      'A retained base plus one bounded suffix patch',
+    );
   });
 
   it('publishes summaries and raw commit-addressed evidence', () => {

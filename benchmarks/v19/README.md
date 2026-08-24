@@ -10,7 +10,7 @@ materialization and bounded-observation work. It covers issues
 |---|---|---|
 | `cold-materialize` | Deterministic causal corpus with no retained materialization | Full replay followed by one retained result |
 | `warm-materialize` | The same corpus with an exact retained materialization | Exact git-cas hit and zero patch replay |
-| `incremental-materialize` | A retained base plus one bounded suffix patch | Compatible predecessor hit and bounded suffix replay |
+| `incremental-materialize` | A retained base plus a bounded suffix patch chain | Compatible predecessor hit and bounded suffix replay |
 
 The harness accepts `git-warp.performance.corpus/v1` and
 `git-warp.performance.corpus/v2`. Both use the fixed seed `0x19c0ffee`, a
