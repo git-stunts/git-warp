@@ -223,7 +223,7 @@ export const DEFAULT_RETRY_OPTIONS: OperationPolicyExecuteOptions = {
  */
 export function toGitError(err: unknown): GitError | PersistenceError {
   if (err instanceof Error) {
-    return err as GitError;
+    return err;
   }
   return new PersistenceError(
     String(err),

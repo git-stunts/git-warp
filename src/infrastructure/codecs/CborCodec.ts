@@ -178,7 +178,7 @@ function _sortComposite(value: object): unknown {
  */
 export function encode(data: unknown): Uint8Array {
   const sorted = sortKeys(data);
-  return encoder.encode(sorted) as Uint8Array;
+  return encoder.encode(sorted);
 }
 
 /**

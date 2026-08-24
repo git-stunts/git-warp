@@ -62,7 +62,7 @@ function toNonNullField(value: object | string | number | boolean | bigint | sym
 
 function toLogFieldValue(value: unknown): LogFieldValue {
   if (value === null || value === undefined) { return value; }
-  return toNonNullField(value as object | string | number | boolean | bigint | symbol);
+  return toNonNullField(value);
 }
 
 export default class LoggerObservabilityBridge {

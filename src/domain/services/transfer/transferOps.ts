@@ -29,7 +29,7 @@ export function nodePropertyOp(
   key: string,
   value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): VisibleStateTransferOperation {
-  return { op: 'set_node_property', nodeId, key, value } as VisibleStateTransferOperation;
+  return { op: 'set_node_property', nodeId, key, value };
 }
 
 /**
@@ -47,7 +47,7 @@ export function edgePropertyOp(
     label: edge.label,
     key,
     value,
-  } as VisibleStateTransferOperation;
+  };
 }
 
 export type PropertyKeyInfo = {
@@ -161,14 +161,14 @@ export function buildNodeAttach(
     contentHandle: meta.handle,
     mime: meta.mime,
     size: meta.size,
-  } as VisibleStateTransferOperation;
+  };
 }
 
 /**
  * Build the clear operation for a single node's content.
  */
 export function buildNodeClear(nodeId: string): VisibleStateTransferOperation {
-  return { op: TRANSFER_OP_CLEAR_NODE_CONTENT, nodeId } as VisibleStateTransferOperation;
+  return { op: TRANSFER_OP_CLEAR_NODE_CONTENT, nodeId };
 }
 
 export type NodeContentOpsParams = {
@@ -242,7 +242,7 @@ export function buildEdgeAttach(
     contentHandle: meta.handle,
     mime: meta.mime,
     size: meta.size,
-  } as VisibleStateTransferOperation;
+  };
 }
 
 /**
@@ -254,7 +254,7 @@ export function buildEdgeClear(edge: EdgeRef): VisibleStateTransferOperation {
     from: edge.from,
     to: edge.to,
     label: edge.label,
-  } as VisibleStateTransferOperation;
+  };
 }
 
 export type EdgeContentOpsParams = {

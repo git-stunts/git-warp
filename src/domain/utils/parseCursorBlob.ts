@@ -45,7 +45,7 @@ export function parseCursorBlob(buf: Uint8Array, label: string): CursorBlob {
   assertPlainObject(raw, label);
   assertFiniteTick(raw, label);
 
-  return raw as CursorBlob;
+  return raw;
 }
 
 /**
