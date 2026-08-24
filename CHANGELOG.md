@@ -57,9 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The materialization performance harness accepts a version 2 corpus with
   independent base and suffix patch counts. Version 2 results must replay the
   exact declared patch count, so increasing node payload volume can no longer
-  impersonate causal-chain depth. Version 1 remains accepted and stays the
-  default for the compatibility checkpoint that teaches both sides of a
-  base/head comparison the new schema before the release gate switches to it.
+  impersonate causal-chain depth. The checked-in comparison now uses 65 base
+  nodes across 65 patches and five suffix nodes across five patches. That
+  crosses the default 64-patch checkpoint interval and makes the incremental
+  scenario exercise a bounded tail. Version 1 remains accepted for historical
+  and ad hoc fixtures.
 - The v19 performance gate now blocks on Git command counts as well as CPU.
   `benchmarks/v19/policy.json` gains `absolute.gitCommandMedian` per scenario and
   `relative.gitCommandRegressionRatio`, and the gate summary reports head and base
@@ -81,11 +83,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2758 / 543 / 2788 to 1521 / 30 / 1409 and CPU medians by
   28.4% / 59.0% / 33.5%. Together the gates catch a subprocess-count regression
   that leaves the CPU envelope untouched.
-  Scope, stated plainly: the current corpus writes each segment as a single
-  patch, so every scenario replays a one-patch chain. These counts therefore
-  gate object and payload traffic, not chain-traversal depth, and they would not
-  by themselves have caught the per-commit walk fixed above. Giving the fixture a
-  multi-patch chain is tracked separately.
+  Those before/after numbers belong to the preceding one-patch version 1
+  compatibility corpus: they measure object and payload traffic, not traversal
+  depth, and would not by themselves have caught the per-commit walk fixed
+  above. The version 2 release gate adds the independently calibrated 65-patch
+  base and five-patch suffix. The reference runner reports `781 / 30 / 372`
+  cold, warm, and incremental Git commands; reviewed ceilings of
+  `900 / 35 / 430` preserve about 15% structural headroom. Raw absolute counts
+  are not compared across the two different corpora.
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
   its initial payload in a single patch. The lowered patch declares an empty
   read set and exactly one subject write. That declaration describes the
