@@ -1,9 +1,19 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import Plumbing from '@git-stunts/plumbing';
 import { describe, expect, it } from 'vitest';
 import type { CollectableStream } from '../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import {
   CountingPlumbing,
-  type PerformanceGitPlumbing,
 } from '../../../scripts/performance/PerformanceRuntime.ts';
+import type {
+  PerformanceCatFileSession,
+  PerformanceFastImportSession,
+  PerformanceGitPlumbing,
+  PerformanceMktreeSession,
+  PerformanceUpdateRefSession,
+} from '../../../scripts/performance/PerformanceGitPlumbing.ts';
 import RecordingMaterializationWorkspace
   from '../../../scripts/performance/RecordingMaterializationWorkspace.ts';
 import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
@@ -20,11 +30,38 @@ import type {
 class RecordingSessionPlumbing implements PerformanceGitPlumbing {
   readonly emptyTree = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
   readonly opened: string[] = [];
-  readonly sessions = Object.freeze({
-    catFile: Object.freeze({ protocol: 'cat-file' }),
-    fastImport: Object.freeze({ protocol: 'fast-import' }),
-    mktree: Object.freeze({ protocol: 'mktree' }),
-    updateRef: Object.freeze({ protocol: 'update-ref' }),
+  readonly sessions: Readonly<{
+    catFile: PerformanceCatFileSession;
+    fastImport: PerformanceFastImportSession;
+    mktree: PerformanceMktreeSession;
+    updateRef: PerformanceUpdateRefSession;
+  }> = Object.freeze({
+    catFile: Object.freeze({
+      close: outsideSessionDelegation,
+      info: outsideSessionDelegation,
+      infoMany: outsideSessionDelegation,
+      read: outsideSessionDelegation,
+      readMany: outsideSessionDelegation,
+      terminate: outsideSessionDelegation,
+    }),
+    fastImport: Object.freeze({
+      abort: outsideSessionDelegation,
+      checkpoint: outsideSessionDelegation,
+      close: outsideSessionDelegation,
+      writeBlob: outsideSessionDelegation,
+      writeBlobs: outsideSessionDelegation,
+    }),
+    mktree: Object.freeze({
+      close: outsideSessionDelegation,
+      terminate: outsideSessionDelegation,
+      write: outsideSessionDelegation,
+      writeMany: outsideSessionDelegation,
+    }),
+    updateRef: Object.freeze({
+      close: outsideSessionDelegation,
+      terminate: outsideSessionDelegation,
+      update: outsideSessionDelegation,
+    }),
   });
 
   async execute(): Promise<string> {
@@ -35,28 +72,47 @@ class RecordingSessionPlumbing implements PerformanceGitPlumbing {
     throw new Error('executeStream is outside this session delegation test');
   }
 
-  async openCatFileSession(): Promise<unknown> {
+  async openCatFileSession(): Promise<PerformanceCatFileSession> {
     this.opened.push('cat-file');
     return this.sessions.catFile;
   }
 
-  async openFastImportSession(): Promise<unknown> {
+  async openFastImportSession(): Promise<PerformanceFastImportSession> {
     this.opened.push('fast-import');
     return this.sessions.fastImport;
   }
 
-  async openMktreeSession(): Promise<unknown> {
+  async openMktreeSession(): Promise<PerformanceMktreeSession> {
     this.opened.push('mktree');
     return this.sessions.mktree;
   }
 
-  async openUpdateRefSession(): Promise<unknown> {
+  async openUpdateRefSession(): Promise<PerformanceUpdateRefSession> {
     this.opened.push('update-ref');
     return this.sessions.updateRef;
   }
 }
 
+async function outsideSessionDelegation(): Promise<never> {
+  throw new Error('session operation is outside this delegation test');
+}
+
 describe('performance plumbing session fidelity', () => {
+  it('uses a plumbing release with persistent update-ref sessions', async () => {
+    const repositoryPath = await mkdtemp(
+      join(tmpdir(), 'git-warp-performance-plumbing-'),
+    );
+    try {
+      const plumbing = await Plumbing.createDefault({ cwd: repositoryPath });
+      await plumbing.execute({ args: ['init'] });
+
+      const session = await plumbing.openUpdateRefSession();
+      await session.close();
+    } finally {
+      await rm(repositoryPath, { recursive: true, force: true });
+    }
+  });
+
   it('delegates persistent protocols and counts one process start per session', async () => {
     const delegate = new RecordingSessionPlumbing();
     const plumbing = new CountingPlumbing(delegate);

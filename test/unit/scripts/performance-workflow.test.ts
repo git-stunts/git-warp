@@ -34,10 +34,18 @@ const ScenarioCountsSchema = z.object({
   'warm-materialize': ObservedCountsSchema,
 });
 
+const ScenarioCommandCeilingsSchema = z.object({
+  'cold-materialize': z.number().int().positive(),
+  'incremental-materialize': z.number().int().positive(),
+  'warm-materialize': z.number().int().positive(),
+});
+
 const CalibrationSchema = z.object({
   corpus: z.object({
-    baseNodeCount: z.number(),
-    suffixNodeCount: z.number(),
+    baseNodeCount: z.number().int().positive(),
+    basePatchCount: z.number().int().positive(),
+    suffixNodeCount: z.number().int().positive(),
+    suffixPatchCount: z.number().int().positive(),
   }),
   environment: z.object({
     gitCas: z.string(),
@@ -52,6 +60,7 @@ const CalibrationSchema = z.object({
   policyRationale: z.object({
     cpuRegressionRatio: z.number(),
     gitCommandRegressionRatio: z.number(),
+    gitCommandMedian: ScenarioCommandCeilingsSchema,
     streamingMaxRssBytes: z.number(),
     streamingPeakHeapUsedBytes: z.number(),
   }),
@@ -80,6 +89,18 @@ const workflow = readFileSync(
 );
 const releaseWorkflow = readFileSync(
   resolve(root, '.github/workflows/release.yml'),
+  'utf8',
+);
+const performanceRunner = readFileSync(
+  resolve(root, 'scripts/performance/RunPerformance.ts'),
+  'utf8',
+);
+const comparisonRunner = readFileSync(
+  resolve(root, 'scripts/performance/RunPerformanceComparison.ts'),
+  'utf8',
+);
+const performanceReadme = readFileSync(
+  resolve(root, 'benchmarks/v19/README.md'),
   'utf8',
 );
 
@@ -120,6 +141,24 @@ describe('v19 performance workflow', () => {
     ])).toThrow('ABBA');
   });
 
+  it('requires the checked-in comparison to exercise a checkpointed patch chain', () => {
+    expect(performanceRunner).toContain('GIT_WARP_PERF_BASE_PATCHES');
+    expect(performanceRunner).toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
+    expect(comparisonRunner).toContain('const CI_BASE_PATCHES = 65;');
+    expect(comparisonRunner).toContain('const CI_INCREMENTAL_PATCHES = 5;');
+    expect(comparisonRunner).toContain('GIT_WARP_PERF_BASE_PATCHES');
+    expect(comparisonRunner).toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
+  });
+
+  it('documents the incremental scenario as a suffix patch chain', () => {
+    expect(performanceReadme).toContain(
+      'A retained base plus a bounded suffix patch chain',
+    );
+    expect(performanceReadme).not.toContain(
+      'A retained base plus one bounded suffix patch',
+    );
+  });
+
   it('publishes summaries and raw commit-addressed evidence', () => {
     expect(workflow).toContain('RunPerformanceComparison.js');
     expect(workflow).toContain('--comparison performance-results/comparison.json');
@@ -143,8 +182,10 @@ describe('v19 performance workflow', () => {
       peakHeapUsedBytes: 96 * 1024 * 1024,
     });
     expect(calibration.corpus).toMatchObject({
-      baseNodeCount: 25,
+      baseNodeCount: 65,
+      basePatchCount: 65,
       suffixNodeCount: 5,
+      suffixPatchCount: 5,
     });
     expect(calibration.environment).toMatchObject({
       gitCas: '6.5.7',
@@ -155,6 +196,8 @@ describe('v19 performance workflow', () => {
     expect(calibration.policyRationale.cpuRegressionRatio).toBe(1.15);
     expect(calibration.policyRationale.gitCommandRegressionRatio)
       .toBe(policy.relative.gitCommandRegressionRatio);
+    expect(calibration.policyRationale.gitCommandMedian)
+      .toEqual(policy.absolute.gitCommandMedian);
     expect(calibration.policyRationale.streamingMaxRssBytes)
       .toBe(policy.streaming.maxRssBytes);
     expect(calibration.policyRationale.streamingPeakHeapUsedBytes)

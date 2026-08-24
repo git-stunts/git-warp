@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "6fd42cc7ae33b02a4370236010a67cde08a655e4",
-  "generatedAt": "2026-08-23T18:22:04.400Z",
+  "sourceCommit": "037264e9d7da098a35d5ef5b2aa0ef50effa306a",
+  "generatedAt": "2026-08-24T15:55:21.981Z",
   "evidence": {
-    "artifact": "v19-performance-cbf17fc96555c9799043a24f0af522718c378caa",
-    "run": "https://github.com/git-stunts/git-warp/actions/runs/32657452817"
+    "artifact": "v19-performance-b9310e42eecd90e1dd2722e9a9107f88599057ed",
+    "run": "https://github.com/git-stunts/git-warp/actions/runs/32747392067"
   },
   "environment": {
     "architecture": "x64",
     "cpuCount": 4,
-    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "cpuModel": "INTEL(R) XEON(R) PLATINUM 8573C",
     "git": "git version 2.55.0",
     "gitCas": "6.5.7",
     "node": "v22.23.2",
@@ -17,42 +17,44 @@
     "runner": "github-hosted"
   },
   "corpus": {
-    "baseNodeCount": 25,
+    "baseNodeCount": 65,
+    "basePatchCount": 65,
     "suffixNodeCount": 5,
+    "suffixPatchCount": 5,
     "propertyBytesPerNode": 256,
     "measuredRuns": 5,
     "warmupRuns": 1
   },
   "observed": {
     "cold-materialize": {
-      "cpuTotalMedianMs": 7020,
-      "cpuTotalMadMs": 70,
-      "maximumRssBytes": 147722240,
-      "maximumHeapUsedBytes": 53719200,
-      "gitCommandMedian": 1521,
+      "cpuTotalMedianMs": 3920,
+      "cpuTotalMadMs": 0,
+      "maximumRssBytes": 145166336,
+      "maximumHeapUsedBytes": 53149416,
+      "gitCommandMedian": 781,
       "gitCommandMadCount": 0
     },
     "warm-materialize": {
-      "cpuTotalMedianMs": 980,
-      "cpuTotalMadMs": 30,
-      "maximumRssBytes": 128880640,
-      "maximumHeapUsedBytes": 39450024,
+      "cpuTotalMedianMs": 890,
+      "cpuTotalMadMs": 10,
+      "maximumRssBytes": 131231744,
+      "maximumHeapUsedBytes": 41864424,
       "gitCommandMedian": 30,
       "gitCommandMadCount": 0
     },
     "incremental-materialize": {
-      "cpuTotalMedianMs": 6550.000000000001,
-      "cpuTotalMadMs": 49.99999999999909,
-      "maximumRssBytes": 147767296,
-      "maximumHeapUsedBytes": 54754208,
-      "gitCommandMedian": 1409,
+      "cpuTotalMedianMs": 2380,
+      "cpuTotalMadMs": 10,
+      "maximumRssBytes": 140779520,
+      "maximumHeapUsedBytes": 49642648,
+      "gitCommandMedian": 372,
       "gitCommandMadCount": 0
     },
     "streaming": {
-      "generationMaximumRssBytes": 204263424,
-      "generationPeakHeapUsedBytes": 61427008,
-      "maximumRssBytes": 150323200,
-      "peakHeapUsedBytes": 37747672
+      "generationMaximumRssBytes": 204304384,
+      "generationPeakHeapUsedBytes": 52687896,
+      "maximumRssBytes": 147984384,
+      "peakHeapUsedBytes": 36786520
     }
   },
   "localCalibration": {
@@ -67,27 +69,27 @@
     },
     "observed": {
       "cold-materialize": {
-        "cpuTotalMedianMs": 2543.928,
-        "cpuTotalMadMs": 21.105000000000018,
-        "maximumRssBytes": 161824768,
-        "maximumHeapUsedBytes": 59778136,
-        "gitCommandMedian": 1521,
+        "cpuTotalMedianMs": 1975.394,
+        "cpuTotalMadMs": 16.848999999999933,
+        "maximumRssBytes": 156958720,
+        "maximumHeapUsedBytes": 59483744,
+        "gitCommandMedian": 781,
         "gitCommandMadCount": 0
       },
       "warm-materialize": {
-        "cpuTotalMedianMs": 142.252,
-        "cpuTotalMadMs": 1.6859999999999786,
-        "maximumRssBytes": 118980608,
-        "maximumHeapUsedBytes": 37857744,
+        "cpuTotalMedianMs": 193.086,
+        "cpuTotalMadMs": 2.451999999999998,
+        "maximumRssBytes": 124190720,
+        "maximumHeapUsedBytes": 40101296,
         "gitCommandMedian": 30,
         "gitCommandMadCount": 0
       },
       "incremental-materialize": {
-        "cpuTotalMedianMs": 2359.879,
-        "cpuTotalMadMs": 12.159000000000106,
-        "maximumRssBytes": 159940608,
-        "maximumHeapUsedBytes": 58520568,
-        "gitCommandMedian": 1409,
+        "cpuTotalMedianMs": 1017.102,
+        "cpuTotalMadMs": 5.343000000000075,
+        "maximumRssBytes": 156172288,
+        "maximumHeapUsedBytes": 56732432,
+        "gitCommandMedian": 372,
         "gitCommandMadCount": 0
       }
     },
@@ -112,10 +114,10 @@
     "note": "CI-runner measurements are primary. Noise floors cover hosted-runner MAD; absolute materialization and streaming ceilings retain reviewed headroom while blocking gross regressions.",
     "gitCommandRegressionRatio": 1.05,
     "gitCommandMedian": {
-      "cold-materialize": 1750,
+      "cold-materialize": 900,
       "warm-materialize": 35,
-      "incremental-materialize": 1625
+      "incremental-materialize": 430
     },
-    "gitCommandNote": "Git command counts are structural, not timing. The reference runner and a local arm64 machine report identical session-aware counts per scenario (1521 / 30 / 1409) despite differing in architecture, OS, Node version (v22.23.2 vs v26.0.0), and Git version (2.55.0 vs 2.50.1), while their CPU medians differ materially. Five measured runs on each machine returned the same count every time (MAD 0). Machine independence is therefore measured, not assumed, which is why the relative ratio carries no noise floor. Absolute ceilings sit about 1.15x above the observed count \u2014 tight enough that a structural change to the storage path must be reviewed, loose enough to absorb a small legitimate addition. Evidence: https://github.com/git-stunts/git-warp/actions/runs/32657452817"
+    "gitCommandNote": "Git command counts are structural, not timing. On the version 2 checkpointed corpus, the reference runner and a local arm64 machine report identical session-aware counts per scenario (781 / 30 / 372) despite differing in architecture, OS, Node version (v22.23.2 vs v26.0.0), and Git version (2.55.0 vs 2.50.1), while their CPU medians differ materially. Five measured runs on each machine returned the same count every time (MAD 0). Machine independence is therefore measured, not assumed, which is why the relative ratio carries no noise floor. Absolute ceilings sit about 1.15x above the observed count \u2014 tight enough that a structural change to the storage path must be reviewed, loose enough to absorb a small legitimate addition. Evidence: https://github.com/git-stunts/git-warp/actions/runs/32747392067"
   }
 }

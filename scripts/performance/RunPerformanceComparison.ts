@@ -18,8 +18,10 @@ import {
   type StreamingPerformanceReport,
 } from './StreamingPerformanceReport.ts';
 
-const CI_BASE_NODES = 25;
+const CI_BASE_NODES = 65;
+const CI_BASE_PATCHES = 65;
 const CI_INCREMENTAL_NODES = 5;
+const CI_INCREMENTAL_PATCHES = 5;
 const CI_PROPERTY_BYTES = 256;
 const FIRST_BATCH_RUNS = 3;
 const SECOND_BATCH_RUNS = 2;
@@ -103,8 +105,10 @@ async function runMaterializationBatch(
     ['dist/scripts/performance/RunPerformance.js', '--output', outputPath],
     {
       GIT_WARP_PERF_BASE_NODES: String(CI_BASE_NODES),
+      GIT_WARP_PERF_BASE_PATCHES: String(CI_BASE_PATCHES),
       GIT_WARP_PERF_COMMIT: ref.commit,
       GIT_WARP_PERF_INCREMENTAL_NODES: String(CI_INCREMENTAL_NODES),
+      GIT_WARP_PERF_INCREMENTAL_PATCHES: String(CI_INCREMENTAL_PATCHES),
       GIT_WARP_PERF_PROPERTY_BYTES: String(CI_PROPERTY_BYTES),
       GIT_WARP_PERF_RUNS: String(measuredRuns),
       GIT_WARP_PERF_WARMUPS: String(warmupRuns),

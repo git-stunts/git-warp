@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The minimum `@git-stunts/plumbing` runtime dependency is now 3.3.0. The
+  performance harness requires its persistent `update-ref` session and carries
+  concrete protocol-session types instead of accepting opaque session values.
 - The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.7. Because
   git-cas includes its package version in newly written manifest metadata, the
   verified v17 migration-reading fixture's content handle advances with the
@@ -51,13 +54,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The materialization performance harness accepts a version 2 corpus with
+  independent base and suffix patch counts. Version 2 results must replay the
+  exact declared patch count, so increasing node payload volume can no longer
+  impersonate causal-chain depth. The checked-in comparison now uses 65 base
+  nodes across 65 patches and five suffix nodes across five patches. That
+  crosses the default 64-patch checkpoint interval and makes the incremental
+  scenario exercise a bounded tail. Version 1 remains accepted for historical
+  and ad hoc fixtures.
 - The v19 performance gate now blocks on Git command counts as well as CPU.
   `benchmarks/v19/policy.json` gains `absolute.gitCommandMedian` per scenario and
   `relative.gitCommandRegressionRatio`, and the gate summary reports head and base
   counts. The benchmark plumbing delegates and counts persistent `cat-file`,
   `mktree`, and `fast-import` sessions, so instrumentation preserves the same
   session topology as production instead of degrading a session-capable adapter
-  into one-shot commands. Command counts are structural: they are decided by
+  into one-shot commands. Persistent `update-ref` sessions are delegated and
+  counted by the same wrapper. Command counts are structural: they are decided by
   which code paths run, not by how fast the runner is. This is measured rather
   than assumed: the ubuntu-24.04 reference runner and a local arm64 machine report
   identical counts per scenario (1521 / 30 / 1409) despite differing in
@@ -71,11 +83,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2758 / 543 / 2788 to 1521 / 30 / 1409 and CPU medians by
   28.4% / 59.0% / 33.5%. Together the gates catch a subprocess-count regression
   that leaves the CPU envelope untouched.
-  Scope, stated plainly: the current corpus writes each segment as a single
-  patch, so every scenario replays a one-patch chain. These counts therefore
-  gate object and payload traffic, not chain-traversal depth, and they would not
-  by themselves have caught the per-commit walk fixed above. Giving the fixture a
-  multi-patch chain is tracked separately.
+  Those before/after numbers belong to the preceding one-patch version 1
+  compatibility corpus: they measure object and payload traffic, not traversal
+  depth, and would not by themselves have caught the per-commit walk fixed
+  above. The version 2 release gate adds the independently calibrated 65-patch
+  base and five-patch suffix. The reference runner reports `781 / 30 / 372`
+  cold, warm, and incremental Git commands; reviewed ceilings of
+  `900 / 35 / 430` preserve about 15% structural headroom. Raw absolute counts
+  are not compared across the two different corpora.
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
   its initial payload in a single patch. The lowered patch declares an empty
   read set and exactly one subject write. That declaration describes the
