@@ -11,10 +11,18 @@ materialization and bounded-observation work. It covers issues
 | `warm-materialize` | The same corpus with an exact retained materialization | Exact git-cas hit and zero patch replay |
 | `incremental-materialize` | A retained base plus one bounded suffix patch | Compatible predecessor hit and bounded suffix replay |
 
-The corpus format is `git-warp.performance.corpus/v1`. It uses the fixed seed
-`0x19c0ffee`, a directed chain, one deterministic property per node, and an
-explicit bounded suffix. Its version, seed, topology, cardinality, and logical
-property bytes are recorded in every result.
+The harness accepts `git-warp.performance.corpus/v1` and
+`git-warp.performance.corpus/v2`. Both use the fixed seed `0x19c0ffee`, a
+directed chain, one deterministic property per node, and an explicit bounded
+suffix. Version 2 also records independent base and suffix patch counts, so
+node payload volume cannot masquerade as causal-chain depth. Corpus version,
+seed, topology, node and patch cardinality, and logical property bytes are
+recorded in every result.
+
+The checked-in base/head comparison still emits version 1 until both sides of
+the comparison understand version 2. This compatibility checkpoint keeps the
+existing comparison honest; the release-gating follow-up switches the default
+corpus to a multi-patch chain and recalibrates it on the reference runner.
 
 ## Timed boundary
 
@@ -107,9 +115,10 @@ npm run performance:gate -- \
 
 Use `GIT_WARP_PERF_RUNS`, `GIT_WARP_PERF_WARMUPS`,
 `GIT_WARP_PERF_BASE_NODES`, `GIT_WARP_PERF_INCREMENTAL_NODES`, and
-`GIT_WARP_PERF_PROPERTY_BYTES` only for local calibration. Use `--profile mini`
-only for a fast mechanism check; it deliberately skips the hostile OOM control
-and is not release evidence.
+`GIT_WARP_PERF_PROPERTY_BYTES` only for local calibration. Set
+`GIT_WARP_PERF_BASE_PATCHES` and `GIT_WARP_PERF_INCREMENTAL_PATCHES` to emit a
+version 2 corpus locally. Use `--profile mini` only for a fast mechanism check;
+it deliberately skips the hostile OOM control and is not release evidence.
 
 ## CI comparison and history
 

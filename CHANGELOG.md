@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The minimum `@git-stunts/plumbing` runtime dependency is now 3.3.0. The
+  performance harness requires its persistent `update-ref` session and carries
+  concrete protocol-session types instead of accepting opaque session values.
 - The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.7. Because
   git-cas includes its package version in newly written manifest metadata, the
   verified v17 migration-reading fixture's content handle advances with the
@@ -51,13 +54,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The materialization performance harness accepts a version 2 corpus with
+  independent base and suffix patch counts. Version 2 results must replay the
+  exact declared patch count, so increasing node payload volume can no longer
+  impersonate causal-chain depth. Version 1 remains accepted and stays the
+  default for the compatibility checkpoint that teaches both sides of a
+  base/head comparison the new schema before the release gate switches to it.
 - The v19 performance gate now blocks on Git command counts as well as CPU.
   `benchmarks/v19/policy.json` gains `absolute.gitCommandMedian` per scenario and
   `relative.gitCommandRegressionRatio`, and the gate summary reports head and base
   counts. The benchmark plumbing delegates and counts persistent `cat-file`,
   `mktree`, and `fast-import` sessions, so instrumentation preserves the same
   session topology as production instead of degrading a session-capable adapter
-  into one-shot commands. Command counts are structural: they are decided by
+  into one-shot commands. Persistent `update-ref` sessions are delegated and
+  counted by the same wrapper. Command counts are structural: they are decided by
   which code paths run, not by how fast the runner is. This is measured rather
   than assumed: the ubuntu-24.04 reference runner and a local arm64 machine report
   identical counts per scenario (1521 / 30 / 1409) despite differing in

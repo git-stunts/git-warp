@@ -28,6 +28,13 @@ import type {
   RuntimeStorageServices,
 } from '../../src/ports/RuntimeStorageProviderPort.ts';
 import type { MaterializationEvidence } from './PerformanceModel.ts';
+import type {
+  PerformanceCatFileSession,
+  PerformanceFastImportSession,
+  PerformanceGitPlumbing,
+  PerformanceMktreeSession,
+  PerformanceUpdateRefSession,
+} from './PerformanceGitPlumbing.ts';
 import RecordingMaterializationWorkspace
   from './RecordingMaterializationWorkspace.ts';
 
@@ -41,14 +48,6 @@ export type OpenPerformanceRuntime = Readonly<{
   materializationEvidence: () => MaterializationEvidence;
   runtime: RuntimeHost;
 }>;
-
-/** Session-capable plumbing surface required to preserve production process topology. */
-export type PerformanceGitPlumbing = GitPlumbing &
-  Readonly<{
-    openCatFileSession(): Promise<unknown>;
-    openFastImportSession(): Promise<unknown>;
-    openMktreeSession(): Promise<unknown>;
-  }>;
 
 export async function openPerformanceRuntime(
   repositoryPath: string,
@@ -111,19 +110,24 @@ export class CountingPlumbing implements GitPlumbing {
     return await this.#delegate.executeStream(options);
   }
 
-  async openCatFileSession(): Promise<unknown> {
+  async openCatFileSession(): Promise<PerformanceCatFileSession> {
     this.#recordCategory('session:cat-file');
     return await this.#delegate.openCatFileSession();
   }
 
-  async openFastImportSession(): Promise<unknown> {
+  async openFastImportSession(): Promise<PerformanceFastImportSession> {
     this.#recordCategory('session:fast-import');
     return await this.#delegate.openFastImportSession();
   }
 
-  async openMktreeSession(): Promise<unknown> {
+  async openMktreeSession(): Promise<PerformanceMktreeSession> {
     this.#recordCategory('session:mktree');
     return await this.#delegate.openMktreeSession();
+  }
+
+  async openUpdateRefSession(): Promise<PerformanceUpdateRefSession> {
+    this.#recordCategory('session:update-ref');
+    return await this.#delegate.openUpdateRefSession();
   }
 
   commandHistogram(): Readonly<Record<string, number>> {
