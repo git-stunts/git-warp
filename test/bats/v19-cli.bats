@@ -69,6 +69,79 @@ assert observation["receipt"]["status"] == "completed"
 PY
 }
 
+@test "occurrence relation survives independent writer process restarts" {
+  run "${CLI[@]}" write \
+    --lane events \
+    --writer writer-a \
+    --json \
+    --intent '{"kind":"entity.add","namespace":"entry","properties":{"event":"left"}}'
+  assert_success
+  left_id="$(JSON="$output" python3 -c 'import json, os; print(json.loads(os.environ["JSON"])["occurrence"]["id"])')"
+  left_subject="$(JSON="$output" python3 -c 'import json, os; print(json.loads(os.environ["JSON"])["occurrence"]["subject"])')"
+
+  run "${CLI[@]}" write \
+    --lane events \
+    --writer writer-b \
+    --json \
+    --intent '{"kind":"entity.add","namespace":"entry","properties":{"event":"right"}}'
+  assert_success
+  right_id="$(JSON="$output" python3 -c 'import json, os; print(json.loads(os.environ["JSON"])["occurrence"]["id"])')"
+  right_subject="$(JSON="$output" python3 -c 'import json, os; print(json.loads(os.environ["JSON"])["occurrence"]["subject"])')"
+
+  run "${CLI[@]}" repair \
+    --lane events \
+    --writer reader \
+    --json \
+    --action materialization
+  assert_success
+
+  run "${CLI[@]}" occurrence relate \
+    --lane events \
+    --writer reader \
+    --json \
+    --left "$left_id" \
+    --right "$right_id"
+  assert_success
+  forward="$output"
+
+  run "${CLI[@]}" occurrence relate \
+    --lane events \
+    --writer reader \
+    --json \
+    --left "$right_id" \
+    --right "$left_id"
+  assert_success
+  reverse="$output"
+
+  FORWARD="$forward" REVERSE="$reverse" LEFT_ID="$left_id" LEFT_SUBJECT="$left_subject" RIGHT_ID="$right_id" RIGHT_SUBJECT="$right_subject" python3 - <<'PY'
+import json
+import os
+
+forward = json.loads(os.environ["FORWARD"])
+reverse = json.loads(os.environ["REVERSE"])
+left = {"id": os.environ["LEFT_ID"], "subject": os.environ["LEFT_SUBJECT"]}
+right = {"id": os.environ["RIGHT_ID"], "subject": os.environ["RIGHT_SUBJECT"]}
+
+assert forward["type"] == "EntityOccurrenceRelationReading"
+assert forward["lane"] == "events"
+assert forward["left"] == left
+assert forward["right"] == right
+assert forward["relation"] == "concurrent"
+assert forward["orderSemantics"] == "deterministic-non-causal"
+assert forward["completeness"] == {
+    "requestedOccurrences": "complete",
+    "relation": "complete-under-basis",
+}
+assert len(forward["evidence"]["support"]) >= 2
+
+assert reverse["left"] == right
+assert reverse["right"] == left
+assert reverse["relation"] == "concurrent"
+assert reverse["orderSemantics"] == "deterministic-non-causal"
+assert {forward["order"], reverse["order"]} == {"before", "after"}
+PY
+}
+
 @test "observe streams Reading and Receipt envelopes as JSON Lines" {
   prepare_user_reading
 
