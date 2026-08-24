@@ -128,11 +128,13 @@ describe('v19 performance workflow', () => {
     ])).toThrow('ABBA');
   });
 
-  it('keeps multi-patch corpora opt-in until both comparison refs support them', () => {
+  it('requires the checked-in comparison to exercise a checkpointed patch chain', () => {
     expect(performanceRunner).toContain('GIT_WARP_PERF_BASE_PATCHES');
     expect(performanceRunner).toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
-    expect(comparisonRunner).not.toContain('GIT_WARP_PERF_BASE_PATCHES');
-    expect(comparisonRunner).not.toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
+    expect(comparisonRunner).toContain('const CI_BASE_PATCHES = 65;');
+    expect(comparisonRunner).toContain('const CI_INCREMENTAL_PATCHES = 5;');
+    expect(comparisonRunner).toContain('GIT_WARP_PERF_BASE_PATCHES');
+    expect(comparisonRunner).toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
   });
 
   it('publishes summaries and raw commit-addressed evidence', () => {
