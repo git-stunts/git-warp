@@ -1,6 +1,11 @@
 import type MaterializationHandle
   from '../../src/domain/materialization/MaterializationHandle.ts';
-import type { StagePagesOptions }
+import type BundleHandle from '../../src/domain/storage/BundleHandle.ts';
+import type {
+  StageOrderedBundleRequest,
+  StageOrderedBundlesOptions,
+  StagePagesOptions,
+}
   from '../../src/ports/ArtifactStagingPort.ts';
 import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
@@ -47,6 +52,17 @@ export default class RecordingMaterializationWorkspace
     ...args: Parameters<MaterializationWorkspacePort['stageOrderedBundle']>
   ): ReturnType<MaterializationWorkspacePort['stageOrderedBundle']> {
     return this.#delegate.stageOrderedBundle(...args);
+  }
+
+  override stageOrderedBundles(
+    bundles: readonly StageOrderedBundleRequest[],
+    options: StageOrderedBundlesOptions,
+  ): Promise<readonly BundleHandle[]> {
+    const stageOrderedBundles = this.#delegate.stageOrderedBundles;
+    if (stageOrderedBundles === undefined) {
+      throw new Error('Performance runtime requires batched materialization bundle staging');
+    }
+    return stageOrderedBundles.call(this.#delegate, bundles, options);
   }
 
   override promote(

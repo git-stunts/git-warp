@@ -6,9 +6,15 @@ import {
 } from '../../../scripts/performance/PerformanceRuntime.ts';
 import RecordingMaterializationWorkspace
   from '../../../scripts/performance/RecordingMaterializationWorkspace.ts';
+import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
 import MaterializationWorkspacePort
   from '../../../src/ports/MaterializationWorkspacePort.ts';
-import type { StagePagesOptions }
+import type {
+  StagedBundleMember,
+  StageOrderedBundleRequest,
+  StageOrderedBundlesOptions,
+  StagePagesOptions,
+}
   from '../../../src/ports/ArtifactStagingPort.ts';
 
 class RecordingSessionPlumbing implements PerformanceGitPlumbing {
@@ -70,7 +76,7 @@ describe('performance plumbing session fidelity', () => {
     });
   });
 
-  it('preserves bounded page staging through the recording workspace', async () => {
+  it('preserves bounded page and bundle staging through the recording workspace', async () => {
     const sources = Object.freeze([
       Uint8Array.of(1, 2),
       Uint8Array.of(3, 4),
@@ -81,7 +87,24 @@ describe('performance plumbing session fidelity', () => {
       maxBatchPages: 2,
     });
     const handles = Object.freeze(['page:sha1:one', 'page:sha1:two']);
-    const calls: Array<readonly [readonly Uint8Array[], StagePagesOptions]> = [];
+    const pageCalls: Array<readonly [readonly Uint8Array[], StagePagesOptions]> = [];
+    const bundleMembers: readonly StagedBundleMember[] = Object.freeze([
+      ['leaf/data', 'page:sha1:one'],
+    ]);
+    const bundleRequests: readonly StageOrderedBundleRequest[] = Object.freeze([
+      Object.freeze({ members: bundleMembers }),
+    ]);
+    const bundleOptions: StageOrderedBundlesOptions = Object.freeze({
+      maxBatchBundles: 64,
+      maxBatchMembers: 8_192,
+      maxBatchObjects: 256,
+      maxBatchBytes: 64 * 1024 * 1024,
+    });
+    const bundleHandles = Object.freeze([new BundleHandle('test:batch-bundle')]);
+    const bundleCalls: Array<readonly [
+      readonly StageOrderedBundleRequest[],
+      StageOrderedBundlesOptions,
+    ]> = [];
     const delegate: MaterializationWorkspacePort = {
       checkpoint: async () => null,
       promote: async () => {
@@ -95,8 +118,12 @@ describe('performance plumbing session fidelity', () => {
         throw new Error('single-page staging is outside this page-batch delegation test');
       },
       stagePages: async (pageSources, pageOptions) => {
-        calls.push([pageSources, pageOptions]);
+        pageCalls.push([pageSources, pageOptions]);
         return handles;
+      },
+      stageOrderedBundles: async (requests, options) => {
+        bundleCalls.push([requests, options]);
+        return bundleHandles;
       },
     };
     const workspace = new RecordingMaterializationWorkspace(
@@ -105,6 +132,14 @@ describe('performance plumbing session fidelity', () => {
     );
 
     await expect(workspace.stagePages(sources, options)).resolves.toBe(handles);
-    expect(calls).toEqual([[sources, options]]);
+    expect(pageCalls).toEqual([[sources, options]]);
+    const stageOrderedBundles = workspace.stageOrderedBundles;
+    if (stageOrderedBundles === undefined) {
+      throw new Error('Recording workspace omitted bounded bundle staging');
+    }
+    await expect(
+      stageOrderedBundles.call(workspace, bundleRequests, bundleOptions)
+    ).resolves.toBe(bundleHandles);
+    expect(bundleCalls).toEqual([[bundleRequests, bundleOptions]]);
   });
 });
