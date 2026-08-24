@@ -3,14 +3,16 @@ import type {
   PageCapability,
 } from '@git-stunts/git-cas';
 import TrieStoreError from '../../domain/errors/TrieStoreError.ts';
+import {
+  TRIE_BRANCH_WRITE_WAVE_MAX_ITEMS,
+  TRIE_LEAF_WRITE_WAVE_MAX_BYTES,
+  TRIE_LEAF_WRITE_WAVE_MAX_ITEMS,
+} from '../../domain/orset/trie/TrieWriteWavePolicy.ts';
 import type ArtifactStagingPort from '../../ports/ArtifactStagingPort.ts';
 import type { StageOrderedBundleRequest } from '../../ports/ArtifactStagingPort.ts';
 
 const LEAF_PATH = 'leaf/data';
 const MAX_TRIE_LEAF_BYTES = 16 * 1024 * 1024;
-const MAX_PAGE_BATCH_BYTES = 32 * 1024 * 1024;
-const MAX_PAGE_BATCH_PAGES = 256;
-const MAX_BUNDLE_BATCH_BUNDLES = 64;
 const MAX_BUNDLE_BATCH_MEMBERS = 8_192;
 const MAX_BUNDLE_BATCH_OBJECTS = 256;
 const MAX_BUNDLE_BATCH_BYTES = 64 * 1024 * 1024;
@@ -110,8 +112,8 @@ async function stagePageWaves(
   for (const wave of leafPageWaves(leaves)) {
     const staged = await staging.stagePages(wave, {
       maxBytes: MAX_TRIE_LEAF_BYTES,
-      maxBatchBytes: MAX_PAGE_BATCH_BYTES,
-      maxBatchPages: MAX_PAGE_BATCH_PAGES,
+      maxBatchBytes: TRIE_LEAF_WRITE_WAVE_MAX_BYTES,
+      maxBatchPages: TRIE_LEAF_WRITE_WAVE_MAX_ITEMS,
     });
     requireWriteCardinality('page', wave.length, staged.length);
     handles.push(...staged);
@@ -127,8 +129,8 @@ async function putPageWaves(
   for (const wave of leafPageWaves(leaves)) {
     const staged = await pages.putBatch({
       pages: wave.map((source) => ({ source, maxBytes: MAX_TRIE_LEAF_BYTES })),
-      maxBatchBytes: MAX_PAGE_BATCH_BYTES,
-      maxBatchPages: MAX_PAGE_BATCH_PAGES,
+      maxBatchBytes: TRIE_LEAF_WRITE_WAVE_MAX_BYTES,
+      maxBatchPages: TRIE_LEAF_WRITE_WAVE_MAX_ITEMS,
     });
     requireWriteCardinality('page', wave.length, staged.length);
     handles.push(...staged.map((page) => page.handle.toString()));
@@ -141,7 +143,7 @@ function leafPageWaves(leaves: readonly Uint8Array[]): readonly Uint8Array[][] {
   let wave: Uint8Array[] = [];
   let bytes = 0;
   for (const leaf of leaves) {
-    if (wave.length === MAX_PAGE_BATCH_PAGES || exceedsPageBytes(wave, bytes, leaf)) {
+    if (wave.length === TRIE_LEAF_WRITE_WAVE_MAX_ITEMS || exceedsPageBytes(wave, bytes, leaf)) {
       waves.push(wave);
       wave = [];
       bytes = 0;
@@ -158,7 +160,7 @@ function exceedsPageBytes(
   bytes: number,
   leaf: Uint8Array,
 ): boolean {
-  return wave.length > 0 && bytes + leaf.byteLength > MAX_PAGE_BATCH_BYTES;
+  return wave.length > 0 && bytes + leaf.byteLength > TRIE_LEAF_WRITE_WAVE_MAX_BYTES;
 }
 
 function leafBundleRequests(pages: readonly string[]): OrderedBundleRequest[] {
@@ -219,7 +221,7 @@ function bundleBatchLimits(): Readonly<{
   maxBatchBytes: number;
 }> {
   return {
-    maxBatchBundles: MAX_BUNDLE_BATCH_BUNDLES,
+    maxBatchBundles: TRIE_BRANCH_WRITE_WAVE_MAX_ITEMS,
     maxBatchMembers: MAX_BUNDLE_BATCH_MEMBERS,
     maxBatchObjects: MAX_BUNDLE_BATCH_OBJECTS,
     maxBatchBytes: MAX_BUNDLE_BATCH_BYTES,
@@ -261,7 +263,7 @@ function batchableBundle(members: number, objects: number): boolean {
 }
 
 function bundleWaveFull(current: BundleWaveWeight, next: BundleWaveWeight): boolean {
-  return current.bundles >= MAX_BUNDLE_BATCH_BUNDLES ||
+  return current.bundles >= TRIE_BRANCH_WRITE_WAVE_MAX_ITEMS ||
     current.members + next.members > MAX_BUNDLE_BATCH_MEMBERS ||
     current.objects + next.objects > MAX_BUNDLE_BATCH_OBJECTS;
 }

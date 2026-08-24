@@ -11,6 +11,10 @@ import TrieBranch from "./TrieBranch.ts";
 import type { TrieBranchEntries } from "./TrieBranchEntries.ts";
 import TrieLeaf from "./TrieLeaf.ts";
 import type TrieStorePort from "./TrieStorePort.ts";
+import {
+  shouldFlushBranchWriteWave,
+  shouldFlushLeafWriteWave,
+} from "./TrieWriteWavePolicy.ts";
 import type ArtifactStagingPort from "../../../ports/ArtifactStagingPort.ts";
 
 const PENDING_OID_PREFIX = "pending:";
@@ -97,14 +101,35 @@ export default class TrieFlusher {
   }
 
   async #writeLeafWave(entries: readonly DirtyPageEntry[], state: FlushState): Promise<void> {
-    const paths: Array<readonly number[]> = [];
-    const leaves: Uint8Array[] = [];
+    let paths: Array<readonly number[]> = [];
+    let leaves: Uint8Array[] = [];
+    let byteLength = 0;
     for (const entry of entries) {
       if (entry.node instanceof TrieLeaf) {
+        const leaf = this.#serializeLeaf(entry.node, entry.path);
+        if (shouldFlushLeafWriteWave({
+          byteLength,
+          itemCount: leaves.length,
+          nextByteLength: leaf.byteLength,
+        })) {
+          await this.#recordLeafWave(leaves, paths, state);
+          paths = [];
+          leaves = [];
+          byteLength = 0;
+        }
         paths.push(entry.path);
-        leaves.push(this.#serializeLeaf(entry.node, entry.path));
+        leaves.push(leaf);
+        byteLength += leaf.byteLength;
       }
     }
+    await this.#recordLeafWave(leaves, paths, state);
+  }
+
+  async #recordLeafWave(
+    leaves: readonly Uint8Array[],
+    paths: readonly (readonly number[])[],
+    state: FlushState,
+  ): Promise<void> {
     const roots = await this.#writeLeaves(leaves, paths);
     requireWriteCardinality("leaf", paths.length, roots.length);
     for (let index = 0; index < paths.length; index += 1) {
@@ -123,7 +148,11 @@ export default class TrieFlusher {
     let wave: DirtyPageEntry[] = [];
     for (const entry of entries) {
       if (!(entry.node instanceof TrieBranch)) { continue; }
-      if (depth !== -1 && entry.path.length !== depth) {
+      if (shouldFlushBranchWriteWave({
+        depth,
+        itemCount: wave.length,
+        nextDepth: entry.path.length,
+      })) {
         await this.#writeBranchWave(wave, dirty, state);
         wave = [];
       }

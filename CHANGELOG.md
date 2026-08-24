@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
+- Retained trie flushes now stage leaf pages, leaf bundles, and branch bundles
+  through ordered git-cas write waves instead of one storage operation per
+  trie page. The domain boundary caps each serialized leaf wave at 256 items
+  and 32 MiB and each same-depth branch wave at 64 items before the Git adapter
+  applies its tighter member, object, and byte limits. Stores without the
+  optional batch capabilities retain the existing ordered singleton fallback.
+  Root identity, publication authority, and the v19 storage format are
+  unchanged; existing v19 repositories require no migration.
 - Patch-chain traversal (`PatchDiscovery.loadPatchChainFromSha`,
   `PatchDiscovery.discoverTicks`) now reads chain metadata with a single bulk
   `logNodesStream` history read per chain instead of one `getNodeInfo` call per
@@ -42,10 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The minimum `@git-stunts/plumbing` runtime dependency is now 3.3.0. The
   performance harness requires its persistent `update-ref` session and carries
   concrete protocol-session types instead of accepting opaque session values.
-- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.7. Because
+- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.8. Because
   git-cas includes its package version in newly written manifest metadata, the
   verified v17 migration-reading fixture's content handle advances with the
-  dependency while its legacy equivalence facts remain unchanged.
+  dependency while its legacy equivalence facts remain unchanged. Version
+  6.5.8 supplies the ordered page and bundle write-wave APIs used by retained
+  trie publication; previously written manifests remain readable.
 - `LogNodesOptions` gains `firstParent` and `stopAt`. Chain readers advance by
   first parent and stop at a known boundary, so the history read is now
   constrained the same way: a merge's side branch is never streamed, and the

@@ -11,18 +11,18 @@ import type ArtifactStagingPort from "../../../ports/ArtifactStagingPort.ts";
  * plumbing. Writes may join an existing staging scope so a complete trie
  * remains reachable until its final owner is installed.
  *
- * ## Four methods, nothing more
+ * ## Core methods plus optional write waves
  *
  * - `readLeaf(root)` — read a leaf page's raw bytes.
  * - `readBranch(root)` — read a branch bundle as its nibble-indexed
  *   child map.
  * - `writeLeaf(data, staging?)` — write or stage a page and return its handle.
  * - `writeBranch(children, staging?)` — write or stage a bundle and return its handle.
+ * - `writeLeaves(...)` — optionally write one bounded ordered leaf wave.
+ * - `writeBranches(...)` — optionally write one bounded dependency-depth wave.
  *
- * That is the entire port. No batch reads, no batch writes, no
- * page caching, no geometry configuration, no checkpoint envelope
- * publication. Those concerns live in other modules (and other
- * backlog items):
+ * There are no batch reads, page caching, geometry configuration, or
+ * checkpoint-envelope publication concerns here. Those live in other modules.
  *
  * | Concern                         | Owner                                      |
  * |---------------------------------|--------------------------------------------|
