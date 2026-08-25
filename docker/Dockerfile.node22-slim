@@ -7,12 +7,13 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-# Copy git-warp
-COPY git-warp/package*.json ./
-COPY git-warp/scripts ./scripts
-COPY git-warp/patches ./patches
-RUN npm install
-COPY git-warp .
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+# Copy the current checkout.
+COPY package*.json ./
+COPY scripts ./scripts
+COPY patches ./patches
+RUN npm ci
+COPY . .
 RUN npm run build --silent
 RUN git init -q \
   && git config user.email "container@git-warp.local" \
