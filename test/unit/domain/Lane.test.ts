@@ -13,27 +13,23 @@ describe('Lane', () => {
   });
 
   it('validates its construction boundary', () => {
-    expect(() => new Lane(null)).toThrow(expect.objectContaining({ code: 'E_LANE_OPTIONS' }));
-    expect(
-      () =>
-        new Lane({
-          descriptor: { kind: 'worldline', name: 'events' },
-          // @ts-expect-error Exercise the JavaScript boundary.
-          startObserver: 'invalid',
-          writeIntent,
-          writer: 'agent-1',
-        })
-    ).toThrow(expect.objectContaining({ code: 'E_LANE_OBSERVER' }));
-    expect(
-      () =>
-        new Lane({
-          descriptor: { kind: 'worldline', name: 'events' },
-          startObserver,
-          // @ts-expect-error Exercise the JavaScript boundary.
-          writeIntent: 'invalid',
-          writer: 'agent-1',
-        })
-    ).toThrow(expect.objectContaining({ code: 'E_LANE_WRITER' }));
+    expect(() => new Lane(null)).toThrow(
+      expect.objectContaining({ code: 'E_LANE_OPTIONS' }),
+    );
+    expect(() => new Lane({
+      descriptor: { kind: 'worldline', name: 'events' },
+      // @ts-expect-error Exercise the JavaScript boundary.
+      startObserver: 'invalid',
+      writeIntent,
+      writer: 'agent-1',
+    })).toThrow(expect.objectContaining({ code: 'E_LANE_OBSERVER' }));
+    expect(() => new Lane({
+      descriptor: { kind: 'worldline', name: 'events' },
+      startObserver,
+      // @ts-expect-error Exercise the JavaScript boundary.
+      writeIntent: 'invalid',
+      writer: 'agent-1',
+    })).toThrow(expect.objectContaining({ code: 'E_LANE_WRITER' }));
   });
 
   it('exposes its identity and delegates admitted writes', async () => {
@@ -81,99 +77,81 @@ describe('Lane', () => {
     });
     // @ts-expect-error Exercise the JavaScript boundary.
     expect(() => lane.observe({})).toThrow(
-      expect.objectContaining({ code: 'E_LANE_OBSERVE_OBSERVER' })
+      expect.objectContaining({ code: 'E_LANE_OBSERVE_OBSERVER' }),
     );
-    expect(
-      () =>
-        new Lane({
-          // @ts-expect-error Exercise the JavaScript boundary.
-          descriptor: null,
-          startObserver,
-          writeIntent,
-          writer: 'agent-1',
-        })
-    ).toThrow(expect.objectContaining({ code: 'E_LANE_DESCRIPTOR' }));
-    expect(
-      () =>
-        new Lane({
-          // @ts-expect-error Exercise the JavaScript boundary.
-          descriptor: { kind: 'future', name: 'events' },
-          startObserver,
-          writeIntent,
-          writer: 'agent-1',
-        })
-    ).toThrow(expect.objectContaining({ code: 'E_LANE_KIND' }));
+    expect(() => new Lane({
+      // @ts-expect-error Exercise the JavaScript boundary.
+      descriptor: null,
+      startObserver,
+      writeIntent,
+      writer: 'agent-1',
+    })).toThrow(expect.objectContaining({ code: 'E_LANE_DESCRIPTOR' }));
+    expect(() => new Lane({
+      // @ts-expect-error Exercise the JavaScript boundary.
+      descriptor: { kind: 'future', name: 'events' },
+      startObserver,
+      writeIntent,
+      writer: 'agent-1',
+    })).toThrow(expect.objectContaining({ code: 'E_LANE_KIND' }));
   });
 
   it('rejects incomplete strand coordinates and Lane references', () => {
-    expect(
-      () =>
-        new Lane({
-          descriptor: {
-            // @ts-expect-error Exercise the JavaScript boundary.
-            forkedAt: null,
-            kind: 'strand',
-            name: 'trial',
-            parent: { kind: 'worldline', name: 'events' },
-          },
-          startObserver,
-          writeIntent,
-          writer: 'agent-1',
-        })
-    ).toThrow(expect.objectContaining({ code: 'E_LANE_FORK_COORDINATE' }));
-    expect(
-      () =>
-        new Lane({
-          descriptor: {
-            forkedAt: {
-              id: 'coordinate:1',
-              lane: { kind: 'worldline', name: 'events' },
-            },
-            kind: 'strand',
-            name: 'trial',
-            // @ts-expect-error Exercise the JavaScript boundary.
-            parent: null,
-          },
-          startObserver,
-          writeIntent,
-          writer: 'agent-1',
-        })
-    ).toThrow(expect.objectContaining({ code: 'E_LANE_REFERENCE' }));
-    expect(
-      () =>
-        new Lane({
-          descriptor: {
-            forkedAt: {
-              id: 'coordinate:1',
-              // @ts-expect-error Exercise the JavaScript boundary.
-              lane: { kind: 'future', name: 'events' },
-            },
-            kind: 'strand',
-            name: 'trial',
-            // @ts-expect-error Exercise the JavaScript boundary.
-            parent: { kind: 'future', name: 'events' },
-          },
-          startObserver,
-          writeIntent,
-          writer: 'agent-1',
-        })
-    ).toThrow(expect.objectContaining({ code: 'E_LANE_REFERENCE_KIND' }));
+    expect(() => new Lane({
+      descriptor: {
+        // @ts-expect-error Exercise the JavaScript boundary.
+        forkedAt: null,
+        kind: 'strand',
+        name: 'trial',
+        parent: { kind: 'worldline', name: 'events' },
+      },
+      startObserver,
+      writeIntent,
+      writer: 'agent-1',
+    })).toThrow(expect.objectContaining({ code: 'E_LANE_FORK_COORDINATE' }));
+    expect(() => new Lane({
+      descriptor: {
+        forkedAt: {
+          id: 'coordinate:1',
+          lane: { kind: 'worldline', name: 'events' },
+        },
+        kind: 'strand',
+        name: 'trial',
+        // @ts-expect-error Exercise the JavaScript boundary.
+        parent: null,
+      },
+      startObserver,
+      writeIntent,
+      writer: 'agent-1',
+    })).toThrow(expect.objectContaining({ code: 'E_LANE_REFERENCE' }));
+    expect(() => new Lane({
+      descriptor: {
+        forkedAt: {
+          id: 'coordinate:1',
+          // @ts-expect-error Exercise the JavaScript boundary.
+          lane: { kind: 'future', name: 'events' },
+        },
+        kind: 'strand',
+        name: 'trial',
+        // @ts-expect-error Exercise the JavaScript boundary.
+        parent: { kind: 'future', name: 'events' },
+      },
+      startObserver,
+      writeIntent,
+      writer: 'agent-1',
+    })).toThrow(expect.objectContaining({ code: 'E_LANE_REFERENCE_KIND' }));
   });
 
   it('keeps worldline and strand descriptors mutually exclusive', () => {
-    expect(
-      () =>
-        new Lane({
-          descriptor: {
-            kind: 'worldline',
-            name: 'events',
-            parent: { kind: 'worldline', name: 'main' },
-          } as never,
-          startObserver,
-          writeIntent,
-          writer: 'agent-1',
-        })
-    ).toThrowError(expect.objectContaining({ code: 'E_LANE_KIND_OVERLAP' }));
+    expect(() => new Lane({
+      descriptor: {
+        kind: 'worldline',
+        name: 'events',
+        parent: { kind: 'worldline', name: 'main' },
+      } as never,
+      startObserver,
+      writeIntent,
+      writer: 'agent-1',
+    })).toThrowError(expect.objectContaining({ code: 'E_LANE_KIND_OVERLAP' }));
 
     const strand = new Lane({
       descriptor: {
@@ -204,23 +182,20 @@ describe('Lane', () => {
   });
 
   it('rejects a strand fork coordinate from another parent', () => {
-    expect(
-      () =>
-        new Lane({
-          descriptor: {
-            forkedAt: {
-              id: 'coordinate:1',
-              lane: { kind: 'worldline', name: 'other' },
-            },
-            kind: 'strand',
-            name: 'try-admin-role',
-            parent: { kind: 'worldline', name: 'events' },
-          },
-          startObserver,
-          writeIntent,
-          writer: 'agent-1',
-        })
-    ).toThrow(expect.objectContaining({ code: 'E_LANE_FORK_PARENT' }));
+    expect(() => new Lane({
+      descriptor: {
+        forkedAt: {
+          id: 'coordinate:1',
+          lane: { kind: 'worldline', name: 'other' },
+        },
+        kind: 'strand',
+        name: 'try-admin-role',
+        parent: { kind: 'worldline', name: 'events' },
+      },
+      startObserver,
+      writeIntent,
+      writer: 'agent-1',
+    })).toThrow(expect.objectContaining({ code: 'E_LANE_FORK_PARENT' }));
   });
 
   it('constructs an Observation without starting runtime work', () => {

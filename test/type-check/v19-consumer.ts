@@ -46,11 +46,9 @@ const emitted: Reading<string> = await observation.one();
 const support: SupportReport = emitted.support;
 const observationReceipt: ObservationReceipt = await observation.receipt;
 const receipt: Receipt = observationReceipt;
-const manyObservation: Observation<string> = lane.observe(
-  users.observers.rolesOf({
-    subjects: ['user:alice', 'user:bob'],
-  })
-);
+const manyObservation: Observation<string> = lane.observe(users.observers.rolesOf({
+  subjects: ['user:alice', 'user:bob'],
+}));
 for await (const reading of manyObservation) {
   const value: string = reading.value;
   void value;
@@ -60,9 +58,11 @@ const settlementOptions: RuntimeSettlementOptions = {
   source: strand,
   target: lane,
 };
-const settlementPreview: SettlementPreview = await runtime.previewSettlement(settlementOptions);
+const settlementPreview: SettlementPreview =
+  await runtime.previewSettlement(settlementOptions);
 const settlementPlan: SettlementPlan = settlementPreview.plan;
-const settlementReceipt: SettlementReceipt = await runtime.settle(settlementPlan);
+const settlementReceipt: SettlementReceipt =
+  await runtime.settle(settlementPlan);
 const settlementPublicReceipt: Receipt = settlementReceipt;
 
 function admissionWitnessHandle(value: AdmissionOutcome): EvidenceHandle {
