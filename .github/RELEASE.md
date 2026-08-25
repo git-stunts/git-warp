@@ -305,6 +305,12 @@ and rerun the release workflow or the failed job.
 type, coverage, npm pack, JSR dry-run, packed-artifact smoke, and npm audit
 checks.
 
+Release preflight owns validation and runs each expensive gate once. Its
+declaration-surface check builds `dist`; validation-only `npm pack` calls then
+use `--ignore-scripts`, and the packed-artifact smoke consumes that prepared
+output. A maintainer's standalone `npm pack` or `npm publish` still runs the
+package `prepack` lifecycle as a separate safety boundary.
+
 ## Idempotency
 
 Release workflows must be safe to rerun for an existing public tag.

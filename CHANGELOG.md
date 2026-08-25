@@ -180,6 +180,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release preflight now suppresses npm lifecycle scripts during validation-only
+  pack dry-runs and reuses its prepared `dist` tree for the packed-artifact
+  smoke. The coverage, lint, unit, and consumer-type gates no longer rerun
+  through `prepack`; standalone `npm pack` and `npm publish` retain the full
+  lifecycle safety gate.
 - Content attachment now rechecks the builder lifecycle after asynchronous
   asset staging. Publication that overtakes staging can no longer be followed
   by late property operations or attachment handles on an already committed

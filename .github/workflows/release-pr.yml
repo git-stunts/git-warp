@@ -39,7 +39,7 @@ jobs:
         run: npm run test:local --if-present
 
       - name: npm pack dry-run
-        run: npm pack --dry-run
+        run: npm pack --dry-run --ignore-scripts
 
       - name: JSR dry-run
         run: npx -y jsr publish --dry-run

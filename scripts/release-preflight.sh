@@ -174,13 +174,13 @@ fi
 
 # ── 8. Pack dry-runs ─────────────────────────────────────────────────────────
 echo "Pack:"
-PACK_OUTPUT=$(npm pack --dry-run 2>&1 || true)
+PACK_OUTPUT=$(npm pack --dry-run --ignore-scripts 2>&1 || true)
 if printf '%s\n' "$PACK_OUTPUT" | grep -q "total files"; then
   pass "npm pack dry-run"
 else
   fail "npm pack dry-run failed"
 fi
-if bash scripts/smoke-packed-artifact.sh; then
+if bash scripts/smoke-packed-artifact.sh --prepared-artifacts; then
   pass "packed artifact smoke"
 else
   fail "packed artifact smoke failed"
