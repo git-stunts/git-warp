@@ -137,6 +137,43 @@ describe('GitCasCompoundArtifactStagingAdapter', () => {
         message: expect.stringContaining('omitted the staged page handle'),
       });
   });
+
+  it('rejects sparse batched handle responses', async () => {
+    const sparsePages = new Array<PageHandle>(2);
+    sparsePages[0] = FIRST_PAGE;
+    const sparseBundles = new Array<GitCasBundleHandle>(2);
+    sparseBundles[0] = FIRST_BUNDLE;
+    const staging = new GitCasCompoundArtifactStagingAdapter({
+      scope: compoundScope({
+        putPages: async () => sparsePages,
+        putBundles: async () => sparseBundles,
+      }),
+    });
+
+    await expect(staging.stagePages!([
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+    ], {
+      maxBytes: 1,
+      maxBatchBytes: 2,
+      maxBatchPages: 2,
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('omitted a provisional page handle'),
+    });
+    await expect(staging.stageOrderedBundles!([
+      { members: [] },
+      { members: [] },
+    ], {
+      maxBatchBundles: 2,
+      maxBatchMembers: 2,
+      maxBatchObjects: 2,
+      maxBatchBytes: 2,
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('omitted a provisional bundle handle'),
+    });
+  });
 });
 
 type PageBatchRequest = Parameters<WorkspaceCompoundScope['pages']['putBatch']>[0];

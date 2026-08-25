@@ -41,7 +41,7 @@ export default class GitCasCompoundArtifactStagingAdapter extends ArtifactStagin
       maxBatchBytes: options.maxBatchBytes,
       maxBatchPages: options.maxBatchPages,
     });
-    requireCardinality(handles.length, sources.length, 'page');
+    requireDenseHandles(handles, sources.length, 'page');
     return Object.freeze(handles.map((handle) => handle.toString()));
   }
 
@@ -63,7 +63,7 @@ export default class GitCasCompoundArtifactStagingAdapter extends ArtifactStagin
       bundles: bundles.map(gitCasBundleRequest),
       ...options,
     });
-    requireCardinality(handles.length, bundles.length, 'bundle');
+    requireDenseHandles(handles, bundles.length, 'bundle');
     return Object.freeze(handles.map((handle) => new BundleHandle(handle.toString())));
   }
 }
@@ -100,6 +100,19 @@ function requireCardinality(
 ): void {
   if (actual !== expected) {
     throw stagingError(`git-cas returned the wrong provisional ${kind} count`);
+  }
+}
+
+function requireDenseHandles(
+  handles: ReadonlyArray<ApplicationHandle>,
+  expected: number,
+  kind: 'page' | 'bundle',
+): void {
+  requireCardinality(handles.length, expected, kind);
+  for (let index = 0; index < handles.length; index += 1) {
+    if (handles[index] === undefined) {
+      throw stagingError(`git-cas omitted a provisional ${kind} handle`);
+    }
   }
 }
 
