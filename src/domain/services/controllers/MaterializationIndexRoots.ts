@@ -1,12 +1,9 @@
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
-import type { IndexShardWriteOptions } from '../../../ports/IndexStorePort.ts';
 import {
   DEPENDENT_ARTIFACT_ADMISSION_MAX_OPERATIONS,
   type default as ArtifactStagingPort,
 } from '../../../ports/ArtifactStagingPort.ts';
 import type MaterializationWorkspacePort from '../../../ports/MaterializationWorkspacePort.ts';
-import type { IndexShard } from '../../artifacts/IndexShard.ts';
-import { PropertyShard } from '../../artifacts/PropertyShard.ts';
 import MaterializationRoot from '../../materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../materialization/MaterializationRoots.ts';
 import {
@@ -24,6 +21,9 @@ import WarpStream from '../../stream/WarpStream.ts';
 import LogicalIndexBuildService from '../index/LogicalIndexBuildService.ts';
 import PropertyIndexBuilder from '../index/PropertyIndexBuilder.ts';
 import type WarpState from '../state/WarpState.ts';
+import PendingMaterializationIndexRootWrite
+  from './PendingMaterializationIndexRootWrite.ts';
+import ResolvedMaterializationIndexRoot from './ResolvedMaterializationIndexRoot.ts';
 
 export type PreparedMaterializationIndexRoots = Readonly<{
   properties: MaterializationRoot;
@@ -38,16 +38,8 @@ export type MaterializationIndexRootPlanOptions = Readonly<{
 }>;
 
 type PreparedIndexRoot =
-  | Readonly<{
-    kind: 'resolved';
-    root: MaterializationRoot;
-  }>
-  | Readonly<{
-    kind: 'write';
-    shards: readonly IndexShard[];
-    options: IndexShardWriteOptions;
-    store: IndexStorePort;
-  }>;
+  | PendingMaterializationIndexRootWrite
+  | ResolvedMaterializationIndexRoot;
 
 /** Prepared bounded index work that can join a wider artifact admission. */
 export class MaterializationIndexRootPlan {
@@ -60,6 +52,7 @@ export class MaterializationIndexRootPlan {
   ) {
     this.#properties = properties;
     this.#roaringIndexes = roaringIndexes;
+    Object.freeze(this);
   }
 
   static create(options: MaterializationIndexRootPlanOptions): MaterializationIndexRootPlan {
@@ -70,13 +63,13 @@ export class MaterializationIndexRootPlan {
   }
 
   get admissionOperationBound(): number {
-    return preparedRootOperationBound(this.#properties) +
-      preparedRootOperationBound(this.#roaringIndexes);
+    return this.#properties.admissionOperationBound +
+      this.#roaringIndexes.admissionOperationBound;
   }
 
   get admissionGroupCount(): number {
-    return Number(this.#properties.kind === 'write') +
-      Number(this.#roaringIndexes.kind === 'write');
+    return this.#properties.admissionGroupCount +
+      this.#roaringIndexes.admissionGroupCount;
   }
 
   async admit(
@@ -100,8 +93,8 @@ export class MaterializationIndexRootPlan {
 
   async write(staging: ArtifactStagingPort): Promise<PreparedMaterializationIndexRoots> {
     return Object.freeze({
-      properties: await writePreparedRoot(this.#properties, staging),
-      roaringIndexes: await writePreparedRoot(this.#roaringIndexes, staging),
+      properties: await this.#properties.write(staging),
+      roaringIndexes: await this.#roaringIndexes.write(staging),
     });
   }
 }
@@ -151,14 +144,11 @@ function prepareIndexRoot(args: {
 }
 
 function prepareIndexWrite(state: WarpState, store: IndexStorePort): PreparedIndexRoot {
-  const shards = new LogicalIndexBuildService()
-    .buildShards(state)
-    .shards
-    .filter((shard) => !(shard instanceof PropertyShard));
-  const shardCount = requireMaterializationIndexShardCount(shards.length);
-  return Object.freeze({
-    kind: 'write',
-    shards: Object.freeze(shards),
+  const builder = new LogicalIndexBuildService().buildLogicalIndexBuilder(state);
+  const shardCount = requireMaterializationIndexShardCount(builder.shardCount());
+  return new PendingMaterializationIndexRootWrite({
+    openShards: () => WarpStream.from(builder.yieldShards()),
+    shardCount,
     store,
     options: Object.freeze({
       expectedShardCount: shardCount,
@@ -192,9 +182,9 @@ function preparePropertyWrite(state: WarpState, store: IndexStorePort): Prepared
     return resolvedRoot(MaterializationRoot.empty());
   }
   requireMaterializationPropertyShardCount(shardCount);
-  return Object.freeze({
-    kind: 'write',
-    shards: Object.freeze([...builder.yieldShards()]),
+  return new PendingMaterializationIndexRootWrite({
+    openShards: () => WarpStream.from(builder.yieldShards()),
+    shardCount,
     store,
     options: Object.freeze({
       expectedShardCount: shardCount,
@@ -219,26 +209,8 @@ function buildMaterializationPropertyIndex(state: WarpState): PropertyIndexBuild
   return builder;
 }
 
-function preparedRootOperationBound(prepared: PreparedIndexRoot): number {
-  return prepared.kind === 'write' ? prepared.shards.length + 1 : 0;
-}
-
-async function writePreparedRoot(
-  prepared: PreparedIndexRoot,
-  staging: ArtifactStagingPort,
-): Promise<MaterializationRoot> {
-  if (prepared.kind === 'resolved') {
-    return prepared.root;
-  }
-  const handle = await prepared.store.writeShards(
-    WarpStream.from<IndexShard>(prepared.shards),
-    { ...prepared.options, staging },
-  );
-  return MaterializationRoot.retained(handle);
-}
-
 function resolvedRoot(root: MaterializationRoot): PreparedIndexRoot {
-  return Object.freeze({ kind: 'resolved', root });
+  return new ResolvedMaterializationIndexRoot(root);
 }
 
 function reusableRoot(root: MaterializationRoot | undefined): PreparedIndexRoot | null {

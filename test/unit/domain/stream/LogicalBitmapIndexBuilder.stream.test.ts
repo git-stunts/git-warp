@@ -39,6 +39,12 @@ describe('LogicalBitmapIndexBuilder.yieldShards() — IndexShard records', () =>
     }
   });
 
+  it('reports the exact emitted shard count without consuming the stream', () => {
+    const builder = buildTestIndex();
+
+    expect(builder.shardCount()).toBe([...builder.yieldShards()].length);
+  });
+
   it('produces MetaShard, LabelShard, EdgeShard, ReceiptShard', () => {
     const builder = buildTestIndex();
     const shards = [...builder.yieldShards()];

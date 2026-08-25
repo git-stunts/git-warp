@@ -1,11 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { IndexShard } from '../../../../../src/domain/artifacts/IndexShard.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import { LWWRegister } from '../../../../../src/domain/crdt/LWW.ts';
 import {
+  MaterializationIndexRootPlan,
   prepareMaterializationIndexRoots,
 } from '../../../../../src/domain/services/controllers/MaterializationIndexRoots.ts';
+import LogicalBitmapIndexBuilder
+  from '../../../../../src/domain/services/index/LogicalBitmapIndexBuilder.ts';
+import PropertyIndexBuilder
+  from '../../../../../src/domain/services/index/PropertyIndexBuilder.ts';
 import { encodePropKey } from '../../../../../src/domain/services/KeyCodec.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import type BundleHandle from '../../../../../src/domain/storage/BundleHandle.ts';
@@ -60,6 +65,43 @@ describe('prepareMaterializationIndexRoots compound admission', () => {
     expect(store.writeOptions).toHaveLength(2);
     expect(store.writeOptions.map((options) => options.staging))
       .toEqual([workspace, workspace]);
+  });
+
+  it('defers shard construction until the prepared plan is written', async () => {
+    const originalLogicalYield = LogicalBitmapIndexBuilder.prototype.yieldShards;
+    const originalPropertyYield = PropertyIndexBuilder.prototype.yieldShards;
+    let logicalShards = 0;
+    let propertyShards = 0;
+    const logicalYieldSpy = vi.spyOn(LogicalBitmapIndexBuilder.prototype, 'yieldShards')
+      .mockImplementation(function* (this: LogicalBitmapIndexBuilder) {
+        for (const shard of originalLogicalYield.call(this)) {
+          logicalShards += 1;
+          yield shard;
+        }
+      });
+    const propertyYieldSpy = vi.spyOn(PropertyIndexBuilder.prototype, 'yieldShards')
+      .mockImplementation(function* (this: PropertyIndexBuilder) {
+        for (const shard of originalPropertyYield.call(this)) {
+          propertyShards += 1;
+          yield shard;
+        }
+      });
+
+    try {
+      const plan = MaterializationIndexRootPlan.create({
+        state: stateWithOneProperty(),
+        store: new RecordingIndexStorage(),
+      });
+
+      expect(logicalShards).toBe(0);
+      expect(propertyShards).toBe(0);
+      await plan.write(new ScopedArtifactWorkspace());
+      expect(logicalShards).toBeGreaterThan(0);
+      expect(propertyShards).toBe(1);
+    } finally {
+      logicalYieldSpy.mockRestore();
+      propertyYieldSpy.mockRestore();
+    }
   });
 });
 
