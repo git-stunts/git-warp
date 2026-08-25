@@ -258,7 +258,7 @@ export default class LogicalBitmapIndexBuilder {
     for (const [key, bitmap] of bitmaps) {
       const firstColon = key.indexOf(':');
       const secondColon = key.indexOf(':', firstColon + 1);
-      const shardKey = key.substring(0, firstColon);
+      const shardKey = bitmapShardKey(key);
       const bucketName = key.substring(firstColon + 1, secondColon);
       const globalIdStr = key.substring(secondColon + 1);
 
@@ -296,7 +296,11 @@ export default class LogicalBitmapIndexBuilder {
 function bitmapShardCount(bitmaps: ReadonlyMap<string, RoaringBitmapSubset>): number {
   const shardKeys = new Set<string>();
   for (const key of bitmaps.keys()) {
-    shardKeys.add(key.substring(0, key.indexOf(':')));
+    shardKeys.add(bitmapShardKey(key));
   }
   return shardKeys.size;
+}
+
+function bitmapShardKey(key: string): string {
+  return key.substring(0, key.indexOf(':'));
 }
