@@ -58,6 +58,23 @@ describe('PublishedIntentSequence', () => {
     );
   });
 
+  it('rejects a plain object wearing a trusted operation type tag', () => {
+    const sequence = IntentSequence.from([
+      Intent.addNode({ subject: 'capture:first' }),
+    ]);
+    const impostor = Object.freeze({
+      type: 'NodeAdd',
+      node: 'capture:first',
+      dot: Dot.create('agent-1', 1),
+    });
+
+    expect(() => inspectPublishedIntentSequence(
+      sequence,
+      // @ts-expect-error Exercise the runtime boundary with an operation impostor.
+      patch([impostor]),
+    )).toThrowError(expect.objectContaining({ code: 'E_WRITE_INTENT_PUBLICATION' }));
+  });
+
   it.each([
     {
       name: 'node addition',

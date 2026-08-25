@@ -4,6 +4,12 @@ import { allocateEntitySubject } from '../services/PatchBuilderEntity.ts';
 import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
 import type Patch from '../types/Patch.ts';
 import { isPropValue, propValuesEqual, type PropValue } from '../types/PropValue.ts';
+import EdgeAdd from '../types/ops/EdgeAdd.ts';
+import EdgeRemove from '../types/ops/EdgeRemove.ts';
+import NodeAdd from '../types/ops/NodeAdd.ts';
+import NodePropSet from '../types/ops/NodePropSet.ts';
+import NodeRemove from '../types/ops/NodeRemove.ts';
+import PropSet from '../types/ops/PropSet.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
 import type Intent from './Intent.ts';
 import type { IntentDescriptor, IntentKind } from './Intent.ts';
@@ -62,12 +68,6 @@ class PublicationCursor {
 
 type IntentInspector = (cursor: PublicationCursor, intent: Intent) => void;
 type EntityIntentDescriptor = Extract<IntentDescriptor, { readonly kind: 'entity.add' }>;
-type EdgeInspection = Readonly<{
-  readonly cursor: PublicationCursor;
-  readonly intent: Intent;
-  readonly intentKind: 'edge.add' | 'edge.remove';
-  readonly operationKind: 'EdgeAdd' | 'EdgeRemove';
-}>;
 type EntityPropertiesInspection = Readonly<{
   readonly cursor: PublicationCursor;
   readonly intent: Intent;
@@ -107,7 +107,7 @@ function inspectNodeAdd(cursor: PublicationCursor, intent: Intent): void {
     throw publicationError(intent, 'Published node addition received a mismatched Intent');
   }
   const operation = cursor.take(intent);
-  if (operation.type !== 'NodeAdd' || operation.node !== descriptor.subject) {
+  if (!(operation instanceof NodeAdd) || operation.node !== descriptor.subject) {
     throw publicationError(intent, 'Published node addition does not match its requested subject');
   }
 }
@@ -119,7 +119,7 @@ function inspectNodeRemove(cursor: PublicationCursor, intent: Intent): void {
   }
   consumeCascadingEdgeRemovals(cursor, intent, descriptor.subject);
   const operation = cursor.take(intent);
-  if (operation.type !== 'NodeRemove' || operation.node !== descriptor.subject) {
+  if (!(operation instanceof NodeRemove) || operation.node !== descriptor.subject) {
     throw publicationError(intent, 'Published node removal does not match its requested subject');
   }
 }
@@ -129,43 +129,45 @@ function consumeCascadingEdgeRemovals(
   intent: Intent,
   subject: string,
 ): void {
-  while (cursor.current()?.type === 'EdgeRemove') {
+  while (cursor.current() instanceof EdgeRemove) {
     const operation = cursor.take(intent);
-    if (operation.type !== 'EdgeRemove' || !touchesSubject(operation, subject)) {
+    if (!(operation instanceof EdgeRemove) || !touchesSubject(operation, subject)) {
       throw publicationError(intent, 'Published node removal contains an unrelated edge removal');
     }
   }
 }
 
 function touchesSubject(
-  operation: Extract<PatchOp, { readonly type: 'EdgeRemove' }>,
+  operation: EdgeRemove,
   subject: string,
 ): boolean {
   return operation.from === subject || operation.to === subject;
 }
 
 function inspectEdgeAdd(cursor: PublicationCursor, intent: Intent): void {
-  inspectEdgeOperation({ cursor, intent, intentKind: 'edge.add', operationKind: 'EdgeAdd' });
+  const { descriptor } = intent;
+  if (descriptor.kind !== 'edge.add') {
+    throw publicationError(intent, 'Published edge addition received a mismatched Intent');
+  }
+  const operation = cursor.take(intent);
+  if (!(operation instanceof EdgeAdd) || !edgeFieldsMatch(operation, descriptor)) {
+    throw publicationError(intent, 'Published edge addition does not match its requested edge');
+  }
 }
 
 function inspectEdgeRemove(cursor: PublicationCursor, intent: Intent): void {
-  inspectEdgeOperation({ cursor, intent, intentKind: 'edge.remove', operationKind: 'EdgeRemove' });
-}
-
-function inspectEdgeOperation(fields: EdgeInspection): void {
-  const { cursor, intent, intentKind, operationKind } = fields;
   const { descriptor } = intent;
-  if (descriptor.kind !== intentKind) {
-    throw publicationError(intent, 'Published edge edit received a mismatched Intent');
+  if (descriptor.kind !== 'edge.remove') {
+    throw publicationError(intent, 'Published edge removal received a mismatched Intent');
   }
   const operation = cursor.take(intent);
-  if (operation.type !== operationKind || !edgeFieldsMatch(operation, descriptor)) {
-    throw publicationError(intent, 'Published edge edit does not match its requested edge');
+  if (!(operation instanceof EdgeRemove) || !edgeFieldsMatch(operation, descriptor)) {
+    throw publicationError(intent, 'Published edge removal does not match its requested edge');
   }
 }
 
 function edgeFieldsMatch(
-  operation: Extract<PatchOp, { readonly type: 'EdgeAdd' | 'EdgeRemove' }>,
+  operation: EdgeAdd | EdgeRemove,
   descriptor: Readonly<{ from: string; label: string; to: string }>,
 ): boolean {
   return (
@@ -194,7 +196,7 @@ function inspectEntityAdd(cursor: PublicationCursor, intent: Intent): void {
   }
   const opIndex = cursor.position;
   const leading = cursor.take(intent);
-  if (leading.type !== 'NodeAdd' || !(leading.dot instanceof Dot)) {
+  if (!(leading instanceof NodeAdd) || !(leading.dot instanceof Dot)) {
     throw publicationError(intent, 'Published entity does not begin with a causal NodeAdd');
   }
   const subject = requestedEntitySubject(descriptor, leading.dot);
@@ -235,7 +237,7 @@ function requirePropertyOperation(
 }
 
 function propertyOperationMatches(
-  operation: Extract<PatchOp, { readonly type: 'NodePropSet' | 'PropSet' }>,
+  operation: NodePropSet | PropSet,
   expected: Readonly<{ key: string; subject: string; value: PropValue }>,
 ): boolean {
   return (
@@ -248,8 +250,8 @@ function propertyOperationMatches(
 
 function isNodePropertyOperation(
   operation: PatchOp,
-): operation is Extract<PatchOp, { readonly type: 'NodePropSet' | 'PropSet' }> {
-  return operation.type === 'NodePropSet' || operation.type === 'PropSet';
+): operation is NodePropSet | PropSet {
+  return operation instanceof NodePropSet || operation instanceof PropSet;
 }
 
 function publicationError(intent: Intent, message: string): WarpError {
