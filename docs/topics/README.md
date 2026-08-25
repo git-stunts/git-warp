@@ -5,12 +5,15 @@ specific task.
 
 ## Current release
 
-`v19.0.2` is the current release. It ships the Runtime, Lane, Intent, Observer,
-Observation, Reading, and Receipt application vocabulary, bounded retained
-reads, and the safe one-shot v18-to-v19 substrate migration with per-commit
-progress and durable completion evidence. Do not use the v19.0.0 migrator on an
-authoritative repository. Operator workflows live outside the topic shelf in
-[Operations](../operations/). The full breaking-change, migration, and
+`v19.1.0` is the current release. It preserves the Runtime, Lane, Intent,
+Observer, Observation, Reading, and Receipt application vocabulary while
+batching patch discovery, trie dependency waves, and compound retained
+materialization through bounded Git and git-cas operations. Existing v19
+repositories require no migration. Omitted checkpoint policy now defaults to
+`{ every: 64 }`; the merged Entity surface is included only as an unofficial,
+unstable preview. Do not use the v19.0.0 migrator on an authoritative
+repository. Operator workflows live outside the topic shelf in
+[Operations](../operations/). The full compatibility, migration, and
 performance narrative lives in the root [CHANGELOG](../../CHANGELOG.md).
 
 ## Start here
@@ -37,6 +40,9 @@ performance narrative lives in the root [CHANGELOG](../../CHANGELOG.md).
   checkpoints, replay, and provenance.
 - [Git performance](git-perf.md): understand the measured persistent Git
   session design, bounded-memory policy, and rejected native backends.
+- [v19.1.0 release witness](v19-1-performance-architecture-witness.md): trace
+  Corpus 19C0FFEE from route-key bytes through trie splits, bounded write waves,
+  compound retention, hosted performance, compatibility, and publication.
 - [Content and CAS](content-and-cas.md): handle content attachments,
   content-addressed storage, and encrypted CAS payloads.
 - [WARP state-cache materialization](cas-first-memoized-materialization.md):

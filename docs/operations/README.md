@@ -16,9 +16,10 @@ It does not mutate authoritative history or silently repair git-cas.
 
 ## Migrate retained v18 state
 
-Use the v19.0.2 migrator on an authoritative repository. The v19.0.1 migrator
-is safe but lacks complete per-commit progress and durable post-TUI completion
-evidence. The v19.0.0 migrator is unsafe for retained v18 state.
+Use the current v19.1.0 package for migration. The safe migrator was introduced
+in v19.0.2; the v19.0.1 migrator lacks complete per-commit progress and durable
+post-TUI completion evidence, and the v19.0.0 migrator is unsafe for retained
+v18 state. A repository already on v19 requires no v19.1.0 migration.
 
 Prepare and test the v19 application without opening the authoritative
 repository. During the maintenance window, stop every writer and make an
@@ -38,7 +39,7 @@ names, reports source and scratch capacity, and asks for confirmation:
 ```bash
 GRAPH_NAME=your-graph-name
 
-npm exec --package=@git-stunts/git-warp@19.0.2 -- \
+npm exec --package=@git-stunts/git-warp@19.1.0 -- \
   git-warp-v18-to-v19 \
   --repo "$REPOSITORY" \
   --graph "$GRAPH_NAME"
@@ -48,6 +49,10 @@ After a successful cutover, rerun with `--yes --json`. The idempotent
 verification must report `already-current`. Then start the already-tested v19
 application and verify a bounded read, one write, its Receipt, restart
 behavior, and the next backup.
+
+An omitted `checkpointPolicy` now defaults to `{ every: 64 }` in v19.1.0.
+Use `checkpointPolicy: null` only when disabling automatic checkpoints is a
+deliberate operating choice.
 
 Keep the recovery refs reported by the command until those checks and a
 separate retention decision are complete. Do not move writer refs backward or
