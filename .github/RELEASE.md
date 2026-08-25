@@ -301,9 +301,9 @@ and rerun the release workflow or the failed job.
 - zero open non-release-operation issues in the target release milestone;
 - zero open issues in prior release milestones.
 
-`scripts/release-preflight.sh` wraps the guard with lint, Markdown, link,
-type, coverage, npm pack, JSR dry-run, packed-artifact smoke, and npm audit
-checks.
+`scripts/release-preflight.sh` wraps the guard with lint, Markdown, link, type,
+coverage, npm pack, JSR dry-run, packed-artifact smoke, and the full locked
+runtime/development dependency audit.
 
 Release preflight owns validation and runs each expensive gate once. Its
 declaration-surface check builds `dist`; validation-only `npm pack` calls then
