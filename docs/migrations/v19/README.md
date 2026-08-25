@@ -1,10 +1,11 @@
 # v19 Public API Migration Guide
 
 > **Status:** The public grammar shipped in `v19.0.0`. The retained-state
-> migration described below requires `v19.0.2`; do not use the `v19.0.0`
-> migrator on an authoritative repository. v19.0.2 ships the generic
-> constructors and an executable generated-SDK reference; each application
-> still owns the renderer that assigns domain meaning.
+> migration described below requires `v19.0.2` or later within v19; use the
+> current `v19.1.0` package and do not use the `v19.0.0` migrator on an
+> authoritative repository. The generic constructors and executable
+> generated-SDK reference shipped in v19.0.2; each application still owns the
+> renderer that assigns domain meaning.
 
 v19 replaces the transitional storage- and timeline-shaped facade with one
 application grammar:
@@ -27,7 +28,7 @@ not fixed: one Git repository may contain several independent WARP graphs.
 Run the migration once:
 
 ```bash
-npm exec --package=@git-stunts/git-warp@19.0.2 -- git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
   --graph <graph-name>
 ```
@@ -223,7 +224,7 @@ Use `--dry-run` only when you explicitly want a rehearsal whose result will be
 discarded:
 
 ```bash
-npm exec --package=@git-stunts/git-warp@19.0.2 -- git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
   --graph <graph-name> \
   --dry-run
@@ -367,7 +368,7 @@ meaning.
 
 ### Prerequisites
 
-Use Node.js 22.18 or newer, install `@git-stunts/git-warp@19.0.2` in the
+Use Node.js 22.18 or newer, install `@git-stunts/git-warp@19.1.0` in the
 application, and install the exact Wesley version used by the executable
 reference. Wesley is a native Rust CLI; install the
 [Rust toolchain and Cargo](https://rustup.rs/) first when `cargo` is not
@@ -466,7 +467,7 @@ above:
    npm run check:users
    ```
 
-git-warp v19.0.2 does not ship a universal renderer that guesses arbitrary
+git-warp v19 does not ship a universal renderer that guesses arbitrary
 application semantics. The renderer is deliberately application-owned. The
 checked-in reference supports `NODE_ADD`, `PROPERTY_SET`, bounded `PROPERTY`
 Observers, string decoding, and the exact `registerUser`, `assignRole`,

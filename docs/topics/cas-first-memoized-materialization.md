@@ -13,6 +13,29 @@ through `git-cas`.
 
 ## The Live Materialization Lifecycle
 
+### v19.1.0 compound publication
+
+The cold and incremental paths now publish one logical materialization through
+bounded physical admission groups. The default implementation opens one
+expiring git-cas workspace generation, stages dirty node and edge trie pages in
+bottom-up dependency waves, and admits the property index, Roaring logical
+index, replay and provenance support, workspace-root bundle, descriptor, and
+terminal materialization bundle in dependency order. When the bounded plan fits
+one compound group, those artifacts reuse one physical workspace admission;
+larger plans split only at declared object, byte, depth, or descriptor limits.
+
+The terminal bundle is the only retained cache authority. Intermediate pages
+and roots keep their independent content-addressed identities, and the exact
+terminal handle is retained before the workspace generation expires. A
+workspace batch is therefore a physical publication mechanism, not a domain
+transaction and not a license to treat all contained roots as one object. A
+malformed result, missing handle, wrong generation, non-terminal retention set,
+or breached admission limit fails closed before promotion.
+
+The [v19.1.0 release witness](v19-1-performance-architecture-witness.md) traces
+the exact trie bytes, split cascade, dirty structural sharing, write-wave plan,
+compound artifact DAG, and terminal-retention proof.
+
 There are now two deliberately different controller contracts:
 
 - `resolveLiveMaterialization()` returns an operation-scoped retained-handle

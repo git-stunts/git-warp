@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.1.0] - 2026-08-25
+
+### Release notes
+
+`v19.1.0` turns the retained materialization path from a storm of
+per-commit, per-page, per-bundle, and per-ref Git crossings into bounded
+history reads, persistent object sessions, ordered trie dependency waves, and
+compound git-cas workspace admissions. On the final hosted 65-patch base plus
+five-patch suffix corpus, cold Git commands fell from `781` to `50` and
+incremental commands from `372` to `60`; CPU medians fell by `67.4%` and
+`48.3%`. Warm materialization remained deliberately modest at `30` to
+`25` commands and `2.0%` CPU improvement. Every scenario preserved the
+same semantic fingerprint and exact `65 / 0 / 5` replay evidence.
+
+The v19 patch, trie, and retained-materialization storage representations are
+unchanged. Existing v19 repositories require no migration. Repositories that
+still contain retained v18 state continue to require the established one-shot
+v18-to-v19 migration before any v19 process opens them.
+
+Two compatibility notes are explicit:
+
+- An omitted `checkpointPolicy` now means `{ every: 64 }`; use
+  `checkpointPolicy: null` for the existing explicit opt-out.
+- The already-merged `entity.add` and `EntityOccurrence` surface ships as
+  an **unofficial, unstable preview**. It is not adopted by Think in this
+  release campaign. TypeScript consumers that exhaustively switch on
+  `Intent['kind']` must add an `entity.add` arm or stop treating the preview
+  union as closed.
+
+The deeply source-anchored architecture, trie-byte topology, benchmark method,
+Code Lawyer audit, compatibility matrix, and reproduction commands live in the
+[v19.1.0 release witness](docs/topics/v19-1-performance-architecture-witness.md).
+
 ### Performance
 
 - Retained materialization now joins dependent trie pages and bundles, derived
@@ -25,8 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   format and publication authority are unchanged, so existing repositories
   require no migration. A counterbalanced five-run hosted comparison against
   current `main` independently reproduced `50 / 25 / 60` commands, down from
-  `781 / 30 / 372`; hosted CPU medians fell by `65.6%` cold and `48.7%`
-  incremental while the unchanged warm path moved by `4.5%`. The reviewed
+  `781 / 30 / 372`; hosted CPU medians fell by `67.4%` cold and `48.3%`
+  incremental while the warm path moved by `2.0%`. The reviewed
   command ceilings are now `60 / 30 / 72`.
 - Retained trie flushes now stage leaf pages, leaf bundles, and branch bundles
   through ordered git-cas write waves instead of one storage operation per
@@ -200,6 +233,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   policy: such graphs will begin writing checkpoint commits
   once their replay depth reaches or exceeds 64 patches. State hashes are
   unaffected — a checkpoint is a snapshot, not a semantic change.
+
 - Repository lint now rejects personal-home and Darwin temporary absolute
   paths in tracked or unignored text and binary files, and the pre-commit hook
   inspects exact staged additions and modifications rather than mutable
@@ -294,7 +328,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Invalid Dot counters now report the enforced positive-safe-integer constraint
   instead of describing the weaker integer-only rule.
 
-### Breaking
+### Unofficial preview compatibility
 
 - **`entity.add` widens the `Intent` discriminated union.** `IntentKind` and
   `IntentDescriptor` are not exported by name, but both are structurally
@@ -310,7 +344,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The runtime surface is purely additive, and this repository's own consumer
   contract (`test/type-check`) still compiles because it does not switch
   exhaustively. The type-level break is nonetheless real for any consumer that
-  opted into exhaustiveness checking, so this release targets **20.0.0**.
+  opted into exhaustiveness checking. By explicit maintainer decision, the
+  already-merged surface ships in v19.1.0 as an **unofficial, unstable
+  preview**, outside the stable application vocabulary. Consumers should not
+  build authority-sensitive production semantics on it yet.
 
   Migration: add a `case 'entity.add':` arm, or stop treating the union as
   closed.
