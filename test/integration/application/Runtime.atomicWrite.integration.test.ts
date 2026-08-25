@@ -80,7 +80,9 @@ describe('Runtime atomic intent-array writes', () => {
       const envelope = receiptEnvelope(receipt);
 
       expect(envelope).toMatchObject({ intents: [requested.descriptor] });
+      expect(envelope).toMatchObject({ occurrence: null });
       expect(envelope).not.toHaveProperty('intent');
+      expect(envelope).not.toHaveProperty('occurrences');
       expect(await repository.persistence.countNodes(WRITER_REF)).toBe(1);
     } finally {
       await runtime.close();

@@ -34,10 +34,12 @@ describe('Runtime entity occurrence receipts', () => {
       expect(second.relationTo(first)).toBe('after');
       expect(first.relationTo(second)).toBe('before');
       expect(second.compare(first)).toBeGreaterThan(0);
-      expect(receiptEnvelope(firstReceipt)).toMatchObject({
+      const envelope = receiptEnvelope(firstReceipt);
+      expect(envelope).toMatchObject({
         operation: 'write',
         occurrence: { id: first.id, subject: first.subject },
       });
+      expect(envelope).not.toHaveProperty('occurrences');
     } finally {
       await runtime.close();
     }
