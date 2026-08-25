@@ -193,10 +193,10 @@ fi
 
 # ── 9. Security audit ────────────────────────────────────────────────────────
 echo "Security:"
-if npm audit --omit=dev --audit-level=high 2>/dev/null; then
-  pass "no high/critical vulnerabilities"
+if npm run audit:locked --silent 2>/dev/null; then
+  pass "locked runtime and development dependency graph"
 else
-  fail "npm audit found high/critical runtime vulnerabilities"
+  fail "npm audit found a locked dependency vulnerability"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
