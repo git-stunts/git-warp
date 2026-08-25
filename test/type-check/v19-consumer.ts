@@ -35,6 +35,8 @@ const intent: Intent = users.intents.assignRole({
   role: 'admin',
 });
 const write: WriteReceipt = await lane.write(intent);
+// @ts-expect-error RED: v19 lost the public atomic-array overload.
+const atomicWrite = await lane.write([intent, intent] as const);
 const admission: AdmissionOutcome = write.outcome;
 const writeEvidence: Evidence = write.evidence;
 const writeLane: string = write.lane;
@@ -44,9 +46,11 @@ const emitted: Reading<string> = await observation.one();
 const support: SupportReport = emitted.support;
 const observationReceipt: ObservationReceipt = await observation.receipt;
 const receipt: Receipt = observationReceipt;
-const manyObservation: Observation<string> = lane.observe(users.observers.rolesOf({
-  subjects: ['user:alice', 'user:bob'],
-}));
+const manyObservation: Observation<string> = lane.observe(
+  users.observers.rolesOf({
+    subjects: ['user:alice', 'user:bob'],
+  })
+);
 for await (const reading of manyObservation) {
   const value: string = reading.value;
   void value;
@@ -56,11 +60,9 @@ const settlementOptions: RuntimeSettlementOptions = {
   source: strand,
   target: lane,
 };
-const settlementPreview: SettlementPreview =
-  await runtime.previewSettlement(settlementOptions);
+const settlementPreview: SettlementPreview = await runtime.previewSettlement(settlementOptions);
 const settlementPlan: SettlementPlan = settlementPreview.plan;
-const settlementReceipt: SettlementReceipt =
-  await runtime.settle(settlementPlan);
+const settlementReceipt: SettlementReceipt = await runtime.settle(settlementPlan);
 const settlementPublicReceipt: Receipt = settlementReceipt;
 
 function admissionWitnessHandle(value: AdmissionOutcome): EvidenceHandle {
@@ -104,6 +106,7 @@ void laneName(lane.descriptor);
 void laneName(strand.descriptor);
 void writeEvidence;
 void writeLane;
+void atomicWrite;
 void readingTick;
 void emitted.coordinate;
 void emitted.witnessRefs;
