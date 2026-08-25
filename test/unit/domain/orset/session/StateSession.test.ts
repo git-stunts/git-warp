@@ -6,6 +6,8 @@ import StateSession from "../../../../../src/domain/orset/session/StateSession.t
 import type StateSessionCloseResult from "../../../../../src/domain/orset/session/StateSessionCloseResult.ts";
 import StateSessionError from "../../../../../src/domain/errors/StateSessionError.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
+import { TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE }
+  from "../../../../../src/domain/orset/trie/TrieFlushAdmissionPolicy.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 import { InMemoryTrieStore } from "../../../../helpers/trieHelpers.ts";
 import MaterializationWorkspacePort, {
@@ -295,10 +297,12 @@ describe("StateSession", () => {
       const { session } = await openSession({ workspace });
       await session.addNode("node:compound", new Dot("alice", 1));
       await session.addEdge("edge:compound", new Dot("alice", 2));
+      const expectedOperationBound = session.dirtyPageCount() *
+        TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE;
 
       const prepared = await session.prepareClose();
 
-      expect(workspace.operationBounds).toEqual([8]);
+      expect(workspace.operationBounds).toEqual([expectedOperationBound]);
       prepared.accept(finalRetentionWitness(prepared.roots));
     });
   });

@@ -13,6 +13,8 @@ import type TrieStorePort from "../trie/TrieStorePort.ts";
 import TrieCursor from "../trie/TrieCursor.ts";
 import TrieFlusher from "../trie/TrieFlusher.ts";
 import TrieGeometry from "../trie/TrieGeometry.ts";
+import { TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE }
+  from "../trie/TrieFlushAdmissionPolicy.ts";
 import type FlushResult from "../trie/FlushResult.ts";
 import ShadowTrieORSet from "../shadow/ShadowTrieORSet.ts";
 
@@ -284,7 +286,8 @@ export default class StateSession {
   }
 
   async #prepareFlush(): Promise<PreparedSessionFlush> {
-    const admissionOperations = this.dirtyPageCount() * 2;
+    const admissionOperations = this.dirtyPageCount() *
+      TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE;
     if (
       this.#workspace?.admitDependentArtifacts !== undefined &&
       admissionOperations > 0 &&

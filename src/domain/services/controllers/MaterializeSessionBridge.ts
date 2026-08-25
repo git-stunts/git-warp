@@ -3,6 +3,8 @@ import VersionVector from "../../crdt/VersionVector.ts";
 import { Dot } from "../../crdt/Dot.ts";
 import type PatchEntry from "../../artifacts/PatchEntry.ts";
 import type StateSession from "../../orset/session/StateSession.ts";
+import { TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE }
+  from "../../orset/trie/TrieFlushAdmissionPolicy.ts";
 import type MaterializationStorePort from "../../../ports/MaterializationStorePort.ts";
 import type MaterializationWorkspacePort from "../../../ports/MaterializationWorkspacePort.ts";
 import type LoggerPort from "../../../ports/LoggerPort.ts";
@@ -187,13 +189,17 @@ type PreparedSessionArtifacts = Readonly<{
   workspaceRoot: BundleHandle | null;
 }>;
 
+const MATERIALIZATION_WORKSPACE_ROOT_WRITE_OPERATIONS = 1;
+
 async function prepareSessionArtifacts(
   session: StateSession,
   indexPlan: MaterializationIndexRootPlan,
   workspace: MaterializationWorkspacePort,
 ): Promise<PreparedSessionArtifacts> {
-  const stateOperationBound = session.dirtyPageCount() * 2;
-  const operationBound = stateOperationBound + indexPlan.admissionOperationBound + 1;
+  const stateOperationBound = session.dirtyPageCount() *
+    TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE;
+  const operationBound = stateOperationBound + indexPlan.admissionOperationBound +
+    MATERIALIZATION_WORKSPACE_ROOT_WRITE_OPERATIONS;
   const admissionGroupCount = Number(stateOperationBound > 0) +
     indexPlan.admissionGroupCount;
   if (
