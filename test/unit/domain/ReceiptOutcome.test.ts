@@ -260,6 +260,11 @@ describe('receipt outcomes', () => {
     expect(() => new WriteReceipt({ ...fields, occurrences: [first] })).toThrowError(
       expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }),
     );
+    const sparseOccurrences = new Array<EntityOccurrence>(2);
+    sparseOccurrences[0] = first;
+    expect(() => new WriteReceipt({ ...fields, occurrences: sparseOccurrences })).toThrowError(
+      expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }),
+    );
   });
 
   it('copies caller-owned intent arrays into the receipt', () => {

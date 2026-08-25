@@ -2,7 +2,7 @@ import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type { AdmissionOutcome } from './AdmissionOutcome.ts';
 import { requireAdmissionOutcome } from './AdmissionOutcomeRuntime.ts';
-import type EntityOccurrence from './EntityOccurrence.ts';
+import EntityOccurrence from './EntityOccurrence.ts';
 import { requireIssuedEntityOccurrence } from './EntityOccurrenceRuntime.ts';
 import type Evidence from './Evidence.ts';
 import { freezeEvidence } from './EvidenceRuntime.ts';
@@ -31,9 +31,14 @@ type WriteReceiptOccurrenceFields<TIntent extends WriteIntentInput> = Pick<
 
 type EntityOccurrenceValidation = Readonly<{
   readonly evidence: Evidence;
-  readonly intent: Intent | undefined;
+  readonly intent: Intent;
   readonly occurrence: EntityOccurrence;
   readonly receipt: Readonly<{ lane: string; writer: string }>;
+}>;
+
+type EntityOccurrencePair = Readonly<{
+  readonly intent: Intent;
+  readonly occurrence: EntityOccurrence;
 }>;
 
 export type WriteReceiptOptions<TIntent extends WriteIntentInput = Intent> =
@@ -82,12 +87,12 @@ function validateOccurrences<TIntent extends WriteIntentInput>(
     return Object.freeze([]);
   }
   const entityIntents = intents.filter(isEntityIntent);
-  requireOccurrenceCardinality(supplied, entityIntents);
+  const pairs = pairEntityOccurrences(supplied, entityIntents);
   return Object.freeze(
-    supplied.map((occurrence, index) =>
+    pairs.map(({ occurrence, intent }) =>
       requireEntityOccurrence({
         occurrence,
-        intent: entityIntents[index],
+        intent,
         receipt: fields,
         evidence,
       }),
@@ -131,15 +136,30 @@ function requireOccurrenceArray(occurrences: readonly EntityOccurrence[]): void 
 
 function requireEntityOccurrence(fields: EntityOccurrenceValidation): EntityOccurrence {
   const { occurrence, intent, receipt, evidence } = fields;
-  if (intent === undefined) {
-    throw occurrenceError('Admitted entity WriteReceipt requires every EntityOccurrence');
-  }
   return requireIssuedEntityOccurrence(occurrence, {
     evidence,
     intents: Object.freeze([intent]),
     lane: receipt.lane,
     writer: receipt.writer,
   });
+}
+
+function pairEntityOccurrences(
+  supplied: readonly EntityOccurrence[],
+  expected: readonly Intent[],
+): readonly EntityOccurrencePair[] {
+  requireOccurrenceCardinality(supplied, expected);
+  let index = 0;
+  const pairs: EntityOccurrencePair[] = [];
+  for (const intent of expected) {
+    const occurrence = supplied[index];
+    if (!(occurrence instanceof EntityOccurrence)) {
+      throw occurrenceError('Admitted entity WriteReceipt requires every EntityOccurrence');
+    }
+    pairs.push(Object.freeze({ intent, occurrence }));
+    index += 1;
+  }
+  return Object.freeze(pairs);
 }
 
 function requireOccurrenceCardinality(
