@@ -2,16 +2,11 @@ import { Dot } from '../crdt/Dot.ts';
 import VersionVector from '../crdt/VersionVector.ts';
 import WarpError from '../errors/WarpError.ts';
 import { EventId } from '../utils/EventId.ts';
-import EntityOccurrence from './EntityOccurrence.ts';
+import EntityOccurrence, {
+  type EntityOccurrenceReceiptBinding,
+} from './EntityOccurrence.ts';
 import type Evidence from './Evidence.ts';
 import type Intent from './Intent.ts';
-
-type EntityOccurrenceReceiptBinding = {
-  readonly evidence: Evidence;
-  readonly intents: readonly Intent[];
-  readonly lane: string;
-  readonly writer: string;
-};
 
 type EntityOccurrenceFields = {
   readonly context: VersionVector | Readonly<Record<string, number>>;

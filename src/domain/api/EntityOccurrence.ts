@@ -8,7 +8,7 @@ import Intent from './Intent.ts';
 
 export type EntityCausalRelation = 'same' | 'before' | 'after' | 'concurrent';
 
-type EntityOccurrenceReceiptBinding = {
+export type EntityOccurrenceReceiptBinding = {
   readonly evidence: Evidence;
   readonly intents: readonly Intent[];
   readonly lane: string;
