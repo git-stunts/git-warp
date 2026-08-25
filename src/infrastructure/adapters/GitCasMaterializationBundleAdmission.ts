@@ -30,6 +30,10 @@ import {
 import { requireDescriptorSize } from './GitCasMaterializationStoreWitness.ts';
 import { storageError } from './GitCasMaterializationStoreValidation.ts';
 
+const MATERIALIZATION_DESCRIPTOR_AND_BUNDLE_OPERATIONS = 2;
+const SUPPORT_ASSET_AND_BUNDLE_OPERATIONS = 2;
+const SUPPORT_BUNDLE_MAX_MEMBERS = 1;
+
 type SupportBundleRequest = Readonly<{
   members: Iterable<[string, ApplicationHandleInput]>;
   limits: Readonly<{ maxMembers: number }>;
@@ -183,11 +187,15 @@ async function stageSupportRoots(
 }
 
 function supportBundleRequest(plan: SupportRootPlan, asset: AssetHandle): SupportBundleRequest {
-  return Object.freeze({ members: plan.members(asset), limits: { maxMembers: 1 } });
+  return Object.freeze({
+    members: plan.members(asset),
+    limits: { maxMembers: SUPPORT_BUNDLE_MAX_MEMBERS },
+  });
 }
 
 function materializationAdmissionOperationBound(supportRoots: readonly SupportRootPlan[]): number {
-  return 2 + Number(supportRoots.length > 0) * 2;
+  return MATERIALIZATION_DESCRIPTOR_AND_BUNDLE_OPERATIONS +
+    Number(supportRoots.length > 0) * SUPPORT_ASSET_AND_BUNDLE_OPERATIONS;
 }
 
 function retainedRoot(handle: ApplicationHandle): MaterializationRoot {
