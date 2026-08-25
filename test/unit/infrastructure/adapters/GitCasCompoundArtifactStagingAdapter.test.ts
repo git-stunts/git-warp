@@ -22,8 +22,8 @@ const SECOND_BUNDLE = new GitCasBundleHandle({
 
 describe('GitCasCompoundArtifactStagingAdapter', () => {
   it('maps single and batched staging onto the compound scope', async () => {
-    const pageRequests: unknown[] = [];
-    const bundleRequests: unknown[] = [];
+    const pageRequests: PageBatchRequest[] = [];
+    const bundleRequests: BundleBatchRequest[] = [];
     const scope = compoundScope({
       putPages: async (request) => {
         pageRequests.push(request);
