@@ -238,15 +238,29 @@ function retainedBatchHandles(
   }
   if (staged.length === 0) { return Object.freeze([]); }
   const generations = new Set<string>();
-  const handles = staged.map((entry) => {
+  const handles: string[] = [];
+  for (let index = 0; index < staged.length; index += 1) {
+    const entry = requireRetainedBatchEntry(staged, index, kind);
     const handle = entry.handle.toString();
     generations.add(requireRetainedStage(entry, handle).root.generation);
-    return handle;
-  });
+    handles.push(handle);
+  }
   if (generations.size !== 1) {
     throw workspaceError(`git-cas ${kind} batch did not share one generation`);
   }
   return Object.freeze(handles);
+}
+
+function requireRetainedBatchEntry(
+  staged: readonly RetainedStage[],
+  index: number,
+  kind: 'page' | 'bundle',
+): RetainedStage {
+  const entry = staged[index];
+  if (entry === undefined) {
+    throw workspaceError(`git-cas omitted staged ${kind} ${String(index)}`);
+  }
+  return entry;
 }
 
 function gitCasBundleRequest(request: StageOrderedBundleRequest): {
@@ -318,7 +332,11 @@ export function requireCompoundRetention(retention: WorkspaceCheckpointResult): 
   ) {
     throw workspaceError('git-cas compound admission returned incomplete evidence');
   }
-  for (const [index, handle] of retention.handles.entries()) {
+  for (let index = 0; index < retention.handles.length; index += 1) {
+    const handle = retention.handles[index];
+    if (handle === undefined) {
+      throw workspaceError('git-cas compound admission omitted retained handle');
+    }
     requireCompoundWitness(retention, handle.toString(), index);
   }
 }
