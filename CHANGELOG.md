@@ -193,6 +193,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `js-yaml`, `nanoid`, `dompurify`, and `mermaid` releases. A full-graph npm
   audit is now a required CI and release gate instead of a runtime-only
   advisory, while the published runtime graph remains unchanged.
+- Docker-backed tests now build from the invoking checkout root instead of a
+  parent context with a literal `git-warp/` source path. `npm test` and the
+  Node/Bun/Deno matrix therefore test linked worktrees rather than silently
+  substituting a sibling checkout. Git metadata is excluded before container
+  repository seeding, test images skip unused Puppeteer browser downloads, and
+  the default Node image installs the exact lockfile with `npm ci`.
 - Content attachment now rechecks the builder lifecycle after asynchronous
   asset staging. Publication that overtakes staging can no longer be followed
   by late property operations or attachment handles on an already committed
