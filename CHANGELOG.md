@@ -189,6 +189,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   expected Deno `v2.6.7` installed before proof. Classified transport and
   bootstrap failures receive at most three attempts; deterministic package
   validation failures remain single-attempt failures.
+- Docker-backed tests now build from the invoking checkout root instead of a
+  parent context with a literal `git-warp/` source path. `npm test` and the
+  Node/Bun/Deno matrix therefore test linked worktrees rather than silently
+  substituting a sibling checkout. Git metadata is excluded before container
+  repository seeding, test images skip unused Puppeteer browser downloads, and
+  the default Node image installs the exact lockfile with `npm ci`.
 - Content attachment now rechecks the builder lifecycle after asynchronous
   asset staging. Publication that overtakes staging can no longer be followed
   by late property operations or attachment handles on an already committed

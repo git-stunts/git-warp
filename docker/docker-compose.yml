@@ -1,8 +1,8 @@
 services:
   test:
     build:
-      context: ../..
-      dockerfile: git-warp/docker/Dockerfile.node22-slim
+      context: ..
+      dockerfile: docker/Dockerfile.node22-slim
     environment:
       - GIT_STUNTS_DOCKER=1
 
