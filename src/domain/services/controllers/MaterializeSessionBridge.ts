@@ -189,6 +189,11 @@ type PreparedSessionArtifacts = Readonly<{
   workspaceRoot: BundleHandle | null;
 }>;
 
+type RetainedIndexRootTokens = Readonly<{
+  propertiesRoot?: string;
+  roaringIndexesRoot?: string;
+}>;
+
 const MATERIALIZATION_WORKSPACE_ROOT_WRITE_OPERATIONS = 1;
 
 async function prepareSessionArtifacts(
@@ -241,17 +246,14 @@ async function stageWorkspaceRoot(
   roots: MaterializeSessionOpen,
   indexes: PreparedMaterializationIndexRoots,
 ): Promise<BundleHandle> {
-  const propertiesRoot = indexes.properties.status === 'retained'
-    ? indexes.properties.handle?.toString()
-    : undefined;
-  const roaringIndexesRoot = indexes.roaringIndexes.status === 'retained'
-    ? indexes.roaringIndexes.handle?.toString()
-    : undefined;
+  const retainedIndexes = retainedIndexRootTokens(
+    indexes.properties,
+    indexes.roaringIndexes,
+  );
   const members = materializationWorkspaceRootMembers({
     nodeAliveRoot: roots.nodeAliveRootOid,
     edgeAliveRoot: roots.edgeAliveRootOid,
-    ...(propertiesRoot === undefined ? {} : { propertiesRoot }),
-    ...(roaringIndexesRoot === undefined ? {} : { roaringIndexesRoot }),
+    ...retainedIndexes,
   });
   if (members.length === 0) {
     throw new WarpError(
@@ -334,21 +336,34 @@ async function retainPreparedIndexRoots(
   properties: MaterializationRoot,
   roaringIndexes: MaterializationRoot,
 ): Promise<void> {
-  const propertiesRoot = properties.status === 'retained'
-    ? properties.handle?.toString()
-    : undefined;
-  const roaringIndexesRoot = roaringIndexes.status === 'retained'
-    ? roaringIndexes.handle?.toString()
-    : undefined;
-  if (propertiesRoot === undefined && roaringIndexesRoot === undefined) {
+  const retainedIndexes = retainedIndexRootTokens(properties, roaringIndexes);
+  if (
+    retainedIndexes.propertiesRoot === undefined &&
+    retainedIndexes.roaringIndexesRoot === undefined
+  ) {
     return;
   }
   await workspace.checkpoint({
     nodeAliveRoot: roots.nodeAliveRootOid,
     edgeAliveRoot: roots.edgeAliveRootOid,
+    ...retainedIndexes,
+  });
+}
+
+function retainedIndexRootTokens(
+  properties: MaterializationRoot,
+  roaringIndexes: MaterializationRoot,
+): RetainedIndexRootTokens {
+  const propertiesRoot = retainedRootToken(properties);
+  const roaringIndexesRoot = retainedRootToken(roaringIndexes);
+  return Object.freeze({
     ...(propertiesRoot === undefined ? {} : { propertiesRoot }),
     ...(roaringIndexesRoot === undefined ? {} : { roaringIndexesRoot }),
   });
+}
+
+function retainedRootToken(root: MaterializationRoot): string | undefined {
+  return root.status === 'retained' ? root.handle?.toString() : undefined;
 }
 
 function sessionRootToken(root: MaterializationRoot): string | null | undefined {
