@@ -28,13 +28,16 @@ This is not a compromise made for portability. On the page-shaped workload that
 matches WARP materialization, persistent stock Git was faster than NodeGit and
 used substantially less memory.
 
-## v19.1.0 closeout
+## v19.1.0 release closeout
 
-v19.1.0 completes the production rollout described by this topic. Patch
-discovery now crosses Git through one bounded first-parent metadata stream per
-writer chain, payload reads reuse persistent object sessions, retained trie
-pages publish through ordered dependency waves, and related materialization
-artifacts may share one bounded git-cas workspace generation.
+The reviewed v19.1.0 release content completes the code and evidence rollout
+described by this topic. Public release completion is a separate claim made only
+after the immutable tag, registry publication, and external smoke-verification
+gates pass. In the reviewed content, patch discovery crosses Git through one
+bounded first-parent metadata stream per writer chain, payload reads reuse
+persistent object sessions, retained trie pages publish through ordered
+dependency waves, and related materialization artifacts may share one bounded
+git-cas workspace generation.
 
 The final hosted Linux comparison used a deterministic 65-patch base plus a
 five-patch suffix and measured the same semantic result before and after the
@@ -384,8 +387,9 @@ owned by Git.
 4. Workspace-scoped bulk writes, persistent mktree, checkpoint receipts, and
    the maintenance lease landed in git-cas.
 5. Doctor gained findings and repair for abandoned fast-import artifacts.
-6. Plumbing v3.3.0 and git-cas v6.5.10 were published before git-warp consumed
-   their final contracts.
+6. Published npm artifacts Plumbing v3.3.0 and git-cas v6.5.10 were installed
+   and verified before the git-warp release candidate consumed their final
+   contracts.
 7. WARP page, property, index, support, descriptor, and terminal publication now
    use bounded git-cas workspaces without adding CAS management to git-warp.
 8. Hosted cold, warm, incremental, streaming, and migrated-v18 gates verified
@@ -393,7 +397,9 @@ owned by Git.
 
 ## Release evidence contract
 
-v19.1.0 closes the production change with both performance and semantic gates:
+The v19.1.0 release content closes the code and evidence change with both
+performance and semantic gates; tag and registry verification remain the
+separate public-release boundary:
 
 - no process-per-object regression for object info, page reads, tree entry
   lookup, or bulk materialization writes;
