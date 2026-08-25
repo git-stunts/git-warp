@@ -46,6 +46,18 @@ describe("TrieFlusher write waves", () => {
     expect(store.singletonBranchWrites).toBe(0);
   });
 
+  it("falls back to singleton leaf and branch writes when waves are unsupported", async () => {
+    const store = new RecordingSingletonTrieStore();
+
+    const result = await new TrieFlusher({ store, codec: cborCodec }).flush(
+      multiDepthSnapshot(),
+    );
+
+    expect(result.rootOid).not.toBeNull();
+    expect(store.leafWrites).toBe(3);
+    expect(store.branchWrites).toBe(2);
+  });
+
   it("admits bounded dependent waves through one scoped staging operation", async () => {
     const store = new RecordingBatchTrieStore();
     const staging = new RecordingDependentArtifactStaging();
@@ -82,6 +94,36 @@ describe("TrieFlusher write waves", () => {
     )).rejects.toMatchObject({
       code: "E_TRIE_FLUSH_STORE",
       context: { kind: "leaf", expected: 3, actual: 0 },
+    });
+  });
+
+  it("rejects a short branch-wave result", async () => {
+    await expect(new TrieFlusher({
+      store: new WrongBranchCardinalityTrieStore(),
+      codec: cborCodec,
+    }).flush(multiDepthSnapshot())).rejects.toMatchObject({
+      code: "E_TRIE_FLUSH_STORE",
+      context: { kind: "branch", expected: 1, actual: 0 },
+    });
+  });
+
+  it("rejects an empty root in a branch-wave result", async () => {
+    await expect(new TrieFlusher({
+      store: new EmptyBranchRootTrieStore(),
+      codec: cborCodec,
+    }).flush(multiDepthSnapshot())).rejects.toMatchObject({
+      code: "E_TRIE_FLUSH_STRUCTURE",
+      context: { kind: "root", index: 0 },
+    });
+  });
+
+  it("classifies non-Error branch-wave failures", async () => {
+    await expect(new TrieFlusher({
+      store: new NonErrorBranchFailureTrieStore(),
+      codec: cborCodec,
+    }).flush(multiDepthSnapshot())).rejects.toMatchObject({
+      code: "E_TRIE_FLUSH_STRUCTURE",
+      context: { raw: "branch failure" },
     });
   });
 
@@ -293,6 +335,30 @@ class RecordingBatchTrieStore implements TrieStorePort {
   }
 }
 
+class RecordingSingletonTrieStore implements TrieStorePort {
+  readonly #store = new InMemoryTrieStore();
+  leafWrites = 0;
+  branchWrites = 0;
+
+  async readLeaf(root: string): Promise<Uint8Array> {
+    return await this.#store.readLeaf(root);
+  }
+
+  async readBranch(root: string): Promise<TrieBranchEntries> {
+    return await this.#store.readBranch(root);
+  }
+
+  async writeLeaf(data: Uint8Array): Promise<string> {
+    this.leafWrites += 1;
+    return await this.#store.writeLeaf(data);
+  }
+
+  async writeBranch(children: TrieBranchEntries): Promise<string> {
+    this.branchWrites += 1;
+    return await this.#store.writeBranch(children);
+  }
+}
+
 class RecordingDependentArtifactStaging extends ArtifactStagingPort {
   readonly operationBounds: number[] = [];
   readonly scoped = new RecordingScopedArtifactStaging();
@@ -333,6 +399,26 @@ class RecordingScopedArtifactStaging extends ArtifactStagingPort {
 class WrongCardinalityTrieStore extends RecordingBatchTrieStore {
   override async writeLeaves(): Promise<readonly string[]> {
     return [];
+  }
+}
+
+class WrongBranchCardinalityTrieStore extends RecordingBatchTrieStore {
+  override async writeBranches(): Promise<readonly string[]> {
+    return [];
+  }
+}
+
+class EmptyBranchRootTrieStore extends RecordingBatchTrieStore {
+  override async writeBranches(
+    branches: readonly TrieBranchEntries[],
+  ): Promise<readonly string[]> {
+    return branches.map(() => "");
+  }
+}
+
+class NonErrorBranchFailureTrieStore extends RecordingBatchTrieStore {
+  override writeBranches(): Promise<never> {
+    return Promise.reject("branch failure");
   }
 }
 
