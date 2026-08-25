@@ -4,6 +4,10 @@ import StateSessionError from "../../errors/StateSessionError.ts";
 import type ORSetElementState from "../ORSetElementState.ts";
 import type CodecPort from "../../../ports/CodecPort.ts";
 import type MaterializationWorkspacePort from "../../../ports/MaterializationWorkspacePort.ts";
+import {
+  DEPENDENT_ARTIFACT_ADMISSION_MAX_OPERATIONS,
+  type default as ArtifactStagingPort,
+} from "../../../ports/ArtifactStagingPort.ts";
 import StorageRetentionWitness from "../../storage/StorageRetentionWitness.ts";
 import type TrieStorePort from "../trie/TrieStorePort.ts";
 import TrieCursor from "../trie/TrieCursor.ts";
@@ -227,11 +231,13 @@ export default class StateSession {
     this.#closePrepared = false;
   }
 
-  async prepareClose(): Promise<StateSessionPreparedClose> {
+  async prepareClose(staging?: ArtifactStagingPort): Promise<StateSessionPreparedClose> {
     this.#assertOpen();
     this.#closePrepared = true;
     try {
-      const prepared = await this.#prepareFlush();
+      const prepared = staging === undefined
+        ? await this.#prepareFlush()
+        : await this.#prepareFlushWithStaging(staging);
       let accepted = false;
       return Object.freeze({
         roots: prepared.roots,
@@ -278,11 +284,28 @@ export default class StateSession {
   }
 
   async #prepareFlush(): Promise<PreparedSessionFlush> {
-    const nodeFlush = await this.#nodeAlive.prepareFlush();
+    const admissionOperations = this.dirtyPageCount() * 2;
+    if (
+      this.#workspace?.admitDependentArtifacts !== undefined &&
+      admissionOperations > 0 &&
+      admissionOperations <= DEPENDENT_ARTIFACT_ADMISSION_MAX_OPERATIONS
+    ) {
+      return await this.#workspace.admitDependentArtifacts(
+        async (staging) => await this.#prepareFlushWithStaging(staging),
+        { maxOperations: admissionOperations },
+      );
+    }
+    return await this.#prepareFlushWithStaging();
+  }
+
+  async #prepareFlushWithStaging(
+    staging?: ArtifactStagingPort,
+  ): Promise<PreparedSessionFlush> {
+    const nodeFlush = await this.#nodeAlive.prepareFlush(staging);
     if (!nodeFlush.isClean()) {
       this.#workspaceCheckpointPending = true;
     }
-    const edgeFlush = await this.#edgeAlive.prepareFlush();
+    const edgeFlush = await this.#edgeAlive.prepareFlush(staging);
     if (!edgeFlush.isClean()) {
       this.#workspaceCheckpointPending = true;
     }

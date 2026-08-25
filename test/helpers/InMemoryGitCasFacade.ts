@@ -2,6 +2,8 @@ import {
   AssetHandle as GitCasAssetHandle,
   BundleHandle,
   CacheHit,
+  DEFAULT_WORKSPACE_COMPOUND_OPERATIONS,
+  MAX_WORKSPACE_COMPOUND_OPERATIONS,
   PageHandle,
   RetentionWitness,
   StagedAsset,
@@ -22,6 +24,8 @@ import {
   type PageCapability,
   type PublicationCapability,
   type WorkspaceCheckpointResult,
+  type WorkspaceCompoundResult,
+  type WorkspaceCompoundScope,
   type WorkspaceReleaseResult,
   type WorkspaceRetainedAsset,
   type WorkspaceRetainedBundle,
@@ -732,6 +736,82 @@ export default class InMemoryGitCasFacade {
       });
     };
 
+    const batch = async <T>(request: {
+      readonly operation: (scope: WorkspaceCompoundScope) => T | Promise<T>;
+      readonly maxOperations?: number;
+      readonly retain?: (value: T) => readonly ApplicationHandleInput[];
+    }): Promise<Readonly<WorkspaceCompoundResult<T>>> => {
+      const maxOperations = request.maxOperations ?? DEFAULT_WORKSPACE_COMPOUND_OPERATIONS;
+      if (
+        !Number.isSafeInteger(maxOperations) ||
+        maxOperations <= 0 ||
+        maxOperations > MAX_WORKSPACE_COMPOUND_OPERATIONS
+      ) {
+        throw Object.assign(new Error('Invalid workspace compound operation bound'), {
+          code: 'INVALID_OPTIONS',
+        });
+      }
+      let operationCount = 0;
+      const staged: ApplicationHandle[] = [];
+      const countOperation = (): void => {
+        operationCount += 1;
+        if (operationCount > maxOperations) {
+          throw Object.assign(new Error('Workspace compound operation bound exceeded'), {
+            code: 'INVALID_OPTIONS',
+          });
+        }
+      };
+      const scope: WorkspaceCompoundScope = Object.freeze({
+        assets: Object.freeze({
+          putBatch: async (putRequest) => {
+            countOperation();
+            const assets: StagedAsset[] = [];
+            for (const asset of putRequest.assets) {
+              assets.push(await this.#putAsset(asset));
+            }
+            const handles = assets.map((asset) => asset.handle);
+            staged.push(...handles);
+            return Object.freeze(handles);
+          },
+        }),
+        pages: Object.freeze({
+          putBatch: async (putRequest) => {
+            countOperation();
+            const pages = await this.#putPageBatch(putRequest);
+            const handles = pages.map((page) => page.handle);
+            staged.push(...handles);
+            return Object.freeze(handles);
+          },
+        }),
+        bundles: Object.freeze({
+          putOrderedBatch: async (putRequest) => {
+            countOperation();
+            const bundles = await this.#putBundleBatch(putRequest);
+            const handles = bundles.map((bundle) => bundle.handle);
+            staged.push(...handles);
+            return Object.freeze(handles);
+          },
+        }),
+      });
+      const value = await request.operation(scope);
+      if (staged.length === 0) {
+        throw Object.assign(new Error('Workspace compound admission staged no handles'), {
+          code: 'INVALID_OPTIONS',
+        });
+      }
+      const retained = request.retain === undefined
+        ? staged
+        : request.retain(value).map((handle) => parseApplicationHandle(handle));
+      const stagedHandles = new Set(staged.map((handle) => handle.toString()));
+      if (retained.some((handle) => !stagedHandles.has(handle.toString()))) {
+        throw Object.assign(new Error('Workspace compound retained an unstaged handle'), {
+          code: 'INVALID_OPTIONS',
+        });
+      }
+      const retention = install([...roots.values(), ...retained]);
+      return Object.freeze({ value, retention });
+    };
+
     return Object.freeze({
       assets: Object.freeze({
         put: async (request): Promise<WorkspaceRetainedAsset> => {
@@ -818,6 +898,7 @@ export default class InMemoryGitCasFacade {
           }));
         },
       }),
+      batch,
       checkpoint: async ({ handles }) => install(handles),
       promoteToCache: async ({ cache, key, handle, options: entryOptions }) => {
         const target = parseApplicationHandle(handle);

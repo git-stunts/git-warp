@@ -5,14 +5,21 @@ import {
   type RetentionWitness,
   type StagingWorkspace,
   type WorkspaceCheckpointResult,
+  type WorkspaceCompoundResult,
+  type WorkspaceCompoundScope,
   type WorkspaceRetainedBundle,
   type WorkspaceRetainedPage,
 } from '@git-stunts/git-cas';
 import type MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
+import {
+  materializationWorkspaceRootMembers,
+} from '../../domain/materialization/MaterializationWorkspaceRootMembers.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import type StorageRetentionWitness from '../../domain/storage/StorageRetentionWitness.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import type {
+  DependentArtifactAdmissionOptions,
+  DependentArtifactOperation,
   StagedBundleMember,
   StageOrderedBundleOptions,
   StageOrderedBundleRequest,
@@ -20,6 +27,8 @@ import type {
   StagePageOptions,
   StagePagesOptions,
 } from '../../ports/ArtifactStagingPort.ts';
+import GitCasCompoundArtifactStagingAdapter
+  from './GitCasCompoundArtifactStagingAdapter.ts';
 import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
   type PromoteMaterializationRequest,
@@ -33,6 +42,11 @@ export type GitCasStagingWorkspace = Pick<
   StagingWorkspace,
   'assets' | 'pages' | 'bundles' | 'checkpoint' | 'release'
 > & Readonly<{
+  batch<T>(options: {
+    operation(scope: WorkspaceCompoundScope): T | Promise<T>;
+    maxOperations?: number;
+    retain?: (value: T) => readonly string[];
+  }): Promise<Readonly<WorkspaceCompoundResult<T>>>;
   promoteToCache(options: {
     cache: Pick<CacheSet, 'ref' | 'put'>;
     key: string;
@@ -68,6 +82,24 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
     this.#workspace = options.workspace;
     this.#promoteMaterialization = options.promote;
     this.#onRelease = options.onRelease ?? (() => undefined);
+  }
+
+  override admitDependentArtifacts<T>(
+    operation: DependentArtifactOperation<T>,
+    options: DependentArtifactAdmissionOptions<T>,
+  ): Promise<T> {
+    this.#assertMutable('admit dependent artifacts');
+    return this.#serialize(async () => {
+      const admitted = await this.#workspace.batch({
+        maxOperations: options.maxOperations,
+        ...(options.retain === undefined ? {} : { retain: options.retain }),
+        operation: async (scope) => await operation(
+          new GitCasCompoundArtifactStagingAdapter({ scope }),
+        ),
+      });
+      requireCompoundRetention(admitted.retention);
+      return admitted.value;
+    });
   }
 
   override stagePage(
@@ -233,22 +265,8 @@ function workspaceMembers(
   roots: MaterializationWorkspaceRoots,
 ): Array<[string, string]> {
   requireRoots(roots);
-  const members: Array<[string, string]> = [];
-  appendWorkspaceRoot(members, 'roots/edge-alive', roots.edgeAliveRoot);
-  appendWorkspaceRoot(members, 'roots/node-alive', roots.nodeAliveRoot);
-  appendWorkspaceRoot(members, 'roots/properties', roots.propertiesRoot);
-  appendWorkspaceRoot(members, 'roots/roaring-indexes', roots.roaringIndexesRoot);
-  return members;
-}
-
-function appendWorkspaceRoot(
-  members: Array<[string, string]>,
-  path: string,
-  root: string | null | undefined,
-): void {
-  if (root !== undefined && root !== null) {
-    members.push([path, parseRoot(root)]);
-  }
+  return materializationWorkspaceRootMembers(roots)
+    .map(([path, root]) => [path, parseRoot(root)]);
 }
 
 function parseRoot(token: string): string {
@@ -291,6 +309,33 @@ function requireCheckpointWitness(
     throw workspaceError('git-cas checkpoint omitted retention evidence');
   }
   return requireWorkspaceWitness(witness, expectedHandle);
+}
+
+export function requireCompoundRetention(retention: WorkspaceCheckpointResult): void {
+  if (
+    retention.handles.length === 0 ||
+    retention.handles.length !== retention.witnesses.length
+  ) {
+    throw workspaceError('git-cas compound admission returned incomplete evidence');
+  }
+  for (const [index, handle] of retention.handles.entries()) {
+    requireCompoundWitness(retention, handle.toString(), index);
+  }
+}
+
+function requireCompoundWitness(
+  retention: WorkspaceCheckpointResult,
+  expectedHandle: string,
+  index: number,
+): void {
+  const witness = retention.witnesses[index];
+  if (witness === undefined) {
+    throw workspaceError('git-cas compound admission omitted retention evidence');
+  }
+  const adapted = requireWorkspaceWitness(witness, expectedHandle);
+  if (adapted.root.generation !== retention.generation) {
+    throw workspaceError('git-cas compound admission returned mixed generations');
+  }
 }
 
 function requireWorkspaceWitness(

@@ -2,6 +2,8 @@ import type MaterializationHandle
   from '../../src/domain/materialization/MaterializationHandle.ts';
 import type BundleHandle from '../../src/domain/storage/BundleHandle.ts';
 import type {
+  DependentArtifactAdmissionOptions,
+  DependentArtifactOperation,
   StageOrderedBundleRequest,
   StageOrderedBundlesOptions,
   StagePagesOptions,
@@ -29,6 +31,16 @@ export default class RecordingMaterializationWorkspace
 
   override checkpoint(roots: MaterializationWorkspaceRoots) {
     return this.#delegate.checkpoint(roots);
+  }
+
+  override admitDependentArtifacts<T>(
+    operation: DependentArtifactOperation<T>,
+    options: DependentArtifactAdmissionOptions<T>,
+  ): Promise<T> {
+    if (this.#delegate.admitDependentArtifacts === undefined) {
+      throw new Error('Performance runtime requires dependent artifact admission');
+    }
+    return this.#delegate.admitDependentArtifacts(operation, options);
   }
 
   override stagePage(

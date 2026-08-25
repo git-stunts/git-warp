@@ -63,6 +63,36 @@ describe('GitCasMaterializationWorkspace', () => {
     await workspace.release();
   });
 
+  it('admits dependent page and bundle waves under one workspace generation', async () => {
+    const harness = await createHarness();
+    const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
+    const generationBefore = harness.cas.readWorkspaceGenerationCount();
+
+    const root = await workspace.admitDependentArtifacts!(async (staging) => {
+      const pages = await staging.stagePages!(
+        [new Uint8Array([1]), new Uint8Array([2])],
+        { maxBytes: 1, maxBatchBytes: 2, maxBatchPages: 2 },
+      );
+      const bundles = await staging.stageOrderedBundles!([
+        { members: [['leaf/data', pages[0]!]] },
+        { members: [['leaf/data', pages[1]!]] },
+      ], {
+        maxBatchBundles: 2,
+        maxBatchMembers: 2,
+        maxBatchObjects: 4,
+        maxBatchBytes: 1024,
+      });
+      return bundles[1]!.toString();
+    }, { maxOperations: 2 });
+
+    expect(harness.cas.readWorkspaceGenerationCount() - generationBefore).toBe(1);
+    expect(harness.cas.readWorkspaceRoots()[0]).toHaveLength(4);
+    expect(harness.cas.readBundleMembers(root)).toEqual([
+      ['leaf/data', expect.stringMatching(/^git-cas:1:page:/u)],
+    ]);
+    await workspace.release();
+  });
+
   it('keeps empty bundle batches side-effect free', async () => {
     const harness = await createHarness();
     const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());

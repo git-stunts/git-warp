@@ -230,7 +230,7 @@ describe('v19 performance workflow', () => {
       platform: 'linux',
       runner: 'github-hosted',
     });
-    expect(calibration.localCalibration.environment.gitCas).toBe('6.5.8');
+    expect(calibration.localCalibration.environment.gitCas).toBe('6.5.10');
     expect(calibration.sourceCommit)
       .toBe('84a33e7163ea6fe028383bb02f8bda6e6fae5905');
     expect(calibration.evidence).toEqual({

@@ -460,11 +460,9 @@ describe("MaterializeController — state session integration", () => {
     expect(upgraded.materialization?.bundle.equals(cold.materialization.bundle)).toBe(false);
     expect(reused.materialization?.bundle.equals(upgraded.materialization?.bundle)).toBe(true);
     expect(writeShards).toHaveBeenCalledTimes(2);
-    expect(fixtures.materializations.workspaces[1]?.checkpoints.at(-1))
-      .toEqual(expect.objectContaining({
-        propertiesRoot: upgraded.materialization?.roots.properties.handle?.toString(),
-        roaringIndexesRoot: upgraded.materialization?.roots.roaringIndexes.handle?.toString(),
-      }));
+    expect(fixtures.materializations.workspaces[1]?.checkpoints).toEqual([]);
+    expect(fixtures.materializations.workspaces[1]?.dependentArtifactRetentions)
+      .toEqual([[expect.stringMatching(/^test:workspace-bundle:/)]]);
   });
 
   it("does not retry an exact acquisition release failure", async () => {

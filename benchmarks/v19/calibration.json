@@ -63,33 +63,33 @@
       "cpuCount": 10,
       "cpuModel": "Apple M1 Pro",
       "git": "git version 2.50.1 (Apple Git-155)",
-      "gitCas": "6.5.8",
+      "gitCas": "6.5.10",
       "node": "v26.0.0",
       "platform": "darwin"
     },
     "observed": {
       "cold-materialize": {
-        "cpuTotalMedianMs": 548.794,
-        "cpuTotalMadMs": 16.269999999999982,
-        "maximumRssBytes": 140951552,
-        "maximumHeapUsedBytes": 58824040,
-        "gitCommandMedian": 139,
+        "cpuTotalMedianMs": 311.974,
+        "cpuTotalMadMs": 8.420999999999992,
+        "maximumRssBytes": 153698304,
+        "maximumHeapUsedBytes": 53327584,
+        "gitCommandMedian": 50,
         "gitCommandMadCount": 0
       },
       "warm-materialize": {
-        "cpuTotalMedianMs": 166.08,
-        "cpuTotalMadMs": 3.2159999999999798,
-        "maximumRssBytes": 124911616,
-        "maximumHeapUsedBytes": 40877336,
+        "cpuTotalMedianMs": 159.803,
+        "cpuTotalMadMs": 2.3089999999999975,
+        "maximumRssBytes": 126271488,
+        "maximumHeapUsedBytes": 41002576,
         "gitCommandMedian": 25,
         "gitCommandMadCount": 0
       },
       "incremental-materialize": {
-        "cpuTotalMedianMs": 538.937,
-        "cpuTotalMadMs": 8.101999999999975,
-        "maximumRssBytes": 141983744,
-        "maximumHeapUsedBytes": 57210112,
-        "gitCommandMedian": 149,
+        "cpuTotalMedianMs": 290.658,
+        "cpuTotalMadMs": 2.5079999999999814,
+        "maximumRssBytes": 126189568,
+        "maximumHeapUsedBytes": 41379288,
+        "gitCommandMedian": 60,
         "gitCommandMadCount": 0
       }
     },
@@ -118,6 +118,6 @@
       "warm-materialize": 30,
       "incremental-materialize": 175
     },
-    "gitCommandNote": "Git command counts are structural, not timing. On the version 2 checkpointed corpus, the reference runner and a local arm64 machine report identical session-aware counts per scenario (139 / 25 / 149) despite differing in architecture, OS, Node version (v22.23.2 vs v26.0.0), and Git version (2.55.0 vs 2.50.1), while their CPU medians differ materially. Five measured runs on each machine returned the same count every time (MAD 0). Machine independence is therefore measured, not assumed, which is why the relative ratio carries no noise floor. Absolute ceilings retain about 15% reviewed headroom \u2014 tight enough that a structural change to the storage path must be reviewed, loose enough to absorb a small legitimate addition. Evidence: https://github.com/git-stunts/git-warp/actions/runs/32752394842"
+    "gitCommandNote": "Git command counts are structural, not timing. The hosted write-wave calibration recorded 139 / 25 / 149 commands. A counterbalanced five-run local arm64 comparison of the bounded compound workspace path from public git-cas 6.5.10 recorded 50 / 25 / 60 in every sample (MAD 0), with exact semantic and replay evidence. The existing 160 / 30 / 175 ceilings remain tied to the hosted calibration until CI independently confirms the compound topology; a follow-up calibration may then tighten them to 60 / 30 / 72. Hosted CI remains the authority for CPU and memory envelopes. Prior hosted evidence: https://github.com/git-stunts/git-warp/actions/runs/32752394842"
   }
 }

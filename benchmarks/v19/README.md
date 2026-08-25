@@ -36,8 +36,10 @@ recorded alongside the semantic result.
 On Linux, GNU `time` records worker-lifecycle user/system CPU and maximum RSS,
 including descendant Git processes. On other platforms, Node records
 operation-scoped process CPU and process memory. The result states which scope
-was used, and base/head comparison rejects different platforms, architectures,
-Node majors, Git versions, git-cas versions, or corpora.
+was used. Base/head comparison rejects different platforms, architectures,
+Node majors, Git versions, instrumentation, or corpora. It records but does not
+equate the git-cas package versions, so a dependency upgrade can itself be the
+measured treatment.
 
 CPU is the blocking regression metric. Wall time remains diagnostic because
 hosted-runner scheduling and filesystem noise are not stable enough for a
@@ -58,6 +60,19 @@ warm, and incremental Git commands from `781 / 30 / 372` to
 `139 / 25 / 149`. CPU medians fell from `2900 / 630 / 1730` ms to
 `1220 / 620 / 1160` ms. The reviewed command ceilings are
 `160 / 30 / 175`, retaining about 15% structural headroom.
+
+A second counterbalanced local arm64 comparison measures bounded compound
+workspace admission from public git-cas 6.5.10 against the same git-warp commit
+on the public 6.5.9 singleton path. Five-sample cold/warm/incremental command
+medians moved from `139 / 25 / 149` to `50 / 25 / 60`; CPU medians moved from
+`484 / 154 / 490` ms to `312 / 160 / 291` ms. Cold and incremental wall medians
+fell by 52.2% and 49.9%. Warm topology was unchanged, and its timing movement is
+treated as host noise. The existing `160 / 30 / 175` command ceilings remain in
+force until hosted CI independently confirms the compound topology. If it
+reproduces `50 / 25 / 60`, a follow-up calibration can tighten the ceilings to
+`60 / 30 / 72`, leaving 20% structural headroom around cold and incremental
+publication while preserving the existing warm allowance. Hosted calibration
+remains the authority for CPU and memory envelopes.
 
 ## Semantic and schema gates
 

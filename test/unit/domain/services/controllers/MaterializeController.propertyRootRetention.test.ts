@@ -62,7 +62,7 @@ class PropertyPatchCollector extends PatchCollector {
 }
 
 describe("MaterializeController property-root retention", () => {
-  it("releases the workspace without promotion when the property-root checkpoint fails", async () => {
+  it("releases the workspace without promotion when compound root retention fails", async () => {
     const materializations = new InMemoryMaterializationStore();
     const controller = new MaterializeController({
       logger: testLogger(),
@@ -75,35 +75,26 @@ describe("MaterializeController property-root retention", () => {
       patches: new PropertyPatchCollector(),
       graphCloner: { openReadOnly: vi.fn() },
       graphName: "test-graph",
-      openStateSession: createStateSessionOpener(),
+      openStateSession: createStateSessionOpener(1_024),
       propertyStore: new MockIndexStorage(),
     });
-    const failure = new Error("property-root checkpoint failed");
-    const originalCheckpoint = InMemoryMaterializationWorkspace.prototype.checkpoint;
-    const checkpoint = vi.spyOn(InMemoryMaterializationWorkspace.prototype, "checkpoint")
-      .mockImplementation(function (
-        this: InMemoryMaterializationWorkspace,
-        roots,
-      ) {
-        if (roots.propertiesRoot !== undefined) {
-          return Promise.reject(failure);
-        }
-        return originalCheckpoint.call(this, roots);
-      });
+    const failure = new Error("compound root retention failed");
+    const admission = vi.spyOn(
+      InMemoryMaterializationWorkspace.prototype,
+      "admitDependentArtifacts",
+    ).mockRejectedValue(failure);
     const promote = vi.spyOn(InMemoryMaterializationWorkspace.prototype, "promote");
 
     try {
       await expect(controller.materialize()).rejects.toBe(failure);
 
-      expect(checkpoint).toHaveBeenCalledWith(expect.objectContaining({
-        propertiesRoot: expect.any(String),
-      }));
+      expect(admission).toHaveBeenCalledTimes(1);
       expect(promote).not.toHaveBeenCalled();
       expect(materializations.retainedRequests).toHaveLength(0);
       expect(materializations.workspaces[0]?.released).toBe(true);
     } finally {
       promote.mockRestore();
-      checkpoint.mockRestore();
+      admission.mockRestore();
     }
   });
 
@@ -114,7 +105,7 @@ describe("MaterializeController property-root retention", () => {
     const stale = MaterializationRoot.retained(new BundleHandle("test:stale-properties"));
 
     const reduced = await reduceSessionBackedState({
-      openStateSession: createStateSessionOpener(),
+      openStateSession: createStateSessionOpener(1_024),
       materializations,
       propertyStore,
       propertyRoot: stale,
@@ -131,11 +122,11 @@ describe("MaterializeController property-root retention", () => {
     expect(reduced.roots.properties.equals(stale)).toBe(false);
     expect(reduced.roots.roaringIndexes.status).toBe("retained");
     expect(writeShards).toHaveBeenCalledTimes(2);
-    expect(materializations.workspaces[0]?.checkpoints.at(-1))
-      .toEqual(expect.objectContaining({
-        propertiesRoot: reduced.roots.properties.handle?.toString(),
-        roaringIndexesRoot: reduced.roots.roaringIndexes.handle?.toString(),
-      }));
+    expect(materializations.workspaces[0]?.dependentArtifactAdmissions).toHaveLength(1);
+    expect(materializations.workspaces[0]?.dependentArtifactRetentions).toEqual([
+      [expect.stringMatching(/^test:workspace-bundle:/)],
+    ]);
+    expect(materializations.workspaces[0]?.checkpoints).toEqual([]);
     await reduced.workspace.release();
   });
 });
@@ -157,7 +148,7 @@ function propertyPatch(): PatchWithSha {
   };
 }
 
-function createStateSessionOpener() {
+function createStateSessionOpener(maxDirtyPages = 1) {
   const store = new InMemoryTrieStore();
   return async (
     roots: {
@@ -171,7 +162,7 @@ function createStateSessionOpener() {
     store,
     codec: cborCodec,
     geometry: GEOMETRY,
-    maxDirtyPages: 1,
+    maxDirtyPages,
     workspace: options.workspace,
   });
 }

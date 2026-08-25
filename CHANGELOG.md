@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
+- Retained materialization now joins dependent trie pages and bundles, derived
+  index shards and roots, workspace roots, replay/provenance support, the
+  descriptor, and the terminal materialization bundle through bounded
+  git-cas compound admissions. Logical artifact identity and causal replay
+  evidence are unchanged; the optimization amortizes workspace publication
+  without turning the physical batch into a domain transaction. In a
+  counterbalanced five-run local arm64 comparison against the same git-warp
+  commit on the previous git-cas 6.5.9 singleton path, cold Git commands fell
+  from `139` to `50` and incremental commands from `149` to `60`; CPU medians
+  fell by `35.5%` and `40.6%`, and wall medians by `52.2%` and `49.9%`.
+  Warm materialization remained at `25` commands; its small timing movement is
+  treated as host noise rather than an improvement. Every run retained the
+  exact semantic fingerprint and `65 / 0 / 5` replay evidence. The v19 storage
+  format and publication authority are unchanged, so existing repositories
+  require no migration.
 - Retained trie flushes now stage leaf pages, leaf bundles, and branch bundles
   through ordered git-cas write waves instead of one storage operation per
   trie page. The domain boundary caps each serialized leaf wave at 256 items
@@ -56,12 +71,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The minimum `@git-stunts/plumbing` runtime dependency is now 3.3.0. The
   performance harness requires its persistent `update-ref` session and carries
   concrete protocol-session types instead of accepting opaque session values.
-- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.8. Because
+- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.10. Because
   git-cas includes its package version in newly written manifest metadata, the
   verified v17 migration-reading fixture's content handle advances with the
-  dependency while its legacy equivalence facts remain unchanged. Version
-  6.5.8 supplies the ordered page and bundle write-wave APIs used by retained
-  trie publication; previously written manifests remain readable.
+  dependency while its legacy equivalence facts remain unchanged. Versions
+  6.5.8 and 6.5.10 supply the ordered write-wave and bounded compound workspace
+  APIs used by retained trie and materialization publication; previously
+  written manifests remain readable.
 - `LogNodesOptions` gains `firstParent` and `stopAt`. Chain readers advance by
   first parent and stop at a known boundary, so the history read is now
   constrained the same way: a merge's side branch is never streamed, and the

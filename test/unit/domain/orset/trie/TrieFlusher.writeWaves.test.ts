@@ -9,7 +9,12 @@ import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import TrieLeaf from "../../../../../src/domain/orset/trie/TrieLeaf.ts";
 import type { TrieBranchEntries } from "../../../../../src/domain/orset/trie/TrieBranchEntries.ts";
 import type TrieStorePort from "../../../../../src/domain/orset/trie/TrieStorePort.ts";
-import type ArtifactStagingPort from "../../../../../src/ports/ArtifactStagingPort.ts";
+import ArtifactStagingPort, {
+  type DependentArtifactAdmissionOptions,
+  type DependentArtifactOperation,
+  type StageOrderedBundleOptions,
+  type StagePageOptions,
+} from "../../../../../src/ports/ArtifactStagingPort.ts";
 import CodecPort from "../../../../../src/ports/CodecPort.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 import { InMemoryTrieStore } from "../../../../helpers/trieHelpers.ts";
@@ -39,6 +44,34 @@ describe("TrieFlusher write waves", () => {
     expect(store.branchBatchSizes).toEqual([1, 1]);
     expect(store.singletonLeafWrites).toBe(0);
     expect(store.singletonBranchWrites).toBe(0);
+  });
+
+  it("admits bounded dependent waves through one scoped staging operation", async () => {
+    const store = new RecordingBatchTrieStore();
+    const staging = new RecordingDependentArtifactStaging();
+
+    await new TrieFlusher({ store, codec: cborCodec, staging }).flush(
+      multiDepthSnapshot(),
+    );
+
+    expect(staging.operationBounds).toEqual([8]);
+    expect(store.stagings).toEqual([
+      staging.scoped,
+      staging.scoped,
+      staging.scoped,
+    ]);
+  });
+
+  it("keeps oversized dependent writes on the ordinary staging path", async () => {
+    const store = new RecordingBatchTrieStore();
+    const staging = new RecordingDependentArtifactStaging();
+
+    await new TrieFlusher({ store, codec: cborCodec, staging }).flush(
+      oversizedLeafSnapshot(),
+    );
+
+    expect(staging.operationBounds).toEqual([]);
+    expect(new Set(store.stagings)).toEqual(new Set([staging]));
   });
 
   it("rejects a batch result that omits an ordered root", async () => {
@@ -149,6 +182,39 @@ function wideLeafSnapshot(): DirtyPageSet {
   });
 }
 
+function oversizedLeafSnapshot(): DirtyPageSet {
+  const dirtyLeaves = new Map<string, TrieLeaf>();
+  const dirtyBranches = new Map<string, TrieBranch>();
+  const rootChildren = new Map<number, string>();
+  let remaining = 513;
+  for (let parent = 0; remaining > 0; parent += 1) {
+    const childCount = Math.min(remaining, 256);
+    const children = new Map<number, string>();
+    for (let nibble = 0; nibble < childCount; nibble += 1) {
+      const path = [parent, nibble];
+      dirtyLeaves.set(encodeDirtyPath(path), new TrieLeaf([], WIDE_GEOMETRY));
+      children.set(nibble, `pending:${encodeDirtyPath(path)}`);
+    }
+    const parentPath = [parent];
+    dirtyBranches.set(
+      encodeDirtyPath(parentPath),
+      new TrieBranch(children, WIDE_GEOMETRY),
+    );
+    rootChildren.set(parent, `pending:${encodeDirtyPath(parentPath)}`);
+    remaining -= childCount;
+  }
+  dirtyBranches.set(
+    encodeDirtyPath([]),
+    new TrieBranch(rootChildren, WIDE_GEOMETRY),
+  );
+  return new DirtyPageSet({
+    rootOid: null,
+    dirtyLeaves,
+    dirtyBranches,
+    cleanChildren: new Map(),
+  });
+}
+
 function wideBranchSnapshot(): DirtyPageSet {
   const dirtyBranches = new Map<string, TrieBranch>();
   const parentChildren = new Map<number, string>();
@@ -181,6 +247,7 @@ function wideBranchSnapshot(): DirtyPageSet {
 class RecordingBatchTrieStore implements TrieStorePort {
   readonly leafBatchSizes: number[] = [];
   readonly branchBatchSizes: number[] = [];
+  readonly stagings: ArtifactStagingPort[] = [];
   singletonLeafWrites = 0;
   singletonBranchWrites = 0;
   readonly #store = new InMemoryTrieStore();
@@ -205,8 +272,9 @@ class RecordingBatchTrieStore implements TrieStorePort {
 
   async writeLeaves(
     leaves: readonly Uint8Array[],
-    _staging?: ArtifactStagingPort,
+    staging?: ArtifactStagingPort,
   ): Promise<readonly string[]> {
+    if (staging !== undefined) { this.stagings.push(staging); }
     this.leafBatchSizes.push(leaves.length);
     return await Promise.all(leaves.map(
       async (leaf) => await this.#store.writeLeaf(leaf),
@@ -215,12 +283,50 @@ class RecordingBatchTrieStore implements TrieStorePort {
 
   async writeBranches(
     branches: readonly TrieBranchEntries[],
-    _staging?: ArtifactStagingPort,
+    staging?: ArtifactStagingPort,
   ): Promise<readonly string[]> {
+    if (staging !== undefined) { this.stagings.push(staging); }
     this.branchBatchSizes.push(branches.length);
     return await Promise.all(branches.map(
       async (branch) => await this.#store.writeBranch(branch),
     ));
+  }
+}
+
+class RecordingDependentArtifactStaging extends ArtifactStagingPort {
+  readonly operationBounds: number[] = [];
+  readonly scoped = new RecordingScopedArtifactStaging();
+
+  override async admitDependentArtifacts<T>(
+    operation: DependentArtifactOperation<T>,
+    options: DependentArtifactAdmissionOptions<T>,
+  ): Promise<T> {
+    this.operationBounds.push(options.maxOperations);
+    return await operation(this.scoped);
+  }
+
+  override async stagePage(): Promise<string> {
+    return "outer-page";
+  }
+
+  override async stageOrderedBundle(): Promise<never> {
+    throw new Error("outer staging does not create bundles in this test");
+  }
+}
+
+class RecordingScopedArtifactStaging extends ArtifactStagingPort {
+  override async stagePage(
+    _source: Uint8Array,
+    _options: StagePageOptions,
+  ): Promise<string> {
+    return "scoped-page";
+  }
+
+  override async stageOrderedBundle(
+    _members: Iterable<[path: string, handle: string]>,
+    _options?: StageOrderedBundleOptions,
+  ): Promise<never> {
+    throw new Error("scoped staging does not create bundles in this test");
   }
 }
 

@@ -15,9 +15,14 @@ import {
   shouldFlushBranchWriteWave,
   shouldFlushLeafWriteWave,
 } from "./TrieWriteWavePolicy.ts";
-import type ArtifactStagingPort from "../../../ports/ArtifactStagingPort.ts";
-
-const PENDING_OID_PREFIX = "pending:";
+import {
+  DEPENDENT_ARTIFACT_ADMISSION_MAX_OPERATIONS,
+  type default as ArtifactStagingPort,
+} from "../../../ports/ArtifactStagingPort.ts";
+import resolveBranchChildren from "./TrieBranchRootResolver.ts";
+import {
+  trieFlushAdmissionOperationBound,
+} from "./TrieFlushAdmissionPolicy.ts";
 
 /**
  * Initializer for {@link TrieFlusher}.
@@ -79,17 +84,37 @@ export default class TrieFlusher {
     this.#staging = init.staging;
   }
 
-  async flush(dirty: DirtyPageSet): Promise<FlushResult> {
-    if (dirty.isEmpty()) {
-      return new FlushResult({
-        rootOid: dirty.rootOid(),
-        blobsWritten: 0,
-        treesWritten: 0,
-        bytesWritten: 0,
-      });
+  async flush(
+    dirty: DirtyPageSet,
+    staging?: ArtifactStagingPort,
+  ): Promise<FlushResult> {
+    if (staging !== undefined) {
+      return await this.#withStaging(staging).flush(dirty);
     }
-    const state = createFlushState();
+    if (dirty.isEmpty()) {
+      return cleanFlush(dirty);
+    }
     const entries = [...dirty.enumerateBottomUp()];
+    const operationBound = trieFlushAdmissionOperationBound(entries);
+    const admissionStaging = this.#staging;
+    if (canAdmitDependentArtifacts(admissionStaging, operationBound)) {
+      return await admissionStaging.admitDependentArtifacts(
+        async (scopedStaging) => await this.#withStaging(scopedStaging).flush(dirty),
+        { maxOperations: operationBound },
+      );
+    }
+    return await this.#flushEntries(entries, dirty);
+  }
+
+  #withStaging(staging: ArtifactStagingPort): TrieFlusher {
+    return new TrieFlusher({ store: this.#store, codec: this.#codec, staging });
+  }
+
+  async #flushEntries(
+    entries: readonly DirtyPageEntry[],
+    dirty: DirtyPageSet,
+  ): Promise<FlushResult> {
+    const state = createFlushState();
     await this.#writeLeafWave(entries, state);
     await this.#writeBranchWaves(entries, dirty, state);
     return new FlushResult({
@@ -172,7 +197,12 @@ export default class TrieFlusher {
     for (const entry of wave) {
       if (!(entry.node instanceof TrieBranch)) { throw invalidBranchWave(); }
       paths.push(entry.path);
-      branches.push(resolveBranchChildren({ branch: entry.node, path: entry.path, dirty, state }));
+      branches.push(resolveBranchChildren({
+        branch: entry.node,
+        path: entry.path,
+        dirty,
+        newOidByPath: state.newOidByPath,
+      }));
     }
     const roots = await this.#writeBranches(branches, paths);
     requireWriteCardinality("branch", paths.length, roots.length);
@@ -308,6 +338,28 @@ export default class TrieFlusher {
 
 // -- internal state ---------------------------------------------------------
 
+type DependentArtifactStaging = ArtifactStagingPort & Required<Pick<
+  ArtifactStagingPort,
+  "admitDependentArtifacts"
+>>;
+
+function canAdmitDependentArtifacts(
+  staging: ArtifactStagingPort | undefined,
+  operationBound: number,
+): staging is DependentArtifactStaging {
+  return staging?.admitDependentArtifacts !== undefined &&
+    operationBound <= DEPENDENT_ARTIFACT_ADMISSION_MAX_OPERATIONS;
+}
+
+function cleanFlush(dirty: DirtyPageSet): FlushResult {
+  return new FlushResult({
+    rootOid: dirty.rootOid(),
+    blobsWritten: 0,
+    treesWritten: 0,
+    bytesWritten: 0,
+  });
+}
+
 interface FlushState {
   rootOid: string | null;
   blobsWritten: number;
@@ -396,63 +448,6 @@ function invalidWaveEntry(kind: string, index: number): TrieFlushError {
     code: "E_TRIE_FLUSH_STRUCTURE",
     context: { kind, index },
   });
-}
-
-// -- branch resolution ------------------------------------------------------
-
-function resolveBranchChildren(args: {
-  readonly branch: TrieBranch;
-  readonly path: readonly number[];
-  readonly dirty: DirtyPageSet;
-  readonly state: FlushState;
-}): TrieBranchEntries {
-  const out = new Map<number, string>();
-  for (const [nibble, originalOid] of args.branch.entries()) {
-    const childPath = [...args.path, nibble];
-    const resolved = resolveChildOid({
-      originalOid,
-      childPath,
-      dirty: args.dirty,
-      state: args.state,
-    });
-    out.set(nibble, resolved);
-  }
-  return out;
-}
-
-function resolveChildOid(args: {
-  readonly originalOid: string;
-  readonly childPath: readonly number[];
-  readonly dirty: DirtyPageSet;
-  readonly state: FlushState;
-}): string {
-  const freshlyWritten = args.state.newOidByPath.get(
-    encodeDirtyPath(args.childPath),
-  );
-  if (freshlyWritten !== undefined) {
-    return freshlyWritten;
-  }
-  const cleanChild = args.dirty.cleanChildOidAt(args.childPath);
-  if (cleanChild !== null) {
-    return cleanChild;
-  }
-  if (!isPendingOid(args.originalOid)) {
-    return args.originalOid;
-  }
-  throw new TrieFlushError(
-    `TrieFlusher could not resolve pending child OID at path=${encodeDirtyPath(args.childPath)}`,
-    {
-      code: "E_TRIE_FLUSH_UNRESOLVED",
-      context: {
-        path: encodeDirtyPath(args.childPath),
-        pending: args.originalOid,
-      },
-    },
-  );
-}
-
-function isPendingOid(oid: string): boolean {
-  return oid.startsWith(PENDING_OID_PREFIX);
 }
 
 // -- error wrapping ---------------------------------------------------------
