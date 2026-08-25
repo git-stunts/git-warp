@@ -22,8 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sequence descriptor, and 50,000 lowered patch operations. The runtime copies
   and freezes caller arrays, binds proposal and law digests to the ordered
   sequence, rejects substituted or appended publication operations, and
-  rehydrates retained multi-operation Strand patches as one deterministic
-  sequence.
+  rehydrates retained patches without a canonical singular-Intent
+  interpretation as one deterministic primitive sequence.
 - `WriteReceipt.intents` exposes every normalized member in lowering order and
   `WriteReceipt.occurrences` exposes one causal occurrence per admitted
   `entity.add` member. The legacy `WriteReceipt.occurrence` convenience remains
@@ -37,7 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   publication mechanism, so existing v19 repositories require no retained-data
   migration. Reopened multi-operation Strands recover their ordered primitive
   graph transformation from the retained patch; no caller-owned JavaScript
-  array or new Patch wire field is persisted.
+  array or new Patch wire field is persisted. Because the Patch stores graph
+  operations rather than call syntax, reopen cannot distinguish a canonical
+  single-Intent patch created by `write(intent)` from one created by
+  `write([intent])`; its graph transformation and one-patch boundary remain
+  intact.
 
 ## [19.1.0] - 2026-08-25
 

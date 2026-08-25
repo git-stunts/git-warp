@@ -463,11 +463,18 @@ only when exactly one entity birth exists. Neither field substitutes the graph
 subject for causal occurrence identity.
 
 Retained patches store graph operations and their one-patch boundary, not the
-caller's JavaScript array object. Strand reopen therefore hydrates a
-deterministic primitive Intent sequence from a retained multi-operation patch
-and replays that sequence through one patch publication. This preserves the
-ordered graph transformation and atomic boundary without adding a Patch schema
-or retained-data migration.
+caller's JavaScript array object or request envelope. Strand reopen hydrates a
+deterministic primitive Intent sequence when the retained operations do not
+already have one canonical singular-Intent interpretation, then replays that
+transformation through one patch publication. This preserves the ordered graph
+transformation and atomic boundary without adding a Patch schema or
+retained-data migration.
+
+The unchanged Patch format cannot prove whether a canonical single-Intent
+shape originally came from `write(intent)` or `write([intent])`. The original
+write Receipt and admission evaluation retain that request-time distinction;
+reopen and settlement preserve the graph transformation and one-patch boundary
+without inventing caller syntax that was never retained.
 
 Admission classifies how a well-formed proposed history relates to the
 destination history under an explicit basis and law. The admission outcome

@@ -39,6 +39,26 @@ describe('IntentSequenceRuntime', () => {
     expect(replayBuilder.build()).toEqual(retained);
   });
 
+  it('does not invent array syntax for a canonical single-Intent retained patch', () => {
+    const original = IntentSequence.from([
+      Intent.addEntity({
+        subject: 'capture:first',
+        properties: { body: 'one' },
+      }),
+    ]);
+    const firstBuilder = createPatchBuilder({ graphName: 'captures', writerId: 'agent-1' });
+    applyIntentSequenceToPatch(original, firstBuilder);
+    const retained = firstBuilder.build();
+
+    const recovered = intentSequenceFromPatch(retained);
+    const replayBuilder = createPatchBuilder({ graphName: 'captures', writerId: 'agent-1' });
+    applyIntentSequenceToPatch(recovered, replayBuilder);
+
+    expect(original.atomic).toBe(true);
+    expect(recovered.atomic).toBe(false);
+    expect(replayBuilder.build()).toEqual(retained);
+  });
+
   it('rejects a sequence whose lowering exceeds the operation limit', () => {
     const properties = Object.fromEntries(
       Array.from({ length: MAX_ATOMIC_WRITE_OPERATIONS }, (_, index) => [
