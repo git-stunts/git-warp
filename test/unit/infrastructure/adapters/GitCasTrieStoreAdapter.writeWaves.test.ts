@@ -119,6 +119,76 @@ describe('GitCasTrieStoreAdapter write waves', () => {
     });
   });
 
+  it('fails closed when a direct page batch is sparse', async () => {
+    const cas = createCas();
+    const malformed: GitCasTrieFacade = {
+      bundles: cas.bundles,
+      pages: {
+        ...cas.pages,
+        putBatch: async (request) => {
+          const staged = await cas.pages.putBatch(request);
+          return sparsePair(staged[0]!);
+        },
+      },
+    };
+
+    await expect(new GitCasTrieStoreAdapter({ cas: malformed }).writeLeaves([
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+    ])).rejects.toMatchObject({
+      code: 'E_TRIE_STORE_WRITE',
+      context: { kind: 'page', expected: 2, actual: 2, index: 1 },
+    });
+  });
+
+  it('fails closed when a direct bundle batch is sparse', async () => {
+    const cas = createCas();
+    const malformed: GitCasTrieFacade = {
+      pages: cas.pages,
+      bundles: {
+        ...cas.bundles,
+        putOrderedBatch: async (request) => {
+          const staged = await cas.bundles.putOrderedBatch(request);
+          return sparsePair(staged[0]!);
+        },
+      },
+    };
+
+    await expect(new GitCasTrieStoreAdapter({ cas: malformed }).writeLeaves([
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+    ])).rejects.toMatchObject({
+      code: 'E_TRIE_STORE_WRITE',
+      context: { kind: 'bundle', expected: 2, actual: 2, index: 1 },
+    });
+  });
+
+  it('fails closed when a staged page batch is sparse', async () => {
+    const cas = createCas();
+    const adapter = new GitCasTrieStoreAdapter({ cas });
+
+    await expect(adapter.writeLeaves([
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+    ], new SparsePageStaging(cas))).rejects.toMatchObject({
+      code: 'E_TRIE_STORE_WRITE',
+      context: { kind: 'page', expected: 2, actual: 2, index: 1 },
+    });
+  });
+
+  it('fails closed when a staged bundle batch is sparse', async () => {
+    const cas = createCas();
+    const adapter = new GitCasTrieStoreAdapter({ cas });
+
+    await expect(adapter.writeLeaves([
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+    ], new SparseBundleStaging(cas))).rejects.toMatchObject({
+      code: 'E_TRIE_STORE_WRITE',
+      context: { kind: 'bundle', expected: 2, actual: 2, index: 1 },
+    });
+  });
+
   it('windows leaf waves at the declared page and bundle limits', async () => {
     const cas = createCas();
     const recording = recordingFacade(cas);
@@ -317,6 +387,26 @@ class RecordingStaging extends ArtifactStagingPort {
   }
 }
 
+class SparsePageStaging extends RecordingStaging {
+  override async stagePages(
+    sources: readonly Uint8Array[],
+    options: StagePagesOptions,
+  ): Promise<readonly string[]> {
+    const staged = await super.stagePages(sources, options);
+    return sparsePair(staged[0]!);
+  }
+}
+
+class SparseBundleStaging extends RecordingStaging {
+  override async stageOrderedBundles(
+    bundles: readonly StageOrderedBundleRequest[],
+    options: StageOrderedBundlesOptions,
+  ): Promise<readonly DomainBundleHandle[]> {
+    const staged = await super.stageOrderedBundles(bundles, options);
+    return sparsePair(staged[0]!);
+  }
+}
+
 function gitCasBundleRequest(
   request: StageOrderedBundleRequest,
 ): Parameters<BundleCapability['putOrderedBatch']>[0]['bundles'][number] {
@@ -326,4 +416,11 @@ function gitCasBundleRequest(
       ? {}
       : { limits: { maxMembers: request.options.maxMembers } }),
   };
+}
+
+function sparsePair<T>(value: T): readonly T[] {
+  const sparse: T[] = [];
+  sparse.length = 2;
+  sparse[0] = value;
+  return Object.freeze(sparse);
 }

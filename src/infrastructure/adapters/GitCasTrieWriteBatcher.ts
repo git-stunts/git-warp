@@ -117,8 +117,7 @@ async function stagePageWaves(
       maxBatchBytes: TRIE_LEAF_WRITE_WAVE_MAX_BYTES,
       maxBatchPages: TRIE_LEAF_WRITE_WAVE_MAX_ITEMS,
     });
-    requireWriteCardinality('page', wave.length, staged.length);
-    handles.push(...staged);
+    handles.push(...requireDenseWriteResults('page', wave.length, staged));
   }
   return handles;
 }
@@ -134,8 +133,8 @@ async function putPageWaves(
       maxBatchBytes: TRIE_LEAF_WRITE_WAVE_MAX_BYTES,
       maxBatchPages: TRIE_LEAF_WRITE_WAVE_MAX_ITEMS,
     });
-    requireWriteCardinality('page', wave.length, staged.length);
-    handles.push(...staged.map((page) => page.handle.toString()));
+    const dense = requireDenseWriteResults('page', wave.length, staged);
+    handles.push(...dense.map((page) => page.handle.toString()));
   }
   return handles;
 }
@@ -180,8 +179,8 @@ async function stageBundleWaves(
       continue;
     }
     const staged = await staging.stageOrderedBundles(unit.requests, bundleBatchLimits());
-    requireWriteCardinality('bundle', unit.requests.length, staged.length);
-    handles.push(...staged.map((bundle) => bundle.toString()));
+    const dense = requireDenseWriteResults('bundle', unit.requests.length, staged);
+    handles.push(...dense.map((bundle) => bundle.toString()));
   }
   return Object.freeze(handles);
 }
@@ -200,8 +199,8 @@ async function putBundleWaves(
       bundles: unit.requests,
       ...bundleBatchLimits(),
     });
-    requireWriteCardinality('bundle', unit.requests.length, staged.length);
-    handles.push(...staged.map((bundle) => bundle.handle.toString()));
+    const dense = requireDenseWriteResults('bundle', unit.requests.length, staged);
+    handles.push(...dense.map((bundle) => bundle.handle.toString()));
   }
   return Object.freeze(handles);
 }
@@ -290,4 +289,21 @@ function requireWriteCardinality(kind: 'page' | 'bundle', expected: number, actu
     code: 'E_TRIE_STORE_WRITE',
     context: { kind, expected, actual },
   });
+}
+
+function requireDenseWriteResults<T>(
+  kind: 'page' | 'bundle',
+  expected: number,
+  results: readonly T[],
+): readonly T[] {
+  requireWriteCardinality(kind, expected, results.length);
+  for (let index = 0; index < results.length; index += 1) {
+    if (results[index] === undefined) {
+      throw new TrieStoreError(`git-cas omitted ordered ${kind} batch result`, {
+        code: 'E_TRIE_STORE_WRITE',
+        context: { kind, expected, actual: results.length, index },
+      });
+    }
+  }
+  return results;
 }
