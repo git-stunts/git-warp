@@ -4,10 +4,10 @@ import type {
   BundleCapability,
   BundleMemberReference,
 } from '@git-stunts/git-cas';
-import MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
+import type MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
 import type MaterializationRoots from '../../domain/materialization/MaterializationRoots.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.ts';
-import BundleHandle from '../../domain/storage/BundleHandle.ts';
+import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
@@ -31,20 +31,18 @@ export default class GitCasMaterializationProvenanceSupport {
     this.#codec = options.codec;
   }
 
-  async stage(
-    workspace: GitCasStagingWorkspace,
+  assetRequest(
     provenance: ProvenanceIndex,
-  ): Promise<MaterializationRoot> {
-    const asset = await workspace.assets.put({
+  ): Parameters<GitCasStagingWorkspace['assets']['put']>[0] {
+    return {
       source: WarpStream.from([provenance.serialize({ codec: this.#codec })]),
       slug: 'git-warp-materialization-provenance',
       filename: PROVENANCE_PATH,
-    });
-    const bundle = await workspace.bundles.putOrdered({
-      members: [[PROVENANCE_PATH, asset.handle]],
-      limits: { maxMembers: 1 },
-    });
-    return MaterializationRoot.retained(new BundleHandle(bundle.handle.toString()));
+    };
+  }
+
+  bundleMembers(asset: AssetHandle): ReadonlyArray<[string, AssetHandle]> {
+    return Object.freeze([[PROVENANCE_PATH, asset]]);
   }
 
   async loadRoot(root: BundleHandle): Promise<ProvenanceIndex> {

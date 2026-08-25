@@ -11,6 +11,8 @@ export function requireWorkspaceOptions(options: unknown): void {
   requireMethod(pages, 'put', 'git-cas workspace pages');
   requireMethod(pages, 'putBatch', 'git-cas workspace pages');
   requireMethod(bundles, 'putOrdered', 'git-cas workspace bundles');
+  requireMethod(bundles, 'putOrderedBatch', 'git-cas workspace bundles');
+  requireMethod(workspace, 'batch', 'git-cas workspace');
   requireMethod(workspace, 'checkpoint', 'git-cas workspace');
   requireMethod(workspace, 'promoteToCache', 'git-cas workspace');
   requireMethod(workspace, 'release', 'git-cas workspace');

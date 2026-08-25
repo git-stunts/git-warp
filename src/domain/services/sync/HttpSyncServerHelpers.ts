@@ -288,7 +288,7 @@ export function parseBody(body: Uint8Array | undefined): ParseBodyResult {
     return { error: errorResponse(400, `Invalid sync request: ${validation.error}`), parsed: null };
   }
 
-  return { error: null, parsed: validation.value as SyncRequest };
+  return { error: null, parsed: validation.value };
 }
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
@@ -403,7 +403,7 @@ export function extractFrontierWriters(parsed: Record<string, unknown>): string[
   if (frontier === null || frontier === undefined || typeof frontier !== 'object') {
     return [];
   }
-  return Object.keys(frontier as Record<string, string>);
+  return Object.keys(frontier);
 }
 
 // ── Constructor options type ─────────────────────────────────────────────────

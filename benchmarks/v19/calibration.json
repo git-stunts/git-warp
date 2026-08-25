@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "037264e9d7da098a35d5ef5b2aa0ef50effa306a",
-  "generatedAt": "2026-08-24T15:55:21.981Z",
+  "sourceCommit": "cf90510f316f97fa0e18562f99ece63f428d2b68",
+  "generatedAt": "2026-08-25T00:09:57.875Z",
   "evidence": {
-    "artifact": "v19-performance-b9310e42eecd90e1dd2722e9a9107f88599057ed",
-    "run": "https://github.com/git-stunts/git-warp/actions/runs/32747392067"
+    "artifact": "v19-performance-b0ec5f722c1b63c96c685cfd0afeee9c33cdb922",
+    "run": "https://github.com/git-stunts/git-warp/actions/runs/32792226931"
   },
   "environment": {
     "architecture": "x64",
     "cpuCount": 4,
-    "cpuModel": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
     "git": "git version 2.55.0",
-    "gitCas": "6.5.7",
+    "gitCas": "6.5.10",
     "node": "v22.23.2",
     "platform": "linux",
     "runner": "github-hosted"
@@ -27,34 +27,34 @@
   },
   "observed": {
     "cold-materialize": {
-      "cpuTotalMedianMs": 3920,
-      "cpuTotalMadMs": 0,
-      "maximumRssBytes": 145166336,
-      "maximumHeapUsedBytes": 53149416,
-      "gitCommandMedian": 781,
+      "cpuTotalMedianMs": 1560,
+      "cpuTotalMadMs": 39.99999999999977,
+      "maximumRssBytes": 136548352,
+      "maximumHeapUsedBytes": 45629624,
+      "gitCommandMedian": 50,
       "gitCommandMadCount": 0
     },
     "warm-materialize": {
-      "cpuTotalMedianMs": 890,
-      "cpuTotalMadMs": 10,
-      "maximumRssBytes": 131231744,
-      "maximumHeapUsedBytes": 41864424,
-      "gitCommandMedian": 30,
+      "cpuTotalMedianMs": 1069.9999999999998,
+      "cpuTotalMadMs": 10.000000000000227,
+      "maximumRssBytes": 132730880,
+      "maximumHeapUsedBytes": 43966376,
+      "gitCommandMedian": 25,
       "gitCommandMadCount": 0
     },
     "incremental-materialize": {
-      "cpuTotalMedianMs": 2380,
-      "cpuTotalMadMs": 10,
-      "maximumRssBytes": 140779520,
-      "maximumHeapUsedBytes": 49642648,
-      "gitCommandMedian": 372,
+      "cpuTotalMedianMs": 1430.0000000000002,
+      "cpuTotalMadMs": 0,
+      "maximumRssBytes": 134307840,
+      "maximumHeapUsedBytes": 45864032,
+      "gitCommandMedian": 60,
       "gitCommandMadCount": 0
     },
     "streaming": {
-      "generationMaximumRssBytes": 204304384,
-      "generationPeakHeapUsedBytes": 52687896,
-      "maximumRssBytes": 147984384,
-      "peakHeapUsedBytes": 36786520
+      "generationMaximumRssBytes": 195440640,
+      "generationPeakHeapUsedBytes": 44626520,
+      "maximumRssBytes": 148381696,
+      "peakHeapUsedBytes": 38051056
     }
   },
   "localCalibration": {
@@ -63,33 +63,33 @@
       "cpuCount": 10,
       "cpuModel": "Apple M1 Pro",
       "git": "git version 2.50.1 (Apple Git-155)",
-      "gitCas": "6.5.7",
+      "gitCas": "6.5.10",
       "node": "v26.0.0",
       "platform": "darwin"
     },
     "observed": {
       "cold-materialize": {
-        "cpuTotalMedianMs": 1975.394,
-        "cpuTotalMadMs": 16.848999999999933,
-        "maximumRssBytes": 156958720,
-        "maximumHeapUsedBytes": 59483744,
-        "gitCommandMedian": 781,
+        "cpuTotalMedianMs": 311.974,
+        "cpuTotalMadMs": 8.420999999999992,
+        "maximumRssBytes": 153698304,
+        "maximumHeapUsedBytes": 53327584,
+        "gitCommandMedian": 50,
         "gitCommandMadCount": 0
       },
       "warm-materialize": {
-        "cpuTotalMedianMs": 193.086,
-        "cpuTotalMadMs": 2.451999999999998,
-        "maximumRssBytes": 124190720,
-        "maximumHeapUsedBytes": 40101296,
-        "gitCommandMedian": 30,
+        "cpuTotalMedianMs": 159.803,
+        "cpuTotalMadMs": 2.3089999999999975,
+        "maximumRssBytes": 126271488,
+        "maximumHeapUsedBytes": 41002576,
+        "gitCommandMedian": 25,
         "gitCommandMadCount": 0
       },
       "incremental-materialize": {
-        "cpuTotalMedianMs": 1017.102,
-        "cpuTotalMadMs": 5.343000000000075,
-        "maximumRssBytes": 156172288,
-        "maximumHeapUsedBytes": 56732432,
-        "gitCommandMedian": 372,
+        "cpuTotalMedianMs": 290.658,
+        "cpuTotalMadMs": 2.5079999999999814,
+        "maximumRssBytes": 126189568,
+        "maximumHeapUsedBytes": 41379288,
+        "gitCommandMedian": 60,
         "gitCommandMadCount": 0
       }
     },
@@ -114,10 +114,10 @@
     "note": "CI-runner measurements are primary. Noise floors cover hosted-runner MAD; absolute materialization and streaming ceilings retain reviewed headroom while blocking gross regressions.",
     "gitCommandRegressionRatio": 1.05,
     "gitCommandMedian": {
-      "cold-materialize": 900,
-      "warm-materialize": 35,
-      "incremental-materialize": 430
+      "cold-materialize": 60,
+      "warm-materialize": 30,
+      "incremental-materialize": 72
     },
-    "gitCommandNote": "Git command counts are structural, not timing. On the version 2 checkpointed corpus, the reference runner and a local arm64 machine report identical session-aware counts per scenario (781 / 30 / 372) despite differing in architecture, OS, Node version (v22.23.2 vs v26.0.0), and Git version (2.55.0 vs 2.50.1), while their CPU medians differ materially. Five measured runs on each machine returned the same count every time (MAD 0). Machine independence is therefore measured, not assumed, which is why the relative ratio carries no noise floor. Absolute ceilings sit about 1.15x above the observed count \u2014 tight enough that a structural change to the storage path must be reviewed, loose enough to absorb a small legitimate addition. Evidence: https://github.com/git-stunts/git-warp/actions/runs/32747392067"
+    "gitCommandNote": "Git command counts are structural, not timing. Five counterbalanced hosted samples at cf90510f316f97fa0e18562f99ece63f428d2b68 confirmed 50 / 25 / 60 commands with MAD 0, exact semantic fingerprints, an exact warm hit, and a compatible incremental predecessor hit. The reviewed 60 / 30 / 72 ceilings retain 20% headroom around cold and incremental publication while preserving the existing warm allowance. The same run measured current main at 781 / 30 / 372. Hosted CI remains the authority for CPU and memory envelopes. Evidence: https://github.com/git-stunts/git-warp/actions/runs/32792226931"
   }
 }

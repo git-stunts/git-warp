@@ -36,8 +36,10 @@ recorded alongside the semantic result.
 On Linux, GNU `time` records worker-lifecycle user/system CPU and maximum RSS,
 including descendant Git processes. On other platforms, Node records
 operation-scoped process CPU and process memory. The result states which scope
-was used, and base/head comparison rejects different platforms, architectures,
-Node majors, Git versions, git-cas versions, or corpora.
+was used. Base/head comparison rejects different platforms, architectures,
+Node majors, Git versions, instrumentation, or corpora. It records but does not
+equate the git-cas package versions, so a dependency upgrade can itself be the
+measured treatment.
 
 CPU is the blocking regression metric. Wall time remains diagnostic because
 hosted-runner scheduling and filesystem noise are not stable enough for a
@@ -53,10 +55,23 @@ timeout. The checked-in
 observed medians and dispersion, the exact GitHub-hosted Ubuntu 24.04/Node 22
 gating environment, and the policy rationale. A local Apple Silicon calibration
 is retained as secondary evidence, not as the source of CI ceilings.
-The reference runner measured `781 / 30 / 372` Git commands and
-`3920 / 890 / 2380` ms CPU for cold, warm, and incremental materialization.
-The command ceilings are `900 / 35 / 430`, about 1.15 times the observed
-structural counts.
+Against current `main`, the hosted compound-admission runner reduced cold,
+warm, and incremental Git commands from `781 / 30 / 372` to
+`50 / 25 / 60`. CPU medians fell from `4540 / 1120 / 2790` ms to
+`1560 / 1070 / 1430` ms. Five samples reproduced every command count with
+MAD 0. The reviewed command ceilings are `60 / 30 / 72`, retaining 20%
+structural headroom around cold and incremental publication while preserving
+the existing warm allowance.
+
+A second counterbalanced local arm64 comparison measures bounded compound
+workspace admission from public git-cas 6.5.10 against the same git-warp commit
+on the public 6.5.9 singleton path. Five-sample cold/warm/incremental command
+medians moved from `139 / 25 / 149` to `50 / 25 / 60`; CPU medians moved from
+`484 / 154 / 490` ms to `312 / 160 / 291` ms. Cold and incremental wall medians
+fell by 52.2% and 49.9%. Warm topology was unchanged, and its timing movement is
+treated as host noise. Hosted CI independently reproduced `50 / 25 / 60` on
+the same 65/5 corpus and is the authority for the reviewed command, CPU, and
+memory envelopes.
 
 ## Semantic and schema gates
 

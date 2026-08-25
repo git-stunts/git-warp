@@ -145,7 +145,7 @@
     "@flyingrobots/bijou-node": "^7.2.0",
     "@flyingrobots/bijou-tui": "^7.2.0",
     "@git-stunts/alfred": "^0.10.4",
-    "@git-stunts/git-cas": "^6.5.7",
+    "@git-stunts/git-cas": "^6.5.10",
     "@git-stunts/plumbing": "^3.3.0",
     "@git-stunts/trailer-codec": "^2.1.1",
     "@noble/hashes": "^2.2.0",

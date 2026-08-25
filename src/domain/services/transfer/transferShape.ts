@@ -43,10 +43,10 @@ export function collectNodeShapeDelta(
   return {
     addedNodeOps: sourceNodeIds
       .filter((nodeId) => !targetNodeSet.has(nodeId))
-      .map((nodeId) => ({ op: 'add_node', nodeId }) as VisibleStateTransferOperation),
+      .map((nodeId) => ({ op: 'add_node', nodeId })),
     removedNodeOps: targetNodeIds
       .filter((nodeId) => !sourceNodeSet.has(nodeId))
-      .map((nodeId) => ({ op: 'remove_node', nodeId }) as VisibleStateTransferOperation),
+      .map((nodeId) => ({ op: 'remove_node', nodeId })),
     propertyNodeIds: sourceNodeIds,
   };
 }
@@ -60,7 +60,7 @@ export function buildAddEdgeOps(edgeRefs: EdgeRef[]): VisibleStateTransferOperat
     from: edge.from,
     to: edge.to,
     label: edge.label,
-  }) as VisibleStateTransferOperation);
+  }));
 }
 
 /**
@@ -77,7 +77,7 @@ export function buildRemoveEdgeOps(
       from: edge.from,
       to: edge.to,
       label: edge.label,
-    } as VisibleStateTransferOperation;
+    };
   });
 }
 

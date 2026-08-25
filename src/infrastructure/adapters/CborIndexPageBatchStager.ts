@@ -52,9 +52,10 @@ export class CborIndexPageBatchStager {
       },
     );
     requireOrderedHandles(handles, this.#batch.length);
-    this.#batch.forEach(([path], index) => {
-      members.push([path, handles[index] as string]);
-    });
+    for (const [index, handle] of handles.entries()) {
+      const [path] = this.#batch[index]!;
+      members.push([path, handle]);
+    }
     this.#batch.length = 0;
     this.#batchBytes = 0;
   }
@@ -81,14 +82,34 @@ function requireOrderedHandles(
   if (
     !Array.isArray(handles)
     || handles.length !== expected
-    || handles.some((handle) => typeof handle !== 'string' || handle.length === 0)
   ) {
-    throw new IndexError('Staged page batch returned invalid ordered handles', {
-      code: 'E_INDEX_INVALID_STORAGE',
-      context: {
-        expected,
-        actual: Array.isArray(handles) ? handles.length : null,
-      },
-    });
+    throw invalidOrderedHandles(expected, Array.isArray(handles) ? handles.length : null);
   }
+  for (const [index, handle] of handles.entries()) {
+    requireOrderedHandle(handle, { expected, actual: handles.length, index });
+  }
+}
+
+function requireOrderedHandle(
+  handle: unknown,
+  location: Readonly<{ expected: number; actual: number; index: number }>,
+): asserts handle is string {
+  if (typeof handle !== 'string' || handle.length === 0) {
+    throw invalidOrderedHandles(location.expected, location.actual, location.index);
+  }
+}
+
+function invalidOrderedHandles(
+  expected: number,
+  actual: number | null,
+  index?: number,
+): IndexError {
+  return new IndexError('Staged page batch returned invalid ordered handles', {
+    code: 'E_INDEX_INVALID_STORAGE',
+    context: {
+      expected,
+      actual,
+      ...(index === undefined ? {} : { index }),
+    },
+  });
 }

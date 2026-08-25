@@ -25,6 +25,7 @@ import type { IndexShard } from '../../artifacts/IndexShard.ts';
 
 /** Maximum local IDs per shard (2^24). */
 const MAX_LOCAL_ID = 1 << 24;
+const FIXED_LOGICAL_INDEX_SHARDS = 2;
 
 type NodeToGlobalArray = Array<[string, number]>;
 type NodeToGlobalRecord = Record<string, number>;
@@ -240,6 +241,14 @@ export default class LogicalBitmapIndexBuilder {
     });
   }
 
+  /** Exact number of logical shards that yieldShards will emit. */
+  shardCount(): number {
+    return this._shardNextLocal.size +
+      bitmapShardCount(this._fwdBitmaps) +
+      bitmapShardCount(this._revBitmaps) +
+      FIXED_LOGICAL_INDEX_SHARDS;
+  }
+
   private *_yieldEdgeShards(
     direction: 'fwd' | 'rev',
     bitmaps: Map<string, RoaringBitmapSubset>,
@@ -249,7 +258,7 @@ export default class LogicalBitmapIndexBuilder {
     for (const [key, bitmap] of bitmaps) {
       const firstColon = key.indexOf(':');
       const secondColon = key.indexOf(':', firstColon + 1);
-      const shardKey = key.substring(0, firstColon);
+      const shardKey = bitmapShardKey(key);
       const bucketName = key.substring(firstColon + 1, secondColon);
       const globalIdStr = key.substring(secondColon + 1);
 
@@ -282,4 +291,16 @@ export default class LogicalBitmapIndexBuilder {
     }
     bitmap.add(target);
   }
+}
+
+function bitmapShardCount(bitmaps: ReadonlyMap<string, RoaringBitmapSubset>): number {
+  const shardKeys = new Set<string>();
+  for (const key of bitmaps.keys()) {
+    shardKeys.add(bitmapShardKey(key));
+  }
+  return shardKeys.size;
+}
+
+function bitmapShardKey(key: string): string {
+  return key.substring(0, key.indexOf(':'));
 }

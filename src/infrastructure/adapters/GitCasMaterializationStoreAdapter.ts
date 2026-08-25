@@ -1,8 +1,8 @@
 import type {
+  ApplicationHandle,
   CacheAcquisition,
   CacheHit,
   PageHandle,
-  WorkspaceRetainedBundle,
 } from '@git-stunts/git-cas';
 import type MaterializationCoordinate from '../../domain/materialization/MaterializationCoordinate.ts';
 import MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
@@ -32,33 +32,28 @@ import {
 } from './GitCasMaterializationStoreValidation.ts';
 import GitCasMaterializationLease from './GitCasMaterializationLease.ts';
 import GitCasMaterializationPredecessorResolver from './GitCasMaterializationPredecessorResolver.ts';
-import GitCasMaterializationReplayBasis, {
-  replaceReplayBasisRoot,
-} from './GitCasMaterializationReplayBasis.ts';
+import GitCasMaterializationReplayBasis from './GitCasMaterializationReplayBasis.ts';
 import GitCasMaterializationCacheKey from './GitCasMaterializationCacheKey.ts';
 import type { GitCasMaterializationFacade } from './GitCasMaterializationStoreTypes.ts';
 import {
   releaseCacheAcquisitionAfterFailure,
-  requireDescriptorSize,
   requireStoredMaterialization,
-  requireWorkspaceStage,
 } from './GitCasMaterializationStoreWitness.ts';
 import { completeWithCleanup } from './OperationCleanup.ts';
 import {
   decodeMaterializationDescriptor,
   MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
-  materializationDescriptorData,
   materializationRootsFromDescriptor,
   type DecodedMaterializationDescriptor,
 } from './GitCasMaterializationDescriptor.ts';
 import {
   decodeMaterializationMembers,
-  materializationMembers,
   type DecodedMaterializationMembers,
 } from './GitCasMaterializationBundle.ts';
-import GitCasMaterializationProvenanceSupport, {
-  replaceProvenanceSupportRoot,
-} from './GitCasMaterializationProvenanceSupport.ts';
+import GitCasMaterializationProvenanceSupport
+  from './GitCasMaterializationProvenanceSupport.ts';
+import GitCasMaterializationBundleAdmission
+  from './GitCasMaterializationBundleAdmission.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_NAMESPACE = 'git-warp/materializations';
@@ -80,6 +75,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   readonly #codec: CodecPort;
   readonly #crypto: CryptoPort;
   readonly #cacheKeys: GitCasMaterializationCacheKey;
+  readonly #bundleAdmission: GitCasMaterializationBundleAdmission;
   readonly #laneName: string;
   readonly #onClose: () => void;
   readonly #predecessorResolver: GitCasMaterializationPredecessorResolver;
@@ -114,6 +110,12 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     const support = materializationSupport(options);
     this.#replayBasis = support.replayBasis;
     this.#provenanceSupport = support.provenance;
+    this.#bundleAdmission = new GitCasMaterializationBundleAdmission({
+      codec: this.#codec,
+      laneName: this.#laneName,
+      provenanceSupport: this.#provenanceSupport,
+      replayBasis: this.#replayBasis,
+    });
     this.#predecessorResolver = this.#createPredecessorResolver();
   }
 
@@ -170,79 +172,34 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   ): Promise<MaterializationHandle> {
     requireRetainRequest(request);
     const { stateHash } = request;
-    const roots = await this.#prepareRetainedRoots(workspace, request);
-    const retainedRequest = { ...request, roots };
-    const bundle = await this.#stageWorkspaceBundle(workspace, retainedRequest, stateHash);
+    const staged = await this.#bundleAdmission.stage(workspace, request, stateHash);
     const retention = await this.#promoteWorkspaceBundle(
       workspace,
-      bundle,
+      staged.bundle,
       request.coordinate,
     );
     return new MaterializationHandle({
       laneName: this.#laneName,
-      bundle: new BundleHandle(bundle.handle.toString()),
+      bundle: new BundleHandle(staged.bundle.toString()),
       coordinate: request.coordinate,
-      roots,
+      roots: staged.roots,
       stateHash,
       retention,
     });
   }
 
-  async #prepareRetainedRoots(
-    workspace: GitCasStagingWorkspace,
-    request: RetainMaterializationRequest,
-  ) {
-    const replayRoots = request.replayBasis === undefined
-      ? request.roots
-      : replaceReplayBasisRoot(
-        request.roots,
-        await this.#replayBasis.stage(workspace, request.replayBasis),
-      );
-    return request.provenanceSupport === undefined
-      ? replayRoots
-      : replaceProvenanceSupportRoot(
-        replayRoots,
-        await this.#provenanceSupport.stage(workspace, request.provenanceSupport),
-      );
-  }
-
-  async #stageWorkspaceBundle(
-    workspace: GitCasStagingWorkspace,
-    request: RetainMaterializationRequest,
-    stateHash: string | null,
-  ): Promise<WorkspaceRetainedBundle> {
-    const descriptorBytes = this.#codec.encode(materializationDescriptorData({
-      coordinate: request.coordinate,
-      stateHash,
-      laneName: this.#laneName,
-      roots: request.roots,
-    }));
-    requireDescriptorSize(descriptorBytes);
-
-    const descriptorPage = await workspace.pages.put({
-      source: descriptorBytes,
-      maxBytes: MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
-    });
-    requireWorkspaceStage(descriptorPage);
-    const bundle = await workspace.bundles.putOrdered({
-      members: materializationMembers(descriptorPage.handle.toString(), request.roots),
-    });
-    requireWorkspaceStage(bundle);
-    return bundle;
-  }
-
   async #promoteWorkspaceBundle(
     workspace: GitCasStagingWorkspace,
-    bundle: WorkspaceRetainedBundle,
+    bundle: ApplicationHandle,
     coordinate: MaterializationCoordinate,
   ): Promise<StorageRetentionWitness> {
     const cache = await this.#cas.caches.open({ namespace: CACHE_NAMESPACE });
     const cacheKey = await this.#cacheKeys.forCoordinate(coordinate);
-    const expectedHandle = bundle.handle.toString();
+    const expectedHandle = bundle.toString();
     const promoted = await workspace.promoteToCache({
       cache,
       key: cacheKey,
-      handle: bundle.handle,
+      handle: bundle,
       options: { retention: 'evictable' },
     });
     const retention = requireStoredMaterialization(promoted.destination, expectedHandle);

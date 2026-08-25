@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { WorkspaceCompoundScope } from '@git-stunts/git-cas';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
+import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.ts';
+import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasMaterializationStoreAdapter, {
   type GitCasMaterializationFacade,
@@ -64,6 +67,7 @@ describe('GitCasMaterializationStoreAdapter lifecycle', () => {
       assets: staging.assets,
       pages: staging.pages,
       bundles: staging.bundles,
+      batch: (options) => staging.batch(options),
       checkpoint: async (options) => await staging.checkpoint(options),
       promoteToCache: async (options) => await staging.promoteToCache(options),
       release,
@@ -106,6 +110,9 @@ describe('GitCasMaterializationStoreAdapter lifecycle', () => {
         },
       },
       bundles: staging.bundles,
+      batch: async () => {
+        throw promotionFailure;
+      },
       checkpoint: async (options) => await staging.checkpoint(options),
       promoteToCache: async (options) => await staging.promoteToCache(options),
       release: async () => {
@@ -131,6 +138,95 @@ describe('GitCasMaterializationStoreAdapter lifecycle', () => {
     });
   });
 
+  it('compounds support roots with the terminal materialization bundle', async () => {
+    const harness = await createHarness();
+    const coordinate = exactCoordinate();
+    const workspace = await harness.adapter.openWorkspace(coordinate);
+    const generationsBefore = harness.cas.readWorkspaceGenerationCount();
+
+    await workspace.promote({
+      coordinate,
+      roots: await createRoots(harness.cas),
+      stateHash: 'support-state-hash',
+      replayBasis: WarpState.empty(),
+      provenanceSupport: ProvenanceIndex.empty(),
+    });
+    await workspace.release();
+
+    expect(harness.cas.readWorkspaceGenerationCount() - generationsBefore).toBe(2);
+  });
+
+  it('fails closed when compound admission omits its descriptor page', async () => {
+    const harness = await createHarness();
+    const adapter = adapterFor(malformedWorkspaceFacade(harness.cas, 'omit-descriptor-page'));
+
+    await expect(adapter.retain({
+      coordinate: exactCoordinate(),
+      roots: await createRoots(harness.cas),
+      stateHash: 'state-hash',
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('omitted the descriptor page'),
+    });
+  });
+
+  it('fails closed when compound admission returns extra descriptor pages', async () => {
+    const harness = await createHarness();
+    const adapter = adapterFor(malformedWorkspaceFacade(harness.cas, 'extra-descriptor-page'));
+
+    await expect(adapter.retain({
+      coordinate: exactCoordinate(),
+      roots: await createRoots(harness.cas),
+      stateHash: 'state-hash',
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('wrong descriptor page count'),
+    });
+  });
+
+  it('fails closed when compound admission returns the wrong support count', async () => {
+    const harness = await createHarness();
+    const adapter = adapterFor(malformedWorkspaceFacade(harness.cas, 'omit-support-assets'));
+
+    await expect(adapter.retain({
+      coordinate: exactCoordinate(),
+      roots: await createRoots(harness.cas),
+      stateHash: 'state-hash',
+      provenanceSupport: ProvenanceIndex.empty(),
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('wrong support asset count'),
+    });
+  });
+
+  it('fails closed when retention omits the terminal materialization bundle', async () => {
+    const harness = await createHarness();
+    const adapter = adapterFor(malformedWorkspaceFacade(harness.cas, 'omit-terminal-retention'));
+
+    await expect(adapter.retain({
+      coordinate: exactCoordinate(),
+      roots: await createRoots(harness.cas),
+      stateHash: 'state-hash',
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('omitted the materialization bundle'),
+    });
+  });
+
+  it('fails closed when compound admission returns extra terminal bundles', async () => {
+    const harness = await createHarness();
+    const adapter = adapterFor(malformedWorkspaceFacade(harness.cas, 'extra-terminal-bundle'));
+
+    await expect(adapter.retain({
+      coordinate: exactCoordinate(),
+      roots: await createRoots(harness.cas),
+      stateHash: 'state-hash',
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('wrong materialization bundle count'),
+    });
+  });
+
 });
 
 async function createHarness(): Promise<Readonly<{
@@ -150,6 +246,117 @@ function adapterFor(cas: GitCasMaterializationFacade): GitCasMaterializationStor
     codec: defaultCodec,
     crypto: new NodeCryptoAdapter(),
     laneName: 'events',
+  });
+}
+
+type WorkspaceMalformation =
+  | 'omit-descriptor-page'
+  | 'extra-descriptor-page'
+  | 'omit-support-assets'
+  | 'extra-terminal-bundle'
+  | 'omit-terminal-retention';
+
+function malformedWorkspaceFacade(
+  cas: InMemoryGitCasFacade,
+  malformation: WorkspaceMalformation,
+): GitCasMaterializationFacade {
+  return {
+    assets: cas.assets,
+    bundles: cas.bundles,
+    caches: cas.caches,
+    pages: cas.pages,
+    workspaces: {
+      open: async (options) => {
+        const workspace = await cas.workspaces.open(options);
+        const batch: GitCasStagingWorkspace['batch'] = async (request) => {
+          let replacementRetainedHandle: string | null = null;
+          const retain = malformation === 'omit-terminal-retention'
+            ? () => replacementRetainedHandle === null ? [] : [replacementRetainedHandle]
+            : request.retain;
+          return await workspace.batch({
+            ...request,
+            ...(retain === undefined ? {} : { retain }),
+            operation: async (scope) => {
+              const effectiveScope = malformation === 'omit-terminal-retention'
+                ? retainingDescriptorScope(scope, (handle) => {
+                  replacementRetainedHandle = handle;
+                })
+                : malformedScope(scope, malformation);
+              return await request.operation(effectiveScope);
+            },
+          });
+        };
+        return {
+          assets: workspace.assets,
+          pages: workspace.pages,
+          bundles: workspace.bundles,
+          batch,
+          checkpoint: async (request) => await workspace.checkpoint(request),
+          promoteToCache: async (request) => await workspace.promoteToCache(request),
+          release: async () => await workspace.release(),
+        };
+      },
+    },
+  };
+}
+
+function malformedScope(
+  scope: WorkspaceCompoundScope,
+  malformation: WorkspaceMalformation,
+): WorkspaceCompoundScope {
+  if (malformation === 'omit-descriptor-page') {
+    return Object.freeze({
+      ...scope,
+      pages: Object.freeze({ putBatch: async () => Object.freeze([]) }),
+    });
+  }
+  if (malformation === 'extra-descriptor-page') {
+    return Object.freeze({
+      ...scope,
+      pages: Object.freeze({
+        putBatch: async (request) => duplicateFirst(await scope.pages.putBatch(request)),
+      }),
+    });
+  }
+  if (malformation === 'omit-support-assets') {
+    return Object.freeze({
+      ...scope,
+      assets: Object.freeze({ putBatch: async () => Object.freeze([]) }),
+    });
+  }
+  if (malformation === 'extra-terminal-bundle') {
+    return Object.freeze({
+      ...scope,
+      bundles: Object.freeze({
+        putOrderedBatch: async (request) =>
+          duplicateFirst(await scope.bundles.putOrderedBatch(request)),
+      }),
+    });
+  }
+  return scope;
+}
+
+function duplicateFirst<T>(values: readonly T[]): readonly T[] {
+  const first = values[0];
+  return first === undefined ? values : Object.freeze([...values, first]);
+}
+
+function retainingDescriptorScope(
+  scope: WorkspaceCompoundScope,
+  retain: (handle: string) => void,
+): WorkspaceCompoundScope {
+  return Object.freeze({
+    ...scope,
+    pages: Object.freeze({
+      putBatch: async (request) => {
+        const handles = await scope.pages.putBatch(request);
+        const descriptor = handles[0];
+        if (descriptor !== undefined) {
+          retain(descriptor.toString());
+        }
+        return handles;
+      },
+    }),
   });
 }
 

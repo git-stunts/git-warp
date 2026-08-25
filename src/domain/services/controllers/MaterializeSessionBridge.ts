@@ -3,15 +3,25 @@ import VersionVector from "../../crdt/VersionVector.ts";
 import { Dot } from "../../crdt/Dot.ts";
 import type PatchEntry from "../../artifacts/PatchEntry.ts";
 import type StateSession from "../../orset/session/StateSession.ts";
+import { TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE }
+  from "../../orset/trie/TrieFlushAdmissionPolicy.ts";
 import type MaterializationStorePort from "../../../ports/MaterializationStorePort.ts";
 import type MaterializationWorkspacePort from "../../../ports/MaterializationWorkspacePort.ts";
 import type LoggerPort from "../../../ports/LoggerPort.ts";
 import type IndexStorePort from "../../../ports/IndexStorePort.ts";
+import {
+  DEPENDENT_ARTIFACT_ADMISSION_MAX_OPERATIONS,
+  type default as ArtifactStagingPort,
+} from "../../../ports/ArtifactStagingPort.ts";
 import type MaterializationCoordinate from "../../materialization/MaterializationCoordinate.ts";
+import {
+  materializationWorkspaceRootMembers,
+} from "../../materialization/MaterializationWorkspaceRootMembers.ts";
 import type StorageRetentionWitness from "../../storage/StorageRetentionWitness.ts";
 import MaterializationRoot from "../../materialization/MaterializationRoot.ts";
 import MaterializationRoots from "../../materialization/MaterializationRoots.ts";
 import BundleHandle from "../../storage/BundleHandle.ts";
+import WarpError from "../../errors/WarpError.ts";
 import type { PatchDiff } from "../../types/PatchDiff.ts";
 import type { TickReceipt } from "../../types/TickReceipt.ts";
 import WarpStateClass from "../state/WarpState.ts";
@@ -24,7 +34,10 @@ import {
   type MaterializeAdjacency,
 } from "./MaterializeHelpers.ts";
 import { releaseWorkspaceAfterFailure } from "./MaterializationWorkspaceCleanup.ts";
-import { prepareMaterializationIndexRoots } from "./MaterializationIndexRoots.ts";
+import {
+  MaterializationIndexRootPlan,
+  type PreparedMaterializationIndexRoots,
+} from "./MaterializationIndexRoots.ts";
 
 export type MaterializeSessionOpen = {
   readonly nodeAliveRootOid: string | null;
@@ -114,11 +127,9 @@ export async function reduceSessionBackedState(args: {
       };
     }
 
-    const close = await frame.session.prepareClose();
-    const { properties, roaringIndexes } = await prepareMaterializationIndexRoots({
+    const indexPlan = MaterializationIndexRootPlan.create({
       state: reduced.state,
       store: args.propertyStore,
-      workspace,
       ...(reducedPatchCount === 0 && args.propertyRoot !== undefined
         ? { existingPropertyRoot: args.propertyRoot }
         : {}),
@@ -126,12 +137,23 @@ export async function reduceSessionBackedState(args: {
         ? { existingIndexRoot: args.indexRoot }
         : {}),
     });
-    await retainPreparedIndexRoots(
+    const preparedArtifacts = await prepareSessionArtifacts(
+      frame.session,
+      indexPlan,
       workspace,
-      close.roots,
-      properties,
-      roaringIndexes,
     );
+    const {
+      close,
+      indexRoots: { properties, roaringIndexes },
+    } = preparedArtifacts;
+    if (!preparedArtifacts.rootsRetainedTogether) {
+      await retainPreparedIndexRoots(
+        workspace,
+        close.roots,
+        properties,
+        roaringIndexes,
+      );
+    }
     const replayBasis = reducedPatchCount === 0 && args.replayBasisRoot !== undefined
       ? args.replayBasisRoot
       : MaterializationRoot.unavailable();
@@ -158,6 +180,88 @@ export async function reduceSessionBackedState(args: {
     await releaseWorkspaceAfterFailure(workspace, args.logger);
     throw raw;
   }
+}
+
+type PreparedSessionArtifacts = Readonly<{
+  close: Awaited<ReturnType<StateSession['prepareClose']>>;
+  indexRoots: PreparedMaterializationIndexRoots;
+  rootsRetainedTogether: boolean;
+  workspaceRoot: BundleHandle | null;
+}>;
+
+type RetainedIndexRootTokens = Readonly<{
+  propertiesRoot?: string;
+  roaringIndexesRoot?: string;
+}>;
+
+const MATERIALIZATION_WORKSPACE_ROOT_WRITE_OPERATIONS = 1;
+
+async function prepareSessionArtifacts(
+  session: StateSession,
+  indexPlan: MaterializationIndexRootPlan,
+  workspace: MaterializationWorkspacePort,
+): Promise<PreparedSessionArtifacts> {
+  const stateOperationBound = session.dirtyPageCount() *
+    TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE;
+  const operationBound = stateOperationBound + indexPlan.admissionOperationBound +
+    MATERIALIZATION_WORKSPACE_ROOT_WRITE_OPERATIONS;
+  const admissionGroupCount = Number(stateOperationBound > 0) +
+    indexPlan.admissionGroupCount;
+  if (
+    workspace.admitDependentArtifacts !== undefined &&
+    admissionGroupCount > 1 &&
+    operationBound <= DEPENDENT_ARTIFACT_ADMISSION_MAX_OPERATIONS
+  ) {
+    return await workspace.admitDependentArtifacts(
+      async (staging) => await prepareSessionArtifactsInScope(session, indexPlan, staging),
+      {
+        maxOperations: operationBound,
+        retain: (prepared) => prepared.workspaceRoot === null
+          ? []
+          : [prepared.workspaceRoot.toString()],
+      },
+    );
+  }
+  return Object.freeze({
+    close: await session.prepareClose(),
+    indexRoots: await indexPlan.admit(workspace),
+    rootsRetainedTogether: false,
+    workspaceRoot: null,
+  });
+}
+
+async function prepareSessionArtifactsInScope(
+  session: StateSession,
+  indexPlan: MaterializationIndexRootPlan,
+  staging: ArtifactStagingPort,
+): Promise<PreparedSessionArtifacts> {
+  const close = await session.prepareClose(staging);
+  const indexRoots = await indexPlan.write(staging);
+  const workspaceRoot = await stageWorkspaceRoot(staging, close.roots, indexRoots);
+  return Object.freeze({ close, indexRoots, rootsRetainedTogether: true, workspaceRoot });
+}
+
+async function stageWorkspaceRoot(
+  staging: ArtifactStagingPort,
+  roots: MaterializeSessionOpen,
+  indexes: PreparedMaterializationIndexRoots,
+): Promise<BundleHandle> {
+  const retainedIndexes = retainedIndexRootTokens(
+    indexes.properties,
+    indexes.roaringIndexes,
+  );
+  const members = materializationWorkspaceRootMembers({
+    nodeAliveRoot: roots.nodeAliveRootOid,
+    edgeAliveRoot: roots.edgeAliveRootOid,
+    ...retainedIndexes,
+  });
+  if (members.length === 0) {
+    throw new WarpError(
+      "Compound materialization produced no retainable workspace roots",
+      "E_MATERIALIZATION_STORAGE",
+    );
+  }
+  return await staging.stageOrderedBundle(members);
 }
 
 async function openReducerSessionFrame(
@@ -232,21 +336,34 @@ async function retainPreparedIndexRoots(
   properties: MaterializationRoot,
   roaringIndexes: MaterializationRoot,
 ): Promise<void> {
-  const propertiesRoot = properties.status === 'retained'
-    ? properties.handle?.toString()
-    : undefined;
-  const roaringIndexesRoot = roaringIndexes.status === 'retained'
-    ? roaringIndexes.handle?.toString()
-    : undefined;
-  if (propertiesRoot === undefined && roaringIndexesRoot === undefined) {
+  const retainedIndexes = retainedIndexRootTokens(properties, roaringIndexes);
+  if (
+    retainedIndexes.propertiesRoot === undefined &&
+    retainedIndexes.roaringIndexesRoot === undefined
+  ) {
     return;
   }
   await workspace.checkpoint({
     nodeAliveRoot: roots.nodeAliveRootOid,
     edgeAliveRoot: roots.edgeAliveRootOid,
+    ...retainedIndexes,
+  });
+}
+
+function retainedIndexRootTokens(
+  properties: MaterializationRoot,
+  roaringIndexes: MaterializationRoot,
+): RetainedIndexRootTokens {
+  const propertiesRoot = retainedRootToken(properties);
+  const roaringIndexesRoot = retainedRootToken(roaringIndexes);
+  return Object.freeze({
     ...(propertiesRoot === undefined ? {} : { propertiesRoot }),
     ...(roaringIndexesRoot === undefined ? {} : { roaringIndexesRoot }),
   });
+}
+
+function retainedRootToken(root: MaterializationRoot): string | undefined {
+  return root.status === 'retained' ? root.handle?.toString() : undefined;
 }
 
 function sessionRootToken(root: MaterializationRoot): string | null | undefined {

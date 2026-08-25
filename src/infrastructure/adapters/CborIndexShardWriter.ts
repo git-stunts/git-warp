@@ -4,7 +4,10 @@ import IndexError from '../../domain/errors/IndexError.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
-import type ArtifactStagingPort from '../../ports/ArtifactStagingPort.ts';
+import {
+  DEPENDENT_ARTIFACT_ADMISSION_MAX_OPERATIONS,
+  type default as ArtifactStagingPort,
+} from '../../ports/ArtifactStagingPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type { IndexShardWriteOptions } from '../../ports/IndexStorePort.ts';
 import type { CborStructureLimits } from './BoundedCborValidation.ts';
@@ -41,19 +44,68 @@ type ShardCollectionArgs = Readonly<{
   limits: ValidatedWriteLimits;
 }>;
 
-export async function writeCborIndexShards(args: {
+type DependentArtifactStaging = ArtifactStagingPort & Required<Pick<
+  ArtifactStagingPort,
+  'admitDependentArtifacts'
+>>;
+
+type CborIndexShardWriteArgs = Readonly<{
   shardStream: WarpStream<IndexShard>;
   options: IndexShardWriteOptions;
   codec: CodecPort;
   assets: AssetStoragePort;
   cas: IndexWriteFacade;
-}): Promise<BundleHandle> {
+}>;
+
+export async function writeCborIndexShards(
+  args: CborIndexShardWriteArgs,
+): Promise<BundleHandle> {
   const limits = validatedWriteLimits(args.options);
   requireExpectedShardCountWithinLimit(limits.expectedShardCount, limits.maxShardCount);
+  const admissionOperations = indexAdmissionOperationBound(limits);
+  const admissionStaging = limits.staging;
+  if (
+    admissionOperations !== null &&
+    canAdmitIndexShards(admissionStaging, admissionOperations)
+  ) {
+    return await admitCborIndexShards(args, admissionStaging, admissionOperations);
+  }
   const members = await collectEncodedShardMembers({ ...args, limits });
   requireExpectedShardCount(members.length, limits.expectedShardCount);
   members.sort(([left], [right]) => compareStrings(left, right));
   return await putShardBundle(args.cas, members, limits);
+}
+
+async function admitCborIndexShards(
+  args: CborIndexShardWriteArgs,
+  staging: DependentArtifactStaging,
+  maxOperations: number,
+): Promise<BundleHandle> {
+  return await staging.admitDependentArtifacts(
+    async (scope) => await writeCborIndexShards({
+      ...args,
+      options: { ...args.options, staging: scope },
+    }),
+    {
+      maxOperations,
+      retain: (bundle) => [bundle.toString()],
+    },
+  );
+}
+
+function canAdmitIndexShards(
+  staging: ArtifactStagingPort | undefined,
+  operationBound: number,
+): staging is DependentArtifactStaging {
+  return operationBound <= DEPENDENT_ARTIFACT_ADMISSION_MAX_OPERATIONS &&
+    staging?.admitDependentArtifacts !== undefined;
+}
+
+function indexAdmissionOperationBound(limits: ValidatedWriteLimits): number | null {
+  if (limits.memberStorage !== 'page' || limits.expectedShardCount === undefined) {
+    return null;
+  }
+  return limits.expectedShardCount + 1;
 }
 
 function compareStrings(left: string, right: string): number {

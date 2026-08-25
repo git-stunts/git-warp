@@ -28,8 +28,27 @@ import {
 type ExistingMeta = Record<string, { nodeToGlobal: Record<string, number>; nextLocalId: number }>;
 type ExistingLabels = Record<string, number> | Array<[string, number]>;
 type PropertyRegisters = Map<string, LWWRegister<PropValue>>;
+type IndexBuilderOptions = {
+  readonly existingMeta?: ExistingMeta;
+  readonly existingLabels?: ExistingLabels;
+};
 
 export default class LogicalIndexBuildService {
+  /** Builds the logical bitmap builder without constructing property shards. */
+  buildLogicalIndexBuilder(
+    state: WarpState,
+    options: IndexBuilderOptions = {},
+  ): LogicalBitmapIndexBuilder {
+    const indexBuilder = this._createIndexBuilder(options);
+    const aliveNodes = [...state.nodeAlive.elements()].sort();
+    this._populateLogicalIndex({
+      indexBuilder,
+      aliveNodes,
+      visibleEdges: collectVisibleEdges(state),
+    });
+    return indexBuilder;
+  }
+
   /**
    * Builds a complete logical index as a collected array of IndexShard records.
    *
@@ -135,19 +154,20 @@ export default class LogicalIndexBuildService {
     existingMeta?: ExistingMeta;
     existingLabels?: ExistingLabels;
   }): { indexBuilder: LogicalBitmapIndexBuilder; propBuilder: PropertyIndexBuilder } {
-    const indexBuilder = new LogicalBitmapIndexBuilder();
+    const indexBuilder = this._createIndexBuilder(options);
     const propBuilder = new PropertyIndexBuilder();
+    return { indexBuilder, propBuilder };
+  }
 
-    if (options.existingMeta !== undefined) {
-      for (const [shardKey, meta] of Object.entries(options.existingMeta)) {
-        indexBuilder.loadExistingMeta(shardKey, meta);
-      }
+  private _createIndexBuilder(options: IndexBuilderOptions): LogicalBitmapIndexBuilder {
+    const indexBuilder = new LogicalBitmapIndexBuilder();
+    for (const [shardKey, meta] of Object.entries(options.existingMeta ?? {})) {
+      indexBuilder.loadExistingMeta(shardKey, meta);
     }
     if (options.existingLabels !== undefined) {
       indexBuilder.loadExistingLabels(options.existingLabels);
     }
-
-    return { indexBuilder, propBuilder };
+    return indexBuilder;
   }
 
   private _populateVisibleData(args: {
@@ -157,6 +177,19 @@ export default class LogicalIndexBuildService {
     aliveNodeSet: ReadonlySet<string>;
     visibleEdges: ReadonlyArray<VisibleEdgeRecord>;
     prop: PropertyRegisters;
+  }): void {
+    this._populateLogicalIndex(args);
+    for (const entry of WarpState.nodePropertiesFromMap(args.prop)) {
+      if (args.aliveNodeSet.has(entry.nodeId)) {
+        args.propBuilder.addProperty(entry.nodeId, entry.key, entry.register.value);
+      }
+    }
+  }
+
+  private _populateLogicalIndex(args: {
+    indexBuilder: LogicalBitmapIndexBuilder;
+    aliveNodes: ReadonlyArray<string>;
+    visibleEdges: ReadonlyArray<VisibleEdgeRecord>;
   }): void {
     for (const nodeId of args.aliveNodes) {
       args.indexBuilder.registerNode(nodeId);
@@ -169,12 +202,6 @@ export default class LogicalIndexBuildService {
     }
     for (const edge of args.visibleEdges) {
       args.indexBuilder.addEdge(edge.from, edge.to, edge.label);
-    }
-
-    for (const entry of WarpState.nodePropertiesFromMap(args.prop)) {
-      if (args.aliveNodeSet.has(entry.nodeId)) {
-        args.propBuilder.addProperty(entry.nodeId, entry.key, entry.register.value);
-      }
     }
   }
 

@@ -20,7 +20,6 @@ import GCMetrics from '../GCMetrics.ts';
 import SyncTrustGate from '../sync/SyncTrustGate.ts';
 import { launchSyncServer, type ServeOptions, type ServerHandle } from './SyncServerLauncher.ts';
 import { isError } from '../../types/WarpErrors.ts';
-import type { WarpState } from '../JoinReducer.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type SyncHttpClientPort from '../../../ports/SyncHttpClientPort.ts';
 import type {
@@ -303,14 +302,14 @@ export default class SyncController {
     const currentFrontier = this._host._lastFrontier ?? createFrontier();
     const result = applySyncResponseImpl(
       response, this._host._cachedState, currentFrontier,
-    ) as { state: WarpState; frontier: Map<string, string>; applied: number };
+    );
     await this._host._setMaterializedState(result.state, {
       coordinate: { frontier: result.frontier, ceiling: null },
     });
     this._host._lastFrontier = result.frontier;
     this._host._patchesSinceGC += result.applied;
     const skippedWriters: SkippedWriter[] = Array.isArray(response.skippedWriters)
-      ? (response.skippedWriters as SkippedWriter[])
+      ? (response.skippedWriters)
       : [];
     return { ...result, writersApplied, skippedWriters };
   }

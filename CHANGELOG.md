@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
+- Retained materialization now joins dependent trie pages and bundles, derived
+  index shards and roots, workspace roots, replay/provenance support, the
+  descriptor, and the terminal materialization bundle through bounded
+  git-cas compound admissions. Logical artifact identity and causal replay
+  evidence are unchanged; the optimization amortizes workspace publication
+  without turning the physical batch into a domain transaction. In a
+  counterbalanced five-run local arm64 comparison against the same git-warp
+  commit on the previous git-cas 6.5.9 singleton path, cold Git commands fell
+  from `139` to `50` and incremental commands from `149` to `60`; CPU medians
+  fell by `35.5%` and `40.6%`, and wall medians by `52.2%` and `49.9%`.
+  Warm materialization remained at `25` commands; its small timing movement is
+  treated as host noise rather than an improvement. Every run retained the
+  exact semantic fingerprint and `65 / 0 / 5` replay evidence. The v19 storage
+  format and publication authority are unchanged, so existing repositories
+  require no migration. A counterbalanced five-run hosted comparison against
+  current `main` independently reproduced `50 / 25 / 60` commands, down from
+  `781 / 30 / 372`; hosted CPU medians fell by `65.6%` cold and `48.7%`
+  incremental while the unchanged warm path moved by `4.5%`. The reviewed
+  command ceilings are now `60 / 30 / 72`.
+- Retained trie flushes now stage leaf pages, leaf bundles, and branch bundles
+  through ordered git-cas write waves instead of one storage operation per
+  trie page. The domain boundary caps each serialized leaf wave at 256 items
+  and 32 MiB and each same-depth branch wave at 64 items before the Git adapter
+  applies its tighter member, object, and byte limits. Stores without the
+  optional batch capabilities retain the existing ordered singleton fallback.
+  Root identity, publication authority, and the v19 storage format are
+  unchanged; existing v19 repositories require no migration. On the hosted
+  reference runner, cold/warm/incremental Git commands fell from
+  `781 / 30 / 372` to `139 / 25 / 149`; CPU medians fell by
+  `57.9% / 1.6% / 32.9%`. A five-run local arm64 comparison reproduced the
+  exact command counts and measured CPU improvements of
+  `66.4% / 8.0% / 41.3%`. Both comparisons retained exact `65 / 0 / 5`
+  replay evidence and identical semantic fingerprints.
 - Patch-chain traversal (`PatchDiscovery.loadPatchChainFromSha`,
   `PatchDiscovery.discoverTicks`) now reads chain metadata with a single bulk
   `logNodesStream` history read per chain instead of one `getNodeInfo` call per
@@ -42,10 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The minimum `@git-stunts/plumbing` runtime dependency is now 3.3.0. The
   performance harness requires its persistent `update-ref` session and carries
   concrete protocol-session types instead of accepting opaque session values.
-- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.7. Because
+- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.10. Because
   git-cas includes its package version in newly written manifest metadata, the
   verified v17 migration-reading fixture's content handle advances with the
-  dependency while its legacy equivalence facts remain unchanged.
+  dependency while its legacy equivalence facts remain unchanged. Versions
+  6.5.8 and 6.5.10 supply the ordered write-wave and bounded compound workspace
+  APIs used by retained trie and materialization publication; previously
+  written manifests remain readable.
 - `LogNodesOptions` gains `firstParent` and `stopAt`. Chain readers advance by
   first parent and stop at a known boundary, so the history read is now
   constrained the same way: a merge's side branch is never streamed, and the
@@ -87,10 +123,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compatibility corpus: they measure object and payload traffic, not traversal
   depth, and would not by themselves have caught the per-commit walk fixed
   above. The version 2 release gate adds the independently calibrated 65-patch
-  base and five-patch suffix. The reference runner reports `781 / 30 / 372`
-  cold, warm, and incremental Git commands; reviewed ceilings of
-  `900 / 35 / 430` preserve about 15% structural headroom. Raw absolute counts
-  are not compared across the two different corpora.
+  base and five-patch suffix. The first calibrated reference run reported
+  `781 / 30 / 372` cold, warm, and incremental Git commands. Ordered retained
+  write waves reduce those counts to `139 / 25 / 149`; reviewed ceilings of
+  `160 / 30 / 175` preserve about 15% structural headroom. Raw absolute counts
+  are not compared across different corpus versions.
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
   its initial payload in a single patch. The lowered patch declares an empty
   read set and exactly one subject write. That declaration describes the

@@ -8,9 +8,9 @@
       "incremental-materialize": 30000
     },
     "gitCommandMedian": {
-      "cold-materialize": 900,
-      "warm-materialize": 35,
-      "incremental-materialize": 430
+      "cold-materialize": 60,
+      "warm-materialize": 30,
+      "incremental-materialize": 72
     },
     "maxRssBytes": {
       "cold-materialize": 402653184,
