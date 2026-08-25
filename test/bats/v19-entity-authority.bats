@@ -193,6 +193,16 @@ PY
 
   run "${CLI[@]}" observe \
     --lane events \
+    --strand candidate-a \
+    --writer reader \
+    --json \
+    --observer session-event.candidate-a-strand-bytes \
+    --reading "{\"kind\":\"property.get\",\"subject\":\"${candidate_a_subject}\",\"key\":\"eventBytesHex\"}"
+  assert_success
+  candidate_a_strand_observation="$output"
+
+  run "${CLI[@]}" observe \
+    --lane events \
     --strand candidate-b \
     --writer reader \
     --json \
@@ -209,6 +219,7 @@ PY
   CANDIDATE_B_SETTLEMENT="$candidate_b_settlement" \
   CANDIDATE_A_PARENT_OBSERVATION="$candidate_a_parent_observation" \
   CANDIDATE_B_PARENT_OBSERVATION="$candidate_b_parent_observation" \
+  CANDIDATE_A_STRAND_OBSERVATION="$candidate_a_strand_observation" \
   CANDIDATE_B_STRAND_OBSERVATION="$candidate_b_strand_observation" \
   COMPLETED_BYTES="$completed_bytes" \
   CRASHED_BYTES="$crashed_bytes" \
@@ -224,6 +235,7 @@ b_preview = json.loads(os.environ["CANDIDATE_B_PREVIEW"])
 b_settlement = json.loads(os.environ["CANDIDATE_B_SETTLEMENT"])
 a_parent = json.loads(os.environ["CANDIDATE_A_PARENT_OBSERVATION"])
 b_parent = json.loads(os.environ["CANDIDATE_B_PARENT_OBSERVATION"])
+a_strand = json.loads(os.environ["CANDIDATE_A_STRAND_OBSERVATION"])
 b_strand = json.loads(os.environ["CANDIDATE_B_STRAND_OBSERVATION"])
 
 def require(condition, contract):
@@ -301,6 +313,8 @@ require_handles(b_settlement["evidence"]["support"], "candidate B settlement rec
 require_equal(a_parent["readings"][0]["value"], os.environ["COMPLETED_BYTES"], "settlement preserves candidate A subject and exact bytes in the parent")
 require_handle(a_parent["readings"][0]["coordinate"]["basis"], "settled candidate A remains basis-bound in the parent reading")
 require(b_parent["readings"][0]["value"] is False, "obstructed candidate B remains absent from the parent")
+require_equal(a_strand["readings"][0]["value"], os.environ["COMPLETED_BYTES"], "settled candidate A remains recoverable in its source Strand")
+require_handle(a_strand["readings"][0]["coordinate"]["basis"], "settled candidate A remains basis-bound in its source Strand")
 require_equal(b_strand["readings"][0]["value"], os.environ["CRASHED_BYTES"], "obstructed candidate B remains recoverable in its source Strand")
 require_handle(b_strand["readings"][0]["coordinate"]["basis"], "obstructed candidate B remains basis-bound in its source Strand")
 PY
