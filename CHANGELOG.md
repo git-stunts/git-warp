@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   populated only when exactly one entity birth exists, so multiple graph
   subjects are never collapsed into one occurrence.
 
+### Fixed
+
+- Intent publication validation now runs against the fully built patch before
+  the journal can publish it. A mismatched, truncated, or appended operation
+  sequence therefore fails without advancing the target ref or losing the
+  write receipt after durable publication.
+
 ### Compatibility
 
 - Singular `Lane.write(intent)` behavior and its admission-law/digest path are

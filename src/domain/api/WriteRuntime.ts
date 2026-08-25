@@ -13,7 +13,10 @@ import type Evidence from './Evidence.ts';
 import { createWriteEvidence, createWriteRecoveryEvidence } from './EvidenceRuntime.ts';
 import IntentSequence, { type WriteIntentInput } from './IntentSequence.ts';
 import { applyIntentSequenceToPatch } from './IntentSequenceRuntime.ts';
-import { inspectPublishedIntentSequence } from './PublishedIntentSequence.ts';
+import {
+  inspectPublishedIntentSequence,
+  type PublishedEntityCoordinate,
+} from './PublishedIntentSequence.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
 import WriteReceipt from './WriteReceipt.ts';
 import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
@@ -53,9 +56,17 @@ type OperationalWriteFailure = WriteObstruction & {
 type WriteAttempt = {
   basis?: PatchBuilderCausalBasis;
   evaluation?: AdmissionEvaluation;
+  publishedEntities?: readonly PublishedEntityCoordinate[];
 };
 
-type PreparedWriteAttempt = Required<WriteAttempt>;
+type PreparedWriteAttempt = Readonly<{
+  readonly basis: PatchBuilderCausalBasis;
+  readonly evaluation: AdmissionEvaluation;
+}>;
+
+type PublishedWriteAttempt = PreparedWriteAttempt & Readonly<{
+  readonly publishedEntities: readonly PublishedEntityCoordinate[];
+}>;
 
 type FailedWriteFields = {
   readonly write: IntentWriteFields;
@@ -91,7 +102,7 @@ export async function executeIntentWrite(
     }
     return await obstructedWriteReceipt({ write: fields, attempt, recoveryEvidence, error });
   }
-  const prepared = requirePreparedWriteAttempt(attempt, missingPublishedBasisError());
+  const prepared = requirePublishedWriteAttempt(attempt, missingPublishedBasisError());
   return await derivedWriteReceipt({
     runtime,
     context,
@@ -119,6 +130,7 @@ async function publishIntentWrite(
     attempt.basis = readPatchBuilderCausalBasis(patch);
     attempt.evaluation = await prepareWriteAdmission({ ...fields, basis: attempt.basis });
     applyIntentSequenceToPatch(fields.sequence, patch);
+    attempt.publishedEntities = inspectPublishedIntentSequence(fields.sequence, patch.build());
   });
 }
 
@@ -179,15 +191,23 @@ function requirePreparedWriteAttempt(
   return { basis: attempt.basis, evaluation: attempt.evaluation };
 }
 
+function requirePublishedWriteAttempt(
+  attempt: WriteAttempt,
+  error: WarpError,
+): PublishedWriteAttempt {
+  const prepared = requirePreparedWriteAttempt(attempt, error);
+  if (attempt.publishedEntities === undefined) {
+    throw error;
+  }
+  return { ...prepared, publishedEntities: attempt.publishedEntities };
+}
+
 function missingPublishedBasisError(): WarpError {
   return new WarpError('Published write is missing its admission basis', 'E_WRITE_ADMISSION_BASIS');
 }
 
 async function derivedWriteReceipt(
-  fields: PublishedWriteFields & {
-    readonly basis: PatchBuilderCausalBasis;
-    readonly evaluation: AdmissionEvaluation;
-  }
+  fields: PublishedWriteFields & PublishedWriteAttempt,
 ): Promise<WriteReceipt<WriteIntentInput>> {
   const { runtime, context, sequence, publication } = fields;
   const evidence = await committedWriteEvidence(fields);
@@ -205,12 +225,12 @@ async function derivedWriteReceipt(
 }
 
 function publishedEntityOccurrences(
-  fields: PublishedWriteFields,
+  fields: PublishedWriteFields & PublishedWriteAttempt,
   evidence: Evidence,
 ): readonly EntityOccurrence[] {
   const { patch, sha } = fields.publication;
   return Object.freeze(
-    inspectPublishedIntentSequence(fields.sequence, patch).map((coordinate) =>
+    fields.publishedEntities.map((coordinate) =>
       createEntityOccurrence({
         context: patch.context,
         dot: coordinate.dot,
